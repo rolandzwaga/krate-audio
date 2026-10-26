@@ -1,0 +1,142 @@
+Filters: "BassStereoField_MotionBounded"
+Randomness seeded to: 747348475
+BSF_MOTION,drift_tau_cfg,rate,0,tau_s,30,formula_s,30
+BSF_MOTION,drift_tau_cfg,rate,0.25,tau_s,10.7791,formula_s,10.7791
+BSF_MOTION,drift_tau_cfg,rate,0.5,tau_s,3.87298,formula_s,3.87298
+BSF_MOTION,drift_tau_cfg,rate,0.75,tau_s,1.39158,formula_s,1.39158
+BSF_MOTION,drift_tau_cfg,rate,1,tau_s,0.5,formula_s,0.5
+BSF_MOTION,drift,0,0.5,0,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,drift,0,0.5,0,0,0,inward,k,11,P,0.5,mean_abs,0.5,P(1-kappa mu),0.5
+BSF_MOTION,drift,0,0.5,0.5,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,drift,0,0.5,0.5,0,0,inward,k,11,P,0.5,mean_abs,0.5,P(1-kappa mu),0.5
+BSF_MOTION,drift,0,0.5,1,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,drift,0,0.5,1,0,0,inward,k,11,P,0.5,mean_abs,0.5,P(1-kappa mu),0.5
+BSF_MOTION,drift,0.5,0.5,0,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95879e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,drift,0.5,0.5,0,0,0,inward,k,11,P,0.5,mean_abs,0.454729,P(1-kappa mu),0.375
+BSF_MOTION,drift,0.5,0.5,0,0,0,drift_tau,k,11,P,0.5,tau_cfg_s,30,tau_fit_s,8.45521,ratio,0.28184,gated,0
+BSF_MOTION,drift,0.5,0.5,0,0,0,drift_tau,k,4,P,0.0394532,tau_cfg_s,30,tau_fit_s,8.45521,ratio,0.28184,gated,0
+BSF_MOTION,drift,0.5,0.5,0.5,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95858e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,drift,0.5,0.5,0.5,0,0,inward,k,11,P,0.5,mean_abs,0.417878,P(1-kappa mu),0.375
+BSF_MOTION,drift,0.5,0.5,0.5,0,0,drift_tau,k,11,P,0.5,tau_cfg_s,3.87298,tau_fit_s,2.3448,ratio,0.605425,gated,1
+BSF_MOTION,drift,0.5,0.5,0.5,0,0,drift_tau,k,4,P,0.0394532,tau_cfg_s,3.87298,tau_fit_s,2.3448,ratio,0.605425,gated,1
+BSF_MOTION,drift,0.5,0.5,1,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95827e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,drift,0.5,0.5,1,0,0,inward,k,11,P,0.5,mean_abs,0.39117,P(1-kappa mu),0.375
+BSF_MOTION,drift,0.5,0.5,1,0,0,drift_tau,k,11,P,0.5,tau_cfg_s,0.5,tau_fit_s,0.460405,ratio,0.920811,gated,1
+BSF_MOTION,drift,0.5,0.5,1,0,0,drift_tau,k,4,P,0.0394532,tau_cfg_s,0.5,tau_fit_s,0.460405,ratio,0.920811,gated,1
+BSF_MOTION,drift,1,0.5,0,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95888e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,drift,1,0.5,0,0,0,inward,k,11,P,0.5,mean_abs,0.409458,P(1-kappa mu),0.25
+BSF_MOTION,drift,1,0.5,0,0,0,drift_tau,k,11,P,0.5,tau_cfg_s,30,tau_fit_s,8.45521,ratio,0.28184,gated,0
+BSF_MOTION,drift,1,0.5,0,0,0,drift_tau,k,4,P,0.0394532,tau_cfg_s,30,tau_fit_s,8.45521,ratio,0.28184,gated,0
+BSF_MOTION,drift,1,0.5,0.5,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.9588e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,drift,1,0.5,0.5,0,0,inward,k,11,P,0.5,mean_abs,0.335757,P(1-kappa mu),0.25
+BSF_MOTION,drift,1,0.5,0.5,0,0,drift_tau,k,11,P,0.5,tau_cfg_s,3.87298,tau_fit_s,2.3448,ratio,0.605425,gated,1
+BSF_MOTION,drift,1,0.5,0.5,0,0,drift_tau,k,4,P,0.0394532,tau_cfg_s,3.87298,tau_fit_s,2.3448,ratio,0.605425,gated,1
+BSF_MOTION,drift,1,0.5,1,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95843e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,drift,1,0.5,1,0,0,inward,k,11,P,0.5,mean_abs,0.28234,P(1-kappa mu),0.25
+BSF_MOTION,drift,1,0.5,1,0,0,drift_tau,k,11,P,0.5,tau_cfg_s,0.5,tau_fit_s,0.460405,ratio,0.920811,gated,1
+BSF_MOTION,drift,1,0.5,1,0,0,drift_tau,k,4,P,0.0394532,tau_cfg_s,0.5,tau_fit_s,0.460405,ratio,0.920811,gated,1
+BSF_MOTION,drift,0,1,0,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,drift,0,1,0,0,0,inward,k,11,P,1,mean_abs,1,P(1-kappa mu),1
+BSF_MOTION,drift,0,1,0.5,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,drift,0,1,0.5,0,0,inward,k,11,P,1,mean_abs,1,P(1-kappa mu),1
+BSF_MOTION,drift,0,1,1,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,drift,0,1,1,0,0,inward,k,11,P,1,mean_abs,1,P(1-kappa mu),1
+BSF_MOTION,drift,0.5,1,0,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.91758e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,drift,0.5,1,0,0,0,inward,k,11,P,1,mean_abs,0.909458,P(1-kappa mu),0.75
+BSF_MOTION,drift,0.5,1,0,0,0,drift_tau,k,11,P,1,tau_cfg_s,30,tau_fit_s,8.45521,ratio,0.28184,gated,0
+BSF_MOTION,drift,0.5,1,0,0,0,drift_tau,k,3,P,0.0138953,tau_cfg_s,30,tau_fit_s,8.45521,ratio,0.28184,gated,0
+BSF_MOTION,drift,0.5,1,0.5,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.91717e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,drift,0.5,1,0.5,0,0,inward,k,11,P,1,mean_abs,0.835757,P(1-kappa mu),0.75
+BSF_MOTION,drift,0.5,1,0.5,0,0,drift_tau,k,11,P,1,tau_cfg_s,3.87298,tau_fit_s,2.3448,ratio,0.605425,gated,1
+BSF_MOTION,drift,0.5,1,0.5,0,0,drift_tau,k,3,P,0.0138953,tau_cfg_s,3.87298,tau_fit_s,2.3448,ratio,0.605425,gated,1
+BSF_MOTION,drift,0.5,1,1,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.91653e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,drift,0.5,1,1,0,0,inward,k,11,P,1,mean_abs,0.78234,P(1-kappa mu),0.75
+BSF_MOTION,drift,0.5,1,1,0,0,drift_tau,k,11,P,1,tau_cfg_s,0.5,tau_fit_s,0.460405,ratio,0.920811,gated,1
+BSF_MOTION,drift,0.5,1,1,0,0,drift_tau,k,3,P,0.0138953,tau_cfg_s,0.5,tau_fit_s,0.460405,ratio,0.920811,gated,1
+BSF_MOTION,drift,1,1,0,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.91775e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,drift,1,1,0,0,0,inward,k,11,P,1,mean_abs,0.818916,P(1-kappa mu),0.5
+BSF_MOTION,drift,1,1,0,0,0,drift_tau,k,11,P,1,tau_cfg_s,30,tau_fit_s,8.45521,ratio,0.28184,gated,0
+BSF_MOTION,drift,1,1,0,0,0,drift_tau,k,3,P,0.0138953,tau_cfg_s,30,tau_fit_s,8.45521,ratio,0.28184,gated,0
+BSF_MOTION,drift,1,1,0.5,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.91759e-08,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,drift,1,1,0.5,0,0,inward,k,11,P,1,mean_abs,0.671514,P(1-kappa mu),0.5
+BSF_MOTION,drift,1,1,0.5,0,0,drift_tau,k,11,P,1,tau_cfg_s,3.87298,tau_fit_s,2.3448,ratio,0.605425,gated,1
+BSF_MOTION,drift,1,1,0.5,0,0,drift_tau,k,3,P,0.0138953,tau_cfg_s,3.87298,tau_fit_s,2.3448,ratio,0.605425,gated,1
+BSF_MOTION,drift,1,1,1,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,0.0395355,worst_mean_err_rel,0,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,drift,1,1,1,0,0,inward,k,11,P,1,mean_abs,0.564693,P(1-kappa mu),0.5
+BSF_MOTION,drift,1,1,1,0,0,drift_tau,k,11,P,1,tau_cfg_s,0.5,tau_fit_s,0.460276,ratio,0.920551,gated,1
+BSF_MOTION,drift,1,1,1,0,0,drift_tau,k,3,P,0.0138953,tau_cfg_s,0.5,tau_fit_s,0.460405,ratio,0.920811,gated,1
+BSF_MOTION,cycle,0,0.5,0,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,cycle,0,0.5,0,0,0,inward,k,11,P,0.5,mean_abs,0.5,P(1-kappa mu),0.5
+BSF_MOTION,cycle,0,0.5,0.5,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,cycle,0,0.5,0.5,0,0,inward,k,11,P,0.5,mean_abs,0.5,P(1-kappa mu),0.5
+BSF_MOTION,cycle,0,0.5,1,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,cycle,0,0.5,1,0,0,inward,k,11,P,0.5,mean_abs,0.5,P(1-kappa mu),0.5
+BSF_MOTION,cycle,0.5,0.5,0,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95862e-08,worst_mean_err_rel,1.327e-10,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,cycle,0.5,0.5,0,0,0,inward,k,11,P,0.5,mean_abs,0.375,P(1-kappa mu),0.375
+BSF_MOTION,cycle,0.5,0.5,0,0,0,cycle_peak,k,11,P,0.5,peak_hz,0.0457764,cycle_hz,0.05,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,0.5,0,0,0,cycle_peak,k,4,P,0.0394532,peak_hz,0.0457764,cycle_hz,0.05,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,0.5,0.5,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95878e-08,worst_mean_err_rel,5.08406e-10,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,cycle,0.5,0.5,0.5,0,0,inward,k,11,P,0.5,mean_abs,0.377765,P(1-kappa mu),0.375
+BSF_MOTION,cycle,0.5,0.5,0.5,0,0,cycle_peak,k,11,P,0.5,peak_hz,0.228882,cycle_hz,0.223607,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,0.5,0.5,0,0,cycle_peak,k,4,P,0.0394532,peak_hz,0.228882,cycle_hz,0.223607,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,0.5,1,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95497e-08,worst_mean_err_rel,1.18737e-09,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,cycle,0.5,0.5,1,0,0,inward,k,11,P,0.5,mean_abs,0.375,P(1-kappa mu),0.375
+BSF_MOTION,cycle,0.5,0.5,1,0,0,cycle_peak,k,11,P,0.5,peak_hz,0.995636,cycle_hz,1,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,0.5,1,0,0,cycle_peak,k,4,P,0.0394532,peak_hz,0.995636,cycle_hz,1,bin_hz,0.0114441
+BSF_MOTION,cycle,1,0.5,0,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95881e-08,worst_mean_err_rel,9.9201e-11,zero_hits,186,cycle_hz,0.05,tau_s,30
+BSF_MOTION,cycle,1,0.5,0,0,0,inward,k,11,P,0.5,mean_abs,0.25,P(1-kappa mu),0.25
+BSF_MOTION,cycle,1,0.5,0,0,0,cycle_peak,k,11,P,0.5,peak_hz,0.0457764,cycle_hz,0.05,bin_hz,0.0114441
+BSF_MOTION,cycle,1,0.5,0,0,0,cycle_peak,k,4,P,0.0394532,peak_hz,0.0457764,cycle_hz,0.05,bin_hz,0.0114441
+BSF_MOTION,cycle,1,0.5,0.5,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95855e-08,worst_mean_err_rel,7.36583e-10,zero_hits,62,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,cycle,1,0.5,0.5,0,0,inward,k,11,P,0.5,mean_abs,0.255531,P(1-kappa mu),0.25
+BSF_MOTION,cycle,1,0.5,0.5,0,0,cycle_peak,k,11,P,0.5,peak_hz,0.228882,cycle_hz,0.223607,bin_hz,0.0114441
+BSF_MOTION,cycle,1,0.5,0.5,0,0,cycle_peak,k,4,P,0.0394532,peak_hz,0.228882,cycle_hz,0.223607,bin_hz,0.0114441
+BSF_MOTION,cycle,1,0.5,1,0,0,fixed,2,moving,60,worst_exc_minus_bound,0,worst_affine,2.95115e-08,worst_mean_err_rel,1.40889e-09,zero_hits,3720,cycle_hz,1,tau_s,0.5
+BSF_MOTION,cycle,1,0.5,1,0,0,inward,k,11,P,0.5,mean_abs,0.25,P(1-kappa mu),0.25
+BSF_MOTION,cycle,1,0.5,1,0,0,cycle_peak,k,11,P,0.5,peak_hz,0.995636,cycle_hz,1,bin_hz,0.0114441
+BSF_MOTION,cycle,1,0.5,1,0,0,cycle_peak,k,4,P,0.0394532,peak_hz,0.995636,cycle_hz,1,bin_hz,0.0114441
+BSF_MOTION,cycle,0,1,0,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,cycle,0,1,0,0,0,inward,k,11,P,1,mean_abs,1,P(1-kappa mu),1
+BSF_MOTION,cycle,0,1,0.5,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,cycle,0,1,0.5,0,0,inward,k,11,P,1,mean_abs,1,P(1-kappa mu),1
+BSF_MOTION,cycle,0,1,1,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,0,worst_mean_err_rel,0,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,cycle,0,1,1,0,0,inward,k,11,P,1,mean_abs,1,P(1-kappa mu),1
+BSF_MOTION,cycle,0.5,1,0,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.91724e-08,worst_mean_err_rel,1.327e-10,zero_hits,0,cycle_hz,0.05,tau_s,30
+BSF_MOTION,cycle,0.5,1,0,0,0,inward,k,11,P,1,mean_abs,0.75,P(1-kappa mu),0.75
+BSF_MOTION,cycle,0.5,1,0,0,0,cycle_peak,k,11,P,1,peak_hz,0.0457764,cycle_hz,0.05,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,1,0,0,0,cycle_peak,k,3,P,0.0138953,peak_hz,0.0457764,cycle_hz,0.05,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,1,0.5,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.91756e-08,worst_mean_err_rel,5.08406e-10,zero_hits,0,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,cycle,0.5,1,0.5,0,0,inward,k,11,P,1,mean_abs,0.755531,P(1-kappa mu),0.75
+BSF_MOTION,cycle,0.5,1,0.5,0,0,cycle_peak,k,11,P,1,peak_hz,0.228882,cycle_hz,0.223607,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,1,0.5,0,0,cycle_peak,k,3,P,0.0138953,peak_hz,0.228882,cycle_hz,0.223607,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,1,1,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.90994e-08,worst_mean_err_rel,1.18737e-09,zero_hits,0,cycle_hz,1,tau_s,0.5
+BSF_MOTION,cycle,0.5,1,1,0,0,inward,k,11,P,1,mean_abs,0.75,P(1-kappa mu),0.75
+BSF_MOTION,cycle,0.5,1,1,0,0,cycle_peak,k,11,P,1,peak_hz,0.995636,cycle_hz,1,bin_hz,0.0114441
+BSF_MOTION,cycle,0.5,1,1,0,0,cycle_peak,k,3,P,0.0138953,peak_hz,0.995636,cycle_hz,1,bin_hz,0.0114441
+BSF_MOTION,cycle,1,1,0,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.91762e-08,worst_mean_err_rel,9.9201e-11,zero_hits,186,cycle_hz,0.05,tau_s,30
+BSF_MOTION,cycle,1,1,0,0,0,inward,k,11,P,1,mean_abs,0.5,P(1-kappa mu),0.5
+BSF_MOTION,cycle,1,1,0,0,0,cycle_peak,k,11,P,1,peak_hz,0.0457764,cycle_hz,0.05,bin_hz,0.0114441
+BSF_MOTION,cycle,1,1,0,0,0,cycle_peak,k,3,P,0.0138953,peak_hz,0.0457764,cycle_hz,0.05,bin_hz,0.0114441
+BSF_MOTION,cycle,1,1,0.5,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.9171e-08,worst_mean_err_rel,7.36583e-10,zero_hits,62,cycle_hz,0.223607,tau_s,3.87298
+BSF_MOTION,cycle,1,1,0.5,0,0,inward,k,11,P,1,mean_abs,0.511062,P(1-kappa mu),0.5
+BSF_MOTION,cycle,1,1,0.5,0,0,cycle_peak,k,11,P,1,peak_hz,0.228882,cycle_hz,0.223607,bin_hz,0.0114441
+BSF_MOTION,cycle,1,1,0.5,0,0,cycle_peak,k,3,P,0.0138953,peak_hz,0.228882,cycle_hz,0.223607,bin_hz,0.0114441
+BSF_MOTION,cycle,1,1,1,0,0,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.9023e-08,worst_mean_err_rel,1.40889e-09,zero_hits,3720,cycle_hz,1,tau_s,0.5
+BSF_MOTION,cycle,1,1,1,0,0,inward,k,11,P,1,mean_abs,0.5,P(1-kappa mu),0.5
+BSF_MOTION,cycle,1,1,1,0,0,cycle_peak,k,11,P,1,peak_hz,0.995636,cycle_hz,1,bin_hz,0.0114441
+BSF_MOTION,cycle,1,1,1,0,0,cycle_peak,k,3,P,0.0138953,peak_hz,0.995636,cycle_hz,1,bin_hz,0.0114441
+BSF_MOTION,sync,bpm,120,cycle_hz,0.75,expected,0.75,before_bad,0.75,after_bad,0.75
+BSF_MOTION,cycle,1,1,0.3,1,120,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.90163e-08,worst_mean_err_rel,1.34775e-09,zero_hits,2790,cycle_hz,0.75,tau_s,8.78367
+BSF_MOTION,cycle,1,1,0.3,1,120,inward,k,11,P,1,mean_abs,0.5,P(1-kappa mu),0.5
+BSF_MOTION,cycle,1,1,0.3,1,120,cycle_peak,k,11,P,1,peak_hz,0.75531,cycle_hz,0.75,bin_hz,0.0114441
+BSF_MOTION,cycle,1,1,0.3,1,120,cycle_peak,k,3,P,0.0138953,peak_hz,0.75531,cycle_hz,0.75,bin_hz,0.0114441
+BSF_MOTION,sync,bpm,200,cycle_hz,0.625,expected,0.625,before_bad,0.625,after_bad,0.625
+BSF_MOTION,cycle,1,1,0.3,1,200,fixed,2,moving,61,worst_exc_minus_bound,0,worst_affine,5.89104e-08,worst_mean_err_rel,9.37452e-10,zero_hits,2294,cycle_hz,0.625,tau_s,8.78367
+BSF_MOTION,cycle,1,1,0.3,1,200,inward,k,11,P,1,mean_abs,0.504244,P(1-kappa mu),0.5
+BSF_MOTION,cycle,1,1,0.3,1,200,cycle_peak,k,11,P,1,peak_hz,0.629425,cycle_hz,0.625,bin_hz,0.0114441
+BSF_MOTION,cycle,1,1,0.3,1,200,cycle_peak,k,3,P,0.0138953,peak_hz,0.629425,cycle_hz,0.625,bin_hz,0.0114441
+12.336 s: BassStereoField_MotionBounded
+===============================================================================
+All tests passed (869 assertions in 1 test case)
+
+exit: 0 wall: 13 s

@@ -1,0 +1,29 @@
+Filters: "Profundum_ProcessorLifecycle"
+Randomness seeded to: 2262723644
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorLifecycle
+  IdleIsExactZero
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(87)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(99): warning:
+  P-5 idle: non-zero samples L = 0, R = 0 of 4096
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(135): warning:
+  P-5 held E1 RMS (L, 0 .. 0.5 s) = -14.3377 dBFS
+
+F:\projects\iterum\plugins\profundum\tests\unit\lifecycle_test.cpp(144): warning:
+  P-5 release: last non-zero Sum-tap sample = 28798 (bar < 30000); samples
+  above 1e-6 from 48000: L 0, R 0; last non-zero output sample L = 72527, R =
+  72527 (exact-zero tail starts at 84000)
+
+===============================================================================
+All tests passed (16 assertions in 1 test case)
+
+exit: 0

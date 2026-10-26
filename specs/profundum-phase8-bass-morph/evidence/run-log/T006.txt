@@ -1,0 +1,61 @@
+T006 Non-finite safety (SC-012; FR-005 / FR-006 / FR-013 / FR-021 / FR-062 non-finite rows; FR-081; plan R-5, C-7) - 2026-10-19
+
+STATUS: done (not built, not run: the Group 6 gate builds dsp_systems_tests and runs the gate filter).
+
+Files written:
+  dsp/tests/unit/systems/bass_morph_nonfinite_test.cpp (T001 stub filled; in the -fno-fast-math block,
+      dsp/tests/CMakeLists.txt:1285-1286). Includes only morph_state.h, bass_morph_engine.h, bass_morph_state_helpers.h
+      (+ std headers). One TEST_CASE BassMorph_NonFinite [systems][profundum][bass-morph][nonfinite][sc-012], SECTIONs:
+      position, ramp, endpoints, validation, state bytes, runtime bytes.
+  specs/profundum-phase8-bass-morph/evidence/run-log/T006.txt (this file)
+
+No header edited (T006 owns only the TU). Engine-only: no FTZ / DAZ (tasks.md rule 9).
+
+Special values: every one from a bit pattern via volatile std::uint32_t + std::bit_cast<float>: qNaN 0x7FC00000,
+sNaN 0x7FA00000, -NaN 0xFFC00000, +Inf 0x7F800000, -Inf 0xFF800000, +den 0x00000001, -den 0x80000001, -0 0x80000000.
+Finiteness only through detail::isFinite; bit comparisons via std::bit_cast; Resolved compared with
+BassMorphTest::bitEqual (twins of one process, rule 7).
+
+Decisions:
+  - position: showcasePair, each of Lock / Blend / Punch, landed at 0.4 (setPosition then prepare -> reset snap,
+    plan C-5; REQUIRE position bits == 0.4f). NaN x3 / +-Inf: targetPosition stays 0.4f bitwise and 64 intervals
+    bitEqual to an untouched twin. +-denormal and -0: target bits == 0 (+0, C-7) AND 64 intervals bitEqual to a twin
+    given setPosition(+0.0f) (stronger than the target check alone).
+  - ramp: run while ramping (333 ms, 0 -> 1) so a corrupted rate would diverge from the twin; 64 intervals bitEqual.
+    Also checked on an unprepared engine (prepared_ == false path of setPositionRampMs).
+  - endpoints / validation "nextafter(lo, -inf)" and "nextafter(hi, +inf)": computed by bmStepDown / bmStepUp on the
+    bit pattern (identical to std::nextafter for finite x) so a flush-to-zero mode can never turn 0x80000001 into
+    -0 (which is valid in [0, x]). The half-open motion.cyclePhaseDeg row additionally tests hi = 360 itself.
+    Enum8 rows: maxEnum + 1 via a raw byte. Bool rows have no invalid in-memory value (C-13), so none.
+    Endpoint section: after each rejected setEndpoint, endpoint(e) is leafBitsEqual to before, one advanceInterval
+    on engine and twin is bitEqual, resolved sane.
+  - validation denormal rule, generic over every F32 row: +den valid iff lo <= 0 < hi; -den valid iff lo < 0 <= hi
+    (= the task's "false in [0, x] boxes, true in [-1, x] boxes"; recipe.bodyEmphasis [-1, 0] gives +den false,
+    -den true; rows with lo > 0 give false for both). Matches isValidMorphState's orderedFloatKey test
+    (morph_state.h:502-506, 526) and BassStereoField::inClosedRange's sign-bit test (bass_stereo_field.h:540-547).
+  - state bytes: stream of showcase A; each F32 leaf's 4 bytes at kLeafOffsets[i] overwritten with qNaN / sNaN /
+    -NaN / +Inf / -Inf -> deserializeMorphState false, out (showcase B) leafBitsEqual unchanged; positive control
+    first. serializeMorphState of the in-memory invalid state (the same bad-value set as endpoints) -> 0 and a
+    0xA5-filled destination unchanged.
+  - runtime bytes: source = Blend, ramp 333, mid-ramp 0.6 -> 0.2 (5 intervals); receiver = Punch, ramp 100, landed
+    0.9, same endpoints; positive control (restore into a copy accepted, bytes round-trip). Target / p / p_a
+    (offsets 1 / 5 / 9, mirroring bass_morph_engine.h:339-346) set to qNaN / sNaN / -NaN / +-Inf / 1e-20f / 1e-16f /
+    nextafter(1e-15f, 0) / +-den; ramp (offset 14) to the five non-finite patterns -> restoreRuntime false,
+    resolved() bitEqual to before AND serializeRuntime bytes unchanged.
+  - after every engine call: bmCheckResolvedSane (every float of resolved().state isFinite, position /
+    anchorPosition / anchorMass finite, isValidMorphState(resolved().state)).
+
+Deviation from the task text: sections test -NaN (0xFFC00000) wherever the task lists "NaN (both kinds)" as well -
+an addition, nothing relaxed.
+
+Failing-first evidence (reasoning; executors do not build): against the T001 stub the case did not exist. The
+assertions target behaviour implemented by T002-T005 (setPosition C-7 at bass_morph_engine.h:140-147,
+setPositionRampMs :155-163, setEndpoint :113-128, restoreRuntime / isRuntimePosition :274-363,
+isValidMorphState / serialize / deserialize morph_state.h:513-612); reading those, every assertion is expected to
+pass. No DEFECT found.
+
+Compile sanity (not a build of the tree): clang++ -std=c++20 -fsyntax-only -Wall -Wextra -Wconversion
+-fno-fast-math on this TU with dsp/include, tests/test_helpers, the fetched Catch2 include dirs: no error and no
+diagnostic in any Phase 8 file (the only warnings are in untouched headers: crossover_filter.h:434-435
+-Wdefaulted-function-deleted, as T004 / T005 recorded, and -Wsign-conversion in harmonic_oscillator_bank.h,
+which only -Wconversion surfaces).

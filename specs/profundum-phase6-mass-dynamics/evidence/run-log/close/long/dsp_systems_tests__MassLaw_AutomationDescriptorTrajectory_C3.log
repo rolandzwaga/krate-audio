@@ -1,0 +1,112 @@
+Filters: "MassLaw_AutomationDescriptorTrajectory_C3"
+Randomness seeded to: 106944973
+[T015 lattice C3] Mass 0: w1/Sum -0.344047 dB, E_low -11.211, E_high -33.0305, THD -10.8385 dB, C 0.0918596 oct, L -9.92572 dBFS, w1(sum) 88.7555 dB, GR -0 dB
+[T015 lattice C3] Mass 1: w1/Sum -0.349815 dB, E_low -11.1436, E_high -32.677, THD -10.7634 dB, C 0.0937456 oct, L -9.89963 dBFS, w1(sum) 88.8149 dB, GR -0 dB
+[T015 lattice C3] Mass 2: w1/Sum -0.355756 dB, E_low -11.0755, E_high -32.3225, THD -10.6872 dB, C 0.0957004 oct, L -9.87419 dBFS, w1(sum) 88.8734 dB, GR -0 dB
+[T015 lattice C3] Mass 3: w1/Sum -0.361874 dB, E_low -11.0066, E_high -31.9671, THD -10.6101 dB, C 0.0977269 oct, L -9.84938 dBFS, w1(sum) 88.9312 dB, GR -0 dB
+[T015 lattice C3] Mass 4: w1/Sum -0.36818 dB, E_low -10.9371, E_high -31.6108, THD -10.5319 dB, C 0.0998289 oct, L -9.82516 dBFS, w1(sum) 88.9881 dB, GR -0 dB
+[T015 lattice C3] Mass 5: w1/Sum -0.374676 dB, E_low -10.8668, E_high -31.2536, THD -10.4526 dB, C 0.10201 oct, L -9.80152 dBFS, w1(sum) 89.0443 dB, GR -0 dB
+[T015 lattice C3] Mass 6: w1/Sum -0.38137 dB, E_low -10.7959, E_high -30.8955, THD -10.3723 dB, C 0.104273 oct, L -9.77843 dBFS, w1(sum) 89.0997 dB, GR -0 dB
+[T015 lattice C3] Mass 7: w1/Sum -0.388269 dB, E_low -10.7243, E_high -30.5365, THD -10.2909 dB, C 0.106622 oct, L -9.7559 dBFS, w1(sum) 89.1543 dB, GR -0 dB
+[T015 lattice C3] Mass 8: w1/Sum -0.39538 dB, E_low -10.6521, E_high -30.1766, THD -10.2085 dB, C 0.109062 oct, L -9.7339 dBFS, w1(sum) 89.208 dB, GR -0 dB
+[T015 lattice C3] Mass 9: w1/Sum -0.402711 dB, E_low -10.5792, E_high -29.8159, THD -10.125 dB, C 0.111596 oct, L -9.71251 dBFS, w1(sum) 89.261 dB, GR -0 dB
+[T015 lattice C3] Mass 10: w1/Sum -0.41027 dB, E_low -10.5056, E_high -29.4542, THD -10.0404 dB, C 0.114231 oct, L -9.69171 dBFS, w1(sum) 89.3131 dB, GR -0 dB
+[T015 lattice C3] Mass 11: w1/Sum -0.418064 dB, E_low -10.4315, E_high -29.0917, THD -9.95471 dB, C 0.116969 oct, L -9.67149 dBFS, w1(sum) 89.3645 dB, GR -0 dB
+[T015 lattice C3] Mass 12: w1/Sum -0.426103 dB, E_low -10.3567, E_high -28.7283, THD -9.8679 dB, C 0.119818 oct, L -9.65185 dBFS, w1(sum) 89.4149 dB, GR -0 dB
+[T015 lattice C3] Mass 13: w1/Sum -0.434396 dB, E_low -10.2814, E_high -28.364, THD -9.77997 dB, C 0.122781 oct, L -9.63294 dBFS, w1(sum) 89.4646 dB, GR -0 dB
+[T015 lattice C3] Mass 14: w1/Sum -0.442954 dB, E_low -10.2054, E_high -27.9989, THD -9.6909 dB, C 0.125867 oct, L -9.61552 dBFS, w1(sum) 89.5133 dB, GR -0 dB
+[T015 lattice C3] Mass 15: w1/Sum -0.451785 dB, E_low -10.1289, E_high -27.633, THD -9.60067 dB, C 0.12908 oct, L -9.59789 dBFS, w1(sum) 89.5613 dB, GR -0 dB
+[T015 lattice C3] Mass 16: w1/Sum -0.460901 dB, E_low -10.0519, E_high -27.2662, THD -9.50928 dB, C 0.132428 oct, L -9.58084 dBFS, w1(sum) 89.6083 dB, GR -0 dB
+[T015 lattice C3] Mass 17: w1/Sum -0.470313 dB, E_low -9.9743, E_high -26.8987, THD -9.41669 dB, C 0.135918 oct, L -9.56442 dBFS, w1(sum) 89.6545 dB, GR -0 dB
+[T015 lattice C3] Mass 18: w1/Sum -0.480033 dB, E_low -9.8962, E_high -26.5303, THD -9.3229 dB, C 0.139558 oct, L -9.5487 dBFS, w1(sum) 89.6997 dB, GR -0 dB
+[T015 lattice C3] Mass 19: w1/Sum -0.490073 dB, E_low -9.81761, E_high -26.1611, THD -9.22789 dB, C 0.143356 oct, L -9.53438 dBFS, w1(sum) 89.744 dB, GR -0 dB
+[T015 lattice C3] Mass 20: w1/Sum -0.500447 dB, E_low -9.73855, E_high -25.7911, THD -9.13164 dB, C 0.147322 oct, L -9.52125 dBFS, w1(sum) 89.7874 dB, GR -0 dB
+[T015 lattice C3] Mass 21: w1/Sum -0.511168 dB, E_low -9.65903, E_high -25.4204, THD -9.03412 dB, C 0.151464 oct, L -9.50734 dBFS, w1(sum) 89.8299 dB, GR -0 dB
+[T015 lattice C3] Mass 22: w1/Sum -0.522251 dB, E_low -9.5791, E_high -25.0489, THD -8.93531 dB, C 0.155793 oct, L -9.49407 dBFS, w1(sum) 89.8714 dB, GR -0 dB
+[T015 lattice C3] Mass 23: w1/Sum -0.533711 dB, E_low -9.49876, E_high -24.6767, THD -8.83519 dB, C 0.16032 oct, L -9.48146 dBFS, w1(sum) 89.9119 dB, GR -0 dB
+[T015 lattice C3] Mass 24: w1/Sum -0.545565 dB, E_low -9.41806, E_high -24.3038, THD -8.73374 dB, C 0.165057 oct, L -9.46946 dBFS, w1(sum) 89.9513 dB, GR -0 dB
+[T015 lattice C3] Mass 25: w1/Sum -0.55783 dB, E_low -9.33702, E_high -23.9302, THD -8.63092 dB, C 0.170016 oct, L -9.45807 dBFS, w1(sum) 89.9898 dB, GR -0 dB
+[T015 lattice C3] Mass 26: w1/Sum -0.570523 dB, E_low -9.25567, E_high -23.5559, THD -8.52673 dB, C 0.175211 oct, L -9.44726 dBFS, w1(sum) 90.0271 dB, GR -0 dB
+[T015 lattice C3] Mass 27: w1/Sum -0.583664 dB, E_low -9.17405, E_high -23.181, THD -8.42111 dB, C 0.180656 oct, L -9.43705 dBFS, w1(sum) 90.0634 dB, GR -0 dB
+[T015 lattice C3] Mass 28: w1/Sum -0.597274 dB, E_low -9.0922, E_high -22.8054, THD -8.31405 dB, C 0.186367 oct, L -9.42746 dBFS, w1(sum) 90.0986 dB, GR -0 dB
+[T015 lattice C3] Mass 29: w1/Sum -0.611372 dB, E_low -9.01016, E_high -22.4293, THD -8.20552 dB, C 0.192361 oct, L -9.41847 dBFS, w1(sum) 90.1326 dB, GR -0 dB
+[T015 lattice C3] Mass 30: w1/Sum -0.625981 dB, E_low -8.92798, E_high -22.0527, THD -8.09548 dB, C 0.198655 oct, L -9.4101 dBFS, w1(sum) 90.1654 dB, GR -0 dB
+[T015 lattice C3] Mass 31: w1/Sum -0.641125 dB, E_low -8.8457, E_high -21.6755, THD -7.98391 dB, C 0.205268 oct, L -9.40237 dBFS, w1(sum) 90.197 dB, GR -0 dB
+[T015 lattice C3] Mass 32: w1/Sum -0.656829 dB, E_low -8.76337, E_high -21.2979, THD -7.87077 dB, C 0.212221 oct, L -9.39533 dBFS, w1(sum) 90.2274 dB, GR -0 dB
+[T015 lattice C3] Mass 33: w1/Sum -0.673119 dB, E_low -8.68105, E_high -20.9198, THD -7.75602 dB, C 0.219536 oct, L -9.38906 dBFS, w1(sum) 90.2565 dB, GR -0 dB
+[T015 lattice C3] Mass 34: w1/Sum -0.690022 dB, E_low -8.59881, E_high -20.5414, THD -7.63963 dB, C 0.227237 oct, L -9.3834 dBFS, w1(sum) 90.2842 dB, GR -0 dB
+[T015 lattice C3] Mass 35: w1/Sum -0.707568 dB, E_low -8.5167, E_high -20.1627, THD -7.52158 dB, C 0.235349 oct, L -9.37838 dBFS, w1(sum) 90.3106 dB, GR -0 dB
+[T015 lattice C3] Mass 36: w1/Sum -0.725787 dB, E_low -8.4348, E_high -19.7837, THD -7.4018 dB, C 0.243899 oct, L -9.37409 dBFS, w1(sum) 90.3355 dB, GR -0 dB
+[T015 lattice C3] Mass 37: w1/Sum -0.744712 dB, E_low -8.35319, E_high -19.4046, THD -7.28029 dB, C 0.252917 oct, L -9.37052 dBFS, w1(sum) 90.3589 dB, GR -0 dB
+[T015 lattice C3] Mass 38: w1/Sum -0.764376 dB, E_low -8.27195, E_high -19.0253, THD -7.15698 dB, C 0.262432 oct, L -9.3677 dBFS, w1(sum) 90.3808 dB, GR -0 dB
+[T015 lattice C3] Mass 39: w1/Sum -0.784815 dB, E_low -8.19117, E_high -18.646, THD -7.03186 dB, C 0.272479 oct, L -9.36579 dBFS, w1(sum) 90.4012 dB, GR -0 dB
+[T015 lattice C3] Mass 40: w1/Sum -0.806066 dB, E_low -8.11094, E_high -18.2667, THD -6.90487 dB, C 0.283093 oct, L -9.36544 dBFS, w1(sum) 90.4199 dB, GR -0 dB
+[T015 lattice C3] Mass 41: w1/Sum -0.828168 dB, E_low -8.03136, E_high -17.8875, THD -6.776 dB, C 0.294312 oct, L -9.36526 dBFS, w1(sum) 90.4368 dB, GR -0 dB
+[T015 lattice C3] Mass 42: w1/Sum -0.851163 dB, E_low -7.95256, E_high -17.5086, THD -6.64519 dB, C 0.306176 oct, L -9.36592 dBFS, w1(sum) 90.452 dB, GR -0 dB
+[T015 lattice C3] Mass 43: w1/Sum -0.875092 dB, E_low -7.87465, E_high -17.1301, THD -6.51241 dB, C 0.318728 oct, L -9.36763 dBFS, w1(sum) 90.4654 dB, GR -0 dB
+[T015 lattice C3] Mass 44: w1/Sum -0.900001 dB, E_low -7.79776, E_high -16.752, THD -6.37764 dB, C 0.332013 oct, L -9.37035 dBFS, w1(sum) 90.4768 dB, GR -0 dB
+[T015 lattice C3] Mass 45: w1/Sum -0.925937 dB, E_low -7.72202, E_high -16.3745, THD -6.24084 dB, C 0.34608 oct, L -9.37393 dBFS, w1(sum) 90.4862 dB, GR -0 dB
+[T015 lattice C3] Mass 46: w1/Sum -0.95294 dB, E_low -7.64761, E_high -15.9977, THD -6.10201 dB, C 0.360977 oct, L -9.38316 dBFS, w1(sum) 90.4936 dB, GR -0 dB
+[T015 lattice C3] Mass 47: w1/Sum -0.981067 dB, E_low -7.57466, E_high -15.6218, THD -5.96109 dB, C 0.37676 oct, L -9.39837 dBFS, w1(sum) 90.4988 dB, GR -0 dB
+[T015 lattice C3] Mass 48: w1/Sum -1.01037 dB, E_low -7.50336, E_high -15.2469, THD -5.81808 dB, C 0.393484 oct, L -9.41432 dBFS, w1(sum) 90.5017 dB, GR -0 dB
+[T015 lattice C3] Mass 49: w1/Sum -1.04089 dB, E_low -7.43388, E_high -14.8733, THD -5.67297 dB, C 0.411207 oct, L -9.431 dBFS, w1(sum) 90.5023 dB, GR -0 dB
+[T015 lattice C3] Mass 50: w1/Sum -1.07269 dB, E_low -7.36642, E_high -14.501, THD -5.52574 dB, C 0.429989 oct, L -9.44836 dBFS, w1(sum) 90.5005 dB, GR -0 dB
+[T015 lattice C3] Mass 51: w1/Sum -1.06144 dB, E_low -7.40523, E_high -14.5496, THD -5.57738 dB, C 0.425884 oct, L -9.37907 dBFS, w1(sum) 90.5565 dB, GR -0 dB
+[T015 lattice C3] Mass 52: w1/Sum -1.05276 dB, E_low -7.42961, E_high -14.6182, THD -5.61756 dB, C 0.422127 oct, L -9.3107 dBFS, w1(sum) 90.6087 dB, GR -0 dB
+[T015 lattice C3] Mass 53: w1/Sum -1.04605 dB, E_low -7.4353, E_high -14.7427, THD -5.6488 dB, C 0.417711 oct, L -9.22627 dBFS, w1(sum) 90.658 dB, GR 0.000355301 dB
+[T015 lattice C3] Mass 54: w1/Sum -1.04086 dB, E_low -7.41634, E_high -14.9724, THD -5.67308 dB, C 0.411505 oct, L -9.15158 dBFS, w1(sum) 90.7053 dB, GR 0.00334437 dB
+[T015 lattice C3] Mass 55: w1/Sum -1.03765 dB, E_low -7.36622, E_high -15.3557, THD -5.68821 dB, C 0.40302 oct, L -9.08236 dBFS, w1(sum) 90.7515 dB, GR 0.00472746 dB
+[T015 lattice C3] Mass 56: w1/Sum -1.0387 dB, E_low -7.27922, E_high -15.9149, THD -5.68327 dB, C 0.393351 oct, L -9.01219 dBFS, w1(sum) 90.7975 dB, GR 0.00156568 dB
+[T015 lattice C3] Mass 57: w1/Sum -1.04875 dB, E_low -7.15226, E_high -16.5984, THD -5.6362 dB, C 0.38585 oct, L -8.94956 dBFS, w1(sum) 90.8436 dB, GR 0.000960126 dB
+[T015 lattice C3] Mass 58: w1/Sum -1.07445 dB, E_low -6.98661, E_high -17.2055, THD -5.51768 dB, C 0.385829 oct, L -8.89534 dBFS, w1(sum) 90.8896 dB, GR 0.0301872 dB
+[T015 lattice C3] Mass 59: w1/Sum -1.12182 dB, E_low -6.79007, E_high -17.3906, THD -5.30561 dB, C 0.398647 oct, L -8.87049 dBFS, w1(sum) 90.9345 dB, GR 0.104874 dB
+[T015 lattice C3] Mass 60: w1/Sum -1.19208 dB, E_low -6.57734, E_high -16.9642, THD -5.00511 dB, C 0.426341 oct, L -8.86795 dBFS, w1(sum) 90.9765 dB, GR 0.223437 dB
+[T015 lattice C3] Mass 61: w1/Sum -1.27687 dB, E_low -6.36932, E_high -16.1942, THD -4.6623 dB, C 0.464193 oct, L -8.88565 dBFS, w1(sum) 91.0127 dB, GR 0.372922 dB
+[T015 lattice C3] Mass 62: w1/Sum -1.35584 dB, E_low -6.19111, E_high -15.5618, THD -4.36022 dB, C 0.499569 oct, L -8.92207 dBFS, w1(sum) 91.0395 dB, GR 0.528124 dB
+[T015 lattice C3] Mass 63: w1/Sum -1.4001 dB, E_low -6.07107, E_high -15.4562, THD -4.1974 dB, C 0.515473 oct, L -8.93048 dBFS, w1(sum) 91.0523 dB, GR 0.640935 dB
+[T015 lattice C3] Mass 64: w1/Sum -1.42892 dB, E_low -5.97286, E_high -15.5895, THD -4.09372 dB, C 0.522246 oct, L -8.90341 dBFS, w1(sum) 91.0568 dB, GR 0.727645 dB
+[T015 lattice C3] Mass 65: w1/Sum -1.46002 dB, E_low -5.87083, E_high -15.7291, THD -3.98381 dB, C 0.529596 oct, L -8.8842 dBFS, w1(sum) 91.0573 dB, GR 0.82064 dB
+[T015 lattice C3] Mass 66: w1/Sum -1.49323 dB, E_low -5.76605, E_high -15.8741, THD -3.8686 dB, C 0.537482 oct, L -8.87253 dBFS, w1(sum) 91.0535 dB, GR 0.919286 dB
+[T015 lattice C3] Mass 67: w1/Sum -1.52828 dB, E_low -5.65968, E_high -16.0232, THD -3.7493 dB, C 0.545835 oct, L -8.86702 dBFS, w1(sum) 91.0454 dB, GR 1.02195 dB
+[T015 lattice C3] Mass 68: w1/Sum -1.56503 dB, E_low -5.55253, E_high -16.1752, THD -3.62663 dB, C 0.554631 oct, L -8.86715 dBFS, w1(sum) 91.033 dB, GR 1.12795 dB
+[T015 lattice C3] Mass 69: w1/Sum -1.60327 dB, E_low -5.44544, E_high -16.3286, THD -3.50151 dB, C 0.563815 oct, L -8.8734 dBFS, w1(sum) 91.0163 dB, GR 1.2373 dB
+[T015 lattice C3] Mass 70: w1/Sum -1.6429 dB, E_low -5.33888, E_high -16.4821, THD -3.3744 dB, C 0.573353 oct, L -8.88579 dBFS, w1(sum) 90.9951 dB, GR 1.3498 dB
+[T015 lattice C3] Mass 71: w1/Sum -1.68383 dB, E_low -5.23329, E_high -16.6342, THD -3.24578 dB, C 0.583217 oct, L -8.90425 dBFS, w1(sum) 90.9696 dB, GR 1.46539 dB
+[T015 lattice C3] Mass 72: w1/Sum -1.72601 dB, E_low -5.12885, E_high -16.7839, THD -3.11586 dB, C 0.593399 oct, L -8.92873 dBFS, w1(sum) 90.9397 dB, GR 1.58401 dB
+[T015 lattice C3] Mass 73: w1/Sum -1.76945 dB, E_low -5.02564, E_high -16.93, THD -2.98474 dB, C 0.603907 oct, L -8.95908 dBFS, w1(sum) 90.9056 dB, GR 1.70563 dB
+[T015 lattice C3] Mass 74: w1/Sum -1.81422 dB, E_low -4.92359, E_high -17.0719, THD -2.85231 dB, C 0.614722 oct, L -8.9951 dBFS, w1(sum) 90.8674 dB, GR 1.83036 dB
+[T015 lattice C3] Mass 75: w1/Sum -1.86299 dB, E_low -4.81743, E_high -17.2091, THD -2.71101 dB, C 0.626515 oct, L -9.03563 dBFS, w1(sum) 90.8267 dB, GR 1.96101 dB
+[T015 lattice C3] Mass 76: w1/Sum -1.93581 dB, E_low -4.66986, E_high -17.3416, THD -2.50542 dB, C 0.644173 oct, L -8.99195 dBFS, w1(sum) 90.8044 dB, GR 2.1252 dB
+[T015 lattice C3] Mass 77: w1/Sum -2.03194 dB, E_low -4.48798, E_high -17.4788, THD -2.24322 dB, C 0.667148 oct, L -8.93965 dBFS, w1(sum) 90.8024 dB, GR 2.32379 dB
+[T015 lattice C3] Mass 78: w1/Sum -2.14154 dB, E_low -4.29436, E_high -17.6306, THD -1.95591 dB, C 0.692691 oct, L -8.88482 dBFS, w1(sum) 90.8112 dB, GR 2.54361 dB
+[T015 lattice C3] Mass 79: w1/Sum -2.25086 dB, E_low -4.11348, E_high -17.7946, THD -1.68042 dB, C 0.71747 oct, L -8.83567 dBFS, w1(sum) 90.8175 dB, GR 2.7665 dB
+[T015 lattice C3] Mass 80: w1/Sum -2.34323 dB, E_low -3.96897, E_high -17.9517, THD -1.45554 dB, C 0.737892 oct, L -8.80273 dBFS, w1(sum) 90.8053 dB, GR 2.97071 dB
+[T015 lattice C3] Mass 81: w1/Sum -2.41587 dB, E_low -3.86029, E_high -18.0865, THD -1.28332 dB, C 0.753708 oct, L -8.7874 dBFS, w1(sum) 90.7721 dB, GR 3.15259 dB
+[T015 lattice C3] Mass 82: w1/Sum -2.48898 dB, E_low -3.7557, E_high -18.214, THD -1.11387 dB, C 0.769406 oct, L -8.77695 dBFS, w1(sum) 90.7381 dB, GR 3.33922 dB
+[T015 lattice C3] Mass 83: w1/Sum -2.56288 dB, E_low -3.65455, E_high -18.3342, THD -0.946281 dB, C 0.785055 oct, L -8.7713 dBFS, w1(sum) 90.7038 dB, GR 3.53119 dB
+[T015 lattice C3] Mass 84: w1/Sum -2.63751 dB, E_low -3.55674, E_high -18.447, THD -0.780621 dB, C 0.80064 oct, L -8.77037 dBFS, w1(sum) 90.6691 dB, GR 3.72852 dB
+[T015 lattice C3] Mass 85: w1/Sum -2.71275 dB, E_low -3.46222, E_high -18.5525, THD -0.616999 dB, C 0.816105 oct, L -8.77435 dBFS, w1(sum) 90.6342 dB, GR 3.93116 dB
+[T015 lattice C3] Mass 86: w1/Sum -2.78844 dB, E_low -3.371, E_high -18.6509, THD -0.455674 dB, C 0.831427 oct, L -8.78331 dBFS, w1(sum) 90.5989 dB, GR 4.13899 dB
+[T015 lattice C3] Mass 87: w1/Sum -2.86443 dB, E_low -3.28306, E_high -18.7428, THD -0.296815 dB, C 0.846567 oct, L -8.79737 dBFS, w1(sum) 90.5633 dB, GR 4.35192 dB
+[T015 lattice C3] Mass 88: w1/Sum -2.94048 dB, E_low -3.19844, E_high -18.8291, THD -0.14078 dB, C 0.861459 oct, L -8.7841 dBFS, w1(sum) 90.5273 dB, GR 4.55982 dB
+[T015 lattice C3] Mass 89: w1/Sum -3.01632 dB, E_low -3.11722, E_high -18.9106, THD 0.0120281 dB, C 0.876051 oct, L -8.74275 dBFS, w1(sum) 90.4911 dB, GR 4.76172 dB
+[T015 lattice C3] Mass 90: w1/Sum -3.0916 dB, E_low -3.03949, E_high -18.9884, THD 0.161111 dB, C 0.890271 oct, L -8.70544 dBFS, w1(sum) 90.4546 dB, GR 4.96691 dB
+[T015 lattice C3] Mass 91: w1/Sum -3.16592 dB, E_low -2.96542, E_high -19.064, THD 0.305849 dB, C 0.90404 oct, L -8.6722 dBFS, w1(sum) 90.4179 dB, GR 5.17503 dB
+[T015 lattice C3] Mass 92: w1/Sum -3.23881 dB, E_low -2.89515, E_high -19.1388, THD 0.445597 dB, C 0.917295 oct, L -8.64312 dBFS, w1(sum) 90.3811 dB, GR 5.38576 dB
+[T015 lattice C3] Mass 93: w1/Sum -3.30976 dB, E_low -2.82886, E_high -19.2142, THD 0.579605 dB, C 0.929931 oct, L -8.6181 dBFS, w1(sum) 90.3443 dB, GR 5.59863 dB
+[T015 lattice C3] Mass 94: w1/Sum -3.37823 dB, E_low -2.76672, E_high -19.2921, THD 0.707102 dB, C 0.941872 oct, L -8.59703 dBFS, w1(sum) 90.3077 dB, GR 5.81328 dB
+[T015 lattice C3] Mass 95: w1/Sum -3.44363 dB, E_low -2.70892, E_high -19.3742, THD 0.827314 dB, C 0.953043 oct, L -8.57994 dBFS, w1(sum) 90.2716 dB, GR 6.02924 dB
+[T015 lattice C3] Mass 96: w1/Sum -3.50536 dB, E_low -2.65561, E_high -19.4623, THD 0.939414 dB, C 0.963351 oct, L -8.56676 dBFS, w1(sum) 90.236 dB, GR 6.24602 dB
+[T015 lattice C3] Mass 97: w1/Sum -3.56283 dB, E_low -2.60695, E_high -19.5585, THD 1.04264 dB, C 0.972724 oct, L -8.55745 dBFS, w1(sum) 90.2013 dB, GR 6.46322 dB
+[T015 lattice C3] Mass 98: w1/Sum -3.61548 dB, E_low -2.56306, E_high -19.6649, THD 1.13626 dB, C 0.981102 oct, L -8.55201 dBFS, w1(sum) 90.1677 dB, GR 6.68028 dB
+[T015 lattice C3] Mass 99: w1/Sum -3.66278 dB, E_low -2.52404, E_high -19.7834, THD 1.21961 dB, C 0.98842 oct, L -8.55005 dBFS, w1(sum) 90.1353 dB, GR 6.8968 dB
+[T015 lattice C3] Mass 100: w1/Sum -3.70422 dB, E_low -2.48998, E_high -19.9164, THD 1.29209 dB, C 0.99463 oct, L -8.5514 dBFS, w1(sum) 90.1045 dB, GR 7.11231 dB
+[T015 SC-005(b)] C3 largest adjacent step: w1/Sum(w) 0.109595 dB (0.109595 /unit) E_low 0.212736 dB (0.212736 /unit) E_high 0.770007 dB (0.770007 /unit) THD 0.342807 dB (0.342807 /unit) C 0.0378526 oct (0.0378526 /unit) L 0.0844314 dB (0.0844314 /unit) w1(sum) 0.0593386 dB (0.0593386 /unit) GR 0.222893 dB (0.222893 /unit)
+[T015 SC-005(c)] C3 repeat noise (measured, cap): w1/Sum(w) 6.90258e-07 / 0.1 E_low 1.03103e-06 / 0.1 E_high 9.42968e-07 / 0.1 THD 1.20289e-06 / 0.1 C 2.01192e-07 / 0.005 L 0.00828904 / 0.1 w1(sum) 1.35125e-06 / 0.1 GR 0.000264108 / 0.1
+[T015 SC-005(c)] C3 0->100 host step: traversal [96000, 97920) samples, 7 windows; per descriptor worst |change| / worst change-to-bound ratio / violations: w1/Sum(w) 1.14312 / 0.447017 / 0 E_low 1.99467 / 0.273208 / 0 E_high 7.25312 / 0.245727 / 0 THD 2.69261 / 0.30163 / 0 C 0.230935 / 0.254159 / 0 L 1.76579 / 0.544187 / 0 w1(sum) 0.901228 / 0.518926 / 0 GR 4.10051 / 0.788391 / 0
+[T015 SC-005(c)] C3 0->100 20 ms host ramp: traversal [96032, 97952) samples, 7 windows; per descriptor worst |change| / worst change-to-bound ratio / violations: w1/Sum(w) 1.21824 / 0.476394 / 0 E_low 2.51648 / 0.308586 / 0 E_high 7.27101 / 0.246333 / 0 THD 3.4237 / 0.329111 / 0 C 0.292498 / 0.273809 / 0 L 1.67402 / 0.515905 / 0 w1(sum) 0.88109 / 0.597984 / 0 GR 4.2333 / 0.813923 / 0
+100.992 s: MassLaw_AutomationDescriptorTrajectory_C3
+===============================================================================
+All tests passed (6162 assertions in 1 test case)
+
+exit: 0 wall: 109 s

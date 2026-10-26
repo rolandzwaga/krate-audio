@@ -1,0 +1,168 @@
+T021 CMake registration audit (2026-10-17T19:58:51Z), HEAD 02fecee1
+== dsp/tests/CMakeLists.txt grep -c (expected 1; nonfinite 2) ==
+1 unit/processors/period_peak_detector_test.cpp  exists=y
+1 unit/processors/transient_shaper_helpers_test.cpp  exists=y
+1 unit/processors/transient_shaper_test.cpp  exists=y
+2 unit/processors/transient_shaper_nonfinite_test.cpp  exists=y
+1 unit/systems/k_weighting_helper_test.cpp  exists=y
+1 unit/systems/mass_compressor_test.cpp  exists=y
+1 unit/systems/mass_law_test.cpp  exists=y
+1 unit/systems/mass_dynamics_test.cpp  exists=y
+1 unit/systems/mass_dynamics_helpers_test.cpp  exists=y
+1 unit/systems/mass_chain_test.cpp  exists=y
+1 unit/systems/mass_compressor_chain_test.cpp  exists=y
+1 unit/systems/mass_law_spectral_test.cpp  exists=y
+1 unit/systems/mass_law_automation_test.cpp  exists=y
+1 unit/systems/mass_dynamics_aliasing_test.cpp  exists=y
+2 unit/systems/mass_dynamics_nonfinite_test.cpp  exists=y
+1 unit/systems/mass_dynamics_perf_test.cpp  exists=y
+== occurrences with line numbers ==
+292:    #   period_peak_detector_test.cpp         PeriodPeakDetector (plan C-4, S3)
+293:    #   transient_shaper_helpers_test.cpp     transient helper self-tests (tasks deviation 3)
+294:    #   transient_shaper_test.cpp             SC-008, SC-009, SC-011, SC-025; shaper arms of SC-012/013/016/018/021
+295:    #   transient_shaper_nonfinite_test.cpp   SC-019 shaper arm - in the -fno-fast-math block below
+296:    unit/processors/period_peak_detector_test.cpp
+297:    unit/processors/transient_shaper_helpers_test.cpp
+298:    unit/processors/transient_shaper_test.cpp
+299:    unit/processors/transient_shaper_nonfinite_test.cpp
+719:    #   k_weighting_helper_test.cpp          SC-026 (BS.1770 K-weighting reference)
+720:    #   mass_compressor_test.cpp             SC-007, SC-024(a)(b)(c)(e); compressor arms of SC-012/013/016/018/021
+721:    #   mass_law_test.cpp                    SC-001(a), SC-004, SC-016 law, SC-023 law, SC-025 law
+722:    #   mass_dynamics_test.cpp               SC-012, SC-013, SC-016, SC-018 (MassDynamics)
+723:    #   mass_dynamics_helpers_test.cpp       chain helper self-tests (tasks deviation 5)
+724:    #   mass_chain_test.cpp                  SC-014, SC-015, SC-018, SC-021, FR-035
+725:    #   mass_compressor_chain_test.cpp       SC-006, SC-011 compressor, SC-022, SC-024(d)
+726:    #   mass_law_spectral_test.cpp           SC-001(b)(c), SC-003; grids [long]
+727:    #   mass_law_automation_test.cpp         SC-002, SC-005, SC-011 Mass, SC-023 rendered; grids [long]
+728:    #   mass_dynamics_aliasing_test.cpp      SC-010; grids [long]
+729:    #   mass_dynamics_nonfinite_test.cpp     SC-019 - in the -fno-fast-math block below
+730:    #   mass_dynamics_perf_test.cpp          SC-017  [.perf]
+731:    unit/systems/k_weighting_helper_test.cpp
+732:    unit/systems/mass_compressor_test.cpp
+733:    unit/systems/mass_law_test.cpp
+734:    unit/systems/mass_dynamics_test.cpp
+735:    unit/systems/mass_dynamics_helpers_test.cpp
+736:    unit/systems/mass_chain_test.cpp
+737:    unit/systems/mass_compressor_chain_test.cpp
+738:    unit/systems/mass_law_spectral_test.cpp
+739:    unit/systems/mass_law_automation_test.cpp
+740:    unit/systems/mass_dynamics_aliasing_test.cpp
+741:    unit/systems/mass_dynamics_nonfinite_test.cpp
+742:    unit/systems/mass_dynamics_perf_test.cpp
+1236:        unit/processors/transient_shaper_nonfinite_test.cpp
+1237:        unit/systems/mass_dynamics_nonfinite_test.cpp
+== dsp/CMakeLists.txt headers (expected 1 each) ==
+1 processors/period_peak_detector.h
+177:    include/krate/dsp/processors/period_peak_detector.h
+1 processors/transient_shaper.h
+178:    include/krate/dsp/processors/transient_shaper.h
+1 systems/mass_dynamics.h
+212:    include/krate/dsp/systems/mass_dynamics.h
+1 systems/mass_law.h
+213:    include/krate/dsp/systems/mass_law.h
+== git diff 02fecee1 removed lines (expect none) ==
+warning: in the working copy of 'dsp/tests/CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+(none)
+== git diff 02fecee1 added lines ==
+warning: in the working copy of 'dsp/tests/CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
++    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics)
++    include/krate/dsp/processors/period_peak_detector.h
++    include/krate/dsp/processors/transient_shaper.h
++    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics)
++    include/krate/dsp/systems/mass_dynamics.h
++    include/krate/dsp/systems/mass_law.h
++    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics) - ENUMERATED, not globbed:
++    #   period_peak_detector_test.cpp         PeriodPeakDetector (plan C-4, S3)
++    #   transient_shaper_helpers_test.cpp     transient helper self-tests (tasks deviation 3)
++    #   transient_shaper_test.cpp             SC-008, SC-009, SC-011, SC-025; shaper arms of SC-012/013/016/018/021
++    #   transient_shaper_nonfinite_test.cpp   SC-019 shaper arm - in the -fno-fast-math block below
++    unit/processors/period_peak_detector_test.cpp
++    unit/processors/transient_shaper_helpers_test.cpp
++    unit/processors/transient_shaper_test.cpp
++    unit/processors/transient_shaper_nonfinite_test.cpp
++    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics) - ENUMERATED, not globbed:
++    #   k_weighting_helper_test.cpp          SC-026 (BS.1770 K-weighting reference)
++    #   mass_compressor_test.cpp             SC-007, SC-024(a)(b)(c)(e); compressor arms of SC-012/013/016/018/021
++    #   mass_law_test.cpp                    SC-001(a), SC-004, SC-016 law, SC-023 law, SC-025 law
++    #   mass_dynamics_test.cpp               SC-012, SC-013, SC-016, SC-018 (MassDynamics)
++    #   mass_dynamics_helpers_test.cpp       chain helper self-tests (tasks deviation 5)
++    #   mass_chain_test.cpp                  SC-014, SC-015, SC-018, SC-021, FR-035
++    #   mass_compressor_chain_test.cpp       SC-006, SC-011 compressor, SC-022, SC-024(d)
++    #   mass_law_spectral_test.cpp           SC-001(b)(c), SC-003; grids [long]
++    #   mass_law_automation_test.cpp         SC-002, SC-005, SC-011 Mass, SC-023 rendered; grids [long]
++    #   mass_dynamics_aliasing_test.cpp      SC-010; grids [long]
++    #   mass_dynamics_nonfinite_test.cpp     SC-019 - in the -fno-fast-math block below
++    #   mass_dynamics_perf_test.cpp          SC-017  [.perf]
++    unit/systems/k_weighting_helper_test.cpp
++    unit/systems/mass_compressor_test.cpp
++    unit/systems/mass_law_test.cpp
++    unit/systems/mass_dynamics_test.cpp
++    unit/systems/mass_dynamics_helpers_test.cpp
++    unit/systems/mass_chain_test.cpp
++    unit/systems/mass_compressor_chain_test.cpp
++    unit/systems/mass_law_spectral_test.cpp
++    unit/systems/mass_law_automation_test.cpp
++    unit/systems/mass_dynamics_aliasing_test.cpp
++    unit/systems/mass_dynamics_nonfinite_test.cpp
++    unit/systems/mass_dynamics_perf_test.cpp
++        # Profundum Phase 6: injects NaN/Inf bit patterns (SC-019). The perf TU stays out (shipping FP mode).
++        unit/processors/transient_shaper_nonfinite_test.cpp
++        unit/systems/mass_dynamics_nonfinite_test.cpp
+== context: -fno-fast-math block around line 1236 ==
+        # guards are proved in the /fp:fast + -ffast-math mode the header actually
+        # ships in, and so the perf TU's figures are not changed by the flag.
+        unit/systems/ecosystem_engine_nonfinite_test.cpp
+        # Vorago Phase 13: SC-019 recomputes the reference exchange and must
+        # associate the arithmetic exactly as the engine does.
+        unit/systems/ecosystem_engine_pair_accessors_test.cpp
+        # Vorago Phase 12: injects NaN/Inf bit patterns into the Phase 12 setters.
+        unit/systems/vorago_param_surface_test.cpp
+        # Profundum Phase 1: injects NaN/Inf bit patterns (SC-016, SC-020(d), FR-002). The perf TU stays out so its figures reflect the shipping FP mode.
+        unit/systems/profundum_core_nonfinite_test.cpp
+        # Profundum Phase 2: injects NaN/Inf bit patterns and NaN table sentinels (SC-016, S4.3/S5.3 lookups). The perf TU stays out.
+        unit/processors/harmonic_fold_nonfinite_test.cpp
+        unit/systems/profundum_core_excitation_nonfinite_test.cpp
+        # Profundum Phase 3: injects NaN/Inf bit patterns (SC-015). The perf and chain TUs stay out (shipping FP mode, plan S7).
+        unit/systems/anchor_oscillator_nonfinite_test.cpp
+        # Profundum Phase 4: injects NaN/Inf/subnormal bit patterns (SC-017). The perf TU stays out (shipping FP mode).
+        unit/processors/drop_note_behaviour_nonfinite_test.cpp
+        # Profundum Phase 5: injects NaN/Inf bit patterns (SC-017, FR-066). The perf TU stays out (shipping FP mode).
+        unit/processors/rectifier_nonfinite_test.cpp
+        unit/systems/shape_character_nonfinite_test.cpp
+        # Profundum Phase 6: injects NaN/Inf bit patterns (SC-019). The perf TU stays out (shipping FP mode).
+        unit/processors/transient_shaper_nonfinite_test.cpp
+        unit/systems/mass_dynamics_nonfinite_test.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+    )
+
+    # GCC 13+ -O3 causes pathological performance regression in the reverb
+    # processing loop (100x+ slower than -O2). This is a known class of GCC
+    # auto-vectorization bug. Cap these files at -O2 on GCC/Clang.
+    set_source_files_properties(
+        unit/effects/reverb_test.cpp
+        unit/effects/fdn_reverb_test.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -O2"
+    )
+
+    # Seraphis Phase 6: same GCC 13+ -O3 reverb pathology as reverb_test.cpp /
+== set_source_files_properties blocks mentioning perf TU (expect none) ==
+(end)
+== header lists context in dsp/CMakeLists.txt ==
+20:)
+27:)
+82:set(KRATE_DSP_CORE_HEADERS
+105:)
+108:set(KRATE_DSP_PRIMITIVES_HEADERS
+133:)
+136:set(KRATE_DSP_PROCESSORS_HEADERS
+179:)
+182:set(KRATE_DSP_SYSTEMS_HEADERS
+214:)
+217:set(KRATE_DSP_EFFECTS_HEADERS
+234:)
+243:)
+== VERDICT ==
+PASS. 14 TUs x1, 2 nonfinite TUs x2 (list + -fno-fast-math block at dsp/tests/CMakeLists.txt:1236-1237, PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only" at :1238).
+mass_dynamics_perf_test.cpp appears only in the systems list (:742), in no set_source_files_properties block.
+Four headers x1 each: processors at dsp/CMakeLists.txt:177-178 (inside KRATE_DSP_PROCESSORS_HEADERS :136-179), systems at :212-213 (inside KRATE_DSP_SYSTEMS_HEADERS :182-214).
+git diff 02fecee1 on both CMake files: added lines only, no removals. No CMake edit made by T021.

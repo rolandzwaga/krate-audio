@@ -1,0 +1,39 @@
+T001 Register every Phase 8 file (tasks.md deviations 1, 2) - 2026-10-19
+
+ODR sweep (re-run this session, from repo root):
+  grep -rnw -E "MorphState|BassMorphEngine|isValidMorphState|serializeMorphState|deserializeMorphState|kMorphStateBytes|
+    kMorphStateFormatVersion|kMorphLeafFieldCount|kMorphRuntimeBytes|kMorphRuntimeFormatVersion|morph_state_io|forEachMorphLeaf|
+    kFieldTable|kLeafOffsets|leafBitsEqual|BassMorphTest|MorphChainConfig|MorphChainTaps|MorphEvent|renderMorphChain|renderMorphPoly|
+    randomValidState|AmpEnvelopeFields|MotionConfig|AnchorMorphMode" --include=*.h --include=*.cpp --include=*.hpp --include=*.js
+    dsp plugins tests tools
+  -> no output, grep exit 1 (0 hits)
+  find dsp plugins tests tools -iname "*bass_morph*" -o -iname "morph_state*"
+  -> no output (0 hits). Run before any Phase 8 file was created.
+Verdict: 0 hits, matches plan S0. No STOP AND SURFACE.
+
+Files written:
+  dsp/include/krate/dsp/systems/morph_state.h        stub: banner (Layer 3, Phase 8, FRs/SCs/C-items, "stub - filled by T002"),
+                                                      #pragma once, empty namespace Krate::DSP {}
+  dsp/include/krate/dsp/systems/bass_morph_engine.h  stub: same, "stub - filled by T003 (then T004, T005)"
+  dsp/tests/unit/systems/{morph_state_test, bass_morph_engine_test, bass_morph_nonfinite_test, bass_morph_helpers_test,
+    bass_morph_probe_test, bass_morph_chain_test, bass_morph_click_test, bass_morph_trajectory_test, bass_morph_monosum_test,
+    bass_morph_aliasing_test, bass_morph_perf_test}.cpp
+      each: file comment (SCs held, filling task), catch_test_macros.hpp, morph_state.h, bass_morph_engine.h; no TEST_CASE.
+      morph_state_test.cpp additionally includes systems/profundum_core.h, bass_stereo_field.h, anchor_oscillator.h, mass_law.h,
+      spectral_morph_engine.h and primitives/lfo.h (coexistence with peers and name hazards Waveform / SpectralState).
+  dsp/CMakeLists.txt        KRATE_DSP_SYSTEMS_HEADERS: after bass_stereo_field.h, comment + morph_state.h + bass_morph_engine.h
+  dsp/tests/CMakeLists.txt  dsp_systems_tests: after bass_stereo_field_perf_test.cpp, Phase 8 comment block + the 11 TUs in order;
+                            -fno-fast-math block: after bass_stereo_field_nonfinite_test.cpp, Phase 8 comment +
+                            unit/systems/bass_morph_nonfinite_test.cpp (perf TU stays out).
+  specs/profundum-phase8-bass-morph/evidence/run-log/.gitkeep, evidence/close/.gitkeep, this file.
+
+Decisions:
+  - Banners are ASCII only ("stub - filled by", not an em dash) to avoid MSVC C4819 under non-UTF-8 code pages.
+  - CMake edits applied by an EOL-preserving anchor script (dsp/CMakeLists.txt is CRLF; dsp/tests/CMakeLists.txt is LF in the
+    working copy); each anchor asserted unique before insertion.
+
+Verify (read-only): git diff --stat shows dsp/CMakeLists.txt (+3) and dsp/tests/CMakeLists.txt (+26) plus the pre-existing
+.serena/project.yml modification (not touched by T001); all other changes are new files. Not built or run (group gate does that:
+dsp_systems_tests builds, Phase 1-7 case count unchanged since the stubs carry no TEST_CASE).
+
+Deviations: none. DEFECT lines: none.

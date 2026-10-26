@@ -420,8 +420,8 @@ TEST_CASE("DSP output contains no NaN or Inf", "[dsp][safety]") {
         sat.process(buffer.data(), 512);
 
         for (float sample : buffer) {
-            REQUIRE_FALSE(std::isnan(sample));
-            REQUIRE_FALSE(std::isinf(sample));
+            // detail::isFinite, not std::isnan: the macOS leg is -ffast-math, where std::isnan folds to false
+            REQUIRE(Krate::DSP::detail::isFinite(sample));
         }
     }
 
@@ -430,7 +430,7 @@ TEST_CASE("DSP output contains no NaN or Inf", "[dsp][safety]") {
         sat.process(buffer.data(), 512);
 
         for (float sample : buffer) {
-            REQUIRE_FALSE(std::isnan(sample));
+            REQUIRE(Krate::DSP::detail::isFinite(sample));
             REQUIRE(std::abs(sample) <= 2.0f);
         }
     }
@@ -440,7 +440,7 @@ TEST_CASE("DSP output contains no NaN or Inf", "[dsp][safety]") {
         sat.process(buffer.data(), 512);
 
         for (float sample : buffer) {
-            REQUIRE_FALSE(std::isnan(sample));
+            REQUIRE(Krate::DSP::detail::isFinite(sample));
         }
     }
 }

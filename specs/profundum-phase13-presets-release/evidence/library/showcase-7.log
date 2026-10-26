@@ -1,0 +1,23 @@
+=== showcase-7 2026-10-25T11:34:19Z commit 5ad50273
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe Profundum_PresetShowcase_7of8
+Filters: "Profundum_PresetShowcase_7of8"
+Randomness seeded to: 1290476925
+# Profundum_PresetShowcase_7of8: presets=7 arms=13
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Crushed Basalt","AT-08 Character Crush",primary,"",E1,16.4323,3,13.4323,0,"","D_nl","Char / twin"
+"Crushed Basalt","AT-08 Character Crush",primary,"",C3,18.2766,3,15.2766,0,"","D_nl","Char / twin"
+"Lopsided Sub","AT-16 Anchor Sine to Asymmetric Sine",primary,"",E1,14.2266,3,11.2266,0,"","D_cx","Sum"
+"Lopsided Sub","AT-16 Anchor Sine to Asymmetric Sine",primary,"",C3,14.2268,3,11.2268,0,"","D_cx","Sum"
+"Slow Swell","AT-24 Envelope Amp Attack",primary,"",E1,22.4412,2,20.4412,0,"","t_90","Sum"
+"Slow Swell","AT-24 Envelope Amp Attack",primary,"",C3,57.4615,2,55.4615,0,"","t_90","Sum"
+"Gravity Well","AT-32 Field Gravity",primary,"",E1,13.0917,3,10.0917,0,"","D_st_low","field stage tap"
+"Drifting Weight","AT-40 Motion Drift to Mass",primary,"",E1,3.37732,3,0.377321,0,"","E_sub_p2p","Sum"
+"Drifting Weight","AT-40 Motion Drift to Mass",primary,"",C3,3.59572,3,0.595717,0,"","E_sub_p2p","Sum"
+"Dark To Bright","AT-48 Macros Dark Bright",primary,"",E1,0.757618,0.25,0.507618,0,"","D_br","Sum"
+"Dark To Bright","AT-48 Macros Dark Bright",primary,"",C3,0.655184,0.25,0.405184,0,"","D_br","Sum"
+"Poly Ignition","AT-01 Core Excitation Mix",primary,"",E1,10.99,3,7.99,0,"","D_nl","Char / twin"
+"Poly Ignition","AT-01 Core Excitation Mix",primary,"",C3,10.0055,3,7.00547,0,"","D_nl","Char / twin"
+===============================================================================
+All tests passed (1121671 assertions in 1 test case)
+
+WALL showcase-7 36.5 s exit=0

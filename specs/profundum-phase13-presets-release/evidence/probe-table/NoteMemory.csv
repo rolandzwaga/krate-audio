@@ -1,0 +1,9 @@
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-43","",E1,"A + sustain 1 (C-8)",177.667,">= 30 deg (phase reading)",PASS,177.667,177.667,2.52029e-07,n/a
+"AT-44","",E1,"A + sustain 1 (C-8)",177.667,">= 30 deg (phase reading)",PASS,177.667,177.667,2.52029e-07,n/a
+"AT-45","",E1,"A + sustain 1 (C-8)",177.667,">= 30 deg (phase reading)",PASS,177.667,177.667,2.52029e-07,n/a
+"AT-46","",E1,"A + sustain 1 (C-8)",177.667,">= 30 deg (phase reading)",PASS,177.667,177.667,2.52029e-07,n/a
+"AT-43","",C3,"A + sustain 1 (C-8)",167.525,">= 30 deg (phase reading)",PASS,167.525,167.525,1.21752e-06,n/a
+"AT-44","",C3,"A + sustain 1 (C-8)",167.525,">= 30 deg (phase reading)",PASS,167.525,167.525,1.21752e-06,n/a
+"AT-45","",C3,"A + sustain 1 (C-8)",167.525,">= 30 deg (phase reading)",PASS,167.525,167.525,1.21752e-06,n/a
+"AT-46","",C3,"A + sustain 1 (C-8)",167.525,">= 30 deg (phase reading)",PASS,167.525,167.525,1.21752e-06,n/a

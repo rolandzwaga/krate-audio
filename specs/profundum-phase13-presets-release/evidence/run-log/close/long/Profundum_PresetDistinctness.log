@@ -1,0 +1,8 @@
+Filters: "Profundum_PresetDistinctness"
+Randomness seeded to: 1407467989
+# Profundum_PresetDistinctness: presets=53 F=1 closest=Bedrock vs Locked Floor d=1.91446 masked=15
+380.612 s: Profundum_PresetDistinctness
+===============================================================================
+All tests passed (10258687 assertions in 1 test case)
+
+exit: 0 wall: 381 s

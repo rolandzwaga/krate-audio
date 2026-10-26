@@ -49,6 +49,14 @@
       "pluginval_bundle": "build/windows-x64-release/VST3/Release/Membrum.vst3"
     },
     {
+      "dir": "plugins/profundum",
+      "name": "Profundum",
+      "test_targets": [
+        "profundum_tests"
+      ],
+      "pluginval_bundle": "build/windows-x64-release/VST3/Release/Profundum.vst3"
+    },
+    {
       "dir": "plugins/ruinae",
       "name": "Ruinae",
       "test_targets": [
@@ -77,22 +85,22 @@
     "core": {
       "index": 0,
       "folder": "dsp/include/krate/dsp/core",
-      "header_count": 38
+      "header_count": 40
     },
     "primitives": {
       "index": 1,
       "folder": "dsp/include/krate/dsp/primitives",
-      "header_count": 54
+      "header_count": 57
     },
     "processors": {
       "index": 2,
       "folder": "dsp/include/krate/dsp/processors",
-      "header_count": 108
+      "header_count": 118
     },
     "systems": {
       "index": 3,
       "folder": "dsp/include/krate/dsp/systems",
-      "header_count": 50
+      "header_count": 64
     },
     "effects": {
       "index": 4,

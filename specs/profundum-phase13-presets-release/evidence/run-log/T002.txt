@@ -1,0 +1,79 @@
+T002 — Move-gate tooling and the pre-move baseline (FR-058, SC-029; plan §5.1 steps 1-2b)
+Run: 2026-10-24 (executor; tooling only, no source file edited)
+
+1. Files written
+   evidence/move-gate/run-cases.sh   bash -n          -> OK
+   evidence/move-gate/compare.js     node --check     -> OK
+   evidence/move-check.js            node --check     -> OK
+
+2. Facts the scripts rely on (read this session at e6095b24)
+   - Phase 9 TU dsp/tests/unit/systems/profundum_engine_audibility_test.cpp: 2419 lines; include block :46-86;
+     `using namespace Krate::DSP;` :88; first `namespace {` :90; its close `}  // namespace` is at :2265
+     (tasks.md / plan say :2264); second anonymous namespace :2271-2283; 16 TEST_CASEs from :2285.
+     `git diff --stat e6095b24 -- <TU>` is empty (TU unedited).
+   - The 16 case names, from the built exe (Catch2 v3):
+       dsp_systems_tests.exe --list-tests --verbosity quiet "[voice-engine]"  filtered to
+       ^VoiceEngine_(AudibilityTable|MacroMonotone|MotionMassSwell)  -> 16 names:
+       AudibilityTable_{Core,Character,Anchor,Pitch,Envelope,Mass,Field,Motion,Morph,NoteMemory,Macros},
+       AudibilityTableSmoke, MacroMonotone, MacroMonotoneSmoke, MotionMassSwell, MotionMassSwellSmoke.
+   - Evidence the 16 cases write (auWriteEvidence call sites :184, :656, :1592, :2205, :2403, :2414):
+     audibility-table/<case>.csv (12), h17-poly-gr.txt, macro-monotone.csv, macro-monotone-smoke.csv,
+     motion-mass-swell.txt, motion-mass-swell-smoke.txt = 17 files, all tracked (git ls-files).
+   - `git status --porcelain -- specs/profundum-phase9-voice-engine/` is empty (clean before the baseline).
+
+3. Deviations from the task text (surfaced, not silent)
+   a. Case listing uses Catch2 v3's `--list-tests --verbosity quiet`; the task's `--list-test-names-only` is the
+      Catch2 v2 flag. Same 16 names.
+   b. Written-file detection is `git status --porcelain -uall` UNION `find <P9 evidence> -newer <start marker>`.
+      git status alone misses a file rewritten with identical bytes (an exact Phase 9 reproduction is the expected
+      case), which would leave pre/evidence empty and make the byte comparison vacuous.
+   c. run-cases.sh refuses to start if the Phase 9 evidence is dirty (its restore is a `git checkout`), and in
+      `pre` mode refuses unless the TU equals e6095b24 and the readers header does not exist.
+   d. move-check.js manifest: besides "source" and "header" (as T003 step 8 specifies) each lift may carry an
+      optional "calls" list of e6095b24 line ranges rewritten as call sites. Plan §4.1 rewrites call sites that
+      lie OUTSIDE the plan's source ranges (L4: the four `dropCell(` calls after :1327; L8 / L9 call sites;
+      L10's auNoteMemoryPhase signature for the new `base` parameter). Without "calls" those lines are
+      "remaining text outside lift regions" and the strict check would report MOVE IMPURE on a correct move.
+      T003 must list them; the IMPURE message names the first unattributed line and says so.
+   e. compare.js runs move-check.js afresh (it does not read a saved verdict), and also requires equal exit codes.
+
+4. Self-test of the two Node scripts (scratchpad git repo, deleted afterwards; BASE patched to HEAD, lifts L1-L2)
+   - synthetic move (namespace, inline, alias, L1 lift + in-place call, L2 template lift + "calls") -> MOVE PURE changed=1 lifted=2
+   - a one-line edit at source :95, :1153, :1336, :1500, :2264 (outside the lifts)              -> MOVE IMPURE (each)
+   - an edit inside a source range (:1160) or a calls range (:1334)                            -> MOVE PURE (absorbed)
+   - TU missing the ProfundumAudibility using line; TU with an extra line; an extra file in dsp/ -> MOVE IMPURE (each)
+   - compare.js on fabricated pre/post: identical -> MOVE GATE GREEN; one differing CSV line, one
+     differing Catch2 summary + exit code, post warnings 2 -> MOVE GATE RED (all four reasons listed)
+
+5. Baseline status: move-gate/pre/ does not exist. BLOCKED on the main loop.
+   Main loop: run
+     bash specs/profundum-phase13-presets-release/evidence/move-gate/run-cases.sh pre
+   (about 5 min build + about 15 min wall, bound by the Motion case, 884 s at the Phase 9 close; plan §10;
+   16 concurrent processes), then quote below its last line (`RUN pre DONE cases=16 wall=<s>`), the build line,
+   the evidence-copied count (17 expected) and every case's WALL line; unblock T002.
+
+6. Main-loop reading (to be recorded by the main loop)
+
+## Main loop, 2026-10-24: pre-move baseline (bash specs/profundum-phase13-presets-release/evidence/move-gate/run-cases.sh pre)
+[pre] building dsp_systems_tests -> specs/profundum-phase13-presets-release/evidence/move-gate/pre/build.log
+[pre] build exit=0 warnings=0 wall=2.8s
+[pre] launching 16 concurrent cases
+[pre] evidence files copied: 17 (listed in specs/profundum-phase13-presets-release/evidence/move-gate/pre/written.txt)
+WALL VoiceEngine_AudibilityTableSmoke 12.6 s exit=0
+WALL VoiceEngine_AudibilityTable_Anchor 27.1 s exit=0
+WALL VoiceEngine_AudibilityTable_Character 73.2 s exit=0
+WALL VoiceEngine_AudibilityTable_Core 44.7 s exit=0
+WALL VoiceEngine_AudibilityTable_Envelope 10.3 s exit=0
+WALL VoiceEngine_AudibilityTable_Field 36.3 s exit=0
+WALL VoiceEngine_AudibilityTable_Macros 18.5 s exit=0
+WALL VoiceEngine_AudibilityTable_Mass 25.1 s exit=0
+WALL VoiceEngine_AudibilityTable_Morph 14.0 s exit=0
+WALL VoiceEngine_AudibilityTable_Motion 351.7 s exit=0
+WALL VoiceEngine_AudibilityTable_NoteMemory 6.6 s exit=0
+WALL VoiceEngine_AudibilityTable_Pitch 9.7 s exit=0
+WALL VoiceEngine_MacroMonotone 137.7 s exit=0
+WALL VoiceEngine_MacroMonotoneSmoke 8.3 s exit=0
+WALL VoiceEngine_MotionMassSwell 16.4 s exit=0
+WALL VoiceEngine_MotionMassSwellSmoke 1.7 s exit=0
+[pre] build wall=2.8s warnings=0; cases with non-zero exit: 0
+RUN pre DONE cases=16 wall=351.9

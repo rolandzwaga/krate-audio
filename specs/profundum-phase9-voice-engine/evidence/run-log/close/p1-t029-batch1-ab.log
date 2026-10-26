@@ -1,0 +1,13 @@
+=== paired A/B before(prof build, pre-batch-1) vs after(batch 1) 2026-10-20T15:50:59Z
+--- before round 1 2026-10-20T15:50:59Z
+before r1 P1V static-morph Tube MONO 13.704 POLY4 42.796
+before r1 P1V static-morph Fracture MONO 14.226 POLY4 42.737
+--- after round 1 2026-10-20T15:51:39Z
+after r1 P1V static-morph Tube MONO 11.622 POLY4 35.652
+after r1 P1V static-morph Fracture MONO 11.938 POLY4 35.148
+--- before round 2 2026-10-20T15:52:14Z
+before r2 P1V static-morph Tube MONO 13.906 POLY4 41.539
+before r2 P1V static-morph Fracture MONO 12.711 POLY4 41.672
+--- after round 2 2026-10-20T15:52:53Z
+after r2 P1V static-morph Tube MONO 11.444 POLY4 35.255
+after r2 P1V static-morph Fracture MONO 10.748 POLY4 32.721

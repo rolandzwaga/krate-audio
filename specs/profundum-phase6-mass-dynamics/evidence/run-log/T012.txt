@@ -1,0 +1,84 @@
+T012 run-log - mass_chain_test.cpp: chain validation (SC-014, SC-015, SC-018, SC-021; FR-030 - FR-035, FR-049)
+Date: 2026-10-17. Executor stage only: nothing was built or run (the group's build agent runs
+dsp_systems_tests "MassChain_*" "MassDynamics_PartitionInvariant" "MassDynamics_SampleRates").
+
+== Files ==
+dsp/tests/unit/systems/mass_chain_test.cpp   (T002 stub filled; 6 TEST_CASEs, [systems][profundum][mass-dynamics])
+specs/profundum-phase6-mass-dynamics/evidence/run-log/T012.txt (this file)
+The test MassChain_Phase9HandoffRecord writes specs/profundum-phase6-mass-dynamics/evidence/phase9-handoff.txt when run.
+
+== TEST_CASEs ==
+MassChain_ControlIntervalsAligned   plan S11: static_asserts on the five kControlInterval values and
+                                    AnchorOscillator::kMaxCoreH1Amplitude == HarmonicFold::kCalibrationPeak
+MassChain_CoreAnchorValidated       SC-014 (a)-(e), reference voice, Mass {0,25,50,75,100} x {E0,E1,E2,C3}, 5 s
+MassChain_LimiterIdleSteadyState    SC-015 (a)(b), 3 fixtures x 4 notes x 5 Mass, 3 s. Expected red until T019.
+MassDynamics_PartitionInvariant     SC-018, E1, 3 s, Mass 20 -> 80 + setFixedReleaseMs(275) at 8704, blocks {1,17,32,64,512}
+MassDynamics_SampleRates            SC-021, {44.1, 48, 88.2, 96, 192} kHz
+MassChain_Phase9HandoffRecord       FR-035 -> evidence/phase9-handoff.txt
+
+== ODR ==
+TU-local names (anonymous namespace): McNote, McFixture, McBound, McLimiterStats, McShaperGains, mc* functions,
+kMc* constants; McAttack is function-local. grep -rnE "(struct|class) (McLimiterStats|McFixture|McNote)\b" dsp plugins
+tests -> 0 hits before this task.
+
+== Reused APIs (read this session) ==
+mass_dynamics_test_helpers.h: kGrid :81, anchorControlsFor :282, ChainConfig :171-191, ChainTaps :193-209,
+  renderChain :360, renderPoly :440, subBand :626, mSubSamples :689, periodDescriptors :715, kResampleHalf :549,
+  TargetOverride :169.
+mass_dynamics_probe.h: setFixedReleaseMs :25, compressor(MassDynamics&) :50.
+systems/mass_dynamics.h: BassCompressor::kControlInterval :59, kFallbackCornerHz/kMin/kMaxCornerHz/kCornerSmoothMs
+  :60-63, AmountRow :75, kAmountTable :85; MassDynamics::kControlInterval :469, setters :496-513, processBlock :521,
+  latencySamples :539, shaper() :545.
+systems/mass_law.h: Target :64, kControlInterval :70, kMassSweepMs :72, Targets :77, Row :86, kRows :97.
+processors/transient_shaper.h: kMinGainDb..kDefaultDurationMs :68-74, DurationPoint :89, kDurationTable :96,
+  currentGainDb :260.
+systems/anchor_oscillator.h: kControlInterval :62, kMaxCoreH1Amplitude :71, Controls :99-106.
+processors/harmonic_fold.h: kCalibrationPeak :83. systems/profundum_core.h: kControlInterval :97.
+processors/true_peak_limiter.h: prepare :59, getCeilingLinear :98 (sample-level guarantee via tp >= |sample| :136-147).
+transient_shaper_test_helpers.h: kE0Hz.. :46-49, burst :86, steadyTone :75, secondsToSamples :61, meanOf :179,
+  isFiniteBits :216. harmonic_fold_test_helpers.h: integerPeriodLength :240.
+
+== Decisions ==
+1. No [long] tags and therefore no ...Smoke siblings. The orientation text asked for Smoke siblings, but the
+   authoritative T012 section names no [long] case, rule 6 allows [long] "only on the cases named [long]", and
+   SC-018 is a bit-identity case (never [long]). If a gate log shows a case above 15 s, T020 re-tags it (T020 rule).
+2. Cells run serially, not with std::async: renderChain REQUIREs inside, and Catch2 assertions are not thread-safe
+   (no CATCH_CONFIG_EXPERIMENTAL_THREAD_SAFE_ASSERTIONS in the build).
+3. SC-014(a) starting Controls = MassDynamicsTest::anchorControlsFor(level) (Sine, LOCK, every other field at its
+   Controls{} default); the check compares waveform, mode, punchBoostDb, punchTimeMs, ghostTimeMs against it and
+   level against targetsPerInterval[k].anchorLevel at every interval. a1 independent reading: rectangular single-bin
+   DFT at f0 over the last round(64 fs / f0) samples of coreL, 2|X|/L, vs a1PerInterval.back(), bar 0.05 dB.
+   Also static_assert(mcAnchorLevelRows() == 1) (plan S13.3: one kRows row targets AnchorLevel).
+4. SC-014(d): mean over the whole f0 periods inside the last 2 s (integerPeriodLength), so a partial period of an
+   E0 note (2 s = 41.2 periods) is not read as DC (a half-period residue would read ~-54 dBFS).
+5. SC-014(e): the ratio RMS(anchorL, last 2 s) / (a1/sqrt 2) is sorted by the Anchor-level target of the last interval
+   and must be non-decreasing (exact >=). sumL/R memcmp against foldL/R + anchorL/R computed in float.
+   w1 = periodDescriptors(outL, n - ceil(P) - 65).w1Frac, printed only.
+6. SC-014(c) / SC-021 bound: |out| <= getCeilingLinear() exactly (float compare), plus the bit-pattern finite test.
+7. SC-015: GR = 20 log10(|out|/|in|) in double on dcL/R -> outL/R where |in| > 1e-4. "engaged" = any such sample with
+   GR < 0 from sample 0 (note-on); (b) memcmp dc == out from 1 s on non-engaged cells. Attack record: peak = min GR
+   before 1 s; duration = first..last sample before 1 s with GR < -0.01 dB (the release float floor, FR-034, keeps GR
+   just below 0 after any touch, so GR < 0 would span the whole second).
+8. SC-018: renderChain calls configureDynamics once after prepare, so the hook stores the MassDynamics pointer and the
+   massAt callback (called once per grid point, before that interval's dynamics run) applies
+   MassDynamicsProbe::setFixedReleaseMs(compressor, 275) at the grid point 8704, the same absolute sample for every
+   partition. Fresh-fixture determinism: a second block-512 render memcmp-equal to the first.
+9. SC-021 MassDynamics SC-008(a)(b) gains as the task writes them: burst (1 s hold, 0.25 s tail) at E1, A = +12,
+   S = -6, duration 40 ms, amount 0, key E1, per-sample shaper().currentGainDb(); steady = mean over [0.85 s, 1.0 s]
+   (the shaper arm's window, transient_shaper_test.cpp:286-287), onset peak = max over [0, 50 ms]; both tones
+   (saw and sine). SC-006(a) M_sub: reference voice, massAt 50, CompressionAmount override 1, E1, 3 s,
+   mSubSamples(subBand(outL).dftDb, [1 s, 3 s]). All within 0.25 dB of 48 kHz. Re-prepare: MassDynamics alone,
+   1 s of E1 saw at 48 k, prepare(96k) + 1 s at 96 k, prepare(48k) + render vs a fresh 48 kHz instance (memcmp).
+10. FR-035 handoff: latency, the SC-017 pointer line, kRows, kAmountTable, kDurationTable, the 4-voice Mass 100
+   poly-sum mean GR (renderPoly, E1 detuned {-6,-2,+2,+6} cents, perSampleDynamicsTaps, mean compGrDb [1 s, 3 s]),
+   limiter attack GR at Mass 100 E1 per fixture, the FR-018 corner contract and the shaper parameter table. Asserts
+   every number written is finite (bit pattern) and the file exists.
+
+== SC-018 random-source grep (tasks.md T012) ==
+grep -nE "<random>|\brand\b|rand\(|std::mt19937|random" \
+  dsp/include/krate/dsp/processors/period_peak_detector.h dsp/include/krate/dsp/processors/transient_shaper.h \
+  dsp/include/krate/dsp/systems/mass_dynamics.h dsp/include/krate/dsp/systems/mass_law.h
+-> (empty; grep exit 1). No random source exists in the four new headers.
+
+== DEFECT lines ==
+None (nothing was run).

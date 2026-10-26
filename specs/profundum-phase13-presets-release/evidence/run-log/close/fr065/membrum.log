@@ -1,0 +1,6 @@
+spec: [#test_factory_kit_presets]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[lifecycle]~[.]~[performance]~[perf]~[benchmark]~[!benchmark]
+Filters: [#test_factory_kit_presets] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[lifecycle] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 3263675275
+===============================================================================
+All tests passed (211 assertions in 2 test cases)
+

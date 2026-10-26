@@ -1,0 +1,60 @@
+T023 — Pilot rows 51-53, Profundum_PresetDefsRules, Profundum_ReferenceColumns, the pilot run
+(FR-007, FR-013, FR-043; SC-006 rules, SC-008, SC-020 pilot; plan 6, 7 rows 51-53, 5.4, 5.6, 5.8)
+Run: 2026-10-24 (executor; rows, tests and script only; nothing built or run; the pilot is a main-loop run)
+
+0. Precondition (T017 / FR-022)
+   evidence/probe-table.csv: 103 lines (header + 102 rows); run-log/T017.txt ends "PROBE GREEN rows=102".
+   allPresets() was empty before this task, so the probe precedes every definition.
+
+1. Failing tests written first
+   - Profundum_PresetDefsRules ([profundum][preset], unit/preset/preset_library_test.cpp): plan 6 rules 1-4 and
+     6-10 as predicates over (definition, decoded Comp) on every allPresets() def; rule 5 prints the
+     fundamentalLossFlagged set and checks the predicate on one constructed flagged and one unflagged state.
+     Rules 7 and 8 read the column preconditions from showcaseArmPlan (preset_render_support.h), so they are the
+     same plan 5.4 table the showcase arms apply (rule 7: no "kMorphPositionId=0" override on any claim, plus
+     SPREAD / spread 1 / depth 1 for AT-33; rule 8: the primary's plan is applicable with no override).
+     Non-vacuity: the test-local base (AT-10 on the defaults) holds every rule; one test-local def per rule
+     fails it (rule 2 through a decoded Output Gain and rule 6 through a def name, because the C-4 drive refuses
+     IDs 0 / 2 / 3 / 417 and default names); rule 3's "resting offset" exception is checked as well.
+   - Profundum_ReferenceColumns ([profundum][showcase], integration/preset_showcase_test.cpp): the three
+     reference presets decode as SOLID / LOCK / Sine on both endpoints; their plan 5.4 reverse arms
+     (showcaseColumn, primary) at E1 and C3 are measured, pass, fidelity-clean and carry no override; "Mono
+     Bedrock" gets its own short render (E1, 48 kHz, block 512, note-off 0.5 s, total 0.75 s) and reads L == R
+     bitwise from s0 = presetSolidSettleSample(48000) = 544, with a non-silence check on that span.
+
+2. Rows 51-53 (tools/profundum_preset_defs.h), all category Sub, p = 0, seedDependent = false, default seed
+   51 "Mono Bedrock"  R-SOLID  A "Solid Ground" / B "Solid Heat": SOLID both, Tube 0.4 (B 0.6), Anchor Sine LOCK 0.8
+   52 "Locked Floor"  R-LOCK   A "Triangle Lock" / B "Triangle Open": LOCK + Triangle both, SPREAD 0.6 (B 1);
+                               secondary AT-14
+   53 "Bedrock Sine"  R-SINE   A "Pure Sine" / B "Heavy Body": Sine both, WIDE spread 1; the pilot preset
+   Deviation from plan 7 "Intended sound", row 53: the harmonic body is on endpoint B, not A. The reverse arm
+   reads D_cx (harmonics n >= 2 against h1) on the active endpoint, and the probe read AT-14 on the sine-recipe
+   base at only 5.61 / 6.13 dB against the 3 dB bar; a harmonic body on A raises that baseline.
+   Risk, row 52: the R-LOCK arm is the AT-11 onset cell. The probe read it on the same core with a Sine Anchor at
+   2.09 / 2.04 dB against the 2 dB bar; a Triangle's fundamental is about 0.81 of a sine's, so the margin may
+   shrink. If the arm misses, re-author the row (for example, a lighter core fundamental); never the bar.
+
+3. Pilot script
+   evidence/pilot/run-pilot.sh (bash -n: OK). One build (-- /nr:false, 0 warnings required); removes any stale
+   evidence/distinctness.csv; runs "Profundum_PresetDistinctnessPilot" and "Profundum_ReferenceColumns"
+   concurrently into evidence/pilot/pilot.log with WALL lines; prints F, t_max, the near-variant and control
+   rows; last line "PILOT GREEN F=<F>" or "PILOT RED <reason>".
+
+4. Status: BLOCKED (main loop)
+   evidence/distinctness.csv does not exist yet. Main loop: run
+     bash specs/profundum-phase13-presets-release/evidence/pilot/run-pilot.sh
+   quote F, t_max, the near-variant and control rows below; unblock T023 on PILOT GREEN; on a failing control
+   STOP (F is never lowered).
+
+## Main loop, 2026-10-24 20:50: bash specs/profundum-phase13-presets-release/evidence/pilot/run-pilot.sh
+[pilot] building profundum_tests -> specs/profundum-phase13-presets-release/evidence/pilot/build.log
+[pilot] build exit=0 warnings=0 wall=15.8s
+WALL Profundum_ReferenceColumns 5.6 s exit=0
+WALL Profundum_PresetDistinctnessPilot 62.8 s exit=0
+[pilot] cases done wall=62.9s failed=0
+[pilot] distinctness.csv: F=1 t_max=0 t_max_twin="none"
+[pilot]   near-variant: d=0.295328965 masked=11 pass=1 (Mass (104) endpoint A 0.5 -> 0.55 normalized)
+[pilot]   control:      d=1409.54913 masked=21 pass=1
+PILOT GREEN F=1
+
+[exited with code 0]

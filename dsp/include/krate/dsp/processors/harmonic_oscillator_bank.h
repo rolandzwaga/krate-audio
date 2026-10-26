@@ -103,6 +103,9 @@ public:
     /// Fundamental partial spread reduction factor (FR-009)
     static constexpr float kFundamentalSpreadScale = 0.25f;
 
+    /// Centre pan gain written by reset() and restoreCenterPan() (sqrt(2)/2)
+    static constexpr float kCenterPanGain = 0.7071067811865476f;
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -204,6 +207,8 @@ public:
         sinState_.fill(0.0f);
         cosState_.fill(1.0f); // cos(0) = 1
         epsilon_.fill(0.0f);
+        continuityEps_.fill(kContinuityUnset);
+        continuityDirty_ = true;
         currentAmplitude_.fill(0.0f);
         targetAmplitude_.fill(0.0f);
         antiAliasGain_.fill(0.0f);
@@ -222,9 +227,8 @@ public:
         // Reset stereo/detune arrays to center (mono)
         panPosition_.fill(0.0f);
         // At center pan (angle = pi/4): cos(pi/4) = sin(pi/4) = sqrt(2)/2
-        constexpr float kCenterGain = 0.7071067811865476f; // sqrt(2)/2
-        panLeft_.fill(kCenterGain);
-        panRight_.fill(kCenterGain);
+        panLeft_.fill(kCenterPanGain);
+        panRight_.fill(kCenterPanGain);
         detuneMultiplier_.fill(1.0f);
         tailScanEnd_ = 0;
         // Cached pan/detune bases no longer describe this state (WI-20).
@@ -270,6 +274,7 @@ public:
         targetPitch_ = targetPitch;
         int numPartials = std::min(frame.numPartials, static_cast<int>(kMaxPartials));
         activePartials_ = numPartials;
+        continuityDirty_ = true;
 
         for (int i = 0; i < numPartials; ++i) {
             const auto& partial = frame.partials[i];
@@ -290,6 +295,8 @@ public:
                 sinState_[i] = std::sin(phase);
                 cosState_[i] = std::cos(phase);
                 epsilon_[i] = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
+                continuityEps_[i] = kContinuityUnset;   // adopted at the first render
+                continuityDirty_ = true;
                 currentAmplitude_[i] = 0.0f; // will ramp up via smoothing
             }
         }
@@ -469,6 +476,8 @@ public:
                     sinState_[totalPartials] = std::sin(phase);
                     cosState_[totalPartials] = std::cos(phase);
                     epsilon_[totalPartials] = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
+                    continuityEps_[totalPartials] = kContinuityUnset;   // adopted at the first render
+                    continuityDirty_ = true;
                     currentAmplitude_[totalPartials] = 0.0f;
                 }
 
@@ -477,6 +486,7 @@ public:
         }
 
         activePartials_ = totalPartials;
+        continuityDirty_ = true;
 
         // Zero out unused partials
         for (size_t i = static_cast<size_t>(totalPartials); i < kMaxPartials; ++i) {
@@ -653,6 +663,16 @@ public:
         }
     }
 
+    /// Profundum Phase 9 T032 (append-only): install per-partial pan coefficients computed by the
+    /// caller (left[i] = cos(angle_i), right[i] = sin(angle_i) of its own constant-power law). The
+    /// alternative to applyPanOffsets for a caller that evaluates the pair itself; the base tables
+    /// (setStereoSpread) and restoreCenterPan are unaffected.
+    void setPanCoefficients(const std::array<float, kMaxPartials>& left,
+                            const std::array<float, kMaxPartials>& right) noexcept {
+        panLeft_ = left;
+        panRight_ = right;
+    }
+
     /// @brief Apply external frequency multipliers on top of detune (M6 FR-026).
     ///
     /// Multiplies the given multipliers with the existing detuneMultiplier_
@@ -667,6 +687,46 @@ public:
         {
             detuneMultiplier_[i] *= multipliers[i];
         }
+        continuityDirty_ = true;
+        // With continuousFrequencyUpdates_ the state rewrite happens at the next render
+        // (reconcileContinuity), where the effective coefficient is final: a caller may
+        // change epsilon_ or the detune base after this call and before rendering.
+    }
+
+    /// @brief Opt in to amplitude- and phase-continuous frequency changes (Profundum
+    /// Phase 4, user ruling 2026-10-13). Off by default; reset() keeps the setting.
+    ///
+    /// The MCF solution with coefficient eps = 2 sin(w/2) is
+    ///   s[n] = A sin(psi_n),  c[n] = A cos(psi_n + w/2),  psi_{n+1} = psi_n + w,
+    /// so (s, c) describes an ellipse whose shape depends on eps. Changing eps while
+    /// keeping (s, c) changes the amplitude A (by up to 1/sqrt(1 - eps^2/4), about 3x
+    /// near the cap) and the phase psi, which re-rolls every partial's level after a
+    /// large pitch motion (measured +-11 dB per partial after a 48-semitone Drop).
+    /// With the opt-in, every stereo render first compares each active partial's
+    /// effective coefficient with the one its state last ran at and, when they differ,
+    /// rewrites the state so psi is exact and the state amplitude keeps the bank's
+    /// convention A = A0 / cos(w/2) (the seed is the unit circle and antiAliasGain_
+    /// carries cos(w/2)), so the rendered amplitude is unchanged once the smoothed gain
+    /// settles:
+    ///   r = cos(w1/2) / cos(w2/2),  s' = r s,  c' = c + s eps1/2 - r s eps2/2.
+    /// Measured on ProfundumCore: a 48-semitone Drop leaves every partial within 0.25 dB
+    /// (harmonic energy within 0.001 dB) and Phase 1's +-12 semitone bend residual
+    /// improves from -60 to -68 dB against the phase-exact reference. Cost: one compare
+    /// per active partial per processStereo / processStereoBlock call. Enable before
+    /// loadFrame. The mono process() path ignores detune and the opt-in.
+    void setContinuousFrequencyUpdates(bool enabled) noexcept {
+        continuousFrequencyUpdates_ = enabled;
+        continuityDirty_ = true;
+    }
+    [[nodiscard]] bool continuousFrequencyUpdates() const noexcept { return continuousFrequencyUpdates_; }
+
+    /// @brief Restore the exact centre pan tables that reset() writes (Profundum FR-064).
+    /// Refills panLeft_/panRight_ with kCenterPanGain; touches no phase, amplitude, detune,
+    /// panPosition_ or cache state. For callers that never use setStereoSpread().
+    /// @note Real-time safe
+    void restoreCenterPan() noexcept {
+        panLeft_.fill(kCenterPanGain);
+        panRight_.fill(kCenterPanGain);
     }
 
     /// @brief Generate a single stereo output sample (FR-007, FR-050).
@@ -684,6 +744,8 @@ public:
             left = right = 0.0f;
             return;
         }
+        if (continuousFrequencyUpdates_)
+            reconcileContinuity();
 
         float sumL = 0.0f;
         float sumR = 0.0f;
@@ -804,6 +866,8 @@ public:
         if (leftOutput == nullptr || rightOutput == nullptr || numSamples == 0) {
             return;
         }
+        if (continuousFrequencyUpdates_)
+            reconcileContinuity();
 
         if (!prepared_) {
             for (size_t i = 0; i < numSamples; ++i) {
@@ -1037,6 +1101,7 @@ private:
             float eps = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
             epsilon_[i] = std::clamp(eps, -kMaxEpsilon, kMaxEpsilon);
         }
+        continuityDirty_ = true;
     }
 
     /// @brief Recalculate epsilon for all active partials.
@@ -1053,6 +1118,7 @@ private:
             float eps = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
             epsilon_[i] = std::clamp(eps, -kMaxEpsilon, kMaxEpsilon);
         }
+        continuityDirty_ = true;
     }
 
     /// @brief Recalculate anti-aliasing gains (FR-038).
@@ -1145,6 +1211,7 @@ private:
                 detuneMultiplier_[i] = std::pow(2.0f, offsetCents / 1200.0f);
             }
         }
+        continuityDirty_ = true;
     }
 
     // =========================================================================
@@ -1219,6 +1286,45 @@ private:
     bool frameLoaded_ = false;            ///< Whether loadFrame() has been called
     bool polyMode_ = false;               ///< Whether using polyphonic source-aware mode
     bool hasBandwidth_ = false;           ///< Whether any partial has non-zero bandwidth (SIMD path selection)
+    bool continuousFrequencyUpdates_ = false;   ///< Opt-in (Profundum Phase 4): see setContinuousFrequencyUpdates
+    /// Profundum Phase 9 T029 (bit-identical): set by every writer of epsilon_, detuneMultiplier_,
+    /// activePartials_ or continuityEps_; reconcileContinuity() returns at once while it is clear. A
+    /// pass with no writer since the previous one finds every entry already at its target, so
+    /// skipping it changes nothing.
+    bool continuityDirty_ = true;
+    /// Effective coefficient each state last ran at (opt-in). kContinuityUnset after reset() or a
+    /// phase seed: the first render adopts the then-effective coefficient without a rewrite, so a
+    /// note that never moves renders bit-identically to the default path.
+    static constexpr float kContinuityUnset = -4.0f;
+    std::array<float, kMaxPartials> continuityEps_{};
+
+    /// Opt-in state rewrite (setContinuousFrequencyUpdates): called at the top of every
+    /// stereo render so the rewrite sees the final effective coefficient.
+    void reconcileContinuity() noexcept {
+        if (!continuityDirty_)
+            return;
+        continuityDirty_ = false;
+        const auto n = static_cast<size_t>(activePartials_);
+        for (size_t i = 0; i < n; ++i) {
+            const float eps2 = std::clamp(epsilon_[i] * detuneMultiplier_[i], -1.99f, 1.99f);
+            const float eps1 = continuityEps_[i];
+            if (eps1 == eps2)
+                continue;
+            if (eps1 == kContinuityUnset) {
+                continuityEps_[i] = eps2;
+                continue;
+            }
+            // Phase psi is kept exactly; the state amplitude follows the bank's convention
+            // A = A0 / cos(w/2) (the seed is the unit circle and antiAliasGain_ carries cos(w/2)),
+            // so the rendered amplitude is unchanged once the smoothed gain settles:
+            //   r = cos(w1/2) / cos(w2/2),  s' = r s,  c' = c + s eps1/2 - r s eps2/2.
+            const float s = sinState_[i];
+            const float r = std::sqrt(1.0f - 0.25f * eps1 * eps1) / std::sqrt(1.0f - 0.25f * eps2 * eps2);
+            cosState_[i] = cosState_[i] + s * (0.5f * eps1) - r * s * (0.5f * eps2);
+            sinState_[i] = r * s;
+            continuityEps_[i] = eps2;
+        }
+    }
 
     // --- Noise generator for bandwidth enhancement ---
     uint32_t noiseState_ = 12345u;        ///< LCG state for noise generation

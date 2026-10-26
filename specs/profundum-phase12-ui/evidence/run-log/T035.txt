@@ -1,0 +1,240 @@
+# T035 — Scope fence, ODR re-sweep, registration greps (FR-095, FR-096; SC-021)
+# Run 2026-10-24 on branch synth/profundum, HEAD 40f6ebca, base 40f6ebca. Working tree (uncommitted Phase 12).
+# Git 'LF will be replaced by CRLF' stderr notices are dropped (scope-fence.js ignores git stderr).
+
+## 1. Scope fence
+$ node specs/profundum-phase12-ui/evidence/close/scope-fence.js
+# Check 1: change set vs 40f6ebca (tracked diff U untracked), 112 paths, 1 excluded by name (.serena/project.yml)
+plugins/shared/ paths: 0
+other dsp/ paths: 9
+  OFFENDING dsp/tests/unit/processors/harmonic_fold_test_helpers.h
+  OFFENDING dsp/tests/unit/processors/shape_character_metric_helpers.h
+  OFFENDING dsp/tests/unit/processors/transient_shaper_test_helpers.h
+  OFFENDING dsp/tests/unit/systems/anchor_oscillator_test_helpers.h
+  OFFENDING dsp/tests/unit/systems/bass_morph_test_helpers.h
+  OFFENDING dsp/tests/unit/systems/bass_stereo_field_test_helpers.h
+  OFFENDING dsp/tests/unit/systems/mass_dynamics_test_helpers.h
+  OFFENDING dsp/tests/unit/systems/profundum_core_test_helpers.h
+  OFFENDING dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h
+other paths outside the allow-list: 20
+  OFFENDING .gitignore
+  OFFENDING specs/profundum-phase5-shape-character/evidence/sc013.csv
+  OFFENDING specs/profundum-phase5-shape-character/evidence/sc020-h1-transfer.csv
+  OFFENDING specs/profundum-phase6-mass-dynamics/evidence/phase9-handoff.txt
+  OFFENDING specs/profundum-phase7-stereo-field/evidence/sc001-grid/BassStereoField_MonoSumPerBandSmoke.csv
+  OFFENDING specs/profundum-phase7-stereo-field/evidence/sc003-width-smoke.csv
+  OFFENDING specs/profundum-phase7-stereo-field/evidence/sc004-a3-convergence.csv
+  OFFENDING specs/profundum-phase7-stereo-field/evidence/sc006-attenuation-smoke.csv
+  OFFENDING specs/profundum-phase7-stereo-field/evidence/sc009b-clicks-smoke.csv
+  OFFENDING specs/profundum-phase7-stereo-field/evidence/sc010-levers-smoke.csv
+  OFFENDING specs/profundum-phase7-stereo-field/evidence/sc016-rates-smoke.csv
+  OFFENDING specs/profundum-phase7-stereo-field/evidence/sc020-floor/BassStereoField_GravityFloorSmoke.csv
+  OFFENDING specs/profundum-phase8-bass-morph/evidence/sc005-rendered-smoke.csv
+  OFFENDING specs/profundum-phase8-bass-morph/evidence/sc015-audibility.csv
+  OFFENDING specs/profundum-phase8-bass-morph/evidence/sc016-monosum-E1-smoke.csv
+  OFFENDING specs/profundum-phase9-voice-engine/compliance.md
+  OFFENDING specs/profundum-phase9-voice-engine/evidence/listening-sheet.md
+  OFFENDING specs/profundum-phase9-voice-engine/evidence/run-log/T021.txt
+  OFFENDING specs/profundum-phase9-voice-engine/evidence/run-log/close/listen.log
+  OFFENDING specs/profundum-phase9-voice-engine/evidence/soak-smoke.txt
+CHECK 1 RED (29 offending)
+# Check 2: git diff 40f6ebca -- dsp/include (append-only, public sections)
+dsp/include/krate/dsp/systems/profundum_engine.h: 26 added lines
+dsp/include/krate/dsp/systems/profundum_voice.h: 8 added lines
+CHECK 2 GREEN (0 problems)
+SCOPE RED
+exit=1
+
+## 1a. Provenance of the 29 offending paths (read-only inspection; none edited by T035)
+$ git diff -U0 40f6ebca -- dsp/tests/unit | grep -E '^[-+][^-+]' | ... | uniq -c   (top rows)
+      5 - REQUIRE(total > 0);
+      5 + REQUIRE(total > 0u);
+      3 - REQUIRE(n > 0);
+      3 - REQUIRE(len > 0);
+      3 - REQUIRE(cc.hostBlock > 0);
+      3 - REQUIRE(block > 0);
+      3 + REQUIRE(n > 0u);
+      3 + REQUIRE(len > 0u);
+      3 + REQUIRE(cc.hostBlock > 0u);
+      3 + REQUIRE(block > 0u);
+      2 - REQUIRE(n >= 2);
+      2 - REQUIRE(count > 0);
+  -> all 9 dsp/tests/unit helper edits are REQUIRE(x > 0) -> REQUIRE(x > 0u) style signed/unsigned literal changes
+     (warning fixes; the Phase 12 dsp TU profundum_engine_display_test.cpp includes these helpers).
+$ git diff --stat 40f6ebca -- .gitignore specs/profundum-phase5-shape-character specs/profundum-phase6-mass-dynamics specs/profundum-phase7-stereo-field specs/profundum-phase8-bass-morph specs/profundum-phase9-voice-engine
+ .gitignore                                         |   1 +
+ .../evidence/sc013.csv                             |  14 +-
+ .../evidence/sc020-h1-transfer.csv                 |  84 +++----
+ .../evidence/phase9-handoff.txt                    |   6 +-
+ .../BassStereoField_MonoSumPerBandSmoke.csv        |  20 +-
+ .../evidence/sc003-width-smoke.csv                 |  46 ++--
+ .../evidence/sc004-a3-convergence.csv              | 180 +++++++--------
+ .../evidence/sc006-attenuation-smoke.csv           |  40 ++--
+ .../evidence/sc009b-clicks-smoke.csv               |   8 +-
+ .../evidence/sc010-levers-smoke.csv                |   2 +-
+ .../evidence/sc016-rates-smoke.csv                 | 248 ++++++++++-----------
+ .../BassStereoField_GravityFloorSmoke.csv          |  10 +-
+ .../evidence/sc005-rendered-smoke.csv              |   4 +-
+ .../evidence/sc015-audibility.csv                  |  24 +-
+ .../evidence/sc016-monosum-E1-smoke.csv            |  22 +-
+ specs/profundum-phase9-voice-engine/compliance.md  |   6 +-
+ .../evidence/listening-sheet.md                    |  23 +-
+ .../evidence/run-log/T021.txt                      |  10 +
+ .../evidence/run-log/close/listen.log              |   6 +-
+ .../evidence/soak-smoke.txt                        |   8 +-
+ 20 files changed, 383 insertions(+), 379 deletions(-)
+  -> .gitignore: +1 line '/specs/profundum-phase12-ui/evidence/listen/*.wav' (main loop, per its message).
+  -> phase5-8 evidence CSVs + phase6 phase9-handoff.txt + phase9 soak-smoke.txt / T021.txt / listen.log: rewritten by test runs
+     of the consumer suites (evidence files written by the tests themselves).
+  -> phase9 compliance.md + listening-sheet.md: SC-035 user verdicts (2026-10-23) entered by the main loop.
+
+## 2. ODR: every claimed name of T001 step 4 (+ OffsetRingKnob, P-5 re-cut) defined exactly once, in its planned file
+$ for each name: grep -rnE --include=*.h --include=*.cpp '<definition regex>' dsp/ plugins/ tools/ tests/
+#   (kStateV3Bytes: plugins/vorago/ excluded, see 2a). Regexes: Appendix A below (name, planned file, ERE).
+PASS ProfundumSpectrumProducer: definitions=1 (expected 1) in planned plugins/profundum/src/processor/spectrum_producer.h=1 :: plugins/profundum/src/processor/spectrum_producer.h:42 
+PASS ProfundumSpectrumFrame: definitions=1 (expected 1) in planned plugins/profundum/src/processor/spectrum_frame.h=1 :: plugins/profundum/src/processor/spectrum_frame.h:32 
+PASS kProfundumFrameUserContextId: definitions=1 (expected 1) in planned plugins/profundum/src/processor/spectrum_frame.h=1 :: plugins/profundum/src/processor/spectrum_frame.h:26 
+PASS HarmonicBarView: definitions=1 (expected 1) in planned plugins/profundum/src/ui/harmonic_bar_view.h=1 :: plugins/profundum/src/ui/harmonic_bar_view.h:43 
+PASS SpreadCurveView: definitions=1 (expected 1) in planned plugins/profundum/src/ui/spread_curve_view.h=1 :: plugins/profundum/src/ui/spread_curve_view.h:40 
+PASS ProfundumPanelSubController: definitions=1 (expected 1) in planned plugins/profundum/src/ui/panel_sub_controller.h=1 :: plugins/profundum/src/ui/panel_sub_controller.h:97 
+PASS SpreadCurveModel: definitions=1 (expected 1) in planned plugins/profundum/src/ui/spread_curve_view.h=1 :: plugins/profundum/src/ui/spread_curve_view.h:34 
+PASS kMacroTargetParamIds: definitions=1 (expected 1) in planned plugins/profundum/src/ui/macro_ui_map.h=1 :: plugins/profundum/src/ui/macro_ui_map.h:38 
+PASS describeEndpoint: definitions=1 (expected 1) in planned plugins/profundum/src/ui/endpoint_descriptor.h=1 :: plugins/profundum/src/ui/endpoint_descriptor.h:67 
+PASS kMsgEndpointName: definitions=1 (expected 1) in planned plugins/profundum/src/plugin_ids.h=1 :: plugins/profundum/src/plugin_ids.h:89 
+PASS kEndpointNameMaxBytes: definitions=1 (expected 1) in planned plugins/profundum/src/plugin_ids.h=1 :: plugins/profundum/src/plugin_ids.h:58 
+PASS kEndpointNameBlockBytes: definitions=1 (expected 1) in planned plugins/profundum/src/plugin_ids.h=1 :: plugins/profundum/src/plugin_ids.h:59 
+PASS kStateNamesOffset: definitions=1 (expected 1) in planned plugins/profundum/src/plugin_ids.h=1 :: plugins/profundum/src/plugin_ids.h:60 
+PASS publishSpectrumFrame: definitions=1 (expected 1) in planned plugins/profundum/src/processor/processor.cpp=1 :: plugins/profundum/src/processor/processor.cpp:1085 
+PASS kEditorSyncIntervalMs: definitions=1 (expected 1) in planned plugins/profundum/src/controller/controller.h=1 :: plugins/profundum/src/controller/controller.h:83 
+PASS hasEditorSyncTimerForTest: definitions=1 (expected 1) in planned plugins/profundum/src/controller/controller.h=1 :: plugins/profundum/src/controller/controller.h:173 
+PASS SpectrumQueueState: definitions=1 (expected 1) in planned plugins/profundum/src/processor/processor.h=1 :: plugins/profundum/src/processor/processor.h:171 
+PASS spectrumQueueOpenForTest: definitions=1 (expected 1) in planned plugins/profundum/src/processor/processor.h=1 :: plugins/profundum/src/processor/processor.h:164 
+PASS v2StreamOf: definitions=1 (expected 1) in planned plugins/profundum/tests/profundum_test_fixture.h=1 :: plugins/profundum/tests/profundum_test_fixture.h:1142 
+PASS portaReadoutInvalidationsForTest: definitions=1 (expected 1) in planned plugins/profundum/src/ui/panel_sub_controller.h=1 :: plugins/profundum/src/ui/panel_sub_controller.h:143 
+PASS kneeMarksForTest: definitions=1 (expected 1) in planned plugins/profundum/src/ui/spread_curve_view.cpp=1 :: plugins/profundum/src/ui/spread_curve_view.cpp:55 
+PASS lowerKneeHz: definitions=1 (expected 1) in planned plugins/profundum/src/ui/spread_curve_view.h=1 :: plugins/profundum/src/ui/spread_curve_view.h:36 
+PASS upperKneeHz: definitions=1 (expected 1) in planned plugins/profundum/src/ui/spread_curve_view.h=1 :: plugins/profundum/src/ui/spread_curve_view.h:36 
+PASS kD6UiOnlyTags: definitions=1 (expected 1) in planned plugins/profundum/tests/ui_strings_test_table.h=1 :: plugins/profundum/tests/ui_strings_test_table.h:168 
+PASS controlGridPhase: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_engine.h=1 :: dsp/include/krate/dsp/systems/profundum_engine.h:427 
+PASS voiceForDisplay: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_engine.h=1 :: dsp/include/krate/dsp/systems/profundum_engine.h:433 
+PASS voiceMidiNote: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_engine.h=1 :: dsp/include/krate/dsp/systems/profundum_engine.h:442 
+PASS voiceRenderedThisInterval: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_engine.h=1 :: dsp/include/krate/dsp/systems/profundum_engine.h:437 
+PASS appliedVoiceMode: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_engine.h=1 :: dsp/include/krate/dsp/systems/profundum_engine.h:431 
+PASS characterTapL: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_voice.h=1 :: dsp/include/krate/dsp/systems/profundum_voice.h:703 
+PASS characterTapR: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_voice.h=1 :: dsp/include/krate/dsp/systems/profundum_voice.h:704 
+PASS anchorTapL: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_voice.h=1 :: dsp/include/krate/dsp/systems/profundum_voice.h:705 
+PASS anchorTapR: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_voice.h=1 :: dsp/include/krate/dsp/systems/profundum_voice.h:706 
+PASS intervalSamplesRendered: definitions=1 (expected 1) in planned dsp/include/krate/dsp/systems/profundum_voice.h=1 :: dsp/include/krate/dsp/systems/profundum_voice.h:702 
+PASS EndpointName: definitions=1 (expected 1) in planned plugins/profundum/src/parameters/endpoint_names.h=1 :: plugins/profundum/src/parameters/endpoint_names.h:32 
+PASS sanitizeEndpointName: definitions=1 (expected 1) in planned plugins/profundum/src/parameters/endpoint_names.h=1 :: plugins/profundum/src/parameters/endpoint_names.h:94 
+PASS defaultEndpointName: definitions=1 (expected 1) in planned plugins/profundum/src/parameters/endpoint_names.h=1 :: plugins/profundum/src/parameters/endpoint_names.h:80 
+PASS writeEndpointName: definitions=1 (expected 1) in planned plugins/profundum/src/parameters/endpoint_names.h=1 :: plugins/profundum/src/parameters/endpoint_names.h:144 
+PASS readEndpointName: definitions=1 (expected 1) in planned plugins/profundum/src/parameters/endpoint_names.h=1 :: plugins/profundum/src/parameters/endpoint_names.h:158 
+PASS HeadlessEditor: definitions=1 (expected 1) in planned plugins/profundum/tests/ui_tree_helpers.h=1 :: plugins/profundum/tests/ui_tree_helpers.h:50 
+PASS Profundum_SpectrumProducerMath: definitions=1 (expected 1) in planned plugins/profundum/tests/unit/spectrum_producer_test.cpp=1 :: plugins/profundum/tests/unit/spectrum_producer_test.cpp:131 
+PASS Profundum_UiViewsUnit: definitions=1 (expected 1) in planned plugins/profundum/tests/unit/controller/ui_views_test.cpp=1 :: plugins/profundum/tests/unit/controller/ui_views_test.cpp:65 
+PASS Profundum_MacroUiMap: definitions=1 (expected 1) in planned plugins/profundum/tests/unit/controller/macro_ui_test.cpp=1 :: plugins/profundum/tests/unit/controller/macro_ui_test.cpp:174 
+PASS OffsetRingKnob: definitions=1 (expected 1) in planned plugins/profundum/src/ui/offset_ring_knob.h=1 :: plugins/profundum/src/ui/offset_ring_knob.h:38 
+PASS kStateV3Bytes (namespace Profundum): definitions=1 (expected 1) in planned plugins/profundum/src/plugin_ids.h=1 :: plugins/profundum/src/plugin_ids.h:61 
+ODR definition rows: 45 PASS, 0 FAIL
+
+## 2a. kStateV3Bytes outside Profundum stays in namespace Vorago (plan §9)
+$ grep -rnw kStateV3Bytes dsp/ plugins/ tools/ tests/ | grep -v '^plugins/profundum/' | grep -v '^plugins/vorago/' | wc -l   (expected 0)
+0
+$ grep -n 'namespace Vorago\|constexpr std::size_t kStateV3Bytes' plugins/vorago/src/plugin_ids.h
+17:namespace Vorago {
+52:constexpr std::size_t kStateV3Bytes = kStateV2Bytes + 4 /* float syncRate */
+253:}  // namespace Vorago
+$ grep -n 'namespace Profundum {\|constexpr std::size_t kStateV3Bytes' plugins/profundum/src/plugin_ids.h
+19:namespace Profundum {
+61:constexpr std::size_t kStateV3Bytes = kStateNamesOffset + 2 * kEndpointNameBlockBytes;   // 574
+Note: profundum_engine.h:429 also adds samplePosition() (not on the T001 list; a const member accessor, no ODR exposure).
+
+## 3. FR-098: grep -rn 'IMidiLearn' plugins/profundum/src   (expected 0)
+count=0
+  First run: 1 hit, a comment only — plugins/profundum/src/controller/controller.h:74
+  '// an editor is open; IMidiLearn is NOT implemented (FR-098).' (Phase 12 text, absent at 40f6ebca: git grep IMidiLearn 40f6ebca = 0).
+  Fixed here (Phase 12 file): reworded to 'the VST3 MIDI-learn interface is NOT implemented (FR-098).'; count above is the re-run.
+
+## 4. FR-046: grep -rn 'compareModeForTest' plugins/profundum/src/ui   (expected 0)
+count=0
+
+## 5. Portability: grep -rnE 'std::isnan|std::isinf|std::isfinite|std::fpclassify' plugins/profundum/src plugins/profundum/tests   (expected 0 new hits)
+plugins/profundum/tests/profundum_test_fixture.h:29:// PORTABILITY (plan 4.5): never std::isnan / std::isinf / std::isfinite; non-finite
+plugins/profundum/tests/profundum_test_fixture.h:924:// Exponent test on the bit pattern: fast-math immune (never std::isfinite).
+count_now=2
+$ git grep -nE '<same>' 40f6ebca -- plugins/profundum/src plugins/profundum/tests
+40f6ebca:plugins/profundum/tests/profundum_test_fixture.h:29:// PORTABILITY (plan 4.5): never std::isnan / std::isinf / std::isfinite; non-finite
+40f6ebca:plugins/profundum/tests/profundum_test_fixture.h:903:// Exponent test on the bit pattern: fast-math immune (never std::isfinite).
+count_base=2
+  -> the 2 current hits are the 2 base comments (fixture :903 moved to :924): 0 new hits.
+  First run: 1 new hit, a comment only — plugins/profundum/tests/integration/spectrum_frame_test.cpp:21
+  '// PORTABILITY: no std::isnan / std::isinf / std::isfinite; ...' (Phase 12 file). Fixed here: reworded to
+  '// PORTABILITY: no <cmath> NaN / Inf classifiers; Krate::DSP::detail::isFinite and bit patterns only.'
+
+## Verdict
+ODR definitions: 45/45 PASS. IMidiLearn 0, compareModeForTest 0, isnan-family 0 new (after two comment rewordings).
+Scope fence: SCOPE RED — CHECK 1 RED (29 paths outside the allow-list: 9 dsp/tests/unit helpers, .gitignore, 19 earlier-phase
+spec evidence files; 0 plugins/shared/), CHECK 2 GREEN (dsp/include append-only, 26 + 8 '+' lines, all in public sections).
+None of the 29 is a Phase 12 file; T035 does not edit or revert them. Decision needed from the user: accept them into the change set
+(widen the FR-095 allow-list: the helper sign-literal fixes, .gitignore, regenerated evidence, Phase 9 verdicts) or revert / split
+them out before the Phase 12 commit.
+
+## Appendix A. Definition regexes of section 2 (name|planned file|ERE; P=plugins/profundum)
+"ProfundumSpectrumProducer|$P/src/processor/spectrum_producer.h|class ProfundumSpectrumProducer *([:{]|$)"
+"ProfundumSpectrumFrame|$P/src/processor/spectrum_frame.h|struct ProfundumSpectrumFrame *([:{]|$)"
+"kProfundumFrameUserContextId|$P/src/processor/spectrum_frame.h|constexpr .*\bkProfundumFrameUserContextId *="
+"HarmonicBarView|$P/src/ui/harmonic_bar_view.h|class HarmonicBarView *([:{]|$)"
+"SpreadCurveView|$P/src/ui/spread_curve_view.h|class SpreadCurveView *([:{]|$)"
+"ProfundumPanelSubController|$P/src/ui/panel_sub_controller.h|class ProfundumPanelSubController *([:{,]|$)"
+"SpreadCurveModel|$P/src/ui/spread_curve_view.h|struct SpreadCurveModel *([:{]|$)"
+"kMacroTargetParamIds|$P/src/ui/macro_ui_map.h|constexpr .*\bkMacroTargetParamIds *[{=]"
+"describeEndpoint|$P/src/ui/endpoint_descriptor.h|inline .*\bdescribeEndpoint\("
+"kMsgEndpointName|$P/src/plugin_ids.h|constexpr .*\bkMsgEndpointName *="
+"kEndpointNameMaxBytes|$P/src/plugin_ids.h|constexpr .*\bkEndpointNameMaxBytes *="
+"kEndpointNameBlockBytes|$P/src/plugin_ids.h|constexpr .*\bkEndpointNameBlockBytes *="
+"kStateNamesOffset|$P/src/plugin_ids.h|constexpr .*\bkStateNamesOffset *="
+"publishSpectrumFrame|$P/src/processor/processor.cpp|Processor::publishSpectrumFrame\("
+"kEditorSyncIntervalMs|$P/src/controller/controller.h|constexpr .*\bkEditorSyncIntervalMs *="
+"hasEditorSyncTimerForTest|$P/src/controller/controller.h|bool hasEditorSyncTimerForTest\("
+"SpectrumQueueState|$P/src/processor/processor.h|enum class SpectrumQueueState\b"
+"spectrumQueueOpenForTest|$P/src/processor/processor.h|bool spectrumQueueOpenForTest\("
+"v2StreamOf|$P/tests/profundum_test_fixture.h|inline .*\bv2StreamOf\("
+"portaReadoutInvalidationsForTest|$P/src/ui/panel_sub_controller.h|portaReadoutInvalidationsForTest\(\) const noexcept"
+"kneeMarksForTest|$P/src/ui/spread_curve_view.cpp|SpreadCurveView::kneeMarksForTest\("
+"lowerKneeHz|$P/src/ui/spread_curve_view.h|float .*\blowerKneeHz *="
+"upperKneeHz|$P/src/ui/spread_curve_view.h|float .*\bupperKneeHz *="
+"kD6UiOnlyTags|$P/tests/ui_strings_test_table.h|constexpr .*\bkD6UiOnlyTags *[{=]"
+"controlGridPhase|dsp/include/krate/dsp/systems/profundum_engine.h|\bcontrolGridPhase\(\) const noexcept"
+"voiceForDisplay|dsp/include/krate/dsp/systems/profundum_engine.h|\bvoiceForDisplay\(std::size_t v\) const noexcept"
+"voiceMidiNote|dsp/include/krate/dsp/systems/profundum_engine.h|\bvoiceMidiNote\(std::size_t v\) const noexcept"
+"voiceRenderedThisInterval|dsp/include/krate/dsp/systems/profundum_engine.h|\bvoiceRenderedThisInterval\(std::size_t v\) const noexcept"
+"appliedVoiceMode|dsp/include/krate/dsp/systems/profundum_engine.h|\bappliedVoiceMode\(\) const noexcept"
+"characterTapL|dsp/include/krate/dsp/systems/profundum_voice.h|\bcharacterTapL\(\) const noexcept"
+"characterTapR|dsp/include/krate/dsp/systems/profundum_voice.h|\bcharacterTapR\(\) const noexcept"
+"anchorTapL|dsp/include/krate/dsp/systems/profundum_voice.h|\banchorTapL\(\) const noexcept"
+"anchorTapR|dsp/include/krate/dsp/systems/profundum_voice.h|\banchorTapR\(\) const noexcept"
+"intervalSamplesRendered|dsp/include/krate/dsp/systems/profundum_voice.h|\bintervalSamplesRendered\(\) const noexcept"
+"EndpointName|$P/src/parameters/endpoint_names.h|struct EndpointName *([:{]|$)"
+"sanitizeEndpointName|$P/src/parameters/endpoint_names.h|inline .*\bsanitizeEndpointName\("
+"defaultEndpointName|$P/src/parameters/endpoint_names.h|inline .*\bdefaultEndpointName\("
+"writeEndpointName|$P/src/parameters/endpoint_names.h|inline .*\bwriteEndpointName\("
+"readEndpointName|$P/src/parameters/endpoint_names.h|inline .*\breadEndpointName\("
+"HeadlessEditor|$P/tests/ui_tree_helpers.h|struct HeadlessEditor *([:{]|$)"
+"Profundum_SpectrumProducerMath|$P/tests/unit/spectrum_producer_test.cpp|TEST_CASE\(\"Profundum_SpectrumProducerMath\""
+"Profundum_UiViewsUnit|$P/tests/unit/controller/ui_views_test.cpp|TEST_CASE\(\"Profundum_UiViewsUnit\""
+"Profundum_MacroUiMap|$P/tests/unit/controller/macro_ui_test.cpp|TEST_CASE\(\"Profundum_MacroUiMap\""
+"OffsetRingKnob|$P/src/ui/offset_ring_knob.h|class OffsetRingKnob *([:{]|$)"
+"kStateV3Bytes (namespace Profundum)|$P/src/plugin_ids.h|constexpr .*\bkStateV3Bytes *="
+
+## Re-run 2026-10-24 (main loop) after the FR-095 allow-list addition and the restore of 17 earlier-phase evidence files
+# Check 1: change set vs 40f6ebca (tracked diff U untracked), 95 paths, 1 excluded by name (.serena/project.yml)
+plugins/shared/ paths: 0
+other dsp/ paths: 0
+other paths outside the allow-list: 0
+CHECK 1 GREEN (0 offending)
+# Check 2: git diff 40f6ebca -- dsp/include (append-only, public sections)
+dsp/include/krate/dsp/systems/profundum_engine.h: 26 added lines
+dsp/include/krate/dsp/systems/profundum_voice.h: 8 added lines
+CHECK 2 GREEN (0 problems)
+SCOPE GREEN

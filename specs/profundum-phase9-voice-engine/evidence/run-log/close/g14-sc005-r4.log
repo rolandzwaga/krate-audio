@@ -1,0 +1,118 @@
+Filters: "VoiceEngine_Steal*"
+Randomness seeded to: 3773866097
+VoiceEngine_StealOrder: 1000 events, 665 note-ons, 661 steals, mismatches 0, ambiguous 0
+POSITIVE-CONTROL steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 1 [disableStealFade] ratio 6.48183 max_dy 0.203571 bound 0.0346657 -> fails (a) or (b): OK
+POSITIVE-CONTROL replace A_s+sustain1(C-8)/Solid E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick] ratio 15.6608 max_dy 0.208436 bound 0.0137551 -> fails (a) or (b): OK
+SC-005 VoiceEngine_StealClickless_Solid: 192 cells, worst gated (a) ratio 1.0321 (steal A_s+sustain1(C-8)/Solid C3 held AlwaysRetrigger Reset block 1; bar 1.05925), min (b) margin 1.51973 (steal A_s+sustain1(C-8)/Solid C3 held AlwaysRetrigger Reset block 1), wall clock 97.9407 s
+POSITIVE-CONTROL steal A_s+sustain1(C-8)/Spread E1 held AlwaysRetrigger Reset block 1 [disableStealFade] ratio 6.4819 max_dy 0.203571 bound 0.0346654 -> fails (a) or (b): OK
+POSITIVE-CONTROL replace A_s+sustain1(C-8)/Spread E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick] ratio 15.6609 max_dy 0.208436 bound 0.0137551 -> fails (a) or (b): OK
+SC-005 VoiceEngine_StealClickless_Spread: 192 cells, worst gated (a) ratio 1.03212 (steal A_s+sustain1(C-8)/Spread C3 held AlwaysRetrigger Reset block 1; bar 1.05925), min (b) margin 1.51965 (steal A_s+sustain1(C-8)/Spread C3 held AlwaysRetrigger Reset block 1), wall clock 108.187 s
+POSITIVE-CONTROL steal A_s+sustain1(C-8)/Wide E1 held AlwaysRetrigger Reset block 1 [disableStealFade] ratio 6.69593 max_dy 0.209325 bound 0.0382756 -> fails (a) or (b): OK
+POSITIVE-CONTROL replace A_s+sustain1(C-8)/Wide E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick] ratio 15.7978 max_dy 0.209874 bound 0.0152623 -> fails (a) or (b): OK
+SC-005 VoiceEngine_StealClickless_Wide: 192 cells, worst gated (a) ratio 1.04485 (steal A_s+sustain1(C-8)/Wide C3 held AlwaysRetrigger Reset block 1; bar 1.05925), min (b) margin 1.52134 (steal A_s+sustain1(C-8)/Wide C3 held AlwaysRetrigger Reset block 1), wall clock 111.17 s
+POSITIVE-CONTROL steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 1 [disableStealFade] ratio 6.48183 max_dy 0.203571 bound 0.0346657 -> fails (a) or (b): OK
+POSITIVE-CONTROL replace A_s+sustain1(C-8)/Solid E1 +3 st retrigger AlwaysRetrigger Reset Porta0 block 1 [disableDeclick] ratio 15.6608 max_dy 0.208436 bound 0.0137551 -> fails (a) or (b): OK
+SC-005 VoiceEngine_StealClicklessSmoke: 1 cells, worst gated (a) ratio 0.718121 (steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 37; bar 1.05925), min (b) margin 1.53703 (steal A_s+sustain1(C-8)/Solid E1 held AlwaysRetrigger Reset block 37), wall clock 1.7258 s
+# STEALDIAG POLY4 victim E1 held, fillers +5/+7/+10 st, new +3 st at 24000; W [24000, 25452)
+STEALDIAG poly4 L max_dy=0.0225536 at tS+233
+#   sum: 0.280124 0.302674 0.325227 0.34778 0.370332 0.392878
+#   v0.char: 0.0723082 0.0742774 0.0762606 0.078257 0.0802661 0.0822872
+#   v0.anchor: 0.188099 0.190028 0.191949 0.193862 0.195768 0.197665
+#   v0.gAmp: 1 1 1 1 1 1
+#   v0.gD: 1 1 1 1 1 1
+#   v1.char: -0.0385769 -0.0356317 -0.0326822 -0.029729 -0.0267723 -0.0238124
+#   v1.anchor: 0.0301887 0.0327361 0.0352819 0.0378258 0.0403677 0.0429076
+#   v1.gAmp: 1 1 1 1 1 1
+#   v1.gD: 1 1 1 1 1 1
+#   v2.char: -0.0989814 -0.0958571 -0.0927195 -0.0895688 -0.0864056 -0.0832302
+#   v2.anchor: -0.022339 -0.0194733 -0.0166063 -0.0137382 -0.0108692 -0.00799955
+#   v2.gAmp: 1 1 1 1 1 1
+#   v2.gD: 1 1 1 1 1 1
+#   v3.char: 0.0450768 0.0489874 0.052888 0.0567778 0.0606561 0.064522
+#   v3.anchor: 0.104349 0.107607 0.110855 0.114094 0.117321 0.120538
+#   v3.gAmp: 1 1 1 1 1 1
+#   v3.gD: 1 1 1 1 1 1
+#   v0 contribution step 0.00390969
+#   v1 contribution step 0.00549717
+#   v2 contribution step 0.00601871
+#   v3 contribution step 0.00712802
+STEALDIAG poly4 R max_dy=0.0225536 at tS+233
+#   sum: 0.280124 0.302674 0.325227 0.34778 0.370332 0.392878
+#   v0.char: 0.0723082 0.0742774 0.0762606 0.078257 0.0802661 0.0822872
+#   v0.anchor: 0.188099 0.190028 0.191949 0.193862 0.195768 0.197665
+#   v0.gAmp: 1 1 1 1 1 1
+#   v0.gD: 1 1 1 1 1 1
+#   v1.char: -0.0385769 -0.0356317 -0.0326822 -0.029729 -0.0267723 -0.0238124
+#   v1.anchor: 0.0301887 0.0327361 0.0352819 0.0378258 0.0403677 0.0429076
+#   v1.gAmp: 1 1 1 1 1 1
+#   v1.gD: 1 1 1 1 1 1
+#   v2.char: -0.0989814 -0.0958571 -0.0927195 -0.0895688 -0.0864056 -0.0832302
+#   v2.anchor: -0.022339 -0.0194733 -0.0166063 -0.0137382 -0.0108692 -0.00799955
+#   v2.gAmp: 1 1 1 1 1 1
+#   v2.gD: 1 1 1 1 1 1
+#   v3.char: 0.0450768 0.0489874 0.052888 0.0567778 0.0606561 0.064522
+#   v3.anchor: 0.104349 0.107607 0.110855 0.114094 0.117321 0.120538
+#   v3.gAmp: 1 1 1 1 1 1
+#   v3.gD: 1 1 1 1 1 1
+#   v0 contribution step 0.00390969
+#   v1 contribution step 0.00549717
+#   v2 contribution step 0.00601871
+#   v3 contribution step 0.00712802
+STEALDIAG poly5 L max_dy=0.0203818 at tS+225
+#   sum: -0.162682 -0.142303 -0.121921 -0.10154 -0.0811592 -0.0607827
+#   v0.char: -0.342052 -0.341938 -0.341817 -0.341689 -0.341555 -0.341414
+#   v0.anchor: -0.342765 -0.342257 -0.341739 -0.341211 -0.340673 -0.340125
+#   v0.gAmp: 1 1 1 1 1 1
+#   v0.gD: 1 1 1 1 1 1
+#   v1.char: -0.0619492 -0.0590492 -0.0561424 -0.0532291 -0.0503097 -0.0473844
+#   v1.anchor: 0.00976386 0.0123201 0.0148757 0.0174306 0.0199845 0.0225375
+#   v1.gAmp: 1 1 1 1 1 1
+#   v1.gD: 1 1 1 1 1 1
+#   v2.char: -0.12345 -0.120446 -0.117425 -0.114389 -0.111337 -0.10827
+#   v2.anchor: -0.0451965 -0.0423477 -0.0394961 -0.036642 -0.0337854 -0.0309266
+#   v2.gAmp: 1 1 1 1 1 1
+#   v2.gD: 1 1 1 1 1 1
+#   v3.char: 0.0135276 0.0174894 0.0214476 0.0254014 0.0293501 0.0332928
+#   v3.anchor: 0.07796 0.081287 0.0846065 0.0879182 0.0912217 0.0945168
+#   v3.gAmp: 1 1 1 1 1 1
+#   v3.gD: 1 1 1 1 1 1
+#   v4.char: 0.300071 0.300903 0.301722 0.302527 0.303318 0.304095
+#   v4.anchor: 0.351409 0.351735 0.352047 0.352344 0.352627 0.352895
+#   v4.gAmp: 1 1 1 1 1 1
+#   v4.gD: 1 1 1 1 1 1
+#   v0 contribution step 0.000655591
+#   v1 contribution step 0.00546814
+#   v2 contribution step 0.00589052
+#   v3 contribution step 0.00726552
+#   v4 contribution step 0.00110206
+STEALDIAG poly5 R max_dy=0.0203818 at tS+225
+#   sum: -0.162682 -0.142303 -0.121921 -0.10154 -0.0811592 -0.0607827
+#   v0.char: -0.342052 -0.341938 -0.341817 -0.341689 -0.341555 -0.341414
+#   v0.anchor: -0.342765 -0.342257 -0.341739 -0.341211 -0.340673 -0.340125
+#   v0.gAmp: 1 1 1 1 1 1
+#   v0.gD: 1 1 1 1 1 1
+#   v1.char: -0.0619492 -0.0590492 -0.0561424 -0.0532291 -0.0503097 -0.0473844
+#   v1.anchor: 0.00976386 0.0123201 0.0148757 0.0174306 0.0199845 0.0225375
+#   v1.gAmp: 1 1 1 1 1 1
+#   v1.gD: 1 1 1 1 1 1
+#   v2.char: -0.12345 -0.120446 -0.117425 -0.114389 -0.111337 -0.10827
+#   v2.anchor: -0.0451965 -0.0423477 -0.0394961 -0.036642 -0.0337854 -0.0309266
+#   v2.gAmp: 1 1 1 1 1 1
+#   v2.gD: 1 1 1 1 1 1
+#   v3.char: 0.0135276 0.0174894 0.0214476 0.0254014 0.0293501 0.0332928
+#   v3.anchor: 0.07796 0.081287 0.0846065 0.0879182 0.0912217 0.0945168
+#   v3.gAmp: 1 1 1 1 1 1
+#   v3.gD: 1 1 1 1 1 1
+#   v4.char: 0.300071 0.300903 0.301722 0.302527 0.303318 0.304095
+#   v4.anchor: 0.351409 0.351735 0.352047 0.352344 0.352627 0.352895
+#   v4.gAmp: 1 1 1 1 1 1
+#   v4.gD: 1 1 1 1 1 1
+#   v0 contribution step 0.000655591
+#   v1 contribution step 0.00546814
+#   v2 contribution step 0.00589052
+#   v3 contribution step 0.00726552
+#   v4 contribution step 0.00110206
+===============================================================================
+All tests passed (23537 assertions in 6 test cases)
+
+exit 0

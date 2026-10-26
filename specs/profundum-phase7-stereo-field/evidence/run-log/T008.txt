@@ -1,0 +1,31 @@
+T008 run-log (2026-10-18) - non-finite safety (SC-014; FR-072)
+
+## Files written
+- dsp/tests/unit/systems/bass_stereo_field_nonfinite_test.cpp (stub filled; already listed in the -fno-fast-math block of
+  dsp/tests/CMakeLists.txt:1259 and in the dsp_systems_tests list :756 by T002). Includes only <krate/dsp/systems/bass_stereo_field.h>
+  plus std headers; field-only renders (T007's helpers are not used, T008 depends on T006 only). TU-local names prefixed bnf / kBnf.
+  2 TEST_CASEs, tags [systems][profundum][stereo-field][nonfinite][sc-014][fr-072], none [long]:
+    BassStereoField_NonFinite          NaN / +Inf / -Inf from bit patterns 0x7FC00000 / 0x7F800000 / 0xFF800000 through a volatile;
+        2 s seeded noise (mt19937 0x5EED, uniform [-0.5, 0.5] independent L/R), SPREAD, Gravity 0.5, crossover 120 Hz, 48 kHz,
+        host block 64 split at the 32-sample grid with advanceControl() at every grid point; 16-sample burst at sample 24000
+        (0.5 s) on L only, R only, both (9 arms) plus a clean reference. Gates: every output sample detail::isFinite;
+        every output sample of an injected channel inside the burst has bits == 0 (+0.0f; -0.0f fails), one-channel arms
+        included; the 64 samples after the burst finite on both channels and the observers currentSideGain / modeFade /
+        smoothedCrossoverHz / stageCrossoverHz finite; from burst end + 4800 samples (100 ms) over 24000 samples (0.5 s),
+        RMS(out - ref) / RMS(ref) <= -60 dB per channel. Non-vacuity: reference finite, non-silent, sideIdle() false.
+        Prints one line per arm (incl. the first-block error, not gated, and the good channel's non-zero count).
+    BassStereoField_NonFiniteControls  base: SPREAD, spread 0.7, gravity 0.3, crossover 150, curve 0.4, depth 0.6, rate 0.5,
+        Cycle, sync on, Quarter, tempo 100 BPM; 0.5 s noise rendered per 32-sample interval, recording L/R, motionValue(),
+        cycleFrequencyHz() and computePanVector(f0 55, 64 partials) per interval. Before interval 300's advanceControl, one bad
+        call: setControls(controls() with one of spread / gravity / crossoverHz / curve / motionDepth / motionRate = NaN / +Inf
+        / -Inf) or setTempoBpm(NaN / +Inf / -Inf) (21 arms). Gates: controls() bit-equal right after the call;
+        cycleFrequencyHz() unchanged; L, R, motion, cycleHz and pan records bit-equal (memcmp) to the render that never saw
+        the call. Non-vacuity: the render sounds, MOTION and the pan vector are non-zero, and a tempo change 100 -> 160 BPM
+        does change cycleFrequencyHz() (so the tempo arm can fail).
+
+## Header API relied on (read this session, dsp/include/krate/dsp/systems/bass_stereo_field.h)
+- Controls :97-109, VoiceState :111, prepare(double, size_t) :162, setControls :230 (sanitize keeps previous on non-finite :521-523),
+  controls() :255, setTempoBpm :270-276, advanceControl :289, computePanVector :337, processBlock :424-468 (input guard + output
+  mask :441-466), observers :481-489. detail::isFinite: core/db_utils.h:118. kMaxPartials: processors/harmonic_types.h:21.
+
+## Not built or run (per the task instruction); the Group 6 gate builds dsp_systems_tests and runs [sc-014].

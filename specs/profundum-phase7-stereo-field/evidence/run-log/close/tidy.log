@@ -1,0 +1,65 @@
+=== T019 tidy 2026-10-19T07:26:51Z commit 4599d180
+--- vcvars: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
+--- reconfigure (cmake --preset windows-ninja in vcvars64) exit=0 wall=15s
+-- [SMTG] Setup running moduleinfotool for Vorago
+-- [KRATE] Copied compile_commands.json to project root
+-- Configuring done (11.0s)
+-- Generating done (0.9s)
+-- Build files have been written to: F:/projects/iterum/build/windows-ninja
+--- compile database: all nine TUs present
+=== dsp/tests/unit/systems/bass_stereo_field_test.cpp
+63880 warnings generated.
+Suppressed 63880 warnings (63876 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 23 s
+=== dsp/tests/unit/systems/bass_stereo_field_helpers_test.cpp
+60222 warnings generated.
+Suppressed 60222 warnings (60218 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 20 s
+=== dsp/tests/unit/systems/bass_stereo_field_nonfinite_test.cpp
+58279 warnings generated.
+Suppressed 58279 warnings (58276 in non-user code, 3 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 16 s
+=== dsp/tests/unit/systems/bass_stereo_field_monosum_test.cpp
+61931 warnings generated.
+Suppressed 61931 warnings (61927 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 22 s
+=== dsp/tests/unit/systems/bass_stereo_field_spectral_test.cpp
+64033 warnings generated.
+Suppressed 64033 warnings (64027 in non-user code, 6 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 23 s
+=== dsp/tests/unit/systems/bass_stereo_field_motion_test.cpp
+61942 warnings generated.
+Suppressed 61942 warnings (61938 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 22 s
+=== dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp
+62035 warnings generated.
+Suppressed 62035 warnings (62029 in non-user code, 6 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 31 s
+=== dsp/tests/unit/systems/bass_stereo_field_harvest_test.cpp
+61945 warnings generated.
+Suppressed 61945 warnings (61941 in non-user code, 4 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 37 s
+=== dsp/tests/unit/systems/bass_stereo_field_perf_test.cpp
+58111 warnings generated.
+Suppressed 58111 warnings (58105 in non-user code, 6 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 17 s
+=== summary
+dsp/tests/unit/systems/bass_stereo_field_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_stereo_field_helpers_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_stereo_field_nonfinite_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_stereo_field_monosum_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_stereo_field_spectral_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_stereo_field_motion_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_stereo_field_harvest_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/bass_stereo_field_perf_test.cpp exit=0 warnings=0 errors=0
+TIDY GREEN tus=9 warnings=0 errors=0 timeouts=[] failed=[] tidy_wall=37s total_wall=56s

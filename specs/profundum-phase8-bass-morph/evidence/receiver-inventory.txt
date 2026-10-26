@@ -1,0 +1,67 @@
+Profundum Phase 8 - receiver inventory, Anchor punch / ghost row (plan S4.10, FR-039)
+Task T005. Read 2026-10-19 from dsp/include/krate/dsp/systems/anchor_oscillator.h (untouched, FR-088).
+Paths below are relative to dsp/include/krate/dsp/systems/anchor_oscillator.h unless stated.
+
+Leaves: anchor.punchBoostDb, anchor.punchTimeMs, anchor.ghostTimeMs (MorphState::anchor -> AnchorOscillator::Controls)
+
+1. Defaults and ranges
+   :103  float punchBoostDb = 6.0f;     // [0, 12]
+   :104  float punchTimeMs = 40.0f;     // [5, 250]
+   :105  float ghostTimeMs = 15.0f;     // [1, 100]
+   :84   kMinPunchBoostDb = 0.0f, kMaxPunchBoostDb = 12.0f
+   :85   kMinPunchTimeMs = 5.0f, kMaxPunchTimeMs = 250.0f
+   :86   kMinGhostTimeMs = 1.0f, kMaxGhostTimeMs = 100.0f
+
+2. Setter: writes the PENDING copy only
+   :222-223  "Writes the sanitised pending copy (S4.3, C-11: flush first, then clamp); latched at offset 0
+             of the next block (C-8)."
+   :224      void setControls(const Controls& controls) noexcept {
+   :235-237  .punchBoostDb / .punchTimeMs / .ghostTimeMs = sanitizeField(controls.X, p.X, kMin.., kMax..)
+   :239-242  bitwise-unchanged request -> return (no dirty flag)
+   :243-244  pending_ = next; controlsDirty_ = true;
+
+3. Latch: pending_ -> active_ (the only place active_ is assigned)
+   :437  void latchControls() noexcept {
+   :439      active_ = pending_;
+   :440      controlsDirty_ = false;
+   :441      levelS_.setTarget(active_.level);
+   :442      requestWaveform(active_.waveform);
+   :445-446  if (sounding_ && active_.mode != previousMode) bridgeToRest();
+   No punch / ghost field is read inside latchControls.
+
+   Callers of latchControls (grep -n latchControls):
+   :213  in reset() (:166)           "latchControls();   // not sounding: snaps the waveform"
+   :296-297  in processBlock (:285)  "if (noteOnPending_) applyNoteOn(); else if (controlsDirty_) latchControls();   // C-8"
+         i.e. at offset 0 of the next block after a setControls that changed something
+   :482  in applyNoteOn() (:475)     "latchControls();   // C-8" (a note-on latches the pending controls itself)
+
+4. Consumers: where the latched (active_) values are read into a gain program
+   :861-863  boostGain(): "B = 10^(punchBoostDb/20) of the active Controls (read at arm time, C-8)."
+             return std::pow(10.0, static_cast<double>(active_.punchBoostDb) / 20.0);
+   :1011  snapArm():      Punch: b = boostGain(); setProgram(cosineSeg(1.0, b, nRise_),
+   :1019                         cosineSeg(b, 1.0, msToSamples(active_.punchTimeMs)), holdSeg(1.0), 3);
+   :1024                  Ghost: setProgram(cosineSeg(0.0, 1.0, msToSamples(active_.ghostTimeMs)), ...);
+   :1030  bridgedArm():   Punch: b = boostGain(); :1039 fall = cosineSeg(b, 1.0, msToSamples(active_.punchTimeMs));
+   :1048                  Ghost: emerge = cosineSeg(0.0, 1.0, msToSamples(active_.ghostTimeMs));
+   :994-995  bridgeLength(): const double hi = std::max(boostGain(), g0);  (range cap of the Hermite bridge fit,
+             "B from the active Controls (>= 1)", :992-993)
+   :1062-1069 bridgeToRest(): setProgram(hermiteSeg(v.g, v.gp, 1.0, bridgeLength(v.g, v.gp, 1.0, nModeBridge_)), ...)
+
+   Callers of the program builders:
+   :505  snapArm()     from applyNoteOn, "if (rearm) snapArm();" (Reset policy or from not sounding)
+   :514  bridgedArm()  from applyNoteOn, "if (rearm) bridgedArm();" (FreeRunning while sounding)
+   :446  bridgeToRest() from latchControls, only when sounding and the mode changed (FR-044 mode bridge)
+   :1035 bridgeToRest() from bridgedArm for Lock / Follow
+   A note-on with rearm == false builds no program (:506, :515: "g continues untouched").
+
+5. Classification (what the code says)
+   - Latched at the control latch (offset 0 of the next block, or at a note-on), as every Controls field is.
+   - punchTimeMs, ghostTimeMs: consumed ONLY when an arm program is built, i.e. at the next re-arming
+     note-on (snapArm :1011-1027 / bridgedArm :1030-1058, called from applyNoteOn :505, :514). A change
+     while a program runs does not alter it.
+   - punchBoostDb: consumed when an arm program is built (boostGain at :1018, :1038) and additionally as
+     the range cap of the Hermite bridge-length fit (bridgeLength :994-995) whenever a bridge is built,
+     including the FR-044 mode bridge (bridgeToRest from latchControls :445-446). It never steps a running
+     program's gain.
+   - Net: none of the three is immediate; a per-interval morph of them reaches the audio at the next
+     re-arming note-on (and, for punchBoostDb, only as a bridge-length bound at a mode bridge).

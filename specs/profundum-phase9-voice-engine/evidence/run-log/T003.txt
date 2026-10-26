@@ -1,0 +1,71 @@
+T003 - ProfundumMotion (FR-040 - FR-049; SC-026 unit arm; plan S3, S9.1, C-13, C-18)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+FILES WRITTEN
+  dsp/include/krate/dsp/systems/profundum_motion.h        (T001 stub replaced; L3)
+  dsp/tests/unit/systems/profundum_motion_test.cpp        (T001 stub replaced; keeps the five Phase 9 includes)
+  specs/profundum-phase9-voice-engine/evidence/run-log/T003.txt (this file)
+No other file touched. Not built, not run (executor rule: the Group 2 build agent builds and gates).
+
+ODR
+  ProfundumMotion was swept in T001 (run-log T001.txt, 0 hits). New names this task: the nested types
+  ProfundumMotion::Offsets / ::Output (nested, no sweep needed, plan S2) and namespace
+  Krate::DSP::detail::profundum_motion: grep -rn "profundum_motion" dsp/include -> only the header itself.
+
+APIS READ THIS SESSION (the calls the header makes)
+  primitives/lfo.h:83 prepare(double), :95 reset() (keeps setters), :114 process(), :189 setWaveform (crossfades only
+    after the first process), :218 setFrequency, :226 setPhaseOffset (fmod-wraps), :237 setTempoSync, :246 setTempo,
+    :255 setNoteValue(value, modifier), :272 retrigger() (no-op unless retriggerEnabled_), :289 setRetriggerEnabled,
+    :295 setFadeInTime; :34-35 kMinFrequency / kMaxFrequency; :47 Waveform.
+  primitives/adsr_envelope.h:68 prepare(float), :75 reset(), :86 gate(bool), :115/121/127/132 setAttack / setDecay /
+    setSustain / setRelease, :209 setRetriggerMode, :232 process(). Decay snaps to sustainTarget (0) and the Sustain
+    stage holds 0 exactly (:311-346, :240-244), so Bipolar ENV rests at v = -1 (plan S9.1 step 3).
+  primitives/envelope_utils.h:51-52 kMin/kMaxEnvelopeTimeMs, :64 RetriggerMode.
+  processors/brownian_drift.h:105 kControlRateInterval = 32, :109 kDefaultDriftSeed = 0xB17E, :121 prepare, :133 reset
+    (re-seeds from configuredSeed_), :145 setSeed, :152 setSmoothness, :159 setDepth, :165 setMean, :194 processBlock,
+    :212 getCurrentValue (clamped).
+  core/modulation_source.h:31-42 ModulationSource (getCurrentValue, getSourceRange).
+  core/db_utils.h:118 detail::isFinite(float) (fast-math immune).
+  systems/morph_state.h:81-99 MotionConfig (amount [-1, 1], depth [0, 1], ...); :142 detail::morph_state_io::kFieldTable;
+    rows 36-51 (:247-285) give lo / hi / hiOpen / maxEnum; FieldInfo::name is const char* (:57).
+  systems/bass_stereo_field.h:133-140 MotionOutput (the Output pattern), :305-316 (Drift non-finite -> 0, clamp).
+
+IMPLEMENTATION (plan S3.1 API verbatim; S3.2 state; S3.3 contract; S9.1 algorithm)
+  - prepare: env at float(fs/32), sustain 0, Hard; lfo at fs/32; drift at fs, depth 1, mean 0; reset().
+  - reset: env / lfo reset, drift setSeed(seed_) + reset, offsets / values +0, configured_ = false.
+  - setConfig: sanitise (undeclared enum / non-finite float keep the previous; floats clamp to the field-table box,
+    looked up by row NAME via a constexpr fieldIndex with a static_assert that every row exists); then each component
+    setter only on a bitwise change, or all of them on the first call after prepare / reset. LFO calls in FR-046 order.
+    ENV: setAttack(envAttackMs), setDecay + setRelease(envDecayMs) (C-18).
+  - setTempoBpm: non-finite / <= 0 / bitwise-unchanged -> no call; else LFO::setTempo.
+  - noteRestart: env.gate(true); lfo.retrigger().
+  - advanceInterval: env.process, lfo.process, drift.processBlock(32) every interval (C-13); select; polarity map;
+    m = (v * amount) * depth; output = clamp(m); offsets all +0 then offset[target] = m * span {50, .5, .5, .5, 1}.
+  - static_assert(kControlInterval == BrownianDrift::kControlRateInterval) (the header has neither core nor law).
+
+TESTS (tags [systems][profundum][voice-engine] + the task's FR/SC tags)
+  ProfundumMotion_Sources [fr-040][fr-046]; ProfundumMotion_PolarityAndScale [fr-042];
+  ProfundumMotion_DepthZeroIsZero [sc-026][fr-042]; ProfundumMotion_ConfigChangeOnly [fr-046][fr-054];
+  ProfundumMotion_ModulationSource [fr-048]; ProfundumMotion_TempoAndSeed [fr-028][fr-032].
+
+DEVIATIONS (surface; do not silently revert)
+  1. ProfundumMotion_Sources runs 4000 intervals, not 2000. At fs/32 = 1500 Hz, 2000 intervals = 1.333 s, but a
+     0.5 Hz sine starting at phase 0 reaches -1 at 1.5 s (2250 intervals); over 2000 the minimum is
+     sin(2*pi*0.5*1.333) = -0.866, so tasks.md's "min <= -0.99" could never pass. The bars are unchanged.
+  2. One include beyond plan S2's list: primitives/envelope_utils.h (L1, downward) for RetriggerMode, which the
+     header names directly (plan S2: "every symbol a header uses is included directly"). Plus std headers.
+  3. Plan S3.2 lists a member m_; it would be write-only (outputValue() returns clamp(m), which equals m since
+     |v|, |amount|, depth <= 1), so it is not kept (no unused-private-field warning).
+  4. motion.cyclePhaseDeg's open upper bound: a value >= 360 is clamped to nextafter(360, 0) (the [0, 360) box).
+  5. Supersets of the task's cases (same bars): clock independence also checked for Drift vs a standalone
+     BrownianDrift; PolarityAndScale also checks each polarity map bitwise against standalone LFO / ADSREnvelope /
+     BrownianDrift and a known first value (Cycle at 90 deg reads the peak); ConfigChangeOnly runs Env, Cycle and
+     Drift (Cycle with cycleRetrigger on and cycleFadeInMs 200, noteRestart at intervals 0 and 400);
+     TempoAndSeed also rejects +inf and has a positive control (60 BPM changes the synced Cycle).
+  6. The test computes ((v * amount) * depth) and then multiplies a volatile-laundered copy by span, so that
+     /fp:fast + -ffast-math reassociation on the test side cannot fold the constant chain into one multiply the
+     header never performs; amount -0.75 and depth 0.5 make the first two products exact under any association.
+  7. Order: in this session the header was written before the test file (both before any build). The tests have
+     not been observed failing against the stub; the stub had no symbol, so they would not have compiled.
+
+DEFECT lines: none known. Expected Group 2 gate: dsp_systems_tests builds; the six ProfundumMotion_* cases pass.

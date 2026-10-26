@@ -1,0 +1,6 @@
+K_wide  verdict
+1       PASS
+0.75    PASS
+chosen K_wide 1 (committed floor 0.5f)
+aggregate-harvest: wide-scale wrote specs/profundum-phase7-stereo-field/evidence/harvest-wide-floor.txt
+exit: 0 wall: 0 s

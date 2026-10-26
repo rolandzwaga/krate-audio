@@ -1,0 +1,41 @@
+Filters: "BassMorph_DiscreteClickFree_FieldCycleNote"
+Randomness seeded to: 2762377990
+SC004 field-cycle-note,SixtyFourth->Quarter,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->Quarter,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->Quarter,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->QuadrupleWhole,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->QuadrupleWhole,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->QuadrupleWhole,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->SixtyFourth,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->SixtyFourth,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->SixtyFourth,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->QuadrupleWhole,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->QuadrupleWhole,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->QuadrupleWhole,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->SixtyFourth,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->SixtyFourth,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->SixtyFourth,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->Quarter,E1,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->Quarter,E1,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->Quarter,E1,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->Quarter,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->Quarter,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->Quarter,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->QuadrupleWhole,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->QuadrupleWhole,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,SixtyFourth->QuadrupleWhole,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->SixtyFourth,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->SixtyFourth,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->SixtyFourth,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->QuadrupleWhole,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->QuadrupleWhole,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,Quarter->QuadrupleWhole,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->SixtyFourth,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->SixtyFourth,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->SixtyFourth,C3,2000,61888,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->Quarter,C3,5,12096,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->Quarter,C3,40,12992,1,1,0,0,0,0
+SC004 field-cycle-note,QuadrupleWhole->Quarter,C3,2000,61888,1,1,0,0,0,0
+===============================================================================
+All tests passed (3059 assertions in 1 test case)
+

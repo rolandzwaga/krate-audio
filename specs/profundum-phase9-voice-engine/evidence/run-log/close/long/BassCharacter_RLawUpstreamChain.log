@@ -1,0 +1,34 @@
+Filters: "BassCharacter_RLawUpstreamChain"
+Randomness seeded to: 2592630226
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+BassCharacter_RLawUpstreamChain
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(927)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(415): warning:
+  SC-012(e) recorded (input not gated, C-3): kTriangleAnchor E0, f_in 20.6017
+  Hz, best-second 4.60378 dB, ambiguous cells 3 / 33
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(415): warning:
+  SC-012(e) recorded (input not gated, C-3): kTriangleAnchor E1, f_in 41.2034
+  Hz, best-second 4.38063 dB, ambiguous cells 4 / 33
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(415): warning:
+  SC-012(e) recorded (input not gated, C-3): kTriangleAnchor E2, f_in 82.4069
+  Hz, best-second 4.39138 dB, ambiguous cells 4 / 33
+
+F:\projects\iterum\dsp\tests\unit\systems\shape_character_chain_test.cpp(415): warning:
+  SC-012(e) recorded (input not gated, C-3): kTriangleAnchor C3, f_in 130.813
+  Hz, best-second 4.38362 dB, ambiguous cells 4 / 33
+
+1404.748 s: BassCharacter_RLawUpstreamChain
+===============================================================================
+All tests passed (4841 assertions in 1 test case)
+
+exit: 0 wall: 1405 s

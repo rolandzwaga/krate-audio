@@ -1,0 +1,95 @@
+=== T026 SC-030 diff check 2026-10-21T18:30:04.476Z base 0ae33b87 HEAD 0ae33b87
+
+== 1. git diff --name-only 0ae33b87 -- dsp/include dsp/src plugins tests/test_helpers  (14 file(s))
+  ruled    dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h   [FR-084 (3) R-A T029]
+  ruled    dsp/include/krate/dsp/primitives/retrigger_declick.h   [FR-084 (2) R-B prepare(fs, declickMs)]
+  ruled    dsp/include/krate/dsp/primitives/tanh_adaa.h   [FR-084 (3) R-A T029]
+  ruled    dsp/include/krate/dsp/processors/dynamics_processor.h   [FR-084 (3) R-A T032]
+  ruled    dsp/include/krate/dsp/processors/harmonic_fold.h   [FR-084 (3) R-A T029 / T032]
+  ruled    dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h   [FR-084 (3) R-A T029 / T032]
+  ruled    dsp/include/krate/dsp/processors/keytracked_tilt.h   [FR-084 (3) R-A T032]
+  ruled    dsp/include/krate/dsp/processors/oversampled_residual_path.h   [FR-084 (3) R-A T029]
+  ruled    dsp/include/krate/dsp/processors/period_peak_detector.h   [FR-084 (3) R-A T032]
+  ruled    dsp/include/krate/dsp/processors/spectral_shape_recipe.h   [FR-084 (3) R-A T032]
+  ruled    dsp/include/krate/dsp/processors/true_peak_limiter.h   [FR-084 (3) R-A T029 setHalfbandDetector (not the C-1 accessor)]
+  ruled    dsp/include/krate/dsp/systems/mass_dynamics.h   [FR-084 (1) FR-082 opt-in (Q4), plan S7 as amended by T029 / T032]
+  ruled    dsp/include/krate/dsp/systems/profundum_core.h   [FR-084 (3) R-A T032 setControlsWithShape]
+           NOTE: named by FR-084 (3) but missing from spec.md's SC-030 row; comply reconciles the row.
+  ruled    dsp/include/krate/dsp/systems/shape_morph.h   [FR-084 (3) R-A T029 / T032]
+  absent   dsp/include/krate/dsp/core/db_utils.h   (R-D: no change to core/db_utils.h without a user ruling)
+
+== 2. git diff -U0 0ae33b87 -- dsp/include/krate/dsp/systems/mass_dynamics.h
+  hunk 1: -3,0 +4,1  (+1 / -0)  ADDITION
+  hunk 2: -22,0 +24,1  (+1 / -0)  ADDITION
+  hunk 3: -107,0 +110,1  (+1 / -0)  ADDITION
+  hunk 4: -123,1 +126,1  (+1 / -1)  in BassCompressor::prepare  BRANCH POINT
+      - 123 [rewritten]             hp.configure(FilterType::Highpass, kFallbackCornerHz, kButterworthQ, 0.0f, static_cast<float>(fs));
+  hunk 5: -126,1 +129,5  (+5 / -1)  in BassCompressor::prepare  BRANCH POINT
+      - 126 [rewritten]         det_.prepare(fs, 2000.0f / kFallbackCornerHz);
+  hunk 6: -214,32 +221,3  (+3 / -32)  in BassCompressor::processBlock  BRANCH POINT
+      - 214 [comment/blank] 
+      - 215 [comment/blank]             // 2. Control step on the absolute 32-sample grid.
+      - 216 [relocated]             if (intervalPhase_ == 0)
+      - 217 [relocated]                 controlStep();
+      - 218 [comment/blank] 
+      - 219 [comment/blank]             // 3. Detection, FR-011 (b): high-pass on signed samples, then the held true-peak of
+      - 220 [comment/blank]             //    max(|HP L|, |HP R|). The probe's rectified feed is the struck form (unfiltered
+      - 221 [comment/blank]             //    max(|L|, |R|) into the internal sidechain), kept only for SC-006(e).
+      - 222 [relocated]             float d = 0.0f;
+      - 223 [relocated]             if (probeRectifiedFeed_) {
+      - 224 [relocated]                 d = mono ? std::abs(xL) : std::max(std::abs(xL), std::abs(xR));
+      - 225 [relocated]             } else {
+      - 226 [relocated]                 const float hL = probeHpBypass_ ? xL : hp_[0].process(xL);
+      - 227 [relocated]                 if (mono) {
+      - 228 [relocated]                     d = det_.process(hL);
+      - 229 [relocated]                 } else {
+      - 230 [relocated]                     const float hR = probeHpBypass_ ? xR : hp_[1].process(xR);
+      - 231 [relocated]                     d = det_.process(hL, hR);
+      - 232 [relocated]                 }
+      - 233 [relocated]             }
+      - 234 [relocated]             detectorLevel_ = d;
+      - 235 [comment/blank] 
+      - 236 [comment/blank]             // 4. Gain computer (its audio output is unused, FR-013). gr <= 0, already 5 ms smoothed.
+      - 237 [rewritten]             (void)dyn_.processSample(d);
+      - 238 [relocated]             const float gr = dyn_.getCurrentGainReduction();
+      - 239 [relocated]             if (gr < -kRuleThresholdDb)
+      - 240 [relocated]                 ++ruleCount_;
+      - 241 [comment/blank] 
+      - 242 [comment/blank]             // 5. One gain for both channels. gainDb_ == 0 is the hard bypass (FR-016 / SC-013): gr is
+      - 243 [comment/blank]             //    exactly +0.0f there (flushDenormal(-0.0f) returns the literal 0.0f, db_utils.h:263).
+      - 244 [relocated]             const float mk = makeupS_.process();
+      - 245 [relocated]             gainDb_ = gr + mk;
+  hunk 7: -256,3 +233,0  (+0 / -3)  in BassCompressor::processBlock  BRANCH POINT
+      - 256 [comment/blank] 
+      - 257 [comment/blank]             // 6. Grid.
+      - 258 [relocated]             intervalPhase_ = (intervalPhase_ + 1) % kControlInterval;
+  hunk 8: -261,0 +237,33  (+33 / -0)  ADDITION
+  hunk 9: -353,1 +361,1  (+1 / -1)  in BassCompressor::configureDetector  RECORD: removed lines outside prepare / processBlock (R-A, gated by the Phase 6 suites)
+      - 353 [rewritten]         const auto fs = static_cast<float>(sampleRate_);
+      record: hunk 9 touches BassCompressor::configureDetector (consumer-suite gate, FR-084)
+  hunk 10: -360,0 +369,46  (+46 / -0)  ADDITION
+  hunk 11: -416,0 +471,2  (+2 / -0)  ADDITION
+  hunk 12: -482,0 +539,12  (+12 / -0)  ADDITION
+  hunk 13: -483,0 +552,1  (+1 / -0)  ADDITION
+  hunk 14: -496,0 +566,2  (+2 / -0)  ADDITION
+  hunk 15: -541,0 +613,4  (+4 / -0)  ADDITION
+  hunk 16: -580,0 +656,19  (+19 / -0)  ADDITION
+  hunk 17: -591,0 +686,46  (+46 / -0)  ADDITION
+  total: 17 hunk(s), +178 / -38 lines
+
+== 3. Other ruled headers (gate: their consumer suites under the change-set rule, T025)
+  dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h: 2 hunk(s), +11 / -4
+  dsp/include/krate/dsp/primitives/retrigger_declick.h: 3 hunk(s), +12 / -3
+  dsp/include/krate/dsp/primitives/tanh_adaa.h: 7 hunk(s), +16 / -2
+  dsp/include/krate/dsp/processors/dynamics_processor.h: 1 hunk(s), +34 / -0
+  dsp/include/krate/dsp/processors/harmonic_fold.h: 8 hunk(s), +43 / -8
+  dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h: 13 hunk(s), +31 / -1
+  dsp/include/krate/dsp/processors/keytracked_tilt.h: 3 hunk(s), +16 / -6
+  dsp/include/krate/dsp/processors/oversampled_residual_path.h: 4 hunk(s), +8 / -0
+  dsp/include/krate/dsp/processors/period_peak_detector.h: 5 hunk(s), +21 / -4
+  dsp/include/krate/dsp/processors/spectral_shape_recipe.h: 2 hunk(s), +14 / -1
+  dsp/include/krate/dsp/processors/true_peak_limiter.h: 11 hunk(s), +111 / -5
+  dsp/include/krate/dsp/systems/profundum_core.h: 10 hunk(s), +59 / -7
+  dsp/include/krate/dsp/systems/shape_morph.h: 9 hunk(s), +15 / -17
+
+SC030 GREEN

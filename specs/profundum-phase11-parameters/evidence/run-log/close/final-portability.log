@@ -1,0 +1,26 @@
+check-portability: 21 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/profundum_engine_test.cpp
+  OK      plugins/profundum/src/controller/controller.cpp
+  OK      plugins/profundum/src/processor/processor.cpp
+  OK      plugins/profundum/tests/integration/band_level_metric_test.cpp
+  OK      plugins/profundum/tests/integration/copy_compare_test.cpp
+  OK      plugins/profundum/tests/integration/determinism_test.cpp
+  OK      plugins/profundum/tests/integration/mono_sum_params_test.cpp
+  OK      plugins/profundum/tests/integration/param_flow_test.cpp
+  OK      plugins/profundum/tests/integration/param_path_audibility_test.cpp
+  OK      plugins/profundum/tests/integration/param_wiring_test.cpp
+  OK      plugins/profundum/tests/integration/processor_cpu_test.cpp
+  OK      plugins/profundum/tests/integration/state_restore_render_test.cpp
+  OK      plugins/profundum/tests/integration/tail_test.cpp
+  OK      plugins/profundum/tests/unit/lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/midi_mapping_test.cpp
+  OK      plugins/profundum/tests/unit/param_denorm_test.cpp
+  OK      plugins/profundum/tests/unit/param_table_test.cpp
+  OK      plugins/profundum/tests/unit/phase11_alloc_test.cpp
+  OK      plugins/profundum/tests/unit/state_roundtrip_test.cpp
+  OK      plugins/profundum/tests/unit/state_v2_test.cpp
+  OK      plugins/shared/tests/test_sustain_latch.cpp
+
+check-portability: all clear -- 21 compiled.
+exit: 0 wall: 102 s

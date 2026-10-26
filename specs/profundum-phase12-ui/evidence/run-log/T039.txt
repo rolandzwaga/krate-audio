@@ -1,0 +1,16 @@
+T039 (main loop, 2026-10-24): Profundum_MainPageAudibility, SC-006 (a) ruling
+build: cmake --build build/windows-x64-release --config Release --target profundum_tests -- /nr:false -> exit 0, 0 warning lines
+run: profundum_tests.exe Profundum_MainPageAudibility, wall 3.3 s (no [long] tag)
+Filters: "Profundum_MainPageAudibility"
+Profundum_MainPageAudibility 1 E1: lo -56.7545 hi -5.97979 value 50.7747 bar 3
+Profundum_MainPageAudibility 1 C3: lo -60.2297 hi -5.99182 value 54.2378 bar 3
+Profundum_MainPageAudibility 200 E1: lo -1.85555 hi -32.7045 value 30.8489 bar 3
+Profundum_MainPageAudibility 200 C3: lo -1.74638 hi -32.6831 value 30.9367 bar 3
+Profundum_MainPageAudibility 201 E1: lo -1.85555 hi 20.2364 value 22.0919 bar 3
+Profundum_MainPageAudibility 201 C3: lo -1.74638 hi 20.2615 value 22.0079 bar 3
+Profundum_MainPageAudibility 204 E1: lo 0.151697 hi 2.58458 value 2.43288 bar 0.25
+Profundum_MainPageAudibility 204 C3: lo 0.1526 hi 2.60902 value 2.45642 bar 0.25
+Profundum_MainPageAudibility 1000 E1: lo -5.97257 hi -11.9215 value 5.9489 bar 2
+Profundum_MainPageAudibility 1000 C3: lo -5.99282 hi -11.9224 value 5.92955 bar 2
+All tests passed (181354 assertions in 1 test case)
+note: kSawAnchor has depth = body = 0 (spectral_shape_recipe.h:250-251), so the 200 and 201 lo arms are the same base render

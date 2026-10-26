@@ -1,0 +1,54 @@
+Filters: "VoiceEngine_RectifySymmetry"
+Randomness seeded to: 2975135699
+VoiceEngine_RectifySymmetry scan foldAmount = 0: h2/h1 -81.5619 dB
+VoiceEngine_RectifySymmetry scan foldAmount = 12.5: h2/h1 -81.5704 dB
+VoiceEngine_RectifySymmetry scan foldAmount = 25: h2/h1 -81.7738 dB
+VoiceEngine_RectifySymmetry scan foldAmount = 37.5: h2/h1 -82.1177 dB
+VoiceEngine_RectifySymmetry scan foldAmount = 50: h2/h1 -82.6387 dB
+VoiceEngine_RectifySymmetry scan foldAmount = 62.5: h2/h1 -83.3488 dB
+VoiceEngine_RectifySymmetry scan foldAmount = 75: h2/h1 -84.4038 dB
+VoiceEngine_RectifySymmetry scan foldAmount = 87.5: h2/h1 -80.0207 dB
+VoiceEngine_RectifySymmetry scan foldAmount = 100: h2/h1 -69.8905 dB
+VoiceEngine_RectifySymmetry scan excitation.asymmetry (mix 1, drive 1) = 0: h2/h1 -83.6304 dB
+VoiceEngine_RectifySymmetry scan excitation.asymmetry (mix 1, drive 1) = 0.125: h2/h1 -32.697 dB
+VoiceEngine_RectifySymmetry scan excitation.asymmetry (mix 1, drive 1) = 0.25: h2/h1 -26.716 dB
+VoiceEngine_RectifySymmetry scan excitation.asymmetry (mix 1, drive 1) = 0.375: h2/h1 -23.2449 dB
+VoiceEngine_RectifySymmetry scan excitation.asymmetry (mix 1, drive 1) = 0.5: h2/h1 -20.8145 dB
+VoiceEngine_RectifySymmetry scan excitation.asymmetry (mix 1, drive 1) = 0.625: h2/h1 -18.9635 dB
+VoiceEngine_RectifySymmetry scan excitation.asymmetry (mix 1, drive 1) = 0.75: h2/h1 -17.4867 dB
+VoiceEngine_RectifySymmetry scan excitation.asymmetry (mix 1, drive 1) = 0.875: h2/h1 -16.2747 dB
+VoiceEngine_RectifySymmetry scan excitation.asymmetry (mix 1, drive 1) = 1: h2/h1 -15.2625 dB
+VoiceEngine_RectifySymmetry scan recipe.depth (fallback) = 0: h2/h1 -7.19162 dB
+VoiceEngine_RectifySymmetry scan recipe.depth (fallback) = 0.125: h2/h1 -8.73891 dB
+VoiceEngine_RectifySymmetry scan recipe.depth (fallback) = 0.25: h2/h1 -10.2564 dB
+VoiceEngine_RectifySymmetry scan recipe.depth (fallback) = 0.375: h2/h1 -11.7645 dB
+VoiceEngine_RectifySymmetry scan recipe.depth (fallback) = 0.5: h2/h1 -13.2704 dB
+VoiceEngine_RectifySymmetry scan recipe.depth (fallback) = 0.625: h2/h1 -16.2366 dB
+VoiceEngine_RectifySymmetry scan recipe.depth (fallback) = 0.75: h2/h1 -22.2412 dB
+VoiceEngine_RectifySymmetry scan recipe.depth (fallback) = 0.875: h2/h1 -33.7901 dB
+VoiceEngine_RectifySymmetry scan recipe.depth (fallback) = 1: h2/h1 -81.5619 dB
+VoiceEngine_RectifySymmetry state -30 dB: found via excitation.asymmetry (mix 1, drive 1) = 0.171875, measured -29.9461 dB
+VoiceEngine_RectifySymmetry state -25 dB: found via excitation.asymmetry (mix 1, drive 1) = 0.3125, measured -24.8013 dB
+VoiceEngine_RectifySymmetry state -20 dB: found via excitation.asymmetry (mix 1, drive 1) = 0.5625, measured -19.8332 dB
+VoiceEngine_RectifySymmetry state -15 dB: found via recipe.depth (fallback) = 0.59375, measured -15.2324 dB
+VoiceEngine_RectifySymmetry state -10 dB: found via recipe.depth (fallback) = 0.21875, measured -9.87838 dB
+VoiceEngine_RectifySymmetry flag -30 -> -30 dB: before the switch misses 0 / 145, at the end misses 0 / 145 (want true)
+VoiceEngine_RectifySymmetry flag -10 -> -30 dB: before the switch misses 0 / 145, at the end misses 0 / 145 (want true)
+VoiceEngine_RectifySymmetry flag -30 -> -25 dB: before the switch misses 0 / 145, at the end misses 0 / 145 (want true)
+VoiceEngine_RectifySymmetry flag -10 -> -25 dB: before the switch misses 0 / 145, at the end misses 0 / 145 (want true)
+VoiceEngine_RectifySymmetry flag -30 -> -15 dB: before the switch misses 0 / 145, at the end misses 0 / 145 (want false)
+VoiceEngine_RectifySymmetry flag -10 -> -15 dB: before the switch misses 0 / 145, at the end misses 0 / 145 (want false)
+VoiceEngine_RectifySymmetry flag -30 -> -10 dB: before the switch misses 0 / 145, at the end misses 0 / 145 (want false)
+VoiceEngine_RectifySymmetry flag -10 -> -10 dB: before the switch misses 0 / 145, at the end misses 0 / 145 (want false)
+VoiceEngine_RectifySymmetry hysteresis -25 -> -20 dB: misses 0 / 900 chunks over 28800 samples (keep true)
+VoiceEngine_RectifySymmetry hysteresis -15 -> -20 dB: misses 0 / 900 chunks over 28800 samples (keep false)
+VoiceEngine_RectifySymmetry sync (Reset): issued at 0 14543 24143 57600; expected 0 14543 24143 57600
+VoiceEngine_RectifySymmetry sync phase at 0 (f 41.2034 Hz): voice -1.5708 rad, fresh core -1.5708 rad, |diff| 0 deg
+VoiceEngine_RectifySymmetry sync phase at 14543 (f 55 Hz): voice -1.5708 rad, fresh core -1.5708 rad, |diff| 0 deg
+VoiceEngine_RectifySymmetry sync phase at 24143 (f 41.2034 Hz): voice -1.5708 rad, fresh core -1.5708 rad, |diff| 0 deg
+VoiceEngine_RectifySymmetry sync phase at 57600 (f 82.4069 Hz): voice -1.5708 rad, fresh core -1.5708 rad, |diff| 0 deg
+VoiceEngine_RectifySymmetry sync (Continue): issued at 0; expected 0
+VoiceEngine_RectifySymmetry sync phase at 0 (f 41.2034 Hz): voice -1.5708 rad, fresh core -1.5708 rad, |diff| 0 deg
+===============================================================================
+All tests passed (548 assertions in 1 test case)
+

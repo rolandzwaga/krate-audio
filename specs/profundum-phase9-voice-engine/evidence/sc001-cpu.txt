@@ -1,0 +1,65 @@
+# SC-001 VoiceEngine_CpuMono (MONO, E1) (tasks.md T020; plan S10.6)
+# SC-001 setting on both showcase endpoints, morph ramp 1000 ms toggled every 1 s, Drop 24 st retriggered every 0.25 s, block 64, 10 s timed after 1 s warm-up, median of 3 fresh engines, % of one core = wall / audio x 100, 48 kHz, FTZ/DAZ on, no observer.
+trial MONO Tube full: 7.8796 7.5798 7.5733 -> median 7.5798
+SC001 MONO Tube 7.5798
+trial MONO Fracture full: 7.0428 7.0234 6.2217 -> median 7.0234
+SC001 MONO Fracture 7.0234
+# per-stage breakdown: lever ablation of the real engine (one lever at its idle value, the rest the SC-001 setting); cost = full - without, % of one core
+trial MONO Tube without excitation(mix 0): 6.5851 7.1943 6.35 -> median 6.5851
+SC001 STAGE Tube excitation(mix 0) without=6.5851 cost=0.99473
+trial MONO Tube without shape(0): 7.4377 6.8746 6.8215 -> median 6.8746
+SC001 STAGE Tube shape(0) without=6.8746 cost=0.70519
+trial MONO Tube without fold(0): 5.9263 6.0961 6.113 -> median 6.0961
+SC001 STAGE Tube fold(0) without=6.0961 cost=1.4837
+trial MONO Tube without fold-feed(0): 6.3883 6.3807 6.2687 -> median 6.3807
+SC001 STAGE Tube fold-feed(0) without=6.3807 cost=1.1991
+trial MONO Tube without character(amount 0): 6.5467 6.3626 6.5246 -> median 6.5246
+SC001 STAGE Tube character(amount 0) without=6.5246 cost=1.0552
+trial MONO Tube without anchor(level 0): 6.4625 7.6775 7.0495 -> median 7.0495
+SC001 STAGE Tube anchor(level 0) without=7.0495 cost=0.53031
+trial MONO Tube without follow(mode Lock): 6.5636 6.8651 6.6101 -> median 6.6101
+SC001 STAGE Tube follow(mode Lock) without=6.6101 cost=0.96971
+trial MONO Tube without drop(0 st): 7.2637 6.4196 6.5533 -> median 6.5533
+SC001 STAGE Tube drop(0 st) without=6.5533 cost=1.0265
+trial MONO Tube without motion(source Off): 6.2608 6.9319 6.8561 -> median 6.8561
+SC001 STAGE Tube motion(source Off) without=6.8561 cost=0.72369
+trial MONO Tube without field(SOLID, spread 0, motionDepth 0): 4.5753 4.8605 4.6267 -> median 4.6267
+SC001 STAGE Tube field(SOLID, spread 0, motionDepth 0) without=4.6267 cost=2.9532
+trial MONO Tube without mass(neutral): 6.4085 6.5529 6.4572 -> median 6.4572
+SC001 STAGE Tube mass(neutral) without=6.4572 cost=1.1227
+trial MONO Tube without dynamics-oversampling(off): 6.6341 6.3364 6.2655 -> median 6.3364
+SC001 STAGE Tube dynamics-oversampling(off) without=6.3364 cost=1.2434
+trial MONO Tube without morph(position held at 0): 6.0575 5.9299 5.8969 -> median 5.9299
+SC001 STAGE Tube morph(position held at 0) without=5.9299 cost=1.6499
+trial MONO Tube without retrigger(none): 6.6687 6.2406 6.5003 -> median 6.5003
+SC001 STAGE Tube retrigger(none) without=6.5003 cost=1.0795
+trial MONO Fracture without excitation(mix 0): 6.0316 6.0491 5.7092 -> median 6.0316
+SC001 STAGE Fracture excitation(mix 0) without=6.0316 cost=0.99183
+trial MONO Fracture without shape(0): 6.9154 6.7959 6.7274 -> median 6.7959
+SC001 STAGE Fracture shape(0) without=6.7959 cost=0.22753
+trial MONO Fracture without fold(0): 6.0828 5.9785 5.8665 -> median 5.9785
+SC001 STAGE Fracture fold(0) without=5.9785 cost=1.0449
+trial MONO Fracture without fold-feed(0): 6.3429 6.4052 6.3412 -> median 6.3429
+SC001 STAGE Fracture fold-feed(0) without=6.3429 cost=0.68054
+trial MONO Fracture without character(amount 0): 6.8017 6.4959 6.5137 -> median 6.5137
+SC001 STAGE Fracture character(amount 0) without=6.5137 cost=0.50971
+trial MONO Fracture without anchor(level 0): 6.4334 6.2777 6.2886 -> median 6.2886
+SC001 STAGE Fracture anchor(level 0) without=6.2886 cost=0.73482
+trial MONO Fracture without follow(mode Lock): 6.405 6.509 6.4407 -> median 6.4407
+SC001 STAGE Fracture follow(mode Lock) without=6.4407 cost=0.58269
+trial MONO Fracture without drop(0 st): 6.6661 5.7521 5.8708 -> median 5.8708
+SC001 STAGE Fracture drop(0 st) without=5.8708 cost=1.1526
+trial MONO Fracture without motion(source Off): 6.2215 6.2389 6.1673 -> median 6.2215
+SC001 STAGE Fracture motion(source Off) without=6.2215 cost=0.80188
+trial MONO Fracture without field(SOLID, spread 0, motionDepth 0): 4.3123 5.0017 4.4038 -> median 4.4038
+SC001 STAGE Fracture field(SOLID, spread 0, motionDepth 0) without=4.4038 cost=2.6196
+trial MONO Fracture without mass(neutral): 6.2445 6.2745 6.3198 -> median 6.2745
+SC001 STAGE Fracture mass(neutral) without=6.2745 cost=0.74892
+trial MONO Fracture without dynamics-oversampling(off): 6.1747 6.129 6.1412 -> median 6.1412
+SC001 STAGE Fracture dynamics-oversampling(off) without=6.1412 cost=0.88223
+trial MONO Fracture without morph(position held at 0): 5.8334 5.8175 6.4659 -> median 5.8334
+SC001 STAGE Fracture morph(position held at 0) without=5.8334 cost=1.19
+trial MONO Fracture without retrigger(none): 5.9429 5.8845 5.8632 -> median 5.8845
+SC001 STAGE Fracture retrigger(none) without=5.8845 cost=1.1389
+# checksum 322.8 (keeps the renders observable)
+SC001 VERDICT GREEN 7.5798 (Tube 7.5798, Fracture 7.0234; bar 8 %)

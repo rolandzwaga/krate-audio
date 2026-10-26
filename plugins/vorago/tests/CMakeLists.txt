@@ -154,7 +154,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/preset_matrix_test.cpp        # bit-pattern finiteness
         integration/preset_pilot_test.cpp         # bit-pattern finiteness
         integration/preset_load_rt_test.cpp       # bit-pattern finiteness
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the flag would
     # move the timed code away from what the Phase 10 budget measured.

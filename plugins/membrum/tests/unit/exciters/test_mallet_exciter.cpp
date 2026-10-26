@@ -14,6 +14,7 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 
 using membrum_exciter_tests::isFiniteSample;
@@ -42,7 +43,8 @@ TEST_CASE("MalletExciter: velocity spectral centroid ratio >= 2.0 (SC-004)",
     Membrum::MalletExciter exc;
     exc.prepare(kSR, 0);
 
-    std::array<float, kSamples> lo{}, hi{};
+    std::array<float, kSamples> lo{};
+    std::array<float, kSamples> hi{};
     runBurst(exc, 0.23f, lo.data(), kSamples);
     exc.reset();
     runBurst(exc, 1.0f,  hi.data(), kSamples);
@@ -69,7 +71,7 @@ TEST_CASE("MalletExciter: 1 s output is finite and peak <= 1.0",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     // Mallet wraps ImpactExciter (same backend as Impulse); raw output may
@@ -92,7 +94,7 @@ TEST_CASE("MalletExciter: retrigger safety",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     // Mallet wraps ImpactExciter (same backend as Impulse); raw output may
@@ -124,7 +126,7 @@ TEST_CASE("MalletExciter: sample-rate change safe",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak > 1e-6f);
@@ -145,7 +147,8 @@ TEST_CASE("MalletExciter vs ImpulseExciter: first-2-ms centroid is lower (US1-2)
     impulse.prepare(kSR, 0);
     mallet.prepare(kSR, 0);
 
-    std::array<float, kSamples> bufImp{}, bufMal{};
+    std::array<float, kSamples> bufImp{};
+    std::array<float, kSamples> bufMal{};
     runBurst(impulse, kVelocity, bufImp.data(), kSamples);
     runBurst(mallet,  kVelocity, bufMal.data(), kSamples);
 

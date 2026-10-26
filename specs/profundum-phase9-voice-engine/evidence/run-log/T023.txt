@@ -1,0 +1,33 @@
+T023 Phase 10 / 11 / 12 / 13 handoff record (FR-085; plan S15) -- run log, 2026-10-20
+
+Written: specs/profundum-phase9-voice-engine/evidence/phase-handoffs.txt (sections R, 10, 11, 12, 13).
+No code, no CMake, no test changes; nothing built or run (docs-only task).
+
+Sources read this session (every value in the handoff is cited file:line):
+- tasks.md:1089-1097 (T023), plan.md:1502-1515 (S15), plan C-3 :163-174, C-7 :221-232, C-9 :242-251, C-12 :273-276,
+  S6.1-S6.2 :787-873, S9.1 :1117-1131; spec.md FR-031 :476-483, FR-048 :528-538, FR-085 :866-873, SC-017 :904,
+  build rulings :1112-1157.
+- dsp/include/krate/dsp/systems/profundum_engine.h (config :84-90, constants :98-115, setters :255-368, getters
+  :374-405, processBlock :417-433, latency :437, Settings defaults :453-467, C-7 :634-635 / :1032-1033).
+- mass_dynamics.h :538-555, :655-670, :700-737; bass_morph_engine.h :48-76, :138-162, :516-519;
+  profundum_macro_matrix.h :38-68, :160-180; mono_handler.h :53-78, :111-112; note_memory.h :24-32;
+  morph_state.h :135; true_peak_limiter.h :49; bass_stereo_field.h :83, :274-278; profundum_motion.h :128-129, :144, :265.
+- evidence: os-dynamics-delta.txt, macro-rows.txt, audibility-table/VoiceEngine_AudibilityTableSmoke.csv,
+  anchor-chain-smoke.csv, run-log/close/g11-smokes.log:10, listening-sheet.md, sc019-join.txt,
+  specs/profundum-phase8-bass-morph/evidence/phase-handoffs.txt:159; specs/Profundum-roadmap.md:662-668.
+
+Deviations from the plan S15 text (recorded in the handoff, each with its ruling):
+1. Dynamics group delay is 0 samples, not ~3.8: after T029 lever 2 only the compressor sidechain is oversampled
+   (spec.md:1118-1122; os-dynamics-delta.txt:13 "delay_base_samples 0").
+2. C-3's 192 kHz no-op is superseded: since T029 the requested factor (4x) runs at every sample rate
+   (mass_dynamics.h:541-545). Two stale comments noted, not edited (outside this task's file list):
+   profundum_engine.h:87-88 ("4x where 4 fs <= 192 kHz, else 2x, else off") and mass_dynamics.h:541-543
+   ("only the gain APPLICATION is oversampled"; the code oversamples the sidechain).
+
+PENDING items (no measured value exists yet; the handoff marks each):
+- Full audibility table (FR-080 [long] shards): only the Smoke CSV exists; produced by the T025 [long] lane.
+- Listening verdicts (SC-035): all eight "Verdict (user)" lines empty; evidence/listen/ renders not yet produced
+  (evidence/close/listen.sh). User-only.
+- SC-017 full rho / theta grid: evidence/anchor-chain-{E0,E1,E2}.csv not yet written (T025 [long] lane). The six E1
+  Sine cells measured for ruling G11-3 (spec.md:904) and the smoke cell are recorded.
+The comply stage fills these from the named files before copying the handoff into the roadmap.

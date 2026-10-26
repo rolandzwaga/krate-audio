@@ -1,0 +1,15 @@
+P2 SC006 replace E1 +24 st, old held | W [24000, 25308) ratio=0.422781 a=PASS max_dy=0.0164012 bound=0.0347448 margin=2.11843 b=PASS
+P2 SC006 replace C3 +1 st, old held | W [24000, 24510) ratio=0.613543 a=PASS max_dy=0.014528 bound=0.0318656 margin=2.19339 b=PASS
+P2 SC006 replace C3 -1 st, old held | W [24000, 24532) ratio=0.666841 a=PASS max_dy=0.0136277 bound=0.031021 margin=2.27631 b=PASS
+P2 SC006 replace C3 +12 st, old held | W [24000, 24510) ratio=0.759237 a=PASS max_dy=0.0255785 bound=0.045156 margin=1.76539 b=PASS
+P2 SC006 replace C3 -12 st, old held | W [24000, 24877) ratio=0.562351 a=PASS max_dy=0.0108212 bound=0.0310398 margin=2.86842 b=PASS
+P2 SC006 replace C3 +24 st, old held | W [24000, 24510) ratio=0.79608 a=PASS max_dy=0.0503262 bound=0.072468 margin=1.43997 b=PASS
+P2 SC006 replace C3 -24 st, old held | W [24000, 25611) ratio=0.617526 a=PASS max_dy=0.0100622 bound=0.0310493 margin=3.08572 b=PASS
+P2 VERDICT RED worst_ratio=1.5151 (bar 1.05925)
+===============================================================================
+All tests passed (467 assertions in 1 test case)
+
+exit: 0 wall: 10 s
+probe: verdict appended to specs/profundum-phase9-voice-engine/evidence/run-log/T013.txt
+P2 VERDICT RED worst_ratio=1.5151 (bar 1.05925)
+p2 rc=0

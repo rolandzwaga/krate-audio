@@ -1,0 +1,28 @@
+T004 - profundum_engine_observer.h (FR-086; plan S2, S6.1, S8)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+ODR SWEEP (this session, after writing)
+$ grep -rnw -E "ProfundumEngineSeams|ProfundumCallRecord|ProfundumGridRecord|ProfundumVoiceTaps|ProfundumEngineTaps|ProfundumEngineObserver|kVoiceEngineCallOrder" dsp plugins tests (excluding the two T004 files)
+(no output) - the T001 sweep (run-log/T001.txt) covered ProfundumCall and every other S8 name before creation.
+
+FACTS READ THIS SESSION
+- BassMorphEngine::Resolved: dsp/include/krate/dsp/systems/bass_morph_engine.h:55 (nested struct of BassMorphEngine :46).
+- MassLaw::Targets: dsp/include/krate/dsp/systems/mass_law.h:82 (seven floats with default member initialisers;
+  trivially copyable).
+- MorphState: dsp/include/krate/dsp/systems/morph_state.h:43.
+- Comment anchor on compressorGrDb: mass_dynamics.h:571 (compressor()) and :272 (currentGainReductionDb()) - both verified.
+
+FILES WRITTEN
+- dsp/include/krate/dsp/systems/profundum_engine_observer.h: stub replaced. Plan S8 code block verbatim (ProfundumCall,
+  37 enumerators in the S8 order; ProfundumCallRecord; ProfundumGridRecord; ProfundumVoiceTaps; ProfundumEngineTaps;
+  ProfundumEngineObserver with four noexcept no-op virtuals) plus ProfundumEngineSeams from plan S6.1 (eight bools, all
+  false), moved here as S8 says. Includes exactly systems/morph_state.h, systems/bass_morph_engine.h, systems/mass_law.h,
+  <cstddef>, <cstdint>, <span>. Includes neither profundum_voice.h nor profundum_engine.h.
+- dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp: stub filled (test-first) with
+    ProfundumObserver_SeamDefaults            [systems][profundum][voice-engine][fr-086]
+    ProfundumObserver_DefaultCallbacksAreNoOps [systems][profundum][voice-engine][fr-086]
+  plus file-scope static_asserts (is_trivially_copyable for Seams / CallRecord / GridRecord). The call-order table
+  checks every enumerator's index (0..36) and DynKey == 36.
+
+NOT BUILT / NOT RUN (per the task instruction: the Group 2 build agent builds and gates). Both files re-read after writing.
+Verify: the Group 2 gate (filter "ProfundumObserver_*"); T026 node tools/lint-layers.js.

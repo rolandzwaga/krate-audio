@@ -78,6 +78,7 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 - **Membrum**: Physically-modelled drum synthesizer at `plugins/membrum/` (AU type: `aumu`)
 - **Seraphis**: Spectral-organism synthesizer at `plugins/seraphis/` (AU type: `aumu`, subtype `Srph`) — the current active-development plugin
 - **Vorago**: Dark-ambient drone instrument at `plugins/vorago/` (AU type: `aumu`, subtype `Vrgo`)
+- **Profundum**: Mass bass instrument at `plugins/profundum/` (AU type: `aumu`, subtype `Prfd`)
 - **Shared plugin infrastructure** at `plugins/shared/` (presets, UI components, MIDI, platform)
 - **Steinberg VST3 SDK** (not JUCE or other frameworks)
 - **VSTGUI** for user interface
@@ -88,7 +89,7 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 
 The current roster is whatever lives under `plugins/` — **trust the filesystem, not a hand-maintained
 tree here** (that is exactly where staleness accrues). Plugins today: `iterum`, `disrumpo`, `ruinae`,
-`innexus`, `gradus`, `membrum`, `seraphis`, `vorago`, plus `shared`. The shared DSP library is `dsp/` (`Krate::DSP`, 5 layers
+`innexus`, `gradus`, `membrum`, `seraphis`, `vorago`, `profundum`, plus `shared`. The shared DSP library is `dsp/` (`Krate::DSP`, 5 layers
 under `dsp/include/krate/dsp/{core,primitives,processors,systems,effects}/`).
 
 - **Per-area detail** (skeleton, param-ID base, test target, pluginval path): the area `CLAUDE.md` leaf
@@ -103,7 +104,7 @@ This file holds cross-cutting rules. **Area-specific `CLAUDE.md` leaf files auto
 their subtree** — read them for the concrete facts (skeleton, param-ID scheme, test target, pluginval path):
 
 - [`dsp/CLAUDE.md`](dsp/CLAUDE.md) — layer architecture, ODR procedure, header-only/SIMD conventions
-- [`plugins/iterum/CLAUDE.md`](plugins/iterum/CLAUDE.md) · [`disrumpo`](plugins/disrumpo/CLAUDE.md) · [`ruinae`](plugins/ruinae/CLAUDE.md) · [`innexus`](plugins/innexus/CLAUDE.md) · [`gradus`](plugins/gradus/CLAUDE.md) · [`membrum`](plugins/membrum/CLAUDE.md) · [`seraphis`](plugins/seraphis/CLAUDE.md) · [`vorago`](plugins/vorago/CLAUDE.md)
+- [`plugins/iterum/CLAUDE.md`](plugins/iterum/CLAUDE.md) · [`disrumpo`](plugins/disrumpo/CLAUDE.md) · [`ruinae`](plugins/ruinae/CLAUDE.md) · [`innexus`](plugins/innexus/CLAUDE.md) · [`gradus`](plugins/gradus/CLAUDE.md) · [`membrum`](plugins/membrum/CLAUDE.md) · [`seraphis`](plugins/seraphis/CLAUDE.md) · [`vorago`](plugins/vorago/CLAUDE.md) · [`profundum`](plugins/profundum/CLAUDE.md)
 
 ## Critical Rules (Non-Negotiable)
 
@@ -159,6 +160,12 @@ every run for anything that can be optimised for time, memory or any other resou
   concurrently: render probes, read sets, sweeps, clang-tidy, pluginval.
 - Independent code changes that each need a rebuild go into one rebuild when the readings stay attributable.
 - Never present a multi-hour serial plan without having looked for the parallel or cached version first.
+- **Run only the tests the change set can reach** (user, 2026-10-18). A gate or a close lane runs the cases of the
+  files that changed: the phase's own TUs (by their tag, e.g. `[profundum]`), plus the full suites of every consumer of a
+  shared header or source file that was MODIFIED (`git status` / `git diff --name-only` decides; new files do not count).
+  "All tests must be run" is not a reason: a whole executable costs 15–35 min per run, a phase has ~20 gates, and an
+  untouched test cannot change its verdict. Timing-budget cases of untouched code that go red under a concurrent lane
+  are recorded as load, not re-run.
 
 ## Real-Time Audio Thread Safety
 
@@ -186,7 +193,34 @@ All parameters at VST boundary are **normalized (0.0 to 1.0)**. Denormalize in `
 
 See constitution section "Cross-Platform Compatibility" for complete reference. Key points:
 
-**NaN Detection:** `-ffast-math` breaks `std::isnan()`. Use bit manipulation with `-fno-fast-math` on source file.
+**Fast-math (the macOS leg):** Xcode builds every TU with `-ffast-math -ffp-contract=fast`. Windows' `/fp:fast` is
+far milder and Linux has none, so a green Windows + Linux run proves nothing about macOS floating point. The full table,
+with the red behind each rule: `dsp/CLAUDE.md` "The macOS leg builds with -ffast-math".
+- Classify finiteness only through `Krate::DSP::detail::isFinite` / `isNaN` / `isInf` (`core/db_utils.h`): never
+  `std::isnan`, never a hand-written `(bits & 0x7F800000u)` clone, which Apple clang folds to "finite". A per-file
+  `-fno-fast-math` does not protect inline header code. Gated by `tools/lint-finite-bitmask.js` and
+  `tools/lint-nonfinite-symbols.js`, both tree-wide ratchets over the pre-existing hits.
+- No `numeric_limits<T>::infinity()` / `quiet_NaN()` constant in fast-math code, not even as a search seed or a
+  "fails every bar" return value: it is undefined behaviour there (clang `-Wnan-infinity-disabled`). Seed with
+  `max()` / `lowest()`.
+- Clamp the argument of `pow` / `sqrt` / `log` / `acos` at its domain edge when IEEE only *happens* to land on it.
+- Produce a value that must be exact at a neutral point or an endpoint (Mass 50, normalized 0 / 1) by a branch or a
+  clamp, not by arithmetic that cancels in IEEE: contraction leaves 1e-8 or 1e-17 there.
+- Never assert bit-equality between separately compiled computations (an engine tap vs the test's recomputation, or
+  an IEEE test TU's expected `k / 24` vs fast-math plugin code). DSP: `dsp_ieee_tests`. Elsewhere: a tolerance below
+  the meaningful step.
+- "IEEE" in CMake means `-fno-fast-math -fno-finite-math-only -ffp-contract=off` on one line. Without the last flag,
+  clang still fuses `a*b + c*d` into an fma on arm64 (`tools/lint-ieee-flag-sets.js`).
+- Reproduce before pushing: `tools/macos-fastmath-repro.sh` (DSP TUs, WSL clang, minutes) and
+  `tools/clangcl-fastmath-build.ps1` (plugin tests; read its blind spot).
+
+**Linux test harnesses have no run loop:** `Timer::create` returns nullptr without an injected run-loop factory, so an
+SDK path that needs a Timer (the DataExchange `IMessage` fallback) never runs in a bare test. Real hosts inject one.
+Gate such non-vacuity checks on Linux instead of asserting them.
+
+**Wall-clock bars in per-push tests:** the case must read ≤ 60 % of its bar on the 32-core dev box. CI's windows-2022
+runner measured 1.25-1.4x slower (Profundum render-guard shards: 11.5-13.2 s locally, 15.8-16.4 s on CI, bar 15 s).
+Cut fixed per-case cost or shard further; never raise the bar.
 
 **Floating-Point:** MSVC/Clang differ at 7th-8th decimal. Use `Approx().margin()` in tests, `std::setprecision(6)` in approval tests.
 
@@ -331,6 +365,9 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 
 # Vorago
 tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Vorago.vst3"
+
+# Profundum
+tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Profundum.vst3"
 ```
 
 Skip for docs-only, CI config, or test-only changes.
@@ -382,9 +419,11 @@ CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 # Build (Release)
 "$CMAKE" --build build/windows-x64-release --config Release
 
-# Run DSP tests (split into 5 per-layer executables: core/primitives/processors/systems/effects)
-"$CMAKE" --build build/windows-x64-release --config Release --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests
-for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests; do build/windows-x64-release/bin/Release/$t.exe 2>&1 | tail -3; done
+# Run DSP tests (5 per-layer executables: core/primitives/processors/systems/effects, plus dsp_ieee_tests:
+# the IEEE-only TUs (NaN / Inf injection and bit-exactness), every TU -fno-fast-math, so no fast-math copy of an inline DSP body
+# can be the one the linker keeps - dsp/tests/CMakeLists.txt)
+"$CMAKE" --build build/windows-x64-release --config Release --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_ieee_tests
+for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_ieee_tests; do build/windows-x64-release/bin/Release/$t.exe 2>&1 | tail -3; done
 # (Editing one layer only relinks that layer's exe — e.g. --target dsp_core_tests)
 
 # Run plugin-specific tests
@@ -397,6 +436,7 @@ for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_te
 "$CMAKE" --build build/windows-x64-release --config Release --target membrum_tests   # Membrum
 "$CMAKE" --build build/windows-x64-release --config Release --target seraphis_tests  # Seraphis
 "$CMAKE" --build build/windows-x64-release --config Release --target vorago_tests    # Vorago
+"$CMAKE" --build build/windows-x64-release --config Release --target profundum_tests # Profundum
 "$CMAKE" --build build/windows-x64-release --config Release --target shared_tests    # Shared infra
 
 # Iterum has a SECOND, generically-named test target: `approval_tests` holds the
@@ -451,6 +491,7 @@ node tools/run-cpu-tests.js dsp_systems_tests   # or just the ones you touched
 - `build/windows-x64-release/VST3/Release/Membrum.vst3/`
 - `build/windows-x64-release/VST3/Release/Seraphis.vst3/`
 - `build/windows-x64-release/VST3/Release/Vorago.vst3/`
+- `build/windows-x64-release/VST3/Release/Profundum.vst3/`
 
 ### AddressSanitizer (ASan)
 
@@ -479,7 +520,7 @@ ctest --test-dir build-asan -C Debug --output-on-failure
 Run before every commit (canonical todo list step 6) and after significant refactoring:
 
 ```powershell
-./tools/run-clang-tidy.ps1 -Target <all|dsp|shared|iterum|disrumpo|ruinae|innexus|gradus|membrum|seraphis|vorago> -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target <all|dsp|shared|iterum|disrumpo|ruinae|innexus|gradus|membrum|seraphis|vorago|profundum> -BuildDir build/windows-ninja
 # Linux/macOS: ./tools/run-clang-tidy.sh --target <same roster>
 ```
 
@@ -499,6 +540,7 @@ compile_commands.json generation) and the full flag reference: `clang-tidy-setup
 | Add Membrum parameter | plugins/membrum/src/plugin_ids.h → processor → controller → uidesc (no `parameters/` dir) |
 | Add Seraphis parameter | plugins/seraphis/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add Vorago parameter | plugins/vorago/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
+| Add Profundum parameter | plugins/profundum/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add DSP component | dsp/include/krate/dsp/{layer}/ → dsp/tests/unit/{layer}/ |
 | Add Iterum test | plugins/iterum/tests/unit/{section}/ |
 | Add Disrumpo test | plugins/disrumpo/tests/ |
@@ -509,6 +551,7 @@ compile_commands.json generation) and the full flag reference: `clang-tidy-setup
 | Add Membrum test | plugins/membrum/tests/ |
 | Add Seraphis test | plugins/seraphis/tests/unit/ (or tests/integration/) |
 | Add Vorago test | plugins/vorago/tests/unit/ (or tests/integration/) |
+| Add Profundum test | plugins/profundum/tests/unit/ (or tests/integration/) |
 | Add shared component | plugins/shared/src/{section}/ → plugins/shared/tests/ |
 | Change Iterum UI | plugins/iterum/resources/editor.uidesc |
 | Change Disrumpo UI | plugins/disrumpo/resources/editor.uidesc |
@@ -516,6 +559,7 @@ compile_commands.json generation) and the full flag reference: `clang-tidy-setup
 | Change Membrum UI | plugins/membrum/resources/editor.uidesc |
 | Change Seraphis UI | plugins/seraphis/resources/editor.uidesc |
 | Change Vorago UI | plugins/vorago/resources/editor.uidesc |
+| Change Profundum UI | plugins/profundum/resources/editor.uidesc |
 
 | Your Layer | Location | Can Include |
 |------------|----------|-------------|

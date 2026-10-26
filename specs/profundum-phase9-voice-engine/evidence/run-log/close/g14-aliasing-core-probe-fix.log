@@ -1,0 +1,23 @@
+Filters: "VoiceEngine_AliasingCoreProbe"
+Randomness seeded to: 2566598763
+PROBE core 48k E1 [mix 1 drive 1 asym 1]: off-lattice -132.33 dBFS, 8/16/24/32 Hz family -141.22, rest -132.93; top 3.375Hz:-142.04 3.625Hz:-144.31 3.125Hz:-144.93 6.125Hz:-145.03 dBFS
+PROBE core 48k E1 [asym 0]: off-lattice -133.35 dBFS, 8/16/24/32 Hz family -142.1, rest -133.97; top 3.375Hz:-142.77 3.625Hz:-144.61 4.125Hz:-145.86 6.125Hz:-146.85 dBFS
+PROBE core 48k E1 [drive 0.5]: off-lattice -132.07 dBFS, 8/16/24/32 Hz family -140.98, rest -132.66; top 3.375Hz:-141.23 3.625Hz:-142.73 4.125Hz:-144.44 3.125Hz:-145.03 dBFS
+PROBE core 48k E1 [mix 0.5]: off-lattice -132.92 dBFS, 8/16/24/32 Hz family -141.8, rest -133.52; top 3.375Hz:-142.56 3.625Hz:-144.47 4.125Hz:-145.71 3.125Hz:-145.74 dBFS
+PROBE core 48k E1 [drive 0]: off-lattice -131.36 dBFS, 8/16/24/32 Hz family -140.1, rest -131.99; top 3.375Hz:-141.76 3.625Hz:-143.49 4.125Hz:-144.32 3.125Hz:-145.35 dBFS
+PROBE core 48k E1 [mix 0]: off-lattice -133.11 dBFS, 8/16/24/32 Hz family -141.95, rest -133.72; top 3.375Hz:-142.27 3.625Hz:-143.86 4.125Hz:-145.16 3.125Hz:-146.27 dBFS
+PROBE core 44k1 E0 [mix 1 drive 1 asym 1]: off-lattice -130.63 dBFS, 8/16/24/32 Hz family -142.64, rest -130.91; top 1.625Hz:-140.43 1.875Hz:-140.46 2.375Hz:-141.55 2.625Hz:-141.86 dBFS
+PROBE core 44k1 E0 [asym 0]: off-lattice -132.28 dBFS, 8/16/24/32 Hz family -144.18, rest -132.57; top 1.625Hz:-140.93 1.875Hz:-141.12 2.375Hz:-143.05 1.375Hz:-143.9 dBFS
+PROBE core 44k1 E0 [drive 0.5]: off-lattice -130.59 dBFS, 8/16/24/32 Hz family -142.51, rest -130.88; top 1.875Hz:-139.94 1.625Hz:-140.58 2.375Hz:-140.8 2.625Hz:-142 dBFS
+PROBE core 44k1 E0 [mix 0.5]: off-lattice -131.15 dBFS, 8/16/24/32 Hz family -143.24, rest -131.43; top 1.875Hz:-140.52 1.625Hz:-140.99 2.375Hz:-141.39 2.625Hz:-142.8 dBFS
+PROBE core 44k1 E0 [drive 0]: off-lattice -130.11 dBFS, 8/16/24/32 Hz family -140.76, rest -130.5; top 1.875Hz:-139.81 2.375Hz:-140.64 1.625Hz:-140.66 2.625Hz:-142.49 dBFS
+PROBE core 44k1 E0 [mix 0]: off-lattice -131.01 dBFS, 8/16/24/32 Hz family -142.53, rest -131.33; top 1.875Hz:-140.29 2.375Hz:-140.88 1.625Hz:-141.11 1.375Hz:-142.77 dBFS
+PROBE core 96k E1 [mix 1 drive 1 asym 1]: off-lattice -129.01 dBFS, 8/16/24/32 Hz family -139.32, rest -129.43; top 5.375Hz:-139.42 4.875Hz:-139.72 3.375Hz:-140.78 5.625Hz:-140.96 dBFS
+PROBE core 96k E1 [asym 0]: off-lattice -130.13 dBFS, 8/16/24/32 Hz family -139.41, rest -130.68; top 5.375Hz:-140.78 3.375Hz:-141.15 4.875Hz:-142.54 3.125Hz:-142.65 dBFS
+PROBE core 96k E1 [drive 0.5]: off-lattice -129.23 dBFS, 8/16/24/32 Hz family -139.24, rest -129.69; top 3.375Hz:-139.81 5.375Hz:-140.33 3.125Hz:-140.8 4.875Hz:-141.21 dBFS
+PROBE core 96k E1 [mix 0.5]: off-lattice -129.35 dBFS, 8/16/24/32 Hz family -139.94, rest -129.75; top 5.375Hz:-140.08 3.375Hz:-140.58 4.875Hz:-140.75 3.125Hz:-141.31 dBFS
+PROBE core 96k E1 [drive 0]: off-lattice -128.61 dBFS, 8/16/24/32 Hz family -138.51, rest -129.08; top 5.375Hz:-139.96 3.375Hz:-140 4.875Hz:-140 3.125Hz:-140.97 dBFS
+PROBE core 96k E1 [mix 0]: off-lattice -129.61 dBFS, 8/16/24/32 Hz family -139.64, rest -130.07; top 5.375Hz:-140.29 3.375Hz:-140.34 4.875Hz:-140.81 3.125Hz:-141.34 dBFS
+===============================================================================
+All tests passed (216 assertions in 1 test case)
+

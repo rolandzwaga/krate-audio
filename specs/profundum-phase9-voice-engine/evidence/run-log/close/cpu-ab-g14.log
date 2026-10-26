@@ -1,0 +1,34 @@
+=== A/B pinned 2026-10-22T00:20:39Z: A=g14base (G13 bits, 10-21 01:51) B=final (10-21 20:22)
+--- A VoiceEngine_CpuMono
+SC001 STAGE Tube anchor(level 0) without=8.2321 cost=-0.67187
+SC001 STAGE Tube field(SOLID, spread 0, motionDepth 0) without=5.596 cost=1.9642
+SC001 STAGE Tube retrigger(none) without=7.3225 cost=0.23773
+SC001 VERDICT GREEN 7.7081 (Tube 7.5602, Fracture 7.7081; bar 8 %)
+--- A VoiceEngine_CpuPoly4
+SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 50.012 Fracture 43.94 max 50.012
+SC002 VERDICT RED 27.682 (Tube 26.732, Fracture 27.682; bar 25 %)
+--- B VoiceEngine_CpuMono
+SC001 STAGE Tube anchor(level 0) without=7.8988 cost=0.12651
+SC001 STAGE Tube field(SOLID, spread 0, motionDepth 0) without=5.136 cost=2.8892
+SC001 STAGE Tube retrigger(none) without=6.9613 cost=1.064
+SC001 VERDICT RED 8.0253 (Tube 8.0253, Fracture 7.7368; bar 8 %)
+--- B VoiceEngine_CpuPoly4
+SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 52.51 Fracture 48.514 max 52.51
+SC002 VERDICT RED 29.31 (Tube 29.31, Fracture 25.386; bar 25 %)
+--- A VoiceEngine_CpuMono
+SC001 STAGE Tube anchor(level 0) without=7.7811 cost=9.0335
+SC001 STAGE Tube field(SOLID, spread 0, motionDepth 0) without=5.4257 cost=11.389
+SC001 STAGE Tube retrigger(none) without=6.7821 cost=10.033
+SC001 VERDICT RED 16.815 (Tube 16.815, Fracture 6.7643; bar 8 %)
+--- A VoiceEngine_CpuPoly4
+SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 44.277 Fracture 43.611 max 44.277
+SC002 VERDICT GREEN 24.883 (Tube 24.883, Fracture 23.974; bar 25 %)
+--- B VoiceEngine_CpuMono
+SC001 STAGE Tube anchor(level 0) without=6.5849 cost=0.041706
+SC001 STAGE Tube field(SOLID, spread 0, motionDepth 0) without=4.4919 cost=2.1346
+SC001 STAGE Tube retrigger(none) without=6.5321 cost=0.094513
+SC001 VERDICT GREEN 6.6266 (Tube 6.6266, Fracture 6.3408; bar 8 %)
+--- B VoiceEngine_CpuPoly4
+SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 46.736 Fracture 43.99 max 46.736
+SC002 VERDICT GREEN 24.564 (Tube 24.564, Fracture 23.786; bar 25 %)
+ab done

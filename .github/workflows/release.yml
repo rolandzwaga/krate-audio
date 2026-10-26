@@ -40,6 +40,7 @@ on:
           - membrum
           - seraphis
           - vorago
+          - profundum
         default: iterum
       prerelease:
         description: 'Mark as pre-release?'
@@ -140,7 +141,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: build/_deps
-          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ github.repository }}-${{ runner.os }}-
 

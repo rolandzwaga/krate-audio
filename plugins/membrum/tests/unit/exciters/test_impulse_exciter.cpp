@@ -18,6 +18,7 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 
@@ -47,7 +48,8 @@ TEST_CASE("ImpulseExciter: velocity spectral centroid ratio >= 2.0 (SC-004)",
     Membrum::ImpulseExciter exc;
     exc.prepare(kSR, 0);
 
-    std::array<float, kSamples> bufLow{}, bufHigh{};
+    std::array<float, kSamples> bufLow{};
+    std::array<float, kSamples> bufHigh{};
     runBurst(exc, 0.23f, bufLow.data(),  kSamples);
     exc.reset();
     runBurst(exc, 1.0f,  bufHigh.data(), kSamples);
@@ -76,7 +78,7 @@ TEST_CASE("ImpulseExciter: 1 s output is finite and peak <= 1.0",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     // FR-010 bit-identical-to-Phase-1: ImpulseExciter does not clamp. Raw
@@ -100,7 +102,7 @@ TEST_CASE("ImpulseExciter: retrigger safety",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     // FR-010 bit-identical-to-Phase-1: ImpulseExciter does not clamp. Raw
@@ -133,7 +135,7 @@ TEST_CASE("ImpulseExciter: sample-rate change safe",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak > 1e-6f);

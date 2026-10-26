@@ -1,0 +1,88 @@
+=== forced MSBuild /t:Rebuild of Profundum.vcxproj and profundum_tests.vcxproj (Release, BuildProjectReferences=false) 2026-10-24T05:18:15Z
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Generating ../../VST3/Release/Profundum.vst3/Contents/Resources/editor.uidesc
+  [SMTG] Copied F:/projects/iterum/plugins/profundum/resources/editor.uidesc to F:/projects/iterum/build/windows-x64-release/VST3/Release/Profundum.vst3/Contents/Resources/editor.uidesc
+  Building Custom Rule F:/projects/iterum/plugins/profundum/CMakeLists.txt
+  entry.cpp
+  processor.cpp
+  controller.cpp
+  harmonic_bar_view.cpp
+  spread_curve_view.cpp
+  offset_ring_knob.cpp
+  panel_sub_controller.cpp
+  memorystream.cpp
+  dllmain.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/Profundum.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/Profundum.exp
+  Profundum.vcxproj -> F:\projects\iterum\build\windows-x64-release\VST3\Release\Profundum.vst3\Contents\x86_64-win\Profundum.vst3
+  [SMTG] Copy PlugIn.ico and desktop.ini and change their attributes.		Installing Profundum.vst3 to system VST3 folder	Installing Profundum factory presets to system directory
+  [VSTWORK] Copying plugin to C:\Users\scab\AppData\Local/Programs/Common/VST3...
+  [VSTWORK] Plugin installed to C:\Users\scab\AppData\Local/Programs/Common/VST3/Profundum.vst3
+  [VSTWORK] Installing Profundum factory presets...
+  [VSTWORK] Factory presets installed to C:\ProgramData/Krate Audio/Profundum
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:07.37
+--- build/windows-x64-release/plugins/profundum/Profundum.vcxproj exit=0
+MSBuild version 17.14.60+43b635718 for .NET Framework
+
+  Building Custom Rule F:/projects/iterum/plugins/profundum/tests/CMakeLists.txt
+  test_main.cpp
+  processor_bus_test.cpp
+  param_denorm_test.cpp
+  state_roundtrip_test.cpp
+  midi_event_test.cpp
+  lifecycle_test.cpp
+  editor_lifecycle_test.cpp
+  processor_audio_test.cpp
+  param_flow_test.cpp
+  processor_cpu_test.cpp
+  param_table_test.cpp
+  state_v2_test.cpp
+  midi_mapping_test.cpp
+  phase11_alloc_test.cpp
+  param_wiring_test.cpp
+  state_restore_render_test.cpp
+  copy_compare_test.cpp
+  tail_test.cpp
+  param_path_audibility_test.cpp
+  mono_sum_params_test.cpp
+  determinism_test.cpp
+  band_level_metric_test.cpp
+  main_page_render_set_test.cpp
+  spectrum_producer_test.cpp
+  state_v3_test.cpp
+  editor_layout_test.cpp
+  morph_component_test.cpp
+  macro_ui_test.cpp
+  spread_curve_test.cpp
+  editor_sync_test.cpp
+  custom_view_laws_test.cpp
+  ui_views_test.cpp
+  spectrum_frame_test.cpp
+  main_page_sanity_test.cpp
+  processor.cpp
+  controller.cpp
+  harmonic_bar_view.cpp
+  spread_curve_view.cpp
+  offset_ring_knob.cpp
+  panel_sub_controller.cpp
+  memorystream.cpp
+  hostclasses.cpp
+  pluginterfacesupport.cpp
+  vstgui_test_stubs.cpp
+  moduleinit.cpp
+  pluginfactory.cpp
+     Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_tests.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_tests.exp
+  profundum_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\profundum_tests.exe
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:51.33
+--- build/windows-x64-release/plugins/profundum/tests/profundum_tests.vcxproj exit=0
+=== wall=59s warning_lines=0 error_lines=0

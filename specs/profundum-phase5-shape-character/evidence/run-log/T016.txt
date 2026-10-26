@@ -1,0 +1,118 @@
+T016 run log (2026-10-16) - Character spectral gates (SC-005, SC-006, SC-007, SC-010, SC-011, SC-022, SC-028;
+plan S1 C-7, C-8, C-9)
+
+Files written
+- dsp/tests/unit/systems/bass_character_spectral_test.cpp (appended T016 section; header comment lists the T016 cases;
+  added <filesystem>, <fstream>, <string>, <utility>)
+- specs/profundum-phase5-shape-character/evidence/run-log/T016.txt (this file, rule 13)
+
+Test-only task: no header edits. Not built or run (rule 1 / deviation 8: the Group 8 gate builds and runs). The TU was
+re-read for compile errors. The [long] cases are main-loop work (lane rule; T025's suites.sh shards every [long]
+TEST_CASE), so no lane script is written here.
+
+Cases (all tagged [systems][profundum][shape-character][bass-character])
+- BassCharacter_AlgorithmsPairwiseDistinct (SC-005): 6 algorithms, Amount 1 / Tone 0.5, kSawAnchor and kSineAnchor x
+  E1 and C2, 48 kHz, each output levelMatch'ed to the input's levelDb; all 15 pairs Sct::separate(...).distinct; margins
+  (maxDb / 3, dC / 0.25) in INFO.
+- BassCharacter_ToneMonotonicCentroidSmoke: Fold, saw E1, Amount 1, 11 Tones, one render each (offset 0, block 512):
+  every step >= -0.005 oct, span >= 0.25 oct.
+- BassCharacter_ToneMonotonicCentroid [long] (SC-006, C-7): see decision 1 for epsilon; csv evidence/sc006.csv.
+- BassCharacter_AmountAudible (SC-007): every algorithm, Amount 0 vs 1, Tone 0.5, E1, saw and sine: amountMoved >= 3 dB
+  or dC >= 0.25 oct.
+- BassCharacter_AmountTrajectory [long]: 11 Amount steps x 6 x {saw, sine}, E1 -> evidence/sc007.csv (moved re Amount 0,
+  dC, THD, I, Roe, C, L); Amount-1 endpoint re-asserted.
+- BassCharacter_AliasingE0E2Smoke (non-long sibling, deviation 8): Rectify (the one algorithm with no per-algorithm
+  aliasing smoke in this TU) at Fold-100 saw E0 and Fold-100 growl E2, 44.1 kHz, Amount 1, Tone {0, 1}, through the same
+  attribution cell (bcsAliasCell) the [long] grid uses.
+- BassCharacter_AliasingE0E2 [long] (SC-010): full grid; Fracture on the n*f0/2 lattice (C-9) with the n*f0 mask value
+  in the CSV column A_nf0_mask_dbfs; A_in, G (h1 power gain at f0, BH7 Goertzel on the same frame), A_added per cell
+  to evidence/sc010-character.csv; failing Fold-100 cells with A_added <= -80 fail as "FR-070 candidate" (T007
+  pattern), other failures as "SC-010 Character cell above -80 dBFS".
+- ShapeCharacter_AliasGatePositiveControl: Bite with seamNaiveBaseRate_ on raw saw E2 / 44.1 kHz, Amount 1, Tone 0.5 ->
+  A > -80; same cell, seam off -> A <= -80.
+- BassCharacter_DcBound (SC-011): the SC-010 grid at 48 kHz, 2.2 s renders, mean over whole periods after 1 s
+  (Fracture over whole f0/2 periods, as T015 decision 2).
+- ShapeCharacter_OutputBounded (SC-022 Character arm): see decision 4.
+- BassCharacter_ToneStructure (SC-028): sections (a)-(d), see decisions 5-8.
+
+Decisions / deviations (surface them)
+1. SC-006 epsilon. Per Tone point the spread (max - min) of C over the PRODUCT 8 sub-period start offsets x block sizes
+   {1, 64, 512} (24 renders; the reference C is offset 0 / block 512). A sweep's epsilon = the largest of its 11
+   spreads; tau = min(2 eps, 0.005); eps > 0.0025 -> FAIL_CHECK "SC-006 harness, not bar". Steps and the sum of
+   negative steps use the sweep's tau. Offsets: the input is the same fixture started k*period/8 samples later
+   (k = 0..7, rounded), i.e. the window phase moves. Cost estimate: 528 Tone points x 24 renders of 2.4-3.8 s audio,
+   ~15-25 min in one shard. Reading "offsets and block sizes" as a union (10 renders) would cost ~40 %; not taken
+   (never shrink a workload).
+2. SC-010 render length: each algorithm's input is the tail (bcsTail) of one input generated for the longest frame
+   (Fracture's f0/2 frame), so the Fold-100 input is already settled and every algorithm still gets 1 s settle + its
+   own frame + 50 ms.
+3. SC-010 smoke sibling exists for Bite/Tube/Fold/Crush/Fracture (T011/T014/T015); the new Rectify smoke completes it.
+4. SC-022 inputs: Fold-100 kGrowl normalised to peak 1 (global max of the 0.5 s Fold-100 render) and full-scale
+   calibration sines (peak 1.0), each at E0 and C3 (the task names E0 / C3 for the sines; the growl note is unstated,
+   so the same two notes are used). 48 kHz, 0.5 s. The check is "every |y| <= 6.0" written so NaN fails it; note that
+   processBlock clamps at kOutputCeiling = 6 (bass_character_stage.h:365), so the bound holds by construction unless
+   the output is non-finite; preCeilingPeak() is printed per cell to show whether the ceiling acted.
+5. SC-028(a) band: tilts run at the BASE rate since C-23 (bass_character_stage.h:24-26, every prepare() calls
+   postTilt.prepare(baseRate)), so the band is 20 Hz - 0.45*fs at the base rate (spec SC-028(a) literal "0.45*fs"); the
+   task text "0.45*(F*fs)" predates C-23 and frequencies above fs/2 do not exist for a base-rate filter. Sine probes:
+   0.3 s, 0.1 s settle, RMS ratio over whole periods.
+6. SC-028(b)-(d) responses are measured on copies of the probe's tilt objects (KeytrackedTilt is copyable) from their
+   impulse response (16384 samples, DTFT in double at each n*f0) instead of one sine probe per harmonic: (d) needs
+   |H_post| at every harmonic below fs/2 (~583 at E1). Still a measured linear response of the running object.
+7. SC-028(b) routes per algorithm x Tone {0, 0.25, 0.75, 1}: (i) one stage at the prepare default C2, setFundamentalHz C1
+   then C3 with a 0.1 s drive after each; (ii) one stage, constant f0PerSample arrays C1 then C3; (iii) fresh stage in
+   another algorithm, setFundamentalHz, then setAlgorithm (re-key at start()); (iv) fresh stage at Amount 0 (bypassed:
+   setFundamentalHz does not reach the branches), then setAmount(1) (re-key at leaveBypass); (v) fresh stage,
+   setFundamentalHz, reset(). Post tilt (and pre tilt for Tube/Bite) compared C1 vs C3 per harmonic, bar 1.5 dB.
+8. SC-028(c)/(d) fixture: kSawAnchor E1, 48 kHz, Amount 1 (unstated in the task). The saw is required for (d): on a
+   sine the k = 1 pre tilt is unity at the only input harmonic (its pivot), so a pre-clip tilt cannot move THD there.
+   (d) de-tilts every harmonic below fs/2 by |H_post(n f0)|^2 and applies the OQ-S floor rule (Sct::amountMoved
+   restricted to THD and R_oe). Corroborating arm: seamPostToneNeutral_ (no de-tilt needed). Negative control:
+   seamPreToneNeutral_ with the post tilt active, de-tilted, must be < 3 dB. (c) gates all 16 harmonics at 0.1 dB with
+   no floor, as the spec row is written; a very weak harmonic could read noisy there - if it fails, the INFO line
+   shows the per-harmonic levels.
+
+Gate-time risk (not a change): BassCharacter_AlgorithmsPairwiseDistinct, BassCharacter_AmountAudible (24 renders of
+7 s each), BassCharacter_DcBound (144 renders of 2.2 s) and BassCharacter_ToneStructure may exceed 15 s; per deviation 8
+T022 re-tags any case the gate log shows above 15 s and adds its smoke.
+
+No DEFECT lines.
+
+
+EPOCH 2 (Group 8 rulings)
+=========================
+Rulings applied (user, 2026-10-16, spec Clarifications "Group 8 gate rulings"; tasks.md "RULED 2026-10-16"):
+- Bite pre-clip tilt +-6 -> +-9 dB: bass_character_stage.h kBitePreTiltDb = 9.0f, used only by BiteBranch::prepare's
+  preTilt.configure; Tube's pre tilt and both post tilts keep kTubeBiteTiltDb = 6. SC-028(d) bar unchanged (3 dB).
+- Crush hold multiple: kCrushMultipleHi 4 -> 2, m(A) = 64*32^-A (2 at Amount 1); kCrushGridOffset 0.5 and the 4-bit
+  quantiser kept. Hold engines read for m_lo = 2: parity keying (m mod 2), ring size (3 slots, steps 4 F-samples long,
+  spacing set by m_hi <= 3 against the F*fs/(4*f0) cap) and the crossing count assume nothing about m >= 4; no engine
+  change.
+No test-bar change in bass_character_spectral_test.cpp.
+
+Build: cmake --build build/windows-x64-release --config Release --target dsp_systems_tests -> 0 warnings, 0 errors
+(F:/tmp/p5g8/build.log).
+
+Runs (dsp_systems_tests.exe, one case each, logs under F:/tmp/p5g8):
+- BassCharacter_ToneStructure: All tests passed (2504 assertions in 1 test case).
+  SC-028(d) Bite saw E1, Amount 1, Tone 0 vs 1: de-tilted move 3.89815 dB (THD -8.48154 -> -4.73092, Roe -2.17577 ->
+  -6.07392); post held neutral 3.89815 dB; negative control 9.10349e-07 dB. (Epoch 1 at +-6 dB: 2.595 dB.)
+  Tube: 9.637 dB / 9.637 dB / control 6.21e-07 dB.
+- BassCharacter_BiteSmoke (Bite SC-010 smoke cells, 44.1 kHz, Amount 1): All tests passed (156 assertions).
+  A = -112.437 / -98.5135 dBFS (saw E0, Tone 0 / 1), -111.953 / -84.1253 dBFS (growl E2, Tone 0 / 1); bar -80, worst
+  margin 4.13 dB. SC-007 smoke Bite saw E1: moved 6.3602 dB, dC 0.418 oct.
+- BassCharacter_CrushSmoke: All tests passed (120 assertions in 1 test case).
+  SC-010 smoke Crush growl E2 44.1 kHz Amount 1: A = -144.938 dBFS (Tone 0), -124.478 dBFS (Tone 1); bar -80.
+  SC-007 (iii) Crush saw E1 Amount 0 -> 1: moved 55.2762 dB, dC 0.281635 oct (THD -2.01078 -> -6.33612, I -152.467 ->
+  -123.774). (Epoch 1 at m = 4: moved 1.30 dB, dC 0.084 oct, red.)
+- BassCharacter_AmountAudible: All tests passed (676 assertions in 1 test case).
+  Crush saw E1: moved 55.2762 dB, dC 0.281635 oct; Crush sine E1: moved 53.6639 dB, dC 0.477568 oct.
+- BassCharacter_AliasingE0E2Smoke (the per-push smoke holds Rectify cells only): All tests passed (84 assertions).
+  Rectify worst A = -86.5026 dBFS (growl E2, Tone 1).
+- BassCharacter_AlgorithmsPairwiseDistinct: All tests passed (900 assertions in 1 test case).
+- BassCharacter_DcBound: FAILED, test cases 1 | 0 passed | 1 failed; assertions 780 | 779 passed | 1 failed.
+  bass_character_spectral_test.cpp(1505): CHECK( dc <= kBcsBarDbfs ), -65.6741024328 <= -80.0,
+  "Crush, Tone 0, E2, growl, Fold-100: DC = -65.6741 dBFS (bar -80)".
+  STOP AND SURFACE: SC-011 on Crush at m = 2 (the ruled lever). Nothing further adjusted; returns to the user per the
+  ruling ("a failure returns to the user").
+- Not run (per instruction): BassCharacter_ToneMonotonicCentroid ([long]), BassCharacter_AliasingE0E2 ([long]).

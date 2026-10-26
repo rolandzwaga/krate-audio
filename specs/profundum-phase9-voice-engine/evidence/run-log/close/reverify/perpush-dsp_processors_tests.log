@@ -1,0 +1,640 @@
+Filters: ~[long] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 774343121
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_processors_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = 0.0
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1233)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1236): warning:
+  Feedback=0.0: max magnitude = 0.999997
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = +0.95
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1240)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1243): warning:
+  Feedback=+0.95: max magnitude = 1.95186
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = -0.95
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1251)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1254): warning:
+  Feedback=-0.95: max magnitude = 1.95194
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = +0.98 (at clamp limit)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1258)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1261): warning:
+  Feedback=+0.98: max magnitude = 1.95751
+
+-------------------------------------------------------------------------------
+Flanger SC-004: output bounded with unity-level input at various feedback
+  Feedback = 1.0 (clamped internally to 0.98)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1265)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1268): warning:
+  Feedback=1.0: max magnitude = 1.95751
+
+-------------------------------------------------------------------------------
+Flanger SC-005: tempo sync at 20 BPM extreme
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1277)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1295): warning:
+  20 BPM: measured period = 132250 samples, expected = 132300
+
+-------------------------------------------------------------------------------
+Flanger SC-005: tempo sync at 300 BPM extreme
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1299)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1317): warning:
+  300 BPM: measured period = 8825 samples, expected = 8820
+
+-------------------------------------------------------------------------------
+Flanger SC-002: parameter ramp produces no step discontinuities
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1325)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\flanger_test.cpp(1376): warning:
+  Max sample-to-sample step during mix ramp: 0.0624425
+
+-------------------------------------------------------------------------------
+SC-008 Calibration: Measure actual frequencies
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(841)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(871): warning:
+  === Calibration: Target 440 Hz, measuring actual output ===
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  Lorenz: autocorr=2004.55 Hz, ZC=328 Hz, peak=80 Hz, range=[-0.879567,0.
+  884325]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  Rossler: autocorr=31.2988 Hz, ZC=469.5 Hz, peak=470 Hz, range=[-0.789251,0.
+  861264]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  Chua: autocorr=2004.55 Hz, ZC=373 Hz, peak=120 Hz, range=[-0.893045,0.855091]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  Duffing: autocorr=441 Hz, ZC=439.5 Hz, peak=440 Hz, range=[-0.00537055,0.
+  00535861]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(868): warning:
+  VanDerPol: autocorr=55.0562 Hz, ZC=440.5 Hz, peak=440 Hz, range=[-0.684976,0.
+  684977]
+
+F:\projects\iterum\dsp\tests\unit\processors\chaos_oscillator_test.cpp(877): warning:
+  === End calibration ===
+
+HarmonicOscillatorBank continuous updates: worst partial -0.0001 dB (bar 0.05); default path worst -5.82 dB (control > 1)
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_DepthOneSineAtAnyShape
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(534)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(558): warning:
+  FR-010 depth 1 worst rest re h1: -43.7966 dB (bar -30, model -43.8)
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_AudibilityGate_BodyEdgeShift
+  Body: R_body strictly increasing; span vs headroom (plan S1 C-1)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(772)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(811): warning:
+  SC-004 Body min span (headroom >= 6 dB, 22 points): 8.6477 dB (bar 6, model
+  8.65)
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(813): warning:
+  SC-004 Body min span / headroom (headroom < 6 dB, 5 points): 0.74044 (bar 0.
+  7, model 0.740)
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_AudibilityGate_BodyEdgeShift
+  Edge: R_pres strictly increasing, span >= 6 dB
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(816)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(838): warning:
+  SC-004 Edge min span: 8.88886 dB (bar 6, model 8.89)
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_AudibilityGate_BodyEdgeShift
+  Shift: C strictly increasing (plan S1 C-2)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(841)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(902): warning:
+  SC-004 Shift min span (depth {0, 0.5}, 16 points): 1.42734 oct (bar 1, model
+  1.427)
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(903): warning:
+  FR-016/C-2 depth 1 min per-step dC/C: 0.00267877 (bar > 0, model 2.68e-3)
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_AudibilityGate_BodyEdgeShift
+  Endpoints: pairwise descriptor distance >= 6 dB
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(906)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(924): warning:
+  SC-004 endpoint min pairwise distance: 7.07333 dB (bar 6, model 7.07)
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_BodySubControls
+  curvature: sigma strictly decreasing, |span| >= 0.25 oct
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(934)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(943): warning:
+  SC-005 curvature sigma span: -0.375308 oct (bar |span| >= 0.25, model -0.375)
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_BodySubControls
+  emphasis: odd/even strictly decreasing over [-1, 0], span >= 20 dB
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(946)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(963): warning:
+  SC-005 emphasis odd/even: 34.8093 (2nd point) -> 4.70634 dB, span 30.103 dB
+  (bar 20, model 34.8 -> 4.7)
+
+-------------------------------------------------------------------------------
+ProfundumCore_BodyColoursDistinct
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(971)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1036): warning:
+  SC-019 min pairwise body-colour distance: 16.2418 dB (bar 6, model 16.24)
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1037): warning:
+  SC-019 kBodyRound lowest C by 0.374902 oct (bar 0.05, model 0.375)
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1039): warning:
+  SC-019 kBodyHollow highest odd/even: unclipped +inf dB, clipped margin 18.
+  8784 dB (bar 1, model 18.9)
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1040): warning:
+  SC-019 kBodyNasal smallest sigma by 0.0638577 oct (bar 0.05, model 0.064)
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1041): warning:
+  SC-019 kBodyThick highest R_body by 1.26885 dB (bar 1, model 1.27)
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_LipschitzBound
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1049)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1092): warning:
+  FR-006 L_c worst: 6.13239 sqrt(P0) (ceiling 8, model 7.13) at depth 0.858382
+  body 0.89044 curv 0.980933 emph -0.300614 edge 0.933766 shift 0.817416 field
+  depth dc 0.005952 n 1
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_LipschitzBound
+  f0 arm: L_f <= kLipschitzOctaveCeiling
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1099)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1154): warning:
+  FR-006 L_f worst: 4.78604 sqrt(P0)/oct (ceiling 8, model 4.78); onset 0.
+  611567, cap taper 4.78604, clamp ceiling 0 at depth 0.0806933 body 0.96426
+  curv 0.316665 emph -0.734496 edge 0.808666 shift 0.903726 fs 44100.000000 f0
+  2844.775879 -> 2845.670166 n 3
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_LowNoteGuardContinuity
+  (c) 1-cent continuity over MIDI 0-127 (plan S1 C-8)
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1353)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1414): warning:
+  SC-011(c) worst 1-cent change: 0.0900561 dB (bar 0.1, model 0.0900) at depth
+  0.65 body 0.5 curv 0.95 emph -0.1 edge 0.3 shift 0.05 fs 44100.000000 f0 92.
+  605530 n 89; below -80 dB: 0.000894569 x (8 sqrt(P0)/1200) (bar 1, model 0.
+  001)
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_NamedDistributions
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1554)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1582): warning:
+  SC-007 kHeavy min region margin over C1/C2/C3: 7.54234 dB (bar 3, model 7.5 /
+  25.7 / 12.8 for kHeavy / kHollow / kGrowl)
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1582): warning:
+  SC-007 kHollow min region margin over C1/C2/C3: 25.727 dB (bar 3, model 7.5 /
+  25.7 / 12.8 for kHeavy / kHollow / kGrowl)
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1582): warning:
+  SC-007 kGrowl min region margin over C1/C2/C3: 12.8214 dB (bar 3, model 7.5 /
+  25.7 / 12.8 for kHeavy / kHollow / kGrowl)
+
+-------------------------------------------------------------------------------
+SpectralShapeRecipe_MatchesCalibrationModel
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1628)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_shape_recipe_test.cpp(1690): warning:
+  Calibration-model match: worst |a_cpp - a_model| 4.77261e-08 (tolerance 5.
+  02377e-06)
+
+HarmonicFold_StaticMapTables C2/48k: THD(30) -33.58 dB (plan -33.6), THD(65) -19.59 dB (plan -19.6), H(100) 17 (plan 17)
+HarmonicFold_OutputBounded: worst preCeilingPeak 2.8807 (SC-009 state, MIDI 48, amount 82.5; plan <= 2.40)
+HarmonicFold_ThdAndCountMonotonicSmoke fs 48000 MIDI 16: min THD step +0.805 dB at amount 62.50 (plan D-1 +0.069 at 100);THD(100) 4.56 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonicSmoke fs 48000 MIDI 28: min THD step +0.805 dB at amount 62.50 (plan D-1 +0.069 at 100);THD(100) 4.54 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonicSmoke fs 48000 MIDI 40: min THD step +0.805 dB at amount 62.50 (plan D-1 +0.069 at 100);THD(100) 4.46 dB, H(100) 17
+HarmonicFold_ThdAndCountMonotonicSmoke fs 48000 MIDI 36: min THD step +0.805 dB at amount 62.50 (plan D-1 +0.069 at 100);THD(100) 4.50 dB, H(100) 17
+HarmonicFold_RegimesAudible MIDI 16: THD rise 93.7 / 14.0 / 24.1 dB (plan 42.3 / 14.0 / 24.1), H(30) 1, H(100) 17 (plan 1, 17)
+HarmonicFold_RegimesAudible MIDI 28: THD rise 119.5 / 14.0 / 24.1 dB (plan 42.3 / 14.0 / 24.1), H(30) 1, H(100) 17 (plan 1, 17)
+HarmonicFold_RegimesAudible MIDI 40: THD rise 123.5 / 14.0 / 24.1 dB (plan 42.3 / 14.0 / 24.1), H(30) 1, H(100) 17 (plan 1, 17)
+HarmonicFold_RegimesAudible MIDI 36: THD rise 119.3 / 14.0 / 24.1 dB (plan 42.3 / 14.0 / 24.1), H(30) 1, H(100) 17 (plan 1, 17)
+HarmonicFold_RegimesAudible mid grid C2: C(0) 1.270 oct, C(100) 1.864 oct, rise 0.594 oct (plan 1.270 -> 1.870)
+HarmonicFold_CompressionRegimeDensityBeforeLevel MIDI 28: THD +13.99 dB (plan +14.0), H 1 -> 3, worst |dL| 0.681 dB, |dCF| 0.681 dB (plan 0.68 / 0.68)
+HarmonicFold_CompressionRegimeDensityBeforeLevel MIDI 36: THD +13.99 dB (plan +14.0), H 1 -> 3, worst |dL| 0.681 dB, |dCF| 0.671 dB (plan 0.68 / 0.68)
+HarmonicFold_CompressionLevelIndependent MIDI 28: Fold THD -25.89 / -25.89 / -25.89 / -25.89 dB (spread 0.00, bar 3); tanh g 2.3817 THD -48.58 / -36.87 / -25.89 / -16.93 dB (spread 31.66, bar 12)
+HarmonicFold_CompressionLevelIndependent MIDI 36: Fold THD -25.93 / -25.93 / -25.93 / -25.93 dB (spread 0.00, bar 3); tanh g 2.3753 THD -48.63 / -36.91 / -25.93 / -16.96 dB (spread 31.68, bar 12)
+HarmonicFold_TrajectoryDistinctFromTanh E1: Fold THD -33.54 ... -19.55 dB; median distance 5.534 dB (bar 3, plan 5.49); SC-022(d) RMS-matched tanh median 0.374 dB (recorded)
+HarmonicFold_RegimeContinuityStaticSmoke calibration sine MIDI 28 (43 pairs): worst |dL| 0.109 dB, |dCF| 0.107 dB, |dC| 0.0315 oct, |dTHD| 0.566 dB (bound 1.000) (plan D-1 sine 0.109 dB, 0.032 oct; mid 0.072 dB, 0.016 oct)
+HarmonicFold_RegimeContinuityStaticSmoke calibration sine MIDI 36 (43 pairs): worst |dL| 0.109 dB, |dCF| 0.105 dB, |dC| 0.0315 oct, |dTHD| 0.565 dB (bound 1.000) (plan D-1 sine 0.109 dB, 0.032 oct; mid 0.072 dB, 0.016 oct)
+HarmonicFold_RegimeContinuityStaticSmoke recipe mid grid MIDI 36 (43 pairs): worst |dL| 0.065 dB, |dCF| 0.065 dB, |dC| 0.0154 oct, |dTHD| 0.112 dB (bound 1.000) (plan D-1 sine 0.109 dB, 0.032 oct; mid 0.072 dB, 0.016 oct)
+HarmonicFold_ContinuousInAmount calibration sine MIDI 28: worst RMS(y(a+e) - y(a)) / RMS(y(a)) 0.00363 at amount 95.00 (bar 0.02)
+HarmonicFold_ContinuousInAmount calibration sine MIDI 36: worst RMS(y(a+e) - y(a)) / RMS(y(a)) 0.00364 at amount 95.00 (bar 0.02)
+HarmonicFold_ContinuousInAmount recipe mid grid MIDI 36: worst RMS(y(a+e) - y(a)) / RMS(y(a)) 0.00240 at amount 95.00 (bar 0.02)
+HarmonicFold_AutomationNoJump calibration sine MIDI 28, sweep 0 -> 100 -> 0: worst |dy| 0.01999 (bound 0.02209); worst frame change - allowance -0.128 dB (J 0.000)
+HarmonicFold_AutomationNoJump calibration sine MIDI 28, steps 0 <-> 5: worst |dy| 0.00192 (bound 0.00211); worst frame change - allowance -0.998 dB (J 0.000)
+HarmonicFold_AutomationNoJump calibration sine MIDI 28, steps 28 <-> 32: worst |dy| 0.00210 (bound 0.00231); worst frame change - allowance -0.990 dB (J 0.000)
+HarmonicFold_AutomationNoJump calibration sine MIDI 28, steps 63 <-> 67: worst |dy| 0.00313 (bound 0.00344); worst frame change - allowance -0.966 dB (J 0.000)
+HarmonicFold_AutomationNoJump calibration sine MIDI 36, sweep 0 -> 100 -> 0: worst |dy| 0.03157 (bound 0.03506); worst frame change - allowance -0.376 dB (J 0.000)
+HarmonicFold_AutomationNoJump calibration sine MIDI 36, steps 0 <-> 5: worst |dy| 0.00305 (bound 0.00336); worst frame change - allowance -0.997 dB (J 0.000)
+HarmonicFold_AutomationNoJump calibration sine MIDI 36, steps 28 <-> 32: worst |dy| 0.00335 (bound 0.00368); worst frame change - allowance -0.990 dB (J 0.000)
+HarmonicFold_AutomationNoJump calibration sine MIDI 36, steps 63 <-> 67: worst |dy| 0.00498 (bound 0.00548); worst frame change - allowance -0.966 dB (J 0.000)
+HarmonicFold_AutomationNoJump recipe mid grid MIDI 36, sweep 0 -> 100 -> 0: worst |dy| 0.57871 (bound 0.63900); worst frame change - allowance -0.634 dB (J 0.000)
+HarmonicFold_AutomationNoJump recipe mid grid MIDI 36, steps 0 <-> 5: worst |dy| 0.09299 (bound 0.10229); worst frame change - allowance -0.953 dB (J 0.000)
+HarmonicFold_AutomationNoJump recipe mid grid MIDI 36, steps 28 <-> 32: worst |dy| 0.10981 (bound 0.12079); worst frame change - allowance -0.991 dB (J 0.000)
+HarmonicFold_AutomationNoJump recipe mid grid MIDI 36, steps 63 <-> 67: worst |dy| 0.15861 (bound 0.17448); worst frame change - allowance -0.938 dB (J 0.000)
+HarmonicFold_DcFreeWithEvenHarmonicInput: worst DC -117.1 dBFS (bar -80)
+HarmonicFold_FundamentalPreserved: worst |angle T1| 1.572 deg (bar 5), min |T1| -0.02 dB below 65 (bar -6), -9.51 dB on [65, 100] (bar -12, plan -9.46)
+HarmonicFold_StereoDetectorPerChannel amount 47.5: steady deviation 0.0000 / 0.0000 dB, worst frame deviation 0.0002 dB (bar 0.1, plan 0.000)
+HarmonicFold_StereoDetectorPerChannel amount 82.5: steady deviation 0.0000 / 0.0000 dB, worst frame deviation 0.0001 dB (bar 0.1, plan 0.000)
+HarmonicFold_StereoDetectorPerChannel amount 100.0: steady deviation 0.0000 / 0.0000 dB, worst frame deviation 0.0000 dB (bar 0.1, plan 0.000)
+HarmonicFold_StereoDetectorPerChannel teeth: shared-detector L/R ratio at 82.5 0.535 dB vs input 6.020 dB (plan D-1 0.53 vs 6.02)
+HarmonicFold_NoInCycleGainModulation f0 20 Hz amount 47.5 pre : residual -109.6 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 1.358 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 20 Hz amount 47.5 post: residual -132.2 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 1.358 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 20 Hz amount 82.5 pre : residual -109.7 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 1.358 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 20 Hz amount 82.5 post: residual -118.7 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 1.358 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 40 Hz amount 47.5 pre : residual -93.3 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 1.186 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 40 Hz amount 47.5 post: residual -92.3 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 1.186 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 40 Hz amount 82.5 pre : residual -93.8 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 1.186 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 40 Hz amount 82.5 post: residual -92.8 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 1.186 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 80 Hz amount 47.5 pre : residual -92.0 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 0.937 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 80 Hz amount 47.5 post: residual -151.9 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 0.937 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 80 Hz amount 82.5 pre : residual -92.5 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 0.937 (bar >= 0.1)
+HarmonicFold_NoInCycleGainModulation f0 80 Hz amount 82.5 post: residual -144.7 dB (bar -50), ripple 0 (bar 1e-4), x/env reference ripple 0.937 (bar >= 0.1)
+HarmonicFold_DetectorSteadyOnNonIntegerPeriod 64 partials, fs 44100, f0 41.2034 Hz: ripple 3.26e-07 (bar 1e-4)
+HarmonicFold_DetectorSteadyOnNonIntegerPeriod 64 partials, fs 48000, f0 41.2034 Hz: ripple 0 (bar 1e-4)
+HarmonicFold_DetectorSteadyOnNonIntegerPeriod 64 partials, fs 96000, f0 41.2034 Hz: ripple 0 (bar 1e-4)
+HarmonicFold_DetectorSteadyOnNonIntegerPeriod 481 partials, fs 44100, f0 41.2034 Hz: ripple 7.37e-06 (bar 1e-4)
+HarmonicFold_DetectorSteadyOnNonIntegerPeriod 524 partials, fs 48000, f0 41.2034 Hz: ripple 8.56e-06 (bar 1e-4)
+HarmonicFold_DetectorSteadyOnNonIntegerPeriod 1048 partials, fs 96000, f0 41.2034 Hz: ripple 5.46e-06 (bar 1e-4)
+HarmonicFold_DetectorReleasesAfterLevelDrop: env 0.355234 before (peak 0.355234), 0.089679 after (peak 0.089231, bar <= peak/(1-h) = 0.089679)
+HarmonicFold_SoftRegimeLevelDependent MIDI 28: THD -68.58 / -56.76 / -44.96 / -33.58 dB, spread 35.01 (bar >= 12)
+HarmonicFold_SoftRegimeLevelDependent MIDI 36: THD -68.64 / -56.81 / -45.00 / -33.62 dB, spread 35.02 (bar >= 12)
+HarmonicFold_FoldRegimeLevelNormalised MIDI 28: THD -8.93 / -8.93 / -8.93 / -8.93 dB, spread 0.00 (bar <= 3)
+HarmonicFold_FoldRegimeLevelNormalised MIDI 36: THD -8.97 / -8.97 / -8.97 / -8.97 dB, spread 0.00 (bar <= 3)
+HarmonicFold_DetectorStabilityGridSmoke: 6 cells, worst ripple 5.37e-06 (bar 1e-4) at fs 48000 f0 146.832 phase 0.37 amount 100.0
+HarmonicFold_DetectorUnderAmplitudeChanges MIDI 28 amount 47.5: guarantee max |x|/env 1.000000 (bar <= 1), env/ideal-lo min 1.0004 @ 1.024 s (bar >= 0.995), env/ideal-hi max 1.0054 @ 0.189 s (bar <= 1.02), AM 1 Hz +-3 dB env/A 0.950..1.501, AM 4 Hz +-6 dB 0.863..3.977 (recorded), final env/A 1.00538 (bar [1, 1.01005])
+HarmonicFold_DetectorUnderAmplitudeChanges MIDI 28 amount 82.5: guarantee max |x|/env 1.000000 (bar <= 1), env/ideal-lo min 1.0004 @ 1.024 s (bar >= 0.995), env/ideal-hi max 1.0054 @ 0.189 s (bar <= 1.02), AM 1 Hz +-3 dB env/A 0.950..1.501, AM 4 Hz +-6 dB 0.863..3.977 (recorded), final env/A 1.00538 (bar [1, 1.01005])
+HarmonicFold_DetectorUnderAmplitudeChanges MIDI 36 amount 47.5: guarantee max |x|/env 1.000000 (bar <= 1), env/ideal-lo min 1.0014 @ 2.812 s (bar >= 0.995), env/ideal-hi max 1.0056 @ 0.171 s (bar <= 1.02), AM 1 Hz +-3 dB env/A 0.969..1.454, AM 4 Hz +-6 dB 0.872..3.987 (recorded), final env/A 1.00646 (bar [1, 1.01005])
+HarmonicFold_DetectorUnderAmplitudeChanges MIDI 36 amount 82.5: guarantee max |x|/env 1.000000 (bar <= 1), env/ideal-lo min 1.0014 @ 2.812 s (bar >= 0.995), env/ideal-hi max 1.0056 @ 0.171 s (bar <= 1.02), AM 1 Hz +-3 dB env/A 0.969..1.454, AM 4 Hz +-6 dB 0.872..3.987 (recorded), final env/A 1.00646 (bar [1, 1.01005])
+-------------------------------------------------------------------------------
+DropEnvelope_RecurrenceMatchesClosedForm
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(490)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(519): warning:
+  worst |d[n] - valueAt(n)| (float output vs double closed form) 1.90761e-06
+
+-------------------------------------------------------------------------------
+DropEnvelope_C1
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(764)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(790): warning:
+  SC-004 full drops: worst |d2d| / (pieceD2Bound + float allowance) 0.994596
+
+-------------------------------------------------------------------------------
+DropEnvelope_RetriggerContinuation
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(796)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(933): warning:
+  SC-004 bridges: L_br = 1 first at [mid-fall lin s=0.333333 A=48.000000 T=1.
+  000000 fs=44100.000000]; L_br > 1 with excursion <= 0.5 st first at [mid-fall
+  exp s=0.000000 A=1.000000 T=1.000000 fs=44100.000000]; L_min rise first at
+  [mid-fall exp s=0.000000 A=1.000000 T=1.000000 fs=44100.000000]; worst brake
+  excursion with L_br > 1 0.602074 st; worst per-sample rise step 1.83954 st
+  (recorded, O-1); worst ratio 0.994596
+
+-------------------------------------------------------------------------------
+DropEnvelope_RateInvariance
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(1046)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(1136): warning:
+  SC-005 rate invariance: worst |dp| 44.1 vs 96 kHz 9.53269e-07
+
+-------------------------------------------------------------------------------
+DropEnvelope_PhaseIntegral
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(1182)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_envelope_test.cpp(1241): warning:
+  SC-024(a): 7020 snap + 72 bridged cells, worst relative error 8.73389e-09,
+  worst absolute error (|ref| < 1e-6 s) 7.01502e-19 s; wall clock 8.71458 s
+
+-------------------------------------------------------------------------------
+DropPhaseLock_C1
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\drop_phase_lock_test.cpp(958)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_phase_lock_test.cpp(1007): warning:
+  SC-013(c) component, T = 10 ms: peak |d_c - d| 47.9027 st, worst peak / (1.05
+  Gamma + 1 ulp(A)) 0.951538, cells with gamma_an unbounded (gated at 48 st) 1
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_phase_lock_test.cpp(1007): warning:
+  SC-013(c) component, T = 60 ms: peak |d_c - d| 7.25287 st, worst peak / (1.05
+  Gamma + 1 ulp(A)) 0.951768, cells with gamma_an unbounded (gated at 48 st) 0
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_phase_lock_test.cpp(1007): warning:
+  SC-013(c) component, T = 200 ms: peak |d_c - d| 4.46907 st, worst peak / (1.
+  05 Gamma + 1 ulp(A)) 0.95204, cells with gamma_an unbounded (gated at 48 st)
+  0
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_phase_lock_test.cpp(1007): warning:
+  SC-013(c) component, T = 1000 ms: peak |d_c - d| 0.570917 st, worst peak /
+  (1.05 Gamma + 1 ulp(A)) 0.954749, cells with gamma_an unbounded (gated at 48
+  st) 0
+
+F:\projects\iterum\dsp\tests\unit\processors\drop_phase_lock_test.cpp(1009): warning:
+  SC-013(c) component: worst C1 |d2 d_c| / bound 0.993435
+
+-------------------------------------------------------------------------------
+Rectifier_BlendStepClickFree
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\rectifier_test.cpp(474)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\rectifier_test.cpp(553): warning:
+  E1, kSawAnchor positive control at sample 48632 (x = -0.217288): counted 1
+  (guarded out 0, transition detections 98, reference detections 190) - FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\processors\rectifier_test.cpp(553): warning:
+  E1, kGrowl positive control at sample 48612 (x = -0.0331397): counted 1
+  (guarded out 0, transition detections 159, reference detections 300) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\processors\rectifier_test.cpp(553): warning:
+  C2, kSawAnchor positive control at sample 48249 (x = -0.217254): counted 1
+  (guarded out 0, transition detections 126, reference detections 252) -
+  FLAGGED
+
+F:\projects\iterum\dsp\tests\unit\processors\rectifier_test.cpp(553): warning:
+  C2, kGrowl positive control at sample 48237 (x = -0.0325918): counted 0
+  (guarded out 0, transition detections 280, reference detections 561) - not
+  flagged (recorded)
+
+PeriodPeakDetector_HeldBoundsInput kSawAnchor E1 (hold 50.0 ms): one channel 0 violations (min held - |x| = 0), two channels 0 violations (min held - max|x| = 0)
+PeriodPeakDetector_HeldBoundsInput sine E0 (hold 50.0 ms): one channel 0 violations (min held - |x| = 0), two channels 0 violations (min held - max|x| = 0)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 64 partials, fs 44100, f0 41.2034 Hz, hold 50.0 ms: ripple 1.25e-05 (bar 1.0e-04)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 64 partials, fs 48000, f0 41.2034 Hz, hold 50.0 ms: ripple 1.08e-05 (bar 1.0e-04)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 64 partials, fs 96000, f0 41.2034 Hz, hold 50.0 ms: ripple 1.55e-06 (bar 1.0e-04)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 481 partials, fs 44100, f0 41.2034 Hz, hold 50.0 ms: ripple 0.00143 (bar 2.3e-03)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 524 partials, fs 48000, f0 41.2034 Hz, hold 50.0 ms: ripple 0.00144 (bar 2.3e-03)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 1048 partials, fs 96000, f0 41.2034 Hz, hold 50.0 ms: ripple 0.000739 (bar 2.3e-03)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 16 (20.6017 Hz), fs 48000, hold one period 48.540 ms: ripple 4.18e-07
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 28 (41.2034 Hz), fs 48000, hold one period 24.270 ms: ripple 1.19e-05
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 40 (82.4069 Hz), fs 48000, hold one period 12.135 ms: ripple 7.86e-05
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 48 (130.8128 Hz), fs 48000, hold one period 7.645 ms: ripple 0.000288
+PeriodPeakDetector_HoldLengthAndBoundary: hold 10 ms held 539 samples (bar [480, 540]), tail max 0.00621; hold 20 ms held 1079 samples (bar [960, 1080]), tail max 0.000167; holdMs() after call 20.000
+PeriodPeakDetector_SettersAndLifecycle: NaN -> 50.000, +Inf -> 50.000, -Inf -> 50.000, 0.1 -> 1.000, 500 -> 125.000; held before reset 0.635090, after 0.000000; allocations 0
+TransientShaperHelpers_BurstFixture sine f0=41.2034 preRoll=0 levelDb=-12
+TransientShaperHelpers_BurstFixture sine f0=41.2034 preRoll=2 levelDb=-12
+TransientShaperHelpers_BurstFixture sine f0=130.813 preRoll=0 levelDb=-12
+TransientShaperHelpers_BurstFixture sine f0=130.813 preRoll=2 levelDb=-12
+TransientShaperHelpers_BurstFixture saw f0=41.2034 preRoll=0 levelDb=-12
+TransientShaperHelpers_BurstFixture saw f0=41.2034 preRoll=2 levelDb=-12
+TransientShaperHelpers_BurstFixture saw f0=130.813 preRoll=0 levelDb=-12
+TransientShaperHelpers_BurstFixture saw f0=130.813 preRoll=2 levelDb=-12
+TransientShaperHelpers_TwoLevelStep low=-24 high=-12
+TransientShaperHelpers_TransientTime measured=5.77083 expected=5.75364
+TransientShaperHelpers_DTr dTr=2.53077 expected=2.55273
+TransientShaperHelpers_SideMidAndBits ratio=-9.54243
+TransientShaper_TransparentAtNeutral: saw 20.602 Hz: L bit-identical, R bit-identical
+TransientShaper_TransparentAtNeutral: saw 130.813 Hz: L bit-identical, R bit-identical
+TransientShaper_TransparentAtNeutral: sine 20.602 Hz: L bit-identical, R bit-identical
+TransientShaper_TransparentAtNeutral: sine 130.813 Hz: L bit-identical, R bit-identical
+TransientShaper_GainsMatchParameters sine E1: (a) worst |steady - S| 0.0005 dB (bar 0.25); (b) worst |onset extreme - A| 0.0000 dB (bar 0.5); (f) worst law residual 0.00000 dB (bar 0.1)
+TransientShaper_GainsMatchParameters sine E1 (e) A +6: onset peak 6.0000 dB, render max 6.0000 dB
+TransientShaper_GainsMatchParameters sine E1 (e) A +12: onset peak 12.0000 dB, render max 12.0000 dB
+TransientShaper_GainsMatchParameters saw E1: (a) worst |steady - S| 0.0007 dB (bar 0.25); (b) worst |onset extreme - A| 0.0000 dB (bar 0.5); (f) worst law residual 0.00000 dB (bar 0.1)
+TransientShaper_GainsMatchParameters saw E1 (e) A +6: onset peak 6.0000 dB, render max 6.0000 dB
+TransientShaper_GainsMatchParameters saw E1 (e) A +12: onset peak 12.0000 dB, render max 12.0000 dB
+TransientShaper_GainsMatchParameters sine C3: (a) worst |steady - S| 0.0005 dB (bar 0.25); (b) worst |onset extreme - A| 0.0000 dB (bar 0.5); (f) worst law residual 0.00000 dB (bar 0.1)
+TransientShaper_GainsMatchParameters sine C3 (e) A +6: onset peak 6.0000 dB, render max 6.0000 dB
+TransientShaper_GainsMatchParameters sine C3 (e) A +12: onset peak 12.0000 dB, render max 12.0000 dB
+TransientShaper_GainsMatchParameters saw C3: (a) worst |steady - S| 0.0008 dB (bar 0.25); (b) worst |onset extreme - A| 0.0000 dB (bar 0.5); (f) worst law residual 0.00000 dB (bar 0.1)
+TransientShaper_GainsMatchParameters saw C3 (e) A +6: onset peak 6.0000 dB, render max 6.0000 dB
+TransientShaper_GainsMatchParameters saw C3 (e) A +12: onset peak 12.0000 dB, render max 12.0000 dB
+TransientShaper_DurationMatches sine E1 d 20 ms: transient time 20.896 ms, error +4.48 % (bar 15 %)
+TransientShaper_DurationMatches sine E1 d 40 ms: transient time 40.083 ms, error +0.21 % (bar 15 %)
+TransientShaper_DurationMatches sine E1 d 100 ms: transient time 100.125 ms, error +0.12 % (bar 15 %)
+TransientShaper_DurationMatches sine E1 d 250 ms: transient time 250.125 ms, error +0.05 % (bar 15 %)
+TransientShaper_DurationMatches saw E1 d 20 ms: transient time 18.938 ms, error -5.31 % (bar 15 %)
+TransientShaper_DurationMatches saw E1 d 40 ms: transient time 41.438 ms, error +3.59 % (bar 15 %)
+TransientShaper_DurationMatches saw E1 d 100 ms: transient time 101.250 ms, error +1.25 % (bar 15 %)
+TransientShaper_DurationMatches saw E1 d 250 ms: transient time 251.167 ms, error +0.47 % (bar 15 %)
+TransientShaper_DurationMatches sine C3 d 20 ms: transient time 19.396 ms, error -3.02 % (bar 15 %)
+TransientShaper_DurationMatches sine C3 d 40 ms: transient time 38.583 ms, error -3.54 % (bar 15 %)
+TransientShaper_DurationMatches sine C3 d 100 ms: transient time 98.625 ms, error -1.38 % (bar 15 %)
+TransientShaper_DurationMatches sine C3 d 250 ms: transient time 248.625 ms, error -0.55 % (bar 15 %)
+TransientShaper_DurationMatches saw C3 d 20 ms: transient time 20.833 ms, error +4.17 % (bar 15 %)
+TransientShaper_DurationMatches saw C3 d 40 ms: transient time 39.958 ms, error -0.10 % (bar 15 %)
+TransientShaper_DurationMatches saw C3 d 100 ms: transient time 99.979 ms, error -0.02 % (bar 15 %)
+TransientShaper_DurationMatches saw C3 d 250 ms: transient time 249.958 ms, error -0.02 % (bar 15 %)
+TransientShaper_DurationShortestCell sine E1 d 5 ms: transient time 6.500 ms, error +30.00 % (bar 15 %, recorded)
+TransientShaper_DurationShortestCell saw E1 d 5 ms: transient time 4.438 ms, error -11.25 % (bar 15 %, recorded)
+TransientShaper_DurationShortestCell sine C3 d 5 ms: transient time 4.896 ms, error -2.08 % (bar 15 %, gated)
+TransientShaper_DurationShortestCell saw C3 d 5 ms: transient time 4.417 ms, error -11.67 % (bar 15 %, gated)
+TransientShaper_StepChangesClickFree 41.203 Hz attack 6 -> 12: counted 0 (transition 173, reference 346, guarded 0, N 145)
+TransientShaper_StepChangesClickFree 41.203 Hz sustain 0 -> +6: counted 0 (transition 173, reference 346, guarded 0, N 145)
+TransientShaper_StepChangesClickFree 41.203 Hz sustain 0 -> -6: counted 0 (transition 173, reference 346, guarded 0, N 145)
+TransientShaper_StepChangesClickFree 41.203 Hz duration 40 -> 250: counted 0 (transition 173, reference 346, guarded 0, N 145)
+TransientShaper_StepChangesClickFree 41.203 Hz positive control (smoother bypass, sustain 0 -> +12): counted 1 (guarded 0)
+TransientShaper_StepChangesClickFree 130.813 Hz attack 6 -> 12: counted 0 (transition 392, reference 784, guarded 0, N 45)
+TransientShaper_StepChangesClickFree 130.813 Hz sustain 0 -> +6: counted 0 (transition 392, reference 784, guarded 0, N 45)
+TransientShaper_StepChangesClickFree 130.813 Hz sustain 0 -> -6: counted 0 (transition 392, reference 784, guarded 0, N 45)
+TransientShaper_StepChangesClickFree 130.813 Hz duration 40 -> 250: counted 0 (transition 392, reference 784, guarded 0, N 45)
+TransientShaper_StepChangesClickFree 130.813 Hz positive control (smoother bypass, sustain 0 -> +12): counted 1 (guarded 0)
+TransientShaper_NoWaveformRateRipple E0 sine d 40 ms: worst ripple 0.00000 dB at A +0 S +0 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E0 sine d 5 ms: worst ripple 0.00000 dB at A +0 S +0 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E0 saw d 40 ms: worst ripple 0.00000 dB at A +0 S +0 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E0 saw d 5 ms: worst ripple 0.00000 dB at A +0 S +0 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E1 sine d 40 ms: worst ripple 0.00000 dB at A +0 S +0 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E1 sine d 5 ms: worst ripple 0.00000 dB at A +0 S +0 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E1 saw d 40 ms: worst ripple 0.00000 dB at A +0 S +0 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E1 saw d 5 ms: worst ripple 0.00006 dB at A -12 S +12 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E2 sine d 40 ms: worst ripple 0.00000 dB at A +0 S +0 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E2 sine d 5 ms: worst ripple 0.00000 dB at A +0 S +0 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E2 saw d 40 ms: worst ripple 0.00073 dB at A -12 S +12 (bar 0.2)
+TransientShaper_NoWaveformRateRipple E2 saw d 5 ms: worst ripple 0.00073 dB at A -12 S +12 (bar 0.2)
+TransientShaper_NoWaveformRateRipple negative control (hold bypass, E0 sine, +12 / 0, 5 ms): ripple 3.8988 dB (must exceed 0.2)
+TransientShaper_Audibility E1 saw: D_tr(A +12) 4.909 - D_tr(A -12) -1.864 = 6.774 dB (bar 3); L(S +12) -0.000 - L(S -12) -24.000 = 23.999 dB (bar 3); D_tr(250 ms) 4.965 - D_tr(5 ms) 0.301 = 4.663 dB (bar 3); D_tr(0 / 0, inert, recorded) -0.042 dB
+TransientShaper_MonoSum (a): 0 of 50 grid points with L != R
+TransientShaper_MonoSum (b): cross-product violations 0; side/mid in -9.54243 dB, out -9.54243 dB, diff -0.000000 dB (bar 0.01)
+TransientShaper_NoAllocation: allocations 0
+TransientShaper_PartitionInvariant: block 17 vs block 1: bit-identical
+TransientShaper_PartitionInvariant: block 32 vs block 1: bit-identical
+TransientShaper_PartitionInvariant: block 64 vs block 1: bit-identical
+TransientShaper_PartitionInvariant: block 512 vs block 1: bit-identical
+TransientShaper_PartitionInvariant: two renders from reset(): bit-identical
+TransientShaper_SampleRates fs 44100: steady gain (+12 / -6) -5.9995 dB (48k -5.9995), onset peak (+12 / 0) 12.0000 dB (48k 12.0000)
+TransientShaper_SampleRates fs 48000: steady gain (+12 / -6) -5.9995 dB (48k -5.9995), onset peak (+12 / 0) 12.0000 dB (48k 12.0000)
+TransientShaper_SampleRates fs 88200: steady gain (+12 / -6) -5.9993 dB (48k -5.9995), onset peak (+12 / 0) 12.0000 dB (48k 12.0000)
+TransientShaper_SampleRates fs 96000: steady gain (+12 / -6) -5.9992 dB (48k -5.9995), onset peak (+12 / 0) 12.0000 dB (48k 12.0000)
+TransientShaper_SampleRates fs 192000: steady gain (+12 / -6) -5.9984 dB (48k -5.9995), onset peak (+12 / 0) 12.0000 dB (48k 12.0000)
+TransientShaper_SampleRates: 48k -> 96k -> 48k restart vs fresh 48k: bit-identical
+TransientShaper_Lifecycle (3): reset() after 2 s vs fresh: bit-identical
+TransientShaper_NonFinite: non-finite outputs 0, sanitised input samples 144, of which non-zero at the output 0
+TransientShaper_NonFinite: burst 0 NaN L pre -17.999467 dB post -17.999629 dB delta -0.000162 dB stateFinite 1
+TransientShaper_NonFinite: burst 1 +Inf L pre -17.999487 dB post -17.999294 dB delta 0.000192 dB stateFinite 1
+TransientShaper_NonFinite: burst 2 -Inf L pre -17.999677 dB post -17.999692 dB delta -0.000015 dB stateFinite 1
+TransientShaper_NonFinite: burst 3 NaN L+R pre -17.998953 dB post -17.999905 dB delta -0.000952 dB stateFinite 1
+TransientShaper_NonFinite: burst 4 +Inf L+R pre -17.999966 dB post -17.999857 dB delta 0.000109 dB stateFinite 1
+TransientShaper_NonFinite: burst 5 -Inf L+R pre -17.999805 dB post -17.999939 dB delta -0.000133 dB stateFinite 1
+-------------------------------------------------------------------------------
+SlowEventScheduler_IntervalDistribution
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(266)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(306): warning:
+  SC-008(b) mean drawn period: 54.8526 s over 16000 events
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(323): warning:
+  SC-008(c) worst histogram deviation: 3.875 %
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(367): warning:
+  SC-008(e) kDefaultEventSeed pre-roll: 41.2365 s (expected ~41.236 s)
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_EnvelopeC1AtJoins
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(540)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(562): warning:
+  SC-009(i) stride=24 events=14 interiorMax=0.000535131 joinMax=0.000106443
+  maxDelta=0.000724316
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(585): warning:
+  SC-009(ii) stride=1440 events=16 interiorMax=0.000192702 joinMax=2.88265e-05
+  maxDelta=7.27177e-06
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_BoundedOverLongRun
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(718)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(820): warning:
+  SC-011 depth peaks: A=0.499138 B=0.998277
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_SampleRateInvariant
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(836)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(871): warning:
+  SC-012 worst onset-position difference over 50 events: 0.000716553 s
+  (tolerance 0.000725624 s)
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_NoAllocInProcess
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(910)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(956): warning:
+  SC-013 rising edges inside the tracked window: 45 (expected ~45)
+
+-------------------------------------------------------------------------------
+SlowEventScheduler_SetterStormContinuity
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(966)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\slow_event_scheduler_test.cpp(1066): warning:
+  SC-018 storm steps=2026 maxPerSampleDelta=7.24494e-05 worstLatchDrift=0
+
+-------------------------------------------------------------------------------
+SpectralSmear_AllocatedBytes
+  the largest geometry stays inside the 128 KiB budget
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\spectral_smear_test.cpp(432)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\processors\spectral_smear_test.cpp(447): warning:
+  informational: sub-object heap at fftSize 4096 is about 524320 bytes
+
+===============================================================================
+All tests passed (10811333 assertions in 3466 test cases)
+

@@ -1,0 +1,22 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 597568810
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_Determinism
+  SeedResetChangesDriftRender
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\determinism_test.cpp(150)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\determinism_test.cpp(175): warning:
+  SC-022 drift arm (frame-wise, [0.5 s, 4 s)): changed seed 9.30317 dB (bar >=
+  0.5), same seed 0 dB (bar == 0)
+
+===============================================================================
+All tests passed (11932 assertions in 5 test cases)
+
+rc=0 wall=4s

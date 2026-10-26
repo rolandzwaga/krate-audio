@@ -1,0 +1,805 @@
+START 2026-10-21T11:40:32Z commit 0ae33b87 base 0ae33b87 cores 32
+build exit=0 wall=3s warnings=0 log=specs/profundum-phase9-voice-engine/evidence/run-log/close/build.log
+scope RED base=0ae33b87 tracked_changed=[dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h dsp/include/krate/dsp/primitives/retrigger_declick.h dsp/include/krate/dsp/primitives/tanh_adaa.h dsp/include/krate/dsp/processors/dynamics_processor.h dsp/include/krate/dsp/processors/harmonic_fold.h dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h dsp/include/krate/dsp/processors/keytracked_tilt.h dsp/include/krate/dsp/processors/oversampled_residual_path.h dsp/include/krate/dsp/processors/period_peak_detector.h dsp/include/krate/dsp/processors/spectral_shape_recipe.h dsp/include/krate/dsp/processors/true_peak_limiter.h dsp/include/krate/dsp/systems/mass_dynamics.h dsp/include/krate/dsp/systems/profundum_core.h dsp/include/krate/dsp/systems/shape_morph.h] unexpected=[dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h dsp/include/krate/dsp/primitives/retrigger_declick.h dsp/include/krate/dsp/primitives/tanh_adaa.h dsp/include/krate/dsp/processors/dynamics_processor.h dsp/include/krate/dsp/processors/harmonic_fold.h dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h dsp/include/krate/dsp/processors/keytracked_tilt.h dsp/include/krate/dsp/processors/oversampled_residual_path.h dsp/include/krate/dsp/processors/period_peak_detector.h dsp/include/krate/dsp/processors/spectral_shape_recipe.h dsp/include/krate/dsp/processors/true_peak_limiter.h dsp/include/krate/dsp/systems/profundum_core.h dsp/include/krate/dsp/systems/shape_morph.h] missing_tracked=[] missing_untracked=[] log=specs/profundum-phase9-voice-engine/evidence/run-log/close/scope-diff.log
+scope RED path=dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h requires_full_suites=[dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests]
+scope RED path=dsp/include/krate/dsp/primitives/retrigger_declick.h requires_full_suites=[dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests]
+scope RED path=dsp/include/krate/dsp/primitives/tanh_adaa.h requires_full_suites=[dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests membrum_tests]
+scope RED path=dsp/include/krate/dsp/processors/dynamics_processor.h requires_full_suites=[dsp_processors_tests dsp_systems_tests dsp_effects_tests]
+scope RED path=dsp/include/krate/dsp/processors/harmonic_fold.h requires_full_suites=[dsp_processors_tests dsp_systems_tests dsp_effects_tests]
+scope RED path=dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h requires_full_suites=[dsp_processors_tests dsp_systems_tests dsp_effects_tests innexus_tests membrum_tests]
+scope RED path=dsp/include/krate/dsp/processors/keytracked_tilt.h requires_full_suites=[dsp_processors_tests dsp_systems_tests dsp_effects_tests]
+scope RED path=dsp/include/krate/dsp/processors/oversampled_residual_path.h requires_full_suites=[dsp_processors_tests dsp_systems_tests dsp_effects_tests]
+scope RED path=dsp/include/krate/dsp/processors/period_peak_detector.h requires_full_suites=[dsp_processors_tests dsp_systems_tests dsp_effects_tests]
+scope RED path=dsp/include/krate/dsp/processors/spectral_shape_recipe.h requires_full_suites=[dsp_processors_tests dsp_systems_tests dsp_effects_tests]
+scope RED path=dsp/include/krate/dsp/processors/true_peak_limiter.h requires_full_suites=[dsp_processors_tests dsp_systems_tests dsp_effects_tests membrum_tests seraphis_tests]
+scope RED path=dsp/include/krate/dsp/systems/profundum_core.h requires_full_suites=[dsp_systems_tests dsp_effects_tests]
+scope RED path=dsp/include/krate/dsp/systems/shape_morph.h requires_full_suites=[dsp_systems_tests dsp_effects_tests]
+build-consumers targets=[dsp_effects_tests dsp_primitives_tests dsp_processors_tests innexus_tests membrum_tests seraphis_tests] exit=0 wall=16s warnings=0 log=specs/profundum-phase9-voice-engine/evidence/run-log/close/build-consumers.log
+consumer-list cases=268 consumer-cases: include closure of dsp/include/krate/dsp/systems/mass_dynamics.h: 46 files (6 headers, 26 non-Phase-9 TUs, 14 Phase 9 TUs) consumer-cases: cross-check GREEN: 86 source names, 0 missing from the binary; 182 macro-generated name(s) added from the binary's SourceInfo (426 [long] cases listed) 
+long-list cases=315 (phase 47, consumers 268) jobs=28 list=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/long-cases.txt
+consumer:dsp_primitives_tests exit=0 wall=7s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/consumer-dsp_primitives_tests.log
+long:BassMorph_DiscreteClickFree_FieldCycleSync exit=0 wall=14s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_DiscreteClickFree_FieldCycleSync.log
+long:BassMorph_DiscreteClickFree_GoverningAmount exit=0 wall=17s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_DiscreteClickFree_GoverningAmount.log
+long:BassMorph_DiscreteClickFree_FieldMotionSource exit=0 wall=17s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_DiscreteClickFree_FieldMotionSource.log
+consumer:innexus_tests exit=0 wall=26s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/consumer-innexus_tests.log
+long:BassMorph_DiscreteClickFree_FieldCycleModifier exit=0 wall=43s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_DiscreteClickFree_FieldCycleModifier.log
+long:BassMorph_DiscreteClickFree_FieldCycleNote exit=0 wall=44s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_DiscreteClickFree_FieldCycleNote.log
+long:BassMorph_DiscreteClickFree_ImageMode exit=0 wall=46s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_DiscreteClickFree_ImageMode.log
+long:BassMorph_MonoSum_AnchorThroughTail_C3 exit=0 wall=49s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_MonoSum_AnchorThroughTail_C3.log
+long:BassMorph_MonoSum_AnchorThroughTail_E1 exit=0 wall=51s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_MonoSum_AnchorThroughTail_E1.log
+long:BassMorph_MonoSum_C3 exit=0 wall=58s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_MonoSum_C3.log
+long:BassMorph_MonoSum_E1 exit=0 wall=59s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_MonoSum_E1.log
+long:BassStereoField_GravityFloor_CleanGrowl exit=0 wall=42s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_CleanGrowl.log
+long:BassMorph_DiscreteClickFree_AnchorMode exit=0 wall=68s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_DiscreteClickFree_AnchorMode.log
+long:BassStereoField_GravityFloor_AnchorCrush exit=0 wall=67s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorCrush.log
+long:BassStereoField_GravityFloor_AnchorFold exit=0 wall=69s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorFold.log
+long:BassStereoField_GravityFloor_AnchorFracture exit=0 wall=72s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorFracture.log
+long:BassStereoField_GravityFloor_AnchorBite exit=0 wall=73s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorBite.log
+long:BassMorph_ShowcaseTrajectory_Lock_C3 exit=0 wall=76s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Lock_C3.log
+long:BassMorph_ShowcaseTrajectory_Lock_E1 exit=0 wall=81s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Lock_E1.log
+long:BassStereoField_GravityFloor_CleanSaw exit=0 wall=39s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_CleanSaw.log
+long:BassStereoField_GravityFloor_AnchorRectify exit=0 wall=73s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorRectify.log
+long:BassStereoField_GravityFloor_AnchorTube exit=0 wall=75s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_AnchorTube.log
+long:BassStereoField_H1Centred exit=0 wall=48s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_H1Centred.log
+long:BassMorph_AnchorCurvesRendered exit=0 wall=116s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_AnchorCurvesRendered.log
+long:BassMorph_DiscreteClickFree_AnchorWaveform exit=0 wall=117s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_DiscreteClickFree_AnchorWaveform.log
+long:BassStereoField_GravityFloor_DirtyBite exit=0 wall=71s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyBite.log
+long:BassStereoField_GravityFloor_DirtyCrush exit=0 wall=72s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyCrush.log
+long:BassMorph_IdempotentRender exit=0 wall=119s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_IdempotentRender.log
+long:BassStereoField_GravityFloor_DirtyFold exit=0 wall=73s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyFold.log
+long:BassStereoField_GravityFloor_DirtyRectify exit=0 wall=67s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyRectify.log
+long:BassStereoField_GravityFloor_DirtyFracture exit=0 wall=76s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyFracture.log
+long:BassMorph_ShowcaseTrajectory_Blend_C3 exit=0 wall=134s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Blend_C3.log
+long:BassMorph_ShowcaseTrajectory_Blend_E1 exit=0 wall=136s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Blend_E1.log
+long:BassStereoField_GravityFloor_DirtyTube exit=0 wall=79s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_GravityFloor_DirtyTube.log
+long:BassMorph_DiscreteClickFree_Algorithm exit=0 wall=173s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_DiscreteClickFree_Algorithm.log
+long:BassMorph_ShowcaseTrajectory_Punch_C3 exit=0 wall=185s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Punch_C3.log
+long:BassMorph_ShowcaseTrajectory_Punch_E1 exit=0 wall=187s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_ShowcaseTrajectory_Punch_E1.log
+consumer:membrum_tests exit=0 wall=203s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/consumer-membrum_tests.log
+long:BassStereoField_LeversAudible exit=0 wall=155s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_LeversAudible.log
+long:BassMorph_Aliasing_44k exit=0 wall=237s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_Aliasing_44k.log
+long:BassMorph_Aliasing_48k exit=0 wall=248s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_Aliasing_48k.log
+consumer:dsp_effects_tests exit=0 wall=338s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/consumer-dsp_effects_tests.log
+long:BassMorph_Aliasing_96k exit=0 wall=527s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassMorph_Aliasing_96k.log
+consumer:dsp_processors_tests exit=0 wall=996s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/consumer-dsp_processors_tests.log
+consumer:seraphis_tests exit=0 wall=1461s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/consumer-seraphis_tests.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0 exit=0 wall=1524s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1 exit=0 wall=1546s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3 exit=0 wall=1628s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2 exit=0 wall=1605s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0 exit=0 wall=2165s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0 exit=0 wall=2128s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1 exit=0 wall=2190s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2 exit=0 wall=2194s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1 exit=0 wall=2134s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3 exit=0 wall=2205s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2 exit=0 wall=2137s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0 exit=0 wall=2176s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0 exit=0 wall=2216s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3 exit=0 wall=2173s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1 exit=0 wall=2184s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3 exit=0 wall=2236s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1 exit=0 wall=2243s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2 exit=0 wall=2239s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2 exit=0 wall=2224s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3 exit=0 wall=2251s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0 exit=0 wall=2308s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1 exit=0 wall=2322s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3 exit=0 wall=2333s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2 exit=0 wall=2328s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0 exit=0 wall=2371s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1 exit=0 wall=2370s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3 exit=0 wall=2427s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2 exit=0 wall=2418s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3 exit=0 wall=1483s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0 exit=0 wall=1463s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1 exit=0 wall=1457s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2 exit=0 wall=1462s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0 exit=0 wall=2301s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2 exit=0 wall=2273s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3 exit=0 wall=2323s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1 exit=0 wall=2258s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2 exit=0 wall=2244s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0 exit=0 wall=2259s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0 exit=0 wall=2116s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3 exit=0 wall=2260s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1 exit=0 wall=2107s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2 exit=0 wall=2290s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0 exit=0 wall=2285s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1 exit=0 wall=2295s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3 exit=0 wall=2290s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1 exit=0 wall=2284s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3 exit=0 wall=2134s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2 exit=0 wall=2111s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0 exit=0 wall=2252s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1 exit=0 wall=2262s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3 exit=0 wall=2298s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2 exit=0 wall=2283s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0 exit=0 wall=2339s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1 exit=0 wall=2345s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3 exit=0 wall=2399s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3.log
+long:BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2 exit=0 wall=2380s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0 exit=0 wall=2470s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1 exit=0 wall=2491s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3 exit=0 wall=2559s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2 exit=0 wall=2486s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0 exit=0 wall=1329s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1 exit=0 wall=1342s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3 exit=0 wall=1421s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2 exit=0 wall=1368s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0 exit=0 wall=2411s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1 exit=0 wall=2458s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0 exit=0 wall=2494s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2 exit=0 wall=2495s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3 exit=0 wall=2546s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1 exit=0 wall=2565s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0 exit=0 wall=2642s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2 exit=0 wall=2660s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2 exit=0 wall=2674s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1 exit=0 wall=2675s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3 exit=0 wall=2697s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3 exit=0 wall=2729s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3 exit=0 wall=1616s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0 exit=0 wall=2804s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1 exit=0 wall=2826s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2 exit=0 wall=2856s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1 exit=0 wall=1627s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0 exit=0 wall=1636s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3 exit=0 wall=2888s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0 exit=0 wall=2921s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1 exit=0 wall=2954s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3 exit=0 wall=3021s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2 exit=0 wall=2990s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2 exit=0 wall=1665s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2.log
+perpush:dsp_systems_tests exit=1 wall=7817s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/perpush-dsp_systems_tests.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0 exit=0 wall=2738s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3 exit=0 wall=2863s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1 exit=0 wall=2811s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2 exit=0 wall=2893s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0 exit=0 wall=2805s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0 exit=0 wall=2938s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3 exit=0 wall=2992s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1 exit=0 wall=2936s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2 exit=0 wall=2959s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1 exit=0 wall=2843s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0 exit=0 wall=2681s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3 exit=0 wall=2979s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1 exit=0 wall=2710s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3 exit=0 wall=2784s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2 exit=0 wall=2910s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2 exit=0 wall=2741s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0 exit=0 wall=3015s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1 exit=0 wall=2999s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3 exit=0 wall=3051s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2 exit=0 wall=3027s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0 exit=0 wall=3073s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1 exit=0 wall=3110s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3 exit=0 wall=3180s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3.log
+long:BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2 exit=0 wall=3149s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0 exit=0 wall=1421s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3 exit=0 wall=1530s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1 exit=0 wall=1442s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2 exit=0 wall=1498s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0 exit=0 wall=5242s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1 exit=0 wall=5306s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2 exit=0 wall=5383s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3 exit=0 wall=5559s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3 exit=0 wall=1502s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0 exit=0 wall=1484s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1 exit=0 wall=1483s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2 exit=0 wall=1476s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0 exit=0 wall=5279s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1 exit=0 wall=5294s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3 exit=0 wall=5414s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2 exit=0 wall=5292s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0 exit=0 wall=4837s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0 exit=0 wall=4725s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1 exit=0 wall=4959s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1 exit=0 wall=4804s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3 exit=0 wall=4934s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2 exit=0 wall=4877s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2 exit=0 wall=5121s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3 exit=0 wall=5219s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0 exit=0 wall=5316s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1 exit=0 wall=5359s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3 exit=0 wall=5441s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2 exit=0 wall=5400s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0 exit=0 wall=5537s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0.log
+long:BassStereoField_MotionBounded exit=0 wall=17s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MotionBounded.log
+long:BassStereoField_NoZipper exit=0 wall=9s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_NoZipper.log
+long:BassStereoField_PanOnlyDirection exit=0 wall=44s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_PanOnlyDirection.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1 exit=0 wall=5592s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1.log
+long:BassStereoField_PolyMonoSumRecord exit=0 wall=63s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_PolyMonoSumRecord.log
+long:BassStereoField_SafetyStagePhase exit=0 wall=5s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_SafetyStagePhase.log
+long:BassStereoField_SampleRates exit=0 wall=18s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_SampleRates.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3 exit=0 wall=5715s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2 exit=0 wall=5663s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2.log
+long:BassStereoField_WideAliasing exit=0 wall=129s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_WideAliasing.log
+long:MassDynamics_AliasingE0E2_44k1 exit=0 wall=22s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassDynamics_AliasingE0E2_44k1.log
+long:BassStereoField_SafetyStageAttenuation exit=0 wall=263s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_SafetyStageAttenuation.log
+long:MassDynamics_AliasingE0E2_48k exit=0 wall=21s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassDynamics_AliasingE0E2_48k.log
+long:MassLaw_AutomationContinuous_C3 exit=0 wall=8s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_AutomationContinuous_C3.log
+long:MassLaw_AutomationContinuous_E0 exit=0 wall=9s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_AutomationContinuous_E0.log
+long:MassLaw_AutomationContinuous_E2 exit=0 wall=13s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_AutomationContinuous_E2.log
+long:MassDynamics_AliasingE0E2_96k exit=0 wall=47s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassDynamics_AliasingE0E2_96k.log
+long:BassStereoField_TransitionsClickFree exit=0 wall=304s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_TransitionsClickFree.log
+long:MassLaw_AutomationDescriptorTrajectory_C3 exit=0 wall=142s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_AutomationDescriptorTrajectory_C3.log
+long:MassLaw_AutomationDescriptorTrajectory_E0 exit=0 wall=158s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_AutomationDescriptorTrajectory_E0.log
+long:MassLaw_AutomationDescriptorTrajectory_E2 exit=0 wall=126s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_AutomationDescriptorTrajectory_E2.log
+long:MassLaw_FundamentalStrengthJointSweep_Ref_C3 exit=0 wall=91s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Ref_C3.log
+long:MassLaw_FundamentalStrengthJointSweep_Ref_E0 exit=0 wall=91s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Ref_E0.log
+long:MassLaw_FundamentalStrengthJointSweep_Ref_E1 exit=0 wall=89s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Ref_E1.log
+long:MassLaw_FundamentalStrengthJointSweep_Ref_E2 exit=0 wall=90s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Ref_E2.log
+long:MassLaw_FundamentalStrengthJointSweep_Saw_C3 exit=0 wall=90s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Saw_C3.log
+long:MassLaw_FundamentalStrengthJointSweep_Saw_E0 exit=0 wall=90s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Saw_E0.log
+long:MassLaw_FundamentalStrengthJointSweep_Saw_E1 exit=0 wall=89s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Saw_E1.log
+long:MassLaw_FundamentalStrengthJointSweep_Saw_E2 exit=0 wall=89s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Saw_E2.log
+long:MassLaw_FundamentalStrengthJointSweep_Sine_C3 exit=0 wall=89s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Sine_C3.log
+long:MassLaw_FundamentalStrengthJointSweep_Sine_E0 exit=0 wall=88s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Sine_E0.log
+long:MassLaw_FundamentalStrengthJointSweep_Sine_E1 exit=0 wall=88s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Sine_E1.log
+long:MassLaw_FundamentalStrengthJointSweep_Sine_E2 exit=0 wall=90s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_FundamentalStrengthJointSweep_Sine_E2.log
+long:MassLaw_LevelSlopeBounded_Ref_C3 exit=0 wall=80s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Ref_C3.log
+long:MassLaw_LevelSlopeBounded_Ref_E0 exit=0 wall=76s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Ref_E0.log
+long:MassLaw_LevelSlopeBounded_Ref_E1 exit=0 wall=79s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Ref_E1.log
+long:MassLaw_LevelSlopeBounded_Ref_E2 exit=0 wall=78s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Ref_E2.log
+long:MassLaw_LevelSlopeBounded_Saw_C3 exit=0 wall=79s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Saw_C3.log
+long:MassLaw_LevelSlopeBounded_Saw_E0 exit=0 wall=78s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Saw_E0.log
+long:MassLaw_LevelSlopeBounded_Saw_E1 exit=0 wall=78s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Saw_E1.log
+long:MassLaw_LevelSlopeBounded_Saw_E2 exit=0 wall=78s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Saw_E2.log
+long:MassLaw_LevelSlopeBounded_Sine_C3 exit=0 wall=76s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Sine_C3.log
+long:MassLaw_LevelSlopeBounded_Sine_E0 exit=0 wall=77s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Sine_E0.log
+long:MassLaw_LevelSlopeBounded_Sine_E1 exit=0 wall=77s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Sine_E1.log
+long:MassLaw_LevelSlopeBounded_Sine_E2 exit=0 wall=78s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_LevelSlopeBounded_Sine_E2.log
+long:MassLaw_RenderedTargetsMonotonic_AnchorLevel_C3 exit=0 wall=96s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_AnchorLevel_C3.log
+long:BassStereoField_WidthMonotonic exit=0 wall=1114s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_WidthMonotonic.log
+long:MassLaw_RenderedTargetsMonotonic_AnchorLevel_E1 exit=0 wall=96s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_AnchorLevel_E1.log
+long:MassLaw_RenderedTargetsMonotonic_Body_C3 exit=0 wall=95s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Body_C3.log
+long:MassLaw_RenderedTargetsMonotonic_Body_E1 exit=0 wall=96s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Body_E1.log
+long:MassLaw_RenderedTargetsMonotonic_Compression_C3 exit=0 wall=104s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Compression_C3.log
+long:MassLaw_RenderedTargetsMonotonic_Compression_E1 exit=0 wall=101s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Compression_E1.log
+long:MassLaw_RenderedTargetsMonotonic_Depth_C3 exit=0 wall=98s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Depth_C3.log
+long:MassLaw_RenderedTargetsMonotonic_Depth_E1 exit=0 wall=97s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Depth_E1.log
+long:MassLaw_RenderedTargetsMonotonic_Duration_C3 exit=0 wall=95s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Duration_C3.log
+long:MassLaw_RenderedTargetsMonotonic_Duration_E1 exit=0 wall=96s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Duration_E1.log
+long:MassLaw_RenderedTargetsMonotonic_Fold_C3 exit=0 wall=101s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Fold_C3.log
+long:MassLaw_RenderedTargetsMonotonic_Fold_E1 exit=0 wall=99s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_Fold_E1.log
+long:MassLaw_RenderedTargetsMonotonic_OutputTrim_C3 exit=0 wall=95s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_OutputTrim_C3.log
+long:MassLaw_RenderedTargetsMonotonic_OutputTrim_E1 exit=0 wall=95s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_RenderedTargetsMonotonic_OutputTrim_E1.log
+long:MassLaw_StaticLattice_C3 exit=0 wall=83s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_StaticLattice_C3.log
+long:VoiceEngine_AliasingDropTail exit=0 wall=46s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AliasingDropTail.log
+long:MassLaw_StaticLattice_E2 exit=0 wall=87s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_StaticLattice_E2.log
+long:MassLaw_StaticLattice_E0 exit=0 wall=100s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/MassLaw_StaticLattice_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0 exit=0 wall=4614s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0.log
+long:VoiceEngine_Aliasing_44k1_Bite exit=4 wall=103s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_44k1_Bite.log
+long:VoiceEngine_Aliasing_44k1_Crush exit=4 wall=108s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_44k1_Crush.log
+long:VoiceEngine_Aliasing_44k1_Fold exit=8 wall=104s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_44k1_Fold.log
+long:VoiceEngine_Aliasing_44k1_Rectify exit=8 wall=102s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_44k1_Rectify.log
+long:VoiceEngine_Aliasing_44k1_Fracture exit=0 wall=172s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_44k1_Fracture.log
+long:VoiceEngine_Aliasing_44k1_Tube exit=4 wall=116s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_44k1_Tube.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3 exit=0 wall=4815s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3.log
+long:VoiceEngine_Aliasing_48k_Bite exit=6 wall=104s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_48k_Bite.log
+long:VoiceEngine_Aliasing_48k_Crush exit=0 wall=107s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_48k_Crush.log
+long:VoiceEngine_Aliasing_48k_Fold exit=8 wall=104s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_48k_Fold.log
+long:VoiceEngine_Aliasing_48k_Rectify exit=8 wall=104s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_48k_Rectify.log
+long:VoiceEngine_Aliasing_48k_Tube exit=6 wall=115s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_48k_Tube.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1 exit=0 wall=4670s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1.log
+long:VoiceEngine_Aliasing_48k_Fracture exit=0 wall=175s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_48k_Fracture.log
+long:VoiceEngine_Aliasing_96k_Bite exit=8 wall=177s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_96k_Bite.log
+long:VoiceEngine_Aliasing_96k_Crush exit=0 wall=185s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_96k_Crush.log
+long:VoiceEngine_AnchorThroughChain_E0 exit=0 wall=54s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AnchorThroughChain_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2 exit=0 wall=4748s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2.log
+long:VoiceEngine_AnchorThroughChain_E1 exit=0 wall=54s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AnchorThroughChain_E1.log
+long:VoiceEngine_Aliasing_96k_Fold exit=8 wall=175s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_96k_Fold.log
+long:VoiceEngine_AnchorThroughChain_E2 exit=0 wall=52s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AnchorThroughChain_E2.log
+long:VoiceEngine_AudibilityTable_Envelope exit=0 wall=20s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Envelope.log
+long:VoiceEngine_AudibilityTable_Anchor exit=0 wall=61s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Anchor.log
+long:VoiceEngine_Aliasing_96k_Rectify exit=17 wall=171s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_96k_Rectify.log
+long:VoiceEngine_AudibilityTable_Morph exit=0 wall=31s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Morph.log
+long:VoiceEngine_AudibilityTable_Macros exit=0 wall=42s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Macros.log
+long:VoiceEngine_Aliasing_96k_Tube exit=8 wall=194s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_96k_Tube.log
+long:VoiceEngine_AudibilityTable_NoteMemory exit=0 wall=10s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_NoteMemory.log
+long:VoiceEngine_AudibilityTable_Mass exit=0 wall=61s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Mass.log
+long:VoiceEngine_AudibilityTable_Pitch exit=0 wall=19s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Pitch.log
+long:VoiceEngine_AudibilityTable_Core exit=0 wall=114s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Core.log
+long:VoiceEngine_AudibilityTable_Field exit=0 wall=94s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Field.log
+long:VoiceEngine_FollowTracking exit=0 wall=47s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_FollowTracking.log
+long:VoiceEngine_MonoSum_Solid exit=0 wall=26s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_MonoSum_Solid.log
+long:VoiceEngine_MonoSum_Spread exit=0 wall=25s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_MonoSum_Spread.log
+long:VoiceEngine_Aliasing_96k_Fracture exit=5 wall=311s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Aliasing_96k_Fracture.log
+long:VoiceEngine_MonoSum_Wide exit=0 wall=30s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_MonoSum_Wide.log
+long:VoiceEngine_AudibilityTable_Character exit=0 wall=197s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Character.log
+long:VoiceEngine_MotionMassSwell exit=0 wall=41s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_MotionMassSwell.log
+long:VoiceEngine_MotionSelectorsClickFree exit=0 wall=155s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_MotionSelectorsClickFree.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0 exit=0 wall=4780s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1 exit=0 wall=4785s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3 exit=0 wall=4861s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3.log
+long:VoiceEngine_Soak30Min_Mono exit=0 wall=274s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Soak30Min_Mono.log
+long:VoiceEngine_MacroMonotone exit=0 wall=353s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_MacroMonotone.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2 exit=0 wall=4819s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2.log
+long:VoiceEngine_StealClickless_Solid exit=0 wall=400s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_StealClickless_Solid.log
+long:VoiceEngine_StealClickless_Spread exit=0 wall=440s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_StealClickless_Spread.log
+long:VoiceEngine_Soak30Min_Poly exit=0 wall=689s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_Soak30Min_Poly.log
+long:VoiceEngine_AudibilityTable_Motion exit=0 wall=805s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_AudibilityTable_Motion.log
+long:VoiceEngine_StealClickless_Wide exit=0 wall=479s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_StealClickless_Wide.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0 exit=0 wall=4434s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1 exit=0 wall=4489s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3 exit=0 wall=4658s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2 exit=0 wall=4551s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2.log
+long:VoiceEngine_MonoReplaceClickless_Legato exit=0 wall=1084s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_MonoReplaceClickless_Legato.log
+long:VoiceEngine_MonoReplaceClickless_Retrigger exit=0 wall=1086s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/VoiceEngine_MonoReplaceClickless_Retrigger.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0 exit=0 wall=4102s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1 exit=0 wall=4093s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3 exit=0 wall=4208s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2 exit=0 wall=4115s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0 exit=0 wall=4467s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1 exit=0 wall=4437s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3 exit=0 wall=4572s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2 exit=0 wall=4448s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0 exit=0 wall=4172s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1 exit=0 wall=4154s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3 exit=0 wall=4267s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3.log
+long:BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2 exit=0 wall=4152s log=specs/profundum-phase9-voice-engine/evidence/run-log/close/long/BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2.log
+long-lane shards=315 wall=19643s
+lanes wall=19643s
+=== summary: per-shard verdict and wall clock, longest first (for the next run's sharding)
+5715 s BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3 exit=0
+5663 s BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2 exit=0
+5592 s BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1 exit=0
+5559 s BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3 exit=0
+5537 s BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0 exit=0
+5441 s BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3 exit=0
+5414 s BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3 exit=0
+5400 s BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2 exit=0
+5383 s BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2 exit=0
+5359 s BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1 exit=0
+5316 s BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0 exit=0
+5306 s BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1 exit=0
+5294 s BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1 exit=0
+5292 s BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2 exit=0
+5279 s BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0 exit=0
+5242 s BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0 exit=0
+5219 s BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3 exit=0
+5121 s BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2 exit=0
+4959 s BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1 exit=0
+4934 s BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3 exit=0
+4877 s BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2 exit=0
+4861 s BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3 exit=0
+4837 s BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0 exit=0
+4819 s BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2 exit=0
+4815 s BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3 exit=0
+4804 s BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1 exit=0
+4785 s BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1 exit=0
+4780 s BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0 exit=0
+4748 s BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2 exit=0
+4725 s BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0 exit=0
+4670 s BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1 exit=0
+4658 s BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3 exit=0
+4614 s BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0 exit=0
+4572 s BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3 exit=0
+4551 s BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2 exit=0
+4489 s BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1 exit=0
+4467 s BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0 exit=0
+4448 s BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2 exit=0
+4437 s BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1 exit=0
+4434 s BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0 exit=0
+4267 s BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3 exit=0
+4208 s BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3 exit=0
+4172 s BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0 exit=0
+4154 s BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1 exit=0
+4152 s BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2 exit=0
+4115 s BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2 exit=0
+4102 s BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0 exit=0
+4093 s BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1 exit=0
+3180 s BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3 exit=0
+3149 s BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2 exit=0
+3110 s BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1 exit=0
+3073 s BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0 exit=0
+3051 s BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3 exit=0
+3027 s BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2 exit=0
+3021 s BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3 exit=0
+3015 s BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0 exit=0
+2999 s BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1 exit=0
+2992 s BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3 exit=0
+2990 s BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2 exit=0
+2979 s BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3 exit=0
+2959 s BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2 exit=0
+2954 s BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1 exit=0
+2938 s BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0 exit=0
+2936 s BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1 exit=0
+2921 s BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0 exit=0
+2910 s BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2 exit=0
+2893 s BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2 exit=0
+2888 s BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3 exit=0
+2863 s BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3 exit=0
+2856 s BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2 exit=0
+2843 s BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1 exit=0
+2826 s BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1 exit=0
+2811 s BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1 exit=0
+2805 s BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0 exit=0
+2804 s BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0 exit=0
+2784 s BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3 exit=0
+2741 s BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2 exit=0
+2738 s BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0 exit=0
+2729 s BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3 exit=0
+2710 s BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1 exit=0
+2697 s BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3 exit=0
+2681 s BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0 exit=0
+2675 s BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1 exit=0
+2674 s BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2 exit=0
+2660 s BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2 exit=0
+2642 s BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0 exit=0
+2565 s BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1 exit=0
+2559 s BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3 exit=0
+2546 s BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3 exit=0
+2495 s BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2 exit=0
+2494 s BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0 exit=0
+2491 s BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1 exit=0
+2486 s BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2 exit=0
+2470 s BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0 exit=0
+2458 s BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1 exit=0
+2427 s BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3 exit=0
+2418 s BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2 exit=0
+2411 s BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0 exit=0
+2399 s BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3 exit=0
+2380 s BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2 exit=0
+2371 s BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0 exit=0
+2370 s BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1 exit=0
+2345 s BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1 exit=0
+2339 s BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0 exit=0
+2333 s BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3 exit=0
+2328 s BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2 exit=0
+2323 s BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3 exit=0
+2322 s BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1 exit=0
+2308 s BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0 exit=0
+2301 s BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0 exit=0
+2298 s BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3 exit=0
+2295 s BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1 exit=0
+2290 s BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3 exit=0
+2290 s BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2 exit=0
+2285 s BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0 exit=0
+2284 s BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1 exit=0
+2283 s BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2 exit=0
+2273 s BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2 exit=0
+2262 s BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1 exit=0
+2260 s BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3 exit=0
+2259 s BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0 exit=0
+2258 s BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1 exit=0
+2252 s BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0 exit=0
+2251 s BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3 exit=0
+2244 s BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2 exit=0
+2243 s BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1 exit=0
+2239 s BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2 exit=0
+2236 s BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3 exit=0
+2224 s BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2 exit=0
+2216 s BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0 exit=0
+2205 s BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3 exit=0
+2194 s BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2 exit=0
+2190 s BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1 exit=0
+2184 s BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1 exit=0
+2176 s BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0 exit=0
+2173 s BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3 exit=0
+2165 s BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0 exit=0
+2137 s BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2 exit=0
+2134 s BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3 exit=0
+2134 s BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1 exit=0
+2128 s BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0 exit=0
+2116 s BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0 exit=0
+2111 s BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2 exit=0
+2107 s BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1 exit=0
+1665 s BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2 exit=0
+1636 s BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0 exit=0
+1628 s BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3 exit=0
+1627 s BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1 exit=0
+1616 s BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3 exit=0
+1605 s BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2 exit=0
+1546 s BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1 exit=0
+1530 s BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3 exit=0
+1524 s BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0 exit=0
+1502 s BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3 exit=0
+1498 s BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2 exit=0
+1484 s BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0 exit=0
+1483 s BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1 exit=0
+1483 s BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3 exit=0
+1476 s BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2 exit=0
+1463 s BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0 exit=0
+1462 s BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2 exit=0
+1457 s BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1 exit=0
+1442 s BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1 exit=0
+1421 s BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0 exit=0
+1421 s BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3 exit=0
+1368 s BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2 exit=0
+1342 s BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1 exit=0
+1329 s BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0 exit=0
+1114 s BassStereoField_WidthMonotonic exit=0
+1086 s VoiceEngine_MonoReplaceClickless_Retrigger exit=0
+1084 s VoiceEngine_MonoReplaceClickless_Legato exit=0
+805 s VoiceEngine_AudibilityTable_Motion exit=0
+689 s VoiceEngine_Soak30Min_Poly exit=0
+527 s BassMorph_Aliasing_96k exit=0
+479 s VoiceEngine_StealClickless_Wide exit=0
+440 s VoiceEngine_StealClickless_Spread exit=0
+400 s VoiceEngine_StealClickless_Solid exit=0
+353 s VoiceEngine_MacroMonotone exit=0
+311 s VoiceEngine_Aliasing_96k_Fracture exit=5
+304 s BassStereoField_TransitionsClickFree exit=0
+274 s VoiceEngine_Soak30Min_Mono exit=0
+263 s BassStereoField_SafetyStageAttenuation exit=0
+248 s BassMorph_Aliasing_48k exit=0
+237 s BassMorph_Aliasing_44k exit=0
+197 s VoiceEngine_AudibilityTable_Character exit=0
+194 s VoiceEngine_Aliasing_96k_Tube exit=8
+187 s BassMorph_ShowcaseTrajectory_Punch_E1 exit=0
+185 s VoiceEngine_Aliasing_96k_Crush exit=0
+185 s BassMorph_ShowcaseTrajectory_Punch_C3 exit=0
+177 s VoiceEngine_Aliasing_96k_Bite exit=8
+175 s VoiceEngine_Aliasing_96k_Fold exit=8
+175 s VoiceEngine_Aliasing_48k_Fracture exit=0
+173 s BassMorph_DiscreteClickFree_Algorithm exit=0
+172 s VoiceEngine_Aliasing_44k1_Fracture exit=0
+171 s VoiceEngine_Aliasing_96k_Rectify exit=17
+158 s MassLaw_AutomationDescriptorTrajectory_E0 exit=0
+155 s VoiceEngine_MotionSelectorsClickFree exit=0
+155 s BassStereoField_LeversAudible exit=0
+142 s MassLaw_AutomationDescriptorTrajectory_C3 exit=0
+136 s BassMorph_ShowcaseTrajectory_Blend_E1 exit=0
+134 s BassMorph_ShowcaseTrajectory_Blend_C3 exit=0
+129 s BassStereoField_WideAliasing exit=0
+126 s MassLaw_AutomationDescriptorTrajectory_E2 exit=0
+119 s BassMorph_IdempotentRender exit=0
+117 s BassMorph_DiscreteClickFree_AnchorWaveform exit=0
+116 s VoiceEngine_Aliasing_44k1_Tube exit=4
+116 s BassMorph_AnchorCurvesRendered exit=0
+115 s VoiceEngine_Aliasing_48k_Tube exit=6
+114 s VoiceEngine_AudibilityTable_Core exit=0
+108 s VoiceEngine_Aliasing_44k1_Crush exit=4
+107 s VoiceEngine_Aliasing_48k_Crush exit=0
+104 s VoiceEngine_Aliasing_48k_Rectify exit=8
+104 s VoiceEngine_Aliasing_48k_Fold exit=8
+104 s VoiceEngine_Aliasing_48k_Bite exit=6
+104 s VoiceEngine_Aliasing_44k1_Fold exit=8
+104 s MassLaw_RenderedTargetsMonotonic_Compression_C3 exit=0
+103 s VoiceEngine_Aliasing_44k1_Bite exit=4
+102 s VoiceEngine_Aliasing_44k1_Rectify exit=8
+101 s MassLaw_RenderedTargetsMonotonic_Fold_C3 exit=0
+101 s MassLaw_RenderedTargetsMonotonic_Compression_E1 exit=0
+100 s MassLaw_StaticLattice_E0 exit=0
+99 s MassLaw_RenderedTargetsMonotonic_Fold_E1 exit=0
+98 s MassLaw_RenderedTargetsMonotonic_Depth_C3 exit=0
+97 s MassLaw_RenderedTargetsMonotonic_Depth_E1 exit=0
+96 s MassLaw_RenderedTargetsMonotonic_Duration_E1 exit=0
+96 s MassLaw_RenderedTargetsMonotonic_Body_E1 exit=0
+96 s MassLaw_RenderedTargetsMonotonic_AnchorLevel_E1 exit=0
+96 s MassLaw_RenderedTargetsMonotonic_AnchorLevel_C3 exit=0
+95 s MassLaw_RenderedTargetsMonotonic_OutputTrim_E1 exit=0
+95 s MassLaw_RenderedTargetsMonotonic_OutputTrim_C3 exit=0
+95 s MassLaw_RenderedTargetsMonotonic_Duration_C3 exit=0
+95 s MassLaw_RenderedTargetsMonotonic_Body_C3 exit=0
+94 s VoiceEngine_AudibilityTable_Field exit=0
+91 s MassLaw_FundamentalStrengthJointSweep_Ref_E0 exit=0
+91 s MassLaw_FundamentalStrengthJointSweep_Ref_C3 exit=0
+90 s MassLaw_FundamentalStrengthJointSweep_Sine_E2 exit=0
+90 s MassLaw_FundamentalStrengthJointSweep_Saw_E0 exit=0
+90 s MassLaw_FundamentalStrengthJointSweep_Saw_C3 exit=0
+90 s MassLaw_FundamentalStrengthJointSweep_Ref_E2 exit=0
+89 s MassLaw_FundamentalStrengthJointSweep_Sine_C3 exit=0
+89 s MassLaw_FundamentalStrengthJointSweep_Saw_E2 exit=0
+89 s MassLaw_FundamentalStrengthJointSweep_Saw_E1 exit=0
+89 s MassLaw_FundamentalStrengthJointSweep_Ref_E1 exit=0
+88 s MassLaw_FundamentalStrengthJointSweep_Sine_E1 exit=0
+88 s MassLaw_FundamentalStrengthJointSweep_Sine_E0 exit=0
+87 s MassLaw_StaticLattice_E2 exit=0
+83 s MassLaw_StaticLattice_C3 exit=0
+81 s BassMorph_ShowcaseTrajectory_Lock_E1 exit=0
+80 s MassLaw_LevelSlopeBounded_Ref_C3 exit=0
+79 s MassLaw_LevelSlopeBounded_Saw_C3 exit=0
+79 s MassLaw_LevelSlopeBounded_Ref_E1 exit=0
+79 s BassStereoField_GravityFloor_DirtyTube exit=0
+78 s MassLaw_LevelSlopeBounded_Sine_E2 exit=0
+78 s MassLaw_LevelSlopeBounded_Saw_E2 exit=0
+78 s MassLaw_LevelSlopeBounded_Saw_E1 exit=0
+78 s MassLaw_LevelSlopeBounded_Saw_E0 exit=0
+78 s MassLaw_LevelSlopeBounded_Ref_E2 exit=0
+77 s MassLaw_LevelSlopeBounded_Sine_E1 exit=0
+77 s MassLaw_LevelSlopeBounded_Sine_E0 exit=0
+76 s MassLaw_LevelSlopeBounded_Sine_C3 exit=0
+76 s MassLaw_LevelSlopeBounded_Ref_E0 exit=0
+76 s BassStereoField_GravityFloor_DirtyFracture exit=0
+76 s BassMorph_ShowcaseTrajectory_Lock_C3 exit=0
+75 s BassStereoField_GravityFloor_AnchorTube exit=0
+73 s BassStereoField_GravityFloor_DirtyFold exit=0
+73 s BassStereoField_GravityFloor_AnchorRectify exit=0
+73 s BassStereoField_GravityFloor_AnchorBite exit=0
+72 s BassStereoField_GravityFloor_DirtyCrush exit=0
+72 s BassStereoField_GravityFloor_AnchorFracture exit=0
+71 s BassStereoField_GravityFloor_DirtyBite exit=0
+69 s BassStereoField_GravityFloor_AnchorFold exit=0
+68 s BassMorph_DiscreteClickFree_AnchorMode exit=0
+67 s BassStereoField_GravityFloor_DirtyRectify exit=0
+67 s BassStereoField_GravityFloor_AnchorCrush exit=0
+63 s BassStereoField_PolyMonoSumRecord exit=0
+61 s VoiceEngine_AudibilityTable_Mass exit=0
+61 s VoiceEngine_AudibilityTable_Anchor exit=0
+59 s BassMorph_MonoSum_E1 exit=0
+58 s BassMorph_MonoSum_C3 exit=0
+54 s VoiceEngine_AnchorThroughChain_E1 exit=0
+54 s VoiceEngine_AnchorThroughChain_E0 exit=0
+52 s VoiceEngine_AnchorThroughChain_E2 exit=0
+51 s BassMorph_MonoSum_AnchorThroughTail_E1 exit=0
+49 s BassMorph_MonoSum_AnchorThroughTail_C3 exit=0
+48 s BassStereoField_H1Centred exit=0
+47 s VoiceEngine_FollowTracking exit=0
+47 s MassDynamics_AliasingE0E2_96k exit=0
+46 s VoiceEngine_AliasingDropTail exit=0
+46 s BassMorph_DiscreteClickFree_ImageMode exit=0
+44 s BassStereoField_PanOnlyDirection exit=0
+44 s BassMorph_DiscreteClickFree_FieldCycleNote exit=0
+43 s BassMorph_DiscreteClickFree_FieldCycleModifier exit=0
+42 s VoiceEngine_AudibilityTable_Macros exit=0
+42 s BassStereoField_GravityFloor_CleanGrowl exit=0
+41 s VoiceEngine_MotionMassSwell exit=0
+39 s BassStereoField_GravityFloor_CleanSaw exit=0
+31 s VoiceEngine_AudibilityTable_Morph exit=0
+30 s VoiceEngine_MonoSum_Wide exit=0
+26 s VoiceEngine_MonoSum_Solid exit=0
+25 s VoiceEngine_MonoSum_Spread exit=0
+22 s MassDynamics_AliasingE0E2_44k1 exit=0
+21 s MassDynamics_AliasingE0E2_48k exit=0
+20 s VoiceEngine_AudibilityTable_Envelope exit=0
+19 s VoiceEngine_AudibilityTable_Pitch exit=0
+18 s BassStereoField_SampleRates exit=0
+17 s BassStereoField_MotionBounded exit=0
+17 s BassMorph_DiscreteClickFree_GoverningAmount exit=0
+17 s BassMorph_DiscreteClickFree_FieldMotionSource exit=0
+14 s BassMorph_DiscreteClickFree_FieldCycleSync exit=0
+13 s MassLaw_AutomationContinuous_E2 exit=0
+10 s VoiceEngine_AudibilityTable_NoteMemory exit=0
+9 s MassLaw_AutomationContinuous_E0 exit=0
+9 s BassStereoField_NoZipper exit=0
+8 s MassLaw_AutomationContinuous_C3 exit=0
+5 s BassStereoField_SafetyStagePhase exit=0
+=== summary: per-push cases over 15 s (re-tag candidates, T022 rule)
+85.140 s: Every cell of the enumerated parameter grid is finite and bounded
+85.141 s: HarmonicCloud_ParameterGridStaysFiniteAndBounded
+16.735 s: EntropyProcessor_DisorderIncreasesMonotonically
+25.406 s: EntropyProcessor_FlatnessRisesWithEntropy
+24.023 s: EntropyProcessor_IsLevelNeutral
+32.823 s: (a) 60 s of full-scale drive stays bounded and does not grow
+32.823 s: ContinuousBody_SustainedDriveBounded
+42.286 s: ContinuousBody_DecaysToSilence
+16.908 s: ContinuousBody_GainBoundValidAndTight
+133.663 s: AtmosphereEngine_BoundedUnderStress
+26.270 s: clauses 1-4 and positive control (a)
+21.942 s: NoiseOrganism_NoAllocationAfterPrepare
+19.150 s: FeedbackEcology_BlockPartition
+37.777 s: (b) the behavioural arm a hard-wired decimation fails
+37.777 s: FeedbackEcology_WanderRateMapping
+17.725 s: (a) 300 s at 44.1 kHz - the binding rate
+17.725 s: FeedbackEcology_DelayMotion
+68.102 s: (c) 300 s at 192 kHz
+68.103 s: FeedbackEcology_DelayMotion
+31.585 s: FeedbackEcology_Governor
+16.804 s: SC-003: 1 000 seeded configurations, 30 simulated minutes each
+16.804 s: BloomEngine_SlotAccountingInvariantsUnderFuzz
+239.336 s: EcosystemEngine_OutputAnchorIsScaleInvariant
+30.654 s: EcosystemEngine_DeterministicUnderSeed
+22.264 s: EcosystemEngine_LateWindowLiveness
+30.154 s: EcosystemEngine_SeedsProduceDifferentVoices
+46.641 s: VoragoVoice_AttackCurveReach
+182.905 s: VoragoEngine_DeterminismHarness
+113.112 s: VoragoEngine_NoAllocationAfterPrepare
+21.448 s: VoragoEngine_AdvanceLifeOnlyParity
+27.241 s: VoragoEngine_SoakSentinel
+55.666 s: VoragoEngine_ConfigurationFuzzSentinel
+80.863 s: clause 2: the level is EVENT-GATED, not a continuous wash
+80.863 s: VoragoEngine_GhostConfiguration
+16.073 s: VoragoEngine_LoopBusMeterIsObservationOnly
+25.852 s: 3. a 10 s render is BIT-IDENTICAL with the matrix never applied
+25.852 s: VoragoMacro_NeutralIsIdentity
+26.253 s: VoragoMacro_ApplyIsIdempotent
+43.842 s: AtmosphereGhost_ReverseLiveness
+27.070 s: clause (a) - the 60 s default render is unchanged from the base commit
+27.070 s: VoragoEngine_GhostExtensionWiring
+46.383 s: clause (c) - the closed gate spawns nothing while the events still fire
+46.383 s: VoragoEngine_GhostExtensionWiring
+47.667 s: VoragoEngine_GhostExtensionWiring_Engaged
+18.131 s: VoragoVoice_EcosystemLeverMapping
+17.938 s: VoragoVoice_EcosystemLeverNeutral
+23.503 s: VoragoVoice_EcosystemLeverClickFree
+1212.788 s: VoragoEngine_EcosystemLeverBounded
+914.680 s: VoragoEngine_CapabilityLeverBounded
+174.616 s: VoragoEngine_EcosystemLeverDeterminism
+53.372 s: ProfundumCore_DepthRenderMonotonicSmoke
+39.463 s: ProfundumCore_AudibilityGate_BodyEdgeShiftSmoke
+40.648 s: ProfundumCore_ExcitationControlStepsNoClick
+19.339 s: ProfundumCore_ExcitationRecordedSplitHump
+17.713 s: ProfundumCore_ExcitationDriveMonotonicSmoke
+16.204 s: ProfundumCore_ExcitationLevelLawSmoke
+18.525 s: HarmonicFold_FundamentalPreservedCoreInput
+50.167 s: ProfundumEdgeFold_SampleRateChange
+20.836 s: ProfundumEdgeFold_RecordedAliasingRateExtremes
+16.523 s: AnchorOscillator_PhaseLockEveryIsaSmoke
+24.906 s: ProfundumNoteBehaviour_Matrix
+43.744 s: (a)-(c) grid at E1, the negative control and the R-2 probe on E1 and C3
+43.753 s: ProfundumNoteBehaviour_PostDropLandingSmoke
+52.339 s: ProfundumNoteBehaviour_RetriggerClickFreeSmoke
+53.394 s: ProfundumNoteBehaviour_MonoIdentity
+17.610 s: ProfundumNoteBehaviour_UseCaseRenders
+59.226 s: ProfundumCore_SpectrumPreservedAcrossDrop
+28.891 s: (b) band energy of (L + R)/2 below 2·f0 at the gated offsets; (c) the offsets are not inert
+28.891 s: BassCharacter_MonoSum
+44.520 s: BassCharacter_OnsetInvariance
+20.133 s: ShapeCharacter_H1TransferRecord
+24.472 s: MassChain_CoreAnchorValidated
+23.570 s: MassChain_LimiterIdleSteadyState
+15.209 s: MassLaw_RenderedTargetsMonotonicSmoke
+19.062 s: MassLaw_AutomationDescriptorTrajectorySmoke
+80.385 s: BassStereoField_SolidBitIdentical_Tube
+107.598 s: BassStereoField_SolidBitIdentical_Fold
+119.977 s: BassStereoField_SolidBitIdentical_Rectify
+142.088 s: BassStereoField_SolidBitIdentical_Bite
+154.788 s: BassStereoField_SolidBitIdentical_Crush
+109.522 s: BassStereoField_SolidBitIdentical_Fracture
+27.187 s: BassStereoField_TransitionsClickFreeSmoke
+15.933 s: (b)
+15.934 s: BassMorph_BoundedStep
+169.184 s: BassMorph_SampleRates
+20.002 s: BassMorph_Audibility
+18.670 s: BassMorph_AnchorCurvesRenderedSmoke
+21.333 s: BassMorph_ShowcaseTrajectorySmoke
+15.791 s: BassMorph_MonoSumSmoke
+16.314 s: BassMorph_AliasingSmoke
+60.940 s: VoiceEngine_RectifySymmetry
+26.797 s: VoiceEngine_DeterminismHarness
+21.140 s: VoiceEngine_Partition
+43.701 s: VoiceEngine_MotionDepthZero
+18.759 s: VoiceEngine_MonoReplaceClicklessSmoke
+31.368 s: VoiceEngine_AudibilityTableSmoke
+21.192 s: VoiceEngine_MacroMonotoneSmoke
+26.985 s: VoiceEngine_DynamicsAliasingGrid
+=== summary: SC-005 / SC-006 / SC-025 worst gated (a) ratio and min (b) margin per family (recorded)
+SC-005 VoiceEngine_StealClickless_Solid: 192 cells, worst gated (a) ratio 1.0321 (steal A_s+sustain1(C-8)/Solid C3 held AlwaysRetrigger Reset block 1; bar 1.05925), min (b) margin 1.51973 (steal A_s+sustain1(C-8)/Solid C3 held AlwaysRetrigger Reset block 1), wall clock 399.93 s
+SC-005 VoiceEngine_StealClickless_Spread: 192 cells, worst gated (a) ratio 1.03212 (steal A_s+sustain1(C-8)/Spread C3 held AlwaysRetrigger Reset block 1; bar 1.05925), min (b) margin 1.51965 (steal A_s+sustain1(C-8)/Spread C3 held AlwaysRetrigger Reset block 1), wall clock 439.282 s
+SC-005 VoiceEngine_StealClickless_Wide: 192 cells, worst gated (a) ratio 1.04485 (steal A_s+sustain1(C-8)/Wide C3 held AlwaysRetrigger Reset block 1; bar 1.05925), min (b) margin 1.52134 (steal A_s+sustain1(C-8)/Wide C3 held AlwaysRetrigger Reset block 1), wall clock 479.11 s
+SC-006 VoiceEngine_MonoReplaceClickless_Legato: 704 cells, worst gated (a) ratio 1.04403 (replace B E1 -1 st legato EnvelopeRetriggerOnly Reset Porta0 block 37; bar 1.05925), min (b) margin 1.12468 (replace B C3 +12 st legato EnvelopeRetriggerOnly Reset ConstantRate block 37), wall clock 1084.12 s
+SC-006 VoiceEngine_MonoReplaceClickless_Retrigger: 704 cells, worst gated (a) ratio 1.04403 (replace B E1 -1 st retrigger EnvelopeRetriggerOnly Reset Porta0 block 37; bar 1.05925), min (b) margin 1.12468 (replace B C3 +12 st retrigger EnvelopeRetriggerOnly Reset ConstantRate block 37), wall clock 1085.95 s
+=== summary: SC-010 minimum audibility margin per shard (recorded; value - bar, >= 0 is inside the bar)
+SC010 VoiceEngine_AudibilityTableSmoke: 4 gated rows, 0 FAIL, min margin 1.107 at AT-26 E1 (Mass: 0 -> 100; E_sub (dB) 4.10712 vs >= 3 dB); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Anchor: 20 gated rows, 0 FAIL, min margin 0.03878 at AT-11 C3 (Anchor mode: LOCK -> PUNCH (boost 6 dB, 40 ms); E_sub over [note-on, note-on + punchTimeMs) (dB; LS fit at f0) 2.03878 vs >= 2 dB); 4 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Character: 12 gated rows, 0 FAIL, min margin 3.494 at AT-05 C3 (Character Fold: Amount 0 -> 1; D_nl (dB) 6.49428 vs >= 3 dB); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Core: 6 gated rows, 0 FAIL, min margin 0.1229 at AT-02 C3 (SHAPE: 0 -> 1; D_br (oct) 0.372867 vs >= 0.25 oct); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Envelope: 4 gated rows, 0 FAIL, min margin 36.19 at AT-25 E1 (Amp envelope release: 50 -> 2000 ms; D_t release reading (ms: D_t of the gate render from the note-off grid point on) 38.1903 vs ratio >= 2); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Field: 9 gated rows, 0 FAIL, min margin 8.243 at AT-33 C3 (Field MOTION: motionDepth 0 -> 1 (SPREAD, spread 1); frame-wise D_st p2p (dB; S9.11 frames, band validity G8-1) 11.2431 vs >= 3 dB); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Macros: 8 gated rows, 0 FAIL, min margin 0.1342 at AT-49 C3 (Macro Tight <-> Loose: 0 -> 1, the others at neutral; the SC-007 axis: D_t (ms, gate render) 2.13419 vs ratio >= 2 (hi / lo)); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Mass: 7 gated rows, 0 FAIL, min margin 0.5048 at AT-27 E1 (Mass dynamics, gain: Mass 0 -> 100; dL_K = L_K(dynamics output) - L_K(Sum) (dB) 3.50485 vs >= 3 dB); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Morph: 4 gated rows, 0 FAIL, min margin 3.729 at AT-42 C3 (Morph position: 0 -> 0.5; D_nl (dB) 6.72859 vs >= 3 dB); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Motion: 14 gated rows, 0 FAIL, min margin 0.04905 at AT-38 E1 (Motion target Shift: Motion Off -> CYCLE 0.1 Hz, amount 1, Motion Depth 1; frame-wise D_br p2p (oct; full-band centroid, Goertzel at n f0 over the 8-period frame, n <= min(fs / 2 f0, 128); the h1..h8 fit was blind to Edge / Shift, 2026-10-21) 0.299052 vs >= 0.25 oct); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_NoteMemory: 8 gated rows, 0 FAIL, min margin 137.5 at AT-43 C3 (Note Memory AlwaysRetrigger vs M_ref EnvelopeRetriggerOnly, Overlap C3 -> C4 at sample 24128, Retrigger Reset, MONO; core-h1 Goertzel phase jump |wrap(phi_M - phi_ref)| (deg; 4 periods from t1 + 20 ms) 167.525 vs >= 30 deg (phase reading)); 0 gated rows with a non-">=" bar (see the CSV)
+SC010 VoiceEngine_AudibilityTable_Pitch: 10 gated rows, 0 FAIL, min margin 0.6553 at AT-21 E1 (Drop shape: 0 -> 1 (amount 24 st); alpha (mean d over [0, N] / A) 0.755316 vs >= 0.1); 0 gated rows with a non-">=" bar (see the CSV)
+=== summary: SC-021 worst dBFS per fs (recorded; bar -80)
+SC021 WORST 44k1 -46.56 dBFS (shard Crush: (a) Sum -46.56, (b) output -47.78; 6 shards)
+SC021 WORST 48k -47.73 dBFS (shard Fracture: (a) Sum -82.67, (b) output -47.73; 6 shards)
+SC021 WORST 96k -7.57 dBFS (shard Rectify: (a) Sum -7.57, (b) output -9.50; 6 shards)
+SC-021(c): 18 cells, worst core -111.87 dBFS (44k1 E2 kSawAnchor; bar -96), worst Sum -90.80 dBFS (recorded), steepest upward step 0.4300 st/sample (H-9 0.418), wall clock 44.8 s
+=== summary: soak maxima (SC-013 / SC-014; recorded)
+--- soak-mono
+[SC-013] true peak (test-side 4x halfband): -0.979399 dBTP at sample 21918293; bar ceiling -1 + 0.1 dB  green
+[SC-013] DC per 10 s window (BH7-weighted mean, worst channel) at the DC-safety tap (DCBlocker, ruling G11-4), bar -80 dBFS over the 48 windows without note events (ruling G14-2): worst -115.398  green; the 44 windows with a note-on / note-off recorded: worst -68.6338 dBFS (a DC step Delta at the 5 Hz blocker leaves Delta * tau / 10 s); output (TruePeakLimiter) recorded: worst -46.8171 dBFS
+  trend over 24 windows without note events (DC-safety tap, G14-2 round 6): first -140.258 dBFS, last -131.944 dBFS, bar last <= first + 1 dB  green (or last <= -100 dBFS, the build-up floor); the output's all 30-window trend recorded: first -78.2171 dBFS, last -69.1521 dBFS
+  max core-tap window 0.080775 deg  green; max char-tap window (H-2, recorded) 1.69128 deg
+  segments analysed 4 of 4
+endpoint rejections 0, dropped note-ons 0
+--- soak-poly
+[SC-013] true peak (test-side 4x halfband): -0.973499 dBTP at sample 32894844; bar ceiling -1 + 0.1 dB  green
+[SC-013] DC per 10 s window (BH7-weighted mean, worst channel) at the DC-safety tap (DCBlocker, ruling G11-4), bar -80 dBFS over the 48 windows without note events (ruling G14-2): worst -95.5765  green; the 44 windows with a note-on / note-off recorded: worst -72.1396 dBFS (a DC step Delta at the 5 Hz blocker leaves Delta * tau / 10 s); output (TruePeakLimiter) recorded: worst -43.9274 dBFS
+  trend over 24 windows without note events (DC-safety tap, G14-2 round 6): first -112.117 dBFS, last -110.936 dBFS, bar last <= first + 1 dB  green (or last <= -100 dBFS, the build-up floor); the output's all 30-window trend recorded: first -63.8397 dBFS, last -63.4404 dBFS
+  max core-tap window 0.0794144 deg  green; max char-tap window (H-2, recorded) 3.0047 deg
+  segments analysed 4 of 4
+endpoint rejections 0, dropped note-ons 0
+=== summary: consumer [long] shards (mass_dynamics.h consumers; per-shard lines above)
+consumer shards: 268, red 0
+=== summary: consumer full suites (scope RED)
+--- perpush-dsp_systems_tests tail
+assertions: 16278317 | 16278316 passed | 1 failed
+
+exit: 1 wall: 7817 s
+DONE 2026-10-21T17:08:34Z RED warnings=0 scope_red=1 perpush_red=1 long_red=14/315 consumer_red=0/6 total_wall=19682s

@@ -60,6 +60,9 @@ add_executable(dsp_core_tests
     unit/core/chord_generator_test.cpp
     unit/core/hungarian_algorithm_test.cpp
     unit/core/xorshift32_test.cpp
+    # Profundum Phase 5 (specs/profundum-phase5-shape-character) - ENUMERATED, not globbed:
+    #   closed_form_adaa2_test.cpp  ClosedFormAdaa2 / DiodeAdaaLaw / diodeH1Coefficient (C-1, C-11)
+    unit/core/closed_form_adaa2_test.cpp
 
     # Test Helpers tests
     ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
@@ -97,6 +100,8 @@ add_executable(dsp_primitives_tests
     unit/primitives/smoother_test.cpp
     unit/primitives/dc_blocker_test.cpp
     unit/primitives/oversampler_test.cpp
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold): PolyphaseHalfbandOversampler (L1) - plan S3
+    unit/primitives/polyphase_halfband_oversampler_test.cpp
     unit/primitives/fft_test.cpp
     unit/primitives/spectral_buffer_test.cpp
     unit/primitives/spectral_utils_tests.cpp
@@ -141,6 +146,9 @@ add_executable(dsp_primitives_tests
     unit/primitives/spectral_transient_detector_test.cpp
     unit/primitives/held_note_buffer_test.cpp
     unit/primitives/arp_lane_test.cpp
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
+    #   retrigger_declick_test.cpp  RetriggerDeclick_* (SC-011)
+    unit/primitives/retrigger_declick_test.cpp
 )
 
 target_link_libraries(dsp_primitives_tests
@@ -250,6 +258,38 @@ add_executable(dsp_processors_tests
     unit/processors/dual_stft_tests.cpp
     unit/processors/partial_tracker_tests.cpp
     unit/processors/harmonic_oscillator_bank_tests.cpp
+    # Profundum Phase 1 (specs/profundum-phase1-harmonic-core): recipe-only SCs
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold): HarmonicFold (L2) - SC-006/007/008/010/011/012(d)/013(a)(c)/015/016/017/019/024/025/026
+    unit/processors/harmonic_fold_test.cpp
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
+    #   drop_envelope_test.cpp                SC-001-SC-005, SC-024(a), DropEnvelope_Lifecycle
+    #   drop_phase_lock_test.cpp              SC-024(b), SC-025 allocation, SC-026 bypass
+    #   note_memory_test.cpp                  SC-009(a)
+    #   mono_handler_glide_test.cpp           SC-006-SC-008 (MonoHandler glide modes)
+    #   drop_note_behaviour_nonfinite_test.cpp SC-017 - the ONE Phase 4 entry in
+    #                                         the -fno-fast-math block below
+    #   drop_note_behaviour_perf_test.cpp     SC-019, SC-025 cost  [.perf]
+    unit/processors/drop_envelope_test.cpp
+    unit/processors/note_memory_test.cpp
+    unit/processors/drop_note_behaviour_perf_test.cpp
+    # Profundum Phase 5 (specs/profundum-phase5-shape-character) - ENUMERATED, not globbed:
+    #   keytracked_tilt_test.cpp                 SC-028(a)(b) parts (KeytrackedTilt)
+    #   oversampled_residual_path_test.cpp       C-1 constants, round trip
+    #   shape_character_metric_helpers_test.cpp  metric helper self-tests (tasks deviation 3)
+    #   rectifier_test.cpp                       SC-014; Rectifier arms of SC-010/011/016/018/019/021
+    #   rectifier_nonfinite_test.cpp             SC-017 Rectifier arm - in the -fno-fast-math block below
+    unit/processors/keytracked_tilt_test.cpp
+    unit/processors/oversampled_residual_path_test.cpp
+    unit/processors/shape_character_metric_helpers_test.cpp
+    unit/processors/rectifier_test.cpp
+    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics) - ENUMERATED, not globbed:
+    #   period_peak_detector_test.cpp         PeriodPeakDetector (plan C-4, S3)
+    #   transient_shaper_helpers_test.cpp     transient helper self-tests (tasks deviation 3)
+    #   transient_shaper_test.cpp             SC-008, SC-009, SC-011, SC-025; shaper arms of SC-012/013/016/018/021
+    #   transient_shaper_nonfinite_test.cpp   SC-019 shaper arm - in the -fno-fast-math block below
+    unit/processors/period_peak_detector_test.cpp
+    unit/processors/transient_shaper_helpers_test.cpp
+    unit/processors/transient_shaper_test.cpp
     unit/processors/residual_types_tests.cpp
     unit/processors/residual_analyzer_tests.cpp
     unit/processors/residual_synthesizer_tests.cpp
@@ -308,7 +348,6 @@ add_executable(dsp_processors_tests
     unit/processors/spectral_smear_test.cpp
     unit/processors/spectral_smear_spectral_test.cpp
     unit/processors/spectral_smear_perf_test.cpp
-    unit/processors/spectral_smear_nonfinite_test.cpp
 )
 
 target_link_libraries(dsp_processors_tests
@@ -373,14 +412,12 @@ add_executable(dsp_systems_tests
     unit/systems/atmosphere_engine_test.cpp
     unit/systems/atmosphere_engine_spectral_test.cpp
     unit/systems/atmosphere_engine_perf_test.cpp
-    unit/systems/atmosphere_engine_nonfinite_test.cpp
     # Seraphis Phase 7 (specs/seraphis-phase7-voice-engine): SeraphisVoice,
     # SeraphisEngine, SeraphisMacroMatrix. This list is ENUMERATED, not globbed -
     # an unregistered TU silently drops out of the build and its cases never run.
     unit/systems/seraphis_voice_test.cpp
     unit/systems/seraphis_engine_test.cpp
     unit/systems/seraphis_macro_test.cpp
-    unit/systems/seraphis_nonfinite_test.cpp
     unit/systems/seraphis_perf_test.cpp
     # Seraphis Phase 9 (specs/seraphis-phase9-parameters): the broadcast POD,
     # applyVoiceParams / applySpectralStates, the macro base overrides, the new
@@ -417,7 +454,6 @@ add_executable(dsp_systems_tests
     unit/systems/noise_organism_test.cpp
     unit/systems/noise_organism_spectral_test.cpp
     unit/systems/noise_organism_perf_test.cpp
-    unit/systems/noise_organism_nonfinite_test.cpp
     # Vorago Phase 3 (specs/vorago-phase3-resonance-drift): ResonanceDriftNetwork.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -432,7 +468,6 @@ add_executable(dsp_systems_tests
     unit/systems/resonance_drift_network_test.cpp
     unit/systems/resonance_drift_network_spectral_test.cpp
     unit/systems/resonance_drift_network_perf_test.cpp
-    unit/systems/resonance_drift_network_nonfinite_test.cpp
     # Vorago Phase 5 (specs/vorago-phase5-feedback-ecology): FeedbackEcology.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -446,7 +481,6 @@ add_executable(dsp_systems_tests
     unit/systems/feedback_ecology_test.cpp
     unit/systems/feedback_ecology_spectral_test.cpp
     unit/systems/feedback_ecology_perf_test.cpp
-    unit/systems/feedback_ecology_nonfinite_test.cpp
     # Vorago Phase 6 (specs/vorago-phase6-subharmonic): SubharmonicEngine.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -460,7 +494,6 @@ add_executable(dsp_systems_tests
     unit/systems/subharmonic_engine_test.cpp
     unit/systems/subharmonic_engine_spectral_test.cpp
     unit/systems/subharmonic_engine_perf_test.cpp
-    unit/systems/subharmonic_engine_nonfinite_test.cpp
     # Vorago Phase 7 (specs/vorago-phase7-harmonic-bloom): BloomEngine.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -473,7 +506,6 @@ add_executable(dsp_systems_tests
     unit/systems/bloom_engine_test.cpp
     unit/systems/bloom_engine_spectral_test.cpp
     unit/systems/bloom_engine_perf_test.cpp
-    unit/systems/bloom_engine_nonfinite_test.cpp
     # Vorago Phase 8 (specs/vorago-phase8-ecosystem): EcosystemEngine.
     # This list is ENUMERATED, not globbed - an unregistered TU silently drops
     # out of the build and its cases never run.
@@ -488,7 +520,6 @@ add_executable(dsp_systems_tests
     unit/systems/ecosystem_engine_test.cpp
     unit/systems/ecosystem_engine_longrun_test.cpp
     unit/systems/ecosystem_engine_perf_test.cpp
-    unit/systems/ecosystem_engine_nonfinite_test.cpp
     # Vorago Phase 13 (specs/vorago-phase13-ui): SC-019 pair accessors (strength/cooldown/partner).
     unit/systems/ecosystem_engine_pair_accessors_test.cpp
     # Vorago Phase 10 (specs/vorago-phase10-voice-engine): VoragoVoice, VoragoEngine,
@@ -533,7 +564,6 @@ add_executable(dsp_systems_tests
     #   vorago_ghost_ext_test.cpp          SC-010 only (the vorago_engine.h side)
     unit/systems/atmosphere_ghost_test.cpp
     unit/systems/atmosphere_ghost_longrun_test.cpp
-    unit/systems/atmosphere_ghost_nonfinite_test.cpp
     unit/systems/atmosphere_ghost_perf_test.cpp
     unit/systems/vorago_ghost_ext_test.cpp
     # Vorago Phase 12 (specs/vorago-phase12-parameters): the DSP side of the full
@@ -559,6 +589,205 @@ add_executable(dsp_systems_tests
     #   vorago_ecosystem_lever_longrun_test.cpp  SC-010 (b)            (the [long] set)
     unit/systems/vorago_ecosystem_lever_test.cpp
     unit/systems/vorago_ecosystem_lever_longrun_test.cpp
+    # Profundum Phase 1 (specs/profundum-phase1-harmonic-core): ProfundumCore.
+    # ENUMERATED, not globbed - an unregistered TU silently drops out of the build.
+    #   profundum_core_test.cpp           SC-003 (render), SC-010 (a)(d), SC-012,
+    #                                     SC-014 (a)-(c), SC-015, SC-016 (partial
+    #                                     count), SC-017 (determinism), SC-018,
+    #                                     SC-020 (a)-(c), SC-021 (b)-(e), SC-023,
+    #                                     FR-041/E-6, FR-043, FR-061/E-2, E-7, E-11,
+    #                                     plan-internal DetuneShadowNoDrift and
+    #                                     FirstNoteSeedsPhases
+    #   profundum_core_spectral_test.cpp  SC-001, SC-002/004/006/007/019/022 render
+    #                                     arms, SC-005, SC-008, SC-009, SC-010 (b),
+    #                                     SC-011 (a), SC-017 (rate change)
+    #                                     ([long] grids + per-push smoke siblings)
+    #                                     + ListeningRenders [.listen] (not a gate)
+    #   profundum_core_nonfinite_test.cpp SC-016 (non-finite), SC-020 (d), FR-002 -
+    #                                     the ONE Phase 1 entry in the
+    #                                     -fno-fast-math block below
+    #   profundum_core_perf_test.cpp      SC-013, OQ-3 figures  [.perf]
+    # Renames against plan S8.3 (the recipe TU in dsp_processors_tests holds the
+    # recipe-vector arms):
+    #   SC-004 recipe arm  -> SpectralShapeRecipe_AudibilityGate_BodyEdgeShift
+    #                         (recipe TU); render arm keeps
+    #                         ProfundumCore_AudibilityGate_BodyEdgeShift
+    #   SC-010 (b)         -> ProfundumCore_NoZipperControlSweepsSidebands
+    #   SC-019 render arm  -> ProfundumCore_BodyColoursDistinctRendered; the
+    #                         recipe arm keeps ProfundumCore_BodyColoursDistinct
+    #                         (recipe TU)
+    #   [long] cases gain per-push siblings: ...Smoke (SC-001/002/003/004/008/
+    #   009/022, DetuneShadowNoDrift); SC-021 (b) keeps MaskNeverSlewedBend
+    #   per-push with a MaskNeverSlewedBendLong sibling
+    unit/systems/profundum_core_test.cpp
+    unit/systems/profundum_core_spectral_test.cpp
+    unit/systems/profundum_core_perf_test.cpp
+    # Profundum Phase 2 (specs/profundum-phase2-edge-fold): ProfundumCore
+    # excitation + the HarmonicFold chain. ENUMERATED, not globbed - an
+    # unregistered TU silently drops out of the build and its cases never run.
+    #   profundum_core_excitation_test.cpp           SC-002 (EdgeDriveLaw),
+    #                                                SC-004 (a), SC-009, SC-013
+    #                                                (excitation arms), SC-014,
+    #                                                SC-015, SC-017, SC-026
+    #                                                (excitation)
+    #   profundum_core_excitation_spectral_test.cpp  SC-001, SC-002 (rendered
+    #                                                arms), SC-003, SC-011
+    #                                                (ExcitationDcFree), SC-012
+    #                                                (excitation), SC-020
+    #   profundum_edge_fold_chain_test.cpp           SC-005 grid + positive
+    #                                                control, core-input arms of
+    #                                                SC-010/011/012/013, SC-017
+    #                                                (SampleRateChange), SC-019
+    #                                                (excitation), SC-022,
+    #                                                HelperParity, [.listen]
+    #   profundum_core_excitation_nonfinite_test.cpp SC-016 (excitation),
+    #                                                ExcitationTableLookupAtCorners
+    #                                                - the ONE Phase 2 systems
+    #                                                entry in the -fno-fast-math
+    #                                                block below
+    #   profundum_edge_fold_perf_test.cpp            SC-018  [.perf]
+    unit/systems/profundum_core_excitation_test.cpp
+    unit/systems/profundum_core_excitation_spectral_test.cpp
+    unit/systems/profundum_edge_fold_chain_test.cpp
+    unit/systems/profundum_edge_fold_perf_test.cpp
+    # Profundum Phase 3 (specs/profundum-phase3-anchor): AnchorOscillator + the
+    # core/Fold chain. ENUMERATED, not globbed - an unregistered TU silently
+    # drops out of the build and its cases never run.
+    #   anchor_oscillator_test.cpp           SC-004, SC-005, SC-006, SC-007
+    #                                        (helper), SC-013, SC-014, SC-016,
+    #                                        SC-017, SC-026, SC-027; enum
+    #                                        static_asserts; MirrorTracksCore
+    #   anchor_oscillator_spectral_test.cpp  SC-001, SC-002, SC-008 (a)(b)(c),
+    #                                        SC-010, SC-011, SC-012, SC-025
+    #   anchor_oscillator_nonfinite_test.cpp SC-015 - the ONE Phase 3 entry in
+    #                                        the -fno-fast-math block below
+    #   profundum_anchor_chain_test.cpp      SC-003 (all arms), SC-008 (r),
+    #                                        SC-009, SC-022, SC-024
+    #                                        [anchor-chain]; 60 s cases [long]
+    #   anchor_oscillator_perf_test.cpp      SC-018  [.perf]
+    unit/systems/anchor_oscillator_test.cpp
+    unit/systems/anchor_oscillator_spectral_test.cpp
+    unit/systems/profundum_anchor_chain_test.cpp
+    unit/systems/anchor_oscillator_perf_test.cpp
+    # Profundum Phase 4 (specs/profundum-phase4-drop-note-behaviour) - ENUMERATED, not globbed:
+    #   profundum_note_behaviour_test.cpp          SC-009(b)(c), SC-011, SC-012,
+    #                                              SC-016, SC-018, SC-023, SC-026 - in dsp_ieee_tests
+    #   profundum_note_behaviour_spectral_test.cpp SC-010, SC-013, SC-014, SC-015,
+    #                                              SC-021; full grids [long]
+    unit/systems/profundum_note_behaviour_spectral_test.cpp
+    #   profundum_core_pitch_continuity_test.cpp   SC-028 (2026-10-13 ruling): spectrum preserved across a Drop
+    unit/systems/profundum_core_pitch_continuity_test.cpp
+    # Profundum Phase 5 (specs/profundum-phase5-shape-character) - ENUMERATED, not globbed:
+    #   shape_morph_test.cpp                 SC-003, SC-008/SC-013(a) (Shape), lifecycle
+    #   shape_morph_spectral_test.cpp        SC-001, SC-002, SC-004, SC-010/SC-011 (Shape)
+    #   bass_character_stage_test.cpp        SC-008, SC-009, SC-013, SC-021, SC-026, SC-027, SC-029
+    #   bass_character_spectral_test.cpp     SC-005, SC-006, SC-007, SC-010, SC-011, SC-022, SC-028
+    #   bass_character_rlaw_test.cpp         SC-012(a)(b)(c)(d)(f)(g), SC-024; grids [long]
+    #   shape_character_chain_test.cpp       SC-012(e), SC-016, SC-018, SC-019, SC-020, SC-025
+    #   shape_character_nonfinite_test.cpp   SC-017 - in the -fno-fast-math block below
+    #   shape_character_perf_test.cpp        SC-015  [.perf]
+    unit/systems/shape_morph_test.cpp
+    unit/systems/shape_morph_spectral_test.cpp
+    unit/systems/bass_character_stage_test.cpp
+    unit/systems/bass_character_spectral_test.cpp
+    unit/systems/bass_character_rlaw_test.cpp
+    unit/systems/shape_character_chain_test.cpp
+    unit/systems/shape_character_perf_test.cpp
+    # Profundum Phase 6 (specs/profundum-phase6-mass-dynamics) - ENUMERATED, not globbed:
+    #   k_weighting_helper_test.cpp          SC-026 (BS.1770 K-weighting reference)
+    #   mass_compressor_test.cpp             SC-007, SC-024(a)(b)(c)(e); compressor arms of SC-012/013/016/018/021
+    #   mass_law_test.cpp                    SC-001(a), SC-004, SC-016 law, SC-023 law, SC-025 law
+    #   mass_dynamics_test.cpp               SC-012, SC-013, SC-016, SC-018 (MassDynamics)
+    #   mass_dynamics_helpers_test.cpp       chain helper self-tests (tasks deviation 5)
+    #   mass_chain_test.cpp                  SC-014, SC-015, SC-018, SC-021, FR-035
+    #   mass_compressor_chain_test.cpp       SC-006, SC-011 compressor, SC-022, SC-024(d)
+    #   mass_law_spectral_test.cpp           SC-001(b)(c), SC-003; grids [long]
+    #   mass_law_automation_test.cpp         SC-002, SC-005, SC-011 Mass, SC-023 rendered; grids [long]
+    #   mass_dynamics_aliasing_test.cpp      SC-010; grids [long]
+    #   mass_dynamics_nonfinite_test.cpp     SC-019 - in the -fno-fast-math block below
+    #   mass_dynamics_perf_test.cpp          SC-017  [.perf]
+    unit/systems/k_weighting_helper_test.cpp
+    unit/systems/mass_compressor_test.cpp
+    unit/systems/mass_law_test.cpp
+    unit/systems/mass_dynamics_test.cpp
+    unit/systems/mass_dynamics_helpers_test.cpp
+    unit/systems/mass_chain_test.cpp
+    unit/systems/mass_compressor_chain_test.cpp
+    unit/systems/mass_law_spectral_test.cpp
+    unit/systems/mass_law_automation_test.cpp
+    unit/systems/mass_dynamics_aliasing_test.cpp
+    unit/systems/mass_dynamics_perf_test.cpp
+    # Profundum Phase 7 (specs/profundum-phase7-stereo-field) - ENUMERATED, not globbed:
+    #   bass_stereo_field_test.cpp           FR-011, FR-034, FR-053, SC-004(b)(c), SC-005 gates, SC-009(a')(c), SC-011, SC-012,
+    #                                        SC-013(c), SC-017, SC-018/019/020/021 law
+    #   bass_stereo_field_helpers_test.cpp   helper self-tests, C-12 chain equality
+    #   bass_stereo_field_nonfinite_test.cpp SC-014 - in the -fno-fast-math block below
+    #   bass_stereo_field_monosum_test.cpp   SC-001, SC-002, SC-020 rendered; shards [long]
+    #   bass_stereo_field_spectral_test.cpp  SC-003, SC-005 record, SC-006, SC-010, SC-016; grids [long]
+    #   bass_stereo_field_motion_test.cpp    SC-008, SC-009(a); [long]
+    #   bass_stereo_field_chain_test.cpp     SC-004(a), SC-007 [long], SC-009(b), SC-018/019 rendered
+    #   bass_stereo_field_harvest_test.cpp   S9.1 harvest, hidden
+    #   bass_stereo_field_perf_test.cpp      SC-013  [.perf]
+    unit/systems/bass_stereo_field_test.cpp
+    unit/systems/bass_stereo_field_helpers_test.cpp
+    unit/systems/bass_stereo_field_monosum_test.cpp
+    unit/systems/bass_stereo_field_spectral_test.cpp
+    unit/systems/bass_stereo_field_motion_test.cpp
+    unit/systems/bass_stereo_field_chain_test.cpp
+    unit/systems/bass_stereo_field_harvest_test.cpp
+    unit/systems/bass_stereo_field_perf_test.cpp
+    # Profundum Phase 8 (specs/profundum-phase8-bass-morph) - ENUMERATED, not globbed:
+    #   morph_state_test.cpp              FR-001 - FR-007, SC-007(a)(b), SC-019(a)(c)
+    #   bass_morph_engine_test.cpp        SC-001 - SC-003, SC-004(c)(d) engine, SC-005 engine, SC-006(a), SC-007(c)(d),
+    #                                     SC-011, SC-013, SC-014, SC-019(b), SC-020 - SC-022, SC-024 engine
+    #   bass_morph_nonfinite_test.cpp     SC-012 - in the -fno-fast-math block below
+    #   bass_morph_helpers_test.cpp       fixture self-tests
+    #   bass_morph_probe_test.cpp         C-9 / R-2 probes, hidden
+    #   bass_morph_chain_test.cpp         SC-005/006 rendered [long], SC-009, SC-010, SC-015, SC-023, SC-024 render, FR-039
+    #   bass_morph_click_test.cpp         SC-004(a)(b)(d) [long]
+    #   bass_morph_trajectory_test.cpp    SC-008 [long]
+    #   bass_morph_monosum_test.cpp       SC-016 [long]
+    #   bass_morph_aliasing_test.cpp      SC-017 [long]
+    #   bass_morph_perf_test.cpp          SC-018, FR-083 record [.perf]
+    unit/systems/morph_state_test.cpp
+    unit/systems/bass_morph_engine_test.cpp
+    unit/systems/bass_morph_helpers_test.cpp
+    unit/systems/bass_morph_probe_test.cpp
+    unit/systems/bass_morph_chain_test.cpp
+    unit/systems/bass_morph_click_test.cpp
+    unit/systems/bass_morph_trajectory_test.cpp
+    unit/systems/bass_morph_monosum_test.cpp
+    unit/systems/bass_morph_aliasing_test.cpp
+    unit/systems/bass_morph_perf_test.cpp
+    # Profundum Phase 9 (specs/profundum-phase9-voice-engine) - ENUMERATED, not globbed:
+    #   profundum_voice_engine_helpers_test.cpp  fixture self-tests, observer defaults
+    #   profundum_motion_test.cpp                FR-040 - FR-049, SC-026 unit
+    #   profundum_macro_matrix_test.cpp          FR-050 - FR-056, SC-008 unit
+    #   profundum_voice_test.cpp                 SC-019, SC-020, SC-033, SC-034, FR-010 / FR-015 - in dsp_ieee_tests
+    #   profundum_engine_test.cpp                SC-008, SC-011, SC-012, SC-022, SC-024, SC-026 - SC-029, SC-031, SC-032,
+    #                                            SC-036 - in dsp_ieee_tests
+    #   profundum_engine_nonfinite_test.cpp      SC-023 - in the -fno-fast-math block below
+    #   profundum_engine_click_test.cpp          SC-005, SC-006, SC-025 [long]
+    #   profundum_engine_audibility_test.cpp     SC-007, SC-009, SC-010 [long]
+    #   profundum_engine_chain_test.cpp          SC-015/016 [long], SC-017, SC-018
+    #   profundum_engine_aliasing_test.cpp       SC-021 [long]
+    #   profundum_engine_soak_test.cpp           SC-013/014 [long]
+    #   profundum_engine_probe_test.cpp          P-1 - P-4, H-13, harvests, listening renders - hidden
+    #   profundum_engine_perf_test.cpp           SC-001 - SC-004 [.perf]
+    #   mass_dynamics_oversampling_test.cpp      FR-082 opt-in
+    #   profundum_engine_display_test.cpp        Phase 12 SC-022 accessor neutrality
+    unit/systems/profundum_voice_engine_helpers_test.cpp
+    unit/systems/profundum_motion_test.cpp
+    unit/systems/profundum_macro_matrix_test.cpp
+    unit/systems/profundum_engine_click_test.cpp
+    unit/systems/profundum_engine_audibility_test.cpp
+    unit/systems/profundum_engine_chain_test.cpp
+    unit/systems/profundum_engine_aliasing_test.cpp
+    unit/systems/profundum_engine_soak_test.cpp
+    unit/systems/profundum_engine_probe_test.cpp
+    unit/systems/profundum_engine_perf_test.cpp
+    unit/systems/mass_dynamics_oversampling_test.cpp
+    unit/systems/profundum_engine_display_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -566,6 +795,9 @@ target_link_libraries(dsp_systems_tests
         KrateDSP
         Catch2::Catch2
         test_helpers
+        # Profundum Phase 3 SC-003 ISA arm: hwy::SetSupportedTargetsForTest pins the bank's
+        # dispatch to each supported target in turn (profundum_anchor_chain_test.cpp).
+        hwy
 )
 
 target_compile_features(dsp_systems_tests PRIVATE cxx_std_20)
@@ -599,7 +831,6 @@ add_executable(dsp_effects_tests
     unit/effects/aether_reverb_matrix_test.cpp
     unit/effects/aether_reverb_spectral_test.cpp
     unit/effects/aether_reverb_perf_test.cpp
-    unit/effects/aether_reverb_nonfinite_test.cpp
     # Vorago Phase 9 (specs/vorago-phase9-cavern-space)
     unit/effects/cavern_verb_test.cpp
     unit/effects/cavern_verb_freeze_test.cpp
@@ -630,6 +861,81 @@ target_link_libraries(dsp_effects_tests
 target_compile_definitions(dsp_effects_tests PRIVATE KRATE_DSP_AETHER_TEST_HOOKS)
 
 target_compile_features(dsp_effects_tests PRIVATE cxx_std_20)
+
+# IEEE-only TUs (2026-10-25). Two kinds: the fault-injection TUs, which poison DSP state with NaN / Inf bit patterns
+# and assert on the result, and the bit-exactness TUs at the end of the list, which assert that two separately
+# compiled computations agree bit for bit (MonoHandler against its frozen pre-Phase-4 copy, DropPhaseLock's
+# pass-through, SpectralShapeRecipe's equality at the neutral point; the Profundum engine, voice and note-behaviour
+# TUs, which compare the engine's taps with the test's own recomputation and harvested references). Under the macOS
+# SDK's -ffast-math, clang reassociates each inlined call site on its own ((s - 69) / 12 became s * (1/12) - 5.75: A4
+# read 440.00007 Hz in one copy and 440 in the other; VoiceEngine_MassSplit's receivers missed MassLaw::evaluate in
+# 410 of 2250 intervals, VoiceEngine_AnchorJoin's POLY sum missed the re-sum in 956 samples), so those claims hold
+# only under IEEE, where Windows and Linux already check them.
+# Both kinds need IEEE semantics in EVERY function they run, not only in their own bodies. In a mixed binary
+# that is not guaranteed: an inline header function (EnvelopeFollower::processSample, DCBlocker::process, ...) that
+# is not inlined into the -fno-fast-math TU is a COMDAT symbol, and the linker keeps ONE copy for the whole image -
+# from whichever TU came first, usually a -ffast-math one. Apple clang on the macOS arm64 runner then folded the NaN
+# out of that copy (FeedbackEcology_NonFinite (c2) red, 2026-10-25). Here every TU is -fno-fast-math, so every copy
+# is IEEE. The per-source entries in the -fno-fast-math block below stay (they keep these files out of the PCH).
+# The target defines the union of the three source executables' target-wide macros; KRATE_DSP_AETHER_TEST_HOOKS is
+# target-wide for the same ODR reason as in dsp_effects_tests (aether_reverb_nonfinite_test.cpp needs it).
+add_executable(dsp_ieee_tests
+    # Shared Catch2 main + FTZ/DAZ setup (see dsp_test_main.cpp)
+    dsp_test_main.cpp
+    # The image's one owner of the operator new/delete replacements (allocation_detector.h)
+    dsp_ieee_alloc_overrides.cpp
+    unit/systems/atmosphere_engine_nonfinite_test.cpp
+    unit/systems/atmosphere_ghost_nonfinite_test.cpp
+    unit/effects/aether_reverb_nonfinite_test.cpp
+    unit/systems/seraphis_nonfinite_test.cpp
+    unit/systems/noise_organism_nonfinite_test.cpp
+    unit/systems/resonance_drift_network_nonfinite_test.cpp
+    unit/processors/spectral_smear_nonfinite_test.cpp
+    unit/systems/feedback_ecology_nonfinite_test.cpp
+    unit/systems/subharmonic_engine_nonfinite_test.cpp
+    unit/systems/bloom_engine_nonfinite_test.cpp
+    unit/systems/ecosystem_engine_nonfinite_test.cpp
+    unit/systems/profundum_core_nonfinite_test.cpp
+    unit/processors/harmonic_fold_nonfinite_test.cpp
+    unit/systems/profundum_core_excitation_nonfinite_test.cpp
+    unit/systems/anchor_oscillator_nonfinite_test.cpp
+    unit/processors/drop_note_behaviour_nonfinite_test.cpp
+    unit/processors/rectifier_nonfinite_test.cpp
+    unit/systems/shape_character_nonfinite_test.cpp
+    unit/processors/transient_shaper_nonfinite_test.cpp
+    unit/systems/mass_dynamics_nonfinite_test.cpp
+    unit/systems/bass_stereo_field_nonfinite_test.cpp
+    unit/systems/bass_morph_nonfinite_test.cpp
+    unit/systems/profundum_engine_nonfinite_test.cpp
+    # bit-exactness TUs (moved from dsp_processors_tests)
+    unit/processors/spectral_shape_recipe_test.cpp
+    unit/processors/drop_phase_lock_test.cpp
+    unit/processors/mono_handler_glide_test.cpp
+    # Profundum bit-exactness TUs (moved from dsp_systems_tests)
+    unit/systems/profundum_note_behaviour_test.cpp
+    unit/systems/profundum_voice_test.cpp
+    unit/systems/profundum_engine_test.cpp
+)
+
+target_link_libraries(dsp_ieee_tests
+    PRIVATE
+        KrateDSP
+        Catch2::Catch2
+        test_helpers
+        hwy
+)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(dsp_ieee_tests PRIVATE -fno-fast-math -fno-finite-math-only -ffp-contract=off)
+endif()
+
+target_compile_definitions(dsp_ieee_tests
+    PRIVATE
+        KRATE_DSP_AETHER_TEST_HOOKS
+        KRATE_DSP_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+        VORAGO_P1_HARNESS_DIR="${CMAKE_BINARY_DIR}/vorago_p1/")
+
+target_compile_features(dsp_ieee_tests PRIVATE cxx_std_20)
 
 
 # ==============================================================================
@@ -1036,7 +1342,28 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/ecosystem_engine_pair_accessors_test.cpp
         # Vorago Phase 12: injects NaN/Inf bit patterns into the Phase 12 setters.
         unit/systems/vorago_param_surface_test.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+        # Profundum Phase 1: injects NaN/Inf bit patterns (SC-016, SC-020(d), FR-002). The perf TU stays out so its figures reflect the shipping FP mode.
+        unit/systems/profundum_core_nonfinite_test.cpp
+        # Profundum Phase 2: injects NaN/Inf bit patterns and NaN table sentinels (SC-016, S4.3/S5.3 lookups). The perf TU stays out.
+        unit/processors/harmonic_fold_nonfinite_test.cpp
+        unit/systems/profundum_core_excitation_nonfinite_test.cpp
+        # Profundum Phase 3: injects NaN/Inf bit patterns (SC-015). The perf and chain TUs stay out (shipping FP mode, plan S7).
+        unit/systems/anchor_oscillator_nonfinite_test.cpp
+        # Profundum Phase 4: injects NaN/Inf/subnormal bit patterns (SC-017). The perf TU stays out (shipping FP mode).
+        unit/processors/drop_note_behaviour_nonfinite_test.cpp
+        # Profundum Phase 5: injects NaN/Inf bit patterns (SC-017, FR-066). The perf TU stays out (shipping FP mode).
+        unit/processors/rectifier_nonfinite_test.cpp
+        unit/systems/shape_character_nonfinite_test.cpp
+        # Profundum Phase 6: injects NaN/Inf bit patterns (SC-019). The perf TU stays out (shipping FP mode).
+        unit/processors/transient_shaper_nonfinite_test.cpp
+        unit/systems/mass_dynamics_nonfinite_test.cpp
+        # Profundum Phase 7: injects NaN/Inf bit patterns (SC-014, FR-072). The perf TU stays out (shipping FP mode).
+        unit/systems/bass_stereo_field_nonfinite_test.cpp
+        # Profundum Phase 8: injects NaN/Inf bit patterns (SC-012, FR-081). The perf TU stays out (shipping FP mode).
+        unit/systems/bass_morph_nonfinite_test.cpp
+        # Profundum Phase 9: injects NaN/Inf bit patterns (SC-023, FR-061). The perf TU stays out (shipping FP mode).
+        unit/systems/profundum_engine_nonfinite_test.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 
     # GCC 13+ -O3 causes pathological performance regression in the reverb
@@ -1045,7 +1372,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     set_source_files_properties(
         unit/effects/reverb_test.cpp
         unit/effects/fdn_reverb_test.cpp
-        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -O2"
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off -O2"
     )
 
     # Seraphis Phase 6: same GCC 13+ -O3 reverb pathology as reverb_test.cpp /
@@ -1072,6 +1399,7 @@ catch_discover_tests(dsp_primitives_tests REPORTER console)
 catch_discover_tests(dsp_processors_tests REPORTER console)
 catch_discover_tests(dsp_systems_tests REPORTER console)
 catch_discover_tests(dsp_effects_tests REPORTER console)
+catch_discover_tests(dsp_ieee_tests REPORTER console)
 
 # ==============================================================================
 # Precompiled Catch2 + STL per executable when KRATE_TEST_PCH is ON

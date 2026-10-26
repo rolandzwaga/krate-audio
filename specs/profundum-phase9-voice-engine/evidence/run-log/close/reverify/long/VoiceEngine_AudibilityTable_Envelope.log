@@ -1,0 +1,36 @@
+Filters: "VoiceEngine_AudibilityTable_Envelope"
+Randomness seeded to: 1827529150
+# VoiceEngine_AudibilityTable_Envelope
+row,contrast,base,note,descriptor,tap,lo,hi,value,bar,pass,gated,out_descriptor,out_lo,out_hi,ampStep,remark
+"AT-24","Amp envelope attack: 0.1 -> 500 ms","A (per-row setting: without C-8's sustain 1)",E1,"D_t (ms, gate render)","Sum",108.419,161.287,1.48763,"ratio >= 2",FAIL,gated,"D_t output (ms; -1 where the output does not fall 80 dB)",77.8931,149.176,"0 (ref 0; 8 grid points)","FR-080 per-row setting (T016): on any sustain-1 base the 1 s gate hold dominates D_t, bounding the ratio at <= 1015 / 515 = 1.97 < 2 (A_s and B_s alike); on A the attack is the note"
+"AT-24","Amp envelope attack: 0.1 -> 500 ms","A + sustain 1 (C-8)",E1,"D_t (ms, gate render)","Sum",1034.2,587.973,1.75893,"ratio >= 2",FAIL,recorded,"D_t output (ms; -1 where the output does not fall 80 dB)",586.835,416.896,"0 (ref 0; 8 grid points)","the C-8 base, recorded (analytically below the bar, see the gated line)"
+"AT-25","Amp envelope release: 50 -> 2000 ms","A + sustain 1 (C-8)",E1,"D_t release reading (ms: D_t of the gate render from the note-off grid point on)","Sum",38.0261,1452.23,38.1903,"ratio >= 2",PASS,gated,"D_t output release reading (ms; -1 where the output does not fall 80 dB)",38.0562,1452.27,"0 (ref 0; 8 grid points)",""
+"AT-24","Amp envelope attack: 0.1 -> 500 ms","A (per-row setting: without C-8's sustain 1)",C3,"D_t (ms, gate render)","Sum",107.463,161.194,1.49999,"ratio >= 2",FAIL,gated,"D_t output (ms; -1 where the output does not fall 80 dB)",77.9593,145.883,"0 (ref 0; 8 grid points)","FR-080 per-row setting (T016): on any sustain-1 base the 1 s gate hold dominates D_t, bounding the ratio at <= 1015 / 515 = 1.97 < 2 (A_s and B_s alike); on A the attack is the note"
+"AT-24","Amp envelope attack: 0.1 -> 500 ms","A + sustain 1 (C-8)",C3,"D_t (ms, gate render)","Sum",1032.12,587.05,1.75815,"ratio >= 2",FAIL,recorded,"D_t output (ms; -1 where the output does not fall 80 dB)",594.417,410.442,"0 (ref 0; 8 grid points)","the C-8 base, recorded (analytically below the bar, see the gated line)"
+"AT-25","Amp envelope release: 50 -> 2000 ms","A + sustain 1 (C-8)",C3,"D_t release reading (ms: D_t of the gate render from the note-off grid point on)","Sum",35.9908,1450.54,40.3031,"ratio >= 2",PASS,gated,"D_t output release reading (ms; -1 where the output does not fall 80 dB)",35.998,1450.53,"0 (ref 0; 8 grid points)",""
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoiceEngine_AudibilityTable_Envelope
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(1933)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_audibility_test.cpp(623): FAILED:
+  REQUIRE( c.pass )
+with expansion:
+  false
+with message:
+  AT-24 E1 (Amp envelope attack: 0.1 -> 500 ms, base A (per-row setting:
+  without C-8's sustain 1)): D_t (ms, gate render) lo 108.419 hi 161.287 value
+  1.48763 bar ratio >= 2 | FR-080 per-row setting (T016): on any sustain-1 base
+  the 1 s gate hold dominates D_t, bounding the ratio at <= 1015 / 515 = 1.97 <
+  2 (A_s and B_s alike); on A the attack is the note
+
+===============================================================================
+test cases:   1 |   0 passed | 1 failed
+assertions: 294 | 293 passed | 1 failed
+

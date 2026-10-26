@@ -1,0 +1,6 @@
+Filters: "HarmonicFold_FundamentalPreservedLong"
+Randomness seeded to: 1337968398
+HarmonicFold_FundamentalPreservedLong: worst |angle T1| 1.576 deg (bar 5), min |T1| -0.03 dB below 65 (bar -6), -9.51 dB on [65, 100] (bar -12, plan -9.46)
+===============================================================================
+All tests passed (21816 assertions in 1 test case)
+

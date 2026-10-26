@@ -1,0 +1,7 @@
+spec: [#preset_browser_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#editor_layout_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#editor_lifecycle_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#manual_coverage_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#preset_description_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#preset_library_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[lifecycle]~[.]~[performance]~[perf]~[benchmark]~[!benchmark]
+Filters: [#preset_browser_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#editor_layout_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#editor_lifecycle_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#manual_coverage_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#preset_description_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#preset_library_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[lifecycle] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 2045700722
+# Profundum_PresetDefsRules: presets=53 fundamentalLossFlagged=0
+===============================================================================
+All tests passed (11693 assertions in 33 test cases)
+

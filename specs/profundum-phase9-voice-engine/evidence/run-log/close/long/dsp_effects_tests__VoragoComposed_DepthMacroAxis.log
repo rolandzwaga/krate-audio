@@ -1,0 +1,44 @@
+Filters: "VoragoComposed_DepthMacroAxis"
+Randomness seeded to: 2635452384
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_effects_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoComposed_DepthMacroAxis
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(623)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): 
+warning:
+  SC-008 Depth (tail), seed 1: composed RT30 s at Depth {0, 0.25, 0.5, 0.75, 1}
+  = 9.05, 10.75, 12.15, 14.55, 15.85 (cap 120 s; quietest block rel. note-off
+  level dB = -267.398, -267.605, -267.729, -236.312, -209.149) | Spearman rho =
+  1 | endpoint = 6.8 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): 
+warning:
+  SC-008 Depth (tail), seed 7: composed RT30 s at Depth {0, 0.25, 0.5, 0.75, 1}
+  = 8.35, 9.85, 11.75, 13.35, 14.45 (cap 120 s; quietest block rel. note-off
+  level dB = -268.847, -268.987, -269.087, -234.491, -207.069) | Spearman rho =
+  1 | endpoint = 6.1 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(698): 
+warning:
+  SC-008 Depth (tail), seed 1337: composed RT30 s at Depth {0, 0.25, 0.5, 0.75,
+  1} = 8.45, 10.15, 11.95, 12.45, 14.65 (cap 120 s; quietest block rel. note-
+  off level dB = -266.363, -266.5, -266.543, -236.809, -209.041) | Spearman rho
+  = 1 | endpoint = 6.2 s
+
+F:\projects\iterum\dsp\tests\unit\effects\vorago_composed_chain_test.cpp(713): 
+warning:
+  SC-008 Depth (tail): mean Spearman rho = 1 (bound +0.9), mean endpoint = 6.
+  36667 s (bound 3 s)
+
+597.624 s: VoragoComposed_DepthMacroAxis
+===============================================================================
+All tests passed (5 assertions in 1 test case)
+
+exit: 0 wall: 598 s

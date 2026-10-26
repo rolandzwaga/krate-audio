@@ -1,0 +1,6 @@
+spec: [#preset_manager_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[#preset_search_e2e_test]~[.]~[performance]~[perf]~[benchmark]~[!benchmark],[lifecycle]~[.]~[performance]~[perf]~[benchmark]~[!benchmark]
+Filters: [#preset_manager_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[#preset_search_e2e_test] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark],[lifecycle] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 4260845841
+===============================================================================
+All tests passed (120 assertions in 15 test cases)
+

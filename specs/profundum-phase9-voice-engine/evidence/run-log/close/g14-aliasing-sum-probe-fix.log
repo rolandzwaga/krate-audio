@@ -1,0 +1,971 @@
+Filters: "VoiceEngine_AliasingSumProbe"
+Randomness seeded to: 2302125912
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -129.81 char -107.11 anchor -154.8 sum -107.11 out -86.288; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -107.11 k2 -107.24 k3 -107.63 k4 -107.66 k5 -109.1 k6 -111.86 k7 -116.2 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -108.89 f_h 7.5: -120.01 f_h 8: -112.62 f_h 8.5: -112.22 f_h 9: -135.9 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -107.11 dBFS: top 2.625Hz:-115.27 1.625Hz:-116.2 2.375Hz:-116.43 2.875Hz:-117.35; 8/16/24/32 Hz family -116.69, rest -107.62 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-115.27 1.625Hz:-116.2 2.375Hz:-116.43 2.875Hz:-117.35 1.875Hz:-118.47 1.375Hz:-119.98 dBFS; 8/16/24/32 Hz family -116.69 of -107.11 dBFS, rest -107.62 dBFS
+  off-lattice power: below f_m -132.04 dBFS, f_m .. fs/4 -107.68 dBFS, above fs/4 -116.35 dBFS (L)
+  bin 130251 f 21912 Hz (1063.6 f0) -133.91 dBFS, nearest mirrored harmonic 0.055836 Hz away
+  bin 130252 f 21912 Hz (1063.6 f0) -134.32 dBFS, nearest mirrored harmonic 0.11239 Hz away
+  bin 129762 f 21830 Hz (1059.6 f0) -134.52 dBFS, nearest mirrored harmonic 0.087505 Hz away
+  bin 129761 f 21829 Hz (1059.6 f0) -134.7 dBFS, nearest mirrored harmonic 0.080723 Hz away
+  bin 129394 f 21768 Hz (1056.6 f0) -135.58 dBFS, nearest mirrored harmonic 0.015274 Hz away
+  bin 128904 f 21685 Hz (1052.6 f0) -136.79 dBFS, nearest mirrored harmonic 0.040161 Hz away
+  bin 129395 f 21768 Hz (1056.6 f0) -136.91 dBFS, nearest mirrored harmonic 0.15295 Hz away
+  bin 130250 f 21912 Hz (1063.6 f0) -137.4 dBFS, nearest mirrored harmonic 0.22406 Hz away
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -129.48 char -107.99 anchor -154.8 sum -107.99 out -86.544; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -107.99 k2 -108.2 k3 -108.57 k4 -108.62 k5 -110.44 k6 -113.21 k7 -117.65 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -109.83 f_h 7.5: -118.76 f_h 8: -114.56 f_h 8.5: -114.02 f_h 9: -138.24 dBFS
+  core tap -129.48 dBFS: top 1.625Hz:-137.73 2.875Hz:-139.35 1.375Hz:-139.41 1.875Hz:-139.61; 8/16/24/32 Hz family -144.58, rest -129.62 dBFS
+  char tap -107.99 dBFS: top 2.625Hz:-116.14 2.375Hz:-117.4 1.625Hz:-117.82 2.875Hz:-118.85; 8/16/24/32 Hz family -116.29, rest -108.68 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-116.14 2.375Hz:-117.4 1.625Hz:-117.82 2.875Hz:-118.85 1.875Hz:-120.77 8.125Hz:-120.77 dBFS; 8/16/24/32 Hz family -116.29 of -107.99 dBFS, rest -108.68 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -129.81 char -105.09 anchor -154.8 sum -105.09 out -86.958; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -105.09 k2 -105.23 k3 -105.54 k4 -105.71 k5 -106.88 k6 -109.44 k7 -113.65 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -107.04 f_h 7.5: -116.71 f_h 8: -110.19 f_h 8.5: -109.91 f_h 9: -137.6 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -105.09 dBFS: top 2.625Hz:-113.18 1.625Hz:-113.49 2.375Hz:-114.46 2.875Hz:-115.68; 8/16/24/32 Hz family -115.4, rest -105.52 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-113.18 1.625Hz:-113.49 2.375Hz:-114.46 2.875Hz:-115.68 1.875Hz:-116.62 1.375Hz:-116.92 dBFS; 8/16/24/32 Hz family -115.4 of -105.09 dBFS, rest -105.52 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -129.81 char -92.797 anchor -154.8 sum -92.797 out -86.83; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -92.797 k2 -93.219 k3 -93.802 k4 -95.135 k5 -96.781 k6 -98.766 k7 -102.92 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -94.541 f_h 7.5: -99.641 f_h 8: -99.696 f_h 8.5: -99.828 f_h 9: -117.51 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -92.797 dBFS: top 3.875Hz:-103.68 4.125Hz:-104.51 1.625Hz:-104.72 1.875Hz:-104.96; 8/16/24/32 Hz family -103.19, rest -93.213 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.875Hz:-103.68 4.125Hz:-104.51 1.625Hz:-104.72 1.875Hz:-104.96 4.625Hz:-106.08 4.375Hz:-106.6 dBFS; 8/16/24/32 Hz family -103.19 of -92.797 dBFS, rest -93.213 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -129.81 char -107.9 anchor -154.8 sum -107.9 out -89.256; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -107.9 k2 -108.08 k3 -108.28 k4 -108.46 k5 -109.36 k6 -112.18 k7 -116.71 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -109.57 f_h 7.5: -120.33 f_h 8: -112.48 f_h 8.5: -112.05 f_h 9: -133.83 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -107.9 dBFS: top 1.625Hz:-116.13 2.625Hz:-116.14 2.375Hz:-116.94 1.875Hz:-117.87; 8/16/24/32 Hz family -120.56, rest -108.14 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-116.13 2.625Hz:-116.14 2.375Hz:-116.94 1.875Hz:-117.87 2.875Hz:-118.62 1.375Hz:-119.98 dBFS; 8/16/24/32 Hz family -120.56 of -107.9 dBFS, rest -108.14 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -108.09 anchor -154.8 sum -108.09 out -89.471; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -108.09 k2 -108.27 k3 -108.54 k4 -108.64 k5 -109.85 k6 -111.65 k7 -116.25 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -110.45 f_h 7.5: -119.59 f_h 8: -112.43 f_h 8.5: -112.08 f_h 9: -138 dBFS
+  core tap -129.9 dBFS: top 1.625Hz:-137.98 1.875Hz:-138.91 2.875Hz:-139.26 1.375Hz:-139.37; 8/16/24/32 Hz family -144.85, rest -130.04 dBFS
+  char tap -108.09 dBFS: top 1.625Hz:-115.44 2.625Hz:-117.55 2.375Hz:-118 1.875Hz:-118.53; 8/16/24/32 Hz family -117.16, rest -108.66 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-115.44 2.625Hz:-117.55 2.375Hz:-118 1.875Hz:-118.53 1.375Hz:-119.71 2.875Hz:-120.09 dBFS; 8/16/24/32 Hz family -117.16 of -108.09 dBFS, rest -108.66 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -130.67 char -108.66 anchor -154.8 sum -108.66 out -64.582; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -108.66 k2 -108.9 k3 -109.52 k4 -109.44 k5 -114.25 k6 -113.74 k7 -121.46 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -110.94 f_h 7.5: -116.2 f_h 8: -117.55 f_h 8.5: -116.72 f_h 9: -133.48 dBFS
+  core tap -130.67 dBFS: top 1.875Hz:-141.03 2.125Hz:-141.09 3.125Hz:-141.97 2.875Hz:-142.09; 8/16/24/32 Hz family -143.1, rest -130.92 dBFS
+  char tap -108.66 dBFS: top 8.125Hz:-117.67 8.375Hz:-118.05 3.125Hz:-119.07 2.875Hz:-120.29; 8/16/24/32 Hz family -113.64, rest -110.32 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.125Hz:-117.67 8.375Hz:-118.05 3.125Hz:-119.07 2.875Hz:-120.29 3.375Hz:-121.16 3.875Hz:-121.85 dBFS; 8/16/24/32 Hz family -113.64 of -108.66 dBFS, rest -110.32 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -129.81 char -115 anchor -154.8 sum -115 out -77.298; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -115 k2 -115.17 k3 -115.42 k4 -115.69 k5 -116.32 k6 -120 k7 -123.49 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -116.64 f_h 7.5: -127.41 f_h 8: -120.29 f_h 8.5: -119.96 f_h 9: -136.96 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -115 dBFS: top 2.625Hz:-122.13 2.375Hz:-123.08 1.625Hz:-123.67 2.875Hz:-126.05; 8/16/24/32 Hz family -128.41, rest -115.2 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-122.12 2.375Hz:-123.08 1.625Hz:-123.67 2.875Hz:-126.05 1.375Hz:-126.92 1.875Hz:-127.21 dBFS; 8/16/24/32 Hz family -128.41 of -115 dBFS, rest -115.2 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -129.81 char -105.65 anchor -160.82 sum -105.65 out -90.499; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -105.65 k2 -105.82 k3 -106.02 k4 -106.17 k5 -106.96 k6 -109.76 k7 -114.17 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -107.47 f_h 7.5: -118.86 f_h 8: -110.15 f_h 8.5: -109.69 f_h 9: -137.75 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -105.65 dBFS: top 1.625Hz:-113.53 2.625Hz:-113.92 2.375Hz:-114.12 1.875Hz:-116.01; 8/16/24/32 Hz family -117.46, rest -105.94 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-113.53 2.625Hz:-113.92 2.375Hz:-114.12 1.875Hz:-116.01 2.875Hz:-117.27 1.375Hz:-117.43 dBFS; 8/16/24/32 Hz family -117.45 of -105.65 dBFS, rest -105.94 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -131.8 char -116.32 anchor -160.82 sum -116.32 out -115.73; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -116.32 k2 -116.8 k3 -117.51 k4 -118.18 k5 -119.83 k6 -121.74 k7 -125.4 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -118.42 f_h 7.5: -125.36 f_h 8: -122.72 f_h 8.5: -122.09 f_h 9: -134.35 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -116.32 dBFS: top 2.875Hz:-127.83 1.625Hz:-127.93 1.875Hz:-128.14 3.125Hz:-128.85; 8/16/24/32 Hz family -125.62, rest -116.86 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.875Hz:-127.83 1.625Hz:-127.93 1.875Hz:-128.14 3.125Hz:-128.85 6.875Hz:-130.03 2.125Hz:-130.12 dBFS; 8/16/24/32 Hz family -125.62 of -116.32 dBFS, rest -116.86 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -131.8 char -116.33 anchor -160.82 sum -116.33 out -116.01; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -116.33 k2 -117.14 k3 -117.39 k4 -118.82 k5 -119.63 k6 -122.41 k7 -124.92 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -118.32 f_h 7.5: -125.25 f_h 8: -123.51 f_h 8.5: -122.55 f_h 9: -133.43 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -116.33 dBFS: top 2.875Hz:-127.94 10.125Hz:-128.85 1.625Hz:-128.97 4.125Hz:-129.69; 8/16/24/32 Hz family -126.65, rest -116.76 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.875Hz:-127.93 10.125Hz:-128.85 1.625Hz:-128.97 4.125Hz:-129.69 3.125Hz:-129.69 2.625Hz:-130.11 dBFS; 8/16/24/32 Hz family -126.65 of -116.33 dBFS, rest -116.76 dBFS
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -131.8 char -116.32 anchor -160.82 sum -116.32 out -115.73; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -116.32 k2 -116.8 k3 -117.51 k4 -118.18 k5 -119.83 k6 -121.74 k7 -125.4 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -118.42 f_h 7.5: -125.36 f_h 8: -122.72 f_h 8.5: -122.09 f_h 9: -134.35 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -116.32 dBFS: top 2.875Hz:-127.83 1.625Hz:-127.93 1.875Hz:-128.14 3.125Hz:-128.85; 8/16/24/32 Hz family -125.62, rest -116.86 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.875Hz:-127.83 1.625Hz:-127.93 1.875Hz:-128.14 3.125Hz:-128.85 6.875Hz:-130.03 2.125Hz:-130.12 dBFS; 8/16/24/32 Hz family -125.62 of -116.32 dBFS, rest -116.86 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [base]: aliased dBFS core -131.37 char -46.537 anchor -155.71 sum -46.537 out -47.733; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -46.537 k2 -46.734 k3 -47.094 k4 -47.665 k5 -48.603 k6 -50.309 k7 -54.086 k8 -187.29 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -50.133 f_h 7.5: -50.24 f_h 8: -50.348 f_h 8.5: -50.449 f_h 9: -50.56 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -46.537 dBFS: top 5.625Hz:-58.774 6.125Hz:-59.434 6.375Hz:-59.783 6.625Hz:-60.549; 8/16/24/32 Hz family -53.195, rest -47.593 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 5.625Hz:-58.774 6.125Hz:-59.434 6.375Hz:-59.783 6.625Hz:-60.549 7.125Hz:-60.676 7.375Hz:-61.074 dBFS; 8/16/24/32 Hz family -53.195 of -46.537 dBFS, rest -47.593 dBFS
+  off-lattice power: below f_m -48.098 dBFS, f_m .. fs/4 -51.739 dBFS, above fs/4 -100.76 dBFS (L)
+  bin 9 f 6.0562 Hz (0.073492 f0) -60.258 dBFS, nearest mirrored harmonic 6.2572 Hz away
+  bin 10 f 6.7291 Hz (0.081657 f0) -61.1 dBFS, nearest mirrored harmonic 5.5843 Hz away
+  bin 114 f 76.712 Hz (0.93089 f0) -61.444 dBFS, nearest mirrored harmonic 6.6185 Hz away
+  bin 11 f 7.402 Hz (0.089823 f0) -61.869 dBFS, nearest mirrored harmonic 4.9113 Hz away
+  bin 131 f 88.152 Hz (1.0697 f0) -62.217 dBFS, nearest mirrored harmonic 6.5687 Hz away
+  bin 113 f 76.039 Hz (0.92273 f0) -62.415 dBFS, nearest mirrored harmonic 5.9456 Hz away
+  bin 12 f 8.075 Hz (0.097989 f0) -62.576 dBFS, nearest mirrored harmonic 4.2384 Hz away
+  bin 13 f 8.7479 Hz (0.10615 f0) -63.228 dBFS, nearest mirrored harmonic 3.5655 Hz away
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [SOLID]: aliased dBFS core -132.74 char -128.26 anchor -155.71 sum -128.26 out -123.7; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -128.26 k2 -128.54 k3 -128.51 k4 -128.87 k5 -131.46 k6 -132.25 k7 -135.65 k8 -191.04 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -130.36 f_h 7.5: -130.41 f_h 8: -130.55 f_h 8.5: -130.62 f_h 9: -130.65 dBFS
+  core tap -132.74 dBFS: top 6.125Hz:-143.01 6.625Hz:-143.24 7.375Hz:-143.91 8.125Hz:-145.99; 8/16/24/32 Hz family -138.35, rest -134.14 dBFS
+  char tap -128.26 dBFS: top 6.125Hz:-136.18 6.625Hz:-138.56 12.625Hz:-139.56 12.125Hz:-140.68; 8/16/24/32 Hz family -137.12, rest -128.87 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 6.125Hz:-136.17 6.625Hz:-138.57 12.625Hz:-139.57 12.125Hz:-140.67 11.375Hz:-140.73 7.375Hz:-141.22 dBFS; 8/16/24/32 Hz family -137.1 of -128.26 dBFS, rest -128.86 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [anchorFoldFeed 0]: aliased dBFS core -131.37 char -130.28 anchor -155.71 sum -130.26 out -95.951; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -130.26 k2 -130.3 k3 -130.33 k4 -130.48 k5 -140.25 k6 -143.12 k7 -153.08 k8 -187.47 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -139.65 f_h 7.5: -139.76 f_h 8: -139.82 f_h 8.5: -139.94 f_h 9: -140 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -130.28 dBFS: top 12.375Hz:-137.76 12.625Hz:-139.06 11.625Hz:-139.76 12.875Hz:-140.09; 8/16/24/32 Hz family -143.71, rest -130.48 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.375Hz:-137.76 12.625Hz:-139.06 11.625Hz:-139.76 12.875Hz:-140.09 11.875Hz:-141.42 12.125Hz:-142.48 dBFS; 8/16/24/32 Hz family -143.6 of -130.26 dBFS, rest -130.47 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Character amount 0]: aliased dBFS core -131.37 char -92.046 anchor -155.71 sum -92.046 out -85.897; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -92.046 k2 -92.966 k3 -93.446 k4 -94.473 k5 -95.346 k6 -97.373 k7 -103.76 k8 -198.09 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -95.615 f_h 7.5: -96.996 f_h 8: -97.636 f_h 8.5: -99.732 f_h 9: -100.86 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -92.046 dBFS: top 34.625Hz:-107.68 10.375Hz:-107.76 38.625Hz:-108.05 11.125Hz:-108.17; 8/16/24/32 Hz family -101.67, rest -92.547 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 34.625Hz:-107.68 10.375Hz:-107.76 38.625Hz:-108.05 11.125Hz:-108.17 25.625Hz:-108.49 33.625Hz:-108.52 dBFS; 8/16/24/32 Hz family -101.67 of -92.046 dBFS, rest -92.547 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [excitation mix 0]: aliased dBFS core -136.82 char -126.47 anchor -155.71 sum -126.46 out -100.35; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -126.46 k2 -126.49 k3 -126.51 k4 -126.53 k5 -135.11 k6 -135.81 k7 -139.85 k8 -188.21 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -134.3 f_h 7.5: -134.34 f_h 8: -134.44 f_h 8.5: -134.5 f_h 9: -134.53 dBFS
+  core tap -136.82 dBFS: top 6.375Hz:-148.16 5.875Hz:-149.49 6.875Hz:-150.73 8.375Hz:-152.29; 8/16/24/32 Hz family -144.02, rest -137.74 dBFS
+  char tap -126.47 dBFS: top 12.625Hz:-133.54 11.875Hz:-134.76 12.375Hz:-136.4 13.375Hz:-137.21; 8/16/24/32 Hz family -140.41, rest -126.65 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.625Hz:-133.53 11.875Hz:-134.75 12.375Hz:-136.4 13.375Hz:-137.21 12.875Hz:-138.08 11.625Hz:-138.15 dBFS; 8/16/24/32 Hz family -140.35 of -126.46 dBFS, rest -126.64 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Mass 50]: aliased dBFS core -133.7 char -131.3 anchor -155.71 sum -131.28 out -123.67; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -131.28 k2 -131.37 k3 -131.4 k4 -131.5 k5 -141.39 k6 -144.08 k7 -146.76 k8 -185.66 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -135.33 f_h 7.5: -135.35 f_h 8: -135.46 f_h 8.5: -135.49 f_h 9: -135.51 dBFS
+  core tap -133.7 dBFS: top 7.375Hz:-145.07 8.125Hz:-145.71 8.625Hz:-146.36 6.625Hz:-146.45; 8/16/24/32 Hz family -138.93, rest -135.25 dBFS
+  char tap -131.3 dBFS: top 12.125Hz:-138.78 12.875Hz:-139.69 12.625Hz:-140.48 11.375Hz:-141; 8/16/24/32 Hz family -149.66, rest -131.37 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.125Hz:-138.78 12.875Hz:-139.67 12.625Hz:-140.48 11.375Hz:-140.99 13.375Hz:-142.1 12.375Hz:-142.12 dBFS; 8/16/24/32 Hz family -149.21 of -131.28 dBFS, rest -131.35 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Fold 0]: aliased dBFS core -131.37 char -127.02 anchor -155.71 sum -127.01 out -77.753; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -127.01 k2 -127.07 k3 -127.1 k4 -127.14 k5 -133.99 k6 -136.36 k7 -139.5 k8 -184.6 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -130.26 f_h 7.5: -130.3 f_h 8: -130.35 f_h 8.5: -130.38 f_h 9: -130.4 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -127.02 dBFS: top 12.625Hz:-133.01 11.875Hz:-134.76 13.375Hz:-136.81 12.125Hz:-136.86; 8/16/24/32 Hz family -141.26, rest -127.19 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.625Hz:-133.01 11.875Hz:-134.76 13.375Hz:-136.81 12.125Hz:-136.87 11.375Hz:-137.26 12.875Hz:-141.14 dBFS; 8/16/24/32 Hz family -141.16 of -127.01 dBFS, rest -127.18 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Anchor level 0]: aliased dBFS core -131.37 char -129.92 anchor -161.73 sum -129.91 out -117.53; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -129.91 k2 -129.92 k3 -129.99 k4 -130.2 k5 -137.28 k6 -139.16 k7 -148.23 k8 -196.99 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -136.25 f_h 7.5: -136.28 f_h 8: -136.29 f_h 8.5: -136.31 f_h 9: -136.31 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -129.92 dBFS: top 12.375Hz:-137.71 12.875Hz:-139.54 11.625Hz:-139.57 12.625Hz:-139.9; 8/16/24/32 Hz family -139.13, rest -130.47 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.375Hz:-137.71 12.875Hz:-139.54 11.625Hz:-139.57 12.625Hz:-139.89 11.875Hz:-140.57 13.375Hz:-143.21 dBFS; 8/16/24/32 Hz family -139.12 of -129.91 dBFS, rest -130.46 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Mass 0]: aliased dBFS core -135.12 char -119.02 anchor -161.73 sum -119.02 out -117.24; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -119.02 k2 -119.05 k3 -119.12 k4 -119.16 k5 -130.21 k6 -136.73 k7 -144.09 k8 -191.86 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -120.36 f_h 7.5: -120.37 f_h 8: -120.38 f_h 8.5: -120.38 f_h 9: -120.38 dBFS
+  core tap -135.12 dBFS: top 10.875Hz:-146.93 11.375Hz:-147.26 10.125Hz:-148.56 5.625Hz:-148.69; 8/16/24/32 Hz family -142.01, rest -136.11 dBFS
+  char tap -119.02 dBFS: top 12.125Hz:-124.5 12.875Hz:-125.51 11.375Hz:-127.65 13.375Hz:-129.02; 8/16/24/32 Hz family -134.64, rest -119.15 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.125Hz:-124.5 12.875Hz:-125.51 11.375Hz:-127.65 13.375Hz:-129.02 12.625Hz:-131.24 11.875Hz:-132.62 dBFS; 8/16/24/32 Hz family -134.62 of -119.02 dBFS, rest -119.14 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Mass 0 + Fold 0]: aliased dBFS core -135.12 char -122.08 anchor -161.73 sum -122.08 out -118.1; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -122.08 k2 -122.09 k3 -122.13 k4 -122.16 k5 -134.81 k6 -140.27 k7 -144.17 k8 -192.7 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -124.31 f_h 7.5: -124.32 f_h 8: -124.33 f_h 8.5: -124.33 f_h 9: -124.34 dBFS
+  core tap -135.12 dBFS: top 10.875Hz:-146.93 11.375Hz:-147.26 10.125Hz:-148.56 5.625Hz:-148.69; 8/16/24/32 Hz family -142.01, rest -136.11 dBFS
+  char tap -122.08 dBFS: top 12.125Hz:-127.71 12.875Hz:-129.27 11.375Hz:-130.7 12.625Hz:-131.53; 8/16/24/32 Hz family -139.72, rest -122.16 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.125Hz:-127.71 12.875Hz:-129.27 11.375Hz:-130.71 12.625Hz:-131.53 13.375Hz:-131.78 11.875Hz:-134.3 dBFS; 8/16/24/32 Hz family -139.69 of -122.08 dBFS, rest -122.16 dBFS
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Mass 0 + Fold 100]: aliased dBFS core -135.12 char -119.02 anchor -161.73 sum -119.02 out -117.24; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -119.02 k2 -119.05 k3 -119.12 k4 -119.16 k5 -130.21 k6 -136.73 k7 -144.09 k8 -191.86 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -120.36 f_h 7.5: -120.37 f_h 8: -120.38 f_h 8.5: -120.38 f_h 9: -120.38 dBFS
+  core tap -135.12 dBFS: top 10.875Hz:-146.93 11.375Hz:-147.26 10.125Hz:-148.56 5.625Hz:-148.69; 8/16/24/32 Hz family -142.01, rest -136.11 dBFS
+  char tap -119.02 dBFS: top 12.125Hz:-124.5 12.875Hz:-125.51 11.375Hz:-127.65 13.375Hz:-129.02; 8/16/24/32 Hz family -134.64, rest -119.15 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.125Hz:-124.5 12.875Hz:-125.51 11.375Hz:-127.65 13.375Hz:-129.02 12.625Hz:-131.24 11.875Hz:-132.62 dBFS; 8/16/24/32 Hz family -134.62 of -119.02 dBFS, rest -119.14 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -129.81 char -103.98 anchor -154.8 sum -103.98 out -55.896; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -103.98 k2 -104.15 k3 -104.4 k4 -104.67 k5 -105.8 k6 -108.45 k7 -112.51 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -105.72 f_h 7.5: -115.81 f_h 8: -108.89 f_h 8.5: -108.41 f_h 9: -133.4 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -103.98 dBFS: top 2.625Hz:-112.48 1.625Hz:-112.6 2.375Hz:-113.7 2.875Hz:-114.47; 8/16/24/32 Hz family -115.24, rest -104.31 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-112.48 1.625Hz:-112.6 2.375Hz:-113.7 2.875Hz:-114.47 1.875Hz:-115.17 1.375Hz:-116.13 dBFS; 8/16/24/32 Hz family -115.24 of -103.98 dBFS, rest -104.31 dBFS
+  off-lattice power: below f_m -132.12 dBFS, f_m .. fs/4 -104.38 dBFS, above fs/4 -114.54 dBFS (L)
+  bin 8955 f 1506.5 Hz (73.124 f0) -131.51 dBFS, nearest mirrored harmonic 1.4517 Hz away
+  bin 10058 f 1692 Hz (82.131 f0) -131.72 dBFS, nearest mirrored harmonic 1.3116 Hz away
+  bin 8956 f 1506.7 Hz (73.132 f0) -131.89 dBFS, nearest mirrored harmonic 1.2834 Hz away
+  bin 9175 f 1543.5 Hz (74.921 f0) -131.93 dBFS, nearest mirrored harmonic 2.3725 Hz away
+  bin 10057 f 1691.9 Hz (82.123 f0) -132.02 dBFS, nearest mirrored harmonic 1.4798 Hz away
+  bin 10516 f 1769.1 Hz (85.871 f0) -132.03 dBFS, nearest mirrored harmonic 1.3475 Hz away
+  bin 8073 f 1358.1 Hz (65.922 f0) -132.24 dBFS, nearest mirrored harmonic 2.4006 Hz away
+  bin 10027 f 1686.8 Hz (81.878 f0) -132.24 dBFS, nearest mirrored harmonic 1.4908 Hz away
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -129.48 char -104.52 anchor -154.8 sum -104.52 out -75.698; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -104.52 k2 -104.72 k3 -105.05 k4 -105.19 k5 -106.87 k6 -109.36 k7 -113.79 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -106.35 f_h 7.5: -114.88 f_h 8: -110.39 f_h 8.5: -110.04 f_h 9: -135.65 dBFS
+  core tap -129.48 dBFS: top 1.625Hz:-137.73 2.875Hz:-139.35 1.375Hz:-139.41 1.875Hz:-139.61; 8/16/24/32 Hz family -144.58, rest -129.62 dBFS
+  char tap -104.52 dBFS: top 2.625Hz:-113.19 1.625Hz:-113.77 2.375Hz:-114.3 2.875Hz:-115.37; 8/16/24/32 Hz family -114.03, rest -105.04 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-113.19 1.625Hz:-113.77 2.375Hz:-114.3 2.875Hz:-115.37 1.875Hz:-116.5 3.125Hz:-117.15 dBFS; 8/16/24/32 Hz family -114.03 of -104.52 dBFS, rest -105.04 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -129.81 char -102.53 anchor -154.8 sum -102.53 out -81.139; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -102.53 k2 -102.67 k3 -102.89 k4 -103.2 k5 -104.02 k6 -106.82 k7 -110.33 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -104.34 f_h 7.5: -114.46 f_h 8: -107.17 f_h 8.5: -106.93 f_h 9: -136.56 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -102.53 dBFS: top 1.625Hz:-110.4 2.625Hz:-110.43 2.375Hz:-111.59 2.875Hz:-113.48; 8/16/24/32 Hz family -116.57, rest -102.7 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-110.4 2.625Hz:-110.43 2.375Hz:-111.59 2.875Hz:-113.48 1.375Hz:-113.65 1.875Hz:-113.79 dBFS; 8/16/24/32 Hz family -116.57 of -102.53 dBFS, rest -102.7 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -129.81 char -89.625 anchor -154.8 sum -89.625 out -79.688; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -89.625 k2 -90.028 k3 -91.587 k4 -91.667 k5 -95.584 k6 -97.343 k7 -97.549 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -92.238 f_h 7.5: -98.617 f_h 8: -99.197 f_h 8.5: -99.337 f_h 9: -119.28 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -89.625 dBFS: top 7.125Hz:-100.33 4.375Hz:-100.61 7.375Hz:-101.53 6.875Hz:-102.47; 8/16/24/32 Hz family -96.761, rest -90.558 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 7.125Hz:-100.33 4.375Hz:-100.61 7.375Hz:-101.53 6.875Hz:-102.47 4.125Hz:-102.55 3.125Hz:-103.26 dBFS; 8/16/24/32 Hz family -96.761 of -89.625 dBFS, rest -90.558 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -129.81 char -108.58 anchor -154.8 sum -108.58 out -89.775; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -108.58 k2 -108.77 k3 -108.95 k4 -109.16 k5 -110.04 k6 -112.72 k7 -117.23 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -110.26 f_h 7.5: -120.81 f_h 8: -113.04 f_h 8.5: -112.59 f_h 9: -132.71 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -108.58 dBFS: top 1.625Hz:-116.76 2.625Hz:-117.02 2.375Hz:-117.74 1.875Hz:-118.35; 8/16/24/32 Hz family -121.52, rest -108.8 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-116.76 2.625Hz:-117.02 2.375Hz:-117.74 1.875Hz:-118.35 2.875Hz:-119.45 1.375Hz:-120.37 dBFS; 8/16/24/32 Hz family -121.52 of -108.58 dBFS, rest -108.8 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -104.47 anchor -154.8 sum -104.47 out -70.72; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -104.47 k2 -104.66 k3 -104.82 k4 -105.09 k5 -106.13 k6 -108.05 k7 -112.38 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -106.61 f_h 7.5: -115.6 f_h 8: -108.66 f_h 8.5: -108.33 f_h 9: -133.74 dBFS
+  core tap -129.9 dBFS: top 1.625Hz:-137.98 1.875Hz:-138.91 2.875Hz:-139.26 1.375Hz:-139.37; 8/16/24/32 Hz family -144.85, rest -130.04 dBFS
+  char tap -104.47 dBFS: top 1.625Hz:-111.66 2.625Hz:-113.85 2.375Hz:-114.39 1.875Hz:-114.75; 8/16/24/32 Hz family -115.54, rest -104.83 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-111.66 2.625Hz:-113.85 2.375Hz:-114.39 1.875Hz:-114.75 1.375Hz:-115.92 2.875Hz:-116.19 dBFS; 8/16/24/32 Hz family -115.54 of -104.47 dBFS, rest -104.83 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -130.67 char -105.92 anchor -154.8 sum -105.92 out -57.353; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -105.92 k2 -106.21 k3 -106.96 k4 -106.86 k5 -110.63 k6 -109.56 k7 -116.2 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -108.99 f_h 7.5: -116.13 f_h 8: -113.37 f_h 8.5: -112.6 f_h 9: -133.85 dBFS
+  core tap -130.67 dBFS: top 1.875Hz:-141.03 2.125Hz:-141.09 3.125Hz:-141.97 2.875Hz:-142.09; 8/16/24/32 Hz family -143.1, rest -130.92 dBFS
+  char tap -105.92 dBFS: top 8.375Hz:-115.1 8.125Hz:-115.83 1.875Hz:-118 2.125Hz:-118.7; 8/16/24/32 Hz family -110.49, rest -107.78 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.375Hz:-115.1 8.125Hz:-115.83 1.875Hz:-118 2.125Hz:-118.7 1.625Hz:-119.04 8.625Hz:-119.21 dBFS; 8/16/24/32 Hz family -110.49 of -105.92 dBFS, rest -107.78 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -129.81 char -113.18 anchor -154.8 sum -113.18 out -91.808; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -113.18 k2 -113.39 k3 -113.62 k4 -114.03 k5 -114.88 k6 -117.62 k7 -121.23 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -114.92 f_h 7.5: -124.46 f_h 8: -118.11 f_h 8.5: -117.76 f_h 9: -133.58 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -113.18 dBFS: top 2.625Hz:-121.47 1.625Hz:-121.62 2.375Hz:-122.55 1.875Hz:-124.51; 8/16/24/32 Hz family -126.01, rest -113.42 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-121.47 1.625Hz:-121.62 2.375Hz:-122.55 1.875Hz:-124.51 2.875Hz:-124.7 1.375Hz:-124.83 dBFS; 8/16/24/32 Hz family -126 of -113.18 dBFS, rest -113.42 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -129.81 char -102.97 anchor -160.82 sum -102.97 out -47.745; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -102.97 k2 -103.12 k3 -103.34 k4 -103.62 k5 -104.56 k6 -107.51 k7 -111.06 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -104.66 f_h 7.5: -114.95 f_h 8: -107.75 f_h 8.5: -107.33 f_h 9: -135.77 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -102.97 dBFS: top 2.625Hz:-110.89 1.625Hz:-111.18 2.375Hz:-111.89 2.875Hz:-113.66; 8/16/24/32 Hz family -116.35, rest -103.17 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-110.89 1.625Hz:-111.18 2.375Hz:-111.89 2.875Hz:-113.66 1.875Hz:-114.24 1.375Hz:-114.53 dBFS; 8/16/24/32 Hz family -116.35 of -102.97 dBFS, rest -103.17 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -131.8 char -118.15 anchor -160.82 sum -118.15 out -117.62; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -118.15 k2 -118.66 k3 -119.24 k4 -120.13 k5 -122.32 k6 -123.91 k7 -127.2 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -120.11 f_h 7.5: -126.45 f_h 8: -124.93 f_h 8.5: -124.95 f_h 9: -135.38 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -118.15 dBFS: top 3.125Hz:-129.73 2.875Hz:-130.75 1.875Hz:-130.86 1.625Hz:-131.02; 8/16/24/32 Hz family -126.88, rest -118.77 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-129.73 2.875Hz:-130.75 1.875Hz:-130.86 1.625Hz:-131.02 3.375Hz:-131.96 4.375Hz:-132.28 dBFS; 8/16/24/32 Hz family -126.87 of -118.15 dBFS, rest -118.77 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -131.8 char -119.04 anchor -160.82 sum -119.04 out -118.6; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -119.04 k2 -119.5 k3 -120.16 k4 -121.01 k5 -123.25 k6 -124.85 k7 -128.34 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -121.01 f_h 7.5: -127.23 f_h 8: -125.79 f_h 8.5: -126.06 f_h 9: -133.86 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -119.04 dBFS: top 3.125Hz:-130.38 2.875Hz:-131.24 1.875Hz:-131.98 1.625Hz:-132.35; 8/16/24/32 Hz family -127.95, rest -119.63 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-130.39 2.875Hz:-131.25 1.875Hz:-131.98 1.625Hz:-132.35 4.375Hz:-132.89 3.375Hz:-132.9 dBFS; 8/16/24/32 Hz family -127.95 of -119.04 dBFS, rest -119.63 dBFS
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -131.8 char -118.15 anchor -160.82 sum -118.15 out -117.62; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -118.15 k2 -118.66 k3 -119.24 k4 -120.13 k5 -122.32 k6 -123.91 k7 -127.2 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -120.11 f_h 7.5: -126.45 f_h 8: -124.93 f_h 8.5: -124.95 f_h 9: -135.38 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -118.15 dBFS: top 3.125Hz:-129.73 2.875Hz:-130.75 1.875Hz:-130.86 1.625Hz:-131.02; 8/16/24/32 Hz family -126.88, rest -118.77 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-129.73 2.875Hz:-130.75 1.875Hz:-130.86 1.625Hz:-131.02 3.375Hz:-131.96 4.375Hz:-132.28 dBFS; 8/16/24/32 Hz family -126.87 of -118.15 dBFS, rest -118.77 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -129.81 char -101.16 anchor -154.8 sum -101.16 out -72.832; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -101.16 k2 -101.33 k3 -101.58 k4 -101.72 k5 -102.75 k6 -105.41 k7 -109.85 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -102.92 f_h 7.5: -113.17 f_h 8: -105.86 f_h 8.5: -105.39 f_h 9: -128.96 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -101.16 dBFS: top 1.625Hz:-109.38 2.625Hz:-109.57 2.375Hz:-110.37 1.875Hz:-111.3; 8/16/24/32 Hz family -112.52, rest -101.49 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-109.38 2.625Hz:-109.57 2.375Hz:-110.37 1.875Hz:-111.3 2.875Hz:-111.92 1.375Hz:-113.48 dBFS; 8/16/24/32 Hz family -112.52 of -101.16 dBFS, rest -101.49 dBFS
+  off-lattice power: below f_m -131.21 dBFS, f_m .. fs/4 -101.31 dBFS, above fs/4 -116.03 dBFS (R)
+  bin 3316 f 557.84 Hz (27.078 f0) -125.28 dBFS, nearest mirrored harmonic 2.4108 Hz away
+  bin 3445 f 579.55 Hz (28.131 f0) -125.91 dBFS, nearest mirrored harmonic 1.3111 Hz away
+  bin 3444 f 579.38 Hz (28.123 f0) -126.21 dBFS, nearest mirrored harmonic 1.4793 Hz away
+  bin 3317 f 558.01 Hz (27.086 f0) -126.37 dBFS, nearest mirrored harmonic 2.2426 Hz away
+  bin 3414 f 574.33 Hz (27.878 f0) -126.59 dBFS, nearest mirrored harmonic 1.4913 Hz away
+  bin 2072 f 348.57 Hz (16.919 f0) -127.22 dBFS, nearest mirrored harmonic 2.3481 Hz away
+  bin 3315 f 557.68 Hz (27.069 f0) -127.26 dBFS, nearest mirrored harmonic 2.579 Hz away
+  bin 2949 f 496.1 Hz (24.081 f0) -127.32 dBFS, nearest mirrored harmonic 2.3453 Hz away
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -129.48 char -102.27 anchor -154.8 sum -102.27 out -72.55; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -102.27 k2 -102.46 k3 -102.76 k4 -102.97 k5 -104.48 k6 -107.22 k7 -111.4 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -103.96 f_h 7.5: -112.33 f_h 8: -107.92 f_h 8.5: -107.6 f_h 9: -129.82 dBFS
+  core tap -129.48 dBFS: top 1.625Hz:-137.73 2.875Hz:-139.35 1.375Hz:-139.41 1.875Hz:-139.61; 8/16/24/32 Hz family -144.58, rest -129.62 dBFS
+  char tap -102.27 dBFS: top 2.625Hz:-110.82 1.625Hz:-111.29 2.375Hz:-111.89 2.875Hz:-113.07; 8/16/24/32 Hz family -113.22, rest -102.64 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-110.82 1.625Hz:-111.29 2.375Hz:-111.89 2.875Hz:-113.07 1.875Hz:-113.9 3.125Hz:-114.75 dBFS; 8/16/24/32 Hz family -113.22 of -102.27 dBFS, rest -102.64 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -129.81 char -100.2 anchor -154.8 sum -100.2 out -70.908; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -100.2 k2 -100.35 k3 -100.58 k4 -100.73 k5 -101.43 k6 -104.15 k7 -108.04 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -102.12 f_h 7.5: -112.62 f_h 8: -104.42 f_h 8.5: -104.02 f_h 9: -134.61 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -100.2 dBFS: top 1.625Hz:-107.8 2.625Hz:-108.45 2.375Hz:-108.84 1.875Hz:-110.51; 8/16/24/32 Hz family -113.31, rest -100.42 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-107.8 2.625Hz:-108.45 2.375Hz:-108.84 1.875Hz:-110.51 1.375Hz:-111.1 2.875Hz:-111.79 dBFS; 8/16/24/32 Hz family -113.31 of -100.2 dBFS, rest -100.42 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -129.81 char -88.087 anchor -154.8 sum -88.087 out -77.859; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -88.087 k2 -88.474 k3 -89.741 k4 -90.054 k5 -92.649 k6 -94.593 k7 -95.988 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -90.509 f_h 7.5: -95.852 f_h 8: -95.527 f_h 8.5: -95.647 f_h 9: -116.34 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -88.087 dBFS: top 7.125Hz:-98.638 4.375Hz:-99.148 7.375Hz:-99.719 6.875Hz:-100.73; 8/16/24/32 Hz family -95.001, rest -89.076 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 7.125Hz:-98.638 4.375Hz:-99.147 7.375Hz:-99.719 6.875Hz:-100.73 4.125Hz:-100.97 3.125Hz:-101.77 dBFS; 8/16/24/32 Hz family -95 of -88.087 dBFS, rest -89.076 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -129.81 char -108.53 anchor -154.8 sum -108.53 out -91.281; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -108.53 k2 -108.71 k3 -108.9 k4 -109.1 k5 -109.99 k6 -112.68 k7 -117.18 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -110.22 f_h 7.5: -120.22 f_h 8: -113 f_h 8.5: -112.55 f_h 9: -132.13 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -108.53 dBFS: top 1.625Hz:-116.72 2.625Hz:-116.95 2.375Hz:-117.67 1.875Hz:-118.32; 8/16/24/32 Hz family -121.39, rest -108.76 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-116.72 2.625Hz:-116.95 2.375Hz:-117.67 1.875Hz:-118.32 2.875Hz:-119.38 1.375Hz:-120.31 dBFS; 8/16/24/32 Hz family -121.39 of -108.53 dBFS, rest -108.76 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -101.9 anchor -154.8 sum -101.9 out -66.683; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -101.9 k2 -102.11 k3 -102.25 k4 -102.64 k5 -103.62 k6 -105.58 k7 -109.58 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -103.97 f_h 7.5: -112.6 f_h 8: -106.02 f_h 8.5: -105.78 f_h 9: -131.29 dBFS
+  core tap -129.9 dBFS: top 1.625Hz:-137.98 1.875Hz:-138.91 2.875Hz:-139.26 1.375Hz:-139.37; 8/16/24/32 Hz family -144.85, rest -130.04 dBFS
+  char tap -101.9 dBFS: top 1.625Hz:-109.08 2.625Hz:-111.42 1.875Hz:-112.07 2.375Hz:-112.17; 8/16/24/32 Hz family -114.2, rest -102.16 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-109.08 2.625Hz:-111.42 1.875Hz:-112.07 2.375Hz:-112.17 1.375Hz:-113.17 2.875Hz:-113.27 dBFS; 8/16/24/32 Hz family -114.2 of -101.9 dBFS, rest -102.16 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -130.67 char -104.33 anchor -154.8 sum -104.33 out -82.103; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -104.33 k2 -104.55 k3 -105.23 k4 -105.08 k5 -109.48 k6 -109.11 k7 -114.96 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -106.86 f_h 7.5: -112.85 f_h 8: -112.23 f_h 8.5: -111.45 f_h 9: -127.3 dBFS
+  core tap -130.67 dBFS: top 1.875Hz:-141.03 2.125Hz:-141.09 3.125Hz:-141.97 2.875Hz:-142.09; 8/16/24/32 Hz family -143.1, rest -130.92 dBFS
+  char tap -104.33 dBFS: top 8.375Hz:-112.8 8.125Hz:-112.96 3.125Hz:-114.44 2.875Hz:-114.94; 8/16/24/32 Hz family -108.78, rest -106.27 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.375Hz:-112.8 8.125Hz:-112.96 3.125Hz:-114.44 2.875Hz:-114.94 3.375Hz:-116.97 2.625Hz:-117.78 dBFS; 8/16/24/32 Hz family -108.78 of -104.33 dBFS, rest -106.27 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -129.81 char -111.05 anchor -154.8 sum -111.05 out -73.596; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -111.05 k2 -111.24 k3 -111.47 k4 -111.81 k5 -112.62 k6 -115.34 k7 -119.03 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -112.81 f_h 7.5: -122.41 f_h 8: -115.67 f_h 8.5: -115.22 f_h 9: -132.29 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -111.05 dBFS: top 1.625Hz:-119.34 2.625Hz:-119.72 2.375Hz:-120.31 2.875Hz:-122.07; 8/16/24/32 Hz family -124.04, rest -111.28 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-119.34 2.625Hz:-119.72 2.375Hz:-120.31 2.875Hz:-122.07 1.875Hz:-122.27 1.375Hz:-122.39 dBFS; 8/16/24/32 Hz family -124.04 of -111.05 dBFS, rest -111.28 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -129.81 char -100.1 anchor -160.82 sum -100.1 out -70.553; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -100.1 k2 -100.27 k3 -100.49 k4 -100.66 k5 -101.4 k6 -104.3 k7 -108.39 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -101.88 f_h 7.5: -112.92 f_h 8: -104.58 f_h 8.5: -104.17 f_h 9: -132.21 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -100.1 dBFS: top 1.625Hz:-108.02 2.625Hz:-108.18 2.375Hz:-108.72 1.875Hz:-110.4; 8/16/24/32 Hz family -113, rest -100.33 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-108.02 2.625Hz:-108.18 2.375Hz:-108.72 1.875Hz:-110.4 2.875Hz:-111.57 1.375Hz:-111.76 dBFS; 8/16/24/32 Hz family -112.99 of -100.1 dBFS, rest -100.33 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -131.8 char -115.13 anchor -160.82 sum -115.13 out -78.279; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -115.13 k2 -115.86 k3 -116.56 k4 -117.34 k5 -119.26 k6 -121.07 k7 -124.02 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -117.43 f_h 7.5: -123.91 f_h 8: -122.22 f_h 8.5: -122.01 f_h 9: -131.15 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -115.13 dBFS: top 2.875Hz:-127.58 1.625Hz:-128.67 7.125Hz:-128.71 3.125Hz:-129.26; 8/16/24/32 Hz family -123.76, rest -115.77 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.875Hz:-127.58 1.625Hz:-128.67 7.125Hz:-128.71 3.125Hz:-129.26 9.125Hz:-129.34 6.875Hz:-129.43 dBFS; 8/16/24/32 Hz family -123.76 of -115.13 dBFS, rest -115.77 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -131.8 char -116.04 anchor -160.82 sum -116.04 out -80.003; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -116.04 k2 -116.75 k3 -117.52 k4 -118.36 k5 -120.28 k6 -122.11 k7 -124.98 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -118.37 f_h 7.5: -124.75 f_h 8: -123.25 f_h 8.5: -123.18 f_h 9: -130.92 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -116.04 dBFS: top 2.875Hz:-128.94 7.125Hz:-129.81 4.375Hz:-129.86 1.625Hz:-130; 8/16/24/32 Hz family -124.37, rest -116.73 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.875Hz:-128.94 7.125Hz:-129.81 4.375Hz:-129.86 1.625Hz:-130 9.125Hz:-130.23 3.125Hz:-130.32 dBFS; 8/16/24/32 Hz family -124.37 of -116.04 dBFS, rest -116.73 dBFS
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -131.8 char -115.13 anchor -160.82 sum -115.13 out -78.279; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -115.13 k2 -115.86 k3 -116.56 k4 -117.34 k5 -119.26 k6 -121.07 k7 -124.02 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -117.43 f_h 7.5: -123.91 f_h 8: -122.22 f_h 8.5: -122.01 f_h 9: -131.15 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -115.13 dBFS: top 2.875Hz:-127.58 1.625Hz:-128.67 7.125Hz:-128.71 3.125Hz:-129.26; 8/16/24/32 Hz family -123.76, rest -115.77 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.875Hz:-127.58 1.625Hz:-128.67 7.125Hz:-128.71 3.125Hz:-129.26 9.125Hz:-129.34 6.875Hz:-129.43 dBFS; 8/16/24/32 Hz family -123.76 of -115.13 dBFS, rest -115.77 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -129.81 char -108.94 anchor -154.8 sum -108.94 out -88.363; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -108.94 k2 -109.11 k3 -109.38 k4 -109.59 k5 -110.94 k6 -113.52 k7 -117.77 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -110.64 f_h 7.5: -120.52 f_h 8: -114.25 f_h 8.5: -113.86 f_h 9: -131.25 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -108.94 dBFS: top 2.625Hz:-117.34 1.625Hz:-117.81 2.375Hz:-118.5 2.875Hz:-119.33; 8/16/24/32 Hz family -119.43, rest -109.35 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-117.34 1.625Hz:-117.81 2.375Hz:-118.5 2.875Hz:-119.33 1.875Hz:-120.11 1.375Hz:-121.6 dBFS; 8/16/24/32 Hz family -119.43 of -108.94 dBFS, rest -109.35 dBFS
+  off-lattice power: below f_m -127.18 dBFS, f_m .. fs/4 -109.35 dBFS, above fs/4 -120.18 dBFS (L)
+  bin 10057 f 1691.9 Hz (82.123 f0) -137.66 dBFS, nearest mirrored harmonic 1.4798 Hz away
+  bin 6751 f 1135.7 Hz (55.127 f0) -137.79 dBFS, nearest mirrored harmonic 1.3954 Hz away
+  bin 10027 f 1686.8 Hz (81.878 f0) -137.82 dBFS, nearest mirrored harmonic 1.4908 Hz away
+  bin 7210 f 1212.9 Hz (58.875 f0) -138.03 dBFS, nearest mirrored harmonic 1.4318 Hz away
+  bin 6745 f 1134.7 Hz (55.078 f0) -138.11 dBFS, nearest mirrored harmonic 2.4048 Hz away
+  bin 5869 f 987.33 Hz (47.925 f0) -138.12 dBFS, nearest mirrored harmonic 2.4569 Hz away
+  bin 6720 f 1130.5 Hz (54.874 f0) -138.12 dBFS, nearest mirrored harmonic 1.4069 Hz away
+  bin 8955 f 1506.5 Hz (73.124 f0) -138.15 dBFS, nearest mirrored harmonic 1.4517 Hz away
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -129.48 char -109.56 anchor -154.8 sum -109.56 out -87.993; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -109.56 k2 -109.78 k3 -110.08 k4 -110.27 k5 -112 k6 -114.66 k7 -118.96 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -111.32 f_h 7.5: -119.7 f_h 8: -115.86 f_h 8.5: -115.41 f_h 9: -135.74 dBFS
+  core tap -129.48 dBFS: top 1.625Hz:-137.73 2.875Hz:-139.35 1.375Hz:-139.41 1.875Hz:-139.61; 8/16/24/32 Hz family -144.58, rest -129.62 dBFS
+  char tap -109.56 dBFS: top 2.625Hz:-117.97 2.375Hz:-119.16 1.625Hz:-119.18 2.875Hz:-120.51; 8/16/24/32 Hz family -118.7, rest -110.13 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-117.97 2.375Hz:-119.16 1.625Hz:-119.18 2.875Hz:-120.51 1.875Hz:-122.04 3.125Hz:-122.34 dBFS; 8/16/24/32 Hz family -118.7 of -109.56 dBFS, rest -110.13 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -129.81 char -106.86 anchor -154.8 sum -106.86 out -87.115; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -106.86 k2 -107 k3 -107.24 k4 -107.52 k5 -108.38 k6 -111.18 k7 -114.98 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -108.64 f_h 7.5: -118.3 f_h 8: -111.38 f_h 8.5: -110.99 f_h 9: -133.8 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -106.86 dBFS: top 2.625Hz:-114.85 1.625Hz:-114.95 2.375Hz:-115.94 2.875Hz:-117.52; 8/16/24/32 Hz family -120.26, rest -107.06 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-114.85 1.625Hz:-114.95 2.375Hz:-115.94 2.875Hz:-117.52 1.875Hz:-118.16 1.375Hz:-118.25 dBFS; 8/16/24/32 Hz family -120.26 of -106.86 dBFS, rest -107.06 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -129.81 char -95.183 anchor -154.8 sum -95.183 out -90.061; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -95.183 k2 -95.602 k3 -96.15 k4 -97.511 k5 -99.143 k6 -101.09 k7 -104.78 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -96.897 f_h 7.5: -102 f_h 8: -102.06 f_h 8.5: -102.13 f_h 9: -119.79 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -95.183 dBFS: top 3.875Hz:-106.07 4.125Hz:-106.85 1.625Hz:-107.07 1.875Hz:-107.24; 8/16/24/32 Hz family -105.74, rest -95.582 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.875Hz:-106.07 4.125Hz:-106.85 1.625Hz:-107.07 1.875Hz:-107.24 4.625Hz:-108.45 4.375Hz:-108.93 dBFS; 8/16/24/32 Hz family -105.74 of -95.183 dBFS, rest -95.582 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -129.81 char -106.96 anchor -154.8 sum -106.96 out -95.032; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -106.96 k2 -107.15 k3 -107.35 k4 -107.55 k5 -108.45 k6 -111.25 k7 -115.65 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -108.63 f_h 7.5: -119.28 f_h 8: -111.53 f_h 8.5: -111.09 f_h 9: -129.82 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -106.96 dBFS: top 1.625Hz:-115.19 2.625Hz:-115.25 2.375Hz:-116.09 1.875Hz:-116.91; 8/16/24/32 Hz family -119.81, rest -107.19 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-115.19 2.625Hz:-115.24 2.375Hz:-116.09 1.875Hz:-116.91 2.875Hz:-117.73 1.375Hz:-118.95 dBFS; 8/16/24/32 Hz family -119.81 of -106.96 dBFS, rest -107.19 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -109.62 anchor -154.8 sum -109.62 out -87.631; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -109.62 k2 -109.86 k3 -109.99 k4 -110.4 k5 -111.34 k6 -113.3 k7 -117.39 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -111.73 f_h 7.5: -120.65 f_h 8: -113.83 f_h 8.5: -113.58 f_h 9: -132.2 dBFS
+  core tap -129.9 dBFS: top 1.625Hz:-137.98 1.875Hz:-138.91 2.875Hz:-139.26 1.375Hz:-139.37; 8/16/24/32 Hz family -144.85, rest -130.04 dBFS
+  char tap -109.62 dBFS: top 1.625Hz:-116.89 2.625Hz:-119.1 2.375Hz:-119.78 1.875Hz:-119.99; 8/16/24/32 Hz family -121.49, rest -109.91 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-116.89 2.625Hz:-119.1 2.375Hz:-119.78 1.875Hz:-119.99 1.375Hz:-120.95 2.875Hz:-121.25 dBFS; 8/16/24/32 Hz family -121.49 of -109.62 dBFS, rest -109.91 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -130.67 char -109.76 anchor -154.8 sum -109.76 out -51.869; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -109.76 k2 -109.97 k3 -110.71 k4 -110.42 k5 -116.46 k6 -113.97 k7 -122.17 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -112.91 f_h 7.5: -118.48 f_h 8: -119.33 f_h 8.5: -118.49 f_h 9: -131.66 dBFS
+  core tap -130.67 dBFS: top 1.875Hz:-141.03 2.125Hz:-141.09 3.125Hz:-141.97 2.875Hz:-142.09; 8/16/24/32 Hz family -143.1, rest -130.92 dBFS
+  char tap -109.76 dBFS: top 8.375Hz:-116.82 8.125Hz:-117.76 3.125Hz:-120.88 2.875Hz:-121.64; 8/16/24/32 Hz family -113.3, rest -112.29 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.375Hz:-116.82 8.125Hz:-117.76 3.125Hz:-120.88 2.875Hz:-121.64 8.625Hz:-122.7 3.375Hz:-123.11 dBFS; 8/16/24/32 Hz family -113.3 of -109.76 dBFS, rest -112.29 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -129.81 char -117.38 anchor -154.8 sum -117.38 out -86.783; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -117.38 k2 -117.58 k3 -117.89 k4 -118.26 k5 -119.06 k6 -122.4 k7 -126 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -119.01 f_h 7.5: -127.86 f_h 8: -122.67 f_h 8.5: -122.41 f_h 9: -132.8 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -117.38 dBFS: top 2.625Hz:-125.02 2.375Hz:-126.35 1.625Hz:-126.47 2.875Hz:-128.73; 8/16/24/32 Hz family -129.77, rest -117.64 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.625Hz:-125.02 2.375Hz:-126.35 1.625Hz:-126.47 2.875Hz:-128.73 1.875Hz:-129.38 1.375Hz:-129.68 dBFS; 8/16/24/32 Hz family -129.78 of -117.38 dBFS, rest -117.64 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -129.81 char -107.28 anchor -160.82 sum -107.28 out -91.761; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -107.28 k2 -107.46 k3 -107.65 k4 -107.84 k5 -108.52 k6 -111.51 k7 -115.67 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -109.02 f_h 7.5: -120.21 f_h 8: -111.71 f_h 8.5: -111.29 f_h 9: -132.76 dBFS
+  core tap -129.81 dBFS: top 1.625Hz:-137.71 1.375Hz:-139.42 1.875Hz:-139.46 2.875Hz:-140.05; 8/16/24/32 Hz family -144.69, rest -129.96 dBFS
+  char tap -107.28 dBFS: top 1.625Hz:-115.14 2.625Hz:-115.46 2.375Hz:-115.73 1.875Hz:-117.61; 8/16/24/32 Hz family -120.87, rest -107.48 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-115.14 2.625Hz:-115.45 2.375Hz:-115.73 1.875Hz:-117.6 2.875Hz:-118.79 1.375Hz:-118.98 dBFS; 8/16/24/32 Hz family -120.87 of -107.28 dBFS, rest -107.48 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -131.8 char -119.11 anchor -160.82 sum -119.11 out -118.77; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -119.11 k2 -119.66 k3 -120.35 k4 -121.31 k5 -123.28 k6 -125 k7 -128.63 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -121.19 f_h 7.5: -127.13 f_h 8: -126.44 f_h 8.5: -126.26 f_h 9: -132.4 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -119.11 dBFS: top 2.875Hz:-131.1 3.125Hz:-131.16 1.625Hz:-132.22 4.375Hz:-133.31; 8/16/24/32 Hz family -128.05, rest -119.7 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.875Hz:-131.1 3.125Hz:-131.16 1.625Hz:-132.22 4.375Hz:-133.31 6.875Hz:-133.33 3.375Hz:-133.74 dBFS; 8/16/24/32 Hz family -128.05 of -119.11 dBFS, rest -119.7 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -131.8 char -120.13 anchor -160.82 sum -120.13 out -119.28; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -120.13 k2 -120.82 k3 -121.39 k4 -122.5 k5 -124.18 k6 -126.34 k7 -129.03 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -122.19 f_h 7.5: -128.04 f_h 8: -127.55 f_h 8.5: -126.9 f_h 9: -132.9 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -120.13 dBFS: top 3.125Hz:-132.66 2.875Hz:-132.86 1.625Hz:-133.51 4.375Hz:-133.83; 8/16/24/32 Hz family -129.01, rest -120.74 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-132.66 2.875Hz:-132.86 1.625Hz:-133.51 4.375Hz:-133.83 6.875Hz:-134.36 10.125Hz:-134.63 dBFS; 8/16/24/32 Hz family -129.01 of -120.13 dBFS, rest -120.73 dBFS
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -131.8 char -119.11 anchor -160.82 sum -119.11 out -118.77; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -119.11 k2 -119.66 k3 -120.35 k4 -121.31 k5 -123.28 k6 -125 k7 -128.63 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -121.19 f_h 7.5: -127.13 f_h 8: -126.44 f_h 8.5: -126.26 f_h 9: -132.4 dBFS
+  core tap -131.8 dBFS: top 3.125Hz:-142.3 3.375Hz:-142.73 1.875Hz:-143.22 2.875Hz:-143.66; 8/16/24/32 Hz family -143.17, rest -132.13 dBFS
+  char tap -119.11 dBFS: top 2.875Hz:-131.1 3.125Hz:-131.16 1.625Hz:-132.22 4.375Hz:-133.31; 8/16/24/32 Hz family -128.05, rest -119.7 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.875Hz:-131.1 3.125Hz:-131.16 1.625Hz:-132.22 4.375Hz:-133.31 6.875Hz:-133.33 3.375Hz:-133.74 dBFS; 8/16/24/32 Hz family -128.05 of -119.11 dBFS, rest -119.7 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -131.61 char -108.7 anchor -155.87 sum -108.7 out -63.597; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -108.7 k2 -108.86 k3 -109.09 k4 -114.26 k5 -116.21 k6 -117.51 k7 -130.18 k8 -165.82 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -118.28 f_h 7.5: -118.06 f_h 8: -117.02 f_h 8.5: -117.73 f_h 9: -139.42 dBFS
+  core tap -131.61 dBFS: top 3.375Hz:-140.84 3.625Hz:-141.41 4.125Hz:-141.47 3.125Hz:-144.18; 8/16/24/32 Hz family -141.45, rest -132.08 dBFS
+  char tap -108.7 dBFS: top 8.125Hz:-116.96 7.875Hz:-117.32 8.375Hz:-118.04 7.625Hz:-119.09; 8/16/24/32 Hz family -110.87, rest -112.77 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.125Hz:-116.96 7.875Hz:-117.32 8.375Hz:-118.04 7.625Hz:-119.09 8.625Hz:-121.33 7.375Hz:-123.05 dBFS; 8/16/24/32 Hz family -110.87 of -108.7 dBFS, rest -112.77 dBFS
+  off-lattice power: below f_m -134.73 dBFS, f_m .. fs/4 -111.87 dBFS, above fs/4 -111.58 dBFS (L)
+  bin 64799 f 23730 Hz (575.93 f0) -135.81 dBFS, nearest mirrored harmonic 0.95921 Hz away
+  bin 44983 f 16473 Hz (399.8 f0) -136.54 dBFS, nearest mirrored harmonic 2.0462 Hz away
+  bin 49484 f 18122 Hz (439.81 f0) -136.82 dBFS, nearest mirrored harmonic 1.8689 Hz away
+  bin 48809 f 17874 Hz (433.81 f0) -136.86 dBFS, nearest mirrored harmonic 1.8405 Hz away
+  bin 45433 f 16638 Hz (403.8 f0) -137.01 dBFS, nearest mirrored harmonic 2.0651 Hz away
+  bin 53534 f 19605 Hz (475.8 f0) -137.38 dBFS, nearest mirrored harmonic 2.0389 Hz away
+  bin 49034 f 17957 Hz (435.81 f0) -137.43 dBFS, nearest mirrored harmonic 1.85 Hz away
+  bin 48808 f 17874 Hz (433.8 f0) -137.43 dBFS, nearest mirrored harmonic 2.2067 Hz away
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -132.89 char -110.99 anchor -155.87 sum -110.99 out -97.375; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -110.99 k2 -111.3 k3 -111.82 k4 -114.34 k5 -116.29 k6 -118.44 k7 -132.39 k8 -170.21 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -119.24 f_h 7.5: -118.99 f_h 8: -117.55 f_h 8.5: -117.91 f_h 9: -145.78 dBFS
+  core tap -132.89 dBFS: top 3.375Hz:-143.52 3.125Hz:-144.11 4.125Hz:-146.34 4.625Hz:-147.64; 8/16/24/32 Hz family -141, rest -133.62 dBFS
+  char tap -110.99 dBFS: top 8.125Hz:-122.1 7.875Hz:-122.23 8.375Hz:-123.53 7.625Hz:-123.58; 8/16/24/32 Hz family -115.35, rest -112.97 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.125Hz:-122.1 7.875Hz:-122.23 8.375Hz:-123.53 7.625Hz:-123.58 3.125Hz:-124.82 7.375Hz:-125.56 dBFS; 8/16/24/32 Hz family -115.35 of -110.99 dBFS, rest -112.97 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -131.61 char -108.77 anchor -155.87 sum -108.77 out -67.954; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -108.77 k2 -109.07 k3 -109.46 k4 -112.9 k5 -114.62 k6 -116.07 k7 -129.03 k8 -173.41 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -116.52 f_h 7.5: -116.18 f_h 8: -115.26 f_h 8.5: -116.04 f_h 9: -145.32 dBFS
+  core tap -131.61 dBFS: top 3.375Hz:-140.84 3.625Hz:-141.41 4.125Hz:-141.47 3.125Hz:-144.18; 8/16/24/32 Hz family -141.45, rest -132.08 dBFS
+  char tap -108.77 dBFS: top 8.125Hz:-118.41 7.875Hz:-118.84 8.375Hz:-119.78 7.625Hz:-120.6; 8/16/24/32 Hz family -112.12, rest -111.46 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.125Hz:-118.41 7.875Hz:-118.84 8.375Hz:-119.78 7.625Hz:-120.6 3.125Hz:-122.05 8.625Hz:-122.65 dBFS; 8/16/24/32 Hz family -112.12 of -108.77 dBFS, rest -111.46 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -131.61 char -95.882 anchor -155.87 sum -95.882 out -74.679; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -95.882 k2 -96.336 k3 -97.895 k4 -98.68 k5 -101.7 k6 -104.89 k7 -118.44 k8 -176.95 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -106.62 f_h 7.5: -106.73 f_h 8: -104.15 f_h 8.5: -104.27 f_h 9: -121.19 dBFS
+  core tap -131.61 dBFS: top 3.375Hz:-140.84 3.625Hz:-141.41 4.125Hz:-141.47 3.125Hz:-144.18; 8/16/24/32 Hz family -141.45, rest -132.08 dBFS
+  char tap -95.882 dBFS: top 15.875Hz:-110.23 15.625Hz:-110.8 16.125Hz:-111.23 16.375Hz:-111.27; 8/16/24/32 Hz family -101.25, rest -97.371 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 15.875Hz:-110.23 15.625Hz:-110.8 16.125Hz:-111.23 16.375Hz:-111.27 8.875Hz:-111.53 4.875Hz:-111.82 dBFS; 8/16/24/32 Hz family -101.25 of -95.882 dBFS, rest -97.371 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -131.61 char -111.12 anchor -155.87 sum -111.12 out -76.871; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -111.12 k2 -111.47 k3 -112.03 k4 -112.76 k5 -114.18 k6 -116.03 k7 -129.92 k8 -169.09 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -116.59 f_h 7.5: -115.89 f_h 8: -114.83 f_h 8.5: -115.96 f_h 9: -139.31 dBFS
+  core tap -131.61 dBFS: top 3.375Hz:-140.84 3.625Hz:-141.41 4.125Hz:-141.47 3.125Hz:-144.18; 8/16/24/32 Hz family -141.45, rest -132.08 dBFS
+  char tap -111.12 dBFS: top 3.125Hz:-121.14 3.375Hz:-123.84 4.375Hz:-125.05 3.625Hz:-125.26; 8/16/24/32 Hz family -120.09, rest -111.71 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-121.14 3.375Hz:-123.84 4.375Hz:-125.05 3.625Hz:-125.26 4.625Hz:-125.41 4.125Hz:-125.96 dBFS; 8/16/24/32 Hz family -120.09 of -111.12 dBFS, rest -111.71 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -134.06 char -109.14 anchor -155.87 sum -109.14 out -74.273; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -109.14 k2 -109.26 k3 -109.47 k4 -114.21 k5 -116.28 k6 -117.36 k7 -130.29 k8 -167.51 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -117.9 f_h 7.5: -117.53 f_h 8: -116.75 f_h 8.5: -117.69 f_h 9: -142.23 dBFS
+  core tap -134.06 dBFS: top 3.125Hz:-143.26 3.375Hz:-144.77 3.875Hz:-147.78 4.125Hz:-148.16; 8/16/24/32 Hz family -143.06, rest -134.65 dBFS
+  char tap -109.14 dBFS: top 8.125Hz:-117.43 7.875Hz:-117.65 8.375Hz:-118.7 7.625Hz:-119.66; 8/16/24/32 Hz family -111.28, rest -113.23 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.125Hz:-117.43 7.875Hz:-117.65 8.375Hz:-118.7 7.625Hz:-119.66 8.625Hz:-121.68 7.375Hz:-123.05 dBFS; 8/16/24/32 Hz family -111.28 of -109.14 dBFS, rest -113.23 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -131.24 char -106.91 anchor -155.87 sum -106.91 out -66.323; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -106.91 k2 -106.93 k3 -107.01 k4 -114.49 k5 -116.15 k6 -119.13 k7 -130.55 k8 -171.78 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -119.25 f_h 7.5: -118.23 f_h 8: -116.89 f_h 8.5: -118.18 f_h 9: -140.78 dBFS
+  core tap -131.24 dBFS: top 4.125Hz:-143.24 4.875Hz:-143.69 3.375Hz:-143.89 5.375Hz:-144.11; 8/16/24/32 Hz family -141.54, rest -131.67 dBFS
+  char tap -106.91 dBFS: top 8.125Hz:-113.28 7.875Hz:-113.58 8.375Hz:-115.04 7.625Hz:-115.98; 8/16/24/32 Hz family -107.52, rest -115.72 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.125Hz:-113.28 7.875Hz:-113.58 8.375Hz:-115.04 7.625Hz:-115.98 8.625Hz:-117.73 7.375Hz:-119.35 dBFS; 8/16/24/32 Hz family -107.52 of -106.91 dBFS, rest -115.72 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -131.61 char -116.97 anchor -155.87 sum -116.97 out -100.34; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -116.97 k2 -117.37 k3 -117.95 k4 -118.92 k5 -120.85 k6 -122.18 k7 -135.51 k8 -173.06 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -122.69 f_h 7.5: -122.47 f_h 8: -121.52 f_h 8.5: -122.34 f_h 9: -139.26 dBFS
+  core tap -131.61 dBFS: top 3.375Hz:-140.84 3.625Hz:-141.41 4.125Hz:-141.47 3.125Hz:-144.18; 8/16/24/32 Hz family -141.45, rest -132.08 dBFS
+  char tap -116.97 dBFS: top 3.125Hz:-128.39 3.375Hz:-129.49 3.625Hz:-130.91 3.875Hz:-132.42; 8/16/24/32 Hz family -124.68, rest -117.78 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-128.39 3.375Hz:-129.49 3.625Hz:-130.91 3.875Hz:-132.42 4.125Hz:-133.1 2.875Hz:-133.23 dBFS; 8/16/24/32 Hz family -124.68 of -116.97 dBFS, rest -117.78 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -131.61 char -106.82 anchor -161.89 sum -106.82 out -63.369; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -106.82 k2 -107.15 k3 -107.63 k4 -110.03 k5 -111.72 k6 -113.83 k7 -126.84 k8 -172.59 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -114.15 f_h 7.5: -113.93 f_h 8: -112.63 f_h 8.5: -113.03 f_h 9: -137.63 dBFS
+  core tap -131.61 dBFS: top 3.375Hz:-140.84 3.625Hz:-141.41 4.125Hz:-141.47 3.125Hz:-144.18; 8/16/24/32 Hz family -141.45, rest -132.08 dBFS
+  char tap -106.82 dBFS: top 8.125Hz:-117.57 7.875Hz:-117.83 3.125Hz:-118.98 8.375Hz:-119.04; 8/16/24/32 Hz family -111.21, rest -108.78 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.125Hz:-117.57 7.875Hz:-117.83 3.125Hz:-118.98 8.375Hz:-119.04 7.625Hz:-119.87 3.375Hz:-120.62 dBFS; 8/16/24/32 Hz family -111.21 of -106.82 dBFS, rest -108.78 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -132.4 char -117.2 anchor -161.89 sum -117.2 out -115.58; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -117.2 k2 -117.75 k3 -119.48 k4 -118.92 k5 -121.85 k6 -124.69 k7 -138.44 k8 -174.55 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -125.56 f_h 7.5: -125.35 f_h 8: -123.44 f_h 8.5: -123.95 f_h 9: -136.59 dBFS
+  core tap -132.4 dBFS: top 4.125Hz:-142.54 3.375Hz:-143.37 4.875Hz:-143.74 4.625Hz:-143.84; 8/16/24/32 Hz family -142.79, rest -132.81 dBFS
+  char tap -117.2 dBFS: top 14.875Hz:-130.92 14.375Hz:-130.93 14.625Hz:-131.28 15.125Hz:-131.33; 8/16/24/32 Hz family -125.97, rest -117.82 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 14.875Hz:-130.92 14.375Hz:-130.93 14.625Hz:-131.28 15.125Hz:-131.33 3.375Hz:-132.12 14.125Hz:-132.35 dBFS; 8/16/24/32 Hz family -125.97 of -117.2 dBFS, rest -117.82 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -132.4 char -117.79 anchor -161.89 sum -117.79 out -115.81; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -117.79 k2 -118.43 k3 -120.03 k4 -119.89 k5 -122.78 k6 -124.63 k7 -140.11 k8 -176.1 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -125.95 f_h 7.5: -126.18 f_h 8: -124.53 f_h 8.5: -124.64 f_h 9: -137.93 dBFS
+  core tap -132.4 dBFS: top 4.125Hz:-142.54 3.375Hz:-143.37 4.875Hz:-143.74 4.625Hz:-143.84; 8/16/24/32 Hz family -142.79, rest -132.81 dBFS
+  char tap -117.79 dBFS: top 14.375Hz:-131.78 14.625Hz:-133.12 15.125Hz:-133.14 14.875Hz:-133.19; 8/16/24/32 Hz family -125.97, rest -118.51 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 14.375Hz:-131.78 14.625Hz:-133.12 15.125Hz:-133.14 14.875Hz:-133.19 3.375Hz:-133.28 14.125Hz:-133.36 dBFS; 8/16/24/32 Hz family -125.97 of -117.79 dBFS, rest -118.51 dBFS
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -132.4 char -117.2 anchor -161.89 sum -117.2 out -115.58; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -117.2 k2 -117.75 k3 -119.48 k4 -118.92 k5 -121.85 k6 -124.69 k7 -138.44 k8 -174.55 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -125.56 f_h 7.5: -125.35 f_h 8: -123.44 f_h 8.5: -123.95 f_h 9: -136.59 dBFS
+  core tap -132.4 dBFS: top 4.125Hz:-142.54 3.375Hz:-143.37 4.875Hz:-143.74 4.625Hz:-143.84; 8/16/24/32 Hz family -142.79, rest -132.81 dBFS
+  char tap -117.2 dBFS: top 14.875Hz:-130.92 14.375Hz:-130.93 14.625Hz:-131.28 15.125Hz:-131.33; 8/16/24/32 Hz family -125.97, rest -117.82 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 14.875Hz:-130.92 14.375Hz:-130.93 14.625Hz:-131.28 15.125Hz:-131.33 3.375Hz:-132.12 14.125Hz:-132.35 dBFS; 8/16/24/32 Hz family -125.97 of -117.2 dBFS, rest -117.82 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -128.29 char -101.19 anchor -157.83 sum -101.19 out -51.808; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -101.19 k2 -101.33 k3 -101.94 k4 -102.31 k5 -103.21 k6 -106.4 k7 -123.53 k8 -176.87 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -105.99 f_h 7.5: -104.69 f_h 8: -103.73 f_h 8.5: -104.59 f_h 9: -133.44 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -101.19 dBFS: top 3.875Hz:-111.46 3.625Hz:-112.71 4.125Hz:-112.9 3.375Hz:-112.93; 8/16/24/32 Hz family -110.91, rest -101.68 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.875Hz:-111.46 3.625Hz:-112.71 4.125Hz:-112.9 3.375Hz:-112.93 3.125Hz:-113.49 4.375Hz:-113.85 dBFS; 8/16/24/32 Hz family -110.91 of -101.19 dBFS, rest -101.68 dBFS
+  off-lattice power: below f_m -130.32 dBFS, f_m .. fs/4 -102.36 dBFS, above fs/4 -107.46 dBFS (L)
+  bin 129829 f 47545 Hz (1153.9 f0) -124.13 dBFS, nearest mirrored harmonic 0.060608 Hz away
+  bin 129604 f 47462 Hz (1151.9 f0) -124.15 dBFS, nearest mirrored harmonic 0.070053 Hz away
+  bin 129941 f 47586 Hz (1154.9 f0) -124.42 dBFS, nearest mirrored harmonic 0.12722 Hz away
+  bin 130054 f 47627 Hz (1155.9 f0) -124.5 dBFS, nearest mirrored harmonic 0.051163 Hz away
+  bin 130166 f 47668 Hz (1156.9 f0) -124.51 dBFS, nearest mirrored harmonic 0.13667 Hz away
+  bin 129379 f 47380 Hz (1149.9 f0) -124.52 dBFS, nearest mirrored harmonic 0.079498 Hz away
+  bin 129716 f 47503 Hz (1152.9 f0) -124.81 dBFS, nearest mirrored harmonic 0.11777 Hz away
+  bin 130167 f 47669 Hz (1156.9 f0) -124.89 dBFS, nearest mirrored harmonic 0.22955 Hz away
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -128.49 char -103.12 anchor -157.83 sum -103.12 out -82.128; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -103.12 k2 -103.27 k3 -104.02 k4 -104.33 k5 -105.34 k6 -108.02 k7 -123.82 k8 -183.52 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -108.07 f_h 7.5: -107.65 f_h 8: -106.19 f_h 8.5: -106.82 f_h 9: -134.42 dBFS
+  core tap -128.49 dBFS: top 3.375Hz:-138.23 4.125Hz:-138.52 3.875Hz:-139.04 3.125Hz:-139.92; 8/16/24/32 Hz family -139.64, rest -128.84 dBFS
+  char tap -103.12 dBFS: top 3.125Hz:-113.79 3.375Hz:-114.34 3.625Hz:-114.88 3.875Hz:-116.73; 8/16/24/32 Hz family -114.24, rest -103.47 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-113.79 3.375Hz:-114.34 3.625Hz:-114.88 3.875Hz:-116.73 5.125Hz:-117.07 4.875Hz:-117.25 dBFS; 8/16/24/32 Hz family -114.24 of -103.12 dBFS, rest -103.47 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -128.29 char -101.48 anchor -157.83 sum -101.48 out -71.679; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -101.48 k2 -101.66 k3 -102.3 k4 -102.66 k5 -103.69 k6 -106.01 k7 -121.94 k8 -181.99 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -105.93 f_h 7.5: -105.22 f_h 8: -104.24 f_h 8.5: -104.83 f_h 9: -135.25 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -101.48 dBFS: top 3.125Hz:-111.88 3.375Hz:-112.3 3.625Hz:-113.01 3.875Hz:-113.44; 8/16/24/32 Hz family -111.99, rest -101.89 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-111.88 3.375Hz:-112.3 3.625Hz:-113.01 3.875Hz:-113.44 4.125Hz:-114.99 6.125Hz:-115.9 dBFS; 8/16/24/32 Hz family -111.99 of -101.48 dBFS, rest -101.89 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -128.29 char -90.861 anchor -157.83 sum -90.861 out -90.48; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -90.861 k2 -91.522 k3 -92.907 k4 -93.55 k5 -96.5 k6 -97.804 k7 -113.34 k8 -179.98 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -100.53 f_h 7.5: -102.35 f_h 8: -99.191 f_h 8.5: -98.977 f_h 9: -116.92 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -90.861 dBFS: top 9.625Hz:-106.86 10.125Hz:-107.3 15.125Hz:-107.36 14.875Hz:-107.43; 8/16/24/32 Hz family -98.959, rest -91.592 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 9.625Hz:-106.86 10.125Hz:-107.3 15.125Hz:-107.36 14.875Hz:-107.43 14.625Hz:-107.66 9.875Hz:-107.66 dBFS; 8/16/24/32 Hz family -98.959 of -90.861 dBFS, rest -91.592 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -128.29 char -107.91 anchor -157.83 sum -107.91 out -72.577; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -107.91 k2 -108.16 k3 -108.97 k4 -109.71 k5 -110.78 k6 -113.48 k7 -127.59 k8 -182.04 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -113.63 f_h 7.5: -113.07 f_h 8: -111.66 f_h 8.5: -112.17 f_h 9: -133.9 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -107.91 dBFS: top 3.125Hz:-118.92 3.375Hz:-120.46 3.625Hz:-121.77 5.875Hz:-122.17; 8/16/24/32 Hz family -117.18, rest -108.46 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-118.92 3.375Hz:-120.46 3.625Hz:-121.77 5.875Hz:-122.17 6.125Hz:-122.44 5.625Hz:-122.99 dBFS; 8/16/24/32 Hz family -117.18 of -107.91 dBFS, rest -108.46 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.5 char -101.61 anchor -157.83 sum -101.61 out -71.597; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -101.61 k2 -101.78 k3 -102.46 k4 -102.98 k5 -103.65 k6 -106.87 k7 -122.59 k8 -178.53 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -106.78 f_h 7.5: -105.34 f_h 8: -104.26 f_h 8.5: -104.98 f_h 9: -133.2 dBFS
+  core tap -129.5 dBFS: top 3.375Hz:-138.85 3.875Hz:-139.29 4.125Hz:-139.44 3.125Hz:-139.8; 8/16/24/32 Hz family -141.22, rest -129.8 dBFS
+  char tap -101.61 dBFS: top 3.875Hz:-112.32 4.125Hz:-112.63 3.375Hz:-113.67 3.125Hz:-113.84; 8/16/24/32 Hz family -112.06, rest -102.02 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.875Hz:-112.32 4.125Hz:-112.63 3.375Hz:-113.67 3.125Hz:-113.84 3.625Hz:-114.51 4.625Hz:-115.1 dBFS; 8/16/24/32 Hz family -112.06 of -101.61 dBFS, rest -102.02 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -124.78 char -99.476 anchor -157.83 sum -99.476 out -70.34; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -99.476 k2 -99.547 k3 -99.815 k4 -100.05 k5 -100.08 k6 -104.42 k7 -124.17 k8 -187.93 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -102.63 f_h 7.5: -100.81 f_h 8: -100.27 f_h 8.5: -101.66 f_h 9: -131.97 dBFS
+  core tap -124.78 dBFS: top 4.125Hz:-131.19 3.875Hz:-131.78 3.375Hz:-133.38 4.625Hz:-136.22; 8/16/24/32 Hz family -138.55, rest -124.97 dBFS
+  char tap -99.476 dBFS: top 3.875Hz:-106.85 4.375Hz:-107.31 4.125Hz:-108.04 3.625Hz:-108.15; 8/16/24/32 Hz family -113.07, rest -99.67 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.875Hz:-106.85 4.375Hz:-107.31 4.125Hz:-108.04 3.625Hz:-108.15 4.625Hz:-111.24 3.375Hz:-112.16 dBFS; 8/16/24/32 Hz family -113.07 of -99.476 dBFS, rest -99.67 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -128.29 char -112.56 anchor -157.83 sum -112.56 out -94.438; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -112.56 k2 -112.79 k3 -113.6 k4 -113.96 k5 -115.02 k6 -117.39 k7 -131.76 k8 -177.72 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -117.52 f_h 7.5: -117 f_h 8: -115.75 f_h 8.5: -116.24 f_h 9: -136.26 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -112.56 dBFS: top 3.125Hz:-123.03 3.375Hz:-123.55 3.625Hz:-124.96 3.875Hz:-126.66; 8/16/24/32 Hz family -122.14, rest -113.06 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-123.03 3.375Hz:-123.55 3.625Hz:-124.96 3.875Hz:-126.66 5.875Hz:-127.44 6.125Hz:-127.55 dBFS; 8/16/24/32 Hz family -122.14 of -112.56 dBFS, rest -113.06 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -128.29 char -101.22 anchor -163.85 sum -101.22 out -67.6; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -101.22 k2 -101.38 k3 -102 k4 -102.33 k5 -103.25 k6 -106.11 k7 -121.58 k8 -179.27 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -105.86 f_h 7.5: -104.79 f_h 8: -103.8 f_h 8.5: -104.58 f_h 9: -133.48 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -101.22 dBFS: top 3.875Hz:-112.33 3.375Hz:-112.48 3.125Hz:-112.51 3.625Hz:-112.84; 8/16/24/32 Hz family -111.77, rest -101.62 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.875Hz:-112.33 3.375Hz:-112.48 3.125Hz:-112.51 3.625Hz:-112.84 4.125Hz:-113.45 4.375Hz:-114.55 dBFS; 8/16/24/32 Hz family -111.77 of -101.22 dBFS, rest -101.62 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -124.21 char -115.28 anchor -163.85 sum -115.28 out -113.86; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -115.28 k2 -115.63 k3 -116.05 k4 -116.69 k5 -117.39 k6 -120.15 k7 -134.61 k8 -180.49 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -119.85 f_h 7.5: -118.62 f_h 8: -117.9 f_h 8.5: -118.74 f_h 9: -133.93 dBFS
+  core tap -124.21 dBFS: top 4.125Hz:-129.99 3.875Hz:-131.43 3.375Hz:-132.87 4.625Hz:-135.55; 8/16/24/32 Hz family -140.2, rest -124.32 dBFS
+  char tap -115.28 dBFS: top 4.125Hz:-124.99 3.875Hz:-126.02 3.625Hz:-126.62 3.375Hz:-126.81; 8/16/24/32 Hz family -125.76, rest -115.69 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 4.125Hz:-124.99 3.875Hz:-126.02 3.625Hz:-126.62 3.375Hz:-126.81 4.375Hz:-127.54 4.625Hz:-129.22 dBFS; 8/16/24/32 Hz family -125.76 of -115.28 dBFS, rest -115.69 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -124.21 char -115.9 anchor -163.85 sum -115.9 out -114.11; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -115.9 k2 -116.21 k3 -116.64 k4 -117.25 k5 -117.96 k6 -120.72 k7 -135.51 k8 -183.05 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -120.39 f_h 7.5: -119.15 f_h 8: -118.46 f_h 8.5: -119.23 f_h 9: -131.95 dBFS
+  core tap -124.21 dBFS: top 4.125Hz:-129.99 3.875Hz:-131.43 3.375Hz:-132.87 4.625Hz:-135.55; 8/16/24/32 Hz family -140.2, rest -124.32 dBFS
+  char tap -115.9 dBFS: top 4.125Hz:-125.17 3.875Hz:-126.18 3.375Hz:-127.13 3.625Hz:-127.7; 8/16/24/32 Hz family -126.15, rest -116.33 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 4.125Hz:-125.17 3.875Hz:-126.18 3.375Hz:-127.13 3.625Hz:-127.7 4.375Hz:-128.79 4.625Hz:-129.56 dBFS; 8/16/24/32 Hz family -126.15 of -115.9 dBFS, rest -116.33 dBFS
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -124.21 char -115.28 anchor -163.85 sum -115.28 out -113.86; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -115.28 k2 -115.63 k3 -116.05 k4 -116.69 k5 -117.39 k6 -120.15 k7 -134.61 k8 -180.49 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -119.85 f_h 7.5: -118.62 f_h 8: -117.9 f_h 8.5: -118.74 f_h 9: -133.93 dBFS
+  core tap -124.21 dBFS: top 4.125Hz:-129.99 3.875Hz:-131.43 3.375Hz:-132.87 4.625Hz:-135.55; 8/16/24/32 Hz family -140.2, rest -124.32 dBFS
+  char tap -115.28 dBFS: top 4.125Hz:-124.99 3.875Hz:-126.02 3.625Hz:-126.62 3.375Hz:-126.81; 8/16/24/32 Hz family -125.76, rest -115.69 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 4.125Hz:-124.99 3.875Hz:-126.02 3.625Hz:-126.62 3.375Hz:-126.81 4.375Hz:-127.54 4.625Hz:-129.22 dBFS; 8/16/24/32 Hz family -125.76 of -115.28 dBFS, rest -115.69 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -130.48 char -112.81 anchor -155.89 sum -112.81 out -63.716; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -112.81 k2 -113.07 k3 -113.68 k4 -114.72 k5 -116.26 k6 -118.16 k7 -131.99 k8 -165.17 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -123.58 f_h 7.5: -124.72 f_h 8: -126.14 f_h 8.5: -129.17 f_h 9: -131.45 dBFS
+  core tap -130.48 dBFS: top 8.125Hz:-140.96 7.375Hz:-142.55 8.875Hz:-143.27 12.375Hz:-143.34; 8/16/24/32 Hz family -135.96, rest -131.92 dBFS
+  char tap -112.81 dBFS: top 6.125Hz:-126.89 15.375Hz:-128.9 14.875Hz:-129.11 15.125Hz:-129.11; 8/16/24/32 Hz family -118.86, rest -114.05 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 6.125Hz:-126.89 15.375Hz:-128.9 14.875Hz:-129.11 15.125Hz:-129.11 6.375Hz:-129.17 14.625Hz:-129.19 dBFS; 8/16/24/32 Hz family -118.86 of -112.81 dBFS, rest -114.05 dBFS
+  off-lattice power: below f_m -131.55 dBFS, f_m .. fs/4 -113.51 dBFS, above fs/4 -121.5 dBFS (R)
+  bin 64574 f 47295 Hz (573.93 f0) -138.54 dBFS, nearest mirrored harmonic 1.9105 Hz away
+  bin 64349 f 47131 Hz (571.93 f0) -138.86 dBFS, nearest mirrored harmonic 1.9294 Hz away
+  bin 64124 f 46966 Hz (569.93 f0) -140.24 dBFS, nearest mirrored harmonic 1.9482 Hz away
+  bin 65249 f 47790 Hz (579.92 f0) -141.21 dBFS, nearest mirrored harmonic 1.8539 Hz away
+  bin 442 f 323.73 Hz (3.9284 f0) -142.46 dBFS, nearest mirrored harmonic 1.8692 Hz away
+  bin 69 f 50.537 Hz (0.61326 f0) -143.24 dBFS, nearest mirrored harmonic 19.786 Hz away
+  bin 63899 f 46801 Hz (567.93 f0) -143.78 dBFS, nearest mirrored harmonic 1.9671 Hz away
+  bin 3721 f 2725.3 Hz (33.072 f0) -143.85 dBFS, nearest mirrored harmonic 1.8865 Hz away
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -130.25 char -110.38 anchor -155.89 sum -110.38 out -105.49; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -110.38 k2 -110.58 k3 -111.07 k4 -111.59 k5 -114.31 k6 -117.04 k7 -132.23 k8 -168.98 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -122.35 f_h 7.5: -123.35 f_h 8: -124.73 f_h 8.5: -127.14 f_h 9: -131.79 dBFS
+  core tap -130.25 dBFS: top 6.625Hz:-139.2 7.375Hz:-141.07 13.875Hz:-143.2 8.125Hz:-143.59; 8/16/24/32 Hz family -135.96, rest -131.61 dBFS
+  char tap -110.38 dBFS: top 12.625Hz:-126.01 7.875Hz:-126.05 12.875Hz:-126.14 7.625Hz:-126.21; 8/16/24/32 Hz family -116.83, rest -111.5 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.625Hz:-126.01 7.875Hz:-126.05 12.875Hz:-126.14 7.625Hz:-126.21 12.375Hz:-126.23 7.375Hz:-126.27 dBFS; 8/16/24/32 Hz family -116.83 of -110.38 dBFS, rest -111.5 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -130.48 char -111.22 anchor -155.89 sum -111.22 out -70.793; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -111.22 k2 -111.58 k3 -112.17 k4 -113.02 k5 -114.02 k6 -115.61 k7 -131.28 k8 -173.44 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -121.12 f_h 7.5: -122.29 f_h 8: -124.93 f_h 8.5: -129.15 f_h 9: -133.24 dBFS
+  core tap -130.48 dBFS: top 8.125Hz:-140.96 7.375Hz:-142.55 8.875Hz:-143.27 12.375Hz:-143.34; 8/16/24/32 Hz family -135.96, rest -131.92 dBFS
+  char tap -111.22 dBFS: top 7.625Hz:-123.64 7.125Hz:-123.95 6.875Hz:-124.56 7.875Hz:-124.73; 8/16/24/32 Hz family -116.26, rest -112.85 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 7.625Hz:-123.64 7.125Hz:-123.95 6.875Hz:-124.56 7.875Hz:-124.73 7.375Hz:-125.5 8.375Hz:-126.62 dBFS; 8/16/24/32 Hz family -116.27 of -111.22 dBFS, rest -112.85 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -130.48 char -90.547 anchor -155.89 sum -90.547 out -73.53; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -90.547 k2 -91.119 k3 -92.092 k4 -93.351 k5 -94.15 k6 -97.63 k7 -113.17 k8 -171.93 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -97.981 f_h 7.5: -100.36 f_h 8: -102.04 f_h 8.5: -105.99 f_h 9: -122.31 dBFS
+  core tap -130.48 dBFS: top 8.125Hz:-140.96 7.375Hz:-142.55 8.875Hz:-143.27 12.375Hz:-143.34; 8/16/24/32 Hz family -135.96, rest -131.92 dBFS
+  char tap -90.547 dBFS: top 9.125Hz:-107.98 16.125Hz:-108.19 25.625Hz:-108.28 15.625Hz:-108.42; 8/16/24/32 Hz family -97.31, rest -91.575 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 9.125Hz:-107.98 16.125Hz:-108.19 25.625Hz:-108.28 15.625Hz:-108.42 15.875Hz:-108.5 26.375Hz:-108.55 dBFS; 8/16/24/32 Hz family -97.31 of -90.547 dBFS, rest -91.575 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -130.48 char -110.28 anchor -155.89 sum -110.28 out -94.188; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -110.28 k2 -110.53 k3 -111.21 k4 -112.07 k5 -114.32 k6 -116.16 k7 -130.06 k8 -165.91 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -120.15 f_h 7.5: -120.98 f_h 8: -121.88 f_h 8.5: -123.3 f_h 9: -124.19 dBFS
+  core tap -130.48 dBFS: top 8.125Hz:-140.96 7.375Hz:-142.55 8.875Hz:-143.27 12.375Hz:-143.34; 8/16/24/32 Hz family -135.96, rest -131.92 dBFS
+  char tap -110.28 dBFS: top 6.125Hz:-124.63 6.375Hz:-126.49 15.125Hz:-126.71 14.875Hz:-126.85; 8/16/24/32 Hz family -116.27, rest -111.54 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 6.125Hz:-124.63 6.375Hz:-126.49 15.125Hz:-126.71 14.875Hz:-126.85 14.375Hz:-126.94 15.375Hz:-126.98 dBFS; 8/16/24/32 Hz family -116.27 of -110.28 dBFS, rest -111.54 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -133.51 char -112.84 anchor -155.89 sum -112.84 out -63.323; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -112.84 k2 -113.08 k3 -113.82 k4 -114.36 k5 -114.87 k6 -117 k7 -133.47 k8 -172.34 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -123.6 f_h 7.5: -124.68 f_h 8: -125.57 f_h 8.5: -128.52 f_h 9: -131.02 dBFS
+  core tap -133.51 dBFS: top 5.875Hz:-144.6 7.625Hz:-145.92 6.625Hz:-146.43 6.875Hz:-147.53; 8/16/24/32 Hz family -139.75, rest -134.69 dBFS
+  char tap -112.84 dBFS: top 7.625Hz:-125.86 7.375Hz:-125.89 7.125Hz:-126.02 7.875Hz:-126.03; 8/16/24/32 Hz family -117.46, rest -114.68 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 7.625Hz:-125.86 7.375Hz:-125.89 7.125Hz:-126.02 7.875Hz:-126.03 6.875Hz:-126.57 8.125Hz:-126.82 dBFS; 8/16/24/32 Hz family -117.46 of -112.84 dBFS, rest -114.68 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -129.88 char -110.16 anchor -155.89 sum -110.16 out -68.149; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -110.16 k2 -110.31 k3 -110.38 k4 -113.97 k5 -115.37 k6 -117.29 k7 -132.6 k8 -176.8 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -120.88 f_h 7.5: -122.24 f_h 8: -123.62 f_h 8.5: -126.3 f_h 9: -130 dBFS
+  core tap -129.88 dBFS: top 7.375Hz:-142.33 8.125Hz:-142.43 6.625Hz:-142.67 9.125Hz:-142.88; 8/16/24/32 Hz family -135.27, rest -131.36 dBFS
+  char tap -110.16 dBFS: top 16.125Hz:-120.24 15.875Hz:-120.25 16.375Hz:-120.39 15.625Hz:-120.91; 8/16/24/32 Hz family -112.75, rest -113.64 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 16.125Hz:-120.24 15.875Hz:-120.25 16.375Hz:-120.39 15.625Hz:-120.91 16.625Hz:-121.06 15.375Hz:-122.1 dBFS; 8/16/24/32 Hz family -112.75 of -110.16 dBFS, rest -113.64 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -130.48 char -120.01 anchor -155.89 sum -120.01 out -101.04; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -120.01 k2 -120.31 k3 -121.05 k4 -122.12 k5 -123.57 k6 -125.08 k7 -140.21 k8 -171.89 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -127.92 f_h 7.5: -128.33 f_h 8: -128.98 f_h 8.5: -129.79 f_h 9: -130.41 dBFS
+  core tap -130.48 dBFS: top 8.125Hz:-140.96 7.375Hz:-142.55 8.875Hz:-143.27 12.375Hz:-143.34; 8/16/24/32 Hz family -135.96, rest -131.92 dBFS
+  char tap -120.01 dBFS: top 6.125Hz:-135.81 15.375Hz:-136.9 14.875Hz:-136.94 8.125Hz:-137.05; 8/16/24/32 Hz family -126.11, rest -121.23 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 6.125Hz:-135.81 15.375Hz:-136.89 14.875Hz:-136.93 8.125Hz:-137.05 15.125Hz:-137.23 16.125Hz:-137.26 dBFS; 8/16/24/32 Hz family -126.11 of -120.01 dBFS, rest -121.23 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -130.48 char -111.21 anchor -161.91 sum -111.22 out -65.756; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -111.22 k2 -111.46 k3 -112.01 k4 -112.53 k5 -113.5 k6 -114.99 k7 -132.19 k8 -170.84 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -122.4 f_h 7.5: -123.77 f_h 8: -125.64 f_h 8.5: -129.2 f_h 9: -132.66 dBFS
+  core tap -130.48 dBFS: top 8.125Hz:-140.96 7.375Hz:-142.55 8.875Hz:-143.27 12.375Hz:-143.34; 8/16/24/32 Hz family -135.96, rest -131.92 dBFS
+  char tap -111.21 dBFS: top 7.375Hz:-123.2 7.125Hz:-123.21 7.625Hz:-123.38 7.875Hz:-123.75; 8/16/24/32 Hz family -115.59, rest -113.19 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 7.375Hz:-123.2 7.125Hz:-123.21 7.625Hz:-123.38 7.875Hz:-123.75 6.875Hz:-124.08 8.125Hz:-124.98 dBFS; 8/16/24/32 Hz family -115.59 of -111.22 dBFS, rest -113.19 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Mass 0]: aliased dBFS core -131.36 char -120.9 anchor -161.91 sum -120.9 out -115.94; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -120.9 k2 -121.49 k3 -122.35 k4 -123.44 k5 -125.41 k6 -127.42 k7 -143.1 k8 -173.71 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -126.83 f_h 7.5: -127.74 f_h 8: -128.76 f_h 8.5: -130.04 f_h 9: -130.87 dBFS
+  core tap -131.36 dBFS: top 9.125Hz:-143.22 8.375Hz:-143.67 9.875Hz:-144.08 9.625Hz:-144.34; 8/16/24/32 Hz family -137.07, rest -132.73 dBFS
+  char tap -120.9 dBFS: top 6.625Hz:-137.79 7.625Hz:-138.15 8.375Hz:-138.56 15.125Hz:-138.56; 8/16/24/32 Hz family -128.04, rest -121.83 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 6.625Hz:-137.79 7.625Hz:-138.15 8.375Hz:-138.56 15.125Hz:-138.56 15.375Hz:-138.89 14.625Hz:-138.97 dBFS; 8/16/24/32 Hz family -128.04 of -120.9 dBFS, rest -121.83 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -131.36 char -121.48 anchor -161.91 sum -121.48 out -115.31; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -121.48 k2 -122.08 k3 -122.9 k4 -124.19 k5 -126.46 k6 -128.13 k7 -143.01 k8 -172.03 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -127.26 f_h 7.5: -128.27 f_h 8: -129.17 f_h 8.5: -130.46 f_h 9: -131.35 dBFS
+  core tap -131.36 dBFS: top 9.125Hz:-143.22 8.375Hz:-143.67 9.875Hz:-144.08 9.625Hz:-144.34; 8/16/24/32 Hz family -137.07, rest -132.73 dBFS
+  char tap -121.48 dBFS: top 14.625Hz:-138.64 15.375Hz:-138.67 8.125Hz:-139.23 7.625Hz:-139.23; 8/16/24/32 Hz family -128.28, rest -122.5 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 14.625Hz:-138.64 15.375Hz:-138.67 8.125Hz:-139.23 7.625Hz:-139.23 6.625Hz:-139.79 15.125Hz:-139.86 dBFS; 8/16/24/32 Hz family -128.28 of -121.48 dBFS, rest -122.5 dBFS
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -131.36 char -120.9 anchor -161.91 sum -120.9 out -115.94; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -120.9 k2 -121.49 k3 -122.35 k4 -123.44 k5 -125.41 k6 -127.42 k7 -143.1 k8 -173.71 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -126.83 f_h 7.5: -127.74 f_h 8: -128.76 f_h 8.5: -130.04 f_h 9: -130.87 dBFS
+  core tap -131.36 dBFS: top 9.125Hz:-143.22 8.375Hz:-143.67 9.875Hz:-144.08 9.625Hz:-144.34; 8/16/24/32 Hz family -137.07, rest -132.73 dBFS
+  char tap -120.9 dBFS: top 6.625Hz:-137.79 7.625Hz:-138.15 8.375Hz:-138.56 15.125Hz:-138.56; 8/16/24/32 Hz family -128.04, rest -121.83 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 6.625Hz:-137.79 7.625Hz:-138.15 8.375Hz:-138.56 15.125Hz:-138.56 15.375Hz:-138.89 14.625Hz:-138.97 dBFS; 8/16/24/32 Hz family -128.04 of -120.9 dBFS, rest -121.83 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [base]: aliased dBFS core -128.29 char -8.2107 anchor -14.118 sum -7.5589 out -13.777; follow ratio [1, 2]
+  residual on the f0/k lattice: k1 -7.5589 k2 -22.571 k3 -7.6081 k4 -23.989 k5 -7.6664 k6 -28.033 k7 -26.752 k8 -182.62 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -29.785 f_h 7.5: -29.697 f_h 8: -8.7737 f_h 8.5: -7.9958 f_h 9: -37.547 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -8.2107 dBFS: top 20.375Hz:-11.873 20.125Hz:-14.925 20.625Hz:-15.231 19.875Hz:-18.551; 8/16/24/32 Hz family -27.724, rest -8.2596 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 20.375Hz:-11.054 20.125Hz:-14.355 20.625Hz:-14.841 19.875Hz:-17.659 19.625Hz:-25.015 19.375Hz:-31.033 dBFS; 8/16/24/32 Hz family -27.714 of -7.5589 dBFS, rest -7.6011 dBFS
+  off-lattice power: below f_m -31.498 dBFS, f_m .. fs/4 -7.5766 dBFS, above fs/4 -53.949 dBFS (R)
+  bin 281 f 102.91 Hz (2.4975 f0) -19.716 dBFS, nearest mirrored harmonic 8.3615 Hz away
+  bin 282 f 103.27 Hz (2.5064 f0) -20.622 dBFS, nearest mirrored harmonic 8.202 Hz away
+  bin 169 f 61.89 Hz (1.5021 f0) -21.848 dBFS, nearest mirrored harmonic 8.3803 Hz away
+  bin 619 f 226.68 Hz (5.5016 f0) -21.969 dBFS, nearest mirrored harmonic 8.3992 Hz away
+  bin 394 f 144.29 Hz (3.5018 f0) -22.583 dBFS, nearest mirrored harmonic 8.3898 Hz away
+  bin 168 f 61.523 Hz (1.4932 f0) -22.895 dBFS, nearest mirrored harmonic 8.1831 Hz away
+  bin 280 f 102.54 Hz (2.4886 f0) -22.931 dBFS, nearest mirrored harmonic 7.9952 Hz away
+  bin 618 f 226.32 Hz (5.4927 f0) -23.264 dBFS, nearest mirrored harmonic 8.1642 Hz away
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [SOLID]: aliased dBFS core -128.49 char -96.271 anchor -157.37 sum -96.271 out -82.716; follow ratio [1, 2]
+  residual on the f0/k lattice: k1 -96.271 k2 -97.556 k3 -98.416 k4 -99.635 k5 -99.647 k6 -106.16 k7 -119.48 k8 -178.58 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -107.57 f_h 7.5: -105.44 f_h 8: -101.67 f_h 8.5: -101.95 f_h 9: -120.47 dBFS
+  core tap -128.49 dBFS: top 3.375Hz:-138.23 4.125Hz:-138.52 3.875Hz:-139.04 3.125Hz:-139.92; 8/16/24/32 Hz family -139.64, rest -128.84 dBFS
+  char tap -96.271 dBFS: top 4.125Hz:-110.81 19.125Hz:-111.69 12.375Hz:-111.75 12.625Hz:-111.76; 8/16/24/32 Hz family -105.06, rest -96.886 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 4.125Hz:-110.81 19.125Hz:-111.69 12.375Hz:-111.75 12.625Hz:-111.75 18.625Hz:-111.84 12.875Hz:-112.1 dBFS; 8/16/24/32 Hz family -105.06 of -96.271 dBFS, rest -96.886 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [anchorFoldFeed 0]: aliased dBFS core -128.29 char -89.381 anchor -157.83 sum -89.381 out -68.893; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -89.381 k2 -90.316 k3 -91.161 k4 -91.506 k5 -96.569 k6 -95.182 k7 -112.7 k8 -181.11 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -98.708 f_h 7.5: -102.27 f_h 8: -98.958 f_h 8.5: -98.992 f_h 9: -117.54 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -89.381 dBFS: top 17.125Hz:-102.67 17.375Hz:-102.7 17.625Hz:-102.72 16.625Hz:-102.88; 8/16/24/32 Hz family -96.076, rest -90.427 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 17.125Hz:-102.67 17.375Hz:-102.7 17.625Hz:-102.72 16.625Hz:-102.88 16.875Hz:-103.06 17.875Hz:-103.33 dBFS; 8/16/24/32 Hz family -96.076 of -89.381 dBFS, rest -90.427 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [LOCK]: aliased dBFS core -128.29 char -90.495 anchor -157.83 sum -90.495 out -65.895; follow ratio [2, 2]
+  residual on the f0/k lattice: k1 -90.495 k2 -91.175 k3 -92.527 k4 -93.166 k5 -96.195 k6 -97.471 k7 -112.6 k8 -178.45 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -100.19 f_h 7.5: -102.07 f_h 8: -98.866 f_h 8.5: -98.67 f_h 9: -117.39 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -90.495 dBFS: top 9.625Hz:-106.6 15.125Hz:-106.77 6.375Hz:-106.93 10.125Hz:-106.98; 8/16/24/32 Hz family -98.563, rest -91.232 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 9.625Hz:-106.6 15.125Hz:-106.77 6.375Hz:-106.93 10.125Hz:-106.98 17.375Hz:-107.37 14.625Hz:-107.38 dBFS; 8/16/24/32 Hz family -98.563 of -90.495 dBFS, rest -91.232 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Character amount 0]: aliased dBFS core -128.29 char -98.638 anchor -157.83 sum -98.638 out -95.082; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -98.638 k2 -99.295 k3 -100.5 k4 -101.24 k5 -104.44 k6 -105.73 k7 -120.93 k8 -184.94 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -108.44 f_h 7.5: -109.55 f_h 8: -106.87 f_h 8.5: -106.84 f_h 9: -123.73 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -98.638 dBFS: top 6.625Hz:-114.62 6.375Hz:-114.72 14.875Hz:-115.14 6.875Hz:-115.19; 8/16/24/32 Hz family -106.53, rest -99.409 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 6.625Hz:-114.62 6.375Hz:-114.72 14.875Hz:-115.14 6.875Hz:-115.19 16.625Hz:-115.62 18.125Hz:-115.82 dBFS; 8/16/24/32 Hz family -106.53 of -98.638 dBFS, rest -99.409 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [excitation mix 0]: aliased dBFS core -129.5 char -8.7221 anchor -15.592 sum -7.651 out -14.082; follow ratio [1, 2]
+  residual on the f0/k lattice: k1 -7.651 k2 -13.348 k3 -7.9717 k4 -14.486 k5 -9.6739 k6 -16.687 k7 -25.748 k8 -177.32 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -19.13 f_h 7.5: -20.448 f_h 8: -10.986 f_h 8.5: -10.299 f_h 9: -30.44 dBFS
+  core tap -129.5 dBFS: top 3.375Hz:-138.85 3.875Hz:-139.29 4.125Hz:-139.44 3.125Hz:-139.8; 8/16/24/32 Hz family -141.22, rest -129.8 dBFS
+  char tap -8.7221 dBFS: top 20.375Hz:-15.256 20.125Hz:-17.819 20.625Hz:-18.871 19.875Hz:-19.852; 8/16/24/32 Hz family -22.219, rest -8.9207 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 20.375Hz:-14.16 20.125Hz:-16.842 20.625Hz:-17.789 19.875Hz:-18.627 17.875Hz:-20.143 18.375Hz:-20.358 dBFS; 8/16/24/32 Hz family -21.21 of -7.651 dBFS, rest -7.8467 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 50]: aliased dBFS core -124.78 char -86.344 anchor -157.83 sum -86.344 out -87.309; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -86.344 k2 -87.102 k3 -88.124 k4 -89.56 k5 -90.695 k6 -94.349 k7 -110.11 k8 -182.13 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -96.823 f_h 7.5: -97.594 f_h 8: -92.866 f_h 8.5: -93.07 f_h 9: -115.1 dBFS
+  core tap -124.78 dBFS: top 4.125Hz:-131.19 3.875Hz:-131.78 3.375Hz:-133.38 4.625Hz:-136.22; 8/16/24/32 Hz family -138.55, rest -124.97 dBFS
+  char tap -86.344 dBFS: top 12.625Hz:-101.47 12.875Hz:-101.54 13.125Hz:-101.93 13.375Hz:-101.97; 8/16/24/32 Hz family -95.329, rest -86.931 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 12.625Hz:-101.47 12.875Hz:-101.54 13.125Hz:-101.93 13.375Hz:-101.97 5.875Hz:-102.15 12.375Hz:-102.49 dBFS; 8/16/24/32 Hz family -95.329 of -86.344 dBFS, rest -86.931 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Fold 0]: aliased dBFS core -128.29 char -9.1379 anchor -14.118 sum -7.4597 out -11.829; follow ratio [1, 2]
+  residual on the f0/k lattice: k1 -7.4597 k2 -33.91 k3 -7.463 k4 -35.382 k5 -7.4718 k6 -39.538 k7 -39.333 k8 -191.22 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -40.575 f_h 7.5: -39.793 f_h 8: -8.4069 f_h 8.5: -7.7013 f_h 9: -23.323 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -9.1379 dBFS: top 20.375Hz:-12.4 20.125Hz:-16.303 20.625Hz:-16.314 19.875Hz:-18.2; 8/16/24/32 Hz family -40.462, rest -9.1411 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 20.375Hz:-11.294 20.625Hz:-13.527 20.125Hz:-14.634 19.875Hz:-16.395 19.625Hz:-26.092 19.375Hz:-32.903 dBFS; 8/16/24/32 Hz family -40.459 of -7.4597 dBFS, rest -7.4619 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Anchor level 0]: aliased dBFS core -128.29 char -90.641 anchor -163.85 sum -90.641 out -74.817; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -90.641 k2 -91.398 k3 -92.714 k4 -93.012 k5 -96.347 k6 -97.383 k7 -112.84 k8 -179.57 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -100.01 f_h 7.5: -101.68 f_h 8: -98.816 f_h 8.5: -98.7 f_h 9: -117.15 dBFS
+  core tap -128.29 dBFS: top 4.125Hz:-137.92 3.375Hz:-138.19 3.875Hz:-139.11 3.125Hz:-139.88; 8/16/24/32 Hz family -139.23, rest -128.65 dBFS
+  char tap -90.641 dBFS: top 17.375Hz:-106.36 16.875Hz:-106.62 17.625Hz:-106.83 16.625Hz:-106.83; 8/16/24/32 Hz family -98.511, rest -91.416 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 17.375Hz:-106.36 16.875Hz:-106.62 17.625Hz:-106.83 16.625Hz:-106.83 18.125Hz:-106.86 17.125Hz:-106.88 dBFS; 8/16/24/32 Hz family -98.51 of -90.641 dBFS, rest -91.416 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 0]: aliased dBFS core -124.21 char -101.39 anchor -163.85 sum -101.39 out -77.778; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -101.39 k2 -102.04 k3 -102.48 k4 -103.5 k5 -105.66 k6 -111.29 k7 -124.79 k8 -183.67 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -113.4 f_h 7.5: -112.9 f_h 8: -108.13 f_h 8.5: -110.31 f_h 9: -123.4 dBFS
+  core tap -124.21 dBFS: top 4.125Hz:-129.99 3.875Hz:-131.43 3.375Hz:-132.87 4.625Hz:-135.55; 8/16/24/32 Hz family -140.2, rest -124.32 dBFS
+  char tap -101.39 dBFS: top 5.375Hz:-112.42 5.125Hz:-112.8 5.625Hz:-113.31 4.875Hz:-113.61; 8/16/24/32 Hz family -110.71, rest -101.93 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 5.375Hz:-112.42 5.125Hz:-112.8 5.625Hz:-113.31 4.875Hz:-113.61 5.875Hz:-115.28 4.625Hz:-116.59 dBFS; 8/16/24/32 Hz family -110.71 of -101.39 dBFS, rest -101.93 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 0 + Fold 0]: aliased dBFS core -124.21 char -102.45 anchor -163.85 sum -102.45 out -78.422; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -102.45 k2 -103.32 k3 -103.59 k4 -104.95 k5 -106.64 k6 -111.15 k7 -126.26 k8 -182.07 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -113.56 f_h 7.5: -113.86 f_h 8: -109.23 f_h 8.5: -110.53 f_h 9: -124.71 dBFS
+  core tap -124.21 dBFS: top 4.125Hz:-129.99 3.875Hz:-131.43 3.375Hz:-132.87 4.625Hz:-135.55; 8/16/24/32 Hz family -140.2, rest -124.32 dBFS
+  char tap -102.45 dBFS: top 5.375Hz:-114.46 5.125Hz:-114.99 5.625Hz:-115.41 4.875Hz:-115.48; 8/16/24/32 Hz family -111.93, rest -102.96 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 5.375Hz:-114.46 5.125Hz:-114.99 5.625Hz:-115.41 4.875Hz:-115.48 5.875Hz:-117.59 8.375Hz:-118.53 dBFS; 8/16/24/32 Hz family -111.93 of -102.45 dBFS, rest -102.96 dBFS
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 0 + Fold 100]: aliased dBFS core -124.21 char -101.39 anchor -163.85 sum -101.39 out -77.778; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -101.39 k2 -102.04 k3 -102.48 k4 -103.5 k5 -105.66 k6 -111.29 k7 -124.79 k8 -183.67 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -113.4 f_h 7.5: -112.9 f_h 8: -108.13 f_h 8.5: -110.31 f_h 9: -123.4 dBFS
+  core tap -124.21 dBFS: top 4.125Hz:-129.99 3.875Hz:-131.43 3.375Hz:-132.87 4.625Hz:-135.55; 8/16/24/32 Hz family -140.2, rest -124.32 dBFS
+  char tap -101.39 dBFS: top 5.375Hz:-112.42 5.125Hz:-112.8 5.625Hz:-113.31 4.875Hz:-113.61; 8/16/24/32 Hz family -110.71, rest -101.93 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 5.375Hz:-112.42 5.125Hz:-112.8 5.625Hz:-113.31 4.875Hz:-113.61 5.875Hz:-115.28 4.625Hz:-116.59 dBFS; 8/16/24/32 Hz family -110.71 of -101.39 dBFS, rest -101.93 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [base]: aliased dBFS core -125.05 char -92.774 anchor -155.69 sum -92.774 out -75.052; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -92.774 k2 -93.458 k3 -94.129 k4 -95.749 k5 -97.978 k6 -100.07 k7 -115.29 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -95.062 f_h 7.5: -101.98 f_h 8: -102.76 f_h 8.5: -102.06 f_h 9: -139.93 dBFS
+  core tap -125.05 dBFS: top 1.875Hz:-132.14 1.625Hz:-132.97 2.125Hz:-136.87 2.625Hz:-137.77; 8/16/24/32 Hz family -135.82, rest -125.43 dBFS
+  char tap -92.774 dBFS: top 3.875Hz:-106.86 3.625Hz:-106.89 3.375Hz:-107.03 4.125Hz:-107.03; 8/16/24/32 Hz family -100.77, rest -93.524 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.875Hz:-106.86 3.625Hz:-106.89 3.375Hz:-107.03 4.125Hz:-107.03 4.875Hz:-107.27 5.125Hz:-107.3 dBFS; 8/16/24/32 Hz family -100.77 of -92.774 dBFS, rest -93.524 dBFS
+  off-lattice power: below f_m -139.23 dBFS, f_m .. fs/4 -94.58 dBFS, above fs/4 -97.457 dBFS (R)
+  bin 90441 f 16560 Hz (401.91 f0) -134.2 dBFS, nearest mirrored harmonic 0.49921 Hz away
+  bin 125801 f 23035 Hz (559.05 f0) -134.34 dBFS, nearest mirrored harmonic 1.9248 Hz away
+  bin 90442 f 16560 Hz (401.92 f0) -134.54 dBFS, nearest mirrored harmonic 0.68231 Hz away
+  bin 92458 f 16930 Hz (410.88 f0) -134.58 dBFS, nearest mirrored harmonic 1.0081 Hz away
+  bin 92459 f 16930 Hz (410.88 f0) -134.7 dBFS, nearest mirrored harmonic 0.82504 Hz away
+  bin 111928 f 20495 Hz (497.4 f0) -134.71 dBFS, nearest mirrored harmonic 4.3758 Hz away
+  bin 142645 f 26119 Hz (633.91 f0) -134.71 dBFS, nearest mirrored harmonic 0.13599 Hz away
+  bin 142644 f 26119 Hz (633.9 f0) -134.82 dBFS, nearest mirrored harmonic 0.047119 Hz away
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [SOLID]: aliased dBFS core -125.58 char -95.315 anchor -155.69 sum -95.315 out -79.199; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -95.315 k2 -96.01 k3 -96.795 k4 -97.735 k5 -98.851 k6 -100.98 k7 -117.47 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -98.378 f_h 7.5: -106.33 f_h 8: -102.02 f_h 8.5: -101.66 f_h 9: -143.56 dBFS
+  core tap -125.58 dBFS: top 1.875Hz:-132.69 1.625Hz:-133.36 2.125Hz:-137.92 2.625Hz:-138.49; 8/16/24/32 Hz family -137, rest -125.9 dBFS
+  char tap -95.315 dBFS: top 1.875Hz:-106.01 1.625Hz:-106.06 6.625Hz:-109.64 3.625Hz:-110.45; 8/16/24/32 Hz family -103.71, rest -95.994 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.875Hz:-106.01 1.625Hz:-106.06 6.625Hz:-109.64 3.625Hz:-110.45 8.375Hz:-110.47 6.375Hz:-110.59 dBFS; 8/16/24/32 Hz family -103.71 of -95.315 dBFS, rest -95.994 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [anchorFoldFeed 0]: aliased dBFS core -125.05 char -94.131 anchor -155.69 sum -94.131 out -80.836; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -94.131 k2 -94.993 k3 -95.852 k4 -97.154 k5 -99.171 k6 -101.74 k7 -117.07 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -96.82 f_h 7.5: -104.9 f_h 8: -103.7 f_h 8.5: -103.98 f_h 9: -139.95 dBFS
+  core tap -125.05 dBFS: top 1.875Hz:-132.14 1.625Hz:-132.97 2.125Hz:-136.87 2.625Hz:-137.77; 8/16/24/32 Hz family -135.82, rest -125.43 dBFS
+  char tap -94.131 dBFS: top 9.375Hz:-108.53 9.625Hz:-108.55 7.125Hz:-108.8 4.875Hz:-108.95; 8/16/24/32 Hz family -102.01, rest -94.904 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 9.375Hz:-108.53 9.625Hz:-108.55 7.125Hz:-108.8 4.875Hz:-108.95 3.125Hz:-108.96 3.375Hz:-109 dBFS; 8/16/24/32 Hz family -102.01 of -94.131 dBFS, rest -94.904 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [LOCK]: aliased dBFS core -125.05 char -95.94 anchor -155.78 sum -95.94 out -78.302; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -95.94 k2 -96.71 k3 -97.488 k4 -99.205 k5 -100.8 k6 -103.33 k7 -118.45 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -98.393 f_h 7.5: -106.35 f_h 8: -106.23 f_h 8.5: -105.59 f_h 9: -139.6 dBFS
+  core tap -125.05 dBFS: top 1.875Hz:-132.14 1.625Hz:-132.97 2.125Hz:-136.87 2.625Hz:-137.77; 8/16/24/32 Hz family -135.82, rest -125.43 dBFS
+  char tap -95.94 dBFS: top 3.125Hz:-108.95 3.375Hz:-109.63 5.375Hz:-109.97 5.125Hz:-110.06; 8/16/24/32 Hz family -104.58, rest -96.578 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 3.125Hz:-108.95 3.375Hz:-109.63 5.375Hz:-109.97 5.125Hz:-110.06 2.875Hz:-110.08 5.625Hz:-110.23 dBFS; 8/16/24/32 Hz family -104.58 of -95.94 dBFS, rest -96.578 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [SHAPE 0]: aliased dBFS core -125.05 char -94.595 anchor -155.69 sum -94.595 out -82.594; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -94.595 k2 -95.155 k3 -96.035 k4 -97.414 k5 -99.544 k6 -102.36 k7 -117.17 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -96.828 f_h 7.5: -105.23 f_h 8: -103.69 f_h 8.5: -104.14 f_h 9: -134.66 dBFS
+  core tap -125.05 dBFS: top 1.875Hz:-132.14 1.625Hz:-132.97 2.125Hz:-136.87 2.625Hz:-137.77; 8/16/24/32 Hz family -135.82, rest -125.43 dBFS
+  char tap -94.595 dBFS: top 4.625Hz:-107.52 4.875Hz:-107.99 4.375Hz:-108.01 2.875Hz:-108.65; 8/16/24/32 Hz family -103.05, rest -95.263 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 4.625Hz:-107.52 4.875Hz:-107.99 4.375Hz:-108.01 2.875Hz:-108.65 3.125Hz:-108.66 2.625Hz:-109.08 dBFS; 8/16/24/32 Hz family -103.05 of -94.595 dBFS, rest -95.264 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Character amount 0]: aliased dBFS core -125.05 char -82.417 anchor -155.78 sum -82.417 out -72.33; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -82.417 k2 -83.31 k3 -84.045 k4 -85.434 k5 -87.056 k6 -90.269 k7 -105.12 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -84.96 f_h 7.5: -93.131 f_h 8: -92.564 f_h 8.5: -91.672 f_h 9: -131.43 dBFS
+  core tap -125.05 dBFS: top 1.875Hz:-132.14 1.625Hz:-132.97 2.125Hz:-136.87 2.625Hz:-137.77; 8/16/24/32 Hz family -135.82, rest -125.43 dBFS
+  char tap -82.417 dBFS: top 9.625Hz:-96.987 9.875Hz:-97.093 2.125Hz:-97.214 9.375Hz:-97.233; 8/16/24/32 Hz family -89.988, rest -83.252 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 9.625Hz:-96.987 9.875Hz:-97.093 2.125Hz:-97.214 9.375Hz:-97.233 2.375Hz:-97.296 4.375Hz:-97.417 dBFS; 8/16/24/32 Hz family -89.988 of -82.417 dBFS, rest -83.252 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [excitation mix 0]: aliased dBFS core -125.83 char -93.454 anchor -155.69 sum -93.454 out -81.098; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -93.454 k2 -94.096 k3 -94.8 k4 -95.986 k5 -97.884 k6 -100.1 k7 -115.31 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -95.989 f_h 7.5: -103.9 f_h 8: -102.27 f_h 8.5: -101.39 f_h 9: -139.98 dBFS
+  core tap -125.83 dBFS: top 1.875Hz:-132.06 1.625Hz:-133.09 2.625Hz:-138.43 2.125Hz:-138.52; 8/16/24/32 Hz family -137.81, rest -126.11 dBFS
+  char tap -93.454 dBFS: top 1.625Hz:-105.86 1.875Hz:-106.84 2.375Hz:-107.55 2.125Hz:-107.72; 8/16/24/32 Hz family -101.85, rest -94.132 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-105.86 1.875Hz:-106.84 2.375Hz:-107.55 2.125Hz:-107.72 2.625Hz:-107.75 2.875Hz:-108.14 dBFS; 8/16/24/32 Hz family -101.85 of -93.454 dBFS, rest -94.132 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Mass 50]: aliased dBFS core -124.05 char -91.596 anchor -155.69 sum -91.596 out -91.177; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -91.596 k2 -92.271 k3 -93.285 k4 -94.63 k5 -96.243 k6 -98.846 k7 -114.11 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -94.299 f_h 7.5: -102.05 f_h 8: -100.15 f_h 8.5: -99.734 f_h 9: -136.97 dBFS
+  core tap -124.05 dBFS: top 3.875Hz:-131.91 4.125Hz:-132.92 3.625Hz:-133.15 3.375Hz:-133.83; 8/16/24/32 Hz family -135.42, rest -124.38 dBFS
+  char tap -91.596 dBFS: top 4.125Hz:-106 1.625Hz:-106.24 4.375Hz:-106.36 5.625Hz:-106.4; 8/16/24/32 Hz family -99.489, rest -92.366 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 4.125Hz:-106 1.625Hz:-106.24 4.375Hz:-106.36 5.625Hz:-106.4 2.875Hz:-106.42 1.875Hz:-106.47 dBFS; 8/16/24/32 Hz family -99.489 of -91.596 dBFS, rest -92.366 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Fold 0]: aliased dBFS core -125.05 char -91.943 anchor -155.69 sum -91.943 out -84.062; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -91.943 k2 -92.547 k3 -93.386 k4 -94.42 k5 -96.157 k6 -98.075 k7 -114.23 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -94.724 f_h 7.5: -102.34 f_h 8: -99.756 f_h 8.5: -99.13 f_h 9: -139.42 dBFS
+  core tap -125.05 dBFS: top 1.875Hz:-132.14 1.625Hz:-132.97 2.125Hz:-136.87 2.625Hz:-137.77; 8/16/24/32 Hz family -135.82, rest -125.43 dBFS
+  char tap -91.943 dBFS: top 1.625Hz:-103.55 1.875Hz:-104.02 2.125Hz:-106.24 2.875Hz:-106.43; 8/16/24/32 Hz family -100.2, rest -92.646 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 1.625Hz:-103.55 1.875Hz:-104.02 2.125Hz:-106.24 2.875Hz:-106.43 4.875Hz:-106.55 3.375Hz:-106.61 dBFS; 8/16/24/32 Hz family -100.2 of -91.943 dBFS, rest -92.646 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Anchor level 0]: aliased dBFS core -125.05 char -93.919 anchor -161.71 sum -93.919 out -83.491; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -93.919 k2 -94.601 k3 -95.364 k4 -96.968 k5 -98.8 k6 -101.74 k7 -117.17 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -96.194 f_h 7.5: -104.26 f_h 8: -104.52 f_h 8.5: -104.22 f_h 9: -140.9 dBFS
+  core tap -125.05 dBFS: top 1.875Hz:-132.14 1.625Hz:-132.97 2.125Hz:-136.87 2.625Hz:-137.77; 8/16/24/32 Hz family -135.82, rest -125.43 dBFS
+  char tap -93.919 dBFS: top 2.875Hz:-106.87 3.125Hz:-107.22 2.375Hz:-107.73 2.625Hz:-107.78; 8/16/24/32 Hz family -102.91, rest -94.504 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 2.875Hz:-106.87 3.125Hz:-107.22 2.375Hz:-107.73 2.625Hz:-107.78 5.375Hz:-107.86 5.125Hz:-108.07 dBFS; 8/16/24/32 Hz family -102.91 of -93.919 dBFS, rest -94.504 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Mass 0]: aliased dBFS core -124.44 char -96.361 anchor -161.71 sum -96.361 out -94.316; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -96.361 k2 -97.151 k3 -98.048 k4 -99.38 k5 -101.13 k6 -103.59 k7 -119.21 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -99.128 f_h 7.5: -107.06 f_h 8: -106.38 f_h 8.5: -105.77 f_h 9: -141.26 dBFS
+  core tap -124.44 dBFS: top 3.875Hz:-130.95 4.125Hz:-131.72 3.625Hz:-132.47 3.375Hz:-134.01; 8/16/24/32 Hz family -135.97, rest -124.76 dBFS
+  char tap -96.361 dBFS: top 8.875Hz:-111.03 5.125Hz:-111.05 8.625Hz:-111.09 5.375Hz:-111.28; 8/16/24/32 Hz family -103.95, rest -97.193 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.875Hz:-111.03 5.125Hz:-111.05 8.625Hz:-111.09 5.375Hz:-111.28 2.125Hz:-111.31 1.875Hz:-111.51 dBFS; 8/16/24/32 Hz family -103.95 of -96.361 dBFS, rest -97.193 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Mass 0 + Fold 0]: aliased dBFS core -124.44 char -96.987 anchor -161.71 sum -96.987 out -94.943; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -96.987 k2 -97.788 k3 -98.675 k4 -99.971 k5 -101.64 k6 -104.31 k7 -119.88 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -99.73 f_h 7.5: -107.93 f_h 8: -106.7 f_h 8.5: -106.22 f_h 9: -144.28 dBFS
+  core tap -124.44 dBFS: top 3.875Hz:-130.95 4.125Hz:-131.72 3.625Hz:-132.47 3.375Hz:-134.01; 8/16/24/32 Hz family -135.97, rest -124.76 dBFS
+  char tap -96.987 dBFS: top 8.125Hz:-111.39 8.375Hz:-111.52 4.875Hz:-111.87 9.875Hz:-111.88; 8/16/24/32 Hz family -104.42, rest -97.851 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.125Hz:-111.39 8.375Hz:-111.52 4.875Hz:-111.87 9.875Hz:-111.88 8.625Hz:-111.95 7.875Hz:-112.07 dBFS; 8/16/24/32 Hz family -104.42 of -96.987 dBFS, rest -97.851 dBFS
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Mass 0 + Fold 100]: aliased dBFS core -124.44 char -96.361 anchor -161.71 sum -96.361 out -94.316; follow ratio [0.5, 0.5]
+  residual on the f0/k lattice: k1 -96.361 k2 -97.151 k3 -98.048 k4 -99.38 k5 -101.13 k6 -103.59 k7 -119.21 k8 -3000 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -99.128 f_h 7.5: -107.06 f_h 8: -106.38 f_h 8.5: -105.77 f_h 9: -141.26 dBFS
+  core tap -124.44 dBFS: top 3.875Hz:-130.95 4.125Hz:-131.72 3.625Hz:-132.47 3.375Hz:-134.01; 8/16/24/32 Hz family -135.97, rest -124.76 dBFS
+  char tap -96.361 dBFS: top 8.875Hz:-111.03 5.125Hz:-111.05 8.625Hz:-111.09 5.375Hz:-111.28; 8/16/24/32 Hz family -103.95, rest -97.193 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 8.875Hz:-111.03 5.125Hz:-111.05 8.625Hz:-111.09 5.375Hz:-111.28 2.125Hz:-111.31 1.875Hz:-111.51 dBFS; 8/16/24/32 Hz family -103.95 of -96.361 dBFS, rest -97.193 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [base]: aliased dBFS core -131.37 char -78.108 anchor -155.71 sum -78.108 out -65.49; follow ratio [2, 2]
+  residual on the f0/k lattice: k1 -78.108 k2 -79.268 k3 -79.459 k4 -80.737 k5 -81.241 k6 -83.519 k7 -89.355 k8 -176.6 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -82.539 f_h 7.5: -84.285 f_h 8: -85.358 f_h 8.5: -90.743 f_h 9: -108.39 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -78.108 dBFS: top 38.375Hz:-94.966 37.875Hz:-95.095 34.125Hz:-95.372 38.125Hz:-95.438; 8/16/24/32 Hz family -88.321, rest -78.543 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 38.375Hz:-94.966 37.875Hz:-95.095 34.125Hz:-95.372 38.125Hz:-95.438 25.375Hz:-95.647 33.625Hz:-95.649 dBFS; 8/16/24/32 Hz family -88.321 of -78.108 dBFS, rest -78.543 dBFS
+  off-lattice power: below f_m -111.47 dBFS, f_m .. fs/4 -78.22 dBFS, above fs/4 -94.152 dBFS (R)
+  bin 2883 f 1940 Hz (23.542 f0) -105.69 dBFS, nearest mirrored harmonic 0.81821 Hz away
+  bin 2882 f 1939.3 Hz (23.534 f0) -106.01 dBFS, nearest mirrored harmonic 1.4911 Hz away
+  bin 3378 f 2273.1 Hz (27.584 f0) -106.05 dBFS, nearest mirrored harmonic 2.646 Hz away
+  bin 3485 f 2345.1 Hz (28.458 f0) -106.22 dBFS, nearest mirrored harmonic 0.7673 Hz away
+  bin 3486 f 2345.8 Hz (28.466 f0) -106.23 dBFS, nearest mirrored harmonic 1.4402 Hz away
+  bin 3379 f 2273.8 Hz (27.592 f0) -106.26 dBFS, nearest mirrored harmonic 3.3189 Hz away
+  bin 3391 f 2281.8 Hz (27.69 f0) -106.42 dBFS, nearest mirrored harmonic 0.91956 Hz away
+  bin 2515 f 1692.4 Hz (20.537 f0) -106.51 dBFS, nearest mirrored harmonic 1.2294 Hz away
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [SOLID]: aliased dBFS core -132.74 char -84.967 anchor -155.71 sum -84.967 out -64.225; follow ratio [2, 2]
+  residual on the f0/k lattice: k1 -84.967 k2 -85.799 k3 -86.996 k4 -87.78 k5 -89.513 k6 -92.945 k7 -93.347 k8 -183.88 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -92.093 f_h 7.5: -92.278 f_h 8: -96.492 f_h 8.5: -102.48 f_h 9: -113.94 dBFS
+  core tap -132.74 dBFS: top 6.125Hz:-143.01 6.625Hz:-143.24 7.375Hz:-143.91 8.125Hz:-145.99; 8/16/24/32 Hz family -138.35, rest -134.14 dBFS
+  char tap -84.967 dBFS: top 29.375Hz:-100.65 29.125Hz:-100.95 36.875Hz:-101.47 29.625Hz:-101.65; 8/16/24/32 Hz family -93.471, rest -85.628 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 29.375Hz:-100.65 29.125Hz:-100.95 36.875Hz:-101.47 29.625Hz:-101.65 29.875Hz:-101.8 37.125Hz:-102.15 dBFS; 8/16/24/32 Hz family -93.471 of -84.967 dBFS, rest -85.628 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -131.37 char -91.376 anchor -155.71 sum -91.376 out -55.742; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -91.376 k2 -92.08 k3 -92.699 k4 -94.048 k5 -95.359 k6 -96.633 k7 -101.58 k8 -173.51 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -97.881 f_h 7.5: -99.055 f_h 8: -100.96 f_h 8.5: -102.94 f_h 9: -116.77 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -91.376 dBFS: top 40.875Hz:-109.48 21.375Hz:-110.01 20.375Hz:-110.09 7.875Hz:-110.22; 8/16/24/32 Hz family -98.571, rest -92.296 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 40.875Hz:-109.48 21.375Hz:-110.01 20.375Hz:-110.09 7.875Hz:-110.22 31.875Hz:-110.23 32.125Hz:-110.28 dBFS; 8/16/24/32 Hz family -98.571 of -91.376 dBFS, rest -92.296 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [Character amount 0]: aliased dBFS core -131.37 char -85.953 anchor -155.71 sum -85.953 out -83.55; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -85.953 k2 -87.121 k3 -87.306 k4 -88.604 k5 -89.085 k6 -91.378 k7 -97.134 k8 -171.88 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -90.342 f_h 7.5: -92.084 f_h 8: -93.131 f_h 8.5: -98.318 f_h 9: -116.35 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -85.953 dBFS: top 34.125Hz:-102.95 34.375Hz:-103.12 38.375Hz:-103.13 37.625Hz:-103.18; 8/16/24/32 Hz family -96.143, rest -86.39 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 34.125Hz:-102.95 34.375Hz:-103.12 38.375Hz:-103.13 37.625Hz:-103.18 37.875Hz:-103.21 38.875Hz:-103.49 dBFS; 8/16/24/32 Hz family -96.143 of -85.953 dBFS, rest -86.39 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -136.82 char -81.58 anchor -155.71 sum -81.58 out -66.16; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -81.58 k2 -83.288 k3 -82.35 k4 -85.155 k5 -85.011 k6 -88.259 k7 -90.997 k8 -168.37 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -85.792 f_h 7.5: -86.262 f_h 8: -87.271 f_h 8.5: -89.566 f_h 9: -119.55 dBFS
+  core tap -136.82 dBFS: top 6.375Hz:-148.16 5.875Hz:-149.49 6.875Hz:-150.73 8.375Hz:-152.29; 8/16/24/32 Hz family -144.02, rest -137.74 dBFS
+  char tap -81.58 dBFS: top 40.375Hz:-97.576 40.625Hz:-97.775 40.875Hz:-97.977 41.125Hz:-98.108; 8/16/24/32 Hz family -89.961, rest -82.261 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 40.375Hz:-97.576 40.625Hz:-97.775 40.875Hz:-97.977 41.125Hz:-98.108 40.125Hz:-98.525 39.875Hz:-98.865 dBFS; 8/16/24/32 Hz family -89.961 of -81.58 dBFS, rest -82.261 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [Mass 50]: aliased dBFS core -133.7 char -88.808 anchor -155.71 sum -88.808 out -65.944; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -88.808 k2 -89.52 k3 -90.593 k4 -90.978 k5 -92.489 k6 -94.325 k7 -99.339 k8 -171.48 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -94.688 f_h 7.5: -96.484 f_h 8: -98.012 f_h 8.5: -100.18 f_h 9: -113.99 dBFS
+  core tap -133.7 dBFS: top 7.375Hz:-145.07 8.125Hz:-145.71 8.625Hz:-146.36 6.625Hz:-146.45; 8/16/24/32 Hz family -138.93, rest -135.25 dBFS
+  char tap -88.808 dBFS: top 32.125Hz:-106.83 33.125Hz:-106.88 32.875Hz:-107.12 26.875Hz:-107.51; 8/16/24/32 Hz family -96.074, rest -89.711 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 32.125Hz:-106.83 33.125Hz:-106.88 32.875Hz:-107.12 26.875Hz:-107.51 33.375Hz:-107.73 34.125Hz:-107.84 dBFS; 8/16/24/32 Hz family -96.074 of -88.808 dBFS, rest -89.711 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [Fold 0]: aliased dBFS core -131.37 char -91.171 anchor -155.71 sum -91.171 out -93.58; follow ratio [2, 2]
+  residual on the f0/k lattice: k1 -91.171 k2 -91.844 k3 -92.386 k4 -93.467 k5 -95.191 k6 -96.251 k7 -101.11 k8 -166.06 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -97.604 f_h 7.5: -98.995 f_h 8: -100.79 f_h 8.5: -103.06 f_h 9: -120.72 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -91.171 dBFS: top 9.875Hz:-108.97 31.875Hz:-109.44 7.875Hz:-109.46 40.875Hz:-109.55; 8/16/24/32 Hz family -98.407, rest -92.08 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 9.875Hz:-108.97 31.875Hz:-109.44 7.875Hz:-109.46 40.875Hz:-109.55 21.375Hz:-109.8 10.625Hz:-109.8 dBFS; 8/16/24/32 Hz family -98.407 of -91.171 dBFS, rest -92.08 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -131.37 char -90.628 anchor -161.73 sum -90.628 out -94.047; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -90.628 k2 -91.632 k3 -92.022 k4 -93.36 k5 -94.06 k6 -96.023 k7 -101.34 k8 -168.5 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -95.812 f_h 7.5: -97.364 f_h 8: -98.478 f_h 8.5: -102.36 f_h 9: -119.72 dBFS
+  core tap -131.37 dBFS: top 9.375Hz:-142.17 10.125Hz:-142.39 8.625Hz:-143.81 10.875Hz:-143.94; 8/16/24/32 Hz family -138.46, rest -132.31 dBFS
+  char tap -90.628 dBFS: top 38.125Hz:-108.04 33.875Hz:-108.5 25.625Hz:-108.53 37.875Hz:-108.71; 8/16/24/32 Hz family -100.6, rest -91.089 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 38.125Hz:-108.04 33.875Hz:-108.5 25.625Hz:-108.53 37.875Hz:-108.71 37.625Hz:-108.79 25.875Hz:-109 dBFS; 8/16/24/32 Hz family -100.6 of -90.628 dBFS, rest -91.089 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [Mass 0]: aliased dBFS core -135.12 char -94.782 anchor -161.73 sum -94.782 out -63.161; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -94.782 k2 -95.347 k3 -96.703 k4 -97.192 k5 -98.641 k6 -101.71 k7 -104.64 k8 -165.93 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -102.2 f_h 7.5: -103.53 f_h 8: -104.44 f_h 8.5: -106.17 f_h 9: -123.9 dBFS
+  core tap -135.12 dBFS: top 10.875Hz:-146.93 11.375Hz:-147.26 10.125Hz:-148.56 5.625Hz:-148.69; 8/16/24/32 Hz family -142.01, rest -136.11 dBFS
+  char tap -94.782 dBFS: top 30.125Hz:-113.23 28.875Hz:-113.43 30.375Hz:-113.53 24.375Hz:-113.59; 8/16/24/32 Hz family -102.43, rest -95.601 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 30.125Hz:-113.23 28.875Hz:-113.43 30.375Hz:-113.53 24.375Hz:-113.59 25.125Hz:-113.88 29.625Hz:-113.89 dBFS; 8/16/24/32 Hz family -102.43 of -94.782 dBFS, rest -95.601 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [Mass 0 + Fold 0]: aliased dBFS core -135.12 char -95.806 anchor -161.73 sum -95.806 out -64.428; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -95.806 k2 -96.271 k3 -97.759 k4 -98.306 k5 -99.306 k6 -102.29 k7 -106.47 k8 -175.72 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -103.83 f_h 7.5: -105.26 f_h 8: -106.4 f_h 8.5: -108.3 f_h 9: -124.48 dBFS
+  core tap -135.12 dBFS: top 10.875Hz:-146.93 11.375Hz:-147.26 10.125Hz:-148.56 5.625Hz:-148.69; 8/16/24/32 Hz family -142.01, rest -136.11 dBFS
+  char tap -95.806 dBFS: top 24.375Hz:-113.47 25.125Hz:-114.06 8.125Hz:-114.16 24.625Hz:-114.34; 8/16/24/32 Hz family -102.83, rest -96.767 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 24.375Hz:-113.47 25.125Hz:-114.06 8.125Hz:-114.16 24.625Hz:-114.34 7.875Hz:-114.57 24.125Hz:-114.69 dBFS; 8/16/24/32 Hz family -102.83 of -95.806 dBFS, rest -96.767 dBFS
+PROBE SC-021(a) 44k1 E2 Rectify SHAPE 0 Tone 1 LOCK [Mass 0 + Fold 100]: aliased dBFS core -135.12 char -94.782 anchor -161.73 sum -94.782 out -63.161; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -94.782 k2 -95.347 k3 -96.703 k4 -97.192 k5 -98.641 k6 -101.71 k7 -104.64 k8 -165.93 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -102.2 f_h 7.5: -103.53 f_h 8: -104.44 f_h 8.5: -106.17 f_h 9: -123.9 dBFS
+  core tap -135.12 dBFS: top 10.875Hz:-146.93 11.375Hz:-147.26 10.125Hz:-148.56 5.625Hz:-148.69; 8/16/24/32 Hz family -142.01, rest -136.11 dBFS
+  char tap -94.782 dBFS: top 30.125Hz:-113.23 28.875Hz:-113.43 30.375Hz:-113.53 24.375Hz:-113.59; 8/16/24/32 Hz family -102.43, rest -95.601 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 30.125Hz:-113.23 28.875Hz:-113.43 30.375Hz:-113.53 24.375Hz:-113.59 25.125Hz:-113.88 29.625Hz:-113.89 dBFS; 8/16/24/32 Hz family -102.43 of -94.782 dBFS, rest -95.601 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [base]: aliased dBFS core -131.93 char -78.926 anchor -156.25 sum -78.926 out -65.669; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -78.926 k2 -79.166 k3 -81.886 k4 -80.7 k5 -82.566 k6 -87.408 k7 -100.68 k8 -163.51 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -87.259 f_h 7.5: -88.167 f_h 8: -92.319 f_h 8.5: -96.999 f_h 9: -106.73 dBFS
+  core tap -131.93 dBFS: top 10.375Hz:-142.35 9.625Hz:-143.5 10.875Hz:-144.38 6.875Hz:-146; 8/16/24/32 Hz family -140.44, rest -132.59 dBFS
+  char tap -78.926 dBFS: top 26.375Hz:-95.643 25.625Hz:-95.941 9.625Hz:-96.004 26.875Hz:-96.053; 8/16/24/32 Hz family -86.428, rest -79.776 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 26.375Hz:-95.643 25.625Hz:-95.94 9.625Hz:-96.004 26.875Hz:-96.053 10.375Hz:-96.361 32.625Hz:-96.39 dBFS; 8/16/24/32 Hz family -86.428 of -78.926 dBFS, rest -79.776 dBFS
+  off-lattice power: below f_m -98.937 dBFS, f_m .. fs/4 -78.974 dBFS, above fs/4 -109.09 dBFS (L)
+  bin 526 f 385.25 Hz (4.675 f0) -102.84 dBFS, nearest mirrored harmonic 8.3811 Hz away
+  bin 662 f 484.86 Hz (5.8838 f0) -102.87 dBFS, nearest mirrored harmonic 5.5502 Hz away
+  bin 661 f 484.13 Hz (5.8749 f0) -103.16 dBFS, nearest mirrored harmonic 6.2826 Hz away
+  bin 525 f 384.52 Hz (4.6661 f0) -103.47 dBFS, nearest mirrored harmonic 7.6487 Hz away
+  bin 527 f 385.99 Hz (4.6839 f0) -103.56 dBFS, nearest mirrored harmonic 9.1135 Hz away
+  bin 751 f 550.05 Hz (6.6748 f0) -103.96 dBFS, nearest mirrored harmonic 8.3622 Hz away
+  bin 711 f 520.75 Hz (6.3193 f0) -103.98 dBFS, nearest mirrored harmonic 8.851 Hz away
+  bin 887 f 649.66 Hz (7.8835 f0) -104.05 dBFS, nearest mirrored harmonic 5.5691 Hz away
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [SOLID]: aliased dBFS core -132.82 char -85.053 anchor -156.25 sum -85.053 out -64.713; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -85.053 k2 -85.986 k3 -86.461 k4 -87.428 k5 -89.967 k6 -93.465 k7 -110.66 k8 -168.72 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -91.545 f_h 7.5: -92.431 f_h 8: -95.756 f_h 8.5: -104.09 f_h 9: -114.93 dBFS
+  core tap -132.82 dBFS: top 6.625Hz:-140.77 7.375Hz:-143.21 6.875Hz:-147.63 8.125Hz:-147.89; 8/16/24/32 Hz family -139.19, rest -133.96 dBFS
+  char tap -85.053 dBFS: top 37.375Hz:-101.75 38.125Hz:-102.59 10.125Hz:-102.74 13.125Hz:-102.87; 8/16/24/32 Hz family -92.893, rest -85.833 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 37.375Hz:-101.75 38.125Hz:-102.59 10.125Hz:-102.74 13.125Hz:-102.87 37.625Hz:-103.15 36.625Hz:-103.34 dBFS; 8/16/24/32 Hz family -92.893 of -85.053 dBFS, rest -85.833 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [anchorFoldFeed 0]: aliased dBFS core -131.93 char -89.797 anchor -156.26 sum -89.797 out -56.664; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -89.797 k2 -91.015 k3 -92.014 k4 -93.825 k5 -94.56 k6 -100.3 k7 -111.76 k8 -165.64 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -95.543 f_h 7.5: -96.111 f_h 8: -98.983 f_h 8.5: -106.97 f_h 9: -120.5 dBFS
+  core tap -131.93 dBFS: top 10.375Hz:-142.35 9.625Hz:-143.5 10.875Hz:-144.38 6.875Hz:-146; 8/16/24/32 Hz family -140.44, rest -132.59 dBFS
+  char tap -89.797 dBFS: top 38.125Hz:-106.5 37.875Hz:-106.5 37.625Hz:-106.54 37.375Hz:-106.59; 8/16/24/32 Hz family -97.267, rest -90.654 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 38.125Hz:-106.5 37.875Hz:-106.51 37.625Hz:-106.54 37.375Hz:-106.59 22.875Hz:-106.75 23.375Hz:-106.91 dBFS; 8/16/24/32 Hz family -97.267 of -89.797 dBFS, rest -90.654 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [LOCK]: aliased dBFS core -131.93 char -79.669 anchor -156.26 sum -79.669 out -65.668; follow ratio [2, 2]
+  residual on the f0/k lattice: k1 -79.669 k2 -80.489 k3 -81.865 k4 -83.094 k5 -83.792 k6 -88.22 k7 -101.81 k8 -169.34 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -86.75 f_h 7.5: -87.604 f_h 8: -91.465 f_h 8.5: -95.714 f_h 9: -110.35 dBFS
+  core tap -131.93 dBFS: top 10.375Hz:-142.35 9.625Hz:-143.5 10.875Hz:-144.38 6.875Hz:-146; 8/16/24/32 Hz family -140.44, rest -132.59 dBFS
+  char tap -79.669 dBFS: top 37.625Hz:-98.016 36.875Hz:-98.085 37.125Hz:-98.099 24.625Hz:-98.407; 8/16/24/32 Hz family -86.786, rest -80.606 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 37.625Hz:-98.016 36.875Hz:-98.085 37.125Hz:-98.099 24.625Hz:-98.407 23.875Hz:-98.507 37.875Hz:-98.519 dBFS; 8/16/24/32 Hz family -86.786 of -79.669 dBFS, rest -80.606 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [Character amount 0]: aliased dBFS core -131.93 char -87.492 anchor -156.26 sum -87.492 out -87.682; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -87.492 k2 -88.313 k3 -89.734 k4 -90.875 k5 -91.665 k6 -96.074 k7 -109.49 k8 -169.62 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -94.562 f_h 7.5: -95.446 f_h 8: -99.312 f_h 8.5: -103.4 f_h 9: -116.04 dBFS
+  core tap -131.93 dBFS: top 10.375Hz:-142.35 9.625Hz:-143.5 10.875Hz:-144.38 6.875Hz:-146; 8/16/24/32 Hz family -140.44, rest -132.59 dBFS
+  char tap -87.492 dBFS: top 24.125Hz:-105.13 24.875Hz:-105.19 36.875Hz:-105.67 25.625Hz:-105.71; 8/16/24/32 Hz family -94.667, rest -88.416 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 24.125Hz:-105.13 24.875Hz:-105.19 36.875Hz:-105.67 25.625Hz:-105.71 37.625Hz:-105.8 37.125Hz:-105.92 dBFS; 8/16/24/32 Hz family -94.667 of -87.492 dBFS, rest -88.416 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [excitation mix 0]: aliased dBFS core -135.03 char -80.747 anchor -156.26 sum -80.747 out -67.829; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -80.747 k2 -81.484 k3 -83.155 k4 -83.564 k5 -85.405 k6 -88.394 k7 -104.79 k8 -168.15 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -87.783 f_h 7.5: -89.3 f_h 8: -90.964 f_h 8.5: -96.361 f_h 9: -116.8 dBFS
+  core tap -135.03 dBFS: top 6.875Hz:-146.02 7.625Hz:-147.15 10.625Hz:-147.25 12.875Hz:-147.4; 8/16/24/32 Hz family -143, rest -135.79 dBFS
+  char tap -80.747 dBFS: top 32.375Hz:-97.603 32.875Hz:-97.709 33.125Hz:-97.96 32.125Hz:-98.082; 8/16/24/32 Hz family -87.392, rest -81.807 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 32.375Hz:-97.603 32.875Hz:-97.709 33.125Hz:-97.96 32.125Hz:-98.082 22.125Hz:-98.436 32.625Hz:-98.437 dBFS; 8/16/24/32 Hz family -87.392 of -80.747 dBFS, rest -81.807 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 50]: aliased dBFS core -131.13 char -89.887 anchor -156.26 sum -89.887 out -66.821; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -89.887 k2 -90.866 k3 -91.15 k4 -92.877 k5 -94.573 k6 -97.425 k7 -115.45 k8 -166.77 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -95.799 f_h 7.5: -97.159 f_h 8: -98.796 f_h 8.5: -101.49 f_h 9: -115.58 dBFS
+  core tap -131.13 dBFS: top 7.375Hz:-139.97 6.625Hz:-141.09 8.125Hz:-141.81 12.875Hz:-146.73; 8/16/24/32 Hz family -136.49, rest -132.63 dBFS
+  char tap -89.887 dBFS: top 40.625Hz:-107.96 13.875Hz:-108.11 14.625Hz:-108.36 13.125Hz:-108.56; 8/16/24/32 Hz family -97.915, rest -90.632 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 40.625Hz:-107.96 13.875Hz:-108.11 14.625Hz:-108.36 13.125Hz:-108.56 13.625Hz:-108.6 14.375Hz:-108.76 dBFS; 8/16/24/32 Hz family -97.915 of -89.887 dBFS, rest -90.632 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [Fold 0]: aliased dBFS core -131.93 char -90.866 anchor -156.23 sum -90.866 out -92.672; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -90.866 k2 -91.273 k3 -93.588 k4 -93.258 k5 -94.96 k6 -100.33 k7 -113.82 k8 -162.16 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -99.425 f_h 7.5: -100.52 f_h 8: -104.01 f_h 8.5: -108.35 f_h 9: -118.65 dBFS
+  core tap -131.93 dBFS: top 10.375Hz:-142.35 9.625Hz:-143.5 10.875Hz:-144.38 6.875Hz:-146; 8/16/24/32 Hz family -140.44, rest -132.59 dBFS
+  char tap -90.866 dBFS: top 9.625Hz:-107.6 26.875Hz:-108.29 10.375Hz:-108.34 27.125Hz:-108.47; 8/16/24/32 Hz family -98.505, rest -91.687 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 9.625Hz:-107.6 26.875Hz:-108.29 10.375Hz:-108.34 27.125Hz:-108.47 27.625Hz:-108.57 26.375Hz:-108.85 dBFS; 8/16/24/32 Hz family -98.505 of -90.866 dBFS, rest -91.687 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [Anchor level 0]: aliased dBFS core -131.93 char -88.592 anchor -162.28 sum -88.592 out -90.381; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -88.592 k2 -89.7 k3 -90.878 k4 -91.416 k5 -93.428 k6 -98.528 k7 -111.69 k8 -166.82 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -94.506 f_h 7.5: -95.326 f_h 8: -98.246 f_h 8.5: -105.12 f_h 9: -116.97 dBFS
+  core tap -131.93 dBFS: top 10.375Hz:-142.35 9.625Hz:-143.5 10.875Hz:-144.38 6.875Hz:-146; 8/16/24/32 Hz family -140.44, rest -132.59 dBFS
+  char tap -88.592 dBFS: top 37.875Hz:-105.52 23.625Hz:-105.95 37.375Hz:-105.98 38.125Hz:-106.06; 8/16/24/32 Hz family -96.043, rest -89.454 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 37.875Hz:-105.52 23.625Hz:-105.95 37.375Hz:-105.98 38.125Hz:-106.06 37.625Hz:-106.14 22.875Hz:-106.16 dBFS; 8/16/24/32 Hz family -96.043 of -88.592 dBFS, rest -89.454 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 0]: aliased dBFS core -133.63 char -94.922 anchor -162.28 sum -94.922 out -64.014; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -94.922 k2 -95.698 k3 -96.239 k4 -97.943 k5 -100.06 k6 -102.15 k7 -117.54 k8 -170.17 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -101.51 f_h 7.5: -103.24 f_h 8: -104.86 f_h 8.5: -107.01 f_h 9: -123.46 dBFS
+  core tap -133.63 dBFS: top 6.625Hz:-146.59 12.125Hz:-146.85 12.875Hz:-146.92 7.375Hz:-147.09; 8/16/24/32 Hz family -140.48, rest -134.64 dBFS
+  char tap -94.922 dBFS: top 14.625Hz:-112.24 13.875Hz:-112.57 15.375Hz:-112.9 40.625Hz:-113.22; 8/16/24/32 Hz family -103.23, rest -95.616 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 14.625Hz:-112.25 13.875Hz:-112.57 15.375Hz:-112.9 40.625Hz:-113.22 12.875Hz:-113.31 40.875Hz:-113.65 dBFS; 8/16/24/32 Hz family -103.23 of -94.922 dBFS, rest -95.616 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 0 + Fold 0]: aliased dBFS core -133.63 char -95.561 anchor -162.28 sum -95.561 out -65.208; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -95.561 k2 -96.259 k3 -96.974 k4 -98.634 k5 -101.39 k6 -102.35 k7 -118.08 k8 -167.25 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -102.32 f_h 7.5: -104.44 f_h 8: -106.07 f_h 8.5: -109.53 f_h 9: -123.08 dBFS
+  core tap -133.63 dBFS: top 6.625Hz:-146.59 12.125Hz:-146.85 12.875Hz:-146.92 7.375Hz:-147.09; 8/16/24/32 Hz family -140.48, rest -134.64 dBFS
+  char tap -95.561 dBFS: top 14.625Hz:-113.29 13.875Hz:-113.33 21.625Hz:-113.94 20.875Hz:-113.99; 8/16/24/32 Hz family -104.25, rest -96.191 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 14.625Hz:-113.29 13.875Hz:-113.33 21.625Hz:-113.94 20.875Hz:-113.99 15.375Hz:-114.04 12.875Hz:-114.12 dBFS; 8/16/24/32 Hz family -104.25 of -95.561 dBFS, rest -96.191 dBFS
+PROBE SC-021(a) 48k E2 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 0 + Fold 100]: aliased dBFS core -133.63 char -94.922 anchor -162.28 sum -94.922 out -64.014; follow ratio [1, 1]
+  residual on the f0/k lattice: k1 -94.922 k2 -95.698 k3 -96.239 k4 -97.943 k5 -100.06 k6 -102.15 k7 -117.54 k8 -170.17 dBFS
+  residual with n f_m +- m f_h masked (m <= 4): f_h 7: -101.51 f_h 7.5: -103.24 f_h 8: -104.86 f_h 8.5: -107.01 f_h 9: -123.46 dBFS
+  core tap -133.63 dBFS: top 6.625Hz:-146.59 12.125Hz:-146.85 12.875Hz:-146.92 7.375Hz:-147.09; 8/16/24/32 Hz family -140.48, rest -134.64 dBFS
+  char tap -94.922 dBFS: top 14.625Hz:-112.24 13.875Hz:-112.57 15.375Hz:-112.9 40.625Hz:-113.22; 8/16/24/32 Hz family -103.23, rest -95.616 dBFS
+  offset histogram (0.25 Hz buckets, offset to the nearest harmonic): top 14.625Hz:-112.25 13.875Hz:-112.57 15.375Hz:-112.9 40.625Hz:-113.22 12.875Hz:-113.31 40.875Hz:-113.65 dBFS; 8/16/24/32 Hz family -103.23 of -94.922 dBFS, rest -95.616 dBFS
+===============================================================================
+All tests passed (31939 assertions in 1 test case)
+

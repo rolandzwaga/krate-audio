@@ -1,0 +1,120 @@
+T008 - ProfundumEngine and its direct cases (FR-020 - FR-032, FR-060 - FR-066; plan S6, S8, C-1, C-2, C-9, C-11,
+C-12, C-14, C-15, C-19, C-20; deviation 3)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+ODR SWEEP (this session, before writing)
+$ grep -rnw "ProfundumEngine|ProfundumEngineConfig|ProfundumNonlinearPlacement|PostSumTap" dsp plugins tests
+  (excluding the Phase 9 headers themselves) -> 0 hits (only the substring "ownedEngineConfig" in cavern_verb tests,
+  a different identifier). PostSumTap, Settings, QueuedNote, DynHanded, PostHanded are nested in ProfundumEngine.
+  TU-local test names (pe*, Pe*, kPe*) live in an anonymous namespace; grep "peMakeEngine|peRender" dsp/tests: 0 hits.
+
+FACTS READ THIS SESSION (live anchors)
+- profundum_voice.h (T007): prepare(double, const MorphState&), reset(const MorphState&), setNoteMemory,
+  setObserverSlot(o, index, const Seams*) (copies the seams), setSamplePosition, noteEvent(Transition, fNote, bool),
+  release, audible / held / active, consumeEnvelopeRestart, noteFrequency, beginInterval(IntervalInputs, fRes, n)
+  (copies fRes for the interval), render(fRes or nullptr, sumL, sumR, n) (adds; nullptr keeps the stored f_res),
+  currentCoreF0, IntervalInputs {state, coreControls, foldAmount, anchorLevel, field, forceLinearCore}; voice taps
+  carry .sample = the voice clock before the sub-chunk.
+- profundum_engine_observer.h (T004): ProfundumEngineSeams, ProfundumCall order, ProfundumCallRecord, ProfundumGridRecord
+  member order (sample, resolved, afterMacros, afterMotion, motionSource, motionOutput, massIn, smoothedMass,
+  anchorMassUsed, anchorLevel, compressionHanded, compressorGrDb, targets), ProfundumEngineTaps.
+- profundum_motion.h (T003): setSeed (next prepare / reset), prepare, reset (re-seeds drift), setConfig (change-only),
+  setTempoBpm, noteRestart, advanceInterval -> const Offsets&, sourceValue, outputValue.
+- profundum_macro_matrix.h (T002): setMacro / setMacros / macros(), apply(MorphState&), compressionContribution(),
+  kNeutral.
+- bass_morph_engine.h: Resolved {state, position, anchorPosition, anchorMass} :54-59; prepare (preserves endpoints,
+  target, mode, ramp) :88-95; reset :99-105; setEndpoint -> bool :113-127; endpoint(e) :130; setPosition :138;
+  targetPosition; setPositionRampMs / positionRampMs; setAnchorMorphMode / anchorMorphMode :170-178;
+  advanceInterval -> const Resolved& :205-224; serializeRuntime / restoreRuntime(const std::byte*, size_t) :274.
+- mass_law.h: Targets (seven fields, order depth, body, transientDurationMs, foldAmount, compressionAmount,
+  anchorLevel, outputTrimDb); kRows; evaluateRow(const Row&, mass, base); setMass / setBase / advanceInterval /
+  currentTargets / smoothedMass / base.
+- mass_dynamics.h: prepare(double, size_t) :484 (opt-in engaged when 2 fs <= 192 kHz); reset :502; setters :517-544;
+  processBlock :552; compressor() :588; setOversampling :601; BassCompressor::currentGainReductionDb :274.
+- bass_stereo_field.h: Controls :99-111; prepare(double, size_t) :165; reset :198; setControls :234; setTempoBpm :274;
+  setDriftSeed :282; advanceControl :293; wideOffsets :413; processBlock :437; latencySamples :483; modeFade :498;
+  sideIdle :500; kDefaultTempoBpm :83; kDefaultF0Hz :95.
+- voice_allocator.h: VoiceState :43; AllocationMode :55; StealMode :67; VoiceEvent :102-115; kMaxVoices 32 :193;
+  noteOn / noteOff -> span (velocity 0 = noteOff) :228-282; voiceFinished :288; setAllocationMode / setStealMode /
+  setVoiceCount :311-330; getVoiceState :424; reset :456.
+- mono_handler.h: MonoNoteEvent :41-46; MonoMode / PortaMode / GlideMode :53-78; kMin/kMaxPortamentoTimeMs :111-112;
+  prepare :133; noteOn(int, int) :148; noteOff :224; setPortamentoTime :293; processPortamento :305; setMode /
+  setLegato / setPortamentoMode / setGlideMode :325-372; hasActiveNote :383; reset (keeps the glide pitch) :392.
+- note_processor.h: setPitchBend (ignores NaN / Inf, no clamp), processPitchBend (returns the smoothed bipolar bend),
+  setPitchBendRange (clamp [0, 24], no finite guard), reset.
+- dc_blocker.h: defaulted copy :116-117; prepare(double, float) :135; reset :155. true_peak_limiter.h: kDefaultCeilingDb
+  :47; prepare(double, size_t) :60 (assigns 4 * maxBlockSize); setCeilingDb (no finite guard) :86; processBlock(float*,
+  float*, int) :105. random.h: deriveStreamSeed(uint32, size_t) :102. midi_utils.h: midiNoteToFrequency(int, float)
+  :71. db_utils.h: detail::isFinite (bit test) :118-129.
+- Phase 4 harness MONO classification (profundum_note_behaviour_test_helpers.h:463-539) and noteFromFrequency
+  (:415-421); POLY Steal + NoteOn -> VoiceReuse (:323-345).
+- showcasePair() (bass_morph_state_helpers.h:167-215); bitEqual(MorphState, MorphState) :40.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_test.cpp (written first; the T001 includes kept): VoiceEngine_StaticContract
+  [fr-020][fr-025][sc-022], VoiceEngine_GetterReadBack [fr-066][fr-031][fr-030], VoiceEngine_RendersNonSilent [fr-020],
+  VoiceEngine_EventsLatchedToGrid [fr-063][c-9], VoiceEngine_ReprepareKeepsSettings [fr-064],
+  VoiceEngine_PostSumPlacementRuns [fr-014][c-14]; all [systems][profundum][voice-engine].
+- dsp/include/krate/dsp/systems/profundum_engine.h: the T001 stub replaced by ProfundumNonlinearPlacement,
+  ProfundumEngineConfig and ProfundumEngine (plan S6.1 - S6.11, S8 emission, S9.1 - S9.3, S9.8).
+
+DECISIONS
+- Event model (C-9): note-ons and note-offs share the 256-entry queue in arrival order (so an off-then-on re-press and
+  an on-then-off short note inside one interval both resolve correctly); a full queue drops a note-on (counted by
+  droppedEvents()) and diverts a note-off into the 128 pending-release flags, drained after the queue. Velocity 0 is a
+  note-off. Pitch bend, tempo and every FR-031 setter are pending values applied at FR-026 step 1 (change-only); the
+  morph surface and the macros are forwarded directly, because BassMorphEngine and the matrix are read only at the
+  grid step (the latch is the component's own).
+- Grid step exactly in FR-026 / S6.5 order. Motion restart (FR-045): voices are polled with consumeEnvelopeRestart()
+  between motion_.setConfig and motion_.advanceInterval, so a restart applied at step 1 is heard this interval; one
+  applied at a dip's switch sample inside render is picked up at the next grid point (<= 32 samples).
+- f_res per voice: a followsMono flag per voice (set by a MONO note event, cleared by a POLY one) selects the MONO
+  portamento trajectory or fNote * ratio, so a voice releasing across a MONO <-> POLY switch keeps its pitch
+  (mono_.reset() keeps the glide pitch, mono_handler.h:392-403).
+- The MONO voice gets fNote = 0 (plan S6.7 "fNote unused in MONO").
+- Detector key (step 8): the lowest of the audible voices' currentCoreF0(), or that voice's f_res[0] when it has not
+  rendered yet; 0 when none is audible.
+- C-2 / S6.10: DcResync is logged only when the copy runs (one record per SOLID entry, as S6.10 writes it); every
+  other engine step logs once per interval with an `issued` flag. Engine records carry voice = kEngineRecordVoice
+  (0xFF).
+- Sum buffers are cleared to -0.0f (the IEEE additive identity), so with one voice the Sum tap is that voice's
+  contribution bit for bit (SC-019(b), T010).
+- prepare / reset hand every MassDynamics setter directly; the first grid point after them hands everything again
+  (C-20), change-only after that.
+
+DEVIATIONS (surfaced)
+1. PostSum (C-14) is built on an engine-internal ProfundumEngineObserver adapter that reads each voice's core /
+   Anchor / feed / gAmp / gD / fCore taps into buses (core and feed multiplied by g_amp * g_d, the Anchor bus added
+   after the global Character stage), then runs one global ShapeMorph -> + feed -> HarmonicFold -> BassCharacterStage
+   at the per-sample lowest f_core. ProfundumVoice (T007, outside this task's file list) has no render path that
+   stops after the core and the Anchor, so in PostSum the per-voice Shape / Fold / Character still execute and their
+   output is discarded, and FOLLOW reads the voice's own perceivedPitchRatio, not the global stage's. The SOUND is
+   C-14's; the CPU SAVING that SC-004 (T020) measures is NOT realised. Before T020's PostSum number is trusted, an
+   append to profundum_voice.h (a core-and-Anchor-only render plus an external FOLLOW ratio) is needed: a decision
+   for the main loop. The global Rectify flag stays false (no global meter) and no global syncPhase is issued.
+2. Includes: plan S2's list plus processors/note_memory.h, systems/shape_morph.h, processors/harmonic_fold.h,
+   processors/spectral_shape_recipe.h, systems/morph_state.h, systems/profundum_core.h,
+   systems/bass_character_stage.h (used directly by the engine; S2's own rule "every symbol a header uses is
+   included directly" outranks the list's omission).
+3. Getter names (FR-066): getEndpoint(e) and morphPosition() as the task names them; the others are the setter's noun
+   (voiceMode(), polyphony(), monoPriority(), legato(), portamentoTimeMs(), portamentoMode(), glideMode(),
+   noteMemoryMode(), noteRetrigger(), pitchBendRange(), outputCeilingDb(), macros(), macro(m), seed(), pitchBend(),
+   tempoBpm(), morphRampMs(), anchorMorphMode()). Added diagnostics: voiceSeed(v) (C-19's stored per-voice seeds),
+   kEngineRecordVoice, kNumMidiNotes, kMaxBendRangeSt, kMin/kMaxSampleRate.
+4. VoiceEngine_EventsLatchedToGrid compares a note issued at sample 69 with one issued at sample 96 (the grid point
+   both latch to) under the identical host partition [64][5][27][32][64 ...], so the case isolates the latch from
+   partition invariance (SC-012, T011). Positive control: the note issued at sample 64 (a grid point) differs.
+   The queue arm runs MONO and POLY: 300 note-ons in one interval -> droppedEvents() == 44; the note-offs are issued
+   0.25 s later and the last 100 ms of a 3 s tail must peak <= 1e-6.
+
+RISKS / FINDINGS FOR LATER GROUPS
+- ProfundumVoice::release() during a pending declick dip: the deferred transition applied at the switch sample calls
+  ampEnv_.gate(true) when envelopeRestart is set, re-gating a released voice (profundum_voice.h applyTransition /
+  applySwitch). A note-off landing inside the 1.5 ms dip can therefore leave the voice held until its next note-off
+  (the Phase 4 harness has the same order). T008's queue arm issues its note-offs 0.25 s after the note-ons, so it does
+  not exercise this; T015 (click grid) / T019 (soak) should, and the fix belongs to the voice (T007's file).
+- MONO classification mirrors the harness: under LowNote / HighNote priority a non-winning key press is still
+  classified Overlap and resolved by Note Memory (the harness never exercised non-LastNote priority).
+
+NOT BUILT / NOT RUN (per the task instruction: the Group 6 build agent builds and gates). Both files re-read after
+writing; lines kept <= 120 columns. Verify: the Group 6 gate, filter "VoiceEngine_*" in dsp_systems_tests.

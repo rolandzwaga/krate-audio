@@ -1,0 +1,3 @@
+GoverningAmount exit=2
+AnchorWaveform exit=3
+Algorithm exit=4

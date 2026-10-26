@@ -1,0 +1,22 @@
+Filters: "BassCharacter_RIsOne"
+Randomness seeded to: 741849819
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+BassCharacter_RIsOne
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_rlaw_test.cpp(922)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\bass_character_rlaw_test.cpp(970): warning:
+  SC-012(f) Character: 288 cells, 72 recorded (input does not read f0; C-3), 0
+  failing of the gated cells
+
+1107.965 s: BassCharacter_RIsOne
+===============================================================================
+All tests passed (3395 assertions in 1 test case)
+
+exit: 0 wall: 1109 s

@@ -1,0 +1,92 @@
+Filters: ~[long] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 2683139009
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+innexus_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Sidechain signal end: confidence gate holds last good frame on silence
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(465)
+...............................................................................
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(541): warning:
+  After sidechain stops (over ~3 seconds):
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(542): warning:
+    Steady-state RMS: 0.34848
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(543): warning:
+    Frozen blocks (within 6dB of steady): 43
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(544): warning:
+    Decaying blocks: 266
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(545): warning:
+    Silent blocks (< -60 dBFS): 211
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[0] = 0.365561
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[1] = 0.386605
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[2] = 0.330475
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[3] = 0.343227
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[4] = 0.359127
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[5] = 0.364555
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[6] = 0.363553
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[7] = 0.355497
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[8] = 0.339714
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[9] = 0.340028
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[10] = 0.335835
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[11] = 0.29272
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[12] = 0.31873
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[13] = 0.312409
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[14] = 0.29971
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[15] = 0.320498
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[16] = 0.276558
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[17] = 0.29305
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[18] = 0.26151
+
+F:\projects\iterum\plugins\innexus\tests\integration\test_sidechain_signal_end.cpp(547): warning:
+    RMS[19] = 0.259402
+
+===============================================================================
+All tests passed (1111860 assertions in 565 test cases)
+
+exit: 0 wall: 35 s

@@ -1,0 +1,8 @@
+T036 -- Release gate (FR-055, SC-025) -- main loop, 2026-10-25, after T032 / T033 / T034 / T035
+Workflow release-readiness args {plugins:["profundum"]} (run wf_9c28b1b3-e7c):
+  READY  profundum 0.1.0  build:ok tests:ok pluginval:ok changelog:ok changelog-complete:ok version:ok
+  ready: true, readyCount: 1, total: 1, blocked: []
+  profundum_tests: All tests passed (24185762 assertions in 120 test cases)
+  pluginval: Completed tests in pluginval / Restoring default layout
+  changelog: check-changelog-coverage exit 0, "First changelog entry - nothing earlier to diff against"; CHANGELOG.md has ## [0.1.0] - Unreleased
+  No files edited; version.json unchanged (0.1.0).

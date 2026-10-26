@@ -1,0 +1,22 @@
+Filters: "ProfundumCore_ExcitationEvenHarmonicsMonotonic"
+Randomness seeded to: 4262995390
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_ExcitationEvenHarmonicsMonotonic
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(631)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(369): warning:
+  SC-003(a): lowest E_gen(asymmetry 1) -17.6433 dB re h1 (bar -30; plan -17.6);
+  worst symmetry E_even(out) - E_even(ref) -0.0841731 dB (bar 3)
+
+470.180 s: ProfundumCore_ExcitationEvenHarmonicsMonotonic
+===============================================================================
+All tests passed (607344 assertions in 1 test case)
+
+exit: 0 wall: 471 s

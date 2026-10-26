@@ -1,0 +1,26 @@
+T003 run-log — BS.1770 K-weighting test helper and reference test (FR-050; SC-026; plan S13.1)
+Date: 2026-10-17. Executor stage only: files written, NOT built and NOT run (the group's build agent runs the gate).
+
+== Files ==
+tests/test_helpers/k_weighting.h                      (new; Krate::DSP::TestUtils; INTERFACE library, no CMake change)
+dsp/tests/unit/systems/k_weighting_helper_test.cpp    (T002 stub filled; TEST_CASE KWeighting_ReferenceLevels [systems][profundum][k-weighting])
+
+== Verify (build agent) ==
+"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_systems_tests
+build/windows-x64-release/bin/Release/dsp_systems_tests.exe "KWeighting_ReferenceLevels"
+Result: PENDING (append the printed readings and the Catch2 summary line here).
+
+== Pre-build arithmetic cross-check (NOT compliance evidence) ==
+A Node transcription of the header's coefficient derivation and filter (float-rounded sine input, double filter,
+10 s, measured from round(1.0 * fs)) printed:
+  48 kHz coefficients: b1 = {1.5351248595869702, -2.6916961894063807, 1.19839281085285}
+                       a1 = {1, -1.6906592931824103, 0.7324807742158501}
+                       b2 = {1, -2, 1}
+                       a2 = {1, -1.9900474548339797, 0.9900722503662099}   (all within 1e-6 of the BS.1770-4 table)
+  997 Hz @ 48 kHz: -3.01029 LKFS                     (bar -3.01 +/- 0.1)
+  E1 re 997 Hz @ 48 kHz: -6.017 dB                   (bar <= -1 dB. The task quotes the model at -5.32 dB; plan C-1
+                                                       (plan.md:116-121) states its offsets re the UNWEIGHTED level, and
+                                                       the 997 Hz K-weighted reading sits +0.69 dB above unweighted
+                                                       (-3.010 vs -3.701), so -6.017 + 0.691 = -5.326 agrees with the model)
+  997 Hz @ 44.1 kHz re 48 kHz: +0.0028 dB            (bar |d| <= 0.1)
+  997 Hz @ 96 kHz re 48 kHz:   -0.0173 dB            (bar |d| <= 0.1)

@@ -1,0 +1,6 @@
+spec: [lifecycle]~[.]~[performance]~[perf]~[benchmark]~[!benchmark]
+Filters: [lifecycle] ~[.] ~[performance] ~[perf] ~[benchmark] ~[!benchmark]
+Randomness seeded to: 2777242547
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+

@@ -1,0 +1,13 @@
+[INFO] Using clang-tidy: C:\Program Files\LLVM\bin\clang-tidy.exe
+[INFO] Parallel jobs: 32
+[INFO] Using compile_commands.json from: build/windows-ninja
+[INFO] Found 26 source files to analyze
+[1/26] plugins/profundum/tests/vstgui_test_stubs.cpp                    [2/26] plugins/profundum/tests/unit/test_main.cpp                    [3/26] plugins/profundum/tests/integration/band_level_metric_test.cpp                    [4/26] plugins/profundum/src/entry.cpp                    [5/26] plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp                    [6/26] plugins/profundum/tests/integration/tail_test.cpp                    [7/26] plugins/profundum/tests/unit/processor_bus_test.cpp                    [8/26] plugins/profundum/tests/integration/processor_audio_test.cpp                    [9/26] plugins/profundum/tests/integration/state_restore_render_test.cpp                    [10/26] plugins/profundum/tests/unit/midi_event_test.cpp                    [11/26] plugins/profundum/tests/integration/determinism_test.cpp                    [12/26] plugins/profundum/tests/integration/param_flow_test.cpp                    [13/26] plugins/profundum/tests/unit/phase11_alloc_test.cpp                    [14/26] plugins/profundum/tests/unit/midi_mapping_test.cpp                    [15/26] plugins/profundum/tests/integration/processor_cpu_test.cpp                    [16/26] plugins/profundum/tests/unit/state_roundtrip_test.cpp                    [17/26] plugins/profundum/tests/integration/copy_compare_test.cpp                    [18/26] plugins/profundum/tests/unit/lifecycle_test.cpp                    [19/26] plugins/profundum/tests/unit/param_denorm_test.cpp                    [20/26] plugins/profundum/tests/integration/param_wiring_test.cpp                    [21/26] plugins/profundum/tests/unit/param_table_test.cpp                    [22/26] plugins/profundum/tests/unit/state_v2_test.cpp                    [23/26] plugins/profundum/tests/integration/mono_sum_params_test.cpp                    [24/26] plugins/profundum/src/processor/processor.cpp                    [25/26] plugins/profundum/tests/integration/param_path_audibility_test.cpp                    [26/26] plugins/profundum/src/controller/controller.cpp                    
+
+============================================================
+[INFO] Clang-Tidy Analysis Complete
+  Files analyzed: 26
+[OK]   Errors: 0
+[OK]   Warnings: 0
+============================================================
+exit: 0 wall: 73 s

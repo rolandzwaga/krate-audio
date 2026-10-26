@@ -1,0 +1,30 @@
+Filters: "VoiceEngine_Aliasing_44k1_Fracture"
+Randomness seeded to: 320280907
+SC-021 44k1 E0 Fracture SHAPE 0 Tone 0 LOCK: (a) Sum -109.75 dBFS, (b) out on -48.65 dBFS (added -48.65), off -48.67 dBFS (added -48.67); bar -80
+SC-021 44k1 E0 Fracture SHAPE 0 Tone 0 FOLLOW: (a) Sum -107.55 dBFS, (b) out on -49.78 dBFS (added -49.78), off -49.78 dBFS (added -49.78); bar -80
+SC-021 44k1 E0 Fracture SHAPE 0 Tone 1 LOCK: (a) Sum -92.76 dBFS, (b) out on -56.06 dBFS (added -56.06), off -56.03 dBFS (added -56.03); bar -80
+SC-021 44k1 E0 Fracture SHAPE 0 Tone 1 FOLLOW: (a) Sum -94.09 dBFS, (b) out on -54.75 dBFS (added -54.75), off -54.78 dBFS (added -54.79); bar -80
+SC-021 44k1 E0 Fracture SHAPE 1 Tone 0 LOCK: (a) Sum -112.72 dBFS, (b) out on -54.37 dBFS (added -54.37), off -54.38 dBFS (added -54.38); bar -80
+SC-021 44k1 E0 Fracture SHAPE 1 Tone 0 FOLLOW: (a) Sum -109.16 dBFS, (b) out on -63.88 dBFS (added -63.88), off -63.88 dBFS (added -63.88); bar -80
+SC-021 44k1 E0 Fracture SHAPE 1 Tone 1 LOCK: (a) Sum -95.09 dBFS, (b) out on -59.31 dBFS (added -59.31), off -59.32 dBFS (added -59.32); bar -80
+SC-021 44k1 E0 Fracture SHAPE 1 Tone 1 FOLLOW: (a) Sum -91.53 dBFS, (b) out on -58.60 dBFS (added -58.60), off -59.77 dBFS (added -59.77); bar -80
+SC-021 44k1 E1 Fracture SHAPE 0 Tone 0 LOCK: (a) Sum -106.32 dBFS, (b) out on -104.30 dBFS (added -121.00), off -104.30 dBFS (added -121.00); bar -80
+SC-021 44k1 E1 Fracture SHAPE 0 Tone 0 FOLLOW: (a) Sum -108.64 dBFS, (b) out on -104.86 dBFS (added -3000.00), off -104.86 dBFS (added -3000.00); bar -80
+SC-021 44k1 E1 Fracture SHAPE 0 Tone 1 LOCK: (a) Sum -93.34 dBFS, (b) out on -79.76 dBFS (added -80.15), off -79.73 dBFS (added -80.11); bar -80
+SC-021 44k1 E1 Fracture SHAPE 0 Tone 1 FOLLOW: (a) Sum -95.42 dBFS, (b) out on -86.90 dBFS (added -88.31), off -88.27 dBFS (added -90.32); bar -80
+SC-021 44k1 E1 Fracture SHAPE 1 Tone 0 LOCK: (a) Sum -114.44 dBFS, (b) out on -89.03 dBFS (added -89.06), off -89.07 dBFS (added -89.09); bar -80
+SC-021 44k1 E1 Fracture SHAPE 1 Tone 0 FOLLOW: (a) Sum -109.09 dBFS, (b) out on -103.98 dBFS (added -109.59), off -103.98 dBFS (added -109.59); bar -80
+SC-021 44k1 E1 Fracture SHAPE 1 Tone 1 LOCK: (a) Sum -98.09 dBFS, (b) out on -71.52 dBFS (added -71.53), off -71.53 dBFS (added -71.54); bar -80
+SC-021 44k1 E1 Fracture SHAPE 1 Tone 1 FOLLOW: (a) Sum -92.44 dBFS, (b) out on -83.36 dBFS (added -84.07), off -83.95 dBFS (added -84.76); bar -80
+SC-021 44k1 E2 Fracture SHAPE 0 Tone 0 LOCK: (a) Sum -95.80 dBFS, (b) out on -95.87 dBFS (added -96.31), off -95.87 dBFS (added -96.31); bar -80
+SC-021 44k1 E2 Fracture SHAPE 0 Tone 0 FOLLOW: (a) Sum -94.51 dBFS, (b) out on -92.62 dBFS (added -93.46), off -92.62 dBFS (added -93.46); bar -80
+SC-021 44k1 E2 Fracture SHAPE 0 Tone 1 LOCK: (a) Sum -89.42 dBFS, (b) out on -72.29 dBFS (added -72.40), off -72.92 dBFS (added -73.04); bar -80
+SC-021 44k1 E2 Fracture SHAPE 0 Tone 1 FOLLOW: (a) Sum -88.49 dBFS, (b) out on -81.29 dBFS (added -81.78), off -83.55 dBFS (added -84.68); bar -80
+SC-021 44k1 E2 Fracture SHAPE 1 Tone 0 LOCK: (a) Sum -111.03 dBFS, (b) out on -89.14 dBFS (added -89.21), off -89.28 dBFS (added -89.36); bar -80
+SC-021 44k1 E2 Fracture SHAPE 1 Tone 0 FOLLOW: (a) Sum -111.48 dBFS, (b) out on -99.05 dBFS (added -99.93), off -99.05 dBFS (added -99.93); bar -80
+SC-021 44k1 E2 Fracture SHAPE 1 Tone 1 LOCK: (a) Sum -96.20 dBFS, (b) out on -72.87 dBFS (added -72.89), off -72.82 dBFS (added -72.84); bar -80
+SC-021 44k1 E2 Fracture SHAPE 1 Tone 1 FOLLOW: (a) Sum -96.27 dBFS, (b) out on -73.39 dBFS (added -73.45), off -73.60 dBFS (added -73.66); bar -80
+SC-021 shard 44k1 Fracture: 24 cells, worst (a) Sum -88.49 dBFS (44k1 E2 Fracture SHAPE 0 Tone 1 FOLLOW), worst (b) output -48.65 dBFS (44k1 E0 Fracture SHAPE 0 Tone 0 LOCK), worst opt-in-off output -48.67 dBFS (recorded); bar -80; wall clock 87.1 s
+===============================================================================
+All tests passed (1873 assertions in 1 test case)
+

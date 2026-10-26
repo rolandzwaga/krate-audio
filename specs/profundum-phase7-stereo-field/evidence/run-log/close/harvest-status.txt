@@ -1,0 +1,35 @@
+START 2026-10-18T19:48:54Z commit 4599d180 nproc 32
+step1-build exit=0 wall=3s warnings=0 log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step1-build.log
+step2-wide-scale-harvest exit=0 wall=295s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step2-wide-scale.log
+step3-aggregate exit=0 wall=0s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step3-aggregate.log
+step3-paste exit=0 wall=0s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step3-paste.log
+step3-build exit=0 wall=4s warnings=0 log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step3-build.log
+step4-list shards=14 lever=1 log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-list.log
+step4-BassStereoField_SideFloorLeverHarvest exit=0 wall=14s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorLeverHarvest.log
+step4-BassStereoField_SideFloorHarvest_CleanSaw exit=0 wall=1492s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_CleanSaw.log
+step4-BassStereoField_SideFloorHarvest_CleanGrowl exit=0 wall=1534s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_CleanGrowl.log
+step4-BassStereoField_SideFloorHarvest_DirtyBite exit=0 wall=1606s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_DirtyBite.log
+step4-BassStereoField_SideFloorHarvest_AnchorRectify exit=0 wall=1610s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_AnchorRectify.log
+step4-BassStereoField_SideFloorHarvest_DirtyCrush exit=0 wall=1611s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_DirtyCrush.log
+step4-BassStereoField_SideFloorHarvest_DirtyRectify exit=0 wall=1612s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_DirtyRectify.log
+step4-BassStereoField_SideFloorHarvest_AnchorBite exit=0 wall=1613s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_AnchorBite.log
+step4-BassStereoField_SideFloorHarvest_AnchorCrush exit=0 wall=1614s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_AnchorCrush.log
+step4-BassStereoField_SideFloorHarvest_AnchorFold exit=0 wall=1623s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_AnchorFold.log
+step4-BassStereoField_SideFloorHarvest_DirtyFold exit=0 wall=1625s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_DirtyFold.log
+step4-BassStereoField_SideFloorHarvest_AnchorFracture exit=0 wall=1632s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_AnchorFracture.log
+step4-BassStereoField_SideFloorHarvest_DirtyFracture exit=0 wall=1635s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_DirtyFracture.log
+step4-BassStereoField_SideFloorHarvest_DirtyTube exit=0 wall=1639s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_DirtyTube.log
+step4-BassStereoField_SideFloorHarvest_AnchorTube exit=0 wall=1640s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step4-BassStereoField_SideFloorHarvest_AnchorTube.log
+step4 wall=1641s red=0
+step5-aggregate exit=0 wall=0s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step5-aggregate.log
+step5-paste exit=0 wall=0s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step5-paste.log
+step5-build exit=0 wall=27s warnings=0 log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step5-build.log
+step6-BassStereoField_WideOffsetCeilings exit=0 wall=0s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step6/BassStereoField_WideOffsetCeilings.log
+step6-BassStereoField_ConstantsMatchPlan exit=0 wall=0s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step6/BassStereoField_ConstantsMatchPlan.log
+step6-BassStereoField_SideGainLaw exit=0 wall=0s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step6/BassStereoField_SideGainLaw.log
+step6-BassStereoField_GravityFloorSmoke exit=0 wall=1s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step6/BassStereoField_GravityFloorSmoke.log
+step6-BassStereoField_MonoSumPerBandSmoke exit=0 wall=2s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step6/BassStereoField_MonoSumPerBandSmoke.log
+step6-BassStereoField_LeversAudibleSmoke exit=0 wall=3s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step6/BassStereoField_LeversAudibleSmoke.log
+step6-per-push-filter exit=1 wall=399s log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step6/per-push-filter.log
+step6 wall=401s red=1 log=specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step6-cases.log
+DONE 2026-10-18T20:28:28Z exit=1 wall=2374s step6: 1 harvest-dependent run(s) red (see specs/profundum-phase7-stereo-field/evidence/run-log/close/harvest-step6-cases.log)

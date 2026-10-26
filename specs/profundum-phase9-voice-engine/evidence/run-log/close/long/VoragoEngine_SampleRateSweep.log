@@ -1,0 +1,26 @@
+Filters: "VoragoEngine_SampleRateSweep"
+Randomness seeded to: 3744479394
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+VoragoEngine_SampleRateSweep
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(1061)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\vorago_engine_longrun_test.cpp(1089): warning:
+  SC-021b: 10.00 s full-polyphony renders, kFastAttackEnvelopeConfig (FR-014a);
+  reference 48 kHz RMS = -22.39 dBFS, peak 0.42
+    44.1 kHz: RMS = -22.32 dBFS (0.07 dB vs reference), peak 0.43
+    88.2 kHz: RMS = -22.52 dBFS (-0.14 dB vs reference), peak 0.38
+    96.0 kHz: RMS = -22.67 dBFS (-0.28 dB vs reference), peak 0.37
+    176.4 kHz: RMS = -21.06 dBFS (1.33 dB vs reference), peak 0.43
+
+141.059 s: VoragoEngine_SampleRateSweep
+===============================================================================
+All tests passed (24 assertions in 1 test case)
+
+exit: 0 wall: 141 s

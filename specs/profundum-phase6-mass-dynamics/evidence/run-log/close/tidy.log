@@ -1,0 +1,107 @@
+=== T022 tidy 2026-10-18T06:37:25Z commit 02fecee1
+--- vcvars: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
+--- reconfigure (cmake --preset windows-ninja in vcvars64) exit=0 wall=129s
+-- [SMTG] Setup running moduleinfotool for Vorago
+-- [KRATE] Copied compile_commands.json to project root
+-- Configuring done (122.5s)
+-- Generating done (3.7s)
+-- Build files have been written to: F:/projects/iterum/build/windows-ninja
+--- compile database: all 16 TUs present
+=== dsp/tests/unit/processors/period_peak_detector_test.cpp
+59285 warnings generated.
+Suppressed 59285 warnings (59284 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 70 s
+=== dsp/tests/unit/processors/transient_shaper_helpers_test.cpp
+59279 warnings generated.
+Suppressed 59279 warnings (59278 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 69 s
+=== dsp/tests/unit/processors/transient_shaper_test.cpp
+60136 warnings generated.
+Suppressed 60136 warnings (60134 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 74 s
+=== dsp/tests/unit/processors/transient_shaper_nonfinite_test.cpp
+59290 warnings generated.
+Suppressed 59290 warnings (59289 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 72 s
+=== dsp/tests/unit/systems/k_weighting_helper_test.cpp
+58420 warnings generated.
+Suppressed 58420 warnings (58419 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 69 s
+=== dsp/tests/unit/systems/mass_compressor_test.cpp
+59319 warnings generated.
+Suppressed 59319 warnings (59318 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 71 s
+=== dsp/tests/unit/systems/mass_law_test.cpp
+58326 warnings generated.
+Suppressed 58326 warnings (58325 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 70 s
+=== dsp/tests/unit/systems/mass_dynamics_test.cpp
+59339 warnings generated.
+Suppressed 59339 warnings (59338 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 74 s
+=== dsp/tests/unit/systems/mass_dynamics_helpers_test.cpp
+59982 warnings generated.
+Suppressed 59982 warnings (59980 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 79 s
+=== dsp/tests/unit/systems/mass_chain_test.cpp
+61752 warnings generated.
+Suppressed 61752 warnings (61750 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 118 s
+=== dsp/tests/unit/systems/mass_compressor_chain_test.cpp
+61724 warnings generated.
+Suppressed 61724 warnings (61722 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 81 s
+=== dsp/tests/unit/systems/mass_law_spectral_test.cpp
+64504 warnings generated.
+Suppressed 64504 warnings (64501 in non-user code, 3 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 89 s
+=== dsp/tests/unit/systems/mass_law_automation_test.cpp
+60050 warnings generated.
+Suppressed 60050 warnings (60048 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 79 s
+=== dsp/tests/unit/systems/mass_dynamics_aliasing_test.cpp
+59983 warnings generated.
+Suppressed 59983 warnings (59981 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 78 s
+=== dsp/tests/unit/systems/mass_dynamics_nonfinite_test.cpp
+59306 warnings generated.
+Suppressed 59306 warnings (59305 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 71 s
+=== dsp/tests/unit/systems/mass_dynamics_perf_test.cpp
+60994 warnings generated.
+Suppressed 60994 warnings (60991 in non-user code, 3 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+exit: 0 wall: 73 s
+=== summary
+dsp/tests/unit/processors/period_peak_detector_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/processors/transient_shaper_helpers_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/processors/transient_shaper_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/processors/transient_shaper_nonfinite_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/k_weighting_helper_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_compressor_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_law_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_dynamics_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_dynamics_helpers_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_chain_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_compressor_chain_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_law_spectral_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_law_automation_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_dynamics_aliasing_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_dynamics_nonfinite_test.cpp exit=0 warnings=0 errors=0
+dsp/tests/unit/systems/mass_dynamics_perf_test.cpp exit=0 warnings=0 errors=0
+TIDY GREEN tus=16 warnings=0 errors=0 timeouts=[] failed=[] tidy_wall=119s total_wall=275s

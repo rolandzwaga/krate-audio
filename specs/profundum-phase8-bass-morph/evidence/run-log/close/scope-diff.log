@@ -1,0 +1,4 @@
+=== git diff --name-only 964045a4 -- dsp/include dsp/src plugins/shared tests/test_helpers (must be empty)
+=== untracked under dsp/include (must be exactly the two Phase 8 headers)
+dsp/include/krate/dsp/systems/bass_morph_engine.h
+dsp/include/krate/dsp/systems/morph_state.h

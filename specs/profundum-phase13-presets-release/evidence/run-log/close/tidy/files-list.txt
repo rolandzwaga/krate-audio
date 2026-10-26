@@ -1,0 +1,5 @@
+dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+plugins/shared/src/preset/preset_manager.cpp
+plugins/shared/src/ui/preset_browser_view.cpp
+plugins/shared/tests/test_preset_description.cpp
+tools/profundum_preset_generator.cpp

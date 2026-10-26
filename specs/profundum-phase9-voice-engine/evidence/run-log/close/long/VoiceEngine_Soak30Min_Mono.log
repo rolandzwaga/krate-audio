@@ -1,0 +1,7 @@
+Filters: "VoiceEngine_Soak30Min_Mono"
+Randomness seeded to: 2004607790
+282.534 s: VoiceEngine_Soak30Min_Mono
+===============================================================================
+All tests passed (286 assertions in 1 test case)
+
+exit: 0 wall: 283 s

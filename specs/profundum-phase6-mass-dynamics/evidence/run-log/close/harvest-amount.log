@@ -1,0 +1,17 @@
+Filters: "MassCompressor_AmountTableHarvest"
+Randomness seeded to: 1040756099
+MassCompressor_AmountTableHarvest (1) iter 0: threshold -30.000000 dB -> min GR 16.759038 dB
+MassCompressor_AmountTableHarvest (1) iter 1: threshold -15.000000 dB -> min GR 6.709038 dB
+MassCompressor_AmountTableHarvest (1) iter 2: threshold -7.500000 dB -> min GR 1.697253 dB
+MassCompressor_AmountTableHarvest (1) iter 3: threshold -11.250000 dB -> min GR 4.196538 dB
+MassCompressor_AmountTableHarvest (1) iter 4: threshold -9.375000 dB -> min GR 2.940288 dB
+MassCompressor_AmountTableHarvest (1) iter 5: threshold -10.312500 dB -> min GR 3.568413 dB
+MassCompressor_AmountTableHarvest (1) iter 6: threshold -10.781250 dB -> min GR 3.882476 dB
+MassCompressor_AmountTableHarvest (1) iter 7: threshold -11.015625 dB -> min GR 4.039507 dB
+MassCompressor_AmountTableHarvest (2) law Mass 100 compression amount 1.000000 -> row 4 (amount 1.000000)
+MassCompressor_AmountTableHarvest (2) Mass 100 min GR (E1, C3) after (1): 10.052709 dB
+MassCompressor_AmountTableHarvest: wrote F:/projects/iterum/dsp/tests/../../specs/profundum-phase6-mass-dynamics/evidence/amount-table.txt (0 unmet targets)
+===============================================================================
+All tests passed (484 assertions in 1 test case)
+
+exit: 0 wall: 9 s

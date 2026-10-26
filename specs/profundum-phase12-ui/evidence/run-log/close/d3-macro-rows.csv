@@ -1,0 +1,17 @@
+row,macro,target,amount,curve,registered_id,no_control,inert
+0,Weight,RecipeDepth,0.5625,Linear,200,no,no
+1,Weight,RecipeBody,0.5625,Linear,201,no,no
+2,Weight,AnchorLevel,0.5625,Linear,302,no,no
+3,DarkBright,RecipeEdge,0.5,Linear,204,no,no
+4,DarkBright,RecipeShift,0.5,Linear,205,no,no
+5,DarkBright,Shape,0,Linear,501,no,yes
+6,DarkBright,CharacterTone,0.300000012,Linear,602,no,no
+7,TightLoose,AmpAttackOct,5,Linear,420,no,no
+8,TightLoose,AmpDecayOct,5,Linear,421,no,no
+9,TightLoose,AmpReleaseOct,5,Linear,423,no,no
+10,TightLoose,TransientAttackDb,-15,Linear,700,no,no
+11,TightLoose,CompressionAmount,-1.25,Linear,-,yes,no
+12,CleanViolent,ExcitationMix,0.5,Linear,206,no,no
+13,CleanViolent,ExcitationDrive,0.5,Linear,207,no,no
+14,CleanViolent,FoldAmount,50,Linear,500,no,no
+15,CleanViolent,CharacterAmount,0.5,Linear,601,no,no

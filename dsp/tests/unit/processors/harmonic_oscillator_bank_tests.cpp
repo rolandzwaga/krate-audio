@@ -16,7 +16,9 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
 
 #include <array>
+#include <bit>
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <numeric>
@@ -1119,4 +1121,279 @@ TEST_CASE("Mixed valid/non-finite bandwidth stays finite",
     // would satisfy the finiteness check while destroying the output.
     REQUIRE(energy > 0.0f);
     REQUIRE(bank.stateFinite());
+}
+
+// =============================================================================
+// restoreCenterPan() (Profundum FR-064, SC-014(d))
+// =============================================================================
+
+namespace {
+
+// Per-element bit compare (float has no unique object representation, so not memcmp).
+bool samplesBitEqual(const float* a, const float* b, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        if (std::bit_cast<std::uint32_t>(a[i]) != std::bit_cast<std::uint32_t>(b[i]))
+            return false;
+    }
+    return true;
+}
+
+HarmonicFrame makeRestoreCenterPanFrame() {
+    HarmonicFrame frame;
+    frame.numPartials = 16;
+    for (int n = 1; n <= 16; ++n) {
+        auto& p = frame.partials[static_cast<size_t>(n - 1)];
+        p.harmonicIndex = n;
+        p.relativeFrequency = static_cast<float>(n);
+        p.amplitude = 1.0f / static_cast<float>(n);
+        p.phase = 0.0f;
+        p.bandwidth = 0.0f;
+    }
+    return frame;
+}
+
+void prepareRestoreCenterPanBank(HarmonicOscillatorBank& bank,
+                                 const HarmonicFrame& frame) {
+    bank.prepare(48000.0);
+    bank.loadFrame(frame, 110.0f, true);
+}
+
+std::array<float, kMaxPartials> makeAlternatingPanOffsets() {
+    std::array<float, kMaxPartials> o{};
+    for (size_t i = 0; i < kMaxPartials; ++i) {
+        o[i] = (i % 2 ? 0.6f : -0.6f);
+    }
+    return o;
+}
+
+} // namespace
+
+TEST_CASE("HarmonicOscillatorBank_RestoreCenterPan",
+          "[processors][harmonic_oscillator_bank]") {
+    constexpr size_t kShort = 256;
+    constexpr size_t kLong = 4096;
+
+    // (1) The hoisted constant is the exact literal reset() always used.
+    STATIC_REQUIRE(HarmonicOscillatorBank::kCenterPanGain == 0.7071067811865476f);
+
+    // (6) Real-time safe contract.
+    STATIC_REQUIRE(noexcept(std::declval<HarmonicOscillatorBank&>().restoreCenterPan()));
+
+    const HarmonicFrame frame = makeRestoreCenterPanFrame();
+    const auto offsets = makeAlternatingPanOffsets();
+
+    SECTION("teeth: offsets split L/R, restoreCenterPan makes them identical") {
+        HarmonicOscillatorBank a;
+        prepareRestoreCenterPanBank(a, frame);
+
+        std::vector<float> l(kShort), r(kShort);
+        a.applyPanOffsets(offsets);
+        a.processStereoBlock(l.data(), r.data(), kShort);
+        bool anyDiffers = false;
+        for (size_t i = 0; i < kShort; ++i) {
+            if (l[i] != r[i]) {
+                anyDiffers = true;
+                break;
+            }
+        }
+        REQUIRE(anyDiffers);
+
+        a.restoreCenterPan();
+        std::vector<float> l2(kLong), r2(kLong);
+        a.processStereoBlock(l2.data(), r2.data(), kLong);
+        REQUIRE(samplesBitEqual(l2.data(), r2.data(), kLong));
+    }
+
+    SECTION("twin: restoreCenterPan touches only the pan tables") {
+        HarmonicOscillatorBank a;
+        HarmonicOscillatorBank b;
+        prepareRestoreCenterPanBank(a, frame);
+        prepareRestoreCenterPanBank(b, frame);
+
+        std::vector<float> aL(kShort), aR(kShort), bL(kShort), bR(kShort);
+        a.processStereoBlock(aL.data(), aR.data(), kShort);
+        b.processStereoBlock(bL.data(), bR.data(), kShort);
+
+        a.applyPanOffsets(offsets);
+        a.processStereoBlock(aL.data(), aR.data(), kShort);
+        b.processStereoBlock(bL.data(), bR.data(), kShort);
+
+        a.restoreCenterPan();
+        std::vector<float> aL2(kLong), aR2(kLong), bL2(kLong), bR2(kLong);
+        a.processStereoBlock(aL2.data(), aR2.data(), kLong);
+        b.processStereoBlock(bL2.data(), bR2.data(), kLong);
+
+        REQUIRE(samplesBitEqual(aL2.data(), bL2.data(), kLong));
+        REQUIRE(samplesBitEqual(aR2.data(), bR2.data(), kLong));
+    }
+
+    SECTION("already centred: restoreCenterPan mid-render changes nothing") {
+        HarmonicOscillatorBank a;
+        HarmonicOscillatorBank b;
+        prepareRestoreCenterPanBank(a, frame);
+        prepareRestoreCenterPanBank(b, frame);
+
+        std::vector<float> aL(kShort), aR(kShort), bL(kShort), bR(kShort);
+        a.processStereoBlock(aL.data(), aR.data(), kShort);
+        b.processStereoBlock(bL.data(), bR.data(), kShort);
+
+        a.restoreCenterPan();
+        std::vector<float> aL2(kLong), aR2(kLong), bL2(kLong), bR2(kLong);
+        a.processStereoBlock(aL2.data(), aR2.data(), kLong);
+        b.processStereoBlock(bL2.data(), bR2.data(), kLong);
+
+        REQUIRE(samplesBitEqual(aL2.data(), bL2.data(), kLong));
+        REQUIRE(samplesBitEqual(aR2.data(), bR2.data(), kLong));
+    }
+
+    SECTION("reset() behaviour is unchanged by the hoist") {
+        // In-process identity, not a golden: a reset-and-reloaded bank must
+        // match a freshly prepared one sample for sample.
+        HarmonicOscillatorBank resetBank;
+        prepareRestoreCenterPanBank(resetBank, frame);
+        std::vector<float> scratchL(kShort), scratchR(kShort);
+        resetBank.applyPanOffsets(offsets);
+        resetBank.processStereoBlock(scratchL.data(), scratchR.data(), kShort);
+        resetBank.reset();
+        resetBank.loadFrame(frame, 110.0f, true);
+
+        HarmonicOscillatorBank fresh;
+        prepareRestoreCenterPanBank(fresh, frame);
+
+        std::vector<float> rL(kLong), rR(kLong), fL(kLong), fR(kLong);
+        resetBank.processStereoBlock(rL.data(), rR.data(), kLong);
+        fresh.processStereoBlock(fL.data(), fR.data(), kLong);
+
+        REQUIRE(samplesBitEqual(rL.data(), fL.data(), kLong));
+        REQUIRE(samplesBitEqual(rR.data(), fR.data(), kLong));
+    }
+}
+
+// =============================================================================
+// Profundum Phase 4 (2026-10-13, user ruling): opt-in amplitude- and phase-continuous
+// external frequency updates. The MCF keeps (s, c) across a coefficient change by
+// default, which re-rolls the partial's amplitude by up to 1/sqrt(1 - eps^2/4) and
+// shifts its phase; with the opt-in, applyExternalFrequencyMultipliers rewrites c so
+// amplitude and phase stay exact. Default off: existing consumers are bit-identical.
+// =============================================================================
+
+namespace {
+
+double bankPartialAmplitude(const std::vector<float>& x, std::size_t from, std::size_t len, double fs, double hz) {
+    double re = 0.0;
+    double im = 0.0;
+    for (std::size_t k = 0; k < len; ++k) {
+        const double a = 2.0 * 3.141592653589793 * hz * static_cast<double>(k) / fs;
+        re += static_cast<double>(x[from + k]) * std::cos(a);
+        im -= static_cast<double>(x[from + k]) * std::sin(a);
+    }
+    return 2.0 * std::hypot(re, im) / static_cast<double>(len);
+}
+
+/// Eight harmonics of 110 Hz at equal amplitude, rendered with a +53 / −53 semitone
+/// staircase (one semitone every 16 samples, the Profundum pitch cadence) applied through
+/// applyExternalFrequencyMultipliers. Returns the per-partial amplitude ratio after/before.
+std::array<double, 8> bankExcursionRatios(bool continuous, std::vector<float>* firstStepSine) {
+    constexpr double fs = 48000.0;
+    constexpr float f0 = 110.0f;
+    HarmonicOscillatorBank bank;
+    bank.prepare(fs);
+    bank.setContinuousFrequencyUpdates(continuous);
+    HarmonicFrame frame;
+    frame.f0 = f0;
+    frame.numPartials = 8;
+    for (int i = 0; i < 8; ++i) {
+        frame.partials[static_cast<std::size_t>(i)].harmonicIndex = i + 1;
+        frame.partials[static_cast<std::size_t>(i)].frequency = f0 * static_cast<float>(i + 1);
+        frame.partials[static_cast<std::size_t>(i)].amplitude = 0.1f;
+        frame.partials[static_cast<std::size_t>(i)].relativeFrequency = static_cast<float>(i + 1);
+        frame.partials[static_cast<std::size_t>(i)].stability = 1.0f;
+    }
+    bank.loadFrame(frame, f0, /*skipNormalization=*/true);
+    // processStereo: the detune/multiplier path the core uses (the mono process() ignores detuneMultiplier_).
+    const auto render = [&bank]() { float l = 0.0f; float r = 0.0f; bank.processStereo(l, r); return l; };
+    const std::size_t settle = 48000;
+    const std::size_t win = static_cast<std::size_t>(std::llround(fs / 110.0 * 99.0));   // 99 periods, 0.9 s
+    std::vector<float> out;
+    out.reserve(settle + 110 * 16 + 4096 + win);
+    for (std::size_t n = 0; n < settle; ++n)
+        out.push_back(render());
+    std::array<double, 8> before{};
+    for (int k = 1; k <= 8; ++k)
+        before[static_cast<std::size_t>(k - 1)] = bankPartialAmplitude(out, settle - win, win, fs, 110.0 * k);
+
+    std::array<float, kMaxPartials> up{};
+    std::array<float, kMaxPartials> down{};
+    up.fill(static_cast<float>(std::exp2(1.0 / 12.0)));
+    down.fill(static_cast<float>(std::exp2(-1.0 / 12.0)));
+    for (int step = 0; step < 53; ++step) {   // 880 Hz × 2^(53/12) ≈ 18.7 kHz: eps reaches the 1.99 clamp
+        bank.applyExternalFrequencyMultipliers(up);
+        if (step == 0 && firstStepSine != nullptr) {
+            firstStepSine->clear();
+            firstStepSine->push_back(render());   // the first rendered sample after the first change
+            for (std::size_t n = 1; n < 16; ++n)
+                firstStepSine->push_back(render());
+            for (float v : *firstStepSine)
+                out.push_back(v);
+            continue;
+        }
+        for (std::size_t n = 0; n < 16; ++n)
+            out.push_back(render());
+    }
+    for (int step = 0; step < 53; ++step) {
+        bank.applyExternalFrequencyMultipliers(down);
+        for (std::size_t n = 0; n < 16; ++n)
+            out.push_back(render());
+    }
+    const std::size_t afterStart = out.size() + 4096;
+    for (std::size_t n = 0; n < 4096 + win; ++n)
+        out.push_back(render());
+    REQUIRE(bank.stateFinite());
+    std::array<double, 8> ratio{};
+    for (int k = 1; k <= 8; ++k) {
+        const std::size_t i = static_cast<std::size_t>(k - 1);
+        REQUIRE(before[i] > 1e-3);
+        ratio[i] = bankPartialAmplitude(out, afterStart, win, fs, 110.0 * k) / before[i];
+    }
+    return ratio;
+}
+
+}  // namespace
+
+TEST_CASE("HarmonicOscillatorBank_ContinuousFrequencyUpdates", "[processors][profundum][note-behaviour]") {
+    HarmonicOscillatorBank fresh;
+    REQUIRE_FALSE(fresh.continuousFrequencyUpdates());   // default off: every other consumer unchanged
+    fresh.prepare(48000.0);
+    fresh.setContinuousFrequencyUpdates(true);
+    fresh.reset();
+    REQUIRE(fresh.continuousFrequencyUpdates());   // reset() keeps the setting (ProfundumCore resets per noteOn)
+
+    std::vector<float> sineOn;
+    std::vector<float> sineOff;
+    const std::array<double, 8> on = bankExcursionRatios(true, &sineOn);
+    const std::array<double, 8> off = bankExcursionRatios(false, &sineOff);
+
+    double worstOnDb = 0.0;
+    double worstOffDb = 0.0;
+    for (std::size_t i = 0; i < 8; ++i) {
+        const double onDb = 20.0 * std::log10(on[i]);
+        const double offDb = 20.0 * std::log10(off[i]);
+        INFO("partial " << i + 1 << ": continuous " << onDb << " dB, default " << offDb << " dB");
+        CHECK(std::abs(onDb) <= 0.05);   // amplitude preserved across 106 coefficient changes
+        if (std::abs(onDb) > std::abs(worstOnDb))
+            worstOnDb = onDb;
+        if (std::abs(offDb) > std::abs(worstOffDb))
+            worstOffDb = offDb;
+    }
+    // Positive control: the default path re-rolls at least one partial by more than 1 dB.
+    CHECK(std::abs(worstOffDb) > 1.0);
+    // Phase continuity: the rewrite keeps the phase and scales the sine state by r = cos(w1/2)/cos(w2/2)
+    // (the bank's 1/cos(w/2) amplitude convention), so the first rendered sample after a +1 semitone
+    // change at 110..880 Hz equals the default path within |r - 1| (< 1e-4 here); the later samples
+    // then differ by the default path's own keep-state error.
+    REQUIRE(sineOn.size() == 16);
+    REQUIRE(sineOff.size() == 16);
+    CHECK(std::abs(sineOn[0] - sineOff[0]) <= 1e-4f * std::abs(sineOff[0]) + 1e-7f);
+    std::printf("HarmonicOscillatorBank continuous updates: worst partial %+.4f dB (bar 0.05); default path worst %+.2f dB (control > 1)\n",
+                worstOnDb, worstOffDb);
 }

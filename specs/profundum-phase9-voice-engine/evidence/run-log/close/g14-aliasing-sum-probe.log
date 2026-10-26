@@ -1,0 +1,185 @@
+Filters: "VoiceEngine_AliasingSumProbe"
+Randomness seeded to: 3185952771
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -101.56 char -75.894 anchor -154.8 sum -75.894 out -79.179; follow ratio [1, 1]
+  off-lattice power: below f_m -107.47 dBFS, f_m .. fs/4 -76.139 dBFS, above fs/4 -88.543 dBFS (R)
+  bin 3748 f 630.52 Hz (30.605 f0) -104.12 dBFS, nearest mirrored harmonic 0.16209 Hz away
+  bin 4850 f 815.91 Hz (39.604 f0) -104.29 dBFS, nearest mirrored harmonic 0.13397 Hz away
+  bin 3747 f 630.35 Hz (30.597 f0) -104.46 dBFS, nearest mirrored harmonic 0.0061417 Hz away
+  bin 4335 f 729.27 Hz (35.398 f0) -104.87 dBFS, nearest mirrored harmonic 0.087906 Hz away
+  bin 2646 f 445.13 Hz (21.607 f0) -104.95 dBFS, nearest mirrored harmonic 0.1902 Hz away
+  bin 2645 f 444.96 Hz (21.598 f0) -104.97 dBFS, nearest mirrored harmonic 0.021976 Hz away
+  bin 538 f 90.507 Hz (4.3932 f0) -105.06 dBFS, nearest mirrored harmonic 0.19667 Hz away
+  bin 1518 f 255.37 Hz (12.396 f0) -105.07 dBFS, nearest mirrored harmonic 0.14689 Hz away
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -102.17 char -77.941 anchor -154.8 sum -77.941 out -80.137; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.56 char -73.631 anchor -154.8 sum -73.631 out -75.959; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -101.56 char -91.612 anchor -154.8 sum -91.612 out -86.749; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -101.56 char -75.143 anchor -154.8 sum -75.143 out -80.669; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -104.73 anchor -154.8 sum -104.73 out -88.907; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -103.37 char -80.698 anchor -154.8 sum -80.698 out -64.63; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -101.56 char -81.802 anchor -154.8 sum -81.802 out -79.112; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Bite SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -101.56 char -71.785 anchor -160.82 sum -71.785 out -75.004; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [base]: aliased dBFS core -101.55 char -46.563 anchor -155.71 sum -46.563 out -47.776; follow ratio [1, 1]
+  off-lattice power: below f_m -48.126 dBFS, f_m .. fs/4 -51.759 dBFS, above fs/4 -100.78 dBFS (L)
+  bin 9 f 6.0562 Hz (0.073492 f0) -60.314 dBFS, nearest mirrored harmonic 6.2572 Hz away
+  bin 10 f 6.7291 Hz (0.081657 f0) -61.148 dBFS, nearest mirrored harmonic 5.5843 Hz away
+  bin 114 f 76.712 Hz (0.93089 f0) -61.465 dBFS, nearest mirrored harmonic 6.6185 Hz away
+  bin 11 f 7.402 Hz (0.089823 f0) -61.912 dBFS, nearest mirrored harmonic 4.9113 Hz away
+  bin 131 f 88.152 Hz (1.0697 f0) -62.238 dBFS, nearest mirrored harmonic 6.5687 Hz away
+  bin 113 f 76.039 Hz (0.92273 f0) -62.436 dBFS, nearest mirrored harmonic 5.9456 Hz away
+  bin 12 f 8.075 Hz (0.097989 f0) -62.615 dBFS, nearest mirrored harmonic 4.2384 Hz away
+  bin 13 f 8.7479 Hz (0.10615 f0) -63.265 dBFS, nearest mirrored harmonic 3.5655 Hz away
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [SOLID]: aliased dBFS core -101.49 char -128.26 anchor -155.71 sum -128.26 out -122.63; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.55 char -130.28 anchor -155.71 sum -130.26 out -95.835; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Character amount 0]: aliased dBFS core -101.55 char -89.973 anchor -155.71 sum -89.973 out -85.96; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [excitation mix 0]: aliased dBFS core -136.82 char -126.47 anchor -155.71 sum -126.46 out -100.35; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Mass 50]: aliased dBFS core -100.93 char -131.3 anchor -155.71 sum -131.28 out -123.65; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Fold 0]: aliased dBFS core -101.55 char -127.02 anchor -155.71 sum -127.01 out -77.875; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E2 Crush SHAPE 0 Tone 0 LOCK [Anchor level 0]: aliased dBFS core -101.55 char -129.92 anchor -161.73 sum -129.91 out -117.8; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -101.56 char -72.112 anchor -154.8 sum -72.112 out -55.714; follow ratio [1, 1]
+  off-lattice power: below f_m -107.73 dBFS, f_m .. fs/4 -72.429 dBFS, above fs/4 -83.642 dBFS (R)
+  bin 8034 f 1351.5 Hz (65.603 f0) -98.014 dBFS, nearest mirrored harmonic 0.12751 Hz away
+  bin 9136 f 1536.9 Hz (74.602 f0) -98.233 dBFS, nearest mirrored harmonic 0.099388 Hz away
+  bin 9014 f 1516.4 Hz (73.606 f0) -98.937 dBFS, nearest mirrored harmonic 0.17728 Hz away
+  bin 8035 f 1351.7 Hz (65.612 f0) -98.968 dBFS, nearest mirrored harmonic 0.29573 Hz away
+  bin 8621 f 1450.3 Hz (70.397 f0) -99.042 dBFS, nearest mirrored harmonic 0.12249 Hz away
+  bin 10116 f 1701.8 Hz (82.605 f0) -99.421 dBFS, nearest mirrored harmonic 0.14916 Hz away
+  bin 9137 f 1537.1 Hz (74.61 f0) -99.442 dBFS, nearest mirrored harmonic 0.26762 Hz away
+  bin 9993 f 1681.1 Hz (81.6 f0) -99.599 dBFS, nearest mirrored harmonic 0.058826 Hz away
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -102.17 char -73.835 anchor -154.8 sum -73.835 out -72.113; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.56 char -71.129 anchor -154.8 sum -71.129 out -73.103; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -101.56 char -89.905 anchor -154.8 sum -89.905 out -80.251; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -101.56 char -76.038 anchor -154.8 sum -76.038 out -81.797; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -99.058 anchor -154.8 sum -99.058 out -70.722; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -103.37 char -76.878 anchor -154.8 sum -76.878 out -57.249; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -101.56 char -80.65 anchor -154.8 sum -80.65 out -81.443; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Fold SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -101.56 char -69.269 anchor -160.82 sum -69.269 out -47.679; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -101.56 char -69.078 anchor -154.8 sum -69.078 out -71.105; follow ratio [1, 1]
+  off-lattice power: below f_m -100.65 dBFS, f_m .. fs/4 -69.179 dBFS, above fs/4 -85.603 dBFS (R)
+  bin 7299 f 1227.9 Hz (59.602 f0) -94.273 dBFS, nearest mirrored harmonic 0.090176 Hz away
+  bin 5070 f 852.92 Hz (41.4 f0) -94.292 dBFS, nearest mirrored harmonic 0.050575 Hz away
+  bin 5069 f 852.75 Hz (41.392 f0) -94.49 dBFS, nearest mirrored harmonic 0.2188 Hz away
+  bin 6197 f 1042.5 Hz (50.603 f0) -94.526 dBFS, nearest mirrored harmonic 0.11829 Hz away
+  bin 8279 f 1392.8 Hz (67.604 f0) -94.665 dBFS, nearest mirrored harmonic 0.13995 Hz away
+  bin 6687 f 1124.9 Hz (54.604 f0) -94.68 dBFS, nearest mirrored harmonic 0.14318 Hz away
+  bin 6172 f 1038.3 Hz (50.399 f0) -94.822 dBFS, nearest mirrored harmonic 0.078693 Hz away
+  bin 7300 f 1228.1 Hz (59.61 f0) -94.836 dBFS, nearest mirrored harmonic 0.2584 Hz away
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -102.17 char -71.157 anchor -154.8 sum -71.157 out -71.369; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.56 char -69.008 anchor -154.8 sum -69.008 out -69.665; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -101.56 char -87.293 anchor -154.8 sum -87.293 out -77.924; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -101.56 char -75.987 anchor -154.8 sum -75.987 out -82.342; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -95.069 anchor -154.8 sum -95.069 out -66.734; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -103.37 char -75.109 anchor -154.8 sum -75.109 out -76.198; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -101.56 char -77.203 anchor -154.8 sum -77.203 out -73.466; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Rectify SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -101.56 char -66.163 anchor -160.82 sum -66.163 out -68.542; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -101.56 char -77.25 anchor -154.8 sum -77.25 out -80.311; follow ratio [1, 1]
+  off-lattice power: below f_m -109.99 dBFS, f_m .. fs/4 -77.45 dBFS, above fs/4 -90.762 dBFS (R)
+  bin 5805 f 976.56 Hz (47.402 f0) -105.05 dBFS, nearest mirrored harmonic 0.013245 Hz away
+  bin 4850 f 815.91 Hz (39.604 f0) -105.1 dBFS, nearest mirrored harmonic 0.13397 Hz away
+  bin 5804 f 976.4 Hz (47.394 f0) -105.25 dBFS, nearest mirrored harmonic 0.18147 Hz away
+  bin 3723 f 626.31 Hz (30.401 f0) -105.4 dBFS, nearest mirrored harmonic 0.034901 Hz away
+  bin 9993 f 1681.1 Hz (81.6 f0) -105.75 dBFS, nearest mirrored harmonic 0.058826 Hz away
+  bin 6932 f 1166.2 Hz (56.605 f0) -105.78 dBFS, nearest mirrored harmonic 0.15562 Hz away
+  bin 2620 f 440.76 Hz (21.394 f0) -105.81 dBFS, nearest mirrored harmonic 0.17501 Hz away
+  bin 2621 f 440.93 Hz (21.402 f0) -105.84 dBFS, nearest mirrored harmonic 0.0067825 Hz away
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -102.17 char -79.195 anchor -154.8 sum -79.195 out -81.422; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -101.56 char -75.132 anchor -154.8 sum -75.132 out -77.955; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -101.56 char -93.722 anchor -154.8 sum -93.722 out -90.317; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -101.56 char -74.405 anchor -154.8 sum -74.405 out -82.087; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.9 char -103.31 anchor -154.8 sum -103.31 out -90.485; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -103.37 char -81.673 anchor -154.8 sum -81.673 out -51.854; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -101.56 char -82.667 anchor -154.8 sum -82.667 out -84.002; follow ratio [1, 1]
+PROBE SC-021(a) 44k1 E0 Tube SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -101.56 char -72.995 anchor -160.82 sum -72.995 out -76.715; follow ratio [1, 1]
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -99.303 char -76.122 anchor -155.87 sum -76.122 out -63.675; follow ratio [1, 1]
+  off-lattice power: below f_m -111.68 dBFS, f_m .. fs/4 -76.95 dBFS, above fs/4 -83.738 dBFS (R)
+  bin 2273 f 832.4 Hz (20.202 f0) -107.54 dBFS, nearest mirrored harmonic 2.2599 Hz away
+  bin 2948 f 1079.6 Hz (26.201 f0) -107.72 dBFS, nearest mirrored harmonic 2.2316 Hz away
+  bin 2272 f 832.03 Hz (20.193 f0) -107.75 dBFS, nearest mirrored harmonic 1.8937 Hz away
+  bin 2947 f 1079.2 Hz (26.193 f0) -108.09 dBFS, nearest mirrored harmonic 1.8654 Hz away
+  bin 3128 f 1145.5 Hz (27.801 f0) -108.2 dBFS, nearest mirrored harmonic 2.1204 Hz away
+  bin 6323 f 2315.6 Hz (56.198 f0) -108.41 dBFS, nearest mirrored harmonic 2.0899 Hz away
+  bin 5041 f 1846.1 Hz (44.804 f0) -108.5 dBFS, nearest mirrored harmonic 2.0176 Hz away
+  bin 2453 f 898.32 Hz (21.802 f0) -108.61 dBFS, nearest mirrored harmonic 2.0921 Hz away
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -98.376 char -75.043 anchor -155.87 sum -75.043 out -78.106; follow ratio [1, 1]
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -99.303 char -73.71 anchor -155.87 sum -73.71 out -67.392; follow ratio [1, 1]
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -99.303 char -90.755 anchor -155.87 sum -90.755 out -74.465; follow ratio [1, 1]
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -99.303 char -73.718 anchor -155.87 sum -73.718 out -76.204; follow ratio [1, 1]
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -134.06 char -106.57 anchor -155.87 sum -106.57 out -74.129; follow ratio [1, 1]
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -99.442 char -83.255 anchor -155.87 sum -83.255 out -66.171; follow ratio [1, 1]
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -99.303 char -81.402 anchor -155.87 sum -81.402 out -83.894; follow ratio [1, 1]
+PROBE SC-021(a) 48k E1 Bite SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -99.303 char -73.546 anchor -161.89 sum -73.546 out -63.249; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -92.897 char -64.111 anchor -157.83 sum -64.111 out -51.87; follow ratio [1, 1]
+  off-lattice power: below f_m -99.717 dBFS, f_m .. fs/4 -64.656 dBFS, above fs/4 -73.401 dBFS (L)
+  bin 5469 f 2002.8 Hz (48.608 f0) -92.205 dBFS, nearest mirrored harmonic 4.0247 Hz away
+  bin 4770 f 1746.8 Hz (42.395 f0) -92.231 dBFS, nearest mirrored harmonic 4.1442 Hz away
+  bin 5107 f 1870.2 Hz (45.39 f0) -92.266 dBFS, nearest mirrored harmonic 3.947 Hz away
+  bin 4769 f 1746.5 Hz (42.386 f0) -92.417 dBFS, nearest mirrored harmonic 3.778 Hz away
+  bin 2656 f 972.66 Hz (23.606 f0) -93.201 dBFS, nearest mirrored harmonic 4.0897 Hz away
+  bin 6144 f 2250 Hz (54.607 f0) -93.21 dBFS, nearest mirrored harmonic 4.053 Hz away
+  bin 5470 f 2003.2 Hz (48.617 f0) -93.362 dBFS, nearest mirrored harmonic 3.6585 Hz away
+  bin 5106 f 1869.9 Hz (45.381 f0) -93.42 dBFS, nearest mirrored harmonic 3.5807 Hz away
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -92.303 char -63.354 anchor -157.83 sum -63.354 out -64.991; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -92.897 char -62.643 anchor -157.83 sum -62.643 out -64.326; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -92.897 char -81.039 anchor -157.83 sum -81.039 out -81.577; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -92.897 char -69.28 anchor -157.83 sum -69.28 out -70.891; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -129.5 char -92.855 anchor -157.83 sum -92.855 out -71.766; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -94.975 char -71.102 anchor -157.83 sum -71.102 out -69.21; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -92.897 char -73.139 anchor -157.83 sum -73.139 out -75.123; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fold SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -92.897 char -63.024 anchor -163.85 sum -63.024 out -62.847; follow ratio [1, 1]
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [base]: aliased dBFS core -90.363 char -70.02 anchor -155.89 sum -70.02 out -63.369; follow ratio [1, 1]
+  off-lattice power: below f_m -108.22 dBFS, f_m .. fs/4 -70.122 dBFS, above fs/4 -86.387 dBFS (R)
+  bin 7448 f 5455.1 Hz (66.197 f0) -95.894 dBFS, nearest mirrored harmonic 4.1397 Hz away
+  bin 7404 f 5422.9 Hz (65.806 f0) -96.391 dBFS, nearest mirrored harmonic 3.9196 Hz away
+  bin 4816 f 3527.3 Hz (42.804 f0) -96.581 dBFS, nearest mirrored harmonic 4.069 Hz away
+  bin 6166 f 4516.1 Hz (54.803 f0) -96.638 dBFS, nearest mirrored harmonic 4.1821 Hz away
+  bin 6210 f 4548.3 Hz (55.194 f0) -96.652 dBFS, nearest mirrored harmonic 3.8773 Hz away
+  bin 4028 f 2950.2 Hz (35.8 f0) -96.662 dBFS, nearest mirrored harmonic 4.3692 Hz away
+  bin 8686 f 6361.8 Hz (77.2 f0) -97.011 dBFS, nearest mirrored harmonic 4.4022 Hz away
+  bin 8685 f 6361.1 Hz (77.191 f0) -97.023 dBFS, nearest mirrored harmonic 3.6698 Hz away
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [SOLID]: aliased dBFS core -90.755 char -69.034 anchor -155.89 sum -69.034 out -71.817; follow ratio [1, 1]
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [anchorFoldFeed 0]: aliased dBFS core -90.363 char -68.209 anchor -155.89 sum -68.209 out -68.499; follow ratio [1, 1]
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [SHAPE 0]: aliased dBFS core -90.363 char -76.621 anchor -155.89 sum -76.621 out -72.988; follow ratio [1, 1]
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Character amount 0]: aliased dBFS core -90.363 char -67.863 anchor -155.89 sum -67.863 out -77.212; follow ratio [1, 1]
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [excitation mix 0]: aliased dBFS core -133.51 char -97.074 anchor -155.89 sum -97.074 out -63.315; follow ratio [1, 1]
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Mass 50]: aliased dBFS core -93.65 char -74.9 anchor -155.89 sum -74.9 out -68.129; follow ratio [1, 1]
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Fold 0]: aliased dBFS core -90.363 char -78.741 anchor -155.89 sum -78.741 out -80.955; follow ratio [1, 1]
+PROBE SC-021(a) 96k E2 Tube SHAPE 1 Tone 1 LOCK [Anchor level 0]: aliased dBFS core -90.363 char -69.5 anchor -161.91 sum -69.5 out -65.037; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [base]: aliased dBFS core -92.897 char -8.2155 anchor -14.118 sum -7.5665 out -13.783; follow ratio [1, 2]
+  off-lattice power: below f_m -31.506 dBFS, f_m .. fs/4 -7.5841 dBFS, above fs/4 -53.954 dBFS (R)
+  bin 281 f 102.91 Hz (2.4975 f0) -19.749 dBFS, nearest mirrored harmonic 8.3615 Hz away
+  bin 282 f 103.27 Hz (2.5064 f0) -20.655 dBFS, nearest mirrored harmonic 8.202 Hz away
+  bin 169 f 61.89 Hz (1.5021 f0) -21.866 dBFS, nearest mirrored harmonic 8.3803 Hz away
+  bin 619 f 226.68 Hz (5.5016 f0) -21.974 dBFS, nearest mirrored harmonic 8.3992 Hz away
+  bin 394 f 144.29 Hz (3.5018 f0) -22.624 dBFS, nearest mirrored harmonic 8.3898 Hz away
+  bin 168 f 61.523 Hz (1.4932 f0) -22.913 dBFS, nearest mirrored harmonic 8.1831 Hz away
+  bin 280 f 102.54 Hz (2.4886 f0) -22.966 dBFS, nearest mirrored harmonic 7.9952 Hz away
+  bin 618 f 226.32 Hz (5.4927 f0) -23.269 dBFS, nearest mirrored harmonic 8.1642 Hz away
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [SOLID]: aliased dBFS core -92.303 char -79.911 anchor -157.37 sum -79.911 out -82.2; follow ratio [1, 2]
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [anchorFoldFeed 0]: aliased dBFS core -92.897 char -75.492 anchor -157.83 sum -75.492 out -68.613; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [LOCK]: aliased dBFS core -92.897 char -79.381 anchor -157.83 sum -79.381 out -65.833; follow ratio [2, 2]
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Character amount 0]: aliased dBFS core -92.897 char -86.652 anchor -157.83 sum -86.652 out -88.669; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [excitation mix 0]: aliased dBFS core -129.5 char -8.7216 anchor -15.592 sum -7.6507 out -14.082; follow ratio [1, 2]
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Mass 50]: aliased dBFS core -94.975 char -81.517 anchor -157.83 sum -81.517 out -84.047; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Fold 0]: aliased dBFS core -92.897 char -9.1267 anchor -14.118 sum -7.453 out -11.831; follow ratio [1, 2]
+PROBE SC-021(a) 96k E1 Rectify SHAPE 0 Tone 1 FOLLOW [Anchor level 0]: aliased dBFS core -92.897 char -76.926 anchor -163.85 sum -76.926 out -73.664; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [base]: aliased dBFS core -92.981 char -76.106 anchor -155.69 sum -76.106 out -71.923; follow ratio [0.5, 0.5]
+  off-lattice power: below f_m -117.19 dBFS, f_m .. fs/4 -76.128 dBFS, above fs/4 -99.257 dBFS (L)
+  bin 4926 f 901.98 Hz (21.891 f0) -106.2 dBFS, nearest mirrored harmonic 0.45279 Hz away
+  bin 4925 f 901.79 Hz (21.886 f0) -106.62 dBFS, nearest mirrored harmonic 0.63589 Hz away
+  bin 5763 f 1055.2 Hz (25.61 f0) -106.79 dBFS, nearest mirrored harmonic 3.916 Hz away
+  bin 3350 f 613.4 Hz (14.887 f0) -107.5 dBFS, nearest mirrored harmonic 0.60284 Hz away
+  bin 3351 f 613.59 Hz (14.892 f0) -107.76 dBFS, nearest mirrored harmonic 0.41973 Hz away
+  bin 7338 f 1343.6 Hz (32.61 f0) -107.8 dBFS, nearest mirrored harmonic 3.9491 Hz away
+  bin 2450 f 448.61 Hz (10.888 f0) -107.92 dBFS, nearest mirrored harmonic 0.58395 Hz away
+  bin 15164 f 2776.6 Hz (67.388 f0) -107.95 dBFS, nearest mirrored harmonic 3.8431 Hz away
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [SOLID]: aliased dBFS core -92.948 char -76.995 anchor -155.69 sum -76.995 out -73.938; follow ratio [0.5, 0.5]
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [anchorFoldFeed 0]: aliased dBFS core -92.981 char -75.003 anchor -155.69 sum -75.003 out -72.868; follow ratio [0.5, 0.5]
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [LOCK]: aliased dBFS core -92.981 char -78.48 anchor -155.78 sum -78.48 out -75.011; follow ratio [0.5, 0.5]
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [SHAPE 0]: aliased dBFS core -92.981 char -89.746 anchor -155.69 sum -89.746 out -80.308; follow ratio [0.5, 0.5]
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Character amount 0]: aliased dBFS core -92.981 char -71.746 anchor -155.78 sum -71.746 out -71.006; follow ratio [1, 1]
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [excitation mix 0]: aliased dBFS core -125.83 char -92.244 anchor -155.69 sum -92.244 out -81.251; follow ratio [0.5, 0.5]
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Mass 50]: aliased dBFS core -94.591 char -74.867 anchor -155.69 sum -74.867 out -75.049; follow ratio [0.5, 0.5]
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Fold 0]: aliased dBFS core -92.981 char -83.068 anchor -155.69 sum -83.068 out -79.66; follow ratio [0.5, 0.5]
+PROBE SC-021(a) 96k E1 Fracture SHAPE 1 Tone 1 FOLLOW [Anchor level 0]: aliased dBFS core -92.981 char -74.957 anchor -161.71 sum -74.957 out -73.337; follow ratio [0.5, 0.5]
+===============================================================================
+All tests passed (6490 assertions in 1 test case)
+

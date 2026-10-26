@@ -1,0 +1,91 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 3460149367
+[T004 C-15] Spread 1 -> SOLID: landing query 334 (bar: 334)
+[T004 C-15] Spread 1 -> Spread 0: landing query 334 (bar: 334)
+[T004 SC-013(c)] Cycle rate 1 depth 1 Spread 1: 10000 handoffs in 10000 intervals
+[T004 SC-009(a')] positive control (query, then reset): next-interval step 0.849627 (Delta 0.003)
+[T004 SC-021] crossover 60 Gravity 0: largest adjacent curve-step W change 10.4007 dB
+[T004 SC-021] crossover 60 Gravity 1: largest adjacent curve-step W change 13.263 dB
+[T004 SC-021] crossover 120 Gravity 0: largest adjacent curve-step W change 14.046 dB
+[T004 SC-021] crossover 120 Gravity 1: largest adjacent curve-step W change 15.0343 dB
+[T004 SC-021] crossover 250 Gravity 0: largest adjacent curve-step W change 15.3862 dB
+[T004 SC-021] crossover 250 Gravity 1: largest adjacent curve-step W change 15.5293 dB
+[T004 C-17] (Spread 0, X60) -> (Spread 1, X250) [plan counter-example] note 28: largest W step per 0.05 t 91.8857 dB; worst excursion beyond the endpoints 92.1982 dB at k 4; 35 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 4 (dB): -120 -31.1523 -28.0195 -27.8018 -28.8979 -30.7946 -33.2776 -36.2568 -39.7104 -43.6645 -48.191 -53.4171 -59.5538 -66.9576 -76.2792 -88.8896 -108.574 -120 -120 -120 -120
+[T004 C-17] (Spread 0, X60) -> (Spread 1, X250) [plan counter-example] note 36: largest W step per 0.05 t 91.8857 dB; worst excursion beyond the endpoints 90.6481 dB at k 2; 23 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 2 (dB): -120 -32.1476 -29.3519 -29.4433 -30.8453 -33.0636 -35.9013 -39.2879 -43.2261 -47.7776 -53.0681 -59.3163 -66.9003 -76.526 -89.7167 -110.868 -120 -120 -120 -120 -120
+[T004 C-17] (Spread 1, G1) -> (Spread 0.2, G0) note 28: largest W step per 0.05 t 6.52904 dB; worst excursion beyond the endpoints 1.83811 dB at k 3; 3 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 3 (dB): -45.5011 -45.1379 -44.8131 -44.5268 -44.2793 -44.0715 -43.9042 -43.779 -43.6978 -43.6629 -43.6777 -43.746 -43.8729 -44.0651 -44.3307 -44.681 -45.1306 -45.6995 -46.4164 -47.3229 -48.4844
+[T004 C-17] (Spread 1, G1) -> (Spread 0.2, G0) note 36: largest W step per 0.05 t 2.75185 dB; worst excursion beyond the endpoints 1.00186 dB at k 1; 1 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 1 (dB): -90.7308 -87.9789 -85.5293 -83.3375 -81.3718 -79.6016 -78.0085 -76.5759 -75.2889 -74.1395 -73.1189 -72.2238 -71.451 -70.8005 -70.2756 -69.8821 -69.6307 -69.5377 -69.6283 -69.9413 -70.5396
+[T004 C-17] (curve 0, X250) -> (curve 1, X60) note 28: largest W step per 0.05 t 25.1655 dB; worst excursion beyond the endpoints 0 dB at k 0; 0 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 0 (dB): -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120
+[T004 C-17] (curve 0, X250) -> (curve 1, X60) note 36: largest W step per 0.05 t 35.4376 dB; worst excursion beyond the endpoints 0 dB at k 0; 0 (t in {.25,.5,.75}, k) beyond 0.5 dB; W path at k 0 (dB): -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120
+[T006 SC-005 C-1] largest |M_out - M_in| / (2^-23 (|M_in| + |S'_out|)) over 27 cells: 0.496419 (violations 0)
+[T006 SC-005 C-1 record] kGateMidBitExact false: mid bit differences 54714 over 27 x 48000 samples, largest |delta| 2.98023e-08
+[T006 SC-004(b) C-2 record] crossover 60 Hz: L == R bit-for-bit from 30001 samples (625.021 ms) after the first L == R input sample
+[T006 SC-004(b) C-2 record] crossover 120 Hz: L == R bit-for-bit from 855 samples (17.8125 ms) after the first L == R input sample
+[T006 SC-004(b) C-2 record] crossover 250 Hz: L == R bit-for-bit from 402 samples (8.375 ms) after the first L == R input sample
+[T006 SC-004(c) C-2 record] MIDI 16 (SPREAD, 120 Hz, Gravity 0.5): output == anchor and L == R from 1166 samples (24.2917 ms) after the noise
+[T006 SC-004(c) C-2 record] MIDI 28 (SPREAD, 120 Hz, Gravity 0.5): output == anchor and L == R from 1166 samples (24.2917 ms) after the noise
+[T006 SC-004(c) C-2 record] MIDI 40 (SPREAD, 120 Hz, Gravity 0.5): output == anchor and L == R from 887 samples (18.4792 ms) after the noise
+[T006 SC-004(c) C-2 record] MIDI 48 (SPREAD, 120 Hz, Gravity 0.5): output == anchor and L == R from 1102 samples (22.9583 ms) after the noise
+[T006 FR-052 R-11] fs 44100: crossfade into SOLID 441 samples, out of SOLID 441 samples (bar 441 +- 1); pair already equal at the crossfade's last sample: yes
+[T006 FR-052 R-11] fs 48000: crossfade into SOLID 480 samples, out of SOLID 480 samples (bar 480 +- 1); pair already equal at the crossfade's last sample: yes
+[T006 FR-052 R-11] fs 96000: crossfade into SOLID 961 samples, out of SOLID 961 samples (bar 960 +- 1); pair already equal at the crossfade's last sample: yes
+[T006 SC-020 stage] crossover 60 Hz, tone 57 Hz, Gravity 0: -21.75 dB (analytic LR4 -21.7507 dB; bar < 0)
+[T006 SC-020 stage] crossover 60 Hz, tone 57 Hz, Gravity 1: -26.2961 dB (analytic LR4 -26.2958 dB; bar <= -24)
+[T006 SC-020 stage] crossover 60 Hz, tone 34.641 Hz, Gravity 0: -27.6271 dB (analytic LR4 -27.6066 dB; bar < 0)
+[T006 SC-020 stage] crossover 60 Hz, tone 34.641 Hz, Gravity 1: -43.2499 dB (analytic LR4 -43.2274 dB; bar <= -24)
+[T006 SC-020 stage] crossover 120 Hz, tone 114 Hz, Gravity 0: -21.752 dB (analytic LR4 -21.7507 dB; bar < 0)
+[T006 SC-020 stage] crossover 120 Hz, tone 114 Hz, Gravity 1: -26.2992 dB (analytic LR4 -26.2958 dB; bar <= -24)
+[T006 SC-020 stage] crossover 120 Hz, tone 48.9898 Hz, Gravity 0: -28.7128 dB (analytic LR4 -28.7132 dB; bar < 0)
+[T006 SC-020 stage] crossover 120 Hz, tone 48.9898 Hz, Gravity 1: -55.2286 dB (analytic LR4 -55.2235 dB; bar <= -24)
+[T006 SC-020 stage] crossover 250 Hz, tone 237.5 Hz, Gravity 0: -21.756 dB (analytic LR4 -21.7507 dB; bar < 0)
+[T006 SC-020 stage] crossover 250 Hz, tone 237.5 Hz, Gravity 1: -26.3051 dB (analytic LR4 -26.2958 dB; bar <= -24)
+[T006 SC-020 stage] crossover 250 Hz, tone 70.7107 Hz, Gravity 0: -29.0205 dB (analytic LR4 -29.0234 dB; bar < 0)
+[T006 SC-020 stage] crossover 250 Hz, tone 70.7107 Hz, Gravity 1: -67.9717 dB (analytic LR4 -67.9623 dB; bar <= -24)
+[T006 FR-027] Gravity 0 -> 1: currentSideGain() bit 0 after 564 samples (bar <= 4800)
+[T006 SC-009(c) C-18] fs 44100: step worst |smoothed - handed| 0 Hz, Efficient corner 0.0961914 Hz; slow sweep worst |smoothed - handed| 0 Hz, Efficient corner 0.0999908 Hz, HighAccuracy corner (rejected rule) 0.68895 Hz
+[T006 SC-009(c) C-18] fs 48000: step worst |smoothed - handed| 0 Hz, Efficient corner 0.0993958 Hz; slow sweep worst |smoothed - handed| 0 Hz, Efficient corner 0.0999908 Hz, HighAccuracy corner (rejected rule) 0.749954 Hz
+[T006 SC-009(c) C-18] fs 88200: step worst |smoothed - handed| 0 Hz, Efficient corner 0.0997925 Hz; slow sweep worst |smoothed - handed| 0 Hz, Efficient corner 0.0999908 Hz, HighAccuracy corner (rejected rule) 1.37794 Hz
+[T006 SC-009(c) C-18] fs 96000: step worst |smoothed - handed| 0 Hz, Efficient corner 0.0998611 Hz; slow sweep worst |smoothed - handed| 0 Hz, Efficient corner 0.0999908 Hz, HighAccuracy corner (rejected rule) 1.49995 Hz
+[T006 SC-009(c) C-18] fs 192000: step worst |smoothed - handed| 0.00375366 Hz, Efficient corner 0.102371 Hz; slow sweep worst |smoothed - handed| 0 Hz, Efficient corner 0.0999908 Hz, HighAccuracy corner (rejected rule) 2.99995 Hz
+BSF_HELPERS,bandReading,hard_q,-3.0103,anti_q,-120,anti_rho,-1,same_q,0,same_rho,1,half_q,-0.457575,half_rho,1
+BSF_HELPERS,maskEquivalence,ll_rel,8.67362e-15,rr_rel,4.79083e-11,rho_diff,4.38952e-12
+BSF_HELPERS,bandMask,pass_db,-2.12038e-08,stop_db,-187.079
+BSF_HELPERS,widthDb,expected,-7.65551,worst_abs_err,1.13196e-06
+BSF_HELPERS,panReference,max_diff,0,max_lr,0.198829
+BSF_HELPERS,goertzelComplex,amplitude,0.2999999999,phase,0.7000000002
+BSF_HELPERS,restage,own_floor_bit_equal,1
+BSF_HELPERS,chainMatchesPhase6,out_peak,0.891251
+BSF_HELPERS,fieldChainSmoke,grid_points,3000,vectors,3000,solid_stage_lr_equal,1
+SC-014 burst arm=L only value=NaN nonfinite_out=0 mask_misses=0 good_channel_nonzero=16 first_block_err_dB L=-30.5 R=-30.1 recovery_err_dB L=-151.8 R=-151.8 (bound -60)
+SC-014 burst arm=L only value=+Inf nonfinite_out=0 mask_misses=0 good_channel_nonzero=16 first_block_err_dB L=-30.5 R=-30.1 recovery_err_dB L=-151.8 R=-151.8 (bound -60)
+SC-014 burst arm=L only value=-Inf nonfinite_out=0 mask_misses=0 good_channel_nonzero=16 first_block_err_dB L=-30.5 R=-30.1 recovery_err_dB L=-151.8 R=-151.8 (bound -60)
+SC-014 burst arm=R only value=NaN nonfinite_out=0 mask_misses=0 good_channel_nonzero=16 first_block_err_dB L=-30.0 R=-29.6 recovery_err_dB L=-151.9 R=-152.0 (bound -60)
+SC-014 burst arm=R only value=+Inf nonfinite_out=0 mask_misses=0 good_channel_nonzero=16 first_block_err_dB L=-30.0 R=-29.6 recovery_err_dB L=-151.9 R=-152.0 (bound -60)
+SC-014 burst arm=R only value=-Inf nonfinite_out=0 mask_misses=0 good_channel_nonzero=16 first_block_err_dB L=-30.0 R=-29.6 recovery_err_dB L=-151.9 R=-152.0 (bound -60)
+SC-014 burst arm=both value=NaN nonfinite_out=0 mask_misses=0 good_channel_nonzero=0 first_block_err_dB L=-35.5 R=-35.1 recovery_err_dB L=-109.1 R=-109.0 (bound -60)
+SC-014 burst arm=both value=+Inf nonfinite_out=0 mask_misses=0 good_channel_nonzero=0 first_block_err_dB L=-35.5 R=-35.1 recovery_err_dB L=-109.1 R=-109.0 (bound -60)
+SC-014 burst arm=both value=-Inf nonfinite_out=0 mask_misses=0 good_channel_nonzero=0 first_block_err_dB L=-35.5 R=-35.1 recovery_err_dB L=-109.1 R=-109.0 (bound -60)
+SC-014 control target=spread value=NaN controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=spread value=+Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=spread value=-Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=gravity value=NaN controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=gravity value=+Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=gravity value=-Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=crossoverHz value=NaN controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=crossoverHz value=+Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=crossoverHz value=-Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=curve value=NaN controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=curve value=+Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=curve value=-Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=motionDepth value=NaN controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=motionDepth value=+Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=motionDepth value=-Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=motionRate value=NaN controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=motionRate value=+Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=motionRate value=-Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=setTempoBpm value=NaN controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=setTempoBpm value=+Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+SC-014 control target=setTempoBpm value=-Inf controls_kept=1 cycle_hz_kept=1 L_eq=1 R_eq=1 motion_eq=1 pan_eq=1
+===============================================================================
+All tests passed (4598 assertions in 30 test cases)
+
+rc=0 wall=6s

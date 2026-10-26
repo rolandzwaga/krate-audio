@@ -1,0 +1,94 @@
+SC015 setup fs=48000 block=64 note=E1 (41.20344 Hz) fixture=kSawAnchor reps=3 x 5.0 s median warmup=1 s amount=1 tone=0.5 bar=2.0% (mono-linked)
+SC015 shape_alone shape=0.00 pct=0.6325
+SC015 shape_alone shape=0.25 pct=0.6251
+SC015 shape_alone shape=0.50 pct=0.3936
+SC015 shape_alone shape=0.75 pct=0.5452
+SC015 shape_alone shape=1.00 pct=0.5405
+SC015 char_alone algo=Tube pct=0.9916
+SC015 char_alone algo=Fold pct=0.4949
+SC015 char_alone algo=Rectify pct=0.4492
+SC015 char_alone algo=Bite pct=0.5242
+SC015 char_alone algo=Crush pct=0.6144
+SC015 char_alone algo=Fracture pct=0.8350
+SC015 cell linked algo=Tube shape=0.00 pct=1.7104 shape_alone=0.6325 char_alone=0.9916
+SC015 cell linked algo=Tube shape=0.25 pct=1.5637 shape_alone=0.6251 char_alone=0.9916
+SC015 cell linked algo=Tube shape=0.50 pct=1.3414 shape_alone=0.3936 char_alone=0.9916
+SC015 cell linked algo=Tube shape=0.75 pct=1.5353 shape_alone=0.5452 char_alone=0.9916
+SC015 cell linked algo=Tube shape=1.00 pct=1.5341 shape_alone=0.5405 char_alone=0.9916
+SC015 cell linked algo=Fold shape=0.00 pct=1.2521 shape_alone=0.6325 char_alone=0.4949
+SC015 cell linked algo=Fold shape=0.25 pct=1.2237 shape_alone=0.6251 char_alone=0.4949
+SC015 cell linked algo=Fold shape=0.50 pct=0.8393 shape_alone=0.3936 char_alone=0.4949
+SC015 cell linked algo=Fold shape=0.75 pct=1.0087 shape_alone=0.5452 char_alone=0.4949
+SC015 cell linked algo=Fold shape=1.00 pct=0.8671 shape_alone=0.5405 char_alone=0.4949
+SC015 cell linked algo=Rectify shape=0.00 pct=1.0281 shape_alone=0.6325 char_alone=0.4492
+SC015 cell linked algo=Rectify shape=0.25 pct=1.0358 shape_alone=0.6251 char_alone=0.4492
+SC015 cell linked algo=Rectify shape=0.50 pct=0.7031 shape_alone=0.3936 char_alone=0.4492
+SC015 cell linked algo=Rectify shape=0.75 pct=0.8532 shape_alone=0.5452 char_alone=0.4492
+SC015 cell linked algo=Rectify shape=1.00 pct=0.8325 shape_alone=0.5405 char_alone=0.4492
+SC015 cell linked algo=Bite shape=0.00 pct=1.7388 shape_alone=0.6325 char_alone=0.5242
+SC015 cell linked algo=Bite shape=0.25 pct=1.0930 shape_alone=0.6251 char_alone=0.5242
+SC015 cell linked algo=Bite shape=0.50 pct=0.7498 shape_alone=0.3936 char_alone=0.5242
+SC015 cell linked algo=Bite shape=0.75 pct=1.2550 shape_alone=0.5452 char_alone=0.5242
+SC015 cell linked algo=Bite shape=1.00 pct=1.6316 shape_alone=0.5405 char_alone=0.5242
+SC015 cell linked algo=Crush shape=0.00 pct=1.1830 shape_alone=0.6325 char_alone=0.6144
+SC015 cell linked algo=Crush shape=0.25 pct=1.3971 shape_alone=0.6251 char_alone=0.6144
+SC015 cell linked algo=Crush shape=0.50 pct=0.8595 shape_alone=0.3936 char_alone=0.6144
+SC015 cell linked algo=Crush shape=0.75 pct=1.1350 shape_alone=0.5452 char_alone=0.6144
+SC015 cell linked algo=Crush shape=1.00 pct=1.0713 shape_alone=0.5405 char_alone=0.6144
+SC015 cell linked algo=Fracture shape=0.00 pct=1.8463 shape_alone=0.6325 char_alone=0.8350
+SC015 cell linked algo=Fracture shape=0.25 pct=1.7656 shape_alone=0.6251 char_alone=0.8350
+SC015 cell linked algo=Fracture shape=0.50 pct=1.4049 shape_alone=0.3936 char_alone=0.8350
+SC015 cell linked algo=Fracture shape=0.75 pct=1.4645 shape_alone=0.5452 char_alone=0.8350
+SC015 cell linked algo=Fracture shape=1.00 pct=1.3471 shape_alone=0.5405 char_alone=0.8350
+SC015 GATED max_linked pct=1.8463 argmax algo=Fracture shape=0.00 shape_alone=0.6325 char_alone=0.8350 bar=2.0
+SC015 record crossfade algo=Tube<->Fold shape=0.00 pct=2.5786
+SC015 record crossfade algo=Tube<->Rectify shape=0.00 pct=2.1490
+SC015 record crossfade algo=Tube<->Bite shape=0.00 pct=2.6501
+SC015 record crossfade algo=Tube<->Crush shape=0.00 pct=2.2971
+SC015 record crossfade algo=Tube<->Fracture shape=0.00 pct=2.4997
+SC015 record crossfade algo=Fold<->Rectify shape=0.00 pct=1.7221
+SC015 record crossfade algo=Fold<->Bite shape=0.00 pct=2.5605
+SC015 record crossfade algo=Fold<->Crush shape=0.00 pct=1.6287
+SC015 record crossfade algo=Fold<->Fracture shape=0.00 pct=1.8517
+SC015 record crossfade algo=Rectify<->Bite shape=0.00 pct=1.3986
+SC015 record crossfade algo=Rectify<->Crush shape=0.00 pct=1.4961
+SC015 record crossfade algo=Rectify<->Fracture shape=0.00 pct=2.0240
+SC015 record crossfade algo=Bite<->Crush shape=0.00 pct=1.5727
+SC015 record crossfade algo=Bite<->Fracture shape=0.00 pct=1.8898
+SC015 record crossfade algo=Crush<->Fracture shape=0.00 pct=2.0096
+SC015 RECORD worst_crossfade algo=Tube<->Bite shape=0.00 pct=2.6501 (not gated)
+SC015 RECORD drop 48st/60ms every 250 ms via f0PerSample (16-sample grid) algo=Fracture shape=0.00 pct=1.5738 (not gated)
+SC015 RECORD ramp amount 1<->0.8 tone 0.5<->0.3 shape +-0.25 every 50 ms algo=Fracture shape=0.00 pct=1.7426 (not gated)
+SC015 RECORD shape_disabled_warm (C-22) algo=Fracture shape=0.00 pct=1.8847 (not gated)
+SC015 record unlinked algo=Tube shape=0.00 pct=2.9442
+SC015 record unlinked algo=Tube shape=0.25 pct=3.8755
+SC015 record unlinked algo=Tube shape=0.50 pct=2.2859
+SC015 record unlinked algo=Tube shape=0.75 pct=3.5465
+SC015 record unlinked algo=Tube shape=1.00 pct=2.9082
+SC015 record unlinked algo=Fold shape=0.00 pct=2.1171
+SC015 record unlinked algo=Fold shape=0.25 pct=2.1415
+SC015 record unlinked algo=Fold shape=0.50 pct=1.4598
+SC015 record unlinked algo=Fold shape=0.75 pct=1.8105
+SC015 record unlinked algo=Fold shape=1.00 pct=2.3134
+SC015 record unlinked algo=Rectify shape=0.00 pct=2.4294
+SC015 record unlinked algo=Rectify shape=0.25 pct=2.0770
+SC015 record unlinked algo=Rectify shape=0.50 pct=2.0343
+SC015 record unlinked algo=Rectify shape=0.75 pct=1.9889
+SC015 record unlinked algo=Rectify shape=1.00 pct=2.0651
+SC015 record unlinked algo=Bite shape=0.00 pct=2.6150
+SC015 record unlinked algo=Bite shape=0.25 pct=2.8018
+SC015 record unlinked algo=Bite shape=0.50 pct=1.8078
+SC015 record unlinked algo=Bite shape=0.75 pct=1.9171
+SC015 record unlinked algo=Bite shape=1.00 pct=1.7677
+SC015 record unlinked algo=Crush shape=0.00 pct=2.9256
+SC015 record unlinked algo=Crush shape=0.25 pct=3.1166
+SC015 record unlinked algo=Crush shape=0.50 pct=1.6980
+SC015 record unlinked algo=Crush shape=0.75 pct=2.0363
+SC015 record unlinked algo=Crush shape=1.00 pct=2.0788
+SC015 record unlinked algo=Fracture shape=0.00 pct=3.7938
+SC015 record unlinked algo=Fracture shape=0.25 pct=3.6278
+SC015 record unlinked algo=Fracture shape=0.50 pct=2.9521
+SC015 record unlinked algo=Fracture shape=0.75 pct=2.7043
+SC015 record unlinked algo=Fracture shape=1.00 pct=2.7204
+SC015 RECORD max_unlinked pct=3.8755 argmax algo=Tube shape=0.25; unlinked at linked argmax pct=3.7938 (not gated)
+SC015 VERDICT PASS max_linked=1.8463 bar=2.0

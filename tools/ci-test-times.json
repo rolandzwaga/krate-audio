@@ -1,11 +1,12 @@
 {
-  "_comment": "Measured wall clock in seconds per test executable, used by tools/ci-test-shard.js to balance the CI shard matrix. per_push = the per-push filter (~[performance]~[perf]~[benchmark]~[!benchmark]~[long]); long = the [long]~[vorago-sweep] lane. Refresh from the 'Running:' timestamps of a CI Windows log, or from a Catch2 run with -d yes, whenever a suite grows; a stale entry only unbalances the shards, it never fails a run. Source: per_push from the windows-2022 runner, run 37910949575 (2026-10-09), where the serial lane timed out inside vorago_tests at 134 s - its entry is the local 446 s halved, the ratio the other suites showed between that runner and a 32-core box running 15 suites at once; long from the Phase 13d close lanes on that box.",
+  "_comment": "Measured wall clock in seconds per test executable, used by tools/ci-test-shard.js to balance the CI shard matrix. per_push = the per-push filter (~[performance]~[perf]~[benchmark]~[!benchmark]~[long]); long = the [long]~[vorago-sweep] lane. Refresh from the 'Running:' timestamps of a CI Windows log, or from a Catch2 run with -d yes, whenever a suite grows; a stale entry only unbalances the shards, it never fails a run. Source: per_push from the windows-2022 runner, run 37910949575 (2026-10-09), where the serial lane timed out inside vorago_tests at 134 s - its entry is the local 446 s halved, the ratio the other suites showed between that runner and a 32-core box running 15 suites at once; long from the Phase 13d close lanes on that box; profundum_tests long = the sum of the Profundum Phase 13 [long] lane wall clocks on that box (8 showcase shards 412.9 s + sweep set 215.9 s + determinism 68.9 s + distinctness 305.9 s, specs/profundum-phase13-presets-release/evidence/library/status.txt, 2026-10-25, run concurrently), which leaves out the shorter Phase 10-11 [long] cases.",
   "per_push": {
     "dsp_core_tests": 2,
     "dsp_primitives_tests": 1,
     "dsp_processors_tests": 72,
-    "dsp_systems_tests": 636,
+    "dsp_systems_tests": 486,
     "dsp_effects_tests": 45,
+    "dsp_ieee_tests": 165,
     "shared_tests": 1,
     "plugin_tests": 1,
     "approval_tests": 1,
@@ -20,6 +21,7 @@
   "long": {
     "dsp_systems_tests": 15703,
     "vorago_tests": 524,
-    "seraphis_tests": 600
+    "seraphis_tests": 600,
+    "profundum_tests": 1004
   }
 }

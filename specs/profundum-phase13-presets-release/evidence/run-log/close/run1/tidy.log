@@ -1,0 +1,1665 @@
+=== T034 tidy 2026-10-25T08:27:01Z commit e6095b24 cores=32 jobs/lane=10
+--- profundum lane: 52 .cpp files (specs/profundum-phase13-presets-release/evidence/run-log/close/tidy/profundum-files.txt); files lane: 5 .cpp files (specs/profundum-phase13-presets-release/evidence/run-log/close/tidy/files-list.txt)
+      dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+      plugins/shared/src/preset/preset_manager.cpp
+      plugins/shared/src/ui/preset_browser_view.cpp
+      plugins/shared/tests/test_preset_description.cpp
+      tools/profundum_preset_generator.cpp
+--- vcvars: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
+--- reconfigure (cmake --preset windows-ninja in vcvars64) exit=0 wall=14s
+-- [SMTG] Setup running moduleinfotool for Profundum
+-- [KRATE] Copied compile_commands.json to project root
+-- Configuring done (10.0s)
+-- Generating done (1.5s)
+-- Build files have been written to: F:/projects/iterum/build/windows-ninja
+--- compile database: all 57 TUs present (52 Profundum incl. 4 src/ui, 5 file-list)
+=================== lane profundum (rc=0 wall=270)
+[INFO] Using clang-tidy: C:\Program Files\LLVM\bin\clang-tidy.exe
+[INFO] Parallel jobs: 10
+[INFO] Using compile_commands.json from: build/windows-ninja
+[INFO] Found 52 source files to analyze
+[1/52] plugins/profundum/tests/integration/band_level_metric_test.cpp                    [2/52] plugins/profundum/src/ui/spread_curve_view.cpp                    [3/52] plugins/profundum/src/ui/offset_ring_knob.cpp                    [4/52] plugins/profundum/src/entry.cpp                    [5/52] plugins/profundum/tests/integration/copy_compare_test.cpp                    [6/52] plugins/profundum/src/ui/harmonic_bar_view.cpp                    [7/52] plugins/profundum/tests/integration/determinism_test.cpp                    [8/52] plugins/profundum/src/ui/panel_sub_controller.cpp                    [9/52] plugins/profundum/src/processor/processor.cpp                    [10/52] plugins/profundum/src/controller/controller.cpp                    [11/52] plugins/profundum/tests/integration/main_page_render_set_test.cpp                    [12/52] plugins/profundum/tests/integration/main_page_sanity_test.cpp                    [13/52] plugins/profundum/tests/integration/main_page_audibility_test.cpp                    [14/52] plugins/profundum/tests/integration/mono_sum_params_test.cpp                    [15/52] plugins/profundum/tests/integration/param_flow_test.cpp                    [16/52] plugins/profundum/tests/integration/param_path_audibility_test.cpp                    [17/52] plugins/profundum/tests/integration/param_wiring_test.cpp                    
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:66:2: warning: preprocessor condition can be written more concisely using '#ifdef' [readability-use-concise-preprocessor-directives]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:88:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:88:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:88:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:89:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:89:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:89:58: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:102:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:102:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:102:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:116:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:116:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:116:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:117:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:117:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:118:17: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:135:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:135:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:135:48: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:147:2: warning: preprocessor condition can be written more concisely using '#ifdef' [readability-use-concise-preprocessor-directives]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:199:5: warning: an exception may be thrown in function '~PresetFileGuard' which should not throw exceptions [bugprone-exception-escape]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:206:19: note: frame #10: function '~PresetFileGuard' calls function 'operator=' here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:221:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:221:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:221:20: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:226:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:226:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:226:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:227:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:227:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:227:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:231:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:231:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:231:88: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:243:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:243:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:243:48: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:244:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:244:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:244:49: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:249:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:249:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:249:47: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:252:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:252:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:252:55: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:267:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:267:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:267:23: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:268:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:268:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:268:24: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:269:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:269:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:269:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:270:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:270:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:270:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:271:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:271:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:271:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:272:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:272:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:272:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:273:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:273:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:273:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:274:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:274:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:274:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:275:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:275:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:275:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:276:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:276:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:276:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:277:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:277:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:277:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:278:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:278:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:278:42: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:303:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:303:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:303:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:305:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:305:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:305:49: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:306:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:306:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:307:17: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:308:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:308:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:308:42: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:310:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:310:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:310:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:311:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:311:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:311:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:324:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:324:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:325:13: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:326:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:326:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:326:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:331:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:331:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:331:52: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:332:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:332:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:332:53: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:337:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:337:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:337:55: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:344:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:344:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:344:75: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:352:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:352:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:352:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:353:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:353:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:353:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:354:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:354:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:354:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:355:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:355:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:355:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:356:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:356:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:356:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:357:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:357:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:357:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:358:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:358:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:358:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:359:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:359:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:359:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:360:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:360:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:360:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:361:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:361:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:361:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:362:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:362:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:362:46: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:369:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:369:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:369:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:373:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:373:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:373:47: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:374:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:374:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:374:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:375:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:375:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:376:15: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:377:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:377:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:377:84: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:378:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:378:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:378:84: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:383:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:383:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:383:55: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:403:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:403:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:403:55: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:428:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:428:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:428:97: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:443:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:443:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:443:55: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:445:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:445:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:445:58: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:450:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:450:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:450:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:462:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:462:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:462:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:463:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:463:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:463:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:464:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:464:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:464:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:472:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:472:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:472:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:473:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:473:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:473:40: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:474:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:474:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:474:40: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:479:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:479:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:479:55: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:484:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:484:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:484:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:503:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:503:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:503:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:504:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:504:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:504:43: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:511:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:511:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:511:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:513:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:513:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:513:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:515:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:515:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:515:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:517:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:517:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:517:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:522:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:522:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:522:49: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:524:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:524:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:524:49: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:529:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:529:25: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:529:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:531:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:531:25: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:531:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:541:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:541:25: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:541:44: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:551:28: warning: boolean expression can be simplified by DeMorgan's theorem [readability-simplify-boolean-expr]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:560:21: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:560:27: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:560:81: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:561:21: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:561:27: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:561:87: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:568:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:568:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:568:53: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:586:12: warning: avoid repeating the return type from the declaration; use a braced initializer list instead [modernize-return-braced-init-list]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:621:2: warning: preprocessor condition can be written more concisely using '#ifdef' [readability-use-concise-preprocessor-directives]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:624:2: warning: preprocessor condition can be written more concisely using '#ifdef' [readability-use-concise-preprocessor-directives]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:648:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:648:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:648:51: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:651:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:651:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:651:24: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:661:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:661:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:661:52: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:662:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:662:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:662:53: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:679:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:679:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:679:75: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:693:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:693:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:693:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:694:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:694:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:694:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:695:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:695:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:695:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:696:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:696:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:696:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:697:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:697:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:697:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:698:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:698:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:698:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:699:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:699:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:699:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:700:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:700:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:700:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:701:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:701:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:701:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:702:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:702:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:702:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:703:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:703:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:703:46: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:705:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:705:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:705:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:716:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:716:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:716:50: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:729:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:729:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:729:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:733:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:733:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:733:16: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:734:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:734:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:734:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:740:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:740:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:740:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:743:2: warning: preprocessor condition can be written more concisely using '#ifdef' [readability-use-concise-preprocessor-directives]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:752:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:752:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:752:50: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:766:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:766:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:766:16: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:768:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:768:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_browser_test.cpp:768:19: note: operand 'v2' is here
+[18/52] plugins/profundum/tests/integration/preset_browser_test.cpp                    [19/52] plugins/profundum/src/processor/goertzel_bank_simd.cpp                    [20/52] plugins/profundum/tests/integration/processor_audio_test.cpp                    [21/52] plugins/profundum/tests/integration/preset_rt_test.cpp                    
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:156:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:156:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:157:17: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:158:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:158:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:158:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:166:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:166:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:166:53: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:272:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:272:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:272:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:273:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:273:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:273:44: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:274:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:274:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:274:44: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:307:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:307:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:307:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:308:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:308:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:308:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:386:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:386:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:386:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:387:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:387:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:387:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:388:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:388:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:388:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:389:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:389:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:389:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:390:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:390:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:390:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:391:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:391:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:391:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:392:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:392:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:392:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:393:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:393:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:393:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:394:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:394:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:394:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:395:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:395:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:395:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:450:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:450:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:450:20: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:603:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:603:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:603:57: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:606:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:606:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:606:57: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:658:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:658:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:658:52: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:681:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:681:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:681:20: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:689:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:689:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:689:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:690:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:690:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:690:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:691:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:691:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:691:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:692:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:692:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:692:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:708:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:708:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:708:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:724:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:724:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:724:23: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:725:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:725:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:725:53: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:727:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:727:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:728:17: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:729:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:729:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:730:17: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:731:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:731:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:731:40: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:734:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:734:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:734:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:735:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:735:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:735:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:736:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:736:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:736:80: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:737:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:737:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:737:96: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:739:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:739:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:739:85: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:740:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:740:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:740:85: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:755:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:755:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:755:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:803:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:803:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:803:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:804:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:804:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:804:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:805:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:805:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:805:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:806:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:806:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:806:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:845:12: warning: avoid repeating the return type from the declaration; use a braced initializer list instead [modernize-return-braced-init-list]
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:858:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:858:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:858:57: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:860:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:860:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:860:62: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:895:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:895:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:895:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:923:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:923:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:923:43: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:924:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:924:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:924:56: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:930:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:930:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:930:47: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:931:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:931:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:931:60: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:937:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:937:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:937:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:1036:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:1036:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:1036:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:1038:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:1038:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp:1038:40: note: operand 'v2' is here
+[22/52] plugins/profundum/tests/integration/processor_cpu_test.cpp                    
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:79:24: warning: implicit conversion 'bool' -> 'Steinberg::TBool' (aka 'unsigned char') [readability-implicit-bool-conversion]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:81:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:81:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:81:75: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:94:24: warning: implicit conversion 'bool' -> 'Steinberg::TBool' (aka 'unsigned char') [readability-implicit-bool-conversion]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:98:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:98:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:98:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:145:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:145:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:145:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:202:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:202:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:202:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:203:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:203:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:203:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:204:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:204:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:204:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:217:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:217:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:217:43: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:221:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:221:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:221:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:222:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:222:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:222:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:223:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:223:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:223:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:224:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:224:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:224:103: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:225:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:225:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:225:103: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:226:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:226:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:226:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:234:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:234:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:234:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:236:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:236:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:236:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:238:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:238:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:238:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:239:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:239:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:239:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:240:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:240:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:240:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:241:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:241:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:241:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:244:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:244:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:244:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:246:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:246:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:246:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:247:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:247:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:247:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:250:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:250:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:250:49: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:252:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:252:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:252:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:253:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:253:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:253:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:256:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:256:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:256:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:259:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:259:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:259:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:260:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:260:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:260:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:261:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:261:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:261:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:283:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:283:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:283:56: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:284:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:284:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:284:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:285:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:285:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:285:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:286:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:286:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:286:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:287:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:287:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:287:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:288:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:288:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:288:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:289:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:289:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:289:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:290:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:290:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:290:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:299:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:299:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:299:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:300:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:300:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:300:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:314:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:314:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:314:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:319:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:319:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:319:56: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:320:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:320:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:320:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:321:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:321:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:321:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:322:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:322:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:322:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:323:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:323:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:323:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:350:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:350:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:350:40: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:370:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:370:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:370:44: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:405:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:405:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:405:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:406:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:406:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:406:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:407:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:407:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:407:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:408:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:408:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:408:40: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:422:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:422:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:422:44: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:428:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:428:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:428:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:429:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:429:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:429:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:478:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:478:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:478:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:479:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:479:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:479:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:480:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:480:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:480:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:481:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:481:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:481:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:488:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:488:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:488:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:489:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:489:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:489:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:490:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:490:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:490:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:491:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:491:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:491:40: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:492:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:492:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:492:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:493:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:493:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:493:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:494:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:494:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:494:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:503:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:504:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:505:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:506:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:507:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:508:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:509:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:510:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:511:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:512:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:513:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:514:13: warning: use designated initializer list to initialize 'Want' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:496:9: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:521:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:521:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:521:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:522:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:522:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:522:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:525:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:525:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:525:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:526:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:526:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:526:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:528:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:528:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:528:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:531:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:531:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:531:42: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:533:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:533:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:533:42: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:546:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:546:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:546:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:547:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:547:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:547:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:548:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:548:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:548:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:549:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:549:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:549:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:551:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:551:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:551:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:552:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:552:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:552:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:568:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:568:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:568:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:569:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:569:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:569:40: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:570:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:570:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:570:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:571:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:571:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:571:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:594:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:595:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:596:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:597:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:598:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:599:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:600:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:601:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:602:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:603:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:604:5: warning: use designated initializer list to initialize 'PbGroupCount' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:589:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:624:12: warning: avoid repeating the return type from the declaration; use a braced initializer list instead [modernize-return-braced-init-list]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:684:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:684:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:684:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:689:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:689:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:689:23: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:704:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:704:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:704:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:779:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:779:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:779:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:805:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:805:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:805:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:806:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:806:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:806:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:815:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:815:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:815:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:851:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:851:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:851:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:858:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:858:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:858:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:867:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:867:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:867:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:889:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:889:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:889:18: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:898:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:898:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:898:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:899:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:899:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:899:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:901:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:901:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:901:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:906:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:906:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:906:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:908:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:908:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:908:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:910:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:910:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:910:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:911:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:911:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:911:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:920:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:920:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:920:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:924:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:924:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:924:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:927:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:927:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_probe_test.cpp:927:18: note: operand 'v2' is here
+[23/52] plugins/profundum/tests/integration/preset_probe_test.cpp                    
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:80:12: warning: avoid repeating the return type from the declaration; use a braced initializer list instead [modernize-return-braced-init-list]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:158:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:158:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:158:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:162:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:162:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:162:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:163:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:163:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:163:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:164:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:164:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:164:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:168:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:168:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:168:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:169:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:169:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:169:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:170:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:170:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:170:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:205:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:205:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:205:55: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:213:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:213:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:213:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:226:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:226:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:226:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:234:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:234:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:234:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:238:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:238:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:238:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:240:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:240:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:240:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:260:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:260:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:260:43: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:261:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:261:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:261:21: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:286:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:286:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:286:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:287:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:287:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:287:21: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:290:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:290:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:290:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:291:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:291:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:291:23: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:294:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:294:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:294:63: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:295:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:295:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:295:63: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:296:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:296:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:296:63: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:335:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:335:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:335:19: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:350:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:350:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:350:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:355:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:355:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:355:49: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:356:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:356:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:356:72: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:369:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:369:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:369:54: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:371:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:371:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:371:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:372:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:372:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:372:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:373:25: warning: use designated initializer list to initialize 'ScShortRender' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:341:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:392:9: warning: use designated initializer list to initialize 'Ref' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:385:5: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:393:9: warning: use designated initializer list to initialize 'Ref' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:385:5: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:394:9: warning: use designated initializer list to initialize 'Ref' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:385:5: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:400:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:400:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:400:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:412:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:412:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:412:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:413:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:413:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:413:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:416:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:416:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:416:42: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:417:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:417:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:417:42: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:420:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:420:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:420:46: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:421:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:421:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:421:46: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:427:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:427:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:427:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:428:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:428:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:428:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:429:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:429:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:429:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:437:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:437:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:437:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:448:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:448:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:448:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:464:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:464:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:464:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:465:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:465:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_showcase_test.cpp:465:26: note: operand 'v2' is here
+[24/52] plugins/profundum/tests/integration/preset_showcase_test.cpp                    [25/52] plugins/profundum/tests/integration/state_restore_render_test.cpp                    [26/52] plugins/profundum/tests/integration/spectrum_frame_test.cpp                    [27/52] plugins/profundum/tests/integration/tail_test.cpp                    
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:108:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:108:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:108:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:283:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:283:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:283:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:287:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:287:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:287:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:305:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:305:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:305:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:327:12: warning: avoid repeating the return type from the declaration; use a braced initializer list instead [modernize-return-braced-init-list]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:372:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:372:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:372:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:373:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:373:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:373:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:374:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:374:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:374:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:375:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:375:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:375:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:377:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:377:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:377:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:378:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:378:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:378:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:379:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:379:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:379:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:381:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:381:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:381:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:382:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:382:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:382:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:383:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:383:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:383:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:398:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:398:25: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:398:70: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:399:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:399:25: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:399:48: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:400:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:400:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:400:52: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:405:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:405:25: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:405:48: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:406:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:406:25: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:406:70: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:407:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:407:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:407:52: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:423:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:423:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:423:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:424:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:424:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:424:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:434:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:434:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:434:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:435:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:435:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:435:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:437:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:437:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:437:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:438:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:438:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:438:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:439:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:439:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:439:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:440:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:440:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:440:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:441:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:441:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:441:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:445:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:445:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:445:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:449:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:449:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:449:51: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:458:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:458:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:458:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:459:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:459:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:459:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:461:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:461:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:461:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:473:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:473:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:473:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:474:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:474:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:474:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:482:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:482:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:482:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:495:47: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:495:73: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:497:35: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:497:61: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:497:91: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:504:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:504:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:504:23: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:505:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:505:21: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:505:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:508:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:508:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:508:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:509:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:509:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:509:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:510:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:510:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:510:58: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:527:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:527:23: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:527:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:548:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:548:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:548:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:549:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:549:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:549:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:550:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:550:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:550:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:551:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:551:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:551:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:559:13: warning: 'emplace_back' is called inside a loop; consider pre-allocating the container capacity before the loop [performance-inefficient-vector-operation]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:570:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:570:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:570:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:571:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:571:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:571:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:597:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:597:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:597:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:598:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:598:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:598:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:599:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:599:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:599:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:629:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:629:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:629:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:659:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:659:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:659:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:660:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:660:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:660:44: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:669:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:669:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:669:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:716:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:716:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:716:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:730:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:730:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:730:43: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:731:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:731:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:731:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:733:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:733:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:733:18: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:757:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:757:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:757:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:805:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:805:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:805:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:817:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:817:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:817:24: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:823:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:823:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:823:24: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:824:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:824:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:824:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:827:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:827:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:827:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:907:12: warning: avoid repeating the return type from the declaration; use a braced initializer list instead [modernize-return-braced-init-list]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1025:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1025:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1025:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1027:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1027:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1027:59: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1029:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1029:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1029:74: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1032:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1032:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1032:54: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1034:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1034:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1034:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1035:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1035:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1035:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1092:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1092:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1092:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1116:18: warning: use starts_with instead of rfind [modernize-use-starts-ends-with]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1185:52: warning: string concatenation results in allocation of unnecessary temporary strings; consider using 'operator+=' or 'string::append()' instead [performance-inefficient-string-concatenation]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1185:59: warning: string concatenation results in allocation of unnecessary temporary strings; consider using 'operator+=' or 'string::append()' instead [performance-inefficient-string-concatenation]
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1204:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1204:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1204:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1216:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1216:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1216:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1230:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1230:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1230:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1240:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1240:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1240:34: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1319:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1319:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\integration\preset_sweep_test.cpp:1319:19: note: operand 'v2' is here
+[28/52] plugins/profundum/tests/integration/preset_sweep_test.cpp                    [29/52] plugins/profundum/tests/unit/controller/custom_view_laws_test.cpp                    [30/52] plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp                    [31/52] plugins/profundum/tests/unit/controller/editor_layout_test.cpp                    [32/52] plugins/profundum/tests/unit/controller/editor_sync_test.cpp                    [33/52] plugins/profundum/tests/unit/controller/macro_ui_test.cpp                    [34/52] plugins/profundum/tests/unit/controller/morph_component_test.cpp                    [35/52] plugins/profundum/tests/unit/controller/ui_views_test.cpp                    [36/52] plugins/profundum/tests/unit/preset/preset_description_test.cpp                    [37/52] plugins/profundum/tests/unit/controller/spread_curve_test.cpp                    [38/52] plugins/profundum/tests/unit/lifecycle_test.cpp                    [39/52] plugins/profundum/tests/unit/midi_event_test.cpp                    [40/52] plugins/profundum/tests/unit/manual_coverage_test.cpp                    [41/52] plugins/profundum/tests/unit/midi_mapping_test.cpp                    
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:42:2: warning: preprocessor condition can be written more concisely using '#ifdef' [readability-use-concise-preprocessor-directives]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:65:8: warning: an exception may be thrown in function 'CategoryVocabulary' which should not throw exceptions [bugprone-exception-escape]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:65:8: note: frame #8: function 'CategoryVocabulary' calls function 'set' here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:76:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:76:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:76:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:79:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:79:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:79:50: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:89:17: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:89:25: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:89:69: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:111:16: warning: redundant boolean literal in conditional return statement [readability-simplify-boolean-expr]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:123:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:123:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:123:47: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:124:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:124:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:124:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:125:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:125:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:125:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:126:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:126:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:126:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:127:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:127:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:127:40: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:130:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:130:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:130:58: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:132:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:132:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:132:60: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:135:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:135:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:135:45: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:166:2: warning: preprocessor condition can be written more concisely using '#ifdef' [readability-use-concise-preprocessor-directives]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:181:20: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:181:50: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:182:20: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:183:19: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:183:57: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:244:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:244:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:244:24: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:245:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:245:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:245:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:246:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:246:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:246:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:248:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:248:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:248:21: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:249:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:249:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:249:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:250:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:250:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:250:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:251:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:251:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:251:63: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:252:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:252:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:252:74: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:253:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:253:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:253:74: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:254:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:254:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:254:63: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:256:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:256:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:256:62: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:257:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:257:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:257:102: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:258:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:258:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:258:104: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:275:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:275:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:275:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:277:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:277:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:277:79: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:284:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:284:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:284:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:290:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:290:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:290:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:291:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:291:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:291:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:292:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:292:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:292:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:293:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:293:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:293:48: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:308:29: warning: use designated initializer list to initialize 'Case' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:298:5: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:317:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:317:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:317:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:318:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:318:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:318:69: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:323:62: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:325:62: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:328:68: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:331:63: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:333:63: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:356:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:356:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:356:47: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:357:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:357:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:357:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:373:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:373:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:373:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:374:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:374:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:374:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:385:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:385:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:385:23: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:389:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:389:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:389:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:390:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:390:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:390:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:394:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:394:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:394:23: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:395:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:395:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:395:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:562:13: warning: boolean expression can be simplified by DeMorgan's theorem [readability-simplify-boolean-expr]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:642:53: warning: use designated initializer list to initialize 'DrNamedRule' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:636:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:643:53: warning: use designated initializer list to initialize 'DrNamedRule' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:636:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:644:53: warning: use designated initializer list to initialize 'DrNamedRule' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:636:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:645:53: warning: use designated initializer list to initialize 'DrNamedRule' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:636:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:646:53: warning: use designated initializer list to initialize 'DrNamedRule' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:636:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:647:53: warning: use designated initializer list to initialize 'DrNamedRule' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:636:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:648:53: warning: use designated initializer list to initialize 'DrNamedRule' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:636:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:649:53: warning: use designated initializer list to initialize 'DrNamedRule' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:636:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:650:53: warning: use designated initializer list to initialize 'DrNamedRule' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:636:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:670:20: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:671:19: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:735:41: warning: use designated initializer list to initialize 'DrViolation' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:688:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:740:67: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:745:41: warning: use designated initializer list to initialize 'DrViolation' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:688:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:749:67: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:752:31: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:753:31: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:754:31: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:755:31: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:761:41: warning: use designated initializer list to initialize 'DrViolation' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:688:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:766:23: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:772:67: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:775:31: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:785:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:785:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:785:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:792:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:792:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:792:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:797:31: warning: use designated initializer list to initialize 'ParamSetting' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:800:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:800:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:800:39: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:801:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:801:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:801:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:811:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:811:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:811:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:836:12: warning: avoid repeating the return type from the declaration; use a braced initializer list instead [modernize-return-braced-init-list]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:988:34: warning: use designated initializer list to initialize 'LibInfoAttr' [modernize-use-designated-initializers]
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:958:1: note: aggregate type is defined here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1095:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1095:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1095:19: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1097:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1097:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1097:74: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1124:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1124:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1124:21: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1131:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1131:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1131:52: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1132:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1132:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1132:54: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1136:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1136:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1136:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1137:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1137:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1137:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1138:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1138:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1138:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1158:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1158:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1158:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1163:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1163:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1163:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1170:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1170:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1170:36: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1171:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1171:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1171:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1172:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1172:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1172:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1173:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1173:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1173:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1174:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1174:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1174:42: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1175:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1175:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1175:44: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1181:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1181:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1181:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1190:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1190:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1190:56: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1202:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1202:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1202:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1217:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1217:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1217:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1220:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1220:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1220:20: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1222:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1222:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1222:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1223:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1223:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1223:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1231:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1231:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1231:27: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1235:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1235:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1235:35: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1248:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1248:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1248:46: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1263:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1263:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1263:28: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1264:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1264:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1264:26: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1265:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1265:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1265:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1269:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1269:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1269:37: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1270:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1270:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1270:106: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1271:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1271:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1271:108: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1273:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1273:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1273:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1275:13: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1275:19: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1275:29: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1293:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1293:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1293:48: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1294:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1294:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1294:43: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1305:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1305:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1305:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1306:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1306:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1306:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1307:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1307:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1307:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1308:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1308:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1308:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1324:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1324:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1324:21: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1328:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1328:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1328:90: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1345:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1345:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1345:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1348:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1348:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1348:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1382:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1382:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1382:31: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1398:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1398:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1398:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1427:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1427:11: note: operand 'v1' is here
+F:\projects\iterum\plugins\profundum\tests\unit\preset\preset_library_test.cpp:1427:24: note: operand 'v2' is here
+[42/52] plugins/profundum/tests/unit/preset/preset_library_test.cpp                    [43/52] plugins/profundum/tests/unit/param_denorm_test.cpp                    [44/52] plugins/profundum/tests/vstgui_test_stubs.cpp                    [45/52] plugins/profundum/tests/unit/phase11_alloc_test.cpp                    [46/52] plugins/profundum/tests/unit/param_table_test.cpp                    [47/52] plugins/profundum/tests/unit/spectrum_producer_test.cpp                    [48/52] plugins/profundum/tests/unit/processor_bus_test.cpp                    [49/52] plugins/profundum/tests/unit/test_main.cpp                    [50/52] plugins/profundum/tests/unit/state_roundtrip_test.cpp                    [51/52] plugins/profundum/tests/unit/state_v2_test.cpp                    [52/52] plugins/profundum/tests/unit/state_v3_test.cpp                    
+
+============================================================
+[INFO] Clang-Tidy Analysis Complete
+  Files analyzed: 52
+[OK]   Errors: 0
+[WARN]   Warnings: 93
+============================================================
+=================== lane files (rc=0 wall=50 listed=5)
+=== files lane: clang-tidy -p build/windows-ninja over 5 .cpp file(s) (specs/profundum-phase13-presets-release/evidence/run-log/close/tidy/files-list.txt)
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:112:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:112:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:112:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:113:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:113:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:113:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:114:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:114:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:114:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:115:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:115:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:115:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:116:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:116:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:116:43: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:119:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:119:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:119:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:120:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:120:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:120:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:126:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:126:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:126:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:131:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:131:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:131:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:133:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:133:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:133:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:139:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:139:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:139:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:146:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:146:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:146:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:148:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:148:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:148:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:165:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:165:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:165:46: note: operand 'v2' is here
+F:\projects\iterum\tools\profundum_preset_generator.cpp:36:5: warning: an exception may be thrown in function 'main' which should not throw exceptions [bugprone-exception-escape]
+F:\projects\iterum\tools\profundum_preset_generator.cpp:37:57: note: frame #13: function 'main' calls function 'path<char *, 0>' here
+F:\projects\iterum\tools\profundum_preset_generator.cpp:44:55: warning: do not use 'std::endl' with streams; use '\n' instead [performance-avoid-endl]
+  Files analyzed: 5
+  Errors: 0
+  Warnings: 2
+=== summary
+lane profundum RED files=52 warnings=93 errors=0 exit=0 wall=270s reason=[diagnostics]
+lane files RED files=5 warnings=2 errors=0 exit=0 wall=50s reason=[diagnostics]
+lanes wall=270s
+TIDY RED total_wall=289s

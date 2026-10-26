@@ -1,0 +1,122 @@
+T017 - Chain criteria (SC-015, SC-016, SC-017, SC-018; FR-029, FR-081, FR-002, FR-007; plan C-1, C-2, S9.10)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+STATUS: written, NOT built or run by this task (the group's build agent builds and runs it). Proof required by the
+task: the cases pass. No reading below is a measurement; every number in this log is a setting or a bar.
+
+ODR SWEEP (this session, before writing)
+$ grep -rnE "\b(pch[A-Z]|Pch[A-Z]|kPch[A-Z])" dsp/ plugins -> 0 hits. (The t17 prefix was rejected: kT17* exists in
+  bass_character_stage_test.cpp:772-775.) Case names VoiceEngine_MonoSum*, VoiceEngine_AnchorThroughChain*,
+  VoiceEngine_FollowTracking* -> 0 prior hits in dsp/tests. No new class in any header; every TU-local name lives in
+  an anonymous namespace.
+
+FACTS READ THIS SESSION (live anchors)
+- tasks.md T017 section :985-1007; precondition rows C-1 :17 (RATIFIED), C-2 :18; deviation 5 (smoke siblings).
+- spec.md FR-029 :464-472, FR-081 :717-721, FR-002 :266-274, SC-015..SC-018 :902-905, H-3/H-4/H-12/H-18/H-19/H-20
+  :619-636. plan.md C-1 :136-151, C-2 :153-161, S6.10 :998-1001, S8 :1059-1113, S9.10 :1226-1245, S10.6 :1362-1365.
+- profundum_engine.h: ProfundumEngineConfig :84-90 (seams); gridStep :832; step 6 SOLID re-sync :919-927
+  (field_.sideIdle() -> dcR_ = dcL_, logCall(DcResync) once, dcSynced_ cleared when !sideIdle); logCall :600-605
+  (.sample = pos_, voice kEngineRecordVoice); renderChunk :1105-1176 (sum tap -> dynamics -> field -> DC L/R ->
+  limiter -> out; taps copied when an observer is attached).
+- profundum_voice.h renderSub :784-904: Anchor rendered into aL/aR (per-sample with seams_.anchorPhaseTap, then
+  anchorPhase_[k] = anchor_.phase()) :818-827; FR-015 output :858-873; voice taps :878-903 (charL = mainL_, the
+  Character output; followRatio = lastFollowRatio_).
+- anchor_oscillator.h: phase() cycles [0, 1) :358; one value written to both channels :341-343 (FR-050); Waveform
+  {Sine, Triangle, RoundedSine, AsymmetricSine, OctaveDownSine} :57; Mode {Lock, Follow, Punch, Ghost} :58.
+- bass_character_stage.h perceivedPitchRatio :467-479 (Rectify 2 when half-wave-symmetric and flipped; Fracture 0.5).
+- bass_stereo_field.h: ImageMode :64; Controls :99-111 (kDefaultCrossoverHz 120 :72); sideIdle :500.
+- bass_morph_engine.h: setEndpoint :113-127 (immediate, dirty_); kMaxPositionRampMs 2000 :68 (so SC-018's 10 s sweep
+  cannot be a morph ramp; it steps the endpoints at every grid point).
+- profundum_voice_engine_test_helpers.h (T009, read-only): VoiceEngineScript, VoiceEngineTaps (derives from
+  BassMorphTest::MorphChainTaps -> StereoFieldTest::FieldChainTaps), voiceEngineAllocateTaps, VoiceEngineObserver,
+  voiceEngineRender (summed core / Character / Anchor taps initialised to -0.0f), voiceEngineAs.
+- bass_stereo_field_test_helpers.h: kSubBandQBarDb 1.0 :95, kSubBandRhoBar 0.99 :97, bitEqual :102, BandReading /
+  bandReading :711-738 (valid = mean energy >= -60 dBFS; largest power of two <= n, <= 2^18), monoSumCellPasses
+  :1051-1069 (G8-1, G10-2).
+- anchor_oscillator_test_helpers.h anchorShsF0 :227 (frame = TestUtils::kLowFrequencyFftSize = 262144,
+  low_frequency_metrics.h:64).
+- bass_morph_state_helpers.h showcasePair :167-220 (A: kSineAnchor, SOLID, spread 0, Anchor Sine LOCK level 1, Drop 0;
+  B: kHeavy, WIDE spread 1, Fold algorithm Amount 0.5, Fold 80, Anchor level 0.5, sustain 0.8).
+- evidence/probes/p4-follow-flip.txt :407-411: Rectify flips at Amount 0.88 (ratio 2), Fracture at 0.45 (ratio 0.5), at
+  E1 and C3; "P4 VERDICT FLIPS" -> FOLLOW is not inert; SC-018 runs gated.
+- probe TU precedents ported (TU-local): t13At (grid-aligned sample), t13Finite (bit test), t13Same, h13H1 (single-bin
+  DFT of the mid, amplitude-scaled), p4Run (engine driven directly with endpoints re-set between blocks).
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_chain_test.cpp (T001 stub banner replaced; the five Phase 9 includes kept)
+- this run-log
+Evidence the cases write when run: evidence/monosum-{solid,spread,wide,smoke}.csv, evidence/anchor-chain-{E0,E1,E2,
+smoke}.csv, evidence/follow-tracking.csv, evidence/follow-tracking-smoke.csv.
+
+CASES
+- VoiceEngine_MonoSum_{Solid,Spread,Wide} [systems][profundum][voice-engine][sc-015][sc-016][long] (8 cells each:
+  MONO / 4 voices x A_s / B x E1 / C3); VoiceEngine_MonoSumSmoke [sc-015][sc-016] (SOLID, MONO, A_s, E1).
+  Per cell: 2 s settle + 2^17-sample window (+ one grid interval), host block 64.
+  SC-016: summed Anchor tap and every tapped voice's Anchor tap bitwise L == R over the whole render (CHECK), after
+    REQUIRE(Anchor peak > 1e-4) so the identity is never read on silence.
+  FR-029 / C-2: SOLID cells start in WIDE (spread 1) and both endpoints switch to SOLID at 0.5 s (Endpoint events);
+    REQUIRE exactly one DcResync record after the switch, CHECK none before; CHECK output L == R bitwise (memcmp)
+    from the DcResync record's sample to the end; REQUIRE that sample < 2 s (read window). Recorded: L != R sample
+    counts in the WIDE lead-in and between the switch and the re-sync. SPREAD / WIDE cells: CHECK no DcResync.
+  SC-015: Q_sub and rho on [0, f_c) (f_c = the landed state's crossoverHz) by StereoFieldTest::bandReading on the
+    window; gated (|Q| <= kSubBandQBarDb, rho >= kSubBandRhoBar) at the field tap and the output tap; recorded at the
+    core, Character, Sum and Dynamics taps. H-20: the output's side power (L - R) / 2 in [top f0 x 64 partials, fs/2),
+    dBFS, recorded per cell ("na" when that band is empty).
+- VoiceEngine_AnchorThroughChain_{E0,E1,E2} [sc-017][long] (6 algorithms x 5 waveforms, S and R renders per cell);
+  VoiceEngine_AnchorThroughChainSmoke [sc-017] (E1, Rectify, Sine).
+  Base A_s, Anchor level 1, LOCK, feed 0, MONO, held note, 1.25 s render, host block 64. S: Fold 100, Amount 1,
+  excitation mix / drive / asymmetry 1. R: Fold 0, Amount 0, excitation mix 0. Window: from 0.75 s, max(8,
+  floor(0.45 f0)) periods of f0 = R's f_core at the window start, the same window on every tap of both renders.
+  A = voice 0 Anchor tap, C = voice 0 Character tap, Sigma = engine Sum tap; complex h1 of the mid.
+  Gated rows (Sine, Triangle, RoundedSine, AsymmetricSine): premises CHECKed (|20 log10(|C_R|/|A_R|)| <= 0.05 dB,
+  |arg C_R - arg A_R| <= 2 deg wrapped, |20 log10(|A_S|/|A_R|)| <= 0.01 dB, g_d == 1 and g_amp constant to 1e-6 in
+  both windows); (a) |20 log10(|A_S|/|A_R|)| <= 1 dB; (b) |E_sub(S) - E_sub(R)| <= 4.1 dB with E_sub = 20 log10|Sigma|;
+  (c) |dE_meas - dE_pred| <= 0.1 dB, dE_pred = 20 log10(|1 + rho e^{j theta}| / 2), rho = |C_S|/|A_S|,
+  theta = arg C_S - arg A_S, evaluated when the premises hold. Tap-sum residual |Sigma - (A + C)| / |Sigma| printed
+  and recorded only. OctaveDownSine rows recorded (plus the Anchor's h1 at f0 / 2), not gated.
+- VoiceEngine_FollowTracking [sc-018][long]: Rectify and Fracture x E1 / C3 x sweep / step (8 gated cases) plus two
+  H-12 record cases; VoiceEngine_FollowTrackingSmoke [sc-018] (step, Fracture, E1).
+  The P-4 setting (A_s, Fold 0, excitation 0, Anchor FOLLOW, MONO, Tone 0.5); seams.anchorPhaseTap on; host block 32,
+  endpoints A and B re-set (position 0) whenever the Amount changes. Sweep: 0.5 s at 0, 0 -> 1 over 10 s (one value
+  per grid interval), 6.5 s hold at 1. Step: 6.5 s at 0, 6.5 s at 1. Event = a change of voice 0's follow-ratio tap
+  between consecutive chunks. Anchor Hz = wrapped phase() difference x fs per sample. Reference = anchorShsF0 of the
+  Character-tap mid on the segment's last 262144 samples (CHECKed inside the final hold), hint f_core x the new
+  ratio. Settling = one past the last sample after the event outside +-5 cents of the reference; CHECK settled
+  (settling < segment end), CHECK max |error| after settling <= 5 cents, CHECK reference finite. Recorded: latency
+  (samples and ms), the reference against f_core x ratio, and a pre-event reference / mean error when 262144 samples
+  fit before the event. H-12: Fracture, step, E1, Tone 0.75 and 1.0, kSawAnchor recipe; recorded, not gated.
+  FOLLOW INERT branch: the case reads evidence/probes/p4-follow-flip.txt (REQUIRE readable, REQUIRE a "P4 VERDICT"
+  line); on "FOLLOW INERT" each gated case CHECKs that no event occurs and the CSV carries the flag. Today the probe
+  reads FLIPS.
+
+DECISIONS (surfaced; none changes a bar)
+1. Evidence file names are per shard (monosum-<mode>.csv, anchor-chain-<note>.csv, *-smoke.csv) instead of the single
+   evidence/monosum.csv and evidence/anchor-chain.csv the task names: the [long] shards run concurrently as separate
+   processes (tasks.md deviation 9 lane), so one shared file would be overwritten or interleaved. Phase 8 precedent:
+   evidence/sc016-monosum-E1-smoke.csv. follow-tracking.csv keeps its name (one [long] case) plus a -smoke file.
+2. SC-015 SPREAD / WIDE cells run at spread 1 on both bases (A_s's own spread is 0, which would make the image mode
+   a no-op); SOLID cells start in WIDE at spread 1 so the switch carries real L != R history into the re-sync.
+3. SC-015 4-voice cells: root + {0, 5, 7, 10} st (the P-2 filler intervals, kP2FillerOffsetsSt), all note-ons at 0.
+4. SC-015 gate taps: field (the safety-stage output, Phase 7 G8-1) and output (the full engine, the spec's SC-015
+   wording). Phase 7's G10-2 rule is adopted (a cell whose lowest f0 >= f_c has no harmonic in the sub band ->
+   recorded; with f_c = 120 Hz this makes the C3 cells sub-band records, their SC-016 and SOLID gates still run) and
+   its validity rule (band < -60 dBFS not read). Phase 7's G8-1 anti-phase exemption is NOT applied: H-19 says
+   "Gate through SC-015". If a B / Fold cell goes red on rho, that is the H-19 finding, to be surfaced, not exempted.
+5. SC-017 "excitation 1" = mix, drive and asymmetry all 1 (the SC-021 setting's wording); R sets mix 0 only.
+   E_sub for (b) is read on the Sum tap (the voice's summed fundamental, pre-dynamics), the same Sigma as (c).
+6. SC-017 premise failures are CHECKs, not REQUIREs (plan S9.10 says REQUIRE): a REQUIRE would abort the shard and
+   lose every later cell's CSV row; the cell still fails, and (c) is not evaluated on a cell whose premises fail.
+   The same CHECK-not-REQUIRE choice holds for every per-cell gate in this TU (the CSV holds every cell).
+7. [long] split (deviation 5): SC-015 sharded per image mode, SC-017 per note, SC-018 one [long] case; each with a
+   smoke. Estimated, not measured (this task does not run): SC-015 8 renders x ~4.8 s audio, 1-4 voices; SC-017 60
+   renders x 1.25 s per note; SC-018 ~140 s audio with a per-sample Anchor plus 2-3 anchorShsF0 frames per case. The
+   build agent records each wall clock; a shard under 15 s may drop [long] at that time.
+8. SC-018 sweep is a staircase (one Amount per 32-sample interval) because BassMorphEngine's ramp tops out at 2000 ms
+   (bass_morph_engine.h:68); the event is still the single interval at which the ratio changes.
+
+RISKS FOR THE BUILD AGENT (not run here)
+- SC-017 premise (R coherence <= 0.05 dB / 2 deg) depends on the Character stage at Amount 0 being transparent at h1
+  for every algorithm; if an algorithm's Amount-0 path carries group delay, the premise CHECK reads red and (c) is
+  skipped for that cell. That is a finding to surface (plan S9.10), not a bar to move.
+- SC-018 Fracture sweep may produce more than one event if the flip toggles near Amount 0.45; then an intermediate
+  segment cannot hold a 262144-sample reference frame and the case reads red by construction (a flicker cannot settle).

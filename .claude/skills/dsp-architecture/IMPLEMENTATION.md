@@ -238,27 +238,20 @@ auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - star
 
 ### Detection
 
-**WARNING**: `-ffast-math` breaks `std::isnan()`. Use bit manipulation:
+**WARNING**: the macOS leg builds with `-ffast-math`, which breaks `std::isnan()` AND a hand-written bit-mask
+check: newer Apple clang folds `(bits & 0x7F800000) != 0x7F800000` to "finite" even through `bit_cast`, `memcpy` or a
+union. Call the house helpers, which read the bits through an asm barrier (`core/db_utils.h`):
 
 ```cpp
-// Safe NaN check that works with -ffast-math
-inline bool isNaN(float x) {
-    union { float f; uint32_t i; } u = {x};
-    return (u.i & 0x7FFFFFFF) > 0x7F800000;
-}
+#include <krate/dsp/core/db_utils.h>
 
-// Safe infinity check
-inline bool isInf(float x) {
-    union { float f; uint32_t i; } u = {x};
-    return (u.i & 0x7FFFFFFF) == 0x7F800000;
-}
-
-// Combined check
-inline bool isValid(float x) {
-    union { float f; uint32_t i; } u = {x};
-    return (u.i & 0x7F800000) != 0x7F800000;
-}
+if (!Krate::DSP::detail::isFinite(x)) { /* NaN or Inf */ }
+if (Krate::DSP::detail::isNaN(x)) { ... }
+if (Krate::DSP::detail::isInf(x)) { ... }
 ```
+
+Never write a local clone; `tools/lint-finite-bitmask.js` fails CI on a new one. Rules for the rest of fast-math
+(domain clamps, exact endpoints, bit-equality claims): `dsp/CLAUDE.md` "The macOS leg builds with -ffast-math".
 
 ### Prevention
 
@@ -330,15 +323,11 @@ oss << std::fixed << std::setprecision(6) << value;
 
 ### IEEE 754 Compliance
 
-Files using `std::isnan()` or similar must be compiled with `-fno-fast-math`:
-
-```cmake
-# In CMakeLists.txt
-set_source_files_properties(
-    src/dsp/nan_check.cpp
-    PROPERTIES COMPILE_OPTIONS "-fno-fast-math"
-)
-```
+A per-file `-fno-fast-math` does NOT make the inline DSP that file calls IEEE: in a mixed executable the linker
+keeps one copy of an inline function that was not inlined, often from a fast-math TU (FeedbackEcology_NonFinite,
+2026-10-25). Use `detail::isFinite` / `isNaN` / `isInf` in code, and put tests that inject NaN / Inf, or assert
+bit-equality between separately compiled computations, in `dsp_ieee_tests` (every TU `-fno-fast-math`). An
+out-of-line guard compiled once in a `-fno-fast-math` TU (`plugins/membrum/src/dsp/float_guard.cpp`) also works.
 
 ---
 

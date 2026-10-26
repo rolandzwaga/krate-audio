@@ -1,0 +1,45 @@
+T011 Showcase trajectory (SC-008; FR-040, FR-033, FR-051; plan C-9, C-15, R-13; deviations 5, 8) - 2026-10-19
+
+STATUS: done (not built, not run: the group's build agent builds dsp_systems_tests and runs the gate filter).
+
+File written: dsp/tests/unit/systems/bass_morph_trajectory_test.cpp (replaces the T001 stub; uses only the
+T007 fixture bass_morph_test_helpers.h and showcasePair() from bass_morph_state_helpers.h, both read-only).
+
+Cases:
+  BassMorph_ShowcaseTrajectory_{Lock,Blend,Punch}_{E1,C3}  [systems][profundum][bass-morph][sc-008][long]
+      21 static p (0, 0.05, ..., 1), 48 kHz, initialPosition = p, no automation.
+      Steady render (ampEnvelope = false): D_cx (dCxDb, core tap), D_nl (dNlDb, vs linear core), D_st (dStDb,
+      f_c = resolvedPerInterval.back().state.field.crossoverHz), D_br (dBrOct), L_K (lKDb), E_sub (eSubDb on
+      sumL/R), E_sub,out (eSubDb on outL/R), dyn_gain = E_sub,out - E_sub, E_sub of the render's own Anchor tap.
+      Gate render (gateRender) -> D_t (dTMs); length recorded and CHECKed < 12 s.
+      F_lock(p): Lock shard = its own Anchor tap's eSubDb, stored in a function-local static cache keyed by
+      (note, p bits); Blend / Punch read the cache or render Lock themselves. Punch reads Blend's E_sub(p) from
+      a second cache (filled by the Blend shard) or renders Blend itself.
+      (a) running-max monotone (deviation 8): eps 0.25 dB (D_cx, D_nl, D_st), 0.02 oct (D_br), D_t >= 0.98 x max.
+      (b) D(1) - D(0) >= 3 dB (D_cx, D_nl, D_st), >= 0.25 oct (D_br), D_t(1) / D_t(0) >= 2.
+      (c) L_K(p) >= min(L_K(0), L_K(1)) - 1.5 dB.
+      (d) E_sub(p) >= F_lock(p) + 20 log10(L_m(p) / L_A) - 1.0 dB; Punch: E_sub_Punch >= E_sub_Blend - 0.1 dB.
+      Per-p assertions are CHECKs so the whole per-p table (printed to stdout and attached via INFO) survives a
+      red for T015's DEFECT: line. Writes evidence/sc008-trajectory-<lock|blend|punch>-<E1|C3>.csv with the
+      columns p,D_cx,D_nl,D_st,D_br,D_t,L_K,E_sub,E_sub_out,dyn_gain,F_lock.
+  BassMorph_ShowcaseTrajectorySmoke  [systems][profundum][bass-morph][sc-008]
+      Blend, E1, p in {0, 0.5, 1}, assertions (a)-(d) on the three points; no CSV.
+
+DEVIATION (surfaced, not silent): tasks.md T011 (d) reads "E_sub(p) >= F_lock(p) - 1.0 dB at every p" in every
+mode. The spec SC-008(d) row and Clarifications B7-1 (ruled 2026-10-19, after the T008 probe stop) set the floor
+at the resolved Anchor level: Lock E_sub >= F_lock - 1 dB; Blend / Punch E_sub >= F_lock(p)·L_m(p)/L_A - 1 dB.
+The test implements the ruled spec row (one formula; in Lock L_m = L_A so it reduces to the tasks.md clause).
+L_m(p) = the render's resolved anchor.level (Mass 50 at both ends, so the Mass-biased level handed to the Anchor
+equals it), L_A = showcasePair().first.anchor.level (1.0). The task text predates the ruling.
+
+Failing-first evidence (reasoning; executors do not build): against the T001 stub the TU had no TEST_CASE, so
+"BassMorph_ShowcaseTrajectorySmoke" and the six shards matched nothing (Catch2 "No test cases matched").
+
+Compile sanity (not a build of the tree): clang++ -std=c++20 -fsyntax-only -Wall -Wextra on the TU with
+dsp/include, tests/test_helpers, dsp/tests/unit/systems, the fetched pffft and Catch2 include dirs: no diagnostic in
+the TU; the only warnings are crossover_filter.h:434-435 -Wdefaulted-function-deleted (untouched header, as
+recorded by T004 / T005 / T007).
+
+Cost note for the gate: the Smoke runs 3 Blend steady + 3 Lock steady (F_lock) + 3 gate renders (each >= ~3 s of
+audio). The shards each run 21 steady + 21 gate renders (+ 21 Lock steady in Blend / Punch when the cache is
+empty, + 21 Blend steady in Punch); they are [long] (excluded from the gate).

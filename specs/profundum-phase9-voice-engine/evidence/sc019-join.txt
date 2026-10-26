@@ -1,0 +1,12 @@
+SC-019 VoiceEngine_AnchorJoin (profundum_voice_test.cpp, T010). fs 48000, A_s (C-8), Anchor level 1.
+(b) per render: samples, Sum-identity mismatches, single-voice samples, intervals with g_d != 1 (their grid samples listed).
+(a) detached vs attached at g = 0, E1 2 s: samples 96000, core/Character mismatches 0
+(b) g 0 MONO retrigger: samples 48000, mismatches 0, single-voice samples 48000, g_d != 1 intervals 10 at 14400 14432 14464 14496 14528 43200 43232 43264 43296 43328
+(b) g 0 POLY steal: samples 48000, mismatches 0, single-voice samples 22560, g_d != 1 intervals 5 at 14400 14432 14464 14496 14528
+(b) g 0.5 MONO retrigger: samples 48000, mismatches 0, single-voice samples 48000, g_d != 1 intervals 10 at 14400 14432 14464 14496 14528 43200 43232 43264 43296 43328
+(b) g 0.5 POLY steal: samples 48000, mismatches 0, single-voice samples 22560, g_d != 1 intervals 5 at 14400 14432 14464 14496 14528
+(b) g 1 MONO retrigger: samples 48000, mismatches 0, single-voice samples 48000, g_d != 1 intervals 10 at 14400 14432 14464 14496 14528 43200 43232 43264 43296 43328
+(b) g 1 POLY steal: samples 48000, mismatches 0, single-voice samples 22560, g_d != 1 intervals 5 at 14400 14432 14464 14496 14528
+(c) Anchor tap at g = 1 vs g = 0 (MONO retrigger render): mismatches 0
+(b) g 0 MONO retrigger, g step 0 -> 1 at 0.5 s: samples 48000, mismatches 0, single-voice samples 48000, g_d != 1 intervals 10 at 14400 14432 14464 14496 14528 43200 43232 43264 43296 43328
+(d) feed ramp through the engine: ramp samples 32, mismatches 0, landed on 1.0f yes; skipped (+0) samples 24000, non-+0 0

@@ -1,0 +1,129 @@
+T030 — Scope fence, ODR re-sweep, registration greps (FR-061, FR-070, FR-002; SC-026)
+Date: 2026-10-22   cwd: f:/projects/iterum   Result: PASS (all checks at expected counts; no fix needed)
+
+== 1. Scope fence (FR-070, FR-061) ==
+$ node specs/profundum-phase11-parameters/evidence/close/scope-fence.js ; echo exit=$?
+base 565f195d; 58 changed path(s) in the union (incl. excluded-by-name)
+  [excluded] .serena/project.yml
+  plugins/profundum/CHANGELOG.md
+  plugins/profundum/CLAUDE.md
+  plugins/profundum/CMakeLists.txt
+  plugins/profundum/README.md
+  plugins/profundum/src/controller/controller.cpp
+  plugins/profundum/src/controller/controller.h
+  plugins/profundum/src/parameters/anchor_params.h
+  plugins/profundum/src/parameters/character_params.h
+  plugins/profundum/src/parameters/core_params.h
+  plugins/profundum/src/parameters/dynamics_params.h
+  plugins/profundum/src/parameters/field_params.h
+  plugins/profundum/src/parameters/fold_shape_params.h
+  plugins/profundum/src/parameters/morph_params.h
+  plugins/profundum/src/parameters/motion_params.h
+  plugins/profundum/src/parameters/note_params.h
+  plugins/profundum/src/parameters/performance_params.h
+  plugins/profundum/src/parameters/sound_param_row.h
+  plugins/profundum/src/parameters/sound_param_table.h
+  plugins/profundum/src/plugin_ids.h
+  plugins/profundum/src/processor/processor.cpp
+  plugins/profundum/src/processor/processor.h
+  plugins/profundum/tests/CMakeLists.txt
+  plugins/profundum/tests/band_level_metric.h
+  plugins/profundum/tests/integration/band_level_metric_test.cpp
+  plugins/profundum/tests/integration/copy_compare_test.cpp
+  plugins/profundum/tests/integration/determinism_test.cpp
+  plugins/profundum/tests/integration/mono_sum_params_test.cpp
+  plugins/profundum/tests/integration/param_flow_test.cpp
+  plugins/profundum/tests/integration/param_path_audibility_test.cpp
+  plugins/profundum/tests/integration/param_wiring_test.cpp
+  plugins/profundum/tests/integration/processor_cpu_test.cpp
+  plugins/profundum/tests/integration/state_restore_render_test.cpp
+  plugins/profundum/tests/integration/tail_test.cpp
+  plugins/profundum/tests/param_path_audibility_helpers.h
+  plugins/profundum/tests/profundum_test_fixture.h
+  plugins/profundum/tests/unit/lifecycle_test.cpp
+  plugins/profundum/tests/unit/midi_mapping_test.cpp
+  plugins/profundum/tests/unit/param_denorm_test.cpp
+  plugins/profundum/tests/unit/param_table_test.cpp
+  plugins/profundum/tests/unit/phase11_alloc_test.cpp
+  plugins/profundum/tests/unit/state_roundtrip_test.cpp
+  plugins/profundum/tests/unit/state_v2_test.cpp
+  plugins/shared/CMakeLists.txt
+  plugins/shared/src/midi/sustain_latch.h
+  plugins/shared/tests/CMakeLists.txt
+  plugins/shared/tests/test_sustain_latch.cpp
+  plugins/vorago/src/processor/sustain_latch.h
+  specs/Profundum-roadmap.md
+  specs/profundum-phase11-parameters/evidence/close/scope-fence.js
+  specs/profundum-phase11-parameters/evidence/run-log/T001.txt
+  specs/profundum-phase11-parameters/evidence/run-log/T002.txt
+  specs/profundum-phase11-parameters/evidence/run-log/T028.txt
+  specs/profundum-phase11-parameters/evidence/run-log/T029.txt
+  specs/profundum-phase11-parameters/evidence/run-log/T030.txt
+  specs/profundum-phase11-parameters/plan.md
+  specs/profundum-phase11-parameters/spec.md
+  specs/profundum-phase11-parameters/tasks.md
+offending paths: 0
+SCOPE GREEN
+exit=0
+-> 0 offending paths, 0 dsp/ paths. Expected SCOPE GREEN. PASS
+
+== 2. SustainLatch single definition (FR-061) — expected 1, in the shared header ==
+$ grep -rnE "class SustainLatch\b" dsp/ plugins/ tests/
+plugins/shared/src/midi/sustain_latch.h:23:class SustainLatch {
+count=1   expected=1. PASS
+
+== 3. ODR re-sweep (T001 step 3 names) — expected each defined once, in plugins/profundum/src/parameters/ or the test band metric ==
+$ grep -rnE "(class|struct|enum class|enum|using) (SoundParamRow|EndpointParams|NoteParams|MorphControlParams|PerformanceParams|CompareMode|ParamRoute|RouteKind|DisplayUnit|PlainLaw|LeafBits|BandLevelReading)\b" dsp/ plugins/ tests/
+plugins/profundum/src/parameters/morph_params.h:154:enum class CompareMode : std::uint8_t { AB = 0, A = 1, B = 2 };
+plugins/profundum/src/parameters/morph_params.h:190:struct MorphControlParams {
+plugins/profundum/src/parameters/note_params.h:247:struct NoteParams {
+plugins/profundum/src/parameters/performance_params.h:35:struct PerformanceParams {
+plugins/profundum/src/parameters/sound_param_row.h:49:using LeafBits = std::array<std::uint32_t, kNumLeaves>;
+plugins/profundum/src/parameters/sound_param_row.h:51:enum class DisplayUnit : std::uint8_t { List, Percent, BipolarPercent, Time, Hz, Db, Semitone, Mass100, Degrees };
+plugins/profundum/src/parameters/sound_param_row.h:54:struct SoundParamRow {
+plugins/profundum/src/parameters/sound_param_row.h:121:struct PlainLaw {
+plugins/profundum/src/parameters/sound_param_row.h:260:struct EndpointParams {
+plugins/profundum/src/parameters/sound_param_table.h:71:enum class RouteKind : std::uint8_t { None, Global, Macro, Performance, Sound, Note, MorphControl };
+plugins/profundum/src/parameters/sound_param_table.h:73:struct ParamRoute {
+plugins/profundum/tests/band_level_metric.h:36:struct BandLevelReading {
+per-name counts:
+  SoundParamRow=1
+  EndpointParams=1
+  NoteParams=1
+  MorphControlParams=1
+  PerformanceParams=1
+  CompareMode=1
+  ParamRoute=1
+  RouteKind=1
+  DisplayUnit=1
+  PlainLaw=1
+  LeafBits=1
+  BandLevelReading=1
+-> 12 names, each exactly 1 definition; 11 under plugins/profundum/src/parameters/, BandLevelReading in plugins/profundum/tests/band_level_metric.h. PASS
+
+== 4. FR-002 morphed-range literal grep (hand review) ==
+$ grep -rnE "[0-9]+\.[0-9]+f?\s*,\s*[0-9]+\.[0-9]+f?" plugins/profundum/src/parameters/{core,anchor,fold_shape,character,dynamics,field,motion}_params.h ; echo exit=$?
+exit=1
+Hand review, wider net: every decimal literal in those 7 headers:
+$ grep -nE "[0-9]+\.[0-9]+f?" plugins/profundum/src/parameters/{core,anchor,fold_shape,character,dynamics,field,motion}_params.h
+plugins/profundum/src/parameters/core_params.h:4:// Profundum - Core section pack (IDs 200-208)   FR-001, FR-002, FR-005; plan 4.2
+plugins/profundum/src/parameters/anchor_params.h:4:// Profundum - Anchor section pack (IDs 300-306)   FR-001, FR-002, FR-005; plan 4.2
+plugins/profundum/src/parameters/fold_shape_params.h:4:// Profundum - Fold / Shape section pack (IDs 500-501)   FR-001, FR-002, FR-005, FR-009; plan 4.2
+plugins/profundum/src/parameters/character_params.h:4:// Profundum - Character section pack (IDs 600-602)   FR-001, FR-002, FR-005, FR-009; plan 4.2
+plugins/profundum/src/parameters/dynamics_params.h:4:// Profundum - Mass dynamics section pack (IDs 700-701)   FR-001, FR-002, FR-005; plan 4.2
+plugins/profundum/src/parameters/field_params.h:5:// Phase 11 T010 (FR-001, FR-002, FR-005, FR-006, FR-012; plan 4.2)
+plugins/profundum/src/parameters/field_params.h:43:// Rows (ID -> leaf; plan 4.2 table; titles from the spec ID table)
+plugins/profundum/src/parameters/field_params.h:144:// plan 1.6: field.cycleNote = Whole, field.cycleModifier = None (bass_stereo_field.h:109-110) -> "1/1", index 19.
+plugins/profundum/src/parameters/motion_params.h:5:// Phase 11 T010 (FR-001, FR-002, FR-005, FR-006, FR-012; plan 4.2)
+plugins/profundum/src/parameters/motion_params.h:48:// Rows (ID -> leaf; plan 4.2 table; titles from the spec ID table)
+plugins/profundum/src/parameters/motion_params.h:157:// plan 1.6: motion.cycleNote = Quarter, motion.cycleModifier = None (morph_state.h:92-93) -> "1/4", index 13.
+-> 0 range-pair hits; the only decimal-looking tokens are comment references (plan 4.2, plan 1.6). No morphed range literal in the packs. PASS
+
+== 5. SC-026 band-map amendment (grep from T028) ==
+$ grep -n "drop / note behaviour / amp envelope" specs/Profundum-roadmap.md
+782:  400–499 drop / note behaviour / amp envelope, 500–599 fold / shape, 600–699 character, 700–799 mass dynamics,
+$ grep -nE "400.499 drop[^ /]|400–499 drop," specs/Profundum-roadmap.md ; echo exit=$?   (drop-only wording)
+exit=1
+-> 1 hit in the Phase 10 ID-band map (line 782); no drop-only 400–499 wording remains. PASS
+
+No source file changed by T030 (only the two evidence files written).

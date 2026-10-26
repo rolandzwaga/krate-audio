@@ -1,0 +1,10 @@
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-29","",E1,"A + sustain 1 (C-8)",87.864,">= 3 dB",PASS,87.864,87.864,5.00937e-07,n/a
+"AT-31","",E1,"A + sustain 1 (C-8)",87.864,">= 3 dB",PASS,87.864,87.864,5.00937e-07,n/a
+"AT-32","",E1,"B + sustain 1 (B10-1)",11.733,">= 3 dB",PASS,11.733,11.733,4.34409e-07,n/a
+"AT-33","",E1,"B + sustain 1 (B10-1)",16.3826,">= 3 dB",PASS,16.3826,16.3826,6.98269e-07,n/a
+"AT-30","",E1,"A + sustain 1 (C-8) + Character Rectify at Amount 0.5 + spread 1",99.6502,">= 3 dB",PASS,99.6502,99.6502,1.46597e-07,n/a
+"AT-29","",C3,"A + sustain 1 (C-8)",56.4519,">= 3 dB",PASS,56.4519,56.4519,3.18378e-08,n/a
+"AT-31","",C3,"A + sustain 1 (C-8)",56.4519,">= 3 dB",PASS,56.4519,56.4519,3.18378e-08,n/a
+"AT-33","",C3,"A + sustain 1 (C-8)",11.2431,">= 3 dB",PASS,11.2431,11.2431,3.87107e-06,n/a
+"AT-30","",C3,"A + sustain 1 (C-8) + Character Rectify at Amount 0.5 + spread 1",105.925,">= 3 dB",PASS,105.925,105.925,4.52498e-06,n/a

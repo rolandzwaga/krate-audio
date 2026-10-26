@@ -1,0 +1,10 @@
+Filters: "VoragoVoice_EcosystemLeverClickFreeNatural"
+Randomness seeded to: 2177682784
+[LeverClickFreeNatural] fs=48000 seed=0x925863E5 render=28800000 samples (600 s) step boundaries=56250
+[LeverClickFreeNatural] depth1 clicks L=0 (on-boundary 0, off 0) R=0 (on-boundary 0, off 0) peak=1.2347 non-finite=0
+[LeverClickFreeNatural] depth0 twin clicks L=0 R=0 peak=0.6402 non-finite=0 (record only)
+274.868 s: VoragoVoice_EcosystemLeverClickFreeNatural
+===============================================================================
+All tests passed (8 assertions in 1 test case)
+
+exit: 0 wall: 275 s

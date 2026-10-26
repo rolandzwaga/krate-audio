@@ -1,0 +1,40 @@
+Filters: [dynamics],[period-peak],[harmonic_osc_bank] ~[long],[stereo] ~[long]
+Randomness seeded to: 4159014290
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_processors_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+HarmonicOscillatorBank: CPU benchmark 48 partials
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\processors\harmonic_oscillator_bank_tests.cpp(807)
+...............................................................................
+
+benchmark name                       samples       iterations    estimated
+                                     mean          low mean      high mean
+                                     std dev       low std dev   high std dev
+-------------------------------------------------------------------------------
+HarmonicOscillatorBank 48 partials,                                            
+128 samples                                    100             3     3.1437 ms 
+                                        9.77967 us       9.68 us    9.88567 us 
+                                        524.218 ns    438.241 ns    721.607 ns 
+                                                                               
+
+PeriodPeakDetector_HeldBoundsInput kSawAnchor E1 (hold 50.0 ms): one channel 0 violations (min held - |x| = 0), two channels 0 violations (min held - max|x| = 0)
+PeriodPeakDetector_HeldBoundsInput sine E0 (hold 50.0 ms): one channel 0 violations (min held - |x| = 0), two channels 0 violations (min held - max|x| = 0)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 64 partials, fs 44100, f0 41.2034 Hz, hold 50.0 ms: ripple 1.25e-05 (bar 1.0e-04)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 64 partials, fs 48000, f0 41.2034 Hz, hold 50.0 ms: ripple 1.08e-05 (bar 1.0e-04)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 64 partials, fs 96000, f0 41.2034 Hz, hold 50.0 ms: ripple 1.55e-06 (bar 1.0e-04)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 481 partials, fs 44100, f0 41.2034 Hz, hold 50.0 ms: ripple 0.00143 (bar 2.3e-03)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 524 partials, fs 48000, f0 41.2034 Hz, hold 50.0 ms: ripple 0.00144 (bar 2.3e-03)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod 1048 partials, fs 96000, f0 41.2034 Hz, hold 50.0 ms: ripple 0.000739 (bar 2.3e-03)
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 16 (20.6017 Hz), fs 48000, hold one period 48.540 ms: ripple 4.18e-07
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 28 (41.2034 Hz), fs 48000, hold one period 24.270 ms: ripple 1.19e-05
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 40 (82.4069 Hz), fs 48000, hold one period 12.135 ms: ripple 7.86e-05
+PeriodPeakDetector_SteadyOnNonIntegerPeriod [record] kSawAnchor note 48 (130.8128 Hz), fs 48000, hold one period 7.645 ms: ripple 0.000288
+PeriodPeakDetector_HoldLengthAndBoundary: hold 10 ms held 539 samples (bar [480, 540]), tail max 0.00621; hold 20 ms held 1079 samples (bar [960, 1080]), tail max 0.000167; holdMs() after call 20.000
+PeriodPeakDetector_SettersAndLifecycle: NaN -> 50.000, +Inf -> 50.000, -Inf -> 50.000, 0.1 -> 1.000, 500 -> 125.000; held before reset 0.635090, after 0.000000; allocations 0
+===============================================================================
+All tests passed (3377 assertions in 86 test cases)
+

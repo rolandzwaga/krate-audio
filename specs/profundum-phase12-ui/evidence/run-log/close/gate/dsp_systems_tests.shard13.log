@@ -1,0 +1,59 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 3863659964
+note,descriptor,at_p0,at_p1,travel,bar,pass
+E1,D_cx_dB,-60,-8.12063,51.8794,3,PASS
+E1,D_nl_dB,0,14.3505,14.3505,3,PASS
+E1,D_st_dB,-120,-1.29713,118.703,3,PASS
+E1,D_br_oct,0.000862163,1.00383,1.00297,0.25,PASS
+E1,D_t_ratio,78.505,1161.01,14.789,2,PASS
+E1,E_sub_Lock_minus_Blend_p1_dB,-10.4423,-7.76122,2.68112,2,PASS
+C3,D_cx_dB,-60,-7.82574,52.1743,3,PASS
+C3,D_nl_dB,0,13.863,13.863,3,PASS
+C3,D_st_dB,-120,0.0413279,120.041,3,PASS
+C3,D_br_oct,0.000856647,0.899264,0.898408,0.25,PASS
+C3,D_t_ratio,80.7292,959.893,11.8903,2,PASS
+C3,E_sub_Lock_minus_Blend_p1_dB,-10.1808,-7.49718,2.68364,2,PASS
+FR-039 (i): worst |step - ds(1 - table(phase))| 3.55686e-08, 8 moving intervals
+FR-039 (ii): max per-sample |dg| 0.00447726, max per-interval ds 0.106667, final 0.799999
+FR-039 (iii): worst |step - range * dtable(phase)| 2.98023e-08, 7 moving intervals
+FR-039 amp envelope immediate apply (tasks.md T009 case 5; plan S4.10). 48 kHz, ramp 5 ms, gate on at 0. Ratio = max|dg| / (10^(0.5/20) * static-A max|dg|) over the same window: recorded for Phase 9, not gated.
+case,window_start,window_end,max_abs_dg,static_ref_max_abs_dg,ratio
+(i) sustain 0->0.8 in Decay,9600,10112,0.0618928,1.46627e-05,3984.97
+(ii) sustain 0->0.8 in Sustain,144000,153600,0.00447726,0,n/a (static reference flat)
+(iii) decayCurve 0.7->-0.7 in Decay,9600,10112,0.0698223,5.96046e-08,1.10589e+06
+FR-039 (iv): Sustain entry 2879 (morphed 2879), 0 mismatching samples before it
+SC-024 E1: g_sw 48000, window end 50810, max|dy| L 0.0344698 (ref 0.0344698, ratio 1), R 0.0344762 (ref 0.0344762, ratio 1)
+SC-024 E1: clicks L 0 (raw 2, guarded 0), R 0 (raw 2, guarded 0)
+SC-024 C3: g_sw 48000, window end 49214, max|dy| L 0.111976 (ref 0.111976, ratio 1), R 0.10845 (ref 0.10845, ratio 1)
+SC-024 C3: clicks L 0 (raw 9, guarded 0), R 0 (raw 9, guarded 0)
+p,mode,level,handedLevel,anchorW1RelDb,expectedDb,deltaDb,eSubAnchorDb
+0,Lock,1,1,0,0,0,-17.4315
+1,Lock,1,1,0,0,0,-17.4315
+0,Blend,1,1,0,0,0,-17.4315
+1,Blend,0.7,0.7,-3.09804,-3.09804,3.47575e-07,-20.5296
+0,Punch,1,1,0,0,0,-17.4315
+1,Punch,0.7,0.7,-3.09804,-3.09804,3.47575e-07,-20.5296
+# (a) Lock E_sub(Anchor tap) range dB,0,bar,0.05
+# (d) worst |w1 - 20log10(level)| dB,3.47575e-07,bar,0.1
+# (e) massOnlyPair Lock Phase-6 audibility: E_low,-26.7093,-0.198595,E_high,-93.2128,-13.6754,THD,-26.7,27.443,I,-104.528,-94.264,C_oct,0.0033247,1.75702,separation_dB,54.1431,which,THD,dC_oct,1.7537,distinct,1,bar,3dB_or_0.25oct
+# (e) massOnlyPair Lock D_nl p0,0,p1,-6.44215,travel,-6.44215 (recorded, B9-1)
+SC006 recorded(b) pair 0 unclamped A fold 62.1268: worst harmonic delta 0.00308053 dB (B10-3: fold regime, recorded)
+pair,mode,t_land,harmonics_compared,worst_harmonic,worst_delta_dB
+0,Lock,37920,16,3,0.00308053
+0,Blend,37920,16,3,0.00214759
+SC004 algorithm,Tube->Fold,E1,40,12992,1,1,0,0,0,0
+SC-008 showcase trajectory Blend E1 (f0 41.2034 Hz, fs 48000)
+p	D_cx	D_nl	D_st	D_br	D_t	L_K	E_sub	E_sub_out	dyn_gain	F_lock	L_m	floor	E_sub_anchor	E_sub_blend	gate_s	D_st_out	D_t_out	D_st_valid
+0	-60	0	-120	0.000862163	109.269	-12.0435	-5.97173	-6.03329	-0.0615656	-12	1	-13	-12	0	3	-120	78.505	0
+0.5	-16.6961	8.15022	-9.8251	0.0273757	536.074	-14.2291	-8.32924	-8.39082	-0.0615791	-12.0626	0.75	-15.5614	-14.5614	0	3	-10.995	253.034	1
+1	-8.12063	14.3505	0.844954	1.00383	1552.26	-13.5903	-10.4423	-13.1152	-2.67288	-12.9473	0.5	-19.9679	-18.9679	0	3	-1.29713	1161.01	1
+SC-008(a) D_st at p 0: core band above 2 f_c below -60 dBFS, recorded -120 dB, skipped
+SC017,grid,E1,fs,48000,p,0,Tube,aliased_L_dbfs,-100.412,aliased_R_dbfs,-101.807
+SC017,grid,E1,fs,48000,p,0.5,Fracture,aliased_L_dbfs,-95.5105,aliased_R_dbfs,-95.9575
+SC017,grid,E1,fs,48000,p,1,Fracture,aliased_L_dbfs,-98.0431,aliased_R_dbfs,-98.3778
+SC017,armA,E1,fs,48000,p,0.515,Tube,aliased_L_dbfs,-104.831,aliased_R_dbfs,-101.082
+SC017,armB,E1,fs,48000,p,0.52,Fracture,aliased_L_dbfs,-98.0431,aliased_R_dbfs,-98.3778
+===============================================================================
+All tests passed (35023 assertions in 30 test cases)
+
+rc=0 wall=37s

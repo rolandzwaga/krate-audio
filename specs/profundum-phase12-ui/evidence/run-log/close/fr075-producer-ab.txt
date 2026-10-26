@@ -1,0 +1,29 @@
+FR-075 / SC-013 remediation, 2026-10-24T05:25:39Z: ProfundumSpectrumProducer Goertzel bank rewrite (plugins/profundum/src/processor/spectrum_producer.h)
+Change: per-sample update s2[p] = x + c[p]*s1[p] - s2[p] written over the older half (ping-pong gL_/gR_[2], newest_),
+one loop over partials for both channels with __restrict pointers (MSVC /Qvec-report:2: 'loop vectorized'; the old loops
+reported 'not vectorized, reason 1200'). Same operations in the same order, so the frames are bit-identical.
+
+Bit identity (scratch harness, MSVC /O2 /fp:fast, same flags as profundum_tests Release): 2088 frames over fs {48k, 44.1k, 96k}
+x f0 {41.2, 130.81, 1046.5, 27.5} x interval {32, 7, 29}, f0 drift, noise: cmp old vs new frame dumps -> IDENTICAL (601344 bytes).
+
+Producer alone, feedInterval at E1 (64 partials), ns per sample, min of 15 trials, old then new (A/B interleaved runs):
+ns/sample=55.38 windows=309 sink=3.46875
+ns/sample=31.58 windows=309 sink=3.46875
+ns/sample=56.91 windows=309 sink=3.46875
+ns/sample=32.76 windows=309 sink=3.46875
+ns/sample=66.13 windows=309 sink=3.46875
+ns/sample=34.33 windows=309 sink=3.46875
+
+Engine MONO (note 28) + producer, the processor's 32-sample split; min over 400 x 10-block trials; old then new, interleaved.
+NOT ISOLATED (other workflow agents were running): indicative only, not an SC-013 reading.
+MONO whole=2875300 split=2896600 split+prod=3210300  split/whole=1.0074 prod/whole=1.1165 prod/split=1.1083 windows=230
+MONO whole=2898000 split=2945500 split+prod=3055200  split/whole=1.0164 prod/whole=1.0542 prod/split=1.0372 windows=230
+MONO whole=2822800 split=2825100 split+prod=3064000  split/whole=1.0008 prod/whole=1.0854 prod/split=1.0846 windows=230
+MONO whole=2961800 split=2974800 split+prod=3052400  split/whole=1.0044 prod/whole=1.0306 prod/split=1.0261 windows=230
+MONO whole=2756200 split=2835400 split+prod=3118400  split/whole=1.0287 prod/whole=1.1314 prod/split=1.0998 windows=230
+MONO whole=2701300 split=2706300 split+prod=2959600  split/whole=1.0019 prod/whole=1.0956 prod/split=1.0936 windows=230
+
+SC-013 / FR-075 CPU verdict: NOT MEASURED HERE. The gate is Profundum_ProcessorCpu + Profundum_ProcessorCpuFullSurface run alone:
+  node tools/run-cpu-tests.js profundum_tests   (main loop, idle machine; writes evidence/run-log/close/cpu.log via close/cpu-lane.sh)
+Arithmetic bound: 64 partials x 2 channels x 3 flops per sample in double = 384 flops/sample; SSE2 (2 doubles, 2 ports) ~96 cycles
+~= 24 ns at 4 GHz, about 4-5 % of the measured ~520-560 ns/sample MONO engine cost. The pre-fix producer cost ~10-11 %.

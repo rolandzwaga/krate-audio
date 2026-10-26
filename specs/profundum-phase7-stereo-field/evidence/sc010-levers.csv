@@ -1,0 +1,17 @@
+kind,lever,note,reading_a,reading_b,move,bar,pass
+static,spread_0_1,E1,119.999,0.999867,s2m_db|rho,3dB|0.1,1
+static,gravity_0_1,E1,6.04839,0.00935623,s2m_db|rho,3dB|0.1,1
+static,crossover_60_250,E1,104.774,0.279452,s2m_db|rho,3dB|0.1,1
+static,curve_0_1,E1,43.5743,0.0793994,s2m_db|rho,3dB|0.1,1
+static,wide_vs_spread_dirty_Tube,E1,3.75661,0.110988,s2m_db|rho,3dB|0.1,1
+motion,depth_0_1_cycle_rate0.5_std_db,E1,0.0255269,15.0768,15.0513,1dB,1
+motion,rate_0_1_cycle_hz,E1,0.0500679,0.999928,19.9714,x4,1
+motion,rate_0_1_drift_1e_s,E1,8.05197,0.375204,21.4602,x4,1
+static,spread_0_1,C3,120,1,s2m_db|rho,3dB|0.1,1
+static-recorded,gravity_0_1,C3,0.613132,0.00707771,s2m_db|rho,3dB|0.1,0
+static,crossover_60_250,C3,43.4303,0.276593,s2m_db|rho,3dB|0.1,1
+static,curve_0_1,C3,6.05786,0.0637333,s2m_db|rho,3dB|0.1,1
+static,wide_vs_spread_dirty_Tube,C3,2.70383,0.18334,s2m_db|rho,3dB|0.1,1
+motion,depth_0_1_cycle_rate0.5_std_db,C3,3.06835e-06,15.4946,15.4946,1dB,1
+motion,rate_0_1_cycle_hz,C3,0.0500679,0.999928,19.9714,x4,1
+motion,rate_0_1_drift_1e_s,C3,8.06938,0.365021,22.1066,x4,1

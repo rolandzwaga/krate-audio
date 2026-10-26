@@ -1,0 +1,36 @@
+T023 portability + Apple globals (FR-046; SC-020), 2026-10-17T20:07:25Z, HEAD 02fecee1
+Command: bash specs/profundum-phase6-mass-dynamics/evidence/close/portability.sh (one run, total wall 48 s, exit 0)
+Inputs: 4 new headers + modified true_peak_limiter.h + 5 test headers + 16 TUs to lint (26 files); 16 TUs to check-portability.
+Quoted evidence/run-log/close/portability.log:
+----
+== lint-apple-globals ==
+lint-apple-globals: OK — 26 files, no macOS-only name collisions
+lint exit=0 wall=0s
+
+== check-portability ==
+check-portability: 16 translation unit(s) with g++
+
+  OK      dsp/tests/unit/processors/period_peak_detector_test.cpp
+  OK      dsp/tests/unit/processors/transient_shaper_helpers_test.cpp
+  OK      dsp/tests/unit/processors/transient_shaper_test.cpp
+  OK      dsp/tests/unit/processors/transient_shaper_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/k_weighting_helper_test.cpp
+  OK      dsp/tests/unit/systems/mass_compressor_test.cpp
+  OK      dsp/tests/unit/systems/mass_law_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_helpers_test.cpp
+  OK      dsp/tests/unit/systems/mass_chain_test.cpp
+  OK      dsp/tests/unit/systems/mass_compressor_chain_test.cpp
+  OK      dsp/tests/unit/systems/mass_law_spectral_test.cpp
+  OK      dsp/tests/unit/systems/mass_law_automation_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_aliasing_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/mass_dynamics_perf_test.cpp
+
+check-portability: all clear -- 16 compiled.
+port exit=0 wall=41s
+
+wsl --shutdown done
+PORTABILITY GREEN
+----
+Result: lint-apple-globals 0 findings; check-portability 0 findings (16/16 OK under g++ via WSL); wsl --shutdown run.

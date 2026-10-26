@@ -1,0 +1,8 @@
+Filters: "VoiceEngine_MonoSum_Wide"
+Randomness seeded to: 3219885459
+SC-015 monosum-wide.csv: 8 cells, 0 failing
+28.979 s: VoiceEngine_MonoSum_Wide
+===============================================================================
+All tests passed (618 assertions in 1 test case)
+
+exit: 0 wall: 29 s

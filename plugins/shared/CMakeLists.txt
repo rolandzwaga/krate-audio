@@ -33,6 +33,7 @@ add_library(KratePluginsShared STATIC
 
     # MIDI Event Dispatcher (shared processEvents boilerplate)
     src/midi/midi_event_dispatcher.h
+    src/midi/sustain_latch.h
 
     # Preset Management
     src/preset/preset_manager_config.h

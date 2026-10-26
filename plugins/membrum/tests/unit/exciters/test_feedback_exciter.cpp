@@ -16,10 +16,12 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <numbers>
 
 using membrum_exciter_tests::isFiniteSample;
 using membrum_exciter_tests::runBurst;
@@ -51,7 +53,8 @@ TEST_CASE("FeedbackExciter: velocity spectral centroid ratio >= 2.0 (SC-004)",
     Membrum::FeedbackExciter exc;
     exc.prepare(kSR, 0);
 
-    std::array<float, kSamples> lo{}, hi{};
+    std::array<float, kSamples> lo{};
+    std::array<float, kSamples> hi{};
     runBurst(exc, 0.23f, lo.data(), kSamples, 0.0f);
     exc.reset();
     runBurst(exc, 1.0f,  hi.data(), kSamples, 0.0f);
@@ -78,7 +81,7 @@ TEST_CASE("FeedbackExciter: 1 s output is finite and peak <= 1.0",
         const float s = exc.process(0.0f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak <= 1.0f);
@@ -99,7 +102,7 @@ TEST_CASE("FeedbackExciter: retrigger safety",
         const float s = exc.process(0.4f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak <= 1.0f);
@@ -129,7 +132,7 @@ TEST_CASE("FeedbackExciter: sample-rate change safe",
         const float s = exc.process(0.2f);
         if (!isFiniteSample(s)) { finite = false; break; }
         const float a = s < 0 ? -s : s;
-        if (a > peak) peak = a;
+        peak = std::max(peak, a);
     }
     CHECK(finite);
     CHECK(peak > 1e-6f);
@@ -148,14 +151,15 @@ TEST_CASE("FeedbackExciter: non-zero body feedback sustains longer than zero",
 
     excA.trigger(0.9f); // zero-feedback control
     excB.trigger(0.9f); // non-zero feedback
-    float energyA = 0.0f, energyB = 0.0f;
+    float energyA = 0.0f;
+    float energyB = 0.0f;
     for (int i = 0; i < kTotal; ++i)
     {
         // Simulate body feedback with a decaying sinusoid (a synthetic
         // "ringing body" at 220 Hz with 300 ms decay).
         const float t = static_cast<float>(i) / static_cast<float>(kSR);
         const float bodySim =
-            0.5f * std::sin(2.0f * 3.14159265f * 220.0f * t)
+            0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 220.0f * t)
                  * std::exp(-t * 4.0f);
 
         const float a = excA.process(0.0f);
@@ -253,7 +257,7 @@ TEST_CASE("FeedbackExciter: peak <= 0 dBFS for extreme bodyFeedback (SC-008)",
                 const float s  = exc.process(fb);
                 if (!isFiniteSample(s)) { finite = false; break; }
                 const float a = s < 0 ? -s : s;
-                if (a > peak) peak = a;
+                peak = std::max(peak, a);
             }
             INFO("velocity=" << velocity << " fbDrive=" << fbDrive
                  << " peak=" << peak);

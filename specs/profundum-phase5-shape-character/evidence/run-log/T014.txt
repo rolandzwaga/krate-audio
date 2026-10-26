@@ -1,0 +1,89 @@
+T014 run log (2026-10-16) - Character Fold and Crush
+
+Files written
+- dsp/include/krate/dsp/systems/bass_character_stage.h (FoldBranch and CrushBranch laws, HoldEngine, c_fold table,
+  B-spline step S(v), probe counters crushMaxOccupancy_ / crushRetirements_ filled in runSlot)
+- dsp/tests/unit/systems/bass_character_spectral_test.cpp (BassCharacter_FoldSmoke, BassCharacter_CrushSmoke; the T011
+  smoke helper split into bcsAliasSmoke / bcsDcSmoke / bcsAmountSmoke, Bite/Tube behaviour unchanged)
+- dsp/tests/unit/systems/bass_character_stage_test.cpp (BassCharacter_CrushHoldRing; now includes
+  shape_character_test_helpers.h for fixture() and differentialClicks())
+- specs/profundum-phase5-shape-character/evidence/run-log/T014.txt (this file, rule 12)
+
+Not built or run (rule 8: the Group 6 gate builds and runs). All three files re-read for compile errors.
+
+Implementation (plan S5.4 Fold / Crush, C-12, D-6)
+- Public constants (plan S5.1 lists them): kFoldThetaMin 0.1, kFoldThetaMax 2.5 (C-12), kCrushMultipleLo 64 (A = 0),
+  kCrushMultipleHi 4 (A = 1), kCrushBitsLo 12 (A = 0), kCrushBitsHi 4 (A = 1), kCrushPreScale 0.9, kCrushRingSlots 3.
+- Fold: WavefolderProcessor Serge, symmetry 0, mix 1 at prepare; setFoldAmount(0.1 + 2.4A); per F-sample
+  buf = u/P -> process(buf, 1) -> * P/sin(min(theta, pi/2)); post tilt (k=2, +-12 dB) at base rate (C-23);
+  lin = c_fold(A)*u, c_fold[65] = h1 of sin(theta sin phi)/sin(min(theta, pi/2)) over 256 midpoint phase points,
+  filled in prepare. The first configure after a branch reset calls WavefolderProcessor::reset() after setFoldAmount
+  so its own 5 ms fold smoother starts at theta(A) (same pattern as T011's Tube "fresh" flag).
+- Crush: m(A) = 64*(1/16)^A, m_eff = max(1, min(m(A), F*fs/(4 f0))), m_lo/m_hi/frac; one double phasor per channel
+  (theta += f0/(F*fs), reset 0, follows f0 by rate); two HoldEngines keyed by m mod 2; crossings
+  floor(theta*m) - floor(theta_prev*m) with the current m on both sides (theta unwrapped); tau, value, q =
+  P/0.9 * BitCrusher(0.9*value/P) (one BitCrusher per engine, dither 0, seed 0x5F3759DF ^ channel), step q - held
+  at age 1 - tau; output = held - sum d_k (1 - S(age_k)), S the integrated cubic B-spline of plan S5.4; ring of 3,
+  ring-full retires the oldest and counts it; y = (1 - frac) Hold(m_lo) + frac Hold(m_hi); lin = 0; post tilt.
+  Bits B(A) = 12 - 8A set on both crushers only on a changed Amount (pow inside BitCrusher, plan S8).
+
+Decisions / deviations (surface them)
+1. BassCharacter_CrushHoldRing (b): the transition renders Amount 0.05 for 0.5 s, ramps 0.05 -> 1 over 0.5 s, holds 1
+   for 0.25 s. The task text says "ramp 0 -> 1" with "reference: Amount held at 0.05 so the hold runs"; a ramp from 0
+   would start in the Amount-0 bypass while the reference runs the hold, so the ramp starts at the reference's 0.05
+   (m 55.7 -> 4, 51 integer crossings). Both references are passed to differentialClicks (start 0.05 and end 1), per
+   the helper's documented Group 3 gate ruling (2026-10-16). If the ruling is one-reference only, drop refEnd.
+2. HoldEngine is a private nested struct of BassCharacterStage (ODR sweep 2026-10-16: grep "HoldEngine" over dsp/ and
+   plugins/ -> 0 hits).
+3. The occupancy counters live in CrushBranch (occupancyPeak, retirements) and are folded into the stage members in
+   runSlot after each base sample, because the branch structs cannot reach the stage (the probe header is read-only).
+
+DEFECT lines: none.
+
+EPOCH 2b (Crush hysteresis)
+==========================
+Diagnosis (temporary Catch2 case, removed; bass_character_spectral_test.cpp byte-identical to its pre-diagnostic copy):
+the replica path (probe runBranch + OversampledResidualPath instances; after-blocker replica == the stage's
+seamPostToneNeutral output bit for bit) read, for the red cell: before the 2 Hz residual blocker -19.00 dBFS, after
+-68.75 dBFS (a double-precision blocker gives the same -68.75), after the post tilt -65.67 dBFS. The per-period mean
+before the blocker flipped between 0.10517..0.10535 and 0.13150..0.13164 (jump 0.0264 = half a 4-bit step,
+(2/15)*kP/0.9 = 0.0527, on one of the two hold points) in 2-3-period bursts every 10.3 periods: the cycle of the hold
+point's sub-sample position (period 2329.90 F-samples). Spectrum after the blocker: 8.06 Hz -45.9 dB, 16.1 Hz -48.9 dB,
+24.2 Hz -56.1 dB, 34 Hz -58.7 dB (BH7, 65536 samples, 10log10 p). m_eff = 2.0 exactly, frac 0, 2 crossings in each of
+181 periods; the float/double f0 mismatch (2e-8) is not the cause. One cell of 36 in the Amount-1 grid.
+
+Ruling (user, 2026-10-16, spec FR-051, Clarifications "Crush threshold flicker"): per-slot quantiser hysteresis of 1/4
+step; noiseless (no dither, no jitter); m = 2 at Amount 1 and the (k + 1/2)/m grid kept.
+
+Implementation (bass_character_stage.h only):
+- kCrushHysteresisSteps = 0.25f: slot k keeps its stored level q_prev while |v - q_prev| < (0.5 + 0.25)*step, v the
+  interpolated held value before quantisation, step the BitCrusher step 2/(2^bits - 1) mapped by kP/kCrushPreScale;
+  otherwise it takes the plain quantisation q and stores it.
+- Slot k = crossing index (kPrev + j) mod m, the crossing whose sample point is theta = (kPrev + j - 1/2)/m.
+- Per HoldEngine: std::array<float, kCrushMaxSlots> slotLevel + std::array<bool, kCrushMaxSlots> slotValid,
+  kCrushMaxSlots = kCrushMultipleLo + 1 = 65 (m_hi reaches 65 at Amount 0, one more than the ruling's "up to 64").
+- Memory dropped (keySlots, every F-sample before the crossings): when the engine's m differs from the m it was keyed
+  with (an integer crossing of m_eff re-keys the engine that changes m, which is the retiring one; the engine whose m
+  is kept keeps its memory), when |bits - bitsAtKey| >= kCrushHysteresisRekeyBits = 1/16 bit, and on reset().
+- No allocation, no exceptions; HoldEngine::stateFinite() covers slotLevel.
+
+Build: dsp_systems_tests, 0 warnings, 0 errors (F:/tmp/p5g8/build_2b.log with the diagnostic case;
+F:/tmp/p5g8/build_2b_restore.log after removing it).
+
+Runs (logs under F:/tmp/p5g8/2b):
+- BassCharacter_DcBound: All tests passed (780 assertions in 1 test case).
+- BassCharacter_CrushSmoke: All tests passed (120 assertions in 1 test case). A = -144.938 / -124.478 dBFS (growl E2
+  44.1 kHz, Tone 0 / 1); SC-007 saw E1 moved 55.2762 dB, dC 0.281635 oct.
+- BassCharacter_CrushHoldRing: All tests passed (114 assertions in 1 test case). (a) max occupancy 2, retirements 0;
+  (b) max occupancy 1, retirements 0, ramp |dy| ratio 0.968 (bar 1.1), differential clicks recorded 32.
+- BassCharacter_AmountAudible: All tests passed (676 assertions in 1 test case). Crush saw E1 55.2762 dB / 0.282 oct,
+  sine E1 53.6639 dB / 0.478 oct.
+- ShapeCharacter_SampleRates: All tests passed (562 assertions in 1 test case).
+- ShapeCharacter_DropTracksHarmonicNumbersSmoke: All tests passed (86 assertions in 1 test case).
+- ShapeCharacter_NonFiniteSetters: All tests passed (144 assertions in 1 test case).
+- SC-012 Crush: no non-[long] case exists (Crush cells only in BassCharacter_CrushFractureRLaw [long]); not run.
+Diagnostic, red cell after the fix: before blocker -19.56 dBFS, after -122.25 dBFS, output -143.53 dBFS. Per-period
+mean before the blocker 0.105167..0.105350 every period (no 0.1316 bursts); after the blocker it alternates -89e-6 /
++98e-6 (the non-integer period's rounded boundaries). Spectrum after the blocker: no bin from 0 Hz to 78.4 Hz
+(k = 0..107) above -90 dB, the 8.06 Hz bin included; the first listed bin is k 108 (79.1 Hz, -69.3 dB, the f0 main
+lobe). Amount-1 grid: worst output DC now -109.44 dBFS (saw Fold-100 E2 Tone 1).

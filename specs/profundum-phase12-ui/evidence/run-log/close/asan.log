@@ -1,0 +1,20 @@
+=== T036 asan 2026-10-24T08:00:20Z commit 40f6ebca
+--- configure (generator "Visual Studio 17 2022", -DENABLE_ASAN=ON) exit=0 wall=14s log=specs/profundum-phase12-ui/evidence/run-log/close/asan-configure.log
+-- Configuring done (11.6s)
+-- Generating done (2.1s)
+-- Build files have been written to: F:/projects/iterum/build-asan
+--- build exit=0 wall=27s warnings=0 log=specs/profundum-phase12-ui/evidence/run-log/close/asan-build.log
+  vstgui_test_stubs.cpp
+  moduleinit.cpp
+  pluginfactory.cpp
+     Creating library F:/projects/iterum/build-asan/lib/Debug/profundum_tests.lib and object F:/projects/iterum/build-asan/lib/Debug/profundum_tests.exp
+  profundum_tests.vcxproj -> F:\projects\iterum\build-asan\bin\Debug\profundum_tests.exe
+--- ASan runtime dir on PATH: /c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64
+--- "[lifecycle]" --list-tests: Profundum_EditorLifecycle Profundum_EditorSyncTimer Profundum_SpectrumFrameHandlerLifecycle
+--- run "[lifecycle]" exit=0 wall=33s AddressSanitizer_lines=0 log=specs/profundum-phase12-ui/evidence/run-log/close/asan-run.log
+Filters: [lifecycle]
+Randomness seeded to: 2737580942
+===============================================================================
+All tests passed (1609 assertions in 3 test cases)
+
+ASAN GREEN exit=0 asan_lines=0 cases=3 cfg_wall=14s build_wall=27s run_wall=33s total_wall=75s

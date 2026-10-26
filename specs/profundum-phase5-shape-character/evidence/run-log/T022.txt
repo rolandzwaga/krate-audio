@@ -1,0 +1,268 @@
+T022 run log: resolve DEFECT lines and gate-documented reds (2026-10-16)
+
+Nothing was built or run (executor rule). Every change below is still unmeasured.
+
+Sources read: T001..T021 run logs (the DEFECT lines are in T015 and T017; the others have none), the tasks.md
+"Defects found" section, the spec Clarifications for the Group 3, 6 and 8 rulings and the Crush threshold
+flicker, the Group 8 gate logs F:/tmp/p5g8 (epoch 2b: all green, including DcBound after the hysteresis
+change), F:/tmp/g8_run.log (per-push systems lane, 13:59: all 1661 cases pass) and the epoch-1 [long] side
+runs in F:/tmp/p5fix/long-*.log.
+
+Files written:
+- dsp/tests/unit/systems/bass_character_stage_probe.h: added fracturePhase(const Stage&, int) (the T015
+  DEFECT) and updated the header note.
+- dsp/tests/unit/systems/bass_character_spectral_test.cpp:
+  - BassCharacter_FracturePhasor: adds the literal φ check after both renders: φ[0] == 0, φ in [0, 2), and
+    each wrapped step in [0, C3/(F·fs) + 1e-6].
+  - bcsCentroidCell (SC-006): ε is now taken over window phase on one render per block size, not over
+    re-rendered shifted sources (harness fix; see the tasks.md entry).
+- specs/profundum-phase5-shape-character/tasks.md: T022 entries added under "Defects found".
+
+Re-tagging: none. No gate log records a per-case wall clock above 15 s for an untagged case.
+
+Open items for the user (STOP AND SURFACE):
+1. The SC-027 row names Amount 0.5, where Rectify's dry share is 0. Amend the row to an Amount with a dry
+   share (proposed 0.2)?
+2. Crush and Fracture phasors are not locked to the input phase, so timbre depends on onset alignment. In
+   epoch-1 data the centroid moved by up to 1.97 oct. Accept and record it, or phase-lock them (new FR)?
+3. ShapeCharacter_ParameterStepsClickFree: the Crush bypass-edge cells are red. The likely cause is θ being
+   re-phased at branch start against a reference started at sample 0. This needs a run and a
+   measurement-scope ruling, or the phase-lock from item 2.
+4. ShapeCharacter_DropTracksHarmonicNumbers: (a) fails on nearly every cell, including SHAPE 0. The
+   hypothesis is that the input partial phases differ between the Drop and steady core renders, which makes
+   a per-harmonic transfer of a nonlinear stage non-comparable. This needs a diagnostic run on the current
+   code before a ruling on SC-025(a).
+
+
+EPOCH 2 (FR-072)
+================
+Ruling: user 2026-10-16, Clarifications "Group 9 rulings" (FR-072, SC-030; SC-027 at Amount 0.2).
+
+Implementation:
+- bass_character_stage.h: syncPhase(float coreCycles). Non-finite is ignored. It sets syncCycles_ = coreCycles mod 2
+  and phaseSynced_ = true, then on both channels sets Crush theta = frac(coreCycles) (one phasor drives both hold
+  engines) and Fracture phi = coreCycles mod 2, with the rotor re-seeded from phi. Running form: a single stage clock
+  (syncCycles_, mod 2) advances by f0_/fs at the end of every sample once synced, whether bypassed or not.
+  startBranch() then takes theta and phi from that clock instead of 0, so a switch or a bypass exit reads the
+  running phase. Cost is one double add per sample, against keeping the inactive branches' phasors running. reset()
+  clears the sync (phaseSynced_ false, clock 0) before it restarts the branches. No allocation.
+- bass_character_stage_test.cpp:
+  - New BassCharacter_OnsetInvariance (SC-030). Fixture origin constant 0: recipeAdditive is sine-phase from sample
+    0, the core's phase origin. Onset k uses input src[s_k ..], s_k = round(k*T/8), with syncPhase(s_k*f0/fs).
+    tau = min(2*eps, 0.005) with eps the SC-006 window harness (8 end offsets x blocks {1, 64, 512}, unsynced,
+    from sample 0). THD, I and R_oe follow the OQ-S floor rule. Renders run on worker threads.
+  - ShapeCharacter_ParameterStepsClickFree [long]: every transition render and every held reference gets
+    syncPhase(0) at sample 0 (t17Held / t17CheckParamCell syncAtZero). The sync is inert for non-Crush/Fracture
+    algorithms. Bars unchanged.
+  - BassCharacter_DryShareNoComb: Amount 0.2 is the gated cell; Amount 0.5 is recorded with WARN.
+
+Build: dsp_systems_tests, 0 warnings, 0 errors (F:/tmp/p5g9/build.log).
+
+Runs (logs under F:/tmp/p5g9):
+- BassCharacter_CrushHoldRing: All tests passed (114 assertions in 1 test case).
+- BassCharacter_CrushSmoke: All tests passed (120 assertions in 1 test case). A = -144.938 / -124.478 dBFS.
+  SC-007 saw: moved 55.28 dB.
+- BassCharacter_FracturePhasor: All tests passed (57 assertions in 1 test case).
+- BassCharacter_DryShareNoComb: All tests passed (29980 assertions in 1 test case). Amount 0.5 recorded: dry share
+  0, residual -169.323 dBFS, ripple 0.0205 dB, raw-dry control ripple 0.0205 dB.
+- ShapeCharacter_NonFiniteSetters: All tests passed (144 assertions in 1 test case).
+- BassCharacter_AmountAudible: All tests passed (676 assertions in 1 test case).
+- BassCharacter_OnsetInvariance: RED. test cases 1 | 0 passed | 1 failed; assertions 3297 | 3289 passed | 8 failed;
+  wall 7 s. The case aborted at E1 / growl / Crush / Amount 1, so the C2 cells did not run:
+  shape_character_test_helpers.h(139) REQUIRE( total > 0.0 ), because Crush at Amount 1 (m = 2, points at
+  theta = 1/4, 3/4) on raw kGrowl E1 outputs exact silence (the diagnostic grid's "growl raw E1" -6000 dB row).
+  Cells measured, synced spread vs the unsynced control:
+    E1 saw Crush A0.5:    C 1.27e-3 oct (tau 5.2e-9, eps 2.6e-9), THD 0.017, R_oe 0.030, I 0, L 0.0047 dB |
+                          unsynced C 0.242 oct, THD 1.73, R_oe 1.17, L 0.75 dB.
+    E1 saw Crush A1:      C 2.6e-9 oct (tau 4.8e-11), THD 9e-7, R_oe 7e-7, L 0.0036 dB | unsynced L 6.00 dB.
+    E1 saw Fracture A0.5: C 2.9e-6 oct (tau 7.3e-8), THD 2.5e-5, R_oe 1.1e-5, I 4.4e-5, L 0.017 dB |
+                          unsynced C 0.470 oct, THD 2.70, R_oe 1.43, I 1.39, L 1.08 dB.
+    E1 saw Fracture A1:   C 1.0e-6 oct (tau 3.9e-8), THD 6.17 dB, R_oe 0.174 dB, I 5e-10, L 0.0015 dB |
+                          unsynced C 1.86 oct, THD 11.19, L 2.86 dB.
+    E1 growl Crush A0.5:  C 5.1e-9 oct (tau 6.6e-10), THD 1.6e-6, L 5e-5 dB | unsynced C 1.70 oct, THD 24.8,
+                          L 8.04 dB.
+  Failures: C > tau in all 5 cells (eps is 1e-11..4e-8 oct, so tau = 2*eps is below the synced sub-sample spread);
+  Fracture A1 saw E1 THD 6.17 dB and R_oe 0.174 dB > 0.1 dB with C agreeing to 1e-6 oct; the growl/Crush/A1
+  silence abort. The positive control flagged in every measured cell.
+- ShapeCharacter_ParameterStepsClickFree [long] (no section/tag filter, whole case run once): RED. test cases 1 |
+  0 passed | 1 failed; assertions 7752 | 7728 passed | 24 failed; wall 25 s (concurrent with the cases above).
+  12 cells x L/R:
+    Crush Amount 0 <-> 1: E1 saw ramps (counts 4, 5); E1 growl steps and ramps (counts 2, 3, 3, 7);
+                          C2 saw ramps (1, 3); C2 growl ramp 1 -> 0 (1).
+    Crush bypass edge 0.05 -> 0, 20 ms ramp, E1 saw: count 5.
+    Crush Tone 0 -> 1, 20 ms ramp, E1 growl: count 1.
+    Bite Tone 0 -> 1, single step, E1 saw: count 1.
+STOPPED: nothing adjusted after these reds.
+
+
+EPOCH 3 (round 2)
+=================
+Rulings: user / main loop 2026-10-16, spec Clarifications "Group 9 rulings, round 2" (FR-051, "Differential click
+count" amplitude guard and Crush bullet, SC-025(a), SC-030).
+
+Changes:
+1. bass_character_stage.h: kCrushMultipleHi 2.0f -> 2.5f, m(A) = 64*25.6^-A (comments updated).
+   CrushHoldRing premises: (a) m_eff = min(2.5, 2.205) = 2.205, so the cap binds and frac = 0.205; m_hi = 3 steps
+   are 2.94 F-samples apart and this is still the worst spacing. (b) mStart = 54.4, mEnd = 2.5 (floor difference 52).
+2. shape_character_metric_helpers.h: amplitude guard in differentialClicks (both overloads; the one-reference form
+   delegates). An unmatched detection counts only if the transition's max |dy| over [i - N, i + N] is greater than
+   1.1x the larger reference max |dy| over the same window. The new ClickCount::guardedOut field counts the
+   detections the guard dropped. guardedOut is printed wherever counted is printed in bass_character_stage_test.cpp
+   and shape_character_chain_test.cpp. Not updated (outside the permitted file list): rectifier_test.cpp,
+   shape_character_metric_helpers_test.cpp, shape_morph_test.cpp.
+3. ShapeCharacter_ParameterStepsClickFree [long]: the Crush cells (every move, both directions, step and 20 ms
+   ramp) are gated by the sample-delta bound. Per channel, every |dy| over [event, event + ramp + 50 ms) must be
+   <= 1.1x the steady max |dy| (from 0.25 s) over a 21-point grid of held settings across the traversed range.
+   The differential count is recorded with WARN (t17CheckCrushDeltaCell). Every other cell keeps the count with
+   the guard.
+4. SC-025(a): sccCheckKeyed reads the keytracked members at each instant's sample from the Drop render (rendered
+   through that sample) and from a steady stage keyed at the feed value for that sample, and checks they agree
+   within 0.1 %. Members compared: ShapeMorph's running regimes only (ROUND cutoff, HOLLOW notch and peak
+   centres, BITE pivot and inverse pole); Character post- and pre-tilt pivots, Crush m_eff and phasor increment,
+   Fracture phasor increment. |H(n)| is gated for SHAPE 0.5 only and recorded (WARN) for every other cell. This
+   applies to the long case and its smoke. New probe accessors: ShapeMorphProbe::keyed (struct Keyed);
+   BassCharacterStageProbe::crushHoldMultiple, crushPhaseIncrement, fracturePhaseIncrement.
+5. SC-030: Fracture at Amount > 0 is described on the f0/2 lattice.
+
+Build: dsp_systems_tests + dsp_processors_tests, 0 warnings, 0 errors (F:/tmp/p5g9c/build.log).
+
+Runs (F:/tmp/p5g9c):
+- BassCharacter_CrushHoldRing: All tests passed (114 assertions in 1 test case).
+- BassCharacter_CrushSmoke: All tests passed (120). A = -134.141 / -117.172 dBFS (Fold-100 growl E2, 44.1 kHz).
+- BassCharacter_AmountAudible: All tests passed (676). Crush saw E1 moved 5.747 dB, dC 0.457 oct; sine E1 moved
+  51.62 dB, dC 0.286 oct.
+- BassCharacter_DcBound: All tests passed (780).
+- ShapeCharacter_SampleRates: All tests passed (562).
+- ShapeCharacter_DropTracksHarmonicNumbersSmoke: All tests passed (130).
+- Rectifier_BlendStepClickFree (processors): All tests passed (242).
+- ShapeCharacterMetrics* (processors): All tests passed (115 assertions in 6 test cases).
+- ShapeCharacter_ParameterStepsClickFree [long]: All tests passed (11332), wall 25 s. Crush sample-delta worst
+  ratio 0.999997 (bar 1.1). Positive controls: 18 flagged, 6 recorded unflagged, 11 detections guarded out.
+- BassCharacter_OnsetInvariance: RED. Assertions 7049 | 7043 passed | 6 failed; no silent cells.
+  E1 growl Crush A0.5: C 0.0130 oct > 0.005 (L 0.073, E_low 0.029, E_high 0.023 dB).
+  C2 growl Crush A0.5: C 0.0116 oct > 0.005.
+  C2 growl Crush A1: C 1.516 oct, L 2.07, E_low 4.96, E_high 4.61 dB (unsynced C 1.76 oct, L 20.5 dB).
+  All Fracture cells on the f0/2 lattice pass (worst synced C 4.4e-6 oct, E_low 9.5e-5 dB). All saw cells pass
+  (worst C 2.3e-3 oct). E1 growl Crush A1 passes (C 1.2e-8 oct). The control flags in every cell.
+- ShapeCharacter_DropTracksHarmonicNumbers [long]: RED. Assertions 12085 | 12020 passed | 65 failed; wall 17 s.
+  (a) passes everywhere: keytracked members' worst relative difference 0, HOLLOW |H(n)| worst 0.0958 dB (saw, block
+  64, d <= 24 st, h3). Recorded nonlinear |H(n)| worst 38.6 dB (growl, block 64, Crush A1 T0, d <= 24 st, h1).
+  Failures:
+    (c) Crush I during the Drop > steady + 3 dB: 56 cells, saw and growl, Tone 0 / 0.5 / 1, blocks 64 / 512
+        (e.g. saw T0.5: -34.5 .. -38.4 dB against steady -60 dB floored).
+    (d) Crush counted through the Drop: saw T0.5 and T1 counted 4 (guarded out 0); growl T1 counted 2 (guarded
+        out 1); blocks 64 and 512.
+    (d) controls: Character Amount step flagged 0 (counted 0, guarded out 0 in every cell); ShapeMorph hard regime
+        flagged 0 (saw: counted 0, guarded out 2 per block, so the guard removed its only detections); ShapeMorph
+        SHAPE step flagged 0 (counted 0, guarded out 0).
+STOPPED: nothing adjusted after these reds.
+
+
+EPOCH 4 (round 4)
+=================
+Rulings: spec FR-051 amended; Clarifications "Group 9 rulings, round 4". Round-3 changes are carried in this build:
+- SC-025(c) Crush probe feed gate.
+- SC-025(d) Crush sample-delta gate.
+- Chain-test control siting.
+- guardedOut prints in rectifier_test.cpp, shape_character_metric_helpers_test.cpp and shape_morph_test.cpp.
+
+Changes this round:
+1. bass_character_stage.h, Crush hysteresis redefined. Each slot stores the held input v_ref it last quantised
+   (slotInput, new) and the level q_ref (slotLevel). A slot re-quantises (q_ref = quantise(v), v_ref = v) only when
+   it is invalid or |v - v_ref| > 0.25*step; otherwise it outputs q_ref. Invalidation rules unchanged.
+   stateFinite() covers slotInput.
+2. shape_morph_test.cpp, ShapeMorph_ClickCountPositiveControl siting (chooseControlEvent):
+   - Candidates every 8 samples over [kClickEvent, kClickEvent + period + 64).
+   - Each candidate's switch samples (event + offsets) must be at least 2N from every reference detection.
+   - Score: the largest, over the offsets, of the forced step's proxy divided by the larger reference's
+     max |dy| within +-N.
+   - The hard regime switch uses offsets d1 (ROUND -> HOLLOW, 27 samples) and d2 (HOLLOW -> BITE), measured
+     in the pre-pass.
+   - Both controls render in 8-sample host blocks so every candidate is a block start. Bars unchanged; the guard
+     is active.
+3. shape_character_chain_test.cpp: the SC-025(d) Crush WARN also records the five largest |dy| in the Drop window,
+   with offsets from the fall start and from the end of the 60 ms fall.
+
+Build: dsp_systems_tests + dsp_processors_tests, 0 warnings, 0 errors (F:/tmp/p5g9e/build.log).
+
+Runs (F:/tmp/p5g9e):
+- BassCharacter_CrushHoldRing: All tests passed (114).
+- BassCharacter_CrushSmoke: All tests passed (120). A = -134.141 / -117.172 dBFS.
+- BassCharacter_DcBound: All tests passed (780).
+- ShapeCharacter_SampleRates: All tests passed (562).
+- BassCharacter_AmountAudible: All tests passed (676). Crush saw E1 5.747 dB / 0.457 oct; sine E1 51.62 dB /
+  0.286 oct.
+- ShapeMorph_ClickCountPositiveControl: All tests passed (88). Each line gives the step/local ratio and the count.
+    E2 saw:   (i) 17.5, counted 1; (ii) 16.1, counted 1.
+    E2 growl: (i) 1.57, counted 0; (ii) 1.36, counted 0.
+    E0 saw:   (i) 263, counted 1;  (ii) 283, counted 2.
+    E0 growl: (i) 5.50, counted 0; (ii) 5.07, counted 0 (guarded out 1).
+  Every note is flagged by at least one fixture.
+- ShapeCharacter_DropTracksHarmonicNumbersSmoke: All tests passed (130).
+- ShapeCharacter_ParameterStepsClickFree [long]: All tests passed (11332), wall 23 s. Crush worst ratio 0.999997.
+- BassCharacter_OnsetInvariance: RED. Assertions 7049 | 7047 passed | 2 failed.
+  C2 growl Crush A1 now passes (C 2.0e-8 oct, L 0.0068 dB; it was 1.52 oct / 2.07 dB).
+  Still failing: E1 growl Crush A0.5, C 0.0130 oct (L 0.073 dB); C2 growl Crush A0.5, C 0.0116 oct (L 0.030 dB).
+  Bound 0.005 oct. All other cells pass.
+- ShapeCharacter_DropTracksHarmonicNumbers [long]: RED. Assertions 13053 | 13049 passed | 4 failed; wall 17 s.
+  Crush sample-delta ratios (blocks 64 and 512 identical):
+    saw:   T0 0.995, T0.5 0.953, T1 1.083.
+    growl: T0 0.999, T0.5 1.551 (fails), T1 1.978 (fails).
+  Largest |dy| for growl T0.5 (offsets from the fall start; the 60 ms fall ends at +2880):
+    0.1925 @ +4625 (end+1745), 0.1920 @ +1721 (end-1159), 0.1919 @ +3460 (end+580),
+    0.1697 @ +1171 (end-1709), 0.1691 @ +2878 (end-2).
+  Largest |dy| for growl T1:
+    0.2629 @ +4625 (end+1745), 0.2623 @ +3460 (end+580), 0.2616 @ +1721 (end-1159),
+    0.2304 @ +2296 (end-584), 0.2294 @ +1171 (end-1709).
+  The offending steps lie in the fall and after it, not within one period of a pitch jump. In this fixture the
+  pre-roll holds E2+48 st from note-on at sample 0, so no jump falls inside the window. Window unchanged; returned
+  to the main loop.
+STOPPED: nothing adjusted after these reds.
+
+
+EPOCH 5 (rounds 5-6)
+====================
+Round 5 (main-loop harness ruling 2026-10-16):
+- SC-030: the Crush C bound is 0.02 oct (Fracture keeps 0.005 oct; L, E_low and E_high 0.1 dB, I 0.5 dB). Each
+  Crush cell records how many hold slots differ in level across the 8 synced onsets, and by how many steps.
+  New probe accessor: BassCharacterStageProbe::crushSlots.
+  Only E1 and C2 growl at A0.5 differ: engine 1 (m 13) has 1 slot differing by 1 step. Every other Crush cell: 0.
+- SC-025(d) diagnosis (temporary instrumentation, removed; files byte-identical after restore):
+  - Aligned by core phase (steady sample = drop sample + 24099, residual 0.035 samples).
+  - After the fall the core input differs from a fresh E2 note by up to 1.75, so the Crush output differs too
+    (0.284 at T0.5, 0.515 at T1).
+  - Stage state matches: m_eff 2.5, theta 0.5762, 4 bits, pivot 164.8 Hz. Only the slot contents differ
+    (engine 1: -0.158 / -0.263 / +0.395 against 0.053 / 0 / 0).
+  - The grid max comes from its top point: 1318.5 Hz reads 0.124 at T0.5 and 0.133 at T1.
+Round 6 (Clarifications "Group 9 rulings, round 6"): the SC-025(d) Crush bound is 1.1x the largest of three
+references: the held-f0 grid; the Drop render's pre-fall segment [0.25 s, fall start); and its post-fall segment
+[fall end + 0.25 s, end). The window stays the fall + 50 ms. All three maxima and the one setting the bound are
+printed. The smoke has no Crush delta gate, so it is unchanged.
+
+Build: dsp_systems_tests, 0 warnings, 0 errors (F:/tmp/p5g9g/build.log).
+
+SC-025(d) Crush ratios (blocks 64 and 512):
+  saw   T0   0.9955 (grid 0.1312, pre 0.1312, post 0.0253; set by the grid)
+  saw   T0.5 0.9531 (grid 0.1929, pre 0.1929, post 0.1848; grid)
+  saw   T1   0.9926 (grid 0.2315, pre 0.1699, post 0.2525; post-fall)
+  growl T0   0.9991 (grid 0.0835, pre 0.0835, post 0.0264; grid)
+  growl T0.5 0.9997 (grid 0.1241, pre 0.1241, post 0.1926; post-fall)
+  growl T1   1.0000 (0.99999; grid 0.1329, pre 0.1329, post 0.2629; post-fall)
+
+Runs (F:/tmp/p5g9g), all green:
+  ShapeCharacter_DropTracksHarmonicNumbers [long]  All tests passed (13149), wall 17 s
+  ShapeCharacter_DropTracksHarmonicNumbersSmoke    All tests passed (130)
+  ShapeCharacter_ParameterStepsClickFree [long]    All tests passed (11332), wall 24 s
+  BassCharacter_OnsetInvariance                    All tests passed (7049)
+  BassCharacter_CrushHoldRing                      All tests passed (114)
+  BassCharacter_CrushSmoke                         All tests passed (120)
+  BassCharacter_DcBound                            All tests passed (780)
+  BassCharacter_AmountAudible                      All tests passed (676)
+  BassCharacter_SwitchClickFreeSmoke               All tests passed (93)
+  BassCharacter_MonoSum                            All tests passed (2218)
+  BassCharacter_ToneStructure                      All tests passed (2504)
+  BassCharacter_DryShareNoComb                     All tests passed (29980)
+  ShapeMorph_ClickCountPositiveControl             All tests passed (88)
+  BassCharacter_ClickCountPositiveControl          All tests passed (108)
+  ShapeCharacter_NonFiniteSetters                  All tests passed (144)
+  ShapeCharacter_SampleRates                       All tests passed (562)

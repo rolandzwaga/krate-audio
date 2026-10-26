@@ -1,0 +1,21 @@
+Filters: "ProfundumCore_EdgeDrivesExcitationRendered"
+Randomness seeded to: 4116944088
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_EdgeDrivesExcitationRendered
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(540)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_excitation_spectral_test.cpp(317): warning:
+  SC-002(b): smallest G(edge 1) - G(edge 0) 20.6774 dB (bar 6; plan 20.7)
+
+77.418 s: ProfundumCore_EdgeDrivesExcitationRendered
+===============================================================================
+All tests passed (3762 assertions in 1 test case)
+
+exit: 0 wall: 78 s

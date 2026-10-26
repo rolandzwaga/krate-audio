@@ -1,0 +1,31 @@
+Filters: "MassDynamics_NonFinite"
+Randomness seeded to: 2260321660
+MassDynamics_NonFinite [BassCompressor]: non-finite outputs 0, sanitised input samples 144, of which non-zero at the output 0
+MassDynamics_NonFinite [BassCompressor]: burst 0 NaN L pre -25.763945 dB post(100 ms) -25.764413 dB delta -0.000468 dB (at 100 ms -0.000468 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 1 +Inf L pre -25.763946 dB post(100 ms) -25.764413 dB delta -0.000468 dB (at 100 ms -0.000468 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 2 -Inf L pre -25.763945 dB post(100 ms) -25.764413 dB delta -0.000468 dB (at 100 ms -0.000468 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 3 NaN L+R pre -25.763945 dB post(100 ms) -25.764218 dB delta -0.000273 dB (at 100 ms -0.000273 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 4 +Inf L+R pre -25.763750 dB post(100 ms) -25.764251 dB delta -0.000502 dB (at 100 ms -0.000502 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor]: burst 5 -Inf L+R pre -25.763783 dB post(100 ms) -25.764158 dB delta -0.000376 dB (at 100 ms -0.000376 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: non-finite outputs 0, sanitised input samples 144, of which non-zero at the output 0
+MassDynamics_NonFinite [MassDynamics]: burst 0 NaN L pre -27.744259 dB post(600 ms) -27.745102 dB delta -0.000842 dB (at 100 ms -0.415845 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 1 +Inf L pre -27.744311 dB post(600 ms) -27.745080 dB delta -0.000769 dB (at 100 ms -0.413450 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 2 -Inf L pre -27.744326 dB post(600 ms) -27.745104 dB delta -0.000778 dB (at 100 ms -0.411960 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 3 NaN L+R pre -27.744318 dB post(600 ms) -27.745077 dB delta -0.000759 dB (at 100 ms -0.409541 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 4 +Inf L+R pre -27.744223 dB post(600 ms) -27.745060 dB delta -0.000836 dB (at 100 ms -0.409341 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [MassDynamics]: burst 5 -Inf L+R pre -27.744255 dB post(600 ms) -27.745052 dB delta -0.000797 dB (at 100 ms -0.406574 dB, recorded) stateFinite 1
+MassDynamics_NonFinite [BassCompressor setters] before prepare NaN: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] before prepare +Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] before prepare -Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] after prepare NaN: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] after prepare +Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [BassCompressor setters] after prepare -Inf: amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] before prepare NaN: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] before prepare +Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] before prepare -Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] after prepare NaN: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] after prepare +Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+MassDynamics_NonFinite [MassDynamics setters] after prepare -Inf: duration 100.000000 ms attack 12.000000 dB sustain -6.000000 dB amount 0.500000 corner 79.999992 Hz
+===============================================================================
+All tests passed (1050 assertions in 1 test case)
+

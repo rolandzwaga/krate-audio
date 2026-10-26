@@ -1,0 +1,19 @@
+Filters: "MassDynamics_OversamplingAliasAttribution"
+Randomness seeded to: 1650900284
+# P3ATTR steady estimator (worst channel) on Phase 6's Fold-100 E2 saw; variants x opt-in
+P3ATTR fs=44100 input=-106.475
+P3ATTR fs=44100 full(+12,comp1) off=-45.8329 on=-69.5456
+P3ATTR fs=44100 shaper-neutral(0,comp1) off=-45.8329 on=-69.5594
+P3ATTR fs=44100 comp-off(+12,comp0) off=-106.475 on=-106.474
+P3ATTR fs=44100 both-neutral(0,comp0) off=-106.475 on=-106.473
+P3ATTR fs=44100 sustain-12(comp1) off=-41.8735 on=-65.7098
+P3ATTR fs=48000 input=-106.277
+P3ATTR fs=48000 full(+12,comp1) off=-55.0302 on=-72.9661
+P3ATTR fs=48000 shaper-neutral(0,comp1) off=-55.0323 on=-72.9607
+P3ATTR fs=48000 comp-off(+12,comp0) off=-106.277 on=-106.277
+P3ATTR fs=48000 both-neutral(0,comp0) off=-106.277 on=-106.278
+P3ATTR fs=48000 sustain-12(comp1) off=-51.0712 on=-68.943
+===============================================================================
+All tests passed (301 assertions in 1 test case)
+
+p3attr exit=0

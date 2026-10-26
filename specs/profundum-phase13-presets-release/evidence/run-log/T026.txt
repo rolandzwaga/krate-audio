@@ -1,0 +1,88 @@
+T026 -- Generate the factory tree (FR-002, FR-024, FR-025) -- main loop
+=======================================================================
+
+1. Script: specs/profundum-phase13-presets-release/evidence/gen-tree.sh
+   Builds generate_profundum_presets (-- /nr:false; must be 0 warnings), which builds
+   profundum_preset_generator and writes plugins/profundum/resources/presets; then
+   `find plugins/profundum/resources/presets -type f | sort` must list exactly 53 *.vstpreset and no
+   other file. Last line "TREE GREEN n=53" or "TREE RED <reason>".
+
+2. State when the script was written (executor, 2026-10-24): the tree holds 3 files
+   (Sub/Bedrock Sine, Sub/Locked Floor, Sub/Mono Bedrock -- the pilot rows 51-53); the generator has
+   not been run against rows 1-50 yet. Not run by the executor (main-loop task).
+
+3. Status: BLOCKED (main loop)
+   Main loop: run
+     bash specs/profundum-phase13-presets-release/evidence/gen-tree.sh
+   quote its output below; unblock T026 on TREE GREEN (the G22 gate then runs the T024 cases).
+   A T024 red at the gate is an authoring defect of T025's rows: re-author (never a check).
+
+## Main loop, 2026-10-24 21:25: bash specs/profundum-phase13-presets-release/evidence/gen-tree.sh
+[tree] building generate_profundum_presets
+[tree] build exit=0 warnings=0 wall=11.1s
+[tree]     profundum_preset_generator.cpp
+[tree]        Creating library F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_preset_generator.lib and object F:/projects/iterum/build/windows-x64-release/lib/Release/profundum_preset_generator.exp
+[tree]     profundum_preset_generator.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\profundum_preset_generator.exe
+[tree]     Generating Profundum factory presets (53 presets across 6 categories)
+[tree]     wrote 53 presets
+[tree] files=53 vstpreset=53
+[tree]   Animated: 8
+[tree]   Driven: 11
+[tree]   Harmonic: 8
+[tree]   Plucked: 7
+[tree]   Resonant: 7
+[tree]   Sub: 12
+[tree]   plugins/profundum/resources/presets/Animated/Body Wave.vstpreset
+[tree]   plugins/profundum/resources/presets/Animated/Breathing Depth.vstpreset
+[tree]   plugins/profundum/resources/presets/Animated/Drifting Weight.vstpreset
+[tree]   plugins/profundum/resources/presets/Animated/Edge Cycle.vstpreset
+[tree]   plugins/profundum/resources/presets/Animated/Envelope Mass.vstpreset
+[tree]   plugins/profundum/resources/presets/Animated/Mass Tide.vstpreset
+[tree]   plugins/profundum/resources/presets/Animated/Orbiting Field.vstpreset
+[tree]   plugins/profundum/resources/presets/Animated/Shifting Spectrum.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Bite Down.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Clean To Violent.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Crushed Basalt.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Fault Line.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Fed Fold.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Folded Mass.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Folding Wire.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Rectified Floor.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Rectified Follow.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Valve Pressure.vstpreset
+[tree]   plugins/profundum/resources/presets/Driven/Wide Rectifier.vstpreset
+[tree]   plugins/profundum/resources/presets/Harmonic/Biting Reed.vstpreset
+[tree]   plugins/profundum/resources/presets/Harmonic/Dark To Bright.vstpreset
+[tree]   plugins/profundum/resources/presets/Harmonic/Edge Ignition.vstpreset
+[tree]   plugins/profundum/resources/presets/Harmonic/Envelope Restart.vstpreset
+[tree]   plugins/profundum/resources/presets/Harmonic/Morph Span.vstpreset
+[tree]   plugins/profundum/resources/presets/Harmonic/Pressure Front.vstpreset
+[tree]   plugins/profundum/resources/presets/Harmonic/Spread Choir.vstpreset
+[tree]   plugins/profundum/resources/presets/Harmonic/Wide Harmonics.vstpreset
+[tree]   plugins/profundum/resources/presets/Plucked/Curved Drop.vstpreset
+[tree]   plugins/profundum/resources/presets/Plucked/Dropping Stone.vstpreset
+[tree]   plugins/profundum/resources/presets/Plucked/Ghost Kick.vstpreset
+[tree]   plugins/profundum/resources/presets/Plucked/Hard Attack.vstpreset
+[tree]   plugins/profundum/resources/presets/Plucked/Punch Anchor.vstpreset
+[tree]   plugins/profundum/resources/presets/Plucked/Rebound.vstpreset
+[tree]   plugins/profundum/resources/presets/Plucked/Slow Fall.vstpreset
+[tree]   plugins/profundum/resources/presets/Resonant/Glide Path.vstpreset
+[tree]   plugins/profundum/resources/presets/Resonant/Gravity Well.vstpreset
+[tree]   plugins/profundum/resources/presets/Resonant/Halfway Morph.vstpreset
+[tree]   plugins/profundum/resources/presets/Resonant/Legato Line.vstpreset
+[tree]   plugins/profundum/resources/presets/Resonant/Loose Ends.vstpreset
+[tree]   plugins/profundum/resources/presets/Resonant/Restrike.vstpreset
+[tree]   plugins/profundum/resources/presets/Resonant/Slow Swell.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Bedrock Sine.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Bedrock.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Continuous Phase.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Heavy Mass.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Locked Floor.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Long Tail.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Lopsided Sub.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Mono Bedrock.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Rounded Weight.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Triangle Floor.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Under Octave.vstpreset
+[tree]   plugins/profundum/resources/presets/Sub/Weight Lever.vstpreset
+TREE GREEN n=53

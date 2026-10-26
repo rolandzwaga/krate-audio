@@ -106,7 +106,7 @@ if(MSVC)
     target_compile_options(membrum_float_guard PRIVATE /fp:precise)
 else()
     target_compile_options(membrum_float_guard PRIVATE
-        -fno-fast-math -fno-finite-math-only)
+        -fno-fast-math -fno-finite-math-only -ffp-contract=off)
 endif()
 
 # Match the universal-binary arches of the plugin bundle on macOS (arm64+x86_64).

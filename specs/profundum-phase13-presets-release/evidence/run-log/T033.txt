@@ -1,0 +1,90 @@
+T033 — Portability and Apple-globals lint (FR-056; SC-026)
+Script: specs/profundum-phase13-presets-release/evidence/close/portability.sh (bash -n OK; run once, 2026-10-25, total wall 67 s)
+Full log: specs/profundum-phase13-presets-release/evidence/run-log/close/portability.log
+
+VERDICT: PORTABILITY RED (check-portability exit 1, 8 FAILED + 1 skip of 19 TUs). lint-apple-globals: OK (31 files). wsl --shutdown done.
+
+Computed .cpp list = 19 (git diff --name-only e6095b24 U untracked). All 15 task-named files present; 4 extra
+(editor_lifecycle_test.cpp, shared preset_manager.cpp, preset_browser_view.cpp, test_preset_description.cpp; FR-065 ruling).
+
+Root cause: every failure is a CMake-provided macro / include path that tools/check-portability.js does not mirror for
+Profundum, not a g++ portability defect in the source:
+  - KRATE_DSP_TESTS_DIR: set target-wide by plugins/profundum/tests/CMakeLists.txt:114; the script only adds it for
+    dsp/tests/ files (check-portability.js:86-87). Hits profundum_audibility_readers.h:181 (preset_probe/rt/showcase/sweep)
+    and processor_cpu_test.cpp:845.
+  - PROFUNDUM_PRESETS_DIR: set by plugins/profundum/tests/CMakeLists.txt:115; not in the script. Hits the #error guards in
+    preset_browser_test.cpp:580, preset_description_test.cpp:19, preset_library_test.cpp:828.
+  - tools/profundum_preset_generator.cpp skipped (profundum_preset_host.h not found): the generator target
+    (CMakeLists.txt:753-765) includes plugins/profundum/tests; pluginFlagsFor() returns [] for tools/ files
+    (check-portability.js:107-108).
+Fix needed (outside T033's file list): in tools/check-portability.js pluginFlagsFor(), in the `plugin === 'profundum'`
+block (:133-135) push -DKRATE_DSP_TESTS_DIR=\"/tmp\" and -DPROFUNDUM_PRESETS_DIR=\"/tmp\"; and for
+tools/profundum_preset_generator.cpp return the profundum flags (-I plugins/profundum/src -I plugins/profundum/tests
+-I dsp/tests/unit/systems + the same defines). Then re-run portability.sh once; required line
+"check-portability: all clear -- 19 compiled."
+
+--- portability.log (tail) ---
+== check-portability ==
+check-portability: 19 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+  OK      plugins/profundum/src/controller/controller.cpp
+  OK      plugins/profundum/src/processor/processor.cpp
+  OK      plugins/profundum/src/ui/panel_sub_controller.cpp
+  FAILED  plugins/profundum/tests/integration/preset_browser_test.cpp
+          plugins/profundum/tests/integration/preset_browser_test.cpp:580:2: error: #error "PROFUNDUM_PRESETS_DIR must be defined (plugins/profundum/tests/CMakeLists.txt)"
+  FAILED  plugins/profundum/tests/integration/preset_probe_test.cpp
+          dsp/tests/unit/systems/profundum_audibility_readers.h:181:24: error: ‘KRATE_DSP_TESTS_DIR’ was not declared in this scope; did you mean ‘KRATE_DSP_INCLUDE_DIR’?
+  FAILED  plugins/profundum/tests/integration/preset_rt_test.cpp
+          dsp/tests/unit/systems/profundum_audibility_readers.h:181:24: error: ‘KRATE_DSP_TESTS_DIR’ was not declared in this scope; did you mean ‘KRATE_DSP_INCLUDE_DIR’?
+  FAILED  plugins/profundum/tests/integration/preset_showcase_test.cpp
+          dsp/tests/unit/systems/profundum_audibility_readers.h:181:24: error: ‘KRATE_DSP_TESTS_DIR’ was not declared in this scope; did you mean ‘KRATE_DSP_INCLUDE_DIR’?
+  FAILED  plugins/profundum/tests/integration/preset_sweep_test.cpp
+          dsp/tests/unit/systems/profundum_audibility_readers.h:181:24: error: ‘KRATE_DSP_TESTS_DIR’ was not declared in this scope; did you mean ‘KRATE_DSP_INCLUDE_DIR’?
+  FAILED  plugins/profundum/tests/integration/processor_cpu_test.cpp
+          plugins/profundum/tests/integration/processor_cpu_test.cpp:845:46: error: ‘KRATE_DSP_TESTS_DIR’ was not declared in this scope; did you mean ‘KRATE_DSP_INCLUDE_DIR’?
+  OK      plugins/profundum/tests/unit/controller/editor_layout_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/manual_coverage_test.cpp
+  FAILED  plugins/profundum/tests/unit/preset/preset_description_test.cpp
+          plugins/profundum/tests/unit/preset/preset_description_test.cpp:19:2: error: #error "PROFUNDUM_PRESETS_DIR must be defined (plugins/profundum/tests/CMakeLists.txt)"
+  FAILED  plugins/profundum/tests/unit/preset/preset_library_test.cpp
+          plugins/profundum/tests/unit/preset/preset_library_test.cpp:828:2: error: #error "PROFUNDUM_PRESETS_DIR must be defined (plugins/profundum/tests/CMakeLists.txt)"
+  OK      plugins/shared/src/preset/preset_manager.cpp
+  OK      plugins/shared/src/ui/preset_browser_view.cpp
+  OK      plugins/shared/tests/test_preset_description.cpp
+  skip    tools/profundum_preset_generator.cpp  (profundum_preset_host.h: No such file or directory)
+
+check-portability: 8 file(s) fail under g++ but may well build under MSVC.
+Fix before pushing -- the Linux and macOS CI legs will fail on these.
+check-portability exit=1 wall=63s
+
+== lint-apple-globals ==
+lint-apple-globals: OK — 31 files, no macOS-only name collisions
+lint-apple-globals exit=0 wall=1s
+
+== list cross-check (tasks.md T033 step 1 vs computed) ==
+every task-named file present (15)
+also changed (compiled, informational):
+  plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  plugins/shared/src/preset/preset_manager.cpp
+  plugins/shared/src/ui/preset_browser_view.cpp
+  plugins/shared/tests/test_preset_description.cpp
+
+wsl --shutdown done; total wall 67s
+PORTABILITY RED ( check-portability=1 check-portability=not-all-clear-19 ; 124 = 300 s ceiling hit)
+
+
+Main loop (2026-10-25): tools/check-portability.js fixed as the DECISION NEEDED above proposes (profundum block: -I tools,
+-I tests/test_helpers, -DKRATE_DSP_TESTS_DIR, -DPROFUNDUM_PRESETS_DIR; tools/profundum_preset_generator.cpp: the four include roots
+of its CMake target). Re-run of portability.sh:
+  == check-portability ==
+  check-portability: 19 translation unit(s) with g++
+  check-portability: all clear -- 19 compiled.
+  check-portability exit=0 wall=67s
+  == lint-apple-globals ==
+  lint-apple-globals: OK — 31 files, no macOS-only name collisions
+  lint-apple-globals exit=0 wall=0s
+  every task-named file present (15)
+  wsl --shutdown done; total wall 72s
+  PORTABILITY GREEN

@@ -1,0 +1,111 @@
+Filters: "AnchorOscillator_PhaseLockTrajectory"
+Randomness seeded to: 4111521298
+SC-003(b) trajectory midi 16 fs 48000 block 37: dTheta(1 s) +0.012907 deg (11 bends)
+  after bend at 5 s: dTheta +0.010203 deg, drift -0.002704 deg
+  after bend at 10 s: dTheta +0.008923 deg, drift -0.003984 deg
+  after bend at 15 s: dTheta +0.006893 deg, drift -0.006014 deg
+  after bend at 20 s: dTheta +0.005532 deg, drift -0.007374 deg
+  after bend at 25 s: dTheta +0.003686 deg, drift -0.009221 deg
+  after bend at 30 s: dTheta +0.002064 deg, drift -0.010843 deg
+  after bend at 35 s: dTheta +0.000372 deg, drift -0.012535 deg
+  after bend at 40 s: dTheta -0.002112 deg, drift -0.015019 deg
+  after bend at 45 s: dTheta -0.003734 deg, drift -0.016640 deg
+  after bend at 50 s: dTheta -0.005752 deg, drift -0.018659 deg
+  after bend at 55 s: dTheta -0.007247 deg, drift -0.020154 deg
+  dTheta(60 s) -0.006592 deg, drift -0.019499 deg; worst drift 0.020154 deg (bar 0.5)
+SC-003(b) trajectory midi 16 fs 48000 block 512: dTheta(1 s) +0.012907 deg (11 bends)
+  after bend at 5 s: dTheta +0.010203 deg, drift -0.002704 deg
+  after bend at 10 s: dTheta +0.008923 deg, drift -0.003984 deg
+  after bend at 15 s: dTheta +0.006893 deg, drift -0.006014 deg
+  after bend at 20 s: dTheta +0.005532 deg, drift -0.007374 deg
+  after bend at 25 s: dTheta +0.003686 deg, drift -0.009221 deg
+  after bend at 30 s: dTheta +0.002064 deg, drift -0.010843 deg
+  after bend at 35 s: dTheta +0.000372 deg, drift -0.012535 deg
+  after bend at 40 s: dTheta -0.002112 deg, drift -0.015019 deg
+  after bend at 45 s: dTheta -0.003734 deg, drift -0.016640 deg
+  after bend at 50 s: dTheta -0.005752 deg, drift -0.018659 deg
+  after bend at 55 s: dTheta -0.007247 deg, drift -0.020154 deg
+  dTheta(60 s) -0.006592 deg, drift -0.019499 deg; worst drift 0.020154 deg (bar 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 37: dTheta(1 s) -0.000605 deg (11 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  after bend at 10 s: dTheta -0.007091 deg, drift -0.006486 deg
+  after bend at 15 s: dTheta -0.010852 deg, drift -0.010248 deg
+  after bend at 20 s: dTheta -0.013216 deg, drift -0.012611 deg
+  after bend at 25 s: dTheta -0.015931 deg, drift -0.015326 deg
+  after bend at 30 s: dTheta -0.019091 deg, drift -0.018486 deg
+  after bend at 35 s: dTheta -0.021996 deg, drift -0.021391 deg
+  after bend at 40 s: dTheta -0.025012 deg, drift -0.024407 deg
+  after bend at 45 s: dTheta -0.028279 deg, drift -0.027674 deg
+  after bend at 50 s: dTheta -0.030878 deg, drift -0.030273 deg
+  after bend at 55 s: dTheta -0.033675 deg, drift -0.033070 deg
+  dTheta(60 s) -0.036056 deg, drift -0.035451 deg; worst drift 0.035451 deg (bar 0.5)
+SC-003(b) trajectory midi 28 fs 48000 block 512: dTheta(1 s) -0.000605 deg (11 bends)
+  after bend at 5 s: dTheta -0.003910 deg, drift -0.003305 deg
+  after bend at 10 s: dTheta -0.007091 deg, drift -0.006486 deg
+  after bend at 15 s: dTheta -0.010852 deg, drift -0.010248 deg
+  after bend at 20 s: dTheta -0.013216 deg, drift -0.012611 deg
+  after bend at 25 s: dTheta -0.015931 deg, drift -0.015326 deg
+  after bend at 30 s: dTheta -0.019091 deg, drift -0.018486 deg
+  after bend at 35 s: dTheta -0.021996 deg, drift -0.021391 deg
+  after bend at 40 s: dTheta -0.025012 deg, drift -0.024407 deg
+  after bend at 45 s: dTheta -0.028279 deg, drift -0.027674 deg
+  after bend at 50 s: dTheta -0.030878 deg, drift -0.030273 deg
+  after bend at 55 s: dTheta -0.033675 deg, drift -0.033070 deg
+  dTheta(60 s) -0.036056 deg, drift -0.035451 deg; worst drift 0.035451 deg (bar 0.5)
+SC-003(b) trajectory midi 40 fs 48000 block 37: dTheta(1 s) -0.001517 deg (11 bends)
+  after bend at 5 s: dTheta -0.007675 deg, drift -0.006159 deg
+  after bend at 10 s: dTheta -0.013729 deg, drift -0.012212 deg
+  after bend at 15 s: dTheta -0.020593 deg, drift -0.019076 deg
+  after bend at 20 s: dTheta -0.026236 deg, drift -0.024719 deg
+  after bend at 25 s: dTheta -0.032494 deg, drift -0.030977 deg
+  after bend at 30 s: dTheta -0.038439 deg, drift -0.036923 deg
+  after bend at 35 s: dTheta -0.044772 deg, drift -0.043255 deg
+  after bend at 40 s: dTheta -0.050778 deg, drift -0.049262 deg
+  after bend at 45 s: dTheta -0.057083 deg, drift -0.055566 deg
+  after bend at 50 s: dTheta -0.062746 deg, drift -0.061229 deg
+  after bend at 55 s: dTheta -0.069342 deg, drift -0.067825 deg
+  dTheta(60 s) -0.074130 deg, drift -0.072614 deg; worst drift 0.072614 deg (bar 0.5)
+SC-003(b) trajectory midi 40 fs 48000 block 512: dTheta(1 s) -0.001517 deg (11 bends)
+  after bend at 5 s: dTheta -0.007675 deg, drift -0.006159 deg
+  after bend at 10 s: dTheta -0.013729 deg, drift -0.012212 deg
+  after bend at 15 s: dTheta -0.020593 deg, drift -0.019076 deg
+  after bend at 20 s: dTheta -0.026236 deg, drift -0.024719 deg
+  after bend at 25 s: dTheta -0.032494 deg, drift -0.030977 deg
+  after bend at 30 s: dTheta -0.038439 deg, drift -0.036923 deg
+  after bend at 35 s: dTheta -0.044772 deg, drift -0.043255 deg
+  after bend at 40 s: dTheta -0.050778 deg, drift -0.049262 deg
+  after bend at 45 s: dTheta -0.057083 deg, drift -0.055566 deg
+  after bend at 50 s: dTheta -0.062746 deg, drift -0.061229 deg
+  after bend at 55 s: dTheta -0.069342 deg, drift -0.067825 deg
+  dTheta(60 s) -0.074130 deg, drift -0.072614 deg; worst drift 0.072614 deg (bar 0.5)
+SC-003(b) trajectory midi 48 fs 48000 block 37: dTheta(1 s) -0.002206 deg (11 bends)
+  after bend at 5 s: dTheta -0.011443 deg, drift -0.009236 deg
+  after bend at 10 s: dTheta -0.020702 deg, drift -0.018496 deg
+  after bend at 15 s: dTheta -0.030381 deg, drift -0.028175 deg
+  after bend at 20 s: dTheta -0.039302 deg, drift -0.037096 deg
+  after bend at 25 s: dTheta -0.048730 deg, drift -0.046523 deg
+  after bend at 30 s: dTheta -0.058025 deg, drift -0.055819 deg
+  after bend at 35 s: dTheta -0.067959 deg, drift -0.065752 deg
+  after bend at 40 s: dTheta -0.077589 deg, drift -0.075382 deg
+  after bend at 45 s: dTheta -0.086560 deg, drift -0.084354 deg
+  after bend at 50 s: dTheta -0.096400 deg, drift -0.094193 deg
+  after bend at 55 s: dTheta -0.106685 deg, drift -0.104479 deg
+  dTheta(60 s) -0.114437 deg, drift -0.112231 deg; worst drift 0.112231 deg (bar 0.5)
+SC-003(b) trajectory midi 48 fs 48000 block 512: dTheta(1 s) -0.002206 deg (11 bends)
+  after bend at 5 s: dTheta -0.011443 deg, drift -0.009236 deg
+  after bend at 10 s: dTheta -0.020702 deg, drift -0.018496 deg
+  after bend at 15 s: dTheta -0.030381 deg, drift -0.028175 deg
+  after bend at 20 s: dTheta -0.039302 deg, drift -0.037096 deg
+  after bend at 25 s: dTheta -0.048730 deg, drift -0.046523 deg
+  after bend at 30 s: dTheta -0.058025 deg, drift -0.055819 deg
+  after bend at 35 s: dTheta -0.067959 deg, drift -0.065752 deg
+  after bend at 40 s: dTheta -0.077589 deg, drift -0.075382 deg
+  after bend at 45 s: dTheta -0.086560 deg, drift -0.084354 deg
+  after bend at 50 s: dTheta -0.096400 deg, drift -0.094193 deg
+  after bend at 55 s: dTheta -0.106685 deg, drift -0.104479 deg
+  dTheta(60 s) -0.114437 deg, drift -0.112231 deg; worst drift 0.112231 deg (bar 0.5)
+21.174 s: AnchorOscillator_PhaseLockTrajectory
+===============================================================================
+All tests passed (624 assertions in 1 test case)
+
+exit: 0 wall: 22 s

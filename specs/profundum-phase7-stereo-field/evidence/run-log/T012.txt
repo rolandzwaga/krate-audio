@@ -1,0 +1,109 @@
+T012 run log (2026-10-18) - Chain: SOLID bit-identity, WIDE aliasing, transitions, h1, pan-only rendered
+==========================================================================================
+
+Files written
+- dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp (replaces the T002 stub; target dsp_systems_tests)
+- specs/profundum-phase7-stereo-field/evidence/run-log/T012.txt (this file)
+Not built or run (the Group 7 build/gate agent does that). The TU was re-read for compile errors.
+
+TEST_CASEs (all [systems][profundum][stereo-field] + SC tag)
+- BassStereoField_SolidBitIdentical [sc-004] (per-push, deviation 10)
+  (a1) Anchor arm (kSawAnchor, excitation mix 0.5 / drive 0.5 / asymmetry 0, SHAPE 1, Fold 100, character Amount 1
+       Tone 0.5, Anchor, MassDynamics, stage, DC x2, limiter) from reset in SOLID: Spread {0,.5,1} x Gravity {0,.5,1}
+       x fc {60,120,250} x curve {0,1} x {depth 0, Drift 1, Cycle 1} x 6 algorithms x blocks {1,17,32,512}
+       = 3888 renders of 0.1 s at E1. ProfundumTest::requireLREqual on stageOutL/R and outL/R from sample 0.
+       Non-vacuity: outL peak > 1e-3 per algorithm. Prints SC004_A1,renders,<n>,wall_s,<s> (T016 splits by
+       algorithm into six per-push cases if > 60 s; never [long]).
+  (a2)+(a3) start SPREAD / WIDE, Spread 1, Gravity {0,1}, fc {60,250}, 6 algorithms, blocks {64,512} (96 renders),
+       wideScaleOverride = 1 (offsets at the FR-041 ceilings), perSampleStage = true, switch to SOLID at sample
+       24000 (0.5 s, on the grid). Crossfade end = first sample >= switch with modeFadePerSample == 0.0f.
+       (a2) requireLREqual(stageOut, from fadeEnd + 1); non-vacuity REQUIRE_FALSE L == R at stageOut and at
+       characterL/R before the switch. (a3) max |outL - outR| <= 1e-6 (-120 dBFS) from fadeEnd + 24000 samples;
+       first-below and settled (last above + 1) times printed and written to evidence/sc004-a3-convergence.csv.
+- BassStereoField_WideAliasing [sc-007][long]: WIDE dirty arm (no Anchor), Spread 1, wideScaleOverride = 1, Fold 100,
+  Amount 1, 6 algorithms x {E0,E1,E2} x {44.1, 48, 96 kHz}; StereoFieldTest::wideAliasedDbfs of characterL and
+  characterR <= -80 dBFS; also checks the handed offsets are bit-equal to {+ceiling, -ceiling}. Render length
+  = 1 s settle + aliasFftLength(fs, f) / fs + 0.05 s (f = f0/2 for Fracture, as the helper reads).
+- BassStereoField_WideAliasingSmoke [sc-007]: Rectify and Fracture, E1, 48 kHz (deviation 6).
+- BassStereoField_TransitionsClickFree [sc-009]: Anchor arm (Tube), E0 / E2 / C3, blocks {64,512}, 3 s, steps at
+  1 s and 2 s: SOLID>SPREAD>WIDE, WIDE>SPREAD>SOLID, G0>G1>G0, FC60>FC250>FC60 (Spread 1, others at the Controls
+  defaults: Gravity 0.5, fc 120, curve 0.5, depth 0). differentialClicks(..).counted == 0 on outL and outR.
+  Positive controls per note: (1) pan jump 0 -> alternating +-1 (h1 included) handed to a bare ProfundumCore
+  (kSawAnchor, field bypassed) at the grid point in [0.9 s, 1.1 s) with the largest step, refs = the core held at
+  each vector; (2) hard switch: L/R swapped from one grid point of the held SPREAD chain render (the point in
+  [1 s, 2 s) with the largest |L - R|), refs = unswapped and swapped. Each: counted >= 1 on L and on R (CHECK),
+  printed DETECTED / MISSED.
+- BassStereoField_H1Centred [sc-018]: Anchor arm (Tube), every mode x Spread {0.5,1} x {E0,E1,C2,E2,C3,C4}, 3 s,
+  plus one Spread 0 (SPREAD) reference per note. Window: whole periods of f0 from 1 s. Gates: goertzelComplex h1
+  amplitude on coreL and coreR vs mean(h1DeliveredPerInterval over the window) * SpectralShapeRecipe::kCenterPanGain
+  within 0.01 dB; h1 power in M at the core tap and anchorL mean-square power each within 0.1 dB of the Spread 0
+  render. Recorded: post-character M power in [0, 2 f0) per mode and its delta vs Spread 0.
+- BassStereoField_PanOnlyDirection [sc-019]: clean core (no SHAPE/Fold/character/Anchor, excitation off), SPREAD
+  and WIDE x Spread {0.5,1} x {depth 0, Drift 1, Cycle 1} x {E1, C2}, descriptorSeconds (6.46 s). Per harmonic
+  (renderedHarmonicPowers of coreL, coreR, M over the 2^18 frame from 1 s): "with energy" = stronger channel
+  >= 1e-10 x the strongest harmonic power (-100 dB); harmonic-resolved Q = w_M / ((w_L + w_R)/2) >= -3.11 dB;
+  C-14 skip rule = weaker channel power < 1e-6 x stronger (60 dB), counted and printed; otherwise
+  |wrapPhase(goertzelPhase(L) - goertzelPhase(R))| <= 0.01 rad in two 2^14-sample windows (start and end of the
+  frame). Non-vacuity: >= 1 harmonic with energy and >= 1 phase check per configuration.
+
+Decisions and deviations (surface; do not silently revert)
+1. SC-004 (a2) and (a3) share one 2.5 s render per cell (tasks.md says 1.5 s for (a2) and "the same renders
+   extended to 2.5 s" for (a3)). (a2) is therefore gated over the whole post-crossfade span to 2.5 s, a superset of
+   the 1.5 s render's span (the first 1.5 s of the 2.5 s render are the 1.5 s render sample for sample).
+2. SC-004 (a2)/(a3): Gravity / fc / Spread per the task; curve 0.5 and MOTION depth 0 (Controls defaults); the
+   same excitation as (a1) (mix 0.5 / drive 0.5), since (a2) is "the same grid" on the full-chain fixture.
+3. SC-004 (a1) runs the Anchor arm (the full chain named in the task includes the Anchor).
+4. SC-009(b) references: for each step the references are the renders held at THAT step's start and end setting
+   (G0>G1>G0 has the same start and end setting overall, so the whole-render reading is impossible); each step is
+   read on its half of the render, [0, 1.5 s) and [1.5 s, 3 s), with phase-aligned pointers.
+5. SC-009(b) pan-jump positive control runs on a bare core: the T007 chain helper has no hook that hands an
+   arbitrary vector to the core (perInterval only sees the field; FieldChainConfig.bypassHandsVector hands the
+   law's slewed vector). The helper header is read-only after T007, so the control is rendered by a TU-local
+   bsfCoreRender (prepare, Reset retrigger, setControls(kSawAnchor), noteOn at 0, setPartialPanOffsets at each
+   grid point). Both positive controls place the discontinuity at the grid point where it is largest.
+6. SC-007 forces K_wide = 1 (wideScaleOverride) so the offsets are at the FR-041 ceilings whatever T015 harvests;
+   SC-004 (a2) does the same for its WIDE start.
+7. SC-018 Spread 0 reference = SPREAD at Spread 0 (at Spread 0 every mode hands the zero vector and zero offsets).
+8. SC-019 phase uses ProfundumTest::goertzelPhase on two 2^14 windows (not the whole 2^18 frame) to bound the cost:
+   64 harmonics x 2 channels x 24 renders of a BH7 single-bin DFT; BH7 main lobe +-4 bins = +-11.7 Hz < f0 (41 Hz).
+
+No DEFECT lines (nothing run).
+
+==========================================================================================
+T012 retry (epoch 5, 2026-10-18) - BassStereoField_TransitionsClickFree rewritten to the long-ramp form
+(user ruling G7-1; spec SC-009(b), Clarifications "Session 2026-10-18 (build rulings)"; tasks.md T012)
+==========================================================================================
+Only BassStereoField_TransitionsClickFree changed (plus two TU-local helpers, bsfCountedPositions and
+bsfStepStandsOut, the BsfTransitionTaps struct, #include <optional> and the file-header line). The rest of the
+TU, including the fixed bsfControlGridPoint positive-control placement, is unchanged. Not built or run.
+
+Case layout: Anchor arm (Tube), E0 / E2 / C3, blocks {64, 512}, 3 s, steps at 1 s and 2 s (SOLID>SPREAD>WIDE,
+WIDE>SPREAD>SOLID, G0>G1>G0, FC60>FC250>FC60; Spread 1, Gravity 0.5, fc 120, curve 0.5, depth 0).
+- (i) GATE outL/outR: max |dy| over [step, step + settle + ceil(fs/f0)), settle = max(334 intervals x 32
+  (ceil(1/kMaxPanStepPerInterval), REQUIREd == 334), kCrossoverSmoothMs, kModeCrossfadeMs, kSideGainSmoothMs)
+  <= 1.1 x the per-channel steady max over the traversed path. Paths: SOLID<->SPREAD = SPREAD at Spread i/20;
+  SPREAD<->WIDE = WIDE with wideScaleOverride = kWideOffsetScale x i/20 (probe); Gravity i/20; crossover
+  60 + i/20 x 190 Hz; i = 0..20 (21 settings, endpoints included) PLUS the two held endpoint settings
+  themselves (so SOLID and SPREAD/WIDE at their committed K are in the grid). Steady renders: 2 s from reset(),
+  max |dy| over [1 s, 2 s) (settle Mdt::kSettleSeconds = 1 s >= 0.5 s; window 1 s). Printed per cell:
+  SC009B_DELTA ... ratio, PASS|FAIL; per path: SC009B_PATHMAX (max and where), per grid point SC009B_STEADY.
+- (ii) RECORDED outL/outR: differentialClicks(transition, refStart, refEnd) per step on its half
+  ([0, 1.5 s) / [1.5 s, 3 s)) + counted positions (ms after the step) -> evidence/sc009b-clicks.csv (gated = 0).
+  The positions come from bsfCountedPositions, a mirror of differentialClicks' logic; CHECK(size == counted).
+- (iii) GATE coreL/coreR: the same count == 0 for every step and block size (CSV rows gated = 1).
+- Positive controls (hard switch on the chain output per note x block; pan jump on a bare core per note):
+  counted >= 1 on L and R AND bsfStepStandsOut (max |dy| within +-N of the step > 1.1 x both references').
+
+Deviations (surface):
+11. Steady grid reuse across block sizes: the 21 x 4 steady renders are made at block 64 and reused at block 512
+    ONLY if all 7 held 3 s renders at block 512 are bit-identical to block 64's (SC009B_PATHMAX ... reused,1);
+    otherwise the grid is re-rendered at 512. Halves the case's cost when the chain is block-invariant.
+12. The held endpoint settings are added to each path's grid (21 points + 2), since SOLID is not SPREAD at
+    Spread 0 and WIDE at the committed K_wide is K x t_20 only by construction; this can only raise the bar's
+    denominator to a setting the step actually holds.
+13. Steady window [1 s, 2 s) rather than from 0.5 s (task: settle >= 0.5 s, window >= 1 s): the stricter reading.
+Cost estimate: per note x block 7 x 3 s + 4 x 3 s held/transition + (first block only, or both) 84 x 2 s steady
+= 201 s of chain audio at most; 3 notes -> ~800-1200 s of audio. The case prints wall_s; if it exceeds the
+per-push budget in the gate log, split by note (three per-push TEST_CASEs), never [long].
+
+No DEFECT lines (nothing run).

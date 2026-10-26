@@ -1,0 +1,143 @@
+[1] Scope fence: 427 paths (git diff --name-only e6095b24 U git status --porcelain --untracked-files=all)
+  ok    .claude/skills/release/SKILL.md
+  ok    CMakeLists.txt
+  ok    dsp/tests/unit/systems/profundum_audibility_readers.h
+  ok    dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+  ok    plugins/shared/src/preset/preset_manager.cpp
+  ok    plugins/shared/src/ui/preset_browser_view.cpp
+  ok    plugins/shared/src/ui/preset_browser_view.h
+  ok    plugins/shared/tests/CMakeLists.txt
+  ok    plugins/shared/tests/test_preset_description.cpp
+  ok    tools/check-preset-generator-determinism.js
+  ok    tools/ci-test-shard.js
+  ok    tools/ci-test-times.json
+  ok    tools/profundum_preset_defs.h
+  ok    tools/profundum_preset_generator.cpp
+  ok    plugins/profundum/** : 85 paths
+  ok    specs/profundum-phase13-presets-release/** : 312 paths
+  ok    excluded by name (.serena/project.yml): 1
+  RED   outside the allow-list: specs/profundum-phase5-shape-character/evidence/sc013.csv
+  RED   outside the allow-list: specs/profundum-phase5-shape-character/evidence/sc020-h1-transfer.csv
+  RED   outside the allow-list: specs/profundum-phase6-mass-dynamics/evidence/phase9-handoff.txt
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc001-grid/BassStereoField_MonoSumPerBandSmoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc003-width-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc004-a3-convergence.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc006-attenuation-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc009b-clicks-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc010-levers-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc016-rates-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc020-floor/BassStereoField_GravityFloorSmoke.csv
+  RED   outside the allow-list: specs/profundum-phase8-bass-morph/evidence/sc005-rendered-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase8-bass-morph/evidence/sc015-audibility.csv
+  RED   outside the allow-list: specs/profundum-phase8-bass-morph/evidence/sc016-monosum-E1-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase9-voice-engine/evidence/soak-smoke.txt
+  scope: 15 path(s) outside the allow-list
+
+[2] ODR re-sweep: 51 claimed names, defined exactly once (1988 source files under dsp/ plugins/ tools/ tests/, comments stripped)
+  ok    auCellOnsetESub (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1135
+  ok    auCellAt13 (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1160
+  ok    auCellAt17 (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1190
+  ok    auDropCell (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1321
+  ok    auCellAt23 (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1346
+  ok    auCellAt24 (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1456
+  ok    auCellAt25 (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1483
+  ok    auDlk (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1538
+  ok    auCellAt27 (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1545
+  ok    auOnsetDyn (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1566
+  ok    auCellAt28 (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:1572
+  ok    auNoteMemoryPhase (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:2026
+  ok    AuNoteMemoryRow (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:2049
+  ok    auNoteMemoryRows (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:2060
+  ok    auCellNoteMemory (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:2077
+  ok    auMacroAxisRead (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:2153
+  ok    auMacroCellOn (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:2182
+  ok    ProfundumAudibility (namespace): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:55
+  ok    ScriptRenderHook (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:60
+  ok    ScriptRenderScope (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:77
+  ok    ScriptRenderFn (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:59
+  ok    scriptRenderHook (symbol): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h:64
+  ok    profundum_audibility_readers (file): 1 definition(s) dsp/tests/unit/systems/profundum_audibility_readers.h
+  ok    ProfundumPresetDef (symbol): 1 definition(s) tools/profundum_preset_defs.h:145
+  ok    CapabilityInfo (symbol): 1 definition(s) tools/profundum_preset_defs.h:72
+  ok    kFactoryDefaultSeed (symbol): 1 definition(s) tools/profundum_preset_defs.h:143
+  ok    PresetHost (symbol, scoped): 1 definition(s) plugins/profundum/tests/profundum_preset_host.h:63
+  ok    writeFactoryTree (symbol): 1 definition(s) plugins/profundum/tests/profundum_preset_host.h:464
+  ok    kMsgLoadPresetState (symbol): 1 definition(s) plugins/profundum/src/plugin_ids.h:90
+  ok    ProfundumLoadPresetState (string): 1 definition(s) plugins/profundum/src/plugin_ids.h:90
+  ok    setEngineSeamsForTest (symbol): 1 definition(s) plugins/profundum/src/processor/processor.h:121
+  ok    engineSeamsForTest_ (symbol): 1 definition(s) plugins/profundum/src/processor/processor.h:267
+  ok    kPresetBrowserTag (symbol): 1 definition(s) plugins/profundum/src/ui/panel_sub_controller.h:82
+  ok    loadPresetStream (symbol): 1 definition(s) plugins/profundum/src/controller/controller.cpp:230
+  ok    openPresetBrowser (symbol, scoped): 1 definition(s) plugins/profundum/src/controller/controller.cpp:1044
+  ok    makeProfundumPresetTabLabels (symbol): 1 definition(s) plugins/profundum/src/preset/profundum_preset_config.h:38
+  ok    presetBrowserView_ (symbol, scoped): 1 definition(s) plugins/profundum/src/controller/controller.h:377
+  ok    PresetArmContext (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:118
+  ok    renderScriptThroughProcessor (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:368
+  ok    effectiveScriptFor (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:144
+  ok    processorRenderHook (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:551
+  ok    PresetRenderReadings (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:1713
+  ok    ShowcaseArm (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:570
+  ok    PresetSweepObserver (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:1551
+  ok    presetFloatIsFinite (symbol): 1 definition(s) plugins/profundum/tests/preset_test_support.h:272
+  ok    fundamentalLossFlagged (symbol): 1 definition(s) plugins/profundum/tests/preset_test_support.h:279
+  ok    presetReadings (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:1876
+  ok    showcaseColumn (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:1268
+  ok    describePreset (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:1411
+  ok    presetDistance (symbol): 1 definition(s) plugins/profundum/tests/preset_render_support.h:1503
+  ok    PresetHostComponentHandler (symbol): 1 definition(s) plugins/profundum/tests/integration/preset_browser_test.cpp:157
+  ok    PresetHost under plugins/vorago (expected VoragoTest::PresetHost only): 1 plugins/vorago/tests/vorago_preset_host.h:47
+
+[3] std::isnan|std::isinf|std::isfinite|std::fpclassify over 15 new source files (code only)
+  note  dsp/tests/unit/systems/profundum_audibility_readers.h: 1 mention(s) in total, 1 in comments (not counted)
+  note  plugins/profundum/tests/preset_test_support.h: 1 mention(s) in total, 1 in comments (not counted)
+  note  plugins/profundum/tests/unit/preset/preset_library_test.cpp: 1 mention(s) in total, 1 in comments (not counted)
+        new: dsp/tests/unit/systems/profundum_audibility_readers.h
+        new: plugins/profundum/tests/integration/preset_browser_test.cpp
+        new: plugins/profundum/tests/integration/preset_probe_test.cpp
+        new: plugins/profundum/tests/integration/preset_rt_test.cpp
+        new: plugins/profundum/tests/integration/preset_showcase_test.cpp
+        new: plugins/profundum/tests/integration/preset_sweep_test.cpp
+        new: plugins/profundum/tests/preset_render_support.h
+        new: plugins/profundum/tests/preset_test_support.h
+        new: plugins/profundum/tests/profundum_preset_host.h
+        new: plugins/profundum/tests/unit/manual_coverage_test.cpp
+        new: plugins/profundum/tests/unit/preset/preset_description_test.cpp
+        new: plugins/profundum/tests/unit/preset/preset_library_test.cpp
+        new: plugins/shared/tests/test_preset_description.cpp
+        new: tools/profundum_preset_defs.h
+        new: tools/profundum_preset_generator.cpp
+  ok    code hits: 0
+
+[4] kMsgLoadPresetState in code: only plugin_ids.h, processor.cpp, controller.cpp and tests
+  ok    plugins/profundum/tests/integration/preset_browser_test.cpp: 3 code use(s)
+  ok    plugins/profundum/src/controller/controller.cpp: 1 code use(s)
+  note  plugins/profundum/src/controller/controller.h: comments only
+  ok    plugins/profundum/src/plugin_ids.h: 1 code use(s)
+  ok    plugins/profundum/src/processor/processor.cpp: 1 code use(s)
+
+RED findings: 15
+SCOPE RED
+
+---- T031 executor note (2026-10-25)
+Run: node specs/profundum-phase13-presets-release/evidence/close/scope-fence.js  (exit 1, seconds)
+[2] ODR: 51/51 claimed names defined exactly once (+ VoragoTest::PresetHost the one expected outside definition).
+[3] fp-classify greps over the 15 new source files: 0 code hits (3 comment-only mentions, listed).
+[4] kMsgLoadPresetState: code uses only in plugin_ids.h, processor.cpp, controller.cpp and preset_browser_test.cpp
+    (controller.h: comments only).
+[1] RED: 15 paths outside the allow-list, all tracked evidence files of EARLIER phases (5, 6, 7, 8, 9) rewritten by
+    test runs: same line count (git diff --stat e6095b24: 15 files, 358 insertions, 358 deletions; identical with
+    --ignore-cr-at-eol), measured-value / wall-clock drift only, e.g. phase9 soak-smoke.txt "wall 9.01107 s" ->
+    "wall 1.44002 s", DC tap -110.53 -> -110.432 dBFS. No source, header, dsp/include, dsp/src or other-plugin path
+    is outside the allow-list. Resolution is the main loop's: restore them (git checkout e6095b24 -- <those 15 paths>)
+    or rule them in; this task's file list does not cover them, so they were not touched.
+
+
+Main loop (2026-10-25): the 15 RED paths were other phases' evidence regenerated by the lane runs (no source change); restored with
+git checkout -- specs/profundum-phase{5..9}-*/ and the fence re-run:
+  [1] Scope fence: 412 paths (git diff --name-only e6095b24 U git status --porcelain --untracked-files=all)
+    scope: 0 path(s) outside the allow-list
+  [2] ODR re-sweep: 51 claimed names, defined exactly once (1988 source files under dsp/ plugins/ tools/ tests/, comments stripped)
+  [3] std::isnan|std::isinf|std::isfinite|std::fpclassify over 15 new source files (code only)
+  [4] kMsgLoadPresetState in code: only plugin_ids.h, processor.cpp, controller.cpp and tests
+  RED findings: 0
+  SCOPE GREEN

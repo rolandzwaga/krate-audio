@@ -1,0 +1,85 @@
+=== h13 probe 2026-10-20T11:39:10Z commit 0ae33b87
+cmd: build/windows-x64-release/bin/Release/dsp_systems_tests.exe "VoiceEngine_CharacterRecords"
+Filters: "VoiceEngine_CharacterRecords"
+Randomness seeded to: 1012425522
+# H-13 VoiceEngine_CharacterRecords (FR-070 H-13 Record; tasks.md T013; plan S10.4)
+# Composed voice, MONO, 48 kHz, A_s with kSawAnchor, Fold 0, excitation 0, SHAPE 0, Tone 0.5, Amount 1.
+# Transfer: complex h1 of the Character tap over the Character input (the ShapeMorph output, rebuilt from the core tap), mid, whole periods near 0.5 s from 1 s.
+# Group delay at f0: -(phi(+1 %) - phi(-1 %)) / (2 pi (f+ - f-)) x fs, f0 +- 1 % by pitch bend (range 2 st). Phase 5 reference: specs/profundum-phase5-shape-character/evidence/sc020-h1-transfer.csv (tone 0.5 rows) and the crossfade CPU cell in .../sc015-cpu.txt (recorded by SC-003 here).
+H13 TRANSFER E0 Tube f0=20.6017 gain_db=-0.794687 phase_deg=31.4428 group_delay_samples=129.357 (f- 20.3957, f+ 20.8077) input_h1_db=-9.8288 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=-0.734247 h1_deg=32.3453 group_delay_samples=120.602 status=recorded
+H13 TRANSFER E0 Fold f0=20.6017 gain_db=-0.00251934 phase_deg=25.9969 group_delay_samples=150.257 (f- 20.3957, f+ 20.8077) input_h1_db=-9.8288 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=0.0560887 h1_deg=25.8309 group_delay_samples=145.826 status=recorded
+H13 TRANSFER E0 Rectify f0=20.6017 gain_db=-1.1797 phase_deg=95.0017 group_delay_samples=43.273 (f- 20.3957, f+ 20.8077) input_h1_db=-9.8288 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=0.135981 h1_deg=94.7695 group_delay_samples=40.4643 status=recorded
+H13 TRANSFER E0 Bite f0=20.6017 gain_db=0.752663 phase_deg=-4.77545 group_delay_samples=19.5499 (f- 20.3957, f+ 20.8077) input_h1_db=-9.8288 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=0.93121 h1_deg=-5.55251 group_delay_samples=22.104 status=recorded
+H13 TRANSFER E0 Crush f0=20.6017 gain_db=-0.584096 phase_deg=-50.7976 group_delay_samples=30.9789 (f- 20.3957, f+ 20.8077) input_h1_db=-9.8288 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=-0.37875 h1_deg=-54.8367 group_delay_samples=38.1643 status=recorded
+H13 TRANSFER E0 Fracture f0=20.6017 gain_db=-120.819 phase_deg=-175.964 group_delay_samples=7498.57 (f- 20.3957, f+ 20.8077) input_h1_db=-9.8288 f_dev=0 halfWave=0 fold_target=0 h1_absent | phase5 h1_db= h1_deg= group_delay_samples= status=h1 absent
+H13 TRANSFER E1 Tube f0=41.2034 gain_db=0.703634 phase_deg=19.7834 group_delay_samples=49.5908 (f- 40.7914, f+ 41.6155) input_h1_db=-10.7719 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=0.780254 h1_deg=21.6104 group_delay_samples=49.0066 status=recorded
+H13 TRANSFER E1 Fold f0=41.2034 gain_db=1.86596 phase_deg=12.7974 group_delay_samples=50.0967 (f- 40.7914, f+ 41.6155) input_h1_db=-10.7719 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=1.87577 h1_deg=12.8836 group_delay_samples=48.6014 status=recorded
+H13 TRANSFER E1 Rectify f0=41.2034 gain_db=1.27859 phase_deg=91.2409 group_delay_samples=14.52 (f- 40.7914, f+ 41.6155) input_h1_db=-10.7719 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=3.15908 h1_deg=91.2277 group_delay_samples=13.9536 status=recorded
+H13 TRANSFER E1 Bite f0=41.2034 gain_db=1.45485 phase_deg=-6.7099 group_delay_samples=6.40933 (f- 40.7914, f+ 41.6155) input_h1_db=-10.7719 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=1.68828 h1_deg=-7.66636 group_delay_samples=6.33675 status=recorded
+H13 TRANSFER E1 Crush f0=41.2034 gain_db=-0.394362 phase_deg=-51.1687 group_delay_samples=0.448935 (f- 40.7914, f+ 41.6155) input_h1_db=-10.7719 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=-0.056183 h1_deg=-54.9803 group_delay_samples=11.611 status=recorded
+H13 TRANSFER E1 Fracture f0=41.2034 gain_db=-111.591 phase_deg=80.5967 group_delay_samples=17296.8 (f- 40.7914, f+ 41.6155) input_h1_db=-10.7719 f_dev=0 halfWave=0 fold_target=0 h1_absent | phase5 h1_db= h1_deg= group_delay_samples= status=h1 absent
+H13 TRANSFER E2 Tube f0=82.4069 gain_db=0.9862 phase_deg=11.1892 group_delay_samples=16.6692 (f- 81.5828, f+ 83.2309) input_h1_db=-10.7737 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=1.06666 h1_deg=13.0425 group_delay_samples=16.6319 status=recorded
+H13 TRANSFER E2 Fold f0=82.4069 gain_db=2.116 phase_deg=4.24321 group_delay_samples=16.2229 (f- 81.5828, f+ 83.2309) input_h1_db=-10.7737 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=2.12333 h1_deg=4.47545 group_delay_samples=16.0422 status=recorded
+H13 TRANSFER E2 Rectify f0=82.4069 gain_db=1.28824 phase_deg=88.234 group_delay_samples=7.09644 (f- 81.5828, f+ 83.2309) input_h1_db=-10.7737 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=3.16592 h1_deg=88.2872 group_delay_samples=7.25987 status=recorded
+H13 TRANSFER E2 Bite f0=82.4069 gain_db=1.43978 phase_deg=-8.42432 group_delay_samples=5.09501 (f- 81.5828, f+ 83.2309) input_h1_db=-10.7737 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=1.66859 h1_deg=-9.3688 group_delay_samples=5.09727 status=recorded
+H13 TRANSFER E2 Crush f0=82.4069 gain_db=-0.384763 phase_deg=-52.1232 group_delay_samples=-7.37921 (f- 81.5828, f+ 83.2309) input_h1_db=-10.7737 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db=-0.0485499 h1_deg=-57.133 group_delay_samples=4.91345 status=recorded
+H13 TRANSFER E2 Fracture f0=82.4069 gain_db=-43.1018 phase_deg=-34.2117 group_delay_samples=-7424.63 (f- 81.5828, f+ 83.2309) input_h1_db=-10.7737 f_dev=0 halfWave=0 fold_target=0 | phase5 h1_db= h1_deg= group_delay_samples= status=h1 absent
+H13 TRANSFER C3 Tube f0=130.813 gain_db=1.04953 phase_deg=6.65805 group_delay_samples=9.84761 (f- 129.505, f+ 132.121) input_h1_db=-10.7739 f_dev=0 halfWave=0 fold_target=0 | phase5 n/a (no row)
+H13 TRANSFER C3 Fold f0=130.813 gain_db=2.1667 phase_deg=-0.0919135 group_delay_samples=9.25305 (f- 129.505, f+ 132.121) input_h1_db=-10.7739 f_dev=0 halfWave=0 fold_target=0 | phase5 n/a (no row)
+H13 TRANSFER C3 Rectify f0=130.813 gain_db=1.29192 phase_deg=85.8854 group_delay_samples=5.73449 (f- 129.505, f+ 132.121) input_h1_db=-10.7739 f_dev=0 halfWave=0 fold_target=0 | phase5 n/a (no row)
+H13 TRANSFER C3 Bite f0=130.813 gain_db=1.43208 phase_deg=-10.2173 group_delay_samples=5.12292 (f- 129.505, f+ 132.121) input_h1_db=-10.7739 f_dev=0 halfWave=0 fold_target=0 | phase5 n/a (no row)
+H13 TRANSFER C3 Crush f0=130.813 gain_db=-0.383249 phase_deg=-51.9968 group_delay_samples=-8.72162 (f- 129.505, f+ 132.121) input_h1_db=-10.7739 f_dev=0 halfWave=0 fold_target=0 | phase5 n/a (no row)
+H13 TRANSFER C3 Fracture f0=130.813 gain_db=-47.0328 phase_deg=-116.67 group_delay_samples=5551.28 (f- 129.505, f+ 132.121) input_h1_db=-10.7739 f_dev=0 halfWave=0 fold_target=0 | phase5 n/a (no row)
+# Growl level swing: kGrowl, Tube at Amount 0, SHAPE 0 ... 1 in 11 steps; L_K = mean of the K-weighted levels of the Character tap L / R over [1, 1.5) s
+H13 GROWL E0 shape=0 lk_db=-23.7903
+H13 GROWL E0 shape=0.1 lk_db=-23.0902
+H13 GROWL E0 shape=0.2 lk_db=-19.1409
+H13 GROWL E0 shape=0.3 lk_db=-15.9298
+H13 GROWL E0 shape=0.4 lk_db=-13.5859
+H13 GROWL E0 shape=0.5 lk_db=-11.8546
+H13 GROWL E0 shape=0.6 lk_db=-12.2404
+H13 GROWL E0 shape=0.7 lk_db=-12.3052
+H13 GROWL E0 shape=0.8 lk_db=-12.2325
+H13 GROWL E0 shape=0.9 lk_db=-12.5177
+H13 GROWL E0 shape=1 lk_db=-13.5015
+H13 GROWL_SWING E0 11.9358 dB (min -23.7903, max -11.8546)
+H13 GROWL E1 shape=0 lk_db=-27.294
+H13 GROWL E1 shape=0.1 lk_db=-23.493
+H13 GROWL E1 shape=0.2 lk_db=-18.0392
+H13 GROWL E1 shape=0.3 lk_db=-14.5584
+H13 GROWL E1 shape=0.4 lk_db=-12.147
+H13 GROWL E1 shape=0.5 lk_db=-10.3831
+H13 GROWL E1 shape=0.6 lk_db=-10.843
+H13 GROWL E1 shape=0.7 lk_db=-11.0531
+H13 GROWL E1 shape=0.8 lk_db=-11.1908
+H13 GROWL E1 shape=0.9 lk_db=-11.6327
+H13 GROWL E1 shape=1 lk_db=-12.3305
+H13 GROWL_SWING E1 16.9109 dB (min -27.294, max -10.3831)
+H13 GROWL E2 shape=0 lk_db=-26.4993
+H13 GROWL E2 shape=0.1 lk_db=-21.9487
+H13 GROWL E2 shape=0.2 lk_db=-16.2901
+H13 GROWL E2 shape=0.3 lk_db=-12.78
+H13 GROWL E2 shape=0.4 lk_db=-10.369
+H13 GROWL E2 shape=0.5 lk_db=-8.61992
+H13 GROWL E2 shape=0.6 lk_db=-9.04845
+H13 GROWL E2 shape=0.7 lk_db=-9.2128
+H13 GROWL E2 shape=0.8 lk_db=-9.30823
+H13 GROWL E2 shape=0.9 lk_db=-9.81362
+H13 GROWL E2 shape=1 lk_db=-10.8679
+H13 GROWL_SWING E2 17.8794 dB (min -26.4993, max -8.61992)
+H13 GROWL C3 shape=0 lk_db=-25.8208
+H13 GROWL C3 shape=0.1 lk_db=-21.2533
+H13 GROWL C3 shape=0.2 lk_db=-15.6423
+H13 GROWL C3 shape=0.3 lk_db=-12.1522
+H13 GROWL C3 shape=0.4 lk_db=-9.76013
+H13 GROWL C3 shape=0.5 lk_db=-8.03691
+H13 GROWL C3 shape=0.6 lk_db=-8.42289
+H13 GROWL C3 shape=0.7 lk_db=-8.48947
+H13 GROWL C3 shape=0.8 lk_db=-8.39734
+H13 GROWL C3 shape=0.9 lk_db=-8.63862
+H13 GROWL C3 shape=1 lk_db=-9.59204
+H13 GROWL_SWING C3 17.7839 dB (min -25.8208, max -8.03691)
+===============================================================================
+All tests passed (1433 assertions in 1 test case)
+
+exit: 0 wall: 62 s

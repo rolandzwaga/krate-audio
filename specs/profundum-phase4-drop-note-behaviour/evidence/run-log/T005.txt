@@ -1,0 +1,116 @@
+T005 - CPU feasibility microbench of the Drop kernel and the worst-case DropPhaseLock solve (C-16, R-1)
+Date: 2026-10-12   Branch: synth/profundum   HEAD: 3d8ca19f
+Machine: 13th Gen Intel Core i9-13900HX (24 cores / 32 logical; laptop part), pinned to the performance cores
+(pin-perf-cores mask 0xFFFF). Precondition: Groups 0-1 finished; no build, suite, model or agent running
+(Processor(_Total) 2-11 % before the lane; only desktop apps resident).
+
+=== 1. Bench ===
+Source: specs/profundum-phase4-drop-note-behaviour/bench/drop-kernel-bench.cpp (stdlib only, no repo header).
+Prototypes: DropCurve + makeDropCurve (S3.1-S3.5, C-12 constants, snap and bridged; O-1 ruling: rise L_r = L_min,
+no sigma_up), integrate = GL8 fixed panels (2 per piece, 4 on pieces > 0.5 N, constexpr node array);
+DropEnvelope S3.4 kernel (uint32 counter, one geometric recurrence per exponential term seeded with std::exp at the
+piece entry, Horner on Hermite pieces, float out) as processBlock; DropPhaseLock S5.2 correction (Horner b, one add,
+float cast, bridged carry Hermite) + S5.6 mirror (exp2 once per 16 samples, one add per sample) as processBlock;
+MonoHandler Quantized law S4.2 (counter-based, pow only on a step change; T009: no sigma_up floor), per sample;
+RetriggerDeclick C-15 (double rotation, switch sample 0.0f) as processBlock; S5.3 predictor (hold term + 4 exact
+updates + GL8 integral from t4 + EM endpoint terms, analytic dPhi/dgamma) and S5.4 solve (gamma_lim = 48 per the
+O-1 ruling; 1 shared + per candidate 2 bracket + 6 Newton/bisection).
+Configurations (48 kHz, host block 64):
+  (A) per-sample load: Drop s = 1, R = 1, A = 24, T = 200 ms snap-retriggered every 100 ms (curve rebuilt each
+      time) + correction + mirror + Quantized glide 24 st / 500 ms restarted every 1 s + declick armed every 100 ms.
+      4 s of audio per trial, median of 9 trials.
+  (B) worst-case trigger + solve: bridged, T = 1 ms, A = 48, s = 1, R = 1, from mid-fall (u = 0.5) of a T = 20 ms
+      drop with a running correction (gamma_prev 2.5) carried; 11 pieces (brake 48 + rise 48 samples), 24 GL8
+      panels per evaluation integrated from t4 (192 nodes + 6 point nodes); evaluations forced to the cap
+      (17 at stages 0-2; 9 at stage 3, see lever (4)); curve build included. 2000 solves per trial, median of 9.
+  (C) typical trigger + solve: snap, A = 24, T = 200 ms, s = 1/3, R = 0; natural early stop at 1e-9 cycles.
+  Solve sanity (every stage): B Phi_hat(0) = 1.789019 cycles, n* = 2, gamma = 2.950657 st, residual <= 1.3e-15
+  cycles, feasible; C gamma = 0.729305 st, residual ~1e-13.
+Stages = plan S13 R-1 levers applied cumulatively in order:
+  0 plain; 1 + (2) hoisted Hermite coefficients; 2 + (3) cached 2^{(d+carry)/12} and b per node, each pass
+  multiplies by 2^{gamma b/12}; 3 + (4) linearised start (Newton from gamma_0 = (n* - Phi(0))/Phi'(0), no
+  bracket-end passes, 4 passes per candidate => worst case 1 + 2 x 4 = 9 evaluations).
+  Lever (1) (idle fast path) cannot move (A): the envelope is never idle under the 100 ms retrigger. Lever (5) (lazy
+  solve) is already in S5.4.
+
+Compile (Git Bash):
+  "/c/Program Files/LLVM/bin/clang++.exe" -std=c++20 -O2 -ffast-math -march=x86-64-v2 -DNDEBUG \
+      specs/profundum-phase4-drop-note-behaviour/bench/drop-kernel-bench.cpp -o <scratchpad>/drop-bench.exe
+  (also built with -Wall -Wextra: zero warnings)
+Run (PowerShell; each stage 5 times, 20 s apart, strictly sequential, nothing else running):
+  pwsh -NoProfile -Command "& tools/pin-perf-cores.ps1 -Exe '<scratchpad>/drop-bench.exe' -ExeArgs @('<stage>')"
+  (pin-perf-cores.ps1 takes extra exe arguments only through -ExeArgs as an array.)
+
+=== 2. Raw output (20 pinned runs, 17:23:19 -> 17:30:23, 7 min 04 s wall clock) ===
+run 1 17:23:41 :: stage 0 | A 7.398 ns/sample | B 41.101 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 7.520 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.07661 % (A 0.03551 % + B 0.04110 %)
+run 2 17:24:02 :: stage 0 | A 5.805 ns/sample | B 38.651 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 6.042 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.06652 % (A 0.02787 % + B 0.03865 %)
+run 3 17:24:24 :: stage 0 | A 7.397 ns/sample | B 36.699 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 7.494 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.07221 % (A 0.03551 % + B 0.03670 %)
+run 4 17:24:45 :: stage 0 | A 5.873 ns/sample | B 40.098 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 7.325 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.06829 % (A 0.02819 % + B 0.04010 %)
+run 5 17:25:07 :: stage 0 | A 7.209 ns/sample | B 40.484 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 7.504 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.07509 % (A 0.03460 % + B 0.04048 %)
+run 1 17:25:28 :: stage 1 | A 7.493 ns/sample | B 33.964 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 7.230 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.06993 % (A 0.03597 % + B 0.03396 %)
+run 2 17:25:49 :: stage 1 | A 6.632 ns/sample | B 35.072 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 7.329 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.06691 % (A 0.03184 % + B 0.03507 %)
+run 3 17:26:11 :: stage 1 | A 6.939 ns/sample | B 37.605 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 6.057 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.07091 % (A 0.03331 % + B 0.03760 %)
+run 4 17:26:32 :: stage 1 | A 7.039 ns/sample | B 37.490 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 6.570 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.07128 % (A 0.03379 % + B 0.03749 %)
+run 5 17:26:54 :: stage 1 | A 7.037 ns/sample | B 37.025 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 1.33e-15, feasible 1) | C 6.965 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.05e-13) | F = 0.07080 % (A 0.03378 % + B 0.03702 %)
+run 1 17:27:15 :: stage 2 | A 5.554 ns/sample | B 12.324 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 3.164 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.03898 % (A 0.02666 % + B 0.01232 %)
+run 2 17:27:36 :: stage 2 | A 5.732 ns/sample | B 12.218 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 2.925 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.03973 % (A 0.02751 % + B 0.01222 %)
+run 3 17:27:57 :: stage 2 | A 5.799 ns/sample | B 12.153 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 2.918 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.03999 % (A 0.02784 % + B 0.01215 %)
+run 4 17:28:17 :: stage 2 | A 5.740 ns/sample | B 12.321 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 2.990 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.03987 % (A 0.02755 % + B 0.01232 %)
+run 5 17:28:38 :: stage 2 | A 6.960 ns/sample | B 15.936 us/solve (evals 17, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 3.210 us/solve (evals 11, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.04935 % (A 0.03341 % + B 0.01594 %)
+run 1 17:28:59 :: stage 3 | A 5.394 ns/sample | B 7.155 us/solve (evals 9, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 1.975 us/solve (evals 7, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.03305 % (A 0.02589 % + B 0.00716 %)
+run 2 17:29:20 :: stage 3 | A 5.712 ns/sample | B 8.500 us/solve (evals 9, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 2.310 us/solve (evals 7, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.03592 % (A 0.02742 % + B 0.00850 %)
+run 3 17:29:41 :: stage 3 | A 7.233 ns/sample | B 8.584 us/solve (evals 9, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 2.433 us/solve (evals 7, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.04330 % (A 0.03472 % + B 0.00858 %)
+run 4 17:30:02 :: stage 3 | A 7.481 ns/sample | B 9.252 us/solve (evals 9, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 2.023 us/solve (evals 7, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.04516 % (A 0.03591 % + B 0.00925 %)
+run 5 17:30:23 :: stage 3 | A 8.991 ns/sample | B 8.520 us/solve (evals 9, panels/eval 24, Phi0 1.789019, n* 2, gamma 2.950657, resid 4.44e-16, feasible 1) | C 2.498 us/solve (evals 7, panels/eval 8, gamma 0.729305, resid 1.08e-13) | F = 0.05168 % (A 0.04316 % + B 0.00852 %)
+
+Diagnostic (not part of F), one pinned run after 30 s idle, stage 3 binary with "breakdown":
+  A breakdown (ns/sample): envelope 2.932 | lock+mirror 1.910 | quantized glide 1.161 | declick 0.074 | empty loop 0.022
+  stage 3 | A 6.833 ns/sample | B 7.782 us/solve (evals 9) | C 2.100 us/solve (evals 7) | F = 0.04058 %
+
+=== 3. Medians of 5 (F = (ns_A*48000 + 10*us_B*1000)/1e9) ===
+  stage | A ns/sample                           | B us/solve                           | C us/solve | median F
+  0     | 7.209 (5.805 5.873 7.209 7.397 7.398) | 40.098 (36.699 38.651 40.098 40.484 41.101) | 7.494 | 0.07221 % (0.06652 0.06829 0.07221 0.07509 0.07661)
+  1     | 7.037 (6.632 6.939 7.037 7.039 7.493) | 37.025 (33.964 35.072 37.025 37.490 37.605) | 6.965 | 0.07080 % (0.06691 0.06993 0.07080 0.07091 0.07128)
+  2     | 5.740 (5.554 5.732 5.740 5.799 6.960) | 12.321 (12.153 12.218 12.321 12.324 15.936) | 2.990 | 0.03987 % (0.03898 0.03973 0.03987 0.03999 0.04935)
+  3     | 7.233 (5.394 5.712 7.233 7.481 8.991) |  8.520 ( 7.155  8.500  8.520  8.584  9.252) | 2.310 | 0.04330 % (0.03305 0.03592 0.04330 0.04516 0.05168)
+
+=== 4. Decision ===
+- Plain S5.4 solve: median F 0.0722 % > 0.05 % bar -> NOT adopted.
+- Lever (2): 0.0708 %. Lever (2)+(3): 0.0399 %. Lever (2)+(3)+(4): 0.0433 % (A noise: the A code is identical in
+  stages 1-3; the solve term itself falls 0.0370 % -> 0.0123 % -> 0.0085 %).
+- No stage reaches the 0.033 % target (two-thirds of the bar, MSVC headroom). Every stage after lever (3) sits
+  between the 0.033 % target and the 0.05 % bar, so the task's stop clause (F > 0.05 % after all levers) does not
+  fire either. The outcome is outside both of the task's branches -> SURFACED TO THE MAIN LOOP (status blocked).
+- Root cause: the per-sample load (A) alone is 5.4-9.0 ns/sample = 0.026-0.043 % of a core across the 20 runs,
+  i.e. 79-131 % of the 0.033 % target before any solve. No R-1 lever acts on it except (2) (hoisting), which is
+  negligible there. Split (diagnostic): envelope ~2.9 ns, DropPhaseLock correction + mirror ~1.9 ns, Quantized glide
+  ~1.2 ns (one double division + floor per sample in the S4.2 counter law), declick ~0.07 ns.
+- Machine note: the i9-13900HX is a laptop part; A is bimodal between ~5.6 and ~7.2 ns across runs taken 20 s apart
+  (thermal/boost state), which alone moves F by ~0.008 %.
+- What T011/T015 must implement in any case: lever (2) (hoisted Hermite coefficients) and lever (3) (per-node cache
+  of 2^{(d+carry)/12} and b, one exp2(gamma b/12) per node per pass; it cuts the worst-case solve 40.1 -> 12.3 us).
+  Lever (4) halves the forced evaluations (17 -> 9; B 12.3 -> 8.5 us) but its 4-pass cap is NOT proven here; T015
+  must show the solve residual < 1e-9 cycles on every SC-013 cell before adopting it.
+
+Decision needed from the main loop / user (one of):
+  (a) accept F <= 0.05 % (the SC-019 bar itself) as the T005 gate with levers (2)+(3)[+(4)], giving up the
+      0.033 % MSVC-headroom target that tasks.md set; the bar is unchanged;
+  (b) keep the 0.033 % target and authorise per-sample reductions OUTSIDE R-1 (e.g. Quantized glide step
+      boundaries as precomputed integer sample indices ceil(k N/|Delta|) instead of a per-sample division; S5.6
+      mirror accumulating (f_h - f_res) once per 16-sample hold instead of per sample), then re-run T005;
+  (c) re-measure on an isolated desktop-class machine (the laptop's boost-state bimodality alone spans 0.008 %).
+
+=== 5. Ruling (main loop, 2026-10-12, T005 re-execution epoch 2; bar unchanged at 0.05 %) ===
+Outcome of the decision surfaced in section 4: no re-run of the bench (the measurements above stand).
+  (i)   Levers (2) hoisted Hermite coefficients and (3) per-node cached 2^{(d+carry)/12} and b with one
+        exp2(gamma b/12) per node per pass are REQUIRED in T011 / T015. Lever (4) linearised start only if T015
+        proves the solve residual < 1e-9 cycles on every SC-013 cell.
+  (ii)  Per-sample reductions REQUIRED where output stays bit-identical or within the existing bars:
+        - T009: Quantized step boundaries as integer sample indices precomputed at retarget
+          (ceil(k N/|Delta|), one array of <= 128 entries, no per-sample division);
+        - T015: S5.6 mirror accumulates (f_h - f_res) once per 16-sample hold in double (SC-024 judges).
+  (iii) T005 is DONE. Reference figures: median F by stage 0-3 = 0.0722 / 0.0708 / 0.0399 / 0.0433 %;
+        stage 2 (levers 2+3): A 5.74 ns/sample, B 12.32 us/solve, C 2.99 us/solve.
+        The real CPU gates are T018 (components alone, pinned) and T028 (lane alone) at the 0.05 % SC-019 bar;
+        0.033 % is recorded as the advisory headroom target.
+  Rejected: re-measuring on another machine (the gate runs on this one).

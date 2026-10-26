@@ -1,0 +1,44 @@
+2026-10-20T23:40:11Z cpu-lane VoiceEngine_CpuMono=exit0/73s VoiceEngine_CpuPoly4=exit0/45s VoiceEngine_WorstInterval=exit1/19s VoiceEngine_PlacementCost=exit0/49s MassDynamics_CpuBudget=exit0/2s
+  SC001 VERDICT GREEN 7.2181 (Tube 7.2181, Fracture 6.3125; bar 8 %)
+  SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 45.084 Fracture 42.154 max 45.084
+  SC002 VERDICT GREEN 22.341 (Tube 22.341, Fracture 19.956; bar 25 %)
+  SC003 BLOCK worst_median_ms=0.5427 (block 5407, sample 394048) ratio=0.40702 raw_max_ms=2.1202 raw_ratio=1.5901 mean_ms=0.31353 budget_ms=1.3333
+  SC003 RECORD worst 32-sample interval 44.52 % of a core (Phase 8: 81.6 %, fixture overhead included; recorded, not gated)
+  H13 RECORD crossfade window (switch + one E1 period + 10 ms) blocks=2700 cost=6.9894 % of a core per voice (all-block mean 5.8786 %; Phase 5 crossfade cell 2.65 %)
+  SC003 VERDICT GREEN 0.40702 (bar 1.0)
+  FR014 READING placement: per-voice max=22.862 post-sum max=27.089 (bar 25 %); criterion per-voice > bar AND post-sum <= bar -> KEEP PERVOICE
+  FR014 READING follow: follow-on (per voice) max=22.862 follow-off max=23.161 cost=-0.29867; criterion follow-on > bar AND follow-off <= bar -> KEEP FOLLOW PER VOICE
+  SC017 GATED distinct_pair MassDynamics(A=+12 dB S=-6 dB duration=40 ms amount=1 key=E1) + MassLaw advanceInterval+evaluate per 32 samples (Mass 75) pct=0.5028 bar=1.0
+2026-10-22T00:01:26Z cpu-lane VoiceEngine_CpuMono=exit1/104s VoiceEngine_CpuPoly4=exit1/59s VoiceEngine_WorstInterval=exit0/22s VoiceEngine_PlacementCost=exit0/58s MassDynamics_CpuBudget=exit0/2s
+  SC001 VERDICT RED 8.2716 (Tube 8.2716, Fracture 8.2018; bar 8 %)
+  SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 57.391 Fracture 52.857 max 57.391
+  SC002 VERDICT RED 28.784 (Tube 26.079, Fracture 28.784; bar 25 %)
+  SC003 BLOCK worst_median_ms=0.716 (block 7134, sample 504576) ratio=0.537 raw_max_ms=3.6261 raw_ratio=2.7196 mean_ms=0.35129 budget_ms=1.3333
+  SC003 RECORD worst 32-sample interval 45.615 % of a core (Phase 8: 81.6 %, fixture overhead included; recorded, not gated)
+  H13 RECORD crossfade window (switch + one E1 period + 10 ms) blocks=2700 cost=7.8107 % of a core per voice (all-block mean 6.5866 %; Phase 5 crossfade cell 2.65 %)
+  SC003 VERDICT GREEN 0.537 (bar 1.0)
+  FR014 READING placement: per-voice max=30.255 post-sum max=31.846 (bar 25 %); criterion per-voice > bar AND post-sum <= bar -> KEEP PERVOICE
+  FR014 READING follow: follow-on (per voice) max=30.255 follow-off max=25.455 cost=4.8; criterion follow-on > bar AND follow-off <= bar -> KEEP FOLLOW PER VOICE
+  SC017 GATED distinct_pair MassDynamics(A=+12 dB S=-6 dB duration=40 ms amount=1 key=E1) + MassLaw advanceInterval+evaluate per 32 samples (Mass 75) pct=0.5626 bar=1.0
+2026-10-22T00:19:42Z cpu-lane VoiceEngine_CpuMono=exit1/98s VoiceEngine_CpuPoly4=exit1/59s VoiceEngine_WorstInterval=exit0/22s VoiceEngine_PlacementCost=exit0/56s MassDynamics_CpuBudget=exit0/2s
+  SC001 VERDICT RED 8.2745 (Tube 8.2745, Fracture 7.6459; bar 8 %)
+  SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 54.894 Fracture 53.104 max 54.894
+  SC002 VERDICT RED 30.659 (Tube 30.659, Fracture 28.003; bar 25 %)
+  SC003 BLOCK worst_median_ms=0.6208 (block 152, sample 57728) ratio=0.4656 raw_max_ms=1.848 raw_ratio=1.386 mean_ms=0.35327 budget_ms=1.3333
+  SC003 RECORD worst 32-sample interval 54.6 % of a core (Phase 8: 81.6 %, fixture overhead included; recorded, not gated)
+  H13 RECORD crossfade window (switch + one E1 period + 10 ms) blocks=2700 cost=7.8833 % of a core per voice (all-block mean 6.6239 %; Phase 5 crossfade cell 2.65 %)
+  SC003 VERDICT GREEN 0.4656 (bar 1.0)
+  FR014 READING placement: per-voice max=24.826 post-sum max=30.425 (bar 25 %); criterion per-voice > bar AND post-sum <= bar -> KEEP PERVOICE
+  FR014 READING follow: follow-on (per voice) max=24.826 follow-off max=25.186 cost=-0.36064; criterion follow-on > bar AND follow-off <= bar -> KEEP FOLLOW PER VOICE
+  SC017 GATED distinct_pair MassDynamics(A=+12 dB S=-6 dB duration=40 ms amount=1 key=E1) + MassLaw advanceInterval+evaluate per 32 samples (Mass 75) pct=0.6962 bar=1.0
+2026-10-22T00:38:10Z cpu-lane VoiceEngine_CpuMono=exit0/72s VoiceEngine_CpuPoly4=exit0/48s VoiceEngine_WorstInterval=exit0/20s VoiceEngine_PlacementCost=exit0/54s MassDynamics_CpuBudget=exit0/1s
+  SC001 VERDICT GREEN 7.5798 (Tube 7.5798, Fracture 7.0234; bar 8 %)
+  SC002 RECORD POLY8 (E1 / C3 / A1 / E2 / G1 / B1 / E3 / A2; Q8, not gated) Tube 46.775 Fracture 45.81 max 46.775
+  SC002 VERDICT GREEN 24.005 (Tube 24.005, Fracture 22.588; bar 25 %)
+  SC003 BLOCK worst_median_ms=0.5667 (block 3986, sample 303104) ratio=0.42502 raw_max_ms=0.9371 raw_ratio=0.70282 mean_ms=0.32679 budget_ms=1.3333
+  SC003 RECORD worst 32-sample interval 51.285 % of a core (Phase 8: 81.6 %, fixture overhead included; recorded, not gated)
+  H13 RECORD crossfade window (switch + one E1 period + 10 ms) blocks=2700 cost=7.2789 % of a core per voice (all-block mean 6.1273 %; Phase 5 crossfade cell 2.65 %)
+  SC003 VERDICT GREEN 0.42502 (bar 1.0)
+  FR014 READING placement: per-voice max=25.206 post-sum max=30.07 (bar 25 %); criterion per-voice > bar AND post-sum <= bar -> KEEP PERVOICE
+  FR014 READING follow: follow-on (per voice) max=25.206 follow-off max=25.632 cost=-0.42607; criterion follow-on > bar AND follow-off <= bar -> KEEP FOLLOW PER VOICE
+  SC017 GATED distinct_pair MassDynamics(A=+12 dB S=-6 dB duration=40 ms amount=1 key=E1) + MassLaw advanceInterval+evaluate per 32 samples (Mass 75) pct=0.5268 bar=1.0

@@ -1,0 +1,20 @@
+Filters: [profundum] ~[performance] ~[perf] ~[benchmark] ~[!benchmark] ~[long] ~[.]
+Randomness seeded to: 1875609374
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_RestoreHandOffNoTear
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\unit\state_v2_test.cpp(991)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\unit\state_v2_test.cpp(1106): warning:
+  Profundum_RestoreHandOffNoTear: 2000 rounds in 0.642882 s (budget ~10 s)
+
+===============================================================================
+All tests passed (338638 assertions in 5 test cases)
+
+rc=0 wall=73s

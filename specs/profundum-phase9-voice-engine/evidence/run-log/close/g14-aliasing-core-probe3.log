@@ -1,0 +1,19 @@
+Filters: "VoiceEngine_AliasingCoreProbe3"
+Randomness seeded to: 2760441939
+PROBE core3 48k E1 [x (mix 0 core)]: off-lattice -132.12 dBFS, 8 Hz family -144.69, rest -132.37; top 4.875Hz:-140.21 5.375Hz:-141.09 4.625Hz:-142.5 5.625Hz:-143.79 dBFS
+PROBE core3 48k E1 [A splitBase LP]: off-lattice -117.64 dBFS, 8 Hz family -125.41, rest -118.43; top 12.875Hz:-133.99 20.375Hz:-134.59 13.125Hz:-134.81 10.875Hz:-134.83 dBFS
+PROBE core3 48k E1 [B halfband 2x identity]: off-lattice -132.07 dBFS, 8 Hz family -144.54, rest -132.33; top 4.875Hz:-140.21 5.375Hz:-141.08 4.625Hz:-142.48 5.625Hz:-143.77 dBFS
+PROBE core3 48k E1 [B halfband 4x identity]: off-lattice -132.07 dBFS, 8 Hz family -144.53, rest -132.32; top 4.875Hz:-140.21 5.375Hz:-141.08 4.625Hz:-142.48 5.625Hz:-143.77 dBFS
+PROBE core3 48k E1 [C halfband 2x + 2fs notches]: off-lattice -132.1 dBFS, 8 Hz family -144.6, rest -132.35; top 4.875Hz:-140.2 5.375Hz:-141.08 4.625Hz:-142.47 5.625Hz:-143.78 dBFS
+PROBE core3 48k E1 [D DCBlocker 2 Hz]: off-lattice -129.64 dBFS, 8 Hz family -140.23, rest -130.04; top 4.875Hz:-138.85 5.375Hz:-140.78 4.625Hz:-142.16 3.375Hz:-143.06 dBFS
+PROBE core3 48k E1 [E linear replica lo + D(u - LPo u)]: off-lattice -107.94 dBFS, 8 Hz family -114.79, rest -108.94; top 4.625Hz:-123.79 4.375Hz:-124.09 8.125Hz:-124.62 7.625Hz:-124.65 dBFS
+PROBE core3 96k E1 [x (mix 0 core)]: off-lattice -124.56 dBFS, 8 Hz family -139.82, rest -124.69; top 3.125Hz:-128.75 3.375Hz:-130.7 3.875Hz:-134.8 4.125Hz:-137.89 dBFS
+PROBE core3 96k E1 [A splitBase LP]: off-lattice -108.47 dBFS, 8 Hz family -115.22, rest -109.51; top 12.375Hz:-124.73 8.375Hz:-124.8 6.875Hz:-125.12 3.875Hz:-125.15 dBFS
+PROBE core3 96k E1 [B halfband 2x identity]: off-lattice -124.55 dBFS, 8 Hz family -139.76, rest -124.68; top 3.125Hz:-128.75 3.375Hz:-130.69 3.875Hz:-134.8 4.125Hz:-137.88 dBFS
+PROBE core3 96k E1 [B halfband 4x identity]: off-lattice -124.55 dBFS, 8 Hz family -139.76, rest -124.68; top 3.125Hz:-128.75 3.375Hz:-130.7 3.875Hz:-134.8 4.125Hz:-137.88 dBFS
+PROBE core3 96k E1 [C halfband 2x + 2fs notches]: off-lattice -124.56 dBFS, 8 Hz family -139.78, rest -124.69; top 3.125Hz:-128.75 3.375Hz:-130.7 3.875Hz:-134.8 4.125Hz:-137.88 dBFS
+PROBE core3 96k E1 [D DCBlocker 2 Hz]: off-lattice -123.1 dBFS, 8 Hz family -135.25, rest -123.37; top 3.125Hz:-128.63 3.375Hz:-129.74 4.125Hz:-134.22 3.875Hz:-134.31 dBFS
+PROBE core3 96k E1 [E linear replica lo + D(u - LPo u)]: off-lattice -100.56 dBFS, 8 Hz family -104.27, rest -102.97; top 7.875Hz:-112.35 8.125Hz:-112.74 8.375Hz:-113.38 7.625Hz:-114.61 dBFS
+===============================================================================
+All tests passed (64 assertions in 1 test case)
+

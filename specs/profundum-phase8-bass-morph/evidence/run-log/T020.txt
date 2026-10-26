@@ -1,0 +1,1 @@
+2026-10-19T18:35:25Z cpu-lane cpu_exit=0 cpu_wall=2s rec_exit=0 rec_wall=3s | SC018 VERDICT GREEN 239.124 | FR083 RECORD worst_interval_pct 81.645 switch_window_pct 81.645 median_pct 37.365 vs Phase 5 crossfade cell 2.65 % (ratio 30.8094)

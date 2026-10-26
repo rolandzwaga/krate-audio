@@ -1,0 +1,12 @@
+Filters: "Profundum_PresetAudibilityProbe_Envelope"
+Randomness seeded to: 954209732
+# Profundum_PresetAudibilityProbe_Envelope
+at_id,variant,note,base,processor_value,bar,pass,live_value,csv_value,rel_dev,anchor_phase_tap_renders
+"AT-24","",E1,"A (per-row setting: without C-8's sustain 1)",92.125,"ratio >= 2",PASS,92.125,92.125,0,n/a
+"AT-25","",E1,"A + sustain 1 (C-8)",38.1903,"ratio >= 2",PASS,38.1903,38.1903,1.07554e-06,n/a
+"AT-24","",C3,"A (per-row setting: without C-8's sustain 1)",81.8889,"ratio >= 2",PASS,81.8889,81.8889,1.35685e-07,n/a
+"AT-25","",C3,"A + sustain 1 (C-8)",40.3031,"ratio >= 2",PASS,40.3031,40.3031,8.62727e-08,n/a
+===============================================================================
+All tests passed (181033 assertions in 1 test case)
+
+WALL Envelope 12.6 s exit=0

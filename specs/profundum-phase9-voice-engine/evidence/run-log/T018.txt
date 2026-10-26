@@ -1,0 +1,71 @@
+T018 - Anti-aliasing (SC-021; FR-082; plan C-3, C-21)
+Date: 2026-10-20  Branch: synth/profundum  Base: 0ae33b87
+
+ODR SWEEP (this session, before writing)
+$ grep -rnE "\b(vea[A-Z]|Vea[A-Z]|kVea)" dsp/ plugins -> 0 hits. TU-local names (vea*, Vea*, kVea*) live in an
+  anonymous namespace. No new class in any header. "VoiceEngine_Aliasing" -> 0 prior hits in dsp/tests.
+
+FACTS READ THIS SESSION (live anchors)
+- tasks.md T018 section (:1006-1019); spec SC-021 row (:908), H-9 (:625), Clarifications C-3 / C-21 (:1084-1089),
+  Q4 factor refinement + T029 lever 2 (:1114-1123); plan C-21 (:346-351), R-C (:385-391).
+- Estimator: dsp/tests/unit/systems/profundum_core_test_helpers.h aliasFftLength :257, AliasResult / aliasedPower
+  :266-310 (BH7, excludes bins 0-8 and +-8 bins around every n f_m < fs/2, dB re 0.5), bh7Window :142, safeDb10 :58,
+  kTwoPi :49.
+- Phase 4 SC-015 method: dsp/tests/unit/systems/profundum_note_behaviour_spectral_test.cpp:2196-2262 (trajectory end
+  = last pitch move inside the head, frame at trajEnd + 2 x kControlInterval, aliasFftLength(fs, f_final),
+  CHECK |f_final / f0 - 1| <= 1e-5, CHECK excluded <= 0.5, CHECK aliased <= -96); recipes kSawAnchor / kGrowl with
+  the default excitation (:1124-1128, :1205). H-9 setting: Phase 4 plan.md:285 (E0, 44.1 kHz, A 48, T 10 ms, s 1,
+  R 1) and run-log T001.txt:88 (0.4178 st/sample).
+- Phase 5 SC-010 attribution: dsp/tests/unit/systems/bass_character_spectral_test.cpp:961-994
+  (aAdded = safeDb10(max(P_out - g P_in, 0)), g = |OUT(f0)|^2 / |IN(f0)|^2 by BH7 Goertzel); Fracture lattice f0/2
+  (:997).
+- Follow ratio: systems/bass_character_stage.h:467-480 (Rectify 2 iff half-wave and flipped, Fracture 0.5 iff
+  flipped, else 1); logged every interval by the voice (profundum_voice.h:497-505 logCall FollowRatio; logCall
+  :685-690 stamps pos_, set to the engine's absolute sample at profundum_engine.h:1002).
+- Engine: ProfundumEngineConfig.dynamicsOversampling (default true) / dynamicsOversamplingFactor 4
+  (profundum_engine.h:84-90); kControlInterval 32 (:100).
+- Driver / taps: profundum_voice_engine_test_helpers.h script :139-155, taps :187-196 (sumL/R = Sum, outL/R =
+  output, coreL/R = summed per-voice core tap), voiceEngineAs :105, voiceEngineRender :377-435, kVoiceEngineNote*
+  :88-96, kVoiceEngineGrid :98.
+- MorphState fields: systems/morph_state.h:103-121; ExcitationControls profundum_core.h:353-357 (kDefaultExcitation
+  :1241, mix 0); BassStereoField::Controls bass_stereo_field.h:99-111 (ImageMode :64); AnchorOscillator::Controls
+  anchor_oscillator.h:99-106 (Mode :58). Showcase A: bass_morph_state_helpers.h:167-189.
+
+FILES WRITTEN
+- dsp/tests/unit/systems/profundum_engine_aliasing_test.cpp (T001 stub banner replaced; the five Phase 9 includes kept)
+- this run-log
+
+CASES
+- VoiceEngine_Aliasing_{44k1,48k,96k}_{Tube,Fold,Rectify,Bite,Crush,Fracture}
+  [systems][profundum][voice-engine][sc-021][fr-082][long] (18 shards). Per shard 24 cells: E0/E1/E2 x SHAPE {0,1}
+  x Tone {0,1} x Anchor {LOCK, FOLLOW}; each cell rendered twice (opt-in on = default config; opt-in off recorded).
+  Gates per cell: (a) Sum worst channel <= -80 dBFS; (b) output (opt-in on) worst channel <= -80 dBFS; guards:
+  excluded fraction <= 0.5, frame total > -60 dBFS on Sum and output, no dropped events, r = 0.5 only on Fracture.
+  Recorded: opt-in-off Sum / output, the dynamics-added term per arm. CSV evidence/aliasing-<fs>-<algorithm>.csv.
+- VoiceEngine_AliasingDropTail [systems][profundum][voice-engine][sc-021][c-21][long]: 44.1 / 48 / 96 kHz x E0-E2 x
+  {kSawAnchor, kGrowl}; Drop A 48 / T 10 ms / shape 1 / rebound 1; core tap worst channel <= -96 dBFS (C-21); Sum of
+  the same frame and the steepest upward f_core step (st/sample, vs H-9 0.418) recorded. CSV
+  evidence/aliasing-droptail.csv.
+- VoiceEngine_AliasingSmoke [systems][profundum][voice-engine][sc-021][fr-082]: 48 kHz, E1, Tube, Tone 0, SHAPE 0,
+  LOCK; (a) and (b), the same bars and guards. CSV evidence/aliasing-48k-smoke.csv.
+
+RECORDED DECISIONS (surface at comply; none moves a bar)
+1. Recipe for (a) / (b): the spec names none. kSawAnchor (the Phase 4 / 5 / 6 aliasing recipe, worst-case partial
+   set) on A_s (C-8); every other field is the spec's setting.
+2. (c) core condition: Phase 4 SC-015's (recipe kSawAnchor / kGrowl, ProfundumCore::kDefaultExcitation, mix 0).
+   With the SC-021 excitation (1 / 1 / 1) the core tap carries Phase 2's -80 dBFS floor - the "different bar" C-21
+   rules out for the Sum. Downstream of the core: the smoke cell's SC-021 setting (Tube, Tone 0, SHAPE 0, LOCK,
+   Fold 100, feed 1, WIDE 1, Mass 100). Notes E0-E2 (SC-021's set; Phase 4 also ran C3).
+3. CSV naming: one file per shard (aliasing-<fs>-<algorithm>.csv) instead of tasks.md's aliasing-<fs>.csv: the six
+   shards of one rate run concurrently in the [long] lane and would overwrite one file.
+4. f_m: Fracture -> f0 / 2 (frame sized for it); FOLLOW's r read from the FollowRatio call records inside the frame.
+   r = 0.5 arises only from Fracture (bass_character_stage.h:467-480); a 0.5 on any other algorithm fails the cell
+   (CHECK), since that frame was sized for f0.
+5. Host block 64 for every render (the engine renders in <= 32-sample grid chunks regardless, C-15).
+
+COST ESTIMATE (for the [long] lane plan; not measured)
+- Largest frame: 96 kHz E0 Fracture, aliasFftLength(96000, 10.3 Hz) = 2^20 samples + 1 s settle = 1.14 M samples per
+  render, two renders per cell. Peak memory per render ~0.35 GB (16 per-sample float taps + the call-record reserve).
+
+BUILD / RUN
+- Not built or run by this task (the group's build agent does). Expected proof: VoiceEngine_AliasingSmoke passes.

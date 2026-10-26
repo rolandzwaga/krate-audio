@@ -1,0 +1,857 @@
+# move-check.js review file: e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp vs dsp/tests/unit/systems/profundum_audibility_readers.h
+
+=== header prologue (new: #pragma once, comments, render shim of plan §4.1), header lines 1-89
++           1  #pragma once
++           2  // ==============================================================================
++           3  // Profundum Phase 13 (specs/profundum-phase13-presets-release) - profundum_audibility_readers.h
++           4  // ==============================================================================
++           5  // tasks.md T003 (FR-057, FR-021; plan §4.1). The Phase 9 audibility readers of
++           6  // profundum_engine_audibility_test.cpp, moved into namespace Krate::DSP::ProfundumAudibility (test-only, no DSP
++           7  // layer) so profundum_tests can call them on the processor path. Mechanical edits only: the namespace, `inline`
++           8  // on every namespace-scope function and constexpr (ODR: two test binaries include this header), the P-1 auPt
++           9  // alias redirected to the render shim below, and the P-10 lifts L1-L11 (evidence/move-lifts.json). The move is
++          10  // checked by specs/profundum-phase13-presets-release/evidence/move-check.js.
++          11  // ==============================================================================
++          12  
++          54  
++          55  namespace Krate::DSP::ProfundumAudibility::render {
++          56  using namespace Krate::DSP::ProfundumTest;   // every auPt::X except the two below resolves here, unchanged
++          57  
++          58  /// Phase 13 (FR-057, plan P-1): a scoped hook that reroutes the moved readers' renders. Default: none.
++          59  using ScriptRenderFn = VoiceEngineTaps (*)(const VoiceEngineScript& script, bool twin, int twinVoice, void* ctx);
++          60  struct ScriptRenderHook {
++          61      ScriptRenderFn fn = nullptr;
++          62      void* ctx = nullptr;
++          63  };
++          64  [[nodiscard]] inline ScriptRenderHook& scriptRenderHook() noexcept {
++          65      thread_local ScriptRenderHook hook{};
++          66      return hook;
++          67  }
++          68  [[nodiscard]] inline VoiceEngineTaps voiceEngineRender(const VoiceEngineScript& s) {
++          69      const ScriptRenderHook h = scriptRenderHook();
++          70      return h.fn != nullptr ? h.fn(s, false, -1, h.ctx) : ProfundumTest::voiceEngineRender(s);
++          71  }
++          72  [[nodiscard]] inline VoiceEngineTaps voiceEngineRenderWithTwin(const VoiceEngineScript& s, int voice = -1) {
++          73      const ScriptRenderHook h = scriptRenderHook();
++          74      return h.fn != nullptr ? h.fn(s, true, voice, h.ctx) : ProfundumTest::voiceEngineRenderWithTwin(s, voice);
++          75  }
++          76  /// RAII: installs {fn, ctx} and restores the previous hook on destruction. Non-copyable.
++          77  class ScriptRenderScope {
++          78  public:
++          79      ScriptRenderScope(ScriptRenderFn fn, void* ctx) noexcept : prev_(scriptRenderHook()) {
++          80          scriptRenderHook() = ScriptRenderHook{fn, ctx};
++          81      }
++          82      ~ScriptRenderScope() { scriptRenderHook() = prev_; }
++          83      ScriptRenderScope(const ScriptRenderScope&) = delete;
++          84      ScriptRenderScope& operator=(const ScriptRenderScope&) = delete;
++          85  private:
++          86      ScriptRenderHook prev_;
++          87  };
++          88  }  // namespace Krate::DSP::ProfundumAudibility::render
++          89  
+
+=== L1 auCellOnsetESub  source 1154-1173  header 1134-1158
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        1134  /// Phase 13 lift L1 (FR-057, plan §4.1): the AT-11 / AT-12 onset cell on its lo / hi pair.
++        1135  [[nodiscard]] inline AuCell auCellOnsetESub(bool punch, const MorphState& lo, const MorphState& hi, float windowMs,
++        1136                                              std::uint8_t note) {
+   1154  1137          const AuReading a = auOnsetESub(lo, note, windowMs);
+   1155  1138          const AuReading b = auOnsetESub(hi, note, windowMs);
+   1156  1139          AuCell c;
+   1157  1140          c.row = punch ? "AT-11" : "AT-12";
+   1158  1141          c.contrast = punch ? "Anchor mode: LOCK -> PUNCH (boost 6 dB, 40 ms)" : "Anchor mode: LOCK -> GHOST (ghostTimeMs 15)";
+   1159  1142          c.base = std::string(kAuBaseAs) + " + Anchor level 1";
+   1160  1143          c.note = auNoteName(note);
+   1161  1144          c.descriptor = punch ? "E_sub over [note-on, note-on + punchTimeMs) (dB; LS fit at f0)"
+   1162  1145                               : "E_sub over [note-on, note-on + ghostTimeMs) (dB; LS fit at f0)";
+   1163  1146          c.tap = "Sum";
+   1164  1147          c.lo = a.value;
+   1165  1148          c.hi = b.value;
+   1166  1149          c.value = std::abs(b.value - a.value);
+   1167  1150          c.bar = kAuBarAnchorDb;
+   1168  1151          c.barText = ">= 2 dB";
+   1169  1152          c.pass = a.valid && b.valid && c.value >= c.bar;
+   1170  1153          c.outDescriptor = "E_sub output over the same window (dB)";
+   1171  1154          c.outLo = a.out;
+   1172  1155          c.outHi = b.out;
++        1156      return c;
++        1157  }
++        1158  
+-  1173                cells.push_back(c);
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1154                const AuReading a = auOnsetESub(lo, note, windowMs);
+-  1155                const AuReading b = auOnsetESub(hi, note, windowMs);
+-  1156                AuCell c;
+-  1157                c.row = punch ? "AT-11" : "AT-12";
+-  1158                c.contrast = punch ? "Anchor mode: LOCK -> PUNCH (boost 6 dB, 40 ms)" : "Anchor mode: LOCK -> GHOST (ghostTimeMs 15)";
+-  1159                c.base = std::string(kAuBaseAs) + " + Anchor level 1";
+-  1160                c.note = auNoteName(note);
+-  1161                c.descriptor = punch ? "E_sub over [note-on, note-on + punchTimeMs) (dB; LS fit at f0)"
+-  1162                                     : "E_sub over [note-on, note-on + ghostTimeMs) (dB; LS fit at f0)";
+-  1163                c.tap = "Sum";
+-  1164                c.lo = a.value;
+-  1165                c.hi = b.value;
+-  1166                c.value = std::abs(b.value - a.value);
+-  1167                c.bar = kAuBarAnchorDb;
+-  1168                c.barText = ">= 2 dB";
+-  1169                c.pass = a.valid && b.valid && c.value >= c.bar;
+-  1170                c.outDescriptor = "E_sub output over the same window (dB)";
+-  1171                c.outLo = a.out;
+-  1172                c.outHi = b.out;
+-  1173                cells.push_back(c);
++        1234          cells.push_back(auCellOnsetESub(punch, lo, hi, windowMs, note));
+  ...
+
+=== L2 auCellAt13  source 1213-1238  header 1159-1188
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        1159  /// Phase 13 lift L2 (FR-057, plan §4.1): the AT-13 LOCK -> FOLLOW cell on its lock / follow pair.
++        1160  [[nodiscard]] inline AuCell auCellAt13(AuAlg alg, const MorphState& lock, const MorphState& follow, std::uint8_t note) {
+   1213  1161          const AuAnchorFreq fl = auAnchorFreq(lock, note);
+   1214  1162          const AuAnchorFreq ff = auAnchorFreq(follow, note);
+   1215  1163          const bool flipped = !auSame(ff.ratio, 1.0f);
+   1216  1164          const double cents = 1200.0 * std::log2(ff.hz / fl.hz);
+   1217  1165          const double expected = 1200.0 * std::log2(static_cast<double>(ff.ratio));
+   1218  1166          AuCell c;
+   1219  1167          c.row = alg == AuAlg::Fracture ? "AT-13 (Fracture)" : "AT-13 (Rectify)";
+   1220  1168          c.contrast = "Anchor mode: LOCK -> FOLLOW";
+   1221  1169          c.base = std::string(kAuBaseAs) + " + Anchor level 1 + " + (alg == AuAlg::Fracture ? "Fracture" : "Rectify")
+   1222  1170                   + " at Amount 1" + (alg == AuAlg::Rectify ? " (half-wave-symmetric input, FR-008)" : "");
+   1223  1171          c.note = auNoteName(note);
+   1224  1172          c.descriptor = "Anchor fundamental shift (cents; instantaneous frequency from phase(), [1 s, 2 s))";
+   1225  1173          c.tap = "Anchor tap (anchorPhaseTap seam)";
+   1226  1174          c.lo = fl.hz;
+   1227  1175          c.hi = ff.hz;
+   1228  1176          c.value = cents;
+   1229  1177          c.bar = expected;
+   1230  1178          c.barText = "within +-5 cents of the flipped ratio's " + std::to_string(expected) + " cents";
+   1231  1179          c.pass = flipped && auFinite(cents) && std::abs(cents - expected) <= kAuBarCents;
+   1232  1180          c.outDescriptor = "L_K output (dB)";
+   1233  1181          c.outLo = fl.outLk;
+   1234  1182          c.outHi = ff.outLk;
+   1235  1183          c.remark = std::string("follow-ratio tap ") + std::to_string(ff.ratio) + ", halfWave "
+   1236  1184                     + (ff.halfWave ? "1" : "0")
+   1237  1185                     + (flipped ? "" : "; NO FLIP at Amount 1 although P-4 reads FLIPS (a defect, not FOLLOW INERT)");
++        1186      return c;
++        1187  }
++        1188  
+-  1238                cells.push_back(c);
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1213                const AuAnchorFreq fl = auAnchorFreq(lock, note);
+-  1214                const AuAnchorFreq ff = auAnchorFreq(follow, note);
+-  1215                const bool flipped = !auSame(ff.ratio, 1.0f);
+-  1216                const double cents = 1200.0 * std::log2(ff.hz / fl.hz);
+-  1217                const double expected = 1200.0 * std::log2(static_cast<double>(ff.ratio));
+-  1218                AuCell c;
+-  1219                c.row = alg == AuAlg::Fracture ? "AT-13 (Fracture)" : "AT-13 (Rectify)";
+-  1220                c.contrast = "Anchor mode: LOCK -> FOLLOW";
+-  1221                c.base = std::string(kAuBaseAs) + " + Anchor level 1 + " + (alg == AuAlg::Fracture ? "Fracture" : "Rectify")
+-  1222                         + " at Amount 1" + (alg == AuAlg::Rectify ? " (half-wave-symmetric input, FR-008)" : "");
+-  1223                c.note = auNoteName(note);
+-  1224                c.descriptor = "Anchor fundamental shift (cents; instantaneous frequency from phase(), [1 s, 2 s))";
+-  1225                c.tap = "Anchor tap (anchorPhaseTap seam)";
+-  1226                c.lo = fl.hz;
+-  1227                c.hi = ff.hz;
+-  1228                c.value = cents;
+-  1229                c.bar = expected;
+-  1230                c.barText = "within +-5 cents of the flipped ratio's " + std::to_string(expected) + " cents";
+-  1231                c.pass = flipped && auFinite(cents) && std::abs(cents - expected) <= kAuBarCents;
+-  1232                c.outDescriptor = "L_K output (dB)";
+-  1233                c.outLo = fl.outLk;
+-  1234                c.outHi = ff.outLk;
+-  1235                c.remark = std::string("follow-ratio tap ") + std::to_string(ff.ratio) + ", halfWave "
+-  1236                           + (ff.halfWave ? "1" : "0")
+-  1237                           + (flipped ? "" : "; NO FLIP at Amount 1 although P-4 reads FLIPS (a defect, not FOLLOW INERT)");
+-  1238                cells.push_back(c);
++        1274          cells.push_back(auCellAt13(alg, lock, follow, note));
+  ...
+
+=== L3 auCellAt17  source 1266-1286  header 1189-1213
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        1189  /// Phase 13 lift L3 (FR-057, plan §4.1): the AT-17 f0 / 2 cell on its lo / hi pair.
++        1190  [[nodiscard]] inline AuCell auCellAt17(const MorphState& lo, const MorphState& hi, std::uint8_t note) {
+   1266  1191          const AuHalfPower a = auHalfPower(lo, note);
+   1267  1192          const AuHalfPower b = auHalfPower(hi, note);
+   1268  1193          const double fl = auBm::floorPower(a.pF0);
+   1269  1194          AuCell c;
+   1270  1195          c.row = "AT-17";
+   1271  1196          c.contrast = "Anchor waveform: Sine -> OctaveDownSine";
+   1272  1197          c.base = std::string(kAuBaseAs) + " + Anchor level 1";
+   1273  1198          c.note = auNoteName(note);
+   1274  1199          c.descriptor = "power at f0/2 (BH7 single bin, 2^16 samples from 1 s; dB re the Sine render's f0 power, "
+   1275  1200                         "floored at -60 dB)";
+   1276  1201          c.tap = "Sum";
+   1277  1202          c.lo = 10.0 * std::log10(std::max(a.pHalf, fl) / std::max(a.pF0, 1e-300));
+   1278  1203          c.hi = 10.0 * std::log10(std::max(b.pHalf, fl) / std::max(a.pF0, 1e-300));
+   1279  1204          c.value = c.hi - c.lo;
+   1280  1205          c.bar = kAuBarDb;
+   1281  1206          c.barText = ">= 3 dB";
+   1282  1207          c.pass = auFinite(c.value) && c.value >= c.bar;
+   1283  1208          c.outDescriptor = "power at f0/2 of the output (dB re the Sum's Sine f0 power)";
+   1284  1209          c.outLo = 10.0 * std::log10(std::max(a.outHalf, 1e-300) / std::max(a.pF0, 1e-300));
+   1285  1210          c.outHi = 10.0 * std::log10(std::max(b.outHalf, 1e-300) / std::max(a.pF0, 1e-300));
++        1211      return c;
++        1212  }
++        1213  
+-  1286                cells.push_back(c);
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1266                const AuHalfPower a = auHalfPower(lo, note);
+-  1267                const AuHalfPower b = auHalfPower(hi, note);
+-  1268                const double fl = auBm::floorPower(a.pF0);
+-  1269                AuCell c;
+-  1270                c.row = "AT-17";
+-  1271                c.contrast = "Anchor waveform: Sine -> OctaveDownSine";
+-  1272                c.base = std::string(kAuBaseAs) + " + Anchor level 1";
+-  1273                c.note = auNoteName(note);
+-  1274                c.descriptor = "power at f0/2 (BH7 single bin, 2^16 samples from 1 s; dB re the Sine render's f0 power, "
+-  1275                               "floored at -60 dB)";
+-  1276                c.tap = "Sum";
+-  1277                c.lo = 10.0 * std::log10(std::max(a.pHalf, fl) / std::max(a.pF0, 1e-300));
+-  1278                c.hi = 10.0 * std::log10(std::max(b.pHalf, fl) / std::max(a.pF0, 1e-300));
+-  1279                c.value = c.hi - c.lo;
+-  1280                c.bar = kAuBarDb;
+-  1281                c.barText = ">= 3 dB";
+-  1282                c.pass = auFinite(c.value) && c.value >= c.bar;
+-  1283                c.outDescriptor = "power at f0/2 of the output (dB re the Sum's Sine f0 power)";
+-  1284                c.outLo = 10.0 * std::log10(std::max(a.outHalf, 1e-300) / std::max(a.pF0, 1e-300));
+-  1285                c.outHi = 10.0 * std::log10(std::max(b.outHalf, 1e-300) / std::max(a.pF0, 1e-300));
+-  1286                cells.push_back(c);
++        1302          cells.push_back(auCellAt17(lo, hi, note));
+  ...
+
+=== L4 auDropCell  source 1305-1327  calls 1334-1335,1343-1344,1352-1353,1361-1363  header 1319-1344
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        1319  /// Phase 13 lift L4 (FR-057, plan §4.1): the AT-19 ... AT-22 Drop cell (the former dropCell lambda).
++        1320  template <class Pick>
++        1321  [[nodiscard]] AuCell auDropCell(const char* row, const std::string& contrast, const MorphState& lo, const MorphState& hi,
++        1322                                  std::uint8_t note, const char* descriptor, const Pick& pick, double bar,
+-  1305            const auto dropCell = [&](const char* row, const std::string& contrast, const MorphState& lo,
+-  1306                                      const MorphState& hi, const char* descriptor, const auto& pick, double bar,
+   1307  1323                                const std::string& barText, bool ratio) {
+   1308  1324          const AuDrop a = auDropRead(lo, note);
+   1309  1325          const AuDrop b = auDropRead(hi, note);
+   1310  1326          AuCell c;
+   1311  1327          c.row = row;
+   1312  1328          c.contrast = contrast;
+   1313  1329          c.base = kAuBaseAs;
+   1314  1330          c.note = auNoteName(note);
+   1315  1331          c.descriptor = descriptor;
+   1316  1332          c.tap = "f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)";
+   1317  1333          c.lo = pick(a.d);
+   1318  1334          c.hi = pick(b.d);
+   1319  1335          c.value = ratio ? auRatio(c.lo, c.hi) : std::abs(c.hi - c.lo);
+   1320  1336          c.bar = bar;
+   1321  1337          c.barText = barText;
+   1322  1338          c.pass = auFinite(c.value) && c.value >= bar;
+   1323  1339          c.outDescriptor = "L_K output (dB; a pitch-tap descriptor has no output form)";
+   1324  1340          c.outLo = a.outLk;
+   1325  1341          c.outHi = b.outLk;
++        1342      return c;
++        1343  }
++        1344  
+-  1326                cells.push_back(c);
+-  1327            };
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1305            const auto dropCell = [&](const char* row, const std::string& contrast, const MorphState& lo,
+-  1306                                      const MorphState& hi, const char* descriptor, const auto& pick, double bar,
+-  1307                                      const std::string& barText, bool ratio) {
+-  1308                const AuDrop a = auDropRead(lo, note);
+-  1309                const AuDrop b = auDropRead(hi, note);
+-  1310                AuCell c;
+-  1311                c.row = row;
+-  1312                c.contrast = contrast;
+-  1313                c.base = kAuBaseAs;
+-  1314                c.note = auNoteName(note);
+-  1315                c.descriptor = descriptor;
+-  1316                c.tap = "f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)";
+-  1317                c.lo = pick(a.d);
+-  1318                c.hi = pick(b.d);
+-  1319                c.value = ratio ? auRatio(c.lo, c.hi) : std::abs(c.hi - c.lo);
+-  1320                c.bar = bar;
+-  1321                c.barText = barText;
+-  1322                c.pass = auFinite(c.value) && c.value >= bar;
+-  1323                c.outDescriptor = "L_K output (dB; a pitch-tap descriptor has no output form)";
+-  1324                c.outLo = a.outLk;
+-  1325                c.outHi = b.outLk;
+-  1326                cells.push_back(c);
+-  1327            };
+  ...
+-  1334                dropCell("AT-19", "Drop amount: 0 -> 24 st (time 200 ms)", lo, hi, "start pitch (st, Phase 4 descriptor)",
+-  1335                         [](const auPt::VoiceEngineDropDescriptors& d) { return d.start; }, kAuBarStartSt, ">= 6 st", false);
++        1376          cells.push_back(auDropCell("AT-19", "Drop amount: 0 -> 24 st (time 200 ms)", lo, hi, note,
++        1377                                     "start pitch (st, Phase 4 descriptor)",
++        1378                                     [](const auPt::VoiceEngineDropDescriptors& d) { return d.start; }, kAuBarStartSt,
++        1379                                     ">= 6 st", false));
+  ...
+-  1343                dropCell("AT-20", "Drop time: 60 -> 500 ms (amount 24 st)", lo, hi, "t_s (samples, 1-cent threshold)",
+-  1344                         [](const auPt::VoiceEngineDropDescriptors& d) { return d.ts; }, kAuBarRatio, "ratio >= 2", true);
++        1387          cells.push_back(auDropCell("AT-20", "Drop time: 60 -> 500 ms (amount 24 st)", lo, hi, note,
++        1388                                     "t_s (samples, 1-cent threshold)",
++        1389                                     [](const auPt::VoiceEngineDropDescriptors& d) { return d.ts; }, kAuBarRatio,
++        1390                                     "ratio >= 2", true));
+  ...
+-  1352                dropCell("AT-21", "Drop shape: 0 -> 1 (amount 24 st)", lo, hi, "alpha (mean d over [0, N] / A)",
+-  1353                         [](const auPt::VoiceEngineDropDescriptors& d) { return d.alpha; }, kAuBarAlpha, ">= 0.1", false);
++        1398          cells.push_back(auDropCell("AT-21", "Drop shape: 0 -> 1 (amount 24 st)", lo, hi, note,
++        1399                                     "alpha (mean d over [0, N] / A)",
++        1400                                     [](const auPt::VoiceEngineDropDescriptors& d) { return d.alpha; }, kAuBarAlpha,
++        1401                                     ">= 0.1", false));
+  ...
+-  1361                dropCell("AT-22", "Drop rebound: 0 -> 1 (amount 24 st)", lo, hi, "rho (st, the deepest undershoot)",
+-  1362                         [](const auPt::VoiceEngineDropDescriptors& d) { return d.rho; }, kAuBarRhoFrac * kAuDropAmountSt,
+-  1363                         ">= 0.05 A_drop = 1.2 st", false);
++        1409          cells.push_back(auDropCell("AT-22", "Drop rebound: 0 -> 1 (amount 24 st)", lo, hi, note,
++        1410                                     "rho (st, the deepest undershoot)",
++        1411                                     [](const auPt::VoiceEngineDropDescriptors& d) { return d.rho; },
++        1412                                     kAuBarRhoFrac * kAuDropAmountSt, ">= 0.05 A_drop = 1.2 st", false));
+  ...
+
+=== L5 auCellAt23  source 1365-1385  header 1345-1367
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        1345  /// Phase 13 lift L5 (FR-057, plan §4.1): the AT-23 glide cell on `base` between two portamento times.
++        1346  [[nodiscard]] inline AuCell auCellAt23(const MorphState& base, std::uint8_t note, float loMs, float hiMs) {
+-  1365            {
+   1366  1347          const std::uint8_t target = auUpOctave(note);
++        1348      const double a = auGlideT50(base, note, target, loMs);
++        1349      const double b = auGlideT50(base, note, target, hiMs);
+-  1367                const double a = auGlideT50(as, note, target, 0.0f);
+-  1368                const double b = auGlideT50(as, note, target, 200.0f);
+   1369  1350          AuCell c;
+   1370  1351          c.row = "AT-23";
+   1371  1352          c.contrast = "Glide: portamento time 0 -> 200 ms, legato " + auNoteName(note) + " -> " + auNoteName(target)
+   1372  1353                       + ", MONO";
+   1373  1354          c.base = kAuBaseAs;
+   1374  1355          c.note = auNoteName(note);
+   1375  1356          c.descriptor = "t_50 (samples until f_res stays within 50 cents of the target, floored at 32)";
+   1376  1357          c.tap = "f_res pitch tap (voice 0)";
+   1377  1358          c.lo = a;
+   1378  1359          c.hi = b;
+   1379  1360          c.value = auRatio(a, b);
+   1380  1361          c.bar = kAuBarRatio;
+   1381  1362          c.barText = "ratio >= 2";
+   1382  1363          c.pass = auFinite(c.value) && c.value >= c.bar;
+   1383  1364          c.outDescriptor = "n/a (pitch-tap descriptor)";
++        1365      return c;
+-  1384                cells.push_back(c);
+   1385  1366      }
++        1367  
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1365            {
+-  1366                const std::uint8_t target = auUpOctave(note);
+-  1367                const double a = auGlideT50(as, note, target, 0.0f);
+-  1368                const double b = auGlideT50(as, note, target, 200.0f);
+-  1369                AuCell c;
+-  1370                c.row = "AT-23";
+-  1371                c.contrast = "Glide: portamento time 0 -> 200 ms, legato " + auNoteName(note) + " -> " + auNoteName(target)
+-  1372                             + ", MONO";
+-  1373                c.base = kAuBaseAs;
+-  1374                c.note = auNoteName(note);
+-  1375                c.descriptor = "t_50 (samples until f_res stays within 50 cents of the target, floored at 32)";
+-  1376                c.tap = "f_res pitch tap (voice 0)";
+-  1377                c.lo = a;
+-  1378                c.hi = b;
+-  1379                c.value = auRatio(a, b);
+-  1380                c.bar = kAuBarRatio;
+-  1381                c.barText = "ratio >= 2";
+-  1382                c.pass = auFinite(c.value) && c.value >= c.bar;
+-  1383                c.outDescriptor = "n/a (pitch-tap descriptor)";
+-  1384                cells.push_back(c);
+-  1385            }
++        1414      cells.push_back(auCellAt23(as, note, 0.0f, 200.0f));
+  ...
+
+=== L6 auCellAt24  source 1436-1457  header 1455-1481
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        1455  /// Phase 13 lift L6 (FR-057, plan §4.1): the AT-24 attack cell on built lo / hi settings.
++        1456  [[nodiscard]] inline AuCell auCellAt24(const AuSetting& lo, const AuSetting& hi, const std::string& baseName, bool gated,
++        1457                                         const std::string& remark, std::uint8_t note, const std::string& ampStep) {
++        1458      const AuReading a = auRiseMs(lo, note);
++        1459      const AuReading b = auRiseMs(hi, note);
+-  1436                    const AuReading a = auRiseMs(auOne(lo), note);
+-  1437                    const AuReading b = auRiseMs(auOne(hi), note);
+   1438  1460              AuCell c;
+   1439  1461              c.row = "AT-24";
+   1440  1462              c.contrast = "Amp envelope attack: 0.1 -> 500 ms";
+   1441  1463              c.base = baseName;
+   1442  1464              c.note = auNoteName(note);
+   1443  1465              c.descriptor = "t_90 (ms): first 1 ms frame of the Sum's RMS at >= 90 % of its maximum (drafted-descriptor replacement, G14-8)";
+   1444  1466              c.tap = "Sum";
+   1445  1467              c.lo = a.value;
+   1446  1468              c.hi = b.value;
+   1447  1469              c.value = auRatio(a.value, b.value);
+   1448  1470              c.bar = kAuBarRatio;
+   1449  1471              c.barText = "ratio >= 2";
+   1450  1472              c.pass = a.valid && b.valid && c.value >= c.bar;
+   1451  1473              c.gated = gated;
+   1452  1474              c.outDescriptor = "t_90 output (ms)";
+   1453  1475              c.outLo = a.out;
+   1454  1476              c.outHi = b.out;
+   1455  1477              c.ampStep = ampStep;
+   1456  1478              c.remark = remark;
++        1479      return c;
++        1480  }
++        1481  
+-  1457                    cells.push_back(c);
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1436                    const AuReading a = auRiseMs(auOne(lo), note);
+-  1437                    const AuReading b = auRiseMs(auOne(hi), note);
+-  1438                    AuCell c;
+-  1439                    c.row = "AT-24";
+-  1440                    c.contrast = "Amp envelope attack: 0.1 -> 500 ms";
+-  1441                    c.base = baseName;
+-  1442                    c.note = auNoteName(note);
+-  1443                    c.descriptor = "t_90 (ms): first 1 ms frame of the Sum's RMS at >= 90 % of its maximum (drafted-descriptor replacement, G14-8)";
+-  1444                    c.tap = "Sum";
+-  1445                    c.lo = a.value;
+-  1446                    c.hi = b.value;
+-  1447                    c.value = auRatio(a.value, b.value);
+-  1448                    c.bar = kAuBarRatio;
+-  1449                    c.barText = "ratio >= 2";
+-  1450                    c.pass = a.valid && b.valid && c.value >= c.bar;
+-  1451                    c.gated = gated;
+-  1452                    c.outDescriptor = "t_90 output (ms)";
+-  1453                    c.outLo = a.out;
+-  1454                    c.outHi = b.out;
+-  1455                    c.ampStep = ampStep;
+-  1456                    c.remark = remark;
+-  1457                    cells.push_back(c);
++        1517              cells.push_back(auCellAt24(auOne(lo), auOne(hi), baseName, gated, remark, note, ampStep));
+  ...
+
+=== L7 auCellAt25  source 1470-1489  header 1482-1506
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        1482  /// Phase 13 lift L7 (FR-057, plan §4.1): the AT-25 release cell on built lo / hi settings.
++        1483  [[nodiscard]] inline AuCell auCellAt25(const AuSetting& lo, const AuSetting& hi, std::uint8_t note,
++        1484                                         const std::string& ampStep) {
++        1485      const AuReading a = auGateDt(lo, note, true);
++        1486      const AuReading b = auGateDt(hi, note, true);
+-  1470                const AuReading a = auGateDt(auOne(lo), note, true);
+-  1471                const AuReading b = auGateDt(auOne(hi), note, true);
+   1472  1487          AuCell c;
+   1473  1488          c.row = "AT-25";
+   1474  1489          c.contrast = "Amp envelope release: 50 -> 2000 ms";
+   1475  1490          c.base = kAuBaseAs;
+   1476  1491          c.note = auNoteName(note);
+   1477  1492          c.descriptor = "D_t release reading (ms: D_t of the gate render from the note-off grid point on)";
+   1478  1493          c.tap = "Sum";
+   1479  1494          c.lo = a.value;
+   1480  1495          c.hi = b.value;
+   1481  1496          c.value = auRatio(a.value, b.value);
+   1482  1497          c.bar = kAuBarRatio;
+   1483  1498          c.barText = "ratio >= 2";
+   1484  1499          c.pass = a.valid && b.valid && c.value >= c.bar;
+   1485  1500          c.outDescriptor = "D_t output release reading (ms; -1 where the output does not fall 80 dB)";
+   1486  1501          c.outLo = a.out;
+   1487  1502          c.outHi = b.out;
++        1503      c.ampStep = ampStep;
++        1504      return c;
++        1505  }
++        1506  
+-  1488                c.ampStep = auAmpStepArm(&MorphState::AmpEnvelopeFields::releaseMs, 50.0f, 2000.0f, note);
+-  1489                cells.push_back(c);
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1470                const AuReading a = auGateDt(auOne(lo), note, true);
+-  1471                const AuReading b = auGateDt(auOne(hi), note, true);
+-  1472                AuCell c;
+-  1473                c.row = "AT-25";
+-  1474                c.contrast = "Amp envelope release: 50 -> 2000 ms";
+-  1475                c.base = kAuBaseAs;
+-  1476                c.note = auNoteName(note);
+-  1477                c.descriptor = "D_t release reading (ms: D_t of the gate render from the note-off grid point on)";
+-  1478                c.tap = "Sum";
+-  1479                c.lo = a.value;
+-  1480                c.hi = b.value;
+-  1481                c.value = auRatio(a.value, b.value);
+-  1482                c.bar = kAuBarRatio;
+-  1483                c.barText = "ratio >= 2";
+-  1484                c.pass = a.valid && b.valid && c.value >= c.bar;
+-  1485                c.outDescriptor = "D_t output release reading (ms; -1 where the output does not fall 80 dB)";
+-  1486                c.outLo = a.out;
+-  1487                c.outHi = b.out;
+-  1488                c.ampStep = auAmpStepArm(&MorphState::AmpEnvelopeFields::releaseMs, 50.0f, 2000.0f, note);
+-  1489                cells.push_back(c);
++        1530          cells.push_back(auCellAt25(auOne(lo), auOne(hi), note,
++        1531                                     auAmpStepArm(&MorphState::AmpEnvelopeFields::releaseMs, 50.0f, 2000.0f, note)));
+  ...
+
+=== L8 auDlk, auCellAt27  source 1498-1521  calls 1522,1524  header 1536-1563
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        1536  /// Phase 13 lift L8 (FR-057, plan §4.1): the AT-27 dL_K reading (the former dlk lambda; the caller sets Mass)
++        1537  /// and the AT-27 cell on built lo / hi settings (the former cell lambda).
++        1538  [[nodiscard]] inline double auDlk(const AuSetting& s, std::uint8_t note, double& outLk) {
++        1539      const auPt::VoiceEngineTaps t = auPt::voiceEngineRender(auScript(s, note, auSteadyTotal()));
+-  1498                const auto dlk = [&](const MorphState& base, float mass, double& outLk) {
+-  1499                    MorphState s = base;
+-  1500                    s.mass = mass;
+-  1501                    const auPt::VoiceEngineTaps t = auPt::voiceEngineRender(auScript(auOne(s), note, auSteadyTotal()));
+   1502  1540              outLk = auBm::lKDb(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Output), kAuFs);
+   1503  1541              return auBm::lKDb(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Dynamics), kAuFs)
+   1504  1542                     - auBm::lKDb(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Sum), kAuFs);
++        1543  }
++        1544  
++        1545  [[nodiscard]] inline AuCell auCellAt27(const AuSetting& lo, const AuSetting& hi, const std::string& baseName,
++        1546                                         std::uint8_t note) {
+-  1505                };
+-  1506                const auto cell = [&](const MorphState& base, const std::string& baseName) {
+   1507  1547              AuCell c;
+   1508  1548              c.row = "AT-27";
+   1509  1549              c.contrast = "Mass dynamics, gain: Mass 0 -> 100";
+   1510  1550              c.base = baseName;
+   1511  1551              c.note = auNoteName(note);
+   1512  1552              c.descriptor = "dL_K = L_K(dynamics output) - L_K(Sum) (dB)";
+   1513  1553              c.tap = "dynamics output tap and Sum";
++        1554      c.lo = auDlk(lo, note, c.outLo);
++        1555      c.hi = auDlk(hi, note, c.outHi);
+-  1514                    c.lo = dlk(base, 0.0f, c.outLo);
+-  1515                    c.hi = dlk(base, 100.0f, c.outHi);
+   1516  1556              c.value = std::abs(c.hi - c.lo);
+   1517  1557              c.bar = kAuBarDb;
+   1518  1558              c.barText = ">= 3 dB";
+   1519  1559              c.pass = auFinite(c.value) && c.value >= c.bar;
+   1520  1560              c.outDescriptor = "L_K output (dB)";
+   1521  1561              return c;
++        1562  }
++        1563  
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1498                const auto dlk = [&](const MorphState& base, float mass, double& outLk) {
+-  1499                    MorphState s = base;
+-  1500                    s.mass = mass;
+-  1501                    const auPt::VoiceEngineTaps t = auPt::voiceEngineRender(auScript(auOne(s), note, auSteadyTotal()));
+-  1502                    outLk = auBm::lKDb(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Output), kAuFs);
+-  1503                    return auBm::lKDb(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Dynamics), kAuFs)
+-  1504                           - auBm::lKDb(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Sum), kAuFs);
+-  1505                };
+-  1506                const auto cell = [&](const MorphState& base, const std::string& baseName) {
+-  1507                    AuCell c;
+-  1508                    c.row = "AT-27";
+-  1509                    c.contrast = "Mass dynamics, gain: Mass 0 -> 100";
+-  1510                    c.base = baseName;
+-  1511                    c.note = auNoteName(note);
+-  1512                    c.descriptor = "dL_K = L_K(dynamics output) - L_K(Sum) (dB)";
+-  1513                    c.tap = "dynamics output tap and Sum";
+-  1514                    c.lo = dlk(base, 0.0f, c.outLo);
+-  1515                    c.hi = dlk(base, 100.0f, c.outHi);
+-  1516                    c.value = std::abs(c.hi - c.lo);
+-  1517                    c.bar = kAuBarDb;
+-  1518                    c.barText = ">= 3 dB";
+-  1519                    c.pass = auFinite(c.value) && c.value >= c.bar;
+-  1520                    c.outDescriptor = "L_K output (dB)";
+-  1521                    return c;
+-  1522                };
++        1594          // One auStateB() / auStateBs() call each, as the former cell(auStateB(), ...) / cell(auStateBs(), ...)
++        1595          // calls made (same assertion count; FR-058 gate).
++        1596          const MorphState b = auStateB();
++        1597          const MorphState bs = auStateBs();
++        1598          MorphState b0 = b;
++        1599          b0.mass = 0.0f;
++        1600          MorphState b100 = b;
++        1601          b100.mass = 100.0f;
++        1602          MorphState bs0 = bs;
++        1603          bs0.mass = 0.0f;
++        1604          MorphState bs100 = bs;
++        1605          bs100.mass = 100.0f;
+  ...
+-  1524                auGateOnEither(cell(auStateB(), "B"), cell(auStateBs(), kAuBaseBs), cells, "B reads 2.92 dB at C3");
++        1607          auGateOnEither(auCellAt27(auOne(b0), auOne(b100), "B", note),
++        1608                         auCellAt27(auOne(bs0), auOne(bs100), kAuBaseBs, note), cells, "B reads 2.92 dB at C3");
+  ...
+
+=== L9 auOnsetDyn, auCellAt28  source 1528-1549  header 1564-1589
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        1564  /// Phase 13 lift L9 (FR-057, plan §4.1): the AT-28 onset reading (the former onset lambda; the caller sets
++        1565  /// transientAttackDb) and the AT-28 cell on built lo / hi settings.
++        1566  [[nodiscard]] inline double auOnsetDyn(const AuSetting& s, std::uint8_t note, double& outRatio) {
++        1567      const auPt::VoiceEngineTaps t = auPt::voiceEngineRender(auScript(s, note, auAt(1.0)));
+-  1528                const auto onset = [&](float attackDb, double& outRatio) {
+-  1529                    MorphState s = auStateB();
+-  1530                    s.transientAttackDb = attackDb;
+-  1531                    const auPt::VoiceEngineTaps t = auPt::voiceEngineRender(auScript(auOne(s), note, auAt(1.0)));
+   1532  1568              outRatio = auOnsetRatioDb(t.outL, t.outR);
+   1533  1569              return auOnsetRatioDb(t.dynL, t.dynR);
++        1570  }
++        1571  
++        1572  [[nodiscard]] inline AuCell auCellAt28(const AuSetting& lo, const AuSetting& hi, std::uint8_t note) {
+-  1534                };
+   1535  1573          AuCell c;
+   1536  1574          c.row = "AT-28";
+   1537  1575          c.contrast = "Mass dynamics, transient: transientAttackDb 0 -> +12";
+   1538  1576          c.base = "B";
+   1539  1577          c.note = auNoteName(note);
+   1540  1578          c.descriptor = "onset ratio: peak |y| over [0, 20 ms) over RMS over [100, 300) ms (dB)";
+   1541  1579          c.tap = "dynamics output tap";
++        1580      c.lo = auOnsetDyn(lo, note, c.outLo);
++        1581      c.hi = auOnsetDyn(hi, note, c.outHi);
+-  1542                c.lo = onset(0.0f, c.outLo);
+-  1543                c.hi = onset(12.0f, c.outHi);
+   1544  1582          c.value = std::abs(c.hi - c.lo);
+   1545  1583          c.bar = kAuBarDb;
+   1546  1584          c.barText = ">= 3 dB";
+   1547  1585          c.pass = auFinite(c.value) && c.value >= c.bar;
+   1548  1586          c.outDescriptor = "onset ratio of the output (dB)";
++        1587      return c;
++        1588  }
++        1589  
+-  1549                cells.push_back(c);
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1528                const auto onset = [&](float attackDb, double& outRatio) {
+-  1529                    MorphState s = auStateB();
+-  1530                    s.transientAttackDb = attackDb;
+-  1531                    const auPt::VoiceEngineTaps t = auPt::voiceEngineRender(auScript(auOne(s), note, auAt(1.0)));
+-  1532                    outRatio = auOnsetRatioDb(t.outL, t.outR);
+-  1533                    return auOnsetRatioDb(t.dynL, t.dynR);
+-  1534                };
+-  1535                AuCell c;
+-  1536                c.row = "AT-28";
+-  1537                c.contrast = "Mass dynamics, transient: transientAttackDb 0 -> +12";
+-  1538                c.base = "B";
+-  1539                c.note = auNoteName(note);
+-  1540                c.descriptor = "onset ratio: peak |y| over [0, 20 ms) over RMS over [100, 300) ms (dB)";
+-  1541                c.tap = "dynamics output tap";
+-  1542                c.lo = onset(0.0f, c.outLo);
+-  1543                c.hi = onset(12.0f, c.outHi);
+-  1544                c.value = std::abs(c.hi - c.lo);
+-  1545                c.bar = kAuBarDb;
+-  1546                c.barText = ">= 3 dB";
+-  1547                c.pass = auFinite(c.value) && c.value >= c.bar;
+-  1548                c.outDescriptor = "onset ratio of the output (dB)";
+-  1549                cells.push_back(c);
++        1612          MorphState lo = auStateB();
++        1613          lo.transientAttackDb = 0.0f;
++        1614          MorphState hi = auStateB();
++        1615          hi.transientAttackDb = 12.0f;
++        1616          cells.push_back(auCellAt28(auOne(lo), auOne(hi), note));
+  ...
+
+=== L10 auNoteMemoryPhase, AuNoteMemoryRow, auNoteMemoryRows, auCellNoteMemory  source 1964,1981-2002,2005-2030  calls 1959,1980,2004  header 2026-2027,2032,2047-2106
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        2026  [[nodiscard]] inline AuPhase auNoteMemoryPhase(const MorphState& base, NoteMemory::Mode m, AuTransition kind,
++        2027                                                 std::uint8_t note, std::uint64_t t1) {
++        2032      auPt::VoiceEngineScript sc = auScript(auOne(base), note, ws + len + kAuGrid);
++        2047  /// Phase 13 lift L10 (FR-057, plan §4.1): one AT-43 ... AT-46 row (the former local Row), the four rows, and
++        2048  /// the row's cell on `base`.
++        2049  struct AuNoteMemoryRow {
+-  1964            auPt::VoiceEngineScript sc = auScript(auOne(auStateAs()), note, ws + len + kAuGrid);
+-  1981            struct Row {
+   1982  2050          const char* row;
++        2051      NoteMemory::Mode mode;
+-  1983                M mode;
+   1984  2052          const char* modeName;
++        2053      NoteMemory::Mode ref;
+-  1985                M ref;
+   1986  2054          const char* refName;
+   1987  2055          AuTransition kind;
+   1988  2056          const char* kindName;
+   1989  2057          const char* actions;
+   1990  2058      };
++        2059  
++        2060  [[nodiscard]] inline const std::array<AuNoteMemoryRow, 4>& auNoteMemoryRows() {
++        2061      using M = NoteMemory::Mode;
+   1991  2062      // note_memory.h kMatrix (osc, env): Overlap AR 11 / ERO 01; Tail AR, Legato 11 / ERO, OC 01. Every pair
+   1992  2063      // differs in the oscillator restart only.
++        2064      static const std::array<AuNoteMemoryRow, 4> rows{{
+-  1993            const std::array<Row, 4> rows{{
+   1994  2065          {"AT-43", M::AlwaysRetrigger, "AlwaysRetrigger", M::EnvelopeRetriggerOnly, "EnvelopeRetriggerOnly",
+   1995  2066           AuTransition::Overlap, "Overlap", "(osc 1, env 1) vs (osc 0, env 1)"},
+   1996  2067          {"AT-44", M::Legato, "Legato", M::OscillatorContinuous, "OscillatorContinuous", AuTransition::Tail, "Tail",
+   1997  2068           "(osc 1, env 1) vs (osc 0, env 1)"},
+   1998  2069          {"AT-45", M::EnvelopeRetriggerOnly, "EnvelopeRetriggerOnly", M::Legato, "Legato", AuTransition::Tail, "Tail",
+   1999  2070           "(osc 0, env 1) vs (osc 1, env 1)"},
+   2000  2071          {"AT-46", M::OscillatorContinuous, "OscillatorContinuous", M::AlwaysRetrigger, "AlwaysRetrigger",
+   2001  2072           AuTransition::Tail, "Tail", "(osc 0, env 1) vs (osc 1, env 1)"},
+   2002  2073      }};
++        2074      return rows;
++        2075  }
++        2076  
++        2077  [[nodiscard]] inline AuCell auCellNoteMemory(const MorphState& baseM, const MorphState& baseRef,
++        2078                                               const AuNoteMemoryRow& r, std::uint8_t note, std::uint64_t t1) {
++        2079      const AuPhase pm = auNoteMemoryPhase(baseM, r.mode, r.kind, note, t1);
++        2080      const AuPhase pr = auNoteMemoryPhase(baseRef, r.ref, r.kind, note, t1);
+-  2005                const AuPhase pm = auNoteMemoryPhase(r.mode, r.kind, note, t1);
+-  2006                const AuPhase pr = auNoteMemoryPhase(r.ref, r.kind, note, t1);
+   2007  2081          double d = pm.phaseRad - pr.phaseRad;
+   2008  2082          d -= auPt::kTwoPi * std::round(d / auPt::kTwoPi);
+   2009  2083          AuCell c;
+   2010  2084          c.row = r.row;
+   2011  2085          c.contrast = std::string("Note Memory ") + r.modeName + " vs M_ref " + r.refName + ", " + r.kindName + " "
+   2012  2086                       + auNoteName(note) + " -> " + auNoteName(auUpOctave(note)) + " at sample " + std::to_string(t1)
+   2013  2087                       + ", Retrigger Reset, MONO";
+   2014  2088          c.base = kAuBaseAs;
+   2015  2089          c.note = auNoteName(note);
+   2016  2090          c.descriptor = "core-h1 Goertzel phase jump |wrap(phi_M - phi_ref)| (deg; 4 periods from t1 + 20 ms)";
+   2017  2091          c.tap = "core tap";
+   2018  2092          c.lo = pr.phaseRad * 180.0 / (0.5 * auPt::kTwoPi);
+   2019  2093          c.hi = pm.phaseRad * 180.0 / (0.5 * auPt::kTwoPi);
+   2020  2094          c.value = std::abs(d) * 180.0 / (0.5 * auPt::kTwoPi);
+   2021  2095          c.bar = kAuBarPhaseDeg;
+   2022  2096          c.barText = ">= 30 deg (phase reading)";
+   2023  2097          c.pass = auFinite(c.value) && c.value >= c.bar;
+   2024  2098          c.outDescriptor = "L_K output (dB)";
+   2025  2099          c.outLo = pr.outLk;
+   2026  2100          c.outHi = pm.outLk;
+   2027  2101          c.remark = std::string("resolved Actions ") + r.actions
+   2028  2102                     + ": the pair differs in the oscillator restart only (phase reset + declick); envelope restart "
+   2029  2103                       "from sustain 1 is silent on A_s (C-8), Drop amount 0";
++        2104      return c;
++        2105  }
++        2106  
+-  2030                cells.push_back(c);
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  1959        [[nodiscard]] AuPhase auNoteMemoryPhase(NoteMemory::Mode m, AuTransition kind, std::uint8_t note, std::uint64_t t1) {
+  ...
+-  1964            auPt::VoiceEngineScript sc = auScript(auOne(auStateAs()), note, ws + len + kAuGrid);
+  ...
+-  1980            using M = NoteMemory::Mode;
+-  1981            struct Row {
+-  1982                const char* row;
+-  1983                M mode;
+-  1984                const char* modeName;
+-  1985                M ref;
+-  1986                const char* refName;
+-  1987                AuTransition kind;
+-  1988                const char* kindName;
+-  1989                const char* actions;
+-  1990            };
+-  1991            // note_memory.h kMatrix (osc, env): Overlap AR 11 / ERO 01; Tail AR, Legato 11 / ERO, OC 01. Every pair
+-  1992            // differs in the oscillator restart only.
+-  1993            const std::array<Row, 4> rows{{
+-  1994                {"AT-43", M::AlwaysRetrigger, "AlwaysRetrigger", M::EnvelopeRetriggerOnly, "EnvelopeRetriggerOnly",
+-  1995                 AuTransition::Overlap, "Overlap", "(osc 1, env 1) vs (osc 0, env 1)"},
+-  1996                {"AT-44", M::Legato, "Legato", M::OscillatorContinuous, "OscillatorContinuous", AuTransition::Tail, "Tail",
+-  1997                 "(osc 1, env 1) vs (osc 0, env 1)"},
+-  1998                {"AT-45", M::EnvelopeRetriggerOnly, "EnvelopeRetriggerOnly", M::Legato, "Legato", AuTransition::Tail, "Tail",
+-  1999                 "(osc 0, env 1) vs (osc 1, env 1)"},
+-  2000                {"AT-46", M::OscillatorContinuous, "OscillatorContinuous", M::AlwaysRetrigger, "AlwaysRetrigger",
+-  2001                 AuTransition::Tail, "Tail", "(osc 0, env 1) vs (osc 1, env 1)"},
+-  2002            }};
+  ...
+-  2004            for (const Row& r : rows) {
+-  2005                const AuPhase pm = auNoteMemoryPhase(r.mode, r.kind, note, t1);
+-  2006                const AuPhase pr = auNoteMemoryPhase(r.ref, r.kind, note, t1);
+-  2007                double d = pm.phaseRad - pr.phaseRad;
+-  2008                d -= auPt::kTwoPi * std::round(d / auPt::kTwoPi);
+-  2009                AuCell c;
+-  2010                c.row = r.row;
+-  2011                c.contrast = std::string("Note Memory ") + r.modeName + " vs M_ref " + r.refName + ", " + r.kindName + " "
+-  2012                             + auNoteName(note) + " -> " + auNoteName(auUpOctave(note)) + " at sample " + std::to_string(t1)
+-  2013                             + ", Retrigger Reset, MONO";
+-  2014                c.base = kAuBaseAs;
+-  2015                c.note = auNoteName(note);
+-  2016                c.descriptor = "core-h1 Goertzel phase jump |wrap(phi_M - phi_ref)| (deg; 4 periods from t1 + 20 ms)";
+-  2017                c.tap = "core tap";
+-  2018                c.lo = pr.phaseRad * 180.0 / (0.5 * auPt::kTwoPi);
+-  2019                c.hi = pm.phaseRad * 180.0 / (0.5 * auPt::kTwoPi);
+-  2020                c.value = std::abs(d) * 180.0 / (0.5 * auPt::kTwoPi);
+-  2021                c.bar = kAuBarPhaseDeg;
+-  2022                c.barText = ">= 30 deg (phase reading)";
+-  2023                c.pass = auFinite(c.value) && c.value >= c.bar;
+-  2024                c.outDescriptor = "L_K output (dB)";
+-  2025                c.outLo = pr.outLk;
+-  2026                c.outHi = pm.outLk;
+-  2027                c.remark = std::string("resolved Actions ") + r.actions
+-  2028                           + ": the pair differs in the oscillator restart only (phase reset + declick); envelope restart "
+-  2029                             "from sustain 1 is silent on A_s (C-8), Drop amount 0";
+-  2030                cells.push_back(c);
++        2109      for (const AuNoteMemoryRow& r : auNoteMemoryRows()) {
++        2110          cells.push_back(auCellNoteMemory(auStateAs(), auStateAs(), r, note, t1));
+  ...
+
+=== L11 auMacroAxisRead, auMacroCellOn  source 2076-2082,2097-2127  header 2152-2162,2180-2216
+--- lifted function(s): e6095b24:dsp/tests/unit/systems/profundum_engine_audibility_test.cpp source regions (-) vs header regions (+)
++        2152  /// Phase 13 lift L11 (FR-057, plan §4.1): macro m's axis reading on a built setting (the former auMacroRead switch).
++        2153  [[nodiscard]] inline AuReading auMacroAxisRead(const AuSetting& s, ProfundumMacro m, std::uint8_t note) {
+   2076  2154      switch (auAxisOf(m)) {
+   2077  2155          case AuAxis::ESub: return auSteady(s, note, AuDesc::ESub);
+   2078  2156          case AuAxis::Dbr: return auSteady(s, note, AuDesc::DBr);
+   2079  2157          case AuAxis::Dt: return auGateDt(s, note, false);
+   2080  2158          case AuAxis::Dnl: return auSteady(s, note, AuDesc::DNl);
+   2081  2159      }
+   2082  2160      return {};
++        2161  }
++        2162  
++        2180  /// Phase 13 lift L11 (FR-057, plan §4.1): the AT-47 ... AT-50 cell on built lo / hi settings (the former
++        2181  /// auMacroCell body).
++        2182  [[nodiscard]] inline AuCell auMacroCellOn(ProfundumMacro m, const AuSetting& lo, const AuSetting& hi,
++        2183                                            const std::string& baseName, std::uint8_t note, bool gated,
++        2184                                            const std::string& remark) {
+   2097  2185      const AuAxis axis = auAxisOf(m);
++        2186      const AuReading a = auMacroAxisRead(lo, m, note);
++        2187      const AuReading b = auMacroAxisRead(hi, m, note);
+-  2098            const AuReading a = auMacroRead(base, m, 0.0f, note);
+-  2099            const AuReading b = auMacroRead(base, m, 1.0f, note);
+   2100  2188      AuCell c;
+   2101  2189      c.row = "AT-" + std::to_string(47 + static_cast<int>(m));
+   2102  2190      c.contrast = std::string("Macro ") + kAuMacroNames[static_cast<std::size_t>(m)] + ": 0 -> 1, the others at neutral";
+   2103  2191      c.base = baseName;
+   2104  2192      c.note = auNoteName(note);
+   2105  2193      c.descriptor = std::string("the SC-007 axis: ") + auAxisName(axis);
+   2106  2194      c.tap = auAxisTap(axis);
+   2107  2195      c.lo = a.value;
+   2108  2196      c.hi = b.value;
+   2109  2197      if (axis == AuAxis::Dt)
+   2110  2198          c.value = a.value > 0.0 ? b.value / a.value : 0.0;
+   2111  2199      else
+   2112  2200          c.value = b.value - a.value;
+   2113  2201      c.bar = auAxisBar(axis);
+   2114  2202      if (axis == AuAxis::Dt)
+   2115  2203          c.barText = "ratio >= 2 (hi / lo)";
+   2116  2204      else if (axis == AuAxis::Dbr)
+   2117  2205          c.barText = ">= 0.25 oct (hi - lo)";
+   2118  2206      else
+   2119  2207          c.barText = ">= 3 dB (hi - lo)";
+   2120  2208      c.pass = a.valid && b.valid && auFinite(c.value) && c.value >= c.bar;
+   2121  2209      c.gated = gated;
+   2122  2210      c.outDescriptor = axis == AuAxis::Dnl ? "L_K output (dB)" : std::string(auAxisName(axis)) + " of the output";
+   2123  2211      c.outLo = a.out;
+   2124  2212      c.outHi = b.out;
+   2125  2213      c.remark = remark;
+   2126  2214      return c;
+   2127  2215  }
++        2216  
+--- call sites: source/calls lines (-) replaced in place by header text (+)
+-  2076            switch (auAxisOf(m)) {
+-  2077                case AuAxis::ESub: return auSteady(s, note, AuDesc::ESub);
+-  2078                case AuAxis::Dbr: return auSteady(s, note, AuDesc::DBr);
+-  2079                case AuAxis::Dt: return auGateDt(s, note, false);
+-  2080                case AuAxis::Dnl: return auSteady(s, note, AuDesc::DNl);
+-  2081            }
+-  2082            return {};
++        2167      return auMacroAxisRead(s, m, note);
+  ...
+-  2097            const AuAxis axis = auAxisOf(m);
+-  2098            const AuReading a = auMacroRead(base, m, 0.0f, note);
+-  2099            const AuReading b = auMacroRead(base, m, 1.0f, note);
+-  2100            AuCell c;
+-  2101            c.row = "AT-" + std::to_string(47 + static_cast<int>(m));
+-  2102            c.contrast = std::string("Macro ") + kAuMacroNames[static_cast<std::size_t>(m)] + ": 0 -> 1, the others at neutral";
+-  2103            c.base = baseName;
+-  2104            c.note = auNoteName(note);
+-  2105            c.descriptor = std::string("the SC-007 axis: ") + auAxisName(axis);
+-  2106            c.tap = auAxisTap(axis);
+-  2107            c.lo = a.value;
+-  2108            c.hi = b.value;
+-  2109            if (axis == AuAxis::Dt)
+-  2110                c.value = a.value > 0.0 ? b.value / a.value : 0.0;
+-  2111            else
+-  2112                c.value = b.value - a.value;
+-  2113            c.bar = auAxisBar(axis);
+-  2114            if (axis == AuAxis::Dt)
+-  2115                c.barText = "ratio >= 2 (hi / lo)";
+-  2116            else if (axis == AuAxis::Dbr)
+-  2117                c.barText = ">= 0.25 oct (hi - lo)";
+-  2118            else
+-  2119                c.barText = ">= 3 dB (hi - lo)";
+-  2120            c.pass = a.valid && b.valid && auFinite(c.value) && c.value >= c.bar;
+-  2121            c.gated = gated;
+-  2122            c.outDescriptor = axis == AuAxis::Dnl ? "L_K output (dB)" : std::string(auAxisName(axis)) + " of the output";
+-  2123            c.outLo = a.out;
+-  2124            c.outHi = b.out;
+-  2125            c.remark = remark;
+-  2126            return c;
+-  2127        }
++        2219      AuSetting lo = auOne(base);
++        2220      lo.macros = auMacroAt(m, 0.0f);
++        2221      AuSetting hi = auOne(base);
++        2222      hi.macros = auMacroAt(m, 1.0f);
++        2223      return auMacroCellOn(m, lo, hi, baseName, note, gated, remark);
++        2224  }
+  ...
+

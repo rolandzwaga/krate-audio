@@ -1,0 +1,80 @@
+=== T034 tidy 2026-10-25T10:41:45Z commit e6095b24 cores=32 jobs/lane=10
+--- profundum lane: 52 .cpp files (specs/profundum-phase13-presets-release/evidence/run-log/close/tidy/profundum-files.txt); files lane: 5 .cpp files (specs/profundum-phase13-presets-release/evidence/run-log/close/tidy/files-list.txt)
+      dsp/tests/unit/systems/profundum_engine_audibility_test.cpp
+      plugins/shared/src/preset/preset_manager.cpp
+      plugins/shared/src/ui/preset_browser_view.cpp
+      plugins/shared/tests/test_preset_description.cpp
+      tools/profundum_preset_generator.cpp
+--- vcvars: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat
+--- reconfigure (cmake --preset windows-ninja in vcvars64) exit=0 wall=11s
+-- [SMTG] Setup running moduleinfotool for Profundum
+-- [KRATE] Copied compile_commands.json to project root
+-- Configuring done (7.7s)
+-- Generating done (0.6s)
+-- Build files have been written to: F:/projects/iterum/build/windows-ninja
+--- compile database: all 57 TUs present (52 Profundum incl. 4 src/ui, 5 file-list)
+=================== lane profundum (rc=0 wall=226)
+[INFO] Using clang-tidy: C:\Program Files\LLVM\bin\clang-tidy.exe
+[INFO] Parallel jobs: 10
+[INFO] Using compile_commands.json from: build/windows-ninja
+[INFO] Found 52 source files to analyze
+[1/52] plugins/profundum/tests/integration/band_level_metric_test.cpp                    [2/52] plugins/profundum/src/ui/spread_curve_view.cpp                    [3/52] plugins/profundum/src/ui/offset_ring_knob.cpp                    [4/52] plugins/profundum/src/entry.cpp                    [5/52] plugins/profundum/tests/integration/copy_compare_test.cpp                    [6/52] plugins/profundum/src/ui/harmonic_bar_view.cpp                    [7/52] plugins/profundum/tests/integration/determinism_test.cpp                    [8/52] plugins/profundum/src/ui/panel_sub_controller.cpp                    [9/52] plugins/profundum/src/processor/processor.cpp                    [10/52] plugins/profundum/src/controller/controller.cpp                    [11/52] plugins/profundum/tests/integration/main_page_render_set_test.cpp                    [12/52] plugins/profundum/tests/integration/main_page_sanity_test.cpp                    [13/52] plugins/profundum/tests/integration/main_page_audibility_test.cpp                    [14/52] plugins/profundum/tests/integration/mono_sum_params_test.cpp                    [15/52] plugins/profundum/tests/integration/param_flow_test.cpp                    [16/52] plugins/profundum/tests/integration/param_path_audibility_test.cpp                    [17/52] plugins/profundum/tests/integration/param_wiring_test.cpp                    [18/52] plugins/profundum/src/processor/goertzel_bank_simd.cpp                    [19/52] plugins/profundum/tests/integration/preset_browser_test.cpp                    [20/52] plugins/profundum/tests/integration/processor_audio_test.cpp                    [21/52] plugins/profundum/tests/integration/processor_cpu_test.cpp                    [22/52] plugins/profundum/tests/integration/preset_rt_test.cpp                    [23/52] plugins/profundum/tests/integration/preset_probe_test.cpp                    [24/52] plugins/profundum/tests/integration/preset_showcase_test.cpp                    [25/52] plugins/profundum/tests/integration/state_restore_render_test.cpp                    [26/52] plugins/profundum/tests/integration/tail_test.cpp                    [27/52] plugins/profundum/tests/integration/preset_sweep_test.cpp                    [28/52] plugins/profundum/tests/integration/spectrum_frame_test.cpp                    [29/52] plugins/profundum/tests/unit/controller/custom_view_laws_test.cpp                    [30/52] plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp                    [31/52] plugins/profundum/tests/unit/controller/editor_layout_test.cpp                    [32/52] plugins/profundum/tests/unit/controller/editor_sync_test.cpp                    [33/52] plugins/profundum/tests/unit/controller/macro_ui_test.cpp                    [34/52] plugins/profundum/tests/unit/controller/morph_component_test.cpp                    [35/52] plugins/profundum/tests/unit/controller/ui_views_test.cpp                    [36/52] plugins/profundum/tests/unit/preset/preset_description_test.cpp                    [37/52] plugins/profundum/tests/unit/controller/spread_curve_test.cpp                    [38/52] plugins/profundum/tests/unit/lifecycle_test.cpp                    [39/52] plugins/profundum/tests/unit/midi_event_test.cpp                    [40/52] plugins/profundum/tests/unit/manual_coverage_test.cpp                    [41/52] plugins/profundum/tests/unit/midi_mapping_test.cpp                    [42/52] plugins/profundum/tests/unit/preset/preset_library_test.cpp                    [43/52] plugins/profundum/tests/vstgui_test_stubs.cpp                    [44/52] plugins/profundum/tests/unit/param_denorm_test.cpp                    [45/52] plugins/profundum/tests/unit/phase11_alloc_test.cpp                    [46/52] plugins/profundum/tests/unit/param_table_test.cpp                    [47/52] plugins/profundum/tests/unit/spectrum_producer_test.cpp                    [48/52] plugins/profundum/tests/unit/processor_bus_test.cpp                    [49/52] plugins/profundum/tests/unit/test_main.cpp                    [50/52] plugins/profundum/tests/unit/state_roundtrip_test.cpp                    [51/52] plugins/profundum/tests/unit/state_v2_test.cpp                    [52/52] plugins/profundum/tests/unit/state_v3_test.cpp                    
+
+============================================================
+[INFO] Clang-Tidy Analysis Complete
+  Files analyzed: 52
+[OK]   Errors: 0
+[OK]   Warnings: 0
+============================================================
+=================== lane files (rc=0 wall=37 listed=5)
+=== files lane: clang-tidy -p build/windows-ninja over 5 .cpp file(s) (specs/profundum-phase13-presets-release/evidence/run-log/close/tidy/files-list.txt)
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:112:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:112:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:112:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:113:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:113:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:113:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:114:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:114:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:114:25: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:115:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:115:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:115:41: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:116:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:116:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:116:43: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:119:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:119:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:119:38: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:120:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:120:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:120:33: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:126:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:126:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:126:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:131:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:131:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:131:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:133:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:133:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:133:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:139:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:139:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:139:32: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:146:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:146:17: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:146:22: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:148:9: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:148:15: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:148:30: note: operand 'v2' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:165:5: note: operand 'v0' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:165:13: note: operand 'v1' is here
+F:\projects\iterum\plugins\shared\tests\test_preset_description.cpp:165:46: note: operand 'v2' is here
+  Files analyzed: 5
+  Errors: 0
+  Warnings: 0
+=== summary
+lane profundum GREEN files=52 warnings=0 errors=0 exit=0 wall=226s
+lane files GREEN files=5 warnings=0 errors=0 exit=0 wall=37s
+lanes wall=226s
+TIDY GREEN total_wall=241s

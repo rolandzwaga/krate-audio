@@ -1,0 +1,66 @@
+Filters: "ProfundumCore_SpectrumInvariantC1toC3"
+Randomness seeded to: 4025817475
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dsp_systems_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumCore_SpectrumInvariantC1toC3
+-------------------------------------------------------------------------------
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(873)
+...............................................................................
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kSineAnchor (25 semitones C1-C3, 48 kHz, N 64): worst error 0 dB over
+  25 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kTriangleAnchor (25 semitones C1-C3, 48 kHz, N 64): worst error 0.
+  00208875 dB over 125 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kSawAnchor (25 semitones C1-C3, 48 kHz, N 64): worst error 0.00227069
+  dB over 1600 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kHeavy (25 semitones C1-C3, 48 kHz, N 64): worst error 0.00218932 dB
+  over 250 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kHollow (25 semitones C1-C3, 48 kHz, N 64): worst error 0.00219297 dB
+  over 250 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kGrowl (25 semitones C1-C3, 48 kHz, N 64): worst error 0.00226179 dB
+  over 1600 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kBodyRound (25 semitones C1-C3, 48 kHz, N 64): worst error 0.00226395
+  dB over 1000 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kBodyHollow (25 semitones C1-C3, 48 kHz, N 64): worst error 0.00227179
+  dB over 800 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kBodyWoody (25 semitones C1-C3, 48 kHz, N 64): worst error 0.00221396
+  dB over 575 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kBodyNasal (25 semitones C1-C3, 48 kHz, N 64): worst error 0.00219445
+  dB over 275 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 kBodyThick (25 semitones C1-C3, 48 kHz, N 64): worst error 0.0021932
+  dB over 250 harmonics (bar 0.5)
+
+F:\projects\iterum\dsp\tests\unit\systems\profundum_core_spectral_test.cpp(883): warning:
+  SC-008 midGrid (25 semitones C1-C3, 48 kHz, N 64): worst error 0.00228718 dB
+  over 1250 harmonics (bar 0.5)
+
+36.201 s: ProfundumCore_SpectrumInvariantC1toC3
+===============================================================================
+All tests passed (48012 assertions in 1 test case)
+
+exit: 0 wall: 36 s

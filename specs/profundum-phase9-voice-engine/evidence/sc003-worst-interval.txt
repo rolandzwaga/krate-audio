@@ -1,0 +1,9 @@
+# SC-003 VoiceEngine_WorstInterval (tasks.md T020; plan S10.6 SC-003 row)
+# 4 voices held E1 / A1 / E2 / C3, block 64, ramp 5 ms, position toggled 0 <-> 1 every 0.1 s; pair Tube<->Fracture / SOLID<->WIDE / field Motion Drift<->Cycle / Motion ENV<->CYCLE / Anchor Sine<->Triangle, all amp curves -1<->+1, sustain 1, Anchor morph Blend; 10 s reported after 1 s warm-up; 3 renders, per-block median across renders
+# checksum 321.71 (keeps the renders observable)
+SC003 BLOCK worst_median_ms=0.5667 (block 3986, sample 303104) ratio=0.42502 raw_max_ms=0.9371 raw_ratio=0.70282 mean_ms=0.32679 budget_ms=1.3333
+SC003 RECORD worst 32-sample interval 51.285 % of a core (Phase 8: 81.6 %, fixture overhead included; recorded, not gated)
+SC003 COINCIDENCE switches=109 all_five_together=109 anchorPosition==position=109
+SC003 COVERAGE switch blocks: AmpCurve issued on min 4 voices over 109 switches (109 blocks with all 4); worst timed block is not a switch block (its AmpCurve mask 0x0, recorded)
+H13 RECORD crossfade window (switch + one E1 period + 10 ms) blocks=2700 cost=7.2789 % of a core per voice (all-block mean 6.1273 %; Phase 5 crossfade cell 2.65 %)
+SC003 VERDICT GREEN 0.42502 (bar 1.0)

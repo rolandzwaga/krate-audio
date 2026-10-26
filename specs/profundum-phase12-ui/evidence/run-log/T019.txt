@@ -1,0 +1,73 @@
+T019 — State v3, kMsgEndpointName, setEndpointName, v2StreamOf, P-2 audit
+Date 2026-10-23, cwd f:/projects/iterum. Implementation task: no build, no test run (the G9 gate builds and runs).
+Ruling applied: SC-004 amended by the user 2026-10-23 (P-2 / OQ-2, spec.md SC-004 row; T011 run log ITEM 4).
+
+== P-2 audit: the 36 kStateV2Bytes lines (grep -rn kStateV2Bytes plugins/profundum/tests, before this task) ==
+Classes (plan 6.2 "P-2 audit"):
+  L = asserts the length / full extent of a getState result      -> kStateV3Bytes
+  B = builds a v1 / v2 stream from scratch or truncates below 510 -> unchanged
+  H = helper over bytes below 510 of a stream it is given          -> dual guard (== kStateV2Bytes || == kStateV3Bytes)
+Line numbers: "orig" = before T019; "now" = after T019.
+
+file:orig (now)                                      class  action / note
+state_v2_test.cpp:66 (67)                            H      blobOf guard -> dual guard. Reads [490, 510) only; every caller passes a
+                                                            getState stream (574 B under v3). Not one of the two fixture helpers
+                                                            plan 6.2 names, but the same class: it reads below 510 of a given stream.
+state_v2_test.cpp:221 (223)                          H      withBlob guard -> dual guard. Patches [490, 510) only; its caller passes
+                                                            withFields(withEndpoints(writeV2Stream(...))) (574 B).
+state_v2_test.cpp:416 (418)  prior.size()            L      -> kStateV3Bytes
+state_v2_test.cpp:459 (461)  after.size()            L      -> kStateV3Bytes
+state_v2_test.cpp:470 (472)  fresh.size()            L      -> kStateV3Bytes
+state_v2_test.cpp:483 (485)  s.size()                L      -> kStateV3Bytes (s = withFields(withEndpoints(writeV2Stream)))
+state_v2_test.cpp:502 (504)  for k < kStateV2Bytes   B      unchanged: the SC-012 arm 2 cut loop, every cut below 510
+state_v2_test.cpp:507 (509)  before.size()           L      -> kStateV3Bytes
+state_v2_test.cpp:522 (524)  after.size()            L      -> kStateV3Bytes
+state_v2_test.cpp:562 (564)  s.size()                L      -> kStateV3Bytes
+state_v2_test.cpp:574 (576)  pending.size()          L      -> kStateV3Bytes
+state_v2_test.cpp:576 (578)  firstMismatch(.., 0, N) L      -> kStateV3Bytes: load-then-save byte stability over the whole getState
+                                                            stream (both are getState results; names equal "A" / "B")
+state_v2_test.cpp:578 (580)  mismatch == N           L      -> kStateV3Bytes (pairs with :576)
+state_v2_test.cpp:618 (620)  st.size()               L      -> kStateV3Bytes
+state_v2_test.cpp:753 (755)  s.size()                L      -> kStateV3Bytes (the controller cuts at 50/150/300/500 stay below 510)
+state_v2_test.cpp:864 (866)  saved.size()            L      -> kStateV3Bytes
+state_v2_test.cpp:877 (879)  again.size()            L      -> kStateV3Bytes
+state_v2_test.cpp:878 (880)  firstMismatch(.., 0, N) L      -> kStateV3Bytes (whole-stream round trip)
+state_v2_test.cpp:880 (882)  mismatch == N           L      -> kStateV3Bytes
+state_v2_test.cpp:881 (883)  memcmp(.., N)           L      -> kStateV3Bytes
+state_v2_test.cpp:918 (920)  saved.size()            L      -> kStateV3Bytes
+state_v2_test.cpp:956 (958)  saved.size()            L      -> kStateV3Bytes
+state_v2_test.cpp:967 (969)  again.size()            L      -> kStateV3Bytes
+state_v2_test.cpp:968 (970)  firstMismatch == N      L      -> kStateV3Bytes (both occurrences on the line)
+state_v2_test.cpp:980 (982)  again2.size()           L      -> kStateV3Bytes
+state_v2_test.cpp:981 (983)  firstMismatch == N      L      -> kStateV3Bytes (both occurrences on the line)
+state_roundtrip_test.cpp:238 first->getSize()        L      -> kStateV3Bytes
+state_roundtrip_test.cpp:247 second->getSize()       L      -> kStateV3Bytes
+state_roundtrip_test.cpp:261 stream->getSize()       L      -> kStateV3Bytes
+state_roundtrip_test.cpp:438 procStream->getSize()   L      -> kStateV3Bytes
+profundum_test_fixture.h:1045 (1058) withEndpoints   H      -> dual guard (plan 6.2)
+profundum_test_fixture.h:1092 (1106) withFields      H      -> dual guard (plan 6.2)
+determinism_test.cpp:72      s.size()                L      -> kStateV3Bytes
+state_restore_render_test.cpp:137 saved.size()       L      -> kStateV3Bytes
+lifecycle_test.cpp:508       saved->getSize()        L      -> kStateV3Bytes (comment :505 updated to "574-byte v3")
+phase11_alloc_test.cpp:191   stateBytes.size()       L      -> kStateV3Bytes
+Totals: 36 lines = L 31, B 1, H 4. No v1 / v2 LOAD expectation changed; no load arm's input changed.
+
+Not a kStateV2Bytes line, checked and unchanged: state_v2_test.cpp:663 (665) patchI32(v3, 0, kCurrentStateVersion + 1) is
+now version 4, still refused (the variable is named v3 from Phase 11; the arm still tests a future version).
+state_roundtrip_test.cpp:267 CHECK(version == kCurrentStateVersion) now reads 3 from the default stream, as intended.
+
+New fixture lines (not part of the 36): v2StreamOf (plan 6.2 SC-027 "v2 reference"); writeV2Stream comment "returns the
+current format (v3 since Phase 12)"; RecordingConnectionPoint::Record gains hasName / name (the binary "name" attribute)
+for SC-027 (a) API arm.
+
+== Deviations to review ==
+1. processor.cpp setState: the v1 branch is `version <= kStateV1Version`, not plan 4.5's `version == kStateV1Version`.
+   Both fix R-11 (a v2 stream no longer resets). `<=` keeps the Phase 11 behaviour for a malformed version <= 0
+   (reset), which `==` would have sent down the v2 chain. The controller branch is `>= kStateV2Version` as planned.
+2. names_ start as "A" / "B" (plan 4.4 writes `names_{}`): CurrentVersionIsThree requires a default processor's
+   blocks to hold "A" and "B".
+3. An empty name (sanitised to length 0 in notify, setEndpointName, or a length-0 v3 block) stores the default name
+   (plan 4.5: "An empty result means the caller uses the default name").
+4. setEndpointName step 5 "refreshes the morph component" is not implemented: the component does not exist until T022.
+5. OlderStreamsLoad cannot call state_v2_test.cpp's checkers (anonymous namespace, another TU); state_v3_test.cpp
+   checks the same v2 / v1 expectations itself (requireV2Restored / requireV2Displayed and the v1 arm).

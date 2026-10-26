@@ -1,0 +1,49 @@
+T017 run-log - Non-finite safety: BassCompressor, MassDynamics, MassLaw (SC-019; FR-017, FR-018, FR-029)
+Date: 2026-10-17. Executor stage only: nothing built or run (the group gate builds dsp_systems_tests and runs
+"MassDynamics_NonFinite").
+
+== Files written ==
+- dsp/tests/unit/systems/mass_dynamics_nonfinite_test.cpp (T002 stub filled; the TU is in the -fno-fast-math block,
+  dsp/tests/CMakeLists.txt:1237, and registered in dsp_systems_tests at :741)
+- specs/profundum-phase6-mass-dynamics/evidence/run-log/T017.txt (this file)
+
+== Test (written first; no implementation expected) ==
+MassDynamics_NonFinite [systems][profundum][mass-dynamics][nonfinite]
+  SECTION "BassCompressor input bursts": BassCompressor setAmount(1), setDetectorKeyHz(E1 = 41.20344 Hz), prepare(48000, 512).
+  SECTION "MassDynamics input bursts": MassDynamics A = +12, S = -6, setCompressionAmount(1), key E1 (duration default 40 ms),
+    prepare(48000, 512).
+    Both run the same arm (mdnfBurstArm, a template over the processor): kSawAnchor E1 (TransientShaperTest::steadyTone(Saw),
+    -12 dBFS RMS) stereo L == R, 4.0 s. Six 16-sample bursts at 1.0 + 0.5k s (k = 0..5): NaN 0x7FC00000, +Inf 0x7F800000,
+    -Inf 0xFF800000 (std::bit_cast, as T008) on L only (k = 0..2), then on both channels (k = 3..5). Host blocks of 512; a block
+    also ends at burstEnd + 512 where stateFinite() is read. Asserts: every output sample finite (TransientShaperTest::isFiniteBits);
+    every output sample whose input was non-finite == 0.0f (sanitised count = 144); stateFinite() at burstEnd + 512; one E1 period
+    (ceil(fs / f0) = 1165 samples, levelDbPeriods) of L starting 100 ms after the burst end within 0.1 dB of the 1165-sample
+    window ending at the burst onset. Every reading printed (%.6f).
+  SECTION "BassCompressor non-finite setters" / "MassDynamics non-finite setters": before and after prepare, for each pattern.
+    Previous values: amount 0.5, key 200 Hz (corner 400 Hz); MassDynamics also duration 100 ms, A = +12, S = -6. After the bad
+    setter calls and 0.5 s of silence (latches on the 32-sample grid): amount(), shaper().transientDurationMs(), attackGainDb(),
+    sustainGainDb() bit-identical to the previous values; detectorCornerHz() within 0.01 Hz of kFallbackCornerHz (80 Hz, FR-018
+    "no voice", not the previous 400 Hz); stateFinite().
+  SECTION "MassLaw non-finite Mass and base": before and after prepare(48000), for each pattern: setMass(70) then setMass(bad) keeps
+    pendingMass() == 70 bitwise; 100 advanceInterval() calls keep smoothedMass() finite (== 70 when prepared); setBase with each
+    field alone non-finite, and with every field non-finite, leaves base() memcmp-equal to the previous base
+    {0.3, 0.7, 100, 20, 0.4, 0.6}; currentTargets() finite. evaluate(bad, b) memcmp-equal to evaluate(50, b) for b = Targets{}
+    and the base above; evaluate(m, b with field f non-finite) memcmp-equal to evaluate(m, b with field f = Targets{} default),
+    every field, every pattern, m in {0, 25, 50, 75, 100}, outputs finite.
+
+== Decisions ==
+- D-1 "100 ms after each burst" is measured from the burst END and the pre-burst window ends at the burst onset (as T008 D-1).
+- D-2 Tail of 0.5 s after the last burst; total render 4.0 s (as T008 D-2).
+- D-3 The setter arm uses a 200 Hz key (corner 400 Hz) instead of E1: E1's corner is 2 x 41.2 = 82.4 Hz, within 2.4 Hz of the
+  80 Hz fallback, which cannot separate "went to 80 Hz" from "kept the previous key" at a tight tolerance. The burst arm keeps
+  key E1 as the task states. The corner is read after 0.5 s (750 intervals of the 20 ms log2 smoother, which snaps to its target
+  inside kCompletionThreshold = 1e-4, smoother.h:55, :199-201), so the 0.01 Hz tolerance covers only exp2(log2(x)) rounding.
+- D-4 evaluate(mass) is tested with all three patterns (the task names NaN; MassLaw::evaluateRow maps every non-finite mass to
+  kNeutralMass, mass_law.h evaluateRow), so +-Inf are covered too.
+- D-5 The non-finite setters are checked both before and after prepare (as T008), since prepare applies stored values.
+
+== Deviations ==
+None.
+
+== DEFECT lines ==
+None (not run at executor stage).

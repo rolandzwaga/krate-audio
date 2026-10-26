@@ -1,0 +1,349 @@
+warning: in the working copy of 'dsp/include/krate/dsp/primitives/retrigger_declick.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/processors/keytracked_tilt.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/processors/oversampled_residual_path.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/processors/period_peak_detector.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/mass_dynamics.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/profundum_core.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/shape_morph.h', LF will be replaced by CRLF the next time Git touches it
+consumer-cases: include closure of 14 modified header(s) [dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h dsp/include/krate/dsp/primitives/retrigger_declick.h dsp/include/krate/dsp/primitives/tanh_adaa.h dsp/include/krate/dsp/processors/dynamics_processor.h dsp/include/krate/dsp/processors/harmonic_fold.h dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h dsp/include/krate/dsp/processors/keytracked_tilt.h dsp/include/krate/dsp/processors/oversampled_residual_path.h dsp/include/krate/dsp/processors/period_peak_detector.h dsp/include/krate/dsp/processors/spectral_shape_recipe.h dsp/include/krate/dsp/processors/true_peak_limiter.h dsp/include/krate/dsp/systems/mass_dynamics.h dsp/include/krate/dsp/systems/profundum_core.h dsp/include/krate/dsp/systems/shape_morph.h]: 164 files (44 headers, 106 non-Phase-9 TUs, 14 Phase 9 TUs)
+  header dsp/include/krate/dsp/effects/digital_delay.h
+  header dsp/include/krate/dsp/effects/ducking_delay.h
+  header dsp/include/krate/dsp/effects/freeze_mode.h
+  header dsp/include/krate/dsp/effects/ping_pong_delay.h
+  header dsp/include/krate/dsp/effects/reverse_delay.h
+  header dsp/include/krate/dsp/effects/shimmer_delay.h
+  header dsp/include/krate/dsp/processors/rectifier.h
+  header dsp/include/krate/dsp/processors/transient_shaper.h
+  header dsp/include/krate/dsp/systems/anchor_oscillator.h
+  header dsp/include/krate/dsp/systems/bass_character_stage.h
+  header dsp/include/krate/dsp/systems/bass_morph_engine.h
+  header dsp/include/krate/dsp/systems/bass_stereo_field.h
+  header dsp/include/krate/dsp/systems/flexible_feedback_network.h
+  header dsp/include/krate/dsp/systems/mass_law.h
+  header dsp/include/krate/dsp/systems/morph_state.h
+  header dsp/include/krate/dsp/systems/profundum_engine.h
+  header dsp/include/krate/dsp/systems/profundum_engine_observer.h
+  header dsp/include/krate/dsp/systems/profundum_macro_matrix.h
+  header dsp/include/krate/dsp/systems/profundum_motion.h
+  header dsp/include/krate/dsp/systems/profundum_voice.h
+  header dsp/include/krate/dsp/systems/seraphis_engine.h
+  header dsp/include/krate/dsp/systems/seraphis_macro_matrix.h
+  header dsp/include/krate/dsp/systems/vorago_engine.h
+  header dsp/include/krate/dsp/systems/vorago_macro_matrix.h
+  header dsp/tests/unit/processors/harmonic_fold_test_helpers.h
+  header dsp/tests/unit/processors/shape_character_metric_helpers.h
+  header dsp/tests/unit/processors/spectral_shape_recipe_test_helpers.h
+  header dsp/tests/unit/processors/transient_shaper_probe.h
+  header dsp/tests/unit/processors/transient_shaper_test_helpers.h
+  header dsp/tests/unit/systems/anchor_oscillator_test_helpers.h
+  header dsp/tests/unit/systems/bass_character_stage_probe.h
+  header dsp/tests/unit/systems/bass_morph_state_helpers.h
+  header dsp/tests/unit/systems/bass_morph_test_helpers.h
+  header dsp/tests/unit/systems/bass_stereo_field_probe.h
+  header dsp/tests/unit/systems/bass_stereo_field_test_helpers.h
+  header dsp/tests/unit/systems/mass_dynamics_probe.h
+  header dsp/tests/unit/systems/mass_dynamics_test_helpers.h
+  header dsp/tests/unit/systems/profundum_core_test_helpers.h
+  header dsp/tests/unit/systems/profundum_excitation_test_helpers.h
+  header dsp/tests/unit/systems/profundum_note_behaviour_test_helpers.h
+  header dsp/tests/unit/systems/profundum_phase1_core_ref.h
+  header dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h
+  header dsp/tests/unit/systems/shape_character_test_helpers.h
+  header dsp/tests/unit/systems/shape_morph_probe.h
+  TU dsp/tests/unit/effects/digital_delay_age0_ramping_test.cpp: 3 cases, 0 [long] shards
+  TU dsp/tests/unit/effects/digital_delay_test.cpp: 48 cases, 0 [long] shards
+  TU dsp/tests/unit/effects/digital_width_processing_test.cpp: 5 cases, 0 [long] shards
+  TU dsp/tests/unit/effects/ducking_delay_test.cpp: 34 cases, 0 [long] shards
+  TU dsp/tests/unit/effects/freeze_mode_test.cpp: 39 cases, 0 [long] shards
+  TU dsp/tests/unit/effects/ping_pong_delay_test.cpp: 23 cases, 0 [long] shards
+  TU dsp/tests/unit/effects/reverse_delay_test.cpp: 14 cases, 0 [long] shards
+  TU dsp/tests/unit/effects/shimmer_delay_test.cpp: 26 cases, 0 [long] shards
+  TU dsp/tests/unit/effects/vorago_composed_chain_test.cpp: 3 cases, 1 [long] shards
+  TU dsp/tests/unit/primitives/polyphase_halfband_oversampler_test.cpp: 9 cases, 0 [long] shards
+  TU dsp/tests/unit/primitives/retrigger_declick_test.cpp: 3 cases, 0 [long] shards
+  TU dsp/tests/unit/primitives/tanh_adaa_test.cpp: 37 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/drop_note_behaviour_nonfinite_test.cpp: 5 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/drop_note_behaviour_perf_test.cpp: 3 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/dynamics_processor_test.cpp: 39 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/harmonic_fold_nonfinite_test.cpp: 3 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/harmonic_fold_test.cpp: 35 cases, 5 [long] shards
+  TU dsp/tests/unit/processors/harmonic_oscillator_bank_tests.cpp: 26 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/keytracked_tilt_test.cpp: 5 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/oversampled_residual_path_test.cpp: 7 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/period_peak_detector_test.cpp: 5 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/rectifier_nonfinite_test.cpp: 2 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/rectifier_test.cpp: 12 cases, 1 [long] shards
+  TU dsp/tests/unit/processors/shape_character_metric_helpers_test.cpp: 6 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/spectral_shape_recipe_test.cpp: 23 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/test_harmonic_oscillator_bank_stereo.cpp: 11 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/transient_shaper_helpers_test.cpp: 5 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/transient_shaper_nonfinite_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/transient_shaper_test.cpp: 14 cases, 0 [long] shards
+  TU dsp/tests/unit/processors/true_peak_limiter_test.cpp: 10 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/anchor_oscillator_nonfinite_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/anchor_oscillator_perf_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/anchor_oscillator_spectral_test.cpp: 9 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/anchor_oscillator_test.cpp: 35 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/bass_character_rlaw_test.cpp: 13 cases, 10 [long] shards
+  TU dsp/tests/unit/systems/bass_character_spectral_test.cpp: 24 cases, 3 [long] shards
+  TU dsp/tests/unit/systems/bass_character_stage_test.cpp: 20 cases, 2 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_aliasing_test.cpp: 4 cases, 3 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_chain_test.cpp: 11 cases, 2 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_click_test.cpp: 10 cases, 9 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_engine_test.cpp: 23 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_helpers_test.cpp: 5 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_monosum_test.cpp: 5 cases, 4 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_nonfinite_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_perf_test.cpp: 2 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_probe_test.cpp: 4 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/bass_morph_trajectory_test.cpp: 8 cases, 6 [long] shards
+  TU dsp/tests/unit/systems/bass_stereo_field_chain_test.cpp: 14 cases, 4 [long] shards
+  TU dsp/tests/unit/systems/bass_stereo_field_harvest_test.cpp: 2 cases, 0 [long] shards, 1 UNPARSED TEST_CASE
+  TU dsp/tests/unit/systems/bass_stereo_field_helpers_test.cpp: 3 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/bass_stereo_field_monosum_test.cpp: 3 cases, 1 [long] shards, 2 UNPARSED TEST_CASE
+  TU dsp/tests/unit/systems/bass_stereo_field_motion_test.cpp: 4 cases, 2 [long] shards
+  TU dsp/tests/unit/systems/bass_stereo_field_nonfinite_test.cpp: 2 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/bass_stereo_field_perf_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/bass_stereo_field_spectral_test.cpp: 11 cases, 5 [long] shards
+  TU dsp/tests/unit/systems/bass_stereo_field_test.cpp: 38 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/flexible_feedback_network_test.cpp: 6 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/k_weighting_helper_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/mass_chain_test.cpp: 6 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/mass_compressor_chain_test.cpp: 6 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/mass_compressor_test.cpp: 11 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/mass_dynamics_aliasing_test.cpp: 4 cases, 3 [long] shards
+  TU dsp/tests/unit/systems/mass_dynamics_helpers_test.cpp: 7 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/mass_dynamics_nonfinite_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/mass_dynamics_perf_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/mass_dynamics_test.cpp: 8 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/mass_law_automation_test.cpp: 15 cases, 9 [long] shards
+  TU dsp/tests/unit/systems/mass_law_spectral_test.cpp: 42 cases, 38 [long] shards
+  TU dsp/tests/unit/systems/mass_law_test.cpp: 8 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/morph_state_test.cpp: 10 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/profundum_anchor_chain_test.cpp: 16 cases, 4 [long] shards
+  TU dsp/tests/unit/systems/profundum_core_excitation_nonfinite_test.cpp: 2 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/profundum_core_excitation_spectral_test.cpp: 16 cases, 6 [long] shards
+  TU dsp/tests/unit/systems/profundum_core_excitation_test.cpp: 11 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/profundum_core_nonfinite_test.cpp: 4 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/profundum_core_perf_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/profundum_core_pitch_continuity_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/profundum_core_spectral_test.cpp: 23 cases, 8 [long] shards
+  TU dsp/tests/unit/systems/profundum_core_test.cpp: 35 cases, 3 [long] shards
+  TU dsp/tests/unit/systems/profundum_edge_fold_chain_test.cpp: 29 cases, 11 [long] shards
+  TU dsp/tests/unit/systems/profundum_edge_fold_perf_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/profundum_note_behaviour_spectral_test.cpp: 24 cases, 15 [long] shards
+  TU dsp/tests/unit/systems/profundum_note_behaviour_test.cpp: 13 cases, 1 [long] shards
+  TU dsp/tests/unit/systems/seraphis_engine_test.cpp: 31 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/seraphis_macro_test.cpp: 6 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/seraphis_nonfinite_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/seraphis_param_broadcast_test.cpp: 8 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/seraphis_partial_fanout_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/seraphis_perf_test.cpp: 3 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/seraphis_voice_test.cpp: 21 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/shape_character_chain_test.cpp: 9 cases, 2 [long] shards
+  TU dsp/tests/unit/systems/shape_character_nonfinite_test.cpp: 3 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/shape_character_perf_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/shape_morph_spectral_test.cpp: 10 cases, 3 [long] shards
+  TU dsp/tests/unit/systems/shape_morph_test.cpp: 8 cases, 1 [long] shards
+  TU dsp/tests/unit/systems/subharmonic_engine_test.cpp: 17 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/vorago_ecosystem_lever_longrun_test.cpp: 1 cases, 1 [long] shards
+  TU dsp/tests/unit/systems/vorago_ecosystem_lever_test.cpp: 19 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/vorago_engine_longrun_test.cpp: 4 cases, 4 [long] shards
+  TU dsp/tests/unit/systems/vorago_engine_test.cpp: 23 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/vorago_ghost_ext_test.cpp: 2 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/vorago_macro_retune_probe_test.cpp: 3 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/vorago_macro_test.cpp: 6 cases, 2 [long] shards
+  TU dsp/tests/unit/systems/vorago_nonfinite_test.cpp: 1 cases, 0 [long] shards
+  TU dsp/tests/unit/systems/vorago_param_surface_test.cpp: 14 cases, 3 [long] shards
+  TU dsp/tests/unit/systems/vorago_perf_test.cpp: 6 cases, 0 [long] shards
+  OTHER-EXE dsp_processors_tests HarmonicFold_ContinuousInAmountLong
+  OTHER-EXE dsp_processors_tests HarmonicFold_DetectorStabilityGrid
+  OTHER-EXE dsp_processors_tests HarmonicFold_FundamentalPreservedLong
+  OTHER-EXE dsp_processors_tests HarmonicFold_RegimeContinuityStatic
+  OTHER-EXE dsp_processors_tests HarmonicFold_ThdAndCountMonotonic
+  OTHER-EXE dsp_processors_tests Rectifier_AliasingE0E2
+  OTHER-EXE dsp_effects_tests VoragoComposed_DepthMacroAxis
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_AnchorBite
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_AnchorCrush
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_AnchorFold
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_AnchorFracture
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_AnchorRectify
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_AnchorTube
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_CleanGrowl
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_CleanSaw
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_DirtyBite
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_DirtyCrush
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_DirtyFold
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_DirtyFracture
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_DirtyRectify
+  BINARY-ONLY (macro-generated) BassStereoField_GravityFloor_DirtyTube
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1
+  BINARY-ONLY (macro-generated) BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2
+consumer-cases: cross-check GREEN: 172 source names, 0 missing from the binary; 182 macro-generated name(s) added from the binary's SourceInfo (426 [long] cases listed)
+consumer-cases: 354 consumer [long] shard(s)

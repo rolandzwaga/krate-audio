@@ -1,0 +1,19 @@
+Filters: "BassMorph_DiscreteClickFree_FieldMotionSource"
+Randomness seeded to: 3844705813
+SC004 field-motion-source,Drift->Cycle,E1,5,12096,1,1,0,0
+SC004 field-motion-source,Drift->Cycle,E1,40,12992,1,1,0,0
+SC004 field-motion-source,Drift->Cycle,E1,2000,61888,1,1,0,0
+SC004 field-motion-source,Cycle->Drift,E1,5,12096,1,1,0,0
+SC004 field-motion-source,Cycle->Drift,E1,40,12992,1,1,0,0
+SC004 field-motion-source,Cycle->Drift,E1,2000,61888,1,1,0,0
+SC004 field-motion-source,Drift->Cycle,C3,5,12096,1,1,0,0
+SC004 field-motion-source,Drift->Cycle,C3,40,12992,1,1,0,0
+SC004 field-motion-source,Drift->Cycle,C3,2000,61888,1,1,0,0
+SC004 field-motion-source,Cycle->Drift,C3,5,12096,1,1,0,0
+SC004 field-motion-source,Cycle->Drift,C3,40,12992,1,1,0,0
+SC004 field-motion-source,Cycle->Drift,C3,2000,61888,1,1,0,0
+13.511 s: BassMorph_DiscreteClickFree_FieldMotionSource
+===============================================================================
+All tests passed (939 assertions in 1 test case)
+
+exit: 0 wall: 13 s

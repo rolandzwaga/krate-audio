@@ -1,0 +1,127 @@
+=== p1 probe 2026-10-20T16:48:15Z commit 0ae33b87
+cmd: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "VoiceEngine_CpuProbe"
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "VoiceEngine_CpuProbe"
+Randomness seeded to: 1830286644
+# P-1 VoiceEngine_CpuProbe (tasks.md T013; plan R-A, S10.4, deviation 10)
+# SC-001 setting on both showcase endpoints, morph ramp 1000 ms toggled every 1 s, Drop 24 st retriggered every 0.25 s, block 64, 10 s timed after 1 s warm-up, median of 3 fresh instances, % of one core = wall / audio x 100. No observer.
+#   engine MONO Tube trials: 9.5688 9.1958 9.089 median 9.1958
+#   engine POLY4 Tube trials: 30.814 30.214 28.95 median 30.214
+#   engine POSTSUM4 Tube trials: 33.937 35.1 31.817 median 33.937
+#   engine MONO Fracture trials: 8.3635 8.3855 8.3314 median 8.3635
+#   engine POLY4 Fracture trials: 27.323 27.659 27.916 median 27.659
+#   engine POSTSUM4 Fracture trials: 30.306 32.299 31.399 median 31.399
+P1 MONO 9.1958 8.3635
+P1 POLY4 30.214 27.659
+P1 POSTSUM4 33.937 31.399
+# breakdown: test-side replica, whole and with one stage removed; cost = full - without (% of one core); per_voice = cost / voices
+#   replica MONO Tube full trials: 8.2306 8.7935 8.8969 median 8.7935
+P1 BREAKDOWN MONO Tube replica_full=8.7935 engine=9.1958
+#   replica MONO Tube without core+excitation trials: 6.2483 5.8071 6.2552 median 6.2483
+P1 STAGE MONO Tube core+excitation without=6.2483 cost=2.5452 per_voice=2.5452
+#   replica MONO Tube without shape trials: 7.8038 7.1203 7.5848 median 7.5848
+P1 STAGE MONO Tube shape without=7.5848 cost=1.2087 per_voice=1.2087
+#   replica MONO Tube without fold trials: 8.1948 7.967 7.4437 median 7.967
+P1 STAGE MONO Tube fold without=7.967 cost=0.82649 per_voice=0.82649
+#   replica MONO Tube without character trials: 5.913 5.3139 6.1441 median 5.913
+P1 STAGE MONO Tube character without=5.913 cost=2.8805 per_voice=2.8805
+#   replica MONO Tube without anchor trials: 8.5399 8.5359 8.9353 median 8.5399
+P1 STAGE MONO Tube anchor without=8.5399 cost=0.25361 per_voice=0.25361
+#   replica MONO Tube without pitch(drop+lock) trials: 8.7189 8.1477 8.6621 median 8.6621
+P1 STAGE MONO Tube pitch(drop+lock) without=8.6621 cost=0.13137 per_voice=0.13137
+#   replica MONO Tube without a1+meter trials: 8.1271 9.1061 9.0713 median 9.0713
+P1 STAGE MONO Tube a1+meter without=9.0713 cost=-0.27778 per_voice=-0.27778
+#   replica MONO Tube without amp-env trials: 8.7122 7.7906 8.1013 median 8.1013
+P1 STAGE MONO Tube amp-env without=8.1013 cost=0.69219 per_voice=0.69219
+#   replica MONO Tube without mass-dynamics trials: 6.826 8.3881 7.0556 median 7.0556
+P1 STAGE MONO Tube mass-dynamics without=7.0556 cost=1.7379 per_voice=1.7379
+#   replica MONO Tube without field(stage+pan+wide) trials: 5.6836 5.8181 5.857 median 5.8181
+P1 STAGE MONO Tube field(stage+pan+wide) without=5.8181 cost=2.9754 per_voice=2.9754
+#   replica MONO Tube without dc+limiter trials: 6.9048 7.2361 7.0701 median 7.0701
+P1 STAGE MONO Tube dc+limiter without=7.0701 cost=1.7234 per_voice=1.7234
+#   replica MONO Tube without morph+law+motion+macros trials: 7.4035 6.8081 7.0026 median 7.0026
+P1 STAGE MONO Tube morph+law+motion+macros without=7.0026 cost=1.7909 per_voice=1.7909
+#   replica MONO Fracture full trials: 7.6679 7.4192 7.4771 median 7.4771
+P1 BREAKDOWN MONO Fracture replica_full=7.4771 engine=8.3635
+#   replica MONO Fracture without core+excitation trials: 5.2684 5.366 5.2914 median 5.2914
+P1 STAGE MONO Fracture core+excitation without=5.2914 cost=2.1857 per_voice=2.1857
+#   replica MONO Fracture without shape trials: 6.7363 7.3043 6.7075 median 6.7363
+P1 STAGE MONO Fracture shape without=6.7363 cost=0.74085 per_voice=0.74085
+#   replica MONO Fracture without fold trials: 6.8579 6.948 6.5112 median 6.8579
+P1 STAGE MONO Fracture fold without=6.8579 cost=0.61921 per_voice=0.61921
+#   replica MONO Fracture without character trials: 5.3774 5.2625 5.5388 median 5.3774
+P1 STAGE MONO Fracture character without=5.3774 cost=2.0998 per_voice=2.0998
+#   replica MONO Fracture without anchor trials: 7.4404 7.8539 7.6106 median 7.6106
+P1 STAGE MONO Fracture anchor without=7.6106 cost=-0.1335 per_voice=-0.1335
+#   replica MONO Fracture without pitch(drop+lock) trials: 7.0826 7.1756 7.391 median 7.1756
+P1 STAGE MONO Fracture pitch(drop+lock) without=7.1756 cost=0.30156 per_voice=0.30156
+#   replica MONO Fracture without a1+meter trials: 7.3845 7.3694 7.3616 median 7.3694
+P1 STAGE MONO Fracture a1+meter without=7.3694 cost=0.10771 per_voice=0.10771
+#   replica MONO Fracture without amp-env trials: 7.6296 7.6717 7.4907 median 7.6296
+P1 STAGE MONO Fracture amp-env without=7.6296 cost=-0.15247 per_voice=-0.15247
+#   replica MONO Fracture without mass-dynamics trials: 6.9847 6.7415 6.5496 median 6.7415
+P1 STAGE MONO Fracture mass-dynamics without=6.7415 cost=0.73566 per_voice=0.73566
+#   replica MONO Fracture without field(stage+pan+wide) trials: 5.7466 5.3933 5.296 median 5.3933
+P1 STAGE MONO Fracture field(stage+pan+wide) without=5.3933 cost=2.0838 per_voice=2.0838
+#   replica MONO Fracture without dc+limiter trials: 6.539 6.6407 7.3214 median 6.6407
+P1 STAGE MONO Fracture dc+limiter without=6.6407 cost=0.83643 per_voice=0.83643
+#   replica MONO Fracture without morph+law+motion+macros trials: 7.969 8.0615 7.6917 median 7.969
+P1 STAGE MONO Fracture morph+law+motion+macros without=7.969 cost=-0.49184 per_voice=-0.49184
+#   replica POLY4 Tube full trials: 29.176 29.005 30.839 median 29.176
+P1 BREAKDOWN POLY4 Tube replica_full=29.176 engine=30.214
+#   replica POLY4 Tube without core+excitation trials: 19.581 18.866 18.604 median 18.866
+P1 STAGE POLY4 Tube core+excitation without=18.866 cost=10.311 per_voice=2.5776
+#   replica POLY4 Tube without shape trials: 27.062 26.603 26.708 median 26.708
+P1 STAGE POLY4 Tube shape without=26.708 cost=2.4683 per_voice=0.61708
+#   replica POLY4 Tube without fold trials: 25.363 26.322 25.066 median 25.363
+P1 STAGE POLY4 Tube fold without=25.363 cost=3.8127 per_voice=0.95319
+#   replica POLY4 Tube without character trials: 16.737 18.119 18.092 median 18.092
+P1 STAGE POLY4 Tube character without=18.092 cost=11.084 per_voice=2.771
+#   replica POLY4 Tube without anchor trials: 30.048 29.801 28.915 median 29.801
+P1 STAGE POLY4 Tube anchor without=29.801 cost=-0.62511 per_voice=-0.15628
+#   replica POLY4 Tube without pitch(drop+lock) trials: 28.248 27.943 26.808 median 27.943
+P1 STAGE POLY4 Tube pitch(drop+lock) without=27.943 cost=1.2328 per_voice=0.3082
+#   replica POLY4 Tube without a1+meter trials: 28.512 27.988 27.315 median 27.988
+P1 STAGE POLY4 Tube a1+meter without=27.988 cost=1.1882 per_voice=0.29704
+#   replica POLY4 Tube without amp-env trials: 28.566 28.275 30.152 median 28.566
+P1 STAGE POLY4 Tube amp-env without=28.566 cost=0.61019 per_voice=0.15255
+#   replica POLY4 Tube without mass-dynamics trials: 26.139 29.066 28.465 median 28.465
+P1 STAGE POLY4 Tube mass-dynamics without=28.465 cost=0.71101 per_voice=0.17775
+#   replica POLY4 Tube without field(stage+pan+wide) trials: 20.425 20.474 20.9 median 20.474
+P1 STAGE POLY4 Tube field(stage+pan+wide) without=20.474 cost=8.7023 per_voice=2.1756
+#   replica POLY4 Tube without dc+limiter trials: 30.244 29.125 28.405 median 29.125
+P1 STAGE POLY4 Tube dc+limiter without=29.125 cost=0.050782 per_voice=0.012695
+#   replica POLY4 Tube without morph+law+motion+macros trials: 24.262 24.004 24.411 median 24.262
+P1 STAGE POLY4 Tube morph+law+motion+macros without=24.262 cost=4.9144 per_voice=1.2286
+#   replica POLY4 Fracture full trials: 27.577 28.421 27.01 median 27.577
+P1 BREAKDOWN POLY4 Fracture replica_full=27.577 engine=27.659
+#   replica POLY4 Fracture without core+excitation trials: 16.964 18.095 16.678 median 16.964
+P1 STAGE POLY4 Fracture core+excitation without=16.964 cost=10.614 per_voice=2.6534
+#   replica POLY4 Fracture without shape trials: 23.519 24.465 23.69 median 23.69
+P1 STAGE POLY4 Fracture shape without=23.69 cost=3.8876 per_voice=0.9719
+#   replica POLY4 Fracture without fold trials: 22.902 24.297 20.822 median 22.902
+P1 STAGE POLY4 Fracture fold without=22.902 cost=4.6758 per_voice=1.169
+#   replica POLY4 Fracture without character trials: 17.465 16.917 18.095 median 17.465
+P1 STAGE POLY4 Fracture character without=17.465 cost=10.113 per_voice=2.5282
+#   replica POLY4 Fracture without anchor trials: 27.827 28.899 27.67 median 27.827
+P1 STAGE POLY4 Fracture anchor without=27.827 cost=-0.24964 per_voice=-0.062411
+#   replica POLY4 Fracture without pitch(drop+lock) trials: 24.053 23.211 24.786 median 24.053
+P1 STAGE POLY4 Fracture pitch(drop+lock) without=24.053 cost=3.5239 per_voice=0.88098
+#   replica POLY4 Fracture without a1+meter trials: 26.816 26.166 25.932 median 26.166
+P1 STAGE POLY4 Fracture a1+meter without=26.166 cost=1.4111 per_voice=0.35278
+#   replica POLY4 Fracture without amp-env trials: 24.887 26.02 28.321 median 26.02
+P1 STAGE POLY4 Fracture amp-env without=26.02 cost=1.5574 per_voice=0.38936
+#   replica POLY4 Fracture without mass-dynamics trials: 26.557 26.411 27.909 median 26.557
+P1 STAGE POLY4 Fracture mass-dynamics without=26.557 cost=1.0202 per_voice=0.25505
+#   replica POLY4 Fracture without field(stage+pan+wide) trials: 19.099 19.388 19.273 median 19.273
+P1 STAGE POLY4 Fracture field(stage+pan+wide) without=19.273 cost=8.3046 per_voice=2.0761
+#   replica POLY4 Fracture without dc+limiter trials: 26.166 27.144 26.424 median 26.424
+P1 STAGE POLY4 Fracture dc+limiter without=26.424 cost=1.1539 per_voice=0.28847
+#   replica POLY4 Fracture without morph+law+motion+macros trials: 24.28 23.746 23.804 median 23.804
+P1 STAGE POLY4 Fracture morph+law+motion+macros without=23.804 cost=3.7733 per_voice=0.94331
+# checksum 580.69 (keeps the renders observable)
+P1 VERDICT RED mono_max=9.1958 (bar 8) poly4_max=30.214 postsum4_max=33.937 (bar 25)
+===============================================================================
+All tests passed (1106 assertions in 1 test case)
+
+exit: 0 wall: 325 s

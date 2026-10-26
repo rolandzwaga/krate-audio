@@ -53,6 +53,10 @@ while [[ $# -gt 0 ]]; do
             PARALLEL="$2"
             shift 2
             ;;
+        --file-timeout)
+            FILE_TIMEOUT="$2"
+            shift 2
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -60,11 +64,14 @@ while [[ $# -gt 0 ]]; do
             echo "  --build-dir DIR   Build directory with compile_commands.json"
             echo "                    (auto-detected if not specified)"
             echo "  --target TARGET   Target to analyze: all, dsp, shared, iterum, disrumpo,"
-            echo "                    ruinae, innexus, gradus, membrum, seraphis, vorago"
+            echo "                    ruinae, innexus, gradus, membrum, seraphis, vorago,"
+            echo "                    profundum"
             echo "                    ('all' covers dsp + every plugin). Default: all"
             echo "  --fix             Apply automatic fixes (use with caution)"
             echo "  --quiet           Suppress progress output"
             echo "  --parallel N      Number of parallel processes (default: $PARALLEL)"
+            echo "  --file-timeout S  Kill clang-tidy on one file after S seconds, report it"
+            echo "                    as an error, continue (default: 600; 0 = no ceiling)"
             echo "  --help            Show this help message"
             exit 0
             ;;
@@ -154,6 +161,9 @@ case $TARGET in
     vorago)
         SOURCE_DIRS=("plugins/vorago/src" "plugins/vorago/tests")
         ;;
+    profundum)
+        SOURCE_DIRS=("plugins/profundum/src" "plugins/profundum/tests")
+        ;;
     all)
         # MUST cover dsp + shared + EVERY plugin, or Linux/macOS pre-commit lint
         # silently skips code the .ps1 (and CI) would analyze. Keep in sync with
@@ -170,6 +180,8 @@ case $TARGET in
             "plugins/seraphis/src"
             "plugins/vorago/src"
             "plugins/vorago/tests"
+            "plugins/profundum/src"
+            "plugins/profundum/tests"
         )
         ;;
     *)
@@ -205,6 +217,16 @@ if [[ $FIX -eq 1 ]]; then
     warn "Fix mode enabled - files will be modified!"
 fi
 
+# Per-TU wall-clock ceiling (2026-10-13: one TU hung a dsp sweep for 15 h with an
+# empty log). Uses coreutils timeout when present (Linux; macOS via brew gtimeout).
+: "${FILE_TIMEOUT:=600}"
+TIMEOUT_CMD=""
+if [[ "$FILE_TIMEOUT" != "0" ]]; then
+    if command -v timeout >/dev/null 2>&1; then TIMEOUT_CMD="timeout";
+    elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_CMD="gtimeout";
+    else warn "no timeout/gtimeout on PATH: per-file ceiling disabled"; fi
+fi
+
 # Run clang-tidy
 ERROR_COUNT=0
 WARNING_COUNT=0
@@ -218,7 +240,15 @@ for file in "${SOURCE_FILES[@]}"; do
         echo -e "\033[0;37mAnalyzing: $file\033[0m"
     fi
 
-    OUTPUT=$("$CLANG_TIDY" "${TIDY_ARGS[@]}" "$file" 2>&1 || true)
+    if [[ -n "$TIMEOUT_CMD" ]]; then
+        OUTPUT=$("$TIMEOUT_CMD" -k 10 "$FILE_TIMEOUT" "$CLANG_TIDY" "${TIDY_ARGS[@]}" "$file" 2>&1)
+        RC=$?
+        if [[ $RC -eq 124 || $RC -eq 137 ]]; then
+            OUTPUT="$OUTPUT"$'\n'"$file: error: clang-tidy exceeded ${FILE_TIMEOUT} s and was killed (hung translation unit; diagnose it alone)"
+        fi
+    else
+        OUTPUT=$("$CLANG_TIDY" "${TIDY_ARGS[@]}" "$file" 2>&1 || true)
+    fi
 
     if [[ -n "$OUTPUT" ]]; then
         # Count warnings and errors

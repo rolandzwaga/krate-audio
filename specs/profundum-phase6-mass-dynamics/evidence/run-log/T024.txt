@@ -1,0 +1,18 @@
+T024 run-log — SC-017 CPU lane alone (main loop, 2026-10-18)
+
+Precondition: harvest.sh (133 s, green), suites.sh (DONE 10:41:42Z) and tidy.sh (TIDY GREEN) finished; the smoke re-run
+(MassLaw_AutomationDescriptorTrajectorySmoke, 10 s) finished; tasklist count of cl.exe / dsp_*_tests.exe / clang-tidy = 0;
+30 s idle after a 4 h 04 min lane (the machine was warm).
+Command: bash specs/profundum-phase6-mass-dynamics/evidence/close/cpu-lane.sh
+  (pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/dsp_systems_tests.exe -ExeArgs "MassDynamics_CpuBudget")
+Output (evidence/run-log/close/cpu-lane.log; the case writes evidence/sc017-cpu.txt):
+  SC017 setup fs=48000 block=64 interval=32 note=E1 (41.20344 Hz) fixture=kSawAnchor -12 dBFS RMS loop=47763 samples R_delay=431 samples (0.37 P) reps=best of 5 x 10.0 s warmup=1 s bar=1.0%
+  SC017 GATED distinct_pair MassDynamics(A=+12 dB S=-6 dB duration=40 ms amount=1 key=E1) + MassLaw advanceInterval+evaluate per 32 samples (Mass 75) pct=0.9908 bar=1.0
+  SC017 RECORD dc_limiter DCBlocker x2 + TruePeakLimiter (Phase 9) pct=1.2346 (not gated)
+  SC017 RECORD linked L == R (MassDynamics mono path, right == left, copied to R) pct=0.7527 (not gated)
+  SC017 RECORD silence one silent second after 1 s of signal (gated chain) pct=0.7949 (not gated)
+  SC017 VERDICT PASS 0.991 %
+  exit: 0
+Reading history on the shipped code (isolated, pinned): 1.047 / 1.183 / 1.270 % before the FR-045 refinement M-3 (fast dB forms);
+0.991 % after it. The stage bench (bench/stage-bench.cpp, 5 s cells) read 1.145 -> 0.802 % for the same cell; the gated case's
+10 s cells on a warm machine read 0.19 % above the bench. Margin to the bar: 0.009 %. Not re-run (one reading, as the rule says).

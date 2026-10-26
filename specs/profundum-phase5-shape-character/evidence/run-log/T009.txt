@@ -1,0 +1,63 @@
+T009 run log (2026-10-16) - BassCharacterStage skeleton + Rectify + probe
+
+Files written
+- dsp/include/krate/dsp/systems/bass_character_stage.h (T002 stub -> skeleton: S5.1 API, S5.2 state, S5.3, S5.4 Rectify, S5.6, S5.7)
+- dsp/tests/unit/systems/bass_character_stage_probe.h (new; read-only after T009)
+- dsp/tests/unit/systems/bass_character_stage_test.cpp (T002 stub -> seven T009 cases)
+- specs/profundum-phase5-shape-character/evidence/run-log/T009.txt (this file, rule 13)
+
+Not built or run (rule 8: the Group 4 gate builds and runs). Every file re-read for compile errors.
+
+Tests (tags [systems][profundum][shape-character][bass-character])
+- BassCharacter_Lifecycle, BassCharacter_AmountZeroBitIdenticalRectify, BassCharacter_RectifyLawMatchesRectifier,
+  BassCharacter_SwitchMachine, BassCharacter_ObserverBasics, BassCharacter_F0FeedRekey, BassCharacter_MonoLink.
+
+Decisions / deviations (surface them)
+1. C-23 (REQUIRED by the T001 epoch-2 decision) vs the single shared round trip of plan S2/S5.3: two running branches have
+   different pre and post tilts (Tube/Bite pre at 1*f0, all post at 2*f0, different depths), and C-23 moves both tilts to the
+   base rate outside the oversampled loop. One shared upsample/downsample cannot carry two different pre-tilted inputs nor
+   apply two different post tilts. Resolution: each channel owns TWO slots, each an OversampledResidualPath (+ the uDelay[3]
+   history). Steady state runs one slot (one round trip, the benched cost); during a 10 ms algorithm crossfade the incoming
+   branch runs in the second slot (reset at start(), where g_in = 0) and the two post-tilted outputs are mixed with the C-16
+   gains g_out = cos^1.493, g_in = sin^1.493 at the base rate. Both slots are identical round trips, so the mix never combs
+   (plan S2 "shared domain" intent kept). Cost: +1 path per channel only during a crossfade; +~1 KB per channel state.
+   SC-015 (T021/T027) measures steady state and may want a crossfade cell recorded.
+2. Branch API (deviation 10) adapted to C-23: prepare(double baseRate, double processRate), reset(), setFundamentalHz(float),
+   configure(float amount, float tone), float pre(float) [base rate], BranchOut process(float u) [F*fs; y BEFORE the post
+   tilt], float post(float) [base rate], plus linearCoefficient(), dryShare(), stateFinite() and static kAlignDelay.
+   Bite additionally has naive(float) (seamNaiveBaseRate_ hook; identity until T011). The probe's runBranch therefore
+   returns y before the post tilt, which is what the C-19 law test compares.
+3. Tilts (FR-055 structure) are wired for all six branches now (Tube/Bite pre k=1 +-6 dB and post k=2 +-6 dB; others post k=2
+   +-12 dB) and keyed/re-keyed; only Rectify's process() has its law. Tube/Fold/Bite/Crush/Fracture process() return the
+   identity {y = u[n-1], lin = u[n-1]} (commented in each struct) until T011/T014/T015. Reused members are prepared per
+   S5.2: TubeStage at 2*F*fs (maxBlock 2*kMaxFactor), saturation 1, bias 0; WavefolderProcessor at F*fs (maxBlock
+   kMaxFactor), Serge, symmetry 0, mix 1; BitCrusher x2 at F*fs, dither 0, seed 0x5F3759DF ^ channel; TanhADAA drive 1.
+   No c_tube/c_bite/c_frac/c_fold tables yet (owned by T011/T014/T015). HoldEngine is not declared (T014).
+4. Bypass (S5.3 step 3, C-16, C-17): e (LinearRamp, 5 ms) targets 0 once every active channel's effective Amount target AND
+   smoothed Amount are 0 (the smoother snaps within 1e-4), so the processed path fades out at an Amount already ~0. Copy
+   when bypassed. Leaving bypass resets both slots + running branches, re-keys, ramps e up. Settle from Amount 0.7 -> 0:
+   ~18 ms smoother + 5 ms ramp < the 100 ms SC-008 settle. The switch machine counter advances in bypass too.
+5. Re-key rule: "running" = current (+ target while crossfading) AND not bypassed. setFundamentalHz / f0PerSample changes
+   push only to running branches; start(), leaving bypass, reset() and prepare() reset + re-key. reset() re-keys all six.
+6. Observer: both hysteresis states (Rectify, Fracture) are updated on every centre-target change regardless of the
+   current algorithm / descriptor (deterministic, C-18). reset() clears both and then applies the update rule to the
+   current targets (inside the band -> stays 1, SC-026(c)). Tables interpolated linearly in Tone over {0,.25,.5,.75,1}.
+7. Mono link: setChannelOffsets with a nonzero offset unlinks at the setter (copies ch 0 -> ch 1); reset() re-links only
+   when both offsets are 0 (with nonzero offsets a linked stage would be wrong). The MonoLink test therefore sets the
+   offsets back to 0 before reset() (task text: "setChannelOffsets(0.1f, 0) -> linked == false; reset() -> linked == true").
+8. RectifyLawMatchesRectifier: the lin coefficient is checked against (1 - wet) + wet*mk*linearCoefficient(b) built from
+   the branch's own wet/b/mk (probe rectifyMix) within 4 float ulps, not with ==: fast-math FMA contraction may differ
+   between two expression sites on FMA targets (macOS arm64). wet/b/mk are separately checked against the test's own
+   S5.4 formulas (1e-6). The law bar 1e-5 is unchanged.
+9. Probe extras beyond the task list (needed by T009 tests or cheap for T011-T021): crossfading, crossfadeLength,
+   bypassed, engage, smoothedAmount/Tone, hasPreTilt, resetBranch, rectifyMix. preTilt() of an algorithm without a pre
+   tilt returns a neutral default KeytrackedTilt (use hasPreTilt).
+10. Seams declared and wired: identity law (y = lin = aligned input at the branch's kAlignDelay: Tube 2, Fold 0, others 1),
+    raw dry (dry share removed in-path and re-added from the base-rate x before the post tilt), naive base rate (Bite only,
+    hook), hard switch (law switches at once, path kept warm), unsmoothed, hard bypass, pre/post tone neutral.
+    crushMaxOccupancy_/crushRetirements_ declared at 0 (T014 fills).
+11. Constructor defaults per deviation 13: Tube, Amount 0, Tone 0.5, offsets 0, f0 65.40639 Hz, descriptor false.
+
+C-24 (Fracture phasor) is T015's; nothing Fracture-specific beyond the members is implemented here.
+
+DEFECT lines: none.

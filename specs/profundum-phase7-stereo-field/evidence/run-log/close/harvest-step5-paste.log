@@ -1,0 +1,7 @@
+dsp/include/krate/dsp/systems/bass_stereo_field.h [wide-floor]:
+  0: before static constexpr float kSideFloorGain = 0.5f;
+  0: after  static constexpr float kSideFloorGain = 0.035f;   (delta -0.465000)
+  1: before static constexpr float kWideOffsetScale = 1.0f;
+  1: after  static constexpr float kWideOffsetScale = 1.0f;   (delta 0.00000)
+paste-harvest: pasted wide-floor
+exit: 0 wall: 0 s

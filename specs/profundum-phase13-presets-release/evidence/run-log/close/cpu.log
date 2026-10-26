@@ -1,0 +1,1418 @@
+[cpu-lane] started 2026-10-25 12:49:50
+[cpu-lane] node tools/run-cpu-tests.js profundum_tests
+RUN  profundum_tests ... PASS  All tests passed (23246917 assertions in 23 test cases)
+
+1/1 suites passed.
+
+[cpu-lane] runner exit 0, wall clock 1828 s
+[cpu-lane] ---- full suite output (f:/tmp/cpu_profundum_tests.log) ----
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: [performance],[perf],[.perf] [.perf],[benchmark],[!benchmark],[long] ~[vorago-sweep]
+Randomness seeded to: 3091317121
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorCpu
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(245)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(306): warning:
+  SC-013 producer-on warm-up frames published: P-ON-MONO 10, P-ON-POLY 34
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(316): warning:
+  SC-015 last warm-up block peak: P-MONO 0.17128, P-POLY 0.472937, P-MAX-MONO
+  0.297774, P-MAX-POLY 0.584921, D-MONO 0.17128, D-POLY 0.452991
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(364): warning:
+  SC-015 best ns per 10 blocks (512 @ 48 kHz, real time 1.06667e+08 ns): P-MONO
+  2.5376e+06, D-MONO 2.5635e+06, P-POLY 7.4046e+06, D-POLY 7.3938e+06, P-MAX-
+  MONO 4.777e+06, P-MAX-POLY 1.63346e+07
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(365): warning:
+  SC-015 pct P-MONO = 2.379 % (bar <= 8)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(366): warning:
+  SC-015 pct P-POLY = 6.94181 % (bar <= 25)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(367): warning:
+  SC-015 pct D-MONO = 2.40328 %, pct D-POLY = 6.93169 % (recorded)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(369): warning:
+  SC-015 ratio P-MONO / D-MONO = 0.989897 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(371): warning:
+  SC-015 ratio P-POLY / D-POLY = 1.00146 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(373): warning:
+  SC-015 pct P-MAX-MONO (all four macros 1.0) = 4.47844 % (bar <= 8, Q-A gated)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(375): warning:
+  SC-015 pct P-MAX-POLY (all four macros 1.0) = 15.3137 % (bar <= 25, Q-A
+  gated)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(377): warning:
+  SC-013 best ns per 10 blocks: P-ON-MONO 2.6075e+06, P-ON-POLY 7.4528e+06
+  (producer on, same instance as P-MONO / P-POLY)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(378): warning:
+  SC-013 pct P-ON-MONO = 2.44453 % (bar <= 8)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(379): warning:
+  SC-013 pct P-ON-POLY = 6.987 % (bar <= 25)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(380): warning:
+  SC-013 ratio P-ON-MONO / D-MONO = 1.01716 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(381): warning:
+  SC-013 ratio P-ON-POLY / D-POLY = 1.00798 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(384): warning:
+  Phase 9 reference MONO 7.5798 % / POLY4 24.005 %: showcase setting, not
+  comparable (P-1)
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorCpuFullSurface
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(641)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(744): warning:
+  SC-020 last warm-up block peak MONO: P 0.305783, D 0.236861
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(744): warning:
+  SC-020 last warm-up block peak POLY: P 0.575272, D 0.530707
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(744): warning:
+  SC-020 last warm-up block peak MAX-MONO: P 0.415935, D 0.443597
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(744): warning:
+  SC-020 last warm-up block peak MAX-POLY: P 0.623995, D 0.816692
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(744): warning:
+  SC-020 last warm-up block peak AUTO-MONO: P 0.29702, D 0.221554
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(744): warning:
+  SC-020 last warm-up block peak AUTO-POLY: P 0.582879, D 0.502392
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(744): warning:
+  SC-020 last warm-up block peak AUTO-MAX-MONO: P 0.406553, D 0.422334
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(744): warning:
+  SC-020 last warm-up block peak AUTO-MAX-POLY: P 0.623328, D 0.884799
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(754): warning:
+  SC-013 MONO: producer-on warm-up frames published 10
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(754): warning:
+  SC-013 POLY: producer-on warm-up frames published 34
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(754): warning:
+  SC-013 MAX-MONO: producer-on warm-up frames published 10
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(754): warning:
+  SC-013 MAX-POLY: producer-on warm-up frames published 34
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(754): warning:
+  SC-013 AUTO-MONO: producer-on warm-up frames published 10
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(754): warning:
+  SC-013 AUTO-POLY: producer-on warm-up frames published 34
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(754): warning:
+  SC-013 AUTO-MAX-MONO: producer-on warm-up frames published 10
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(754): warning:
+  SC-013 AUTO-MAX-POLY: producer-on warm-up frames published 34
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(778): warning:
+  SC-020 real time per 10 blocks (512 @ 48 kHz) = 1.06667e+08 ns
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(786): warning:
+  SC-020 MONO: best ns P 4.4867e+06, D (same engine) 4.646e+06, D (separate
+  engine) 4.6896e+06; pct P = 4.20628 % (bar <= 8), pct D separate = 4.3965 %
+  (recorded); ratio P / D = 0.965712 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(790): warning:
+  SC-013 MONO P-ON (producer on, same instance as P): best ns 4.779e+06; pct P-
+  ON = 4.48031 % (bar <= 8); ratio P-ON / D = 1.02863 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(786): warning:
+  SC-020 POLY: best ns P 1.56919e+07, D (same engine) 1.56507e+07, D (separate
+  engine) 1.61711e+07; pct P = 14.7112 % (bar <= 25), pct D separate = 15.1604
+  % (recorded); ratio P / D = 1.00263 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(790): warning:
+  SC-013 POLY P-ON (producer on, same instance as P): best ns 1.6103e+07; pct
+  P-ON = 15.0966 % (bar <= 25); ratio P-ON / D = 1.0289 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(786): warning:
+  SC-020 MAX-MONO: best ns P 5.0574e+06, D (same engine) 5.0538e+06, D
+  (separate engine) 5.1811e+06; pct P = 4.74131 % (bar <= 8), pct D separate =
+  4.85728 % (recorded); ratio P / D = 1.00071 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(790): warning:
+  SC-013 MAX-MONO P-ON (producer on, same instance as P): best ns 5.0874e+06;
+  pct P-ON = 4.76944 % (bar <= 8); ratio P-ON / D = 1.00665 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(786): warning:
+  SC-020 MAX-POLY: best ns P 1.7508e+07, D (same engine) 1.74739e+07, D
+  (separate engine) 1.77688e+07; pct P = 16.4138 % (bar <= 25), pct D separate
+  = 16.6582 % (recorded); ratio P / D = 1.00195 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(790): warning:
+  SC-013 MAX-POLY P-ON (producer on, same instance as P): best ns 1.77515e+07;
+  pct P-ON = 16.642 % (bar <= 25); ratio P-ON / D = 1.01589 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(786): warning:
+  SC-020 AUTO-MONO: best ns P 4.7111e+06, D (same engine) 4.7747e+06, D
+  (separate engine) 4.7271e+06; pct P = 4.41666 % (bar <= 8), pct D separate =
+  4.43166 % (recorded); ratio P / D = 0.98668 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(790): warning:
+  SC-013 AUTO-MONO P-ON (producer on, same instance as P): best ns 4.8412e+06;
+  pct P-ON = 4.53862 % (bar <= 8); ratio P-ON / D = 1.01393 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(786): warning:
+  SC-020 AUTO-POLY: best ns P 1.58603e+07, D (same engine) 1.59205e+07, D
+  (separate engine) 1.54692e+07; pct P = 14.869 % (bar <= 25), pct D separate =
+  14.5024 % (recorded); ratio P / D = 0.996219 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(790): warning:
+  SC-013 AUTO-POLY P-ON (producer on, same instance as P): best ns 1.55477e+07;
+  pct P-ON = 14.576 % (bar <= 25); ratio P-ON / D = 0.976584 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(786): warning:
+  SC-020 AUTO-MAX-MONO: best ns P 5.0023e+06, D (same engine) 5.1142e+06, D
+  (separate engine) 5.1345e+06; pct P = 4.68966 % (bar <= 8), pct D separate =
+  4.81359 % (recorded); ratio P / D = 0.97812 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(790): warning:
+  SC-013 AUTO-MAX-MONO P-ON (producer on, same instance as P): best ns 5.1816e+
+  06; pct P-ON = 4.85775 % (bar <= 8); ratio P-ON / D = 1.01318 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(786): warning:
+  SC-020 AUTO-MAX-POLY: best ns P 1.75803e+07, D (same engine) 1.79454e+07, D
+  (separate engine) 1.78898e+07; pct P = 16.4815 % (bar <= 25), pct D separate
+  = 16.7717 % (recorded); ratio P / D = 0.979655 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(790): warning:
+  SC-013 AUTO-MAX-POLY P-ON (producer on, same instance as P): best ns 1.
+  77968e+07; pct P-ON = 16.6845 % (bar <= 25); ratio P-ON / D = 0.991719 (bar
+  <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(798): warning:
+  SC-020 MONO: control S2 / S (same D path twice) = 0.969113 (valid within [0.
+  952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(798): warning:
+  SC-020 POLY: control S2 / S (same D path twice) = 1.00145 (valid within [0.
+  952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(798): warning:
+  SC-020 MAX-MONO: control S2 / S (same D path twice) = 0.994103 (valid within
+  [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(798): warning:
+  SC-020 MAX-POLY: control S2 / S (same D path twice) = 1.02835 (valid within
+  [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(798): warning:
+  SC-020 AUTO-MONO: control S2 / S (same D path twice) = 0.998806 (valid within
+  [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(798): warning:
+  SC-020 AUTO-POLY: control S2 / S (same D path twice) = 0.983217 (valid within
+  [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(798): warning:
+  SC-020 AUTO-MAX-MONO: control S2 / S (same D path twice) = 1.01621 (valid
+  within [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(798): warning:
+  SC-020 AUTO-MAX-POLY: control S2 / S (same D path twice) = 0.989056 (valid
+  within [0.952381, 1.05])
+
+-------------------------------------------------------------------------------
+Profundum_PresetCpu
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(885)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(899): warning:
+  SC-022 preset CPU notes (MIDI, on at block 0): 28, 35, 40, 44
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Edge Ignition (Harmonic, stored Mono): MONO 3.07416 % (bar <= 8); D 3.
+  11137 %, D' 3.04256 %, control D' / D = 0.977884
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Biting Reed (Harmonic, stored Mono): MONO 2.56453 % (bar <= 8); D 2.
+  57353 %, D' 2.58497 %, control D' / D = 1.00444
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Folded Mass (Driven, stored Mono): MONO 2.14781 % (bar <= 8); D 2.
+  15437 %, D' 2.15447 %, control D' / D = 1.00004
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Valve Pressure (Driven, stored Mono): MONO 4.4625 % (bar <= 8); D 4.
+  42491 %, D' 4.48359 %, control D' / D = 1.01326
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Folding Wire (Driven, stored Mono): MONO 3.19416 % (bar <= 8); D 3.
+  16912 %, D' 3.11344 %, control D' / D = 0.982428
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Rectified Floor (Driven, stored Mono): MONO 2.36278 % (bar <= 8); D 2.
+  42447 %, D' 2.43516 %, control D' / D = 1.00441
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Bite Down (Driven, stored Mono): MONO 3.10209 % (bar <= 8); D 3.15019
+  %, D' 3.1875 %, control D' / D = 1.01184
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Crushed Basalt (Driven, stored Mono): MONO 2.50941 % (bar <= 8); D 2.
+  56031 %, D' 2.52422 %, control D' / D = 0.985903
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Fault Line (Driven, stored Mono): MONO 5.01619 % (bar <= 8); D 4.97128
+  %, D' 4.91878 %, control D' / D = 0.989439
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Bedrock (Sub, stored Mono): MONO 2.04206 % (bar <= 8); D 2.01412 %, D'
+  2.00166 %, control D' / D = 0.993809
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Punch Anchor (Plucked, stored Mono): MONO 2.07825 % (bar <= 8); D 2.
+  02491 %, D' 2.04553 %, control D' / D = 1.01019
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Ghost Kick (Plucked, stored Mono): MONO 2.05238 % (bar <= 8); D 2.
+  10291 %, D' 2.08669 %, control D' / D = 0.992287
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Rectified Follow (Driven, stored Mono): MONO 2.94759 % (bar <= 8); D
+  3.00356 %, D' 3.03797 %, control D' / D = 1.01146
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Triangle Floor (Sub, stored Mono): MONO 2.36522 % (bar <= 8); D 2.
+  26087 %, D' 2.193 %, control D' / D = 0.969978
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Rounded Weight (Sub, stored Mono): MONO 2.73178 % (bar <= 8); D 2.76
+  %, D' 2.70103 %, control D' / D = 0.978635
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Lopsided Sub (Sub, stored Mono): MONO 1.84387 % (bar <= 8); D 1.83262
+  %, D' 1.84275 %, control D' / D = 1.00552
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Under Octave (Sub, stored Mono): MONO 2.03569 % (bar <= 8); D 2.04637
+  %, D' 2.04984 %, control D' / D = 1.0017
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Fed Fold (Driven, stored Mono): MONO 2.91084 % (bar <= 8); D 2.92641
+  %, D' 2.89997 %, control D' / D = 0.990966
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Dropping Stone (Plucked, stored Mono): MONO 2.00438 % (bar <= 8); D 2.
+  03006 %, D' 2.02819 %, control D' / D = 0.999076
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Slow Fall (Plucked, stored Mono): MONO 2.39859 % (bar <= 8); D 2.42062
+  %, D' 2.39634 %, control D' / D = 0.989969
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Curved Drop (Plucked, stored Mono): MONO 1.84294 % (bar <= 8); D 1.
+  84894 %, D' 1.851 %, control D' / D = 1.00112
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Rebound (Plucked, stored Mono): MONO 2.75316 % (bar <= 8); D 2.77144
+  %, D' 2.78353 %, control D' / D = 1.00436
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Glide Path (Resonant, stored Mono): MONO 2.40281 % (bar <= 8); D 2.
+  39438 %, D' 2.40197 %, control D' / D = 1.00317
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Slow Swell (Resonant, stored Mono): MONO 2.39513 % (bar <= 8); D 2.
+  41847 %, D' 2.40253 %, control D' / D = 0.99341
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Long Tail (Sub, stored Mono): MONO 2.01562 % (bar <= 8); D 2.06663 %,
+  D' 2.04966 %, control D' / D = 0.991789
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Heavy Mass (Sub, stored Mono): MONO 2.06147 % (bar <= 8); D 2.05303 %,
+  D' 2.02931 %, control D' / D = 0.988447
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Pressure Front (Harmonic, stored Mono): MONO 4.07062 % (bar <= 8); D
+  4.026 %, D' 4.15059 %, control D' / D = 1.03095
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Hard Attack (Plucked, stored Mono): MONO 3.91528 % (bar <= 8); D 3.
+  88997 %, D' 3.89503 %, control D' / D = 1.0013
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Wide Harmonics (Harmonic, stored Mono): MONO 2.79675 % (bar <= 8); D
+  2.84278 %, D' 2.82769 %, control D' / D = 0.99469
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Wide Rectifier (Driven, stored Mono): MONO 2.99344 % (bar <= 8); D 2.
+  99766 %, D' 2.97394 %, control D' / D = 0.992088
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Spread Choir (Harmonic, stored Mono): MONO 2.46684 % (bar <= 8); D 2.
+  50472 %, D' 2.49891 %, control D' / D = 0.997679
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Gravity Well (Resonant, stored Mono): MONO 3.47016 % (bar <= 8); D 3.
+  44203 %, D' 3.42356 %, control D' / D = 0.994634
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Orbiting Field (Animated, stored Mono): MONO 2.79591 % (bar <= 8); D
+  2.87091 %, D' 2.77387 %, control D' / D = 0.966202
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Mass Tide (Animated, stored Mono): MONO 2.36606 % (bar <= 8); D 2.
+  38462 %, D' 2.42072 %, control D' / D = 1.01514
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Breathing Depth (Animated, stored Mono): MONO 3.73669 % (bar <= 8); D
+  3.83869 %, D' 3.76922 %, control D' / D = 0.981903
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Body Wave (Animated, stored Mono): MONO 3.64763 % (bar <= 8); D 3.
+  73359 %, D' 3.88303 %, control D' / D = 1.04003
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Edge Cycle (Animated, stored Mono): MONO 2.78625 % (bar <= 8); D 2.
+  68191 %, D' 2.63381 %, control D' / D = 0.982067
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Shifting Spectrum (Animated, stored Mono): MONO 3.80381 % (bar <= 8);
+  D 3.79978 %, D' 3.74081 %, control D' / D = 0.984481
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Envelope Mass (Animated, stored Mono): MONO 1.83647 % (bar <= 8); D 1.
+  87078 %, D' 1.88072 %, control D' / D = 1.00531
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Drifting Weight (Animated, stored Mono): MONO 3.86297 % (bar <= 8); D
+  3.90712 %, D' 3.88716 %, control D' / D = 0.994889
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Morph Span (Harmonic, stored Mono): MONO 2.37047 % (bar <= 8); D 2.
+  34544 %, D' 2.37684 %, control D' / D = 1.01339
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Halfway Morph (Resonant, stored Mono): MONO 4.17778 % (bar <= 8); D 4.
+  12031 %, D' 3.97153 %, control D' / D = 0.963891
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Restrike (Resonant, stored Mono): MONO 2.51259 % (bar <= 8); D 2.55103
+  %, D' 2.54587 %, control D' / D = 0.997979
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Legato Line (Resonant, stored Mono): MONO 2.02537 % (bar <= 8); D 2.
+  08556 %, D' 2.06409 %, control D' / D = 0.989706
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Envelope Restart (Harmonic, stored Mono): MONO 2.21934 % (bar <= 8); D
+  2.26237 %, D' 2.24006 %, control D' / D = 0.990138
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Continuous Phase (Sub, stored Mono): MONO 2.14931 % (bar <= 8); D 2.
+  20659 %, D' 2.20191 %, control D' / D = 0.997876
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Weight Lever (Sub, stored Mono): MONO 4.01091 % (bar <= 8); D 3.84581
+  %, D' 4.0125 %, control D' / D = 1.04334
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Dark To Bright (Harmonic, stored Mono): MONO 2.66625 % (bar <= 8); D
+  2.67487 %, D' 2.66194 %, control D' / D = 0.995163
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Loose Ends (Resonant, stored Mono): MONO 2.46469 % (bar <= 8); D 2.52
+  %, D' 2.52731 %, control D' / D = 1.0029
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Clean To Violent (Driven, stored Mono): MONO 4.68572 % (bar <= 8); D
+  4.66528 %, D' 4.65872 %, control D' / D = 0.998593
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Mono Bedrock (Sub, stored Mono): MONO 2.79553 % (bar <= 8); D 2.77509
+  %, D' 2.7915 %, control D' / D = 1.00591
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Locked Floor (Sub, stored Mono): MONO 2.41106 % (bar <= 8); D 2.43084
+  %, D' 2.41678 %, control D' / D = 0.994215
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(974): warning:
+  SC-022 Bedrock Sine (Sub, stored Mono): MONO 3.89231 % (bar <= 8); D 3.91162
+  %, D' 3.91744 %, control D' / D = 1.00149
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(969): warning:
+  SC-022 Poly Spread (Harmonic, stored Poly): MONO (Voice Mode forced to Mono)
+  4.18284 % (bar <= 8), POLY4 13.7722 % (bar <= 25); D 13.7464 %, D' 13.6176 %,
+  control D' / D = 0.990629
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(969): warning:
+  SC-022 Poly Swell (Resonant, stored Poly): MONO (Voice Mode forced to Mono)
+  3.08766 % (bar <= 8), POLY4 10.0844 % (bar <= 25); D 10.285 %, D' 10.2481 %,
+  control D' / D = 0.996409
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(969): warning:
+  SC-022 Poly Ignition (Driven, stored Poly): MONO (Voice Mode forced to Mono)
+  3.90956 % (bar <= 8), POLY4 13.171 % (bar <= 25); D 13.2368 %, D' 13.4157 %,
+  control D' / D = 1.01351
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(969): warning:
+  SC-022 Poly Rectifier (Driven, stored Poly): MONO (Voice Mode forced to Mono)
+  3.603 % (bar <= 8), POLY4 11.5442 % (bar <= 25); D 11.6488 %, D' 11.5753 %,
+  control D' / D = 0.99369
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(969): warning:
+  SC-022 Poly Pluck (Plucked, stored Poly): MONO (Voice Mode forced to Mono) 4.
+  38553 % (bar <= 8), POLY4 15.0305 % (bar <= 25); D 15.0701 %, D' 14.787 %,
+  control D' / D = 0.981213
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(996): warning:
+  SC-022 max MONO 5.01619 % (Fault Line), max POLY4 15.0305 % (Poly Pluck);
+  real time per 10 blocks = 1.06667e+08 ns
+
+-------------------------------------------------------------------------------
+Profundum_StateRestoreRender
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\state_restore_render_test.cpp(94)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\state_restore_render_test.cpp(174): warning:
+  SC-011 band-level difference (aggregate, [100 ms, 2.1 s)): 0.0178014 dB (bar
+  0.1 dB)
+
+AT-27,E1,"dL_K = L_K(dyn) - L_K(Sum) (dB)","dynL/R and sumL/R",3.51596,3.51596,3.51596,3,"L_K output (dB): -18.8379 -> -13.6453",PASS
+AT-27,C3,"dL_K = L_K(dyn) - L_K(Sum) (dB)","dynL/R and sumL/R",4.01259,4.01259,4.01259,3,"L_K output (dB): -12.9436 -> -11.3202",PASS
+AT-01,E1,"D_nl (dB)","Char / twin",29.3673,29.3673,29.3673,3,"L_K output (dB): -12.0432 -> -11.834",PASS
+AT-01,C3,"D_nl (dB)","Char / twin",29.4025,29.4025,29.4025,3,"L_K output (dB): -7.34931 -> -7.22205",PASS
+AT-10,E1,"E_sub (dB)","sumL/R",5.94809,5.94809,5.94809,2,"E_sub output (dB): -11.9804 -> -6.03327",PASS
+AT-10,C3,"E_sub (dB)","sumL/R",5.92968,5.92968,5.92968,2,"E_sub output (dB): -11.926 -> -5.99733",PASS
+AT-11,E1,"E_sub over [0, punchTimeMs) (dB; LS fit)","sumL/R",2.08853,2.08853,2.08853,2,"E_sub output, same window (dB): -3.90521 -> -4.37305",PASS
+AT-11,C3,"E_sub over [0, punchTimeMs) (dB; LS fit)","sumL/R",2.03878,2.03878,2.03878,2,"E_sub output, same window (dB): -4.29641 -> -5.35114",PASS
+AT-21,E1,"alpha (mean d over [0, N] / A)","fCore / fRes voice 0",0.755316,0.755316,0.755316,0.1,"L_K output short (dB): -12.0449 -> -12.0443",PASS
+AT-21,C3,"alpha (mean d over [0, N] / A)","fCore / fRes voice 0",0.767995,0.767995,0.767995,0.1,"L_K output short (dB): -7.34588 -> -7.34605",PASS
+AT-23,E1,"t_50 ratio (samples)","fRes voice 0",287.344,287.344,287.344,2,"L_K output short (dB): -8.87114 -> -9.08858",PASS
+AT-23,C3,"t_50 ratio (samples)","fRes voice 0",287.219,287.219,287.219,2,"L_K output short (dB): -6.95915 -> -6.98893",PASS
+AT-25,E1,"D_t release reading ratio (ms)","sumL/R",38.1903,38.1903,38.1903,2,"D_t output release (ms): 40.022 -> 1454.49",PASS
+AT-25,C3,"D_t release reading ratio (ms)","sumL/R",40.3031,40.3031,40.3031,2,"D_t output release (ms): 38.2613 -> 1452.95",PASS
+AT-43,E1,"core-h1 phase jump (deg)","coreL/R",177.667,177.667,177.667,30,"L_K output short (dB): -10.9562 -> -11.0899",PASS
+AT-43,C3,"core-h1 phase jump (deg)","coreL/R",167.525,167.525,167.525,30,"L_K output short (dB): -7.2789 -> -7.31825",PASS
+AT-03,E1,"D_nl (dB)","Char / twin",47.6755,47.6755,47.6755,3,"L_K output (dB): -12.0432 -> -14.0502",PASS
+AT-03,C3,"D_nl (dB)","Char / twin",47.6593,47.6593,47.6593,3,"L_K output (dB): -7.3493 -> -10.2671",PASS
+AT-02,E1,"D_br (oct)","sumL/R",2.47299,2.47299,2.47299,0.25,"D_br output (oct): 1.37971 -> 3.84347",PASS
+AT-02,C3,"D_br (oct)","sumL/R",0.378903,0.378903,0.378903,0.25,"D_br output (oct): 0.899769 -> 1.28208",PASS
+AT-05,E1,"D_nl (dB)","Char / twin",6.50986,6.50986,6.50986,3,"L_K output (dB): -12.0432 -> -11.5414",PASS
+AT-05,C3,"D_nl (dB)","Char / twin",6.49428,6.49428,6.49428,3,"L_K output (dB): -7.3493 -> -7.06457",PASS
+AT-28,E1,"onset ratio (dB)","dynL/R",10.4185,10.4185,10.4185,3,"onset ratio output (dB): 9.79646 -> 9.80638",PASS
+AT-28,C3,"onset ratio (dB)","dynL/R",10.6639,10.6639,10.6639,3,"onset ratio output (dB): 10.0746 -> 10.2356",PASS
+AT-33,E1,"frame-wise D_st p2p (dB; G8-1)","fieldL/R",16.3826,16.3826,16.3826,3,"frame-wise D_st p2p output (dB): 0.00574777 -> 16.3433",PASS
+AT-33,C3,"frame-wise D_st p2p (dB; G8-1)","fieldL/R",11.2431,11.2431,11.2431,3,"frame-wise D_st p2p output (dB): 3.21831 -> 14.7708",PASS
+AT-38,E1,"frame-wise D_br p2p (oct)","sumL/R",0.299477,0.299477,0.299477,0.25,"frame-wise D_br p2p output (oct): 0.00216681 -> 0.305912",PASS
+AT-38,C3,"frame-wise D_br p2p (oct)","sumL/R",0.303864,0.303864,0.303864,0.25,"frame-wise D_br p2p output (oct): 0.0110474 -> 0.30992",PASS
+AT-42,E1,"D_nl (dB)","Char / twin",8.15013,8.15013,8.15013,3,"L_K output (dB): -12.0432 -> -15.1442",PASS
+AT-42,C3,"D_nl (dB)","Char / twin",6.72976,6.72976,6.72976,3,"L_K output (dB): -7.3493 -> -10.059",PASS
+Profundum_MassOffsetAudibility position 0: dL_K lo 2.04942 hi -1.46653 value 3.51596 bar 3
+Profundum_MassOffsetAudibility position 0.5: dL_K lo 2.04942 hi -2.03139 value 4.08081 bar 3
+Profundum_MassOffsetAudibility position 1: dL_K lo 2.04942 hi -2.55375 value 4.60318 bar 3
+Profundum_MassOffsetAudibility wall clock 2.81227 s
+SC-019,SOLID,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SOLID,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,0,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-1.16201e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-1.81631e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-4.20881e-12,rho_sub,1,s2m_db,-120,gated,1
+SC-019,SPREAD,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-5.83948e-12,rho_sub,1,s2m_db,-118.714,gated,1
+SC-019,WIDE,MONO,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-3.91569e-05,rho_sub,0.999984,s2m_db,-50.4497,gated,1
+SC-019,WIDE,MONO,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-3.95596e-05,rho_sub,0.999984,s2m_db,-50.4053,gated,1
+SC-019,WIDE,POLY4,field,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-2.01762e-05,rho_sub,0.999993,s2m_db,-53.3294,gated,1
+SC-019,WIDE,POLY4,out,fc_hz,128.101,sub_in_band,1,valid,1,q_sub_db,-2.04404e-05,rho_sub,0.999993,s2m_db,-53.2729,gated,1
+# Profundum_PresetShowcase_0of8: presets=8 arms=22
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Edge Ignition","AT-01 Core Excitation Mix",primary,"",E1,28.5212,3,25.5212,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-01 Core Excitation Mix",primary,"",C3,28.5905,3,25.5905,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-03 Core Harmonic Fold",secondary,"",E1,5.19442,3,2.19442,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-03 Core Harmonic Fold",secondary,"",C3,4.85545,3,1.85545,0,"","D_nl","Char / twin"
+"Fault Line","AT-09 Character Fracture",primary,"",E1,30.2301,3,27.2301,0,"","D_nl","Char / twin"
+"Fault Line","AT-09 Character Fracture",primary,"",C3,28.7193,3,25.7193,0,"","D_nl","Char / twin"
+"Fault Line","AT-13 Anchor Lock to Follow",secondary,"Fracture",E1,-1200,-1200,5,0,"","anchor_shift_cents","Anchor tap (anchorPhaseTap seam)"
+"Fault Line","AT-13 Anchor Lock to Follow",secondary,"Fracture",C3,-1200,-1200,5,0,"","anchor_shift_cents","Anchor tap (anchorPhaseTap seam)"
+"Under Octave","AT-17 Anchor Sine to Octave Down",primary,"",E1,53.7334,3,50.7334,0,"","P_half","Sum"
+"Under Octave","AT-17 Anchor Sine to Octave Down",primary,"",C3,53.7454,3,50.7454,0,"","P_half","Sum"
+"Long Tail","AT-25 Envelope Amp Release",primary,"",E1,38.8268,2,36.8268,0,"","D_t_release","Sum"
+"Long Tail","AT-25 Envelope Amp Release",primary,"",C3,40.1104,2,38.1104,0,"","D_t_release","Sum"
+"Orbiting Field","AT-33 Field Motion",primary,"",E1,114.506,3,111.506,0,"","D_st_p2p","field stage tap"
+"Orbiting Field","AT-33 Field Motion",primary,"",C3,113.154,3,110.154,0,"","D_st_p2p","field stage tap"
+"Morph Span","AT-41 Morph Position Full",primary,"",E1,17.821,3,14.821,0,"","D_nl","Char / twin"
+"Morph Span","AT-41 Morph Position Full",primary,"",C3,17.3583,3,14.3583,0,"","D_nl","Char / twin"
+"Morph Span","AT-42 Morph Position Half",secondary,"",E1,11.0518,3,8.05177,0,"","D_nl","Char / twin"
+"Morph Span","AT-42 Morph Position Half",secondary,"",C3,9.55319,3,6.55319,0,"","D_nl","Char / twin"
+"Loose Ends","AT-49 Macros Tight Loose",primary,"",E1,2.39708,2,0.397084,0,"","D_t","Sum"
+"Loose Ends","AT-49 Macros Tight Loose",primary,"",C3,3.70441,2,1.70441,0,"","D_t","Sum"
+"Poly Rectifier","AT-06 Character Rectify",primary,"",E1,10.449,3,7.44905,0,"","D_nl","Char / twin"
+"Poly Rectifier","AT-06 Character Rectify",primary,"",C3,11.1396,3,8.13956,0,"","D_nl","Char / twin"
+# Profundum_PresetShowcase_1of8: presets=8 arms=16
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Biting Reed","AT-02 Core Shape",primary,"",E1,1.73355,0.25,1.48355,0,"","D_br","Sum"
+"Biting Reed","AT-02 Core Shape",primary,"",C3,1.78968,0.25,1.53968,0,"","D_br","Sum"
+"Bedrock","AT-10 Anchor Level",primary,"",E1,4.36216,2,2.36216,0,"","E_sub","Sum"
+"Bedrock","AT-10 Anchor Level",primary,"",C3,4.27592,2,2.27592,0,"","E_sub","Sum"
+"Fed Fold","AT-18 Anchor Fold Feed",primary,"",E1,5.51883,3,2.51883,0,"","D_nl","Char / twin"
+"Fed Fold","AT-18 Anchor Fold Feed",primary,"",C3,5.49018,3,2.49018,0,"","D_nl","Char / twin"
+"Heavy Mass","AT-26 Mass Amount",primary,"",E1,5.24671,3,2.24671,0,"","E_sub","Sum"
+"Heavy Mass","AT-26 Mass Amount",primary,"",C3,5.3203,3,2.3203,0,"","E_sub","Sum"
+"Mass Tide","AT-34 Motion Cycle to Mass",primary,"",E1,5.66452,3,2.66452,0,"","E_sub_p2p","Sum"
+"Mass Tide","AT-34 Motion Cycle to Mass",primary,"",C3,5.7733,3,2.7733,0,"","E_sub_p2p","Sum"
+"Halfway Morph","AT-42 Morph Position Half",primary,"",E1,7.37899,3,4.37899,0,"","D_nl","Char / twin"
+"Halfway Morph","AT-42 Morph Position Half",primary,"",C3,8.6303,3,5.6303,0,"","D_nl","Char / twin"
+"Clean To Violent","AT-50 Macros Clean Violent",primary,"",E1,11.3041,3,8.30408,0,"","D_nl","Char / twin"
+"Clean To Violent","AT-50 Macros Clean Violent",primary,"",C3,11.3225,3,8.32252,0,"","D_nl","Char / twin"
+"Poly Pluck","AT-25 Envelope Amp Release",primary,"",E1,40.651,2,38.651,0,"","D_t_release","Sum"
+"Poly Pluck","AT-25 Envelope Amp Release",primary,"",C3,40.1842,2,38.1842,0,"","D_t_release","Sum"
+# Profundum_PresetShowcase_2of8: presets=7 arms=14
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Folded Mass","AT-03 Core Harmonic Fold",primary,"",E1,15.82,3,12.82,0,"","D_nl","Char / twin"
+"Folded Mass","AT-03 Core Harmonic Fold",primary,"",C3,16.5798,3,13.5798,0,"","D_nl","Char / twin"
+"Punch Anchor","AT-11 Anchor Lock to Punch",primary,"",E1,2.16876,2,0.168764,39.9999,"","E_sub_onset","Sum"
+"Punch Anchor","AT-11 Anchor Lock to Punch",primary,"",C3,2.09658,2,0.0965758,39.9999,"","E_sub_onset","Sum"
+"Dropping Stone","AT-19 Pitch Drop Amount",primary,"",E1,24,6,18,0,"","drop_start","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Dropping Stone","AT-19 Pitch Drop Amount",primary,"",C3,24,6,18,0,"","drop_start","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Pressure Front","AT-27 Mass Dynamics Gain",primary,"",E1,4.60318,3,1.60318,0,"","dL_K","dynamics output tap and Sum"
+"Pressure Front","AT-27 Mass Dynamics Gain",primary,"",C3,4.01259,3,1.01259,0,"","dL_K","dynamics output tap and Sum"
+"Breathing Depth","AT-35 Motion Cycle to Depth",primary,"",E1,5.05711,3,2.05711,0,"","E_sub_p2p","Sum"
+"Breathing Depth","AT-35 Motion Cycle to Depth",primary,"",C3,5.13837,3,2.13837,0,"","E_sub_p2p","Sum"
+"Restrike","AT-43 NoteMemory AlwaysRetrigger",primary,"",E1,177.88,30,147.88,0,"","phase_deg","core tap"
+"Restrike","AT-43 NoteMemory AlwaysRetrigger",primary,"",C3,167.591,30,137.591,0,"","phase_deg","core tap"
+"Mono Bedrock","R-SOLID Reference Solid",primary,"",E1,110.958,3,107.958,0,"","D_st","field stage tap"
+"Mono Bedrock","R-SOLID Reference Solid",primary,"",C3,117.282,3,114.282,0,"","D_st","field stage tap"
+# Profundum_PresetShowcase_3of8: presets=7 arms=16
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Valve Pressure","AT-04 Character Tube",primary,"",E1,3.81675,3,0.816749,0,"","D_nl","Char / twin"
+"Valve Pressure","AT-04 Character Tube",primary,"",C3,4.81982,3,1.81982,0,"","D_nl","Char / twin"
+"Ghost Kick","AT-12 Anchor Lock to Ghost",primary,"",E1,2.88424,2,0.884235,100,"","E_sub_onset","Sum"
+"Ghost Kick","AT-12 Anchor Lock to Ghost",primary,"",C3,2.83324,2,0.833238,100,"","E_sub_onset","Sum"
+"Slow Fall","AT-20 Pitch Drop Time",primary,"",E1,7.95466,2,5.95466,0,"","drop_t_s","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Slow Fall","AT-20 Pitch Drop Time",primary,"",C3,8.63776,2,6.63776,0,"","drop_t_s","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Hard Attack","AT-28 Mass Transient Attack",primary,"",E1,9.81445,3,6.81445,0,"","onset_ratio","dynamics output tap"
+"Hard Attack","AT-28 Mass Transient Attack",primary,"",C3,9.2333,3,6.2333,0,"","onset_ratio","dynamics output tap"
+"Body Wave","AT-36 Motion Cycle to Body",primary,"",E1,5.80743,3,2.80743,0,"","D_cx_p2p","Sum"
+"Body Wave","AT-36 Motion Cycle to Body",primary,"",C3,6.47443,3,3.47443,0,"","D_cx_p2p","Sum"
+"Legato Line","AT-44 NoteMemory Legato",primary,"",E1,177.921,30,147.921,0,"","phase_deg","core tap"
+"Legato Line","AT-44 NoteMemory Legato",primary,"",C3,167.608,30,137.608,0,"","phase_deg","core tap"
+"Locked Floor","R-LOCK Reference Lock",primary,"",E1,2.09356,2,0.0935615,40,"","E_sub_onset","Sum"
+"Locked Floor","R-LOCK Reference Lock",primary,"",C3,2.03613,2,0.0361321,40,"","E_sub_onset","Sum"
+"Locked Floor","AT-14 Anchor Sine to Triangle",secondary,"",E1,5.61232,3,2.61232,0,"","D_cx","Sum"
+"Locked Floor","AT-14 Anchor Sine to Triangle",secondary,"",C3,6.13257,3,3.13257,0,"","D_cx","Sum"
+# Profundum_PresetShowcase_4of8: presets=7 arms=18
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Folding Wire","AT-05 Character Wavefold",primary,"",E1,8.16972,3,5.16972,0,"","D_nl","Char / twin"
+"Folding Wire","AT-05 Character Wavefold",primary,"",C3,8.02551,3,5.02551,0,"","D_nl","Char / twin"
+"Rectified Follow","AT-13 Anchor Lock to Follow",primary,"Rectify",E1,1200,1200,5,0,"","anchor_shift_cents","Anchor tap (anchorPhaseTap seam)"
+"Rectified Follow","AT-13 Anchor Lock to Follow",primary,"Rectify",C3,1200,1200,5,0,"","anchor_shift_cents","Anchor tap (anchorPhaseTap seam)"
+"Rectified Follow","AT-06 Character Rectify",secondary,"",E1,34.2658,3,31.2658,0,"","D_nl","Char / twin"
+"Rectified Follow","AT-06 Character Rectify",secondary,"",C3,34.2447,3,31.2447,0,"","D_nl","Char / twin"
+"Curved Drop","AT-21 Pitch Drop Shape",primary,"",E1,0.702034,0.1,0.602034,0,"","drop_alpha","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Curved Drop","AT-21 Pitch Drop Shape",primary,"",C3,0.749757,0.1,0.649757,0,"","drop_alpha","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Wide Harmonics","AT-29 Field Solid to Spread",primary,"",E1,116.627,3,113.627,0,"","D_st","field stage tap"
+"Wide Harmonics","AT-29 Field Solid to Spread",primary,"",C3,118.806,3,115.806,0,"","D_st","field stage tap"
+"Wide Harmonics","AT-31 Field Spread",secondary,"",E1,116.627,3,113.627,0,"","D_st","field stage tap"
+"Wide Harmonics","AT-31 Field Spread",secondary,"",C3,118.806,3,115.806,0,"","D_st","field stage tap"
+"Edge Cycle","AT-37 Motion Cycle to Edge",primary,"",E1,1.43842,0.25,1.18842,0,"","D_br_p2p","Sum"
+"Edge Cycle","AT-37 Motion Cycle to Edge",primary,"",C3,1.49802,0.25,1.24802,0,"","D_br_p2p","Sum"
+"Envelope Restart","AT-45 NoteMemory EnvelopeRetriggerOnly",primary,"",E1,177.916,30,147.916,0,"","phase_deg","core tap"
+"Envelope Restart","AT-45 NoteMemory EnvelopeRetriggerOnly",primary,"",C3,167.735,30,137.735,0,"","phase_deg","core tap"
+"Bedrock Sine","R-SINE Reference Sine",primary,"",E1,4.67956,3,1.67956,0,"","D_cx","Sum"
+"Bedrock Sine","R-SINE Reference Sine",primary,"",C3,5.86201,3,2.86201,0,"","D_cx","Sum"
+# Profundum_PresetShowcase_5of8: presets=7 arms=14
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Rectified Floor","AT-06 Character Rectify",primary,"",E1,24.9238,3,21.9238,0,"","D_nl","Char / twin"
+"Rectified Floor","AT-06 Character Rectify",primary,"",C3,25.3472,3,22.3472,0,"","D_nl","Char / twin"
+"Triangle Floor","AT-14 Anchor Sine to Triangle",primary,"",E1,3.84404,3,0.844036,0,"","D_cx","Sum"
+"Triangle Floor","AT-14 Anchor Sine to Triangle",primary,"",C3,3.87561,3,0.875608,0,"","D_cx","Sum"
+"Rebound","AT-22 Pitch Drop Rebound",primary,"",E1,7.25156,1.2,6.05156,0,"","drop_rho","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Rebound","AT-22 Pitch Drop Rebound",primary,"",C3,6.42321,1.2,5.22321,0,"","drop_rho","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Wide Rectifier","AT-30 Field Solid to Wide",primary,"",E1,99.6501,3,96.6501,0,"","D_st","field stage tap"
+"Wide Rectifier","AT-30 Field Solid to Wide",primary,"",C3,105.925,3,102.925,0,"","D_st","field stage tap"
+"Shifting Spectrum","AT-38 Motion Cycle to Shift",primary,"",E1,0.299477,0.25,0.0494771,0,"","D_br_p2p","Sum"
+"Shifting Spectrum","AT-38 Motion Cycle to Shift",primary,"",C3,0.303864,0.25,0.053864,0,"","D_br_p2p","Sum"
+"Continuous Phase","AT-46 NoteMemory OscillatorContinuous",primary,"",E1,178.752,30,148.752,0,"","phase_deg","core tap"
+"Continuous Phase","AT-46 NoteMemory OscillatorContinuous",primary,"",C3,167.882,30,137.882,0,"","phase_deg","core tap"
+"Poly Spread","AT-31 Field Spread",primary,"",E1,115.364,3,112.364,0,"","D_st","field stage tap"
+"Poly Spread","AT-31 Field Spread",primary,"",C3,115.392,3,112.392,0,"","D_st","field stage tap"
+# Profundum_PresetShowcase_6of8: presets=7 arms=18
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Bite Down","AT-07 Character Bite",primary,"",E1,12.7979,3,9.79792,0,"","D_nl","Char / twin"
+"Bite Down","AT-07 Character Bite",primary,"",C3,12.4729,3,9.47288,0,"","D_nl","Char / twin"
+"Bite Down","AT-28 Mass Transient Attack",secondary,"",E1,10.8442,3,7.84425,0,"","onset_ratio","dynamics output tap"
+"Bite Down","AT-28 Mass Transient Attack",secondary,"",C3,10.9047,3,7.90471,0,"","onset_ratio","dynamics output tap"
+"Rounded Weight","AT-15 Anchor Sine to Rounded Sine",primary,"",E1,9.47948,3,6.47948,0,"","D_cx","Sum"
+"Rounded Weight","AT-15 Anchor Sine to Rounded Sine",primary,"",C3,8.36096,3,5.36096,0,"","D_cx","Sum"
+"Glide Path","AT-23 Pitch Glide",primary,"",E1,287.344,2,285.344,0,"","t_50","f_res pitch tap (voice 0)"
+"Glide Path","AT-23 Pitch Glide",primary,"",C3,287.219,2,285.219,0,"","t_50","f_res pitch tap (voice 0)"
+"Glide Path","AT-44 NoteMemory Legato",secondary,"",E1,147.304,30,117.304,0,"","phase_deg","core tap"
+"Glide Path","AT-44 NoteMemory Legato",secondary,"",C3,95.5179,30,65.5179,0,"","phase_deg","core tap"
+"Spread Choir","AT-31 Field Spread",primary,"",E1,111.125,3,108.125,0,"","D_st","field stage tap"
+"Spread Choir","AT-31 Field Spread",primary,"",C3,117.01,3,114.01,0,"","D_st","field stage tap"
+"Envelope Mass","AT-39 Motion Env to Mass",primary,"",E1,3.26077,3,0.260769,0,"","E_sub_p2p","Sum"
+"Envelope Mass","AT-39 Motion Env to Mass",primary,"",C3,3.17683,3,0.176834,0,"","E_sub_p2p","Sum"
+"Weight Lever","AT-47 Macros Weight",primary,"",E1,3.30633,3,0.306327,0,"","E_sub","Sum"
+"Weight Lever","AT-47 Macros Weight",primary,"",C3,3.22505,3,0.225049,0,"","E_sub","Sum"
+"Poly Swell","AT-24 Envelope Amp Attack",primary,"",E1,19.2,2,17.2,0,"","t_90","Sum"
+"Poly Swell","AT-24 Envelope Amp Attack",primary,"",C3,29.88,2,27.88,0,"","t_90","Sum"
+# Profundum_PresetShowcase_7of8: presets=7 arms=13
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Crushed Basalt","AT-08 Character Crush",primary,"",E1,16.4323,3,13.4323,0,"","D_nl","Char / twin"
+"Crushed Basalt","AT-08 Character Crush",primary,"",C3,18.2766,3,15.2766,0,"","D_nl","Char / twin"
+"Lopsided Sub","AT-16 Anchor Sine to Asymmetric Sine",primary,"",E1,14.2266,3,11.2266,0,"","D_cx","Sum"
+"Lopsided Sub","AT-16 Anchor Sine to Asymmetric Sine",primary,"",C3,14.2268,3,11.2268,0,"","D_cx","Sum"
+"Slow Swell","AT-24 Envelope Amp Attack",primary,"",E1,22.4412,2,20.4412,0,"","t_90","Sum"
+"Slow Swell","AT-24 Envelope Amp Attack",primary,"",C3,57.4615,2,55.4615,0,"","t_90","Sum"
+"Gravity Well","AT-32 Field Gravity",primary,"",E1,13.0917,3,10.0917,0,"","D_st_low","field stage tap"
+"Drifting Weight","AT-40 Motion Drift to Mass",primary,"",E1,3.37732,3,0.377321,0,"","E_sub_p2p","Sum"
+"Drifting Weight","AT-40 Motion Drift to Mass",primary,"",C3,3.59572,3,0.595717,0,"","E_sub_p2p","Sum"
+"Dark To Bright","AT-48 Macros Dark Bright",primary,"",E1,0.757618,0.25,0.507618,0,"","D_br","Sum"
+"Dark To Bright","AT-48 Macros Dark Bright",primary,"",C3,0.655184,0.25,0.405184,0,"","D_br","Sum"
+"Poly Ignition","AT-01 Core Excitation Mix",primary,"",E1,10.99,3,7.99,0,"","D_nl","Char / twin"
+"Poly Ignition","AT-01 Core Excitation Mix",primary,"",C3,10.0055,3,7.00547,0,"","D_nl","Char / twin"
+# Profundum_PresetSweep: presets=58
+preset,render,non_finite,held_rms_db,tail_rms_db,tail_samples
+"Edge Ignition",E1,0,-8.29367,-200,74464
+"Edge Ignition",C3,0,-7.97305,-200,74464
+"Biting Reed",E1,0,-12.2448,-200,72064
+"Biting Reed",C3,0,-11.4942,-200,72064
+"Folded Mass",E1,0,-11.881,-200,74464
+"Folded Mass",C3,0,-11.7964,-200,74464
+"Valve Pressure",E1,0,-8.00342,-200,74464
+"Valve Pressure",C3,0,-7.89102,-200,74464
+"Folding Wire",E1,0,-11.5116,-200,69664
+"Folding Wire",C3,0,-11.3012,-200,69664
+"Rectified Floor",E1,0,-11.721,-200,72064
+"Rectified Floor",C3,0,-11.6387,-200,72064
+"Bite Down",E1,0,-12.2439,-200,69664
+"Bite Down",C3,0,-12.2492,-200,69664
+"Crushed Basalt",E1,0,-11.4915,-200,74464
+"Crushed Basalt",C3,0,-10.9786,-200,74464
+"Fault Line",E1,0,-12.0289,-200,88864
+"Fault Line",C3,0,-11.5294,-200,88864
+"Bedrock",E1,0,-11.117,-200,72064
+"Bedrock",C3,0,-10.9624,-200,72064
+"Punch Anchor",E1,0,-12.6853,-200,67264
+"Punch Anchor",C3,0,-12.6315,-200,67264
+"Ghost Kick",E1,0,-10.8386,-200,65824
+"Ghost Kick",C3,0,-10.6535,-200,65824
+"Rectified Follow",E1,0,-10.9112,-200,72064
+"Rectified Follow",C3,0,-11.9417,-200,72064
+"Triangle Floor",E1,0,-11.5797,-200,76865
+"Triangle Floor",C3,0,-11.474,-200,76865
+"Rounded Weight",E1,0,-9.78053,-200,79264
+"Rounded Weight",C3,0,-9.64885,-200,79264
+"Lopsided Sub",E1,0,-8.04311,-200,74464
+"Lopsided Sub",C3,0,-8.012,-200,74464
+"Under Octave",E1,0,-9.98504,-200,81665
+"Under Octave",C3,0,-9.83536,-200,81665
+"Fed Fold",E1,0,-8.10907,-200,74464
+"Fed Fold",C3,0,-8.02476,-200,74464
+"Dropping Stone",E1,0,-11.3936,-200,69664
+"Dropping Stone",C3,0,-11.3508,-200,69664
+"Slow Fall",E1,0,-10.9919,-200,74464
+"Slow Fall",C3,0,-11.1519,-200,74464
+"Curved Drop",E1,0,-13.5851,-200,69664
+"Curved Drop",C3,0,-13.5933,-200,69664
+"Rebound",E1,0,-11.9739,-200,72064
+"Rebound",C3,0,-11.7764,-200,72064
+"Glide Path",E1,0,-11.6003,-200,79264
+"Glide Path",C3,0,-11.651,-200,79264
+"Slow Swell",E1,0,-13.2151,-200,103265
+"Slow Swell",C3,0,-13.4698,-200,103265
+"Long Tail",E1,0,-7.98732,-200,156064
+"Long Tail",C3,0,-7.94364,-200,156064
+"Heavy Mass",E1,0,-10.6559,-200,76865
+"Heavy Mass",C3,0,-10.3691,-200,76865
+"Pressure Front",E1,0,-11.749,-200,98464
+"Pressure Front",C3,0,-11.8822,-200,98464
+"Hard Attack",E1,0,-10.7772,-200,72064
+"Hard Attack",C3,0,-10.3799,-200,72064
+"Wide Harmonics",E1,0,-13.2316,-200,84064
+"Wide Harmonics",C3,0,-12.2238,-200,84064
+"Wide Rectifier",E1,0,-8.41559,-200,74464
+"Wide Rectifier",C3,0,-8.40599,-200,74464
+"Spread Choir",E1,0,-13.7951,-200,93665
+"Spread Choir",C3,0,-13.6682,-200,93665
+"Gravity Well",E1,0,-9.54318,-200,93665
+"Gravity Well",C3,0,-9.43045,-200,93665
+"Orbiting Field",E1,0,-9.50841,-200,88864
+"Orbiting Field",C3,0,-9.30612,-200,88864
+"Mass Tide",E1,0,-9.97883,-200,79264
+"Mass Tide",C3,0,-9.79029,-200,79264
+"Breathing Depth",E1,0,-9.46463,-200,98464
+"Breathing Depth",C3,0,-9.01663,-200,98464
+"Body Wave",E1,0,-10.9078,-200,98464
+"Body Wave",C3,0,-10.9949,-200,98464
+"Edge Cycle",E1,0,-12.1551,-200,74464
+"Edge Cycle",C3,0,-12.1151,-200,74464
+"Shifting Spectrum",E1,0,-12.4064,-200,98464
+"Shifting Spectrum",C3,0,-11.515,-200,98464
+"Envelope Mass",E1,0,-9.46283,-200,79264
+"Envelope Mass",C3,0,-9.41614,-200,79264
+"Drifting Weight",E1,0,-7.6988,-200,84064
+"Drifting Weight",C3,0,-7.39331,-200,84064
+"Morph Span",E1,0,-10.9115,-200,98464
+"Morph Span",C3,0,-10.8756,-200,98464
+"Halfway Morph",E1,0,-10.7813,-200,84064
+"Halfway Morph",C3,0,-10.6791,-200,84064
+"Restrike",E1,0,-14.2007,-200,74464
+"Restrike",C3,0,-14.1088,-200,74464
+"Legato Line",E1,0,-8.40169,-200,81665
+"Legato Line",C3,0,-8.34709,-200,81665
+"Envelope Restart",E1,0,-11.5808,-200,79264
+"Envelope Restart",C3,0,-11.2729,-200,79264
+"Continuous Phase",E1,0,-7.95195,-200,76865
+"Continuous Phase",C3,0,-7.70848,-200,76865
+"Weight Lever",E1,0,-10.6727,-200,65824
+"Weight Lever",C3,0,-10.5201,-200,65824
+"Dark To Bright",E1,0,-11.1345,-200,98464
+"Dark To Bright",C3,0,-10.6472,-200,98464
+"Loose Ends",E1,0,-12.064,-200,62464
+"Loose Ends",C3,0,-12.0283,-200,62464
+"Clean To Violent",E1,0,-7.62944,-200,72064
+"Clean To Violent",C3,0,-7.3496,-200,72064
+"Mono Bedrock",E1,0,-7.98874,-200,79264
+"Mono Bedrock",C3,0,-7.79867,-200,79264
+"Locked Floor",E1,0,-10.5071,-200,74464
+"Locked Floor",C3,0,-10.4716,-200,74464
+"Bedrock Sine",E1,0,-7.81629,-200,84064
+"Bedrock Sine",C3,0,-7.6754,-200,84064
+"Poly Spread",E1,0,-12.4527,-200,93665
+"Poly Spread",C3,0,-12.5757,-200,93665
+"Poly Spread",chord E1+B1+E2,0,-9.41524,-200,93665
+"Poly Swell",E1,0,-12.068,-200,103265
+"Poly Swell",C3,0,-11.7662,-200,103265
+"Poly Swell",chord E1+B1+E2,0,-8.8288,-200,103265
+"Poly Ignition",E1,0,-9.22934,-200,74464
+"Poly Ignition",C3,0,-9.11897,-200,74464
+"Poly Ignition",chord E1+B1+E2,0,-7.46667,-200,74464
+"Poly Rectifier",E1,0,-10.8053,-200,72064
+"Poly Rectifier",C3,0,-10.8426,-200,72064
+"Poly Rectifier",chord E1+B1+E2,0,-9.04851,-200,72064
+"Poly Pluck",E1,0,-12.0328,-200,156064
+"Poly Pluck",C3,0,-11.8445,-200,156064
+"Poly Pluck",chord E1+B1+E2,0,-8.3046,-200,156064
+# Profundum_PresetSweepRates: presets=58
+preset,fs,non_finite,held_rms_db,tail_rms_db,true_peak_dbtp,margin_db
+"Edge Ignition",44100,0,-8.28999,-279.27,-0.99999,0.0999898
+"Edge Ignition",48000,0,-8.29367,-200,-0.999997,0.0999968
+"Edge Ignition",96000,0,-8.31156,-277.523,-0.999998,0.099998
+"Biting Reed",44100,0,-12.3011,-276.488,-0.980804,0.0808039
+"Biting Reed",48000,0,-12.2448,-200,-0.982054,0.0820536
+"Biting Reed",96000,0,-11.6852,-274.867,-0.990264,0.0902642
+"Folded Mass",44100,0,-11.8801,-200,-0.999905,0.099905
+"Folded Mass",48000,0,-11.881,-200,-0.999956,0.0999555
+"Folded Mass",96000,0,-11.8854,-200,-0.999996,0.0999962
+"Valve Pressure",44100,0,-8.01462,-279.383,-0.999812,0.0998115
+"Valve Pressure",48000,0,-8.00342,-200,-0.999947,0.0999474
+"Valve Pressure",96000,0,-8.00921,-275.667,-0.999584,0.0995838
+"Folding Wire",44100,0,-11.509,-411.891,-0.999976,0.0999765
+"Folding Wire",48000,0,-11.5116,-200,-0.999996,0.0999956
+"Folding Wire",96000,0,-11.5265,-272.558,-0.999979,0.0999788
+"Rectified Floor",44100,0,-11.7192,-200,-0.999999,0.0999985
+"Rectified Floor",48000,0,-11.721,-200,-1,0.100001
+"Rectified Floor",96000,0,-11.7325,-200,-0.999996,0.0999962
+"Bite Down",44100,0,-12.2442,-411.853,-0.999995,0.0999945
+"Bite Down",48000,0,-12.2439,-200,-0.999999,0.0999991
+"Bite Down",96000,0,-12.2425,-271.437,-0.999992,0.0999922
+"Crushed Basalt",44100,0,-11.4933,-200,-1.00694,0.106944
+"Crushed Basalt",48000,0,-11.4915,-200,-0.986723,0.0867232
+"Crushed Basalt",96000,0,-11.2969,-200,-0.984927,0.0849265
+"Fault Line",44100,0,-12.0127,-279.383,-0.970251,0.070251
+"Fault Line",48000,0,-12.0289,-200,-0.974651,0.0746512
+"Fault Line",96000,0,-11.9775,-271.4,-0.973719,0.0737188
+"Bedrock",44100,0,-11.116,-200,-1.97256,1.07256
+"Bedrock",48000,0,-11.117,-200,-1.97387,1.07387
+"Bedrock",96000,0,-11.1228,-200,-1.98141,1.08141
+"Punch Anchor",44100,0,-12.6845,-200,-0.999996,0.0999962
+"Punch Anchor",48000,0,-12.6853,-200,-0.999996,0.0999962
+"Punch Anchor",96000,0,-12.689,-200,-0.999997,0.0999968
+"Ghost Kick",44100,0,-10.8355,-200,-0.999762,0.0997621
+"Ghost Kick",48000,0,-10.8386,-200,-1.00001,0.100015
+"Ghost Kick",96000,0,-10.8567,-200,-0.999973,0.0999729
+"Rectified Follow",44100,0,-11.0593,-279.195,-0.999996,0.0999956
+"Rectified Follow",48000,0,-10.9112,-200,-0.999997,0.0999974
+"Rectified Follow",96000,0,-11.1949,-341.781,-0.999997,0.0999974
+"Triangle Floor",44100,0,-11.5785,-200,-0.999995,0.0999945
+"Triangle Floor",48000,0,-11.5797,-200,-0.999995,0.0999951
+"Triangle Floor",96000,0,-11.5887,-200,-0.999995,0.0999945
+"Rounded Weight",44100,0,-9.77941,-276.927,-0.999304,0.0993038
+"Rounded Weight",48000,0,-9.78053,-200,-0.998937,0.0989374
+"Rounded Weight",96000,0,-9.78704,-271.408,-0.999385,0.0993846
+"Lopsided Sub",44100,0,-8.04327,-200,-0.999996,0.0999956
+"Lopsided Sub",48000,0,-8.04311,-200,-0.999993,0.0999927
+"Lopsided Sub",96000,0,-8.04277,-200,-0.999999,0.0999991
+"Under Octave",44100,0,-9.98415,-200,-0.999997,0.0999968
+"Under Octave",48000,0,-9.98504,-200,-0.999999,0.0999985
+"Under Octave",96000,0,-9.9905,-200,-0.999997,0.0999974
+"Fed Fold",44100,0,-8.10947,-279.158,-1.00001,0.100014
+"Fed Fold",48000,0,-8.10907,-200,-0.999971,0.0999707
+"Fed Fold",96000,0,-8.10938,-276.344,-0.999989,0.0999893
+"Dropping Stone",44100,0,-11.3928,-200,-0.999986,0.0999864
+"Dropping Stone",48000,0,-11.3936,-200,-0.999995,0.0999951
+"Dropping Stone",96000,0,-11.3972,-200,-0.999993,0.0999927
+"Slow Fall",44100,0,-10.9919,-279.374,-0.99999,0.0999904
+"Slow Fall",48000,0,-10.9919,-200,-0.999997,0.0999968
+"Slow Fall",96000,0,-10.992,-277.663,-0.999999,0.0999985
+"Curved Drop",44100,0,-13.5836,-200,-0.999803,0.0998028
+"Curved Drop",48000,0,-13.5851,-200,-1,0.1
+"Curved Drop",96000,0,-13.5895,-200,-0.999969,0.0999689
+"Rebound",44100,0,-11.9718,-279.379,-0.999994,0.0999939
+"Rebound",48000,0,-11.9739,-200,-0.999985,0.0999846
+"Rebound",96000,0,-11.989,-272.723,-1,0.0999997
+"Glide Path",44100,0,-11.6002,-340.654,-0.999992,0.0999916
+"Glide Path",48000,0,-11.6003,-200,-0.999996,0.0999956
+"Glide Path",96000,0,-11.5999,-271.553,-1,0.100001
+"Slow Swell",44100,0,-13.215,-279.267,-4.16077,3.26077
+"Slow Swell",48000,0,-13.2151,-200,-4.16038,3.26038
+"Slow Swell",96000,0,-13.2141,-271.482,-4.18651,3.28651
+"Long Tail",44100,0,-7.98724,-200,-0.999993,0.0999927
+"Long Tail",48000,0,-7.98732,-200,-0.999993,0.0999933
+"Long Tail",96000,0,-7.98791,-200,-0.999998,0.099998
+"Heavy Mass",44100,0,-10.6534,-200,-1.00024,0.100243
+"Heavy Mass",48000,0,-10.6559,-200,-1.00085,0.100848
+"Heavy Mass",96000,0,-10.6635,-200,-1,0.1
+"Pressure Front",44100,0,-11.7842,-279.349,-0.97961,0.07961
+"Pressure Front",48000,0,-11.749,-200,-0.980802,0.0808022
+"Pressure Front",96000,0,-10.9745,-279.793,-0.988088,0.088088
+"Hard Attack",44100,0,-10.738,-279.287,-0.999714,0.0997145
+"Hard Attack",48000,0,-10.7772,-200,-0.999525,0.0995245
+"Hard Attack",96000,0,-11.0281,-275.021,-0.999989,0.0999887
+"Wide Harmonics",44100,0,-13.2179,-277.004,-0.999996,0.0999956
+"Wide Harmonics",48000,0,-13.2316,-200,-1,0.100003
+"Wide Harmonics",96000,0,-13.3121,-277.719,-1,0.100001
+"Wide Rectifier",44100,0,-8.41668,-340.986,-0.999996,0.0999962
+"Wide Rectifier",48000,0,-8.41559,-200,-0.999999,0.0999991
+"Wide Rectifier",96000,0,-8.41076,-274.99,-0.999995,0.0999951
+"Spread Choir",44100,0,-13.7947,-339.042,-0.999992,0.0999916
+"Spread Choir",48000,0,-13.7951,-200,-1,0.100004
+"Spread Choir",96000,0,-13.7978,-274.472,-1,0.1
+"Gravity Well",44100,0,-9.48841,-276.533,-0.998768,0.0987683
+"Gravity Well",48000,0,-9.54318,-200,-0.999455,0.0994549
+"Gravity Well",96000,0,-9.86535,-271.464,-0.999753,0.0997528
+"Orbiting Field",44100,0,-9.50605,-276.499,-0.999993,0.0999927
+"Orbiting Field",48000,0,-9.50841,-200,-0.999986,0.0999858
+"Orbiting Field",96000,0,-9.5228,-277.231,-0.999997,0.0999968
+"Mass Tide",44100,0,-9.97719,-411.902,-0.999997,0.0999974
+"Mass Tide",48000,0,-9.97883,-200,-0.999996,0.0999956
+"Mass Tide",96000,0,-9.97396,-279.586,-0.999994,0.0999939
+"Breathing Depth",44100,0,-9.44829,-340.661,-0.97712,0.0771195
+"Breathing Depth",48000,0,-9.46463,-200,-0.980821,0.0808213
+"Breathing Depth",96000,0,-9.49986,-273.608,-0.989567,0.0895668
+"Body Wave",44100,0,-10.9531,-279.168,-0.976037,0.0760374
+"Body Wave",48000,0,-10.9078,-200,-0.978124,0.0781236
+"Body Wave",96000,0,-10.2786,-277.983,-0.989143,0.0891427
+"Edge Cycle",44100,0,-12.156,-340.626,-3.42593,2.52593
+"Edge Cycle",48000,0,-12.1551,-200,-3.42858,2.52858
+"Edge Cycle",96000,0,-12.1526,-272.566,-3.44447,2.54447
+"Shifting Spectrum",44100,0,-12.4688,-279.278,-0.972402,0.0724025
+"Shifting Spectrum",48000,0,-12.4064,-200,-0.972247,0.0722474
+"Shifting Spectrum",96000,0,-12.1108,-275.342,-0.975175,0.0751754
+"Envelope Mass",44100,0,-9.46222,-200,-2.39781,1.49781
+"Envelope Mass",48000,0,-9.46283,-200,-2.39834,1.49834
+"Envelope Mass",96000,0,-9.46401,-200,-2.40136,1.50136
+"Drifting Weight",44100,0,-7.68406,-279.365,-0.999999,0.0999985
+"Drifting Weight",48000,0,-7.6988,-200,-0.999981,0.0999811
+"Drifting Weight",96000,0,-8.24265,-272.716,-0.999999,0.0999991
+"Morph Span",44100,0,-10.9118,-276.774,-0.999993,0.0999927
+"Morph Span",48000,0,-10.9115,-200,-0.999996,0.0999962
+"Morph Span",96000,0,-10.9104,-277.799,-0.999996,0.0999962
+"Halfway Morph",44100,0,-10.778,-279.373,-0.99993,0.09993
+"Halfway Morph",48000,0,-10.7813,-200,-1.00002,0.100017
+"Halfway Morph",96000,0,-10.8043,-277.801,-0.999961,0.0999614
+"Restrike",44100,0,-14.2003,-411.884,-1,0.1
+"Restrike",48000,0,-14.2007,-200,-0.999996,0.0999962
+"Restrike",96000,0,-14.2038,-277.403,-1,0.100004
+"Legato Line",44100,0,-8.40144,-200,-0.999992,0.0999916
+"Legato Line",48000,0,-8.40169,-200,-0.999996,0.0999962
+"Legato Line",96000,0,-8.40251,-200,-0.999993,0.0999933
+"Envelope Restart",44100,0,-11.5841,-200,-1.12553,0.225533
+"Envelope Restart",48000,0,-11.5808,-200,-1.14198,0.241984
+"Envelope Restart",96000,0,-11.5656,-200,-1.23942,0.339416
+"Continuous Phase",44100,0,-7.94898,-200,-0.999653,0.0996535
+"Continuous Phase",48000,0,-7.95195,-200,-0.999992,0.0999916
+"Continuous Phase",96000,0,-7.96864,-200,-0.999997,0.0999968
+"Weight Lever",44100,0,-10.6717,-279.166,-0.999997,0.0999968
+"Weight Lever",48000,0,-10.6727,-200,-1,0.1
+"Weight Lever",96000,0,-10.7573,-274.585,-1,0.1
+"Dark To Bright",44100,0,-11.1694,-200,-0.975773,0.0757732
+"Dark To Bright",48000,0,-11.1345,-200,-0.976894,0.0768936
+"Dark To Bright",96000,0,-10.5583,-200,-0.986172,0.0861716
+"Loose Ends",44100,0,-12.0643,-279.156,-0.999995,0.0999945
+"Loose Ends",48000,0,-12.064,-200,-0.999995,0.0999945
+"Loose Ends",96000,0,-12.0628,-275.419,-0.999999,0.0999985
+"Clean To Violent",44100,0,-7.62685,-279.25,-0.999992,0.0999922
+"Clean To Violent",48000,0,-7.62944,-200,-0.999998,0.099998
+"Clean To Violent",96000,0,-7.72948,-277.399,-0.999998,0.099998
+"Mono Bedrock",44100,0,-7.98721,-200,-0.999357,0.0993572
+"Mono Bedrock",48000,0,-7.98874,-200,-0.998966,0.0989658
+"Mono Bedrock",96000,0,-8.05256,-200,-0.99961,0.0996105
+"Locked Floor",44100,0,-10.5075,-200,-0.999986,0.0999858
+"Locked Floor",48000,0,-10.5071,-200,-1,0.100003
+"Locked Floor",96000,0,-10.5061,-272.269,-0.999994,0.0999939
+"Bedrock Sine",44100,0,-7.81516,-279.357,-0.999995,0.0999951
+"Bedrock Sine",48000,0,-7.81629,-200,-0.999509,0.0995089
+"Bedrock Sine",96000,0,-7.89706,-275.342,-0.999753,0.0997534
+"Poly Spread",44100,0,-12.4515,-339.02,-0.999967,0.0999672
+"Poly Spread",48000,0,-12.4527,-200,-0.999998,0.099998
+"Poly Spread",96000,0,-12.5137,-272.522,-0.999997,0.0999968
+"Poly Swell",44100,0,-12.067,-276.515,-2.73168,1.83168
+"Poly Swell",48000,0,-12.068,-200,-2.73649,1.83649
+"Poly Swell",96000,0,-12.0729,-277.273,-2.79347,1.89347
+"Poly Ignition",44100,0,-9.22656,-341.044,-0.999986,0.0999858
+"Poly Ignition",48000,0,-9.22934,-200,-0.999985,0.0999846
+"Poly Ignition",96000,0,-9.24626,-277.674,-0.999996,0.0999962
+"Poly Rectifier",44100,0,-10.7958,-279.327,-0.999991,0.099991
+"Poly Rectifier",48000,0,-10.8053,-200,-0.999995,0.0999945
+"Poly Rectifier",96000,0,-10.8402,-275.021,-0.999994,0.0999939
+"Poly Pluck",44100,0,-12.0312,-279.385,-0.999992,0.0999916
+"Poly Pluck",48000,0,-12.0328,-200,-0.999995,0.0999945
+"Poly Pluck",96000,0,-12.112,-271.744,-0.999996,0.0999956
+# worst true-peak margin 0.070251 dB (Fault Line at 44100.000000)
+# Profundum_PresetTruePeakMaxMass: presets=58
+preset,note,non_finite,true_peak_dbtp,margin_db
+"Edge Ignition",E1,0,-0.998332,0.0983315
+"Edge Ignition",C3,0,-1.00048,0.10048
+"Biting Reed",E1,0,-0.987257,0.0872568
+"Biting Reed",C3,0,-0.994382,0.094382
+"Folded Mass",E1,0,-0.999834,0.0998336
+"Folded Mass",C3,0,-0.998104,0.0981039
+"Valve Pressure",E1,0,-0.999939,0.0999387
+"Valve Pressure",C3,0,-1.00414,0.104139
+"Folding Wire",E1,0,-0.999904,0.0999044
+"Folding Wire",C3,0,-1.01814,0.118136
+"Rectified Floor",E1,0,-0.999976,0.0999765
+"Rectified Floor",C3,0,-0.999281,0.0992806
+"Bite Down",E1,0,-1.0048,0.104803
+"Bite Down",C3,0,-1.01637,0.116365
+"Crushed Basalt",E1,0,-0.998697,0.0986968
+"Crushed Basalt",C3,0,-0.999065,0.0990645
+"Fault Line",E1,0,-0.974651,0.0746512
+"Fault Line",C3,0,-0.963212,0.0632121
+"Bedrock",E1,0,-1.00345,0.103454
+"Bedrock",C3,0,-0.999986,0.0999858
+"Punch Anchor",E1,0,-1.00005,0.100047
+"Punch Anchor",C3,0,-1.01525,0.115254
+"Ghost Kick",E1,0,-0.999884,0.0998835
+"Ghost Kick",C3,0,-0.999601,0.0996006
+"Rectified Follow",E1,0,-1.00145,0.101446
+"Rectified Follow",C3,0,-1,0.1
+"Triangle Floor",E1,0,-0.999976,0.0999759
+"Triangle Floor",C3,0,-0.999828,0.0998283
+"Rounded Weight",E1,0,-0.999997,0.0999974
+"Rounded Weight",C3,0,-0.999999,0.0999985
+"Lopsided Sub",E1,0,-0.999996,0.0999956
+"Lopsided Sub",C3,0,-0.99999,0.0999898
+"Under Octave",E1,0,-0.999999,0.0999985
+"Under Octave",C3,0,-0.999867,0.0998667
+"Fed Fold",E1,0,-0.999998,0.099998
+"Fed Fold",C3,0,-0.996833,0.0968333
+"Dropping Stone",E1,0,-0.999988,0.0999881
+"Dropping Stone",C3,0,-0.999945,0.0999445
+"Slow Fall",E1,0,-1,0.100003
+"Slow Fall",C3,0,-0.999927,0.0999266
+"Curved Drop",E1,0,-1,0.1
+"Curved Drop",C3,0,-1.00046,0.100459
+"Rebound",E1,0,-0.999938,0.0999376
+"Rebound",C3,0,-1,0.1
+"Glide Path",E1,0,-1,0.100003
+"Glide Path",C3,0,-1.00154,0.10154
+"Slow Swell",E1,0,-2.12311,1.22311
+"Slow Swell",C3,0,-1.62668,0.726678
+"Long Tail",E1,0,-0.999978,0.0999776
+"Long Tail",C3,0,-0.999245,0.0992446
+"Heavy Mass",E1,0,-1.00085,0.100848
+"Heavy Mass",C3,0,-0.999974,0.0999741
+"Pressure Front",E1,0,-0.980802,0.0808022
+"Pressure Front",C3,0,-0.969871,0.0698707
+"Hard Attack",E1,0,-0.963881,0.0638814
+"Hard Attack",C3,0,-0.987915,0.0879146
+"Wide Harmonics",E1,0,-0.999785,0.0997848
+"Wide Harmonics",C3,0,-1.00004,0.100038
+"Wide Rectifier",E1,0,-0.999987,0.0999875
+"Wide Rectifier",C3,0,-0.999575,0.0995745
+"Spread Choir",E1,0,-1,0.1
+"Spread Choir",C3,0,-0.999902,0.0999021
+"Gravity Well",E1,0,-0.96499,0.0649904
+"Gravity Well",C3,0,-0.968585,0.0685851
+"Orbiting Field",E1,0,-1.00017,0.100169
+"Orbiting Field",C3,0,-1.00005,0.100054
+"Mass Tide",E1,0,-1.00001,0.100008
+"Mass Tide",C3,0,-1.01017,0.110171
+"Breathing Depth",E1,0,-0.986755,0.086755
+"Breathing Depth",C3,0,-0.985256,0.0852564
+"Body Wave",E1,0,-0.961194,0.0611936
+"Body Wave",C3,0,-0.960145,0.0601446
+"Edge Cycle",E1,0,-1.00019,0.100195
+"Edge Cycle",C3,0,-0.999666,0.0996663
+"Shifting Spectrum",E1,0,-0.964508,0.0645084
+"Shifting Spectrum",C3,0,-0.936927,0.0369267
+"Envelope Mass",E1,0,-0.99999,0.0999904
+"Envelope Mass",C3,0,-0.999956,0.0999555
+"Drifting Weight",E1,0,-0.999992,0.0999916
+"Drifting Weight",C3,0,-0.99992,0.0999195
+"Morph Span",E1,0,-0.999969,0.0999689
+"Morph Span",C3,0,-1.01795,0.117954
+"Halfway Morph",E1,0,-0.997886,0.0978861
+"Halfway Morph",C3,0,-0.999497,0.0994966
+"Restrike",E1,0,-1.00003,0.100029
+"Restrike",C3,0,-0.999744,0.0997441
+"Legato Line",E1,0,-1.00001,0.100012
+"Legato Line",C3,0,-1.00005,0.100048
+"Envelope Restart",E1,0,-0.999856,0.0998556
+"Envelope Restart",C3,0,-0.999976,0.0999759
+"Continuous Phase",E1,0,-1,0.1
+"Continuous Phase",C3,0,-0.999395,0.099395
+"Weight Lever",E1,0,-1,0.1
+"Weight Lever",C3,0,-1.00004,0.100036
+"Dark To Bright",E1,0,-0.996695,0.0966951
+"Dark To Bright",C3,0,-0.965925,0.0659254
+"Loose Ends",E1,0,-1,0.0999997
+"Loose Ends",C3,0,-0.99989,0.0998899
+"Clean To Violent",E1,0,-1.00049,0.100492
+"Clean To Violent",C3,0,-1.00002,0.100016
+"Mono Bedrock",E1,0,-0.99999,0.0999904
+"Mono Bedrock",C3,0,-0.999938,0.0999381
+"Locked Floor",E1,0,-1,0.1
+"Locked Floor",C3,0,-0.999996,0.0999956
+"Bedrock Sine",E1,0,-1.0016,0.101604
+"Bedrock Sine",C3,0,-0.999825,0.0998255
+"Poly Spread",E1,0,-0.999134,0.0991336
+"Poly Spread",C3,0,-1.00065,0.100649
+"Poly Swell",E1,0,-1.34701,0.447007
+"Poly Swell",C3,0,-0.999702,0.0997017
+"Poly Ignition",E1,0,-1.00532,0.105321
+"Poly Ignition",C3,0,-0.989256,0.0892564
+"Poly Rectifier",E1,0,-1,0.1
+"Poly Rectifier",C3,0,-1,0.1
+"Poly Pluck",E1,0,-0.999997,0.0999974
+"Poly Pluck",C3,0,-0.999825,0.0998249
+# worst true-peak margin 0.0369267 dB
+# Profundum_PresetMonoSum: presets=58
+preset,fc_hz,window,start,valid,rho,q_db,anchor_mismatches,solid_active,solid_differing,control_rho
+"Edge Ignition",120,1,72000,1,1,-8.26284e-12,0,0,194591,-1
+"Biting Reed",120,1,72000,1,0.999966,-7.65169e-05,0,0,192510,-1
+"Folded Mass",120,1,72000,1,1,0,0,1,0,-1
+"Valve Pressure",120,1,72000,1,1,-2.44869e-08,0,0,198878,-1
+"Folding Wire",120,1,72000,1,1,-7.2883e-09,0,0,195910,-1
+"Rectified Floor",120,1,72000,1,1,0,0,1,0,-1
+"Bite Down",120,1,72000,1,1,-4.68829e-08,0,0,196469,-1
+"Crushed Basalt",120,1,72000,1,1,0,0,1,0,-1
+"Fault Line",120,1,72000,1,0.999883,-0.000318553,0,0,217004,-1
+"Bedrock",120,1,72000,1,1,0,0,1,0,-1
+"Punch Anchor",120,1,72000,1,1,0,0,1,0,-1
+"Ghost Kick",120,1,72000,1,1,0,0,1,0,-1
+"Rectified Follow",120,1,72000,1,1,-3.38961e-13,0,0,193062,-1
+"Triangle Floor",120,1,72000,1,1,0,0,1,0,-1
+"Rounded Weight",120,1,72000,1,1,-5.58346e-13,0,0,203536,-1
+"Lopsided Sub",120,1,72000,1,1,0,0,1,0,-1
+"Under Octave",120,1,72000,1,1,0,0,1,0,-1
+"Fed Fold",120,1,72000,1,1,-2.56511e-13,0,0,190245,-1
+"Dropping Stone",120,1,72000,1,1,0,0,1,0,-1
+"Slow Fall",120,1,72000,1,1,-5.28018e-12,0,0,195943,-1
+"Curved Drop",120,1,72000,1,1,0,0,1,0,-1
+"Rebound",120,1,72000,1,1,-1.53111e-11,0,0,197648,-1
+"Glide Path",120,1,72000,1,1,-1.55564e-10,0,0,204895,-1
+"Slow Swell",120,1,72000,1,1,-4.88511e-10,0,0,226881,-1
+"Long Tail",120,1,72000,1,1,0,0,1,0,-1
+"Heavy Mass",120,1,72000,1,1,0,0,1,0,-1
+"Pressure Front",120,1,72000,1,0.999903,-0.000251558,0,0,223852,-1
+"Hard Attack",120,1,72000,1,1,-5.14287e-08,0,0,194838,-1
+"Wide Harmonics",120,1,72000,1,1,-7.02316e-09,0,0,208704,-1
+"Wide Rectifier",120,1,72000,1,0.999977,-5.11453e-05,0,0,197406,-1
+"Spread Choir",120,1,72000,1,1,-6.91555e-09,0,0,215118,-1
+"Gravity Well",120,1,72000,1,1,-1.82718e-08,0,0,215734,-1
+"Orbiting Field",120,1,72000,1,1,-4.26329e-12,0,0,209916,-1
+"Mass Tide",120,1,72000,1,1,-2.90263e-13,0,0,201669,-1
+"Breathing Depth",120,1,72000,1,0.999999,-2.12061e-06,0,0,223445,-1
+"Body Wave",120,1,72000,1,0.999997,-6.88579e-06,0,0,223947,-1
+"Edge Cycle",120,1,72000,1,1,-5.07103e-09,0,0,194598,-1
+"Shifting Spectrum",120,1,72000,1,0.999983,-0.000103788,0,0,223965,-1
+"Envelope Mass",120,1,72000,1,1,0,0,1,0,-1
+"Drifting Weight",120,1,72000,1,0.999986,-3.05513e-05,0,0,210960,-1
+"Morph Span",120,1,72000,1,1,-7.16013e-13,0,0,192126,-1
+"Halfway Morph",120,1,72000,1,1,-2.76944e-07,0,0,210340,-1
+"Restrike",120,1,72000,1,1,-3.05466e-09,0,0,197448,-1
+"Legato Line",120,1,72000,1,1,0,0,1,0,-1
+"Envelope Restart",120,1,72000,1,1,0,0,1,0,-1
+"Continuous Phase",120,1,72000,1,1,0,0,1,0,-1
+"Weight Lever",120,1,72000,1,0.999996,-8.71365e-06,0,0,193748,-1
+"Dark To Bright",120,1,72000,1,1,0,0,1,0,-1
+"Loose Ends",120,1,72000,1,1,-2.36742e-13,0,0,178711,-1
+"Clean To Violent",120,1,72000,1,1,-3.64178e-12,0,0,197977,-1
+"Mono Bedrock",120,1,72000,1,1,0,0,1,0,-1
+"Locked Floor",120,1,72000,1,1,-2.21795e-13,0,0,188101,-1
+"Bedrock Sine",120,1,72000,1,0.999976,-5.27463e-05,0,0,210974,-1
+"Poly Spread",120,1,72000,1,1,-3.75394e-08,0,0,215116,-1
+"Poly Swell",120,1,72000,1,1,-7.92157e-09,0,0,228248,-1
+"Poly Ignition",120,1,72000,1,0.999979,-4.53926e-05,0,0,199553,-1
+"Poly Rectifier",120,1,72000,1,0.999999,-2.84282e-06,0,0,197778,-1
+"Poly Pluck",120,1,72000,1,1,-5.32121e-10,0,0,277313,-1
+# ungated=0
+# Profundum_PresetDeterminism: presets=58
+preset,seed_dependent,same_seed_worst,other_seed_worst,pass
+"Edge Ignition",0,0,0,1
+"Biting Reed",0,0,0,1
+"Folded Mass",0,0,0,1
+"Valve Pressure",0,0,0,1
+"Folding Wire",0,0,0,1
+"Rectified Floor",0,0,0,1
+"Bite Down",0,0,0,1
+"Crushed Basalt",0,0,0,1
+"Fault Line",0,0,0,1
+"Bedrock",0,0,0,1
+"Punch Anchor",0,0,0,1
+"Ghost Kick",0,0,0,1
+"Rectified Follow",0,0,0,1
+"Triangle Floor",0,0,0,1
+"Rounded Weight",0,0,0,1
+"Lopsided Sub",0,0,0,1
+"Under Octave",0,0,0,1
+"Fed Fold",0,0,0,1
+"Dropping Stone",0,0,0,1
+"Slow Fall",0,0,0,1
+"Curved Drop",0,0,0,1
+"Rebound",0,0,0,1
+"Glide Path",0,0,0,1
+"Slow Swell",0,0,0,1
+"Long Tail",0,0,0,1
+"Heavy Mass",0,0,0,1
+"Pressure Front",0,0,0,1
+"Hard Attack",0,0,0,1
+"Wide Harmonics",0,0,0,1
+"Wide Rectifier",0,0,0,1
+"Spread Choir",0,0,0,1
+"Gravity Well",0,0,0,1
+"Orbiting Field",1,0,0.0610185,1
+"Mass Tide",0,0,0,1
+"Breathing Depth",0,0,0,1
+"Body Wave",0,0,0,1
+"Edge Cycle",0,0,0,1
+"Shifting Spectrum",0,0,0,1
+"Envelope Mass",0,0,0,1
+"Drifting Weight",1,0,0.268821,1
+"Morph Span",0,0,0,1
+"Halfway Morph",0,0,0,1
+"Restrike",0,0,0,1
+"Legato Line",0,0,0,1
+"Envelope Restart",0,0,0,1
+"Continuous Phase",0,0,0,1
+"Weight Lever",0,0,0,1
+"Dark To Bright",0,0,0,1
+"Loose Ends",0,0,0,1
+"Clean To Violent",0,0,0,1
+"Mono Bedrock",0,0,0,1
+"Locked Floor",0,0,0,1
+"Bedrock Sine",0,0,0,1
+"Poly Spread",0,0,0,1
+"Poly Swell",0,0,0,1
+"Poly Ignition",0,0,0,1
+"Poly Rectifier",0,0,0,1
+"Poly Pluck",0,0,0,1
+# contradicting=0
+# Profundum_PresetLoudnessMatch: presets=58 median_db=-11.167
+preset,level_db,deviation_db
+"Edge Ignition",-8.4183,2.74874
+"Biting Reed",-13.3083,-2.14123
+"Folded Mass",-12.1454,-0.978396
+"Valve Pressure",-8.00084,3.1662
+"Folding Wire",-11.544,-0.376929
+"Rectified Floor",-11.7397,-0.572668
+"Bite Down",-12.4468,-1.27978
+"Crushed Basalt",-11.6579,-0.490849
+"Fault Line",-13.7333,-2.56626
+"Bedrock",-11.1175,0.049523
+"Punch Anchor",-12.8716,-1.70452
+"Ghost Kick",-10.8351,0.331955
+"Rectified Follow",-10.9159,0.251179
+"Triangle Floor",-11.8787,-0.711692
+"Rounded Weight",-10.3106,0.856492
+"Lopsided Sub",-8.04694,3.1201
+"Under Octave",-11.1537,0.0133412
+"Fed Fold",-8.16932,2.99773
+"Dropping Stone",-11.9448,-0.777784
+"Slow Fall",-11.8683,-0.701278
+"Curved Drop",-14.4168,-3.24977
+"Rebound",-12.8545,-1.68742
+"Glide Path",-11.708,-0.540952
+"Slow Swell",-13.5165,-2.34949
+"Long Tail",-8.11675,3.05029
+"Heavy Mass",-10.7718,0.395233
+"Pressure Front",-12.8097,-1.64265
+"Hard Attack",-11.3752,-0.208169
+"Wide Harmonics",-13.4234,-2.25635
+"Wide Rectifier",-8.44088,2.72616
+"Spread Choir",-14.1256,-2.95856
+"Gravity Well",-10.124,1.04305
+"Orbiting Field",-9.51657,1.65047
+"Mass Tide",-11.1804,-0.0133412
+"Breathing Depth",-10.2471,0.919984
+"Body Wave",-11.7391,-0.572072
+"Edge Cycle",-12.6714,-1.50434
+"Shifting Spectrum",-13.6439,-2.47689
+"Envelope Mass",-9.84209,1.32496
+"Drifting Weight",-7.56538,3.60167
+"Morph Span",-10.9004,0.266674
+"Halfway Morph",-10.8332,0.333869
+"Restrike",-14.3142,-3.14713
+"Legato Line",-8.52848,2.63857
+"Envelope Restart",-11.5918,-0.424744
+"Continuous Phase",-7.98999,3.17705
+"Weight Lever",-10.6577,0.509321
+"Dark To Bright",-11.1262,0.0408927
+"Loose Ends",-12.0515,-0.884485
+"Clean To Violent",-7.6559,3.51115
+"Mono Bedrock",-8.02909,3.13795
+"Locked Floor",-10.4931,0.673912
+"Bedrock Sine",-7.89037,3.27667
+"Poly Spread",-12.8006,-1.6336
+"Poly Swell",-12.3927,-1.22567
+"Poly Ignition",-9.35558,1.81146
+"Poly Rectifier",-10.8328,0.334255
+"Poly Pluck",-12.0156,-0.848507
+# worst deviation 3.60167 dB
+# Profundum_PresetDistinctness: presets=58 F=1 closest=Bedrock vs Locked Floor d=1.91446 masked=15
+No test cases matched '[benchmark]'
+No test cases matched '[!benchmark]'
+===============================================================================
+All tests passed (23246917 assertions in 23 test cases)
+
+[cpu-lane] ---- SC-022 preset readings (MONO / POLY4 / control D' / D / max) ----
+  SC-022 preset CPU notes (MIDI, on at block 0): 28, 35, 40, 44
+  SC-022 Edge Ignition (Harmonic, stored Mono): MONO 3.07416 % (bar <= 8); D 3.
+  SC-022 Biting Reed (Harmonic, stored Mono): MONO 2.56453 % (bar <= 8); D 2.
+  SC-022 Folded Mass (Driven, stored Mono): MONO 2.14781 % (bar <= 8); D 2.
+  SC-022 Valve Pressure (Driven, stored Mono): MONO 4.4625 % (bar <= 8); D 4.
+  SC-022 Folding Wire (Driven, stored Mono): MONO 3.19416 % (bar <= 8); D 3.
+  SC-022 Rectified Floor (Driven, stored Mono): MONO 2.36278 % (bar <= 8); D 2.
+  SC-022 Bite Down (Driven, stored Mono): MONO 3.10209 % (bar <= 8); D 3.15019
+  SC-022 Crushed Basalt (Driven, stored Mono): MONO 2.50941 % (bar <= 8); D 2.
+  SC-022 Fault Line (Driven, stored Mono): MONO 5.01619 % (bar <= 8); D 4.97128
+  SC-022 Bedrock (Sub, stored Mono): MONO 2.04206 % (bar <= 8); D 2.01412 %, D'
+  SC-022 Punch Anchor (Plucked, stored Mono): MONO 2.07825 % (bar <= 8); D 2.
+  SC-022 Ghost Kick (Plucked, stored Mono): MONO 2.05238 % (bar <= 8); D 2.
+  SC-022 Rectified Follow (Driven, stored Mono): MONO 2.94759 % (bar <= 8); D
+  SC-022 Triangle Floor (Sub, stored Mono): MONO 2.36522 % (bar <= 8); D 2.
+  SC-022 Rounded Weight (Sub, stored Mono): MONO 2.73178 % (bar <= 8); D 2.76
+  SC-022 Lopsided Sub (Sub, stored Mono): MONO 1.84387 % (bar <= 8); D 1.83262
+  SC-022 Under Octave (Sub, stored Mono): MONO 2.03569 % (bar <= 8); D 2.04637
+  SC-022 Fed Fold (Driven, stored Mono): MONO 2.91084 % (bar <= 8); D 2.92641
+  SC-022 Dropping Stone (Plucked, stored Mono): MONO 2.00438 % (bar <= 8); D 2.
+  SC-022 Slow Fall (Plucked, stored Mono): MONO 2.39859 % (bar <= 8); D 2.42062
+  SC-022 Curved Drop (Plucked, stored Mono): MONO 1.84294 % (bar <= 8); D 1.
+  SC-022 Rebound (Plucked, stored Mono): MONO 2.75316 % (bar <= 8); D 2.77144
+  SC-022 Glide Path (Resonant, stored Mono): MONO 2.40281 % (bar <= 8); D 2.
+  SC-022 Slow Swell (Resonant, stored Mono): MONO 2.39513 % (bar <= 8); D 2.
+  SC-022 Long Tail (Sub, stored Mono): MONO 2.01562 % (bar <= 8); D 2.06663 %,
+  SC-022 Heavy Mass (Sub, stored Mono): MONO 2.06147 % (bar <= 8); D 2.05303 %,
+  SC-022 Pressure Front (Harmonic, stored Mono): MONO 4.07062 % (bar <= 8); D
+  SC-022 Hard Attack (Plucked, stored Mono): MONO 3.91528 % (bar <= 8); D 3.
+  SC-022 Wide Harmonics (Harmonic, stored Mono): MONO 2.79675 % (bar <= 8); D
+  SC-022 Wide Rectifier (Driven, stored Mono): MONO 2.99344 % (bar <= 8); D 2.
+  SC-022 Spread Choir (Harmonic, stored Mono): MONO 2.46684 % (bar <= 8); D 2.
+  SC-022 Gravity Well (Resonant, stored Mono): MONO 3.47016 % (bar <= 8); D 3.
+  SC-022 Orbiting Field (Animated, stored Mono): MONO 2.79591 % (bar <= 8); D
+  SC-022 Mass Tide (Animated, stored Mono): MONO 2.36606 % (bar <= 8); D 2.
+  SC-022 Breathing Depth (Animated, stored Mono): MONO 3.73669 % (bar <= 8); D
+  SC-022 Body Wave (Animated, stored Mono): MONO 3.64763 % (bar <= 8); D 3.
+  SC-022 Edge Cycle (Animated, stored Mono): MONO 2.78625 % (bar <= 8); D 2.
+  SC-022 Shifting Spectrum (Animated, stored Mono): MONO 3.80381 % (bar <= 8);
+  SC-022 Envelope Mass (Animated, stored Mono): MONO 1.83647 % (bar <= 8); D 1.
+  SC-022 Drifting Weight (Animated, stored Mono): MONO 3.86297 % (bar <= 8); D
+  SC-022 Morph Span (Harmonic, stored Mono): MONO 2.37047 % (bar <= 8); D 2.
+  SC-022 Halfway Morph (Resonant, stored Mono): MONO 4.17778 % (bar <= 8); D 4.
+  SC-022 Restrike (Resonant, stored Mono): MONO 2.51259 % (bar <= 8); D 2.55103
+  SC-022 Legato Line (Resonant, stored Mono): MONO 2.02537 % (bar <= 8); D 2.
+  SC-022 Envelope Restart (Harmonic, stored Mono): MONO 2.21934 % (bar <= 8); D
+  SC-022 Continuous Phase (Sub, stored Mono): MONO 2.14931 % (bar <= 8); D 2.
+  SC-022 Weight Lever (Sub, stored Mono): MONO 4.01091 % (bar <= 8); D 3.84581
+  SC-022 Dark To Bright (Harmonic, stored Mono): MONO 2.66625 % (bar <= 8); D
+  SC-022 Loose Ends (Resonant, stored Mono): MONO 2.46469 % (bar <= 8); D 2.52
+  SC-022 Clean To Violent (Driven, stored Mono): MONO 4.68572 % (bar <= 8); D
+  SC-022 Mono Bedrock (Sub, stored Mono): MONO 2.79553 % (bar <= 8); D 2.77509
+  SC-022 Locked Floor (Sub, stored Mono): MONO 2.41106 % (bar <= 8); D 2.43084
+  SC-022 Bedrock Sine (Sub, stored Mono): MONO 3.89231 % (bar <= 8); D 3.91162
+  SC-022 Poly Spread (Harmonic, stored Poly): MONO (Voice Mode forced to Mono)
+  SC-022 Poly Swell (Resonant, stored Poly): MONO (Voice Mode forced to Mono)
+  SC-022 Poly Ignition (Driven, stored Poly): MONO (Voice Mode forced to Mono)
+  SC-022 Poly Rectifier (Driven, stored Poly): MONO (Voice Mode forced to Mono)
+  SC-022 Poly Pluck (Plucked, stored Poly): MONO (Voice Mode forced to Mono) 4.
+  SC-022 max MONO 5.01619 % (Fault Line), max POLY4 15.0305 % (Poly Pluck);
+[cpu-lane] ---- other arm readings (SC-013 / SC-015 / SC-020) ----
+  SC-013 producer-on warm-up frames published: P-ON-MONO 10, P-ON-POLY 34
+  SC-015 last warm-up block peak: P-MONO 0.17128, P-POLY 0.472937, P-MAX-MONO
+  SC-015 best ns per 10 blocks (512 @ 48 kHz, real time 1.06667e+08 ns): P-MONO
+  SC-015 pct P-MONO = 2.379 % (bar <= 8)
+  SC-015 pct P-POLY = 6.94181 % (bar <= 25)
+  SC-015 pct D-MONO = 2.40328 %, pct D-POLY = 6.93169 % (recorded)
+  SC-015 ratio P-MONO / D-MONO = 0.989897 (bar <= 1.05)
+  SC-015 ratio P-POLY / D-POLY = 1.00146 (bar <= 1.05)
+  SC-015 pct P-MAX-MONO (all four macros 1.0) = 4.47844 % (bar <= 8, Q-A gated)
+  SC-015 pct P-MAX-POLY (all four macros 1.0) = 15.3137 % (bar <= 25, Q-A
+  SC-013 best ns per 10 blocks: P-ON-MONO 2.6075e+06, P-ON-POLY 7.4528e+06
+  SC-013 pct P-ON-MONO = 2.44453 % (bar <= 8)
+  SC-013 pct P-ON-POLY = 6.987 % (bar <= 25)
+  SC-013 ratio P-ON-MONO / D-MONO = 1.01716 (bar <= 1.05)
+  SC-013 ratio P-ON-POLY / D-POLY = 1.00798 (bar <= 1.05)
+  SC-020 last warm-up block peak MONO: P 0.305783, D 0.236861
+  SC-020 last warm-up block peak POLY: P 0.575272, D 0.530707
+  SC-020 last warm-up block peak MAX-MONO: P 0.415935, D 0.443597
+  SC-020 last warm-up block peak MAX-POLY: P 0.623995, D 0.816692
+  SC-020 last warm-up block peak AUTO-MONO: P 0.29702, D 0.221554
+  SC-020 last warm-up block peak AUTO-POLY: P 0.582879, D 0.502392
+  SC-020 last warm-up block peak AUTO-MAX-MONO: P 0.406553, D 0.422334
+  SC-020 last warm-up block peak AUTO-MAX-POLY: P 0.623328, D 0.884799
+  SC-013 MONO: producer-on warm-up frames published 10
+  SC-013 POLY: producer-on warm-up frames published 34
+  SC-013 MAX-MONO: producer-on warm-up frames published 10
+  SC-013 MAX-POLY: producer-on warm-up frames published 34
+  SC-013 AUTO-MONO: producer-on warm-up frames published 10
+  SC-013 AUTO-POLY: producer-on warm-up frames published 34
+  SC-013 AUTO-MAX-MONO: producer-on warm-up frames published 10
+  SC-013 AUTO-MAX-POLY: producer-on warm-up frames published 34
+  SC-020 real time per 10 blocks (512 @ 48 kHz) = 1.06667e+08 ns
+  SC-020 MONO: best ns P 4.4867e+06, D (same engine) 4.646e+06, D (separate
+  SC-013 MONO P-ON (producer on, same instance as P): best ns 4.779e+06; pct P-
+  SC-020 POLY: best ns P 1.56919e+07, D (same engine) 1.56507e+07, D (separate
+  SC-013 POLY P-ON (producer on, same instance as P): best ns 1.6103e+07; pct
+  SC-020 MAX-MONO: best ns P 5.0574e+06, D (same engine) 5.0538e+06, D
+  SC-013 MAX-MONO P-ON (producer on, same instance as P): best ns 5.0874e+06;
+  SC-020 MAX-POLY: best ns P 1.7508e+07, D (same engine) 1.74739e+07, D
+  SC-013 MAX-POLY P-ON (producer on, same instance as P): best ns 1.77515e+07;
+  SC-020 AUTO-MONO: best ns P 4.7111e+06, D (same engine) 4.7747e+06, D
+  SC-013 AUTO-MONO P-ON (producer on, same instance as P): best ns 4.8412e+06;
+  SC-020 AUTO-POLY: best ns P 1.58603e+07, D (same engine) 1.59205e+07, D
+  SC-013 AUTO-POLY P-ON (producer on, same instance as P): best ns 1.55477e+07;
+  SC-020 AUTO-MAX-MONO: best ns P 5.0023e+06, D (same engine) 5.1142e+06, D
+  SC-013 AUTO-MAX-MONO P-ON (producer on, same instance as P): best ns 5.1816e+
+  SC-020 AUTO-MAX-POLY: best ns P 1.75803e+07, D (same engine) 1.79454e+07, D
+  SC-013 AUTO-MAX-POLY P-ON (producer on, same instance as P): best ns 1.
+  SC-020 MONO: control S2 / S (same D path twice) = 0.969113 (valid within [0.
+  SC-020 POLY: control S2 / S (same D path twice) = 1.00145 (valid within [0.
+  SC-020 MAX-MONO: control S2 / S (same D path twice) = 0.994103 (valid within
+  SC-020 MAX-POLY: control S2 / S (same D path twice) = 1.02835 (valid within
+  SC-020 AUTO-MONO: control S2 / S (same D path twice) = 0.998806 (valid within
+  SC-020 AUTO-POLY: control S2 / S (same D path twice) = 0.983217 (valid within
+  SC-020 AUTO-MAX-MONO: control S2 / S (same D path twice) = 1.01621 (valid
+  SC-020 AUTO-MAX-POLY: control S2 / S (same D path twice) = 0.989056 (valid
+CPU GREEN

@@ -1,0 +1,39 @@
+T017 CMake registration audit (tasks.md Group 10) - 2026-10-19
+
+Verdict: GREEN. Nothing missing or duplicated; no CMake edit was made by T017.
+
+1. grep -c of each Phase 8 TU path in dsp/tests/CMakeLists.txt
+   (for f in ...; grep -c "unit/systems/$f.cpp" dsp/tests/CMakeLists.txt)
+     unit/systems/morph_state_test.cpp            1   (expected 1)  list :776
+     unit/systems/bass_morph_engine_test.cpp      1   (expected 1)  list :777
+     unit/systems/bass_morph_nonfinite_test.cpp   2   (expected 2)  list :778 + -fno-fast-math block :1285
+     unit/systems/bass_morph_helpers_test.cpp     1   (expected 1)  list :779
+     unit/systems/bass_morph_probe_test.cpp       1   (expected 1)  list :780
+     unit/systems/bass_morph_chain_test.cpp       1   (expected 1)  list :781
+     unit/systems/bass_morph_click_test.cpp       1   (expected 1)  list :782
+     unit/systems/bass_morph_trajectory_test.cpp  1   (expected 1)  list :783
+     unit/systems/bass_morph_monosum_test.cpp     1   (expected 1)  list :784
+     unit/systems/bass_morph_aliasing_test.cpp    1   (expected 1)  list :785
+     unit/systems/bass_morph_perf_test.cpp        1   (expected 1)  list :786
+   All eleven TUs are in add_executable(dsp_systems_tests ...), and all eleven exist on disk
+   in dsp/tests/unit/systems/.
+   The nonfinite TU's second occurrence (:1285) is inside the Clang|GNU
+   set_source_files_properties(... PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only")
+   block opened at :894 and closed at :1287.
+
+2. bass_morph_perf_test.cpp in no set_source_files_properties block:
+   its only occurrence is :786 (the add_executable list). The four
+   set_source_files_properties calls (:894, :1292, :1307) do not list it. PASS.
+
+3. dsp/CMakeLists.txt headers:
+     grep -c "systems/morph_state.h"        -> 1   (:217)
+     grep -c "systems/bass_morph_engine.h"  -> 1   (:218)
+   Both inside set(KRATE_DSP_SYSTEMS_HEADERS ...), after Phase 7's bass_stereo_field.h. PASS.
+
+4. git diff 964045a4 -- dsp/CMakeLists.txt dsp/tests/CMakeLists.txt
+   git diff --numstat:
+     3   0   dsp/CMakeLists.txt         (1 comment + 2 header lines)
+     26  0   dsp/tests/CMakeLists.txt   (13 comment + 11 TU lines in the list; 1 comment + 1 TU line in the -fno-fast-math block)
+   Zero deleted lines in either file: additions only. PASS.
+   (git prints "LF will be replaced by CRLF" for dsp/tests/CMakeLists.txt - an autocrlf
+   checkout note; the numstat shows no whole-file line-ending churn.)
