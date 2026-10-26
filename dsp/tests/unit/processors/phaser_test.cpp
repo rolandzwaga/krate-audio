@@ -486,7 +486,7 @@ TEST_CASE("Phaser - Stationary Notches at Zero Depth", "[Phaser][US1]") {
     REQUIRE(maxDiff < 0.05f);
 }
 
-TEST_CASE("Phaser - Denormal Flushing", "[Phaser][US1]") {
+TEST_CASE("Phaser - Denormal Flushing", "[Phaser][US1][wallclock]") {
     // FR-016: System MUST flush denormals from filter states
     Phaser phaser;
     phaser.prepare(44100.0);

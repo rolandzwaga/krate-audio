@@ -44,8 +44,8 @@ abbreviations (`Mod` not `Modulation`); inconsistent terms (`Mix` not `DryWet`).
 - **Tests:** two targets — `plugin_tests` (unit) **and** `approval_tests` (golden-reference approvals).
   Run BOTH for any DSP/output change:
   ```bash
-  build/windows-x64-release/bin/Release/plugin_tests.exe    2>&1 | tail -5
-  build/windows-x64-release/bin/Release/approval_tests.exe  2>&1 | tail -5
+  node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' plugin_tests   # sharded, see root CLAUDE.md; CPU lane alone: node tools/run-cpu-tests.js plugin_tests
+  node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' approval_tests   # sharded, see root CLAUDE.md; CPU lane alone: node tools/run-cpu-tests.js approval_tests
   ```
 - **pluginval:** `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Iterum.vst3"`
 - **UI:** `resources/editor.uidesc`.

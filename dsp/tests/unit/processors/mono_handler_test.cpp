@@ -920,7 +920,7 @@ TEST_CASE("SC-008: Frequency computation accuracy for all 128 MIDI notes",
 }
 
 TEST_CASE("SC-009: noteOn performance benchmark",
-          "[mono_handler][sc]") {
+          "[mono_handler][sc][wallclock]") {
     MonoHandler mono;
     mono.prepare(kSampleRate);
     mono.setPortamentoTime(50.0f);

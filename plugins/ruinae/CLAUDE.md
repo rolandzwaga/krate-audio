@@ -13,7 +13,7 @@ Auto-loads when working under `plugins/ruinae/`. Root `CLAUDE.md` still applies.
   Gradus). Pipeline to add one: `plugin_ids.h → parameters/ → processor → controller → resources/editor.uidesc`.
 - **Tests:** `ruinae_tests`.
   ```bash
-  build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -5
+  node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' ruinae_tests   # sharded, see root CLAUDE.md; CPU lane alone: node tools/run-cpu-tests.js ruinae_tests
   ```
 - **pluginval:** `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
 - **Reference decomposition:** Ruinae is the in-repo model for splitting large VST files —

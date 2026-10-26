@@ -4359,7 +4359,7 @@ void runNoteLifecycleClickCase(std::size_t cycles, double seconds, double firstE
 
 }  // namespace
 
-TEST_CASE("SeraphisEngine_VoiceStealIsClickless") {
+TEST_CASE("SeraphisEngine_VoiceStealIsClickless", "[wallclock]") {
     SECTION("clauses 1-4 and positive control (a)") {
         runVoiceStealClickCase(std::size_t{8}, 10.0, 1.0, 9.5, 3301u);
     }

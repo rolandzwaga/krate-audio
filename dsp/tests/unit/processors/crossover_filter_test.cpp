@@ -942,7 +942,7 @@ TEST_CASE("CrossoverLR4 HighAccuracy mode during sweeps", "[crossover][US2][high
 // -----------------------------------------------------------------------------
 // T048: Denormal handling (FR-018)
 // -----------------------------------------------------------------------------
-TEST_CASE("CrossoverLR4 handles denormals", "[crossover][US2][denormal][FR-018]") {
+TEST_CASE("CrossoverLR4 handles denormals", "[crossover][US2][denormal][FR-018][wallclock]") {
     CrossoverLR4 crossover;
     crossover.prepare(44100.0);
     crossover.setCrossoverFrequency(1000.0f);

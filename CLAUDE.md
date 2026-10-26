@@ -179,9 +179,30 @@ every run for anything that can be optimised for time, memory or any other resou
 - **Run only the tests the change set can reach** (user, 2026-10-18). A gate or a close lane runs the cases of the
   files that changed: the phase's own TUs (by their tag, e.g. `[profundum]`), plus the full suites of every consumer of a
   shared header or source file that was MODIFIED (`git status` / `git diff --name-only` decides; new files do not count).
+  A consumer is a test TU that (transitively) `#include`s the modified file, never "every TU in the same executable":
+  `node tools/header-consumers.js --tag '[<plugin>]'` lists the consumers outside the phase tag, and its last line names
+  the executables to run (`none` = the tag run is complete). Editing `profundum_engine.h` ran Seraphis and Vorago suites
+  at every Profundum gate until this rule existed (2026-10-26).
   "All tests must be run" is not a reason: a whole executable costs 15–35 min per run, a phase has ~20 gates, and an
   untouched test cannot change its verdict. Timing-budget cases of untouched code that go red under a concurrent lane
   are recorded as load, not re-run.
+- **Every non-timing test run is sharded** (user, 2026-10-26): `node tools/run-gate.js --filter '<filter>' <exe> [<exe> ...]`
+  splits each executable into Catch2 shards (`--shard-count` / `--shard-index`) fed to a cpu-count worker pool and
+  prints `GATE GREEN|RED`. Never run a test executable as one serial process for a gate, lane, fixer loop or check;
+  that applies to workflow scripts and to every new workflow too. Measured: a Profundum gate (419 + 107 cases) went from
+  ~14 min serial to 2 min 15 s. Only the CPU/perf lane (`tools/run-cpu-tests.js`) runs alone. A single case by name is
+  the only direct `<exe> "<TestName>"` run.
+  - **Standard for everything new.** A new plugin's leaf `CLAUDE.md` gives its test command as `run-gate.js`; a new
+    `*-phase.js` workflow is cloned from `profundum-phase.js` (`BUILD_CMDS_SHARDED`, `EXEC_RULES_SHARDED`,
+    `args.serial_gates`); any new lane runner cuts each executable into Catch2 shards (`tools/run-close-lanes.js`
+    `--suite-shards`); a new test that is too slow for its shard is split or tagged, never a reason to go serial.
+  - **Concurrent gates share the box:** N agents or lanes running gates at once each pass `--share N`
+    (`release-readiness.js`, `pre-commit-audit.js` do). Two full-width run-gate commands at once oversubscribe it.
+  - **Look at core use, not just progress:** a log that grows while one process holds one core is the defect to fix.
+  - **Gated in CI by `tools/lint-serial-test-runs.js`** (with `--self-test`): it scans `.claude/workflows`,
+    `.claude/agents`, `.claude/skills` and every `CLAUDE.md` for a serial test run or a `ctest` without `-j`.
+    Exceptions need a `lint-serial-ok: <reason>` marker or a `lint-serial-ok-begin` / `-end` region;
+    `tools/lint-serial-test-runs-baseline.json` is a ratchet for sites that cannot change yet.
 
 ## Real-Time Audio Thread Safety
 
@@ -236,7 +257,10 @@ Gate such non-vacuity checks on Linux instead of asserting them.
 
 **Wall-clock bars in per-push tests:** the case must read ≤ 60 % of its bar on the 32-core dev box. CI's windows-2022
 runner measured 1.25-1.4x slower (Profundum render-guard shards: 11.5-13.2 s locally, 15.8-16.4 s on CI, bar 15 s).
-Cut fixed per-case cost or shard further; never raise the bar.
+Cut fixed per-case cost or shard further; never raise the bar. Every such case carries the **`[wallclock]`** tag:
+`tools/run-gate.js` and `tools/run-close-lanes.js` keep it out of the 30-wide pool and run it in a quiet second pass
+(4 wide), because beside busy shards it reads 1.5-2x slower and goes red on untouched code (render guards 17-23 s
+against 15 s, Profundum Phase 14). Gated in CI by `tools/lint-wallclock-tags.js`.
 
 **Floating-Point:** MSVC/Clang differ at 7th-8th decimal. Use `Approx().margin()` in tests, `std::setprecision(6)` in approval tests.
 
@@ -439,8 +463,11 @@ CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 # the IEEE-only TUs (NaN / Inf injection and bit-exactness), every TU -fno-fast-math, so no fast-math copy of an inline DSP body
 # can be the one the linker keeps - dsp/tests/CMakeLists.txt)
 "$CMAKE" --build build/windows-x64-release --config Release --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_ieee_tests
-for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_ieee_tests; do build/windows-x64-release/bin/Release/$t.exe 2>&1 | tail -3; done
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_ieee_tests
 # (Editing one layer only relinks that layer's exe — e.g. --target dsp_core_tests)
+# EVERY multi-case run goes through tools/run-gate.js (Catch2 shards over a cpu-count worker pool, last line
+# GATE GREEN|RED, per-shard logs under f:/tmp/gate/). Never `for t in ...; do $t.exe; done` or one serial exe:
+# that is one core of 32. Narrow with the filter (e.g. '[profundum]~[performance]~...'), not by going serial.
 
 # Run plugin-specific tests
 "$CMAKE" --build build/windows-x64-release --config Release --target plugin_tests    # Iterum
@@ -459,11 +486,15 @@ for t in dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_te
 # golden-reference approval tests. CI builds + runs it for Iterum. Run it for ANY
 # Iterum DSP/output change (running only `plugin_tests` silently skips golden-output
 # regression coverage):
-build/windows-x64-release/bin/Release/approval_tests.exe 2>&1 | tail -5
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' plugin_tests approval_tests
 
-# Run all tests via CTest
-ctest --test-dir build/windows-x64-release -C Release --output-on-failure
-# NOTE: to run ONE suite, invoke its exe directly (bin/Release/<name>.exe) — do NOT use
+# Run plugin suites the same way, several at once in ONE command (they share the worker pool):
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' profundum_tests shared_tests
+# When several agents/lanes run gates at the same time, give each a slice of the machine: --share <N>.
+
+# Run all tests via CTest (always with -j: ctest is serial by default)
+ctest --test-dir build/windows-x64-release -C Release -j 30 --output-on-failure
+# NOTE: to run ONE test case, invoke its exe directly (bin/Release/<name>.exe "<TestName>") — do NOT use
 # `ctest -R <exe>`. catch_discover_tests registers individual Catch2 CASE names, not
 # executable names, so `ctest -R dsp_core_tests` matches nothing and reports success.
 
@@ -521,7 +552,7 @@ cmake -S . -B build-asan -G "Visual Studio 17 2022" -A x64 -DENABLE_ASAN=ON
 cmake --build build-asan --config Debug
 
 # Run tests - ASan will abort and report if memory errors occur
-ctest --test-dir build-asan -C Debug --output-on-failure
+ctest --test-dir build-asan -C Debug -j 30 --output-on-failure
 ```
 
 **When to use ASan:**

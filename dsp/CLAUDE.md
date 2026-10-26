@@ -231,7 +231,7 @@ executable the linker may keep a fast-math copy of an inline DSP function, and A
 CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 # Build + run just the layer you touched, e.g. core:
 "$CMAKE" --build build/windows-x64-release --config Release --target dsp_core_tests
-build/windows-x64-release/bin/Release/dsp_core_tests.exe 2>&1 | tail -5
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_core_tests   # sharded, see root CLAUDE.md; CPU lane alone: node tools/run-cpu-tests.js dsp_core_tests
 # ...or all six: --target dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_ieee_tests
 ```
 

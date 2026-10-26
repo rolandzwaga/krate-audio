@@ -983,7 +983,7 @@ TEST_CASE("TubeStage process 1M samples without NaN/Inf", "[tube_stage][realtime
     SUCCEED("1M samples processed without NaN/Inf");
 }
 
-TEST_CASE("TubeStage 512-sample buffer < 100 microseconds", "[tube_stage][realtime][SC-006]") {
+TEST_CASE("TubeStage 512-sample buffer < 100 microseconds", "[tube_stage][realtime][SC-006][wallclock]") {
     // SC-006: A 512-sample buffer is processed in under 100 microseconds
 
     TubeStage stage;

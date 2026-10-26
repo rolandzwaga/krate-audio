@@ -45,6 +45,8 @@ const LINTS = [
     { script: 'lint-allocation-operator-overrides.js', what: 'hand-rolled global operator new/delete' },
     { script: 'lint-simd-aligned-loadstore.js', what: 'aligned hn::Load/Store (faults on AVX-512 runners)' },
     { script: 'lint-plugin-roster.js', what: 'plugin missing from a CI/tooling roster' },
+    { script: 'lint-serial-test-runs.js', what: 'serial test run in agent instructions (use tools/run-gate.js)' },
+    { script: 'lint-wallclock-tags.js', what: 'wall-clock-asserting test case without [wallclock]' },
 ];
 
 function readStdin() {
@@ -62,10 +64,43 @@ function repoRoot() {
     return path.resolve(__dirname, '..', '..');
 }
 
+/// The tree the gates judge: what is being COMMITTED. With unstaged edits or untracked files in the working tree
+/// (an active phase's work in progress), the generators would index files that are not in the commit and block it
+/// for them (2026-10-26: Profundum Phase 14's untracked header made symbols.json "stale" for an unrelated tooling
+/// commit). Then the gates run on an export of the index instead; specs/**/evidence and artifacts are left out
+/// (228 MB of 295, and no generator or lint reads them). A clean tree runs in place.
+function stagedTree(root) {
+    const inPlace = { dir: root, cleanup: () => {} };
+    let status;
+    try {
+        status = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: root, maxBuffer: 64 << 20 }).toString();
+    } catch {
+        return inPlace;
+    }
+    const dirty = status.split(/\r?\n/).some((l) => l.length > 3 && (l.startsWith('??') || l[1] !== ' '));
+    if (!dirty) return inPlace;
+    try {
+        const base = fs.existsSync('F:/tmp') ? 'F:/tmp' : require('os').tmpdir();
+        const dir = fs.mkdtempSync(path.join(base, 'ci-gate-index-'));
+        const entries = execFileSync('git', ['ls-files', '-s', '-z'], { cwd: root, maxBuffer: 64 << 20 }).toString().split('\0');
+        const files = entries
+            .filter((e) => e && !e.startsWith('160000 '))               // submodules (extern/vst3sdk) have no blob
+            .map((e) => e.slice(e.indexOf('\t') + 1))
+            .filter((f) => !/^specs\/.*\/(evidence|artifacts)\//.test(f));
+        execFileSync('git', ['checkout-index', '-z', '--stdin', `--prefix=${dir.replace(/\\/g, '/')}/`],
+            { cwd: root, input: files.join('\0'), maxBuffer: 64 << 20, timeout: 120000 });
+        return { dir, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
+    } catch {
+        return inPlace;
+    }
+}
+
 /// True when the command is a real `git commit`. Excludes the read-only
 /// inspection forms, which have no reason to be gated.
 function isGitCommit(cmd) {
-    if (!/\bgit\b[^\n]*\bcommit\b/.test(cmd)) return false;
+    // `commit` must be the git subcommand (after optional global options), not any word on the line:
+    // `git add .claude/workflows/pre-commit-audit.js` was blocked as a commit (2026-10-26).
+    if (!/\bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w-]+(?:=\S+)?))*\s+commit\b/.test(cmd)) return false;
     // `git log`, `git show <commit>`, `git rev-parse` etc. can mention "commit"
     // in a path or message without being a commit themselves.
     if (/\bgit\s+(log|show|diff|rev-parse|rev-list|status|cherry)\b/.test(cmd)) return false;
@@ -105,16 +140,20 @@ function runGate(root, script, args) {
     const cmd = (payload && payload.tool_input && payload.tool_input.command) || '';
     if (!cmd || !isGitCommit(cmd)) process.exit(0);
 
-    const root = repoRoot();
+    const tree = stagedTree(repoRoot());
     const stale = [];
     const lintFailures = [];
 
-    for (const { script, artifact } of GENERATORS) {
-        if (runGate(root, script, ['--check']) !== null) stale.push({ script, artifact });
-    }
-    for (const { script, what } of LINTS) {
-        const out = runGate(root, script, []);
-        if (out !== null) lintFailures.push({ script, what, out });
+    try {
+        for (const { script, artifact } of GENERATORS) {
+            if (runGate(tree.dir, script, ['--check']) !== null) stale.push({ script, artifact });
+        }
+        for (const { script, what } of LINTS) {
+            const out = runGate(tree.dir, script, []);
+            if (out !== null) lintFailures.push({ script, what, out });
+        }
+    } finally {
+        tree.cleanup();
     }
 
     if (stale.length === 0 && lintFailures.length === 0) process.exit(0);

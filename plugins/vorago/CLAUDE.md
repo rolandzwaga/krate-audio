@@ -109,7 +109,7 @@ Auto-loads when working under `plugins/vorago/`. Root `CLAUDE.md` still applies.
   the 0.30 grains/s scheduler keeps running when triggers are On; triggered grains add on top of it.
   ```bash
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target vorago_tests
-  build/windows-x64-release/bin/Release/vorago_tests.exe 2>&1 | tail -5
+  node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' vorago_tests   # sharded, see root CLAUDE.md; CPU lane alone: node tools/run-cpu-tests.js vorago_tests
   ```
 - **pluginval:** `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Vorago.vst3"`
 

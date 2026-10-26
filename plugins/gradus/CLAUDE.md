@@ -15,6 +15,6 @@ Auto-loads when working under `plugins/gradus/`. Root `CLAUDE.md` still applies.
   Pipeline: `plugin_ids.h → parameters/ → processor → controller → resources/editor.uidesc`.
 - **Tests:** `gradus_tests`.
   ```bash
-  build/windows-x64-release/bin/Release/gradus_tests.exe 2>&1 | tail -5
+  node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' gradus_tests   # sharded, see root CLAUDE.md; CPU lane alone: node tools/run-cpu-tests.js gradus_tests
   ```
 - **pluginval:** `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Gradus.vst3"`

@@ -736,7 +736,7 @@ TEST_CASE("US5: mix=0.0 produces output identical to input (bypass)", "[wavefold
     }
 }
 
-TEST_CASE("US5: mix=0.0 skips wavefolder AND DC blocker", "[wavefolder_processor][US5][FR-028]") {
+TEST_CASE("US5: mix=0.0 skips wavefolder AND DC blocker", "[wavefolder_processor][US5][FR-028][wallclock]") {
     // Verify efficiency - the DC blocker state should not change when mix=0
 
     WavefolderProcessor folder;

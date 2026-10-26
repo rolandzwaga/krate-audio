@@ -107,9 +107,10 @@ without permission). Follow every step; do not skip or reorder.
 
 5. **Run that plugin's tests.** (For iterum, run BOTH `plugin_tests` and `approval_tests`.)
    ```bash
-   build/windows-x64-release/bin/Release/<test-target>.exe 2>&1 | tail -5
+   node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' <test-target> 2>&1 | tail -20
    ```
-   The last line must read "All tests passed". If anything fails, STOP and report — do not commit.
+   Sharded (root CLAUDE.md: never one serial exe). Iterum names both targets in the one command. The last line
+   must read "GATE GREEN"; timing tests run alone via `node tools/run-cpu-tests.js <test-target>`. If anything fails, STOP and report — do not commit.
 
 6. **Run pluginval.**
    ```bash

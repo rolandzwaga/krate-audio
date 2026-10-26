@@ -899,7 +899,7 @@ TEST_CASE("VowelSequencer click-free morph - SC-003", "[vowel_sequencer][sc003]"
 // SC-007: CPU Performance (relaxed for CI VMs)
 // =============================================================================
 
-TEST_CASE("VowelSequencer CPU performance - SC-007", "[vowel_sequencer][sc007][!mayfail]") {
+TEST_CASE("VowelSequencer CPU performance - SC-007", "[vowel_sequencer][sc007][!mayfail][wallclock]") {
     // Note: Tagged with [!mayfail] because CI VMs may be slower
     // This test verifies reasonable performance, not strict <1% CPU
 

@@ -10,7 +10,7 @@ Auto-loads when working under `plugins/disrumpo/`. Root `CLAUDE.md` still applie
   Pipeline to add one: `plugin_ids.h → processor → controller → resources/editor.uidesc`.
 - **Tests:** `disrumpo_tests`.
   ```bash
-  build/windows-x64-release/bin/Release/disrumpo_tests.exe 2>&1 | tail -5
+  node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' disrumpo_tests   # sharded, see root CLAUDE.md; CPU lane alone: node tools/run-cpu-tests.js disrumpo_tests
   ```
 - **pluginval:** `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Disrumpo.vst3"`
 - **UI:** `resources/editor.uidesc` (custom views: morph pad, spectrum).
