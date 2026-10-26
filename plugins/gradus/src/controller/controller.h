@@ -8,6 +8,7 @@
 #include "ui/ring_data_bridge.h"
 #include "ui/speed_curve_data.h"
 #include "preset/preset_manager.h"
+#include "update/update_checker.h"
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
@@ -26,6 +27,7 @@ class IBStreamer;
 namespace Krate::Plugins {
 class PresetBrowserView;
 class SavePresetDialogView;
+class UpdateBannerView;
 } // namespace Krate::Plugins
 
 namespace Gradus {
@@ -271,6 +273,10 @@ private:
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
     Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;
     Krate::Plugins::SavePresetDialogView* savePresetDialogView_ = nullptr;
+
+    // Update checker
+    std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
+    Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;  // Owned by frame
 
     // Active editor
     VSTGUI::VST3Editor* activeEditor_ = nullptr;

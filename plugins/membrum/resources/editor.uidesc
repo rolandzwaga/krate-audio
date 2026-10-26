@@ -417,6 +417,12 @@
         <!-- T056: preset load failure status (title prefix "PresetStatus" -> discovered in Controller::verifyView). -->
         <view class="CTextLabel" title="PresetStatus" origin="8, 610" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
 
+        <!-- Manual update check and the version (shared VersionLabel, right-aligned to the column edge) -->
+        <view class="CView" custom-view-name="CheckForUpdatesButton" origin="8, 640" size="130, 22"/>
+        <view class="CView" custom-view-name="VersionLabel" origin="146, 643" size="86, 16" mouse-enabled="false"/>
+
       </view>
+      <!-- Update banner (last child = paints on top of everything); hidden until a newer version is found -->
+      <view class="CView" custom-view-name="UpdateBanner" origin="0, 0" size="1280, 60"/>
   </template>
 </vstgui-ui-description>

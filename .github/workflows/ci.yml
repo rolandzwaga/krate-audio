@@ -203,6 +203,13 @@ jobs:
       # 10 minutes in, while every Windows gate was green.
       - name: Hardcoded platform-type constant lint
         run: node tools/lint-platform-type-literals.js
+      # Every plugin editor carries the update banner, the Check for Updates
+      # button and the version label (Krate::Plugins::createSharedEditorView),
+      # with a runtime test that counts them. Walks every plugins/ directory, so
+      # a new plugin is held to it from its first push. Gradus and Membrum
+      # shipped without the update check and Innexus never started it.
+      - name: Plugin editor baseline lint (update check + version label)
+        run: node tools/lint-plugin-editor-baseline.js
       # Catches a hand-rolled global operator new / delete. A partial or
       # hidden-visibility replacement set corrupts the heap; MSVC never shows
       # it, and on Linux it surfaces as an intermittent SIGSEGV in whatever

@@ -40,6 +40,9 @@ add_executable(disrumpo_tests
     unit/morph_processor_cap_test.cpp
     unit/morph_band_integration_test.cpp
 
+    # Stack footprint guard: types tests build as locals stay under half the Windows thread stack
+    unit/stack_footprint_test.cpp
+
     # Approval tests - Morph artifact detection (005-morph-system SC-003)
     approval/morph_artifact_test.cpp
 

@@ -1012,23 +1012,15 @@ VSTGUI::CView* Controller::createCustomView(
         sampleFilenameLabel_ = label;
         return label;
     }
-    if (viewName == "VersionLabel")
-    {
-        auto* label = new VSTGUI::CTextLabel(viewRect);
-        label->setTransparency(true);
-        label->setText("Innexus v" VERSION_STR " | Krate Audio");
-        return label;
-    }
+    // The update banner, the manual check button and the version label: the shared
+    // views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(
+            name, attributes, updateChecker_.get(), VERSION_STR, updateBannerView_))
+        return shared;
     if (viewName == "PresetBrowserButton")
         return createPresetButton(viewRect, true);
     if (viewName == "SavePresetButton")
         return createPresetButton(viewRect, false);
-    if (viewName == "UpdateBanner")
-    {
-        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
-        updateBannerView_ = banner;
-        return banner;
-    }
     if (viewName == "ADSRExpandButton")
         return createAdsrExpandButton(viewRect);
     if (viewName == "ADSRDisplay")
@@ -1131,7 +1123,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
         sampleDropOverlay_ = overlay;
     }
 
-    // Start update banner polling
+    // Start the (24 h cooldown) update check and the banner's result polling
+    if (updateChecker_)
+        updateChecker_->checkForUpdate(false);
     if (updateBannerView_)
         updateBannerView_->startPolling();
 }

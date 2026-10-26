@@ -385,7 +385,11 @@
         <view class="CTextLabel" title="Zoom" origin="12, 29" size="92, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
         <view class="CSegmentButton" uidesc-label="zoom-settings" session-tag="9300" origin="112, 25" size="196, 24" style="horizontal" selection-mode="Single" font="small-font" text-color="text" text-color-highlighted="bg" frame-color="track" frame-width="1" round-radius="0" gradient="segment-off" gradient-highlighted="segment-on" segment-names="100%,125%,150%,200%" tooltip="Window size: 100, 125, 150 or 200 %. Kept for the session, not saved with the project."/>
         <view class="CTextLabel" title="No host run loop: the spectrum view stays empty" origin="12, 58" size="500, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="CTextLabel" title="Updates" origin="12, 89" size="92, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="CView" custom-view-name="CheckForUpdatesButton" origin="112, 86" size="130, 22" tooltip="Check online for a newer Profundum version now. The editor also checks once a day when it opens."/>
       </view>
     </view>
+    <!-- Update banner (last child = paints on top of everything); hidden until a newer version is found. -->
+    <view class="CView" custom-view-name="UpdateBanner" origin="0, 0" size="960, 60"/>
   </template>
 </vstgui-ui-description>

@@ -27,6 +27,8 @@ namespace Krate::Plugins {
 class PresetManager;
 class PresetBrowserView;
 class SavePresetDialogView;
+class UpdateChecker;
+class UpdateBannerView;
 } // namespace Krate::Plugins
 
 namespace Steinberg { class IBStream; }
@@ -388,6 +390,11 @@ private:
     Krate::Plugins::PresetBrowserView*    padPresetBrowserView_ = nullptr;
     Krate::Plugins::SavePresetDialogView* kitSaveDialogView_    = nullptr;
     Krate::Plugins::SavePresetDialogView* padSaveDialogView_    = nullptr;
+
+    // Update checker: created in initialize(); the banner view is owned by the
+    // frame, created by createCustomView("UpdateBanner") and zeroed in willClose().
+    std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
+    Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;
 
     // Inline kit-column browser widgets (name + prev/next/Browse). Constructed
     // by createCustomView() for the "KitBrowserView" and "PadBrowserView"

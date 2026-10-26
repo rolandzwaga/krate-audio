@@ -1014,7 +1014,10 @@ TEST_CASE("Bitcrush through MorphEngine responds to shape slot changes", "[disto
     using namespace Disrumpo;
 
     // Set up a MorphEngine with 1 Bitcrush node
-    MorphEngine engine;
+    // MorphEngine is ~936 KB (five DistortionAdapters); on the stack it overflows Windows'
+    // 1 MB thread stack, so it lives on the heap here as it does in BandProcessor.
+    auto engineOwner = std::make_unique<MorphEngine>();
+    auto& engine = *engineOwner;
     engine.prepare(kTestSampleRate, kTestBlockSize);
 
     std::array<MorphNode, kMaxMorphNodes> nodes;
@@ -1153,7 +1156,8 @@ TEST_CASE("DIAG: Bitcrush at 8x prepared rate shows tone filter problem", "[dist
 }
 
 TEST_CASE("DIAG: MorphEngine Bitcrush path produces staircase quantization", "[distortion][digital][diagnostic]") {
-    MorphEngine engine;
+    auto engineOwner = std::make_unique<MorphEngine>();
+    auto& engine = *engineOwner;
     engine.prepare(kTestSampleRate, kTestBlockSize);
     engine.setSmoothingTime(0.0f);
 

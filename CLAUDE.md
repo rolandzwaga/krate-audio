@@ -131,6 +131,22 @@ For Edit/Glob/Grep/Read tools: Use Windows backslash paths (`C:\path\file.txt`).
 - If a VSTGUI feature doesn't work, the fix must also use VSTGUI
 - Platform-specific code is ONLY acceptable for debug logging (guarded by `#ifdef`) or documented bug workarounds with user approval
 
+### Every Plugin Editor Carries the Update Check and the Version Label
+
+**Every plugin, including a new one from its scaffold onward, ships the live update check and the shared version label.**
+Gradus and Membrum shipped without the check, Innexus never started it, and Disrumpo and Membrum showed no version;
+each was found months later by someone looking.
+
+- `src/update/<plugin>_update_config.h` (copy Vorago's); the controller owns `std::unique_ptr<Krate::Plugins::UpdateChecker>`.
+- `createCustomView` calls `Krate::Plugins::createSharedEditorView(name, attributes, updateChecker_.get(), VERSION_STR,
+  updateBannerView_)` first (`plugins/shared/src/ui/update_banner_view.h`); `didOpen` calls `checkForUpdate(false)` and
+  `startPolling()`, `willClose` calls `stopPolling()`.
+- `editor.uidesc` places exactly one `UpdateBanner` (its template's last view), one `CheckForUpdatesButton` and one
+  `VersionLabel`; never a hand-filled tag-9999 text label.
+- The editor lifecycle test calls `Krate::TestSupport::openEditorAndCountSharedViews`
+  (`tests/test_helpers/shared_editor_views_probe.h`).
+- Gated in CI by `tools/lint-plugin-editor-baseline.js`, which walks every `plugins/` directory.
+
 ### Use Node.js for Helper Scripts
 
 **When generating helper scripts, CLI tools, or automation utilities, use Node.js — NOT Python.** This applies to any scripting needs such as code generators, data processing, build helpers, or dev tooling.

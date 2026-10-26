@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
+#include <memory>
 #include <catch2/catch_approx.hpp>
 #include <cmath>
 
@@ -65,7 +66,10 @@ std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> createFourCornerNodes(
 // =============================================================================
 
 TEST_CASE("MorphEngine 1D Linear mode - position 0.0 gives 100% node A", "[morph][mode][linear][FR-003]") {
-    Disrumpo::MorphEngine engine;
+    // MorphEngine is ~936 KB (five DistortionAdapters); on the stack it overflows Windows'
+    // 1 MB thread stack, so it lives on the heap here as it does in BandProcessor.
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -79,7 +83,8 @@ TEST_CASE("MorphEngine 1D Linear mode - position 0.0 gives 100% node A", "[morph
 }
 
 TEST_CASE("MorphEngine 1D Linear mode - position 1.0 gives 100% node B", "[morph][mode][linear][FR-003]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -93,7 +98,8 @@ TEST_CASE("MorphEngine 1D Linear mode - position 1.0 gives 100% node B", "[morph
 }
 
 TEST_CASE("MorphEngine 1D Linear mode - position 0.5 gives 50% A, 50% B", "[morph][mode][linear][FR-003]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -107,7 +113,8 @@ TEST_CASE("MorphEngine 1D Linear mode - position 0.5 gives 50% A, 50% B", "[morp
 }
 
 TEST_CASE("MorphEngine 1D Linear mode - 3 nodes at 0, 0.5, 1.0 with position 0.25", "[morph][mode][linear][FR-003]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createThreeNodesLinear();
     engine.setNodes(nodes, 3);
@@ -126,7 +133,8 @@ TEST_CASE("MorphEngine 1D Linear mode - 3 nodes at 0, 0.5, 1.0 with position 0.2
 }
 
 TEST_CASE("MorphEngine 1D Linear mode - ignores Y position", "[morph][mode][linear][FR-003]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createTwoNodes();
     engine.setNodes(nodes, 2);
@@ -151,7 +159,8 @@ TEST_CASE("MorphEngine 1D Linear mode - ignores Y position", "[morph][mode][line
 // =============================================================================
 
 TEST_CASE("MorphEngine 2D Planar mode - cursor at (0,0) gives node A 100%", "[morph][mode][planar][FR-004]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -167,7 +176,8 @@ TEST_CASE("MorphEngine 2D Planar mode - cursor at (0,0) gives node A 100%", "[mo
 }
 
 TEST_CASE("MorphEngine 2D Planar mode - cursor at (0.5, 0.5) gives all 4 nodes 25% each", "[morph][mode][planar][FR-004]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -183,7 +193,8 @@ TEST_CASE("MorphEngine 2D Planar mode - cursor at (0.5, 0.5) gives all 4 nodes 2
 }
 
 TEST_CASE("MorphEngine 2D Planar mode - cursor at (0.25, 0.25) gives node A highest weight", "[morph][mode][planar][FR-004]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -203,7 +214,8 @@ TEST_CASE("MorphEngine 2D Planar mode - cursor at (0.25, 0.25) gives node A high
 }
 
 TEST_CASE("MorphEngine 2D Planar mode - cursor at each corner", "[morph][mode][planar][FR-004]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -239,7 +251,8 @@ TEST_CASE("MorphEngine 2D Planar mode - cursor at each corner", "[morph][mode][p
 // =============================================================================
 
 TEST_CASE("MorphEngine 2D Radial mode - center gives all nodes equal weight", "[morph][mode][radial][FR-005]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -257,7 +270,8 @@ TEST_CASE("MorphEngine 2D Radial mode - center gives all nodes equal weight", "[
 }
 
 TEST_CASE("MorphEngine 2D Radial mode - edge toward corner gives that node highest weight", "[morph][mode][radial][FR-005]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -275,7 +289,8 @@ TEST_CASE("MorphEngine 2D Radial mode - edge toward corner gives that node highe
 }
 
 TEST_CASE("MorphEngine 2D Radial mode - weights sum to 1.0", "[morph][mode][radial][FR-005]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);
@@ -308,7 +323,8 @@ TEST_CASE("MorphEngine 2D Radial mode - weights sum to 1.0", "[morph][mode][radi
 // =============================================================================
 
 TEST_CASE("MorphEngine mode switching produces different weights", "[morph][mode]") {
-    Disrumpo::MorphEngine engine;
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
     prepareTestEngine(engine);
     auto nodes = createFourCornerNodes();
     engine.setNodes(nodes, 4);

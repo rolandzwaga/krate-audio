@@ -514,6 +514,7 @@
       <view custom-view-name="PresetBrowserButton" origin="250, 12" size="80, 25"/>
       <view custom-view-name="SavePresetButton" origin="340, 12" size="60, 25"/>
       <view custom-view-name="CheckForUpdatesButton" origin="420, 14" size="130, 22"/>
+      <view custom-view-name="VersionLabel" origin="560, 17" size="66, 16" mouse-enabled="false"/>
       <view class="CViewContainer" origin="700, 5" size="290, 40" transparent="true">
         <view class="CTextLabel" origin="0, 0" size="50, 15" title="Input" font="small-font" font-color="text-secondary" text-alignment="center"/>
         <view class="ArcKnob" origin="5, 15" size="40, 25" control-tag="InputGain" default-value="0.5" min-value="0" max-value="1" arc-color="accent-primary"/>

@@ -124,6 +124,13 @@ CROSS-CUTTING CONSTRAINTS (violations are defects at every stage):
   set is "-fno-fast-math -fno-finite-math-only -ffp-contract=off" on one line (tools/lint-ieee-flag-sets.js);
   no narrowing in brace init;
   SIMD loads/stores unaligned (hn::LoadU/StoreU) unless alignment is proven.
+- Plugin editor baseline (scaffold phase and every editor change): the controller creates the shared
+  UpdateChecker from src/update/<plugin>_update_config.h, builds the update banner, the Check for Updates
+  button and the version label with Krate::Plugins::createSharedEditorView (update_banner_view.h), starts
+  checkForUpdate + the banner polling in didOpen and stops it in willClose; editor.uidesc places exactly one
+  of each (the banner as its template's last view); the editor lifecycle test calls
+  openEditorAndCountSharedViews (tests/test_helpers/shared_editor_views_probe.h).
+  tools/lint-plugin-editor-baseline.js gates it in CI.
 - Naming: classes PascalCase, functions camelCase, members trailing underscore,
   constants kPascalCase, params k{Section}{Parameter}Id with the standard names table.
 - Modulation sources conform to the existing ModulationSource concept so
@@ -473,7 +480,7 @@ if (stage === 'plan') {
   phase('Tasks')
   log(`Authoring ${TASKS}...`)
   const tasksStatus = await run(
-    `${CONTEXT}\n\nWrite the dependency-ordered task list for ${PLAN} to ${TASKS}. Read spec and plan first.\n\nTASK FORMAT:\n- Tasks T001... grouped into ordered GROUPS. Within a group, tasks marked [P] are parallel-safe: they touch fully disjoint NEW files only. Any task editing a SHARED file (CMake test lists, existing headers, a header another task also touches) goes in its own sequential group.\n- Each task is fully self-contained (executor has no other context): exact files to create/edit, the failing test to write FIRST (test file, TEST_CASE name, exact assertions with numbers), then the implementation intent, then which test target verifies it.\n- Follow the repo's canonical order: failing test → implement → zero warnings → tests pass.\n- Last group: integration tasks — CMake registration (single task), full-suite run, portability check (node tools/check-portability.js, node tools/lint-finite-bitmask.js, node tools/lint-nonfinite-symbols.js, node tools/lint-ieee-flag-sets.js), the macOS fast-math repro of the phase’s DSP test TUs (bash tools/macos-fastmath-repro.sh <tu> in WSL, a main-loop lane; a case red there and green with --ieee is a macOS red to fix before push).\n- Do NOT include commit tasks — commits happen outside this workflow.\n\nReturn the doc status.`,
+    `${CONTEXT}\n\nWrite the dependency-ordered task list for ${PLAN} to ${TASKS}. Read spec and plan first.\n\nTASK FORMAT:\n- Tasks T001... grouped into ordered GROUPS. Within a group, tasks marked [P] are parallel-safe: they touch fully disjoint NEW files only. Any task editing a SHARED file (CMake test lists, existing headers, a header another task also touches) goes in its own sequential group.\n- Each task is fully self-contained (executor has no other context): exact files to create/edit, the failing test to write FIRST (test file, TEST_CASE name, exact assertions with numbers), then the implementation intent, then which test target verifies it.\n- Follow the repo's canonical order: failing test → implement → zero warnings → tests pass.\n- Last group: integration tasks — CMake registration (single task), full-suite run, portability check (node tools/check-portability.js, node tools/lint-finite-bitmask.js, node tools/lint-nonfinite-symbols.js, node tools/lint-ieee-flag-sets.js, node tools/lint-plugin-editor-baseline.js), the macOS fast-math repro of the phase’s DSP test TUs (bash tools/macos-fastmath-repro.sh <tu> in WSL, a main-loop lane; a case red there and green with --ieee is a macOS red to fix before push).\n- Do NOT include commit tasks — commits happen outside this workflow.\n\nReturn the doc status.`,
     { label: 'tasks', phase: 'Tasks', schema: DOC_STATUS },
   )
 
@@ -641,7 +648,7 @@ phase('Comply')
 const complyLenses = [
   { key: 'fr', what: `every FR-xxx in ${SPEC}: open the implementation, read the code, confirm the requirement is met. Evidence = file:line + a one-sentence proof from the code you quote.` },
   { key: 'sc', what: `every SC-xxx in ${SPEC}: RUN the specific test or measurement yourself (${dispatch.test_targets.map(t => `build/windows-x64-release/bin/Release/${t}.exe "<TestName>*"`).join(' or ')}) and paste the ACTUAL numbers vs the threshold. Never paraphrase output.` },
-  { key: 'constraints', what: `the cross-cutting constraints: RT safety of every new process path (read for allocations/locks/exceptions), layer discipline of every new header (check its #includes), naming conventions, zero-warning build, and run node tools/check-portability.js reporting its verbatim result; run node tools/lint-finite-bitmask.js, node tools/lint-nonfinite-symbols.js and node tools/lint-ieee-flag-sets.js reporting their verbatim results, and read every new finiteness check, pow / sqrt / log / acos call and bit-equality assertion of the phase against the dsp/CLAUDE.md fast-math rules (the macOS repro readings come from the main-loop lane’s run-log). Report each as its own item (id: CC-rt, CC-layers, CC-naming, CC-warnings, CC-portability, CC-fastmath).` },
+  { key: 'constraints', what: `the cross-cutting constraints: RT safety of every new process path (read for allocations/locks/exceptions), layer discipline of every new header (check its #includes), naming conventions, zero-warning build, and run node tools/check-portability.js reporting its verbatim result; run node tools/lint-finite-bitmask.js, node tools/lint-nonfinite-symbols.js, node tools/lint-ieee-flag-sets.js and node tools/lint-plugin-editor-baseline.js reporting their verbatim results, and read every new finiteness check, pow / sqrt / log / acos call and bit-equality assertion of the phase against the dsp/CLAUDE.md fast-math rules (the macOS repro readings come from the main-loop lane’s run-log). Report each as its own item (id: CC-rt, CC-layers, CC-naming, CC-warnings, CC-portability, CC-fastmath).` },
 ]
 const complyResults = await parallel(
   complyLenses.map(l => () =>

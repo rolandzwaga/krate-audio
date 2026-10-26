@@ -18,6 +18,7 @@
 #include "vstgui/lib/cvstguitimer.h"
 #include "vstgui/lib/cframe.h"
 #include "vstgui/lib/cgraphicspath.h"
+#include "vstgui/uidescription/uiattributes.h"
 
 #include "update/update_checker.h"
 
@@ -25,6 +26,7 @@
 
 #include <functional>
 #include <string>
+#include <string_view>
 
 namespace Krate::Plugins {
 
@@ -418,5 +420,40 @@ public:
 private:
     std::string text_;
 };
+
+// ==============================================================================
+// createSharedEditorView - the three views every Krate editor carries
+// ==============================================================================
+// "UpdateBanner", "CheckForUpdatesButton" and "VersionLabel". Call it from
+// createCustomView before the plugin's own views; it returns nullptr for any
+// other name. `bannerView` receives the banner so didOpen / willClose can start
+// and stop its polling. tools/lint-plugin-editor-baseline.js requires every
+// plugin to call it and to place all three views in editor.uidesc.
+// ==============================================================================
+
+inline VSTGUI::CView* createSharedEditorView(VSTGUI::UTF8StringPtr name,
+                                             const VSTGUI::UIAttributes& attributes,
+                                             UpdateChecker* checker, const char* version,
+                                             UpdateBannerView*& bannerView) {
+    if (name == nullptr)
+        return nullptr;
+    const std::string_view viewName(name);
+    if (viewName != "UpdateBanner" && viewName != "CheckForUpdatesButton" && viewName != "VersionLabel")
+        return nullptr;
+
+    VSTGUI::CPoint origin(0, 0);
+    VSTGUI::CPoint size(100, 20);
+    attributes.getPointAttribute("origin", origin);
+    attributes.getPointAttribute("size", size);
+    const VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+
+    if (viewName == "UpdateBanner") {
+        bannerView = new UpdateBannerView(rect, checker);
+        return bannerView;
+    }
+    if (viewName == "CheckForUpdatesButton")
+        return new CheckForUpdatesButton(rect, checker);
+    return new VersionLabel(rect, version);
+}
 
 } // namespace Krate::Plugins

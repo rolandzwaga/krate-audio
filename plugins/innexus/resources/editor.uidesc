@@ -591,6 +591,10 @@
 
       <view class="CView" custom-view-name="SavePresetButton"
             origin="95, 40" size="75, 30"/>
+
+      <!-- Manual update check -->
+      <view class="CView" custom-view-name="CheckForUpdatesButton"
+            origin="10, 80" size="160, 22"/>
     </view>
 
     <!-- ============================================================== -->
@@ -1254,11 +1258,9 @@
             title="Decay"/>
     </view>
 
-    <!-- Bottom credit line (version from version.h) -->
-    <view class="CTextLabel" custom-view-name="VersionLabel"
-          origin="575, 1016" size="220, 14"
-          text-alignment="right" font="value-font"
-          font-color="text-dim" back-color="~ TransparentCColor"/>
+    <!-- Bottom line: the shared version label (VERSION_STR from version.json) -->
+    <view class="CView" custom-view-name="VersionLabel"
+          origin="575, 1016" size="220, 14" mouse-enabled="false"/>
 
     <!-- Update Banner (last child = highest z-index, paints on top of everything) -->
     <view custom-view-name="UpdateBanner" origin="0, 0" size="800, 60" autosize="left right"/>

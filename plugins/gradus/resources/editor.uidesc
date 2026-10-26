@@ -131,8 +131,6 @@
         <control-tag name="ArpSequencerNoteLaneJitter" tag="3809"/>
         <control-tag name="ArpSequencerNoteLaneSpeedCurveDepth" tag="3810"/>
 
-        <!-- Version display -->
-        <control-tag name="VersionLabel" tag="9999"/>
     </control-tags>
 
     <!-- ================================================================ -->
@@ -675,16 +673,16 @@
                   popup-position="top"
                   tooltip="Audition decay time"/>
 
+            <!-- Manual update check -->
+            <view custom-view-name="CheckForUpdatesButton" origin="764, 6" size="110, 22"/>
+
             <!-- Krate Audio label (right side) -->
             <view class="CTextLabel" origin="880, 0" size="100, 34"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="right" transparent="true"
                   title="Krate Audio"/>
-            <view class="CTextLabel" origin="986, 0" size="106, 34"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="right" transparent="true"
-                  control-tag="VersionLabel"
-                  title="v1.0.0"/>
+            <view custom-view-name="VersionLabel" origin="986, 0" size="106, 34"
+                  mouse-enabled="false"/>
         </view>
 
         <!-- ============================================================ -->
@@ -712,6 +710,9 @@
               transparent="true"
               template-names="EmptyContent,PianoRollContent"
               template-switch-control="ArpSourceMode"/>
+
+        <!-- Update banner (last child = paints on top of everything); hidden until a newer version is found -->
+        <view custom-view-name="UpdateBanner" origin="0, 0" size="1100, 60"/>
 
     </template>
 

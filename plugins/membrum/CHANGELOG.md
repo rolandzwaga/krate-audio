@@ -5,6 +5,22 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.2] - 2026-10-26
+
+### Added
+
+- **Update check** — When the editor opens, Membrum checks online for a newer version, at
+  most once a day, and shows a banner across the top of the window when one exists. A
+  Check for Updates button under the meters checks right away.
+- **Version in the editor** — The plugin version is shown next to the Check for Updates
+  button.
+
+### Changed
+
+- **Preset descriptions in the browser** — The kit and pad preset browsers have a line
+  under the preset list that shows the selected preset's description, for presets that
+  carry one.
+
 ## [0.12.1] - 2026-10-09
 
 ### Fixed

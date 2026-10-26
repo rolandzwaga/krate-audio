@@ -1375,6 +1375,29 @@ TEST_CASE("Profundum_UiPlacement", "[profundum][ui]") {
                                       isDescendantOf(scan, static_cast<int>(i), settings));
     }
     CHECK(runLoopNote);
+    // The live update check (the shared views of Vorago / Seraphis / Iterum): one manual check button in SETTINGS,
+    // one banner as the template's last child so it paints over everything; hidden until a newer version is found.
+    int checkButtons = 0;
+    int banners = 0;
+    int lastTemplateChild = -1;
+    for (std::size_t i = 0; i < scan.nodes.size(); ++i) {
+        const XmlNode& n = scan.nodes[i];
+        if (n.parent == editorTemplate) {
+            lastTemplateChild = static_cast<int>(i);
+        }
+        if (n.get("custom-view-name") == "CheckForUpdatesButton") {
+            ++checkButtons;
+            CHECK(isDescendantOf(scan, static_cast<int>(i), settings));
+        }
+        if (n.get("custom-view-name") == "UpdateBanner") {
+            ++banners;
+            CHECK(n.parent == editorTemplate);
+        }
+    }
+    CHECK(checkButtons == 1);
+    REQUIRE(banners == 1);
+    REQUIRE(lastTemplateChild >= 0);
+    CHECK(scan.nodes[static_cast<std::size_t>(lastTemplateChild)].get("custom-view-name") == "UpdateBanner");
 
     // (e) and (f): the built tree.
     ControllerFixture cf;

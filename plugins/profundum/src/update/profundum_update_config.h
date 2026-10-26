@@ -3,10 +3,9 @@
 // ==============================================================================
 // Profundum Update-Check Configuration (FR-052)   Plan section 2.8
 // ==============================================================================
-// SHIPPED COMPILED BUT UNUSED: no UpdateChecker instance exists in this plugin.
-// Included by nothing else; the ONLY things that compile it are the static_assert
-// touch point in controller.cpp (a .h in a CMake source list is HEADER_FILE_ONLY)
-// and the PresetConfigIsLive section of editor_lifecycle_test.cpp.
+// The controller's live UpdateChecker is built from this config (2026-10-26; the
+// FR-052 "compiled but unused" ruling is superseded, as Vorago's was on 2026-10-11).
+// The PresetConfigIsLive section of editor_lifecycle_test.cpp checks its fields.
 // Model: plugins/vorago/src/update/vorago_update_config.h:16-25.
 // ==============================================================================
 

@@ -7,6 +7,7 @@
 #include "../version.h"
 #include "../parameters/arpeggiator_params.h"
 #include "../preset/gradus_preset_config.h"
+#include "../update/gradus_update_config.h"
 
 #include "ui/arp_lane_editor.h"
 #include "ui/arp_modifier_lane.h"
@@ -15,6 +16,7 @@
 #include "ui/arp_inversion_lane.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "ui/update_banner_view.h"
 #include "../ui/ring_display.h"
 #include "../ui/detail_strip.h"
 #include "../ui/speed_curve_editor.h"
@@ -23,8 +25,6 @@
 
 #include "controller_state_helpers.h"
 #include "vstgui/lib/controls/ccontrol.h"
-#include "vstgui/lib/controls/ctextlabel.h"
-#include "vstgui/lib/cviewcontainer.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -78,11 +78,15 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
             return loadComponentStateWithNotify(stream);
         });
 
+    // Update checker
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeGradusUpdateConfig());
+
     return kResultOk;
 }
 
 tresult PLUGIN_API Controller::terminate()
 {
+    updateChecker_.reset();
     presetManager_.reset();
     return EditControllerEx1::terminate();
 }
@@ -266,6 +270,12 @@ VSTGUI::CView* Controller::createCustomView(
     if (viewName == "SavePresetButton")
         return createPresetButton(viewRect, false);
 
+    // The update banner, the manual check button and the version label: the shared
+    // views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(
+            name, attributes, updateChecker_.get(), VERSION_STR, updateBannerView_))
+        return shared;
+
     if (viewName == "RingDisplay") {
         auto* display = new RingDisplay(viewRect);
         ringDisplay_ = display;
@@ -303,29 +313,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     viewSyncTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
         [this](VSTGUI::CVSTGUITimer*) { syncViewsFromParams(); }, 33);
 
-    // Dynamic version label (tag 9999)
-    if (auto* frame = editor->getFrame()) {
-        std::function<VSTGUI::CTextLabel*(VSTGUI::CViewContainer*, int32_t)> findTextLabel;
-        findTextLabel = [&findTextLabel](VSTGUI::CViewContainer* container, int32_t tag) -> VSTGUI::CTextLabel* {
-            if (!container) return nullptr;
-            VSTGUI::ViewIterator it(container);
-            while (*it) {
-                if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(*it)) {
-                    if (label->getTag() == tag)
-                        return label;
-                }
-                if (auto* child = (*it)->asViewContainer()) {
-                    if (auto* found = findTextLabel(child, tag))
-                        return found;
-                }
-                ++it;
-            }
-            return nullptr;
-        };
-        if (auto* versionLabel = findTextLabel(frame, 9999))
-            versionLabel->setText(UI_VERSION_STR);
-    }
-
     // Create preset browser and save dialog overlay views
     if (auto* frame = editor->getFrame()) {
         auto frameSize = frame->getViewSize();
@@ -344,12 +331,24 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
             }
         }
     }
+
+    // Start update check and banner polling
+    if (updateChecker_)
+        updateChecker_->checkForUpdate(false);
+    if (updateBannerView_)
+        updateBannerView_->startPolling();
 }
 
 void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
 {
     // Stop the sync timer before tearing down views
     viewSyncTimer_ = nullptr;
+
+    // Stop update banner polling (view is owned by frame)
+    if (updateBannerView_) {
+        updateBannerView_->stopPolling();
+        updateBannerView_ = nullptr;
+    }
 
     // Null all lane pointers (VSTGUI owns their lifetime)
     velocityLane_ = nullptr;

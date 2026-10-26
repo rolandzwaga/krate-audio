@@ -786,26 +786,11 @@ VSTGUI::CView* Controller::createCustomView(
         return patternEditor;
     }
 
-    // Update Banner
-    if (VSTGUI::UTF8StringView(name) == "UpdateBanner") {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(100, 30);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        auto* banner = new Krate::Plugins::UpdateBannerView(rect, updateChecker_.get());
-        updateBannerView_ = banner;
-        return banner;
-    }
-
-    // Check for Updates button (manual trigger)
-    if (VSTGUI::UTF8StringView(name) == "CheckForUpdatesButton") {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(120, 24);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new Krate::Plugins::CheckForUpdatesButton(rect, updateChecker_.get());
+    // The update banner, the manual check button and the version label: the shared
+    // views every Krate editor carries.
+    if (auto* shared = Krate::Plugins::createSharedEditorView(
+            name, attributes, updateChecker_.get(), VERSION_STR, updateBannerView_)) {
+        return shared;
     }
 
     return nullptr;
@@ -947,37 +932,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, patternType,
                     kFreezeNoiseColorId,  // Child control tag
                     0.833f, 1.01f);  // Range: show when value >= 0.833
-            }
-
-            // =====================================================================
-            // Dynamic Version Label
-            // =====================================================================
-            // Set version label text from version.json instead of hardcoded string
-            // Tag 9999 is assigned to the version label in editor.uidesc
-            // =====================================================================
-            std::function<VSTGUI::CTextLabel*(VSTGUI::CViewContainer*, int32_t)> findTextLabel;
-            findTextLabel = [&findTextLabel](VSTGUI::CViewContainer* container, int32_t tag) -> VSTGUI::CTextLabel* {
-                if (!container) return nullptr;
-                VSTGUI::ViewIterator it(container);
-                while (*it) {
-                    if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(*it)) {
-                        if (label->getTag() == tag) {
-                            return label;
-                        }
-                    }
-                    if (auto* childContainer = (*it)->asViewContainer()) {
-                        if (auto* found = findTextLabel(childContainer, tag)) {
-                            return found;
-                        }
-                    }
-                    ++it;
-                }
-                return nullptr;
-            };
-
-            // Find and update version label (tag 9999)
-            if (auto* versionLabel = findTextLabel(frame, 9999)) {
-                versionLabel->setText(UI_VERSION_STR);
             }
 
             // =====================================================================
