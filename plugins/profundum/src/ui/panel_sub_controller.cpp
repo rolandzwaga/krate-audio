@@ -10,6 +10,7 @@
 #include "plugin_ids.h"
 #include "ui/macro_ui_map.h"
 #include "ui/offset_ring_knob.h"
+#include "ui/morph_indicator_slider.h"
 
 // plugins/shared/src/ui (header-only; their inline creators also register the views in this TU)
 #include "ui/adsr_display.h"
@@ -233,6 +234,11 @@ void ProfundumPanelSubController::collectBoundControl(VSTGUI::CControl* control)
     }
     if (auto* ring = dynamic_cast<OffsetRingKnob*>(control)) {
         owner_->registerRingKnob(id, ring);  // ignores an ID outside kMacroTargetParamIds
+    }
+    if (id == kMorphPositionId) {
+        if (auto* slider = dynamic_cast<MorphIndicatorSlider*>(control)) {
+            owner_->registerMorphIndicator(slider);  // Phase 14 FR-035 (plan 4.9)
+        }
     }
     bool inHighlightSet = false;
     for (const Mask& mask : masks_) {

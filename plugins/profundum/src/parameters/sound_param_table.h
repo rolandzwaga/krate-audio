@@ -9,9 +9,10 @@
 // MorphState leaves (the two Sync Rate rows carry two leaves each).
 //
 // kParamRoutes maps every ID in [0, kNumRoutedIds) to the block that owns it.
-// 84 IDs are routed: 8 from Phase 10 (0-3 Global, 100-103 Macro), the 4
+// 93 IDs are routed: 8 from Phase 10 (0-3 Global, 100-103 Macro), the 4
 // performance IDs (4-7), the 60 sound rows, the 4 morph-control IDs (105,
-// 1000-1002) and the 8 note-behaviour IDs (410-417).
+// 1000-1002), the 8 note-behaviour IDs (410-417) and (Phase 14) the 9
+// morph-modulation IDs (1003-1011).
 //
 // The aggregate entry points dispatch on id / 100 to the pack wrappers
 // (band 1 -> morph_params.h, which owns 104). Header-only.
@@ -68,7 +69,7 @@ inline constexpr std::array<SoundParamRow, 60> kSoundRows = sound_table_detail::
 // Route table (plan 4.3)
 // ------------------------------------------------------------------------------
 
-enum class RouteKind : std::uint8_t { None, Global, Macro, Performance, Sound, Note, MorphControl };
+enum class RouteKind : std::uint8_t { None, Global, Macro, Performance, Sound, Note, MorphControl, MorphMod };
 
 struct ParamRoute {
     RouteKind kind;
@@ -89,6 +90,7 @@ namespace sound_table_detail {
     setRange(kMacroWeightId, kMacroCleanViolentId, RouteKind::Macro);       // 100-103
     setRange(kMorphPositionId, kMorphPositionId, RouteKind::MorphControl);  // 105
     setRange(kMorphAnchorModeId, kMorphRampTimeId, RouteKind::MorphControl);  // 1000-1002
+    setRange(kMorphModSourceId, kMorphModCycleSyncRateId, RouteKind::MorphMod);  // 1003-1011 (Phase 14 C-12)
     setRange(kNoteMonoPriorityId, kNotePitchBendRangeId, RouteKind::Note);  // 410-417
     for (std::size_t i = 0; i < kSoundRows.size(); ++i) {
         t[kSoundRows[i].id] = ParamRoute{RouteKind::Sound, static_cast<std::uint8_t>(i)};
@@ -188,7 +190,8 @@ static_assert(kSoundRows.size() == 60, "plan 4.3: 60 sound rows");
 static_assert(sound_table_detail::rowIdsUniqueAndInBand(), "plan 4.3: sound row IDs unique and in their bands");
 static_assert(sound_table_detail::leavesCoveredOnce(), "plan 4.3: sound rows cover leaves {0..61} exactly once");
 static_assert(sound_table_detail::soundRoutesPointBack(), "plan 4.3: every sound row is routed to itself");
-static_assert(sound_table_detail::routedCount() == 84, "plan 4.3: 84 routed IDs (8 Phase 10 + 76 new)");
+static_assert(sound_table_detail::routedCount() == 93,
+              "plan 4.3 / Phase 14 plan 4.6: 93 routed IDs (8 Phase 10 + 76 Phase 11 + 9 Morph Modulation)");
 static_assert(sound_table_detail::noteBandExact(), "FR-054: routed 400-499 IDs are {400-403, 410-417, 420-426}");
 
 // ------------------------------------------------------------------------------

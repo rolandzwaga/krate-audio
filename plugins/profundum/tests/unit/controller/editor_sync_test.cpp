@@ -166,7 +166,7 @@ TEST_CASE("Profundum_EditorSyncTimer", "[profundum][ui][lifecycle]") {
         P::Controller& ctl = *cp.cf.controller.get();
         const StateBytes state0 = writeV2Stream(*cp.fx.proc);
         const Steinberg::int32 paramCount0 = ctl.getParameterCount();
-        REQUIRE(paramCount0 == 84);
+        REQUIRE(paramCount0 == 93);
         constexpr std::array<double, 4> kExpected{1.0, 1.25, 1.5, 2.0};
         STATIC_REQUIRE(P::Controller::kZoomSteps.size() == kExpected.size());
 

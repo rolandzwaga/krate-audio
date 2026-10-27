@@ -1,0 +1,6 @@
+dsp_primitives_tests logs=120 with-failure=0
+dsp_processors_tests logs=120 with-failure=0
+dsp_ieee_tests logs=120 with-failure=1
+disrumpo_tests logs=120 with-failure=0
+membrum_tests logs=120 with-failure=0
+profundum_tests logs=120 with-failure=1

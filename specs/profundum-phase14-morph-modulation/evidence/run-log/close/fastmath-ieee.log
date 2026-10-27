@@ -1,0 +1,237 @@
+=== T033 fastmath ieee 2026-10-27T10:42:38Z commit e501b577
+$ bash /mnt/f/projects/iterum/tools/macos-fastmath-repro.sh --ieee systems/profundum_morph_modulator_test.cpp systems/profundum_engine_morphmod_test.cpp systems/profundum_voice_engine_helpers_test.cpp systems/profundum_engine_display_test.cpp systems/profundum_engine_test.cpp -- \[profundum\]~\[long\]~\[.\] --reporter console --reporter junit::out=/mnt/f/projects/iterum/specs/profundum-phase14-morph-modulation/evidence/run-log/close/fastmath-ieee.junit.xml
+== ieee [-fno-fast-math -fno-finite-math-only -ffp-contract=off  -mfma -mavx2] systems/profundum_morph_modulator_test.cpp systems/profundum_engine_morphmod_test.cpp systems/profundum_voice_engine_helpers_test.cpp systems/profundum_engine_display_test.cpp systems/profundum_engine_test.cpp
+Filters: [profundum] ~[long] ~[.]
+Randomness seeded to: 1121561771
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+run_profundum_morph_modulator_test_profundum_engine_morphmod_test_profundum_voice_engine_helpers_test_profundum_engine_display_test_profundum_engine_test is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+ProfundumMorphModulator_Envelope
+  (d) a Sustain step 0 -> 1 in the Sustain stage follows the 1 ms one-pole, fs
+  48000
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:630
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:655: warning:
+  SC-002 (d) fs 48000: Sustain step settles to 1e-3 in 11 intervals (bound 11)
+
+-------------------------------------------------------------------------------
+ProfundumMorphModulator_Envelope
+  (f) a Sustain move to 0 while held reads +0 within the flush bound and stays
+  +0, fs 48000
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:673
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:703: warning:
+  SC-002 (f) fs 48000: Sustain tail reads +0 after 52 intervals (bound 53)
+
+-------------------------------------------------------------------------------
+ProfundumMorphModulator_Envelope
+  (d) a Sustain step 0 -> 1 in the Sustain stage follows the 1 ms one-pole, fs
+  44100
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:630
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:655: warning:
+  SC-002 (d) fs 44100: Sustain step settles to 1e-3 in 10 intervals (bound 10)
+
+-------------------------------------------------------------------------------
+ProfundumMorphModulator_Envelope
+  (f) a Sustain move to 0 while held reads +0 within the flush bound and stays
+  +0, fs 44100
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:673
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:703: warning:
+  SC-002 (f) fs 44100: Sustain tail reads +0 after 48 intervals (bound 49)
+
+-------------------------------------------------------------------------------
+ProfundumMorphModulator_Envelope
+  (d) a Sustain step 0 -> 1 in the Sustain stage follows the 1 ms one-pole, fs
+  96000
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:630
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:655: warning:
+  SC-002 (d) fs 96000: Sustain step settles to 1e-3 in 21 intervals (bound 21)
+
+-------------------------------------------------------------------------------
+ProfundumMorphModulator_Envelope
+  (f) a Sustain move to 0 while held reads +0 within the flush bound and stays
+  +0, fs 96000
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:673
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:703: warning:
+  SC-002 (f) fs 96000: Sustain tail reads +0 after 104 intervals (bound 105)
+
+-------------------------------------------------------------------------------
+ProfundumEngine_MorphModClickFree_1of8
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1400
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1395: warning:
+  SC-011 shard 1 of 8: 9 arms, 10 static renders, worst step / static 1.0744
+  (bar 2), wall clock 18.8527 s (bar 9 s)
+
+-------------------------------------------------------------------------------
+ProfundumEngine_MorphModClickFree_2of8
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1404
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1395: warning:
+  SC-011 shard 2 of 8: 9 arms, 14 static renders, worst step / static 1.00035
+  (bar 2), wall clock 23.5405 s (bar 9 s)
+
+-------------------------------------------------------------------------------
+ProfundumEngine_MorphModClickFree_3of8
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1408
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1395: warning:
+  SC-011 shard 3 of 8: 9 arms, 10 static renders, worst step / static 1.12311
+  (bar 2), wall clock 19.1104 s (bar 9 s)
+
+-------------------------------------------------------------------------------
+ProfundumEngine_MorphModClickFree_4of8
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1412
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1395: warning:
+  SC-011 shard 4 of 8: 9 arms, 15 static renders, worst step / static 1.00035
+  (bar 2), wall clock 23.5332 s (bar 9 s)
+
+-------------------------------------------------------------------------------
+ProfundumEngine_MorphModClickFree_5of8
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1416
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1395: warning:
+  SC-011 shard 5 of 8: 9 arms, 9 static renders, worst step / static 1.12311
+  (bar 2), wall clock 17.4098 s (bar 9 s)
+
+-------------------------------------------------------------------------------
+ProfundumEngine_MorphModClickFree_6of8
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1420
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1395: warning:
+  SC-011 shard 6 of 8: 9 arms, 13 static renders, worst step / static 1.00035
+  (bar 2), wall clock 21.078 s (bar 9 s)
+
+-------------------------------------------------------------------------------
+ProfundumEngine_MorphModClickFree_7of8
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1424
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1395: warning:
+  SC-011 shard 7 of 8: 9 arms, 9 static renders, worst step / static 1.12311
+  (bar 2), wall clock 17.5462 s (bar 9 s)
+
+-------------------------------------------------------------------------------
+ProfundumEngine_MorphModClickFree_8of8
+-------------------------------------------------------------------------------
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1428
+...............................................................................
+
+/mnt/f/projects/iterum/dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp:1395: warning:
+  SC-011 shard 8 of 8: 9 arms, 14 static renders, worst step / static 1.00035
+  (bar 2), wall clock 21.5995 s (bar 9 s)
+
+VoiceEngine_RendersNonSilent: held E1 RMS -6.02212 dBFS
+VoiceEngine_EventsLatchedToGrid: note at 69 vs 96 mismatches 0
+VoiceEngine_EventsLatchedToGrid: mode 0 tail peak 0 (tail from 12064)
+VoiceEngine_EventsLatchedToGrid: mode 1 tail peak 0 (tail from 12064)
+VoiceEngine_PostSumPlacementRuns: POLY4 PostSum RMS -6.29341 dBFS
+VoiceEngine_PostSumPlacementRuns: MONO PostSum vs PerVoice mismatches 0
+VoiceEngine_MacroNeutral: mode 0 (a) neutral vs bypass mismatches 0, RMS -9.11532 dBFS
+VoiceEngine_MacroNeutral: mode 0 (b) every-interval vs once mismatches 0; control (non-neutral vs neutral) mismatches 143935
+VoiceEngine_MacroNeutral: mode 1 (a) neutral vs bypass mismatches 0, RMS -8.47696 dBFS
+VoiceEngine_MacroNeutral: mode 1 (b) every-interval vs once mismatches 0; control (non-neutral vs neutral) mismatches 143935
+VoiceEngine_DeterminismHarness: mode 0 instances 0, runs after reset 0, direct vs driver 0 mismatches
+VoiceEngine_DeterminismHarness: mode 0 seed residual DRIFT on -19.7937 dB (bar > -60); DRIFT off mismatches 0
+VoiceEngine_DeterminismHarness: mode 1 instances 0, runs after reset 0, direct vs driver 0 mismatches
+VoiceEngine_DeterminismHarness: mode 1 seed residual DRIFT on -19.9898 dB (bar > -60); DRIFT off mismatches 0
+VoiceEngine_Partition: mode 0 block 7 vs block 1 mismatches 0
+VoiceEngine_Partition: mode 0 block 32 vs block 1 mismatches 0
+VoiceEngine_Partition: mode 0 block 64 vs block 1 mismatches 0
+VoiceEngine_Partition: mode 0 block 511 vs block 1 mismatches 0
+VoiceEngine_Partition: mode 0 block 4096 vs block 1 mismatches 0
+VoiceEngine_Partition: mode 1 block 7 vs block 1 mismatches 0
+VoiceEngine_Partition: mode 1 block 32 vs block 1 mismatches 0
+VoiceEngine_Partition: mode 1 block 64 vs block 1 mismatches 0
+VoiceEngine_Partition: mode 1 block 511 vs block 1 mismatches 0
+VoiceEngine_Partition: mode 1 block 4096 vs block 1 mismatches 0
+VoiceEngine_RealTimeSafety: 1448 events over 10 s, allocations 0, dropped 0 / 0
+VoiceEngine_SampleRates: fs 22050 RMS -6.04096 dBFS, MorphAdvance records 758
+VoiceEngine_SampleRates: fs 44100 RMS -6.01487 dBFS, MorphAdvance records 1516
+VoiceEngine_SampleRates: fs 48000 RMS -6.01303 dBFS, MorphAdvance records 1650
+VoiceEngine_SampleRates: fs 96000 RMS -6.00357 dBFS, MorphAdvance records 3300
+VoiceEngine_SampleRates: fs 192000 RMS -5.99913 dBFS, MorphAdvance records 6600
+VoiceEngine_SampleRates: re-prepare at 96000 allocations 0
+VoiceEngine_SampleRates: re-prepare at 22050 allocations 0
+VoiceEngine_SampleRates: re-prepare at 192000 allocations 0
+VoiceEngine_SampleRates: re-prepare at 44100 allocations 0
+VoiceEngine_SampleRates: re-prepare at 48000 allocations 0
+VoiceEngine_MotionDepthZero: 20 depth-0 renders vs Motion Off; control CYCLE -> Depth at depth 1 mismatches 134326
+VoiceEngine_MassSplit (a): tightLoose 0.5 c_TL -0: intervals 2250, target mismatches 0, voice receivers checked 2250 mismatches 0, dynamics mismatches 0 (unseen 0), Mass 0.0666667 .. 100
+VoiceEngine_MassSplit (a): tightLoose 0.2 c_TL 0.75: intervals 2250, target mismatches 0, voice receivers checked 2250 mismatches 0, dynamics mismatches 0 (unseen 0), Mass 0.0666667 .. 100
+VoiceEngine_MassSplit (b): Lock level 0.5, grid mismatches 0, handed mismatches 0 of 2250, Motion output 0 .. 0
+VoiceEngine_MassSplit (c): Lock level 0.5, grid mismatches 0, handed mismatches 0 of 3750, Motion output -1 .. 1
+VoiceEngine_MassSplit (d): mode 1 m_a mismatches 0, level mismatches 0, level peak-to-peak over one period 0.5
+VoiceEngine_MassSplit (d): mode 2 m_a mismatches 0, level mismatches 0, level peak-to-peak over one period 0.5
+VoiceEngine_MorphGlobal: intervals 1501, MorphAdvance records 1501, across-voice mismatches 0 (unseen 0), grid mismatches 0, final p 1
+VoiceEngine_ModeSwitch: MONO->POLY W [24000, 26399) (a) ratio L 1 R 1 (bar 1.059254); (b) max |dy| 0.00411835 bound 0.0128868 margin 3.12912; (c) differentialClicks 0 (recorded)
+VoiceEngine_ModeSwitch: POLY->MONO W [48000, 50399) (a) ratio L 1 R 1 (bar 1.059254); (b) max |dy| 0.0184787 bound 0.0370493 margin 2.00498; (c) differentialClicks 0 (recorded)
+VoiceEngine_ModeSwitch: chunks after 1.25 s 0, Sum tail peak 0
+VoiceEngine_StealOrder: 1000 events, 665 note-ons, 661 steals, mismatches 0, ambiguous 0
+VoiceEngine_CallOrder: voices 1 interval 0 records 34 expected 34 (with DcResync)
+VoiceEngine_CallOrder: voices 1 interval 24000 records 33 expected 33
+VoiceEngine_CallOrder: voices 4 interval 0 records 88 expected 88 (with DcResync)
+VoiceEngine_CallOrder: voices 4 interval 24000 records 87 expected 87
+VoiceEngine_TapTransparency: mode 0 observer attached mismatches 0, anchorPhaseTap mismatches 0, no-observer allocations 0
+VoiceEngine_TapTransparency: mode 1 observer attached mismatches 0, anchorPhaseTap mismatches 0, no-observer allocations 0
+VoiceEngine_A1MatchesUnbiasedH1: anchor mode 0 voices 1 intervals checked 1500 mismatches 0
+VoiceEngine_A1MatchesUnbiasedH1: anchor mode 0 voices 4 intervals checked 6000 mismatches 0
+VoiceEngine_A1MatchesUnbiasedH1: anchor mode 1 voices 1 intervals checked 1500 mismatches 0
+VoiceEngine_A1MatchesUnbiasedH1: anchor mode 1 voices 4 intervals checked 6000 mismatches 0
+VoiceEngine_MonoPriorityAndPortaMode: priority 0 f_res mismatches 0 of 50400, cents at 0.35 s -0.000480843, at 0.55 s 0
+VoiceEngine_MonoPriorityAndPortaMode: priority 1 f_res mismatches 0 of 50400, cents at 0.35 s -0.000480843, at 0.55 s -0.000480843
+VoiceEngine_MonoPriorityAndPortaMode: priority 2 f_res mismatches 0 of 50400, cents at 0.35 s -0.000160281, at 0.55 s 0
+VoiceEngine_MonoPriorityAndPortaMode: porta mode 0 f_res mismatches 0 of 48000, cents from target at the non-overlapped onset -499.896, at the overlapped onset -699.854
+VoiceEngine_MonoPriorityAndPortaMode: porta mode 1 f_res mismatches 0 of 48000, cents from target at the non-overlapped onset 0, at the overlapped onset -699.854
+VoiceEngine_HostTempo: 90 BPM CYCLE period 32000 (expected 32000), field Motion period 128000.39 (expected 128000) samples
+VoiceEngine_HostTempo: 120 BPM CYCLE period 24000 (expected 24000), field Motion period 96001.65 (expected 96000) samples
+VoiceEngine_HostTempo: 150 BPM CYCLE period 19200 (expected 19200), field Motion period 76799.941 (expected 76800) samples
+VoiceEngine_HostTempo: no tempo set: CYCLE period 24000, field Motion period 96001.65 samples (120 BPM: 24000, 96000)
+VoiceEngine_MorphRuntimeRoundTrip: restored engine vs original mismatches 0
+VoiceEngine_PolyEnvRetrigger: POLY ENV before 0.0137753 at 0.133561 peak after 1; MONO Legato overlap before 0.0137753 at 0.0134942 peak after 0.0134942
+VoiceEngine_DeterminismFingerprint: MONO L worst metric rel 2.09046e-05 (bound 0.00025), worst sample 0.000143111 (bound 0.0005)
+VoiceEngine_DeterminismFingerprint: MONO R worst metric rel 1.37283e-05 (bound 0.00025), worst sample 0.000141025 (bound 0.0005)
+VoiceEngine_DeterminismFingerprint: POLY L worst metric rel 6.38397e-05 (bound 0.00025), worst sample 0.000179179 (bound 0.0005)
+VoiceEngine_DeterminismFingerprint: POLY R worst metric rel 4.24169e-06 (bound 0.00025), worst sample 0.000304595 (bound 0.0005)
+# H-29 VoiceEngine_FoldPathRecord (FR-070 H-29 Record; plan S10.6; tasks.md T014). Recorded, not gated.
+# One held E1 (f0 41.2035 Hz) on A_s, MONO, 48 kHz, block 64. Path HELD: Fold 100 from the note-on. Path RAMP: morph 0 -> 1 (Fold 0 -> 100) over 500 ms issued at 0.5 s. Character tap mid, whole periods in [3 s, 4 s).
+H29 HELD level_db=-16.4944 h1_db=-22.6282
+H29 RAMP level_db=-16.4944 h1_db=-22.628
+H29 DIFF (ramp - held) level_db=5.67436e-05 h1_db=0.00013993 | Phase 8 reference: ~0.13 dB (spec H-29, Phase 8 handoff 9.12)
+===============================================================================
+All tests passed (96322 assertions in 54 test cases)
+
+mode=ieee exit=0 wall=1009s (124 = 3600 s ceiling hit)

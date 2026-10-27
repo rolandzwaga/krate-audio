@@ -1,0 +1,16 @@
+Filters: "Profundum_PresetMorphEndpoints_7of8"
+Randomness seeded to: 3376136573
+# Profundum_PresetMorphEndpoints_7of8: presets=7
+preset,d_ab,masked,level_a_e1,level_b_e1,level_a_c3,level_b_c3
+"Crushed Basalt",19.4146,7,-13.0009,-14.9707,-12.5609,-13.2641
+"Lopsided Sub",11.9385,14,-9.01502,-9.40242,-8.90627,-9.02526
+"Slow Swell",15.1005,6,-14.3108,-13.1281,-13.2328,-14.1762
+"Gravity Well",17.1805,7,-13.4982,-12.4305,-13.1103,-12.4
+"Drifting Weight",11.2008,12,-7.56538,-9.13535,-7.26191,-8.97539
+"Dark To Bright",11.9691,11,-11.1262,-13.8335,-10.6493,-12.737
+"Poly Ignition",17.9743,8,-9.23057,-11.8266,-9.18099,-10.4049
+287.248 s: Profundum_PresetMorphEndpoints_7of8
+===============================================================================
+All tests passed (2711020 assertions in 1 test case)
+
+exit: 0 wall: 287 s

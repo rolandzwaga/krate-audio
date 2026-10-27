@@ -62,6 +62,7 @@
 #include <krate/dsp/systems/profundum_core.h>              // L3 peer: ProfundumCore::kControlInterval
 #include <krate/dsp/systems/profundum_engine_observer.h>   // L3 peer: seams, records, observer (plan S8)
 #include <krate/dsp/systems/profundum_macro_matrix.h>      // L3 peer: ProfundumMacroMatrix
+#include <krate/dsp/systems/profundum_morph_modulator.h>   // L3 peer: ProfundumMorphModulator (Phase 14)
 #include <krate/dsp/systems/profundum_motion.h>            // L3 peer: ProfundumMotion
 #include <krate/dsp/systems/profundum_voice.h>             // L3 peer: ProfundumVoice
 #include <krate/dsp/systems/shape_morph.h>                 // L3 peer: ShapeMorph (PostSum stage, C-14)
@@ -72,6 +73,7 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <span>
 
 namespace Krate::DSP {
@@ -129,6 +131,7 @@ public:
     static_assert(kControlInterval == BassMorphEngine::kControlInterval);
     static_assert(kControlInterval == BassStereoField::kControlInterval);
     static_assert(kControlInterval == ProfundumMotion::kControlInterval);
+    static_assert(kControlInterval == ProfundumMorphModulator::kControlInterval);   // Phase 14 (plan 4.2)
     static_assert(MassDynamics::latencySamples() == 0 && BassStereoField::latencySamples() == 0);   // FR-025
 
     ProfundumEngine() = default;
@@ -151,6 +154,7 @@ public:
         double fs = detail::isFinite(sampleRate) ? sampleRate : kMinSampleRate;
         fs = std::clamp(fs, kMinSampleRate, kMaxSampleRate);
         // 2.
+        morph_.setPosition(morphBase_);   // Phase 14 P-1: the snap lands on the base b, never a modulated target
         morph_.prepare(fs);   // it resets
         resolveInitialState();
         // 3.
@@ -167,6 +171,7 @@ public:
         // 5.
         motion_.setSeed(deriveStreamSeed(seed_, kMotionDriftSalt));
         motion_.prepare(fs);
+        morphMod_.prepare(fs);   // Phase 14 (plan 4.2)
         field_.setDriftSeed(deriveStreamSeed(seed_, kFieldDriftSalt));
         field_.setControls(state_.field);
         field_.prepare(fs, kControlInterval);
@@ -199,6 +204,7 @@ public:
     /// Control thread; allocation-free and bounded (S6.4). Returns to the post-prepare state; the pending setter
     /// values, macros, endpoints and morph target are kept. A changed seed takes effect here (C-19).
     void reset() noexcept {
+        morph_.setPosition(morphBase_);   // Phase 14 P-1: the snap lands on the base b, never a modulated target
         morph_.reset();
         resetDependents();
         queueCount_ = 0;
@@ -267,11 +273,22 @@ public:
     // =========================================================================
 
     bool setEndpoint(BassMorphEngine::Endpoint e, const MorphState& s) noexcept { return morph_.setEndpoint(e, s); }
-    void setMorphPosition(float p) noexcept { morph_.setPosition(p); }
+    /// Phase 14 P-1 (FR-010): stores the sanitised base b and forwards it; sub-step 1b re-hands the per-interval
+    /// target before every advanceInterval. Non-finite keeps both (bass_morph_engine.h:141-143).
+    void setMorphPosition(float p) noexcept {
+        if (!detail::isFinite(p))
+            return;
+        morph_.setPosition(p);
+        morphBase_ = morph_.targetPosition();   // the sanitised p (bass_morph_engine.h:144-145)
+    }
     void setMorphRampMs(float ms) noexcept { morph_.setPositionRampMs(ms); }
     void setAnchorMorphMode(BassMorphEngine::AnchorMorphMode m) noexcept { morph_.setAnchorMorphMode(m); }
+    /// Phase 14 P-2 (FR-016): bytes 1-4 of the blob carry the base b, not the modulated target.
     [[nodiscard]] std::size_t serializeMorphRuntime(std::byte* dst, std::size_t cap) const noexcept {
-        return morph_.serializeRuntime(dst, cap);
+        const std::size_t n = morph_.serializeRuntime(dst, cap);
+        if (n == BassMorphEngine::kMorphRuntimeBytes)
+            std::memcpy(dst + kMorphRuntimeTargetOffset, &morphBase_, sizeof(float));
+        return n;
     }
     /// FR-074 (Phase 11, 2026-10-22): a blob restored before any block has rendered since prepare / reset lands
     /// settled. The dependent state (voices, field, Mass law, dynamics, post stages) is re-snapped from the restored
@@ -279,10 +296,28 @@ public:
     /// Restored mid-stream, the engine transitions as for any setter change.
     [[nodiscard]] bool restoreMorphRuntime(const std::byte* src, std::size_t size) noexcept {
         const bool ok = morph_.restoreRuntime(src, size);
+        if (ok) {   // Phase 14 P-2, P-3 (R2): b follows the restored target; every successful restore resets
+            morphBase_ = morph_.targetPosition();
+            morphMod_.reset();
+        }
         if (ok && prepared_ && !renderedSinceReset_)
             resetDependents();
         return ok;
     }
+
+    // =========================================================================
+    // Morph Modulation (Phase 14, FR-010 - FR-017). Pending values, latched at the next grid point (C-9), where
+    // sub-step 1b hands them to the modulator and composes the target. reset() keeps them (FR-014).
+    // =========================================================================
+
+    void setMorphModulation(const ProfundumMorphModulator::Config& c) noexcept { morphModPending_.config = c; }
+    /// FR-006: non-finite keeps the previous wheel; otherwise clamped to [0, 1].
+    void setMorphModWheel(float w) noexcept {
+        if (!detail::isFinite(w))
+            return;
+        morphModPending_.wheel = std::clamp(w, 0.0f, 1.0f);
+    }
+    void setMorphModBypass(bool on) noexcept { morphModPending_.bypass = on; }
 
     // =========================================================================
     // Non-morphed controls (FR-031). Pending values; applied at the next grid point (FR-026 step 1). An
@@ -374,6 +409,15 @@ public:
         return ProfundumMacroMatrix::kNeutral;
     }
     [[nodiscard]] std::uint32_t seed() const noexcept { return seed_; }
+    /// Phase 14: the base b (C-17 item 3: callers that mean b use this, not morphPosition()).
+    [[nodiscard]] float morphBasePosition() const noexcept { return morphBase_; }
+    /// Phase 14 FR-037: the ramped position p (const, render-neutral).
+    [[nodiscard]] float morphResolvedPosition() const noexcept { return morph_.position(); }
+    [[nodiscard]] const ProfundumMorphModulator::Config& morphModulation() const noexcept {
+        return morphModPending_.config;
+    }
+    [[nodiscard]] float morphModWheel() const noexcept { return morphModPending_.wheel; }
+    [[nodiscard]] bool morphModBypass() const noexcept { return morphModPending_.bypass; }
     /// C-19: the per-voice seeds derived at the last prepare / reset (reserved; consumed by nothing today).
     [[nodiscard]] std::uint32_t voiceSeed(std::size_t v) const noexcept {
         return v < kMaxVoices ? voiceSeeds_[v] : 0u;
@@ -628,6 +672,7 @@ private:
         bend_.reset();
         motion_.setSeed(deriveStreamSeed(appliedSeed_, kMotionDriftSalt));
         motion_.reset();
+        morphMod_.reset();   // Phase 14 (plan 4.2): the pending config, wheel and bypass are kept
         field_.setDriftSeed(deriveStreamSeed(appliedSeed_, kFieldDriftSalt));
         field_.setControls(state_.field);
         field_.reset();
@@ -768,6 +813,7 @@ private:
         if (all || !same(p.tempoBpm, a.tempoBpm)) {
             field_.setTempoBpm(p.tempoBpm);
             motion_.setTempoBpm(p.tempoBpm);
+            morphMod_.setTempoBpm(p.tempoBpm);   // Phase 14 FR-014
             any = true;
         }
         if (all || !same(p.ceilingDb, a.ceilingDb)) {
@@ -791,6 +837,7 @@ private:
     /// S6.7 (MONO, the Phase 4 harness's handleEvent, profundum_note_behaviour_test_helpers.h:463-539) and S6.8
     /// (POLY).
     void applyNoteOn(std::uint8_t note, std::uint8_t velocity) noexcept {
+        morphMod_.noteOn(velocity);   // Phase 14 FR-013: every accepted note-on (C-4 restart, C-6 latch)
         if (applied_.mode == VoiceMode::Mono) {
             ProfundumVoice& v0 = voices_[0];
             const bool wasHeld = mono_.hasActiveNote();
@@ -900,6 +947,19 @@ private:
         const bool settingsApplied = applySettings(false);
         const std::size_t notes = applyQueuedNotes();
         logCall(ProfundumCall::Events, settingsApplied || notes > 0, static_cast<float>(notes));
+
+        // 1b. Morph Modulation (Phase 14 C-2): latched settings, one modulator step, the target, setPosition. No
+        //     logCall (SC-032). The transparent target is b by branch, never by arithmetic (FR-012).
+        {
+            morphMod_.setConfig(morphModPending_.config);
+            morphMod_.setModWheel(morphModPending_.wheel);
+            const float s = morphMod_.advanceInterval();
+            const ProfundumMorphModulator::Config& mc = morphMod_.config();
+            const bool transparent = mc.source == ProfundumMorphModulator::Source::Off || !nonZero(mc.amount)
+                                     || morphModPending_.bypass;
+            morphTarget_ = transparent ? morphBase_ : std::clamp(morphBase_ + mc.amount * s, 0.0f, 1.0f);
+            morph_.setPosition(morphTarget_);
+        }
 
         // 2. Exactly once (Phase 8 handoff 9.1).
         const BassMorphEngine::Resolved& r = morph_.advanceInterval();
@@ -1106,7 +1166,10 @@ private:
                                                   .anchorLevel = anchorLevel,
                                                   .compressionHanded = compression,
                                                   .compressorGrDb = dynamics_.compressor().currentGainReductionDb(),
-                                                  .targets = t});
+                                                  .targets = t,
+                                                  .morphModSource = morphMod_.sourceValue(),
+                                                  .morphModOffset = morphMod_.offsetValue(),
+                                                  .morphTarget = morphTarget_});
         }
     }
 
@@ -1288,6 +1351,17 @@ private:
     std::uint32_t seed_ = kDefaultSeed;
     std::uint32_t appliedSeed_ = kDefaultSeed;
     std::array<std::uint32_t, kMaxVoices> voiceSeeds_{};
+    // Phase 14 Morph Modulation (plan 4.2).
+    struct MorphModSettings {                     // pending only: read at the grid point (C-9 latch)
+        ProfundumMorphModulator::Config config{};
+        float wheel = 0.0f;
+        bool bypass = false;
+    };
+    ProfundumMorphModulator morphMod_;
+    MorphModSettings morphModPending_{};
+    float morphBase_ = 0.0f;                       // b (== BassMorphEngine's default target_)
+    float morphTarget_ = 0.0f;                     // the value handed to setPosition at the last grid point
+    static constexpr std::size_t kMorphRuntimeTargetOffset = 1;   // P-2: bass_morph_engine.h:340 (plugin_ids.h:71)
 
     // ---- events (C-9) ----
     std::array<QueuedNote, kMaxQueuedEvents> queue_{};

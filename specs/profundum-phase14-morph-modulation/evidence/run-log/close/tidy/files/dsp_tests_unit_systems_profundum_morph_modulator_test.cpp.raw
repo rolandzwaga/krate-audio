@@ -1,0 +1,9 @@
+56240 warnings generated.
+F:\projects\iterum\dsp\tests\unit\systems\profundum_morph_modulator_test.cpp:631:55: warning: conditional operator is used as sub-expression of parent conditional operator, refrain from using nested conditional operators [readability-avoid-nested-conditional-operator]
+  631 |             const long bound = (fs == 48000.0) ? 11 : (fs == 44100.0) ? 10 : 21;
+      |                                                       ^
+F:\projects\iterum\dsp\tests\unit\systems\profundum_morph_modulator_test.cpp:631:32: note: parent conditional operator here
+  631 |             const long bound = (fs == 48000.0) ? 11 : (fs == 44100.0) ? 10 : 21;
+      |                                ^
+Suppressed 56239 warnings (56238 in non-user code, 1 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.

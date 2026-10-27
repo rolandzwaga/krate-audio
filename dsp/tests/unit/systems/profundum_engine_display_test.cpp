@@ -20,6 +20,7 @@
 #include <krate/dsp/systems/bass_morph_engine.h>
 #include <krate/dsp/systems/profundum_engine.h>
 #include <krate/dsp/systems/profundum_engine_observer.h>
+#include <krate/dsp/systems/profundum_morph_modulator.h>
 #include <krate/dsp/systems/profundum_voice.h>
 
 #include "bass_morph_state_helpers.h"
@@ -363,6 +364,107 @@ void edaRequireClock(const EdaRun& r) {
     REQUIRE(r.boundsFailures == 0);
 }
 
+// Phase 14 T010 (specs/profundum-phase14-morph-modulation, SC-024 (d), P-8): morphResolvedPosition() neutrality.
+
+/// The MONO script with Morph Modulation Cycle, Sine 2 Hz, Amount 1 around the base b = 0.5.
+[[nodiscard]] edaPt::VoiceEngineScript edaMorphModScript() {
+    edaPt::VoiceEngineScript s = edaMonoScript();
+    s.position = 0.5f;   // b
+    s.morphMod.source = Krate::DSP::ProfundumMorphModulator::Source::Cycle;
+    s.morphMod.amount = 1.0f;
+    s.morphMod.cycleShape = Krate::DSP::Waveform::Sine;
+    s.morphMod.cycleRateHz = 2.0f;
+    return s;
+}
+
+struct EdaMorphReadRun {
+    std::vector<float> aL, aR, bL, bR;
+    float peak = 0.0f;
+    std::size_t gridReads = 0;          // reads after a sub-call that ended on a grid point
+    std::size_t recordMismatches = 0;   // grid reads whose bits differ from that grid record's resolved position
+    float minRead = 1.0f;
+    float maxRead = 0.0f;
+};
+
+/// A renders host blocks of the LCG size sequence split at every event's sample and never reads the accessor; B
+/// renders the same slices cut into sub-calls of min(remaining, 32 - controlGridPhase()) and reads
+/// morphResolvedPosition() after every sub-call. At a grid point the read is compared bitwise with the last grid
+/// record B's observer copied (the record of the interval that just completed).
+[[nodiscard]] EdaMorphReadRun edaMorphReadRun(const edaPt::VoiceEngineScript& s) {
+    std::vector<edaPt::VoiceEngineEvent> events = s.events;
+    std::stable_sort(events.begin(), events.end(),
+                     [](const edaPt::VoiceEngineEvent& x, const edaPt::VoiceEngineEvent& y) {
+                         return x.sample < y.sample;
+                     });
+
+    edaPt::VoiceEngineScript sa = s;
+    sa.tappedVoices = 0;
+    edaPt::VoiceEngineTaps tapsA;
+    edaPt::VoiceEngineTaps tapsB;
+    edaPt::voiceEngineAllocateTaps(tapsA, sa);
+    edaPt::voiceEngineAllocateTaps(tapsB, s);
+    edaPt::VoiceEngineObserver observerA(tapsA);
+    edaPt::VoiceEngineObserver observerB(tapsB);
+    auto a = edaMakeEngine(s, observerA);
+    auto b = edaMakeEngine(s, observerB);
+    // Handed after prepare, before the first render: pending only, latched at the first grid point (C-9).
+    a->setMorphModulation(s.morphMod);
+    b->setMorphModulation(s.morphMod);
+
+    EdaMorphReadRun r;
+    const auto total = static_cast<std::size_t>(s.totalSamples);
+    r.aL.assign(total, 0.0f);
+    r.aR.assign(total, 0.0f);
+    r.bL.assign(total, 0.0f);
+    r.bR.assign(total, 0.0f);
+
+    const auto bits = [](float x) noexcept { return std::bit_cast<std::uint32_t>(x); };
+    std::uint32_t lcg = kEdaLcgSeed;
+    std::size_t pos = 0;
+    std::size_t ei = 0;
+    while (pos < total) {
+        lcg = lcg * 1664525u + 1013904223u;
+        const std::size_t size = 1 + static_cast<std::size_t>(lcg >> 8) % kEdaMaxBlock;
+        const std::size_t blockEnd = std::min(pos + size, total);
+        while (pos < blockEnd) {
+            while (ei < events.size() && events[ei].sample <= pos) {
+                edaPt::voiceEngineIssue(*a, events[ei], s);
+                edaPt::voiceEngineIssue(*b, events[ei], s);
+                ++ei;
+            }
+            std::size_t next = blockEnd;
+            if (ei < events.size() && events[ei].sample < next)
+                next = static_cast<std::size_t>(events[ei].sample);
+
+            a->processBlock(r.aL.data() + pos, r.aR.data() + pos, next - pos);
+
+            std::size_t done = pos;
+            while (done < next) {
+                const std::size_t m = std::min(next - done, kEdaGrid - b->controlGridPhase());
+                b->processBlock(r.bL.data() + done, r.bR.data() + done, m);
+                done += m;
+                const float read = b->morphResolvedPosition();
+                if (b->controlGridPhase() == 0) {
+                    ++r.gridReads;
+                    const bool matches = !tapsB.grid.empty() && tapsB.grid.back().sample + kEdaGrid == done
+                                         && bits(read) == bits(tapsB.grid.back().resolved.position);
+                    if (!matches)
+                        ++r.recordMismatches;
+                    r.minRead = std::min(r.minRead, read);
+                    r.maxRead = std::max(r.maxRead, read);
+                }
+            }
+            pos = next;
+        }
+    }
+    a->setObserver(nullptr);
+    b->setObserver(nullptr);
+
+    for (std::size_t i = 0; i < total; ++i)
+        r.peak = std::max({r.peak, std::abs(r.aL[i]), std::abs(r.aR[i])});
+    return r;
+}
+
 }  // namespace
 
 TEST_CASE("Profundum_EngineDisplayAccessorNeutral", "[profundum][systems][display]") {
@@ -398,5 +500,19 @@ TEST_CASE("Profundum_EngineDisplayAccessorNeutral", "[profundum][systems][displa
         REQUIRE(r.offGridProbes >= kEdaTotal / kEdaGrid - 1);
         REQUIRE(r.offGridFailures == 0);
         REQUIRE(r.clockFailures == 0);
+    }
+
+    SECTION("MorphResolvedPosition") {
+        // Phase 14 T010 (SC-024 (d), P-8): B reads morphResolvedPosition() after every sub-call, A never; the
+        // outputs are bit-identical, and every grid-point read equals that grid record's resolved position bitwise.
+        const EdaMorphReadRun r = edaMorphReadRun(edaMorphModScript());
+        INFO("grid reads " << r.gridReads << ", record mismatches " << r.recordMismatches << ", reads ["
+                           << r.minRead << ", " << r.maxRead << "], peak " << r.peak);
+        REQUIRE(r.peak > 1e-3f);   // non-vacuity: the render is not silence
+        REQUIRE(edaBitIdentical(r.aL, r.bL));
+        REQUIRE(edaBitIdentical(r.aR, r.bR));
+        REQUIRE(r.gridReads == kEdaTotal / kEdaGrid);
+        REQUIRE(r.recordMismatches == 0);
+        REQUIRE(r.maxRead - r.minRead >= 0.5f);   // non-vacuity: the modulation moves the resolved position
     }
 }

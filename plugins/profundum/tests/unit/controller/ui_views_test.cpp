@@ -12,17 +12,28 @@
 //   - SpreadCurveView: mirrors the SpreadCurveModel it is given (no timer);
 //   - OffsetRingKnob: the one-sided ring span of the P-5 ruling, value untouched.
 //
+// Profundum_UiMorphIndicator (Phase 14 T018; FR-035, SC-024 (e)(f); plan 4.9): the
+// MorphIndicatorSlider marker in isolation (clamp, fallback, no edit traffic) and
+// through the controller's DataExchange path (queueOpened, onDataExchangeBlocksReceived,
+// registerMorphIndicator), with the Morph Position parameter never written.
+//
 // NEVER name a kPlatformType* constant here (lint-platform-type-literals.js).
 // ==============================================================================
 
 #include "test_helpers/editor_lifecycle_harness.h"
+#include "profundum_test_fixture.h"  // ControllerFixture, RecordingComponentHandler (Phase 14 T018)
 
+#include "controller/controller.h"
+#include "plugin_ids.h"
 #include "processor/spectrum_frame.h"
 #include "ui/harmonic_bar_view.h"
+#include "ui/morph_indicator_slider.h"
 #include "ui/offset_ring_knob.h"
 #include "ui/spread_curve_view.h"
 
+#include "pluginterfaces/vst/ivstdataexchange.h"
 #include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/controls/icontrollistener.h"
 #include "vstgui/lib/cpoint.h"
 #include "vstgui/lib/crect.h"
 #include "vstgui/lib/cview.h"
@@ -31,8 +42,10 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <bit>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 namespace {
@@ -232,5 +245,134 @@ TEST_CASE("Profundum_UiViewsUnit", "[profundum][ui]") {
             CHECK(knob->getValue() == before);
             CHECK(knob->getModulationRange() == 0.0f);  // the base symmetric ring is never used
         }
+    }
+}
+
+namespace {
+
+/// Counts every IControlListener callback a display-only marker must never cause.
+struct CountingControlListener final : VSTGUI::IControlListener {
+    int valueChanges = 0;
+    int beginEdits = 0;
+    int endEdits = 0;
+    void valueChanged(VSTGUI::CControl* /*control*/) override { ++valueChanges; }
+    void controlBeginEdit(VSTGUI::CControl* /*control*/) override { ++beginEdits; }
+    void controlEndEdit(VSTGUI::CControl* /*control*/) override { ++endEdits; }
+};
+
+[[nodiscard]] std::uint32_t floatBits(float v) noexcept { return std::bit_cast<std::uint32_t>(v); }
+[[nodiscard]] std::uint64_t doubleBits(double v) noexcept { return std::bit_cast<std::uint64_t>(v); }
+
+/// One frame through the controller's DataExchange receiver, as the SDK's handler delivers it.
+void deliverMorphFrame(::Profundum::Controller& c, float morphPosition, std::uint32_t sequence) {
+    ::Profundum::ProfundumSpectrumFrame frame = ::Profundum::Controller::silenceFrame();
+    frame.sequence = sequence;
+    frame.flags = 0;
+    frame.morphPosition = morphPosition;
+    Steinberg::Vst::DataExchangeBlock block{};
+    block.data = &frame;
+    block.size = static_cast<Steinberg::uint32>(sizeof(frame));
+    block.blockID = 0;
+    c.onDataExchangeBlocksReceived(::Profundum::kProfundumFrameUserContextId, 1u, &block, 0);
+}
+
+void openFrameQueue(::Profundum::Controller& c) {
+    Steinberg::TBool background = 0;
+    c.queueOpened(::Profundum::kProfundumFrameUserContextId,
+                  static_cast<Steinberg::uint32>(sizeof(::Profundum::ProfundumSpectrumFrame)), background);
+}
+
+}  // namespace
+
+TEST_CASE("Profundum_UiMorphIndicator", "[profundum][morphmod][ui]") {
+    Krate::TestSupport::ensureVstguiInitialized();
+    const VSTGUI::CRect sliderRect(0, 0, 476, 24);
+
+    SECTION("DisplayOnlyMarker") {
+        CountingControlListener listener;
+        auto slider = VSTGUI::makeOwned<::Profundum::MorphIndicatorSlider>(
+            sliderRect, &listener, static_cast<int32_t>(::Profundum::kMorphPositionId));
+        slider->setValueNormalized(0.2f);
+        const std::uint32_t valueBits = floatBits(slider->getValueNormalized());
+
+        // Before any setIndicator the marker is the slider value.
+        CHECK_FALSE(slider->hasIndicator());
+        CHECK(floatBits(slider->indicatorPosition()) == valueBits);
+
+        slider->setIndicator(0.7f);
+        CHECK(slider->hasIndicator());
+        CHECK(slider->indicatorPosition() == 0.7f);
+        CHECK(floatBits(slider->getValueNormalized()) == valueBits);  // the control value is untouched
+
+        slider->setIndicator(1.5f);
+        CHECK(slider->indicatorPosition() == 1.0f);
+        slider->setIndicator(-0.25f);
+        CHECK(slider->indicatorPosition() == 0.0f);
+
+        slider->clearIndicator();
+        CHECK_FALSE(slider->hasIndicator());
+        CHECK(floatBits(slider->indicatorPosition()) == valueBits);
+
+        CHECK(floatBits(slider->getValueNormalized()) == valueBits);
+        CHECK(listener.valueChanges == 0);
+        CHECK(listener.beginEdits == 0);
+        CHECK(listener.endEdits == 0);
+        CHECK_FALSE(slider->isEditing());
+    }
+
+    SECTION("ControllerPath") {
+        ProfundumPluginTest::ControllerFixture cf;
+        ::Profundum::Controller& c = *cf.controller;
+        const auto morphId = ::Profundum::kMorphPositionId;
+        const std::uint64_t paramBits = doubleBits(c.getParamNormalized(morphId));
+
+        auto slider = VSTGUI::makeOwned<::Profundum::MorphIndicatorSlider>(sliderRect, nullptr,
+                                                                           static_cast<int32_t>(morphId));
+        slider->setValueNormalized(0.2f);
+        const std::uint32_t valueBits = floatBits(slider->getValueNormalized());
+
+        // Registered before any frame: the marker falls back to the slider value.
+        c.registerMorphIndicator(slider.get());
+        REQUIRE(c.morphIndicatorForTest() == slider.get());
+        CHECK_FALSE(slider->hasIndicator());
+        CHECK(floatBits(slider->indicatorPosition()) == valueBits);
+
+        // After queueOpened and before a frame: still the slider value.
+        openFrameQueue(c);
+        CHECK_FALSE(slider->hasIndicator());
+        CHECK(floatBits(slider->indicatorPosition()) == valueBits);
+
+        // A frame carries the resolved position to the registered slider.
+        deliverMorphFrame(c, 0.65f, 1u);
+        CHECK(slider->hasIndicator());
+        CHECK(slider->indicatorPosition() == 0.65f);
+        CHECK(floatBits(slider->getValueNormalized()) == valueBits);
+        CHECK(doubleBits(c.getParamNormalized(morphId)) == paramBits);  // the parameter is never written
+        CHECK(cf.handler.editCallsFor(morphId) == 0);                    // no beginEdit / performEdit / endEdit
+        CHECK(cf.handler.performEdits.empty());
+
+        // A re-opened queue drops the marker until its own first frame.
+        openFrameQueue(c);
+        CHECK_FALSE(slider->hasIndicator());
+        CHECK(floatBits(slider->indicatorPosition()) == valueBits);
+
+        deliverMorphFrame(c, 0.3f, 2u);
+        CHECK(slider->indicatorPosition() == 0.3f);
+
+        // A slider registered after a frame takes the cached value at once.
+        auto late = VSTGUI::makeOwned<::Profundum::MorphIndicatorSlider>(sliderRect, nullptr,
+                                                                         static_cast<int32_t>(morphId));
+        late->setValueNormalized(0.9f);
+        c.registerMorphIndicator(late.get());
+        CHECK(late->hasIndicator());
+        CHECK(late->indicatorPosition() == 0.3f);
+        CHECK(floatBits(late->getValueNormalized()) == floatBits(0.9f));
+
+        CHECK(doubleBits(c.getParamNormalized(morphId)) == paramBits);
+        CHECK(cf.handler.editCallsFor(morphId) == 0);
+        CHECK(cf.handler.performEdits.empty());
+
+        c.registerMorphIndicator(nullptr);
+        CHECK(c.morphIndicatorForTest() == nullptr);
     }
 }

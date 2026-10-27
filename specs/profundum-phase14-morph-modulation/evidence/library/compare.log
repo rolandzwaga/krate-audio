@@ -1,0 +1,133 @@
+--- pre-phase (git HEAD:specs/profundum-phase13-presets-release/evidence/library/*.log) summary lines
+determinism.log: # Profundum_PresetDeterminism: presets=58
+determinism.log: # contradicting=0
+determinism.log: WALL determinism 60.0 s exit=0
+distinctness.log: # Profundum_PresetDistinctness: presets=58 F=1 closest=Bedrock vs Locked Floor d=1.91446 masked=15
+distinctness.log: WALL distinctness 334.7 s exit=0
+listen.log: # Profundum_PresetAuditionRenders: presets=58 wavs=127 gestures=11 flagged=0
+listen.log: WALL listen 66.9 s exit=0
+render-guard.log: WALL render-guard 42.4 s exit=0 case_seconds=11.5626
+showcase-0.log: # Profundum_PresetShowcase_0of8: presets=8 arms=22
+showcase-0.log: WALL showcase-0 59.7 s exit=0
+showcase-1.log: # Profundum_PresetShowcase_1of8: presets=8 arms=16
+showcase-1.log: WALL showcase-1 44.8 s exit=0
+showcase-2.log: # Profundum_PresetShowcase_2of8: presets=7 arms=14
+showcase-2.log: WALL showcase-2 30.6 s exit=0
+showcase-3.log: # Profundum_PresetShowcase_3of8: presets=7 arms=16
+showcase-3.log: WALL showcase-3 32.4 s exit=0
+showcase-4.log: # Profundum_PresetShowcase_4of8: presets=7 arms=18
+showcase-4.log: WALL showcase-4 66.1 s exit=0
+showcase-5.log: # Profundum_PresetShowcase_5of8: presets=7 arms=14
+showcase-5.log: WALL showcase-5 59.4 s exit=0
+showcase-6.log: # Profundum_PresetShowcase_6of8: presets=7 arms=18
+showcase-6.log: WALL showcase-6 24.5 s exit=0
+showcase-7.log: # Profundum_PresetShowcase_7of8: presets=7 arms=13
+showcase-7.log: WALL showcase-7 36.5 s exit=0
+sweep-set.log: # Profundum_PresetSweep: presets=58
+sweep-set.log: # Profundum_PresetSweepRates: presets=58
+sweep-set.log: # worst true-peak margin 0.070251 dB (Fault Line at 44100.000000)
+sweep-set.log: # Profundum_PresetTruePeakMaxMass: presets=58
+sweep-set.log: # worst true-peak margin 0.0369267 dB
+sweep-set.log: # Profundum_PresetMonoSum: presets=58
+sweep-set.log: # ungated=0
+sweep-set.log: # Profundum_PresetLoudnessMatch: presets=58 median_db=-11.167
+sweep-set.log: # worst deviation 3.60167 dB
+sweep-set.log: WALL sweep-set 228.9 s exit=0
+--- this run
+showcase-0: # Profundum_PresetShowcase_0of8: presets=8 arms=22
+showcase-0: WALL showcase-0 144.7 s exit=0
+endpoints-0: # Profundum_PresetMorphEndpoints_0of8: presets=8
+endpoints-0: WALL endpoints-0 238.3 s exit=0
+showcase-1: # Profundum_PresetShowcase_1of8: presets=8 arms=16
+showcase-1: WALL showcase-1 114.3 s exit=0
+endpoints-1: # Profundum_PresetMorphEndpoints_1of8: presets=8
+endpoints-1: WALL endpoints-1 245.8 s exit=0
+showcase-2: # Profundum_PresetShowcase_2of8: presets=8 arms=16
+showcase-2: WALL showcase-2 95.4 s exit=0
+endpoints-2: # Profundum_PresetMorphEndpoints_2of8: presets=8
+endpoints-2: WALL endpoints-2 241.5 s exit=0
+showcase-3: # Profundum_PresetShowcase_3of8: presets=8 arms=18
+showcase-3: WALL showcase-3 93.5 s exit=0
+endpoints-3: # Profundum_PresetMorphEndpoints_3of8: presets=8
+endpoints-3: WALL endpoints-3 244.5 s exit=0
+showcase-4: # Profundum_PresetShowcase_4of8: presets=7 arms=18
+showcase-4: WALL showcase-4 135.6 s exit=0
+endpoints-4: # Profundum_PresetMorphEndpoints_4of8: presets=7
+endpoints-4: WALL endpoints-4 217.3 s exit=0
+showcase-5: # Profundum_PresetShowcase_5of8: presets=7 arms=14
+showcase-5: WALL showcase-5 136.2 s exit=0
+endpoints-5: # Profundum_PresetMorphEndpoints_5of8: presets=7
+endpoints-5: WALL endpoints-5 230.3 s exit=0
+showcase-6: # Profundum_PresetShowcase_6of8: presets=7 arms=18
+showcase-6: WALL showcase-6 74.8 s exit=0
+endpoints-6: # Profundum_PresetMorphEndpoints_6of8: presets=7
+endpoints-6: WALL endpoints-6 223.6 s exit=0
+showcase-7: # Profundum_PresetShowcase_7of8: presets=7 arms=13
+showcase-7: WALL showcase-7 89.4 s exit=0
+endpoints-7: # Profundum_PresetMorphEndpoints_7of8: presets=7
+endpoints-7: WALL endpoints-7 229.3 s exit=0
+morph-sweep: # Profundum_PresetMorphSweep: presets=60
+morph-sweep: WALL morph-sweep 101.2 s exit=0
+sweep: # Profundum_PresetSweep: presets=60
+sweep: WALL sweep 203.2 s exit=0
+sweep-rates: # Profundum_PresetSweepRates: presets=60
+sweep-rates: # worst true-peak margin 0.0557616 dB (Breathing Depth at 48000.000000)
+sweep-rates: WALL sweep-rates 260.2 s exit=0
+true-peak-max-mass: # Profundum_PresetTruePeakMaxMass: presets=60
+true-peak-max-mass: # worst true-peak margin 0.0369267 dB
+true-peak-max-mass: WALL true-peak-max-mass 199.6 s exit=0
+mono-sum: # Profundum_PresetMonoSum: presets=60
+mono-sum: # ungated=0
+mono-sum: WALL mono-sum 98.7 s exit=0
+determinism: # Profundum_PresetDeterminism: presets=60
+determinism: # contradicting=0
+determinism: WALL determinism 144.8 s exit=0
+loudness-match: # Profundum_PresetLoudnessMatch: presets=60 median_db=-11.4868
+loudness-match: # worst deviation 3.92145 dB
+loudness-match: WALL loudness-match 97.6 s exit=0
+distinctness: # Profundum_PresetDistinctness: presets=60 F=1 bar=2 closest=Loose Ends vs Locked Floor d=2.42169 masked=16
+distinctness: WALL distinctness 517.2 s exit=0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Rectified Floor note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Rectified Floor note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Rectified Floor note 28: t0 1 s, p_lo 0, p_hi 0.36, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Rectified Floor note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Rectified Floor note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Rectified Floor note 48: t0 1 s, p_lo 0, p_hi 0.36, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Long Tail note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Long Tail note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Long Tail note 28: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Long Tail note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Long Tail note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Long Tail note 48: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Spread note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Spread note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Spread note 28: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Spread note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Spread note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Spread note 48: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Swell note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Swell note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Swell note 28: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Swell note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Swell note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Swell note 48: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Ignition note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Ignition note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Ignition note 28: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Ignition note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Ignition note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Poly Ignition note 48: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Tidal Fold note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Tidal Fold note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Tidal Fold note 28: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Tidal Fold note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Tidal Fold note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Tidal Fold note 48: t0 1 s, p_lo 0, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Struck Fold note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Struck Fold note 28: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Struck Fold note 28: t0 1 s, p_lo 0.00787402, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: # Profundum_MorphModHarnessFidelity Struck Fold note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Struck Fold note 48: fidelity pass worstSample 0 worstMetric 0 (sumL)
+harness-fidelity: # Profundum_MorphModHarnessFidelity Struck Fold note 48: t0 1 s, p_lo 0.00787402, p_hi 1, grid points 8192 + 8192, worst |twin - processor| 0
+harness-fidelity: WALL Profundum_MorphModHarnessFidelity 197.468 s
+harness-fidelity: WALL harness-fidelity 197.7 s exit=0

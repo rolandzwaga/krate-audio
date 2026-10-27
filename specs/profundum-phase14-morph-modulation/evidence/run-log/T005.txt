@@ -1,0 +1,25 @@
+T005 - Pre-phase harvest (FR-062, FR-063; SC-008 reference)
+Date: 2026-10-26   Branch: feat/profundum-preset-morph
+
+Pre-check 1 - engine/generator/plugin tree clean:
+  $ git status --porcelain -- dsp/include dsp/src tools/ plugins/profundum/src plugins/profundum/resources
+  (no output) -> CLEAN
+
+Pre-check 2 - pre-phase CSVs present:
+  evidence/prephase-fingerprints.csv  ABSENT
+  evidence/prephase-decoded.csv       ABSENT
+  evidence/prephase-claims.csv        ABSENT
+  evidence/prephase/ holds only merge.js and run-harvest.sh (the T003 lane scripts).
+
+Status: UNBLOCKED 2026-10-26 (main loop ran the harvest; HARVEST GREEN). Command was:
+  bash specs/profundum-phase14-morph-modulation/evidence/prephase/run-harvest.sh
+  (one profundum_tests build with /nr:false + four concurrent shards, logs in run-log/T005/<k>.log, then merge.js)
+
+Main-loop reading (fill in when the run completes):
+  shard 0 wall clock: 14.2 s exit=0 (All tests passed, 83301 assertions)
+  shard 1 wall clock: 14.7 s exit=0 (All tests passed, 81380 assertions)
+  shard 2 wall clock: 13.4 s exit=0 (All tests passed, 75407 assertions)
+  shard 3 wall clock: 13.5 s exit=0 (All tests passed, 75875 assertions)
+  merge line: PREPHASE MERGED presets=58 rows=870 (fingerprints=232 decoded=638)
+  last line: HARVEST GREEN PREPHASE MERGED presets=58 rows=870 (fingerprints=232 decoded=638) claims=58
+  rows per CSV vs allPresets() (58 expected): fingerprints 232 = 58 x 2 notes x 2 channels; decoded 638 = 58 x 11 regions; claims 58. Build 0 warnings.

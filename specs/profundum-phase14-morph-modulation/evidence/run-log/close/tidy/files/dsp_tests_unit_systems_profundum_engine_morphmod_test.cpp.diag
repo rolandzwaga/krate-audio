@@ -1,0 +1,6 @@
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:191:29: warning: boolean expression can be simplified by DeMorgan's theorem [readability-simplify-boolean-expr]
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:567:31: warning: member 'out_' of type 'std::vector<MmGridPoint> &' is a reference [cppcoreguidelines-avoid-const-or-ref-data-members]
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:885:45: warning: 'k0' is confusable with 'kO' [misc-confusable-identifiers]
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:849:31: note: other declaration found here
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:988:13: warning: ambiguous call to 'reset()' on a pointee of a smart pointer, prefer more explicit approach [readability-ambiguous-smartptr-reset-call]
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:988:13: note: consider dereferencing smart pointer to call 'reset' method of the pointee here

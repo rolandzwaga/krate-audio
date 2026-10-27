@@ -20,6 +20,12 @@
 // Values are NORMALIZED 0..1, exactly as a host delivers them. Untouched IDs
 // keep their registered defaults.
 //
+// Phase 14 T023 (specs/profundum-phase14-morph-modulation, plan 4.13, 5.7 step 5; FR-040 - FR-042, FR-046, FR-063):
+//   - CapabilityGroup::MorphMod and the four columns M-ENV, M-CYCLE, M-VEL, M-WHEEL appended after R-SINE;
+//   - `controls` may carry the Morph Modulation block 1003-1011;
+//   - the conversions of evidence/conversions.md (rule (ii), kMorphModConversionRule) and the two presets added
+//     for the columns no existing preset could carry (definitions 59-60; morphModProbeBase names the probe's base).
+//
 // ParamSetting, Capability and CapabilityGroup also exist in
 // Vorago::PresetDefs / Seraphis::PresetDefs: different namespaces and different
 // targets; no TU includes two defs headers.
@@ -57,22 +63,26 @@ enum class CapabilityGroup : std::uint8_t {
     Morph,
     NoteMemory,
     Macros,
-    Reference
+    Reference,
+    MorphMod   // Phase 14 C-14: the four Morph Modulation source columns
 };
 
-/// FR-010: the 50 AT columns in AT order, then the three reference columns.
+/// FR-010: the 50 AT columns in AT order, then the three reference columns. Phase 14 (FR-040) appends the four
+/// Morph Modulation source columns, so every Phase 13 column keeps its index.
 enum class Capability : std::uint8_t {
     AT01, AT02, AT03, AT04, AT05, AT06, AT07, AT08, AT09, AT10, AT11, AT12, AT13, AT14, AT15, AT16, AT17, AT18, AT19,
     AT20, AT21, AT22, AT23, AT24, AT25, AT26, AT27, AT28, AT29, AT30, AT31, AT32, AT33, AT34, AT35, AT36, AT37, AT38,
-    AT39, AT40, AT41, AT42, AT43, AT44, AT45, AT46, AT47, AT48, AT49, AT50, RSolid, RLock, RSine, Count
+    AT39, AT40, AT41, AT42, AT43, AT44, AT45, AT46, AT47, AT48, AT49, AT50, RSolid, RLock, RSine,
+    MEnv, MCycle, MVel, MWheel, Count
 };
 inline constexpr std::size_t kNumCapabilities = static_cast<std::size_t>(Capability::Count);
-static_assert(kNumCapabilities == 53, "C-2.1: 50 AT columns + R-SOLID, R-LOCK, R-SINE");
+static_assert(kNumCapabilities == 57,
+              "C-2.1: 50 AT columns + R-SOLID, R-LOCK, R-SINE; Phase 14 C-14: + M-ENV, M-CYCLE, M-VEL, M-WHEEL");
 
 struct CapabilityInfo {
     Capability column;
     CapabilityGroup group;
-    std::uint8_t atId;       // 1..50; 0 for a reference column
+    std::uint8_t atId;       // 1..50; 0 for a reference or MorphMod column
     std::string_view label;  // "AT-04 Character Tube", printed in coverage-matrix.csv
 };
 
@@ -135,9 +145,22 @@ struct CapabilityInfo {
         {C::RSolid, G::Reference, 0, "R-SOLID Reference Solid"},
         {C::RLock, G::Reference, 0, "R-LOCK Reference Lock"},
         {C::RSine, G::Reference, 0, "R-SINE Reference Sine"},
+        {C::MEnv, G::MorphMod, 0, "M-ENV Morph Mod Envelope"},
+        {C::MCycle, G::MorphMod, 0, "M-CYCLE Morph Mod Cycle"},
+        {C::MVel, G::MorphMod, 0, "M-VEL Morph Mod Velocity"},
+        {C::MWheel, G::MorphMod, 0, "M-WHEEL Morph Mod Wheel"},
     }};
     return kTable;
 }
+
+/// Phase 14 plan 5.7 step 4: the two conversion rules the probe selection can apply. PerColumn = rule (i), one
+/// conversion per column (the eligible carrier with the largest margin); EveryCarrier = rule (ii), every eligible
+/// carrier converts for the column of its largest margin. A preset converts at most once under either rule.
+enum class MorphModConversionRule : std::uint8_t { PerColumn, EveryCarrier };
+
+/// R4 (evidence/plan-rulings.md, user 2026-10-26; FR-046): rule (ii). evidence/probe/select.js applies the same
+/// rule; Profundum_PresetDefsRules re-derives the converted set from evidence/probe-morphmod.csv with this constant.
+inline constexpr MorphModConversionRule kMorphModConversionRule = MorphModConversionRule::EveryCarrier;
 
 /// == ProfundumEngine::kDefaultSeed (static_assert in the host).
 inline constexpr std::uint32_t kFactoryDefaultSeed = 0xB455u;
@@ -151,10 +174,15 @@ struct ProfundumPresetDef {
     std::vector<ParamSetting> endpointA;       // Sound-route IDs only (the 60 E-parameters)
     std::vector<ParamSetting> endpointB;       // Sound-route IDs only; EMPTY = endpoint B is a copy of endpoint A
     std::vector<ParamSetting> controls;        // 1, 100-103, 105, 410-416, 1000, 1002 (P-6 forbids 0, 2, 3, 417; also 4-7 and 1001)
+                                               // and, from Phase 14, the Morph Modulation block 1003-1011
     std::string_view nameA;                    // <= 31 UTF-8 bytes, already sanitised, never "A"
     std::string_view nameB;                    // never "B"
     std::uint32_t seed = kFactoryDefaultSeed;  // C-4 step 6
     bool seedDependent = false;                // C-7; verified in both directions by FR-044
+    // Phase 14 FR-046: a preset added for a MorphMod column no existing preset could carry names the probe preset
+    // whose evidence/probe-morphmod.csv rows prove its source and settings (the NEW PRESET NEEDED row's base); empty
+    // for every other definition (a converted preset is proven by its own rows).
+    std::string_view morphModProbeBase{};
 };
 
 inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"};
@@ -485,13 +513,15 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
             .seedDependent = false,
         },
         // ---- 6: AT-06 Rectify (plan 7 row 6) ----
+        // Phase 14 T023: converted to M-ENV (AT-06 stays with Poly Rectifier).
         ProfundumPresetDef{
             .name = "Rectified Floor",
             .category = "Driven",
-            .description = "Character Rectify: Rectify at Amount 1 with Tone 0.4 over a floor-heavy, lightly folded "
-                           "core and an Asymmetric Anchor at 0.6. Morph to B folds a fuller body under a lighter "
-                           "Rectify, wide.",
-            .primary = C::AT06,
+            .description = "Morph Mod Envelope: every note leaps 60 percent of the way from the Rectify floor toward "
+                           "its folded B, then settles near a third (Amount 0.6, an instant attack, Sustain 0.6). A "
+                           "is Rectify at Amount 1 with Tone 0.4 over a floor-heavy, lightly folded core and an "
+                           "Asymmetric Anchor at 0.6; B folds a fuller body under a lighter Rectify, wide.",
+            .primary = C::MEnv,
             .secondaries = {},
             // Designed-library pass (2026-10-26): AT-06 had 21.9 of margin; A gains a body, excitation, a light fold,
             // an Asymmetric Anchor and a spread top.
@@ -537,7 +567,18 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.8},        // level 0.8
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .controls = {{kMorphPositionId, 0.0}}, // p = 0
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 3.565 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kMorphModSourceId, 0.25},                     // Source Envelope (1 / 4)
+                         {kMorphModAmountId, 0.8},                      // Amount +0.6
+                         {kMorphModAttackId, 0.0},                      // attack 0.1 ms
+                         {kMorphModDecayId, 0.75563024976044124},       // decay 600 ms
+                         {kMorphModSustainId, 0.6},                     // sustain 0.6
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Rectified",
             .nameB = "Folded Rectifier",
             .seed = kFactoryDefaultSeed,
@@ -1721,13 +1762,16 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
             .seedDependent = false,
         },
         // ---- 25: AT-25 release (plan 7 row 25) ----
+        // Phase 14 T023: converted to M-WHEEL (AT-25 stays with Poly Pluck). Plan 10: M-ENV, M-CYCLE and M-VEL failed
+        // Profundum_PresetLoudnessMatch (evidence/gate-exclusions.csv), so it carries the Mod Wheel, which rests at A.
         ProfundumPresetDef{
             .name = "Long Tail",
             .category = "Sub",
-            .description = "Envelope Amp Release: a 2000 ms release lets a folded, wide body ring on over a Triangle "
-                           "Anchor long after the key lifts. Morph to B darkens it into a mono Tube sub with a 3.5 s "
-                           "tail.",
-            .primary = C::AT25,
+            .description = "Morph Mod Wheel: the Mod Wheel carries the sound from A to B (Amount 1; wheel down plays A), "
+                           "and while it drives the morph it no longer adds Mass. A lets a folded, wide body ring on "
+                           "over a Triangle Anchor with a 2000 ms release; wheel up darkens it into a mono Tube sub "
+                           "with a 3.5 s tail.",
+            .primary = C::MWheel,
             .secondaries = {},
             // Designed-library pass (2026-10-26): AT-25 had 36.8 of margin; A rings a folded, wide body over a Triangle
             // Anchor.
@@ -1775,7 +1819,18 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAnchorLevelId, 0.9},        // level 0.9
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreShiftId, 0.65}},        // shift 0.3
-            .controls = {{kMorphPositionId, 0.0}}, // p = 0
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 7.704 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kMorphModSourceId, 1.0},                      // Source Mod Wheel (4 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.39999999922342100},      // attack 10 ms (default)
+                         {kMorphModDecayId, 0.69542425054972046},       // decay 300 ms (default)
+                         {kMorphModSustainId, 0.0},                     // sustain 0 (default)
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Long Ring",
             .nameB = "Dark Tail",
             .seed = kFactoryDefaultSeed,
@@ -3639,12 +3694,15 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
             .seedDependent = false,
         },
         // ---- 54: AT-31 in Poly (Phase 13b, FR-066; endpoint A from Spread Choir with the TuneP_Poly edits) ----
+        // Phase 14 T023: converted to M-ENV (AT-31 stays with Spread Choir).
         ProfundumPresetDef{
             .name = "Poly Spread",
             .category = "Harmonic",
-            .description = "Field Spread: a hollow, Tube-coloured, folded body spread wide in SPREAD over a Rounded "
-                           "Anchor, played as chords in Poly. Morph to B spreads darker Tube chords.",
-            .primary = C::AT31,
+            .description = "Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it "
+                           "there (Amount 1, an instant attack, Sustain 1). A is a hollow, Tube-coloured, folded body "
+                           "spread wide in SPREAD over a Rounded Anchor, played as chords in Poly; B spreads darker "
+                           "Tube chords.",
+            .primary = C::MEnv,
             .secondaries = {},
             // Designed-library pass (2026-10-26): AT-31 had 112 of margin; the chord spread gains excitation, a fold,
             // Tube 0.35 and a Rounded Anchor. SHAPE stays 0: at 0.5 a load under a held MONO note read the FR-048 step
@@ -3697,20 +3755,34 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kCoreBodyCurvatureId, 0.75},
                           {kCoreShiftId, 0.3},           // shift -0.4
                           {kFieldGravityId, 0.4}},
-            .controls = {{kMorphPositionId, 0.0},   // p = 0
-                         {kVoiceModeId, 1.0}},      // Poly (Polyphony 4, P-6)
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 3.764 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kVoiceModeId, 1.0},                           // Poly (Polyphony 4, P-6)
+                         {kMorphModSourceId, 0.25},                     // Source Envelope (1 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.0},                      // attack 0.1 ms
+                         {kMorphModDecayId, 0.75563024976044124},       // decay 600 ms
+                         {kMorphModSustainId, 1.0},                     // sustain 1
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Spread Chord",
             .nameB = "Dark Chord Spread",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
         // ---- 55: AT-24 in Poly (Phase 13b, FR-066; endpoint A from Slow Swell with the TuneP_Poly edits) ----
+        // Phase 14 T023: converted to M-ENV (AT-24 stays with Slow Swell).
         ProfundumPresetDef{
             .name = "Poly Swell",
             .category = "Resonant",
-            .description = "Envelope Amp Attack: a slow attack swells a folded, shifted body under every held chord in "
-                           "Poly, wide over a Rounded Anchor. Morph to B swells warmer and slower with Tube.",
-            .primary = C::AT24,
+            .description = "Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it "
+                           "there (Amount 1, an instant attack, Sustain 1). A swells a folded, shifted body under "
+                           "every held chord in Poly, wide over a Rounded Anchor; B swells warmer and slower with "
+                           "Tube.",
+            .primary = C::MEnv,
             .secondaries = {},
             // Designed-library pass (2026-10-26): AT-24 had 17.2 of margin; the swelling chords gain excitation, a
             // fold, a Rounded Anchor and a WIDE image. SHAPE stays 0: at 0.4 a load under a held MONO note read the
@@ -3764,21 +3836,34 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kCoreBodyCurvatureId, 0.7},
                           {kCoreBodyEmphasisId, 0.7},
                           {kCoreShiftId, 0.0}},         // shift -1
-            .controls = {{kMorphPositionId, 0.0},   // p = 0
-                         {kVoiceModeId, 1.0}},      // Poly (Polyphony 4, P-6)
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 2.586 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kVoiceModeId, 1.0},                           // Poly (Polyphony 4, P-6)
+                         {kMorphModSourceId, 0.25},                     // Source Envelope (1 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.0},                      // attack 0.1 ms
+                         {kMorphModDecayId, 0.75563024976044124},       // decay 600 ms
+                         {kMorphModSustainId, 1.0},                     // sustain 1
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Swelling Chord",
             .nameB = "Warm Chord Swell",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
         // ---- 56: AT-01 in Poly (Phase 13b, FR-066; endpoint A from Edge Ignition with the TuneP_Poly edits) ----
+        // Phase 14 T023: converted to M-ENV (AT-01 stays with Edge Ignition).
         ProfundumPresetDef{
             .name = "Poly Ignition",
             .category = "Driven",
-            .description = "Core Excitation Mix: full edge excitation through Bite on a WIDE image over a Rounded "
-                           "Anchor, a driven chord bass in Poly. Morph to B warms the chords with Tube, an octave "
-                           "deep.",
-            .primary = C::AT01,
+            .description = "Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it "
+                           "there (Amount 1, an instant attack, Sustain 1). A is full edge excitation through Bite on "
+                           "a WIDE image over a Rounded Anchor, a driven chord bass in Poly; B warms the chords with "
+                           "Tube, an octave deep.",
+            .primary = C::MEnv,
             .secondaries = {},
             // Designed-library pass (2026-10-26): AT-01 had 7.01 of margin; the chords gain a Rounded Anchor.
             .endpointA = {{kCoreDepthId, 1.0},
@@ -3827,8 +3912,19 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAnchorFoldFeedId, 0.0},
                           {kCoreExcitationDriveId, 1.0},
                           {kCoreShiftId, 0.5}},           // shift 0
-            .controls = {{kMorphPositionId, 0.0},   // p = 0
-                         {kVoiceModeId, 1.0}},      // Poly (Polyphony 4, P-6)
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 31.839 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kVoiceModeId, 1.0},                           // Poly (Polyphony 4, P-6)
+                         {kMorphModSourceId, 0.25},                     // Source Envelope (1 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.0},                      // attack 0.1 ms
+                         {kMorphModDecayId, 0.75563024976044124},       // decay 600 ms
+                         {kMorphModSustainId, 1.0},                     // sustain 1
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Ignited Chord",
             .nameB = "Warm Ignited Chord",
             .seed = kFactoryDefaultSeed,
@@ -3953,6 +4049,149 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
             .nameB = "Bitten Chord",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
+        },
+        // ---- 59: M-CYCLE (Phase 14 T023, FR-046): added, no existing preset could carry M-CYCLE ----
+        // evidence/conversions.md NEW PRESET NEEDED: the probe's best row, base Fed Fold (definition 18), margin
+        // 42.832 dB.
+        ProfundumPresetDef{
+            .name = "Tidal Fold",
+            .category = "Animated",
+            .description = "Morph Mod Cycle: a slow, free-running Square Cycle (0.05 Hz, Amount 1) swings the whole sound "
+                           "between A and B, holding each for 10 s. A is a dark, round sub with a hollow body and a little Tube "
+                           "over a Rounded Anchor; B is the tide coming in: a bright, Rectify-edged fold, spread wide.",
+            .primary = C::MCycle,
+            .secondaries = {},
+            // Endpoints: designed for this preset (R9, user 2026-10-27; the probe measured the column on Fed Fold's); the
+            // nine Morph Mod fields are the probe row's candidate through the 1003-1011 laws (morph_mod_params.h).
+            .endpointA = {{kCoreDepthId, 0.8},                  // depth 0.8
+                          {kCoreBodyId, 0.6},                   // body 0.6
+                          {kCoreEdgeId, 0.1},                   // edge 0.1
+                          {kCoreShiftId, 0.35},                 // shift -0.3
+                          {kCoreExcitationMixId, 0.0},            // excitation mix 0
+                          {kFoldAmountId, 0.1},                   // Harmonic Fold 10
+                          {kFoldShapeId, 0.2},                  // SHAPE 0.2 (ROUND side)
+                          {kCharacterId, 0.0},                    // Tube
+                          {kCharacterAmountId, 0.3},            // Amount 0.3
+                          {kCharacterToneId, 0.4},              // Tone 0.4
+                          {kAmpAttackId, 0.260206},             // 2 ms
+                          {kAmpDecayId, 0.708814},              // 350 ms
+                          {kAmpSustainId, 0.45},                // sustain 0.45
+                          {kAmpReleaseId, 0.695424},            // 300 ms
+                          {kFieldImageModeId, 0.5},             // SPREAD
+                          {kFieldSpreadId, 0.4},                // spread 0.4
+                          {kMassId, 0.6},                       // Mass 60
+                          {kAnchorWaveformId, 0.5},             // Rounded Sine
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 0.8},                // level 0.8
+                          {kAnchorFoldFeedId, 0.0}},              // Anchor Fold Feed 0
+            .endpointB = {{kCoreDepthId, 0.3},                  // depth 0.3
+                          {kCoreBodyId, 0.5},                   // body 0.5
+                          {kCoreEdgeId, 0.8},                   // edge 0.8
+                          {kCoreShiftId, 0.65},                 // shift +0.3
+                          {kCoreExcitationMixId, 0.5},          // excitation mix 0.5
+                          {kFoldAmountId, 0.8},                 // Harmonic Fold 80
+                          {kFoldShapeId, 0.6},                  // SHAPE 0.6
+                          {kCharacterId, 0.4},                  // Rectify
+                          {kCharacterAmountId, 0.6},            // Amount 0.6
+                          {kCharacterToneId, 0.6},              // Tone 0.6
+                          {kAmpAttackId, 0.260206},             // 2 ms
+                          {kAmpDecayId, 0.708814},              // 350 ms
+                          {kAmpSustainId, 1.0},                 // sustain 1
+                          {kAmpReleaseId, 0.695424},            // 300 ms
+                          {kFieldImageModeId, 0.5},               // SPREAD
+                          {kFieldSpreadId, 0.8},                // spread 0.8
+                          {kMassId, 0.8},                       // Mass 80
+                          {kAnchorWaveformId, 0.25},            // Triangle
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 1.0},                // level 1
+                          {kAnchorFoldFeedId, 0.0}},              // Anchor Fold Feed 0
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kMorphModSourceId, 0.5},                      // Source Cycle (2 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.39999999922342100},      // attack 10 ms (default)
+                         {kMorphModDecayId, 0.69542425054972046},       // decay 300 ms (default)
+                         {kMorphModSustainId, 0.0},                     // sustain 0 (default)
+                         {kMorphModCycleShapeId, 0.6},                  // Cycle Shape Square (3 / 5)
+                         {kMorphModCycleRateId, 0.21174300729694398},   // Cycle Rate 0.05 Hz
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
+            .nameA = "Low Tide",
+            .nameB = "High Tide",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+            .morphModProbeBase = "Fed Fold",
+        },
+        // ---- 60: M-VEL (Phase 14 T023, FR-046): added, no existing preset could carry M-VEL ----
+        // evidence/conversions.md NEW PRESET NEEDED: the probe's best row, base Fed Fold (definition 18), margin
+        // 41.765 dB.
+        ProfundumPresetDef{
+            .name = "Struck Fold",
+            .category = "Driven",
+            .description = "Morph Mod Velocity: how hard each note is struck sets how far it morphs from A toward B (Amount 1; "
+                           "velocity 127 reaches B). A is a warm, lightly folded Tube bass over a lopsided Anchor; struck hard "
+                           "it cracks into B, a Fracture-split fold with a 7 semitone snap, wide.",
+            .primary = C::MVel,
+            .secondaries = {},
+            // Endpoints: designed for this preset (R9, user 2026-10-27; the probe measured the column on Fed Fold's); the
+            // nine Morph Mod fields are the probe row's candidate through the 1003-1011 laws (morph_mod_params.h).
+            .endpointA = {{kCoreDepthId, 0.7},                  // depth 0.7
+                          {kCoreBodyId, 0.5},                   // body 0.5
+                          {kCoreEdgeId, 0.3},                   // edge 0.3
+                          {kCoreExcitationMixId, 0.0},            // excitation mix 0
+                          {kFoldAmountId, 0.15},                // Harmonic Fold 15
+                          {kFoldShapeId, 0.3},                  // SHAPE 0.3
+                          {kCharacterId, 0.0},                    // Tube
+                          {kCharacterAmountId, 0.5},            // Amount 0.5
+                          {kCharacterToneId, 0.5},              // Tone 0.5
+                          {kAmpAttackId, 0.260206},             // 2 ms
+                          {kAmpDecayId, 0.708814},              // 350 ms
+                          {kAmpSustainId, 0.65},                // sustain 0.65
+                          {kAmpReleaseId, 0.695424},            // 300 ms
+                          {kFieldImageModeId, 0.5},             // SPREAD
+                          {kFieldSpreadId, 0.3},                // spread 0.3
+                          {kMassId, 0.55},                      // Mass 55
+                          {kAnchorWaveformId, 0.75},            // Asymmetric Sine
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 0.8},                // level 0.8
+                          {kAnchorFoldFeedId, 0.0},               // Anchor Fold Feed 0
+                          {kDropAmountId, 0.0}},                  // drop 0 st
+            .endpointB = {{kCoreDepthId, 0.4},                  // depth 0.4
+                          {kCoreBodyId, 0.4},                   // body 0.4
+                          {kCoreEdgeId, 0.7},                   // edge 0.7
+                          {kCoreExcitationMixId, 0.6},          // excitation mix 0.6
+                          {kFoldAmountId, 0.9},                 // Harmonic Fold 90
+                          {kFoldShapeId, 0.8},                  // SHAPE 0.8
+                          {kCharacterId, 1.0},                    // Fracture
+                          {kCharacterAmountId, 0.7},            // Amount 0.7
+                          {kCharacterToneId, 0.6},              // Tone 0.6
+                          {kAmpAttackId, 0.260206},             // 2 ms
+                          {kAmpDecayId, 0.708814},              // 350 ms
+                          {kAmpSustainId, 1.0},                 // sustain 1
+                          {kAmpReleaseId, 0.695424},            // 300 ms
+                          {kFieldImageModeId, 1.0},               // WIDE
+                          {kFieldSpreadId, 0.7},                // spread 0.7
+                          {kMassId, 0.7},                       // Mass 70
+                          {kAnchorWaveformId, 0.75},            // Asymmetric Sine
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 1.0},                // level 1
+                          {kAnchorFoldFeedId, 0.0},               // Anchor Fold Feed 0
+                          {kDropAmountId, 0.145833},            // drop 7 st
+                          {kDropTimeId, 0.410077}},             // drop time 30 ms
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kMorphModSourceId, 0.75},                     // Source Velocity (3 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.39999999922342100},      // attack 10 ms (default)
+                         {kMorphModDecayId, 0.69542425054972046},       // decay 300 ms (default)
+                         {kMorphModSustainId, 0.0},                     // sustain 0 (default)
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
+            .nameA = "Soft Strike",
+            .nameB = "Hard Strike",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+            .morphModProbeBase = "Fed Fold",
         },
     };
     return kPresets;

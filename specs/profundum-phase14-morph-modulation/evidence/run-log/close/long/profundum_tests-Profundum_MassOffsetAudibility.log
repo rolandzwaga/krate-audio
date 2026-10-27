@@ -1,0 +1,11 @@
+Filters: "Profundum_MassOffsetAudibility"
+Randomness seeded to: 2971880475
+Profundum_MassOffsetAudibility position 0: dL_K lo 2.04942 hi -1.46653 value 3.51596 bar 3
+Profundum_MassOffsetAudibility position 0.5: dL_K lo 2.04942 hi -2.03139 value 4.08081 bar 3
+Profundum_MassOffsetAudibility position 1: dL_K lo 2.04942 hi -2.55375 value 4.60318 bar 3
+Profundum_MassOffsetAudibility wall clock 19.9774 s
+19.978 s: Profundum_MassOffsetAudibility
+===============================================================================
+All tests passed (174698 assertions in 1 test case)
+
+exit: 0 wall: 20 s

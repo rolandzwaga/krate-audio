@@ -6,7 +6,7 @@
 // T012: setComponentState mirrors the processor stream (FR-045, FR-046).
 // T019: the PresetManager (FR-050) and createView on the stock-view placeholder
 // editor.uidesc (FR-054, FR-055).
-// Phase 11 T014: initialize registers all 84 parameters (global, macro,
+// Phase 11 T014: initialize registers all 84 parameters (93 since Phase 14 T012) (global, macro,
 // performance, sound, note, morph control) and getParamStringByValue formats
 // every continuous one (FR-001 - FR-009).
 // Phase 11 T016: the endpoint mirror (FR-021), the Edit Target re-display and
@@ -24,6 +24,8 @@
 // binary, which never compiles entry.cpp, builds the same view tree as the plugin.
 // Phase 13 T013: the PresetManager state / load providers, loadPresetStream (kMsgLoadPresetState, then the mirror),
 // the PresetBrowserView overlay and the "PresetBrowserButton" custom view (FR-030, FR-031, FR-032, FR-059; plan 4.6).
+// Phase 14 T012: the nine Morph Modulation parameters 1003-1011 (registration, display, state v3 mirror; FR-020,
+// FR-024; plan 4.11).
 // ==============================================================================
 
 #include "controller/controller.h"
@@ -31,6 +33,7 @@
 #include "parameters/endpoint_names.h"
 #include "parameters/global_params.h"
 #include "parameters/macro_params.h"
+#include "parameters/morph_mod_params.h"
 #include "parameters/morph_params.h"
 #include "parameters/note_params.h"
 #include "parameters/performance_params.h"
@@ -41,6 +44,7 @@
 #include "ui/endpoint_descriptor.h"
 #include "ui/macro_ui_map.h"
 #include "ui/offset_ring_knob.h"  // also registers the "OffsetRingKnob" view creator in this TU (plan 4.13)
+#include "ui/morph_indicator_slider.h"  // also registers "MorphIndicatorSlider" in this TU (Phase 14 plan 4.9)
 #include "ui/adsr_display.h"      // plugins/shared/src/ui (the T025 adapter; also registers "ADSRDisplay")
 #include "ui/arc_knob.h"          // plugins/shared/src/ui: registers "ArcKnob" (D-11)
 #include "ui/bipolar_slider.h"    // plugins/shared/src/ui: registers "BipolarSlider" (D-11)
@@ -93,13 +97,15 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         return result;
     }
 
-    // FR-001 (Phase 11 T014): 8 Phase 10 + 4 performance + 60 sound + 8 note + 4 morph control = 84.
+    // FR-001 (Phase 11 T014): 8 Phase 10 + 4 performance + 60 sound + 8 note + 4 morph control = 84;
+    // Phase 14 FR-020: + 9 morph modulation = 93.
     registerGlobalParams(parameters);
     registerMacroParams(parameters);
     registerPerformanceParams(parameters);
     registerSoundParams(parameters);
     registerNoteParams(parameters);
     registerMorphControlParams(parameters);
+    registerMorphModParams(parameters);
 
     // FR-050.
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(makeProfundumPresetConfig(),
@@ -136,6 +142,9 @@ tresult PLUGIN_API Controller::terminate() {
 //    it, Phase 12 T019; v2: the names become "A" / "B"). A short read leaves the stream at its end,
 //    so every later read fails too and every later field keeps its prior value (the chain stops at the cut). A cut
 //    endpoint (fewer than 201 bytes) or a rejected one (deserializeMorphState false) keeps its prior mirror.
+//  - Phase 14 FR-024 (plan 4.11): v1 / v2 return 1003-1011 to their registered defaults; v3 reads the 36-byte Morph
+//    Modulation block after the two name blocks only when both were read, through the processor's store rules (a
+//    value the processor would not store makes no setParamNormalized call; a cut keeps every later field).
 //  - always: the hidden performance IDs return to 0.5 / 0 / 0 / 0, then the Edit Target is re-displayed.
 // inStateLoad_ is held for the whole load, so the 1001 hook neither re-displays nor calls restartComponent: the host
 // is loading state. Nothing here calls beginEdit / performEdit / endEdit.
@@ -166,6 +175,7 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state) {
         setToRegisteredDefault(kMorphEditTargetId);
         setToRegisteredDefault(kMorphRampTimeId);
         resetNamesToDefaults();  // Phase 12 FR-047: a v1 stream has no names
+        resetMorphModToRegisteredDefaults();  // Phase 14 FR-024: a v1 stream has no Morph Modulation block
     } else if (version >= kStateV2Version) {  // Phase 12 T019 (R-11): v2 AND v3, never only the current version
         loadNoteParamsToController(s, set);
         loadMorphControlParamsToController(s, set);
@@ -187,19 +197,25 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state) {
         }
         if (version == kStateV2Version) {
             resetNamesToDefaults();  // Phase 12 FR-047: a v2 stream has no names
+            resetMorphModToRegisteredDefaults();  // Phase 14 FR-024: nor a Morph Modulation block
         } else if (chainIntact) {
             // v3 (plan 4.5): skip the 20-byte runtime blob (the processor's), then read both name blocks. A short or
             // invalid block keeps that endpoint's prior name and stops the chain; an empty name is the default.
             std::array<std::byte, Krate::DSP::BassMorphEngine::kMorphRuntimeBytes> runtime{};
             if (s.readRaw(runtime.data(), static_cast<TSize>(runtime.size())) == static_cast<TSize>(runtime.size())) {
+                bool namesRead = true;  // Phase 14 plan 4.11: the modulation block follows both name blocks
                 for (std::size_t e = 0; e < names_.size(); ++e) {
                     EndpointName name{};
                     if (!readEndpointName(s, name)) {
+                        namesRead = false;
                         break;
                     }
                     const auto endpoint =
                         e == 1u ? Krate::DSP::BassMorphEngine::Endpoint::B : Krate::DSP::BassMorphEngine::Endpoint::A;
                     names_[e] = name.length == 0u ? defaultEndpointName(endpoint) : name;
+                }
+                if (namesRead) {
+                    loadMorphModParamsToController(s, set);  // FR-024: the processor's store rules
                 }
             }
         }
@@ -220,6 +236,14 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state) {
 void Controller::setToRegisteredDefault(ParamID id) {
     if (Parameter* p = getParameterObject(id)) {
         setParamNormalized(id, p->getInfo().defaultNormalizedValue);
+    }
+}
+
+// Phase 14 FR-024 (plan 4.11): a v1 / v2 stream carries no Morph Modulation block, so 1003-1011 return to their
+// registered defaults (the processor's resetMorphModParams values).
+void Controller::resetMorphModToRegisteredDefaults() {
+    for (ParamID id = kMorphModSourceId; id <= kMorphModCycleSyncRateId; ++id) {
+        setToRegisteredDefault(id);
     }
 }
 
@@ -323,11 +347,14 @@ tresult PLUGIN_API Controller::getParamStringByValue(ParamID tag, ParamValue val
     if (formatMorphControlParam(tag, valueNormalized, string) == kResultOk) {
         return kResultOk;
     }
+    if (formatMorphModParam(tag, valueNormalized, string) == kResultOk) {  // Phase 14 FR-020 (plan 4.11)
+        return kResultOk;
+    }
     if (formatPerformanceParam(tag, valueNormalized, string) == kResultOk) {
         return kResultOk;
     }
-    // Every list (Voice Mode, Polyphony, the list rows, 410-416, 1000, 1001) is a StringListParameter and
-    // Pitch Bend Range (417) a RangeParameter: they format themselves.
+    // Every list (Voice Mode, Polyphony, the list rows, 410-416, 1000, 1001, 1003, 1008, 1010, 1011) is a
+    // StringListParameter and Pitch Bend Range (417) a RangeParameter: they format themselves.
     return EditControllerEx1::getParamStringByValue(tag, valueNormalized, string);
 }
 
@@ -649,6 +676,19 @@ void Controller::registerRingKnob(ParamID id, OffsetRingKnob* knob) noexcept {
     knob->setOffset(macroRingRange(id));
 }
 
+// Phase 14 FR-035 (plan 4.9): the indicator shows the newest frame of the open queue, or the slider value before one.
+void Controller::registerMorphIndicator(MorphIndicatorSlider* slider) noexcept {
+    morphIndicator_ = slider;
+    if (morphIndicator_ == nullptr) {
+        return;
+    }
+    if (frameSinceOpen_) {
+        morphIndicator_->setIndicator(cachedFrame_.morphPosition);
+    } else {
+        morphIndicator_->clearIndicator();
+    }
+}
+
 // Plan 4.6.6: "<name> -- w1 . w2 . w3" with an em dash (U+2014) and middle dots (U+00B7) as UTF-8 bytes, from the
 // current name and mirror.
 std::string Controller::endpointCaption(Krate::DSP::BassMorphEngine::Endpoint e) const {
@@ -827,6 +867,11 @@ void PLUGIN_API Controller::queueOpened(DataExchangeUserContextID userContextID,
     cachedFrame_ = silenceFrame();
     ++queueOpenCount_;
     lastBlockSize_ = blockSize;
+    // Phase 14 FR-035: until this queue's first frame the morph marker sits on the slider value.
+    frameSinceOpen_ = false;
+    if (morphIndicator_ != nullptr) {
+        morphIndicator_->clearIndicator();
+    }
 }
 
 void PLUGIN_API Controller::queueClosed(DataExchangeUserContextID userContextID) {
@@ -842,10 +887,20 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(DataExchangeUserContext
         return;
     }
     // The newest valid block wins; older ones are stale. A block too short for the frame is ignored.
+    bool accepted = false;
     for (uint32 i = 0; i < numBlocks; ++i) {
         if (blocks[i].data != nullptr && blocks[i].size >= sizeof(ProfundumSpectrumFrame)) {
             std::memcpy(&cachedFrame_, blocks[i].data, sizeof(ProfundumSpectrumFrame));
             ++framesReceived_;
+            accepted = true;
+        }
+    }
+    // Phase 14 FR-035 (plan 4.9): the marker follows the resolved morph position of the newest frame; the Morph
+    // Position parameter is never written.
+    if (accepted) {
+        frameSinceOpen_ = true;
+        if (morphIndicator_ != nullptr) {
+            morphIndicator_->setIndicator(cachedFrame_.morphPosition);
         }
     }
 }
@@ -1023,6 +1078,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/) {
     barViews_.fill(nullptr);
     spreadView_ = nullptr;
     panel_ = nullptr;
+    morphIndicator_ = nullptr;
     activeEditor_ = nullptr;
 }
 
@@ -1096,7 +1152,7 @@ bool Controller::viewPointersNullForTest() const noexcept {
     }
     return activeEditor_ == nullptr && barViews_[0] == nullptr && barViews_[1] == nullptr &&
            spreadView_ == nullptr && panel_ == nullptr && adsrDisplay_ == nullptr && presetBrowserView_ == nullptr &&
-           updateBannerView_ == nullptr;
+           updateBannerView_ == nullptr && morphIndicator_ == nullptr;
 }
 
 }  // namespace Profundum

@@ -806,7 +806,12 @@ void swRunMorphEndpointShard(std::size_t k) {
         INFO("preset " << def.name);
         REQUIRE(d.ok);
         const std::vector<std::uint8_t> compB = swBytesOf(withEndpoints(swStateOf(comp), d.b, d.b));
-        const std::array<PresetDescriptor, 2> descA = swDescribe(comp, 512, kPresetStoredSeed);
+        // R8 (Phase 14, user 2026-10-27): a preset that stores a Morph Mod source is measured at its two designed sounds
+        // with the modulation bypassed. A, like B, is then rendered with both endpoints A, so the source cannot move it;
+        // a Source-Off preset is rendered as stored, as before.
+        const std::vector<std::uint8_t> compA =
+            d.morphMod.source != 0 ? swBytesOf(withEndpoints(swStateOf(comp), d.a, d.a)) : comp;
+        const std::array<PresetDescriptor, 2> descA = swDescribe(compA, 512, kPresetStoredSeed);
         const std::array<PresetDescriptor, 2> descB = swDescribe(compB, 512, kPresetStoredSeed);
         CHECK(swDescriptorSound(descA));
         CHECK(swDescriptorSound(descB));

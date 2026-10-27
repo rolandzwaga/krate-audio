@@ -1,0 +1,8 @@
+Filters: "Profundum_MorphModPrePhaseHarvest_3of4"
+Randomness seeded to: 688020366
+# Profundum_MorphModPrePhaseHarvest_3of4: presets=14 fingerprintRows=56 decodedRows=154
+WALL Profundum_MorphModPrePhaseHarvest_3of4 13.3973 s
+===============================================================================
+All tests passed (75875 assertions in 1 test case)
+
+WALL 3 13.5 s exit=0

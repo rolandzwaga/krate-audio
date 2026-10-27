@@ -1,0 +1,18 @@
+=== endpoints-1 2026-10-27T09:26:41Z commit e501b577
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetMorphEndpoints_1of8"
+Filters: "Profundum_PresetMorphEndpoints_1of8"
+Randomness seeded to: 3265958193
+# Profundum_PresetMorphEndpoints_1of8: presets=8
+preset,d_ab,masked,level_a_e1,level_b_e1,level_a_c3,level_b_c3
+"Biting Reed",12.3681,11,-14.2369,-13.9866,-13.898,-12.2196
+"Bedrock",16.5061,12,-10.3426,-10.949,-10.1751,-10.5608
+"Fed Fold",23.8572,11,-8.43213,-8.48202,-8.22703,-8.27392
+"Heavy Mass",20.2117,10,-10.5369,-12.79,-10.3358,-12.6956
+"Mass Tide",12.2704,4,-12.2154,-14.355,-12.0972,-14.6774
+"Halfway Morph",30.6691,7,-10.8332,-8.79989,-10.7208,-10.7509
+"Clean To Violent",13.4226,8,-7.79013,-9.56272,-7.41436,-9.5047
+"Poly Pluck",14.4093,7,-12.1284,-13.8774,-11.7966,-14.3591
+===============================================================================
+All tests passed (3098305 assertions in 1 test case)
+
+WALL endpoints-1 245.8 s exit=0

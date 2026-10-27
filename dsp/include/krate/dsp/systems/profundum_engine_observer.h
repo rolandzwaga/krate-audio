@@ -57,6 +57,11 @@ struct ProfundumGridRecord {                     // per interval
     float motionSource, motionOutput, massIn, smoothedMass, anchorMassUsed, anchorLevel, compressionHanded;
     float compressorGrDb;                        // dynamics_.compressor().currentGainReductionDb() (mass_dynamics.h:571, 272)
     MassLaw::Targets targets;
+    // Phase 14 (specs/profundum-phase14-morph-modulation, plan S4.3): the Morph Modulation source value s, the offset
+    // clamp(amount * s, -1, 1) and the target handed to BassMorphEngine::setPosition at this grid point.
+    float morphModSource = 0.0f;
+    float morphModOffset = 0.0f;
+    float morphTarget = 0.0f;
 };
 struct ProfundumVoiceTaps {                      // per voice, per rendered chunk; spans into the voice's scratch
     std::uint8_t voice; std::uint64_t sample; std::size_t n;

@@ -1,0 +1,83 @@
+# run-library-lanes (Phase 14 T026) 2026-10-27T09:26:39Z commit e501b577 cores=32
+build exit=0 wall=1.6s warnings=0
+showcase-6 exit=0 wall=74.8s
+showcase-7 exit=0 wall=89.4s
+showcase-3 exit=0 wall=93.5s
+showcase-2 exit=0 wall=95.4s
+loudness-match exit=0 wall=97.6s
+mono-sum exit=0 wall=98.7s
+morph-sweep exit=0 wall=101.2s
+showcase-1 exit=0 wall=114.3s
+showcase-4 exit=0 wall=135.6s
+showcase-5 exit=0 wall=136.2s
+showcase-0 exit=0 wall=144.7s
+determinism exit=0 wall=144.8s
+harness-fidelity exit=0 wall=197.7s
+true-peak-max-mass exit=0 wall=199.6s
+sweep exit=0 wall=203.2s
+endpoints-4 exit=0 wall=217.3s
+endpoints-6 exit=0 wall=223.6s
+endpoints-7 exit=0 wall=229.3s
+endpoints-5 exit=0 wall=230.3s
+endpoints-0 exit=0 wall=238.3s
+endpoints-2 exit=0 wall=241.5s
+endpoints-3 exit=0 wall=244.5s
+endpoints-1 exit=0 wall=245.8s
+sweep-rates exit=0 wall=260.2s
+distinctness exit=0 wall=517.2s
+lanes wall=517.6s failed=0
+lanes vacuous=0 
+coverage-merge exit=0 morphmod-check exit=0 claims=135 shards=8
+coverage-post: group-min Core margin=1.1942 (Folded Mass | AT-03 Core Harmonic Fold) pre-phase=1.48355 (Biting Reed / AT-02 Core Shape)
+coverage-post: group-min Character margin=0.215705 (Valve Pressure | AT-04 Character Tube) pre-phase=0.816749 (Valve Pressure / AT-04 Character Tube)
+coverage-post: group-min Anchor margin=0.0361321 (Locked Floor | R-LOCK Reference Lock) pre-phase=0.0361321 (Locked Floor / R-LOCK Reference Lock)
+coverage-post: group-min Pitch margin=0.602034 (Curved Drop | AT-21 Pitch Drop Shape) pre-phase=0.602034 (Curved Drop / AT-21 Pitch Drop Shape)
+coverage-post: group-min Envelope margin=38.3234 (Poly Pluck | AT-25 Envelope Amp Release) pre-phase=17.2 (Poly Swell / AT-24 Envelope Amp Attack)
+coverage-post: group-min Mass margin=1.01259 (Pressure Front | AT-27 Mass Dynamics Gain) pre-phase=1.01259 (Pressure Front / AT-27 Mass Dynamics Gain)
+coverage-post: group-min Field margin=9.95062 (Gravity Well | AT-32 Field Gravity) pre-phase=10.0917 (Gravity Well / AT-32 Field Gravity)
+coverage-post: group-min Motion margin=0.0494771 (Shifting Spectrum | AT-38 Motion Cycle to Shift) pre-phase=0.0494771 (Shifting Spectrum / AT-38 Motion Cycle to Shift)
+coverage-post: group-min Morph margin=4.37899 (Halfway Morph | AT-42 Morph Position Half) pre-phase=4.37899 (Halfway Morph / AT-42 Morph Position Half)
+coverage-post: group-min NoteMemory margin=70.5148 (Glide Path | AT-44 NoteMemory Legato) pre-phase=65.5179 (Glide Path / AT-44 NoteMemory Legato)
+coverage-post: group-min Macros margin=0.225049 (Weight Lever | AT-47 Macros Weight) pre-phase=0.225049 (Weight Lever / AT-47 Macros Weight)
+coverage-post: group-min MorphMod margin=2.58617 (Poly Swell | M-ENV Morph Mod Envelope) pre-phase=none
+coverage-post: M-ENV primary=Rectified Floor; Poly Spread; Poly Swell; Poly Ignition rows=8 min-margin=2.58617 dB
+coverage-post: M-CYCLE primary=Tidal Fold rows=2 min-margin=6.66068 dB
+coverage-post: M-VEL primary=Struck Fold rows=2 min-margin=6.30337 dB
+coverage-post: M-WHEEL primary=Long Tail rows=2 min-margin=7.7043 dB
+phase9-evidence-restore exit=0
+per-push listed=69
+per-push exit=0 wall=125.5s GATE GREEN profundum_tests cases=69 assertions=6395933 wall=125.4s workers=30 logs=f:\tmp\gate\profundum-p14-T026-20261027T102639
+transparency shards=32 max=93.3946s target=9s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_0of32 84.5153 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_1of32 91.0245 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_2of32 93.3946 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_3of32 91.981 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_4of32 84.1283 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_5of32 77.3063 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_6of32 72.7334 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_7of32 90.5117 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_8of32 87.3521 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_9of32 83.1003 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_10of32 82.6114 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_11of32 90.0836 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_12of32 88.0902 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_13of32 87.6171 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_14of32 88.6743 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_15of32 86.1698 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_16of32 82.1606 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_17of32 89.6628 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_18of32 84.8836 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_19of32 78.4593 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_20of32 84.5693 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_21of32 81.0688 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_22of32 80.9227 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_23of32 73.6098 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_24of32 74.3465 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_25of32 79.8632 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_26of32 72.8859 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_27of32 70.7774 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_28of32 45.2316 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_29of32 38.4091 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_30of32 30.8021 s
+DEFECT transparency shard above 9 s (re-shard to 64): WALL Profundum_MorphModPresetTransparency_31of32 26.9686 s
+verdict GREEN claims=135

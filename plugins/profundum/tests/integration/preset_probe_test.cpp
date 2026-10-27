@@ -16,6 +16,24 @@
 // Phase 9 table) and the eleven hidden Profundum_PresetAudibilityProbe_<Group> cases, which run each moved Phase 9
 // shard through the processor (probe context) and engine-direct, join on the gated keys and write
 // evidence/probe-table/<Group>.csv (merged by evidence/merge-csv.js).
+//
+// Phase 14 T021 (specs/profundum-phase14-morph-modulation; FR-044; SC-017 (a) input; plan 5.7 steps 1-4), appended:
+// the 32 hidden Profundum_MorphModProbe_<k>of32 cases. Shard k takes every factory definition i with i % 32 == k
+// (Source Off as stored) and renders each source column's C-15 arms (morphModSourceCell's step-3 arms and step 4-6
+// reading) for the plan 5.7 step 1 candidate grid at E1 and C3, in preset context under
+// ScriptRenderScope(&processorRenderHook, &ctx). Rows go to
+// specs/profundum-phase14-morph-modulation/evidence/probe/shard-<k>.csv; evidence/probe/merge.js joins them,
+// evidence/probe/select.js applies the ruled conversion rule, evidence/probe/run-probe.sh runs it all.
+// Recorded choices (T021 notes):
+//   - The forced-Off lo arm of M-ENV / M-CYCLE is rendered once per (P, note) with P's stored block (Source Off) and
+//     reused for all 12 of their candidates; morphModSourceCell renders it per call, so the reading is the same
+//     code path called on the cached arm (mmpRead mirrors morphModSourceCell steps 4-6 on its own helpers). The
+//     M-VEL / M-WHEEL lo arms depend on the candidate (C-15: "as stored, velocity 1" / "wheel 0") and are rendered
+//     per candidate. Guard: on each shard's first preset at E1, the first candidate of every column is also read
+//     through morphModSourceCell itself and must agree (lo, hi within 1e-6 dB, same pass), which also proves the
+//     Off arm does not depend on the candidate's other fields.
+//   - t0 is written in seconds (%.6f; the 32-sample grid at 48 kHz is 0.000667 s); t0 / p_lo / p_hi are empty
+//     when no window was found (the cell then fails, plan 5.5).
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -28,9 +46,11 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -38,6 +58,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -970,3 +991,314 @@ TEST_CASE("Profundum_PresetAudibilityProbe_NoteMemory", "[profundum][probe][.pro
 TEST_CASE("Profundum_PresetAudibilityProbe_Macros", "[profundum][probe][.probe]") {
     pbRunProbe("Macros", &auRd::auShardMacros);
 }
+
+// -----------------------------------------------------------------------------
+// Phase 14 T021: the Morph Mod probe (FR-044; SC-017 (a) input; plan 5.7 steps 1-4)
+// -----------------------------------------------------------------------------
+
+namespace {
+
+namespace mmpPd = ::Profundum::PresetDefs;
+using MmpMod = DecodedPresetState::MorphMod;
+using MmpSource = Krate::DSP::ProfundumMorphModulator::Source;
+
+constexpr std::size_t kMmpShards = 32;
+constexpr double kMmpGuardDb = 1.0e-6;   // the morphModSourceCell guard (same binary, separately inlined call sites)
+
+/// One source column of the probe: the CSV id (the T023 capability label's prefix), the source and the row label.
+struct MmpColumn {
+    const char* id;
+    MmpSource source;
+    const char* row;
+};
+constexpr std::array<MmpColumn, 4> kMmpColumns{{
+    {.id = "M-ENV", .source = MmpSource::Envelope, .row = "M-ENV Morph Mod Envelope"},
+    {.id = "M-CYCLE", .source = MmpSource::Cycle, .row = "M-CYCLE Morph Mod Cycle"},
+    {.id = "M-VEL", .source = MmpSource::Velocity, .row = "M-VEL Morph Mod Velocity"},
+    {.id = "M-WHEEL", .source = MmpSource::ModWheel, .row = "M-WHEEL Morph Mod Wheel"},
+}};
+
+[[nodiscard]] std::int32_t mmpSourceIndex(MmpSource s) noexcept {
+    return static_cast<std::int32_t>(s);
+}
+
+/// One candidate of plan 5.7 step 1: the column index into kMmpColumns and the nine C-10 fields.
+struct MmpCandidate {
+    std::size_t column = 0;
+    MmpMod mod;
+};
+
+/// Plan 5.7 step 1, in this order: M-ENV Amount sigma * {1, 0.6} x Attack {0.1, 150} ms x Sustain {1, 0.6}, Decay
+/// 600 ms (8); M-CYCLE Amount {+1, -1} x Shape {Square, S&H}, Rate 0.05 Hz free (4); M-VEL Amount sigma * {1, 0.6}
+/// (2); M-WHEEL Amount sigma * {1, 0.6} (2). sigma = +1 if P's stored position <= 0.5, else -1. Fields a candidate
+/// does not name keep P's stored values.
+[[nodiscard]] std::vector<MmpCandidate> mmpCandidates(const DecodedPresetState& d) {
+    const float sigma = d.morph.position <= 0.5f ? 1.0f : -1.0f;
+    const auto base = [&d](MmpSource s) {
+        MmpMod m = d.morphMod;
+        m.source = mmpSourceIndex(s);
+        return m;
+    };
+    std::vector<MmpCandidate> out;
+    for (const float amount : {1.0f, 0.6f}) {
+        for (const float attack : {0.1f, 150.0f}) {
+            for (const float sustain : {1.0f, 0.6f}) {
+                MmpMod m = base(MmpSource::Envelope);
+                m.amount = sigma * amount;
+                m.attackMs = attack;
+                m.decayMs = 600.0f;
+                m.sustain = sustain;
+                out.push_back({.column = 0, .mod = m});
+            }
+        }
+    }
+    for (const float amount : {1.0f, -1.0f}) {
+        for (const Krate::DSP::Waveform shape : {Krate::DSP::Waveform::Square, Krate::DSP::Waveform::SampleHold}) {
+            MmpMod m = base(MmpSource::Cycle);
+            m.amount = amount;
+            m.cycleShape = static_cast<std::int32_t>(shape);
+            m.cycleRateHz = 0.05f;
+            m.cycleSync = 0;
+            out.push_back({.column = 1, .mod = m});
+        }
+    }
+    for (const std::size_t column : {std::size_t{2}, std::size_t{3}}) {
+        for (const float amount : {1.0f, 0.6f}) {
+            MmpMod m = base(kMmpColumns[column].source);
+            m.amount = sigma * amount;
+            out.push_back({.column = column, .mod = m});
+        }
+    }
+    REQUIRE(out.size() == 16u);
+    return out;
+}
+
+/// True iff P claims (primary or secondary) a column whose showcaseArmPlan on P with morph.position = 0.5 records
+/// the override "kMorphPositionId=0" (a single-state column, Phase 13 P-3, preset_render_support.h needPositionZero).
+[[nodiscard]] bool mmpSingleState(const DecodedPresetState& d, const mmpPd::ProfundumPresetDef& def) {
+    DecodedPresetState q = d;
+    q.morph.position = 0.5f;
+    std::vector<mmpPd::Capability> claims = def.secondaries;
+    claims.push_back(def.primary);
+    return std::ranges::any_of(claims, [&q](const mmpPd::Capability c) {
+        const ShowcasePlan plan = showcaseArmPlan(q, c);
+        return std::ranges::find(plan.overrides, std::string("kMorphPositionId=0")) != plan.overrides.end();
+    });
+}
+
+/// One arm of @p source exactly as morphModSourceCell step 3 builds it (lo: hi == false); the context's two levers
+/// are restored on return.
+[[nodiscard]] auPt::VoiceEngineTaps mmpArm(PresetArmContext& ctx, const auPt::VoiceEngineScript& sc,
+                                           MmpSource source, bool hi) {
+    const std::optional<std::int32_t> savedSource = ctx.forceMorphModSource;
+    const std::optional<float> savedWheel = ctx.morphModWheel;
+    auPt::VoiceEngineScript s = sc;
+    switch (source) {
+        case MmpSource::Envelope:
+        case MmpSource::Cycle:
+            ctx.forceMorphModSource = hi ? std::optional<std::int32_t>{} : std::optional<std::int32_t>{0};
+            break;
+        case MmpSource::Velocity: s.events[0].velocity = hi ? std::uint8_t{127} : std::uint8_t{1}; break;
+        default: ctx.morphModWheel = hi ? 1.0f : 0.0f; break;
+    }
+    auPt::VoiceEngineTaps t = auRd::render::voiceEngineRenderWithTwin(s);
+    ctx.forceMorphModSource = savedSource;
+    ctx.morphModWheel = savedWheel;
+    return t;
+}
+
+/// One reading: morphModSourceCell steps 4-6 (window, D_nl on shifted taps, contrast, pass).
+struct MmpReading {
+    bool found = false;
+    std::size_t t0 = 0;
+    double pLo = 0.0, pHi = 0.0, dLo = 0.0, dHi = 0.0, contrast = 0.0;
+    bool pass = false;
+};
+
+[[nodiscard]] MmpReading mmpRead(const auPt::VoiceEngineTaps& lo, const auPt::VoiceEngineTaps& hi,
+                                 std::uint8_t note) {
+    namespace md = morph_mod_reader_detail;
+    const double fs = auRd::kAuFs;
+    const md::MmArmWindow win = md::mmPlaceWindow(lo.grid, hi.grid, fs);
+    const auto settle = static_cast<std::size_t>(std::llround(1.0 * fs));
+    const std::size_t shift = win.found ? win.t0 - settle : 0u;
+    const double f0 = auRd::auHz(note);
+    MmpReading r;
+    r.found = win.found;
+    r.t0 = win.t0;
+    r.pLo = win.pLo;
+    r.pHi = win.pHi;
+    r.dLo = auBm::dNlDb(md::mmShiftedChainTaps(lo, shift), f0, fs);
+    r.dHi = auBm::dNlDb(md::mmShiftedChainTaps(hi, shift), f0, fs);
+    r.contrast = std::abs(r.dHi - r.dLo);
+    const bool valid = auRd::auFinite(r.dLo) && auRd::auFinite(r.dHi) && auRd::auFinite(r.contrast);
+    r.pass = win.found && valid && r.contrast >= auRd::kAuBarDb;
+    return r;
+}
+
+[[nodiscard]] std::string mmpFixed(double v, int decimals) {
+    std::array<char, 48> buf{};
+    std::snprintf(buf.data(), buf.size(), "%.*f", decimals, v);
+    return {buf.data()};
+}
+
+[[nodiscard]] std::string mmpNum(double v) {
+    std::array<char, 48> buf{};
+    std::snprintf(buf.data(), buf.size(), "%.9g", v);
+    return {buf.data()};
+}
+
+[[nodiscard]] std::filesystem::path mmpProbeDir() {
+    return {std::string(KRATE_DSP_TESTS_DIR) + "/../../specs/profundum-phase14-morph-modulation/evidence/probe"};
+}
+
+/// Plan 5.7 step 1 for shard @p k: every definition i with i % kMmpShards == k.
+void mmpRunShard(std::size_t k) {
+    enableFTZDAZ();
+    const auto start = std::chrono::steady_clock::now();
+    const std::vector<mmpPd::ProfundumPresetDef>& defs = mmpPd::allPresets();
+    const auto& table = mmpPd::capabilityTable();
+
+    std::ostringstream os;
+    os << "preset,defIndex,column,source,amount,attackMs,decayMs,sustain,cycleShape,cycleRateHz,cycleSync,"
+          "cycleSyncRate,note,t0,p_lo,p_hi,dnl_lo,dnl_hi,contrast,pass,primary,singleState\n";
+    std::size_t presets = 0;
+    std::size_t rows = 0;
+    std::size_t renders = 0;
+    bool guardPending = true;   // the first preset of the shard, at E1
+
+    for (std::size_t i = k; i < defs.size(); i += kMmpShards) {
+        const mmpPd::ProfundumPresetDef& def = defs[i];
+        INFO("preset " << def.name << " (definition " << i << ")");
+        const std::vector<std::uint8_t> comp = presetCompOf(def);
+        const DecodedPresetState d = decodePresetState(comp);
+        REQUIRE(d.ok);
+        REQUIRE(d.morphMod.present);
+        const bool single = mmpSingleState(d, def);
+        const std::string primary(table[static_cast<std::size_t>(def.primary)].label);
+        const std::vector<MmpCandidate> candidates = mmpCandidates(d);
+
+        PresetArmContext ctx;
+        ctx.preset = &d;
+        ctx.comp = comp;
+        ctx.allowedEndpoints = {{d.a, d.b}};
+        REQUIRE((auRd::render::scriptRenderHook().fn == nullptr));
+        const auRd::render::ScriptRenderScope scope(&processorRenderHook, &ctx);
+
+        for (const std::uint8_t note : auRd::kAuNotes) {
+            INFO("note " << auRd::auNoteName(note));
+            const auPt::VoiceEngineScript sc =
+                auRd::auScript(preset_showcase_detail::settingOf(d), note, kMorphModArmTotal);
+            REQUIRE(!sc.events.empty());
+            REQUIRE(sc.events[0].kind == auRd::AuKind::NoteOn);
+
+            // The forced-Off lo arm of M-ENV / M-CYCLE: P as stored (Source Off), once per (P, note).
+            ctx.morphModCandidate.reset();
+            const auPt::VoiceEngineTaps offLo = mmpArm(ctx, sc, MmpSource::Envelope, false);
+            ++renders;
+
+            const bool guardNote = guardPending && note == auRd::kAuE1;
+            std::array<bool, kMmpColumns.size()> guarded{};
+            for (const MmpCandidate& cand : candidates) {
+                const MmpColumn& col = kMmpColumns[cand.column];
+                ctx.morphModCandidate = cand.mod;
+                MmpReading r;
+                if (col.source == MmpSource::Envelope || col.source == MmpSource::Cycle) {
+                    const auPt::VoiceEngineTaps hi = mmpArm(ctx, sc, col.source, true);
+                    ++renders;
+                    r = mmpRead(offLo, hi, note);
+                } else {
+                    const auPt::VoiceEngineTaps lo = mmpArm(ctx, sc, col.source, false);
+                    const auPt::VoiceEngineTaps hi = mmpArm(ctx, sc, col.source, true);
+                    renders += 2u;
+                    r = mmpRead(lo, hi, note);
+                }
+
+                if (guardNote && !guarded[cand.column]) {
+                    // The same candidate through morphModSourceCell itself (its lo arm carries the candidate's
+                    // fields with Source forced Off): the cached-arm reading must agree.
+                    guarded[cand.column] = true;
+                    const auRd::AuCell cell = morphModSourceCell(mmpSourceIndex(col.source), col.row, d, note);
+                    renders += 2u;
+                    INFO("guard " << col.id << ": cell lo " << cell.lo << " hi " << cell.hi << " pass " << cell.pass
+                                  << " (" << cell.remark << "); probe lo " << r.dLo << " hi " << r.dHi << " pass "
+                                  << r.pass);
+                    CHECK(std::abs(cell.lo - r.dLo) <= kMmpGuardDb);
+                    CHECK(std::abs(cell.hi - r.dHi) <= kMmpGuardDb);
+                    CHECK(cell.pass == r.pass);
+                }
+
+                const MmpMod& m = cand.mod;
+                os << auRd::auCsvField(std::string(def.name)) << ',' << i << ',' << col.id << ',' << m.source << ','
+                   << mmpNum(m.amount) << ',' << mmpNum(m.attackMs) << ',' << mmpNum(m.decayMs) << ','
+                   << mmpNum(m.sustain) << ',' << m.cycleShape << ',' << mmpNum(m.cycleRateHz) << ',' << m.cycleSync
+                   << ',' << m.cycleSyncRate << ',' << auRd::auNoteName(note) << ',';
+                if (r.found) {
+                    os << mmpFixed(static_cast<double>(r.t0) / auRd::kAuFs, 6) << ',' << mmpNum(r.pLo) << ','
+                       << mmpNum(r.pHi) << ',';
+                } else {
+                    os << ",,,";
+                }
+                os << mmpNum(r.dLo) << ',' << mmpNum(r.dHi) << ',' << mmpNum(r.contrast) << ','
+                   << (r.pass ? "PASS" : "FAIL") << ',' << auRd::auCsvField(primary) << ','
+                   << (single ? "true" : "false") << '\n';
+                ++rows;
+            }
+            ctx.morphModCandidate.reset();
+            if (guardNote) {
+                guardPending = false;
+            }
+        }
+        ++presets;
+    }
+
+    const std::string csv = os.str();
+    std::cout << "# Profundum_MorphModProbe_" << k << "of" << kMmpShards << "\n" << csv << std::flush;
+    const std::filesystem::path dir = mmpProbeDir();
+    std::filesystem::create_directories(dir);
+    {
+        std::ofstream out(dir / ("shard-" + std::to_string(k) + ".csv"), std::ios::binary);
+        out << csv;
+        CHECK(out.good());
+    }
+    const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    std::cout << "MORPHMOD PROBE SHARD " << k << " presets=" << presets << " rows=" << rows << " renders=" << renders
+              << " wall=" << mmpFixed(wall, 1) << " s\n"
+              << std::flush;
+    CHECK(rows == presets * 16u * auRd::kAuNotes.size());
+}
+
+}  // namespace
+
+TEST_CASE("Profundum_MorphModProbe_0of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(0); }
+TEST_CASE("Profundum_MorphModProbe_1of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(1); }
+TEST_CASE("Profundum_MorphModProbe_2of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(2); }
+TEST_CASE("Profundum_MorphModProbe_3of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(3); }
+TEST_CASE("Profundum_MorphModProbe_4of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(4); }
+TEST_CASE("Profundum_MorphModProbe_5of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(5); }
+TEST_CASE("Profundum_MorphModProbe_6of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(6); }
+TEST_CASE("Profundum_MorphModProbe_7of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(7); }
+TEST_CASE("Profundum_MorphModProbe_8of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(8); }
+TEST_CASE("Profundum_MorphModProbe_9of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(9); }
+TEST_CASE("Profundum_MorphModProbe_10of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(10); }
+TEST_CASE("Profundum_MorphModProbe_11of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(11); }
+TEST_CASE("Profundum_MorphModProbe_12of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(12); }
+TEST_CASE("Profundum_MorphModProbe_13of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(13); }
+TEST_CASE("Profundum_MorphModProbe_14of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(14); }
+TEST_CASE("Profundum_MorphModProbe_15of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(15); }
+TEST_CASE("Profundum_MorphModProbe_16of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(16); }
+TEST_CASE("Profundum_MorphModProbe_17of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(17); }
+TEST_CASE("Profundum_MorphModProbe_18of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(18); }
+TEST_CASE("Profundum_MorphModProbe_19of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(19); }
+TEST_CASE("Profundum_MorphModProbe_20of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(20); }
+TEST_CASE("Profundum_MorphModProbe_21of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(21); }
+TEST_CASE("Profundum_MorphModProbe_22of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(22); }
+TEST_CASE("Profundum_MorphModProbe_23of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(23); }
+TEST_CASE("Profundum_MorphModProbe_24of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(24); }
+TEST_CASE("Profundum_MorphModProbe_25of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(25); }
+TEST_CASE("Profundum_MorphModProbe_26of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(26); }
+TEST_CASE("Profundum_MorphModProbe_27of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(27); }
+TEST_CASE("Profundum_MorphModProbe_28of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(28); }
+TEST_CASE("Profundum_MorphModProbe_29of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(29); }
+TEST_CASE("Profundum_MorphModProbe_30of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(30); }
+TEST_CASE("Profundum_MorphModProbe_31of32", "[profundum][morphmod][probe][.probe]") { mmpRunShard(31); }

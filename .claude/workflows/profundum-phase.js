@@ -138,8 +138,8 @@ MONOREPO FACTS:
   1-9 are pure KrateDSP library work with unit tests, no plugin.
 - Build (Windows, ALWAYS full cmake path):
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target <target>
-  Run one suite directly: build/windows-x64-release/bin/Release/<target>.exe 2>&1 | tail -5
-  Filter Catch2 by test name: <exe> "TestName*"  (positional arg, not -c; tags in [brackets]).
+  Run suites sharded: node tools/run-gate.js --filter '<filter>' <target> [<target> ...] (last line GATE GREEN|RED).
+  One case by name only: <exe> "TestName"  (positional arg, not -c; tags in [brackets]).
 
 CROSS-CUTTING CONSTRAINTS (violations are defects at every stage):
 - RT safety: no allocation/locks/exceptions/IO on the audio thread; pools sized at prepare.
@@ -196,8 +196,8 @@ files it names.
 
 Build (Windows, ALWAYS full cmake path):
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target <target>
-Run one suite directly: build/windows-x64-release/bin/Release/<target>.exe 2>&1 | tail -5
-Filter Catch2 by test name: <exe> "TestName*"  (positional arg, not -c; tags in [brackets]).
+Run suites sharded: node tools/run-gate.js --filter '<filter>' <target> [<target> ...] (last line GATE GREEN|RED).
+One case by name only: <exe> "TestName"  (positional arg, not -c; tags in [brackets]).
 
 DISCIPLINE: report only what you actually observed; quote real output
 verbatim, never paraphrase or invent.

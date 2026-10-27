@@ -1072,6 +1072,106 @@ Phase 9's table — a preset built on an inaudible feature is a defect (Vorago 1
 (seconds-scale — this is a bass, not a drone) + per-preset mono-sum check + true-peak check at maximum
 Mass. Release gate via `release-readiness` flow.
 
+### Phase 14: Morph Modulation
+
+**Status: ✅ COMPLETE (2026-10-27; the macOS / Linux CI legs PENDING-CI until the push)** — see
+specs/profundum-phase14-morph-modulation/compliance.md (the five comply-stage reds closed in the main loop: rulings R11 -
+R14, an engine optimisation for SC-014 that brought MOD-POLY from 27.18 % to 20.60 % against 25 %).
+
+**Spec:** `profundum-phase14-morph-modulation`
+
+**Goal:** Bass Morph moves by itself. Today Morph Position (105) moves only by hand or host automation: Motion's
+destinations are Mass / Depth / Body / Edge / Shift, the mod wheel and channel pressure push Mass, and velocity never
+reaches Morph, so a per-note "pluck at A, settle into B" needs an automation lane per note. Part of release 1.0.0.
+
+**Rulings (user, 2026-10-26):**
+
+- **All five sources:** Off · **Envelope** · **Cycle** · **Velocity** · **Mod Wheel**.
+- **Global, outside both endpoints.** Morph Modulation is NOT a `MorphState` field (Motion's configuration is
+  per-endpoint and is itself morphed; a morphed modulator of Morph is a feedback loop). One modulated value drives every
+  voice, as Morph Position does today.
+- **Result = clamp(Morph Position + Amount × source, 0, 1)**, Amount bipolar (toward B or back toward A from wherever the
+  slider sits), through the existing Morph Ramp Time smoothing contract (no zipper, no click).
+- **Envelope: Attack - Decay - Sustain.** Covers "rise from A into B and stay" (attack T, sustain 1) and "hit B and settle
+  back" (attack 0, decay T, sustain 0). Restarts on **every new note**, in MONO and in POLY (Morph is global; the latest
+  note owns the gesture, held notes follow).
+- **Cycle:** an LFO with the shapes and the tempo sync Motion's CYCLE already offers (reuse, no new waveform set).
+- **Velocity:** the velocity of the latest note-on sets the source value, held until the next note-on.
+- **Mod Wheel:** with Source = Mod Wheel the wheel drives Morph **only** and stops pushing Mass; with any other source it
+  pushes Mass exactly as today (`IMidiMapping` unchanged; the routing decision is the processor's).
+- **No state-format version bump.** The plugin is unreleased: the new parameters join format version 3 and its byte
+  count grows; there is no v3-without-modulation reader to keep. Saved defaults: Source Off, so every existing factory
+  preset renders exactly as before until it opts in.
+- Parameters in the Morph control band after 1002 (1003+); every new parameter `kCanAutomate` except where Phase 11's
+  rules say otherwise (a list stays a list).
+
+**Required alongside the engine** (the Phase 10-13 rules apply): host parameters, state round trip including hostile
+streams, the editor (Main page's morph section and / or the Advanced Modulation tab — decided in spec), tooltips, the
+manual, and the factory library: **every source is shown off by at least one factory preset and measured** (the Phase 13
+coverage rule — a capability no preset showcases is a defect), with the Phase 13 gates (claims, loudness, A-B endpoints,
+morph sweep, held load) green afterwards.
+
+**Success criteria (refined in spec):** each source moves the resolved Morph position as specified (envelope stage
+times and sustain measured, cycle rate and shape, velocity mapping, mod-wheel routing with Mass untouched); Off and
+Amount 0 are bit-transparent against today's renders of every factory preset; the modulated morph is click-free at
+every Amount / Time extreme (the Phase 8 bounded per-block change); retrigger in MONO legato and POLY chords as ruled;
+RT-safe (no allocation); CPU cost bounded inside the Phase 9 whole-engine budgets; the audibility of every source on its
+showcase preset clears the Phase 9 bar.
+
+---
+
+### Phase 15: Stiffness & Phase Alignment
+
+**Spec:** `profundum-phase15-stiffness-phase`
+
+**Goal:** Two harmonic-core controls that make sounds no existing control can. Today every partial is a sine at an exact
+integer multiple of f₀ with phase 0 (`profundum_core.h:431-433`, `inharmonicDeviation = 0`, `phase = 0`). Per-partial
+waveforms were considered and rejected: in a harmonic stack a non-sine partial at n·f₀ only adds energy at k·n·f₀, which
+the recipe already owns. Part of release 1.0.0.
+
+- **Stiffness** (inharmonicity): pushes the upper partials sharp of the integer series, as a stiff string or a metal bar
+  does — a stiff, metallic, bell-edged bass. The bank already carries the hook (`harmonic_oscillator_bank.h:1077`,
+  `freq_n = (n + deviation · amount) · f₀`); the stretch law (piano-string `n·√(1 + B·n²)` or a simpler power law) is a
+  spec decision.
+- **Phase** (alignment): the same spectrum with different partial phases — from today's all-phase-0 stack (peaky) toward
+  a low-crest-factor alignment (Schroeder-style, smooth). Barely audible on the clean core; strongly audible through Fold
+  and Character, whose response depends on the waveform's peaks. A "how hard the distortion bites" control that leaves
+  the clean spectrum unchanged.
+
+**Rulings (user, 2026-10-26):**
+
+- **Both controls are per-endpoint `MorphState` fields**, like Depth / Body / Edge / Shift: A and B each store their own
+  value and Bass Morph interpolates them, so a morph can travel from a clean bass into a stiff one, or from a smooth
+  alignment into a biting one.
+- **Phase glides live.** A Phase change on a held note (knob, Morph, Morph Modulation, automation) slides every partial to
+  its new alignment over a bounded ramp; the transient frequency deviation that a phase slide implies is measured and
+  held under a ruled audibility bound. Note-on applies the current alignment directly.
+- **Part of 1.0.0, no state-format bump.** The new fields join format version 3 (both endpoints) and the byte count
+  grows; defaults Stiffness 0 and Phase = today's alignment, so every factory preset renders as before until it opts in.
+
+**Constraints the spec must honour:**
+
+- **h1 stays exact.** The Anchor is phase-locked to the core's h1 (Phase 3); the stretch law leaves partial 1 at f₀ and
+  the Anchor's zero-drift criterion holds at every Stiffness.
+- **Nyquist cap and Low Note Guard re-evaluate on stretched frequencies** — a stretched partial that crosses Nyquist is
+  removed, never aliased.
+- **Headroom:** the core's peak headroom was derived for the all-phase-0 stack (`profundum_core.h:108`); every Phase
+  setting stays inside it (low-crest alignments lower the peak; the spec proves no intermediate alignment exceeds it).
+- **Keyboard tracking of Stiffness** (constant B across the range vs scaled with pitch) is a spec decision, measured
+  for musical range at E0–C3.
+
+**Required alongside the engine** (the Phase 10-14 rules apply): host parameters in the core section, endpoint-aware like
+every sound parameter (Edit A / Edit B), state round trip including hostile streams, the editor (Advanced core section; a
+Main-page placement decided in spec), tooltips, the manual, and the factory library: **each control is shown off by at
+least one factory preset and measured** (Phase 13 coverage rule), with every Phase 13 and Phase 14 gate green afterwards.
+
+**Success criteria (refined in spec):** partial frequencies match the stretch law (< 0.1 cent) with h1 exact; Phase
+leaves the clean core's magnitude spectrum unchanged within tolerance and moves crest factor monotonically; Phase moves
+a post-Fold / post-Character descriptor by at least the Phase 9 bar on its showcase; a live Phase glide's frequency
+deviation stays under the ruled bound and is click-free; Stiffness 0 and the default Phase are bit-transparent against
+today's renders of every factory preset (same-binary identity + pre-phase fingerprint tolerance, the Phase 14 method);
+Morph interpolation of both fields bounded per block; RT-safe; CPU inside the Phase 9 budgets.
+
 ---
 
 ## Dependency Graph
@@ -1082,7 +1182,7 @@ Mass. Release gate via `release-readiness` flow.
 Phase 1 ─────────┼─→ Phase 7 (stereo field) ───────────┼─→ Phase 9 (voice/engine) ─→ Phase 10 (scaffold)
 (harmonic core)  └─→ Phase 8 (bass morph) ─────────────┤              │
                                                        │              ▼
-Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13 ✅
+Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13 ✅ → 14 → 15
 Phase 5 (shape + character) ───────────────────────────┤
 Phase 6 (mass + dynamics) ─────────────────────────────┘
 ```

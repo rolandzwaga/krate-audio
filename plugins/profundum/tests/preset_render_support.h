@@ -57,6 +57,22 @@
 //     tail RMS, true peak, finite and SOLID checks read [0, noteOff + tail) only.
 //   - The mono-sum and descriptor-window readings exist on 48 kHz renders only (monoMeasured).
 //   - PresetRenderReadings gains the counts and windows the [long] cases print (nonFinite, monoSumWindow, ...).
+//
+// Phase 14 T019 (specs/profundum-phase14-morph-modulation, plan 4.12, 5.5; tasks Deviation 4), append-only:
+//   - PresetArmContext morphModCandidate / forceMorphModSource / morphModWheel; effectiveScriptFor overlays the
+//     stored C-10 block (preset context) and then those three (both contexts).
+//   - The processor carries the effective script's modulation: withMorphMod writes the block into the loaded stream,
+//     the wheel is parameter 6 (sample-0 block and K::MorphModWheel carrier), bypass and MorphModulation /
+//     MorphModBypass events are refused by name.
+//   - renderPresetSweep's trailing MorphModOverride (source / amount patch, wheel block, Compare message).
+//   - morphModSourceCell: the source-keyed C-15 reader (window placement, shifted D_nl taps).
+//
+// Phase 14 T023 (plan 4.12 showcase cases, 4.13; FR-041, SC-017 (a)(b)), append-only:
+//   - showcaseArmPlan's four MorphMod cases (M-ENV, M-CYCLE, M-VEL, M-WHEEL): the stored pair declared, D_nl over the
+//     reader's frame (kMorphModWindowMs), the cell morphModTrajectoryCell;
+//   - morph_mod_evidence: the Phase 14 evidence readers (probe-morphmod.csv, prephase-claims.csv, conversions.md);
+//   - morphModTrajectoryCell: the column-keyed wrapper of morphModSourceCell that REQUIREs a passing probe row for
+//     the same preset (or the probe base of an added preset), source and stored settings (SC-017 (a)).
 // ==============================================================================
 
 #include "param_path_audibility_helpers.h"   // ppNorm, kPpPortTolerance (Phase 11 laws)
@@ -69,6 +85,7 @@
 
 #include "engine/profundum_engine_config.h"
 #include "parameters/global_params.h"
+#include "parameters/morph_mod_params.h"   // Phase 14 T019: morphModConfigOf (the decoded block's config)
 #include "parameters/morph_params.h"
 #include "parameters/note_params.h"
 #include "parameters/sound_param_table.h"   // T019: kSoundRows (parameter-space slots)
@@ -83,6 +100,7 @@
 #include <render_fingerprint.h>
 #include <vst_event_list.h>
 
+#include <krate/dsp/core/note_value.h>   // Phase 14 T019: kNoteValueDropdownMapping (withMorphMod's inverse lookup)
 #include <krate/dsp/systems/morph_state.h>
 #include <krate/dsp/systems/profundum_engine.h>
 #include <krate/dsp/systems/profundum_engine_observer.h>
@@ -95,14 +113,19 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <initializer_list>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -134,7 +157,78 @@ struct PresetArmContext {
     std::vector<Fidelity> fidelity;                // one per twin render (C-5 fidelity arm)
     std::string stop;                              // Deviation 3: the FR-023 refusal of the last render, else empty
     ProcessorFixture* processor = nullptr;         // optional: render on this processor (nullptr: a fresh one)
+    // Phase 14 T019 (plan 4.12): the morph-modulation overlays of effectiveScriptFor (steps 2-4), both contexts.
+    std::optional<DecodedPresetState::MorphMod> morphModCandidate;   // the FR-044 probe's candidate settings
+    std::optional<std::int32_t> forceMorphModSource;                 // the "forced Off" arms (FR-060 (b), C-15, 5.8)
+    std::optional<float> morphModWheel;                              // the M-WHEEL arms
 };
+
+// -----------------------------------------------------------------------------
+// Phase 14 T019 (plan 4.12): the morph-modulation block of a script
+// -----------------------------------------------------------------------------
+
+/// The engine config of a decoded C-10 block: the processor's own mapping (morphModConfigOf, morph_mod_params.h),
+/// the Sync Rate index through kNoteValueDropdownMapping.
+[[nodiscard]] inline Krate::DSP::ProfundumMorphModulator::Config morphModConfigOfDecoded(
+    const DecodedPresetState::MorphMod& m) {
+    ::Profundum::MorphModParams p;
+    p.source.store(m.source, std::memory_order_relaxed);
+    p.amount.store(m.amount, std::memory_order_relaxed);
+    p.attackMs.store(m.attackMs, std::memory_order_relaxed);
+    p.decayMs.store(m.decayMs, std::memory_order_relaxed);
+    p.sustain.store(m.sustain, std::memory_order_relaxed);
+    p.cycleShape.store(m.cycleShape, std::memory_order_relaxed);
+    p.cycleRateHz.store(m.cycleRateHz, std::memory_order_relaxed);
+    p.cycleSync.store(m.cycleSync, std::memory_order_relaxed);
+    p.cycleSyncRate.store(m.cycleSyncRate, std::memory_order_relaxed);
+    return ::Profundum::morphModConfigOf(p);
+}
+
+/// Plan 4.12 overlay steps (2)-(4), both contexts: the candidate, then the forced source, then the wheel.
+inline void applyMorphModOverlay(auPt::VoiceEngineScript& e, const PresetArmContext& ctx) {
+    if (ctx.morphModCandidate.has_value()) {
+        e.morphMod = morphModConfigOfDecoded(*ctx.morphModCandidate);
+    }
+    if (ctx.forceMorphModSource.has_value()) {
+        e.morphMod.source = static_cast<Krate::DSP::ProfundumMorphModulator::Source>(*ctx.forceMorphModSource);
+    }
+    if (ctx.morphModWheel.has_value()) {
+        e.morphModWheel = *ctx.morphModWheel;
+    }
+}
+
+/// The kNoteValueDropdownMapping index of {note, modifier} (the inverse of note_value.h's table); -1 for a pair not
+/// in the table.
+[[nodiscard]] inline int mmSyncIndexOf(Krate::DSP::NoteValue note, Krate::DSP::NoteModifier modifier) noexcept {
+    for (int i = 0; i < Krate::DSP::kNoteValueDropdownCount; ++i) {
+        const Krate::DSP::NoteValueMapping& m = Krate::DSP::kNoteValueDropdownMapping[static_cast<std::size_t>(i)];
+        if (m.note == note && m.modifier == modifier) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/// Plan 4.12 harness item 1: @p bytes with the C-10 block at kStateMorphModOffset replaced by @p c, bitwise, in the
+/// table order (source, amount, attack, decay, sustain, shape, rate, sync, Sync Rate as the dropdown index).
+[[nodiscard]] inline StateBytes withMorphMod(StateBytes bytes, const Krate::DSP::ProfundumMorphModulator::Config& c) {
+    namespace P = ::Profundum;
+    REQUIRE(bytes.size() >= P::kStateMorphModOffset + P::kStateMorphModBytes);
+    const int syncRate = mmSyncIndexOf(c.cycleNote, c.cycleModifier);
+    REQUIRE(syncRate >= 0);
+    constexpr std::size_t at = P::kStateMorphModOffset;
+    constexpr std::size_t w = sizeof(std::uint32_t);
+    patchI32(bytes, at, static_cast<std::int32_t>(c.source));
+    patchF32(bytes, at + w, c.amount);
+    patchF32(bytes, at + 2 * w, c.envAttackMs);
+    patchF32(bytes, at + 3 * w, c.envDecayMs);
+    patchF32(bytes, at + 4 * w, c.envSustain);
+    patchI32(bytes, at + 5 * w, static_cast<std::int32_t>(c.cycleShape));
+    patchF32(bytes, at + 6 * w, c.cycleRateHz);
+    patchI32(bytes, at + 7 * w, c.cycleSync ? 1 : 0);
+    patchI32(bytes, at + 8 * w, static_cast<std::int32_t>(syncRate));
+    return bytes;
+}
 
 // -----------------------------------------------------------------------------
 // Plan 5.2: the effective script
@@ -144,7 +238,9 @@ struct PresetArmContext {
 [[nodiscard]] inline auPt::VoiceEngineScript effectiveScriptFor(const auPt::VoiceEngineScript& s,
                                                                 const PresetArmContext& ctx) {
     if (ctx.preset == nullptr) {
-        return s;   // probe context: the script is authoritative
+        auPt::VoiceEngineScript e = s;   // probe context: the script is authoritative
+        applyMorphModOverlay(e, ctx);    // Phase 14 plan 4.12 steps (2)-(4); nothing set: e == s
+        return e;
     }
     using K = auPt::VoiceEngineEventKind;
     using Engine = Krate::DSP::ProfundumEngine;
@@ -194,6 +290,8 @@ struct PresetArmContext {
     events.push_back(atZeroIndex(K::AnchorMorphMode, d.morph.anchorMode));  // 1000
     events.insert(events.end(), s.events.begin(), s.events.end());   // the script's own events AFTER: they win
     e.events = std::move(events);
+    e.morphMod = morphModConfigOfDecoded(d.morphMod);   // Phase 14 plan 4.12 step (1): the stored C-10 block
+    applyMorphModOverlay(e, ctx);                       // steps (2)-(4)
     return e;
 }
 
@@ -251,6 +349,10 @@ struct PresetArmContext {
             id = P::kNoteLegatoId;
             norm = ev.index != 0 ? 1.0 : 0.0;   // index / kMaxLegatoIndex (1)
             return true;
+        case K::MorphModWheel:   // Phase 14 plan 4.12 item 2: parameter 6 stores its normalised value as-is
+            id = P::kModWheelId;
+            norm = std::clamp(static_cast<double>(ev.value), 0.0, 1.0);
+            return true;
         default:
             break;
     }
@@ -272,6 +374,9 @@ struct PresetArmContext {
                      ppNorm(P::kVoiceModeId, e.mode == Krate::DSP::ProfundumEngine::VoiceMode::Poly ? 1.0 : 0.0));
     out.emplace_back(P::kPolyphonyId,
                      std::clamp((static_cast<double>(e.polyphony) - 1.0) / 7.0, 0.0, 1.0));
+    if (!(e.morphModWheel == 0.0f)) {   // Phase 14 plan 4.12 item 2: every pre-phase script's block is unchanged
+        out.emplace_back(P::kModWheelId, static_cast<double>(e.morphModWheel));
+    }
     std::vector<auPt::VoiceEngineEvent> events = e.events;
     std::stable_sort(events.begin(), events.end(), [](const auPt::VoiceEngineEvent& x, const auPt::VoiceEngineEvent& y) {
         return x.sample < y.sample;
@@ -326,9 +431,21 @@ struct PresetArmContext {
         sm.followNoBypass || sm.lockReadsCore) {
         return "no processor carrier: seam (only anchorPhaseTap reaches the processor, P-11)";
     }
+    if (e.morphModBypass) {   // Phase 14 plan 4.12 item 3
+        return "no processor carrier: Morph Mod bypass (Compare is an IMessage that also selects the endpoint; use "
+               "renderPresetSweep's MorphModOverride)";
+    }
     for (const auPt::VoiceEngineEvent& ev : e.events) {
         if (ev.kind == K::NoteOn || ev.kind == K::NoteOff) {
             continue;
+        }
+        if (ev.kind == K::MorphModulation) {   // Phase 14 plan 4.12 item 3: named refusals
+            return "no processor carrier: Morph Mod config event (MorphModulation) at sample " +
+                   std::to_string(ev.sample) + " (nine parameter points; engine-direct scripts only)";
+        }
+        if (ev.kind == K::MorphModBypass) {
+            return "no processor carrier: Morph Mod bypass event (MorphModBypass) at sample " +
+                   std::to_string(ev.sample) + " (Compare is an IMessage that also selects the endpoint)";
         }
         Steinberg::Vst::ParamID id = 0;
         double norm = 0.0;
@@ -405,6 +522,7 @@ struct PresetArmContext {
         }
     }
     bytes = withEndpoints(std::move(bytes), e.a, e.b);
+    bytes = withMorphMod(std::move(bytes), e.morphMod);   // Phase 14 plan 4.12 item 1: the C-10 block, bitwise
     patchU32(bytes, kV2SeedAt, e.seed);
     REQUIRE(loadStateBytes(*fx->proc, bytes) == Steinberg::kResultOk);
 
@@ -809,6 +927,15 @@ inline void steadyPlan(ShowcasePlan& pl, const std::string& row, const std::stri
 }
 
 }  // namespace preset_showcase_detail
+
+/// Phase 14 plan 5.5: the C-15 window is the D_nl reader's frame, W = kLowFrequencyFftSize samples at 48 kHz
+/// (5461.33 ms).
+inline constexpr double kMorphModWindowMs =
+    1000.0 * static_cast<double>(Krate::DSP::TestUtils::kLowFrequencyFftSize) / auRd::kAuFs;
+
+/// Phase 14 T023 (plan 4.12): the column-keyed C-15 cell of a MorphMod column (defined after morphModSourceCell).
+[[nodiscard]] inline auRd::AuCell morphModTrajectoryCell(::Profundum::PresetDefs::Capability c,
+                                                         const DecodedPresetState& q, std::uint8_t note);
 
 /// Plan 5.4, one row of the table per column: preconditions on the working copy (recorded), the declared endpoints
 /// (plan 5.4 "Endpoint declaration") and the moved entry point the cell calls.
@@ -1255,6 +1382,23 @@ inline void steadyPlan(ShowcasePlan& pl, const std::string& row, const std::stri
                            AuDesc::DCx, "Sum", auRd::kAuBarDb, ">= 3 dB", "D_cx", {},
                            [](MS& s) { s.anchor.waveform = sd::AWave::Triangle; });
             break;
+
+        // ---- Phase 14 Morph Modulation sources (plan 4.12, C-15; FR-041) ----
+        // No precondition: a primary arm records no override (Phase 13 FR-012). The stored pair is declared (no arm
+        // edits an endpoint, the AT-41 / AT-42 declaration); the lo / hi arms are built inside the reader.
+        case C::MEnv:
+        case C::MCycle:
+        case C::MVel:
+        case C::MWheel: {
+            const auRd::AuSetting s = sd::settingOf(pl.state);
+            pl.declared = {{s.a, s.b}};
+            pl.descriptor = "D_nl";
+            pl.windowMs = kMorphModWindowMs;
+            pl.cell = [c](const DecodedPresetState& q, std::uint8_t note) {
+                return morphModTrajectoryCell(c, q, note);
+            };
+            break;
+        }
         case C::Count:
             pl.applicable = false;
             break;
@@ -1627,24 +1771,47 @@ struct PresetSweepRender {
     return (!aActive || d.a.field.mode == Img::Solid) && (!bActive || d.b.field.mode == Img::Solid);
 }
 
+/// Phase 14 T019 (plan 4.12; SC-007, SC-008; FR-060 (a)/(b)): renderPresetSweep's morph-modulation override. Unset
+/// fields leave the render as it was.
+struct MorphModOverride {
+    std::optional<std::int32_t> source;                 // i32 at kStateMorphModOffset, patched before setState
+    std::optional<float> amount;                        // f32 at kStateMorphModOffset + 4, same patch
+    std::optional<double> wheel;                        // one parameter-only block {6: wheel}, after the maxMass ones
+    std::optional<::Profundum::CompareMode> compare;    // kMsgCompare "mode" after setState, verified after prepare
+};
+
+/// The two wheel writers renderPresetSweep refuses together (maxMass writes Mod Wheel 1 itself).
+[[nodiscard]] inline bool morphModOverrideWheelConflict(bool maxMass, const MorphModOverride& mm) noexcept {
+    return maxMass && mm.wheel.has_value();
+}
+
 /// Plan 5.5: Comp -> setState (the seed word patched when @p seed is set) -> the FR-041 four parameter-only blocks
 /// when @p maxMass -> observer -> setupProcessing(fs, 512) -> getTailSamples() -> the notes on at 0 (velocity
 /// 100 / 127), off at llround(3.0 fs), rendered to noteOff + tail, and at least to the end of the plan 5.6
 /// fallback window (noteOff + 20 ms + 2^16) so every window the readings use exists; a causal render's samples do
-/// not depend on its length.
+/// not depend on its length. Phase 14 T019: @p mm (MorphModOverride above) patches source / amount next to the seed,
+/// adds the wheel block after the maxMass blocks and sends the Compare after setState.
 [[nodiscard]] inline PresetSweepRender renderPresetSweep(std::span<const std::uint8_t> comp,
                                                          std::span<const std::uint8_t> notes, double fs, bool maxMass,
-                                                         std::optional<std::uint32_t> seed = std::nullopt) {
+                                                         std::optional<std::uint32_t> seed = std::nullopt,
+                                                         const MorphModOverride& mm = {}) {
     namespace P = ::Profundum;
     REQUIRE(!notes.empty());
     REQUIRE(comp.size() == P::kStateV3Bytes);
     REQUIRE(fs > 0.0);
+    REQUIRE(!morphModOverrideWheelConflict(maxMass, mm));
     auto fx = std::make_unique<ProcessorFixture>();
 
     StateBytes bytes(comp.size());
     std::memcpy(bytes.data(), comp.data(), comp.size());
     if (seed.has_value()) {
         patchU32(bytes, kV2SeedAt, *seed);
+    }
+    if (mm.source.has_value()) {   // Phase 14: next to the seed patch
+        patchI32(bytes, P::kStateMorphModOffset, *mm.source);
+    }
+    if (mm.amount.has_value()) {
+        patchF32(bytes, P::kStateMorphModOffset + sizeof(std::uint32_t), *mm.amount);
     }
     REQUIRE(loadStateBytes(*fx->proc, bytes) == Steinberg::kResultOk);
 
@@ -1663,11 +1830,28 @@ struct PresetSweepRender {
         block({{P::kMorphEditTargetId, 0.0}});
         block({{P::kModWheelId, 1.0}});
     }
+    if (mm.wheel.has_value()) {   // Phase 14: one parameter-only block, no Mass / Edit Target writes
+        MultiParamChanges pc;
+        pc.reserve(1);
+        pc.queueFor(P::kModWheelId).addTestPoint(0, *mm.wheel);
+        REQUIRE(fx->processNoOutputs(&pc) == Steinberg::kResultOk);
+    }
+    if (mm.compare.has_value()) {   // after setState, which resets the compare to A.B (processor.cpp setState)
+        auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
+        msg->setMessageID(P::kMsgCompare);
+        Steinberg::Vst::IAttributeList* attrs = msg->getAttributes();
+        REQUIRE(attrs != nullptr);
+        REQUIRE(attrs->setInt("mode", static_cast<Steinberg::int64>(*mm.compare)) == Steinberg::kResultOk);
+        REQUIRE(fx->proc->notify(msg) == Steinberg::kResultOk);
+    }
 
     PresetSweepObserver obs;
     fx->proc->setEngineObserverForTest(&obs);
     constexpr std::size_t kBlock = 512;
     REQUIRE(fx->prepare(fs, static_cast<Steinberg::int32>(kBlock)) == Steinberg::kResultOk);
+    if (mm.compare.has_value()) {   // prepare did not reset it
+        REQUIRE(fx->proc->compareModeForTest() == *mm.compare);
+    }
 
     PresetSweepRender out;
     out.tailSamples = fx->proc->getTailSamples();   // after setState AND setupProcessing (processor.cpp:574-594)
@@ -1894,6 +2078,547 @@ namespace preset_sweep_detail {
     }
     const PresetSweepRender render = renderPresetSweep(comp, notes, fs, variant == kPresetVariantMaxMass);
     return cache.emplace(key, presetSweepReadings(render, d)).first->second;
+}
+
+// =============================================================================
+// Phase 14 T019: the source-keyed Morph Mod trajectory reader (plan 4.12 reader steps 1-6, 5.5; tasks Deviation 4)
+// =============================================================================
+
+/// Plan 5.5: each arm renders grid-round(3.0 s * fs + W) + 32 samples at 48 kHz (W = kLowFrequencyFftSize).
+inline constexpr std::uint64_t kMorphModArmTotal =
+    ((3u * 48000u + Krate::DSP::TestUtils::kLowFrequencyFftSize + auRd::kAuGrid - 1u) / auRd::kAuGrid) *
+        auRd::kAuGrid +
+    auRd::kAuGrid;
+static_assert(auRd::kAuFs == 48000.0, "kMorphModArmTotal is the 48 kHz arm length");
+/// Plan 5.5: the window's resolved-position stability bound (both arms) and the non-vacuity bound on the means.
+inline constexpr double kMorphModWindowStability = 0.01;
+inline constexpr double kMorphModWindowContrast = 0.05;
+
+namespace morph_mod_reader_detail {
+
+/// The placed C-15 window of one lo / hi arm pair.
+struct MmArmWindow {
+    bool found = false;
+    std::size_t t0 = 0;
+    double pLo = 0.0, pHi = 0.0;                     // window means
+    double loMin = 0.0, loMax = 0.0, hiMin = 0.0, hiMax = 0.0;   // ranges over [1.0 s, 3.0 s + W) (the remark)
+};
+
+/// Plan 5.5 placement: the earliest t0 in [1.0 s, 3.0 s] on the 32-sample grid with max - min of
+/// resolved.position <= kMorphModWindowStability in both arms over [t0, t0 + W) and |mean_hi - mean_lo| >=
+/// kMorphModWindowContrast.
+[[nodiscard]] inline MmArmWindow mmPlaceWindow(const std::vector<auPt::VoiceEngineGridRecord>& lo,
+                                               const std::vector<auPt::VoiceEngineGridRecord>& hi, double fs) {
+    const std::size_t w = Krate::DSP::TestUtils::kLowFrequencyFftSize;
+    const auto first = static_cast<std::size_t>(std::llround(1.0 * fs));
+    const auto last = static_cast<std::size_t>(std::llround(3.0 * fs));
+    const auto bySample = [](const auPt::VoiceEngineGridRecord& r, std::uint64_t s) { return r.sample < s; };
+    struct Span {
+        bool any = false;
+        double mn = 0.0, mx = 0.0, mean = 0.0;
+    };
+    const auto spanOf = [&bySample](const std::vector<auPt::VoiceEngineGridRecord>& g, std::size_t a,
+                                    std::size_t b) {
+        Span s;
+        const auto it0 = std::lower_bound(g.begin(), g.end(), static_cast<std::uint64_t>(a), bySample);
+        const auto it1 = std::lower_bound(g.begin(), g.end(), static_cast<std::uint64_t>(b), bySample);
+        double sum = 0.0;
+        std::size_t n = 0;
+        for (auto it = it0; it != it1; ++it) {
+            const auto p = static_cast<double>(it->resolved.position);
+            if (n == 0u) {
+                s.mn = p;
+                s.mx = p;
+            } else {
+                s.mn = std::min(s.mn, p);
+                s.mx = std::max(s.mx, p);
+            }
+            sum += p;
+            ++n;
+        }
+        s.any = n > 0u;
+        s.mean = s.any ? sum / static_cast<double>(n) : 0.0;
+        return s;
+    };
+
+    MmArmWindow out;
+    const Span loAll = spanOf(lo, first, last + w);
+    const Span hiAll = spanOf(hi, first, last + w);
+    out.loMin = loAll.mn;
+    out.loMax = loAll.mx;
+    out.hiMin = hiAll.mn;
+    out.hiMax = hiAll.mx;
+    for (std::size_t t0 = first; t0 <= last; t0 += auRd::kAuGrid) {
+        const Span a = spanOf(lo, t0, t0 + w);
+        if (!a.any || !(a.mx - a.mn <= kMorphModWindowStability)) {
+            continue;
+        }
+        const Span b = spanOf(hi, t0, t0 + w);
+        if (!b.any || !(b.mx - b.mn <= kMorphModWindowStability)) {
+            continue;
+        }
+        if (!(std::abs(b.mean - a.mean) >= kMorphModWindowContrast)) {
+            continue;
+        }
+        out.found = true;
+        out.t0 = t0;
+        out.pLo = a.mean;
+        out.pHi = b.mean;
+        break;
+    }
+    return out;
+}
+
+/// Plan 4.12 reader step 5: a copy of the arm's Char / twin and output taps starting at sample @p shift, so the
+/// D_nl reader's fixed 1.0 s start (bass_morph_test_helpers.h readWindow) lands on t0 = shift + 1.0 s.
+[[nodiscard]] inline auBm::MorphChainTaps mmShiftedChainTaps(const auPt::VoiceEngineTaps& t, std::size_t shift) {
+    const auto tail = [shift](const std::vector<float>& v) {
+        REQUIRE(shift <= v.size());
+        return std::vector<float>(v.begin() + static_cast<std::ptrdiff_t>(shift), v.end());
+    };
+    auBm::MorphChainTaps m;
+    m.outL = tail(t.outL);
+    m.outR = tail(t.outR);
+    m.characterL = tail(t.characterL);
+    m.characterR = tail(t.characterR);
+    m.linearCoreL = tail(t.linearCoreL);
+    m.linearCoreR = tail(t.linearCoreR);
+    return m;
+}
+
+[[nodiscard]] inline std::string mmNum(double v) {
+    char text[32];
+    std::snprintf(text, sizeof(text), "%.4f", v);
+    return text;
+}
+
+}  // namespace morph_mod_reader_detail
+
+/// Tasks Deviation 4 / plan 4.12 reader steps 1-6: one C-15 cell keyed by morph-mod @p source (1 Envelope, 2 Cycle,
+/// 3 Velocity, 4 Mod Wheel). Runs only in preset context under ScriptRenderScope(&processorRenderHook, &ctx); the
+/// arms' levers are set on that context and restored on return:
+///   Envelope / Cycle: lo forceMorphModSource = 0, hi as stored (or ctx.morphModCandidate);
+///   Velocity: the note-on at velocity 1 vs 127; Mod Wheel: ctx.morphModWheel 0 vs 1.
+[[nodiscard]] inline auRd::AuCell morphModSourceCell(std::int32_t source, const char* row, const DecodedPresetState& q,
+                                                     std::uint8_t note) {
+    namespace md = morph_mod_reader_detail;
+    namespace sd = preset_showcase_detail;
+    REQUIRE((source >= 1 && source <= 4));
+    REQUIRE(row != nullptr);
+
+    // 1. The active preset context; its two levers are saved here and restored after the arms (a failed render ends
+    //    the test case, so no other exit needs them).
+    const auRd::render::ScriptRenderHook hook = auRd::render::scriptRenderHook();
+    REQUIRE(hook.fn == &processorRenderHook);
+    auto* ctx = static_cast<PresetArmContext*>(hook.ctx);
+    REQUIRE(ctx != nullptr);
+    REQUIRE(ctx->preset != nullptr);
+    const std::optional<std::int32_t> savedSource = ctx->forceMorphModSource;
+    const std::optional<float> savedWheel = ctx->morphModWheel;
+
+    // 2. The script: MONO, host block 64, the note held from 0 for kMorphModArmTotal samples.
+    auPt::VoiceEngineScript sc = auRd::auScript(sd::settingOf(q), note, kMorphModArmTotal);
+    REQUIRE(!sc.events.empty());
+    REQUIRE(sc.events[0].kind == auRd::AuKind::NoteOn);
+
+    // 3. The two arms (C-15 table keyed by source).
+    std::string contrast;
+    const auto arm = [&](bool hi) {
+        auPt::VoiceEngineScript s = sc;
+        switch (source) {
+            case 1:
+            case 2:
+                ctx->forceMorphModSource = hi ? std::optional<std::int32_t>{} : std::optional<std::int32_t>{0};
+                break;
+            case 3: s.events[0].velocity = hi ? std::uint8_t{127} : std::uint8_t{1}; break;
+            default: ctx->morphModWheel = hi ? 1.0f : 0.0f; break;
+        }
+        return auRd::render::voiceEngineRenderWithTwin(s);
+    };
+    switch (source) {
+        case 1: contrast = "Morph Mod Envelope: forced Off -> as stored"; break;
+        case 2: contrast = "Morph Mod Cycle: forced Off -> as stored"; break;
+        case 3: contrast = "Morph Mod Velocity: note-on velocity 1 -> 127"; break;
+        default: contrast = "Morph Mod Wheel: wheel 0 -> 1"; break;
+    }
+    const auPt::VoiceEngineTaps lo = arm(false);
+    const auPt::VoiceEngineTaps hi = arm(true);
+    ctx->forceMorphModSource = savedSource;
+    ctx->morphModWheel = savedWheel;
+
+    // 4. The window (plan 5.5).
+    const double fs = auRd::kAuFs;
+    const md::MmArmWindow win = md::mmPlaceWindow(lo.grid, hi.grid, fs);
+
+    // 5. D_nl on taps shifted so the reader's 1.0 s start lands on t0 (no window: read at 1.0 s, reported only).
+    const auto settle = static_cast<std::size_t>(std::llround(1.0 * fs));
+    const std::size_t shift = win.found ? win.t0 - settle : 0u;
+    const double f0 = auRd::auHz(note);
+    const auBm::MorphChainTaps loShifted = md::mmShiftedChainTaps(lo, shift);
+    const auBm::MorphChainTaps hiShifted = md::mmShiftedChainTaps(hi, shift);
+    const double dLo = auBm::dNlDb(loShifted, f0, fs);
+    const double dHi = auBm::dNlDb(hiShifted, f0, fs);
+    const double outLo = auBm::lKDb(loShifted, fs);
+    const double outHi = auBm::lKDb(hiShifted, fs);
+
+    // 6. The cell (auSteadyCell's fields).
+    auRd::AuCell c;
+    c.row = row;
+    c.contrast = contrast;
+    c.base = "P as stored (Phase 14 Morph Mod arm, C-15)";
+    c.note = auRd::auNoteName(note);
+    c.descriptor = auRd::auDescName(auRd::AuDesc::DNl);
+    c.tap = "Char / twin";
+    c.lo = dLo;
+    c.hi = dHi;
+    c.value = std::abs(dHi - dLo);
+    c.bar = auRd::kAuBarDb;
+    c.barText = ">= 3 dB";
+    c.outDescriptor = auRd::auOutName(auRd::AuDesc::DNl);
+    c.outLo = outLo;
+    c.outHi = outHi;
+    c.lkLo = outLo;
+    c.lkHi = outHi;
+    const bool readingsValid = auRd::auFinite(dLo) && auRd::auFinite(dHi) && auRd::auFinite(c.value);
+    c.pass = win.found && readingsValid && c.value >= c.bar;
+    if (win.found) {
+        c.remark = "t0 = " + md::mmNum(static_cast<double>(win.t0) / fs) + " s; p_lo = " + md::mmNum(win.pLo) +
+                   "; p_hi = " + md::mmNum(win.pHi);
+    } else {
+        c.remark = "no window: resolved-position range lo [" + md::mmNum(win.loMin) + ", " + md::mmNum(win.loMax) +
+                   "] hi [" + md::mmNum(win.hiMin) + ", " + md::mmNum(win.hiMax) + "]";
+    }
+    if (!readingsValid) {
+        c.remark += "; invalid reading (non-finite)";
+    }
+    return c;
+}
+
+// =============================================================================
+// Phase 14 T023: the evidence readers (plan 4.13, 5.7; FR-046, FR-063, SC-017 (a), SC-018)
+// =============================================================================
+
+namespace morph_mod_evidence {
+
+/// The MorphMod column ids in Capability order (the label prefixes, the probe CSV's `column` values).
+inline constexpr std::array<const char*, 4> kMmColumnIds{"M-ENV", "M-CYCLE", "M-VEL", "M-WHEEL"};
+
+/// 0..3 for M-ENV .. M-WHEEL, -1 for any other column.
+[[nodiscard]] inline int mmColumnIndex(::Profundum::PresetDefs::Capability c) noexcept {
+    using C = ::Profundum::PresetDefs::Capability;
+    switch (c) {
+        case C::MEnv: return 0;
+        case C::MCycle: return 1;
+        case C::MVel: return 2;
+        case C::MWheel: return 3;
+        default: return -1;
+    }
+}
+
+/// specs/profundum-phase14-morph-modulation/evidence.
+[[nodiscard]] inline std::filesystem::path mmEvidenceDir() {
+    return {std::string(KRATE_DSP_TESTS_DIR) + "/../../specs/profundum-phase14-morph-modulation/evidence"};
+}
+
+/// The whole file as text; @p ok false when it cannot be opened.
+[[nodiscard]] inline std::string mmReadText(const std::filesystem::path& path, bool& ok) {
+    std::ifstream f(path, std::ios::binary);
+    ok = static_cast<bool>(f);
+    if (!ok) {
+        return {};
+    }
+    std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    if (text.size() >= 3u && text.compare(0, 3, "\xEF\xBB\xBF") == 0) {
+        text.erase(0, 3);
+    }
+    return text;
+}
+
+/// RFC-4180 style parse (evidence/probe/select.js parseCsv): quoted fields, doubled quotes, CR dropped outside quotes,
+/// blank lines skipped. false on an unbalanced quote.
+[[nodiscard]] inline bool mmParseCsv(std::string_view text, std::vector<std::vector<std::string>>& rows) {
+    std::vector<std::string> row;
+    std::string field;
+    bool quoted = false;
+    bool any = false;
+    for (std::size_t i = 0; i < text.size(); ++i) {
+        const char c = text[i];
+        if (quoted) {
+            if (c == '"') {
+                if (i + 1 < text.size() && text[i + 1] == '"') {
+                    field += '"';
+                    ++i;
+                } else {
+                    quoted = false;
+                }
+            } else {
+                field += c;
+            }
+            continue;
+        }
+        if (c == '"') {
+            quoted = true;
+            any = true;
+        } else if (c == ',') {
+            row.push_back(field);
+            field.clear();
+            any = true;
+        } else if (c == '\n') {
+            row.push_back(field);
+            field.clear();
+            if (row.size() > 1u || !row[0].empty()) {
+                rows.push_back(row);
+            }
+            row.clear();
+            any = false;
+        } else if (c != '\r') {
+            field += c;
+            any = true;
+        }
+    }
+    if (quoted) {
+        return false;
+    }
+    if (any) {
+        row.push_back(field);
+        rows.push_back(row);
+    }
+    return true;
+}
+
+/// A parsed evidence CSV: the header and the data rows.
+struct MmCsv {
+    bool ok = false;
+    std::string why;
+    std::vector<std::string> header;
+    std::vector<std::vector<std::string>> rows;
+
+    /// The index of header column @p name; -1 when absent.
+    [[nodiscard]] int col(std::string_view name) const {
+        for (std::size_t i = 0; i < header.size(); ++i) {
+            if (header[i] == name) {
+                return static_cast<int>(i);
+            }
+        }
+        return -1;
+    }
+};
+
+[[nodiscard]] inline MmCsv mmReadCsv(const std::filesystem::path& path) {
+    MmCsv out;
+    bool read = false;
+    const std::string text = mmReadText(path, read);
+    if (!read) {
+        out.why = "cannot open " + path.string();
+        return out;
+    }
+    std::vector<std::vector<std::string>> all;
+    if (!mmParseCsv(text, all)) {
+        out.why = path.string() + ": unbalanced quotes";
+        return out;
+    }
+    if (all.empty()) {
+        out.why = path.string() + ": no header";
+        return out;
+    }
+    out.header = all.front();
+    out.rows.assign(std::next(all.begin()), all.end());
+    out.ok = true;
+    return out;
+}
+
+/// A finite number filling the whole field.
+[[nodiscard]] inline bool mmNumber(const std::string& s, double& out) {
+    if (s.empty()) {
+        return false;
+    }
+    char* end = nullptr;
+    out = std::strtod(s.c_str(), &end);
+    return end == s.c_str() + s.size() && Krate::DSP::detail::isFinite(out);
+}
+
+[[nodiscard]] inline bool mmInteger(const std::string& s, std::int32_t& out) {
+    if (s.empty()) {
+        return false;
+    }
+    char* end = nullptr;
+    const long v = std::strtol(s.c_str(), &end, 10);
+    out = static_cast<std::int32_t>(v);
+    return end == s.c_str() + s.size();
+}
+
+/// One row of evidence/probe-morphmod.csv (T021 probe, T022 merge).
+struct MmProbeRow {
+    std::size_t line = 0;   // 1-based file line (the header is line 1)
+    std::string runId, preset;
+    std::int32_t defIndex = -1;
+    std::string column;                    // "M-ENV" .. "M-WHEEL"
+    std::array<std::string, 9> fieldText;  // the nine C-10 fields as printed (the select.js candidate key)
+    DecodedPresetState::MorphMod mod{};    // the same fields parsed
+    std::string note;                      // "E1" / "C3"
+    double contrast = 0.0;
+    bool pass = false;
+    std::string primary;
+    bool singleState = false;
+};
+
+struct MmProbe {
+    bool ok = false;
+    std::string why;
+    std::vector<MmProbeRow> rows;
+};
+
+[[nodiscard]] inline MmProbe mmReadProbe(const std::filesystem::path& path) {
+    MmProbe out;
+    const MmCsv csv = mmReadCsv(path);
+    if (!csv.ok) {
+        out.why = csv.why;
+        return out;
+    }
+    static constexpr std::array<const char*, 9> kFields{"source",     "amount",      "attackMs",
+                                                        "decayMs",    "sustain",     "cycleShape",
+                                                        "cycleRateHz", "cycleSync",  "cycleSyncRate"};
+    static constexpr std::array<const char*, 9> kOther{"runId", "preset", "defIndex", "column",     "note",
+                                                       "contrast", "pass", "primary", "singleState"};
+    std::array<int, 9> fc{};
+    std::array<int, 9> oc{};
+    for (std::size_t i = 0; i < kFields.size(); ++i) {
+        fc[i] = csv.col(kFields[i]);
+        oc[i] = csv.col(kOther[i]);
+        if (fc[i] < 0 || oc[i] < 0) {
+            out.why = path.string() + ": header lacks \"" + (fc[i] < 0 ? kFields[i] : kOther[i]) + "\"";
+            return out;
+        }
+    }
+    out.rows.reserve(csv.rows.size());
+    for (std::size_t r = 0; r < csv.rows.size(); ++r) {
+        const std::vector<std::string>& f = csv.rows[r];
+        MmProbeRow row;
+        row.line = r + 2u;
+        const std::string where = path.filename().string() + " line " + std::to_string(row.line);
+        if (f.size() != csv.header.size()) {
+            out.why = where + ": " + std::to_string(f.size()) + " fields, the header has " +
+                      std::to_string(csv.header.size());
+            return out;
+        }
+        const auto at = [&f](int c) -> const std::string& { return f[static_cast<std::size_t>(c)]; };
+        for (std::size_t i = 0; i < kFields.size(); ++i) {
+            row.fieldText[i] = at(fc[i]);
+        }
+        row.runId = at(oc[0]);
+        row.preset = at(oc[1]);
+        row.column = at(oc[3]);
+        row.note = at(oc[4]);
+        row.primary = at(oc[7]);
+        const std::string& pass = at(oc[6]);
+        const std::string& single = at(oc[8]);
+        std::array<double, 5> fl{};
+        const bool good = mmInteger(at(oc[2]), row.defIndex) && mmNumber(at(oc[5]), row.contrast) &&
+                          (pass == "PASS" || pass == "FAIL") && (single == "true" || single == "false") &&
+                          mmInteger(row.fieldText[0], row.mod.source) && mmNumber(row.fieldText[1], fl[0]) &&
+                          mmNumber(row.fieldText[2], fl[1]) && mmNumber(row.fieldText[3], fl[2]) &&
+                          mmNumber(row.fieldText[4], fl[3]) && mmInteger(row.fieldText[5], row.mod.cycleShape) &&
+                          mmNumber(row.fieldText[6], fl[4]) && mmInteger(row.fieldText[7], row.mod.cycleSync) &&
+                          mmInteger(row.fieldText[8], row.mod.cycleSyncRate);
+        if (!good) {
+            out.why = where + ": a malformed field";
+            return out;
+        }
+        row.mod.amount = static_cast<float>(fl[0]);
+        row.mod.attackMs = static_cast<float>(fl[1]);
+        row.mod.decayMs = static_cast<float>(fl[2]);
+        row.mod.sustain = static_cast<float>(fl[3]);
+        row.mod.cycleRateHz = static_cast<float>(fl[4]);
+        row.mod.present = true;
+        row.pass = pass == "PASS";
+        row.singleState = single == "true";
+        out.rows.push_back(std::move(row));
+    }
+    if (out.rows.empty()) {
+        out.why = path.string() + ": no data rows";
+        return out;
+    }
+    out.ok = true;
+    return out;
+}
+
+/// evidence/probe-morphmod.csv, read once per process.
+[[nodiscard]] inline const MmProbe& mmProbe() {
+    static const MmProbe kProbe = mmReadProbe(mmEvidenceDir() / "probe-morphmod.csv");
+    return kProbe;
+}
+
+/// The nine C-10 fields agree: the integers exactly, the floats within 1e-6 relative (the probe prints %.9g of a
+/// float; the generator stores the float the 1003-1011 laws give).
+[[nodiscard]] inline bool mmSameSettings(const DecodedPresetState::MorphMod& a,
+                                         const DecodedPresetState::MorphMod& b) noexcept {
+    const auto near = [](float x, float y) {
+        const auto dx = static_cast<double>(x);
+        const auto dy = static_cast<double>(y);
+        return std::abs(dx - dy) <= 1.0e-6 * std::max(1.0, std::abs(dy));
+    };
+    return a.source == b.source && near(a.amount, b.amount) && near(a.attackMs, b.attackMs) &&
+           near(a.decayMs, b.decayMs) && near(a.sustain, b.sustain) && a.cycleShape == b.cycleShape &&
+           near(a.cycleRateHz, b.cycleRateHz) && a.cycleSync == b.cycleSync && a.cycleSyncRate == b.cycleSyncRate;
+}
+
+/// The factory definition whose endpoint names a decoded state carries (every nameA and nameB is unique in the
+/// library); nullptr when none does.
+[[nodiscard]] inline const ::Profundum::PresetDefs::ProfundumPresetDef* mmDefOfDecoded(const DecodedPresetState& q) {
+    const ::Profundum::PresetDefs::ProfundumPresetDef* found = nullptr;
+    for (const ::Profundum::PresetDefs::ProfundumPresetDef& def : ::Profundum::PresetDefs::allPresets()) {
+        if (def.nameA == q.names[0] && def.nameB == q.names[1]) {
+            if (found != nullptr) {
+                return nullptr;   // ambiguous
+            }
+            found = &def;
+        }
+    }
+    return found;
+}
+
+}  // namespace morph_mod_evidence
+
+// =============================================================================
+// Phase 14 T023: the column-keyed MorphMod showcase cell (plan 4.12; FR-041, SC-017 (a)(b))
+// =============================================================================
+
+/// Plan 4.12: maps a MorphMod column to its source and row label and calls morphModSourceCell, after a REQUIRE that
+/// evidence/probe-morphmod.csv holds a passing row at @p note for the same preset (an added preset: its
+/// morphModProbeBase, FR-046), the same column and source, and the stored settings (SC-017 (a)).
+[[nodiscard]] inline auRd::AuCell morphModTrajectoryCell(::Profundum::PresetDefs::Capability c,
+                                                         const DecodedPresetState& q, std::uint8_t note) {
+    namespace me = morph_mod_evidence;
+    const int column = me::mmColumnIndex(c);
+    REQUIRE(column >= 0);
+    const char* row = me::kMmColumnIds[static_cast<std::size_t>(column)];   // the cell's row: "M-ENV" .. "M-WHEEL"
+    const std::int32_t source = column + 1;   // Envelope 1, Cycle 2, Velocity 3, Mod Wheel 4
+    INFO("column " << row << ", stored Source " << q.morphMod.source);
+    REQUIRE(q.morphMod.present);
+    REQUIRE(q.morphMod.source == source);
+
+    // SC-017 (a): the probe proved these settings on this preset's sound.
+    const ::Profundum::PresetDefs::ProfundumPresetDef* def = me::mmDefOfDecoded(q);
+    INFO("endpoint names \"" << q.names[0] << "\" / \"" << q.names[1] << "\"");
+    REQUIRE(def != nullptr);
+    const std::string probePreset(def->morphModProbeBase.empty() ? def->name : def->morphModProbeBase);
+    const me::MmProbe& probe = me::mmProbe();
+    INFO("evidence/probe-morphmod.csv: " << probe.why);
+    REQUIRE(probe.ok);
+    const std::string noteName = auRd::auNoteName(note);
+    std::size_t passingLine = 0;
+    for (const me::MmProbeRow& r : probe.rows) {
+        if (r.preset == probePreset && r.column == row && r.note == noteName && r.pass &&
+            me::mmSameSettings(r.mod, q.morphMod)) {
+            passingLine = r.line;
+            break;
+        }
+    }
+    INFO("preset " << def->name << " (probe preset " << probePreset << ") at " << noteName
+                   << ": no passing probe row with the stored source and settings");
+    REQUIRE(passingLine > 0u);
+
+    return morphModSourceCell(source, row, q, note);
 }
 
 }  // namespace ProfundumPluginTest

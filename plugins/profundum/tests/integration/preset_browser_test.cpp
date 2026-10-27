@@ -464,7 +464,7 @@ TEST_CASE("Profundum_PresetBrowserSave", "[profundum][browser]") {
         const DecodedPresetState savedDecoded = lpsDecode(saved);
         REQUIRE(savedDecoded.ok);
         CHECK(savedDecoded.version == 3);
-        CHECK(savedDecoded.bytes == 574u);
+        CHECK(savedDecoded.bytes == 610u);
         CHECK(saved.size() == ::Profundum::kStateV3Bytes);
 
         const DecodedPresetState procDecoded = lpsDecode(writeV2Stream(*pair.fx.proc));
@@ -734,7 +734,7 @@ TEST_CASE("Profundum_FactoryPresetScan", "[profundum][browser]") {
         emptySubcategory += p.subcategory.empty() ? 1u : 0u;
         seen.insert(p.subcategory);
     }
-    CHECK(n == 58u);
+    CHECK(n == 60u);
     CHECK(emptySubcategory == 0u);
     for (const std::string& category : config.subcategoryNames) {
         INFO("category " << category);
@@ -767,7 +767,7 @@ TEST_CASE("Profundum_InstalledPresetTree", "[profundum][browser][.install]") {
         CHECK_FALSE(p.subcategory.empty());
         seen.insert(p.subcategory);
     }
-    CHECK(n == 58u);
+    CHECK(n == 60u);
     const std::set<std::string> six(config.subcategoryNames.begin(), config.subcategoryNames.end());
     CHECK(seen == six);
 }

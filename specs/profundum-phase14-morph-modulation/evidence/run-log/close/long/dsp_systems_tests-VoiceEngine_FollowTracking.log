@@ -1,0 +1,18 @@
+Filters: "VoiceEngine_FollowTracking"
+Randomness seeded to: 69803631
+SC-018 Rectify E1 sweep tone 0.5: event 0 @446816 ratio 1 -> 2, ref 82.4069 Hz (7.07427e-05 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.0424032 cents, settled 1
+SC-018 Rectify E1 step tone 0.5: event 0 @316672 ratio 1 -> 2, ref 82.4069 Hz (7.04797e-05 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.0424035 cents, settled 1
+SC-018 Rectify C3 sweep tone 0.5: event 0 @443616 ratio 1 -> 2, ref 261.626 Hz (0.000127168 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.0144651 cents, settled 1
+SC-018 Rectify C3 step tone 0.5: event 0 @313472 ratio 1 -> 2, ref 261.626 Hz (0.00012786 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.0144658 cents, settled 1
+SC-018 Fracture E1 sweep tone 0.5: event 0 @240576 ratio 1 -> 0.5, ref 20.6017 Hz (6.7266e-05 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.198026 cents, settled 1
+SC-018 Fracture E1 step tone 0.5: event 0 @316672 ratio 1 -> 0.5, ref 20.6017 Hz (6.71533e-05 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.198026 cents, settled 1
+SC-018 Fracture C3 sweep tone 0.5: event 0 @237376 ratio 1 -> 0.5, ref 65.4064 Hz (8.18519e-05 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.0613073 cents, settled 1
+SC-018 Fracture C3 step tone 0.5: event 0 @313472 ratio 1 -> 0.5, ref 65.4064 Hz (9.43433e-05 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.0612948 cents, settled 1
+H-12 Fracture E1 step tone 0.75: event 0 @316672 ratio 1 -> 0.5, ref 20.6017 Hz (6.32962e-05 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.198022 cents, settled 1
+H-12 Fracture E1 step tone 1: event 0 @316672 ratio 1 -> 0.5, ref 20.6017 Hz (3.88325e-05 cents vs f_core x ratio), latency 15 samples (0.3125 ms), max |err| after 0.197997 cents, settled 1
+SC-018 follow-tracking.csv: 10 cases, 0 failing
+50.667 s: VoiceEngine_FollowTracking
+===============================================================================
+All tests passed (216 assertions in 1 test case)
+
+exit: 0 wall: 52 s

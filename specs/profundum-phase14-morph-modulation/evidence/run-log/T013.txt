@@ -1,0 +1,10 @@
+T013 run-xslt.sh 2026-10-26T22:28:51Z
+xslt3 -xsl:specs/profundum-phase14-morph-modulation/evidence/uidesc/phase14.xsl -s:plugins/profundum/resources/editor.uidesc
+
+git diff --stat -- plugins/profundum/resources/editor.uidesc
+ plugins/profundum/resources/editor.uidesc | 36 +++++++++++++++++++++++++++++--
+ 1 file changed, 34 insertions(+), 2 deletions(-)
+
+node tools/lint-plugin-editor-baseline.js
+lint-plugin-editor-baseline: OK - 9 plugins carry the update check and the version label
+lint exit=0

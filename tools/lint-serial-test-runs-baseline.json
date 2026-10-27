@@ -1,6 +1,4 @@
 {
-  "_comment": "Ratchet for tools/lint-serial-test-runs.js: per-file count of serial test runs still allowed. A new file or a higher count fails; lower the count when a site is fixed. profundum-phase.js: the CONTEXT / CONTEXT_LITE text says 'Run one suite directly'. Changing it while Profundum Phase 14's build run (wf_724f2185-be8) can still be resumed would change every cached prompt and replay the whole run (chain hash). Fix both lines and drop this entry when Phase 14 closes.",
-  "files": {
-    ".claude/workflows/profundum-phase.js": 2
-  }
+  "_comment": "Ratchet for tools/lint-serial-test-runs.js: per-file count of serial test runs still allowed. A new file or a higher count fails; lower the count when a site is fixed.",
+  "files": {}
 }

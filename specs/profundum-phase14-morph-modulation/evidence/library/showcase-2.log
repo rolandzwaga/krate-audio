@@ -1,0 +1,26 @@
+=== showcase-2 2026-10-27T09:26:41Z commit e501b577
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetShowcase_2of8"
+Filters: "Profundum_PresetShowcase_2of8"
+Randomness seeded to: 868978958
+# Profundum_PresetShowcase_2of8: presets=8 arms=16
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Folded Mass","AT-03 Core Harmonic Fold",primary,"",E1,4.1942,3,1.1942,0,"","D_nl","Char / twin"
+"Folded Mass","AT-03 Core Harmonic Fold",primary,"",C3,6.91339,3,3.91339,0,"","D_nl","Char / twin"
+"Punch Anchor","AT-11 Anchor Lock to Punch",primary,"",E1,3.86891,2,1.86891,39.9999,"","E_sub_onset","Sum"
+"Punch Anchor","AT-11 Anchor Lock to Punch",primary,"",C3,4.19741,2,2.19741,39.9999,"","E_sub_onset","Sum"
+"Dropping Stone","AT-19 Pitch Drop Amount",primary,"",E1,24,6,18,0,"","drop_start","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Dropping Stone","AT-19 Pitch Drop Amount",primary,"",C3,24,6,18,0,"","drop_start","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Pressure Front","AT-27 Mass Dynamics Gain",primary,"",E1,4.60318,3,1.60318,0,"","dL_K","dynamics output tap and Sum"
+"Pressure Front","AT-27 Mass Dynamics Gain",primary,"",C3,4.01259,3,1.01259,0,"","dL_K","dynamics output tap and Sum"
+"Breathing Depth","AT-35 Motion Cycle to Depth",primary,"",E1,5.39251,3,2.39251,0,"","E_sub_p2p","Sum"
+"Breathing Depth","AT-35 Motion Cycle to Depth",primary,"",C3,5.29328,3,2.29328,0,"","E_sub_p2p","Sum"
+"Restrike","AT-43 NoteMemory AlwaysRetrigger",primary,"",E1,177.755,30,147.755,0,"","phase_deg","core tap"
+"Restrike","AT-43 NoteMemory AlwaysRetrigger",primary,"",C3,167.605,30,137.605,0,"","phase_deg","core tap"
+"Mono Bedrock","R-SOLID Reference Solid",primary,"",E1,117.207,3,114.207,0,"","D_st","field stage tap"
+"Mono Bedrock","R-SOLID Reference Solid",primary,"",C3,117.865,3,114.865,0,"","D_st","field stage tap"
+"Tidal Fold","M-CYCLE Morph Mod Cycle",primary,"",E1,9.66068,3,6.66068,5461.33,"","D_nl","Char / twin"
+"Tidal Fold","M-CYCLE Morph Mod Cycle",primary,"",C3,9.74331,3,6.74331,5461.33,"","D_nl","Char / twin"
+===============================================================================
+All tests passed (1137196 assertions in 1 test case)
+
+WALL showcase-2 95.4 s exit=0

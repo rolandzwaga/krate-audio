@@ -1,0 +1,5 @@
+pass 1 (~[wallclock], 30 workers): 369.0s | pass 2 ([wallclock], 4 workers): 358.0s, 682 case(s)
+dsp_systems_tests: cases=870 assertions=20100450 failed_cases=0 shards=128 slowest_shard=239.1s
+dsp_ieee_tests: cases=244 assertions=496330 failed_cases=0 shards=128 slowest_shard=48.1s
+profundum_tests: cases=315 assertions=19581649 failed_cases=0 shards=128 slowest_shard=273.6s
+GATE GREEN dsp_systems_tests cases=870 assertions=20100450 | dsp_ieee_tests cases=244 assertions=496330 | profundum_tests cases=315 assertions=19581649 wall=727.0s workers=30 logs=f:\tmp\gate\20261027-114958

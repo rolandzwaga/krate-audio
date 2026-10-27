@@ -507,7 +507,9 @@ inline constexpr std::array<PpBarRow, 30> kPpBars{{
     {PpRow::AT28, "AT-28", kAuE1, PpBase::B, "onset ratio (dB)", "dynL/R", "onset ratio output (dB)", 10.4185, 3.0, 108},
     {PpRow::AT28, "AT-28", kAuC3, PpBase::B, "onset ratio (dB)", "dynL/R", "onset ratio output (dB)", 10.6639, 3.0, 115},
     {PpRow::AT33, "AT-33", kAuE1, PpBase::Bs, "frame-wise D_st p2p (dB; G8-1)", "fieldL/R", "frame-wise D_st p2p output (dB)", 16.3826, 3.0, 81},
-    {PpRow::AT33, "AT-33", kAuC3, PpBase::As, "frame-wise D_st p2p (dB; G8-1)", "fieldL/R", "frame-wise D_st p2p output (dB)", 11.2431, 3.0, 89},
+    // Profundum Phase 14 R12: 21.7963, not the CSV's 11.2431. Its depth-0 arm read 3.22 dB of float-ADAA noise swing
+    // that TanhADAA::processFast removes (0.023 dB now); every other row reads the pre-R11 value to 5-6 digits.
+    {PpRow::AT33, "AT-33", kAuC3, PpBase::As, "frame-wise D_st p2p (dB; G8-1)", "fieldL/R", "frame-wise D_st p2p output (dB)", 21.7963, 3.0, 89},
     {PpRow::AT38, "AT-38", kAuE1, PpBase::Bs, "frame-wise D_br p2p (oct)", "sumL/R", "frame-wise D_br p2p output (oct)", 0.299477, 0.25, 131},
     {PpRow::AT38, "AT-38", kAuC3, PpBase::Bs, "frame-wise D_br p2p (oct)", "sumL/R", "frame-wise D_br p2p output (oct)", 0.303864, 0.25, 150},
     {PpRow::AT42, "AT-42", kAuE1, PpBase::ShowcasePair, "D_nl (dB)", "Char / twin", "L_K output (dB)", 8.15013, 3.0, 117},
@@ -629,7 +631,12 @@ enum class PpPath : std::uint8_t { EngineDirect, Processor };
         auPt::VoiceEngineScript t = s;
         t.a = fx->engine()->getEndpoint(Kd::BassMorphEngine::Endpoint::A);
         t.b = fx->engine()->getEndpoint(Kd::BassMorphEngine::Endpoint::B);
-        t.position = fx->engine()->morphPosition();
+        // Phase 14 T019 (plan 4.12): the base b and the processor engine's modulation, so the twin composes the same
+        // target; the script's own note events (velocities included) are kept.
+        t.position = fx->engine()->morphBasePosition();
+        t.morphMod = fx->engine()->morphModulation();
+        t.morphModWheel = fx->engine()->morphModWheel();
+        t.morphModBypass = fx->engine()->morphModBypass();
         t.config = ::Profundum::makeProfundumEngineConfig();
         const auPt::VoiceEngineTaps tw = auPt::voiceEngineRender(auPt::voiceEngineTwinScript(t));
         taps.linearCoreL = tw.coreL;

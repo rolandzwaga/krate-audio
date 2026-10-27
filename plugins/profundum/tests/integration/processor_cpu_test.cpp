@@ -35,6 +35,8 @@
 // ::Profundum::..., and Krate::DSP::ProfundumTest is never opened.
 // ==============================================================================
 
+#include "parameters/morph_mod_params.h"   // Phase 14 T027: kMorphModAmountLaw, kMorphModRateLaw, kNumMorphModSources
+#include "parameters/morph_params.h"       // Phase 14 T027: kMorphRampLaw
 #include "parameters/sound_param_row.h"
 #include "parameters/sound_param_table.h"
 #include "plugin_ids.h"
@@ -43,9 +45,12 @@
 
 #include <vst_event_list.h>
 
+#include <krate/dsp/systems/bass_character_stage.h>       // Phase 14 T027: Algorithm (the Character group)
 #include <krate/dsp/systems/bass_morph_engine.h>
+#include <krate/dsp/systems/bass_stereo_field.h>          // Phase 14 T027: ImageMode, MotionSource (two groups)
 #include <krate/dsp/systems/morph_state.h>
 #include <krate/dsp/systems/profundum_engine.h>
+#include <krate/dsp/systems/profundum_morph_modulator.h>  // Phase 14 T027: ProfundumMorphModulator::Source / Config
 
 #include <pluginterfaces/vst/ivstaudioprocessor.h>
 #include <pluginterfaces/vst/ivstevents.h>
@@ -64,6 +69,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace ProfundumPluginTest;
@@ -1037,5 +1043,283 @@ TEST_CASE("Profundum_PresetCpu", "[profundum][.perf][performance]") {
         if (r.poly) {
             CHECK(pctOf(r.bestPoly) <= kPolyPctBar);
         }
+    }
+}
+
+// ==============================================================================
+// Profundum_ProcessorCpuMorphMod (Phase 14 T027; FR-053, SC-014 (a))
+// ==============================================================================
+// HIDDEN ([.perf]) and wall-clock based: run it ALONE (node tools/run-cpu-tests.js
+// profundum_tests), by T035's lane only. Shipping FP mode (this TU stays outside the
+// -fno-fast-math block).
+//
+// The Phase 11 SC-020 method of Profundum_ProcessorCpuFullSurface: kTrials trials of
+// kBlocksPerTrial blocks, P and D (the processor's own engine, driven direct)
+// alternated with the order flipped on odd trials, best reading per arm, and the
+// control S2 / S (the same D path timed twice) within kControlRatioCeiling or the run
+// is INVALID (printed, fails, its bars are not trusted). D on a separate engine is
+// recorded only.
+//
+// The pair is the FullSurface pair (addEndpointAValues / addEndpointBValues: Motion
+// Cycle -> Mass on A, Drift -> Depth on B, distinct Core / Fold / Character amounts)
+// with four selection groups made to switch (SC-014 (a)): Character Tube <-> Fracture,
+// Image Mode Solid <-> Wide, Field Motion Drift <-> Cycle, Motion Cycle <-> Drift,
+// every governing amount (characterAmount, field.spread, field.motionDepth,
+// motion.amount) non-zero on both sides (BassMorphEngine::governingAmount).
+// Morph Position 0.5, Morph Ramp Time 5 ms, Morph Mod Source Cycle, Shape Sine,
+// Rate 20 Hz, Sync Off, Amount 1: the target clamp(0.5 + sin) sweeps [0, 1] twenty
+// times a second, so the ramped position crosses kThetaUp / kThetaDown and the four
+// groups switch forty times a second (asserted on the warm-up, before timing).
+//
+// Arms: MOD-MONO (E1) <= kMonoPctBar, MOD-POLY (kChord4, 4 voices) <= kPolyPctBar,
+// and P / D <= kWrapperOverheadCeiling in both. Never relax a bar or shrink the work.
+// ==============================================================================
+
+namespace {
+
+using MorphModCpuSource = Krate::DSP::ProfundumMorphModulator::Source;
+using MorphModCpuAlgorithm = Krate::DSP::BassCharacterStage::Algorithm;
+using MorphModCpuImage = Krate::DSP::BassStereoField::ImageMode;
+using MorphModCpuFieldMotion = Krate::DSP::BassStereoField::MotionSource;
+
+constexpr float kMorphModCpuRampMs = Krate::DSP::BassMorphEngine::kMinPositionRampMs;  // 5 ms (FR-021 floor)
+constexpr float kMorphModCpuCycleHz = 20.0f;
+constexpr float kMorphModCpuAmount = 1.0f;
+constexpr float kMorphModCpuTolerance = 1.0e-3f;  // a law round trip, never a bit claim across computations
+
+constexpr std::array<SurfaceConfig, 2> kMorphModCpuConfigs{{
+    {.name = "MOD-MONO", .poly = false, .maxMacros = false, .automate = false},
+    {.name = "MOD-POLY", .poly = true, .maxMacros = false, .automate = false},
+}};
+
+[[nodiscard]] double morphModCpuListNorm(Steinberg::Vst::ParamID id, int index) {
+    return surfaceNormOf(id, static_cast<double>(index));
+}
+
+// The four selection groups of one endpoint plus the two field governing amounts (Edit Target set in the same block).
+void addMorphModCpuGroups(Krate::Test::ParameterChanges& pc, bool endpointB) {
+    const MorphModCpuAlgorithm alg = endpointB ? MorphModCpuAlgorithm::Fracture : MorphModCpuAlgorithm::Tube;
+    const MorphModCpuImage image = endpointB ? MorphModCpuImage::Wide : MorphModCpuImage::Solid;
+    const MorphModCpuFieldMotion fieldMotion =
+        endpointB ? MorphModCpuFieldMotion::Cycle : MorphModCpuFieldMotion::Drift;
+    pc.addChange(::Profundum::kCharacterId, morphModCpuListNorm(::Profundum::kCharacterId, static_cast<int>(alg)));
+    pc.addChange(::Profundum::kFieldImageModeId,
+                 morphModCpuListNorm(::Profundum::kFieldImageModeId, static_cast<int>(image)));
+    pc.addChange(::Profundum::kFieldMotionSourceId,
+                 morphModCpuListNorm(::Profundum::kFieldMotionSourceId, static_cast<int>(fieldMotion)));
+    pc.addChange(::Profundum::kFieldSpreadId, surfaceNormOf(::Profundum::kFieldSpreadId, 1.0));
+    pc.addChange(::Profundum::kFieldMotionDepthId, surfaceNormOf(::Profundum::kFieldMotionDepthId, 1.0));
+}
+
+// The Morph Modulation of SC-014 (a) and the 5 ms ramp, through the host surface (1002, 1003 - 1010).
+void addMorphModCpuModulation(Krate::Test::ParameterChanges& pc) {
+    pc.addChange(::Profundum::kMorphRampTimeId,
+                 ::Profundum::normalizedFromPlain(::Profundum::kMorphRampLaw, static_cast<double>(kMorphModCpuRampMs)));
+    pc.addChange(::Profundum::kMorphModSourceId, static_cast<double>(static_cast<int>(MorphModCpuSource::Cycle)) /
+                                                     static_cast<double>(::Profundum::kNumMorphModSources - 1));
+    pc.addChange(::Profundum::kMorphModAmountId,
+                 ::Profundum::normalizedFromPlain(::Profundum::kMorphModAmountLaw,
+                                                  static_cast<double>(kMorphModCpuAmount)));
+    pc.addChange(::Profundum::kMorphModCycleShapeId, 0.0);  // Sine (index 0)
+    pc.addChange(::Profundum::kMorphModCycleRateId,
+                 ::Profundum::normalizedFromPlain(::Profundum::kMorphModRateLaw,
+                                                  static_cast<double>(kMorphModCpuCycleHz)));
+    pc.addChange(::Profundum::kMorphModCycleSyncId, 0.0);  // Off
+}
+
+// Two configuration blocks: block 1 = Edit Target A, voice mode, position, modulation, endpoint A; block 2 = Edit
+// Target B, endpoint B and the note-ons (the configureProcessor order).
+void configureMorphModProcessor(ProcessorArm& arm, const SurfaceConfig& cfg, Steinberg::Vst::IEventList* notes) {
+    Krate::Test::ParameterChanges blockA;
+    blockA.addChange(::Profundum::kMorphEditTargetId, 0.0);
+    blockA.addChange(::Profundum::kVoiceModeId, cfg.poly ? 1.0 : 0.0);
+    blockA.addChange(::Profundum::kMorphPositionId, kSurfacePosition);
+    addMorphModCpuModulation(blockA);
+    addEndpointAValues(blockA);
+    addMorphModCpuGroups(blockA, false);
+
+    Krate::Test::ParameterChanges blockB;
+    blockB.addChange(::Profundum::kMorphEditTargetId, 1.0);
+    addEndpointBValues(blockB);
+    addMorphModCpuGroups(blockB, true);
+
+    arm.call.data.inputParameterChanges = &blockA;
+    REQUIRE(arm.fixture.proc->process(arm.call.data) == Steinberg::kResultOk);
+    arm.call.data.inputParameterChanges = &blockB;
+    arm.call.data.inputEvents = notes;
+    REQUIRE(arm.fixture.proc->process(arm.call.data) == Steinberg::kResultOk);
+    arm.call.data.inputParameterChanges = nullptr;
+    arm.call.data.inputEvents = nullptr;
+}
+
+// The warm-up of @p arm (kWarmupBlocks blocks, discarded), recording the range of @p e's ramped position after each.
+template <typename Arm>
+void warmUpTrackingPosition(Arm& arm, const Krate::DSP::ProfundumEngine& e, float& lo, float& hi) {
+    lo = 1.0f;
+    hi = 0.0f;
+    for (std::size_t b = 0; b < kWarmupBlocks; ++b) {
+        arm.processBlock();
+        const float q = e.morphResolvedPosition();
+        lo = std::min(lo, q);
+        hi = std::max(hi, q);
+    }
+}
+
+}  // namespace
+
+TEST_CASE("Profundum_ProcessorCpuMorphMod", "[profundum][morphmod][.perf][performance]") {
+    using Engine = Krate::DSP::ProfundumEngine;
+    using Morph = Krate::DSP::BassMorphEngine;
+
+    // ---------------------------------------------------------------- event lists (built once)
+    Krate::Test::EventList monoNotes;
+    monoNotes.addNoteOn(kE1, kVelocity, 0);
+
+    Krate::Test::EventList polyNotes;
+    for (const Steinberg::int16 pitch : kChord4) {
+        polyNotes.addNoteOn(pitch, kVelocity, 0);
+    }
+    REQUIRE(polyNotes.getEventCount() == 4);
+
+    // ---------------------------------------------------------------- arms (heap processors / engines)
+    std::vector<std::unique_ptr<SurfacePair>> pairs;
+    pairs.reserve(kMorphModCpuConfigs.size());
+    for (const SurfaceConfig& cfg : kMorphModCpuConfigs) {
+        pairs.push_back(std::make_unique<SurfacePair>(cfg));
+    }
+
+    // ---------------------------------------------------------------- processor arms: configure + tracked warm-up
+    std::vector<std::pair<float, float>> pRange(pairs.size());
+    for (std::size_t i = 0; i < pairs.size(); ++i) {
+        SurfacePair& pair = *pairs[i];
+        configureMorphModProcessor(pair.p.arm, pair.cfg, pair.cfg.poly ? &polyNotes : &monoNotes);
+        const Engine* pe = pair.p.arm.fixture.engine();
+        REQUIRE(pe != nullptr);
+        warmUpTrackingPosition(pair.p, *pe, pRange[i].first, pRange[i].second);
+    }
+
+    // The configured endpoints, base position and modulation, read from the MONO arm's engine.
+    const Engine* ref = pairs.front()->p.arm.fixture.engine();
+    REQUIRE(ref != nullptr);
+    const Krate::DSP::MorphState baseA = ref->getEndpoint(SurfaceEndpoint::A);
+    const Krate::DSP::MorphState baseB = ref->getEndpoint(SurfaceEndpoint::B);
+    const float base = ref->morphBasePosition();
+    const Krate::DSP::ProfundumMorphModulator::Config mod = ref->morphModulation();
+    const float rampMs = ref->morphRampMs();
+
+    // Non-vacuity: the four groups differ, every governing amount is non-zero on both sides, b = 0.5, and the
+    // modulation the host surface set is the one the engine holds.
+    REQUIRE(baseA.characterAlgorithm == MorphModCpuAlgorithm::Tube);
+    REQUIRE(baseB.characterAlgorithm == MorphModCpuAlgorithm::Fracture);
+    REQUIRE(baseA.field.mode == MorphModCpuImage::Solid);
+    REQUIRE(baseB.field.mode == MorphModCpuImage::Wide);
+    REQUIRE(baseA.field.motionSource == MorphModCpuFieldMotion::Drift);
+    REQUIRE(baseB.field.motionSource == MorphModCpuFieldMotion::Cycle);
+    REQUIRE(baseA.motion.source == SurfaceMotion::Source::Cycle);
+    REQUIRE(baseB.motion.source == SurfaceMotion::Source::Drift);
+    for (const Krate::DSP::MorphState* s : {&baseA, &baseB}) {
+        REQUIRE(s->characterAmount != 0.0f);
+        REQUIRE(s->field.spread != 0.0f);
+        REQUIRE(s->field.motionDepth != 0.0f);
+        REQUIRE(s->motion.amount != 0.0f);
+    }
+    REQUIRE(base == static_cast<float>(kSurfacePosition));
+    REQUIRE(mod.source == MorphModCpuSource::Cycle);
+    REQUIRE(mod.cycleShape == Krate::DSP::Waveform::Sine);
+    REQUIRE_FALSE(mod.cycleSync);
+    REQUIRE(std::fabs(mod.amount - kMorphModCpuAmount) <= kMorphModCpuTolerance);
+    REQUIRE(std::fabs(mod.cycleRateHz - kMorphModCpuCycleHz) <= kMorphModCpuTolerance);
+    REQUIRE(std::fabs(rampMs - kMorphModCpuRampMs) <= kMorphModCpuTolerance);
+
+    // ---------------------------------------------------------------- direct arms: configure + tracked warm-up
+    std::vector<std::pair<float, float>> dRange(pairs.size());
+    for (std::size_t i = 0; i < pairs.size(); ++i) {
+        SurfacePair& pair = *pairs[i];
+        configureDirect(pair.d.arm, pair.cfg, baseA, baseB, base);
+        Engine& de = *pair.d.arm.direct.e;
+        de.setMorphModulation(mod);
+        de.setMorphRampMs(rampMs);
+        pair.s.shared = pair.p.arm.fixture.proc->mutableEngineForTest();
+        REQUIRE(pair.s.shared != nullptr);
+        warmUpTrackingPosition(pair.d, de, dRange[i].first, dRange[i].second);
+    }
+
+    // ---------------------------------------------------------------- parity + non-vacuity (before timing)
+    for (std::size_t i = 0; i < pairs.size(); ++i) {
+        const SurfacePair& pair = *pairs[i];
+        INFO("arm " << pair.cfg.name);
+        const ::Profundum::Processor& proc = *pair.p.arm.fixture.proc;
+        const Engine* pe = pair.p.arm.fixture.engine();
+        const Engine* de = pair.d.arm.direct.e.get();
+        REQUIRE(pe != nullptr);
+        REQUIRE(proc.endpointRejectionsForTest() == 0u);
+        REQUIRE(pe->voiceMode() == (pair.cfg.poly ? Engine::VoiceMode::Poly : Engine::VoiceMode::Mono));
+        // P and D hold the same endpoints, base and modulation: the two sides render the same configuration.
+        REQUIRE(::Profundum::leafBitsOf(pe->getEndpoint(SurfaceEndpoint::A)) ==
+                ::Profundum::leafBitsOf(de->getEndpoint(SurfaceEndpoint::A)));
+        REQUIRE(::Profundum::leafBitsOf(pe->getEndpoint(SurfaceEndpoint::B)) ==
+                ::Profundum::leafBitsOf(de->getEndpoint(SurfaceEndpoint::B)));
+        REQUIRE(pe->morphBasePosition() == de->morphBasePosition());
+        REQUIRE(pe->morphModulation().source == de->morphModulation().source);
+        REQUIRE(pe->morphModulation().amount == de->morphModulation().amount);
+        REQUIRE(pe->morphModulation().cycleRateHz == de->morphModulation().cycleRateHz);
+        REQUIRE(pe->morphRampMs() == de->morphRampMs());
+        REQUIRE_FALSE(pe->morphModBypass());   // Compare A.B: the modulation is not bypassed (C-8)
+        REQUIRE_FALSE(de->morphModBypass());
+        // The modulation really runs: the ramped position crossed both hysteresis thresholds during the warm-up, so
+        // every group with differing selections and non-zero governing amounts switched.
+        WARN("SC-014 " << pair.cfg.name << " warm-up ramped position range: P [" << pRange[i].first << ", "
+                       << pRange[i].second << "], D [" << dRange[i].first << ", " << dRange[i].second << "]");
+        REQUIRE(pRange[i].first < Morph::kThetaDown);
+        REQUIRE(pRange[i].second > Morph::kThetaUp);
+        REQUIRE(dRange[i].first < Morph::kThetaDown);
+        REQUIRE(dRange[i].second > Morph::kThetaUp);
+        // Recorded: every arm is sounding when timing starts (the last warm-up block).
+        WARN("SC-014 last warm-up block peak " << pair.cfg.name << ": P " << pair.p.arm.call.peak() << ", D "
+                                               << pair.d.arm.peak());
+    }
+
+    // ---------------------------------------------------------------- interleaved trials
+    for (std::size_t trial = 0; trial < kTrials; ++trial) {
+        for (auto& pair : pairs) {
+            if (trial % 2 == 0) {
+                timeArm(pair->p, pair->bestP);
+                timeArm(pair->s, pair->bestS);
+                timeArm(pair->s, pair->bestS2);
+            } else {
+                timeArm(pair->s, pair->bestS2);
+                timeArm(pair->s, pair->bestS);
+                timeArm(pair->p, pair->bestP);
+            }
+            timeArm(pair->d, pair->bestD);
+        }
+    }
+
+    // ---------------------------------------------------------------- report every arm, then gate every arm
+    WARN("SC-014 Morph Mod Cycle Sine " << kMorphModCpuCycleHz << " Hz, Amount " << kMorphModCpuAmount << ", ramp "
+                                        << kMorphModCpuRampMs << " ms, base " << base << "; real time per "
+                                        << kBlocksPerTrial << " blocks (512 @ 48 kHz) = " << trialPeriodNs()
+                                        << " ns");
+    for (const auto& pair : pairs) {
+        const double pctP = pctOf(pair->bestP);
+        const double pctD = pctOf(pair->bestD);
+        const double ratio = pair->bestP / pair->bestS;   // one engine instance (SC-020 ruling)
+        WARN("SC-014 " << pair->cfg.name << ": best ns P " << pair->bestP << ", D (same engine) " << pair->bestS
+                       << ", D (separate engine) " << pair->bestD << "; pct P = " << pctP << " % (bar <= "
+                       << pair->pctBar() << "), pct D separate = " << pctD << " % (recorded); ratio P / D = "
+                       << ratio << " (bar <= " << kWrapperOverheadCeiling << ")");
+    }
+    for (const auto& pair : pairs) {
+        INFO("arm " << pair->cfg.name);
+        // Control: the same D path timed twice must agree within the ratio bar, or this run measured the machine.
+        const double control = pair->bestS2 / pair->bestS;
+        WARN("SC-014 " << pair->cfg.name << ": control S2 / S (same D path twice) = " << control
+                       << " (valid within [" << 1.0 / kControlRatioCeiling << ", " << kControlRatioCeiling << "])");
+        if (control > kControlRatioCeiling || control < 1.0 / kControlRatioCeiling) {
+            FAIL_CHECK("SC-014 " << pair->cfg.name << " INVALID: control S2 / S = " << control
+                                 << " (noise floor above the ratio bar); re-run alone on an idle machine");
+        }
+        CHECK(pctOf(pair->bestP) <= pair->pctBar());
+        CHECK(pair->bestP <= kWrapperOverheadCeiling * pair->bestS);
     }
 }

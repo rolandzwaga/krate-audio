@@ -19,7 +19,8 @@
 namespace Profundum {
 
 /// FR-012 / FR-040 (Phase 11: v2, 510 bytes); Phase 12 FR-047 / FR-096: v3, 574 bytes (the v2 body plus two
-/// endpoint-name blocks, plan 4.5). Shared by processor and controller; neither includes the other.
+/// endpoint-name blocks, plan 4.5); Phase 14 C-10: still v3, 610 bytes (the Morph Modulation block appended).
+/// Shared by processor and controller; neither includes the other.
 constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
 /// FR-044: version (4) + global block (4 + 4 + 4 + 4) + macro block (4 x 4).
@@ -58,9 +59,20 @@ static_assert(kStateV1Version + 1 == kStateV2Version && kStateV2Version + 1 == k
 constexpr std::size_t kEndpointNameMaxBytes = 31;   // UTF-8 bytes; 1 length byte + 31 = 32 per endpoint
 constexpr std::size_t kEndpointNameBlockBytes = 32;
 constexpr std::size_t kStateNamesOffset = kStateV2Bytes;   // 510: the Phase 11 "append after byte 510" rule
-constexpr std::size_t kStateV3Bytes = kStateNamesOffset + 2 * kEndpointNameBlockBytes;   // 574
+constexpr std::size_t kStateNamesEnd = kStateNamesOffset + 2 * kEndpointNameBlockBytes;   // 574
 static_assert(kEndpointNameBlockBytes == kEndpointNameMaxBytes + 1, "plan 4.5: the u8 length byte + 31 bytes");
-static_assert(kStateV3Bytes == 574, "plan 4.5: v3 is 574 bytes");
+static_assert(kStateNamesEnd == 574, "plan 4.5: the two name blocks end at byte 574");
+
+// ------------------------------------------------------------------------------
+// Phase 14 (C-10; plan 4.6): v3 grows by the 36-byte Morph Modulation block after the names; the version stays 3.
+//   574-609 source i32, amount f32, attack ms f32, decay ms f32, sustain f32, cycle shape i32, cycle rate Hz f32,
+//           cycle sync i32, cycle sync rate i32 (parameters/morph_mod_params.h)
+// ------------------------------------------------------------------------------
+constexpr std::size_t kStateMorphModOffset = kStateNamesEnd;
+constexpr std::size_t kStateMorphModBytes = 36;
+constexpr std::size_t kStateV3Bytes = kStateMorphModOffset + kStateMorphModBytes;   // 610
+static_assert(kStateMorphModBytes == 9u * 4u, "C-10: nine 4-byte fields");
+static_assert(kStateV3Bytes == 610, "C-10: v3 is 610 bytes");
 
 // ------------------------------------------------------------------------------
 // The 20-byte morph runtime blob (FR-041; plan 4.5.2). The engine keeps its offsets private
@@ -218,12 +230,22 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMorphAnchorModeId = 1000,
     kMorphEditTargetId = 1001,
     kMorphRampTimeId = 1002,
+    kMorphModSourceId = 1003,  // Phase 14 C-12: Morph Modulation 1003-1011
+    kMorphModAmountId,
+    kMorphModAttackId,
+    kMorphModDecayId,
+    kMorphModSustainId,
+    kMorphModCycleShapeId,
+    kMorphModCycleRateId,
+    kMorphModCycleSyncId,
+    kMorphModCycleSyncRateId,  // 1003-1011
     kMorphParamRangeEnd = 1100,
 
-    kNumRoutedIds = 1003,  // route table size: IDs 0..1002
+    kNumRoutedIds = 1012,  // route table size: IDs 0..1011
 };
 
-static_assert(kMorphRampTimeId + 1 == kNumRoutedIds, "plan 3.1: the route table covers IDs 0..1002");
+static_assert(kMorphModCycleSyncRateId == 1011, "C-12: Morph Modulation is 1003-1011");
+static_assert(kMorphModCycleSyncRateId + 1 == kNumRoutedIds, "plan 4.6: the route table covers IDs 0..1011");
 static_assert(kAmpReleaseCurveId == 426 && kMotionEnvDecayId == 914 && kFieldSyncRateId == 809 &&
                   kCoreExcitationAsymmetryId == 208 && kAnchorFoldFeedId == 306 && kNotePitchBendRangeId == 417,
               "plan 3.1: implicit enumerator runs land on the spec ID table");

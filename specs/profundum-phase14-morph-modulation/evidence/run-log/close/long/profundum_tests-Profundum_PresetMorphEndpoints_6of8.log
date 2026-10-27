@@ -1,0 +1,16 @@
+Filters: "Profundum_PresetMorphEndpoints_6of8"
+Randomness seeded to: 1887708816
+# Profundum_PresetMorphEndpoints_6of8: presets=7
+preset,d_ab,masked,level_a_e1,level_b_e1,level_a_c3,level_b_c3
+"Bite Down",14.6318,11,-12.5907,-11.6089,-12.6699,-10.1168
+"Rounded Weight",18.8332,13,-10.0759,-11.3243,-10.0061,-12.3684
+"Glide Path",18.6133,6,-14.094,-11.8897,-13.8495,-11.5361
+"Spread Choir",24.1768,8,-12.9697,-13.685,-12.8725,-14.515
+"Envelope Mass",17.2165,16,-9.84209,-9.87185,-9.78938,-9.65441
+"Weight Lever",15.3624,14,-10.6577,-11.4268,-10.5049,-11.6232
+"Poly Swell",12.31,7,-12.3735,-10.8712,-11.866,-10.5783
+280.167 s: Profundum_PresetMorphEndpoints_6of8
+===============================================================================
+All tests passed (2711020 assertions in 1 test case)
+
+exit: 0 wall: 281 s

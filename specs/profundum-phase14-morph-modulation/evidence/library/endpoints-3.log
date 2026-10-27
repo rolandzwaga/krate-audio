@@ -1,0 +1,18 @@
+=== endpoints-3 2026-10-27T09:26:41Z commit e501b577
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetMorphEndpoints_3of8"
+Filters: "Profundum_PresetMorphEndpoints_3of8"
+Randomness seeded to: 2344446920
+# Profundum_PresetMorphEndpoints_3of8: presets=8
+preset,d_ab,masked,level_a_e1,level_b_e1,level_a_c3,level_b_c3
+"Valve Pressure",10.876,11,-10.1246,-8.75866,-9.33361,-8.79673
+"Ghost Kick",16.5583,5,-10.7465,-12.2122,-10.7277,-12.8955
+"Slow Fall",12.2123,11,-12.3695,-12.9145,-12.0696,-11.326
+"Hard Attack",12.5143,12,-11.407,-11.6498,-11.0716,-9.80125
+"Body Wave",10.5128,5,-8.29524,-8.04657,-8.29122,-8.0258
+"Legato Line",11.5295,8,-8.69973,-10.3188,-8.36722,-9.41561
+"Locked Floor",20.8768,13,-10.4931,-12.862,-10.4562,-13.1653
+"Struck Fold",18.664,7,-12.2635,-13.1503,-11.9687,-13.3947
+===============================================================================
+All tests passed (3098308 assertions in 1 test case)
+
+WALL endpoints-3 244.5 s exit=0

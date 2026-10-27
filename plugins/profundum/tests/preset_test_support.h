@@ -4,7 +4,7 @@
 // Profundum - Catch2-free preset state decode (Phase 13 T006; plan 4.7 first block)
 // ==============================================================================
 // Shared by the preset host tool and the preset tests: no Catch2, no fixture.
-// Decodes a v3 component state (574 bytes, plugin_ids.h:51-62) field by field:
+// Decodes a v3 component state (610 bytes since Phase 14, plugin_ids.h:30-75) field by field:
 //   0-3     version i32
 //   4-19    global block: gain f32, voice mode i32, polyphony i32, ceiling f32 (global_params.h:182-187)
 //   20-35   macros 4 x f32 (macro_params.h:144-147)
@@ -64,6 +64,16 @@ struct DecodedPresetState {
         std::uint8_t mainMask = 0, anchorSelection = 0;
     } runtime{};                                   // offsets: plugin_ids.h:70-77
     std::array<std::string, 2> names;              // length byte + bytes (plugin_ids.h:55-57)
+    /// Phase 14 (C-10, plan 4.12): the 36-byte Morph Modulation block at kStateMorphModOffset, as stored (Sync Rate
+    /// is the kNoteValueDropdownMapping index). present: the stream held the whole block.
+    struct MorphMod {
+        std::int32_t source = 0;
+        float amount = 0, attackMs = 10, decayMs = 300, sustain = 0;
+        std::int32_t cycleShape = 0;
+        float cycleRateHz = 1;
+        std::int32_t cycleSync = 0, cycleSyncRate = 13;
+        bool present = false;
+    } morphMod{};
 };
 
 namespace preset_decode_detail {
@@ -177,6 +187,21 @@ static_assert(kSeedOffset + Profundum::kStateSeedBytes == Profundum::kStateEndpo
         }
         const std::size_t len = std::min<std::size_t>(comp[at], pf::kEndpointNameMaxBytes);
         out.names[e].assign(reinterpret_cast<const char*>(comp.data() + at + 1), len);
+    }
+
+    // Phase 14 (C-10): the Morph Modulation block, in its table order (morph_mod_params.h saveMorphModParams).
+    if (comp.size() >= pf::kStateV3Bytes) {
+        constexpr std::size_t mm = pf::kStateMorphModOffset;
+        out.morphMod.source = d::i32At(comp, mm);
+        out.morphMod.amount = d::f32At(comp, mm + d::kWord);
+        out.morphMod.attackMs = d::f32At(comp, mm + 2 * d::kWord);
+        out.morphMod.decayMs = d::f32At(comp, mm + 3 * d::kWord);
+        out.morphMod.sustain = d::f32At(comp, mm + 4 * d::kWord);
+        out.morphMod.cycleShape = d::i32At(comp, mm + 5 * d::kWord);
+        out.morphMod.cycleRateHz = d::f32At(comp, mm + 6 * d::kWord);
+        out.morphMod.cycleSync = d::i32At(comp, mm + 7 * d::kWord);
+        out.morphMod.cycleSyncRate = d::i32At(comp, mm + 8 * d::kWord);
+        out.morphMod.present = true;
     }
 
     out.ok = out.version == pf::kCurrentStateVersion && out.bytes == pf::kStateV3Bytes && endpointsOk;

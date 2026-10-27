@@ -1,0 +1,184 @@
+=== T032 portability 2026-10-27T10:08:22Z commit e501b577 base 3dfc5b7d
+TUs (44):
+  dsp/tests/unit/processors/crossover_filter_test.cpp
+  dsp/tests/unit/processors/karplus_strong_test.cpp
+  dsp/tests/unit/processors/mono_handler_test.cpp
+  dsp/tests/unit/processors/phaser_test.cpp
+  dsp/tests/unit/processors/tube_stage_test.cpp
+  dsp/tests/unit/processors/wavefolder_processor_test.cpp
+  dsp/tests/unit/systems/profundum_engine_display_test.cpp
+  dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp
+  dsp/tests/unit/systems/profundum_engine_perf_test.cpp
+  dsp/tests/unit/systems/profundum_morph_modulator_test.cpp
+  dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp
+  dsp/tests/unit/systems/seraphis_engine_test.cpp
+  dsp/tests/unit/systems/vowel_sequencer_tests.cpp
+  plugins/innexus/tests/integration/test_adsr_phase8_verification.cpp
+  plugins/innexus/tests/unit/processor/sample_analyzer_tests.cpp
+  plugins/profundum/src/controller/controller.cpp
+  plugins/profundum/src/processor/processor.cpp
+  plugins/profundum/src/ui/morph_indicator_slider.cpp
+  plugins/profundum/src/ui/panel_sub_controller.cpp
+  plugins/profundum/tests/integration/copy_compare_test.cpp
+  plugins/profundum/tests/integration/main_page_audibility_test.cpp
+  plugins/profundum/tests/integration/morph_mod_preset_test.cpp
+  plugins/profundum/tests/integration/morph_mod_processor_test.cpp
+  plugins/profundum/tests/integration/param_wiring_test.cpp
+  plugins/profundum/tests/integration/preset_browser_test.cpp
+  plugins/profundum/tests/integration/preset_probe_test.cpp
+  plugins/profundum/tests/integration/preset_rt_test.cpp
+  plugins/profundum/tests/integration/preset_sweep_test.cpp
+  plugins/profundum/tests/integration/processor_cpu_test.cpp
+  plugins/profundum/tests/integration/spectrum_frame_test.cpp
+  plugins/profundum/tests/unit/controller/editor_layout_test.cpp
+  plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  plugins/profundum/tests/unit/controller/editor_sync_test.cpp
+  plugins/profundum/tests/unit/controller/ui_views_test.cpp
+  plugins/profundum/tests/unit/lifecycle_test.cpp
+  plugins/profundum/tests/unit/manual_coverage_test.cpp
+  plugins/profundum/tests/unit/midi_event_test.cpp
+  plugins/profundum/tests/unit/midi_mapping_test.cpp
+  plugins/profundum/tests/unit/param_denorm_test.cpp
+  plugins/profundum/tests/unit/param_table_test.cpp
+  plugins/profundum/tests/unit/phase11_alloc_test.cpp
+  plugins/profundum/tests/unit/preset/preset_library_test.cpp
+  plugins/profundum/tests/unit/spectrum_producer_test.cpp
+  plugins/profundum/tests/unit/state_v3_test.cpp
+headers (18):
+  dsp/include/krate/dsp/systems/profundum_engine.h
+  dsp/include/krate/dsp/systems/profundum_engine_observer.h
+  dsp/include/krate/dsp/systems/profundum_morph_modulator.h
+  dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h
+  plugins/profundum/src/controller/controller.h
+  plugins/profundum/src/parameters/morph_mod_params.h
+  plugins/profundum/src/parameters/sound_param_table.h
+  plugins/profundum/src/plugin_ids.h
+  plugins/profundum/src/processor/processor.h
+  plugins/profundum/src/processor/spectrum_frame.h
+  plugins/profundum/src/processor/spectrum_producer.h
+  plugins/profundum/src/ui/morph_indicator_slider.h
+  plugins/profundum/tests/param_path_audibility_helpers.h
+  plugins/profundum/tests/preset_render_support.h
+  plugins/profundum/tests/preset_test_support.h
+  plugins/profundum/tests/profundum_preset_host.h
+  plugins/profundum/tests/profundum_test_fixture.h
+  tools/profundum_preset_defs.h
+
+== check-portability ==
+check-portability: 44 translation unit(s) with g++
+
+  OK      dsp/tests/unit/processors/crossover_filter_test.cpp
+  OK      dsp/tests/unit/processors/karplus_strong_test.cpp
+  OK      dsp/tests/unit/processors/mono_handler_test.cpp
+  OK      dsp/tests/unit/processors/phaser_test.cpp
+  OK      dsp/tests/unit/processors/tube_stage_test.cpp
+  OK      dsp/tests/unit/processors/wavefolder_processor_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_display_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_perf_test.cpp
+  OK      dsp/tests/unit/systems/profundum_morph_modulator_test.cpp
+  OK      dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp
+  OK      dsp/tests/unit/systems/seraphis_engine_test.cpp
+  OK      dsp/tests/unit/systems/vowel_sequencer_tests.cpp
+  OK      ...ins/innexus/tests/integration/test_adsr_phase8_verification.cpp
+  OK      plugins/innexus/tests/unit/processor/sample_analyzer_tests.cpp
+  OK      plugins/profundum/src/controller/controller.cpp
+  OK      plugins/profundum/src/processor/processor.cpp
+  OK      plugins/profundum/src/ui/morph_indicator_slider.cpp
+  OK      plugins/profundum/src/ui/panel_sub_controller.cpp
+  OK      plugins/profundum/tests/integration/copy_compare_test.cpp
+  OK      plugins/profundum/tests/integration/main_page_audibility_test.cpp
+  OK      plugins/profundum/tests/integration/morph_mod_preset_test.cpp
+  OK      plugins/profundum/tests/integration/morph_mod_processor_test.cpp
+  OK      plugins/profundum/tests/integration/param_wiring_test.cpp
+  OK      plugins/profundum/tests/integration/preset_browser_test.cpp
+  OK      plugins/profundum/tests/integration/preset_probe_test.cpp
+  OK      plugins/profundum/tests/integration/preset_rt_test.cpp
+  OK      plugins/profundum/tests/integration/preset_sweep_test.cpp
+  OK      plugins/profundum/tests/integration/processor_cpu_test.cpp
+  OK      plugins/profundum/tests/integration/spectrum_frame_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_layout_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_sync_test.cpp
+  OK      plugins/profundum/tests/unit/controller/ui_views_test.cpp
+  OK      plugins/profundum/tests/unit/lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/manual_coverage_test.cpp
+  OK      plugins/profundum/tests/unit/midi_event_test.cpp
+  OK      plugins/profundum/tests/unit/midi_mapping_test.cpp
+  OK      plugins/profundum/tests/unit/param_denorm_test.cpp
+  OK      plugins/profundum/tests/unit/param_table_test.cpp
+  OK      plugins/profundum/tests/unit/phase11_alloc_test.cpp
+  OK      plugins/profundum/tests/unit/preset/preset_library_test.cpp
+  OK      plugins/profundum/tests/unit/spectrum_producer_test.cpp
+  OK      plugins/profundum/tests/unit/state_v3_test.cpp
+
+check-portability: all clear -- 44 compiled.
+check-portability exit=0 wall=82s
+
+== lint-finite-bitmask ==
+lint-finite-bitmask: clean
+lint-finite-bitmask exit=0 wall=1s
+
+== lint-nonfinite-symbols ==
+lint-nonfinite-symbols: all clear (17 guarded files)
+lint-nonfinite-symbols exit=0 wall=1s
+
+== lint-ieee-flag-sets ==
+lint-ieee-flag-sets: clean (14 IEEE flag sets)
+lint-ieee-flag-sets exit=0 wall=0s
+
+== lint-plugin-editor-baseline ==
+lint-plugin-editor-baseline: OK - 9 plugins carry the update check and the version label
+lint-plugin-editor-baseline exit=0 wall=0s
+
+== lint-apple-globals ==
+lint-apple-globals: OK — 62 files, no macOS-only name collisions
+lint-apple-globals exit=0 wall=0s
+
+== lint-float-bit-goldens ==
+lint-float-bit-goldens: clean (1904 files scanned)
+lint-float-bit-goldens exit=0 wall=1s
+
+== lint-simd-aligned-loadstore ==
+lint-simd-aligned-loadstore: clean -- 1904 file(s) scanned.
+lint-simd-aligned-loadstore exit=0 wall=0s
+
+== list cross-check (tasks.md T032 step 1 vs computed) ==
+every task-named file present (11)
+also changed (compiled, informational):
+  dsp/tests/unit/processors/crossover_filter_test.cpp
+  dsp/tests/unit/processors/karplus_strong_test.cpp
+  dsp/tests/unit/processors/mono_handler_test.cpp
+  dsp/tests/unit/processors/phaser_test.cpp
+  dsp/tests/unit/processors/tube_stage_test.cpp
+  dsp/tests/unit/processors/wavefolder_processor_test.cpp
+  dsp/tests/unit/systems/seraphis_engine_test.cpp
+  dsp/tests/unit/systems/vowel_sequencer_tests.cpp
+  plugins/innexus/tests/integration/test_adsr_phase8_verification.cpp
+  plugins/innexus/tests/unit/processor/sample_analyzer_tests.cpp
+  plugins/profundum/tests/integration/copy_compare_test.cpp
+  plugins/profundum/tests/integration/main_page_audibility_test.cpp
+  plugins/profundum/tests/integration/param_wiring_test.cpp
+  plugins/profundum/tests/integration/preset_browser_test.cpp
+  plugins/profundum/tests/integration/preset_probe_test.cpp
+  plugins/profundum/tests/integration/preset_rt_test.cpp
+  plugins/profundum/tests/integration/preset_sweep_test.cpp
+  plugins/profundum/tests/integration/processor_cpu_test.cpp
+  plugins/profundum/tests/integration/spectrum_frame_test.cpp
+  plugins/profundum/tests/unit/controller/editor_layout_test.cpp
+  plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  plugins/profundum/tests/unit/controller/editor_sync_test.cpp
+  plugins/profundum/tests/unit/controller/ui_views_test.cpp
+  plugins/profundum/tests/unit/lifecycle_test.cpp
+  plugins/profundum/tests/unit/manual_coverage_test.cpp
+  plugins/profundum/tests/unit/midi_event_test.cpp
+  plugins/profundum/tests/unit/midi_mapping_test.cpp
+  plugins/profundum/tests/unit/param_denorm_test.cpp
+  plugins/profundum/tests/unit/param_table_test.cpp
+  plugins/profundum/tests/unit/phase11_alloc_test.cpp
+  plugins/profundum/tests/unit/preset/preset_library_test.cpp
+  plugins/profundum/tests/unit/spectrum_producer_test.cpp
+  plugins/profundum/tests/unit/state_v3_test.cpp
+
+wsl --shutdown done; total wall 87s
+PORTABILITY GREEN

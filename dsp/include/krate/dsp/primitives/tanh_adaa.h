@@ -20,6 +20,7 @@
 
 #include <krate/dsp/core/fast_math.h>
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/log_cosh_table.h>
 
 #include <cmath>
 #include <cstddef>
@@ -130,6 +131,12 @@ public:
     /// @note Real-time safe: O(1) complexity, no allocations
     [[nodiscard]] float process(float x) noexcept;
 
+    /// @brief process() with F1Fast in place of F1 (Profundum Phase 14 R11, opt-in).
+    ///
+    /// The same ADAA, epsilon fallback, NaN / infinity handling and state as process(); not
+    /// bit-identical to it. Do not mix the two on one instance between reset() calls.
+    [[nodiscard]] float processFast(float x) noexcept;
+
     /// @brief Process a block of samples in-place.
     ///
     /// Equivalent to calling process() for each sample sequentially.
@@ -156,7 +163,16 @@ public:
     /// @return First antiderivative value
     [[nodiscard]] static float F1(float x) noexcept;
 
+    /// @brief F1 in double with ln(1 + exp(-2|x|)) from the kLogCoshTable polynomials
+    /// (core/log_cosh_table.h, |error| <= 2.4e-9) instead of std::exp + std::log1p: about 3.6x
+    /// cheaper (Profundum Phase 14 R11). processFast keeps it and the ADAA quotient in double.
+    /// @p x must not be NaN.
+    [[nodiscard]] static double F1Fast(double x) noexcept;
+
 private:
+    template <bool Fast>
+    [[nodiscard]] float processImpl(float x) noexcept;
+
     // =========================================================================
     // Constants
     // =========================================================================
@@ -182,6 +198,7 @@ private:
     // and one log1p per sample fewer). Invalid after setDrive(), reset() and every branch that
     // updates x1_ without evaluating F1.
     float f1x1_ = 0.0f;         ///< F1(x1_ * drive_) when f1Valid_
+    double f1x1Fast_ = 0.0;     ///< F1Fast(x1_ * drive_) when f1Valid_ (processFast)
     bool f1Valid_ = false;      ///< f1x1_ matches the current x1_ and drive_
 };
 
@@ -229,7 +246,30 @@ inline float TanhADAA::F1(float x) noexcept {
     return absX - kLn2 + std::log1p(expTerm);
 }
 
+inline double TanhADAA::F1Fast(double x) noexcept {
+    constexpr double kLn2d = 0.69314718055994531;
+    const double absX = (x >= 0.0) ? x : -x;
+    if (absX >= static_cast<double>(kOverflowThreshold)) {
+        return absX - kLn2d;
+    }
+    // absX < 20, so seg = floor(4 absX) <= 79 and u = absX - seg / 4 is in [0, 0.25).
+    const auto seg = static_cast<int>(absX * static_cast<double>(detail::kLogCoshSegmentsPerUnit));
+    const double u = absX - static_cast<double>(detail::kLogCoshSegmentWidth) * static_cast<double>(seg);
+    const auto& c = detail::kLogCoshTable[static_cast<std::size_t>(seg)];
+    const double g = ((((c[5] * u + c[4]) * u + c[3]) * u + c[2]) * u + c[1]) * u + c[0];
+    return absX - kLn2d + g;
+}
+
 inline float TanhADAA::process(float x) noexcept {
+    return processImpl<false>(x);
+}
+
+inline float TanhADAA::processFast(float x) noexcept {
+    return processImpl<true>(x);
+}
+
+template <bool Fast>
+inline float TanhADAA::processImpl(float x) noexcept {
     // FR-004: Drive of 0.0 always returns 0.0
     if (drive_ == 0.0f) {
         return 0.0f;
@@ -268,6 +308,16 @@ inline float TanhADAA::process(float x) noexcept {
         const float midpoint = (x + x1_) * 0.5f;
         y = FastMath::fastTanh(midpoint * drive_);
         f1Valid_ = false;
+    } else if constexpr (Fast) {
+        // R11: the same quotient with F1Fast, the antiderivatives and the quotient in double.
+        const auto d = static_cast<double>(drive_);
+        const double xd = static_cast<double>(x);
+        const double x1d = static_cast<double>(x1_);
+        const double f1x = F1Fast(xd * d);
+        const double f1x1 = f1Valid_ ? f1x1Fast_ : F1Fast(x1d * d);
+        y = static_cast<float>((f1x - f1x1) / (d * (xd - x1d)));
+        f1x1Fast_ = f1x;
+        f1Valid_ = true;
     } else {
         // FR-012: First-order ADAA formula
         // y = (F1(x*drive) - F1(x1*drive)) / (drive * (x - x1))

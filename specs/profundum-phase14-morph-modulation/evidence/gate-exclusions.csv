@@ -1,0 +1,4 @@
+preset,column,gate,reading
+"Long Tail",M-ENV,Profundum_PresetLoudnessMatch,"T026 a3: -6.19 dBFS, 5.37 dB from the library median -11.57 (bar 4); the Envelope holds B at sustain 1"
+"Long Tail",M-CYCLE,Profundum_PresetLoudnessMatch,"T026 variant run: -6.19 dBFS, 5.37 dB from the library median -11.57 (bar 4); the free-running Square Cycle sits at B in the window"
+"Long Tail",M-VEL,Profundum_PresetLoudnessMatch,"T026 variant run: -6.62 dBFS, 4.95 dB from the library median -11.57 (bar 4); velocity 100 morphs 0.79 of the way to B"

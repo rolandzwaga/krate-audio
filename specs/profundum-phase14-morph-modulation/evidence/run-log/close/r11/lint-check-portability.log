@@ -1,0 +1,71 @@
+warning: in the working copy of 'dsp/include/krate/dsp/systems/bass_character_stage.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/include/krate/dsp/systems/shape_morph.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dsp/tests/unit/primitives/tanh_adaa_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/profundum/src/controller/controller.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/profundum/tests/integration/preset_browser_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/profundum/tests/integration/spectrum_frame_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/profundum/tests/preset_test_support.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/profundum/tests/unit/manual_coverage_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/profundum/tests/unit/midi_event_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plugins/profundum/tests/unit/preset/preset_library_test.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/profundum-phase13-presets-release/evidence/coverage-matrix.csv', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/profundum-phase13-presets-release/evidence/coverage-matrix/shard-0.csv', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/profundum-phase13-presets-release/evidence/coverage-matrix/shard-1.csv', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/profundum-phase13-presets-release/evidence/coverage-matrix/shard-2.csv', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/profundum-phase13-presets-release/evidence/coverage-matrix/shard-3.csv', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/profundum-phase13-presets-release/evidence/coverage-matrix/shard-4.csv', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/profundum-phase13-presets-release/evidence/coverage-matrix/shard-5.csv', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/profundum-phase13-presets-release/evidence/coverage-matrix/shard-6.csv', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'specs/profundum-phase13-presets-release/evidence/coverage-matrix/shard-7.csv', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tools/profundum_preset_defs.h', LF will be replaced by CRLF the next time Git touches it
+check-portability: 47 translation unit(s) with g++
+
+  OK      dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp
+  OK      dsp/tests/unit/systems/profundum_morph_mod_nonfinite_test.cpp
+  OK      dsp/tests/unit/systems/profundum_morph_modulator_test.cpp
+  OK      plugins/profundum/src/ui/morph_indicator_slider.cpp
+  OK      plugins/profundum/tests/integration/morph_mod_preset_test.cpp
+  OK      plugins/profundum/tests/integration/morph_mod_processor_test.cpp
+  OK      dsp/tests/unit/processors/crossover_filter_test.cpp
+  OK      dsp/tests/unit/processors/karplus_strong_test.cpp
+  OK      dsp/tests/unit/processors/mono_handler_test.cpp
+  OK      dsp/tests/unit/processors/phaser_test.cpp
+  OK      dsp/tests/unit/processors/tube_stage_test.cpp
+  OK      dsp/tests/unit/processors/wavefolder_processor_test.cpp
+  OK      dsp/tests/unit/systems/seraphis_engine_test.cpp
+  OK      dsp/tests/unit/systems/vowel_sequencer_tests.cpp
+  OK      ...ins/innexus/tests/integration/test_adsr_phase8_verification.cpp
+  OK      plugins/innexus/tests/unit/processor/sample_analyzer_tests.cpp
+  OK      plugins/profundum/tests/integration/preset_rt_test.cpp
+  OK      plugins/profundum/tests/integration/preset_sweep_test.cpp
+  OK      plugins/profundum/tests/unit/preset/preset_library_test.cpp
+  OK      dsp/tests/unit/primitives/tanh_adaa_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_display_test.cpp
+  OK      dsp/tests/unit/systems/profundum_engine_perf_test.cpp
+  OK      dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp
+  OK      dsp/tests/unit/systems/shape_character_nonfinite_test.cpp
+  OK      plugins/profundum/src/controller/controller.cpp
+  OK      plugins/profundum/src/processor/processor.cpp
+  OK      plugins/profundum/src/ui/panel_sub_controller.cpp
+  OK      plugins/profundum/tests/integration/copy_compare_test.cpp
+  OK      plugins/profundum/tests/integration/main_page_audibility_test.cpp
+  OK      plugins/profundum/tests/integration/param_wiring_test.cpp
+  OK      plugins/profundum/tests/integration/preset_browser_test.cpp
+  OK      plugins/profundum/tests/integration/preset_probe_test.cpp
+  OK      plugins/profundum/tests/integration/processor_cpu_test.cpp
+  OK      plugins/profundum/tests/integration/spectrum_frame_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_layout_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/controller/editor_sync_test.cpp
+  OK      plugins/profundum/tests/unit/controller/ui_views_test.cpp
+  OK      plugins/profundum/tests/unit/lifecycle_test.cpp
+  OK      plugins/profundum/tests/unit/manual_coverage_test.cpp
+  OK      plugins/profundum/tests/unit/midi_event_test.cpp
+  OK      plugins/profundum/tests/unit/midi_mapping_test.cpp
+  OK      plugins/profundum/tests/unit/param_denorm_test.cpp
+  OK      plugins/profundum/tests/unit/param_table_test.cpp
+  OK      plugins/profundum/tests/unit/phase11_alloc_test.cpp
+  OK      plugins/profundum/tests/unit/spectrum_producer_test.cpp
+  OK      plugins/profundum/tests/unit/state_v3_test.cpp
+
+check-portability: all clear -- 47 compiled.

@@ -231,12 +231,14 @@ private:
 
 namespace preset_host_detail {
 
-/// Plan 4.4 / P-6: the only IDs a definition's `controls` may carry (1, 100-103, 105, 410-416, 1000, 1002).
+/// Plan 4.4 / P-6: the only IDs a definition's `controls` may carry (1, 100-103, 105, 410-416, 1000, 1002, and from
+/// Phase 14 the Morph Modulation block 1003-1011, plan 4.13).
 [[nodiscard]] inline bool isAllowedControlId(Steinberg::Vst::ParamID id) noexcept {
     namespace pf = ::Profundum;
     return id == pf::kVoiceModeId || (id >= pf::kMacroWeightId && id <= pf::kMacroCleanViolentId) ||
            id == pf::kMorphPositionId || (id >= pf::kNoteMonoPriorityId && id <= pf::kNoteRetriggerId) ||
-           id == pf::kMorphAnchorModeId || id == pf::kMorphRampTimeId;
+           id == pf::kMorphAnchorModeId || id == pf::kMorphRampTimeId ||
+           (id >= pf::kMorphModSourceId && id <= pf::kMorphModCycleSyncRateId);
 }
 
 [[nodiscard]] inline bool isSoundId(Steinberg::Vst::ParamID id) noexcept {
@@ -265,7 +267,7 @@ namespace preset_host_detail {
             return false;
         }
         if (!soundList && !isAllowedControlId(p.id)) {
-            why = where + " is not an allowed control ID (1, 100-103, 105, 410-416, 1000, 1002)";
+            why = where + " is not an allowed control ID (1, 100-103, 105, 410-416, 1000, 1002, 1003-1011)";
             return false;
         }
         for (std::size_t j = 0; j < i; ++j) {

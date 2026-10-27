@@ -47,6 +47,8 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/ui/spread_curve_view.cpp
     src/ui/offset_ring_knob.h
     src/ui/offset_ring_knob.cpp
+    src/ui/morph_indicator_slider.h
+    src/ui/morph_indicator_slider.cpp
     src/ui/panel_sub_controller.h
     src/ui/panel_sub_controller.cpp
     src/ui/macro_ui_map.h
@@ -66,6 +68,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/parameters/field_params.h
     src/parameters/motion_params.h
     src/parameters/morph_params.h
+    src/parameters/morph_mod_params.h
     src/parameters/performance_params.h
     src/parameters/endpoint_names.h
 

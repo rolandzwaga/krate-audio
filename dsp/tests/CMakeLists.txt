@@ -788,6 +788,12 @@ add_executable(dsp_systems_tests
     unit/systems/profundum_engine_perf_test.cpp
     unit/systems/mass_dynamics_oversampling_test.cpp
     unit/systems/profundum_engine_display_test.cpp
+    # Profundum Phase 14 (specs/profundum-phase14-morph-modulation) - ENUMERATED, not globbed:
+    #   profundum_morph_modulator_test.cpp   SC-001 (a), SC-002, SC-003 (a)(b)(c)(e) + modulator half of (d); FR-006, FR-007
+    #   profundum_engine_morphmod_test.cpp   SC-001 (b), SC-003 (d), SC-004, SC-005, SC-006, SC-010, SC-011,
+    #                                        SC-012 (b)(c)(c'), SC-013 (e)(h), SC-019 engine
+    unit/systems/profundum_morph_modulator_test.cpp
+    unit/systems/profundum_engine_morphmod_test.cpp
 )
 
 target_link_libraries(dsp_systems_tests
@@ -907,6 +913,8 @@ add_executable(dsp_ieee_tests
     unit/systems/bass_stereo_field_nonfinite_test.cpp
     unit/systems/bass_morph_nonfinite_test.cpp
     unit/systems/profundum_engine_nonfinite_test.cpp
+    # Profundum Phase 14: the morph-modulation NaN-injection arms (FR-006, FR-001 sanitising)
+    unit/systems/profundum_morph_mod_nonfinite_test.cpp
     # bit-exactness TUs (moved from dsp_processors_tests)
     unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/drop_phase_lock_test.cpp
@@ -1363,6 +1371,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/bass_morph_nonfinite_test.cpp
         # Profundum Phase 9: injects NaN/Inf bit patterns (SC-023, FR-061). The perf TU stays out (shipping FP mode).
         unit/systems/profundum_engine_nonfinite_test.cpp
+        # Profundum Phase 14: injects NaN bit patterns (FR-006, FR-001 sanitising). The morphmod / modulator TUs stay out.
+        unit/systems/profundum_morph_mod_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 

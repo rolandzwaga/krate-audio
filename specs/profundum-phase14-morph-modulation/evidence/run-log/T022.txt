@@ -1,0 +1,53 @@
+T022 - Morph Mod probe (FR-044), run by the main loop 2026-10-27
+Command: bash specs/profundum-phase14-morph-modulation/evidence/probe/run-probe.sh
+
+[probe] building profundum_tests -> specs/profundum-phase14-morph-modulation/evidence/run-log/T022/build.log
+[probe] build exit=0 warnings=0 wall=12.5s
+[probe] cores=32 shards=32
+WALL 29 293.4 s exit=0
+WALL 30 303.9 s exit=0
+WALL 31 319.2 s exit=0
+WALL 26 322.4 s exit=0
+WALL 27 329.4 s exit=0
+WALL 28 343.0 s exit=0
+WALL 6 538.1 s exit=0
+WALL 10 554.7 s exit=0
+WALL 0 559.2 s exit=0
+WALL 24 559.5 s exit=0
+WALL 19 562.1 s exit=0
+WALL 20 563.6 s exit=0
+WALL 16 566.1 s exit=0
+WALL 23 570.4 s exit=0
+WALL 5 570.7 s exit=0
+WALL 18 571.5 s exit=0
+WALL 8 574.3 s exit=0
+WALL 9 579.7 s exit=0
+WALL 25 581.5 s exit=0
+WALL 12 583.3 s exit=0
+WALL 4 586.3 s exit=0
+WALL 15 586.9 s exit=0
+WALL 14 588.5 s exit=0
+WALL 22 590.7 s exit=0
+WALL 13 592.7 s exit=0
+WALL 17 597.2 s exit=0
+WALL 11 597.3 s exit=0
+WALL 7 603.1 s exit=0
+WALL 2 603.5 s exit=0
+WALL 1 603.9 s exit=0
+WALL 3 604.7 s exit=0
+WALL 21 607.9 s exit=0
+[probe] shards done wall=608.2s failed=0
+PROBE MERGED runId=e501b577-20261027T0736 presets=58 rows=1856
+CONVERT M-ENV Rectified Floor (defIndex 5, old primary "AT-06 Character Rectify") margin 3.565 dB source=1 amount=0.600000024 attackMs=0.100000001 decayMs=600 sustain=0.600000024 cycleShape=0 cycleRateHz=1 cycleSync=0 cycleSyncRate=13
+CONVERT M-ENV Long Tail (defIndex 24, old primary "AT-25 Envelope Amp Release") margin 7.704 dB source=1 amount=1 attackMs=0.100000001 decayMs=600 sustain=1 cycleShape=0 cycleRateHz=1 cycleSync=0 cycleSyncRate=13
+CONVERT M-ENV Poly Spread (defIndex 53, old primary "AT-31 Field Spread") margin 3.764 dB source=1 amount=1 attackMs=0.100000001 decayMs=600 sustain=1 cycleShape=0 cycleRateHz=1 cycleSync=0 cycleSyncRate=13
+CONVERT M-ENV Poly Swell (defIndex 54, old primary "AT-24 Envelope Amp Attack") margin 2.586 dB source=1 amount=1 attackMs=0.100000001 decayMs=600 sustain=1 cycleShape=0 cycleRateHz=1 cycleSync=0 cycleSyncRate=13
+CONVERT M-ENV Poly Ignition (defIndex 55, old primary "AT-01 Core Excitation Mix") margin 31.839 dB source=1 amount=1 attackMs=0.100000001 decayMs=600 sustain=1 cycleShape=0 cycleRateHz=1 cycleSync=0 cycleSyncRate=13
+NEW PRESET NEEDED M-CYCLE: base Fed Fold margin 42.832 dB source=2 amount=1 attackMs=10 decayMs=300 sustain=0 cycleShape=3 cycleRateHz=0.0500000007 cycleSync=0 cycleSyncRate=13
+NEW PRESET NEEDED M-VEL: base Fed Fold margin 41.765 dB source=3 amount=1 attackMs=10 decayMs=300 sustain=0 cycleShape=0 cycleRateHz=1 cycleSync=0 cycleSyncRate=13
+NEW PRESET NEEDED M-WHEEL: base Fed Fold margin 42.832 dB source=4 amount=1 attackMs=10 decayMs=300 sustain=0 cycleShape=0 cycleRateHz=1 cycleSync=0 cycleSyncRate=13
+SELECTION 5 conversions, 3 new
+PROBE GREEN SELECTION 5 conversions, 3 new
+
+Load: shards 0-25 carry 2 presets (64 rows, 538-608 s), shards 26-31 carry 1 (32 rows, 293-343 s): 58 presets over 32 shards; the wall clock is set by the 2-preset shards.
+FR-023 stop: not triggered (every column has a passing candidate; M-CYCLE, M-VEL, M-WHEEL need a new preset per rule (ii)).

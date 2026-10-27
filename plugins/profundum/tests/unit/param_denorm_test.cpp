@@ -254,7 +254,7 @@ TEST_CASE("Profundum_ParamDenormRoundTrip", "[profundum][params]") {
 
     SECTION("RegisteredInfo") {
         const ControllerHandle h;
-        REQUIRE(h.ctl->getParameterCount() == 84);  // Phase 11 (FR-001): 8 Phase 10 + 76 new
+        REQUIRE(h.ctl->getParameterCount() == 93);  // Phase 11 (FR-001): 8 Phase 10 + 76 new; Phase 14: + 9
 
         std::array<bool, kAllIds.size()> seen{};
         std::array<bool, ::Profundum::kNumRoutedIds> seenNew{};
@@ -294,7 +294,7 @@ TEST_CASE("Profundum_ParamDenormRoundTrip", "[profundum][params]") {
         for (const bool s : seen) {
             REQUIRE(s);
         }
-        REQUIRE(newIds == 76);
+        REQUIRE(newIds == 85);
 
         for (int k = 0; k <= 7; ++k) {
             CAPTURE(k);
@@ -528,7 +528,8 @@ TEST_CASE("Profundum_ParamDenormRoundTrip", "[profundum][params]") {
                 REQUIRE(h.ctl->normalizedParamToPlain(info.id, n) == static_cast<double>(k));
             }
         }
-        // 2 Phase 10 lists + 14 E lists + 6 note lists + Pitch Bend Range + 2 morph-control lists.
-        REQUIRE(steppedParams == 25);
+        // 2 Phase 10 lists + 14 E lists + 6 note lists + Pitch Bend Range + 2 morph-control lists + (Phase 14) the
+        // 4 morph-modulation lists (1003, 1008, 1010, 1011).
+        REQUIRE(steppedParams == 29);
     }
 }

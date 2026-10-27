@@ -1,0 +1,3 @@
+profundum_tests: cases=17 assertions=57534 failed_cases=0 shards=8 slowest_shard=23.0s
+GATE GREEN profundum_tests cases=17 assertions=57534 wall=23.0s workers=4 logs=f:\tmp\gate\profundum-p14-close-20261027T114228\wallclock-profundum_tests
+exit: 0 wall: 23 s

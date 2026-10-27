@@ -1,0 +1,28 @@
+=== showcase-6 2026-10-27T09:26:41Z commit e501b577
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetShowcase_6of8"
+Filters: "Profundum_PresetShowcase_6of8"
+Randomness seeded to: 845352114
+# Profundum_PresetShowcase_6of8: presets=7 arms=18
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Bite Down","AT-07 Character Bite",primary,"",E1,6.40683,3,3.40683,0,"","D_nl","Char / twin"
+"Bite Down","AT-07 Character Bite",primary,"",C3,6.49844,3,3.49844,0,"","D_nl","Char / twin"
+"Bite Down","AT-28 Mass Transient Attack",secondary,"",E1,10.836,3,7.83597,0,"","onset_ratio","dynamics output tap"
+"Bite Down","AT-28 Mass Transient Attack",secondary,"",C3,10.9348,3,7.9348,0,"","onset_ratio","dynamics output tap"
+"Rounded Weight","AT-15 Anchor Sine to Rounded Sine",primary,"",E1,8.04458,3,5.04458,0,"","D_cx","Sum"
+"Rounded Weight","AT-15 Anchor Sine to Rounded Sine",primary,"",C3,5.91512,3,2.91512,0,"","D_cx","Sum"
+"Glide Path","AT-23 Pitch Glide",primary,"",E1,287.344,2,285.344,0,"","t_50","f_res pitch tap (voice 0)"
+"Glide Path","AT-23 Pitch Glide",primary,"",C3,287.219,2,285.219,0,"","t_50","f_res pitch tap (voice 0)"
+"Glide Path","AT-44 NoteMemory Legato",secondary,"",E1,146.35,30,116.35,0,"","phase_deg","core tap"
+"Glide Path","AT-44 NoteMemory Legato",secondary,"",C3,100.515,30,70.5148,0,"","phase_deg","core tap"
+"Spread Choir","AT-31 Field Spread",primary,"",E1,114.511,3,111.511,0,"","D_st","field stage tap"
+"Spread Choir","AT-31 Field Spread",primary,"",C3,118.364,3,115.364,0,"","D_st","field stage tap"
+"Envelope Mass","AT-39 Motion Env to Mass",primary,"",E1,3.26077,3,0.260769,0,"","E_sub_p2p","Sum"
+"Envelope Mass","AT-39 Motion Env to Mass",primary,"",C3,3.17683,3,0.176834,0,"","E_sub_p2p","Sum"
+"Weight Lever","AT-47 Macros Weight",primary,"",E1,3.30633,3,0.306327,0,"","E_sub","Sum"
+"Weight Lever","AT-47 Macros Weight",primary,"",C3,3.22505,3,0.225049,0,"","E_sub","Sum"
+"Poly Swell","M-ENV Morph Mod Envelope",primary,"",E1,5.67222,3,2.67222,5461.33,"","D_nl","Char / twin"
+"Poly Swell","M-ENV Morph Mod Envelope",primary,"",C3,5.58617,3,2.58617,5461.33,"","D_nl","Char / twin"
+===============================================================================
+All tests passed (803971 assertions in 1 test case)
+
+WALL showcase-6 74.8 s exit=0

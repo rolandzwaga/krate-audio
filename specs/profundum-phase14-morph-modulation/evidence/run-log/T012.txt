@@ -1,0 +1,73 @@
+T012 — Controller registration, display, state mirror, count moves (2026-10-26)
+No build or test run by the implementer (the G10 gate runs after T015).
+
+1. RE-GREP (before editing; after T011)
+$ grep -rnE "\b(84|80|288|574)u?\b" plugins/profundum/src plugins/profundum/tests
+Classification (moves -> new value; unrelated -> left):
+  MOVES (registered 84 -> 93)
+    src/controller/controller.cpp:9, :96 (comments)            -> 93
+    src/controller/controller.h:13 (comment)                   -> 93
+    src/parameters/sound_param_table.h:12 (comment, routed)    -> 93
+    tests/integration/param_wiring_test.cpp:416                -> 93
+    tests/unit/controller/editor_layout_test.cpp:498, :1449, :1501 -> 93
+    tests/unit/controller/editor_lifecycle_test.cpp:224        -> 93
+    tests/unit/controller/editor_sync_test.cpp:169             -> 93
+    tests/unit/manual_coverage_test.cpp:82                     -> 93
+    tests/unit/param_denorm_test.cpp:257                       -> 93
+    tests/unit/param_table_test.cpp:76 (routed), :218 (comment), :383, :384, :422 -> 93
+    tests/unit/phase11_alloc_test.cpp:6 (comment), :64 (comment), :175, :182 -> 93
+    tests/unit/preset/preset_library_test.cpp:77               -> 93
+  MOVES (visible 80 -> 89)
+    tests/unit/controller/editor_layout_test.cpp:517, :518, :535, :656 -> 89
+    tests/unit/controller/editor_lifecycle_test.cpp:17, :189 (comments), :225, :226 -> 89
+    tests/unit/manual_coverage_test.cpp:97 (titles.size() == 80: the visible titles) -> 89  [missed by the known-site list]
+  MOVES (state size 574 -> 610)
+    src/processor/processor.cpp:672 (comment)                  -> "574-byte v3 layout; Phase 14 appends ... (610 bytes)"
+    tests/preset_test_support.h:7 (comment)                    -> 610
+    tests/profundum_test_fixture.h:1029 (comment)              -> 610
+    tests/unit/lifecycle_test.cpp:517 (comment)                -> 610   [missed by the known-site list]
+    tests/unit/preset/preset_library_test.cpp:243, :1237 (comment), :1262, :1263 -> 610
+    tests/integration/preset_browser_test.cpp:467              -> 610
+    tests/unit/state_v3_test.cpp:9 (comment), :402, :407       -> 610
+  UNRELATED (left)
+    src/engine/profundum_engine_config.h:12 (a profundum_engine.h line cite)
+    src/parameters/morph_mod_params.h:4 ("bytes 574-609": the block's true range)
+    src/parameters/sound_param_row.h:22, :140 (parameter_helpers.h:80 line cites)
+    src/plugin_ids.h:21 (history: "Phase 12 ... v3, 574 bytes"; the next line already states 610), :37 (seed bytes 84-87),
+      :62, :64 (kStateNamesEnd == 574: the names end, still true), :68 (block range 574-609)
+    tests/band_level_metric.h:5, :41; integration/band_level_metric_test.cpp:66 (80 Hz band edges)
+    tests/integration/spectrum_frame_test.cpp:101 (kNoteC6 = 84), :720 (dataexchange.cpp:79-80 cite)
+    tests/param_path_audibility_helpers.h:731 (80 dB fall); preset_render_support.h:1673 (processor.cpp line cite)
+    tests/preset_test_support.h:13 (seed bytes 84-87), :14, :58 (morph_state.h:574 cite)
+    tests/profundum_preset_host.h:430, :431 (seed at byte 84); profundum_test_fixture.h:1008 (seed at 84)
+    tests/unit/controller/ui_views_test.cpp:151 (a point at y 80); unit/lifecycle_test.cpp:725 (chordOff at 80)
+    tests/unit/midi_mapping_test.cpp:88-704 (Mass 80); unit/param_denorm_test.cpp:15 (Phase 11 history comment)
+    tests/unit/preset/preset_library_test.cpp:171-275 (Mass 0.80; comp[84] seed bytes)
+    tests/unit/spectrum_producer_test.cpp:155 (-80 dB)
+    tests/unit/state_v3_test.cpp:23, :870, :950, :1009 (the block starts at 574: true)
+  T017 (288, left): src/processor/processor.cpp:355, src/processor/spectrum_frame.h:15, :46,
+    tests/integration/spectrum_frame_test.cpp:95, :107, :1308, tests/unit/spectrum_producer_test.cpp:49
+  MISSED BY THE REGEX (derived counts that move with the nine params; found by reading the count assertions)
+    tests/unit/param_denorm_test.cpp:297 newIds == 76 -> 85 (the registered IDs that are not the 8 Phase 10 IDs)
+    tests/unit/param_denorm_test.cpp:532 steppedParams == 25 -> 29 (+ the four lists 1003, 1008, 1010, 1011)
+
+2. IMPLEMENTATION (plan 4.11)
+  controller.cpp initialize: registerMorphModParams(parameters) after registerMorphControlParams (comment 84 -> 93).
+  controller.cpp getParamStringByValue: formatMorphModParam after formatMorphControlParam, before performance / base.
+  controller.cpp setComponentState: v1 and v2 -> resetMorphModToRegisteredDefaults() (setToRegisteredDefault 1003-1011);
+    v3: the name loop gains namesRead; if (namesRead) loadMorphModParamsToController(s, set) (the processor's store rules,
+    morph_mod_params.h:397-429: no call for a value the processor would not store).
+  controller.h: resetMorphModToRegisteredDefaults() declared; header comment 84 -> 93 and the format chain.
+
+3. TESTS ADDED / EXTENDED
+  param_table_test.cpp  Profundum_SoundParamTableRouting RouteTable: 93 routed, 1003-1011 MorphMod and not sound rows,
+                        kParamRoutes.size() 1012, exactly 9 MorphMod routes.
+                        Profundum_ParamTableConformance: 93-row table with the nine C-12 rows; SECTION MorphModRows (list
+                        strings, 1005/913, 1006/914, 1009/904, 1004/902 identical at {0, .25, .5, .75, 1}, "+0%" at 0.5,
+                        bit-exact default denormalisation, 1e-9 law round trip, stored-float round trip 1e-6).
+  state_v3_test.cpp     Profundum_StateV3MorphMod SECTION ControllerArm (SC-013 (b)(c)(d) + (g)): a counting Controller
+                        subclass; v1 / v2 -> registered defaults; the 36 cuts; NaN / inf / bad ints -> no call; clamps.
+  copy_compare_test.cpp Profundum_MorphModOutsideEndpoints [profundum][morphmod][morph] (SC-022).
+  phase11_alloc_test.cpp Profundum_Phase11PathsDoNotAllocate: 93 routed IDs incl. 1003-1011, Source rotated 0-4, Amount
+                        +/-1, Mod Wheel moved every block; compare A (bypassed) / A.B (live) scopes; non-vacuity on the
+                        stored block after the scopes.

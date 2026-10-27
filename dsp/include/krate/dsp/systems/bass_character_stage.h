@@ -523,6 +523,9 @@ private:
     static constexpr float kTubeGainLoDb = -6.0f;           // C-10: input gain -6..+12 dB
     static constexpr float kTubeGainHiDb = 12.0f;
     static constexpr float kTubeOutputGainLimitDb = 24.0f;  // S5.4: output gain clamped ±24 dB
+    static constexpr float kTubeOutputGainMin = dbToGain(-kTubeOutputGainLimitDb);   // R11: the clamp as gains
+    static constexpr float kTubeOutputGainMax = dbToGain(kTubeOutputGainLimitDb);
+    static constexpr float kDbToNepers = 0.11512925464970229f;                       // ln(10) / 20
     static constexpr float kBiteDriveLoDb = -12.0f;         // S5.4: g = 10^{(-12 + 30A)/20}
     static constexpr float kBiteDriveSpanDb = 30.0f;
     static constexpr double kPiD = 3.14159265358979323846264338327950;
@@ -727,9 +730,10 @@ private:
                 return;
             lastAmount = amount;
             const float c = std::max(tableAt(cTube, amount), 1.0e-6f);
-            stage.setInputGain(kTubeGainLoDb + (kTubeGainHiDb - kTubeGainLoDb) * amount);
-            stage.setOutputGain(
-                std::clamp(-20.0f * std::log10(c), -kTubeOutputGainLimitDb, kTubeOutputGainLimitDb));
+            // R11: the gains directly, 10^{dB/20} = exp(dB ln10/20) and 10^{-20 log10(c)/20} = 1/c, clamped to
+            // ±kTubeOutputGainLimitDb as before; no per-sample dB round trip while Amount glides.
+            stage.setInputGainLinear(std::exp(kDbToNepers * (kTubeGainLoDb + (kTubeGainHiDb - kTubeGainLoDb) * amount)));
+            stage.setOutputGainLinear(std::clamp(1.0f / c, kTubeOutputGainMin, kTubeOutputGainMax));
             if (fresh) {  // just reset: start at the new gains, not a 5 ms glide from stale ones
                 stage.reset();
                 fresh = false;
@@ -1251,7 +1255,7 @@ private:
             const auto sMid = static_cast<float>(rotS * halfC - rotC * halfS);  // sin π(φ - Δφ/2)
             const float sigma = fractureTanh(kFractureSquareSharpness * s) * kFractureInvTanhSharpness;
             const float v = g * (u * ((1.0f - a) + a * sigma) * kInvP + beta * s);
-            const float y = outScale * (adaa.process(v) - fractureTanh(biasGain * sMid));
+            const float y = outScale * (adaa.processFast(v) - fractureTanh(biasGain * sMid));
             const float l = linHalf * (u + uPrev);
             uPrev = u;
             // Advance φ and the rotor by Δφ; re-normalise the rotor (first-order, |r| -> 1).

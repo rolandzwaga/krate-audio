@@ -1,0 +1,23 @@
+65113 warnings generated.
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:191:29: warning: boolean expression can be simplified by DeMorgan's theorem [readability-simplify-boolean-expr]
+  191 |                         if (!(p >= 0.0f && p <= 1.0f))
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~
+      |                                 <       ||   >
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:567:31: warning: member 'out_' of type 'std::vector<MmGridPoint> &' is a reference [cppcoreguidelines-avoid-const-or-ref-data-members]
+  567 |     std::vector<MmGridPoint>& out_;
+      |                               ^
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:885:45: warning: 'k0' is confusable with 'kO' [misc-confusable-identifiers]
+  885 |                         const std::uint64_t k0 = ch.sample / kMmGrid;
+      |                                             ^
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:849:31: note: other declaration found here
+  849 |             const std::size_t kO = mmGridIndex(t, kOff);
+      |                               ^
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:988:13: warning: ambiguous call to 'reset()' on a pointee of a smart pointer, prefer more explicit approach [readability-ambiguous-smartptr-reset-call]
+  988 |             e->reset();
+      |             ^
+F:\projects\iterum\dsp\tests\unit\systems\profundum_engine_morphmod_test.cpp:988:13: note: consider dereferencing smart pointer to call 'reset' method of the pointee here
+  988 |             e->reset();
+      |             ^~~
+      |             (* ).
+Suppressed 65110 warnings (65106 in non-user code, 1 NOLINT, 3 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.

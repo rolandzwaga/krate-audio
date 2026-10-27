@@ -14,7 +14,7 @@
 // then the controller's preset manager is non-null.
 //
 // SECTION "EditorBindsSurfaceV12" (Phase 12 SC-002 / SC-016; replaces the Phase 10
-// EditorBindsSurface): the BUILT view tree binds exactly the 80 visible IDs (every
+// EditorBindsSurface): the BUILT view tree binds exactly the 89 visible IDs (every
 // registered ID but the hidden performance IDs 4 - 7); tags at or above 9000 are the
 // UI-only session tags (plan 4.7) and are not parameter bindings. The getTag() >= 0
 // filter is load-bearing: CTextLabel IS-A CControl and keeps tag -1 when untagged.
@@ -33,6 +33,11 @@
 //
 // SECTION "CreateViewNames" (FR-055): only ViewType::kEditor yields a view.
 //
+// SECTION "MorphIndicatorSlider" (Phase 14 T018; FR-035, SC-016; plan 4.9): the Main-page
+// MorphPosition slider is the one MorphIndicatorSlider of the built tree and the panel
+// registers it; open / close cycles leave the shared-view count unchanged, and every view
+// pointer (morphIndicator_ included) is null after willClose.
+//
 // NEVER name a kPlatformType* constant here - always
 // Krate::TestSupport::nativePlatformType() (lint-platform-type-literals.js).
 // ==============================================================================
@@ -47,6 +52,7 @@
 #include "preset/profundum_preset_config.h"
 #include "processor/spectrum_frame.h"
 #include "ui/harmonic_bar_view.h"
+#include "ui/morph_indicator_slider.h"  // Phase 14 T018
 #include "ui/preset_browser_view.h"  // plugins/shared/src/ui (Phase 13 T013 walker stop)
 #include "ui/spread_curve_view.h"
 #include "update/profundum_update_config.h"
@@ -59,6 +65,7 @@
 #include "vstgui/lib/cview.h"
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/controls/cslider.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -186,7 +193,7 @@ TEST_CASE("Profundum_EditorLifecycle", "[profundum][controller][ui][lifecycle]")
         auto controller = Steinberg::owned(new ::Profundum::Controller());
         REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
 
-        // The 80 visible IDs: every registered ID except the hidden performance IDs 4 - 7.
+        // The 89 visible IDs: every registered ID except the hidden performance IDs 4 - 7.
         std::set<std::int32_t> expected;
         const Steinberg::int32 paramCount = controller->getParameterCount();
         for (Steinberg::int32 i = 0; i < paramCount; ++i) {
@@ -221,9 +228,9 @@ TEST_CASE("Profundum_EditorLifecycle", "[profundum][controller][ui][lifecycle]")
         view->release();
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
 
-        REQUIRE(paramCount == 84);
-        REQUIRE(expected.size() == 80u);
-        REQUIRE(tags.size() == 80u);
+        REQUIRE(paramCount == 93);
+        REQUIRE(expected.size() == 89u);
+        REQUIRE(tags.size() == 89u);
         REQUIRE(tags == expected);
         for (const std::int32_t hidden : {4, 5, 6, 7}) {
             CAPTURE(hidden);
@@ -353,6 +360,64 @@ TEST_CASE("Profundum_EditorLifecycle", "[profundum][controller][ui][lifecycle]")
         const bool isVst3Editor = dynamic_cast<VSTGUI::VST3Editor*>(editorView) != nullptr;
         editorView->release();
         REQUIRE(isVst3Editor);
+
+        REQUIRE(controller->terminate() == Steinberg::kResultOk);
+    }
+
+    SECTION("MorphIndicatorSlider") {  // Phase 14 T018: FR-035, SC-016, FR-091
+        auto controller = Steinberg::owned(new ::Profundum::Controller());
+        REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
+        Krate::TestSupport::ensureVstguiInitialized();
+
+        // viewPointersNullForTest covers morphIndicator_: a registered slider alone makes it false, willClose clears it.
+        {
+            auto standalone = VSTGUI::makeOwned<::Profundum::MorphIndicatorSlider>(
+                VSTGUI::CRect(0, 0, 476, 24), nullptr, static_cast<int32_t>(::Profundum::kMorphPositionId));
+            REQUIRE(controller->viewPointersNullForTest());
+            controller->registerMorphIndicator(standalone.get());
+            CHECK_FALSE(controller->viewPointersNullForTest());
+            controller->willClose(nullptr);
+            CHECK(controller->morphIndicatorForTest() == nullptr);
+            CHECK(controller->viewPointersNullForTest());
+        }
+
+        const std::string uidescPath = std::string(PROFUNDUM_RESOURCES_DIR) + "/editor.uidesc";
+        const auto baseline = Krate::TestSupport::openEditorAndCountSharedViews(*controller, "editor", uidescPath);
+        for (int cycle = 0; cycle < 3; ++cycle) {
+            CAPTURE(cycle);
+            {
+                ProfundumPluginTest::HeadlessEditor ed(controller.get());
+                REQUIRE(ed.frame() != nullptr);
+
+                // The Main-page MorphPosition slider is the one MorphIndicatorSlider, and the panel registered it.
+                const auto indicators =
+                    ProfundumPluginTest::collectViewsOfType<::Profundum::MorphIndicatorSlider>(ed.frame());
+                REQUIRE(indicators.size() == 1u);
+                CHECK(indicators[0]->getTag() == static_cast<int32_t>(::Profundum::kMorphPositionId));
+                CHECK(controller->morphIndicatorForTest() == indicators[0]);
+                int morphSliders = 0;
+                for (auto* slider : ProfundumPluginTest::collectViewsOfType<VSTGUI::CSlider>(ed.frame())) {
+                    if (slider->getTag() == static_cast<int32_t>(::Profundum::kMorphPositionId)) {
+                        ++morphSliders;
+                        CHECK(dynamic_cast<::Profundum::MorphIndicatorSlider*>(slider) != nullptr);
+                    }
+                }
+                CHECK(morphSliders == 1);
+                CHECK_FALSE(controller->viewPointersNullForTest());
+            }
+            CHECK(controller->morphIndicatorForTest() == nullptr);
+            CHECK(controller->viewPointersNullForTest());
+
+            const auto count = Krate::TestSupport::openEditorAndCountSharedViews(*controller, "editor", uidescPath);
+            CHECK(count.banners == baseline.banners);
+            CHECK(count.checkButtons == baseline.checkButtons);
+            CHECK(count.versionLabels == baseline.versionLabels);
+            CHECK(count.legacyTagged == baseline.legacyTagged);
+            CHECK(controller->viewPointersNullForTest());
+        }
+        CHECK(baseline.banners == 1);
+        CHECK(baseline.checkButtons == 1);
+        CHECK(baseline.versionLabels == 1);
 
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
     }

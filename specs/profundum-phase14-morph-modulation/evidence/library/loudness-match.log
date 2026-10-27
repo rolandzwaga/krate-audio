@@ -1,0 +1,71 @@
+=== loudness-match 2026-10-27T09:26:41Z commit e501b577
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetLoudnessMatch"
+Filters: "Profundum_PresetLoudnessMatch"
+Randomness seeded to: 3612706282
+# Profundum_PresetLoudnessMatch: presets=60 median_db=-11.4868
+preset,level_db,deviation_db
+"Edge Ignition",-8.4816,3.00522
+"Biting Reed",-14.2369,-2.75009
+"Folded Mass",-9.05053,2.43629
+"Valve Pressure",-10.1246,1.36223
+"Folding Wire",-11.5875,-0.100713
+"Rectified Floor",-9.37946,2.10736
+"Bite Down",-12.5907,-1.1039
+"Crushed Basalt",-13.0009,-1.5141
+"Fault Line",-13.7333,-2.24648
+"Bedrock",-10.3426,1.14424
+"Punch Anchor",-14.7843,-3.29744
+"Ghost Kick",-10.7465,0.740348
+"Rectified Follow",-10.9884,0.498432
+"Triangle Floor",-11.8787,-0.391897
+"Rounded Weight",-10.0759,1.41093
+"Lopsided Sub",-9.01502,2.4718
+"Under Octave",-10.3044,1.18247
+"Fed Fold",-8.43213,3.05469
+"Dropping Stone",-12.0284,-0.541536
+"Slow Fall",-12.3695,-0.882668
+"Curved Drop",-14.4833,-2.99651
+"Rebound",-13.0829,-1.59612
+"Glide Path",-14.094,-2.60717
+"Slow Swell",-14.3108,-2.824
+"Long Tail",-9.01285,2.47397
+"Heavy Mass",-10.5369,0.949948
+"Pressure Front",-12.8097,-1.32288
+"Hard Attack",-11.407,0.0798514
+"Wide Harmonics",-14.8206,-3.33382
+"Wide Rectifier",-8.39818,3.08864
+"Spread Choir",-12.9697,-1.4829
+"Gravity Well",-13.4982,-2.0114
+"Orbiting Field",-9.54908,1.93775
+"Mass Tide",-12.2154,-0.728593
+"Breathing Depth",-10.1731,1.31371
+"Body Wave",-8.29524,3.19159
+"Edge Cycle",-12.9297,-1.44287
+"Shifting Spectrum",-13.6439,-2.15712
+"Envelope Mass",-9.84209,1.64473
+"Drifting Weight",-7.56538,3.92145
+"Morph Span",-10.8825,0.6043
+"Halfway Morph",-10.8332,0.653646
+"Restrike",-14.8345,-3.34765
+"Legato Line",-8.69973,2.78709
+"Envelope Restart",-11.787,-0.300221
+"Continuous Phase",-12.4572,-0.970349
+"Weight Lever",-10.6577,0.829099
+"Dark To Bright",-11.1262,0.36067
+"Loose Ends",-12.0515,-0.564708
+"Clean To Violent",-7.79013,3.69669
+"Mono Bedrock",-11.8855,-0.398675
+"Locked Floor",-10.4931,0.993689
+"Bedrock Sine",-7.89039,3.59643
+"Poly Spread",-13.8329,-2.34604
+"Poly Swell",-11.5667,-0.0798514
+"Poly Ignition",-11.8266,-0.339782
+"Poly Rectifier",-10.9549,0.531956
+"Poly Pluck",-12.1284,-0.64162
+"Tidal Fold",-11.215,0.271774
+"Struck Fold",-12.8406,-1.35374
+# worst deviation 3.92145 dB
+===============================================================================
+All tests passed (164575 assertions in 1 test case)
+
+WALL loudness-match 97.6 s exit=0

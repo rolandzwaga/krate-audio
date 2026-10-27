@@ -6,7 +6,7 @@
 //   BlockRoundTrip   the 32-byte name block: write, read back, and the three rejections
 //   DescriptorTable  SC-027 (d): the six worked cases of design/advanced-page.md 7.3, determinism, one-field change
 // T019 (state v3, kMsgEndpointName, setEndpointName; plan 4.5, 6.2 SC-027):
-//   CurrentVersionIsThree        version 3, 574 bytes, the default "A" / "B" blocks at [510, 542) / [542, 574)
+//   CurrentVersionIsThree        version 3, 610 bytes (Phase 14), the default "A" / "B" blocks at [510, 542) / [542, 574)
 //   ApiCommitSendsOneMessage     SC-027 (a) API arm: one kMsgEndpointName, setDirty, the processor holds the name
 //   NamesRoundTrip               SC-027 (a): a 31-byte ASCII name and a code-point-cut UTF-8 name, both sides
 //   OlderStreamsLoad             SC-027 (b): a genuine v2 stream (v2StreamOf) and a v1 stream load; names A / B
@@ -18,12 +18,17 @@
 //   TextEditCommit               SC-027 (a) UI arm: a commit in the 9211 CTextEdit sends one kMsgEndpointName
 //                                (endpoint 1) and the 9221 caption reads the T023 caption of B
 // Descriptor words are compared as strings, never as float scores.
+//
+// Profundum_StateV3MorphMod (Phase 14 T011; SC-013 processor arms; T012 adds the controller arm, ControllerArm): the 36-byte
+//   Morph Modulation block at [574, 610): round trip, v1 / v2 defaults, the 36 cuts, hostile values, no version
+//   bump, and the runtime blob's target = the base position while the modulation runs.
 // ==============================================================================
 
 #include "profundum_test_fixture.h"
 #include "ui_tree_helpers.h"  // HeadlessEditor, collectViewsOfType (T028)
 
 #include "parameters/endpoint_names.h"
+#include "parameters/morph_mod_params.h"  // Phase 14 T011: the C-12 laws (Profundum_StateV3MorphMod)
 #include "ui/endpoint_descriptor.h"
 #include "ui/panel_sub_controller.h"  // kNameBTag, kCaptionBTag (T028)
 
@@ -49,6 +54,7 @@
 #include <cstdint>
 #include <cstring>
 #include <initializer_list>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
@@ -393,12 +399,12 @@ TEST_CASE("Profundum_EndpointNames", "[profundum][ui][morph][state]") {
     SECTION("CurrentVersionIsThree") {
         CHECK(::Profundum::kCurrentStateVersion == 3);
         CHECK(::Profundum::kStateV2Version == 2);
-        CHECK(::Profundum::kStateV3Bytes == 574u);
+        CHECK(::Profundum::kStateV3Bytes == 610u);
         CHECK(::Profundum::kStateNamesOffset == 510u);
 
         ProcessorFixture fx;
         const StateBytes s = writeV2Stream(*fx.proc);
-        REQUIRE(s.size() == 574u);
+        REQUIRE(s.size() == 610u);
         CHECK(readU32(s, 0) == 3u);
         CHECK(nameBlockIs(s, 510u, "A"));
         CHECK(nameBlockIs(s, 542u, "B"));
@@ -855,5 +861,456 @@ TEST_CASE("Profundum_EndpointNames", "[profundum][ui][morph][state]") {
         CHECK(caption.rfind("IRON FOLD \xE2\x80\x94 ", 0) == 0u);
         CHECK(captionB->getText().getString() == caption);
         CHECK(nameB->getText().getString() == "IRON FOLD");
+    }
+}
+
+// =============================================================================
+// Profundum_StateV3MorphMod (Phase 14 T011; SC-013 processor arms (a)-(g); C-10, FR-023)
+// =============================================================================
+// The 36-byte Morph Modulation block at [574, 610). The fields are compared as 32-bit words read from getState:
+// floats bit-equal, ints equal (one code path in one binary: no computation between the two reads). T012 adds the
+// controller arms.
+namespace {
+
+constexpr std::size_t kMmFieldCount = 9;
+using MmWords = std::array<std::uint32_t, kMmFieldCount>;
+
+// Field indices in stream order (C-10).
+constexpr std::size_t kMmSource = 0;
+constexpr std::size_t kMmAmount = 1;
+constexpr std::size_t kMmAttack = 2;
+constexpr std::size_t kMmDecay = 3;
+constexpr std::size_t kMmSustain = 4;
+constexpr std::size_t kMmShape = 5;
+constexpr std::size_t kMmRate = 6;
+constexpr std::size_t kMmSync = 7;
+constexpr std::size_t kMmSyncRate = 8;
+constexpr std::array<std::size_t, 5> kMmFloatFields{kMmAmount, kMmAttack, kMmDecay, kMmSustain, kMmRate};
+
+[[nodiscard]] constexpr std::size_t mmAt(std::size_t field) noexcept {
+    return ::Profundum::kStateMorphModOffset + 4u * field;
+}
+
+[[nodiscard]] std::uint32_t mmBits(float x) noexcept { return std::bit_cast<std::uint32_t>(x); }
+
+[[nodiscard]] MmWords mmWordsOf(const StateBytes& s) {
+    REQUIRE(s.size() >= ::Profundum::kStateMorphModOffset + ::Profundum::kStateMorphModBytes);
+    MmWords w{};
+    for (std::size_t i = 0; i < kMmFieldCount; ++i) {
+        w[i] = readU32(s, mmAt(i));
+    }
+    return w;
+}
+
+void patchMm(StateBytes& s, const MmWords& w) {
+    for (std::size_t i = 0; i < kMmFieldCount; ++i) {
+        patchU32(s, mmAt(i), w[i]);
+    }
+}
+
+/// The registered defaults (C-12): Off, 0, 10 ms, 300 ms, 0, Sine, 1 Hz, Off, index 13.
+[[nodiscard]] MmWords mmDefaultWords() {
+    return {0u, mmBits(0.0f), mmBits(10.0f), mmBits(300.0f), mmBits(0.0f), 0u, mmBits(1.0f), 0u, 13u};
+}
+
+/// Q: a valid, in-range prior that differs from the (a) values in every field.
+[[nodiscard]] MmWords mmPriorWordsQ() {
+    return {1u, mmBits(0.3f), mmBits(20.0f), mmBits(500.0f), mmBits(0.7f), 1u, mmBits(5.0f), 0u, 20u};
+}
+
+/// (a): the nine fields at non-defaults, set through normalised parameter changes in one block.
+void setMmNonDefaults(ProcessorFixture& fx) {
+    using ::Profundum::kMorphModRateLaw;
+    using ::Profundum::kMorphModTimeLaw;
+    REQUIRE(fx.setParamsInBlock({
+                {::Profundum::kMorphModSourceId, 2.0 / 4.0},  // Cycle
+                {::Profundum::kMorphModAmountId, 0.2},        // -1 + 0.2 * 2 = -0.6
+                {::Profundum::kMorphModAttackId, ::Profundum::normalizedFromPlain(kMorphModTimeLaw, 50.0)},
+                {::Profundum::kMorphModDecayId, ::Profundum::normalizedFromPlain(kMorphModTimeLaw, 900.0)},
+                {::Profundum::kMorphModSustainId, 0.4},
+                {::Profundum::kMorphModCycleShapeId, 3.0 / 5.0},  // Square
+                {::Profundum::kMorphModCycleRateId, ::Profundum::normalizedFromPlain(kMorphModRateLaw, 3.0)},
+                {::Profundum::kMorphModCycleSyncId, 1.0},
+                {::Profundum::kMorphModCycleSyncRateId, 7.0 / 29.0},
+            }) == Steinberg::kResultOk);
+}
+
+/// A fresh processor that loaded @p prior completely (its block reads back as @p priorWords).
+[[nodiscard]] std::unique_ptr<ProcessorFixture> mmPrimed(const StateBytes& prior, const MmWords& priorWords) {
+    auto p = std::make_unique<ProcessorFixture>();
+    REQUIRE(loadStateBytes(*p->proc, prior) == Steinberg::kResultOk);
+    REQUIRE(mmWordsOf(writeV2Stream(*p->proc)) == priorWords);  // teeth: the prior is held
+    return p;
+}
+
+// ---- T012 controller arm (FR-024) ----
+
+/// A Controller that counts its setParamNormalized calls on 1003 - 1011. setComponentState sets every stored value
+/// through the virtual setParamNormalized (its `set` lambda and setToRegisteredDefault), so a value the processor
+/// would not store shows up here as a missing call, even when it would not change the value.
+class MmCountingController final : public ::Profundum::Controller {
+public:
+    Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
+                                                     Steinberg::Vst::ParamValue value) override {
+        if (tag >= static_cast<Steinberg::Vst::ParamID>(::Profundum::kMorphModSourceId) &&
+            tag <= static_cast<Steinberg::Vst::ParamID>(::Profundum::kMorphModCycleSyncRateId)) {
+            ++mmSets[static_cast<std::size_t>(tag - static_cast<Steinberg::Vst::ParamID>(::Profundum::kMorphModSourceId))];
+        }
+        return ::Profundum::Controller::setParamNormalized(tag, value);
+    }
+    std::array<int, kMmFieldCount> mmSets{};
+};
+
+/// A heap MmCountingController, initialised with a null context, terminated on scope exit.
+struct MmController {
+    Steinberg::IPtr<MmCountingController> ctl = Steinberg::owned(new MmCountingController());
+
+    MmController() { REQUIRE(ctl->initialize(nullptr) == Steinberg::kResultOk); }
+    ~MmController() { ctl->terminate(); }
+    MmController(const MmController&) = delete;
+    MmController& operator=(const MmController&) = delete;
+    MmController(MmController&&) = delete;
+    MmController& operator=(MmController&&) = delete;
+
+    [[nodiscard]] Steinberg::tresult load(const StateBytes& bytes) const {
+        auto stream = memoryStreamOf(bytes);
+        return ctl->setComponentState(stream);
+    }
+    [[nodiscard]] double norm(std::size_t field) const {
+        return ctl->getParamNormalized(static_cast<Steinberg::Vst::ParamID>(::Profundum::kMorphModSourceId) +
+                                       static_cast<Steinberg::Vst::ParamID>(field));
+    }
+};
+
+/// The normalised value of a processor-stored word of @p field (C-12 lists over their step count, floats through
+/// their law).
+[[nodiscard]] double mmNormOf(std::size_t field, std::uint32_t word) {
+    const auto viaLaw = [word](const ::Profundum::PlainLaw& law) {
+        return ::Profundum::normalizedFromPlain(law, static_cast<double>(std::bit_cast<float>(word)));
+    };
+    switch (field) {
+        case kMmSource:
+            return static_cast<double>(word) / 4.0;
+        case kMmAmount:
+            return viaLaw(::Profundum::kMorphModAmountLaw);
+        case kMmAttack:
+        case kMmDecay:
+            return viaLaw(::Profundum::kMorphModTimeLaw);
+        case kMmSustain:
+            return viaLaw(::Profundum::kMorphModSustainLaw);
+        case kMmShape:
+            return static_cast<double>(word) / 5.0;
+        case kMmRate:
+            return viaLaw(::Profundum::kMorphModRateLaw);
+        case kMmSync:
+            return static_cast<double>(word);
+        default:  // kMmSyncRate
+            return static_cast<double>(word) / 29.0;
+    }
+}
+
+/// The controller's nine normalised values follow the processor's stored words. Within 1e-9: the law is evaluated in
+/// two separately compiled places (the controller TU and this one), so no bit-equality is claimed.
+void mmCheckFollows(MmController& c, const MmWords& stored) {
+    for (std::size_t i = 0; i < kMmFieldCount; ++i) {
+        CAPTURE(i, stored[i]);
+        CHECK(std::fabs(c.norm(i) - mmNormOf(i, stored[i])) <= 1e-9);
+    }
+}
+
+}  // namespace
+
+TEST_CASE("Profundum_StateV3MorphMod", "[profundum][morphmod][state]") {
+    STATIC_REQUIRE(::Profundum::kCurrentStateVersion == 3);
+    STATIC_REQUIRE(::Profundum::kStateMorphModOffset == 574u);
+    STATIC_REQUIRE(::Profundum::kStateMorphModBytes == 36u);
+    STATIC_REQUIRE(::Profundum::kStateV3Bytes == 610u);
+
+    // S: the (a) values, saved by a prepared processor that received them as parameter changes.
+    ProcessorFixture src;
+    REQUIRE(src.prepare(kFs) == Steinberg::kResultOk);
+    setMmNonDefaults(src);
+    const StateBytes s = writeV2Stream(*src.proc);
+    REQUIRE(s.size() == ::Profundum::kStateV3Bytes);
+    const MmWords sw = mmWordsOf(s);
+    const MmWords defaults = mmDefaultWords();
+    const MmWords q = mmPriorWordsQ();
+    StateBytes qStream = s;  // Q: S with the block replaced by the prior words
+    patchMm(qStream, q);
+
+    SECTION("RoundTrip") {  // SC-013 (a), (f)
+        CHECK(s.size() == 610u);
+        // The stored values are the denormalised parameter values (within 1e-6 relative: a law evaluation in
+        // processor code is never compared bitwise against a test literal).
+        CHECK(sw[kMmSource] == 2u);
+        CHECK(std::fabs(std::bit_cast<float>(sw[kMmAmount]) - (-0.6f)) <= 1e-6f);
+        CHECK(std::fabs(std::bit_cast<float>(sw[kMmAttack]) - 50.0f) <= 50.0f * 1e-6f);
+        CHECK(std::fabs(std::bit_cast<float>(sw[kMmDecay]) - 900.0f) <= 900.0f * 1e-6f);
+        CHECK(std::fabs(std::bit_cast<float>(sw[kMmSustain]) - 0.4f) <= 1e-6f);
+        CHECK(sw[kMmShape] == 3u);
+        CHECK(std::fabs(std::bit_cast<float>(sw[kMmRate]) - 3.0f) <= 3.0f * 1e-6f);
+        CHECK(sw[kMmSync] == 1u);
+        CHECK(sw[kMmSyncRate] == 7u);
+        for (std::size_t i = 0; i < kMmFieldCount; ++i) {  // teeth: every field is off its default
+            CAPTURE(i);
+            CHECK(sw[i] != defaults[i]);
+        }
+
+        // A fresh processor loads S: every field reads back word-equal through a second getState ...
+        ProcessorFixture dst;
+        REQUIRE(loadStateBytes(*dst.proc, s) == Steinberg::kResultOk);
+        const StateBytes again = writeV2Stream(*dst.proc);
+        REQUIRE(again.size() == ::Profundum::kStateV3Bytes);
+        CHECK(mmWordsOf(again) == sw);
+        // ... (f) and load-then-save is byte-stable over the whole stream.
+        CHECK(again == s);
+    }
+
+    SECTION("OlderStreamsLoadDefaults") {  // SC-013 (b)
+        const StateBytes v1 = v1Stream(V1Globals{}, {0.5f, 0.5f, 0.5f, 0.5f});
+        const StateBytes v2 = v2StreamOf(priorFieldsP(), randomValidMorphState(0x71Au), randomValidMorphState(0x71Bu));
+        REQUIRE(readU32(v1, 0) == static_cast<std::uint32_t>(::Profundum::kStateV1Version));
+        REQUIRE(readU32(v2, 0) == static_cast<std::uint32_t>(::Profundum::kStateV2Version));
+        for (const StateBytes* older : {&v1, &v2}) {
+            CAPTURE(older->size());
+            auto p = mmPrimed(s, sw);  // the instance holds the non-defaults
+            REQUIRE(loadStateBytes(*p->proc, *older) == Steinberg::kResultOk);
+            const StateBytes out = writeV2Stream(*p->proc);
+            REQUIRE(out.size() == ::Profundum::kStateV3Bytes);
+            CHECK(mmWordsOf(out) == defaults);
+        }
+    }
+
+    SECTION("TruncatedKeepsPrior") {  // SC-013 (c), processor arm: the 36 cuts 574 ... 609
+        std::size_t cuts = 0;
+        for (std::size_t len = ::Profundum::kStateMorphModOffset; len < ::Profundum::kStateV3Bytes; ++len) {
+            CAPTURE(len);
+            auto p = mmPrimed(qStream, q);
+            const StateBytes cut(s.begin(), s.begin() + static_cast<std::ptrdiff_t>(len));
+            REQUIRE(loadStateBytes(*p->proc, cut) == Steinberg::kResultOk);
+            const MmWords got = mmWordsOf(writeV2Stream(*p->proc));
+            for (std::size_t i = 0; i < kMmFieldCount; ++i) {
+                CAPTURE(i);
+                const bool complete = mmAt(i) + 4u <= len;
+                CHECK(got[i] == (complete ? sw[i] : q[i]));
+            }
+            ++cuts;
+        }
+        CHECK(cuts == 36u);
+    }
+
+    SECTION("HostileNotStored") {  // SC-013 (d)
+        // Loads @p hostile into a processor primed with Q and returns the block it then holds.
+        const auto loadOverQ = [&](const StateBytes& hostile) {
+            auto p = mmPrimed(qStream, q);
+            REQUIRE(loadStateBytes(*p->proc, hostile) == Steinberg::kResultOk);
+            return mmWordsOf(writeV2Stream(*p->proc));
+        };
+        // Every field but @p field takes S's word; @p field holds @p want.
+        const auto expectOnly = [&](const MmWords& got, std::size_t field, std::uint32_t want) {
+            for (std::size_t i = 0; i < kMmFieldCount; ++i) {
+                CAPTURE(i);
+                CHECK(got[i] == (i == field ? want : sw[i]));
+            }
+        };
+
+        // NaN, +inf, -inf in each float field: not stored (the prior Q word stays).
+        constexpr std::array<std::uint32_t, 3> kNonFinite{0x7FC00000u, 0x7F800000u, 0xFF800000u};
+        for (const std::size_t field : kMmFloatFields) {
+            for (const std::uint32_t pattern : kNonFinite) {
+                CAPTURE(field, pattern);
+                StateBytes h = s;
+                patchU32(h, mmAt(field), pattern);
+                expectOnly(loadOverQ(h), field, q[field]);
+            }
+        }
+
+        // Out-of-range list indices: not stored.
+        struct BadInt {
+            std::size_t field;
+            std::int32_t value;
+        };
+        constexpr std::array<BadInt, 5> kBadInts{{
+            {.field=kMmSource, .value=-1}, {.field=kMmSource, .value=5}, {.field=kMmShape, .value=6}, {.field=kMmSyncRate, .value=30}, {.field=kMmSync, .value=2}}};
+        for (const BadInt& b : kBadInts) {
+            CAPTURE(b.field, b.value);
+            StateBytes h = s;
+            patchI32(h, mmAt(b.field), b.value);
+            expectOnly(loadOverQ(h), b.field, q[b.field]);
+        }
+
+        // Finite out-of-range floats clamp to the range edge.
+        struct Clamp {
+            std::size_t field;
+            float value;
+            float want;
+        };
+        const std::array<Clamp, 3> kClamps{{{.field=kMmAmount, .value=3.0f, .want=1.0f},
+                                            {.field=kMmAttack, .value=0.0f, .want=Krate::DSP::kMinEnvelopeTimeMs},
+                                            {.field=kMmRate, .value=50.0f, .want=Krate::DSP::kMaxFrequency}}};
+        for (const Clamp& c : kClamps) {
+            CAPTURE(c.field, c.value);
+            StateBytes h = s;
+            patchF32(h, mmAt(c.field), c.value);
+            expectOnly(loadOverQ(h), c.field, mmBits(c.want));
+        }
+    }
+
+    SECTION("NoVersionBump") {  // SC-013 (g)
+        CHECK(readU32(s, 0) == 3u);
+        auto p = mmPrimed(qStream, q);
+        const StateBytes before = writeV2Stream(*p->proc);
+        StateBytes v4 = s;  // a valid 610-byte body ...
+        patchI32(v4, 0, 4);  // ... whose version word reads 4
+        CHECK(loadStateBytes(*p->proc, v4) == Steinberg::kResultFalse);
+        CHECK(writeV2Stream(*p->proc) == before);
+    }
+
+    SECTION("BlobTargetIsBase") {  // SC-013 (e), processor arm
+        using Ev = ProcessorFixture::ScriptedEvent;
+        constexpr std::size_t kBlock = 512;
+        ProcessorFixture fx;
+        REQUIRE(fx.prepare(kFs, static_cast<Steinberg::int32>(kBlock)) == Steinberg::kResultOk);
+        const auto param = [](Steinberg::Vst::ParamID id, double v) {
+            Ev e{};
+            e.kind = Ev::Kind::Param;
+            e.id = id;
+            e.value = v;
+            return e;
+        };
+        Ev note{};
+        note.kind = Ev::Kind::NoteOn;
+        note.pitch = kE1;
+        note.velocity = 0.8f;
+        const std::array<Ev, 4> script{param(::Profundum::kMorphModSourceId, 1.0 / 4.0),  // Envelope
+                                       param(::Profundum::kMorphModAmountId, 1.0),        // Amount 1
+                                       param(::Profundum::kMorphPositionId, 0.3), note};
+        fx.renderScript(script, 5u * kBlock, kBlock);  // ~53 ms: the envelope is in its decay, well above 0
+
+        REQUIRE(fx.engine() != nullptr);
+        REQUIRE(mmBits(fx.engine()->morphBasePosition()) == mmBits(0.3f));
+        REQUIRE(mmBits(fx.engine()->morphPosition()) != mmBits(0.3f));  // teeth: the engine's target is modulated
+        const StateBytes st = writeV2Stream(*fx.proc);
+        REQUIRE(st.size() == ::Profundum::kStateV3Bytes);
+        constexpr std::size_t kBlobTargetAt =
+            ::Profundum::kStateV2Bytes - Krate::DSP::BassMorphEngine::kMorphRuntimeBytes + ::Profundum::kRtTargetOffset;
+        CHECK(readU32(st, kBlobTargetAt) == mmBits(0.3f));
+    }
+
+    SECTION("ControllerArm") {  // SC-013 (b), (c), (d) controller arm (T012; FR-024)
+        MmController c;
+        // A processor and the controller both primed with Q, then both load @p stream. Returns the processor's
+        // block; the controller's nine values must follow it, and mmSets counts the controller's calls for the load.
+        const auto loadBoth = [&](const StateBytes& stream) {
+            auto p = mmPrimed(qStream, q);
+            REQUIRE(c.load(qStream) == Steinberg::kResultOk);
+            mmCheckFollows(c, q);  // teeth: the controller holds the prior
+            c.ctl->mmSets = {};
+            REQUIRE(loadStateBytes(*p->proc, stream) == Steinberg::kResultOk);
+            REQUIRE(c.load(stream) == Steinberg::kResultOk);
+            const MmWords stored = mmWordsOf(writeV2Stream(*p->proc));
+            mmCheckFollows(c, stored);
+            return stored;
+        };
+        const auto expectSets = [&](const std::array<bool, kMmFieldCount>& stored) {
+            for (std::size_t i = 0; i < kMmFieldCount; ++i) {
+                CAPTURE(i);
+                CHECK(c.ctl->mmSets[i] == (stored[i] ? 1 : 0));
+            }
+        };
+        constexpr std::array<bool, kMmFieldCount> kAll{true, true, true, true, true, true, true, true, true};
+        const auto allBut = [&](std::size_t field) {
+            std::array<bool, kMmFieldCount> a = kAll;
+            a[field] = false;
+            return a;
+        };
+
+        // (a) the full stream: every field set once, the values follow S.
+        const MmWords full = loadBoth(s);
+        CHECK(full == sw);
+        expectSets(kAll);
+
+        // (b) a v1 and a v2 stream: the registered defaults, one call each.
+        const StateBytes v1 = v1Stream(V1Globals{}, {0.5f, 0.5f, 0.5f, 0.5f});
+        const StateBytes v2 = v2StreamOf(priorFieldsP(), randomValidMorphState(0x72Au), randomValidMorphState(0x72Bu));
+        for (const StateBytes* older : {&v1, &v2}) {
+            CAPTURE(older->size());
+            const MmWords got = loadBoth(*older);
+            CHECK(got == defaults);
+            expectSets(kAll);
+            for (std::size_t i = 0; i < kMmFieldCount; ++i) {
+                CAPTURE(i);
+                const auto id = static_cast<Steinberg::Vst::ParamID>(::Profundum::kMorphModSourceId) +
+                                static_cast<Steinberg::Vst::ParamID>(i);
+                Steinberg::Vst::Parameter* param = c.ctl->getParameterObject(id);
+                REQUIRE(param != nullptr);
+                CHECK(c.norm(i) == param->getInfo().defaultNormalizedValue);
+            }
+        }
+
+        // (c) the 36 cuts: the complete fields are set once, every field from the cut on gets no call.
+        std::size_t cuts = 0;
+        for (std::size_t len = ::Profundum::kStateMorphModOffset; len < ::Profundum::kStateV3Bytes; ++len) {
+            CAPTURE(len);
+            const StateBytes cut(s.begin(), s.begin() + static_cast<std::ptrdiff_t>(len));
+            static_cast<void>(loadBoth(cut));
+            std::array<bool, kMmFieldCount> complete{};
+            for (std::size_t i = 0; i < kMmFieldCount; ++i) {
+                complete[i] = mmAt(i) + 4u <= len;
+            }
+            expectSets(complete);
+            ++cuts;
+        }
+        CHECK(cuts == 36u);
+
+        // (d) hostile values: a value the processor does not store makes no call; a clamped one is set once.
+        constexpr std::array<std::uint32_t, 3> kNonFinite{0x7FC00000u, 0x7F800000u, 0xFF800000u};
+        for (const std::size_t field : kMmFloatFields) {
+            for (const std::uint32_t pattern : kNonFinite) {
+                CAPTURE(field, pattern);
+                StateBytes h = s;
+                patchU32(h, mmAt(field), pattern);
+                const MmWords got = loadBoth(h);
+                CHECK(got[field] == q[field]);
+                expectSets(allBut(field));
+            }
+        }
+        struct BadInt {
+            std::size_t field;
+            std::int32_t value;
+        };
+        constexpr std::array<BadInt, 5> kBadInts{{
+            {.field=kMmSource, .value=-1}, {.field=kMmSource, .value=5}, {.field=kMmShape, .value=6}, {.field=kMmSyncRate, .value=30}, {.field=kMmSync, .value=2}}};
+        for (const BadInt& b : kBadInts) {
+            CAPTURE(b.field, b.value);
+            StateBytes h = s;
+            patchI32(h, mmAt(b.field), b.value);
+            const MmWords got = loadBoth(h);
+            CHECK(got[b.field] == q[b.field]);
+            expectSets(allBut(b.field));
+        }
+        struct Clamp {
+            std::size_t field;
+            float value;
+            float want;
+        };
+        const std::array<Clamp, 3> kClamps{{{.field=kMmAmount, .value=3.0f, .want=1.0f},
+                                            {.field=kMmAttack, .value=0.0f, .want=Krate::DSP::kMinEnvelopeTimeMs},
+                                            {.field=kMmRate, .value=50.0f, .want=Krate::DSP::kMaxFrequency}}};
+        for (const Clamp& cl : kClamps) {
+            CAPTURE(cl.field, cl.value);
+            StateBytes h = s;
+            patchF32(h, mmAt(cl.field), cl.value);
+            const MmWords got = loadBoth(h);
+            CHECK(got[cl.field] == mmBits(cl.want));
+            expectSets(kAll);
+        }
+
+        // (g) a version-4 stream is refused before any field: no call.
+        StateBytes v4 = s;
+        patchI32(v4, 0, 4);
+        c.ctl->mmSets = {};
+        CHECK(c.load(v4) == Steinberg::kResultFalse);
+        expectSets({});
     }
 }
