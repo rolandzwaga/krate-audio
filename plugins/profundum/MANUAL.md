@@ -59,6 +59,8 @@ reaches a nonlinear stage is **Anchor Fold Feed**, which you set yourself.
 
 ## Interface Overview
 
+![The Main page](images/editor-main.png)
+
 The editor is a fixed 960 × 600 window with four zoom steps (100 %, 125 %, 150 % and 200 %). It has two pages that
 share one header.
 
@@ -126,6 +128,8 @@ compression left to take away. The Tight half acts at every Mass.
 
 ## Header Controls
 
+![The header](images/header.png)
+
 | Control | Range | Default | Notes |
 |---|---|---|---|
 | **Voice Mode** | Mono / Poly | Mono | Mono plays one note at a time, with glide and legato. Poly plays chords; the voice count is **Polyphony** on the Advanced page |
@@ -137,6 +141,8 @@ compression left to take away. The Tight half acts at every Mass.
 ## The Main Page
 
 ### The Mass
+
+![The Mass](images/main-mass.png)
 
 The upper half of the Main page is THE MASS: the live harmonic display, six large knobs and the macros.
 
@@ -161,6 +167,8 @@ Motion target, amount and timing are on the Advanced page's MODULATION tab.
 
 ### The Anchor
 
+![The Anchor](images/main-anchor.png)
+
 | Control | Parameter | Range | Default | Description |
 |---|---|---|---|---|
 | LEVEL | **Anchor Level** | 0 – 100 % | 50 % | How loud the stable sub tone under the mass is |
@@ -177,6 +185,8 @@ included. **Anchor Mode** and the Punch and Ghost timings are in the Advanced pa
 and **Mass** both reach the Anchor Level, so the balance between the two parts moves with them.
 
 ### Bass Morph
+
+![Bass Morph](images/main-bass-morph.png)
 
 | Control | Parameter | Range | Default | Description |
 |---|---|---|---|---|
@@ -214,10 +224,14 @@ Compare only changes what you hear: it is never saved, and it returns to A·B wh
 
 ## The Advanced Page
 
+![The Advanced page, SECTIONS tab](images/editor-advanced.png)
+
 The SECTIONS tab holds eight sections. Two controls appear twice (**Harmonic Fold** in Core Spectrum and in
 Excitation & Fold; **Anchor Morph Mode** in Sub Anchor and in Morph Behaviour); both copies are the same parameter.
 
 ### Core Spectrum
+
+![Core Spectrum](images/adv-core-spectrum.png)
 
 The core is the harmonic recipe of the Mass.
 
@@ -239,6 +253,8 @@ before the amp envelope. It shows the resolved sound, including the morph, the m
 
 ### Excitation & Fold
 
+![Excitation & Fold](images/adv-excitation-fold.png)
+
 | Parameter | Range | Default | Description |
 |---|---|---|---|
 | **Excitation Drive** | 0 – 100 % | 50 % | How hard the excitation stage is driven |
@@ -247,6 +263,8 @@ before the amp envelope. It shows the resolved sound, including the morph, the m
 | **Harmonic Fold** | 0 – 100 | 0 | The same parameter as in Core Spectrum |
 
 ### Shape & Character
+
+![Shape & Character](images/adv-shape-character.png)
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
@@ -260,6 +278,8 @@ correlation of the sub band depends on that offset pair.
 
 ### Mass
 
+![Mass](images/adv-mass.png)
+
 | Parameter | Range | Default | Description |
 |---|---|---|---|
 | **Transient Attack** | −12 – +12 dB | +6 dB | Boosts or softens the start of each note |
@@ -268,6 +288,8 @@ correlation of the sub band depends on that offset pair.
 The **Mass** knob itself is on the Main page; these two shape the dynamics stage that Mass also drives.
 
 ### Sub Anchor
+
+![Sub Anchor](images/adv-sub-anchor.png)
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
@@ -288,6 +310,8 @@ Drop and the glide move it too. **Punch** adds **Punch Boost** to the start of e
 Anchor; turned up, the sub tone itself is folded with the Mass.
 
 ### Stereo & Output
+
+![Stereo & Output](images/adv-stereo-output.png)
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
@@ -313,6 +337,8 @@ every image mode. Even at Gravity 0, side content below twice the crossover is a
 identical in both channels throughout, and in Solid the whole output is.
 
 ### Pitch & Envelopes
+
+![Pitch & Envelopes](images/adv-pitch-envelopes.png)
 
 **Drop** — the pitch fall into each note.
 
@@ -356,6 +382,8 @@ every note.
 
 ### Morph Behaviour
 
+![Morph Behaviour](images/adv-morph-behaviour.png)
+
 | Parameter | Range | Default | Description |
 |---|---|---|---|
 | **Anchor Morph Mode** | Hold / Blend / Yield | Blend | The same parameter as on the Main page |
@@ -364,6 +392,8 @@ every note.
 This section repeats the Compare and Copy controls of the Main page's Bass Morph band.
 
 ### The MODULATION Tab
+
+![The MODULATION tab](images/adv-modulation.png)
 
 **Motion** is one modulation source per voice, aimed at one target. The tab has three columns: SOURCE, CYCLE and
 ENV & DRIFT.
@@ -469,6 +499,8 @@ without the VST3 data exchange, and before the first frame, the marker shows Mor
 reads; the sound is not affected.
 
 ### The SETTINGS Tab
+
+![The SETTINGS tab](images/adv-settings.png)
 
 The SETTINGS tab holds the second zoom selector and a note about the harmonic displays: in a host that provides
 neither the VST3 data exchange nor a run loop, no frames arrive and the displays stay empty. The sound is not affected.

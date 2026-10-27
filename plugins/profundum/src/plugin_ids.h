@@ -55,8 +55,8 @@ static_assert(kStateV1Version + 1 == kStateV2Version && kStateV2Version + 1 == k
 
 // ------------------------------------------------------------------------------
 // State v3 (Phase 12, FR-047 / FR-096; plan 4.5): the v2 body (version word 3), then two name blocks.
-//   510-541 name A: u8 length L (0 - 31), then L UTF-8 bytes, zero-padded to 31
-//   542-573 name B: same layout
+//   526-557 name A: u8 length L (0 - 31), then L UTF-8 bytes, zero-padded to 31   (Phase 12-14: 510-541)
+//   558-589 name B: same layout                                                    (Phase 12-14: 542-573)
 // ------------------------------------------------------------------------------
 constexpr std::size_t kEndpointNameMaxBytes = 31;   // UTF-8 bytes; 1 length byte + 31 = 32 per endpoint
 constexpr std::size_t kEndpointNameBlockBytes = 32;
@@ -67,8 +67,8 @@ static_assert(kStateNamesEnd == 590, "plan 4.5 / Phase 15: the two name blocks e
 
 // ------------------------------------------------------------------------------
 // Phase 14 (C-10; plan 4.6): v3 grows by the 36-byte Morph Modulation block after the names; the version stays 3.
-//   574-609 source i32, amount f32, attack ms f32, decay ms f32, sustain f32, cycle shape i32, cycle rate Hz f32,
-//           cycle sync i32, cycle sync rate i32 (parameters/morph_mod_params.h)
+//   590-625 (Phase 14: 574-609) source i32, amount f32, attack ms f32, decay ms f32, sustain f32, cycle shape i32,
+//           cycle rate Hz f32, cycle sync i32, cycle sync rate i32 (parameters/morph_mod_params.h)
 // ------------------------------------------------------------------------------
 constexpr std::size_t kStateMorphModOffset = kStateNamesEnd;
 constexpr std::size_t kStateMorphModBytes = 36;
