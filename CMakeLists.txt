@@ -811,7 +811,7 @@ endif()
 add_custom_target(generate_profundum_presets
     COMMAND profundum_preset_generator "${CMAKE_SOURCE_DIR}/plugins/profundum/resources/presets"
     DEPENDS profundum_preset_generator
-    COMMENT "Generating Profundum factory presets (53 presets across 6 categories)"
+    COMMENT "Generating Profundum factory presets (71 presets across 7 categories)"
     VERBATIM
 )
 

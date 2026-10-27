@@ -111,8 +111,8 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
     (session tag 9300) or the host's zoom menu, applied with `VST3Editor::setZoomFactor`. Zoom, page, tab and highlight
     are **session state**: never persisted, never a parameter.
   - `IMidiLearn` is **not** implemented; MIDI learn is the host's.
-- **Presets (Phase 13, `specs/profundum-phase13-presets-release/`):** 53 factory presets in six categories, `Sub`,
-  `Resonant`, `Harmonic`, `Driven`, `Plucked`, `Animated` (`makeProfundumPresetConfig()` in
+- **Presets (Phase 13, `specs/profundum-phase13-presets-release/`):** 71 factory presets in seven categories, `Sub`,
+  `Resonant`, `Harmonic`, `Driven`, `Plucked`, `Animated`, `Kicks` (Phase 14b) (`makeProfundumPresetConfig()` in
   `src/preset/profundum_preset_config.h`; the list is additive-only and must match the directories under
   `resources/presets/`). The tree is **generated, never hand-edited**: definitions in `tools/profundum_preset_defs.h`,
   generator `tools/profundum_preset_generator.cpp` (target `profundum_preset_generator`; no Catch2, no `vstgui_support`),
@@ -120,7 +120,7 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   `ProfundumPluginTest::PresetHost` (`tests/profundum_preset_host.h`). Byte determinism and idempotence:
   `node tools/check-preset-generator-determinism.js --plugin profundum`.
 - **Browser:** the header `PresetBrowserButton` custom view is one `OutlineBrowserButton` ("PRESETS") that opens the
-  shared `PresetBrowserView` overlay (added in `didOpen`, removed in `willClose`; tabs "All" + the six categories). No
+  shared `PresetBrowserView` overlay (added in `didOpen`, removed in `willClose`; tabs "All" + the seven categories). No
   current-preset name, no previous / next, no new state. A preset load does **not** go through per-parameter host edits:
   the controller sends the whole component stream as **`kMsgLoadPresetState`** (`"ProfundumLoadPresetState"`,
   ctl → proc, binary `"state"` of at most 4096 bytes, `plugin_ids.h`), `Processor::notify` applies it through the

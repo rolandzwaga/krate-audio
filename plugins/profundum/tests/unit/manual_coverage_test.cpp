@@ -103,9 +103,9 @@ TEST_CASE("Profundum_ManualCoversSurface", "[profundum][docs]") {
         CHECK(missing.empty());
     }
 
-    // ---- the six category names ----
+    // ---- the seven category names (Phase 14b: Kicks) ----
     const Krate::Plugins::PresetManagerConfig config = ::Profundum::makeProfundumPresetConfig();
-    REQUIRE(config.subcategoryNames.size() == 6);
+    REQUIRE(config.subcategoryNames.size() == 7);
     {
         const std::vector<std::string> missing = manualMissing(manual, config.subcategoryNames);
         for (const std::string& m : missing) {
@@ -114,12 +114,12 @@ TEST_CASE("Profundum_ManualCoversSurface", "[profundum][docs]") {
         CHECK(missing.empty());
     }
 
-    // ---- all 60 factory preset names ----
+    // ---- all 71 factory preset names ----
     std::vector<std::string> presetNames;
     for (const auto& def : ::Profundum::PresetDefs::allPresets()) {
         presetNames.emplace_back(def.name);
     }
-    REQUIRE(presetNames.size() == 60);
+    REQUIRE(presetNames.size() == 71);
     {
         const std::vector<std::string> missing = manualMissing(manual, presetNames);
         for (const std::string& m : missing) {

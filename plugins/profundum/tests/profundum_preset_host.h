@@ -15,7 +15,7 @@
 // the two names, getState, the seed patch, setState, getState, and a bitwise decode compare (FR-049).
 // P-8: no audio is rendered before getState, so the runtime blob is the synthesized one (target == position).
 //
-// writeFactoryTree is the generator's whole body (FR-024): the six category directories in kCategories order,
+// writeFactoryTree is the generator's whole body (FR-024): the seven category directories in kCategories order,
 // then <category>/<name>.vstpreset in definition order. No timestamp, path string or RNG enters any byte.
 //
 // ALLOCATION BEHAVIOUR: outL_/outR_ are sized once by prepare() and never regrown; process() builds ProcessData /
@@ -483,7 +483,7 @@ inline void writeLE64(std::ofstream& f, std::int64_t v) {
         return false;
     }
 
-    // All six category directories exist, whether or not a preset lands in each (kCategories order).
+    // All seven category directories exist, whether or not a preset lands in each (kCategories order).
     for (const std::string_view category : pd::kCategories) {
         const std::filesystem::path dir = outDir / std::string(category);
         std::error_code ec;
@@ -500,7 +500,7 @@ inline void writeLE64(std::ofstream& f, std::int64_t v) {
         const std::string stem(def.name);
         const std::string category(def.category);
         if (!hd::isKnownCategory(def.category)) {
-            fail(stem + ": category \"" + category + "\" is not one of the six in PresetDefs::kCategories");
+            fail(stem + ": category \"" + category + "\" is not one of the seven in PresetDefs::kCategories");
             ok = false;
             continue;
         }

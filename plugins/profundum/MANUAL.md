@@ -484,8 +484,8 @@ A·B. **Save** writes the complete current state as a user preset.
 
 ### Factory Library
 
-60 presets ship with the plugin in six categories: **Sub**, **Resonant**, **Harmonic**, **Driven**, **Plucked** and
-**Animated**. Each one is built around one capability of the instrument and names it at the start of its comment, so
+71 presets ship with the plugin in seven categories: **Sub**, **Resonant**, **Harmonic**, **Driven**, **Plucked**,
+**Animated** and **Kicks**. Each one is built around one capability of the instrument and names it at the start of its comment, so
 the library also works as a tour of the controls. Every preset is rendered during the build and checked to make sound,
 stay bounded, differ measurably from the others, keep its low end intact in a mono sum and make its named capability
 audible. Five of them (Poly Spread, Poly Swell, Poly Ignition, Poly Rectifier and Poly Pluck) are stored in POLY with 4 voices,
@@ -584,6 +584,25 @@ to travel between them: B sits within 3 dB of A's level, so what changes is the 
 | Envelope Mass | Motion Env to Mass: a Unipolar ENV, 1000 ms up and 1000 ms down, swells the Mass from 0 at every note and lets it settle. Morph to B swells a Crush-grained, folded body, wide. |
 | Drifting Weight | Motion Drift to Mass: a DRIFT source at smoothness 0.5 wanders the Mass, different under every seed. Morph to B drifts a folded, Fracture-grained body. |
 | Tidal Fold | Morph Mod Cycle: a slow, free-running Square Cycle (0.05 Hz, Amount 1) swings the whole sound between A and B, holding each for 10 s. A is a dark, round sub with a hollow body and a little Tube over a Rounded Anchor; B is the tide coming in: a bright, Rectify-edged fold, spread wide. |
+
+#### Kicks
+
+Every kick decays to silence within a second (sustain 0), so a held note plays one hit; the pitch drop starts above
+the note and lands on it.
+
+| Preset | Comment |
+|---|---|
+| Eight Oh Boom | Pitch Drop Amount: a 36 st drop over 60 ms into a long, round sine boom with a little Tube warmth, the classic tuned 808. Morph to B drives it into a folded, saturated boom. |
+| Punch Kick | Anchor Lock to Punch: the Anchor in PUNCH, a 9 dB boost over 40 ms, under a short Bite-edged kick with a 24 st drop and a +6 dB transient. Morph to B crushes it into a dry, spread snap. |
+| Folded Kick | Character Wavefold: the Fold algorithm at full Amount folds a 30 st drop into a buzzing, distorted kick over a Triangle Anchor. Morph to B adds Harmonic Fold 90 and Mass 85 for a heavier fold. |
+| Sub Boom | Pitch Drop Time: a 24 st drop stretched over 250 ms into a long sub boom over an Octave Down Anchor, warm and mono. Morph to B snaps the drop short and rectifies the tail. |
+| Techno Kick | Mass Transient Attack: a +9 dB attack with the sustain pulled down 3 dB, a tight Bite kick with a fast 24 st drop. Morph to B rounds it into a Tube thump. |
+| Rebound Kick | Pitch Drop Rebound: a 24 st drop with rebound 0.8 that dips under the note and springs back, a Fracture-grained kick over an Asymmetric Anchor. Morph to B bites it. |
+| Gabber Kick | Character Rectify: a hard-rectified kick at Mass 85 with a 28 st drop, the distorted hardcore hit, wide on top. Morph to B rectifies it softer and darker, mono. |
+| Lo-Fi Kick | Character Crush: a soft, dusty kick through the Crush algorithm with a gentle 20 st drop and a dark tone. Morph to B crushes it harder and brighter. |
+| Deep 808 | Pitch Drop Amount: a 40 st drop over 60 ms into a pure sine boom with a 500 ms decay, the deep, clean 808. Morph to B warms it with Tube and fold over a Rounded Anchor. |
+| Club Kick | Anchor Lock to Punch: the Anchor in PUNCH with a 12 dB boost under a short sine kick, a 48 st drop over 25 ms, a +6 dB transient and the body lifted 9 dB, the tight club kick. Morph to B bites it, wide. |
+| Hardstyle Kick | Character Tube: Tube at 0.8 after Harmonic Fold 55 at Mass 70 drives a 36 st drop with a curved fall into a hard, distorted kick. Morph to B drives the Tube and fold harder. |
 
 ## Performance Notes
 

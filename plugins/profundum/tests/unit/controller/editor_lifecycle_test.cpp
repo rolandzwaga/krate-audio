@@ -126,7 +126,7 @@ TEST_CASE("Profundum_EditorLifecycle", "[profundum][controller][ui][lifecycle]")
         REQUIRE(cfg.pluginName == "Profundum");
         REQUIRE(cfg.pluginCategoryDesc == "Synth");
         REQUIRE(cfg.subcategoryNames == std::vector<std::string>{"Sub", "Resonant", "Harmonic", "Driven",
-                                                           "Plucked", "Animated"});  // Phase 13 FR-001 (Q1)
+                                                           "Plucked", "Animated", "Kicks"});  // Phase 13 FR-001 (Q1), Phase 14b
         const bool processorUidMatches = (cfg.processorUID == ::Profundum::kProcessorUID);
         REQUIRE(processorUidMatches);
 

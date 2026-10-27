@@ -502,9 +502,9 @@ TEST_CASE("Profundum_PresetBrowserViewLifecycle", "[profundum][browser]") {
     ControllerFixture cf;
     ::Profundum::Controller& ctl = *cf.controller;
 
-    // The tab labels the controller passes: "All" + the six subcategories.
+    // The tab labels the controller passes: "All" + the seven subcategories (Phase 14b: Kicks).
     const std::vector<std::string> wantLabels = ::Profundum::makeProfundumPresetTabLabels();
-    CHECK(wantLabels.size() == 7u);
+    CHECK(wantLabels.size() == 8u);
     CHECK(ctl.presetTabLabelsForTest() == wantLabels);
 
     SECTION("createCustomView(PresetBrowserButton)") {
@@ -734,7 +734,7 @@ TEST_CASE("Profundum_FactoryPresetScan", "[profundum][browser]") {
         emptySubcategory += p.subcategory.empty() ? 1u : 0u;
         seen.insert(p.subcategory);
     }
-    CHECK(n == 60u);
+    CHECK(n == 71u);
     CHECK(emptySubcategory == 0u);
     for (const std::string& category : config.subcategoryNames) {
         INFO("category " << category);
@@ -746,7 +746,7 @@ TEST_CASE("Profundum_FactoryPresetScan", "[profundum][browser]") {
 
 #ifdef _WIN32
 // SC-014 installed half (release gate, hidden): the default factory directory is %PROGRAMDATA%\Krate Audio\Profundum,
-// and a scan with no override lists 53 factory presets under exactly the six categories.
+// and a scan with no override lists 71 factory presets under exactly the seven categories.
 TEST_CASE("Profundum_InstalledPresetTree", "[profundum][browser][.install]") {
     const std::string programData = pbReadEnv("PROGRAMDATA");
     REQUIRE_FALSE(programData.empty());
@@ -767,7 +767,7 @@ TEST_CASE("Profundum_InstalledPresetTree", "[profundum][browser][.install]") {
         CHECK_FALSE(p.subcategory.empty());
         seen.insert(p.subcategory);
     }
-    CHECK(n == 60u);
+    CHECK(n == 71u);
     const std::set<std::string> six(config.subcategoryNames.begin(), config.subcategoryNames.end());
     CHECK(seen == six);
 }

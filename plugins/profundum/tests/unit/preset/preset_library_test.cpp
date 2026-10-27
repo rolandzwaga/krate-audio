@@ -115,16 +115,17 @@ bool categoryNamePasses(const CategoryVocabulary& vocab, std::string_view name) 
 
 // T009 (FR-001; C-1; plan 4.2).
 TEST_CASE("Profundum_PresetCategoryConfig", "[profundum][preset]") {
-    const std::vector<std::string> expected{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"};
+    const std::vector<std::string> expected{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated", "Kicks"};
     const Krate::Plugins::PresetManagerConfig config = ::Profundum::makeProfundumPresetConfig();
 
-    REQUIRE(config.subcategoryNames.size() == 6);
+    REQUIRE(config.subcategoryNames.size() == 7);   // Phase 14b: Kicks
     CHECK(config.subcategoryNames[0] == "Sub");
     CHECK(config.subcategoryNames == expected);
     CHECK(config.pluginName == "Profundum");
     CHECK(config.pluginCategoryDesc == "Synth");
 
-    const std::vector<std::string> expectedTabs{"All", "Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"};
+    const std::vector<std::string> expectedTabs{"All",     "Sub",      "Resonant", "Harmonic",
+                                                "Driven",  "Plucked",  "Animated", "Kicks"};
     CHECK(::Profundum::makeProfundumPresetTabLabels() == expectedTabs);
 
     REQUIRE(::Profundum::PresetDefs::kCategories.size() == config.subcategoryNames.size());
@@ -369,7 +370,7 @@ TEST_CASE("Profundum_GeneratorSmoke", "[profundum][preset]") {
     INFO("why: " << why);
     REQUIRE(ok);
     CHECK(written == pd::allPresets().size());
-    CHECK(written == 60u);   // T024 (SC-010): the whole library; Phase 14 T023 adds two (59-60)
+    CHECK(written == 71u);   // T024 (SC-010): the whole library; Phase 14 T023 adds two (59-60), Phase 14b eleven kicks
     for (const std::string_view category : pd::kCategories) {
         INFO("category " << category);
         CHECK(std::filesystem::is_directory(first.path / std::string(category)));
@@ -1113,6 +1114,7 @@ TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
     }
     std::map<std::string, std::string> libConverted;   // a pre-phase definition now primary in a MorphMod column
     std::vector<std::size_t> added;                    // definitions with no pre-phase row
+    std::size_t kicks = 0;                             // Phase 14b: the Kicks category, added after Phase 14
     for (std::size_t i = 0; i < defs.size(); ++i) {
         const pd::ProfundumPresetDef& def = defs[i];
         const ProfundumPluginTest::DecodedPresetState& d = decoded[i];
@@ -1120,6 +1122,15 @@ TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
         const auto [primary, secondaries] = mmClaimLabels(def);
         INFO("preset " << name << ": primary \"" << primary << "\", secondaries \"" << secondaries << "\", Source "
                        << d.morphMod.source);
+        if (def.category == "Kicks") {
+            // Phase 14b (specs/Profundum-roadmap.md): no pre-phase row, Source Off, a Phase 13 primary.
+            ++kicks;
+            CHECK_FALSE(prePhase.contains(name));
+            CHECK(def.morphModProbeBase.empty());
+            CHECK(d.morphMod.source == 0);
+            CHECK(!mmIsMorphModColumn(def.primary));
+            continue;
+        }
         const auto row = prePhase.find(name);
         if (row == prePhase.end()) {
             // An added preset: a MorphMod primary that conversions.md lists as NEW PRESET NEEDED on the probe's base.
@@ -1209,6 +1220,7 @@ TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
         CHECK(mme::mmSameSettings(decoded[i].morphMod, best.e1->mod));
     }
     CHECK(addedColumns.size() == sel.newPreset.size());
+    CHECK(kicks == 11u);
     const MmSelection ruleI = mmSelect(probe, pd::MorphModConversionRule::PerColumn);   // comparison only
     std::cout << "# Profundum_PresetDefsRules: Phase 14 library size=" << defs.size()
               << " converted=" << libConverted.size() << " added=" << added.size()
@@ -1605,10 +1617,10 @@ struct LibInfoAttr {
 
 }  // namespace
 
-// SC-001 (FR-001, FR-002): the directory set equals the six names both ways; only *.vstpreset files, each directly
+// SC-001 (FR-001, FR-002): the directory set equals the seven names (Phase 14b: Kicks) both ways; only *.vstpreset files, each directly
 // inside one category directory; 0 stray files (no .gitkeep).
 TEST_CASE("Profundum_PresetCategoriesMatchFilesystem", "[profundum][preset]") {
-    const std::set<std::string> kSix{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"};
+    const std::set<std::string> kSix{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated", "Kicks"};
     const libfs::path root = libPresetsRoot();
     INFO("presets root: " << root.string());
     std::error_code ec;
@@ -1732,7 +1744,7 @@ TEST_CASE("Profundum_FactoryLibraryShape", "[profundum][preset]") {
     REQUIRE(Krate::Plugins::PresetManager::isValidPresetName("Mono Bedrock"));
 
     const std::vector<pd::ProfundumPresetDef>& defs = pd::allPresets();
-    CHECK(pd::kCategories.size() == 6u);
+    CHECK(pd::kCategories.size() == 7u);   // Phase 14b: Kicks
     std::map<std::string, std::size_t> perCategory;
     for (const std::string_view c : pd::kCategories) {
         perCategory[std::string(c)] = 0;
@@ -1747,7 +1759,7 @@ TEST_CASE("Profundum_FactoryLibraryShape", "[profundum][preset]") {
         CHECK(names.insert(name).second);
         CHECK(Krate::Plugins::PresetManager::isValidPresetName(name));
     }
-    CHECK(perCategory.size() == 6u);
+    CHECK(perCategory.size() == 7u);
     for (const auto& [category, n] : perCategory) {
         INFO("category " << category);
         CHECK(n >= 3u);
@@ -1755,7 +1767,8 @@ TEST_CASE("Profundum_FactoryLibraryShape", "[profundum][preset]") {
     CHECK(defs.size() >= 53u);
     // Phase 14 T023 (FR-046, SC-018): 58 + the two presets added for M-CYCLE and M-VEL, which no existing preset could
     // carry (evidence/conversions.md, NEW PRESET NEEDED rows; Long Tail carries M-WHEEL, evidence/gate-exclusions.csv).
-    CHECK(defs.size() == 60u);
+    // Phase 14b: + the eleven presets of the Kicks category (definitions 61-71).
+    CHECK(defs.size() == 71u);
 
     // The committed tree has the same shape.
     std::map<std::string, std::size_t> perDir;

@@ -26,6 +26,9 @@
 //   - the conversions of evidence/conversions.md (rule (ii), kMorphModConversionRule) and the two presets added
 //     for the columns no existing preset could carry (definitions 59-60; morphModProbeBase names the probe's base).
 //
+// Phase 14b (specs/Profundum-roadmap.md): the seventh category, Kicks, and its eleven definitions (61-71), each led by
+// a Phase 13 column and stored with Morph Modulation Source Off.
+//
 // ParamSetting, Capability and CapabilityGroup also exist in
 // Vorago::PresetDefs / Seraphis::PresetDefs: different namespaces and different
 // targets; no TU includes two defs headers.
@@ -185,7 +188,8 @@ struct ProfundumPresetDef {
     std::string_view morphModProbeBase{};
 };
 
-inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"};
+inline constexpr std::array<std::string_view, 7> kCategories{"Sub",     "Resonant", "Harmonic", "Driven",
+                                                              "Plucked", "Animated", "Kicks"};
 
 /// Definition order == file order. Rows are authored only after the probe table is recorded (FR-022,
 /// evidence/probe-table.csv, T017). T023: plan 7 rows 51-53 (the reference columns); T025 adds rows 1-50 before them.
@@ -4192,6 +4196,645 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
             .morphModProbeBase = "Fed Fold",
+        },
+        // ==== Phase 14b: the Kicks category (definitions 61-71) ====
+        // Every kick stores sustain 0 with the amp decay ending before 1 s, so the descriptor window is
+        // [t90, t90 + 2^16) (preset_render_support.h describePreset); Morph Modulation Source Off.
+        ProfundumPresetDef{
+            .name = "Eight Oh Boom",
+            .category = "Kicks",
+            .description = "Pitch Drop Amount: a 36 st drop over 60 ms into a long, round sine boom with a little "
+                           "Tube warmth, the classic tuned 808. Morph to B drives it into a folded, saturated boom.",
+            .primary = C::AT19,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.95},          // depth 0.95
+                          {kCoreBodyId, 0.2},            // body 0.2
+                          {kCoreEdgeId, 0.1},            // edge 0.1
+                          {kCoreExcitationMixId, 0.15},  // excitation mix 0.15
+                          {kFoldAmountId, 0.15},         // Harmonic Fold 15
+                          {kFoldShapeId, 0.2},           // SHAPE 0.2
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.25},    // Amount 0.25
+                          {kCharacterToneId, 0.4},       // Tone 0.4
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.755630},       // 600 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.6},                // Mass 60
+                          {kAnchorWaveformId, 0.0},      // Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.75},         // drop 36 st
+                          {kDropTimeId, 0.493648},       // drop time 60 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.75},          // depth 0.75
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.45},           // edge 0.45
+                          {kCoreExcitationMixId, 0.4},   // excitation mix 0.4
+                          {kFoldAmountId, 0.5},          // Harmonic Fold 50
+                          {kFoldShapeId, 0.6},           // SHAPE 0.6
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.75},    // Amount 0.75
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.780618},       // 800 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.3},         // spread 0.3
+                          {kMassId, 0.75},               // Mass 75
+                          {kAnchorWaveformId, 0.5},      // Rounded Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.555238},       // drop time 100 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Clean Boom",
+            .nameB = "Driven Boom",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Punch Kick",
+            .category = "Kicks",
+            .description = "Anchor Lock to Punch: the Anchor in PUNCH, a 9 dB boost over 40 ms, under a short "
+                           "Bite-edged kick with a 24 st drop and a +6 dB transient. Morph to B crushes it into a "
+                           "dry, spread snap.",
+            .primary = C::AT11,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.8},                  // depth 0.8
+                          {kCoreBodyId, 0.35},                  // body 0.35
+                          {kCoreEdgeId, 0.3},                   // edge 0.3
+                          {kCoreExcitationMixId, 0.2},          // excitation mix 0.2
+                          {kFoldAmountId, 0.25},                // Harmonic Fold 25
+                          {kFoldShapeId, 0.5},                  // SHAPE 0.5
+                          {kCharacterId, 0.6},                  // Bite
+                          {kCharacterAmountId, 0.3},            // Amount 0.3
+                          {kCharacterToneId, 0.6},              // Tone 0.6
+                          {kAmpAttackId, 0.2},                  // 1 ms
+                          {kAmpDecayId, 0.769020},              // 700 ms
+                          {kAmpSustainId, 0.0},                 // sustain 0
+                          {kAmpReleaseId, 0.615836},            // 120 ms
+                          {kFieldImageModeId, 0.5},             // SPREAD
+                          {kFieldSpreadId, 0.2},                // spread 0.2
+                          {kMassId, 0.55},                      // Mass 55
+                          {kAnchorWaveformId, 0.5},             // Rounded Sine
+                          {kAnchorModeId, 2.0 / 3.0},           // PUNCH
+                          {kAnchorLevelId, 1.0},                // level 1
+                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
+                          {kAnchorPunchBoostId, 0.75},          // punch boost 9 dB
+                          {kAnchorPunchTimeId, 0.531551},       // punch time 40 ms
+                          {kDropAmountId, 0.5},                 // drop 24 st
+                          {kDropTimeId, 0.444762},              // drop time 40 ms
+                          {kDynamicsTransientAttackId, 0.75}},  // transient attack +6 dB
+            .endpointB = {{kCoreDepthId, 0.7},                  // depth 0.7
+                          {kCoreBodyId, 0.45},                  // body 0.45
+                          {kCoreEdgeId, 0.65},                  // edge 0.65
+                          {kCoreExcitationMixId, 0.35},         // excitation mix 0.35
+                          {kFoldAmountId, 0.35},                // Harmonic Fold 35
+                          {kFoldShapeId, 0.8},                  // SHAPE 0.8
+                          {kCharacterId, 0.8},                  // Crush
+                          {kCharacterAmountId, 0.55},           // Amount 0.55
+                          {kCharacterToneId, 0.7},              // Tone 0.7
+                          {kAmpAttackId, 0.2},                  // 1 ms
+                          {kAmpDecayId, 0.795545},              // 950 ms
+                          {kAmpSustainId, 0.0},                 // sustain 0
+                          {kAmpReleaseId, 0.615836},            // 120 ms
+                          {kFieldImageModeId, 0.5},             // SPREAD
+                          {kFieldSpreadId, 0.4},                // spread 0.4
+                          {kMassId, 0.85},                      // Mass 85
+                          {kAnchorWaveformId, 0.25},            // Triangle
+                          {kAnchorModeId, 2.0 / 3.0},           // PUNCH
+                          {kAnchorLevelId, 1.0},                // level 1
+                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
+                          {kAnchorPunchBoostId, 0.75},          // punch boost 9 dB
+                          {kAnchorPunchTimeId, 0.458014},       // punch time 30 ms
+                          {kDropAmountId, 0.333333},            // drop 16 st
+                          {kDropTimeId, 0.410077},              // drop time 30 ms
+                          {kDynamicsTransientAttackId, 0.875}}, // transient attack +9 dB
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Punched",
+            .nameB = "Crushed Snap",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Folded Kick",
+            .category = "Kicks",
+            .description = "Character Wavefold: the Fold algorithm at full Amount folds a 30 st drop into a buzzing, "
+                           "distorted kick over a Triangle Anchor. Morph to B adds Harmonic Fold 90 and Mass 85 for "
+                           "a heavier fold.",
+            .primary = C::AT05,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.6},           // depth 0.6
+                          {kCoreBodyId, 0.3},            // body 0.3
+                          {kCoreEdgeId, 0.4},            // edge 0.4
+                          {kCoreExcitationMixId, 0.0},   // excitation mix 0
+                          {kFoldAmountId, 0.0},          // Harmonic Fold 0
+                          {kFoldShapeId, 0.0},           // SHAPE 0
+                          {kCharacterId, 0.2},           // Fold
+                          {kCharacterAmountId, 1.0},     // Amount 1
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.769020},       // 700 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.5},                // Mass 50
+                          {kAnchorWaveformId, 0.25},     // Triangle
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 0.6},         // level 0.6
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.625},        // drop 30 st
+                          {kDropTimeId, 0.471666},       // drop time 50 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.75},          // depth 0.75
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.65},           // edge 0.65
+                          {kCoreExcitationMixId, 0.5},   // excitation mix 0.5
+                          {kFoldAmountId, 0.9},          // Harmonic Fold 90
+                          {kFoldShapeId, 0.9},           // SHAPE 0.9
+                          {kCharacterId, 0.2},           // Fold
+                          {kCharacterAmountId, 0.75},    // Amount 0.75
+                          {kCharacterToneId, 0.75},      // Tone 0.75
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.4},         // spread 0.4
+                          {kMassId, 0.85},               // Mass 85
+                          {kAnchorWaveformId, 0.75},     // Asymmetric Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.471666},       // drop time 50 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Folded",
+            .nameB = "Heavy Fold",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Sub Boom",
+            .category = "Kicks",
+            .description = "Pitch Drop Time: a 24 st drop stretched over 250 ms into a long sub boom over an Octave "
+                           "Down Anchor, warm and mono. Morph to B snaps the drop short and rectifies the tail.",
+            .primary = C::AT20,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.95},          // depth 0.95
+                          {kCoreBodyId, 0.25},           // body 0.25
+                          {kCoreEdgeId, 0.1},            // edge 0.1
+                          {kCoreExcitationMixId, 0.1},   // excitation mix 0.1
+                          {kFoldAmountId, 0.1},          // Harmonic Fold 10
+                          {kFoldShapeId, 0.2},           // SHAPE 0.2
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.2},     // Amount 0.2
+                          {kCharacterToneId, 0.35},      // Tone 0.35
+                          {kAmpAttackId, 0.260206},      // 2 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.660206},     // 200 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.7},                // Mass 70
+                          {kAnchorWaveformId, 1.0},      // Octave Down Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.665714},       // drop time 250 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.75},          // depth 0.75
+                          {kCoreBodyId, 0.45},           // body 0.45
+                          {kCoreEdgeId, 0.35},           // edge 0.35
+                          {kCoreExcitationMixId, 0.3},   // excitation mix 0.3
+                          {kFoldAmountId, 0.35},         // Harmonic Fold 35
+                          {kFoldShapeId, 0.5},           // SHAPE 0.5
+                          {kCharacterId, 0.4},           // Rectify
+                          {kCharacterAmountId, 0.55},    // Amount 0.55
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.260206},      // 2 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.660206},     // 200 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.4},         // spread 0.4
+                          {kMassId, 0.7},                // Mass 70
+                          {kAnchorWaveformId, 0.75},     // Asymmetric Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.444762},       // drop time 40 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Long Boom",
+            .nameB = "Rectified Boom",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Techno Kick",
+            .category = "Kicks",
+            .description = "Mass Transient Attack: a +9 dB attack with the sustain pulled down 3 dB, a tight Bite "
+                           "kick with a fast 24 st drop. Morph to B rounds it into a Tube thump.",
+            .primary = C::AT28,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.75},                   // depth 0.75
+                          {kCoreBodyId, 0.4},                     // body 0.4
+                          {kCoreEdgeId, 0.4},                     // edge 0.4
+                          {kCoreExcitationMixId, 0.25},           // excitation mix 0.25
+                          {kFoldAmountId, 0.3},                   // Harmonic Fold 30
+                          {kFoldShapeId, 0.7},                    // SHAPE 0.7
+                          {kCharacterId, 0.6},                    // Bite
+                          {kCharacterAmountId, 0.4},              // Amount 0.4
+                          {kCharacterToneId, 0.55},               // Tone 0.55
+                          {kAmpAttackId, 0.2},                    // 1 ms
+                          {kAmpDecayId, 0.790849},                // 900 ms
+                          {kAmpSustainId, 0.0},                   // sustain 0
+                          {kAmpReleaseId, 0.615836},              // 120 ms
+                          {kFieldImageModeId, 0.5},               // SPREAD
+                          {kFieldSpreadId, 0.3},                  // spread 0.3
+                          {kMassId, 0.75},                        // Mass 75
+                          {kAnchorWaveformId, 0.25},              // Triangle
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 1.0},                  // level 1
+                          {kAnchorFoldFeedId, 0.0},               // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},                   // drop 24 st
+                          {kDropTimeId, 0.410077},                // drop time 30 ms
+                          {kDynamicsTransientAttackId, 0.875},    // transient attack +9 dB
+                          {kDynamicsTransientSustainId, 0.375}},  // transient sustain -3 dB
+            .endpointB = {{kCoreDepthId, 0.95},                   // depth 0.95
+                          {kCoreBodyId, 0.2},                     // body 0.2
+                          {kCoreEdgeId, 0.15},                    // edge 0.15
+                          {kCoreExcitationMixId, 0.15},           // excitation mix 0.15
+                          {kFoldAmountId, 0.2},                   // Harmonic Fold 20
+                          {kFoldShapeId, 0.3},                    // SHAPE 0.3
+                          {kCharacterId, 0.0},                    // Tube
+                          {kCharacterAmountId, 0.7},              // Amount 0.7
+                          {kCharacterToneId, 0.4},                // Tone 0.4
+                          {kAmpAttackId, 0.260206},               // 2 ms
+                          {kAmpDecayId, 0.755630},                // 600 ms
+                          {kAmpSustainId, 0.0},                   // sustain 0
+                          {kAmpReleaseId, 0.635218},              // 150 ms
+                          {kFieldImageModeId, 0.0},               // SOLID
+                          {kFieldSpreadId, 0.0},                  // spread 0
+                          {kMassId, 0.65},                        // Mass 65
+                          {kAnchorWaveformId, 0.5},               // Rounded Sine
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 1.0},                  // level 1
+                          {kAnchorFoldFeedId, 0.0},               // Anchor Fold Feed 0
+                          {kDropAmountId, 0.416667},              // drop 20 st
+                          {kDropTimeId, 0.555238},                // drop time 100 ms
+                          {kDynamicsTransientAttackId, 0.875},    // transient attack +9 dB
+                          {kDynamicsTransientSustainId, 0.5}},    // transient sustain 0 dB
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Tight",
+            .nameB = "Tube Thump",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Rebound Kick",
+            .category = "Kicks",
+            .description = "Pitch Drop Rebound: a 24 st drop with rebound 0.8 that dips under the note and springs "
+                           "back, a Fracture-grained kick over an Asymmetric Anchor. Morph to B bites it.",
+            .primary = C::AT22,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.8},           // depth 0.8
+                          {kCoreBodyId, 0.35},           // body 0.35
+                          {kCoreEdgeId, 0.25},           // edge 0.25
+                          {kCoreExcitationMixId, 0.2},   // excitation mix 0.2
+                          {kFoldAmountId, 0.2},          // Harmonic Fold 20
+                          {kFoldShapeId, 0.4},           // SHAPE 0.4
+                          {kCharacterId, 1.0},           // Fracture
+                          {kCharacterAmountId, 0.3},     // Amount 0.3
+                          {kCharacterToneId, 0.5},       // Tone 0.5
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.4},         // spread 0.4
+                          {kMassId, 0.6},                // Mass 60
+                          {kAnchorWaveformId, 0.75},     // Asymmetric Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.528334},       // drop time 80 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.8}},        // rebound 0.8
+            .endpointB = {{kCoreDepthId, 0.8},           // depth 0.8
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.6},            // edge 0.6
+                          {kCoreExcitationMixId, 0.4},   // excitation mix 0.4
+                          {kFoldAmountId, 0.45},         // Harmonic Fold 45
+                          {kFoldShapeId, 0.5},           // SHAPE 0.5
+                          {kCharacterId, 0.6},           // Bite
+                          {kCharacterAmountId, 0.4},     // Amount 0.4
+                          {kCharacterToneId, 0.7},       // Tone 0.7
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.5},         // spread 0.5
+                          {kMassId, 0.9},                // Mass 90
+                          {kAnchorWaveformId, 0.5},      // Rounded Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.528334},       // drop time 80 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.4}},        // rebound 0.4
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Spring",
+            .nameB = "Bitten Spring",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Gabber Kick",
+            .category = "Kicks",
+            .description = "Character Rectify: a hard-rectified kick at Mass 85 with a 28 st drop, the distorted "
+                           "hardcore hit, wide on top. Morph to B rectifies it softer and darker, mono.",
+            .primary = C::AT06,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.7},           // depth 0.7
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.5},            // edge 0.5
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.3},          // Harmonic Fold 30
+                          {kFoldShapeId, 0.8},           // SHAPE 0.8
+                          {kCharacterId, 0.4},           // Rectify
+                          {kCharacterAmountId, 0.9},     // Amount 0.9
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.785884},       // 850 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 1.0},      // WIDE
+                          {kFieldSpreadId, 0.5},         // spread 0.5
+                          {kMassId, 0.85},               // Mass 85
+                          {kAnchorWaveformId, 0.5},      // Rounded Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.583333},     // drop 28 st
+                          {kDropTimeId, 0.471666},       // drop time 50 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.9},           // depth 0.9
+                          {kCoreBodyId, 0.2},            // body 0.2
+                          {kCoreEdgeId, 0.2},            // edge 0.2
+                          {kCoreExcitationMixId, 0.3},   // excitation mix 0.3
+                          {kFoldAmountId, 0.1},          // Harmonic Fold 10
+                          {kFoldShapeId, 0.5},           // SHAPE 0.5
+                          {kCharacterId, 0.4},           // Rectify
+                          {kCharacterAmountId, 0.4},     // Amount 0.4
+                          {kCharacterToneId, 0.2},       // Tone 0.2
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.730643},       // 450 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.65},               // Mass 65
+                          {kAnchorWaveformId, 0.25},     // Triangle
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.444762},       // drop time 40 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Rectified Hit",
+            .nameB = "Dark Rectifier",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Lo-Fi Kick",
+            .category = "Kicks",
+            .description = "Character Crush: a soft, dusty kick through the Crush algorithm with a gentle 20 st drop "
+                           "and a dark tone. Morph to B crushes it harder and brighter.",
+            .primary = C::AT08,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.8},           // depth 0.8
+                          {kCoreBodyId, 0.4},            // body 0.4
+                          {kCoreEdgeId, 0.2},            // edge 0.2
+                          {kCoreExcitationMixId, 0.15},  // excitation mix 0.15
+                          {kFoldAmountId, 0.15},         // Harmonic Fold 15
+                          {kFoldShapeId, 0.3},           // SHAPE 0.3
+                          {kCharacterId, 0.8},           // Crush
+                          {kCharacterAmountId, 0.55},    // Amount 0.55
+                          {kCharacterToneId, 0.35},      // Tone 0.35
+                          {kAmpAttackId, 0.295424},      // 3 ms
+                          {kAmpDecayId, 0.762583},       // 650 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.5},                // Mass 50
+                          {kAnchorWaveformId, 0.0},      // Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.416667},     // drop 20 st
+                          {kDropTimeId, 0.512234},       // drop time 70 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.85},          // depth 0.85
+                          {kCoreBodyId, 0.3},            // body 0.3
+                          {kCoreEdgeId, 0.55},           // edge 0.55
+                          {kCoreExcitationMixId, 0.3},   // excitation mix 0.3
+                          {kFoldAmountId, 0.4},          // Harmonic Fold 40
+                          {kFoldShapeId, 0.8},           // SHAPE 0.8
+                          {kCharacterId, 0.8},           // Crush
+                          {kCharacterAmountId, 0.7},     // Amount 0.7
+                          {kCharacterToneId, 0.7},       // Tone 0.7
+                          {kAmpAttackId, 0.295424},      // 3 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.4},         // spread 0.4
+                          {kMassId, 0.85},               // Mass 85
+                          {kAnchorWaveformId, 0.75},     // Asymmetric Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.583333},     // drop 28 st
+                          {kDropTimeId, 0.444762},       // drop time 40 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Dusty",
+            .nameB = "Crunched",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        // ---- Phase 14b, definitions 69-71: the three test kicks the user picked (user, 2026-10-27). Endpoint A is
+        // the test render's patch exactly (registered defaults plus the listed IDs); B is a designed second sound. ----
+        ProfundumPresetDef{
+            .name = "Deep 808",
+            .category = "Kicks",
+            .description = "Pitch Drop Amount: a 40 st drop over 60 ms into a pure sine boom with a 500 ms decay, "
+                           "the deep, clean 808. Morph to B warms it with Tube and fold over a Rounded Anchor.",
+            .primary = C::AT19,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 1.0},          // depth 1
+                          {kCoreBodyId, 0.0},           // body 0
+                          {kCoreEdgeId, 0.0},           // edge 0
+                          {kAmpAttackId, 0.0},          // 0.1 ms
+                          {kAmpDecayId, 0.739794},      // 500 ms
+                          {kAmpSustainId, 0.0},         // sustain 0
+                          {kAmpReleaseId, 0.580618},    // 80 ms
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kMassId, 0.3},               // Mass 30
+                          {kDropAmountId, 0.833333},    // drop 40 st
+                          {kDropTimeId, 0.493648},      // drop time 60 ms
+                          {kDropShapeId, 0.0}},         // drop shape 0
+            .endpointB = {{kCoreDepthId, 0.6},          // depth 0.6
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.45},          // edge 0.45
+                          {kFoldAmountId, 0.5},         // Harmonic Fold 50
+                          {kFoldShapeId, 0.6},          // SHAPE 0.6
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.7},    // Amount 0.7
+                          {kCharacterToneId, 0.6},      // Tone 0.6
+                          {kAmpAttackId, 0.0},          // 0.1 ms
+                          {kAmpDecayId, 0.780618},      // 800 ms
+                          {kAmpSustainId, 0.0},         // sustain 0
+                          {kAmpReleaseId, 0.580618},    // 80 ms
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.3},        // spread 0.3
+                          {kMassId, 0.7},               // Mass 70
+                          {kAnchorWaveformId, 0.5},     // Rounded Sine
+                          {kDropAmountId, 0.5},         // drop 24 st
+                          {kDropTimeId, 0.577220},      // drop time 120 ms
+                          {kDropShapeId, 0.0}},         // drop shape 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Deep Boom",
+            .nameB = "Warm Boom",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Club Kick",
+            .category = "Kicks",
+            .description = "Anchor Lock to Punch: the Anchor in PUNCH with a 12 dB boost under a short sine kick, a "
+                           "48 st drop over 25 ms, a +6 dB transient and the body lifted 9 dB, the tight club kick. "
+                           "Morph to B bites it, wide.",
+            .primary = C::AT11,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 1.0},                  // depth 1
+                          {kCoreBodyId, 0.0},                   // body 0
+                          {kCoreEdgeId, 0.0},                   // edge 0
+                          {kAmpAttackId, 0.0},                  // 0.1 ms
+                          {kAmpDecayId, 0.668485},              // 220 ms
+                          {kAmpSustainId, 0.0},                 // sustain 0
+                          {kAmpReleaseId, 0.580618},            // 80 ms
+                          {kFieldImageModeId, 0.0},             // SOLID
+                          {kMassId, 0.6},                       // Mass 60
+                          {kAnchorModeId, 2.0 / 3.0},           // PUNCH
+                          {kDropAmountId, 1.0},                 // drop 48 st
+                          {kDropTimeId, 0.388095},              // drop time 25 ms
+                          {kDropShapeId, 0.0},                  // drop shape 0
+                          {kDynamicsTransientAttackId, 0.75},   // transient attack +6 dB
+                          {kAnchorPunchBoostId, 1.0},           // punch boost 12 dB
+                          {kDynamicsTransientSustainId, 0.875}}, // transient sustain +9 dB
+            .endpointB = {{kCoreDepthId, 0.6},                  // depth 0.6
+                          {kCoreBodyId, 0.4},                   // body 0.4
+                          {kCoreEdgeId, 0.5},                   // edge 0.5
+                          {kFoldAmountId, 0.3},                 // Harmonic Fold 30
+                          {kFoldShapeId, 0.8},                  // SHAPE 0.8
+                          {kCharacterId, 0.6},                  // Bite
+                          {kCharacterAmountId, 0.5},            // Amount 0.5
+                          {kCharacterToneId, 0.7},              // Tone 0.7
+                          {kAmpAttackId, 0.0},                  // 0.1 ms
+                          {kAmpDecayId, 0.695424},              // 300 ms
+                          {kAmpSustainId, 0.0},                 // sustain 0
+                          {kAmpReleaseId, 0.580618},            // 80 ms
+                          {kFieldImageModeId, 1.0},             // WIDE
+                          {kFieldSpreadId, 0.4},                // spread 0.4
+                          {kMassId, 0.6},                       // Mass 60
+                          {kAnchorModeId, 2.0 / 3.0},           // PUNCH
+                          {kDropAmountId, 0.75},                // drop 36 st
+                          {kDropTimeId, 0.444762},              // drop time 40 ms
+                          {kDropShapeId, 0.0},                  // drop shape 0
+                          {kDynamicsTransientAttackId, 0.75},   // transient attack +6 dB
+                          {kAnchorPunchBoostId, 1.0},           // punch boost 12 dB
+                          {kDynamicsTransientSustainId, 0.875}}, // transient sustain +9 dB
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Club",
+            .nameB = "Bitten Club",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Hardstyle Kick",
+            .category = "Kicks",
+            .description = "Character Tube: Tube at 0.8 after Harmonic Fold 55 at Mass 70 drives a 36 st drop with "
+                           "a curved fall into a hard, distorted kick. Morph to B drives the Tube and fold harder.",
+            .primary = C::AT04,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 1.0},          // depth 1
+                          {kCoreBodyId, 0.0},           // body 0
+                          {kCoreEdgeId, 0.0},           // edge 0
+                          {kFoldAmountId, 0.55},        // Harmonic Fold 55
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.8},    // Amount 0.8
+                          {kAmpAttackId, 0.0},          // 0.1 ms
+                          {kAmpDecayId, 0.755630},      // 600 ms
+                          {kAmpSustainId, 0.0},         // sustain 0
+                          {kAmpReleaseId, 0.580618},    // 80 ms
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kMassId, 0.7},               // Mass 70
+                          {kDropAmountId, 0.75},        // drop 36 st
+                          {kDropTimeId, 0.542535},      // drop time 90 ms
+                          {kDropShapeId, 0.5}},         // drop shape 0.5
+            .endpointB = {{kCoreDepthId, 0.9},          // depth 0.9
+                          {kCoreBodyId, 0.3},           // body 0.3
+                          {kCoreEdgeId, 0.4},           // edge 0.4
+                          {kFoldAmountId, 0.8},         // Harmonic Fold 80
+                          {kFoldShapeId, 0.7},          // SHAPE 0.7
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 1.0},    // Amount 1
+                          {kCharacterToneId, 0.7},      // Tone 0.7
+                          {kAmpAttackId, 0.0},          // 0.1 ms
+                          {kAmpDecayId, 0.790849},      // 900 ms
+                          {kAmpSustainId, 0.0},         // sustain 0
+                          {kAmpReleaseId, 0.580618},    // 80 ms
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kMassId, 0.85},              // Mass 85
+                          {kAnchorWaveformId, 0.25},    // Triangle
+                          {kDropAmountId, 1.0},         // drop 48 st
+                          {kDropTimeId, 0.493648},      // drop time 60 ms
+                          {kDropShapeId, 0.8}},         // drop shape 0.8
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Hard",
+            .nameB = "Harder",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
         },
     };
     return kPresets;

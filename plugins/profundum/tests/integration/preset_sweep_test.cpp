@@ -1446,7 +1446,11 @@ TEST_CASE("Profundum_PresetAuditionRenders", "[profundum][.listen]") {
 // Morph sweep (2026-10-26, the designed-library pass): every preset's A -> B travel is part of its sound, so every
 // preset is swept, not only the AT-41 / AT-42 claimants. The audition's _morph render (E1 held 3 s, Morph Position
 // 0 -> 1 over 2 s): finite, under the stored output ceiling in true peak (the sweep cases' 0.1 dB allowance), and no
-// 100 ms window of [1 s, 3 s) under -60 dBFS (Morph never passes through silence).
+// 100 ms window of [0 s, 3 s) under -60 dBFS (Morph never passes through silence).
+// Phase 14b ruling (user, 2026-10-27; specs/Profundum-roadmap.md Phase 14b): the bar is endpoint-referenced. A window
+// counts where the same gesture with Morph frozen at A (both endpoints A) or at B (both B) reads above -60 dBFS: a
+// dropout is silence Morph makes that neither endpoint has. A sustained preset counts every window; a one-hit kick is
+// checked during its hit, while the ramp already moves. The frozen renders run only when the sweep has a quiet window.
 // =============================================================================
 
 TEST_CASE("Profundum_PresetMorphSweep", "[profundum][sweep][long]") {
@@ -1455,35 +1459,60 @@ TEST_CASE("Profundum_PresetMorphSweep", "[profundum][sweep][long]") {
     const std::vector<Pd::ProfundumPresetDef>& defs = Pd::allPresets();
     REQUIRE(!defs.empty());
     const std::size_t window = swAt(0.1);
+    constexpr double kSilenceDb = -60.0;
+    const auto windowsDb = [window](const SwAuditionRender& r) {
+        std::vector<double> out;
+        for (std::size_t at = 0; at + window <= swAt(3.0); at += window) {
+            double sum = 0.0;
+            for (std::size_t n = at; n < at + window; ++n) {
+                sum += 0.5 * (static_cast<double>(r.L[n]) * r.L[n] + static_cast<double>(r.R[n]) * r.R[n]);
+            }
+            out.push_back(10.0 * std::log10(std::max(sum / static_cast<double>(window), 1.0e-30)));
+        }
+        return out;
+    };
     std::cout << "# Profundum_PresetMorphSweep: presets=" << defs.size()
-              << "\npreset,non_finite,true_peak_dbtp,ceiling_dbtp,min_window_db,max_window_db\n";
+              << "\npreset,non_finite,true_peak_dbtp,ceiling_dbtp,min_window_db,max_window_db,counted_windows\n";
     for (const Pd::ProfundumPresetDef& def : defs) {
         const std::vector<std::uint8_t> comp = presetCompOf(def);
         const DecodedPresetState d = decodePresetState(comp);
         INFO("preset " << def.name);
         REQUIRE(d.ok);
-        const SwAuditionRender g = swRenderGesture(comp, swRampScript(P::kMorphPositionId), swAt(3.0));
+        const std::vector<SwEv> script = swRampScript(P::kMorphPositionId);
+        const SwAuditionRender g = swRenderGesture(comp, script, swAt(3.0));
         const double truePeak = static_cast<double>(
             Krate::DSP::TestUtils::measureTruePeakDb(g.L.data(), g.R.data(), g.L.size(), kSwFs));
         const double bar = static_cast<double>(d.outputCeilingDb) + 0.1;
+        const std::vector<double> sweep = windowsDb(g);
+        std::vector<bool> counted(sweep.size(), true);
+        if (std::any_of(sweep.begin(), sweep.end(), [](double db) { return db <= kSilenceDb; })) {
+            const std::vector<double> atA =
+                windowsDb(swRenderGesture(swBytesOf(withEndpoints(swStateOf(comp), d.a, d.a)), script, swAt(3.0)));
+            const std::vector<double> atB =
+                windowsDb(swRenderGesture(swBytesOf(withEndpoints(swStateOf(comp), d.b, d.b)), script, swAt(3.0)));
+            for (std::size_t w = 0; w < sweep.size(); ++w) {
+                counted[w] = atA[w] > kSilenceDb || atB[w] > kSilenceDb;
+            }
+        }
         double minDb = std::numeric_limits<double>::max();
         double maxDb = std::numeric_limits<double>::lowest();
-        for (std::size_t at = swAt(1.0); at + window <= swAt(3.0); at += window) {
-            double sum = 0.0;
-            for (std::size_t n = at; n < at + window; ++n) {
-                sum += 0.5 * (static_cast<double>(g.L[n]) * g.L[n] + static_cast<double>(g.R[n]) * g.R[n]);
+        std::size_t countedWindows = 0;
+        for (std::size_t w = 0; w < sweep.size(); ++w) {
+            maxDb = std::max(maxDb, sweep[w]);
+            if (counted[w]) {
+                minDb = std::min(minDb, sweep[w]);
+                ++countedWindows;
             }
-            const double db = 10.0 * std::log10(std::max(sum / static_cast<double>(window), 1.0e-30));
-            minDb = std::min(minDb, db);
-            maxDb = std::max(maxDb, db);
         }
         std::cout << auRd::auCsvField(std::string(def.name)) << ',' << g.nonFinite << ',' << truePeak << ','
-                  << d.outputCeilingDb << ',' << minDb << ',' << maxDb << '\n';
+                  << d.outputCeilingDb << ',' << minDb << ',' << maxDb << ',' << countedWindows << '\n';
         INFO("non-finite " << g.nonFinite << ", true peak " << truePeak << " dBTP (bar " << bar
-                           << "), 100 ms windows " << minDb << " .. " << maxDb << " dBFS");
+                           << "), counted 100 ms windows " << countedWindows << " of " << sweep.size() << ", "
+                           << minDb << " .. " << maxDb << " dBFS");
         CHECK(g.nonFinite == 0u);
         CHECK(truePeak <= bar);
-        CHECK(minDb > -60.0);
+        CHECK(countedWindows > 0u);
+        CHECK(minDb > kSilenceDb);
     }
     std::cout << std::flush;
 }

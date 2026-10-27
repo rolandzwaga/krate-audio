@@ -10,6 +10,7 @@
 //
 // Phase 13 (Q1): six names, permanent once shipped - Sub, Resonant, Harmonic,
 // Driven, Plucked, Animated (specs/profundum-phase13-presets-release/spec.md FR-001).
+// Phase 14b adds the seventh, Kicks (specs/Profundum-roadmap.md Phase 14b).
 //
 // Every name lives in TWO places that must agree: this list and the filesystem
 // subdirectory `resources/presets/<Name>/`.
@@ -29,7 +30,7 @@ inline Krate::Plugins::PresetManagerConfig makeProfundumPresetConfig() {
         /*.processorUID      =*/kProcessorUID,
         /*.pluginName        =*/"Profundum",
         /*.pluginCategoryDesc=*/"Synth",
-        /*.subcategoryNames  =*/{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"}};
+        /*.subcategoryNames  =*/{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated", "Kicks"}};
 }
 
 /// The preset browser tab labels: "All" first, then the config subcategory list in

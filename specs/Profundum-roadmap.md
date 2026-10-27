@@ -1120,6 +1120,45 @@ showcase preset clears the Phase 9 bar.
 
 ---
 
+### Phase 14b: Kicks
+
+**Status: ✅ COMPLETE (2026-10-27)** — main loop, no spec directory (user, 2026-10-27: "minimal ceremony ... just to
+add a few presets to the list").
+
+**Goal:** a seventh factory category, **Kicks**, with eleven one-hit kick drums: Eight Oh Boom, Punch Kick, Folded Kick,
+Sub Boom, Techno Kick, Rebound Kick, Gabber Kick, Lo-Fi Kick, and the three test kicks the user picked, Deep 808, Club
+Kick and Hardstyle Kick. Part of release 1.0.0.
+
+**Rulings (user, 2026-10-27):**
+
+- Eight kicks in a new category "Kicks", before Phase 15, main loop with minimal ceremony.
+- **Add the three test kicks** rendered during Phase 14 (definitions 69-71). Endpoint A is the test patch exactly, except
+  **Club Kick**, which failed three gates on A (level -19.4 dBFS, Punch claim 1.05 dB, 0.62 from Deep 808): minimal
+  changes, Mass 30 -> 60, Punch boost 6 -> 12 dB, transient sustain +9 dB; the drop, decay and pure sine stay.
+- **`Profundum_PresetMorphSweep` is endpoint-referenced.** A 100 ms window of the held-note morph sweep, now read over
+  [0 s, 3 s), counts where the same gesture with Morph frozen at A or at B reads above -60 dBFS: a dropout is silence
+  Morph makes that neither endpoint has. A sustained preset counts every window as before; a one-hit kick is checked
+  during its hit while the ramp already moves. Before, the bar read [1 s, 3 s) unreferenced, which no one-hit preset
+  can pass.
+
+**Rules the kicks follow** (the Phase 13 / 14 library gates):
+
+- Each kick stores sustain 0 with attack + decay under 1 s, so the descriptor window is [t90, t90 + 2^16)
+  (`describePreset`), and Morph Modulation Source Off. Every kick leads with a Phase 13 column whose arm reads the
+  character tap or the onset: AT-19, AT-20, AT-22 (drop), AT-11 (PUNCH), AT-28 (transient), AT-04, AT-05, AT-06, AT-08
+  (Character). A column read on the post-envelope Sum tap in the 1 s steady window (AT-26 Mass, E_sub) reads 0 on a
+  kick, whose voice is silent by then.
+- `Profundum_PresetDefsRules` FR-063: a Kicks definition has no pre-phase row, stores Source Off and leads with a Phase
+  13 column; exactly eleven.
+- Loudness: a kick's level counts in the library median. The first designs (-12 to -15 dBFS) pulled the median to
+  -11.81 dBFS and put Drifting Weight and Clean To Violent 4.0 - 4.3 dB off it; longer decays lifted the kicks and the
+  median to -11.48 dBFS.
+- Measured limitation: the C-7 descriptor's component 14 (frame-wise E_sub p2p) spans the kick's silent tail in the
+  fallback window, so every kick sits far from every sustained preset in the distinctness gate. Kick-to-kick and A-to-B
+  distances are not affected (both sides carry it); the closest kick pair is Deep 808 vs Club Kick at 2.38 (bar 2.0).
+
+---
+
 ### Phase 15: Stiffness & Phase Alignment
 
 **Spec:** `profundum-phase15-stiffness-phase`
@@ -1182,7 +1221,7 @@ Morph interpolation of both fields bounded per block; RT-safe; CPU inside the Ph
 Phase 1 ─────────┼─→ Phase 7 (stereo field) ───────────┼─→ Phase 9 (voice/engine) ─→ Phase 10 (scaffold)
 (harmonic core)  └─→ Phase 8 (bass morph) ─────────────┤              │
                                                        │              ▼
-Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13 ✅ → 14 → 15
+Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13 ✅ → 14 ✅ → 14b ✅ → 15
 Phase 5 (shape + character) ───────────────────────────┤
 Phase 6 (mass + dynamics) ─────────────────────────────┘
 ```
