@@ -953,7 +953,7 @@
       "scope": "Krate::DSP::ProfundumCore",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_core.h",
-      "line": 1214
+      "line": 1419
     },
     {
       "name": "ExcitationControls",
@@ -961,7 +961,7 @@
       "scope": "Krate::DSP::ProfundumCore",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_core.h",
-      "line": 354
+      "line": 362
     },
     {
       "name": "F0Estimate",
