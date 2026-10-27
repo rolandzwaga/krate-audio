@@ -271,9 +271,9 @@ struct MmOutsideSnapshot {
 }  // namespace
 
 TEST_CASE("Profundum_MorphModOutsideEndpoints", "[profundum][morphmod][morph]") {
-    // Statically outside: 60 sound rows (redisplayEditTarget and the copy iterate exactly these), none of them in
+    // Statically outside: 62 sound rows (Phase 15: + Stiffness, Phase) (redisplayEditTarget and the copy iterate exactly these), none of them in
     // 1003-1011, and no route in 1003-1011 is a Sound route.
-    STATIC_REQUIRE(P::kSoundRows.size() == 60);
+    STATIC_REQUIRE(P::kSoundRows.size() == 62);
     for (const P::SoundParamRow& row : P::kSoundRows) {
         INFO("row " << row.id);
         CHECK((row.id < 1003u || row.id > 1011u));

@@ -141,7 +141,7 @@ tresult PLUGIN_API Controller::terminate() {
 //    -> endpoint A -> endpoint B; the 20-byte runtime blob is skipped, not decoded (v3: the two name blocks follow
 //    it, Phase 12 T019; v2: the names become "A" / "B"). A short read leaves the stream at its end,
 //    so every later read fails too and every later field keeps its prior value (the chain stops at the cut). A cut
-//    endpoint (fewer than 201 bytes) or a rejected one (deserializeMorphState false) keeps its prior mirror.
+//    endpoint (fewer than 209 bytes) or a rejected one (deserializeMorphState false) keeps its prior mirror.
 //  - Phase 14 FR-024 (plan 4.11): v1 / v2 return 1003-1011 to their registered defaults; v3 reads the 36-byte Morph
 //    Modulation block after the two name blocks only when both were read, through the processor's store rules (a
 //    value the processor would not store makes no setParamNormalized call; a cut keeps every later field).

@@ -540,7 +540,7 @@ void deliverFrame(P::Controller& ctl, P::ProfundumSpectrumFrame& frame) {
 TEST_CASE("Profundum_UidescBindsEverySurfaceId", "[profundum][ui]") {
     ControllerFixture cf;
     const std::vector<int> all = registeredIds(*cf.controller.get());
-    REQUIRE(all.size() == 93u);
+    REQUIRE(all.size() == 95u);
     const std::string xml = readUidesc();
 
     const std::set<int> allow(kHiddenPerformanceIds.begin(), kHiddenPerformanceIds.end());
@@ -559,8 +559,8 @@ TEST_CASE("Profundum_UidescBindsEverySurfaceId", "[profundum][ui]") {
         }
     }
     const std::set<int> expected = visibleIds(*cf.controller.get());
-    CHECK(expected.size() == 89u);
-    CHECK(boundTags.size() == 89u);
+    CHECK(expected.size() == 91u);
+    CHECK(boundTags.size() == 91u);
     CHECK(boundTags == expected);
     for (const std::int32_t hidden : kHiddenPerformanceIds) {
         CAPTURE(hidden);
@@ -577,7 +577,7 @@ TEST_CASE("Profundum_UidescTagIntegrity", "[profundum][ui]") {
     const std::string xml = readUidesc();
     const std::map<std::string, int> tagMap = Krate::Test::extractControlTagMap(xml);
 
-    CHECK(tagMap.size() == 89u);
+    CHECK(tagMap.size() == 91u);
     std::set<int> values;
     for (const auto& [name, tag] : tagMap) {
         CAPTURE(name, tag);
@@ -700,7 +700,7 @@ TEST_CASE("Profundum_UiClassRule", "[profundum][ui]") {
                                                           {false, static_cast<int>(P::kMorphModAmountId)}};
     CHECK(readouts == expectedReadouts);
     CHECK(knobs417 == 1);
-    CHECK(boundCount >= 89u);
+    CHECK(boundCount >= 91u);
     INFO(joinLines(failures));
     CHECK(failures.empty());
 }
@@ -1624,7 +1624,7 @@ TEST_CASE("Profundum_UiZoom", "[profundum][ui]") {
     ConnectedPair cp;
     P::Controller& ctl = *cp.cf.controller.get();
     const StateBytes state0 = writeV2Stream(*cp.fx.proc);
-    REQUIRE(ctl.getParameterCount() == 93);
+    REQUIRE(ctl.getParameterCount() == 95);
     CHECK(ctl.getParameterObject(static_cast<ParamID>(P::UI::kZoomTag)) == nullptr);  // bound to no registered ID
     cp.clearRecords();
 
@@ -1676,7 +1676,7 @@ TEST_CASE("Profundum_UiZoom", "[profundum][ui]") {
         }
     }
 
-    CHECK(ctl.getParameterCount() == 93);
+    CHECK(ctl.getParameterCount() == 95);
     CHECK(cp.cf.handler.performEdits.empty());
     CHECK(cp.toProcessor.records().empty());
     CHECK(writeV2Stream(*cp.fx.proc) == state0);

@@ -14,7 +14,7 @@
 // then the controller's preset manager is non-null.
 //
 // SECTION "EditorBindsSurfaceV12" (Phase 12 SC-002 / SC-016; replaces the Phase 10
-// EditorBindsSurface): the BUILT view tree binds exactly the 89 visible IDs (every
+// EditorBindsSurface): the BUILT view tree binds exactly the 91 visible IDs (every
 // registered ID but the hidden performance IDs 4 - 7); tags at or above 9000 are the
 // UI-only session tags (plan 4.7) and are not parameter bindings. The getTag() >= 0
 // filter is load-bearing: CTextLabel IS-A CControl and keeps tag -1 when untagged.
@@ -193,7 +193,7 @@ TEST_CASE("Profundum_EditorLifecycle", "[profundum][controller][ui][lifecycle]")
         auto controller = Steinberg::owned(new ::Profundum::Controller());
         REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
 
-        // The 89 visible IDs: every registered ID except the hidden performance IDs 4 - 7.
+        // The 91 visible IDs (Phase 15: + 209, 210): every registered ID except the hidden performance IDs 4 - 7.
         std::set<std::int32_t> expected;
         const Steinberg::int32 paramCount = controller->getParameterCount();
         for (Steinberg::int32 i = 0; i < paramCount; ++i) {
@@ -228,9 +228,9 @@ TEST_CASE("Profundum_EditorLifecycle", "[profundum][controller][ui][lifecycle]")
         view->release();
         REQUIRE(controller->terminate() == Steinberg::kResultOk);
 
-        REQUIRE(paramCount == 93);
-        REQUIRE(expected.size() == 89u);
-        REQUIRE(tags.size() == 89u);
+        REQUIRE(paramCount == 95);
+        REQUIRE(expected.size() == 91u);
+        REQUIRE(tags.size() == 91u);
         REQUIRE(tags == expected);
         for (const std::int32_t hidden : {4, 5, 6, 7}) {
             CAPTURE(hidden);

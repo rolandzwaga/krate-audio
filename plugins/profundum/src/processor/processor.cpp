@@ -111,9 +111,9 @@ static_assert(std::string_view(Krate::DSP::BassMorphEngine::kLawTable[kLeafAmpRe
 
 using EndpointBlob = std::array<std::byte, Krate::DSP::kMorphStateBytes>;
 
-// FR-040: one endpoint slot as its 201-byte serializeMorphState blob. Every slot word is written through a
+// FR-040: one endpoint slot as its 209-byte serializeMorphState blob (201 before Phase 15). Every slot word is written through a
 // leaf law, so the assembled state is always valid (plan 1.1 consequence); should serialisation ever fail, the
-// MorphState{} blob is written instead so the layout stays 510 bytes.
+// MorphState{} blob is written instead so the layout stays fixed.
 [[nodiscard]] EndpointBlob serializeSlot(const EndpointParams& slot) noexcept {
     EndpointBlob buf{};
     if (Krate::DSP::serializeMorphState(morphStateFromLeafBits(slot.load()), buf.data(), buf.size()) != buf.size()) {
@@ -124,7 +124,7 @@ using EndpointBlob = std::array<std::byte, Krate::DSP::kMorphStateBytes>;
 
 // FR-044 (plan 4.5.3): the v2 chain after the global and macro blocks. Each step runs only if every earlier
 // one read completely; a short read stops the chain, so every later field keeps its prior value. A rejected
-// endpoint (all 201 bytes read) keeps its prior value and the chain continues. Atomics only: no engine call.
+// endpoint (all 209 bytes read) keeps its prior value and the chain continues. Atomics only: no engine call.
 // Returns true, with @p blob filled, only when the chain reached and completely read the 20-byte runtime blob
 // (FR-042: the caller hands it to the audio thread; any earlier stop means "cancel").
 [[nodiscard]] bool loadV2Tail(IBStreamer& s, NoteParams& note, MorphControlParams& morph,

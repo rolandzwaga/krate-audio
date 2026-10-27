@@ -162,8 +162,9 @@ constexpr BmRow bmE(std::string_view name, BmKind kind, BmAxis axis, BmGroup gro
                  .maxEnum = maxEnum, .bytes = 1, .offset = offset};
 }
 
-// Plan S3.2, rows 0 - 61, transcribed literally (not from the source constants, so a drift in either shows).
-constexpr std::array<BmRow, 62> kBmExpectedRows{{
+// Plan S3.2, rows 0 - 61, transcribed literally (not from the source constants, so a drift in either shows);
+// Profundum Phase 15 rows 62 - 63 (format 2).
+constexpr std::array<BmRow, 64> kBmExpectedRows{{
     bmF("recipe.depth", BmLaw::Linear, BmAxis::SineComplex, 0.0f, 1.0f, 1),
     bmF("recipe.body", BmLaw::Linear, BmAxis::SineComplex, 0.0f, 1.0f, 5),
     bmF("recipe.bodyCurvature", BmLaw::Linear, BmAxis::SineComplex, 0.0f, 1.0f, 9),
@@ -226,6 +227,8 @@ constexpr std::array<BmRow, 62> kBmExpectedRows{{
     bmF("anchor.punchTimeMs", BmLaw::Logarithmic, BmAxis::Anchor, 5.0f, 250.0f, 189, true),
     bmF("anchor.ghostTimeMs", BmLaw::Logarithmic, BmAxis::Anchor, 1.0f, 100.0f, 193, true),
     bmF("anchorFoldFeed", BmLaw::EqualPower, BmAxis::Anchor, 0.0f, 1.0f, 197, true),
+    bmF("stiffness", BmLaw::Linear, BmAxis::SineComplex, 0.0f, 1.0f, 201),
+    bmF("phase", BmLaw::Linear, BmAxis::CleanNonlinear, 0.0f, 1.0f, 205),
 }};
 
 }  // namespace
@@ -334,6 +337,8 @@ TEST_CASE("MorphState_Defaults", "[systems][profundum][bass-morph][fr-004]") {
     CHECK(bmSame(s.anchor.punchTimeMs, ac.punchTimeMs));
     CHECK(bmSame(s.anchor.ghostTimeMs, ac.ghostTimeMs));
     CHECK(bmSame(s.anchorFoldFeed, 0.0f));
+    CHECK(bmSame(s.stiffness, 0.0f));   // Phase 15: today's harmonic series
+    CHECK(bmSame(s.phase, 0.0f));       // Phase 15: today's all-phase-0 alignment
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -348,7 +353,7 @@ TEST_CASE("MorphState_DefaultIsValid", "[systems][profundum][bass-morph][fr-004]
 // rows agree with BassStereoField::isValidControls.
 // ---------------------------------------------------------------------------------------------------------------
 TEST_CASE("MorphState_TableMatchesComponentRanges", "[systems][profundum][bass-morph][fr-002][fr-030]") {
-    REQUIRE(io::kFieldTable.size() == 62);
+    REQUIRE(io::kFieldTable.size() == 64);
     REQUIRE(io::kFieldTable.size() == kMorphLeafFieldCount);
 
     for (std::size_t i = 0; i < kBmExpectedRows.size(); ++i) {
@@ -479,7 +484,7 @@ TEST_CASE("MorphState_Validation", "[systems][profundum][bass-morph][fr-005]") {
             CHECK(isValidMorphState(good));
         }
     }
-    CHECK(checkedF32 == 46);
+    CHECK(checkedF32 == 48);   // Phase 15: + stiffness, phase
     CHECK(checkedEnum == 13);
 }
 
@@ -491,8 +496,8 @@ TEST_CASE("MorphState_LeafArity", "[systems][profundum][bass-morph][sc-019]") {
     MorphState s{};
     // (a) Structured bindings with the exact member count: a new member breaks the build here.
     {
-        [[maybe_unused]] auto& [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15, m16, m17, m18, m19] =
-            s;
+        [[maybe_unused]] auto& [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15, m16, m17, m18, m19,
+                                m20, m21] = s;
     }
     {
         [[maybe_unused]] auto& [e1, e2, e3, e4, e5, e6, e7] = s.ampEnv;
@@ -512,8 +517,8 @@ TEST_CASE("MorphState_LeafArity", "[systems][profundum][bass-morph][sc-019]") {
     {
         [[maybe_unused]] auto& [a1, a2, a3, a4, a5, a6] = s.anchor;
     }
-    // 19 top-level members = 13 scalar leaves + 6 aggregates.
-    STATIC_REQUIRE(std::size_t{13 + 7 + 16 + 6 + 3 + 11 + 6} == kMorphLeafFieldCount);
+    // 21 top-level members = 15 scalar leaves (Phase 15: + stiffness, phase) + 6 aggregates.
+    STATIC_REQUIRE(std::size_t{15 + 7 + 16 + 6 + 3 + 11 + 6} == kMorphLeafFieldCount);
 
     // (c) FR-003: no excluded field exists.
     const std::array<std::string_view, 14> excluded{
@@ -542,7 +547,7 @@ TEST_CASE("BassMorph_Serialisation_RoundTrip", "[systems][profundum][bass-morph]
     for (int n = 0; n < 10000; ++n) {
         const MorphState s = BassMorphTest::randomValidState(rng);
         std::array<std::byte, 256> buf{};
-        if (serializeMorphState(s, buf.data(), buf.size()) != 201) {
+        if (serializeMorphState(s, buf.data(), buf.size()) != 209) {
             ++sizeFailures;
             continue;
         }
@@ -550,7 +555,7 @@ TEST_CASE("BassMorph_Serialisation_RoundTrip", "[systems][profundum][bass-morph]
             ++versionFailures;
         }
         MorphState out{};
-        if (!deserializeMorphState(buf.data(), 201, out)) {
+        if (!deserializeMorphState(buf.data(), 209, out)) {
             ++decodeFailures;
             continue;
         }
@@ -566,7 +571,7 @@ TEST_CASE("BassMorph_Serialisation_RoundTrip", "[systems][profundum][bass-morph]
             ++mismatches;
         }
     }
-    CHECK(kMorphStateBytes == 201);
+    CHECK(kMorphStateBytes == 209);
     CHECK(sizeFailures == 0);
     CHECK(versionFailures == 0);
     CHECK(decodeFailures == 0);
@@ -588,7 +593,7 @@ TEST_CASE("BassMorph_Serialisation_Rejects", "[systems][profundum][bass-morph][s
 
     // ---- serialise ----
     CHECK(serializeMorphState(valid, nullptr, 256) == 0);
-    for (std::size_t cap = 0; cap <= 200; ++cap) {
+    for (std::size_t cap = 0; cap < kMorphStateBytes; ++cap) {
         std::array<std::byte, 256> buf{};
         buf.fill(kFill);
         INFO("capacity " << cap);
@@ -630,7 +635,7 @@ TEST_CASE("BassMorph_Serialisation_Rejects", "[systems][profundum][bass-morph][s
         CHECK(BassMorphTest::bitEqual(out, valid));
     }
     CHECK(rejects(nullptr, kMorphStateBytes));
-    for (std::size_t size = 0; size <= 200; ++size) {
+    for (std::size_t size = 0; size < kMorphStateBytes; ++size) {
         INFO("size " << size);
         CHECK(rejects(stream.data(), size));
     }
@@ -668,13 +673,14 @@ TEST_CASE("BassMorph_Serialisation_Rejects", "[systems][profundum][bass-morph][s
             }
         }
     }
-    // A stream truncated to 200 bytes.
+    // A stream truncated to 208 bytes.
     {
-        std::array<std::byte, 200> truncated{};
+        std::array<std::byte, 208> truncated{};
         std::memcpy(truncated.data(), stream.data(), truncated.size());
         CHECK(rejects(truncated.data(), truncated.size()));
     }
 }
+
 
 // ---------------------------------------------------------------------------------------------------------------
 // Plan S3.6 / FR-005a: the serialised-bytes bitEqual and the field-wise leafBitsEqual agree.

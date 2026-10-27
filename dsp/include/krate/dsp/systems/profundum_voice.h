@@ -463,6 +463,16 @@ public:
             }
             logCall(ProfundumCall::CoreExcitation, issue, e.mix);
         }
+        // 2b. Phase 15: Stiffness, scaled by this voice's note frequency, and Phase alignment (change-only).
+        if (all || !same(s.stiffness, lastStiffness_) || !same(fNote_, lastStiffnessNote_)) {
+            core_.setStiffness(s.stiffness, fNote_);
+            lastStiffness_ = s.stiffness;
+            lastStiffnessNote_ = fNote_;
+        }
+        if (all || !same(s.phase, lastPhase_)) {
+            core_.setPhaseAlignment(s.phase);
+            lastPhase_ = s.phase;
+        }
 
         // 3. Fold amount, Fold f0 (FR-006: once per interval from f_core), SHAPE.
         {
@@ -1012,6 +1022,9 @@ private:
     BassStereoField::ChannelOffsets lastWide_{};
     SpectralShapeRecipe::Controls lastCoreControls_{};
     ProfundumCore::ExcitationControls lastExcitation_{};
+    float lastStiffness_ = 0.0f;       // Phase 15
+    float lastStiffnessNote_ = 0.0f;
+    float lastPhase_ = 0.0f;
     float lastFoldAmount_ = 0.0f;
     float lastFoldF0_ = 0.0f;
     float lastShape_ = 0.0f;

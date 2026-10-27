@@ -119,6 +119,8 @@ struct MorphState {
     float transientSustainDb = TransientShaper::kDefaultSustainDb;   // [-12, 12]
     AnchorOscillator::Controls anchor{};
     float anchorFoldFeed = 0.0f;                                     // [0, 1]
+    float stiffness = 0.0f;                                          // [0, 1] Phase 15 (format 2)
+    float phase = 0.0f;                                              // [0, 1] Phase 15 (format 2)
 };
 static_assert(std::is_trivially_copyable_v<MorphState>);
 static_assert(std::is_aggregate_v<MorphState>);
@@ -127,12 +129,13 @@ static_assert(MorphState::groupIndex(MorphState::SelectionGroup::Character) == 0
               && MorphState::groupIndex(MorphState::SelectionGroup::Motion) == 3
               && MorphState::groupIndex(MorphState::SelectionGroup::Anchor) == MorphState::kNumSelectionGroups - 1);
 
-/// FR-006: version byte at offset 0 of the stream.
+/// FR-006: version byte at offset 0 of the stream. Profundum Phase 15 appended leaves 62 - 63 without a version
+/// change (user, 2026-10-27: Profundum is unreleased, so no earlier stream needs to load).
 inline constexpr std::uint8_t kMorphStateFormatVersion = 1;
-/// 62 leaves: 46 floats, 13 enums, 3 bools (plan S3.1).
-inline constexpr std::size_t kMorphLeafFieldCount = 62;
-/// 1 + 46 * 4 + 16 * 1 (plan S3.2).
-inline constexpr std::size_t kMorphStateBytes = 201;
+/// 64 leaves: 48 floats, 13 enums, 3 bools (plan S3.1; Phase 15 leaves 62 - 63).
+inline constexpr std::size_t kMorphLeafFieldCount = 64;
+/// 1 + 48 * 4 + 16 * 1 (plan S3.2).
+inline constexpr std::size_t kMorphStateBytes = 209;
 
 namespace detail::morph_state_io {
 
@@ -313,6 +316,11 @@ inline constexpr std::array<MorphState::FieldInfo, kMorphLeafFieldCount> kFieldT
          .hiOpen = false, .logOffset = 0.0f, .maxEnum = 0, .bytes = 4},
         {.name = "anchorFoldFeed", .kind = K::F32, .law = L::EqualPower, .axis = A::Anchor, .group = G::None,
          .anchorBlock = true, .lo = 0.0f, .hi = 1.0f, .hiOpen = false, .logOffset = 0.0f, .maxEnum = 0, .bytes = 4},
+        // ---- Phase 15, format 2 (62 - 63) ----
+        {.name = "stiffness", .kind = K::F32, .law = L::Linear, .axis = A::SineComplex, .group = G::None,
+         .anchorBlock = false, .lo = 0.0f, .hi = 1.0f, .hiOpen = false, .logOffset = 0.0f, .maxEnum = 0, .bytes = 4},
+        {.name = "phase", .kind = K::F32, .law = L::Linear, .axis = A::CleanNonlinear, .group = G::None,
+         .anchorBlock = false, .lo = 0.0f, .hi = 1.0f, .hiOpen = false, .logOffset = 0.0f, .maxEnum = 0, .bytes = 4},
     }};
 }();
 
@@ -330,7 +338,7 @@ inline constexpr std::array<std::size_t, kMorphLeafFieldCount> kLeafOffsets = []
 template <std::size_t I>
 using Leaf = std::integral_constant<std::size_t, I>;
 
-/// Calls f(Leaf<i>{}, s.<leaf i>...) for i = 0..61 in table order (plan S3.3); S... are MorphState or
+/// Calls f(Leaf<i>{}, s.<leaf i>...) for i = 0..63 in table order (plan S3.3); S... are MorphState or
 /// const MorphState. A template visitor keeps every access inlined (straight-line code, plan S10).
 template <class F, class... S>
 constexpr void forEachMorphLeaf(F&& f, S&... s) {
@@ -396,6 +404,8 @@ constexpr void forEachMorphLeaf(F&& f, S&... s) {
     f(Leaf<59>{}, s.anchor.punchTimeMs...);
     f(Leaf<60>{}, s.anchor.ghostTimeMs...);
     f(Leaf<61>{}, s.anchorFoldFeed...);
+    f(Leaf<62>{}, s.stiffness...);
+    f(Leaf<63>{}, s.phase...);
 }
 
 /// float -> F32, bool -> Bool, any one-byte enum -> Enum8.
@@ -439,8 +449,9 @@ template <class T>
 static_assert(kFieldTable.size() == kMorphLeafFieldCount);   // FR-030
 static_assert(leavesMatchTable());
 static_assert(kMorphStateBytes == 1 + sumOfRowBytes());       // FR-030
-static_assert(kMorphStateBytes == 201);                        // visible edit on any change
+static_assert(kMorphStateBytes == 209);                        // visible edit on any change
 static_assert(kLeafOffsets[61] == 197);
+static_assert(kLeafOffsets[63] == 205);
 
 // Row-shape sweep (plan S4.2, S3.2): Stepped rows carry a group and are one byte; continuous rows carry no group,
 // are F32 and four bytes; the Anchor block is exactly leaves 55 - 61; a log row's logged quantity lo + o is > 0
@@ -461,7 +472,7 @@ static_assert([] {
         if (row.kind == MorphState::Kind::Bool && row.maxEnum != 1) {
             return false;
         }
-        if (row.anchorBlock != (i >= 55)) {
+        if (row.anchorBlock != (i >= 55 && i <= 61)) {
             return false;
         }
         if (row.law == MorphState::Law::Logarithmic && !(row.lo + row.logOffset > 0.0f)) {

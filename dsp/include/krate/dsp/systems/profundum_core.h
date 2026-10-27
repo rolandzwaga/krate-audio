@@ -147,6 +147,14 @@ public:
             * std::sqrt(static_cast<double>(SpectralShapeRecipe::kPowerTarget))
             * static_cast<double>(kControlInterval) / sr);
 
+        // Phase 15: Stiffness 0 and Phase 0.
+        stiffnessAmount_ = 0.0f;
+        stiffnessNoteHz_ = static_cast<float>(kStiffnessReferenceHz);
+        stiffnessB_ = 0.0;
+        phaseAmount_ = 0.0f;
+        refreshStretch();
+        refreshPhaseTargets();
+
         // Steps 3, 5, 6.
         initialiseState(SpectralShapeRecipe::kDefaultControls);
 
@@ -415,6 +423,77 @@ public:
     [[nodiscard]] float excitationPreCeilingPeak() const noexcept { return excitationPreCeilingPeak_; }
     void clearExcitationPreCeilingPeak() noexcept { excitationPreCeilingPeak_ = 0.0f; }
 
+    // ==========================================================================================
+    // Phase 15 — Stiffness and Phase alignment (specs/Profundum-roadmap.md, Phase 15). Append-only:
+    // at Stiffness 0 with no Phase glide running, every update takes the pre-phase code path.
+    // ==========================================================================================
+
+    static constexpr double kMaxStiffnessB = 0.01;          // B at Stiffness 1 on the reference note
+    static constexpr double kStiffnessReferenceHz = 55.0;   // A1: B scales with f_note / 55 Hz
+    /// A live Phase change slews each partial by at most pi per 100 ms: <= 5 Hz of frequency offset.
+    static constexpr double kPhaseSlewRadPerSec = 31.415926535897932;
+
+    /// r_n = n·√((1 + B·n²) / (1 + B)), partial n's frequency over f0 (the stiff-string law; r_1 = 1).
+    [[nodiscard]] static double stretchedRatio(double b, int n) noexcept {
+        const auto nn = static_cast<double>(n);
+        if (n == 1 || !(b > 0.0))
+            return nn;
+        return nn * std::sqrt((1.0 + b * nn * nn) / (1.0 + b));
+    }
+
+    /// B = kMaxStiffnessB · x² · (noteHz / kStiffnessReferenceHz), x clamped to [0, 1].
+    [[nodiscard]] static double stiffnessCoefficient(float amount, float noteHz) noexcept {
+        const auto x = static_cast<double>(std::clamp(amount, 0.0f, 1.0f));
+        return kMaxStiffnessB * x * x * (static_cast<double>(noteHz) / kStiffnessReferenceHz);
+    }
+
+    /// φ_n = x·π/2 for n >= 2, φ_1 = 0: every partial above h1 rotated by x·90° (roadmap ruling 2026-10-27).
+    /// x = 0 is today's all-sine-phase stack (the smooth end); x = 1 the peakiest the spectrum allows.
+    [[nodiscard]] static double alignmentPhase(float amount, int n) noexcept {
+        if (n <= 1)
+            return 0.0;
+        return static_cast<double>(std::clamp(amount, 0.0f, 1.0f)) * (kPhasePi / 2.0);
+    }
+
+    /// Stiffness x in [0, 1] on a note at noteHz (non-finite keeps the previous value; noteHz <= 0
+    /// keeps the previous note). Takes effect at the next control update or noteOn.
+    void setStiffness(float amount, float noteHz) noexcept {
+        if (!prepared_)
+            return;
+        stiffnessAmount_ = sanitizeField(amount, stiffnessAmount_, 0.0f, 1.0f);
+        if (detail::isFinite(noteHz) && noteHz > 0.0f)
+            stiffnessNoteHz_ = noteHz;
+        const double b = stiffnessCoefficient(stiffnessAmount_, stiffnessNoteHz_);
+        if (b == stiffnessB_)
+            return;
+        stiffnessB_ = b;
+        refreshStretch();
+        stretchDirty_ = true;
+    }
+
+    /// Phase alignment x in [0, 1] (non-finite keeps the previous value). A sounding core glides to
+    /// it (kPhaseSlewRadPerSec); otherwise the next noteOn seeds it.
+    void setPhaseAlignment(float amount) noexcept {
+        if (!prepared_)
+            return;
+        const float x = sanitizeField(amount, phaseAmount_, 0.0f, 1.0f);
+        if (sameBits(x, phaseAmount_))
+            return;
+        phaseAmount_ = x;
+        refreshPhaseTargets();
+        if (sounding_)
+            phaseGliding_ = true;
+        else
+            phaseApplied_ = phaseTarget_;
+    }
+
+    [[nodiscard]] double stiffnessB() const noexcept { return stiffnessB_; }
+    [[nodiscard]] float phaseAlignment() const noexcept { return phaseAmount_; }
+    [[nodiscard]] bool phaseGliding() const noexcept { return phaseGliding_; }
+    /// Largest |Phase-glide frequency offset| of any partial since prepare / reset / clearMaxPhaseGlideHz.
+    [[nodiscard]] double maxPhaseGlideHz() const noexcept { return maxGlideHz_; }
+    void clearMaxPhaseGlideHz() noexcept { maxGlideHz_ = 0.0; }
+
 private:
     /// S4.3 steps 3, 5 and 6 (shared by prepare and reset). sampleRate_, numPartials_, capHz_ and
     /// maxStepPerInterval_ must already hold the prepared values.
@@ -465,6 +544,14 @@ private:
         sounding_ = false;
         noteOnPending_ = false;
         prepared_ = true;
+
+        // Phase 15: no glide; the next noteOn seeds the target alignment (maskF0_ = 0 rebuilds the mask).
+        phaseApplied_ = phaseTarget_;
+        glideHz_.fill(0.0);
+        phaseGliding_ = false;
+        seedStepsLeft_ = 0;
+        stretchDirty_ = false;
+        maxGlideHz_ = 0.0;
     }
 
     /// S4.4 normative order. Steady state (no dirty controls, converged slew, f bit-unchanged)
@@ -498,9 +585,10 @@ private:
         currentF0_ = f0;
         const float baseNew = sounding_ ? chaseBase(f0) : f0;
 
-        // 4. Mask: rebuilt only when f moved (bitwise), never slewed (FR-051).
+        // 4. Mask: rebuilt only when f moved (bitwise) or the Stiffness stretch changed (Phase 15),
+        //    never slewed (FR-051).
         bool maskChanged = false;
-        if (!sameBits(f0, maskF0_)) {
+        if (!sameBits(f0, maskF0_) || stretchDirty_) {
             buildMask(f0);
             maskChanged = true;
         }
@@ -516,13 +604,14 @@ private:
         //    which recomputes the AA gains from n·targetPitch·detuneMultiplier (bank :1083). When
         //    only f moved, refresh the multipliers alone (no loadFrame).
         if (sounding_) {
+            const bool glide = stepPhaseGlide();   // Phase 15
             const bool baseChanged = !sameBits(baseNew, baseF0_);
             if (deliveredChanged || baseChanged) {
                 if (baseChanged)
                     setBase(baseNew);
                 refreshMultipliers(f0);
                 deliverToBank(baseChanged);
-            } else if (fChanged) {
+            } else if (fChanged || glide) {
                 refreshMultipliers(f0);
             }
         }
@@ -533,7 +622,8 @@ private:
     /// S4.6, U-cadence (non-control samples): mask and base stay untouched until the next control
     /// update.
     void pitchUpdate(float f0) noexcept {
-        if (sameBits(f0, currentF0_))
+        const bool glide = sounding_ && stepPhaseGlide();   // Phase 15
+        if (sameBits(f0, currentF0_) && !glide)
             return;
         currentF0_ = f0;
         if (sounding_)
@@ -579,8 +669,9 @@ private:
             // 5. Base = f, no chase clamp (E-7).
             setBase(f);
 
-            // 6. Multipliers, then loadFrame: phases seeded from partial.phase = 0, so the first
-            //    sample is 0.0 (FR-045).
+            // 6. Multipliers, then loadFrame: phases seeded from partial.phase, 0 at Phase 0, so the
+            //    first sample is 0.0 there (FR-045); Phase 15 seeds the target alignment.
+            seedPhaseAlignment();
             refreshMultipliers(f);
             deliverToBank(true);
         } else {
@@ -602,7 +693,7 @@ private:
 
             // 4. Mask at the new f0 and deliver (FR-051(d)).
             bool deliveredChanged = false;
-            if (!sameBits(f, maskF0_)) {
+            if (!sameBits(f, maskF0_) || stretchDirty_) {
                 buildMask(f);
                 deliverMaskedShape();
                 deliveredChanged = true;
@@ -610,13 +701,14 @@ private:
 
             // 5-6. Base = f with no chase clamp (a > 1-semitone jump crossfades, E-7), then the
             //      multipliers, then loadFrame.
+            const bool glide = stepPhaseGlide();   // Phase 15
             const bool baseChanged = !sameBits(f, baseF0_);
             if (deliveredChanged || baseChanged) {
                 if (baseChanged)
                     setBase(f);
                 refreshMultipliers(f);
                 deliverToBank(baseChanged);
-            } else if (fChanged) {
+            } else if (fChanged || glide) {
                 refreshMultipliers(f);
             }
         }
@@ -745,6 +837,10 @@ private:
     /// θ = π·f/fs, by the Chebyshev recurrence in double (1 sin + 1 cos per update), frozen at
     /// 2·sin(π·capHz/fs) for n·f >= capHz. Elements >= numPartials_ stay 1.0f.
     void computeEpsilonTargets(float f0) noexcept {
+        if (stiffnessB_ > 0.0 || phaseGliding_) {
+            computeStretchedEpsilonTargets(f0);   // Phase 15
+            return;
+        }
         const auto n = static_cast<std::size_t>(numPartials_);
         const double f = static_cast<double>(f0);
         const double capHz = static_cast<double>(capHz_);
@@ -809,9 +905,118 @@ private:
 
     /// S4.4 step 4: mask_ = evaluateMask(f), maskF0_ = f.
     void buildMask(float f0) noexcept {
-        SpectralShapeRecipe::evaluateMask(
-            f0, sampleRate_, std::span<float>(mask_.data(), static_cast<std::size_t>(numPartials_)));
+        const auto n = static_cast<std::size_t>(numPartials_);
+        if (stiffnessB_ > 0.0)   // Phase 15: guard and cap on the stretched frequencies
+            SpectralShapeRecipe::evaluateMaskStretched(f0, sampleRate_, std::span<const float>(stretchF_.data(), n),
+                                                       std::span<float>(mask_.data(), n));
+        else
+            SpectralShapeRecipe::evaluateMask(f0, sampleRate_, std::span<float>(mask_.data(), n));
         maskF0_ = f0;
+        stretchDirty_ = false;
+    }
+
+    // ---- Phase 15 helpers ----
+
+    static constexpr double kPhasePi = 3.14159265358979323846;
+
+    /// x wrapped to [−π, π].
+    [[nodiscard]] static double wrapPi(double x) noexcept {
+        constexpr double kTwoPhasePi = 2.0 * kPhasePi;
+        return x - kTwoPhasePi * std::round(x / kTwoPhasePi);
+    }
+
+    /// stretch_ / stretchF_ = r_n at stiffnessB_ for every partial.
+    void refreshStretch() noexcept {
+        for (std::size_t k = 0; k < kMaxPartials; ++k) {
+            stretch_[k] = stretchedRatio(stiffnessB_, static_cast<int>(k + 1));
+            stretchF_[k] = static_cast<float>(stretch_[k]);
+        }
+    }
+
+    /// phaseTarget_ = φ_n at phaseAmount_ over the prepared partial count.
+    void refreshPhaseTargets() noexcept {
+        for (std::size_t k = 0; k < kMaxPartials; ++k)
+            phaseTarget_[k] = alignmentPhase(phaseAmount_, static_cast<int>(k + 1));
+    }
+
+    /// The Reset noteOn applies the target alignment at once. The bank seeds every partial at phase 0,
+    /// its one exact MCF seed (sin/cos of any other phase is off the oscillator's ellipse and moves the
+    /// partial's level by up to ±0.3 dB at 1 kHz); the core then rotates each partial forward to its
+    /// target over the first kSeedSteps updates (64 samples, offsets < fs/64 Hz), while the partials
+    /// still ramp up from silence. At Phase 0 there is nothing to rotate.
+    void seedPhaseAlignment() noexcept {
+        phaseApplied_.fill(0.0);
+        glideHz_.fill(0.0);
+        seedStepsLeft_ = 0;
+        phaseGliding_ = false;
+        if (phaseAmount_ == 0.0f)
+            return;
+        constexpr double kTwoPhasePi = 2.0 * kPhasePi;
+        const auto n = static_cast<std::size_t>(numPartials_);
+        for (std::size_t k = 0; k < n; ++k) {
+            double d = std::fmod(phaseTarget_[k], kTwoPhasePi);
+            if (d < 0.0)
+                d += kTwoPhasePi;
+            seedStep_[k] = d / static_cast<double>(kSeedSteps);
+        }
+        seedStepsLeft_ = kSeedSteps;
+        phaseGliding_ = true;
+    }
+
+    /// Advances every partial's applied phase toward its target by at most kPhaseSlewRadPerSec over
+    /// the next kPitchUpdateInterval samples (shortest wrapped path) and sets glideHz_ for them.
+    /// Returns true when the multipliers must refresh: every step of a glide, and the one after it
+    /// that removes the last offsets (then phaseGliding_ is false).
+    bool stepPhaseGlide() noexcept {
+        if (!phaseGliding_)
+            return false;
+        const double dt = static_cast<double>(kPitchUpdateInterval) / sampleRate_;
+        const double maxStep = kPhaseSlewRadPerSec * dt;
+        const double toHz = 1.0 / (2.0 * kPhasePi * dt);
+        const auto n = static_cast<std::size_t>(numPartials_);
+        if (seedStepsLeft_ > 0) {   // the note-on rotation (seedPhaseAlignment); not a live glide
+            for (std::size_t k = 0; k < n; ++k) {
+                glideHz_[k] = seedStep_[k] * toHz;
+                phaseApplied_[k] = wrapPi(phaseApplied_[k] + seedStep_[k]);
+            }
+            --seedStepsLeft_;
+            return true;
+        }
+        bool moving = false;
+        for (std::size_t k = 0; k < n; ++k) {
+            const double remaining = wrapPi(phaseTarget_[k] - phaseApplied_[k]);
+            double step = remaining;
+            if (std::abs(remaining) <= maxStep) {
+                phaseApplied_[k] = phaseTarget_[k];
+            } else {
+                step = std::clamp(remaining, -maxStep, maxStep);
+                phaseApplied_[k] = wrapPi(phaseApplied_[k] + step);
+            }
+            glideHz_[k] = step * toHz;
+            maxGlideHz_ = std::max(maxGlideHz_, std::abs(glideHz_[k]));
+            moving = moving || step != 0.0;
+        }
+        if (!moving)
+            phaseGliding_ = false;   // glideHz_ is all 0: this refresh removes the last offsets
+        return true;
+    }
+
+    /// computeEpsilonTargets for a stretched or gliding core: ε*_n = 2·sin(π·(r_n·f + g_n)/fs) per
+    /// partial, frozen at the cap's ε for r_n·f >= capHz (the mask has removed those partials).
+    void computeStretchedEpsilonTargets(float f0) noexcept {
+        const auto n = static_cast<std::size_t>(numPartials_);
+        const double f = static_cast<double>(f0);
+        const double capHz = static_cast<double>(capHz_);
+        const double w = kPiDouble / sampleRate_;
+        const double epsCap = 2.0 * std::sin(w * capHz);
+        const bool stretched = stiffnessB_ > 0.0;
+        for (std::size_t k = 0; k < n; ++k) {
+            const double hz = (stretched ? stretch_[k] : static_cast<double>(k + 1)) * f;
+            const double epsStar = hz >= capHz ? epsCap : 2.0 * std::sin(w * (hz + glideHz_[k]));
+            const double eb = epsBase_[k];
+            const float dTarget = std::abs(eb) > 1e-9 ? static_cast<float>(epsStar / eb) : 1.0f;
+            multiplierScratch_[k] = dTarget / detuneShadow_[k];
+        }
     }
 
     /// S4.4 step 5: delivered_ = applyMask(shape_, mask_), then |x| < 1e-12f flushed to 0.0f
@@ -1231,6 +1436,23 @@ private:
     bool excitationDirty_ = false;
     bool excitationIdle_ = true;
     float excitationPreCeilingPeak_ = 0.0f;
+
+    // ---- Phase 15 state ----
+    float stiffnessAmount_ = 0.0f;
+    float stiffnessNoteHz_ = static_cast<float>(kStiffnessReferenceHz);
+    double stiffnessB_ = 0.0;
+    bool stretchDirty_ = false;
+    std::array<double, kMaxPartials> stretch_{};    // r_n at stiffnessB_
+    std::array<float, kMaxPartials> stretchF_{};    // r_n as float, for the mask
+    float phaseAmount_ = 0.0f;
+    std::array<double, kMaxPartials> phaseTarget_{};
+    std::array<double, kMaxPartials> phaseApplied_{};
+    std::array<double, kMaxPartials> glideHz_{};    // frequency offset of the coming U samples
+    bool phaseGliding_ = false;
+    double maxGlideHz_ = 0.0;
+    static constexpr int kSeedSteps = 4;            // note-on rotation: 4 · kPitchUpdateInterval samples
+    int seedStepsLeft_ = 0;
+    std::array<double, kMaxPartials> seedStep_{};
 
     OnePoleSmoother mixS_;
     OnePoleSmoother log2DriveS_;

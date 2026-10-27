@@ -79,7 +79,7 @@ TEST_CASE("Profundum_ManualCoversSurface", "[profundum][docs]") {
     {
         ProfundumPluginTest::ControllerFixture cf;
         const Steinberg::int32 n = cf.controller->getParameterCount();
-        REQUIRE(n == 93);
+        REQUIRE(n == 95);
         for (Steinberg::int32 i = 0; i < n; ++i) {
             Steinberg::Vst::ParameterInfo info{};
             REQUIRE(cf.controller->getParameterInfo(i, info) == Steinberg::kResultOk);
@@ -94,7 +94,7 @@ TEST_CASE("Profundum_ManualCoversSurface", "[profundum][docs]") {
             titles.push_back(std::move(title));
         }
     }
-    REQUIRE(titles.size() == 89);
+    REQUIRE(titles.size() == 91);
     {
         const std::vector<std::string> missing = manualMissing(manual, titles);
         for (const std::string& m : missing) {
@@ -114,12 +114,12 @@ TEST_CASE("Profundum_ManualCoversSurface", "[profundum][docs]") {
         CHECK(missing.empty());
     }
 
-    // ---- all 71 factory preset names ----
+    // ---- all 73 factory preset names ----
     std::vector<std::string> presetNames;
     for (const auto& def : ::Profundum::PresetDefs::allPresets()) {
         presetNames.emplace_back(def.name);
     }
-    REQUIRE(presetNames.size() == 71);
+    REQUIRE(presetNames.size() == 73);
     {
         const std::vector<std::string> missing = manualMissing(manual, presetNames);
         for (const std::string& m : missing) {

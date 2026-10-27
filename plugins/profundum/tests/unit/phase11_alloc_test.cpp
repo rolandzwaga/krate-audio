@@ -3,7 +3,7 @@
 // ==============================================================================
 // Profundum_Phase11PathsDoNotAllocate: 64 process() blocks under
 // TestHelpers::AllocationScope exercise every FR-062 audio-thread path:
-//   - parameter routing of all 93 routed IDs (one point each, values rotating per
+//   - parameter routing of all 95 routed IDs (one point each, values rotating per
 //     block), passes 1 and 2, handleSoundParamChange on both endpoints;
 //   - Phase 14 (T012; SC-001 (c)): the nine Morph Modulation IDs 1003-1011 among them, with
 //     Source rotated 0-4 per block, Amount alternating -1 / +1 and Mod Wheel moved every
@@ -67,7 +67,7 @@ constexpr std::size_t kBlock = 256;
 constexpr std::size_t kBlocks = 64;
 constexpr std::size_t kCompareSwitchBlock = 32;  // blocks [0, 32) compare A, [32, 64) compare A.B
 
-/// Every ID the route table routes (FR-010): 93 of them (Phase 14: + 1003-1011).
+/// Every ID the route table routes (FR-010): 95 of them (Phase 14: + 1003-1011; Phase 15: + 209-210).
 [[nodiscard]] std::vector<Steinberg::Vst::ParamID> routedIds() {
     std::vector<Steinberg::Vst::ParamID> ids;
     for (std::size_t id = 0; id < P::kParamRoutes.size(); ++id) {
@@ -182,7 +182,7 @@ TEST_CASE("Profundum_Phase11PathsDoNotAllocate", "[profundum][rt]") {
 
     SECTION("AllPathsZeroAllocations") {
         const std::vector<Steinberg::Vst::ParamID> ids = routedIds();
-        REQUIRE(ids.size() == 93u);
+        REQUIRE(ids.size() == 95u);
         for (Steinberg::Vst::ParamID id = P::kMorphModSourceId; id <= P::kMorphModCycleSyncRateId; ++id) {
             REQUIRE(std::find(ids.begin(), ids.end(), id) != ids.end());  // Phase 14: 1003-1011 are routed
         }
@@ -192,7 +192,7 @@ TEST_CASE("Profundum_Phase11PathsDoNotAllocate", "[profundum][rt]") {
         for (std::size_t b = 0; b < kBlocks; ++b) {
             buildBlock(inputs[b], b, ids);
         }
-        REQUIRE(inputs[1].changes.getParameterCount() == 93);
+        REQUIRE(inputs[1].changes.getParameterCount() == 95);
 
         // A pending setState hand-off: a v2 stream whose runtime blob was published by a rendered processor.
         StateBytes stateBytes;

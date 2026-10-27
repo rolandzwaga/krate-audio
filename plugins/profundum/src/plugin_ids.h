@@ -19,7 +19,9 @@
 namespace Profundum {
 
 /// FR-012 / FR-040 (Phase 11: v2, 510 bytes); Phase 12 FR-047 / FR-096: v3, 574 bytes (the v2 body plus two
-/// endpoint-name blocks, plan 4.5); Phase 14 C-10: still v3, 610 bytes (the Morph Modulation block appended).
+/// endpoint-name blocks, plan 4.5); Phase 14 C-10: still v3, 610 bytes (the Morph Modulation block appended);
+/// Phase 15: still v3, 626 bytes (each endpoint blob grows to 209 bytes; Profundum is unreleased, so no earlier
+/// stream needs to load, user 2026-10-27).
 /// Shared by processor and controller; neither includes the other.
 constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
@@ -36,9 +38,9 @@ constexpr std::size_t kStateNoteBlockBytes = 32;              // bytes 36-67
 constexpr std::size_t kStateMorphControlBytes = 16;           // bytes 68-83
 constexpr std::size_t kStateSeedBytes = 4;                    // bytes 84-87
 constexpr std::size_t kStateEndpointAOffset = 88;
-constexpr std::size_t kStateEndpointBOffset = 289;
-constexpr std::size_t kStateRuntimeOffset = 490;
-constexpr std::size_t kStateV2Bytes = 510;
+constexpr std::size_t kStateEndpointBOffset = 297;            // Phase 11-14: 289
+constexpr std::size_t kStateRuntimeOffset = 506;              // Phase 11-14: 490
+constexpr std::size_t kStateV2Bytes = 526;                    // Phase 11-14: 510
 static_assert(kStateEndpointAOffset ==
                   kStateV1Bytes + kStateNoteBlockBytes + kStateMorphControlBytes + kStateSeedBytes,
               "plan 3.2: endpoint A follows the v1, note, morph-control and seed blocks");
@@ -58,10 +60,10 @@ static_assert(kStateV1Version + 1 == kStateV2Version && kStateV2Version + 1 == k
 // ------------------------------------------------------------------------------
 constexpr std::size_t kEndpointNameMaxBytes = 31;   // UTF-8 bytes; 1 length byte + 31 = 32 per endpoint
 constexpr std::size_t kEndpointNameBlockBytes = 32;
-constexpr std::size_t kStateNamesOffset = kStateV2Bytes;   // 510: the Phase 11 "append after byte 510" rule
-constexpr std::size_t kStateNamesEnd = kStateNamesOffset + 2 * kEndpointNameBlockBytes;   // 574
+constexpr std::size_t kStateNamesOffset = kStateV2Bytes;   // the Phase 11 "append after the v2 body" rule
+constexpr std::size_t kStateNamesEnd = kStateNamesOffset + 2 * kEndpointNameBlockBytes;   // 590 (Phase 12-14: 574)
 static_assert(kEndpointNameBlockBytes == kEndpointNameMaxBytes + 1, "plan 4.5: the u8 length byte + 31 bytes");
-static_assert(kStateNamesEnd == 574, "plan 4.5: the two name blocks end at byte 574");
+static_assert(kStateNamesEnd == 590, "plan 4.5 / Phase 15: the two name blocks end at byte 590");
 
 // ------------------------------------------------------------------------------
 // Phase 14 (C-10; plan 4.6): v3 grows by the 36-byte Morph Modulation block after the names; the version stays 3.
@@ -70,9 +72,9 @@ static_assert(kStateNamesEnd == 574, "plan 4.5: the two name blocks end at byte 
 // ------------------------------------------------------------------------------
 constexpr std::size_t kStateMorphModOffset = kStateNamesEnd;
 constexpr std::size_t kStateMorphModBytes = 36;
-constexpr std::size_t kStateV3Bytes = kStateMorphModOffset + kStateMorphModBytes;   // 610
+constexpr std::size_t kStateV3Bytes = kStateMorphModOffset + kStateMorphModBytes;   // 626 (Phase 14: 610)
 static_assert(kStateMorphModBytes == 9u * 4u, "C-10: nine 4-byte fields");
-static_assert(kStateV3Bytes == 610, "C-10: v3 is 610 bytes");
+static_assert(kStateV3Bytes == 626, "Phase 15: v3 is 626 bytes (Phase 14: 610)");
 
 // ------------------------------------------------------------------------------
 // The 20-byte morph runtime blob (FR-041; plan 4.5.2). The engine keeps its offsets private
@@ -95,7 +97,7 @@ static_assert(kRtAnchorSelectionOffset + 1 == Krate::DSP::BassMorphEngine::kMorp
 // ------------------------------------------------------------------------------
 inline constexpr const char* kMsgCopyEndpoint = "ProfundumCopyEndpoint";   // ctl -> proc, int attr "from" (0 A, 1 B)
 inline constexpr const char* kMsgCompare = "ProfundumCompare";             // ctl -> proc, int attr "mode"
-inline constexpr const char* kMsgEndpoint = "ProfundumEndpoint";           // proc -> ctl, int "endpoint", binary "blob" (201 B)
+inline constexpr const char* kMsgEndpoint = "ProfundumEndpoint";           // proc -> ctl, int "endpoint", binary "blob" (209 B)
 inline constexpr const char* kMsgCompareMode = "ProfundumCompareMode";     // proc -> ctl, int "mode"
 inline constexpr const char* kMsgRequestSync = "ProfundumRequestSync";     // ctl -> proc, no attributes (FR-025 pull)
 inline constexpr const char* kMsgEndpointName = "ProfundumEndpointName";   // ctl -> proc, int "endpoint", binary "name" (0..31 B)
@@ -153,6 +155,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kCoreExcitationMixId,
     kCoreExcitationDriveId,
     kCoreExcitationAsymmetryId,  // 206-208
+    kCoreStiffnessId,            // 209 (Phase 15)
+    kCorePhaseId,                // 210 (Phase 15)
     kCoreParamRangeEnd = 300,
 
     kAnchorWaveformId = 300,

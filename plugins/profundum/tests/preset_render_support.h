@@ -1383,6 +1383,18 @@ inline constexpr double kMorphModWindowMs =
                            [](MS& s) { s.anchor.waveform = sd::AWave::Triangle; });
             break;
 
+        // ---- Phase 15 core columns (specs/Profundum-roadmap.md) ----
+        // S-STIFF: Stiffness moves the partials off the harmonic bins, so the energy D_cx reads there (Sum tap) moves.
+        case C::SStiff:
+            sd::steadyPlan(pl, "S-STIFF", "Stiffness: 0 -> stored", AuDesc::DCx, "Sum", auRd::kAuBarDb, ">= 3 dB",
+                           "D_cx", [](MS& s) { s.stiffness = 0.0f; });
+            break;
+        // S-PHASE: Phase reshapes the wave the nonlinear stages bite into (Character tap over the clean twin).
+        case C::SPhase:
+            sd::steadyPlan(pl, "S-PHASE", "Phase: 0 -> stored", AuDesc::DNl, "Char / twin", auRd::kAuBarDb,
+                           ">= 3 dB", "D_nl", [](MS& s) { s.phase = 0.0f; });
+            break;
+
         // ---- Phase 14 Morph Modulation sources (plan 4.12, C-15; FR-041) ----
         // No precondition: a primary arm records no override (Phase 13 FR-012). The stored pair is declared (no arm
         // edits an endpoint, the AT-41 / AT-42 declaration); the lo / hi arms are built inside the reader.

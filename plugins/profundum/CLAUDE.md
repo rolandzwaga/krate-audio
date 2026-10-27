@@ -111,7 +111,7 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
     (session tag 9300) or the host's zoom menu, applied with `VST3Editor::setZoomFactor`. Zoom, page, tab and highlight
     are **session state**: never persisted, never a parameter.
   - `IMidiLearn` is **not** implemented; MIDI learn is the host's.
-- **Presets (Phase 13, `specs/profundum-phase13-presets-release/`):** 71 factory presets in seven categories, `Sub`,
+- **Presets (Phase 13, `specs/profundum-phase13-presets-release/`):** 73 factory presets in seven categories, `Sub`,
   `Resonant`, `Harmonic`, `Driven`, `Plucked`, `Animated`, `Kicks` (Phase 14b) (`makeProfundumPresetConfig()` in
   `src/preset/profundum_preset_config.h`; the list is additive-only and must match the directories under
   `resources/presets/`). The tree is **generated, never hand-edited**: definitions in `tools/profundum_preset_defs.h`,

@@ -1448,7 +1448,7 @@ TEST_CASE("Profundum_PresetAuditionRenders", "[profundum][.listen]") {
 // 0 -> 1 over 2 s): finite, under the stored output ceiling in true peak (the sweep cases' 0.1 dB allowance), and no
 // 100 ms window of [0 s, 3 s) under -60 dBFS (Morph never passes through silence).
 // Phase 14b ruling (user, 2026-10-27; specs/Profundum-roadmap.md Phase 14b): the bar is endpoint-referenced. A window
-// counts where the same gesture with Morph frozen at A (both endpoints A) or at B (both B) reads above -60 dBFS: a
+// counts where the same gesture with Morph frozen at A (both endpoints A) and at B (both B) both read above -60 dBFS: a
 // dropout is silence Morph makes that neither endpoint has. A sustained preset counts every window; a one-hit kick is
 // checked during its hit, while the ramp already moves. The frozen renders run only when the sweep has a quiet window.
 // =============================================================================
@@ -1491,7 +1491,8 @@ TEST_CASE("Profundum_PresetMorphSweep", "[profundum][sweep][long]") {
             const std::vector<double> atB =
                 windowsDb(swRenderGesture(swBytesOf(withEndpoints(swStateOf(comp), d.b, d.b)), script, swAt(3.0)));
             for (std::size_t w = 0; w < sweep.size(); ++w) {
-                counted[w] = atA[w] > kSilenceDb || atB[w] > kSilenceDb;
+                // Both endpoints sound (user, 2026-10-27): a dropout is silence neither endpoint has.
+                counted[w] = atA[w] > kSilenceDb && atB[w] > kSilenceDb;
             }
         }
         double minDb = std::numeric_limits<double>::max();

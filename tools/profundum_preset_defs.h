@@ -29,6 +29,9 @@
 // Phase 14b (specs/Profundum-roadmap.md): the seventh category, Kicks, and its eleven definitions (61-71), each led by
 // a Phase 13 column and stored with Morph Modulation Source Off.
 //
+// Phase 15 (specs/Profundum-roadmap.md): definitions 72-73, one led by each new core column (S-STIFF Stiffness,
+// S-PHASE Phase), stored with Morph Modulation Source Off.
+//
 // ParamSetting, Capability and CapabilityGroup also exist in
 // Vorago::PresetDefs / Seraphis::PresetDefs: different namespaces and different
 // targets; no TU includes two defs headers.
@@ -67,7 +70,8 @@ enum class CapabilityGroup : std::uint8_t {
     NoteMemory,
     Macros,
     Reference,
-    MorphMod   // Phase 14 C-14: the four Morph Modulation source columns
+    MorphMod,  // Phase 14 C-14: the four Morph Modulation source columns
+    CoreTone   // Phase 15: Stiffness and Phase
 };
 
 /// FR-010: the 50 AT columns in AT order, then the three reference columns. Phase 14 (FR-040) appends the four
@@ -76,11 +80,12 @@ enum class Capability : std::uint8_t {
     AT01, AT02, AT03, AT04, AT05, AT06, AT07, AT08, AT09, AT10, AT11, AT12, AT13, AT14, AT15, AT16, AT17, AT18, AT19,
     AT20, AT21, AT22, AT23, AT24, AT25, AT26, AT27, AT28, AT29, AT30, AT31, AT32, AT33, AT34, AT35, AT36, AT37, AT38,
     AT39, AT40, AT41, AT42, AT43, AT44, AT45, AT46, AT47, AT48, AT49, AT50, RSolid, RLock, RSine,
-    MEnv, MCycle, MVel, MWheel, Count
+    MEnv, MCycle, MVel, MWheel, SStiff, SPhase, Count
 };
 inline constexpr std::size_t kNumCapabilities = static_cast<std::size_t>(Capability::Count);
-static_assert(kNumCapabilities == 57,
-              "C-2.1: 50 AT columns + R-SOLID, R-LOCK, R-SINE; Phase 14 C-14: + M-ENV, M-CYCLE, M-VEL, M-WHEEL");
+static_assert(kNumCapabilities == 59,
+              "C-2.1: 50 AT columns + R-SOLID, R-LOCK, R-SINE; Phase 14 C-14: + M-ENV, M-CYCLE, M-VEL, M-WHEEL; "
+              "Phase 15: + S-STIFF, S-PHASE");
 
 struct CapabilityInfo {
     Capability column;
@@ -152,6 +157,8 @@ struct CapabilityInfo {
         {C::MCycle, G::MorphMod, 0, "M-CYCLE Morph Mod Cycle"},
         {C::MVel, G::MorphMod, 0, "M-VEL Morph Mod Velocity"},
         {C::MWheel, G::MorphMod, 0, "M-WHEEL Morph Mod Wheel"},
+        {C::SStiff, G::CoreTone, 0, "S-STIFF Core Stiffness"},
+        {C::SPhase, G::CoreTone, 0, "S-PHASE Core Phase"},
     }};
     return kTable;
 }
@@ -4279,7 +4286,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{"Sub",     "Resonan
                           {kCharacterAmountId, 0.3},            // Amount 0.3
                           {kCharacterToneId, 0.6},              // Tone 0.6
                           {kAmpAttackId, 0.2},                  // 1 ms
-                          {kAmpDecayId, 0.769020},              // 700 ms
+                          {kAmpDecayId, 0.775012},              // 750 ms
                           {kAmpSustainId, 0.0},                 // sustain 0
                           {kAmpReleaseId, 0.615836},            // 120 ms
                           {kFieldImageModeId, 0.5},             // SPREAD
@@ -4833,6 +4840,100 @@ inline constexpr std::array<std::string_view, 7> kCategories{"Sub",     "Resonan
             .controls = {{kMorphPositionId, 0.0}},  // p = 0
             .nameA = "Hard",
             .nameB = "Harder",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        // ==== Phase 15: the Stiffness and Phase showcases (definitions 72-73) ====
+        ProfundumPresetDef{
+            .name = "Stiff Wire",
+            .category = "Harmonic",
+            .description = "Core Stiffness: the upper harmonics bend sharp of the series, as on a stiff steel string, for "
+                           "a metallic, bell-edged bass that grows stiffer up the keyboard. Morph to B bends them "
+                           "further and bites, wide.",
+            .primary = C::SStiff,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.4},          // depth 0.4
+                          {kCoreBodyId, 0.55},          // body 0.55
+                          {kCoreEdgeId, 0.65},          // edge 0.65
+                          {kCoreStiffnessId, 0.75},     // Stiffness 0.75
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.25},   // Amount 0.25
+                          {kCharacterToneId, 0.6},      // Tone 0.6
+                          {kAmpAttackId, 0.339794},     // 5 ms
+                          {kAmpDecayId, 0.720412},      // 400 ms
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.695424},    // 300 ms
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.35},       // spread 0.35
+                          {kMassId, 0.45},              // Mass 45
+                          {kAnchorLevelId, 0.7}},       // Sine, LOCK, level 0.7
+            .endpointB = {{kCoreDepthId, 0.3},          // depth 0.3
+                          {kCoreBodyId, 0.4},           // body 0.4
+                          {kCoreEdgeId, 0.85},          // edge 0.85
+                          {kCoreShiftId, 0.7},          // Spectral Shift +0.4
+                          {kCoreStiffnessId, 1.0},      // Stiffness 1
+                          {kFoldAmountId, 0.25},        // Harmonic Fold 25
+                          {kCharacterId, 0.6},          // Bite
+                          {kCharacterAmountId, 0.45},   // Amount 0.45
+                          {kCharacterToneId, 0.7},      // Tone 0.7
+                          {kAmpAttackId, 0.339794},     // 5 ms
+                          {kAmpDecayId, 0.720412},      // 400 ms
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.695424},    // 300 ms
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.6},        // spread 0.6
+                          {kMassId, 0.55},              // Mass 55
+                          {kAnchorWaveformId, 0.25},    // Triangle
+                          {kAnchorLevelId, 0.7}},       // level 0.7
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Stiff",
+            .nameB = "Steel",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Phase Bite",
+            .category = "Driven",
+            .description = "Core Phase 60: the upper harmonics turned against the fundamental make a peaky wave, so "
+                           "the Tube at 0.6 over Harmonic Fold 15 bites much harder than into the same spectrum "
+                           "smooth. Morph to B smooths the phase into a dark, wide Crush.",
+            .primary = C::SPhase,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.5},          // depth 0.5
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.5},           // edge 0.5
+                          {kCorePhaseId, 0.6},          // Phase 0.6
+                          {kFoldAmountId, 0.15},        // Harmonic Fold 15
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.6},    // Amount 0.6
+                          {kCharacterToneId, 0.5},      // Tone 0.5
+                          {kAmpAttackId, 0.260206},     // 2 ms
+                          {kAmpDecayId, 0.708814},      // 350 ms
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.695424},    // 300 ms
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.3},        // spread 0.3
+                          {kMassId, 0.6},               // Mass 60
+                          {kAnchorLevelId, 0.8}},       // Sine, LOCK, level 0.8
+            .endpointB = {{kCoreDepthId, 0.75},         // depth 0.75
+                          {kCoreBodyId, 0.3},           // body 0.3
+                          {kCoreEdgeId, 0.25},          // edge 0.25
+                          {kFoldAmountId, 0.2},         // Harmonic Fold 20
+                          {kCharacterId, 0.8},          // Crush
+                          {kCharacterAmountId, 0.45},   // Amount 0.45
+                          {kCharacterToneId, 0.3},      // Tone 0.3
+                          {kAmpAttackId, 0.260206},     // 2 ms
+                          {kAmpDecayId, 0.708814},      // 350 ms
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.695424},    // 300 ms
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.7},        // spread 0.7
+                          {kMassId, 0.5},               // Mass 50
+                          {kAnchorWaveformId, 0.5},     // Rounded Sine
+                          {kAnchorLevelId, 0.45}},      // level 0.45
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Peaky",
+            .nameB = "Crushed",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },

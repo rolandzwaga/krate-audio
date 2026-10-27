@@ -399,15 +399,15 @@ TEST_CASE("Profundum_EndpointNames", "[profundum][ui][morph][state]") {
     SECTION("CurrentVersionIsThree") {
         CHECK(::Profundum::kCurrentStateVersion == 3);
         CHECK(::Profundum::kStateV2Version == 2);
-        CHECK(::Profundum::kStateV3Bytes == 610u);
-        CHECK(::Profundum::kStateNamesOffset == 510u);
+        CHECK(::Profundum::kStateV3Bytes == 626u);       // Phase 15: two 209-byte endpoints (Phase 14: 610)
+        CHECK(::Profundum::kStateNamesOffset == 526u);   // Phase 15 (Phase 14: 510)
 
         ProcessorFixture fx;
         const StateBytes s = writeV2Stream(*fx.proc);
-        REQUIRE(s.size() == 610u);
+        REQUIRE(s.size() == 626u);
         CHECK(readU32(s, 0) == 3u);
-        CHECK(nameBlockIs(s, 510u, "A"));
-        CHECK(nameBlockIs(s, 542u, "B"));
+        CHECK(nameBlockIs(s, 526u, "A"));   // Phase 15 (Phase 14: 510)
+        CHECK(nameBlockIs(s, 558u, "B"));
         CHECK(fx.proc->endpointNameForTest(Endpoint::A).view() == "A");
         CHECK(fx.proc->endpointNameForTest(Endpoint::B).view() == "B");
     }
@@ -1022,9 +1022,9 @@ void mmCheckFollows(MmController& c, const MmWords& stored) {
 
 TEST_CASE("Profundum_StateV3MorphMod", "[profundum][morphmod][state]") {
     STATIC_REQUIRE(::Profundum::kCurrentStateVersion == 3);
-    STATIC_REQUIRE(::Profundum::kStateMorphModOffset == 574u);
+    STATIC_REQUIRE(::Profundum::kStateMorphModOffset == 590u);   // Phase 15: 574 + 2 x 8 endpoint bytes
     STATIC_REQUIRE(::Profundum::kStateMorphModBytes == 36u);
-    STATIC_REQUIRE(::Profundum::kStateV3Bytes == 610u);
+    STATIC_REQUIRE(::Profundum::kStateV3Bytes == 626u);   // Phase 15 (Phase 14: 610)
 
     // S: the (a) values, saved by a prepared processor that received them as parameter changes.
     ProcessorFixture src;
@@ -1039,7 +1039,7 @@ TEST_CASE("Profundum_StateV3MorphMod", "[profundum][morphmod][state]") {
     patchMm(qStream, q);
 
     SECTION("RoundTrip") {  // SC-013 (a), (f)
-        CHECK(s.size() == 610u);
+        CHECK(s.size() == 626u);
         // The stored values are the denormalised parameter values (within 1e-6 relative: a law evaluation in
         // processor code is never compared bitwise against a test literal).
         CHECK(sw[kMmSource] == 2u);

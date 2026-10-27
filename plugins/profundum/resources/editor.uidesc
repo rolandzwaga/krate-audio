@@ -7,7 +7,7 @@
        never a UIViewSwitchContainer; exactly one is visible (ProfundumPanel, session tag 9100).
        Main (D1): mass-group, morph-anchor = anchor-group + morph-band. Advanced (D2): tab strip
        (session tag 9110) and three sibling tabs; one section container per FR-004 row.
-       89 visible IDs bound; the hidden performance IDs 4 - 7 have no tag. UI-only controls carry
+       91 visible IDs bound; the hidden performance IDs 4 - 7 have no tag. UI-only controls carry
        session-tag (9000 and up) and no control-tag. Tooltips are the D1 / D2 literals.
        Later edits touching more than 3 controls use XSLT (repo rule). -->
   <colors>
@@ -57,6 +57,8 @@
     <control-tag name="CoreExcitationMix" tag="206"/>
     <control-tag name="CoreExcitationDrive" tag="207"/>
     <control-tag name="CoreExcitationAsymmetry" tag="208"/>
+    <control-tag name="CoreStiffness" tag="209"/>
+    <control-tag name="CorePhase" tag="210"/>
     <control-tag name="AnchorWaveform" tag="300"/>
     <control-tag name="AnchorMode" tag="301"/>
     <control-tag name="AnchorLevel" tag="302"/>
@@ -205,7 +207,7 @@
     <view class="CViewContainer" uidesc-label="page-advanced" origin="0, 56" size="960, 544" background-color="bg" background-color-draw-style="filled" transparent="false">
       <view class="CSegmentButton" uidesc-label="tab-strip" session-tag="9110" origin="8, 2" size="360, 24" style="horizontal" selection-mode="Single" font="small-font" text-color="text" text-color-highlighted="bg" frame-color="track" frame-width="1" round-radius="0" gradient="segment-off" gradient-highlighted="segment-on" segment-names="SECTIONS,MODULATION,SETTINGS" tooltip="Advanced page sections: choose which group of controls to show."/>
       <view class="CViewContainer" uidesc-label="tab-sections" origin="0, 28" size="960, 516" background-color="bg" background-color-draw-style="filled" transparent="false">
-        <view class="CViewContainer" uidesc-label="section-core-spectrum" origin="8, 0" size="304, 220" background-color="panel" background-color-draw-style="filled" transparent="false">
+        <view class="CViewContainer" uidesc-label="section-core-spectrum" origin="8, 0" size="304, 246" background-color="panel" background-color-draw-style="filled" transparent="false">
           <view class="CTextLabel" title="CORE SPECTRUM" origin="4, 2" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CView" custom-view-name="HarmonicBarView" uidesc-label="bars-core" bar-variant="core" origin="4, 20" size="296, 88" tooltip="The measured harmonics of the sounding note after Fold and Character, before the amp envelope, in dB below the strongest component. Shows the resolved sound, including morph, macros and Motion."/>
           <view class="CTextLabel" title="Depth" origin="4, 117" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
@@ -220,12 +222,16 @@
           <view class="OffsetRingKnob" control-tag="CoreEdge" origin="124, 165" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Edge: lifts the upper harmonics that give the bass its bite."/>
           <view class="CTextLabel" title="Spectral Shift" origin="156, 169" size="94, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="BipolarSlider" control-tag="CoreShift" origin="252, 165" size="50, 24" fill-color="accent" track-color="track" center-tick-color="text-dim" tooltip="Spectral Shift: moves the Body and Edge regions down (darker) or up (brighter) together."/>
-          <view class="CTextLabel" title="Harmonic Fold" origin="4, 195" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
-          <view class="OffsetRingKnob" control-tag="FoldAmount" origin="124, 191" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Harmonic Fold: folds the waveform back on itself to add new harmonics. 0 is clean."/>
-          <view class="CTextLabel" title="Tight/Loose" origin="156, 195" size="94, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
-          <view class="BipolarSlider" control-tag="MacroTightLoose" origin="252, 191" size="50, 24" fill-color="accent" track-color="track" center-tick-color="text-dim" tooltip="Tight ↔ Loose: toward Tight, shorter attack, decay and release, a harder transient and more Compression; toward Loose the reverse. Compression has no control of its own."/>
+          <view class="CTextLabel" title="Stiffness" origin="4, 195" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+          <view class="ArcKnob" control-tag="CoreStiffness" origin="124, 191" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Stiffness: bends the upper harmonics sharp of the harmonic series, as a stiff string or a metal bar does, for a metallic, bell-edged bass. Higher notes are stiffer; 0 keeps the exact series."/>
+          <view class="CTextLabel" title="Phase" origin="156, 195" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+          <view class="ArcKnob" control-tag="CorePhase" origin="276, 191" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Phase: turns the upper harmonics against the fundamental. The clean tone hardly changes, but the waveform grows peakier, so Fold and Character bite harder. 0 is the smoothest."/>
+          <view class="CTextLabel" title="Harmonic Fold" origin="4, 221" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+          <view class="OffsetRingKnob" control-tag="FoldAmount" origin="124, 217" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Harmonic Fold: folds the waveform back on itself to add new harmonics. 0 is clean."/>
+          <view class="CTextLabel" title="Tight/Loose" origin="156, 221" size="94, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+          <view class="BipolarSlider" control-tag="MacroTightLoose" origin="252, 217" size="50, 24" fill-color="accent" track-color="track" center-tick-color="text-dim" tooltip="Tight ↔ Loose: toward Tight, shorter attack, decay and release, a harder transient and more Compression; toward Loose the reverse. Compression has no control of its own."/>
         </view>
-        <view class="CViewContainer" uidesc-label="section-excitation-fold" origin="8, 228" size="304, 76" background-color="panel" background-color-draw-style="filled" transparent="false">
+        <view class="CViewContainer" uidesc-label="section-excitation-fold" origin="8, 254" size="304, 76" background-color="panel" background-color-draw-style="filled" transparent="false">
           <view class="CTextLabel" title="EXCITATION &amp; FOLD" origin="4, 2" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CTextLabel" title="Excitation Drive" origin="4, 25" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="OffsetRingKnob" control-tag="CoreExcitationDrive" origin="124, 21" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Excitation Drive: how hard the excitation stage is driven. More drive grows more new harmonics; it is heard only when Excitation Mix is above 0."/>
@@ -236,7 +242,7 @@
           <view class="CTextLabel" title="Harmonic Fold" origin="156, 51" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="OffsetRingKnob" control-tag="FoldAmount" origin="276, 47" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Harmonic Fold: folds the waveform back on itself to add new harmonics. 0 is clean."/>
         </view>
-        <view class="CViewContainer" uidesc-label="section-shape-character" origin="8, 312" size="304, 76" background-color="panel" background-color-draw-style="filled" transparent="false">
+        <view class="CViewContainer" uidesc-label="section-shape-character" origin="8, 338" size="304, 76" background-color="panel" background-color-draw-style="filled" transparent="false">
           <view class="CTextLabel" title="SHAPE &amp; CHARACTER" origin="4, 2" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CTextLabel" title="Shape" origin="4, 25" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="ArcKnob" control-tag="FoldShape" origin="124, 21" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Shape: the SHAPE stage, one control across three characters: 0 % ROUND (soft and dark), 50 % HOLLOW (resonant and scooped), 100 % BITE (bright and edgy)."/>
@@ -247,7 +253,7 @@
           <view class="CTextLabel" title="Character Tone" origin="156, 51" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="OffsetRingKnob" control-tag="CharacterTone" origin="276, 47" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Character Tone: darkens or brightens the Character stage. In WIDE, left and right get slightly different Character settings, so the sub is a little less mono than in Solid or Spread."/>
         </view>
-        <view class="CViewContainer" uidesc-label="section-mass" origin="8, 396" size="304, 50" background-color="panel" background-color-draw-style="filled" transparent="false">
+        <view class="CViewContainer" uidesc-label="section-mass" origin="8, 422" size="304, 50" background-color="panel" background-color-draw-style="filled" transparent="false">
           <view class="CTextLabel" title="MASS" origin="4, 2" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CTextLabel" title="Transient Attack" origin="4, 25" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="OffsetRingKnob" control-tag="DynamicsTransientAttack" origin="124, 21" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Transient Attack: boosts or softens the start of each note, −12 to +12 dB."/>

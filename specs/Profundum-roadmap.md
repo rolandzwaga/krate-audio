@@ -1140,6 +1140,15 @@ Kick and Hardstyle Kick. Part of release 1.0.0.
   Morph makes that neither endpoint has. A sustained preset counts every window as before; a one-hit kick is checked
   during its hit while the ramp already moves. Before, the bar read [1 s, 3 s) unreferenced, which no one-hit preset
   can pass.
+  **Correction (user, 2026-10-27, found by Phase 15's long lane):** a window counts only where frozen-A **and**
+  frozen-B both read above -60 dBFS, the sentence's own "silence neither endpoint has". The first implementation
+  counted a window where either one did, so a kick's A decay tail (silent at A, still ringing at B) read as a dropout
+  on 9 kicks (-61 to -133 dBFS); the 14b long lane had not run after the change.
+  Under the corrected rule one kick still failed: **Punch Kick's A decay is 750 ms, not 700 (main loop, 2026-10-27).**
+  Its 700 ms decay ended inside the 0.7-0.8 s window, where frozen A read -59.98 dBFS (counted by 0.02 dB) and the sweep
+  -61.92 dBFS: the amp envelope's table path keeps the decay rate it entered the stage with, so the sweep ends on A's
+  timing while B's lower level pulls it down. At 750 ms the end falls mid-window: counted minimum -25.3 dBFS (650 ms:
+  -24.2 dBFS; longer chosen because longer kick decays lift the library loudness median).
 
 **Rules the kicks follow** (the Phase 13 / 14 library gates):
 
@@ -1188,6 +1197,41 @@ the recipe already owns. Part of release 1.0.0.
 - **Part of 1.0.0, no state-format bump.** The new fields join format version 3 (both endpoints) and the byte count
   grows; defaults Stiffness 0 and Phase = today's alignment, so every factory preset renders as before until it opts in.
 
+**Rulings (user, 2026-10-27):** main loop with minimal ceremony (no phase workflow; this section is the spec), tests run
+once at the end (per-push gate, the `[long]` preset lane, the Profundum CPU cases, pluginval).
+
+- **Stretch law: the stiff string,** normalised so h1 stays exact: f_n = n · f₀ · √(1 + B·n²) / √(1 + B).
+- **Stiffness tracks the keyboard:** B = B_knob · (f_note / 55 Hz), so a note an octave up is twice as stiff (a piano's
+  treble), and the drop / glide trajectory does not change it within a note.
+- **Two new factory presets,** one leading with Stiffness and one with Phase (71 -> 73); no existing preset changes.
+- **Editor: the Advanced page's core section only;** the Main page keeps its two rows of four.
+
+**Technical rulings (main loop, 2026-10-27):**
+
+- `MorphState` leaves 62 `stiffness` and 63 `phase`, appended (no leaf renumbers), both [0, 1], Linear morph law.
+  The endpoint blob grows 201 -> 209 bytes and the v3 stream 610 -> 626 bytes, with no version change anywhere and no
+  path for older streams (user, 2026-10-27: Profundum is unreleased, so no earlier state needs to load).
+- B_knob = 0.01 · x² (x = the Stiffness value). The headroom bound sqrt(N·P0) (`profundum_core.h:108`) holds for any
+  phases (Cauchy-Schwarz on Σ|a_n|), so no alignment can exceed it.
+- **Phase law: rotate every partial above h1 by x · 90° (user, 2026-10-27),** φ_n = x · π/2 for n ≥ 2, φ_1 = 0. The
+  premise above was measured wrong: today's all-sine-phase-0 stack is the *smooth* end (the saw spectrum renders a
+  sawtooth, crest 6.1 dB), and Schroeder phases raise the crest at once (9.4 dB at x = 0.1) and then drift down (8.5 dB
+  at 1), a switch rather than a sweep. The rotation raises crest monotonically from today's wave to the peakiest the
+  spectrum allows (offline, one period: saw 6.1 -> 12.4 dB, default recipe 6.6 -> 11.1 dB, triangle 2.2 -> 3.1 dB). So
+  Phase 0 = smooth, today's sound; Phase 1 = peaky, the hardest bite into Fold and Character.
+- A Reset note-on starts every partial at phase 0 (the bank's only exact oscillator seed; seeding sin/cos of another
+  phase moved partial levels by up to ±0.3 dB at 1 kHz) and rotates to the alignment over the first 64 samples.
+- A live Phase change slews each partial's phase along the shortest wrapped path at most π per 100 ms, i.e. a
+  transient frequency offset of at most 5 Hz per partial; note-on (Reset policy, or the first note) seeds the
+  phases directly.
+- At Stiffness 0 and Phase 0 the core runs its pre-phase code path unchanged (bit-identical renders).
+- Host parameters `kCoreStiffnessId` 209 and `kCorePhaseId` 210, endpoint-aware like Depth / Body / Edge / Shift.
+- **Phase Bite stores Phase 0.6 on A, not 1** (FR-048 held-load gate, bar 2x unchanged). Loaded under a held note, the
+  first 20 ms still carry the phase-0 wave (the glide turns at most π per 100 ms), whose steepest edge is 0.0308; the
+  rotated wave's own steady step falls as Phase rises, so the after-reference shrank to 0.0139 at Phase 1 (ratio
+  2.21). Measured ratio by A Phase: 1 -> 2.21, 0.85 -> 2.42, 0.7 -> 1.96, 0.6 -> 1.56, 0.5 -> 1.32. 0.6 is the
+  largest value with margin.
+
 **Constraints the spec must honour:**
 
 - **h1 stays exact.** The Anchor is phase-locked to the core's h1 (Phase 3); the stretch law leaves partial 1 at f₀ and
@@ -1211,6 +1255,12 @@ deviation stays under the ruled bound and is click-free; Stiffness 0 and the def
 today's renders of every factory preset (same-binary identity + pre-phase fingerprint tolerance, the Phase 14 method);
 Morph interpolation of both fields bounded per block; RT-safe; CPU inside the Phase 9 budgets.
 
+**Status: ✅ COMPLETE (2026-10-27)** — main loop, no spec directory. Evidence: `profundum_core_stiffness_phase_test.cpp`
+(7 cases, `[phase15]`) and the DSP header-consumer gate (666 cases, green); the full `profundum_tests` gate, per-push +
+`[long]` (219 cases, 72,535,078 assertions, GATE GREEN, 786 s, logs f:\tmp\gate\20261027-185443); the Profundum CPU
+cases run alone (4 of 4 pass: worst stored preset Fault Line MONO 5.78 % against 8 %, Stiff Wire 4.75 %, Phase Bite
+4.98 %); pluginval strictness 5 passed; clang-tidy clean on the 5 changed TUs.
+
 ---
 
 ## Dependency Graph
@@ -1221,7 +1271,7 @@ Morph interpolation of both fields bounded per block; RT-safe; CPU inside the Ph
 Phase 1 ─────────┼─→ Phase 7 (stereo field) ───────────┼─→ Phase 9 (voice/engine) ─→ Phase 10 (scaffold)
 (harmonic core)  └─→ Phase 8 (bass morph) ─────────────┤              │
                                                        │              ▼
-Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13 ✅ → 14 ✅ → 14b ✅ → 15
+Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13 ✅ → 14 ✅ → 14b ✅ → 15 ✅
 Phase 5 (shape + character) ───────────────────────────┤
 Phase 6 (mass + dynamics) ─────────────────────────────┘
 ```

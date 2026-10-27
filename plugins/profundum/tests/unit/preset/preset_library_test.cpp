@@ -74,7 +74,7 @@ CategoryVocabulary buildCategoryVocabulary() {
     auto& ctl = *fixture->controller;
 
     const Steinberg::int32 count = ctl.getParameterCount();
-    REQUIRE(count == 93);
+    REQUIRE(count == 95);
     for (Steinberg::int32 i = 0; i < count; ++i) {
         Steinberg::Vst::ParameterInfo info{};
         REQUIRE(ctl.getParameterInfo(i, info) == Steinberg::kResultOk);
@@ -241,7 +241,7 @@ TEST_CASE("Profundum_PresetHostDrive", "[profundum][preset]") {
     const DecodedPresetState d = decodePresetState(comp);
     REQUIRE(d.ok);
     CHECK(d.version == 3);
-    CHECK(d.bytes == 610);
+    CHECK(d.bytes == 626);   // Phase 15 (Phase 14: 610)
     CHECK(d.morph.editTarget == 0);
     // Seed step non-vacuity: without the step-6 patch the seed would read 0xB455.
     CHECK(d.seed == 0x1234u);
@@ -370,7 +370,8 @@ TEST_CASE("Profundum_GeneratorSmoke", "[profundum][preset]") {
     INFO("why: " << why);
     REQUIRE(ok);
     CHECK(written == pd::allPresets().size());
-    CHECK(written == 71u);   // T024 (SC-010): the whole library; Phase 14 T023 adds two (59-60), Phase 14b eleven kicks
+    CHECK(written == 73u);   // T024 (SC-010): the whole library; Phase 14 T023 adds two (59-60), Phase 14b eleven kicks,
+                             // Phase 15 two (72-73)
     for (const std::string_view category : pd::kCategories) {
         INFO("category " << category);
         CHECK(std::filesystem::is_directory(first.path / std::string(category)));
@@ -1115,6 +1116,7 @@ TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
     std::map<std::string, std::string> libConverted;   // a pre-phase definition now primary in a MorphMod column
     std::vector<std::size_t> added;                    // definitions with no pre-phase row
     std::size_t kicks = 0;                             // Phase 14b: the Kicks category, added after Phase 14
+    std::size_t coreTone = 0;                          // Phase 15: the S-STIFF / S-PHASE showcases
     for (std::size_t i = 0; i < defs.size(); ++i) {
         const pd::ProfundumPresetDef& def = defs[i];
         const ProfundumPluginTest::DecodedPresetState& d = decoded[i];
@@ -1129,6 +1131,14 @@ TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
             CHECK(def.morphModProbeBase.empty());
             CHECK(d.morphMod.source == 0);
             CHECK(!mmIsMorphModColumn(def.primary));
+            continue;
+        }
+        if (pd::capabilityTable()[static_cast<std::size_t>(def.primary)].group == pd::CapabilityGroup::CoreTone) {
+            // Phase 15 (specs/Profundum-roadmap.md): no pre-phase row, Source Off, an S-STIFF / S-PHASE primary.
+            ++coreTone;
+            CHECK_FALSE(prePhase.contains(name));
+            CHECK(def.morphModProbeBase.empty());
+            CHECK(d.morphMod.source == 0);
             continue;
         }
         const auto row = prePhase.find(name);
@@ -1221,6 +1231,7 @@ TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
     }
     CHECK(addedColumns.size() == sel.newPreset.size());
     CHECK(kicks == 11u);
+    CHECK(coreTone == 2u);
     const MmSelection ruleI = mmSelect(probe, pd::MorphModConversionRule::PerColumn);   // comparison only
     std::cout << "# Profundum_PresetDefsRules: Phase 14 library size=" << defs.size()
               << " converted=" << libConverted.size() << " added=" << added.size()
@@ -1767,8 +1778,9 @@ TEST_CASE("Profundum_FactoryLibraryShape", "[profundum][preset]") {
     CHECK(defs.size() >= 53u);
     // Phase 14 T023 (FR-046, SC-018): 58 + the two presets added for M-CYCLE and M-VEL, which no existing preset could
     // carry (evidence/conversions.md, NEW PRESET NEEDED rows; Long Tail carries M-WHEEL, evidence/gate-exclusions.csv).
-    // Phase 14b: + the eleven presets of the Kicks category (definitions 61-71).
-    CHECK(defs.size() == 71u);
+    // Phase 14b: + the eleven presets of the Kicks category (definitions 61-71). Phase 15: + Stiff Wire and Phase Bite
+    // (definitions 72-73), the S-STIFF and S-PHASE showcases.
+    CHECK(defs.size() == 73u);
 
     // The committed tree has the same shape.
     std::map<std::string, std::size_t> perDir;
@@ -1811,7 +1823,7 @@ TEST_CASE("Profundum_FactoryPresetStateFormat", "[profundum][preset]") {
         CHECK(d.version == 3);
         // Phase 14 T024 (SC-007, FR-061): 610 bytes (kStateV3Bytes, plugin_ids.h) and the first int32 read straight
         // from the bytes (little-endian) as the literal 3, not through the version symbol.
-        static_assert(::Profundum::kStateV3Bytes == 610u, "SC-007: every factory Comp is 610 bytes");
+        static_assert(::Profundum::kStateV3Bytes == 626u, "SC-007: every factory Comp is 626 bytes (Phase 15; Phase 14: 610)");
         CHECK(d.bytes == ::Profundum::kStateV3Bytes);
         CHECK(pf.comp.size() == ::Profundum::kStateV3Bytes);
         REQUIRE(pf.comp.size() >= 4u);
@@ -1870,7 +1882,8 @@ TEST_CASE("Profundum_FactoryPresetRoundTrip", "[profundum][preset]") {
 // Phase 14 T023 (FR-040, SC-018): 57 columns (the four MorphMod columns appended after R-SINE), 0 empty; every one of
 // the 53 pre-existing columns still has a primary after the conversions.
 TEST_CASE("Profundum_CoverageMatrixComplete", "[profundum][preset]") {
-    static_assert(pd::kNumCapabilities == 57u, "Phase 14 FR-040: 53 Phase 13 columns + M-ENV, M-CYCLE, M-VEL, M-WHEEL");
+    static_assert(pd::kNumCapabilities == 59u, "Phase 14 FR-040: 53 Phase 13 columns + M-ENV, M-CYCLE, M-VEL, M-WHEEL; "
+                                               "Phase 15: + S-STIFF, S-PHASE");
     static_assert(static_cast<std::size_t>(pd::Capability::MEnv) == 53u,
                   "the MorphMod columns are appended: every Phase 13 column keeps its index");
     constexpr std::size_t kPrePhaseColumns = 53;
@@ -1907,7 +1920,7 @@ TEST_CASE("Profundum_CoverageMatrixComplete", "[profundum][preset]") {
         CHECK(primaries[i] >= 1u);
         covered += primaries[i] >= 1u ? 1u : 0u;
     }
-    CHECK(covered == pd::kNumCapabilities);   // 57, 0 empty
+    CHECK(covered == pd::kNumCapabilities);   // 59, 0 empty
     std::size_t preExisting = 0;
     for (std::size_t i = 0; i < kPrePhaseColumns; ++i) {
         preExisting += primaries[i] >= 1u ? 1u : 0u;

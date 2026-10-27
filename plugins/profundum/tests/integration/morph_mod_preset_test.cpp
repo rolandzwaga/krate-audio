@@ -24,9 +24,9 @@
 //   - Profundum_MorphModPresetTransparency_<k>of64 ([long], nightly, R10): every (definition i, note n) unit,
 //     n 0 = E1, 1 = C3, with (2i + n) % 64 == k, through renderPresetSweep: Source Off vs every source at Amount 0
 //     (wheel 0 and wheel 1), and Source Off vs the source(s) at Amount 1 under Compare A and under Compare B,
-//     std::memcmp-identical on L and R (same binary, same code). Every Comp is 610 bytes, its first int32 is the
-//     literal 3, and its pre-existing regions are
-//     bit-equal to evidence/prephase-decoded.csv. Each shard prints its wall clock.
+//     std::memcmp-identical on L and R (same binary, same code). Every Comp is 626 bytes (610 before Phase 15), its
+//     first int32 is the literal 3, and its pre-existing regions, read at their fields' current offsets, are
+//     bit-equal to evidence/prephase-decoded.csv; an endpoint's Phase 15 bytes (Stiffness, Phase) are 0. Each shard prints its wall clock.
 //   - Profundum_MorphModHarnessFidelity ([long]): every primary of M-ENV / M-CYCLE / M-VEL / M-WHEEL, E1 and C3,
 //     the C-15 lo / hi arms through the processor: the C-5 fidelity arm passes, and over the placed window the
 //     forceLinearCore twin's grid-record resolved.position equals the processor render's within 1e-6.
@@ -61,6 +61,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -98,6 +99,18 @@ struct MmStateRegion {
         {.field="nameA", .offset=P::kStateNamesOffset, .length=P::kEndpointNameBlockBytes},
         {.field="nameB", .offset=P::kStateNamesOffset + P::kEndpointNameBlockBytes, .length=P::kEndpointNameBlockBytes},
     };
+}
+
+/// Phase 15: a harvested region's field at today's layout (offset, length). The endpoint blobs grew 201 -> 209 bytes
+/// (Stiffness and Phase appended), so every region after endpoint A moved; each harvested region is its field's
+/// prefix. {max, 0} for an unknown field.
+[[nodiscard]] std::pair<std::size_t, std::size_t> mmCurrentFieldOf(std::string_view field) {
+    for (const MmStateRegion& r : mmStateRegions()) {
+        if (r.field == field) {
+            return {r.offset, r.length};
+        }
+    }
+    return {std::numeric_limits<std::size_t>::max(), 0};
 }
 
 /// %a hex float (exact).
@@ -397,16 +410,22 @@ void mmRunCloseComparisonShard(std::size_t k) {
         refs.emplace(FpKey{f[0], std::stoi(f[1]), f[2]}, fp);
     }
     REQUIRE(!refs.empty());
+    // Phase 15: each region is read at its field's current offset (mmCurrentFieldOf); fieldLength is today's length.
     struct Region {
         std::size_t offset;
         std::size_t length;
+        std::size_t fieldLength;
         std::string hex;
     };
     std::map<std::string, std::vector<Region>> regions;
     for (const std::vector<std::string>& f : mmReadLines(mmEvidenceDir() / "prephase-decoded.csv")) {
         REQUIRE(f.size() == 5u);
-        regions[f[0]].push_back(
-            Region{.offset=static_cast<std::size_t>(std::stoul(f[2])), .length=static_cast<std::size_t>(std::stoul(f[3])), .hex=f[4]});
+        const auto [at, fieldLength] = mmCurrentFieldOf(f[1]);
+        INFO("harvested field " << f[1]);
+        REQUIRE(at != std::numeric_limits<std::size_t>::max());
+        const auto length = static_cast<std::size_t>(std::stoul(f[3]));
+        REQUIRE(length <= fieldLength);
+        regions[f[0]].push_back(Region{.offset = at, .length = length, .fieldLength = fieldLength, .hex = f[4]});
     }
 
     // A harvested preset missing from allPresets() fails.
@@ -817,22 +836,28 @@ constexpr std::array<std::int32_t, 4> kMmSources{1, 2, 3, ::Profundum::kMorphMod
 void mmRunTransparencyShard(std::size_t k) {
     namespace P = ::Profundum;
     namespace Pd = ::Profundum::PresetDefs;
-    static_assert(P::kStateV3Bytes == 610u, "SC-007: every factory Comp is 610 bytes");
+    static_assert(P::kStateV3Bytes == 626u, "SC-007: every factory Comp is 626 bytes (Phase 15; Phase 14: 610)");
     enableFTZDAZ();
     const std::vector<Pd::ProfundumPresetDef>& defs = Pd::allPresets();
     REQUIRE(!defs.empty());
 
     // FR-061 reference: the pre-phase decoded regions (evidence/prephase-decoded.csv, T005), parsed at run time.
+    // Phase 15: each region is read at its field's current offset (mmCurrentFieldOf); fieldLength is today's length.
     struct Region {
         std::size_t offset;
         std::size_t length;
+        std::size_t fieldLength;
         std::string hex;
     };
     std::map<std::string, std::vector<Region>> regions;
     for (const std::vector<std::string>& f : mmReadLines(mmEvidenceDir() / "prephase-decoded.csv")) {
         REQUIRE(f.size() == 5u);
-        regions[f[0]].push_back(
-            Region{.offset=static_cast<std::size_t>(std::stoul(f[2])), .length=static_cast<std::size_t>(std::stoul(f[3])), .hex=f[4]});
+        const auto [at, fieldLength] = mmCurrentFieldOf(f[1]);
+        INFO("harvested field " << f[1]);
+        REQUIRE(at != std::numeric_limits<std::size_t>::max());
+        const auto length = static_cast<std::size_t>(std::stoul(f[3]));
+        REQUIRE(length <= fieldLength);
+        regions[f[0]].push_back(Region{.offset = at, .length = length, .fieldLength = fieldLength, .hex = f[4]});
     }
     REQUIRE(!regions.empty());
 
@@ -856,7 +881,7 @@ void mmRunTransparencyShard(std::size_t k) {
         const std::string name(defs[i].name);
         INFO("preset " << name);
         const std::vector<std::uint8_t> comp = presetCompOf(defs[i]);
-        CHECK(comp.size() == 610u);
+        CHECK(comp.size() == 626u);   // Phase 15 (Phase 14: 610)
         REQUIRE(comp.size() == P::kStateV3Bytes);
         CHECK(mmFirstWord(comp) == 3);
         const DecodedPresetState d = decodePresetState(comp);
@@ -878,6 +903,13 @@ void mmRunTransparencyShard(std::size_t k) {
                 if (mmHexBytes(comp, g.offset, g.length) != g.hex) {
                     ++regionMismatches;
                     std::cout << "# REGION MISMATCH " << name << " at " << g.offset << " (" << g.length << " bytes)\n";
+                }
+                // Phase 15: a grown field's new bytes (an endpoint's Stiffness and Phase) hold 0, today's sound.
+                for (std::size_t b = g.offset + g.length; b < g.offset + g.fieldLength; ++b) {
+                    if (comp[b] != 0u) {
+                        ++regionMismatches;
+                        std::cout << "# NON-ZERO GROWN BYTE " << name << " at " << b << '\n';
+                    }
                 }
             }
         }

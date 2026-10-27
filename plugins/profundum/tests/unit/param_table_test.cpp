@@ -48,7 +48,7 @@ std::vector<std::size_t> changedLeaves(const P::LeafBits& after) {
 // FR-010, FR-012, FR-054; plan 4.3).
 TEST_CASE("Profundum_SoundParamTableRouting", "[profundum][params]") {
     SECTION("SixtyRowsCoverAllLeaves") {
-        REQUIRE(P::kSoundRows.size() == 60);
+        REQUIRE(P::kSoundRows.size() == 62);
         std::array<int, P::kNumLeaves> hits{};
         for (const auto& row : P::kSoundRows) {
             REQUIRE(static_cast<std::size_t>(row.leaf) < P::kNumLeaves);
@@ -76,7 +76,7 @@ TEST_CASE("Profundum_SoundParamTableRouting", "[profundum][params]") {
                 noteBand.insert(static_cast<Steinberg::Vst::ParamID>(id));
             }
         }
-        CHECK(routed == 93);  // Phase 14 FR-020: + the nine morph-modulation IDs 1003-1011
+        CHECK(routed == 95);  // Phase 14 FR-020: + the nine morph-modulation IDs 1003-1011; Phase 15: + 209, 210
 
         std::set<Steinberg::Vst::ParamID> wantNoteBand;
         for (Steinberg::Vst::ParamID id = 400; id <= 403; ++id) {
@@ -234,7 +234,7 @@ struct ExpectedParam {
     int leaf;
 };
 
-/// SC-005: the explicit 93-row table (titles from the spec ID table, FR-009 names; Phase 14 C-12 adds 1003-1011).
+/// SC-005: the explicit 95-row table (titles from the spec ID table, FR-009 names; Phase 14 C-12 adds 1003-1011; Phase 15 adds 209-210).
 std::vector<ExpectedParam> expectedParams() {
     const double rampDefault = P::normalizedFromPlain(P::PlainLaw{.lo = 5.0, .hi = 2000.0, .logOffset = 0.0, .logarithmic = true}, 40.0);
     const double attackDefault = P::morph_mod_detail::defaultNormalizedFor(P::kMorphModTimeLaw, 10.0f);
@@ -257,7 +257,7 @@ std::vector<ExpectedParam> expectedParams() {
         {.id = 103, .title = "Clean/Violent", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.5, .leaf = kNoLeafRow},
         {.id = 104, .title = "Mass", .units = "", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 52},
         {.id = 105, .title = "Morph Position", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = kNoLeafRow},
-        // ---- core 200-208 ----
+        // ---- core 200-210 (209-210: Phase 15) ----
         {.id = 200, .title = "Depth", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 0},
         {.id = 201, .title = "Body", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 1},
         {.id = 202, .title = "Body Curvature", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 2},
@@ -267,6 +267,8 @@ std::vector<ExpectedParam> expectedParams() {
         {.id = 206, .title = "Excitation Mix", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 6},
         {.id = 207, .title = "Excitation Drive", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 7},
         {.id = 208, .title = "Excitation Asymmetry", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 8},
+        {.id = 209, .title = "Stiffness", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 62},
+        {.id = 210, .title = "Phase", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 63},
         // ---- anchor 300-306 ----
         {.id = 300, .title = "Anchor Waveform", .units = "", .stepCount = 4, .flags = kFlagL, .def = 0.0, .leaf = 55},
         {.id = 301, .title = "Anchor Mode", .units = "", .stepCount = 3, .flags = kFlagL, .def = 0.0, .leaf = 56},
@@ -413,8 +415,8 @@ double normOfLeafPlain(ParamID id, double x) {
 TEST_CASE("Profundum_ParamTableConformance", "[profundum][params]") {
     const TableController h;
     const std::vector<ExpectedParam> table = expectedParams();
-    REQUIRE(table.size() == 93);
-    REQUIRE(h.ctl->getParameterCount() == 93);
+    REQUIRE(table.size() == 95);
+    REQUIRE(h.ctl->getParameterCount() == 95);
 
     SECTION("PerIdTable") {
         for (const ExpectedParam& e : table) {
@@ -452,7 +454,7 @@ TEST_CASE("Profundum_ParamTableConformance", "[profundum][params]") {
             REQUIRE(info.id < static_cast<ParamID>(P::kNumRoutedIds));
             CHECK(P::kParamRoutes[info.id].kind != P::RouteKind::None);
         }
-        CHECK(seen.size() == 93);
+        CHECK(seen.size() == 95);
 
         // FR-054: the registered IDs in 400-499 are exactly {400-403, 410-417, 420-426}; no velocity ID.
         std::set<ParamID> noteBand;

@@ -254,7 +254,7 @@ TEST_CASE("Profundum_ParamDenormRoundTrip", "[profundum][params]") {
 
     SECTION("RegisteredInfo") {
         const ControllerHandle h;
-        REQUIRE(h.ctl->getParameterCount() == 93);  // Phase 11 (FR-001): 8 Phase 10 + 76 new; Phase 14: + 9
+        REQUIRE(h.ctl->getParameterCount() == 95);  // Phase 11 (FR-001): 8 Phase 10 + 76 new; Phase 14: + 9; Phase 15: + 2
 
         std::array<bool, kAllIds.size()> seen{};
         std::array<bool, ::Profundum::kNumRoutedIds> seenNew{};
@@ -294,7 +294,7 @@ TEST_CASE("Profundum_ParamDenormRoundTrip", "[profundum][params]") {
         for (const bool s : seen) {
             REQUIRE(s);
         }
-        REQUIRE(newIds == 85);
+        REQUIRE(newIds == 87);   // Phase 15: + 209, 210
 
         for (int k = 0; k <= 7; ++k) {
             CAPTURE(k);
@@ -492,8 +492,8 @@ TEST_CASE("Profundum_ParamDenormRoundTrip", "[profundum][params]") {
             ++continuousRows;
             laws.push_back({.id = row.id, .law = ::Profundum::plainLawOf(f)});
         }
-        // 60 rows minus 12 enum / bool lists and the 2 Sync Rate pairs: the 46 F32 leaves.
-        REQUIRE(continuousRows == 60 - 14);
+        // 62 rows (Phase 15: + Stiffness, Phase) minus 12 enum / bool lists and the 2 Sync Rate pairs: the 48 F32 leaves.
+        REQUIRE(continuousRows == 62 - 14);
 
         const ControllerHandle h;
         for (const NamedLaw& nl : laws) {

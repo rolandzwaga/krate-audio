@@ -61,7 +61,7 @@ template <std::size_t... Ns>
 
 }  // namespace sound_table_detail
 
-inline constexpr std::array<SoundParamRow, 60> kSoundRows = sound_table_detail::concatRows(
+inline constexpr std::array<SoundParamRow, 62> kSoundRows = sound_table_detail::concatRows(
     kMorphSoundRows, kCoreSoundRows, kAnchorSoundRows, kNoteRows, kFoldShapeSoundRows, kCharacterSoundRows,
     kDynamicsSoundRows, kFieldRows, kMotionRows);
 
@@ -186,12 +186,13 @@ namespace sound_table_detail {
 
 }  // namespace sound_table_detail
 
-static_assert(kSoundRows.size() == 60, "plan 4.3: 60 sound rows");
+static_assert(kSoundRows.size() == 62, "plan 4.3: 60 sound rows; Phase 15: + Stiffness, Phase");
 static_assert(sound_table_detail::rowIdsUniqueAndInBand(), "plan 4.3: sound row IDs unique and in their bands");
-static_assert(sound_table_detail::leavesCoveredOnce(), "plan 4.3: sound rows cover leaves {0..61} exactly once");
+static_assert(sound_table_detail::leavesCoveredOnce(), "plan 4.3: sound rows cover leaves {0..63} exactly once");
 static_assert(sound_table_detail::soundRoutesPointBack(), "plan 4.3: every sound row is routed to itself");
-static_assert(sound_table_detail::routedCount() == 93,
-              "plan 4.3 / Phase 14 plan 4.6: 93 routed IDs (8 Phase 10 + 76 Phase 11 + 9 Morph Modulation)");
+static_assert(sound_table_detail::routedCount() == 95,
+              "plan 4.3 / Phase 14 plan 4.6 / Phase 15: 95 routed IDs (8 Phase 10 + 76 Phase 11 + 9 Morph Modulation"
+              " + 2 Stiffness / Phase)");
 static_assert(sound_table_detail::noteBandExact(), "FR-054: routed 400-499 IDs are {400-403, 410-417, 420-426}");
 
 // ------------------------------------------------------------------------------

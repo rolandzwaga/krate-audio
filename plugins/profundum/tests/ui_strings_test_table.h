@@ -58,7 +58,7 @@ inline constexpr std::array<UiTooltip, 26> kMainTooltips{{
 }};
 
 /// D2 5.2: every Advanced control, by bound ID or session tag.
-inline constexpr std::array<UiTooltip, 78> kAdvancedTooltips{{
+inline constexpr std::array<UiTooltip, 80> kAdvancedTooltips{{
     UiTooltip{0, "Output Gain: final level after the limiter, from silence up to 0 dB. It only turns down, so it never pushes past the Output Ceiling."},
     UiTooltip{2, "Polyphony: how many notes can sound at once in Poly (1 to 8). Mono ignores it."},
     UiTooltip{3, "Output Ceiling: the highest true-peak level the output reaches (\xE2\x88\x92" "12 to 0 dBTP, default \xE2\x88\x92" "1). The limiter holds everything under it."},
@@ -72,6 +72,8 @@ inline constexpr std::array<UiTooltip, 78> kAdvancedTooltips{{
     UiTooltip{206, "Excitation Mix: blends the driven excitation into the clean tone. 0 is clean."},
     UiTooltip{207, "Excitation Drive: how hard the excitation stage is driven. More drive grows more new harmonics; it is heard only when Excitation Mix is above 0."},
     UiTooltip{208, "Excitation Asymmetry: biases the drive for uneven, even-harmonic grit."},
+    UiTooltip{209, "Stiffness: bends the upper harmonics sharp of the harmonic series, as a stiff string or a metal bar does, for a metallic, bell-edged bass. Higher notes are stiffer; 0 keeps the exact series."},
+    UiTooltip{210, "Phase: turns the upper harmonics against the fundamental. The clean tone hardly changes, but the waveform grows peakier, so Fold and Character bite harder. 0 is the smoothest."},
     UiTooltip{300, "Anchor Waveform: the shape of the sub tone: Sine (purest), Triangle, Rounded Sine, Asymmetric Sine or Octave Down (one octave below the note)."},
     UiTooltip{301, "Anchor Mode: how the sub tone behaves: Lock stays constant, Follow tracks the pitch you hear, Punch is louder at the note start, Ghost fades in after it."},
     UiTooltip{302, "Anchor Level: level of the pure sub tone under the bass. It stays centred and outside the drive stages."},
@@ -195,12 +197,14 @@ struct SectionMember {
     const char* container;
     std::int32_t tag;
 };
-inline constexpr std::array<SectionMember, 79> kFr004Members{{
+inline constexpr std::array<SectionMember, 81> kFr004Members{{
     SectionMember{"section-core-spectrum", 200},
     SectionMember{"section-core-spectrum", 201},
     SectionMember{"section-core-spectrum", 202},
     SectionMember{"section-core-spectrum", 203},
     SectionMember{"section-core-spectrum", 204},
+    SectionMember{"section-core-spectrum", 209},   // Phase 15
+    SectionMember{"section-core-spectrum", 210},   // Phase 15
     SectionMember{"section-core-spectrum", 205},
     SectionMember{"section-core-spectrum", 500},
     SectionMember{"section-core-spectrum", 102},

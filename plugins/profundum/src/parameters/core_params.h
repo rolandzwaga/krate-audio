@@ -1,10 +1,11 @@
 #pragma once
 
 // ==============================================================================
-// Profundum - Core section pack (IDs 200-208)   FR-001, FR-002, FR-005; plan 4.2
+// Profundum - Core section pack (IDs 200-210)   FR-001, FR-002, FR-005; plan 4.2
 // ==============================================================================
-// Nine E-parameters (morphed, addressed through Edit Target) over the recipe and
-// excitation leaves 0-8 of the MorphState table (morph_state.h:159-176). Ranges,
+// Eleven E-parameters (morphed, addressed through Edit Target) over the recipe and
+// excitation leaves 0-8 of the MorphState table (morph_state.h:159-176) and, since
+// Phase 15, Stiffness and Phase (leaves 62-63, specs/Profundum-roadmap.md). Ranges,
 // laws and defaults come from lawOf(leaf) / kDefaultLeafBits only (FR-002, FR-003);
 // no range literal lives here. The three entry points are thin wrappers over the
 // generic row path of sound_param_row.h.
@@ -20,7 +21,7 @@
 
 namespace Profundum {
 
-inline constexpr std::array<SoundParamRow, 9> kCoreSoundRows{{
+inline constexpr std::array<SoundParamRow, 11> kCoreSoundRows{{
     {kCoreDepthId, 0, kNoLeaf, STR16("Depth"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
     {kCoreBodyId, 1, kNoLeaf, STR16("Body"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
     {kCoreBodyCurvatureId, 2, kNoLeaf, STR16("Body Curvature"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
@@ -31,14 +32,16 @@ inline constexpr std::array<SoundParamRow, 9> kCoreSoundRows{{
     {kCoreExcitationDriveId, 7, kNoLeaf, STR16("Excitation Drive"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
     {kCoreExcitationAsymmetryId, 8, kNoLeaf, STR16("Excitation Asymmetry"), STR16("%"), nullptr, 0,
      DisplayUnit::Percent},
+    {kCoreStiffnessId, 62, kNoLeaf, STR16("Stiffness"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
+    {kCorePhaseId, 63, kNoLeaf, STR16("Phase"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
 }};
 
 // ---- compile-time proofs (FR-002; tasks.md G7 rules a-d) ----
 
-// (a) the rows cover leaves {0..8} exactly: each once, no other leaf.
+// (a) the rows cover leaves {0..8, 62, 63} exactly: each once, no other leaf.
 static_assert(
     [] {
-        constexpr std::array<std::uint8_t, 9> want{0, 1, 2, 3, 4, 5, 6, 7, 8};
+        constexpr std::array<std::uint8_t, 11> want{0, 1, 2, 3, 4, 5, 6, 7, 8, 62, 63};
         std::size_t used = 0;
         for (const auto& r : kCoreSoundRows) {
             used += (r.leaf != kNoLeaf ? 1u : 0u) + (r.leaf2 != kNoLeaf ? 1u : 0u);
@@ -57,7 +60,7 @@ static_assert(
         }
         return true;
     }(),
-    "core pack: rows cover leaves {0..8} exactly once");
+    "core pack: rows cover leaves {0..8, 62, 63} exactly once");
 
 // (b) / (d) every list row's label count matches its leaf; no core row is a list, so every row is an F32 leaf.
 static_assert(
@@ -86,9 +89,10 @@ static_assert(
 // Each row names the leaf the spec ID table says it does (morph_state.h:159-176).
 static_assert(
     [] {
-        constexpr std::array<std::string_view, 9> names{
+        constexpr std::array<std::string_view, 11> names{
             "recipe.depth",   "recipe.body",    "recipe.bodyCurvature", "recipe.bodyEmphasis",  "recipe.edge",
-            "recipe.shift",   "excitation.mix", "excitation.drive",     "excitation.asymmetry"};
+            "recipe.shift",   "excitation.mix", "excitation.drive",     "excitation.asymmetry", "stiffness",
+            "phase"};
         for (std::size_t i = 0; i < kCoreSoundRows.size(); ++i) {
             if (std::string_view(lawOf(kCoreSoundRows[i].leaf).name) != names[i]) {
                 return false;

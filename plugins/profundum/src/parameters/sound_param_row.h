@@ -44,7 +44,7 @@ namespace Profundum {
 using MorphState = Krate::DSP::MorphState;
 using FieldInfo = Krate::DSP::MorphState::FieldInfo;
 
-inline constexpr std::size_t kNumLeaves = Krate::DSP::kMorphLeafFieldCount;  // 62 (morph_state.h:133)
+inline constexpr std::size_t kNumLeaves = Krate::DSP::kMorphLeafFieldCount;  // 64 (morph_state.h; Phase 15: + 2)
 inline constexpr std::uint8_t kNoLeaf = 0xFF;
 using LeafBits = std::array<std::uint32_t, kNumLeaves>;
 

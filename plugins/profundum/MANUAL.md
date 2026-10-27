@@ -36,7 +36,7 @@ Control layer ────── Bass Morph (A → B) → macros → Motion → 
 Pitch ────────────── Drop: each note starts above its pitch and falls onto it
   │
   ▼
-The Mass ─────────── core spectrum (Depth, Body, Edge, Spectral Shift) + excitation
+The Mass ─────────── core spectrum (Depth, Body, Edge, Spectral Shift, Stiffness, Phase) + excitation
   │                  → Shape → (+ Anchor Fold Feed) → Harmonic Fold → Character
   │
 The Anchor ───────── a separate sub tone beside the Mass, identical in left and right
@@ -229,6 +229,8 @@ The core is the harmonic recipe of the Mass.
 | **Body Emphasis** | −100 – 0 % | 0 % | At 0 all harmonics sound; toward −100 % the even harmonics fade for a hollower tone |
 | **Edge** | 0 – 100 % | 50 % | Lifts the upper harmonics that give the bass its bite |
 | **Spectral Shift** | −100 – +100 % | 0 % | Moves the Body and Edge regions down (darker) or up (brighter) together |
+| **Stiffness** | 0 – 100 % | 0 % | Bends the upper harmonics sharp of the harmonic series, as a stiff string or a metal bar does, for a metallic, bell-edged bass. Higher notes are stiffer, as on a piano; 0 keeps the exact series |
+| **Phase** | 0 – 100 % | 0 % | Turns the upper harmonics against the fundamental. The clean tone hardly changes, but the waveform grows peakier, so Harmonic Fold and Character bite harder. 0 is the smoothest. A change on a held note glides over at most 100 ms |
 | **Harmonic Fold** | 0 – 100 | 0 | Folds the waveform back on itself to add new harmonics. 0 is clean |
 | **Tight/Loose** | 0 – 100 % | 50 % | The fourth macro: toward Tight, shorter attack, decay and release, a harder transient and more compression; toward Loose the reverse |
 
@@ -484,7 +486,7 @@ A·B. **Save** writes the complete current state as a user preset.
 
 ### Factory Library
 
-71 presets ship with the plugin in seven categories: **Sub**, **Resonant**, **Harmonic**, **Driven**, **Plucked**,
+73 presets ship with the plugin in seven categories: **Sub**, **Resonant**, **Harmonic**, **Driven**, **Plucked**,
 **Animated** and **Kicks**. Each one is built around one capability of the instrument and names it at the start of its comment, so
 the library also works as a tour of the controls. Every preset is rendered during the build and checked to make sound,
 stay bounded, differ measurably from the others, keep its low end intact in a mono sum and make its named capability
@@ -538,6 +540,7 @@ to travel between them: B sits within 3 dB of A's level, so what changes is the 
 | Envelope Restart | NoteMemory EnvelopeRetriggerOnly: MONO with Retrigger Reset; each note restarts the envelope but not the oscillator, a Crush-grained, folded edge, wide. Morph to B rounds it into a mono Tube body. |
 | Dark To Bright | Macros Dark Bright: a heavy harmonic body with the Dark Bright macro at 0.5; endpoint B is a darker, rounder, wider twin an octave deep. |
 | Poly Spread | Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it there (Amount 1, an instant attack, Sustain 1). A is a hollow, Tube-coloured, folded body spread wide in SPREAD over a Rounded Anchor, played as chords in Poly; B spreads darker Tube chords. |
+| Stiff Wire | Core Stiffness: the upper harmonics bend sharp of the series, as on a stiff steel string, for a metallic, bell-edged bass that grows stiffer up the keyboard. Morph to B bends them further and bites, wide. |
 
 #### Driven
 
@@ -557,6 +560,7 @@ to travel between them: B sits within 3 dB of A's level, so what changes is the 
 | Poly Ignition | Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it there (Amount 1, an instant attack, Sustain 1). A is full edge excitation through Bite on a WIDE image over a Rounded Anchor, a driven chord bass in Poly; B warms the chords with Tube, an octave deep. |
 | Poly Rectifier | Character Rectify: full Rectify on a brighter body over a Triangle Anchor, wide, rectified chords in Poly. Morph to B darkens them into mono chords under a lighter Rectify. |
 | Struck Fold | Morph Mod Velocity: how hard each note is struck sets how far it morphs from A toward B (Amount 1; velocity 127 reaches B). A is a warm, lightly folded Tube bass over a lopsided Anchor; struck hard it cracks into B, a Fracture-split fold with a 7 semitone snap, wide. |
+| Phase Bite | Core Phase 60: the upper harmonics turned against the fundamental make a peaky wave, so the Tube at 0.6 over Harmonic Fold 15 bites much harder than into the same spectrum smooth. Morph to B smooths the phase into a dark, wide Crush. |
 
 #### Plucked
 

@@ -413,7 +413,7 @@ TEST_CASE("Profundum_DefaultsMatchEngine", "[profundum][params]") {
         {
             const WiringController h;
             const Steinberg::int32 count = h.ctl->getParameterCount();
-            REQUIRE(count == 93);
+            REQUIRE(count == 95);
             for (Steinberg::int32 i = 0; i < count; ++i) {
                 Steinberg::Vst::ParameterInfo info{};
                 REQUIRE(h.ctl->getParameterInfo(i, info) == Steinberg::kResultOk);

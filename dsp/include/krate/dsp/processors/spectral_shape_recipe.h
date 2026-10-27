@@ -160,6 +160,22 @@ public:
     /// guarantees the recipe never writes NaN. Writes min(out.size(), kRecipeMaxPartials) elements.
     /// @note Real-time safe
     static void evaluateMask(float f0Hz, double sampleRate, std::span<float> out) noexcept {
+        evaluateMaskAt(f0Hz, sampleRate, out, [](std::size_t harmonic) { return static_cast<float>(harmonic); });
+    }
+    /// Profundum Phase 15 (append-only): evaluateMask with partial i at relativeFrequency[i]·f0
+    /// instead of (i + 1)·f0 (a Stiffness stretch), so the guard and the cap act on the stretched
+    /// frequencies. Writes min(out.size(), relativeFrequency.size(), kRecipeMaxPartials) elements.
+    /// @note Real-time safe
+    static void evaluateMaskStretched(float f0Hz, double sampleRate, std::span<const float> relativeFrequency,
+                                      std::span<float> out) noexcept {
+        evaluateMaskAt(f0Hz, sampleRate, out.first(std::min(out.size(), relativeFrequency.size())),
+                       [&](std::size_t harmonic) { return relativeFrequency[harmonic - 1]; });
+    }
+
+private:
+    /// evaluateMask's body with harmonic h at relativeOf(h)·f0 (identity: evaluateMask).
+    template <class RelativeOf>
+    static void evaluateMaskAt(float f0Hz, double sampleRate, std::span<float> out, RelativeOf relativeOf) noexcept {
         const std::size_t n = std::min(out.size(), kRecipeMaxPartials);
         if (n == 0)
             return;
@@ -178,10 +194,11 @@ public:
         out[0] = 1.0f;  // h1 exempt from both factors
         for (std::size_t i = 1; i < n; ++i) {
             const std::size_t harmonic = i + 1;
-            const float nf = static_cast<float>(harmonic) * f0;
+            const float relative = relativeOf(harmonic);
+            const float nf = relative * f0;
             float m = 1.0f;
             if (guarded)
-                m = std::exp2(-kGuardSlopePerOctave * octBelow * std::log2(static_cast<float>(harmonic)));
+                m = std::exp2(-kGuardSlopePerOctave * octBelow * std::log2(relative));
             if (nf >= capHz) {
                 m = 0.0f;
             } else if (nf > taperStartHz) {
@@ -197,6 +214,8 @@ public:
             out[i] = m;
         }
     }
+
+public:
     /// out[n] = shape[n] * mask[n], renormalised to P0 (sum in double). out may alias shape.
     /// Writes min(shape.size(), mask.size(), out.size(), kRecipeMaxPartials) elements.
     /// @note Real-time safe

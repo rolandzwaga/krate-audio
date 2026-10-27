@@ -622,6 +622,8 @@ add_executable(dsp_systems_tests
     unit/systems/profundum_core_test.cpp
     unit/systems/profundum_core_spectral_test.cpp
     unit/systems/profundum_core_perf_test.cpp
+    # Profundum Phase 15 (specs/Profundum-roadmap.md): Stiffness + Phase alignment.
+    unit/systems/profundum_core_stiffness_phase_test.cpp
     # Profundum Phase 2 (specs/profundum-phase2-edge-fold): ProfundumCore
     # excitation + the HarmonicFold chain. ENUMERATED, not globbed - an
     # unregistered TU silently drops out of the build and its cases never run.

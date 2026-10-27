@@ -464,7 +464,7 @@ TEST_CASE("Profundum_PresetBrowserSave", "[profundum][browser]") {
         const DecodedPresetState savedDecoded = lpsDecode(saved);
         REQUIRE(savedDecoded.ok);
         CHECK(savedDecoded.version == 3);
-        CHECK(savedDecoded.bytes == 610u);
+        CHECK(savedDecoded.bytes == 626u);
         CHECK(saved.size() == ::Profundum::kStateV3Bytes);
 
         const DecodedPresetState procDecoded = lpsDecode(writeV2Stream(*pair.fx.proc));
@@ -734,7 +734,7 @@ TEST_CASE("Profundum_FactoryPresetScan", "[profundum][browser]") {
         emptySubcategory += p.subcategory.empty() ? 1u : 0u;
         seen.insert(p.subcategory);
     }
-    CHECK(n == 71u);
+    CHECK(n == 73u);
     CHECK(emptySubcategory == 0u);
     for (const std::string& category : config.subcategoryNames) {
         INFO("category " << category);
@@ -746,7 +746,7 @@ TEST_CASE("Profundum_FactoryPresetScan", "[profundum][browser]") {
 
 #ifdef _WIN32
 // SC-014 installed half (release gate, hidden): the default factory directory is %PROGRAMDATA%\Krate Audio\Profundum,
-// and a scan with no override lists 71 factory presets under exactly the seven categories.
+// and a scan with no override lists 73 factory presets under exactly the seven categories.
 TEST_CASE("Profundum_InstalledPresetTree", "[profundum][browser][.install]") {
     const std::string programData = pbReadEnv("PROGRAMDATA");
     REQUIRE_FALSE(programData.empty());
@@ -767,7 +767,7 @@ TEST_CASE("Profundum_InstalledPresetTree", "[profundum][browser][.install]") {
         CHECK_FALSE(p.subcategory.empty());
         seen.insert(p.subcategory);
     }
-    CHECK(n == 71u);
+    CHECK(n == 73u);
     const std::set<std::string> six(config.subcategoryNames.begin(), config.subcategoryNames.end());
     CHECK(seen == six);
 }
