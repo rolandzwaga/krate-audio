@@ -71,7 +71,9 @@ const results = await parallel(
 1. Read plugins/${p}/version.json and report its version. ${want ? `The requested release version is ${want} — set versionMatches accordingly.` : 'No specific version requested — set versionMatches true.'}
 2. Build: ${CMAKE} --build ${BUILD_DIR} --config Release --target ${m.testTarget}
    Report compiler errors and the WARNING count (zero required).
-3. Run the ${m.testTarget} executable; report the Catch2 summary line (use tail, do not grep repeatedly).
+3. Run the ${m.testTarget} suite SHARDED (never one serial exe; ${requested.length} plugin agent(s) run at once, so each takes a share of the machine):
+     node tools/run-gate.js --share ${requested.length} --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' ${m.testTarget} 2>&1 | tail -20
+   Report its GATE GREEN / GATE RED line verbatim (one run, do not grep repeatedly). Timing tests are excluded here on purpose (concurrent agents make them measure load); say so.
 4. Build the plugin bundle, then run pluginval strictness 5:
    tools/pluginval.exe --strictness-level 5 --validate "${BUILD_DIR}/VST3/Release/${m.bundle}"
    Report pass/fail and the key line on failure. (If the post-build copy to Program Files failed, the bundle in the build dir is still valid — use that path.)

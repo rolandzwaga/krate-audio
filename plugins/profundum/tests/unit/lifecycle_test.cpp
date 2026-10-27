@@ -514,7 +514,7 @@ TEST_CASE("Profundum_ProcessorLifecycle", "[profundum][processor]") {
         REQUIRE(stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr) == Steinberg::kResultOk);
         REQUIRE(f.proc->setState(stream) == Steinberg::kResultOk);
         {
-            // T017: whatever version was loaded, the processor saves the current layout (574-byte v3 since Phase 12).
+            // T017: whatever version was loaded, the processor saves the current layout (v3 since Phase 12, 610 bytes since Phase 14).
             auto saved = Steinberg::owned(new Steinberg::MemoryStream());
             REQUIRE(f.proc->getState(saved) == Steinberg::kResultOk);
             REQUIRE(std::cmp_equal(saved->getSize(), ::Profundum::kStateV3Bytes));

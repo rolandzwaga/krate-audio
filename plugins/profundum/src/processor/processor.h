@@ -25,6 +25,7 @@
 #include "parameters/endpoint_names.h"  // Phase 12 T019 (FR-047)
 #include "parameters/global_params.h"
 #include "parameters/macro_params.h"
+#include "parameters/morph_mod_params.h"  // Phase 14 T011 (FR-020 - FR-023)
 #include "parameters/morph_params.h"
 #include "parameters/note_params.h"
 #include "parameters/performance_params.h"
@@ -216,6 +217,7 @@ private:
     std::array<EndpointParams, 2> endpoints_{};  // [A, B]: the authoritative slots (FR-025, FR-040)
     NoteParams noteParams_{};
     MorphControlParams morphParams_{};
+    MorphModParams morphModParams_{};  // Phase 14 (FR-020): 1003-1011, persisted in the C-10 block
     PerformanceParams perfParams_{};
     std::atomic<std::uint8_t> compareMode_{static_cast<std::uint8_t>(CompareMode::AB)};  // FR-031
     std::atomic<std::uint32_t> endpointRejections_{0};  // FR-013 / FR-067

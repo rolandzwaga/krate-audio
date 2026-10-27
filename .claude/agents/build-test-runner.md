@@ -47,9 +47,17 @@ ALL test executables land in `build/windows-x64-release/bin/Release/` — not in
 
 - **No tests without a clean build.** Build first; fix all errors AND warnings; only then run tests.
   If a target's tests don't appear, check the build output for errors first — do not blame the CMake cache.
-- **Read the Catch2 summary, don't grep it.** Run the exe with `2>&1 | tail -5`. The last line is
-  `All tests passed (N assertions in M test cases)` or `test cases: M | N passed | K failed`. One run, one look.
-- **Run one suite** by passing the Catch2 case-name filter positionally: `dsp_core_tests.exe "SomeTest*"`.
+- **Run suites SHARDED, always** (user ruling, 2026-10-26): every multi-case run goes through
+  `node tools/run-gate.js --filter '<filter>~[performance]~[perf]~[benchmark]~[!benchmark]' <exe> [<exe> ...] 2>&1 | tail -40`.
+  It splits each exe into Catch2 shards over a cpu-count worker pool and ends with `GATE GREEN ...` or `GATE RED ...`
+  plus every failed assertion (per-shard logs in the `--out` dir, default `f:/tmp/gate/<stamp>`). Name several exes in
+  ONE command; when other agents run gates at the same time, add `--share <N>`. Never run a whole exe, or a tag across
+  an exe, as one serial process: that is one core of 32 and turns a 2-minute gate into a 14-minute one.
+- **Timing tests run alone, never sharded:** `node tools/run-cpu-tests.js [<exe>]` (the gate filter excludes them).
+- **Read the summary, don't grep it.** One run, one look: the GATE line, or for a single case the Catch2 line
+  `All tests passed (N assertions in M test cases)` / `test cases: M | N passed | K failed`.
+- **Run one case** by passing the Catch2 case-name filter positionally: `dsp_core_tests.exe "SomeTest*"` (the only
+  direct exe run).
   Do NOT use `ctest -R dsp_core_tests` — CTest registers individual case names via `catch_discover_tests`,
   so `-R dsp_core_tests` matches zero tests and reports success (false pass). The DSP suite is 5 per-layer
   exes (core/primitives/processors/systems/effects); build/run just the layer you touched.

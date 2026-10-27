@@ -3,8 +3,12 @@
 // ==============================================================================
 // Profundum_Phase11PathsDoNotAllocate: 64 process() blocks under
 // TestHelpers::AllocationScope exercise every FR-062 audio-thread path:
-//   - parameter routing of all 84 routed IDs (one point each, values rotating per
+//   - parameter routing of all 95 routed IDs (one point each, values rotating per
 //     block), passes 1 and 2, handleSoundParamChange on both endpoints;
+//   - Phase 14 (T012; SC-001 (c)): the nine Morph Modulation IDs 1003-1011 among them, with
+//     Source rotated 0-4 per block, Amount alternating -1 / +1 and Mod Wheel moved every
+//     block, so the Mod Wheel hand-over (C-7) flips inside the scopes; the morph modulation
+//     runs bypassed under compare A (scope 1) and live under A.B (scope 2, C-8);
 //   - Edit Target (1001) switches A <-> B every block;
 //   - the copy (requested through processor->notify BEFORE the scope, applied by
 //     applyPendingCopy in the first scoped block);
@@ -45,7 +49,9 @@
 #include <pluginterfaces/vst/ivstaudioprocessor.h>
 #include <public.sdk/source/vst/hosting/hostclasses.h>
 
+#include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -61,7 +67,7 @@ constexpr std::size_t kBlock = 256;
 constexpr std::size_t kBlocks = 64;
 constexpr std::size_t kCompareSwitchBlock = 32;  // blocks [0, 32) compare A, [32, 64) compare A.B
 
-/// Every ID the route table routes (FR-010): 84 of them.
+/// Every ID the route table routes (FR-010): 95 of them (Phase 14: + 1003-1011; Phase 15: + 209-210).
 [[nodiscard]] std::vector<Steinberg::Vst::ParamID> routedIds() {
     std::vector<Steinberg::Vst::ParamID> ids;
     for (std::size_t id = 0; id < P::kParamRoutes.size(); ++id) {
@@ -126,10 +132,14 @@ void buildBlock(BlockInput& in, std::size_t b, const std::vector<Steinberg::Vst:
             continue;
         }
         double v = rotatingValue(b, i);
-        if (id == P::kMorphEditTargetId) {
-            v = (b % 2u == 1u) ? 1.0 : 0.0;  // B on odd blocks, A on even ones
+        if (id == P::kMorphEditTargetId || id == P::kMorphModAmountId) {
+            v = (b % 2u == 1u) ? 1.0 : 0.0;  // Edit target B / A; Phase 14: Amount +1 / -1
         } else if ((id == P::kModWheelId || id == P::kChannelPressureId) && b % 3u == 0u) {
             v = 0.0;  // c == 0: the skipped Mass add (FR-055)
+        } else if (id == P::kModWheelId) {
+            v = 0.1 + 0.2 * static_cast<double>(b % 5u);  // Phase 14: non-zero and different from the previous block
+        } else if (id == P::kMorphModSourceId) {
+            v = static_cast<double>(b % 5u) / 4.0;  // Phase 14: Off, Envelope, Cycle, Velocity, Mod Wheel in turn
         }
         q.addTestPoint(static_cast<Steinberg::int32>((b + i) % kBlock), v);
     }
@@ -172,14 +182,17 @@ TEST_CASE("Profundum_Phase11PathsDoNotAllocate", "[profundum][rt]") {
 
     SECTION("AllPathsZeroAllocations") {
         const std::vector<Steinberg::Vst::ParamID> ids = routedIds();
-        REQUIRE(ids.size() == 84u);
+        REQUIRE(ids.size() == 95u);
+        for (Steinberg::Vst::ParamID id = P::kMorphModSourceId; id <= P::kMorphModCycleSyncRateId; ++id) {
+            REQUIRE(std::find(ids.begin(), ids.end(), id) != ids.end());  // Phase 14: 1003-1011 are routed
+        }
 
         // The 64 blocks' inputs, built before any scope (their queues keep their capacity).
         std::vector<BlockInput> inputs(kBlocks);
         for (std::size_t b = 0; b < kBlocks; ++b) {
             buildBlock(inputs[b], b, ids);
         }
-        REQUIRE(inputs[1].changes.getParameterCount() == 84);
+        REQUIRE(inputs[1].changes.getParameterCount() == 95);
 
         // A pending setState hand-off: a v2 stream whose runtime blob was published by a rendered processor.
         StateBytes stateBytes;
@@ -254,6 +267,11 @@ TEST_CASE("Profundum_Phase11PathsDoNotAllocate", "[profundum][rt]") {
         cp.fx.proc->flushControllerSync();
         CHECK(cp.toController.count(P::kMsgEndpoint, "endpoint", 0) == 1u);
         CHECK(cp.toController.count(P::kMsgEndpoint, "endpoint", 1) == 1u);
+        // Phase 14 non-vacuity: the last scoped block (63) stored Source 63 % 5 = 3 (Velocity) and Amount +1.
+        const StateBytes after = writeV2Stream(*cp.fx.proc);
+        REQUIRE(after.size() == P::kStateV3Bytes);
+        CHECK(readU32(after, P::kStateMorphModOffset) == 3u);
+        CHECK(readU32(after, P::kStateMorphModOffset + 4u) == std::bit_cast<std::uint32_t>(1.0f));
     }
 
     SECTION("Teeth") {

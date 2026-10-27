@@ -1,0 +1,2579 @@
+=== <exe>.exe --list-tests --verbosity quiet (prefixed with the exe)
+profundum_tests|Profundum_ProcessorBusSetup
+profundum_tests|Profundum_ParamDenormRoundTrip
+profundum_tests|Profundum_StateRoundTrip
+profundum_tests|Profundum_MidiEventTranslation
+profundum_tests|Profundum_ProcessorLifecycle
+profundum_tests|Profundum_EditorLifecycle
+profundum_tests|Profundum editor carries the shared update and version views
+profundum_tests|Profundum_ProcessorRendersHeldNote
+profundum_tests|Profundum_ParamFlowReachesEngine
+profundum_tests|Profundum_SoundParamTableRouting
+profundum_tests|Profundum_ParamTableConformance
+profundum_tests|Profundum_ParamDisplayFormats
+profundum_tests|Profundum_PortamentoLabelFollowsGlideMode
+profundum_tests|Profundum_StateVersions
+profundum_tests|Profundum_StateRoundTripV2
+profundum_tests|Profundum_RestoreHandOffNoTear
+profundum_tests|Profundum_MassPerformanceOffset
+profundum_tests|Profundum_MidiMapping
+profundum_tests|Profundum_MorphModWheelRouting
+profundum_tests|Profundum_Phase11PathsDoNotAllocate
+profundum_tests|Profundum_DefaultsMatchEngine
+profundum_tests|Profundum_EveryParamReachesEngine
+profundum_tests|Profundum_EditTargetAddressing
+profundum_tests|Profundum_StateRestoreRender
+profundum_tests|Profundum_CopyEndpoint
+profundum_tests|Profundum_MorphModOutsideEndpoints
+profundum_tests|Profundum_CompareDoesNotWriteState
+profundum_tests|Profundum_ProcessorControllerSync
+profundum_tests|Profundum_TailFormula
+profundum_tests|Profundum_TailCoversRelease
+profundum_tests|Profundum_ParamPathAudibility
+profundum_tests|Profundum_MassOffsetAudibility
+profundum_tests|Profundum_PrepareHoldsLoadedEndpoints
+profundum_tests|Profundum_MonoSumViaParams
+profundum_tests|Profundum_Determinism
+profundum_tests|Profundum_BandLevelMetricSelfTest
+profundum_tests|Profundum_SpectrumProducerMath
+profundum_tests|Profundum_GoertzelBankSimdMatchesScalar
+profundum_tests|Profundum_EndpointNames
+profundum_tests|Profundum_StateV3MorphMod
+profundum_tests|Profundum_UidescBindsEverySurfaceId
+profundum_tests|Profundum_UidescTagIntegrity
+profundum_tests|Profundum_UiClassRule
+profundum_tests|Profundum_UiLabels
+profundum_tests|Profundum_Editor_PageSwitch
+profundum_tests|Profundum_UiLayout
+profundum_tests|Profundum_UiPlacement
+profundum_tests|Profundum_UiMorphModPlacement
+profundum_tests|Profundum_UiZoom
+profundum_tests|Profundum_MorphComponentUi
+profundum_tests|Profundum_MorphLockDimming
+profundum_tests|Profundum_UiPortamentoUnitFollowsGlideMode
+profundum_tests|Profundum_MacroUiMap
+profundum_tests|Profundum_MacroModulationRing
+profundum_tests|Profundum_MacroHighlight
+profundum_tests|Profundum_MidiLearnHostLevel
+profundum_tests|Profundum_SpreadCurveMatchesField
+profundum_tests|Profundum_EditorSyncTimer
+profundum_tests|Profundum_UiCustomViewLaws
+profundum_tests|Profundum_UiViewsUnit
+profundum_tests|Profundum_UiMorphIndicator
+profundum_tests|Profundum_SpectrumFrameMatchesSignal
+profundum_tests|Profundum_SpectrumFrameDoesNotChangeAudio
+profundum_tests|Profundum_SpectrumFrameAllocationFree
+profundum_tests|Profundum_SpectrumFrameFocusVoice
+profundum_tests|Profundum_SpectrumFrameSanitise
+profundum_tests|Profundum_SpectrumFrameHandlerLifecycle
+profundum_tests|Profundum_SpectrumFrameCadence
+profundum_tests|Profundum_MorphIndicatorFrame
+profundum_tests|Profundum_MainPageSanity
+profundum_tests|Profundum_MainPageAudibility
+profundum_tests|Profundum_PresetCategoryConfig
+profundum_tests|Profundum_PresetCategoryNameRule
+profundum_tests|Profundum_PresetHostDrive
+profundum_tests|Profundum_PresetHostValidation
+profundum_tests|Profundum_GeneratorSmoke
+profundum_tests|Profundum_PresetDefsRules
+profundum_tests|Profundum_PresetCategoriesMatchFilesystem
+profundum_tests|Profundum_FactoryPresetContainer
+profundum_tests|Profundum_FactoryLibraryShape
+profundum_tests|Profundum_FactoryPresetStateFormat
+profundum_tests|Profundum_FactoryPresetRoundTrip
+profundum_tests|Profundum_CoverageMatrixComplete
+profundum_tests|Profundum_CommittedPresetTreeMatches
+profundum_tests|Profundum_FactoryPresetCeiling
+profundum_tests|Profundum_PolyPresetCount
+profundum_tests|Profundum_PresetLibraryBreadth
+profundum_tests|Profundum_PresetDescriptions
+profundum_tests|Profundum_ManualCoversSurface
+profundum_tests|Profundum_LoadPresetStateMessage
+profundum_tests|Profundum_ControllerLoadPresetStream
+profundum_tests|Profundum_PresetBrowserSave
+profundum_tests|Profundum_PresetBrowserViewLifecycle
+profundum_tests|Profundum_PresetBrowserLoad
+profundum_tests|Profundum_FactoryPresetScan
+profundum_tests|Profundum_FactoryPresetLoadRtSafe
+profundum_tests|Profundum_PresetRenderGuard_0of16
+profundum_tests|Profundum_PresetRenderGuard_1of16
+profundum_tests|Profundum_PresetRenderGuard_2of16
+profundum_tests|Profundum_PresetRenderGuard_3of16
+profundum_tests|Profundum_PresetRenderGuard_4of16
+profundum_tests|Profundum_PresetRenderGuard_5of16
+profundum_tests|Profundum_PresetRenderGuard_6of16
+profundum_tests|Profundum_PresetRenderGuard_7of16
+profundum_tests|Profundum_PresetRenderGuard_8of16
+profundum_tests|Profundum_PresetRenderGuard_9of16
+profundum_tests|Profundum_PresetRenderGuard_10of16
+profundum_tests|Profundum_PresetRenderGuard_11of16
+profundum_tests|Profundum_PresetRenderGuard_12of16
+profundum_tests|Profundum_PresetRenderGuard_13of16
+profundum_tests|Profundum_PresetRenderGuard_14of16
+profundum_tests|Profundum_PresetRenderGuard_15of16
+profundum_tests|Profundum_PresetLoadUnderHeldNote
+profundum_tests|Profundum_EngineSeamsForTest
+profundum_tests|Profundum_ScriptRenderShim
+profundum_tests|Profundum_ProcessorScriptRender
+profundum_tests|Profundum_ScriptRenderRefusals
+profundum_tests|Profundum_EffectiveScriptCarriers
+profundum_tests|Profundum_PresetAudibilityProbeKeys
+profundum_tests|Profundum_ShowcaseArmMechanics
+profundum_tests|Profundum_PresetDistanceMath
+profundum_tests|Profundum_PresetShowcase_0of8
+profundum_tests|Profundum_PresetShowcase_1of8
+profundum_tests|Profundum_PresetShowcase_2of8
+profundum_tests|Profundum_PresetShowcase_3of8
+profundum_tests|Profundum_PresetShowcase_4of8
+profundum_tests|Profundum_PresetShowcase_5of8
+profundum_tests|Profundum_PresetShowcase_6of8
+profundum_tests|Profundum_PresetShowcase_7of8
+profundum_tests|Profundum_ReferenceColumns
+profundum_tests|Profundum_SweepTimeline
+profundum_tests|Profundum_PresetMonoSumMechanics
+profundum_tests|Profundum_PresetDeterminismMechanics
+profundum_tests|Profundum_PresetDistinctnessParams
+profundum_tests|Profundum_PresetSweep
+profundum_tests|Profundum_PresetSweepRates
+profundum_tests|Profundum_PresetTruePeakMaxMass
+profundum_tests|Profundum_PresetMonoSum
+profundum_tests|Profundum_PresetDeterminism
+profundum_tests|Profundum_PresetLoudnessMatch
+profundum_tests|Profundum_PresetDistinctness
+profundum_tests|Profundum_PresetMorphEndpoints_0of8
+profundum_tests|Profundum_PresetMorphEndpoints_1of8
+profundum_tests|Profundum_PresetMorphEndpoints_2of8
+profundum_tests|Profundum_PresetMorphEndpoints_3of8
+profundum_tests|Profundum_PresetMorphEndpoints_4of8
+profundum_tests|Profundum_PresetMorphEndpoints_5of8
+profundum_tests|Profundum_PresetMorphEndpoints_6of8
+profundum_tests|Profundum_PresetMorphEndpoints_7of8
+profundum_tests|Profundum_PresetMorphSweep
+profundum_tests|Profundum_MorphModCompareBypass
+profundum_tests|Profundum_MorphModPedalRestrike
+profundum_tests|Profundum_MorphModHarnessCarriage
+profundum_tests|Profundum_MorphModOverrideSmoke
+profundum_tests|Profundum_MorphModPresetTransparency_0of64
+profundum_tests|Profundum_MorphModPresetTransparency_1of64
+profundum_tests|Profundum_MorphModPresetTransparency_2of64
+profundum_tests|Profundum_MorphModPresetTransparency_3of64
+profundum_tests|Profundum_MorphModPresetTransparency_4of64
+profundum_tests|Profundum_MorphModPresetTransparency_5of64
+profundum_tests|Profundum_MorphModPresetTransparency_6of64
+profundum_tests|Profundum_MorphModPresetTransparency_7of64
+profundum_tests|Profundum_MorphModPresetTransparency_8of64
+profundum_tests|Profundum_MorphModPresetTransparency_9of64
+profundum_tests|Profundum_MorphModPresetTransparency_10of64
+profundum_tests|Profundum_MorphModPresetTransparency_11of64
+profundum_tests|Profundum_MorphModPresetTransparency_12of64
+profundum_tests|Profundum_MorphModPresetTransparency_13of64
+profundum_tests|Profundum_MorphModPresetTransparency_14of64
+profundum_tests|Profundum_MorphModPresetTransparency_15of64
+profundum_tests|Profundum_MorphModPresetTransparency_16of64
+profundum_tests|Profundum_MorphModPresetTransparency_17of64
+profundum_tests|Profundum_MorphModPresetTransparency_18of64
+profundum_tests|Profundum_MorphModPresetTransparency_19of64
+profundum_tests|Profundum_MorphModPresetTransparency_20of64
+profundum_tests|Profundum_MorphModPresetTransparency_21of64
+profundum_tests|Profundum_MorphModPresetTransparency_22of64
+profundum_tests|Profundum_MorphModPresetTransparency_23of64
+profundum_tests|Profundum_MorphModPresetTransparency_24of64
+profundum_tests|Profundum_MorphModPresetTransparency_25of64
+profundum_tests|Profundum_MorphModPresetTransparency_26of64
+profundum_tests|Profundum_MorphModPresetTransparency_27of64
+profundum_tests|Profundum_MorphModPresetTransparency_28of64
+profundum_tests|Profundum_MorphModPresetTransparency_29of64
+profundum_tests|Profundum_MorphModPresetTransparency_30of64
+profundum_tests|Profundum_MorphModPresetTransparency_31of64
+profundum_tests|Profundum_MorphModPresetTransparency_32of64
+profundum_tests|Profundum_MorphModPresetTransparency_33of64
+profundum_tests|Profundum_MorphModPresetTransparency_34of64
+profundum_tests|Profundum_MorphModPresetTransparency_35of64
+profundum_tests|Profundum_MorphModPresetTransparency_36of64
+profundum_tests|Profundum_MorphModPresetTransparency_37of64
+profundum_tests|Profundum_MorphModPresetTransparency_38of64
+profundum_tests|Profundum_MorphModPresetTransparency_39of64
+profundum_tests|Profundum_MorphModPresetTransparency_40of64
+profundum_tests|Profundum_MorphModPresetTransparency_41of64
+profundum_tests|Profundum_MorphModPresetTransparency_42of64
+profundum_tests|Profundum_MorphModPresetTransparency_43of64
+profundum_tests|Profundum_MorphModPresetTransparency_44of64
+profundum_tests|Profundum_MorphModPresetTransparency_45of64
+profundum_tests|Profundum_MorphModPresetTransparency_46of64
+profundum_tests|Profundum_MorphModPresetTransparency_47of64
+profundum_tests|Profundum_MorphModPresetTransparency_48of64
+profundum_tests|Profundum_MorphModPresetTransparency_49of64
+profundum_tests|Profundum_MorphModPresetTransparency_50of64
+profundum_tests|Profundum_MorphModPresetTransparency_51of64
+profundum_tests|Profundum_MorphModPresetTransparency_52of64
+profundum_tests|Profundum_MorphModPresetTransparency_53of64
+profundum_tests|Profundum_MorphModPresetTransparency_54of64
+profundum_tests|Profundum_MorphModPresetTransparency_55of64
+profundum_tests|Profundum_MorphModPresetTransparency_56of64
+profundum_tests|Profundum_MorphModPresetTransparency_57of64
+profundum_tests|Profundum_MorphModPresetTransparency_58of64
+profundum_tests|Profundum_MorphModPresetTransparency_59of64
+profundum_tests|Profundum_MorphModPresetTransparency_60of64
+profundum_tests|Profundum_MorphModPresetTransparency_61of64
+profundum_tests|Profundum_MorphModPresetTransparency_62of64
+profundum_tests|Profundum_MorphModPresetTransparency_63of64
+profundum_tests|Profundum_MorphModHarnessFidelity
+dsp_systems_tests|DelayEngine can be default constructed
+dsp_systems_tests|DelayEngine can be moved
+dsp_systems_tests|DelayEngine prepare() allocates buffers
+dsp_systems_tests|DelayEngine setDelayTimeMs(250) at 44.1kHz produces 11025 samples delay
+dsp_systems_tests|DelayEngine delay time change is smoothed
+dsp_systems_tests|DelayEngine delay time clamped to [0, maxDelayMs]
+dsp_systems_tests|DelayEngine NaN delay time rejected
+dsp_systems_tests|DelayEngine linear interpolation for sub-sample delays
+dsp_systems_tests|DelayEngine reset() clears buffer to silence
+dsp_systems_tests|DelayEngine setTimeMode switches mode
+dsp_systems_tests|DelayEngine quarter note at 120 BPM = 500ms = 22050 samples
+dsp_systems_tests|DelayEngine dotted eighth at 100 BPM = 450ms
+dsp_systems_tests|DelayEngine all NoteValue types produce correct times
+dsp_systems_tests|DelayEngine tempo change updates delay smoothly
+dsp_systems_tests|DelayEngine triplet modifier works correctly
+dsp_systems_tests|DelayEngine mix 0% = 100% dry
+dsp_systems_tests|DelayEngine mix 100% = 100% wet
+dsp_systems_tests|DelayEngine mix 50% = equal blend
+dsp_systems_tests|DelayEngine kill-dry mode outputs only wet
+dsp_systems_tests|DelayEngine mix changes are smoothed
+dsp_systems_tests|DelayEngine isPrepared() returns correct state
+dsp_systems_tests|DelayEngine getMaxDelayMs() returns configured value
+dsp_systems_tests|DelayEngine stereo process applies same delay
+dsp_systems_tests|DelayEngine variable block sizes work correctly
+dsp_systems_tests|DelayEngine process is real-time safe
+dsp_systems_tests|DelayEngine 0ms delay outputs immediate signal
+dsp_systems_tests|DelayEngine negative delay time clamps to 0
+dsp_systems_tests|DelayEngine infinity delay time clamps to maxDelayMs
+dsp_systems_tests|DelayEngine handles tempo=0 (clamps to 20 BPM)
+dsp_systems_tests|FeedbackNetwork default constructor initializes correctly
+dsp_systems_tests|FeedbackNetwork prepare() allocates resources
+dsp_systems_tests|FeedbackNetwork reset() clears internal state
+dsp_systems_tests|FeedbackNetwork setFeedbackAmount(0.0) produces single repeat
+dsp_systems_tests|FeedbackNetwork setFeedbackAmount(0.5) produces ~6dB decay per repeat
+dsp_systems_tests|FeedbackNetwork setFeedbackAmount(1.0) maintains signal indefinitely
+dsp_systems_tests|FeedbackNetwork feedback values are clamped to [0.0, 1.2]
+dsp_systems_tests|FeedbackNetwork NaN feedback values are rejected
+dsp_systems_tests|FeedbackNetwork process() mono works correctly
+dsp_systems_tests|FeedbackNetwork process() stereo works correctly
+dsp_systems_tests|FeedbackNetwork parameter smoothing prevents clicks
+dsp_systems_tests|FeedbackNetwork handles zero delay time
+dsp_systems_tests|FeedbackNetwork handles maximum delay time
+dsp_systems_tests|FeedbackNetwork handles empty buffer
+dsp_systems_tests|FeedbackNetwork not prepared returns early
+dsp_systems_tests|FeedbackNetwork accepts feedback values up to 120%
+dsp_systems_tests|FeedbackNetwork saturation can be enabled/disabled
+dsp_systems_tests|FeedbackNetwork 120% feedback with saturation keeps output bounded
+dsp_systems_tests|FeedbackNetwork self-oscillation builds up over repeats
+dsp_systems_tests|FeedbackNetwork saturation provides soft limiting
+dsp_systems_tests|FeedbackNetwork output remains bounded after long oscillation
+dsp_systems_tests|FeedbackNetwork filter can be enabled/disabled
+dsp_systems_tests|FeedbackNetwork filter type can be set
+dsp_systems_tests|FeedbackNetwork filter cutoff and resonance can be set
+dsp_systems_tests|FeedbackNetwork LP filter attenuates HF in repeats
+dsp_systems_tests|FeedbackNetwork HP filter attenuates LF in repeats
+dsp_systems_tests|FeedbackNetwork filter bypass makes all frequencies decay equally
+dsp_systems_tests|FeedbackNetwork saturation type can be changed
+dsp_systems_tests|FeedbackNetwork saturation drive can be adjusted
+dsp_systems_tests|FeedbackNetwork saturation adds harmonics
+dsp_systems_tests|FeedbackNetwork saturation bypass produces clean signal
+dsp_systems_tests|FeedbackNetwork saturation changes are click-free
+dsp_systems_tests|FeedbackNetwork freeze state can be set and queried
+dsp_systems_tests|FeedbackNetwork freeze sets feedback to 100%
+dsp_systems_tests|FeedbackNetwork freeze mutes new input
+dsp_systems_tests|FeedbackNetwork freeze stores and restores previous feedback
+dsp_systems_tests|FeedbackNetwork freeze maintains content for extended duration
+dsp_systems_tests|FeedbackNetwork freeze transition is smooth
+dsp_systems_tests|FeedbackNetwork unfreeze transition is smooth
+dsp_systems_tests|FeedbackNetwork cross-feedback amount can be set and queried
+dsp_systems_tests|FeedbackNetwork cross-feedback clamps to valid range
+dsp_systems_tests|FeedbackNetwork cross-feedback rejects NaN
+dsp_systems_tests|FeedbackNetwork 0% cross-feedback keeps channels independent
+dsp_systems_tests|FeedbackNetwork 100% cross-feedback creates ping-pong
+dsp_systems_tests|FeedbackNetwork 50% cross-feedback blends channels
+dsp_systems_tests|FeedbackNetwork cross-feedback changes are smoothed
+dsp_systems_tests|FeedbackNetwork cross-feedback works with freeze mode
+dsp_systems_tests|FeedbackNetwork ClickDetector: no clicks during feedback amount changes
+dsp_systems_tests|FeedbackNetwork ClickDetector: no clicks during delay time changes
+dsp_systems_tests|FeedbackNetwork ClickDetector: no clicks on freeze mode transitions
+dsp_systems_tests|FeedbackNetwork ClickDetector: stable at high feedback levels
+dsp_systems_tests|FeedbackNetwork: DC blocker removes constant DC offset in feedback path
+dsp_systems_tests|FeedbackNetwork: Constant input produces constant output (no ramping)
+dsp_systems_tests|FeedbackNetwork: DC blocker works with feedback filter enabled
+dsp_systems_tests|FeedbackNetwork: DC blocker preserves AC audio content
+dsp_systems_tests|FeedbackNetwork: DC blocker maintains zero mean for bipolar signals
+dsp_systems_tests|ModulationMode enum has correct values
+dsp_systems_tests|ModulationSource interface works correctly
+dsp_systems_tests|ModulationDestination struct has correct defaults
+dsp_systems_tests|ModulationDestination can be initialized
+dsp_systems_tests|ModulationRoute struct has correct defaults
+dsp_systems_tests|ModulationRoute can be configured
+dsp_systems_tests|ModulationMatrix default constructor
+dsp_systems_tests|ModulationMatrix prepare() initializes correctly
+dsp_systems_tests|ModulationMatrix reset() clears state
+dsp_systems_tests|ModulationMatrix registerSource() works correctly
+dsp_systems_tests|ModulationMatrix registerDestination() works correctly
+dsp_systems_tests|createRoute returns valid index for valid source/destination
+dsp_systems_tests|createRoute returns -1 for invalid source/destination
+dsp_systems_tests|process() reads source value and applies depth
+dsp_systems_tests|getModulatedValue returns base + modulation offset
+dsp_systems_tests|depth=0.0 results in no modulation
+dsp_systems_tests|depth=1.0 with bipolar source +1.0 gives full range modulation
+dsp_systems_tests|NaN source value treated as 0.0
+dsp_systems_tests|Two routes to same destination sum their contributions
+dsp_systems_tests|Modulation clamped to destination min/max range
+dsp_systems_tests|Opposing polarity routes partially cancel
+dsp_systems_tests|Unipolar mode with source -1.0 gives modulation 0.0
+dsp_systems_tests|Unipolar mode with source +1.0 gives modulation = depth
+dsp_systems_tests|Unipolar mode with source 0.0 gives modulation = 0.5 * depth
+dsp_systems_tests|Depth reaches 95% of target within 50ms
+dsp_systems_tests|Smoothed depth applied sample-accurately during block
+dsp_systems_tests|Disabled route produces no modulation
+dsp_systems_tests|Re-enabled route produces modulation with smoothing
+dsp_systems_tests|Only enabled routes contribute to destination sum
+dsp_systems_tests|getCurrentModulation returns expected value for single route
+dsp_systems_tests|getCurrentModulation returns sum for multiple routes
+dsp_systems_tests|getCurrentModulation returns 0.0 for destination with no routes
+dsp_systems_tests|32 routes can be created
+dsp_systems_tests|Depth clamped to [0, 1] range on setRouteDepth
+dsp_systems_tests|getModulatedValue accuracy within tolerance
+dsp_systems_tests|16 routes process efficiently
+dsp_systems_tests|process() is noexcept
+dsp_systems_tests|Registration is intended for prepare phase
+dsp_systems_tests|Depth changes are glitch-free with smoothing
+dsp_systems_tests|ModulationMatrix parameter sweep: depth range produces smooth output
+dsp_systems_tests|ModulationMatrix parameter sweep: source value changes are smooth
+dsp_systems_tests|ModulationMatrix parameter sweep: rapid depth changes stay bounded
+dsp_systems_tests|CharacterProcessor default construction
+dsp_systems_tests|CharacterProcessor prepare and reset
+dsp_systems_tests|CharacterProcessor mode selection
+dsp_systems_tests|CharacterProcessor Clean mode passthrough
+dsp_systems_tests|CharacterProcessor NaN input handling
+dsp_systems_tests|CharacterProcessor mode transitions
+dsp_systems_tests|CharacterProcessor rapid mode switching
+dsp_systems_tests|CharacterProcessor Tape mode saturation
+dsp_systems_tests|CharacterProcessor Tape mode wow/flutter
+dsp_systems_tests|CharacterProcessor Tape mode hiss and rolloff
+dsp_systems_tests|CharacterProcessor BBD mode bandwidth
+dsp_systems_tests|CharacterProcessor BBD mode clock noise
+dsp_systems_tests|CharacterProcessor BBD mode saturation
+dsp_systems_tests|CharacterProcessor Digital Vintage bit reduction
+dsp_systems_tests|CharacterProcessor Digital Vintage sample rate reduction
+dsp_systems_tests|CharacterProcessor parameter smoothing
+dsp_systems_tests|CharacterProcessor output validity
+dsp_systems_tests|CharacterProcessor distinct mode characteristics
+dsp_systems_tests|CharacterProcessor Tape mode THD measurement
+dsp_systems_tests|CharacterProcessor BBD mode produces balanced stereo noise from first block
+dsp_systems_tests|CharacterProcessor lifecycle stress test
+dsp_systems_tests|CharacterProcessor spectral analysis: Tape saturation creates harmonics
+dsp_systems_tests|CharacterProcessor spectral analysis: BBD saturation creates harmonics
+dsp_systems_tests|CharacterProcessor spectral analysis: DigitalVintage bit reduction creates harmonics
+dsp_systems_tests|CharacterProcessor tape mode uses 2x oversampling for anti-aliasing
+dsp_systems_tests|CharacterProcessor DigitalVintage 16-bit produces stable output
+dsp_systems_tests|CharacterProcessor DigitalVintage stereo produces stable output
+dsp_systems_tests|CharacterProcessor DigitalVintage early samples behavior
+dsp_systems_tests|BBD mode: L/R channels should be processed independently
+dsp_systems_tests|BBD mode: continuous signal doesn't accumulate channel differences
+dsp_systems_tests|BBD mode: RMS levels match between L and R channels
+dsp_systems_tests|BBD mode: saturation applies equally to both channels
+dsp_systems_tests|StereoField lifecycle
+dsp_systems_tests|StereoField delay time control
+dsp_systems_tests|StereoField Mono mode
+dsp_systems_tests|StereoField Stereo mode
+dsp_systems_tests|StereoField PingPong mode
+dsp_systems_tests|StereoField DualMono mode
+dsp_systems_tests|StereoField MidSide mode
+dsp_systems_tests|StereoField modes produce distinct outputs
+dsp_systems_tests|StereoField width 0% produces mono
+dsp_systems_tests|StereoField width 100% preserves stereo
+dsp_systems_tests|StereoField width 200% enhances stereo
+dsp_systems_tests|StereoField width clamping
+dsp_systems_tests|StereoField pan center
+dsp_systems_tests|StereoField pan full left
+dsp_systems_tests|StereoField pan full right
+dsp_systems_tests|StereoField pan 40dB separation
+dsp_systems_tests|StereoField constant-power panning
+dsp_systems_tests|StereoField L/R offset 0ms aligned
+dsp_systems_tests|StereoField L/R offset +10ms
+dsp_systems_tests|StereoField L/R offset -10ms
+dsp_systems_tests|StereoField L/R offset accuracy
+dsp_systems_tests|StereoField L/R ratio 1:1
+dsp_systems_tests|StereoField L/R ratio 3:4
+dsp_systems_tests|StereoField L/R ratio accuracy
+dsp_systems_tests|StereoField L/R ratio clamping
+dsp_systems_tests|StereoField mode transition no clicks
+dsp_systems_tests|StereoField transition completes in 50ms
+dsp_systems_tests|StereoField NaN handling
+dsp_systems_tests|StereoField process is noexcept
+dsp_systems_tests|TapManager: Default construction
+dsp_systems_tests|TapManager: prepare() initializes correctly
+dsp_systems_tests|TapManager: reset() clears state
+dsp_systems_tests|TapManager: setTapEnabled() enables and disables taps
+dsp_systems_tests|TapManager: Out-of-range tap indices are silently ignored (FR-004a)
+dsp_systems_tests|TapManager: setTapTimeMs() sets delay time
+dsp_systems_tests|TapManager: Delay time accuracy within 1 sample (SC-003)
+dsp_systems_tests|TapManager: setTapLevelDb() sets level
+dsp_systems_tests|TapManager: Level at -96dB produces silence (FR-010)
+dsp_systems_tests|TapManager: setTapPan() sets pan position
+dsp_systems_tests|TapManager: Constant-power pan law (SC-004)
+dsp_systems_tests|TapManager: loadPattern() QuarterNote (FR-022)
+dsp_systems_tests|TapManager: loadPattern() DottedEighth (FR-023)
+dsp_systems_tests|TapManager: loadPattern() Triplet (FR-024)
+dsp_systems_tests|TapManager: loadPattern() GoldenRatio (FR-025)
+dsp_systems_tests|TapManager: loadPattern() Fibonacci (FR-026)
+dsp_systems_tests|TapManager: loadPattern() clamps tap count (FR-027)
+dsp_systems_tests|TapManager: loadPattern() completes within 1ms (SC-008)
+dsp_systems_tests|TapManager: loadNotePattern() with Quarter note (normal)
+dsp_systems_tests|TapManager: loadNotePattern() with Quarter note (dotted)
+dsp_systems_tests|TapManager: loadNotePattern() with Quarter note (triplet)
+dsp_systems_tests|TapManager: loadNotePattern() with Eighth note variants
+dsp_systems_tests|TapManager: loadNotePattern() with Sixteenth note
+dsp_systems_tests|TapManager: loadNotePattern() with ThirtySecond note
+dsp_systems_tests|TapManager: loadNotePattern() with SixtyFourth note
+dsp_systems_tests|TapManager: loadNotePattern() with Half note
+dsp_systems_tests|TapManager: loadNotePattern() with Whole note
+dsp_systems_tests|TapManager: loadNotePattern() with DoubleWhole note
+dsp_systems_tests|TapManager: loadNotePattern() clamps to max delay
+dsp_systems_tests|TapManager: loadNotePattern() clamps tap count
+dsp_systems_tests|TapManager: loadNotePattern() is noexcept
+dsp_systems_tests|TapManager: setTempo() updates tempo-synced taps
+dsp_systems_tests|TapManager: setTapFilterMode() sets filter type
+dsp_systems_tests|TapManager: Filter cutoff clamped to valid range (FR-016)
+dsp_systems_tests|TapManager: Filter Q clamped to valid range (FR-017)
+dsp_systems_tests|TapManager: getTapFilterCutoff() returns current cutoff
+dsp_systems_tests|TapManager: getTapFilterMode() returns current mode
+dsp_systems_tests|TapManager: getTapFilterQ() returns current Q factor
+dsp_systems_tests|TapManager: setTapFeedback() sets feedback amount
+dsp_systems_tests|TapManager: Feedback is soft-limited to prevent runaway (FR-021)
+dsp_systems_tests|TapManager: setMasterLevel() affects output
+dsp_systems_tests|TapManager: setDryWetMix() blends dry and wet signals
+dsp_systems_tests|TapManager: process() with no enabled taps outputs dry signal
+dsp_systems_tests|TapManager: process() supports in-place processing
+dsp_systems_tests|TapManager: 16 active taps process without dropouts (SC-001)
+dsp_systems_tests|TapManager: Query methods return correct values
+dsp_systems_tests|TapManager: All public methods are noexcept
+dsp_systems_tests|IFeedbackProcessor interface contract
+dsp_systems_tests|FlexibleFeedbackNetwork lifecycle
+dsp_systems_tests|FlexibleFeedbackNetwork basic feedback loop
+dsp_systems_tests|FlexibleFeedbackNetwork processor injection
+dsp_systems_tests|FlexibleFeedbackNetwork freeze mode
+dsp_systems_tests|FlexibleFeedbackNetwork feedback filter
+dsp_systems_tests|GranularEngine prepare and reset lifecycle
+dsp_systems_tests|GranularEngine parameter clamping
+dsp_systems_tests|GranularEngine triggers grains based on density
+dsp_systems_tests|GranularEngine audio processing
+dsp_systems_tests|GranularEngine freeze mode
+dsp_systems_tests|GranularEngine spray parameters add variation
+dsp_systems_tests|GranularEngine seed produces reproducible output
+dsp_systems_tests|GranularEngine envelope type control
+dsp_systems_tests|GranularEngine texture control
+dsp_systems_tests|GranularEngine texture affects grain amplitude variation
+dsp_systems_tests|GranularEngine output gain scaling prevents explosion
+dsp_systems_tests|AmpChannel default construction
+dsp_systems_tests|AmpChannel prepare and reset
+dsp_systems_tests|AmpChannel gain staging
+dsp_systems_tests|AmpChannel parameter smoothing
+dsp_systems_tests|AmpChannel harmonic distortion
+dsp_systems_tests|AmpChannel default unity gain
+dsp_systems_tests|AmpChannel edge cases
+dsp_systems_tests|AmpChannel sample rate support
+dsp_systems_tests|AmpChannel signal routing order
+dsp_systems_tests|AmpChannel preamp stages configuration
+dsp_systems_tests|AmpChannel default preamp stages
+dsp_systems_tests|AmpChannel stage count affects harmonics
+dsp_systems_tests|AmpChannel stage count range validation
+dsp_systems_tests|AmpChannel stage count change during processing
+dsp_systems_tests|AmpChannel tone stack position
+dsp_systems_tests|AmpChannel tone controls
+dsp_systems_tests|AmpChannel bass boost effect
+dsp_systems_tests|AmpChannel Baxandall independence
+dsp_systems_tests|AmpChannel pre vs post tone stack
+dsp_systems_tests|AmpChannel mid parametric filter
+dsp_systems_tests|AmpChannel oversampling factor
+dsp_systems_tests|AmpChannel deferred oversampling change
+dsp_systems_tests|AmpChannel latency reporting
+dsp_systems_tests|AmpChannel factor 1 bypass
+dsp_systems_tests|AmpChannel aliasing reduction
+dsp_systems_tests|AmpChannel bright cap control
+dsp_systems_tests|AmpChannel bright cap boost at low gain
+dsp_systems_tests|AmpChannel bright cap attenuated at high gain
+dsp_systems_tests|AmpChannel bright cap linear interpolation
+dsp_systems_tests|AmpChannel performance
+dsp_systems_tests|MachineModel enum has correct values
+dsp_systems_tests|TapeSpeed enum has correct values
+dsp_systems_tests|TapeType enum has correct values
+dsp_systems_tests|TapeMachine lifecycle management
+dsp_systems_tests|TapeMachine TapeSaturator integration
+dsp_systems_tests|TapeMachine minimal saturation produces near-linear response
+dsp_systems_tests|TapeMachine full saturation produces compression
+dsp_systems_tests|TapeMachine bias adjustment changes asymmetric character
+dsp_systems_tests|TapeMachine handles zero-sample blocks
+dsp_systems_tests|TapeMachine initializes across sample rates
+dsp_systems_tests|TapeMachine default settings produce tape character
+dsp_systems_tests|TapeMachine input level increases saturation
+dsp_systems_tests|TapeMachine output level stable at zero saturation
+dsp_systems_tests|TapeMachine parameter changes complete without clicks
+dsp_systems_tests|TapeMachine tape type affects saturation character
+dsp_systems_tests|TapeMachine tape speed sets default frequencies
+dsp_systems_tests|TapeMachine machine model sets default head bump
+dsp_systems_tests|TapeMachine tape types have different saturation curves
+dsp_systems_tests|TapeMachine head bump at 0% produces no boost
+dsp_systems_tests|TapeMachine head bump at 100% produces 3-6dB boost
+dsp_systems_tests|TapeMachine head bump frequency override centers boost
+dsp_systems_tests|TapeMachine machine model sets default head bump frequency
+dsp_systems_tests|TapeMachine HF rolloff attenuates above cutoff
+dsp_systems_tests|TapeMachine HF rolloff frequency controls attenuation point
+dsp_systems_tests|TapeMachine HF rolloff at 0% produces no attenuation
+dsp_systems_tests|TapeMachine HF rolloff slope at least 6dB per octave
+dsp_systems_tests|TapeMachine tape speed sets default HF rolloff frequency
+dsp_systems_tests|TapeMachine hiss at medium level produces audible noise
+dsp_systems_tests|TapeMachine hiss at 0 produces silence
+dsp_systems_tests|TapeMachine hiss has noise characteristics
+dsp_systems_tests|TapeMachine maximum hiss level does not exceed -20dB RMS
+dsp_systems_tests|TapeMachine wow produces pitch modulation
+dsp_systems_tests|TapeMachine flutter produces fast pitch modulation
+dsp_systems_tests|TapeMachine wow flutter at 0% produces no pitch modulation
+dsp_systems_tests|TapeMachine combined wow and flutter both audible
+dsp_systems_tests|TapeMachine wow depth override produces specified deviation
+dsp_systems_tests|TapeMachine pitch deviation matches configured depth
+dsp_systems_tests|TapeMachine uses Triangle waveform for modulation
+dsp_systems_tests|TapeMachine getters return correct values
+dsp_systems_tests|TapeMachine signal flow order is correct
+dsp_systems_tests|TapeMachine all smoothers complete within 5ms
+dsp_systems_tests|TapeMachine performance meets target
+dsp_systems_tests|FuzzPedal default construction
+dsp_systems_tests|FuzzPedal prepare and reset
+dsp_systems_tests|FuzzPedal fuzz amount control
+dsp_systems_tests|FuzzPedal volume control
+dsp_systems_tests|FuzzPedal harmonic distortion
+dsp_systems_tests|FuzzPedal parameter smoothing
+dsp_systems_tests|FuzzPedal clean bypass
+dsp_systems_tests|FuzzPedal edge cases
+dsp_systems_tests|FuzzPedal sample rate support
+dsp_systems_tests|FuzzPedal performance
+dsp_systems_tests|FuzzPedal signal flow order
+dsp_systems_tests|FuzzPedal fuzz type selection
+dsp_systems_tests|FuzzPedal Germanium character
+dsp_systems_tests|FuzzPedal Silicon character
+dsp_systems_tests|FuzzPedal fuzz type crossfade
+dsp_systems_tests|FuzzPedal tone control
+dsp_systems_tests|FuzzPedal dark tone
+dsp_systems_tests|FuzzPedal bright tone
+dsp_systems_tests|FuzzPedal neutral tone
+dsp_systems_tests|FuzzPedal tone frequency response range
+dsp_systems_tests|FuzzPedal bias control
+dsp_systems_tests|FuzzPedal dying battery effect
+dsp_systems_tests|FuzzPedal normal bias operation
+dsp_systems_tests|FuzzPedal moderate bias
+dsp_systems_tests|FuzzPedal input buffer control
+dsp_systems_tests|FuzzPedal buffer cutoff selection
+dsp_systems_tests|FuzzPedal true bypass
+dsp_systems_tests|FuzzPedal buffered signal
+dsp_systems_tests|FuzzPedal buffer high-pass response
+dsp_systems_tests|FuzzPedal buffer signal flow
+dsp_systems_tests|FuzzPedal gate enable control
+dsp_systems_tests|FuzzPedal gate threshold control
+dsp_systems_tests|FuzzPedal gate type selection
+dsp_systems_tests|FuzzPedal gate timing selection
+dsp_systems_tests|FuzzPedal noise gating
+dsp_systems_tests|FuzzPedal sensitive gate
+dsp_systems_tests|FuzzPedal aggressive gate
+dsp_systems_tests|FuzzPedal gate type crossfade
+dsp_systems_tests|FuzzPedal gate timing change
+dsp_systems_tests|FuzzPedal gate signal flow
+dsp_systems_tests|FuzzPedal gate envelope following
+dsp_systems_tests|FuzzPedal end-to-end signal flow
+dsp_systems_tests|SlotConfiguration_SetAndGetSlotType
+dsp_systems_tests|SlotConfiguration_DefaultSlotTypeIsEmpty
+dsp_systems_tests|SlotConfiguration_OutOfRangeSlotIndex
+dsp_systems_tests|Processing_AllSlotsEmpty_PassThrough
+dsp_systems_tests|Processing_TubeStageFollowedByWavefolder_CombinedHarmonics
+dsp_systems_tests|Processing_FourSlotChain_DiodeClipperTapeSaturatorFuzzBitcrusher
+dsp_systems_tests|Lifecycle_PrepareConfiguresAllComponents
+dsp_systems_tests|Lifecycle_ResetClearsState
+dsp_systems_tests|Lifecycle_ProcessBeforePrepare_PassThrough
+dsp_systems_tests|Processing_ZeroLengthBuffer_NoOp
+dsp_systems_tests|SlotEnable_DefaultDisabled
+dsp_systems_tests|SlotEnable_EnableSlot_ProcessesAudio
+dsp_systems_tests|SlotEnable_DisableSlot_PassThrough
+dsp_systems_tests|SlotEnable_TransitionIsSmooth
+dsp_systems_tests|SlotMix_DefaultFullWet
+dsp_systems_tests|SlotMix_ZeroMix_FullDry
+dsp_systems_tests|SlotMix_FullWet_OnlyProcessed
+dsp_systems_tests|SlotMix_HalfMix_50PercentBlend
+dsp_systems_tests|SlotMix_TransitionIsSmooth
+dsp_systems_tests|SlotMix_ClampedToRange
+dsp_systems_tests|SlotTypeChange_MidProcessing_NoArtifacts
+dsp_systems_tests|Oversampling_DefaultFactor1
+dsp_systems_tests|Oversampling_SetFactor2_UsesOversampler2x
+dsp_systems_tests|Oversampling_SetFactor4_UsesOversampler4x
+dsp_systems_tests|Oversampling_Factor1_NoLatency
+dsp_systems_tests|Oversampling_Factor2_ReportsLatency
+dsp_systems_tests|Oversampling_Factor4_ReportsLatency
+dsp_systems_tests|Oversampling_InvalidFactor_Ignored
+dsp_systems_tests|Oversampling_4xReducesAliasing_HighDrive
+dsp_systems_tests|Oversampling_FactorChange_MidPlayback_Seamless
+dsp_systems_tests|ProcessorAccess_GetProcessor_CorrectType_ReturnsPointer
+dsp_systems_tests|ProcessorAccess_GetProcessor_WrongType_ReturnsNullptr
+dsp_systems_tests|ProcessorAccess_GetProcessor_EmptySlot_ReturnsNullptr
+dsp_systems_tests|ProcessorAccess_GetProcessor_OutOfRange_ReturnsNullptr
+dsp_systems_tests|ProcessorAccess_GetProcessor_InvalidChannel_ReturnsNullptr
+dsp_systems_tests|ProcessorAccess_ModifyParameters_AffectsOutput
+dsp_systems_tests|ProcessorAccess_StereoProcessors_IndependentAccess
+dsp_systems_tests|SlotGain_DefaultUnityGain
+dsp_systems_tests|SlotGain_PositiveGain_IncreasesLevel
+dsp_systems_tests|SlotGain_NegativeGain_DecreasesLevel
+dsp_systems_tests|SlotGain_ClampedToRange
+dsp_systems_tests|SlotGain_TransitionIsSmooth
+dsp_systems_tests|DCBlocking_EnabledByDefault
+dsp_systems_tests|DCBlocking_RemovesDCOffset_AfterAsymmetricSaturation
+dsp_systems_tests|DCBlocking_4StageChain_DCOffsetBelowThreshold
+dsp_systems_tests|DCBlocking_Disabled_AllowsDCOffset
+dsp_systems_tests|DCBlocking_InactiveWhenSlotDisabled
+dsp_systems_tests|EdgeCase_AllSlotsDisabled_PassThrough
+dsp_systems_tests|EdgeCase_MixAllZero_PassThrough
+dsp_systems_tests|EdgeCase_ProcessWithoutPrepare_PassThrough
+dsp_systems_tests|EdgeCase_SetSlotTypeOutOfRange_NoOp
+dsp_systems_tests|OutputGain_DefaultUnityGain
+dsp_systems_tests|OutputGain_PositiveGain_IncreasesLevel
+dsp_systems_tests|OutputGain_NegativeGain_DecreasesLevel
+dsp_systems_tests|OutputGain_ClampedToRange
+dsp_systems_tests|OutputGain_TransitionIsSmooth
+dsp_systems_tests|OutputGain_AppliedAfterChain
+dsp_systems_tests|SuccessCriteria_SC006_AllDisabled_ExactPassThrough
+dsp_systems_tests|SuccessCriteria_SC009_ProcessorParameters_AffectOutput
+dsp_systems_tests|SuccessCriteria_SC010_DCOffset_BelowThreshold
+dsp_systems_tests|SuccessCriteria_SC003_SlotTypeChange_NoClicks
+dsp_systems_tests|SuccessCriteria_SC004_EnableDisable_NoClicks
+dsp_systems_tests|SuccessCriteria_SC005_MixChange_NoClicks
+dsp_systems_tests|SuccessCriteria_SC011_GainChange_NoClicks
+dsp_systems_tests|SuccessCriteria_SC002_AliasingAttenuation_60dB
+dsp_systems_tests|SuccessCriteria_SC007_TubeStage_EvenHarmonics
+dsp_systems_tests|SuccessCriteria_SC007_Fuzz_OddHarmonics
+dsp_systems_tests|SuccessCriteria_SC007_Wavefolder_RichHarmonics
+dsp_systems_tests|SuccessCriteria_SC007_Bitcrusher_DigitalArtifacts
+dsp_systems_tests|FilterFeedbackMatrix lifecycle - prepare
+dsp_systems_tests|FilterFeedbackMatrix lifecycle - reset
+dsp_systems_tests|FilterFeedbackMatrix lifecycle - unprepared processing
+dsp_systems_tests|FilterFeedbackMatrix NaN/Inf handling
+dsp_systems_tests|FilterFeedbackMatrix stability with extreme feedback
+dsp_systems_tests|FilterFeedbackMatrix soft clipping behavior
+dsp_systems_tests|FilterFeedbackMatrix filter configuration
+dsp_systems_tests|FilterFeedbackMatrix basic resonant behavior
+dsp_systems_tests|FilterFeedbackMatrix zero feedback parallel filter
+dsp_systems_tests|FilterFeedbackMatrix parameter modulation
+dsp_systems_tests|FilterFeedbackMatrix smoother verification
+dsp_systems_tests|FilterFeedbackMatrix setActiveFilters
+dsp_systems_tests|FilterFeedbackMatrix individual feedback amount
+dsp_systems_tests|FilterFeedbackMatrix feedback delay
+dsp_systems_tests|FilterFeedbackMatrix full matrix update
+dsp_systems_tests|FilterFeedbackMatrix self-feedback
+dsp_systems_tests|FilterFeedbackMatrix DC blocking
+dsp_systems_tests|FilterFeedbackMatrix input routing
+dsp_systems_tests|FilterFeedbackMatrix output mixing
+dsp_systems_tests|FilterFeedbackMatrix serial chain topology
+dsp_systems_tests|FilterFeedbackMatrix parallel topology
+dsp_systems_tests|FilterFeedbackMatrix global feedback scaling
+dsp_systems_tests|FilterFeedbackMatrix zero global feedback
+dsp_systems_tests|FilterFeedbackMatrix full global feedback
+dsp_systems_tests|FilterFeedbackMatrix dual-mono stereo
+dsp_systems_tests|FilterFeedbackMatrix stereo channel isolation
+dsp_systems_tests|FilterFeedbackMatrix template instantiation
+dsp_systems_tests|FilterFeedbackMatrix impulse decay verification
+dsp_systems_tests|FilterStepSequencer lifecycle - prepare
+dsp_systems_tests|FilterStepSequencer lifecycle - reset
+dsp_systems_tests|FilterStepSequencer lifecycle - unprepared processing
+dsp_systems_tests|FilterStepSequencer step configuration - numSteps
+dsp_systems_tests|FilterStepSequencer step configuration - parameters
+dsp_systems_tests|FilterStepSequencer timing accuracy - SC-001
+dsp_systems_tests|FilterStepSequencer forward direction
+dsp_systems_tests|FilterStepSequencer basic processing
+dsp_systems_tests|FilterStepSequencer Q parameter - clamping
+dsp_systems_tests|FilterStepSequencer Q processing
+dsp_systems_tests|FilterStepSequencer filter type
+dsp_systems_tests|FilterStepSequencer filter type transition - no clicks
+dsp_systems_tests|FilterStepSequencer glide timing - SC-002
+dsp_systems_tests|FilterStepSequencer glide truncation
+dsp_systems_tests|FilterStepSequencer glide click prevention - SC-003
+dsp_systems_tests|FilterStepSequencer backward direction
+dsp_systems_tests|FilterStepSequencer PingPong direction
+dsp_systems_tests|FilterStepSequencer Random direction
+dsp_systems_tests|FilterStepSequencer direction change
+dsp_systems_tests|FilterStepSequencer swing ratio - SC-004
+dsp_systems_tests|FilterStepSequencer swing edge cases
+dsp_systems_tests|FilterStepSequencer gate length
+dsp_systems_tests|FilterStepSequencer gate crossfade - SC-009
+dsp_systems_tests|FilterStepSequencer gain parameter
+dsp_systems_tests|FilterStepSequencer gain accuracy - SC-010
+dsp_systems_tests|FilterStepSequencer PPQ sync - SC-008
+dsp_systems_tests|FilterStepSequencer PPQ fractional sync
+dsp_systems_tests|FilterStepSequencer manual trigger
+dsp_systems_tests|FilterStepSequencer NaN/Inf handling - FR-022
+dsp_systems_tests|FilterStepSequencer parameter edge cases
+dsp_systems_tests|FilterStepSequencer sample rate change
+dsp_systems_tests|FilterStepSequencer zero allocation - FR-019
+dsp_systems_tests|FilterStepSequencer CPU performance - SC-007
+dsp_systems_tests|VowelSequencer lifecycle - prepare and reset
+dsp_systems_tests|VowelSequencer default pattern - FR-015a
+dsp_systems_tests|VowelSequencer step configuration
+dsp_systems_tests|VowelSequencer presets - FR-021
+dsp_systems_tests|VowelSequencer timing accuracy - SC-001
+dsp_systems_tests|VowelSequencer morph time - FR-020
+dsp_systems_tests|VowelSequencer direction modes
+dsp_systems_tests|VowelSequencer gate behavior - FR-012a bypass-safe
+dsp_systems_tests|VowelSequencer per-step formant shift - SC-010
+dsp_systems_tests|VowelSequencer swing timing - SC-004
+dsp_systems_tests|VowelSequencer PPQ sync - SC-008
+dsp_systems_tests|VowelSequencer processBlock
+dsp_systems_tests|VowelSequencer edge cases and safety
+dsp_systems_tests|VowelSequencer all steps programmable - SC-005
+dsp_systems_tests|VowelSequencer morph time transitions - SC-002
+dsp_systems_tests|VowelSequencer click-free morph - SC-003
+dsp_systems_tests|VowelSequencer CPU performance - SC-007
+dsp_systems_tests|VowelSequencer click-free gate - SC-009
+dsp_systems_tests|FilteredGrainState struct exists and has correct fields
+dsp_systems_tests|GranularFilter class instantiation and prepare
+dsp_systems_tests|GranularFilter default parameter values
+dsp_systems_tests|GranularFilter grain slot indexing
+dsp_systems_tests|GranularFilter filter state reset on grain acquire
+dsp_systems_tests|GranularFilter independent filter state per grain
+dsp_systems_tests|GranularFilter filter bypass mode
+dsp_systems_tests|GranularFilter calculateRandomizedCutoff
+dsp_systems_tests|GranularFilter cutoff distribution with randomization
+dsp_systems_tests|GranularFilter cutoff clamping
+dsp_systems_tests|GranularFilter deterministic seeding for cutoff
+dsp_systems_tests|GranularFilter lowpass mode
+dsp_systems_tests|GranularFilter highpass mode
+dsp_systems_tests|GranularFilter bandpass mode
+dsp_systems_tests|GranularFilter filter type propagation
+dsp_systems_tests|GranularFilter Butterworth response
+dsp_systems_tests|GranularFilter high Q resonance
+dsp_systems_tests|GranularFilter Q clamping
+dsp_systems_tests|GranularFilter Q propagation
+dsp_systems_tests|GranularFilter pitch + filter integration
+dsp_systems_tests|GranularFilter reverse probability + filter integration
+dsp_systems_tests|GranularFilter bypass equivalence
+dsp_systems_tests|GranularFilter all granular parameters integration
+dsp_systems_tests|GranularFilter performance with 64 active filtered grains
+dsp_systems_tests|GranularFilter extreme cutoff randomization edge case
+dsp_systems_tests|GranularFilter high grain density edge case
+dsp_systems_tests|GranularFilter filter state isolation
+dsp_systems_tests|GranularFilter signal flow order
+dsp_systems_tests|GranularFilter bypass vs GranularEngine comparison (SC-004/SC-007)
+dsp_systems_tests|TimeVaryingCombBank lifecycle - prepare and reset
+dsp_systems_tests|TimeVaryingCombBank unprepared processing
+dsp_systems_tests|TimeVaryingCombBank mono processing with harmonic combs
+dsp_systems_tests|TimeVaryingCombBank modulation creates smooth delay variations
+dsp_systems_tests|TimeVaryingCombBank zero modulation produces static output
+dsp_systems_tests|TimeVaryingCombBank NaN/Inf handling
+dsp_systems_tests|TimeVaryingCombBank harmonic tuning produces correct delays
+dsp_systems_tests|TimeVaryingCombBank fundamental change updates delays
+dsp_systems_tests|TimeVaryingCombBank tuning mode switching
+dsp_systems_tests|TimeVaryingCombBank inharmonic tuning produces bell-like ratios
+dsp_systems_tests|TimeVaryingCombBank spread parameter
+dsp_systems_tests|TimeVaryingCombBank stereo spread distribution
+dsp_systems_tests|TimeVaryingCombBank modulation phase spread
+dsp_systems_tests|TimeVaryingCombBank zero stereo spread produces centered output
+dsp_systems_tests|TimeVaryingCombBank stereo decorrelation
+dsp_systems_tests|TimeVaryingCombBank phase and stereo spread interaction
+dsp_systems_tests|TimeVaryingCombBank random drift modulation
+dsp_systems_tests|TimeVaryingCombBank deterministic random sequence
+dsp_systems_tests|TimeVaryingCombBank zero random produces only LFO modulation
+dsp_systems_tests|TimeVaryingCombBank per-comb feedback
+dsp_systems_tests|TimeVaryingCombBank per-comb damping
+dsp_systems_tests|TimeVaryingCombBank per-comb gain
+dsp_systems_tests|TimeVaryingCombBank smooth parameter transitions
+dsp_systems_tests|TimeVaryingCombBank uses linear interpolation
+dsp_systems_tests|TimeVaryingCombBank edge cases
+dsp_systems_tests|LFO 1 produces oscillation at configured rate
+dsp_systems_tests|LFO tempo sync at 120 BPM quarter note
+dsp_systems_tests|All 6 LFO waveforms produce distinct patterns
+dsp_systems_tests|LFO unipolar mode converts [-1,+1] to [0,+1]
+dsp_systems_tests|LFO retrigger resets phase on transport start
+dsp_systems_tests|LFO retrigger resets phase on noteOn
+dsp_systems_tests|LFO noteOn does not retrigger when retrigger is disabled
+dsp_systems_tests|Single routing with LFO to destination applies amount and curve
+dsp_systems_tests|Bipolar modulation: negative amount inverts
+dsp_systems_tests|Multiple routings to same destination sum correctly
+dsp_systems_tests|Summation clamping: 3 routings clamp to +1.0
+dsp_systems_tests|32 simultaneous routings can be active
+dsp_systems_tests|Routing with amount=0% has no effect
+dsp_systems_tests|getModulatedValue clamps to [0, 1]
+dsp_systems_tests|Envelope follower responds to step input
+dsp_systems_tests|Envelope follower source types
+dsp_systems_tests|4 macros are independently available
+dsp_systems_tests|Macro Min/Max range mapping
+dsp_systems_tests|Macro curve applied after Min/Max mapping
+dsp_systems_tests|Macro output range is [0, +1]
+dsp_systems_tests|Engine random source integrates with routing
+dsp_systems_tests|Engine chaos source integrates with routing
+dsp_systems_tests|Engine transient source integrates with routing
+dsp_systems_tests|Engine routing with amount=0 has no effect
+dsp_systems_tests|Engine getModulatedValue clamps to [0, 1]
+dsp_systems_tests|Engine out-of-range destParamId returns 0 offset
+dsp_systems_tests|Engine all 32 routing slots can be active
+dsp_systems_tests|LFO 1 getters return set values
+dsp_systems_tests|LFO 2 getters return set values
+dsp_systems_tests|Envelope follower getters return set values
+dsp_systems_tests|Random source getters return set values
+dsp_systems_tests|Chaos source getters return set values
+dsp_systems_tests|Sample & Hold getters return set values
+dsp_systems_tests|Pitch follower getters return set values
+dsp_systems_tests|Transient detector getters return set values
+dsp_systems_tests|Macro getters return set values
+dsp_systems_tests|Routing getters return set values
+dsp_systems_tests|ModSource enum count is 18 after External source slots
+dsp_systems_tests|Rungler source processes and returns value
+dsp_systems_tests|Rungler only processes when sourceActive_ is true
+dsp_systems_tests|External source slot 0 returns set value via routing
+dsp_systems_tests|External source defaults to 0.0 when not set
+dsp_systems_tests|External source slots are independent
+dsp_systems_tests|External source value persists across blocks (hold behavior)
+dsp_systems_tests|Performance: 32 active routings < 1% CPU
+dsp_systems_tests|UnisonEngine: 1-voice output matches single PolyBlepOscillator
+dsp_systems_tests|UnisonEngine: 7-voice detune shows multiple frequency peaks in FFT
+dsp_systems_tests|UnisonEngine: gain compensation keeps output within [-2.0, 2.0]
+dsp_systems_tests|UnisonEngine: non-linear detune curve - outer > 1.5x inner
+dsp_systems_tests|UnisonEngine: detune=0.0 produces identical frequencies
+dsp_systems_tests|UnisonEngine: 16 voices produce valid output
+dsp_systems_tests|UnisonEngine: stereoSpread=0.0 produces mono output
+dsp_systems_tests|UnisonEngine: stereoSpread=1.0 produces balanced stereo
+dsp_systems_tests|UnisonEngine: stereoSpread=0.5 produces intermediate width
+dsp_systems_tests|UnisonEngine: blend=0.0 shows dominant center frequency
+dsp_systems_tests|UnisonEngine: blend=1.0 shows detuned peaks dominating
+dsp_systems_tests|UnisonEngine: blend sweep maintains constant RMS energy
+dsp_systems_tests|UnisonEngine: complex initial waveform from random phases
+dsp_systems_tests|UnisonEngine: reset() produces bit-identical output
+dsp_systems_tests|UnisonEngine: voice phases are distributed across [0,1)
+dsp_systems_tests|UnisonEngine: Sine waveform shows fundamental only
+dsp_systems_tests|UnisonEngine: Square waveform shows odd harmonics
+dsp_systems_tests|UnisonEngine: all waveforms produce valid output
+dsp_systems_tests|UnisonEngine: mid-stream waveform change is safe
+dsp_systems_tests|UnisonEngine: setNumVoices(0) clamps to 1
+dsp_systems_tests|UnisonEngine: setNumVoices(100) clamps to 16
+dsp_systems_tests|UnisonEngine: voice count change mid-stream is smooth
+dsp_systems_tests|UnisonEngine: setDetune(2.0) clamps to 1.0
+dsp_systems_tests|UnisonEngine: setStereoSpread(-0.5) clamps to 0.0
+dsp_systems_tests|UnisonEngine: setFrequency(0.0) produces DC
+dsp_systems_tests|UnisonEngine: setFrequency(NaN/Inf) is ignored
+dsp_systems_tests|UnisonEngine: process() before prepare() outputs silence
+dsp_systems_tests|UnisonEngine: even voice count treats innermost pair as center
+dsp_systems_tests|UnisonEngine: smooth detune transition from 0.0 to 0.1
+dsp_systems_tests|UnisonEngine: no NaN/Inf/denormal with randomized parameters
+dsp_systems_tests|UnisonEngine: processBlock is bit-identical to process loop
+dsp_systems_tests|UnisonEngine: performance measurement
+dsp_systems_tests|UnisonEngine: memory footprint under 2048 bytes
+dsp_systems_tests|FMVoice: Default constructor initializes to safe silence state
+dsp_systems_tests|FMVoice: process() returns 0.0 before prepare() is called
+dsp_systems_tests|FMVoice: prepare() enables processing
+dsp_systems_tests|FMVoice: reset() clears phases while preserving configuration
+dsp_systems_tests|FMVoice: reset() produces deterministic output
+dsp_systems_tests|FMVoice: setFrequency/getFrequency work correctly
+dsp_systems_tests|FMVoice: Operators track base frequency with ratio in Ratio mode
+dsp_systems_tests|FMVoice: setOperatorRatio/getOperatorRatio handle edge cases
+dsp_systems_tests|FMVoice: setOperatorLevel/getOperatorLevel handle edge cases
+dsp_systems_tests|FMVoice: setFeedback/getFeedback handle edge cases
+dsp_systems_tests|FMVoice: process() produces non-zero output when configured
+dsp_systems_tests|FMVoice: process() returns silence when all levels are zero
+dsp_systems_tests|FMVoice: setAlgorithm/getAlgorithm work correctly
+dsp_systems_tests|FMVoice: Algorithm switching preserves phases (click-free)
+dsp_systems_tests|FMVoice: All 8 algorithms produce distinct spectra
+dsp_systems_tests|FMVoice: Maximum feedback produces stable output
+dsp_systems_tests|FMVoice: Feedback increases harmonic content
+dsp_systems_tests|FMVoice: setOperatorMode/getOperatorMode work correctly
+dsp_systems_tests|FMVoice: setOperatorFixedFrequency/getOperatorFixedFrequency work correctly
+dsp_systems_tests|FMVoice: Fixed mode operator ignores base frequency changes
+dsp_systems_tests|FMVoice: DC blocker removes DC offset from feedback-heavy patches
+dsp_systems_tests|FMVoice: Output is sanitized and bounded
+dsp_systems_tests|FMVoice: processBlock produces same output as repeated process()
+dsp_systems_tests|FMVoice: Algorithm topologies have valid structure
+dsp_systems_tests|FMVoice: SC-001 - Composition parity with raw FMOperator pair
+dsp_systems_tests|FMVoice: SC-002 - Algorithm switching completes within 1 sample
+dsp_systems_tests|FMVoice: SC-003 - Maximum feedback stable for 10 seconds
+dsp_systems_tests|FMVoice: SC-005 - DC blocker reduces DC offset by at least 40dB
+dsp_systems_tests|FMVoice: SC-006 - Single sample process() performance
+dsp_systems_tests|FMVoice: SC-007 - Full voice CPU usage
+dsp_systems_tests|FMVoice: Nyquist clamping prevents aliasing
+dsp_systems_tests|VectorMixer: square topology corner A (-1,-1) gives wA=1.0
+dsp_systems_tests|VectorMixer: square topology corner B (+1,-1) gives wB=1.0
+dsp_systems_tests|VectorMixer: square topology corner C (-1,+1) gives wC=1.0
+dsp_systems_tests|VectorMixer: square topology corner D (+1,+1) gives wD=1.0
+dsp_systems_tests|VectorMixer: square topology center (0,0) gives all weights 0.25
+dsp_systems_tests|VectorMixer: linear law weight sum equals 1.0 across grid
+dsp_systems_tests|VectorMixer: XY values outside [-1,1] are clamped
+dsp_systems_tests|VectorMixer: process() with DC inputs at center produces average
+dsp_systems_tests|VectorMixer: process() at corner A returns source A
+dsp_systems_tests|VectorMixer: process() at corner D returns source D
+dsp_systems_tests|VectorMixer: processBlock() produces correct output for constant position
+dsp_systems_tests|VectorMixer: processBlock() matches per-sample process()
+dsp_systems_tests|VectorMixer: prepare() enables processing
+dsp_systems_tests|VectorMixer: reset() snaps smoothed position to target
+dsp_systems_tests|VectorMixer: multiple prepare() calls are safe
+dsp_systems_tests|VectorMixer: process() before prepare() returns 0.0
+dsp_systems_tests|VectorMixer: processBlock() before prepare() outputs zeros
+dsp_systems_tests|VectorMixer: topology change takes effect on next process() call
+dsp_systems_tests|VectorMixer: mixing law change takes effect on next process() call
+dsp_systems_tests|VectorMixer: equal-power at center gives each weight 0.5, sum-of-squares=1.0
+dsp_systems_tests|VectorMixer: equal-power at corners gives solo weights
+dsp_systems_tests|VectorMixer: equal-power sum-of-squares in [0.95,1.05] across 100 points (SC-002)
+dsp_systems_tests|VectorMixer: square-root at center gives each weight 0.5
+dsp_systems_tests|VectorMixer: equal-power produces same results as manual sqrt
+dsp_systems_tests|VectorMixer: diamond topology cardinal points produce solo weights (SC-004)
+dsp_systems_tests|VectorMixer: diamond topology center (0,0) gives all weights 0.25
+dsp_systems_tests|VectorMixer: diamond topology weights are non-negative and sum to 1.0
+dsp_systems_tests|VectorMixer: diamond topology at non-cardinal positions distributes weights
+dsp_systems_tests|VectorMixer: 10ms smoothing reaches within 5% in ~50ms (SC-005)
+dsp_systems_tests|VectorMixer: 0ms smoothing gives instant response (SC-007)
+dsp_systems_tests|VectorMixer: X and Y smooth independently
+dsp_systems_tests|VectorMixer: negative smoothing time clamped to 0 (instant)
+dsp_systems_tests|VectorMixer: getWeights() reflects smoothed position (FR-020)
+dsp_systems_tests|VectorMixer: stereo process() applies identical weights to both channels
+dsp_systems_tests|VectorMixer: stereo processBlock() produces correct output
+dsp_systems_tests|VectorMixer: stereo weights match mono weights for same XY position
+dsp_systems_tests|VectorMixer: NaN input propagates to output (FR-025, release behavior)
+dsp_systems_tests|VectorMixer: Inf input propagates to output (FR-025, release behavior)
+dsp_systems_tests|VectorMixer: 8192-sample block processes correctly (SC-008)
+dsp_systems_tests|VectorMixer: 8192-sample stereo block processes correctly (SC-008)
+dsp_systems_tests|VectorMixer: 10-second random XY sweep produces no NaN/Inf (SC-006)
+dsp_systems_tests|VectorMixer: atomic setters are thread-safe (FR-026)
+dsp_systems_tests|US1: noteOn with idle voices assigns unique voice indices
+dsp_systems_tests|US1: noteOn returns VoiceEvent with correct note, velocity, frequency
+dsp_systems_tests|US1: frequency computation accuracy for all 128 MIDI notes
+dsp_systems_tests|US1: noteOff transitions voice to Releasing and returns NoteOff event
+dsp_systems_tests|US1: noteOff for non-active note returns empty span
+dsp_systems_tests|US1: voiceFinished transitions Releasing voice to Idle
+dsp_systems_tests|US1: voiceFinished ignores out-of-range and non-Releasing voices
+dsp_systems_tests|US1: getActiveVoiceCount returns correct count
+dsp_systems_tests|US1: isVoiceActive returns correct state
+dsp_systems_tests|US1: velocity-0 noteOn treated as noteOff
+dsp_systems_tests|US2: RoundRobin mode cycles through voices
+dsp_systems_tests|US2: Oldest mode selects voice with earliest timestamp
+dsp_systems_tests|US2: LowestVelocity mode selects voice with lowest velocity
+dsp_systems_tests|US2: HighestNote mode selects voice with highest MIDI note
+dsp_systems_tests|US2: setAllocationMode changes mode without disrupting active voices
+dsp_systems_tests|US3: Hard steal returns Steal event + NoteOn for stolen voice
+dsp_systems_tests|US3: Soft steal returns NoteOff (old) + NoteOn (new) for same voice
+dsp_systems_tests|US3: Releasing voices preferred over Active voices for stealing
+dsp_systems_tests|US3: Allocation mode strategy applied among releasing voices
+dsp_systems_tests|US3: setStealMode changes steal behavior
+dsp_systems_tests|US4: Same-note retrigger reuses existing voice
+dsp_systems_tests|US4: Releasing voice reclaimed for same-note retrigger
+dsp_systems_tests|US4: Active voice count does not increase on same-note retrigger
+dsp_systems_tests|US5: Unison count N allocates N voices per note-on
+dsp_systems_tests|US5: Unison detune spreads voices symmetrically (odd N)
+dsp_systems_tests|US5: Unison detune spreads voices symmetrically (even N)
+dsp_systems_tests|US5: noteOff releases all N unison voices
+dsp_systems_tests|US5: Effective polyphony = voiceCount / unisonCount
+dsp_systems_tests|US5: setUnisonCount clamps to [1, kMaxUnisonCount]
+dsp_systems_tests|US5: setUnisonDetune clamps and ignores NaN/Inf
+dsp_systems_tests|US5: Unison mode changes do not affect active voices
+dsp_systems_tests|US5: setUnisonCount(4) takes effect immediately for next noteOn
+dsp_systems_tests|US5: Unison group stealing steals all N voices together
+dsp_systems_tests|US5: Unison group with any Releasing voice considered Releasing
+dsp_systems_tests|US6: setVoiceCount clamps to [1, kMaxVoices]
+dsp_systems_tests|US6: Reducing voice count releases excess voices
+dsp_systems_tests|US6: Increasing voice count makes new voices available
+dsp_systems_tests|US6: Voice count 1 produces monophonic behavior
+dsp_systems_tests|setPitchBend updates all active voice frequencies
+dsp_systems_tests|setPitchBend ignores NaN/Inf values
+dsp_systems_tests|setTuningReference recalculates all active voice frequencies
+dsp_systems_tests|setTuningReference ignores NaN/Inf values
+dsp_systems_tests|noteOn after setPitchBend uses updated frequency
+dsp_systems_tests|setPitchBend immediately updates stored voice frequencies (SC-012 direct)
+dsp_systems_tests|setTuningReference immediately updates stored voice frequencies
+dsp_systems_tests|getVoiceNote returns note or -1 for idle
+dsp_systems_tests|getVoiceState returns current state
+dsp_systems_tests|Thread-safe query methods under concurrent contention
+dsp_systems_tests|reset returns all voices to Idle and clears state
+dsp_systems_tests|Performance: noteOn latency < 1us average with 32 voices
+dsp_systems_tests|Memory: VoiceAllocator instance size < 4096 bytes
+dsp_systems_tests|Edge: MIDI note 0 (lowest) processed correctly
+dsp_systems_tests|Edge: MIDI note 127 (highest) processed correctly
+dsp_systems_tests|Edge: Double note-off for same note returns empty span
+dsp_systems_tests|Edge: All voices active, no releasing, steal selects active voice
+dsp_systems_tests|Edge: All voices releasing, steal selects best releasing voice
+dsp_systems_tests|Edge: Unison count clamped when exceeds voice count
+dsp_systems_tests|Edge: MIDI machine gun - rapid same-note retrigger
+dsp_systems_tests|Edge: Pitch bend +2 semitones on MIDI note 127 produces valid frequency
+dsp_systems_tests|Edge: Pitch bend -2 semitones on MIDI note 0 produces valid frequency
+dsp_systems_tests|Unison steal never allocates the same voice slot twice
+dsp_systems_tests|Unison steal with no idle voices allocates distinct slots
+dsp_systems_tests|SynthVoice prepare initializes all components
+dsp_systems_tests|SynthVoice reset clears state
+dsp_systems_tests|SynthVoice process returns 0 before prepare
+dsp_systems_tests|SynthVoice noteOn produces non-zero output within 512 samples
+dsp_systems_tests|SynthVoice noteOff triggers release
+dsp_systems_tests|SynthVoice isActive state transitions
+dsp_systems_tests|SynthVoice amplitude envelope shapes output
+dsp_systems_tests|SynthVoice becomes inactive when amp envelope reaches idle
+dsp_systems_tests|SynthVoice envelopes configured with defaults
+dsp_systems_tests|SynthVoice process returns single sample
+dsp_systems_tests|SynthVoice processBlock is bit-identical to process loop
+dsp_systems_tests|SynthVoice output is 0 when idle
+dsp_systems_tests|SynthVoice output transitions through ADSR stages
+dsp_systems_tests|SynthVoice waveform selection produces non-zero distinct output
+dsp_systems_tests|SynthVoice osc2 waveforms work
+dsp_systems_tests|SynthVoice mix=0 silences osc2
+dsp_systems_tests|SynthVoice mix=1 silences osc1
+dsp_systems_tests|SynthVoice mix=0.5 blends both oscillators
+dsp_systems_tests|SynthVoice osc2 detune produces beating
+dsp_systems_tests|SynthVoice osc2 detune range clamped
+dsp_systems_tests|SynthVoice osc2 octave produces correct frequency
+dsp_systems_tests|SynthVoice osc2 octave range clamped to [-2, +2]
+dsp_systems_tests|SynthVoice osc2 octave compounds with detune
+dsp_systems_tests|SynthVoice filter types produce distinct frequency responses
+dsp_systems_tests|SynthVoice filter cutoff affects output
+dsp_systems_tests|SynthVoice filter resonance produces resonant peak
+dsp_systems_tests|SynthVoice high Q allows self-oscillation
+dsp_systems_tests|SynthVoice filter envelope modulates cutoff upward
+dsp_systems_tests|SynthVoice filter envelope modulates cutoff downward
+dsp_systems_tests|SynthVoice filter env amount 0 keeps cutoff at base
+dsp_systems_tests|SynthVoice filter envelope per-sample modulation produces smooth sweeps
+dsp_systems_tests|SynthVoice extreme filter modulation stays in safe range
+dsp_systems_tests|SynthVoice 100% key tracking shifts cutoff by octave
+dsp_systems_tests|SynthVoice 0% key tracking cutoff independent of pitch
+dsp_systems_tests|SynthVoice 50% key tracking shifts cutoff by half octave per octave
+dsp_systems_tests|SynthVoice velocity 0.5 produces ~50% peak amplitude vs 1.0
+dsp_systems_tests|SynthVoice velToFilterEnv=1 velocity 0.25 gives 25% filter depth
+dsp_systems_tests|SynthVoice velToFilterEnv=0 filter depth unaffected by velocity
+dsp_systems_tests|SynthVoice processBlock 512 bit-identical to 512 process calls
+dsp_systems_tests|SynthVoice release mid-block produces zeros after release
+dsp_systems_tests|SynthVoice retrigger attacks from current level
+dsp_systems_tests|SynthVoice retrigger produces no clicks
+dsp_systems_tests|SynthVoice retrigger preserves oscillator phase
+dsp_systems_tests|SynthVoice setters work before prepare
+dsp_systems_tests|SynthVoice setters work while playing
+dsp_systems_tests|SynthVoice setters work while idle
+dsp_systems_tests|SynthVoice setters ignore NaN inputs
+dsp_systems_tests|SynthVoice setters ignore Inf inputs
+dsp_systems_tests|SynthVoice frequency=0 produces near-silence
+dsp_systems_tests|SynthVoice velocity=0 produces silence and becomes inactive
+dsp_systems_tests|SynthVoice noteOff while idle is safe
+dsp_systems_tests|SynthVoice prepare while note active resets voice
+dsp_systems_tests|SynthVoice works at all standard sample rates
+dsp_systems_tests|SynthVoice output in [-1, +1] under normal conditions
+dsp_systems_tests|SynthVoice CPU usage under 1%
+dsp_systems_tests|SynthVoice setFrequency updates oscillator without retriggering
+dsp_systems_tests|PolySynthEngine construction and constants
+dsp_systems_tests|PolySynthEngine lifecycle
+dsp_systems_tests|PolySynthEngine poly mode note dispatch
+dsp_systems_tests|PolySynthEngine voice stealing
+dsp_systems_tests|PolySynthEngine processBlock basic
+dsp_systems_tests|PolySynthEngine polyphony configuration
+dsp_systems_tests|PolySynthEngine parameter forwarding
+dsp_systems_tests|PolySynthEngine mono mode note dispatch
+dsp_systems_tests|PolySynthEngine portamento
+dsp_systems_tests|PolySynthEngine mode switching
+dsp_systems_tests|PolySynthEngine global filter
+dsp_systems_tests|PolySynthEngine gain compensation
+dsp_systems_tests|PolySynthEngine soft limiting
+dsp_systems_tests|PolySynthEngine pitch bend and config
+dsp_systems_tests|PolySynthEngine allocator config
+dsp_systems_tests|PolySynthEngine edge cases
+dsp_systems_tests|PolySynthEngine performance benchmark
+dsp_systems_tests|PolySynthEngine memory footprint
+dsp_systems_tests|PolySynthEngine voice allocation latency
+dsp_systems_tests|Mono mode reports one active voice while sounding
+dsp_systems_tests|DSP types: enum sizes
+dsp_systems_tests|SelectableOscillator: default construction produces PolyBLEP type
+dsp_systems_tests|SelectableOscillator: all 10 types produce non-zero output after prepare
+dsp_systems_tests|SelectableOscillator: type switching preserves frequency setting
+dsp_systems_tests|SelectableOscillator: switching to same type is no-op
+dsp_systems_tests|SelectableOscillator: processBlock before prepare produces silence
+dsp_systems_tests|SelectableOscillator: setType with PhaseMode::Reset resets phase
+dsp_systems_tests|SelectableOscillator: NaN/Inf frequency is silently ignored
+dsp_systems_tests|SelectableOscillator: SpectralFreeze produces output
+dsp_systems_tests|SelectableOscillator: RMS levels within +/-3 dB across all types
+dsp_systems_tests|SelectableOscillator: zero heap allocations during type switch for ALL types (SC-004)
+dsp_systems_tests|OscillatorSlot: base setParam is silent no-op
+dsp_systems_tests|SelectableOscillator: PolyBLEP setParam dispatches correctly
+dsp_systems_tests|SelectableOscillator: Wavetable setParam dispatches PM/FM
+dsp_systems_tests|SelectableOscillator: PhaseDistortion setParam dispatches correctly
+dsp_systems_tests|SelectableOscillator: Sync setParam dispatches correctly
+dsp_systems_tests|SelectableOscillator: Sync adapter uses stored slaveRatio
+dsp_systems_tests|SelectableOscillator: Additive setParam dispatches correctly
+dsp_systems_tests|SelectableOscillator: Chaos setParam dispatches correctly
+dsp_systems_tests|SelectableOscillator: Particle setParam dispatches correctly
+dsp_systems_tests|SelectableOscillator: Formant setParam dispatches correctly
+dsp_systems_tests|SelectableOscillator: SpectralFreeze setParam dispatches correctly
+dsp_systems_tests|SelectableOscillator: Noise setParam dispatches correctly
+dsp_systems_tests|SelectableOscillator: setParam with null active is silent no-op
+dsp_systems_tests|SelectableOscillator: cross-type setParam is silently ignored
+dsp_systems_tests|SelectableOscillator: zero heap allocations during processBlock (SC-004)
+dsp_systems_tests|SelectableOscillator: SpectralFreeze pitch follows the played note
+dsp_systems_tests|SelectableOscillator: SpectralFreeze tracks notes above the old +24 semitone shift limit
+dsp_systems_tests|SelectableOscillator: SpectralFreeze pitch-shift parameter offsets the played note
+dsp_systems_tests|VoiceModRouter: empty router produces zero offsets
+dsp_systems_tests|VoiceModRouter: single route Env2 -> FilterCutoff
+dsp_systems_tests|VoiceModRouter: two routes to same destination are summed
+dsp_systems_tests|VoiceModRouter: amount is clamped to [-1.0, +1.0]
+dsp_systems_tests|VoiceModRouter: negative amount exceeding -1.0 is clamped
+dsp_systems_tests|VoiceModRouter: velocity source provides constant value per note
+dsp_systems_tests|VoiceModRouter: 16 routes all functional
+dsp_systems_tests|VoiceModRouter: clear route zeroes its contribution
+dsp_systems_tests|VoiceModRouter: clearAllRoutes resets everything
+dsp_systems_tests|VoiceModRouter: each source type maps to correct input value
+dsp_systems_tests|VoiceModRouter: out-of-range route index is ignored
+dsp_systems_tests|VoiceModRouter: getOffset with out-of-range destination returns zero
+dsp_systems_tests|VoiceModRouter: bipolar source with negative amount
+dsp_systems_tests|VoiceModRouter: Aftertouch single route produces expected offset
+dsp_systems_tests|VoiceModRouter: Aftertouch + Env2 multi-route summation
+dsp_systems_tests|VoiceModRouter: zero aftertouch produces zero contribution
+dsp_systems_tests|VoiceModRouter: OscALevel route from Env3
+dsp_systems_tests|VoiceModRouter: OscBLevel route with negative amount
+dsp_systems_tests|VoiceModRouter: NaN source value is sanitized to zero offset
+dsp_systems_tests|VoiceModRouter: denormal source value flushed to zero offset
+dsp_systems_tests|VoiceModRouter: no routes produces all-zero offsets including OscLevel
+dsp_systems_tests|VoiceModRouter: Inf source value is sanitized to zero offset
+dsp_systems_tests|VoiceModRouter performance: 16 routes, 8 voices, 512-sample blocks
+dsp_systems_tests|ExtModulation: LFO1 -> GlobalFilterCutoff produces expected offset
+dsp_systems_tests|ExtModulation: Chaos -> MasterVolume routing produces non-zero offset
+dsp_systems_tests|ExtModulation: no global routings produces all-zero offsets
+dsp_systems_tests|ExtModulation: ModulationEngine.prepare() initializes sources
+dsp_systems_tests|ExtModulation: AllVoiceFilterCutoff forwarding offset calculation
+dsp_systems_tests|ExtModulation: AllVoiceMorphPosition forwarding offset calculation
+dsp_systems_tests|ExtModulation: TranceGateRate forwarding offset calculation
+dsp_systems_tests|ExtModulation: two-stage clamping formula
+dsp_systems_tests|ExtModulation: TranceGateRate Hz offset scaling and clamping
+dsp_systems_tests|ExtModulation: Pitch Bend normalization (14-bit to [-1, +1])
+dsp_systems_tests|ExtModulation: Mod Wheel normalization (CC#1 to [0, 1])
+dsp_systems_tests|ExtModulation: ModWheel -> EffectMix routing via Macro2
+dsp_systems_tests|ExtModulation: PitchBend -> AllVoiceFilterCutoff via Macro1
+dsp_systems_tests|ExtModulation: Rungler via Macro3 -> GlobalFilterCutoff
+dsp_systems_tests|SC-003: Amount change 0->1 at block_size=512 produces smooth interpolation
+dsp_systems_tests|SC-003: Amount change 1->0 at block_size=512 produces smooth ramp-down
+dsp_systems_tests|SC-003: Multiple simultaneous amount changes at block_size=512 all smooth
+dsp_systems_tests|HarmonizerEngine isPrepared() returns false before prepare()
+dsp_systems_tests|HarmonizerEngine isPrepared() returns true after prepare()
+dsp_systems_tests|HarmonizerEngine reset() preserves prepared state
+dsp_systems_tests|HarmonizerEngine process() before prepare() zero-fills outputs (FR-015)
+dsp_systems_tests|HarmonizerEngine SC-001 chromatic +7 semitones 440Hz produces 659Hz
+dsp_systems_tests|HarmonizerEngine SC-003 two voices produce two frequency components
+dsp_systems_tests|HarmonizerEngine FR-018 numVoices=0 produces only dry signal
+dsp_systems_tests|HarmonizerEngine FR-001 getNumVoices clamps correctly
+dsp_systems_tests|HarmonizerEngine SC-004 hard left pan right channel below -80dB
+dsp_systems_tests|HarmonizerEngine SC-005 center pan both channels equal at -3dB
+dsp_systems_tests|HarmonizerEngine SC-007 level change ramps over 200+ samples
+dsp_systems_tests|HarmonizerEngine SC-009 zero allocations in process path
+dsp_systems_tests|HarmonizerEngine SC-011 silence input produces silence output
+dsp_systems_tests|HarmonizerEngine SC-002 scalic C Major 3rd above A4 produces C5
+dsp_systems_tests|HarmonizerEngine SC-002 scalic C Major 3rd above C4 produces E4
+dsp_systems_tests|HarmonizerEngine FR-008 hold last note on silence
+dsp_systems_tests|HarmonizerEngine FR-013 query methods after Scalic processing
+dsp_systems_tests|HarmonizerEngine SC-010 getLatencySamples matches PitchShiftProcessor
+dsp_systems_tests|HarmonizerEngine US3 two voices panned left and right
+dsp_systems_tests|HarmonizerEngine US4 voice at -6dB produces half amplitude of 0dB
+dsp_systems_tests|HarmonizerEngine US4 dry and wet both at 0dB both present
+dsp_systems_tests|HarmonizerEngine US4 dry muted only harmony audible
+dsp_systems_tests|HarmonizerEngine US4 wet level is bus-level master fader
+dsp_systems_tests|HarmonizerEngine SC-004 hard right pan left channel below -80dB
+dsp_systems_tests|HarmonizerEngine SC-006 pitch transition C4 to D4 in Scalic mode is smooth
+dsp_systems_tests|HarmonizerEngine SC-007 pan change ramps smoothly
+dsp_systems_tests|HarmonizerEngine smoothers advance per-sample within block
+dsp_systems_tests|HarmonizerEngine SC-012 detune +10 cents frequency offset
+dsp_systems_tests|HarmonizerEngine detune beating between two voices
+dsp_systems_tests|HarmonizerEngine setVoiceDetune clamps to [-50,+50]
+dsp_systems_tests|HarmonizerEngine onset delay 10ms delays output by ~441 samples
+dsp_systems_tests|HarmonizerEngine onset delay 0ms produces time-aligned output
+dsp_systems_tests|HarmonizerEngine setVoiceDelay clamps to 50ms maximum
+dsp_systems_tests|HarmonizerEngine getLatencySamples returns 0 for Simple mode at various sample rates
+dsp_systems_tests|HarmonizerEngine getLatencySamples matches PitchShiftProcessor for all modes
+dsp_systems_tests|HarmonizerEngine latency round-trip Simple->PhaseVocoder->Simple returns to 0
+dsp_systems_tests|HarmonizerEngine silence input Scalic mode getPitchConfidence below 0.5
+dsp_systems_tests|HarmonizerEngine Chromatic mode getDetectedPitch returns 0
+dsp_systems_tests|HarmonizerEngine edge case numVoices=0 no voice processing or pitch tracking
+dsp_systems_tests|HarmonizerEngine edge case all voices muted only dry passes
+dsp_systems_tests|HarmonizerEngine edge case prepare called twice different sample rates
+dsp_systems_tests|HarmonizerEngine edge case pitch shift mode change at runtime
+dsp_systems_tests|HarmonizerEngine edge case key/scale change at runtime in Scalic mode
+dsp_systems_tests|HarmonizerEngine edge case input below PitchTracker range in Scalic mode
+dsp_systems_tests|HarmonizerEngine SC-008 CPU benchmark all modes
+dsp_systems_tests|HarmonizerEngine SC-008 orchestration overhead benchmark
+dsp_systems_tests|T027: HarmonizerEngine PhaseVocoder shared-analysis output equivalence (SC-002)
+dsp_systems_tests|T028: HarmonizerEngine single voice PhaseVocoder shared-analysis
+dsp_systems_tests|T029: HarmonizerEngine sub-hop-size block handling (FR-013a)
+dsp_systems_tests|T030: HarmonizerEngine PhaseVocoder zero-fill during priming (FR-013a)
+dsp_systems_tests|T031: HarmonizerEngine mode switch from PhaseVocoder to other modes (FR-014)
+dsp_systems_tests|T043: OLA isolation -- 2 voices shared analysis match standalone (SC-007)
+dsp_systems_tests|T044: OLA isolation -- 4 voices mute all but one matches standalone
+dsp_systems_tests|T045: OLA isolation -- mute one voice mid-stream other unaffected
+dsp_systems_tests|T058: HarmonizerEngine PitchSync 4-voice re-benchmark (SC-008)
+dsp_systems_tests|Harmonizer artifact: PhaseVocoder steady-state is click-free
+dsp_systems_tests|Harmonizer artifact: interval change during PV playback is smooth
+dsp_systems_tests|Harmonizer artifact: pitch shift mode change is click-free
+dsp_systems_tests|Harmonizer artifact: enable transition is click-free
+dsp_systems_tests|Harmonizer artifact: numVoices increase is click-free
+dsp_systems_tests|Harmonizer artifact: PV large interval jump is click-free
+dsp_systems_tests|Harmonizer artifact: complex signal through PV is click-free
+dsp_systems_tests|Harmonizer wet output level diagnostic
+dsp_systems_tests|Unmuting a harmonizer voice ramps rather than jumping
+dsp_systems_tests|HarmonicModelBuilder: amplitudes pass through without normalization
+dsp_systems_tests|HarmonicModelBuilder: fast layer responds quickly with 2 partials
+dsp_systems_tests|HarmonicModelBuilder: slow layer takes ~100ms to fully respond
+dsp_systems_tests|HarmonicModelBuilder: spectral centroid matches amplitude-weighted mean
+dsp_systems_tests|HarmonicModelBuilder: brightness equals centroid / f0
+dsp_systems_tests|HarmonicModelBuilder: median filter rejects single impulse
+dsp_systems_tests|HarmonicModelBuilder: median filter preserves step edge
+dsp_systems_tests|HarmonicModelBuilder: global amplitude tracks input RMS
+dsp_systems_tests|HarmonicModelBuilder: noisiness estimate
+dsp_systems_tests|HarmonicModelBuilder: zero partials produces valid frame
+dsp_systems_tests|HarmonicModelBuilder: output frame has all required fields
+dsp_systems_tests|HarmonicModelBuilder: relative amplitude gate zeroes noise partials
+dsp_systems_tests|HarmonicModelBuilder: partials within gate threshold are preserved
+dsp_systems_tests|HarmonicModelBuilder: young partials (age < 3) are suppressed
+dsp_systems_tests|SympatheticResonance: basic output sanity check
+dsp_systems_tests|SympatheticResonance: prepare does not crash
+dsp_systems_tests|SympatheticResonance: reset clears state
+dsp_systems_tests|SympatheticResonance: bypass with amount=0
+dsp_systems_tests|SympatheticResonance: noteOn adds kSympatheticPartialCount resonators
+dsp_systems_tests|SympatheticResonance: noteOff does not immediately reclaim resonators
+dsp_systems_tests|SympatheticResonance: resonators reclaimed below -96 dB threshold
+dsp_systems_tests|SympatheticResonance: pool cap enforced at 64 resonators
+dsp_systems_tests|SympatheticResonance: voices within 0.3 Hz are merged
+dsp_systems_tests|SympatheticResonance: voices ~1 Hz apart NOT merged (preserve beating)
+dsp_systems_tests|SympatheticResonance: re-triggering same voiceId merges
+dsp_systems_tests|SympatheticResonance: inharmonicity-adjusted partial frequencies
+dsp_systems_tests|SympatheticResonance: resonator coefficients computed correctly
+dsp_systems_tests|SympatheticResonance: frequency-dependent Q scaling
+dsp_systems_tests|SympatheticResonance: per-resonator gain includes 1/sqrt(n) weighting
+dsp_systems_tests|SympatheticResonance: sample rate scaling produces different coefficients
+dsp_systems_tests|SympatheticResonance: harmonic hierarchy via merge count
+dsp_systems_tests|SympatheticResonance: dissonant interval has no merged resonators
+dsp_systems_tests|SympatheticResonance: self-excitation is bounded and reaches steady state
+dsp_systems_tests|SympatheticResonance: output stays bounded for sustained driving
+dsp_systems_tests|SympatheticResonance US2: zero bypass produces exactly 0.0 for any input
+dsp_systems_tests|SympatheticResonance US2: non-zero activation with tiny amount
+dsp_systems_tests|SympatheticResonance US2: amount=1.0 produces more energy than amount=0.1
+dsp_systems_tests|SympatheticResonance US2: smooth transition up (no clicks)
+dsp_systems_tests|SympatheticResonance US2: smooth transition down (no clicks)
+dsp_systems_tests|SympatheticResonance US2: snapTo makes isBypassed true immediately
+dsp_systems_tests|SympatheticResonance US2: setAmount called every block does not reset pool
+dsp_systems_tests|SympatheticResonance: Q range low - decay=0.0 maps to Q=100
+dsp_systems_tests|SympatheticResonance: Q range high - decay=1.0 maps to Q=1000
+dsp_systems_tests|SympatheticResonance: existing resonators unchanged after setDecay
+dsp_systems_tests|SympatheticResonance: frequency-dependent Q at 440 Hz (full Q)
+dsp_systems_tests|SympatheticResonance: frequency-dependent Q at 1000 Hz (half Q)
+dsp_systems_tests|SympatheticResonance: frequency-dependent Q at 2000 Hz (clamped at minimum)
+dsp_systems_tests|SympatheticResonance: ring-out duration Q=100 at 440 Hz is short
+dsp_systems_tests|SympatheticResonance: ring-out duration Q=1000 at 440 Hz is long
+dsp_systems_tests|SympatheticResonance: smooth decay sweep while resonators active
+dsp_systems_tests|SympatheticResonance: ring-out persists after noteOff
+dsp_systems_tests|SympatheticResonance: natural decay after noteOff
+dsp_systems_tests|SympatheticResonance: -96 dB reclaim threshold
+dsp_systems_tests|SympatheticResonance: pool recovery after decay
+dsp_systems_tests|SympatheticResonance: voice steal pool cap at 64
+dsp_systems_tests|SympatheticResonance: quietest eviction on pool full
+dsp_systems_tests|SympatheticResonance: rapid tremolo stress test
+dsp_systems_tests|SympatheticResonance: no merge at 1 Hz separation
+dsp_systems_tests|SympatheticResonance: beating present at 1 Hz separation
+dsp_systems_tests|SympatheticResonance: merge at 0.2 Hz separation
+dsp_systems_tests|SympatheticResonance: merged frequency is weighted average
+dsp_systems_tests|SympatheticResonance: boundary at 0.3 Hz threshold
+dsp_systems_tests|SympatheticResonance: no merge across different frequencies
+dsp_systems_tests|SympatheticResonance: anti-mud HPF attenuates low frequency resonator
+dsp_systems_tests|SympatheticResonance: no buildup below 80 Hz with 4-voice bass chord
+dsp_systems_tests|SympatheticResonance: HPF frequency response matches expected curve
+dsp_systems_tests|SympatheticResonance: frequency-dependent Q comparison
+dsp_systems_tests|SympatheticResonance: dense chord clarity (C2/E2/G2/C3)
+dsp_systems_tests|SympatheticResonance: reset clears anti-mud HPF state
+dsp_systems_tests|SympatheticResonance SIMD correctness: scalar vs SIMD output match
+dsp_systems_tests|SympatheticResonance SIMD correctness: direct kernel vs process() path
+dsp_systems_tests|SympatheticResonance: rapid noteOn/noteOff tremolo stress test
+dsp_systems_tests|SympatheticResonance: 8 voices same unison note merge correctly
+dsp_systems_tests|SympatheticResonance: output bounded at max amount with resonant input
+dsp_systems_tests|SympatheticResonance: output scales smoothly with amount parameter
+dsp_systems_tests|SympatheticResonance: high Q does not cause runaway output
+dsp_systems_tests|SympatheticResonance: coupling gain at amount=1.0 is approximately -26 dB
+dsp_systems_tests|HarmonicCloud_FrequencyEstimatorResolution
+dsp_systems_tests|HarmonicCloud_GuardPaths
+dsp_systems_tests|HarmonicCloud_PartialFrequencyAccuracyWithin0p1Cent
+dsp_systems_tests|HarmonicCloud_InharmonicityFollowsPianoLaw
+dsp_systems_tests|HarmonicCloud_GravityMapsMonotonically
+dsp_systems_tests|HarmonicCloud_OnsetIsPhaseIncoherent
+dsp_systems_tests|HarmonicCloud_EqualPowerPanAndSpread
+dsp_systems_tests|HarmonicCloud_SeedDerivationIsDistinct
+dsp_systems_tests|HarmonicCloud_ResetReproducesSeededState
+dsp_systems_tests|HarmonicCloud_DriftLaneMatchesBrownianDrift
+dsp_systems_tests|HarmonicCloud_CentsToRatioMatchesExp2
+dsp_systems_tests|HarmonicCloud_DriftIsIndependentDecimatedAndBounded
+dsp_systems_tests|HarmonicCloud_MutationStaysBoundedAndLevelStable
+dsp_systems_tests|HarmonicCloud_PartialEnvelopeOffsetsStagger
+dsp_systems_tests|HarmonicCloud_RetriggerIsClickFree
+dsp_systems_tests|HarmonicCloud_ParameterGridStaysFiniteAndBounded
+dsp_systems_tests|HarmonicCloud_DecaysToExactZero
+dsp_systems_tests|HarmonicCloud_NoZipperUnderMutationAndDrift
+dsp_systems_tests|HarmonicCloud_MacroSweepsAreClickFree
+dsp_systems_tests|HarmonicCloud_MaskAndSoloAreClickFree
+dsp_systems_tests|HarmonicCloud_NoAllocInProcess
+dsp_systems_tests|HarmonicCloud_SeededRenderIsReproducible
+dsp_systems_tests|HarmonicCloud_RichnessAddsPartialsAndEnergy
+dsp_systems_tests|HarmonicCloud_TiltSlopeMatchesSetting
+dsp_systems_tests|HarmonicCloud_NoAliasingAtExtremes
+dsp_systems_tests|HarmonicCloud_SampleRateInvariant
+dsp_systems_tests|SpectralMorph_DefaultsAreAudible
+dsp_systems_tests|SpectralMorph_FillRecurrenceMatchesSpec
+dsp_systems_tests|SpectralMorph_SetStateRejects
+dsp_systems_tests|SpectralMorph_EndpointsAreExact
+dsp_systems_tests|SpectralMorph_BloomStaggersLowToHigh
+dsp_systems_tests|SpectralMorph_SplineTravelReachesEndpoints
+dsp_systems_tests|SpectralMorph_SplineLimiterHasHeadroom
+dsp_systems_tests|SpectralMorph_TravelIsContinuous
+dsp_systems_tests|SpectralMorph_SampleRateInvariant
+dsp_systems_tests|SpectralMorph_DeterministicUnderSeed
+dsp_systems_tests|EntropyProcessor_DisorderIncreasesMonotonically
+dsp_systems_tests|SpectralMorph_NoAllocInSteadyState
+dsp_systems_tests|SpectralMorph_ExtremesStayFinite
+dsp_systems_tests|HarmonicCloud_SpectralTargetIsNeutralWhenIdentity
+dsp_systems_tests|SpectralMorph_FactoryPairRenders
+dsp_systems_tests|SpectralMorph_OrbitEnergySurvivesTheSweep
+dsp_systems_tests|SpectralMorph_TravelIsContinuous_Rendered
+dsp_systems_tests|EntropyProcessor_FlatnessRisesWithEntropy
+dsp_systems_tests|EntropyProcessor_IsLevelNeutral
+dsp_systems_tests|SpectralState_MetadataNeverReachesAudio
+dsp_systems_tests|ContinuousBody_MaterialTablesAreWellFormed
+dsp_systems_tests|ContinuousBody_ControlSurfaceDefaults
+dsp_systems_tests|ContinuousBody_BlockSizeInvariance
+dsp_systems_tests|ContinuousBody_NoAllocInProcess
+dsp_systems_tests|ContinuousBody_ModeCountTruncation
+dsp_systems_tests|ContinuousBody_KeyTrackingLaw
+dsp_systems_tests|ContinuousBody_DriveNormalization
+dsp_systems_tests|ContinuousBody_OnlyActiveEnginesAdvance
+dsp_systems_tests|ContinuousBody_SustainedDriveBounded
+dsp_systems_tests|ContinuousBody_DecaysToSilence
+dsp_systems_tests|ContinuousBody_CrossfadeClickless
+dsp_systems_tests|ContinuousBody_RetargetClickless
+dsp_systems_tests|ContinuousBody_MaterialSwitchNoInfiniteRing
+dsp_systems_tests|ContinuousBody_GlideIsClickless
+dsp_systems_tests|ContinuousBody_OutputStageEndpoints
+dsp_systems_tests|ContinuousBody_SeedDeterminism
+dsp_systems_tests|ContinuousBody_NonFiniteInputRecovery
+dsp_systems_tests|ContinuousBody_NonFiniteStateRecovery
+dsp_systems_tests|ContinuousBody_ParameterSweepClickless
+dsp_systems_tests|ContinuousBody_SampleRateInvariance
+dsp_systems_tests|ContinuousBody_CloudExcitationHitsTarget
+dsp_systems_tests|ContinuousBody_ColdStartReachesTargetQuickly
+dsp_systems_tests|ContinuousBody_GainBoundValidAndTight
+dsp_systems_tests|ContinuousBody_MaterialsDistinct
+dsp_systems_tests|ContinuousBody_MaterialCharacterOrdering
+dsp_systems_tests|ContinuousBody_CloudDecayAccuracy
+dsp_systems_tests|RollingCaptureBuffer_ReadStereoLinearFastMath
+dsp_systems_tests|AtmosphereEngine_LifecycleAndGuards
+dsp_systems_tests|AtmosphereEngine_ControlTableClamps
+dsp_systems_tests|AtmosphereEngine_GrainLiveness
+dsp_systems_tests|AtmosphereEngine_SkipNeverSteal
+dsp_systems_tests|AtmosphereEngine_CaptureAndColdRing
+dsp_systems_tests|AtmosphereEngine_EnvelopeEndpointsForced
+dsp_systems_tests|AtmosphereEngine_PopulationGain
+dsp_systems_tests|AtmosphereEngine_PanAndDecorrelation
+dsp_systems_tests|AtmosphereEngine_BlurDisabledIsFree
+dsp_systems_tests|AtmosphereEngine_FreezeCaptureAndRelease
+dsp_systems_tests|AtmosphereEngine_SilenceLatchAndReset
+dsp_systems_tests|AtmosphereEngine_SeedDeterminism
+dsp_systems_tests|AtmosphereEngine_BlockPartitionInvariance
+dsp_systems_tests|AtmosphereEngine_SeedZeroIsValid
+dsp_systems_tests|AtmosphereEngine_NoAllocationAfterPrepare
+dsp_systems_tests|AtmosphereEngine_BoundedUnderStress
+dsp_systems_tests|AtmosphereEngine_NonFiniteGuardSurvivesFastMath
+dsp_systems_tests|AtmosphereEngine_SampleRateIndependence
+dsp_systems_tests|AtmosphereEngine_NoGrainBoundaryClicks
+dsp_systems_tests|AtmosphereEngine_BlurTransparentAtZero
+dsp_systems_tests|AtmosphereEngine_BlurMonotonicity
+dsp_systems_tests|AtmosphereEngine_FreezeStability
+dsp_systems_tests|SeraphisVoice_ShipsDocumentedDefaults
+dsp_systems_tests|SeraphisVoice_ConfigIsClampedNeverRejected
+dsp_systems_tests|SeraphisVoice_ShipsFourSecondCapture
+dsp_systems_tests|SeraphisVoice_LayerAndOwnership
+dsp_systems_tests|SeraphisVoice_ProcessGuards
+dsp_systems_tests|SeraphisVoice_ControlGridIsPartitionInvariant
+dsp_systems_tests|SeraphisVoice_SpatialStageMath
+dsp_systems_tests|SeraphisVoice_AdvanceLifeOnlyMatchesRender
+dsp_systems_tests|SeraphisVoice_LevelDetectorAndRetirement
+dsp_systems_tests|SeraphisVoice_NoteLifecycle
+dsp_systems_tests|SeraphisVoice_HasNoLatencyAccessor
+dsp_systems_tests|SeraphisVoice_SeedingIsDeterministic
+dsp_systems_tests|SeraphisVoice_PrepareAndResetAreIdempotent
+dsp_systems_tests|SeraphisVoice_VoicesDriftIndependently
+dsp_systems_tests|SeraphisVoice_EnvelopeModesBehave
+dsp_systems_tests|SeraphisVoice_ForwardersAndConfigureTimeGate
+dsp_systems_tests|SeraphisVoice_SilenceHardClears
+dsp_systems_tests|SeraphisVoice_ChainOrderIsCloudEnvelopeBodyAtmosphere
+dsp_systems_tests|SeraphisVoice_MorphHandoffRunsEveryChunk
+dsp_systems_tests|SeraphisVoice_BodyDefaultsAreAudible
+dsp_systems_tests|SeraphisEngine_PolyphonyAndPreparation
+dsp_systems_tests|SeraphisEngine_VoiceSumGain
+dsp_systems_tests|SeraphisEngine_OutputStageIsSeparate
+dsp_systems_tests|SeraphisEngine_ResetAndSilence
+dsp_systems_tests|SeraphisEngine_DeferredVoiceFinished
+dsp_systems_tests|SeraphisEngine_VoiceSeedsAreDistinct
+dsp_systems_tests|SeraphisEngine_NoteDispatch
+dsp_systems_tests|SeraphisEngine_StealTeardownOrder
+dsp_systems_tests|SeraphisEngine_QuietestStealWithAmnesty
+dsp_systems_tests|SeraphisEngine_VoiceReclaimIsCorrect
+dsp_systems_tests|SeraphisEngine_FreezeFansOutAndRetries
+dsp_systems_tests|SeraphisEngine_BloomTracksHeldChord
+dsp_systems_tests|SeraphisEngine_NonFiniteContainmentIsBounded
+dsp_systems_tests|SeraphisEngine_ComposedChainRuns
+dsp_systems_tests|SeraphisEngine_SeededRenderIsReproducible
+dsp_systems_tests|SeraphisEngine_NoAllocInProcess
+dsp_systems_tests|SeraphisEngine_SampleRateIndependence
+dsp_systems_tests|SeraphisEngine_BlockSizeInvariance
+dsp_systems_tests|SeraphisEngine_VoiceStealIsClickless
+dsp_systems_tests|SeraphisEngine_NoteLifecycleIsClickless
+dsp_systems_tests|SeraphisEngine_OutputNeverExceedsCeiling
+dsp_systems_tests|SeraphisEngine_LifeModulatorsRunAtIdle
+dsp_systems_tests|SeraphisMacroMatrix_TableIsWellFormed
+dsp_systems_tests|SeraphisMacroMatrix_NeutralIsInert
+dsp_systems_tests|SeraphisEngine_MacroSweepsMoveTheirAxis
+dsp_systems_tests|SeraphisEngine_MacroSweepContinuityMetric
+dsp_systems_tests|SeraphisMacroMatrix_EffectsOwner_IsAdditive
+dsp_systems_tests|SeraphisVoice_Phase9Forwarders_AreOneToOne
+dsp_systems_tests|ContinuousBody_Phase9Accessors_ReturnClampedStoredValues
+dsp_systems_tests|SeraphisVoiceParams_DefaultsMatchPreparedVoice
+dsp_systems_tests|SeraphisVoiceParams_MapsEveryFieldToItsOwnSetter
+dsp_systems_tests|SeraphisEngine_ApplyVoiceParams_ReachesAllSixteenSlots
+dsp_systems_tests|SeraphisEngine_ApplySpectralStates_WritesAllFourSlotsToAllSixteenVoices
+dsp_systems_tests|SeraphisMacroMatrix_TargetBaseOverride_Composes
+dsp_systems_tests|SeraphisMacroMatrix_DefaultBases_Unchanged
+dsp_systems_tests|SeraphisEngine_PartialFanOut_ReachesEveryVoice
+dsp_systems_tests|SpectralState_AuthoredStates_AreAcceptedByMorphEngine
+dsp_systems_tests|SpectralState_AuthoringMutators_AreAudible
+dsp_systems_tests|NoiseOrganism_ControlSurfaceClamps
+dsp_systems_tests|NoiseOrganism_GuardLadder
+dsp_systems_tests|NoiseOrganism_BlockSizeInvariance
+dsp_systems_tests|NoiseOrganism_PrepareFootprint
+dsp_systems_tests|NoiseOrganism_NoAllocationAfterPrepare
+dsp_systems_tests|NoiseOrganism_BoundedShort
+dsp_systems_tests|NoiseOrganism_DormantLanesFreewheel
+dsp_systems_tests|NoiseOrganism_WakeZeroIsDormant
+dsp_systems_tests|NoiseOrganism_QWanderAudible
+dsp_systems_tests|NoiseOrganism_ModelChangeContinuity
+dsp_systems_tests|NoiseOrganism_NoZipperUnderDrift_GainDomain
+dsp_systems_tests|NoiseOrganism_SeedDeterminism
+dsp_systems_tests|NoiseOrganism_SourceDecorrelation
+dsp_systems_tests|NoiseOrganism_RenderFingerprint
+dsp_systems_tests|NoiseOrganism_HissBrightBranch
+dsp_systems_tests|NoiseOrganism_TypeSwitchedAfterPrepareReplaysAfterReset
+dsp_systems_tests|NoiseOrganism_MetallicHissInharmonicity
+dsp_systems_tests|NoiseOrganism_ModelRosterAndDustLevel
+dsp_systems_tests|NoiseOrganism_LongRenderStationarity
+dsp_systems_tests|NoiseOrganism_SpectralMotion
+dsp_systems_tests|NoiseOrganism_BoundedSoak
+dsp_systems_tests|NoiseOrganism_SampleRateInvariance
+dsp_systems_tests|NoiseOrganism_NoZipperUnderDrift
+dsp_systems_tests|ResonanceDriftNetwork_ControlSurfaceClamps
+dsp_systems_tests|ResonanceDriftNetwork_PrepareFootprint
+dsp_systems_tests|ResonanceDriftNetwork_NoAllocationAfterPrepare
+dsp_systems_tests|ResonanceDriftNetwork_RenderPathBoundaries
+dsp_systems_tests|ResonanceDriftNetwork_AnchorModes
+dsp_systems_tests|ResonanceDriftNetwork_SlewLimit
+dsp_systems_tests|ResonanceDriftNetwork_LaneBounds
+dsp_systems_tests|ResonanceDriftNetwork_BlockSizeInvariance
+dsp_systems_tests|ResonanceDriftNetwork_RendersNonSilent
+dsp_systems_tests|ResonanceDriftNetwork_GateRamp
+dsp_systems_tests|ResonanceDriftNetwork_PeakPan
+dsp_systems_tests|ResonanceDriftNetwork_ResetPreservesConfiguration
+dsp_systems_tests|ResonanceDriftNetwork_ClearAudioState
+dsp_systems_tests|ResonanceDriftNetwork_OutputClampEngages
+dsp_systems_tests|ResonanceDriftNetwork_RealisedQ
+dsp_systems_tests|ResonanceDriftNetwork_SeedDeterminism
+dsp_systems_tests|ResonanceDriftNetwork_SampleRateIndependence
+dsp_systems_tests|ResonanceDriftNetwork_WetGainTrim
+dsp_systems_tests|ResonanceDriftNetwork_PeakLifeCycle
+dsp_systems_tests|ResonanceDriftNetwork_MaxQRingOut
+dsp_systems_tests|ResonanceDriftNetwork_NoZipperUnderDrift
+dsp_systems_tests|ResonanceDriftNetwork_SlewLimitBoundaryRatio
+dsp_systems_tests|ResonanceDriftNetwork_WanderRateSpectral
+dsp_systems_tests|ResonanceDriftNetwork_LongRenderBoundedness
+dsp_systems_tests|FeedbackEcology_ConstantsTable
+dsp_systems_tests|FeedbackEcology_ControlSurfaceClamps
+dsp_systems_tests|FeedbackEcology_ResonatorRing
+dsp_systems_tests|FeedbackEcology_Footprint
+dsp_systems_tests|FeedbackEcology_SampleRate
+dsp_systems_tests|FeedbackEcology_EntryPointContract
+dsp_systems_tests|FeedbackEcology_BlockPartition
+dsp_systems_tests|FeedbackEcology_TapEquivalence
+dsp_systems_tests|FeedbackEcology_DryIdentity
+dsp_systems_tests|FeedbackEcology_OutputClamp
+dsp_systems_tests|FeedbackEcology_WanderRateMapping
+dsp_systems_tests|FeedbackEcology_DelayMotion
+dsp_systems_tests|FeedbackEcology_SeedDeterminism
+dsp_systems_tests|FeedbackEcology_GainNormalisation
+dsp_systems_tests|FeedbackEcology_Governor
+dsp_systems_tests|FeedbackEcology_Dormancy
+dsp_systems_tests|FeedbackEcology_LoopCount
+dsp_systems_tests|FeedbackEcology_NoAllocation
+dsp_systems_tests|FeedbackEcology_FastTanhErrorBound
+dsp_systems_tests|FeedbackEcology_CoherenceHelperSmoke
+dsp_systems_tests|FeedbackEcology_CrossLoopTransfer
+dsp_systems_tests|FeedbackEcology_DelayDriftClickFree
+dsp_systems_tests|FeedbackEcology_BoundednessSoak
+dsp_systems_tests|FeedbackEcology_LongEvolution
+dsp_systems_tests|SubharmonicEngine_OutputMetricsSelfCheck
+dsp_systems_tests|SubharmonicEngine_StructuralBounds
+dsp_systems_tests|SubharmonicEngine_ControlSurfaceContract
+dsp_systems_tests|SubharmonicEngine_NoAllocation
+dsp_systems_tests|SubharmonicEngine_RateAndReprepare
+dsp_systems_tests|SubharmonicEngine_ToneMapping
+dsp_systems_tests|SubharmonicEngine_BlockInvariance
+dsp_systems_tests|SubharmonicEngine_Dormancy
+dsp_systems_tests|SubharmonicEngine_SubToMainRouting
+dsp_systems_tests|SubharmonicEngine_ClampScope
+dsp_systems_tests|SubharmonicEngine_TrackingSuppressesFreeRunning
+dsp_systems_tests|SubharmonicEngine_InfrasonicFloor
+dsp_systems_tests|SubharmonicEngine_ClickFreedom
+dsp_systems_tests|SubharmonicEngine_TruePeakHeadroom
+dsp_systems_tests|SubharmonicEngine_MonoCompatibility
+dsp_systems_tests|SubharmonicEngine_Determinism
+dsp_systems_tests|SubharmonicEngine_DefaultSubToBodyRatio
+dsp_systems_tests|SubharmonicEngine_LowFrequencyMetricsSelfCheck
+dsp_systems_tests|SubharmonicEngine_DividerFrequencyAccuracy
+dsp_systems_tests|SubharmonicEngine_DividerTHD
+dsp_systems_tests|SubharmonicEngine_TrackingLaw
+dsp_systems_tests|SubharmonicEngine_SquareSpectrum
+dsp_systems_tests|SubharmonicEngine_LongRenderStationarity
+dsp_systems_tests|BloomEngine_CloudContractAssumptions
+dsp_systems_tests|BloomEngine_ArgumentContract
+dsp_systems_tests|BloomEngine_DisabledIsBitIdenticalPassThrough
+dsp_systems_tests|BloomEngine_BlockPartitionInvariance
+dsp_systems_tests|BloomEngine_NoAllocationAfterPrepare
+dsp_systems_tests|BloomEngine_StrongestKParentSelection
+dsp_systems_tests|BloomEngine_ChildRatioRelationships
+dsp_systems_tests|BloomEngine_SlotAccountingInvariantsUnderFuzz
+dsp_systems_tests|BloomEngine_OwnedSlotRoundRobinRotation
+dsp_systems_tests|BloomEngine_SeedDeterminism
+dsp_systems_tests|BloomEngine_RngPositionIsStepPure
+dsp_systems_tests|BloomEngine_ChildrenAreAudibleWithinCloudActiveCount
+dsp_systems_tests|BloomEngine_TiltCompensationMatchesIntendedLevel
+dsp_systems_tests|BloomEngine_LifecycleTimingAndC1Shape
+dsp_systems_tests|BloomEngine_ChildSpawnAndDeathAreClickFree
+dsp_systems_tests|BloomEngine_SampleRateIndependence
+dsp_systems_tests|BloomEngine_ThirtyMinuteEvolutionTrajectory
+dsp_systems_tests|BloomEngine_EightHourAcceleratedSoak
+dsp_systems_tests|EcosystemEngine_HeaderIncludesOnlyLayerZero
+dsp_systems_tests|EcosystemEngine_PrepareIsAConservingPartition
+dsp_systems_tests|EcosystemEngine_SettersClampToRange
+dsp_systems_tests|EcosystemEngine_UnpreparedIsNeutral
+dsp_systems_tests|EcosystemEngine_BlockPartitionInvariance
+dsp_systems_tests|EcosystemEngine_StepIntervalBand
+dsp_systems_tests|EcosystemEngine_KindAssignmentIsStratified
+dsp_systems_tests|EcosystemEngine_ResetReproducesPrepare
+dsp_systems_tests|EcosystemEngine_ExchangeScaleIsWellFormed
+dsp_systems_tests|EcosystemEngine_ExchangeDisabledAtPredationHalf
+dsp_systems_tests|EcosystemEngine_NegativePoolIsNotAbsorbedByAnAgent
+dsp_systems_tests|EcosystemEngine_DenormalCellSnapConserves
+dsp_systems_tests|EcosystemEngine_ConservesOverAShortRun
+dsp_systems_tests|EcosystemEngine_DormancyMatchesHouseRule
+dsp_systems_tests|EcosystemEngine_OutputsAreHeldBetweenSteps
+dsp_systems_tests|EcosystemEngine_DormantAgentsStayInTheEconomy
+dsp_systems_tests|EcosystemEngine_OutputAnchorIsScaleInvariant
+dsp_systems_tests|EcosystemEngine_DeterministicUnderSeed
+dsp_systems_tests|EcosystemEngine_NoAllocationAfterPrepare
+dsp_systems_tests|EcosystemEngine_PerturbAgentConservesUnderFuzz
+dsp_systems_tests|EcosystemEngine_ExactIdentitiesMatchFormulas
+dsp_systems_tests|EcosystemEngine_LateWindowLiveness
+dsp_systems_tests|EcosystemEngine_AgentsDoNotCollapseSpatially
+dsp_systems_tests|EcosystemEngine_OutputsAreNotRailed
+dsp_systems_tests|EcosystemEngine_AgentsDecorrelate
+dsp_systems_tests|EcosystemEngine_SeedsProduceDifferentVoices
+dsp_systems_tests|EcosystemEngine_FuzzCoverageIsComplete
+dsp_systems_tests|EcosystemEngine_HostileFuzzStaysBounded
+dsp_systems_tests|EcosystemEngine_LivenessIsDurationStable
+dsp_systems_tests|EcosystemEngine_NoShortLimitCycle
+dsp_systems_tests|EcosystemEngine_SaneBoxLiveness
+dsp_systems_tests|EcosystemEngine_RefugeFloorPreventsPredationCliff
+dsp_systems_tests|EcosystemEngine_OvernightSoak
+dsp_systems_tests|EcosystemEngine_SampleRateIndependent
+dsp_systems_tests|EcosystemEngine_PairAccessors
+dsp_systems_tests|VoragoFixtures_AnalysisHelpers
+dsp_systems_tests|FeedbackEcology_SilenceAudioIsRtSafeClear
+dsp_systems_tests|VoragoVoice_SizeAndOwnership
+dsp_systems_tests|VoragoVoice_AllocationAccounting
+dsp_systems_tests|VoragoVoice_UnpreparedAndDegenerate
+dsp_systems_tests|VoragoVoice_SilenceClearsEcologyAudio
+dsp_systems_tests|VoragoVoice_EnvelopeShapeIsShipped
+dsp_systems_tests|VoragoVoice_SeedsAreDistinctStreams
+dsp_systems_tests|VoragoVoice_BloomCapacityTracksCloud
+dsp_systems_tests|VoragoVoice_SpectralTargetIsNeutral
+dsp_systems_tests|VoragoVoice_ClearingPathsDropTheSpectralTarget
+dsp_systems_tests|VoragoVoice_SpectralTargetEdge
+dsp_systems_tests|VoragoVoice_PartitionInvariance
+dsp_systems_tests|VoragoVoice_NoiseDecorrelationMonoSum
+dsp_systems_tests|VoragoVoice_BodyBlendEndpoints
+dsp_systems_tests|VoragoVoice_BodyBlendNoZipper
+dsp_systems_tests|VoragoVoice_DormancyIsTheComponents
+dsp_systems_tests|VoragoVoice_WakeCombineRule
+dsp_systems_tests|VoragoVoice_AgentReductionRule
+dsp_systems_tests|VoragoVoice_SlotDrawDeterminism
+dsp_systems_tests|VoragoVoice_LifeModulatorLanes
+dsp_systems_tests|VoragoVoice_LifeLaneDepthZero
+dsp_systems_tests|VoragoVoice_SetterContract
+dsp_systems_tests|VoragoVoice_CloudRichnessFloor
+dsp_systems_tests|VoragoVoice_CloudRichnessFloorNeutral
+dsp_systems_tests|VoragoVoice_BloomChildrenAudible
+dsp_systems_tests|VoragoVoice_CloudFloorEdge
+dsp_systems_tests|VoragoVoice_EcologyWetMakeupInstalled
+dsp_systems_tests|VoragoVoice_AttackCurveReach
+dsp_systems_tests|VoragoVoice_AttackTracksStageTime
+dsp_systems_tests|VoragoVoice_BloomSlotAccounting
+dsp_systems_tests|VoragoVoice_EcosystemRouting
+dsp_systems_tests|VoragoVoice_SlowEventRouting
+dsp_systems_tests|VoragoEngine_UnpreparedAndDegenerate
+dsp_systems_tests|VoragoEngine_StealPolicy
+dsp_systems_tests|VoragoEngine_SeedIsPerSlotNotPerNote
+dsp_systems_tests|VoragoEngine_PartitionInvariance
+dsp_systems_tests|VoragoEngine_ReportedLatency
+dsp_systems_tests|VoragoEngine_HeldSubFundamental
+dsp_systems_tests|VoragoEngine_TidalFogFold
+dsp_systems_tests|VoragoFixtures_FastAttackAndMakeEngine
+dsp_systems_tests|VoragoEngine_DeterminismHarness
+dsp_systems_tests|VoragoEngine_StealRamp
+dsp_systems_tests|VoragoEngine_NoAllocationAfterPrepare
+dsp_systems_tests|VoragoEngine_SlotSeedReproducibility
+dsp_systems_tests|VoragoEngine_AdvanceLifeOnlyParity
+dsp_systems_tests|VoragoEngine_SoakSentinel
+dsp_systems_tests|VoragoEngine_ConfigurationFuzzSentinel
+dsp_systems_tests|VoragoEngine_SampleRateSentinel
+dsp_systems_tests|VoragoEngine_GhostConfiguration
+dsp_systems_tests|VoragoEngine_SetterContract
+dsp_systems_tests|VoragoEngine_CeilingSeamContract
+dsp_systems_tests|VoragoEngine_LoopBusMeterIsObservationOnly
+dsp_systems_tests|VoragoEngine_OvernightSoak
+dsp_systems_tests|VoragoEngine_OvernightEvolution
+dsp_systems_tests|VoragoEngine_ConfigurationFuzz
+dsp_systems_tests|VoragoEngine_SampleRateSweep
+dsp_systems_tests|VoragoMacro_UnpreparedAndDegenerate
+dsp_systems_tests|VoragoMacro_SetterContract
+dsp_systems_tests|VoragoMacro_SweepAxes
+dsp_systems_tests|VoragoMacro_NeutralIsIdentity
+dsp_systems_tests|VoragoMacro_NoZipper
+dsp_systems_tests|VoragoMacro_ApplyIsIdempotent
+dsp_systems_tests|ContinuousBody_AppendOnlyEnumerators
+dsp_systems_tests|ContinuousBody_MaterialTableIsAppendOnly
+dsp_systems_tests|ContinuousBody_DarkMaterialsSpectral
+dsp_systems_tests|VoragoEngine_NonFiniteContainment
+dsp_systems_tests|AtmosphereGhost_RtSafety
+dsp_systems_tests|AtmosphereGhost_DefaultInert
+dsp_systems_tests|AtmosphereGhost_Determinism
+dsp_systems_tests|AtmosphereGhost_AppendOnly
+dsp_systems_tests|AtmosphereGhost_ReverseFillDeficit
+dsp_systems_tests|AtmosphereGhost_ReverseTruncation
+dsp_systems_tests|AtmosphereGhost_ReverseLiveness_Short
+dsp_systems_tests|AtmosphereGhost_ReverseIsTimeReversed
+dsp_systems_tests|AtmosphereGhost_TriggerAccounting
+dsp_systems_tests|AtmosphereGhost_PassAScratchBound
+dsp_systems_tests|AtmosphereGhost_ReverseLiveness
+dsp_systems_tests|AtmosphereGhost_Determinism_ReverseFraction
+dsp_systems_tests|VoragoEngine_GhostExtensionWiring
+dsp_systems_tests|VoragoEngine_GhostExtensionWiring_Engaged
+dsp_systems_tests|VoragoMacro_TargetBaseOverride
+dsp_systems_tests|ResonanceDriftNetwork_OctaveLock
+dsp_systems_tests|VoragoEngine_OutputDriveDb
+dsp_systems_tests|VoragoVoice_Phase12Forwarders
+dsp_systems_tests|VoragoEngine_ApplyVoiceParamsDefaultIsNoOp_Short
+dsp_systems_tests|VoragoEngine_ApplyVoiceParamsDefaultIsNoOp
+dsp_systems_tests|VoragoEngine_ApplyVoiceParamsReachesAllSlots
+dsp_systems_tests|VoragoVoice_EcosystemRuleForwarders
+dsp_systems_tests|VoragoEngine_SubToneLevelBase
+dsp_systems_tests|VoragoEngine_NewSettersDefaultInert_Short
+dsp_systems_tests|VoragoEngine_NewSettersDefaultInert
+dsp_systems_tests|VoragoEngine_NewSettersSurvivePrepare
+dsp_systems_tests|VoragoEngine_RepeatedBroadcastIsInert_Short
+dsp_systems_tests|VoragoEngine_RepeatedBroadcastIsInert
+dsp_systems_tests|VoragoVoice_EcosystemLeverBaseReadBack
+dsp_systems_tests|VoragoVoice_EcosystemLeverReset
+dsp_systems_tests|VoragoVoice_EcosystemLeverLifeOnlyParity
+dsp_systems_tests|VoragoVoice_EcosystemLeverMapping
+dsp_systems_tests|VoragoVoice_EcosystemLeverRateCompensation
+dsp_systems_tests|VoragoVoice_EcosystemLeverNeutral
+dsp_systems_tests|VoragoVoice_EcosystemLeverSchedulerBlind
+dsp_systems_tests|VoragoVoice_EcosystemLaneShapingFidelity
+dsp_systems_tests|VoragoVoice_RouteLeverZeroAtZeroLane
+dsp_systems_tests|VoragoVoice_CeilingLeverNeutral
+dsp_systems_tests|VoragoVoice_EcosystemLeverAttribution
+dsp_systems_tests|VoragoVoice_EcosystemWakeUnmasked
+dsp_systems_tests|VoragoVoice_EcosystemLeverClickFree
+dsp_systems_tests|VoragoEngine_EcosystemLeverBounded
+dsp_systems_tests|VoragoEngine_CapabilityLeverBounded
+dsp_systems_tests|VoragoEngine_EcosystemLeverDeterminism
+dsp_systems_tests|VoragoEngine_GhostDensityRoute
+dsp_systems_tests|VoragoVoice_EcoLaneMeanReadout
+dsp_systems_tests|VoragoVoice_EcosystemLeverClickFreeNatural
+dsp_systems_tests|ProfundumCore_KMaxPartialsUntouched
+dsp_systems_tests|ProfundumCore_PartialCountExtremes
+dsp_systems_tests|ProfundumCore_BeforePrepareSilent
+dsp_systems_tests|ProfundumCore_NoexceptContract
+dsp_systems_tests|ProfundumCore_PrepareDefaults
+dsp_systems_tests|ProfundumCore_TestHelpersSelfCheck
+dsp_systems_tests|ProfundumCore_FirstNoteSeedsPhases
+dsp_systems_tests|ProfundumCore_RetriggerPhasePolicy
+dsp_systems_tests|ProfundumCore_NoteOnMaskImmediate
+dsp_systems_tests|ProfundumCore_ShapeGainStepCeiling
+dsp_systems_tests|ProfundumCore_OutputLevelConstant
+dsp_systems_tests|ProfundumCore_DepthLoudnessFlat
+dsp_systems_tests|ProfundumCore_DepthLoudnessFlatSmoke
+dsp_systems_tests|ProfundumCore_Deterministic
+dsp_systems_tests|ProfundumCore_ZeroTargetLanesUnderFtz
+dsp_systems_tests|ProfundumCore_ControlSkipRule
+dsp_systems_tests|ProfundumCore_PitchTrajectoryNullptr
+dsp_systems_tests|ProfundumCore_PitchTrajectoryBlockSizeIndependent
+dsp_systems_tests|ProfundumCore_PitchTrajectorySampleAccurate
+dsp_systems_tests|ProfundumCore_DetuneShadowNoDrift
+dsp_systems_tests|ProfundumCore_DetuneShadowNoDriftSmoke
+dsp_systems_tests|ProfundumCore_NoCrossfadeOnGlide
+dsp_systems_tests|ProfundumCore_MaskNeverSlewedBend
+dsp_systems_tests|ProfundumCore_MaskNeverSlewedBendLong
+dsp_systems_tests|ProfundumCore_CapTracksPitchExactly
+dsp_systems_tests|ProfundumCore_LargeFreeRunningJumpBounded
+dsp_systems_tests|ProfundumCore_NoZipperControlSweeps
+dsp_systems_tests|ProfundumCore_NoZipperPitchBend
+dsp_systems_tests|ProfundumCore_ClickDetectorPositiveControl
+dsp_systems_tests|ProfundumCore_SampleRateExtremes
+dsp_systems_tests|ProfundumCore_ZeroPanBitIdentical
+dsp_systems_tests|ProfundumCore_PanHookForwards
+dsp_systems_tests|ProfundumCore_PanReturnToCentreBitIdentical
+dsp_systems_tests|ProfundumCore_PanLargeOffsetBounded
+dsp_systems_tests|ProfundumCore_NoAllocationOnAudioThread
+dsp_systems_tests|ProfundumCore_PartialFrequencyAccuracy
+dsp_systems_tests|ProfundumCore_PartialFrequencyAccuracySmoke
+dsp_systems_tests|ProfundumCore_DepthRenderMonotonic
+dsp_systems_tests|ProfundumCore_DepthRenderMonotonicSmoke
+dsp_systems_tests|ProfundumCore_AudibilityGate_BodyEdgeShift
+dsp_systems_tests|ProfundumCore_AudibilityGate_BodyEdgeShiftSmoke
+dsp_systems_tests|ProfundumCore_AudibilityGate_BodyCurvatureEmphasis
+dsp_systems_tests|ProfundumCore_WaveformAnchorsRendered
+dsp_systems_tests|ProfundumCore_NamedDistributionsRendered
+dsp_systems_tests|ProfundumCore_SpectrumInvariantC1toC3
+dsp_systems_tests|ProfundumCore_SpectrumInvariantC1toC3N96
+dsp_systems_tests|ProfundumCore_SpectrumInvariantC1toC3Smoke
+dsp_systems_tests|ProfundumCore_NoAliasingAllNotes
+dsp_systems_tests|ProfundumCore_NoAliasingAllNotesSmoke
+dsp_systems_tests|ProfundumCore_NoAliasingDuringBend
+dsp_systems_tests|ProfundumCore_NoAliasingDuringBendSmoke
+dsp_systems_tests|ProfundumCore_NoZipperControlSweepsSidebands
+dsp_systems_tests|ProfundumCore_LowNoteGuardReducesUpperEnergy
+dsp_systems_tests|ProfundumCore_SampleRateChange
+dsp_systems_tests|ProfundumCore_BodyColoursDistinctRendered
+dsp_systems_tests|ProfundumCore_EmphasisOddOnlyRendered
+dsp_systems_tests|ProfundumCore_EmphasisOddOnlyRenderedSmoke
+dsp_systems_tests|ProfundumCore_ExcitationApi
+dsp_systems_tests|ProfundumCore_EdgeDriveLaw
+dsp_systems_tests|ProfundumCore_ExcitationZeroMixBitIdentical
+dsp_systems_tests|ProfundumCore_ExcitationControlStepsNoClick
+dsp_systems_tests|ProfundumCore_ExcitationEngageNoClick
+dsp_systems_tests|ProfundumCore_ExcitationLREqualAtZeroPan
+dsp_systems_tests|ProfundumCore_ExcitationRetriggerPolicy
+dsp_systems_tests|ProfundumCore_ExcitationDeterministic
+dsp_systems_tests|ProfundumCore_ExcitationNoAllocation
+dsp_systems_tests|ProfundumCore_ExcitationZeroLatency
+dsp_systems_tests|ProfundumCore_ExcitationRecordedSplitHump
+dsp_systems_tests|ProfundumCore_ExcitationDriveMonotonic
+dsp_systems_tests|ProfundumCore_ExcitationDriveMonotonicSmoke
+dsp_systems_tests|ProfundumCore_ExcitationMixMonotonic
+dsp_systems_tests|ProfundumCore_ExcitationMixMonotonicSmoke
+dsp_systems_tests|ProfundumCore_EdgeDrivesExcitationRendered
+dsp_systems_tests|ProfundumCore_EdgeDrivesExcitationRenderedSmoke
+dsp_systems_tests|ProfundumCore_EdgeZeroStillExcites
+dsp_systems_tests|ProfundumCore_MixIndependentOfEdge
+dsp_systems_tests|ProfundumCore_ExcitationEvenHarmonicsMonotonic
+dsp_systems_tests|ProfundumCore_ExcitationEvenHarmonicsMonotonicSmoke
+dsp_systems_tests|ProfundumCore_ExcitationTriangleTail
+dsp_systems_tests|ProfundumCore_ExcitationDcFree
+dsp_systems_tests|ProfundumCore_ExcitationFundamentalPreserved
+dsp_systems_tests|ProfundumCore_ExcitationFundamentalPreservedSmoke
+dsp_systems_tests|ProfundumCore_ExcitationLevelLaw
+dsp_systems_tests|ProfundumCore_ExcitationLevelLawSmoke
+dsp_systems_tests|ProfundumEdgeFold_HelperParity
+dsp_systems_tests|ProfundumCore_ExcitationNoAliasing
+dsp_systems_tests|ProfundumCore_ExcitationNoAliasingE0
+dsp_systems_tests|ProfundumCore_ExcitationNoAliasingE1
+dsp_systems_tests|ProfundumCore_ExcitationNoAliasingE2
+dsp_systems_tests|HarmonicFold_NoAliasing
+dsp_systems_tests|HarmonicFold_NoAliasingE0
+dsp_systems_tests|HarmonicFold_NoAliasingE1
+dsp_systems_tests|HarmonicFold_NoAliasingE2
+dsp_systems_tests|ProfundumEdgeFold_ChainNoAliasing
+dsp_systems_tests|ProfundumEdgeFold_ChainNoAliasingE0
+dsp_systems_tests|ProfundumEdgeFold_ChainNoAliasingE1
+dsp_systems_tests|ProfundumEdgeFold_ChainNoAliasingE2
+dsp_systems_tests|ProfundumEdgeFold_AliasGatePositiveControl
+dsp_systems_tests|HarmonicFold_TransparentAtZeroCoreInput
+dsp_systems_tests|HarmonicFold_DcFreeOnExcitationOutput
+dsp_systems_tests|ProfundumEdgeFold_ChainDcFree
+dsp_systems_tests|HarmonicFold_FundamentalPreservedCoreInput
+dsp_systems_tests|ProfundumCore_ExcitationMonoSum
+dsp_systems_tests|HarmonicFold_MonoSum
+dsp_systems_tests|ProfundumEdgeFold_SampleRateChange
+dsp_systems_tests|ProfundumCore_ExcitationOutputBoundedSmoke
+dsp_systems_tests|ProfundumCore_ExcitationOutputBounded
+dsp_systems_tests|ProfundumEdgeFold_RecordedAliasingByOctave
+dsp_systems_tests|ProfundumEdgeFold_RecordedAliasingRateExtremes
+dsp_systems_tests|ProfundumCore_ExcitationRecordedPhaseAt8Hz
+dsp_systems_tests|ProfundumCore_ExcitationRecordedAsymmetryPhase
+dsp_systems_tests|HarmonicFold_RecordedLevelNonSine
+dsp_systems_tests|AnchorOscillator_CalibrationConstants
+dsp_systems_tests|AnchorOscillator_EnumsAndTraits
+dsp_systems_tests|AnchorOscillator_FtzPrecondition
+dsp_systems_tests|AnchorOscillator_LifecycleNoOps
+dsp_systems_tests|AnchorOscillator_MirrorTracksCore
+dsp_systems_tests|AnchorOscillator_SineLockBasics
+dsp_systems_tests|AnchorOscillator_RealTimeSafe
+dsp_systems_tests|AnchorOscillator_AnalyticCurves
+dsp_systems_tests|AnchorOscillator_C1CheckerPositiveControl
+dsp_systems_tests|AnchorOscillator_ShsEstimatorControls
+dsp_systems_tests|AnchorOscillator_StaticScannerControls
+dsp_systems_tests|AnchorOscillator_SeparationRuleControls
+dsp_systems_tests|AnchorOscillator_PhaseContinuity
+dsp_systems_tests|AnchorOscillator_PhaseConvention
+dsp_systems_tests|AnchorOscillator_PhaseReference
+dsp_systems_tests|AnchorOscillator_FreeRunningSameNoteIsSeamless
+dsp_systems_tests|AnchorOscillator_OnsetClickFree
+dsp_systems_tests|AnchorOscillator_WaveformCrossfade
+dsp_systems_tests|AnchorOscillator_LevelAndA1Smoothing
+dsp_systems_tests|AnchorOscillator_PunchBoostAndDuration
+dsp_systems_tests|AnchorOscillator_GhostEmergence
+dsp_systems_tests|AnchorOscillator_EnvelopesAreC1
+dsp_systems_tests|AnchorOscillator_TransitionsClickFree
+dsp_systems_tests|AnchorOscillator_ClickDetectorPositiveControl
+dsp_systems_tests|AnchorOscillator_TransitionDeltaBound
+dsp_systems_tests|AnchorOscillator_RearmEvent
+dsp_systems_tests|AnchorOscillator_RetriggerPolicies
+dsp_systems_tests|AnchorOscillator_FollowLatency
+dsp_systems_tests|AnchorOscillator_FollowEqualsLockAtUnity
+dsp_systems_tests|AnchorOscillator_TrajectoryContract
+dsp_systems_tests|AnchorOscillator_InstancesIndependent
+dsp_systems_tests|AnchorOscillator_Deterministic
+dsp_systems_tests|AnchorOscillator_BlockSizeIndependent
+dsp_systems_tests|AnchorOscillator_SampleRateChange
+dsp_systems_tests|AnchorOscillator_LrBitIdentical
+dsp_systems_tests|AnchorOscillator_WaveformThd
+dsp_systems_tests|AnchorOscillator_ThdToolFloor
+dsp_systems_tests|AnchorOscillator_TriangleCapTaper
+dsp_systems_tests|AnchorOscillator_RmsCalibration
+dsp_systems_tests|AnchorOscillator_NoAliasing
+dsp_systems_tests|AnchorOscillator_AliasGatePositiveControl
+dsp_systems_tests|AnchorOscillator_NoDc
+dsp_systems_tests|AnchorOscillator_FollowRatioAccuracy
+dsp_systems_tests|AnchorOscillator_AudibilityGate
+dsp_systems_tests|AnchorOscillator_PhaseLockStaticSmoke
+dsp_systems_tests|AnchorOscillator_PhaseLockStatic60s
+dsp_systems_tests|AnchorOscillator_PhaseLockTrajectorySmoke
+dsp_systems_tests|AnchorOscillator_PhaseLockTrajectory
+dsp_systems_tests|AnchorOscillator_PhaseLockRetrigger
+dsp_systems_tests|ProfundumAnchor_PhaseLockProcessedVoiceSmoke
+dsp_systems_tests|ProfundumAnchor_PhaseLockProcessedVoice
+dsp_systems_tests|AnchorOscillator_PhaseLockEveryIsaSmoke
+dsp_systems_tests|AnchorOscillator_PhaseLockEveryIsa60s
+dsp_systems_tests|ProfundumAnchor_LevelCalibration
+dsp_systems_tests|ProfundumAnchor_NoCompensation
+dsp_systems_tests|ProfundumAnchor_FollowReferenceOnFoldedVoice
+dsp_systems_tests|ProfundumAnchor_SubPreservedThroughMaxFold
+dsp_systems_tests|ProfundumAnchor_FoldFeedAudible
+dsp_systems_tests|ProfundumAnchor_FoldFeedSubPreserved
+dsp_systems_tests|ProfundumAnchor_FoldFeedMono
+dsp_systems_tests|ProfundumNoteBehaviour_PostDropLandingSmoke
+dsp_systems_tests|ProfundumNoteBehaviour_PostDropLanding_E0
+dsp_systems_tests|ProfundumNoteBehaviour_PostDropLanding_E1
+dsp_systems_tests|ProfundumNoteBehaviour_PostDropLanding_E2
+dsp_systems_tests|ProfundumNoteBehaviour_PostDropLanding_C3
+dsp_systems_tests|ProfundumNoteBehaviour_PostDropLanding_PunchGhostE1
+dsp_systems_tests|ProfundumNoteBehaviour_FollowAfterDropSmoke
+dsp_systems_tests|ProfundumNoteBehaviour_FollowAfterDrop
+dsp_systems_tests|ProfundumNoteBehaviour_RetriggerClickFreeSmoke
+dsp_systems_tests|ProfundumNoteBehaviour_RetriggerClickFree_E0
+dsp_systems_tests|ProfundumNoteBehaviour_RetriggerClickFree_E1
+dsp_systems_tests|ProfundumNoteBehaviour_RetriggerClickFree_E2
+dsp_systems_tests|ProfundumNoteBehaviour_RetriggerClickFree_C3
+dsp_systems_tests|ProfundumNoteBehaviour_MonoIdentity
+dsp_systems_tests|ProfundumNoteBehaviour_GlideClickFree
+dsp_systems_tests|ProfundumNoteBehaviour_GlideClickFree_E0
+dsp_systems_tests|ProfundumNoteBehaviour_GlideClickFree_E1
+dsp_systems_tests|ProfundumNoteBehaviour_GlideClickFree_E2
+dsp_systems_tests|ProfundumNoteBehaviour_GlideClickFree_C3
+dsp_systems_tests|ProfundumNoteBehaviour_DeclickPositiveControl
+dsp_systems_tests|ProfundumNoteBehaviour_Audibility
+dsp_systems_tests|ProfundumNoteBehaviour_TrajectoryNyquistSmoke
+dsp_systems_tests|ProfundumNoteBehaviour_TrajectoryNyquist
+dsp_systems_tests|ProfundumNoteBehaviour_UseCaseRenders
+dsp_systems_tests|ProfundumCore_SpectrumPreservedAcrossDrop
+dsp_systems_tests|ShapeMorph_Lifecycle
+dsp_systems_tests|ShapeMorph_RegimeWeights
+dsp_systems_tests|ShapeMorph_DisabledBitIdentical
+dsp_systems_tests|ShapeMorph_LREqual
+dsp_systems_tests|ShapeMorph_NullPointerEqualsConstantFeed
+dsp_systems_tests|ShapeMorph_ClickCountPositiveControl
+dsp_systems_tests|ShapeMorph_AutomationClickFreeSmoke
+dsp_systems_tests|ShapeMorph_AutomationClickFree
+dsp_systems_tests|ShapeMorph_RegimesPairwiseDistinct
+dsp_systems_tests|ShapeMorph_SweepContinuitySmoke
+dsp_systems_tests|ShapeMorph_SweepContinuity
+dsp_systems_tests|ShapeMorph_HarmonicResponseTracksKeyboard
+dsp_systems_tests|ShapeMorph_AliasingSmoke
+dsp_systems_tests|ShapeMorph_AliasingE0E2
+dsp_systems_tests|ShapeMorph_DcBound
+dsp_systems_tests|ShapeMorph_RIsOneSmoke
+dsp_systems_tests|ShapeMorph_RIsOne
+dsp_systems_tests|BassCharacter_Lifecycle
+dsp_systems_tests|BassCharacter_AmountZeroBitIdenticalRectify
+dsp_systems_tests|BassCharacter_RectifyLawMatchesRectifier
+dsp_systems_tests|BassCharacter_SwitchMachine
+dsp_systems_tests|BassCharacter_ObserverBasics
+dsp_systems_tests|BassCharacter_F0FeedRekey
+dsp_systems_tests|BassCharacter_MonoLink
+dsp_systems_tests|BassCharacter_CrushHoldRing
+dsp_systems_tests|BassCharacter_SwitchPreroll
+dsp_systems_tests|BassCharacter_AmountZeroBitIdentical
+dsp_systems_tests|BassCharacter_ClickCountPositiveControl
+dsp_systems_tests|BassCharacter_SwitchClickFreeSmoke
+dsp_systems_tests|BassCharacter_SwitchClickFree
+dsp_systems_tests|BassCharacter_MonoSum
+dsp_systems_tests|ShapeCharacter_ParameterStepsClickFreeSmoke
+dsp_systems_tests|ShapeCharacter_ParameterStepsClickFree
+dsp_systems_tests|BassCharacter_OnsetInvariance
+dsp_systems_tests|BassCharacter_RLawHysteresis
+dsp_systems_tests|BassCharacter_DryShareNoComb
+dsp_systems_tests|BassCharacter_AlgorithmQueue
+dsp_systems_tests|SeparationBar_FloorControl
+dsp_systems_tests|ShapeCharacterShs_SineReadsF0
+dsp_systems_tests|ShapeCharacterShs_FullWaveSineReadsOctave
+dsp_systems_tests|ShapeCharacterShs_GrowlReadsOctave
+dsp_systems_tests|ShapeCharacterDescriptors_Saw
+dsp_systems_tests|BassCharacter_BiteSmoke
+dsp_systems_tests|BassCharacter_TubeSmoke
+dsp_systems_tests|BassCharacter_ToneTiltsCoupled
+dsp_systems_tests|BassCharacter_FoldSmoke
+dsp_systems_tests|BassCharacter_CrushSmoke
+dsp_systems_tests|BassCharacter_FractureSmoke
+dsp_systems_tests|BassCharacter_FracturePhasor
+dsp_systems_tests|BassCharacter_FractureObserver
+dsp_systems_tests|BassCharacter_AlgorithmsPairwiseDistinct
+dsp_systems_tests|BassCharacter_ToneMonotonicCentroidSmoke
+dsp_systems_tests|BassCharacter_ToneMonotonicCentroid
+dsp_systems_tests|BassCharacter_AmountAudible
+dsp_systems_tests|BassCharacter_AmountTrajectory
+dsp_systems_tests|BassCharacter_AliasingE0E2Smoke
+dsp_systems_tests|BassCharacter_AliasingE0E2
+dsp_systems_tests|ShapeCharacter_AliasGatePositiveControl
+dsp_systems_tests|BassCharacter_DcBound
+dsp_systems_tests|ShapeCharacter_OutputBounded
+dsp_systems_tests|BassCharacter_ToneStructure
+dsp_systems_tests|BassCharacter_RLawSmoke
+dsp_systems_tests|BassCharacter_RLawMatchesReference_Sine
+dsp_systems_tests|BassCharacter_RLawMatchesReference_Triangle
+dsp_systems_tests|BassCharacter_RLawMatchesReference_Saw
+dsp_systems_tests|BassCharacter_RLawMatchesReference_Growl
+dsp_systems_tests|BassCharacter_RectifyFlipPoint
+dsp_systems_tests|BassCharacter_RLawHysteresisBandWidth
+dsp_systems_tests|Rectifier_RLawEvidence
+dsp_systems_tests|BassCharacter_CrushFractureRLaw
+dsp_systems_tests|BassCharacter_FractureRLawAndSidebands
+dsp_systems_tests|BassCharacter_RIsOneSmoke
+dsp_systems_tests|BassCharacter_RIsOne
+dsp_systems_tests|BassCharacter_RLawUpstreamChainSmoke
+dsp_systems_tests|BassCharacter_RLawUpstreamChain
+dsp_systems_tests|ShapeCharacter_NoAllocation
+dsp_systems_tests|ShapeCharacter_PartitionInvariant
+dsp_systems_tests|ShapeCharacter_SampleRates
+dsp_systems_tests|ShapeCharacter_OutputBoundedShape
+dsp_systems_tests|ShapeCharacter_H1TransferRecord
+dsp_systems_tests|ShapeCharacter_DropTracksHarmonicNumbersSmoke
+dsp_systems_tests|ShapeCharacter_DropTracksHarmonicNumbers
+dsp_systems_tests|KWeighting_ReferenceLevels
+dsp_systems_tests|MassCompressor_AmountMapping
+dsp_systems_tests|MassCompressor_TransparentAtAmountZero
+dsp_systems_tests|MassCompressor_ReleaseRuleLaw
+dsp_systems_tests|MassCompressor_ProgramDependentRelease
+dsp_systems_tests|MassCompressor_FixedReleasePositiveControl
+dsp_systems_tests|MassCompressor_KeytrackedCorner
+dsp_systems_tests|MassCompressor_MonoSum
+dsp_systems_tests|MassCompressor_NoAllocation
+dsp_systems_tests|MassCompressor_PartitionInvariant
+dsp_systems_tests|MassCompressor_SampleRates
+dsp_systems_tests|MassCompressor_Lifecycle
+dsp_systems_tests|MassLaw_TableInvariants
+dsp_systems_tests|MassLaw_TargetsMonotonic
+dsp_systems_tests|MassLaw_NeutralAtFifty
+dsp_systems_tests|MassLaw_SlewBounded
+dsp_systems_tests|MassLaw_PureEvaluation
+dsp_systems_tests|MassLaw_InputSafety
+dsp_systems_tests|MassLaw_Lifecycle
+dsp_systems_tests|MassLaw_NoAllocation
+dsp_systems_tests|MassDynamics_MonoSum
+dsp_systems_tests|MassDynamics_TransparentAtNeutral
+dsp_systems_tests|MassDynamics_ShaperThenCompressor
+dsp_systems_tests|MassDynamics_LatchesOnGrid
+dsp_systems_tests|MassDynamics_PartitionInvariantDynamicsOnly
+dsp_systems_tests|MassDynamics_NoAllocation
+dsp_systems_tests|MassDynamics_Lifecycle
+dsp_systems_tests|MassDynamics_LatencyZero
+dsp_systems_tests|MassDynamicsHelpers_LowestSoundingF0
+dsp_systems_tests|MassDynamicsHelpers_SubBand
+dsp_systems_tests|MassDynamicsHelpers_AliasResidual
+dsp_systems_tests|MassDynamicsHelpers_GridDriver
+dsp_systems_tests|MassDynamicsHelpers_PeriodDescriptors
+dsp_systems_tests|MassDynamicsHelpers_DeltaLStep
+dsp_systems_tests|MassDynamicsHelpers_RenderChainContract
+dsp_systems_tests|MassChain_ControlIntervalsAligned
+dsp_systems_tests|MassChain_CoreAnchorValidated
+dsp_systems_tests|MassChain_LimiterIdleSteadyState
+dsp_systems_tests|MassDynamics_PartitionInvariant
+dsp_systems_tests|MassDynamics_SampleRates
+dsp_systems_tests|MassChain_Phase9HandoffRecord
+dsp_systems_tests|MassCompressor_NoSubPumping
+dsp_systems_tests|MassCompressor_RectifiedFeedNegativeControl
+dsp_systems_tests|MassCompressor_MakeupMatchesGr
+dsp_systems_tests|MassCompressor_Audibility
+dsp_systems_tests|MassCompressor_KeytrackedCornerPoly
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonicSmoke
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Depth_E1
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Depth_C3
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Body_E1
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Body_C3
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Duration_E1
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Duration_C3
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Fold_E1
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Fold_C3
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Compression_E1
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_Compression_C3
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_AnchorLevel_E1
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_AnchorLevel_C3
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_OutputTrim_E1
+dsp_systems_tests|MassLaw_RenderedTargetsMonotonic_OutputTrim_C3
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweepSmoke
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Ref_E0
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Ref_E1
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Ref_E2
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Ref_C3
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Saw_E0
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Saw_E1
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Saw_E2
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Saw_C3
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Sine_E0
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Sine_E1
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Sine_E2
+dsp_systems_tests|MassLaw_FundamentalStrengthJointSweep_Sine_C3
+dsp_systems_tests|MassLaw_LevelSlopeBoundedSmoke
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Ref_E0
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Ref_E1
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Ref_E2
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Ref_C3
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Saw_E0
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Saw_E1
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Saw_E2
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Saw_C3
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Sine_E0
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Sine_E1
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Sine_E2
+dsp_systems_tests|MassLaw_LevelSlopeBounded_Sine_C3
+dsp_systems_tests|MassLaw_AnchorPoints
+dsp_systems_tests|MassLaw_AutomationContinuous_E0
+dsp_systems_tests|MassLaw_AutomationContinuous_E2
+dsp_systems_tests|MassLaw_AutomationContinuous_C3
+dsp_systems_tests|MassLaw_AutomationContinuousSmoke
+dsp_systems_tests|MassLaw_StaticLattice_E0
+dsp_systems_tests|MassLaw_StaticLattice_E2
+dsp_systems_tests|MassLaw_StaticLattice_C3
+dsp_systems_tests|MassLaw_StaticLatticeSmoke
+dsp_systems_tests|MassLaw_AutomationDescriptorTrajectory_E0
+dsp_systems_tests|MassLaw_AutomationDescriptorTrajectory_E2
+dsp_systems_tests|MassLaw_AutomationDescriptorTrajectory_C3
+dsp_systems_tests|MassLaw_AutomationDescriptorTrajectorySmoke
+dsp_systems_tests|MassLaw_Audibility
+dsp_systems_tests|MassLaw_NeutralAtFiftyRendered
+dsp_systems_tests|MassDynamics_AliasingE0E2Smoke
+dsp_systems_tests|MassDynamics_AliasingE0E2_44k1
+dsp_systems_tests|MassDynamics_AliasingE0E2_48k
+dsp_systems_tests|MassDynamics_AliasingE0E2_96k
+dsp_systems_tests|BassStereoField_ConstantsMatchPlan
+dsp_systems_tests|BassStereoField_ControlsDefaults
+dsp_systems_tests|BassStereoField_SetControlsClampsAndKeeps
+dsp_systems_tests|BassStereoField_IsValidControls
+dsp_systems_tests|BassStereoField_MotionRateMaps
+dsp_systems_tests|BassStereoField_TempoSyncFold
+dsp_systems_tests|BassStereoField_DriftSeedDeterminism
+dsp_systems_tests|BassStereoField_MotionOutputConformance
+dsp_systems_tests|BassStereoField_SideGainLaw
+dsp_systems_tests|BassStereoField_CrossoverLawSmoothing
+dsp_systems_tests|BassStereoField_LifecycleBeforePrepare
+dsp_systems_tests|BassStereoField_WidthCurveValues
+dsp_systems_tests|BassStereoField_PanVectorShape
+dsp_systems_tests|BassStereoField_PanVectorMonotone
+dsp_systems_tests|BassStereoField_SolidZeroVector
+dsp_systems_tests|BassStereoField_SlewBound
+dsp_systems_tests|BassStereoField_HandoffCount
+dsp_systems_tests|BassStereoField_ResetRetriggerOrder
+dsp_systems_tests|BassStereoField_MotionInwardLaw
+dsp_systems_tests|BassStereoField_H1CentredLaw
+dsp_systems_tests|BassStereoField_PanOnlyDirectionLaw
+dsp_systems_tests|BassStereoField_CurveContinuous
+dsp_systems_tests|BassStereoField_CurveInterpolationMixedPairs
+dsp_systems_tests|BassStereoField_WideOffsetCeilings
+dsp_systems_tests|BassStereoField_WideVectorEqualsSpread
+dsp_systems_tests|BassStereoField_SafetyStageGates
+dsp_systems_tests|BassStereoField_SafetyStageMidBitExact
+dsp_systems_tests|BassStereoField_StageLrInLrOut
+dsp_systems_tests|BassStereoField_StageLrInLrOutDirtyState
+dsp_systems_tests|BassStereoField_AnchorBitIdentical
+dsp_systems_tests|BassStereoField_AnchorBitIdenticalDirtyState
+dsp_systems_tests|BassStereoField_SolidForcesZeroSide
+dsp_systems_tests|BassStereoField_GravityAttenuation
+dsp_systems_tests|BassStereoField_ContinuousControlsNoCrossfade
+dsp_systems_tests|BassStereoField_CrossoverAgreement
+dsp_systems_tests|BassStereoField_Deterministic
+dsp_systems_tests|BassStereoField_NoAllocation
+dsp_systems_tests|BassStereoField_ProcessEdgeCases
+dsp_systems_tests|BassStereoField_HelpersSelfTest
+dsp_systems_tests|BassStereoField_ChainMatchesPhase6
+dsp_systems_tests|BassStereoField_FieldChainSmoke
+dsp_systems_tests|BassStereoField_MonoSumPerBandSmoke
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_CleanSaw_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_CleanSaw_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_CleanSaw_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_CleanSaw_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_CleanGrowl_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_CleanGrowl_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyTube_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyTube_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyTube_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyTube_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyFold_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyFold_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyFold_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyFold_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyRectify_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyRectify_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyBite_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyBite_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyBite_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyBite_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyCrush_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyCrush_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyFracture_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_DirtyFracture_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorTube_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorTube_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorTube_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorTube_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorFold_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorFold_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorFold_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorFold_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorRectify_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorRectify_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorBite_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorBite_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorBite_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorBite_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorCrush_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorCrush_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorFracture_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Solid_AnchorFracture_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_CleanSaw_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_CleanSaw_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_CleanSaw_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_CleanSaw_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_CleanGrowl_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_CleanGrowl_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyTube_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyTube_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyTube_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyTube_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyFold_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyFold_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyFold_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyFold_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyRectify_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyRectify_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyBite_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyBite_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyBite_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyBite_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyCrush_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyCrush_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyFracture_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_DirtyFracture_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorTube_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorTube_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorTube_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorTube_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorFold_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorFold_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorFold_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorFold_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorRectify_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorRectify_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorBite_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorBite_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorBite_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorBite_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorCrush_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorCrush_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorFracture_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Spread_AnchorFracture_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_CleanSaw_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_CleanSaw_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_CleanSaw_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_CleanSaw_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_CleanGrowl_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_CleanGrowl_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyTube_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyTube_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyTube_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyTube_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyFold_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyFold_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyFold_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyFold_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyRectify_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyRectify_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyBite_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyBite_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyBite_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyBite_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyCrush_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyCrush_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyFracture_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_DirtyFracture_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorTube_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorTube_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorTube_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorTube_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorFold_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorFold_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorFold_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorFold_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorRectify_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorRectify_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorBite_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorBite_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorBite_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorBite_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorCrush_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorCrush_C3
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E0
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E1
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorFracture_E2
+dsp_systems_tests|BassStereoField_MonoSumPerBand_Wide_AnchorFracture_C3
+dsp_systems_tests|BassStereoField_GravityFloor_CleanSaw
+dsp_systems_tests|BassStereoField_GravityFloor_CleanGrowl
+dsp_systems_tests|BassStereoField_GravityFloor_DirtyTube
+dsp_systems_tests|BassStereoField_GravityFloor_DirtyFold
+dsp_systems_tests|BassStereoField_GravityFloor_DirtyRectify
+dsp_systems_tests|BassStereoField_GravityFloor_DirtyBite
+dsp_systems_tests|BassStereoField_GravityFloor_DirtyCrush
+dsp_systems_tests|BassStereoField_GravityFloor_DirtyFracture
+dsp_systems_tests|BassStereoField_GravityFloor_AnchorTube
+dsp_systems_tests|BassStereoField_GravityFloor_AnchorFold
+dsp_systems_tests|BassStereoField_GravityFloor_AnchorRectify
+dsp_systems_tests|BassStereoField_GravityFloor_AnchorBite
+dsp_systems_tests|BassStereoField_GravityFloor_AnchorCrush
+dsp_systems_tests|BassStereoField_GravityFloor_AnchorFracture
+dsp_systems_tests|BassStereoField_GravityFloorSmoke
+dsp_systems_tests|BassStereoField_PolyMonoSumRecord
+dsp_systems_tests|BassStereoField_WidthMonotonic
+dsp_systems_tests|BassStereoField_WidthMonotonicSmoke
+dsp_systems_tests|BassStereoField_SafetyStagePhase
+dsp_systems_tests|BassStereoField_SafetyStagePhaseSmoke
+dsp_systems_tests|BassStereoField_SafetyStageAttenuation
+dsp_systems_tests|BassStereoField_SafetyStageAttenuationSmoke
+dsp_systems_tests|BassStereoField_LeversAudible
+dsp_systems_tests|BassStereoField_LeversAudibleSmoke
+dsp_systems_tests|BassStereoField_SampleRates
+dsp_systems_tests|BassStereoField_SampleRatesSmoke
+dsp_systems_tests|BassStereoField_SampleRatesReprepare
+dsp_systems_tests|BassStereoField_MotionBounded
+dsp_systems_tests|BassStereoField_MotionBoundedSmoke
+dsp_systems_tests|BassStereoField_NoZipper
+dsp_systems_tests|BassStereoField_NoZipperSmoke
+dsp_systems_tests|BassStereoField_SolidBitIdentical_Tube
+dsp_systems_tests|BassStereoField_SolidBitIdentical_Fold
+dsp_systems_tests|BassStereoField_SolidBitIdentical_Rectify
+dsp_systems_tests|BassStereoField_SolidBitIdentical_Bite
+dsp_systems_tests|BassStereoField_SolidBitIdentical_Crush
+dsp_systems_tests|BassStereoField_SolidBitIdentical_Fracture
+dsp_systems_tests|BassStereoField_WideAliasing
+dsp_systems_tests|BassStereoField_WideAliasingSmoke
+dsp_systems_tests|BassStereoField_TransitionsClickFree
+dsp_systems_tests|BassStereoField_TransitionsClickFreeSmoke
+dsp_systems_tests|BassStereoField_H1Centred
+dsp_systems_tests|BassStereoField_H1CentredSmoke
+dsp_systems_tests|BassStereoField_PanOnlyDirection
+dsp_systems_tests|BassStereoField_PanOnlyDirectionSmoke
+dsp_systems_tests|MorphState_TypeTraits
+dsp_systems_tests|MorphState_Defaults
+dsp_systems_tests|MorphState_DefaultIsValid
+dsp_systems_tests|MorphState_TableMatchesComponentRanges
+dsp_systems_tests|MorphState_Validation
+dsp_systems_tests|MorphState_LeafArity
+dsp_systems_tests|BassMorph_Serialisation_RoundTrip
+dsp_systems_tests|BassMorph_Serialisation_Rejects
+dsp_systems_tests|MorphStateHelpers_BitEqualAgreesWithLeafBits
+dsp_systems_tests|MorphStateHelpers_RandomValidStateIsValid
+dsp_systems_tests|BassMorph_InterfaceStatics
+dsp_systems_tests|BassMorph_EndpointApi
+dsp_systems_tests|BassMorph_AnchorModeApi
+dsp_systems_tests|BassMorph_SubThresholdLanding
+dsp_systems_tests|BassMorph_BoundedStep
+dsp_systems_tests|BassMorph_RampTimeChange
+dsp_systems_tests|BassMorph_SampleRates
+dsp_systems_tests|BassMorph_Lifecycle
+dsp_systems_tests|BassMorph_EndpointIdentity
+dsp_systems_tests|BassMorph_EqualEndpointsConstant
+dsp_systems_tests|BassMorph_LawTable
+dsp_systems_tests|BassMorph_LawTable_GoverningAmount
+dsp_systems_tests|BassMorph_MonotoneLaws
+dsp_systems_tests|BassMorph_ValidityClosure
+dsp_systems_tests|BassMorph_Hysteresis
+dsp_systems_tests|BassMorph_GoverningAmountRule
+dsp_systems_tests|BassMorph_AnchorCurves
+dsp_systems_tests|BassMorph_EndpointEditMidMorph
+dsp_systems_tests|BassMorph_Partition
+dsp_systems_tests|BassMorph_RuntimeRoundTrip
+dsp_systems_tests|BassMorph_RuntimeRejects
+dsp_systems_tests|BassMorph_Idempotent
+dsp_systems_tests|BassMorph_RealTimeSafety
+dsp_systems_tests|BassMorphHelpers_StaticEqualsFieldChain
+dsp_systems_tests|BassMorphHelpers_GridCalls
+dsp_systems_tests|BassMorphHelpers_ChangeOnlyEnvelopeSetters
+dsp_systems_tests|BassMorphHelpers_DescriptorsOnSines
+dsp_systems_tests|BassMorphHelpers_MuteCharacterKeepsTail
+dsp_systems_tests|BassMorph_RecipeDomain
+dsp_systems_tests|BassMorph_Global
+dsp_systems_tests|BassMorph_Audibility
+dsp_systems_tests|BassMorph_DropLatched
+dsp_systems_tests|BassMorph_AmpEnvelopeImmediateApply
+dsp_systems_tests|BassMorph_EndpointEditMidMorphRender
+dsp_systems_tests|BassMorph_AnchorCurvesRendered
+dsp_systems_tests|BassMorph_AnchorCurvesRenderedSmoke
+dsp_systems_tests|BassMorph_IdempotentRender
+dsp_systems_tests|BassMorph_IdempotentRenderSmoke
+dsp_systems_tests|BassMorph_DiscreteClickFree_Algorithm
+dsp_systems_tests|BassMorph_DiscreteClickFree_ImageMode
+dsp_systems_tests|BassMorph_DiscreteClickFree_AnchorWaveform
+dsp_systems_tests|BassMorph_DiscreteClickFree_AnchorMode
+dsp_systems_tests|BassMorph_DiscreteClickFree_FieldMotionSource
+dsp_systems_tests|BassMorph_DiscreteClickFree_FieldCycleSync
+dsp_systems_tests|BassMorph_DiscreteClickFree_FieldCycleModifier
+dsp_systems_tests|BassMorph_DiscreteClickFree_FieldCycleNote
+dsp_systems_tests|BassMorph_DiscreteClickFree_GoverningAmount
+dsp_systems_tests|BassMorph_DiscreteClickFreeSmoke
+dsp_systems_tests|BassMorph_ShowcaseTrajectory_Lock_E1
+dsp_systems_tests|BassMorph_ShowcaseTrajectory_Lock_C3
+dsp_systems_tests|BassMorph_ShowcaseTrajectory_Blend_E1
+dsp_systems_tests|BassMorph_ShowcaseTrajectory_Blend_C3
+dsp_systems_tests|BassMorph_ShowcaseTrajectory_Punch_E1
+dsp_systems_tests|BassMorph_ShowcaseTrajectory_Punch_C3
+dsp_systems_tests|BassMorph_ShowcaseTrajectorySmoke
+dsp_systems_tests|BassMorph_MonoSum_E1
+dsp_systems_tests|BassMorph_MonoSum_C3
+dsp_systems_tests|BassMorph_MonoSum_AnchorThroughTail_E1
+dsp_systems_tests|BassMorph_MonoSum_AnchorThroughTail_C3
+dsp_systems_tests|BassMorph_MonoSumSmoke
+dsp_systems_tests|BassMorph_Aliasing_44k
+dsp_systems_tests|BassMorph_Aliasing_48k
+dsp_systems_tests|BassMorph_Aliasing_96k
+dsp_systems_tests|BassMorph_AliasingSmoke
+dsp_systems_tests|ProfundumObserver_SeamDefaults
+dsp_systems_tests|ProfundumObserver_DefaultCallbacksAreNoOps
+dsp_systems_tests|VoiceEngineHelpers_DriverSplitsAtEvents
+dsp_systems_tests|VoiceEngineHelpers_MorphModFields
+dsp_systems_tests|VoiceEngineHelpers_TwinDiffersOnlyInExcitation
+dsp_systems_tests|VoiceEngineHelpers_FrameReaders
+dsp_systems_tests|VoiceEngineHelpers_DropDescriptorsKnownCurve
+dsp_systems_tests|VoiceEngineHelpers_DeltaBoundOnKnownSignal
+dsp_systems_tests|ProfundumMotion_Sources
+dsp_systems_tests|ProfundumMotion_PolarityAndScale
+dsp_systems_tests|ProfundumMotion_DepthZeroIsZero
+dsp_systems_tests|ProfundumMotion_ConfigChangeOnly
+dsp_systems_tests|ProfundumMotion_ModulationSource
+dsp_systems_tests|ProfundumMotion_TempoAndSeed
+dsp_systems_tests|ProfundumMacro_TableInvariants
+dsp_systems_tests|ProfundumMacro_NeutralIsIdentity
+dsp_systems_tests|ProfundumMacro_Directions
+dsp_systems_tests|ProfundumMacro_ValuesRoundTrip
+dsp_systems_tests|ProfundumMacro_ContributionArithmetic
+dsp_systems_tests|VoiceEngine_StealClickless_Solid
+dsp_systems_tests|VoiceEngine_StealClickless_Spread
+dsp_systems_tests|VoiceEngine_StealClickless_Wide
+dsp_systems_tests|VoiceEngine_StealClicklessSmoke
+dsp_systems_tests|VoiceEngine_MonoReplaceClickless_Legato
+dsp_systems_tests|VoiceEngine_MonoReplaceClickless_Retrigger
+dsp_systems_tests|VoiceEngine_MonoReplaceClicklessSmoke
+dsp_systems_tests|VoiceEngine_MotionSelectorsClickFree
+dsp_systems_tests|VoiceEngine_MotionSelectorsClickFreeSmoke
+dsp_systems_tests|VoiceEngine_AudibilityTable_Core
+dsp_systems_tests|VoiceEngine_AudibilityTable_Character
+dsp_systems_tests|VoiceEngine_AudibilityTable_Anchor
+dsp_systems_tests|VoiceEngine_AudibilityTable_Pitch
+dsp_systems_tests|VoiceEngine_AudibilityTable_Envelope
+dsp_systems_tests|VoiceEngine_AudibilityTable_Mass
+dsp_systems_tests|VoiceEngine_AudibilityTable_Field
+dsp_systems_tests|VoiceEngine_AudibilityTable_Motion
+dsp_systems_tests|VoiceEngine_AudibilityTable_Morph
+dsp_systems_tests|VoiceEngine_AudibilityTable_NoteMemory
+dsp_systems_tests|VoiceEngine_AudibilityTable_Macros
+dsp_systems_tests|VoiceEngine_AudibilityTableSmoke
+dsp_systems_tests|VoiceEngine_MacroMonotone
+dsp_systems_tests|VoiceEngine_MacroMonotoneSmoke
+dsp_systems_tests|VoiceEngine_MotionMassSwell
+dsp_systems_tests|VoiceEngine_MotionMassSwellSmoke
+dsp_systems_tests|VoiceEngine_MonoSum_Solid
+dsp_systems_tests|VoiceEngine_MonoSum_Spread
+dsp_systems_tests|VoiceEngine_MonoSum_Wide
+dsp_systems_tests|VoiceEngine_MonoSumSmoke
+dsp_systems_tests|VoiceEngine_AnchorThroughChain_E0
+dsp_systems_tests|VoiceEngine_AnchorThroughChain_E1
+dsp_systems_tests|VoiceEngine_AnchorThroughChain_E2
+dsp_systems_tests|VoiceEngine_AnchorThroughChainSmoke
+dsp_systems_tests|VoiceEngine_FollowTracking
+dsp_systems_tests|VoiceEngine_FollowTrackingSmoke
+dsp_systems_tests|VoiceEngine_Aliasing_44k1_Tube
+dsp_systems_tests|VoiceEngine_Aliasing_44k1_Fold
+dsp_systems_tests|VoiceEngine_Aliasing_44k1_Rectify
+dsp_systems_tests|VoiceEngine_Aliasing_44k1_Bite
+dsp_systems_tests|VoiceEngine_Aliasing_44k1_Crush
+dsp_systems_tests|VoiceEngine_Aliasing_44k1_Fracture
+dsp_systems_tests|VoiceEngine_Aliasing_48k_Tube
+dsp_systems_tests|VoiceEngine_Aliasing_48k_Fold
+dsp_systems_tests|VoiceEngine_Aliasing_48k_Rectify
+dsp_systems_tests|VoiceEngine_Aliasing_48k_Bite
+dsp_systems_tests|VoiceEngine_Aliasing_48k_Crush
+dsp_systems_tests|VoiceEngine_Aliasing_48k_Fracture
+dsp_systems_tests|VoiceEngine_Aliasing_96k_Tube
+dsp_systems_tests|VoiceEngine_Aliasing_96k_Fold
+dsp_systems_tests|VoiceEngine_Aliasing_96k_Rectify
+dsp_systems_tests|VoiceEngine_Aliasing_96k_Bite
+dsp_systems_tests|VoiceEngine_Aliasing_96k_Crush
+dsp_systems_tests|VoiceEngine_Aliasing_96k_Fracture
+dsp_systems_tests|VoiceEngine_AliasingDropTail
+dsp_systems_tests|VoiceEngine_AliasingSmoke
+dsp_systems_tests|VoiceEngine_Soak30Min_Mono
+dsp_systems_tests|VoiceEngine_Soak30Min_Poly
+dsp_systems_tests|VoiceEngine_SoakSmoke
+dsp_systems_tests|VoiceEngine_DynamicsAliasingGrid
+dsp_systems_tests|MassDynamics_OversamplingOffUnchanged
+dsp_systems_tests|MassDynamics_OversamplingActiveRange
+dsp_systems_tests|MassDynamics_OversamplingFactorFallback
+dsp_systems_tests|MassDynamics_OversamplingNoAllocation
+dsp_systems_tests|MassDynamics_OversamplingPartition
+dsp_systems_tests|MassDynamics_OversamplingTransfer
+dsp_systems_tests|MassDynamics_OversamplingStateFinite
+dsp_systems_tests|Profundum_EngineDisplayAccessorNeutral
+dsp_systems_tests|ProfundumMorphModulator_ApiAndRt
+dsp_systems_tests|ProfundumMorphModulator_Envelope
+dsp_systems_tests|ProfundumMorphModulator_Cycle
+dsp_systems_tests|ProfundumEngine_MorphModComposition
+dsp_systems_tests|ProfundumEngine_MorphModTransparentAtZero
+dsp_systems_tests|ProfundumEngine_MorphModVelocity
+dsp_systems_tests|ProfundumEngine_MorphModNoAlloc
+dsp_systems_tests|ProfundumEngine_MorphModRetrigger
+dsp_systems_tests|ProfundumEngine_MorphModLifecycle
+dsp_systems_tests|ProfundumEngine_MorphModAnchorMono
+dsp_systems_tests|ProfundumEngine_MorphModClickFree_1of8
+dsp_systems_tests|ProfundumEngine_MorphModClickFree_2of8
+dsp_systems_tests|ProfundumEngine_MorphModClickFree_3of8
+dsp_systems_tests|ProfundumEngine_MorphModClickFree_4of8
+dsp_systems_tests|ProfundumEngine_MorphModClickFree_5of8
+dsp_systems_tests|ProfundumEngine_MorphModClickFree_6of8
+dsp_systems_tests|ProfundumEngine_MorphModClickFree_7of8
+dsp_systems_tests|ProfundumEngine_MorphModClickFree_8of8
+=== <exe>.exe <hidden tag> --list-tests --verbosity quiet (prefixed with the exe and the tag)
+profundum_tests|[.harvest]|Profundum_MorphModPrePhaseHarvest_0of4
+profundum_tests|[.harvest]|Profundum_MorphModPrePhaseHarvest_1of4
+profundum_tests|[.harvest]|Profundum_MorphModPrePhaseHarvest_2of4
+profundum_tests|[.harvest]|Profundum_MorphModPrePhaseHarvest_3of4
+profundum_tests|[.harvest]|Profundum_MorphModPrePhaseFingerprints_0of4
+profundum_tests|[.harvest]|Profundum_MorphModPrePhaseFingerprints_1of4
+profundum_tests|[.harvest]|Profundum_MorphModPrePhaseFingerprints_2of4
+profundum_tests|[.harvest]|Profundum_MorphModPrePhaseFingerprints_3of4
+profundum_tests|[.perf]|Profundum_ProcessorCpu
+profundum_tests|[.perf]|Profundum_ProcessorCpuFullSurface
+profundum_tests|[.perf]|Profundum_PresetCpu
+profundum_tests|[.perf]|Profundum_ProcessorCpuMorphMod
+dsp_systems_tests|[.harvest]|VoiceEngine_MacroHarvest
+dsp_systems_tests|[.perf]|ExtModulation: Global modulation engine performance < 0.5% CPU
+dsp_systems_tests|[.perf]|T032: HarmonizerEngine PhaseVocoder 4-voice shared-analysis benchmark (SC-001)
+dsp_systems_tests|[.perf]|SympatheticResonance SIMD performance benchmark
+dsp_systems_tests|[.perf]|HarmonicCloud_CpuBudget
+dsp_systems_tests|[.perf]|HarmonicCloud_CpuBudgetUnderAutomation
+dsp_systems_tests|[.perf]|SpectralMorph_CpuBudget
+dsp_systems_tests|[.perf]|ContinuousBody_CpuBudget
+dsp_systems_tests|[.perf]|AtmosphereEngine_GrainSampleCost
+dsp_systems_tests|[.perf]|AtmosphereEngine_CpuBudget
+dsp_systems_tests|[.perf]|SeraphisEngine_FullPolyCpuBudget
+dsp_systems_tests|[.perf]|SeraphisVoice_CompositionOverhead
+dsp_systems_tests|[.perf]|SeraphisEngine_PerfObservables
+dsp_systems_tests|[.perf]|NoiseOrganism_StageCostProbe
+dsp_systems_tests|[.perf]|NoiseOrganism_CpuBudget
+dsp_systems_tests|[.perf]|ResonanceDriftNetwork_StageCostProbe
+dsp_systems_tests|[.perf]|ResonanceDriftNetwork_CpuBudget
+dsp_systems_tests|[.perf]|FeedbackEcology_StageCostProbe
+dsp_systems_tests|[.perf]|FeedbackEcology_CpuBudget
+dsp_systems_tests|[.perf]|SubharmonicEngine_StageCostProbe
+dsp_systems_tests|[.perf]|SubharmonicEngine_CpuBudget
+dsp_systems_tests|[.perf]|BloomEngine_CpuBudget
+dsp_systems_tests|[.perf]|BloomEngine_StageCostProbe
+dsp_systems_tests|[.perf]|EcosystemEngine_CpuBudget
+dsp_systems_tests|[.perf]|EcosystemEngine_StageCostProbe
+dsp_systems_tests|[.perf]|VoragoEngine_CpuSurvey
+dsp_systems_tests|[.perf]|VoragoEngine_CpuBudget
+dsp_systems_tests|[.perf]|VoragoVoice_StageCostProbe
+dsp_systems_tests|[.perf]|VoragoVoice_CompositionOverhead
+dsp_systems_tests|[.perf]|VoragoVoice_ClearingPathCost
+dsp_systems_tests|[.perf]|VoragoVoice_CloudFloorCpuProbe
+dsp_systems_tests|[.perf]|AtmosphereGhost_CpuDelta
+dsp_systems_tests|[.perf]|ProfundumCore_CpuBudget
+dsp_systems_tests|[.perf]|ProfundumEdgeFold_CpuBudget
+dsp_systems_tests|[.perf]|AnchorOscillator_CpuBudget
+dsp_systems_tests|[.perf]|ShapeCharacter_CpuBudget
+dsp_systems_tests|[.perf]|MassDynamics_CpuBudget
+dsp_systems_tests|[.perf]|BassStereoField_Cpu
+dsp_systems_tests|[.perf]|BassMorph_Cpu
+dsp_systems_tests|[.perf]|BassMorph_WorstTransitionIntervalRecord
+dsp_systems_tests|[.perf]|VoiceEngine_CpuProbe
+dsp_systems_tests|[.perf]|VoiceEngine_CpuMono
+dsp_systems_tests|[.perf]|VoiceEngine_CpuPoly4
+dsp_systems_tests|[.perf]|VoiceEngine_WorstInterval
+dsp_systems_tests|[.perf]|VoiceEngine_WorstIntervalMorphMod
+dsp_systems_tests|[.perf]|VoiceEngine_PlacementCost
+missing=[] leaked_hidden=[]

@@ -1,0 +1,51 @@
+pin-perf-cores: performance-core mask 0xFFFF
+Filters: "Profundum_ProcessorCpuMorphMod"
+Randomness seeded to: 1800406260
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+profundum_tests.exe is a Catch2 v3.4.0 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Profundum_ProcessorCpuMorphMod
+-------------------------------------------------------------------------------
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1170)
+...............................................................................
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1272): warning:
+  SC-014 MOD-MONO warm-up ramped position range: P [0, 1], D [0, 1]
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1279): warning:
+  SC-014 last warm-up block peak MOD-MONO: P 0.181549, D 0.0464042
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1272): warning:
+  SC-014 MOD-POLY warm-up ramped position range: P [0, 1], D [0, 1]
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1279): warning:
+  SC-014 last warm-up block peak MOD-POLY: P 0.477649, D 0.497651
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1302): warning:
+  SC-014 Morph Mod Cycle Sine 20 Hz, Amount 1, ramp 5 ms, base 0.5; real time
+  per 10 blocks (512 @ 48 kHz) = 1.06667e+08 ns
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1310): warning:
+  SC-014 MOD-MONO: best ns P 6.0733e+06, D (same engine) 6.376e+06, D (separate
+  engine) 6.2327e+06; pct P = 5.69372 % (bar <= 8), pct D separate = 5.84316 %
+  (recorded); ratio P / D = 0.952525 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1310): warning:
+  SC-014 MOD-POLY: best ns P 2.19709e+07, D (same engine) 2.24255e+07, D
+  (separate engine) 2.22977e+07; pct P = 20.5977 % (bar <= 25), pct D separate
+  = 20.9041 % (recorded); ratio P / D = 0.979728 (bar <= 1.05)
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1317): warning:
+  SC-014 MOD-MONO: control S2 / S (same D path twice) = 0.989053 (valid within
+  [0.952381, 1.05])
+
+F:\projects\iterum\plugins\profundum\tests\integration\processor_cpu_test.cpp(1317): warning:
+  SC-014 MOD-POLY: control S2 / S (same D path twice) = 1.00752 (valid within
+  [0.952381, 1.05])
+
+===============================================================================
+All tests passed (117 assertions in 1 test case)
+

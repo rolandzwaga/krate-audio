@@ -732,6 +732,10 @@ TEST_CASE("Profundum_PresetDistinctness", "[profundum][distinct][long]") {
     REQUIRE(kv.at("control_pass") == "1");
     const double f = std::stod(kv.at("F"));
     REQUIRE(f >= 1.0);
+    // Library floor from the designed-library pass (2026-10-26): the closest pair rose from 1.91 (Bedrock vs Locked
+    // Floor) to 2.42 (Loose Ends vs Locked Floor); no pair may fall back under 2.0, whatever the measured F.
+    constexpr double kLibraryDistanceFloor = 2.0;
+    const double bar = std::max(f, kLibraryDistanceFloor);
 
     std::vector<std::array<PresetDescriptor, 2>> desc;
     desc.reserve(defs.size());
@@ -754,8 +758,9 @@ TEST_CASE("Profundum_PresetDistinctness", "[profundum][distinct][long]") {
         for (std::size_t j = i + 1; j < defs.size(); ++j) {
             std::size_t masked = 0;
             const double dist = presetDistance(desc[i], desc[j], masked);
-            INFO(defs[i].name << " vs " << defs[j].name << ": d " << dist << " (F " << f << "), masked " << masked);
-            CHECK(dist >= f);
+            INFO(defs[i].name << " vs " << defs[j].name << ": d " << dist << " (F " << f << ", bar " << bar
+                              << "), masked " << masked);
+            CHECK(dist >= bar);
             if (dist < closest) {
                 closest = dist;
                 closestPair = std::string(defs[i].name) + " vs " + std::string(defs[j].name);
@@ -763,10 +768,80 @@ TEST_CASE("Profundum_PresetDistinctness", "[profundum][distinct][long]") {
             }
         }
     }
-    std::cout << "# Profundum_PresetDistinctness: presets=" << defs.size() << " F=" << f << " closest=" << closestPair
+    std::cout << "# Profundum_PresetDistinctness: presets=" << defs.size() << " F=" << f << " bar=" << bar
+              << " closest=" << closestPair
               << " d=" << closest << " masked=" << closestMasked << '\n'
               << std::flush;
 }
+
+// =============================================================================
+// Morph endpoints (2026-10-26, the designed-library pass): every preset's B is a second sound, not a nudge of A, and Bass
+// Morph does not dip or jump in level on the way. B is rendered as a preset whose two endpoints are both B (the audition
+// render's _B_E1 file), described with the same C-7 descriptor as A.
+// =============================================================================
+
+namespace {
+
+// C-7 distance between A and B. Calibrated 2026-10-26 on the library before the pass: the designed B endpoints (the six
+// pilots, Bedrock Sine, Morph Span, Halfway Morph) read 11.2 - 30.7; the 49 B endpoints that nudged one or two
+// parameters read 0 - 8.0 (Biting Reed 7.35, Dark To Bright 8.03). The library F is 1.0.
+constexpr double kMorphEndpointMinDistance = 10.0;
+constexpr double kMorphEndpointMaxLevelDeltaDb = 3.0;  // |B - A| descriptor-window level, per note
+
+void swRunMorphEndpointShard(std::size_t k) {
+    enableFTZDAZ();
+    const std::vector<Pd::ProfundumPresetDef>& defs = Pd::allPresets();
+    REQUIRE(!defs.empty());
+    std::ostringstream os;
+    os << std::setprecision(6);
+    os << "preset,d_ab,masked,level_a_e1,level_b_e1,level_a_c3,level_b_c3\n";
+    std::size_t presets = 0;
+    for (std::size_t i = 0; i < defs.size(); ++i) {
+        if (i % 8u != k) {
+            continue;
+        }
+        const Pd::ProfundumPresetDef& def = defs[i];
+        const std::vector<std::uint8_t> comp = presetCompOf(def);
+        const DecodedPresetState d = decodePresetState(comp);
+        INFO("preset " << def.name);
+        REQUIRE(d.ok);
+        const std::vector<std::uint8_t> compB = swBytesOf(withEndpoints(swStateOf(comp), d.b, d.b));
+        // R8 (Phase 14, user 2026-10-27): a preset that stores a Morph Mod source is measured at its two designed sounds
+        // with the modulation bypassed. A, like B, is then rendered with both endpoints A, so the source cannot move it;
+        // a Source-Off preset is rendered as stored, as before.
+        const std::vector<std::uint8_t> compA =
+            d.morphMod.source != 0 ? swBytesOf(withEndpoints(swStateOf(comp), d.a, d.a)) : comp;
+        const std::array<PresetDescriptor, 2> descA = swDescribe(compA, 512, kPresetStoredSeed);
+        const std::array<PresetDescriptor, 2> descB = swDescribe(compB, 512, kPresetStoredSeed);
+        CHECK(swDescriptorSound(descA));
+        CHECK(swDescriptorSound(descB));
+        std::size_t masked = 0;
+        const double dist = presetDistance(descA, descB, masked);
+        ++presets;
+        os << auRd::auCsvField(std::string(def.name)) << ',' << dist << ',' << masked << ',' << descA[0].midTotalDb << ','
+           << descB[0].midTotalDb << ',' << descA[1].midTotalDb << ',' << descB[1].midTotalDb << '\n';
+        INFO("A vs B: d " << dist << " (bar " << kMorphEndpointMinDistance << "), masked " << masked);
+        CHECK(dist >= kMorphEndpointMinDistance);
+        for (std::size_t n = 0; n < kSwNotes.size(); ++n) {
+            INFO(auRd::auNoteName(kSwNotes[n]) << ": A " << descA[n].midTotalDb << " dBFS, B " << descB[n].midTotalDb
+                                               << " dBFS");
+            CHECK(std::abs(descB[n].midTotalDb - descA[n].midTotalDb) <= kMorphEndpointMaxLevelDeltaDb);
+        }
+    }
+    std::cout << "# Profundum_PresetMorphEndpoints_" << k << "of8: presets=" << presets << '\n'
+              << os.str() << std::flush;
+}
+
+}  // namespace
+
+TEST_CASE("Profundum_PresetMorphEndpoints_0of8", "[profundum][distinct][long]") { swRunMorphEndpointShard(0); }
+TEST_CASE("Profundum_PresetMorphEndpoints_1of8", "[profundum][distinct][long]") { swRunMorphEndpointShard(1); }
+TEST_CASE("Profundum_PresetMorphEndpoints_2of8", "[profundum][distinct][long]") { swRunMorphEndpointShard(2); }
+TEST_CASE("Profundum_PresetMorphEndpoints_3of8", "[profundum][distinct][long]") { swRunMorphEndpointShard(3); }
+TEST_CASE("Profundum_PresetMorphEndpoints_4of8", "[profundum][distinct][long]") { swRunMorphEndpointShard(4); }
+TEST_CASE("Profundum_PresetMorphEndpoints_5of8", "[profundum][distinct][long]") { swRunMorphEndpointShard(5); }
+TEST_CASE("Profundum_PresetMorphEndpoints_6of8", "[profundum][distinct][long]") { swRunMorphEndpointShard(6); }
+TEST_CASE("Profundum_PresetMorphEndpoints_7of8", "[profundum][distinct][long]") { swRunMorphEndpointShard(7); }
 
 // =============================================================================
 // Hidden pilot (plan 5.8 steps 1-5): writes evidence/distinctness.csv
@@ -884,9 +959,11 @@ TEST_CASE("Profundum_PresetDistinctnessPilot", "[profundum][distinct][.pilot]") 
 // specs/profundum-phase13-presets-release/evidence/listen/:
 //   - <category>/<name>_E1.wav and _C3.wav: the plan 5.5 sweep render (renderPresetSweep, 48 kHz, block 512, note on at
 //     0, off at 3 s, rendered through the reported tail), 32-bit float stereo as the Phase 12 case writes;
+//   - <category>/<name>_B_E1.wav: endpoint B on its own (both endpoints = B), rendered like _E1; the sheet records the
+//     held E1 level (mid RMS over [1.0 s, 3.0 s)) of A and of B;
 //   - gesture WAVs (48 kHz, block 512, the stored state, tail = getTailSamples() after setupProcessing):
-//       _morph   (AT-41 / AT-42 claimants, primary or secondary): E1 held 3 s, Morph Position (105) 0 -> 1 linearly
-//                over 2 s from sample 0, one point per host block;
+//       _morph   (every preset: Morph is part of each preset's sound): E1 held 3 s, Morph Position (105) 0 -> 1
+//                linearly over 2 s from sample 0, one point per host block;
 //       _macro   (AT-47 - AT-50 claimants): the claimed macro 0 -> 1 the same way (one file per claimed macro;
 //                _macro_AT-nn when a preset claims more than one);
 //       _legato  (AT-23, AT-43 - AT-46 claimants): E1 on at 0, E2 on at 1.0 s, E1 off at 1.5 s, E2 off at 3.0 s;
@@ -1104,6 +1181,20 @@ struct SwWindow {
     return w;
 }
 
+/// The held level of a 48 kHz sweep render: mid ((L + R) / 2) RMS in dBFS over [1.0 s, 3.0 s), the held part of
+/// the note (on at 0, off at 3 s). -200 for silence.
+[[nodiscard]] double swHeldLevelDb(const std::vector<float>& L, const std::vector<float>& R) {
+    const std::size_t from = swAt(1.0);
+    const std::size_t to = std::min({swAt(3.0), L.size(), R.size()});
+    double sum = 0.0;
+    for (std::size_t i = from; i < to; ++i) {
+        const double mid = 0.5 * (static_cast<double>(L[i]) + static_cast<double>(R[i]));
+        sum += mid * mid;
+    }
+    const double meanSquare = to > from ? sum / static_cast<double>(to - from) : 0.0;
+    return meanSquare > 0.0 ? 10.0 * std::log10(meanSquare) : -200.0;
+}
+
 /// Keeps a sheet the user has written verdicts into: copied to listening-sheet.prev<k>.md (first free k).
 void swKeepFilledSheet(const std::filesystem::path& sheet) {
     std::ifstream in(sheet, std::ios::binary);
@@ -1211,8 +1302,20 @@ TEST_CASE("Profundum_PresetAuditionRenders", "[profundum][.listen]") {
         }
         REQUIRE(storedE1.has_value());
 
-        // Gestures.
-        if (swClaims(def, C::AT41) || swClaims(def, C::AT42)) {
+        // Endpoint B on its own (both endpoints = B, so Morph Position 0 renders B): the A / B comparison every preset
+        // owes the listener, since Morph is part of every preset's sound. Its E1 level beside A's goes on the sheet.
+        const std::vector<std::uint8_t> compB = swBytesOf(withEndpoints(swStateOf(comp), d.b, d.b));
+        const PresetSweepRender rB = renderPresetSweep(compB, e1, kSwFs, false);
+        {
+            INFO(name << " _B_E1: non-finite " << swNonFinite(rB.L, rB.R));
+            CHECK(swNonFinite(rB.L, rB.R) == 0u);
+            emit("_B_E1", rB.L, rB.R, "E1", "endpoint B static");
+        }
+        const double levelA = swHeldLevelDb(storedE1->L, storedE1->R);
+        const double levelB = swHeldLevelDb(rB.L, rB.R);
+
+        // Gestures. The morph sweep runs for every preset, not only the AT-41 / AT-42 claimants.
+        {
             const SwAuditionRender g = swRenderGesture(comp, swRampScript(P::kMorphPositionId), swAt(3.0));
             INFO(name << " _morph: non-finite " << g.nonFinite);
             CHECK(g.nonFinite == 0u);
@@ -1256,6 +1359,9 @@ TEST_CASE("Profundum_PresetAuditionRenders", "[profundum][.listen]") {
         sheet << '\n';
         sheet << "- Endpoints: A \"" << d.names[0] << "\", B \"" << d.names[1] << "\"; stored Morph Position "
               << d.morph.position << '\n';
+        sheet << "- E1 held level (1-3 s, mid RMS): A " << levelA << " dB, B " << levelB << " dB (B - A "
+              << levelB - levelA << " dB)\n";
+        std::cout << "# " << name << ": E1 held level A " << levelA << " dB, B " << levelB << " dB\n";
         sheet << "- Files:";
         for (std::size_t k = 0; k < files.size(); ++k) {
             sheet << (k == 0 ? " `" : ", `") << files[k] << '`';
@@ -1334,4 +1440,80 @@ TEST_CASE("Profundum_PresetAuditionRenders", "[profundum][.listen]") {
     std::cout << "# Profundum_PresetAuditionRenders: presets=" << defs.size() << " wavs=" << wavs
               << " gestures=" << gestures << " flagged=" << flagged << '\n'
               << std::flush;
+}
+
+// =============================================================================
+// Morph sweep (2026-10-26, the designed-library pass): every preset's A -> B travel is part of its sound, so every
+// preset is swept, not only the AT-41 / AT-42 claimants. The audition's _morph render (E1 held 3 s, Morph Position
+// 0 -> 1 over 2 s): finite, under the stored output ceiling in true peak (the sweep cases' 0.1 dB allowance), and no
+// 100 ms window of [0 s, 3 s) under -60 dBFS (Morph never passes through silence).
+// Phase 14b ruling (user, 2026-10-27; specs/Profundum-roadmap.md Phase 14b): the bar is endpoint-referenced. A window
+// counts where the same gesture with Morph frozen at A (both endpoints A) and at B (both B) both read above -60 dBFS: a
+// dropout is silence Morph makes that neither endpoint has. A sustained preset counts every window; a one-hit kick is
+// checked during its hit, while the ramp already moves. The frozen renders run only when the sweep has a quiet window.
+// =============================================================================
+
+TEST_CASE("Profundum_PresetMorphSweep", "[profundum][sweep][long]") {
+    namespace P = ::Profundum;
+    enableFTZDAZ();
+    const std::vector<Pd::ProfundumPresetDef>& defs = Pd::allPresets();
+    REQUIRE(!defs.empty());
+    const std::size_t window = swAt(0.1);
+    constexpr double kSilenceDb = -60.0;
+    const auto windowsDb = [window](const SwAuditionRender& r) {
+        std::vector<double> out;
+        for (std::size_t at = 0; at + window <= swAt(3.0); at += window) {
+            double sum = 0.0;
+            for (std::size_t n = at; n < at + window; ++n) {
+                sum += 0.5 * (static_cast<double>(r.L[n]) * r.L[n] + static_cast<double>(r.R[n]) * r.R[n]);
+            }
+            out.push_back(10.0 * std::log10(std::max(sum / static_cast<double>(window), 1.0e-30)));
+        }
+        return out;
+    };
+    std::cout << "# Profundum_PresetMorphSweep: presets=" << defs.size()
+              << "\npreset,non_finite,true_peak_dbtp,ceiling_dbtp,min_window_db,max_window_db,counted_windows\n";
+    for (const Pd::ProfundumPresetDef& def : defs) {
+        const std::vector<std::uint8_t> comp = presetCompOf(def);
+        const DecodedPresetState d = decodePresetState(comp);
+        INFO("preset " << def.name);
+        REQUIRE(d.ok);
+        const std::vector<SwEv> script = swRampScript(P::kMorphPositionId);
+        const SwAuditionRender g = swRenderGesture(comp, script, swAt(3.0));
+        const double truePeak = static_cast<double>(
+            Krate::DSP::TestUtils::measureTruePeakDb(g.L.data(), g.R.data(), g.L.size(), kSwFs));
+        const double bar = static_cast<double>(d.outputCeilingDb) + 0.1;
+        const std::vector<double> sweep = windowsDb(g);
+        std::vector<bool> counted(sweep.size(), true);
+        if (std::any_of(sweep.begin(), sweep.end(), [](double db) { return db <= kSilenceDb; })) {
+            const std::vector<double> atA =
+                windowsDb(swRenderGesture(swBytesOf(withEndpoints(swStateOf(comp), d.a, d.a)), script, swAt(3.0)));
+            const std::vector<double> atB =
+                windowsDb(swRenderGesture(swBytesOf(withEndpoints(swStateOf(comp), d.b, d.b)), script, swAt(3.0)));
+            for (std::size_t w = 0; w < sweep.size(); ++w) {
+                // Both endpoints sound (user, 2026-10-27): a dropout is silence neither endpoint has.
+                counted[w] = atA[w] > kSilenceDb && atB[w] > kSilenceDb;
+            }
+        }
+        double minDb = std::numeric_limits<double>::max();
+        double maxDb = std::numeric_limits<double>::lowest();
+        std::size_t countedWindows = 0;
+        for (std::size_t w = 0; w < sweep.size(); ++w) {
+            maxDb = std::max(maxDb, sweep[w]);
+            if (counted[w]) {
+                minDb = std::min(minDb, sweep[w]);
+                ++countedWindows;
+            }
+        }
+        std::cout << auRd::auCsvField(std::string(def.name)) << ',' << g.nonFinite << ',' << truePeak << ','
+                  << d.outputCeilingDb << ',' << minDb << ',' << maxDb << ',' << countedWindows << '\n';
+        INFO("non-finite " << g.nonFinite << ", true peak " << truePeak << " dBTP (bar " << bar
+                           << "), counted 100 ms windows " << countedWindows << " of " << sweep.size() << ", "
+                           << minDb << " .. " << maxDb << " dBFS");
+        CHECK(g.nonFinite == 0u);
+        CHECK(truePeak <= bar);
+        CHECK(countedWindows > 0u);
+        CHECK(minDb > kSilenceDb);
+    }
+    std::cout << std::flush;
 }

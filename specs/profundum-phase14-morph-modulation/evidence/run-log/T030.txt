@@ -1,0 +1,159 @@
+T030 - Scope fence, ODR re-sweep, greps (FR-018, FR-019, non-goals)
+Date: 2026-10-27   HEAD: e501b577   Base: 3dfc5b7d   Branch: feat/profundum-preset-morph
+Command: node specs/profundum-phase14-morph-modulation/evidence/close/scope-fence.js
+Wall clock: 6.0 s (one process; git + a regex sweep of 2003 source files; nothing to shard)
+Verdict: SCOPE RED (exit 1) - 15 RED findings, all of one kind: earlier-phase evidence files rewritten in the working tree.
+
+RED (main-loop action needed; this task's file list does not cover them):
+  15 evidence files of Phases 5, 6, 7, 8 and 9 are modified in the working tree (git status " M", mtime 2026-10-27 11:03,
+  i.e. rewritten by the gate runs of this phase). The diffs are last-digit drift of re-run readings (e.g. phase5 sc013.csv
+  -0.534592 -> -0.534593; phase6 phase9-handoff.txt limiter GR -7.8662 -> -7.86436; phase9 soak-smoke.txt wall 9.01 s ->
+  5.50 s), not phase content. tasks.md "Rules for every file of this phase" (:126-128) says such a run is followed by
+  `git checkout -- <dir>`. Remediation (main loop):
+    git checkout -- specs/profundum-phase5-shape-character/evidence specs/profundum-phase6-mass-dynamics/evidence \
+      specs/profundum-phase7-stereo-field/evidence specs/profundum-phase8-bass-morph/evidence \
+      specs/profundum-phase9-voice-engine/evidence
+  then re-run the fence (6 s); every other section is green.
+
+Deviations from the T030 text (surfaced, not silent):
+  1. Post-base non-phase commits. `git diff --name-only 3dfc5b7d` compares the base with the working tree, so it also
+     lists the 43 paths of the two user commits made on the branch after the phase base (4fb6c248 "build(tests): shard
+     every test run ..." and e501b577 "docs(disrumpo,innexus): ..."); .claude/workflows/profundum-phase.js, which T030
+     excludes by name as a pre-phase working-tree change, is now inside 4fb6c248. The script names those two commits,
+     REDs any other post-base commit, and excludes only a path reached solely through them (in `git diff 3dfc5b7d HEAD`,
+     not in `git diff HEAD`, not untracked); a path they touched that the working tree also changes is still fenced.
+     The 43 excluded paths are printed at the end of the output.
+  2. Claimed ODR names the build did not adopt (MorphModulator, MorphModConfig, MorphModSource - the last only appears
+     as the uidesc control-tag string "MorphModSource" and in an editor_layout_test string) have 0 C++ definitions. They
+     are reported ok ("at most once"): 0 definitions is no ODR hazard. Every adopted name has exactly 1.
+  3. Non-finite grep counts code; the one mention inside a comment
+     (dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:72 "/// A quiet NaN made from a volatile bit pattern
+     (no quiet_NaN() constant: ...)") is listed and not counted, the rule of tools/lint-nonfinite-symbols.js
+     ("A line whose match sits after `//` or inside a /* */ block is" skipped). Literal grep would read 1.
+
+Output (verbatim):
+[1] Scope fence (base 3dfc5b7d, HEAD e501b577)
+  ok    post-base commit e501b577 is a named non-phase commit: docs(disrumpo,innexus): record the update-check editor changes as unreleased
+  ok    post-base commit 4fb6c248 is a named non-phase commit: build(tests): shard every test run, scope gates to real consumers, quiet pass for wall-clock tests
+  335 paths (git diff --name-only 3dfc5b7d U git status --porcelain --untracked-files=all)
+  ok    dsp/include/krate/dsp/systems/profundum_engine.h
+  ok    dsp/include/krate/dsp/systems/profundum_engine_observer.h
+  ok    dsp/include/krate/dsp/systems/profundum_morph_modulator.h
+  ok    dsp/tests/CMakeLists.txt
+  ok    dsp/tests/unit/systems/profundum_engine_display_test.cpp
+  ok    dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp
+  ok    dsp/tests/unit/systems/profundum_engine_perf_test.cpp
+  ok    dsp/tests/unit/systems/profundum_morph_modulator_test.cpp
+  ok    dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp
+  ok    dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h
+  ok    specs/Profundum-roadmap.md
+  ok    tools/profundum_preset_defs.h
+  ok    plugins/profundum/** : 106 paths
+  ok    specs/profundum-phase13-presets-release/evidence/coverage-matrix* : 7 paths
+  ok    specs/profundum-phase14-morph-modulation/** : 150 paths
+  ok    excluded by name: 2 (.claude/workflows/profundum-phase.js, .serena/project.yml)
+  ok    reached only through the non-phase commits: 43 paths (listed at the end)
+  RED   outside the allow-list: specs/profundum-phase5-shape-character/evidence/sc013.csv
+  RED   outside the allow-list: specs/profundum-phase5-shape-character/evidence/sc020-h1-transfer.csv
+  RED   outside the allow-list: specs/profundum-phase6-mass-dynamics/evidence/phase9-handoff.txt
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc001-grid/BassStereoField_MonoSumPerBandSmoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc003-width-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc004-a3-convergence.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc006-attenuation-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc009b-clicks-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc010-levers-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc016-rates-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase7-stereo-field/evidence/sc020-floor/BassStereoField_GravityFloorSmoke.csv
+  RED   outside the allow-list: specs/profundum-phase8-bass-morph/evidence/sc005-rendered-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase8-bass-morph/evidence/sc015-audibility.csv
+  RED   outside the allow-list: specs/profundum-phase8-bass-morph/evidence/sc016-monosum-E1-smoke.csv
+  RED   outside the allow-list: specs/profundum-phase9-voice-engine/evidence/soak-smoke.txt
+  scope: 15 path(s) outside the allow-list
+
+[2] ODR re-sweep: 17 claimed names (2003 source files under dsp/ plugins/ tools/ tests/, comments and literals stripped)
+  ok    ProfundumMorphModulator: 1 definition dsp/include/krate/dsp/systems/profundum_morph_modulator.h:58
+  ok    MorphModulator: 0 definitions (claimed, not adopted as a C++ name; 0 file(s) mention the word) - no ODR hazard
+  ok    MorphModParams: 1 definition plugins/profundum/src/parameters/morph_mod_params.h:137
+  ok    MorphModConfig: 0 definitions (claimed, not adopted as a C++ name; 0 file(s) mention the word) - no ODR hazard
+  ok    MorphModSource: 0 definitions (claimed, not adopted as a C++ name; 1 file(s) mention the word) - no ODR hazard
+  ok    MorphModSettings: 1 definition dsp/include/krate/dsp/systems/profundum_engine.h:1355
+  ok    MorphIndicatorSlider: 1 definition plugins/profundum/src/ui/morph_indicator_slider.h:37
+  ok    MorphIndicatorSliderCreator: 1 definition plugins/profundum/src/ui/morph_indicator_slider.h:71
+  ok    MorphModOverride: 1 definition plugins/profundum/tests/preset_render_support.h:1776
+  ok    morphModTrajectoryCell: 1 definition plugins/profundum/tests/preset_render_support.h:2589
+  ok    morphModSourceCell: 1 definition plugins/profundum/tests/preset_render_support.h:2202
+  ok    withMorphMod: 1 definition plugins/profundum/tests/preset_render_support.h:214
+  ok    handleMorphModParamChange: 1 definition plugins/profundum/src/parameters/morph_mod_params.h:221
+  ok    registerMorphModParams: 1 definition plugins/profundum/src/parameters/morph_mod_params.h:261
+  ok    morphModConfigOf: 1 definition plugins/profundum/src/parameters/morph_mod_params.h:331
+  ok    kMorphModSourceLabels: 1 definition plugins/profundum/src/parameters/morph_mod_params.h:60
+  ok    kStateMorphModOffset: 1 definition plugins/profundum/src/plugin_ids.h:71
+  ok    roadmap hazard names (CharacterProcessor, SubOscillator, StereoField, MorphEngine, MorphNode, TransientDetector, HarmonicCloud, SpectralState, MacroMapper) defined on phase lines: 0
+
+[3] std::isnan|std::isinf|std::isfinite|std::fpclassify|infinity\(\)|quiet_NaN\(\) over the new and changed lines of 51 phase source files (code counted; comment mentions listed, as tools/lint-nonfinite-symbols.js does)
+  note  comment mention (not counted) dsp/tests/unit/systems/profundum_morph_modulator_test.cpp:72 | /// A quiet NaN made from a volatile bit pattern (no quiet_NaN() constant: the macOS leg is -ffast-math).
+  9415 lines scanned; comment mentions: 1
+  ok    code hits: 0
+
+[4] Invariants against 3dfc5b7d
+  ok    dsp/include/krate/dsp/systems/morph_state.h: static_assert(kMorphStateBytes == 201) present, file untouched
+  ok    plugins/profundum/src/parameters/sound_param_table.h: kSoundRows 60 rows (base 60), declaration line unchanged
+  ok    dsp/include/krate/dsp/systems/profundum_engine_observer.h: enum class ProfundumCall unchanged (37 enumerators)
+  ok    plugins/profundum/src/plugin_ids.h: kCurrentStateVersion = 3
+  ok    plugins/profundum/version.json: unchanged (version 1.0.0)
+
+[5] Lints
+  ok    node tools/lint-odr.js: exit 0 | lint-odr: OK — 938 definitions scanned, no cross-file name collisions.
+  ok    node tools/lint-layers.js: exit 0 | lint-layers: OK — no layer-dependency violations in 5-layer DSP tree.
+
+Paths reached only through the non-phase commits (43, not fenced):
+        .claude/agents/build-test-runner.md
+        .claude/skills/release/SKILL.md
+        .claude/skills/testing-guide/ANTI-PATTERNS.md
+        .claude/skills/testing-guide/QUICK-START.md
+        .claude/skills/testing-guide/SKILL.md
+        .claude/workflows/gradus-audit.js
+        .claude/workflows/gradus-midi-flow-audit.js
+        .claude/workflows/pre-commit-audit.js
+        .claude/workflows/release-readiness.js
+        .claude/workflows/seraphis-phase.js
+        .claude/workflows/vorago-phase.js
+        .github/workflows/ci.yml
+        CLAUDE.md
+        dsp/CLAUDE.md
+        dsp/tests/unit/processors/crossover_filter_test.cpp
+        dsp/tests/unit/processors/karplus_strong_test.cpp
+        dsp/tests/unit/processors/mono_handler_test.cpp
+        dsp/tests/unit/processors/phaser_test.cpp
+        dsp/tests/unit/processors/tube_stage_test.cpp
+        dsp/tests/unit/processors/wavefolder_processor_test.cpp
+        dsp/tests/unit/systems/seraphis_engine_test.cpp
+        dsp/tests/unit/systems/vowel_sequencer_tests.cpp
+        plugins/disrumpo/CHANGELOG.md
+        plugins/disrumpo/CLAUDE.md
+        plugins/gradus/CLAUDE.md
+        plugins/innexus/CHANGELOG.md
+        plugins/innexus/CLAUDE.md
+        plugins/innexus/tests/integration/test_adsr_phase8_verification.cpp
+        plugins/innexus/tests/unit/processor/sample_analyzer_tests.cpp
+        plugins/iterum/CLAUDE.md
+        plugins/membrum/CLAUDE.md
+        plugins/profundum/CLAUDE.md
+        plugins/profundum/tests/integration/preset_rt_test.cpp
+        plugins/ruinae/CLAUDE.md
+        plugins/seraphis/CLAUDE.md
+        plugins/vorago/CLAUDE.md
+        tools/header-consumers.js
+        tools/hooks/guard-ci-gates.js
+        tools/lint-serial-test-runs-baseline.json
+        tools/lint-serial-test-runs.js
+        tools/lint-wallclock-tags.js
+        tools/run-close-lanes.js
+        tools/run-gate.js
+
+RED findings: 15
+SCOPE RED
+
+Main loop 2026-10-27: restored phases 5-9 evidence (git checkout -- specs/profundum-phase{5..9}*/evidence: 15 files, last-digit drift from gate runs), re-ran scope-fence.js:
+RED findings: 0
+SCOPE GREEN

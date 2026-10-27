@@ -1,0 +1,63 @@
+T001 — Ruling gate, row amendments, branch / base / ODR census (2026-10-26)
+No code changed; no build or test run (G1 gate is build-only).
+
+1. CENSUS
+$ git rev-parse --abbrev-ref HEAD
+feat/profundum-preset-morph
+$ git rev-parse HEAD
+3dfc5b7d20502d2fa09aa77765a0d76294bb90bc
+$ git merge-base --is-ancestor 3dfc5b7d HEAD ; echo exit=$?
+exit=0
+$ git status --porcelain -- dsp/ plugins/profundum/src plugins/profundum/resources tools/
+(empty)
+Verdict: branch, base and pre-phase tree OK (harvest can run at the pre-phase tree).
+
+2. RULING GATE
+EVID/plan-rulings.md present (written by the main loop, user 2026-10-26). Decisions:
+  R1 store AND forward; prepare/reset re-hand b before the morph snap   -> plan's reading (Yes)
+  R2 every successful restoreMorphRuntime resets the modulator, mid-stream too -> plan's reading (Yes)
+  R3 indicator at the frame cadence (window rate / 0.25 s silence), no morph-only republish -> plan's reading (Yes)
+  R4 rule (ii): every eligible carrier converts (kMorphModConversionRule = rule (ii)) -> one of the two built options; no re-cut
+  R5 P-2, P-4 (+ tasks Deviation 7), P-6, P-7, P-8 accepted as written -> plan's reading (Yes)
+  R6 FR-031 window = D_nl reader frame [1.0 s, 1.0 s + W), W = 262144 -> plan's reading (Yes)
+Verdict: all six recorded, none ruled other than the plan's reading; R4 names rule (ii). Not blocked.
+
+3. SPEC ROW AMENDMENTS (rows first, then Clarifications)
+  R1 -> FR-010 setMorphPosition sentence replaced; C-2 "(now stored, not forwarded)" replaced by the same sentence.
+  R2 -> FR-016 rewritten; C-11 gains a "Ruled" paragraph (also carries R5 / P-2 byte patch).
+  R3 -> C-18 gains a Cadence bullet; FR-037 gains the cadence sentence.
+  R4 -> FR-046 gains the rule (ii) selection bullet (plan 5.7 steps 2-4); SC-018 gains the converted-set == rule(ii)(probe CSV) assertion.
+  R5 -> C-12 gains the P-4 and tasks Deviation 7 sites (directories verified by find: spectrum_producer_test.cpp is tests/unit/,
+        spectrum_frame_test.cpp is tests/integration/); C-17 gains item 5 (MorphModulation, MorphModWheel, MorphModBypass);
+        FR-031 gains the P-6 confound note (both arms' smoothedMass logged); FR-019 and C-1 gain the P-8 list verbatim;
+        Non-goals dsp/ bullet points at the amended C-1 list so it no longer contradicts P-8.
+  R6 -> FR-031 read window and precondition window replaced with [1.0 s, 1.0 s + W), W = 262144 (bass_morph_test_helpers.h:703-707,
+        read this session: readWindow start = kSettleSeconds * fs, length = kLowFrequencyFftSize).
+  C-14 "(FR-064)" -> "(FR-044)".
+  Clarifications: "### Session 2026-10-26 (plan rulings)" appended, one line per ruling with enforcing ids.
+  Post-edit grep for "FR-064", "2.0 s)", "now stored, not forwarded", "instead of forwarding": only the Clarifications note line.
+  Cites re-read this session: profundum_engine.h:268-286 (setMorphPosition forwards; restoreMorphRuntime re-snaps only
+  if prepared_ && !renderedSinceReset_), spectrum_producer.h:47 (kSilenceRepublishSeconds = 0.25),
+  main_page_audibility_test.cpp:33-34 (kMpReadFromS 1.0 / kMpReadToS 2.0), bass_morph_test_helpers.h:703-707, :771-779.
+
+4. ODR RE-SWEEP  (grep -rnw <Name> dsp/ plugins/ tools/ tests/ | wc -l)
+ProfundumMorphModulator 0
+MorphModulator 0
+MorphModParams 0
+MorphModConfig 0
+MorphModSource 0
+MorphModSettings 0
+MorphIndicatorSlider 0
+MorphIndicatorSliderCreator 0
+MorphModOverride 0
+morphModTrajectoryCell 0
+morphModSourceCell 0
+withMorphMod 0
+handleMorphModParamChange 0
+registerMorphModParams 0
+morphModConfigOf 0
+kMorphModSourceLabels 0
+kStateMorphModOffset 0
+Verdict: 17/17 names 0 hits.
+
+T001 VERDICT: done (unblocked).

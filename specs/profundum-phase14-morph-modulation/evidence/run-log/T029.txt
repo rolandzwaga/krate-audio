@@ -1,0 +1,74 @@
+T029 - CMake registration and audit (Deviation 3)
+Date: 2026-10-27   HEAD: e501b577   Baseline: 3dfc5b7d   Branch: feat/profundum-preset-morph
+Verdict: GREEN - every list registers each phase file exactly where required; NO CMake edits were needed.
+Files edited by this task: none (dsp/tests/CMakeLists.txt, plugins/profundum/tests/CMakeLists.txt,
+plugins/profundum/CMakeLists.txt left as T004 / T018 wrote them). File created: this log.
+
+Method: grep -rn --include=CMakeLists.txt --include=*.cmake "<file>" dsp plugins/profundum tests cmake CMakeLists.txt
+(non-comment hits), plus line ranges of each add_executable / flag block read from the files.
+
+1. DSP test TUs (dsp/tests/CMakeLists.txt)
+   add_executable(dsp_systems_tests ...) spans :363-:797; dsp_ieee_tests :888-:924; the -fno-fast-math
+   set_source_files_properties block starts :973.
+   profundum_morph_modulator_test.cpp   :795 unit/systems/profundum_morph_modulator_test.cpp  (only non-comment hit;
+                                        :792 is the header comment)                                 -> once, dsp_systems_tests  OK
+   profundum_engine_morphmod_test.cpp   :796 unit/systems/profundum_engine_morphmod_test.cpp  (only non-comment hit;
+                                        :793 is the header comment)                                 -> once, dsp_systems_tests  OK
+   IEEE list :885-:925 contains "morph" only at :914 unit/systems/bass_morph_nonfinite_test.cpp (Phase 8, pre-existing)
+                                                                                                    -> neither phase TU      OK
+   -fno-fast-math block (:960-end): 0 hits for morph_modulator|morphmod                               -> neither phase TU      OK
+   krate_test_pch foreach :1414-:1416 remains the file's last statement (after every flag block)                         OK
+
+2. Plugin test TUs (plugins/profundum/tests/CMakeLists.txt)
+   add_executable(profundum_tests ...) :7-:84; -fno-fast-math block :124-:167.
+   morph_mod_processor_test.cpp   :59 (add_executable)  :161 (-fno-fast-math block)                 -> once + once           OK
+   morph_mod_preset_test.cpp      :60 (add_executable)  :162 (-fno-fast-math block)                 -> once + once           OK
+   flag block string :163 "-fno-fast-math -fno-finite-math-only -ffp-contract=off" (one line)                            OK
+   processor_cpu_test.cpp         :17 (add_executable); :165 is the "DELIBERATELY ABSENT" comment    -> no flag block         OK
+   krate_test_pch(profundum_tests) :173 = last line of the file (after the flag block)                                    OK
+
+3. Plugin sources
+   morph_indicator_slider.cpp  plugins/profundum/CMakeLists.txt:51 (smtg_add_vst3plugin sources)
+                               plugins/profundum/tests/CMakeLists.txt:70 (second-compilation list)  -> once + once           OK
+   morph_indicator_slider.h    plugins/profundum/CMakeLists.txt:50                                                        OK
+   morph_mod_params.h          plugins/profundum/CMakeLists.txt:71                                                        OK
+
+4. Untracked (new) phase files - git status --porcelain --untracked-files=all -- dsp plugins/profundum tools
+   dsp/include/krate/dsp/systems/profundum_morph_modulator.h      (header-only; see observation A)
+   dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp      registered (1)
+   dsp/tests/unit/systems/profundum_morph_modulator_test.cpp      registered (1)
+   plugins/profundum/src/parameters/morph_mod_params.h            registered (3)
+   plugins/profundum/src/ui/morph_indicator_slider.{h,cpp}        registered (3)
+   plugins/profundum/tests/integration/morph_mod_preset_test.cpp      registered (2)
+   plugins/profundum/tests/integration/morph_mod_processor_test.cpp   registered (2)
+   (plus two .vstpreset files: Animated/Tidal Fold, Driven/Struck Fold - not CMake-registered sources)
+   -> no unregistered TU.
+
+5. node tools/lint-ieee-flag-sets.js
+   lint-ieee-flag-sets: clean (14 IEEE flag sets)
+   exit=0                                                                                                                 OK
+
+6. Warning suppressions
+   git diff 3dfc5b7d -- '*.txt' '*.h' '*.cpp' | grep -cE "^\+.*(/wd|-Wno-|pragma warning)"
+   0                                                                                                                      OK
+   Untracked files are invisible to git diff, so also:
+   grep -nE "/wd|-Wno-|pragma warning" <the 8 untracked .h/.cpp files of section 4> | wc -l
+   0                                                                                                                      OK
+
+7. Phase diff of the three CMake files against 3dfc5b7d (git diff 3dfc5b7d -- <three files>)
+   dsp/tests/CMakeLists.txt: +6 lines (4 comment lines, 2 TU lines) appended at the end of dsp_systems_tests - matches
+     the fence's "two registration lines" (plus their comment header).
+   plugins/profundum/CMakeLists.txt: +3 (morph_indicator_slider.h/.cpp, morph_mod_params.h).
+   plugins/profundum/tests/CMakeLists.txt: +8 (Phase 14 block in add_executable, slider second compilation,
+     Phase 14 entries in the flag block). No other line changed in any of the three.
+
+Observations (no action taken; outside this task's file list and outside the tasks.md "dsp/ fence"):
+   A. dsp/CMakeLists.txt KRATE_DSP_SYSTEMS_HEADERS (:183-:226) lists profundum_engine.h / _observer.h but not the new
+      profundum_morph_modulator.h. That list only feeds target_sources(KrateDSP PRIVATE ...) "for IDE visibility"
+      (dsp/CMakeLists.txt:248-255); the header is header-only and reaches every consumer through #include, so the build
+      is unaffected. dsp/CMakeLists.txt is not on the fence's allow-list (tasks.md:79-88: "Any other dsp/ edit: STOP AND
+      SURFACE"), so it was not edited; a one-line IDE-list addition would need a ruling.
+   B. dsp/lint_all_headers.cpp includes no profundum header at all (grep "profundum" = 0 hits), so the new header's
+      absence there follows the existing Profundum precedent.
+
+Gate (G20, build agent): every target builds with 0 warnings; full per-push [profundum] green - not run by this task.

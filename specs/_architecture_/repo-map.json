@@ -85,7 +85,7 @@
     "core": {
       "index": 0,
       "folder": "dsp/include/krate/dsp/core",
-      "header_count": 40
+      "header_count": 41
     },
     "primitives": {
       "index": 1,
@@ -100,7 +100,7 @@
     "systems": {
       "index": 3,
       "folder": "dsp/include/krate/dsp/systems",
-      "header_count": 64
+      "header_count": 65
     },
     "effects": {
       "index": 4,

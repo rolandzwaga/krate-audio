@@ -15,7 +15,7 @@
 // the two names, getState, the seed patch, setState, getState, and a bitwise decode compare (FR-049).
 // P-8: no audio is rendered before getState, so the runtime blob is the synthesized one (target == position).
 //
-// writeFactoryTree is the generator's whole body (FR-024): the six category directories in kCategories order,
+// writeFactoryTree is the generator's whole body (FR-024): the seven category directories in kCategories order,
 // then <category>/<name>.vstpreset in definition order. No timestamp, path string or RNG enters any byte.
 //
 // ALLOCATION BEHAVIOUR: outL_/outR_ are sized once by prepare() and never regrown; process() builds ProcessData /
@@ -231,12 +231,14 @@ private:
 
 namespace preset_host_detail {
 
-/// Plan 4.4 / P-6: the only IDs a definition's `controls` may carry (1, 100-103, 105, 410-416, 1000, 1002).
+/// Plan 4.4 / P-6: the only IDs a definition's `controls` may carry (1, 100-103, 105, 410-416, 1000, 1002, and from
+/// Phase 14 the Morph Modulation block 1003-1011, plan 4.13).
 [[nodiscard]] inline bool isAllowedControlId(Steinberg::Vst::ParamID id) noexcept {
     namespace pf = ::Profundum;
     return id == pf::kVoiceModeId || (id >= pf::kMacroWeightId && id <= pf::kMacroCleanViolentId) ||
            id == pf::kMorphPositionId || (id >= pf::kNoteMonoPriorityId && id <= pf::kNoteRetriggerId) ||
-           id == pf::kMorphAnchorModeId || id == pf::kMorphRampTimeId;
+           id == pf::kMorphAnchorModeId || id == pf::kMorphRampTimeId ||
+           (id >= pf::kMorphModSourceId && id <= pf::kMorphModCycleSyncRateId);
 }
 
 [[nodiscard]] inline bool isSoundId(Steinberg::Vst::ParamID id) noexcept {
@@ -265,7 +267,7 @@ namespace preset_host_detail {
             return false;
         }
         if (!soundList && !isAllowedControlId(p.id)) {
-            why = where + " is not an allowed control ID (1, 100-103, 105, 410-416, 1000, 1002)";
+            why = where + " is not an allowed control ID (1, 100-103, 105, 410-416, 1000, 1002, 1003-1011)";
             return false;
         }
         for (std::size_t j = 0; j < i; ++j) {
@@ -481,7 +483,7 @@ inline void writeLE64(std::ofstream& f, std::int64_t v) {
         return false;
     }
 
-    // All six category directories exist, whether or not a preset lands in each (kCategories order).
+    // All seven category directories exist, whether or not a preset lands in each (kCategories order).
     for (const std::string_view category : pd::kCategories) {
         const std::filesystem::path dir = outDir / std::string(category);
         std::error_code ec;
@@ -498,7 +500,7 @@ inline void writeLE64(std::ofstream& f, std::int64_t v) {
         const std::string stem(def.name);
         const std::string category(def.category);
         if (!hd::isKnownCategory(def.category)) {
-            fail(stem + ": category \"" + category + "\" is not one of the six in PresetDefs::kCategories");
+            fail(stem + ": category \"" + category + "\" is not one of the seven in PresetDefs::kCategories");
             ok = false;
             continue;
         }

@@ -37,7 +37,7 @@ Auto-loads when working under `plugins/seraphis/`. Root `CLAUDE.md` still applie
   namespace instead; see *The editor* below.
 - **Tests:** `seraphis_tests`.
   ```bash
-  build/windows-x64-release/bin/Release/seraphis_tests.exe 2>&1 | tail -5
+  node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' seraphis_tests   # sharded, see root CLAUDE.md; CPU lane alone: node tools/run-cpu-tests.js seraphis_tests
   ```
 - **pluginval:** `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Seraphis.vst3"`
 

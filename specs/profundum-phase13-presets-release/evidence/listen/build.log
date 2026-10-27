@@ -1,4 +1,4 @@
-=== build 2026-10-25T11:34:19Z commit 5ad50273
+=== build 2026-10-26T12:22:14Z commit 01223dbb
 cmd: "/c/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target profundum_tests -- /nr:false
 MSBuild version 17.14.60+43b635718 for .NET Framework
 
@@ -17,4 +17,4 @@ MSBuild version 17.14.60+43b635718 for .NET Framework
   vstgui_uidescription.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_uidescription.lib
   vstgui_support.vcxproj -> F:\projects\iterum\build\windows-x64-release\lib\Release\vstgui_support.lib
   profundum_tests.vcxproj -> F:\projects\iterum\build\windows-x64-release\bin\Release\profundum_tests.exe
-exit: 0 wall: 3 s
+exit: 0 wall: 2 s

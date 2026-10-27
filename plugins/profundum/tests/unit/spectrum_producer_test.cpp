@@ -45,13 +45,14 @@ constexpr float kE1 = 41.20344f;
 constexpr float kC3 = 130.8128f;
 constexpr float kC6 = 1046.502f;
 
-// The plan 4.2 layout asserts, repeated on the test side.
-static_assert(sizeof(ProfundumSpectrumFrame) == 288);
+// The plan 4.2 layout asserts, repeated on the test side (Phase 14 plan 4.8: 320 bytes, morphPosition at 288).
+static_assert(sizeof(ProfundumSpectrumFrame) == 320);
 static_assert(sizeof(ProfundumSpectrumFrame) % 32 == 0);
 static_assert(std::is_trivially_copyable_v<ProfundumSpectrumFrame>);
 static_assert(std::is_standard_layout_v<ProfundumSpectrumFrame>);
 static_assert(offsetof(ProfundumSpectrumFrame, windowEndSample) == 24);
 static_assert(offsetof(ProfundumSpectrumFrame, partialPower) == 32);
+static_assert(offsetof(ProfundumSpectrumFrame, morphPosition) == 288);
 
 float makeNaN() noexcept {
     volatile std::uint32_t bits = 0x7FC00000u;

@@ -12,9 +12,11 @@
 // only the standard library -- never a processor, controller or dsp/ header.
 //
 // One-way, processor -> controller. Sent as raw bytes in native endianness
-// (as Vorago's EcosystemFrame is); the 288-byte layout below is pinned by
+// (as Vorago's EcosystemFrame is); the 320-byte layout below is pinned by
 // static_asserts. The frame carries both the sample rate and f0, so partial n's
 // frequency is always n * f0 at the frame's own rate (FR-073).
+// Phase 14 (specs/profundum-phase14-morph-modulation plan 4.8; FR-036): the
+// resolved (ramped, modulated) morph position at offset 288, in [0, 1].
 // ==============================================================================
 
 #include <cstddef>
@@ -41,13 +43,16 @@ struct ProfundumSpectrumFrame {
     std::uint8_t reserved = 0;         // 23
     std::uint64_t windowEndSample = 0; // 24 engine sample position one past the window's last sample
     float partialPower[kSpectrumMaxPartials] = {};  // 32 power at n*f0, n = index + 1 (plan 5.2); 0 past numPartials
+    float morphPosition = 0.0f;        // 288 resolved morph position (FR-036)
+    std::uint8_t reserved2[28] = {};   // 292 explicit padding to 320
 };
 
-static_assert(sizeof(ProfundumSpectrumFrame) == 288 && sizeof(ProfundumSpectrumFrame) <= 320);  // SC-030
+static_assert(sizeof(ProfundumSpectrumFrame) == 320 && sizeof(ProfundumSpectrumFrame) <= 320);  // SC-030
 static_assert(sizeof(ProfundumSpectrumFrame) % 32 == 0);  // the DataExchange block needs no padding (SC-023)
 static_assert(std::is_trivially_copyable_v<ProfundumSpectrumFrame> &&
               std::is_standard_layout_v<ProfundumSpectrumFrame>);
 static_assert(offsetof(ProfundumSpectrumFrame, windowEndSample) == 24 &&
-              offsetof(ProfundumSpectrumFrame, partialPower) == 32);
+              offsetof(ProfundumSpectrumFrame, partialPower) == 32 &&
+              offsetof(ProfundumSpectrumFrame, morphPosition) == 288);
 
 }  // namespace Profundum

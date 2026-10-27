@@ -1,0 +1,9 @@
+Filters: "Profundum_MorphModPresetTransparency_56of64"
+Randomness seeded to: 40089504
+# Profundum_MorphModPresetTransparency_56of64: presets=1 converted=0 pairs=16 mismatches=0 regionMismatches=0 unharvested=0
+WALL Profundum_MorphModPresetTransparency_56of64 25.3879 s
+25.388 s: Profundum_MorphModPresetTransparency_56of64
+===============================================================================
+All tests passed (54605 assertions in 1 test case)
+
+exit: 0 wall: 25 s

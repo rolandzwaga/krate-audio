@@ -18,6 +18,10 @@
 // from the frame, and the level at n * f0 is a direct-sum windowed DFT (Krate::DSP::ProfundumTest::goertzelPhasorWindowed)
 // over the observer's post-Character tap of the focus voice.
 //
+// Phase 14 (specs/profundum-phase14-morph-modulation tasks.md T017; FR-036, FR-037; SC-024 (a)(b)(c)): the frame
+// grows to 320 bytes with the resolved morph position at offset 288 (Profundum_MorphIndicatorFrame), and the
+// DoesNotChangeAudio / AllocationFree cases gain a Morph Mod Cycle-at-Amount-1 arm.
+//
 // PORTABILITY: no <cmath> NaN / Inf classifiers; Krate::DSP::detail::isFinite and bit patterns only.
 // Non-finite inputs come from the fixture's makeNaN / makePosInf (bit patterns through a volatile).
 // ==============================================================================
@@ -27,6 +31,7 @@
 #include "profundum_test_fixture.h"
 
 #include "controller/controller.h"
+#include "parameters/morph_mod_params.h"
 #include "plugin_ids.h"
 #include "processor/spectrum_frame.h"
 #include "processor/spectrum_producer.h"
@@ -42,6 +47,7 @@
 #include <krate/dsp/systems/morph_state.h>
 #include <krate/dsp/systems/profundum_engine.h>
 #include <krate/dsp/systems/profundum_engine_observer.h>
+#include <krate/dsp/systems/profundum_morph_modulator.h>
 
 #include <pluginterfaces/base/fplatform.h>
 #include <pluginterfaces/vst/ivstaudioprocessor.h>
@@ -61,9 +67,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 #include <numbers>
 #include <span>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -91,8 +99,9 @@ using Producer = P::ProfundumSpectrumProducer;
 using Kd::MorphState;
 
 // SC-030: the frame fits the 320-byte ceiling and the handler block is the frame rounded up to 32 bytes.
+// Phase 14 SC-024 (a): 320 bytes, the resolved morph position at 288.
 static_assert(sizeof(Frame) <= 320u);
-static_assert(((sizeof(Frame) + 31u) / 32u) * 32u == 288u);
+static_assert(((sizeof(Frame) + 31u) / 32u) * 32u == 320u);
 
 constexpr std::size_t kHostBlock = 512;
 constexpr std::size_t kInterval = Kd::ProfundumEngine::kControlInterval;
@@ -104,7 +113,7 @@ constexpr double kMinus60DbPower = 1.0e-6;  // -60 dB as a power ratio
 constexpr double kLevelToleranceDb = 0.5;
 constexpr double kF0Tolerance = 1.0e-4;
 constexpr std::uint32_t kPrfd = 0x50524644u;  // 'PRFD', SC-023
-constexpr std::uint32_t kHandlerBlockBytes = 288u;  // sizeof(Frame) rounded up to 32 (SC-023)
+constexpr std::uint32_t kHandlerBlockBytes = 320u;  // sizeof(Frame) rounded up to 32 (SC-023; Phase 14 SC-024 (a))
 static_assert(P::kProfundumFrameUserContextId == kPrfd);
 constexpr int kDeliveryTimeoutMs = 2000;
 
@@ -186,7 +195,8 @@ void drainPendingFrames(const ProcessorFixture& fx, const P::Controller& ctrl) {
            bits(a.anchorPower) == bits(b.anchorPower) && a.windowSamples == b.windowSamples &&
            a.numPartials == b.numPartials && a.flags == b.flags && a.focusVoice == b.focusVoice &&
            a.reserved == b.reserved && a.windowEndSample == b.windowEndSample &&
-           std::ranges::equal(a.partialPower, b.partialPower, {}, bits, bits);
+           std::ranges::equal(a.partialPower, b.partialPower, {}, bits, bits) &&
+           bits(a.morphPosition) == bits(b.morphPosition) && std::ranges::equal(a.reserved2, b.reserved2);
 }
 
 // -----------------------------------------------------------------------------
@@ -606,6 +616,88 @@ int runStealArm() {
     return script;
 }
 
+/// Phase 14 T017 (SC-024 (c)): Morph Mod Source Cycle (1003 = 0.5), Amount 1 (1004 = 1.0), Shape Sine (1008 index 0),
+/// Rate 2 Hz (1009), all at sample 0.
+[[nodiscard]] std::vector<ProcessorFixture::ScriptedEvent> morphModCycleScript() {
+    using Ev = ProcessorFixture::ScriptedEvent;
+    using Kind = Ev::Kind;
+    return {
+        {.sample = 0, .kind = Kind::Param, .id = P::kMorphModSourceId, .value = 0.5},
+        {.sample = 0, .kind = Kind::Param, .id = P::kMorphModAmountId, .value = 1.0},
+        {.sample = 0, .kind = Kind::Param, .id = P::kMorphModCycleShapeId, .value = 0.0},
+        {.sample = 0, .kind = Kind::Param, .id = P::kMorphModCycleRateId,
+         .value = P::normalizedFromPlain(P::kMorphModRateLaw, 2.0)},
+    };
+}
+
+/// True when the engine latched Source Cycle at Amount 1 (the non-vacuity of the Cycle arms).
+[[nodiscard]] bool cycleAtAmountOne(const Kd::ProfundumEngine& engine) noexcept {
+    const Kd::ProfundumMorphModulator::Config& mm = engine.morphModulation();
+    return mm.source == Kd::ProfundumMorphModulator::Source::Cycle && mm.amount > 0.999f;
+}
+
+/// Phase 14 SC-024 (b), one arm: b = 0.3 plus @p params, re-activated so the reset snaps the ramped position onto b,
+/// then E1 held for 1.5 s in host blocks that end exactly on the engine's control grid, so the frame staged by the
+/// block's one completed interval is the one published at its end and the engine's resolved position read right
+/// after process() is the one the producer read at that frame's production.
+void runIndicatorArm(const char* arm, std::initializer_list<std::pair<Steinberg::Vst::ParamID, double>> params,
+                     bool sourceOff) {
+    INFO("arm " << arm);
+    constexpr float kB = 0.3f;
+    constexpr std::size_t kTotal = 72000;   // 1.5 s at 48 kHz
+    constexpr std::size_t kSettle = 24000;  // 0.5 s: the Off arm's bit-equality is read after the ramp
+    constexpr float kTolerance = 1.0e-6f;
+    constexpr float kMovedBy = 0.05f;       // non-vacuity: a modulated arm leaves b
+
+    ProcessorFixture fx;
+    REQUIRE(fx.prepare(48000.0, static_cast<Steinberg::int32>(kHostBlock)) == Steinberg::kResultOk);
+    const auto pair = Kd::BassMorphTest::showcasePair();
+    loadPatch(fx, pair.first, pair.second);
+    REQUIRE(fx.setParamsInBlock(params, kInterval) == Steinberg::kResultOk);
+    REQUIRE(fx.proc->setActive(0u) == Steinberg::kResultOk);
+    REQUIRE(fx.proc->setActive(1u) == Steinberg::kResultOk);
+    fx.proc->setSpectrumProducerEnabledForTest(true);
+    REQUIRE(fx.engine() != nullptr);
+    REQUIRE(fx.engine()->morphBasePosition() == kB);
+
+    Krate::Test::EventList ev;
+    ev.addNoteOn(kNoteE1, 0.8f, 0);
+    std::size_t done = 0;
+    std::size_t compared = 0;
+    std::size_t settledOff = 0;
+    float maxMove = 0.0f;
+    while (done < kTotal) {
+        const std::size_t blk = kInterval - fx.engine()->controlGridPhase();  // phase in [0, kInterval)
+        const std::uint32_t published = renderDiscard(fx, blk, done == 0u ? &ev : nullptr);
+        done += blk;
+        REQUIRE(fx.engine()->controlGridPhase() == 0u);
+        if (published == 0u) {
+            continue;
+        }
+        const Frame& f = fx.proc->lastSpectrumFrameForTest();
+        const float engineP = fx.engine()->morphResolvedPosition();
+        INFO("frame " << f.sequence << " at sample " << done << ": morphPosition " << f.morphPosition
+                      << ", engine morphResolvedPosition " << engineP);
+        REQUIRE(Kd::detail::isFinite(f.morphPosition));
+        CHECK(f.morphPosition >= 0.0f);
+        CHECK(f.morphPosition <= 1.0f);
+        CHECK(std::abs(f.morphPosition - engineP) <= kTolerance);
+        maxMove = std::max(maxMove, std::abs(f.morphPosition - kB));
+        ++compared;
+        if (sourceOff && done >= kSettle) {
+            CHECK(std::bit_cast<std::uint32_t>(f.morphPosition) == std::bit_cast<std::uint32_t>(kB));
+            ++settledOff;
+        }
+    }
+    INFO("frames compared " << compared << ", max |morphPosition - b| " << maxMove);
+    REQUIRE(compared >= 5u);
+    if (sourceOff) {
+        REQUIRE(settledOff > 0u);
+    } else {
+        CHECK(maxMove > kMovedBy);
+    }
+}
+
 /// One block of the SC-012 run, built before the scope.
 struct AllocBlockInput {
     MultiParamChanges changes;
@@ -810,6 +902,55 @@ TEST_CASE("Profundum_SpectrumFrameDoesNotChangeAudio", "[profundum][ui][spectrum
         CHECK(maxAbsDiff(onL, offL) == 0.0f);
         CHECK(maxAbsDiff(onR, offR) == 0.0f);
     }
+    SECTION("SeamMorphModCycle") {
+        // Phase 14 T017 (SC-024 (c)): Morph Mod Cycle (Sine 2 Hz) at Amount 1 moves the resolved position every
+        // interval; the producer reads it through the const accessor only, so the audio stays bit-identical.
+        std::vector<ProcessorFixture::ScriptedEvent> script = morphModCycleScript();
+        const std::vector<ProcessorFixture::ScriptedEvent> base = doesNotChangeAudioScript();
+        script.insert(script.end(), base.begin(), base.end());
+        constexpr std::size_t kTotal = 96000;  // 2 s at 48 kHz
+
+        const auto renderArm = [&](bool seamOn, std::vector<float>& outL, std::vector<float>& outR,
+                                   std::uint32_t& frames, bool& cycleLatched) {
+            ProcessorFixture fx;
+            REQUIRE(fx.prepare(48000.0, static_cast<Steinberg::int32>(kHostBlock)) == Steinberg::kResultOk);
+            const auto pair = Kd::BassMorphTest::showcasePair();
+            loadPatch(fx, pair.first, pair.second);
+            fx.proc->setSpectrumProducerEnabledForTest(seamOn);
+            fx.renderScript(script, kTotal, kHostBlock);
+            outL = fx.capturedL;
+            outR = fx.capturedR;
+            frames = fx.proc->spectrumFramesPublishedForTest();
+            cycleLatched = cycleAtAmountOne(*fx.engine());
+        };
+
+        std::vector<float> onL;
+        std::vector<float> onR;
+        std::vector<float> offL;
+        std::vector<float> offR;
+        std::uint32_t framesOn = 0;
+        std::uint32_t framesOff = 0;
+        bool cycleOn = false;
+        bool cycleOff = false;
+        renderArm(true, onL, onR, framesOn, cycleOn);
+        renderArm(false, offL, offR, framesOff, cycleOff);
+
+        REQUIRE(onL.size() == kTotal);
+        REQUIRE(offL.size() == kTotal);
+        // Non-vacuity: both arms ran Cycle at Amount 1, the seam arm ran the producer, the render is not silent.
+        CHECK(cycleOn);
+        CHECK(cycleOff);
+        CHECK(framesOn > 0u);
+        CHECK(framesOff == 0u);
+        CHECK(peakOf(offL) > 0.0f);
+        CHECK(peakOf(offR) > 0.0f);
+
+        INFO("max |dL| " << maxAbsDiff(onL, offL) << ", max |dR| " << maxAbsDiff(onR, offR));
+        CHECK(mismatches(onL, offL) == 0u);
+        CHECK(mismatches(onR, offR) == 0u);
+        CHECK(maxAbsDiff(onL, offL) == 0.0f);
+        CHECK(maxAbsDiff(onR, offR) == 0.0f);
+    }
     SECTION("Connected") {
         // T021: queue asserted open vs no connection (same host context, no seam on either side).
         const std::vector<ProcessorFixture::ScriptedEvent> script = doesNotChangeAudioScript();
@@ -894,6 +1035,41 @@ TEST_CASE("Profundum_SpectrumFrameAllocationFree", "[profundum][ui][rt]") {
         INFO("allocations over " << kCalls << " process() calls with the producer on: " << run.allocations);
         CHECK(run.failures == 0);
         // Non-vacuity: the producer published frames inside the scope.
+        CHECK(proc.spectrumFramesPublishedForTest() > framesBefore);
+        CHECK(proc.spectrumProducerForTest().windowsCompleted() > 0u);
+        CHECK(run.allocations == 0u);
+    }
+    SECTION("SeamMorphModCycle") {
+        // Phase 14 T017 (SC-024 (c)): the same scope with Morph Mod Cycle (Sine 2 Hz) at Amount 1, so the producer's
+        // resolved-position read runs on a moving position.
+        constexpr std::size_t kAllocBlock = 256;
+        constexpr std::size_t kCalls = 2000;
+        constexpr std::size_t kCycle = 16;
+
+        ProcessorFixture fx;
+        REQUIRE(fx.prepare(48000.0, static_cast<Steinberg::int32>(kAllocBlock)) == Steinberg::kResultOk);
+        const auto pair = Kd::BassMorphTest::showcasePair();
+        loadPatch(fx, pair.first, pair.second);
+        REQUIRE(fx.setParamsInBlock({{P::kMorphModSourceId, 0.5},
+                                     {P::kMorphModAmountId, 1.0},
+                                     {P::kMorphModCycleShapeId, 0.0},
+                                     {P::kMorphModCycleRateId, P::normalizedFromPlain(P::kMorphModRateLaw, 2.0)}},
+                                    kAllocBlock) == Steinberg::kResultOk);
+        fx.proc->setSpectrumProducerEnabledForTest(true);
+
+        warmForAllocationScope(fx, kAllocBlock);
+        std::vector<AllocBlockInput> inputs(kCycle);
+        fillAllocationInputs(inputs, kAllocBlock);
+
+        P::Processor& proc = *fx.proc;
+        const std::uint32_t framesBefore = proc.spectrumFramesPublishedForTest();
+        const AllocationRun run = runUnderAllocationScope(fx, inputs, kAllocBlock, kCalls);
+
+        INFO("allocations over " << kCalls << " process() calls with the producer on and Morph Mod Cycle at Amount 1: "
+                                 << run.allocations);
+        CHECK(run.failures == 0);
+        // Non-vacuity: Cycle at Amount 1 is latched and the producer published frames inside the scope.
+        CHECK(cycleAtAmountOne(*fx.engine()));
         CHECK(proc.spectrumFramesPublishedForTest() > framesBefore);
         CHECK(proc.spectrumProducerForTest().windowsCompleted() > 0u);
         CHECK(run.allocations == 0u);
@@ -1305,7 +1481,7 @@ TEST_CASE("Profundum_SpectrumFrameHandlerLifecycle", "[profundum][ui][spectrum][
         REQUIRE(cp.fx.prepare(48000.0, static_cast<Steinberg::int32>(kHostBlock)) == Steinberg::kResultOk);
         const bool opened = ctrl.queueOpenCountForTest() > 0u;
         if (queueAvailable(opened, "setActive(true)")) {
-            // setActive(true): exactly one queueOpened, uid 'PRFD', block 288 (counted only for the 'PRFD' uid).
+            // setActive(true): exactly one queueOpened, uid 'PRFD', block 320 (counted only for the 'PRFD' uid).
             CHECK(ctrl.queueOpenCountForTest() == 1u);
             CHECK(ctrl.lastQueueBlockSizeForTest() == kHandlerBlockBytes);
             CHECK(ctrl.queueCloseCountForTest() == 0u);
@@ -1407,6 +1583,61 @@ TEST_CASE("Profundum_SpectrumFrameCadence", "[profundum][ui][spectrum]") {
                 }
             }
         }
+    }
+}
+
+// =============================================================================
+// Phase 14 SC-024 (a)(b) (FR-036, FR-037; plan 4.8, P-5 / R3): the frame carries the resolved morph position.
+// =============================================================================
+TEST_CASE("Profundum_MorphIndicatorFrame", "[profundum][morphmod][ui][spectrum]") {
+    SECTION("Layout") {
+        STATIC_REQUIRE(sizeof(Frame) == 320u);
+        STATIC_REQUIRE(sizeof(Frame) % 32u == 0u);
+        STATIC_REQUIRE(std::is_trivially_copyable_v<Frame>);
+        STATIC_REQUIRE(std::is_standard_layout_v<Frame>);
+        STATIC_REQUIRE(offsetof(Frame, morphPosition) == 288u);
+        STATIC_REQUIRE(offsetof(Frame, windowEndSample) == 24u);
+        STATIC_REQUIRE(offsetof(Frame, partialPower) == 32u);
+        STATIC_REQUIRE(kHandlerBlockBytes % 32u == 0u);
+        STATIC_REQUIRE(kHandlerBlockBytes >= sizeof(Frame));
+    }
+    SECTION("SourceOff") {
+        runIndicatorArm("Off", {{P::kMorphPositionId, 0.3}, {P::kMorphModSourceId, 0.0}, {P::kMorphModAmountId, 1.0}},
+                        true);
+    }
+    SECTION("Envelope") {
+        // A 400 ms, S 1 (1003 = 0.25).
+        runIndicatorArm("Envelope",
+                        {{P::kMorphPositionId, 0.3},
+                         {P::kMorphModSourceId, 0.25},
+                         {P::kMorphModAmountId, 1.0},
+                         {P::kMorphModAttackId, P::normalizedFromPlain(P::kMorphModTimeLaw, 400.0)},
+                         {P::kMorphModSustainId, 1.0}},
+                        false);
+    }
+    SECTION("Cycle") {
+        // Sine 2 Hz (1003 = 0.5; 1008 index 0).
+        runIndicatorArm("Cycle",
+                        {{P::kMorphPositionId, 0.3},
+                         {P::kMorphModSourceId, 0.5},
+                         {P::kMorphModAmountId, 1.0},
+                         {P::kMorphModCycleShapeId, 0.0},
+                         {P::kMorphModCycleRateId, P::normalizedFromPlain(P::kMorphModRateLaw, 2.0)}},
+                        false);
+    }
+    SECTION("Velocity") {
+        // 1003 = 0.75; the note-on velocity 0.8 drives it.
+        runIndicatorArm("Velocity",
+                        {{P::kMorphPositionId, 0.3}, {P::kMorphModSourceId, 0.75}, {P::kMorphModAmountId, 1.0}}, false);
+    }
+    SECTION("ModWheel") {
+        // 1003 = 1.0; Mod Wheel (6) at 0.5 from the parameter block on.
+        runIndicatorArm("ModWheel",
+                        {{P::kMorphPositionId, 0.3},
+                         {P::kMorphModSourceId, 1.0},
+                         {P::kMorphModAmountId, 1.0},
+                         {P::kModWheelId, 0.5}},
+                        false);
     }
 }
 

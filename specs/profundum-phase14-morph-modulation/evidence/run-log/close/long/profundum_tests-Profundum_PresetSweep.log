@@ -1,0 +1,134 @@
+Filters: "Profundum_PresetSweep"
+Randomness seeded to: 4004153863
+# Profundum_PresetSweep: presets=60
+preset,render,non_finite,held_rms_db,tail_rms_db,tail_samples
+"Edge Ignition",E1,0,-8.35795,-200,74464
+"Edge Ignition",C3,0,-8.03241,-200,74464
+"Biting Reed",E1,0,-12.9645,-200,72064
+"Biting Reed",C3,0,-12.5997,-200,72064
+"Folded Mass",E1,0,-8.78115,-200,74464
+"Folded Mass",C3,0,-9.41648,-200,74464
+"Valve Pressure",E1,0,-9.15857,-200,74464
+"Valve Pressure",C3,0,-8.81268,-200,74464
+"Folding Wire",E1,0,-11.5512,-200,88864
+"Folding Wire",C3,0,-11.3276,-200,88864
+"Rectified Floor",E1,0,-9.32567,-200,72064
+"Rectified Floor",C3,0,-9.06268,-200,72064
+"Bite Down",E1,0,-12.3733,-200,69664
+"Bite Down",C3,0,-12.4053,-200,69664
+"Crushed Basalt",E1,0,-12.8312,-200,74464
+"Crushed Basalt",C3,0,-12.4005,-200,74464
+"Fault Line",E1,0,-12.0289,-200,88864
+"Fault Line",C3,0,-11.5294,-200,88864
+"Bedrock",E1,0,-10.3424,-200,72064
+"Bedrock",C3,0,-10.1724,-200,72064
+"Punch Anchor",E1,0,-14.6041,-200,67264
+"Punch Anchor",C3,0,-14.3289,-200,67264
+"Ghost Kick",E1,0,-10.6089,-200,65824
+"Ghost Kick",C3,0,-10.6049,-200,65824
+"Rectified Follow",E1,0,-10.9775,-200,79264
+"Rectified Follow",C3,0,-11.8682,-200,79264
+"Triangle Floor",E1,0,-11.5786,-200,88864
+"Triangle Floor",C3,0,-11.4809,-200,88864
+"Rounded Weight",E1,0,-9.55261,-200,79264
+"Rounded Weight",C3,0,-9.51647,-200,79264
+"Lopsided Sub",E1,0,-8.98785,-200,84064
+"Lopsided Sub",C3,0,-8.90371,-200,84064
+"Under Octave",E1,0,-9.18486,-200,81665
+"Under Octave",C3,0,-8.78415,-200,81665
+"Fed Fold",E1,0,-8.40229,-200,74464
+"Fed Fold",C3,0,-8.1509,-200,74464
+"Dropping Stone",E1,0,-11.4917,-200,69664
+"Dropping Stone",C3,0,-11.241,-200,69664
+"Slow Fall",E1,0,-11.4599,-200,88864
+"Slow Fall",C3,0,-11.4015,-200,88864
+"Curved Drop",E1,0,-13.6441,-200,76865
+"Curved Drop",C3,0,-13.6354,-200,76865
+"Rebound",E1,0,-12.1595,-200,72064
+"Rebound",C3,0,-12.1671,-200,72064
+"Glide Path",E1,0,-14.0354,-200,79264
+"Glide Path",C3,0,-13.6972,-200,79264
+"Slow Swell",E1,0,-14.5319,-200,132064
+"Slow Swell",C3,0,-13.1066,-200,132064
+"Long Tail",E1,0,-8.88145,-200,228065
+"Long Tail",C3,0,-8.52396,-200,228065
+"Heavy Mass",E1,0,-10.4688,-200,76865
+"Heavy Mass",C3,0,-10.234,-200,76865
+"Pressure Front",E1,0,-11.749,-200,98464
+"Pressure Front",C3,0,-11.8822,-200,98464
+"Hard Attack",E1,0,-10.8014,-200,72064
+"Hard Attack",C3,0,-10.4089,-200,72064
+"Wide Harmonics",E1,0,-14.2005,-200,84064
+"Wide Harmonics",C3,0,-13.3459,-200,84064
+"Wide Rectifier",E1,0,-8.3717,-200,74464
+"Wide Rectifier",C3,0,-8.16117,-200,74464
+"Spread Choir",E1,0,-12.9374,-200,93665
+"Spread Choir",C3,0,-12.5119,-200,93665
+"Gravity Well",E1,0,-11.9209,-200,93665
+"Gravity Well",C3,0,-11.7963,-200,93665
+"Orbiting Field",E1,0,-9.52091,-200,88864
+"Orbiting Field",C3,0,-9.36198,-200,88864
+"Mass Tide",E1,0,-11.1632,-200,79264
+"Mass Tide",C3,0,-11.084,-200,79264
+"Breathing Depth",E1,0,-9.50782,-200,98464
+"Breathing Depth",C3,0,-9.31501,-200,98464
+"Body Wave",E1,0,-7.95916,-200,98464
+"Body Wave",C3,0,-7.78118,-200,98464
+"Edge Cycle",E1,0,-12.3902,-200,74464
+"Edge Cycle",C3,0,-12.2237,-200,74464
+"Shifting Spectrum",E1,0,-12.4064,-200,98464
+"Shifting Spectrum",C3,0,-11.515,-200,98464
+"Envelope Mass",E1,0,-9.46283,-200,79264
+"Envelope Mass",C3,0,-9.41614,-200,79264
+"Drifting Weight",E1,0,-7.6988,-200,84064
+"Drifting Weight",C3,0,-7.39331,-200,84064
+"Morph Span",E1,0,-10.8937,-200,98464
+"Morph Span",C3,0,-10.7344,-200,98464
+"Halfway Morph",E1,0,-10.7813,-200,84064
+"Halfway Morph",C3,0,-10.6791,-200,84064
+"Restrike",E1,0,-14.8025,-200,74464
+"Restrike",C3,0,-13.5229,-200,74464
+"Legato Line",E1,0,-8.56966,-200,81665
+"Legato Line",C3,0,-8.23456,-200,81665
+"Envelope Restart",E1,0,-11.4272,-200,79264
+"Envelope Restart",C3,0,-11.5744,-200,79264
+"Continuous Phase",E1,0,-12.3112,-200,76865
+"Continuous Phase",C3,0,-12.1732,-200,76865
+"Weight Lever",E1,0,-10.6727,-200,65824
+"Weight Lever",C3,0,-10.5201,-200,65824
+"Dark To Bright",E1,0,-11.1345,-200,98464
+"Dark To Bright",C3,0,-10.6472,-200,98464
+"Loose Ends",E1,0,-12.064,-200,69664
+"Loose Ends",C3,0,-12.0283,-200,69664
+"Clean To Violent",E1,0,-7.76403,-200,72064
+"Clean To Violent",C3,0,-7.38766,-200,72064
+"Mono Bedrock",E1,0,-10.7922,-200,93665
+"Mono Bedrock",C3,0,-10.177,-200,93665
+"Locked Floor",E1,0,-10.5071,-200,74464
+"Locked Floor",C3,0,-10.4716,-200,74464
+"Bedrock Sine",E1,0,-7.8088,-200,84064
+"Bedrock Sine",C3,0,-7.66598,-200,84064
+"Poly Spread",E1,0,-12.3312,-200,117664
+"Poly Spread",C3,0,-12.2787,-200,117664
+"Poly Spread",chord E1+B1+E2,0,-8.5804,-200,117664
+"Poly Swell",E1,0,-11.0675,-200,132064
+"Poly Swell",C3,0,-10.7898,-200,132064
+"Poly Swell",chord E1+B1+E2,0,-7.34359,-200,132064
+"Poly Ignition",E1,0,-10.7734,-200,74464
+"Poly Ignition",C3,0,-10.2504,-200,74464
+"Poly Ignition",chord E1+B1+E2,0,-7.50315,-200,74464
+"Poly Rectifier",E1,0,-10.9184,-200,72064
+"Poly Rectifier",C3,0,-11.0959,-200,72064
+"Poly Rectifier",chord E1+B1+E2,0,-9.22608,-200,72064
+"Poly Pluck",E1,0,-12.1417,-200,156064
+"Poly Pluck",C3,0,-11.5786,-200,156064
+"Poly Pluck",chord E1+B1+E2,0,-8.56366,-200,156064
+"Tidal Fold",E1,0,-10.6127,-200,74464
+"Tidal Fold",C3,0,-10.7425,-200,74464
+"Struck Fold",E1,0,-12.2202,-200,74464
+"Struck Fold",C3,0,-12.0931,-200,74464
+149.461 s: Profundum_PresetSweep
+===============================================================================
+All tests passed (344904 assertions in 1 test case)
+
+exit: 0 wall: 150 s

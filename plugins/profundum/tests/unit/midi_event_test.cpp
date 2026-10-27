@@ -15,15 +15,21 @@
 //   Translation          FR-026: tiny velocity, velocity-0 note-off, bad pitches,
 //                        non-note events
 //   SliceCount           one slice per distinct event offset (plan 2.5.6)
+//   PartitionInvarianceMorphMod_<Envelope|Cycle|Velocity|ModWheel>
+//                        Phase 14 T016 (SC-012 (a); FR-021): the PartitionInvariance
+//                        script with Morph Modulation at Amount 1, host blocks
+//                        {1, 7, 32, 65, 4096} vs 512
 // ==============================================================================
 
 #include "profundum_test_fixture.h"
 
+#include "parameters/morph_mod_params.h"
 #include "plugin_ids.h"
 
 #include <vst_event_list.h>
 
 #include <krate/dsp/systems/profundum_engine.h>
+#include <krate/dsp/systems/profundum_engine_observer.h>
 
 #include <pluginterfaces/vst/ivstevents.h>
 
@@ -31,6 +37,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -205,19 +212,93 @@ struct OverflowResult {
     return res;
 }
 
+// ---- PartitionInvariance script (shared by the Phase 14 morph-modulation SECTIONs) ----
+// No offset is a multiple of 32 (the engine grid) nor of any partition.
+constexpr std::size_t kPartitionTotal = 96000;  // 2 s
+const std::array<ScriptedEvent, 5> kPartitionScript{{
+    {.sample = 311, .kind = ScriptedEvent::Kind::NoteOn, .pitch = 28, .velocity = kVelocity100},
+    {.sample = 4097, .kind = ScriptedEvent::Kind::NoteOn, .pitch = 33, .velocity = kVelocity100},
+    {.sample = 20001, .kind = ScriptedEvent::Kind::NoteOff, .pitch = 28},
+    {.sample = 47999, .kind = ScriptedEvent::Kind::NoteOn, .pitch = 40, .velocity = kVelocity100},
+    {.sample = 70003, .kind = ScriptedEvent::Kind::NoteOff, .pitch = 33},
+}};
+
+// ---- Phase 14 T016 (SC-012 (a); FR-021): Morph Modulation partition invariance ----
+constexpr std::size_t kMorphGridRows = kPartitionTotal / 32u + 2u;  // one row per engine grid point, + slack
+
+/// Records the morph target of every grid point (profundum_engine_observer.h:52-65). Rows are reserved up front, so
+/// onGrid never grows the vector.
+class MorphGridRecorder final : public Krate::DSP::ProfundumEngineObserver {
+public:
+    explicit MorphGridRecorder(std::size_t capacity) { targets.reserve(capacity); }
+    // NOLINTNEXTLINE(bugprone-exception-escape) -- push_back below the reserved capacity: no allocation, no throw
+    void onGrid(const Krate::DSP::ProfundumGridRecord& r) noexcept override {
+        if (targets.size() < targets.capacity()) {
+            targets.push_back(r.morphTarget);
+        }
+    }
+    std::vector<float> targets;
+};
+
+[[nodiscard]] ScriptedEvent paramAtZero(Steinberg::Vst::ParamID id, double value) {
+    return ScriptedEvent{.sample = 0, .kind = ScriptedEvent::Kind::Param, .id = id, .value = value};
+}
+
+// The PartitionInvariance script with @p params (all at sample 0) in front, rendered in host blocks of @p hostBlock.
+// The observer is attached on EVERY arm (before prepare, detached while inactive: the main_page_sanity_test.cpp
+// pattern), so the reference and the partitions run the same engine path.
+[[nodiscard]] Stereo renderMorphModPartition(std::span<const ScriptedEvent> params, std::size_t hostBlock,
+                                             MorphGridRecorder& rec) {
+    std::vector<ScriptedEvent> script(params.begin(), params.end());
+    script.insert(script.end(), kPartitionScript.begin(), kPartitionScript.end());
+    ProcessorFixture fx;
+    fx.proc->setEngineObserverForTest(&rec);
+    REQUIRE(fx.prepare(kSampleRate, 4096) == Steinberg::kResultOk);
+    fx.renderScript(std::span<const ScriptedEvent>(script), kPartitionTotal, hostBlock);
+    fx.proc->setActive(0u);
+    fx.proc->setEngineObserverForTest(nullptr);
+    return takeCapture(fx);
+}
+
+// Source (1003) + Amount 1 (1004 = 1.0) + Morph Position 0.5 (105) + the source's own @p extras, all at sample 0.
+void requireMorphModPartitionInvariance(double sourceNorm, std::initializer_list<ScriptedEvent> extras) {
+    std::vector<ScriptedEvent> params{paramAtZero(::Profundum::kMorphModSourceId, sourceNorm),
+                                      paramAtZero(::Profundum::kMorphModAmountId, 1.0),
+                                      paramAtZero(::Profundum::kMorphPositionId, 0.5)};
+    params.insert(params.end(), extras.begin(), extras.end());
+    const std::span<const ScriptedEvent> p(params);
+
+    MorphGridRecorder refRec(kMorphGridRows);
+    const Stereo ref = renderMorphModPartition(p, 512, refRec);
+
+    // Non-vacuity: the modulation moved the target off b = 0.5 at least once.
+    std::size_t moved = 0;
+    for (const float t : refRec.targets) {
+        if (std::bit_cast<std::uint32_t>(t) != std::bit_cast<std::uint32_t>(0.5f)) {
+            ++moved;
+        }
+    }
+    WARN("PartitionInvarianceMorphMod (source " << sourceNorm << "): 512 reference grid records = "
+                                                << refRec.targets.size() << ", morphTarget != 0.5f in " << moved);
+    REQUIRE_FALSE(refRec.targets.empty());
+    REQUIRE(moved >= 1u);
+
+    for (const std::size_t hostBlock : {std::size_t{1}, std::size_t{7}, std::size_t{32}, std::size_t{65},
+                                        std::size_t{4096}}) {
+        INFO("host block = " << hostBlock);
+        MorphGridRecorder rec(kMorphGridRows);
+        const Stereo got = renderMorphModPartition(p, hostBlock, rec);
+        requireNoMismatches(got, ref);
+    }
+}
+
 }  // namespace
 
 TEST_CASE("Profundum_MidiEventTranslation", "[profundum][processor][midi]") {
     SECTION("PartitionInvariance") {
         // No offset is a multiple of 32 (the engine grid) nor of any partition.
-        constexpr std::size_t kTotal = 96000;  // 2 s
-        const std::array<ScriptedEvent, 5> script{{
-            {.sample = 311, .kind = ScriptedEvent::Kind::NoteOn, .pitch = 28, .velocity = kVelocity100},
-            {.sample = 4097, .kind = ScriptedEvent::Kind::NoteOn, .pitch = 33, .velocity = kVelocity100},
-            {.sample = 20001, .kind = ScriptedEvent::Kind::NoteOff, .pitch = 28},
-            {.sample = 47999, .kind = ScriptedEvent::Kind::NoteOn, .pitch = 40, .velocity = kVelocity100},
-            {.sample = 70003, .kind = ScriptedEvent::Kind::NoteOff, .pitch = 33},
-        }};
+        constexpr std::size_t kTotal = kPartitionTotal;  // 2 s
+        const std::array<ScriptedEvent, 5>& script = kPartitionScript;
         for (const ScriptedEvent& s : script) {
             REQUIRE(s.sample % 32 != 0);
         }
@@ -464,5 +545,29 @@ TEST_CASE("Profundum_MidiEventTranslation", "[profundum][processor][midi]") {
         ev.addNoteOn(33, kVelocity100, 300);
         REQUIRE(fx.processBlock(kBlock, &ev) == Steinberg::kResultOk);
         REQUIRE(fx.proc->lastSliceCountForTest() == 4u);
+    }
+
+    // ---- Phase 14 T016 (SC-012 (a); FR-021): 1003 normalised {0.25, 0.5, 0.75, 1.0} = Envelope, Cycle, Velocity,
+    //      Mod Wheel (indexFromNormalized over 5 entries, morph_mod_params.h:226). ----
+    SECTION("PartitionInvarianceMorphMod_Envelope") {
+        requireMorphModPartitionInvariance(
+            0.25, {paramAtZero(::Profundum::kMorphModAttackId,
+                               ::Profundum::normalizedFromPlain(::Profundum::kMorphModTimeLaw, 400.0))});
+    }
+
+    SECTION("PartitionInvarianceMorphMod_Cycle") {
+        requireMorphModPartitionInvariance(
+            0.5, {paramAtZero(::Profundum::kMorphModCycleShapeId, 0.0),  // Sine (index 0)
+                  paramAtZero(::Profundum::kMorphModCycleRateId,
+                              ::Profundum::normalizedFromPlain(::Profundum::kMorphModRateLaw, 2.0))});
+    }
+
+    SECTION("PartitionInvarianceMorphMod_Velocity") {
+        requireMorphModPartitionInvariance(0.75, {});
+    }
+
+    SECTION("PartitionInvarianceMorphMod_ModWheel") {
+        // Mod Wheel (6) = 1.0, constant from sample 0.
+        requireMorphModPartitionInvariance(1.0, {paramAtZero(::Profundum::kModWheelId, 1.0)});
     }
 }

@@ -65,6 +65,7 @@
 #include <krate/dsp/systems/profundum_engine.h>
 #include <krate/dsp/systems/profundum_engine_observer.h>
 #include <krate/dsp/systems/profundum_macro_matrix.h>
+#include <krate/dsp/systems/profundum_morph_modulator.h>   // Phase 14 (plan 4.4)
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -122,7 +123,9 @@ inline constexpr std::size_t kVoiceEngineFrameHarmonics = 8; // S9.11: P_1 ... P
 
 enum class VoiceEngineEventKind : std::uint8_t {
     NoteOn, NoteOff, PitchBend, Tempo, MorphPosition, MorphRampMs, AnchorMorphMode, VoiceMode, Polyphony, Macro,
-    NoteMemoryMode, NoteRetrigger, PortamentoTimeMs, PortamentoMode, GlideMode, MonoPriority, Legato, Endpoint
+    NoteMemoryMode, NoteRetrigger, PortamentoTimeMs, PortamentoMode, GlideMode, MonoPriority, Legato, Endpoint,
+    // Phase 14 (P-7): index into morphModStates / the wheel in `value` / bypass = index != 0.
+    MorphModulation, MorphModWheel, MorphModBypass
 };
 
 /// One event, issued to the engine immediately before sample `sample` is rendered (C-9). Float payloads in
@@ -152,6 +155,11 @@ struct VoiceEngineScript {
     bool attachObserver = true;
     std::size_t tappedVoices = ProfundumEngine::kMaxVoices;   ///< per-sample voice taps for voices [0, n)
     bool countAllocations = false;            ///< AllocationScope around the render loop -> taps.allocations
+    // Phase 14 (C-17, plan 4.4): handed after setMorphPosition, before prepare. The defaults are the engine's own.
+    ProfundumMorphModulator::Config morphMod{};
+    float morphModWheel = 0.0f;
+    bool morphModBypass = false;
+    std::vector<ProfundumMorphModulator::Config> morphModStates;   ///< MorphModulation events: this config
 };
 
 // -----------------------------------------------------------------------------
@@ -182,6 +190,7 @@ struct VoiceEngineGridRecord {
     float motionSource = 0.0f, motionOutput = 0.0f, massIn = 0.0f, smoothedMass = 0.0f, anchorMassUsed = 0.0f,
           anchorLevel = 0.0f, compressionHanded = 0.0f, compressorGrDb = 0.0f;
     MassLaw::Targets targets{};
+    float morphModSource = 0.0f, morphModOffset = 0.0f, morphTarget = 0.0f;   // Phase 14 (plan 4.3)
 };
 
 struct VoiceEngineTaps : BassMorphTest::MorphChainTaps {
@@ -258,6 +267,9 @@ public:
         r.compressionHanded = g.compressionHanded;
         r.compressorGrDb = g.compressorGrDb;
         r.targets = g.targets;
+        r.morphModSource = g.morphModSource;
+        r.morphModOffset = g.morphModOffset;
+        r.morphTarget = g.morphTarget;
         t_.grid.push_back(r);
         t_.resolvedPerInterval.push_back(r.resolved);
         t_.anchorLevelHanded.push_back(g.anchorLevel);
@@ -368,7 +380,17 @@ inline void voiceEngineIssue(ProfundumEngine& e, const VoiceEngineEvent& ev, con
             static_cast<void>(e.setEndpoint(which, s.endpointStates[i]));
             break;
         }
+        case K::MorphModulation:
+            e.setMorphModulation(s.morphModStates[static_cast<std::size_t>(ev.index)]);   // validated before the render
+            break;
+        case K::MorphModWheel: e.setMorphModWheel(ev.value); break;
+        case K::MorphModBypass: e.setMorphModBypass(ev.index != 0); break;
     }
+}
+
+/// Phase 14 (P-7): a MorphModulation event's index must name a morphModStates entry (the Endpoint rule's form).
+[[nodiscard]] inline bool voiceEngineMorphModIndexValid(const VoiceEngineEvent& ev, const VoiceEngineScript& s) noexcept {
+    return ev.index >= 0 && static_cast<std::size_t>(ev.index) < s.morphModStates.size();
 }
 
 /// Renders the script: std::make_unique<ProfundumEngine>(); seed, config, endpoints, position, macros, mode and
@@ -387,6 +409,8 @@ inline void voiceEngineIssue(ProfundumEngine& e, const VoiceEngineEvent& ev, con
             REQUIRE(static_cast<std::size_t>(ev.index) < s.endpointStates.size());
             REQUIRE(isValidMorphState(s.endpointStates[static_cast<std::size_t>(ev.index)]));
         }
+        if (ev.kind == VoiceEngineEventKind::MorphModulation)
+            REQUIRE(voiceEngineMorphModIndexValid(ev, s));
     }
 
     VoiceEngineTaps taps;
@@ -398,6 +422,9 @@ inline void voiceEngineIssue(ProfundumEngine& e, const VoiceEngineEvent& ev, con
     REQUIRE(e->setEndpoint(BassMorphEngine::Endpoint::A, s.a));
     REQUIRE(e->setEndpoint(BassMorphEngine::Endpoint::B, s.b));
     e->setMorphPosition(s.position);
+    e->setMorphModulation(s.morphMod);       // Phase 14 (plan 4.4)
+    e->setMorphModWheel(s.morphModWheel);
+    e->setMorphModBypass(s.morphModBypass);
     e->setMacros(s.macros);
     e->setVoiceMode(s.mode);
     e->setPolyphony(s.polyphony);

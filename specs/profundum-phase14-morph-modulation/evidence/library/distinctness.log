@@ -1,0 +1,9 @@
+=== distinctness 2026-10-27T09:26:41Z commit e501b577
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetDistinctness"
+Filters: "Profundum_PresetDistinctness"
+Randomness seeded to: 150761529
+# Profundum_PresetDistinctness: presets=60 F=1 bar=2 closest=Loose Ends vs Locked Floor d=2.42169 masked=16
+===============================================================================
+All tests passed (11620417 assertions in 1 test case)
+
+WALL distinctness 517.2 s exit=0

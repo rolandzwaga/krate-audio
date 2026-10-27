@@ -65,21 +65,24 @@ cmake --build build --config Release --target dsp_tests --clean-first
 
 ## 2. Running Tests Directly (Recommended)
 
-### Run All Tests in an Executable
+### Run All Tests in an Executable — sharded, always
 
 ```bash
-# DSP tests (Release build)
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe"
+# Every multi-case run goes through the sharded runner (Catch2 shards over a cpu-count worker pool).
+# Name several executables in ONE command; the last line is GATE GREEN ... or GATE RED ... .
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' \
+    dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_ieee_tests
 
-# DSP tests (Debug build)
-"F:/projects/iterum/build/bin/Debug/dsp_tests.exe"
+# Plugin tests (Iterum: both targets)
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' plugin_tests approval_tests
 
-# Plugin tests
-"F:/projects/iterum/build/bin/Release/plugin_tests.exe"
-
-# Approval tests
-"F:/projects/iterum/build/bin/Release/approval_tests.exe"
+# Debug build: --bin build/windows-x64-debug/bin/Debug
+# Timing tests only, alone and never sharded:
+node tools/run-cpu-tests.js
 ```
+
+Never run a whole executable as one serial process (one core of 32): a Profundum gate took ~14 min that way and
+2 min 15 s sharded. The direct-exe examples below are for a single case or a quick tag probe only.
 
 ### Run Tests by Tag
 
@@ -98,17 +101,15 @@ Tags are in square brackets `[tag]`. Common tags:
 | `[dsp]` | General DSP tests |
 
 ```bash
-# Run tests with a specific tag
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[wavefold_math]"
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[biquad]"
-"F:/projects/iterum/build/bin/Release/plugin_tests.exe" "[preset]"
+# Tag runs are multi-case runs: always sharded (the tag goes in the filter)
+node tools/run-gate.js --filter '[wavefold_math]~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_primitives_tests
+node tools/run-gate.js --filter '[preset]~[performance]~[perf]~[benchmark]~[!benchmark]' plugin_tests
 
 # Combine tags (AND)
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[dsp][filter]"
+node tools/run-gate.js --filter '[dsp][filter]~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_processors_tests
 
 # Exclude a tag
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "~[slow]"
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "~[!mayfail]"
+node tools/run-gate.js --filter '~[slow]~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_processors_tests
 ```
 
 ### Run Tests by Name Pattern
@@ -142,14 +143,15 @@ Use glob patterns to match test names:
 ### Output Options
 
 ```bash
+# Output options apply to a single-case run (suites go through run-gate, whose per-shard logs keep the full output)
 # Compact output (one line per test)
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --reporter compact
+"F:/projects/iterum/build/bin/Release/dsp_core_tests.exe" "*lambert*" --reporter compact
 
 # Show test durations
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --durations yes
+"F:/projects/iterum/build/bin/Release/dsp_core_tests.exe" "*lambert*" --durations yes
 
 # Verbose output with section info
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" -s
+"F:/projects/iterum/build/bin/Release/dsp_core_tests.exe" "*lambert*" -s
 ```
 
 ---
@@ -162,35 +164,35 @@ CTest integrates with CMake and can run tests across all executables.
 
 ```bash
 # Full path to ctest
-"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30
 ```
 
 ### Run All Tests
 
 ```bash
-"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release --output-on-failure
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30 --output-on-failure
 ```
 
 ### Run Tests by Name Pattern
 
 ```bash
 # Run tests matching "sineFold"
-"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -R "sineFold" --output-on-failure
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30 -R "sineFold" --output-on-failure
 
 # Run tests matching "lambert"
-"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -R "lambert" --output-on-failure
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30 -R "lambert" --output-on-failure
 ```
 
 ### List All CTest Tests
 
 ```bash
-"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -N
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30 -N
 ```
 
 ### Verbose Output
 
 ```bash
-"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -V
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30 -V
 ```
 
 ---
@@ -236,11 +238,11 @@ cmake --build build --config Release --target dsp_tests
 
 # 4. If build failed, fix errors and repeat step 3
 
-# 5. Run your specific tests
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[your_tag]"
+# 5. Run your specific tests (sharded)
+node tools/run-gate.js --filter '[your_tag]~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_processors_tests
 
-# 6. Run all DSP tests to check for regressions
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe"
+# 6. Run the layer's suites to check for regressions (sharded, several exes in one command)
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_core_tests dsp_processors_tests
 ```
 
 ### Example 2: Debug a Failing Test
@@ -251,7 +253,7 @@ cmake --build build --config Release --target dsp_tests
 
 # 2. Build and run in Debug for better stack traces
 cmake --build build --config Debug --target dsp_tests
-"F:/projects/iterum/build/bin/Debug/dsp_tests.exe" "[tag]"
+node tools/run-gate.js --bin build/windows-x64-debug/bin/Debug --filter '[tag]~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_processors_tests
 ```
 
 ### Example 3: Validate Plugin After Changes
@@ -267,8 +269,8 @@ cmake --build build --config Release --target Iterum
 ### Example 4: Run Only Fast Tests
 
 ```bash
-# Exclude slow and benchmark tests
-"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "~[slow]~[benchmark]"
+# Exclude slow and timing tests, sharded
+node tools/run-gate.js --filter '~[slow]~[long]~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_processors_tests
 ```
 
 ---
@@ -316,8 +318,8 @@ cmake --build build --config Release --target Iterum
 |------|---------|
 | Build DSP tests | `cmake --build build --config Release --target dsp_tests` |
 | Build plugin tests | `cmake --build build --config Release --target plugin_tests` |
-| Run all DSP tests | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe"` |
-| Run tests by tag | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[tag]"` |
+| Run all DSP tests | `node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_core_tests dsp_primitives_tests dsp_processors_tests dsp_systems_tests dsp_effects_tests dsp_ieee_tests` |
+| Run tests by tag | `node tools/run-gate.js --filter '[tag]~[performance]~[perf]~[benchmark]~[!benchmark]' <exe>` |
 | Run tests by name | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "*pattern*"` |
 | List all tags | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tags` |
 | List all tests | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tests` |

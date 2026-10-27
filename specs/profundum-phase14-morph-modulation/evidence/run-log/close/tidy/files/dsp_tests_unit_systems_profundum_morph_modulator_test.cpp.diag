@@ -1,0 +1,2 @@
+F:\projects\iterum\dsp\tests\unit\systems\profundum_morph_modulator_test.cpp:631:55: warning: conditional operator is used as sub-expression of parent conditional operator, refrain from using nested conditional operators [readability-avoid-nested-conditional-operator]
+F:\projects\iterum\dsp\tests\unit\systems\profundum_morph_modulator_test.cpp:631:32: note: parent conditional operator here

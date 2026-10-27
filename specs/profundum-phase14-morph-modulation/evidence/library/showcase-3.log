@@ -1,0 +1,28 @@
+=== showcase-3 2026-10-27T09:26:41Z commit e501b577
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetShowcase_3of8"
+Filters: "Profundum_PresetShowcase_3of8"
+Randomness seeded to: 3275432192
+# Profundum_PresetShowcase_3of8: presets=8 arms=18
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Valve Pressure","AT-04 Character Tube",primary,"",E1,3.21571,3,0.215705,0,"","D_nl","Char / twin"
+"Valve Pressure","AT-04 Character Tube",primary,"",C3,3.89855,3,0.89855,0,"","D_nl","Char / twin"
+"Ghost Kick","AT-12 Anchor Lock to Ghost",primary,"",E1,2.94279,2,0.942788,100,"","E_sub_onset","Sum"
+"Ghost Kick","AT-12 Anchor Lock to Ghost",primary,"",C3,2.87678,2,0.87678,100,"","E_sub_onset","Sum"
+"Slow Fall","AT-20 Pitch Drop Time",primary,"",E1,7.95466,2,5.95466,0,"","drop_t_s","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Slow Fall","AT-20 Pitch Drop Time",primary,"",C3,8.63776,2,6.63776,0,"","drop_t_s","f_core pitch tap (d_core = 12 log2(f_core / f_res), voice 0)"
+"Hard Attack","AT-28 Mass Transient Attack",primary,"",E1,9.81929,3,6.81929,0,"","onset_ratio","dynamics output tap"
+"Hard Attack","AT-28 Mass Transient Attack",primary,"",C3,8.94345,3,5.94345,0,"","onset_ratio","dynamics output tap"
+"Body Wave","AT-36 Motion Cycle to Body",primary,"",E1,6.32694,3,3.32694,0,"","D_cx_p2p","Sum"
+"Body Wave","AT-36 Motion Cycle to Body",primary,"",C3,6.70166,3,3.70166,0,"","D_cx_p2p","Sum"
+"Legato Line","AT-44 NoteMemory Legato",primary,"",E1,177.93,30,147.93,0,"","phase_deg","core tap"
+"Legato Line","AT-44 NoteMemory Legato",primary,"",C3,167.727,30,137.727,0,"","phase_deg","core tap"
+"Locked Floor","R-LOCK Reference Lock",primary,"",E1,2.09356,2,0.0935615,40,"","E_sub_onset","Sum"
+"Locked Floor","R-LOCK Reference Lock",primary,"",C3,2.03613,2,0.0361321,40,"","E_sub_onset","Sum"
+"Locked Floor","AT-14 Anchor Sine to Triangle",secondary,"",E1,5.61232,3,2.61232,0,"","D_cx","Sum"
+"Locked Floor","AT-14 Anchor Sine to Triangle",secondary,"",C3,6.13257,3,3.13257,0,"","D_cx","Sum"
+"Struck Fold","M-VEL Morph Mod Velocity",primary,"",E1,13.3635,3,10.3635,5461.33,"","D_nl","Char / twin"
+"Struck Fold","M-VEL Morph Mod Velocity",primary,"",C3,9.30337,3,6.30337,5461.33,"","D_nl","Char / twin"
+===============================================================================
+All tests passed (1056975 assertions in 1 test case)
+
+WALL showcase-3 93.5 s exit=0

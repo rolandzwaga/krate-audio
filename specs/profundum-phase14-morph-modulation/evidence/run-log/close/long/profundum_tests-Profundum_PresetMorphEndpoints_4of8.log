@@ -1,0 +1,16 @@
+Filters: "Profundum_PresetMorphEndpoints_4of8"
+Randomness seeded to: 1397116074
+# Profundum_PresetMorphEndpoints_4of8: presets=7
+preset,d_ab,masked,level_a_e1,level_b_e1,level_a_c3,level_b_c3
+"Folding Wire",12.7306,12,-11.5875,-12.9932,-11.4738,-11.6613
+"Rectified Follow",35.2442,11,-10.9884,-12.0471,-11.9118,-12.6239
+"Curved Drop",18.7376,8,-14.4833,-15.7718,-14.4635,-15.9549
+"Wide Harmonics",18.7296,8,-14.8206,-16.2274,-15.3945,-15.1858
+"Edge Cycle",15.0278,11,-12.9297,-14.364,-12.807,-11.5771
+"Envelope Restart",12.1338,12,-11.787,-11.1125,-12.365,-9.73645
+"Bedrock Sine",10.6918,11,-7.89039,-9.8538,-7.75242,-9.85773
+281.542 s: Profundum_PresetMorphEndpoints_4of8
+===============================================================================
+All tests passed (2711017 assertions in 1 test case)
+
+exit: 0 wall: 282 s

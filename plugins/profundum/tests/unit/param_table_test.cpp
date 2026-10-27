@@ -4,6 +4,7 @@
 // Profundum_SoundParamTableRouting, Profundum_ParamTableConformance, Profundum_ParamDisplayFormats, Profundum_PortamentoLabelFollowsGlideMode — written by T013, T014 (specs/profundum-phase11-parameters/tasks.md)
 
 #include "controller/controller.h"
+#include "parameters/morph_mod_params.h"
 #include "parameters/morph_params.h"
 #include "parameters/note_params.h"
 #include "parameters/performance_params.h"
@@ -17,6 +18,8 @@
 #include <krate/dsp/core/note_value.h>
 
 #include <array>
+#include <bit>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <set>
@@ -45,7 +48,7 @@ std::vector<std::size_t> changedLeaves(const P::LeafBits& after) {
 // FR-010, FR-012, FR-054; plan 4.3).
 TEST_CASE("Profundum_SoundParamTableRouting", "[profundum][params]") {
     SECTION("SixtyRowsCoverAllLeaves") {
-        REQUIRE(P::kSoundRows.size() == 60);
+        REQUIRE(P::kSoundRows.size() == 62);
         std::array<int, P::kNumLeaves> hits{};
         for (const auto& row : P::kSoundRows) {
             REQUIRE(static_cast<std::size_t>(row.leaf) < P::kNumLeaves);
@@ -73,7 +76,7 @@ TEST_CASE("Profundum_SoundParamTableRouting", "[profundum][params]") {
                 noteBand.insert(static_cast<Steinberg::Vst::ParamID>(id));
             }
         }
-        CHECK(routed == 84);
+        CHECK(routed == 95);  // Phase 14 FR-020: + the nine morph-modulation IDs 1003-1011; Phase 15: + 209, 210
 
         std::set<Steinberg::Vst::ParamID> wantNoteBand;
         for (Steinberg::Vst::ParamID id = 400; id <= 403; ++id) {
@@ -123,6 +126,22 @@ TEST_CASE("Profundum_SoundParamTableRouting", "[profundum][params]") {
 
         CHECK(P::soundRowOf(9999) == nullptr);
         CHECK(P::soundRowOf(1003) == nullptr);
+
+        // Phase 14 (C-12, FR-018): 1003-1011 route as MorphMod, contiguously, none of them a sound row; the table
+        // ends at 1011 (kNumRoutedIds 1012), so the last ID is routed and none beyond it exists.
+        STATIC_REQUIRE(P::kNumRoutedIds == 1012);
+        REQUIRE(P::kParamRoutes.size() == 1012u);
+        for (Steinberg::Vst::ParamID id = 1003; id <= 1011; ++id) {
+            INFO("id " << id);
+            CHECK(kindOf(id) == P::RouteKind::MorphMod);
+            CHECK(P::soundRowOf(id) == nullptr);
+        }
+        CHECK(kindOf(1011) != P::RouteKind::None);
+        int morphModRoutes = 0;
+        for (const P::ParamRoute& r : P::kParamRoutes) {
+            morphModRoutes += r.kind == P::RouteKind::MorphMod ? 1 : 0;
+        }
+        CHECK(morphModRoutes == 9);  // no MorphMod route outside 1003-1011
     }
 
     SECTION("EveryRowWritesItsLeafOnly") {
@@ -215,9 +234,12 @@ struct ExpectedParam {
     int leaf;
 };
 
-/// SC-005: the explicit 84-row table (titles from the spec ID table, FR-009 names).
+/// SC-005: the explicit 95-row table (titles from the spec ID table, FR-009 names; Phase 14 C-12 adds 1003-1011; Phase 15 adds 209-210).
 std::vector<ExpectedParam> expectedParams() {
     const double rampDefault = P::normalizedFromPlain(P::PlainLaw{.lo = 5.0, .hi = 2000.0, .logOffset = 0.0, .logarithmic = true}, 40.0);
+    const double attackDefault = P::morph_mod_detail::defaultNormalizedFor(P::kMorphModTimeLaw, 10.0f);
+    const double decayDefault = P::morph_mod_detail::defaultNormalizedFor(P::kMorphModTimeLaw, 300.0f);
+    const double rateDefault = P::morph_mod_detail::defaultNormalizedFor(P::kMorphModRateLaw, 1.0f);
     return {
         // ---- global 0-7 (0-3 unchanged from Phase 10) ----
         {.id = 0, .title = "Output Gain", .units = "dB", .stepCount = 0, .flags = kFlagA, .def = 1.0, .leaf = kNoLeafRow},
@@ -235,7 +257,7 @@ std::vector<ExpectedParam> expectedParams() {
         {.id = 103, .title = "Clean/Violent", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.5, .leaf = kNoLeafRow},
         {.id = 104, .title = "Mass", .units = "", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 52},
         {.id = 105, .title = "Morph Position", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = kNoLeafRow},
-        // ---- core 200-208 ----
+        // ---- core 200-210 (209-210: Phase 15) ----
         {.id = 200, .title = "Depth", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 0},
         {.id = 201, .title = "Body", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 1},
         {.id = 202, .title = "Body Curvature", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 2},
@@ -245,6 +267,8 @@ std::vector<ExpectedParam> expectedParams() {
         {.id = 206, .title = "Excitation Mix", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 6},
         {.id = 207, .title = "Excitation Drive", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 7},
         {.id = 208, .title = "Excitation Asymmetry", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 8},
+        {.id = 209, .title = "Stiffness", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 62},
+        {.id = 210, .title = "Phase", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = 63},
         // ---- anchor 300-306 ----
         {.id = 300, .title = "Anchor Waveform", .units = "", .stepCount = 4, .flags = kFlagL, .def = 0.0, .leaf = 55},
         {.id = 301, .title = "Anchor Mode", .units = "", .stepCount = 3, .flags = kFlagL, .def = 0.0, .leaf = 56},
@@ -316,6 +340,17 @@ std::vector<ExpectedParam> expectedParams() {
         {.id = 1000, .title = "Anchor Morph Mode", .units = "", .stepCount = 2, .flags = kFlagL, .def = 0.5, .leaf = kNoLeafRow},  // Blend, index 1 of 2
         {.id = 1001, .title = "Edit Target", .units = "", .stepCount = 1, .flags = kFlagListOnly, .def = 0.0, .leaf = kNoLeafRow},
         {.id = 1002, .title = "Morph Ramp Time", .units = "ms", .stepCount = 0, .flags = kFlagA, .def = rampDefault, .leaf = kNoLeafRow},
+        // ---- Phase 14 morph modulation 1003-1011 (C-12). The three log defaults are the pack's nudged values;
+        // MorphModRows checks they denormalise bit-exactly to 10 ms / 300 ms / 1 Hz. ----
+        {.id = 1003, .title = "Morph Mod Source", .units = "", .stepCount = 4, .flags = kFlagL, .def = 0.0, .leaf = kNoLeafRow},
+        {.id = 1004, .title = "Morph Mod Amount", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.5, .leaf = kNoLeafRow},
+        {.id = 1005, .title = "Morph Env Attack", .units = "ms", .stepCount = 0, .flags = kFlagA, .def = attackDefault, .leaf = kNoLeafRow},
+        {.id = 1006, .title = "Morph Env Decay", .units = "ms", .stepCount = 0, .flags = kFlagA, .def = decayDefault, .leaf = kNoLeafRow},
+        {.id = 1007, .title = "Morph Env Sustain", .units = "%", .stepCount = 0, .flags = kFlagA, .def = 0.0, .leaf = kNoLeafRow},
+        {.id = 1008, .title = "Morph Cycle Shape", .units = "", .stepCount = 5, .flags = kFlagL, .def = 0.0, .leaf = kNoLeafRow},
+        {.id = 1009, .title = "Morph Cycle Rate", .units = "Hz", .stepCount = 0, .flags = kFlagA, .def = rateDefault, .leaf = kNoLeafRow},
+        {.id = 1010, .title = "Morph Cycle Sync", .units = "", .stepCount = 1, .flags = kFlagL, .def = 0.0, .leaf = kNoLeafRow},
+        {.id = 1011, .title = "Morph Cycle Sync Rate", .units = "", .stepCount = 29, .flags = kFlagL, .def = 13.0 / 29.0, .leaf = kNoLeafRow},  // 1/4
     };
 }
 
@@ -380,8 +415,8 @@ double normOfLeafPlain(ParamID id, double x) {
 TEST_CASE("Profundum_ParamTableConformance", "[profundum][params]") {
     const TableController h;
     const std::vector<ExpectedParam> table = expectedParams();
-    REQUIRE(table.size() == 84);
-    REQUIRE(h.ctl->getParameterCount() == 84);
+    REQUIRE(table.size() == 95);
+    REQUIRE(h.ctl->getParameterCount() == 95);
 
     SECTION("PerIdTable") {
         for (const ExpectedParam& e : table) {
@@ -419,7 +454,7 @@ TEST_CASE("Profundum_ParamTableConformance", "[profundum][params]") {
             REQUIRE(info.id < static_cast<ParamID>(P::kNumRoutedIds));
             CHECK(P::kParamRoutes[info.id].kind != P::RouteKind::None);
         }
-        CHECK(seen.size() == 84);
+        CHECK(seen.size() == 95);
 
         // FR-054: the registered IDs in 400-499 are exactly {400-403, 410-417, 420-426}; no velocity ID.
         std::set<ParamID> noteBand;
@@ -513,6 +548,88 @@ TEST_CASE("Profundum_ParamTableConformance", "[profundum][params]") {
                 CHECK((info.flags & PInfo::kIsList) != 0);
             }
         }
+    }
+
+    SECTION("MorphModRows") {  // Phase 14 T012 (SC-015; C-12, FR-020)
+        // List strings.
+        const std::array<std::string, 5> sources{"Off", "Envelope", "Cycle", "Velocity", "Mod Wheel"};
+        for (int k = 0; k <= 4; ++k) {
+            INFO("Source k " << k);
+            CHECK(h.str(P::kMorphModSourceId, static_cast<double>(k) / 4.0) == sources[static_cast<std::size_t>(k)]);
+        }
+        for (int k = 0; k <= 5; ++k) {  // the six Cycle Shape labels of 905
+            INFO("Shape k " << k);
+            const double v = static_cast<double>(k) / 5.0;
+            CHECK(h.str(P::kMorphModCycleShapeId, v) == h.str(P::kMotionCycleShapeId, v));
+        }
+        CHECK(h.str(P::kMorphModCycleShapeId, 0.0) == "Sine");
+        CHECK(h.str(P::kMorphModCycleShapeId, 3.0 / 5.0) == "Square");
+        CHECK(h.str(P::kMorphModCycleSyncId, 0.0) == "Off");
+        CHECK(h.str(P::kMorphModCycleSyncId, 1.0) == "On");
+        for (int k = 0; k < Krate::DSP::kNoteValueDropdownCount; ++k) {  // the 30 note values of 907
+            INFO("Sync Rate k " << k);
+            const double v = static_cast<double>(k) / 29.0;
+            CHECK(h.str(P::kMorphModCycleSyncRateId, v) == h.str(P::kMotionCycleSyncRateId, v));
+        }
+        CHECK(h.str(P::kMorphModCycleSyncRateId, h.info(P::kMorphModCycleSyncRateId).defaultNormalizedValue) == "1/4");
+
+        // The three rows that share a law with an endpoint row print as that row does.
+        for (const double v : {0.0, 0.25, 0.5, 0.75, 1.0}) {
+            INFO("v " << v);
+            CHECK(h.str(P::kMorphModAttackId, v) == h.str(P::kMotionEnvAttackId, v));
+            CHECK(h.str(P::kMorphModDecayId, v) == h.str(P::kMotionEnvDecayId, v));
+            CHECK(h.str(P::kMorphModCycleRateId, v) == h.str(P::kMotionCycleRateId, v));
+            CHECK(h.str(P::kMorphModAmountId, v) == h.str(P::kMotionAmountId, v));
+        }
+        CHECK(h.str(P::kMorphModAmountId, 0.5) == "+0%");
+        CHECK(h.str(P::kMorphModAmountId, 0.0) == "-100%");
+        CHECK(h.str(P::kMorphModAmountId, 1.0) == "+100%");
+        CHECK(h.str(P::kMorphModSustainId, 0.4) == "40%");
+
+        // Continuous rows: the registered default denormalises bit-exactly to the plain default (and lies within
+        // 1e-12 of the analytic normalised value), and normalised -> plain -> normalised round-trips within the
+        // existing law tolerance (1e-9; param_denorm_test RegisteredParamRoundTrip). The value the processor stores
+        // (a float) re-normalises within 1e-6.
+        struct ContinuousRow {
+            ParamID id;
+            P::PlainLaw law;
+            float plainDefault;
+        };
+        const std::array<ContinuousRow, 5> rows{{
+            {.id = P::kMorphModAmountId, .law = P::kMorphModAmountLaw, .plainDefault = 0.0f},
+            {.id = P::kMorphModAttackId, .law = P::kMorphModTimeLaw, .plainDefault = 10.0f},
+            {.id = P::kMorphModDecayId, .law = P::kMorphModTimeLaw, .plainDefault = 300.0f},
+            {.id = P::kMorphModSustainId, .law = P::kMorphModSustainLaw, .plainDefault = 0.0f},
+            {.id = P::kMorphModCycleRateId, .law = P::kMorphModRateLaw, .plainDefault = 1.0f},
+        }};
+        for (const ContinuousRow& r : rows) {
+            INFO("id " << r.id);
+            const double def = h.info(r.id).defaultNormalizedValue;
+            CHECK(std::bit_cast<std::uint32_t>(static_cast<float>(P::plainFromNormalized(r.law, def))) ==
+                  std::bit_cast<std::uint32_t>(r.plainDefault));
+            CHECK(std::abs(def - P::normalizedFromPlain(r.law, static_cast<double>(r.plainDefault))) <= 1e-12);
+            for (int k = 0; k <= 100; ++k) {
+                const double v = static_cast<double>(k) / 100.0;
+                INFO("k " << k);
+                CHECK(std::abs(P::normalizedFromPlain(r.law, P::plainFromNormalized(r.law, v)) - v) <= 1e-9);
+                P::MorphModParams stored;
+                REQUIRE(P::handleMorphModParamChange(stored, r.id, v));
+                float x = 0.0f;
+                switch (r.id) {
+                    case P::kMorphModAmountId: x = stored.amount.load(); break;
+                    case P::kMorphModAttackId: x = stored.attackMs.load(); break;
+                    case P::kMorphModDecayId: x = stored.decayMs.load(); break;
+                    case P::kMorphModSustainId: x = stored.sustain.load(); break;
+                    default: x = stored.cycleRateHz.load(); break;
+                }
+                CHECK(std::abs(P::normalizedFromPlain(r.law, static_cast<double>(x)) - v) <= 1e-6);
+            }
+        }
+        // Amount at the registered default stores +0 (C-7 / plan 4.5: `amount != 0.0f` treats it as no hand-over).
+        P::MorphModParams atDefault;
+        REQUIRE(P::handleMorphModParamChange(atDefault, P::kMorphModAmountId,
+                                             h.info(P::kMorphModAmountId).defaultNormalizedValue));
+        CHECK(std::bit_cast<std::uint32_t>(atDefault.amount.load()) == 0u);
     }
 }
 

@@ -1,0 +1,53 @@
+pass 1 (~[wallclock], 30 workers): 104.8s | pass 2 ([wallclock], 4 workers): 20.6s, 17 case(s)
+profundum_tests: cases=69 assertions=6395933 failed_cases=0 shards=128 slowest_shard=93.5s
+GATE GREEN profundum_tests cases=69 assertions=6395933 wall=125.4s workers=30 logs=f:\tmp\gate\profundum-p14-T026-20261027T102639
+WALL per-push 125.5 s exit=0
+--- transparency shard wall clocks (target <= 9 s) and render guards (f:/tmp/gate/profundum-p14-T026-20261027T102639)
+WALL Profundum_MorphModPresetTransparency_0of32 84.5153 s
+WALL Profundum_MorphModPresetTransparency_1of32 91.0245 s
+WALL Profundum_MorphModPresetTransparency_2of32 93.3946 s
+WALL Profundum_MorphModPresetTransparency_3of32 91.981 s
+WALL Profundum_MorphModPresetTransparency_4of32 84.1283 s
+WALL Profundum_MorphModPresetTransparency_5of32 77.3063 s
+WALL Profundum_MorphModPresetTransparency_6of32 72.7334 s
+WALL Profundum_MorphModPresetTransparency_7of32 90.5117 s
+WALL Profundum_MorphModPresetTransparency_8of32 87.3521 s
+WALL Profundum_MorphModPresetTransparency_9of32 83.1003 s
+WALL Profundum_MorphModPresetTransparency_10of32 82.6114 s
+WALL Profundum_MorphModPresetTransparency_11of32 90.0836 s
+WALL Profundum_MorphModPresetTransparency_12of32 88.0902 s
+WALL Profundum_MorphModPresetTransparency_13of32 87.6171 s
+WALL Profundum_MorphModPresetTransparency_14of32 88.6743 s
+WALL Profundum_MorphModPresetTransparency_15of32 86.1698 s
+WALL Profundum_MorphModPresetTransparency_16of32 82.1606 s
+WALL Profundum_MorphModPresetTransparency_17of32 89.6628 s
+WALL Profundum_MorphModPresetTransparency_18of32 84.8836 s
+WALL Profundum_MorphModPresetTransparency_19of32 78.4593 s
+WALL Profundum_MorphModPresetTransparency_20of32 84.5693 s
+WALL Profundum_MorphModPresetTransparency_21of32 81.0688 s
+WALL Profundum_MorphModPresetTransparency_22of32 80.9227 s
+WALL Profundum_MorphModPresetTransparency_23of32 73.6098 s
+WALL Profundum_MorphModPresetTransparency_24of32 74.3465 s
+WALL Profundum_MorphModPresetTransparency_25of32 79.8632 s
+WALL Profundum_MorphModPresetTransparency_26of32 72.8859 s
+WALL Profundum_MorphModPresetTransparency_27of32 70.7774 s
+WALL Profundum_MorphModPresetTransparency_28of32 45.2316 s
+WALL Profundum_MorphModPresetTransparency_29of32 38.4091 s
+WALL Profundum_MorphModPresetTransparency_30of32 30.8021 s
+WALL Profundum_MorphModPresetTransparency_31of32 26.9686 s
+render-guard worst truePeak=-0.99943 dBTP (Curved Drop [max Mass]); wall clock 2.31048 s over 4 presets (shard 5 of 16)
+render-guard worst truePeak=-0.99999 dBTP (Envelope Mass [max Mass]); wall clock 2.2977 s over 4 presets (shard 7 of 16)
+render-guard worst truePeak=-0.964508 dBTP (Shifting Spectrum [max Mass]); wall clock 2.37639 s over 4 presets (shard 6 of 16)
+render-guard worst truePeak=-0.965891 dBTP (Breathing Depth [max Mass]); wall clock 2.34213 s over 4 presets (shard 3 of 16)
+render-guard worst truePeak=-0.966304 dBTP (Hard Attack [max Mass]); wall clock 2.39015 s over 4 presets (shard 12 of 16)
+render-guard worst truePeak=-0.967028 dBTP (Tidal Fold [stored]); wall clock 2.28585 s over 4 presets (shard 11 of 16)
+render-guard worst truePeak=-0.974033 dBTP (Gravity Well [max Mass]); wall clock 1.66311 s over 4 presets (shard 0 of 16)
+render-guard worst truePeak=-0.974651 dBTP (Fault Line [stored]); wall clock 2.2762 s over 4 presets (shard 9 of 16)
+render-guard worst truePeak=-0.974908 dBTP (Wide Harmonics [max Mass]); wall clock 1.71834 s over 3 presets (shard 13 of 16)
+render-guard worst truePeak=-0.980529 dBTP (Body Wave [stored]); wall clock 2.31351 s over 4 presets (shard 4 of 16)
+render-guard worst truePeak=-0.984246 dBTP (Orbiting Field [max Mass]); wall clock 1.81891 s over 4 presets (shard 1 of 16)
+render-guard worst truePeak=-0.985201 dBTP (Biting Reed [stored]); wall clock 2.40881 s over 4 presets (shard 2 of 16)
+render-guard worst truePeak=-0.987602 dBTP (Crushed Basalt [stored]); wall clock 2.37749 s over 4 presets (shard 8 of 16)
+render-guard worst truePeak=-0.995166 dBTP (Continuous Phase [max Mass]); wall clock 1.61261 s over 3 presets (shard 14 of 16)
+render-guard worst truePeak=-0.997886 dBTP (Halfway Morph [max Mass]); wall clock 2.31824 s over 4 presets (shard 10 of 16)
+render-guard worst truePeak=-0.999965 dBTP (Spread Choir [max Mass]); wall clock 1.52856 s over 3 presets (shard 15 of 16)

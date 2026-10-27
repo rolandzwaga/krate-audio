@@ -1,0 +1,4 @@
+dsp_systems_tests: cases=435 assertions=10050219 failed_cases=0 shards=28 slowest_shard=521.9s
+dsp_ieee_tests: cases=122 assertions=248165 failed_cases=0 shards=28 slowest_shard=60.8s
+GATE GREEN dsp_systems_tests cases=435 assertions=10050219 | dsp_ieee_tests cases=122 assertions=248165 wall=760.0s workers=7 logs=f:\tmp\gate\profundum-p14-close-20261027T114228\perpush-dsp
+exit: 0 wall: 760 s

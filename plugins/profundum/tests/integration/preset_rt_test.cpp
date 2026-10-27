@@ -323,7 +323,7 @@ struct RtHeldGate {
 
 // =================================================================================================================
 
-TEST_CASE("Profundum_FactoryPresetLoadRtSafe", "[profundum][preset][rt]") {
+TEST_CASE("Profundum_FactoryPresetLoadRtSafe", "[profundum][preset][rt][wallclock]") {
     enableFTZDAZ();
 
     // Teeth: the allocation counter is live in this binary (test_main.cpp includes the operator overrides).
@@ -359,6 +359,8 @@ namespace {
 
 /// R-11 split (plan §12; T027, 2026-10-24): shard `shard` of `shards` takes the presets whose index % shards == shard.
 /// Every shard prints its own wall-clock line and checks it against kRtGuardSecondsBar.
+/// 16 shards since Profundum Phase 14 G7 (2026-10-26): 8 read 10.1-11.5 s alone (above 60 % of the bar) and
+/// 17.4-23.1 s inside the 30-worker run-gate pool, with no engine change since the green G6 gate.
 void runRenderGuardShard(std::size_t shard, std::size_t shards) {
     enableFTZDAZ();
     const auto t0 = std::chrono::steady_clock::now();
@@ -410,14 +412,22 @@ void runRenderGuardShard(std::size_t shard, std::size_t shards) {
 
 }  // namespace
 
-TEST_CASE("Profundum_PresetRenderGuard_0of8", "[profundum][preset][rt]") { runRenderGuardShard(0, 8); }
-TEST_CASE("Profundum_PresetRenderGuard_1of8", "[profundum][preset][rt]") { runRenderGuardShard(1, 8); }
-TEST_CASE("Profundum_PresetRenderGuard_2of8", "[profundum][preset][rt]") { runRenderGuardShard(2, 8); }
-TEST_CASE("Profundum_PresetRenderGuard_3of8", "[profundum][preset][rt]") { runRenderGuardShard(3, 8); }
-TEST_CASE("Profundum_PresetRenderGuard_4of8", "[profundum][preset][rt]") { runRenderGuardShard(4, 8); }
-TEST_CASE("Profundum_PresetRenderGuard_5of8", "[profundum][preset][rt]") { runRenderGuardShard(5, 8); }
-TEST_CASE("Profundum_PresetRenderGuard_6of8", "[profundum][preset][rt]") { runRenderGuardShard(6, 8); }
-TEST_CASE("Profundum_PresetRenderGuard_7of8", "[profundum][preset][rt]") { runRenderGuardShard(7, 8); }
+TEST_CASE("Profundum_PresetRenderGuard_0of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(0, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_1of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(1, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_2of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(2, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_3of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(3, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_4of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(4, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_5of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(5, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_6of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(6, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_7of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(7, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_8of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(8, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_9of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(9, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_10of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(10, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_11of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(11, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_12of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(12, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_13of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(13, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_14of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(14, 16); }
+TEST_CASE("Profundum_PresetRenderGuard_15of16", "[profundum][preset][rt][wallclock]") { runRenderGuardShard(15, 16); }
 
 TEST_CASE("Profundum_PresetLoadUnderHeldNote", "[profundum][preset][rt]") {
     enableFTZDAZ();

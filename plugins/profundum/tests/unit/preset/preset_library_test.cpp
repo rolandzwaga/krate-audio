@@ -74,7 +74,7 @@ CategoryVocabulary buildCategoryVocabulary() {
     auto& ctl = *fixture->controller;
 
     const Steinberg::int32 count = ctl.getParameterCount();
-    REQUIRE(count == 84);
+    REQUIRE(count == 95);
     for (Steinberg::int32 i = 0; i < count; ++i) {
         Steinberg::Vst::ParameterInfo info{};
         REQUIRE(ctl.getParameterInfo(i, info) == Steinberg::kResultOk);
@@ -115,16 +115,17 @@ bool categoryNamePasses(const CategoryVocabulary& vocab, std::string_view name) 
 
 // T009 (FR-001; C-1; plan 4.2).
 TEST_CASE("Profundum_PresetCategoryConfig", "[profundum][preset]") {
-    const std::vector<std::string> expected{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"};
+    const std::vector<std::string> expected{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated", "Kicks"};
     const Krate::Plugins::PresetManagerConfig config = ::Profundum::makeProfundumPresetConfig();
 
-    REQUIRE(config.subcategoryNames.size() == 6);
+    REQUIRE(config.subcategoryNames.size() == 7);   // Phase 14b: Kicks
     CHECK(config.subcategoryNames[0] == "Sub");
     CHECK(config.subcategoryNames == expected);
     CHECK(config.pluginName == "Profundum");
     CHECK(config.pluginCategoryDesc == "Synth");
 
-    const std::vector<std::string> expectedTabs{"All", "Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"};
+    const std::vector<std::string> expectedTabs{"All",     "Sub",      "Resonant", "Harmonic",
+                                                "Driven",  "Plucked",  "Animated", "Kicks"};
     CHECK(::Profundum::makeProfundumPresetTabLabels() == expectedTabs);
 
     REQUIRE(::Profundum::PresetDefs::kCategories.size() == config.subcategoryNames.size());
@@ -240,7 +241,7 @@ TEST_CASE("Profundum_PresetHostDrive", "[profundum][preset]") {
     const DecodedPresetState d = decodePresetState(comp);
     REQUIRE(d.ok);
     CHECK(d.version == 3);
-    CHECK(d.bytes == 574);
+    CHECK(d.bytes == 626);   // Phase 15 (Phase 14: 610)
     CHECK(d.morph.editTarget == 0);
     // Seed step non-vacuity: without the step-6 patch the seed would read 0xB455.
     CHECK(d.seed == 0x1234u);
@@ -369,7 +370,8 @@ TEST_CASE("Profundum_GeneratorSmoke", "[profundum][preset]") {
     INFO("why: " << why);
     REQUIRE(ok);
     CHECK(written == pd::allPresets().size());
-    CHECK(written == 58u);   // T024 (SC-010): the whole library
+    CHECK(written == 73u);   // T024 (SC-010): the whole library; Phase 14 T023 adds two (59-60), Phase 14b eleven kicks,
+                             // Phase 15 two (72-73)
     for (const std::string_view category : pd::kCategories) {
         INFO("category " << category);
         CHECK(std::filesystem::is_directory(first.path / std::string(category)));
@@ -690,6 +692,373 @@ struct DrViolation {
     ProfundumPluginTest::DecodedPresetState decoded;
 };
 
+// -----------------------------------------------------------------------------
+// Phase 14 T023 (FR-042, FR-063, FR-046 / P-9; SC-018): the Morph Mod library rules
+// -----------------------------------------------------------------------------
+
+namespace mme = ProfundumPluginTest::morph_mod_evidence;
+using MmMod = ProfundumPluginTest::DecodedPresetState::MorphMod;
+
+// FR-042: the stored C-10 block holds every field inside its C-12 range; every float finite and inside its law box.
+std::string mmRuleLawBox(const ProfundumPluginTest::DecodedPresetState& d) {
+    const MmMod& m = d.morphMod;
+    if (!m.present) {
+        return "no Morph Mod block in the Comp";
+    }
+    if (m.source < 0 || m.source >= ::Profundum::kNumMorphModSources) {
+        return "Morph Mod Source " + std::to_string(m.source) + " outside [0, 4]";
+    }
+    if (m.cycleShape < 0 || m.cycleShape >= ::Profundum::kNumMorphCycleShapes) {
+        return "Morph Cycle Shape " + std::to_string(m.cycleShape) + " outside [0, 5]";
+    }
+    if (m.cycleSync != 0 && m.cycleSync != 1) {
+        return "Morph Cycle Sync " + std::to_string(m.cycleSync) + " not in {0, 1}";
+    }
+    static_assert(Krate::DSP::kNoteValueDropdownCount == 30, "FR-042: Sync Rate index in [0, 29]");
+    if (m.cycleSyncRate < 0 || m.cycleSyncRate >= Krate::DSP::kNoteValueDropdownCount) {
+        return "Morph Cycle Sync Rate " + std::to_string(m.cycleSyncRate) + " outside [0, 29]";
+    }
+    struct MmField {
+        const char* name;
+        float value;
+        const ::Profundum::PlainLaw* law;
+    };
+    namespace pf = ::Profundum;
+    const std::array<MmField, 5> fields{
+        {{.name = "Morph Mod Amount", .value = m.amount, .law = &pf::kMorphModAmountLaw},
+         {.name = "Morph Env Attack", .value = m.attackMs, .law = &pf::kMorphModTimeLaw},
+         {.name = "Morph Env Decay", .value = m.decayMs, .law = &pf::kMorphModTimeLaw},
+         {.name = "Morph Env Sustain", .value = m.sustain, .law = &pf::kMorphModSustainLaw},
+         {.name = "Morph Cycle Rate", .value = m.cycleRateHz, .law = &pf::kMorphModRateLaw}}};
+    for (const MmField& f : fields) {
+        if (!Krate::DSP::detail::isFinite(f.value)) {
+            return std::string(f.name) + " is not finite";
+        }
+        const auto v = static_cast<double>(f.value);
+        if (v < f.law->lo || v > f.law->hi) {
+            return std::string(f.name) + " " + drNum(v) + " outside [" + drNum(f.law->lo) + ", " +
+                   drNum(f.law->hi) + "]";
+        }
+    }
+    return {};
+}
+
+// FR-042 / C-14: a preset storing Source != Off claims no single-state column (a claim whose showcase plan at Morph
+// Position 0.5 records the "kMorphPositionId=0" override, Phase 13 P-3; the probe's singleState rule).
+std::string mmRuleSingleStateSource(const pd::ProfundumPresetDef& def,
+                                    const ProfundumPluginTest::DecodedPresetState& d) {
+    if (d.morphMod.source == 0) {
+        return {};
+    }
+    ProfundumPluginTest::DecodedPresetState q = d;
+    q.morph.position = 0.5f;
+    for (const pd::Capability c : drClaims(def)) {
+        if (c == pd::Capability::Count) {
+            continue;   // rule 10's point
+        }
+        const ProfundumPluginTest::ShowcasePlan plan = ProfundumPluginTest::showcaseArmPlan(q, c);
+        if (std::find(plan.overrides.begin(), plan.overrides.end(), "kMorphPositionId=0") != plan.overrides.end()) {
+            return drLabel(c) + " is single-state but the preset stores Morph Mod Source " +
+                   std::to_string(d.morphMod.source);
+        }
+    }
+    return {};
+}
+
+/// "M-ENV" .. "M-WHEEL" for a MorphMod column; "" otherwise.
+[[nodiscard]] std::string mmColumnId(pd::Capability c) {
+    const int i = mme::mmColumnIndex(c);
+    return i < 0 ? std::string{} : std::string(mme::kMmColumnIds[static_cast<std::size_t>(i)]);
+}
+
+[[nodiscard]] bool mmIsMorphModColumn(pd::Capability c) {
+    const auto i = static_cast<std::size_t>(c);
+    return i < pd::kNumCapabilities && pd::capabilityTable()[i].group == pd::CapabilityGroup::MorphMod;
+}
+
+/// The claims of a definition as the pre-phase harvest wrote them: the primary label, the secondary labels sorted and
+/// joined by ';' (morph_mod_preset_test.cpp mmClaimsCsv).
+[[nodiscard]] std::pair<std::string, std::string> mmClaimLabels(const pd::ProfundumPresetDef& def) {
+    std::vector<std::string> secondaries;
+    secondaries.reserve(def.secondaries.size());
+    for (const pd::Capability c : def.secondaries) {
+        secondaries.push_back(drLabel(c));
+    }
+    std::sort(secondaries.begin(), secondaries.end());
+    std::string joined;
+    for (std::size_t i = 0; i < secondaries.size(); ++i) {
+        if (i > 0) {
+            joined += ';';
+        }
+        joined += secondaries[i];
+    }
+    return {drLabel(def.primary), joined};
+}
+
+/// One pre-phase claims row (evidence/prephase-claims.csv).
+struct MmPrePhaseClaim {
+    std::string primary;
+    std::string secondaries;
+};
+
+/// evidence/prephase-claims.csv keyed by preset name; ok false (with why) on a missing or malformed file.
+[[nodiscard]] bool mmReadPrePhaseClaims(std::map<std::string, MmPrePhaseClaim>& out, std::string& why) {
+    const mme::MmCsv csv = mme::mmReadCsv(mme::mmEvidenceDir() / "prephase-claims.csv");
+    if (!csv.ok) {
+        why = csv.why;
+        return false;
+    }
+    const int name = csv.col("name");
+    const int primary = csv.col("primaryLabel");
+    const int secondaries = csv.col("secondaryLabels");
+    if (name < 0 || primary < 0 || secondaries < 0) {
+        why = "prephase-claims.csv: header lacks name / primaryLabel / secondaryLabels";
+        return false;
+    }
+    for (const std::vector<std::string>& r : csv.rows) {
+        if (r.size() != csv.header.size()) {
+            why = "prephase-claims.csv: a row has " + std::to_string(r.size()) + " fields";
+            return false;
+        }
+        const auto at = [&r](int c) { return r[static_cast<std::size_t>(c)]; };
+        if (!out.emplace(at(name), MmPrePhaseClaim{.primary = at(primary), .secondaries = at(secondaries)}).second) {
+            why = "prephase-claims.csv: preset \"" + at(name) + "\" appears twice";
+            return false;
+        }
+    }
+    return true;
+}
+
+// ---- plan 5.7 steps 2-4 re-derived from evidence/probe-morphmod.csv (evidence/probe/select.js, the same rules) ----
+
+/// One candidate: the (preset, column, nine C-10 fields) of a probe row, with its E1 and C3 rows.
+struct MmSelCandidate {
+    std::string preset;
+    int def = 0;
+    std::string column;
+    std::size_t order = 0;   // first appearance in the probe file
+    const mme::MmProbeRow* e1 = nullptr;
+    const mme::MmProbeRow* c3 = nullptr;
+    bool carriable = false;
+    double margin = 0.0;   // min(contrast_E1, contrast_C3) - 3 dB
+};
+
+struct MmSelPreset {
+    std::string name;
+    int def = 0;
+    std::string primary;
+    bool single = false;
+};
+
+// NOLINTNEXTLINE(bugprone-exception-escape) -- implicit special members of std::map/std::string members; test-only value type
+struct MmSelection {
+    bool ok = false;
+    std::string why;
+    std::vector<MmSelCandidate> candidates;
+    std::map<std::string, std::size_t> converted;   // preset name -> winning candidate index
+    std::map<std::string, std::size_t> newPreset;   // column id -> the best probe row's candidate (NEW PRESET NEEDED)
+    std::vector<std::string> stops;                 // columns with no carriable candidate in any preset (FR-023)
+};
+
+/// select.js on the parsed probe: carriable = some candidate passes at both notes; a (preset, column)'s carrier is its
+/// best-margin candidate (ties: file order); eligible = !singleState, not converted yet, and the preset's primary keeps
+/// >= 1 other primary; rule PerColumn = (i), EveryCarrier = (ii); a preset converts at most once; a column left without
+/// a conversion names its best carriable candidate (ties: definition order, then file order) as the new preset's base.
+[[nodiscard]] MmSelection mmSelect(const mme::MmProbe& probe, pd::MorphModConversionRule rule) {
+    MmSelection s;
+    std::vector<MmSelPreset> presets;
+    std::map<std::string, std::size_t> presetIndex;
+    std::map<std::string, std::size_t> candidateIndex;
+    for (const mme::MmProbeRow& r : probe.rows) {
+        const auto pit = presetIndex.find(r.preset);
+        if (pit == presetIndex.end()) {
+            presetIndex.emplace(r.preset, presets.size());
+            presets.push_back(
+                MmSelPreset{.name = r.preset, .def = r.defIndex, .primary = r.primary, .single = r.singleState});
+        } else {
+            const MmSelPreset& p = presets[pit->second];
+            if (p.def != r.defIndex || p.primary != r.primary || p.single != r.singleState) {
+                s.why = "line " + std::to_string(r.line) + ": preset \"" + r.preset +
+                        "\" changes defIndex / primary / singleState between rows";
+                return s;
+            }
+        }
+        std::string key = r.preset + '|' + r.column;
+        for (const std::string& f : r.fieldText) {
+            key += '|';
+            key += f;
+        }
+        std::size_t k = 0;
+        const auto cit = candidateIndex.find(key);
+        if (cit == candidateIndex.end()) {
+            k = s.candidates.size();
+            candidateIndex.emplace(key, k);
+            s.candidates.push_back(
+                MmSelCandidate{.preset = r.preset, .def = r.defIndex, .column = r.column, .order = k});
+        } else {
+            k = cit->second;
+        }
+        MmSelCandidate& c = s.candidates[k];
+        const mme::MmProbeRow** slot = nullptr;
+        if (r.note == "E1")
+            slot = &c.e1;
+        else if (r.note == "C3")
+            slot = &c.c3;
+        if (slot == nullptr) {
+            s.why = "line " + std::to_string(r.line) + ": unknown note \"" + r.note + "\"";
+            return s;
+        }
+        if (*slot != nullptr) {
+            s.why = "line " + std::to_string(r.line) + ": a second " + r.note + " row for candidate " + key;
+            return s;
+        }
+        *slot = &r;
+    }
+    // Plan 10: evidence/gate-exclusions.csv (preset, column, gate, reading) names each (P, X) a Phase 13 gate measured
+    // red; its candidates are not carriable (select.js does the same).
+    std::set<std::string> excluded;
+    {
+        const mme::MmCsv ex = mme::mmReadCsv(mme::mmEvidenceDir() / "gate-exclusions.csv");
+        if (!ex.ok || ex.col("preset") != 0 || ex.col("column") != 1 || ex.col("gate") != 2 || ex.col("reading") != 3) {
+            s.why = "evidence/gate-exclusions.csv: " + (ex.ok ? std::string("bad header") : ex.why);
+            return s;
+        }
+        for (const std::vector<std::string>& r : ex.rows) {
+            if (r.size() != 4u || r[2].empty() || r[3].empty()) {
+                s.why = "evidence/gate-exclusions.csv: a row without its gate and reading";
+                return s;
+            }
+            excluded.insert(r[0] + '|' + r[1]);
+        }
+    }
+    std::map<std::string, std::size_t> perPreset;
+    for (MmSelCandidate& c : s.candidates) {
+        if (c.e1 == nullptr || c.c3 == nullptr) {
+            s.why = "candidate " + c.preset + " " + c.column + " lacks its E1 or C3 row";
+            return s;
+        }
+        c.carriable = c.e1->pass && c.c3->pass && !excluded.contains(c.preset + '|' + c.column);
+        c.margin = std::min(c.e1->contrast, c.c3->contrast) - 3.0;
+        ++perPreset[c.preset];
+    }
+    for (const MmSelPreset& p : presets) {
+        if (perPreset[p.name] != 16u) {
+            s.why = "preset \"" + p.name + "\" has " + std::to_string(perPreset[p.name]) + " candidates, expected 16";
+            return s;
+        }
+    }
+
+    // Step 2: each (preset, column)'s best carriable candidate.
+    std::map<std::string, std::size_t> carrier;
+    for (std::size_t k = 0; k < s.candidates.size(); ++k) {
+        const MmSelCandidate& c = s.candidates[k];
+        if (!c.carriable) {
+            continue;
+        }
+        const std::string key = c.preset + '|' + c.column;
+        const auto it = carrier.find(key);
+        if (it == carrier.end()) {
+            carrier.emplace(key, k);
+            continue;
+        }
+        const MmSelCandidate& cur = s.candidates[it->second];
+        if (c.margin > cur.margin || (c.margin == cur.margin && c.order < cur.order)) {
+            it->second = k;
+        }
+    }
+    const auto byMarginThenDef = [&s](std::size_t a, std::size_t b) {
+        const MmSelCandidate& x = s.candidates[a];
+        const MmSelCandidate& y = s.candidates[b];
+        return x.margin > y.margin || (x.margin == y.margin && x.def < y.def);
+    };
+    const auto carriersOf = [&](std::string_view column) {
+        std::vector<std::size_t> out;
+        for (const auto& [key, k] : carrier) {
+            if (s.candidates[k].column == column) {
+                out.push_back(k);
+            }
+        }
+        std::stable_sort(out.begin(), out.end(), byMarginThenDef);
+        return out;
+    };
+
+    // Steps 3-4.
+    std::map<std::string, int> primaryCount;
+    for (const MmSelPreset& p : presets) {
+        ++primaryCount[p.primary];
+    }
+    const auto presetOf = [&](std::size_t k) -> const MmSelPreset& {
+        return presets[presetIndex.at(s.candidates[k].preset)];
+    };
+    const auto eligible = [&](const MmSelPreset& p) {
+        return !p.single && !s.converted.contains(p.name) && primaryCount[p.primary] >= 2;
+    };
+    const auto convert = [&](std::size_t k) {
+        const MmSelPreset& p = presetOf(k);
+        s.converted.emplace(p.name, k);
+        --primaryCount[p.primary];
+    };
+    if (rule == pd::MorphModConversionRule::PerColumn) {
+        for (const char* x : mme::kMmColumnIds) {
+            for (const std::size_t k : carriersOf(x)) {
+                if (eligible(presetOf(k))) {
+                    convert(k);
+                    break;
+                }
+            }
+        }
+    } else {
+        std::vector<std::size_t> bestOf;
+        for (const MmSelPreset& p : presets) {
+            bool any = false;
+            std::size_t best = 0;
+            for (const char* x : mme::kMmColumnIds) {
+                const auto it = carrier.find(p.name + '|' + x);
+                if (it != carrier.end() && (!any || s.candidates[it->second].margin > s.candidates[best].margin)) {
+                    best = it->second;
+                    any = true;
+                }
+            }
+            if (any) {
+                bestOf.push_back(best);
+            }
+        }
+        std::stable_sort(bestOf.begin(), bestOf.end(), byMarginThenDef);
+        for (const std::size_t k : bestOf) {
+            if (eligible(presetOf(k))) {
+                convert(k);
+            }
+        }
+    }
+
+    for (const char* x : mme::kMmColumnIds) {
+        bool hasConversion = false;
+        for (const auto& [name, k] : s.converted) {
+            hasConversion = hasConversion || s.candidates[k].column == x;
+        }
+        if (hasConversion) {
+            continue;
+        }
+        std::vector<std::size_t> list = carriersOf(x);
+        if (list.empty()) {
+            s.stops.emplace_back(x);
+            continue;
+        }
+        std::stable_sort(list.begin(), list.end(), [&s, &byMarginThenDef](std::size_t a, std::size_t b) {
+            if (byMarginThenDef(a, b)) {
+                return true;
+            }
+            if (byMarginThenDef(b, a)) {
+                return false;
+            }
+            return s.candidates[a].order < s.candidates[b].order;
+        });
+        s.newPreset.emplace(x, list.front());
+    }
+    s.ok = true;
+    return s;
+}
+
 }  // namespace
 
 TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
@@ -698,6 +1067,8 @@ TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
 
     // Rules 1-4, 6-10 on every library definition, built through the C-4 drive and decoded.
     std::vector<std::string> flagged;
+    std::vector<ProfundumPluginTest::DecodedPresetState> decoded;   // Phase 14: one per definition, in order
+    decoded.reserve(defs.size());
     for (const pd::ProfundumPresetDef& def : defs) {
         const ProfundumPluginTest::DecodedPresetState d = drDecodeOf(def);
         for (const DrNamedRule& r : drRules()) {
@@ -705,16 +1076,168 @@ TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
             INFO("preset " << def.name << ", rule " << r.number << ": " << why);
             CHECK(why.empty());
         }
+        // Phase 14 FR-042: the stored C-10 block inside its law box; no single-state claimant stores Source != Off.
+        {
+            const std::string law = mmRuleLawBox(d);
+            INFO("preset " << def.name << ", FR-042 law box: " << law);
+            CHECK(law.empty());
+            const std::string single = mmRuleSingleStateSource(def, d);
+            INFO("preset " << def.name << ", FR-042 single-state: " << single);
+            CHECK(single.empty());
+        }
         // Rule 5 (C-9): the fundamentalLossFlagged set is printed; the [.listen] case measures each member.
         if (ProfundumPluginTest::fundamentalLossFlagged(d)) {
             flagged.emplace_back(def.name);
         }
+        decoded.push_back(d);
     }
     std::cout << "# Profundum_PresetDefsRules: presets=" << defs.size() << " fundamentalLossFlagged=" << flagged.size();
     for (const std::string& n : flagged) {
         std::cout << " \"" << n << '"';
     }
     std::cout << '\n' << std::flush;
+
+    // ---- Phase 14 FR-063: every stored-Off definition keeps its pre-phase claims ----
+    std::map<std::string, MmPrePhaseClaim> prePhase;
+    {
+        std::string why;
+        const bool read = mmReadPrePhaseClaims(prePhase, why);
+        INFO("evidence/prephase-claims.csv: " << why);
+        REQUIRE(read);
+        REQUIRE(!prePhase.empty());
+    }
+    std::string conversionsMd;
+    {
+        bool read = false;
+        conversionsMd = mme::mmReadText(mme::mmEvidenceDir() / "conversions.md", read);
+        INFO("evidence/conversions.md");
+        REQUIRE(read);
+    }
+    std::map<std::string, std::string> libConverted;   // a pre-phase definition now primary in a MorphMod column
+    std::vector<std::size_t> added;                    // definitions with no pre-phase row
+    std::size_t kicks = 0;                             // Phase 14b: the Kicks category, added after Phase 14
+    std::size_t coreTone = 0;                          // Phase 15: the S-STIFF / S-PHASE showcases
+    for (std::size_t i = 0; i < defs.size(); ++i) {
+        const pd::ProfundumPresetDef& def = defs[i];
+        const ProfundumPluginTest::DecodedPresetState& d = decoded[i];
+        const std::string name(def.name);
+        const auto [primary, secondaries] = mmClaimLabels(def);
+        INFO("preset " << name << ": primary \"" << primary << "\", secondaries \"" << secondaries << "\", Source "
+                       << d.morphMod.source);
+        if (def.category == "Kicks") {
+            // Phase 14b (specs/Profundum-roadmap.md): no pre-phase row, Source Off, a Phase 13 primary.
+            ++kicks;
+            CHECK_FALSE(prePhase.contains(name));
+            CHECK(def.morphModProbeBase.empty());
+            CHECK(d.morphMod.source == 0);
+            CHECK(!mmIsMorphModColumn(def.primary));
+            continue;
+        }
+        if (pd::capabilityTable()[static_cast<std::size_t>(def.primary)].group == pd::CapabilityGroup::CoreTone) {
+            // Phase 15 (specs/Profundum-roadmap.md): no pre-phase row, Source Off, an S-STIFF / S-PHASE primary.
+            ++coreTone;
+            CHECK_FALSE(prePhase.contains(name));
+            CHECK(def.morphModProbeBase.empty());
+            CHECK(d.morphMod.source == 0);
+            continue;
+        }
+        const auto row = prePhase.find(name);
+        if (row == prePhase.end()) {
+            // An added preset: a MorphMod primary that conversions.md lists as NEW PRESET NEEDED on the probe's base.
+            added.push_back(i);
+            const std::string column = mmColumnId(def.primary);
+            CHECK(mmIsMorphModColumn(def.primary));
+            CHECK(!def.morphModProbeBase.empty());
+            const std::string marker = "**" + column + ": NEW PRESET NEEDED.** Best probe row: base preset " +
+                                       std::string(def.morphModProbeBase) + " (defIndex";
+            INFO("conversions.md must hold: " << marker);
+            CHECK(conversionsMd.find(marker) != std::string::npos);
+            continue;
+        }
+        CHECK(def.morphModProbeBase.empty());   // only an added preset names a probe base
+        if (d.morphMod.source == 0) {
+            CHECK(row->second.primary == primary);
+            CHECK(row->second.secondaries == secondaries);
+            CHECK(!mmIsMorphModColumn(def.primary));
+            continue;
+        }
+        // A converted preset (plan 5.7 step 5): primary moved to a MorphMod column, the old primary not re-claimed,
+        // the secondaries unchanged.
+        CHECK(mmIsMorphModColumn(def.primary));
+        CHECK(row->second.secondaries == secondaries);
+        CHECK(row->second.primary != primary);
+        for (const pd::Capability c : def.secondaries) {
+            CHECK(drLabel(c) != row->second.primary);
+        }
+        libConverted.emplace(name, mmColumnId(def.primary));
+    }
+    for (const auto& entry : prePhase) {
+        const std::string& name = entry.first;
+        INFO("pre-phase row \"" << name << "\" (" << entry.second.primary << ")");
+        CHECK(std::any_of(defs.begin(), defs.end(),
+                          [&name](const pd::ProfundumPresetDef& def) { return def.name == name; }));
+    }
+
+    // ---- Phase 14 P-9 (FR-046, SC-018): the converted set is kMorphModConversionRule applied to the probe ----
+    static_assert(pd::kMorphModConversionRule == pd::MorphModConversionRule::EveryCarrier,
+                  "R4 (evidence/plan-rulings.md, user 2026-10-26): rule (ii), every eligible carrier converts");
+    const mme::MmProbe& probe = mme::mmProbe();
+    INFO("evidence/probe-morphmod.csv: " << probe.why);
+    REQUIRE(probe.ok);
+    const MmSelection sel = mmSelect(probe, pd::kMorphModConversionRule);
+    INFO("selection: " << sel.why);
+    REQUIRE(sel.ok);
+    CHECK(sel.stops.empty());   // FR-023: every column has a passing candidate somewhere
+    std::map<std::string, std::string> selConverted;
+    for (const auto& [name, k] : sel.converted) {
+        selConverted.emplace(name, sel.candidates[k].column);
+    }
+    {
+        std::string lib;
+        std::string want;
+        for (const auto& [n, c] : libConverted) {
+            lib.append(" ").append(n).append(" -> ").append(c).append(";");
+        }
+        for (const auto& [n, c] : selConverted) {
+            want.append(" ").append(n).append(" -> ").append(c).append(";");
+        }
+        INFO("library:" << lib << "\nprobe rule (ii):" << want);
+        CHECK(libConverted == selConverted);
+    }
+    for (std::size_t i = 0; i < defs.size(); ++i) {
+        const std::string name(defs[i].name);
+        const auto it = sel.converted.find(name);
+        if (it == sel.converted.end()) {
+            continue;
+        }
+        // The winning candidate's nine fields are the stored ones (through the 1003-1011 laws).
+        const MmMod& want = sel.candidates[it->second].e1->mod;
+        INFO("converted " << name << ": stored Source " << decoded[i].morphMod.source << " Amount "
+                          << decoded[i].morphMod.amount << "; winning Source " << want.source << " Amount "
+                          << want.amount);
+        CHECK(mme::mmSameSettings(decoded[i].morphMod, want));
+    }
+    std::set<std::string> addedColumns;
+    for (const std::size_t i : added) {
+        const pd::ProfundumPresetDef& def = defs[i];
+        const std::string column = mmColumnId(def.primary);
+        INFO("added " << def.name << " (" << column << ", base " << def.morphModProbeBase << ")");
+        CHECK(addedColumns.insert(column).second);   // one new preset per column
+        const auto it = sel.newPreset.find(column);
+        REQUIRE(it != sel.newPreset.end());   // the column has no eligible carrier (FR-046)
+        const MmSelCandidate& best = sel.candidates[it->second];
+        CHECK(std::string(def.morphModProbeBase) == best.preset);
+        CHECK(mme::mmSameSettings(decoded[i].morphMod, best.e1->mod));
+    }
+    CHECK(addedColumns.size() == sel.newPreset.size());
+    CHECK(kicks == 11u);
+    CHECK(coreTone == 2u);
+    const MmSelection ruleI = mmSelect(probe, pd::MorphModConversionRule::PerColumn);   // comparison only
+    std::cout << "# Profundum_PresetDefsRules: Phase 14 library size=" << defs.size()
+              << " converted=" << libConverted.size() << " added=" << added.size()
+              << " (probe rule (ii): " << sel.converted.size() << " conversions, " << sel.newPreset.size()
+              << " new; rule (i) would convert " << ruleI.converted.size() << ")\n"
+              << std::flush;
 
     // ---- non-vacuity: the base holds every rule; one test-local def per rule fails that rule's predicate ----
     const pd::ProfundumPresetDef base = drBaseDef();
@@ -812,6 +1335,41 @@ TEST_CASE("Profundum_PresetDefsRules", "[profundum][preset]") {
         off.a.anchor.level = 0.5f;   // Anchor Level >= 0.25 keeps the fundamental
         CHECK_FALSE(ProfundumPluginTest::fundamentalLossFlagged(off));
         CHECK_FALSE(ProfundumPluginTest::fundamentalLossFlagged(baseD));
+    }
+
+    // Phase 14 FR-042 non-vacuity: the C-4 drive carries 1003-1011 (Source Envelope, Amount +0.6), the base holds
+    // both predicates, an AT-11 claim (single-state) with that source fails, and planted out-of-box / non-finite
+    // fields fail.
+    {
+        pd::ProfundumPresetDef env = drBaseDef();
+        env.controls.push_back({.id = ::Profundum::kMorphModSourceId, .normalized = 0.25});   // Envelope (1 / 4)
+        env.controls.push_back({.id = ::Profundum::kMorphModAmountId, .normalized = 0.8});    // Amount +0.6
+        const ProfundumPluginTest::DecodedPresetState envD = drDecodeOf(env);
+        REQUIRE(envD.morphMod.present);
+        CHECK(envD.morphMod.source == 1);
+        CHECK(std::abs(static_cast<double>(envD.morphMod.amount) - 0.6) <= 1.0e-6);
+        CHECK(mmRuleLawBox(baseD).empty());
+        CHECK(mmRuleLawBox(envD).empty());
+        CHECK(mmRuleSingleStateSource(env, envD).empty());
+        pd::ProfundumPresetDef single = env;
+        single.secondaries = {pd::Capability::AT11};
+        INFO("single-state claimant with Source Envelope: \"" << mmRuleSingleStateSource(single, envD) << "\"");
+        CHECK(!mmRuleSingleStateSource(single, envD).empty());
+        CHECK(mmRuleSingleStateSource(single, baseD).empty());   // Source Off: the claim is allowed
+
+        ProfundumPluginTest::DecodedPresetState bad = envD;
+        bad.morphMod.source = 5;
+        CHECK(!mmRuleLawBox(bad).empty());
+        bad = envD;
+        bad.morphMod.cycleSyncRate = 30;
+        CHECK(!mmRuleLawBox(bad).empty());
+        bad = envD;
+        bad.morphMod.amount = 1.5f;
+        CHECK(!mmRuleLawBox(bad).empty());
+        bad = envD;
+        volatile std::uint32_t nanBits = 0x7FC00000u;
+        bad.morphMod.decayMs = std::bit_cast<float>(static_cast<std::uint32_t>(nanBits));
+        CHECK(!mmRuleLawBox(bad).empty());
     }
 }
 
@@ -1070,10 +1628,10 @@ struct LibInfoAttr {
 
 }  // namespace
 
-// SC-001 (FR-001, FR-002): the directory set equals the six names both ways; only *.vstpreset files, each directly
+// SC-001 (FR-001, FR-002): the directory set equals the seven names (Phase 14b: Kicks) both ways; only *.vstpreset files, each directly
 // inside one category directory; 0 stray files (no .gitkeep).
 TEST_CASE("Profundum_PresetCategoriesMatchFilesystem", "[profundum][preset]") {
-    const std::set<std::string> kSix{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"};
+    const std::set<std::string> kSix{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated", "Kicks"};
     const libfs::path root = libPresetsRoot();
     INFO("presets root: " << root.string());
     std::error_code ec;
@@ -1197,7 +1755,7 @@ TEST_CASE("Profundum_FactoryLibraryShape", "[profundum][preset]") {
     REQUIRE(Krate::Plugins::PresetManager::isValidPresetName("Mono Bedrock"));
 
     const std::vector<pd::ProfundumPresetDef>& defs = pd::allPresets();
-    CHECK(pd::kCategories.size() == 6u);
+    CHECK(pd::kCategories.size() == 7u);   // Phase 14b: Kicks
     std::map<std::string, std::size_t> perCategory;
     for (const std::string_view c : pd::kCategories) {
         perCategory[std::string(c)] = 0;
@@ -1212,13 +1770,17 @@ TEST_CASE("Profundum_FactoryLibraryShape", "[profundum][preset]") {
         CHECK(names.insert(name).second);
         CHECK(Krate::Plugins::PresetManager::isValidPresetName(name));
     }
-    CHECK(perCategory.size() == 6u);
+    CHECK(perCategory.size() == 7u);
     for (const auto& [category, n] : perCategory) {
         INFO("category " << category);
         CHECK(n >= 3u);
     }
     CHECK(defs.size() >= 53u);
-    CHECK(defs.size() == 58u);
+    // Phase 14 T023 (FR-046, SC-018): 58 + the two presets added for M-CYCLE and M-VEL, which no existing preset could
+    // carry (evidence/conversions.md, NEW PRESET NEEDED rows; Long Tail carries M-WHEEL, evidence/gate-exclusions.csv).
+    // Phase 14b: + the eleven presets of the Kicks category (definitions 61-71). Phase 15: + Stiff Wire and Phase Bite
+    // (definitions 72-73), the S-STIFF and S-PHASE showcases.
+    CHECK(defs.size() == 73u);
 
     // The committed tree has the same shape.
     std::map<std::string, std::size_t> perDir;
@@ -1234,7 +1796,7 @@ TEST_CASE("Profundum_FactoryLibraryShape", "[profundum][preset]") {
     }
 }
 
-// SC-004 (FR-006, FR-008, FR-047, FR-049): every Comp is v3, 574 bytes, all floats finite, Edit Target A, the runtime
+// SC-004 (FR-006, FR-008, FR-047, FR-049): every Comp is v3, 610 bytes (Phase 14), all floats finite, Edit Target A, the runtime
 // target and ramped position at the stored Morph Position, the declared seed.
 TEST_CASE("Profundum_FactoryPresetStateFormat", "[profundum][preset]") {
     // Non-vacuity: the finiteness sweep sees a NaN planted in a decoded field.
@@ -1259,8 +1821,16 @@ TEST_CASE("Profundum_FactoryPresetStateFormat", "[profundum][preset]") {
         const ProfundumPluginTest::DecodedPresetState d = ProfundumPluginTest::decodePresetState(pf.comp);
         CHECK(d.ok);
         CHECK(d.version == 3);
-        CHECK(d.bytes == 574u);
-        CHECK(pf.comp.size() == 574u);
+        // Phase 14 T024 (SC-007, FR-061): 610 bytes (kStateV3Bytes, plugin_ids.h) and the first int32 read straight
+        // from the bytes (little-endian) as the literal 3, not through the version symbol.
+        static_assert(::Profundum::kStateV3Bytes == 626u, "SC-007: every factory Comp is 626 bytes (Phase 15; Phase 14: 610)");
+        CHECK(d.bytes == ::Profundum::kStateV3Bytes);
+        CHECK(pf.comp.size() == ::Profundum::kStateV3Bytes);
+        REQUIRE(pf.comp.size() >= 4u);
+        const auto firstWord = static_cast<std::int32_t>(
+            static_cast<std::uint32_t>(pf.comp[0]) | (static_cast<std::uint32_t>(pf.comp[1]) << 8u) |
+            (static_cast<std::uint32_t>(pf.comp[2]) << 16u) | (static_cast<std::uint32_t>(pf.comp[3]) << 24u));
+        CHECK(firstWord == 3);
         const std::vector<std::string> nonFinite = libNonFiniteFields(d);
         INFO("non-finite fields:" << libJoin(nonFinite));
         CHECK(nonFinite.empty());
@@ -1309,7 +1879,14 @@ TEST_CASE("Profundum_FactoryPresetRoundTrip", "[profundum][preset]") {
 
 // SC-006 (FR-010, FR-011): 53 / 53 columns have a primary; every definition exactly one primary; AT-13 claimed on a
 // stored Rectify AND on a stored Fracture (P-2).
+// Phase 14 T023 (FR-040, SC-018): 57 columns (the four MorphMod columns appended after R-SINE), 0 empty; every one of
+// the 53 pre-existing columns still has a primary after the conversions.
 TEST_CASE("Profundum_CoverageMatrixComplete", "[profundum][preset]") {
+    static_assert(pd::kNumCapabilities == 59u, "Phase 14 FR-040: 53 Phase 13 columns + M-ENV, M-CYCLE, M-VEL, M-WHEEL; "
+                                               "Phase 15: + S-STIFF, S-PHASE");
+    static_assert(static_cast<std::size_t>(pd::Capability::MEnv) == 53u,
+                  "the MorphMod columns are appended: every Phase 13 column keeps its index");
+    constexpr std::size_t kPrePhaseColumns = 53;
     const std::vector<pd::ProfundumPresetDef>& defs = pd::allPresets();
     REQUIRE_FALSE(defs.empty());
 
@@ -1343,7 +1920,24 @@ TEST_CASE("Profundum_CoverageMatrixComplete", "[profundum][preset]") {
         CHECK(primaries[i] >= 1u);
         covered += primaries[i] >= 1u ? 1u : 0u;
     }
-    CHECK(covered == 53u);
+    CHECK(covered == pd::kNumCapabilities);   // 59, 0 empty
+    std::size_t preExisting = 0;
+    for (std::size_t i = 0; i < kPrePhaseColumns; ++i) {
+        preExisting += primaries[i] >= 1u ? 1u : 0u;
+    }
+    CHECK(preExisting == kPrePhaseColumns);   // every Phase 13 column still covered after the conversions
+    std::size_t morphMod = 0;
+    for (std::size_t i = 0; i < pd::kNumCapabilities; ++i) {
+        if (pd::capabilityTable()[i].group == pd::CapabilityGroup::MorphMod) {
+            ++morphMod;
+            INFO("MorphMod column " << pd::capabilityTable()[i].label);
+            CHECK(i >= kPrePhaseColumns);
+        }
+    }
+    CHECK(morphMod == 4u);
+    std::cout << "# Profundum_CoverageMatrixComplete: presets=" << defs.size() << " columns=" << pd::kNumCapabilities
+              << " covered=" << covered << " preExistingCovered=" << preExisting << '\n'
+              << std::flush;
     CHECK(at13Rectify);
     CHECK(at13Fracture);
 }
@@ -1450,4 +2044,70 @@ TEST_CASE("Profundum_PolyPresetCount", "[profundum][preset]") {
         CHECK(def.primary != C::AT46);
     }
     CHECK(poly >= 5u);
+}
+
+// Library breadth (2026-10-26, the designed-library pass): the factory library loads as designed sounds, not as one lever
+// over registered defaults. Counted on endpoint A, the sound a preset loads with. Before the pass: Fold 0 on 78 %, the Sine
+// Anchor on 91 %, Character Amount 0 on 61 %.
+TEST_CASE("Profundum_PresetLibraryBreadth", "[profundum][preset]") {
+    namespace pd = ::Profundum::PresetDefs;
+    using Alg = Krate::DSP::BassCharacterStage::Algorithm;
+    using Img = Krate::DSP::BassStereoField::ImageMode;
+    using AW = Krate::DSP::AnchorOscillator::Waveform;
+    using ProfundumPluginTest::decodePresetState;
+    using ProfundumPluginTest::DecodedPresetState;
+    using ProfundumPluginTest::presetCompOf;
+    constexpr double kMaxFoldOffShare = 0.30;     // Harmonic Fold 0 on at most 30 % of the library
+    constexpr double kMaxSineAnchorShare = 0.50;  // the Sine Anchor on at most half of it
+    constexpr float kCharacterOnAmount = 0.15f;   // a Character algorithm counts as used from Amount 0.15
+    constexpr std::size_t kMinPerAlgorithm = 6;
+    constexpr std::size_t kMinPerImageMode = 4;
+    constexpr std::size_t kMinPerAnchorWaveform = 4;
+
+    const std::vector<pd::ProfundumPresetDef>& defs = pd::allPresets();
+    REQUIRE(!defs.empty());
+    std::size_t foldOff = 0;
+    std::array<std::size_t, 6> perAlgorithm{};
+    std::array<std::size_t, 3> perImageMode{};
+    std::array<std::size_t, 5> perWaveform{};
+    for (const pd::ProfundumPresetDef& def : defs) {
+        const DecodedPresetState d = decodePresetState(presetCompOf(def));
+        INFO("preset " << def.name);
+        REQUIRE(d.ok);
+        foldOff += d.a.foldAmount <= 0.0f ? 1u : 0u;
+        if (d.a.characterAmount >= kCharacterOnAmount) {
+            ++perAlgorithm[static_cast<std::size_t>(d.a.characterAlgorithm)];
+        }
+        ++perImageMode[static_cast<std::size_t>(d.a.field.mode)];
+        ++perWaveform[static_cast<std::size_t>(d.a.anchor.waveform)];
+    }
+
+    const double n = static_cast<double>(defs.size());
+    const std::array<const char*, 6> algNames{"Tube", "Fold", "Rectify", "Bite", "Crush", "Fracture"};
+    const std::array<const char*, 3> imageNames{"Solid", "Spread", "Wide"};
+    const std::array<const char*, 5> waveNames{"Sine", "Triangle", "RoundedSine", "AsymmetricSine", "OctaveDownSine"};
+    std::cout << "# Profundum_PresetLibraryBreadth: presets=" << defs.size() << " fold_off=" << foldOff
+              << " sine_anchor=" << perWaveform[static_cast<std::size_t>(AW::Sine)] << '\n';
+    for (std::size_t i = 0; i < algNames.size(); ++i) {
+        std::cout << "#   character " << algNames[i] << ": " << perAlgorithm[i] << '\n';
+        INFO("Character " << algNames[i] << " at Amount >= " << kCharacterOnAmount << " on endpoint A");
+        CHECK(perAlgorithm[i] >= kMinPerAlgorithm);
+    }
+    for (std::size_t i = 0; i < imageNames.size(); ++i) {
+        std::cout << "#   image " << imageNames[i] << ": " << perImageMode[i] << '\n';
+        INFO("image mode " << imageNames[i] << " on endpoint A");
+        CHECK(perImageMode[i] >= kMinPerImageMode);
+    }
+    for (std::size_t i = 0; i < waveNames.size(); ++i) {
+        std::cout << "#   anchor " << waveNames[i] << ": " << perWaveform[i] << '\n';
+        INFO("Anchor waveform " << waveNames[i] << " on endpoint A");
+        CHECK(perWaveform[i] >= kMinPerAnchorWaveform);
+    }
+    std::cout << std::flush;
+    INFO("Harmonic Fold 0 on endpoint A: " << foldOff << " of " << defs.size());
+    CHECK(static_cast<double>(foldOff) <= kMaxFoldOffShare * n);
+    INFO("Sine Anchor on endpoint A: " << perWaveform[static_cast<std::size_t>(AW::Sine)] << " of " << defs.size());
+    CHECK(static_cast<double>(perWaveform[static_cast<std::size_t>(AW::Sine)]) <= kMaxSineAnchorShare * n);
+    static_assert(static_cast<std::size_t>(Alg::Fracture) == 5 && static_cast<std::size_t>(Img::Wide) == 2 &&
+                  static_cast<std::size_t>(AW::OctaveDownSine) == 4);
 }

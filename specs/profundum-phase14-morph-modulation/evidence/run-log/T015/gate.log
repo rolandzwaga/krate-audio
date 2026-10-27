@@ -1,0 +1,3 @@
+pass 1 (~[wallclock], 30 workers): 108.5s | pass 2 ([wallclock], 4 workers): 20.9s, 17 case(s)
+profundum_tests: cases=69 assertions=6395933 failed_cases=0 shards=128 slowest_shard=96.8s
+GATE GREEN profundum_tests cases=69 assertions=6395933 wall=129.4s workers=30 logs=f:\tmp\gate\profundum-p14-T015

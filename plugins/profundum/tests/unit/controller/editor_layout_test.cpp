@@ -17,6 +17,10 @@
 //
 // "Main region" = the header plus page-main (D1: the header carries voice mode 1, glide 412 and the zoom);
 // "Advanced region" = page-advanced. A Main-region control is never inside page-advanced.
+//
+// Phase 14 T013 (specs/profundum-phase14-morph-modulation; FR-030, FR-032; SC-016; plan 4.10): the nine Morph
+// Modulation controls 1003-1011. The Phase 12 ruled tables (ui_strings_test_table.h) predate them; the kMorphMod*
+// tables below extend those rulings here, byte for byte the literals evidence/uidesc/phase14.xsl writes.
 // ==============================================================================
 
 #include <catch2/catch_approx.hpp>
@@ -96,6 +100,37 @@ using Steinberg::Vst::ParamID;
 constexpr std::int32_t kSessionBase = P::UI::kSessionTagBase;  // 9000: every tag at or above it is UI-only
 /// Phase 13 T014: the header preset button's tooltip (editor.uidesc, the PresetBrowserButton node); not a D1 row.
 constexpr const char* kPresetButtonTooltip = "Browse and load factory and user presets.";
+
+// ---- Phase 14 T013: Morph Modulation (FR-030, FR-032; plan 4.10) ----
+[[nodiscard]] constexpr bool isMorphModId(int id) {
+    return id >= static_cast<int>(P::kMorphModSourceId) && id <= static_cast<int>(P::kMorphModCycleSyncRateId);
+}
+/// FR-030: the Main-page morph-band carries Source and Amount only (user, 2026-10-26).
+constexpr std::array<int, 2> kMorphModMainIds{static_cast<int>(P::kMorphModSourceId),
+                                              static_cast<int>(P::kMorphModAmountId)};
+/// One literal per ID, the same on Main and Advanced (1003 and 1004 appear on both pages).
+constexpr std::array<UiTooltip, 9> kMorphModTooltips{{
+    UiTooltip{.tag=1003, .text="Morph Mod Source: what moves the Bass Morph by itself: Envelope per note, Cycle repeating, "
+                    "Velocity of the last note, or the Mod Wheel. With Mod Wheel and a non-zero Amount the wheel "
+                    "moves the morph and stops pushing Mass; at Amount 0 the wheel keeps pushing Mass."},
+    UiTooltip{.tag=1004, .text="Morph Mod Amount: how far and in which direction the source moves the Bass Morph, \xE2\x88\x92"
+                    "100 % to +100 %; 0 leaves the morph where you set it."},
+    UiTooltip{.tag=1005, .text="Morph Env Attack: how long the morph envelope takes to rise after each note starts, "
+                    "0.1 ms to 10 s."},
+    UiTooltip{.tag=1006, .text="Morph Env Decay: how long the morph envelope takes to fall to the Sustain level, 0.1 ms to 10 s."},
+    UiTooltip{.tag=1007, .text="Morph Env Sustain: the level the morph envelope holds until the next note, 0 to 100 %."},
+    UiTooltip{.tag=1008, .text="Morph Cycle Shape: waveform of the morph Cycle: Sine, Triangle, Sawtooth, Square, S&H or "
+                    "Smooth Random."},
+    UiTooltip{.tag=1009, .text="Morph Cycle Rate: speed of the morph Cycle when Morph Cycle Sync is off, 0.01 to 20 Hz; a Cycle "
+                    "faster than Morph Ramp Time allows becomes a smoothed triangle."},
+    UiTooltip{.tag=1010, .text="Morph Cycle Sync: Off or On; On locks the morph Cycle to the host tempo and Morph Cycle Sync "
+                    "Rate sets the note value."},
+    UiTooltip{.tag=1011, .text="Morph Cycle Sync Rate: note value of one synced morph Cycle, 1/64T to 4/1D."},
+}};
+/// FR-032: the Phase 12 1002 literal (kAdvancedTooltips) plus the C-9 sentence.
+constexpr const char* kMorphRampTimeTooltip =
+    "Morph smoothing: how quickly the sound follows a change of the morph position, 5 ms to 2 s. Longer glides "
+    "smoothly between A and B. It also smooths Morph Mod movement.";
 
 // ==============================================================================
 // Shared helpers
@@ -177,6 +212,13 @@ template <std::size_t N>
 }
 
 [[nodiscard]] const char* ruledTooltip(bool advanced, std::int32_t tag) {
+    // Phase 14 T013: 1003-1011 (both pages) and the amended 1002 (Advanced) are ruled by the kMorphMod* tables.
+    if (advanced && tag == static_cast<std::int32_t>(P::kMorphRampTimeId)) {
+        return kMorphRampTimeTooltip;
+    }
+    if (isMorphModId(tag)) {
+        return findTooltip(kMorphModTooltips, tag);
+    }
     return advanced ? findTooltip(kAdvancedTooltips, tag) : findTooltip(kMainTooltips, tag);
 }
 
@@ -470,6 +512,9 @@ void deliverFrame(P::Controller& ctl, P::ProfundumSpectrumFrame& frame) {
 }
 
 [[nodiscard]] bool fr004Lists(const std::string& container, int tag) {
+    if (container == "tab-modulation" && isMorphModId(tag)) {
+        return true;  // Phase 14 FR-030: the MORPH MODULATION block of Advanced -> Modulation holds all nine
+    }
     return std::any_of(kFr004Members.begin(), kFr004Members.end(),
                        [&](const SectionMember& m) { return container == m.container && m.tag == tag; });
 }
@@ -495,7 +540,7 @@ void deliverFrame(P::Controller& ctl, P::ProfundumSpectrumFrame& frame) {
 TEST_CASE("Profundum_UidescBindsEverySurfaceId", "[profundum][ui]") {
     ControllerFixture cf;
     const std::vector<int> all = registeredIds(*cf.controller.get());
-    REQUIRE(all.size() == 84u);
+    REQUIRE(all.size() == 95u);
     const std::string xml = readUidesc();
 
     const std::set<int> allow(kHiddenPerformanceIds.begin(), kHiddenPerformanceIds.end());
@@ -514,8 +559,8 @@ TEST_CASE("Profundum_UidescBindsEverySurfaceId", "[profundum][ui]") {
         }
     }
     const std::set<int> expected = visibleIds(*cf.controller.get());
-    CHECK(expected.size() == 80u);
-    CHECK(boundTags.size() == 80u);
+    CHECK(expected.size() == 91u);
+    CHECK(boundTags.size() == 91u);
     CHECK(boundTags == expected);
     for (const std::int32_t hidden : kHiddenPerformanceIds) {
         CAPTURE(hidden);
@@ -532,7 +577,7 @@ TEST_CASE("Profundum_UidescTagIntegrity", "[profundum][ui]") {
     const std::string xml = readUidesc();
     const std::map<std::string, int> tagMap = Krate::Test::extractControlTagMap(xml);
 
-    CHECK(tagMap.size() == 80u);
+    CHECK(tagMap.size() == 91u);
     std::set<int> values;
     for (const auto& [name, tag] : tagMap) {
         CAPTURE(name, tag);
@@ -649,11 +694,13 @@ TEST_CASE("Profundum_UiClassRule", "[profundum][ui]") {
         CAPTURE(r.first, r.second);
         CHECK(writers.count(r) == 1u);  // a readout without a writer on its page fails (P-8)
     }
+    // Phase 14 T013 (plan 4.10): the morph-band Amount readout, written by its ArcKnob on the same page.
     const std::set<std::pair<bool, int>> expectedReadouts{{false, static_cast<int>(P::kMorphPositionId)},
-                                                          {false, static_cast<int>(P::kNotePortamentoId)}};
+                                                          {false, static_cast<int>(P::kNotePortamentoId)},
+                                                          {false, static_cast<int>(P::kMorphModAmountId)}};
     CHECK(readouts == expectedReadouts);
     CHECK(knobs417 == 1);
-    CHECK(boundCount >= 80u);
+    CHECK(boundCount >= 91u);
     INFO(joinLines(failures));
     CHECK(failures.empty());
 }
@@ -1264,7 +1311,9 @@ TEST_CASE("Profundum_UiPlacement", "[profundum][ui]") {
     for (const auto& [node, id] : bound) {
         (isDescendantOf(scan, node, pageAdvanced) ? advancedIds : mainIds).insert(id);
     }
-    CHECK(mainIds == std::set<int>(kFr011MainIds.begin(), kFr011MainIds.end()));
+    std::set<int> expectedMainIds(kFr011MainIds.begin(), kFr011MainIds.end());
+    expectedMainIds.insert(kMorphModMainIds.begin(), kMorphModMainIds.end());  // Phase 14 FR-030
+    CHECK(mainIds == expectedMainIds);
     for (const int advancedOnly : {static_cast<int>(P::kCoreShiftId), static_cast<int>(P::kMacroTightLooseId),
                                    static_cast<int>(P::kAnchorModeId)}) {
         CAPTURE(advancedOnly);
@@ -1439,6 +1488,135 @@ TEST_CASE("Profundum_UiPlacement", "[profundum][ui]") {
 }
 
 // ==============================================================================
+// Phase 14 SC-016 - Morph Modulation placement and tooltips (FR-030, FR-032; plan 4.10)
+// ==============================================================================
+
+TEST_CASE("Profundum_UiMorphModPlacement", "[profundum][morphmod][ui]") {
+    const std::string xml = readUidesc();
+    const XmlScan scan = scanUidesc(xml);
+    REQUIRE(scan.wellFormed);
+    const std::map<std::string, int> tagMap = Krate::Test::extractControlTagMap(xml);
+    const auto bound = boundNodes(scan, tagMap);
+    const int pageMain = singleLabelled(scan, "page-main");
+    const int pageAdvanced = singleLabelled(scan, "page-advanced");
+    const int morphBand = singleLabelled(scan, "morph-band");
+    const int tabModulation = singleLabelled(scan, "tab-modulation");
+    REQUIRE(isDescendantOf(scan, morphBand, pageMain));
+    REQUIRE(isDescendantOf(scan, tabModulation, pageAdvanced));
+
+    // The nine control-tag rows (plan 4.10), one name per ID.
+    const std::array<std::pair<const char*, int>, 9> kTagNames{{
+        {"MorphModSource", 1003},
+        {"MorphModAmount", 1004},
+        {"MorphModAttack", 1005},
+        {"MorphModDecay", 1006},
+        {"MorphModSustain", 1007},
+        {"MorphModCycleShape", 1008},
+        {"MorphModCycleRate", 1009},
+        {"MorphModCycleSync", 1010},
+        {"MorphModCycleSyncRate", 1011},
+    }};
+    for (const auto& [name, id] : kTagNames) {
+        CAPTURE(name);
+        const auto it = tagMap.find(name);
+        REQUIRE(it != tagMap.end());
+        CHECK(it->second == id);
+    }
+
+    // The class of each Advanced control (plan 4.10: Source / Amount; Env A / D / S; Cycle Shape / Rate / Sync /
+    // Sync Rate).
+    const std::map<int, std::string> kAdvancedClass{
+        {1003, "COptionMenu"}, {1004, "BipolarSlider"}, {1005, "ArcKnob"},
+        {1006, "ArcKnob"},     {1007, "ArcKnob"},       {1008, "COptionMenu"},
+        {1009, "ArcKnob"},     {1010, "CSegmentButton"}, {1011, "COptionMenu"}};
+    // The Main morph-band: the Source menu, the Amount knob and its readout (P-8).
+    const std::multiset<std::pair<int, std::string>> kMainControls{
+        {1003, "COptionMenu"}, {1004, "ArcKnob"}, {1004, "CParamDisplay"}};
+
+    std::set<int> inMorphBand;
+    std::set<int> inTabModulation;
+    std::multiset<std::pair<int, std::string>> mainControls;
+    int advancedControls = 0;
+    for (const auto& [node, id] : bound) {
+        if (!isMorphModId(id)) {
+            continue;
+        }
+        const XmlNode& n = scan.nodes[static_cast<std::size_t>(node)];
+        const std::string tooltip = n.get("tooltip");
+        CAPTURE(id, n.get("class"), tooltip);
+        const bool band = isDescendantOf(scan, node, morphBand);
+        const bool tab = isDescendantOf(scan, node, tabModulation);
+        CHECK(band != tab);  // in exactly one of the two places, nowhere else
+        if (band) {
+            inMorphBand.insert(id);
+            mainControls.insert({id, n.get("class")});
+        }
+        if (tab) {
+            inTabModulation.insert(id);
+            ++advancedControls;
+            CHECK(n.get("class") == kAdvancedClass.at(id));
+        }
+        CHECK_FALSE(tooltip.empty());  // FR-030: every new control carries a tooltip
+        if (id == static_cast<int>(P::kMorphModSourceId)) {
+            CHECK(tooltip.find("stops pushing Mass") != std::string::npos);  // FR-032 (C-7)
+        }
+        if (id == static_cast<int>(P::kMorphModCycleRateId)) {
+            CHECK(tooltip.find("Morph Ramp Time") != std::string::npos);  // FR-032 (C-9)
+        }
+    }
+    CHECK(inMorphBand == std::set<int>(kMorphModMainIds.begin(), kMorphModMainIds.end()));
+    CHECK(mainControls == kMainControls);
+    std::set<int> allNine;
+    for (int id = static_cast<int>(P::kMorphModSourceId); id <= static_cast<int>(P::kMorphModCycleSyncRateId); ++id) {
+        allNine.insert(id);
+    }
+    CHECK(inTabModulation == allNine);
+    CHECK(advancedControls == 9);  // one control per ID on Advanced
+
+    // FR-032 (C-9, the other side): the Advanced Morph Ramp Time knob names Morph Mod.
+    int rampKnobs = 0;
+    for (const auto& [node, id] : bound) {
+        const XmlNode& n = scan.nodes[static_cast<std::size_t>(node)];
+        if (id != static_cast<int>(P::kMorphRampTimeId) || n.get("class") != "ArcKnob") {
+            continue;
+        }
+        ++rampKnobs;
+        CHECK(n.get("tooltip").find("Morph Mod") != std::string::npos);
+    }
+    CHECK(rampKnobs == 1);
+
+    // The two block headings.
+    bool bandHeading = false;
+    bool tabHeading = false;
+    for (std::size_t i = 0; i < scan.nodes.size(); ++i) {
+        const XmlNode& n = scan.nodes[i];
+        if (n.get("class") != "CTextLabel") {
+            continue;
+        }
+        const std::string title = n.get("title");
+        bandHeading = bandHeading || (title == "MORPH MOD" && isDescendantOf(scan, static_cast<int>(i), morphBand));
+        tabHeading =
+            tabHeading || (title == "MORPH MODULATION" && isDescendantOf(scan, static_cast<int>(i), tabModulation));
+    }
+    CHECK(bandHeading);
+    CHECK(tabHeading);
+
+    // The editor baseline is unchanged: one banner, one check button, one version label.
+    int banners = 0;
+    int checkButtons = 0;
+    int versionLabels = 0;
+    for (const XmlNode& n : scan.nodes) {
+        const std::string custom = n.get("custom-view-name");
+        banners += custom == "UpdateBanner" ? 1 : 0;
+        checkButtons += custom == "CheckForUpdatesButton" ? 1 : 0;
+        versionLabels += custom == "VersionLabel" ? 1 : 0;
+    }
+    CHECK(banners == 1);
+    CHECK(checkButtons == 1);
+    CHECK(versionLabels == 1);
+}
+
+// ==============================================================================
 // SC-032 - zoom control
 // ==============================================================================
 
@@ -1446,7 +1624,7 @@ TEST_CASE("Profundum_UiZoom", "[profundum][ui]") {
     ConnectedPair cp;
     P::Controller& ctl = *cp.cf.controller.get();
     const StateBytes state0 = writeV2Stream(*cp.fx.proc);
-    REQUIRE(ctl.getParameterCount() == 84);
+    REQUIRE(ctl.getParameterCount() == 95);
     CHECK(ctl.getParameterObject(static_cast<ParamID>(P::UI::kZoomTag)) == nullptr);  // bound to no registered ID
     cp.clearRecords();
 
@@ -1498,7 +1676,7 @@ TEST_CASE("Profundum_UiZoom", "[profundum][ui]") {
         }
     }
 
-    CHECK(ctl.getParameterCount() == 84);
+    CHECK(ctl.getParameterCount() == 95);
     CHECK(cp.cf.handler.performEdits.empty());
     CHECK(cp.toProcessor.records().empty());
     CHECK(writeV2Stream(*cp.fx.proc) == state0);

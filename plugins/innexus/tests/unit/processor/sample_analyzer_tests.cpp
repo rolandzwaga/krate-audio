@@ -590,7 +590,7 @@ TEST_CASE("SampleAnalyzer: file path stored in result",
 // Test: SC-005 - Analysis completes within 10s for a 10s mono file
 // ==============================================================================
 TEST_CASE("SampleAnalyzer: SC-005 analysis timing for 1s file",
-          "[innexus][sample_analyzer][SC-005]")
+          "[innexus][sample_analyzer][SC-005][wallclock]")
 {
     // Generate a 1-second mono sine (testing with 1s to keep CI fast)
     auto filePath = generateSineWav("test_timing_440.wav", 440.0f, 1.0f);

@@ -1072,6 +1072,195 @@ Phase 9's table — a preset built on an inaudible feature is a defect (Vorago 1
 (seconds-scale — this is a bass, not a drone) + per-preset mono-sum check + true-peak check at maximum
 Mass. Release gate via `release-readiness` flow.
 
+### Phase 14: Morph Modulation
+
+**Status: ✅ COMPLETE (2026-10-27; the macOS / Linux CI legs PENDING-CI until the push)** — see
+specs/profundum-phase14-morph-modulation/compliance.md (the five comply-stage reds closed in the main loop: rulings R11 -
+R14, an engine optimisation for SC-014 that brought MOD-POLY from 27.18 % to 20.60 % against 25 %).
+
+**Spec:** `profundum-phase14-morph-modulation`
+
+**Goal:** Bass Morph moves by itself. Today Morph Position (105) moves only by hand or host automation: Motion's
+destinations are Mass / Depth / Body / Edge / Shift, the mod wheel and channel pressure push Mass, and velocity never
+reaches Morph, so a per-note "pluck at A, settle into B" needs an automation lane per note. Part of release 1.0.0.
+
+**Rulings (user, 2026-10-26):**
+
+- **All five sources:** Off · **Envelope** · **Cycle** · **Velocity** · **Mod Wheel**.
+- **Global, outside both endpoints.** Morph Modulation is NOT a `MorphState` field (Motion's configuration is
+  per-endpoint and is itself morphed; a morphed modulator of Morph is a feedback loop). One modulated value drives every
+  voice, as Morph Position does today.
+- **Result = clamp(Morph Position + Amount × source, 0, 1)**, Amount bipolar (toward B or back toward A from wherever the
+  slider sits), through the existing Morph Ramp Time smoothing contract (no zipper, no click).
+- **Envelope: Attack - Decay - Sustain.** Covers "rise from A into B and stay" (attack T, sustain 1) and "hit B and settle
+  back" (attack 0, decay T, sustain 0). Restarts on **every new note**, in MONO and in POLY (Morph is global; the latest
+  note owns the gesture, held notes follow).
+- **Cycle:** an LFO with the shapes and the tempo sync Motion's CYCLE already offers (reuse, no new waveform set).
+- **Velocity:** the velocity of the latest note-on sets the source value, held until the next note-on.
+- **Mod Wheel:** with Source = Mod Wheel the wheel drives Morph **only** and stops pushing Mass; with any other source it
+  pushes Mass exactly as today (`IMidiMapping` unchanged; the routing decision is the processor's).
+- **No state-format version bump.** The plugin is unreleased: the new parameters join format version 3 and its byte
+  count grows; there is no v3-without-modulation reader to keep. Saved defaults: Source Off, so every existing factory
+  preset renders exactly as before until it opts in.
+- Parameters in the Morph control band after 1002 (1003+); every new parameter `kCanAutomate` except where Phase 11's
+  rules say otherwise (a list stays a list).
+
+**Required alongside the engine** (the Phase 10-13 rules apply): host parameters, state round trip including hostile
+streams, the editor (Main page's morph section and / or the Advanced Modulation tab — decided in spec), tooltips, the
+manual, and the factory library: **every source is shown off by at least one factory preset and measured** (the Phase 13
+coverage rule — a capability no preset showcases is a defect), with the Phase 13 gates (claims, loudness, A-B endpoints,
+morph sweep, held load) green afterwards.
+
+**Success criteria (refined in spec):** each source moves the resolved Morph position as specified (envelope stage
+times and sustain measured, cycle rate and shape, velocity mapping, mod-wheel routing with Mass untouched); Off and
+Amount 0 are bit-transparent against today's renders of every factory preset; the modulated morph is click-free at
+every Amount / Time extreme (the Phase 8 bounded per-block change); retrigger in MONO legato and POLY chords as ruled;
+RT-safe (no allocation); CPU cost bounded inside the Phase 9 whole-engine budgets; the audibility of every source on its
+showcase preset clears the Phase 9 bar.
+
+---
+
+### Phase 14b: Kicks
+
+**Status: ✅ COMPLETE (2026-10-27)** — main loop, no spec directory (user, 2026-10-27: "minimal ceremony ... just to
+add a few presets to the list").
+
+**Goal:** a seventh factory category, **Kicks**, with eleven one-hit kick drums: Eight Oh Boom, Punch Kick, Folded Kick,
+Sub Boom, Techno Kick, Rebound Kick, Gabber Kick, Lo-Fi Kick, and the three test kicks the user picked, Deep 808, Club
+Kick and Hardstyle Kick. Part of release 1.0.0.
+
+**Rulings (user, 2026-10-27):**
+
+- Eight kicks in a new category "Kicks", before Phase 15, main loop with minimal ceremony.
+- **Add the three test kicks** rendered during Phase 14 (definitions 69-71). Endpoint A is the test patch exactly, except
+  **Club Kick**, which failed three gates on A (level -19.4 dBFS, Punch claim 1.05 dB, 0.62 from Deep 808): minimal
+  changes, Mass 30 -> 60, Punch boost 6 -> 12 dB, transient sustain +9 dB; the drop, decay and pure sine stay.
+- **`Profundum_PresetMorphSweep` is endpoint-referenced.** A 100 ms window of the held-note morph sweep, now read over
+  [0 s, 3 s), counts where the same gesture with Morph frozen at A or at B reads above -60 dBFS: a dropout is silence
+  Morph makes that neither endpoint has. A sustained preset counts every window as before; a one-hit kick is checked
+  during its hit while the ramp already moves. Before, the bar read [1 s, 3 s) unreferenced, which no one-hit preset
+  can pass.
+  **Correction (user, 2026-10-27, found by Phase 15's long lane):** a window counts only where frozen-A **and**
+  frozen-B both read above -60 dBFS, the sentence's own "silence neither endpoint has". The first implementation
+  counted a window where either one did, so a kick's A decay tail (silent at A, still ringing at B) read as a dropout
+  on 9 kicks (-61 to -133 dBFS); the 14b long lane had not run after the change.
+  Under the corrected rule one kick still failed: **Punch Kick's A decay is 750 ms, not 700 (main loop, 2026-10-27).**
+  Its 700 ms decay ended inside the 0.7-0.8 s window, where frozen A read -59.98 dBFS (counted by 0.02 dB) and the sweep
+  -61.92 dBFS: the amp envelope's table path keeps the decay rate it entered the stage with, so the sweep ends on A's
+  timing while B's lower level pulls it down. At 750 ms the end falls mid-window: counted minimum -25.3 dBFS (650 ms:
+  -24.2 dBFS; longer chosen because longer kick decays lift the library loudness median).
+
+**Rules the kicks follow** (the Phase 13 / 14 library gates):
+
+- Each kick stores sustain 0 with attack + decay under 1 s, so the descriptor window is [t90, t90 + 2^16)
+  (`describePreset`), and Morph Modulation Source Off. Every kick leads with a Phase 13 column whose arm reads the
+  character tap or the onset: AT-19, AT-20, AT-22 (drop), AT-11 (PUNCH), AT-28 (transient), AT-04, AT-05, AT-06, AT-08
+  (Character). A column read on the post-envelope Sum tap in the 1 s steady window (AT-26 Mass, E_sub) reads 0 on a
+  kick, whose voice is silent by then.
+- `Profundum_PresetDefsRules` FR-063: a Kicks definition has no pre-phase row, stores Source Off and leads with a Phase
+  13 column; exactly eleven.
+- Loudness: a kick's level counts in the library median. The first designs (-12 to -15 dBFS) pulled the median to
+  -11.81 dBFS and put Drifting Weight and Clean To Violent 4.0 - 4.3 dB off it; longer decays lifted the kicks and the
+  median to -11.48 dBFS.
+- Measured limitation: the C-7 descriptor's component 14 (frame-wise E_sub p2p) spans the kick's silent tail in the
+  fallback window, so every kick sits far from every sustained preset in the distinctness gate. Kick-to-kick and A-to-B
+  distances are not affected (both sides carry it); the closest kick pair is Deep 808 vs Club Kick at 2.38 (bar 2.0).
+
+---
+
+### Phase 15: Stiffness & Phase Alignment
+
+**Spec:** `profundum-phase15-stiffness-phase`
+
+**Goal:** Two harmonic-core controls that make sounds no existing control can. Today every partial is a sine at an exact
+integer multiple of f₀ with phase 0 (`profundum_core.h:431-433`, `inharmonicDeviation = 0`, `phase = 0`). Per-partial
+waveforms were considered and rejected: in a harmonic stack a non-sine partial at n·f₀ only adds energy at k·n·f₀, which
+the recipe already owns. Part of release 1.0.0.
+
+- **Stiffness** (inharmonicity): pushes the upper partials sharp of the integer series, as a stiff string or a metal bar
+  does — a stiff, metallic, bell-edged bass. The bank already carries the hook (`harmonic_oscillator_bank.h:1077`,
+  `freq_n = (n + deviation · amount) · f₀`); the stretch law (piano-string `n·√(1 + B·n²)` or a simpler power law) is a
+  spec decision.
+- **Phase** (alignment): the same spectrum with different partial phases — from today's all-phase-0 stack (peaky) toward
+  a low-crest-factor alignment (Schroeder-style, smooth). Barely audible on the clean core; strongly audible through Fold
+  and Character, whose response depends on the waveform's peaks. A "how hard the distortion bites" control that leaves
+  the clean spectrum unchanged.
+
+**Rulings (user, 2026-10-26):**
+
+- **Both controls are per-endpoint `MorphState` fields**, like Depth / Body / Edge / Shift: A and B each store their own
+  value and Bass Morph interpolates them, so a morph can travel from a clean bass into a stiff one, or from a smooth
+  alignment into a biting one.
+- **Phase glides live.** A Phase change on a held note (knob, Morph, Morph Modulation, automation) slides every partial to
+  its new alignment over a bounded ramp; the transient frequency deviation that a phase slide implies is measured and
+  held under a ruled audibility bound. Note-on applies the current alignment directly.
+- **Part of 1.0.0, no state-format bump.** The new fields join format version 3 (both endpoints) and the byte count
+  grows; defaults Stiffness 0 and Phase = today's alignment, so every factory preset renders as before until it opts in.
+
+**Rulings (user, 2026-10-27):** main loop with minimal ceremony (no phase workflow; this section is the spec), tests run
+once at the end (per-push gate, the `[long]` preset lane, the Profundum CPU cases, pluginval).
+
+- **Stretch law: the stiff string,** normalised so h1 stays exact: f_n = n · f₀ · √(1 + B·n²) / √(1 + B).
+- **Stiffness tracks the keyboard:** B = B_knob · (f_note / 55 Hz), so a note an octave up is twice as stiff (a piano's
+  treble), and the drop / glide trajectory does not change it within a note.
+- **Two new factory presets,** one leading with Stiffness and one with Phase (71 -> 73); no existing preset changes.
+- **Editor: the Advanced page's core section only;** the Main page keeps its two rows of four.
+
+**Technical rulings (main loop, 2026-10-27):**
+
+- `MorphState` leaves 62 `stiffness` and 63 `phase`, appended (no leaf renumbers), both [0, 1], Linear morph law.
+  The endpoint blob grows 201 -> 209 bytes and the v3 stream 610 -> 626 bytes, with no version change anywhere and no
+  path for older streams (user, 2026-10-27: Profundum is unreleased, so no earlier state needs to load).
+- B_knob = 0.01 · x² (x = the Stiffness value). The headroom bound sqrt(N·P0) (`profundum_core.h:108`) holds for any
+  phases (Cauchy-Schwarz on Σ|a_n|), so no alignment can exceed it.
+- **Phase law: rotate every partial above h1 by x · 90° (user, 2026-10-27),** φ_n = x · π/2 for n ≥ 2, φ_1 = 0. The
+  premise above was measured wrong: today's all-sine-phase-0 stack is the *smooth* end (the saw spectrum renders a
+  sawtooth, crest 6.1 dB), and Schroeder phases raise the crest at once (9.4 dB at x = 0.1) and then drift down (8.5 dB
+  at 1), a switch rather than a sweep. The rotation raises crest monotonically from today's wave to the peakiest the
+  spectrum allows (offline, one period: saw 6.1 -> 12.4 dB, default recipe 6.6 -> 11.1 dB, triangle 2.2 -> 3.1 dB). So
+  Phase 0 = smooth, today's sound; Phase 1 = peaky, the hardest bite into Fold and Character.
+- A Reset note-on starts every partial at phase 0 (the bank's only exact oscillator seed; seeding sin/cos of another
+  phase moved partial levels by up to ±0.3 dB at 1 kHz) and rotates to the alignment over the first 64 samples.
+- A live Phase change slews each partial's phase along the shortest wrapped path at most π per 100 ms, i.e. a
+  transient frequency offset of at most 5 Hz per partial; note-on (Reset policy, or the first note) seeds the
+  phases directly.
+- At Stiffness 0 and Phase 0 the core runs its pre-phase code path unchanged (bit-identical renders).
+- Host parameters `kCoreStiffnessId` 209 and `kCorePhaseId` 210, endpoint-aware like Depth / Body / Edge / Shift.
+- **Phase Bite stores Phase 0.6 on A, not 1** (FR-048 held-load gate, bar 2x unchanged). Loaded under a held note, the
+  first 20 ms still carry the phase-0 wave (the glide turns at most π per 100 ms), whose steepest edge is 0.0308; the
+  rotated wave's own steady step falls as Phase rises, so the after-reference shrank to 0.0139 at Phase 1 (ratio
+  2.21). Measured ratio by A Phase: 1 -> 2.21, 0.85 -> 2.42, 0.7 -> 1.96, 0.6 -> 1.56, 0.5 -> 1.32. 0.6 is the
+  largest value with margin.
+
+**Constraints the spec must honour:**
+
+- **h1 stays exact.** The Anchor is phase-locked to the core's h1 (Phase 3); the stretch law leaves partial 1 at f₀ and
+  the Anchor's zero-drift criterion holds at every Stiffness.
+- **Nyquist cap and Low Note Guard re-evaluate on stretched frequencies** — a stretched partial that crosses Nyquist is
+  removed, never aliased.
+- **Headroom:** the core's peak headroom was derived for the all-phase-0 stack (`profundum_core.h:108`); every Phase
+  setting stays inside it (low-crest alignments lower the peak; the spec proves no intermediate alignment exceeds it).
+- **Keyboard tracking of Stiffness** (constant B across the range vs scaled with pitch) is a spec decision, measured
+  for musical range at E0–C3.
+
+**Required alongside the engine** (the Phase 10-14 rules apply): host parameters in the core section, endpoint-aware like
+every sound parameter (Edit A / Edit B), state round trip including hostile streams, the editor (Advanced core section; a
+Main-page placement decided in spec), tooltips, the manual, and the factory library: **each control is shown off by at
+least one factory preset and measured** (Phase 13 coverage rule), with every Phase 13 and Phase 14 gate green afterwards.
+
+**Success criteria (refined in spec):** partial frequencies match the stretch law (< 0.1 cent) with h1 exact; Phase
+leaves the clean core's magnitude spectrum unchanged within tolerance and moves crest factor monotonically; Phase moves
+a post-Fold / post-Character descriptor by at least the Phase 9 bar on its showcase; a live Phase glide's frequency
+deviation stays under the ruled bound and is click-free; Stiffness 0 and the default Phase are bit-transparent against
+today's renders of every factory preset (same-binary identity + pre-phase fingerprint tolerance, the Phase 14 method);
+Morph interpolation of both fields bounded per block; RT-safe; CPU inside the Phase 9 budgets.
+
+**Status: ✅ COMPLETE (2026-10-27)** — main loop, no spec directory. Evidence: `profundum_core_stiffness_phase_test.cpp`
+(7 cases, `[phase15]`) and the DSP header-consumer gate (666 cases, green); the full `profundum_tests` gate, per-push +
+`[long]` (219 cases, 72,535,078 assertions, GATE GREEN, 786 s, logs f:\tmp\gate\20261027-185443); the Profundum CPU
+cases run alone (4 of 4 pass: worst stored preset Fault Line MONO 5.78 % against 8 %, Stiff Wire 4.75 %, Phase Bite
+4.98 %); pluginval strictness 5 passed; clang-tidy clean on the 5 changed TUs.
+
 ---
 
 ## Dependency Graph
@@ -1082,7 +1271,7 @@ Mass. Release gate via `release-readiness` flow.
 Phase 1 ─────────┼─→ Phase 7 (stereo field) ───────────┼─→ Phase 9 (voice/engine) ─→ Phase 10 (scaffold)
 (harmonic core)  └─→ Phase 8 (bass morph) ─────────────┤              │
                                                        │              ▼
-Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13 ✅
+Phase 4 (drop + note behaviour) ───────────────────────┤   Phase 11 → 12 → 13 ✅ → 14 ✅ → 14b ✅ → 15 ✅
 Phase 5 (shape + character) ───────────────────────────┤
 Phase 6 (mass + dynamics) ─────────────────────────────┘
 ```

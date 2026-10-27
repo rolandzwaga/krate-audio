@@ -1,0 +1,35 @@
+T032 - Portability and lints (FR-054; SC-021)
+=============================================
+
+Script: specs/profundum-phase14-morph-modulation/evidence/close/portability.sh (bash -n: OK)
+Run once, 2026-10-27T10:08:22Z, HEAD e501b577 (working tree with the uncommitted Phase 14 changes), base 3dfc5b7d.
+Full log: specs/profundum-phase14-morph-modulation/evidence/run-log/close/portability.log (184 lines).
+Total wall clock 87 s (check-portability 82 s; every lint 0-1 s, all lanes concurrent); WSL did not fail to translate
+the drive; wsl --shutdown ran after the lanes.
+
+Step 1 - check-portability over git diff --name-only 3dfc5b7d UNION untracked, filtered to \.cpp$ (44 TUs):
+  check-portability: all clear -- 44 compiled.
+  check-portability exit=0 wall=82s
+  Cross-check: every task-named file present (11): the four new TUs (profundum_morph_modulator_test.cpp,
+  profundum_engine_morphmod_test.cpp, morph_mod_processor_test.cpp, morph_mod_preset_test.cpp),
+  morph_indicator_slider.cpp, processor.cpp, controller.cpp, panel_sub_controller.cpp and the edited DSP test TUs
+  (profundum_engine_display_test.cpp, profundum_engine_perf_test.cpp, profundum_voice_engine_helpers_test.cpp).
+  The other 33 TUs in the diff (commits 4fb6c248 / e501b577 on top of the base, plus Phase 14 plugin test edits)
+  were compiled too and are listed in the log as informational.
+
+Step 2 - lints (each exit 0):
+  lint-finite-bitmask: clean                                                  exit=0 wall=1s
+  lint-nonfinite-symbols: all clear (17 guarded files)                        exit=0 wall=1s
+  lint-ieee-flag-sets: clean (14 IEEE flag sets)                              exit=0 wall=0s
+  lint-plugin-editor-baseline: OK - 9 plugins carry the update check and the version label   exit=0 wall=0s
+  lint-apple-globals: OK — 62 files, no macOS-only name collisions            exit=0 wall=0s
+      (args: the 62 changed/untracked .h and .cpp files since 3dfc5b7d)
+  lint-float-bit-goldens: clean (1904 files scanned)                          exit=0 wall=1s
+  lint-simd-aligned-loadstore: clean -- 1904 file(s) scanned.                 exit=0 wall=0s
+
+Step 3 - wsl --shutdown done; total wall 87s
+
+Last line of the log:
+  PORTABILITY GREEN
+
+Note: the 44-TU / 62-file counts are of the tree at run time; a later Phase 14 edit to a .cpp re-requires this lane.

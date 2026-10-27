@@ -1,0 +1,32 @@
+Filters: "VoiceEngine_Aliasing_96k_Crush"
+Randomness seeded to: 1717862521
+SC-021 96k E0 Crush SHAPE 0 Tone 0 LOCK: (a) Sum -126.97 dBFS, (b) out on -60.76 dBFS (added -60.76), off -82.45 dBFS (added -82.45); bar -80
+SC-021 96k E0 Crush SHAPE 0 Tone 0 FOLLOW: (a) Sum -126.97 dBFS, (b) out on -60.76 dBFS (added -60.76), off -82.45 dBFS (added -82.45); bar -80
+SC-021 96k E0 Crush SHAPE 0 Tone 1 LOCK: (a) Sum -117.36 dBFS, (b) out on -71.95 dBFS (added -71.95), off -72.41 dBFS (added -72.41); bar -80
+SC-021 96k E0 Crush SHAPE 0 Tone 1 FOLLOW: (a) Sum -117.36 dBFS, (b) out on -71.95 dBFS (added -71.95), off -72.41 dBFS (added -72.41); bar -80
+SC-021 96k E0 Crush SHAPE 1 Tone 0 LOCK: (a) Sum -130.03 dBFS, (b) out on -65.99 dBFS (added -65.99), off -83.79 dBFS (added -83.79); bar -80
+SC-021 96k E0 Crush SHAPE 1 Tone 0 FOLLOW: (a) Sum -130.03 dBFS, (b) out on -65.99 dBFS (added -65.99), off -83.79 dBFS (added -83.79); bar -80
+SC-021 96k E0 Crush SHAPE 1 Tone 1 LOCK: (a) Sum -118.64 dBFS, (b) out on -83.12 dBFS (added -83.12), off -99.98 dBFS (added -100.01); bar -80
+SC-021 96k E0 Crush SHAPE 1 Tone 1 FOLLOW: (a) Sum -118.64 dBFS, (b) out on -83.12 dBFS (added -83.12), off -99.98 dBFS (added -100.01); bar -80
+SC-021 96k E1 Crush SHAPE 0 Tone 0 LOCK: (a) Sum -129.05 dBFS, (b) out on -74.55 dBFS (added -74.55), off -87.00 dBFS (added -87.00); bar -80
+SC-021 96k E1 Crush SHAPE 0 Tone 0 FOLLOW: (a) Sum -129.05 dBFS, (b) out on -74.55 dBFS (added -74.55), off -87.00 dBFS (added -87.00); bar -80
+SC-021 96k E1 Crush SHAPE 0 Tone 1 LOCK: (a) Sum -114.38 dBFS, (b) out on -71.34 dBFS (added -71.34), off -71.32 dBFS (added -71.32); bar -80
+SC-021 96k E1 Crush SHAPE 0 Tone 1 FOLLOW: (a) Sum -114.38 dBFS, (b) out on -71.34 dBFS (added -71.34), off -71.32 dBFS (added -71.32); bar -80
+SC-021 96k E1 Crush SHAPE 1 Tone 0 LOCK: (a) Sum -127.54 dBFS, (b) out on -77.76 dBFS (added -77.76), off -97.08 dBFS (added -97.08); bar -80
+SC-021 96k E1 Crush SHAPE 1 Tone 0 FOLLOW: (a) Sum -127.54 dBFS, (b) out on -77.76 dBFS (added -77.76), off -97.08 dBFS (added -97.08); bar -80
+SC-021 96k E1 Crush SHAPE 1 Tone 1 LOCK: (a) Sum -113.48 dBFS, (b) out on -71.87 dBFS (added -71.87), off -71.93 dBFS (added -71.93); bar -80
+SC-021 96k E1 Crush SHAPE 1 Tone 1 FOLLOW: (a) Sum -113.48 dBFS, (b) out on -71.87 dBFS (added -71.87), off -71.93 dBFS (added -71.93); bar -80
+SC-021 96k E2 Crush SHAPE 0 Tone 0 LOCK: (a) Sum -134.68 dBFS, (b) out on -80.81 dBFS (added -80.81), off -91.75 dBFS (added -91.75); bar -80
+SC-021 96k E2 Crush SHAPE 0 Tone 0 FOLLOW: (a) Sum -134.68 dBFS, (b) out on -80.81 dBFS (added -80.81), off -91.75 dBFS (added -91.75); bar -80
+SC-021 96k E2 Crush SHAPE 0 Tone 1 LOCK: (a) Sum -132.80 dBFS, (b) out on -69.68 dBFS (added -69.68), off -69.67 dBFS (added -69.67); bar -80
+SC-021 96k E2 Crush SHAPE 0 Tone 1 FOLLOW: (a) Sum -132.80 dBFS, (b) out on -69.68 dBFS (added -69.68), off -69.67 dBFS (added -69.67); bar -80
+SC-021 96k E2 Crush SHAPE 1 Tone 0 LOCK: (a) Sum -132.14 dBFS, (b) out on -107.00 dBFS (added -107.03), off -107.14 dBFS (added -107.16); bar -80
+SC-021 96k E2 Crush SHAPE 1 Tone 0 FOLLOW: (a) Sum -132.14 dBFS, (b) out on -107.00 dBFS (added -107.03), off -107.14 dBFS (added -107.16); bar -80
+SC-021 96k E2 Crush SHAPE 1 Tone 1 LOCK: (a) Sum -137.03 dBFS, (b) out on -101.10 dBFS (added -101.10), off -103.87 dBFS (added -103.87); bar -80
+SC-021 96k E2 Crush SHAPE 1 Tone 1 FOLLOW: (a) Sum -137.03 dBFS, (b) out on -101.10 dBFS (added -101.10), off -103.87 dBFS (added -103.87); bar -80
+SC-021 shard 96k Crush: 24 cells, worst (a) Sum -113.48 dBFS (96k E1 Crush SHAPE 1 Tone 1 LOCK), worst (b) output -60.76 dBFS (96k E0 Crush SHAPE 0 Tone 0 LOCK), worst opt-in-off output -69.67 dBFS (recorded); bar -80; wall clock 153.7 s
+153.729 s: VoiceEngine_Aliasing_96k_Crush
+===============================================================================
+All tests passed (1873 assertions in 1 test case)
+
+exit: 0 wall: 154 s

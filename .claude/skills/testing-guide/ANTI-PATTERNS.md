@@ -859,6 +859,7 @@ TEST_CASE("Calling setMode every block prevents note advance", "[integration][bu
 
 An agent needs to check if tests passed. Instead of reading the output correctly, it re-runs the full suite (6000+ tests, 30-60 seconds each) with increasingly desperate grep patterns:
 
+<!-- lint-serial-ok-begin: deliberate bad example -->
 ```bash
 # WRONG: Each of these re-runs the ENTIRE test suite (30-60 sec each!)
 dsp_tests.exe 2>&1 | grep -B 10 "FAILED"      # no output (grep doesn't match)
@@ -871,6 +872,7 @@ dsp_tests.exe 2>&1 | grep "test cases:"        # try different field...
 dsp_tests.exe --reporter compact 2>&1 | tail -3 # try different reporter...
 # ... 20 more attempts, 15+ minutes wasted
 ```
+<!-- lint-serial-ok-end -->
 
 ### Why This Happens
 
@@ -881,11 +883,11 @@ The agent doesn't know Catch2's output format. The summary is **always the last 
 ### The Fix: One Command, Done
 
 ```bash
-# CORRECT: Just read the last few lines. ONE run. 30 seconds total.
-dsp_tests.exe 2>&1 | tail -5
+# CORRECT: one SHARDED run, then read its last lines. The GATE line is the verdict; failed assertions precede it.
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_core_tests 2>&1 | tail -20
 ```
 
-That's it. If the last line says "All tests passed", you're done. If it shows failures, the failure details are in the preceding output.
+That's it. If the last line says "GATE GREEN", you're done. If it shows failures, the failure details are in the preceding output.
 
 ### For Filtered Runs
 
@@ -893,11 +895,11 @@ That's it. If the last line says "All tests passed", you're done. If it shows fa
 # Run specific tests by name (positional argument, NOT -c flag)
 dsp_tests.exe "RingModulator*" 2>&1 | tail -5
 
-# Run tagged tests
-dsp_tests.exe "[.perf]" 2>&1 | tail -5
+# Run tagged tests (sharded; timing tests such as [.perf] run alone via node tools/run-cpu-tests.js)
+node tools/run-gate.js --filter '[ring_mod]~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_processors_tests 2>&1 | tail -20
 
 # WRONG: -c filters SECTIONS, not test cases
-dsp_tests.exe -c "RingModulator*"  # This filters sections, not test names!
+dsp_tests.exe -c "RingModulator*"  # This filters sections, not test names! <!-- lint-serial-ok: bad example -->
 ```
 
 ### The Rule
@@ -977,3 +979,16 @@ cost, Edit-anchor collisions on repeated boilerplate, and one slow serial transl
   globbed — an unregistered file silently does not run). For the DSP suite, add it to the matching
   per-layer target.
 - After splitting, confirm the **total `TEST_CASE` count is unchanged** so nothing was dropped.
+
+## 18. The Serial Suite Run
+
+Running a whole test executable (or a tag across it, or a `for t in ...` list) as ONE process uses one core of a
+32-core machine. Phase workflows did this for every gate: ~14 min per gate, ~16 gates per phase, hours per phase.
+
+- **Always:** `node tools/run-gate.js --filter '<filter>~[performance]~[perf]~[benchmark]~[!benchmark]' <exe> [<exe> ...]`
+  (Catch2 `--shard-count` / `--shard-index` over a worker pool; measured 14 min → 2 min 15 s). Several executables
+  go in ONE command; concurrent gates take `--share <N>`.
+- **Lanes and new workflows** shard the same way (`tools/run-gate.js`, `tools/run-close-lanes.js`); a new
+  `*-phase.js` workflow is cloned from one that already uses `BUILD_CMDS_SHARDED`.
+- **The one exception** is timing tests (CPU budgets, benchmarks): `node tools/run-cpu-tests.js`, alone.
+- **A single case by name** is the only direct `<exe> "<TestName>"` run.

@@ -12,6 +12,7 @@ add_executable(profundum_tests
     unit/midi_event_test.cpp
     unit/lifecycle_test.cpp
     unit/controller/editor_lifecycle_test.cpp
+    unit/controller/editor_screenshot_test.cpp
     integration/processor_audio_test.cpp
     integration/param_flow_test.cpp
     integration/processor_cpu_test.cpp
@@ -55,6 +56,10 @@ add_executable(profundum_tests
     integration/preset_showcase_test.cpp
     integration/preset_sweep_test.cpp
 
+    # Phase 14
+    integration/morph_mod_processor_test.cpp
+    integration/morph_mod_preset_test.cpp
+
     # SECOND compilation of every plugin .cpp (needed by the plugin-shell tests).
     # A new plugin .cpp must appear here AND in plugins/profundum/CMakeLists.txt.
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
@@ -63,6 +68,7 @@ add_executable(profundum_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/harmonic_bar_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/spread_curve_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/offset_ring_knob.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/morph_indicator_slider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/panel_sub_controller.cpp
 
     # VST3 SDK sources
@@ -152,6 +158,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/preset_probe_test.cpp
         integration/preset_showcase_test.cpp
         integration/preset_sweep_test.cpp
+        # Phase 14 (bit comparisons, bit-pattern finiteness)
+        integration/morph_mod_processor_test.cpp
+        integration/morph_mod_preset_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
     # integration/processor_cpu_test.cpp is DELIBERATELY ABSENT: the timed code must

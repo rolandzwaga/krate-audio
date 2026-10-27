@@ -7,7 +7,7 @@
        never a UIViewSwitchContainer; exactly one is visible (ProfundumPanel, session tag 9100).
        Main (D1): mass-group, morph-anchor = anchor-group + morph-band. Advanced (D2): tab strip
        (session tag 9110) and three sibling tabs; one section container per FR-004 row.
-       80 visible IDs bound; the hidden performance IDs 4 - 7 have no tag. UI-only controls carry
+       91 visible IDs bound; the hidden performance IDs 4 - 7 have no tag. UI-only controls carry
        session-tag (9000 and up) and no control-tag. Tooltips are the D1 / D2 literals.
        Later edits touching more than 3 controls use XSLT (repo rule). -->
   <colors>
@@ -57,6 +57,8 @@
     <control-tag name="CoreExcitationMix" tag="206"/>
     <control-tag name="CoreExcitationDrive" tag="207"/>
     <control-tag name="CoreExcitationAsymmetry" tag="208"/>
+    <control-tag name="CoreStiffness" tag="209"/>
+    <control-tag name="CorePhase" tag="210"/>
     <control-tag name="AnchorWaveform" tag="300"/>
     <control-tag name="AnchorMode" tag="301"/>
     <control-tag name="AnchorLevel" tag="302"/>
@@ -118,6 +120,15 @@
     <control-tag name="MorphAnchorMode" tag="1000"/>
     <control-tag name="MorphEditTarget" tag="1001"/>
     <control-tag name="MorphRampTime" tag="1002"/>
+    <control-tag name="MorphModSource" tag="1003"/>
+    <control-tag name="MorphModAmount" tag="1004"/>
+    <control-tag name="MorphModAttack" tag="1005"/>
+    <control-tag name="MorphModDecay" tag="1006"/>
+    <control-tag name="MorphModSustain" tag="1007"/>
+    <control-tag name="MorphModCycleShape" tag="1008"/>
+    <control-tag name="MorphModCycleRate" tag="1009"/>
+    <control-tag name="MorphModCycleSync" tag="1010"/>
+    <control-tag name="MorphModCycleSyncRate" tag="1011"/>
   </control-tags>
   <template name="editor" class="CViewContainer" origin="0, 0" size="960, 600" minSize="960, 600" maxSize="960, 600"
             background-color="bg" background-color-draw-style="filled" transparent="false" sub-controller="ProfundumPanel">
@@ -177,7 +188,7 @@
           <view class="CTextLabel" session-tag="9220" title="" origin="8, 46" size="300, 16" font="small-font" font-color="text-dim" transparent="true" text-alignment="left" mouse-enabled="false" tooltip="How endpoint A sounds: shape, colour and force."/>
           <view class="CTextLabel" session-tag="9221" title="" origin="328, 46" size="300, 16" font="small-font" font-color="text-dim" transparent="true" text-alignment="right" mouse-enabled="false" tooltip="How endpoint B sounds: shape, colour and force."/>
           <view class="CTextLabel" title="A" origin="8, 74" size="16, 16" font="label-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
-          <view class="CSlider" control-tag="MorphPosition" origin="28, 70" size="476, 24" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="accent" back-color="track" value-color="accent" tooltip="Bass Morph: moves the sound from endpoint A (0 %) to endpoint B (100 %). Automate it to travel between two complete sounds."/>
+          <view class="MorphIndicatorSlider" control-tag="MorphPosition" origin="28, 70" size="476, 24" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" draw-frame-color="accent" draw-back-color="track" draw-value-color="accent" tooltip="Bass Morph: moves the sound from endpoint A (0 %) to endpoint B (100 %). Automate it to travel between two complete sounds."/>
           <view class="CTextLabel" title="B" origin="508, 74" size="16, 16" font="label-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CParamDisplay" control-tag="MorphPosition" origin="532, 72" size="96, 20" font="label-font" font-color="text" transparent="true" text-alignment="right" tooltip="Bass Morph: moves the sound from endpoint A (0 %) to endpoint B (100 %). Automate it to travel between two complete sounds."/>
           <view class="CTextLabel" title="COMPARE" origin="8, 104" size="80, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
@@ -186,13 +197,17 @@
           <view class="CTextButton" session-tag="9202" title="COPY B → A" origin="328, 122" size="120, 24" font="small-font" text-color="text" text-color-highlighted="bg" frame-color="track" frame-width="1" round-radius="0" gradient="segment-off" gradient-highlighted="segment-on" kick-style="true" tooltip="Copy endpoint B's sound onto A. The name is not copied."/>
           <view class="CTextLabel" title="EDIT" origin="8, 154" size="80, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CSegmentButton" control-tag="MorphEditTarget" origin="8, 172" size="120, 24" style="horizontal" selection-mode="Single" font="small-font" text-color="text" text-color-highlighted="bg" frame-color="track" frame-width="1" round-radius="0" gradient="segment-off" gradient-highlighted="segment-on" tooltip="Edit Target: whether the knobs edit endpoint A or endpoint B. It changes what you edit, not what you hear. Not automatable."/>
+          <view class="CTextLabel" title="MORPH MOD" origin="456, 104" size="120, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+          <view class="COptionMenu" control-tag="MorphModSource" origin="456, 122" size="124, 20" font="small-font" font-color="text" frame-color="accent" back-color="track" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Morph Mod Source: what moves the Bass Morph by itself: Envelope per note, Cycle repeating, Velocity of the last note, or the Mod Wheel. With Mod Wheel and a non-zero Amount the wheel moves the morph and stops pushing Mass; at Amount 0 the wheel keeps pushing Mass."/>
+          <view class="ArcKnob" control-tag="MorphModAmount" origin="588, 104" size="40, 40" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Morph Mod Amount: how far and in which direction the source moves the Bass Morph, −100 % to +100 %; 0 leaves the morph where you set it."/>
+          <view class="CParamDisplay" control-tag="MorphModAmount" origin="456, 150" size="124, 16" font="label-font" font-color="text" transparent="true" text-alignment="left" tooltip="Morph Mod Amount: how far and in which direction the source moves the Bass Morph, −100 % to +100 %; 0 leaves the morph where you set it."/>
         </view>
       </view>
     </view>
     <view class="CViewContainer" uidesc-label="page-advanced" origin="0, 56" size="960, 544" background-color="bg" background-color-draw-style="filled" transparent="false">
       <view class="CSegmentButton" uidesc-label="tab-strip" session-tag="9110" origin="8, 2" size="360, 24" style="horizontal" selection-mode="Single" font="small-font" text-color="text" text-color-highlighted="bg" frame-color="track" frame-width="1" round-radius="0" gradient="segment-off" gradient-highlighted="segment-on" segment-names="SECTIONS,MODULATION,SETTINGS" tooltip="Advanced page sections: choose which group of controls to show."/>
       <view class="CViewContainer" uidesc-label="tab-sections" origin="0, 28" size="960, 516" background-color="bg" background-color-draw-style="filled" transparent="false">
-        <view class="CViewContainer" uidesc-label="section-core-spectrum" origin="8, 0" size="304, 220" background-color="panel" background-color-draw-style="filled" transparent="false">
+        <view class="CViewContainer" uidesc-label="section-core-spectrum" origin="8, 0" size="304, 246" background-color="panel" background-color-draw-style="filled" transparent="false">
           <view class="CTextLabel" title="CORE SPECTRUM" origin="4, 2" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CView" custom-view-name="HarmonicBarView" uidesc-label="bars-core" bar-variant="core" origin="4, 20" size="296, 88" tooltip="The measured harmonics of the sounding note after Fold and Character, before the amp envelope, in dB below the strongest component. Shows the resolved sound, including morph, macros and Motion."/>
           <view class="CTextLabel" title="Depth" origin="4, 117" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
@@ -207,12 +222,16 @@
           <view class="OffsetRingKnob" control-tag="CoreEdge" origin="124, 165" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Edge: lifts the upper harmonics that give the bass its bite."/>
           <view class="CTextLabel" title="Spectral Shift" origin="156, 169" size="94, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="BipolarSlider" control-tag="CoreShift" origin="252, 165" size="50, 24" fill-color="accent" track-color="track" center-tick-color="text-dim" tooltip="Spectral Shift: moves the Body and Edge regions down (darker) or up (brighter) together."/>
-          <view class="CTextLabel" title="Harmonic Fold" origin="4, 195" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
-          <view class="OffsetRingKnob" control-tag="FoldAmount" origin="124, 191" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Harmonic Fold: folds the waveform back on itself to add new harmonics. 0 is clean."/>
-          <view class="CTextLabel" title="Tight/Loose" origin="156, 195" size="94, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
-          <view class="BipolarSlider" control-tag="MacroTightLoose" origin="252, 191" size="50, 24" fill-color="accent" track-color="track" center-tick-color="text-dim" tooltip="Tight ↔ Loose: toward Tight, shorter attack, decay and release, a harder transient and more Compression; toward Loose the reverse. Compression has no control of its own."/>
+          <view class="CTextLabel" title="Stiffness" origin="4, 195" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+          <view class="ArcKnob" control-tag="CoreStiffness" origin="124, 191" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Stiffness: bends the upper harmonics sharp of the harmonic series, as a stiff string or a metal bar does, for a metallic, bell-edged bass. Higher notes are stiffer; 0 keeps the exact series."/>
+          <view class="CTextLabel" title="Phase" origin="156, 195" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+          <view class="ArcKnob" control-tag="CorePhase" origin="276, 191" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Phase: turns the upper harmonics against the fundamental. The clean tone hardly changes, but the waveform grows peakier, so Fold and Character bite harder. 0 is the smoothest."/>
+          <view class="CTextLabel" title="Harmonic Fold" origin="4, 221" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+          <view class="OffsetRingKnob" control-tag="FoldAmount" origin="124, 217" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Harmonic Fold: folds the waveform back on itself to add new harmonics. 0 is clean."/>
+          <view class="CTextLabel" title="Tight/Loose" origin="156, 221" size="94, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+          <view class="BipolarSlider" control-tag="MacroTightLoose" origin="252, 217" size="50, 24" fill-color="accent" track-color="track" center-tick-color="text-dim" tooltip="Tight ↔ Loose: toward Tight, shorter attack, decay and release, a harder transient and more Compression; toward Loose the reverse. Compression has no control of its own."/>
         </view>
-        <view class="CViewContainer" uidesc-label="section-excitation-fold" origin="8, 228" size="304, 76" background-color="panel" background-color-draw-style="filled" transparent="false">
+        <view class="CViewContainer" uidesc-label="section-excitation-fold" origin="8, 254" size="304, 76" background-color="panel" background-color-draw-style="filled" transparent="false">
           <view class="CTextLabel" title="EXCITATION &amp; FOLD" origin="4, 2" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CTextLabel" title="Excitation Drive" origin="4, 25" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="OffsetRingKnob" control-tag="CoreExcitationDrive" origin="124, 21" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Excitation Drive: how hard the excitation stage is driven. More drive grows more new harmonics; it is heard only when Excitation Mix is above 0."/>
@@ -223,7 +242,7 @@
           <view class="CTextLabel" title="Harmonic Fold" origin="156, 51" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="OffsetRingKnob" control-tag="FoldAmount" origin="276, 47" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Harmonic Fold: folds the waveform back on itself to add new harmonics. 0 is clean."/>
         </view>
-        <view class="CViewContainer" uidesc-label="section-shape-character" origin="8, 312" size="304, 76" background-color="panel" background-color-draw-style="filled" transparent="false">
+        <view class="CViewContainer" uidesc-label="section-shape-character" origin="8, 338" size="304, 76" background-color="panel" background-color-draw-style="filled" transparent="false">
           <view class="CTextLabel" title="SHAPE &amp; CHARACTER" origin="4, 2" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CTextLabel" title="Shape" origin="4, 25" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="ArcKnob" control-tag="FoldShape" origin="124, 21" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Shape: the SHAPE stage, one control across three characters: 0 % ROUND (soft and dark), 50 % HOLLOW (resonant and scooped), 100 % BITE (bright and edgy)."/>
@@ -234,7 +253,7 @@
           <view class="CTextLabel" title="Character Tone" origin="156, 51" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="OffsetRingKnob" control-tag="CharacterTone" origin="276, 47" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Character Tone: darkens or brightens the Character stage. In WIDE, left and right get slightly different Character settings, so the sub is a little less mono than in Solid or Spread."/>
         </view>
-        <view class="CViewContainer" uidesc-label="section-mass" origin="8, 396" size="304, 50" background-color="panel" background-color-draw-style="filled" transparent="false">
+        <view class="CViewContainer" uidesc-label="section-mass" origin="8, 422" size="304, 50" background-color="panel" background-color-draw-style="filled" transparent="false">
           <view class="CTextLabel" title="MASS" origin="4, 2" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CTextLabel" title="Transient Attack" origin="4, 25" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="OffsetRingKnob" control-tag="DynamicsTransientAttack" origin="124, 21" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Transient Attack: boosts or softens the start of each note, −12 to +12 dB."/>
@@ -340,7 +359,7 @@
           <view class="CTextLabel" title="Compare" origin="4, 51" size="52, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
           <view class="CSegmentButton" session-tag="9203" origin="60, 47" size="108, 24" style="horizontal" selection-mode="Single" font="small-font" text-color="text" text-color-highlighted="bg" frame-color="track" frame-width="1" round-radius="0" gradient="segment-off" gradient-highlighted="segment-on" segment-names="A,A·B,B" tooltip="Compare: hear A, the morph, or B. Choosing A or B also edits that side."/>
           <view class="CTextLabel" title="Morph Ramp Time" origin="174, 51" size="96, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
-          <view class="ArcKnob" control-tag="MorphRampTime" origin="276, 47" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Morph smoothing: how quickly the sound follows a change of the morph position, 5 ms to 2 s. Longer glides smoothly between A and B."/>
+          <view class="ArcKnob" control-tag="MorphRampTime" origin="276, 47" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Morph smoothing: how quickly the sound follows a change of the morph position, 5 ms to 2 s. Longer glides smoothly between A and B. It also smooths Morph Mod movement."/>
           <view class="CTextButton" session-tag="9204" title="Copy A → B" origin="4, 73" size="144, 24" font="small-font" text-color="text" text-color-highlighted="bg" frame-color="track" frame-width="1" round-radius="0" gradient="segment-off" gradient-highlighted="segment-on" kick-style="true" tooltip="Copy A's sound to B. Names are not copied."/>
           <view class="CTextButton" session-tag="9205" title="Copy B → A" origin="152, 73" size="148, 24" font="small-font" text-color="text" text-color-highlighted="bg" frame-color="track" frame-width="1" round-radius="0" gradient="segment-off" gradient-highlighted="segment-on" kick-style="true" tooltip="Copy B's sound to A. Names are not copied."/>
         </view>
@@ -379,6 +398,25 @@
         <view class="ArcKnob" control-tag="MotionEnvDecay" origin="924, 51" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Env Decay: fall time of the Env source back to rest, 0.1 ms to 10 s."/>
         <view class="CTextLabel" title="Drift Smoothness" origin="652, 81" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
         <view class="ArcKnob" control-tag="MotionDriftSmoothness" origin="772, 77" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Drift Smoothness: how smoothly the Drift source wanders. Higher is gentler."/>
+        <view class="CTextLabel" title="MORPH MODULATION" origin="12, 196" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="CTextLabel" title="Source" origin="12, 221" size="96, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="COptionMenu" control-tag="MorphModSource" origin="112, 219" size="196, 20" font="small-font" font-color="text" frame-color="accent" back-color="track" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Morph Mod Source: what moves the Bass Morph by itself: Envelope per note, Cycle repeating, Velocity of the last note, or the Mod Wheel. With Mod Wheel and a non-zero Amount the wheel moves the morph and stops pushing Mass; at Amount 0 the wheel keeps pushing Mass."/>
+        <view class="CTextLabel" title="Amount" origin="12, 247" size="96, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="BipolarSlider" control-tag="MorphModAmount" origin="112, 243" size="196, 24" fill-color="accent" track-color="track" center-tick-color="text-dim" tooltip="Morph Mod Amount: how far and in which direction the source moves the Bass Morph, −100 % to +100 %; 0 leaves the morph where you set it."/>
+        <view class="CTextLabel" title="Env Attack" origin="332, 221" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="ArcKnob" control-tag="MorphModAttack" origin="452, 217" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Morph Env Attack: how long the morph envelope takes to rise after each note starts, 0.1 ms to 10 s."/>
+        <view class="CTextLabel" title="Env Decay" origin="332, 247" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="ArcKnob" control-tag="MorphModDecay" origin="452, 243" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Morph Env Decay: how long the morph envelope takes to fall to the Sustain level, 0.1 ms to 10 s."/>
+        <view class="CTextLabel" title="Env Sustain" origin="332, 273" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="ArcKnob" control-tag="MorphModSustain" origin="452, 269" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Morph Env Sustain: the level the morph envelope holds until the next note, 0 to 100 %."/>
+        <view class="CTextLabel" title="Cycle Shape" origin="652, 221" size="96, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="COptionMenu" control-tag="MorphModCycleShape" origin="752, 219" size="196, 20" font="small-font" font-color="text" frame-color="accent" back-color="track" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Morph Cycle Shape: waveform of the morph Cycle: Sine, Triangle, Sawtooth, Square, S&amp;H or Smooth Random."/>
+        <view class="CTextLabel" title="Cycle Rate" origin="652, 247" size="118, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="ArcKnob" control-tag="MorphModCycleRate" origin="772, 243" size="24, 24" arc-color="accent" guide-color="track" mod-color="highlight" tooltip="Morph Cycle Rate: speed of the morph Cycle when Morph Cycle Sync is off, 0.01 to 20 Hz; a Cycle faster than Morph Ramp Time allows becomes a smoothed triangle."/>
+        <view class="CTextLabel" title="Cycle Sync" origin="652, 273" size="96, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="CSegmentButton" control-tag="MorphModCycleSync" origin="752, 269" size="196, 24" style="horizontal" selection-mode="Single" font="small-font" text-color="text" text-color-highlighted="bg" frame-color="track" frame-width="1" round-radius="0" gradient="segment-off" gradient-highlighted="segment-on" tooltip="Morph Cycle Sync: Off or On; On locks the morph Cycle to the host tempo and Morph Cycle Sync Rate sets the note value."/>
+        <view class="CTextLabel" title="Cycle Sync Rate" origin="652, 299" size="96, 16" font="small-font" font-color="text" transparent="true" text-alignment="left" mouse-enabled="false"/>
+        <view class="COptionMenu" control-tag="MorphModCycleSyncRate" origin="752, 297" size="196, 20" font="small-font" font-color="text" frame-color="accent" back-color="track" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Morph Cycle Sync Rate: note value of one synced morph Cycle, 1/64T to 4/1D."/>
       </view>
       <view class="CViewContainer" uidesc-label="tab-settings" origin="0, 28" size="960, 516" background-color="panel" background-color-draw-style="filled" transparent="false">
         <view class="CTextLabel" title="SETTINGS" origin="12, 4" size="200, 16" font="section-font" font-color="accent" transparent="true" text-alignment="left" mouse-enabled="false"/>

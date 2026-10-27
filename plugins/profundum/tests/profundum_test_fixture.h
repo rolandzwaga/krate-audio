@@ -1026,7 +1026,7 @@ static_assert(kV2SeedAt + ::Profundum::kStateSeedBytes == ::Profundum::kStateEnd
 }
 
 /// A real getState stream of @p proc, as bytes (plan 6.1 writeV2Stream).
-/// Returns the current format (v3 since Phase 12, 574 bytes); a genuine v2 stream comes only from v2StreamOf.
+/// Returns the current format (v3 since Phase 12, 610 bytes since Phase 14); a genuine v2 stream comes only from v2StreamOf.
 [[nodiscard]] inline StateBytes writeV2Stream(::Profundum::Processor& proc) {
     auto stream = Steinberg::owned(new Steinberg::MemoryStream());
     REQUIRE(proc.getState(stream) == Steinberg::kResultOk);

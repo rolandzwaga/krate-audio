@@ -175,7 +175,7 @@ TEST_CASE("Phase 8 T063: Amount=0.0 bit-exact bypass reconfirmation",
 // T063b: Measure SC-001 analysis overhead — EnvelopeDetector::detect() <10%
 // =============================================================================
 TEST_CASE("Phase 8 T063b: EnvelopeDetector::detect() adds <10% analysis overhead",
-          "[adsr][phase8][overhead][sc001]")
+          "[adsr][phase8][overhead][sc001][wallclock]")
 {
     // Create a representative set of frames (~5 seconds at 44.1kHz, hop=512)
     // 5s / (512/44100) = ~430 frames

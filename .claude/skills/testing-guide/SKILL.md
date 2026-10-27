@@ -28,13 +28,16 @@ This skill provides comprehensive guidelines for writing effective tests for thi
 # 1. BUILD FIRST (always!) — build only the layer you touched (no single dsp_tests anymore)
 cmake --build build --config Release --target dsp_primitives_tests
 
-# 2. Run that layer's tests
-"F:/projects/iterum/build/windows-x64-release/bin/Release/dsp_primitives_tests.exe"
+# 2. Run that layer's tests — ALWAYS SHARDED (user ruling 2026-10-26; one serial exe = one core of 32)
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_primitives_tests
 
-# 3. Run tests by tag
-"F:/projects/iterum/build/windows-x64-release/bin/Release/dsp_primitives_tests.exe" "[wavefold_math]"
+# 3. Run tests by tag — same runner, the tag goes in the filter
+node tools/run-gate.js --filter '[wavefold_math]~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_primitives_tests
 
-# 4. Run tests by name pattern
+# Timing tests (CPU budgets, benchmarks) are the one exception: alone, never sharded
+node tools/run-cpu-tests.js dsp_primitives_tests
+
+# 4. Run ONE test case by name pattern (the only direct exe run)
 "F:/projects/iterum/build/windows-x64-release/bin/Release/dsp_processors_tests.exe" "*lambert*"
 
 # 5. List all tags
@@ -43,6 +46,10 @@ cmake --build build --config Release --target dsp_primitives_tests
 
 ### DO NOT DO THIS
 
+- **DO NOT run a whole executable, a tag, or a list of executables as serial processes** (`$t.exe | tail`, <!-- lint-serial-ok: names the anti-pattern -->
+  `for t in ...`). Use `node tools/run-gate.js` — Catch2 `--shard-count`/`--shard-index` over a worker pool. A
+  Profundum gate went from ~14 min serial to 2 min 15 s. This applies to gates, lanes, fixer loops, workflow
+  scripts, new plugins and every new workflow. Several concurrent gates: `--share <N>` each.
 - **DO NOT run Python scripts** - This is a C++ project. Tests are C++ executables.
 - **DO NOT use pytest, unittest, or any Python test framework**
 - **DO NOT try to "generate reference values" with Python** - Use mathematical constants or Wolfram Alpha

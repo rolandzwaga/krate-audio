@@ -224,6 +224,65 @@ TEST_CASE("VoiceEngineHelpers_DriverSplitsAtEvents", "[systems][profundum][voice
     CHECK(a.grid.size() == (12000u + 31u) / 32u);
 }
 
+// Phase 14 (specs/profundum-phase14-morph-modulation) T007, SC-023 (d): the appended driver fields default to the
+// engine's own (Source Off, Amount 0, wheel 0, bypass off), so an existing script renders unchanged; a
+// MorphModulation event index is validated like an Endpoint index.
+TEST_CASE("VoiceEngineHelpers_MorphModFields", "[systems][profundum][morphmod][voice-engine]") {
+    enableFTZDAZ();
+
+    // The appended defaults.
+    const VE::VoiceEngineScript d{};
+    CHECK(d.morphMod.source == ProfundumMorphModulator::Source::Off);
+    CHECK(d.morphModWheel == 0.0f);
+    CHECK_FALSE(d.morphModBypass);
+    CHECK(d.morphModStates.empty());
+
+    // A Phase 9 showcase script (A_s / B, MONO, E1 held from sample 0, 1 s) at position 0.5, so a non-transparent
+    // target would move the sound.
+    VE::VoiceEngineScript s = veShowcaseScript(48000);
+    s.position = 0.5f;
+    s.events = {VE::VoiceEngineEvent{.sample = 0, .kind = VE::VoiceEngineEventKind::NoteOn,
+                                     .note = VE::kVoiceEngineNoteE1, .velocity = 100}};
+    const VE::VoiceEngineTaps base = VE::voiceEngineRender(s);
+
+    VE::VoiceEngineScript m = s;
+    m.morphMod.source = ProfundumMorphModulator::Source::Off;
+    m.morphMod.amount = 1.0f;
+    m.morphModWheel = 1.0f;
+    const VE::VoiceEngineTaps mod = VE::voiceEngineRender(m);
+
+    float peak = 0.0f;
+    for (const float v : base.outL)
+        peak = std::max(peak, std::fabs(v));
+    INFO("output peak " << peak);
+    CHECK(peak > 1.0e-4f);
+    CHECK(veMismatches(base.outL, mod.outL) == 0u);
+    CHECK(veMismatches(base.outR, mod.outR) == 0u);
+    REQUIRE(base.grid.size() == mod.grid.size());
+    std::size_t targetNotBase = 0;
+    for (const VE::VoiceEngineGridRecord& r : mod.grid) {
+        if (std::bit_cast<std::uint32_t>(r.morphTarget) != std::bit_cast<std::uint32_t>(0.5f))
+            ++targetNotBase;
+    }
+    CHECK(targetNotBase == 0u);
+
+    // A MorphModulation index outside morphModStates is rejected (the driver REQUIREs this predicate before the
+    // render, as it does the Endpoint index); an index inside it is accepted.
+    VE::VoiceEngineScript v = s;
+    v.morphModStates.push_back(ProfundumMorphModulator::Config{});
+    const auto ev = [](int index) {
+        return VE::VoiceEngineEvent{.sample = 64, .kind = VE::VoiceEngineEventKind::MorphModulation, .index = index};
+    };
+    CHECK(VE::voiceEngineMorphModIndexValid(ev(0), v));
+    CHECK_FALSE(VE::voiceEngineMorphModIndexValid(ev(1), v));
+    CHECK_FALSE(VE::voiceEngineMorphModIndexValid(ev(-1), v));
+    CHECK_FALSE(VE::voiceEngineMorphModIndexValid(ev(0), s));   // no states at all
+    // The accepted event renders (the driver issues it at sample 64).
+    v.events.push_back(ev(0));
+    const VE::VoiceEngineTaps accepted = VE::voiceEngineRender(v);
+    CHECK(accepted.grid.size() == base.grid.size());
+}
+
 TEST_CASE("VoiceEngineHelpers_TwinDiffersOnlyInExcitation", "[systems][profundum][voice-engine][fr-086]") {
     enableFTZDAZ();
     VE::VoiceEngineScript s = veShowcaseScript(14400);   // 0.3 s

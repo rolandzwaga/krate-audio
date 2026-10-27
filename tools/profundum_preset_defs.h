@@ -20,6 +20,18 @@
 // Values are NORMALIZED 0..1, exactly as a host delivers them. Untouched IDs
 // keep their registered defaults.
 //
+// Phase 14 T023 (specs/profundum-phase14-morph-modulation, plan 4.13, 5.7 step 5; FR-040 - FR-042, FR-046, FR-063):
+//   - CapabilityGroup::MorphMod and the four columns M-ENV, M-CYCLE, M-VEL, M-WHEEL appended after R-SINE;
+//   - `controls` may carry the Morph Modulation block 1003-1011;
+//   - the conversions of evidence/conversions.md (rule (ii), kMorphModConversionRule) and the two presets added
+//     for the columns no existing preset could carry (definitions 59-60; morphModProbeBase names the probe's base).
+//
+// Phase 14b (specs/Profundum-roadmap.md): the seventh category, Kicks, and its eleven definitions (61-71), each led by
+// a Phase 13 column and stored with Morph Modulation Source Off.
+//
+// Phase 15 (specs/Profundum-roadmap.md): definitions 72-73, one led by each new core column (S-STIFF Stiffness,
+// S-PHASE Phase), stored with Morph Modulation Source Off.
+//
 // ParamSetting, Capability and CapabilityGroup also exist in
 // Vorago::PresetDefs / Seraphis::PresetDefs: different namespaces and different
 // targets; no TU includes two defs headers.
@@ -57,22 +69,28 @@ enum class CapabilityGroup : std::uint8_t {
     Morph,
     NoteMemory,
     Macros,
-    Reference
+    Reference,
+    MorphMod,  // Phase 14 C-14: the four Morph Modulation source columns
+    CoreTone   // Phase 15: Stiffness and Phase
 };
 
-/// FR-010: the 50 AT columns in AT order, then the three reference columns.
+/// FR-010: the 50 AT columns in AT order, then the three reference columns. Phase 14 (FR-040) appends the four
+/// Morph Modulation source columns, so every Phase 13 column keeps its index.
 enum class Capability : std::uint8_t {
     AT01, AT02, AT03, AT04, AT05, AT06, AT07, AT08, AT09, AT10, AT11, AT12, AT13, AT14, AT15, AT16, AT17, AT18, AT19,
     AT20, AT21, AT22, AT23, AT24, AT25, AT26, AT27, AT28, AT29, AT30, AT31, AT32, AT33, AT34, AT35, AT36, AT37, AT38,
-    AT39, AT40, AT41, AT42, AT43, AT44, AT45, AT46, AT47, AT48, AT49, AT50, RSolid, RLock, RSine, Count
+    AT39, AT40, AT41, AT42, AT43, AT44, AT45, AT46, AT47, AT48, AT49, AT50, RSolid, RLock, RSine,
+    MEnv, MCycle, MVel, MWheel, SStiff, SPhase, Count
 };
 inline constexpr std::size_t kNumCapabilities = static_cast<std::size_t>(Capability::Count);
-static_assert(kNumCapabilities == 53, "C-2.1: 50 AT columns + R-SOLID, R-LOCK, R-SINE");
+static_assert(kNumCapabilities == 59,
+              "C-2.1: 50 AT columns + R-SOLID, R-LOCK, R-SINE; Phase 14 C-14: + M-ENV, M-CYCLE, M-VEL, M-WHEEL; "
+              "Phase 15: + S-STIFF, S-PHASE");
 
 struct CapabilityInfo {
     Capability column;
     CapabilityGroup group;
-    std::uint8_t atId;       // 1..50; 0 for a reference column
+    std::uint8_t atId;       // 1..50; 0 for a reference or MorphMod column
     std::string_view label;  // "AT-04 Character Tube", printed in coverage-matrix.csv
 };
 
@@ -135,9 +153,24 @@ struct CapabilityInfo {
         {C::RSolid, G::Reference, 0, "R-SOLID Reference Solid"},
         {C::RLock, G::Reference, 0, "R-LOCK Reference Lock"},
         {C::RSine, G::Reference, 0, "R-SINE Reference Sine"},
+        {C::MEnv, G::MorphMod, 0, "M-ENV Morph Mod Envelope"},
+        {C::MCycle, G::MorphMod, 0, "M-CYCLE Morph Mod Cycle"},
+        {C::MVel, G::MorphMod, 0, "M-VEL Morph Mod Velocity"},
+        {C::MWheel, G::MorphMod, 0, "M-WHEEL Morph Mod Wheel"},
+        {C::SStiff, G::CoreTone, 0, "S-STIFF Core Stiffness"},
+        {C::SPhase, G::CoreTone, 0, "S-PHASE Core Phase"},
     }};
     return kTable;
 }
+
+/// Phase 14 plan 5.7 step 4: the two conversion rules the probe selection can apply. PerColumn = rule (i), one
+/// conversion per column (the eligible carrier with the largest margin); EveryCarrier = rule (ii), every eligible
+/// carrier converts for the column of its largest margin. A preset converts at most once under either rule.
+enum class MorphModConversionRule : std::uint8_t { PerColumn, EveryCarrier };
+
+/// R4 (evidence/plan-rulings.md, user 2026-10-26; FR-046): rule (ii). evidence/probe/select.js applies the same
+/// rule; Profundum_PresetDefsRules re-derives the converted set from evidence/probe-morphmod.csv with this constant.
+inline constexpr MorphModConversionRule kMorphModConversionRule = MorphModConversionRule::EveryCarrier;
 
 /// == ProfundumEngine::kDefaultSeed (static_assert in the host).
 inline constexpr std::uint32_t kFactoryDefaultSeed = 0xB455u;
@@ -151,13 +184,19 @@ struct ProfundumPresetDef {
     std::vector<ParamSetting> endpointA;       // Sound-route IDs only (the 60 E-parameters)
     std::vector<ParamSetting> endpointB;       // Sound-route IDs only; EMPTY = endpoint B is a copy of endpoint A
     std::vector<ParamSetting> controls;        // 1, 100-103, 105, 410-416, 1000, 1002 (P-6 forbids 0, 2, 3, 417; also 4-7 and 1001)
+                                               // and, from Phase 14, the Morph Modulation block 1003-1011
     std::string_view nameA;                    // <= 31 UTF-8 bytes, already sanitised, never "A"
     std::string_view nameB;                    // never "B"
     std::uint32_t seed = kFactoryDefaultSeed;  // C-4 step 6
     bool seedDependent = false;                // C-7; verified in both directions by FR-044
+    // Phase 14 FR-046: a preset added for a MorphMod column no existing preset could carry names the probe preset
+    // whose evidence/probe-morphmod.csv rows prove its source and settings (the NEW PRESET NEEDED row's base); empty
+    // for every other definition (a converted preset is proven by its own rows).
+    std::string_view morphModProbeBase{};
 };
 
-inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated"};
+inline constexpr std::array<std::string_view, 7> kCategories{"Sub",     "Resonant", "Harmonic", "Driven",
+                                                              "Plucked", "Animated", "Kicks"};
 
 /// Definition order == file order. Rows are authored only after the probe table is recorded (FR-022,
 /// evidence/probe-table.csv, T017). T023: plan 7 rows 51-53 (the reference columns); T025 adds rows 1-50 before them.
@@ -173,10 +212,15 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Edge Ignition",
             .category = "Harmonic",
-            .description = "Core Excitation Mix: a sine recipe pushed to edge 1 with the excitation mix and drive at full; "
-                           "Harmonic Fold 50 adds folded overtones.",
+            .description = "Core Excitation Mix: a sine recipe pushed to edge 1 with the excitation mix and drive at full, "
+                           "igniting with a fast 7 semitone drop; Harmonic Fold 50 adds folded overtones over a Triangle "
+                           "Anchor. Morph to B burns it: Rectify, a lopsided drive and a wide image.",
             .primary = C::AT01,
             .secondaries = {C::AT03},
+            // Whole-instrument pilot (2026-10-26): both claims measure nonlinearity against a linear twin, so the core
+            // stays a sine and the variety sits outside that path: a Triangle Anchor, spread 0.5 and a 7 st, 40 ms
+            // drop. A fuller recipe (depth 0.85, body 0.25, Shift +0.2, SHAPE 0.3) read AT-01 25.5 -> 4.1 dB and AT-03
+            // 1.9 -> -0.6 dB, with or without Fracture at 0.25.
             .endpointA = {{kCoreDepthId, 1.0},            // depth 1
                           {kCoreBodyId, 0.0},             // body 0
                           {kCoreEdgeId, 1.0},             // edge 1
@@ -191,38 +235,43 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpSustainId, 0.8},           // sustain 0.8
                           {kAmpReleaseId, 0.695424},      // 300 ms
                           {kFieldImageModeId, 0.5},       // SPREAD
-                          {kFieldSpreadId, 0.4},          // spread 0.4
+                          {kFieldSpreadId, 0.5},          // spread 0.5
                           {kMassId, 0.55},                // Mass 55
-                          {kAnchorWaveformId, 0.0},       // Sine
+                          {kAnchorWaveformId, 0.25},      // Triangle
                           {kAnchorModeId, 0.0},           // LOCK
                           {kAnchorLevelId, 0.8},          // level 0.8
                           {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
-                          {kCoreExcitationDriveId, 1.0}}, // drive 1
-            .endpointB = {{kCoreDepthId, 1.0},                // depth 1
-                          {kCoreBodyId, 0.0},                 // body 0
-                          {kCoreEdgeId, 0.8},                 // edge 0.8
-                          {kCoreExcitationMixId, 1.0},        // excitation mix 1
-                          {kFoldAmountId, 0.5},               // Harmonic Fold 50
-                          {kFoldShapeId, 0.0},                // SHAPE 0
-                          {kCharacterId, 0.0},                // Tube
-                          {kCharacterAmountId, 0.0},          // Amount 0
-                          {kCharacterToneId, 0.5},            // Tone 0.5
-                          {kAmpAttackId, 0.260206},           // 2 ms
-                          {kAmpDecayId, 0.720412},            // 400 ms
-                          {kAmpSustainId, 0.8},               // sustain 0.8
-                          {kAmpReleaseId, 0.695424},          // 300 ms
-                          {kFieldImageModeId, 0.5},           // SPREAD
-                          {kFieldSpreadId, 0.4},              // spread 0.4
-                          {kMassId, 0.55},                    // Mass 55
-                          {kAnchorWaveformId, 0.0},           // Sine
-                          {kAnchorModeId, 0.0},               // LOCK
-                          {kAnchorLevelId, 0.8},              // level 0.8
-                          {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
-                          {kCoreExcitationDriveId, 1.0},      // drive 1
-                          {kCoreExcitationAsymmetryId, 0.4}}, // asymmetry 0.4
+                          {kCoreExcitationDriveId, 1.0},  // drive 1
+                          {kDropAmountId, 0.145833},      // drop 7 st
+                          {kDropTimeId, 0.444762}},       // drop time 40 ms
+            // Morph pilot (2026-10-26): B is a designed destination, not a nudge of A: Rectify at Amount 0.4 over a
+            // lopsided drive, Fold 60 at HOLLOW, a fuller body, an Asymmetric Sine Anchor at level 1 and the WIDE image
+            // (Rectify 0.7 with Fold 80 read 3.7 - 4.2 dB under A at C3).
+            .endpointB = {{kCoreDepthId, 0.8},                 // depth 0.8
+                          {kCoreBodyId, 0.3},                  // body 0.3
+                          {kCoreEdgeId, 1.0},                  // edge 1
+                          {kCoreExcitationMixId, 1.0},         // excitation mix 1
+                          {kFoldAmountId, 0.6},                // Harmonic Fold 60
+                          {kFoldShapeId, 0.5},                 // SHAPE 0.5 (HOLLOW)
+                          {kCharacterId, 0.4},                 // Rectify
+                          {kCharacterAmountId, 0.4},           // Amount 0.4
+                          {kCharacterToneId, 0.7},             // Tone 0.7
+                          {kAmpAttackId, 0.260206},            // 2 ms
+                          {kAmpDecayId, 0.720412},             // 400 ms
+                          {kAmpSustainId, 0.95},               // sustain 0.95
+                          {kAmpReleaseId, 0.695424},           // 300 ms
+                          {kFieldImageModeId, 1.0},            // WIDE
+                          {kFieldSpreadId, 0.8},               // spread 0.8
+                          {kMassId, 0.8},                      // Mass 80
+                          {kAnchorWaveformId, 0.75},           // Asymmetric Sine
+                          {kAnchorModeId, 0.0},                // LOCK
+                          {kAnchorLevelId, 1.0},               // level 1
+                          {kAnchorFoldFeedId, 0.0},            // Anchor Fold Feed 0
+                          {kCoreExcitationDriveId, 1.0},       // drive 1
+                          {kCoreExcitationAsymmetryId, 0.8}},  // asymmetry 0.8
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Ignition",
-            .nameB = "Asymmetric Burn",
+            .nameB = "Rectified Burn",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -231,55 +280,62 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Biting Reed",
             .category = "Harmonic",
-            .description = "Core Shape: a saw-like recipe at edge 0.5 with SHAPE at 1, the BITE end; the reed snarls on every "
-                           "note.",
+            .description = "Core Shape: a saw-like recipe at edge 0.5 with SHAPE at 1, the BITE end, snapping wide; "
+                           "the reed snarls on every note. Morph to B warms it into a mono Tube reed an octave deep.",
             .primary = C::AT02,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.3},          // depth 0.3
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.5},           // edge 0.5
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 1.0},          // SHAPE 1
+            // Designed-library pass (2026-10-26): AT-02 reads brightness at the Sum tap (margin 1.48), so the recipe
+            // and Anchor stay; A gains a WIDE image, a 2 st snap and a harder transient.
+            .endpointA = {{kCoreDepthId, 0.3},                      // depth 0.3
+                          {kCoreBodyId, 0.0},                       // body 0
+                          {kCoreEdgeId, 0.5},                       // edge 0.5
+                          {kCoreExcitationMixId, 0.0},              // excitation mix 0
+                          {kFoldAmountId, 0.0},                     // Harmonic Fold 0
+                          {kFoldShapeId, 1.0},                      // SHAPE 1
+                          {kCharacterId, 0.0},                      // Tube
+                          {kCharacterAmountId, 0.0},                // Amount 0
+                          {kCharacterToneId, 0.5},                  // Tone 0.5
+                          {kAmpAttackId, 0.295424},                 // 3 ms
+                          {kAmpDecayId, 0.695424},                  // 300 ms
+                          {kAmpSustainId, 1.0},                     // sustain 1
+                          {kAmpReleaseId, 0.679588},                // 250 ms
+                          {kFieldImageModeId, 1.0},                 // WIDE
+                          {kFieldSpreadId, 0.6},                    // spread 0.6
+                          {kMassId, 0.5},                           // Mass 50
+                          {kAnchorWaveformId, 0.0},                 // Sine
+                          {kAnchorModeId, 0.0},                     // LOCK
+                          {kAnchorLevelId, 0.6},                    // level 0.6
+                          {kAnchorFoldFeedId, 0.0},                 // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.5},                      // shift 0
+                          {kDropAmountId, 0.041667},                // drop 2 st
+                          {kDropTimeId, 0.361191},                  // drop time 20 ms
+                          {kDynamicsTransientAttackId, 0.666667}},  // transient attack +4 dB
+            // Designed-library pass (2026-10-26): B warms the reed: a body, excitation, a ROUND-leaning fold and Tube
+            // 0.5 over a mono Octave Down Anchor.
+            .endpointB = {{kCoreDepthId, 0.6},          // depth 0.6
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.3},           // edge 0.3
+                          {kCoreExcitationMixId, 0.4},  // excitation mix 0.4
+                          {kFoldAmountId, 0.4},         // Harmonic Fold 40
+                          {kFoldShapeId, 0.3},          // SHAPE 0.3
                           {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+                          {kCharacterAmountId, 0.5},    // Amount 0.5
+                          {kCharacterToneId, 0.4},      // Tone 0.4
                           {kAmpAttackId, 0.295424},     // 3 ms
                           {kAmpDecayId, 0.695424},      // 300 ms
                           {kAmpSustainId, 1.0},         // sustain 1
                           {kAmpReleaseId, 0.679588},    // 250 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.5},        // spread 0.5
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kMassId, 0.6},               // Mass 60
+                          {kAnchorWaveformId, 1.0},     // OctaveDownSine
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.6},        // level 0.6
-                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
-                          {kCoreShiftId, 0.5}},         // shift 0
-            .endpointB = {{kCoreDepthId, 0.3},          // depth 0.3
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.6},           // edge 0.6
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.7},          // SHAPE 0.7
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.295424},     // 3 ms
-                          {kAmpDecayId, 0.695424},      // 300 ms
-                          {kAmpSustainId, 1.0},         // sustain 1
-                          {kAmpReleaseId, 0.679588},    // 250 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.5},        // spread 0.5
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.6},        // level 0.6
+                          {kAnchorLevelId, 0.8},        // level 0.8
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreShiftId, 0.5}},         // shift 0
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Full Bite",
-            .nameB = "Softer Reed",
+            .nameB = "Warm Reed",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -287,52 +343,61 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Folded Mass",
             .category = "Driven",
-            .description = "Core Harmonic Fold: Harmonic Fold at 100 over a deep core, with the Anchor at 0.6 holding the floor.",
+            .description = "Core Harmonic Fold: Harmonic Fold at 100 over a deep core with some body, sharpened by Bite and "
+                           "spread wide, with an Asymmetric Anchor at 0.6 holding the floor. Morph to B crushes it: Crush, "
+                           "the BITE shape and an octave-down Anchor.",
             .primary = C::AT03,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.8},          // depth 0.8
-                          {kCoreBodyId, 0.2},           // body 0.2
-                          {kCoreEdgeId, 0.2},           // edge 0.2
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 1.0},         // Harmonic Fold 100
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.260206},     // 2 ms
-                          {kAmpDecayId, 0.739794},      // 500 ms
-                          {kAmpSustainId, 0.8},         // sustain 0.8
-                          {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.65},              // Mass 65
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.6},        // level 0.6
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 0.8},          // depth 0.8
+            // Whole-instrument pilot (2026-10-26): A keeps its AT-03 claim (Fold 100) and uses the rest: body and a
+            // little excitation, Shift down, Bite at Amount 0.4, an Asymmetric Sine Anchor and the WIDE image. The
+            // fuller recipe narrows the AT-03 margin (12.8 -> 1.2 dB at E1); Bite 0.4 vs 0.25 read 1.19 vs 1.17 dB.
+            .endpointA = {{kCoreDepthId, 0.7},          // depth 0.7
                           {kCoreBodyId, 0.4},           // body 0.4
-                          {kCoreEdgeId, 0.2},           // edge 0.2
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
+                          {kCoreEdgeId, 0.3},           // edge 0.3
+                          {kCoreExcitationMixId, 0.2},  // excitation mix 0.2
                           {kFoldAmountId, 1.0},         // Harmonic Fold 100
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
+                          {kFoldShapeId, 0.2},          // SHAPE 0.2
+                          {kCharacterId, 0.6},          // Bite
+                          {kCharacterAmountId, 0.4},    // Amount 0.4
                           {kCharacterToneId, 0.5},      // Tone 0.5
                           {kAmpAttackId, 0.260206},     // 2 ms
                           {kAmpDecayId, 0.739794},      // 500 ms
                           {kAmpSustainId, 0.8},         // sustain 0.8
                           {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.75},              // Mass 75
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.5},        // spread 0.5
+                          {kMassId, 0.7},               // Mass 70
+                          {kAnchorWaveformId, 0.75},    // Asymmetric Sine
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.6},        // level 0.6
+                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.4}},         // shift -0.2
+            // Morph pilot (2026-10-26): B crushes the fold: Crush at Amount 0.45, Fold SHAPE at BITE, a full body with
+            // some excitation, Mass 90, an Octave Down Anchor at level 1, full sustain and the SPREAD image (Crush 0.6
+            // at Mass 85 read 6.5 dB under A at E1).
+            .endpointB = {{kCoreDepthId, 0.7},          // depth 0.7
+                          {kCoreBodyId, 0.7},           // body 0.7
+                          {kCoreEdgeId, 0.5},           // edge 0.5
+                          {kCoreExcitationMixId, 0.4},  // excitation mix 0.4
+                          {kFoldAmountId, 1.0},         // Harmonic Fold 100
+                          {kFoldShapeId, 1.0},          // SHAPE 1 (BITE)
+                          {kCharacterId, 0.8},          // Crush
+                          {kCharacterAmountId, 0.45},   // Amount 0.45
+                          {kCharacterToneId, 0.4},      // Tone 0.4
+                          {kAmpAttackId, 0.260206},     // 2 ms
+                          {kAmpDecayId, 0.739794},      // 500 ms
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.695424},    // 300 ms
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.5},        // spread 0.5
+                          {kMassId, 0.9},               // Mass 90
+                          {kAnchorWaveformId, 1.0},     // Octave Down
+                          {kAnchorModeId, 0.0},         // LOCK
+                          {kAnchorLevelId, 1.0},        // level 1
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Folded Floor",
-            .nameB = "Folded Body",
+            .nameB = "Crushed Body",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -341,10 +406,13 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Valve Pressure",
             .category = "Driven",
-            .description = "Character Tube: the Tube algorithm at Amount 1 for full valve pressure, with Mass 90 under an Anchor "
-                           "at 0.5.",
+            .description = "Character Tube: the Tube algorithm at Amount 1 for full valve pressure, with Mass 90 over "
+                           "an octave-down Anchor at 0.5, wide. Morph to B folds it: a body, excitation and a BITE "
+                           "fold under a brighter Tube, mono.",
             .primary = C::AT04,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-04 had 0.82 dB of margin, so the core and Character stay; A gains
+            // an Octave Down Anchor and a WIDE image (with a 3 st drop as well, AT-04 read 0.22 dB).
             .endpointA = {{kCoreDepthId, 0.7},          // depth 0.7
                           {kCoreBodyId, 0.35},          // body 0.35
                           {kCoreEdgeId, 0.3},           // edge 0.3
@@ -358,36 +426,38 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.720412},      // 400 ms
                           {kAmpSustainId, 0.85},        // sustain 0.85
                           {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.3},        // spread 0.3
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.5},        // spread 0.5
                           {kMassId, 0.9},               // Mass 90
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 1.0},     // OctaveDownSine
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.5},        // level 0.5
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 0.7},          // depth 0.7
-                          {kCoreBodyId, 0.35},          // body 0.35
-                          {kCoreEdgeId, 0.4},           // edge 0.4
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
+            // Designed-library pass (2026-10-26): B folds a body under a brighter Tube 0.5, mono, over a Triangle
+            // Anchor (Tube on both: AT-04).
+            .endpointB = {{kCoreDepthId, 0.45},         // depth 0.45
+                          {kCoreBodyId, 0.6},           // body 0.6
+                          {kCoreEdgeId, 0.7},           // edge 0.7
+                          {kCoreExcitationMixId, 0.4},  // excitation mix 0.4
+                          {kFoldAmountId, 0.55},        // Harmonic Fold 55
+                          {kFoldShapeId, 0.8},          // SHAPE 0.8
                           {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 1.0},    // Amount 1
-                          {kCharacterToneId, 0.65},     // Tone 0.65
+                          {kCharacterAmountId, 0.5},    // Amount 0.5
+                          {kCharacterToneId, 0.8},      // Tone 0.8
                           {kAmpAttackId, 0.295424},     // 3 ms
                           {kAmpDecayId, 0.720412},      // 400 ms
                           {kAmpSustainId, 0.85},        // sustain 0.85
                           {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.3},        // spread 0.3
-                          {kMassId, 0.9},               // Mass 90
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kMassId, 0.75},              // Mass 75
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.5},        // level 0.5
+                          {kAnchorLevelId, 0.7},        // level 0.7
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Hot Valve",
-            .nameB = "Bright Valve",
+            .nameB = "Folded Valve",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -395,9 +465,13 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Folding Wire",
             .category = "Driven",
-            .description = "Character Wavefold: the Fold algorithm at Amount 1, a wire-bright wavefold over a mid core.",
+            .description = "Character Wavefold: the Fold algorithm at Amount 1, a wire-bright wavefold over a mid core "
+                           "and a Triangle Anchor, snapping wide. Morph to B softens it into a mono, lightly folded "
+                           "body an octave deep.",
             .primary = C::AT05,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-05 had 5.03 of margin; A gains a Triangle Anchor, a WIDE image and
+            // a 4 st snap (SHAPE 0.3 ahead of the Character stage read AT-05 at -0.81).
             .endpointA = {{kCoreDepthId, 0.6},          // depth 0.6
                           {kCoreBodyId, 0.3},           // body 0.3
                           {kCoreEdgeId, 0.4},           // edge 0.4
@@ -411,52 +485,63 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.679588},      // 250 ms
                           {kAmpSustainId, 0.7},         // sustain 0.7
                           {kAmpReleaseId, 0.660206},    // 200 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.6},        // spread 0.6
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.7},        // spread 0.7
                           {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.6},        // level 0.6
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 0.6},          // depth 0.6
-                          {kCoreBodyId, 0.5},           // body 0.5
-                          {kCoreEdgeId, 0.4},           // edge 0.4
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
+                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
+                          {kDropAmountId, 0.083333},    // drop 4 st
+                          {kDropTimeId, 0.410077}},     // drop time 30 ms
+            // Designed-library pass (2026-10-26): B softens the wire: Fold at 0.35 over a fuller body with excitation,
+            // a light fold and Shift down, mono, over an Octave Down Anchor (Fold on both: AT-05).
+            .endpointB = {{kCoreDepthId, 0.85},         // depth 0.85
+                          {kCoreBodyId, 0.7},           // body 0.7
+                          {kCoreEdgeId, 0.2},           // edge 0.2
+                          {kCoreExcitationMixId, 0.4},  // excitation mix 0.4
+                          {kFoldAmountId, 0.4},         // Harmonic Fold 40
+                          {kFoldShapeId, 0.2},          // SHAPE 0.2
                           {kCharacterId, 0.2},          // Fold
-                          {kCharacterAmountId, 1.0},    // Amount 1
-                          {kCharacterToneId, 0.45},     // Tone 0.45
+                          {kCharacterAmountId, 0.35},   // Amount 0.35
+                          {kCharacterToneId, 0.2},      // Tone 0.2
                           {kAmpAttackId, 0.2},          // 1 ms
                           {kAmpDecayId, 0.679588},      // 250 ms
                           {kAmpSustainId, 0.7},         // sustain 0.7
-                          {kAmpReleaseId, 0.660206},    // 200 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.6},        // spread 0.6
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAmpReleaseId, 0.75563},     // 600 ms
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kMassId, 0.7},               // Mass 70
+                          {kAnchorWaveformId, 1.0},     // OctaveDownSine
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.6},        // level 0.6
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
+                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.25}},        // shift -0.5
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Live Wire",
-            .nameB = "Bent Wire",
+            .nameB = "Soft Wire",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
         // ---- 6: AT-06 Rectify (plan 7 row 6) ----
+        // Phase 14 T023: converted to M-ENV (AT-06 stays with Poly Rectifier).
         ProfundumPresetDef{
             .name = "Rectified Floor",
             .category = "Driven",
-            .description = "Character Rectify: Rectify at Amount 1 with Tone 0.4 over a floor-heavy core, the Anchor at 0.6.",
-            .primary = C::AT06,
+            .description = "Morph Mod Envelope: every note leaps 60 percent of the way from the Rectify floor toward "
+                           "its folded B, then settles near a third (Amount 0.6, an instant attack, Sustain 0.6). A "
+                           "is Rectify at Amount 1 with Tone 0.4 over a floor-heavy, lightly folded core and an "
+                           "Asymmetric Anchor at 0.6; B folds a fuller body under a lighter Rectify, wide.",
+            .primary = C::MEnv,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-06 had 21.9 of margin; A gains a body, excitation, a light fold,
+            // an Asymmetric Anchor and a spread top.
             .endpointA = {{kCoreDepthId, 0.9},          // depth 0.9
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.1},           // edge 0.1
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
+                          {kCoreBodyId, 0.3},           // body 0.3
+                          {kCoreEdgeId, 0.3},           // edge 0.3
+                          {kCoreExcitationMixId, 0.2},  // excitation mix 0.2
+                          {kFoldAmountId, 0.2},         // Harmonic Fold 20
+                          {kFoldShapeId, 0.3},          // SHAPE 0.3
                           {kCharacterId, 0.4},          // Rectify
                           {kCharacterAmountId, 1.0},    // Amount 1
                           {kCharacterToneId, 0.4},      // Tone 0.4
@@ -464,36 +549,49 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.695424},      // 300 ms
                           {kAmpSustainId, 0.9},         // sustain 0.9
                           {kAmpReleaseId, 0.679588},    // 250 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.4},        // spread 0.4
                           {kMassId, 0.55},              // Mass 55
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.75},    // AsymmetricSine
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.6},        // level 0.6
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 0.9},          // depth 0.9
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.1},           // edge 0.1
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
+            // Designed-library pass (2026-10-26): B folds a fuller body under Rectify 0.45, wide (Rectify on both:
+            // AT-06).
+            .endpointB = {{kCoreDepthId, 0.5},          // depth 0.5
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.6},           // edge 0.6
+                          {kCoreExcitationMixId, 0.5},  // excitation mix 0.5
+                          {kFoldAmountId, 0.5},         // Harmonic Fold 50
+                          {kFoldShapeId, 0.8},          // SHAPE 0.8
                           {kCharacterId, 0.4},          // Rectify
-                          {kCharacterAmountId, 1.0},    // Amount 1
-                          {kCharacterToneId, 0.3},      // Tone 0.3
+                          {kCharacterAmountId, 0.45},   // Amount 0.45
+                          {kCharacterToneId, 0.55},     // Tone 0.55
                           {kAmpAttackId, 0.260206},     // 2 ms
                           {kAmpDecayId, 0.695424},      // 300 ms
-                          {kAmpSustainId, 0.9},         // sustain 0.9
+                          {kAmpSustainId, 1.0},         // sustain 1
                           {kAmpReleaseId, 0.679588},    // 250 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.65},              // Mass 65
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.7},        // spread 0.7
+                          {kMassId, 0.7},               // Mass 70
                           {kAnchorWaveformId, 0.0},     // Sine
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.6},        // level 0.6
+                          {kAnchorLevelId, 0.8},        // level 0.8
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .controls = {{kMorphPositionId, 0.0}}, // p = 0
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 3.565 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kMorphModSourceId, 0.25},                     // Source Envelope (1 / 4)
+                         {kMorphModAmountId, 0.8},                      // Amount +0.6
+                         {kMorphModAttackId, 0.0},                      // attack 0.1 ms
+                         {kMorphModDecayId, 0.75563024976044124},       // decay 600 ms
+                         {kMorphModSustainId, 0.6},                     // sustain 0.6
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Rectified",
-            .nameB = "Rectified Dark",
+            .nameB = "Folded Rectifier",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -501,9 +599,13 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Bite Down",
             .category = "Driven",
-            .description = "Character Bite: Bite at Amount 1 with the Transient Attack at +12 dB, so every note bites down.",
+            .description = "Character Bite: Bite at Amount 1 with the Transient Attack at +12 dB over a Rounded "
+                           "Anchor, so every note bites down, wide. Morph to B folds it into a mono body an octave "
+                           "deep with half the Bite and no transient boost.",
             .primary = C::AT07,
             .secondaries = {C::AT28},
+            // Designed-library pass (2026-10-26): AT-07 had 9.47 of margin, AT-28 7.84; A gains a Rounded Anchor, a
+            // WIDE image and a 3 st snap (a light fold read AT-07 at -0.10).
             .endpointA = {{kCoreDepthId, 0.7},                // depth 0.7
                           {kCoreBodyId, 0.3},                 // body 0.3
                           {kCoreEdgeId, 0.3},                 // edge 0.3
@@ -517,38 +619,43 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.708814},            // 350 ms
                           {kAmpSustainId, 0.6},               // sustain 0.6
                           {kAmpReleaseId, 0.660206},          // 200 ms
-                          {kFieldImageModeId, 0.5},           // SPREAD
-                          {kFieldSpreadId, 0.4},              // spread 0.4
+                          {kFieldImageModeId, 1.0},           // WIDE
+                          {kFieldSpreadId, 0.6},              // spread 0.6
                           {kMassId, 0.5},                     // Mass 50
-                          {kAnchorWaveformId, 0.0},           // Sine
+                          {kAnchorWaveformId, 0.5},           // RoundedSine
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.6},              // level 0.6
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 1.0}}, // transient attack +12 dB
-            .endpointB = {{kCoreDepthId, 0.7},                  // depth 0.7
-                          {kCoreBodyId, 0.3},                   // body 0.3
-                          {kCoreEdgeId, 0.3},                   // edge 0.3
-                          {kCoreExcitationMixId, 0.0},          // excitation mix 0
-                          {kFoldAmountId, 0.0},                 // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},                  // SHAPE 0
-                          {kCharacterId, 0.6},                  // Bite
-                          {kCharacterAmountId, 1.0},            // Amount 1
-                          {kCharacterToneId, 0.7},              // Tone 0.7
-                          {kAmpAttackId, 0.2},                  // 1 ms
-                          {kAmpDecayId, 0.708814},              // 350 ms
-                          {kAmpSustainId, 0.6},                 // sustain 0.6
-                          {kAmpReleaseId, 0.660206},            // 200 ms
-                          {kFieldImageModeId, 0.5},             // SPREAD
-                          {kFieldSpreadId, 0.4},                // spread 0.4
-                          {kMassId, 0.5},                       // Mass 50
-                          {kAnchorWaveformId, 0.0},             // Sine
-                          {kAnchorModeId, 0.0},                 // LOCK
-                          {kAnchorLevelId, 0.6},                // level 0.6
-                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 0.875}}, // transient attack +9 dB
+                          {kDynamicsTransientAttackId, 1.0},  // transient attack +12 dB
+                          {kDropAmountId, 0.0625},            // drop 3 st
+                          {kDropTimeId, 0.388095}},           // drop time 25 ms
+            // Designed-library pass (2026-10-26): B is a folded, mono body an octave deep with Bite 0.5, Shift up and
+            // no transient boost (Bite on both: AT-07).
+            .endpointB = {{kCoreDepthId, 0.85},               // depth 0.85
+                          {kCoreBodyId, 0.5},                 // body 0.5
+                          {kCoreEdgeId, 0.2},                 // edge 0.2
+                          {kCoreExcitationMixId, 0.5},        // excitation mix 0.5
+                          {kFoldAmountId, 0.45},              // Harmonic Fold 45
+                          {kFoldShapeId, 0.6},                // SHAPE 0.6
+                          {kCharacterId, 0.6},                // Bite
+                          {kCharacterAmountId, 0.5},          // Amount 0.5
+                          {kCharacterToneId, 0.4},            // Tone 0.4
+                          {kAmpAttackId, 0.2},                // 1 ms
+                          {kAmpDecayId, 0.75563},             // 600 ms
+                          {kAmpSustainId, 0.8},               // sustain 0.8
+                          {kAmpReleaseId, 0.660206},          // 200 ms
+                          {kFieldImageModeId, 0.0},           // SOLID
+                          {kFieldSpreadId, 0.0},              // spread 0
+                          {kMassId, 0.75},                    // Mass 75
+                          {kAnchorWaveformId, 1.0},           // OctaveDownSine
+                          {kAnchorModeId, 0.0},               // LOCK
+                          {kAnchorLevelId, 0.6},              // level 0.6
+                          {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
+                          {kDynamicsTransientAttackId, 0.5},  // transient attack 0 dB
+                          {kCoreShiftId, 0.75}},              // shift 0.5
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Hard Bite",
-            .nameB = "Bright Bite",
+            .nameB = "Soft Bite",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -556,15 +663,19 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Crushed Basalt",
             .category = "Driven",
-            .description = "Character Crush: Crush at Amount 1 grinds the core while the Anchor at 0.5 keeps the fundamental.",
+            .description = "Character Crush: Crush at Amount 1 grinds a lightly folded core while a Triangle Anchor at "
+                           "0.5 keeps the fundamental. Morph to B turns it lopsided under a lighter Crush, an octave "
+                           "deep and wide.",
             .primary = C::AT08,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-08 had 13.4 of margin; A gains a body, excitation, a light fold, a
+            // Triangle Anchor and a spread top.
             .endpointA = {{kCoreDepthId, 0.8},          // depth 0.8
-                          {kCoreBodyId, 0.25},          // body 0.25
-                          {kCoreEdgeId, 0.2},           // edge 0.2
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
+                          {kCoreBodyId, 0.4},           // body 0.4
+                          {kCoreEdgeId, 0.3},           // edge 0.3
+                          {kCoreExcitationMixId, 0.2},  // excitation mix 0.2
+                          {kFoldAmountId, 0.2},         // Harmonic Fold 20
+                          {kFoldShapeId, 0.3},          // SHAPE 0.3
                           {kCharacterId, 0.8},          // Crush
                           {kCharacterAmountId, 1.0},    // Amount 1
                           {kCharacterToneId, 0.45},     // Tone 0.45
@@ -572,36 +683,40 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.720412},      // 400 ms
                           {kAmpSustainId, 0.8},         // sustain 0.8
                           {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.4},        // spread 0.4
                           {kMassId, 0.6},               // Mass 60
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.5},        // level 0.5
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 0.8},          // depth 0.8
-                          {kCoreBodyId, 0.25},          // body 0.25
-                          {kCoreEdgeId, 0.2},           // edge 0.2
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.8},          // Crush
-                          {kCharacterAmountId, 1.0},    // Amount 1
-                          {kCharacterToneId, 0.6},      // Tone 0.6
-                          {kAmpAttackId, 0.260206},     // 2 ms
-                          {kAmpDecayId, 0.720412},      // 400 ms
-                          {kAmpSustainId, 0.8},         // sustain 0.8
-                          {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.6},               // Mass 60
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.5},        // level 0.5
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
+            // Designed-library pass (2026-10-26): B is a lopsided basalt under Crush 0.55 over an Octave Down Anchor,
+            // wide (Crush on both: AT-08).
+            .endpointB = {{kCoreDepthId, 0.5},                 // depth 0.5
+                          {kCoreBodyId, 0.3},                  // body 0.3
+                          {kCoreEdgeId, 0.7},                  // edge 0.7
+                          {kCoreExcitationMixId, 0.5},         // excitation mix 0.5
+                          {kFoldAmountId, 0.5},                // Harmonic Fold 50
+                          {kFoldShapeId, 0.6},                 // SHAPE 0.6
+                          {kCharacterId, 0.8},                 // Crush
+                          {kCharacterAmountId, 0.55},          // Amount 0.55
+                          {kCharacterToneId, 0.6},             // Tone 0.6
+                          {kAmpAttackId, 0.260206},            // 2 ms
+                          {kAmpDecayId, 0.720412},             // 400 ms
+                          {kAmpSustainId, 0.95},               // sustain 0.95
+                          {kAmpReleaseId, 0.695424},           // 300 ms
+                          {kFieldImageModeId, 1.0},            // WIDE
+                          {kFieldSpreadId, 0.6},               // spread 0.6
+                          {kMassId, 0.7},                      // Mass 70
+                          {kAnchorWaveformId, 1.0},            // OctaveDownSine
+                          {kAnchorModeId, 0.0},                // LOCK
+                          {kAnchorLevelId, 0.5},               // level 0.5
+                          {kAnchorFoldFeedId, 0.0},            // Anchor Fold Feed 0
+                          {kCoreExcitationDriveId, 0.8},       // drive 0.8
+                          {kCoreExcitationAsymmetryId, 0.8}},  // asymmetry 0.8
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Crushed",
-            .nameB = "Crushed Bright",
+            .nameB = "Lopsided Basalt",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -615,8 +730,9 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Fault Line",
             .category = "Driven",
-            .description = "Character Fracture: Fracture at Amount 1 on a harmonic-rich core; the Anchor in FOLLOW tracks the "
-                           "fractured pitch.",
+            .description = "Character Fracture: Fracture at Amount 1 on a harmonic-rich core; the Anchor in FOLLOW "
+                           "tracks the fractured pitch. Morph to B softens it: a fuller, narrower body under a lighter "
+                           "Fracture.",
             .primary = C::AT09,
             .secondaries = {C::AT13},
             .endpointA = {{kCoreDepthId, 0.5},                // depth 0.5
@@ -642,32 +758,34 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAnchorModeId, 1.0 / 3.0},         // FOLLOW
                           {kAnchorLevelId, 1.0},              // level 1
                           {kAnchorFoldFeedId, 0.0}},          // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 0.5},                // depth 0.5
-                          {kCoreBodyId, 0.3},                 // body 0.3
-                          {kCoreEdgeId, 1.0},                 // edge 1
-                          {kCoreShiftId, 0.0},                // shift -1
-                          {kCoreExcitationMixId, 1.0},        // excitation mix 1
+            // Designed-library pass (2026-10-26): A is unchanged (the FR-048 held-load author); B is a fuller, narrower
+            // body under Fracture 0.6 on the same SHAPE 1 (Fracture on both: AT-09).
+            .endpointB = {{kCoreDepthId, 0.85},               // depth 0.85
+                          {kCoreBodyId, 0.5},                 // body 0.5
+                          {kCoreEdgeId, 0.3},                 // edge 0.3
+                          {kCoreShiftId, 0.5},                // shift 0
+                          {kCoreExcitationMixId, 0.2},        // excitation mix 0.2
                           {kCoreExcitationDriveId, 1.0},      // drive 1
                           {kCoreExcitationAsymmetryId, 0.5},  // asymmetry 0.5
-                          {kFoldAmountId, 0.6},               // Harmonic Fold 60
+                          {kFoldAmountId, 0.2},               // Harmonic Fold 20
                           {kFoldShapeId, 1.0},                // SHAPE 1 (FR-048 held load)
                           {kCharacterId, 1.0},                // Fracture
-                          {kCharacterAmountId, 1.0},          // Amount 1
-                          {kCharacterToneId, 0.55},           // Tone 0.55
+                          {kCharacterAmountId, 0.6},          // Amount 0.6
+                          {kCharacterToneId, 0.4},            // Tone 0.4
                           {kAmpAttackId, 0.2},                // 1 ms
                           {kAmpDecayId, 0.835218},            // 1500 ms
-                          {kAmpSustainId, 1.0},               // sustain 1
+                          {kAmpSustainId, 0.6},               // sustain 0.6
                           {kAmpReleaseId, 0.75563},           // 600 ms
-                          {kFieldImageModeId, 1.0},           // WIDE
-                          {kFieldSpreadId, 1.0},              // spread 1
-                          {kMassId, 1.0},                     // Mass 100
+                          {kFieldImageModeId, 0.5},           // SPREAD
+                          {kFieldSpreadId, 0.5},              // spread 0.5
+                          {kMassId, 0.8},                     // Mass 80
                           {kAnchorWaveformId, 0.0},           // Sine
                           {kAnchorModeId, 1.0 / 3.0},         // FOLLOW
                           {kAnchorLevelId, 1.0},              // level 1
                           {kAnchorFoldFeedId, 0.0}},          // Anchor Fold Feed 0
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Fractured",
-            .nameB = "Fractured Dark",
+            .nameB = "Soft Fault",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -676,55 +794,62 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Bedrock",
             .category = "Sub",
-            .description = "Anchor Level: a thin core over the Sine Anchor in LOCK at level 1, with Mass 70 for a plain heavy "
-                           "floor.",
+            .description = "Anchor Level: the Sine Anchor in LOCK at level 1 under a dark core grained by the Fold Character, "
+                           "with Mass 70 for a heavy floor and a faint spread on top. Morph to B warms it into a driven "
+                           "Tube bass with a body.",
             .primary = C::AT10,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 1.0},                // depth 1
-                          {kCoreBodyId, 0.0},                 // body 0
-                          {kCoreEdgeId, 0.0},                 // edge 0
-                          {kCoreExcitationMixId, 0.0},        // excitation mix 0
-                          {kFoldAmountId, 0.0},               // Harmonic Fold 0
+            // Whole-instrument pilot (2026-10-26): A keeps its AT-10 claim (Sine, LOCK) and uses the rest: a little
+            // body and excitation, a light ROUND fold, Shift down, the Fold Character at Amount 0.3 and a SPREAD top.
+            .endpointA = {{kCoreDepthId, 0.85},               // depth 0.85
+                          {kCoreBodyId, 0.2},                 // body 0.2
+                          {kCoreEdgeId, 0.1},                 // edge 0.1
+                          {kCoreExcitationMixId, 0.15},       // excitation mix 0.15
+                          {kFoldAmountId, 0.15},              // Harmonic Fold 15
                           {kFoldShapeId, 0.0},                // SHAPE 0
-                          {kCharacterId, 0.0},                // Tube
-                          {kCharacterAmountId, 0.0},          // Amount 0
-                          {kCharacterToneId, 0.5},            // Tone 0.5
+                          {kCharacterId, 0.2},                // Fold
+                          {kCharacterAmountId, 0.3},          // Amount 0.3
+                          {kCharacterToneId, 0.3},            // Tone 0.3
                           {kAmpAttackId, 0.295424},           // 3 ms
                           {kAmpDecayId, 0.660206},            // 200 ms
                           {kAmpSustainId, 0.5},               // sustain 0.5
                           {kAmpReleaseId, 0.679588},          // 250 ms
-                          {kFieldImageModeId, 0.0},           // SOLID
-                          {kFieldSpreadId, 0.0},              // spread 0
+                          {kFieldImageModeId, 0.5},           // SPREAD
+                          {kFieldSpreadId, 0.25},             // spread 0.25
                           {kMassId, 0.7},                     // Mass 70
                           {kAnchorWaveformId, 0.0},           // Sine
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 1.0},              // level 1
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 0.5}}, // transient attack 0 dB
-            .endpointB = {{kCoreDepthId, 1.0},                // depth 1
-                          {kCoreBodyId, 0.0},                 // body 0
-                          {kCoreEdgeId, 0.1},                 // edge 0.1
-                          {kCoreExcitationMixId, 0.0},        // excitation mix 0
-                          {kFoldAmountId, 0.0},               // Harmonic Fold 0
+                          {kDynamicsTransientAttackId, 0.5},  // transient attack 0 dB
+                          {kCoreShiftId, 0.4}},               // shift -0.2
+            // Morph pilot (2026-10-26): B is a warm driven bass on the same floor: Tube at Amount 0.8, a body and some
+            // edge, half the excitation, a light fold, Mass 85 and a harder transient. The Anchor stays Sine on both
+            // endpoints: the AT-10 primary's precondition (library rule 8).
+            .endpointB = {{kCoreDepthId, 0.8},                // depth 0.8
+                          {kCoreBodyId, 0.45},                // body 0.45
+                          {kCoreEdgeId, 0.3},                 // edge 0.3
+                          {kCoreExcitationMixId, 0.5},        // excitation mix 0.5
+                          {kFoldAmountId, 0.2},               // Harmonic Fold 20
                           {kFoldShapeId, 0.0},                // SHAPE 0
                           {kCharacterId, 0.0},                // Tube
-                          {kCharacterAmountId, 0.0},          // Amount 0
-                          {kCharacterToneId, 0.5},            // Tone 0.5
+                          {kCharacterAmountId, 0.8},          // Amount 0.8
+                          {kCharacterToneId, 0.6},            // Tone 0.6
                           {kAmpAttackId, 0.295424},           // 3 ms
                           {kAmpDecayId, 0.660206},            // 200 ms
                           {kAmpSustainId, 0.5},               // sustain 0.5
                           {kAmpReleaseId, 0.679588},          // 250 ms
                           {kFieldImageModeId, 0.0},           // SOLID
                           {kFieldSpreadId, 0.0},              // spread 0
-                          {kMassId, 0.7},                     // Mass 70
+                          {kMassId, 0.85},                    // Mass 85
                           {kAnchorWaveformId, 0.0},           // Sine
                           {kAnchorModeId, 0.0},               // LOCK
-                          {kAnchorLevelId, 0.85},             // level 0.85
+                          {kAnchorLevelId, 1.0},              // level 1
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 0.5}}, // transient attack 0 dB
+                          {kDynamicsTransientAttackId, 0.7}}, // transient attack up
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Bare Floor",
-            .nameB = "Floor Edge",
+            .nameB = "Tube Floor",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -732,48 +857,56 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Punch Anchor",
             .category = "Plucked",
-            .description = "Anchor Lock to Punch: the Anchor in PUNCH, a 6 dB boost over 40 ms, under a 300 ms pluck of a light "
-                           "body.",
+            .description = "Anchor Lock to Punch: the Anchor in PUNCH, a 9 dB boost over 40 ms, under a 300 ms pluck that "
+                           "drops 5 semitones into a Crush-grained body with a Rounded Anchor. Morph to B turns the pluck "
+                           "into a longer, biting note.",
             .primary = C::AT11,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.6},             // depth 0.6
-                          {kCoreBodyId, 0.3},              // body 0.3
-                          {kCoreEdgeId, 0.2},              // edge 0.2
-                          {kCoreExcitationMixId, 0.0},     // excitation mix 0
-                          {kFoldAmountId, 0.0},            // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},             // SHAPE 0
-                          {kCharacterId, 0.0},             // Tube
-                          {kCharacterAmountId, 0.0},       // Amount 0
-                          {kCharacterToneId, 0.5},         // Tone 0.5
+            // Whole-instrument pilot (2026-10-26): A keeps its AT-11 claim (PUNCH, p 0) and uses the rest: more body
+            // and edge with a little excitation and fold toward BITE, Crush at Amount 0.3, a Rounded Sine Anchor and
+            // a 5 st, 80 ms pitch drop. The boost rises 6 -> 9 dB: the AT-11 margin read 0.17 dB at 6 dB.
+            .endpointA = {{kCoreDepthId, 0.55},            // depth 0.55
+                          {kCoreBodyId, 0.4},              // body 0.4
+                          {kCoreEdgeId, 0.35},             // edge 0.35
+                          {kCoreExcitationMixId, 0.2},     // excitation mix 0.2
+                          {kFoldAmountId, 0.2},            // Harmonic Fold 20
+                          {kFoldShapeId, 0.7},             // SHAPE 0.7
+                          {kCharacterId, 0.8},             // Crush
+                          {kCharacterAmountId, 0.3},       // Amount 0.3
+                          {kCharacterToneId, 0.6},         // Tone 0.6
                           {kAmpAttackId, 0.2},             // 1 ms
                           {kAmpDecayId, 0.695424},         // 300 ms
                           {kAmpSustainId, 0.5},            // sustain 0.5
                           {kAmpReleaseId, 0.635218},       // 150 ms
                           {kFieldImageModeId, 0.0},        // SOLID
                           {kFieldSpreadId, 0.0},           // spread 0
-                          {kMassId, 0.55},                 // Mass 55
-                          {kAnchorWaveformId, 0.0},        // Sine
+                          {kMassId, 0.5},                  // Mass 50
+                          {kAnchorWaveformId, 0.5},        // Rounded Sine
                           {kAnchorModeId, 2.0 / 3.0},      // PUNCH
                           {kAnchorLevelId, 1.0},           // level 1
                           {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
-                          {kAnchorPunchBoostId, 0.5},      // punch boost 6 dB
-                          {kAnchorPunchTimeId, 0.531551}}, // punch time 40 ms
-            .endpointB = {{kCoreDepthId, 0.6},             // depth 0.6
-                          {kCoreBodyId, 0.3},              // body 0.3
-                          {kCoreEdgeId, 0.2},              // edge 0.2
-                          {kCoreExcitationMixId, 0.0},     // excitation mix 0
-                          {kFoldAmountId, 0.0},            // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},             // SHAPE 0
-                          {kCharacterId, 0.0},             // Tube
-                          {kCharacterAmountId, 0.0},       // Amount 0
-                          {kCharacterToneId, 0.5},         // Tone 0.5
+                          {kAnchorPunchBoostId, 0.75},     // punch boost 9 dB
+                          {kAnchorPunchTimeId, 0.531551},  // punch time 40 ms
+                          {kDropAmountId, 0.104167},       // drop 5 st
+                          {kDropTimeId, 0.528334}},        // drop time 80 ms
+            // Morph pilot (2026-10-26): B is a longer, biting note: Bite at Amount 0.6, Fold SHAPE at BITE with a light
+            // fold, more edge and body, a 600 ms decay to sustain 0.6, a 9 dB punch and the SPREAD image.
+            .endpointB = {{kCoreDepthId, 0.5},             // depth 0.5
+                          {kCoreBodyId, 0.5},              // body 0.5
+                          {kCoreEdgeId, 0.6},              // edge 0.6
+                          {kCoreExcitationMixId, 0.3},     // excitation mix 0.3
+                          {kFoldAmountId, 0.3},            // Harmonic Fold 30
+                          {kFoldShapeId, 1.0},             // SHAPE 1 (BITE)
+                          {kCharacterId, 0.6},             // Bite
+                          {kCharacterAmountId, 0.6},       // Amount 0.6
+                          {kCharacterToneId, 0.7},         // Tone 0.7
                           {kAmpAttackId, 0.2},             // 1 ms
-                          {kAmpDecayId, 0.695424},         // 300 ms
-                          {kAmpSustainId, 0.4},            // sustain 0.4
+                          {kAmpDecayId, 0.755630},         // 600 ms
+                          {kAmpSustainId, 0.6},            // sustain 0.6
                           {kAmpReleaseId, 0.635218},       // 150 ms
-                          {kFieldImageModeId, 0.0},        // SOLID
-                          {kFieldSpreadId, 0.0},           // spread 0
-                          {kMassId, 0.55},                 // Mass 55
+                          {kFieldImageModeId, 0.5},        // SPREAD
+                          {kFieldSpreadId, 0.4},           // spread 0.4
+                          {kMassId, 0.6},                  // Mass 60
                           {kAnchorWaveformId, 0.0},        // Sine
                           {kAnchorModeId, 2.0 / 3.0},      // PUNCH
                           {kAnchorLevelId, 1.0},           // level 1
@@ -782,7 +915,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAnchorPunchTimeId, 0.531551}}, // punch time 40 ms
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Punched",
-            .nameB = "Punched Harder",
+            .nameB = "Long Bite",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -791,56 +924,62 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Ghost Kick",
             .category = "Plucked",
-            .description = "Anchor Lock to Ghost: the Anchor in GHOST for 100 ms under a short decay, a kick-like thump.",
+            .description = "Anchor Lock to Ghost: the Anchor in GHOST for 100 ms under a short decay of a Bite-edged, "
+                           "folded body, a kick-like thump. Morph to B crushes it into a wide tap.",
             .primary = C::AT12,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-12 reads the sub onset (margin 0.83 dB), so depth stays; A adds
+            // excitation, a BITE-leaning fold and Bite 0.4 above the sub, a short 3 st drop and a spread top.
             .endpointA = {{kCoreDepthId, 0.5},          // depth 0.5
                           {kCoreBodyId, 0.2},           // body 0.2
                           {kCoreEdgeId, 0.4},           // edge 0.4
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+                          {kCoreExcitationMixId, 0.3},  // excitation mix 0.3
+                          {kFoldAmountId, 0.25},        // Harmonic Fold 25
+                          {kFoldShapeId, 0.6},          // SHAPE 0.6
+                          {kCharacterId, 0.6},          // Bite
+                          {kCharacterAmountId, 0.4},    // Amount 0.4
+                          {kCharacterToneId, 0.6},      // Tone 0.6
                           {kAmpAttackId, 0.2},          // 1 ms
                           {kAmpDecayId, 0.651055},      // 180 ms
                           {kAmpSustainId, 0.7},         // sustain 0.7
                           {kAmpReleaseId, 0.615836},    // 120 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.3},        // spread 0.3
                           {kMassId, 0.6},               // Mass 60
                           {kAnchorWaveformId, 0.0},     // Sine
                           {kAnchorModeId, 1.0},         // GHOST
                           {kAnchorLevelId, 1.0},        // level 1
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreShiftId, 0.6},          // shift 0.2
-                          {kAnchorGhostTimeId, 1.0}},   // ghost time 100 ms
-            .endpointB = {{kCoreDepthId, 0.5},             // depth 0.5
-                          {kCoreBodyId, 0.2},              // body 0.2
-                          {kCoreEdgeId, 0.4},              // edge 0.4
-                          {kCoreExcitationMixId, 0.0},     // excitation mix 0
-                          {kFoldAmountId, 0.0},            // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},             // SHAPE 0
-                          {kCharacterId, 0.0},             // Tube
-                          {kCharacterAmountId, 0.0},       // Amount 0
-                          {kCharacterToneId, 0.5},         // Tone 0.5
-                          {kAmpAttackId, 0.2},             // 1 ms
-                          {kAmpDecayId, 0.679588},         // 250 ms
-                          {kAmpSustainId, 0.7},            // sustain 0.7
-                          {kAmpReleaseId, 0.615836},       // 120 ms
-                          {kFieldImageModeId, 0.0},        // SOLID
-                          {kFieldSpreadId, 0.0},           // spread 0
-                          {kMassId, 0.6},                  // Mass 60
-                          {kAnchorWaveformId, 0.0},        // Sine
-                          {kAnchorModeId, 1.0},            // GHOST
-                          {kAnchorLevelId, 1.0},           // level 1
-                          {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
-                          {kCoreShiftId, 0.6},             // shift 0.2
-                          {kAnchorGhostTimeId, 0.889076}}, // ghost time 60 ms
+                          {kAnchorGhostTimeId, 1.0},    // ghost time 100 ms
+                          {kDropAmountId, 0.0625},      // drop 3 st
+                          {kDropTimeId, 0.388095}},     // drop time 25 ms
+            // Designed-library pass (2026-10-26): B crushes the tap: more edge and body, a BITE fold, Crush 0.45, wide.
+            .endpointB = {{kCoreDepthId, 0.35},             // depth 0.35
+                          {kCoreBodyId, 0.5},               // body 0.5
+                          {kCoreEdgeId, 0.6},               // edge 0.6
+                          {kCoreExcitationMixId, 0.5},      // excitation mix 0.5
+                          {kFoldAmountId, 0.5},             // Harmonic Fold 50
+                          {kFoldShapeId, 0.9},              // SHAPE 0.9
+                          {kCharacterId, 0.8},              // Crush
+                          {kCharacterAmountId, 0.45},       // Amount 0.45
+                          {kCharacterToneId, 0.6},          // Tone 0.6
+                          {kAmpAttackId, 0.2},              // 1 ms
+                          {kAmpDecayId, 0.695424},          // 300 ms
+                          {kAmpSustainId, 0.85},            // sustain 0.85
+                          {kAmpReleaseId, 0.615836},        // 120 ms
+                          {kFieldImageModeId, 1.0},         // WIDE
+                          {kFieldSpreadId, 0.6},            // spread 0.6
+                          {kMassId, 0.7},                   // Mass 70
+                          {kAnchorWaveformId, 0.0},         // Sine
+                          {kAnchorModeId, 1.0},             // GHOST
+                          {kAnchorLevelId, 1.0},            // level 1
+                          {kAnchorFoldFeedId, 0.0},         // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.6},              // shift 0.2
+                          {kAnchorGhostTimeId, 0.889076}},  // ghost time 60 ms
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Ghost Thump",
-            .nameB = "Ghost Tap",
+            .nameB = "Crushed Tap",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -848,53 +987,59 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Rectified Follow",
             .category = "Driven",
-            .description = "Anchor Lock to Follow: Rectify at Amount 1 doubles the core and the Anchor in FOLLOW at level 1 goes "
-                           "with it.",
+            .description = "Anchor Lock to Follow: Rectify at Amount 1 doubles the core and the Anchor in FOLLOW at "
+                           "level 1 goes with it, wide. Morph to B grinds it into a mono Crush body over a locked "
+                           "Triangle Anchor.",
             .primary = C::AT13,
             .secondaries = {C::AT06},
-            .endpointA = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.4},          // Rectify
-                          {kCharacterAmountId, 1.0},    // Amount 1
+            // Designed-library pass (2026-10-26): AT-13 reads the Anchor pitch, so the core, the Sine Anchor and the
+            // pitch stay; A gains Harmonic Fold 20 (AT-06 had 31 of margin), a WIDE image, a longer release and a
+            // harder transient.
+            .endpointA = {{kCoreDepthId, 1.0},                   // depth 1
+                          {kCoreBodyId, 0.0},                    // body 0
+                          {kCoreEdgeId, 0.0},                    // edge 0
+                          {kCoreExcitationMixId, 0.0},           // excitation mix 0
+                          {kFoldAmountId, 0.2},                  // Harmonic Fold 20
+                          {kFoldShapeId, 0.0},                   // SHAPE 0
+                          {kCharacterId, 0.4},                   // Rectify
+                          {kCharacterAmountId, 1.0},             // Amount 1
+                          {kCharacterToneId, 0.5},               // Tone 0.5
+                          {kAmpAttackId, 0.260206},              // 2 ms
+                          {kAmpDecayId, 0.695424},               // 300 ms
+                          {kAmpSustainId, 0.9},                  // sustain 0.9
+                          {kAmpReleaseId, 0.720412},             // 400 ms
+                          {kFieldImageModeId, 1.0},              // WIDE
+                          {kFieldSpreadId, 0.6},                 // spread 0.6
+                          {kMassId, 0.5},                        // Mass 50
+                          {kAnchorWaveformId, 0.0},              // Sine
+                          {kAnchorModeId, 1.0 / 3.0},            // FOLLOW
+                          {kAnchorLevelId, 1.0},                 // level 1
+                          {kAnchorFoldFeedId, 0.0},              // Anchor Fold Feed 0
+                          {kDynamicsTransientAttackId, 0.625}},  // transient attack +3 dB
+            // Designed-library pass (2026-10-26): B is a mono, Crush-grained body over a Triangle Anchor in LOCK.
+            .endpointB = {{kCoreDepthId, 0.5},          // depth 0.5
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.5},           // edge 0.5
+                          {kCoreExcitationMixId, 0.3},  // excitation mix 0.3
+                          {kFoldAmountId, 0.4},         // Harmonic Fold 40
+                          {kFoldShapeId, 0.5},          // SHAPE 0.5
+                          {kCharacterId, 0.8},          // Crush
+                          {kCharacterAmountId, 0.5},    // Amount 0.5
                           {kCharacterToneId, 0.5},      // Tone 0.5
                           {kAmpAttackId, 0.260206},     // 2 ms
                           {kAmpDecayId, 0.695424},      // 300 ms
                           {kAmpSustainId, 0.9},         // sustain 0.9
-                          {kAmpReleaseId, 0.679588},    // 250 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.3},        // spread 0.3
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 1.0 / 3.0},   // FOLLOW
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.4},          // Rectify
-                          {kCharacterAmountId, 1.0},    // Amount 1
-                          {kCharacterToneId, 0.4},      // Tone 0.4
-                          {kAmpAttackId, 0.260206},     // 2 ms
-                          {kAmpDecayId, 0.695424},      // 300 ms
-                          {kAmpSustainId, 0.9},         // sustain 0.9
-                          {kAmpReleaseId, 0.679588},    // 250 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.3},        // spread 0.3
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 1.0 / 3.0},   // FOLLOW
+                          {kAmpReleaseId, 0.720412},    // 400 ms
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kMassId, 0.65},              // Mass 65
+                          {kAnchorWaveformId, 0.25},    // Triangle
+                          {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 1.0},        // level 1
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Following",
-            .nameB = "Following Dark",
+            .nameB = "Crushed Follow",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -904,119 +1049,14 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Triangle Floor",
             .category = "Sub",
-            .description = "Anchor Sine to Triangle: a Triangle Anchor at level 1 under a thin core, a hollow-edged floor.",
+            .description = "Anchor Sine to Triangle: a Triangle Anchor at level 1 under a sine core with a short 3 "
+                           "semitone thump and a spread top, a hollow-edged floor. Morph to B crushes it: a body, fold "
+                           "and Crush over a wide image.",
             .primary = C::AT14,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 1.0},                  // depth 1
-                          {kCoreBodyId, 0.0},                   // body 0
-                          {kCoreEdgeId, 0.0},                   // edge 0
-                          {kCoreExcitationMixId, 0.0},          // excitation mix 0
-                          {kFoldAmountId, 0.0},                 // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},                  // SHAPE 0
-                          {kCharacterId, 0.0},                  // Tube
-                          {kCharacterAmountId, 0.0},            // Amount 0
-                          {kCharacterToneId, 0.5},              // Tone 0.5
-                          {kAmpAttackId, 0.460206},             // 20 ms
-                          {kAmpDecayId, 0.695424},              // 300 ms
-                          {kAmpSustainId, 0.5},                 // sustain 0.5
-                          {kAmpReleaseId, 0.708814},            // 350 ms
-                          {kFieldImageModeId, 0.0},             // SOLID
-                          {kFieldSpreadId, 0.0},                // spread 0
-                          {kMassId, 0.6},                       // Mass 60
-                          {kAnchorWaveformId, 0.25},            // Triangle
-                          {kAnchorModeId, 0.0},                 // LOCK
-                          {kAnchorLevelId, 1.0},                // level 1
-                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 0.625}}, // transient attack +3 dB
-            .endpointB = {{kCoreDepthId, 1.0},                  // depth 1
-                          {kCoreBodyId, 0.0},                   // body 0
-                          {kCoreEdgeId, 0.1},                   // edge 0.1
-                          {kCoreExcitationMixId, 0.0},          // excitation mix 0
-                          {kFoldAmountId, 0.0},                 // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},                  // SHAPE 0
-                          {kCharacterId, 0.0},                  // Tube
-                          {kCharacterAmountId, 0.0},            // Amount 0
-                          {kCharacterToneId, 0.5},              // Tone 0.5
-                          {kAmpAttackId, 0.460206},             // 20 ms
-                          {kAmpDecayId, 0.695424},              // 300 ms
-                          {kAmpSustainId, 0.5},                 // sustain 0.5
-                          {kAmpReleaseId, 0.708814},            // 350 ms
-                          {kFieldImageModeId, 0.0},             // SOLID
-                          {kFieldSpreadId, 0.0},                // spread 0
-                          {kMassId, 0.6},                       // Mass 60
-                          {kAnchorWaveformId, 0.25},            // Triangle
-                          {kAnchorModeId, 0.0},                 // LOCK
-                          {kAnchorLevelId, 0.85},               // level 0.85
-                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 0.625}}, // transient attack +3 dB
-            .controls = {{kMorphPositionId, 0.0}}, // p = 0
-            .nameA = "Triangle Under",
-            .nameB = "Triangle Lifted",
-            .seed = kFactoryDefaultSeed,
-            .seedDependent = false,
-        },
-        // ---- 15: AT-15 Rounded Sine (plan 7 row 15) ----
-        // T027 FR-061 level: sustain 0.85 -> 0.55 (-6.53 -> -10.31 dBFS).
-        ProfundumPresetDef{
-            .name = "Rounded Weight",
-            .category = "Sub",
-            .description = "Anchor Sine to Rounded Sine: a Rounded Sine Anchor at level 1 with Mass 70, soft but weighty.",
-            .primary = C::AT15,
-            .secondaries = {},
-            .endpointA = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.35563},      // 6 ms
-                          {kAmpDecayId, 0.720412},      // 400 ms
-                          {kAmpSustainId, 0.55},        // sustain 0.55
-                          {kAmpReleaseId, 0.720412},    // 400 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.25},       // spread 0.25
-                          {kMassId, 0.7},               // Mass 70
-                          {kAnchorWaveformId, 0.5},     // RoundedSine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.1},           // edge 0.1
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.35563},      // 6 ms
-                          {kAmpDecayId, 0.720412},      // 400 ms
-                          {kAmpSustainId, 0.55},        // sustain 0.55
-                          {kAmpReleaseId, 0.720412},    // 400 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.25},       // spread 0.25
-                          {kMassId, 0.8},               // Mass 80
-                          {kAnchorWaveformId, 0.5},     // RoundedSine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .controls = {{kMorphPositionId, 0.0}}, // p = 0
-            .nameA = "Rounded",
-            .nameB = "Rounded Heavy",
-            .seed = kFactoryDefaultSeed,
-            .seedDependent = false,
-        },
-        // ---- 16: AT-16 Asymmetric (plan 7 row 16) ----
-        ProfundumPresetDef{
-            .name = "Lopsided Sub",
-            .category = "Sub",
-            .description = "Anchor Sine to Asymmetric Sine: an Asymmetric Sine Anchor gives the sub a lopsided, even-harmonic "
-                           "push.",
-            .primary = C::AT16,
-            .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-14 reads D_cx at the Sum tap against a sine core (margin 0.84 dB),
+            // so the core stays a sine; A gains a spread top, a 3 st thump and a harder transient, all outside that
+            // path.
             .endpointA = {{kCoreDepthId, 1.0},                     // depth 1
                           {kCoreBodyId, 0.0},                      // body 0
                           {kCoreEdgeId, 0.0},                      // edge 0
@@ -1026,42 +1066,174 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kCharacterId, 0.0},                     // Tube
                           {kCharacterAmountId, 0.0},               // Amount 0
                           {kCharacterToneId, 0.5},                 // Tone 0.5
+                          {kAmpAttackId, 0.460206},                // 20 ms
+                          {kAmpDecayId, 0.695424},                 // 300 ms
+                          {kAmpSustainId, 0.5},                    // sustain 0.5
+                          {kAmpReleaseId, 0.75563},                // 600 ms
+                          {kFieldImageModeId, 0.5},                // SPREAD
+                          {kFieldSpreadId, 0.35},                  // spread 0.35
+                          {kMassId, 0.6},                          // Mass 60
+                          {kAnchorWaveformId, 0.25},               // Triangle
+                          {kAnchorModeId, 0.0},                    // LOCK
+                          {kAnchorLevelId, 1.0},                   // level 1
+                          {kAnchorFoldFeedId, 0.0},                // Anchor Fold Feed 0
+                          {kDynamicsTransientAttackId, 0.708333},  // transient attack +5 dB
+                          {kDropAmountId, 0.0625},                 // drop 3 st
+                          {kDropTimeId, 0.428663}},                // drop time 35 ms
+            // Designed-library pass (2026-10-26): B crushes the floor: a body, a fold toward BITE, Crush 0.35 and a
+            // WIDE image (Triangle on both: AT-14).
+            .endpointB = {{kCoreDepthId, 0.6},                   // depth 0.6
+                          {kCoreBodyId, 0.5},                    // body 0.5
+                          {kCoreEdgeId, 0.4},                    // edge 0.4
+                          {kCoreExcitationMixId, 0.3},           // excitation mix 0.3
+                          {kFoldAmountId, 0.35},                 // Harmonic Fold 35
+                          {kFoldShapeId, 0.6},                   // SHAPE 0.6
+                          {kCharacterId, 0.8},                   // Crush
+                          {kCharacterAmountId, 0.35},            // Amount 0.35
+                          {kCharacterToneId, 0.5},               // Tone 0.5
+                          {kAmpAttackId, 0.460206},              // 20 ms
+                          {kAmpDecayId, 0.695424},               // 300 ms
+                          {kAmpSustainId, 0.7},                  // sustain 0.7
+                          {kAmpReleaseId, 0.75563},              // 600 ms
+                          {kFieldImageModeId, 1.0},              // WIDE
+                          {kFieldSpreadId, 0.7},                 // spread 0.7
+                          {kMassId, 0.75},                       // Mass 75
+                          {kAnchorWaveformId, 0.25},             // Triangle
+                          {kAnchorModeId, 0.0},                  // LOCK
+                          {kAnchorLevelId, 0.85},                // level 0.85
+                          {kAnchorFoldFeedId, 0.0},              // Anchor Fold Feed 0
+                          {kDynamicsTransientAttackId, 0.625}},  // transient attack +3 dB
+            .controls = {{kMorphPositionId, 0.0}}, // p = 0
+            .nameA = "Triangle Under",
+            .nameB = "Crushed Floor",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        // ---- 15: AT-15 Rounded Sine (plan 7 row 15) ----
+        // T027 FR-061 level: sustain 0.85 -> 0.55 (-6.53 -> -10.31 dBFS).
+        ProfundumPresetDef{
+            .name = "Rounded Weight",
+            .category = "Sub",
+            .description = "Anchor Sine to Rounded Sine: a Rounded Sine Anchor at level 1 under a sine core warmed by "
+                           "a little Tube, with Mass 70, soft but weighty. Morph to B bites: a body, a BITE-shaped "
+                           "fold and Bite over a wide image.",
+            .primary = C::AT15,
+            .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-15 had 5.4 dB of D_cx margin; A takes a little body, Tube 0.25 and
+            // a 2 st drop.
+            .endpointA = {{kCoreDepthId, 1.0},          // depth 1
+                          {kCoreBodyId, 0.15},          // body 0.15
+                          {kCoreEdgeId, 0.0},           // edge 0
+                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
+                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
+                          {kFoldShapeId, 0.0},          // SHAPE 0
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.25},   // Amount 0.25
+                          {kCharacterToneId, 0.35},     // Tone 0.35
+                          {kAmpAttackId, 0.35563},      // 6 ms
+                          {kAmpDecayId, 0.720412},      // 400 ms
+                          {kAmpSustainId, 0.55},        // sustain 0.55
+                          {kAmpReleaseId, 0.720412},    // 400 ms
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.3},        // spread 0.3
+                          {kMassId, 0.7},               // Mass 70
+                          {kAnchorWaveformId, 0.5},     // RoundedSine
+                          {kAnchorModeId, 0.0},         // LOCK
+                          {kAnchorLevelId, 1.0},        // level 1
+                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
+                          {kDropAmountId, 0.041667},    // drop 2 st
+                          {kDropTimeId, 0.471666}},     // drop time 50 ms
+            // Designed-library pass (2026-10-26): B bites: a body, a BITE-shaped fold, Bite 0.5 and a WIDE image
+            // (Rounded Sine on both: AT-15).
+            .endpointB = {{kCoreDepthId, 0.55},          // depth 0.55
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.45},           // edge 0.45
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.4},          // Harmonic Fold 40
+                          {kFoldShapeId, 0.85},          // SHAPE 0.85
+                          {kCharacterId, 0.6},           // Bite
+                          {kCharacterAmountId, 0.5},     // Amount 0.5
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.35563},       // 6 ms
+                          {kAmpDecayId, 0.720412},       // 400 ms
+                          {kAmpSustainId, 0.68},         // sustain 0.68
+                          {kAmpReleaseId, 0.720412},     // 400 ms
+                          {kFieldImageModeId, 1.0},      // WIDE
+                          {kFieldSpreadId, 0.6},         // spread 0.6
+                          {kMassId, 0.85},               // Mass 85
+                          {kAnchorWaveformId, 0.5},      // RoundedSine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0}},     // Anchor Fold Feed 0
+            .controls = {{kMorphPositionId, 0.0}}, // p = 0
+            .nameA = "Rounded",
+            .nameB = "Rounded Bite",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        // ---- 16: AT-16 Asymmetric (plan 7 row 16) ----
+        ProfundumPresetDef{
+            .name = "Lopsided Sub",
+            .category = "Sub",
+            .description = "Anchor Sine to Asymmetric Sine: an Asymmetric Sine Anchor gives the sub a lopsided, "
+                           "even-harmonic push, echoed by a lopsided drive, a light fold and a touch of Fracture. "
+                           "Morph to B crushes it wide.",
+            .primary = C::AT16,
+            .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-16 had 11.2 dB of D_cx margin; A echoes the lopsided Anchor with a
+            // lopsided drive, a light fold and Fracture 0.2.
+            .endpointA = {{kCoreDepthId, 1.0},                     // depth 1
+                          {kCoreBodyId, 0.25},                     // body 0.25
+                          {kCoreEdgeId, 0.15},                     // edge 0.15
+                          {kCoreExcitationMixId, 0.25},            // excitation mix 0.25
+                          {kFoldAmountId, 0.2},                    // Harmonic Fold 20
+                          {kFoldShapeId, 0.3},                     // SHAPE 0.3
+                          {kCharacterId, 1.0},                     // Fracture
+                          {kCharacterAmountId, 0.2},               // Amount 0.2
+                          {kCharacterToneId, 0.4},                 // Tone 0.4
                           {kAmpAttackId, 0.260206},                // 2 ms
                           {kAmpDecayId, 0.679588},                 // 250 ms
                           {kAmpSustainId, 0.8},                    // sustain 0.8
                           {kAmpReleaseId, 0.695424},               // 300 ms
-                          {kFieldImageModeId, 0.0},                // SOLID
-                          {kFieldSpreadId, 0.0},                   // spread 0
+                          {kFieldImageModeId, 0.5},                // SPREAD
+                          {kFieldSpreadId, 0.3},                   // spread 0.3
                           {kMassId, 0.45},                         // Mass 45
                           {kAnchorWaveformId, 0.75},               // AsymmetricSine
                           {kAnchorModeId, 0.0},                    // LOCK
                           {kAnchorLevelId, 1.0},                   // level 1
                           {kAnchorFoldFeedId, 0.0},                // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 0.833333}}, // transient attack +8 dB
-            .endpointB = {{kCoreDepthId, 1.0},                     // depth 1
-                          {kCoreBodyId, 0.0},                      // body 0
-                          {kCoreEdgeId, 0.0},                      // edge 0
-                          {kCoreExcitationMixId, 0.0},             // excitation mix 0
-                          {kFoldAmountId, 0.0},                    // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},                     // SHAPE 0
-                          {kCharacterId, 0.0},                     // Tube
-                          {kCharacterAmountId, 0.0},               // Amount 0
-                          {kCharacterToneId, 0.5},                 // Tone 0.5
+                          {kDynamicsTransientAttackId, 0.833333},  // transient attack +8 dB
+                          {kCoreExcitationDriveId, 0.6},           // drive 0.6
+                          {kCoreExcitationAsymmetryId, 0.75}},     // asymmetry 0.75
+            // Designed-library pass (2026-10-26): B crushes it wide: a lopsided drive, a fold and Crush 0.5 with Shift
+            // up (Asymmetric Sine on both: AT-16).
+            .endpointB = {{kCoreDepthId, 0.7},                     // depth 0.7
+                          {kCoreBodyId, 0.45},                     // body 0.45
+                          {kCoreEdgeId, 0.5},                      // edge 0.5
+                          {kCoreExcitationMixId, 0.5},             // excitation mix 0.5
+                          {kFoldAmountId, 0.35},                   // Harmonic Fold 35
+                          {kFoldShapeId, 0.45},                    // SHAPE 0.45
+                          {kCharacterId, 0.8},                     // Crush
+                          {kCharacterAmountId, 0.5},               // Amount 0.5
+                          {kCharacterToneId, 0.6},                 // Tone 0.6
                           {kAmpAttackId, 0.260206},                // 2 ms
                           {kAmpDecayId, 0.679588},                 // 250 ms
-                          {kAmpSustainId, 0.8},                    // sustain 0.8
-                          {kAmpReleaseId, 0.695424},               // 300 ms
-                          {kFieldImageModeId, 0.0},                // SOLID
-                          {kFieldSpreadId, 0.0},                   // spread 0
+                          {kAmpSustainId, 0.9},                    // sustain 0.9
+                          {kAmpReleaseId, 0.739794},               // 500 ms
+                          {kFieldImageModeId, 1.0},                // WIDE
+                          {kFieldSpreadId, 0.8},                   // spread 0.8
                           {kMassId, 0.45},                         // Mass 45
                           {kAnchorWaveformId, 0.75},               // AsymmetricSine
                           {kAnchorModeId, 0.0},                    // LOCK
-                          {kAnchorLevelId, 0.8},                   // level 0.8
+                          {kAnchorLevelId, 1.0},                   // level 1
                           {kAnchorFoldFeedId, 0.0},                // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 0.833333}}, // transient attack +8 dB
+                          {kDynamicsTransientAttackId, 0.833333},  // transient attack +8 dB
+                          {kCoreExcitationDriveId, 0.8},           // drive 0.8
+                          {kCoreExcitationAsymmetryId, 0.9},       // asymmetry 0.9
+                          {kCoreShiftId, 0.75}},                   // shift 0.5
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Lopsided",
-            .nameB = "Lopsided Low",
+            .nameB = "Lopsided Crush",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1069,52 +1241,60 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Under Octave",
             .category = "Sub",
-            .description = "Anchor Sine to Octave Down: the Octave Down Anchor puts a sub an octave under the core.",
+            .description = "Anchor Sine to Octave Down: the Octave Down Anchor puts a sub an octave under a "
+                           "Crush-grained core with a light fold. Morph to B bites: more body, a BITE-shaped fold, "
+                           "Bite and an Asymmetric Anchor, wide.",
             .primary = C::AT17,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.8},          // depth 0.8
-                          {kCoreBodyId, 0.2},           // body 0.2
-                          {kCoreEdgeId, 0.15},          // edge 0.15
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+            // Designed-library pass (2026-10-26): AT-17 (P_half) had 50 dB of margin; A grains the core with Crush 0.3
+            // and a light fold.
+            .endpointA = {{kCoreDepthId, 0.8},           // depth 0.8
+                          {kCoreBodyId, 0.35},           // body 0.35
+                          {kCoreEdgeId, 0.25},           // edge 0.25
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.25},         // Harmonic Fold 25
+                          {kFoldShapeId, 0.3},           // SHAPE 0.3
+                          {kCharacterId, 0.8},           // Crush
+                          {kCharacterAmountId, 0.3},     // Amount 0.3
+                          {kCharacterToneId, 0.4},       // Tone 0.4
+                          {kAmpAttackId, 0.339794},      // 5 ms
+                          {kAmpDecayId, 0.739794},       // 500 ms
+                          {kAmpSustainId, 0.9},          // sustain 0.9
+                          {kAmpReleaseId, 0.730643},     // 450 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.4},         // spread 0.4
+                          {kMassId, 0.6},                // Mass 60
+                          {kAnchorWaveformId, 1.0},      // OctaveDownSine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 0.9},         // level 0.9
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.4}},          // shift -0.2
+            // Designed-library pass (2026-10-26): B bites: more body, a BITE-shaped fold, Bite 0.45 and an Asymmetric
+            // Sine Anchor, wide.
+            .endpointB = {{kCoreDepthId, 0.5},          // depth 0.5
+                          {kCoreBodyId, 0.6},           // body 0.6
+                          {kCoreEdgeId, 0.5},           // edge 0.5
+                          {kCoreExcitationMixId, 0.4},  // excitation mix 0.4
+                          {kFoldAmountId, 0.6},         // Harmonic Fold 60
+                          {kFoldShapeId, 0.75},         // SHAPE 0.75
+                          {kCharacterId, 0.6},          // Bite
+                          {kCharacterAmountId, 0.45},   // Amount 0.45
+                          {kCharacterToneId, 0.6},      // Tone 0.6
                           {kAmpAttackId, 0.339794},     // 5 ms
                           {kAmpDecayId, 0.739794},      // 500 ms
                           {kAmpSustainId, 0.9},         // sustain 0.9
                           {kAmpReleaseId, 0.730643},    // 450 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.55},              // Mass 55
-                          {kAnchorWaveformId, 1.0},     // OctaveDownSine
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.7},        // spread 0.7
+                          {kMassId, 0.8},               // Mass 80
+                          {kAnchorWaveformId, 0.75},    // AsymmetricSine
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.9},        // level 0.9
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 0.8},          // depth 0.8
-                          {kCoreBodyId, 0.3},           // body 0.3
-                          {kCoreEdgeId, 0.3},           // edge 0.3
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.339794},     // 5 ms
-                          {kAmpDecayId, 0.739794},      // 500 ms
-                          {kAmpSustainId, 0.9},         // sustain 0.9
-                          {kAmpReleaseId, 0.730643},    // 450 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.55},              // Mass 55
-                          {kAnchorWaveformId, 1.0},     // OctaveDownSine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.9},        // level 0.9
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
+                          {kAnchorLevelId, 0.8},        // level 0.8
+                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.4}},         // shift -0.2
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Octave Under",
-            .nameB = "Octave Under Body",
+            .nameB = "Bitten Body",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1124,53 +1304,61 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Fed Fold",
             .category = "Driven",
-            .description = "Anchor Fold Feed: Harmonic Fold 100 with the Anchor Fold Feed at 1, the Anchor driven into the "
-                           "folder.",
+            .description = "Anchor Fold Feed: Harmonic Fold 100 with the Anchor Fold Feed at 1, the Anchor driven into "
+                           "the folder, snapping wide. Morph to B bites: a body, a BITE fold and Bite with less feed, "
+                           "mono.",
             .primary = C::AT18,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 1.0},         // Harmonic Fold 100
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+            // Designed-library pass (2026-10-26): AT-18 reads the fed Anchor through the folder (margin 2.49), so the
+            // Anchor stays; A gains a WIDE image, a 3 st snap and a harder transient.
+            .endpointA = {{kCoreDepthId, 1.0},                   // depth 1
+                          {kCoreBodyId, 0.0},                    // body 0
+                          {kCoreEdgeId, 0.0},                    // edge 0
+                          {kCoreExcitationMixId, 0.0},           // excitation mix 0
+                          {kFoldAmountId, 1.0},                  // Harmonic Fold 100
+                          {kFoldShapeId, 0.0},                   // SHAPE 0
+                          {kCharacterId, 0.0},                   // Tube
+                          {kCharacterAmountId, 0.0},             // Amount 0
+                          {kCharacterToneId, 0.5},               // Tone 0.5
+                          {kAmpAttackId, 0.260206},              // 2 ms
+                          {kAmpDecayId, 0.708814},               // 350 ms
+                          {kAmpSustainId, 0.8},                  // sustain 0.8
+                          {kAmpReleaseId, 0.695424},             // 300 ms
+                          {kFieldImageModeId, 1.0},              // WIDE
+                          {kFieldSpreadId, 0.5},                 // spread 0.5
+                          {kMassId, 0.5},                        // Mass 50
+                          {kAnchorWaveformId, 0.0},              // Sine
+                          {kAnchorModeId, 0.0},                  // LOCK
+                          {kAnchorLevelId, 1.0},                 // level 1
+                          {kAnchorFoldFeedId, 1.0},              // Anchor Fold Feed 1
+                          {kDropAmountId, 0.0625},               // drop 3 st
+                          {kDropTimeId, 0.410077},               // drop time 30 ms
+                          {kDynamicsTransientAttackId, 0.625}},  // transient attack +3 dB
+            // Designed-library pass (2026-10-26): B bites: a body, a BITE fold, Bite 0.5, less feed, over a mono
+            // Triangle Anchor.
+            .endpointB = {{kCoreDepthId, 0.6},          // depth 0.6
+                          {kCoreBodyId, 0.4},           // body 0.4
+                          {kCoreEdgeId, 0.4},           // edge 0.4
+                          {kCoreExcitationMixId, 0.3},  // excitation mix 0.3
+                          {kFoldAmountId, 0.7},         // Harmonic Fold 70
+                          {kFoldShapeId, 0.7},          // SHAPE 0.7
+                          {kCharacterId, 0.6},          // Bite
+                          {kCharacterAmountId, 0.5},    // Amount 0.5
+                          {kCharacterToneId, 0.6},      // Tone 0.6
                           {kAmpAttackId, 0.260206},     // 2 ms
                           {kAmpDecayId, 0.708814},      // 350 ms
                           {kAmpSustainId, 0.8},         // sustain 0.8
                           {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.5},        // spread 0.5
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kMassId, 0.7},               // Mass 70
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 1.0}},    // Anchor Fold Feed 1
-            .endpointB = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 1.0},         // Harmonic Fold 100
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.260206},     // 2 ms
-                          {kAmpDecayId, 0.708814},      // 350 ms
-                          {kAmpSustainId, 0.8},         // sustain 0.8
-                          {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.5},        // spread 0.5
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 0.7}},    // Anchor Fold Feed 0.7
+                          {kAnchorFoldFeedId, 0.3}},    // Anchor Fold Feed 0.3
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Fed Anchor",
-            .nameB = "Half Fed",
+            .nameB = "Bitten Fold",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1178,62 +1366,67 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Dropping Stone",
             .category = "Plucked",
-            .description = "Pitch Drop Amount: a 24 st drop over 200 ms at every note, a stone falling into the floor.",
+            .description = "Pitch Drop Amount: a 24 st drop over 200 ms at every note, a Tube-warmed, folded stone "
+                           "falling into the floor. Morph to B halves the drop and fractures it wide.",
             .primary = C::AT19,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.9},          // depth 0.9
-                          {kCoreBodyId, 0.1},           // body 0.1
-                          {kCoreEdgeId, 0.3},           // edge 0.3
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.260206},     // 2 ms
-                          {kAmpDecayId, 0.720412},      // 400 ms
-                          {kAmpSustainId, 0.5},         // sustain 0.5
-                          {kAmpReleaseId, 0.660206},    // 200 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.55},              // Mass 55
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
-                          {kCoreShiftId, 0.4},          // shift -0.2
-                          {kDropAmountId, 0.5},         // drop 24 st
-                          {kDropTimeId, 0.638809},      // drop time 200 ms
-                          {kDropShapeId, 0.0},          // drop shape 0
-                          {kDropReboundId, 0.0}},       // rebound 0
-            .endpointB = {{kCoreDepthId, 0.9},          // depth 0.9
-                          {kCoreBodyId, 0.1},           // body 0.1
-                          {kCoreEdgeId, 0.3},           // edge 0.3
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.260206},     // 2 ms
-                          {kAmpDecayId, 0.720412},      // 400 ms
-                          {kAmpSustainId, 0.5},         // sustain 0.5
-                          {kAmpReleaseId, 0.660206},    // 200 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.55},              // Mass 55
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
-                          {kCoreShiftId, 0.4},          // shift -0.2
-                          {kDropAmountId, 0.5},         // drop 24 st
-                          {kDropTimeId, 0.670442},      // drop time 260 ms
-                          {kDropShapeId, 0.0},          // drop shape 0
-                          {kDropReboundId, 0.0}},       // rebound 0
+            // Designed-library pass (2026-10-26): AT-19 had 18 of margin; A drops a Tube-warmed, folded body over a
+            // Rounded Anchor.
+            .endpointA = {{kCoreDepthId, 0.9},           // depth 0.9
+                          {kCoreBodyId, 0.3},            // body 0.3
+                          {kCoreEdgeId, 0.3},            // edge 0.3
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.3},          // Harmonic Fold 30
+                          {kFoldShapeId, 0.4},           // SHAPE 0.4
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.35},    // Amount 0.35
+                          {kCharacterToneId, 0.5},       // Tone 0.5
+                          {kAmpAttackId, 0.260206},      // 2 ms
+                          {kAmpDecayId, 0.720412},       // 400 ms
+                          {kAmpSustainId, 0.5},          // sustain 0.5
+                          {kAmpReleaseId, 0.660206},     // 200 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.3},         // spread 0.3
+                          {kMassId, 0.55},               // Mass 55
+                          {kAnchorWaveformId, 0.5},      // RoundedSine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.4},           // shift -0.2
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.638809},       // drop time 200 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            // Designed-library pass (2026-10-26): B halves the drop and fractures the stone, wide, over a Triangle
+            // Anchor.
+            .endpointB = {{kCoreDepthId, 0.5},           // depth 0.5
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.6},            // edge 0.6
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.55},         // Harmonic Fold 55
+                          {kFoldShapeId, 0.7},           // SHAPE 0.7
+                          {kCharacterId, 1.0},           // Fracture
+                          {kCharacterAmountId, 0.45},    // Amount 0.45
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.260206},      // 2 ms
+                          {kAmpDecayId, 0.720412},       // 400 ms
+                          {kAmpSustainId, 0.85},         // sustain 0.85
+                          {kAmpReleaseId, 0.660206},     // 200 ms
+                          {kFieldImageModeId, 1.0},      // WIDE
+                          {kFieldSpreadId, 0.7},         // spread 0.7
+                          {kMassId, 0.7},                // Mass 70
+                          {kAnchorWaveformId, 0.25},     // Triangle
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.4},           // shift -0.2
+                          {kDropAmountId, 0.25},         // drop 12 st
+                          {kDropTimeId, 0.670442},       // drop time 260 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Stone Drop",
-            .nameB = "Slower Stone",
+            .nameB = "Fractured Stone",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1241,26 +1434,30 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Slow Fall",
             .category = "Plucked",
-            .description = "Pitch Drop Time: a 24 st drop stretched to 500 ms, a slow fall onto the note.",
+            .description = "Pitch Drop Time: a 24 st drop stretched to 500 ms, a slow fall onto the note through a "
+                           "hollow fold over an Asymmetric Anchor, wide. Morph to B turns it into a mono Rectify sub "
+                           "with half the drop.",
             .primary = C::AT20,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-20 had 5.95 of margin; A falls through a HOLLOW-leaning fold with
+            // the Fold Character over an Asymmetric Anchor, wide.
             .endpointA = {{kCoreDepthId, 0.7},          // depth 0.7
                           {kCoreBodyId, 0.5},           // body 0.5
-                          {kCoreEdgeId, 0.15},          // edge 0.15
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
+                          {kCoreEdgeId, 0.3},           // edge 0.3
+                          {kCoreExcitationMixId, 0.2},  // excitation mix 0.2
+                          {kFoldAmountId, 0.2},         // Harmonic Fold 20
+                          {kFoldShapeId, 0.5},          // SHAPE 0.5
+                          {kCharacterId, 0.2},          // Fold
+                          {kCharacterAmountId, 0.3},    // Amount 0.3
                           {kCharacterToneId, 0.5},      // Tone 0.5
                           {kAmpAttackId, 0.2},          // 1 ms
                           {kAmpDecayId, 0.76902},       // 700 ms
                           {kAmpSustainId, 0.6},         // sustain 0.6
                           {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.3},        // spread 0.3
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.5},        // spread 0.5
                           {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.75},    // AsymmetricSine
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 1.0},        // level 1
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
@@ -1269,34 +1466,37 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kDropTimeId, 0.749285},      // drop time 500 ms
                           {kDropShapeId, 0.0},          // drop shape 0
                           {kDropReboundId, 0.0}},       // rebound 0
-            .endpointB = {{kCoreDepthId, 0.7},          // depth 0.7
-                          {kCoreBodyId, 0.5},           // body 0.5
-                          {kCoreEdgeId, 0.15},          // edge 0.15
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+            // Designed-library pass (2026-10-26): B is a mono, folded Rectify sub (Amount 0.7) over an Octave Down
+            // Anchor with half the drop, a longer decay and Shift down.
+            .endpointB = {{kCoreDepthId, 0.9},          // depth 0.9
+                          {kCoreBodyId, 0.6},           // body 0.6
+                          {kCoreEdgeId, 0.2},           // edge 0.2
+                          {kCoreExcitationMixId, 0.5},  // excitation mix 0.5
+                          {kFoldAmountId, 0.3},         // Harmonic Fold 30
+                          {kFoldShapeId, 0.6},          // SHAPE 0.6
+                          {kCharacterId, 0.4},          // Rectify
+                          {kCharacterAmountId, 0.7},    // Amount 0.7
+                          {kCharacterToneId, 0.8},      // Tone 0.8
                           {kAmpAttackId, 0.2},          // 1 ms
-                          {kAmpDecayId, 0.76902},       // 700 ms
-                          {kAmpSustainId, 0.6},         // sustain 0.6
-                          {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.3},        // spread 0.3
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAmpDecayId, 0.835218},      // 1.5 s
+                          {kAmpSustainId, 0.75},        // sustain 0.75
+                          {kAmpReleaseId, 0.75563},     // 600 ms
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kMassId, 0.6},               // Mass 60
+                          {kAnchorWaveformId, 1.0},     // OctaveDownSine
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 1.0},        // level 1
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreBodyCurvatureId, 0.7},  // body curvature 0.7
-                          {kDropAmountId, 0.416667},    // drop 20 st
-                          {kDropTimeId, 0.749285},      // drop time 500 ms
+                          {kDropAmountId, 0.25},        // drop 12 st
+                          {kDropTimeId, 0.687696},      // drop time 300 ms
                           {kDropShapeId, 0.0},          // drop shape 0
-                          {kDropReboundId, 0.0}},       // rebound 0
+                          {kDropReboundId, 0.0},        // rebound 0
+                          {kCoreShiftId, 0.25}},        // shift -0.5
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Long Fall",
-            .nameB = "Shorter Fall",
+            .nameB = "Rectified Fall",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1304,64 +1504,69 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Curved Drop",
             .category = "Plucked",
-            .description = "Pitch Drop Shape: a 24 st drop with shape 1, the curve bending late into the pitch.",
+            .description = "Pitch Drop Shape: a 24 st drop with shape 1, the curve bending late into the pitch over a "
+                           "Triangle Anchor with a spread top. Morph to B bites it, wide, with a gentler curve.",
             .primary = C::AT21,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.5},                  // depth 0.5
-                          {kCoreBodyId, 0.2},                   // body 0.2
-                          {kCoreEdgeId, 0.6},                   // edge 0.6
-                          {kCoreExcitationMixId, 0.0},          // excitation mix 0
-                          {kFoldAmountId, 0.0},                 // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},                  // SHAPE 0
-                          {kCharacterId, 0.0},                  // Tube
-                          {kCharacterAmountId, 0.0},            // Amount 0
-                          {kCharacterToneId, 0.5},              // Tone 0.5
-                          {kAmpAttackId, 0.295424},             // 3 ms
-                          {kAmpDecayId, 0.730643},              // 450 ms
-                          {kAmpSustainId, 0.45},                // sustain 0.45
-                          {kAmpReleaseId, 0.660206},            // 200 ms
-                          {kFieldImageModeId, 0.0},             // SOLID
-                          {kFieldSpreadId, 0.0},                // spread 0
-                          {kMassId, 0.5},                       // Mass 50
-                          {kAnchorWaveformId, 0.0},             // Sine
-                          {kAnchorModeId, 0.0},                 // LOCK
-                          {kAnchorLevelId, 1.0},                // level 1
-                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
-                          {kCoreShiftId, 0.55},                 // shift 0.1
-                          {kDropAmountId, 0.5},                 // drop 24 st
-                          {kDropTimeId, 0.604124},              // drop time 150 ms
-                          {kDropShapeId, 1.0},                  // drop shape 1
-                          {kDropReboundId, 0.0},                // rebound 0
-                          {kDynamicsTransientAttackId, 0.875}}, // transient attack +9 dB
-            .endpointB = {{kCoreDepthId, 0.5},                  // depth 0.5
-                          {kCoreBodyId, 0.2},                   // body 0.2
-                          {kCoreEdgeId, 0.6},                   // edge 0.6
-                          {kCoreExcitationMixId, 0.0},          // excitation mix 0
-                          {kFoldAmountId, 0.0},                 // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},                  // SHAPE 0
-                          {kCharacterId, 0.0},                  // Tube
-                          {kCharacterAmountId, 0.0},            // Amount 0
-                          {kCharacterToneId, 0.5},              // Tone 0.5
-                          {kAmpAttackId, 0.295424},             // 3 ms
-                          {kAmpDecayId, 0.730643},              // 450 ms
-                          {kAmpSustainId, 0.45},                // sustain 0.45
-                          {kAmpReleaseId, 0.660206},            // 200 ms
-                          {kFieldImageModeId, 0.0},             // SOLID
-                          {kFieldSpreadId, 0.0},                // spread 0
-                          {kMassId, 0.5},                       // Mass 50
-                          {kAnchorWaveformId, 0.0},             // Sine
-                          {kAnchorModeId, 0.0},                 // LOCK
-                          {kAnchorLevelId, 1.0},                // level 1
-                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
-                          {kCoreShiftId, 0.55},                 // shift 0.1
-                          {kDropAmountId, 0.5},                 // drop 24 st
-                          {kDropTimeId, 0.604124},              // drop time 150 ms
-                          {kDropShapeId, 0.7},                  // drop shape 0.7
-                          {kDropReboundId, 0.0},                // rebound 0
-                          {kDynamicsTransientAttackId, 0.875}}, // transient attack +9 dB
+            // Designed-library pass (2026-10-26): AT-21 reads the pitch curve (margin 0.60), so the core stays; A gains
+            // a spread top, a Triangle Anchor and a longer release.
+            .endpointA = {{kCoreDepthId, 0.5},                   // depth 0.5
+                          {kCoreBodyId, 0.2},                    // body 0.2
+                          {kCoreEdgeId, 0.6},                    // edge 0.6
+                          {kCoreExcitationMixId, 0.0},           // excitation mix 0
+                          {kFoldAmountId, 0.0},                  // Harmonic Fold 0
+                          {kFoldShapeId, 0.0},                   // SHAPE 0
+                          {kCharacterId, 0.0},                   // Tube
+                          {kCharacterAmountId, 0.0},             // Amount 0
+                          {kCharacterToneId, 0.5},               // Tone 0.5
+                          {kAmpAttackId, 0.295424},              // 3 ms
+                          {kAmpDecayId, 0.730643},               // 450 ms
+                          {kAmpSustainId, 0.45},                 // sustain 0.45
+                          {kAmpReleaseId, 0.708814},             // 350 ms
+                          {kFieldImageModeId, 0.5},              // SPREAD
+                          {kFieldSpreadId, 0.4},                 // spread 0.4
+                          {kMassId, 0.5},                        // Mass 50
+                          {kAnchorWaveformId, 0.25},             // Triangle
+                          {kAnchorModeId, 0.0},                  // LOCK
+                          {kAnchorLevelId, 1.0},                 // level 1
+                          {kAnchorFoldFeedId, 0.0},              // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.55},                  // shift 0.1
+                          {kDropAmountId, 0.5},                  // drop 24 st
+                          {kDropTimeId, 0.604124},               // drop time 150 ms
+                          {kDropShapeId, 1.0},                   // drop shape 1
+                          {kDropReboundId, 0.0},                 // rebound 0
+                          {kDynamicsTransientAttackId, 0.875}},  // transient attack +9 dB
+            // Designed-library pass (2026-10-26): B bites: a body, excitation, a BITE fold and Bite 0.5, wide, with a
+            // gentler curve.
+            .endpointB = {{kCoreDepthId, 0.4},                   // depth 0.4
+                          {kCoreBodyId, 0.5},                    // body 0.5
+                          {kCoreEdgeId, 0.7},                    // edge 0.7
+                          {kCoreExcitationMixId, 0.5},           // excitation mix 0.5
+                          {kFoldAmountId, 0.45},                 // Harmonic Fold 45
+                          {kFoldShapeId, 0.8},                   // SHAPE 0.8
+                          {kCharacterId, 0.6},                   // Bite
+                          {kCharacterAmountId, 0.5},             // Amount 0.5
+                          {kCharacterToneId, 0.7},               // Tone 0.7
+                          {kAmpAttackId, 0.295424},              // 3 ms
+                          {kAmpDecayId, 0.730643},               // 450 ms
+                          {kAmpSustainId, 0.45},                 // sustain 0.45
+                          {kAmpReleaseId, 0.708814},             // 350 ms
+                          {kFieldImageModeId, 1.0},              // WIDE
+                          {kFieldSpreadId, 0.6},                 // spread 0.6
+                          {kMassId, 0.65},                       // Mass 65
+                          {kAnchorWaveformId, 0.25},             // Triangle
+                          {kAnchorModeId, 0.0},                  // LOCK
+                          {kAnchorLevelId, 1.0},                 // level 1
+                          {kAnchorFoldFeedId, 0.0},              // Anchor Fold Feed 0
+                          {kCoreShiftId, 0.55},                  // shift 0.1
+                          {kDropAmountId, 0.5},                  // drop 24 st
+                          {kDropTimeId, 0.604124},               // drop time 150 ms
+                          {kDropShapeId, 0.3},                   // drop shape 0.3
+                          {kDropReboundId, 0.0},                 // rebound 0
+                          {kDynamicsTransientAttackId, 0.875}},  // transient attack +9 dB
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Curved",
-            .nameB = "Gentler Curve",
+            .nameB = "Bitten Curve",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1369,62 +1574,67 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Rebound",
             .category = "Plucked",
-            .description = "Pitch Drop Rebound: a 24 st drop with rebound 1 that undershoots and bounces back up to the note.",
+            .description = "Pitch Drop Rebound: a 24 st drop with rebound 1 that undershoots and bounces back up to "
+                           "the note, a Crush-grained, folded body over a Rounded Anchor. Morph to B warms it into a "
+                           "wide Tube bounce.",
             .primary = C::AT22,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.7},          // depth 0.7
-                          {kCoreBodyId, 0.4},           // body 0.4
-                          {kCoreEdgeId, 0.1},           // edge 0.1
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.320412},     // 4 ms
-                          {kAmpDecayId, 0.739794},      // 500 ms
-                          {kAmpSustainId, 0.5},         // sustain 0.5
-                          {kAmpReleaseId, 0.679588},    // 250 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.5},        // spread 0.5
-                          {kMassId, 0.6},               // Mass 60
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.3},  // body curvature 0.3
-                          {kDropAmountId, 0.5},         // drop 24 st
-                          {kDropTimeId, 0.57722},       // drop time 120 ms
-                          {kDropShapeId, 0.0},          // drop shape 0
-                          {kDropReboundId, 1.0}},       // rebound 1
-            .endpointB = {{kCoreDepthId, 0.7},          // depth 0.7
-                          {kCoreBodyId, 0.4},           // body 0.4
-                          {kCoreEdgeId, 0.1},           // edge 0.1
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.320412},     // 4 ms
-                          {kAmpDecayId, 0.739794},      // 500 ms
-                          {kAmpSustainId, 0.5},         // sustain 0.5
-                          {kAmpReleaseId, 0.679588},    // 250 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.5},        // spread 0.5
-                          {kMassId, 0.6},               // Mass 60
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.3},  // body curvature 0.3
-                          {kDropAmountId, 0.5},         // drop 24 st
-                          {kDropTimeId, 0.57722},       // drop time 120 ms
-                          {kDropShapeId, 0.0},          // drop shape 0
-                          {kDropReboundId, 0.6}},       // rebound 0.6
+            // Designed-library pass (2026-10-26): AT-22 had 5.22 of margin; A bounces a Crush-grained, folded body over
+            // a Rounded Anchor.
+            .endpointA = {{kCoreDepthId, 0.7},           // depth 0.7
+                          {kCoreBodyId, 0.4},            // body 0.4
+                          {kCoreEdgeId, 0.3},            // edge 0.3
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.25},         // Harmonic Fold 25
+                          {kFoldShapeId, 0.35},          // SHAPE 0.35
+                          {kCharacterId, 0.8},           // Crush
+                          {kCharacterAmountId, 0.3},     // Amount 0.3
+                          {kCharacterToneId, 0.5},       // Tone 0.5
+                          {kAmpAttackId, 0.320412},      // 4 ms
+                          {kAmpDecayId, 0.739794},       // 500 ms
+                          {kAmpSustainId, 0.5},          // sustain 0.5
+                          {kAmpReleaseId, 0.679588},     // 250 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.5},         // spread 0.5
+                          {kMassId, 0.6},                // Mass 60
+                          {kAnchorWaveformId, 0.5},      // RoundedSine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.3},   // body curvature 0.3
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.57722},        // drop time 120 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 1.0}},        // rebound 1
+            // Designed-library pass (2026-10-26): B warms it into a wide Tube bounce with less rebound.
+            .endpointB = {{kCoreDepthId, 0.5},           // depth 0.5
+                          {kCoreBodyId, 0.6},            // body 0.6
+                          {kCoreEdgeId, 0.55},           // edge 0.55
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.5},          // Harmonic Fold 50
+                          {kFoldShapeId, 0.7},           // SHAPE 0.7
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.55},    // Amount 0.55
+                          {kCharacterToneId, 0.4},       // Tone 0.4
+                          {kAmpAttackId, 0.320412},      // 4 ms
+                          {kAmpDecayId, 0.739794},       // 500 ms
+                          {kAmpSustainId, 0.65},         // sustain 0.65
+                          {kAmpReleaseId, 0.679588},     // 250 ms
+                          {kFieldImageModeId, 1.0},      // WIDE
+                          {kFieldSpreadId, 0.7},         // spread 0.7
+                          {kMassId, 0.7},                // Mass 70
+                          {kAnchorWaveformId, 0.0},      // Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.3},   // body curvature 0.3
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.57722},        // drop time 120 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.3}},        // rebound 0.3
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Bounce",
-            .nameB = "Small Bounce",
+            .nameB = "Tube Bounce",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1432,59 +1642,65 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Glide Path",
             .category = "Resonant",
-            .description = "Pitch Glide: MONO legato with a 200 ms portamento sliding a resonant body; NoteMemory Legato keeps "
-                           "the phase across each slide.",
+            .description = "Pitch Glide: MONO legato with a 200 ms portamento sliding a hollow, Fracture-edged body, "
+                           "wide; NoteMemory Legato keeps the phase across each slide. Morph to B drives the slide "
+                           "with Tube.",
             .primary = C::AT23,
             .secondaries = {C::AT44},
-            .endpointA = {{kCoreDepthId, 0.6},          // depth 0.6
-                          {kCoreBodyId, 0.6},           // body 0.6
-                          {kCoreEdgeId, 0.2},           // edge 0.2
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.339794},     // 5 ms
-                          {kAmpDecayId, 0.75563},       // 600 ms
-                          {kAmpSustainId, 0.9},         // sustain 0.9
-                          {kAmpReleaseId, 0.720412},    // 400 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.5},        // spread 0.5
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.8},        // level 0.8
-                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.8}}, // body curvature 0.8
-            .endpointB = {{kCoreDepthId, 0.6},          // depth 0.6
-                          {kCoreBodyId, 0.75},          // body 0.75
-                          {kCoreEdgeId, 0.2},           // edge 0.2
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.339794},     // 5 ms
-                          {kAmpDecayId, 0.75563},       // 600 ms
-                          {kAmpSustainId, 0.9},         // sustain 0.9
-                          {kAmpReleaseId, 0.720412},    // 400 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.5},        // spread 0.5
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.8},        // level 0.8
-                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.8}}, // body curvature 0.8
+            // Designed-library pass (2026-10-26): AT-23 had 285 of margin, AT-44 65; the sliding body gains excitation,
+            // a HOLLOW fold, Fracture 0.25, an Asymmetric Anchor at level 1 and a WIDE image, at full sustain (Fracture
+            // cost level: -16.3 dBFS at Anchor 0.8, sustain 0.9).
+            .endpointA = {{kCoreDepthId, 0.6},           // depth 0.6
+                          {kCoreBodyId, 0.6},            // body 0.6
+                          {kCoreEdgeId, 0.2},            // edge 0.2
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.3},          // Harmonic Fold 30
+                          {kFoldShapeId, 0.5},           // SHAPE 0.5
+                          {kCharacterId, 1.0},           // Fracture
+                          {kCharacterAmountId, 0.25},    // Amount 0.25
+                          {kCharacterToneId, 0.45},      // Tone 0.45
+                          {kAmpAttackId, 0.339794},      // 5 ms
+                          {kAmpDecayId, 0.75563},        // 600 ms
+                          {kAmpSustainId, 1.0},          // sustain 1
+                          {kAmpReleaseId, 0.720412},     // 400 ms
+                          {kFieldImageModeId, 1.0},      // WIDE
+                          {kFieldSpreadId, 0.6},         // spread 0.6
+                          {kMassId, 0.5},                // Mass 50
+                          {kAnchorWaveformId, 0.75},     // AsymmetricSine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.8}},  // body curvature 0.8
+            // Designed-library pass (2026-10-26): B drives the slide: a fuller body, a fold toward BITE, Tube 0.55 over
+            // a Triangle Anchor.
+            .endpointB = {{kCoreDepthId, 0.4},           // depth 0.4
+                          {kCoreBodyId, 0.8},            // body 0.8
+                          {kCoreEdgeId, 0.5},            // edge 0.5
+                          {kCoreExcitationMixId, 0.5},   // excitation mix 0.5
+                          {kFoldAmountId, 0.55},         // Harmonic Fold 55
+                          {kFoldShapeId, 0.75},          // SHAPE 0.75
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.55},    // Amount 0.55
+                          {kCharacterToneId, 0.5},       // Tone 0.5
+                          {kAmpAttackId, 0.339794},      // 5 ms
+                          {kAmpDecayId, 0.75563},        // 600 ms
+                          {kAmpSustainId, 0.9},          // sustain 0.9
+                          {kAmpReleaseId, 0.720412},     // 400 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.5},         // spread 0.5
+                          {kMassId, 0.65},               // Mass 65
+                          {kAnchorWaveformId, 0.25},     // Triangle
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 0.8},         // level 0.8
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.8}},  // body curvature 0.8
             .controls = {{kNoteLegatoId, 1.0},           // legato On
                          {kNotePortamentoId, 0.575793},  // portamento 200 ms
                          {kNoteMemoryId, 1.0 / 3.0},     // Note Memory Legato
                          {kNoteRetriggerId, 0.0},        // Retrigger Reset
                          {kMorphPositionId, 0.0}},       // p = 0
             .nameA = "Gliding",
-            .nameB = "Gliding Body",
+            .nameB = "Driven Glide",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1492,111 +1708,142 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Slow Swell",
             .category = "Resonant",
-            .description = "Envelope Amp Attack: a 500 ms attack swells a resonant body up to sustain 0.8.",
+            .description = "Envelope Amp Attack: a 500 ms attack swells a resonant body up to full sustain, a light Rectify "
+                           "adding a glassy octave over an Asymmetric Anchor. Morph to B opens it into a hollow, wide, "
+                           "slower glow.",
             .primary = C::AT24,
             .secondaries = {},
+            // Whole-instrument pilot (2026-10-26): A keeps its AT-24 claim (the 500 ms attack) and uses the rest: a
+            // little excitation, a light fold, Rectify at Amount 0.2 and an Asymmetric Sine Anchor. Level: SHAPE 0.4,
+            // Rectify 0.3, Anchor 0.6, sustain 0.8 read -19.5 dBFS, 8.4 dB under the library median (bar 4 dB);
+            // SHAPE 0.15, Rectify 0.2, Anchor 0.7 read -16.1 dBFS; sustain 1 lifts the rest.
             .endpointA = {{kCoreDepthId, 0.5},          // depth 0.5
                           {kCoreBodyId, 0.7},           // body 0.7
-                          {kCoreEdgeId, 0.25},          // edge 0.25
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+                          {kCoreEdgeId, 0.3},           // edge 0.3
+                          {kCoreExcitationMixId, 0.1},  // excitation mix 0.1
+                          {kFoldAmountId, 0.2},         // Harmonic Fold 20
+                          {kFoldShapeId, 0.15},         // SHAPE 0.15
+                          {kCharacterId, 0.4},          // Rectify
+                          {kCharacterAmountId, 0.2},    // Amount 0.2
+                          {kCharacterToneId, 0.4},      // Tone 0.4
                           {kAmpAttackId, 0.739794},     // 500 ms
                           {kAmpDecayId, 0.780618},      // 800 ms
-                          {kAmpSustainId, 0.8},         // sustain 0.8
+                          {kAmpSustainId, 1.0},         // sustain 1
                           {kAmpReleaseId, 0.790849},    // 900 ms
                           {kFieldImageModeId, 0.5},     // SPREAD
                           {kFieldSpreadId, 0.6},        // spread 0.6
                           {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.75},    // Asymmetric Sine
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.6},        // level 0.6
+                          {kAnchorLevelId, 0.7},        // level 0.7
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreBodyCurvatureId, 0.7},  // body curvature 0.7
                           {kCoreBodyEmphasisId, 0.7}},  // body emphasis -0.3
-            .endpointB = {{kCoreDepthId, 0.5},          // depth 0.5
-                          {kCoreBodyId, 0.55},          // body 0.55
-                          {kCoreEdgeId, 0.25},          // edge 0.25
+            // Morph pilot (2026-10-26): B is a hollow, wide glow: Fold SHAPE at HOLLOW with Fold 40 and the Fold
+            // Character, Shift up to +0.7, more edge and less body, a 900 ms attack (library rule 1 caps it at 1 s)
+            // and 1.5 s release, a Triangle Anchor at 0.7 and the WIDE image, at full sustain and depth 0.45 (it read
+            // 3.8 dB under A at C3 at depth 0.3, Anchor 0.5).
+            .endpointB = {{kCoreDepthId, 0.45},         // depth 0.45
+                          {kCoreBodyId, 0.3},           // body 0.3
+                          {kCoreEdgeId, 0.6},           // edge 0.6
                           {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.708814},     // 350 ms
+                          {kFoldAmountId, 0.4},         // Harmonic Fold 40
+                          {kFoldShapeId, 0.5},          // SHAPE 0.5 (HOLLOW)
+                          {kCharacterId, 0.2},          // Fold
+                          {kCharacterAmountId, 0.4},    // Amount 0.4
+                          {kCharacterToneId, 0.6},      // Tone 0.6
+                          {kAmpAttackId, 0.790849},     // 900 ms
                           {kAmpDecayId, 0.780618},      // 800 ms
-                          {kAmpSustainId, 0.8},         // sustain 0.8
-                          {kAmpReleaseId, 0.790849},    // 900 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.6},        // spread 0.6
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.835218},    // 1500 ms
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.9},        // spread 0.9
+                          {kMassId, 0.45},              // Mass 45
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.6},        // level 0.6
+                          {kAnchorLevelId, 0.7},        // level 0.7
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreBodyCurvatureId, 0.7},  // body curvature 0.7
-                          {kCoreBodyEmphasisId, 0.7}},  // body emphasis -0.3
+                          {kCoreBodyEmphasisId, 0.7},   // body emphasis -0.3
+                          {kCoreShiftId, 0.85}},        // shift +0.7
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Swelling",
-            .nameB = "Quicker Swell",
+            .nameB = "Hollow Glow",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
         // ---- 25: AT-25 release (plan 7 row 25) ----
+        // Phase 14 T023: converted to M-WHEEL (AT-25 stays with Poly Pluck). Plan 10: M-ENV, M-CYCLE and M-VEL failed
+        // Profundum_PresetLoudnessMatch (evidence/gate-exclusions.csv), so it carries the Mod Wheel, which rests at A.
         ProfundumPresetDef{
             .name = "Long Tail",
             .category = "Sub",
-            .description = "Envelope Amp Release: a 2000 ms release lets the sub ring on long after the key lifts.",
-            .primary = C::AT25,
+            .description = "Morph Mod Wheel: the Mod Wheel carries the sound from A to B (Amount 1; wheel down plays A), "
+                           "and while it drives the morph it no longer adds Mass. A lets a folded, wide body ring on "
+                           "over a Triangle Anchor with a 2000 ms release; wheel up darkens it into a mono Tube sub "
+                           "with a 3.5 s tail.",
+            .primary = C::MWheel,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-25 had 36.8 of margin; A rings a folded, wide body over a Triangle
+            // Anchor.
             .endpointA = {{kCoreDepthId, 0.75},         // depth 0.75
-                          {kCoreBodyId, 0.1},           // body 0.1
-                          {kCoreEdgeId, 0.35},          // edge 0.35
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
+                          {kCoreBodyId, 0.4},           // body 0.4
+                          {kCoreEdgeId, 0.3},           // edge 0.3
+                          {kCoreExcitationMixId, 0.2},  // excitation mix 0.2
+                          {kFoldAmountId, 0.2},         // Harmonic Fold 20
+                          {kFoldShapeId, 0.45},         // SHAPE 0.45
+                          {kCharacterId, 0.2},          // Fold
+                          {kCharacterAmountId, 0.3},    // Amount 0.3
                           {kCharacterToneId, 0.5},      // Tone 0.5
                           {kAmpAttackId, 0.4},          // 10 ms
                           {kAmpDecayId, 0.720412},      // 400 ms
                           {kAmpSustainId, 0.8},         // sustain 0.8
                           {kAmpReleaseId, 0.860206},    // 2000 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.6},        // spread 0.6
                           {kMassId, 0.55},              // Mass 55
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.9},        // level 0.9
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreShiftId, 0.65}},        // shift 0.3
-            .endpointB = {{kCoreDepthId, 0.75},         // depth 0.75
+            // Designed-library pass (2026-10-26): B darkens into a mono Tube sub with a 3.5 s tail (library rule 1 caps
+            // release at 4 s).
+            .endpointB = {{kCoreDepthId, 0.9},          // depth 0.9
                           {kCoreBodyId, 0.1},           // body 0.1
-                          {kCoreEdgeId, 0.35},          // edge 0.35
+                          {kCoreEdgeId, 0.1},           // edge 0.1
                           {kCoreExcitationMixId, 0.0},  // excitation mix 0
                           {kFoldAmountId, 0.0},         // Harmonic Fold 0
                           {kFoldShapeId, 0.0},          // SHAPE 0
                           {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+                          {kCharacterAmountId, 0.5},    // Amount 0.5
+                          {kCharacterToneId, 0.3},      // Tone 0.3
                           {kAmpAttackId, 0.4},          // 10 ms
                           {kAmpDecayId, 0.720412},      // 400 ms
-                          {kAmpSustainId, 0.8},         // sustain 0.8
-                          {kAmpReleaseId, 0.835218},    // 1500 ms
+                          {kAmpSustainId, 0.9},         // sustain 0.9
+                          {kAmpReleaseId, 0.908814},    // 3.5 s
                           {kFieldImageModeId, 0.0},     // SOLID
                           {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.55},              // Mass 55
+                          {kMassId, 0.65},              // Mass 65
                           {kAnchorWaveformId, 0.0},     // Sine
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.9},        // level 0.9
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreShiftId, 0.65}},        // shift 0.3
-            .controls = {{kMorphPositionId, 0.0}}, // p = 0
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 7.704 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kMorphModSourceId, 1.0},                      // Source Mod Wheel (4 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.39999999922342100},      // attack 10 ms (default)
+                         {kMorphModDecayId, 0.69542425054972046},       // decay 300 ms (default)
+                         {kMorphModSustainId, 0.0},                     // sustain 0 (default)
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Long Ring",
-            .nameB = "Shorter Ring",
+            .nameB = "Dark Tail",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1608,52 +1855,60 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Heavy Mass",
             .category = "Sub",
-            .description = "Mass Amount: Mass at 100 with the Anchor at 0.5, the heaviest held weight.",
+            .description = "Mass Amount: Mass at 100 with a Rounded Anchor at 0.5 and a 4 semitone drop, the heaviest "
+                           "held weight. Morph to B drives it: a body, fold and Tube over an octave-down Anchor.",
             .primary = C::AT26,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
+            // Designed-library pass (2026-10-26): AT-26 reads E_sub at the Sum tap on a sine recipe (margin 2.25 dB); A
+            // keeps the recipe and gains a Rounded Anchor, a 4 st drop, a harder transient and a spread top.
+            .endpointA = {{kCoreDepthId, 1.0},                      // depth 1
+                          {kCoreBodyId, 0.0},                       // body 0
+                          {kCoreEdgeId, 0.0},                       // edge 0
+                          {kCoreExcitationMixId, 0.0},              // excitation mix 0
+                          {kFoldAmountId, 0.0},                     // Harmonic Fold 0
+                          {kFoldShapeId, 0.0},                      // SHAPE 0
+                          {kCharacterId, 0.0},                      // Tube
+                          {kCharacterAmountId, 0.0},                // Amount 0
+                          {kCharacterToneId, 0.5},                  // Tone 0.5
+                          {kAmpAttackId, 0.260206},                 // 2 ms
+                          {kAmpDecayId, 0.695424},                  // 300 ms
+                          {kAmpSustainId, 0.3},                     // sustain 0.3
+                          {kAmpReleaseId, 0.708814},                // 350 ms
+                          {kFieldImageModeId, 0.5},                 // SPREAD
+                          {kFieldSpreadId, 0.3},                    // spread 0.3
+                          {kMassId, 1.0},                           // Mass 100
+                          {kAnchorWaveformId, 0.5},                 // RoundedSine
+                          {kAnchorModeId, 0.0},                     // LOCK
+                          {kAnchorLevelId, 0.5},                    // level 0.5
+                          {kAnchorFoldFeedId, 0.0},                 // Anchor Fold Feed 0
+                          {kDropAmountId, 0.083333},                // drop 4 st
+                          {kDropTimeId, 0.493648},                  // drop time 60 ms
+                          {kDynamicsTransientAttackId, 0.666667}},  // transient attack +4 dB
+            // Designed-library pass (2026-10-26): B drives it: a body, fold and Tube 0.6 over an Octave Down Anchor,
+            // wide.
+            .endpointB = {{kCoreDepthId, 0.55},         // depth 0.55
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.35},          // edge 0.35
+                          {kCoreExcitationMixId, 0.4},  // excitation mix 0.4
+                          {kFoldAmountId, 0.45},        // Harmonic Fold 45
+                          {kFoldShapeId, 0.5},          // SHAPE 0.5
                           {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+                          {kCharacterAmountId, 0.6},    // Amount 0.6
+                          {kCharacterToneId, 0.45},     // Tone 0.45
                           {kAmpAttackId, 0.260206},     // 2 ms
                           {kAmpDecayId, 0.695424},      // 300 ms
-                          {kAmpSustainId, 0.3},         // sustain 0.3
+                          {kAmpSustainId, 0.4},         // sustain 0.4
                           {kAmpReleaseId, 0.708814},    // 350 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.5},        // spread 0.5
                           {kMassId, 1.0},               // Mass 100
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 1.0},     // OctaveDownSine
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.5},        // level 0.5
-                          {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.260206},     // 2 ms
-                          {kAmpDecayId, 0.695424},      // 300 ms
-                          {kAmpSustainId, 0.3},         // sustain 0.3
-                          {kAmpReleaseId, 0.708814},    // 350 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.85},              // Mass 85
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.5},        // level 0.5
+                          {kAnchorLevelId, 0.6},        // level 0.6
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Full Mass",
-            .nameB = "Less Mass",
+            .nameB = "Heavy Drive",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1663,8 +1918,9 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Pressure Front",
             .category = "Harmonic",
-            .description = "Mass Dynamics Gain: Mass 100 on a heavy harmonic body, the dynamics gain pressing the front of each "
-                           "note.",
+            .description = "Mass Dynamics Gain: Mass 100 on a heavy harmonic body, the dynamics gain pressing the "
+                           "front of each note. Morph to B turns it into a dark, mono, Crush-grained sub with a softer "
+                           "front.",
             .primary = C::AT27,
             .secondaries = {},
             .endpointA = {{kCoreDepthId, 0.5},                // depth 0.5
@@ -1690,32 +1946,34 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
                           {kAnchorFoldFeedId, 0.0}},          // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 0.5},                // depth 0.5
-                          {kCoreBodyId, 0.3},                 // body 0.3
-                          {kCoreEdgeId, 1.0},                 // edge 1
-                          {kCoreShiftId, 0.0},                // shift -1
-                          {kCoreExcitationMixId, 1.0},        // excitation mix 1
+            // Designed-library pass (2026-10-26): A is unchanged (AT-27 margin 1.01); B is its dark opposite: a clean,
+            // sub-heavy body under Crush 0.5 over a mono Triangle Anchor, a 30 ms attack, a 600 ms decay, Mass 70.
+            .endpointB = {{kCoreDepthId, 0.9},                // depth 0.9
+                          {kCoreBodyId, 0.1},                 // body 0.1
+                          {kCoreEdgeId, 0.1},                 // edge 0.1
+                          {kCoreShiftId, 0.75},               // shift 0.5
+                          {kCoreExcitationMixId, 0.0},        // excitation mix 0
                           {kCoreExcitationDriveId, 1.0},      // drive 1
                           {kCoreExcitationAsymmetryId, 0.5},  // asymmetry 0.5
-                          {kFoldAmountId, 0.8},               // Harmonic Fold 80
-                          {kFoldShapeId, 0.5},                // SHAPE 0.5
-                          {kCharacterId, 0.2},                // Fold
+                          {kFoldAmountId, 0.0},               // Harmonic Fold 0
+                          {kFoldShapeId, 0.9},                // SHAPE 0.9
+                          {kCharacterId, 0.8},                // Crush
                           {kCharacterAmountId, 0.5},          // Amount 0.5
-                          {kCharacterToneId, 0.65},           // Tone 0.65
-                          {kAmpAttackId, 0.2},                // 1 ms
-                          {kAmpDecayId, 0.859771},            // 1990 ms
-                          {kAmpSustainId, 1.0},               // sustain 1
-                          {kAmpReleaseId, 0.780618},          // 800 ms
-                          {kFieldImageModeId, 0.5},           // SPREAD
-                          {kFieldSpreadId, 1.0},              // spread 1
-                          {kMassId, 1.0},                     // Mass 100
-                          {kAnchorWaveformId, 0.0},           // Sine
+                          {kCharacterToneId, 0.3},            // Tone 0.3
+                          {kAmpAttackId, 0.495424},           // 30 ms
+                          {kAmpDecayId, 0.75563},             // 600 ms
+                          {kAmpSustainId, 0.5},               // sustain 0.5
+                          {kAmpReleaseId, 0.720412},          // 400 ms
+                          {kFieldImageModeId, 0.0},           // SOLID
+                          {kFieldSpreadId, 0.0},              // spread 0
+                          {kMassId, 0.7},                     // Mass 70
+                          {kAnchorWaveformId, 0.25},          // Triangle
                           {kAnchorModeId, 0.0},               // LOCK
-                          {kAnchorLevelId, 0.5},              // level 0.5
+                          {kAnchorLevelId, 0.45},             // level 0.45
                           {kAnchorFoldFeedId, 0.0}},          // Anchor Fold Feed 0
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Pressing",
-            .nameB = "Pressing Narrow",
+            .nameB = "Crushed Front",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1724,9 +1982,13 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Hard Attack",
             .category = "Plucked",
-            .description = "Mass Transient Attack: the Transient Attack at +12 dB snaps the front of a harmonic pluck.",
+            .description = "Mass Transient Attack: the Transient Attack at +12 dB snaps the front of a folded harmonic "
+                           "pluck with a 5 semitone snap. Morph to B rounds it into a soft mono Tube note an octave "
+                           "deep.",
             .primary = C::AT28,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-28 had 6.23 of margin; the harmonic pluck gains a Triangle Anchor
+            // and a 5 st snap.
             .endpointA = {{kCoreDepthId, 0.5},                // depth 0.5
                           {kCoreBodyId, 0.3},                 // body 0.3
                           {kCoreEdgeId, 0.8},                 // edge 0.8
@@ -1746,38 +2008,42 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kFieldImageModeId, 0.5},           // SPREAD
                           {kFieldSpreadId, 0.7},              // spread 0.7
                           {kMassId, 0.55},                    // Mass 55
-                          {kAnchorWaveformId, 0.0},           // Sine
+                          {kAnchorWaveformId, 0.25},          // Triangle
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 1.0}}, // transient attack +12 dB
-            .endpointB = {{kCoreDepthId, 0.5},                  // depth 0.5
-                          {kCoreBodyId, 0.3},                   // body 0.3
-                          {kCoreEdgeId, 0.6},                   // edge 0.6
-                          {kCoreShiftId, 0.2},                  // shift -0.6
-                          {kCoreExcitationMixId, 0.8},          // excitation mix 0.8
-                          {kCoreExcitationDriveId, 0.8},        // drive 0.8
-                          {kCoreExcitationAsymmetryId, 0.3},    // asymmetry 0.3
-                          {kFoldAmountId, 0.4},                 // Harmonic Fold 40
-                          {kFoldShapeId, 0.3},                  // SHAPE 0.3
-                          {kCharacterId, 0.2},                  // Fold
-                          {kCharacterAmountId, 0.4},            // Amount 0.4
-                          {kCharacterToneId, 0.7},              // Tone 0.7
-                          {kAmpAttackId, 0.2},                  // 1 ms
-                          {kAmpDecayId, 0.730643},              // 450 ms
-                          {kAmpSustainId, 0.85},                // sustain 0.85
-                          {kAmpReleaseId, 0.679588},            // 250 ms
-                          {kFieldImageModeId, 0.5},             // SPREAD
-                          {kFieldSpreadId, 0.7},                // spread 0.7
-                          {kMassId, 0.55},                      // Mass 55
-                          {kAnchorWaveformId, 0.0},             // Sine
-                          {kAnchorModeId, 0.0},                 // LOCK
-                          {kAnchorLevelId, 0.5},                // level 0.5
-                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
-                          {kDynamicsTransientAttackId, 0.875}}, // transient attack +9 dB
+                          {kDynamicsTransientAttackId, 1.0},  // transient attack +12 dB
+                          {kDropAmountId, 0.104167},          // drop 5 st
+                          {kDropTimeId, 0.388095}},           // drop time 25 ms
+            // Designed-library pass (2026-10-26): B is the opposite: a round, mono Tube note over an Octave Down Anchor
+            // with no transient boost.
+            .endpointB = {{kCoreDepthId, 0.8},                 // depth 0.8
+                          {kCoreBodyId, 0.5},                  // body 0.5
+                          {kCoreEdgeId, 0.2},                  // edge 0.2
+                          {kCoreShiftId, 0.2},                 // shift -0.6
+                          {kCoreExcitationMixId, 0.2},         // excitation mix 0.2
+                          {kCoreExcitationDriveId, 0.8},       // drive 0.8
+                          {kCoreExcitationAsymmetryId, 0.3},   // asymmetry 0.3
+                          {kFoldAmountId, 0.1},                // Harmonic Fold 10
+                          {kFoldShapeId, 0.0},                 // SHAPE 0
+                          {kCharacterId, 0.0},                 // Tube
+                          {kCharacterAmountId, 0.5},           // Amount 0.5
+                          {kCharacterToneId, 0.3},             // Tone 0.3
+                          {kAmpAttackId, 0.2},                 // 1 ms
+                          {kAmpDecayId, 0.76902},              // 700 ms
+                          {kAmpSustainId, 0.85},               // sustain 0.85
+                          {kAmpReleaseId, 0.679588},           // 250 ms
+                          {kFieldImageModeId, 0.0},            // SOLID
+                          {kFieldSpreadId, 0.0},               // spread 0
+                          {kMassId, 0.7},                      // Mass 70
+                          {kAnchorWaveformId, 1.0},            // OctaveDownSine
+                          {kAnchorModeId, 0.0},                // LOCK
+                          {kAnchorLevelId, 0.8},               // level 0.8
+                          {kAnchorFoldFeedId, 0.0},            // Anchor Fold Feed 0
+                          {kDynamicsTransientAttackId, 0.5}},  // transient attack 0 dB
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Snapping",
-            .nameB = "Softer Snap",
+            .nameB = "Soft Round",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1785,59 +2051,64 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Wide Harmonics",
             .category = "Harmonic",
-            .description = "Field Solid to Spread: the SPREAD image at spread 1 opens a harmonic body while the sub stays "
-                           "centred.",
+            .description = "Field Solid to Spread: the SPREAD image at spread 1 opens a folded, Bite-edged harmonic "
+                           "body while the sub stays centred. Morph to B darkens it into a Tube-warmed spread an "
+                           "octave deep.",
             .primary = C::AT29,
             .secondaries = {C::AT31},
-            .endpointA = {{kCoreDepthId, 0.5},            // depth 0.5
-                          {kCoreBodyId, 0.6},             // body 0.6
-                          {kCoreEdgeId, 0.5},             // edge 0.5
-                          {kCoreExcitationMixId, 0.4},    // excitation mix 0.4
-                          {kFoldAmountId, 0.0},           // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},            // SHAPE 0
-                          {kCharacterId, 0.0},            // Tube
-                          {kCharacterAmountId, 0.0},      // Amount 0
-                          {kCharacterToneId, 0.5},        // Tone 0.5
-                          {kAmpAttackId, 0.295424},       // 3 ms
-                          {kAmpDecayId, 0.75563},         // 600 ms
-                          {kAmpSustainId, 0.85},          // sustain 0.85
-                          {kAmpReleaseId, 0.739794},      // 500 ms
-                          {kFieldImageModeId, 0.5},       // SPREAD
-                          {kFieldSpreadId, 1.0},          // spread 1
-                          {kMassId, 0.5},                 // Mass 50
-                          {kAnchorWaveformId, 0.0},       // Sine
-                          {kAnchorModeId, 0.0},           // LOCK
-                          {kAnchorLevelId, 0.6},          // level 0.6
-                          {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.6},    // body curvature 0.6
-                          {kCoreShiftId, 0.6},            // shift 0.2
-                          {kCoreExcitationDriveId, 0.6}}, // drive 0.6
-            .endpointB = {{kCoreDepthId, 0.5},            // depth 0.5
-                          {kCoreBodyId, 0.6},             // body 0.6
-                          {kCoreEdgeId, 0.65},            // edge 0.65
-                          {kCoreExcitationMixId, 0.4},    // excitation mix 0.4
-                          {kFoldAmountId, 0.0},           // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},            // SHAPE 0
-                          {kCharacterId, 0.0},            // Tube
-                          {kCharacterAmountId, 0.0},      // Amount 0
-                          {kCharacterToneId, 0.5},        // Tone 0.5
-                          {kAmpAttackId, 0.295424},       // 3 ms
-                          {kAmpDecayId, 0.75563},         // 600 ms
-                          {kAmpSustainId, 0.85},          // sustain 0.85
-                          {kAmpReleaseId, 0.739794},      // 500 ms
-                          {kFieldImageModeId, 0.5},       // SPREAD
-                          {kFieldSpreadId, 1.0},          // spread 1
-                          {kMassId, 0.5},                 // Mass 50
-                          {kAnchorWaveformId, 0.0},       // Sine
-                          {kAnchorModeId, 0.0},           // LOCK
-                          {kAnchorLevelId, 0.6},          // level 0.6
-                          {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.6},    // body curvature 0.6
-                          {kCoreShiftId, 0.6},            // shift 0.2
-                          {kCoreExcitationDriveId, 0.6}}, // drive 0.6
+            // Designed-library pass (2026-10-26): AT-29 / AT-31 had 113 of margin; the open body gains a fold, Bite
+            // 0.35 and an Asymmetric Anchor.
+            .endpointA = {{kCoreDepthId, 0.5},             // depth 0.5
+                          {kCoreBodyId, 0.6},              // body 0.6
+                          {kCoreEdgeId, 0.5},              // edge 0.5
+                          {kCoreExcitationMixId, 0.4},     // excitation mix 0.4
+                          {kFoldAmountId, 0.3},            // Harmonic Fold 30
+                          {kFoldShapeId, 0.4},             // SHAPE 0.4
+                          {kCharacterId, 0.6},             // Bite
+                          {kCharacterAmountId, 0.35},      // Amount 0.35
+                          {kCharacterToneId, 0.6},         // Tone 0.6
+                          {kAmpAttackId, 0.295424},        // 3 ms
+                          {kAmpDecayId, 0.75563},          // 600 ms
+                          {kAmpSustainId, 0.85},           // sustain 0.85
+                          {kAmpReleaseId, 0.739794},       // 500 ms
+                          {kFieldImageModeId, 0.5},        // SPREAD
+                          {kFieldSpreadId, 1.0},           // spread 1
+                          {kMassId, 0.5},                  // Mass 50
+                          {kAnchorWaveformId, 0.75},       // AsymmetricSine
+                          {kAnchorModeId, 0.0},            // LOCK
+                          {kAnchorLevelId, 0.6},           // level 0.6
+                          {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.6},     // body curvature 0.6
+                          {kCoreShiftId, 0.6},             // shift 0.2
+                          {kCoreExcitationDriveId, 0.6}},  // drive 0.6
+            // Designed-library pass (2026-10-26): B is a dark, Tube-warmed spread over an Octave Down Anchor (SPREAD at
+            // spread 1 on both: AT-29).
+            .endpointB = {{kCoreDepthId, 0.8},             // depth 0.8
+                          {kCoreBodyId, 0.2},              // body 0.2
+                          {kCoreEdgeId, 0.2},              // edge 0.2
+                          {kCoreExcitationMixId, 0.0},     // excitation mix 0
+                          {kFoldAmountId, 0.0},            // Harmonic Fold 0
+                          {kFoldShapeId, 0.0},             // SHAPE 0
+                          {kCharacterId, 0.0},             // Tube
+                          {kCharacterAmountId, 0.6},       // Amount 0.6
+                          {kCharacterToneId, 0.3},         // Tone 0.3
+                          {kAmpAttackId, 0.295424},        // 3 ms
+                          {kAmpDecayId, 0.75563},          // 600 ms
+                          {kAmpSustainId, 0.5},            // sustain 0.5
+                          {kAmpReleaseId, 0.739794},       // 500 ms
+                          {kFieldImageModeId, 0.5},        // SPREAD
+                          {kFieldSpreadId, 1.0},           // spread 1
+                          {kMassId, 0.65},                 // Mass 65
+                          {kAnchorWaveformId, 1.0},        // OctaveDownSine
+                          {kAnchorModeId, 0.0},            // LOCK
+                          {kAnchorLevelId, 0.5},           // level 0.5
+                          {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.6},     // body curvature 0.6
+                          {kCoreShiftId, 0.25},            // shift -0.5
+                          {kCoreExcitationDriveId, 0.6}},  // drive 0.6
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Spread Open",
-            .nameB = "Spread Bright",
+            .nameB = "Spread Dark",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1846,15 +2117,18 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Wide Rectifier",
             .category = "Driven",
-            .description = "Field Solid to Wide: Rectify at 0.5 with Tone 0.5 under the WIDE image at spread 1.",
+            .description = "Field Solid to Wide: Rectify at 0.5 with Tone 0.5 over a lightly folded body and a Rounded "
+                           "Anchor under the WIDE image at spread 1. Morph to B bites, wide, an octave deep.",
             .primary = C::AT30,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-30 had 96.7 of margin; A gains a body, excitation, a light fold
+            // and a Rounded Anchor (Tone 0.5: rule 4).
             .endpointA = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
+                          {kCoreBodyId, 0.3},           // body 0.3
+                          {kCoreEdgeId, 0.3},           // edge 0.3
+                          {kCoreExcitationMixId, 0.2},  // excitation mix 0.2
+                          {kFoldAmountId, 0.2},         // Harmonic Fold 20
+                          {kFoldShapeId, 0.3},          // SHAPE 0.3
                           {kCharacterId, 0.4},          // Rectify
                           {kCharacterAmountId, 0.5},    // Amount 0.5
                           {kCharacterToneId, 0.5},      // Tone 0.5
@@ -1865,33 +2139,35 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kFieldImageModeId, 1.0},     // WIDE
                           {kFieldSpreadId, 1.0},        // spread 1
                           {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.5},     // RoundedSine
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.8},        // level 0.8
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
+            // Designed-library pass (2026-10-26): B bites wide over an Octave Down Anchor (WIDE at spread 1 on both:
+            // AT-30).
+            .endpointB = {{kCoreDepthId, 0.8},          // depth 0.8
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.5},           // edge 0.5
                           {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.4},          // Rectify
+                          {kFoldAmountId, 0.4},         // Harmonic Fold 40
+                          {kFoldShapeId, 0.7},          // SHAPE 0.7
+                          {kCharacterId, 0.6},          // Bite
                           {kCharacterAmountId, 0.5},    // Amount 0.5
-                          {kCharacterToneId, 0.4},      // Tone 0.4
+                          {kCharacterToneId, 0.6},      // Tone 0.6
                           {kAmpAttackId, 0.260206},     // 2 ms
                           {kAmpDecayId, 0.708814},      // 350 ms
-                          {kAmpSustainId, 0.9},         // sustain 0.9
+                          {kAmpSustainId, 1.0},         // sustain 1
                           {kAmpReleaseId, 0.695424},    // 300 ms
                           {kFieldImageModeId, 1.0},     // WIDE
                           {kFieldSpreadId, 1.0},        // spread 1
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kMassId, 0.65},              // Mass 65
+                          {kAnchorWaveformId, 1.0},     // OctaveDownSine
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.8},        // level 0.8
+                          {kAnchorLevelId, 1.0},        // level 1
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Wide Rectified",
-            .nameB = "Wide Dark",
+            .nameB = "Wide Bite",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1899,58 +2175,64 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Spread Choir",
             .category = "Harmonic",
-            .description = "Field Spread: SPREAD at spread 0.9 over a high body, a choir of partials around a centred floor.",
+            .description = "Field Spread: SPREAD at spread 0.9 over a high, folded body touched by Fracture, a choir "
+                           "of partials around a centred floor. Morph to B turns it into a Rectify-edged choir.",
             .primary = C::AT31,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.4},           // depth 0.4
+            // Designed-library pass (2026-10-26): AT-31 had 108 of margin; the choir gains excitation, a fold, Fracture
+            // 0.15 and a Triangle Anchor at level 1, at full sustain and depth 0.7 (it read -20.8 dBFS before).
+            .endpointA = {{kCoreDepthId, 0.7},           // depth 0.7
                           {kCoreBodyId, 0.85},           // body 0.85
                           {kCoreEdgeId, 0.35},           // edge 0.35
-                          {kCoreExcitationMixId, 0.0},   // excitation mix 0
-                          {kFoldAmountId, 0.0},          // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},           // SHAPE 0
-                          {kCharacterId, 0.0},           // Tube
-                          {kCharacterAmountId, 0.0},     // Amount 0
-                          {kCharacterToneId, 0.5},       // Tone 0.5
+                          {kCoreExcitationMixId, 0.3},   // excitation mix 0.3
+                          {kFoldAmountId, 0.25},         // Harmonic Fold 25
+                          {kFoldShapeId, 0.5},           // SHAPE 0.5
+                          {kCharacterId, 1.0},           // Fracture
+                          {kCharacterAmountId, 0.15},    // Amount 0.15
+                          {kCharacterToneId, 0.55},      // Tone 0.55
                           {kAmpAttackId, 0.460206},      // 20 ms
                           {kAmpDecayId, 0.76902},        // 700 ms
-                          {kAmpSustainId, 0.8},          // sustain 0.8
+                          {kAmpSustainId, 1.0},          // sustain 1
                           {kAmpReleaseId, 0.76902},      // 700 ms
                           {kFieldImageModeId, 0.5},      // SPREAD
                           {kFieldSpreadId, 0.9},         // spread 0.9
                           {kMassId, 0.45},               // Mass 45
-                          {kAnchorWaveformId, 0.0},      // Sine
+                          {kAnchorWaveformId, 0.25},     // Triangle
                           {kAnchorModeId, 0.0},          // LOCK
-                          {kAnchorLevelId, 0.55},        // level 0.55
+                          {kAnchorLevelId, 1.0},         // level 1
                           {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
                           {kCoreBodyCurvatureId, 0.75},  // body curvature 0.75
                           {kCoreShiftId, 0.55},          // shift 0.1
                           {kFieldGravityId, 0.4}},       // gravity 0.4
-            .endpointB = {{kCoreDepthId, 0.4},           // depth 0.4
-                          {kCoreBodyId, 0.7},            // body 0.7
-                          {kCoreEdgeId, 0.35},           // edge 0.35
-                          {kCoreExcitationMixId, 0.0},   // excitation mix 0
-                          {kFoldAmountId, 0.0},          // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},           // SHAPE 0
-                          {kCharacterId, 0.0},           // Tube
-                          {kCharacterAmountId, 0.0},     // Amount 0
-                          {kCharacterToneId, 0.5},       // Tone 0.5
-                          {kAmpAttackId, 0.460206},      // 20 ms
-                          {kAmpDecayId, 0.76902},        // 700 ms
-                          {kAmpSustainId, 0.8},          // sustain 0.8
-                          {kAmpReleaseId, 0.76902},      // 700 ms
-                          {kFieldImageModeId, 0.5},      // SPREAD
-                          {kFieldSpreadId, 0.9},         // spread 0.9
-                          {kMassId, 0.45},               // Mass 45
-                          {kAnchorWaveformId, 0.0},      // Sine
-                          {kAnchorModeId, 0.0},          // LOCK
-                          {kAnchorLevelId, 0.55},        // level 0.55
-                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.75},  // body curvature 0.75
-                          {kCoreShiftId, 0.55},          // shift 0.1
-                          {kFieldGravityId, 0.4}},       // gravity 0.4
+            // Designed-library pass (2026-10-26): B is a lopsided, Rectify-edged choir over a Rounded Anchor (SPREAD on
+            // both: AT-31).
+            .endpointB = {{kCoreDepthId, 0.4},             // depth 0.4
+                          {kCoreBodyId, 0.3},              // body 0.3
+                          {kCoreEdgeId, 0.7},              // edge 0.7
+                          {kCoreExcitationMixId, 0.5},     // excitation mix 0.5
+                          {kFoldAmountId, 0.5},            // Harmonic Fold 50
+                          {kFoldShapeId, 0.9},             // SHAPE 0.9
+                          {kCharacterId, 0.4},             // Rectify
+                          {kCharacterAmountId, 0.4},       // Amount 0.4
+                          {kCharacterToneId, 0.7},         // Tone 0.7
+                          {kAmpAttackId, 0.460206},        // 20 ms
+                          {kAmpDecayId, 0.76902},          // 700 ms
+                          {kAmpSustainId, 0.45},           // sustain 0.45
+                          {kAmpReleaseId, 0.76902},        // 700 ms
+                          {kFieldImageModeId, 0.5},        // SPREAD
+                          {kFieldSpreadId, 0.9},           // spread 0.9
+                          {kMassId, 0.6},                  // Mass 60
+                          {kAnchorWaveformId, 0.5},        // RoundedSine
+                          {kAnchorModeId, 0.0},            // LOCK
+                          {kAnchorLevelId, 0.55},          // level 0.55
+                          {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.75},    // body curvature 0.75
+                          {kCoreShiftId, 0.75},            // shift 0.5
+                          {kFieldGravityId, 0.4},          // gravity 0.4
+                          {kCoreExcitationDriveId, 0.8}},  // drive 0.8
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Choir",
-            .nameB = "Choir Low",
+            .nameB = "Rectified Choir",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -1958,9 +2240,13 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Gravity Well",
             .category = "Resonant",
-            .description = "Field Gravity: Gravity at 1 pulls the low band of a SPREAD image at spread 1 back to the centre.",
+            .description = "Field Gravity: Gravity at 1 pulls the low band of a folded SPREAD image at spread 1 back "
+                           "to the centre, over an octave-down Anchor. Morph to B darkens it into a Crush-grained well "
+                           "with half the pull.",
             .primary = C::AT32,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-32 had 10.1 of margin; the well gains an Octave Down Anchor and
+            // Mass 60.
             .endpointA = {{kCoreDepthId, 0.5},                // depth 0.5
                           {kCoreBodyId, 0.4},                 // body 0.4
                           {kCoreEdgeId, 0.7},                 // edge 0.7
@@ -1979,41 +2265,43 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpReleaseId, 0.76902},           // 700 ms
                           {kFieldImageModeId, 0.5},           // SPREAD
                           {kFieldSpreadId, 1.0},              // spread 1
-                          {kMassId, 0.5},                     // Mass 50
-                          {kAnchorWaveformId, 0.0},           // Sine
+                          {kMassId, 0.6},                     // Mass 60
+                          {kAnchorWaveformId, 1.0},           // OctaveDownSine
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
                           {kCoreBodyCurvatureId, 0.7},        // body curvature 0.7
                           {kFieldGravityId, 1.0}},            // gravity 1
-            .endpointB = {{kCoreDepthId, 0.5},                // depth 0.5
-                          {kCoreBodyId, 0.4},                 // body 0.4
-                          {kCoreEdgeId, 0.5},                 // edge 0.5
+            // Designed-library pass (2026-10-26): B is a dark, Crush-grained well with half the gravity (SPREAD at
+            // spread 1 on both: AT-32).
+            .endpointB = {{kCoreDepthId, 0.8},                // depth 0.8
+                          {kCoreBodyId, 0.2},                 // body 0.2
+                          {kCoreEdgeId, 0.2},                 // edge 0.2
                           {kCoreShiftId, 0.3},                // shift -0.4
-                          {kCoreExcitationMixId, 0.6},        // excitation mix 0.6
+                          {kCoreExcitationMixId, 0.1},        // excitation mix 0.1
                           {kCoreExcitationDriveId, 0.6},      // drive 0.6
                           {kCoreExcitationAsymmetryId, 0.5},  // asymmetry 0.5
-                          {kFoldAmountId, 0.4},               // Harmonic Fold 40
-                          {kFoldShapeId, 0.5},                // SHAPE 0.5
-                          {kCharacterId, 0.2},                // Fold
-                          {kCharacterAmountId, 0.3},          // Amount 0.3
-                          {kCharacterToneId, 0.6},            // Tone 0.6
+                          {kFoldAmountId, 0.1},               // Harmonic Fold 10
+                          {kFoldShapeId, 0.0},                // SHAPE 0
+                          {kCharacterId, 0.8},                // Crush
+                          {kCharacterAmountId, 0.5},          // Amount 0.5
+                          {kCharacterToneId, 0.4},            // Tone 0.4
                           {kAmpAttackId, 0.2},                // 1 ms
-                          {kAmpDecayId, 0.835218},            // 1500 ms
-                          {kAmpSustainId, 1.0},               // sustain 1
+                          {kAmpDecayId, 0.780618},            // 800 ms
+                          {kAmpSustainId, 0.5},               // sustain 0.5
                           {kAmpReleaseId, 0.76902},           // 700 ms
                           {kFieldImageModeId, 0.5},           // SPREAD
                           {kFieldSpreadId, 1.0},              // spread 1
-                          {kMassId, 0.5},                     // Mass 50
+                          {kMassId, 0.7},                     // Mass 70
                           {kAnchorWaveformId, 0.0},           // Sine
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
                           {kCoreBodyCurvatureId, 0.7},        // body curvature 0.7
-                          {kFieldGravityId, 1.0}},            // gravity 1
+                          {kFieldGravityId, 0.5}},            // gravity 0.5
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Deep Well",
-            .nameB = "Darker Well",
+            .nameB = "Crushed Well",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2023,18 +2311,22 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Orbiting Field",
             .category = "Animated",
-            .description = "Field Motion: Field Motion at depth 1 orbits a SPREAD image at spread 1 around a harmonic core.",
+            .description = "Field Motion: Field Motion at depth 1 orbits a SPREAD image at spread 1 around a folded, "
+                           "Bite-edged core over an Asymmetric Anchor. Morph to B darkens it into a wide Tube orbit an "
+                           "octave deep.",
             .primary = C::AT33,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-33 had 110 of margin; the orbit gains a fold, Bite 0.35 and an
+            // Asymmetric Anchor.
             .endpointA = {{kCoreDepthId, 0.55},           // depth 0.55
                           {kCoreBodyId, 0.4},             // body 0.4
                           {kCoreEdgeId, 0.6},             // edge 0.6
                           {kCoreExcitationMixId, 0.5},    // excitation mix 0.5
-                          {kFoldAmountId, 0.0},           // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},            // SHAPE 0
-                          {kCharacterId, 0.0},            // Tube
-                          {kCharacterAmountId, 0.0},      // Amount 0
-                          {kCharacterToneId, 0.5},        // Tone 0.5
+                          {kFoldAmountId, 0.3},           // Harmonic Fold 30
+                          {kFoldShapeId, 0.4},            // SHAPE 0.4
+                          {kCharacterId, 0.6},            // Bite
+                          {kCharacterAmountId, 0.35},     // Amount 0.35
+                          {kCharacterToneId, 0.55},       // Tone 0.55
                           {kAmpAttackId, 0.260206},       // 2 ms
                           {kAmpDecayId, 0.835218},        // 1500 ms
                           {kAmpSustainId, 1.0},           // sustain 1
@@ -2042,7 +2334,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kFieldImageModeId, 0.5},       // SPREAD
                           {kFieldSpreadId, 1.0},          // spread 1
                           {kMassId, 0.5},                 // Mass 50
-                          {kAnchorWaveformId, 0.0},       // Sine
+                          {kAnchorWaveformId, 0.75},      // AsymmetricSine
                           {kAnchorModeId, 0.0},           // LOCK
                           {kAnchorLevelId, 0.5},          // level 0.5
                           {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
@@ -2051,23 +2343,24 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kFieldMotionDepthId, 1.0},     // Field Motion depth 1
                           {kFieldMotionRateId, 0.5},      // Field Motion rate 0.5
                           {kFieldMotionSourceId, 0.0}},   // Field Motion DRIFT
-            .endpointB = {{kCoreDepthId, 0.55},           // depth 0.55
-                          {kCoreBodyId, 0.4},             // body 0.4
-                          {kCoreEdgeId, 0.6},             // edge 0.6
-                          {kCoreExcitationMixId, 0.5},    // excitation mix 0.5
+            // Designed-library pass (2026-10-26): B is a dark Tube orbit over an Octave Down Anchor, WIDE.
+            .endpointB = {{kCoreDepthId, 0.85},           // depth 0.85
+                          {kCoreBodyId, 0.3},             // body 0.3
+                          {kCoreEdgeId, 0.2},             // edge 0.2
+                          {kCoreExcitationMixId, 0.1},    // excitation mix 0.1
                           {kFoldAmountId, 0.0},           // Harmonic Fold 0
                           {kFoldShapeId, 0.0},            // SHAPE 0
                           {kCharacterId, 0.0},            // Tube
-                          {kCharacterAmountId, 0.0},      // Amount 0
-                          {kCharacterToneId, 0.5},        // Tone 0.5
+                          {kCharacterAmountId, 0.55},     // Amount 0.55
+                          {kCharacterToneId, 0.35},       // Tone 0.35
                           {kAmpAttackId, 0.260206},       // 2 ms
                           {kAmpDecayId, 0.835218},        // 1500 ms
                           {kAmpSustainId, 1.0},           // sustain 1
                           {kAmpReleaseId, 0.75563},       // 600 ms
-                          {kFieldImageModeId, 0.5},       // SPREAD
-                          {kFieldSpreadId, 1.0},          // spread 1
-                          {kMassId, 0.5},                 // Mass 50
-                          {kAnchorWaveformId, 0.0},       // Sine
+                          {kFieldImageModeId, 1.0},       // WIDE
+                          {kFieldSpreadId, 0.8},          // spread 0.8
+                          {kMassId, 0.65},                // Mass 65
+                          {kAnchorWaveformId, 1.0},       // OctaveDownSine
                           {kAnchorModeId, 0.0},           // LOCK
                           {kAnchorLevelId, 0.5},          // level 0.5
                           {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
@@ -2078,7 +2371,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kFieldMotionSourceId, 0.0}},   // Field Motion DRIFT
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Orbiting",
-            .nameB = "Slower Orbit",
+            .nameB = "Dark Orbit",
             .seed = kFactoryDefaultSeed,
             .seedDependent = true,
         },
@@ -2087,18 +2380,21 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Mass Tide",
             .category = "Animated",
-            .description = "Motion Cycle to Mass: a slow CYCLE swells and drains the Mass under an Anchor at 0.5.",
+            .description = "Motion Cycle to Mass: a slow CYCLE swells and drains the Mass of a warm Tube-driven body under an "
+                           "Anchor at 0.5. Morph to B whips it into a fractured, wide storm at 1 Hz.",
             .primary = C::AT34,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 1.0},             // depth 1
-                          {kCoreBodyId, 0.0},              // body 0
-                          {kCoreEdgeId, 0.0},              // edge 0
-                          {kCoreExcitationMixId, 0.0},     // excitation mix 0
-                          {kFoldAmountId, 0.0},            // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},             // SHAPE 0
+            // Whole-instrument pilot (2026-10-26): A keeps its AT-34 claim (the CYCLE on Mass) and uses the rest: body
+            // and edge with a little excitation and fold, Shift down, Tube at Amount 0.45.
+            .endpointA = {{kCoreDepthId, 0.85},            // depth 0.85
+                          {kCoreBodyId, 0.35},             // body 0.35
+                          {kCoreEdgeId, 0.25},             // edge 0.25
+                          {kCoreExcitationMixId, 0.2},     // excitation mix 0.2
+                          {kFoldAmountId, 0.3},            // Harmonic Fold 30
+                          {kFoldShapeId, 0.2},             // SHAPE 0.2
                           {kCharacterId, 0.0},             // Tube
-                          {kCharacterAmountId, 0.0},       // Amount 0
-                          {kCharacterToneId, 0.5},         // Tone 0.5
+                          {kCharacterAmountId, 0.45},      // Amount 0.45
+                          {kCharacterToneId, 0.45},        // Tone 0.45
                           {kAmpAttackId, 0.2},             // 1 ms
                           {kAmpDecayId, 0.695424},         // 300 ms
                           {kAmpSustainId, 0.5},            // sustain 0.5
@@ -2116,23 +2412,26 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionDepthId, 1.0},           // Motion depth 1
                           {kMotionCycleRateId, 0.423486},  // 0.25 Hz
                           {kMotionCycleShapeId, 0.0},      // shape Sine
-                          {kMotionPolarityId, 0.0}},       // Bipolar
-            .endpointB = {{kCoreDepthId, 1.0},             // depth 1
-                          {kCoreBodyId, 0.0},              // body 0
-                          {kCoreEdgeId, 0.0},              // edge 0
-                          {kCoreExcitationMixId, 0.0},     // excitation mix 0
-                          {kFoldAmountId, 0.0},            // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},             // SHAPE 0
-                          {kCharacterId, 0.0},             // Tube
-                          {kCharacterAmountId, 0.0},       // Amount 0
-                          {kCharacterToneId, 0.5},         // Tone 0.5
+                          {kMotionPolarityId, 0.0},        // Bipolar
+                          {kCoreShiftId, 0.4}},            // shift -0.2
+            // Morph pilot (2026-10-26): B is a storm: the same CYCLE on Mass at 1 Hz over a body and edge with
+            // excitation, Fold SHAPE at HOLLOW, Fracture at Amount 0.5 and the WIDE image.
+            .endpointB = {{kCoreDepthId, 0.6},             // depth 0.6
+                          {kCoreBodyId, 0.5},              // body 0.5
+                          {kCoreEdgeId, 0.5},              // edge 0.5
+                          {kCoreExcitationMixId, 0.4},     // excitation mix 0.4
+                          {kFoldAmountId, 0.5},            // Harmonic Fold 50
+                          {kFoldShapeId, 0.5},             // SHAPE 0.5 (HOLLOW)
+                          {kCharacterId, 1.0},             // Fracture
+                          {kCharacterAmountId, 0.5},       // Amount 0.5
+                          {kCharacterToneId, 0.6},         // Tone 0.6
                           {kAmpAttackId, 0.2},             // 1 ms
                           {kAmpDecayId, 0.695424},         // 300 ms
-                          {kAmpSustainId, 0.5},            // sustain 0.5
+                          {kAmpSustainId, 0.9},            // sustain 0.9 (B at 0.5 read 5.1 dB under A)
                           {kAmpReleaseId, 0.720412},       // 400 ms
-                          {kFieldImageModeId, 0.5},        // SPREAD
-                          {kFieldSpreadId, 0.3},           // spread 0.3
-                          {kMassId, 0.5},                  // Mass 50
+                          {kFieldImageModeId, 1.0},        // WIDE
+                          {kFieldSpreadId, 0.8},           // spread 0.8
+                          {kMassId, 0.6},                  // Mass 60
                           {kAnchorWaveformId, 0.0},        // Sine
                           {kAnchorModeId, 0.0},            // LOCK
                           {kAnchorLevelId, 0.5},           // level 0.5
@@ -2141,12 +2440,12 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionTargetId, 0.0},          // -> Mass
                           {kMotionAmountId, 1.0},          // amount 1
                           {kMotionDepthId, 1.0},           // Motion depth 1
-                          {kMotionCycleRateId, 0.485321},  // 0.4 Hz
+                          {kMotionCycleRateId, 0.605875},  // 1 Hz
                           {kMotionCycleShapeId, 0.0},      // shape Sine
                           {kMotionPolarityId, 0.0}},       // Bipolar
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Tide",
-            .nameB = "Faster Tide",
+            .nameB = "Storm Tide",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2154,9 +2453,12 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Breathing Depth",
             .category = "Animated",
-            .description = "Motion Cycle to Depth: a CYCLE breathes the core Depth of a heavy harmonic body in and out.",
+            .description = "Motion Cycle to Depth: a CYCLE breathes the core Depth of a heavy, Crush-grained harmonic "
+                           "body in and out over a Triangle Anchor, wide. Morph to B breathes a warm, mono Tube body.",
             .primary = C::AT35,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-35 had 2.06 of margin; the shared heavy body trades the Fold
+            // Character for Crush 0.4, over a Triangle Anchor, WIDE.
             .endpointA = {{kCoreDepthId, 0.5},                // depth 0.5
                           {kCoreBodyId, 0.3},                 // body 0.3
                           {kCoreEdgeId, 1.0},                 // edge 1
@@ -2166,17 +2468,17 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kCoreExcitationAsymmetryId, 0.5},  // asymmetry 0.5
                           {kFoldAmountId, 0.6},               // Harmonic Fold 60
                           {kFoldShapeId, 0.5},                // SHAPE 0.5
-                          {kCharacterId, 0.2},                // Fold
-                          {kCharacterAmountId, 0.5},          // Amount 0.5
-                          {kCharacterToneId, 0.6},            // Tone 0.6
+                          {kCharacterId, 0.8},                // Crush
+                          {kCharacterAmountId, 0.4},          // Amount 0.4
+                          {kCharacterToneId, 0.55},           // Tone 0.55
                           {kAmpAttackId, 0.2},                // 1 ms
                           {kAmpDecayId, 0.835218},            // 1500 ms
                           {kAmpSustainId, 1.0},               // sustain 1
                           {kAmpReleaseId, 0.780618},          // 800 ms
-                          {kFieldImageModeId, 0.5},           // SPREAD
+                          {kFieldImageModeId, 1.0},           // WIDE
                           {kFieldSpreadId, 0.7},              // spread 0.7
                           {kMassId, 0.5},                     // Mass 50
-                          {kAnchorWaveformId, 0.0},           // Sine
+                          {kAnchorWaveformId, 0.25},          // Triangle
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
@@ -2187,25 +2489,26 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionCycleRateId, 0.485321},     // 0.4 Hz
                           {kMotionCycleShapeId, 0.0},         // shape Sine
                           {kMotionPolarityId, 0.0}},          // Bipolar
-            .endpointB = {{kCoreDepthId, 0.5},                // depth 0.5
-                          {kCoreBodyId, 0.3},                 // body 0.3
-                          {kCoreEdgeId, 1.0},                 // edge 1
-                          {kCoreShiftId, 0.0},                // shift -1
-                          {kCoreExcitationMixId, 1.0},        // excitation mix 1
+            // Designed-library pass (2026-10-26): B breathes a warm, mono Tube body.
+            .endpointB = {{kCoreDepthId, 0.85},               // depth 0.85
+                          {kCoreBodyId, 0.4},                 // body 0.4
+                          {kCoreEdgeId, 0.3},                 // edge 0.3
+                          {kCoreShiftId, 0.5},                // shift 0
+                          {kCoreExcitationMixId, 0.2},        // excitation mix 0.2
                           {kCoreExcitationDriveId, 1.0},      // drive 1
                           {kCoreExcitationAsymmetryId, 0.5},  // asymmetry 0.5
-                          {kFoldAmountId, 0.6},               // Harmonic Fold 60
-                          {kFoldShapeId, 0.5},                // SHAPE 0.5
-                          {kCharacterId, 0.2},                // Fold
+                          {kFoldAmountId, 0.2},               // Harmonic Fold 20
+                          {kFoldShapeId, 0.2},                // SHAPE 0.2
+                          {kCharacterId, 0.0},                // Tube
                           {kCharacterAmountId, 0.5},          // Amount 0.5
-                          {kCharacterToneId, 0.6},            // Tone 0.6
+                          {kCharacterToneId, 0.4},            // Tone 0.4
                           {kAmpAttackId, 0.2},                // 1 ms
                           {kAmpDecayId, 0.835218},            // 1500 ms
                           {kAmpSustainId, 1.0},               // sustain 1
                           {kAmpReleaseId, 0.780618},          // 800 ms
-                          {kFieldImageModeId, 0.5},           // SPREAD
-                          {kFieldSpreadId, 0.7},              // spread 0.7
-                          {kMassId, 0.5},                     // Mass 50
+                          {kFieldImageModeId, 0.0},           // SOLID
+                          {kFieldSpreadId, 0.0},              // spread 0
+                          {kMassId, 0.6},                     // Mass 60
                           {kAnchorWaveformId, 0.0},           // Sine
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
@@ -2219,7 +2522,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionPolarityId, 0.0}},          // Bipolar
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Breathing",
-            .nameB = "Slow Breath",
+            .nameB = "Warm Breath",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2227,9 +2530,12 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Body Wave",
             .category = "Animated",
-            .description = "Motion Cycle to Body: a CYCLE sweeps the Body of a harmonic core, a slow wave through the mids.",
+            .description = "Motion Cycle to Body: a CYCLE sweeps the Body of a Rectify-edged harmonic core over a "
+                           "Rounded Anchor, a slow wave through the mids. Morph to B waves a Bite-edged body, wide.",
             .primary = C::AT36,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-36 had 2.81 of margin; the shared heavy body trades the Fold
+            // Character for Rectify 0.4, over a Rounded Anchor.
             .endpointA = {{kCoreDepthId, 0.5},                // depth 0.5
                           {kCoreBodyId, 0.3},                 // body 0.3
                           {kCoreEdgeId, 1.0},                 // edge 1
@@ -2239,9 +2545,9 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kCoreExcitationAsymmetryId, 0.5},  // asymmetry 0.5
                           {kFoldAmountId, 0.8},               // Harmonic Fold 80
                           {kFoldShapeId, 0.5},                // SHAPE 0.5
-                          {kCharacterId, 0.2},                // Fold
-                          {kCharacterAmountId, 0.5},          // Amount 0.5
-                          {kCharacterToneId, 0.8},            // Tone 0.8
+                          {kCharacterId, 0.4},                // Rectify
+                          {kCharacterAmountId, 0.4},          // Amount 0.4
+                          {kCharacterToneId, 0.5},            // Tone 0.5
                           {kAmpAttackId, 0.2},                // 1 ms
                           {kAmpDecayId, 0.835218},            // 1500 ms
                           {kAmpSustainId, 1.0},               // sustain 1
@@ -2249,7 +2555,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kFieldImageModeId, 0.5},           // SPREAD
                           {kFieldSpreadId, 0.8},              // spread 0.8
                           {kMassId, 0.5},                     // Mass 50
-                          {kAnchorWaveformId, 0.0},           // Sine
+                          {kAnchorWaveformId, 0.5},           // RoundedSine
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
@@ -2260,26 +2566,27 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionCycleRateId, 0.514679},     // 0.5 Hz
                           {kMotionCycleShapeId, 0.2},         // shape Triangle
                           {kMotionPolarityId, 0.0}},          // Bipolar
-            .endpointB = {{kCoreDepthId, 0.5},                // depth 0.5
-                          {kCoreBodyId, 0.3},                 // body 0.3
-                          {kCoreEdgeId, 1.0},                 // edge 1
-                          {kCoreShiftId, 0.0},                // shift -1
-                          {kCoreExcitationMixId, 1.0},        // excitation mix 1
+            // Designed-library pass (2026-10-26): B waves a Bite-edged body over a Triangle Anchor, WIDE.
+            .endpointB = {{kCoreDepthId, 0.8},                // depth 0.8
+                          {kCoreBodyId, 0.5},                 // body 0.5
+                          {kCoreEdgeId, 0.3},                 // edge 0.3
+                          {kCoreShiftId, 0.35},               // shift -0.3
+                          {kCoreExcitationMixId, 0.3},        // excitation mix 0.3
                           {kCoreExcitationDriveId, 1.0},      // drive 1
                           {kCoreExcitationAsymmetryId, 0.5},  // asymmetry 0.5
-                          {kFoldAmountId, 0.8},               // Harmonic Fold 80
-                          {kFoldShapeId, 0.5},                // SHAPE 0.5
-                          {kCharacterId, 0.2},                // Fold
-                          {kCharacterAmountId, 0.5},          // Amount 0.5
-                          {kCharacterToneId, 0.8},            // Tone 0.8
+                          {kFoldAmountId, 0.3},               // Harmonic Fold 30
+                          {kFoldShapeId, 0.1},                // SHAPE 0.1
+                          {kCharacterId, 0.6},                // Bite
+                          {kCharacterAmountId, 0.45},         // Amount 0.45
+                          {kCharacterToneId, 0.5},            // Tone 0.5
                           {kAmpAttackId, 0.2},                // 1 ms
                           {kAmpDecayId, 0.835218},            // 1500 ms
                           {kAmpSustainId, 1.0},               // sustain 1
                           {kAmpReleaseId, 0.780618},          // 800 ms
-                          {kFieldImageModeId, 0.5},           // SPREAD
-                          {kFieldSpreadId, 0.8},              // spread 0.8
-                          {kMassId, 0.5},                     // Mass 50
-                          {kAnchorWaveformId, 0.0},           // Sine
+                          {kFieldImageModeId, 1.0},           // WIDE
+                          {kFieldSpreadId, 0.6},              // spread 0.6
+                          {kMassId, 0.6},                     // Mass 60
+                          {kAnchorWaveformId, 0.25},          // Triangle
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
@@ -2292,7 +2599,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionPolarityId, 0.0}},          // Bipolar
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Body Wave",
-            .nameB = "Slow Body Wave",
+            .nameB = "Bitten Wave",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2302,9 +2609,12 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Edge Cycle",
             .category = "Animated",
-            .description = "Motion Cycle to Edge: a saw-like recipe whose Edge a CYCLE opens and closes.",
+            .description = "Motion Cycle to Edge: a saw-like recipe whose Edge a CYCLE opens and closes, snapping "
+                           "wide. Morph to B sweeps a folded, Fracture-grained body, mono, an octave deep.",
             .primary = C::AT37,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-37 reads brightness swing at the Sum tap (margin 1.19), so the
+            // recipe and Anchor stay; A gains a WIDE image and a 2 st snap.
             .endpointA = {{kCoreDepthId, 0.1},             // depth 0.1
                           {kCoreBodyId, 0.0},              // body 0
                           {kCoreEdgeId, 0.5},              // edge 0.5
@@ -2318,8 +2628,8 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.720412},         // 400 ms
                           {kAmpSustainId, 1.0},            // sustain 1
                           {kAmpReleaseId, 0.695424},       // 300 ms
-                          {kFieldImageModeId, 0.5},        // SPREAD
-                          {kFieldSpreadId, 0.5},           // spread 0.5
+                          {kFieldImageModeId, 1.0},        // WIDE
+                          {kFieldSpreadId, 0.6},           // spread 0.6
                           {kMassId, 0.5},                  // Mass 50
                           {kAnchorWaveformId, 0.0},        // Sine
                           {kAnchorModeId, 0.0},            // LOCK
@@ -2332,24 +2642,28 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionDepthId, 1.0},           // Motion depth 1
                           {kMotionCycleRateId, 0.576514},  // 0.8 Hz
                           {kMotionCycleShapeId, 0.0},      // shape Sine
-                          {kMotionPolarityId, 0.0}},       // Bipolar
-            .endpointB = {{kCoreDepthId, 0.1},             // depth 0.1
-                          {kCoreBodyId, 0.0},              // body 0
-                          {kCoreEdgeId, 0.5},              // edge 0.5
-                          {kCoreExcitationMixId, 0.0},     // excitation mix 0
-                          {kFoldAmountId, 0.0},            // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},             // SHAPE 0
-                          {kCharacterId, 0.0},             // Tube
-                          {kCharacterAmountId, 0.0},       // Amount 0
-                          {kCharacterToneId, 0.5},         // Tone 0.5
+                          {kMotionPolarityId, 0.0},        // Bipolar
+                          {kDropAmountId, 0.041667},       // drop 2 st
+                          {kDropTimeId, 0.361191}},        // drop time 20 ms
+            // Designed-library pass (2026-10-26): B sweeps a folded, Fracture-grained body over a mono Octave Down
+            // Anchor.
+            .endpointB = {{kCoreDepthId, 0.75},            // depth 0.75
+                          {kCoreBodyId, 0.5},              // body 0.5
+                          {kCoreEdgeId, 0.3},              // edge 0.3
+                          {kCoreExcitationMixId, 0.4},     // excitation mix 0.4
+                          {kFoldAmountId, 0.4},            // Harmonic Fold 40
+                          {kFoldShapeId, 0.5},             // SHAPE 0.5
+                          {kCharacterId, 1.0},             // Fracture
+                          {kCharacterAmountId, 0.45},      // Amount 0.45
+                          {kCharacterToneId, 0.55},        // Tone 0.55
                           {kAmpAttackId, 0.260206},        // 2 ms
                           {kAmpDecayId, 0.720412},         // 400 ms
                           {kAmpSustainId, 1.0},            // sustain 1
                           {kAmpReleaseId, 0.695424},       // 300 ms
-                          {kFieldImageModeId, 0.5},        // SPREAD
-                          {kFieldSpreadId, 0.5},           // spread 0.5
-                          {kMassId, 0.5},                  // Mass 50
-                          {kAnchorWaveformId, 0.0},        // Sine
+                          {kFieldImageModeId, 0.0},        // SOLID
+                          {kFieldSpreadId, 0.0},           // spread 0
+                          {kMassId, 0.65},                 // Mass 65
+                          {kAnchorWaveformId, 1.0},        // OctaveDownSine
                           {kAnchorModeId, 0.0},            // LOCK
                           {kAnchorLevelId, 1.0},           // level 1
                           {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
@@ -2363,7 +2677,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionPolarityId, 0.0}},       // Bipolar
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Edge Sweep",
-            .nameB = "Slow Edge Sweep",
+            .nameB = "Fractured Sweep",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2372,7 +2686,8 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Shifting Spectrum",
             .category = "Animated",
-            .description = "Motion Cycle to Shift: a slow CYCLE drifts the spectral Shift of a heavy harmonic body up and down.",
+            .description = "Motion Cycle to Shift: a slow CYCLE drifts the spectral Shift of a heavy harmonic body up "
+                           "and down. Morph to B shifts a warm Tube body over a Triangle Anchor.",
             .primary = C::AT38,
             .secondaries = {},
             .endpointA = {{kCoreDepthId, 0.5},                // depth 0.5
@@ -2405,26 +2720,28 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionCycleRateId, 0.302936},     // 0.1 Hz
                           {kMotionCycleShapeId, 0.0},         // shape Sine
                           {kMotionPolarityId, 0.0}},          // Bipolar
-            .endpointB = {{kCoreDepthId, 0.5},                // depth 0.5
-                          {kCoreBodyId, 0.3},                 // body 0.3
-                          {kCoreEdgeId, 1.0},                 // edge 1
-                          {kCoreShiftId, 0.0},                // shift -1
-                          {kCoreExcitationMixId, 1.0},        // excitation mix 1
-                          {kCoreExcitationDriveId, 1.0},      // drive 1
+            // Designed-library pass (2026-10-26): A is unchanged (AT-38 margin 0.05); B shifts a warm Tube body over a
+            // Triangle Anchor.
+            .endpointB = {{kCoreDepthId, 0.85},               // depth 0.85
+                          {kCoreBodyId, 0.5},                 // body 0.5
+                          {kCoreEdgeId, 0.3},                 // edge 0.3
+                          {kCoreShiftId, 0.5},                // shift 0
+                          {kCoreExcitationMixId, 0.2},        // excitation mix 0.2
+                          {kCoreExcitationDriveId, 0.5},      // drive 0.5
                           {kCoreExcitationAsymmetryId, 0.5},  // asymmetry 0.5
-                          {kFoldAmountId, 0.8},               // Harmonic Fold 80
-                          {kFoldShapeId, 0.5},                // SHAPE 0.5
-                          {kCharacterId, 0.2},                // Fold
+                          {kFoldAmountId, 0.2},               // Harmonic Fold 20
+                          {kFoldShapeId, 0.1},                // SHAPE 0.1
+                          {kCharacterId, 0.0},                // Tube
                           {kCharacterAmountId, 0.5},          // Amount 0.5
-                          {kCharacterToneId, 0.8},            // Tone 0.8
+                          {kCharacterToneId, 0.4},            // Tone 0.4
                           {kAmpAttackId, 0.2},                // 1 ms
                           {kAmpDecayId, 0.835218},            // 1500 ms
-                          {kAmpSustainId, 1.0},               // sustain 1
+                          {kAmpSustainId, 0.6},               // sustain 0.6
                           {kAmpReleaseId, 0.780618},          // 800 ms
-                          {kFieldImageModeId, 1.0},           // WIDE
-                          {kFieldSpreadId, 1.0},              // spread 1
-                          {kMassId, 0.5},                     // Mass 50
-                          {kAnchorWaveformId, 0.0},           // Sine
+                          {kFieldImageModeId, 0.5},           // SPREAD
+                          {kFieldSpreadId, 0.5},              // spread 0.5
+                          {kMassId, 0.6},                     // Mass 60
+                          {kAnchorWaveformId, 0.25},          // Triangle
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
                           {kAnchorFoldFeedId, 0.0},           // Anchor Fold Feed 0
@@ -2437,7 +2754,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionPolarityId, 0.0}},          // Bipolar
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Shifting",
-            .nameB = "Shifting Faster",
+            .nameB = "Warm Shift",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2448,8 +2765,8 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Envelope Mass",
             .category = "Animated",
-            .description = "Motion Env to Mass: a Unipolar ENV, 1000 ms up and 1000 ms down, swells the Mass from 0 at every note "
-                           "and lets it settle.",
+            .description = "Motion Env to Mass: a Unipolar ENV, 1000 ms up and 1000 ms down, swells the Mass from 0 at "
+                           "every note and lets it settle. Morph to B swells a Crush-grained, folded body, wide.",
             .primary = C::AT39,
             .secondaries = {},
             .endpointA = {{kCoreDepthId, 1.0},           // depth 1
@@ -2462,7 +2779,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kCharacterAmountId, 0.0},     // Amount 0
                           {kCharacterToneId, 0.5},       // Tone 0.5
                           {kAmpAttackId, 0.2},           // 1 ms
-                          {kAmpDecayId, 0.635218},      // 150 ms
+                          {kAmpDecayId, 0.635218},       // 150 ms
                           {kAmpSustainId, 1.0},          // sustain 1
                           {kAmpReleaseId, 0.720412},     // 400 ms
                           {kFieldImageModeId, 0.0},      // SOLID
@@ -2479,36 +2796,38 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionPolarityId, 1.0},      // Unipolar
                           {kMotionEnvAttackId, 0.8},     // ENV attack 1000 ms
                           {kMotionEnvDecayId, 0.8}},     // ENV decay 1000 ms
-            .endpointB = {{kCoreDepthId, 1.0},           // depth 1
-                          {kCoreBodyId, 0.0},            // body 0
-                          {kCoreEdgeId, 0.0},            // edge 0
-                          {kCoreExcitationMixId, 0.0},   // excitation mix 0
-                          {kFoldAmountId, 0.0},          // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},           // SHAPE 0
-                          {kCharacterId, 0.0},           // Tube
-                          {kCharacterAmountId, 0.0},     // Amount 0
-                          {kCharacterToneId, 0.5},       // Tone 0.5
-                          {kAmpAttackId, 0.2},           // 1 ms
-                          {kAmpDecayId, 0.635218},      // 150 ms
-                          {kAmpSustainId, 1.0},          // sustain 1
-                          {kAmpReleaseId, 0.720412},     // 400 ms
-                          {kFieldImageModeId, 0.0},      // SOLID
-                          {kFieldSpreadId, 0.0},         // spread 0
-                          {kMassId, 0.0},                // Mass 0
-                          {kAnchorWaveformId, 0.0},      // Sine
-                          {kAnchorModeId, 0.0},          // LOCK
-                          {kAnchorLevelId, 0.5},         // level 0.5
-                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
-                          {kMotionSourceId, 1.0 / 3.0},  // ENV
-                          {kMotionTargetId, 0.0},        // -> Mass
-                          {kMotionAmountId, 1.0},        // amount 1
-                          {kMotionDepthId, 1.0},         // Motion depth 1
-                          {kMotionPolarityId, 1.0},      // Unipolar
-                          {kMotionEnvAttackId, 0.8},     // ENV attack 1000 ms
-                          {kMotionEnvDecayId, 0.76902}}, // ENV decay 700 ms
+            // Designed-library pass (2026-10-26): A is unchanged (AT-39 margin 0.18); B swells a Crush-grained, folded
+            // body over a Rounded Anchor, WIDE.
+            .endpointB = {{kCoreDepthId, 0.6},            // depth 0.6
+                          {kCoreBodyId, 0.5},             // body 0.5
+                          {kCoreEdgeId, 0.5},             // edge 0.5
+                          {kCoreExcitationMixId, 0.5},    // excitation mix 0.5
+                          {kFoldAmountId, 0.5},           // Harmonic Fold 50
+                          {kFoldShapeId, 0.6},            // SHAPE 0.6
+                          {kCharacterId, 0.8},            // Crush
+                          {kCharacterAmountId, 0.45},     // Amount 0.45
+                          {kCharacterToneId, 0.55},       // Tone 0.55
+                          {kAmpAttackId, 0.2},            // 1 ms
+                          {kAmpDecayId, 0.635218},        // 150 ms
+                          {kAmpSustainId, 1.0},           // sustain 1
+                          {kAmpReleaseId, 0.720412},      // 400 ms
+                          {kFieldImageModeId, 1.0},       // WIDE
+                          {kFieldSpreadId, 0.6},          // spread 0.6
+                          {kMassId, 0.0},                 // Mass 0
+                          {kAnchorWaveformId, 0.5},       // RoundedSine
+                          {kAnchorModeId, 0.0},           // LOCK
+                          {kAnchorLevelId, 0.7},          // level 0.7
+                          {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
+                          {kMotionSourceId, 1.0 / 3.0},   // ENV
+                          {kMotionTargetId, 0.0},         // -> Mass
+                          {kMotionAmountId, 1.0},         // amount 1
+                          {kMotionDepthId, 1.0},          // Motion depth 1
+                          {kMotionPolarityId, 1.0},       // Unipolar
+                          {kMotionEnvAttackId, 0.8},      // ENV attack 1000 ms
+                          {kMotionEnvDecayId, 0.76902}},  // ENV decay 700 ms
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Mass Kick",
-            .nameB = "Shorter Kick",
+            .nameB = "Crushed Kick",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2516,7 +2835,8 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Drifting Weight",
             .category = "Animated",
-            .description = "Motion Drift to Mass: a DRIFT source at smoothness 0.5 wanders the Mass, different under every seed.",
+            .description = "Motion Drift to Mass: a DRIFT source at smoothness 0.5 wanders the Mass, different under "
+                           "every seed. Morph to B drifts a folded, Fracture-grained body.",
             .primary = C::AT40,
             .secondaries = {},
             .endpointA = {{kCoreDepthId, 1.0},              // depth 1
@@ -2545,25 +2865,27 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionDepthId, 1.0},            // Motion depth 1
                           {kMotionDriftSmoothnessId, 0.5},  // smoothness 0.5
                           {kMotionPolarityId, 0.0}},        // Bipolar
-            .endpointB = {{kCoreDepthId, 1.0},              // depth 1
-                          {kCoreBodyId, 0.0},               // body 0
-                          {kCoreEdgeId, 0.0},               // edge 0
-                          {kCoreExcitationMixId, 0.0},      // excitation mix 0
-                          {kFoldAmountId, 0.0},             // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},              // SHAPE 0
-                          {kCharacterId, 0.0},              // Tube
-                          {kCharacterAmountId, 0.0},        // Amount 0
+            // Designed-library pass (2026-10-26): A is unchanged (AT-40 margin 0.38); B drifts a folded,
+            // Fracture-grained body over an Asymmetric Anchor.
+            .endpointB = {{kCoreDepthId, 0.85},             // depth 0.85
+                          {kCoreBodyId, 0.5},               // body 0.5
+                          {kCoreEdgeId, 0.45},              // edge 0.45
+                          {kCoreExcitationMixId, 0.4},      // excitation mix 0.4
+                          {kFoldAmountId, 0.3},             // Harmonic Fold 30
+                          {kFoldShapeId, 0.4},              // SHAPE 0.4
+                          {kCharacterId, 1.0},              // Fracture
+                          {kCharacterAmountId, 0.4},        // Amount 0.4
                           {kCharacterToneId, 0.5},          // Tone 0.5
                           {kAmpAttackId, 0.415836},         // 12 ms
                           {kAmpDecayId, 0.720412},          // 400 ms
                           {kAmpSustainId, 1.0},             // sustain 1
                           {kAmpReleaseId, 0.739794},        // 500 ms
-                          {kFieldImageModeId, 1.0},         // WIDE
-                          {kFieldSpreadId, 0.6},            // spread 0.6
+                          {kFieldImageModeId, 0.5},         // SPREAD
+                          {kFieldSpreadId, 0.5},            // spread 0.5
                           {kMassId, 0.5},                   // Mass 50
-                          {kAnchorWaveformId, 0.0},         // Sine
+                          {kAnchorWaveformId, 0.75},        // AsymmetricSine
                           {kAnchorModeId, 0.0},             // LOCK
-                          {kAnchorLevelId, 0.5},            // level 0.5
+                          {kAnchorLevelId, 0.8},            // level 0.8
                           {kAnchorFoldFeedId, 0.0},         // Anchor Fold Feed 0
                           {kMotionSourceId, 1.0},           // DRIFT
                           {kMotionTargetId, 0.0},           // -> Mass
@@ -2573,7 +2895,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kMotionPolarityId, 0.0}},        // Bipolar
             .controls = {{kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Drifting",
-            .nameB = "Smoother Drift",
+            .nameB = "Fractured Drift",
             .seed = kFactoryDefaultSeed,
             .seedDependent = true,
         },
@@ -2587,11 +2909,13 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                            "1 crosses the whole span.",
             .primary = C::AT41,
             .secondaries = {C::AT42},
+            // Designed-library pass (2026-10-26): AT-41 had 14.4 of margin, AT-42 6.55; the clean sub gains Harmonic
+            // Fold 15.
             .endpointA = {{kCoreDepthId, 0.85},         // depth 0.85
                           {kCoreBodyId, 0.2},           // body 0.2
                           {kCoreEdgeId, 0.1},           // edge 0.1
                           {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
+                          {kFoldAmountId, 0.15},        // Harmonic Fold 15
                           {kFoldShapeId, 0.0},          // SHAPE 0
                           {kCharacterId, 0.0},          // Tube
                           {kCharacterAmountId, 0.0},    // Amount 0
@@ -2704,61 +3028,69 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Restrike",
             .category = "Resonant",
-            .description = "NoteMemory AlwaysRetrigger: MONO with Retrigger Reset, every note restrikes a resonant body from the "
-                           "start.",
+            .description = "NoteMemory AlwaysRetrigger: MONO with Retrigger Reset, every note restrikes a "
+                           "Fracture-grained, folded body from the start, wide. Morph to B restrikes a lopsided, "
+                           "Rectify-edged edge, mono, an octave deep.",
             .primary = C::AT43,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.3},          // depth 0.3
+            // Designed-library pass (2026-10-26): AT-43 had 137 degrees of margin; the restruck body gains excitation,
+            // a fold, Fracture 0.2, a Rounded Anchor at level 1 and a WIDE image, at full sustain and depth 0.6
+            // (Fracture 0.3 read -17.1 dBFS).
+            .endpointA = {{kCoreDepthId, 0.6},          // depth 0.6
                           {kCoreBodyId, 0.8},           // body 0.8
                           {kCoreEdgeId, 0.4},           // edge 0.4
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+                          {kCoreExcitationMixId, 0.3},  // excitation mix 0.3
+                          {kFoldAmountId, 0.25},        // Harmonic Fold 25
+                          {kFoldShapeId, 0.45},         // SHAPE 0.45
+                          {kCharacterId, 1.0},          // Fracture
+                          {kCharacterAmountId, 0.2},    // Amount 0.2
+                          {kCharacterToneId, 0.55},     // Tone 0.55
                           {kAmpAttackId, 0.2},          // 1 ms
                           {kAmpDecayId, 0.720412},      // 400 ms
-                          {kAmpSustainId, 0.8},         // sustain 0.8
+                          {kAmpSustainId, 1.0},         // sustain 1
                           {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.4},        // spread 0.4
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.5},        // spread 0.5
                           {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.5},     // RoundedSine
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.8},        // level 0.8
+                          {kAnchorLevelId, 1.0},        // level 1
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreBodyCurvatureId, 0.9},  // body curvature 0.9
                           {kCoreBodyEmphasisId, 0.5},   // body emphasis -0.5
                           {kCoreShiftId, 0.6}},         // shift 0.2
-            .endpointB = {{kCoreDepthId, 0.3},          // depth 0.3
-                          {kCoreBodyId, 0.65},          // body 0.65
-                          {kCoreEdgeId, 0.4},           // edge 0.4
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.2},          // 1 ms
-                          {kAmpDecayId, 0.720412},      // 400 ms
-                          {kAmpSustainId, 0.8},         // sustain 0.8
-                          {kAmpReleaseId, 0.695424},    // 300 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.4},        // spread 0.4
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.8},        // level 0.8
-                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.9},  // body curvature 0.9
-                          {kCoreBodyEmphasisId, 0.5},   // body emphasis -0.5
-                          {kCoreShiftId, 0.6}},         // shift 0.2
+            // Designed-library pass (2026-10-26): B restrikes a lopsided, Rectify-edged edge, mono, over an Octave Down
+            // Anchor at sustain 0.35 (it read 4 dB over A at 0.45).
+            .endpointB = {{kCoreDepthId, 0.7},                 // depth 0.7
+                          {kCoreBodyId, 0.3},                  // body 0.3
+                          {kCoreEdgeId, 0.6},                  // edge 0.6
+                          {kCoreExcitationMixId, 0.5},         // excitation mix 0.5
+                          {kFoldAmountId, 0.5},                // Harmonic Fold 50
+                          {kFoldShapeId, 0.9},                 // SHAPE 0.9
+                          {kCharacterId, 0.4},                 // Rectify
+                          {kCharacterAmountId, 0.45},          // Amount 0.45
+                          {kCharacterToneId, 0.6},             // Tone 0.6
+                          {kAmpAttackId, 0.2},                 // 1 ms
+                          {kAmpDecayId, 0.720412},             // 400 ms
+                          {kAmpSustainId, 0.35},               // sustain 0.35
+                          {kAmpReleaseId, 0.695424},           // 300 ms
+                          {kFieldImageModeId, 0.0},            // SOLID
+                          {kFieldSpreadId, 0.0},               // spread 0
+                          {kMassId, 0.65},                     // Mass 65
+                          {kAnchorWaveformId, 1.0},            // OctaveDownSine
+                          {kAnchorModeId, 0.0},                // LOCK
+                          {kAnchorLevelId, 0.8},               // level 0.8
+                          {kAnchorFoldFeedId, 0.0},            // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.9},         // body curvature 0.9
+                          {kCoreBodyEmphasisId, 0.5},          // body emphasis -0.5
+                          {kCoreShiftId, 0.6},                 // shift 0.2
+                          {kCoreExcitationDriveId, 0.8},       // drive 0.8
+                          {kCoreExcitationAsymmetryId, 0.8}},  // asymmetry 0.8
             .controls = {{kNoteMemoryId, 0.0},     // Note Memory AlwaysRetrigger
                          {kNoteRetriggerId, 0.0},  // Retrigger Reset
                          {kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Restruck",
-            .nameB = "Restruck Body",
+            .nameB = "Rectified Strike",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2766,50 +3098,55 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Legato Line",
             .category = "Resonant",
-            .description = "NoteMemory Legato: MONO with Retrigger Reset; overlapping notes carry the phase on, a joined line.",
+            .description = "NoteMemory Legato: MONO with Retrigger Reset; overlapping notes carry the phase on, a "
+                           "joined, Tube-warmed line over a Triangle Anchor. Morph to B fractures the line, wide.",
             .primary = C::AT44,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-44 had 137 degrees of margin; the line gains excitation, a light
+            // fold, Tube 0.4, a Triangle Anchor and a spread top.
             .endpointA = {{kCoreDepthId, 0.7},          // depth 0.7
                           {kCoreBodyId, 0.45},          // body 0.45
                           {kCoreEdgeId, 0.2},           // edge 0.2
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
+                          {kCoreExcitationMixId, 0.2},  // excitation mix 0.2
+                          {kFoldAmountId, 0.25},        // Harmonic Fold 25
+                          {kFoldShapeId, 0.3},          // SHAPE 0.3
                           {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+                          {kCharacterAmountId, 0.4},    // Amount 0.4
+                          {kCharacterToneId, 0.45},     // Tone 0.45
                           {kAmpAttackId, 0.380618},     // 8 ms
                           {kAmpDecayId, 0.75563},       // 600 ms
                           {kAmpSustainId, 0.9},         // sustain 0.9
                           {kAmpReleaseId, 0.730643},    // 450 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.4},        // spread 0.4
                           {kMassId, 0.55},              // Mass 55
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.7},        // level 0.7
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreBodyEmphasisId, 0.6},   // body emphasis -0.4
                           {kCoreShiftId, 0.4}},         // shift -0.2
-            .endpointB = {{kCoreDepthId, 0.7},          // depth 0.7
-                          {kCoreBodyId, 0.45},          // body 0.45
-                          {kCoreEdgeId, 0.35},          // edge 0.35
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+            // Designed-library pass (2026-10-26): B fractures the line: more edge, a BITE fold, Fracture 0.4 over an
+            // Asymmetric Anchor, wide.
+            .endpointB = {{kCoreDepthId, 0.6},          // depth 0.6
+                          {kCoreBodyId, 0.3},           // body 0.3
+                          {kCoreEdgeId, 0.7},           // edge 0.7
+                          {kCoreExcitationMixId, 0.5},  // excitation mix 0.5
+                          {kFoldAmountId, 0.5},         // Harmonic Fold 50
+                          {kFoldShapeId, 0.8},          // SHAPE 0.8
+                          {kCharacterId, 1.0},          // Fracture
+                          {kCharacterAmountId, 0.4},    // Amount 0.4
+                          {kCharacterToneId, 0.6},      // Tone 0.6
                           {kAmpAttackId, 0.380618},     // 8 ms
                           {kAmpDecayId, 0.75563},       // 600 ms
-                          {kAmpSustainId, 0.9},         // sustain 0.9
+                          {kAmpSustainId, 1.0},         // sustain 1
                           {kAmpReleaseId, 0.730643},    // 450 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.55},              // Mass 55
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.7},        // spread 0.7
+                          {kMassId, 0.65},              // Mass 65
+                          {kAnchorWaveformId, 0.75},    // AsymmetricSine
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.7},        // level 0.7
+                          {kAnchorLevelId, 0.9},        // level 0.9
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kCoreBodyEmphasisId, 0.6},   // body emphasis -0.4
                           {kCoreShiftId, 0.4}},         // shift -0.2
@@ -2817,7 +3154,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                          {kNoteRetriggerId, 0.0},     // Retrigger Reset
                          {kMorphPositionId, 0.0}},    // p = 0
             .nameA = "Joined",
-            .nameB = "Joined Edge",
+            .nameB = "Fractured Line",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2826,61 +3163,65 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Envelope Restart",
             .category = "Harmonic",
-            .description = "NoteMemory EnvelopeRetriggerOnly: MONO with Retrigger Reset; each note restarts the envelope but not "
-                           "the oscillator.",
+            .description = "NoteMemory EnvelopeRetriggerOnly: MONO with Retrigger Reset; each note restarts the "
+                           "envelope but not the oscillator, a Crush-grained, folded edge, wide. Morph to B rounds it "
+                           "into a mono Tube body.",
             .primary = C::AT45,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.5},            // depth 0.5
-                          {kCoreBodyId, 0.3},             // body 0.3
-                          {kCoreEdgeId, 0.8},             // edge 0.8
-                          {kCoreExcitationMixId, 0.6},    // excitation mix 0.6
-                          {kFoldAmountId, 0.0},           // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},            // SHAPE 0
-                          {kCharacterId, 0.0},            // Tube
-                          {kCharacterAmountId, 0.0},      // Amount 0
-                          {kCharacterToneId, 0.5},        // Tone 0.5
-                          {kAmpAttackId, 0.2},            // 1 ms
-                          {kAmpDecayId, 0.739794},        // 500 ms
-                          {kAmpSustainId, 1.0},           // sustain 1
-                          {kAmpReleaseId, 0.720412},      // 400 ms
-                          {kFieldImageModeId, 0.0},       // SOLID
-                          {kFieldSpreadId, 0.0},          // spread 0
-                          {kMassId, 0.5},                 // Mass 50
-                          {kAnchorWaveformId, 0.0},       // Sine
-                          {kAnchorModeId, 0.0},           // LOCK
-                          {kAnchorLevelId, 0.6},          // level 0.6
-                          {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.2},    // body curvature 0.2
-                          {kCoreShiftId, 0.75},           // shift 0.5
-                          {kCoreExcitationDriveId, 0.7}}, // drive 0.7
-            .endpointB = {{kCoreDepthId, 0.5},            // depth 0.5
-                          {kCoreBodyId, 0.3},             // body 0.3
-                          {kCoreEdgeId, 0.65},            // edge 0.65
-                          {kCoreExcitationMixId, 0.6},    // excitation mix 0.6
-                          {kFoldAmountId, 0.0},           // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},            // SHAPE 0
-                          {kCharacterId, 0.0},            // Tube
-                          {kCharacterAmountId, 0.0},      // Amount 0
-                          {kCharacterToneId, 0.5},        // Tone 0.5
-                          {kAmpAttackId, 0.2},            // 1 ms
-                          {kAmpDecayId, 0.739794},        // 500 ms
-                          {kAmpSustainId, 1.0},           // sustain 1
-                          {kAmpReleaseId, 0.720412},      // 400 ms
-                          {kFieldImageModeId, 0.0},       // SOLID
-                          {kFieldSpreadId, 0.0},          // spread 0
-                          {kMassId, 0.5},                 // Mass 50
-                          {kAnchorWaveformId, 0.0},       // Sine
-                          {kAnchorModeId, 0.0},           // LOCK
-                          {kAnchorLevelId, 0.6},          // level 0.6
-                          {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.2},    // body curvature 0.2
-                          {kCoreShiftId, 0.75},           // shift 0.5
-                          {kCoreExcitationDriveId, 0.7}}, // drive 0.7
+            // Designed-library pass (2026-10-26): AT-45 had 137 degrees of margin; the restart gains a BITE-leaning
+            // fold, Crush 0.35, a Triangle Anchor and a WIDE image.
+            .endpointA = {{kCoreDepthId, 0.5},             // depth 0.5
+                          {kCoreBodyId, 0.3},              // body 0.3
+                          {kCoreEdgeId, 0.8},              // edge 0.8
+                          {kCoreExcitationMixId, 0.6},     // excitation mix 0.6
+                          {kFoldAmountId, 0.35},           // Harmonic Fold 35
+                          {kFoldShapeId, 0.6},             // SHAPE 0.6
+                          {kCharacterId, 0.8},             // Crush
+                          {kCharacterAmountId, 0.35},      // Amount 0.35
+                          {kCharacterToneId, 0.6},         // Tone 0.6
+                          {kAmpAttackId, 0.2},             // 1 ms
+                          {kAmpDecayId, 0.739794},         // 500 ms
+                          {kAmpSustainId, 1.0},            // sustain 1
+                          {kAmpReleaseId, 0.720412},       // 400 ms
+                          {kFieldImageModeId, 1.0},        // WIDE
+                          {kFieldSpreadId, 0.5},           // spread 0.5
+                          {kMassId, 0.5},                  // Mass 50
+                          {kAnchorWaveformId, 0.25},       // Triangle
+                          {kAnchorModeId, 0.0},            // LOCK
+                          {kAnchorLevelId, 0.6},           // level 0.6
+                          {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.2},     // body curvature 0.2
+                          {kCoreShiftId, 0.75},            // shift 0.5
+                          {kCoreExcitationDriveId, 0.7}},  // drive 0.7
+            // Designed-library pass (2026-10-26): B is a round, mono Tube body over an Octave Down Anchor.
+            .endpointB = {{kCoreDepthId, 0.85},            // depth 0.85
+                          {kCoreBodyId, 0.5},              // body 0.5
+                          {kCoreEdgeId, 0.2},              // edge 0.2
+                          {kCoreExcitationMixId, 0.1},     // excitation mix 0.1
+                          {kFoldAmountId, 0.1},            // Harmonic Fold 10
+                          {kFoldShapeId, 0.1},             // SHAPE 0.1
+                          {kCharacterId, 0.0},             // Tube
+                          {kCharacterAmountId, 0.5},       // Amount 0.5
+                          {kCharacterToneId, 0.3},         // Tone 0.3
+                          {kAmpAttackId, 0.2},             // 1 ms
+                          {kAmpDecayId, 0.739794},         // 500 ms
+                          {kAmpSustainId, 1.0},            // sustain 1
+                          {kAmpReleaseId, 0.720412},       // 400 ms
+                          {kFieldImageModeId, 0.0},        // SOLID
+                          {kFieldSpreadId, 0.0},           // spread 0
+                          {kMassId, 0.6},                  // Mass 60
+                          {kAnchorWaveformId, 1.0},        // OctaveDownSine
+                          {kAnchorModeId, 0.0},            // LOCK
+                          {kAnchorLevelId, 0.6},           // level 0.6
+                          {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.2},     // body curvature 0.2
+                          {kCoreShiftId, 0.75},            // shift 0.5
+                          {kCoreExcitationDriveId, 0.7}},  // drive 0.7
             .controls = {{kNoteMemoryId, 2.0 / 3.0},  // Note Memory EnvelopeRetriggerOnly
                          {kNoteRetriggerId, 0.0},     // Retrigger Reset
                          {kMorphPositionId, 0.0}},    // p = 0
             .nameA = "Restarting",
-            .nameB = "Restarting Bright",
+            .nameB = "Round Restart",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2888,48 +3229,52 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Continuous Phase",
             .category = "Sub",
-            .description = "NoteMemory OscillatorContinuous: MONO with Retrigger Reset; the oscillator runs on through every "
-                           "note.",
+            .description = "NoteMemory OscillatorContinuous: MONO with Retrigger Reset; the oscillator runs on through "
+                           "every note, a Fracture-edged fold over a Triangle Anchor. Morph to B crushes it wide.",
             .primary = C::AT46,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.6},          // depth 0.6
-                          {kCoreBodyId, 0.5},           // body 0.5
-                          {kCoreEdgeId, 0.1},           // edge 0.1
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+            // Designed-library pass (2026-10-26): AT-46 had 137 degrees of margin; A runs a Fracture-edged fold over a
+            // Triangle Anchor.
+            .endpointA = {{kCoreDepthId, 0.6},             // depth 0.6
+                          {kCoreBodyId, 0.5},              // body 0.5
+                          {kCoreEdgeId, 0.3},              // edge 0.3
+                          {kCoreExcitationMixId, 0.3},     // excitation mix 0.3
+                          {kFoldAmountId, 0.35},           // Harmonic Fold 35
+                          {kFoldShapeId, 0.25},            // SHAPE 0.25
+                          {kCharacterId, 1.0},             // Fracture
+                          {kCharacterAmountId, 0.3},       // Amount 0.3
+                          {kCharacterToneId, 0.5},         // Tone 0.5
+                          {kAmpAttackId, 0.339794},        // 5 ms
+                          {kAmpDecayId, 0.695424},         // 300 ms
+                          {kAmpSustainId, 0.75},           // sustain 0.75
+                          {kAmpReleaseId, 0.708814},       // 350 ms
+                          {kFieldImageModeId, 0.5},        // SPREAD
+                          {kFieldSpreadId, 0.4},           // spread 0.4
+                          {kMassId, 0.65},                 // Mass 65
+                          {kAnchorWaveformId, 0.25},       // Triangle
+                          {kAnchorModeId, 0.0},            // LOCK
+                          {kAnchorLevelId, 1.0},           // level 1
+                          {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
+                          {kCoreBodyCurvatureId, 0.3},     // body curvature 0.3
+                          {kCoreShiftId, 0.35},            // shift -0.3
+                          {kCoreExcitationDriveId, 0.5}},  // drive 0.5
+            // Designed-library pass (2026-10-26): B crushes it wide.
+            .endpointB = {{kCoreDepthId, 0.45},         // depth 0.45
+                          {kCoreBodyId, 0.6},           // body 0.6
+                          {kCoreEdgeId, 0.55},          // edge 0.55
+                          {kCoreExcitationMixId, 0.4},  // excitation mix 0.4
+                          {kFoldAmountId, 0.55},        // Harmonic Fold 55
+                          {kFoldShapeId, 0.8},          // SHAPE 0.8
+                          {kCharacterId, 0.8},          // Crush
+                          {kCharacterAmountId, 0.5},    // Amount 0.5
+                          {kCharacterToneId, 0.6},      // Tone 0.6
                           {kAmpAttackId, 0.339794},     // 5 ms
                           {kAmpDecayId, 0.695424},      // 300 ms
                           {kAmpSustainId, 1.0},         // sustain 1
                           {kAmpReleaseId, 0.708814},    // 350 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.6},               // Mass 60
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
-                          {kCoreBodyCurvatureId, 0.3},  // body curvature 0.3
-                          {kCoreShiftId, 0.35}},        // shift -0.3
-            .endpointB = {{kCoreDepthId, 0.6},          // depth 0.6
-                          {kCoreBodyId, 0.5},           // body 0.5
-                          {kCoreEdgeId, 0.1},           // edge 0.1
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
-                          {kAmpAttackId, 0.339794},     // 5 ms
-                          {kAmpDecayId, 0.695424},      // 300 ms
-                          {kAmpSustainId, 1.0},         // sustain 1
-                          {kAmpReleaseId, 0.708814},    // 350 ms
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kFieldSpreadId, 0.0},        // spread 0
-                          {kMassId, 0.7},               // Mass 70
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.7},        // spread 0.7
+                          {kMassId, 0.75},              // Mass 75
                           {kAnchorWaveformId, 0.0},     // Sine
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 1.0},        // level 1
@@ -2940,7 +3285,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                          {kNoteRetriggerId, 0.0},  // Retrigger Reset
                          {kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Running",
-            .nameB = "Running Heavy",
+            .nameB = "Running Crush",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -2951,8 +3296,9 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Weight Lever",
             .category = "Sub",
-            .description = "Macros Weight: a clean sine sub with a soft 20 ms attack under a WIDE image, the Weight macro stored "
-                           "at 0.6.",
+            .description = "Macros Weight: a clean sine sub with a soft 20 ms attack under a WIDE image, the Weight "
+                           "macro stored at 0.6. Morph to B bites: a body, a BITE-shaped fold and Bite over a Triangle "
+                           "Anchor.",
             .primary = C::AT47,
             .secondaries = {},
             .endpointA = {{kCoreDepthId, 1.0},          // depth 1
@@ -2975,30 +3321,32 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 1.0},        // level 1
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
-            .endpointB = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
+            // Designed-library pass (2026-10-26): A is unchanged (AT-47 margin 0.23 dB); B bites: a body, a BITE-shaped
+            // fold and Bite 0.4 over a Triangle Anchor.
+            .endpointB = {{kCoreDepthId, 0.55},         // depth 0.55
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.4},           // edge 0.4
+                          {kCoreExcitationMixId, 0.3},  // excitation mix 0.3
+                          {kFoldAmountId, 0.4},         // Harmonic Fold 40
+                          {kFoldShapeId, 0.7},          // SHAPE 0.7
+                          {kCharacterId, 0.6},          // Bite
+                          {kCharacterAmountId, 0.4},    // Amount 0.4
                           {kCharacterToneId, 0.5},      // Tone 0.5
                           {kAmpAttackId, 0.460206},     // 20 ms
                           {kAmpDecayId, 0.635218},      // 150 ms
-                          {kAmpSustainId, 0.6},         // sustain 0.6
+                          {kAmpSustainId, 0.8},         // sustain 0.8
                           {kAmpReleaseId, 0.615836},    // 120 ms
-                          {kFieldImageModeId, 1.0},     // WIDE
-                          {kFieldSpreadId, 0.4},        // spread 0.4
-                          {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.6},        // spread 0.6
+                          {kMassId, 0.7},               // Mass 70
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.9},        // level 0.9
+                          {kAnchorLevelId, 0.85},       // level 0.85
                           {kAnchorFoldFeedId, 0.0}},    // Anchor Fold Feed 0
             .controls = {{kMacroWeightId, 0.6},    // Weight 0.6
                          {kMorphPositionId, 0.0}}, // p = 0
             .nameA = "Weighted",
-            .nameB = "Weighted Light",
+            .nameB = "Weighted Bite",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -3007,8 +3355,8 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Dark To Bright",
             .category = "Harmonic",
-            .description = "Macros Dark Bright: a heavy harmonic body with the Dark Bright macro at 0.5; endpoint B is a darker, "
-                           "rounder twin.",
+            .description = "Macros Dark Bright: a heavy harmonic body with the Dark Bright macro at 0.5; endpoint B is "
+                           "a darker, rounder, wider twin an octave deep.",
             .primary = C::AT48,
             .secondaries = {},
             .endpointA = {{kCoreDepthId, 0.5},                // depth 0.5
@@ -3034,26 +3382,28 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.5},              // level 0.5
                           {kAnchorFoldFeedId, 0.0}},          // Anchor Fold Feed 0
+            // Designed-library pass (2026-10-26): A is unchanged (AT-48 margin 0.41, the probe base); B, the darker
+            // twin, folds wider over an Octave Down Anchor at sustain 0.7 (it read 3.6 dB over A at sustain 1).
             .endpointB = {{kCoreDepthId, 0.5},                // depth 0.5
                           {kCoreBodyId, 0.5},                 // body 0.5
                           {kCoreEdgeId, 0.4},                 // edge 0.4
-                          {kCoreShiftId, 0.0},                // shift -1
+                          {kCoreShiftId, 0.25},               // shift -0.5
                           {kCoreExcitationMixId, 1.0},        // excitation mix 1
                           {kCoreExcitationDriveId, 1.0},      // drive 1
                           {kCoreExcitationAsymmetryId, 0.5},  // asymmetry 0.5
-                          {kFoldAmountId, 0.8},               // Harmonic Fold 80
-                          {kFoldShapeId, 0.5},                // SHAPE 0.5
+                          {kFoldAmountId, 0.5},               // Harmonic Fold 50
+                          {kFoldShapeId, 0.2},                // SHAPE 0.2
                           {kCharacterId, 0.0},                // Tube
                           {kCharacterAmountId, 0.4},          // Amount 0.4
                           {kCharacterToneId, 0.4},            // Tone 0.4
                           {kAmpAttackId, 0.2},                // 1 ms
                           {kAmpDecayId, 0.835218},            // 1500 ms
-                          {kAmpSustainId, 1.0},               // sustain 1
+                          {kAmpSustainId, 0.85},              // sustain 0.85
                           {kAmpReleaseId, 0.780618},          // 800 ms
-                          {kFieldImageModeId, 0.5},           // SPREAD
-                          {kFieldSpreadId, 0.6},              // spread 0.6
+                          {kFieldImageModeId, 1.0},           // WIDE
+                          {kFieldSpreadId, 0.8},              // spread 0.8
                           {kMassId, 0.5},                     // Mass 50
-                          {kAnchorWaveformId, 0.0},           // Sine
+                          {kAnchorWaveformId, 1.0},           // OctaveDownSine
                           {kAnchorModeId, 0.0},               // LOCK
                           {kAnchorLevelId, 0.6},              // level 0.6
                           {kAnchorFoldFeedId, 0.0}},          // Anchor Fold Feed 0
@@ -3070,8 +3420,9 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Loose Ends",
             .category = "Resonant",
-            .description = "Macros Tight Loose: a half-sustain body with the Tight Loose macro at 0.5, loose ends around a SPREAD "
-                           "image.",
+            .description = "Macros Tight Loose: a half-sustain body with the Tight Loose macro at 0.5, loose ends "
+                           "around a SPREAD image. Morph to B bites: a body, a fold and Bite over a Triangle Anchor, "
+                           "wide.",
             .primary = C::AT49,
             .secondaries = {},
             .endpointA = {{kCoreDepthId, 1.0},          // depth 1
@@ -3095,23 +3446,25 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAnchorLevelId, 1.0},        // level 1
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
                           {kFieldGravityId, 0.2}},      // gravity 0.2
-            .endpointB = {{kCoreDepthId, 1.0},          // depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFoldAmountId, 0.0},         // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},          // SHAPE 0
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.0},    // Amount 0
-                          {kCharacterToneId, 0.5},      // Tone 0.5
+            // Designed-library pass (2026-10-26): A is unchanged (AT-49 margin 0.40, core and envelope from the probe);
+            // B bites: a body, a fold, Bite 0.45 over a Triangle Anchor, wide.
+            .endpointB = {{kCoreDepthId, 0.5},          // depth 0.5
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.5},           // edge 0.5
+                          {kCoreExcitationMixId, 0.4},  // excitation mix 0.4
+                          {kFoldAmountId, 0.45},        // Harmonic Fold 45
+                          {kFoldShapeId, 0.6},          // SHAPE 0.6
+                          {kCharacterId, 0.6},          // Bite
+                          {kCharacterAmountId, 0.45},   // Amount 0.45
+                          {kCharacterToneId, 0.55},     // Tone 0.55
                           {kAmpAttackId, 0.2},          // 1 ms
                           {kAmpDecayId, 0.635218},      // 150 ms
-                          {kAmpSustainId, 0.5},         // sustain 0.5
-                          {kAmpReleaseId, 0.539794},    // 50 ms
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 0.6},        // spread 0.6
+                          {kAmpSustainId, 0.8},         // sustain 0.8
+                          {kAmpReleaseId, 0.660206},    // 200 ms
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.8},        // spread 0.8
                           {kMassId, 0.5},               // Mass 50
-                          {kAnchorWaveformId, 0.0},     // Sine
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},         // LOCK
                           {kAnchorLevelId, 0.8},        // level 0.8
                           {kAnchorFoldFeedId, 0.0},     // Anchor Fold Feed 0
@@ -3119,7 +3472,7 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
             .controls = {{kMacroTightLooseId, 0.5},  // Tight Loose 0.5
                          {kMorphPositionId, 0.0}},   // p = 0
             .nameA = "Loose",
-            .nameB = "Loose Narrow",
+            .nameB = "Bitten Ends",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -3127,15 +3480,18 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Clean To Violent",
             .category = "Driven",
-            .description = "Macros Clean Violent: a lightly driven core with the Clean Violent macro stored at 0.4, with room "
-                           "to turn toward violent.",
+            .description = "Macros Clean Violent: a lightly driven core over a Triangle Anchor with the Clean Violent "
+                           "macro stored at 0.4, wide, with room to turn toward violent. Morph to B strains it with a "
+                           "fold and Fracture.",
             .primary = C::AT50,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-50 had 8.3 of margin; A gains Harmonic Fold 15, a Triangle Anchor,
+            // a WIDE image and a 2 st drop.
             .endpointA = {{kCoreDepthId, 0.8},            // depth 0.8
                           {kCoreBodyId, 0.2},             // body 0.2
                           {kCoreEdgeId, 0.3},             // edge 0.3
                           {kCoreExcitationMixId, 0.3},    // excitation mix 0.3
-                          {kFoldAmountId, 0.0},           // Harmonic Fold 0
+                          {kFoldAmountId, 0.15},          // Harmonic Fold 15
                           {kFoldShapeId, 0.0},            // SHAPE 0
                           {kCharacterId, 0.0},            // Tube
                           {kCharacterAmountId, 0.2},      // Amount 0.2
@@ -3144,39 +3500,43 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.695424},        // 300 ms
                           {kAmpSustainId, 0.9},           // sustain 0.9
                           {kAmpReleaseId, 0.679588},      // 250 ms
-                          {kFieldImageModeId, 0.5},       // SPREAD
+                          {kFieldImageModeId, 1.0},       // WIDE
                           {kFieldSpreadId, 0.5},          // spread 0.5
                           {kMassId, 0.55},                // Mass 55
-                          {kAnchorWaveformId, 0.0},       // Sine
+                          {kAnchorWaveformId, 0.25},      // Triangle
                           {kAnchorModeId, 0.0},           // LOCK
                           {kAnchorLevelId, 0.8},          // level 0.8
                           {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
-                          {kCoreExcitationDriveId, 0.5}}, // drive 0.5
-            .endpointB = {{kCoreDepthId, 0.8},            // depth 0.8
-                          {kCoreBodyId, 0.2},             // body 0.2
-                          {kCoreEdgeId, 0.3},             // edge 0.3
-                          {kCoreExcitationMixId, 0.3},    // excitation mix 0.3
-                          {kFoldAmountId, 0.0},           // Harmonic Fold 0
-                          {kFoldShapeId, 0.0},            // SHAPE 0
-                          {kCharacterId, 0.0},            // Tube
-                          {kCharacterAmountId, 0.35},     // Amount 0.35
-                          {kCharacterToneId, 0.5},        // Tone 0.5
-                          {kAmpAttackId, 0.260206},       // 2 ms
-                          {kAmpDecayId, 0.695424},        // 300 ms
-                          {kAmpSustainId, 0.9},           // sustain 0.9
-                          {kAmpReleaseId, 0.679588},      // 250 ms
-                          {kFieldImageModeId, 0.5},       // SPREAD
-                          {kFieldSpreadId, 0.5},          // spread 0.5
-                          {kMassId, 0.55},                // Mass 55
-                          {kAnchorWaveformId, 0.0},       // Sine
-                          {kAnchorModeId, 0.0},           // LOCK
-                          {kAnchorLevelId, 0.8},          // level 0.8
-                          {kAnchorFoldFeedId, 0.0},       // Anchor Fold Feed 0
-                          {kCoreExcitationDriveId, 0.5}}, // drive 0.5
+                          {kCoreExcitationDriveId, 0.5},  // drive 0.5
+                          {kDropAmountId, 0.041667},      // drop 2 st
+                          {kDropTimeId, 0.410077}},       // drop time 30 ms
+            // Designed-library pass (2026-10-26): B strains: a body, excitation, a fold and Fracture 0.3, at full
+            // sustain over a full Anchor.
+            .endpointB = {{kCoreDepthId, 0.7},             // depth 0.7
+                          {kCoreBodyId, 0.5},              // body 0.5
+                          {kCoreEdgeId, 0.6},              // edge 0.6
+                          {kCoreExcitationMixId, 0.6},     // excitation mix 0.6
+                          {kFoldAmountId, 0.45},           // Harmonic Fold 45
+                          {kFoldShapeId, 0.6},             // SHAPE 0.6
+                          {kCharacterId, 1.0},             // Fracture
+                          {kCharacterAmountId, 0.3},       // Amount 0.3
+                          {kCharacterToneId, 0.55},        // Tone 0.55
+                          {kAmpAttackId, 0.260206},        // 2 ms
+                          {kAmpDecayId, 0.695424},         // 300 ms
+                          {kAmpSustainId, 1.0},            // sustain 1
+                          {kAmpReleaseId, 0.679588},       // 250 ms
+                          {kFieldImageModeId, 0.5},        // SPREAD
+                          {kFieldSpreadId, 0.5},           // spread 0.5
+                          {kMassId, 0.7},                  // Mass 70
+                          {kAnchorWaveformId, 0.0},        // Sine
+                          {kAnchorModeId, 0.0},            // LOCK
+                          {kAnchorLevelId, 1.0},           // level 1
+                          {kAnchorFoldFeedId, 0.0},        // Anchor Fold Feed 0
+                          {kCoreExcitationDriveId, 0.5}},  // drive 0.5
             .controls = {{kMacroCleanViolentId, 0.4},  // Clean Violent 0.4
                          {kMorphPositionId, 0.0}},     // p = 0
             .nameA = "Restrained",
-            .nameB = "Straining",
+            .nameB = "Fractured Strain",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -3184,43 +3544,55 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Mono Bedrock",
             .category = "Sub",
-            .description = "Reference Solid: a SOLID image on both endpoints over a warm Tube 0.4 sub, the mono "
-                           "floor that every widened preset is heard against.",
+            .description = "Reference Solid: a SOLID image on both endpoints over a warm Tube 0.4 sub with a light "
+                           "fold and an octave-down Anchor, the mono floor that every widened preset is heard against. "
+                           "Morph to B fractures it, still mono.",
             .primary = C::RSolid,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 0.7},          // recipe depth 0.7
-                          {kCoreBodyId, 0.35},          // body 0.35
-                          {kCoreEdgeId, 0.2},           // edge 0.2
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.4},    // Amount 0.4
-                          {kCharacterToneId, 0.4},      // Tone 0.4
-                          {kFieldImageModeId, 0.0},     // SOLID
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.8},        // level 0.8
-                          {kMassId, 0.6},               // Mass 60
-                          {kAmpAttackId, 0.339794},     // 5 ms
-                          {kAmpDecayId, 0.695424},      // 300 ms
-                          {kAmpSustainId, 0.9},         // sustain 0.9
-                          {kAmpReleaseId, 0.720412}},   // 400 ms
-            .endpointB = {{kCoreDepthId, 0.7},
-                          {kCoreBodyId, 0.35},
-                          {kCoreEdgeId, 0.35},          // edge 0.35
-                          {kCharacterId, 0.0},          // Tube
-                          {kCharacterAmountId, 0.6},    // Amount 0.6: B leans into the valve
-                          {kCharacterToneId, 0.4},
-                          {kFieldImageModeId, 0.0},     // SOLID (R-SOLID: both endpoints)
-                          {kAnchorWaveformId, 0.0},
+            // Designed-library pass (2026-10-26): R-SOLID had 108 of margin; A adds excitation, a light fold, an Octave
+            // Down Anchor and a 3 st drop.
+            .endpointA = {{kCoreDepthId, 0.7},           // recipe depth 0.7
+                          {kCoreBodyId, 0.35},           // body 0.35
+                          {kCoreEdgeId, 0.3},            // edge 0.3
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.4},     // Amount 0.4
+                          {kCharacterToneId, 0.4},       // Tone 0.4
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kAnchorWaveformId, 1.0},      // OctaveDownSine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 0.8},         // level 0.8
+                          {kMassId, 0.6},                // Mass 60
+                          {kAmpAttackId, 0.339794},      // 5 ms
+                          {kAmpDecayId, 0.695424},       // 300 ms
+                          {kAmpSustainId, 0.9},          // sustain 0.9
+                          {kAmpReleaseId, 0.720412},     // 400 ms
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.3},          // Harmonic Fold 30
+                          {kFoldShapeId, 0.2},           // SHAPE 0.2
+                          {kDropAmountId, 0.0625},       // drop 3 st
+                          {kDropTimeId, 0.444762}},      // drop time 40 ms
+            // Designed-library pass (2026-10-26): B fractures it, still mono (SOLID on both: R-SOLID).
+            .endpointB = {{kCoreDepthId, 0.45},          // depth 0.45
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.5},            // edge 0.5
+                          {kCharacterId, 1.0},           // Fracture
+                          {kCharacterAmountId, 0.5},     // Amount 0.5
+                          {kCharacterToneId, 0.7},       // Tone 0.7
+                          {kFieldImageModeId, 0.0},      // SOLID (R-SOLID: both endpoints)
+                          {kAnchorWaveformId, 0.0},      // Sine
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.8},
-                          {kMassId, 0.6},
+                          {kMassId, 0.75},               // Mass 75
                           {kAmpAttackId, 0.339794},
                           {kAmpDecayId, 0.695424},
                           {kAmpSustainId, 0.9},
-                          {kAmpReleaseId, 0.720412}},
+                          {kAmpReleaseId, 0.76902},      // 700 ms
+                          {kFoldAmountId, 0.6},          // Harmonic Fold 60
+                          {kFoldShapeId, 0.85},          // SHAPE 0.85
+                          {kCoreExcitationMixId, 0.5}},  // excitation mix 0.5
             .controls = {{kMorphPositionId, 0.0}},
             .nameA = "Solid Ground",
-            .nameB = "Solid Heat",
+            .nameB = "Solid Fracture",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -3232,8 +3604,8 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Locked Floor",
             .category = "Sub",
-            .description = "Reference Lock: the Anchor held in LOCK under a Triangle waveform with a SPREAD image, "
-                           "a steady floor with no punch.",
+            .description = "Reference Lock: the Anchor held in LOCK under a Triangle waveform with a SPREAD image, a "
+                           "steady floor with no punch. Morph to B drives it: a body, fold and Tube over a wide image.",
             .primary = C::RLock,
             .secondaries = {C::AT14},
             .endpointA = {{kCoreDepthId, 1.0},          // sine recipe: depth 1
@@ -3249,22 +3621,30 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.635218},      // 150 ms
                           {kAmpSustainId, 0.6},         // sustain 0.6
                           {kAmpReleaseId, 0.695424}},   // 300 ms
-            .endpointB = {{kCoreDepthId, 1.0},
-                          {kCoreBodyId, 0.0},
-                          {kCoreEdgeId, 0.15},          // edge 0.15
-                          {kCoreExcitationMixId, 0.0},
-                          {kFieldImageModeId, 0.5},     // SPREAD
-                          {kFieldSpreadId, 1.0},        // spread 1
-                          {kAnchorWaveformId, 0.25},    // Triangle (AT-14 claim: both endpoints)
-                          {kAnchorModeId, 0.0},         // LOCK (R-LOCK: both endpoints)
+            // Designed-library pass (2026-10-26): A is unchanged (R-LOCK margin 0.04 dB); B drives it: a body, fold and
+            // Tube 0.45 over a WIDE image (Triangle and LOCK on both: AT-14, R-LOCK).
+            .endpointB = {{kCoreDepthId, 0.5},           // depth 0.5
+                          {kCoreBodyId, 0.45},           // body 0.45
+                          {kCoreEdgeId, 0.55},           // edge 0.55
+                          {kCoreExcitationMixId, 0.35},  // excitation mix 0.35
+                          {kFieldImageModeId, 1.0},      // WIDE
+                          {kFieldSpreadId, 1.0},         // spread 1
+                          {kAnchorWaveformId, 0.25},     // Triangle (AT-14 claim: both endpoints)
+                          {kAnchorModeId, 0.0},          // LOCK (R-LOCK: both endpoints)
                           {kAnchorLevelId, 1.0},
                           {kAmpAttackId, 0.2},
                           {kAmpDecayId, 0.635218},
-                          {kAmpSustainId, 0.6},
-                          {kAmpReleaseId, 0.695424}},
+                          {kAmpSustainId, 0.7},          // sustain 0.7
+                          {kAmpReleaseId, 0.695424},
+                          {kFoldAmountId, 0.5},          // Harmonic Fold 50
+                          {kFoldShapeId, 0.5},           // SHAPE 0.5
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.6},     // Amount 0.6
+                          {kCharacterToneId, 0.5},       // Tone 0.5
+                          {kMassId, 0.7}},               // Mass 70
             .controls = {{kMorphPositionId, 0.0}},      // p = 0 (P-3: the R-LOCK arm reads A(P))
             .nameA = "Triangle Lock",
-            .nameB = "Triangle Open",
+            .nameB = "Triangle Driven",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -3275,38 +3655,49 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Bedrock Sine",
             .category = "Sub",
-            .description = "Reference Sine: a pure Sine Anchor on both endpoints under a WIDE image; endpoint B "
-                           "adds a heavy harmonic body to morph into.",
+            .description = "Reference Sine: a pure Sine Anchor on both endpoints under a WIDE image with a 5 semitone "
+                           "drop; endpoint B adds a heavy, crushed harmonic body to morph into.",
             .primary = C::RSine,
             .secondaries = {},
-            .endpointA = {{kCoreDepthId, 1.0},          // sine recipe: depth 1
-                          {kCoreBodyId, 0.0},           // body 0
-                          {kCoreEdgeId, 0.0},           // edge 0
-                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
-                          {kFieldImageModeId, 1.0},     // WIDE
-                          {kFieldSpreadId, 1.0},        // spread 1
-                          {kAnchorWaveformId, 0.0},     // Sine
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 1.0},        // level 1
-                          {kAmpAttackId, 0.380618},     // 8 ms
-                          {kAmpDecayId, 0.720412},      // 400 ms
-                          {kAmpSustainId, 0.85},        // sustain 0.85
-                          {kAmpReleaseId, 0.739794}},   // 500 ms
-            .endpointB = {{kCoreDepthId, 0.5},          // kHeavy recipe: depth 0.5
-                          {kCoreBodyId, 0.3},           // body 0.3
-                          {kCoreEdgeId, 0.6},           // edge 0.6
-                          {kCoreShiftId, 0.0},          // shift -1
-                          {kCoreExcitationMixId, 1.0},  // excitation mix 1
+            // Designed-library pass (2026-10-26): R-SINE reads D_cx on a sine core (margin 1.68 dB); A gains a 5 st
+            // drop and a harder transient.
+            .endpointA = {{kCoreDepthId, 1.0},                   // sine recipe: depth 1
+                          {kCoreBodyId, 0.0},                    // body 0
+                          {kCoreEdgeId, 0.0},                    // edge 0
+                          {kCoreExcitationMixId, 0.0},           // excitation mix 0
+                          {kFieldImageModeId, 1.0},              // WIDE
+                          {kFieldSpreadId, 1.0},                 // spread 1
+                          {kAnchorWaveformId, 0.0},              // Sine
+                          {kAnchorModeId, 0.0},                  // LOCK
+                          {kAnchorLevelId, 1.0},                 // level 1
+                          {kAmpAttackId, 0.380618},              // 8 ms
+                          {kAmpDecayId, 0.720412},               // 400 ms
+                          {kAmpSustainId, 0.85},                 // sustain 0.85
+                          {kAmpReleaseId, 0.739794},             // 500 ms
+                          {kDropAmountId, 0.104167},             // drop 5 st
+                          {kDropTimeId, 0.512234},               // drop time 70 ms
+                          {kDynamicsTransientAttackId, 0.625}},  // transient attack +3 dB
+            // Designed-library pass (2026-10-26): B's heavy body gains a fold and Crush 0.3.
+            .endpointB = {{kCoreDepthId, 0.5},            // kHeavy recipe: depth 0.5
+                          {kCoreBodyId, 0.3},             // body 0.3
+                          {kCoreEdgeId, 0.6},             // edge 0.6
+                          {kCoreShiftId, 0.0},            // shift -1
+                          {kCoreExcitationMixId, 1.0},    // excitation mix 1
                           {kCoreExcitationDriveId, 0.6},  // drive 0.6
-                          {kFieldImageModeId, 1.0},     // WIDE
-                          {kFieldSpreadId, 1.0},        // spread 1
-                          {kAnchorWaveformId, 0.0},     // Sine (R-SINE: both endpoints)
-                          {kAnchorModeId, 0.0},         // LOCK
-                          {kAnchorLevelId, 0.7},        // level 0.7
+                          {kFieldImageModeId, 1.0},       // WIDE
+                          {kFieldSpreadId, 1.0},          // spread 1
+                          {kAnchorWaveformId, 0.0},       // Sine (R-SINE: both endpoints)
+                          {kAnchorModeId, 0.0},           // LOCK
+                          {kAnchorLevelId, 0.7},          // level 0.7
                           {kAmpAttackId, 0.380618},
                           {kAmpDecayId, 0.720412},
                           {kAmpSustainId, 0.85},
-                          {kAmpReleaseId, 0.739794}},
+                          {kAmpReleaseId, 0.739794},
+                          {kFoldAmountId, 0.3},           // Harmonic Fold 30
+                          {kFoldShapeId, 0.4},            // SHAPE 0.4
+                          {kCharacterId, 0.8},            // Crush
+                          {kCharacterAmountId, 0.3},      // Amount 0.3
+                          {kCharacterToneId, 0.5}},       // Tone 0.5
             .controls = {{kMorphPositionId, 0.0}},
             .nameA = "Pure Sine",
             .nameB = "Heavy Body",
@@ -3314,21 +3705,28 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
             .seedDependent = false,
         },
         // ---- 54: AT-31 in Poly (Phase 13b, FR-066; endpoint A from Spread Choir with the TuneP_Poly edits) ----
+        // Phase 14 T023: converted to M-ENV (AT-31 stays with Spread Choir).
         ProfundumPresetDef{
             .name = "Poly Spread",
             .category = "Harmonic",
-            .description = "Field Spread: a hollow tube-coloured body spread wide in SPREAD, played as chords in Poly.",
-            .primary = C::AT31,
+            .description = "Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it "
+                           "there (Amount 1, an instant attack, Sustain 1). A is a hollow, Tube-coloured, folded body "
+                           "spread wide in SPREAD over a Rounded Anchor, played as chords in Poly; B spreads darker "
+                           "Tube chords.",
+            .primary = C::MEnv,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-31 had 112 of margin; the chord spread gains excitation, a fold,
+            // Tube 0.35 and a Rounded Anchor. SHAPE stays 0: at 0.5 a load under a held MONO note read the FR-048 step
+            // ratio at 4.5 - 5.5 (bar 2), with or without the fold; at 0 it reads 1.34 (Crush 0.35 is gone too).
             .endpointA = {{kCoreDepthId, 0.4},
                           {kCoreBodyId, 0.5},
                           {kCoreEdgeId, 0.6},
-                          {kCoreExcitationMixId, 0.0},
-                          {kFoldAmountId, 0.0},
-                          {kFoldShapeId, 0.0},
-                          {kCharacterId, 0.0},
-                          {kCharacterAmountId, 0.4},
-                          {kCharacterToneId, 0.6},
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.3},          // Harmonic Fold 30
+                          {kFoldShapeId, 0.0},           // SHAPE 0
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.35},    // Amount 0.35
+                          {kCharacterToneId, 0.6},       // Tone 0.6
                           {kAmpAttackId, 0.3},
                           {kAmpDecayId, 0.76902},
                           {kAmpSustainId, 0.8},
@@ -3336,56 +3734,76 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kFieldImageModeId, 0.5},
                           {kFieldSpreadId, 0.9},
                           {kMassId, 0.5},
-                          {kAnchorWaveformId, 0.0},
+                          {kAnchorWaveformId, 0.5},      // RoundedSine
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.55},
                           {kAnchorFoldFeedId, 0.0},
                           {kCoreBodyCurvatureId, 0.75},
                           {kCoreShiftId, 0.35},
                           {kFieldGravityId, 0.4}},
-            .endpointB = {{kCoreDepthId, 0.4},
-                          {kCoreBodyId, 0.5},
-                          {kCoreEdgeId, 0.6},
-                          {kCoreExcitationMixId, 0.0},
-                          {kFoldAmountId, 0.0},
-                          {kFoldShapeId, 0.0},
-                          {kCharacterId, 0.0},
-                          {kCharacterAmountId, 0.4},
-                          {kCharacterToneId, 0.6},
-                          {kAmpAttackId, 0.3},
+            // Designed-library pass (2026-10-26): B spreads dark Tube chords with a softer attack (SPREAD on both:
+            // AT-31).
+            .endpointB = {{kCoreDepthId, 0.7},           // depth 0.7
+                          {kCoreBodyId, 0.2},            // body 0.2
+                          {kCoreEdgeId, 0.3},            // edge 0.3
+                          {kCoreExcitationMixId, 0.0},   // excitation mix 0
+                          {kFoldAmountId, 0.0},          // Harmonic Fold 0
+                          {kFoldShapeId, 0.0},           // SHAPE 0
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.6},     // Amount 0.6
+                          {kCharacterToneId, 0.3},       // Tone 0.3
+                          {kAmpAttackId, 0.495424},      // 30 ms
                           {kAmpDecayId, 0.76902},
-                          {kAmpSustainId, 0.8},
-                          {kAmpReleaseId, 0.76902},
+                          {kAmpSustainId, 0.5},          // sustain 0.5
+                          {kAmpReleaseId, 0.815836},     // 1.2 s
                           {kFieldImageModeId, 0.5},
                           {kFieldSpreadId, 0.9},
-                          {kMassId, 0.5},
-                          {kAnchorWaveformId, 0.0},
+                          {kMassId, 0.6},                // Mass 60
+                          {kAnchorWaveformId, 0.0},      // Sine
                           {kAnchorModeId, 0.0},
-                          {kAnchorLevelId, 0.55},
+                          {kAnchorLevelId, 0.45},        // level 0.45
                           {kAnchorFoldFeedId, 0.0},
                           {kCoreBodyCurvatureId, 0.75},
-                          {kCoreShiftId, 0.35},
+                          {kCoreShiftId, 0.3},           // shift -0.4
                           {kFieldGravityId, 0.4}},
-            .controls = {{kMorphPositionId, 0.0},   // p = 0
-                         {kVoiceModeId, 1.0}},      // Poly (Polyphony 4, P-6)
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 3.764 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kVoiceModeId, 1.0},                           // Poly (Polyphony 4, P-6)
+                         {kMorphModSourceId, 0.25},                     // Source Envelope (1 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.0},                      // attack 0.1 ms
+                         {kMorphModDecayId, 0.75563024976044124},       // decay 600 ms
+                         {kMorphModSustainId, 1.0},                     // sustain 1
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Spread Chord",
-            .nameB = "Spread Chord Held",
+            .nameB = "Dark Chord Spread",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
         // ---- 55: AT-24 in Poly (Phase 13b, FR-066; endpoint A from Slow Swell with the TuneP_Poly edits) ----
+        // Phase 14 T023: converted to M-ENV (AT-24 stays with Slow Swell).
         ProfundumPresetDef{
             .name = "Poly Swell",
             .category = "Resonant",
-            .description = "Envelope Amp Attack: a slow attack swells a folded, shifted body under every held chord in Poly.",
-            .primary = C::AT24,
+            .description = "Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it "
+                           "there (Amount 1, an instant attack, Sustain 1). A swells a folded, shifted body under "
+                           "every held chord in Poly, wide over a Rounded Anchor; B swells warmer and slower with "
+                           "Tube.",
+            .primary = C::MEnv,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-24 had 17.2 of margin; the swelling chords gain excitation, a
+            // fold, a Rounded Anchor and a WIDE image. SHAPE stays 0: at 0.4 a load under a held MONO note read the
+            // FR-048 step ratio at 5.5 - 7.3 (bar 2); at 0 it reads 1.44.
             .endpointA = {{kCoreDepthId, 0.5},
                           {kCoreBodyId, 0.35},
                           {kCoreEdgeId, 0.5},
-                          {kCoreExcitationMixId, 0.0},
-                          {kFoldAmountId, 0.0},
-                          {kFoldShapeId, 0.0},
+                          {kCoreExcitationMixId, 0.15},  // excitation mix 0.15
+                          {kFoldAmountId, 0.25},         // Harmonic Fold 25
+                          {kFoldShapeId, 0.0},           // SHAPE 0
                           {kCharacterId, 0.2},
                           {kCharacterAmountId, 0.3},
                           {kCharacterToneId, 0.5},
@@ -3393,53 +3811,72 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.780618},
                           {kAmpSustainId, 0.8},
                           {kAmpReleaseId, 0.790849},
-                          {kFieldImageModeId, 0.5},
-                          {kFieldSpreadId, 0.8},
+                          {kFieldImageModeId, 1.0},      // WIDE
+                          {kFieldSpreadId, 0.7},         // spread 0.7
                           {kMassId, 0.5},
-                          {kAnchorWaveformId, 0.0},
+                          {kAnchorWaveformId, 0.5},      // RoundedSine
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.6},
                           {kAnchorFoldFeedId, 0.0},
                           {kCoreBodyCurvatureId, 0.7},
                           {kCoreBodyEmphasisId, 0.7},
                           {kCoreShiftId, 0.7}},
-            .endpointB = {{kCoreDepthId, 0.5},
-                          {kCoreBodyId, 0.35},
-                          {kCoreEdgeId, 0.5},
-                          {kCoreExcitationMixId, 0.0},
-                          {kFoldAmountId, 0.0},
-                          {kFoldShapeId, 0.0},
-                          {kCharacterId, 0.2},
-                          {kCharacterAmountId, 0.3},
-                          {kCharacterToneId, 0.5},
-                          {kAmpAttackId, 0.739794},
+            // Designed-library pass (2026-10-26): B swells darker and slower: a fuller body under Tube 0.8, Shift -1,
+            // edge 0.1, a 1 s attack (library rule 1 caps it there) over a Triangle Anchor (Tube 0.5 at Shift -0.3 read
+            // A-B d 9.99 against 10).
+            .endpointB = {{kCoreDepthId, 0.3},          // depth 0.3
+                          {kCoreBodyId, 0.6},           // body 0.6
+                          {kCoreEdgeId, 0.1},           // edge 0.1
+                          {kCoreExcitationMixId, 0.0},  // excitation mix 0
+                          {kFoldAmountId, 0.45},        // Harmonic Fold 45
+                          {kFoldShapeId, 0.15},         // SHAPE 0.15
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.8},    // Amount 0.8
+                          {kCharacterToneId, 0.4},      // Tone 0.4
+                          {kAmpAttackId, 0.8},          // 1 s
                           {kAmpDecayId, 0.780618},
                           {kAmpSustainId, 0.8},
-                          {kAmpReleaseId, 0.790849},
-                          {kFieldImageModeId, 0.5},
-                          {kFieldSpreadId, 0.8},
-                          {kMassId, 0.5},
-                          {kAnchorWaveformId, 0.0},
+                          {kAmpReleaseId, 0.835218},    // 1.5 s
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.5},        // spread 0.5
+                          {kMassId, 0.6},               // Mass 60
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.6},
                           {kAnchorFoldFeedId, 0.0},
                           {kCoreBodyCurvatureId, 0.7},
                           {kCoreBodyEmphasisId, 0.7},
-                          {kCoreShiftId, 0.7}},
-            .controls = {{kMorphPositionId, 0.0},   // p = 0
-                         {kVoiceModeId, 1.0}},      // Poly (Polyphony 4, P-6)
+                          {kCoreShiftId, 0.0}},         // shift -1
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 2.586 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kVoiceModeId, 1.0},                           // Poly (Polyphony 4, P-6)
+                         {kMorphModSourceId, 0.25},                     // Source Envelope (1 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.0},                      // attack 0.1 ms
+                         {kMorphModDecayId, 0.75563024976044124},       // decay 600 ms
+                         {kMorphModSustainId, 1.0},                     // sustain 1
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Swelling Chord",
-            .nameB = "Swelling Chord Held",
+            .nameB = "Warm Chord Swell",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
         // ---- 56: AT-01 in Poly (Phase 13b, FR-066; endpoint A from Edge Ignition with the TuneP_Poly edits) ----
+        // Phase 14 T023: converted to M-ENV (AT-01 stays with Edge Ignition).
         ProfundumPresetDef{
             .name = "Poly Ignition",
             .category = "Driven",
-            .description = "Core Excitation Mix: full edge excitation through Bite on a WIDE image, a driven chord bass in Poly.",
-            .primary = C::AT01,
+            .description = "Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it "
+                           "there (Amount 1, an instant attack, Sustain 1). A is full edge excitation through Bite on "
+                           "a WIDE image over a Rounded Anchor, a driven chord bass in Poly; B warms the chords with "
+                           "Tube, an octave deep.",
+            .primary = C::MEnv,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-01 had 7.01 of margin; the chords gain a Rounded Anchor.
             .endpointA = {{kCoreDepthId, 1.0},
                           {kCoreBodyId, 0.5},
                           {kCoreEdgeId, 0.6},
@@ -3456,38 +3893,51 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kFieldImageModeId, 1.0},
                           {kFieldSpreadId, 0.8},
                           {kMassId, 0.55},
-                          {kAnchorWaveformId, 0.0},
+                          {kAnchorWaveformId, 0.5},       // RoundedSine
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.8},
                           {kAnchorFoldFeedId, 0.0},
                           {kCoreExcitationDriveId, 1.0},
                           {kCoreShiftId, 0.75}},
-            .endpointB = {{kCoreDepthId, 1.0},
-                          {kCoreBodyId, 0.5},
-                          {kCoreEdgeId, 0.6},
-                          {kCoreExcitationMixId, 1.0},
-                          {kFoldAmountId, 0.2},
-                          {kFoldShapeId, 0.0},
-                          {kCharacterId, 0.6},
-                          {kCharacterAmountId, 0.6},
-                          {kCharacterToneId, 0.7},
+            // Designed-library pass (2026-10-26): B warms the chords: Tube 0.6 over an Octave Down Anchor, no fold,
+            // SPREAD.
+            .endpointB = {{kCoreDepthId, 0.8},            // depth 0.8
+                          {kCoreBodyId, 0.3},             // body 0.3
+                          {kCoreEdgeId, 0.3},             // edge 0.3
+                          {kCoreExcitationMixId, 0.3},    // excitation mix 0.3
+                          {kFoldAmountId, 0.0},           // Harmonic Fold 0
+                          {kFoldShapeId, 0.0},            // SHAPE 0
+                          {kCharacterId, 0.0},            // Tube
+                          {kCharacterAmountId, 0.6},      // Amount 0.6
+                          {kCharacterToneId, 0.35},       // Tone 0.35
                           {kAmpAttackId, 0.260206},
                           {kAmpDecayId, 0.720412},
                           {kAmpSustainId, 0.8},
                           {kAmpReleaseId, 0.695424},
-                          {kFieldImageModeId, 1.0},
-                          {kFieldSpreadId, 0.8},
-                          {kMassId, 0.55},
-                          {kAnchorWaveformId, 0.0},
+                          {kFieldImageModeId, 0.5},       // SPREAD
+                          {kFieldSpreadId, 0.5},          // spread 0.5
+                          {kMassId, 0.6},                 // Mass 60
+                          {kAnchorWaveformId, 1.0},       // OctaveDownSine
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.8},
                           {kAnchorFoldFeedId, 0.0},
                           {kCoreExcitationDriveId, 1.0},
-                          {kCoreShiftId, 0.75}},
-            .controls = {{kMorphPositionId, 0.0},   // p = 0
-                         {kVoiceModeId, 1.0}},      // Poly (Polyphony 4, P-6)
+                          {kCoreShiftId, 0.5}},           // shift 0
+            // Phase 14 T023 (FR-046, plan 5.7 step 5): the winning M-ENV candidate of evidence/conversions.md (margin
+            // 31.839 dB, rule (ii)), its nine fields through the 1003-1011 laws (morph_mod_params.h).
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kVoiceModeId, 1.0},                           // Poly (Polyphony 4, P-6)
+                         {kMorphModSourceId, 0.25},                     // Source Envelope (1 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.0},                      // attack 0.1 ms
+                         {kMorphModDecayId, 0.75563024976044124},       // decay 600 ms
+                         {kMorphModSustainId, 1.0},                     // sustain 1
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
             .nameA = "Ignited Chord",
-            .nameB = "Ignited Chord Held",
+            .nameB = "Warm Ignited Chord",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -3495,15 +3945,18 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Poly Rectifier",
             .category = "Driven",
-            .description = "Character Rectify: full Rectify on a brighter body in SPREAD, rectified chords in Poly.",
+            .description = "Character Rectify: full Rectify on a brighter body over a Triangle Anchor, wide, rectified "
+                           "chords in Poly. Morph to B darkens them into mono chords under a lighter Rectify.",
             .primary = C::AT06,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-06 had 7.45 of margin; the chords gain a Triangle Anchor and a
+            // WIDE image (SHAPE 0.3 read AT-06 at -0.21).
             .endpointA = {{kCoreDepthId, 0.6},
                           {kCoreBodyId, 0.4},
                           {kCoreEdgeId, 0.4},
                           {kCoreExcitationMixId, 0.0},
                           {kFoldAmountId, 0.0},
-                          {kFoldShapeId, 0.0},
+                          {kFoldShapeId, 0.0},          // SHAPE 0
                           {kCharacterId, 0.4},
                           {kCharacterAmountId, 1.0},
                           {kCharacterToneId, 0.6},
@@ -3511,37 +3964,39 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
                           {kAmpDecayId, 0.695424},
                           {kAmpSustainId, 0.9},
                           {kAmpReleaseId, 0.679588},
-                          {kFieldImageModeId, 0.5},
-                          {kFieldSpreadId, 0.6},
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.6},        // spread 0.6
                           {kMassId, 0.55},
-                          {kAnchorWaveformId, 0.0},
+                          {kAnchorWaveformId, 0.25},    // Triangle
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.6},
                           {kAnchorFoldFeedId, 0.0}},
-            .endpointB = {{kCoreDepthId, 0.6},
-                          {kCoreBodyId, 0.4},
-                          {kCoreEdgeId, 0.4},
+            // Designed-library pass (2026-10-26): B darkens the chords under Rectify 0.6, mono, over an Asymmetric
+            // Anchor (Rectify on both: AT-06).
+            .endpointB = {{kCoreDepthId, 0.85},         // depth 0.85
+                          {kCoreBodyId, 0.2},           // body 0.2
+                          {kCoreEdgeId, 0.2},           // edge 0.2
                           {kCoreExcitationMixId, 0.0},
                           {kFoldAmountId, 0.0},
-                          {kFoldShapeId, 0.0},
-                          {kCharacterId, 0.4},
-                          {kCharacterAmountId, 1.0},
-                          {kCharacterToneId, 0.6},
+                          {kFoldShapeId, 0.0},          // SHAPE 0
+                          {kCharacterId, 0.4},          // Rectify
+                          {kCharacterAmountId, 0.6},    // Amount 0.6
+                          {kCharacterToneId, 0.4},      // Tone 0.4
                           {kAmpAttackId, 0.35563},
                           {kAmpDecayId, 0.695424},
-                          {kAmpSustainId, 0.9},
+                          {kAmpSustainId, 0.5},         // sustain 0.5
                           {kAmpReleaseId, 0.679588},
-                          {kFieldImageModeId, 0.5},
-                          {kFieldSpreadId, 0.6},
-                          {kMassId, 0.55},
-                          {kAnchorWaveformId, 0.0},
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kFieldSpreadId, 0.0},        // spread 0
+                          {kMassId, 0.65},              // Mass 65
+                          {kAnchorWaveformId, 0.75},    // AsymmetricSine
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.6},
                           {kAnchorFoldFeedId, 0.0}},
             .controls = {{kMorphPositionId, 0.0},   // p = 0
                          {kVoiceModeId, 1.0}},      // Poly (Polyphony 4, P-6)
             .nameA = "Rectified Chord",
-            .nameB = "Rectified Chord Held",
+            .nameB = "Dark Rectified Chord",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },
@@ -3549,47 +4004,52 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
         ProfundumPresetDef{
             .name = "Poly Pluck",
             .category = "Plucked",
-            .description = "Envelope Amp Release: a short decay to a lower sustain with a long release, chords that ring out in Poly.",
+            .description = "Envelope Amp Release: a short decay to a lower sustain with a long release, folded chords "
+                           "over a Triangle Anchor that ring out wide in Poly. Morph to B bites them.",
             .primary = C::AT25,
             .secondaries = {},
+            // Designed-library pass (2026-10-26): AT-25 had 38 of margin; the chord pluck gains excitation, a fold, the
+            // Fold Character, a Triangle Anchor and a WIDE image. SHAPE stays 0: at 0.5 a load under a held MONO note
+            // read the FR-048 step ratio at 2.20 (bar 2); at 0 it reads 1.17.
             .endpointA = {{kCoreDepthId, 0.75},
                           {kCoreBodyId, 0.5},
                           {kCoreEdgeId, 0.5},
-                          {kCoreExcitationMixId, 0.0},
-                          {kFoldAmountId, 0.0},
-                          {kFoldShapeId, 0.0},
-                          {kCharacterId, 0.0},
-                          {kCharacterAmountId, 0.3},
-                          {kCharacterToneId, 0.5},
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.3},          // Harmonic Fold 30
+                          {kFoldShapeId, 0.0},           // SHAPE 0
+                          {kCharacterId, 0.2},           // Fold
+                          {kCharacterAmountId, 0.35},    // Amount 0.35
+                          {kCharacterToneId, 0.55},      // Tone 0.55
                           {kAmpAttackId, 0.4},
                           {kAmpDecayId, 0.65},
                           {kAmpSustainId, 0.6},
                           {kAmpReleaseId, 0.860206},
-                          {kFieldImageModeId, 0.5},
-                          {kFieldSpreadId, 0.5},
+                          {kFieldImageModeId, 1.0},      // WIDE
+                          {kFieldSpreadId, 0.5},         // spread 0.5
                           {kMassId, 0.55},
-                          {kAnchorWaveformId, 0.0},
+                          {kAnchorWaveformId, 0.25},     // Triangle
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.9},
                           {kAnchorFoldFeedId, 0.0},
                           {kCoreShiftId, 0.65}},
-            .endpointB = {{kCoreDepthId, 0.75},
-                          {kCoreBodyId, 0.5},
-                          {kCoreEdgeId, 0.5},
-                          {kCoreExcitationMixId, 0.0},
-                          {kFoldAmountId, 0.0},
-                          {kFoldShapeId, 0.0},
-                          {kCharacterId, 0.0},
-                          {kCharacterAmountId, 0.3},
-                          {kCharacterToneId, 0.5},
+            // Designed-library pass (2026-10-26): B bites: more edge, a BITE fold and Bite 0.45 with a shorter ring.
+            .endpointB = {{kCoreDepthId, 0.5},          // depth 0.5
+                          {kCoreBodyId, 0.3},           // body 0.3
+                          {kCoreEdgeId, 0.7},           // edge 0.7
+                          {kCoreExcitationMixId, 0.5},  // excitation mix 0.5
+                          {kFoldAmountId, 0.5},         // Harmonic Fold 50
+                          {kFoldShapeId, 0.85},         // SHAPE 0.85
+                          {kCharacterId, 0.6},          // Bite
+                          {kCharacterAmountId, 0.45},   // Amount 0.45
+                          {kCharacterToneId, 0.65},     // Tone 0.65
                           {kAmpAttackId, 0.4},
-                          {kAmpDecayId, 0.65},
-                          {kAmpSustainId, 0.6},
+                          {kAmpDecayId, 0.720412},      // 400 ms
+                          {kAmpSustainId, 0.5},         // sustain 0.5
                           {kAmpReleaseId, 0.860206},
-                          {kFieldImageModeId, 0.5},
-                          {kFieldSpreadId, 0.5},
-                          {kMassId, 0.55},
-                          {kAnchorWaveformId, 0.0},
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.7},        // spread 0.7
+                          {kMassId, 0.6},               // Mass 60
+                          {kAnchorWaveformId, 0.0},     // Sine
                           {kAnchorModeId, 0.0},
                           {kAnchorLevelId, 0.9},
                           {kAnchorFoldFeedId, 0.0},
@@ -3597,7 +4057,883 @@ inline constexpr std::array<std::string_view, 6> kCategories{"Sub", "Resonant", 
             .controls = {{kMorphPositionId, 0.0},   // p = 0
                          {kVoiceModeId, 1.0}},      // Poly (Polyphony 4, P-6)
             .nameA = "Plucked Chord",
-            .nameB = "Plucked Chord Held",
+            .nameB = "Bitten Chord",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        // ---- 59: M-CYCLE (Phase 14 T023, FR-046): added, no existing preset could carry M-CYCLE ----
+        // evidence/conversions.md NEW PRESET NEEDED: the probe's best row, base Fed Fold (definition 18), margin
+        // 42.832 dB.
+        ProfundumPresetDef{
+            .name = "Tidal Fold",
+            .category = "Animated",
+            .description = "Morph Mod Cycle: a slow, free-running Square Cycle (0.05 Hz, Amount 1) swings the whole sound "
+                           "between A and B, holding each for 10 s. A is a dark, round sub with a hollow body and a little Tube "
+                           "over a Rounded Anchor; B is the tide coming in: a bright, Rectify-edged fold, spread wide.",
+            .primary = C::MCycle,
+            .secondaries = {},
+            // Endpoints: designed for this preset (R9, user 2026-10-27; the probe measured the column on Fed Fold's); the
+            // nine Morph Mod fields are the probe row's candidate through the 1003-1011 laws (morph_mod_params.h).
+            .endpointA = {{kCoreDepthId, 0.8},                  // depth 0.8
+                          {kCoreBodyId, 0.6},                   // body 0.6
+                          {kCoreEdgeId, 0.1},                   // edge 0.1
+                          {kCoreShiftId, 0.35},                 // shift -0.3
+                          {kCoreExcitationMixId, 0.0},            // excitation mix 0
+                          {kFoldAmountId, 0.1},                   // Harmonic Fold 10
+                          {kFoldShapeId, 0.2},                  // SHAPE 0.2 (ROUND side)
+                          {kCharacterId, 0.0},                    // Tube
+                          {kCharacterAmountId, 0.3},            // Amount 0.3
+                          {kCharacterToneId, 0.4},              // Tone 0.4
+                          {kAmpAttackId, 0.260206},             // 2 ms
+                          {kAmpDecayId, 0.708814},              // 350 ms
+                          {kAmpSustainId, 0.45},                // sustain 0.45
+                          {kAmpReleaseId, 0.695424},            // 300 ms
+                          {kFieldImageModeId, 0.5},             // SPREAD
+                          {kFieldSpreadId, 0.4},                // spread 0.4
+                          {kMassId, 0.6},                       // Mass 60
+                          {kAnchorWaveformId, 0.5},             // Rounded Sine
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 0.8},                // level 0.8
+                          {kAnchorFoldFeedId, 0.0}},              // Anchor Fold Feed 0
+            .endpointB = {{kCoreDepthId, 0.3},                  // depth 0.3
+                          {kCoreBodyId, 0.5},                   // body 0.5
+                          {kCoreEdgeId, 0.8},                   // edge 0.8
+                          {kCoreShiftId, 0.65},                 // shift +0.3
+                          {kCoreExcitationMixId, 0.5},          // excitation mix 0.5
+                          {kFoldAmountId, 0.8},                 // Harmonic Fold 80
+                          {kFoldShapeId, 0.6},                  // SHAPE 0.6
+                          {kCharacterId, 0.4},                  // Rectify
+                          {kCharacterAmountId, 0.6},            // Amount 0.6
+                          {kCharacterToneId, 0.6},              // Tone 0.6
+                          {kAmpAttackId, 0.260206},             // 2 ms
+                          {kAmpDecayId, 0.708814},              // 350 ms
+                          {kAmpSustainId, 1.0},                 // sustain 1
+                          {kAmpReleaseId, 0.695424},            // 300 ms
+                          {kFieldImageModeId, 0.5},               // SPREAD
+                          {kFieldSpreadId, 0.8},                // spread 0.8
+                          {kMassId, 0.8},                       // Mass 80
+                          {kAnchorWaveformId, 0.25},            // Triangle
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 1.0},                // level 1
+                          {kAnchorFoldFeedId, 0.0}},              // Anchor Fold Feed 0
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kMorphModSourceId, 0.5},                      // Source Cycle (2 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.39999999922342100},      // attack 10 ms (default)
+                         {kMorphModDecayId, 0.69542425054972046},       // decay 300 ms (default)
+                         {kMorphModSustainId, 0.0},                     // sustain 0 (default)
+                         {kMorphModCycleShapeId, 0.6},                  // Cycle Shape Square (3 / 5)
+                         {kMorphModCycleRateId, 0.21174300729694398},   // Cycle Rate 0.05 Hz
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
+            .nameA = "Low Tide",
+            .nameB = "High Tide",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+            .morphModProbeBase = "Fed Fold",
+        },
+        // ---- 60: M-VEL (Phase 14 T023, FR-046): added, no existing preset could carry M-VEL ----
+        // evidence/conversions.md NEW PRESET NEEDED: the probe's best row, base Fed Fold (definition 18), margin
+        // 41.765 dB.
+        ProfundumPresetDef{
+            .name = "Struck Fold",
+            .category = "Driven",
+            .description = "Morph Mod Velocity: how hard each note is struck sets how far it morphs from A toward B (Amount 1; "
+                           "velocity 127 reaches B). A is a warm, lightly folded Tube bass over a lopsided Anchor; struck hard "
+                           "it cracks into B, a Fracture-split fold with a 7 semitone snap, wide.",
+            .primary = C::MVel,
+            .secondaries = {},
+            // Endpoints: designed for this preset (R9, user 2026-10-27; the probe measured the column on Fed Fold's); the
+            // nine Morph Mod fields are the probe row's candidate through the 1003-1011 laws (morph_mod_params.h).
+            .endpointA = {{kCoreDepthId, 0.7},                  // depth 0.7
+                          {kCoreBodyId, 0.5},                   // body 0.5
+                          {kCoreEdgeId, 0.3},                   // edge 0.3
+                          {kCoreExcitationMixId, 0.0},            // excitation mix 0
+                          {kFoldAmountId, 0.15},                // Harmonic Fold 15
+                          {kFoldShapeId, 0.3},                  // SHAPE 0.3
+                          {kCharacterId, 0.0},                    // Tube
+                          {kCharacterAmountId, 0.5},            // Amount 0.5
+                          {kCharacterToneId, 0.5},              // Tone 0.5
+                          {kAmpAttackId, 0.260206},             // 2 ms
+                          {kAmpDecayId, 0.708814},              // 350 ms
+                          {kAmpSustainId, 0.65},                // sustain 0.65
+                          {kAmpReleaseId, 0.695424},            // 300 ms
+                          {kFieldImageModeId, 0.5},             // SPREAD
+                          {kFieldSpreadId, 0.3},                // spread 0.3
+                          {kMassId, 0.55},                      // Mass 55
+                          {kAnchorWaveformId, 0.75},            // Asymmetric Sine
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 0.8},                // level 0.8
+                          {kAnchorFoldFeedId, 0.0},               // Anchor Fold Feed 0
+                          {kDropAmountId, 0.0}},                  // drop 0 st
+            .endpointB = {{kCoreDepthId, 0.4},                  // depth 0.4
+                          {kCoreBodyId, 0.4},                   // body 0.4
+                          {kCoreEdgeId, 0.7},                   // edge 0.7
+                          {kCoreExcitationMixId, 0.6},          // excitation mix 0.6
+                          {kFoldAmountId, 0.9},                 // Harmonic Fold 90
+                          {kFoldShapeId, 0.8},                  // SHAPE 0.8
+                          {kCharacterId, 1.0},                    // Fracture
+                          {kCharacterAmountId, 0.7},            // Amount 0.7
+                          {kCharacterToneId, 0.6},              // Tone 0.6
+                          {kAmpAttackId, 0.260206},             // 2 ms
+                          {kAmpDecayId, 0.708814},              // 350 ms
+                          {kAmpSustainId, 1.0},                 // sustain 1
+                          {kAmpReleaseId, 0.695424},            // 300 ms
+                          {kFieldImageModeId, 1.0},               // WIDE
+                          {kFieldSpreadId, 0.7},                // spread 0.7
+                          {kMassId, 0.7},                       // Mass 70
+                          {kAnchorWaveformId, 0.75},            // Asymmetric Sine
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 1.0},                // level 1
+                          {kAnchorFoldFeedId, 0.0},               // Anchor Fold Feed 0
+                          {kDropAmountId, 0.145833},            // drop 7 st
+                          {kDropTimeId, 0.410077}},             // drop time 30 ms
+            .controls = {{kMorphPositionId, 0.0},                       // p = 0
+                         {kMorphModSourceId, 0.75},                     // Source Velocity (3 / 4)
+                         {kMorphModAmountId, 1.0},                      // Amount +1
+                         {kMorphModAttackId, 0.39999999922342100},      // attack 10 ms (default)
+                         {kMorphModDecayId, 0.69542425054972046},       // decay 300 ms (default)
+                         {kMorphModSustainId, 0.0},                     // sustain 0 (default)
+                         {kMorphModCycleShapeId, 0.0},                  // Cycle Shape Sine (default)
+                         {kMorphModCycleRateId, 0.60587150266824885},   // Cycle Rate 1 Hz (default)
+                         {kMorphModCycleSyncId, 0.0},                   // Sync Off (default)
+                         {kMorphModCycleSyncRateId, 13.0 / 29.0}},      // Sync Rate 1/4 (index 13, default)
+            .nameA = "Soft Strike",
+            .nameB = "Hard Strike",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+            .morphModProbeBase = "Fed Fold",
+        },
+        // ==== Phase 14b: the Kicks category (definitions 61-71) ====
+        // Every kick stores sustain 0 with the amp decay ending before 1 s, so the descriptor window is
+        // [t90, t90 + 2^16) (preset_render_support.h describePreset); Morph Modulation Source Off.
+        ProfundumPresetDef{
+            .name = "Eight Oh Boom",
+            .category = "Kicks",
+            .description = "Pitch Drop Amount: a 36 st drop over 60 ms into a long, round sine boom with a little "
+                           "Tube warmth, the classic tuned 808. Morph to B drives it into a folded, saturated boom.",
+            .primary = C::AT19,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.95},          // depth 0.95
+                          {kCoreBodyId, 0.2},            // body 0.2
+                          {kCoreEdgeId, 0.1},            // edge 0.1
+                          {kCoreExcitationMixId, 0.15},  // excitation mix 0.15
+                          {kFoldAmountId, 0.15},         // Harmonic Fold 15
+                          {kFoldShapeId, 0.2},           // SHAPE 0.2
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.25},    // Amount 0.25
+                          {kCharacterToneId, 0.4},       // Tone 0.4
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.755630},       // 600 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.6},                // Mass 60
+                          {kAnchorWaveformId, 0.0},      // Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.75},         // drop 36 st
+                          {kDropTimeId, 0.493648},       // drop time 60 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.75},          // depth 0.75
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.45},           // edge 0.45
+                          {kCoreExcitationMixId, 0.4},   // excitation mix 0.4
+                          {kFoldAmountId, 0.5},          // Harmonic Fold 50
+                          {kFoldShapeId, 0.6},           // SHAPE 0.6
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.75},    // Amount 0.75
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.780618},       // 800 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.3},         // spread 0.3
+                          {kMassId, 0.75},               // Mass 75
+                          {kAnchorWaveformId, 0.5},      // Rounded Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.555238},       // drop time 100 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Clean Boom",
+            .nameB = "Driven Boom",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Punch Kick",
+            .category = "Kicks",
+            .description = "Anchor Lock to Punch: the Anchor in PUNCH, a 9 dB boost over 40 ms, under a short "
+                           "Bite-edged kick with a 24 st drop and a +6 dB transient. Morph to B crushes it into a "
+                           "dry, spread snap.",
+            .primary = C::AT11,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.8},                  // depth 0.8
+                          {kCoreBodyId, 0.35},                  // body 0.35
+                          {kCoreEdgeId, 0.3},                   // edge 0.3
+                          {kCoreExcitationMixId, 0.2},          // excitation mix 0.2
+                          {kFoldAmountId, 0.25},                // Harmonic Fold 25
+                          {kFoldShapeId, 0.5},                  // SHAPE 0.5
+                          {kCharacterId, 0.6},                  // Bite
+                          {kCharacterAmountId, 0.3},            // Amount 0.3
+                          {kCharacterToneId, 0.6},              // Tone 0.6
+                          {kAmpAttackId, 0.2},                  // 1 ms
+                          {kAmpDecayId, 0.775012},              // 750 ms
+                          {kAmpSustainId, 0.0},                 // sustain 0
+                          {kAmpReleaseId, 0.615836},            // 120 ms
+                          {kFieldImageModeId, 0.5},             // SPREAD
+                          {kFieldSpreadId, 0.2},                // spread 0.2
+                          {kMassId, 0.55},                      // Mass 55
+                          {kAnchorWaveformId, 0.5},             // Rounded Sine
+                          {kAnchorModeId, 2.0 / 3.0},           // PUNCH
+                          {kAnchorLevelId, 1.0},                // level 1
+                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
+                          {kAnchorPunchBoostId, 0.75},          // punch boost 9 dB
+                          {kAnchorPunchTimeId, 0.531551},       // punch time 40 ms
+                          {kDropAmountId, 0.5},                 // drop 24 st
+                          {kDropTimeId, 0.444762},              // drop time 40 ms
+                          {kDynamicsTransientAttackId, 0.75}},  // transient attack +6 dB
+            .endpointB = {{kCoreDepthId, 0.7},                  // depth 0.7
+                          {kCoreBodyId, 0.45},                  // body 0.45
+                          {kCoreEdgeId, 0.65},                  // edge 0.65
+                          {kCoreExcitationMixId, 0.35},         // excitation mix 0.35
+                          {kFoldAmountId, 0.35},                // Harmonic Fold 35
+                          {kFoldShapeId, 0.8},                  // SHAPE 0.8
+                          {kCharacterId, 0.8},                  // Crush
+                          {kCharacterAmountId, 0.55},           // Amount 0.55
+                          {kCharacterToneId, 0.7},              // Tone 0.7
+                          {kAmpAttackId, 0.2},                  // 1 ms
+                          {kAmpDecayId, 0.795545},              // 950 ms
+                          {kAmpSustainId, 0.0},                 // sustain 0
+                          {kAmpReleaseId, 0.615836},            // 120 ms
+                          {kFieldImageModeId, 0.5},             // SPREAD
+                          {kFieldSpreadId, 0.4},                // spread 0.4
+                          {kMassId, 0.85},                      // Mass 85
+                          {kAnchorWaveformId, 0.25},            // Triangle
+                          {kAnchorModeId, 2.0 / 3.0},           // PUNCH
+                          {kAnchorLevelId, 1.0},                // level 1
+                          {kAnchorFoldFeedId, 0.0},             // Anchor Fold Feed 0
+                          {kAnchorPunchBoostId, 0.75},          // punch boost 9 dB
+                          {kAnchorPunchTimeId, 0.458014},       // punch time 30 ms
+                          {kDropAmountId, 0.333333},            // drop 16 st
+                          {kDropTimeId, 0.410077},              // drop time 30 ms
+                          {kDynamicsTransientAttackId, 0.875}}, // transient attack +9 dB
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Punched",
+            .nameB = "Crushed Snap",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Folded Kick",
+            .category = "Kicks",
+            .description = "Character Wavefold: the Fold algorithm at full Amount folds a 30 st drop into a buzzing, "
+                           "distorted kick over a Triangle Anchor. Morph to B adds Harmonic Fold 90 and Mass 85 for "
+                           "a heavier fold.",
+            .primary = C::AT05,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.6},           // depth 0.6
+                          {kCoreBodyId, 0.3},            // body 0.3
+                          {kCoreEdgeId, 0.4},            // edge 0.4
+                          {kCoreExcitationMixId, 0.0},   // excitation mix 0
+                          {kFoldAmountId, 0.0},          // Harmonic Fold 0
+                          {kFoldShapeId, 0.0},           // SHAPE 0
+                          {kCharacterId, 0.2},           // Fold
+                          {kCharacterAmountId, 1.0},     // Amount 1
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.769020},       // 700 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.5},                // Mass 50
+                          {kAnchorWaveformId, 0.25},     // Triangle
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 0.6},         // level 0.6
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.625},        // drop 30 st
+                          {kDropTimeId, 0.471666},       // drop time 50 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.75},          // depth 0.75
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.65},           // edge 0.65
+                          {kCoreExcitationMixId, 0.5},   // excitation mix 0.5
+                          {kFoldAmountId, 0.9},          // Harmonic Fold 90
+                          {kFoldShapeId, 0.9},           // SHAPE 0.9
+                          {kCharacterId, 0.2},           // Fold
+                          {kCharacterAmountId, 0.75},    // Amount 0.75
+                          {kCharacterToneId, 0.75},      // Tone 0.75
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.4},         // spread 0.4
+                          {kMassId, 0.85},               // Mass 85
+                          {kAnchorWaveformId, 0.75},     // Asymmetric Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.471666},       // drop time 50 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Folded",
+            .nameB = "Heavy Fold",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Sub Boom",
+            .category = "Kicks",
+            .description = "Pitch Drop Time: a 24 st drop stretched over 250 ms into a long sub boom over an Octave "
+                           "Down Anchor, warm and mono. Morph to B snaps the drop short and rectifies the tail.",
+            .primary = C::AT20,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.95},          // depth 0.95
+                          {kCoreBodyId, 0.25},           // body 0.25
+                          {kCoreEdgeId, 0.1},            // edge 0.1
+                          {kCoreExcitationMixId, 0.1},   // excitation mix 0.1
+                          {kFoldAmountId, 0.1},          // Harmonic Fold 10
+                          {kFoldShapeId, 0.2},           // SHAPE 0.2
+                          {kCharacterId, 0.0},           // Tube
+                          {kCharacterAmountId, 0.2},     // Amount 0.2
+                          {kCharacterToneId, 0.35},      // Tone 0.35
+                          {kAmpAttackId, 0.260206},      // 2 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.660206},     // 200 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.7},                // Mass 70
+                          {kAnchorWaveformId, 1.0},      // Octave Down Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.665714},       // drop time 250 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.75},          // depth 0.75
+                          {kCoreBodyId, 0.45},           // body 0.45
+                          {kCoreEdgeId, 0.35},           // edge 0.35
+                          {kCoreExcitationMixId, 0.3},   // excitation mix 0.3
+                          {kFoldAmountId, 0.35},         // Harmonic Fold 35
+                          {kFoldShapeId, 0.5},           // SHAPE 0.5
+                          {kCharacterId, 0.4},           // Rectify
+                          {kCharacterAmountId, 0.55},    // Amount 0.55
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.260206},      // 2 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.660206},     // 200 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.4},         // spread 0.4
+                          {kMassId, 0.7},                // Mass 70
+                          {kAnchorWaveformId, 0.75},     // Asymmetric Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.444762},       // drop time 40 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Long Boom",
+            .nameB = "Rectified Boom",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Techno Kick",
+            .category = "Kicks",
+            .description = "Mass Transient Attack: a +9 dB attack with the sustain pulled down 3 dB, a tight Bite "
+                           "kick with a fast 24 st drop. Morph to B rounds it into a Tube thump.",
+            .primary = C::AT28,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.75},                   // depth 0.75
+                          {kCoreBodyId, 0.4},                     // body 0.4
+                          {kCoreEdgeId, 0.4},                     // edge 0.4
+                          {kCoreExcitationMixId, 0.25},           // excitation mix 0.25
+                          {kFoldAmountId, 0.3},                   // Harmonic Fold 30
+                          {kFoldShapeId, 0.7},                    // SHAPE 0.7
+                          {kCharacterId, 0.6},                    // Bite
+                          {kCharacterAmountId, 0.4},              // Amount 0.4
+                          {kCharacterToneId, 0.55},               // Tone 0.55
+                          {kAmpAttackId, 0.2},                    // 1 ms
+                          {kAmpDecayId, 0.790849},                // 900 ms
+                          {kAmpSustainId, 0.0},                   // sustain 0
+                          {kAmpReleaseId, 0.615836},              // 120 ms
+                          {kFieldImageModeId, 0.5},               // SPREAD
+                          {kFieldSpreadId, 0.3},                  // spread 0.3
+                          {kMassId, 0.75},                        // Mass 75
+                          {kAnchorWaveformId, 0.25},              // Triangle
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 1.0},                  // level 1
+                          {kAnchorFoldFeedId, 0.0},               // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},                   // drop 24 st
+                          {kDropTimeId, 0.410077},                // drop time 30 ms
+                          {kDynamicsTransientAttackId, 0.875},    // transient attack +9 dB
+                          {kDynamicsTransientSustainId, 0.375}},  // transient sustain -3 dB
+            .endpointB = {{kCoreDepthId, 0.95},                   // depth 0.95
+                          {kCoreBodyId, 0.2},                     // body 0.2
+                          {kCoreEdgeId, 0.15},                    // edge 0.15
+                          {kCoreExcitationMixId, 0.15},           // excitation mix 0.15
+                          {kFoldAmountId, 0.2},                   // Harmonic Fold 20
+                          {kFoldShapeId, 0.3},                    // SHAPE 0.3
+                          {kCharacterId, 0.0},                    // Tube
+                          {kCharacterAmountId, 0.7},              // Amount 0.7
+                          {kCharacterToneId, 0.4},                // Tone 0.4
+                          {kAmpAttackId, 0.260206},               // 2 ms
+                          {kAmpDecayId, 0.755630},                // 600 ms
+                          {kAmpSustainId, 0.0},                   // sustain 0
+                          {kAmpReleaseId, 0.635218},              // 150 ms
+                          {kFieldImageModeId, 0.0},               // SOLID
+                          {kFieldSpreadId, 0.0},                  // spread 0
+                          {kMassId, 0.65},                        // Mass 65
+                          {kAnchorWaveformId, 0.5},               // Rounded Sine
+                          {kAnchorModeId, 0.0},                   // LOCK
+                          {kAnchorLevelId, 1.0},                  // level 1
+                          {kAnchorFoldFeedId, 0.0},               // Anchor Fold Feed 0
+                          {kDropAmountId, 0.416667},              // drop 20 st
+                          {kDropTimeId, 0.555238},                // drop time 100 ms
+                          {kDynamicsTransientAttackId, 0.875},    // transient attack +9 dB
+                          {kDynamicsTransientSustainId, 0.5}},    // transient sustain 0 dB
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Tight",
+            .nameB = "Tube Thump",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Rebound Kick",
+            .category = "Kicks",
+            .description = "Pitch Drop Rebound: a 24 st drop with rebound 0.8 that dips under the note and springs "
+                           "back, a Fracture-grained kick over an Asymmetric Anchor. Morph to B bites it.",
+            .primary = C::AT22,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.8},           // depth 0.8
+                          {kCoreBodyId, 0.35},           // body 0.35
+                          {kCoreEdgeId, 0.25},           // edge 0.25
+                          {kCoreExcitationMixId, 0.2},   // excitation mix 0.2
+                          {kFoldAmountId, 0.2},          // Harmonic Fold 20
+                          {kFoldShapeId, 0.4},           // SHAPE 0.4
+                          {kCharacterId, 1.0},           // Fracture
+                          {kCharacterAmountId, 0.3},     // Amount 0.3
+                          {kCharacterToneId, 0.5},       // Tone 0.5
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.4},         // spread 0.4
+                          {kMassId, 0.6},                // Mass 60
+                          {kAnchorWaveformId, 0.75},     // Asymmetric Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.528334},       // drop time 80 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.8}},        // rebound 0.8
+            .endpointB = {{kCoreDepthId, 0.8},           // depth 0.8
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.6},            // edge 0.6
+                          {kCoreExcitationMixId, 0.4},   // excitation mix 0.4
+                          {kFoldAmountId, 0.45},         // Harmonic Fold 45
+                          {kFoldShapeId, 0.5},           // SHAPE 0.5
+                          {kCharacterId, 0.6},           // Bite
+                          {kCharacterAmountId, 0.4},     // Amount 0.4
+                          {kCharacterToneId, 0.7},       // Tone 0.7
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.5},         // spread 0.5
+                          {kMassId, 0.9},                // Mass 90
+                          {kAnchorWaveformId, 0.5},      // Rounded Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.528334},       // drop time 80 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.4}},        // rebound 0.4
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Spring",
+            .nameB = "Bitten Spring",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Gabber Kick",
+            .category = "Kicks",
+            .description = "Character Rectify: a hard-rectified kick at Mass 85 with a 28 st drop, the distorted "
+                           "hardcore hit, wide on top. Morph to B rectifies it softer and darker, mono.",
+            .primary = C::AT06,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.7},           // depth 0.7
+                          {kCoreBodyId, 0.5},            // body 0.5
+                          {kCoreEdgeId, 0.5},            // edge 0.5
+                          {kCoreExcitationMixId, 0.25},  // excitation mix 0.25
+                          {kFoldAmountId, 0.3},          // Harmonic Fold 30
+                          {kFoldShapeId, 0.8},           // SHAPE 0.8
+                          {kCharacterId, 0.4},           // Rectify
+                          {kCharacterAmountId, 0.9},     // Amount 0.9
+                          {kCharacterToneId, 0.6},       // Tone 0.6
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.785884},       // 850 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 1.0},      // WIDE
+                          {kFieldSpreadId, 0.5},         // spread 0.5
+                          {kMassId, 0.85},               // Mass 85
+                          {kAnchorWaveformId, 0.5},      // Rounded Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.583333},     // drop 28 st
+                          {kDropTimeId, 0.471666},       // drop time 50 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.9},           // depth 0.9
+                          {kCoreBodyId, 0.2},            // body 0.2
+                          {kCoreEdgeId, 0.2},            // edge 0.2
+                          {kCoreExcitationMixId, 0.3},   // excitation mix 0.3
+                          {kFoldAmountId, 0.1},          // Harmonic Fold 10
+                          {kFoldShapeId, 0.5},           // SHAPE 0.5
+                          {kCharacterId, 0.4},           // Rectify
+                          {kCharacterAmountId, 0.4},     // Amount 0.4
+                          {kCharacterToneId, 0.2},       // Tone 0.2
+                          {kAmpAttackId, 0.2},           // 1 ms
+                          {kAmpDecayId, 0.730643},       // 450 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.65},               // Mass 65
+                          {kAnchorWaveformId, 0.25},     // Triangle
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.5},          // drop 24 st
+                          {kDropTimeId, 0.444762},       // drop time 40 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Rectified Hit",
+            .nameB = "Dark Rectifier",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Lo-Fi Kick",
+            .category = "Kicks",
+            .description = "Character Crush: a soft, dusty kick through the Crush algorithm with a gentle 20 st drop "
+                           "and a dark tone. Morph to B crushes it harder and brighter.",
+            .primary = C::AT08,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.8},           // depth 0.8
+                          {kCoreBodyId, 0.4},            // body 0.4
+                          {kCoreEdgeId, 0.2},            // edge 0.2
+                          {kCoreExcitationMixId, 0.15},  // excitation mix 0.15
+                          {kFoldAmountId, 0.15},         // Harmonic Fold 15
+                          {kFoldShapeId, 0.3},           // SHAPE 0.3
+                          {kCharacterId, 0.8},           // Crush
+                          {kCharacterAmountId, 0.55},    // Amount 0.55
+                          {kCharacterToneId, 0.35},      // Tone 0.35
+                          {kAmpAttackId, 0.295424},      // 3 ms
+                          {kAmpDecayId, 0.762583},       // 650 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.0},      // SOLID
+                          {kFieldSpreadId, 0.0},         // spread 0
+                          {kMassId, 0.5},                // Mass 50
+                          {kAnchorWaveformId, 0.0},      // Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.416667},     // drop 20 st
+                          {kDropTimeId, 0.512234},       // drop time 70 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .endpointB = {{kCoreDepthId, 0.85},          // depth 0.85
+                          {kCoreBodyId, 0.3},            // body 0.3
+                          {kCoreEdgeId, 0.55},           // edge 0.55
+                          {kCoreExcitationMixId, 0.3},   // excitation mix 0.3
+                          {kFoldAmountId, 0.4},          // Harmonic Fold 40
+                          {kFoldShapeId, 0.8},           // SHAPE 0.8
+                          {kCharacterId, 0.8},           // Crush
+                          {kCharacterAmountId, 0.7},     // Amount 0.7
+                          {kCharacterToneId, 0.7},       // Tone 0.7
+                          {kAmpAttackId, 0.295424},      // 3 ms
+                          {kAmpDecayId, 0.790849},       // 900 ms
+                          {kAmpSustainId, 0.0},          // sustain 0
+                          {kAmpReleaseId, 0.635218},     // 150 ms
+                          {kFieldImageModeId, 0.5},      // SPREAD
+                          {kFieldSpreadId, 0.4},         // spread 0.4
+                          {kMassId, 0.85},               // Mass 85
+                          {kAnchorWaveformId, 0.75},     // Asymmetric Sine
+                          {kAnchorModeId, 0.0},          // LOCK
+                          {kAnchorLevelId, 1.0},         // level 1
+                          {kAnchorFoldFeedId, 0.0},      // Anchor Fold Feed 0
+                          {kDropAmountId, 0.583333},     // drop 28 st
+                          {kDropTimeId, 0.444762},       // drop time 40 ms
+                          {kDropShapeId, 0.0},           // drop shape 0
+                          {kDropReboundId, 0.0}},        // rebound 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Dusty",
+            .nameB = "Crunched",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        // ---- Phase 14b, definitions 69-71: the three test kicks the user picked (user, 2026-10-27). Endpoint A is
+        // the test render's patch exactly (registered defaults plus the listed IDs); B is a designed second sound. ----
+        ProfundumPresetDef{
+            .name = "Deep 808",
+            .category = "Kicks",
+            .description = "Pitch Drop Amount: a 40 st drop over 60 ms into a pure sine boom with a 500 ms decay, "
+                           "the deep, clean 808. Morph to B warms it with Tube and fold over a Rounded Anchor.",
+            .primary = C::AT19,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 1.0},          // depth 1
+                          {kCoreBodyId, 0.0},           // body 0
+                          {kCoreEdgeId, 0.0},           // edge 0
+                          {kAmpAttackId, 0.0},          // 0.1 ms
+                          {kAmpDecayId, 0.739794},      // 500 ms
+                          {kAmpSustainId, 0.0},         // sustain 0
+                          {kAmpReleaseId, 0.580618},    // 80 ms
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kMassId, 0.3},               // Mass 30
+                          {kDropAmountId, 0.833333},    // drop 40 st
+                          {kDropTimeId, 0.493648},      // drop time 60 ms
+                          {kDropShapeId, 0.0}},         // drop shape 0
+            .endpointB = {{kCoreDepthId, 0.6},          // depth 0.6
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.45},          // edge 0.45
+                          {kFoldAmountId, 0.5},         // Harmonic Fold 50
+                          {kFoldShapeId, 0.6},          // SHAPE 0.6
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.7},    // Amount 0.7
+                          {kCharacterToneId, 0.6},      // Tone 0.6
+                          {kAmpAttackId, 0.0},          // 0.1 ms
+                          {kAmpDecayId, 0.780618},      // 800 ms
+                          {kAmpSustainId, 0.0},         // sustain 0
+                          {kAmpReleaseId, 0.580618},    // 80 ms
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.3},        // spread 0.3
+                          {kMassId, 0.7},               // Mass 70
+                          {kAnchorWaveformId, 0.5},     // Rounded Sine
+                          {kDropAmountId, 0.5},         // drop 24 st
+                          {kDropTimeId, 0.577220},      // drop time 120 ms
+                          {kDropShapeId, 0.0}},         // drop shape 0
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Deep Boom",
+            .nameB = "Warm Boom",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Club Kick",
+            .category = "Kicks",
+            .description = "Anchor Lock to Punch: the Anchor in PUNCH with a 12 dB boost under a short sine kick, a "
+                           "48 st drop over 25 ms, a +6 dB transient and the body lifted 9 dB, the tight club kick. "
+                           "Morph to B bites it, wide.",
+            .primary = C::AT11,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 1.0},                  // depth 1
+                          {kCoreBodyId, 0.0},                   // body 0
+                          {kCoreEdgeId, 0.0},                   // edge 0
+                          {kAmpAttackId, 0.0},                  // 0.1 ms
+                          {kAmpDecayId, 0.668485},              // 220 ms
+                          {kAmpSustainId, 0.0},                 // sustain 0
+                          {kAmpReleaseId, 0.580618},            // 80 ms
+                          {kFieldImageModeId, 0.0},             // SOLID
+                          {kMassId, 0.6},                       // Mass 60
+                          {kAnchorModeId, 2.0 / 3.0},           // PUNCH
+                          {kDropAmountId, 1.0},                 // drop 48 st
+                          {kDropTimeId, 0.388095},              // drop time 25 ms
+                          {kDropShapeId, 0.0},                  // drop shape 0
+                          {kDynamicsTransientAttackId, 0.75},   // transient attack +6 dB
+                          {kAnchorPunchBoostId, 1.0},           // punch boost 12 dB
+                          {kDynamicsTransientSustainId, 0.875}}, // transient sustain +9 dB
+            .endpointB = {{kCoreDepthId, 0.6},                  // depth 0.6
+                          {kCoreBodyId, 0.4},                   // body 0.4
+                          {kCoreEdgeId, 0.5},                   // edge 0.5
+                          {kFoldAmountId, 0.3},                 // Harmonic Fold 30
+                          {kFoldShapeId, 0.8},                  // SHAPE 0.8
+                          {kCharacterId, 0.6},                  // Bite
+                          {kCharacterAmountId, 0.5},            // Amount 0.5
+                          {kCharacterToneId, 0.7},              // Tone 0.7
+                          {kAmpAttackId, 0.0},                  // 0.1 ms
+                          {kAmpDecayId, 0.695424},              // 300 ms
+                          {kAmpSustainId, 0.0},                 // sustain 0
+                          {kAmpReleaseId, 0.580618},            // 80 ms
+                          {kFieldImageModeId, 1.0},             // WIDE
+                          {kFieldSpreadId, 0.4},                // spread 0.4
+                          {kMassId, 0.6},                       // Mass 60
+                          {kAnchorModeId, 2.0 / 3.0},           // PUNCH
+                          {kDropAmountId, 0.75},                // drop 36 st
+                          {kDropTimeId, 0.444762},              // drop time 40 ms
+                          {kDropShapeId, 0.0},                  // drop shape 0
+                          {kDynamicsTransientAttackId, 0.75},   // transient attack +6 dB
+                          {kAnchorPunchBoostId, 1.0},           // punch boost 12 dB
+                          {kDynamicsTransientSustainId, 0.875}}, // transient sustain +9 dB
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Club",
+            .nameB = "Bitten Club",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Hardstyle Kick",
+            .category = "Kicks",
+            .description = "Character Tube: Tube at 0.8 after Harmonic Fold 55 at Mass 70 drives a 36 st drop with "
+                           "a curved fall into a hard, distorted kick. Morph to B drives the Tube and fold harder.",
+            .primary = C::AT04,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 1.0},          // depth 1
+                          {kCoreBodyId, 0.0},           // body 0
+                          {kCoreEdgeId, 0.0},           // edge 0
+                          {kFoldAmountId, 0.55},        // Harmonic Fold 55
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.8},    // Amount 0.8
+                          {kAmpAttackId, 0.0},          // 0.1 ms
+                          {kAmpDecayId, 0.755630},      // 600 ms
+                          {kAmpSustainId, 0.0},         // sustain 0
+                          {kAmpReleaseId, 0.580618},    // 80 ms
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kMassId, 0.7},               // Mass 70
+                          {kDropAmountId, 0.75},        // drop 36 st
+                          {kDropTimeId, 0.542535},      // drop time 90 ms
+                          {kDropShapeId, 0.5}},         // drop shape 0.5
+            .endpointB = {{kCoreDepthId, 0.9},          // depth 0.9
+                          {kCoreBodyId, 0.3},           // body 0.3
+                          {kCoreEdgeId, 0.4},           // edge 0.4
+                          {kFoldAmountId, 0.8},         // Harmonic Fold 80
+                          {kFoldShapeId, 0.7},          // SHAPE 0.7
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 1.0},    // Amount 1
+                          {kCharacterToneId, 0.7},      // Tone 0.7
+                          {kAmpAttackId, 0.0},          // 0.1 ms
+                          {kAmpDecayId, 0.790849},      // 900 ms
+                          {kAmpSustainId, 0.0},         // sustain 0
+                          {kAmpReleaseId, 0.580618},    // 80 ms
+                          {kFieldImageModeId, 0.0},     // SOLID
+                          {kMassId, 0.85},              // Mass 85
+                          {kAnchorWaveformId, 0.25},    // Triangle
+                          {kDropAmountId, 1.0},         // drop 48 st
+                          {kDropTimeId, 0.493648},      // drop time 60 ms
+                          {kDropShapeId, 0.8}},         // drop shape 0.8
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Hard",
+            .nameB = "Harder",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        // ==== Phase 15: the Stiffness and Phase showcases (definitions 72-73) ====
+        ProfundumPresetDef{
+            .name = "Stiff Wire",
+            .category = "Harmonic",
+            .description = "Core Stiffness: the upper harmonics bend sharp of the series, as on a stiff steel string, for "
+                           "a metallic, bell-edged bass that grows stiffer up the keyboard. Morph to B bends them "
+                           "further and bites, wide.",
+            .primary = C::SStiff,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.4},          // depth 0.4
+                          {kCoreBodyId, 0.55},          // body 0.55
+                          {kCoreEdgeId, 0.65},          // edge 0.65
+                          {kCoreStiffnessId, 0.75},     // Stiffness 0.75
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.25},   // Amount 0.25
+                          {kCharacterToneId, 0.6},      // Tone 0.6
+                          {kAmpAttackId, 0.339794},     // 5 ms
+                          {kAmpDecayId, 0.720412},      // 400 ms
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.695424},    // 300 ms
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.35},       // spread 0.35
+                          {kMassId, 0.45},              // Mass 45
+                          {kAnchorLevelId, 0.7}},       // Sine, LOCK, level 0.7
+            .endpointB = {{kCoreDepthId, 0.3},          // depth 0.3
+                          {kCoreBodyId, 0.4},           // body 0.4
+                          {kCoreEdgeId, 0.85},          // edge 0.85
+                          {kCoreShiftId, 0.7},          // Spectral Shift +0.4
+                          {kCoreStiffnessId, 1.0},      // Stiffness 1
+                          {kFoldAmountId, 0.25},        // Harmonic Fold 25
+                          {kCharacterId, 0.6},          // Bite
+                          {kCharacterAmountId, 0.45},   // Amount 0.45
+                          {kCharacterToneId, 0.7},      // Tone 0.7
+                          {kAmpAttackId, 0.339794},     // 5 ms
+                          {kAmpDecayId, 0.720412},      // 400 ms
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.695424},    // 300 ms
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.6},        // spread 0.6
+                          {kMassId, 0.55},              // Mass 55
+                          {kAnchorWaveformId, 0.25},    // Triangle
+                          {kAnchorLevelId, 0.7}},       // level 0.7
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Stiff",
+            .nameB = "Steel",
+            .seed = kFactoryDefaultSeed,
+            .seedDependent = false,
+        },
+        ProfundumPresetDef{
+            .name = "Phase Bite",
+            .category = "Driven",
+            .description = "Core Phase 60: the upper harmonics turned against the fundamental make a peaky wave, so "
+                           "the Tube at 0.6 over Harmonic Fold 15 bites much harder than into the same spectrum "
+                           "smooth. Morph to B smooths the phase into a dark, wide Crush.",
+            .primary = C::SPhase,
+            .secondaries = {},
+            .endpointA = {{kCoreDepthId, 0.5},          // depth 0.5
+                          {kCoreBodyId, 0.5},           // body 0.5
+                          {kCoreEdgeId, 0.5},           // edge 0.5
+                          {kCorePhaseId, 0.6},          // Phase 0.6
+                          {kFoldAmountId, 0.15},        // Harmonic Fold 15
+                          {kCharacterId, 0.0},          // Tube
+                          {kCharacterAmountId, 0.6},    // Amount 0.6
+                          {kCharacterToneId, 0.5},      // Tone 0.5
+                          {kAmpAttackId, 0.260206},     // 2 ms
+                          {kAmpDecayId, 0.708814},      // 350 ms
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.695424},    // 300 ms
+                          {kFieldImageModeId, 0.5},     // SPREAD
+                          {kFieldSpreadId, 0.3},        // spread 0.3
+                          {kMassId, 0.6},               // Mass 60
+                          {kAnchorLevelId, 0.8}},       // Sine, LOCK, level 0.8
+            .endpointB = {{kCoreDepthId, 0.75},         // depth 0.75
+                          {kCoreBodyId, 0.3},           // body 0.3
+                          {kCoreEdgeId, 0.25},          // edge 0.25
+                          {kFoldAmountId, 0.2},         // Harmonic Fold 20
+                          {kCharacterId, 0.8},          // Crush
+                          {kCharacterAmountId, 0.45},   // Amount 0.45
+                          {kCharacterToneId, 0.3},      // Tone 0.3
+                          {kAmpAttackId, 0.260206},     // 2 ms
+                          {kAmpDecayId, 0.708814},      // 350 ms
+                          {kAmpSustainId, 1.0},         // sustain 1
+                          {kAmpReleaseId, 0.695424},    // 300 ms
+                          {kFieldImageModeId, 1.0},     // WIDE
+                          {kFieldSpreadId, 0.7},        // spread 0.7
+                          {kMassId, 0.5},               // Mass 50
+                          {kAnchorWaveformId, 0.5},     // Rounded Sine
+                          {kAnchorLevelId, 0.45}},      // level 0.45
+            .controls = {{kMorphPositionId, 0.0}},  // p = 0
+            .nameA = "Peaky",
+            .nameB = "Crushed",
             .seed = kFactoryDefaultSeed,
             .seedDependent = false,
         },

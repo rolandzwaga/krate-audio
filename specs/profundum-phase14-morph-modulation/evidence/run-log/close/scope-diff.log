@@ -1,0 +1,21 @@
+=== git diff --name-only 3dfc5b7d -- dsp/include dsp/src plugins/shared tests/test_helpers dsp/tests (must stay inside the dsp/ fence)
+dsp/include/krate/dsp/systems/profundum_engine.h
+dsp/include/krate/dsp/systems/profundum_engine_observer.h
+dsp/tests/CMakeLists.txt
+dsp/tests/unit/processors/crossover_filter_test.cpp
+dsp/tests/unit/processors/karplus_strong_test.cpp
+dsp/tests/unit/processors/mono_handler_test.cpp
+dsp/tests/unit/processors/phaser_test.cpp
+dsp/tests/unit/processors/tube_stage_test.cpp
+dsp/tests/unit/processors/wavefolder_processor_test.cpp
+dsp/tests/unit/systems/profundum_engine_display_test.cpp
+dsp/tests/unit/systems/profundum_engine_perf_test.cpp
+dsp/tests/unit/systems/profundum_voice_engine_helpers_test.cpp
+dsp/tests/unit/systems/profundum_voice_engine_test_helpers.h
+dsp/tests/unit/systems/seraphis_engine_test.cpp
+dsp/tests/unit/systems/vowel_sequencer_tests.cpp
+=== git ls-files --others --exclude-standard -- dsp/include dsp/src plugins/shared tests/test_helpers dsp/tests (new files; must stay inside the dsp/ fence)
+dsp/include/krate/dsp/systems/profundum_morph_modulator.h
+dsp/tests/unit/systems/profundum_engine_morphmod_test.cpp
+dsp/tests/unit/systems/profundum_morph_mod_nonfinite_test.cpp
+dsp/tests/unit/systems/profundum_morph_modulator_test.cpp

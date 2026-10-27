@@ -1,0 +1,17 @@
+Filters: "Profundum_PresetMorphEndpoints_0of8"
+Randomness seeded to: 2357421675
+# Profundum_PresetMorphEndpoints_0of8: presets=8
+preset,d_ab,masked,level_a_e1,level_b_e1,level_a_c3,level_b_c3
+"Edge Ignition",17.5372,13,-8.4816,-8.99995,-8.15254,-10.4227
+"Fault Line",21.1467,5,-13.7333,-15.474,-12.2088,-13.8213
+"Under Octave",20.6227,7,-10.3044,-10.967,-8.89816,-11.1542
+"Long Tail",14.1355,12,-9.01285,-6.19225,-8.70942,-6.15344
+"Orbiting Field",15.6692,7,-9.54908,-10.5831,-9.3883,-9.30285
+"Morph Span",17.1399,13,-10.8825,-11.7351,-10.7235,-12.1286
+"Loose Ends",10.5306,16,-12.0515,-12.8081,-12.0157,-12.6668
+"Poly Rectifier",13.8774,11,-10.9549,-12.7977,-11.762,-12.4938
+324.807 s: Profundum_PresetMorphEndpoints_0of8
+===============================================================================
+All tests passed (3098308 assertions in 1 test case)
+
+exit: 0 wall: 325 s

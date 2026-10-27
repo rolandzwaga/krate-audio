@@ -197,9 +197,31 @@ void scnfRecoveryCell(const char* label, const std::vector<float>& in, const Con
     INFO("burst: L " << dBurst.L << " dB, Elow " << dBurst.Elow << " dB, Ehigh " << dBurst.Ehigh << " dB, C "
                      << dBurst.C << " oct; burst-free: L " << dRef.L << ", Elow " << dRef.Elow << ", Ehigh "
                      << dRef.Ehigh << ", C " << dRef.C);
+    // Profundum Phase 14 R12: an E_low / E_high delta counts only where that band holds at least kFloorCountDb of
+    // the frame's signal power (separate()'s floor, referred to the signal instead of the harmonic total). Fracture's
+    // integer-harmonic set lies >= 58 dB under its signal, below what the burst residue lets 0.1 dB resolve.
+    // The frame's power in w's units: w_n sums |X|^2 over five Hann main-lobe bins, so this sums |X|^2 over all bins.
+    std::vector<float> mags;
+    REQUIRE(TestUtils::lowFreq::magnitudeSpectrum(refL.data() + kScnfFrameStart, kScnfFrame, mags));
+    double framePower = 0.0;
+    for (const float m : mags)
+        framePower += static_cast<double>(m) * static_cast<double>(m);
+    REQUIRE(framePower > 0.0);
+    const auto bandReFrameDb = [&](std::size_t nLo, std::size_t nHi) {
+        double p = 0.0;
+        for (std::size_t n = nLo; n <= std::min(nHi, dRef.w.size()); ++n)
+            p += dRef.w[n - 1];
+        return 10.0 * std::log10(std::max(p, 1.0e-30) / framePower);
+    };
+    const double lowReFrame = bandReFrameDb(2, 8);
+    const double highReFrame = bandReFrameDb(9, dRef.w.size());
+    INFO("band power re frame: E_low " << lowReFrame << " dB, E_high " << highReFrame << " dB (counted above "
+                                       << Sct::kFloorCountDb << " dB)");
     CHECK(std::abs(dBurst.L - dRef.L) <= 0.1);
-    CHECK(std::abs(dBurst.Elow - dRef.Elow) <= 0.1);
-    CHECK(std::abs(dBurst.Ehigh - dRef.Ehigh) <= 0.1);
+    if (lowReFrame > Sct::kFloorCountDb)
+        CHECK(std::abs(dBurst.Elow - dRef.Elow) <= 0.1);
+    if (highReFrame > Sct::kFloorCountDb)
+        CHECK(std::abs(dBurst.Ehigh - dRef.Ehigh) <= 0.1);
     CHECK(std::abs(dBurst.C - dRef.C) <= 0.01);
 }
 

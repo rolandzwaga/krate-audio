@@ -10,10 +10,10 @@
 // No INoteExpressionController (Phase 10 FR-019). Phase 11 FR-050 (T021) adds
 // IMidiMapping: on bus 0, every channel, CC 1 -> Mod Wheel (6), CC 64 -> Sustain
 // Pedal (5), channel pressure -> Channel Pressure (7), pitch bend -> Pitch Bend (4).
-// Phase 11 T014: initialize registers all 84 parameters (FR-001); the
-// getParamStringByValue chain is global -> macro -> sound -> note (Portamento
-// suffix from the current Glide Mode, FR-007) -> morph control -> performance
-// -> base class.
+// Phase 11 T014: initialize registers all 84 parameters (FR-001; 93 since Phase 14
+// T012, which adds Morph Modulation 1003-1011); the getParamStringByValue chain
+// is global -> macro -> sound -> note (Portamento suffix from the current Glide
+// Mode, FR-007) -> morph control -> morph modulation -> performance -> base class.
 // Phase 11 T016 (plan 4.6; FR-021, FR-022, FR-024, FR-025 controller side): the
 // endpoint mirror is replaced only from the processor's kMsgEndpoint messages
 // (the processor is authoritative); an Edit Target switch re-displays the 60
@@ -72,6 +72,7 @@ class UpdateBannerView;   // plugins/shared/src/ui/update_banner_view.h; held by
 namespace Profundum {
 
 class OffsetRingKnob;  // ui/offset_ring_knob.h (Phase 12 P-5 ruling); held by pointer only
+class MorphIndicatorSlider;  // ui/morph_indicator_slider.h (Phase 14 FR-035); held by pointer only
 
 namespace UI {
 class HarmonicBarView;               // ui/harmonic_bar_view.h; held by pointer only
@@ -199,7 +200,7 @@ public:
     }
     void editorSyncTickForTest() { onEditorSyncTick(); }
     /// True when no raw view pointer is held (FR-091): bar views, SPREAD view, panel, editor, ADSRDisplay, ring knobs,
-    /// and (Phase 13) the preset browser overlay.
+    /// (Phase 13) the preset browser overlay and (Phase 14) the morph indicator slider.
     [[nodiscard]] bool viewPointersNullForTest() const noexcept;
     [[nodiscard]] UI::ProfundumPanelSubController* panelForTest() const noexcept { return panel_; }
     /// Phase 13 T013: the overlay, non-null only while an editor is open.
@@ -266,6 +267,13 @@ public:
         }
     }
 
+    /// Phase 14 FR-035 (plan 4.9): the Main-page Morph Position slider (the panel's verifyView, the registerRingKnob
+    /// route). Stores it, then shows the cached frame's resolved position if a frame arrived since the queue opened,
+    /// otherwise clears the marker (it falls back to the slider value). nullptr forgets it. UI thread only; never
+    /// edits the parameter.
+    void registerMorphIndicator(MorphIndicatorSlider* slider) noexcept;
+    [[nodiscard]] MorphIndicatorSlider* morphIndicatorForTest() const noexcept { return morphIndicator_; }
+
     /// Phase 12 FR-080 (plan 4.6.8; SC-014): rebuilds the SPREAD model from the displayed 800 - 805 (each through its
     /// row's law) on the never-prepared field_: setControls + reset, then w[i] = widthCurve(hz[i]) * m at the 64 points
     /// hz[i] = 20 * 500^(i / 63), m = 0 in Solid, else spread * (1 - kMotionExcursion * depth); the crossover, the
@@ -316,6 +324,8 @@ private:
     void setToRegisteredDefault(Steinberg::Vst::ParamID id);
     /// FR-047: both names back to "A" / "B" (a v1 or v2 load).
     void resetNamesToDefaults();
+    /// Phase 14 FR-024: 1003 - 1011 back to their registered defaults (a v1 or v2 load).
+    void resetMorphModToRegisteredDefaults();
     /// Plan 4.6.4: true for 100 - 103 and every registered ID in kMacroTargetParamIds (the ring refresh hook).
     [[nodiscard]] static bool isMacroRingTrigger(Steinberg::Vst::ParamID tag) noexcept;
     /// Plan 4.6.4: true for 800 - 805 (Image Mode, Spread, Gravity, Crossover, Curve, Field Motion Depth).
@@ -358,6 +368,9 @@ private:
     std::uint32_t queueOpenCount_ = 0;
     std::uint32_t queueCloseCount_ = 0;
     std::uint32_t lastBlockSize_ = 0;
+    // Phase 14 FR-035 (plan 4.9): a frame arrived since the last queueOpened (the indicator shows it; before one the
+    // marker falls back to the slider value). UI thread only.
+    bool frameSinceOpen_ = false;
     // Phase 12 FR-061 (P-5): the OffsetRingKnobs bound to each macro target, by ProfundumMacroTarget index; raw,
     // non-owning, non-null only while the editor is open (the view tree owns the knobs).
     static constexpr std::size_t kMaxRingKnobsPerTarget = 4;
@@ -376,6 +389,8 @@ private:
     std::array<UI::HarmonicBarView*, 2> barViews_{};  // [Main, Core] in creation order
     UI::SpreadCurveView* spreadView_ = nullptr;
     UI::ProfundumPanelSubController* panel_ = nullptr;
+    // Phase 14 FR-035: the Main-page Morph Position slider, registered by the panel's verifyView, nulled in willClose.
+    MorphIndicatorSlider* morphIndicator_ = nullptr;
     // Phase 13 FR-030: frame-owned, created in didOpen, nulled in willClose.
     Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;
     // Frame-owned, created by createCustomView("UpdateBanner"), nulled in willClose.

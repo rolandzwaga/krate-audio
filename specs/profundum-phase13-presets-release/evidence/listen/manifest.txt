@@ -2,128 +2,242 @@
 # file,preset,note,gesture
 "Harmonic/Edge Ignition_E1.wav","Edge Ignition",E1,none
 "Harmonic/Edge Ignition_C3.wav","Edge Ignition",C3,none
+"Harmonic/Edge Ignition_B_E1.wav","Edge Ignition",E1,endpoint B static
+"Harmonic/Edge Ignition_morph.wav","Edge Ignition",E1,morph 105 0->1 over 2 s
 "Harmonic/Biting Reed_E1.wav","Biting Reed",E1,none
 "Harmonic/Biting Reed_C3.wav","Biting Reed",C3,none
+"Harmonic/Biting Reed_B_E1.wav","Biting Reed",E1,endpoint B static
+"Harmonic/Biting Reed_morph.wav","Biting Reed",E1,morph 105 0->1 over 2 s
 "Driven/Folded Mass_E1.wav","Folded Mass",E1,none
 "Driven/Folded Mass_C3.wav","Folded Mass",C3,none
+"Driven/Folded Mass_B_E1.wav","Folded Mass",E1,endpoint B static
+"Driven/Folded Mass_morph.wav","Folded Mass",E1,morph 105 0->1 over 2 s
 "Driven/Valve Pressure_E1.wav","Valve Pressure",E1,none
 "Driven/Valve Pressure_C3.wav","Valve Pressure",C3,none
+"Driven/Valve Pressure_B_E1.wav","Valve Pressure",E1,endpoint B static
+"Driven/Valve Pressure_morph.wav","Valve Pressure",E1,morph 105 0->1 over 2 s
 "Driven/Folding Wire_E1.wav","Folding Wire",E1,none
 "Driven/Folding Wire_C3.wav","Folding Wire",C3,none
+"Driven/Folding Wire_B_E1.wav","Folding Wire",E1,endpoint B static
+"Driven/Folding Wire_morph.wav","Folding Wire",E1,morph 105 0->1 over 2 s
 "Driven/Rectified Floor_E1.wav","Rectified Floor",E1,none
 "Driven/Rectified Floor_C3.wav","Rectified Floor",C3,none
+"Driven/Rectified Floor_B_E1.wav","Rectified Floor",E1,endpoint B static
+"Driven/Rectified Floor_morph.wav","Rectified Floor",E1,morph 105 0->1 over 2 s
 "Driven/Bite Down_E1.wav","Bite Down",E1,none
 "Driven/Bite Down_C3.wav","Bite Down",C3,none
+"Driven/Bite Down_B_E1.wav","Bite Down",E1,endpoint B static
+"Driven/Bite Down_morph.wav","Bite Down",E1,morph 105 0->1 over 2 s
 "Driven/Crushed Basalt_E1.wav","Crushed Basalt",E1,none
 "Driven/Crushed Basalt_C3.wav","Crushed Basalt",C3,none
+"Driven/Crushed Basalt_B_E1.wav","Crushed Basalt",E1,endpoint B static
+"Driven/Crushed Basalt_morph.wav","Crushed Basalt",E1,morph 105 0->1 over 2 s
 "Driven/Fault Line_E1.wav","Fault Line",E1,none
 "Driven/Fault Line_C3.wav","Fault Line",C3,none
+"Driven/Fault Line_B_E1.wav","Fault Line",E1,endpoint B static
+"Driven/Fault Line_morph.wav","Fault Line",E1,morph 105 0->1 over 2 s
 "Sub/Bedrock_E1.wav","Bedrock",E1,none
 "Sub/Bedrock_C3.wav","Bedrock",C3,none
+"Sub/Bedrock_B_E1.wav","Bedrock",E1,endpoint B static
+"Sub/Bedrock_morph.wav","Bedrock",E1,morph 105 0->1 over 2 s
 "Plucked/Punch Anchor_E1.wav","Punch Anchor",E1,none
 "Plucked/Punch Anchor_C3.wav","Punch Anchor",C3,none
+"Plucked/Punch Anchor_B_E1.wav","Punch Anchor",E1,endpoint B static
+"Plucked/Punch Anchor_morph.wav","Punch Anchor",E1,morph 105 0->1 over 2 s
 "Plucked/Ghost Kick_E1.wav","Ghost Kick",E1,none
 "Plucked/Ghost Kick_C3.wav","Ghost Kick",C3,none
+"Plucked/Ghost Kick_B_E1.wav","Ghost Kick",E1,endpoint B static
+"Plucked/Ghost Kick_morph.wav","Ghost Kick",E1,morph 105 0->1 over 2 s
 "Driven/Rectified Follow_E1.wav","Rectified Follow",E1,none
 "Driven/Rectified Follow_C3.wav","Rectified Follow",C3,none
+"Driven/Rectified Follow_B_E1.wav","Rectified Follow",E1,endpoint B static
+"Driven/Rectified Follow_morph.wav","Rectified Follow",E1,morph 105 0->1 over 2 s
 "Sub/Triangle Floor_E1.wav","Triangle Floor",E1,none
 "Sub/Triangle Floor_C3.wav","Triangle Floor",C3,none
+"Sub/Triangle Floor_B_E1.wav","Triangle Floor",E1,endpoint B static
+"Sub/Triangle Floor_morph.wav","Triangle Floor",E1,morph 105 0->1 over 2 s
 "Sub/Rounded Weight_E1.wav","Rounded Weight",E1,none
 "Sub/Rounded Weight_C3.wav","Rounded Weight",C3,none
+"Sub/Rounded Weight_B_E1.wav","Rounded Weight",E1,endpoint B static
+"Sub/Rounded Weight_morph.wav","Rounded Weight",E1,morph 105 0->1 over 2 s
 "Sub/Lopsided Sub_E1.wav","Lopsided Sub",E1,none
 "Sub/Lopsided Sub_C3.wav","Lopsided Sub",C3,none
+"Sub/Lopsided Sub_B_E1.wav","Lopsided Sub",E1,endpoint B static
+"Sub/Lopsided Sub_morph.wav","Lopsided Sub",E1,morph 105 0->1 over 2 s
 "Sub/Under Octave_E1.wav","Under Octave",E1,none
 "Sub/Under Octave_C3.wav","Under Octave",C3,none
+"Sub/Under Octave_B_E1.wav","Under Octave",E1,endpoint B static
+"Sub/Under Octave_morph.wav","Under Octave",E1,morph 105 0->1 over 2 s
 "Driven/Fed Fold_E1.wav","Fed Fold",E1,none
 "Driven/Fed Fold_C3.wav","Fed Fold",C3,none
+"Driven/Fed Fold_B_E1.wav","Fed Fold",E1,endpoint B static
+"Driven/Fed Fold_morph.wav","Fed Fold",E1,morph 105 0->1 over 2 s
 "Plucked/Dropping Stone_E1.wav","Dropping Stone",E1,none
 "Plucked/Dropping Stone_C3.wav","Dropping Stone",C3,none
+"Plucked/Dropping Stone_B_E1.wav","Dropping Stone",E1,endpoint B static
+"Plucked/Dropping Stone_morph.wav","Dropping Stone",E1,morph 105 0->1 over 2 s
 "Plucked/Slow Fall_E1.wav","Slow Fall",E1,none
 "Plucked/Slow Fall_C3.wav","Slow Fall",C3,none
+"Plucked/Slow Fall_B_E1.wav","Slow Fall",E1,endpoint B static
+"Plucked/Slow Fall_morph.wav","Slow Fall",E1,morph 105 0->1 over 2 s
 "Plucked/Curved Drop_E1.wav","Curved Drop",E1,none
 "Plucked/Curved Drop_C3.wav","Curved Drop",C3,none
+"Plucked/Curved Drop_B_E1.wav","Curved Drop",E1,endpoint B static
+"Plucked/Curved Drop_morph.wav","Curved Drop",E1,morph 105 0->1 over 2 s
 "Plucked/Rebound_E1.wav","Rebound",E1,none
 "Plucked/Rebound_C3.wav","Rebound",C3,none
+"Plucked/Rebound_B_E1.wav","Rebound",E1,endpoint B static
+"Plucked/Rebound_morph.wav","Rebound",E1,morph 105 0->1 over 2 s
 "Resonant/Glide Path_E1.wav","Glide Path",E1,none
 "Resonant/Glide Path_C3.wav","Glide Path",C3,none
+"Resonant/Glide Path_B_E1.wav","Glide Path",E1,endpoint B static
+"Resonant/Glide Path_morph.wav","Glide Path",E1,morph 105 0->1 over 2 s
 "Resonant/Glide Path_legato.wav","Glide Path",E1->E2,legato E1 0-1.5 s, E2 1.0-3.0 s
 "Resonant/Slow Swell_E1.wav","Slow Swell",E1,none
 "Resonant/Slow Swell_C3.wav","Slow Swell",C3,none
+"Resonant/Slow Swell_B_E1.wav","Slow Swell",E1,endpoint B static
+"Resonant/Slow Swell_morph.wav","Slow Swell",E1,morph 105 0->1 over 2 s
 "Sub/Long Tail_E1.wav","Long Tail",E1,none
 "Sub/Long Tail_C3.wav","Long Tail",C3,none
+"Sub/Long Tail_B_E1.wav","Long Tail",E1,endpoint B static
+"Sub/Long Tail_morph.wav","Long Tail",E1,morph 105 0->1 over 2 s
 "Sub/Heavy Mass_E1.wav","Heavy Mass",E1,none
 "Sub/Heavy Mass_C3.wav","Heavy Mass",C3,none
+"Sub/Heavy Mass_B_E1.wav","Heavy Mass",E1,endpoint B static
+"Sub/Heavy Mass_morph.wav","Heavy Mass",E1,morph 105 0->1 over 2 s
 "Harmonic/Pressure Front_E1.wav","Pressure Front",E1,none
 "Harmonic/Pressure Front_C3.wav","Pressure Front",C3,none
+"Harmonic/Pressure Front_B_E1.wav","Pressure Front",E1,endpoint B static
+"Harmonic/Pressure Front_morph.wav","Pressure Front",E1,morph 105 0->1 over 2 s
 "Plucked/Hard Attack_E1.wav","Hard Attack",E1,none
 "Plucked/Hard Attack_C3.wav","Hard Attack",C3,none
+"Plucked/Hard Attack_B_E1.wav","Hard Attack",E1,endpoint B static
+"Plucked/Hard Attack_morph.wav","Hard Attack",E1,morph 105 0->1 over 2 s
 "Harmonic/Wide Harmonics_E1.wav","Wide Harmonics",E1,none
 "Harmonic/Wide Harmonics_C3.wav","Wide Harmonics",C3,none
+"Harmonic/Wide Harmonics_B_E1.wav","Wide Harmonics",E1,endpoint B static
+"Harmonic/Wide Harmonics_morph.wav","Wide Harmonics",E1,morph 105 0->1 over 2 s
 "Driven/Wide Rectifier_E1.wav","Wide Rectifier",E1,none
 "Driven/Wide Rectifier_C3.wav","Wide Rectifier",C3,none
+"Driven/Wide Rectifier_B_E1.wav","Wide Rectifier",E1,endpoint B static
+"Driven/Wide Rectifier_morph.wav","Wide Rectifier",E1,morph 105 0->1 over 2 s
 "Harmonic/Spread Choir_E1.wav","Spread Choir",E1,none
 "Harmonic/Spread Choir_C3.wav","Spread Choir",C3,none
+"Harmonic/Spread Choir_B_E1.wav","Spread Choir",E1,endpoint B static
+"Harmonic/Spread Choir_morph.wav","Spread Choir",E1,morph 105 0->1 over 2 s
 "Resonant/Gravity Well_E1.wav","Gravity Well",E1,none
 "Resonant/Gravity Well_C3.wav","Gravity Well",C3,none
+"Resonant/Gravity Well_B_E1.wav","Gravity Well",E1,endpoint B static
+"Resonant/Gravity Well_morph.wav","Gravity Well",E1,morph 105 0->1 over 2 s
 "Animated/Orbiting Field_E1.wav","Orbiting Field",E1,none
 "Animated/Orbiting Field_C3.wav","Orbiting Field",C3,none
+"Animated/Orbiting Field_B_E1.wav","Orbiting Field",E1,endpoint B static
+"Animated/Orbiting Field_morph.wav","Orbiting Field",E1,morph 105 0->1 over 2 s
 "Animated/Mass Tide_E1.wav","Mass Tide",E1,none
 "Animated/Mass Tide_C3.wav","Mass Tide",C3,none
+"Animated/Mass Tide_B_E1.wav","Mass Tide",E1,endpoint B static
+"Animated/Mass Tide_morph.wav","Mass Tide",E1,morph 105 0->1 over 2 s
 "Animated/Breathing Depth_E1.wav","Breathing Depth",E1,none
 "Animated/Breathing Depth_C3.wav","Breathing Depth",C3,none
+"Animated/Breathing Depth_B_E1.wav","Breathing Depth",E1,endpoint B static
+"Animated/Breathing Depth_morph.wav","Breathing Depth",E1,morph 105 0->1 over 2 s
 "Animated/Body Wave_E1.wav","Body Wave",E1,none
 "Animated/Body Wave_C3.wav","Body Wave",C3,none
+"Animated/Body Wave_B_E1.wav","Body Wave",E1,endpoint B static
+"Animated/Body Wave_morph.wav","Body Wave",E1,morph 105 0->1 over 2 s
 "Animated/Edge Cycle_E1.wav","Edge Cycle",E1,none
 "Animated/Edge Cycle_C3.wav","Edge Cycle",C3,none
+"Animated/Edge Cycle_B_E1.wav","Edge Cycle",E1,endpoint B static
+"Animated/Edge Cycle_morph.wav","Edge Cycle",E1,morph 105 0->1 over 2 s
 "Animated/Shifting Spectrum_E1.wav","Shifting Spectrum",E1,none
 "Animated/Shifting Spectrum_C3.wav","Shifting Spectrum",C3,none
+"Animated/Shifting Spectrum_B_E1.wav","Shifting Spectrum",E1,endpoint B static
+"Animated/Shifting Spectrum_morph.wav","Shifting Spectrum",E1,morph 105 0->1 over 2 s
 "Animated/Envelope Mass_E1.wav","Envelope Mass",E1,none
 "Animated/Envelope Mass_C3.wav","Envelope Mass",C3,none
+"Animated/Envelope Mass_B_E1.wav","Envelope Mass",E1,endpoint B static
+"Animated/Envelope Mass_morph.wav","Envelope Mass",E1,morph 105 0->1 over 2 s
 "Animated/Drifting Weight_E1.wav","Drifting Weight",E1,none
 "Animated/Drifting Weight_C3.wav","Drifting Weight",C3,none
+"Animated/Drifting Weight_B_E1.wav","Drifting Weight",E1,endpoint B static
+"Animated/Drifting Weight_morph.wav","Drifting Weight",E1,morph 105 0->1 over 2 s
 "Harmonic/Morph Span_E1.wav","Morph Span",E1,none
 "Harmonic/Morph Span_C3.wav","Morph Span",C3,none
+"Harmonic/Morph Span_B_E1.wav","Morph Span",E1,endpoint B static
 "Harmonic/Morph Span_morph.wav","Morph Span",E1,morph 105 0->1 over 2 s
 "Resonant/Halfway Morph_E1.wav","Halfway Morph",E1,none
 "Resonant/Halfway Morph_C3.wav","Halfway Morph",C3,none
+"Resonant/Halfway Morph_B_E1.wav","Halfway Morph",E1,endpoint B static
 "Resonant/Halfway Morph_morph.wav","Halfway Morph",E1,morph 105 0->1 over 2 s
 "Resonant/Restrike_E1.wav","Restrike",E1,none
 "Resonant/Restrike_C3.wav","Restrike",C3,none
+"Resonant/Restrike_B_E1.wav","Restrike",E1,endpoint B static
+"Resonant/Restrike_morph.wav","Restrike",E1,morph 105 0->1 over 2 s
 "Resonant/Restrike_legato.wav","Restrike",E1->E2,legato E1 0-1.5 s, E2 1.0-3.0 s
 "Resonant/Legato Line_E1.wav","Legato Line",E1,none
 "Resonant/Legato Line_C3.wav","Legato Line",C3,none
+"Resonant/Legato Line_B_E1.wav","Legato Line",E1,endpoint B static
+"Resonant/Legato Line_morph.wav","Legato Line",E1,morph 105 0->1 over 2 s
 "Resonant/Legato Line_legato.wav","Legato Line",E1->E2,legato E1 0-1.5 s, E2 1.0-3.0 s
 "Harmonic/Envelope Restart_E1.wav","Envelope Restart",E1,none
 "Harmonic/Envelope Restart_C3.wav","Envelope Restart",C3,none
+"Harmonic/Envelope Restart_B_E1.wav","Envelope Restart",E1,endpoint B static
+"Harmonic/Envelope Restart_morph.wav","Envelope Restart",E1,morph 105 0->1 over 2 s
 "Harmonic/Envelope Restart_legato.wav","Envelope Restart",E1->E2,legato E1 0-1.5 s, E2 1.0-3.0 s
 "Sub/Continuous Phase_E1.wav","Continuous Phase",E1,none
 "Sub/Continuous Phase_C3.wav","Continuous Phase",C3,none
+"Sub/Continuous Phase_B_E1.wav","Continuous Phase",E1,endpoint B static
+"Sub/Continuous Phase_morph.wav","Continuous Phase",E1,morph 105 0->1 over 2 s
 "Sub/Continuous Phase_legato.wav","Continuous Phase",E1->E2,legato E1 0-1.5 s, E2 1.0-3.0 s
 "Sub/Weight Lever_E1.wav","Weight Lever",E1,none
 "Sub/Weight Lever_C3.wav","Weight Lever",C3,none
+"Sub/Weight Lever_B_E1.wav","Weight Lever",E1,endpoint B static
+"Sub/Weight Lever_morph.wav","Weight Lever",E1,morph 105 0->1 over 2 s
 "Sub/Weight Lever_macro.wav","Weight Lever",E1,macro 100 0->1 over 2 s (AT-47)
 "Harmonic/Dark To Bright_E1.wav","Dark To Bright",E1,none
 "Harmonic/Dark To Bright_C3.wav","Dark To Bright",C3,none
+"Harmonic/Dark To Bright_B_E1.wav","Dark To Bright",E1,endpoint B static
+"Harmonic/Dark To Bright_morph.wav","Dark To Bright",E1,morph 105 0->1 over 2 s
 "Harmonic/Dark To Bright_macro.wav","Dark To Bright",E1,macro 101 0->1 over 2 s (AT-48)
 "Resonant/Loose Ends_E1.wav","Loose Ends",E1,none
 "Resonant/Loose Ends_C3.wav","Loose Ends",C3,none
+"Resonant/Loose Ends_B_E1.wav","Loose Ends",E1,endpoint B static
+"Resonant/Loose Ends_morph.wav","Loose Ends",E1,morph 105 0->1 over 2 s
 "Resonant/Loose Ends_macro.wav","Loose Ends",E1,macro 102 0->1 over 2 s (AT-49)
 "Driven/Clean To Violent_E1.wav","Clean To Violent",E1,none
 "Driven/Clean To Violent_C3.wav","Clean To Violent",C3,none
+"Driven/Clean To Violent_B_E1.wav","Clean To Violent",E1,endpoint B static
+"Driven/Clean To Violent_morph.wav","Clean To Violent",E1,morph 105 0->1 over 2 s
 "Driven/Clean To Violent_macro.wav","Clean To Violent",E1,macro 103 0->1 over 2 s (AT-50)
 "Sub/Mono Bedrock_E1.wav","Mono Bedrock",E1,none
 "Sub/Mono Bedrock_C3.wav","Mono Bedrock",C3,none
+"Sub/Mono Bedrock_B_E1.wav","Mono Bedrock",E1,endpoint B static
+"Sub/Mono Bedrock_morph.wav","Mono Bedrock",E1,morph 105 0->1 over 2 s
 "Sub/Locked Floor_E1.wav","Locked Floor",E1,none
 "Sub/Locked Floor_C3.wav","Locked Floor",C3,none
+"Sub/Locked Floor_B_E1.wav","Locked Floor",E1,endpoint B static
+"Sub/Locked Floor_morph.wav","Locked Floor",E1,morph 105 0->1 over 2 s
 "Sub/Bedrock Sine_E1.wav","Bedrock Sine",E1,none
 "Sub/Bedrock Sine_C3.wav","Bedrock Sine",C3,none
+"Sub/Bedrock Sine_B_E1.wav","Bedrock Sine",E1,endpoint B static
+"Sub/Bedrock Sine_morph.wav","Bedrock Sine",E1,morph 105 0->1 over 2 s
 "Harmonic/Poly Spread_E1.wav","Poly Spread",E1,none
 "Harmonic/Poly Spread_C3.wav","Poly Spread",C3,none
+"Harmonic/Poly Spread_B_E1.wav","Poly Spread",E1,endpoint B static
+"Harmonic/Poly Spread_morph.wav","Poly Spread",E1,morph 105 0->1 over 2 s
 "Resonant/Poly Swell_E1.wav","Poly Swell",E1,none
 "Resonant/Poly Swell_C3.wav","Poly Swell",C3,none
+"Resonant/Poly Swell_B_E1.wav","Poly Swell",E1,endpoint B static
+"Resonant/Poly Swell_morph.wav","Poly Swell",E1,morph 105 0->1 over 2 s
 "Driven/Poly Ignition_E1.wav","Poly Ignition",E1,none
 "Driven/Poly Ignition_C3.wav","Poly Ignition",C3,none
+"Driven/Poly Ignition_B_E1.wav","Poly Ignition",E1,endpoint B static
+"Driven/Poly Ignition_morph.wav","Poly Ignition",E1,morph 105 0->1 over 2 s
 "Driven/Poly Rectifier_E1.wav","Poly Rectifier",E1,none
 "Driven/Poly Rectifier_C3.wav","Poly Rectifier",C3,none
+"Driven/Poly Rectifier_B_E1.wav","Poly Rectifier",E1,endpoint B static
+"Driven/Poly Rectifier_morph.wav","Poly Rectifier",E1,morph 105 0->1 over 2 s
 "Plucked/Poly Pluck_E1.wav","Poly Pluck",E1,none
 "Plucked/Poly Pluck_C3.wav","Poly Pluck",C3,none
+"Plucked/Poly Pluck_B_E1.wav","Poly Pluck",E1,endpoint B static
+"Plucked/Poly Pluck_morph.wav","Poly Pluck",E1,morph 105 0->1 over 2 s

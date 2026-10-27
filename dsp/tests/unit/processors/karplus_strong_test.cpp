@@ -322,7 +322,7 @@ TEST_CASE("KarplusStrong basic feedback loop", "[karplus_strong][feedback]") {
 // Phase 2: Foundational Tests - Denormal Flushing (T013, T014)
 // ==============================================================================
 
-TEST_CASE("KarplusStrong denormal flushing", "[karplus_strong][stability]") {
+TEST_CASE("KarplusStrong denormal flushing", "[karplus_strong][stability][wallclock]") {
 
     SECTION("No CPU spikes after long processing with low amplitude") {
         KarplusStrong ks;

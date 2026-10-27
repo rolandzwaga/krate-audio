@@ -36,7 +36,7 @@ Control layer ────── Bass Morph (A → B) → macros → Motion → 
 Pitch ────────────── Drop: each note starts above its pitch and falls onto it
   │
   ▼
-The Mass ─────────── core spectrum (Depth, Body, Edge, Spectral Shift) + excitation
+The Mass ─────────── core spectrum (Depth, Body, Edge, Spectral Shift, Stiffness, Phase) + excitation
   │                  → Shape → (+ Anchor Fold Feed) → Harmonic Fold → Character
   │
 The Anchor ───────── a separate sub tone beside the Mass, identical in left and right
@@ -59,6 +59,8 @@ reaches a nonlinear stage is **Anchor Fold Feed**, which you set yourself.
 
 ## Interface Overview
 
+![The Main page](images/editor-main.png)
+
 The editor is a fixed 960 × 600 window with four zoom steps (100 %, 125 %, 150 % and 200 %). It has two pages that
 share one header.
 
@@ -68,7 +70,7 @@ share one header.
 - **The Main page** — the playing surface. It holds THE MASS (a live harmonic display, six large knobs and the
   macros), THE ANCHOR and BASS MORPH.
 - **The Advanced page** — every parameter, in three tabs: **SECTIONS** (eight sections), **MODULATION** (the
-  Motion source in full) and **SETTINGS** (zoom).
+  Motion source and Morph Modulation in full) and **SETTINGS** (zoom).
 
 Every parameter stays automatable from the host whichever page is showing, except **Edit Target**, which is
 deliberately not automatable (see *Edit Target and automation* below). Every control carries a tooltip.
@@ -126,6 +128,8 @@ compression left to take away. The Tight half acts at every Mass.
 
 ## Header Controls
 
+![The header](images/header.png)
+
 | Control | Range | Default | Notes |
 |---|---|---|---|
 | **Voice Mode** | Mono / Poly | Mono | Mono plays one note at a time, with glide and legato. Poly plays chords; the voice count is **Polyphony** on the Advanced page |
@@ -137,6 +141,8 @@ compression left to take away. The Tight half acts at every Mass.
 ## The Main Page
 
 ### The Mass
+
+![The Mass](images/main-mass.png)
 
 The upper half of the Main page is THE MASS: the live harmonic display, six large knobs and the macros.
 
@@ -161,6 +167,8 @@ Motion target, amount and timing are on the Advanced page's MODULATION tab.
 
 ### The Anchor
 
+![The Anchor](images/main-anchor.png)
+
 | Control | Parameter | Range | Default | Description |
 |---|---|---|---|---|
 | LEVEL | **Anchor Level** | 0 – 100 % | 50 % | How loud the stable sub tone under the mass is |
@@ -178,6 +186,8 @@ and **Mass** both reach the Anchor Level, so the balance between the two parts m
 
 ### Bass Morph
 
+![Bass Morph](images/main-bass-morph.png)
+
 | Control | Parameter | Range | Default | Description |
 |---|---|---|---|---|
 | A ━━●━━ B | **Morph Position** | 0 – 100 % | 0 % | Moves the sound from endpoint A to endpoint B |
@@ -185,6 +195,7 @@ and **Mass** both reach the Anchor Level, so the balance between the two parts m
 | COMPARE | — | A / A·B / B | A·B | Hear endpoint A alone, the morph, or endpoint B alone |
 | COPY A → B, COPY B → A | — | — | — | Copy one endpoint's sound onto the other. The name is not copied |
 | name fields | — | up to 31 bytes | A, B | A name for each endpoint, saved with the preset |
+| MORPH MOD | **Morph Mod Source**, **Morph Mod Amount** | see *Morph Modulation* | Off, 0 % | What moves the morph by itself, and how far |
 
 Under each name a three-word caption describes how that endpoint sounds (its shape, colour and force). The caption
 is computed from the endpoint's settings and is never stored.
@@ -213,10 +224,14 @@ Compare only changes what you hear: it is never saved, and it returns to A·B wh
 
 ## The Advanced Page
 
+![The Advanced page, SECTIONS tab](images/editor-advanced.png)
+
 The SECTIONS tab holds eight sections. Two controls appear twice (**Harmonic Fold** in Core Spectrum and in
 Excitation & Fold; **Anchor Morph Mode** in Sub Anchor and in Morph Behaviour); both copies are the same parameter.
 
 ### Core Spectrum
+
+![Core Spectrum](images/adv-core-spectrum.png)
 
 The core is the harmonic recipe of the Mass.
 
@@ -228,6 +243,8 @@ The core is the harmonic recipe of the Mass.
 | **Body Emphasis** | −100 – 0 % | 0 % | At 0 all harmonics sound; toward −100 % the even harmonics fade for a hollower tone |
 | **Edge** | 0 – 100 % | 50 % | Lifts the upper harmonics that give the bass its bite |
 | **Spectral Shift** | −100 – +100 % | 0 % | Moves the Body and Edge regions down (darker) or up (brighter) together |
+| **Stiffness** | 0 – 100 % | 0 % | Bends the upper harmonics sharp of the harmonic series, as a stiff string or a metal bar does, for a metallic, bell-edged bass. Higher notes are stiffer, as on a piano; 0 keeps the exact series |
+| **Phase** | 0 – 100 % | 0 % | Turns the upper harmonics against the fundamental. The clean tone hardly changes, but the waveform grows peakier, so Harmonic Fold and Character bite harder. 0 is the smoothest. A change on a held note glides over at most 100 ms |
 | **Harmonic Fold** | 0 – 100 | 0 | Folds the waveform back on itself to add new harmonics. 0 is clean |
 | **Tight/Loose** | 0 – 100 % | 50 % | The fourth macro: toward Tight, shorter attack, decay and release, a harder transient and more compression; toward Loose the reverse |
 
@@ -235,6 +252,8 @@ A second harmonic display in this section shows the measured harmonics of the so
 before the amp envelope. It shows the resolved sound, including the morph, the macros and Motion.
 
 ### Excitation & Fold
+
+![Excitation & Fold](images/adv-excitation-fold.png)
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
@@ -244,6 +263,8 @@ before the amp envelope. It shows the resolved sound, including the morph, the m
 | **Harmonic Fold** | 0 – 100 | 0 | The same parameter as in Core Spectrum |
 
 ### Shape & Character
+
+![Shape & Character](images/adv-shape-character.png)
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
@@ -257,6 +278,8 @@ correlation of the sub band depends on that offset pair.
 
 ### Mass
 
+![Mass](images/adv-mass.png)
+
 | Parameter | Range | Default | Description |
 |---|---|---|---|
 | **Transient Attack** | −12 – +12 dB | +6 dB | Boosts or softens the start of each note |
@@ -265,6 +288,8 @@ correlation of the sub band depends on that offset pair.
 The **Mass** knob itself is on the Main page; these two shape the dynamics stage that Mass also drives.
 
 ### Sub Anchor
+
+![Sub Anchor](images/adv-sub-anchor.png)
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
@@ -285,6 +310,8 @@ Drop and the glide move it too. **Punch** adds **Punch Boost** to the start of e
 Anchor; turned up, the sub tone itself is folded with the Mass.
 
 ### Stereo & Output
+
+![Stereo & Output](images/adv-stereo-output.png)
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
@@ -310,6 +337,8 @@ every image mode. Even at Gravity 0, side content below twice the crossover is a
 identical in both channels throughout, and in Solid the whole output is.
 
 ### Pitch & Envelopes
+
+![Pitch & Envelopes](images/adv-pitch-envelopes.png)
 
 **Drop** — the pitch fall into each note.
 
@@ -353,14 +382,18 @@ every note.
 
 ### Morph Behaviour
 
+![Morph Behaviour](images/adv-morph-behaviour.png)
+
 | Parameter | Range | Default | Description |
 |---|---|---|---|
 | **Anchor Morph Mode** | Hold / Blend / Yield | Blend | The same parameter as on the Main page |
-| **Morph Ramp Time** | 5 – 2000 ms | 40 ms | How quickly the sound follows a change of the morph position |
+| **Morph Ramp Time** | 5 – 2000 ms | 40 ms | How quickly the sound follows a change of the morph position, including the movement of Morph Modulation |
 
 This section repeats the Compare and Copy controls of the Main page's Bass Morph band.
 
 ### The MODULATION Tab
+
+![The MODULATION tab](images/adv-modulation.png)
 
 **Motion** is one modulation source per voice, aimed at one target. The tab has three columns: SOURCE, CYCLE and
 ENV & DRIFT.
@@ -386,7 +419,88 @@ ENV & DRIFT.
 With **Motion Amount** at 0, Motion does nothing whatever the source, so set an amount before judging a source. The
 macro rings on the knobs do not show Motion.
 
+### Morph Modulation
+
+**Morph Modulation** moves the Bass Morph by itself. It is one source shared by every voice, and it moves **Morph
+Position** without changing the saved value. Its nine controls sit under MORPH MODULATION on the MODULATION tab, in
+three columns: Source and Amount, the envelope, and the Cycle. **Morph Mod Source** and **Morph Mod Amount** also
+appear as MORPH MOD in the Main page's Bass Morph band.
+
+| Parameter | Range | Default | Description |
+|---|---|---|---|
+| **Morph Mod Source** | Off / Envelope / Cycle / Velocity / Mod Wheel | Off | What moves the morph |
+| **Morph Mod Amount** | −100 – +100 % | 0 % | How far and in which direction the source moves the morph |
+| **Morph Env Attack** | 0.1 – 10 000 ms | 10 ms | Rise time of the morph envelope after each note starts |
+| **Morph Env Decay** | 0.1 – 10 000 ms | 300 ms | Fall time of the morph envelope (a full 100 % → 0 % fall; it stops early at the Sustain level) |
+| **Morph Env Sustain** | 0 – 100 % | 0 % | The level the morph envelope rests at until the next note |
+| **Morph Cycle Shape** | Sine / Triangle / Sawtooth / Square / S&H / Smooth Random | Sine | Waveform of the morph Cycle |
+| **Morph Cycle Rate** | 0.01 – 20 Hz | 1 Hz | Speed of the morph Cycle when Morph Cycle Sync is Off |
+| **Morph Cycle Sync** | Off / On | Off | Lock the morph Cycle to the host tempo |
+| **Morph Cycle Sync Rate** | note values (1/64T – 4/1D) | 1/4 | Note value of one synced morph Cycle |
+
+**The formula.** Every 32 samples the morph travels toward
+
+```
+clamp(Morph Position + Amount × source, 0, 1)
+```
+
+With **Morph Mod Source** Off, or **Morph Mod Amount** at 0, the morph goes to Morph Position exactly as set.
+
+**The five sources.**
+
+- **Off** — no modulation. This is the default.
+- **Envelope** — an Attack, Decay, Sustain envelope from 0 to 100 %. It **restarts from 0 on every note-on** the
+  instrument accepts, in Mono and in Poly: a new note, a legato overlap, a note that Low or High priority does not
+  sound, and a key struck again while the sustain pedal holds it. Note-ons that land within the same 32 samples give
+  one restart. It has **no release**: after a note-off it rests at **Morph Env Sustain** until the next note-on. A
+  long Attack with Sustain at 100 % rises from A into B and stays there; a short Attack with a Decay and Sustain at 0
+  hits B and settles back. Before the first note it reads 0.
+- **Cycle** — a repeating wave, −100 … +100 %, that swings the morph both ways around Morph Position. It is
+  **free-running**: no note restarts it, so every held note follows the same gesture and a new note never makes the
+  morph jump. With **Morph Cycle Sync** On it follows the host tempo at **Morph Cycle Sync Rate** and **Morph Cycle
+  Rate** is not used.
+- **Velocity** — the velocity of the latest note-on, from 1/127 up to 100 %. It **holds** through note-offs until the
+  next note-on, so a release never moves the morph. Before the first note it reads 0.
+- **Mod Wheel** — the mod wheel (CC 1), 0 … 100 %.
+
+Envelope, Velocity and Mod Wheel only go one way, so the sign of **Morph Mod Amount** picks the direction: a positive
+Amount pushes toward B, a negative Amount pulls back toward A.
+
+**The Mod Wheel / Mass hand-over.** With **Morph Mod Source** on Mod Wheel **and a non-zero Morph Mod Amount**, the
+wheel moves the morph and stops pushing **Mass**. With Amount at 0 the wheel keeps pushing Mass even with Mod Wheel
+selected, so the wheel is never dead. Channel pressure pushes Mass with every source. Changing the source, or moving
+Amount between 0 and non-zero while the wheel is up, moves Mass once, smoothed like any wheel move.
+
+**Compare bypasses the modulation.** COMPARE A or B plays that endpoint alone, without the modulation. The sources
+keep running underneath, so going back to A·B continues the gesture where it is rather than restarting it.
+
+**Morph Ramp Time sets the speed limit.** The modulated morph passes through the same **Morph Ramp Time** smoothing as
+a move of Morph Position, and nothing else smooths it. A full A-to-B move takes at least Morph Ramp Time, and a
+smaller one proportionally less. So:
+
+- a Cycle faster than Morph Ramp Time allows becomes a smoothed triangle with a smaller swing;
+- the jumps of the Square, S&H and Sawtooth shapes, a change of Velocity and an Envelope restart become ramps of up to
+  Morph Ramp Time.
+
+Shorten Morph Ramp Time when a fast Cycle or a sharp Envelope should be heard as it is; lengthen it to soften them.
+
+**Modulation is silent at the ends.** The result is clamped to 0 … 100 %, so
+the modulation is silent where the clamp holds the result at an endpoint. With Morph Position at 0 % and a
+negative Amount on a one-sided source, or at 100 % and a positive Amount, nothing moves. Set Morph Position away
+from the end the Amount points at.
+
+**Saving.** Presets and projects store Morph Position as you set it, never the modulated position. After a load the
+sources start again from rest (Envelope and Velocity at 0).
+
+**The indicator.** The Main page's Morph Position slider carries a thin marker at the morph position you actually
+hear. The marker updates at the cadence of the harmonic display's frames: with each completed analysis window while
+a note sounds, and every 0.25 s (4 times a second) in silence, so a fast Cycle in silence is drawn in steps. In a host
+without the VST3 data exchange, and before the first frame, the marker shows Morph Position as set. The marker only
+reads; the sound is not affected.
+
 ### The SETTINGS Tab
+
+![The SETTINGS tab](images/adv-settings.png)
 
 The SETTINGS tab holds the second zoom selector and a note about the harmonic displays: in a host that provides
 neither the VST3 data exchange nor a run loop, no frames arrive and the displays stay empty. The sound is not affected.
@@ -404,106 +518,134 @@ A·B. **Save** writes the complete current state as a user preset.
 
 ### Factory Library
 
-58 presets ship with the plugin in six categories: **Sub**, **Resonant**, **Harmonic**, **Driven**, **Plucked** and
-**Animated**. Each one is built around one capability of the instrument and names it at the start of its comment, so
+73 presets ship with the plugin in seven categories: **Sub**, **Resonant**, **Harmonic**, **Driven**, **Plucked**,
+**Animated** and **Kicks**. Each one is built around one capability of the instrument and names it at the start of its comment, so
 the library also works as a tour of the controls. Every preset is rendered during the build and checked to make sound,
 stay bounded, differ measurably from the others, keep its low end intact in a mono sum and make its named capability
 audible. Five of them (Poly Spread, Poly Swell, Poly Ignition, Poly Rectifier and Poly Pluck) are stored in POLY with 4 voices,
 for playing chords; the rest are MONO.
 
+Every preset holds two designed sounds. Endpoint A is what loads (Halfway Morph loads halfway between the two); endpoint B
+is a second sound in the same family, described in each comment ("Morph to B ..." or "endpoint B ..."). Sweep Bass Morph
+to travel between them: B sits within 3 dB of A's level, so what changes is the sound, not the volume.
+
 #### Sub
 
 | Preset | Comment |
 |---|---|
-| Bedrock | Anchor Level: a thin core over the Sine Anchor in LOCK at level 1, with Mass 70 for a plain heavy floor. |
-| Triangle Floor | Anchor Sine to Triangle: a Triangle Anchor at level 1 under a thin core, a hollow-edged floor. |
-| Rounded Weight | Anchor Sine to Rounded Sine: a Rounded Sine Anchor at level 1 with Mass 70, soft but weighty. |
-| Lopsided Sub | Anchor Sine to Asymmetric Sine: an Asymmetric Sine Anchor gives the sub a lopsided, even-harmonic push. |
-| Under Octave | Anchor Sine to Octave Down: the Octave Down Anchor puts a sub an octave under the core. |
-| Long Tail | Envelope Amp Release: a 2000 ms release lets the sub ring on long after the key lifts. |
-| Heavy Mass | Mass Amount: Mass at 100 with the Anchor at 0.5, the heaviest held weight. |
-| Continuous Phase | NoteMemory OscillatorContinuous: MONO with Retrigger Reset; the oscillator runs on through every note. |
-| Weight Lever | Macros Weight: a clean sine sub with a soft 20 ms attack under a WIDE image, the Weight macro stored at 0.6. |
-| Mono Bedrock | Reference Solid: a SOLID image on both endpoints over a warm Tube 0.4 sub, the mono floor that every widened preset is heard against. |
-| Locked Floor | Reference Lock: the Anchor held in LOCK under a Triangle waveform with a SPREAD image, a steady floor with no punch. |
-| Bedrock Sine | Reference Sine: a pure Sine Anchor on both endpoints under a WIDE image; endpoint B adds a heavy harmonic body to morph into. |
+| Bedrock | Anchor Level: the Sine Anchor in LOCK at level 1 under a dark core grained by the Fold Character, with Mass 70 for a heavy floor and a faint spread on top. Morph to B warms it into a driven Tube bass with a body. |
+| Triangle Floor | Anchor Sine to Triangle: a Triangle Anchor at level 1 under a sine core with a short 3 semitone thump and a spread top, a hollow-edged floor. Morph to B crushes it: a body, fold and Crush over a wide image. |
+| Rounded Weight | Anchor Sine to Rounded Sine: a Rounded Sine Anchor at level 1 under a sine core warmed by a little Tube, with Mass 70, soft but weighty. Morph to B bites: a body, a BITE-shaped fold and Bite over a wide image. |
+| Lopsided Sub | Anchor Sine to Asymmetric Sine: an Asymmetric Sine Anchor gives the sub a lopsided, even-harmonic push, echoed by a lopsided drive, a light fold and a touch of Fracture. Morph to B crushes it wide. |
+| Under Octave | Anchor Sine to Octave Down: the Octave Down Anchor puts a sub an octave under a Crush-grained core with a light fold. Morph to B bites: more body, a BITE-shaped fold, Bite and an Asymmetric Anchor, wide. |
+| Long Tail | Morph Mod Wheel: the Mod Wheel carries the sound from A to B (Amount 1; wheel down plays A), and while it drives the morph it no longer adds Mass. A lets a folded, wide body ring on over a Triangle Anchor with a 2000 ms release; wheel up darkens it into a mono Tube sub with a 3.5 s tail. |
+| Heavy Mass | Mass Amount: Mass at 100 with a Rounded Anchor at 0.5 and a 4 semitone drop, the heaviest held weight. Morph to B drives it: a body, fold and Tube over an octave-down Anchor. |
+| Continuous Phase | NoteMemory OscillatorContinuous: MONO with Retrigger Reset; the oscillator runs on through every note, a Fracture-edged fold over a Triangle Anchor. Morph to B crushes it wide. |
+| Weight Lever | Macros Weight: a clean sine sub with a soft 20 ms attack under a WIDE image, the Weight macro stored at 0.6. Morph to B bites: a body, a BITE-shaped fold and Bite over a Triangle Anchor. |
+| Mono Bedrock | Reference Solid: a SOLID image on both endpoints over a warm Tube 0.4 sub with a light fold and an octave-down Anchor, the mono floor that every widened preset is heard against. Morph to B fractures it, still mono. |
+| Locked Floor | Reference Lock: the Anchor held in LOCK under a Triangle waveform with a SPREAD image, a steady floor with no punch. Morph to B drives it: a body, fold and Tube over a wide image. |
+| Bedrock Sine | Reference Sine: a pure Sine Anchor on both endpoints under a WIDE image with a 5 semitone drop; endpoint B adds a heavy, crushed harmonic body to morph into. |
 
 #### Resonant
 
 | Preset | Comment |
 |---|---|
-| Glide Path | Pitch Glide: MONO legato with a 200 ms portamento sliding a resonant body; NoteMemory Legato keeps the phase across each slide. |
-| Slow Swell | Envelope Amp Attack: a 500 ms attack swells a resonant body up to sustain 0.8. |
-| Gravity Well | Field Gravity: Gravity at 1 pulls the low band of a SPREAD image at spread 1 back to the centre. |
+| Glide Path | Pitch Glide: MONO legato with a 200 ms portamento sliding a hollow, Fracture-edged body, wide; NoteMemory Legato keeps the phase across each slide. Morph to B drives the slide with Tube. |
+| Slow Swell | Envelope Amp Attack: a 500 ms attack swells a resonant body up to full sustain, a light Rectify adding a glassy octave over an Asymmetric Anchor. Morph to B opens it into a hollow, wide, slower glow. |
+| Gravity Well | Field Gravity: Gravity at 1 pulls the low band of a folded SPREAD image at spread 1 back to the centre, over an octave-down Anchor. Morph to B darkens it into a Crush-grained well with half the pull. |
 | Halfway Morph | Morph Position Half: a round endpoint A against a hollow, bright, driven endpoint B, stored halfway at 0.5. |
-| Restrike | NoteMemory AlwaysRetrigger: MONO with Retrigger Reset, every note restrikes a resonant body from the start. |
-| Legato Line | NoteMemory Legato: MONO with Retrigger Reset; overlapping notes carry the phase on, a joined line. |
-| Loose Ends | Macros Tight Loose: a half-sustain body with the Tight Loose macro at 0.5, loose ends around a SPREAD image. |
-| Poly Swell | Envelope Amp Attack: a slow attack swells a folded, shifted body under every held chord in Poly. |
+| Restrike | NoteMemory AlwaysRetrigger: MONO with Retrigger Reset, every note restrikes a Fracture-grained, folded body from the start, wide. Morph to B restrikes a lopsided, Rectify-edged edge, mono, an octave deep. |
+| Legato Line | NoteMemory Legato: MONO with Retrigger Reset; overlapping notes carry the phase on, a joined, Tube-warmed line over a Triangle Anchor. Morph to B fractures the line, wide. |
+| Loose Ends | Macros Tight Loose: a half-sustain body with the Tight Loose macro at 0.5, loose ends around a SPREAD image. Morph to B bites: a body, a fold and Bite over a Triangle Anchor, wide. |
+| Poly Swell | Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it there (Amount 1, an instant attack, Sustain 1). A swells a folded, shifted body under every held chord in Poly, wide over a Rounded Anchor; B swells warmer and slower with Tube. |
 
 #### Harmonic
 
 | Preset | Comment |
 |---|---|
-| Edge Ignition | Core Excitation Mix: a sine recipe pushed to edge 1 with the excitation mix and drive at full; Harmonic Fold 50 adds folded overtones. |
-| Biting Reed | Core Shape: a saw-like recipe at edge 0.5 with SHAPE at 1, the BITE end; the reed snarls on every note. |
-| Pressure Front | Mass Dynamics Gain: Mass 100 on a heavy harmonic body, the dynamics gain pressing the front of each note. |
-| Wide Harmonics | Field Solid to Spread: the SPREAD image at spread 1 opens a harmonic body while the sub stays centred. |
-| Spread Choir | Field Spread: SPREAD at spread 0.9 over a high body, a choir of partials around a centred floor. |
+| Edge Ignition | Core Excitation Mix: a sine recipe pushed to edge 1 with the excitation mix and drive at full, igniting with a fast 7 semitone drop; Harmonic Fold 50 adds folded overtones over a Triangle Anchor. Morph to B burns it: Rectify, a lopsided drive and a wide image. |
+| Biting Reed | Core Shape: a saw-like recipe at edge 0.5 with SHAPE at 1, the BITE end, snapping wide; the reed snarls on every note. Morph to B warms it into a mono Tube reed an octave deep. |
+| Pressure Front | Mass Dynamics Gain: Mass 100 on a heavy harmonic body, the dynamics gain pressing the front of each note. Morph to B turns it into a dark, mono, Crush-grained sub with a softer front. |
+| Wide Harmonics | Field Solid to Spread: the SPREAD image at spread 1 opens a folded, Bite-edged harmonic body while the sub stays centred. Morph to B darkens it into a Tube-warmed spread an octave deep. |
+| Spread Choir | Field Spread: SPREAD at spread 0.9 over a high, folded body touched by Fracture, a choir of partials around a centred floor. Morph to B turns it into a Rectify-edged choir. |
 | Morph Span | Morph Position Full: endpoint A is a clean sub, endpoint B a driven harmonic growl; Morph from 0 to 1 crosses the whole span. |
-| Envelope Restart | NoteMemory EnvelopeRetriggerOnly: MONO with Retrigger Reset; each note restarts the envelope but not the oscillator. |
-| Dark To Bright | Macros Dark Bright: a heavy harmonic body with the Dark Bright macro at 0.5; endpoint B is a darker, rounder twin. |
-| Poly Spread | Field Spread: a hollow tube-coloured body spread wide in SPREAD, played as chords in Poly. |
+| Envelope Restart | NoteMemory EnvelopeRetriggerOnly: MONO with Retrigger Reset; each note restarts the envelope but not the oscillator, a Crush-grained, folded edge, wide. Morph to B rounds it into a mono Tube body. |
+| Dark To Bright | Macros Dark Bright: a heavy harmonic body with the Dark Bright macro at 0.5; endpoint B is a darker, rounder, wider twin an octave deep. |
+| Poly Spread | Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it there (Amount 1, an instant attack, Sustain 1). A is a hollow, Tube-coloured, folded body spread wide in SPREAD over a Rounded Anchor, played as chords in Poly; B spreads darker Tube chords. |
+| Stiff Wire | Core Stiffness: the upper harmonics bend sharp of the series, as on a stiff steel string, for a metallic, bell-edged bass that grows stiffer up the keyboard. Morph to B bends them further and bites, wide. |
 
 #### Driven
 
 | Preset | Comment |
 |---|---|
-| Folded Mass | Core Harmonic Fold: Harmonic Fold at 100 over a deep core, with the Anchor at 0.6 holding the floor. |
-| Valve Pressure | Character Tube: the Tube algorithm at Amount 1 for full valve pressure, with Mass 90 under an Anchor at 0.5. |
-| Folding Wire | Character Wavefold: the Fold algorithm at Amount 1, a wire-bright wavefold over a mid core. |
-| Rectified Floor | Character Rectify: Rectify at Amount 1 with Tone 0.4 over a floor-heavy core, the Anchor at 0.6. |
-| Bite Down | Character Bite: Bite at Amount 1 with the Transient Attack at +12 dB, so every note bites down. |
-| Crushed Basalt | Character Crush: Crush at Amount 1 grinds the core while the Anchor at 0.5 keeps the fundamental. |
-| Fault Line | Character Fracture: Fracture at Amount 1 on a harmonic-rich core; the Anchor in FOLLOW tracks the fractured pitch. |
-| Rectified Follow | Anchor Lock to Follow: Rectify at Amount 1 doubles the core and the Anchor in FOLLOW at level 1 goes with it. |
-| Fed Fold | Anchor Fold Feed: Harmonic Fold 100 with the Anchor Fold Feed at 1, the Anchor driven into the folder. |
-| Wide Rectifier | Field Solid to Wide: Rectify at 0.5 with Tone 0.5 under the WIDE image at spread 1. |
-| Clean To Violent | Macros Clean Violent: a lightly driven core with the Clean Violent macro stored at 0.4, with room to turn toward violent. |
-| Poly Ignition | Core Excitation Mix: full edge excitation through Bite on a WIDE image, a driven chord bass in Poly. |
-| Poly Rectifier | Character Rectify: full Rectify on a brighter body in SPREAD, rectified chords in Poly. |
+| Folded Mass | Core Harmonic Fold: Harmonic Fold at 100 over a deep core with some body, sharpened by Bite and spread wide, with an Asymmetric Anchor at 0.6 holding the floor. Morph to B crushes it: Crush, the BITE shape and an octave-down Anchor. |
+| Valve Pressure | Character Tube: the Tube algorithm at Amount 1 for full valve pressure, with Mass 90 over an octave-down Anchor at 0.5, wide. Morph to B folds it: a body, excitation and a BITE fold under a brighter Tube, mono. |
+| Folding Wire | Character Wavefold: the Fold algorithm at Amount 1, a wire-bright wavefold over a mid core and a Triangle Anchor, snapping wide. Morph to B softens it into a mono, lightly folded body an octave deep. |
+| Rectified Floor | Morph Mod Envelope: every note leaps 60 percent of the way from the Rectify floor toward its folded B, then settles near a third (Amount 0.6, an instant attack, Sustain 0.6). A is Rectify at Amount 1 with Tone 0.4 over a floor-heavy, lightly folded core and an Asymmetric Anchor at 0.6; B folds a fuller body under a lighter Rectify, wide. |
+| Bite Down | Character Bite: Bite at Amount 1 with the Transient Attack at +12 dB over a Rounded Anchor, so every note bites down, wide. Morph to B folds it into a mono body an octave deep with half the Bite and no transient boost. |
+| Crushed Basalt | Character Crush: Crush at Amount 1 grinds a lightly folded core while a Triangle Anchor at 0.5 keeps the fundamental. Morph to B turns it lopsided under a lighter Crush, an octave deep and wide. |
+| Fault Line | Character Fracture: Fracture at Amount 1 on a harmonic-rich core; the Anchor in FOLLOW tracks the fractured pitch. Morph to B softens it: a fuller, narrower body under a lighter Fracture. |
+| Rectified Follow | Anchor Lock to Follow: Rectify at Amount 1 doubles the core and the Anchor in FOLLOW at level 1 goes with it, wide. Morph to B grinds it into a mono Crush body over a locked Triangle Anchor. |
+| Fed Fold | Anchor Fold Feed: Harmonic Fold 100 with the Anchor Fold Feed at 1, the Anchor driven into the folder, snapping wide. Morph to B bites: a body, a BITE fold and Bite with less feed, mono. |
+| Wide Rectifier | Field Solid to Wide: Rectify at 0.5 with Tone 0.5 over a lightly folded body and a Rounded Anchor under the WIDE image at spread 1. Morph to B bites, wide, an octave deep. |
+| Clean To Violent | Macros Clean Violent: a lightly driven core over a Triangle Anchor with the Clean Violent macro stored at 0.4, wide, with room to turn toward violent. Morph to B strains it with a fold and Fracture. |
+| Poly Ignition | Morph Mod Envelope: every chord's envelope carries the morph from A to B and holds it there (Amount 1, an instant attack, Sustain 1). A is full edge excitation through Bite on a WIDE image over a Rounded Anchor, a driven chord bass in Poly; B warms the chords with Tube, an octave deep. |
+| Poly Rectifier | Character Rectify: full Rectify on a brighter body over a Triangle Anchor, wide, rectified chords in Poly. Morph to B darkens them into mono chords under a lighter Rectify. |
+| Struck Fold | Morph Mod Velocity: how hard each note is struck sets how far it morphs from A toward B (Amount 1; velocity 127 reaches B). A is a warm, lightly folded Tube bass over a lopsided Anchor; struck hard it cracks into B, a Fracture-split fold with a 7 semitone snap, wide. |
+| Phase Bite | Core Phase 60: the upper harmonics turned against the fundamental make a peaky wave, so the Tube at 0.6 over Harmonic Fold 15 bites much harder than into the same spectrum smooth. Morph to B smooths the phase into a dark, wide Crush. |
 
 #### Plucked
 
 | Preset | Comment |
 |---|---|
-| Punch Anchor | Anchor Lock to Punch: the Anchor in PUNCH, a 6 dB boost over 40 ms, under a 300 ms pluck of a light body. |
-| Ghost Kick | Anchor Lock to Ghost: the Anchor in GHOST for 100 ms under a short decay, a kick-like thump. |
-| Dropping Stone | Pitch Drop Amount: a 24 st drop over 200 ms at every note, a stone falling into the floor. |
-| Slow Fall | Pitch Drop Time: a 24 st drop stretched to 500 ms, a slow fall onto the note. |
-| Curved Drop | Pitch Drop Shape: a 24 st drop with shape 1, the curve bending late into the pitch. |
-| Rebound | Pitch Drop Rebound: a 24 st drop with rebound 1 that undershoots and bounces back up to the note. |
-| Hard Attack | Mass Transient Attack: the Transient Attack at +12 dB snaps the front of a harmonic pluck. |
-| Poly Pluck | Envelope Amp Release: a short decay to a lower sustain with a long release, chords that ring out in Poly. |
+| Punch Anchor | Anchor Lock to Punch: the Anchor in PUNCH, a 9 dB boost over 40 ms, under a 300 ms pluck that drops 5 semitones into a Crush-grained body with a Rounded Anchor. Morph to B turns the pluck into a longer, biting note. |
+| Ghost Kick | Anchor Lock to Ghost: the Anchor in GHOST for 100 ms under a short decay of a Bite-edged, folded body, a kick-like thump. Morph to B crushes it into a wide tap. |
+| Dropping Stone | Pitch Drop Amount: a 24 st drop over 200 ms at every note, a Tube-warmed, folded stone falling into the floor. Morph to B halves the drop and fractures it wide. |
+| Slow Fall | Pitch Drop Time: a 24 st drop stretched to 500 ms, a slow fall onto the note through a hollow fold over an Asymmetric Anchor, wide. Morph to B turns it into a mono Rectify sub with half the drop. |
+| Curved Drop | Pitch Drop Shape: a 24 st drop with shape 1, the curve bending late into the pitch over a Triangle Anchor with a spread top. Morph to B bites it, wide, with a gentler curve. |
+| Rebound | Pitch Drop Rebound: a 24 st drop with rebound 1 that undershoots and bounces back up to the note, a Crush-grained, folded body over a Rounded Anchor. Morph to B warms it into a wide Tube bounce. |
+| Hard Attack | Mass Transient Attack: the Transient Attack at +12 dB snaps the front of a folded harmonic pluck with a 5 semitone snap. Morph to B rounds it into a soft mono Tube note an octave deep. |
+| Poly Pluck | Envelope Amp Release: a short decay to a lower sustain with a long release, folded chords over a Triangle Anchor that ring out wide in Poly. Morph to B bites them. |
 
 #### Animated
 
 | Preset | Comment |
 |---|---|
-| Orbiting Field | Field Motion: Field Motion at depth 1 orbits a SPREAD image at spread 1 around a harmonic core. |
-| Mass Tide | Motion Cycle to Mass: a slow CYCLE swells and drains the Mass under an Anchor at 0.5. |
-| Breathing Depth | Motion Cycle to Depth: a CYCLE breathes the core Depth of a heavy harmonic body in and out. |
-| Body Wave | Motion Cycle to Body: a CYCLE sweeps the Body of a harmonic core, a slow wave through the mids. |
-| Edge Cycle | Motion Cycle to Edge: a saw-like recipe whose Edge a CYCLE opens and closes. |
-| Shifting Spectrum | Motion Cycle to Shift: a slow CYCLE drifts the spectral Shift of a heavy harmonic body up and down. |
-| Envelope Mass | Motion Env to Mass: a Unipolar ENV, 1000 ms up and 1000 ms down, swells the Mass from 0 at every note and lets it settle. |
-| Drifting Weight | Motion Drift to Mass: a DRIFT source at smoothness 0.5 wanders the Mass, different under every seed. |
+| Orbiting Field | Field Motion: Field Motion at depth 1 orbits a SPREAD image at spread 1 around a folded, Bite-edged core over an Asymmetric Anchor. Morph to B darkens it into a wide Tube orbit an octave deep. |
+| Mass Tide | Motion Cycle to Mass: a slow CYCLE swells and drains the Mass of a warm Tube-driven body under an Anchor at 0.5. Morph to B whips it into a fractured, wide storm at 1 Hz. |
+| Breathing Depth | Motion Cycle to Depth: a CYCLE breathes the core Depth of a heavy, Crush-grained harmonic body in and out over a Triangle Anchor, wide. Morph to B breathes a warm, mono Tube body. |
+| Body Wave | Motion Cycle to Body: a CYCLE sweeps the Body of a Rectify-edged harmonic core over a Rounded Anchor, a slow wave through the mids. Morph to B waves a Bite-edged body, wide. |
+| Edge Cycle | Motion Cycle to Edge: a saw-like recipe whose Edge a CYCLE opens and closes, snapping wide. Morph to B sweeps a folded, Fracture-grained body, mono, an octave deep. |
+| Shifting Spectrum | Motion Cycle to Shift: a slow CYCLE drifts the spectral Shift of a heavy harmonic body up and down. Morph to B shifts a warm Tube body over a Triangle Anchor. |
+| Envelope Mass | Motion Env to Mass: a Unipolar ENV, 1000 ms up and 1000 ms down, swells the Mass from 0 at every note and lets it settle. Morph to B swells a Crush-grained, folded body, wide. |
+| Drifting Weight | Motion Drift to Mass: a DRIFT source at smoothness 0.5 wanders the Mass, different under every seed. Morph to B drifts a folded, Fracture-grained body. |
+| Tidal Fold | Morph Mod Cycle: a slow, free-running Square Cycle (0.05 Hz, Amount 1) swings the whole sound between A and B, holding each for 10 s. A is a dark, round sub with a hollow body and a little Tube over a Rounded Anchor; B is the tide coming in: a bright, Rectify-edged fold, spread wide. |
+
+#### Kicks
+
+Every kick decays to silence within a second (sustain 0), so a held note plays one hit; the pitch drop starts above
+the note and lands on it.
+
+| Preset | Comment |
+|---|---|
+| Eight Oh Boom | Pitch Drop Amount: a 36 st drop over 60 ms into a long, round sine boom with a little Tube warmth, the classic tuned 808. Morph to B drives it into a folded, saturated boom. |
+| Punch Kick | Anchor Lock to Punch: the Anchor in PUNCH, a 9 dB boost over 40 ms, under a short Bite-edged kick with a 24 st drop and a +6 dB transient. Morph to B crushes it into a dry, spread snap. |
+| Folded Kick | Character Wavefold: the Fold algorithm at full Amount folds a 30 st drop into a buzzing, distorted kick over a Triangle Anchor. Morph to B adds Harmonic Fold 90 and Mass 85 for a heavier fold. |
+| Sub Boom | Pitch Drop Time: a 24 st drop stretched over 250 ms into a long sub boom over an Octave Down Anchor, warm and mono. Morph to B snaps the drop short and rectifies the tail. |
+| Techno Kick | Mass Transient Attack: a +9 dB attack with the sustain pulled down 3 dB, a tight Bite kick with a fast 24 st drop. Morph to B rounds it into a Tube thump. |
+| Rebound Kick | Pitch Drop Rebound: a 24 st drop with rebound 0.8 that dips under the note and springs back, a Fracture-grained kick over an Asymmetric Anchor. Morph to B bites it. |
+| Gabber Kick | Character Rectify: a hard-rectified kick at Mass 85 with a 28 st drop, the distorted hardcore hit, wide on top. Morph to B rectifies it softer and darker, mono. |
+| Lo-Fi Kick | Character Crush: a soft, dusty kick through the Crush algorithm with a gentle 20 st drop and a dark tone. Morph to B crushes it harder and brighter. |
+| Deep 808 | Pitch Drop Amount: a 40 st drop over 60 ms into a pure sine boom with a 500 ms decay, the deep, clean 808. Morph to B warms it with Tube and fold over a Rounded Anchor. |
+| Club Kick | Anchor Lock to Punch: the Anchor in PUNCH with a 12 dB boost under a short sine kick, a 48 st drop over 25 ms, a +6 dB transient and the body lifted 9 dB, the tight club kick. Morph to B bites it, wide. |
+| Hardstyle Kick | Character Tube: Tube at 0.8 after Harmonic Fold 55 at Mass 70 drives a 36 st drop with a curved fall into a hard, distorted kick. Morph to B drives the Tube and fold harder. |
 
 ## Performance Notes
 
 - **MIDI.** The mod wheel (CC 1) and channel pressure add to **Mass** while you play. Their sum, up to the full
   0 → 100 range, is added at every Morph Position without changing the saved Mass, and the result is held inside
-  0 … 100. Pitch bend follows **Pitch Bend Range**. The sustain pedal (CC 64) holds released notes. These four are
+  0 … 100. With **Morph Mod Source** on Mod Wheel and a non-zero **Morph Mod Amount**, the wheel moves the morph
+  instead and only channel pressure adds to Mass (see *Morph Modulation*). Pitch bend follows **Pitch Bend Range**. The sustain pedal (CC 64) holds released notes. These four are
   host-mapped performance parameters (*Pitch Bend*, *Sustain Pedal*, *Mod Wheel*, *Channel Pressure*); they have no
   control in the editor and are never saved.
 - **Latency:** Profundum reports a constant latency of 64 samples, the look-ahead of the output's true-peak limiter.

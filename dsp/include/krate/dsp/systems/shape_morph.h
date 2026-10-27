@@ -580,7 +580,7 @@ private:
             ch.uPrev = u[k];
             float yNl = l;
             if (roundOn_) {
-                yNl = kRoundOutGain * ch.roundAdaa.process(u[k] * kInvP);
+                yNl = kRoundOutGain * ch.roundAdaa.processFast(u[k] * kInvP);
                 ch.roundAdaaOut = yNl;
             } else if (biteOn_) {
                 const double v = static_cast<double>(biteGain_ * u[k] * kInvP);

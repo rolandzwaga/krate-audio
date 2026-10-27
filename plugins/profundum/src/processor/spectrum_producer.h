@@ -86,6 +86,7 @@ public:
         invalidWindows_ = 0;
         silentReported_ = false;
         silentSince_ = 0;
+        morphPos_ = 0.0f;
     }
 
     /// Audio thread, before engine noteOn: noteSeq_[note] = ++arrivalCounter_.
@@ -96,6 +97,10 @@ public:
 
     /// Audio thread, once per completed engine interval (controlGridPhase() == 0 after a render): focus + feed.
     void onInterval(const Krate::DSP::ProfundumEngine& engine) noexcept {
+        // Phase 14 FR-036 (plan 4.8): the resolved morph position, read through the const accessor only
+        // (render-neutral), sanitised and clamped to [0, 1]; both staging sites copy it into the frame.
+        const float m = engine.morphResolvedPosition();
+        morphPos_ = Krate::DSP::detail::isFinite(m) ? std::clamp(m, 0.0f, 1.0f) : 0.0f;
         using Engine = Krate::DSP::ProfundumEngine;
         const bool poly = engine.appliedVoiceMode() == Engine::VoiceMode::Poly;
 
@@ -221,6 +226,7 @@ public:
         f.flags = kFrameFlagSilent;
         f.numPartials = 0;
         f.windowEndSample = intervalEndSample;
+        f.morphPosition = morphPos_;
         staged_ = f;
         hasStaged_ = true;
         silentReported_ = true;
@@ -337,6 +343,7 @@ private:
                                             (poly_ ? kFrameFlagPoly : 0));
         f.focusVoice = static_cast<std::uint8_t>(focusOfWindow_ < 0 ? 0 : focusOfWindow_);
         f.windowEndSample = windowEndSample;
+        f.morphPosition = morphPos_;
         staged_ = f;
         hasStaged_ = true;
         ++windows_;
@@ -369,6 +376,7 @@ private:
     bool silentReported_ = false;
     std::uint64_t silentSince_ = 0;
     std::uint64_t silenceRepublishSamples_ = 12000;
+    float morphPos_ = 0.0f;  // Phase 14 FR-036: the resolved morph position read at the last onInterval, in [0, 1]
 };
 
 }  // namespace Profundum

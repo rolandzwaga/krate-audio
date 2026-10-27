@@ -255,6 +255,24 @@ jobs:
       - name: IEEE flag-set lint (fast-math safety)
         run: node tools/lint-ieee-flag-sets.js
 
+      # Catches a serial test run in the agent instructions (workflow prompts, skills, agent definitions, CLAUDE.md
+      # files): a whole test executable, a tag across one, a `for t in ...` list, or ctest without -j, run as ONE
+      # process. Every non-timing run goes through tools/run-gate.js (Catch2 shards over a worker pool). The phase
+      # workflows' gates ran serially for months: ~14 min per gate on one core of 32, ~16 gates per phase; the same
+      # gate sharded took 2 min 15 s (2026-10-26). Self-test first, then the tree (ratchet:
+      # tools/lint-serial-test-runs-baseline.json).
+      - name: Serial test-run lint (sharded runs only)
+        run: |
+          node tools/lint-serial-test-runs.js --self-test
+          node tools/lint-serial-test-runs.js
+
+      # Catches a per-push TEST_CASE that asserts on its own wall clock without the [wallclock] tag. Sharded gates
+      # load every core; such a case reads 1.5-2x slower there and goes red on untouched code (Profundum render
+      # guards 17-23 s against a 15 s bar, a Seraphis per-block budget, 2026-10-26). tools/run-gate.js runs
+      # [wallclock] cases in a quiet second pass, which only works when they are tagged.
+      - name: Wall-clock test tag lint
+        run: node tools/lint-wallclock-tags.js
+
       # Identifiers that compile on Windows and Linux but not on macOS: VSTGUI's
       # platform macros (MAC / WINDOWS / LINUX) used as names, and names at
       # global or anonymous-namespace scope that MacTypes.h also declares

@@ -1,0 +1,17 @@
+=== endpoints-6 2026-10-27T09:26:41Z commit e501b577
+cmd: build/windows-x64-release/bin/Release/profundum_tests.exe "Profundum_PresetMorphEndpoints_6of8"
+Filters: "Profundum_PresetMorphEndpoints_6of8"
+Randomness seeded to: 3819781920
+# Profundum_PresetMorphEndpoints_6of8: presets=7
+preset,d_ab,masked,level_a_e1,level_b_e1,level_a_c3,level_b_c3
+"Bite Down",14.6318,11,-12.5907,-11.6089,-12.6699,-10.1168
+"Rounded Weight",18.8332,13,-10.0759,-11.3243,-10.0061,-12.3684
+"Glide Path",18.6133,6,-14.094,-11.8897,-13.8495,-11.5361
+"Spread Choir",24.1768,8,-12.9697,-13.685,-12.8725,-14.515
+"Envelope Mass",17.2165,16,-9.84209,-9.87185,-9.78938,-9.65441
+"Weight Lever",15.3624,14,-10.6577,-11.4268,-10.5049,-11.6232
+"Poly Swell",12.31,7,-12.3735,-10.8712,-11.866,-10.5783
+===============================================================================
+All tests passed (2711020 assertions in 1 test case)
+
+WALL endpoints-6 223.6 s exit=0

@@ -56,7 +56,7 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   `StringListParameter`s — never swap a type or change a range at the same ID. Titles are ASCII:
   "Weight", "Dark/Bright", "Tight/Loose", "Clean/Violent".
   Pipeline to add one: `plugin_ids.h → parameters/ → processor → controller → resources/editor.uidesc`.
-- **State:** `kCurrentStateVersion = 3`, `kStateV3Bytes = 574` (and `kStateV2Version = 2` / `kStateV2Bytes = 510`,
+- **State:** `kCurrentStateVersion = 3`, `kStateV3Bytes = 626` (and `kStateV2Version = 2` / `kStateV2Bytes = 526`,
   `kStateV1Version = 1` / `kStateV1Bytes = 36`) live in `plugin_ids.h`, shared by processor and controller with no
   cross-include; every offset is `static_assert`ed. Little-endian `IBStreamer`:
 
@@ -68,24 +68,27 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   | 36–67 | note behaviour | priority i32, legato i32, portamento ms f32, portamento mode i32, glide mode i32, Note Memory i32, retrigger i32, bend range f32 |
   | 68–83 | morph control | position f32, ramp ms f32, Anchor Morph Mode i32, Edit Target i32 |
   | 84–87 | seed | uint32 |
-  | 88–288 | endpoint A | `serializeMorphState`, 201 bytes |
-  | 289–489 | endpoint B | 201 bytes |
-  | 490–509 | morph runtime | `serializeMorphRuntime`, 20 bytes |
-  | 510–541 | name A (v3) | u8 length L (0–31), then L UTF-8 bytes, zero-padded to 31 (`kEndpointNameBlockBytes = 32`) |
-  | 542–573 | name B (v3) | same layout |
+  | 88–296 | endpoint A | `serializeMorphState`, 209 bytes |
+  | 297–505 | endpoint B | 209 bytes |
+  | 506–525 | morph runtime | `serializeMorphRuntime`, 20 bytes |
+  | 526–557 | name A (v3) | u8 length L (0–31), then L UTF-8 bytes, zero-padded to 31 (`kEndpointNameBlockBytes = 32`) |
+  | 558–589 | name B (v3) | same layout |
+  | 590–625 | Morph Modulation (v3, Phase 14) | source i32, amount, attack ms, decay ms, sustain, cycle shape i32, cycle rate Hz, cycle sync i32, cycle sync rate i32 |
 
-  Bytes 0–509 of a v3 stream are the v2 body with version word 3. The hidden performance parameters (4–7) are never
+  Phase 15 grew each endpoint 201 → 209 bytes (Stiffness, Phase) with no version change: Profundum is unreleased, so
+  a stream written before it does not load (user, 2026-10-27). Bytes 0–525 of a v3 stream are the v2 body with version
+  word 3. The hidden performance parameters (4–7) are never
   written or read. Version `> 3` → `kResultFalse`, nothing changed. A v1 (36-byte) stream loads the globals and macros
-  and resets both endpoints, the note and morph-control fields, the seed and both names to their defaults. A v2 (510-byte)
+  and resets both endpoints, the note and morph-control fields, the seed and both names to their defaults. A v2 (526-byte)
   stream loads everything but the names, which reset to the defaults `A` and `B`. A truncated stream keeps the prior
-  value of every field it does not hold completely (an endpoint needs all 201 bytes; a short or invalid name block keeps
+  value of every field it does not hold completely (an endpoint needs all 209 bytes; a short or invalid name block keeps
   that endpoint's prior name and stops the chain). An empty name is the default name. `setState` makes no engine call:
   the next `process()` applies the endpoints, then the morph-control fields, then the runtime blob only if its target,
   ramp and mode match. `process()` never touches the names; the processor holds them under `namesMutex_`, taken only by
   `notify`, `getState` and `setState`. A name edit in the editor sends **`kMsgEndpointName`**
   (`"ProfundumEndpointName"`, ctl → proc, int `"endpoint"`, binary `"name"` of 0–31 bytes) and sets the project dirty.
   The endpoint descriptor shown beside a name is computed from the endpoint and is never stored. The next format change
-  appends after byte 574.
+  appends after byte 626.
 - **UI (Phase 12, `specs/profundum-phase12-ui/`; design docs D1–D7 in its `design/`):**
   - **Pages:** one fixed 960 × 600 editor (`minSize = maxSize`) with a **Main** page and an **Advanced** page (session tag
     9100); Advanced has three tabs, Sections / Modulation / Settings (session tag 9110). `resources/editor.uidesc` is the
@@ -111,8 +114,12 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
     (session tag 9300) or the host's zoom menu, applied with `VST3Editor::setZoomFactor`. Zoom, page, tab and highlight
     are **session state**: never persisted, never a parameter.
   - `IMidiLearn` is **not** implemented; MIDI learn is the host's.
-- **Presets (Phase 13, `specs/profundum-phase13-presets-release/`):** 53 factory presets in six categories, `Sub`,
-  `Resonant`, `Harmonic`, `Driven`, `Plucked`, `Animated` (`makeProfundumPresetConfig()` in
+  - **Manual screenshots:** `node tools/gen-screenshots.js profundum` rebuilds `profundum_tests` and runs the hidden
+    `[screenshots]` case (`tests/unit/controller/editor_screenshot_test.cpp`, which holds the shot list), writing the
+    PNGs that `MANUAL.md` links into `images/` (committed). Rerun after any editor change. A uidesc-labelled view is a
+    crop target; the live displays render at rest (no processor feeds them).
+- **Presets (Phase 13, `specs/profundum-phase13-presets-release/`):** 73 factory presets in seven categories, `Sub`,
+  `Resonant`, `Harmonic`, `Driven`, `Plucked`, `Animated`, `Kicks` (Phase 14b) (`makeProfundumPresetConfig()` in
   `src/preset/profundum_preset_config.h`; the list is additive-only and must match the directories under
   `resources/presets/`). The tree is **generated, never hand-edited**: definitions in `tools/profundum_preset_defs.h`,
   generator `tools/profundum_preset_generator.cpp` (target `profundum_preset_generator`; no Catch2, no `vstgui_support`),
@@ -120,7 +127,7 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   `ProfundumPluginTest::PresetHost` (`tests/profundum_preset_host.h`). Byte determinism and idempotence:
   `node tools/check-preset-generator-determinism.js --plugin profundum`.
 - **Browser:** the header `PresetBrowserButton` custom view is one `OutlineBrowserButton` ("PRESETS") that opens the
-  shared `PresetBrowserView` overlay (added in `didOpen`, removed in `willClose`; tabs "All" + the six categories). No
+  shared `PresetBrowserView` overlay (added in `didOpen`, removed in `willClose`; tabs "All" + the seven categories). No
   current-preset name, no previous / next, no new state. A preset load does **not** go through per-parameter host edits:
   the controller sends the whole component stream as **`kMsgLoadPresetState`** (`"ProfundumLoadPresetState"`,
   ctl → proc, binary `"state"` of at most 4096 bytes, `plugin_ids.h`), `Processor::notify` applies it through the
@@ -173,7 +180,7 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   | `unit/preset/preset_library_test.cpp` | `Profundum_PresetCategoryConfig`, `…CategoryNameRule`, `…HostDrive`, `…HostValidation`, `Profundum_GeneratorSmoke`, `Profundum_PresetDefsRules`, `Profundum_PresetCategoriesMatchFilesystem`, `Profundum_FactoryPresetContainer`, `…LibraryShape`, `…PresetStateFormat`, `…PresetRoundTrip`, `Profundum_CoverageMatrixComplete`, `Profundum_CommittedPresetTreeMatches`, `Profundum_FactoryPresetCeiling` | `[preset]` |
   | `unit/manual_coverage_test.cpp` | `Profundum_ManualCoversSurface` | `[docs]` |
   | `integration/preset_browser_test.cpp` | `Profundum_LoadPresetStateMessage`, `Profundum_ControllerLoadPresetStream`, `Profundum_PresetBrowserSave`, `…ViewLifecycle`, `…Load`, `Profundum_FactoryPresetScan`; `Profundum_InstalledPresetTree` | `[browser]`; `[browser][.install]` (hidden) |
-  | `integration/preset_rt_test.cpp` | `Profundum_FactoryPresetLoadRtSafe`, `Profundum_PresetRenderGuard_0of8` .. `_7of8`, `Profundum_PresetLoadUnderHeldNote` | `[preset][rt]` |
+  | `integration/preset_rt_test.cpp` | `Profundum_FactoryPresetLoadRtSafe`, `Profundum_PresetRenderGuard_0of16` .. `_15of16`, `Profundum_PresetLoadUnderHeldNote` | `[preset][rt]` |
   | `integration/preset_probe_test.cpp` | `Profundum_EngineSeamsForTest`, `Profundum_ScriptRenderShim`, `Profundum_ProcessorScriptRender`, `Profundum_ScriptRenderRefusals`, `Profundum_EffectiveScriptCarriers`, `Profundum_PresetAudibilityProbeKeys`; eleven `Profundum_PresetAudibilityProbe_<Group>` | `[probe]`; `[probe][.probe]` (hidden) |
   | `integration/preset_showcase_test.cpp` | `Profundum_ShowcaseArmMechanics`, `Profundum_ReferenceColumns`; `Profundum_PresetDistanceMath`; `Profundum_PresetShowcase_<k>of8` (k = 0…7) | `[showcase]`; `[distinct]`; `[showcase][long][profundum-showcase]` |
   | `integration/preset_sweep_test.cpp` | `Profundum_SweepTimeline`, `…MonoSumMechanics`, `…DeterminismMechanics`; `Profundum_PresetDistinctnessParams`; `Profundum_PresetSweep`, `…SweepRates`, `…TruePeakMaxMass`, `…MonoSum`, `…Determinism`, `…LoudnessMatch`, `…Distinctness`; `…DistinctnessPilot`; `Profundum_PresetAuditionRenders` | `[sweep]`; `[distinct]`; `[long]`; `[.pilot]`; `[.listen]` (hidden) |
@@ -185,7 +192,7 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
   `Profundum_MassOffsetAudibility`, `Profundum_MonoSumViaParams`) are excluded from per-push CI and run nightly.
   ```bash
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Profundum profundum_tests
-  build/windows-x64-release/bin/Release/profundum_tests.exe 2>&1 | tail -5
+  node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' profundum_tests   # sharded, see root CLAUDE.md; CPU lane alone: node tools/run-cpu-tests.js profundum_tests
   ```
 - **pluginval:** `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Profundum.vst3"`
 

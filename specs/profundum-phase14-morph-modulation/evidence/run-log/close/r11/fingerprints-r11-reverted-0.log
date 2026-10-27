@@ -1,0 +1,7 @@
+Filters: "Profundum_MorphModPrePhaseFingerprints_0of4"
+Randomness seeded to: 4213195232
+# Profundum_MorphModPrePhaseFingerprints_0of4: compared=15 converted=1 failures=0 regionMismatches=0 worstMetric=0 worstSample=0 (none) skippedNew=0
+WALL Profundum_MorphModPrePhaseFingerprints_0of4 14.8852 s
+===============================================================================
+All tests passed (84507 assertions in 1 test case)
+

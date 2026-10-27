@@ -5,6 +5,16 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Update check** — When the editor opens, Innexus checks online for a newer version, at most once a day, and shows a banner across the top of the window when one exists. Before, the banner was in place but the check never ran. A Check for Updates button under the preset buttons checks right away.
+
+### Changed
+
+- **Version label** — The version at the bottom of the editor is drawn by the same label every Krate plugin uses, and reads "v1.0.3" instead of "Innexus v1.0.3 | Krate Audio".
+
 ## [1.0.3] - 2026-10-09
 
 ### Fixed

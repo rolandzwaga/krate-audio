@@ -88,6 +88,10 @@ public:
     /// Maximum gain in dB for input and output
     static constexpr float kMaxGainDb = +24.0f;
 
+    /// kMinGainDb / kMaxGainDb as linear gains (the linear setters' clamp)
+    static constexpr float kMinLinearGain = dbToGain(kMinGainDb);
+    static constexpr float kMaxLinearGain = dbToGain(kMaxGainDb);
+
     /// Default smoothing time in milliseconds
     static constexpr float kDefaultSmoothingMs = 5.0f;
 
@@ -182,6 +186,18 @@ public:
     void setOutputGain(float dB) noexcept {
         outputGainDb_ = std::clamp(dB, kMinGainDb, kMaxGainDb);
         outputGainSmoother_.setTarget(dbToGain(outputGainDb_));
+    }
+
+    /// @brief setInputGain with a linear gain, clamped to the gains of [-24, +24] dB, without the
+    /// per-call dB-to-gain conversion (Profundum Phase 14 R11: Amount re-keys it every sample while
+    /// it glides). getInputGain() keeps the last setInputGain() value; prepare() re-targets from it.
+    void setInputGainLinear(float gain) noexcept {
+        inputGainSmoother_.setTarget(std::clamp(gain, kMinLinearGain, kMaxLinearGain));
+    }
+
+    /// @brief setOutputGain with a linear gain; as setInputGainLinear (R11).
+    void setOutputGainLinear(float gain) noexcept {
+        outputGainSmoother_.setTarget(std::clamp(gain, kMinLinearGain, kMaxLinearGain));
     }
 
     /// @brief Set the tube bias (asymmetry).

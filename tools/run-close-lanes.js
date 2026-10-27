@@ -11,8 +11,9 @@
 // tools/run-cpu-tests.js, alone, pinned, after the box has idled.
 //
 // Usage:
-//   node tools/run-close-lanes.js [--out <dir>] [--shards N] [--parallel P] [--bin <dir>] [--skip-sweep] [--dry-run]
-// Defaults: out = f:/tmp/close-lanes/<timestamp>, shards = 8, parallel = cpu count / 2, bin = the Release bin dir.
+//   node tools/run-close-lanes.js [--out <dir>] [--shards N] [--suite-shards K] [--parallel P] [--bin <dir>] [--skip-sweep] [--dry-run]
+// Defaults: out = f:/tmp/close-lanes/<timestamp>, shards = 8 (Vorago sweep), suite-shards = 8 (Catch2 shards per suite
+// and per [long] lane), parallel = cpu count - 2, bin = the Release bin dir.
 // Writes <out>/<lane>.log per lane and <out>/summary.txt (one line per lane: wall clock, Catch2 totals, FAILED lines).
 'use strict';
 const { spawn } = require('child_process');
@@ -27,19 +28,30 @@ const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '').
 const OUT = path.resolve(opt('--out', path.join('f:/tmp/close-lanes', stamp)));
 const BIN = path.resolve(opt('--bin', 'build/windows-x64-release/bin/Release'));
 const SHARDS = Number(opt('--shards', 8));
-const PARALLEL = Number(opt('--parallel', Math.max(2, Math.floor(os.cpus().length / 2))));
+const PARALLEL = Number(opt('--parallel', Math.max(2, os.cpus().length - 2)));
+// Every suite lane is cut into Catch2 shards (--shard-count/--shard-index) so one heavy executable never pins a single
+// core while the pool idles (user ruling 2026-10-26: shard every non-timing run; see tools/run-gate.js).
+const SUITE_SHARDS = Number(opt('--suite-shards', 8));
+const shardArgv = (k) => ['--allow-running-no-tests', '--shard-count', String(SUITE_SHARDS), '--shard-index', String(k)];
 const DRY = flag('--dry-run');
 const SKIP_SWEEP = flag('--skip-sweep');
 const EXE = (n) => path.join(BIN, process.platform === 'win32' ? `${n}.exe` : n);
 const TIMING = '~[performance]~[perf]~[benchmark]~[!benchmark]';
 
+const SUITES = ['dsp_core_tests', 'dsp_primitives_tests', 'dsp_processors_tests', 'dsp_systems_tests', 'dsp_effects_tests', 'dsp_ieee_tests',
+                'vorago_tests', 'seraphis_tests', 'shared_tests', 'profundum_tests'];
 const lanes = [];
-for (const s of ['dsp_core_tests', 'dsp_primitives_tests', 'dsp_processors_tests', 'dsp_systems_tests', 'dsp_effects_tests', 'dsp_ieee_tests',
-                 'vorago_tests', 'seraphis_tests', 'shared_tests', 'profundum_tests']) {
-  lanes.push({ name: `suite_${s}`, exe: EXE(s), argv: [`${TIMING}~[long]`], env: {} });
+// [wallclock] cases assert on their own elapsed time; they are kept out of the busy pool and run after it drains
+// (wallclockLanes below, --wallclock-parallel wide), as tools/run-gate.js does.
+for (const s of SUITES) {
+  for (let k = 0; k < SUITE_SHARDS; k++) lanes.push({ name: `suite_${s}_${k}`, exe: EXE(s), argv: [`${TIMING}~[long]~[wallclock]`, ...shardArgv(k)], env: {} });
 }
-lanes.push({ name: 'long_dsp_systems_tests', exe: EXE('dsp_systems_tests'), argv: [`[long]${TIMING}`], env: {} });
-lanes.push({ name: 'long_vorago_nonsweep', exe: EXE('vorago_tests'), argv: [`[long]~[vorago-sweep]${TIMING}`], env: {} });
+const WALLCLOCK_PARALLEL = Number(opt('--wallclock-parallel', 4));
+const wallclockLanes = SUITES.map((s) => ({ name: `wallclock_${s}`, exe: EXE(s), argv: [`${TIMING}~[long][wallclock]`, '--allow-running-no-tests'], env: {} }));
+for (let k = 0; k < SUITE_SHARDS; k++) {
+  lanes.push({ name: `long_dsp_systems_tests_${k}`, exe: EXE('dsp_systems_tests'), argv: [`[long]${TIMING}`, ...shardArgv(k)], env: {} });
+  lanes.push({ name: `long_vorago_nonsweep_${k}`, exe: EXE('vorago_tests'), argv: [`[long]~[vorago-sweep]${TIMING}`, ...shardArgv(k)], env: {} });
+}
 const sweepOut = path.join(OUT, 'sweep-out');
 if (!SKIP_SWEEP) {
   for (let i = 0; i < SHARDS; i++) {
@@ -96,9 +108,10 @@ async function pool(items, width, fn) {
   const t0 = Date.now();
   console.log(`close lanes: ${lanes.length} lanes, ${PARALLEL} at a time -> ${OUT}`);
   const results = await pool(lanes, PARALLEL, runLane);
+  results.push(...await pool(wallclockLanes, WALLCLOCK_PARALLEL, runLane));
   if (aggregate) results.push(await runLane(aggregate));
   const wall = Math.round((Date.now() - t0) / 1000);
-  const summary = [`close lanes ${DRY ? '(dry run) ' : ''}total wall=${wall}s parallel=${PARALLEL} shards=${SHARDS}`, ...results.map(summarise)];
+  const summary = [`close lanes ${DRY ? '(dry run) ' : ''}total wall=${wall}s parallel=${PARALLEL} shards=${SHARDS} suite-shards=${SUITE_SHARDS}`, ...results.map(summarise)];
   fs.writeFileSync(path.join(OUT, 'summary.txt'), summary.join('\n') + '\n');
   console.log(summary.join('\n'));
   process.exit(results.some((r) => r.rc !== 0) ? 1 : 0);

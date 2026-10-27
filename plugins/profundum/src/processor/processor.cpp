@@ -111,9 +111,9 @@ static_assert(std::string_view(Krate::DSP::BassMorphEngine::kLawTable[kLeafAmpRe
 
 using EndpointBlob = std::array<std::byte, Krate::DSP::kMorphStateBytes>;
 
-// FR-040: one endpoint slot as its 201-byte serializeMorphState blob. Every slot word is written through a
+// FR-040: one endpoint slot as its 209-byte serializeMorphState blob (201 before Phase 15). Every slot word is written through a
 // leaf law, so the assembled state is always valid (plan 1.1 consequence); should serialisation ever fail, the
-// MorphState{} blob is written instead so the layout stays 510 bytes.
+// MorphState{} blob is written instead so the layout stays fixed.
 [[nodiscard]] EndpointBlob serializeSlot(const EndpointParams& slot) noexcept {
     EndpointBlob buf{};
     if (Krate::DSP::serializeMorphState(morphStateFromLeafBits(slot.load()), buf.data(), buf.size()) != buf.size()) {
@@ -124,7 +124,7 @@ using EndpointBlob = std::array<std::byte, Krate::DSP::kMorphStateBytes>;
 
 // FR-044 (plan 4.5.3): the v2 chain after the global and macro blocks. Each step runs only if every earlier
 // one read completely; a short read stops the chain, so every later field keeps its prior value. A rejected
-// endpoint (all 201 bytes read) keeps its prior value and the chain continues. Atomics only: no engine call.
+// endpoint (all 209 bytes read) keeps its prior value and the chain continues. Atomics only: no engine call.
 // Returns true, with @p blob filled, only when the chain reached and completely read the 20-byte runtime blob
 // (FR-042: the caller hands it to the audio thread; any earlier stop means "cancel").
 [[nodiscard]] bool loadV2Tail(IBStreamer& s, NoteParams& note, MorphControlParams& morph,
@@ -352,7 +352,7 @@ tresult PLUGIN_API Processor::connect(IConnectionPoint* other) {
             constexpr uint32 kBlockSize =
                 ((static_cast<uint32>(sizeof(ProfundumSpectrumFrame)) + kAlignment - 1u) / kAlignment) * kAlignment;
             static_assert(kBlockSize % kAlignment == 0 && kBlockSize >= sizeof(ProfundumSpectrumFrame));
-            static_assert(kBlockSize == 288u, "SC-023 / SC-030: the handler block is the 288-byte frame");
+            static_assert(kBlockSize == 320u, "SC-023 / SC-030: the handler block is the 320-byte frame");
             config.blockSize = kBlockSize;
             config.numBlocks = 4;
             config.alignment = kAlignment;
@@ -623,6 +623,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
         seed_.store(Krate::DSP::ProfundumEngine::kDefaultSeed, std::memory_order_relaxed);
         publishRestore(RuntimeBlob{});  // cancel: a blob pending from an earlier setState is dropped
         resetNamesToDefaults();         // FR-047: a v1 stream has no names
+        resetMorphModParams(morphModParams_);  // Phase 14 C-10: a v1 stream has no Morph Modulation block
     } else {
         // FR-042: the loaded blob is handed to the audio thread; a chain stopped before it cancels instead
         // (five zero words: version byte 0, never passed to the engine).
@@ -631,18 +632,26 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
             v1BodyComplete && loadV2Tail(s, noteParams_, morphParams_, seed_, endpoints_, blob);
         publishRestore(blobRead ? blob : RuntimeBlob{});
         if (version == kStateV2Version) {
-            resetNamesToDefaults();  // FR-047: a v2 stream has no names
+            resetNamesToDefaults();                // FR-047: a v2 stream has no names
+            resetMorphModParams(morphModParams_);  // Phase 14 C-10: nor a Morph Modulation block
         } else if (blobRead) {
             // v3 (plan 4.5): the two name blocks follow the runtime blob. A short or invalid block keeps that
             // endpoint's prior name and stops the chain (the Phase 11 truncation rule); a chain cut before the
             // blob keeps both prior names.
+            bool namesRead = true;
             for (std::size_t e = 0; e < names_.size(); ++e) {
                 EndpointName name{};
                 if (!readEndpointName(s, name)) {
+                    namesRead = false;
                     break;
                 }
                 const std::scoped_lock lock(namesMutex_);
                 names_[e] = nameOrDefault(name, endpointOfIndex(e));
+            }
+            // Phase 14 C-10: the Morph Modulation block follows the names. A chain stopped earlier keeps every
+            // field; a cut inside the block keeps every field from the cut on.
+            if (namesRead) {
+                static_cast<void>(loadMorphModParams(morphModParams_, s));
             }
         }
     }
@@ -660,7 +669,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
 }
 
 // FR-040 / FR-041 (plan 4.5.3): the v2 body, little-endian, then (Phase 12, plan 4.5) the two name blocks: the
-// 574-byte v3 layout. The endpoints come from the slots, never
+// 574-byte v3 layout; Phase 14 appends the Morph Modulation block (610 bytes). The endpoints come from the slots, never
 // from the engine, so the bytes depend neither on the audio thread nor on Mod Wheel / Channel Pressure (FR-056).
 tresult PLUGIN_API Processor::getState(IBStream* state) {
     if (state == nullptr) {
@@ -694,6 +703,7 @@ tresult PLUGIN_API Processor::getState(IBStream* state) {
     for (const EndpointName& name : names) {
         static_cast<void>(writeEndpointName(s, name));
     }
+    saveMorphModParams(morphModParams_, s);  // Phase 14 C-10: the 36-byte block after the names (610 bytes)
     flushControllerSync();  // FR-025: a flush point (the Linux path has no timer)
     return kResultOk;
 }
@@ -744,7 +754,7 @@ tresult PLUGIN_API Processor::notify(IMessage* message) {
         // Phase 13 FR-031 step 2 (plan 4.6): the whole component stream from the preset browser. Non-audio thread,
         // so the stream may allocate here. setState does the restore hand-off, the names, the compare reset and
         // flushControllerSync, so its result is returned as is.
-        constexpr uint32 kMaxPresetStateMessageBytes = 4096;  // the 574-byte v3 stream with headroom
+        constexpr uint32 kMaxPresetStateMessageBytes = 4096;  // the 610-byte v3 stream with headroom
         const void* data = nullptr;
         uint32 size = 0;
         if (attrs == nullptr || attrs->getBinary("state", data, size) != kResultOk) {
@@ -913,6 +923,9 @@ void Processor::routeParamChange(EndpointParams& slot, ParamID id, double value)
         case RouteKind::MorphControl:
             static_cast<void>(handleMorphControlParamChange(morphParams_, id, value));
             return;
+        case RouteKind::MorphMod:  // Phase 14 FR-020
+            static_cast<void>(handleMorphModParamChange(morphModParams_, id, value));
+            return;
         case RouteKind::None:
             return;
     }
@@ -924,10 +937,14 @@ void Processor::routeParamChange(EndpointParams& slot, ParamID id, double value)
 // and clamped to the Mass row of kLawTable (the slot itself is never written).
 // When c == 0 the add is skipped, so the assembled leaf is bit-identical to the
 // slot. A rejected state is counted (FR-067).
+// Phase 14 C-7 / FR-022: with Source = Mod Wheel and Amount != 0 the wheel drives Morph only, so c drops the wheel
+// term; every other case keeps today's expression and operand order, so its endpoints are bit-identical. A hand-over
+// change flips c's bits and re-sends both endpoints through the dirty path below.
 void Processor::applyEndpoints() noexcept {
-    const float c = std::clamp(perfParams_.modWheel.load(std::memory_order_relaxed) +
-                                   perfParams_.channelPressure.load(std::memory_order_relaxed),
-                               0.0f, 1.0f);
+    const float cp = perfParams_.channelPressure.load(std::memory_order_relaxed);
+    const float c = morphModHandsWheelToMorph(morphModParams_)
+                        ? std::clamp(cp, 0.0f, 1.0f)
+                        : std::clamp(perfParams_.modWheel.load(std::memory_order_relaxed) + cp, 0.0f, 1.0f);
     if (std::bit_cast<std::uint32_t>(c) != std::bit_cast<std::uint32_t>(lastPerfOffsetC_)) {
         lastPerfOffsetC_ = c;
         endpoints_[0].dirty.store(true, std::memory_order_relaxed);
@@ -977,6 +994,10 @@ void Processor::pushParamsToEngine(CompareMode cmp) noexcept {
         position = 1.0f;
     }
     engine_->setMorphPosition(position);
+    // Phase 14 FR-021: the modulation config, the Mod Wheel (C-7) and the Compare A / B bypass (C-8) on every push.
+    engine_->setMorphModulation(morphModConfigOf(morphModParams_));
+    engine_->setMorphModWheel(perfParams_.modWheel.load(std::memory_order_relaxed));
+    engine_->setMorphModBypass(cmp != CompareMode::AB);
 }
 
 // Plan 3.2 (V-proc:1097-1124): the first kMaxEventsPerBlock events, offsets

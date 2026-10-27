@@ -8,6 +8,9 @@
 //   position 0 and renders like a position-0 reference; getState during the
 //   compare is byte-identical to the stream taken before it; setState and
 //   setActive(false) reset the compare to A.B.
+// Profundum_MorphModOutsideEndpoints (Phase 14 T012; SC-022, FR-018): the nine Morph Modulation parameters
+//   (1003-1011) are not endpoint parameters: Copy A <-> B and Edit Target switches leave the controller's nine
+//   values and the processor's stored block (read through getState) bit-unchanged.
 // Profundum_ProcessorControllerSync (SC-025, FR-025): process() on a dedicated
 //   "audio" thread, flushControllerSync() / onTimer() on the test thread; the
 //   Edit Target pull (immediate and delayed reply) and the timer lifecycle.
@@ -20,8 +23,10 @@
 
 #include "band_level_metric.h"
 
+#include "parameters/morph_mod_params.h"
 #include "parameters/morph_params.h"
 #include "parameters/sound_param_row.h"
+#include "parameters/sound_param_table.h"
 #include "plugin_ids.h"
 
 #include <allocation_detector.h>
@@ -229,6 +234,130 @@ TEST_CASE("Profundum_CopyEndpoint", "[profundum][morph]") {
     }
     SECTION("BToA") {
         runCopyArm(Endpoint::B);
+    }
+}
+
+// =============================================================================
+// SC-022 (Phase 14 T012; FR-018) - Morph Modulation lives outside the endpoints
+// =============================================================================
+namespace {
+
+constexpr std::size_t kMmCount = 9;
+
+/// The controller's nine normalised values (as bits) and the processor's stored block (the MorphModParams atomics,
+/// written word for word by getState at kStateMorphModOffset).
+struct MmOutsideSnapshot {
+    std::array<std::uint64_t, kMmCount> ctl{};
+    std::array<std::uint32_t, kMmCount> proc{};
+};
+
+[[nodiscard]] Steinberg::Vst::ParamID mmIdOf(std::size_t i) noexcept {
+    return static_cast<Steinberg::Vst::ParamID>(P::kMorphModSourceId) + static_cast<Steinberg::Vst::ParamID>(i);
+}
+
+[[nodiscard]] MmOutsideSnapshot mmOutsideSnapshot(ConnectedPair& cp) {
+    MmOutsideSnapshot snap;
+    for (std::size_t i = 0; i < kMmCount; ++i) {
+        snap.ctl[i] = std::bit_cast<std::uint64_t>(cp.cf.controller->getParamNormalized(mmIdOf(i)));
+    }
+    const StateBytes st = writeV2Stream(*cp.fx.proc);
+    REQUIRE(st.size() == P::kStateV3Bytes);
+    for (std::size_t i = 0; i < kMmCount; ++i) {
+        snap.proc[i] = readU32(st, P::kStateMorphModOffset + 4u * i);
+    }
+    return snap;
+}
+
+}  // namespace
+
+TEST_CASE("Profundum_MorphModOutsideEndpoints", "[profundum][morphmod][morph]") {
+    // Statically outside: 62 sound rows (Phase 15: + Stiffness, Phase) (redisplayEditTarget and the copy iterate exactly these), none of them in
+    // 1003-1011, and no route in 1003-1011 is a Sound route.
+    STATIC_REQUIRE(P::kSoundRows.size() == 62);
+    for (const P::SoundParamRow& row : P::kSoundRows) {
+        INFO("row " << row.id);
+        CHECK((row.id < 1003u || row.id > 1011u));
+    }
+    for (std::size_t i = 0; i < kMmCount; ++i) {
+        INFO("id " << mmIdOf(i));
+        CHECK(P::kParamRoutes[mmIdOf(i)].kind != P::RouteKind::Sound);
+        CHECK(P::kParamRoutes[mmIdOf(i)].kind == P::RouteKind::MorphMod);
+    }
+
+    ConnectedPair cp;
+    const MorphState a = randomValidMorphState(0x22Au);
+    const MorphState b = randomValidMorphState(0x22Bu);
+    REQUIRE_FALSE(leafBitsEqual(a, b));  // non-vacuity: each copy changes its destination
+    loadEndpoints(cp, a, b);
+
+    // The nine at non-defaults (Source Cycle, Amount -0.6, Attack 50 ms, Decay 900 ms, Sustain 0.4, Shape Square,
+    // Rate 3 Hz, Sync On, Sync Rate index 7), delivered as a host does: to the processor as parameter changes, to
+    // the controller through setParamNormalized.
+    const std::array<double, kMmCount> nine{
+        2.0 / 4.0,
+        0.2,
+        P::normalizedFromPlain(P::kMorphModTimeLaw, 50.0),
+        P::normalizedFromPlain(P::kMorphModTimeLaw, 900.0),
+        0.4,
+        3.0 / 5.0,
+        P::normalizedFromPlain(P::kMorphModRateLaw, 3.0),
+        1.0,
+        7.0 / 29.0,
+    };
+    {
+        MultiParamChanges pc;
+        pc.reserve(kMmCount);
+        for (std::size_t i = 0; i < kMmCount; ++i) {
+            pc.addQueue(mmIdOf(i)).addTestPoint(0, nine[i]);
+            REQUIRE(cp.cf.controller->setParamNormalized(mmIdOf(i), nine[i]) == Steinberg::kResultTrue);
+        }
+        cp.fx.ensureCapture(kBlock);
+        REQUIRE(cp.fx.processBlock(kBlock, nullptr, &pc) == Steinberg::kResultOk);
+    }
+    cp.fx.proc->flushControllerSync();
+
+    const MmOutsideSnapshot base = mmOutsideSnapshot(cp);
+    // Teeth: the values are held off their defaults on both sides.
+    CHECK(base.proc[0] == 2u);                                  // Source Cycle
+    CHECK(std::bit_cast<float>(base.proc[1]) < -0.5f);          // Amount -0.6
+    CHECK(base.proc[5] == 3u);                                  // Shape Square
+    CHECK(base.proc[7] == 1u);                                  // Sync On
+    CHECK(base.proc[8] == 7u);                                  // Sync Rate index 7
+    for (std::size_t i = 0; i < kMmCount; ++i) {
+        INFO("id " << mmIdOf(i));
+        const Steinberg::Vst::Parameter* param = cp.cf.controller->getParameterObject(mmIdOf(i));
+        REQUIRE(param != nullptr);
+        CHECK(std::bit_cast<std::uint64_t>(param->getInfo().defaultNormalizedValue) != base.ctl[i]);
+    }
+
+    const auto expectUnchanged = [&](const char* step) {
+        INFO("after " << step);
+        const MmOutsideSnapshot now = mmOutsideSnapshot(cp);
+        CHECK(now.ctl == base.ctl);
+        CHECK(now.proc == base.proc);
+    };
+
+    // Copy A -> B, then B -> A: each one replaces the destination (non-vacuity), never the nine.
+    for (const Endpoint from : {Endpoint::A, Endpoint::B}) {
+        cp.clearRecords();
+        cp.cf.controller->copyEndpoint(from);
+        REQUIRE(cp.toProcessor.count(P::kMsgCopyEndpoint) == 1u);
+        renderOneBlock(cp.fx);
+        cp.fx.proc->flushControllerSync();
+        CHECK(leafBitsEqual(cp.cf.controller->mirrorForTest(other(from)), slotState(*cp.fx.proc, from)));
+        CHECK(cp.toController.count(P::kMsgEndpoint, "endpoint", static_cast<Steinberg::int64>(other(from))) == 1u);
+        expectUnchanged(from == Endpoint::A ? "Copy A to B" : "Copy B to A");
+    }
+
+    // Edit Target A -> B -> A, on the processor (a parameter change) and on the controller (the 1001 hook, whose
+    // redisplayEditTarget re-displays the 60 sound rows and nothing else).
+    for (const double target : {1.0, 0.0}) {
+        REQUIRE(cp.fx.setParam(P::kMorphEditTargetId, target, kBlock) == Steinberg::kResultOk);
+        cp.fx.proc->flushControllerSync();
+        const int redisplays0 = cp.cf.controller->redisplayCountForTest();
+        REQUIRE(cp.cf.controller->setParamNormalized(P::kMorphEditTargetId, target) == Steinberg::kResultTrue);
+        CHECK(cp.cf.controller->redisplayCountForTest() > redisplays0);  // non-vacuity: the re-display ran
+        expectUnchanged(target == 1.0 ? "Edit Target B" : "Edit Target A");
     }
 }
 

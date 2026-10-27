@@ -1,0 +1,5 @@
+# clang-tidy -p build/windows-ninja --quiet <TU>, one process per TU (main loop, 2026-10-27); compacted from the raw output.
+# Lines under plugins/ or dsp/ by check (Catch2 false positives in test files are the two filtered checks):
+    857 [bugprone-chained-comparison]
+   1161 [cppcoreguidelines-avoid-do-while]
+# counted findings (run-clang-tidy.ps1 Process-TidyOutput filter): 0

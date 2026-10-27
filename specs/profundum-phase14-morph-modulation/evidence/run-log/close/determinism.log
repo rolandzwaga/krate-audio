@@ -1,0 +1,5 @@
+check-preset-generator-determinism: binary  F:\projects\iterum\build\windows-x64-release\bin\Release\profundum_preset_generator.exe
+check-preset-generator-determinism: run A   C:\Users\scab\AppData\Local\Temp\profundum-presets-p9wQvJ
+check-preset-generator-determinism: run B   C:\Users\scab\AppData\Local\Temp\profundum-presets-jexPPt
+check-preset-generator-determinism: OK — 60 file(s); 0 differing between two fresh runs, 0 changed by a third run over an existing tree.
+exit: 0 wall: 175 s

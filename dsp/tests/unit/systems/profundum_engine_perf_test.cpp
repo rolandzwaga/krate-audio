@@ -52,6 +52,7 @@
 
 #include <krate/dsp/systems/profundum_engine.h>
 #include <krate/dsp/systems/profundum_engine_observer.h>
+#include <krate/dsp/systems/profundum_morph_modulator.h>   // Phase 14 T027 (SC-014 (b), (d))
 #include <krate/dsp/systems/profundum_macro_matrix.h>
 #include <krate/dsp/systems/profundum_motion.h>
 #include <krate/dsp/systems/profundum_voice.h>
@@ -61,6 +62,7 @@
 
 #include <enable_ftz_daz.h>
 
+#include <krate/dsp/core/db_utils.h>   // Phase 14 T027: detail::isFinite
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/systems/anchor_oscillator.h>
 #include <krate/dsp/systems/bass_character_stage.h>
@@ -734,6 +736,225 @@ TEST_CASE("VoiceEngine_WorstInterval", "[systems][profundum][voice-engine][sc-00
     CHECK(anchorAligned == switches);
     CHECK(!charSwitchSamples.empty());
     CHECK(static_cast<std::size_t>(curveVoiceCount) >= kPfPoly4Notes.size());
+    CHECK(worstRatio <= 1.0);
+}
+
+// =============================================================================
+// Phase 14 (specs/profundum-phase14-morph-modulation) T027: SC-014 (b), (d); FR-053
+// =============================================================================
+// VoiceEngine_WorstIntervalMorphMod: VoiceEngine_WorstInterval's method (the SC-003 pair, 4 voices held E1 / A1 /
+// E2 / C3, host block 64, ramp 5 ms, the base position toggled 0 <-> 1 every 100 ms, 1 s warm-up + 10 s reported,
+// 3 renders, per-block median across the renders with the raw maximum printed beside it; gate
+// max(block wall / 1.333 ms) <= 1.0; the worst 32-sample interval recorded) with the SC-014 Morph Modulation
+// running: Source Cycle, Shape Sine, 20 Hz, Sync Off, Amount 1. A 4th, untimed render with an observer proves the
+// modulation ran: a non-zero offset at some grid point, a target strictly inside (0, 1) handed to the morph (the
+// toggle alone hands only 0 and 1), and selection switches. Then SC-014 (d): ProfundumMorphModulator::advanceInterval
+// timed over kPfMmAdvanceCalls calls per source, ns per call printed (recorded, not gated). Readings go to stdout only
+// (Phase 9 evidence is never written by this phase; the main loop quotes them into EVID/run-log/T035.txt).
+// =============================================================================
+
+namespace {
+
+constexpr float kPfMmCycleHz = 20.0f;
+constexpr float kPfMmAmount = 1.0f;
+constexpr std::size_t kPfMmAdvanceCalls = 1000000;
+constexpr std::size_t kPfMmNumSources = 5;
+constexpr std::array<ProfundumMorphModulator::Source, kPfMmNumSources> kPfMmSources{
+    ProfundumMorphModulator::Source::Off, ProfundumMorphModulator::Source::Envelope,
+    ProfundumMorphModulator::Source::Cycle, ProfundumMorphModulator::Source::Velocity,
+    ProfundumMorphModulator::Source::ModWheel};
+constexpr std::array<const char*, kPfMmNumSources> kPfMmSourceNames{"Off", "Envelope", "Cycle", "Velocity",
+                                                                    "ModWheel"};
+
+/// The SC-014 modulation: Cycle, Sine, 20 Hz, free (Sync Off), Amount 1; the envelope fields stay at their defaults.
+[[nodiscard]] ProfundumMorphModulator::Config pfMorphModCycleConfig() noexcept {
+    ProfundumMorphModulator::Config c{};
+    c.source = ProfundumMorphModulator::Source::Cycle;
+    c.amount = kPfMmAmount;
+    c.cycleShape = Krate::DSP::Waveform::Sine;
+    c.cycleRateHz = kPfMmCycleHz;
+    c.cycleSync = false;
+    return c;
+}
+
+/// Non-vacuity observer of the untimed render: counters only, the callbacks never allocate.
+class PfMorphModObserver final : public ProfundumEngineObserver {
+public:
+    explicit PfMorphModObserver(const MorphState& b) : b_(b) {}
+
+    void onGrid(const ProfundumGridRecord& g) noexcept override {
+        ++grids_;
+        if (g.morphModOffset != 0.0f)
+            ++offsetNonZero_;
+        if (g.morphTarget > 0.0f && g.morphTarget < 1.0f)
+            ++interiorTargets_;
+        if (g.resolved != nullptr) {
+            const std::uint8_t m = pfSelectionMask(g.resolved->state, b_);
+            if (haveMask_ && m != mask_)
+                ++switches_;
+            mask_ = m;
+            haveMask_ = true;
+        }
+    }
+
+    [[nodiscard]] std::size_t grids() const noexcept { return grids_; }
+    [[nodiscard]] std::size_t offsetNonZero() const noexcept { return offsetNonZero_; }
+    [[nodiscard]] std::size_t interiorTargets() const noexcept { return interiorTargets_; }
+    [[nodiscard]] std::size_t switches() const noexcept { return switches_; }
+
+private:
+    MorphState b_;
+    std::size_t grids_ = 0;
+    std::size_t offsetNonZero_ = 0;
+    std::size_t interiorTargets_ = 0;
+    std::size_t switches_ = 0;
+    std::uint8_t mask_ = 0;
+    bool haveMask_ = false;
+};
+
+/// One SC-003 render (pfSc003Render's protocol) with the SC-014 modulation set after prepare. With @p blockMs
+/// non-null, every reported block's wall time (ms) is written there; with @p observer non-null it is attached.
+void pfMorphModRender(std::size_t hostBlock, std::vector<double>* blockMs, ProfundumEngineObserver* observer,
+                      double& sink) {
+    const std::pair<MorphState, MorphState> ends = pfSc003Endpoints();
+    auto e = std::make_unique<ProfundumEngine>();
+    REQUIRE(e->setEndpoint(BassMorphEngine::Endpoint::A, ends.first));
+    REQUIRE(e->setEndpoint(BassMorphEngine::Endpoint::B, ends.second));
+    e->setAnchorMorphMode(BassMorphEngine::AnchorMorphMode::Blend);
+    e->setMorphPosition(0.0f);
+    e->setMorphRampMs(kPfSc003RampMs);
+    e->setVoiceMode(ProfundumEngine::VoiceMode::Poly);
+    e->setPolyphony(kPfPoly4Notes.size());
+    if (observer != nullptr)
+        e->setObserver(observer);
+    e->prepare(kPfFs, ProfundumEngineConfig{});
+    e->setMorphModulation(pfMorphModCycleConfig());
+    REQUIRE(e->morphModulation().source == ProfundumMorphModulator::Source::Cycle);
+    REQUIRE(e->morphModulation().amount == kPfMmAmount);
+    REQUIRE_FALSE(e->morphModBypass());
+    for (const std::uint8_t n : kPfPoly4Notes)
+        e->noteOn(n, kPfVelocity);
+
+    std::vector<float> l(hostBlock, 0.0f);
+    std::vector<float> r(hostBlock, 0.0f);
+    const auto toggle = static_cast<std::size_t>(std::llround(kPfSc003ToggleS * kPfFs));
+    const auto warm = static_cast<std::size_t>(std::llround(kPfWarmupS * kPfFs));
+    const std::size_t total = warm + static_cast<std::size_t>(std::llround(kPfTimedS * kPfFs));
+    std::size_t nextToggle = toggle;
+    float position = 0.0f;
+    double acc = 0.0;
+    if (blockMs != nullptr) {
+        blockMs->clear();
+        blockMs->reserve(total / hostBlock + 1);
+    }
+    for (std::size_t pos = 0; pos < total; pos += hostBlock) {
+        if (pos >= nextToggle) {
+            position = 1.0f - position;
+            e->setMorphPosition(position);
+            nextToggle += toggle;
+        }
+        const auto t0 = std::chrono::steady_clock::now();
+        e->processBlock(l.data(), r.data(), hostBlock);
+        const auto t1 = std::chrono::steady_clock::now();
+        acc += static_cast<double>(l[0]) + static_cast<double>(r[hostBlock - 1]);
+        if (blockMs != nullptr && pos >= warm)
+            blockMs->push_back(std::chrono::duration<double, std::milli>(t1 - t0).count());
+    }
+    if (observer != nullptr)
+        e->setObserver(nullptr);
+    sink += acc;
+}
+
+}  // namespace
+
+TEST_CASE("VoiceEngine_WorstIntervalMorphMod",
+          "[systems][profundum][morphmod][voice-engine][performance][.perf]") {
+    enableFTZDAZ();
+    std::ostringstream os;
+    os << std::setprecision(5);
+    os << "# SC-014 (b) VoiceEngine_WorstIntervalMorphMod (Phase 14 tasks.md T027; SC-003 method + modulation)\n"
+       << "# 4 voices held E1 / A1 / E2 / C3, block " << kPfBlock << ", ramp " << kPfSc003RampMs
+       << " ms, base position toggled 0 <-> 1 every " << kPfSc003ToggleS
+       << " s; the SC-003 five-group pair, Anchor morph Blend; Morph Mod Cycle Sine " << kPfMmCycleHz
+       << " Hz, Sync Off, Amount " << kPfMmAmount << "; " << kPfTimedS << " s reported after " << kPfWarmupS
+       << " s warm-up; " << kPfTrials << " renders, per-block median across renders\n";
+    double sink = 0.0;
+
+    // ---- timed: host block 64 ----
+    std::vector<std::vector<double>> renders64(kPfTrials);
+    for (std::vector<double>& v : renders64)
+        pfMorphModRender(kPfBlock, &v, nullptr, sink);
+    const std::vector<double> med64 = pfPerBlockMedian(renders64);
+    REQUIRE(!med64.empty());
+    const auto worstIt = std::max_element(med64.begin(), med64.end());
+    const std::size_t worstBlock = static_cast<std::size_t>(std::distance(med64.begin(), worstIt));
+    const double worstRatio = *worstIt / kPfBlockBudgetMs;
+    double rawMax = 0.0;
+    for (const std::vector<double>& v : renders64)
+        rawMax = std::max(rawMax, *std::max_element(v.begin(), v.end()));
+    double meanMs = 0.0;
+    for (const double x : med64)
+        meanMs += x;
+    meanMs /= static_cast<double>(med64.size());
+
+    // ---- timed: host block 32 (one block == one grid interval), recorded ----
+    std::vector<std::vector<double>> renders32(kPfTrials);
+    for (std::vector<double>& v : renders32)
+        pfMorphModRender(kPfGrid, &v, nullptr, sink);
+    const std::vector<double> med32 = pfPerBlockMedian(renders32);
+    REQUIRE(!med32.empty());
+    const double worstIntervalPct = 100.0 * *std::max_element(med32.begin(), med32.end()) / kPfIntervalBudgetMs;
+
+    // ---- untimed observer run (non-vacuity: the modulation ran and the groups switched) ----
+    const std::pair<MorphState, MorphState> ends = pfSc003Endpoints();
+    auto observer = std::make_unique<PfMorphModObserver>(ends.second);
+    pfMorphModRender(kPfBlock, nullptr, observer.get(), sink);
+
+    // ---- SC-014 (d): ProfundumMorphModulator::advanceInterval, ns per call, per source ----
+    std::array<double, kPfMmNumSources> nsPerCall{};
+    for (std::size_t i = 0; i < kPfMmNumSources; ++i) {
+        auto m = std::make_unique<ProfundumMorphModulator>();
+        m->prepare(kPfFs);
+        ProfundumMorphModulator::Config c = pfMorphModCycleConfig();
+        c.source = kPfMmSources[i];
+        m->setConfig(c);
+        m->setModWheel(0.5f);
+        m->noteOn(kPfVelocity);
+        double acc = 0.0;
+        const auto t0 = std::chrono::steady_clock::now();
+        for (std::size_t k = 0; k < kPfMmAdvanceCalls; ++k)
+            acc += static_cast<double>(m->advanceInterval());
+        const auto t1 = std::chrono::steady_clock::now();
+        nsPerCall[i] =
+            std::chrono::duration<double, std::nano>(t1 - t0).count() / static_cast<double>(kPfMmAdvanceCalls);
+        sink += acc;
+    }
+
+    const bool pass = worstRatio <= 1.0;
+    os << "# checksum " << sink << " (keeps the renders observable)\n";
+    os << "SC014B BLOCK worst_median_ms=" << *worstIt << " (block " << worstBlock << ") ratio=" << worstRatio
+       << " raw_max_ms=" << rawMax << " raw_ratio=" << rawMax / kPfBlockBudgetMs << " mean_ms=" << meanMs
+       << " budget_ms=" << kPfBlockBudgetMs << '\n';
+    os << "SC014B RECORD worst 32-sample interval " << worstIntervalPct << " % of a core (Phase 8: "
+       << kPfPhase8IntervalPct << " %, fixture overhead included; recorded, not gated)\n";
+    os << "SC014B NONVACUITY grids=" << observer->grids() << " offset_nonzero=" << observer->offsetNonZero()
+       << " interior_targets=" << observer->interiorTargets() << " selection_switches=" << observer->switches()
+       << '\n';
+    for (std::size_t i = 0; i < kPfMmNumSources; ++i)
+        os << "SC014D advanceInterval source=" << kPfMmSourceNames[i] << " ns_per_call=" << nsPerCall[i] << " ("
+           << kPfMmAdvanceCalls << " calls; recorded, not gated)\n";
+    os << "SC014B VERDICT " << (pass ? "GREEN" : "RED") << ' ' << worstRatio << " (bar 1.0)\n";
+    std::cout << os.str();
+
+    CHECK(Krate::DSP::detail::isFinite(sink));
+    CHECK(observer->grids() > 0);
+    CHECK(observer->offsetNonZero() > 0);
+    CHECK(observer->interiorTargets() > 0);
+    CHECK(observer->switches() > 0);
+    for (const double ns : nsPerCall) {
+        CHECK(Krate::DSP::detail::isFinite(ns));
+        CHECK(ns > 0.0);
+    }
     CHECK(worstRatio <= 1.0);
 }
 

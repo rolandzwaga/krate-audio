@@ -732,3 +732,76 @@ TEST_CASE("TanhADAA produces smooth output for varying signals", "[tanh_adaa][pr
     INFO("Maximum sample-to-sample difference: " << maxDiff);
     REQUIRE(maxDiff < 1.0f);  // Reasonable bound for ADAA output
 }
+
+// ==============================================================================
+// F1Fast / processFast (Profundum Phase 14 R11)
+// ==============================================================================
+
+TEST_CASE("TanhADAA F1Fast is as accurate as F1", "[tanh_adaa][primitives][F1][math]") {
+    // ln(cosh x) in double; worst |error| of each float F1 over one range of the grid.
+    struct Range {
+        double lo;
+        double hi;
+    };
+    const std::array<Range, 2> ranges{{{.lo = 0.0, .hi = 1.0}, {.lo = 1.0, .hi = 25.0}}};
+    for (const Range& r : ranges) {
+        double worstStd = 0.0;
+        double worstFast = 0.0;
+        constexpr int kPoints = 200000;
+        for (int i = 0; i < kPoints; ++i) {
+            const double xd = r.lo + (r.hi - r.lo) * static_cast<double>(i) / static_cast<double>(kPoints);
+            for (const float x : {static_cast<float>(xd), -static_cast<float>(xd)}) {
+                const double ax = std::fabs(static_cast<double>(x));
+                const double ref = ax - 0.69314718055994531 + std::log1p(std::exp(-2.0 * ax));
+                worstStd = std::max(worstStd, std::fabs(static_cast<double>(TanhADAA::F1(x)) - ref));
+                worstFast = std::max(worstFast, std::fabs(static_cast<double>(TanhADAA::F1Fast(x)) - ref));
+            }
+        }
+        INFO("range [" << r.lo << ", " << r.hi << "): worst |F1 - ref| " << worstStd << ", worst |F1Fast - ref| "
+                       << worstFast);
+        CHECK(worstFast <= 1.25 * worstStd);
+    }
+}
+
+TEST_CASE("TanhADAA processFast is as close to exact ADAA as process", "[tanh_adaa][primitives][quality]") {
+    // Both float paths carry F1 rounding noise divided by dx; each is measured against the same first-order ADAA in
+    // double (the epsilon fallback included) as an RMS error (the worst sample is rounding noise and swings either
+    // way), and processFast may be no worse than process.
+    constexpr float kFs = 192000.0f;
+    for (const float drive : {0.8f, 1.0f, 4.0f, 10.0f}) {
+        for (const float hz : {41.2f, 220.0f, 2000.0f}) {
+            TanhADAA a;
+            TanhADAA b;
+            a.setDrive(drive);
+            b.setDrive(drive);
+            const auto f1d = [](double v) { return std::fabs(v) - 0.69314718055994531 + std::log1p(std::exp(-2.0 * std::fabs(v))); };
+            float x1 = 0.0f;
+            double sumStd = 0.0;
+            double sumFast = 0.0;
+            int count = 0;
+            for (int n = 0; n < 19200; ++n) {
+                const float x = 1.2f * std::sin(6.2831853f * hz * static_cast<float>(n) / kFs);
+                const float ys = a.process(x);
+                const float yf = b.processFast(x);
+                if (n > 0) {
+                    const double dx = static_cast<double>(x) - static_cast<double>(x1);
+                    const double d = static_cast<double>(drive);
+                    const double ref = (std::fabs(dx) < 1.0e-5)
+                                           ? std::tanh(0.5 * (static_cast<double>(x) + static_cast<double>(x1)) * d)
+                                           : (f1d(static_cast<double>(x) * d) - f1d(static_cast<double>(x1) * d)) / (d * dx);
+                    if (!(std::fabs(dx) < 1.0e-5)) {
+                        sumStd += (static_cast<double>(ys) - ref) * (static_cast<double>(ys) - ref);
+                        sumFast += (static_cast<double>(yf) - ref) * (static_cast<double>(yf) - ref);
+                        ++count;
+                    }
+                }
+                x1 = x;
+            }
+            const double rmsStd = std::sqrt(sumStd / static_cast<double>(count));
+            const double rmsFast = std::sqrt(sumFast / static_cast<double>(count));
+            INFO("drive " << drive << ", " << hz << " Hz: RMS |process - exact| " << rmsStd
+                          << ", RMS |processFast - exact| " << rmsFast);
+            CHECK(rmsFast <= 1.25 * rmsStd);
+        }
+    }
+}

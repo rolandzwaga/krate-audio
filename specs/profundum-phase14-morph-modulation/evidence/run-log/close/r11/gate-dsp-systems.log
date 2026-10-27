@@ -1,0 +1,3 @@
+pass 1 (~[wallclock], 30 workers): 642.7s | pass 2 ([wallclock], 4 workers): 767.3s, 1854 case(s)
+dsp_systems_tests: cases=3708 assertions=32077218 failed_cases=0 shards=128 slowest_shard=766.5s
+GATE GREEN dsp_systems_tests cases=3708 assertions=32077218 wall=1410.0s workers=30 logs=f:\tmp\gate\20261027-141812

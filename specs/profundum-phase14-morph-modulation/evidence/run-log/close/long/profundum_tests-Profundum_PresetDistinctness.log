@@ -1,0 +1,8 @@
+Filters: "Profundum_PresetDistinctness"
+Randomness seeded to: 2052761491
+# Profundum_PresetDistinctness: presets=60 F=1 bar=2 closest=Loose Ends vs Locked Floor d=2.42169 masked=16
+719.771 s: Profundum_PresetDistinctness
+===============================================================================
+All tests passed (11620417 assertions in 1 test case)
+
+exit: 0 wall: 720 s

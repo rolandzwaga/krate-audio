@@ -134,7 +134,9 @@ const auditResults = await parallel(
           `Build and test the "${t.testTarget}" target for this monorepo.
 Build: ${CMAKE} --build ${BUILD_DIR} --config Release --target ${t.testTarget}
 Report compiler errors AND warnings (the project requires ZERO warnings).
-Then run the test executable and report the Catch2 summary line (do NOT grep; use tail).
+Then run the suite SHARDED, never as one serial process (${auditTargets.length} audit target(s) run at once, so take a share of the machine):
+  node tools/run-gate.js --share ${auditTargets.length} --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' ${t.testTarget} 2>&1 | tail -20
+Report its GATE GREEN / GATE RED line verbatim (do NOT grep; one run). Timing tests are excluded on purpose (they run alone via node tools/run-cpu-tests.js).
 Return the structured status.`,
           { label: `build:${t.name}`, phase: 'Audit', schema: BUILD_SCHEMA, agentType: 'build-test-runner' }
         ),

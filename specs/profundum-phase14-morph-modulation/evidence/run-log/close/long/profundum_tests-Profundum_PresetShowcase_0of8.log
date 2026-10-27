@@ -1,0 +1,31 @@
+Filters: "Profundum_PresetShowcase_0of8"
+Randomness seeded to: 1865766483
+# Profundum_PresetShowcase_0of8: presets=8 arms=22
+preset,column,role,variant,note,value,bar,margin,window_ms,overrides,descriptor,tap
+"Edge Ignition","AT-01 Core Excitation Mix",primary,"",E1,28.6783,3,25.6783,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-01 Core Excitation Mix",primary,"",C3,28.7843,3,25.7843,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-03 Core Harmonic Fold",secondary,"",E1,5.19407,3,2.19407,0,"","D_nl","Char / twin"
+"Edge Ignition","AT-03 Core Harmonic Fold",secondary,"",C3,4.86069,3,1.86069,0,"","D_nl","Char / twin"
+"Fault Line","AT-09 Character Fracture",primary,"",E1,30.2301,3,27.2301,0,"","D_nl","Char / twin"
+"Fault Line","AT-09 Character Fracture",primary,"",C3,28.7193,3,25.7193,0,"","D_nl","Char / twin"
+"Fault Line","AT-13 Anchor Lock to Follow",secondary,"Fracture",E1,-1200,-1200,5,0,"","anchor_shift_cents","Anchor tap (anchorPhaseTap seam)"
+"Fault Line","AT-13 Anchor Lock to Follow",secondary,"Fracture",C3,-1200,-1200,5,0,"","anchor_shift_cents","Anchor tap (anchorPhaseTap seam)"
+"Under Octave","AT-17 Anchor Sine to Octave Down",primary,"",E1,53.7529,3,50.7529,0,"","P_half","Sum"
+"Under Octave","AT-17 Anchor Sine to Octave Down",primary,"",C3,53.7402,3,50.7402,0,"","P_half","Sum"
+"Long Tail","M-WHEEL Morph Mod Wheel",primary,"",E1,12.7984,3,9.7984,5461.33,"","D_nl","Char / twin"
+"Long Tail","M-WHEEL Morph Mod Wheel",primary,"",C3,10.7043,3,7.7043,5461.33,"","D_nl","Char / twin"
+"Orbiting Field","AT-33 Field Motion",primary,"",E1,116.607,3,113.607,0,"","D_st_p2p","field stage tap"
+"Orbiting Field","AT-33 Field Motion",primary,"",C3,115.797,3,112.797,0,"","D_st_p2p","field stage tap"
+"Morph Span","AT-41 Morph Position Full",primary,"",E1,15.9851,3,12.9851,0,"","D_nl","Char / twin"
+"Morph Span","AT-41 Morph Position Full",primary,"",C3,16.3418,3,13.3418,0,"","D_nl","Char / twin"
+"Morph Span","AT-42 Morph Position Half",secondary,"",E1,9.47258,3,6.47258,0,"","D_nl","Char / twin"
+"Morph Span","AT-42 Morph Position Half",secondary,"",C3,8.81579,3,5.81579,0,"","D_nl","Char / twin"
+"Loose Ends","AT-49 Macros Tight Loose",primary,"",E1,2.39708,2,0.397084,0,"","D_t","Sum"
+"Loose Ends","AT-49 Macros Tight Loose",primary,"",C3,3.70441,2,1.70441,0,"","D_t","Sum"
+"Poly Rectifier","AT-06 Character Rectify",primary,"",E1,8.92595,3,5.92595,0,"","D_nl","Char / twin"
+"Poly Rectifier","AT-06 Character Rectify",primary,"",C3,9.62514,3,6.62514,0,"","D_nl","Char / twin"
+163.631 s: Profundum_PresetShowcase_0of8
+===============================================================================
+All tests passed (1211053 assertions in 1 test case)
+
+exit: 0 wall: 164 s

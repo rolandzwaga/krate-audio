@@ -1,0 +1,22 @@
+T015 - Regenerate the factory tree at 610 bytes (FR-061; Phase 13 Profundum_CommittedPresetTreeMatches)
+Date: 2026-10-26   Branch: feat/profundum-preset-morph
+
+Lane script (written by the executor, bash -n clean; not run by the executor):
+  bash specs/profundum-phase14-morph-modulation/evidence/tree/gen-tree.sh
+  1. one build of profundum_preset_generator + profundum_tests (-- /nr:false), log run-log/T015/build.log, 0 warnings
+  2. generate_profundum_presets (root CMakeLists.txt) into plugins/profundum/resources/presets, log run-log/T015/generate.log
+  3. tree check: exactly 58 *.vstpreset files, no other file
+  4. "[profundum][preset]~[long]~[.]" (plus the run-gate timing exclusions) over profundum_tests only, sharded by
+     tools/run-gate.js, log run-log/T015/gate.log; Profundum_FactoryPresetStateFormat (v3, 610 bytes) and
+     Profundum_CommittedPresetTreeMatches must be listed
+  5. git status --short -- plugins/profundum/resources/presets and its entry count
+  No other instrument's suite is built or run.
+
+Status: UNBLOCKED 2026-10-26 (main loop ran gen-tree.sh; TREE GREEN).
+
+Main-loop reading (fill in when the run completes):
+  build wall clock: 158.6 s, exit 0, 0 warnings
+  generate wall clock: 22.4 s, exit 0, 0 warnings; tree files=58 vstpreset=58, no other file
+  gate wall clock / workers: 48.8 s, 30 workers (pass 1 ~[wallclock] 25.9 s; pass 2 [wallclock] 22.9 s on 4 workers, 17 cases); 35 cases listed incl. Profundum_FactoryPresetStateFormat and Profundum_CommittedPresetTreeMatches; GATE GREEN profundum_tests cases=35 assertions=77289
+  git status entries: 58 (every factory preset rewritten at 610 bytes)
+  last line: TREE GREEN files=58

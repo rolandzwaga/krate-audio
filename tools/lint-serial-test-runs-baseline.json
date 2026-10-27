@@ -1,0 +1,4 @@
+{
+  "_comment": "Ratchet for tools/lint-serial-test-runs.js: per-file count of serial test runs still allowed. A new file or a higher count fails; lower the count when a site is fixed.",
+  "files": {}
+}

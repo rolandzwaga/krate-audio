@@ -1,0 +1,16 @@
+Filters: "Profundum_PresetMorphEndpoints_5of8"
+Randomness seeded to: 1149232714
+# Profundum_PresetMorphEndpoints_5of8: presets=7
+preset,d_ab,masked,level_a_e1,level_b_e1,level_a_c3,level_b_c3
+"Rectified Floor",25.3963,7,-10.9275,-11.8348,-10.8305,-13.6227
+"Triangle Floor",19.2851,12,-11.8787,-13.4748,-11.7604,-13.6389
+"Rebound",13.7439,6,-13.0829,-14.5155,-13.0755,-14.4624
+"Wide Rectifier",17.1807,7,-8.39818,-10.9,-8.19136,-10.0025
+"Shifting Spectrum",14.2239,7,-13.6439,-13.0615,-12.7545,-12.8581
+"Continuous Phase",15.4613,7,-12.4572,-11.7403,-12.3241,-12.1862
+"Poly Spread",15.3262,8,-12.1333,-13.8329,-12.2038,-13.7523
+307.257 s: Profundum_PresetMorphEndpoints_5of8
+===============================================================================
+All tests passed (2711023 assertions in 1 test case)
+
+exit: 0 wall: 308 s

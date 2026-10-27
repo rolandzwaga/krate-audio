@@ -12,11 +12,17 @@
 //   pitch bend through the voice-0 fCore tap, sustain-latch equivalence (incl. a
 //   multi-point pedal queue), reset on load and state independence.
 //
+// Profundum_MorphModWheelRouting (Phase 14 T011; SC-009, FR-022, FR-025; C-7): with Source = Mod Wheel and
+//   Amount != 0 the wheel drives Morph and stops pushing Mass; at Amount +-0 and under every other source the
+//   Profundum_MassPerformanceOffset arithmetic holds bitwise; Channel Pressure pushes Mass under every source; a
+//   hand-over change re-sends both endpoints once (observed through a sentinel Mass planted in the engine).
+//
 // Every equality is same-binary, same-process (no float golden across binaries).
 // ==============================================================================
 
 #include "profundum_test_fixture.h"
 
+#include "parameters/morph_mod_params.h"  // Phase 14 T011: kMorphModSourceModWheel
 #include "plugin_ids.h"
 
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
@@ -32,6 +38,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <ios>
 #include <memory>
 #include <span>
 #include <vector>
@@ -460,5 +467,255 @@ TEST_CASE("Profundum_MidiMapping", "[profundum][midi]") {
         REQUIRE(fx->proc->sustainDownForTest());  // non-vacuity
         REQUIRE(fx->engine()->pitchBend() == 1.0f);
         CHECK(writeV2Stream(*fx->proc) == before);
+    }
+}
+
+// =============================================================================
+// Profundum_MorphModWheelRouting (Phase 14 T011; SC-009; FR-022, FR-025; C-7)
+// =============================================================================
+namespace {
+
+// Normalised 1003 values (list index / 4).
+constexpr double kSrcOff = 0.0;
+constexpr double kSrcEnvelope = 0.25;
+constexpr double kSrcCycle = 0.5;
+constexpr double kSrcVelocity = 0.75;
+constexpr double kSrcModWheel = 1.0;
+// Normalised 1004 values ([-1, 1] linear: A = -1 + 2v, exact in double at these points).
+constexpr double kAmountZero = 0.5;
+constexpr double kAmountOne = 1.0;
+constexpr double kAmountHalf = 0.75;
+constexpr double kAmountMinusHalf = 0.25;
+
+// A Mass no assembled endpoint of these arms carries (slots 20 / 80, offsets in steps of 25).
+constexpr float kSentinelMass = 7.0f;
+
+// Records the first grid record's morphModSource after arm().
+struct MorphModGridObserver final : Krate::DSP::ProfundumEngineObserver {
+    bool armed = false;
+    bool got = false;
+    float firstSource = -1.0f;
+
+    void arm() noexcept {
+        armed = true;
+        got = false;
+    }
+    void onGrid(const Krate::DSP::ProfundumGridRecord& g) noexcept override {
+        if (armed && !got) {
+            firstSource = g.morphModSource;
+            got = true;
+        }
+    }
+};
+
+[[nodiscard]] std::unique_ptr<ProcessorFixture> makePreparedObserved(Krate::DSP::ProfundumEngineObserver* o) {
+    auto fx = std::make_unique<ProcessorFixture>();
+    fx->proc->setEngineObserverForTest(o);  // FR-067: before setupProcessing
+    REQUIRE(fx->prepare(48000.0, 4096) == Steinberg::kResultOk);
+    return fx;
+}
+
+// Masses 20 / 80 (Edit Target ends on A), then Source and Amount in one block.
+void setupMorphMod(ProcessorFixture& fx, double sourceNorm, double amountNorm) {
+    setMasses(fx, 0.2, 0.8);
+    REQUIRE(fx.setParamsInBlock({{P::kMorphModSourceId, sourceNorm}, {P::kMorphModAmountId, amountNorm}}) ==
+            Steinberg::kResultOk);
+}
+
+// One parameter-free block.
+void plainBlock(ProcessorFixture& fx) {
+    fx.ensureCapture(ProcessorFixture::kParamBlockSamples);
+    REQUIRE(fx.processBlock(ProcessorFixture::kParamBlockSamples) == Steinberg::kResultOk);
+}
+
+// Writes kSentinelMass into both engine endpoints through the test seam. The processor re-sends an endpoint only
+// when it is dirty, and a re-send overwrites the sentinel with the assembled state, so the next block shows whether
+// it re-sent.
+void plantSentinel(ProcessorFixture& fx) {
+    Krate::DSP::ProfundumEngine* e = fx.proc->mutableEngineForTest();
+    REQUIRE(e != nullptr);
+    for (const Endpoint which : {Endpoint::A, Endpoint::B}) {
+        Krate::DSP::MorphState s = e->getEndpoint(which);
+        s.mass = kSentinelMass;
+        REQUIRE(e->setEndpoint(which, s));
+        REQUIRE(bitsOf(engineMass(fx, which)) == bitsOf(kSentinelMass));
+    }
+}
+
+[[nodiscard]] bool resent(const ProcessorFixture& fx, Endpoint e) {
+    return bitsOf(engineMass(fx, e)) != bitsOf(kSentinelMass);
+}
+
+struct MassPair {
+    std::uint32_t a;
+    std::uint32_t b;
+    bool operator==(const MassPair&) const = default;
+};
+
+[[nodiscard]] MassPair massBits(const ProcessorFixture& fx) {
+    return MassPair{.a = bitsOf(engineMass(fx, Endpoint::A)), .b = bitsOf(engineMass(fx, Endpoint::B))};
+}
+
+// The engine Mass after the wheel moves 0 -> 0.25 -> 1 (one block each).
+[[nodiscard]] std::array<MassPair, 2> wheelSweep(ProcessorFixture& fx) {
+    std::array<MassPair, 2> out{};
+    REQUIRE(fx.setParam(P::kModWheelId, 0.25) == Steinberg::kResultOk);
+    out[0] = massBits(fx);
+    REQUIRE(fx.setParam(P::kModWheelId, 1.0) == Steinberg::kResultOk);
+    out[1] = massBits(fx);
+    return out;
+}
+
+// The Source-Off arm's sweep (the Profundum_MassPerformanceOffset arithmetic: 45 / 100, then 100 / 100).
+[[nodiscard]] std::array<MassPair, 2> sourceOffSweep() {
+    auto fx = makePrepared();
+    setupMorphMod(*fx, kSrcOff, kAmountOne);
+    const std::array<MassPair, 2> off = wheelSweep(*fx);
+    REQUIRE(off[0] == (MassPair{.a = bitsOf(45.0f), .b = bitsOf(100.0f)}));  // teeth: the wheel pushes Mass
+    REQUIRE(off[1] == (MassPair{.a = bitsOf(100.0f), .b = bitsOf(100.0f)}));
+    return off;
+}
+
+}  // namespace
+
+TEST_CASE("Profundum_MorphModWheelRouting", "[profundum][morphmod][midi]") {
+    SECTION("WheelDrivesMorphOnly") {  // SC-009 (a): Source Mod Wheel, Amount 1 and -0.5
+        for (const double amountNorm : {kAmountOne, kAmountMinusHalf}) {
+            CAPTURE(amountNorm);
+            MorphModGridObserver obs;  // outlives the processor
+            auto fx = makePreparedObserved(&obs);
+            setupMorphMod(*fx, kSrcModWheel, amountNorm);
+            REQUIRE(massBits(*fx) == (MassPair{.a = bitsOf(20.0f), .b = bitsOf(80.0f)}));
+
+            obs.arm();
+            plainBlock(*fx);
+            REQUIRE(obs.got);
+            REQUIRE(obs.firstSource == 0.0f);  // teeth: the wheel at 0 reads s = 0
+
+            obs.arm();
+            REQUIRE(fx->setParam(P::kModWheelId, 1.0) == Steinberg::kResultOk);
+            CHECK(massBits(*fx) == (MassPair{.a = bitsOf(20.0f), .b = bitsOf(80.0f)}));  // Mass bits unchanged
+            REQUIRE(obs.got);
+            CHECK(obs.firstSource == 1.0f);  // the next grid point's s
+            CHECK(fx->proc->endpointRejectionsForTest() == 0u);
+        }
+    }
+
+    SECTION("ZeroAmountKeepsMassPush") {  // SC-009 (a'): Amount +0 and -0 under Mod Wheel push Mass as Source Off
+        const std::array<MassPair, 2> off = sourceOffSweep();
+
+        // +0: the registered centre (normalised 0.5).
+        {
+            auto fx = makePrepared();
+            setupMorphMod(*fx, kSrcModWheel, kAmountZero);
+            CHECK(wheelSweep(*fx) == off);
+        }
+        // -0: patched into the saved stream (a host cannot send it through the law).
+        {
+            auto fx = makePrepared();
+            setupMorphMod(*fx, kSrcModWheel, kAmountZero);
+            StateBytes st = writeV2Stream(*fx->proc);
+            REQUIRE(st.size() == P::kStateV3Bytes);
+            constexpr std::size_t kAmountAt = P::kStateMorphModOffset + 4u;
+            patchU32(st, kAmountAt, 0x80000000u);
+            REQUIRE(loadStateBytes(*fx->proc, st) == Steinberg::kResultOk);
+            plainBlock(*fx);
+            // Teeth: the stored Amount is a zero (the -0 the stream carried; the sign is not what this arm tests).
+            const std::uint32_t heldAmount = readU32(writeV2Stream(*fx->proc), kAmountAt);
+            INFO("held Amount bits 0x" << std::hex << heldAmount);
+            REQUIRE((heldAmount & 0x7FFFFFFFu) == 0u);
+            REQUIRE(readU32(writeV2Stream(*fx->proc), P::kStateMorphModOffset) ==
+                    static_cast<std::uint32_t>(P::kMorphModSourceModWheel));
+            REQUIRE(massBits(*fx) == (MassPair{.a = bitsOf(20.0f), .b = bitsOf(80.0f)}));
+            CHECK(wheelSweep(*fx) == off);
+        }
+    }
+
+    SECTION("AmountHandOverResends") {  // SC-009 (a''): wheel 0.25, Amount 0 -> 0.5 -> 0 under Mod Wheel
+        auto fx = makePrepared();
+        setupMorphMod(*fx, kSrcModWheel, kAmountZero);
+        REQUIRE(fx->setParam(P::kModWheelId, 0.25) == Steinberg::kResultOk);
+        REQUIRE(massBits(*fx) == (MassPair{.a = bitsOf(45.0f), .b = bitsOf(100.0f)}));  // Amount 0: still pushed
+
+        // Amount 0 -> 0.5: the wheel term drops, both endpoints are re-sent at that block ...
+        plantSentinel(*fx);
+        REQUIRE(fx->setParam(P::kMorphModAmountId, kAmountHalf) == Steinberg::kResultOk);
+        CHECK(resent(*fx, Endpoint::A));
+        CHECK(resent(*fx, Endpoint::B));
+        CHECK(massBits(*fx) == (MassPair{.a = bitsOf(20.0f), .b = bitsOf(80.0f)}));
+        // ... and not on the next block.
+        plantSentinel(*fx);
+        plainBlock(*fx);
+        CHECK_FALSE(resent(*fx, Endpoint::A));
+        CHECK_FALSE(resent(*fx, Endpoint::B));
+        // The Mass push has stopped: a wheel move re-sends nothing.
+        REQUIRE(fx->setParam(P::kModWheelId, 0.5) == Steinberg::kResultOk);
+        CHECK_FALSE(resent(*fx, Endpoint::A));
+        CHECK_FALSE(resent(*fx, Endpoint::B));
+
+        // Amount 0.5 -> 0: re-sent once with the wheel term back (c = 0.5: 70 / 100) ...
+        REQUIRE(fx->setParam(P::kMorphModAmountId, kAmountZero) == Steinberg::kResultOk);
+        CHECK(massBits(*fx) == (MassPair{.a = bitsOf(70.0f), .b = bitsOf(100.0f)}));
+        plantSentinel(*fx);
+        plainBlock(*fx);
+        CHECK_FALSE(resent(*fx, Endpoint::A));
+        CHECK_FALSE(resent(*fx, Endpoint::B));
+        // ... and the push has resumed: the wheel at 0.25 gives 45 / 100.
+        REQUIRE(fx->setParam(P::kModWheelId, 0.25) == Steinberg::kResultOk);
+        CHECK(massBits(*fx) == (MassPair{.a = bitsOf(45.0f), .b = bitsOf(100.0f)}));
+        CHECK(fx->proc->endpointRejectionsForTest() == 0u);
+    }
+
+    SECTION("OtherSourcesPushMass") {  // SC-009 (b): every other source at Amount 1, bit-equal to Source Off
+        const std::array<MassPair, 2> off = sourceOffSweep();
+        for (const double src : {kSrcEnvelope, kSrcCycle, kSrcVelocity}) {
+            CAPTURE(src);
+            auto fx = makePrepared();
+            setupMorphMod(*fx, src, kAmountOne);
+            CHECK(wheelSweep(*fx) == off);
+        }
+    }
+
+    SECTION("ChannelPressureUnderEverySource") {  // SC-009 (c): Mass + 50, clamped (70 / 100)
+        const MassPair want{.a = bitsOf(70.0f), .b = bitsOf(100.0f)};
+        for (const double src : {kSrcOff, kSrcEnvelope, kSrcCycle, kSrcVelocity, kSrcModWheel}) {
+            CAPTURE(src);
+            auto fx = makePrepared();
+            setupMorphMod(*fx, src, kAmountOne);
+            REQUIRE(fx->setParam(P::kChannelPressureId, 0.5) == Steinberg::kResultOk);
+            CHECK(massBits(*fx) == want);
+        }
+        // Under the hand-over the wheel adds nothing on top of the pressure.
+        auto fx = makePrepared();
+        setupMorphMod(*fx, kSrcModWheel, kAmountOne);
+        REQUIRE(fx->setParamsInBlock({{P::kModWheelId, 1.0}, {P::kChannelPressureId, 0.5}}) == Steinberg::kResultOk);
+        CHECK(massBits(*fx) == want);
+    }
+
+    SECTION("SourceSwitchResendsOnce") {  // SC-009 (d): wheel 0.25, Amount 1, Envelope -> Mod Wheel -> Envelope
+        auto fx = makePrepared();
+        setupMorphMod(*fx, kSrcEnvelope, kAmountOne);
+        REQUIRE(fx->setParam(P::kModWheelId, 0.25) == Steinberg::kResultOk);
+        REQUIRE(massBits(*fx) == (MassPair{.a = bitsOf(45.0f), .b = bitsOf(100.0f)}));
+
+        // To Mod Wheel: both re-sent at that block, without the wheel term ...
+        plantSentinel(*fx);
+        REQUIRE(fx->setParam(P::kMorphModSourceId, kSrcModWheel) == Steinberg::kResultOk);
+        CHECK(massBits(*fx) == (MassPair{.a = bitsOf(20.0f), .b = bitsOf(80.0f)}));
+        // ... exactly once.
+        plantSentinel(*fx);
+        plainBlock(*fx);
+        CHECK_FALSE(resent(*fx, Endpoint::A));
+        CHECK_FALSE(resent(*fx, Endpoint::B));
+
+        // Back to Envelope: both re-sent with the wheel term ...
+        REQUIRE(fx->setParam(P::kMorphModSourceId, kSrcEnvelope) == Steinberg::kResultOk);
+        CHECK(massBits(*fx) == (MassPair{.a = bitsOf(45.0f), .b = bitsOf(100.0f)}));
+        // ... exactly once.
+        plantSentinel(*fx);
+        plainBlock(*fx);
+        CHECK_FALSE(resent(*fx, Endpoint::A));
+        CHECK_FALSE(resent(*fx, Endpoint::B));
+        CHECK(fx->proc->endpointRejectionsForTest() == 0u);
     }
 }

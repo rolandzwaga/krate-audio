@@ -2016,7 +2016,7 @@ TEST_CASE("BassMorph_EndpointEditMidMorph", "[systems][profundum][bass-morph][sc
         before.state, after.state, a, b, bPrime);
     std::cout << "BassMorph_EndpointEditMidMorph: continuous leaves checked " << continuousChecked << ", off "
               << continuousOff << "\n";
-    CHECK(continuousChecked == 46);
+    CHECK(continuousChecked == 48);   // Phase 15: + stiffness, phase
     CHECK(continuousOff == 0);
     // Complete in that interval: the following interval is bitwise unchanged.
     CHECK(BassMorphTest::bitEqual(e.advanceInterval(), after));
