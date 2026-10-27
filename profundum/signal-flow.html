@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profundum - Signal Flow Diagram</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #a855f7;
+            --color-accent-hover: #c084fc;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .breadcrumb {
+            font-size: 0.875rem;
+        }
+
+        .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .breadcrumb .separator {
+            color: var(--color-border);
+            margin: 0 0.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .toolbar {
+            padding: 0.75rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--color-surface);
+            flex-shrink: 0;
+        }
+
+        .toolbar button {
+            padding: 0.375rem 0.75rem;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            color: var(--color-text);
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            border-color: var(--color-accent);
+            color: var(--color-accent);
+        }
+
+        .toolbar .zoom-info {
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+            margin-left: auto;
+        }
+
+        #diagram-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+
+        #diagram-container.grabbing {
+            cursor: grabbing;
+        }
+
+        #diagram {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+
+        #diagram svg {
+            display: block;
+        }
+
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        #error {
+            display: none;
+            padding: 2rem;
+            color: #f87171;
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .header { padding: 1rem; gap: 1rem; }
+            .toolbar { padding: 0.5rem 1rem; }
+            h1 { font-size: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <nav class="breadcrumb">
+            <a href="./">Profundum</a>
+            <span class="separator">/</span>
+        </nav>
+        <h1>Signal Flow Diagram</h1>
+    </div>
+
+    <div class="toolbar">
+        <button id="zoom-in" title="Zoom in">+</button>
+        <button id="zoom-out" title="Zoom out">&minus;</button>
+        <button id="zoom-fit" title="Fit to screen">Fit</button>
+        <button id="zoom-reset" title="Reset to 100%">1:1</button>
+        <span class="zoom-info" id="zoom-level">100%</span>
+    </div>
+
+    <div id="diagram-container">
+        <div id="loading">Loading diagram&hellip;</div>
+        <div id="error"></div>
+        <div id="diagram"></div>
+    </div>
+
+    <script type="module">
+        import { instance } from "https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm";
+
+        const dotSource = `digraph ProfundumSignalFlow {
+    rankdir=TB;
+    fontname="Helvetica";
+    fontsize=11;
+    node [fontname="Helvetica", fontsize=10, style=filled];
+    edge [fontname="Helvetica", fontsize=8];
+    compound=true;
+    newrank=true;
+
+    // Source of truth: dsp/include/krate/dsp/systems/profundum_voice.h (per-voice chain, lines 11-16 and the render
+    // steps 3-10), profundum_engine.h (engine summary and the grid step 1-8 order) and
+    // plugins/profundum/src/processor/processor.cpp (MIDI, output gain, spectrum).
+
+    // =========================================================================
+    // COLOR LEGEND
+    // =========================================================================
+    subgraph cluster_legend {
+        label="Legend";
+        style=rounded;
+        color="#888888";
+        fontsize=12;
+        fontcolor="#444444";
+        bgcolor="#FAFAFA";
+
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+        leg [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio signal path (harmonic voice)</TD></TR>
+            <TR><TD BGCOLOR="#2E5E8C" WIDTH="20"> </TD><TD ALIGN="LEFT">Sub Anchor (always mono, L == R)</TD></TR>
+            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Control layer (every 32 samples)</TD></TR>
+            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Global chain after the voice sum</TD></TR>
+            <TR><TD BGCOLOR="#AAAAAA" WIDTH="20"> </TD><TD ALIGN="LEFT">Host / wrapper / editor</TD></TR>
+            <TR><TD>───▶</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
+            <TR><TD>- - ▶</TD><TD ALIGN="LEFT">Modulation / control</TD></TR>
+            </TABLE>
+        >];
+    }
+
+    // =========================================================================
+    // INPUT
+    // =========================================================================
+    subgraph cluster_input {
+        label="Input";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        midi_in [label="MIDI notes", shape=house, fillcolor="#CCDDEE"];
+        midi_cc [label="MIDI controllers\\nmod wheel, channel pressure\\npitch bend, sustain pedal", shape=house, fillcolor="#CCDDEE"];
+        params [label="84 host parameters\\n60 sound parameters hold an\\nA and a B value (Edit Target)", shape=house, fillcolor="#CCDDEE"];
+        tempo [label="Host tempo\\n(120 BPM when absent)", shape=house, fillcolor="#CCDDEE"];
+    }
+
+    sustain_latch [label="Sustain\\n(note-offs held while\\nthe pedal is down)", shape=box, fillcolor="#CCCCCC"];
+    midi_in -> sustain_latch [penwidth=2, label="note on/off"];
+    midi_cc -> sustain_latch [style=dashed, color="#888888", label="sustain"];
+
+    // =========================================================================
+    // CONTROL LAYER (grid step, every 32 samples, in this order)
+    // =========================================================================
+    subgraph cluster_control {
+        label="Control layer — every 32 samples, in this order";
+        style=rounded;
+        color="#C08020";
+        bgcolor="#FFF6E5";
+
+        morph [label="1-2  Bass Morph\\nendpoints A and B, Morph Position\\n(ramped); per-parameter laws;\\nAnchor morph Lock / Blend / Punch", shape=box, fillcolor="#E8A838"];
+        macros [label="3  Personality macros\\nWeight · Dark/Bright\\nTight/Loose · Clean/Violent\\n(0.5 = neutral)", shape=box, fillcolor="#E8A838"];
+        motion [label="4  Motion\\nENV · CYCLE · DRIFT\\n→ Mass / Depth / Body / Edge / Shift\\nAmount × Motion Depth", shape=box, fillcolor="#E8A838"];
+        masslaw [label="5  Mass law\\nMass 0-100 (+ mod wheel / pressure)\\n→ Depth bias, Body bias, Fold,\\ntransient, compression, Anchor level", shape=box, fillcolor="#E8A838"];
+        fieldctl [label="6  Field controls\\nimage mode, Spread, Gravity,\\nfield Motion", shape=box, fillcolor="#E8A838"];
+
+        morph -> macros -> motion -> masslaw -> fieldctl [style=dashed, color="#C08020"];
+    }
+
+    params -> morph [style=dashed, color="#888888", label="A / B"];
+    midi_cc -> masslaw [style=dashed, color="#888888", label="mod wheel,\\npressure"];
+    tempo -> motion [style=dashed, color="#888888", label="CYCLE sync"];
+
+    // =========================================================================
+    // VOICE MANAGEMENT
+    // =========================================================================
+    voice_mgmt [label="7  Voice management\\nMONO (default): one voice, priority,\\nlegato, glide (time / rate / quantized),\\nNote Memory, Retrigger\\nPOLY: up to 4 voices (8 max),\\nsteals the oldest released first", shape=octagon, fillcolor="#7BAFD4"];
+    sustain_latch -> voice_mgmt [penwidth=2, label="note on/off"];
+    midi_cc -> voice_mgmt [style=dashed, color="#888888", label="pitch bend"];
+
+    // =========================================================================
+    // PER-VOICE PROCESSING
+    // =========================================================================
+    subgraph cluster_voice {
+        label="Per voice (MONO: 1, POLY: up to 4)";
+        style=rounded;
+        color="#2E5E8C";
+        bgcolor="#EEF4FB";
+
+        pitch [label="Pitch\\nnote → glide / bend → Drop\\n(Amount, Time, Shape, Rebound)\\n→ Drop phase lock → f_core", shape=box, fillcolor="#D6E4F2"];
+
+        core [label="Harmonic Core\\nSpectral Shape: Depth · Body · Edge · Shift\\nLow Note Guard, Nyquist cap\\n64-partial oscillator bank\\nper-partial width (Spread)\\n+ Edge Excitation (oversampled soft clip)", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+        shape_m [label="SHAPE\\nROUND · HOLLOW · BITE\\none continuous control", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+        feed [label="+ Anchor Fold Feed\\n(optional; off = skipped)", shape=ellipse, fillcolor="#7BAFD4"];
+        fold [label="Harmonic Fold\\nsoft saturation → harmonic\\ncompression → folding", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+        character [label="Character\\nTube · Fold · Rectify · Bite · Crush · Fracture\\nAmount + Tone\\n(L/R offsets in WIDE)", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+
+        anchor [label="Sub Anchor\\nSine · Triangle · Rounded · Asymmetric · Octave Down\\nLOCK · FOLLOW · PUNCH · GHOST\\nphase-locked to the voice, L == R", shape=box, fillcolor="#2E5E8C", fontcolor="white"];
+
+        amp [label="Amp envelope\\nADSR with curves\\n+ retrigger / steal declick", shape=box, fillcolor="#D6E4F2"];
+        vsum [label="+", shape=circle, fillcolor="#7BAFD4", width=0.4, fixedsize=true];
+
+        pitch -> core [style=dashed, color="#2E5E8C", label="f_core"];
+        pitch -> anchor [style=dashed, color="#2E5E8C", label="f_res (FOLLOW: f_core)"];
+        core -> shape_m [penwidth=2];
+        shape_m -> feed [penwidth=2];
+        anchor -> feed [color="#2E5E8C", style=dashed, label="feed level"];
+        feed -> fold [penwidth=2];
+        fold -> character [penwidth=2];
+        character -> vsum [penwidth=2, label="× amp"];
+        anchor -> vsum [penwidth=2, color="#2E5E8C", label="× amp\\n(bypasses Shape,\\nFold, Character)"];
+        amp -> vsum [style=dashed, color="#2E5E8C"];
+    }
+
+    voice_mgmt -> pitch [penwidth=2, lhead=cluster_voice, label="note, glide"];
+    masslaw -> core [style=dashed, color="#C08020", lhead=cluster_voice, label="resolved sound state\\n(+ Motion, macros, Mass)"];
+    fieldctl -> core [style=dashed, color="#C08020", label="partial width"];
+
+    // =========================================================================
+    // GLOBAL CHAIN
+    // =========================================================================
+    subgraph cluster_global {
+        label="Global chain (after the voice sum)";
+        style=rounded;
+        color="#3C8C3C";
+        bgcolor="#EEF8EE";
+
+        voicesum [label="Σ voices", shape=circle, fillcolor="#6BBF6B", width=0.7, fixedsize=true];
+        massdyn [label="Mass Dynamics\\ntransient shaper (attack / sustain)\\nbass compressor, sidechain high-pass\\n(the sub never pumps it)", shape=box, fillcolor="#6BBF6B"];
+        field [label="Bass Stereo Field\\nSOLID · SPREAD · WIDE\\nGravity: side content below the\\ncrossover collapsed to mono\\nfield Motion", shape=box, fillcolor="#6BBF6B"];
+        dc [label="DC safety\\n(two DC blockers)", shape=box, fillcolor="#6BBF6B"];
+        limiter [label="True-peak limiter\\nOutput Ceiling (default -1 dBTP)\\n64-sample look-ahead (reported latency)", shape=box, fillcolor="#6BBF6B"];
+        gain [label="Output Gain\\n(attenuation only, smoothed)", shape=box, fillcolor="#6BBF6B"];
+
+        voicesum -> massdyn -> field -> dc -> limiter -> gain [penwidth=2];
+    }
+
+    vsum -> voicesum [penwidth=2, ltail=cluster_voice];
+    masslaw -> massdyn [style=dashed, color="#C08020", label="transient,\\ncompression"];
+    fieldctl -> field [style=dashed, color="#C08020"];
+
+    out [label="Stereo out", shape=invhouse, fillcolor="#CCDDEE"];
+    gain -> out [penwidth=2];
+
+    // =========================================================================
+    // EDITOR FEEDBACK
+    // =========================================================================
+    spectrum [label="Live harmonic spectrum\\nthe focus voice: power at n × f0 per partial\\n(Goertzel bank, pitch-synchronous window)\\n+ the Anchor drawn separately\\n→ editor via DataExchange", shape=box, fillcolor="#CCCCCC"];
+    character -> spectrum [style=dashed, color="#888888", label="Character tap"];
+    anchor -> spectrum [style=dashed, color="#888888", label="Anchor tap"];
+}
+`;
+
+        const container = document.getElementById("diagram-container");
+        const diagramEl = document.getElementById("diagram");
+        const loadingEl = document.getElementById("loading");
+        const errorEl = document.getElementById("error");
+        const zoomLevelEl = document.getElementById("zoom-level");
+
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let startX, startY;
+
+        function updateTransform() {
+            diagramEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            zoomLevelEl.textContent = Math.round(scale * 100) + "%";
+        }
+
+        function fitToScreen() {
+            const svg = diagramEl.querySelector("svg");
+            if (!svg) return;
+            const svgW = svg.viewBox.baseVal.width || svg.width.baseVal.value;
+            const svgH = svg.viewBox.baseVal.height || svg.height.baseVal.value;
+            const cW = container.clientWidth;
+            const cH = container.clientHeight;
+            scale = Math.min(cW / svgW, cH / svgH, 1) * 0.95;
+            panX = (cW - svgW * scale) / 2;
+            panY = (cH - svgH * scale) / 2;
+            updateTransform();
+        }
+
+        // Zoom controls
+        document.getElementById("zoom-in").addEventListener("click", () => {
+            scale = Math.min(scale * 1.25, 5);
+            updateTransform();
+        });
+        document.getElementById("zoom-out").addEventListener("click", () => {
+            scale = Math.max(scale / 1.25, 0.1);
+            updateTransform();
+        });
+        document.getElementById("zoom-fit").addEventListener("click", fitToScreen);
+        document.getElementById("zoom-reset").addEventListener("click", () => {
+            scale = 1; panX = 0; panY = 0;
+            updateTransform();
+        });
+
+        // Mouse wheel zoom
+        container.addEventListener("wheel", (e) => {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            const newScale = Math.min(Math.max(scale * factor, 0.1), 5);
+            panX = mouseX - (mouseX - panX) * (newScale / scale);
+            panY = mouseY - (mouseY - panY) * (newScale / scale);
+            scale = newScale;
+            updateTransform();
+        }, { passive: false });
+
+        // Pan with mouse drag
+        container.addEventListener("mousedown", (e) => {
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+            container.classList.add("grabbing");
+        });
+        window.addEventListener("mousemove", (e) => {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            updateTransform();
+        });
+        window.addEventListener("mouseup", () => {
+            isDragging = false;
+            container.classList.remove("grabbing");
+        });
+
+        // Touch support for pan
+        let lastTouch = null;
+        container.addEventListener("touchstart", (e) => {
+            if (e.touches.length === 1) {
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+        container.addEventListener("touchmove", (e) => {
+            if (e.touches.length === 1 && lastTouch) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - lastTouch.x;
+                const dy = e.touches[0].clientY - lastTouch.y;
+                panX += dx;
+                panY += dy;
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                updateTransform();
+            }
+        }, { passive: false });
+        container.addEventListener("touchend", () => { lastTouch = null; });
+
+        // Render
+        try {
+            const viz = await instance();
+            const svg = viz.renderSVGElement(dotSource);
+            svg.style.width = "auto";
+            svg.style.height = "auto";
+            loadingEl.style.display = "none";
+            diagramEl.appendChild(svg);
+            fitToScreen();
+        } catch (err) {
+            loadingEl.style.display = "none";
+            errorEl.style.display = "block";
+            errorEl.textContent = "Failed to render diagram: " + err.message;
+        }
+    </script>
+</body>
+</html>
