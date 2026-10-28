@@ -2789,6 +2789,60 @@ TEST_CASE("PitchShiftProcessor: PitchSync mode with various sample rates", "[pit
     }
 }
 
+namespace {
+
+/// Steady 0.5-amplitude tone through a PitchSync shifter: output level relative to the
+/// input, in dB, over the last 1.5 s of 2 s. With sharedPitch, the period and confidence
+/// come from one external PitchDetector, as HarmonizerEngine passes them.
+double pitchSyncToneDb(float semitones, float freqHz, bool sharedPitch) {
+    PitchShiftProcessor processor;
+    processor.prepare(kTestSampleRate, kTestBlockSize);
+    processor.setMode(PitchMode::PitchSync);
+    processor.setSemitones(semitones);
+    PitchDetector detector;
+    detector.prepare(kTestSampleRate, PitchDetector::fullRangeWindowSize(kTestSampleRate));
+
+    std::vector<float> input(kTestBlockSize), output(kTestBlockSize);
+    double sumIn = 0.0;
+    double sumOut = 0.0;
+    const auto total = static_cast<size_t>(kTestSampleRate * 2.0f);
+    for (size_t s = 0; s < total; s += kTestBlockSize) {
+        for (size_t i = 0; i < kTestBlockSize; ++i) {
+            input[i] = 0.5f * std::sin(kTestTwoPi * freqHz * static_cast<float>(s + i) / kTestSampleRate);
+        }
+        if (sharedPitch) {
+            detector.pushBlock(input.data(), kTestBlockSize);
+            processor.processWithSharedPitch(input.data(), output.data(), kTestBlockSize,
+                                             detector.getDetectedPeriod(), detector.getConfidence());
+        } else {
+            processor.process(input.data(), output.data(), kTestBlockSize);
+        }
+        if (s >= static_cast<size_t>(kTestSampleRate * 0.5f)) {
+            for (size_t i = 0; i < kTestBlockSize; ++i) {
+                sumIn += static_cast<double>(input[i]) * input[i];
+                sumOut += static_cast<double>(output[i]) * output[i];
+            }
+        }
+    }
+    return 10.0 * std::log10(sumOut / sumIn);
+}
+
+} // namespace
+
+TEST_CASE("PitchShiftProcessor: PitchSync mode keeps a steady tone at unity level", "[pitch_shift][pitch_sync]") {
+    // Each splice crossfades into a tap a whole number of detected periods away, so a
+    // periodic input does not cancel itself mid-fade; above +12 st the fade must also
+    // finish before the old tap reaches the end of its range.
+    for (const bool sharedPitch : {false, true}) {
+        for (const float semitones : {5.0f, 7.0f, 12.0f, 24.0f, -12.0f}) {
+            for (const float freqHz : {55.0f, 110.0f, 220.0f, 330.0f, 440.0f, 880.0f}) {
+                CAPTURE(sharedPitch, semitones, freqHz);
+                CHECK(pitchSyncToneDb(semitones, freqHz, sharedPitch) == Approx(0.0).margin(0.3));
+            }
+        }
+    }
+}
+
 // ==============================================================================
 // Sub-block smoothing tests (US6 — per-sample parameter automation)
 // ==============================================================================

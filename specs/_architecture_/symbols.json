@@ -1217,7 +1217,7 @@
       "scope": "Krate::DSP",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/freeze_mode.h",
-      "line": 173
+      "line": 175
     },
     {
       "name": "FrequencyShifter",
@@ -2305,7 +2305,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 824
+      "line": 832
     },
     {
       "name": "Piece",
@@ -2361,7 +2361,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 1142
+      "line": 1150
     },
     {
       "name": "PitchSyncGranularShifter",

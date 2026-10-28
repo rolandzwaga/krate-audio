@@ -152,7 +152,7 @@ TEST_CASE("Shimmer readouts print the 6.4 units", "[shimmer][format]") {
     }
 
     CHECK(format(fn, kShimmerFeedbackId, 0.0) == "0%");
-    CHECK(format(fn, kShimmerFeedbackId, def(kShimmerFeedbackId)) == "50%");
+    CHECK(format(fn, kShimmerFeedbackId, def(kShimmerFeedbackId)) == "40%");
     CHECK(format(fn, kShimmerFeedbackId, 1.0) == "120%");
 
     CHECK(format(fn, kShimmerFilterCutoffId, 0.0) == "20 Hz");

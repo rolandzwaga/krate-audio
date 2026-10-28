@@ -10,6 +10,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include "parameters/granular_params.h"
+#include "parameters/shimmer_params.h"
 #include "parameters/spectral_params.h"
 #include "plugin_ids.h"
 
@@ -67,6 +68,21 @@ TEST_CASE("Spectral starts synced, with feedback", "[spectral][defaults]") {
 
     SECTION("Feedback defaults to 40%") {
         REQUIRE(def(kSpectralFeedbackId) * 1.2 == Approx(0.4).margin(0.001));
+        REQUIRE(fresh.feedback.load() == Approx(0.4f));
+    }
+}
+
+TEST_CASE("Shimmer starts synced, with feedback", "[shimmer][defaults]") {
+    const auto def = [](ParamID id) { return registeredDefault(registerShimmerParams, id); };
+    const ShimmerParams fresh;
+
+    SECTION("Time Mode defaults to Synced") {
+        REQUIRE(def(kShimmerTimeModeId) == Approx(1.0));
+        REQUIRE(fresh.timeMode.load() == 1);
+    }
+
+    SECTION("Feedback defaults to 40%") {
+        REQUIRE(def(kShimmerFeedbackId) * 1.2 == Approx(0.4).margin(0.001));
         REQUIRE(fresh.feedback.load() == Approx(0.4f));
     }
 }

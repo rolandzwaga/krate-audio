@@ -644,8 +644,8 @@ public:
         crossfadeWindow_.resize(fullWindowSize);
         Window::generateHann(crossfadeWindow_.data(), fullWindowSize);
 
-        // Prepare pitch detector (256 sample window = ~5.8ms)
-        pitchDetector_.prepare(sampleRate, 256);
+        // Prepare pitch detector (window holds the longest period it searches for)
+        pitchDetector_.prepare(sampleRate, PitchDetector::fullRangeWindowSize(sampleRate));
 
         reset();
     }
@@ -663,6 +663,7 @@ public:
         delay2_ = maxDelay_;
         crossfadePhase_ = 0.0f;
         needsCrossfade_ = false;
+        spliceCorrelation_ = 0.0f;
 
         pitchDetector_.reset();
     }
@@ -736,19 +737,25 @@ private:
 
     /// @brief Update grain size from internal pitch detector
     void updateGrainSizeFromDetector() noexcept {
-        applyGrainSize(pitchDetector_.getDetectedPeriod());
+        updateGrainSizeFromPeriod(pitchDetector_.getDetectedPeriod(),
+                                  pitchDetector_.getConfidence());
     }
 
     /// @brief Update grain size from externally-provided pitch period
     /// @param period  Detected period in samples
-    /// @param confidence  Detection confidence [0,1]; uses default period if below threshold
+    /// @param confidence  Detection confidence [0,1]; keeps the current grain if below threshold
     void updateGrainSizeFromPeriod(float period, float confidence) noexcept {
-        if (confidence < PitchDetector::kConfidenceThreshold) {
-            // Low confidence: use default period (same behavior as internal detector)
-            period = PitchDetector::kDefaultPeriodMs * 0.001f * sampleRate_;
-        }
+        // No pitch (silence between notes, noise): keep the grain. Falling back to the
+        // default period would swing it to 30 ms and back at every note, clamping the
+        // taps mid-note when it shrinks.
+        if (confidence < PitchDetector::kConfidenceThreshold) return;
         applyGrainSize(period);
     }
+
+    /// @brief Place the incoming tap of a splice toward @p target (delay2_) and
+    /// record how alike the two taps are (spliceCorrelation_)
+    /// @param travel  How far the outgoing tap moves during the fade
+    void beginSplice(float target, float travel) noexcept;
 
     /// @brief Apply detected period to grain size (common logic)
     void applyGrainSize(float period) noexcept {
@@ -796,6 +803,7 @@ private:
     float crossfadePhase_ = 0.0f;
     float maxDelay_ = 0.0f;
     float minDelay_ = 1.0f;
+    float spliceCorrelation_ = 0.0f;  // [0, 1]: 1 = taps in phase, 0 = unrelated
     float sampleRate_ = 44100.0f;
     bool needsCrossfade_ = false;
 };

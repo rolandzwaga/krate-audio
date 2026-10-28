@@ -994,3 +994,60 @@ TEST_CASE("FlexibleFeedbackNetwork feedback filter", "[systems][flexible-feedbac
     }
 }
 
+
+// ==============================================================================
+// The processor sits inside the loop
+// ==============================================================================
+
+TEST_CASE("FlexibleFeedbackNetwork feeds the processed signal back", "[systems][flexible-feedback][processor]") {
+    // Each pass goes through the processor again: with a 0.5x processor at 100 %
+    // feedback, repeat k comes back at 0.5^k, one loop period after the last.
+    for (const std::size_t blockSize : {std::size_t{64}, std::size_t{512}, std::size_t{2048}}) {
+        CAPTURE(blockSize);
+        FlexibleFeedbackNetwork network;
+        MockFeedbackProcessor mock;
+        mock.gain = 0.5f;
+        network.prepare(44100.0, blockSize);
+        network.setProcessor(&mock);
+        network.setDelayTimeMs(20.0f);
+        network.setFeedbackAmount(1.0f);
+        network.setProcessorMix(100.0f);
+        network.snapParameters();
+
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = blockSize;
+        std::vector<float> left(44100, 0.0f);
+        left[0] = 1.0f;
+        std::vector<float> right = left;
+        for (std::size_t s = 0; s + blockSize <= left.size(); s += blockSize) {
+            network.process(&left[s], &right[s], blockSize, ctx);
+        }
+
+        // Peaks of the first five repeats, in order
+        std::vector<std::size_t> at;
+        std::vector<float> peak;
+        std::size_t i = 1;
+        while (at.size() < 5 && i < left.size()) {
+            if (std::abs(left[i]) > 0.01f) {
+                std::size_t best = i;
+                for (std::size_t j = i; j < std::min(left.size(), i + 8); ++j) {
+                    if (std::abs(left[j]) > std::abs(left[best])) best = j;
+                }
+                at.push_back(best);
+                peak.push_back(std::abs(left[best]));
+                i = best + 100;
+            } else {
+                ++i;
+            }
+        }
+        REQUIRE(at.size() == 5);
+        for (std::size_t k = 0; k < 5; ++k) {
+            CAPTURE(k, at[k]);
+            CHECK(peak[k] == Approx(std::pow(0.5, static_cast<double>(k + 1))).margin(0.01));
+            if (k > 0) {
+                CHECK(at[k] - at[k - 1] == at[0]);
+            }
+        }
+    }
+}

@@ -78,6 +78,7 @@ public:
         oldProcessedR_.resize(maxBlockSize, 0.0f);
         bypassL_.resize(maxBlockSize, 0.0f);
         bypassR_.resize(maxBlockSize, 0.0f);
+        loopGain_.resize(maxBlockSize, 0.0f);
 
         // Prepare latency compensation delay lines for bypass path alignment
         // Max 200ms to handle any pitch mode (Granular ~46ms, PhaseVocoder ~116ms)
@@ -149,10 +150,6 @@ public:
         std::fill(bypassL_.begin(), bypassL_.end(), 0.0f);
         std::fill(bypassR_.begin(), bypassR_.end(), 0.0f);
 
-        // Clear processed feedback state
-        lastProcessedFeedbackL_ = 0.0f;
-        lastProcessedFeedbackR_ = 0.0f;
-
         // Reset injected processor
         if (processor_) {
             processor_->reset();
@@ -176,140 +173,17 @@ public:
                  [[maybe_unused]] const BlockContext& ctx) noexcept {
         if (numSamples == 0 || !left || !right) return;
 
-        // Process sample-by-sample for correct feedback loop behavior
-        for (std::size_t i = 0; i < numSamples; ++i) {
-            // Get smoothed parameters
-            const float feedback = feedbackSmoother_.process();
-            const float freezeMix = freezeMixSmoother_.process();
-            const float delayTimeSamples = delayTimeSmoother_.process();
-
-            // In freeze mode, mute input
-            const float inputL = left[i] * (1.0f - freezeMix);
-            const float inputR = right[i] * (1.0f - freezeMix);
-
-            // Effective feedback amount (interpolate to 100% in freeze mode)
-            const float effectiveFeedback = feedback + freezeMix * (1.0f - feedback);
-
-            // Convert delay time to ms for CrossfadingDelayLine
-            const float delayMs = delayTimeSamples / static_cast<float>(sampleRate_) * 1000.0f;
-
-            // Set delay time on crossfading delay lines (handles large changes smoothly)
-            delayL_.setDelayMs(delayMs);
-            delayR_.setDelayMs(delayMs);
-
-            // Read delayed sample FIRST (read-before-write pattern)
-            // CrossfadingDelayLine handles the crossfading internally
-            const float delayedL = delayL_.read();
-            const float delayedR = delayR_.read();
-
-            // Calculate feedback signal using processed feedback from previous block
-            const float feedbackSignalL = lastProcessedFeedbackL_ * effectiveFeedback;
-            const float feedbackSignalR = lastProcessedFeedbackR_ * effectiveFeedback;
-
-            // Combine input with feedback and write to delay line
-            delayL_.write(inputL + feedbackSignalL);
-            delayR_.write(inputR + feedbackSignalR);
-
-            // Store delay output for block-based processing (processor, filter, limiter)
-            feedbackL_[i] = delayedL;
-            feedbackR_[i] = delayedR;
-
-            // Update per-sample feedback for within-block responsiveness.
-            // When a processor is active, this provides "raw" feedback within the block,
-            // while the end-of-block update (after processor) provides processed feedback
-            // for the next block. This is a compromise: within-block gets immediate raw
-            // feedback, cross-block gets processed feedback with one-block latency.
-            lastProcessedFeedbackL_ = delayedL;
-            lastProcessedFeedbackR_ = delayedR;
+        // The processor, filter and limiter sit inside the loop, so a chunk's
+        // feedback is known only once the whole chunk has been through them. No
+        // chunk is longer than the delay: every delayed sample it reads was written
+        // before it started, and its feedback is added to its own writes before
+        // anything reads them.
+        std::size_t done = 0;
+        while (done < numSamples) {
+            const std::size_t chunk = std::min(numSamples - done, maxChunkSamples());
+            processChunk(left + done, right + done, chunk);
+            done += chunk;
         }
-
-        // Apply injected processor to feedback signal (if present)
-        if (processor_) {
-            // Copy feedback to bypass buffer BEFORE processing
-            // This preserves the unprocessed signal for route-based crossfading
-            std::copy(feedbackL_.begin(), feedbackL_.begin() + numSamples, bypassL_.begin());
-            std::copy(feedbackR_.begin(), feedbackR_.begin() + numSamples, bypassR_.begin());
-
-            std::copy(feedbackL_.begin(), feedbackL_.begin() + numSamples, processedL_.begin());
-            std::copy(feedbackR_.begin(), feedbackR_.begin() + numSamples, processedR_.begin());
-
-            processor_->process(processedL_.data(), processedR_.data(), numSamples);
-
-            // Handle crossfade if hot-swapping processors
-            if (oldProcessor_ && crossfadePosition_ < crossfadeSamples_) {
-                std::copy(feedbackL_.begin(), feedbackL_.begin() + numSamples, oldProcessedL_.begin());
-                std::copy(feedbackR_.begin(), feedbackR_.begin() + numSamples, oldProcessedR_.begin());
-
-                oldProcessor_->process(oldProcessedL_.data(), oldProcessedR_.data(), numSamples);
-
-                for (std::size_t i = 0; i < numSamples; ++i) {
-                    const float fadePos = (crossfadePosition_ + static_cast<float>(i)) / crossfadeSamples_;
-                    const float newGain = std::min(1.0f, fadePos);
-                    const float oldGain = 1.0f - newGain;
-                    processedL_[i] = processedL_[i] * newGain + oldProcessedL_[i] * oldGain;
-                    processedR_[i] = processedR_[i] * newGain + oldProcessedR_[i] * oldGain;
-                }
-
-                crossfadePosition_ += static_cast<float>(numSamples);
-                if (crossfadePosition_ >= crossfadeSamples_) {
-                    oldProcessor_ = nullptr;
-                }
-            }
-
-            // Route-based crossfade between bypass and processed paths
-            // At extremes (0% or 100%), use direct path to avoid feedback loop changes.
-            // In between, use equal-power crossfade for smooth transition.
-            // Note: There IS comb filtering potential at intermediate values due to
-            // processor latency mismatch, but latency-compensating the bypass path
-            // in a feedback loop changes the loop timing and creates worse artifacts.
-            for (std::size_t i = 0; i < numSamples; ++i) {
-                const float routeMix = routeMixSmoother_.process();
-
-                // At extremes, use direct path to preserve correct feedback loop timing
-                if (routeMix <= 0.001f) {
-                    // Full bypass - feedbackL_ stays unchanged (already has unprocessed signal)
-                    // No operation needed - feedbackL_ already contains bypassL_
-                } else if (routeMix >= 0.999f) {
-                    // Full processed
-                    feedbackL_[i] = processedL_[i];
-                    feedbackR_[i] = processedR_[i];
-                } else {
-                    // Intermediate - equal-power crossfade
-                    float bypassGain, processGain;
-                    equalPowerGains(routeMix, bypassGain, processGain);
-                    feedbackL_[i] = bypassL_[i] * bypassGain + processedL_[i] * processGain;
-                    feedbackR_[i] = bypassR_[i] * bypassGain + processedR_[i] * processGain;
-                }
-            }
-        }
-
-        // Apply filter to feedback if enabled
-        if (filterEnabled_) {
-            filterL_.process(feedbackL_.data(), numSamples);
-            filterR_.process(feedbackR_.data(), numSamples);
-        }
-
-        // Apply limiting if feedback > 100%
-        if (feedbackAmount_ > 1.0f) {
-            limiterL_.process(feedbackL_.data(), numSamples);
-            limiterR_.process(feedbackR_.data(), numSamples);
-
-            // Apply soft clipping as safety net (catches transients during attack time)
-            for (std::size_t i = 0; i < numSamples; ++i) {
-                feedbackL_[i] = std::tanh(feedbackL_[i]);
-                feedbackR_[i] = std::tanh(feedbackR_[i]);
-            }
-        }
-
-        // Copy processed feedback to output
-        for (std::size_t i = 0; i < numSamples; ++i) {
-            left[i] = feedbackL_[i];
-            right[i] = feedbackR_[i];
-        }
-
-        // Store last PROCESSED feedback value for next block's feedback signal
-        lastProcessedFeedbackL_ = feedbackL_[numSamples - 1];
-        lastProcessedFeedbackR_ = feedbackR_[numSamples - 1];
     }
 
     // -------------------------------------------------------------------------
@@ -515,10 +389,134 @@ private:
     std::vector<float> oldProcessedR_;
     std::vector<float> bypassL_;      // Unprocessed feedback for route-based crossfade
     std::vector<float> bypassR_;
+    std::vector<float> loopGain_;     // Feedback gain per sample of the current chunk
 
-    // Last processed feedback (for block-based processor feedback path)
-    float lastProcessedFeedbackL_ = 0.0f;
-    float lastProcessedFeedbackR_ = 0.0f;
+
+    /// @brief Longest chunk whose delayed samples are all written before it starts
+    [[nodiscard]] std::size_t maxChunkSamples() const noexcept {
+        const float shortest = std::min({delayL_.getShortestDelaySamples(),
+                                         delayR_.getShortestDelaySamples(),
+                                         delayTimeSmoother_.getCurrentValue(),
+                                         msToSamples(delayTimeMs_)});
+        return std::max<std::size_t>(1, static_cast<std::size_t>(shortest));
+    }
+
+    /// @brief One pass round the loop for at most one delay's worth of samples
+    void processChunk(float* left, float* right, std::size_t numSamples) noexcept {
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            // Get smoothed parameters
+            const float feedback = feedbackSmoother_.process();
+            const float freezeMix = freezeMixSmoother_.process();
+            const float delayTimeSamples = delayTimeSmoother_.process();
+
+            // Effective feedback amount (interpolate to 100% in freeze mode)
+            loopGain_[i] = feedback + freezeMix * (1.0f - feedback);
+
+            // Convert delay time to ms for CrossfadingDelayLine
+            const float delayMs = delayTimeSamples / static_cast<float>(sampleRate_) * 1000.0f;
+
+            // Set delay time on crossfading delay lines (handles large changes smoothly)
+            delayL_.setDelayMs(delayMs);
+            delayR_.setDelayMs(delayMs);
+
+            // Read delayed sample FIRST (read-before-write pattern)
+            // CrossfadingDelayLine handles the crossfading internally
+            feedbackL_[i] = delayL_.read();
+            feedbackR_[i] = delayR_.read();
+
+            // Write the input (muted in freeze mode); the feedback is added below,
+            // once the processor, filter and limiter have run on this chunk
+            delayL_.write(left[i] * (1.0f - freezeMix));
+            delayR_.write(right[i] * (1.0f - freezeMix));
+        }
+
+        // Apply injected processor to feedback signal (if present)
+        if (processor_) {
+            // Copy feedback to bypass buffer BEFORE processing
+            // This preserves the unprocessed signal for route-based crossfading
+            std::copy(feedbackL_.begin(), feedbackL_.begin() + numSamples, bypassL_.begin());
+            std::copy(feedbackR_.begin(), feedbackR_.begin() + numSamples, bypassR_.begin());
+
+            std::copy(feedbackL_.begin(), feedbackL_.begin() + numSamples, processedL_.begin());
+            std::copy(feedbackR_.begin(), feedbackR_.begin() + numSamples, processedR_.begin());
+
+            processor_->process(processedL_.data(), processedR_.data(), numSamples);
+
+            // Handle crossfade if hot-swapping processors
+            if (oldProcessor_ && crossfadePosition_ < crossfadeSamples_) {
+                std::copy(feedbackL_.begin(), feedbackL_.begin() + numSamples, oldProcessedL_.begin());
+                std::copy(feedbackR_.begin(), feedbackR_.begin() + numSamples, oldProcessedR_.begin());
+
+                oldProcessor_->process(oldProcessedL_.data(), oldProcessedR_.data(), numSamples);
+
+                for (std::size_t i = 0; i < numSamples; ++i) {
+                    const float fadePos = (crossfadePosition_ + static_cast<float>(i)) / crossfadeSamples_;
+                    const float newGain = std::min(1.0f, fadePos);
+                    const float oldGain = 1.0f - newGain;
+                    processedL_[i] = processedL_[i] * newGain + oldProcessedL_[i] * oldGain;
+                    processedR_[i] = processedR_[i] * newGain + oldProcessedR_[i] * oldGain;
+                }
+
+                crossfadePosition_ += static_cast<float>(numSamples);
+                if (crossfadePosition_ >= crossfadeSamples_) {
+                    oldProcessor_ = nullptr;
+                }
+            }
+
+            // Route-based crossfade between bypass and processed paths
+            // At extremes (0% or 100%), use direct path to avoid feedback loop changes.
+            // In between, use equal-power crossfade for smooth transition.
+            // Note: There IS comb filtering potential at intermediate values due to
+            // processor latency mismatch, but latency-compensating the bypass path
+            // in a feedback loop changes the loop timing and creates worse artifacts.
+            for (std::size_t i = 0; i < numSamples; ++i) {
+                const float routeMix = routeMixSmoother_.process();
+
+                // At extremes, use direct path to preserve correct feedback loop timing
+                if (routeMix <= 0.001f) {
+                    // Full bypass - feedbackL_ stays unchanged (already has unprocessed signal)
+                    // No operation needed - feedbackL_ already contains bypassL_
+                } else if (routeMix >= 0.999f) {
+                    // Full processed
+                    feedbackL_[i] = processedL_[i];
+                    feedbackR_[i] = processedR_[i];
+                } else {
+                    // Intermediate - equal-power crossfade
+                    float bypassGain, processGain;
+                    equalPowerGains(routeMix, bypassGain, processGain);
+                    feedbackL_[i] = bypassL_[i] * bypassGain + processedL_[i] * processGain;
+                    feedbackR_[i] = bypassR_[i] * bypassGain + processedR_[i] * processGain;
+                }
+            }
+        }
+
+        // Apply filter to feedback if enabled
+        if (filterEnabled_) {
+            filterL_.process(feedbackL_.data(), numSamples);
+            filterR_.process(feedbackR_.data(), numSamples);
+        }
+
+        // Apply limiting if feedback > 100%
+        if (feedbackAmount_ > 1.0f) {
+            limiterL_.process(feedbackL_.data(), numSamples);
+            limiterR_.process(feedbackR_.data(), numSamples);
+
+            // Apply soft clipping as safety net (catches transients during attack time)
+            for (std::size_t i = 0; i < numSamples; ++i) {
+                feedbackL_[i] = std::tanh(feedbackL_[i]);
+                feedbackR_[i] = std::tanh(feedbackR_[i]);
+            }
+        }
+
+        // The processed signal is both the output and what goes round again
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            left[i] = feedbackL_[i];
+            right[i] = feedbackR_[i];
+            const std::size_t back = numSamples - 1 - i;
+            delayL_.addToRecent(back, feedbackL_[i] * loopGain_[i]);
+            delayR_.addToRecent(back, feedbackR_[i] * loopGain_[i]);
+        }
+    }
 
     // Helper methods
     float msToSamples(float ms) const noexcept {

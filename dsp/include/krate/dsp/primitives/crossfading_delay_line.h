@@ -231,6 +231,11 @@ public:
         delayLine_.write(sample);
     }
 
+    /// @brief Add to a sample already written (see DelayLine::addToRecent)
+    void addToRecent(size_t delaySamples, float value) noexcept {
+        delayLine_.addToRecent(delaySamples, value);
+    }
+
     /// @brief Read from the delay line with crossfading.
     /// @return Crossfaded output from both taps
     ///
@@ -323,6 +328,11 @@ public:
     }
 
     /// @brief Get current effective delay in samples.
+    /// @brief Shortest delay either tap reads at, or will once it reaches its target
+    [[nodiscard]] float getShortestDelaySamples() const noexcept {
+        return std::min({tapADelaySamples_, tapBDelaySamples_, targetDelaySamples_});
+    }
+
     [[nodiscard]] float getCurrentDelaySamples() const noexcept {
         // Weighted average based on tap gains
         return tapADelaySamples_ * tapAGain_ + tapBDelaySamples_ * tapBGain_;
