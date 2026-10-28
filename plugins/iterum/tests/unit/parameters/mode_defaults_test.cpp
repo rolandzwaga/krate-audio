@@ -9,6 +9,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include "parameters/bbd_params.h"
 #include "parameters/granular_params.h"
 #include "parameters/shimmer_params.h"
 #include "parameters/spectral_params.h"
@@ -69,6 +70,21 @@ TEST_CASE("Spectral starts synced, with feedback", "[spectral][defaults]") {
 
     SECTION("Feedback defaults to 40%") {
         REQUIRE(def(kSpectralFeedbackId) * 1.2 == Approx(0.4).margin(0.001));
+        REQUIRE(fresh.feedback.load() == Approx(0.4f));
+    }
+}
+
+TEST_CASE("BBD starts synced, with feedback", "[bbd][defaults]") {
+    const auto def = [](ParamID id) { return registeredDefault(registerBBDParams, id); };
+    const BBDParams fresh;
+
+    SECTION("Time Mode defaults to Synced") {
+        REQUIRE(def(kBBDTimeModeId) == Approx(1.0));
+        REQUIRE(fresh.timeMode.load() == 1);
+    }
+
+    SECTION("Feedback defaults to 40%") {
+        REQUIRE(def(kBBDFeedbackId) * 1.2 == Approx(0.4).margin(0.001));
         REQUIRE(fresh.feedback.load() == Approx(0.4f));
     }
 }

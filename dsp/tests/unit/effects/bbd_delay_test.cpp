@@ -54,7 +54,7 @@ TEST_CASE("BBDDelay construction", "[features][bbd-delay][lifecycle]") {
         REQUIRE(BBDDelay::kDefaultFeedback == Approx(0.4f));
         REQUIRE(BBDDelay::kDefaultMix == Approx(0.5f));
         REQUIRE(BBDDelay::kDefaultAge == Approx(0.2f));
-        REQUIRE(BBDDelay::kMinBandwidthHz == Approx(2500.0f));
+        REQUIRE(BBDDelay::kMinBandwidthHz == Approx(300.0f));
         REQUIRE(BBDDelay::kMaxBandwidthHz == Approx(15000.0f));
     }
 }
@@ -210,7 +210,7 @@ TEST_CASE("BBDDelay bandwidth tracking", "[features][bbd-delay][bandwidth]") {
         REQUIRE(BBDDelay::kMaxBandwidthHz == Approx(15000.0f));
     }
 
-    SECTION("bandwidth at maximum delay is ~2.5kHz (FR-016)") {
+    SECTION("bandwidth has a floor for the slowest clock (FR-016)") {
         delay.setTime(BBDDelay::kMaxDelayMs);
 
         // Process to apply the settings
@@ -218,8 +218,9 @@ TEST_CASE("BBDDelay bandwidth tracking", "[features][bbd-delay][bandwidth]") {
         std::array<float, 512> right{};
         delay.process(left.data(), right.data(), 512);
 
-        // The bandwidth at max delay should be at or near minimum
-        REQUIRE(BBDDelay::kMinBandwidthHz == Approx(2500.0f));
+        // A 4096-stage chip at 1000 ms clocks at 2048 Hz (1 kHz bandwidth); the
+        // floor only catches the 1024-stage chips at long times
+        REQUIRE(BBDDelay::kMinBandwidthHz == Approx(300.0f));
     }
 
     SECTION("bandwidth varies inversely with delay time (FR-017)") {
@@ -279,30 +280,29 @@ TEST_CASE("BBDDelay era selection", "[features][bbd-delay][era]") {
         REQUIRE(delay.getEra() == BBDChipModel::MN3005);
     }
 
-    SECTION("MN3005 has widest bandwidth (FR-025)") {
-        // Verify the bandwidth factor is highest for MN3005
-        REQUIRE(BBDDelay::kMN3005BandwidthFactor == Approx(1.0f));
-        REQUIRE(BBDDelay::kMN3007BandwidthFactor < BBDDelay::kMN3005BandwidthFactor);
-        REQUIRE(BBDDelay::kMN3205BandwidthFactor < BBDDelay::kMN3005BandwidthFactor);
-        REQUIRE(BBDDelay::kSAD1024BandwidthFactor < BBDDelay::kMN3005BandwidthFactor);
+    SECTION("stage counts: MN3005 and MN3205 4096, MN3007 and SAD1024 1024 (FR-025)") {
+        REQUIRE(BBDDelay::kMN3005Spec.stages == Approx(4096.0f));
+        REQUIRE(BBDDelay::kMN3205Spec.stages == Approx(4096.0f));
+        REQUIRE(BBDDelay::kMN3007Spec.stages == Approx(1024.0f));
+        REQUIRE(BBDDelay::kSAD1024Spec.stages == Approx(1024.0f));
     }
 
-    SECTION("MN3005 has lowest noise (FR-025)") {
-        REQUIRE(BBDDelay::kMN3005NoiseFactor == Approx(1.0f));
-        REQUIRE(BBDDelay::kMN3007NoiseFactor > BBDDelay::kMN3005NoiseFactor);
-        REQUIRE(BBDDelay::kMN3205NoiseFactor > BBDDelay::kMN3005NoiseFactor);
-        REQUIRE(BBDDelay::kSAD1024NoiseFactor > BBDDelay::kMN3005NoiseFactor);
+    SECTION("MN3005 is the cleanest and quietest (FR-025)") {
+        for (const auto& spec : {BBDDelay::kMN3007Spec, BBDDelay::kMN3205Spec, BBDDelay::kSAD1024Spec}) {
+            REQUIRE(spec.drive > BBDDelay::kMN3005Spec.drive);
+            REQUIRE(spec.noiseDb > BBDDelay::kMN3005Spec.noiseDb);
+        }
     }
 
-    SECTION("MN3205 is darker than MN3005 (FR-027)") {
-        // MN3205 should have lower bandwidth factor (darker sound)
-        REQUIRE(BBDDelay::kMN3205BandwidthFactor < BBDDelay::kMN3005BandwidthFactor);
-        REQUIRE(BBDDelay::kMN3205BandwidthFactor == Approx(0.75f));
+    SECTION("MN3205 has less headroom than MN3005 (FR-027)") {
+        REQUIRE(BBDDelay::kMN3205Spec.drive > BBDDelay::kMN3005Spec.drive);
     }
 
-    SECTION("SAD1024 has most limited bandwidth and noise (FR-028)") {
-        REQUIRE(BBDDelay::kSAD1024BandwidthFactor == Approx(0.6f));
-        REQUIRE(BBDDelay::kSAD1024NoiseFactor == Approx(2.0f));
+    SECTION("SAD1024 is the dirtiest and noisiest (FR-028)") {
+        for (const auto& spec : {BBDDelay::kMN3005Spec, BBDDelay::kMN3007Spec, BBDDelay::kMN3205Spec}) {
+            REQUIRE(BBDDelay::kSAD1024Spec.drive > spec.drive);
+            REQUIRE(BBDDelay::kSAD1024Spec.noiseDb > spec.noiseDb);
+        }
     }
 }
 
@@ -429,10 +429,10 @@ TEST_CASE("BBDDelay clock noise", "[features][bbd-delay][clock-noise]") {
     }
 
     SECTION("clock noise scales with Era (noisier chips) (FR-035)") {
-        // Verify noise factor ordering
-        REQUIRE(BBDDelay::kMN3005NoiseFactor < BBDDelay::kMN3007NoiseFactor);
-        REQUIRE(BBDDelay::kMN3007NoiseFactor < BBDDelay::kMN3205NoiseFactor);
-        REQUIRE(BBDDelay::kMN3205NoiseFactor < BBDDelay::kSAD1024NoiseFactor);
+        // Verify noise ordering
+        REQUIRE(BBDDelay::kMN3005Spec.noiseDb < BBDDelay::kMN3007Spec.noiseDb);
+        REQUIRE(BBDDelay::kMN3007Spec.noiseDb < BBDDelay::kMN3205Spec.noiseDb);
+        REQUIRE(BBDDelay::kMN3205Spec.noiseDb < BBDDelay::kSAD1024Spec.noiseDb);
     }
 }
 
@@ -695,12 +695,11 @@ TEST_CASE("BBDDelay edge case: bandwidth at boundary delay times", "[features][b
     delay.setEra(BBDChipModel::MN3005);
     delay.setAge(0.0f);
 
-    SECTION("bandwidth approximately 2.5kHz at max delay (FR-016)") {
+    SECTION("bandwidth floor sits below a 4096-stage chip at max delay (FR-016)") {
         delay.setTime(BBDDelay::kMaxDelayMs);
 
-        // The minimum bandwidth constant should be ~2500Hz
-        REQUIRE(BBDDelay::kMinBandwidthHz >= 2000.0f);
-        REQUIRE(BBDDelay::kMinBandwidthHz <= 3000.0f);
+        // MN3005 at 1000 ms: 2048 Hz clock, 1024 Hz bandwidth, above the floor
+        REQUIRE(BBDDelay::kMinBandwidthHz < 0.5f * BBDDelay::kMN3005Spec.stages / 2.0f);
     }
 }
 
@@ -1336,8 +1335,8 @@ TEST_CASE("BBDDelay spectral analysis: older era creates more harmonics",
     constexpr float kTwoPi = 6.28318530718f;
 
     SECTION("SAD1024 era has more harmonics than MN3005") {
-        // MN3005: cleanest chip (saturation = 0.2)
-        // SAD1024: oldest/noisiest chip (saturation = 0.3)
+        // MN3005: cleanest chip (drive 0.1)
+        // SAD1024: oldest/noisiest chip (drive 0.6)
         BBDDelay delayClean;
         delayClean.prepare(sampleRate, 512, 1000.0f);
         delayClean.setTime(100.0f);
@@ -1399,11 +1398,17 @@ TEST_CASE("BBDDelay spectral analysis: older era creates more harmonics",
             }
         }
 
-        float cleanHarmonicDb = 10.0f * std::log10(cleanHarmonicPower + 1e-20f);
-        float vintageHarmonicDb = 10.0f * std::log10(vintageHarmonicPower + 1e-20f);
+        // Harmonics relative to the fundamental: each chip is level-matched, so
+        // only the share of the signal that is distortion tells them apart
+        const size_t fundBin = static_cast<size_t>(testFreq * fftSize / sampleRate);
+        const auto power = [](const Complex& c) { return c.real * c.real + c.imag * c.imag; };
+        float cleanHarmonicDb = 10.0f * std::log10(cleanHarmonicPower + 1e-20f)
+                              - 10.0f * std::log10(power(spectrumClean[fundBin]) + 1e-20f);
+        float vintageHarmonicDb = 10.0f * std::log10(vintageHarmonicPower + 1e-20f)
+                                - 10.0f * std::log10(power(spectrumVintage[fundBin]) + 1e-20f);
 
-        INFO("MN3005 (clean) harmonics: " << cleanHarmonicDb << " dB");
-        INFO("SAD1024 (vintage) harmonics: " << vintageHarmonicDb << " dB");
+        INFO("MN3005 (clean) harmonics: " << cleanHarmonicDb << " dB re fundamental");
+        INFO("SAD1024 (vintage) harmonics: " << vintageHarmonicDb << " dB re fundamental");
 
         // Older/noisier era should produce more harmonics from higher saturation
         REQUIRE(vintageHarmonicDb > cleanHarmonicDb);
@@ -1474,5 +1479,164 @@ TEST_CASE("BBDDelay spectral analysis: feedback saturation creates harmonics",
         // Should have measurable harmonic content from BBD saturation
         // (BBD always adds some character, similar to tape)
         REQUIRE(harmDb > -60.0f);
+    }
+}
+
+// ==============================================================================
+// Era: what each chip sounds like
+// ==============================================================================
+
+namespace {
+
+constexpr double kEraRate = 44100.0;
+constexpr size_t kEraBlock = 512;
+
+/// Fully wet, no feedback or modulation, Age 0.2: the wet signal of @p input
+std::vector<float> renderEra(BBDChipModel era, float delayMs, const std::vector<float>& input,
+                             bool synced = false, float feedback = 0.0f) {
+    BBDDelay d;
+    d.prepare(kEraRate, kEraBlock, 1000.0f);
+    d.setTime(delayMs);
+    d.setFeedback(feedback);
+    d.setAge(0.2f);
+    d.setModulation(0.0f);
+    d.setEra(era);
+    d.setMix(1.0f);
+    BlockContext ctx;
+    ctx.sampleRate = kEraRate;
+    ctx.blockSize = kEraBlock;
+    ctx.tempoBPM = 120.0;
+    if (synced) {
+        d.setTimeMode(TimeMode::Synced);
+        d.setNoteValue(NoteValue::Half);  // 1000 ms at 120 BPM
+    }
+    std::vector<float> left = input, right = input;
+    for (size_t s = 0; s + kEraBlock <= left.size(); s += kEraBlock) {
+        d.process(&left[s], &right[s], kEraBlock, ctx);
+    }
+    return left;
+}
+
+/// Energy of @p x in [lo, hi) Hz over 16384 Hann-windowed samples from 1.2 s, in dB
+double eraBandDb(const std::vector<float>& x, double lo, double hi) {
+    constexpr size_t n = 16384;
+    const size_t from = static_cast<size_t>(kEraRate * 1.2);
+    FFT fft;
+    fft.prepare(n);
+    std::vector<float> frame(n);
+    for (size_t i = 0; i < n; ++i) {
+        frame[i] = x[from + i] * (0.5f - 0.5f * std::cos(6.2831853f * static_cast<float>(i) / static_cast<float>(n)));
+    }
+    std::vector<Complex> spectrum(n / 2 + 1);
+    fft.forward(frame.data(), spectrum.data());
+    double e = 0.0;
+    for (size_t k = 1; k <= n / 2; ++k) {
+        const double f = static_cast<double>(k) * kEraRate / static_cast<double>(n);
+        if (f >= lo && f < hi) {
+            e += static_cast<double>(spectrum[k].real) * spectrum[k].real
+               + static_cast<double>(spectrum[k].imag) * spectrum[k].imag;
+        }
+    }
+    return 10.0 * std::log10(e + 1e-30);
+}
+
+std::vector<float> eraNoise() {
+    std::vector<float> x(static_cast<size_t>(kEraRate * 2.0));
+    uint32_t seed = 12345;
+    for (auto& v : x) {
+        seed = seed * 1664525u + 1013904223u;
+        v = 0.25f * (static_cast<float>(seed >> 8) / 8388608.0f - 1.0f);
+    }
+    return x;
+}
+
+/// Level of the wet signal in [lo, hi) Hz relative to the input, with white noise in
+double eraBandResponseDb(BBDChipModel era, float delayMs, double lo, double hi, bool synced = false,
+                         float feedback = 0.0f) {
+    const auto in = eraNoise();
+    return eraBandDb(renderEra(era, delayMs, in, synced, feedback), lo, hi) - eraBandDb(in, lo, hi);
+}
+
+/// 2-4 kHz response: where a 1024-stage chip at 300 ms has already rolled off
+double eraPresenceDb(BBDChipModel era, float delayMs, bool synced = false, float feedback = 0.0f) {
+    return eraBandResponseDb(era, delayMs, 2000.0, 4000.0, synced, feedback);
+}
+
+/// Harmonics (above 400 Hz) relative to the fundamental, 220 Hz sine at 0.5 in
+double eraThdDb(BBDChipModel era) {
+    std::vector<float> in(static_cast<size_t>(kEraRate * 2.0));
+    for (size_t i = 0; i < in.size(); ++i) {
+        in[i] = 0.5f * std::sin(6.2831853f * 220.0f * static_cast<float>(i) / static_cast<float>(kEraRate));
+    }
+    const auto wet = renderEra(era, 50.0f, in);
+    return eraBandDb(wet, 400.0, 20000.0) - eraBandDb(wet, 200.0, 240.0);
+}
+
+/// RMS of the wet signal with silence in, in dBFS
+double eraNoiseFloorDb(BBDChipModel era) {
+    const std::vector<float> in(static_cast<size_t>(kEraRate * 2.0), 0.0f);
+    const auto wet = renderEra(era, 300.0f, in);
+    double e = 0.0;
+    for (size_t i = wet.size() / 2; i < wet.size(); ++i) e += static_cast<double>(wet[i]) * wet[i];
+    return 10.0 * std::log10(e / static_cast<double>(wet.size() / 2) + 1e-30);
+}
+
+} // namespace
+
+TEST_CASE("BBDDelay Era: each chip has its own sound", "[features][bbd-delay][era]") {
+    SECTION("1024-stage chips run a slower clock: much darker at 300 ms") {
+        const double mn3005 = eraPresenceDb(BBDChipModel::MN3005, 300.0f);
+        CHECK(eraPresenceDb(BBDChipModel::MN3007, 300.0f) < mn3005 - 12.0);
+        CHECK(eraPresenceDb(BBDChipModel::SAD1024, 300.0f) < mn3005 - 12.0);
+    }
+
+    SECTION("bandwidth follows the clock: every chip opens up at short times") {
+        for (const auto era : {BBDChipModel::MN3005, BBDChipModel::MN3007, BBDChipModel::MN3205,
+                               BBDChipModel::SAD1024}) {
+            CAPTURE(static_cast<int>(era));
+            // 4-8 kHz: above every chip's 300 ms bandwidth, below all of them at 30 ms
+            const double shortTime = eraBandResponseDb(era, 30.0f, 4000.0, 8000.0);
+            CHECK(shortTime > eraBandResponseDb(era, 300.0f, 4000.0, 8000.0) + 6.0);
+            CHECK(shortTime > -3.0);
+        }
+    }
+
+    SECTION("MN3205 breaks up earlier and SAD1024 is dirtiest") {
+        const double mn3005 = eraThdDb(BBDChipModel::MN3005);
+        const double mn3205 = eraThdDb(BBDChipModel::MN3205);
+        CHECK(mn3205 > mn3005 + 6.0);
+        CHECK(eraThdDb(BBDChipModel::SAD1024) > mn3205);
+    }
+
+    SECTION("SAD1024 is audibly noisier") {
+        CHECK(eraNoiseFloorDb(BBDChipModel::SAD1024) > eraNoiseFloorDb(BBDChipModel::MN3005) + 8.0);
+    }
+
+    SECTION("a synced delay gets the bandwidth of its synced time, not of the free time") {
+        // Free time 50 ms, synced 1/2 at 120 BPM = 1000 ms; with feedback, so the
+        // repeats go through the loop filter too
+        const double synced = eraPresenceDb(BBDChipModel::MN3005, 50.0f, true, 0.5f);
+        CHECK(synced == Approx(eraPresenceDb(BBDChipModel::MN3005, 1000.0f, false, 0.5f)).margin(1.5));
+    }
+}
+
+TEST_CASE("BBDDelay Era: switching chips does not jump the level", "[features][bbd-delay][era]") {
+    // A chord below 1 kHz passes every chip at 30 ms, so what is left is drive:
+    // a dirtier chip must not come out louder, only rougher.
+    const auto rmsDb = [](const std::vector<float>& x) {
+        double e = 0.0;
+        for (size_t i = x.size() / 2; i < x.size(); ++i) e += static_cast<double>(x[i]) * x[i];
+        return 10.0 * std::log10(e / static_cast<double>(x.size() / 2) + 1e-30);
+    };
+    std::vector<float> chord(static_cast<size_t>(kEraRate * 2.0));
+    for (size_t i = 0; i < chord.size(); ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(kEraRate);
+        chord[i] = 0.2f * (std::sin(6.2831853f * 220.0f * t) + std::sin(6.2831853f * 277.2f * t)
+                           + std::sin(6.2831853f * 329.6f * t));
+    }
+    const double reference = rmsDb(renderEra(BBDChipModel::MN3005, 30.0f, chord));
+    for (const auto era : {BBDChipModel::MN3007, BBDChipModel::MN3205, BBDChipModel::SAD1024}) {
+        CAPTURE(static_cast<int>(era));
+        CHECK(rmsDb(renderEra(era, 30.0f, chord)) == Approx(reference).margin(1.0));
     }
 }

@@ -56,10 +56,10 @@ namespace DSP {
 /// Each chip model provides distinct tonal characteristics based on
 /// historical BBD IC behavior.
 enum class BBDChipModel : uint8_t {
-    MN3005 = 0,   ///< Panasonic 4096-stage (Memory Man) - widest BW, lowest noise
-    MN3007 = 1,   ///< Panasonic 1024-stage - medium-dark character
-    MN3205 = 2,   ///< Panasonic 4096-stage budget - darker, noisier
-    SAD1024 = 3   ///< Reticon 1024-stage early chip - most noise, limited BW
+    MN3005 = 0,   ///< Panasonic 4096-stage (Memory Man, DM-2) - clean, quiet
+    MN3007 = 1,   ///< Panasonic 1024-stage chorus/short-delay chip - dark at long times
+    MN3205 = 2,   ///< Panasonic 4096-stage low-voltage - less headroom, breaks up earlier
+    SAD1024 = 3   ///< Reticon 1024-stage 1970s chip - dark, noisy, gritty
 };
 
 // =============================================================================
@@ -119,18 +119,27 @@ public:
     static constexpr size_t kMaxDryBufferSize = 8192; ///< Max samples for dry buffer
 
     // Bandwidth tracking constants (FR-014 to FR-018)
-    static constexpr float kMinBandwidthHz = 2500.0f;  ///< BW at max delay (FR-016)
-    static constexpr float kMaxBandwidthHz = 15000.0f; ///< BW at min delay (FR-015)
+    static constexpr float kMinBandwidthHz = 300.0f;   ///< Floor for a slow clock (FR-016)
+    static constexpr float kMaxBandwidthHz = 15000.0f; ///< Ceiling for a fast clock (FR-015)
 
-    // Era characteristic multipliers
-    static constexpr float kMN3005BandwidthFactor = 1.0f;
-    static constexpr float kMN3005NoiseFactor = 1.0f;
-    static constexpr float kMN3007BandwidthFactor = 0.85f;
-    static constexpr float kMN3007NoiseFactor = 1.3f;
-    static constexpr float kMN3205BandwidthFactor = 0.75f;
-    static constexpr float kMN3205NoiseFactor = 1.5f;
-    static constexpr float kSAD1024BandwidthFactor = 0.6f;
-    static constexpr float kSAD1024NoiseFactor = 2.0f;
+    // Era: a BBD passes N stages in N / 2 clock periods, so a delay D needs a
+    // clock of N / (2 D) and the chip passes audio up to half of it. The stage
+    // count is what sets the chips apart: at 300 ms a 4096-stage chip clocks at
+    // 6.8 kHz (3.4 kHz bandwidth), a 1024-stage chip at 1.7 kHz (850 Hz).
+    // Drive is the saturation amount (0.1 = 1.2 dB, 0.9 = 10.8 dB into the
+    // saturator); noise is added to the clock-noise level. Makeup takes back the
+    // level the extra drive adds, so a dirtier chip is rougher, not louder
+    // (matched to MN3005 on a chord below 1 kHz).
+    struct ChipSpec {
+        float stages;
+        float drive;
+        float noiseDb;
+        float makeupDb;
+    };
+    static constexpr ChipSpec kMN3005Spec{4096.0f, 0.10f, 0.0f, 0.0f};    ///< Clean, quiet
+    static constexpr ChipSpec kMN3007Spec{1024.0f, 0.15f, 2.0f, -0.3f};   ///< Short chip, clean
+    static constexpr ChipSpec kMN3205Spec{4096.0f, 0.70f, 4.0f, -3.1f};   ///< Low headroom
+    static constexpr ChipSpec kSAD1024Spec{1024.0f, 0.90f, 12.0f, -4.0f}; ///< Dirty and hissy
 
     // =========================================================================
     // Construction / Destruction
@@ -184,6 +193,7 @@ public:
         mixSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         modulationDepthSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         ageSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
+        makeupSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
 
         // Initialize to defaults
         timeSmoother_.snapTo(kDefaultDelayMs);
@@ -194,6 +204,7 @@ public:
 
         // Apply initial era settings
         applyEraCharacteristics();
+        makeupSmoother_.snapTo(dbToGain(chipSpec().makeupDb));
         updateBandwidth();
 
         prepared_ = true;
@@ -211,6 +222,7 @@ public:
         mixSmoother_.snapTo(mix_);
         modulationDepthSmoother_.snapTo(modulationDepth_);
         ageSmoother_.snapTo(age_);
+        makeupSmoother_.snapTo(dbToGain(chipSpec().makeupDb));
 
         // Reset compander state
         compressorEnvelope_ = 0.0f;
@@ -405,8 +417,10 @@ public:
             effectiveDelayMs = std::clamp(effectiveDelayMs, kMinDelayMs, maxDelayMs_);
             // Update the smoother target for smooth transition
             timeSmoother_.setTarget(effectiveDelayMs);
-            // Update bandwidth for the new delay time
+            // Update bandwidth and clock noise for the new delay time
+            syncedDelayMs_ = effectiveDelayMs;
             updateBandwidth();
+            updateClockNoise();
         }
 
         // Store dry signal for mixing later
@@ -468,10 +482,11 @@ public:
         for (size_t i = 0; i < numSamples; ++i) {
             const float currentMix = mixSmoother_.process();
             const float currentAge = ageSmoother_.getCurrentValue();
+            const float makeup = makeupSmoother_.process();
 
             // Apply expansion stage (FR-030)
-            float expandedL = left[i];
-            float expandedR = right[i];
+            float expandedL = left[i] * makeup;
+            float expandedR = right[i] * makeup;
             if (currentAge > 0.0f) {
                 applyExpansion(expandedL, expandedR, currentAge);
             }
@@ -504,64 +519,43 @@ private:
     // Internal Helpers
     // =========================================================================
 
-    /// @brief Get era-specific bandwidth factor
-    [[nodiscard]] float getEraBandwidthFactor() const noexcept {
+    /// @brief Stage count, drive and noise of the selected chip
+    [[nodiscard]] const ChipSpec& chipSpec() const noexcept {
         switch (era_) {
-            case BBDChipModel::MN3005: return kMN3005BandwidthFactor;
-            case BBDChipModel::MN3007: return kMN3007BandwidthFactor;
-            case BBDChipModel::MN3205: return kMN3205BandwidthFactor;
-            case BBDChipModel::SAD1024: return kSAD1024BandwidthFactor;
-            default: return kMN3005BandwidthFactor;
-        }
-    }
-
-    /// @brief Get era-specific noise factor
-    [[nodiscard]] float getEraNoiseFactor() const noexcept {
-        switch (era_) {
-            case BBDChipModel::MN3005: return kMN3005NoiseFactor;
-            case BBDChipModel::MN3007: return kMN3007NoiseFactor;
-            case BBDChipModel::MN3205: return kMN3205NoiseFactor;
-            case BBDChipModel::SAD1024: return kSAD1024NoiseFactor;
-            default: return kMN3005NoiseFactor;
+            case BBDChipModel::MN3007: return kMN3007Spec;
+            case BBDChipModel::MN3205: return kMN3205Spec;
+            case BBDChipModel::SAD1024: return kSAD1024Spec;
+            case BBDChipModel::MN3005:
+            default: return kMN3005Spec;
         }
     }
 
     /// @brief Apply era-specific characteristics to processors
     void applyEraCharacteristics() noexcept {
-        float noiseFactor = getEraNoiseFactor();
+        character_.setBBDSaturation(chipSpec().drive);
+        makeupSmoother_.setTarget(dbToGain(chipSpec().makeupDb));
+    }
 
-        // Adjust saturation based on era (older chips = more distortion)
-        float saturation = 0.2f + (noiseFactor - 1.0f) * 0.1f;
-        character_.setBBDSaturation(std::clamp(saturation, 0.0f, 1.0f));
+    /// @brief Delay the chip is clocked for: the synced time when synced
+    [[nodiscard]] float effectiveDelayMs() const noexcept {
+        return (timeMode_ == TimeMode::Synced) ? syncedDelayMs_ : delayTimeMs_;
     }
 
     /// @brief Calculate bandwidth for given delay time (FR-014 to FR-018)
     [[nodiscard]] float calculateBandwidth(float delayMs) const noexcept {
-        // Bandwidth scales inversely with delay time
-        // Based on BBD clock physics: longer delay = lower clock = lower BW
-        //
-        // Formula: BW = baseMax * (minDelay / currentDelay) * eraFactor
-        // Clamped to [minBW, maxBW]
-
+        // The clock that moves audio through every stage in delayMs, and its
+        // Nyquist frequency: longer delay or fewer stages = slower clock = darker.
         if (delayMs <= 0.0f) return kMaxBandwidthHz;
 
-        float eraFactor = getEraBandwidthFactor();
-        float ageFactor = 1.0f - (age_ * 0.3f); // Age reduces bandwidth by up to 30%
+        const float clockHz = chipSpec().stages / (2.0f * delayMs * 0.001f);
+        const float ageFactor = 1.0f - (age_ * 0.3f); // Age reduces bandwidth by up to 30%
 
-        // Linear interpolation based on delay time position
-        float delayRatio = (delayMs - kMinDelayMs) / (kMaxDelayMs - kMinDelayMs);
-        delayRatio = std::clamp(delayRatio, 0.0f, 1.0f);
-
-        // Inverse relationship: longer delay = lower bandwidth
-        float baseBandwidth = kMaxBandwidthHz - delayRatio * (kMaxBandwidthHz - kMinBandwidthHz);
-
-        return std::clamp(baseBandwidth * eraFactor * ageFactor,
-                          kMinBandwidthHz, kMaxBandwidthHz);
+        return std::clamp(0.5f * clockHz * ageFactor, kMinBandwidthHz, kMaxBandwidthHz);
     }
 
     /// @brief Update bandwidth based on current settings
     void updateBandwidth() noexcept {
-        float bandwidth = calculateBandwidth(delayTimeMs_);
+        float bandwidth = calculateBandwidth(effectiveDelayMs());
         character_.setBBDBandwidth(bandwidth);
         feedbackNetwork_.setFilterCutoff(bandwidth);
     }
@@ -576,14 +570,13 @@ private:
     void updateClockNoise() noexcept {
         // Clock noise is higher at longer delays (lower clock frequency)
         // and scales with Age parameter
-        float noiseFactor = getEraNoiseFactor();
-
         // Base noise level: -70dB at short delay, -50dB at long delay
-        float delayRatio = (delayTimeMs_ - kMinDelayMs) / (kMaxDelayMs - kMinDelayMs);
+        float delayRatio = (effectiveDelayMs() - kMinDelayMs) / (kMaxDelayMs - kMinDelayMs);
+        delayRatio = std::clamp(delayRatio, 0.0f, 1.0f);
         float baseNoiseDb = -70.0f + delayRatio * 20.0f;
 
-        // Apply age and era factors
-        float noiseDb = baseNoiseDb + (age_ * 15.0f) + ((noiseFactor - 1.0f) * 10.0f);
+        // Apply age and chip
+        float noiseDb = baseNoiseDb + (age_ * 15.0f) + chipSpec().noiseDb;
 
         character_.setBBDClockNoiseLevel(std::clamp(noiseDb, -80.0f, -30.0f));
     }
@@ -658,6 +651,7 @@ private:
 
     // Parameters
     float delayTimeMs_ = kDefaultDelayMs;   ///< Delay time (FR-001)
+    float syncedDelayMs_ = kDefaultDelayMs; ///< Delay of the note value, when synced
     float feedback_ = kDefaultFeedback;      ///< Feedback amount (FR-005)
     float modulationDepth_ = 0.0f;           ///< Modulation depth (FR-009)
     float modulationRate_ = kDefaultModRate; ///< Modulation rate (FR-010)
@@ -676,6 +670,7 @@ private:
     OnePoleSmoother mixSmoother_;
     OnePoleSmoother modulationDepthSmoother_;
     OnePoleSmoother ageSmoother_;
+    OnePoleSmoother makeupSmoother_;  ///< Chip makeup gain (linear)
 
     // Compander state (FR-030 to FR-032)
     float compressorEnvelope_ = 0.0f;
