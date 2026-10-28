@@ -15,6 +15,7 @@
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/core/block_context.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <numeric>
@@ -2549,5 +2550,106 @@ TEST_CASE("SpectralDelay feedback transition doesn't cause distortion",
 
         INFO("Final peak after decay: " << finalPeak);
         REQUIRE(finalPeak < peakBeforeDrop * 0.5f);  // Decayed significantly
+    }
+}
+
+
+// =============================================================================
+// Level at fractional-frame delays
+// =============================================================================
+// Bins are delayed in whole STFT frames (one hop, 10.7 ms at 1024 / 48 kHz), so
+// most delay times fall between two frames. Blending the two frames' complex
+// values linearly cancels: at 50 % overlap a bin's phase turns by up to pi per
+// hop, and the default 250 ms (22.4 frames) lost 4.7-5.8 dB on a tone and 5 dB
+// on short notes, while a whole-frame delay passed at unity.
+
+namespace {
+
+constexpr double kLevelSampleRate = 48000.0;
+constexpr std::size_t kLevelBlock = 512;
+
+void prepareForLevel(SpectralDelay& d, float delayMs, float mix) {
+    d.prepare(kLevelSampleRate, kLevelBlock);
+    d.setBaseDelayMs(delayMs);
+    d.setFeedback(0.0f);
+    d.setDryWetMix(mix);
+    d.snapParameters();
+    d.reset();
+}
+
+/// Fully wet steady tone: wet level relative to the input, in dB, over the last 2 s of 3 s.
+double toneWetDb(float delayMs, float freqHz) {
+    SpectralDelay d;
+    prepareForLevel(d, delayMs, 1.0f);
+    const auto ctx = makeTestContext(kLevelSampleRate);
+    std::vector<float> left(kLevelBlock), right(kLevelBlock), input(kLevelBlock);
+    double sumIn = 0.0;
+    double sumOut = 0.0;
+    for (std::size_t s = 0; s < static_cast<std::size_t>(kLevelSampleRate * 3.0); s += kLevelBlock) {
+        for (std::size_t i = 0; i < kLevelBlock; ++i) {
+            input[i] = 0.5f * std::sin(6.28318530718f * freqHz * static_cast<float>(s + i)
+                                       / static_cast<float>(kLevelSampleRate));
+        }
+        left = input;
+        right = input;
+        d.process(left.data(), right.data(), kLevelBlock, ctx);
+        if (s >= static_cast<std::size_t>(kLevelSampleRate)) {
+            for (std::size_t i = 0; i < kLevelBlock; ++i) {
+                sumIn += static_cast<double>(input[i]) * input[i];
+                sumOut += static_cast<double>(left[i]) * left[i];
+            }
+        }
+    }
+    return 10.0 * std::log10(sumOut / sumIn);
+}
+
+/// 60 ms decaying 440 Hz notes every 600 ms at 50 % mix: mean first-echo peak
+/// relative to the dry note's peak, in dB.
+double shortNoteEchoDb(float delayMs) {
+    SpectralDelay d;
+    prepareForLevel(d, delayMs, 0.5f);
+    const auto ctx = makeTestContext(kLevelSampleRate);
+    const auto period = static_cast<std::size_t>(0.6 * kLevelSampleRate);
+    const auto noteLen = static_cast<std::size_t>(0.06 * kLevelSampleRate);
+    const auto delaySamples = static_cast<std::size_t>(delayMs / 1000.0 * kLevelSampleRate);
+    const auto echoWindow = static_cast<std::size_t>(0.2 * kLevelSampleRate);
+    constexpr int kNotes = 20;
+
+    std::vector<float> left(period * (kNotes + 1), 0.0f);
+    for (int k = 0; k < kNotes; ++k) {
+        for (std::size_t i = 0; i < noteLen; ++i) {
+            const double t = static_cast<double>(i) / kLevelSampleRate;
+            left[static_cast<std::size_t>(k) * period + i] =
+                static_cast<float>(0.5 * std::sin(6.283185307179586 * 440.0 * t) * std::exp(-t * 40.0));
+        }
+    }
+    std::vector<float> right = left;
+    for (std::size_t s = 0; s + kLevelBlock <= left.size(); s += kLevelBlock) {
+        d.process(&left[s], &right[s], kLevelBlock, ctx);
+    }
+
+    double sumDb = 0.0;
+    int count = 0;
+    for (int k = 2; k < kNotes; ++k) {
+        const std::size_t onset = static_cast<std::size_t>(k) * period;
+        float dry = 0.0f;
+        float echo = 0.0f;
+        for (std::size_t i = 0; i < noteLen; ++i) dry = std::max(dry, std::abs(left[onset + i]));
+        for (std::size_t i = 0; i < echoWindow; ++i) echo = std::max(echo, std::abs(left[onset + delaySamples + i]));
+        sumDb += 20.0 * std::log10(echo / dry);
+        ++count;
+    }
+    return sumDb / count;
+}
+
+} // namespace
+
+TEST_CASE("SpectralDelay passes the delayed signal at unity between frames", "[spectral-delay][level]") {
+    // 250 ms = 22.4 frames, 245.33 ms = exactly 22 frames, 300 ms = 27.1 frames
+    for (const float delayMs : {250.0f, 245.3333f, 300.0f}) {
+        CAPTURE(delayMs);
+        CHECK(toneWetDb(delayMs, 440.0f) == Approx(0.0).margin(1.0));
+        CHECK(toneWetDb(delayMs, 1000.0f) == Approx(0.0).margin(1.0));
+        CHECK(shortNoteEchoDb(delayMs) == Approx(0.0).margin(1.0));
     }
 }

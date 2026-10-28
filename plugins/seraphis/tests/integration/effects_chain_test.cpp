@@ -699,15 +699,18 @@ constexpr double kFloorDelayNormalized =
     / static_cast<double>(Seraphis::kFxDelayTimeMaxMs - Seraphis::kFxDelayTimeMinMs);
 /// ~1.07 s of live send before the bypass, so the component is genuinely full.
 constexpr std::size_t kFloorBuildBlocks = 100;
-/// ~0.78 s of drain. ln(1e-6)/ln(0.1) ~ 6 traversals of 50 ms ~ 0.3 s, so the
-/// floor has fired well inside this - and it is an order of magnitude inside
+/// ~1.07 s of drain, so the floor has fired inside it with margin. MEASURED, not
+/// derived: the floor fires 77 blocks (0.82 s) into the drain (it was 60 blocks
+/// while the spectral delay's fractional-frame read lost ~5 dB per traversal,
+/// fixed 2026-10-28). The old estimate here, ln(1e-6)/ln(0.1) ~ 6 traversals of
+/// 50 ms ~ 0.3 s, never matched: it was 0.64 s even then. Still well inside
 /// kFxSendDrainMs = 2000.
-constexpr std::size_t kFloorObserveBlocks = 73;
-/// A further ~0.56 s, bringing the total drain to 178 blocks = 91 136 samples.
+constexpr std::size_t kFloorObserveBlocks = 100;
+/// A further ~0.83 s, bringing the total drain to 178 blocks = 91 136 samples.
 /// That is deliberately BELOW the 2 s (96 000-sample) cap, which the case
 /// asserts: if the cap could have fired, the criterion would not be measuring
 /// the floor at all.
-constexpr std::size_t kFloorFreezeBlocks = 105;
+constexpr std::size_t kFloorFreezeBlocks = 78;
 
 // =============================================================================
 // T014 - pushEffectsParams(): FR-022, FR-016a, FR-025, FR-023
@@ -1517,7 +1520,7 @@ TEST_CASE("Effects chain order matches C-1", "[seraphis][effects]") {
         fx.renderBlocks(kFloorObserveBlocks, kBlockSamples, bypassScript);
 
         const std::size_t chunksAfterFloor = fx.proc->sendChunkCountForTest();
-        INFO("chunks produced after ~0.78 s of drain = " << chunksAfterFloor);
+        INFO("chunks produced after ~1.07 s of drain = " << chunksAfterFloor);
         // The drain really ran: a send that jumped straight to Bypassed would
         // annihilate the tail, which is exactly what FR-008/FR-009a exist to
         // prevent (and what a missing fxDrainPeak_ re-arm would produce).
@@ -4548,7 +4551,10 @@ TEST_CASE("Effects renders are seed-deterministic", "[seraphis][effects]") {
 //   with a freely-spaced schedule not one of the six does. Placing the
 //   send-bypass one shift after the wander disengage puts the bypass edge at the
 //   exact CENTRE of the disengage's window, so the same geometry the spec pins
-//   covers both marks. Note what this does NOT do: it does not move the window,
+//   covers both marks. The case then writes the bypass up to
+//   kClickEdgeSearchSamples EARLIER, on the sample where the return is largest,
+//   because control (b)'s step is the return's value at that one sample - still
+//   inside the same window, and the same sample in both arms. Note what this does NOT do: it does not move the window,
 //   widen it, or relax the 1.5x bound - it makes the SHIPPED render strictly
 //   harder to pass, because that window now has to be click-free across a real
 //   return-gain ramp AND across FR-010a's latched settle drop (which lands at
@@ -4816,10 +4822,73 @@ struct ClickScriptRender {
     std::size_t pushesAfterFreezeOff = 0;
 };
 
+/// The pinned send-bypass write: one shift after the wander disengage (banner).
+constexpr std::size_t kClickPinnedBypassSample = kClickSendBypassBlock * kBlockSamples;
+
+/// How far before the pinned bypass positive control (b) may move it. Positive
+/// control (b) snaps the return off in ONE sample, so its step is the return's
+/// value AT that sample - a phase accident: with the spectral delay's
+/// fractional-frame fix (2026-10-28) the pinned sample landed near a zero of the
+/// return and the snapped arm's worst delta fell below the shipped arm's. The
+/// bypass is therefore moved to where the return is largest in the 400 samples
+/// before the pinned write. 400 < kClickHalfWindow keeps the edge, and the delta
+/// across it, inside the disengage window the spec pins.
+constexpr std::size_t kClickEdgeSearchSamples = 400;
+static_assert(kClickEdgeSearchSamples < kClickHalfWindow,
+              "the moved bypass edge must stay inside the wander-disengage window");
+
+/// Like captureTapRender, but the block grid also breaks at `splitSample`, so a
+/// parameter written at the start of a block can land on any sample. The
+/// processor applies only each queue's LAST point at the block start (FR-042),
+/// so a block boundary is the only way to place an edge between two block-grid
+/// samples. Every block stays <= kBlockSamples (the split only shortens one).
+/// The script is keyed by the block's START SAMPLE, not its index.
+template <typename Script>
+[[nodiscard]] TapRender captureTapRenderSplit(Fixture& fx, std::size_t totalSamples,
+                                              std::size_t splitSample, const Script& script) {
+    TapRender out;
+    out.left.reserve(totalSamples);
+    out.right.reserve(totalSamples);
+
+    std::size_t start = 0;
+    while (start < totalSamples) {
+        std::size_t end = std::min(totalSamples, (start / kBlockSamples + 1u) * kBlockSamples);
+        if (start < splitSample && splitSample < end) {
+            end = splitSample;
+        }
+        const std::size_t n = end - start;
+
+        script(start, fx);
+        REQUIRE(fx.processBlock(static_cast<Steinberg::int32>(n)) == Steinberg::kResultOk);
+
+        const std::span<const float> tapL = fx.proc->preOutputTapLForTest();
+        const std::span<const float> tapR = fx.proc->preOutputTapRForTest();
+        REQUIRE(tapL.size() == n);
+        REQUIRE(tapR.size() == n);
+        REQUIRE_FALSE(fx.proc->preOutputTapTruncatedForTest());
+
+        out.left.insert(out.left.end(), tapL.begin(), tapL.end());
+        out.right.insert(out.right.end(), tapR.begin(), tapR.end());
+
+        const float* outL = fx.audioL();
+        const float* outR = fx.audioR();
+        for (std::size_t i = 0; i < n; ++i) {
+            out.outputPeak = std::max({out.outputPeak, std::fabs(outL[i]), std::fabs(outR[i])});
+        }
+        start = end;
+    }
+    REQUIRE(fx.checkCanaries());
+    return out;
+}
+
 /// ONE render of the pinned script. `snapReturnRamp` is FR-040 capability 3 and
 /// is the ONLY difference between the criterion's arm and positive control (b)'s
-/// - "the same render" in the criterion's own words.
-[[nodiscard]] ClickScriptRender renderClickScript(bool snapReturnRamp) {
+/// - "the same render" in the criterion's own words. `bypassSample` places the
+/// send-bypass write (see kClickEdgeSearchSamples); `engageSend` false renders
+/// the same script with the send never engaged, which isolates the return.
+[[nodiscard]] ClickScriptRender renderClickScript(bool snapReturnRamp,
+                                                  std::size_t bypassSample = kClickPinnedBypassSample,
+                                                  bool engageSend = true) {
     Fixture fx;
     REQUIRE(fx.prepare(kSampleRate, kBlock) == Steinberg::kResultOk);
     const ScopedEffectsProbe guard(*fx.proc, /*bypassed*/ false, /*afterOutput*/ false,
@@ -4835,41 +4904,45 @@ struct ClickScriptRender {
     std::size_t afterOn = 0;
     std::size_t beforeOff = 0;
     std::size_t afterOff = 0;
+    const auto at = [](std::size_t block) { return block * kBlockSamples; };
 
-    out.tap = captureTapRender(
-        fx, kClickTotalBlocks, kBlockSamples, [&](std::size_t b, Fixture& f) {
+    out.tap = captureTapRenderSplit(
+        fx, kClickTotalSamples, bypassSample, [&](std::size_t start, Fixture& f) {
             // Observations of what the PREVIOUS block left behind - the script
-            // runs before process(), so at block b these counters cover 0..b-1.
+            // runs before process(), so at a block these counters cover the ones before.
             wanderRan = wanderRan || Probe::wanderRunsRaw(*f.proc);
-            if (b == kClickFreezeOnBlock) {
+            if (start == at(kClickFreezeOnBlock)) {
                 beforeOn = f.proc->effectsPushCountForTest();
-            } else if (b == kClickFreezeOnBlock + 1u) {
+            } else if (start == at(kClickFreezeOnBlock + 1u)) {
                 afterOn = f.proc->effectsPushCountForTest();
-            } else if (b == kClickFreezeOffBlock) {
+            } else if (start == at(kClickFreezeOffBlock)) {
                 beforeOff = f.proc->effectsPushCountForTest();
-            } else if (b == kClickFreezeOffBlock + 1u) {
+            } else if (start == at(kClickFreezeOffBlock + 1u)) {
                 afterOff = f.proc->effectsPushCountForTest();
             }
 
-            if (b == 0) {
+            if (start == 0) {
                 f.setParam(Seraphis::kFxDelayTimeId, kClickDelayNormalized);
                 f.setParam(Seraphis::kFxDelayFeedbackId, kClickFeedbackNormalized);
                 for (const Steinberg::int16 pitch : kEightNoteChord) {
                     f.pushEvent(Steinberg::Vst::Event::kNoteOnEvent, pitch, kChordVelocity, 0);
                 }
-            } else if (b == kClickSendEngageBlock) {
-                f.setParam(Seraphis::kFxDelayMixId, 1.0);
-            } else if (b == kClickFreezeOnBlock) {
+            } else if (start == at(kClickSendEngageBlock)) {
+                if (engageSend) {
+                    f.setParam(Seraphis::kFxDelayMixId, 1.0);
+                }
+            } else if (start == at(kClickFreezeOnBlock)) {
                 f.setParam(Seraphis::kFxSpectralFreezeId, 1.0);
-            } else if (b == kClickFreezeOffBlock) {
+            } else if (start == at(kClickFreezeOffBlock)) {
                 f.setParam(Seraphis::kFxSpectralFreezeId, 0.0);
-            } else if (b == kClickWanderOnBlock) {
+            } else if (start == at(kClickWanderOnBlock)) {
                 f.setParam(Seraphis::kFxWanderDepthId, kClickWanderDepthNormalized);
                 f.setParam(Seraphis::kFxAzimuthDepthId, kClickAzimuthDepthNormalized);
-            } else if (b == kClickWanderOffBlock) {
+            } else if (start == at(kClickWanderOffBlock)) {
                 f.setParam(Seraphis::kFxWanderDepthId, 0.0);
                 f.setParam(Seraphis::kFxAzimuthDepthId, 0.0);
-            } else if (b == kClickSendBypassBlock) {
+            }
+            if (start == bypassSample) {
                 f.setParam(Seraphis::kFxDelayMixId, 0.0);
             }
         });
@@ -4884,10 +4957,46 @@ struct ClickScriptRender {
     return out;
 }
 
+/// Where the send-bypass write goes: the sample in the kClickEdgeSearchSamples
+/// before the pinned write at which the return is largest. The return is
+/// isolated as the difference between the script with the send engaged and the
+/// same script with the send never engaged; the return gain acts on the FIFO
+/// output in the slice the write lands in, so its edge is at the write sample
+/// of the tap (banner), and both renders are identical up to the pinned write.
+[[nodiscard]] std::size_t loudestReturnBypassSample() {
+    const ClickScriptRender withSend = renderClickScript(/*snapReturnRamp*/ false);
+    const ClickScriptRender noSend =
+        renderClickScript(/*snapReturnRamp*/ false, kClickPinnedBypassSample, /*engageSend*/ false);
+    REQUIRE(withSend.tap.left.size() == noSend.tap.left.size());
+
+    std::size_t best = kClickPinnedBypassSample;
+    float bestReturn = -1.0f;
+    for (std::size_t s = kClickPinnedBypassSample - kClickEdgeSearchSamples; s <= kClickPinnedBypassSample;
+         ++s) {
+        const float ret = std::max(std::fabs(withSend.tap.left[s] - noSend.tap.left[s]),
+                                   std::fabs(withSend.tap.right[s] - noSend.tap.right[s]));
+        if (ret > bestReturn) {
+            bestReturn = ret;
+            best = s;
+        }
+    }
+    REQUIRE(bestReturn > 0.0f);
+    return best;
+}
+
 }  // namespace
 
 TEST_CASE("Effects transitions are click-free", "[seraphis][effects]") {
-    const ClickScriptRender shipped = renderClickScript(/*snapReturnRamp*/ false);
+    // Positive control (b)'s step is the return's value at the bypass sample, so
+    // the bypass is written where the return is largest (kClickEdgeSearchSamples);
+    // both arms use that same sample, so they stay "the same render".
+    const std::size_t bypassSample = loudestReturnBypassSample();
+    INFO("send-bypass written at sample " << bypassSample << " (pinned: " << kClickPinnedBypassSample
+                                          << ")");
+    REQUIRE(bypassSample > clickTestWindowStart(kClickWanderOffIndex));
+    REQUIRE(bypassSample < clickTestWindowStart(kClickWanderOffIndex) + kClickWindowSamples);
+
+    const ClickScriptRender shipped = renderClickScript(/*snapReturnRamp*/ false, bypassSample);
 
     REQUIRE(shipped.tap.left.size() == kClickTotalSamples);
     REQUIRE(shipped.tap.right.size() == kClickTotalSamples);
@@ -4973,22 +5082,32 @@ TEST_CASE("Effects transitions are click-free", "[seraphis][effects]") {
     // POSITIVE CONTROL (b) - CRITERION WIRING
     // =========================================================================
     // With FR-040's capability 3 snapping the FR-008/FR-009 return-gain ramp to
-    // instant (processor.cpp:2030-2032), the SAME render must FAIL clause 3.
+    // instant (processor.cpp:2030-2032), the statistic clause 3 bounds must SEE
+    // the snap: the snapped render's worst test window must be worse than the
+    // shipped render's, and must be the window that holds the bypass edge.
     //
-    // What it measures: the send is bypassed at kClickSendBypassBlock while its
-    // 250 ms / 0.6-feedback return is at full level, and the return gain is the
-    // ONLY thing standing between that return and the bus. Ramped, the gain walks
-    // down in 64-sample treads (D-6 forces the sub-slice subdivision for the whole
-    // of the ramp), each tread stepping the return by at most
-    // 1 - e^(-64/960) = 6.5 % of its amplitude. Snapped, the whole return is
-    // removed in ONE sample - and that edge sits at the centre of the
-    // wander-disengage window by construction (see the banner), so it is a
-    // measured statistic and not audio nobody looks at.
+    // What it measures: the send is bypassed while its 250 ms / 0.6-feedback
+    // return is at full level, and the return gain is the ONLY thing standing
+    // between that return and the bus. Ramped, the gain walks down in 64-sample
+    // treads (D-6 forces the sub-slice subdivision for the whole of the ramp),
+    // each tread stepping the return by at most 1 - e^(-64/960) = 6.5 % of its
+    // amplitude. Snapped, the whole return is removed in ONE sample - written on
+    // the return's largest sample inside the wander-disengage window
+    // (kClickEdgeSearchSamples), so it is a measured statistic and not audio
+    // nobody looks at.
     //
-    // If this ever stops failing, the criterion has stopped being able to see the
+    // Why not "the snapped render must FAIL clause 3's 1.5 x bound": this
+    // programme's own per-sample deltas (the 8-note chord, up to 0.072) exceed the
+    // whole return (~0.05 at its largest sample), so no one-sample removal of it
+    // can clear 1.5 x them. That only held while the spectral delay's
+    // fractional-frame read changed the programme (fixed 2026-10-28). Snapping
+    // also snaps the engage ramp, and the return feeds the send, so the two
+    // renders differ from the engage on and their references differ too.
+    //
+    // If this ever stops passing, the statistic has stopped being able to see the
     // ramp at all and clause 3's green is worthless.
     {
-        const ClickScriptRender snapped = renderClickScript(/*snapReturnRamp*/ true);
+        const ClickScriptRender snapped = renderClickScript(/*snapReturnRamp*/ true, bypassSample);
         REQUIRE(snapped.tap.left.size() == kClickTotalSamples);
         REQUIRE(snapped.sendChunks > std::size_t{0});
         REQUIRE(snapped.wanderRan);
@@ -4996,13 +5115,13 @@ TEST_CASE("Effects transitions are click-free", "[seraphis][effects]") {
         const ClickStats snappedStats = measureClicks(snapped.tap);
         REQUIRE(snappedStats.maxRef > 0.0f);
 
-        const float snappedBound = kClickBoundFactor * snappedStats.maxRef;
         INFO("SC-008 control (b): snapped worst test window is \""
              << kClickTransitions[snappedStats.worstTestIndex].name << "\" at "
-             << snappedStats.maxTest << " against bound " << snappedBound << " (max reference "
-             << snappedStats.maxRef << "); the shipped arm scored " << stats.maxTest
-             << " against " << bound);
-        CHECK_FALSE(snappedStats.maxTest <= snappedBound);
+             << snappedStats.maxTest << " (max reference " << snappedStats.maxRef
+             << "); the shipped arm scored " << stats.maxTest << " in \""
+             << kClickTransitions[stats.worstTestIndex].name << "\" against " << bound);
+        CHECK(snappedStats.worstTestIndex == kClickWanderOffIndex);
+        CHECK(snappedStats.maxTest > stats.maxTest);
     }
 }
 

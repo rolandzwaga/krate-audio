@@ -14,11 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Readable labels**: abbreviations such as "PosJit" and "SzJit" are spelled out, and the same parameter carries the same name in every mode (Mix, Mod Depth, Mod Rate, Width; Tape's delay time reads "Time").
 - **Every readout shows its unit**: Granular, Spectral and Shimmer now show "ms", "%", "st", "Hz" like the other modes; delay times above one second read in seconds; Gain reads in dB; the Freeze readouts show their real values.
 - The plugin's website link now points to krateaudio.com.
+- **Spectral starts tempo-synced, with 40% feedback** (like Tape, BBD, Digital and Granular), so a fresh instance plays a repeating echo on the beat instead of a single one. Saved projects and presets keep their own settings.
 - **Granular starts with an audible delay**: a fresh instance is now tempo-synced, has 40% feedback (like Tape, BBD and Digital) and plays 20 grains per second, so the 100 ms grains overlap into a smooth echo instead of pulsing. Saved projects and presets keep their own settings.
 
 ### Fixed
 
 - **Granular delay played almost nothing at Pitch 0**: every grain held one sample of the buffer instead of playing it, so at the default pitch the wet signal was a faint low thump. Pitch was also wrong above 0 (+12 played at the original pitch) and reverse grains held a sample too. Grains now play the delayed audio at the set pitch, forwards or backwards, live and while frozen.
+- **Spectral delay was up to 6 dB too quiet**: each frequency band is delayed in whole analysis frames (10.7 ms at the default FFT size), and delay times between two frames were reached by blending the two frames, which partly cancels. At the default 250 ms a tone came back 4.7 to 5.8 dB low and short notes 5 dB low. The delayed bands now come from the nearer frame, shifted the rest of the way in phase, so the echo comes back at full level at any delay time (short notes within 1 dB, tones exact).
 - **Granular delay was too quiet, and Density changed its level**: centred grains used a mono pan law on stereo audio, costing 3 dB on both channels, and overlapping grains were scaled in a way that made the delay louder as Density rose. Grains are now normalised by their summed envelopes, so at Pitch 0 the echo comes back at full level whatever the Density (the default wet signal went from 7.3 dB below the input to 0.5 dB below). Dense pitched or sprayed grain clouds come out quieter than before.
 
 - **Sliders drew black and white**: every slider ignored its colours (they were set under attribute names the slider does not read), so all of them showed a black track with a white bar. They now draw in the editor's colours.

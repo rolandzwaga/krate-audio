@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.12.3] - 2026-10-28
 
-Fixes found while tuning Iterum's Granular mode. Ruinae's Granular delay type runs the same KrateDSP engine, so
-those fixes are listed here too and marked *(shared DSP)*.
+Fixes found while tuning Iterum's Granular and Spectral modes. Ruinae's Granular and Spectral delay types run the
+same KrateDSP engines, so those fixes are listed here too and marked *(shared DSP)*.
 
 ### Fixed
+
+- **Spectral delay was up to 6 dB too quiet** *(shared DSP)* — Each frequency band is delayed in whole analysis frames, and delay times between two frames were reached by blending the two frames, which partly cancels: at 250 ms a tone came back 4.7 to 5.8 dB low and short notes 5 dB low. The delayed bands now come from the nearer frame, shifted the rest of the way in phase, so the echo comes back at full level at any delay time. Patches using the Spectral delay type get a louder echo.
 
 - **Reset to default jumped 28 menus to their first option** — Polyphony, both oscillators' Waveform and Sync Waveform, Ring Freq Mode, Phaser Stages, Num Voices, Voice Allocation, the eight Mod Scale menus and every Note Value (Gate, LFO 1 and 2, Chaos, Delay, Phaser, Flanger, Chorus, S&H, Rnd, Arp) opened on the right value in a fresh instance, but a host's "reset to default" (for example a double-click) put them on their first option instead (Polyphony 1, Mod Scale x0.25). They now reset to the value they open with.
 

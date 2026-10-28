@@ -113,7 +113,7 @@ TEST_CASE("Spectral readouts print the 6.4 units", "[spectral][format]") {
     CHECK(format(fn, kSpectralSpreadId, 1.0) == "2000 ms");
 
     CHECK(format(fn, kSpectralFeedbackId, 0.0) == "0%");
-    CHECK(format(fn, kSpectralFeedbackId, def(kSpectralFeedbackId)) == "0%");
+    CHECK(format(fn, kSpectralFeedbackId, def(kSpectralFeedbackId)) == "40%");
     CHECK(format(fn, kSpectralFeedbackId, 1.0) == "120%");
 
     CHECK(format(fn, kSpectralFeedbackTiltId, 0.0) == "-100%");

@@ -40,6 +40,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <vector>
 
 namespace Krate {
@@ -217,6 +218,14 @@ public:
         dryBufferL_.resize(maxBlockSize, 0.0f);
         dryBufferR_.resize(maxBlockSize, 0.0f);
         blurredMag_.resize(numBins, 0.0f);
+        binDelayFrames_.assign(numBins, 0.0f);
+        peaks_.assign(numBins, 0);
+        for (DelayedSpectrum* s : {&delayedL_, &delayedR_}) {
+            s->magNew.assign(numBins, 0.0f);
+            s->advance.assign(numBins, 0.0f);
+            s->mag.assign(numBins, 0.0f);
+            s->phase.assign(numBins, 0.0f);
+        }
 
         // Seed RNG with unique value per instance (address + sample rate)
         // This ensures different instances produce different random sequences
@@ -644,6 +653,107 @@ private:
         return baseDelay + delayOffset;
     }
 
+    /// Per-channel scratch for readDelayedSpectrum (sized in prepare)
+    struct DelayedSpectrum {
+        std::vector<float> magNew;   ///< newer frame's magnitude (peak picking)
+        std::vector<float> advance;  ///< phase advance per hop, locked to the region's peak
+        std::vector<float> mag;      ///< delayed magnitude
+        std::vector<float> phase;    ///< delayed phase
+    };
+
+    /// Bins quieter than this are never peaks (silence keeps per-bin advances)
+    static constexpr float kPeakFloor = 1e-9f;
+
+    /// @brief Read one channel's spectrum at each bin's fractional frame delay
+    ///        (binDelayFrames_) into out.mag / out.phase
+    ///
+    /// Most delay times fall between two STFT frames. Blending the frames' complex
+    /// values linearly cancels: at 50 % overlap a bin's phase turns by up to pi per
+    /// hop, so the blend lost ~5 dB at the 250 ms default. Instead the magnitude is
+    /// blended, and the phase steps back from the newer frame by the fraction of
+    /// the phase advance between the two frames, as a phase vocoder does. The
+    /// advance is measured at each spectral peak and shared by every bin in the
+    /// peak's region (phase locking): 50 % overlap only resolves a component within
+    /// one bin of a bin's centre, and a Hann main lobe spans four, so per-bin
+    /// estimates came out +1.3 dB on a steady tone. Locked, the bins around a
+    /// component turn together, which is a time shift of that component. A
+    /// whole-frame delay reads the newer frame unchanged.
+    void readDelayedSpectrum(const std::vector<DelayLine>& realLines,
+                             const std::vector<DelayLine>& imagLines,
+                             DelayedSpectrum& out, std::size_t numBins) noexcept {
+        // Pass 1: newer-frame magnitude and phase, blended magnitude, and each
+        // bin's own true phase advance per hop (expected plus wrapped deviation)
+        for (std::size_t bin = 0; bin < numBins; ++bin) {
+            const float delayFrames = binDelayFrames_[bin];
+            const auto newer = static_cast<std::size_t>(delayFrames);
+            const float frac = delayFrames - static_cast<float>(newer);
+
+            const float reNew = realLines[bin].read(newer);
+            const float imNew = imagLines[bin].read(newer);
+            const float reOld = realLines[bin].read(newer + 1);
+            const float imOld = imagLines[bin].read(newer + 1);
+            const float magNew = std::sqrt(reNew * reNew + imNew * imNew);
+            const float magOld = std::sqrt(reOld * reOld + imOld * imOld);
+            const float phaseNew = std::atan2(imNew, reNew);
+            const float phaseOld = std::atan2(imOld, reOld);
+
+            const float expected = kTwoPi * static_cast<float>(bin) * static_cast<float>(hopSize_)
+                                 / static_cast<float>(fftSize_);
+            float deviation = phaseNew - phaseOld - expected;
+            deviation -= kTwoPi * std::round(deviation / kTwoPi);
+
+            out.magNew[bin] = magNew;
+            // Magnitude and phase come from the nearer frame, so the phase is never
+            // projected more than half a hop (pass 3 steps it by its signed
+            // distance). Blending the two magnitudes instead dimmed the echo of a
+            // note onset, which the older frame holds less of, by up to 3.5 dB.
+            const bool newerIsNearer = frac <= 0.5f;
+            out.phase[bin] = newerIsNearer ? phaseNew : phaseOld;
+            out.mag[bin] = newerIsNearer ? magNew : magOld;
+            out.advance[bin] = expected + deviation;
+        }
+
+        // Pass 2: lock every bin to the advance of its region's peak. A region
+        // runs from one peak to the lowest bin between it and the next.
+        std::size_t peakCount = 0;
+        for (std::size_t bin = 0; bin < numBins; ++bin) {
+            const float m = out.magNew[bin];
+            const bool aboveLeft = (bin == 0) || m > out.magNew[bin - 1];
+            const bool notBelowRight = (bin + 1 == numBins) || m >= out.magNew[bin + 1];
+            if (aboveLeft && notBelowRight && m > kPeakFloor) {
+                peaks_[peakCount++] = bin;
+            }
+        }
+        if (peakCount > 0) {
+            for (std::size_t bin = 0; bin < peaks_[0]; ++bin) {
+                out.advance[bin] = out.advance[peaks_[0]];
+            }
+            for (std::size_t p = 0; p + 1 < peakCount; ++p) {
+                const std::size_t left = peaks_[p];
+                const std::size_t right = peaks_[p + 1];
+                std::size_t lowest = left;
+                for (std::size_t bin = left + 1; bin < right; ++bin) {
+                    if (out.magNew[bin] < out.magNew[lowest]) lowest = bin;
+                }
+                for (std::size_t bin = left + 1; bin < right; ++bin) {
+                    out.advance[bin] = out.advance[bin <= lowest ? left : right];
+                }
+            }
+            for (std::size_t bin = peaks_[peakCount - 1] + 1; bin < numBins; ++bin) {
+                out.advance[bin] = out.advance[peaks_[peakCount - 1]];
+            }
+        }
+
+        // Pass 3: step each bin's phase from its nearer frame by the locked advance:
+        // back by frac from the newer frame, forward by (1 - frac) from the older
+        for (std::size_t bin = 0; bin < numBins; ++bin) {
+            const float delayFrames = binDelayFrames_[bin];
+            const float frac = delayFrames - std::floor(delayFrames);
+            const float stepFromNearer = (frac <= 0.5f) ? -frac : (1.0f - frac);
+            out.phase[bin] += stepFromNearer * out.advance[bin];
+        }
+    }
+
     /// @brief Calculate tilted feedback gain for a specific bin
     [[nodiscard]] float calculateTiltedFeedback(std::size_t bin,
                                                 std::size_t numBins,
@@ -750,12 +860,11 @@ private:
             }
         }
 
-        // Process each bin
+        // Per-bin delay time in frames
+        const float frameRate = static_cast<float>(sampleRate_) /
+                                static_cast<float>(hopSize_);
         for (std::size_t bin = 0; bin < numBins; ++bin) {
-            // Calculate per-bin delay time in frames
             const float binDelayMs = calculateBinDelayMs(bin, numBins, baseDelay, spread);
-            const float frameRate = static_cast<float>(sampleRate_) /
-                                    static_cast<float>(hopSize_);
             // ONE FRAME of the requested delay is spent by the loop itself. The
             // read below happens BEFORE this frame's write, and DelayLine::read(0)
             // returns the most recent write (primitives/delay_line.h:287-300), so
@@ -766,9 +875,16 @@ private:
             // FFT-size-dependent offset from the beat the user selected.
             // Clamped at zero, so the shortest realizable delay stays the one
             // frame the loop structurally costs.
-            const float delayFrames =
+            binDelayFrames_[bin] =
                 std::max(0.0f, (binDelayMs / 1000.0f) * frameRate - 1.0f);
+        }
 
+        // Read the delayed spectra (before this frame's write, see above)
+        readDelayedSpectrum(binRealDelaysL_, binImagDelaysL_, delayedL_, numBins);
+        readDelayedSpectrum(binRealDelaysR_, binImagDelaysR_, delayedR_, numBins);
+
+        // Process each bin
+        for (std::size_t bin = 0; bin < numBins; ++bin) {
             // Calculate tilted feedback for this bin
             const float binFeedback = calculateTiltedFeedback(bin, numBins,
                                                               feedback, tilt);
@@ -786,19 +902,10 @@ private:
             const float inputRealR = inputMagR * std::cos(inputPhaseR);
             const float inputImagR = inputMagR * std::sin(inputPhaseR);
 
-            // Read delayed complex values from delay lines (linear interpolation is safe here)
-            const float delayedRealL = binRealDelaysL_[bin].readLinear(delayFrames);
-            const float delayedImagL = binImagDelaysL_[bin].readLinear(delayFrames);
-            const float delayedRealR = binRealDelaysR_[bin].readLinear(delayFrames);
-            const float delayedImagR = binImagDelaysR_[bin].readLinear(delayFrames);
-
-            // Convert delayed complex back to magnitude and phase
-            const float delayedMagL = std::sqrt(delayedRealL * delayedRealL +
-                                                 delayedImagL * delayedImagL);
-            const float delayedMagR = std::sqrt(delayedRealR * delayedRealR +
-                                                 delayedImagR * delayedImagR);
-            const float delayedPhaseL = std::atan2(delayedImagL, delayedRealL);
-            const float delayedPhaseR = std::atan2(delayedImagR, delayedRealR);
+            const float delayedMagL = delayedL_.mag[bin];
+            const float delayedMagR = delayedR_.mag[bin];
+            const float delayedPhaseL = delayedL_.phase[bin];
+            const float delayedPhaseR = delayedR_.phase[bin];
 
             // Apply feedback: calculate feedback magnitude with soft limiting
             // Always apply tanh() to prevent distortion during feedback transitions
@@ -989,6 +1096,12 @@ private:
     std::vector<float> dryBufferL_;
     std::vector<float> dryBufferR_;
     std::vector<float> blurredMag_;
+
+    // Fractional-frame read (readDelayedSpectrum)
+    std::vector<float> binDelayFrames_;
+    std::vector<std::size_t> peaks_;
+    DelayedSpectrum delayedL_;
+    DelayedSpectrum delayedR_;
 };
 
 }  // namespace DSP

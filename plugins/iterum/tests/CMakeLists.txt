@@ -21,6 +21,7 @@ add_executable(plugin_tests
     unit/parameters/freeze_params_test.cpp
     unit/parameters/granular_params_test.cpp
     unit/parameters/mix_scale_consistency_test.cpp
+    unit/parameters/mode_defaults_test.cpp
     unit/parameters/multitap_params_test.cpp
     unit/parameters/pingpong_params_test.cpp
     unit/parameters/readout_format_test.cpp

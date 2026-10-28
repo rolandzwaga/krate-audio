@@ -12,7 +12,6 @@
 #include "public.sdk/source/vst/vstparameters.h"
 #include "pluginterfaces/base/ustring.h"
 #include "controller/parameter_helpers.h"
-#include "parameters/granular_params.h"
 #include "plugin_ids.h"
 
 #include <string>
@@ -87,40 +86,8 @@ TEST_CASE("Granular TimeMode dropdown has correct options", "[vst][granular][tem
     delete param;
 }
 
-// ==============================================================================
-// Registered defaults
-// ==============================================================================
-// A fresh Granular instance starts tempo-synced, with an audible echo tail and
-// overlapping grains. The processor runs on GranularParams' initial values until
-// the host sends parameters, so those must match the registered defaults.
-
-TEST_CASE("Granular starts synced, with feedback and overlapping grains", "[vst][granular][tempo-sync]") {
-    ParameterContainer parameters;
-    parameters.init();
-    registerGranularParams(parameters);
-    const auto registeredDefault = [&](ParamID id) {
-        auto* p = parameters.getParameter(id);
-        REQUIRE(p != nullptr);
-        return p->getInfo().defaultNormalizedValue;
-    };
-    const GranularParams fresh;
-
-    SECTION("T054: Time Mode defaults to Synced") {
-        REQUIRE(registeredDefault(kGranularTimeModeId) == Catch::Approx(1.0));
-        REQUIRE(fresh.timeMode.load() == 1);
-    }
-
-    SECTION("Feedback defaults to 40%, like Tape, BBD and Digital") {
-        REQUIRE(registeredDefault(kGranularFeedbackId) * 1.2 == Catch::Approx(0.4).margin(0.001));
-        REQUIRE(fresh.feedback.load() == Catch::Approx(0.4f));
-    }
-
-    SECTION("Density defaults to 20 grains/s, so 100 ms grains overlap") {
-        REQUIRE(1.0 + registeredDefault(kGranularDensityId) * 99.0 == Catch::Approx(20.0).margin(0.01));
-        REQUIRE(fresh.density.load() == Catch::Approx(20.0f));
-        REQUIRE(fresh.density.load() * fresh.grainSize.load() / 1000.0f >= 2.0f);
-    }
-}
+// T054 (the Time Mode default, now Synced) lives with the other modes' fresh-instance
+// defaults in unit/parameters/mode_defaults_test.cpp.
 
 // ==============================================================================
 // NoteValue Dropdown Tests (T052, T053)
