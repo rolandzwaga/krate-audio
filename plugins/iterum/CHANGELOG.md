@@ -5,6 +5,22 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-10-28
+
+### Changed
+
+- **A new, consistent editor for all ten delay modes.** Every mode now follows the same layout: Time, Feedback and Mix are knobs in a fixed row at the top, and the mode's other controls sit in sections that keep the same place, widget and label from mode to mode, so switching modes no longer means hunting for the same control. Parameters, automation and presets are unchanged.
+- **Dark theme and a fixed 940 x 608 window**, matching the other Krate Audio plugins. The mode strip now uses the same typeface as the rest of the editor.
+- **Readable labels**: abbreviations such as "PosJit" and "SzJit" are spelled out, and the same parameter carries the same name in every mode (Mix, Mod Depth, Mod Rate, Width; Tape's delay time reads "Time").
+- **Every readout shows its unit**: Granular, Spectral and Shimmer now show "ms", "%", "st", "Hz" like the other modes; delay times above one second read in seconds; Gain reads in dB; the Freeze readouts show their real values.
+- The plugin's website link now points to krateaudio.com.
+
+### Fixed
+
+- **Sliders drew black and white**: every slider ignored its colours (they were set under attribute names the slider does not read), so all of them showed a black track with a white bar. They now draw in the editor's colours.
+- **Tape head Level readout was wrong**: it read "0.0 dB" at the default while the heads actually played at +3.9 dB, and a project reloaded with a changed head level put the knob in the wrong place, so the next touch jumped the level. The readout and the saved-state load now use the same dB scale as the sound. What you hear is unchanged.
+- **Freeze Euclidean readouts**: Hits and Rotation now update when Steps changes.
+
 ## [0.15.2] - 2026-05-30
 
 ### Fixed
