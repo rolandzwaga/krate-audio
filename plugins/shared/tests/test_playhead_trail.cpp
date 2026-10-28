@@ -26,8 +26,8 @@ TEST_CASE("PlayheadTrailState advance shifts buffer correctly", "[trail]") {
     PlayheadTrailState state;
 
     // Initially all -1
-    for (int i = 0; i < PlayheadTrailState::kTrailLength; ++i) {
-        REQUIRE(state.steps[i] == -1);
+    for (const int32_t step : state.steps) {
+        REQUIRE(step == -1);
     }
 
     // Advance step 5
@@ -102,13 +102,13 @@ TEST_CASE("PlayheadTrailState clear resets all positions and skipped flags", "[t
     state.clear();
 
     // All positions should be -1
-    for (int i = 0; i < PlayheadTrailState::kTrailLength; ++i) {
-        REQUIRE(state.steps[i] == -1);
+    for (const int32_t step : state.steps) {
+        REQUIRE(step == -1);
     }
 
     // All skip flags should be false
-    for (int i = 0; i < 32; ++i) {
-        REQUIRE(state.skipped[i] == false);
+    for (const bool skipped : state.skipped) {
+        REQUIRE(skipped == false);
     }
 }
 
@@ -143,8 +143,8 @@ TEST_CASE("PlayheadTrailState markSkipped out-of-range is no-op", "[trail]") {
     state.markSkipped(100);   // no-op
 
     // All should remain false
-    for (int i = 0; i < 32; ++i) {
-        REQUIRE(state.skipped[i] == false);
+    for (const bool skipped : state.skipped) {
+        REQUIRE(skipped == false);
     }
 
     // Valid index works
@@ -307,8 +307,8 @@ TEST_CASE("setSkippedStep sets correct flag in PlayheadTrailState", "[skip][trai
     PlayheadTrailState state;
 
     // Initially all false
-    for (int i = 0; i < 32; ++i) {
-        REQUIRE(state.skipped[i] == false);
+    for (const bool skipped : state.skipped) {
+        REQUIRE(skipped == false);
     }
 
     // Mark step 2 as skipped
@@ -382,13 +382,13 @@ TEST_CASE("clearOverlays clears all skip flags", "[skip][trail]") {
     state.clear();
 
     // All skip flags should be cleared
-    for (int i = 0; i < 32; ++i) {
-        REQUIRE(state.skipped[i] == false);
+    for (const bool skipped : state.skipped) {
+        REQUIRE(skipped == false);
     }
 
     // Trail positions also cleared
-    for (int i = 0; i < PlayheadTrailState::kTrailLength; ++i) {
-        REQUIRE(state.steps[i] == -1);
+    for (const int32_t step : state.steps) {
+        REQUIRE(step == -1);
     }
 }
 
@@ -403,8 +403,8 @@ TEST_CASE("setSkippedStep out-of-range indices are no-op", "[skip][trail]") {
     state.markSkipped(255);   // no-op
 
     // None should have been set
-    for (int i = 0; i < 32; ++i) {
-        REQUIRE(state.skipped[i] == false);
+    for (const bool skipped : state.skipped) {
+        REQUIRE(skipped == false);
     }
 }
 

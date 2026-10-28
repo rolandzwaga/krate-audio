@@ -215,6 +215,9 @@ inline Steinberg::tresult formatBBDParam(
     switch (id) {
         case kBBDDelayTimeId: {
             float ms = static_cast<float>(20.0 + normalizedValue * 980.0);
+            if (ms >= 1000.0f) {
+                return formatParamText(string, "%.2f s", ms / 1000.0f);
+            }
             return formatParamText(string, "%.1f ms", ms);
         }
 

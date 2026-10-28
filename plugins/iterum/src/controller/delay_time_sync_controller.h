@@ -15,6 +15,10 @@
 
 #include <vector>
 
+namespace Steinberg::Vst {
+class EditController;
+}
+
 namespace Iterum {
 
 class DelayTimeSyncController : public VSTGUI::DelegationController
@@ -48,6 +52,9 @@ public:
 private:
     /// Sync all time controls' displayed values with their current tag's parameter.
     void syncTimeControlValues();
+
+    /// The edit controller, through the parent VST3Editor (valid while the panel is built, before any frame exists).
+    [[nodiscard]] Steinberg::Vst::EditController* editController() const;
 
     int32_t freeTimeTag_ = -1;
     int32_t syncTag_ = -1;

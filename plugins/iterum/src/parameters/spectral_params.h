@@ -314,11 +314,19 @@ inline Steinberg::tresult formatSpectralParam(
     switch (id) {
         // kSpectralFFTSizeId: handled by StringListParameter::toString() automatically
 
-        case kSpectralBaseDelayId:
-        case kSpectralSpreadId: {
-            // 0-2000ms
+        case kSpectralBaseDelayId: {
+            // 0-2000ms, the core time format
             double ms = valueNormalized * 2000.0;
-            return formatParamText(string, "%.0f", ms);
+            if (ms >= 1000.0) {
+                return formatParamText(string, "%.2f s", ms / 1000.0);
+            }
+            return formatParamText(string, "%.1f ms", ms);
+        }
+
+        case kSpectralSpreadId: {
+            // 0-2000ms (a time, not a percentage)
+            double ms = valueNormalized * 2000.0;
+            return formatParamText(string, "%.0f ms", ms);
         }
 
         // kSpectralSpreadDirectionId: handled by StringListParameter::toString() automatically
@@ -326,13 +334,13 @@ inline Steinberg::tresult formatSpectralParam(
         case kSpectralFeedbackId: {
             // 0-120%
             double percent = valueNormalized * 120.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kSpectralFeedbackTiltId: {
             // -100% to +100%
             double percent = (-1.0 + valueNormalized * 2.0) * 100.0;
-            return formatParamText(string, "%+.0f", percent);
+            return formatParamText(string, "%+.0f%%", percent);
         }
 
         case kSpectralFreezeId: {
@@ -346,7 +354,7 @@ inline Steinberg::tresult formatSpectralParam(
         case kSpectralStereoWidthId: {
             // 0-100%
             double percent = valueNormalized * 100.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         // kSpectralSpreadCurveId: handled by StringListParameter::toString() automatically

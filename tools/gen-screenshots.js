@@ -10,6 +10,7 @@
 // Usage:  node tools/gen-screenshots.js profundum              # build + render
 //         node tools/gen-screenshots.js profundum --no-build   # render with the existing build
 //         node tools/gen-screenshots.js profundum --build-dir build/linux-release
+//         node tools/gen-screenshots.js iterum --out specs/iterum-ui-redesign/shots/before   # elsewhere than images/
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -21,6 +22,7 @@ const TIMEOUT_MS = 120000;   // the case renders 16 shots in ~2 s; a hang is a d
 // Plugins whose test executable carries a [screenshots] case, and the env var naming its output directory.
 const PLUGINS = {
   profundum: { target: 'profundum_tests', envDir: 'PROFUNDUM_SHOTS_DIR' },
+  iterum: { target: 'plugin_tests', envDir: 'ITERUM_SHOTS_DIR' },
 };
 
 function fail(msg) {
@@ -31,7 +33,7 @@ function fail(msg) {
 const args = process.argv.slice(2);
 const plugin = args.find((a) => !a.startsWith('--'));
 if (!plugin || !PLUGINS[plugin]) {
-  fail(`usage: node tools/gen-screenshots.js <${Object.keys(PLUGINS).join('|')}> [--no-build] [--build-dir <dir>]`);
+  fail(`usage: node tools/gen-screenshots.js <${Object.keys(PLUGINS).join('|')}> [--no-build] [--build-dir <dir>] [--out <dir>]`);
 }
 const { target, envDir } = PLUGINS[plugin];
 const buildDirArg = args.indexOf('--build-dir');
@@ -56,7 +58,8 @@ const exe = [path.join(buildDir, 'bin', 'Release', exeName), path.join(buildDir,
   .find((p) => fs.existsSync(p));
 if (!exe) fail(`no ${exeName} under ${buildDir}/bin`);
 
-const outDir = path.join(REPO, 'plugins', plugin, 'images');
+const outArg = args.indexOf('--out');
+const outDir = outArg >= 0 ? path.resolve(REPO, args[outArg + 1]) : path.join(REPO, 'plugins', plugin, 'images');
 console.log(`render [screenshots] -> ${path.relative(REPO, outDir)}`);
 const run = spawnSync(exe, ['[screenshots]'], {
   encoding: 'utf8',

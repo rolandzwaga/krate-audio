@@ -216,6 +216,9 @@ inline Steinberg::tresult formatReverseParam(
     switch (id) {
         case kReverseChunkSizeId: {
             float ms = static_cast<float>(10.0 + normalizedValue * 1990.0);
+            if (ms >= 1000.0f) {
+                return formatParamText(string, "%.2f s", ms / 1000.0f);
+            }
             return formatParamText(string, "%.1f ms", ms);
         }
 

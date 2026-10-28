@@ -23,6 +23,7 @@
     Limit analysis to a specific target:
       'dsp'       - DSP library headers + tests
       'dsp-tests' - DSP test files only
+      'shared'    - Shared plugin infrastructure (plugins/shared src + tests)
       'iterum'    - Iterum plugin source
       'disrumpo'  - Disrumpo plugin source
       'ruinae'    - Ruinae plugin source
@@ -63,7 +64,7 @@
 param(
     [string]$BuildDir = "build/windows-x64-release",
     [switch]$Fix,
-    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago", "profundum")]
+    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "shared", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago", "profundum")]
     [string]$Target = "all",
     [switch]$Quiet,
     [int]$Jobs = 0,
@@ -164,6 +165,17 @@ switch ($Target) {
         $SourceDirs += "dsp/tests"
         $IncludeDirs += "dsp/include"
     }
+    "shared" {
+        # src and tests, matching run-clang-tidy.sh's `shared)` case (same reason as the Seraphis case below: both
+        # scripts must analyze one file set). The root CLAUDE.md lists this target; until 2026-10-28 only the .sh had it.
+        $SourceDirs += "plugins/shared/src"
+        $SourceDirs += "plugins/shared/tests"
+        $IncludeDirs += "dsp/include"
+        $IncludeDirs += "plugins/shared/src"
+        $IncludeDirs += "plugins/shared/tests"
+        $IncludeDirs += "tests"
+        $IncludeDirs += "extern/vst3sdk"
+    }
     "iterum" {
         $SourceDirs += "plugins/iterum/src"
         $IncludeDirs += "dsp/include"
@@ -241,6 +253,7 @@ switch ($Target) {
         $SourceDirs += "dsp/include"
         $SourceDirs += "dsp/tests"
         $RootSourceDirs += "dsp"
+        $SourceDirs += "plugins/shared/src"   # run-clang-tidy.sh's `all` covers it too
         $SourceDirs += "plugins/iterum/src"
         $SourceDirs += "plugins/disrumpo/src"
         $SourceDirs += "plugins/ruinae/src"
@@ -253,6 +266,7 @@ switch ($Target) {
         $SourceDirs += "plugins/profundum/src"
         $SourceDirs += "plugins/profundum/tests"
         $IncludeDirs += "dsp/include"
+        $IncludeDirs += "plugins/shared/src"
         $IncludeDirs += "plugins/iterum/src"
         $IncludeDirs += "plugins/disrumpo/src"
         $IncludeDirs += "plugins/ruinae/src"

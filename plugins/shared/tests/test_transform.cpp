@@ -243,7 +243,7 @@ TEST_CASE("Single-step shift: Shift Left is no-op when length=1", "[transform][e
     if (len > 1) {
         float first = data[0];
         for (int32_t i = 0; i < len - 1; ++i) {
-            data[static_cast<size_t>(i)] = data[static_cast<size_t>(i + 1)];
+            data[static_cast<size_t>(i)] = data[static_cast<size_t>(i) + 1];
         }
         data[static_cast<size_t>(len - 1)] = first;
     }

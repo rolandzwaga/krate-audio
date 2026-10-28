@@ -16,6 +16,7 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "base/source/fstreamer.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 
@@ -41,7 +42,7 @@ struct TapeParams {
     std::atomic<bool> head1Enabled{true};
     std::atomic<bool> head2Enabled{false};
     std::atomic<bool> head3Enabled{false};
-    std::atomic<float> head1Level{1.0f};        // linear gain (-96 to +6 dB)
+    std::atomic<float> head1Level{1.0f};        // linear gain (-30 to +6 dB)
     std::atomic<float> head2Level{1.0f};
     std::atomic<float> head3Level{1.0f};
     std::atomic<float> head1Pan{0.0f};          // -1 to +1
@@ -278,7 +279,7 @@ inline void registerTapeParams(Steinberg::Vst::ParameterContainer& parameters) {
         ParameterInfo::kCanAutomate,
         kTapeHead3EnabledId);
 
-    // Head 1 Level (-96 to +6 dB)
+    // Head 1 Level (-30 to +6 dB, handleTapeParamChange)
     parameters.addParameter(
         STR16("Tape Head 1 Level"),
         STR16("dB"),
@@ -347,6 +348,9 @@ inline Steinberg::tresult formatTapeParam(
     switch (id) {
         case kTapeMotorSpeedId: {
             float ms = static_cast<float>(20.0 + normalizedValue * 1980.0);
+            if (ms >= 1000.0f) {
+                return formatParamText(string, "%.2f s", ms / 1000.0f);
+            }
             return formatParamText(string, "%.1f ms", ms);
         }
 
@@ -380,9 +384,10 @@ inline Steinberg::tresult formatTapeParam(
         case kTapeHead1LevelId:
         case kTapeHead2LevelId:
         case kTapeHead3LevelId: {
-            double dB = -96.0 + normalizedValue * 102.0;
-            if (dB <= -96.0) {
-                return formatParamText(string, "-inf dB");
+            // Same mapping as handleTapeParamChange: -30 to +6 dB (never silent at 0).
+            double dB = -30.0 + normalizedValue * 36.0;
+            if (dB > -0.05 && dB < 0.05) {
+                dB = 0.0; // avoid "-0.0 dB"
             }
             return formatParamText(string, "%.1f dB", dB);
         }
@@ -523,18 +528,18 @@ inline void loadTapeParamsToController(Steinberg::IBStreamer& streamer, SetParam
         setParam(kTapeHead3EnabledId, intVal != 0 ? 1.0 : 0.0);
     }
 
-    // Head levels: linear -> dB -> normalized = (dB+96)/102
+    // Head levels: linear -> dB -> normalized, inverting handleTapeParamChange (-30 to +6 dB)
     if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        setParam(kTapeHead1LevelId, (dB + 96.0) / 102.0);
+        double dB = (floatVal <= 0.0f) ? -30.0 : 20.0 * std::log10(floatVal);
+        setParam(kTapeHead1LevelId, std::clamp((dB + 30.0) / 36.0, 0.0, 1.0));
     }
     if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        setParam(kTapeHead2LevelId, (dB + 96.0) / 102.0);
+        double dB = (floatVal <= 0.0f) ? -30.0 : 20.0 * std::log10(floatVal);
+        setParam(kTapeHead2LevelId, std::clamp((dB + 30.0) / 36.0, 0.0, 1.0));
     }
     if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        setParam(kTapeHead3LevelId, (dB + 96.0) / 102.0);
+        double dB = (floatVal <= 0.0f) ? -30.0 : 20.0 * std::log10(floatVal);
+        setParam(kTapeHead3LevelId, std::clamp((dB + 30.0) / 36.0, 0.0, 1.0));
     }
 
     // Head pans: -1 to +1 -> normalized = (val+1)/2

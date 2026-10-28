@@ -499,18 +499,83 @@ inline void registerFreezeParams(Steinberg::Vst::ParameterContainer& parameters)
 // Parameter Display Formatting (for Controller)
 // ==============================================================================
 
+// Every mapping below is the one handleFreezeParamChange applies (the processor's denormalisation), so a readout
+// shows the value the DSP runs at. Hits and Rotation depend on the current Steps: @p stepsNormalized is the
+// normalized kFreezeEuclideanStepsId the controller holds. The dropdowns (StringListParameter) return kResultFalse
+// and are formatted by the base class.
 inline Steinberg::tresult formatFreezeParam(
     Steinberg::Vst::ParamID id,
     Steinberg::Vst::ParamValue normalizedValue,
-    Steinberg::Vst::String128 string) {
+    Steinberg::Vst::String128 string,
+    Steinberg::Vst::ParamValue stepsNormalized) {
 
     using namespace Steinberg;
+    namespace C = Krate::DSP::PatternFreezeConstants;
+
+    const auto linear = [normalizedValue](float lo, float hi) {
+        return static_cast<float>(lo + normalizedValue * (hi - lo));
+    };
+    const auto steps = static_cast<int>(
+        C::kMinEuclideanSteps + stepsNormalized * (C::kMaxEuclideanSteps - C::kMinEuclideanSteps) + 0.5);
 
     switch (id) {
-        case kFreezeMixId: {
+        case kFreezeMixId:
+        case kFreezeGranularPositionJitterId:
+        case kFreezeGranularSizeJitterId:
+        case kFreezeDroneDriftId:
+        case kFreezeNoiseFilterSweepId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
             return formatParamText(string, "%.0f%%", percent);
         }
+
+        case kFreezeSliceLengthId: {
+            float ms = linear(C::kMinSliceLengthMs, C::kMaxSliceLengthMs);
+            if (ms >= 1000.0f) {
+                return formatParamText(string, "%.2f s", ms / 1000.0f);
+            }
+            return formatParamText(string, "%.1f ms", ms);
+        }
+
+        case kFreezeEuclideanStepsId:
+            return formatParamText(string, "%d", static_cast<int>(
+                C::kMinEuclideanSteps + normalizedValue * (C::kMaxEuclideanSteps - C::kMinEuclideanSteps) + 0.5));
+
+        case kFreezeEuclideanHitsId:
+            return formatParamText(string, "%d", static_cast<int>(1 + normalizedValue * (steps - 1) + 0.5));
+
+        case kFreezeEuclideanRotationId:
+            return formatParamText(string, "%d", static_cast<int>(normalizedValue * (steps - 1) + 0.5));
+
+        case kFreezeGranularDensityId:
+            return formatParamText(string, "%.1f Hz", linear(C::kMinGranularDensityHz, C::kMaxGranularDensityHz));
+
+        case kFreezeGranularGrainSizeId:
+            return formatParamText(string, "%.0f ms",
+                                   linear(C::kMinGranularGrainSizeMs, C::kMaxGranularGrainSizeMs));
+
+        case kFreezeDroneVoiceCountId:
+            return formatParamText(string, "%d", static_cast<int>(
+                C::kMinDroneVoices + normalizedValue * (C::kMaxDroneVoices - C::kMinDroneVoices) + 0.5));
+
+        case kFreezeDroneDriftRateId:
+            return formatParamText(string, "%.2f Hz", linear(C::kMinDroneDriftRateHz, C::kMaxDroneDriftRateHz));
+
+        case kFreezeNoiseFilterCutoffId: {
+            float hz = static_cast<float>(20.0 * std::pow(1000.0, normalizedValue));
+            if (hz >= 1000.0f) {
+                return formatParamText(string, "%.2f kHz", hz / 1000.0f);
+            }
+            return formatParamText(string, "%.0f Hz", hz);
+        }
+
+        case kFreezeEnvelopeAttackId:
+            return formatParamText(string, "%.0f ms", linear(C::kMinEnvelopeAttackMs, C::kMaxEnvelopeAttackMs));
+
+        case kFreezeEnvelopeReleaseId:
+            return formatParamText(string, "%.0f ms", linear(C::kMinEnvelopeReleaseMs, C::kMaxEnvelopeReleaseMs));
+
+        default:
+            break;
     }
 
     return Steinberg::kResultFalse;

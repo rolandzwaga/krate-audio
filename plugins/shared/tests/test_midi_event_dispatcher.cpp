@@ -13,6 +13,7 @@
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 using Catch::Approx;
@@ -23,6 +24,8 @@ using Catch::Approx;
 
 class TestEventList : public Steinberg::Vst::IEventList {
 public:
+    virtual ~TestEventList() = default;
+
     Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
         return Steinberg::kNoInterface;
     }
@@ -35,7 +38,7 @@ public:
 
     Steinberg::tresult PLUGIN_API getEvent(Steinberg::int32 index,
                                             Steinberg::Vst::Event& e) override {
-        if (index < 0 || index >= static_cast<Steinberg::int32>(events_.size()))
+        if (index < 0 || std::cmp_greater_equal(index, events_.size()))
             return Steinberg::kResultFalse;
         e = events_[static_cast<size_t>(index)];
         return Steinberg::kResultTrue;

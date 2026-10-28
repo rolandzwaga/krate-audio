@@ -413,25 +413,28 @@ inline Steinberg::tresult formatGranularParam(
         case kGranularGrainSizeId: {
             // 10-500ms
             double ms = 10.0 + valueNormalized * 490.0;
-            return formatParamText(string, "%.0f", ms);
+            return formatParamText(string, "%.0f ms", ms);
         }
 
         case kGranularDensityId: {
             // 1-100 grains/sec
             double density = 1.0 + valueNormalized * 99.0;
-            return formatParamText(string, "%.1f", density);
+            return formatParamText(string, "%.1f Hz", density);
         }
 
         case kGranularDelayTimeId: {
             // 0-2000ms
             double ms = valueNormalized * 2000.0;
-            return formatParamText(string, "%.0f", ms);
+            if (ms >= 1000.0) {
+                return formatParamText(string, "%.2f s", ms / 1000.0);
+            }
+            return formatParamText(string, "%.1f ms", ms);
         }
 
         case kGranularPitchId: {
             // -24 to +24 semitones
             double semitones = -24.0 + valueNormalized * 48.0;
-            return formatParamText(string, "%+.1f", semitones);
+            return formatParamText(string, "%+.1f st", semitones);
         }
 
         case kGranularPitchSprayId:
@@ -444,7 +447,7 @@ inline Steinberg::tresult formatGranularParam(
         case kGranularStereoWidthId: {
             // 0-100%
             double percent = valueNormalized * 100.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kGranularFreezeId: {
@@ -456,7 +459,7 @@ inline Steinberg::tresult formatGranularParam(
         case kGranularFeedbackId: {
             // 0-120%
             double percent = valueNormalized * 120.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         // kGranularEnvelopeTypeId: handled by StringListParameter::toString() automatically

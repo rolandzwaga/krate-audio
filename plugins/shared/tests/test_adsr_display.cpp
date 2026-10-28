@@ -20,7 +20,7 @@ using Catch::Approx;
 
 // Helper: create a default 140x90 ADSRDisplay (matching editor.uidesc dimensions)
 static ADSRDisplay makeDisplay() {
-    return ADSRDisplay(CRect(0, 0, 140, 90), nullptr, -1);
+    return {CRect(0, 0, 140, 90), nullptr, -1};
 }
 
 // Helper: create display with specific ADSR values
@@ -256,9 +256,9 @@ TEST_CASE("Curve table integration: power curve with curveAmount=0 is linear",
     Krate::DSP::generatePowerCurveTable(table, 0.0f);
 
     // Linear curve: table[i] should equal i/255
-    for (int i = 0; i < static_cast<int>(Krate::DSP::kCurveTableSize); ++i) {
+    for (size_t i = 0; i < Krate::DSP::kCurveTableSize; ++i) {
         float expected = static_cast<float>(i) / 255.0f;
-        REQUIRE(table[static_cast<size_t>(i)] == Approx(expected).margin(0.01f));
+        REQUIRE(table[i] == Approx(expected).margin(0.01f));
     }
 }
 
@@ -527,7 +527,10 @@ TEST_CASE("Bezier handle values can be set and round-trip",
 TEST_CASE("Simple-to-Bezier conversion produces valid control points",
           "[adsr_display][bezier]") {
     // Test that simpleCurveToBezier from curve_table.h produces valid handles
-    float cp1x = 0.0f, cp1y = 0.0f, cp2x = 0.0f, cp2y = 0.0f;
+    float cp1x = 0.0f;
+    float cp1y = 0.0f;
+    float cp2x = 0.0f;
+    float cp2y = 0.0f;
 
     // Linear curve (amount=0) should give symmetric points at 1/3 and 2/3
     Krate::DSP::simpleCurveToBezier(0.0f, cp1x, cp1y, cp2x, cp2y);
@@ -541,7 +544,10 @@ TEST_CASE("Bezier-to-Simple conversion round-trip is approximate",
           "[adsr_display][bezier]") {
     // Start with a known curve amount, convert to Bezier, convert back
     float originalCurve = 0.5f;
-    float cp1x = 0.0f, cp1y = 0.0f, cp2x = 0.0f, cp2y = 0.0f;
+    float cp1x = 0.0f;
+    float cp1y = 0.0f;
+    float cp2x = 0.0f;
+    float cp2y = 0.0f;
 
     Krate::DSP::simpleCurveToBezier(originalCurve, cp1x, cp1y, cp2x, cp2y);
 

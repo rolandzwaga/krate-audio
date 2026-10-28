@@ -23,6 +23,7 @@ add_executable(plugin_tests
     unit/parameters/mix_scale_consistency_test.cpp
     unit/parameters/multitap_params_test.cpp
     unit/parameters/pingpong_params_test.cpp
+    unit/parameters/readout_format_test.cpp
     unit/parameters/reverse_params_test.cpp
     unit/parameters/shimmer_params_test.cpp
     unit/parameters/spectral_params_test.cpp
@@ -51,8 +52,10 @@ add_executable(plugin_tests
 
     # VST tests
     unit/vst/control_visibility_test.cpp
+    unit/vst/controller_readout_test.cpp
     unit/vst/digital_width_param_test.cpp
     unit/vst/multitap_visibility_test.cpp
+    unit/vst/pattern_button_style_test.cpp
     unit/vst/editor_lifecycle_test.cpp
     unit/vst/granular_tempo_sync_ui_test.cpp
     unit/vst/string_list_parameter_test.cpp
@@ -62,6 +65,13 @@ add_executable(plugin_tests
     # Editor open/close lifecycle regression (willClose UAF guard) -- builds the
     # real view tree via IPlugView::attached() and runs verifyView/willClose.
     unit/vst/editor_open_close_test.cpp
+
+    # One headless screenshot per delay mode (hidden [.][screenshots]; node tools/gen-screenshots.js iterum).
+    unit/vst/editor_screenshot_test.cpp
+
+    # Every control of every mode live and of the designed widget, the conditional groups and the Sync retag
+    # ([iterum][ui]; specs/iterum-ui-redesign/design-system.md 9.4 step 3).
+    unit/vst/editor_panels_test.cpp
 
     # Controller + UI sources needed to instantiate the editor in the open/close
     # lifecycle test.
@@ -120,6 +130,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/parameters/mix_scale_consistency_test.cpp
         unit/parameters/multitap_params_test.cpp
         unit/parameters/pingpong_params_test.cpp
+        unit/parameters/readout_format_test.cpp
         unit/parameters/reverse_params_test.cpp
         unit/parameters/shimmer_params_test.cpp
         unit/parameters/spectral_params_test.cpp

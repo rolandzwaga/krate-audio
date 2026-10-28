@@ -51,38 +51,46 @@ void UpdateChecker::checkForUpdate(bool force) {
 
     checking_.store(true, std::memory_order_release);
     workerThread_ = std::thread([this]() {
-        performCheck();
+        // An exception escaping a std::thread entry calls std::terminate and takes the host down; a failed check
+        // just leaves no result (the banner stays hidden until the next check).
+        try {
+            performCheck();
+        } catch (...) {
+            resultReady_.store(false, std::memory_order_release);
+        }
         checking_.store(false, std::memory_order_release);
     });
 }
 
 UpdateCheckResult UpdateChecker::getResult() const {
-    std::lock_guard<std::mutex> lock(resultMutex_);
+    std::scoped_lock lock(resultMutex_);
     return result_;
 }
 
 void UpdateChecker::dismissVersion(const std::string& version) {
     {
-        std::lock_guard<std::mutex> lock(stateMutex_);
+        std::scoped_lock lock(stateMutex_);
         dismissedVersion_ = version;
     }
     saveState();
 }
 
 bool UpdateChecker::isVersionDismissed(const std::string& version) const {
-    std::lock_guard<std::mutex> lock(stateMutex_);
+    std::scoped_lock lock(stateMutex_);
     return !dismissedVersion_.empty() && dismissedVersion_ == version;
 }
 
 void UpdateChecker::clearResult() {
-    std::lock_guard<std::mutex> lock(resultMutex_);
+    std::scoped_lock lock(resultMutex_);
     result_ = {};
     resultReady_.store(false, std::memory_order_release);
 }
 
 std::string UpdateChecker::fetchJson(const std::string& url) {
     // Parse URL to extract scheme, host, and path
-    std::string scheme, host, path;
+    std::string scheme;
+    std::string host;
+    std::string path;
     size_t schemeEnd = url.find("://");
     if (schemeEnd == std::string::npos)
         return {};
@@ -186,7 +194,7 @@ void UpdateChecker::performCheck() {
         // Network error or endpoint not found — still signal completion
         // so the UI doesn't get stuck in "Checking..." state
         {
-            std::lock_guard<std::mutex> lock(resultMutex_);
+            std::scoped_lock lock(resultMutex_);
             result_ = UpdateCheckResult{};
         }
         resultReady_.store(true, std::memory_order_release);
@@ -205,7 +213,7 @@ void UpdateChecker::performCheck() {
     }
 
     {
-        std::lock_guard<std::mutex> lock(resultMutex_);
+        std::scoped_lock lock(resultMutex_);
         result_ = std::move(result);
     }
     resultReady_.store(true, std::memory_order_release);
@@ -248,7 +256,8 @@ UpdateCheckResult UpdateChecker::parseResponse(const std::string& jsonStr) const
         }
     }
     catch (...) {
-        // Malformed JSON — return empty result
+        // Malformed JSON: return an empty result, not whatever was filled in before the throw.
+        result = {};
     }
 
     return result;
@@ -272,12 +281,16 @@ void UpdateChecker::loadState() {
         }
 
         if (json.contains("dismissed_version") && json["dismissed_version"].is_string()) {
-            std::lock_guard<std::mutex> lock(stateMutex_);
+            std::scoped_lock lock(stateMutex_);
             dismissedVersion_ = json["dismissed_version"].get<std::string>();
         }
     }
     catch (...) {
-        // Corrupted state file — ignore, will be overwritten on next save
+        // Corrupted state file: start from a fresh state (it is overwritten on the next save), not from whatever
+        // was read before the throw.
+        lastCheckTime_ = {};
+        std::scoped_lock lock(stateMutex_);
+        dismissedVersion_.clear();
     }
 }
 
@@ -293,7 +306,7 @@ void UpdateChecker::saveState() const {
     json["last_check_epoch"] = std::chrono::system_clock::to_time_t(lastCheckTime_);
 
     {
-        std::lock_guard<std::mutex> lock(stateMutex_);
+        std::scoped_lock lock(stateMutex_);
         json["dismissed_version"] = dismissedVersion_;
     }
 

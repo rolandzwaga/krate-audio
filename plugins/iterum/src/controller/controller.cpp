@@ -407,7 +407,7 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                     : -80.0;
 
                 char text[32];
-                std::snprintf(text, sizeof(text), "%.1f", dB);
+                std::snprintf(text, sizeof(text), "%.1f dB", dB);
 
                 Steinberg::UString(string, 128).fromAscii(text);
                 return Steinberg::kResultTrue;
@@ -460,7 +460,9 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatMultiTapParam(id, valueNormalized, string);
     }
     else if (id >= kFreezeBaseId && id <= kFreezeEndId) {
-        result = formatFreezeParam(id, valueNormalized, string);
+        // Hits and Rotation are counted against the current Steps (handleFreezeParamChange does the same).
+        result = formatFreezeParam(id, valueNormalized, string,
+                                   getParamNormalized(kFreezeEuclideanStepsId));
     }
 
     // If the mode-specific formatter didn't handle it (returns kResultFalse),
@@ -578,6 +580,16 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
 
     // Call base class - this is the ONLY thing that actually happens
     auto result = EditControllerEx1::setParamNormalized(id, value);
+
+    // The Hits and Rotation readouts are counted against the current Steps (formatFreezeParam), but VST3Editor
+    // redraws a CParamDisplay only when its own parameter notifies: tell both that their text changed.
+    if (id == kFreezeEuclideanStepsId) {
+        for (auto dependentId : {kFreezeEuclideanHitsId, kFreezeEuclideanRotationId}) {
+            if (auto* param = getParameterObject(dependentId)) {
+                param->deferUpdate();
+            }
+        }
+    }
 
     // CRITICAL: Pointer-nulling for view lifecycle must happen even during bulk
     // loads. The base class setParamNormalized triggers IDependent notifications

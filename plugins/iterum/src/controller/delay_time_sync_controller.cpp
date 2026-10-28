@@ -15,29 +15,29 @@
 
 namespace Iterum {
 
+Steinberg::Vst::EditController* DelayTimeSyncController::editController() const
+{
+    // The parent controller is the VST3Editor (Controller::createSubController passes it). Resolve the edit
+    // controller through it, never through a control's frame: UIDescription calls verifyView before the view is
+    // added to its parent, so while a panel is being built every control's getFrame() is null.
+    auto* editor = dynamic_cast<Steinberg::Vst::VSTGUIEditor*>(controller);
+    return editor ? editor->getController() : nullptr;
+}
+
 void DelayTimeSyncController::syncTimeControlValues()
 {
     if (timeControls_.empty())
         return;
 
-    auto* frame = timeControls_[0]->getFrame();
-    if (!frame)
-        return;
-
-    auto* editor =
-        dynamic_cast<Steinberg::Vst::VSTGUIEditor*>(frame->getEditor());
-    if (!editor)
-        return;
-
-    auto* editController = editor->getController();
-    if (!editController)
+    auto* ec = editController();
+    if (!ec)
         return;
 
     // All time controls share the same tag, so fetch value once
     auto paramId =
         static_cast<Steinberg::Vst::ParamID>(timeControls_[0]->getTag());
     float paramVal =
-        static_cast<float>(editController->getParamNormalized(paramId));
+        static_cast<float>(ec->getParamNormalized(paramId));
 
     for (auto* ctrl : timeControls_)
     {
@@ -60,20 +60,13 @@ VSTGUI::CView* DelayTimeSyncController::verifyView(
 
             // Check current sync state to set initial tag
             // Default is free (0.0), so keep freeTimeTag unless synced
-            if (auto* frame = control->getFrame())
+            if (auto* ec = editController())
             {
-                if (auto* editor =
-                        dynamic_cast<Steinberg::Vst::VSTGUIEditor*>(frame->getEditor()))
+                auto syncVal = ec->getParamNormalized(
+                    static_cast<Steinberg::Vst::ParamID>(syncTag_));
+                if (syncVal > 0.5)
                 {
-                    if (auto* ec = editor->getController())
-                    {
-                        auto syncVal = ec->getParamNormalized(
-                            static_cast<Steinberg::Vst::ParamID>(syncTag_));
-                        if (syncVal > 0.5)
-                        {
-                            control->setTag(noteValueTag_);
-                        }
-                    }
+                    control->setTag(noteValueTag_);
                 }
             }
         }

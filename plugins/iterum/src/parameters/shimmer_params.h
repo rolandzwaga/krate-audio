@@ -290,19 +290,22 @@ inline Steinberg::tresult formatShimmerParam(
         case kShimmerDelayTimeId: {
             // 10-5000ms
             double ms = 10.0 + valueNormalized * 4990.0;
-            return formatParamText(string, "%.0f", ms);
+            if (ms >= 1000.0) {
+                return formatParamText(string, "%.2f s", ms / 1000.0);
+            }
+            return formatParamText(string, "%.1f ms", ms);
         }
 
         case kShimmerPitchSemitonesId: {
             // -24 to +24 semitones
             double st = -24.0 + valueNormalized * 48.0;
-            return formatParamText(string, "%+.0f", st);
+            return formatParamText(string, "%+.1f st", st);
         }
 
         case kShimmerPitchCentsId: {
             // -100 to +100 cents
             double ct = -100.0 + valueNormalized * 200.0;
-            return formatParamText(string, "%+.0f", ct);
+            return formatParamText(string, "%+.0f ct", ct);
         }
 
         case kShimmerPitchBlendId:
@@ -310,13 +313,13 @@ inline Steinberg::tresult formatShimmerParam(
         case kShimmerMixId: {
             // 0-100%
             double percent = valueNormalized * 100.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kShimmerFeedbackId: {
             // 0-120%
             double percent = valueNormalized * 120.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kShimmerFilterEnabledId: {
@@ -329,9 +332,9 @@ inline Steinberg::tresult formatShimmerParam(
             // 20-20000Hz
             double hz = 20.0 + valueNormalized * 19980.0;
             if (hz >= 1000.0) {
-                return formatParamText(string, "%.1fk", hz / 1000.0);
+                return formatParamText(string, "%.2f kHz", hz / 1000.0);
             }
-            return formatParamText(string, "%.0f", hz);
+            return formatParamText(string, "%.0f Hz", hz);
         }
 
         default:
