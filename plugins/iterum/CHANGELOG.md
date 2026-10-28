@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2026-10-28
 
+### Added
+
+- **Tempo sync for Tape**: Tape was the one tempo-capable mode without a Sync switch (the 0.8.0 notes listed it, but its Time Mode and Note Value were never added). Its Time control now has the same Sync toggle as the other modes, a fresh instance starts synced at 1/8, and Motor Inertia glides the tape between note lengths when the tempo changes. Synced times stay within the motor's 20 ms to 2 s. Projects and presets saved before keep running on their Motor Speed.
+
 ### Changed
 
 - **A new, consistent editor for all ten delay modes.** Every mode now follows the same layout: Time, Feedback and Mix are knobs in a fixed row at the top, and the mode's other controls sit in sections that keep the same place, widget and label from mode to mode, so switching modes no longer means hunting for the same control. Parameters, automation and presets are unchanged.

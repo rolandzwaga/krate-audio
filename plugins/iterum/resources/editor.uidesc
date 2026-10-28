@@ -82,6 +82,8 @@
       <control-tag name="TapeHead1Pan" tag="416"/>
       <control-tag name="TapeHead2Pan" tag="417"/>
       <control-tag name="TapeHead3Pan" tag="418"/>
+      <control-tag name="TapeTimeMode" tag="419"/>
+      <control-tag name="TapeNoteValue" tag="420"/>
       <control-tag name="BBDDelayTime" tag="500"/>
       <control-tag name="BBDFeedback" tag="501"/>
       <control-tag name="BBDModulationDepth" tag="502"/>
@@ -325,10 +327,11 @@
       </view>
    </template>
    <template name="TapePanel" class="CViewContainer" origin="0, 0" size="900, 480" background-color="panel" transparent="false">
-      <view class="CViewContainer" origin="12, 12" size="284, 72" transparent="true">
+      <view class="CViewContainer" origin="12, 12" size="284, 72" transparent="true" sub-controller="TapeTimeSyncController">
          <view class="ArcKnob" origin="8, 8" size="56, 56" control-tag="TapeMotorSpeed" arc-color="accent" guide-color="slider-frame" arc-width="3"/>
          <view class="CTextLabel" origin="76, 10" size="120, 16" title="Time" font="label-font" font-color="text-dim" text-alignment="left" transparent="true"/>
          <view class="CParamDisplay" origin="76, 30" size="120, 24" control-tag="TapeMotorSpeed" font="readout-font" font-color="text" text-alignment="left" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" style-no-frame="true"/>
+         <view class="ToggleButton" origin="200, 32" size="76, 22" control-tag="TapeTimeMode" title="Sync" title-position="right" icon-style="power" icon-size="0.6" font="label-font" on-color="accent" off-color="text-dim"/>
       </view>
       <view class="CViewContainer" origin="308, 12" size="284, 72" transparent="true">
          <view class="ArcKnob" origin="8, 8" size="56, 56" control-tag="TapeFeedback" arc-color="accent" guide-color="slider-frame" arc-width="3"/>

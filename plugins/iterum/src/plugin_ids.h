@@ -137,6 +137,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kTapeHead1PanId = 416,         // L100-R100
     kTapeHead2PanId = 417,         // L100-R100
     kTapeHead3PanId = 418,         // L100-R100
+    kTapeTimeModeId = 419,         // 0=Free, 1=Synced
+    kTapeNoteValueId = 420,        // 0-19 (note values)
     kTapeEndId = 499,
 
     // ==========================================================================

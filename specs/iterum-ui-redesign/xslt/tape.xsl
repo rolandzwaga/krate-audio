@@ -9,6 +9,15 @@
 
   <xsl:mode on-no-match="shallow-copy"/>
 
+  <!-- Tempo sync (Time Mode 419, Note Value 420), after the last Tape tag -->
+  <xsl:template match="control-tag[@name = 'TapeHead3Pan']">
+    <xsl:copy-of select="."/>
+    <xsl:if test="not(../control-tag[@name = 'TapeTimeMode'])">
+      <control-tag name="TapeTimeMode" tag="419"/>
+      <control-tag name="TapeNoteValue" tag="420"/>
+    </xsl:if>
+  </xsl:template>
+
   <xsl:template match="template[@name = 'TapePanel']">
     <template name="TapePanel" class="CViewContainer" origin="0, 0" size="900, 480" background-color="panel"
               transparent="false">
@@ -17,6 +26,9 @@
         <xsl:with-param name="x" select="12"/>
         <xsl:with-param name="tag" select="'TapeMotorSpeed'"/>
         <xsl:with-param name="label" select="'Time'"/>
+        <xsl:with-param name="sub-controller" select="'TapeTimeSyncController'"/>
+        <xsl:with-param name="toggle-tag" select="'TapeTimeMode'"/>
+        <xsl:with-param name="toggle-title" select="'Sync'"/>
       </xsl:call-template>
       <xsl:call-template name="knob-cell">
         <xsl:with-param name="x" select="308"/>

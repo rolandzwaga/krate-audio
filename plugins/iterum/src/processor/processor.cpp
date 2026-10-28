@@ -317,6 +317,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveDigitalParams(digitalParams_, streamer);
     savePingPongParams(pingPongParams_, streamer);
     saveMultiTapParams(multiTapParams_, streamer);
+    saveTapeSyncParams(tapeParams_, streamer);  // after every mode: see tape_params.h
 
     return Steinberg::kResultTrue;
 }
@@ -350,6 +351,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     loadDigitalParams(digitalParams_, streamer);
     loadPingPongParams(pingPongParams_, streamer);
     loadMultiTapParams(multiTapParams_, streamer);
+    loadTapeSyncParams(tapeParams_, streamer);  // absent in states from before Tape sync
 
     return Steinberg::kResultTrue;
 }
@@ -538,7 +540,7 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
 
         case DelayMode::Tape:
             // Update Tape parameters
-            tapeDelay_.setMotorSpeed(tapeParams_.motorSpeed.load(std::memory_order_relaxed));
+            tapeDelay_.setMotorSpeed(tapeDelayTimeMs(tapeParams_, ctx.tempoBPM));
             tapeDelay_.setMotorInertia(tapeParams_.motorInertia.load(std::memory_order_relaxed));
             tapeDelay_.setWear(tapeParams_.wear.load(std::memory_order_relaxed));
             tapeDelay_.setSaturation(tapeParams_.saturation.load(std::memory_order_relaxed));

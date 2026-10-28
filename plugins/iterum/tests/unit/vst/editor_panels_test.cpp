@@ -184,7 +184,7 @@ private:
 void syncOffEverywhere(Iterum::Controller& c) {
     for (auto id : {Iterum::kGranularTimeModeId, Iterum::kSpectralTimeModeId, Iterum::kShimmerTimeModeId,
                     Iterum::kBBDTimeModeId, Iterum::kDigitalTimeModeId, Iterum::kPingPongTimeModeId,
-                    Iterum::kReverseTimeModeId}) {
+                    Iterum::kReverseTimeModeId, Iterum::kTapeTimeModeId}) {
         c.setParamNormalized(id, 0.0);
     }
 }
@@ -356,13 +356,13 @@ TEST_CASE("Iterum editor panel Shimmer: every control live and of the designed c
 
 TEST_CASE("Iterum editor panel Tape: every control live and of the designed class", "[iterum][ui]") {
     checkPanel({"TapePanel", 3,
-                {{kTapeMotorSpeedId, W::K}, {kTapeFeedbackId, W::K}, {kTapeMixId, W::K},
+                {{kTapeMotorSpeedId, W::K}, {kTapeTimeModeId, W::T}, {kTapeFeedbackId, W::K}, {kTapeMixId, W::K},
                  {kTapeMotorInertiaId, W::S}, {kTapeWearId, W::S}, {kTapeSaturationId, W::S}, {kTapeAgeId, W::S},
                  {kTapeSpliceEnabledId, W::T}, {kTapeSpliceIntensityId, W::S}, {kTapeHead1EnabledId, W::T},
                  {kTapeHead1LevelId, W::S}, {kTapeHead1PanId, W::B}, {kTapeHead2EnabledId, W::T},
                  {kTapeHead2LevelId, W::S}, {kTapeHead2PanId, W::B}, {kTapeHead3EnabledId, W::T},
                  {kTapeHead3LevelId, W::S}, {kTapeHead3PanId, W::B}},
-                {}, 4, 6});
+                {kTapeNoteValueId}, 4, 6});
 }
 
 TEST_CASE("Iterum editor panel BBD: every control live and of the designed class", "[iterum][ui]") {
@@ -557,6 +557,16 @@ TEST_CASE("Iterum editor: the time knob and readout carry the note value tag whi
         CHECK(note.knobs == 1);
         CHECK(note.readouts == 1);
         CHECK(countTag(ed.root(), kGranularDelayTimeId).total == 0);
+    }
+
+    // Tape registers Synced by default too: its Time knob shows the note value.
+    ed.switchTo(3);
+    {
+        const TagCount note = countTag(ed.root(), kTapeNoteValueId);
+        CHECK(note.total == 2);
+        CHECK(note.knobs == 1);
+        CHECK(note.readouts == 1);
+        CHECK(countTag(ed.root(), kTapeMotorSpeedId).total == 0);
     }
 
     // Digital registers Synced by default: nothing is set.

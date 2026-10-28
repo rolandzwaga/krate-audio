@@ -296,6 +296,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     syncDigitalParamsToController(streamer, *this);   // Digital Delay (spec 026)
     syncPingPongParamsToController(streamer, *this);  // PingPong Delay (spec 027)
     syncMultiTapParamsToController(streamer, *this);  // MultiTap Delay (spec 028)
+    syncTapeSyncParamsToController(streamer, *this);  // Tape tempo sync (after every mode)
 
     bulkParamLoad_ = false;  // Re-enable per-param view updates
     syncAllViews();           // Single batch sync of all custom views
@@ -831,6 +832,8 @@ VSTGUI::IController* Controller::createSubController(
         return new DelayTimeSyncController(kSpectralBaseDelayId, kSpectralTimeModeId, kSpectralNoteValueId, editor);
     if (controllerName == "ShimmerTimeSyncController")
         return new DelayTimeSyncController(kShimmerDelayTimeId, kShimmerTimeModeId, kShimmerNoteValueId, editor);
+    if (controllerName == "TapeTimeSyncController")
+        return new DelayTimeSyncController(kTapeMotorSpeedId, kTapeTimeModeId, kTapeNoteValueId, editor);
     if (controllerName == "BBDTimeSyncController")
         return new DelayTimeSyncController(kBBDDelayTimeId, kBBDTimeModeId, kBBDNoteValueId, editor);
     if (controllerName == "DigitalTimeSyncController")
@@ -1271,6 +1274,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     loadDigitalParamsToController(streamer, setParamWithNotify);
     loadPingPongParamsToController(streamer, setParamWithNotify);
     loadMultiTapParamsToController(streamer, setParamWithNotify);
+    loadTapeSyncParamsToController(streamer, setParamWithNotify);
 
     bulkParamLoad_ = false;  // Re-enable per-param view updates
     syncAllViews();           // Single batch sync of all custom views

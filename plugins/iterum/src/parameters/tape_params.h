@@ -8,6 +8,8 @@
 // ==============================================================================
 
 #include "plugin_ids.h"
+#include "controller/parameter_helpers.h"
+#include "parameters/note_value_ui.h"
 #include "parameters/param_display.h"
 #include "pluginterfaces/base/ftypes.h"
 #include "pluginterfaces/base/ustring.h"
@@ -15,6 +17,8 @@
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "base/source/fstreamer.h"
+
+#include <krate/dsp/core/note_value.h>
 
 #include <algorithm>
 #include <atomic>
@@ -29,6 +33,8 @@ namespace Iterum {
 struct TapeParams {
     // Main parameters
     std::atomic<float> motorSpeed{500.0f};      // 20-2000ms (delay time)
+    std::atomic<int> timeMode{1};               // 0=Free, 1=Synced
+    std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};  // 0-19 (note values)
     std::atomic<float> motorInertia{300.0f};    // 100-1000ms
     std::atomic<float> wear{0.3f};              // 0-1
     std::atomic<float> saturation{0.5f};        // 0-1
@@ -66,6 +72,18 @@ inline void handleTapeParamChange(
             // 20-2000ms
             params.motorSpeed.store(
                 static_cast<float>(20.0 + normalizedValue * 1980.0),
+                std::memory_order_relaxed);
+            break;
+        case kTapeTimeModeId:
+            // 0=Free, 1=Synced
+            params.timeMode.store(
+                normalizedValue >= 0.5 ? 1 : 0,
+                std::memory_order_relaxed);
+            break;
+        case kTapeNoteValueId:
+            // 0-19 (note values)
+            params.noteValue.store(
+                static_cast<int>(normalizedValue * (Parameters::kNoteValueDropdownCount - 1) + 0.5),
                 std::memory_order_relaxed);
             break;
         case kTapeMotorInertiaId:
@@ -164,6 +182,22 @@ inline void handleTapeParamChange(
 }
 
 // ==============================================================================
+// Delay Time
+// ==============================================================================
+
+/// Delay the tape runs at: Motor Speed, or the note value at the host tempo when
+/// synced, kept within the motor's 20-2000 ms. Motor Inertia glides between them.
+inline float tapeDelayTimeMs(const TapeParams& params, double tempoBPM) noexcept {
+    if (params.timeMode.load(std::memory_order_relaxed) == 0) {
+        return params.motorSpeed.load(std::memory_order_relaxed);
+    }
+    const double tempo = (tempoBPM > 0.0) ? tempoBPM : 120.0;
+    const float syncedMs = Krate::DSP::dropdownToDelayMs(
+        params.noteValue.load(std::memory_order_relaxed), tempo);
+    return std::clamp(syncedMs, 20.0f, 2000.0f);
+}
+
+// ==============================================================================
 // Parameter Registration (for Controller)
 // ==============================================================================
 
@@ -179,6 +213,21 @@ inline void registerTapeParams(Steinberg::Vst::ParameterContainer& parameters) {
         0.242,  // default: ~500ms
         ParameterInfo::kCanAutomate,
         kTapeMotorSpeedId);
+
+    // Time Mode (Free/Synced)
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("Tape Time Mode"), kTapeTimeModeId,
+        1,  // default: Synced (index 1)
+        {STR16("Free"), STR16("Synced")}
+    ));
+
+    // Note Value - uses centralized dropdown strings
+    parameters.addParameter(createNoteValueDropdown(
+        STR16("Tape Note Value"), kTapeNoteValueId,
+        Parameters::kNoteValueDropdownStrings,
+        Parameters::kNoteValueDropdownCount,
+        Parameters::kNoteValueDefaultIndex
+    ));
 
     // Motor Inertia (100-1000ms)
     parameters.addParameter(
@@ -458,6 +507,26 @@ inline void loadTapeParams(TapeParams& params, Steinberg::IBStreamer& streamer) 
     if (streamer.readFloat(floatVal)) params.head3Pan.store(floatVal, std::memory_order_relaxed);
 }
 
+// Tempo sync came after the state layout was fixed, so its two fields go at the very
+// end of the state, after every mode's block: states saved before it still load
+// field for field. A state that ends before them comes from a Tape delay that ran
+// on Motor Speed, so it loads as Free.
+
+inline void saveTapeSyncParams(const TapeParams& params, Steinberg::IBStreamer& streamer) {
+    streamer.writeInt32(params.timeMode.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.noteValue.load(std::memory_order_relaxed));
+}
+
+inline void loadTapeSyncParams(TapeParams& params, Steinberg::IBStreamer& streamer) {
+    Steinberg::int32 intVal = 0;
+    if (!streamer.readInt32(intVal)) {
+        params.timeMode.store(0, std::memory_order_relaxed);
+        return;
+    }
+    params.timeMode.store(intVal != 0 ? 1 : 0, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal)) params.noteValue.store(intVal, std::memory_order_relaxed);
+}
+
 // ==============================================================================
 // Controller State Sync (from IBStreamer)
 // ==============================================================================
@@ -560,6 +629,30 @@ inline void syncTapeParamsToController(
     Steinberg::Vst::EditControllerEx1& controller)
 {
     loadTapeParamsToController(streamer, [&controller](Steinberg::Vst::ParamID id, double value) {
+        controller.setParamNormalized(id, value);
+    });
+}
+
+// Reads the tempo-sync fields at the end of the state (see saveTapeSyncParams)
+template <typename SetParamFunc>
+inline void loadTapeSyncParamsToController(Steinberg::IBStreamer& streamer, SetParamFunc setParam)
+{
+    Steinberg::int32 intVal = 0;
+    if (!streamer.readInt32(intVal)) {
+        setParam(kTapeTimeModeId, 0.0);  // saved before sync: Free
+        return;
+    }
+    setParam(kTapeTimeModeId, intVal != 0 ? 1.0 : 0.0);
+    if (streamer.readInt32(intVal)) {
+        setParam(kTapeNoteValueId, static_cast<double>(intVal) / (Parameters::kNoteValueDropdownCount - 1));
+    }
+}
+
+inline void syncTapeSyncParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadTapeSyncParamsToController(streamer, [&controller](Steinberg::Vst::ParamID id, double value) {
         controller.setParamNormalized(id, value);
     });
 }

@@ -6,6 +6,8 @@
 #include <catch2/catch_approx.hpp>
 #include <cmath>
 
+#include "parameters/tape_params.h"
+
 using Catch::Approx;
 
 namespace {
@@ -140,5 +142,36 @@ TEST_CASE("Tape passthrough parameters", "[params][tape]") {
         REQUIRE(denormPassthrough(0.0) == Approx(0.0f));
         REQUIRE(denormPassthrough(0.3) == Approx(0.3f));
         REQUIRE(denormPassthrough(1.0) == Approx(1.0f));
+    }
+}
+
+// ==============================================================================
+// Tempo sync
+// ==============================================================================
+
+TEST_CASE("Tape delay time follows the tempo when synced", "[params][tape][sync]") {
+    Iterum::TapeParams params;
+    params.motorSpeed.store(700.0f);
+
+    SECTION("Free runs at Motor Speed") {
+        params.timeMode.store(0);
+        CHECK(Iterum::tapeDelayTimeMs(params, 120.0) == Approx(700.0f));
+    }
+
+    SECTION("Synced runs at the note value: 1/8 at 120 BPM is 250 ms, 1/4 is 500 ms") {
+        params.timeMode.store(1);
+        params.noteValue.store(10);  // 1/8
+        CHECK(Iterum::tapeDelayTimeMs(params, 120.0) == Approx(250.0f));
+        params.noteValue.store(13);  // 1/4
+        CHECK(Iterum::tapeDelayTimeMs(params, 120.0) == Approx(500.0f));
+        CHECK(Iterum::tapeDelayTimeMs(params, 90.0) == Approx(666.667f).margin(0.01));
+    }
+
+    SECTION("Synced stays within the motor's 20-2000 ms") {
+        params.timeMode.store(1);
+        params.noteValue.store(19);  // 1/1 at 60 BPM = 4000 ms
+        CHECK(Iterum::tapeDelayTimeMs(params, 60.0) == Approx(2000.0f));
+        params.noteValue.store(0);   // 1/64T at 240 BPM = 10.4 ms
+        CHECK(Iterum::tapeDelayTimeMs(params, 240.0) == Approx(20.0f));
     }
 }
