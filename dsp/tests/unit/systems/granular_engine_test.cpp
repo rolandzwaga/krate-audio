@@ -511,7 +511,7 @@ TEST_CASE("GranularEngine output gain scaling prevents explosion", "[systems][gr
             maxAbsOutput = std::max(maxAbsOutput, std::max(std::abs(outL), std::abs(outR)));
         }
 
-        // With proper gain scaling (1/sqrt(n)), output should stay bounded
+        // With overlap-add gain scaling, output should stay bounded
         // Even with 50+ overlapping grains, output should be <= 3.0
         // (Slight overshoot allowed due to smoother lag during grain buildup)
         // Without scaling, 50 grains at 1.0 amplitude would sum to 50.0!

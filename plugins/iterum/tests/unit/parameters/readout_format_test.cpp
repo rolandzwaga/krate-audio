@@ -14,7 +14,6 @@
 #include "parameters/tape_params.h"
 
 #include "base/source/fstreamer.h"
-#include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/vstparameters.h"
 
@@ -36,9 +35,10 @@ namespace {
 using Formatter = std::function<Steinberg::tresult(ParamID, ParamValue, Steinberg::Vst::String128)>;
 
 [[nodiscard]] std::string ascii(const Steinberg::Vst::String128 s) {
-    char buf[128] = {};
-    Steinberg::UString(const_cast<Steinberg::Vst::TChar*>(s), 128).toAscii(buf, 128);
-    return buf;
+    std::string out;
+    for (int i = 0; i < 128 && s[i] != 0; ++i)
+        out += s[i] < 128 ? static_cast<char>(s[i]) : '?';
+    return out;
 }
 
 [[nodiscard]] std::string format(const Formatter& fn, ParamID id, ParamValue n) {
@@ -75,7 +75,7 @@ TEST_CASE("Granular readouts print the 6.4 units", "[granular][format]") {
     CHECK(format(fn, kGranularGrainSizeId, 1.0) == "500 ms");
 
     CHECK(format(fn, kGranularDensityId, 0.0) == "1.0 Hz");
-    CHECK(format(fn, kGranularDensityId, def(kGranularDensityId)) == "10.0 Hz");
+    CHECK(format(fn, kGranularDensityId, def(kGranularDensityId)) == "20.0 Hz");
     CHECK(format(fn, kGranularDensityId, 1.0) == "100.0 Hz");
 
     CHECK(format(fn, kGranularDelayTimeId, 0.0) == "0.0 ms");

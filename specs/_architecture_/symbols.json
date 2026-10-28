@@ -825,7 +825,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 2851
+      "line": 2850
     },
     {
       "name": "DurationPoint",
@@ -1265,7 +1265,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/grain_processor.h",
-      "line": 26
+      "line": 27
     },
     {
       "name": "GrainPool",
@@ -1281,7 +1281,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/grain_processor.h",
-      "line": 37
+      "line": 39
     },
     {
       "name": "GrainScheduler",
@@ -1321,7 +1321,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/granular_engine.h",
-      "line": 30
+      "line": 31
     },
     {
       "name": "GranularFilter",
@@ -2785,7 +2785,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 2844
+      "line": 2843
     },
     {
       "name": "RetriggerDeclick",

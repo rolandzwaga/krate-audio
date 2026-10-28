@@ -20,6 +20,7 @@
 #include <krate/dsp/processors/grain_processor.h>
 #include <krate/dsp/processors/grain_scheduler.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace Krate::DSP {
@@ -53,7 +54,7 @@ public:
         pitchSmoother_.configure(kDefaultSmoothTimeMs, static_cast<float>(sampleRate));
         positionSmoother_.configure(kDefaultSmoothTimeMs, static_cast<float>(sampleRate));
 
-        // Configure gain scaling smoother (very fast response to track grain count changes)
+        // Configure gain scaling smoother (very fast response to track overlap changes)
         // Use 2ms for fast response while still avoiding clicks
         gainScaleSmoother_.configure(2.0f, static_cast<float>(sampleRate));
 
@@ -189,6 +190,7 @@ public:
         const float freezeAmount = freezeCrossfade_.process();
 
         // Write to delay buffers (unless fully frozen)
+        const bool writes = (freezeAmount < 1.0f) || !frozen_;
         if (freezeAmount < 1.0f) {
             // Crossfade: blend new input with existing buffer during transition
             const float writeAmount = 1.0f - freezeAmount;
@@ -208,14 +210,15 @@ public:
         // Process all active grains
         float sumL = 0.0f;
         float sumR = 0.0f;
-        size_t activeCount = 0;
+        float envelopeSum = 0.0f;
 
         for (Grain* grain : pool_.activeGrains()) {
             if (grain->active) {
-                auto [grainL, grainR] = processor_.processGrain(*grain, delayL_, delayR_);
+                envelopeSum += processor_.envelopeValue(*grain);
+                auto [grainL, grainR] = processor_.processGrain(
+                    *grain, delayL_, delayR_, writes ? 1.0f : 0.0f);
                 sumL += grainL;
                 sumR += grainR;
-                ++activeCount;
 
                 // Check if grain completed
                 if (processor_.isGrainComplete(*grain)) {
@@ -224,12 +227,12 @@ public:
             }
         }
 
-        // Apply 1/sqrt(n) gain scaling to prevent output explosion from overlapping grains
-        // This keeps output level roughly constant regardless of how many grains overlap
-        // Smooth the gain factor to avoid clicks when grain count changes
-        const float targetGain = (activeCount > 0)
-            ? 1.0f / std::sqrt(static_cast<float>(activeCount))
-            : 1.0f;
+        // Overlap-add normalisation: divide by the summed envelopes once they
+        // exceed 1. Grains that read the same audio (pitch 0, no spray) then sum
+        // back to the delayed signal at unity at any density, instead of growing
+        // as sqrt(overlap) the way a 1/sqrt(n) gain lets them. Below an overlap
+        // of 1 the grains are left as they are. Smoothed against clicks.
+        const float targetGain = 1.0f / std::max(1.0f, envelopeSum);
         gainScaleSmoother_.setTarget(targetGain);
         const float smoothedGain = gainScaleSmoother_.process();
 
@@ -292,7 +295,8 @@ private:
             .positionSamples = positionSamples,
             .pan = pan,
             .reverse = reverse,
-            .envelopeType = envelopeType_
+            .envelopeType = envelopeType_,
+            .frozenBuffer = frozen_
         };
 
         processor_.initializeGrain(*grain, params);
@@ -319,7 +323,7 @@ private:
     OnePoleSmoother pitchSmoother_;
     OnePoleSmoother positionSmoother_;
 
-    // Output gain scaling smoother (1/sqrt(n) compensation for overlapping grains)
+    // Output gain scaling smoother (overlap-add normalisation by the envelope sum)
     OnePoleSmoother gainScaleSmoother_;
 
     // Freeze crossfade

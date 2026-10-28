@@ -14,12 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Readable labels**: abbreviations such as "PosJit" and "SzJit" are spelled out, and the same parameter carries the same name in every mode (Mix, Mod Depth, Mod Rate, Width; Tape's delay time reads "Time").
 - **Every readout shows its unit**: Granular, Spectral and Shimmer now show "ms", "%", "st", "Hz" like the other modes; delay times above one second read in seconds; Gain reads in dB; the Freeze readouts show their real values.
 - The plugin's website link now points to krateaudio.com.
+- **Granular starts with an audible delay**: a fresh instance is now tempo-synced, has 40% feedback (like Tape, BBD and Digital) and plays 20 grains per second, so the 100 ms grains overlap into a smooth echo instead of pulsing. Saved projects and presets keep their own settings.
 
 ### Fixed
+
+- **Granular delay played almost nothing at Pitch 0**: every grain held one sample of the buffer instead of playing it, so at the default pitch the wet signal was a faint low thump. Pitch was also wrong above 0 (+12 played at the original pitch) and reverse grains held a sample too. Grains now play the delayed audio at the set pitch, forwards or backwards, live and while frozen.
+- **Granular delay was too quiet, and Density changed its level**: centred grains used a mono pan law on stereo audio, costing 3 dB on both channels, and overlapping grains were scaled in a way that made the delay louder as Density rose. Grains are now normalised by their summed envelopes, so at Pitch 0 the echo comes back at full level whatever the Density (the default wet signal went from 7.3 dB below the input to 0.5 dB below). Dense pitched or sprayed grain clouds come out quieter than before.
 
 - **Sliders drew black and white**: every slider ignored its colours (they were set under attribute names the slider does not read), so all of them showed a black track with a white bar. They now draw in the editor's colours.
 - **Tape head Level readout was wrong**: it read "0.0 dB" at the default while the heads actually played at +3.9 dB, and a project reloaded with a changed head level put the knob in the wrong place, so the next touch jumped the level. The readout and the saved-state load now use the same dB scale as the sound. What you hear is unchanged.
 - **Freeze Euclidean readouts**: Hits and Rotation now update when Steps changes.
+- **Reset to default jumped 20 menus to their first option**: Mode, the Time Mode of Granular, Digital and PingPong, every mode's Note Value, Spectral FFT Size, Freeze Pattern Rate, Drone Interval, Noise Color and Noise Burst Rate, and MultiTap Note Value, Snap, Timing Pattern and Spatial Pattern opened on the right value in a fresh instance, but a host's "reset to default" (for example a double-click) put them on their first option instead (Mode jumped to Granular, Time Mode to Free). They now reset to the value they open with.
 
 ## [0.15.2] - 2026-05-30
 

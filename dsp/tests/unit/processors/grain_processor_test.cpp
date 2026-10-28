@@ -122,13 +122,23 @@ TEST_CASE("GrainProcessor initializeGrain", "[processors][grain-processor][layer
         REQUIRE(grain.readPosition == 2000.0f);
     }
 
-    SECTION("calculates pan gains using constant power pan law") {
+    // A grain reads both channels of a stereo buffer, so panning is a balance:
+    // centre passes both channels at unity (a mono pan law would cost 3 dB).
+    SECTION("pans the stereo grain as a balance, unity at centre") {
         Grain grain{};
 
         // Center pan (0.0)
         GrainParams paramsCenter{.grainSizeMs = 100.0f, .pan = 0.0f};
         processor.initializeGrain(grain, paramsCenter);
-        REQUIRE(grain.panL == Approx(grain.panR).margin(0.01f));  // Equal
+        REQUIRE(grain.panL == Approx(1.0f).margin(0.001f));
+        REQUIRE(grain.panR == Approx(1.0f).margin(0.001f));
+
+        // Half left keeps the left channel whole and turns the right down
+        GrainParams paramsHalfLeft{.grainSizeMs = 100.0f, .pan = -0.5f};
+        processor.initializeGrain(grain, paramsHalfLeft);
+        REQUIRE(grain.panL == Approx(1.0f).margin(0.001f));
+        REQUIRE(grain.panR < 0.9f);
+        REQUIRE(grain.panR > 0.1f);
 
         // Full left (-1.0)
         GrainParams paramsLeft{.grainSizeMs = 100.0f, .pan = -1.0f};
@@ -261,21 +271,33 @@ TEST_CASE("GrainProcessor processGrain", "[processors][grain-processor][layer2]"
         REQUIRE(grain.envelopePhase > initialPhase);
     }
 
-    SECTION("advances read position") {
-        Grain grain{};
-        GrainParams params{
-            .grainSizeMs = 100.0f,
-            .pitchSemitones = 0.0f,
-            .positionSamples = 100.0f,
-            .reverse = false
+    // readPosition is a delay measured back from the write head, so it moves by
+    // (write-head advance - playback rate): a pitch-0 grain on a live buffer keeps
+    // a constant delay, and adding the rate instead holds a single sample.
+    SECTION("read position follows the write head at the playback rate") {
+        auto stepOnce = [&](float pitch, bool reverse, float writeAdvance) {
+            Grain grain{};
+            GrainParams params{
+                .grainSizeMs = 100.0f,
+                .pitchSemitones = pitch,
+                .positionSamples = 2000.0f,
+                .reverse = reverse
+            };
+            processor.initializeGrain(grain, params);
+            const float before = grain.readPosition;
+            (void)processor.processGrain(grain, delayL, delayR, writeAdvance);
+            return grain.readPosition - before;
         };
 
-        processor.initializeGrain(grain, params);
-        float initialPos = grain.readPosition;
+        // Live buffer (the write head moved one sample)
+        REQUIRE(stepOnce(0.0f, false, 1.0f) == Approx(0.0f).margin(1e-4f));
+        REQUIRE(stepOnce(12.0f, false, 1.0f) == Approx(-1.0f).margin(1e-3f));
+        REQUIRE(stepOnce(-12.0f, false, 1.0f) == Approx(0.5f).margin(1e-3f));
+        REQUIRE(stepOnce(0.0f, true, 1.0f) == Approx(2.0f).margin(1e-4f));
 
-        (void)processor.processGrain(grain, delayL, delayR);
-
-        REQUIRE(grain.readPosition > initialPos);
+        // Frozen buffer (the write head did not move)
+        REQUIRE(stepOnce(0.0f, false, 0.0f) == Approx(-1.0f).margin(1e-4f));
+        REQUIRE(stepOnce(0.0f, true, 0.0f) == Approx(1.0f).margin(1e-4f));
     }
 
     SECTION("inactive grain returns zero") {
@@ -349,15 +371,19 @@ TEST_CASE("GrainProcessor pan law produces correct gains", "[processors][grain-p
     GrainProcessor processor;
     processor.prepare(44100.0);
 
-    SECTION("constant power: L^2 + R^2 ≈ 1 for all pan values") {
-        for (float pan = -1.0f; pan <= 1.0f; pan += 0.1f) {
+    SECTION("balance: the near side stays at unity, the far side falls to silence") {
+        float previousFar = 1.0f;
+        for (int step = 0; step <= 10; ++step) {
+            const float pan = static_cast<float>(step) * 0.1f;  // centre to full right
             Grain grain{};
             GrainParams params{.grainSizeMs = 100.0f, .pan = pan};
 
             processor.initializeGrain(grain, params);
 
-            float power = grain.panL * grain.panL + grain.panR * grain.panR;
-            REQUIRE(power == Approx(1.0f).margin(0.01f));
+            REQUIRE(grain.panR == Approx(1.0f).margin(0.001f));
+            REQUIRE(grain.panL <= previousFar + 1e-6f);
+            previousFar = grain.panL;
         }
+        REQUIRE(previousFar == Approx(0.0f).margin(0.001f));
     }
 }

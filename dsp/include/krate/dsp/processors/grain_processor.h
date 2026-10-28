@@ -16,6 +16,7 @@
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/grain_pool.h>
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 #include <vector>
@@ -30,6 +31,7 @@ struct GrainParams {
     float pan = 0.0f;              ///< Pan position (-1 = L, 0 = center, +1 = R)
     bool reverse = false;          ///< Play grain backwards
     GrainEnvelopeType envelopeType = GrainEnvelopeType::Hann;
+    bool frozenBuffer = false;     ///< The buffer's write head is stopped (freeze)
 };
 
 /// Processes individual grains with envelope, pitch shifting, and panning.
@@ -86,21 +88,29 @@ public:
         // Calculate playback rate from pitch
         grain.playbackRate = semitonesToRatio(params.pitchSemitones);
 
-        // Set initial read position
+        // Set initial read position (a delay back from the write head)
         grain.readPosition = params.positionSamples;
 
-        // For reverse playback, start at end of grain and read backwards
         if (params.reverse) {
-            grain.readPosition += grainSizeSamples * grain.playbackRate;
+            // Reverse reads further into the past as it plays, so it can start
+            // at the requested delay.
             grain.playbackRate = -grain.playbackRate;  // Negative rate for reverse
+        } else {
+            // A forward grain closes in on the write head by (rate - write
+            // advance) per sample; start far enough back to never reach it.
+            const float writeAdvance = params.frozenBuffer ? 0.0f : 1.0f;
+            grain.readPosition = std::max(grain.readPosition,
+                                          grainSizeSamples * (grain.playbackRate - writeAdvance));
         }
         grain.reverse = params.reverse;
 
-        // Calculate pan gains using constant power pan law
+        // The grain reads both channels of a stereo buffer, so pan is a balance:
+        // centre passes both channels at unity, and moving to one side turns the
+        // other down along the equal-power curve (scaled so centre is 1).
         // pan: -1 = full left, 0 = center, +1 = full right
         const float panNorm = (params.pan + 1.0f) * 0.5f;  // 0 to 1
-        grain.panL = std::cos(panNorm * kHalfPi);
-        grain.panR = std::sin(panNorm * kHalfPi);
+        grain.panL = std::min(1.0f, kSqrt2 * std::cos(panNorm * kHalfPi));
+        grain.panR = std::min(1.0f, kSqrt2 * std::sin(panNorm * kHalfPi));
 
         grain.amplitude = 1.0f;
         grain.active = true;
@@ -110,11 +120,14 @@ public:
     /// @param grain Grain state to process
     /// @param delayBufferL Left channel delay buffer
     /// @param delayBufferR Right channel delay buffer
+    /// @param writeAdvance Samples the buffers' write head moved since the
+    ///        previous call (1 while recording, 0 while frozen)
     /// @return Pair of {left, right} output samples
     [[nodiscard]] std::pair<float, float> processGrain(
         Grain& grain,
         const DelayLine& delayBufferL,
-        const DelayLine& delayBufferR) noexcept {
+        const DelayLine& delayBufferR,
+        float writeAdvance = 1.0f) noexcept {
         if (!grain.active) {
             return {0.0f, 0.0f};
         }
@@ -138,15 +151,18 @@ public:
         const float outputL = gainedL * grain.panL;
         const float outputR = gainedR * grain.panR;
 
-        // Advance grain state
+        // Advance grain state. readPosition is a delay, so the write head moving
+        // forward adds to it and playback (forward: rate > 0) takes it away.
         grain.envelopePhase += grain.envelopeIncrement;
-        grain.readPosition += std::abs(grain.playbackRate);
-
-        // For reverse, we read further into the past as we progress
-        // For forward, we read closer to the present
-        // The actual direction is handled by the sign of playbackRate during init
+        grain.readPosition += writeAdvance - grain.playbackRate;
 
         return {outputL, outputR};
+    }
+
+    /// Envelope value the grain's next processGrain() call applies
+    [[nodiscard]] float envelopeValue(const Grain& grain) const noexcept {
+        return GrainEnvelope::lookup(envelopeTable_.data(), envelopeTableSize_,
+                                     grain.envelopePhase);
     }
 
     /// Check if grain has completed playback
@@ -158,6 +174,7 @@ public:
 
 private:
     static constexpr float kHalfPi = 1.5707963267948966f;
+    static constexpr float kSqrt2 = 1.4142135623730951f;
 
     void regenerateEnvelope(GrainEnvelopeType type) noexcept {
         GrainEnvelope::generate(envelopeTable_.data(), envelopeTableSize_, type);

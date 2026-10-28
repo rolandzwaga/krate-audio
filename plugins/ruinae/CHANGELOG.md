@@ -5,6 +5,18 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.3] - 2026-10-28
+
+Fixes found while tuning Iterum's Granular mode. Ruinae's Granular delay type runs the same KrateDSP engine, so
+those fixes are listed here too and marked *(shared DSP)*.
+
+### Fixed
+
+- **Reset to default jumped 28 menus to their first option** — Polyphony, both oscillators' Waveform and Sync Waveform, Ring Freq Mode, Phaser Stages, Num Voices, Voice Allocation, the eight Mod Scale menus and every Note Value (Gate, LFO 1 and 2, Chaos, Delay, Phaser, Flanger, Chorus, S&H, Rnd, Arp) opened on the right value in a fresh instance, but a host's "reset to default" (for example a double-click) put them on their first option instead (Polyphony 1, Mod Scale x0.25). They now reset to the value they open with.
+
+- **Granular delay played almost nothing at Pitch 0** *(shared DSP)* — Every grain held a single sample of the buffer instead of playing it, so at Pitch 0 the wet signal was a faint low thump (a 1 kHz tone came back with 10 zero crossings a second instead of 2000). Pitch was also wrong above 0, and reverse grains held a sample too. Grains now play the delayed audio at the set pitch, forwards or backwards, live and while frozen.
+- **Granular delay level grew with Density and lost 3 dB in the centre** *(shared DSP)* — Overlapping grains were scaled by 1/√n, which lets grains reading the same audio grow louder as Density rises, and centred grains used a mono pan law on stereo audio. Grains are now normalised by their summed envelopes, so an unpitched, unsprayed delay passes at unity at any Density, and centre keeps both channels at full level. Dense pitched or sprayed grain clouds come out quieter than before.
+
 ## [0.12.2] - 2026-07-24
 
 Fixes in the shared KrateDSP arpeggiator engine, found by an adversarially-verified

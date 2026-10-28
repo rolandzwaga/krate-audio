@@ -30,7 +30,7 @@ namespace Iterum {
 
 struct GranularParams {
     std::atomic<float> grainSize{100.0f};      // 10-500ms
-    std::atomic<float> density{10.0f};         // 1-100 grains/sec
+    std::atomic<float> density{20.0f};         // 1-100 grains/sec
     std::atomic<float> delayTime{500.0f};      // 0-2000ms
     std::atomic<float> pitch{0.0f};            // -24 to +24 semitones
     std::atomic<float> pitchSpray{0.0f};       // 0-1
@@ -38,10 +38,10 @@ struct GranularParams {
     std::atomic<float> panSpray{0.0f};         // 0-1
     std::atomic<float> reverseProb{0.0f};      // 0-1
     std::atomic<bool> freeze{false};
-    std::atomic<float> feedback{0.0f};         // 0-1.2
+    std::atomic<float> feedback{0.4f};         // 0-1.2
     std::atomic<float> dryWet{0.5f};           // 0-1
     std::atomic<int> envelopeType{0};          // 0-3 (Hann, Trapezoid, Sine, Blackman)
-    std::atomic<int> timeMode{0};              // 0=Free, 1=Synced (spec 038)
+    std::atomic<int> timeMode{1};              // 0=Free, 1=Synced (spec 038)
     std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};  // 0-19 dropdown index (spec 038)
     std::atomic<float> jitter{0.5f};           // 0-1 timing randomness (Phase 2.1)
     std::atomic<int> pitchQuantMode{0};        // 0-4 (Off, Semitones, Octaves, Fifths, Scale) (Phase 2.2)
@@ -218,7 +218,7 @@ inline void registerGranularParams(Steinberg::Vst::ParameterContainer& parameter
         STR16("Density"),
         STR16("gr/s"),
         0,
-        0.091,  // (10-1)/(100-1) = 9/99 ≈ 0.091 (10 grains/sec default)
+        19.0 / 99.0,  // (20-1)/(100-1) (20 grains/sec default: 100 ms grains overlap 2x)
         ParameterInfo::kCanAutomate,
         kGranularDensityId,
         0,
@@ -314,7 +314,7 @@ inline void registerGranularParams(Steinberg::Vst::ParameterContainer& parameter
         STR16("Feedback"),
         STR16("%"),
         0,
-        0.0,  // 0% default
+        0.4 / 1.2,  // 40% default
         ParameterInfo::kCanAutomate,
         kGranularFeedbackId,
         0,
@@ -340,8 +340,9 @@ inline void registerGranularParams(Steinberg::Vst::ParameterContainer& parameter
     ));
 
     // Time Mode: 0=Free, 1=Synced (spec 038)
-    parameters.addParameter(createDropdownParameter(
+    parameters.addParameter(createDropdownParameterWithDefault(
         STR16("Time Mode"), kGranularTimeModeId,
+        1,  // default: Synced (index 1)
         {STR16("Free"), STR16("Synced")}
     ));
 
@@ -546,7 +547,7 @@ inline void loadGranularParams(
         params.envelopeType.store(intVal, std::memory_order_relaxed);
     }
     // Tempo sync parameters (spec 038) - optional for backward compatibility
-    // If not present, defaults from struct initialization are used (Free mode, 1/8 note)
+    // If not present, defaults from struct initialization are used (Synced mode, 1/8 note)
     if (streamer.readInt32(intVal)) {
         params.timeMode.store(intVal, std::memory_order_relaxed);
     }
