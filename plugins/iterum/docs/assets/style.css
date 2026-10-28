@@ -179,6 +179,14 @@ section h2 {
     border-radius: 50%;
 }
 
+/* Overview */
+.overview p {
+    color: var(--color-text-muted);
+    font-size: 1.05rem;
+    line-height: 1.8;
+    margin-bottom: 1rem;
+}
+
 /* Installation */
 .install-instructions {
     display: grid;

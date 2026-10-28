@@ -35,7 +35,7 @@ Iterum is a professional-grade delay plugin offering 10 unique delay algorithms,
 | **Ping-Pong** | Stereo alternating delays with cross-feedback and width control |
 | **Reverse** | Grain-based reverse processing with multiple playback modes |
 | **Multi-Tap** | Up to 16 taps with timing/spatial patterns and morphing |
-| **Freeze** | Infinite sustain with shimmer and decay control |
+| **Freeze** | Captures the input and replays it as Euclidean rhythms, granular scatter, harmonic drones, or noise bursts |
 
 ## Installation
 
