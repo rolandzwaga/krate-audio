@@ -229,8 +229,8 @@ inline void registerModMatrixParams(Steinberg::Vst::ParameterContainer& paramete
             scaleNameW, slotScaleIds[i], nullptr,
             ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
         for (int s = 0; s < kModScaleCount; ++s) scaleParam->appendString(kModScaleStrings[s]);
-        // Set default to x1 (index 2)
-        scaleParam->setNormalized(scaleParam->toNormalized(2.0));
+        // Start at, and register as the default, x1 (index 2)
+        Krate::Plugins::applyDefaultIndex(scaleParam, 2);
         parameters.addParameter(scaleParam);
 
         // Bypass - boolean toggle (T016)

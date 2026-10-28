@@ -16,6 +16,16 @@
 
 namespace Krate::Plugins {
 
+// Starts the list at defaultIndex AND registers it as the default, so a host's
+// "reset to default" returns to the same option (out-of-range: left at option 0).
+inline void applyDefaultIndex(Steinberg::Vst::StringListParameter* param, int32_t defaultIndex) {
+    if (defaultIndex >= 0 && defaultIndex <= param->getInfo().stepCount) {
+        const auto normalized = param->toNormalized(static_cast<Steinberg::Vst::ParamValue>(defaultIndex));
+        param->setNormalized(normalized);
+        param->getInfo().defaultNormalizedValue = normalized;
+    }
+}
+
 // ==============================================================================
 // createDropdownParameter - For COptionMenu / discrete list parameters
 // ==============================================================================
@@ -62,9 +72,7 @@ inline Steinberg::Vst::StringListParameter* createDropdownParameterWithDefault(
         param->appendString(option);
     }
 
-    if (defaultIndex >= 0 && defaultIndex <= param->getInfo().stepCount) {
-        param->setNormalized(param->toNormalized(static_cast<Steinberg::Vst::ParamValue>(defaultIndex)));
-    }
+    applyDefaultIndex(param, defaultIndex);
 
     return param;
 }
@@ -124,9 +132,7 @@ inline Steinberg::Vst::StringListParameter* createDropdownParameterWithDefault(
 
     auto* param = createDropdownParameter(title, id, strings, count);
 
-    if (defaultIndex >= 0 && defaultIndex <= param->getInfo().stepCount) {
-        param->setNormalized(param->toNormalized(static_cast<Steinberg::Vst::ParamValue>(defaultIndex)));
-    }
+    applyDefaultIndex(param, defaultIndex);
 
     return param;
 }
@@ -154,9 +160,7 @@ inline Steinberg::Vst::StringListParameter* createNoteValueDropdown(
         param->appendString(strings[i]);
     }
 
-    if (defaultIndex >= 0 && defaultIndex <= param->getInfo().stepCount) {
-        param->setNormalized(param->toNormalized(static_cast<Steinberg::Vst::ParamValue>(defaultIndex)));
-    }
+    applyDefaultIndex(param, defaultIndex);
 
     return param;
 }

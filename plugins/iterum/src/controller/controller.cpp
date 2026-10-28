@@ -193,8 +193,10 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     modeParam->appendString(STR16("Reverse"));
     modeParam->appendString(STR16("MultiTap"));
     modeParam->appendString(STR16("Freeze"));
-    // Set default to Digital (index 5) - normalized value = 5/9
+    // Set default to Digital (index 5) - normalized value = 5/9 - as both the
+    // starting value and the registered default "reset to default" returns to
     modeParam->setNormalized(5.0 / 9.0);
+    modeParam->getInfo().defaultNormalizedValue = 5.0 / 9.0;
     parameters.addParameter(modeParam);
 
     // ==========================================================================
