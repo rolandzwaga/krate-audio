@@ -38,7 +38,10 @@ class ProcessorRig {
 public:
     ProcessorRig() : proc_(Steinberg::owned(new Iterum::Processor())) {
         REQUIRE(proc_->initialize(nullptr) == Steinberg::kResultOk);
-        Steinberg::Vst::ProcessSetup setup{Steinberg::Vst::kRealtime, Steinberg::Vst::kSample32, kBlock, kSampleRate};
+        Steinberg::Vst::ProcessSetup setup{.processMode = Steinberg::Vst::kRealtime,
+                                           .symbolicSampleSize = Steinberg::Vst::kSample32,
+                                           .maxSamplesPerBlock = kBlock,
+                                           .sampleRate = kSampleRate};
         REQUIRE(proc_->setupProcessing(setup) == Steinberg::kResultOk);
         REQUIRE(proc_->setActive(true) == Steinberg::kResultOk);
         REQUIRE(data_.prepare(*proc_, kBlock, Steinberg::Vst::kSample32));
@@ -52,7 +55,7 @@ public:
 
     ~ProcessorRig() {
         data_.unprepare();
-        proc_->setActive(false);
+        proc_->setActive(static_cast<Steinberg::TBool>(false));
         proc_->terminate();
     }
 
@@ -126,9 +129,12 @@ private:
     return end;
 }
 
+// The Freeze capture fields (Hold, Capture Length, Dry Mode: 3 int32) are appended after the MultiTap Length field.
+constexpr Steinberg::int64 kFreezeTailBytes = 12;
+
 [[nodiscard]] Steinberg::int32 lastInt32(Steinberg::MemoryStream& stream) {
     const Steinberg::int64 end = sizeOf(stream);
-    stream.seek(end - 4, Steinberg::IBStream::kIBSeekSet, nullptr);
+    stream.seek(end - 4 - kFreezeTailBytes, Steinberg::IBStream::kIBSeekSet, nullptr);
     Steinberg::IBStreamer s(&stream, kLittleEndian);
     Steinberg::int32 v = -1;
     REQUIRE(s.readInt32(v));
@@ -221,7 +227,7 @@ TEST_CASE("state round-trip keeps Custom Length and a pre-tail stream loads Free
         const Steinberg::int64 size = sizeOf(*saved);
 
         // The same bytes without the last int32: what every build before this change wrote.
-        std::vector<char> bytes(static_cast<size_t>(size - 4));
+        std::vector<char> bytes(static_cast<size_t>(size - 4 - kFreezeTailBytes));
         Steinberg::int32 read = 0;
         REQUIRE(saved->read(bytes.data(), static_cast<Steinberg::int32>(bytes.size()), &read) == Steinberg::kResultOk);
         auto truncated = Steinberg::owned(new Steinberg::MemoryStream());

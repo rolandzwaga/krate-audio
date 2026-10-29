@@ -320,6 +320,11 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kFreezeEnvelopeReleaseId = 1061,  // 0-2000ms
     kFreezeEnvelopeShapeId = 1062,    // 0-1 (EnvelopeShape enum: Linear, Exponential)
 
+    // Capture parameters (specs/iterum-freeze/design.md 3.1; saved in the state tail after the MultiTap Length field)
+    kFreezeHoldId = 1070,             // toggle: 0 Off, 1 On
+    kFreezeCaptureLengthId = 1071,    // 0-3 (CaptureLength enum: 1/4, 1/2, 1/1, 2/1 = 1, 2, 4, 8 beats)
+    kFreezeDryModeId = 1072,          // 0-1 (DryMode enum: Mix, Insert)
+
     kFreezeEndId = 1099,
 
     // ==========================================================================

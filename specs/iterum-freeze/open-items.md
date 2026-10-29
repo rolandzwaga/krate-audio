@@ -88,7 +88,7 @@ Resolved: design.md 2.5.3 (aligned source heads; research/drone-source-sim.js), 
 Ruling: resolved by R2 for the head scheme; the loop the shifter reads defaults to the whole window (not one beat) and each pass start is jittered as suggested, so rhythmic input does not pulse. Set the D8 bar as an absolute ceiling (p95/p5 depth of at most 3 dB on the drum window).
 
 Resolved: design.md 2.5.3 (four aligned Hann heads over the whole window, uniform pass starts), 3.4, 6.2, D8 (3), 8.2.
-Open: the ruled bar (p95/p5 <= 3 dB on the drum window) cannot be met by the R2 mechanism: research/drone-source-sim.js measures 16.0 dB for the chosen source (13.8-20.7 dB for 4 to 128 heads, 22.3 dB for the drum window itself), and the design may not widen a bar. The user picks a relative bar, a bar at the measured level, a spectral-freeze source, or dropping the row (design.md 8.4). Until then D8 (3) keeps the ruled bar and is expected red.
+Formerly open (ruled R8 below): the ruled bar (p95/p5 <= 3 dB on the drum window) could not be met by the R2 mechanism: research/drone-source-sim.js measures 16.0 dB for the chosen source (13.8-20.7 dB for 4 to 128 heads, 22.3 dB for the drum window itself), and the design may not widen a bar. The user picks a relative bar, a bar at the measured level, a spectral-freeze source, or dropping the row (design.md 8.4). Until then D8 (3) keeps the ruled bar and is expected red.
 
 Ruled R8 (2026-10-29): the bar is relative, the drone's depth at least 6 dB below the drum window's own (predicted 16.0 against 22.3 dB). Resolved: 2.5.3, 6.1, 6.2 (Drones drum row), D8 (3), 8.1 R8, 8.2 row 10.
 

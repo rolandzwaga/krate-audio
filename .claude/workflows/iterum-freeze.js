@@ -312,9 +312,14 @@ const fmtIssues = (list) => list.map((i, n) => `${n + 1}. [${i.severity}] ${i.wh
 
 const gatePrompt = (attempt) => `${CONTEXT}
 TASK: verification gate, attempt ${attempt}. Run, in order, and report each result verbatim:
-1. Build: ${CMAKE} --build build/windows-x64-release --config Release --target dsp_effects_tests plugin_tests approval_tests Iterum --parallel -- /nr:false
+0. node tools/header-consumers.js --tag '[iterum]' 2>&1 | tail -3
+   Its last line names the test executables outside Iterum that include a MODIFIED shared header (design.md 7.3);
+   "none" adds nothing. EXES = dsp_effects_tests plugin_tests approval_tests plus every executable it names.${attempt >= 2 ? `
+   Where it writes "<exe> (or dsp_ieee_tests if listed there)", add dsp_ieee_tests to EXES as well: some consumer
+   TUs (e.g. dsp/tests/unit/systems/profundum_engine_test.cpp) are built into dsp_ieee_tests, not into the layer exe.` : ''}
+1. Build: ${CMAKE} --build build/windows-x64-release --config Release --target <EXES> Iterum --parallel -- /nr:false
    A compile error or ANY warning is a red.
-2. node tools/run-gate.js --filter ${PERF_FILTER} --out ${TMP}/gate-a${attempt} dsp_effects_tests plugin_tests approval_tests 2>&1 | tail -40
+2. node tools/run-gate.js --filter ${PERF_FILTER} --out ${TMP}/gate-a${attempt} <EXES> 2>&1 | tail -40
    (last line GATE GREEN / GATE RED; read a failing shard's log under --out, never re-run to re-read). Never remove
    the filter.
 3. tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Iterum.vst3"
@@ -611,10 +616,39 @@ ${dspImpl.problems.length ? `Open problems it reported: ${dspImpl.problems.join(
 ${EXEC_RULES}`, { label: 'impl:plugin', phase: 'Implement', model: 'opus', schema: IMPL_SCHEMA })
 if (!pluginImpl) throw new Error('plugin implementer died')
 
+// Rulings given after the implementers reported (args.rulings_fix names them, e.g. "R11-R14"). Each is recorded in
+// ${DESIGN} section 8.1 and in the rows it names; this agent applies them before the first gate.
+let rulingsImpl = null
+if (A.rulings_fix) {
+  rulingsImpl = await agent(`${CONTEXT}${NOTES}
+TASK: apply the user's rulings ${A.rulings_fix} of ${DESIGN} section 8.1 (read each ruling row and every row it names in
+sections 1, 2.5.4, 3.1, 6.2, 7.1 and 7.3; the document wins). The two implementers before you finished; build on their
+work and do not undo it. Concretely:
+- R11: in the D4 (1) case and the probe, "held, not live" is asserted by the held-note Goertzel check; r is printed,
+  not asserted.
+- R12: the drone pitch cases D8 (1) and (7) find each voice's peak by a Goertzel search within +/- 10 cents in 0.5-cent
+  steps and assert it within 3 cents of its interval, its level within the row's dB bar.
+- R13: the step bars of D8 (5), D8 (8) and D11 become "at most 2 x the largest step of the ideal output" as the rows
+  define it. Then row D18: the click inside the SHARED PitchShiftProcessor (PitchSync, the read tap clamped when the
+  detected grain shrinks after a tone change). First write the D18 case in the shifter's own test file and run it by
+  name to see it RED; read the shifter code and trace the jump to confirm the cause before changing anything; fix it
+  so the read stays continuous across a grain change and nothing changes while the grain is steady; run D18 by name
+  GREEN. Shimmer uses this shifter: run node tools/header-consumers.js --tag '[iterum]' and, through run-gate.js with
+  the repo's filter plus a tag or name filter, the shifter's and Shimmer's existing cases; none may change verdict.
+- R14: kNoiseLevelDb becomes -10.5 dB; D9 (3) reads the constant; D9 (1) keeps its bar.
+Never widen a bar the rulings do not name and never weaken another case. Build every test executable you touched and
+Iterum with zero warnings. Run by name: D4 (1), D8 (1) (5) (7) (8), D11, D9 (1) (3), D18; then the hidden probe
+"${PROBE_CASE}" and copy its output to ${PROBE_AFTER}. Do not run whole suites; the gate does.
+DSP IMPLEMENTER: ${dspImpl.summary}
+PLUGIN IMPLEMENTER: ${pluginImpl.summary}
+${EXEC_RULES}`, { label: 'impl:rulings', phase: 'Implement', model: 'opus', schema: IMPL_SCHEMA })
+  if (!rulingsImpl) throw new Error('rulings implementer died')
+}
+
 phase('Verify')
 let gate = null
 for (let attempt = 1; attempt <= 3; ++attempt) {
-  gate = await agent(gatePrompt(attempt), { label: `gate:a${attempt}`, phase: 'Verify', model: 'haiku', effort: 'low', agentType: 'build-test-runner', schema: GATE_SCHEMA })
+  gate = await agent(gatePrompt(attempt), { label: `gate:a${attempt}`, phase: 'Verify', model: attempt === 1 ? 'haiku' : 'sonnet', effort: 'low', agentType: 'build-test-runner', schema: GATE_SCHEMA })
   if (gate && gate.green) break
   if (attempt === 3) break
   const failures = gate ? gate.failures.join('\n') : 'the gate agent died; re-run the gate commands yourself to see the state'
@@ -672,7 +706,7 @@ plugin_tests, approval_tests and Iterum with zero warnings; do not run the suite
 FINDINGS:
 ${fmtIssues(reviewLeft)}
 ${EXEC_RULES}`, { label: 'review-fix', phase: 'Review', model: 'sonnet', schema: IMPL_SCHEMA })
-  gate = await agent(gatePrompt(4), { label: 'gate:post-review', phase: 'Review', model: 'haiku', effort: 'low', agentType: 'build-test-runner', schema: GATE_SCHEMA })
+  gate = await agent(gatePrompt(4), { label: 'gate:post-review', phase: 'Review', model: 'sonnet', effort: 'low', agentType: 'build-test-runner', schema: GATE_SCHEMA })
   const second = await parallel([
     () => agent(audioPrompt(2), { label: 'review:audio:r2', phase: 'Review', model: 'opus', schema: ISSUES_SCHEMA }),
     () => agent(visualPrompt(2), { label: 'review:visual:r2', phase: 'Review', model: 'opus', schema: ISSUES_SCHEMA }),

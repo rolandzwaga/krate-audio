@@ -194,19 +194,24 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     double tempoBPM = 120.0;  // fallback
     bool isPlaying = false;
+    const Steinberg::Vst::ProcessContext* pc = data.processContext;
 
-    if (data.processContext) {
-        if (data.processContext->state & Steinberg::Vst::ProcessContext::kTempoValid) {
-            tempoBPM = data.processContext->tempo;
+    if (pc) {
+        if (pc->state & Steinberg::Vst::ProcessContext::kTempoValid) {
+            tempoBPM = pc->tempo;
         }
-        isPlaying = (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
+        isPlaying = (pc->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
     }
 
+    // The song position reaches every mode; only Freeze reads it (specs/iterum-freeze/design.md 4.1)
     Krate::DSP::BlockContext ctx{
         .sampleRate = sampleRate_,
         .blockSize = static_cast<size_t>(data.numSamples),
         .tempoBPM = tempoBPM,
-        .isPlaying = isPlaying
+        .isPlaying = isPlaying,
+        .transportPositionSamples = pc ? pc->projectTimeSamples : 0,
+        .projectTimeMusic = pc ? pc->projectTimeMusic : 0.0,
+        .projectTimeMusicValid = pc != nullptr && (pc->state & Steinberg::Vst::ProcessContext::kProjectTimeMusicValid) != 0
     };
 
     // The tempo reaches the controller as the hidden read-only output parameter 915, in every mode
@@ -349,7 +354,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     savePingPongParams(pingPongParams_, streamer);
     saveMultiTapParams(multiTapParams_, streamer);
     saveTapeSyncParams(tapeParams_, streamer);  // after every mode: see tape_params.h
-    saveMultiTapLengthParams(multiTapParams_, streamer);  // the last field: see multitap_params.h
+    saveMultiTapLengthParams(multiTapParams_, streamer);  // see multitap_params.h
+    saveFreezeCaptureParams(freezeParams_, streamer);  // the last fields: see freeze_params.h
 
     return Steinberg::kResultTrue;
 }
@@ -385,6 +391,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     loadMultiTapParams(multiTapParams_, streamer);
     loadTapeSyncParams(tapeParams_, streamer);  // absent in states from before Tape sync
     loadMultiTapLengthParams(multiTapParams_, streamer);  // absent in states from before Pattern Length: Free
+    loadFreezeCaptureParams(freezeParams_, streamer);  // absent before the Freeze redesign: Hold off, 1/1, Mix
 
     return Steinberg::kResultTrue;
 }
@@ -763,8 +770,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             break;
 
         case DelayMode::Freeze:
-            // Pattern Freeze is always active when in Freeze mode (no checkbox needed)
-            patternFreezeMode_.setFreezeEnabled(true);
             patternFreezeMode_.setPatternType(static_cast<Krate::DSP::PatternType>(
                 freezeParams_.patternType.load(std::memory_order_relaxed)));
 
@@ -815,6 +820,13 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             patternFreezeMode_.setEnvelopeReleaseMs(freezeParams_.envelopeReleaseMs.load(std::memory_order_relaxed));
             patternFreezeMode_.setEnvelopeShape(static_cast<Krate::DSP::EnvelopeShape>(
                 freezeParams_.envelopeShape.load(std::memory_order_relaxed)));
+
+            // Capture parameters (specs/iterum-freeze/design.md 3.1)
+            patternFreezeMode_.setHold(freezeParams_.hold.load(std::memory_order_relaxed) != 0);
+            patternFreezeMode_.setCaptureLength(static_cast<Krate::DSP::CaptureLength>(
+                freezeParams_.captureLength.load(std::memory_order_relaxed)));
+            patternFreezeMode_.setDryMode(static_cast<Krate::DSP::DryMode>(
+                freezeParams_.dryMode.load(std::memory_order_relaxed)));
 
             // Mix parameter
             patternFreezeMode_.setDryWetMix(freezeParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);

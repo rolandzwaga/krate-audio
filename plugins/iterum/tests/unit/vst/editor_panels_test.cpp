@@ -423,7 +423,8 @@ TEST_CASE("Iterum editor panel Freeze: every control live and of the designed cl
                  {kFreezeGranularSizeJitterId, W::S}, {kFreezeDroneVoiceCountId, W::S},
                  {kFreezeDroneIntervalId, W::M}, {kFreezeDroneDriftId, W::S}, {kFreezeDroneDriftRateId, W::S},
                  {kFreezeNoiseColorId, W::M}, {kFreezeNoiseBurstRateId, W::M}, {kFreezeNoiseFilterTypeId, W::SEG},
-                 {kFreezeNoiseFilterCutoffId, W::S}, {kFreezeNoiseFilterSweepId, W::S}},
+                 {kFreezeNoiseFilterCutoffId, W::S}, {kFreezeNoiseFilterSweepId, W::S},
+                 {kFreezeHoldId, W::T}, {kFreezeCaptureLengthId, W::M}, {kFreezeDryModeId, W::SEG}},
                 {}, 6, 3});
 }
 

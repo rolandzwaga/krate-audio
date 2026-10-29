@@ -6,8 +6,10 @@
 
 
 
+// Hidden: it rewrites the fixtures that BitIdentical_DefaultModifierLane reads, so in a sharded
+// run it truncated them under a concurrent reader (0 events). Run on demand: "[fixture_gen]".
 TEST_CASE("ArpeggiatorCore: generate SC-002 baseline fixtures",
-          "[processors][arpeggiator_core][fixture_gen]") {
+          "[processors][arpeggiator_core][.fixture_gen]") {
     // Generate baseline fixtures at 3 BPMs
     const std::string basePath = std::string(KRATE_DSP_TESTS_DIR) + "/fixtures/";
 

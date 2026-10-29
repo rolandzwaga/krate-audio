@@ -2843,6 +2843,67 @@ TEST_CASE("PitchShiftProcessor: PitchSync mode keeps a steady tone at unity leve
     }
 }
 
+TEST_CASE("PitchSync stays click-free when the input's pitch drops", "[pitch_shift][pitch_sync]") {
+    // Iterum Freeze design D18: +12 st and -12 st, a 0.5 sine for 1 s, then a phase-continuous sine at the other
+    // frequency for 1 s, block 512. The largest sample step of the output must stay within 2 x the
+    // largest step of an ideal shifted sine at the output's level.
+    // 550 and 233 Hz both sit at the 10 ms minimum grain (2 x period < 441 samples), so between them
+    // the grain never changes. The click is the incoming tap clamped to maxDelay_ when the detected
+    // grain shrinks mid-splice: 130 Hz (a 678-sample grain) -> 440 Hz (441) shrinks it at the change,
+    // and 440 -> 130 Hz is its reverse.
+    // The fix lets a tap above the shrunken grain run on at its rate: upward it shortens back under the grain,
+    // downward it grows until the splice that is already due takes it out, so both directions are driven.
+    constexpr size_t kSegment = static_cast<size_t>(kTestSampleRate);
+    for (const float semitones : {12.0f, -12.0f}) {
+        const double ratio = std::pow(2.0, static_cast<double>(semitones) / 12.0);
+        for (const auto& tones : {std::array<double, 2>{550.0, 233.0}, std::array<double, 2>{233.0, 550.0},
+                                  std::array<double, 2>{130.0, 440.0}, std::array<double, 2>{440.0, 130.0}}) {
+            PitchShiftProcessor processor;
+            processor.prepare(kTestSampleRate, kTestBlockSize);
+            processor.setMode(PitchMode::PitchSync);
+            processor.setSemitones(semitones);
+
+            std::vector<float> input(2 * kSegment);
+            double phase = 0.0;
+            for (size_t i = 0; i < input.size(); ++i) {
+                input[i] = static_cast<float>(0.5 * std::sin(phase));
+                phase += 2.0 * 3.14159265358979323846 * tones[i < kSegment ? 0 : 1] / kTestSampleRate;
+            }
+            std::vector<float> output(input.size());
+            for (size_t s = 0; s < input.size(); s += kTestBlockSize) {
+                const size_t n = std::min(kTestBlockSize, input.size() - s);
+                processor.process(input.data() + s, output.data() + s, n);
+            }
+
+            // The ideal: the shifted sine of each segment at that segment's steady output level.
+            double ideal = 0.0;
+            for (size_t seg = 0; seg < 2; ++seg) {
+                double e = 0.0;
+                const size_t a = seg * kSegment + kSegment / 2;
+                const size_t b = (seg + 1) * kSegment;
+                for (size_t i = a; i < b; ++i) {
+                    e += static_cast<double>(output[i]) * output[i];
+                }
+                const double amplitude = std::sqrt(2.0 * e / static_cast<double>(b - a));
+                ideal = std::max(ideal, 2.0 * amplitude *
+                                            std::sin(3.14159265358979323846 * ratio * tones[seg] / kTestSampleRate));
+            }
+            double step = 0.0;
+            size_t at = 0;
+            for (size_t i = 1; i < output.size(); ++i) {
+                const double d = std::abs(static_cast<double>(output[i]) - output[i - 1]);
+                if (d > step) {
+                    step = d;
+                    at = i;
+                }
+            }
+            INFO(semitones << " st, " << tones[0] << " -> " << tones[1] << " Hz: max step " << step << " at sample " << at << " ("
+                          << static_cast<double>(at) / kTestSampleRate << " s), ideal shifted sine " << ideal);
+            CHECK(step <= 2.0 * ideal);
+        }
+    }
+}
+
 // ==============================================================================
 // Sub-block smoothing tests (US6 — per-sample parameter automation)
 // ==============================================================================

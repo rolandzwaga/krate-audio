@@ -192,7 +192,7 @@ TEST_CASE("Freeze readouts print the 6.4 units from the processor's mappings", "
     };
     const auto f = [&](ParamID id, ParamValue n) { return fz(id, n, steps8); };
 
-    CHECK(f(kFreezeMixId, def(kFreezeMixId)) == "50%");
+    CHECK(f(kFreezeMixId, def(kFreezeMixId)) == "100%");  // fresh default Mix 100 % (design 3.3)
 
     CHECK(f(kFreezeSliceLengthId, 0.0) == "10.0 ms");
     CHECK(f(kFreezeSliceLengthId, def(kFreezeSliceLengthId)) == "200.0 ms");

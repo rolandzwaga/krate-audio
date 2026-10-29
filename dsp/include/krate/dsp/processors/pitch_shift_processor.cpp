@@ -234,6 +234,14 @@ void PitchSyncGranularShifter::processGranularSample(float* output, std::size_t 
         const float crossfadeRate = std::max(1.0f, std::abs(delayChange)) / crossfadeLength;
         const float triggerThreshold = crossfadeLength;
 
+        // A tap the grain shrank under (the detected period fell, and maxDelay_ with it) is
+        // not pulled down to the new maximum: that jump of the read position clicks under the
+        // tap's gain. It keeps moving at its rate, held only to the longest grain the buffer
+        // serves, until it is back under maxDelay_. While the grain is steady no tap starts a
+        // sample above maxDelay_, so nothing changes there.
+        bool above1 = delay1_ > maxDelay_;
+        bool above2 = delay2_ > maxDelay_;
+
         // Read from both delay taps
         float readPos1 = static_cast<float>(writePos_) - delay1_;
         float readPos2 = static_cast<float>(writePos_) - delay2_;
@@ -271,6 +279,7 @@ void PitchSyncGranularShifter::processGranularSample(float* output, std::size_t 
             if (approachingLimit) {
                 const float target = (pitchRatio > 1.0f) ? maxDelay_ : minDelay_;
                 beginSplice(target, crossfadeLength * std::min(1.0f, std::abs(delayChange)));
+                above2 = false;  // a new incoming tap, placed under the grain
                 needsCrossfade_ = true;
             }
         }
@@ -283,11 +292,13 @@ void PitchSyncGranularShifter::processGranularSample(float* output, std::size_t 
                 crossfadePhase_ = 0.0f;
                 needsCrossfade_ = false;
                 std::swap(delay1_, delay2_);
+                std::swap(above1, above2);
             }
         }
 
-        delay1_ = std::clamp(delay1_, minDelay_, maxDelay_);
-        delay2_ = std::clamp(delay2_, minDelay_, maxDelay_);
+        const float longestGrain = static_cast<float>(maxGrainSamples_);
+        delay1_ = std::clamp(delay1_, minDelay_, above1 ? longestGrain : maxDelay_);
+        delay2_ = std::clamp(delay2_, minDelay_, above2 ? longestGrain : maxDelay_);
 
         writePos_ = (writePos_ + 1) % bufferSize_;
     }
@@ -300,7 +311,10 @@ void PitchSyncGranularShifter::beginSplice(float target, float travel) noexcept 
         // With nothing to match, it starts at the far end and the taps count as unrelated.
         delay2_ = target;
         spliceCorrelation_ = 0.0f;
-        const auto minOffset = static_cast<std::size_t>(std::ceil(travel));
+        // An outgoing tap the grain shrank under (see processGranularSample) is above
+        // maxDelay_; the incoming tap still starts under it.
+        const float underGrain = (target < delay1_) ? std::max(0.0f, delay1_ - maxDelay_) : 0.0f;
+        const auto minOffset = static_cast<std::size_t>(std::ceil(std::max(travel, underGrain)));
         const auto maxOffset = static_cast<std::size_t>(std::abs(target - delay1_));
         if (minOffset == 0 || minOffset > maxOffset) return;
 

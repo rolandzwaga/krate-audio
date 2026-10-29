@@ -163,6 +163,9 @@
       <control-tag name="FreezeEnvelopeAttack" tag="1060"/>
       <control-tag name="FreezeEnvelopeRelease" tag="1061"/>
       <control-tag name="FreezeEnvelopeShape" tag="1062"/>
+      <control-tag name="FreezeHold" tag="1070"/>
+      <control-tag name="FreezeCaptureLength" tag="1071"/>
+      <control-tag name="FreezeDryMode" tag="1072"/>
       <control-tag name="DigitalAgeLabel" tag="9902"/>
       <control-tag name="MultiTapCopyPatternButton" tag="921"/>
       <control-tag name="MultiTapCustomLength" tag="914"/>
@@ -617,10 +620,15 @@
          <view class="ArcKnob" origin="8, 8" size="56, 56" control-tag="FreezeDryWet" arc-color="accent" guide-color="slider-frame" arc-width="3"/>
          <view class="CTextLabel" origin="76, 10" size="120, 16" title="Mix" font="label-font" font-color="text-dim" text-alignment="left" transparent="true"/>
          <view class="CParamDisplay" origin="76, 30" size="120, 24" control-tag="FreezeDryWet" font="readout-font" font-color="text" text-alignment="left" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" style-no-frame="true"/>
+         <view class="ToggleButton" origin="200, 32" size="76, 22" control-tag="FreezeHold" title="Hold" title-position="right" icon-style="power" icon-size="0.6" font="label-font" on-color="accent" off-color="text-dim"/>
       </view>
-      <view class="FieldsetContainer" origin="12, 96" size="284, 180" fieldset-title="SLICE" fieldset-color="border" fieldset-title-color="text-dim" fieldset-font-size="11" fieldset-radius="4" fieldset-line-width="1" transparent="true">
-         <view class="CTextLabel" origin="12, 24" size="260, 16" title="Slice Mode" font="label-font" font-color="text-dim" text-alignment="left" transparent="true"/>
-         <view class="CSegmentButton" origin="12, 44" size="260, 24" control-tag="FreezeSliceMode" style="horizontal" selection-mode="kSingle" segment-names="Fixed,Variable" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" frame-width="1" round-radius="3" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
+      <view class="FieldsetContainer" origin="12, 96" size="284, 180" fieldset-title="CAPTURE" fieldset-color="border" fieldset-title-color="text-dim" fieldset-font-size="11" fieldset-radius="4" fieldset-line-width="1" transparent="true">
+         <view class="CTextLabel" origin="12, 24" size="260, 16" title="Capture" font="label-font" font-color="text-dim" text-alignment="left" transparent="true"/>
+         <view class="COptionMenu" origin="12, 44" size="260, 24" control-tag="FreezeCaptureLength" font="value-font" font-color="text" back-color="slider-track" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="3" text-inset="6, 0" menu-popup-style="true" mouse-enabled="true" wants-focus="true"/>
+         <view class="CTextLabel" origin="12, 76" size="260, 16" title="Slice Mode" font="label-font" font-color="text-dim" text-alignment="left" transparent="true"/>
+         <view class="CSegmentButton" origin="12, 96" size="260, 24" control-tag="FreezeSliceMode" style="horizontal" selection-mode="kSingle" segment-names="Fixed,Variable" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" frame-width="1" round-radius="3" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
+         <view class="CTextLabel" origin="12, 128" size="260, 16" title="Dry" font="label-font" font-color="text-dim" text-alignment="left" transparent="true"/>
+         <view class="CSegmentButton" origin="12, 148" size="260, 24" control-tag="FreezeDryMode" style="horizontal" selection-mode="kSingle" segment-names="Mix,Insert" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" frame-width="1" round-radius="3" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
       </view>
       <view class="FieldsetContainer" origin="12, 288" size="284, 180" fieldset-title="ENVELOPE" fieldset-color="border" fieldset-title-color="text-dim" fieldset-font-size="11" fieldset-radius="4" fieldset-line-width="1" transparent="true">
          <view class="CTextLabel" origin="12, 24" size="196, 16" title="Attack" font="label-font" font-color="text-dim" text-alignment="left" transparent="true"/>

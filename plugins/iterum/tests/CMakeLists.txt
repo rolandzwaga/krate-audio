@@ -44,6 +44,9 @@ add_executable(plugin_tests
     # Processor::process driven through HostProcessData: the MultiTap Tempo output, the Custom Length tail and the
     # morph into Custom (specs/iterum-tap-editor/design.md row 4)
     unit/processor/multitap_tempo_output_test.cpp
+    # Freeze through Processor::process: the song position, the capture state tail, a restored Hold, the infinite
+    # tail and the Drones CPU budget (specs/iterum-freeze/design.md rows P4, P10, P11)
+    unit/processor/freeze_transport_test.cpp
 
     # UI tests
     unit/ui/preset_browser_logic_test.cpp

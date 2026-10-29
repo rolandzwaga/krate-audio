@@ -85,6 +85,10 @@ public:
         Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
         Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
 
+    /// An infinite tail in every mode (specs/iterum-freeze/design.md 2.9, R3): hosts read it at activation and
+    /// the SDK has no tail-changed restart flag, so a mode-dependent tail could never reach them
+    Steinberg::uint32 PLUGIN_API getTailSamples() override { return Steinberg::Vst::kInfiniteTail; }
+
     // ===========================================================================
     // IComponent
     // ===========================================================================

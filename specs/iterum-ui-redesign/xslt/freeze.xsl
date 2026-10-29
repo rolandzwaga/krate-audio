@@ -29,27 +29,42 @@
         <xsl:with-param name="tag" select="'FreezePatternType'"/>
         <xsl:with-param name="label" select="'Pattern'"/>
       </xsl:call-template>
-      <!-- core 3: Mix knob -->
+      <!-- core 3: Mix knob + the Hold toggle (specs/iterum-freeze/design.md 3.2) -->
       <xsl:call-template name="knob-cell">
         <xsl:with-param name="x" select="604"/>
         <xsl:with-param name="tag" select="'FreezeDryWet'"/>
         <xsl:with-param name="label" select="'Mix'"/>
+        <xsl:with-param name="toggle-tag" select="'FreezeHold'"/>
+        <xsl:with-param name="toggle-title" select="'Hold'"/>
       </xsl:call-template>
 
-      <!-- SLICE -->
+      <!-- CAPTURE (was SLICE; specs/iterum-freeze/design.md 3.2) -->
       <xsl:call-template name="section">
         <xsl:with-param name="x" select="12"/>
         <xsl:with-param name="y" select="96"/>
         <xsl:with-param name="w" select="284"/>
         <xsl:with-param name="h" select="180"/>
-        <xsl:with-param name="title" select="'SLICE'"/>
+        <xsl:with-param name="title" select="'CAPTURE'"/>
         <xsl:with-param name="content">
-          <xsl:call-template name="segment-cell">
+          <xsl:call-template name="menu-cell">
             <xsl:with-param name="x" select="12"/><xsl:with-param name="y" select="24"/>
+            <xsl:with-param name="w" select="260"/>
+            <xsl:with-param name="tag" select="'FreezeCaptureLength'"/>
+            <xsl:with-param name="label" select="'Capture'"/>
+          </xsl:call-template>
+          <xsl:call-template name="segment-cell">
+            <xsl:with-param name="x" select="12"/><xsl:with-param name="y" select="76"/>
             <xsl:with-param name="w" select="260"/>
             <xsl:with-param name="tag" select="'FreezeSliceMode'"/>
             <xsl:with-param name="label" select="'Slice Mode'"/>
             <xsl:with-param name="segments" select="'Fixed,Variable'"/>
+          </xsl:call-template>
+          <xsl:call-template name="segment-cell">
+            <xsl:with-param name="x" select="12"/><xsl:with-param name="y" select="128"/>
+            <xsl:with-param name="w" select="260"/>
+            <xsl:with-param name="tag" select="'FreezeDryMode'"/>
+            <xsl:with-param name="label" select="'Dry'"/>
+            <xsl:with-param name="segments" select="'Mix,Insert'"/>
           </xsl:call-template>
         </xsl:with-param>
       </xsl:call-template>

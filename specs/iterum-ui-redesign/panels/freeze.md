@@ -9,8 +9,12 @@ the view's parent (template-relative for top-level views, fieldset-relative insi
 `<template name="FreezePanel" class="CViewContainer" origin="0, 0" size="900, 480" background-color="panel" transparent="false">`
 
 No title label (the old `PATTERN FREEZE MODE` label is dropped, 4.11). Every colour, font and gradient is a token name
-from 5.2-5.4; no literal hex. XML order is visual order: core 1, core 2, core 3, SLICE, ENVELOPE, then the four
+from 5.2-5.4; no literal hex. XML order is visual order: core 1, core 2, core 3, CAPTURE, ENVELOPE, then the four
 variants.
+
+The Freeze redesign (`specs/iterum-freeze/design.md` 3.2, applied by `specs/iterum-freeze/xslt/freeze-controls.xsl`)
+added the Hold toggle to core 3 (row 3d), renamed SLICE to CAPTURE and gave it three rows (2.2), and bound three new
+tags: FreezeHold 1070, FreezeCaptureLength 1071, FreezeDryMode 1072 (section 3).
 
 Shorthands used below (the design system's defaults, restated so the XSLT author need not look them up):
 
@@ -46,16 +50,21 @@ cell (4.2, 4.9).
 | 3a | core 3 | ArcKnob | 8, 8 | 56, 56 | FreezeDryWet | | `arc-color="accent" guide-color="slider-frame" arc-width="3"` |
 | 3b | core 3 | CTextLabel (LABEL) | 76, 10 | 120, 16 | | Mix | |
 | 3c | core 3 | CParamDisplay (READOUT-K) | 76, 30 | 120, 24 | FreezeDryWet | | existing formatter prints "%.0f%%" |
+| 3d | core 3 | ToggleButton | 200, 32 | 76, 22 | FreezeHold | Hold | the knob cell's toggle slot (design 4.1, `cells.xsl` `toggle-tag`): `title-position="right" icon-style="power" icon-size="0.6" font="label-font" on-color="accent" off-color="text-dim"`; declared after the readout. Title "Hold", not "Freeze": the mode is itself named Freeze (the host-visible name is "Freeze Hold") |
 
-### 2.2 SLICE (always visible, column 1 row 1)
+### 2.2 CAPTURE (always visible, column 1 row 1; was SLICE)
 
 | # | Parent | Class | Origin | Size | control-tag | Label / title | Attributes beyond defaults |
 |---|---|---|---|---|---|---|---|
-| 4 | FreezePanel | FieldsetContainer (FIELDSET) | 12, 96 | 284, 180 | | SLICE | `fieldset-title="SLICE"` |
-| 4a | SLICE | CTextLabel (LABEL) | 12, 24 | 260, 16 | | Slice Mode | |
-| 4b | SLICE | CSegmentButton (SEGMENT) | 12, 44 | 260, 24 | FreezeSliceMode | | `segment-names="Fixed,Variable"` |
+| 4 | FreezePanel | FieldsetContainer (FIELDSET) | 12, 96 | 284, 180 | | CAPTURE | `fieldset-title="CAPTURE"` |
+| 4a | CAPTURE | CTextLabel (LABEL) | 12, 24 | 260, 16 | | Capture | |
+| 4b | CAPTURE | COptionMenu (MENU) | 12, 44 | 260, 24 | FreezeCaptureLength | | 4 entries from the parameter (1/4, 1/2, 1/1, 2/1); no list in the uidesc |
+| 4c | CAPTURE | CTextLabel (LABEL) | 12, 76 | 260, 16 | | Slice Mode | |
+| 4d | CAPTURE | CSegmentButton (SEGMENT) | 12, 96 | 260, 24 | FreezeSliceMode | | `segment-names="Fixed,Variable"` (moved from row 24) |
+| 4e | CAPTURE | CTextLabel (LABEL) | 12, 128 | 260, 16 | | Dry | |
+| 4f | CAPTURE | CSegmentButton (SEGMENT) | 12, 148 | 260, 24 | FreezeDryMode | | `segment-names="Mix,Insert"` |
 
-Rows 76 and 128 of SLICE are empty (bordered space, principle 6). Slice Length is the core-1 knob directly above.
+All three rows are visible in every pattern type (no visibility rule). Slice Length is the core-1 knob directly above.
 
 ### 2.3 ENVELOPE (always visible, column 1 row 2)
 
@@ -128,7 +137,10 @@ share one silhouette so nothing moves when the pattern changes (principle 5).
 | FreezeSliceLength (1016) | core 1 (12,12): knob + readout, label "Slice Length" | ArcKnob + CParamDisplay |
 | FreezePatternType (1015) | core 2 (308,12), label "Pattern" | COptionMenu |
 | FreezeDryWet (1012) | core 3 (604,12): knob + readout, label "Mix" | ArcKnob + CParamDisplay |
-| FreezeSliceMode (1017) | SLICE (12,96), y 24 full | CSegmentButton Fixed/Variable |
+| FreezeHold (1070) | core 3 (604,12): toggle slot (200,32), title "Hold" | ToggleButton |
+| FreezeCaptureLength (1071) | CAPTURE (12,96), y 24 full | COptionMenu |
+| FreezeSliceMode (1017) | CAPTURE, y 76 full | CSegmentButton Fixed/Variable |
+| FreezeDryMode (1072) | CAPTURE, y 128 full | CSegmentButton Mix/Insert |
 | FreezeEnvelopeAttack (1060) | ENVELOPE (12,288), y 24 full | CSlider + readout |
 | FreezeEnvelopeRelease (1061) | ENVELOPE, y 76 full | CSlider + readout |
 | FreezeEnvelopeShape (1062) | ENVELOPE, y 128 full | CSegmentButton Linear/Exponential |
@@ -150,20 +162,21 @@ share one silhouette so nothing moves when the pattern changes (principle 5).
 | FreezeNoiseFilterCutoff (1053) | NOISE BURSTS, y 76 half R | CSlider + new readout |
 | FreezeNoiseFilterSweep (1054) | NOISE BURSTS, y 128 half L | CSlider + new readout |
 
-24 of 24 bound tags placed; unmapped: none. Load-bearing anchors 1020, 1030, 1040, 1050 are each a direct child of the
+27 of 27 bound tags placed; unmapped: none. Load-bearing anchors 1020, 1030, 1040, 1050 are each a direct child of the
 fieldset that holds all of that pattern's controls. FreezePatternType (1015) drives the visibility thresholds
 0.166 / 0.5 / 0.833 unchanged.
 
 ## 4. Geometry check
 
 - Core cells: x = 12, 308, 604, each 284 wide, y = 12, height 72; gutters 12; right edge 888; bottom 84 < 96. Inside
-  cells: knob 8..64, label/readout from x = 76 to 196 (<= 284), readout bottom 54 <= 72; select cell menu right edge 208.
-- Body: SLICE (12..296, 96..276) and ENVELOPE (12..296, 288..468) do not overlap (12 pt vertical gutter) and
+  cells: knob 8..64, label/readout from x = 76 to 196 (<= 284), readout bottom 54 <= 72; select cell menu right edge 208;
+  core 3's Hold toggle 200..276 x 32..54, right of the readout (196 < 200) and inside the cell (276 <= 284, 54 <= 72).
+- Body: CAPTURE (12..296, 96..276) and ENVELOPE (12..296, 288..468) do not overlap (12 pt vertical gutter) and
   end at y = 468 < 480. The variants (308..888, 96..468) do not overlap column 1 (296 < 308) and end at the 12 pt margin.
 - The four variants share origin and size and are the only stacked pairs (6 stacked pairs, as in the baseline). No
   bipolar cell, so no centre tick. Counts for the structure test (design 9.4): 3 plain `CViewContainer`s (the core
-  cells), 6 `FieldsetContainer`s (SLICE, ENVELOPE, four variants).
-- Inside SLICE, last extent y = 44 + 24 = 68 <= 180, x = 12 + 260 = 272 <= 284. Inside ENVELOPE, last extent
+  cells), 6 `FieldsetContainer`s (CAPTURE, ENVELOPE, four variants).
+- Inside CAPTURE, last extent y = 148 + 24 = 172 <= 180, x = 12 + 260 = 272 <= 284. Inside ENVELOPE, last extent
   y = 148 + 24 = 172 <= 180; label + readout in each slider cell abut (196 + 64 = 260) without overlap.
 - Inside a variant: label (w 208) and readout (w 64) abut at 12+208 = 220 and 296+208 = 504, end at 284 and 568
   (<= 580). Half L ends at 284, half R starts at 296 (12 pt gap). Menu rows end at y 68, 120.
@@ -173,12 +186,12 @@ fieldset that holds all of that pattern's controls. FreezePatternType (1015) dri
 Placements follow design-system 7.10 exactly, so there are no unmapped controls. Items the XSLT/implementation author must
 not "fix":
 
-- **Mirrored body.** SLICE and ENVELOPE are in column 1 and the variants in columns 2-3: this is the documented 2.4/7.10
+- **Mirrored body.** CAPTURE and ENVELOPE are in column 1 and the variants in columns 2-3: this is the documented 2.4/7.10
   exception to "primary is row 1 column 1", not a new deviation.
 - **Core 2 is a select cell holding Pattern** (Freeze has no Feedback parameter), and core 1 holds Slice Length as a
   knob with no Sync (no TimeMode parameter): documented in 3.1 and 4.9.
-- **SLICE contains Slice Mode only** (Slice Length is the core-1 knob); two of its three rows are empty, and ENVELOPE
-  leaves no row empty. Bordered empty space is intended (principle 6).
+- **CAPTURE holds Capture, Slice Mode and Dry** (Slice Length is the core-1 knob); with ENVELOPE, column 1 leaves no
+  row empty. The fieldset was titled SLICE until the Freeze redesign gave it the capture controls.
 - **No `default-value` on any view** (design 4.1, every mode): the parameter's registered default is what VST3Editor
   binds and what a reset restores.
 - **Readout work outside the uidesc** (design-system 9.3 "Complete the Freeze formatter", not this spec): Slice

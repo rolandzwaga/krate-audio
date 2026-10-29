@@ -728,7 +728,10 @@ directly under the Pattern selector (core 2) and Mix (core 3) that choose and bl
 | FreezeSliceLength (1016) | Slice Length | K (no sync) | core 1 | |
 | FreezePatternType (1015) | Pattern | SEL (menu, 4 entries, the parameter's strings: Euclidean, Granular Scatter, Harmonic Drones, Noise Bursts) | core 2 | |
 | FreezeDryWet (1012) | Mix | K | core 3 | |
-| FreezeSliceMode (1017) | Slice Mode | SEG 2 | SLICE (12,96,284,180) | 24 full |
+| FreezeHold (1070) | Hold | T (the knob cell's toggle slot, 4.1) | core 3 | toggle at (200,32,76,22) |
+| FreezeCaptureLength (1071) | Capture | M 4 (1/4, 1/2, 1/1, 2/1) | CAPTURE (12,96,284,180) | 24 full |
+| FreezeSliceMode (1017) | Slice Mode | SEG 2 | CAPTURE | 76 full |
+| FreezeDryMode (1072) | Dry | SEG 2 (Mix, Insert) | CAPTURE | 128 full |
 | FreezeEnvelopeAttack (1060) | Attack | S | ENVELOPE (12,288,284,180) | 24 full |
 | FreezeEnvelopeRelease (1061) | Release | S | ENVELOPE | 76 full |
 | FreezeEnvelopeShape (1062) | Envelope Shape | SEG 2 | ENVELOPE | 128 full |
@@ -751,13 +754,15 @@ directly under the Pattern selector (core 2) and Mix (core 3) that choose and bl
 | FreezeNoiseFilterSweep (1054) | Filter Sweep | S (readout added) | NOISE BURSTS | 128 half L |
 
 The four variant fieldsets are the same size (580 x 372) at the same origin, so the panel's silhouette does not
-change with the pattern. SLICE and ENVELOPE apply to every pattern and stay outside the variants. XML order is
-SLICE, ENVELOPE, then the four variants (column 1 top to bottom, then columns 2-3).
+change with the pattern. CAPTURE and ENVELOPE apply to every pattern and stay outside the variants. XML order is
+CAPTURE, ENVELOPE, then the four variants (column 1 top to bottom, then columns 2-3). The Freeze redesign
+(`specs/iterum-freeze/design.md` 3.2) renamed SLICE to CAPTURE and added Hold, Capture and Dry; the paragraphs
+above that say SLICE describe the fieldset as it was first placed.
 
 ### 7.11 Count check
 
 Bound tags in the inventory: 2 chrome + 17 Granular + 12 Spectral + 10 Shimmer + 18 Tape + 8 BBD + 14 Digital
-(+ 9902) + 9 PingPong + 9 Reverse + 11 MultiTap + 24 Freeze = 134 control-tags with a view, plus 7 NoteValue tags
+(+ 9902) + 9 PingPong + 9 Reverse + 11 MultiTap + 27 Freeze = 137 control-tags with a view, plus 7 NoteValue tags
 reached through the knob swap, 3 MultiTap custom-view tags (920, 921 new placement, 923) and the shared custom views.
 Every row above maps to exactly one of them; the eight centre ticks (Granular 1, Spectral 1, Shimmer 2, Digital 1,
 Tape 3) carry no tag and count for nothing here. Two checks in `uidesc-inventory.js --check --baseline inventory-before.json`

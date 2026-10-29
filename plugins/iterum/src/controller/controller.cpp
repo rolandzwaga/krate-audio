@@ -298,7 +298,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     syncPingPongParamsToController(streamer, *this);  // PingPong Delay (spec 027)
     syncMultiTapParamsToController(streamer, *this);  // MultiTap Delay (spec 028)
     syncTapeSyncParamsToController(streamer, *this);  // Tape tempo sync (after every mode)
-    syncMultiTapLengthParamsToController(streamer, *this);  // MultiTap Custom Length (the last field)
+    syncMultiTapLengthParamsToController(streamer, *this);  // MultiTap Custom Length
+    syncFreezeCaptureParamsToController(streamer, *this);  // Freeze Hold / Capture / Dry Mode (the last fields)
 
     bulkParamLoad_ = false;  // Re-enable per-param view updates
     syncAllViews();           // Single batch sync of all custom views
@@ -1382,7 +1383,8 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     loadPingPongParamsToController(streamer, setParamWithNotify);
     loadMultiTapParamsToController(streamer, setParamWithNotify);
     loadTapeSyncParamsToController(streamer, setParamWithNotify);
-    loadMultiTapLengthParamsToController(streamer, setParamWithNotify);  // the last field
+    loadMultiTapLengthParamsToController(streamer, setParamWithNotify);
+    loadFreezeCaptureParamsToController(streamer, setParamWithNotify);  // the last fields
 
     bulkParamLoad_ = false;  // Re-enable per-param view updates
     syncAllViews();           // Single batch sync of all custom views
