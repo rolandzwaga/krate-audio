@@ -1097,7 +1097,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/flexible_feedback_network.h",
-      "line": 48
+      "line": 49
     },
     {
       "name": "FlipEdges",

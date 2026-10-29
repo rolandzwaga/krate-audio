@@ -12,7 +12,7 @@
 // Features:
 // - Processor injection with mix control (IFeedbackProcessor interface)
 // - Freeze mode (100% feedback + input mute)
-// - Feedback filtering (via MultimodeFilter)
+// - Feedback filtering (one-pole, 6 dB/oct per pass round the loop)
 // - Feedback limiting for >100% feedback stability
 // - Latency reporting (aggregates injected processor latency)
 // - Hot-swap with crossfade
@@ -27,7 +27,8 @@
 #include <krate/dsp/primitives/crossfading_delay_line.h>
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
-#include <krate/dsp/processors/multimode_filter.h>
+#include <krate/dsp/primitives/biquad.h>   // FilterType
+#include <krate/dsp/primitives/one_pole.h>
 #include <krate/dsp/processors/dynamics_processor.h>
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/crossfade_utils.h>
@@ -95,12 +96,15 @@ public:
         routeMixSmoother_.configure(kSmoothTimeMs, static_cast<float>(sampleRate));
 
         // Prepare filters
-        filterL_.prepare(sampleRate, maxBlockSize);
-        filterR_.prepare(sampleRate, maxBlockSize);
-        filterL_.setType(FilterType::Lowpass);
-        filterR_.setType(FilterType::Lowpass);
-        filterL_.setCutoff(4000.0f);
-        filterR_.setCutoff(4000.0f);
+        for (auto* lp : {&lowpassL_, &lowpassR_}) {
+            lp->prepare(sampleRate);
+            lp->setCutoff(4000.0f);
+        }
+        for (auto* hp : {&highpassL_, &highpassR_}) {
+            hp->prepare(sampleRate);
+            hp->setCutoff(4000.0f);
+        }
+        filterType_ = FilterType::Lowpass;
 
         // Prepare limiters for >100% feedback stability
         limiterL_.prepare(sampleRate, maxBlockSize);
@@ -130,8 +134,10 @@ public:
         delayL_.reset();
         delayR_.reset();
 
-        filterL_.reset();
-        filterR_.reset();
+        lowpassL_.reset();
+        lowpassR_.reset();
+        highpassL_.reset();
+        highpassR_.reset();
 
         limiterL_.reset();
         limiterR_.reset();
@@ -292,15 +298,16 @@ public:
     /// @brief Set the filter cutoff frequency
     /// @param hz Cutoff frequency in Hz
     void setFilterCutoff(float hz) noexcept {
-        filterL_.setCutoff(hz);
-        filterR_.setCutoff(hz);
+        lowpassL_.setCutoff(hz);
+        lowpassR_.setCutoff(hz);
+        highpassL_.setCutoff(hz);
+        highpassR_.setCutoff(hz);
     }
 
     /// @brief Set the filter type
-    /// @param type Filter type (lowpass, highpass, etc.)
+    /// @param type Highpass, Bandpass, or Lowpass (any other type filters as Lowpass)
     void setFilterType(FilterType type) noexcept {
-        filterL_.setType(type);
-        filterR_.setType(type);
+        filterType_ = type;
     }
 
     // -------------------------------------------------------------------------
@@ -372,9 +379,14 @@ private:
     bool freezeEnabled_ = false;
 
     // Filter
+    // One pole each: the filter sits in the loop and repeat k passes it k times,
+    // so a gentle 6 dB/oct per pass still darkens or thins every repeat further.
     bool filterEnabled_ = false;
-    MultimodeFilter filterL_;
-    MultimodeFilter filterR_;
+    FilterType filterType_ = FilterType::Lowpass;
+    OnePoleLP lowpassL_;
+    OnePoleLP lowpassR_;
+    OnePoleHP highpassL_;
+    OnePoleHP highpassR_;
 
     // Limiter for >100% feedback
     DynamicsProcessor limiterL_;
@@ -399,6 +411,27 @@ private:
                                          delayTimeSmoother_.getCurrentValue(),
                                          msToSamples(delayTimeMs_)});
         return std::max<std::size_t>(1, static_cast<std::size_t>(shortest));
+    }
+
+    /// @brief The loop filter: one-pole lowpass or highpass, or both in series
+    /// for bandpass with +6 dB, so the centre comes round at unity each pass
+    void applyLoopFilter(float* left, float* right, std::size_t numSamples) noexcept {
+        const bool lowpass = filterType_ != FilterType::Highpass;
+        const bool highpass = filterType_ == FilterType::Highpass || filterType_ == FilterType::Bandpass;
+        if (lowpass) {
+            lowpassL_.processBlock(left, numSamples);
+            lowpassR_.processBlock(right, numSamples);
+        }
+        if (highpass) {
+            highpassL_.processBlock(left, numSamples);
+            highpassR_.processBlock(right, numSamples);
+        }
+        if (filterType_ == FilterType::Bandpass) {
+            for (std::size_t i = 0; i < numSamples; ++i) {
+                left[i] *= 2.0f;
+                right[i] *= 2.0f;
+            }
+        }
     }
 
     /// @brief One pass round the loop for at most one delay's worth of samples
@@ -492,8 +525,7 @@ private:
 
         // Apply filter to feedback if enabled
         if (filterEnabled_) {
-            filterL_.process(feedbackL_.data(), numSamples);
-            filterR_.process(feedbackR_.data(), numSamples);
+            applyLoopFilter(feedbackL_.data(), feedbackR_.data(), numSamples);
         }
 
         // Apply limiting if feedback > 100%

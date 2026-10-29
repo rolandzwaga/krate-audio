@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Granular starts with an audible delay**: a fresh instance is now tempo-synced, has 40% feedback (like Tape, BBD and Digital) and plays 20 grains per second, so the 100 ms grains overlap into a smooth echo instead of pulsing. Saved projects and presets keep their own settings.
 - **Shimmer starts tempo-synced, with 40% feedback** (was free time and 50%), like the other modes. Saved projects and presets keep their own settings.
 - **BBD starts tempo-synced** (was free time), like the other modes. Saved projects and presets keep their own settings.
+- **Reverse starts tempo-synced, with 40% feedback** (was free time and 0%), like the other modes. Saved projects and presets keep their own settings.
+- **Gentler Reverse and Shimmer filters**: the filter now sits in the feedback loop (see the feedback fixes below), so each repeat passes through it again, and at 12 dB/oct that stacked up fast: a 400 Hz highpass took the 80-160 Hz band down 20 dB on the first repeat and 47 dB on the second. It is now a 6 dB/oct one-pole filter, so each repeat still gets thinner (highpass) or darker (lowpass) than the last, at half the rate (about 10, 20, 30 dB in that band). BandPass keeps its centre frequency at full level on every repeat.
 
 ### Fixed
 

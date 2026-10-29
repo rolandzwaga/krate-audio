@@ -11,6 +11,7 @@
 
 #include "parameters/bbd_params.h"
 #include "parameters/granular_params.h"
+#include "parameters/reverse_params.h"
 #include "parameters/shimmer_params.h"
 #include "parameters/spectral_params.h"
 #include "parameters/tape_params.h"
@@ -85,6 +86,21 @@ TEST_CASE("BBD starts synced, with feedback", "[bbd][defaults]") {
 
     SECTION("Feedback defaults to 40%") {
         REQUIRE(def(kBBDFeedbackId) * 1.2 == Approx(0.4).margin(0.001));
+        REQUIRE(fresh.feedback.load() == Approx(0.4f));
+    }
+}
+
+TEST_CASE("Reverse starts synced, with feedback", "[reverse][defaults]") {
+    const auto def = [](ParamID id) { return registeredDefault(registerReverseParams, id); };
+    const ReverseParams fresh;
+
+    SECTION("Time Mode defaults to Synced") {
+        REQUIRE(def(kReverseTimeModeId) == Approx(1.0));
+        REQUIRE(fresh.timeMode.load() == 1);
+    }
+
+    SECTION("Feedback defaults to 40%") {
+        REQUIRE(def(kReverseFeedbackId) * 1.2 == Approx(0.4).margin(0.001));
         REQUIRE(fresh.feedback.load() == Approx(0.4f));
     }
 }

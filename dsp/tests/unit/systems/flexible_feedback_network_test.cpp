@@ -1051,3 +1051,62 @@ TEST_CASE("FlexibleFeedbackNetwork feeds the processed signal back", "[systems][
         }
     }
 }
+
+TEST_CASE("FlexibleFeedbackNetwork filter is first-order and acts on every pass", "[systems][flexible-feedback][filter]") {
+    // A gentle one-pole filter: the first repeat gets 6 dB/oct, and every pass
+    // round the loop applies it again (at 100 % feedback repeat k gets it k times).
+    // 60 ms tone bursts, 200 ms delay; level of each repeat relative to the burst.
+    const auto repeatDb = [](FilterType type, float cutoff, float toneHz, int repeat) {
+        FlexibleFeedbackNetwork network;
+        network.prepare(44100.0, 512);
+        network.setDelayTimeMs(200.0f);
+        network.setFeedbackAmount(1.0f);
+        network.setFilterEnabled(true);
+        network.setFilterType(type);
+        network.setFilterCutoff(cutoff);
+        network.snapParameters();
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = 512;
+        const std::size_t burst = 2646;      // 60 ms
+        const std::size_t period = 8821;     // 200 ms + the loop's one-sample read
+        std::vector<float> left(period * 4, 0.0f);
+        for (std::size_t i = 0; i < burst; ++i) {
+            left[i] = 0.5f * std::sin(6.2831853f * toneHz * static_cast<float>(i) / 44100.0f);
+        }
+        const std::vector<float> input = left;
+        std::vector<float> right = left;
+        for (std::size_t s = 0; s + 512 <= left.size(); s += 512) {
+            network.process(&left[s], &right[s], 512, ctx);
+        }
+        // Middle 40 ms of the burst and of the repeat, past the filter's onset
+        double in = 0.0;
+        double out = 0.0;
+        for (std::size_t i = 441; i < burst - 441; ++i) {
+            in += static_cast<double>(input[i]) * input[i];
+            const float y = left[static_cast<std::size_t>(repeat) * period + i];
+            out += static_cast<double>(y) * y;
+        }
+        return 10.0 * std::log10(out / in);
+    };
+    // First-order magnitudes two octaves from a 1 kHz cutoff: 0.25 / sqrt(1 + 0.25^2)
+    const double twoOctaves = 20.0 * std::log10(0.25 / std::sqrt(1.0 + 0.0625));  // -12.3 dB
+
+    SECTION("highpass: 6 dB/oct, doubling per pass") {
+        CHECK(repeatDb(FilterType::Highpass, 1000.0f, 250.0f, 1) == Approx(twoOctaves).margin(1.0));
+        CHECK(repeatDb(FilterType::Highpass, 1000.0f, 250.0f, 2) == Approx(2.0 * twoOctaves).margin(1.5));
+        CHECK(repeatDb(FilterType::Highpass, 1000.0f, 8000.0f, 1) == Approx(0.0).margin(0.5));
+    }
+
+    SECTION("lowpass: 6 dB/oct, doubling per pass") {
+        CHECK(repeatDb(FilterType::Lowpass, 1000.0f, 4000.0f, 1) == Approx(twoOctaves).margin(1.0));
+        CHECK(repeatDb(FilterType::Lowpass, 1000.0f, 4000.0f, 2) == Approx(2.0 * twoOctaves).margin(1.5));
+        CHECK(repeatDb(FilterType::Lowpass, 1000.0f, 125.0f, 1) == Approx(0.0).margin(0.5));
+    }
+
+    SECTION("bandpass: unity at the centre, so repeats do not shrink there") {
+        CHECK(repeatDb(FilterType::Bandpass, 1000.0f, 1000.0f, 1) == Approx(0.0).margin(0.5));
+        CHECK(repeatDb(FilterType::Bandpass, 1000.0f, 1000.0f, 2) == Approx(0.0).margin(1.0));
+        CHECK(repeatDb(FilterType::Bandpass, 1000.0f, 250.0f, 1) < -5.0);
+    }
+}
