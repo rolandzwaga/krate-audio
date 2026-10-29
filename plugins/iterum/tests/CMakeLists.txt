@@ -74,6 +74,7 @@ add_executable(plugin_tests
     # One headless screenshot per delay mode (hidden [.][screenshots]; node tools/gen-screenshots.js iterum).
     unit/vst/editor_screenshot_test.cpp
     unit/vst/tap_editor_screenshot_test.cpp
+    unit/vst/freeze_screenshot_test.cpp
 
     # Every control of every mode live and of the designed widget, the conditional groups and the Sync retag
     # ([iterum][ui]; specs/iterum-ui-redesign/design-system.md 9.4 step 3).
