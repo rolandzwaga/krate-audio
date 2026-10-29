@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Preset descriptions in the browser** — The preset browser shows the selected preset's description on a line under the list, so you can read what a preset is built around before loading it. Every factory preset has one.
 
+### Fixed
+
+- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.
+
 ## [1.0.1] - 2026-10-11
 
 ### Added

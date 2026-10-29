@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **The FX delay was up to 6 dB too quiet** *(shared DSP)* — The FX delay is the shared spectral delay, which delays each frequency band in whole analysis frames and reached delay times between two frames by blending the two frames, which partly cancels: at 250 ms a tone came back 4.7 to 5.8 dB low and short notes 5 dB low. The delayed bands now come from the nearer frame, shifted the rest of the way in phase, so the echo comes back at full level at any delay time. Presets that use the FX delay get a louder echo, by up to about 6 dB depending on the delay time. Found while tuning Iterum, which uses the same delay.
+- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.
 
 ## [1.0.2] - 2026-10-11
 

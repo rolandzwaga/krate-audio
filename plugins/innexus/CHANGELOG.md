@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Version label** — The version at the bottom of the editor is drawn by the same label every Krate plugin uses, and reads "v1.0.3" instead of "Innexus v1.0.3 | Krate Audio".
 
+### Fixed
+
+- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.
+
 ## [1.0.3] - 2026-10-09
 
 ### Fixed
