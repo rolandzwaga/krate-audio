@@ -1020,7 +1020,8 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 // ID 1418 ON. C-2 coverage holder for delay sync ON; OFF in every
                 // other entry.
                 {kFxDelaySyncId, 1.0},
-                {kFxDelayMixId, 0.45},
+                {kFxDelayMixId, 0.25},  // was 0.45 while the spectral delay came back up to 6 dB too quiet;
+                                        // 0.25 keeps the balance and its distance from Breath Chorus (SC-028)
                 {kFxDelayFeedbackId, 0.63157895},  // 1414 -> value * 0.95 = 0.60
                 {kFxDelayDiffusionId, 0.50},
                 {kBodyMaterialId, 2.0 / 4.0},  // 800 index 2 -> Metal Plate
