@@ -41,6 +41,9 @@ add_executable(plugin_tests
     unit/processor/mode_crossfade_tests.cpp
     unit/processor/mode_switch_buffer_retention_test.cpp
     unit/processor/mix_parameter_conversion_test.cpp
+    # Processor::process driven through HostProcessData: the MultiTap Tempo output, the Custom Length tail and the
+    # morph into Custom (specs/iterum-tap-editor/design.md row 4)
+    unit/processor/multitap_tempo_output_test.cpp
 
     # UI tests
     unit/ui/preset_browser_logic_test.cpp
@@ -50,6 +53,7 @@ add_executable(plugin_tests
     unit/ui/search_debounce_test.cpp
     unit/ui/search_integration_test.cpp
     unit/ui/tap_pattern_editor_test.cpp
+    unit/ui/tap_pattern_editor_view_test.cpp
 
     # VST tests
     unit/vst/control_visibility_test.cpp
@@ -75,15 +79,22 @@ add_executable(plugin_tests
     # ([iterum][ui]; specs/iterum-ui-redesign/design-system.md 9.4 step 3).
     unit/vst/editor_panels_test.cpp
 
+    # The tap pattern editor through the controller: Copy, the parameter bridge, placement, tempo, load paths
+    # ([iterum][ui][tap-editor]; specs/iterum-tap-editor/design.md row 6).
+    unit/vst/tap_editor_controller_test.cpp
+
     # Controller + UI sources needed to instantiate the editor in the open/close
     # lifecycle test.
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/custom_views.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/delay_time_sync_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/tap_pattern_editor.cpp
 
     # Source files needed for linking
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/processdata.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/parameterchanges.cpp
 
     # Stubs for GetPluginFactory/moduleHandle + SDK module init (needed by
     # vstgui_support, esp. on the Linux/valgrind lane).

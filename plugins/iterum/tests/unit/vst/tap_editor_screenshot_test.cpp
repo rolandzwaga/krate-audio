@@ -170,40 +170,76 @@ TEST_CASE("Iterum_TapEditorScreenshots", "[.][screenshots][tap-editor]") {
             std::cout << name << ": " << bytes << " bytes\n";
             CHECK(bytes > 0u);
         };
+        // A set the way the processor's Tempo output reaches the controller: setParamNormalized alone.
+        auto setTempo = [&](double bpm) {
+            controller->setParamNormalized(Iterum::kMultiTapTempoId, (bpm - 20.0) / 280.0);
+            Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
+        };
+        auto setLength = [&](int index) { setParam(Iterum::kMultiTapCustomLengthId, static_cast<double>(index) / 5.0); };
 
-        // custom-4taps: Taps = 4, Snap = 1/4
+        // custom-4taps: the fresh instance (Length 1/1, Snap 1/4): the taps on beats 1-4, identical to Reset
+        setTempo(120.0);
         setParam(Iterum::kMultiTapTapCountId, tapCountNormalized(4));
         setParam(Iterum::kMultiTapSnapDivisionId, kSnapQuarter * kSnapStep);
         shot("custom-4taps.png");
 
-        // custom-8taps: one step at a time, as the slider drag does
+        // custom-8taps: 4 -> 8 one step at a time through the user path (setParamNormalized + performEdit, as the
+        // slider drag does): every eighth, nothing written
         for (int n = 5; n <= 8; ++n) {
             setParam(Iterum::kMultiTapTapCountId, tapCountNormalized(n));
         }
         shot("custom-8taps.png");
 
-        // custom-8taps-snap8 and snap-off (taps stay 8)
-        setParam(Iterum::kMultiTapSnapDivisionId, kSnapEighth * kSnapStep);
-        shot("custom-8taps-snap8.png");
-        setParam(Iterum::kMultiTapSnapDivisionId, kSnapOff * kSnapStep);
-        shot("custom-8taps-snap-off.png");
-
-        // custom-8taps-levels: Snap = 1/4, levels through the level parameters (and the view, as a drag would)
-        setParam(Iterum::kMultiTapSnapDivisionId, kSnapQuarter * kSnapStep);
-        constexpr std::array<float, 8> kLevels{1.0f, 0.7f, 0.5f, 0.35f, 0.25f, 0.1f, 0.05f, 0.0f};
-        for (std::size_t i = 0; i < kLevels.size(); ++i) {
-            setParam(Iterum::kMultiTapCustomLevel0Id + static_cast<Steinberg::Vst::ParamID>(i),
-                     static_cast<double>(kLevels[i]));
-            tapEditor->setTapLevel(i, kLevels[i]);
-        }
-        Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
-        shot("custom-8taps-levels.png");
-
-        // custom-16taps: continue one step at a time to 16 (levels from the previous shot stay)
+        // custom-16taps: on to 16 the same way: every sixteenth
         for (int n = 9; n <= 16; ++n) {
             setParam(Iterum::kMultiTapTapCountId, tapCountNormalized(n));
         }
         shot("custom-16taps.png");
+
+        // back to 8 (a decrease writes nothing), then the Snap shots
+        setParam(Iterum::kMultiTapTapCountId, tapCountNormalized(8));
+        setParam(Iterum::kMultiTapSnapDivisionId, kSnapEighth * kSnapStep);
+        shot("custom-8taps-snap8.png");
+        setParam(Iterum::kMultiTapSnapDivisionId, kSnapOff * kSnapStep);
+        shot("custom-8taps-snap-off.png");  // the beat and bar grid must stay readable with Snap Off
+
+        // custom-8taps-levels: Snap 1/4, the eight levels through the level parameters only (one at -46 dB, one silent)
+        setParam(Iterum::kMultiTapSnapDivisionId, kSnapQuarter * kSnapStep);
+        const std::array<float, 8> levels{1.0f, 0.7f, 0.5f, 0.25f, 0.1f, 0.05f, 0.00501f, 0.0f};
+        for (std::size_t i = 0; i < levels.size(); ++i) {
+            setParam(Iterum::kMultiTapCustomLevel0Id + static_cast<Steinberg::Vst::ParamID>(i),
+                     static_cast<double>(levels[i]));
+        }
+        shot("custom-8taps-levels.png");
+
+        // custom-8taps-free: Length Free, the legacy 5 s axis with the tempo's beat grid
+        setLength(0);
+        shot("custom-8taps-free.png");
+
+        // custom-8taps-2bars-60bpm: Length 2/1 at 60 BPM after Reset: the over-ceiling region and eight taps dividing
+        // the playable 5 s
+        setLength(5);
+        setTempo(60.0);
+        controller->resetPatternToDefault();
+        Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
+        shot("custom-8taps-2bars-60bpm.png");
+
+        // custom-length8-snap4: Length 1/8 with Snap 1/4: the 1/16 fallback lines
+        setTempo(120.0);
+        setLength(1);
+        shot("custom-length8-snap4.png");
+
+        // The read-only display of the other patterns, on the Length Copy would choose
+        setLength(4);
+        setParam(Iterum::kMultiTapTimingPatternId, 2.0 / 19.0);  // Quarter
+        setParam(Iterum::kMultiTapTapCountId, tapCountNormalized(8));
+        shot("preset-quarter-8taps.png");  // on 2/1; the review checks the title line under the Copy row
+        setParam(Iterum::kMultiTapTapCountId, tapCountNormalized(16));
+        shot("preset-quarter-16taps.png");  // on Free, taps 10-16 stacked at 5 s
+        setParam(Iterum::kMultiTapTimingPatternId, 14.0 / 19.0);  // Golden Ratio
+        setParam(Iterum::kMultiTapNoteValueId, 2.0 / 9.0);        // 1/4
+        setParam(Iterum::kMultiTapTapCountId, tapCountNormalized(8));
+        shot("preset-golden-8taps.png");
 
         view->removed();
         view->release();

@@ -153,7 +153,13 @@ const SHOT_STATES = [
   { file: 'custom-16taps.png', what: 'then Taps raised one step at a time to 16' },
   { file: 'custom-8taps-snap8.png', what: 'Taps = 8 (as reached above), Snap = 1/8' },
   { file: 'custom-8taps-snap-off.png', what: 'Taps = 8, Snap = Off' },
-  { file: 'custom-8taps-levels.png', what: 'Taps = 8, Snap = 1/4, tap levels set through the level parameters to 1.0, 0.7, 0.5, 0.35, 0.25, 0.1, 0.05, 0.0 (how the level axis reads)' },
+  { file: 'custom-8taps-levels.png', what: 'Taps = 8, Snap = 1/4, tap levels set through the level parameters to 1.0, 0.7, 0.5, 0.25, 0.1, 0.05, 0.00501 (-46 dB), 0.0 (how the level axis reads)' },
+  { file: 'custom-8taps-free.png', what: 'Length = Free (the legacy 5 s axis with the tempo beat grid)' },
+  { file: 'custom-8taps-2bars-60bpm.png', what: 'Length = 2/1 at 60 BPM after Reset: over-ceiling region, eight taps dividing the playable 5 s' },
+  { file: 'custom-length8-snap4.png', what: 'Length = 1/8 with Snap = 1/4: the 1/16 fallback lines' },
+  { file: 'preset-quarter-8taps.png', what: 'Timing Pattern = Quarter, 8 taps, Length 2/1 (read-only display; title line under the Copy row)' },
+  { file: 'preset-quarter-16taps.png', what: 'Quarter, 16 taps, Length Free: taps 10-16 stacked at 5 s' },
+  { file: 'preset-golden-8taps.png', what: 'Timing Pattern = Golden Ratio, Note Value 1/4, 8 taps (read-only display)' },
 ]
 const SHOT_LIST = SHOT_STATES.map(s => `  ${s.file}: ${s.what}`).join('\n')
 
@@ -298,10 +304,11 @@ TASK: verification gate, attempt ${attempt}. Run, in order, and report each resu
    holds the processor's golden renders: a processor or DSP change reaches them, so they run. Never remove the filter.
 3. tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Iterum.vst3"
 4. Screenshots: mkdir -p ${SHOTS_AFTER}; ${SHOT_ENV}=${SHOTS_AFTER} build/windows-x64-release/bin/Release/plugin_tests.exe "Iterum_TapEditorScreenshots"
-   (the one hidden case by name; ${SHOT_STATES.length} PNGs expected)
+   (the one hidden case by name; at least ${SHOT_STATES.length} PNGs expected: the design adds preset-pattern shots
+   to the case, so more is right, fewer is a red; list the files written)
 5. If the dsp_systems Profundum evidence files changed (git status --short -- specs/profundum-*), restore them with
    git checkout -- <those paths>; a test rewrote them, it is not a code change.
-green = build clean AND every GATE GREEN AND pluginval passed AND ${SHOT_STATES.length} shots written. Change nothing else.
+green = build clean AND every GATE GREEN AND pluginval passed AND the case passed with at least ${SHOT_STATES.length} shots written. Change nothing else.
 ${EXEC_RULES}`
 
 // ===========================================================================
@@ -524,7 +531,7 @@ const pre = await agent(`${CONTEXT}
 TASK: preflight for the build stage. Check, and report each failed check as a problem:
 1. git branch --show-current is NOT main.
 2. ${DESIGN} exists, has no "[TBD]" or "placeholder" text, and ${OPEN} (if it exists) has no line starting with "Open:".
-3. ${SHOT_FILE} exists and ${SHOTS_BEFORE}/ holds ${SHOT_STATES.length} PNGs.
+3. ${SHOT_FILE} exists and ${SHOTS_BEFORE}/ holds 6 PNGs.
 4. git status --short -- ${UIDESC} plugins/iterum/src dsp/include is empty (the build starts from the committed code).
 5. npx xslt3 -? runs.
 ok = every check passed. Change nothing.
@@ -613,6 +620,8 @@ phase('Review')
 const visualPrompt = (round) => `${CONTEXT}
 TASK: visual review, round ${round}. Compare each ${SHOTS_BEFORE}/FILE with ${SHOTS_AFTER}/FILE (Read tool shows images):
 ${SHOT_LIST}
+The first six have a before-shot; the rest were added by the design (Length, preset-pattern and fallback states) and
+are judged against the design alone. Judge them
 against ${DESIGN} sections 2-6 and specs/iterum-ui-redesign/design-system.md. You wrote none of this; judge what is on
 screen: new taps visible and on free grid lines after every count step; the grid and ruler show the designed timing
 and labels; tap numbers readable at every level; nothing clipped at the edges; two taps on one line distinguishable;
@@ -661,17 +670,23 @@ the Ruinae changelog ONLY if dsp/include/krate/dsp/effects/multi_tap_delay.h cha
 
 const lint = await agent(`${CONTEXT}
 TASK: close-out checks. Run and report verbatim:
-1. clang-tidy on every modified or new C++ file (git status --short -- plugins/iterum/src plugins/iterum/tests dsp/include dsp/tests):
-   for each file: "/c/Program Files/LLVM/bin/clang-tidy.exe" -p build/windows-ninja --quiet FILE 2>&1 | grep -v "bugprone-chained-comparison\\|cppcoreguidelines-avoid-do-while" | grep "warning:\\|error:"
-   (the two filtered checks are accepted repo-wide; anything else printed is a red; if build/windows-ninja has no
-   compile_commands.json, say so as a problem instead of skipping silently).
+1. clang-tidy, the repo's script (never a header on its own: that reports every pre-existing line of the header):
+   pwsh -NoProfile -File ./tools/run-clang-tidy.ps1 -Target iterum -BuildDir build/windows-ninja
+   (its last lines read "Errors: N" / "Warnings: N"; both must be 0), plus, for every modified or new file under
+   plugins/iterum/tests, dsp/tests and the test TU of a modified dsp/include header:
+   "/c/Program Files/LLVM/bin/clang-tidy.exe" -p build/windows-ninja --quiet FILE 2>&1 | grep -v "bugprone-chained-comparison\\|cppcoreguidelines-avoid-do-while" | grep "warning:\\|error:"
+   (the two filtered checks are accepted repo-wide; anything else printed in a changed line is a red; if
+   build/windows-ninja has no compile_commands.json, say so as a problem instead of skipping silently).
 2. node tools/lint-plugin-editor-baseline.js
 3. node tools/gen-symbols.js   (the commit hook checks specs/_architecture_/symbols.json; report "regenerated")
 4. node tools/clean-test-output.js (dry run first; if its listing includes anything under ${DIR}/ do not apply and
    say so), then node tools/clean-test-output.js --apply; report its last 5 lines.
 5. git status --short -- specs/profundum-*  must be empty; if not, git checkout -- those paths (test evidence rewrite).
 green = clang-tidy printed nothing AND the editor baseline lint passed. Change nothing else.
-${EXEC_RULES}`, { label: 'close', phase: 'Close', model: 'haiku', effort: 'low', schema: LINT_SCHEMA })
+Copy every clang-tidy warning line into clangTidy BEFORE step 4 runs (the cleanup removes the log folder). Your
+StructuredOutput must carry all six fields: green, clangTidy, editorBaseline, symbols, cleanup, problems (empty
+array when none); a run on 2026-10-29 failed five times by leaving fields out.
+${EXEC_RULES}`, { label: 'close', phase: 'Close', model: 'sonnet', schema: LINT_SCHEMA })
 
 return {
   stage: 'build',

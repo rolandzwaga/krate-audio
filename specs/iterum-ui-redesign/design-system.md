@@ -696,13 +696,14 @@ Core cell 1 is a select cell (4.2): MultiTap has no time knob; the Timing Patter
 | MultiTapNoteModifier (912) | Note Modifier | SEG 3 | NOTE VALUE | 76 full |
 | MultiTapFeedbackLPCutoff (906) | LP Cutoff | S | FEEDBACK FILTER (604,96,284,180) | 24 full |
 | MultiTapFeedbackHPCutoff (907) | HP Cutoff | S | FEEDBACK FILTER | 76 full |
-| MultiTapSnapDivision (913) | Snap | M 22 | CUSTOM PATTERN (12,288,876,180), conditional container, anchor tag 920 | **title line**: label CTextLabel (548,4,40,16), COptionMenu (592,0,110,24) |
+| MultiTapCustomLength (914) | Pattern Length | M 6 | TAP PATTERN (12,288,876,180), always visible; per-control visibility (Custom only) | **title line**: label CTextLabel (330,4,92,16, tag 922), COptionMenu (426,0,110,24) |
+| MultiTapSnapDivision (913) | Snap | M 22 | TAP PATTERN (12,288,876,180), always visible; per-control visibility (Custom only) | **title line**: label CTextLabel (548,4,40,16, tag 922), COptionMenu (592,0,110,24) |
 | ResetPatternButton (custom, tag 923) | Reset | custom CView | CUSTOM PATTERN | title line, (784,0,80,24) |
 | TapPatternEditor (custom, tag 920) | | custom CView | CUSTOM PATTERN | (12,28,852,140); bottom pad 12 |
 | CopyPatternButton (custom, tag 921; **new placement**, the controller already creates it) | Copy to Custom | custom CView at wrapper-relative (714,0,150,24) | its own `CViewContainer origin="12, 288" size="876, 24" transparent="true"`, the last sibling of CUSTOM PATTERN at the same origin (stacked); full attribute set in 8.2 | shown by the controller when the pattern is not Custom; panel-absolute (726,288,150,24), the same title-line slot as Reset (796,288,80,24) |
 
 The NOTE VALUE fieldset is hidden by `ContainerVisibilityController` except for the Mathematical patterns
-(timing pattern 14-18); its cell stays empty otherwise. The CUSTOM PATTERN fieldset is shown only for Custom (19).
+(timing pattern 14-18); its cell stays empty otherwise. The TAP PATTERN fieldset (CUSTOM PATTERN before specs/iterum-tap-editor/design.md section 6) is always visible: the editor shows every pattern, read-only unless Custom (19); Length, Snap, their labels and Reset show only for Custom.
 
 The Snap label, Snap menu and Reset sit on the fieldset's title line (y 0-24, the border runs at y 5.5 behind
 them, legend-style) so the tap editor keeps 140 pt of vertical travel (today 135). The alternative, a Snap/Reset row
@@ -792,7 +793,7 @@ the tool (9.5).
 | Time sync (7 modes) | core cell 1 `CViewContainer` (12,12,284,72) with `sub-controller` | free-time tag, TimeMode tag | ArcKnob + CParamDisplay (free-time tag), Sync ToggleButton (TimeMode tag), the label | anything with another control-tag | always; the knob/readout carry the NoteValue tag while synced, from the panel's creation on (9.3 "Read the Sync state at panel build") and on every toggle |
 | Digital Age | none (per-control) | 9902, 606 | label (9902), slider + readout (606) in CHARACTER row 76 | | Era >= 0.25 (80s Digital, Lo-Fi) |
 | MultiTap note value | NOTE VALUE fieldset (308,96,284,180) | 911 | 911, 912 and their two labels | anything else | timing pattern 14-18 (normalized 14/19 <= v < 19/19) |
-| MultiTap custom pattern | CUSTOM PATTERN fieldset (12,288,876,180) | 920 (TapPatternEditor) | TapPatternEditor (920) at (12,28,852,140), ResetPatternButton (923) at (784,0,80,24), Snap menu (913) at (592,0,110,24) + its label at (548,4,40,16) | the Copy button (921) | timing pattern Custom (v >= 0.99) |
+| MultiTap custom controls | none (per-control `VisibilityController`; the TAP PATTERN fieldset and the editor 920 are always visible) | 913, 914, 922, 923 | Length menu (914) at (426,0,110,24) + its label (922) at (330,4,92,16), Snap menu (913) at (592,0,110,24) + its label (922) at (548,4,40,16), ResetPatternButton (923) at (784,0,80,24) | the Copy button (921) | timing pattern Custom (v >= 0.99) |
 | MultiTap copy button | `<view class="CViewContainer" origin="12, 288" size="876, 24" transparent="true"/>`, the **last** sibling of the panel, at CUSTOM PATTERN's origin (stacked); no background-color | 921 (set by the controller) | CopyPatternButton only, `custom-view-name="CopyPatternButton" origin="714, 0" size="150, 24"` | anything else | timing pattern not Custom (v < 0.99); toggled per control by tag, the wrapper stays visible and, being transparent, neither paints nor swallows clicks |
 | Freeze Euclidean | fieldset (308,96,580,372) | 1020 | 1020, 1021, 1022, 1023 | | pattern < 0.166 |
 | Freeze Granular Scatter | fieldset (308,96,580,372) | 1030 | 1030, 1031, 1032, 1033 | | 0.166 <= pattern < 0.5 |

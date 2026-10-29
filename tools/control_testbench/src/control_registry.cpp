@@ -91,10 +91,12 @@ VSTGUI::CView* TestbenchController::createView(
 
             auto* editor = new Iterum::TapPatternEditor(size);
 
-            // Set up parameter callback to log changes
-            editor->setParameterCallback([](Steinberg::Vst::ParamID paramId, float value) {
+            // Set up the edit sink to log changes
+            Iterum::TapEditSink sink;
+            sink.perform = [](Steinberg::Vst::ParamID paramId, float value) {
                 logParameterChange(paramId, value);
-            });
+            };
+            editor->setEditSink(std::move(sink));
 
             // Set some default taps for testing
             editor->setActiveTapCount(4);
@@ -425,9 +427,11 @@ static bool _tap_editor_registered = []() {
         },
         [](const VSTGUI::CRect& size) -> VSTGUI::CView* {
             auto* editor = new Iterum::TapPatternEditor(size);
-            editor->setParameterCallback([](Steinberg::Vst::ParamID paramId, float value) {
+            Iterum::TapEditSink sink;
+            sink.perform = [](Steinberg::Vst::ParamID paramId, float value) {
                 logParameterChange(paramId, value);
-            });
+            };
+            editor->setEditSink(std::move(sink));
             editor->setActiveTapCount(4);
             return editor;
         }

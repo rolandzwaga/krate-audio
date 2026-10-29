@@ -104,6 +104,9 @@ public:
         return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }
 
+    /// Test access to the MultiTap DSP (read-only)
+    [[nodiscard]] const Krate::DSP::MultiTapDelay& multiTapDelayForTest() const noexcept { return multiTapDelay_; }
+
 protected:
     // ==========================================================================
     // Parameter Handling
@@ -128,6 +131,11 @@ protected:
     /// Reset a single mode's DSP state (clears delay buffers, snaps smoothers)
     /// Called when switching TO a mode to prevent stale buffer playback
     void resetMode(int mode) noexcept;
+
+    /// Writes the MultiTap Tempo output parameter (915) when the tempo moved by 0.05 BPM or more and at least 50 ms
+    /// have passed since the last point, and on the first block after activation. At most 20 points a second.
+    void sendTempoOutput(Steinberg::Vst::IParameterChanges* outputChanges, double tempoBPM,
+                         Steinberg::int32 numSamples) noexcept;
 
 private:
     // ==========================================================================
@@ -213,6 +221,14 @@ private:
     // ==========================================================================
     int lastMultiTapPattern_ = -1;  // -1 = uninitialized (use loadTimingPattern first time)
     int lastMultiTapTapCount_ = -1;
+
+    // ==========================================================================
+    // MultiTap Tempo output (915): the tempo the controller draws the tap editor with
+    // ==========================================================================
+    static constexpr double kTempoSendThresholdBpm = 0.05;
+    static constexpr double kTempoSendSpacingSeconds = 0.05;
+    double lastSentTempo_ = -1.0;  // -1 = nothing sent since activation
+    Steinberg::int64 samplesSinceTempoSend_ = 0;
 };
 
 } // namespace Iterum

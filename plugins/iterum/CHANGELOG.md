@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Tempo sync for Tape**: Tape was the one tempo-capable mode without a Sync switch (the 0.8.0 notes listed it, but its Time Mode and Note Value were never added). Its Time control now has the same Sync toggle as the other modes, a fresh instance starts synced at 1/8, and Motor Inertia glides the tape between note lengths when the tempo changes. Synced times stay within the motor's 20 ms to 2 s. Projects and presets saved before keep running on their Motor Speed.
+- **Pattern Length for the custom tap pattern**: the MultiTap custom pattern now follows the song's tempo (1/8 to 2/1), and Free keeps the 5 s axis; patterns saved before load as Free and sound the same.
 
 ### Changed
 
@@ -24,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BBD starts tempo-synced** (was free time), like the other modes. Saved projects and presets keep their own settings.
 - **Reverse starts tempo-synced, with 40% feedback** (was free time and 0%), like the other modes. Saved projects and presets keep their own settings.
 - **Gentler Reverse and Shimmer filters**: the filter now sits in the feedback loop (see the feedback fixes below), so each repeat passes through it again, and at 12 dB/oct that stacked up fast: a 400 Hz highpass took the 80-160 Hz band down 20 dB on the first repeat and 47 dB on the second. It is now a 6 dB/oct one-pole filter, so each repeat still gets thinner (highpass) or darker (lowpass) than the last, at half the rate (about 10, 20, 30 dB in that band). BandPass keeps its centre frequency at full level on every repeat.
+- **The MultiTap tap editor shows the timing**: a musical grid with labelled beats, the taps of every timing pattern (read-only until you copy them), levels in dB, and the time and level of the tap under the pointer. Shift drags finely and off the grid; Ctrl/Cmd-click resets a tap's level to 0 dB. A new instance's custom pattern starts synced at 1/1 with its taps on the beats, and taps added with the Taps slider fill the eighths, then the sixteenths.
 
 ### Fixed
 
@@ -40,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tape head Level readout was wrong**: it read "0.0 dB" at the default while the heads actually played at +3.9 dB, and a project reloaded with a changed head level put the knob in the wrong place, so the next touch jumped the level. The readout and the saved-state load now use the same dB scale as the sound. What you hear is unchanged.
 - **Freeze Euclidean readouts**: Hits and Rotation now update when Steps changes.
 - **Reset to default jumped 20 menus to their first option**: Mode, the Time Mode of Granular, Digital and PingPong, every mode's Note Value, Spectral FFT Size, Freeze Pattern Rate, Drone Interval, Noise Color and Noise Burst Rate, and MultiTap Note Value, Snap, Timing Pattern and Spatial Pattern opened on the right value in a fresh instance, but a host's "reset to default" (for example a double-click) put them on their first option instead (Mode jumped to Granular, Time Mode to Free). They now reset to the value they open with.
+- **The MultiTap tap editor's grid did not match the timing**: its background lines were fixed quarters of a 5 s axis whatever the Timing Pattern, Snap or tempo, the ruler had no labels, and Snap Off looked like 1/4. The grid now shows the beats of the chosen length and tempo, Snap draws its own lines, and dotted and triplet values are exact. Saved custom patterns load as Free and sound the same.
+- **Raising Taps no longer stacks new taps or overwrites the ones you placed**: new taps used to pile up on the same spot, invisible and impossible to grab, and lowering then raising Taps rewrote the taps you had placed. Copy to Custom reproduces the times and levels the pattern plays at the current tempo; morphing into Custom glides to the custom pattern; tap edits are recorded by host automation.
 
 ## [0.15.2] - 2026-05-30
 

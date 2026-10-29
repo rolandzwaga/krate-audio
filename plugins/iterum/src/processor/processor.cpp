@@ -134,6 +134,9 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         // Reset pattern tracking so next activation uses immediate load
         lastMultiTapPattern_ = -1;
         lastMultiTapTapCount_ = -1;
+        // The first block after activation reports the tempo
+        lastSentTempo_ = -1.0;
+        samplesSinceTempoSend_ = 0;
     }
 
     return AudioEffect::setActive(state);
@@ -206,6 +209,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         .isPlaying = isPlaying
     };
 
+    // The tempo reaches the controller as the hidden read-only output parameter 915, in every mode
+    sendTempoOutput(data.outputParameterChanges, tempoBPM, data.numSamples);
+
     // ==========================================================================
     // Mode Crossfade Processing (spec 041-mode-switch-clicks)
     // Constitution Principle II: Real-Time Safety - no allocations, no locks
@@ -273,6 +279,31 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     return Steinberg::kResultTrue;
 }
 
+void Processor::sendTempoOutput(Steinberg::Vst::IParameterChanges* outputChanges, double tempoBPM,
+                                Steinberg::int32 numSamples) noexcept {
+    if (outputChanges == nullptr) {
+        return;
+    }
+    samplesSinceTempoSend_ += numSamples;
+
+    const double tempo = std::clamp(tempoBPM, kMultiTapTempoMinBpm, kMultiTapTempoMinBpm + kMultiTapTempoRangeBpm);
+    const bool first = lastSentTempo_ < 0.0;
+    const bool moved = std::abs(tempo - lastSentTempo_) >= kTempoSendThresholdBpm;
+    const bool spaced = static_cast<double>(samplesSinceTempoSend_) >= kTempoSendSpacingSeconds * sampleRate_;
+    if (!first && !(moved && spaced)) {
+        return;
+    }
+
+    Steinberg::int32 queueIndex = 0;
+    if (auto* queue = outputChanges->addParameterData(kMultiTapTempoId, queueIndex)) {
+        Steinberg::int32 pointIndex = 0;
+        if (queue->addPoint(0, multiTapTempoToNormalized(tempo), pointIndex) == Steinberg::kResultOk) {
+            lastSentTempo_ = tempo;
+            samplesSinceTempoSend_ = 0;
+        }
+    }
+}
+
 Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
     Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
     Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) {
@@ -318,6 +349,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     savePingPongParams(pingPongParams_, streamer);
     saveMultiTapParams(multiTapParams_, streamer);
     saveTapeSyncParams(tapeParams_, streamer);  // after every mode: see tape_params.h
+    saveMultiTapLengthParams(multiTapParams_, streamer);  // the last field: see multitap_params.h
 
     return Steinberg::kResultTrue;
 }
@@ -352,6 +384,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     loadPingPongParams(pingPongParams_, streamer);
     loadMultiTapParams(multiTapParams_, streamer);
     loadTapeSyncParams(tapeParams_, streamer);  // absent in states from before Tape sync
+    loadMultiTapLengthParams(multiTapParams_, streamer);  // absent in states from before Pattern Length: Free
 
     return Steinberg::kResultTrue;
 }
@@ -669,31 +702,25 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             // Update MultiTap parameters (simplified design)
             // Note Value for mathematical patterns (host tempo used directly from ctx)
             {
-                const int noteIdx = multiTapParams_.noteValue.load(std::memory_order_relaxed);
-                const int modifierIdx = multiTapParams_.noteModifier.load(std::memory_order_relaxed);
-                // Map dropdown indices to DSP enum values
-                // Note Value dropdown: Whole, Half, Quarter, 8th, 16th, 32nd, 64th, (last 3 unused)
-                static constexpr Krate::DSP::NoteValue noteValues[] = {
-                    Krate::DSP::NoteValue::Whole,
-                    Krate::DSP::NoteValue::Half,
-                    Krate::DSP::NoteValue::Quarter,
-                    Krate::DSP::NoteValue::Eighth,
-                    Krate::DSP::NoteValue::Sixteenth,
-                    Krate::DSP::NoteValue::ThirtySecond,
-                    Krate::DSP::NoteValue::SixtyFourth,
-                    Krate::DSP::NoteValue::SixtyFourth,   // 128th not in enum, use 64th
-                    Krate::DSP::NoteValue::Half,          // Unused
-                    Krate::DSP::NoteValue::Quarter        // Unused
-                };
-                static constexpr Krate::DSP::NoteModifier modifiers[] = {
-                    Krate::DSP::NoteModifier::None,
-                    Krate::DSP::NoteModifier::Triplet,
-                    Krate::DSP::NoteModifier::Dotted
-                };
-                const auto note = noteValues[std::min(noteIdx, 9)];
-                const auto modifier = modifiers[std::min(modifierIdx, 2)];
-                multiTapDelay_.setNoteValue(note, modifier);
+                // Map dropdown indices to DSP enum values (one table, shared with the Copy calculator)
+                const auto mapping = multiTapNoteValueFromDropdown(
+                    multiTapParams_.noteValue.load(std::memory_order_relaxed),
+                    multiTapParams_.noteModifier.load(std::memory_order_relaxed));
+                multiTapDelay_.setNoteValue(mapping.note, mapping.modifier);
             }
+            // Custom pattern wiring (spec 046, specs/iterum-tap-editor/design.md 2.5): push the 16 time ratios, the
+            // 16 levels and the Length in every block, whatever the pattern, BEFORE the pattern-change detection,
+            // so morphToPattern(Custom) and loadTimingPattern(Custom, n) read the current values. The setters only
+            // store; the DSP applies the Custom pattern once per block in process().
+            for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+                multiTapDelay_.setCustomTimeRatio(i,
+                    multiTapParams_.customTimeRatios[i].load(std::memory_order_relaxed));
+                multiTapDelay_.setCustomLevelRatio(i,
+                    multiTapParams_.customLevels[i].load(std::memory_order_relaxed));
+            }
+            multiTapDelay_.setCustomLength(static_cast<Krate::DSP::CustomLength>(
+                multiTapParams_.customLength.load(std::memory_order_relaxed)));
+
             // Pattern morphing: detect pattern/tap count changes and morph smoothly
             {
                 const int currentPattern = multiTapParams_.timingPattern.load(std::memory_order_relaxed);
@@ -725,21 +752,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             }
             multiTapDelay_.applySpatialPattern(Parameters::getSpatialPatternFromDropdown(
                 multiTapParams_.spatialPattern.load(std::memory_order_relaxed)));
-
-            // Custom pattern wiring (spec 046): when pattern is Custom (index 19),
-            // update the DSP with user-defined time ratios and levels
-            {
-                const int currentPattern = multiTapParams_.timingPattern.load(std::memory_order_relaxed);
-                if (currentPattern == 19) {  // Custom pattern index
-                    // Transfer custom time ratios and levels from params to DSP
-                    for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
-                        multiTapDelay_.setCustomTimeRatio(i,
-                            multiTapParams_.customTimeRatios[i].load(std::memory_order_relaxed));
-                        multiTapDelay_.setCustomLevelRatio(i,
-                            multiTapParams_.customLevels[i].load(std::memory_order_relaxed));
-                    }
-                }
-            }
 
             // Note: baseTimeMs is derived from Note Value + host tempo in process() for mathematical patterns
             // Rhythmic patterns derive timing from pattern name + host tempo directly

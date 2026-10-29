@@ -13,7 +13,7 @@ No panel title label (the old "MULTI-TAP DELAY" CTextLabel is removed).
 y   0
    12  [Timing Pattern select 12,12,284,72] [Feedback knob 308,12,284,72] [Mix knob 604,12,284,72]
    96  [PATTERN 12,96,284,180] [NOTE VALUE 308,96,284,180 (cond.)] [FEEDBACK FILTER 604,96,284,180]
-  288  [CUSTOM PATTERN 12,288,876,180 (cond.; Copy wrapper stacked at 12,288,876,24)]
+  288  [TAP PATTERN 12,288,876,180 (always; Copy wrapper stacked at 12,288,876,24)]
   480
 ```
 
@@ -86,17 +86,23 @@ Rows 24 / 76 / 128 of the standard section.
 | 6e | 6 | CParamDisplay | 208, 76 | 64, 16 | `MultiTapFeedbackHPCutoff` | | slider-cell readout |
 | 6f | 6 | CSlider | 12, 98 | 260, 20 | `MultiTapFeedbackHPCutoff` | | slider-cell set |
 
-### 2.7 CUSTOM PATTERN (row 2, columns 1-3; conditional)
+### 2.7 TAP PATTERN (row 2, columns 1-3; always visible)
+
+Amended 2026-10-29 by specs/iterum-tap-editor/design.md section 6 (applied by
+`specs/iterum-tap-editor/xslt/multitap-editor.xsl`).
 
 | # | Parent | Class | Origin | Size | control-tag / custom-view-name | Label / title | Differs |
 |---|---|---|---|---|---|---|---|
-| 7 | MultiTapPanel | FieldsetContainer | 12, 288 | 876, 180 | none | CUSTOM PATTERN | 4.11 set. Shown only when Timing = Custom (v >= 0.99); the controller finds it through the TapPatternEditor (tag 920) |
-| 7a | 7 | CTextLabel | 548, 4 | 40, 16 | none | "Snap" | label-font, text-dim, `text-alignment="right"`, transparent; title line, the border passes behind it |
-| 7b | 7 | COptionMenu | 592, 0 | 110, 24 | `MultiTapSnapDivision` | | 4.7 menu set (22 entries); title line |
+| 7 | MultiTapPanel | FieldsetContainer | 12, 288 | 876, 180 | none | TAP PATTERN | 4.11 set. Always visible: the editor shows every pattern, read-only unless Custom (tap design 5.9) |
+| 7e | 7 | CTextLabel | 330, 4 | 92, 16 | `MultiTapPatternEditorLabel` (922) | "Pattern Length" | label-font, text-dim, `text-alignment="right"`, `transparent="false" back-color="panel" style-no-frame="true"`; title line, masks the border; shown only for Custom |
+| 7f | 7 | COptionMenu | 426, 0 | 110, 24 | `MultiTapCustomLength` (914) | | 4.7 menu set (6 entries: Free, 1/8, 1/4, 1/2, 1/1, 2/1); title line; shown only for Custom |
+| 7a | 7 | CTextLabel | 548, 4 | 40, 16 | `MultiTapPatternEditorLabel` (922) | "Snap" | label-font, text-dim, `text-alignment="right"`, `transparent="false" back-color="panel" style-no-frame="true"`; title line, masks the border; shown only for Custom |
+| 7b | 7 | COptionMenu | 592, 0 | 110, 24 | `MultiTapSnapDivision` | | 4.7 menu set (22 entries); title line; shown only for Custom |
 | 7c | 7 | CView | 784, 0 | 80, 24 | `custom-view-name="ResetPatternButton"` | "Reset" drawn by the view | title line, right end (right edge 864) |
 | 7d | 7 | CView | 12, 28 | 852, 140 | `custom-view-name="TapPatternEditor"` | | the controller sets tag 920; bottom y 168, 12 pad |
 
-Snap label (x 548-588), Snap menu (592-702), Reset (784-864) and the editor (y 28-168) are pairwise disjoint; the
+Length label (x 330-422), Length menu (426-536), Snap label (548-588), Snap menu (592-702), Reset (784-864) and
+the editor (y 28-168) are pairwise disjoint; the
 title line (y 0-24) never meets the editor (y 28 and below).
 
 ### 2.8 Copy wrapper (last child of the template, stacked on 7)
@@ -104,10 +110,11 @@ title line (y 0-24) never meets the editor (y 28 and below).
 | # | Parent | Class | Origin | Size | custom-view-name | Differs |
 |---|---|---|---|---|---|---|
 | 8 | MultiTapPanel | CViewContainer | 12, 288 | 876, 24 | none | `transparent="true"`, **no** `background-color`; same origin as 7, so the inventory classes it as "stacked", not an overlap |
+| 8 caption | 8 | CTextLabel | 558, 4 | 148, 16 | `MultiTapCopyPatternButton` (921) | "Pattern": label-font, text-dim, right; `transparent="false" back-color="panel" style-no-frame="true"`, so it masks the always-visible fieldset's title line (tap design finding 7) |
 | 8a | 8 | CView | 714, 0 | 150, 24 | `CopyPatternButton` | panel-absolute 726,288,150,24; the controller sets tag 921 and shows it when Timing is not Custom |
 
 Copy and Reset share the title-line slot at the right end (Copy panel-absolute x 726-876, Reset 796-876) and are never
-visible together: Reset hides with 7, Copy hides when Timing = Custom. Copy does not touch the Snap label (560-600) or
+visible together: Reset shows only for Custom, Copy hides when Timing = Custom. Copy does not touch the Snap label (560-600) or
 the Snap menu (604-714).
 
 ## 3. Geometry check

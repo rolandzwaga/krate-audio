@@ -19,6 +19,7 @@
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "preset/preset_manager.h"
 #include "update/update_checker.h"
+#include "controller/tap_editor_param_bridge.h"
 
 #include <memory>
 
@@ -90,6 +91,11 @@ public:
         Steinberg::Vst::ParamID id,
         Steinberg::Vst::ParamValue value) override;
 
+    /// A user gesture on a bound control: VST3Editor calls setParamNormalized, then performEdit. A Taps increase
+    /// made this way places the revealed taps that collide (specs/iterum-tap-editor/design.md 3.3).
+    Steinberg::tresult performEdit(Steinberg::Vst::ParamID tag,
+                                   Steinberg::Vst::ParamValue valueNormalized) override;
+
     // ===========================================================================
     // VST3EditorDelegate (VSTGUI)
     // ===========================================================================
@@ -134,11 +140,23 @@ public:
     // Custom Pattern Editor (Spec 046)
     // ===========================================================================
 
-    /// Copy current timing pattern to custom pattern parameters
+    /// Copy current timing pattern to custom pattern parameters: the times and levels that play at the current
+    /// tempo, on a synced Length when no clamp engages, else Free (specs/iterum-tap-editor/design.md 2.6)
     void copyCurrentPatternToCustom();
 
-    /// Reset custom pattern to default linear spread with full levels
-    void resetPatternToDefault();
+    /// Reset the active custom taps to the even division of the playable length at 0 dB (design 3.4)
+    void resetPatternToDefault() const;
+
+    /// True while setComponentState / loadComponentStateWithNotify loads parameters in bulk
+    [[nodiscard]] bool isBulkParamLoad() const { return bulkParamLoad_; }
+
+    /// The tap pattern editor of the open MultiTap panel, looked up by its tag (920) on every call; null when no
+    /// editor is open or the MultiTap panel is not up. UI thread only.
+    [[nodiscard]] TapPatternEditor* tapEditor() const;
+
+    /// Test counters of the pushes into the tap editor: full pushes, and per-id pushes outside a full push
+    [[nodiscard]] size_t tapEditorFullPushCountForTest() const { return tapEditorFullPushCount_; }
+    [[nodiscard]] size_t tapEditorIdPushCountForTest() const { return tapEditorIdPushCount_; }
 
     /// Create a memory stream containing the current component state
     /// Used for preset saving - serializes controller's parameter values
@@ -184,11 +202,29 @@ private:
     // Custom Pattern Editor (Spec 046)
     // ==========================================================================
 
-    TapPatternEditor* tapPatternEditor_ = nullptr;  // Owned by frame
-    // Visibility controller: show pattern editor only when pattern == Custom (index 19)
-    Steinberg::IPtr<Steinberg::FObject> patternEditorVisibilityController_;
+    // Visibility controller: Snap, Length, their labels and Reset show only when pattern == Custom (index 19); the
+    // TAP PATTERN fieldset and the editor are always visible (design section 6)
+    Steinberg::IPtr<Steinberg::FObject> customPatternControlsVisibilityController_;
     // Visibility controller: show Copy Pattern button only when pattern != Custom
     Steinberg::IPtr<Steinberg::FObject> copyPatternButtonVisibilityController_;
+    // Pushes every parameter the tap editor shows into it, synchronously (design 3.6); created in didOpen
+    Steinberg::IPtr<TapEditorParamBridge> tapEditorBridge_;
+
+    /// The tap count before the last setParamNormalized(902), for the placement of a user Taps gesture (3.3)
+    int tapCountBeforeSet_ = 4;
+
+    size_t tapEditorFullPushCount_ = 0;
+    size_t tapEditorIdPushCount_ = 0;
+
+    /// The bridge's handler: one parameter changed (skipped during bulk loads)
+    void onTapEditorParamChanged(Steinberg::Vst::ParamID id);
+    /// Pushes parameter @p id into @p view (and, for the read-only triggers, the read-only pattern)
+    void pushToTapEditor(Steinberg::Vst::ParamID id, TapPatternEditor& view);
+    /// Pushes every parameter the view shows, then the read-only pattern; one full push
+    void pushAllToTapEditor(TapPatternEditor& view);
+    /// The read-only display of the current preset pattern, computed as Copy computes it (design 5.9)
+    void pushPresetPatternToTapEditor(TapPatternEditor& view);
+    void pushToTapEditorImpl(Steinberg::Vst::ParamID id, TapPatternEditor& view);
 
     // ==========================================================================
     // Freeze Mode Pattern Containers (Spec 069)

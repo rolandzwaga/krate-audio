@@ -405,7 +405,8 @@ TEST_CASE("Iterum editor panel MultiTap: every control live and of the designed 
                  {kMultiTapSpatialPatternId, W::M}, {kMultiTapTapCountId, W::S}, {kMultiTapMorphTimeId, W::S},
                  {kMultiTapNoteValueId, W::M}, {kMultiTapNoteModifierId, W::SEG},
                  {kMultiTapFeedbackLPCutoffId, W::S}, {kMultiTapFeedbackHPCutoffId, W::S},
-                 {kMultiTapSnapDivisionId, W::M}, {kMultiTapPatternEditorTagId, W::TapEditor},
+                 {kMultiTapSnapDivisionId, W::M}, {kMultiTapCustomLengthId, W::M},
+                 {kMultiTapPatternEditorTagId, W::TapEditor},
                  {kMultiTapCopyPatternButtonTagId, W::CopyButton},
                  {kMultiTapResetPatternButtonTagId, W::ResetButton}},
                 {}, 4, 4});
@@ -459,6 +460,8 @@ TEST_CASE("Iterum editor Freeze: exactly one pattern variant fieldset is visible
 
 TEST_CASE("Iterum editor MultiTap: note value, custom pattern and copy button follow the timing pattern",
           "[iterum][ui]") {
+    // specs/iterum-tap-editor/design.md section 6: the TAP PATTERN fieldset and the editor are always visible; Snap,
+    // Length, their two labels (922) and Reset show only for Custom; Copy (921) only below it.
     HeadlessEditor ed;
     ed.switchTo(8);
     CViewContainer* panel = ed.panel();
@@ -483,16 +486,57 @@ TEST_CASE("Iterum editor MultiTap: note value, custom pattern and copy button fo
 
         CControl* tapEditor = firstWithTag(panel, kMultiTapPatternEditorTagId);
         REQUIRE(tapEditor != nullptr);
-        auto* customFieldset = dynamic_cast<Krate::Plugins::FieldsetContainer*>(tapEditor->getParentView());
-        REQUIRE(customFieldset != nullptr);
-        CHECK(effectivelyVisible(customFieldset, panel) == s.custom);
+        auto* patternFieldset = dynamic_cast<Krate::Plugins::FieldsetContainer*>(tapEditor->getParentView());
+        REQUIRE(patternFieldset != nullptr);
+        CHECK(effectivelyVisible(patternFieldset, panel));
+        CHECK(effectivelyVisible(tapEditor, panel));
 
-        CControl* copy = firstWithTag(panel, kMultiTapCopyPatternButtonTagId);
+        const std::int32_t customOnlyTags[] = {kMultiTapSnapDivisionId, kMultiTapCustomLengthId,
+                                               kMultiTapResetPatternButtonTagId};
+        for (std::int32_t tag : customOnlyTags) {
+            INFO("tag " << tag);
+            CControl* c = firstWithTag(panel, tag);
+            REQUIRE(c != nullptr);
+            CHECK(effectivelyVisible(c, panel) == s.custom);
+        }
+        const auto labels = controlsWithTag(panel, kMultiTapPatternEditorLabelTagId);
+        REQUIRE(labels.size() == 2u);  // "Pattern Length" and "Snap"
+        for (auto* label : labels) {
+            CHECK(dynamic_cast<VSTGUI::CTextLabel*>(label) != nullptr);
+            CHECK(effectivelyVisible(label, panel) == s.custom);
+        }
+
         CControl* reset = firstWithTag(panel, kMultiTapResetPatternButtonTagId);
-        REQUIRE(copy != nullptr);
         REQUIRE(reset != nullptr);
-        CHECK(effectivelyVisible(copy, panel) == s.copy);
-        CHECK_FALSE((effectivelyVisible(copy, panel) && effectivelyVisible(reset, panel)));
+        const auto copyViews = controlsWithTag(panel, kMultiTapCopyPatternButtonTagId);
+        REQUIRE_FALSE(copyViews.empty());
+        for (auto* copy : copyViews) {
+            CHECK(effectivelyVisible(copy, panel) == s.copy);
+            CHECK_FALSE((effectivelyVisible(copy, panel) && effectivelyVisible(reset, panel)));
+        }
+    }
+}
+
+TEST_CASE("Iterum editor MultiTap: the Copy caption masks the fieldset border", "[iterum][ui]") {
+    // The TAP PATTERN fieldset's top border runs under the Copy row in 19 of 20 patterns (design section 6, finding 7).
+    HeadlessEditor ed;
+    ed.switchTo(8);
+    CViewContainer* panel = ed.panel();
+    REQUIRE(panel != nullptr);
+
+    VSTGUI::CTextLabel* caption = nullptr;
+    for (auto* c : controlsWithTag(panel, kMultiTapCopyPatternButtonTagId)) {
+        if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(c)) caption = label;
+    }
+    REQUIRE(caption != nullptr);
+    CHECK_FALSE(caption->getTransparency());
+    CHECK(caption->getBackColor() == VSTGUI::CColor(0x1b, 0x1b, 0x22, 0xff));  // the panel colour
+
+    for (auto* c : controlsWithTag(panel, kMultiTapPatternEditorLabelTagId)) {
+        auto* label = dynamic_cast<VSTGUI::CTextLabel*>(c);
+        REQUIRE(label != nullptr);
+        CHECK_FALSE(label->getTransparency());
+        CHECK((label->getStyle() & VSTGUI::CParamDisplay::kNoFrame) != 0);
     }
 }
 

@@ -143,6 +143,11 @@ TEST_CASE("MultiTap parameter IDs are correctly defined", "[visibility][multitap
         REQUIRE(kMultiTapFeedbackId == 905);
         REQUIRE(kMultiTapMixId == 909);
     }
+
+    SECTION("Custom pattern Length and the hidden Tempo output (specs/iterum-tap-editor/design.md 7.4)") {
+        REQUIRE(kMultiTapCustomLengthId == 914);
+        REQUIRE(kMultiTapTempoId == 915);
+    }
 }
 
 // ==============================================================================

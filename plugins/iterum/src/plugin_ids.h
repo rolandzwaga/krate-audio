@@ -227,6 +227,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMultiTapNoteValueId = 911,      // 0-9 (note value) - for mathematical patterns only
     kMultiTapNoteModifierId = 912,   // 0-2 (none, triplet, dotted) - for mathematical patterns only
     kMultiTapSnapDivisionId = 913,   // 0-21 (off + 21 note values) - spec 046
+    kMultiTapCustomLengthId = 914,   // 0-5 (Free, 1/8, 1/4, 1/2, 1/1, 2/1) - span of the custom pattern
+    kMultiTapTempoId = 915,          // 20-300 BPM, hidden read-only output: the tempo the processor plays with
 
     // Custom Pattern Editor UI Tags (920-929) - spec 046
     // Used for visibility control (not parameters, just UI control tags)
