@@ -36,6 +36,7 @@ add_executable(plugin_tests
     unit/preset/preset_info_test.cpp
     unit/preset/preset_loading_consistency_test.cpp
     unit/preset/preset_manager_test.cpp
+    unit/preset/preset_mix_floor_test.cpp
 
     # Processor tests
     unit/processor/mode_crossfade_tests.cpp

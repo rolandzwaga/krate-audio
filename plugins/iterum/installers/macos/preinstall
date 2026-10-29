@@ -1,0 +1,12 @@
+#!/bin/sh
+# Removes the factory presets earlier Iterum releases installed that this one no longer ships: a pkg only adds and
+# overwrites files, so without this an upgrade keeps them. Ducking was removed in 0.14.0 (its presets load as mode
+# 10); the old Freeze presets were replaced in 0.13.0 and load at 0 % Mix. Run by the installer as root.
+# Mirrors [InstallDelete] in ../windows/setup.iss.
+PRESETS="/Library/Application Support/Krate Audio/Iterum"
+rm -rf "$PRESETS/Ducking"
+for name in Ambient_Layer Bright_Freeze Dark_Frozen Drone_Bed Evolving_Texture Guitar_Sustainer Infinite_Sustain \
+    Pad_Machine Shimmer_Freeze Vocal_Hold; do
+    rm -f "$PRESETS/Freeze/$name.vstpreset"
+done
+exit 0

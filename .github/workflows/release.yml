@@ -319,8 +319,18 @@ jobs:
         run: |
           # Read identifier from version.json or use default
           IDENTIFIER=$(jq -r '.identifier // "com.krateaudio.\(.name | ascii_downcase)"' plugins/${PLUGIN}/version.json)
+          # A plugin that has to clean up after an earlier release (e.g. factory presets it no longer ships)
+          # provides installers/macos/preinstall; pkgbuild runs it as root before the payload is written.
+          SCRIPTS_ARGS=()
+          if [ -f "plugins/${PLUGIN}/installers/macos/preinstall" ]; then
+            mkdir -p pkg-scripts
+            cp "plugins/${PLUGIN}/installers/macos/preinstall" pkg-scripts/preinstall
+            chmod +x pkg-scripts/preinstall
+            SCRIPTS_ARGS=(--scripts pkg-scripts)
+          fi
           pkgbuild \
             --root staging \
+            "${SCRIPTS_ARGS[@]}" \
             --identifier "$IDENTIFIER" \
             --version "$VERSION" \
             --install-location / \

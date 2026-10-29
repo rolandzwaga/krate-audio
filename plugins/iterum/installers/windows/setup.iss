@@ -76,6 +76,23 @@ Source: "CHANGELOG.txt"; DestDir: "{app}\Iterum.vst3"; Flags: ignoreversion
 ; {commonappdata} = C:\ProgramData on modern Windows
 Source: "presets\*"; DestDir: "{commonappdata}\Krate Audio\Iterum"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+
+[InstallDelete]
+; Factory presets earlier releases installed that this one no longer ships: [Files] only adds and overwrites, so
+; without these an upgrade keeps them. Ducking was removed in 0.14.0 (its presets load as mode 10); the old
+; Freeze presets were replaced in 0.13.0 and load at 0 % Mix.
+Type: filesandordirs; Name: "{commonappdata}\Krate Audio\Iterum\Ducking"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Ambient_Layer.vstpreset"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Bright_Freeze.vstpreset"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Dark_Frozen.vstpreset"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Drone_Bed.vstpreset"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Evolving_Texture.vstpreset"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Guitar_Sustainer.vstpreset"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Infinite_Sustain.vstpreset"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Pad_Machine.vstpreset"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Shimmer_Freeze.vstpreset"
+Type: files; Name: "{commonappdata}\Krate Audio\Iterum\Freeze\Vocal_Hold.vstpreset"
+
 [Icons]
 ; No desktop icons needed for a VST plugin
 
