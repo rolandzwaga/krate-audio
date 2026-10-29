@@ -47,6 +47,7 @@ add_executable(plugin_tests
     # Freeze through Processor::process: the song position, the capture state tail, a restored Hold, the infinite
     # tail and the Drones CPU budget (specs/iterum-freeze/design.md rows P4, P10, P11)
     unit/processor/freeze_transport_test.cpp
+    unit/processor/freeze_preset_probe_test.cpp
 
     # UI tests
     unit/ui/preset_browser_logic_test.cpp

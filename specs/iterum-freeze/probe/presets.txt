@@ -1,0 +1,34 @@
+Euclidean_Pulse        tone  | out   -0.2 dB | diff   -5.5 dB | moved  22% | peak  +0.6 dB | held 415 (live)
+Euclidean_Pulse        drum  | out   +0.8 dB | diff   -7.1 dB | moved  14% | peak  +0.4 dB
+Euclidean_Pulse        chord | out   -0.2 dB | diff   -5.1 dB | moved  22% | peak  +0.0 dB
+Fifths_Drone           tone  | out   -2.1 dB | diff   -1.5 dB | moved 100% | peak  +4.3 dB | held 415 (live) [Hold on]
+Fifths_Drone           drum  | out   -1.1 dB | diff   -1.2 dB | moved 100% | peak  -2.2 dB
+Fifths_Drone           chord | out   -4.0 dB | diff   -1.8 dB | moved 100% | peak  +0.5 dB
+Ghost_Pattern          tone  | out   -0.2 dB | diff  -18.6 dB | moved  12% | peak  +0.4 dB | held 415 (live)
+Ghost_Pattern          drum  | out   +0.1 dB | diff  -12.4 dB | moved  13% | peak  -0.0 dB
+Ghost_Pattern          chord | out   -0.2 dB | diff  -19.6 dB | moved  11% | peak  +0.3 dB
+Granular_Cloud         tone  | out   +0.3 dB | diff  -12.4 dB | moved  66% | peak  +4.3 dB | held 415 (live)
+Granular_Cloud         drum  | out   +0.1 dB | diff  -12.8 dB | moved  41% | peak  +0.7 dB
+Granular_Cloud         chord | out   +0.5 dB | diff  -12.3 dB | moved  66% | peak  +2.5 dB
+Harmonic_Bed           tone  | out   -4.1 dB | diff   -2.6 dB | moved 100% | peak  +3.1 dB | held 415 (live)
+Harmonic_Bed           drum  | out   -3.8 dB | diff   -1.2 dB | moved 100% | peak  -4.5 dB
+Harmonic_Bed           chord | out   -4.9 dB | diff   -1.6 dB | moved 100% | peak  -0.6 dB
+Noise_Texture          tone  | out   -1.5 dB | diff   -7.5 dB | moved  72% | peak  +0.7 dB | held 415 (live)
+Noise_Texture          drum  | out   +0.6 dB | diff   -8.5 dB | moved  53% | peak  +0.1 dB
+Noise_Texture          chord | out   -1.7 dB | diff   -7.1 dB | moved  73% | peak  -0.1 dB
+Radio_Static           tone  | out   -2.5 dB | diff   -5.6 dB | moved 100% | peak  +1.4 dB | held 415 (live)
+Radio_Static           drum  | out   +0.9 dB | diff   -3.8 dB | moved  90% | peak  +0.1 dB
+Radio_Static           chord | out   -2.6 dB | diff   -5.7 dB | moved 100% | peak  -0.3 dB
+Scatter_Drift          tone  | out   +0.2 dB | diff  -13.2 dB | moved  38% | peak  +5.0 dB | held 415 (live)
+Scatter_Drift          drum  | out   +0.2 dB | diff  -12.1 dB | moved  22% | peak  +0.4 dB
+Scatter_Drift          chord | out   +0.3 dB | diff  -13.3 dB | moved  38% | peak  +3.6 dB
+Slice_Machine          tone  | out   -0.3 dB | diff   -1.5 dB | moved  50% | peak  +1.4 dB | held 415 (live)
+Slice_Machine          drum  | out   +2.2 dB | diff   -1.0 dB | moved  19% | peak  +0.0 dB
+Slice_Machine          chord | out   -0.4 dB | diff   -1.0 dB | moved  50% | peak  +0.0 dB
+Stutter_Fill           tone  | out   -0.3 dB | diff   -0.6 dB | moved  50% | peak  +1.7 dB | held 415 (live)
+Stutter_Fill           drum  | out   +4.6 dB | diff   +3.5 dB | moved  52% | peak  +0.0 dB
+Stutter_Fill           chord | out   -0.3 dB | diff   -0.8 dB | moved  51% | peak  +0.3 dB
+Total_Freeze           tone  | out   -2.9 dB | diff   +1.8 dB | moved 100% | peak  +0.0 dB | held 233 (first bar) [Hold on]
+Total_Freeze           drum  | out   -2.3 dB | diff   -4.4 dB | moved  74% | peak  -0.3 dB
+Total_Freeze           chord | out   -2.6 dB | diff   +1.8 dB | moved 100% | peak  -0.0 dB
+All tests passed (23016 assertions in 1 test case)

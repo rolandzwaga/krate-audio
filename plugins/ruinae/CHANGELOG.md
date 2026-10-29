@@ -12,6 +12,7 @@ and its harmonizer run the same KrateDSP engines, so those fixes are listed here
 
 ### Fixed
 
+- **Arpeggiator Euclidean mode at 32 steps went silent when rotated** *(shared DSP)* — The step mask was built with a shift by the full 32-bit width, which gave an empty mask, so a 32-step Euclidean pattern with any Rotation (and a full 32 of 32) played no notes. It now plays every hit.
 - **Spectral delay was up to 6 dB too quiet** *(shared DSP)* — Each frequency band is delayed in whole analysis frames, and delay times between two frames were reached by blending the two frames, which partly cancels: at 250 ms a tone came back 4.7 to 5.8 dB low and short notes 5 dB low. The delayed bands now come from the nearer frame, shifted the rest of the way in phase, so the echo comes back at full level at any delay time. Patches using the Spectral delay type get a louder echo.
 
 - **Reset to default jumped 28 menus to their first option** — Polyphony, both oscillators' Waveform and Sync Waveform, Ring Freq Mode, Phaser Stages, Num Voices, Voice Allocation, the eight Mod Scale menus and every Note Value (Gate, LFO 1 and 2, Chaos, Delay, Phaser, Flanger, Chorus, S&H, Rnd, Arp) opened on the right value in a fresh instance, but a host's "reset to default" (for example a double-click) put them on their first option instead (Polyphony 1, Mod Scale x0.25). They now reset to the value they open with.

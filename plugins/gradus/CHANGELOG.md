@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Euclidean mode at 32 steps went silent when rotated** *(shared DSP)* — The step mask was built with a
+  shift by the full 32-bit width, which gave an empty mask, so a 32-step Euclidean pattern with any Rotation
+  (and a full 32 of 32) played no notes. It now plays every hit.
 - **Reset to default jumped three menus to their first option** — Arp Note Value, MIDI Delay
   Lane Speed and Seq Note Lane Speed opened on the right value in a fresh instance, but a
   host's "reset to default" (for example a double-click) put them on their first option

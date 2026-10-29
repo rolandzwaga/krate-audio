@@ -279,3 +279,25 @@ TEST_CASE("EuclideanPattern functions are noexcept", "[core][euclidean][layer0][
     static_assert(noexcept(EuclideanPattern::isHit(0u, 0, 8)),
                   "isHit() must be noexcept");
 }
+
+TEST_CASE("EuclideanPattern at 32 steps keeps every hit when rotated and when full", "[core][euclidean][layer0]") {
+    // The 32-step mask was (1u << 32) - 1u: a shift by the full width is undefined, and on x86 it gave a mask
+    // of 0, so every rotated 32-step pattern and the full E(32,32) had no hits (Iterum's Slice Machine preset,
+    // 12 of 32 at rotation 5, never fired). The step count is read through a volatile so the call runs at
+    // run time, where the defect lived, not in a constant evaluation.
+    volatile int steps32 = 32;
+    const int steps = steps32;
+    CHECK(EuclideanPattern::generate(32, steps, 0) == 0xFFFFFFFFu);
+    CHECK(EuclideanPattern::generate(32, steps, 7) == 0xFFFFFFFFu);
+    const uint32_t unrotated = EuclideanPattern::generate(12, steps, 0);
+    REQUIRE(EuclideanPattern::countHits(unrotated) == 12);
+    for (int r = 1; r < 32; ++r) {
+        CAPTURE(r);
+        const uint32_t rotated = EuclideanPattern::generate(12, steps, r);
+        CHECK(EuclideanPattern::countHits(rotated) == 12);
+        // Rotation by r moves step k + r to step k.
+        for (int k = 0; k < 32; ++k) {
+            CHECK(EuclideanPattern::isHit(rotated, k, 32) == EuclideanPattern::isHit(unrotated, (k + r) % 32, 32));
+        }
+    }
+}

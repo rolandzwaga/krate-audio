@@ -1044,6 +1044,8 @@ question 2 say "eight"; `preset_generator.cpp:1260-1430` defines ten Freeze pres
 excluded as well seven remain: Euclidean Pulse, Ghost Pattern, Slice Machine, Granular Cloud,
 Scatter Drift, Noise Texture and Radio Static. The follow-up sets those seven.
 
+**Done (2026-10-29, after the audition).** The user accepted an 11-preset set: the ten names re-tuned plus Stutter Fill (Euclidean 4 of 4 at 1/16, Capture 1/4, a beat-repeat roll). Every preset sets Hold, Capture and Dry; Insert on the rhythmic, granular and noise presets (R10); Total Freeze keeps Mix 100 % (R10) and now loads with Hold on, so the first bar of music loops; Fifths Drone also loads held. `tools/preset_generator.cpp` writes the three tails, so the 90 non-Freeze presets gain exactly the 24 bytes they already loaded as (Tape Free, MultiTap Free, Hold off, Capture 1/1, Dry = Mix), checked chunk by chunk. The hidden case "PROBE Freeze factory presets" renders each preset on the tone, drum and chord inputs (`probe/presets.txt`). It found the 32-step Euclidean mask bug (`core/euclidean_pattern.h`: `(1u << 32) - 1u` gave an empty mask, so Slice Machine, 12 of 32 rotated, never fired), fixed test-first.
+
 ### 5.3 Approval goldens
 
 None. `plugins/iterum/tests/approval/approved/` holds OnePoleSmoother, applyGain and softClip only (consequences

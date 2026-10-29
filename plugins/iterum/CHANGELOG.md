@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Freeze factory presets rebuilt for the new engine**: every Freeze preset now sets Hold, Capture and Dry Mode, and the rhythmic, granular and noise presets play in Insert so the music keeps going and the stutter punches in. Total Freeze is a real freeze now: Hold is on, so the first bar of music loops until you release Hold. Fifths Drone also holds its first bar as a sustained chord. New: **Stutter Fill**, a beat-repeat roll of the previous beat. Every other preset is unchanged.
 - **Freeze records every bar and plays it back**: instead of re-cutting the newest 200 ms of input at each hit, Freeze records each capture cycle and plays the previous one during the next. The pattern sits on the song's bar lines, retriggers at loop wraps and keeps running when the transport stops. It follows the input to silence unless Hold is on, and silence never cuts holes in the input. A fresh instance now starts at 100% Mix with Dry = Insert, so the music keeps going and the stutter punches in. Saved projects and presets keep their own Mix and settings, and now play held audio.
 - **Iterum reports an infinite tail in every mode**, so hosts no longer suspend it while a delay or a held Freeze is still sounding.
 
@@ -33,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **32-step Euclidean patterns with rotation played no hits**: the step mask was built with a shift by the full 32-bit width, which gave an empty mask, so any rotated 32-step pattern (and a full 32 of 32) stayed silent. The Slice Machine preset (12 of 32, rotated) never fired. It now plays every hit.
 - **Granular delay played almost nothing at Pitch 0**: every grain held one sample of the buffer instead of playing it, so at the default pitch the wet signal was a faint low thump. Pitch was also wrong above 0 (+12 played at the original pitch) and reverse grains held a sample too. Grains now play the delayed audio at the set pitch, forwards or backwards, live and while frozen.
 - **Spectral delay was up to 6 dB too quiet**: each frequency band is delayed in whole analysis frames (10.7 ms at the default FFT size), and delay times between two frames were reached by blending the two frames, which partly cancels. At the default 250 ms a tone came back 4.7 to 5.8 dB low and short notes 5 dB low. The delayed bands now come from the nearer frame, shifted the rest of the way in phase, so the echo comes back at full level at any delay time (short notes within 1 dB, tones exact).
 - **Granular delay was too quiet, and Density changed its level**: centred grains used a mono pan law on stereo audio, costing 3 dB on both channels, and overlapping grains were scaled in a way that made the delay louder as Density rose. Grains are now normalised by their summed envelopes, so at Pitch 0 the echo comes back at full level whatever the Density (the default wet signal went from 7.3 dB below the input to 0.5 dB below). Dense pitched or sprayed grain clouds come out quieter than before.
