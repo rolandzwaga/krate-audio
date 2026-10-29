@@ -90,6 +90,7 @@ public:
         , iconSize_(other.iconSize_)
         , strokeWidth_(other.strokeWidth_)
         , textFontSize_(other.textFontSize_)
+        , textFontName_(other.textFontName_)
         , hoverSegment_(kNoSegment) {}
 
     CLASS_METHODS(IconSegmentButton, CControl)
@@ -155,6 +156,9 @@ public:
 
     void setTextFontSize(double s) { textFontSize_ = s; setDirty(); }
     [[nodiscard]] double getTextFontSize() const { return textFontSize_; }
+
+    void setTextFontName(const std::string& name) { textFontName_ = name; setDirty(); }
+    [[nodiscard]] const std::string& getTextFontName() const { return textFontName_; }
 
     void setLayoutMode(LayoutMode m) { layoutMode_ = m; setDirty(); }
     [[nodiscard]] LayoutMode getLayoutMode() const { return layoutMode_; }
@@ -399,7 +403,7 @@ private:
             drawIconOnly(context, iconRect, iconName, color);
         if (!segName.empty()) {
             auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>(
-                "Helvetica", static_cast<VSTGUI::CCoord>(textFontSize_));
+                textFontName_.c_str(), static_cast<VSTGUI::CCoord>(textFontSize_));
             context->setFont(font);
             context->setFontColor(color);
             context->drawString(
@@ -808,7 +812,7 @@ private:
                        const std::string& text,
                        const VSTGUI::CColor& color) const {
         auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>(
-            "Helvetica", static_cast<VSTGUI::CCoord>(textFontSize_));
+            textFontName_.c_str(), static_cast<VSTGUI::CCoord>(textFontSize_));
         context->setFont(font);
         context->setFontColor(color);
         context->drawString(
@@ -948,6 +952,7 @@ private:
     float iconSize_ = 0.55f;
     double strokeWidth_ = 1.5;
     double textFontSize_ = 9.0;
+    std::string textFontName_ = "Helvetica";  // the uidesc's "font-name"; editors that never set it keep this
     uint32_t hoverSegment_ = kNoSegment;
     bool inValueChanged_ = false;
 };
@@ -1024,6 +1029,8 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
             btn->setStrokeWidth(d);
         if (attributes.getDoubleAttribute("font-size", d))
             btn->setTextFontSize(d);
+        if (auto val = attributes.getAttributeValue("font-name"))
+            btn->setTextFontName(*val);
 
         return true;
     }
@@ -1041,6 +1048,7 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
         attributeNames.emplace_back("icon-size");
         attributeNames.emplace_back("stroke-width");
         attributeNames.emplace_back("font-size");
+        attributeNames.emplace_back("font-name");
         return true;
     }
 
@@ -1057,6 +1065,7 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "icon-size") return kFloatType;
         if (attributeName == "stroke-width") return kFloatType;
         if (attributeName == "font-size") return kFloatType;
+        if (attributeName == "font-name") return kStringType;
         return kUnknownType;
     }
 
@@ -1119,6 +1128,10 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "font-size") {
             stringValue = VSTGUI::UIAttributes::doubleToString(
                 btn->getTextFontSize());
+            return true;
+        }
+        if (attributeName == "font-name") {
+            stringValue = btn->getTextFontName();
             return true;
         }
         return false;

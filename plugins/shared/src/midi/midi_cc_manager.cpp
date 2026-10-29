@@ -174,13 +174,8 @@ bool MidiCCManager::processCCMessage(uint8_t ccNumber, uint8_t value, const Midi
     }
 
     // Calculate normalized value
-    double normalized;
-    if (mapping.is14Bit) {
-        // For 14-bit, use only MSB until LSB arrives (7-bit fallback, FR-040)
-        normalized = static_cast<double>(value) / 127.0;
-    } else {
-        normalized = static_cast<double>(value) / 127.0;
-    }
+    // 7-bit and 14-bit alike: a 14-bit mapping uses only the MSB until its LSB arrives (7-bit fallback, FR-040)
+    const double normalized = static_cast<double>(value) / 127.0;
 
     if (callback) {
         callback(mapping.paramId, normalized);
@@ -229,6 +224,7 @@ bool MidiCCManager::getCCForParam(Steinberg::Vst::ParamID paramId, uint8_t& ccNu
 
 std::vector<MidiCCMapping> MidiCCManager::getActiveMappings() const {
     std::vector<MidiCCMapping> result;
+    result.reserve(globalMappings_.size() + presetMappings_.size());
 
     // Start with all global mappings
     for (const auto& [cc, mapping] : globalMappings_) {

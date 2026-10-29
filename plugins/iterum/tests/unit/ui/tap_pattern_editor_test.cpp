@@ -1,20 +1,63 @@
 // =============================================================================
 // TapPatternEditor Unit Tests
 // =============================================================================
-// Tests for Custom Tap Pattern Editor logic - Spec 046
+// Tests for Custom Tap Pattern Editor logic - Spec 046, redesigned by specs/iterum-tap-editor/design.md
 // Following humble object pattern: tests pure logic functions without VSTGUI
+//
+// Geometry of the 852 x 140 view (design 5.1): plot x 42..844 (802 px), 0 dB at y 14, -48 dB at y 106, silence band
+// y 106..114. Every grid, snap and placement position comes from one function, gridLines (design 2.2).
 // =============================================================================
 
 #include <cmath>
+#include <array>
+#include <string>
+#include <vector>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include "ui/tap_pattern_editor_logic.h"
+#include "parameters/custom_pattern_defaults.h"
+
+#include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/note_value.h>
 
 using namespace Iterum;
 using Catch::Approx;
 
+namespace {
+
+/// The ratios of the lines of @p kind that gridLines returns, in its order.
+template <typename Lines>
+std::vector<float> ratiosOfKind(const Lines& lines, decltype(GridLine{}.kind) kind) {
+    std::vector<float> out;
+    for (const auto& line : lines) {
+        if (line.kind == kind) out.push_back(line.ratio);
+    }
+    return out;
+}
+
+void requireLines(const std::vector<float>& actual, const std::vector<float>& expected) {
+    INFO("line count " << actual.size() << " expected " << expected.size());
+    REQUIRE(actual.size() == expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        INFO("line " << i);
+        REQUIRE(actual[i] == Approx(expected[i]).margin(1e-5));
+    }
+}
+
+/// The fresh instance's 16 stored ratios (design 3.1, ruling 3).
+std::array<float, kMaxPatternTaps> freshRatios() {
+    std::array<float, kMaxPatternTaps> r{};
+    for (size_t i = 0; i < kMaxPatternTaps; ++i) r[i] = kDefaultCustomTimeRatios[i];
+    return r;
+}
+
+const std::string kTimes = "\xC3\x97";   // U+00D7 MULTIPLICATION SIGN
+const std::string kDot = " \xC2\xB7 ";   // " U+00B7 MIDDLE DOT "
+
+} // namespace
+
 // =============================================================================
-// T016: Construction and Initialization Tests
+// Constants
 // =============================================================================
 
 TEST_CASE("TapPatternEditor constants are valid", "[tap_pattern_editor][construction]") {
@@ -23,384 +66,445 @@ TEST_CASE("TapPatternEditor constants are valid", "[tap_pattern_editor][construc
         REQUIRE(kMaxPatternTaps == 16);
     }
 
-    SECTION("minimum editor width enforced") {
-        REQUIRE(kMinEditorWidth >= 100.0f);  // Reasonable minimum
-        REQUIRE(kMinEditorWidth <= 300.0f);  // Not too wide
-    }
-
-    SECTION("tap handle width is reasonable") {
-        REQUIRE(kTapHandleWidth >= 10.0f);   // Large enough to click
-        REQUIRE(kTapHandleWidth <= 40.0f);   // Not too wide
-    }
-
     SECTION("default tap level is full") {
         REQUIRE(kDefaultTapLevel == 1.0f);
     }
-}
 
-// =============================================================================
-// T017: Hit Testing Tests
-// =============================================================================
-
-TEST_CASE("hitTestTap detects tap at position", "[tap_pattern_editor][hit_test]") {
-    constexpr float viewWidth = 400.0f;
-    constexpr float viewHeight = 150.0f;
-
-    // Setup: 4 taps at evenly spaced positions
-    float timeRatios[kMaxPatternTaps] = {0.2f, 0.4f, 0.6f, 0.8f};
-    float levels[kMaxPatternTaps] = {1.0f, 0.75f, 0.5f, 0.25f};
-    size_t activeTaps = 4;
-
-    SECTION("clicking center of first tap returns index 0") {
-        float tapX = timeRatioToPosition(0.2f, viewWidth);  // 80px
-        float tapY = viewHeight / 2.0f;  // Middle of view
-        int result = hitTestTap(tapX, tapY, timeRatios, levels, activeTaps, viewWidth, viewHeight);
-        REQUIRE(result == 0);
-    }
-
-    SECTION("clicking center of third tap returns index 2") {
-        float tapX = timeRatioToPosition(0.6f, viewWidth);  // 240px
-        float tapY = viewHeight / 2.0f;
-        int result = hitTestTap(tapX, tapY, timeRatios, levels, activeTaps, viewWidth, viewHeight);
-        REQUIRE(result == 2);
-    }
-
-    SECTION("clicking between taps returns -1") {
-        // Click exactly between tap 1 (0.4) and tap 2 (0.6) at x=0.5
-        float betweenX = timeRatioToPosition(0.5f, viewWidth);  // 200px
-        float midY = viewHeight / 2.0f;
-        int result = hitTestTap(betweenX, midY, timeRatios, levels, activeTaps, viewWidth, viewHeight);
-        REQUIRE(result == -1);
-    }
-
-    SECTION("clicking within handle width hits tap") {
-        float tapCenterX = timeRatioToPosition(0.4f, viewWidth);  // 160px
-        float offsetX = tapCenterX + (kTapHandleWidth / 2.0f) - 1.0f;  // Just inside right edge
-        float midY = viewHeight / 2.0f;
-        int result = hitTestTap(offsetX, midY, timeRatios, levels, activeTaps, viewWidth, viewHeight);
-        REQUIRE(result == 1);
-    }
-
-    SECTION("clicking outside handle width misses tap") {
-        float tapCenterX = timeRatioToPosition(0.4f, viewWidth);
-        float offsetX = tapCenterX + (kTapHandleWidth / 2.0f) + 5.0f;  // Just outside
-        float midY = viewHeight / 2.0f;
-        int result = hitTestTap(offsetX, midY, timeRatios, levels, activeTaps, viewWidth, viewHeight);
-        REQUIRE(result == -1);
-    }
-
-    SECTION("clicking above tap bar misses tap") {
-        float tapX = timeRatioToPosition(0.4f, viewWidth);
-        // Tap at level 0.75 means bar starts at Y = 0.25 * viewHeight = 37.5
-        float aboveBarY = 10.0f;  // Above the bar top
-        int result = hitTestTap(tapX, aboveBarY, timeRatios, levels, activeTaps, viewWidth, viewHeight);
-        REQUIRE(result == -1);
-    }
-
-    SECTION("null arrays return -1") {
-        REQUIRE(hitTestTap(100, 50, nullptr, levels, 4, viewWidth, viewHeight) == -1);
-        REQUIRE(hitTestTap(100, 50, timeRatios, nullptr, 4, viewWidth, viewHeight) == -1);
-    }
-
-    SECTION("zero active taps returns -1") {
-        REQUIRE(hitTestTap(100, 50, timeRatios, levels, 0, viewWidth, viewHeight) == -1);
-    }
-
-    SECTION("zero view dimensions return -1") {
-        REQUIRE(hitTestTap(100, 50, timeRatios, levels, 4, 0, viewHeight) == -1);
-        REQUIRE(hitTestTap(100, 50, timeRatios, levels, 4, viewWidth, 0) == -1);
-    }
-
-    SECTION("overlapping taps return front-most (highest index)") {
-        // Two taps at same position
-        float overlappingTimes[4] = {0.5f, 0.5f, 0.7f, 0.9f};
-        float overlappingLevels[4] = {0.8f, 1.0f, 0.6f, 0.4f};
-        float tapX = timeRatioToPosition(0.5f, viewWidth);
-        int result = hitTestTap(tapX, viewHeight / 2.0f, overlappingTimes, overlappingLevels, 4, viewWidth, viewHeight);
-        REQUIRE(result == 1);  // Higher index (front-most)
+    SECTION("the level axis ends at -48 dB and two taps closer than 8 px of 802 collide") {
+        REQUIRE(kLevelFloorDb == -48.0f);
+        REQUIRE(kCollisionRatio == Approx(8.0f / 802.0f));
     }
 }
 
 // =============================================================================
-// T018: Coordinate Conversion Tests
+// Axis mapping (design 5.1, 5.2)
 // =============================================================================
 
-TEST_CASE("positionToTimeRatio converts correctly", "[tap_pattern_editor][coordinates]") {
-    constexpr float viewWidth = 400.0f;
+TEST_CASE("timeRatioToX maps ratio 0..1 onto the inset plot 42..844", "[tap_pattern_editor][coordinates]") {
+    REQUIRE(timeRatioToX(0.0f) == 42.0f);
+    REQUIRE(timeRatioToX(1.0f) == 844.0f);
+    REQUIRE(timeRatioToX(0.5f) == Approx(443.0f));
+    REQUIRE(timeRatioToX(0.25f) == Approx(242.5f));
 
-    SECTION("left edge is 0.0") {
-        REQUIRE(positionToTimeRatio(0.0f, viewWidth) == Approx(0.0f));
+    SECTION("out-of-range ratios land on the plot edges by branch") {
+        REQUIRE(timeRatioToX(-0.1f) == 42.0f);
+        REQUIRE(timeRatioToX(1.5f) == 844.0f);
     }
 
-    SECTION("right edge is 1.0") {
-        REQUIRE(positionToTimeRatio(viewWidth, viewWidth) == Approx(1.0f));
-    }
-
-    SECTION("center is 0.5") {
-        REQUIRE(positionToTimeRatio(viewWidth / 2.0f, viewWidth) == Approx(0.5f));
-    }
-
-    SECTION("quarter positions are correct") {
-        REQUIRE(positionToTimeRatio(100.0f, viewWidth) == Approx(0.25f));
-        REQUIRE(positionToTimeRatio(300.0f, viewWidth) == Approx(0.75f));
-    }
-
-    SECTION("zero view width returns 0") {
-        REQUIRE(positionToTimeRatio(100.0f, 0.0f) == 0.0f);
-    }
-
-    SECTION("negative view width returns 0") {
-        REQUIRE(positionToTimeRatio(100.0f, -100.0f) == 0.0f);
+    SECTION("a 12 px bar at ratio 0 or 1 lies fully inside the 852 px view") {
+        REQUIRE(timeRatioToX(0.0f) - 6.0f >= 0.0f);
+        REQUIRE(timeRatioToX(1.0f) + 6.0f <= 852.0f);
     }
 }
 
-TEST_CASE("levelFromYPosition converts correctly", "[tap_pattern_editor][coordinates]") {
-    constexpr float viewHeight = 150.0f;
+TEST_CASE("xToTimeRatio inverts timeRatioToX and clamps outside the plot", "[tap_pattern_editor][coordinates]") {
+    REQUIRE(xToTimeRatio(42.0f) == 0.0f);
+    REQUIRE(xToTimeRatio(844.0f) == 1.0f);
+    REQUIRE(xToTimeRatio(443.0f) == Approx(0.5f));
+    REQUIRE(xToTimeRatio(0.0f) == 0.0f);
+    REQUIRE(xToTimeRatio(852.0f) == 1.0f);
 
-    SECTION("top edge (Y=0) is level 1.0") {
-        REQUIRE(levelFromYPosition(0.0f, viewHeight) == Approx(1.0f));
-    }
-
-    SECTION("bottom edge (Y=height) is level 0.0") {
-        REQUIRE(levelFromYPosition(viewHeight, viewHeight) == Approx(0.0f));
-    }
-
-    SECTION("middle is level 0.5") {
-        REQUIRE(levelFromYPosition(viewHeight / 2.0f, viewHeight) == Approx(0.5f));
-    }
-
-    SECTION("Y inversion is correct") {
-        // Y=37.5 (25% from top) should be level 0.75
-        REQUIRE(levelFromYPosition(37.5f, viewHeight) == Approx(0.75f));
-    }
-
-    SECTION("zero view height returns 0") {
-        REQUIRE(levelFromYPosition(50.0f, 0.0f) == 0.0f);
+    for (float ratio = 0.0f; ratio <= 1.0f; ratio += 0.05f) {
+        REQUIRE(xToTimeRatio(timeRatioToX(ratio)) == Approx(ratio).margin(1e-5));
     }
 }
 
-TEST_CASE("timeRatioToPosition converts correctly", "[tap_pattern_editor][coordinates]") {
-    constexpr float viewWidth = 400.0f;
+TEST_CASE("levelToY: 1.0 -> 14, 0.5 -> 25.5, dbToGain(-48) -> 106, 0.003 -> silence band; yToLevel inverts within 1e-4 and the band gives 0",
+          "[tap_pattern_editor][coordinates]") {
+    using Krate::DSP::dbToGain;
 
-    SECTION("ratio 0.0 is at left edge") {
-        REQUIRE(timeRatioToPosition(0.0f, viewWidth) == Approx(0.0f));
+    REQUIRE(levelToY(1.0f) == Approx(14.0f).margin(1e-3));
+    REQUIRE(levelToY(0.5f) == Approx(14.0f + 6.0206f / 48.0f * 92.0f).margin(0.05));
+    // A hair above the floor, so the float round trip of dbToGain(-48) cannot fall into the band.
+    REQUIRE(levelToY(dbToGain(-48.0f) * 1.0001f) == Approx(106.0f).margin(0.05));
+    const float silentY = levelToY(0.003f);
+    REQUIRE(silentY >= 106.0f);
+    REQUIRE(silentY <= 114.0f);
+    REQUIRE(levelToY(0.0f) >= 106.0f);
+    REQUIRE(levelToY(0.0f) <= 114.0f);
+
+    SECTION("levels above 0 dB draw at the plot top") {
+        REQUIRE(levelToY(1.5f) == Approx(14.0f).margin(1e-3));
     }
 
-    SECTION("ratio 1.0 is at right edge") {
-        REQUIRE(timeRatioToPosition(1.0f, viewWidth) == Approx(viewWidth));
-    }
-
-    SECTION("ratio 0.25 is at quarter") {
-        REQUIRE(timeRatioToPosition(0.25f, viewWidth) == Approx(100.0f));
-    }
-}
-
-TEST_CASE("levelToYPosition converts correctly", "[tap_pattern_editor][coordinates]") {
-    constexpr float viewHeight = 150.0f;
-
-    SECTION("level 1.0 is at top") {
-        REQUIRE(levelToYPosition(1.0f, viewHeight) == Approx(0.0f));
-    }
-
-    SECTION("level 0.0 is at bottom") {
-        REQUIRE(levelToYPosition(0.0f, viewHeight) == Approx(viewHeight));
-    }
-
-    SECTION("level 0.75 is at Y=37.5") {
-        REQUIRE(levelToYPosition(0.75f, viewHeight) == Approx(37.5f));
-    }
-}
-
-TEST_CASE("coordinate conversion round-trip preserves values", "[tap_pattern_editor][coordinates]") {
-    constexpr float viewWidth = 400.0f;
-    constexpr float viewHeight = 150.0f;
-
-    SECTION("time ratio round-trip") {
-        for (float ratio = 0.0f; ratio <= 1.0f; ratio += 0.1f) {
-            float position = timeRatioToPosition(ratio, viewWidth);
-            float recovered = positionToTimeRatio(position, viewWidth);
-            REQUIRE(recovered == Approx(ratio).margin(0.001f));
+    SECTION("yToLevel inverts levelToY") {
+        for (float level : {1.0f, 0.7f, 0.5f, 0.25f, 0.1f, 0.05f, 0.01f, 0.005f}) {
+            INFO("level " << level);
+            REQUIRE(yToLevel(levelToY(level)) == Approx(level).margin(1e-4));
         }
     }
 
-    SECTION("level round-trip") {
-        for (float level = 0.0f; level <= 1.0f; level += 0.1f) {
-            float yPos = levelToYPosition(level, viewHeight);
-            float recovered = levelFromYPosition(yPos, viewHeight);
-            REQUIRE(recovered == Approx(level).margin(0.001f));
+    SECTION("above the plot is 1.0, the silence band and below are exactly 0") {
+        REQUIRE(yToLevel(5.0f) == 1.0f);
+        REQUIRE(yToLevel(110.0f) == 0.0f);
+        REQUIRE(yToLevel(113.0f) == 0.0f);
+        REQUIRE(yToLevel(130.0f) == 0.0f);
+    }
+}
+
+TEST_CASE("levelDragDb starts a silent tap at -48 dB", "[tap_pattern_editor][drag]") {
+    // A level of 0 is -144 dB (gainToDb's floor); the drag starts from the display floor instead (design 4.2).
+    REQUIRE(levelDragDb(0.0f, -1.0f, false) == Approx(-48.0f + 48.0f / 92.0f).margin(0.01));
+    REQUIRE(levelDragDb(0.0f, -10.0f, false) == Approx(-48.0f + 10.0f * 48.0f / 92.0f).margin(0.01));
+
+    SECTION("a full-level tap dragged 23 px down reads -12 dB; with Shift 10:1") {
+        REQUIRE(levelDragDb(1.0f, 23.0f, false) == Approx(-12.0f).margin(0.01));
+        REQUIRE(levelDragDb(1.0f, 23.0f, true) == Approx(-1.2f).margin(0.01));
+    }
+}
+
+// =============================================================================
+// Grid lines: the snap table against true note lengths (design 2.2, 2.3)
+// =============================================================================
+
+TEST_CASE("gridLines: 1/1 with Snap 1/8D has snap lines at 0.1875, 0.375, 0.5625, 0.75, 0.9375 and 1.0 and beat lines at quarters",
+          "[tap_pattern_editor][grid]") {
+    const auto lines = gridLines(CustomLength::N1, SnapDivision::N8D, 120.0);
+    requireLines(ratiosOfKind(lines, GridLine::Snap), {0.1875f, 0.375f, 0.5625f, 0.75f, 0.9375f, 1.0f});
+
+    // Beats 1..3 inside the plot; the bar lines carry the whole notes (ratio 0 and 1 for a 1/1 length).
+    const auto beats = ratiosOfKind(lines, GridLine::Beat);
+    for (float q : {0.25f, 0.5f, 0.75f}) {
+        bool found = false;
+        for (float b : beats) found = found || std::abs(b - q) < 1e-5f;
+        INFO("beat line at " << q);
+        REQUIRE(found);
+    }
+    for (float b : beats) {
+        INFO("beat line " << b);
+        REQUIRE(std::abs(b * 4.0f - std::round(b * 4.0f)) < 1e-5f);
+    }
+}
+
+TEST_CASE("gridLines: Length 1/8 with Snap 1/4 falls back to the 1/16 lines 0.5 and 1.0", "[tap_pattern_editor][grid]") {
+    const auto lines = gridLines(CustomLength::N8, SnapDivision::N4, 120.0);
+    requireLines(ratiosOfKind(lines, GridLine::Snap), {0.5f, 1.0f});
+    REQUIRE(effectiveSnapUnit(CustomLength::N8, SnapDivision::N4, 120.0) == SnapDivision::N16);
+}
+
+TEST_CASE("gridLines: Snap 1/2 over Length 1/4 and Snap 1/1 over Length 1/2 fall back to 1/16", "[tap_pattern_editor][grid]") {
+    requireLines(ratiosOfKind(gridLines(CustomLength::N4, SnapDivision::N2, 120.0), GridLine::Snap),
+                 {0.25f, 0.5f, 0.75f, 1.0f});
+    requireLines(ratiosOfKind(gridLines(CustomLength::N2, SnapDivision::N1, 120.0), GridLine::Snap),
+                 {0.125f, 0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1.0f});
+    REQUIRE(effectiveSnapUnit(CustomLength::N4, SnapDivision::N2, 120.0) == SnapDivision::N16);
+    REQUIRE(effectiveSnapUnit(CustomLength::N2, SnapDivision::N1, 120.0) == SnapDivision::N16);
+    // A unit shorter than the length is its own effective unit.
+    REQUIRE(effectiveSnapUnit(CustomLength::N1, SnapDivision::N8, 120.0) == SnapDivision::N8);
+}
+
+TEST_CASE("gridLines: ratio 1 is a snap line for 1/8D and 1/4T over 1/2", "[tap_pattern_editor][grid]") {
+    requireLines(ratiosOfKind(gridLines(CustomLength::N2, SnapDivision::N8D, 120.0), GridLine::Snap),
+                 {0.375f, 0.75f, 1.0f});
+    requireLines(ratiosOfKind(gridLines(CustomLength::N2, SnapDivision::N4T, 120.0), GridLine::Snap),
+                 {1.0f / 3.0f, 2.0f / 3.0f, 1.0f});
+}
+
+TEST_CASE("gridLines: no snap line at ratio 0 for any length and snap", "[tap_pattern_editor][grid]") {
+    const CustomLength lengths[] = {CustomLength::Free, CustomLength::N8, CustomLength::N4,
+                                    CustomLength::N2, CustomLength::N1, CustomLength::N2x1};
+    for (const CustomLength length : lengths) {
+        for (int s = 0; s <= 21; ++s) {
+            for (double bpm : {20.0, 120.0, 300.0}) {
+                INFO("length " << static_cast<int>(length) << " snap " << s << " bpm " << bpm);
+                const auto snaps = ratiosOfKind(gridLines(length, static_cast<SnapDivision>(s), bpm), GridLine::Snap);
+                if (s == 0) {
+                    REQUIRE(snaps.empty());  // Snap Off draws and quantises nothing
+                    continue;
+                }
+                REQUIRE(snaps.size() >= 2u);
+                for (float r : snaps) {
+                    REQUIRE(r > 1e-6f);
+                    REQUIRE(r <= 1.0f + 1e-6f);
+                }
+                bool hasEnd = false;
+                for (float r : snaps) hasEnd = hasEnd || std::abs(r - 1.0f) < 1e-6f;
+                REQUIRE(hasEnd);
+            }
         }
     }
 }
 
+TEST_CASE("gridLines: Free at 120 BPM has beat lines every 0.1 and bar lines every 0.4", "[tap_pattern_editor][grid]") {
+    // Free is 5000 ms wide; a beat at 120 BPM is 500 ms, a bar 2000 ms.
+    const auto lines = gridLines(CustomLength::Free, SnapDivision::Off, 120.0);
+    const auto beats = ratiosOfKind(lines, GridLine::Beat);
+    const auto bars = ratiosOfKind(lines, GridLine::Bar);
+
+    for (int k = 1; k <= 9; ++k) {
+        const float r = 0.1f * static_cast<float>(k);
+        bool found = false;
+        for (float b : beats) found = found || std::abs(b - r) < 1e-5f;
+        for (float b : bars) found = found || std::abs(b - r) < 1e-5f;
+        INFO("beat " << k);
+        REQUIRE(found);
+    }
+    for (float b : beats) {
+        INFO("beat line " << b);
+        REQUIRE(std::abs(b * 10.0f - std::round(b * 10.0f)) < 1e-4f);
+    }
+    bool bar04 = false;
+    bool bar08 = false;
+    for (float b : bars) {
+        INFO("bar line " << b);
+        REQUIRE(std::abs(b / 0.4f - std::round(b / 0.4f)) < 1e-4f);
+        bar04 = bar04 || std::abs(b - 0.4f) < 1e-5f;
+        bar08 = bar08 || std::abs(b - 0.8f) < 1e-5f;
+    }
+    REQUIRE(bar04);
+    REQUIRE(bar08);
+}
+
+TEST_CASE("gridLines: 1/4T over 1/1 has 6 snap lines, exact", "[tap_pattern_editor][grid]") {
+    requireLines(ratiosOfKind(gridLines(CustomLength::N1, SnapDivision::N4T, 120.0), GridLine::Snap),
+                 {1.0f / 6.0f, 2.0f / 6.0f, 3.0f / 6.0f, 4.0f / 6.0f, 5.0f / 6.0f, 1.0f});
+}
+
+TEST_CASE("gridLines: every Snap entry is its true note length over 2/1", "[tap_pattern_editor][grid]") {
+    // Snap index s is note-value dropdown index s - 1 (design 2.2). Over 2/1 (8 beats) no unit falls back.
+    for (int s = 1; s <= 21; ++s) {
+        const auto mapping = Krate::DSP::kNoteValueDropdownMapping[s - 1];
+        const float unitBeats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+        INFO("snap " << s << " unit " << unitBeats << " beats");
+        const auto snaps = ratiosOfKind(gridLines(CustomLength::N2x1, static_cast<SnapDivision>(s), 120.0),
+                                        GridLine::Snap);
+        REQUIRE(snaps.size() >= 2u);
+        REQUIRE(snaps.front() == Approx(unitBeats / 8.0f).margin(1e-5));
+        if (snaps.size() >= 3u) {
+            REQUIRE(snaps[1] - snaps[0] == Approx(unitBeats / 8.0f).margin(1e-5));
+        }
+    }
+}
+
+TEST_CASE("snapToLines rounds to the nearest line, ties later, never 0", "[tap_pattern_editor][grid]") {
+    const auto lines = gridLines(CustomLength::N1, SnapDivision::N4, 120.0);  // 0.25, 0.5, 0.75, 1.0
+    REQUIRE(snapToLines(0.3f, lines) == Approx(0.25f));
+    REQUIRE(snapToLines(0.6f, lines) == Approx(0.5f));
+    REQUIRE(snapToLines(0.375f, lines) == Approx(0.5f));   // tie between 0.25 and 0.5: the later line
+    REQUIRE(snapToLines(0.875f, lines) == Approx(1.0f));   // tie between 0.75 and 1.0
+    REQUIRE(snapToLines(0.1f, lines) == Approx(0.25f));    // ratio 0 is never a line
+    REQUIRE(snapToLines(0.0f, lines) == Approx(0.25f));
+    REQUIRE(snapToLines(1.2f, lines) == Approx(1.0f));
+}
+
 // =============================================================================
-// T018.1: Value Clamping Tests (Edge Case)
+// The one default rule (design 2.1, 3.1)
 // =============================================================================
 
-TEST_CASE("value clamping for out-of-bounds coordinates", "[tap_pattern_editor][clamping][edge]") {
-    constexpr float viewWidth = 400.0f;
-    constexpr float viewHeight = 150.0f;
+TEST_CASE("defaultTapTime is (i+1)/n x c", "[tap_pattern_editor][default]") {
+    REQUIRE(spanMs(CustomLength::Free, 120.0) == Approx(5000.0f));
+    REQUIRE(spanMs(CustomLength::N1, 120.0) == Approx(2000.0f));
+    REQUIRE(spanMs(CustomLength::N2x1, 60.0) == Approx(8000.0f));
+    REQUIRE(playableFraction(CustomLength::N1, 120.0) == 1.0f);
+    REQUIRE(playableFraction(CustomLength::Free, 30.0) == 1.0f);
 
-    SECTION("negative X position clamps to 0.0") {
-        REQUIRE(positionToTimeRatio(-50.0f, viewWidth) == Approx(0.0f));
-    }
+    const float c = playableFraction(CustomLength::N2x1, 60.0);
+    REQUIRE(c == Approx(0.625f));
 
-    SECTION("X position beyond width clamps to 1.0") {
-        REQUIRE(positionToTimeRatio(viewWidth + 100.0f, viewWidth) == Approx(1.0f));
-    }
-
-    SECTION("negative Y position clamps to level 1.0") {
-        REQUIRE(levelFromYPosition(-25.0f, viewHeight) == Approx(1.0f));
-    }
-
-    SECTION("Y position beyond height clamps to level 0.0") {
-        REQUIRE(levelFromYPosition(viewHeight + 50.0f, viewHeight) == Approx(0.0f));
-    }
-
-    SECTION("clampRatio clamps below 0") {
-        REQUIRE(clampRatio(-0.5f) == 0.0f);
-    }
-
-    SECTION("clampRatio clamps above 1") {
-        REQUIRE(clampRatio(1.5f) == 1.0f);
-    }
-
-    SECTION("clampRatio preserves valid values") {
-        REQUIRE(clampRatio(0.5f) == 0.5f);
-        REQUIRE(clampRatio(0.0f) == 0.0f);
-        REQUIRE(clampRatio(1.0f) == 1.0f);
+    REQUIRE(defaultTapTime(0, 4, 1.0f) == Approx(0.25f));
+    REQUIRE(defaultTapTime(3, 4, 1.0f) == Approx(1.0f));
+    REQUIRE(defaultTapTime(0, 8, c) == Approx(0.078125f));
+    REQUIRE(defaultTapTime(7, 8, c) == Approx(0.625f));
+    for (size_t n = 2; n <= 16; ++n) {
+        for (size_t i = 0; i < n; ++i) {
+            REQUIRE(defaultTapTime(i, n, c) == Approx(static_cast<float>(i + 1) / static_cast<float>(n) * c));
+        }
     }
 }
 
 // =============================================================================
-// T018.2: Shift+Drag Axis Constraint Tests (Edge Case)
+// Placement: a revealed tap never lands on an occupied grid line (design 3.3)
 // =============================================================================
 
-TEST_CASE("Shift+drag axis constraint behavior", "[tap_pattern_editor][axis_constraint][edge]") {
+TEST_CASE("placeTap keeps a free stored value", "[tap_pattern_editor][placement]") {
+    const auto ratios = freshRatios();
+    const auto grids = placementGrids(CustomLength::N1, SnapDivision::N4, 120.0);
+    // 4 -> 5: tap 5's stored 0.125 is free.
+    REQUIRE(placeTap(ratios, 5, 4, defaultTapTime(4, 5, 1.0f), grids, 1.0f) == Approx(0.125f));
+}
 
-    SECTION("no constraint when movement below threshold") {
-        auto axis = determineConstraintAxis(2.0f, 2.0f, 5.0f);
-        REQUIRE(axis == ConstraintAxis::None);
+TEST_CASE("placeTap moves a colliding tap to the nearest free snap line, later first", "[tap_pattern_editor][placement]") {
+    // The collision example of design 3.3: Snap 1/8, the user drags tap 2 from 0.5 to 0.625, then raises 4 -> 8.
+    auto ratios = freshRatios();
+    ratios[1] = 0.625f;
+    const auto grids = placementGrids(CustomLength::N1, SnapDivision::N8, 120.0);
+    for (size_t i = 4; i < 8; ++i) {
+        ratios[i] = placeTap(ratios, 8, i, defaultTapTime(i, 8, 1.0f), grids, 1.0f);
     }
+    REQUIRE(ratios[4] == Approx(0.125f));
+    REQUIRE(ratios[5] == Approx(0.375f));
+    REQUIRE(ratios[6] == Approx(0.5f));
+    REQUIRE(ratios[7] == Approx(0.875f));
+}
 
-    SECTION("horizontal constraint when X delta larger") {
-        auto axis = determineConstraintAxis(20.0f, 5.0f);
-        REQUIRE(axis == ConstraintAxis::Horizontal);
+TEST_CASE("the registered defaults reveal without a move", "[tap_pattern_editor][placement]") {
+    const auto grids = placementGrids(CustomLength::N1, SnapDivision::N4, 120.0);
+    const float c = playableFraction(CustomLength::N1, 120.0);
+
+    SECTION("4 -> 8") {
+        const auto ratios = freshRatios();
+        for (size_t i = 4; i < 8; ++i) {
+            INFO("tap " << i + 1);
+            REQUIRE(placeTap(ratios, 8, i, defaultTapTime(i, 8, c), grids, c) == kDefaultCustomTimeRatios[i]);
+        }
     }
-
-    SECTION("vertical constraint when Y delta larger") {
-        auto axis = determineConstraintAxis(5.0f, 20.0f);
-        REQUIRE(axis == ConstraintAxis::Vertical);
-    }
-
-    SECTION("horizontal on equal deltas (arbitrary tie-break)") {
-        auto axis = determineConstraintAxis(10.0f, 10.0f);
-        // Equal deltas - current implementation returns Vertical (Y wins)
-        // This is acceptable tie-break behavior
-        REQUIRE((axis == ConstraintAxis::Horizontal || axis == ConstraintAxis::Vertical));
-    }
-
-    SECTION("negative deltas handled correctly") {
-        auto axis = determineConstraintAxis(-25.0f, 10.0f);
-        REQUIRE(axis == ConstraintAxis::Horizontal);
-
-        axis = determineConstraintAxis(5.0f, -30.0f);
-        REQUIRE(axis == ConstraintAxis::Vertical);
+    SECTION("8 -> 16") {
+        const auto ratios = freshRatios();
+        for (size_t i = 8; i < 16; ++i) {
+            INFO("tap " << i + 1);
+            REQUIRE(placeTap(ratios, 16, i, defaultTapTime(i, 16, c), grids, c) == kDefaultCustomTimeRatios[i]);
+        }
     }
 }
 
-TEST_CASE("applyAxisConstraint locks correct axis", "[tap_pattern_editor][axis_constraint][edge]") {
-    float currentTime = 0.6f;
-    float currentLevel = 0.4f;
-    float preDragTime = 0.5f;
-    float preDragLevel = 0.5f;
-
-    SECTION("no constraint returns both current values") {
-        auto [time, level] = applyAxisConstraint(currentTime, currentLevel,
-                                                   preDragTime, preDragLevel,
-                                                   ConstraintAxis::None);
-        REQUIRE(time == Approx(currentTime));
-        REQUIRE(level == Approx(currentLevel));
+TEST_CASE("placeTap never returns 0 and falls back to the 1/16 then 1/64 grid", "[tap_pattern_editor][placement]") {
+    SECTION("every 1/4 line taken: the 1/16 retry") {
+        std::array<float, kMaxPatternTaps> ratios = freshRatios();  // 0.25, 0.5, 0.75, 1.0 ...
+        ratios[4] = 0.5f;                                           // tap 5 collides with tap 2
+        const auto grids = placementGrids(CustomLength::N1, SnapDivision::N4, 120.0);
+        REQUIRE(placeTap(ratios, 5, 4, defaultTapTime(4, 5, 1.0f), grids, 1.0f) == Approx(0.9375f));
     }
 
-    SECTION("horizontal constraint keeps pre-drag level") {
-        auto [time, level] = applyAxisConstraint(currentTime, currentLevel,
-                                                   preDragTime, preDragLevel,
-                                                   ConstraintAxis::Horizontal);
-        REQUIRE(time == Approx(currentTime));
-        REQUIRE(level == Approx(preDragLevel));  // Fixed to pre-drag
+    SECTION("every snap and 1/16 line taken: the 1/64 retry") {
+        // Length 1/8: Snap 1/4 falls back to 1/16, whose only lines are 0.5 and 1.0.
+        std::array<float, kMaxPatternTaps> ratios{};
+        ratios[0] = 0.5f;
+        ratios[1] = 1.0f;
+        ratios[2] = 0.5f;
+        const auto grids = placementGrids(CustomLength::N8, SnapDivision::N4, 120.0);
+        REQUIRE(placeTap(ratios, 3, 2, defaultTapTime(2, 3, 1.0f), grids, 1.0f) == Approx(0.875f));
     }
 
-    SECTION("vertical constraint keeps pre-drag time") {
-        auto [time, level] = applyAxisConstraint(currentTime, currentLevel,
-                                                   preDragTime, preDragLevel,
-                                                   ConstraintAxis::Vertical);
-        REQUIRE(time == Approx(preDragTime));  // Fixed to pre-drag
-        REQUIRE(level == Approx(currentLevel));
+    SECTION("an ideal at 0 lands on the first line") {
+        std::array<float, kMaxPatternTaps> ratios{};
+        ratios[0] = 0.0f;
+        ratios[1] = 1.0f;
+        const auto grids = placementGrids(CustomLength::N1, SnapDivision::N4, 120.0);
+        const float placed = placeTap(ratios, 2, 0, 0.0f, grids, 1.0f);
+        REQUIRE(placed > 0.0f);
+        REQUIRE(placed == Approx(0.25f));
+    }
+}
+
+TEST_CASE("placeTap skips lines beyond the 5 s ceiling", "[tap_pattern_editor][placement]") {
+    // 2/1 at 60 BPM is 8000 ms: only (0, 0.625] plays below 5 s.
+    const float c = playableFraction(CustomLength::N2x1, 60.0);
+    REQUIRE(c == Approx(0.625f));
+    const auto grids = placementGrids(CustomLength::N2x1, SnapDivision::N4, 60.0);  // beats: every 0.125
+
+    std::array<float, kMaxPatternTaps> ratios{};
+    ratios[0] = 0.625f;
+    ratios[1] = 0.5f;
+    ratios[2] = 0.625f;  // collides with tap 1
+    const float placed = placeTap(ratios, 3, 2, 0.625f, grids, c);
+    REQUIRE(placed <= c + 1e-6f);
+    REQUIRE(placed == Approx(0.375f));  // 0.625 taken, 0.75 beyond the ceiling, 0.5 taken, 0.375 free
+}
+
+TEST_CASE("placeTap never lands on an occupied line: sixteen stacked taps spread out", "[tap_pattern_editor][placement]") {
+    std::array<float, kMaxPatternTaps> ratios{};
+    ratios.fill(0.5f);
+    const auto grids = placementGrids(CustomLength::N1, SnapDivision::N16, 120.0);
+    for (size_t i = 1; i < 16; ++i) {
+        ratios[i] = placeTap(ratios, 16, i, defaultTapTime(i, 16, 1.0f), grids, 1.0f);
+    }
+    for (size_t i = 0; i < 16; ++i) {
+        INFO("tap " << i + 1 << " at " << ratios[i]);
+        REQUIRE(ratios[i] > 0.0f);
+        REQUIRE(ratios[i] <= 1.0f);
+        for (size_t j = 0; j < i; ++j) {
+            REQUIRE(std::abs(ratios[i] - ratios[j]) >= kCollisionRatio);
+        }
     }
 }
 
 // =============================================================================
-// T018.3: Double-Click Tap Reset Tests (Edge Case)
+// Ruler, labels, readout (design 2.2, 4.3, 5.5)
 // =============================================================================
 
-TEST_CASE("double-click tap reset to default", "[tap_pattern_editor][double_click][edge]") {
-
-    SECTION("default time positions are evenly spaced") {
-        // 4 taps: positions at 1/5, 2/5, 3/5, 4/5
-        REQUIRE(calculateDefaultTapTime(0, 4) == Approx(0.2f));
-        REQUIRE(calculateDefaultTapTime(1, 4) == Approx(0.4f));
-        REQUIRE(calculateDefaultTapTime(2, 4) == Approx(0.6f));
-        REQUIRE(calculateDefaultTapTime(3, 4) == Approx(0.8f));
+TEST_CASE("rulerLabels: 1/1 gives 1..4 with the 4 right-aligned at or left of x 842; Free ends with a right-aligned 5.0 s; no label beyond x 844",
+          "[tap_pattern_editor][ruler]") {
+    SECTION("1/1") {
+        const auto labels = rulerLabels(CustomLength::N1, 120.0);
+        std::vector<std::string> texts;
+        for (const auto& l : labels) texts.push_back(l.text);
+        REQUIRE(texts == std::vector<std::string>{"1", "2", "3", "4"});
+        size_t k = 1;
+        for (const auto& l : labels) {
+            INFO("label " << l.text);
+            REQUIRE(l.right <= 844.0f);
+            if (k < 4) {
+                REQUIRE(l.left == Approx(timeRatioToX(static_cast<float>(k) / 4.0f) + 2.0f).margin(0.5));
+            } else {
+                REQUIRE(l.right <= 842.0f + 1e-3f);
+            }
+            ++k;
+        }
     }
 
-    SECTION("default time handles 8 taps") {
-        // 8 taps: positions at 1/9, 2/9, ..., 8/9
-        REQUIRE(calculateDefaultTapTime(0, 8) == Approx(1.0f / 9.0f));
-        REQUIRE(calculateDefaultTapTime(7, 8) == Approx(8.0f / 9.0f));
-    }
-
-    SECTION("default time handles 16 taps") {
-        REQUIRE(calculateDefaultTapTime(0, 16) == Approx(1.0f / 17.0f));
-        REQUIRE(calculateDefaultTapTime(15, 16) == Approx(16.0f / 17.0f));
-    }
-
-    SECTION("default time handles single tap") {
-        REQUIRE(calculateDefaultTapTime(0, 1) == Approx(0.5f));
-    }
-
-    SECTION("default time handles zero taps gracefully") {
-        REQUIRE(calculateDefaultTapTime(0, 0) == 0.0f);
-    }
-
-    SECTION("default level is 100%") {
-        REQUIRE(kDefaultTapLevel == 1.0f);
+    SECTION("Free") {
+        const auto labels = rulerLabels(CustomLength::Free, 120.0);
+        REQUIRE_FALSE(labels.empty());
+        std::vector<std::string> texts;
+        for (const auto& l : labels) {
+            INFO("label " << l.text);
+            REQUIRE(l.right <= 844.0f);
+            texts.push_back(l.text);
+        }
+        REQUIRE(texts.back() == "5.0 s");
+        REQUIRE(labels.back().right <= 842.0f + 1e-3f);
+        REQUIRE(texts.front() == "0.5");
     }
 }
 
-// =============================================================================
-// T018.4: Escape Key Cancellation Tests (Edge Case)
-// Note: Escape key handling requires UI state - tested at integration level
-// This test verifies the pre-drag value storage concept
-// =============================================================================
+TEST_CASE("labelGroups joins taps within 8 px", "[tap_pattern_editor][overlap]") {
+    // 4 px apart, alone, 7 px apart, 10 px from its neighbour.
+    const float px = 1.0f / 802.0f;
+    const float ratios[kMaxPatternTaps] = {0.25f, 0.25f + 4.0f * px, 0.5f, 0.75f, 0.75f + 7.0f * px, 0.9f, 0.9f + 10.0f * px};
+    std::vector<std::vector<size_t>> groups;
+    for (const auto& g : labelGroups(ratios, 7)) {
+        std::vector<size_t> members;
+        for (size_t idx : g) members.push_back(idx);
+        groups.push_back(members);
+    }
+    const std::vector<std::vector<size_t>> expected{{0, 1}, {2}, {3, 4}, {5}, {6}};
+    REQUIRE(groups == expected);
+}
 
-TEST_CASE("pre-drag value storage for Escape cancellation", "[tap_pattern_editor][escape][edge]") {
-    // Conceptual test: verify the pattern works
-    float preDragTime = 0.3f;
-    float preDragLevel = 0.7f;
-
-    // After drag, values have changed
-    float currentTime = 0.6f;
-    float currentLevel = 0.4f;
-
-    SECTION("pre-drag values can restore original state") {
-        // Simulating Escape: restore pre-drag values
-        float restoredTime = preDragTime;
-        float restoredLevel = preDragLevel;
-
-        REQUIRE(restoredTime == Approx(0.3f));
-        REQUIRE(restoredLevel == Approx(0.7f));
-        REQUIRE(restoredTime != currentTime);
-        REQUIRE(restoredLevel != currentLevel);
+TEST_CASE("formatTapReadout: 750.0 ms / 1.25 s / -6.0 dB / -inf dB and the grid field 3 × 1/8, 5 × 1/8T, absent off-grid, with Snap Off or with Shift",
+          "[tap_pattern_editor][readout]") {
+    // Length 1/1 at 120 BPM: span 2000 ms, a beat is ratio 0.25.
+    SECTION("on a 1/8 line") {
+        REQUIRE(formatTapReadout(0.375f, 0.5f, CustomLength::N1, SnapDivision::N8, 120.0, false) ==
+                "3 " + kTimes + " 1/8" + kDot + "750.0 ms" + kDot + "-6.0 dB");
+        REQUIRE(formatTapReadout(0.625f, 1.0f, CustomLength::N1, SnapDivision::N8, 120.0, false) ==
+                "5 " + kTimes + " 1/8" + kDot + "1.25 s" + kDot + "0.0 dB");
+    }
+    SECTION("on a 1/8T line") {
+        REQUIRE(formatTapReadout(5.0f / 12.0f, 1.0f, CustomLength::N1, SnapDivision::N8T, 120.0, false) ==
+                "5 " + kTimes + " 1/8T" + kDot + "833.3 ms" + kDot + "0.0 dB");
+    }
+    SECTION("the end line that is not a multiple of the unit") {
+        // 1/2 is 2 beats; 1/8D lines are 0.75 and 1.5 beats, then the end.
+        REQUIRE(formatTapReadout(1.0f, 1.0f, CustomLength::N2, SnapDivision::N8D, 120.0, false) ==
+                "end" + kDot + "1.00 s" + kDot + "0.0 dB");
+    }
+    SECTION("off the grid, Snap Off and Shift drop the grid field") {
+        REQUIRE(formatTapReadout(0.3f, 1.0f, CustomLength::N1, SnapDivision::N8, 120.0, false) ==
+                "600.0 ms" + kDot + "0.0 dB");
+        REQUIRE(formatTapReadout(0.375f, 0.5f, CustomLength::N1, SnapDivision::Off, 120.0, false) ==
+                "750.0 ms" + kDot + "-6.0 dB");
+        REQUIRE(formatTapReadout(0.375f, 0.5f, CustomLength::N1, SnapDivision::N8, 120.0, true) ==
+                "750.0 ms" + kDot + "-6.0 dB");
+    }
+    SECTION("silence and the Free axis") {
+        REQUIRE(formatTapReadout(0.474f, 0.0005f, CustomLength::Free, SnapDivision::Off, 120.0, false) ==
+                "2.37 s" + kDot + "-inf dB");
+    }
+    SECTION("a synced time is capped at 5000 ms") {
+        // 2/1 at 60 BPM: ratio 1.0 is 8000 ms of span, which plays at 5 s.
+        REQUIRE(formatTapReadout(1.0f, 1.0f, CustomLength::N2x1, SnapDivision::Off, 60.0, false) ==
+                "5.00 s" + kDot + "0.0 dB");
     }
 }
 
@@ -416,41 +520,6 @@ TEST_CASE("right-click is ignored (no state change)", "[tap_pattern_editor][righ
 
     SECTION("shouldIgnoreRightClick returns false for left button") {
         REQUIRE(shouldIgnoreRightClick(false) == false);
-    }
-}
-
-// =============================================================================
-// T018.6: Tap Count Change During Drag Tests (Edge Case)
-// Note: This is a UI state change test - verified at integration level
-// This test verifies the concept
-// =============================================================================
-
-TEST_CASE("tap count change affects visible taps", "[tap_pattern_editor][tap_count][edge]") {
-    float timeRatios[kMaxPatternTaps] = {};
-    float levels[kMaxPatternTaps] = {};
-
-    // Initialize all 16 taps
-    for (size_t i = 0; i < kMaxPatternTaps; ++i) {
-        timeRatios[i] = static_cast<float>(i + 1) / (kMaxPatternTaps + 1);
-        levels[i] = 1.0f;
-    }
-
-    SECTION("reducing tap count hides higher-indexed taps from hit test") {
-        // With 8 active taps, clicking where tap 12 would be should miss
-        float tap12X = timeRatioToPosition(timeRatios[12], 400.0f);
-        int result = hitTestTap(tap12X, 75.0f, timeRatios, levels, 8, 400.0f, 150.0f);
-        REQUIRE(result == -1);  // Not found - only 8 taps active
-    }
-
-    SECTION("hit test respects active tap count") {
-        // Tap 7 should be found when 8 taps active
-        float tap7X = timeRatioToPosition(timeRatios[7], 400.0f);
-        int result = hitTestTap(tap7X, 75.0f, timeRatios, levels, 8, 400.0f, 150.0f);
-        REQUIRE(result == 7);
-
-        // But not when only 4 taps active
-        result = hitTestTap(tap7X, 75.0f, timeRatios, levels, 4, 400.0f, 150.0f);
-        REQUIRE(result == -1);
     }
 }
 
@@ -503,243 +572,138 @@ TEST_CASE("editor enforces minimum width", "[tap_pattern_editor][size][edge]") {
     }
 }
 
-// =============================================================================
-// Phase 5: Grid Snapping Tests (T052, T053)
-// =============================================================================
-
-TEST_CASE("snapToGrid with various divisions", "[tap_pattern_editor][snap]") {
-
-    SECTION("snap Off returns original value") {
-        REQUIRE(snapToGrid(0.123f, SnapDivision::Off) == Approx(0.123f));
-        REQUIRE(snapToGrid(0.789f, SnapDivision::Off) == Approx(0.789f));
-        REQUIRE(snapToGrid(0.0f, SnapDivision::Off) == Approx(0.0f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::Off) == Approx(1.0f));
-    }
-
-    SECTION("snap N4 (1/4) - 4 divisions") {
-        // Grid lines at 0, 0.25, 0.5, 0.75, 1.0
-        REQUIRE(snapToGrid(0.0f, SnapDivision::N4) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.1f, SnapDivision::N4) == Approx(0.0f));    // Rounds down
-        REQUIRE(snapToGrid(0.13f, SnapDivision::N4) == Approx(0.25f));  // Rounds up
-        REQUIRE(snapToGrid(0.25f, SnapDivision::N4) == Approx(0.25f));
-        REQUIRE(snapToGrid(0.38f, SnapDivision::N4) == Approx(0.5f));  // > 0.375 midpoint
-        REQUIRE(snapToGrid(0.5f, SnapDivision::N4) == Approx(0.5f));
-        REQUIRE(snapToGrid(0.63f, SnapDivision::N4) == Approx(0.75f));
-        REQUIRE(snapToGrid(0.75f, SnapDivision::N4) == Approx(0.75f));
-        REQUIRE(snapToGrid(0.88f, SnapDivision::N4) == Approx(1.0f));  // > 0.875 midpoint
-        REQUIRE(snapToGrid(1.0f, SnapDivision::N4) == Approx(1.0f));
-    }
-
-    SECTION("snap N8 (1/8) - 8 divisions") {
-        // Grid lines at 0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0
-        REQUIRE(snapToGrid(0.0f, SnapDivision::N8) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.125f, SnapDivision::N8) == Approx(0.125f));
-        REQUIRE(snapToGrid(0.19f, SnapDivision::N8) == Approx(0.25f));
-        REQUIRE(snapToGrid(0.5f, SnapDivision::N8) == Approx(0.5f));
-        REQUIRE(snapToGrid(0.875f, SnapDivision::N8) == Approx(0.875f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::N8) == Approx(1.0f));
-    }
-
-    SECTION("snap N16 (1/16) - 16 divisions") {
-        // Grid lines at 0, 0.0625, 0.125, ...
-        REQUIRE(snapToGrid(0.0f, SnapDivision::N16) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.0625f, SnapDivision::N16) == Approx(0.0625f));
-        REQUIRE(snapToGrid(0.06f, SnapDivision::N16) == Approx(0.0625f));
-        REQUIRE(snapToGrid(0.5f, SnapDivision::N16) == Approx(0.5f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::N16) == Approx(1.0f));
-    }
-
-    SECTION("snap N32 (1/32) - 32 divisions") {
-        // Grid lines at 0, 0.03125, 0.0625, ...
-        REQUIRE(snapToGrid(0.0f, SnapDivision::N32) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.03125f, SnapDivision::N32) == Approx(0.03125f));
-        REQUIRE(snapToGrid(0.03f, SnapDivision::N32) == Approx(0.03125f));
-        REQUIRE(snapToGrid(0.5f, SnapDivision::N32) == Approx(0.5f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::N32) == Approx(1.0f));
-    }
-
-    SECTION("snap N8T (1/8 triplet) - 12 divisions") {
-        // Grid lines at 0, 1/12, 2/12, ..., 12/12
-        float oneThird = 1.0f / 3.0f;
-        float twoThirds = 2.0f / 3.0f;
-        REQUIRE(snapToGrid(0.0f, SnapDivision::N8T) == Approx(0.0f));
-        REQUIRE(snapToGrid(1.0f / 12.0f, SnapDivision::N8T) == Approx(1.0f / 12.0f).margin(0.001f));
-        REQUIRE(snapToGrid(0.08f, SnapDivision::N8T) == Approx(1.0f / 12.0f).margin(0.001f));
-        REQUIRE(snapToGrid(oneThird, SnapDivision::N8T) == Approx(oneThird).margin(0.001f));
-        REQUIRE(snapToGrid(twoThirds, SnapDivision::N8T) == Approx(twoThirds).margin(0.001f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::N8T) == Approx(1.0f));
-    }
-}
-
-TEST_CASE("snapToGrid edge cases", "[tap_pattern_editor][snap][edge]") {
-
-    SECTION("values at exact grid lines remain unchanged") {
-        // 1/4 note grid: exact values
-        REQUIRE(snapToGrid(0.0f, SnapDivision::N4) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.25f, SnapDivision::N4) == Approx(0.25f));
-        REQUIRE(snapToGrid(0.5f, SnapDivision::N4) == Approx(0.5f));
-        REQUIRE(snapToGrid(0.75f, SnapDivision::N4) == Approx(0.75f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::N4) == Approx(1.0f));
-    }
-
-    SECTION("values out of bounds are clamped") {
-        REQUIRE(snapToGrid(-0.1f, SnapDivision::N4) == Approx(0.0f));
-        REQUIRE(snapToGrid(1.1f, SnapDivision::N4) == Approx(1.0f));
-    }
-
-    SECTION("midpoint values round correctly (banker's rounding)") {
-        // 0.125 is exactly between 0 and 0.25 for 1/4 grid
-        // std::round should round to nearest even (0.0) or away from zero (0.25)
-        float snapped = snapToGrid(0.125f, SnapDivision::N4);
-        // Either 0.0 or 0.25 is acceptable for exact midpoint
-        REQUIRE((snapped == Approx(0.0f) || snapped == Approx(0.25f)));
-    }
-}
-
-TEST_CASE("getSnapDivisions returns correct counts", "[tap_pattern_editor][snap]") {
-    // Test key snap divisions
-    REQUIRE(getSnapDivisions(SnapDivision::Off) == 0);
-
-    // Standard note values
-    REQUIRE(getSnapDivisions(SnapDivision::N64) == 64);
-    REQUIRE(getSnapDivisions(SnapDivision::N32) == 32);
-    REQUIRE(getSnapDivisions(SnapDivision::N16) == 16);
-    REQUIRE(getSnapDivisions(SnapDivision::N8) == 8);
-    REQUIRE(getSnapDivisions(SnapDivision::N4) == 4);
-    REQUIRE(getSnapDivisions(SnapDivision::N2) == 2);
-    REQUIRE(getSnapDivisions(SnapDivision::N1) == 1);
-
-    // Triplet values
-    REQUIRE(getSnapDivisions(SnapDivision::N64T) == 96);
-    REQUIRE(getSnapDivisions(SnapDivision::N32T) == 48);
-    REQUIRE(getSnapDivisions(SnapDivision::N16T) == 24);
-    REQUIRE(getSnapDivisions(SnapDivision::N8T) == 12);
-    REQUIRE(getSnapDivisions(SnapDivision::N4T) == 6);
-    REQUIRE(getSnapDivisions(SnapDivision::N2T) == 3);
-    REQUIRE(getSnapDivisions(SnapDivision::N1T) == 2);  // Rounded
-
-    // Dotted values
-    REQUIRE(getSnapDivisions(SnapDivision::N64D) == 43);
-    REQUIRE(getSnapDivisions(SnapDivision::N32D) == 21);
-    REQUIRE(getSnapDivisions(SnapDivision::N16D) == 11);
-    REQUIRE(getSnapDivisions(SnapDivision::N8D) == 5);
-    REQUIRE(getSnapDivisions(SnapDivision::N4D) == 3);
-    REQUIRE(getSnapDivisions(SnapDivision::N2D) == 1);  // Rounded
-    REQUIRE(getSnapDivisions(SnapDivision::N1D) == 1);  // Rounded
+TEST_CASE("value clamping for out-of-bounds ratios", "[tap_pattern_editor][clamping][edge]") {
+    REQUIRE(clampRatio(-0.5f) == 0.0f);
+    REQUIRE(clampRatio(1.5f) == 1.0f);
+    REQUIRE(clampRatio(0.5f) == 0.5f);
+    REQUIRE(clampRatio(0.0f) == 0.0f);
+    REQUIRE(clampRatio(1.0f) == 1.0f);
 }
 
 // =============================================================================
-// T064-T065: Pattern Calculator Tests (User Story 4 - Copy from Pattern)
+// Pattern Calculator: Copy to Custom mirrors the DSP in milliseconds (design 2.6)
 // =============================================================================
 
 #include "parameters/pattern_calculator.h"
+#include <krate/dsp/core/block_context.h>
+#include <krate/dsp/effects/multi_tap_delay.h>
+#include <memory>
 
-TEST_CASE("calculatePatternRatios linear pattern", "[tap_pattern_editor][copy]") {
-    std::array<float, 16> ratios{};
+namespace {
 
-    SECTION("4 taps linear spread") {
-        calculatePatternRatios(static_cast<int>(PatternIndex::LinearSpread), 4, ratios.data());
+constexpr double kMirrorSampleRate = 44100.0;
+constexpr size_t kMirrorBlock = 512;
 
-        // Linear: 1, 2, 3, 4 -> normalized: 0.25, 0.5, 0.75, 1.0
-        REQUIRE(ratios[0] == Approx(0.25f));
-        REQUIRE(ratios[1] == Approx(0.5f));
-        REQUIRE(ratios[2] == Approx(0.75f));
-        REQUIRE(ratios[3] == Approx(1.0f));
-    }
+/// The note value of the 911 dropdown index the processor maps (Whole, Half, Quarter, 8th, ...).
+Krate::DSP::NoteValue mirrorNote(int noteIdx) {
+    using NV = Krate::DSP::NoteValue;
+    static constexpr NV notes[] = {NV::Whole, NV::Half, NV::Quarter, NV::Eighth, NV::Sixteenth};
+    return notes[noteIdx];
+}
 
-    SECTION("8 taps linear spread") {
-        calculatePatternRatios(static_cast<int>(PatternIndex::LinearSpread), 8, ratios.data());
+Krate::DSP::NoteModifier mirrorModifier(int modIdx) {
+    using NM = Krate::DSP::NoteModifier;
+    static constexpr NM mods[] = {NM::None, NM::Triplet, NM::Dotted};
+    return mods[modIdx];
+}
 
-        // Linear: 1..8 -> normalized: 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0
-        REQUIRE(ratios[0] == Approx(0.125f));
-        REQUIRE(ratios[4] == Approx(0.625f));
-        REQUIRE(ratios[7] == Approx(1.0f));
+/// Plays the pattern the way the processor does: timing pattern loaded, then per block the spatial pattern and
+/// process() at the tempo, transport playing.
+void playPattern(Krate::DSP::MultiTapDelay& delay, int timing, int spatial, int noteIdx, int modIdx, size_t n,
+                 double bpm) {
+    delay.setTempo(static_cast<float>(bpm));
+    delay.setNoteValue(mirrorNote(noteIdx), mirrorModifier(modIdx));
+    delay.loadTimingPattern(static_cast<Krate::DSP::TimingPattern>(timing), n);
+    const Krate::DSP::BlockContext ctx{.sampleRate = kMirrorSampleRate, .blockSize = kMirrorBlock, .tempoBPM = bpm,
+                                       .isPlaying = true};
+    std::array<float, kMirrorBlock> left{};
+    std::array<float, kMirrorBlock> right{};
+    for (int block = 0; block < 3; ++block) {
+        delay.applySpatialPattern(static_cast<Krate::DSP::SpatialPattern>(spatial));
+        left.fill(0.0f);
+        right.fill(0.0f);
+        delay.process(left.data(), right.data(), kMirrorBlock, ctx);
     }
 }
 
-TEST_CASE("calculatePatternRatios golden ratio pattern", "[tap_pattern_editor][copy]") {
-    std::array<float, 16> ratios{};
+std::unique_ptr<Krate::DSP::MultiTapDelay> makeMirrorDelay() {
+    auto delay = std::make_unique<Krate::DSP::MultiTapDelay>();
+    delay->prepare(kMirrorSampleRate, kMirrorBlock, 5000.0f);
+    return delay;
+}
 
-    SECTION("4 taps golden ratio") {
-        calculatePatternRatios(static_cast<int>(PatternIndex::GoldenRatio), 4, ratios.data());
+} // namespace
 
-        // Golden: 1, 1.618, 2.618, 4.236 -> normalized
-        // Last tap is 1.0
-        REQUIRE(ratios[3] == Approx(1.0f));
-
-        // Each ratio should be phi times the previous
-        float expectedRatio = kGoldenRatio;
-        REQUIRE(ratios[1] / ratios[0] == Approx(expectedRatio).margin(0.01f));
-        REQUIRE(ratios[2] / ratios[1] == Approx(expectedRatio).margin(0.01f));
-        REQUIRE(ratios[3] / ratios[2] == Approx(expectedRatio).margin(0.01f));
+TEST_CASE("patternTap and playedLevelDb match MultiTapDelay for every timing and spatial pattern",
+          "[tap_pattern_editor][copy]") {
+    auto delay = makeMirrorDelay();
+    for (int timing = 0; timing <= 18; ++timing) {
+        for (int spatial = 0; spatial <= 6; ++spatial) {
+            for (int noteIdx : {2, 3}) {  // Quarter, Eighth
+                for (int modIdx = 0; modIdx <= 2; ++modIdx) {
+                    for (size_t n : {size_t{4}, size_t{16}}) {
+                        for (double bpm : {90.0, 140.0}) {
+                            playPattern(*delay, timing, spatial, noteIdx, modIdx, n, bpm);
+                            for (size_t i = 0; i < n; ++i) {
+                                const PatternTap tap = patternTap(timing, noteIdx, modIdx, i, n, bpm);
+                                INFO("timing " << timing << " spatial " << spatial << " note " << noteIdx << " mod "
+                                               << modIdx << " taps " << n << " bpm " << bpm << " tap " << i);
+                                REQUIRE(tap.ms == Approx(delay->getTapTimeMs(i)).margin(0.5));
+                                REQUIRE(playedLevelDb(tap.levelDb, spatial, i) ==
+                                        Approx(delay->getTapLevelDb(i)).margin(0.1));
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
-TEST_CASE("calculatePatternRatios fibonacci pattern", "[tap_pattern_editor][copy]") {
-    std::array<float, 16> ratios{};
+TEST_CASE("patternTap: Linear with 16 taps at 90 BPM follows the clamped spread", "[tap_pattern_editor][copy]") {
+    constexpr int kLinear = 18;
+    constexpr int kQuarterIdx = 2;
+    auto delay = makeMirrorDelay();
+    playPattern(*delay, kLinear, 2, kQuarterIdx, 0, 16, 90.0);
 
-    SECTION("6 taps fibonacci") {
-        calculatePatternRatios(static_cast<int>(PatternIndex::Fibonacci), 6, ratios.data());
+    REQUIRE(patternTap(kLinear, kQuarterIdx, 0, 1, 16, 90.0).ms == Approx(955.6f).margin(0.5));
+    for (size_t i = 0; i < 16; ++i) {
+        INFO("tap " << i);
+        REQUIRE(patternTap(kLinear, kQuarterIdx, 0, i, 16, 90.0).ms == Approx(delay->getTapTimeMs(i)).margin(0.5));
+    }
+    REQUIRE(patternClampEngaged(kLinear, kQuarterIdx, 0, 16, 90.0));
+}
 
-        // Fibonacci: 1, 1, 2, 3, 5, 8 -> normalized by 8: 0.125, 0.125, 0.25, 0.375, 0.625, 1.0
-        REQUIRE(ratios[0] == Approx(0.125f));
-        REQUIRE(ratios[1] == Approx(0.125f));  // Same as first (both 1)
-        REQUIRE(ratios[2] == Approx(0.25f));   // 2/8
-        REQUIRE(ratios[5] == Approx(1.0f));    // Last is always 1.0
+TEST_CASE("patternTap: Note Value Whole at 30 BPM applies the base clamp", "[tap_pattern_editor][copy]") {
+    constexpr int kWholeIdx = 0;
+    auto delay = makeMirrorDelay();
+    for (int timing : {15, 17, 18}) {  // Fibonacci, Primes, Linear
+        for (size_t n : {size_t{4}, size_t{16}}) {
+            playPattern(*delay, timing, 2, kWholeIdx, 0, n, 30.0);
+            for (size_t i = 0; i < n; ++i) {
+                INFO("timing " << timing << " taps " << n << " tap " << i);
+                REQUIRE(patternTap(timing, kWholeIdx, 0, i, n, 30.0).ms ==
+                        Approx(delay->getTapTimeMs(i)).margin(0.5));
+            }
+            REQUIRE(patternClampEngaged(timing, kWholeIdx, 0, n, 30.0));
+        }
+    }
+    REQUIRE(patternTap(17, kWholeIdx, 0, 0, 4, 30.0).ms == Approx(2500.0f).margin(0.5));
+    REQUIRE(patternTap(15, kWholeIdx, 0, 0, 4, 30.0).ms == Approx(1250.0f).margin(0.5));
+    REQUIRE(patternTap(15, kWholeIdx, 0, 1, 4, 30.0).ms == Approx(1250.0f).margin(0.5));
+    for (size_t i = 0; i < 16; ++i) {
+        REQUIRE(patternTap(18, kWholeIdx, 0, i, 16, 30.0).ms == Approx(5000.0f).margin(0.5));
     }
 }
 
-TEST_CASE("calculatePatternRatios exponential pattern", "[tap_pattern_editor][copy]") {
-    std::array<float, 16> ratios{};
+TEST_CASE("patternClampEngaged is false for Quarter with 6 taps at 120 BPM and true for Whole with 4 taps at 120 BPM",
+          "[tap_pattern_editor][copy]") {
+    REQUIRE_FALSE(patternClampEngaged(2, 2, 0, 6, 120.0));
+    REQUIRE(patternClampEngaged(0, 2, 0, 4, 120.0));
 
-    SECTION("4 taps exponential") {
-        calculatePatternRatios(static_cast<int>(PatternIndex::Exponential), 4, ratios.data());
-
-        // Exponential: 1, 2, 4, 8 -> normalized: 0.125, 0.25, 0.5, 1.0
-        REQUIRE(ratios[0] == Approx(0.125f));
-        REQUIRE(ratios[1] == Approx(0.25f));
-        REQUIRE(ratios[2] == Approx(0.5f));
-        REQUIRE(ratios[3] == Approx(1.0f));
-    }
-}
-
-TEST_CASE("calculatePatternRatios prime numbers pattern", "[tap_pattern_editor][copy]") {
-    std::array<float, 16> ratios{};
-
-    SECTION("4 taps primes") {
-        calculatePatternRatios(static_cast<int>(PatternIndex::PrimeNumbers), 4, ratios.data());
-
-        // Primes: 2, 3, 5, 7 -> normalized by 7
-        REQUIRE(ratios[0] == Approx(2.0f / 7.0f));
-        REQUIRE(ratios[1] == Approx(3.0f / 7.0f));
-        REQUIRE(ratios[2] == Approx(5.0f / 7.0f));
-        REQUIRE(ratios[3] == Approx(1.0f));
-    }
-}
-
-TEST_CASE("calculatePatternRatios edge cases", "[tap_pattern_editor][copy]") {
-    std::array<float, 16> ratios{};
-
-    SECTION("minimum 2 taps") {
-        calculatePatternRatios(static_cast<int>(PatternIndex::LinearSpread), 2, ratios.data());
-
-        REQUIRE(ratios[0] == Approx(0.5f));
-        REQUIRE(ratios[1] == Approx(1.0f));
-    }
-
-    SECTION("maximum 16 taps") {
-        calculatePatternRatios(static_cast<int>(PatternIndex::LinearSpread), 16, ratios.data());
-
-        REQUIRE(ratios[0] == Approx(1.0f / 16.0f));
-        REQUIRE(ratios[15] == Approx(1.0f));
-    }
-
-    SECTION("rhythmic pattern uses linear spread") {
-        // Rhythmic patterns (0-13) use evenly spaced taps
-        calculatePatternRatios(static_cast<int>(PatternIndex::QuarterNote), 4, ratios.data());
-
-        // Same as linear spread
-        REQUIRE(ratios[0] == Approx(0.25f));
-        REQUIRE(ratios[3] == Approx(1.0f));
-    }
+    // The beats of a rhythmic tap are its unclamped musical value.
+    REQUIRE(patternTap(2, 2, 0, 5, 6, 120.0).beats == Approx(6.0f));
+    REQUIRE(patternTap(0, 2, 0, 3, 4, 120.0).beats == Approx(16.0f));
+    REQUIRE(patternTap(0, 2, 0, 3, 4, 120.0).ms == Approx(5000.0f));
+    REQUIRE(patternTap(2, 2, 0, 3, 6, 120.0).levelDb == Approx(-9.0f));
 }

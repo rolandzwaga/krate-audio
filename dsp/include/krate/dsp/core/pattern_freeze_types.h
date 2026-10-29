@@ -37,7 +37,7 @@ inline constexpr PatternType kDefaultPatternType = PatternType::Euclidean;
 /// Get pattern type name for UI display
 /// @param type Pattern type enum value
 /// @return Human-readable name
-[[nodiscard]] inline constexpr const char* getPatternTypeName(PatternType type) noexcept {
+[[nodiscard]] constexpr const char* getPatternTypeName(PatternType type) noexcept {
     constexpr const char* kNames[] = {
         "Euclidean",
         "Granular Scatter",
@@ -64,7 +64,7 @@ inline constexpr SliceMode kDefaultSliceMode = SliceMode::Fixed;
 /// Get slice mode name for UI display
 /// @param mode Slice mode enum value
 /// @return Human-readable name
-[[nodiscard]] inline constexpr const char* getSliceModeName(SliceMode mode) noexcept {
+[[nodiscard]] constexpr const char* getSliceModeName(SliceMode mode) noexcept {
     constexpr const char* kNames[] = {
         "Fixed",
         "Variable"
@@ -93,7 +93,7 @@ inline constexpr PitchInterval kDefaultPitchInterval = PitchInterval::Octave;
 /// Get semitone offset for pitch interval
 /// @param interval Pitch interval enum value
 /// @return Interval in semitones
-[[nodiscard]] inline constexpr float getIntervalSemitones(PitchInterval interval) noexcept {
+[[nodiscard]] constexpr float getIntervalSemitones(PitchInterval interval) noexcept {
     constexpr float kSemitones[] = { 0.0f, 3.0f, 4.0f, 5.0f, 7.0f, 12.0f };
     const auto index = static_cast<size_t>(interval);
     return (index < kPitchIntervalCount) ? kSemitones[index] : 0.0f;
@@ -102,7 +102,7 @@ inline constexpr PitchInterval kDefaultPitchInterval = PitchInterval::Octave;
 /// Get pitch interval name for UI display
 /// @param interval Pitch interval enum value
 /// @return Human-readable name
-[[nodiscard]] inline constexpr const char* getPitchIntervalName(PitchInterval interval) noexcept {
+[[nodiscard]] constexpr const char* getPitchIntervalName(PitchInterval interval) noexcept {
     constexpr const char* kNames[] = {
         "Unison",
         "Minor 3rd",
@@ -138,7 +138,7 @@ inline constexpr NoiseColor kDefaultNoiseColor = NoiseColor::Pink;
 /// Get noise color name for UI display
 /// @param color Noise color enum value
 /// @return Human-readable name
-[[nodiscard]] inline constexpr const char* getNoiseColorName(NoiseColor color) noexcept {
+[[nodiscard]] constexpr const char* getNoiseColorName(NoiseColor color) noexcept {
     constexpr const char* kNames[] = {
         "White",
         "Pink",
@@ -169,7 +169,7 @@ inline constexpr EnvelopeShape kDefaultEnvelopeShape = EnvelopeShape::Linear;
 /// Get envelope shape name for UI display
 /// @param shape Envelope shape enum value
 /// @return Human-readable name
-[[nodiscard]] inline constexpr const char* getEnvelopeShapeName(EnvelopeShape shape) noexcept {
+[[nodiscard]] constexpr const char* getEnvelopeShapeName(EnvelopeShape shape) noexcept {
     constexpr const char* kNames[] = {
         "Linear",
         "Exponential"
@@ -177,6 +177,48 @@ inline constexpr EnvelopeShape kDefaultEnvelopeShape = EnvelopeShape::Linear;
     const auto index = static_cast<size_t>(shape);
     return (index < kEnvelopeShapeCount) ? kNames[index] : "Unknown";
 }
+
+// =============================================================================
+// Capture Length Enumeration (specs/iterum-freeze/design.md 3.1)
+// =============================================================================
+
+/// The capture cycle: the note value each window is recorded over
+enum class CaptureLength : uint8_t {
+    Quarter = 0,   ///< 1/4: one beat
+    Half,          ///< 1/2: two beats
+    Whole,         ///< 1/1: four beats
+    DoubleWhole    ///< 2/1: eight beats
+};
+
+inline constexpr int kCaptureLengthCount = 4;
+inline constexpr CaptureLength kDefaultCaptureLength = CaptureLength::Whole;
+
+/// Get the capture cycle length in beats (1, 2, 4 or 8)
+[[nodiscard]] constexpr double getCaptureLengthBeats(CaptureLength length) noexcept {
+    constexpr double kBeats[] = {1.0, 2.0, 4.0, 8.0};
+    const auto index = static_cast<size_t>(length);
+    return (index < kCaptureLengthCount) ? kBeats[index] : 4.0;
+}
+
+/// Get capture length name for UI display ("1/4", "1/2", "1/1", "2/1")
+[[nodiscard]] constexpr const char* getCaptureLengthName(CaptureLength length) noexcept {
+    constexpr const char* kNames[] = {"1/4", "1/2", "1/1", "2/1"};
+    const auto index = static_cast<size_t>(length);
+    return (index < kCaptureLengthCount) ? kNames[index] : "Unknown";
+}
+
+// =============================================================================
+// Dry Mode Enumeration (specs/iterum-freeze/design.md 2.7, 3.1)
+// =============================================================================
+
+/// The mix law of the Freeze mode
+enum class DryMode : uint8_t {
+    Mix = 0,   ///< out = in (1 - m) + wet m (the crossfade)
+    Insert     ///< out = in (1 - m g) + wet m (the dry is ducked only while the gate g is open)
+};
+
+inline constexpr int kDryModeCount = 2;
+inline constexpr DryMode kDefaultDryMode = DryMode::Insert;
 
 // =============================================================================
 // Pattern Freeze Constants
@@ -230,16 +272,29 @@ inline constexpr float kMaxEnvelopeReleaseMs = 2000.0f;
 inline constexpr float kDefaultEnvelopeReleaseMs = 100.0f;
 
 /// Capture buffer limits
-inline constexpr float kDefaultCaptureBufferSeconds = 5.0f;
 inline constexpr float kMinCaptureBufferSeconds = 1.0f;
 inline constexpr float kMaxCaptureBufferSeconds = 10.0f;
 inline constexpr float kMinReadyBufferMs = 200.0f;
 
-/// Pattern crossfade duration
-inline constexpr float kPatternCrossfadeMs = 500.0f;
-
 /// Maximum polyphony
 inline constexpr size_t kMaxSlices = 8;
+
+/// The held window (specs/iterum-freeze/design.md 3.1)
+inline constexpr float kMaxCaptureLengthSeconds = 5.0f;        // each cycle buffer (2.1; R4)
+inline constexpr float kCaptureSilenceFloor = 1e-3f;           // -60 dBFS: the onset and a silent window (2.2)
+inline constexpr float kDuckSmoothingMs = 2.0f;                // gv: OnePoleSmoother 99 % time, tau 0.4 ms (2.7)
+inline constexpr float kHoldDuckSmoothingMs = 20.0f;           // gh: OnePoleSmoother 99 % time, tau 4 ms (2.7)
+inline constexpr float kNoiseLevelDb = -10.0f;                 // all eight colours (2.5.4; R14, -10.5 missed both bars)
+inline constexpr int kDroneSourceHeads = 4;                    // drone source heads, 75 % overlap (2.5.3)
+inline constexpr float kDroneMinPassMs = 100.0f;               // shortest source pass (2.5.3)
+inline constexpr int kDroneChunkSamples = 64;                  // == PitchShiftProcessor::kSmoothingSubBlockSize (2.5.3)
+inline constexpr float kDroneVoiceFadeMs = 20.0f;              // a voice joining or leaving (2.5.3)
+inline constexpr float kSpliceSpanMs = 5.0f;                   // findSplice correlation span (2.10)
+inline constexpr float kSpliceSearchMs = 5.0f;                 // findSplice search radius; kDroneAlignMs (2.10)
+inline constexpr float kSpliceFadeMs = 5.0f;                   // equal-gain splice / seam fade (2.10)
+inline constexpr int kBurstVoices = 2;                         // burst voices, each kMaxSliceLengthMs x 2 ch (2.5.4)
+inline constexpr float kForcedHeadFadeMs = 5.0f;               // 2.6, and the older burst voice (2.5.4)
+inline constexpr double kMaxClockTempoBPM = 1000.0;            // spb tempo ceiling and event-array sizing (4.1, 4.3)
 
 }  // namespace PatternFreezeConstants
 

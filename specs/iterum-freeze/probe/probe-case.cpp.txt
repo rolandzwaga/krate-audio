@@ -1,0 +1,65 @@
+
+// PROBE: what the Freeze mode outputs at the plugin's defaults (Euclidean, 200 ms slices, 8 steps / 3 hits,
+// mix 50 %, 120 BPM) for each pattern type. Wet is estimated as out - 0.5 x in (the dry share at 50 % mix).
+TEST_CASE("PROBE Freeze signal path at defaults", "[.][probe][freeze-path]") {
+    const double sr = 44100.0;
+    const size_t block = 512;
+    const size_t total = static_cast<size_t>(sr * 6.0);
+    const char* names[] = {"Euclidean", "GranularScatter", "HarmonicDrones", "NoiseBursts"};
+    for (int pt = 0; pt < 4; ++pt) {
+        for (const bool playing : {true, false}) {
+            PatternFreezeMode freeze;
+            freeze.prepare(sr, block, 2000.0f);
+            freeze.setPatternType(static_cast<PatternType>(pt));
+            freeze.setDryWetMix(50.0f);
+            freeze.setSliceLengthMs(200.0f);
+            freeze.setEuclideanSteps(8);
+            freeze.setEuclideanHits(3);
+            freeze.setFreezeEnabled(true);
+            freeze.snapParameters();
+            BlockContext ctx{.sampleRate = sr, .blockSize = block, .tempoBPM = 120.0, .isPlaying = playing};
+            // Input: 220 Hz tone whose frequency doubles every second (so a held slice is distinguishable)
+            std::vector<float> in(total), out(total), outR(total);
+            for (size_t i = 0; i < total; ++i) {
+                const float f = 220.0f * static_cast<float>(1 << (static_cast<int>(i / static_cast<size_t>(sr)) % 3));
+                in[i] = 0.5f * std::sin(6.2831853f * f * static_cast<float>(i) / 44100.0f);
+            }
+            out = in;
+            outR = in;
+            for (size_t s = 0; s + block <= total; s += block) {
+                freeze.process(&out[s], &outR[s], block, ctx);
+            }
+            // Wet estimate, activity and level over 10 ms windows, skipping the first second
+            const size_t win = 441;
+            size_t active = 0, windows = 0;
+            double wetE = 0.0, inE = 0.0, peakWet = 0.0;
+            for (size_t s = static_cast<size_t>(sr); s + win <= total; s += win) {
+                double w = 0.0, d = 0.0;
+                for (size_t i = s; i < s + win; ++i) {
+                    const double wet = out[i] - 0.5 * in[i];
+                    w += wet * wet;
+                    d += static_cast<double>(in[i]) * in[i];
+                }
+                ++windows;
+                if (w > d * 1e-4) ++active;   // wet above -40 dB re input in this window
+                wetE += w; inE += d; peakWet = std::max(peakWet, w / std::max(d, 1e-12));
+            }
+            // Lag of the wet signal against the input: best cross-correlation within 0..600 ms, over seconds 2..3
+            double bestR = 0.0; int bestLag = -1;
+            const size_t from = static_cast<size_t>(sr * 2.0), len = static_cast<size_t>(sr * 1.0);
+            for (int lag = 0; lag <= 26460; lag += 21) {
+                double num = 0.0, a = 0.0, b = 0.0;
+                for (size_t i = from; i < from + len; ++i) {
+                    const double wet = out[i] - 0.5 * in[i];
+                    const double x = in[i - static_cast<size_t>(lag)];
+                    num += wet * x; a += wet * wet; b += x * x;
+                }
+                const double r = num / std::sqrt(std::max(a * b, 1e-20));
+                if (r > bestR) { bestR = r; bestLag = lag; }
+            }
+            std::printf("%-16s playing=%d | wet %+6.1f dB re in, peak %+6.1f dB | active %3.0f%% of 10 ms windows | best lag %6.1f ms r=%.2f\n",
+                        names[pt], playing ? 1 : 0, 10.0 * std::log10(wetE / inE + 1e-12), 10.0 * std::log10(peakWet + 1e-12),
+                        100.0 * static_cast<double>(active) / static_cast<double>(windows), bestLag / 44.1, bestR);
+        }
+    }
+}

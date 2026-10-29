@@ -13,7 +13,7 @@ using Catch::Approx;
 
 // Helper: create a default 250x160 pad (matching editor.uidesc dimensions)
 static XYMorphPad makePad() {
-    return XYMorphPad(CRect(0, 0, 250, 160), nullptr, -1);
+    return {CRect(0, 0, 250, 160), nullptr, -1};
 }
 
 // ==============================================================================

@@ -28,7 +28,7 @@ namespace Iterum {
 
 struct BBDParams {
     std::atomic<float> delayTime{300.0f};      // 20-1000ms
-    std::atomic<int> timeMode{0};              // 0=Free, 1=Synced (spec 043)
+    std::atomic<int> timeMode{1};              // 0=Free, 1=Synced (spec 043)
     std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};  // 0-19 (note values)
     std::atomic<float> feedback{0.4f};         // 0-1.2
     std::atomic<float> modulationDepth{0.0f};  // 0-1
@@ -127,7 +127,7 @@ inline void registerBBDParams(Steinberg::Vst::ParameterContainer& parameters) {
     // Time Mode (Free/Synced) - spec 043
     parameters.addParameter(createDropdownParameterWithDefault(
         STR16("BBD Time Mode"), kBBDTimeModeId,
-        0,  // default: Free (index 0)
+        1,  // default: Synced (index 1)
         {STR16("Free"), STR16("Synced")}
     ));
 
@@ -215,6 +215,9 @@ inline Steinberg::tresult formatBBDParam(
     switch (id) {
         case kBBDDelayTimeId: {
             float ms = static_cast<float>(20.0 + normalizedValue * 980.0);
+            if (ms >= 1000.0f) {
+                return formatParamText(string, "%.2f s", ms / 1000.0f);
+            }
             return formatParamText(string, "%.1f ms", ms);
         }
 

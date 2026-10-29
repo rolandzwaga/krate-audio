@@ -31,6 +31,28 @@
 #include <vector>
 #include <atomic>
 
+// First control with a given tag under @p container (a plain ViewIterator walk). Used by tapEditor() and by the
+// debug logging below.
+static VSTGUI::CControl* findControlByTag(VSTGUI::CViewContainer* container, int32_t tag) {
+    if (!container) return nullptr;
+
+    VSTGUI::ViewIterator it(container);
+    while (*it) {
+        if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+            if (control->getTag() == tag) {
+                return control;
+            }
+        }
+        if (auto* childContainer = (*it)->asViewContainer()) {
+            if (auto* found = findControlByTag(childContainer, tag)) {
+                return found;
+            }
+        }
+        ++it;
+    }
+    return nullptr;
+}
+
 #if defined(_DEBUG) && defined(_WIN32)
 #include "vstgui/lib/platform/win32/win32factory.h"
 #include <windows.h>
@@ -79,27 +101,6 @@ static void logViewHierarchy(VSTGUI::CView* view, std::ofstream& log, int depth 
             ++it;
         }
     }
-}
-
-// Debug helper to find first control with a given tag
-static VSTGUI::CControl* findControlByTag(VSTGUI::CViewContainer* container, int32_t tag) {
-    if (!container) return nullptr;
-
-    VSTGUI::ViewIterator it(container);
-    while (*it) {
-        if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
-            if (control->getTag() == tag) {
-                return control;
-            }
-        }
-        if (auto* childContainer = (*it)->asViewContainer()) {
-            if (auto* found = findControlByTag(childContainer, tag)) {
-                return found;
-            }
-        }
-        ++it;
-    }
-    return nullptr;
 }
 
 #endif
@@ -193,8 +194,10 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     modeParam->appendString(STR16("Reverse"));
     modeParam->appendString(STR16("MultiTap"));
     modeParam->appendString(STR16("Freeze"));
-    // Set default to Digital (index 5) - normalized value = 5/9
+    // Set default to Digital (index 5) - normalized value = 5/9 - as both the
+    // starting value and the registered default "reset to default" returns to
     modeParam->setNormalized(5.0 / 9.0);
+    modeParam->getInfo().defaultNormalizedValue = 5.0 / 9.0;
     parameters.addParameter(modeParam);
 
     // ==========================================================================
@@ -294,6 +297,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     syncDigitalParamsToController(streamer, *this);   // Digital Delay (spec 026)
     syncPingPongParamsToController(streamer, *this);  // PingPong Delay (spec 027)
     syncMultiTapParamsToController(streamer, *this);  // MultiTap Delay (spec 028)
+    syncTapeSyncParamsToController(streamer, *this);  // Tape tempo sync (after every mode)
+    syncMultiTapLengthParamsToController(streamer, *this);  // MultiTap Custom Length
+    syncFreezeCaptureParamsToController(streamer, *this);  // Freeze Hold / Capture / Dry Mode (the last fields)
 
     bulkParamLoad_ = false;  // Re-enable per-param view updates
     syncAllViews();           // Single batch sync of all custom views
@@ -407,7 +413,7 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                     : -80.0;
 
                 char text[32];
-                std::snprintf(text, sizeof(text), "%.1f", dB);
+                std::snprintf(text, sizeof(text), "%.1f dB", dB);
 
                 Steinberg::UString(string, 128).fromAscii(text);
                 return Steinberg::kResultTrue;
@@ -457,10 +463,15 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatReverseParam(id, valueNormalized, string);
     }
     else if (id >= kMultiTapBaseId && id <= kMultiTapEndId) {
-        result = formatMultiTapParam(id, valueNormalized, string);
+        // Custom Time is shown in ms of the span the Length and the reported Tempo give (design 4.4)
+        result = formatMultiTapParam(id, valueNormalized, string,
+                                     getParamNormalized(kMultiTapCustomLengthId),
+                                     getParamNormalized(kMultiTapTempoId));
     }
     else if (id >= kFreezeBaseId && id <= kFreezeEndId) {
-        result = formatFreezeParam(id, valueNormalized, string);
+        // Hits and Rotation are counted against the current Steps (handleFreezeParamChange does the same).
+        result = formatFreezeParam(id, valueNormalized, string,
+                                   getParamNormalized(kFreezeEuclideanStepsId));
     }
 
     // If the mode-specific formatter didn't handle it (returns kResultFalse),
@@ -495,6 +506,11 @@ Steinberg::tresult PLUGIN_API Controller::getParamValueByString(
         }
 
         default:
+            // Custom Time "750.0 ms" and Custom Level "-6.0 dB" parse back through the formatter's inverse (4.4)
+            if (parseMultiTapParam(id, string, getParamNormalized(kMultiTapCustomLengthId),
+                                   getParamNormalized(kMultiTapTempoId), valueNormalized) == Steinberg::kResultTrue) {
+                return Steinberg::kResultTrue;
+            }
             return EditControllerEx1::getParamValueByString(
                 id, string, valueNormalized);
     }
@@ -576,39 +592,27 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     }
 #endif
 
+    // The count before this set, for the placement a user Taps gesture triggers in performEdit (design 3.3)
+    if (id == kMultiTapTapCountId) {
+        tapCountBeforeSet_ = static_cast<int>(2.0 + getParamNormalized(kMultiTapTapCountId) * 14.0 + 0.5);
+    }
+
     // Call base class - this is the ONLY thing that actually happens
+    // (the tap editor's bridge receives the change synchronously inside it, design 3.6)
     auto result = EditControllerEx1::setParamNormalized(id, value);
 
-    // CRITICAL: Pointer-nulling for view lifecycle must happen even during bulk
-    // loads. The base class setParamNormalized triggers IDependent notifications
-    // which cause UIViewSwitchContainer to destroy old mode views. If we don't
-    // null the pointer, syncAllViews() will dereference freed memory.
-    if (id == kModeId) {
-        tapPatternEditor_ = nullptr;  // Lives inside MultiTap template only
+    // The Hits and Rotation readouts are counted against the current Steps (formatFreezeParam), but VST3Editor
+    // redraws a CParamDisplay only when its own parameter notifies: tell both that their text changed.
+    if (id == kFreezeEuclideanStepsId) {
+        for (auto dependentId : {kFreezeEuclideanHitsId, kFreezeEuclideanRotationId}) {
+            if (auto* param = getParameterObject(dependentId)) {
+                param->deferUpdate();
+            }
+        }
     }
 
-    // During bulk parameter loads (preset switching), skip per-param view updates.
-    // syncAllViews() will do a single batch sync afterwards.
-    if (bulkParamLoad_)
-        return result;
-
-    // NOTE: Conditional visibility for delay time controls is handled by
-    // VisibilityController instances via IDependent mechanism (see didOpen).
-    // DO NOT manipulate UI controls here - setParamNormalized can be called
-    // from non-UI threads (automation, state loading).
-
-    // Update TapPatternEditor snap division when parameter changes (Spec 046)
-    // This is safe because the dropdown interaction happens on UI thread
-    if (id == kMultiTapSnapDivisionId && tapPatternEditor_) {
-        int snapIndex = static_cast<int>(value * 21.0 + 0.5);
-        tapPatternEditor_->setSnapDivision(static_cast<SnapDivision>(snapIndex));
-    }
-
-    // Update TapPatternEditor tap count when parameter changes (Spec 046)
-    if (id == kMultiTapTapCountId && tapPatternEditor_) {
-        int tapCount = static_cast<int>(2.0 + value * 14.0 + 0.5);
-        tapPatternEditor_->setActiveTapCount(static_cast<size_t>(tapCount));
-    }
+    // NOTE: Conditional visibility is handled by VisibilityController instances, and the tap pattern editor by
+    // its TapEditorParamBridge, via the IDependent mechanism (see didOpen). No view pointer is cached here.
 
 #if defined(_DEBUG) && defined(_WIN32)
     if (id == kModeId) {
@@ -664,6 +668,25 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     return result;
 }
 
+Steinberg::tresult Controller::performEdit(Steinberg::Vst::ParamID tag,
+                                           Steinberg::Vst::ParamValue valueNormalized) {
+    const auto result = EditControllerEx1::performEdit(tag, valueNormalized);
+
+    // A Taps increase by a user gesture, while the editor shows the Custom pattern: the view places the taps this
+    // gesture revealed whose stored place is taken. Automation and bulk loads never call performEdit, so a count
+    // they raise is only revealed, never placed; a decrease places nothing (design 3.2, 3.3).
+    if (tag == kMultiTapTapCountId && !bulkParamLoad_ &&
+        getParamNormalized(kMultiTapTimingPatternId) >= 0.99) {
+        const int newCount = static_cast<int>(2.0 + valueNormalized * 14.0 + 0.5);
+        if (newCount > tapCountBeforeSet_) {
+            if (auto* view = tapEditor()) {
+                view->placeRevealedTaps(static_cast<size_t>(tapCountBeforeSet_), static_cast<size_t>(newCount));
+            }
+        }
+    }
+    return result;
+}
+
 // ==============================================================================
 // VST3EditorDelegate
 // ==============================================================================
@@ -679,7 +702,6 @@ VSTGUI::CView* Controller::createCustomView(
     // ==========================================================================
 
     // Silence unused parameter warnings
-    (void)description;
     (void)editor;
 
     // Preset Browser Button (Spec 042)
@@ -737,51 +759,47 @@ VSTGUI::CView* Controller::createCustomView(
 
         auto* patternEditor = new TapPatternEditor(rect);
 
-        // Initialize tap count FIRST (before loading tap values)
-        // This is critical because setActiveTapCount() initializes new taps with defaults,
-        // and we need to load the actual saved values AFTER that.
-        if (auto* tapCountParam = getParameterObject(kMultiTapTapCountId)) {
-            // Tap count is 2-16, normalized 0-1 maps to 2-16
-            float normalized = static_cast<float>(tapCountParam->getNormalized());
-            int tapCount = static_cast<int>(2 + normalized * 14 + 0.5f);
-            patternEditor->setActiveTapCount(static_cast<size_t>(tapCount));
-        }
-
-        // Initialize snap division from parameter (T058)
-        if (auto* snapParam = getParameterObject(kMultiTapSnapDivisionId)) {
-            // Snap division: 0-21 (off + 21 note values)
-            float normalized = static_cast<float>(snapParam->getNormalized());
-            int snapIndex = static_cast<int>(normalized * 21.0f + 0.5f);
-            patternEditor->setSnapDivision(static_cast<SnapDivision>(snapIndex));
-        }
-
-        // Load saved tap values AFTER tap count is set (T033)
-        // This overwrites any defaults that setActiveTapCount() initialized
-        for (size_t i = 0; i < 16; ++i) {
-            // Time ratios (IDs 950-965)
-            if (auto* timeParam = getParameterObject(kMultiTapCustomTime0Id + static_cast<Steinberg::Vst::ParamID>(i))) {
-                patternEditor->setTapTimeRatio(i, static_cast<float>(timeParam->getNormalized()));
-            }
-            // Levels (IDs 966-981)
-            if (auto* levelParam = getParameterObject(kMultiTapCustomLevel0Id + static_cast<Steinberg::Vst::ParamID>(i))) {
-                patternEditor->setTapLevel(i, static_cast<float>(levelParam->getNormalized()));
-            }
-        }
-
-        // Set tag for visibility control
+        // Tag 920 is not a parameter: the view is found by it (tapEditor()), and binds to nothing
         patternEditor->setTag(kMultiTapPatternEditorTagId);
 
-        // Store reference for parameter updates
-        tapPatternEditor_ = patternEditor;
+        // Colour and font tokens from the uidesc (design 5.7); the Palette's defaults stand in for a missing token
+        if (description) {
+            TapPatternEditor::Palette palette;
+            const auto readColor = [description](const char* name, VSTGUI::CColor& out) {
+                VSTGUI::CColor color;
+                if (description->getColor(name, color)) out = color;
+            };
+            readColor("slider-track", palette.sliderTrack);
+            readColor("border", palette.border);
+            readColor("slider-frame", palette.sliderFrame);
+            readColor("accent", palette.accent);
+            readColor("accent-dim", palette.accentDim);
+            readColor("text", palette.text);
+            readColor("text-dim", palette.textDim);
+            readColor("text-light", palette.textLight);
+            readColor("background", palette.background);
+            if (auto* font = description->getFont("value-font")) {
+                palette.valueFont = font;
+            }
+            patternEditor->setPalette(palette);
+        }
 
-        // Set up parameter callback to notify host of changes
-        patternEditor->setParameterCallback(
-            [this](Steinberg::Vst::ParamID paramId, float normalizedValue) {
-                if (auto* param = getParameterObject(paramId)) {
-                    param->setNormalized(static_cast<Steinberg::Vst::ParamValue>(normalizedValue));
-                    performEdit(paramId, static_cast<Steinberg::Vst::ParamValue>(normalizedValue));
-                }
-            });
+        // Every write of the view: begin / perform / end on the tap's own parameter (design 3.5). perform sets the
+        // parameter first, so the bridge reflects it at once, then tells the host.
+        TapEditSink sink;
+        sink.begin = [this](Steinberg::Vst::ParamID paramId) { beginEdit(paramId); };
+        sink.end = [this](Steinberg::Vst::ParamID paramId) { endEdit(paramId); };
+        sink.perform = [this](Steinberg::Vst::ParamID paramId, float normalizedValue) {
+            if (auto* param = getParameterObject(paramId)) {
+                param->setNormalized(static_cast<Steinberg::Vst::ParamValue>(normalizedValue));
+                performEdit(paramId, static_cast<Steinberg::Vst::ParamValue>(normalizedValue));
+            }
+        };
+        patternEditor->setEditSink(std::move(sink));
+
+        // Every value the view shows, then the read-only pattern. The reveal writes nothing, so the order of
+        // the count and the tap values no longer matters (design 3.6).
+        pushAllToTapEditor(*patternEditor);
 
         return patternEditor;
     }
@@ -817,6 +835,8 @@ VSTGUI::IController* Controller::createSubController(
         return new DelayTimeSyncController(kSpectralBaseDelayId, kSpectralTimeModeId, kSpectralNoteValueId, editor);
     if (controllerName == "ShimmerTimeSyncController")
         return new DelayTimeSyncController(kShimmerDelayTimeId, kShimmerTimeModeId, kShimmerNoteValueId, editor);
+    if (controllerName == "TapeTimeSyncController")
+        return new DelayTimeSyncController(kTapeMotorSpeedId, kTapeTimeModeId, kTapeNoteValueId, editor);
     if (controllerName == "BBDTimeSyncController")
         return new DelayTimeSyncController(kBBDDelayTimeId, kBBDTimeModeId, kBBDNoteValueId, editor);
     if (controllerName == "DigitalTimeSyncController")
@@ -882,14 +902,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     kMultiTapNoteValueId,  // Find container by child control's tag (Note Value dropdown)
                     14.0f / 19.0f, 19.0f / 19.0f);  // NOLINT(misc-redundant-expression) Range mode: patterns 14-18 only
 
-                // Custom Pattern Editor (Spec 046 FR-008): Show only when pattern == Custom (index 19)
-                // Pattern 19 is at normalized 1.0, pattern 18 is at 18/19 ≈ 0.947
-                // Use threshold 0.99 to select only pattern 19
-                // Uses ContainerVisibilityController to hide the entire container (simpler than individual controls)
-                // Finds container by locating TapPatternEditor child (tag 920) and hiding its parent
-                patternEditorVisibilityController_ = new ContainerVisibilityController(
+                // TAP PATTERN fieldset (design section 6): the fieldset and the editor (920) are always visible
+                // (the editor shows every pattern, read-only unless Custom); Snap (913), Length (914), their
+                // labels (922) and Reset (923) show only when pattern == Custom (index 19, normalized 1.0;
+                // pattern 18 is at 18/19 = 0.947, so the threshold 0.99 selects only 19)
+                customPatternControlsVisibilityController_ = new VisibilityController(
                     &activeEditor_, multitapPattern,
-                    kMultiTapPatternEditorTagId,  // Find container by child control's tag
+                    {kMultiTapSnapDivisionId, kMultiTapCustomLengthId, kMultiTapPatternEditorLabelTagId,
+                     kMultiTapResetPatternButtonTagId},
                     0.99f, false);  // Show when pattern >= 0.99 (Custom pattern only)
 
                 // Copy Pattern button: visible when NOT Custom pattern (patterns 0-18)
@@ -932,6 +952,26 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, patternType,
                     kFreezeNoiseColorId,  // Child control tag
                     0.833f, 1.01f);  // Range: show when value >= 0.833
+            }
+
+            // =====================================================================
+            // Tap pattern editor bridge (specs/iterum-tap-editor/design.md 3.6)
+            // =====================================================================
+            // Every parameter the editor shows reaches it synchronously, whoever set it (automation, host echo,
+            // preset load after its bulk phase, the view's own sink). The view is looked up by tag each time.
+            {
+                std::vector<Steinberg::Vst::Parameter*> watched;
+                for (Steinberg::Vst::ParamID id :
+                     {kMultiTapTimingPatternId, kMultiTapSpatialPatternId, kMultiTapTapCountId, kMultiTapNoteValueId,
+                      kMultiTapNoteModifierId, kMultiTapSnapDivisionId, kMultiTapCustomLengthId, kMultiTapTempoId}) {
+                    watched.push_back(getParameterObject(id));
+                }
+                for (Steinberg::Vst::ParamID i = 0; i < kCustomPatternMaxTaps; ++i) {
+                    watched.push_back(getParameterObject(kMultiTapCustomTime0Id + i));
+                    watched.push_back(getParameterObject(kMultiTapCustomLevel0Id + i));
+                }
+                tapEditorBridge_ = Steinberg::owned(new TapEditorParamBridge(
+                    std::move(watched), [this](Steinberg::Vst::ParamID id) { onTapEditorParamChanged(id); }));
             }
 
             // =====================================================================
@@ -1024,8 +1064,11 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // by DelayTimeSyncController sub-controllers (tag swapping pattern).
     deactivateVisibilityController(digitalAgeVisibilityController_);
     deactivateVisibilityController(multitapNoteValueVisibilityController_);
-    deactivateVisibilityController(patternEditorVisibilityController_);  // Spec 046
+    deactivateVisibilityController(customPatternControlsVisibilityController_);  // Spec 046
     deactivateVisibilityController(copyPatternButtonVisibilityController_);  // Spec 046
+    if (tapEditorBridge_) {
+        tapEditorBridge_->deactivate();  // the tap pattern editor's parameter bridge (design 3.6)
+    }
     // Freeze mode pattern container visibility (Spec 069)
     deactivateVisibilityController(freezeEuclideanContainerController_);
     deactivateVisibilityController(freezeGranularContainerController_);
@@ -1039,8 +1082,9 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // Now safe because: (1) isActive_ is false, (2) activeEditor_ is nullptr
     digitalAgeVisibilityController_ = nullptr;
     multitapNoteValueVisibilityController_ = nullptr;
-    patternEditorVisibilityController_ = nullptr;  // Spec 046
+    customPatternControlsVisibilityController_ = nullptr;  // Spec 046
     copyPatternButtonVisibilityController_ = nullptr;  // Spec 046
+    tapEditorBridge_ = nullptr;
     // Freeze mode pattern container visibility (Spec 069)
     freezeEuclideanContainerController_ = nullptr;
     freezeGranularContainerController_ = nullptr;
@@ -1049,9 +1093,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // Preset browser view is owned by the frame and will be cleaned up automatically
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
-
-    // TapPatternEditor is owned by the frame and will be cleaned up automatically
-    tapPatternEditor_ = nullptr;
 
     // Stop update banner polling (view is owned by frame)
     if (updateBannerView_) {
@@ -1100,76 +1141,160 @@ void Controller::closePresetBrowser() {
 // Custom Pattern Editor - Copy from Pattern
 // ==============================================================================
 
-void Controller::copyCurrentPatternToCustom() {
-    using namespace Steinberg::Vst;
+namespace {
 
-    // Get current pattern index
-    int patternIndex = 0;
-    if (auto* param = getParameterObject(kMultiTapTimingPatternId)) {
-        patternIndex = static_cast<int>(param->toPlain(param->getNormalized()));
-    }
+/// Index of a normalized StringList value with @p maxIndex steps.
+[[nodiscard]] int listIndex(double normalized, int maxIndex) {
+    return std::clamp(static_cast<int>(normalized * maxIndex + 0.5), 0, maxIndex);
+}
+
+/// The Taps parameter (902) decoded as the processor decodes it: 2 + 14n (a plain Parameter: toPlain is identity).
+[[nodiscard]] int tapCountFromNormalized(double normalized) {
+    return std::clamp(static_cast<int>(2.0 + normalized * 14.0 + 0.5), 2, 16);
+}
+
+} // namespace
+
+void Controller::copyCurrentPatternToCustom() {
+    const int patternIndex = listIndex(getParamNormalized(kMultiTapTimingPatternId), 19);
 
     // Don't copy if already on Custom pattern (index 19)
     if (patternIndex == 19) {
         return;
     }
 
-    // Get current tap count (2-16 range)
-    int tapCount = 4;
-    if (auto* param = getParameterObject(kMultiTapTapCountId)) {
-        tapCount = static_cast<int>(param->toPlain(param->getNormalized()));
+    // What the pattern plays at the tempo the processor last reported, on the Length the read-only display
+    // shows (design 2.6 steps 1-4)
+    const int tapCount = tapCountFromNormalized(getParamNormalized(kMultiTapTapCountId));
+    const auto copy = customPatternFromPreset(
+        patternIndex,
+        listIndex(getParamNormalized(kMultiTapNoteValueId), 9),
+        listIndex(getParamNormalized(kMultiTapNoteModifierId), 2),
+        listIndex(getParamNormalized(kMultiTapSpatialPatternId), 6),
+        static_cast<size_t>(tapCount),
+        multiTapTempoFromNormalized(getParamNormalized(kMultiTapTempoId)));
+
+    // Step 5: the n active times, the n active levels, Length, then Timing Pattern = Custom, each bracketed for
+    // the host and set on the controller. Hidden taps keep their stored values. The view follows through the
+    // bridge.
+    for (size_t i = 0; i < copy.count; ++i) {
+        editParamWithNotify(kMultiTapCustomTime0Id + static_cast<Steinberg::Vst::ParamID>(i),
+                            static_cast<double>(copy.ratios[i]));
     }
-    tapCount = std::clamp(tapCount, 2, 16);
-
-    // Calculate pattern ratios for all taps
-    float ratios[16] = {0.0f};
-    calculatePatternRatios(patternIndex, static_cast<size_t>(tapCount), ratios);
-
-    // Update all 16 custom tap time parameters (normalized 0-1)
-    static constexpr ParamID customTimeIds[16] = {
-        kMultiTapCustomTime0Id, kMultiTapCustomTime1Id, kMultiTapCustomTime2Id, kMultiTapCustomTime3Id,
-        kMultiTapCustomTime4Id, kMultiTapCustomTime5Id, kMultiTapCustomTime6Id, kMultiTapCustomTime7Id,
-        kMultiTapCustomTime8Id, kMultiTapCustomTime9Id, kMultiTapCustomTime10Id, kMultiTapCustomTime11Id,
-        kMultiTapCustomTime12Id, kMultiTapCustomTime13Id, kMultiTapCustomTime14Id, kMultiTapCustomTime15Id
-    };
-
-    for (int i = 0; i < 16; ++i) {
-        float value = (i < tapCount) ? ratios[i] : 0.0f;
-        setParamNormalized(customTimeIds[i], value);
-
-        // Notify host of parameter change
-        if (componentHandler) {
-            componentHandler->beginEdit(customTimeIds[i]);
-            componentHandler->performEdit(customTimeIds[i], value);
-            componentHandler->endEdit(customTimeIds[i]);
-        }
+    for (size_t i = 0; i < copy.count; ++i) {
+        editParamWithNotify(kMultiTapCustomLevel0Id + static_cast<Steinberg::Vst::ParamID>(i),
+                            static_cast<double>(copy.levels[i]));
     }
+    editParamWithNotify(kMultiTapCustomLengthId,
+                        static_cast<double>(static_cast<int>(copy.length)) / kCustomLengthMaxIndex);
+    editParamWithNotify(kMultiTapTimingPatternId, 1.0);  // Custom: 19 / 19
+}
 
-    // Update TapPatternEditor BEFORE switching pattern (ensures editor has correct values)
-    if (tapPatternEditor_) {
-        for (int i = 0; i < 16; ++i) {
-            float value = (i < tapCount) ? ratios[i] : 0.0f;
-            tapPatternEditor_->setTapTimeRatio(static_cast<size_t>(i), value);
-        }
-    }
-
-    // Switch to Custom pattern (index 19)
-    // Pattern has 20 options (0-19), so normalized = 19/19 = 1.0
-    const double customPatternNormalized = 1.0;
-    setParamNormalized(kMultiTapTimingPatternId, customPatternNormalized);
-
-    if (componentHandler) {
-        componentHandler->beginEdit(kMultiTapTimingPatternId);
-        componentHandler->performEdit(kMultiTapTimingPatternId, customPatternNormalized);
-        componentHandler->endEdit(kMultiTapTimingPatternId);
+void Controller::resetPatternToDefault() const {
+    // The view writes every active tap bracketed through its sink (design 3.4)
+    if (auto* view = tapEditor()) {
+        view->resetToDefault();
     }
 }
 
-void Controller::resetPatternToDefault() {
-    // Delegate to TapPatternEditor which handles the logic
-    if (tapPatternEditor_) {
-        tapPatternEditor_->resetToDefault();
+// ==============================================================================
+// Tap pattern editor: lookup and pushes (specs/iterum-tap-editor/design.md 3.6, 5.9)
+// ==============================================================================
+
+TapPatternEditor* Controller::tapEditor() const {
+    if (!activeEditor_) {
+        return nullptr;
     }
+    auto* frame = activeEditor_->getFrame();
+    if (!frame) {
+        return nullptr;
+    }
+    return dynamic_cast<TapPatternEditor*>(findControlByTag(frame, kMultiTapPatternEditorTagId));
+}
+
+void Controller::onTapEditorParamChanged(Steinberg::Vst::ParamID id) {
+    // A bulk load pushes once, after the load (syncAllViews)
+    if (bulkParamLoad_) {
+        return;
+    }
+    if (auto* view = tapEditor()) {
+        pushToTapEditor(id, *view);
+    }
+}
+
+void Controller::pushToTapEditor(Steinberg::Vst::ParamID id, TapPatternEditor& view) {
+    ++tapEditorIdPushCount_;
+    pushToTapEditorImpl(id, view);
+
+    // The read-only display is the preset pattern at the current tempo, timing and spatial pattern (design 5.9)
+    switch (id) {
+        case kMultiTapTimingPatternId:
+        case kMultiTapSpatialPatternId:
+        case kMultiTapTapCountId:
+        case kMultiTapNoteValueId:
+        case kMultiTapNoteModifierId:
+        case kMultiTapTempoId:
+            pushPresetPatternToTapEditor(view);
+            break;
+        default:
+            break;
+    }
+}
+
+void Controller::pushToTapEditorImpl(Steinberg::Vst::ParamID id, TapPatternEditor& view) {
+    const double value = getParamNormalized(id);
+    switch (id) {
+        case kMultiTapSnapDivisionId:
+            view.setSnapDivision(static_cast<SnapDivision>(listIndex(value, 21)));
+            break;
+        case kMultiTapTapCountId:
+            view.setActiveTapCount(static_cast<size_t>(tapCountFromNormalized(value)));  // reveal only
+            break;
+        case kMultiTapCustomLengthId:
+            view.setCustomLength(static_cast<CustomLength>(customLengthIndexFromNormalized(value)));
+            break;
+        case kMultiTapTempoId:
+            view.setTempo(multiTapTempoFromNormalized(value));
+            break;
+        case kMultiTapTimingPatternId:
+            view.setEditable(listIndex(value, 19) == 19);
+            break;
+        default:
+            if (id >= kMultiTapCustomTime0Id && id <= kMultiTapCustomTime15Id) {
+                view.setTapTimeRatio(id - kMultiTapCustomTime0Id, static_cast<float>(value));
+            } else if (id >= kMultiTapCustomLevel0Id && id <= kMultiTapCustomLevel15Id) {
+                view.setTapLevel(id - kMultiTapCustomLevel0Id, static_cast<float>(value));
+            }
+            break;
+    }
+}
+
+void Controller::pushAllToTapEditor(TapPatternEditor& view) {
+    ++tapEditorFullPushCount_;
+    for (Steinberg::Vst::ParamID id : {kMultiTapSnapDivisionId, kMultiTapCustomLengthId, kMultiTapTempoId,
+                                       kMultiTapTapCountId, kMultiTapTimingPatternId}) {
+        pushToTapEditorImpl(id, view);
+    }
+    for (Steinberg::Vst::ParamID i = 0; i < kCustomPatternMaxTaps; ++i) {
+        pushToTapEditorImpl(kMultiTapCustomTime0Id + i, view);
+        pushToTapEditorImpl(kMultiTapCustomLevel0Id + i, view);
+    }
+    pushPresetPatternToTapEditor(view);
+}
+
+void Controller::pushPresetPatternToTapEditor(TapPatternEditor& view) {
+    const int patternIndex = listIndex(getParamNormalized(kMultiTapTimingPatternId), 19);
+    if (patternIndex == 19) {
+        return;  // Custom: the editor shows the custom taps
+    }
+    const auto copy = customPatternFromPreset(
+        patternIndex,
+        listIndex(getParamNormalized(kMultiTapNoteValueId), 9),
+        listIndex(getParamNormalized(kMultiTapNoteModifierId), 2),
+        listIndex(getParamNormalized(kMultiTapSpatialPatternId), 6),
+        static_cast<size_t>(tapCountFromNormalized(getParamNormalized(kMultiTapTapCountId))),
+        multiTapTempoFromNormalized(getParamNormalized(kMultiTapTempoId)));
+    view.setPresetPattern(copy.ratios, copy.levels, copy.count, copy.length);
 }
 
 // ==============================================================================
@@ -1257,6 +1382,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     loadDigitalParamsToController(streamer, setParamWithNotify);
     loadPingPongParamsToController(streamer, setParamWithNotify);
     loadMultiTapParamsToController(streamer, setParamWithNotify);
+    loadTapeSyncParamsToController(streamer, setParamWithNotify);
+    loadMultiTapLengthParamsToController(streamer, setParamWithNotify);
+    loadFreezeCaptureParamsToController(streamer, setParamWithNotify);  // the last fields
 
     bulkParamLoad_ = false;  // Re-enable per-param view updates
     syncAllViews();           // Single batch sync of all custom views
@@ -1272,18 +1400,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
 // per-param invalidRect() calls with a single full-frame repaint.
 
 void Controller::syncAllViews() {
-    if (tapPatternEditor_) {
-        // Sync snap division
-        if (auto* snapParam = getParameterObject(kMultiTapSnapDivisionId)) {
-            int snapIndex = static_cast<int>(snapParam->getNormalized() * 21.0 + 0.5);
-            tapPatternEditor_->setSnapDivision(static_cast<SnapDivision>(snapIndex));
-        }
-
-        // Sync active tap count
-        if (auto* tapCountParam = getParameterObject(kMultiTapTapCountId)) {
-            int tapCount = static_cast<int>(2.0 + tapCountParam->getNormalized() * 14.0 + 0.5);
-            tapPatternEditor_->setActiveTapCount(static_cast<size_t>(tapCount));
-        }
+    // The tap pattern editor skipped every per-id push during the load: one full push now (design 3.6)
+    if (auto* view = tapEditor()) {
+        pushAllToTapEditor(*view);
     }
 }
 

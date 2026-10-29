@@ -5,6 +5,19 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.2] - 2026-10-28
+
+### Fixed
+
+- **Euclidean mode at 32 steps went silent when rotated** *(shared DSP)* — The step mask was built with a
+  shift by the full 32-bit width, which gave an empty mask, so a 32-step Euclidean pattern with any Rotation
+  (and a full 32 of 32) played no notes. It now plays every hit.
+- **Reset to default jumped three menus to their first option** — Arp Note Value, MIDI Delay
+  Lane Speed and Seq Note Lane Speed opened on the right value in a fresh instance, but a
+  host's "reset to default" (for example a double-click) put them on their first option
+  instead (Note Value 1/64T, Lane Speed 0.25x). They now reset to the value they open with.
+- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.
+
 ## [1.10.1] - 2026-10-26
 
 ### Added

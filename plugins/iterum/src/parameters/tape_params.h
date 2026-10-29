@@ -8,6 +8,8 @@
 // ==============================================================================
 
 #include "plugin_ids.h"
+#include "controller/parameter_helpers.h"
+#include "parameters/note_value_ui.h"
 #include "parameters/param_display.h"
 #include "pluginterfaces/base/ftypes.h"
 #include "pluginterfaces/base/ustring.h"
@@ -16,6 +18,9 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "base/source/fstreamer.h"
 
+#include <krate/dsp/core/note_value.h>
+
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 
@@ -28,6 +33,8 @@ namespace Iterum {
 struct TapeParams {
     // Main parameters
     std::atomic<float> motorSpeed{500.0f};      // 20-2000ms (delay time)
+    std::atomic<int> timeMode{1};               // 0=Free, 1=Synced
+    std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};  // 0-19 (note values)
     std::atomic<float> motorInertia{300.0f};    // 100-1000ms
     std::atomic<float> wear{0.3f};              // 0-1
     std::atomic<float> saturation{0.5f};        // 0-1
@@ -41,7 +48,7 @@ struct TapeParams {
     std::atomic<bool> head1Enabled{true};
     std::atomic<bool> head2Enabled{false};
     std::atomic<bool> head3Enabled{false};
-    std::atomic<float> head1Level{1.0f};        // linear gain (-96 to +6 dB)
+    std::atomic<float> head1Level{1.0f};        // linear gain (-30 to +6 dB)
     std::atomic<float> head2Level{1.0f};
     std::atomic<float> head3Level{1.0f};
     std::atomic<float> head1Pan{0.0f};          // -1 to +1
@@ -65,6 +72,18 @@ inline void handleTapeParamChange(
             // 20-2000ms
             params.motorSpeed.store(
                 static_cast<float>(20.0 + normalizedValue * 1980.0),
+                std::memory_order_relaxed);
+            break;
+        case kTapeTimeModeId:
+            // 0=Free, 1=Synced
+            params.timeMode.store(
+                normalizedValue >= 0.5 ? 1 : 0,
+                std::memory_order_relaxed);
+            break;
+        case kTapeNoteValueId:
+            // 0-19 (note values)
+            params.noteValue.store(
+                static_cast<int>(normalizedValue * (Parameters::kNoteValueDropdownCount - 1) + 0.5),
                 std::memory_order_relaxed);
             break;
         case kTapeMotorInertiaId:
@@ -163,6 +182,22 @@ inline void handleTapeParamChange(
 }
 
 // ==============================================================================
+// Delay Time
+// ==============================================================================
+
+/// Delay the tape runs at: Motor Speed, or the note value at the host tempo when
+/// synced, kept within the motor's 20-2000 ms. Motor Inertia glides between them.
+inline float tapeDelayTimeMs(const TapeParams& params, double tempoBPM) noexcept {
+    if (params.timeMode.load(std::memory_order_relaxed) == 0) {
+        return params.motorSpeed.load(std::memory_order_relaxed);
+    }
+    const double tempo = (tempoBPM > 0.0) ? tempoBPM : 120.0;
+    const float syncedMs = Krate::DSP::dropdownToDelayMs(
+        params.noteValue.load(std::memory_order_relaxed), tempo);
+    return std::clamp(syncedMs, 20.0f, 2000.0f);
+}
+
+// ==============================================================================
 // Parameter Registration (for Controller)
 // ==============================================================================
 
@@ -178,6 +213,21 @@ inline void registerTapeParams(Steinberg::Vst::ParameterContainer& parameters) {
         0.242,  // default: ~500ms
         ParameterInfo::kCanAutomate,
         kTapeMotorSpeedId);
+
+    // Time Mode (Free/Synced)
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("Tape Time Mode"), kTapeTimeModeId,
+        1,  // default: Synced (index 1)
+        {STR16("Free"), STR16("Synced")}
+    ));
+
+    // Note Value - uses centralized dropdown strings
+    parameters.addParameter(createNoteValueDropdown(
+        STR16("Tape Note Value"), kTapeNoteValueId,
+        Parameters::kNoteValueDropdownStrings,
+        Parameters::kNoteValueDropdownCount,
+        Parameters::kNoteValueDefaultIndex
+    ));
 
     // Motor Inertia (100-1000ms)
     parameters.addParameter(
@@ -278,7 +328,7 @@ inline void registerTapeParams(Steinberg::Vst::ParameterContainer& parameters) {
         ParameterInfo::kCanAutomate,
         kTapeHead3EnabledId);
 
-    // Head 1 Level (-96 to +6 dB)
+    // Head 1 Level (-30 to +6 dB, handleTapeParamChange)
     parameters.addParameter(
         STR16("Tape Head 1 Level"),
         STR16("dB"),
@@ -347,6 +397,9 @@ inline Steinberg::tresult formatTapeParam(
     switch (id) {
         case kTapeMotorSpeedId: {
             float ms = static_cast<float>(20.0 + normalizedValue * 1980.0);
+            if (ms >= 1000.0f) {
+                return formatParamText(string, "%.2f s", ms / 1000.0f);
+            }
             return formatParamText(string, "%.1f ms", ms);
         }
 
@@ -380,9 +433,10 @@ inline Steinberg::tresult formatTapeParam(
         case kTapeHead1LevelId:
         case kTapeHead2LevelId:
         case kTapeHead3LevelId: {
-            double dB = -96.0 + normalizedValue * 102.0;
-            if (dB <= -96.0) {
-                return formatParamText(string, "-inf dB");
+            // Same mapping as handleTapeParamChange: -30 to +6 dB (never silent at 0).
+            double dB = -30.0 + normalizedValue * 36.0;
+            if (dB > -0.05 && dB < 0.05) {
+                dB = 0.0; // avoid "-0.0 dB"
             }
             return formatParamText(string, "%.1f dB", dB);
         }
@@ -451,6 +505,26 @@ inline void loadTapeParams(TapeParams& params, Steinberg::IBStreamer& streamer) 
     if (streamer.readFloat(floatVal)) params.head1Pan.store(floatVal, std::memory_order_relaxed);
     if (streamer.readFloat(floatVal)) params.head2Pan.store(floatVal, std::memory_order_relaxed);
     if (streamer.readFloat(floatVal)) params.head3Pan.store(floatVal, std::memory_order_relaxed);
+}
+
+// Tempo sync came after the state layout was fixed, so its two fields go at the very
+// end of the state, after every mode's block: states saved before it still load
+// field for field. A state that ends before them comes from a Tape delay that ran
+// on Motor Speed, so it loads as Free.
+
+inline void saveTapeSyncParams(const TapeParams& params, Steinberg::IBStreamer& streamer) {
+    streamer.writeInt32(params.timeMode.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.noteValue.load(std::memory_order_relaxed));
+}
+
+inline void loadTapeSyncParams(TapeParams& params, Steinberg::IBStreamer& streamer) {
+    Steinberg::int32 intVal = 0;
+    if (!streamer.readInt32(intVal)) {
+        params.timeMode.store(0, std::memory_order_relaxed);
+        return;
+    }
+    params.timeMode.store(intVal != 0 ? 1 : 0, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal)) params.noteValue.store(intVal, std::memory_order_relaxed);
 }
 
 // ==============================================================================
@@ -523,18 +597,18 @@ inline void loadTapeParamsToController(Steinberg::IBStreamer& streamer, SetParam
         setParam(kTapeHead3EnabledId, intVal != 0 ? 1.0 : 0.0);
     }
 
-    // Head levels: linear -> dB -> normalized = (dB+96)/102
+    // Head levels: linear -> dB -> normalized, inverting handleTapeParamChange (-30 to +6 dB)
     if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        setParam(kTapeHead1LevelId, (dB + 96.0) / 102.0);
+        double dB = (floatVal <= 0.0f) ? -30.0 : 20.0 * std::log10(floatVal);
+        setParam(kTapeHead1LevelId, std::clamp((dB + 30.0) / 36.0, 0.0, 1.0));
     }
     if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        setParam(kTapeHead2LevelId, (dB + 96.0) / 102.0);
+        double dB = (floatVal <= 0.0f) ? -30.0 : 20.0 * std::log10(floatVal);
+        setParam(kTapeHead2LevelId, std::clamp((dB + 30.0) / 36.0, 0.0, 1.0));
     }
     if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        setParam(kTapeHead3LevelId, (dB + 96.0) / 102.0);
+        double dB = (floatVal <= 0.0f) ? -30.0 : 20.0 * std::log10(floatVal);
+        setParam(kTapeHead3LevelId, std::clamp((dB + 30.0) / 36.0, 0.0, 1.0));
     }
 
     // Head pans: -1 to +1 -> normalized = (val+1)/2
@@ -555,6 +629,30 @@ inline void syncTapeParamsToController(
     Steinberg::Vst::EditControllerEx1& controller)
 {
     loadTapeParamsToController(streamer, [&controller](Steinberg::Vst::ParamID id, double value) {
+        controller.setParamNormalized(id, value);
+    });
+}
+
+// Reads the tempo-sync fields at the end of the state (see saveTapeSyncParams)
+template <typename SetParamFunc>
+inline void loadTapeSyncParamsToController(Steinberg::IBStreamer& streamer, SetParamFunc setParam)
+{
+    Steinberg::int32 intVal = 0;
+    if (!streamer.readInt32(intVal)) {
+        setParam(kTapeTimeModeId, 0.0);  // saved before sync: Free
+        return;
+    }
+    setParam(kTapeTimeModeId, intVal != 0 ? 1.0 : 0.0);
+    if (streamer.readInt32(intVal)) {
+        setParam(kTapeNoteValueId, static_cast<double>(intVal) / (Parameters::kNoteValueDropdownCount - 1));
+    }
+}
+
+inline void syncTapeSyncParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadTapeSyncParamsToController(streamer, [&controller](Steinberg::Vst::ParamID id, double value) {
         controller.setParamNormalized(id, value);
     });
 }

@@ -66,6 +66,8 @@ function discoverGeneratedIncludes() {
             'catch2-build/generated-includes',
             'pffft-src/include',
             'highway-src',
+            'nlohmann_json-src/single_include',   // plugins/shared/src/update/update_checker.cpp
+            'httplib-src',                        // same file's non-Windows branch (CMakeLists.txt: cpp-httplib)
         ];
         for (const c of candidates) {
             const p = path.join(deps, c);

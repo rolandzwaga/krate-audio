@@ -118,11 +118,17 @@ private:
 
 1. **Parameter Registration**: `timeModeParam_->addDependent(this)` registers for change notifications
 
-2. **Deferred Updates**: When the parameter changes (from ANY thread), it calls `deferUpdate()` internally, scheduling notification on UI thread
+2. **Synchronous delivery**: `Parameter::setNormalized` calls `FObject::changed()` on a changed value
+   (`vstparameters.cpp:73-77`), which calls `UpdateHandler::triggerUpdates` (`fobject.cpp:196-202`): every
+   dependent's `update()` runs at once, inside the call, on the calling thread. Nothing is queued.
 
-3. **UI Thread Callback**: `update()` is called on UI thread at 30Hz by `CVSTGUITimer`
+3. **Why that is safe**: `IEditController::setParamNormalized` is a `[UI-thread & Connected]` call
+   (`ivsteditcontroller.h:521-525`), and every other caller of `setNormalized` in a controller (an edit sink, a
+   Copy button, `editParamWithNotify`) runs on the UI thread too, so `update()` runs on the UI thread.
 
-4. **Safe UI Manipulation**: Since `update()` runs on UI thread, `setVisible()` is safe
+4. **Deferred delivery is explicit**: only `deferUpdate()` queues to the UpdateHandler's deferred list, delivered on a
+   later `triggerDeferedUpdates`; `VisibilityController`'s constructor uses it for its first update
+   (`visibility_controller.h:56`). Since `update()` runs on the UI thread either way, `setVisible()` is safe.
 
 ---
 

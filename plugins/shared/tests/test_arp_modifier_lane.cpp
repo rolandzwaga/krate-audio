@@ -227,7 +227,7 @@ TEST_CASE("ArpModifierLane bitmask 0x01 encodes as 1/15.0f", "[arp_modifier_lane
 }
 
 TEST_CASE("ArpModifierLane bitmask 0x0F encodes as 1.0f", "[arp_modifier_lane][normalization]") {
-    float normalized = static_cast<float>(0x0F & 0x0F) / 15.0f;
+    float normalized = static_cast<float>(0x0F) / 15.0f;  // 0x0F & 0x0F
     REQUIRE(normalized == Approx(1.0f).margin(0.0001f));
 }
 

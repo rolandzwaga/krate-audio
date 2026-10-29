@@ -33,7 +33,7 @@ struct SpectralParams {
     std::atomic<float> baseDelay{250.0f};     // 0-2000ms
     std::atomic<float> spread{0.0f};          // 0-2000ms
     std::atomic<int> spreadDirection{0};      // 0-2 (LowToHigh, HighToLow, CenterOut)
-    std::atomic<float> feedback{0.0f};        // 0-1.2
+    std::atomic<float> feedback{0.4f};        // 0-1.2
     std::atomic<float> feedbackTilt{0.0f};    // -1.0 to +1.0
     std::atomic<bool> freeze{false};          // on/off
     std::atomic<float> diffusion{0.0f};       // 0-1
@@ -42,7 +42,7 @@ struct SpectralParams {
     std::atomic<float> stereoWidth{0.0f};     // 0-1 (stereo decorrelation)
 
     // Tempo Sync (spec 041)
-    std::atomic<int> timeMode{0};             // 0=Free, 1=Synced
+    std::atomic<int> timeMode{1};             // 0=Free, 1=Synced
     std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};  // 0-19 dropdown index
 };
 
@@ -209,7 +209,7 @@ inline void registerSpectralParams(Steinberg::Vst::ParameterContainer& parameter
         STR16("Feedback"),
         STR16("%"),
         0,
-        0.0,  // 0% default
+        0.4 / 1.2,  // 40% default
         ParameterInfo::kCanAutomate,
         kSpectralFeedbackId,
         0,
@@ -284,8 +284,9 @@ inline void registerSpectralParams(Steinberg::Vst::ParameterContainer& parameter
 
     // Tempo Sync (spec 041)
     // Time Mode: Free, Synced - MUST use StringListParameter
-    parameters.addParameter(createDropdownParameter(
+    parameters.addParameter(createDropdownParameterWithDefault(
         STR16("Time Mode"), kSpectralTimeModeId,
+        1,  // default: Synced (index 1)
         {STR16("Free"), STR16("Synced")}
     ));
 
@@ -314,11 +315,19 @@ inline Steinberg::tresult formatSpectralParam(
     switch (id) {
         // kSpectralFFTSizeId: handled by StringListParameter::toString() automatically
 
-        case kSpectralBaseDelayId:
-        case kSpectralSpreadId: {
-            // 0-2000ms
+        case kSpectralBaseDelayId: {
+            // 0-2000ms, the core time format
             double ms = valueNormalized * 2000.0;
-            return formatParamText(string, "%.0f", ms);
+            if (ms >= 1000.0) {
+                return formatParamText(string, "%.2f s", ms / 1000.0);
+            }
+            return formatParamText(string, "%.1f ms", ms);
+        }
+
+        case kSpectralSpreadId: {
+            // 0-2000ms (a time, not a percentage)
+            double ms = valueNormalized * 2000.0;
+            return formatParamText(string, "%.0f ms", ms);
         }
 
         // kSpectralSpreadDirectionId: handled by StringListParameter::toString() automatically
@@ -326,13 +335,13 @@ inline Steinberg::tresult formatSpectralParam(
         case kSpectralFeedbackId: {
             // 0-120%
             double percent = valueNormalized * 120.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kSpectralFeedbackTiltId: {
             // -100% to +100%
             double percent = (-1.0 + valueNormalized * 2.0) * 100.0;
-            return formatParamText(string, "%+.0f", percent);
+            return formatParamText(string, "%+.0f%%", percent);
         }
 
         case kSpectralFreezeId: {
@@ -346,7 +355,7 @@ inline Steinberg::tresult formatSpectralParam(
         case kSpectralStereoWidthId: {
             // 0-100%
             double percent = valueNormalized * 100.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         // kSpectralSpreadCurveId: handled by StringListParameter::toString() automatically

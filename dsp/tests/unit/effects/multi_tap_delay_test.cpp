@@ -536,6 +536,23 @@ TEST_CASE("US6: Tempo synchronization", "[multi-tap][us6][tempo]") {
     }
 }
 
+TEST_CASE("US6: rhythmic patterns follow the host tempo with the transport stopped",
+          "[multi-tap][us6][tempo][stopped]") {
+    MultiTapDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    delay.loadTimingPattern(TimingPattern::QuarterNote, 4);
+    delay.snapParameters();
+
+    std::array<float, 512> left{}, right{};
+    auto ctx = BlockContext{kSampleRate, kBlockSize, 90.0, 4, 4, false};
+    delay.process(left.data(), right.data(), 512, ctx);
+    delay.snapParameters();
+
+    // 90 BPM: 666.7 ms per quarter note
+    REQUIRE(delay.getTapTimeMs(0) == Approx(666.7f).margin(1.0f));
+    REQUIRE(delay.getTapTimeMs(3) == Approx(2666.7f).margin(1.0f));
+}
+
 // =============================================================================
 // Output Controls (Phase 9)
 // =============================================================================
@@ -1421,4 +1438,210 @@ TEST_CASE("MultiTapDelay cutoff modulation applies octave scaling",
 
     // Disconnect mod matrix to avoid dangling pointer
     delay.setModulationMatrix(nullptr);
+}
+
+// =============================================================================
+// Custom pattern Length (specs/iterum-tap-editor/design.md 2.5)
+// =============================================================================
+// Tap i plays at clamp(ratio_i x span, 1, 5000): span is 5000 ms in Free and the Length in beats at the block's
+// tempo otherwise. The setters only store; process() applies the custom pattern once per block under Custom,
+// after updateMorph, in every transport state.
+
+namespace {
+
+/// A prepared delay on the Custom pattern with @p n taps at @p length.
+void prepareCustom(MultiTapDelay& delay, size_t n, CustomLength length) {
+    delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    delay.loadTimingPattern(TimingPattern::Custom, n);
+    delay.setCustomLength(length);
+}
+
+void processBlock(MultiTapDelay& delay, double bpm, bool playing) {
+    std::array<float, kBlockSize> left{};
+    std::array<float, kBlockSize> right{};
+    const BlockContext ctx{.sampleRate = kSampleRate, .blockSize = kBlockSize, .tempoBPM = bpm, .isPlaying = playing};
+    delay.process(left.data(), right.data(), kBlockSize, ctx);
+}
+
+} // anonymous namespace
+
+TEST_CASE("Free length plays ratio x 5000 ms, clamped to 1 and 5000", "[multi-tap][custom]") {
+    MultiTapDelay delay;
+    prepareCustom(delay, 4, CustomLength::Free);
+    const float ratios[4] = {0.0f, 0.0001f, 0.25f, 1.0f};
+    for (size_t i = 0; i < 4; ++i) {
+        delay.setCustomTimeRatio(i, ratios[i]);
+    }
+    processBlock(delay, 120.0, true);
+
+    REQUIRE(delay.getTapTimeMs(0) == Approx(1.0f).margin(1e-4));   // 0 ms clamps to the 1 ms minimum
+    REQUIRE(delay.getTapTimeMs(1) == Approx(1.0f).margin(1e-4));   // 0.5 ms clamps too
+    REQUIRE(delay.getTapTimeMs(2) == Approx(1250.0f).margin(1e-3));
+    REQUIRE(delay.getTapTimeMs(3) == Approx(5000.0f).margin(1e-3));
+
+    SECTION("Free ignores the tempo") {
+        processBlock(delay, 60.0, true);
+        REQUIRE(delay.getTapTimeMs(2) == Approx(1250.0f).margin(1e-3));
+    }
+}
+
+TEST_CASE("Length 1/1 at 120 BPM puts ratio 0.25 at 500 ms and 0.5 at 1000 ms, and a block at 90 BPM moves them to 667 and 1333 ms, transport stopped",
+          "[multi-tap][custom]") {
+    MultiTapDelay delay;
+    prepareCustom(delay, 2, CustomLength::N1);
+    delay.setCustomTimeRatio(0, 0.25f);
+    delay.setCustomTimeRatio(1, 0.5f);
+
+    processBlock(delay, 120.0, false);
+    REQUIRE(delay.getTapTimeMs(0) == Approx(500.0f).margin(0.01));
+    REQUIRE(delay.getTapTimeMs(1) == Approx(1000.0f).margin(0.01));
+
+    processBlock(delay, 90.0, false);
+    REQUIRE(delay.getTapTimeMs(0) == Approx(666.667f).margin(0.01));
+    REQUIRE(delay.getTapTimeMs(1) == Approx(1333.333f).margin(0.01));
+}
+
+TEST_CASE("Length 2/1 at 60 BPM clamps every tap beyond ratio 0.625 to 5000 ms", "[multi-tap][custom]") {
+    MultiTapDelay delay;
+    prepareCustom(delay, 4, CustomLength::N2x1);
+    const float ratios[4] = {0.5f, 0.625f, 0.7f, 1.0f};
+    for (size_t i = 0; i < 4; ++i) {
+        delay.setCustomTimeRatio(i, ratios[i]);
+    }
+    processBlock(delay, 60.0, true);
+
+    REQUIRE(delay.getTapTimeMs(0) == Approx(4000.0f).margin(0.01));
+    REQUIRE(delay.getTapTimeMs(1) == Approx(5000.0f).margin(0.01));
+    REQUIRE(delay.getTapTimeMs(2) == Approx(5000.0f).margin(0.01));
+    REQUIRE(delay.getTapTimeMs(3) == Approx(5000.0f).margin(0.01));
+}
+
+TEST_CASE("setters store only: getTapTimeMs is unchanged until the next block, then reflects all 32 values",
+          "[multi-tap][custom]") {
+    MultiTapDelay delay;
+    prepareCustom(delay, 16, CustomLength::Free);
+    for (size_t i = 0; i < 16; ++i) {
+        delay.setCustomTimeRatio(i, 0.05f);
+        delay.setCustomLevelRatio(i, 1.0f);
+    }
+    processBlock(delay, 120.0, true);
+
+    std::array<float, 16> timesBefore{};
+    std::array<float, 16> levelsBefore{};
+    for (size_t i = 0; i < 16; ++i) {
+        timesBefore[i] = delay.getTapTimeMs(i);
+        levelsBefore[i] = delay.getTapLevelDb(i);
+    }
+
+    for (size_t i = 0; i < 16; ++i) {
+        delay.setCustomTimeRatio(i, 0.05f * static_cast<float>(i + 2));
+        delay.setCustomLevelRatio(i, 0.5f);
+    }
+    for (size_t i = 0; i < 16; ++i) {
+        INFO("tap " << i << " before the block");
+        REQUIRE(delay.getTapTimeMs(i) == timesBefore[i]);
+        REQUIRE(delay.getTapLevelDb(i) == levelsBefore[i]);
+    }
+
+    processBlock(delay, 120.0, true);
+    for (size_t i = 0; i < 16; ++i) {
+        INFO("tap " << i << " after the block");
+        REQUIRE(delay.getTapTimeMs(i) == Approx(5000.0f * 0.05f * static_cast<float>(i + 2)).margin(0.01));
+        REQUIRE(delay.getTapLevelDb(i) == Approx(gainToDb(0.5f)).margin(0.01));
+    }
+}
+
+TEST_CASE("Custom with Spatial DecayingLevel keeps the custom levels across 10 blocks", "[multi-tap][custom]") {
+    // The processor applies the spatial pattern before process() in every block (processor.cpp).
+    MultiTapDelay delay;
+    prepareCustom(delay, 4, CustomLength::N1);
+    const float levels[4] = {1.0f, 0.5f, 0.25f, 0.8f};
+    for (size_t i = 0; i < 4; ++i) {
+        delay.setCustomTimeRatio(i, 0.25f * static_cast<float>(i + 1));
+        delay.setCustomLevelRatio(i, levels[i]);
+    }
+    for (int block = 0; block < 10; ++block) {
+        delay.applySpatialPattern(SpatialPattern::DecayingLevel);
+        processBlock(delay, 120.0, true);
+        for (size_t i = 0; i < 4; ++i) {
+            INFO("block " << block << " tap " << i);
+            REQUIRE(delay.getTapLevelDb(i) == Approx(gainToDb(levels[i])).margin(0.01));
+        }
+    }
+}
+
+TEST_CASE("Custom with Spatial FlatLevel keeps the custom levels across 10 blocks", "[multi-tap][custom]") {
+    MultiTapDelay delay;
+    prepareCustom(delay, 4, CustomLength::N1);
+    const float levels[4] = {0.5f, 0.25f, 0.1f, 0.8f};
+    for (size_t i = 0; i < 4; ++i) {
+        delay.setCustomTimeRatio(i, 0.25f * static_cast<float>(i + 1));
+        delay.setCustomLevelRatio(i, levels[i]);
+    }
+    for (int block = 0; block < 10; ++block) {
+        delay.applySpatialPattern(SpatialPattern::FlatLevel);
+        processBlock(delay, 120.0, true);
+        for (size_t i = 0; i < 4; ++i) {
+            INFO("block " << block << " tap " << i);
+            REQUIRE(delay.getTapLevelDb(i) == Approx(gainToDb(levels[i])).margin(0.01));
+        }
+    }
+}
+
+TEST_CASE("custom levels apply in the block a morph into Custom completes", "[multi-tap][custom][morph]") {
+    MultiTapDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    delay.setTempo(120.0f);
+    delay.loadTimingPattern(TimingPattern::QuarterNote, 4);
+    delay.setCustomLength(CustomLength::N1);
+    for (size_t i = 0; i < 4; ++i) {
+        delay.setCustomTimeRatio(i, 0.2f * static_cast<float>(i + 1));
+        delay.setCustomLevelRatio(i, 0.5f);
+    }
+    processBlock(delay, 120.0, true);
+    delay.morphToPattern(TimingPattern::Custom, 50.0f);
+    REQUIRE(delay.isMorphing());
+
+    bool completed = false;
+    for (int block = 0; block < 100 && !completed; ++block) {
+        processBlock(delay, 120.0, true);
+        if (!delay.isMorphing()) {
+            completed = true;
+            for (size_t i = 0; i < 4; ++i) {
+                INFO("tap " << i << " in the completing block " << block);
+                REQUIRE(delay.getTapLevelDb(i) == Approx(-6.02f).margin(0.01));
+            }
+        }
+    }
+    REQUIRE(completed);
+    REQUIRE(delay.getTimingPattern() == TimingPattern::Custom);
+}
+
+TEST_CASE("morphToPattern(Custom) targets ratio x span, clamped to [1, 5000]", "[multi-tap][custom][morph]") {
+    // Ratios 0 and 1.0 at Length 2/1 and 60 BPM (span 8000 ms): targets 1 ms and 5000 ms, never n x baseTime.
+    MultiTapDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    delay.setTempo(60.0f);
+    delay.loadTimingPattern(TimingPattern::QuarterNote, 2);  // 1000 and 2000 ms at 60 BPM
+    delay.setCustomLength(CustomLength::N2x1);
+    delay.setCustomTimeRatio(0, 0.0f);
+    delay.setCustomTimeRatio(1, 1.0f);
+    processBlock(delay, 60.0, true);
+    const float start0 = delay.getTapTimeMs(0);
+    const float start1 = delay.getTapTimeMs(1);
+    REQUIRE(start0 == Approx(1000.0f).margin(0.5));
+    REQUIRE(start1 == Approx(2000.0f).margin(0.5));
+
+    delay.morphToPattern(TimingPattern::Custom, 50.0f);
+    for (int block = 0; block < 100 && delay.isMorphing(); ++block) {
+        processBlock(delay, 60.0, true);
+        INFO("block " << block);
+        REQUIRE(delay.getTapTimeMs(0) >= 1.0f - 1e-3f);
+        REQUIRE(delay.getTapTimeMs(0) <= start0 + 1e-3f);
+        REQUIRE(delay.getTapTimeMs(1) >= start1 - 1e-3f);
+        REQUIRE(delay.getTapTimeMs(1) <= 5000.0f + 1e-3f);
+    }
+    REQUIRE_FALSE(delay.isMorphing());
+    REQUIRE(delay.getTapTimeMs(0) == Approx(1.0f).margin(1e-3));
+    REQUIRE(delay.getTapTimeMs(1) == Approx(5000.0f).margin(1e-3));
 }

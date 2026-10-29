@@ -7,7 +7,6 @@
 
 using Krate::Plugins::UpdateChecker;
 using Krate::Plugins::UpdateCheckerConfig;
-using Krate::Plugins::UpdateCheckResult;
 
 // ==============================================================================
 // Mock UpdateChecker for testing (overrides fetchJson to avoid real HTTP)
@@ -51,7 +50,7 @@ static bool waitForResult(UpdateChecker& checker, int maxWaitMs = 2000) {
 // JSON Fixtures
 // ==============================================================================
 
-static const char* kValidJson = R"({
+static const char* const kValidJson = R"({
     "schema_version": 1,
     "plugins": {
         "Iterum":   { "version": "0.15.0", "download_url": "https://example.com/iterum", "release_notes": "New features" },
@@ -59,14 +58,14 @@ static const char* kValidJson = R"({
     }
 })";
 
-static const char* kSameVersionJson = R"({
+static const char* const kSameVersionJson = R"({
     "schema_version": 1,
     "plugins": {
         "Iterum": { "version": "0.14.2", "download_url": "https://example.com/iterum", "release_notes": "" }
     }
 })";
 
-static const char* kOlderVersionJson = R"({
+static const char* const kOlderVersionJson = R"({
     "schema_version": 1,
     "plugins": {
         "Iterum": { "version": "0.13.0", "download_url": "https://example.com/iterum", "release_notes": "" }
@@ -78,7 +77,7 @@ static const char* kOlderVersionJson = R"({
 // ==============================================================================
 
 TEST_CASE("UpdateChecker - JSON parsing", "[update]") {
-    UpdateCheckerConfig config{"Iterum", "0.14.2", "https://example.com/versions.json"};
+    UpdateCheckerConfig config{.pluginName = "Iterum", .currentVersion = "0.14.2", .endpointUrl = "https://example.com/versions.json"};
 
     SECTION("valid response with newer version") {
         MockUpdateChecker checker(config, kValidJson);
@@ -111,7 +110,7 @@ TEST_CASE("UpdateChecker - JSON parsing", "[update]") {
     }
 
     SECTION("plugin not in response") {
-        UpdateCheckerConfig ruinaeConfig{"Ruinae", "0.5.0", "https://example.com/versions.json"};
+        UpdateCheckerConfig ruinaeConfig{.pluginName = "Ruinae", .currentVersion = "0.5.0", .endpointUrl = "https://example.com/versions.json"};
         MockUpdateChecker checker(ruinaeConfig, kValidJson);
         checker.checkForUpdate(true);
         REQUIRE(waitForResult(checker));
@@ -145,7 +144,7 @@ TEST_CASE("UpdateChecker - JSON parsing", "[update]") {
 }
 
 TEST_CASE("UpdateChecker - cooldown", "[update]") {
-    UpdateCheckerConfig config{"Iterum", "0.14.2", "https://example.com/versions.json"};
+    UpdateCheckerConfig config{.pluginName = "Iterum", .currentVersion = "0.14.2", .endpointUrl = "https://example.com/versions.json"};
 
     SECTION("auto-check within 24h is a no-op") {
         MockUpdateChecker checker(config, kValidJson);
@@ -180,7 +179,7 @@ TEST_CASE("UpdateChecker - cooldown", "[update]") {
 }
 
 TEST_CASE("UpdateChecker - dismiss version", "[update]") {
-    UpdateCheckerConfig config{"Iterum", "0.14.2", "https://example.com/versions.json"};
+    UpdateCheckerConfig config{.pluginName = "Iterum", .currentVersion = "0.14.2", .endpointUrl = "https://example.com/versions.json"};
 
     SECTION("dismissed version is suppressed") {
         MockUpdateChecker checker(config, kValidJson);

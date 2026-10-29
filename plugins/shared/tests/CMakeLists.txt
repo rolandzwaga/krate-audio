@@ -13,6 +13,8 @@ add_executable(shared_tests
     test_arp_lane_header.cpp
     test_arp_modifier_lane.cpp
     test_arp_condition_lane.cpp
+    test_icon_segment_button_font.cpp
+    test_parameter_helpers_defaults.cpp
     test_playhead_trail.cpp
     test_transform.cpp
     test_copy_paste.cpp

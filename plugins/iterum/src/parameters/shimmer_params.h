@@ -30,12 +30,12 @@ namespace Iterum {
 
 struct ShimmerParams {
     std::atomic<float> delayTime{500.0f};        // 10-5000ms
-    std::atomic<int> timeMode{0};                // 0=Free, 1=Synced (spec 043)
+    std::atomic<int> timeMode{1};                // 0=Free, 1=Synced (spec 043)
     std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};  // 0-19 (note values)
     std::atomic<float> pitchSemitones{12.0f};    // -24 to +24 semitones
     std::atomic<float> pitchCents{0.0f};         // -100 to +100 cents
     std::atomic<float> shimmerMix{1.0f};         // 0-1 (shimmer blend)
-    std::atomic<float> feedback{0.5f};           // 0-1.2 (0-120%)
+    std::atomic<float> feedback{0.4f};           // 0-1.2 (0-120%)
     // Note: diffusionAmount removed - diffusion is always 100%
     std::atomic<float> diffusionSize{50.0f};     // 0-100%
     std::atomic<bool> filterEnabled{false};      // on/off
@@ -162,7 +162,7 @@ inline void registerShimmerParams(Steinberg::Vst::ParameterContainer& parameters
     // Time Mode (Free/Synced) - spec 043
     parameters.addParameter(createDropdownParameterWithDefault(
         STR16("Shimmer Time Mode"), kShimmerTimeModeId,
-        0,  // default: Free (index 0)
+        1,  // default: Synced (index 1)
         {STR16("Free"), STR16("Synced")}
     ));
 
@@ -215,7 +215,7 @@ inline void registerShimmerParams(Steinberg::Vst::ParameterContainer& parameters
         STR16("Feedback"),
         STR16("%"),
         0,
-        0.417,  // 50% default = 0.5/1.2
+        0.4 / 1.2,  // 40% default
         ParameterInfo::kCanAutomate,
         kShimmerFeedbackId,
         0,
@@ -290,19 +290,22 @@ inline Steinberg::tresult formatShimmerParam(
         case kShimmerDelayTimeId: {
             // 10-5000ms
             double ms = 10.0 + valueNormalized * 4990.0;
-            return formatParamText(string, "%.0f", ms);
+            if (ms >= 1000.0) {
+                return formatParamText(string, "%.2f s", ms / 1000.0);
+            }
+            return formatParamText(string, "%.1f ms", ms);
         }
 
         case kShimmerPitchSemitonesId: {
             // -24 to +24 semitones
             double st = -24.0 + valueNormalized * 48.0;
-            return formatParamText(string, "%+.0f", st);
+            return formatParamText(string, "%+.1f st", st);
         }
 
         case kShimmerPitchCentsId: {
             // -100 to +100 cents
             double ct = -100.0 + valueNormalized * 200.0;
-            return formatParamText(string, "%+.0f", ct);
+            return formatParamText(string, "%+.0f ct", ct);
         }
 
         case kShimmerPitchBlendId:
@@ -310,13 +313,13 @@ inline Steinberg::tresult formatShimmerParam(
         case kShimmerMixId: {
             // 0-100%
             double percent = valueNormalized * 100.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kShimmerFeedbackId: {
             // 0-120%
             double percent = valueNormalized * 120.0;
-            return formatParamText(string, "%.0f", percent);
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kShimmerFilterEnabledId: {
@@ -329,9 +332,9 @@ inline Steinberg::tresult formatShimmerParam(
             // 20-20000Hz
             double hz = 20.0 + valueNormalized * 19980.0;
             if (hz >= 1000.0) {
-                return formatParamText(string, "%.1fk", hz / 1000.0);
+                return formatParamText(string, "%.2f kHz", hz / 1000.0);
             }
-            return formatParamText(string, "%.0f", hz);
+            return formatParamText(string, "%.0f Hz", hz);
         }
 
         default:

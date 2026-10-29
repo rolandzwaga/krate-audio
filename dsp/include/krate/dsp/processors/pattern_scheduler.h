@@ -24,6 +24,7 @@
 #include <krate/dsp/core/pattern_freeze_types.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -44,7 +45,7 @@ namespace Krate::DSP {
 /// scheduler.prepare(44100.0, 512);
 /// scheduler.setEuclidean(3, 8, 0);  // Tresillo pattern
 /// scheduler.setTempoSync(true, NoteValue::Sixteenth, NoteModifier::None);
-/// scheduler.setTriggerCallback([this](int step) {
+/// scheduler.setTriggerCallback([this](int step, size_t /*sampleOffset*/) {
 ///     triggerSliceAtStep(step);
 /// });
 ///
@@ -53,8 +54,8 @@ namespace Krate::DSP {
 /// @endcode
 class PatternScheduler {
 public:
-    /// @brief Callback type for step triggers
-    using TriggerCallback = std::function<void(int step)>;
+    /// @brief Callback type for step triggers: the step index and its sample offset within the block
+    using TriggerCallback = std::function<void(int step, size_t sampleOffset)>;
 
     /// @brief Default constructor
     PatternScheduler() noexcept = default;
@@ -96,6 +97,7 @@ public:
         currentStep_ = 0;
         sampleCounter_ = 0;
         stepTriggered_ = false;
+        lastFiredIndex_ = -1;
     }
 
     // =========================================================================
@@ -217,6 +219,59 @@ public:
         }
     }
 
+    // =========================================================================
+    // Bar-phased processing (specs/iterum-freeze/design.md 4.2)
+    // =========================================================================
+
+    /// @brief Fires the callback for every step boundary k * beatsPerStep with k > the last fired index and
+    /// k * beatsPerStep < posBeats + (numSamples - 0.5) * beatsPerSample, at offset
+    /// clamp(round(...), 0, numSamples - 1), when ((k mod steps) + steps) mod steps is a hit. Boundaries more than
+    /// half a sample before posBeats that were never fired (a jump without rebase) are skipped, not caught up, so
+    /// one call fires at most the boundaries inside its own block.
+    /// @param posBeats Musical position of the block's first sample, in beats
+    /// @param beatsPerSample Beats per sample at the block's tempo
+    /// @param numSamples Samples in the block
+    void processFromPosition(double posBeats, double beatsPerSample, size_t numSamples) noexcept {
+        if (numSamples == 0 || !(beatsPerSample > 0.0)) {
+            return;
+        }
+        const double beatsPerStep = static_cast<double>(getBeatsForNote(noteValue_, noteModifier_));
+        if (!(beatsPerStep > 0.0)) {
+            return;
+        }
+        const double end = posBeats + (static_cast<double>(numSamples) - 0.5) * beatsPerSample;
+        const double samplesPerBeat = 1.0 / beatsPerSample;
+        const auto last = static_cast<double>(numSamples - 1);
+        const auto firstInBlock =
+            static_cast<int64_t>(std::ceil((posBeats - 0.5 * beatsPerSample) / beatsPerStep));
+        for (int64_t k = std::max(lastFiredIndex_ + 1, firstInBlock); static_cast<double>(k) * beatsPerStep < end;
+             ++k) {
+            lastFiredIndex_ = k;
+            const int step = static_cast<int>(((k % steps_) + steps_) % steps_);
+            currentStep_ = step;
+            if (EuclideanPattern::isHit(pattern_, step, steps_) && triggerCallback_) {
+                const double offset =
+                    std::clamp(std::round((static_cast<double>(k) * beatsPerStep - posBeats) * samplesPerBeat), 0.0,
+                               last);
+                triggerCallback_(step, static_cast<size_t>(offset));
+            }
+        }
+    }
+
+    /// @brief Sets the last fired index to ceil((posBeats - 0.5 * beatsPerSample) / beatsPerStep) - 1 without
+    /// firing: a boundary at posBeats (within half a sample) fires in the next processFromPosition call.
+    void rebase(double posBeats, double beatsPerSample) noexcept {
+        const double beatsPerStep = static_cast<double>(getBeatsForNote(noteValue_, noteModifier_));
+        if (!(beatsPerStep > 0.0)) {
+            return;
+        }
+        lastFiredIndex_ =
+            static_cast<int64_t>(std::ceil((posBeats - 0.5 * beatsPerSample) / beatsPerStep)) - 1;
+    }
+
+    /// @brief The index k of the last step boundary processFromPosition fired (or rebase set)
+    [[nodiscard]] int64_t getLastFiredIndex() const noexcept { return lastFiredIndex_; }
+
 private:
     // =========================================================================
     // Internal Methods
@@ -236,7 +291,7 @@ private:
     void checkAndTrigger() noexcept {
         if (EuclideanPattern::isHit(pattern_, currentStep_, steps_)) {
             if (triggerCallback_) {
-                triggerCallback_(currentStep_);
+                triggerCallback_(currentStep_, 0);
             }
         }
     }
@@ -270,6 +325,7 @@ private:
     int currentStep_ = 0;
     size_t sampleCounter_ = 0;
     bool stepTriggered_ = false;
+    int64_t lastFiredIndex_ = -1;  ///< processFromPosition: the last fired step boundary index
 
     // Callback
     TriggerCallback triggerCallback_;

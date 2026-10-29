@@ -288,19 +288,27 @@ TEST_CASE("GranularDelay feedback behavior", "[features][granular-delay][layer4]
         // Process impulse
         delay.process(impulse.data(), impulse.data(), outL.data(), outR.data(), 512);
 
-        // Then process silence
+        // Then process silence. The impulse comes back once, ~100 ms later, as
+        // long as a grain covers it (100 ms grains), so by 300 ms it has passed;
+        // only feedback could bring it back after that.
         std::array<float, 512> zeros{};
-        float maxOutput = 0.0f;
-        for (int i = 0; i < 20; ++i) {
+        float maxEcho = 0.0f;
+        float maxAfterEcho = 0.0f;
+        const size_t echoEnd = static_cast<size_t>(44100.0 * 0.3);
+        for (size_t block = 1; block < 40; ++block) {
             delay.process(zeros.data(), zeros.data(), outL.data(), outR.data(), 512);
             for (size_t j = 0; j < 512; ++j) {
-                maxOutput = std::max(maxOutput, std::abs(outL[j]));
-                maxOutput = std::max(maxOutput, std::abs(outR[j]));
+                const float peak = std::max(std::abs(outL[j]), std::abs(outR[j]));
+                if (block * 512 + j < echoEnd) {
+                    maxEcho = std::max(maxEcho, peak);
+                } else {
+                    maxAfterEcho = std::max(maxAfterEcho, peak);
+                }
             }
         }
 
-        // With no feedback, output should decay to near zero
-        REQUIRE(maxOutput < 0.5f);  // Impulse was 1.0, should decay significantly
+        REQUIRE(maxEcho > 0.1f);         // the single echo is there
+        REQUIRE(maxAfterEcho < 0.001f);  // and nothing follows it
     }
 
     SECTION("high feedback maintains signal") {
@@ -583,6 +591,130 @@ TEST_CASE("GranularDelay stereo width affects output stereo image", "[features][
 
         // With pan spray and full stereo width, L and R should differ
         REQUIRE(anyDifferent);
+    }
+}
+
+// =============================================================================
+// Grain playback of a moving signal
+// =============================================================================
+// A DC input cannot tell a grain that plays the buffer from one that holds a
+// single sample, so these feed a tone and count zero crossings of the wet
+// output: a played tone crosses 2 * f times per second, a held sample barely
+// crosses at all.
+
+namespace {
+
+/// Renders 2 s of a sine through `delay` (fully wet) and returns the zero
+/// crossings per second of the left output over the last second.
+double wetCrossingsPerSecond(GranularDelay& delay, float toneHz, double sampleRate) {
+    constexpr size_t kBlock = 512;
+    const auto total = static_cast<size_t>(sampleRate * 2.0);
+    const auto analyseFrom = static_cast<size_t>(sampleRate * 1.0);
+
+    std::array<float, kBlock> inL{}, inR{}, outL{}, outR{};
+    size_t crossings = 0;
+    float previous = 0.0f;
+    const double phaseStep = 2.0 * 3.14159265358979323846 * toneHz / sampleRate;
+
+    for (size_t start = 0; start < total; start += kBlock) {
+        for (size_t i = 0; i < kBlock; ++i) {
+            const auto s = static_cast<float>(0.5 * std::sin(phaseStep * static_cast<double>(start + i)));
+            inL[i] = s;
+            inR[i] = s;
+        }
+        delay.process(inL.data(), inR.data(), outL.data(), outR.data(), kBlock);
+        for (size_t i = 0; i < kBlock; ++i) {
+            if (start + i >= analyseFrom) {
+                if ((previous < 0.0f && outL[i] >= 0.0f) || (previous >= 0.0f && outL[i] < 0.0f)) {
+                    ++crossings;
+                }
+            }
+            previous = outL[i];
+        }
+    }
+    return static_cast<double>(crossings);
+}
+
+void configureWetOnly(GranularDelay& delay, float pitchSemitones) {
+    delay.prepare(48000.0);
+    delay.seed(7);
+    delay.setPitch(pitchSemitones);
+    delay.setFeedback(0.0f);
+    delay.setDryWet(1.0f);
+    delay.reset();
+}
+
+} // namespace
+
+namespace {
+
+/// Renders 4 s of a 440 Hz sine through `delay` and returns the level of the
+/// left output relative to the input, in dB, over the last 3 s.
+double outputToInputDb(GranularDelay& delay) {
+    constexpr size_t kBlock = 512;
+    constexpr double kSampleRate = 48000.0;
+    std::array<float, kBlock> inL{}, inR{}, outL{}, outR{};
+    double sumIn = 0.0;
+    double sumOut = 0.0;
+    const double phaseStep = 2.0 * 3.14159265358979323846 * 440.0 / kSampleRate;
+
+    for (size_t start = 0; start < static_cast<size_t>(kSampleRate * 4.0); start += kBlock) {
+        for (size_t i = 0; i < kBlock; ++i) {
+            const auto s = static_cast<float>(0.5 * std::sin(phaseStep * static_cast<double>(start + i)));
+            inL[i] = s;
+            inR[i] = s;
+        }
+        delay.process(inL.data(), inR.data(), outL.data(), outR.data(), kBlock);
+        if (start >= static_cast<size_t>(kSampleRate)) {
+            for (size_t i = 0; i < kBlock; ++i) {
+                sumIn += static_cast<double>(inL[i]) * inL[i];
+                sumOut += static_cast<double>(outL[i]) * outL[i];
+            }
+        }
+    }
+    return 10.0 * std::log10(sumOut / sumIn);
+}
+
+} // namespace
+
+TEST_CASE("GranularDelay grains play the delayed signal at the pitch ratio",
+          "[features][granular-delay][layer4]") {
+    GranularDelay delay;
+
+    SECTION("pitch 0 plays the input tone, not a held sample") {
+        configureWetOnly(delay, 0.0f);
+        REQUIRE(wetCrossingsPerSecond(delay, 1000.0f, 48000.0) == Approx(2000.0).epsilon(0.1));
+    }
+
+    SECTION("+12 semitones plays the tone an octave up") {
+        configureWetOnly(delay, 12.0f);
+        REQUIRE(wetCrossingsPerSecond(delay, 1000.0f, 48000.0) == Approx(4000.0).epsilon(0.1));
+    }
+
+    SECTION("-12 semitones plays the tone an octave down") {
+        configureWetOnly(delay, -12.0f);
+        REQUIRE(wetCrossingsPerSecond(delay, 1000.0f, 48000.0) == Approx(1000.0).epsilon(0.1));
+    }
+
+    SECTION("reverse grains at pitch 0 play the tone") {
+        configureWetOnly(delay, 0.0f);
+        delay.setReverseProbability(1.0f);
+        REQUIRE(wetCrossingsPerSecond(delay, 1000.0f, 48000.0) == Approx(2000.0).epsilon(0.1));
+    }
+}
+
+TEST_CASE("GranularDelay passes a centred, overlapped grain stream at unity",
+          "[features][granular-delay][layer4]") {
+    // At pitch 0 with no spray every grain reads the same delayed audio, so the
+    // overlapped grains must sum back to that audio at unity: Density changes
+    // the texture, not the level. (100 ms grains overlap 2x at 20/s, 10x at 100/s.)
+    for (const float density : {20.0f, 40.0f, 100.0f}) {
+        CAPTURE(density);
+        GranularDelay delay;
+        configureWetOnly(delay, 0.0f);
+        delay.setJitter(0.0f);
+        delay.setDensity(density);
+        REQUIRE(outputToInputDb(delay) == Approx(0.0).margin(0.5));
     }
 }
 

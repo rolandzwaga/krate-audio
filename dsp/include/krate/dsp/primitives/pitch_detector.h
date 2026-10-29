@@ -76,6 +76,15 @@ public:
 
     PitchDetector() noexcept = default;
 
+    /// @brief Smallest power-of-two window that holds the longest period searched
+    /// for (kMinFrequency) at this sample rate. The search stops at the window, so
+    /// the default 256 samples cannot see a pitch below 173 Hz at 44.1 kHz.
+    [[nodiscard]] static std::size_t fullRangeWindowSize(double sampleRate) noexcept {
+        std::size_t size = kDefaultWindowSize;
+        while (static_cast<double>(size) <= sampleRate / kMinFrequency) size *= 2;
+        return size;
+    }
+
     /// @brief Prepare the detector for given sample rate
     /// @param sampleRate Sample rate in Hz
     /// @param windowSize Analysis window size in samples (default 256)

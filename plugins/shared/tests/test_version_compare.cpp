@@ -7,31 +7,35 @@ TEST_CASE("SemVer::parse - valid versions", "[update][version]") {
     SECTION("simple versions") {
         auto v = SemVer::parse("1.2.3");
         REQUIRE(v.has_value());
-        CHECK(v->major == 1);
-        CHECK(v->minor == 2);
-        CHECK(v->patch == 3);
+        const SemVer s = v.value_or(SemVer{});
+        CHECK(s.major == 1);
+        CHECK(s.minor == 2);
+        CHECK(s.patch == 3);
     }
 
     SECTION("zero version") {
         auto v = SemVer::parse("0.0.0");
         REQUIRE(v.has_value());
-        CHECK(v->major == 0);
-        CHECK(v->minor == 0);
-        CHECK(v->patch == 0);
+        const SemVer s = v.value_or(SemVer{});
+        CHECK(s.major == 0);
+        CHECK(s.minor == 0);
+        CHECK(s.patch == 0);
     }
 
     SECTION("large numbers") {
         auto v = SemVer::parse("10.200.3000");
         REQUIRE(v.has_value());
-        CHECK(v->major == 10);
-        CHECK(v->minor == 200);
-        CHECK(v->patch == 3000);
+        const SemVer s = v.value_or(SemVer{});
+        CHECK(s.major == 10);
+        CHECK(s.minor == 200);
+        CHECK(s.patch == 3000);
     }
 
     SECTION("trailing whitespace is tolerated") {
         auto v = SemVer::parse("1.0.0 ");
         REQUIRE(v.has_value());
-        CHECK(v->major == 1);
+        const SemVer s = v.value_or(SemVer{});
+        CHECK(s.major == 1);
     }
 }
 

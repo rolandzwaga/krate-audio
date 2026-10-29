@@ -994,3 +994,119 @@ TEST_CASE("FlexibleFeedbackNetwork feedback filter", "[systems][flexible-feedbac
     }
 }
 
+
+// ==============================================================================
+// The processor sits inside the loop
+// ==============================================================================
+
+TEST_CASE("FlexibleFeedbackNetwork feeds the processed signal back", "[systems][flexible-feedback][processor]") {
+    // Each pass goes through the processor again: with a 0.5x processor at 100 %
+    // feedback, repeat k comes back at 0.5^k, one loop period after the last.
+    for (const std::size_t blockSize : {std::size_t{64}, std::size_t{512}, std::size_t{2048}}) {
+        CAPTURE(blockSize);
+        FlexibleFeedbackNetwork network;
+        MockFeedbackProcessor mock;
+        mock.gain = 0.5f;
+        network.prepare(44100.0, blockSize);
+        network.setProcessor(&mock);
+        network.setDelayTimeMs(20.0f);
+        network.setFeedbackAmount(1.0f);
+        network.setProcessorMix(100.0f);
+        network.snapParameters();
+
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = blockSize;
+        std::vector<float> left(44100, 0.0f);
+        left[0] = 1.0f;
+        std::vector<float> right = left;
+        for (std::size_t s = 0; s + blockSize <= left.size(); s += blockSize) {
+            network.process(&left[s], &right[s], blockSize, ctx);
+        }
+
+        // Peaks of the first five repeats, in order
+        std::vector<std::size_t> at;
+        std::vector<float> peak;
+        std::size_t i = 1;
+        while (at.size() < 5 && i < left.size()) {
+            if (std::abs(left[i]) > 0.01f) {
+                std::size_t best = i;
+                for (std::size_t j = i; j < std::min(left.size(), i + 8); ++j) {
+                    if (std::abs(left[j]) > std::abs(left[best])) best = j;
+                }
+                at.push_back(best);
+                peak.push_back(std::abs(left[best]));
+                i = best + 100;
+            } else {
+                ++i;
+            }
+        }
+        REQUIRE(at.size() == 5);
+        for (std::size_t k = 0; k < 5; ++k) {
+            CAPTURE(k, at[k]);
+            CHECK(peak[k] == Approx(std::pow(0.5, static_cast<double>(k + 1))).margin(0.01));
+            if (k > 0) {
+                CHECK(at[k] - at[k - 1] == at[0]);
+            }
+        }
+    }
+}
+
+TEST_CASE("FlexibleFeedbackNetwork filter is first-order and acts on every pass", "[systems][flexible-feedback][filter]") {
+    // A gentle one-pole filter: the first repeat gets 6 dB/oct, and every pass
+    // round the loop applies it again (at 100 % feedback repeat k gets it k times).
+    // 60 ms tone bursts, 200 ms delay; level of each repeat relative to the burst.
+    const auto repeatDb = [](FilterType type, float cutoff, float toneHz, int repeat) {
+        FlexibleFeedbackNetwork network;
+        network.prepare(44100.0, 512);
+        network.setDelayTimeMs(200.0f);
+        network.setFeedbackAmount(1.0f);
+        network.setFilterEnabled(true);
+        network.setFilterType(type);
+        network.setFilterCutoff(cutoff);
+        network.snapParameters();
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = 512;
+        const std::size_t burst = 2646;      // 60 ms
+        const std::size_t period = 8821;     // 200 ms + the loop's one-sample read
+        std::vector<float> left(period * 4, 0.0f);
+        for (std::size_t i = 0; i < burst; ++i) {
+            left[i] = 0.5f * std::sin(6.2831853f * toneHz * static_cast<float>(i) / 44100.0f);
+        }
+        const std::vector<float> input = left;
+        std::vector<float> right = left;
+        for (std::size_t s = 0; s + 512 <= left.size(); s += 512) {
+            network.process(&left[s], &right[s], 512, ctx);
+        }
+        // Middle 40 ms of the burst and of the repeat, past the filter's onset
+        double in = 0.0;
+        double out = 0.0;
+        for (std::size_t i = 441; i < burst - 441; ++i) {
+            in += static_cast<double>(input[i]) * input[i];
+            const float y = left[static_cast<std::size_t>(repeat) * period + i];
+            out += static_cast<double>(y) * y;
+        }
+        return 10.0 * std::log10(out / in);
+    };
+    // First-order magnitudes two octaves from a 1 kHz cutoff: 0.25 / sqrt(1 + 0.25^2)
+    const double twoOctaves = 20.0 * std::log10(0.25 / std::sqrt(1.0 + 0.0625));  // -12.3 dB
+
+    SECTION("highpass: 6 dB/oct, doubling per pass") {
+        CHECK(repeatDb(FilterType::Highpass, 1000.0f, 250.0f, 1) == Approx(twoOctaves).margin(1.0));
+        CHECK(repeatDb(FilterType::Highpass, 1000.0f, 250.0f, 2) == Approx(2.0 * twoOctaves).margin(1.5));
+        CHECK(repeatDb(FilterType::Highpass, 1000.0f, 8000.0f, 1) == Approx(0.0).margin(0.5));
+    }
+
+    SECTION("lowpass: 6 dB/oct, doubling per pass") {
+        CHECK(repeatDb(FilterType::Lowpass, 1000.0f, 4000.0f, 1) == Approx(twoOctaves).margin(1.0));
+        CHECK(repeatDb(FilterType::Lowpass, 1000.0f, 4000.0f, 2) == Approx(2.0 * twoOctaves).margin(1.5));
+        CHECK(repeatDb(FilterType::Lowpass, 1000.0f, 125.0f, 1) == Approx(0.0).margin(0.5));
+    }
+
+    SECTION("bandpass: unity at the centre, so repeats do not shrink there") {
+        CHECK(repeatDb(FilterType::Bandpass, 1000.0f, 1000.0f, 1) == Approx(0.0).margin(0.5));
+        CHECK(repeatDb(FilterType::Bandpass, 1000.0f, 1000.0f, 2) == Approx(0.0).margin(1.0));
+        CHECK(repeatDb(FilterType::Bandpass, 1000.0f, 250.0f, 1) < -5.0);
+    }
+}

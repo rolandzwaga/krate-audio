@@ -21,8 +21,10 @@ add_executable(plugin_tests
     unit/parameters/freeze_params_test.cpp
     unit/parameters/granular_params_test.cpp
     unit/parameters/mix_scale_consistency_test.cpp
+    unit/parameters/mode_defaults_test.cpp
     unit/parameters/multitap_params_test.cpp
     unit/parameters/pingpong_params_test.cpp
+    unit/parameters/readout_format_test.cpp
     unit/parameters/reverse_params_test.cpp
     unit/parameters/shimmer_params_test.cpp
     unit/parameters/spectral_params_test.cpp
@@ -39,6 +41,13 @@ add_executable(plugin_tests
     unit/processor/mode_crossfade_tests.cpp
     unit/processor/mode_switch_buffer_retention_test.cpp
     unit/processor/mix_parameter_conversion_test.cpp
+    # Processor::process driven through HostProcessData: the MultiTap Tempo output, the Custom Length tail and the
+    # morph into Custom (specs/iterum-tap-editor/design.md row 4)
+    unit/processor/multitap_tempo_output_test.cpp
+    # Freeze through Processor::process: the song position, the capture state tail, a restored Hold, the infinite
+    # tail and the Drones CPU budget (specs/iterum-freeze/design.md rows P4, P10, P11)
+    unit/processor/freeze_transport_test.cpp
+    unit/processor/freeze_preset_probe_test.cpp
 
     # UI tests
     unit/ui/preset_browser_logic_test.cpp
@@ -48,11 +57,14 @@ add_executable(plugin_tests
     unit/ui/search_debounce_test.cpp
     unit/ui/search_integration_test.cpp
     unit/ui/tap_pattern_editor_test.cpp
+    unit/ui/tap_pattern_editor_view_test.cpp
 
     # VST tests
     unit/vst/control_visibility_test.cpp
+    unit/vst/controller_readout_test.cpp
     unit/vst/digital_width_param_test.cpp
     unit/vst/multitap_visibility_test.cpp
+    unit/vst/pattern_button_style_test.cpp
     unit/vst/editor_lifecycle_test.cpp
     unit/vst/granular_tempo_sync_ui_test.cpp
     unit/vst/string_list_parameter_test.cpp
@@ -63,15 +75,31 @@ add_executable(plugin_tests
     # real view tree via IPlugView::attached() and runs verifyView/willClose.
     unit/vst/editor_open_close_test.cpp
 
+    # One headless screenshot per delay mode (hidden [.][screenshots]; node tools/gen-screenshots.js iterum).
+    unit/vst/editor_screenshot_test.cpp
+    unit/vst/tap_editor_screenshot_test.cpp
+    unit/vst/freeze_screenshot_test.cpp
+
+    # Every control of every mode live and of the designed widget, the conditional groups and the Sync retag
+    # ([iterum][ui]; specs/iterum-ui-redesign/design-system.md 9.4 step 3).
+    unit/vst/editor_panels_test.cpp
+
+    # The tap pattern editor through the controller: Copy, the parameter bridge, placement, tempo, load paths
+    # ([iterum][ui][tap-editor]; specs/iterum-tap-editor/design.md row 6).
+    unit/vst/tap_editor_controller_test.cpp
+
     # Controller + UI sources needed to instantiate the editor in the open/close
     # lifecycle test.
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/custom_views.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/delay_time_sync_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/tap_pattern_editor.cpp
 
     # Source files needed for linking
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/processdata.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/parameterchanges.cpp
 
     # Stubs for GetPluginFactory/moduleHandle + SDK module init (needed by
     # vstgui_support, esp. on the Linux/valgrind lane).
@@ -120,6 +148,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/parameters/mix_scale_consistency_test.cpp
         unit/parameters/multitap_params_test.cpp
         unit/parameters/pingpong_params_test.cpp
+        unit/parameters/readout_format_test.cpp
         unit/parameters/reverse_params_test.cpp
         unit/parameters/shimmer_params_test.cpp
         unit/parameters/spectral_params_test.cpp

@@ -138,8 +138,8 @@ TEST_CASE("Granular Density normalization", "[params][granular]") {
         REQUIRE(denormDensity(1.0) == Approx(100.0f));
     }
 
-    SECTION("round-trip: 10 grains/sec (default)") {
-        float original = 10.0f;
+    SECTION("round-trip: 20 grains/sec (default)") {
+        float original = 20.0f;
         double normalized = normDensity(original);
         float result = denormDensity(normalized);
         REQUIRE(result == Approx(original).margin(0.1f));
@@ -227,8 +227,8 @@ TEST_CASE("Granular Feedback normalization", "[params][granular]") {
         REQUIRE(denormFeedback(1.0) == Approx(1.2f));
     }
 
-    SECTION("round-trip: 0.0 (default)") {
-        float original = 0.0f;
+    SECTION("round-trip: 0.4 (default)") {
+        float original = 0.4f;
         double normalized = normFeedback(original);
         float result = denormFeedback(normalized);
         REQUIRE(result == Approx(original).margin(0.001f));

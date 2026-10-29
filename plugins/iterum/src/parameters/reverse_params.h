@@ -29,11 +29,11 @@ namespace Iterum {
 
 struct ReverseParams {
     std::atomic<float> chunkSize{500.0f};       // 10-2000ms
-    std::atomic<int> timeMode{0};               // 0=Free, 1=Synced (spec 043)
+    std::atomic<int> timeMode{1};               // 0=Free, 1=Synced (spec 043)
     std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};  // 0-19 (note values)
     std::atomic<float> crossfade{0.5f};         // 0-1 (crossfade amount)
     std::atomic<int> playbackMode{0};           // 0=FullReverse, 1=Alternating, 2=Random
-    std::atomic<float> feedback{0.0f};          // 0-1.2
+    std::atomic<float> feedback{0.4f};          // 0-1.2
     std::atomic<bool> filterEnabled{false};
     std::atomic<float> filterCutoff{4000.0f};   // 20-20000Hz
     std::atomic<int> filterType{0};             // 0=LowPass, 1=HighPass, 2=BandPass
@@ -132,7 +132,7 @@ inline void registerReverseParams(Steinberg::Vst::ParameterContainer& parameters
     // Time Mode (Free/Synced) - spec 043
     parameters.addParameter(createDropdownParameterWithDefault(
         STR16("Reverse Time Mode"), kReverseTimeModeId,
-        0,  // default: Free (index 0)
+        1,  // default: Synced (index 1)
         {STR16("Free"), STR16("Synced")}
     ));
 
@@ -164,7 +164,7 @@ inline void registerReverseParams(Steinberg::Vst::ParameterContainer& parameters
         STR16("Reverse Feedback"),
         STR16("%"),
         0,
-        0,  // default: 0%
+        0.4 / 1.2,  // default: 40%
         ParameterInfo::kCanAutomate,
         kReverseFeedbackId);
 
@@ -216,6 +216,9 @@ inline Steinberg::tresult formatReverseParam(
     switch (id) {
         case kReverseChunkSizeId: {
             float ms = static_cast<float>(10.0 + normalizedValue * 1990.0);
+            if (ms >= 1000.0f) {
+                return formatParamText(string, "%.2f s", ms / 1000.0f);
+            }
             return formatParamText(string, "%.1f ms", ms);
         }
 

@@ -229,8 +229,18 @@ void PitchSyncGranularShifter::processGranularSample(float* output, std::size_t 
                                float bufferSizeF) noexcept {
         // Crossfade parameters based on current grain size
         const float crossfadeLength = maxDelay_ * 0.4f;  // 40% crossfade
-        const float crossfadeRate = 1.0f / crossfadeLength;
+        // Above one octave up the taps move more than a sample per sample: shorten the
+        // fade so the outgoing tap finishes it before it reaches the end of its range.
+        const float crossfadeRate = std::max(1.0f, std::abs(delayChange)) / crossfadeLength;
         const float triggerThreshold = crossfadeLength;
+
+        // A tap the grain shrank under (the detected period fell, and maxDelay_ with it) is
+        // not pulled down to the new maximum: that jump of the read position clicks under the
+        // tap's gain. It keeps moving at its rate, held only to the longest grain the buffer
+        // serves, until it is back under maxDelay_. While the grain is steady no tap starts a
+        // sample above maxDelay_, so nothing changes there.
+        bool above1 = delay1_ > maxDelay_;
+        bool above2 = delay2_ > maxDelay_;
 
         // Read from both delay taps
         float readPos1 = static_cast<float>(writePos_) - delay1_;
@@ -250,7 +260,12 @@ void PitchSyncGranularShifter::processGranularSample(float* output, std::size_t 
         float gain2 = crossfadeWindow_[fadeIdx];
         float gain1 = 1.0f - gain2;
 
-        output[i] = sample1 * gain1 + sample2 * gain2;
+        // Hold the level through the fade for how alike the taps are: the gains sum to
+        // one in amplitude when they are in phase, and in power when they are unrelated
+        // (a short note's head in one tap and its tail in the other).
+        const float sumPower = gain1 * gain1 + gain2 * gain2
+                             + 2.0f * spliceCorrelation_ * gain1 * gain2;
+        output[i] = (sample1 * gain1 + sample2 * gain2) / std::sqrt(sumPower);
 
         // Update both delays
         delay1_ += delayChange;
@@ -262,7 +277,9 @@ void PitchSyncGranularShifter::processGranularSample(float* output, std::size_t 
                                     (delayChange > 0.0f && delay1_ >= maxDelay_ - triggerThreshold);
 
             if (approachingLimit) {
-                delay2_ = (pitchRatio > 1.0f) ? maxDelay_ : minDelay_;
+                const float target = (pitchRatio > 1.0f) ? maxDelay_ : minDelay_;
+                beginSplice(target, crossfadeLength * std::min(1.0f, std::abs(delayChange)));
+                above2 = false;  // a new incoming tap, placed under the grain
                 needsCrossfade_ = true;
             }
         }
@@ -275,13 +292,70 @@ void PitchSyncGranularShifter::processGranularSample(float* output, std::size_t 
                 crossfadePhase_ = 0.0f;
                 needsCrossfade_ = false;
                 std::swap(delay1_, delay2_);
+                std::swap(above1, above2);
             }
         }
 
-        delay1_ = std::clamp(delay1_, minDelay_, maxDelay_);
-        delay2_ = std::clamp(delay2_, minDelay_, maxDelay_);
+        const float longestGrain = static_cast<float>(maxGrainSamples_);
+        delay1_ = std::clamp(delay1_, minDelay_, above1 ? longestGrain : maxDelay_);
+        delay2_ = std::clamp(delay2_, minDelay_, above2 ? longestGrain : maxDelay_);
 
         writePos_ = (writePos_ + 1) % bufferSize_;
+    }
+
+void PitchSyncGranularShifter::beginSplice(float target, float travel) noexcept {
+        // The incoming tap starts where the audio behind it best matches the audio
+        // behind the outgoing tap (normalised cross-correlation), so a periodic input
+        // stays in phase across the fade instead of cancelling itself. It must start at
+        // least `travel` away so it is still clear of the end when the fade completes.
+        // With nothing to match, it starts at the far end and the taps count as unrelated.
+        delay2_ = target;
+        spliceCorrelation_ = 0.0f;
+        // An outgoing tap the grain shrank under (see processGranularSample) is above
+        // maxDelay_; the incoming tap still starts under it.
+        const float underGrain = (target < delay1_) ? std::max(0.0f, delay1_ - maxDelay_) : 0.0f;
+        const auto minOffset = static_cast<std::size_t>(std::ceil(std::max(travel, underGrain)));
+        const auto maxOffset = static_cast<std::size_t>(std::abs(target - delay1_));
+        if (minOffset == 0 || minOffset > maxOffset) return;
+
+        const std::size_t matchLength = std::clamp<std::size_t>(currentGrainSize_ / 2, 1, 256);
+        const std::size_t n = bufferSize_;
+        // Read position of the outgoing tap, and the step from it to a candidate
+        // (older audio for a larger delay, newer for a smaller one).
+        const auto base = (writePos_ + n - (static_cast<std::size_t>(delay1_) % n)) % n;
+        const bool older = target > delay1_;
+        auto at = [&](std::size_t offset, std::size_t back) {
+            const std::size_t idx = older ? (base + 2 * n - offset - back) : (base + n + offset - back);
+            return buffer_[idx % n];
+        };
+
+        double outgoingEnergy = 0.0;
+        for (std::size_t j = 0; j < matchLength; ++j) {
+            const float x = at(0, j);
+            outgoingEnergy += static_cast<double>(x) * x;
+        }
+        if (outgoingEnergy <= 1e-12) return;
+
+        std::size_t bestOffset = maxOffset;
+        double bestScore = -2.0;
+        for (std::size_t offset = minOffset; offset <= maxOffset; ++offset) {
+            double dot = 0.0;
+            double energy = 0.0;
+            for (std::size_t j = 0; j < matchLength; ++j) {
+                const float x = at(0, j);
+                const float y = at(offset, j);
+                dot += static_cast<double>(x) * y;
+                energy += static_cast<double>(y) * y;
+            }
+            const double score = (energy > 1e-12) ? dot / std::sqrt(outgoingEnergy * energy) : -1.0;
+            if (score > bestScore) {
+                bestScore = score;
+                bestOffset = offset;
+            }
+        }
+        const float offset = static_cast<float>(bestOffset);
+        delay2_ = older ? delay1_ + offset : delay1_ - offset;
+        spliceCorrelation_ = static_cast<float>(std::clamp(bestScore, 0.0, 1.0));
     }
 
 // prepare() allocates (vector::resize), so a std::bad_alloc could in principle

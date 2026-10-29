@@ -47,6 +47,14 @@ macro(krate_plugin_read_version PREFIX)
     list(GET VERSION_LIST 1 PROJECT_VERSION_MINOR)
     list(GET VERSION_LIST 2 PROJECT_VERSION_PATCH)
 
+    # The VST3 SDK stamps PROJECT_VERSION (not the components) into the bundle's
+    # moduleinfo.json "Version" (SMTG_AddVST3Library.cmake) and the macOS
+    # Info.plist CFBundleShortVersionString (SMTG_Bundle.cmake). Plugins are
+    # add_subdirectory()'d without their own project() call, so without this
+    # override they inherit the root project's version (every bundle shipped
+    # "0.8.0" while its classes said e.g. 0.12.2.1). tools/check-bundle.js gates it.
+    set(PROJECT_VERSION "${${PREFIX}_VERSION}")
+
     # Neutral mirrors consumed by the shared cmake/version.h.in and
     # cmake/win32resource.rc.in templates (which use @KRATE_PLUGIN_*@ tokens so a
     # single template serves every plugin).

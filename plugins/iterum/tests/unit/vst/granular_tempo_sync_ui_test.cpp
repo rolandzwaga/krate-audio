@@ -83,13 +83,11 @@ TEST_CASE("Granular TimeMode dropdown has correct options", "[vst][granular][tem
         REQUIRE(getStringAtIndex(param, 1) == "Synced");
     }
 
-    SECTION("T054: TimeMode default is index 0 (Free)") {
-        // Default normalized value should be 0.0
-        REQUIRE(param->getNormalized() == Catch::Approx(0.0));
-    }
-
     delete param;
 }
+
+// T054 (the Time Mode default, now Synced) lives with the other modes' fresh-instance
+// defaults in unit/parameters/mode_defaults_test.cpp.
 
 // ==============================================================================
 // NoteValue Dropdown Tests (T052, T053)

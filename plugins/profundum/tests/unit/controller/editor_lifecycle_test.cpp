@@ -44,6 +44,7 @@
 
 #include "test_helpers/editor_lifecycle_harness.h"
 #include <shared_editor_views_probe.h>
+#include <registered_defaults_probe.h>
 #include "ui_tree_helpers.h"  // HeadlessEditor, collectViewsOfType (Phase 12)
 
 #include "controller/controller.h"
@@ -439,6 +440,22 @@ TEST_CASE("Profundum editor carries the shared update and version views",
     CHECK(count.checkButtons == 1);
     CHECK(count.versionLabels == 1);
     CHECK(count.legacyTagged == 0);
+
+    controller.terminate();
+}
+
+// A fresh instance starts every parameter at its registered default, so a
+// host's "reset to default" returns to the value the plugin opened with.
+TEST_CASE("Profundum parameters start at their registered defaults",
+          "[profundum][controller][defaults]")
+{
+    ::Profundum::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+
+    const auto mismatches = Krate::TestSupport::parametersStartingOffTheirDefault(controller);
+    for (const auto& m : mismatches)
+        UNSCOPED_INFO(m);
+    CHECK(mismatches.empty());
 
     controller.terminate();
 }

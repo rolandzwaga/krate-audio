@@ -1423,3 +1423,131 @@ TEST_CASE("ShimmerDelay steady-state artifacts at various shimmer mix levels",
         }
     }
 }
+
+// ==============================================================================
+// Echo level at the defaults
+// ==============================================================================
+
+namespace {
+
+/// Defaults (+12 st, 100 % shimmer, 50 % diffusion size) at a 500 ms delay.
+void prepareForLevel(ShimmerDelay& d, float dryWetPercent, float feedback) {
+    d.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    d.setDelayTimeMs(500.0f);
+    d.setFeedbackAmount(feedback);
+    d.setDryWetMix(dryWetPercent);
+    d.snapParameters();
+}
+
+/// Fully wet steady 440 Hz tone, no feedback: wet level relative to the input, in dB,
+/// over the last 2 s of 3 s.
+double toneWetDb() {
+    ShimmerDelay d;
+    prepareForLevel(d, 100.0f, 0.0f);
+    const auto ctx = makeTestContext();
+    std::vector<float> left(kBlockSize), right(kBlockSize), input(kBlockSize);
+    double sumIn = 0.0;
+    double sumOut = 0.0;
+    for (size_t s = 0; s < static_cast<size_t>(kSampleRate * 3.0); s += kBlockSize) {
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            input[i] = 0.5f * std::sin(6.28318530718f * 440.0f * static_cast<float>(s + i)
+                                       / static_cast<float>(kSampleRate));
+        }
+        left = input;
+        right = input;
+        d.process(left.data(), right.data(), kBlockSize, ctx);
+        if (s >= static_cast<size_t>(kSampleRate)) {
+            for (size_t i = 0; i < kBlockSize; ++i) {
+                sumIn += static_cast<double>(input[i]) * input[i];
+                sumOut += static_cast<double>(left[i]) * left[i];
+            }
+        }
+    }
+    return 10.0 * std::log10(sumOut / sumIn);
+}
+
+/// 60 ms decaying 440 Hz notes every 1.2 s at 50 % mix: mean energy of the first echo
+/// (400 ms from the delay time on, both channels) relative to the dry note's, in dB.
+/// Energy rather than peak: the diffusion spreads the echo by design. No feedback, so
+/// later repeats do not land in either window.
+double shortNoteEchoEnergyDb() {
+    ShimmerDelay d;
+    prepareForLevel(d, 50.0f, 0.0f);
+    const auto ctx = makeTestContext();
+    const auto period = static_cast<size_t>(1.2 * kSampleRate);
+    const auto noteLen = static_cast<size_t>(0.06 * kSampleRate);
+    const auto delaySamples = static_cast<size_t>(0.5 * kSampleRate);
+    const auto window = static_cast<size_t>(0.4 * kSampleRate);
+    constexpr int kNotes = 12;
+
+    std::vector<float> left(period * (kNotes + 1), 0.0f);
+    for (int k = 0; k < kNotes; ++k) {
+        for (size_t i = 0; i < noteLen; ++i) {
+            const double t = static_cast<double>(i) / kSampleRate;
+            left[static_cast<size_t>(k) * period + i] =
+                static_cast<float>(0.5 * std::sin(6.283185307179586 * 440.0 * t) * std::exp(-t * 40.0));
+        }
+    }
+    std::vector<float> right = left;
+    for (size_t s = 0; s + kBlockSize <= left.size(); s += kBlockSize) {
+        d.process(&left[s], &right[s], kBlockSize, ctx);
+    }
+
+    double sumDb = 0.0;
+    int count = 0;
+    for (int k = 2; k < kNotes; ++k) {
+        const size_t onset = static_cast<size_t>(k) * period;
+        double dry = 0.0;
+        double echo = 0.0;
+        for (size_t i = 0; i < window; ++i) {
+            dry += static_cast<double>(left[onset + i]) * left[onset + i]
+                 + static_cast<double>(right[onset + i]) * right[onset + i];
+            echo += static_cast<double>(left[onset + delaySamples + i]) * left[onset + delaySamples + i]
+                  + static_cast<double>(right[onset + delaySamples + i]) * right[onset + delaySamples + i];
+        }
+        sumDb += 10.0 * std::log10(echo / dry);
+        ++count;
+    }
+    return sumDb / count;
+}
+
+} // namespace
+
+TEST_CASE("ShimmerDelay echo comes back at unity level at the defaults", "[shimmer][level]") {
+    CHECK(toneWetDb() == Approx(0.0).margin(0.3));
+    CHECK(shortNoteEchoEnergyDb() == Approx(0.0).margin(0.5));
+}
+
+TEST_CASE("ShimmerDelay repeats climb in pitch", "[shimmer][feedback]") {
+    // The pitch shift sits in the feedback loop, so every repeat is shifted again:
+    // +12 st puts the first repeat an octave up and the second two octaves up.
+    ShimmerDelay d;
+    d.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    d.setDelayTimeMs(500.0f);
+    d.setFeedbackAmount(0.5f);
+    d.setDryWetMix(100.0f);
+    d.snapParameters();
+    const auto ctx = makeTestContext();
+
+    const auto total = static_cast<size_t>(1.6 * kSampleRate);
+    std::vector<float> left(total + kBlockSize, 0.0f);
+    const auto burst = static_cast<size_t>(0.2 * kSampleRate);
+    for (size_t i = 0; i < burst; ++i) {
+        left[i] = 0.5f * std::sin(6.28318530718f * 440.0f * static_cast<float>(i)
+                                  / static_cast<float>(kSampleRate));
+    }
+    std::vector<float> right = left;
+    for (size_t s = 0; s + kBlockSize <= left.size(); s += kBlockSize) {
+        d.process(&left[s], &right[s], kBlockSize, ctx);
+    }
+
+    // 4096 samples from 60 ms into each repeat, inside the 200 ms burst's echo
+    constexpr size_t kWindow = 4096;
+    const auto repeatStart = [](int k) {
+        return static_cast<size_t>((0.5 * k + 0.06) * kSampleRate);
+    };
+    const float first = estimateFundamentalFrequency(&left[repeatStart(1)], kWindow, kSampleRate);
+    const float second = estimateFundamentalFrequency(&left[repeatStart(2)], kWindow, kSampleRate);
+    CHECK(first == Approx(880.0f).epsilon(0.03));
+    CHECK(second == Approx(1760.0f).epsilon(0.03));
+}

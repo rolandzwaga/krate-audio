@@ -84,9 +84,11 @@ public:
         if (pulses == 0) {
             return 0u;  // No hits
         }
+        // The lowest 'steps' bits. A shift by the full 32-bit width is undefined, so 32 steps is spelled out.
+        const uint32_t mask = (steps >= 32) ? 0xFFFFFFFFu : ((1u << steps) - 1u);
+
         if (pulses >= steps) {
-            // All steps are hits: set lowest 'steps' bits
-            return (1u << steps) - 1u;
+            return mask;  // All steps are hits
         }
 
         // Wrap rotation to valid range
@@ -108,7 +110,6 @@ public:
 
         // Apply rotation by rotating the bitmask
         if (rotation != 0) {
-            const uint32_t mask = (1u << steps) - 1u;
             uint32_t rotated = ((pattern >> rotation) | (pattern << (steps - rotation))) & mask;
             return rotated;
         }

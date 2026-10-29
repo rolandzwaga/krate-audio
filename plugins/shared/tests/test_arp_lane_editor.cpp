@@ -689,7 +689,7 @@ TEST_CASE("Discrete click cycle: full cycle 1->2->3->4->1",
     editor.setStepLevel(0, 0.0f); // start at count=1
 
     int expected[] = {2, 3, 4, 1};
-    for (int i = 0; i < 4; ++i) {
+    for (const int want : expected) {
         float n = editor.getStepLevel(0);
         int count = std::clamp(static_cast<int>(1.0f + std::round(n * 3.0f)), 1, 4);
         int nextCount = (count % 4) + 1;
@@ -697,7 +697,7 @@ TEST_CASE("Discrete click cycle: full cycle 1->2->3->4->1",
         editor.setStepLevel(0, nextNormalized);
 
         int decoded = std::clamp(static_cast<int>(1.0f + std::round(editor.getStepLevel(0) * 3.0f)), 1, 4);
-        REQUIRE(decoded == expected[i]);
+        REQUIRE(decoded == want);
     }
 }
 

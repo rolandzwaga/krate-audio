@@ -441,3 +441,275 @@ TEST_CASE("MultiTap Custom Pattern controller sync", "[params][multitap][persist
         }
     }
 }
+
+// ==============================================================================
+// Custom Length, Tempo, defaults and host formats (specs/iterum-tap-editor/design.md 2.1, 2.4, 3.1, 4.4, 7)
+// ==============================================================================
+
+#include "parameters/custom_pattern_defaults.h"
+#include "parameters/tape_params.h"
+#include "public.sdk/source/vst/vstparameters.h"
+#include <string>
+
+namespace {
+
+constexpr double kTempoNorm120 = (120.0 - 20.0) / 280.0;
+constexpr double kTempoNorm60 = (60.0 - 20.0) / 280.0;
+constexpr double kLengthNormFree = 0.0;
+constexpr double kLengthNorm1Bar = 4.0 / 5.0;   // index 4 of Free, 1/8, 1/4, 1/2, 1/1, 2/1
+constexpr double kLengthNorm2Bars = 1.0;
+
+std::string asciiOf(const Steinberg::Vst::String128 s) {
+    std::string out;
+    for (int i = 0; i < 128 && s[i] != 0; ++i) out += s[i] < 128 ? static_cast<char>(s[i]) : '?';
+    return out;
+}
+
+std::string formatCustom(Steinberg::Vst::ParamID id, double value, double lengthNorm, double tempoNorm) {
+    Steinberg::Vst::String128 s = {};
+    REQUIRE(Iterum::formatMultiTapParam(id, value, s, lengthNorm, tempoNorm) == Steinberg::kResultOk);
+    return asciiOf(s);
+}
+
+double parseCustom(Steinberg::Vst::ParamID id, const char* text, double lengthNorm, double tempoNorm) {
+    Steinberg::Vst::String128 s = {};
+    Steinberg::UString(s, 128).fromAscii(text);
+    Steinberg::Vst::ParamValue out = -1.0;
+    REQUIRE(Iterum::parseMultiTapParam(id, s, lengthNorm, tempoNorm, out) == Steinberg::kResultOk);
+    return out;
+}
+
+/// A component-state tail as Processor::getState ends it: the MultiTap block, the Tape sync fields and, when
+/// @p withLength, the Custom Length field.
+Steinberg::IPtr<Steinberg::MemoryStream> makeTail(const Iterum::MultiTapParams& mt, bool withLength) {
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    Steinberg::IBStreamer s(stream, kLittleEndian);
+    Iterum::saveMultiTapParams(mt, s);
+    Iterum::TapeParams tape;
+    Iterum::saveTapeSyncParams(tape, s);
+    if (withLength) {
+        Iterum::saveMultiTapLengthParams(mt, s);
+    }
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    return stream;
+}
+
+/// An EditControllerEx1 holding the MultiTap parameters, for the sync wrapper.
+class MultiTapOnlyController : public Steinberg::Vst::EditControllerEx1 {
+public:
+    MultiTapOnlyController() { Iterum::registerMultiTapParams(parameters); }
+};
+
+} // namespace
+
+TEST_CASE("Custom Length normalization", "[params][multitap]") {
+    using namespace Iterum;
+    MultiTapParams params;
+    REQUIRE(params.customLength.load() == 4);  // ruling 1: a fresh instance starts at 1/1
+
+    handleMultiTapParamChange(params, kMultiTapCustomLengthId, 0.0);
+    REQUIRE(params.customLength.load() == 0);
+    handleMultiTapParamChange(params, kMultiTapCustomLengthId, 0.2);
+    REQUIRE(params.customLength.load() == 1);
+    handleMultiTapParamChange(params, kMultiTapCustomLengthId, 1.0);
+    REQUIRE(params.customLength.load() == 5);
+}
+
+TEST_CASE("Custom Length and Tempo are registered as design 7.4 lists them", "[params][multitap]") {
+    using namespace Iterum;
+    using namespace Steinberg::Vst;
+    ParameterContainer container;
+    container.init();
+    registerMultiTapParams(container);
+
+    auto* length = container.getParameter(kMultiTapCustomLengthId);
+    REQUIRE(length != nullptr);
+    REQUIRE(length->getInfo().stepCount == 5);
+    REQUIRE(length->getInfo().defaultNormalizedValue == Approx(0.8));
+    REQUIRE((length->getInfo().flags & ParameterInfo::kCanAutomate) != 0);
+    REQUIRE((length->getInfo().flags & ParameterInfo::kIsList) != 0);
+    String128 s = {};
+    length->toString(0.0, s);
+    REQUIRE(asciiOf(s) == "Free");
+    length->toString(1.0, s);
+    REQUIRE(asciiOf(s) == "2/1");
+
+    auto* tempo = container.getParameter(kMultiTapTempoId);
+    REQUIRE(tempo != nullptr);
+    REQUIRE((tempo->getInfo().flags & ParameterInfo::kIsReadOnly) != 0);
+    REQUIRE((tempo->getInfo().flags & ParameterInfo::kIsHidden) != 0);
+    REQUIRE((tempo->getInfo().flags & ParameterInfo::kCanAutomate) == 0);
+    REQUIRE(tempo->getInfo().defaultNormalizedValue == Approx(100.0 / 280.0).margin(1e-6));
+}
+
+TEST_CASE("Custom Length tail: absent loads Free, present round-trips 0..5", "[params][multitap][persistence]") {
+    using namespace Iterum;
+    using namespace Steinberg;
+
+    SECTION("a stream ending after the Tape sync fields loads Free") {
+        MultiTapParams saved;
+        auto stream = makeTail(saved, false);
+        IBStreamer s(stream, kLittleEndian);
+        MultiTapParams loaded;  // starts at 1/1
+        loadMultiTapParams(loaded, s);
+        TapeParams tape;
+        loadTapeSyncParams(tape, s);
+        loadMultiTapLengthParams(loaded, s);
+        REQUIRE(loaded.customLength.load() == 0);
+    }
+
+    SECTION("a stream with the tail round-trips every index") {
+        for (int v = 0; v <= 5; ++v) {
+            MultiTapParams saved;
+            saved.customLength.store(v);
+            auto stream = makeTail(saved, true);
+            IBStreamer s(stream, kLittleEndian);
+            MultiTapParams loaded;
+            loaded.customLength.store(v == 3 ? 2 : 3);
+            loadMultiTapParams(loaded, s);
+            TapeParams tape;
+            loadTapeSyncParams(tape, s);
+            loadMultiTapLengthParams(loaded, s);
+            INFO("index " << v);
+            REQUIRE(loaded.customLength.load() == v);
+        }
+    }
+
+    SECTION("the field is the last int32 of the tail, after the Tape sync fields") {
+        MultiTapParams saved;
+        saved.customLength.store(5);
+        auto withTail = makeTail(saved, true);
+        auto without = makeTail(saved, false);
+        int64 endWith = 0;
+        int64 endWithout = 0;
+        withTail->seek(0, IBStream::kIBSeekEnd, &endWith);
+        without->seek(0, IBStream::kIBSeekEnd, &endWithout);
+        REQUIRE(endWith == endWithout + 4);
+        withTail->seek(endWithout, IBStream::kIBSeekSet, nullptr);
+        IBStreamer s(withTail, kLittleEndian);
+        int32 last = -1;
+        REQUIRE(s.readInt32(last));
+        REQUIRE(last == 5);
+    }
+
+    SECTION("out-of-range indices clamp") {
+        auto stream = Steinberg::owned(new MemoryStream());
+        IBStreamer w(stream, kLittleEndian);
+        w.writeInt32(9);
+        stream->seek(0, IBStream::kIBSeekSet, nullptr);
+        IBStreamer r(stream, kLittleEndian);
+        MultiTapParams loaded;
+        loadMultiTapLengthParams(loaded, r);
+        REQUIRE(loaded.customLength.load() == 5);
+    }
+}
+
+TEST_CASE("Custom Length controller sync", "[params][multitap][persistence]") {
+    using namespace Iterum;
+    using namespace Steinberg;
+
+    auto readTailInto = [](IBStreamer& s) {
+        // Skip the MultiTap block and the Tape sync fields as the controller does.
+        loadMultiTapParamsToController(s, [](Vst::ParamID, double) {});
+        loadTapeSyncParamsToController(s, [](Vst::ParamID, double) {});
+    };
+
+    SECTION("loadMultiTapLengthParamsToController: absent -> 0.0, present v -> v / 5") {
+        {
+            MultiTapParams saved;
+            auto stream = makeTail(saved, false);
+            IBStreamer s(stream, kLittleEndian);
+            readTailInto(s);
+            std::map<Vst::ParamID, double> captured;
+            loadMultiTapLengthParamsToController(s, [&](Vst::ParamID id, double v) { captured[id] = v; });
+            REQUIRE(captured.count(kMultiTapCustomLengthId) == 1);
+            REQUIRE(captured[kMultiTapCustomLengthId] == 0.0);
+        }
+        for (int v = 0; v <= 5; ++v) {
+            MultiTapParams saved;
+            saved.customLength.store(v);
+            auto stream = makeTail(saved, true);
+            IBStreamer s(stream, kLittleEndian);
+            readTailInto(s);
+            std::map<Vst::ParamID, double> captured;
+            loadMultiTapLengthParamsToController(s, [&](Vst::ParamID id, double value) { captured[id] = value; });
+            INFO("index " << v);
+            REQUIRE(captured[kMultiTapCustomLengthId] == Approx(static_cast<double>(v) / 5.0));
+        }
+    }
+
+    SECTION("syncMultiTapLengthParamsToController sets the controller's 914") {
+        auto controller = Steinberg::owned(new MultiTapOnlyController());
+        {
+            MultiTapParams saved;
+            saved.customLength.store(2);
+            auto stream = makeTail(saved, true);
+            IBStreamer s(stream, kLittleEndian);
+            readTailInto(s);
+            syncMultiTapLengthParamsToController(s, *controller);
+            REQUIRE(controller->getParamNormalized(kMultiTapCustomLengthId) == Approx(0.4));
+        }
+        {
+            MultiTapParams saved;
+            auto stream = makeTail(saved, false);
+            IBStreamer s(stream, kLittleEndian);
+            readTailInto(s);
+            syncMultiTapLengthParamsToController(s, *controller);
+            REQUIRE(controller->getParamNormalized(kMultiTapCustomLengthId) == 0.0);
+        }
+    }
+}
+
+TEST_CASE("Custom Time defaults fill the grid coarse to fine", "[params][multitap]") {
+    using namespace Iterum;
+    const float expected[16] = {0.25f,   0.5f,    0.75f,   1.0f,    0.125f,  0.375f,  0.625f,  0.875f,
+                                0.0625f, 0.1875f, 0.3125f, 0.4375f, 0.5625f, 0.6875f, 0.8125f, 0.9375f};
+    Steinberg::Vst::ParameterContainer container;
+    container.init();
+    registerMultiTapParams(container);
+    const MultiTapParams fresh;
+
+    for (size_t i = 0; i < 16; ++i) {
+        INFO("tap " << i + 1);
+        REQUIRE(kDefaultCustomTimeRatios[i] == expected[i]);
+        auto* p = container.getParameter(kMultiTapCustomTime0Id + static_cast<Steinberg::Vst::ParamID>(i));
+        REQUIRE(p != nullptr);
+        REQUIRE(p->getInfo().defaultNormalizedValue == Approx(kDefaultCustomTimeRatios[i]).margin(1e-7));
+        REQUIRE(fresh.customTimeRatios[i].load() == kDefaultCustomTimeRatios[i]);
+        REQUIRE(kDefaultCustomTimeRatios[i] > 0.0f);
+        for (size_t j = 0; j < i; ++j) {
+            REQUIRE(kDefaultCustomTimeRatios[i] != kDefaultCustomTimeRatios[j]);
+        }
+    }
+    for (size_t i = 0; i < 4; ++i) {
+        REQUIRE(kDefaultCustomTimeRatios[i] == static_cast<float>(i + 1) / 4.0f);
+    }
+}
+
+TEST_CASE("Custom Time formats as core time of the span", "[params][multitap]") {
+    using namespace Iterum;
+    REQUIRE(formatCustom(kMultiTapCustomTime0Id, 0.15, kLengthNormFree, kTempoNorm120) == "750.0 ms");
+    REQUIRE(formatCustom(kMultiTapCustomTime0Id + 3, 0.5, kLengthNorm1Bar, kTempoNorm120) == "1.00 s");
+    REQUIRE(formatCustom(kMultiTapCustomTime15Id, 1.0, kLengthNorm2Bars, kTempoNorm60) == "5.00 s");
+}
+
+TEST_CASE("Custom Level formats in dB", "[params][multitap]") {
+    using namespace Iterum;
+    REQUIRE(formatCustom(kMultiTapCustomLevel0Id, 1.0, kLengthNormFree, kTempoNorm120) == "0.0 dB");
+    REQUIRE(formatCustom(kMultiTapCustomLevel0Id + 5, 0.5, kLengthNormFree, kTempoNorm120) == "-6.0 dB");
+    REQUIRE(formatCustom(kMultiTapCustomLevel15Id, 0.0005, kLengthNormFree, kTempoNorm120) == "-inf dB");
+}
+
+TEST_CASE("Custom Time parses back", "[params][multitap]") {
+    using namespace Iterum;
+    REQUIRE(parseCustom(kMultiTapCustomTime0Id, "750.0 ms", kLengthNormFree, kTempoNorm120) == Approx(0.15).margin(1e-6));
+    REQUIRE(parseCustom(kMultiTapCustomTime0Id, "750.0 ms", kLengthNorm1Bar, kTempoNorm120) == Approx(0.375).margin(1e-6));
+    REQUIRE(parseCustom(kMultiTapCustomTime0Id, "6000 ms", kLengthNormFree, kTempoNorm120) == 1.0);
+}
+
+TEST_CASE("Custom Level parses back", "[params][multitap]") {
+    using namespace Iterum;
+    REQUIRE(parseCustom(kMultiTapCustomLevel0Id, "-6.0 dB", kLengthNormFree, kTempoNorm120) == Approx(0.501).margin(1e-3));
+    REQUIRE(parseCustom(kMultiTapCustomLevel0Id, "-inf dB", kLengthNormFree, kTempoNorm120) == 0.0);
+    REQUIRE(parseCustom(kMultiTapCustomLevel0Id, "0.0 dB", kLengthNormFree, kTempoNorm120) == Approx(1.0).margin(1e-6));
+}

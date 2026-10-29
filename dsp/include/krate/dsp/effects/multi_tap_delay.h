@@ -88,6 +88,31 @@ enum class TimingPattern : uint8_t {
 };
 
 // =============================================================================
+// CustomLength: the span the Custom pattern's time ratios cover
+// =============================================================================
+// Tap i of the Custom pattern plays at clamp(ratio_i x span, kMinDelayMs, maxDelay). Free is the legacy 5000 ms
+// axis, independent of tempo; the synced lengths are a number of quarter-note beats at the block's tempo
+// (specs/iterum-tap-editor/design.md 2.1, 2.5). Shared with the plugin's tap editor, so the two cannot drift.
+
+enum class CustomLength : uint8_t { Free = 0, N8, N4, N2, N1, N2x1 };
+
+inline constexpr size_t kCustomLengthCount = 6;
+
+/// The legacy Free span: a literal, not the prepared maximum delay.
+inline constexpr float kCustomFreeLengthMs = 5000.0f;
+
+/// Quarter-note beats of each synced length (index 0, Free, is not a beat count).
+inline constexpr float kCustomLengthBeats[kCustomLengthCount] = {0.0f, 0.5f, 1.0f, 2.0f, 4.0f, 8.0f};
+
+/// The span of @p length in milliseconds at @p bpm (clamped to the tempo-sync range); Free is 5000 ms.
+[[nodiscard]] inline float customLengthSpanMs(CustomLength length, double bpm) noexcept {
+    const auto index = static_cast<size_t>(length);
+    if (length == CustomLength::Free || index >= kCustomLengthCount) return kCustomFreeLengthMs;
+    const double clampedBpm = std::clamp(bpm, kMinTempoSyncBPM, kMaxTempoSyncBPM);
+    return static_cast<float>(static_cast<double>(kCustomLengthBeats[index]) * 60000.0 / clampedBpm);
+}
+
+// =============================================================================
 // SpatialPattern Enumeration (FR-002b)
 // =============================================================================
 
@@ -311,13 +336,11 @@ public:
 
     /// @brief Set single custom time ratio (for UI editor)
     /// @param tapIndex Tap index [0, 15]
-    /// @param ratio Time ratio 0.0-1.0 (ratio of max delay)
+    /// @param ratio Time ratio 0.0-1.0 (ratio of the Custom Length's span)
+    /// @note Stores only; process() applies the Custom pattern once per block.
     void setCustomTimeRatio(size_t tapIndex, float ratio) noexcept {
         if (tapIndex < kMaxTaps) {
             customTimeRatios_[tapIndex] = std::clamp(ratio, 0.0f, 1.0f);
-            if (currentTimingPattern_ == TimingPattern::Custom) {
-                applyCustomTimingPattern();
-            }
         }
     }
 
@@ -330,12 +353,10 @@ public:
     /// @brief Set single custom level ratio (for UI editor)
     /// @param tapIndex Tap index [0, 15]
     /// @param level Level ratio 0.0-1.0 (linear gain)
+    /// @note Stores only; process() applies the Custom pattern once per block.
     void setCustomLevelRatio(size_t tapIndex, float level) noexcept {
         if (tapIndex < kMaxTaps) {
             customLevels_[tapIndex] = std::clamp(level, 0.0f, 1.0f);
-            if (currentTimingPattern_ == TimingPattern::Custom) {
-                applyCustomTimingPattern();
-            }
         }
     }
 
@@ -345,15 +366,24 @@ public:
         return (tapIndex < kMaxTaps) ? customLevels_[tapIndex] : 1.0f;
     }
 
+    /// @brief Set the span the custom time ratios cover
+    /// @note Stores only; process() applies the Custom pattern once per block.
+    void setCustomLength(CustomLength length) noexcept {
+        customLength_ = (static_cast<size_t>(length) < kCustomLengthCount) ? length : CustomLength::Free;
+    }
+
+    /// @brief Get the span the custom time ratios cover
+    [[nodiscard]] CustomLength getCustomLength() const noexcept {
+        return customLength_;
+    }
+
     /// @brief Set base delay time for patterns
     /// @param ms Base time in milliseconds [1, 5000]
     void setBaseTimeMs(float ms) noexcept {
         baseTimeMs_ = std::clamp(ms, kMinDelayMs, maxDelayMs_);
 
-        // Reapply current pattern with new base time
-        if (currentTimingPattern_ == TimingPattern::Custom) {
-            applyCustomTimingPattern();
-        } else {
+        // Reapply current pattern with new base time (Custom is applied once per block by process())
+        if (currentTimingPattern_ != TimingPattern::Custom) {
             applyTimingPattern(currentTimingPattern_, activeTapCount_);
         }
     }
@@ -604,8 +634,14 @@ public:
                  const BlockContext& ctx) noexcept {
         if (!prepared_ || numSamples == 0) return;
 
-        // Update tempo from host if available (during playback)
-        if (ctx.isPlaying && ctx.tempoBPM > 0.0) {
+        // The Custom pattern's synced span follows the host tempo in every transport state
+        if (ctx.tempoBPM > 0.0) {
+            customTempoBPM_ = ctx.tempoBPM;
+        }
+
+        // Rhythmic tempo follows the host tempo in every transport state, so the
+        // pattern calculator (which uses the reported tempo) and the DSP agree
+        if (ctx.tempoBPM > 0.0) {
             const float newTempo = static_cast<float>(ctx.tempoBPM);
             const bool tempoChanged = std::abs(newTempo - bpm_) > 0.1f;
 
@@ -638,6 +674,13 @@ public:
         // Update morph if active
         if (morphing_) {
             updateMorph(numSamples);
+        }
+
+        // Custom: apply the stored ratios, levels and length once per block, after the morph (so the block a morph
+        // into Custom completes in also gets the custom levels) and after the caller's applySpatialPattern (so the
+        // custom levels win over Decaying / Flat)
+        if (currentTimingPattern_ == TimingPattern::Custom && !morphing_) {
+            applyCustomTimingPattern();
         }
 
         // Apply modulation if connected
@@ -792,8 +835,10 @@ private:
                 break;
 
             case TimingPattern::Custom:
+                applyCustomTimingPattern();
+                break;
+
             default:
-                // Custom pattern handled separately via applyCustomTimingPattern()
                 break;
         }
     }
@@ -850,9 +895,10 @@ private:
 
     /// @brief Apply custom timing pattern from stored ratios and levels
     void applyCustomTimingPattern() noexcept {
+        const float span = customSpanMs();
         for (size_t i = 0; i < activeTapCount_; ++i) {
-            // Apply time: ratio is 0-1 representing position in max delay range
-            float timeMs = std::clamp(maxDelayMs_ * customTimeRatios_[i], kMinDelayMs, maxDelayMs_);
+            // Apply time: ratio is 0-1 representing position in the Custom Length's span
+            float timeMs = std::clamp(span * customTimeRatios_[i], kMinDelayMs, maxDelayMs_);
             tapManager_.setTapEnabled(i, true);
             tapManager_.setTapTimeMs(i, timeMs);
 
@@ -865,6 +911,11 @@ private:
         for (size_t i = activeTapCount_; i < kMaxTaps; ++i) {
             tapManager_.setTapEnabled(i, false);
         }
+    }
+
+    /// @brief The Custom pattern's span in ms: 5000 in Free, the Length's beats at the last block's tempo otherwise
+    [[nodiscard]] float customSpanMs() const noexcept {
+        return customLengthSpanMs(customLength_, customTempoBPM_);
     }
 
     /// @brief Apply spatial pattern to taps
@@ -1032,6 +1083,11 @@ private:
                     timeMs = baseTimeMs_ * std::pow(2.0f, static_cast<float>(i));
                     break;
 
+                // Custom glides to the custom shape, never toward 0 ms
+                case TimingPattern::Custom:
+                    timeMs = std::clamp(customSpanMs() * customTimeRatios_[i], kMinDelayMs, maxDelayMs_);
+                    break;
+
                 default:
                     timeMs = static_cast<float>(n) * baseTimeMs_;
                     break;
@@ -1140,6 +1196,8 @@ private:
         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
     };
+    CustomLength customLength_ = CustomLength::Free;  ///< The owner pushes its Length parameter
+    double customTempoBPM_ = 120.0;                   ///< Until the first block with ctx.tempoBPM > 0
 
     // Morphing state
     bool morphing_ = false;

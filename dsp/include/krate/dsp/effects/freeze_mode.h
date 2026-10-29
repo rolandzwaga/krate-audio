@@ -77,6 +77,8 @@ public:
 
     // Decay configuration (FR-013 to FR-016)
     void setDecayAmount(float decay) noexcept;  // 0-1 (0 = infinite sustain, 1 = fast fade)
+    // The signal passes through once per loop, so the decay applies per pass
+    void setLoopDelayMs(float ms) noexcept;
 
 private:
     double sampleRate_ = 44100.0;
@@ -93,8 +95,8 @@ private:
     float shimmerMix_ = 0.0f;       // 0-1 (0 = unpitched, 1 = fully pitched)
     float diffusionAmount_ = 0.0f;  // 0-1
     float decayAmount_ = 0.0f;      // 0-1 (0 = infinite sustain)
-    float decayGain_ = 1.0f;        // Pre-calculated per-sample gain
-    float currentDecayLevel_ = 1.0f; // Running decay level (accumulated across blocks)
+    float decayGain_ = 1.0f;        // Pre-calculated gain per pass round the loop
+    float loopDelayMs_ = 500.0f;    // Loop period the decay is spread over
 
     // Scratch buffers
     std::vector<float> unpitchedL_;
@@ -519,17 +521,14 @@ inline void FreezeFeedbackProcessor::process(float* left, float* right, std::siz
         right[i] = unpitchedR_[i] * (1.0f - shimmerMix_) + right[i] * shimmerMix_;
     }
 
-    // Apply decay gain (cumulative per-sample reduction for fade effect)
-    // SC-003: At decay 100%, reach -60dB within 500ms
-    // decayGain_ is per-sample, so we accumulate across samples
-    if (decayGain_ < 0.9999f) {
-        float runningGain = currentDecayLevel_;
+    // Apply decay gain: this processor sits in the feedback loop, so the frozen
+    // signal comes through once per pass and a fixed gain per pass fades it
+    // exponentially. SC-003: At decay 100%, reach -60dB within 500ms
+    if (decayGain_ < 1.0f) {
         for (std::size_t i = 0; i < numSamples; ++i) {
-            runningGain *= decayGain_;
-            left[i] *= runningGain;
-            right[i] *= runningGain;
+            left[i] *= decayGain_;
+            right[i] *= decayGain_;
         }
-        currentDecayLevel_ = runningGain;
     }
 }
 
@@ -537,7 +536,6 @@ inline void FreezeFeedbackProcessor::reset() noexcept {
     pitchShifterL_.reset();
     pitchShifterR_.reset();
     diffusion_.reset();
-    currentDecayLevel_ = 1.0f;  // Reset cumulative decay
 }
 
 inline std::size_t FreezeFeedbackProcessor::getLatencySamples() const noexcept {
@@ -572,12 +570,17 @@ inline void FreezeFeedbackProcessor::setDecayAmount(float decay) noexcept {
     decayGain_ = calculateDecayGain();
 }
 
+inline void FreezeFeedbackProcessor::setLoopDelayMs(float ms) noexcept {
+    const float clamped = std::max(ms, 1.0f);
+    if (clamped == loopDelayMs_) return;
+    loopDelayMs_ = clamped;
+    decayGain_ = calculateDecayGain();
+}
+
 inline float FreezeFeedbackProcessor::calculateDecayGain() const noexcept {
     // SC-003: At decay 100%, reach -60dB within 500ms
-    // -60dB = 0.001 amplitude
-    // At 44.1kHz, 500ms = 22050 samples
-    // decayGain^22050 = 0.001
-    // decayGain = 0.001^(1/22050) ≈ 0.999686
+    // -60dB = 0.001 amplitude, reached after decayTime / loopDelay passes:
+    // decayGain^(500 / loopDelayMs) = 0.001, so decayGain = 0.001^(loopDelayMs / 500)
 
     if (decayAmount_ <= 0.0f) return 1.0f;  // Infinite sustain
 
@@ -586,9 +589,8 @@ inline float FreezeFeedbackProcessor::calculateDecayGain() const noexcept {
 
     // Scale decay time: 100% = 500ms, lower values = longer time
     const float decayTimeMs = kMinDecayTimeMs / decayAmount_;
-    const float decaySamples = static_cast<float>(decayTimeMs * sampleRate_ / 1000.0);
 
-    return std::pow(kTargetAmplitude, 1.0f / decaySamples);
+    return std::pow(kTargetAmplitude, loopDelayMs_ / decayTimeMs);
 }
 
 // =============================================================================
@@ -765,6 +767,7 @@ inline void FreezeMode::process(float* left, float* right, std::size_t numSample
         feedbackNetwork_.setDelayTimeMs(baseDelayMs);
     }
     delaySmoother_.setTarget(baseDelayMs);
+    freezeProcessor_.setLoopDelayMs(baseDelayMs);
 
     // Process in chunks
     std::size_t samplesProcessed = 0;

@@ -21,6 +21,9 @@
 #include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/block_context.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <utility>
 #include <vector>
 
 using namespace Krate::DSP;
@@ -110,7 +113,7 @@ TEST_CASE("PatternScheduler invokes callback on hits", "[processors][pattern_sch
     scheduler.prepare(44100.0, 512);
 
     TriggerRecorder recorder;
-    scheduler.setTriggerCallback([&recorder](int step) {
+    scheduler.setTriggerCallback([&recorder](int step, size_t /*sampleOffset*/) {
         recorder.recordTrigger(step);
     });
 
@@ -141,7 +144,7 @@ TEST_CASE("PatternScheduler does not trigger on rests", "[processors][pattern_sc
     scheduler.prepare(44100.0, 512);
 
     TriggerRecorder recorder;
-    scheduler.setTriggerCallback([&recorder](int step) {
+    scheduler.setTriggerCallback([&recorder](int step, size_t /*sampleOffset*/) {
         recorder.recordTrigger(step);
     });
 
@@ -178,7 +181,7 @@ TEST_CASE("PatternScheduler synchronizes to tempo", "[processors][pattern_schedu
     scheduler.prepare(44100.0, 512);
 
     TriggerRecorder recorder;
-    scheduler.setTriggerCallback([&recorder](int step) {
+    scheduler.setTriggerCallback([&recorder](int step, size_t /*sampleOffset*/) {
         recorder.recordTrigger(step);
     });
 
@@ -211,7 +214,7 @@ TEST_CASE("PatternScheduler respects tempo changes", "[processors][pattern_sched
     scheduler.prepare(44100.0, 512);
 
     TriggerRecorder recorder;
-    scheduler.setTriggerCallback([&recorder](int step) {
+    scheduler.setTriggerCallback([&recorder](int step, size_t /*sampleOffset*/) {
         recorder.recordTrigger(step);
     });
 
@@ -326,7 +329,7 @@ TEST_CASE("PatternScheduler handles empty pattern", "[processors][pattern_schedu
     scheduler.prepare(44100.0, 512);
 
     TriggerRecorder recorder;
-    scheduler.setTriggerCallback([&recorder](int step) {
+    scheduler.setTriggerCallback([&recorder](int step, size_t /*sampleOffset*/) {
         recorder.recordTrigger(step);
     });
 
@@ -352,7 +355,7 @@ TEST_CASE("PatternScheduler handles single step pattern", "[processors][pattern_
     scheduler.prepare(44100.0, 512);
 
     TriggerRecorder recorder;
-    scheduler.setTriggerCallback([&recorder](int step) {
+    scheduler.setTriggerCallback([&recorder](int step, size_t /*sampleOffset*/) {
         recorder.recordTrigger(step);
     });
 
@@ -382,4 +385,131 @@ TEST_CASE("PatternScheduler process is noexcept", "[processors][pattern_schedule
     BlockContext ctx;
     static_assert(noexcept(scheduler.process(512, ctx)),
                   "process() must be noexcept");
+}
+
+// =============================================================================
+// Bar-phased steps with sample offsets (specs/iterum-freeze/design.md 4.2, row D3)
+// =============================================================================
+
+TEST_CASE("PatternScheduler processFromPosition fires hits at their sample offset once",
+          "[processors][pattern_scheduler][layer2]") {
+    // 3 of 8 at 1/8 (hits at steps 0, 3 and 6), 120 BPM, 44.1 kHz: one beat is 22050 samples.
+    constexpr double kBps = 1.0 / 22050.0;
+    PatternScheduler scheduler;
+    scheduler.prepare(44100.0, 4096);
+    scheduler.setEuclidean(3, 8, 0);
+    scheduler.setTempoSync(true, NoteValue::Eighth, NoteModifier::None);
+
+    std::vector<std::pair<int, size_t>> fired;
+    scheduler.setTriggerCallback([&fired](int step, size_t sampleOffset) { fired.emplace_back(step, sampleOffset); });
+
+    SECTION("(a) a 4096-sample block from beat 7.9 fires step 0 (k = 16) once, at offset 2205") {
+        scheduler.rebase(7.9, kBps);
+        scheduler.processFromPosition(7.9, kBps, 4096);
+        REQUIRE(fired.size() == 1);
+        CHECK(fired[0].first == 0);
+        CHECK(fired[0].second == 2205);
+        CHECK(scheduler.getLastFiredIndex() == 16);
+
+        // (b) The next block spans [8.0858, 8.2715) beats: 8.5 lies past it, nothing fires.
+        fired.clear();
+        scheduler.processFromPosition(7.9 + 4096.0 * kBps, kBps, 4096);
+        CHECK(fired.empty());
+        CHECK(scheduler.getLastFiredIndex() == 16);
+    }
+
+    SECTION("(c) a re-base onto beat 100 fires step 0 (k = 200) at offset 0") {
+        scheduler.rebase(100.0, kBps);
+        scheduler.processFromPosition(100.0, kBps, 512);
+        REQUIRE(fired.size() == 1);
+        CHECK(fired[0].first == 0);
+        CHECK(fired[0].second == 0);
+        CHECK(scheduler.getLastFiredIndex() == 200);
+    }
+
+    SECTION("(d) 0.22 sample after the boundary it fires at offset 0; 2.2 samples after it does not") {
+        scheduler.rebase(8.00001, kBps);
+        scheduler.processFromPosition(8.00001, kBps, 512);
+        REQUIRE(fired.size() == 1);
+        CHECK(fired[0].first == 0);
+        CHECK(fired[0].second == 0);
+
+        fired.clear();
+        scheduler.rebase(8.0001, kBps);
+        CHECK(scheduler.getLastFiredIndex() == 16);
+        double pos = 8.0001;
+        bool reached17 = false;
+        while (pos < 8.6) {
+            scheduler.processFromPosition(pos, kBps, 512);
+            pos += 512.0 * kBps;
+            if (scheduler.getLastFiredIndex() != 16) {
+                CHECK(scheduler.getLastFiredIndex() == 17);  // the next boundary is k = 17, not k = 16
+                reached17 = true;
+                break;
+            }
+        }
+        CHECK(reached17);
+        CHECK(fired.empty());  // k = 16 never fired, and step 1 (k = 17) is not a hit
+    }
+
+    SECTION("(e) a backward loop to beat 0 fires step 0 at offset 0") {
+        scheduler.rebase(0.0, kBps);
+        size_t done = 0;
+        const size_t loopEnd = 16 * 22050;  // continuous blocks ending exactly at beat 16
+        while (done < loopEnd) {
+            const size_t n = std::min<size_t>(512, loopEnd - done);
+            scheduler.processFromPosition(static_cast<double>(done) * kBps, kBps, n);
+            done += n;
+        }
+        fired.clear();
+        scheduler.rebase(0.0, kBps);
+        scheduler.processFromPosition(0.0, kBps, 512);
+        REQUIRE(fired.size() == 1);
+        CHECK(fired[0].first == 0);
+        CHECK(fired[0].second == 0);
+        CHECK(scheduler.getLastFiredIndex() == 0);
+    }
+
+    SECTION("(f) pre-roll from beat -2 fires k = -2 (step 6) at 22050 and k = 0 at 44100") {
+        scheduler.rebase(-2.0, kBps);
+        std::vector<std::pair<int, size_t>> absolute;
+        size_t done = 0;
+        while (done < 44100 + 512) {
+            fired.clear();
+            scheduler.processFromPosition(-2.0 + static_cast<double>(done) * kBps, kBps, 512);
+            for (const auto& [step, offset] : fired) {
+                absolute.emplace_back(step, done + offset);
+            }
+            done += 512;
+        }
+        REQUIRE(absolute.size() == 2);
+        CHECK(absolute[0].first == 6);
+        CHECK(absolute[0].second == 22050);
+        CHECK(absolute[1].first == 0);
+        CHECK(absolute[1].second == 44100);
+    }
+}
+
+TEST_CASE("PatternScheduler processFromPosition fires only its own block's boundaries after a jump without rebase",
+          "[processors][pattern_scheduler][layer2]") {
+    // Code review of the Freeze build: after reset() the last fired index is -1, so a first call at beat 1000
+    // without a rebase walked every boundary from k = 0 (about 750 hits at offset 0 in one callback).
+    constexpr double kBps = 1.0 / 22050.0;
+    PatternScheduler scheduler;
+    scheduler.prepare(44100.0, 4096);
+    scheduler.setEuclidean(3, 8, 0);
+    scheduler.setTempoSync(true, NoteValue::Eighth, NoteModifier::None);
+    std::vector<std::pair<int, size_t>> fired;
+    scheduler.setTriggerCallback([&fired](int step, size_t sampleOffset) { fired.emplace_back(step, sampleOffset); });
+
+    // [1000.25, 1000.273) beats holds no eighth boundary: nothing fires.
+    scheduler.processFromPosition(1000.25, kBps, 512);
+    CHECK(fired.empty());
+    // A block that holds k = 2000 (beat 1000.0, step 0) fires exactly that one, at its offset.
+    fired.clear();
+    scheduler.processFromPosition(999.9, kBps, 4096);
+    REQUIRE(fired.size() == 1);
+    CHECK(fired[0].first == 0);
+    CHECK(fired[0].second == 2205);
+    CHECK(scheduler.getLastFiredIndex() == 2000);
 }

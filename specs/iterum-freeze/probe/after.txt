@@ -1,0 +1,55 @@
+Filters: "PROBE Freeze signal path at defaults"
+Randomness seeded to: 3104536319
+Euclidean        playing=1 | wet   -7.5 dB re in, peak   +0.3 dB | active  28% | held 233 Hz | 233 re 311  +49.1 dB | r=0.29 (printed) | captures 2
+Euclidean        playing=1 | pitch change: r live [2.6, 3.6 s) 0.006, [4.6, 5.6 s) 0.003 | held [4.5, 5.5 s) 311 Hz (input 415, bar before 311)
+Euclidean        playing=0 | wet   -7.5 dB re in, peak   +0.3 dB | active  28% | held 233 Hz | 233 re 311  +49.1 dB | r=0.29 (printed) | captures 2
+Euclidean        playing=0 | pitch change: r live [2.6, 3.6 s) 0.006, [4.6, 5.6 s) 0.003 | held [4.5, 5.5 s) 311 Hz (input 415, bar before 311)
+GranularScatter  playing=1 | wet   -7.4 dB re in, peak   +1.7 dB | active  65% | held 233 Hz | 233 re 311  +36.4 dB | r=0.32 (printed) | captures 2
+GranularScatter  playing=1 | pitch change: r live [2.6, 3.6 s) 0.006, [4.6, 5.6 s) 0.002 | held [4.5, 5.5 s) 311 Hz (input 415, bar before 311)
+GranularScatter  playing=0 | wet   -7.4 dB re in, peak   +1.7 dB | active  65% | held 233 Hz | 233 re 311  +36.4 dB | r=0.32 (printed) | captures 2
+GranularScatter  playing=0 | pitch change: r live [2.6, 3.6 s) 0.006, [4.6, 5.6 s) 0.002 | held [4.5, 5.5 s) 311 Hz (input 415, bar before 311)
+HarmonicDrones   playing=1 | wet   -0.0 dB re in, peak   +0.8 dB | active 100% | held 233 Hz | 233 re 311  +57.6 dB | r=0.42 (printed) | captures 2
+HarmonicDrones   playing=1 | pitch change: r live [2.6, 3.6 s) 0.002, [4.6, 5.6 s) 0.001 | held [4.5, 5.5 s) 311 Hz (input 415, bar before 311)
+HarmonicDrones             | 466 searched +/- 30 cents: peak   -5.6 dB re 233 at -12.0 cents
+HarmonicDrones             | power re 233 Hz: 466 peak   -6.3 dB at -10.0 cents (R12; Drift 30 % swings it +/- 15 cents), 415  -48.9 dB
+HarmonicDrones   Drift 0  | power re 233 Hz: 466 peak   -0.1 dB at +1.0 cents (R12: within 3)
+HarmonicDrones   playing=0 | wet   -0.0 dB re in, peak   +0.8 dB | active 100% | held 233 Hz | 233 re 311  +57.6 dB | r=0.42 (printed) | captures 2
+HarmonicDrones   playing=0 | pitch change: r live [2.6, 3.6 s) 0.002, [4.6, 5.6 s) 0.001 | held [4.5, 5.5 s) 311 Hz (input 415, bar before 311)
+NoiseBursts      playing=1 | wet   -2.9 dB re in, peak   +0.8 dB | active  80% | held 233 Hz | 233 re 311  +23.5 dB | r=0.28 (printed) | captures 2
+NoiseBursts      playing=1 | pitch change: r live [2.6, 3.6 s) 0.001, [4.6, 5.6 s) 0.002 | held [4.5, 5.5 s) 233 Hz (input 415, bar before 311)
+NoiseBursts      playing=0 | wet   -2.9 dB re in, peak   +0.8 dB | active  80% | held 233 Hz | 233 re 311  +23.5 dB | r=0.28 (printed) | captures 2
+NoiseBursts      playing=0 | pitch change: r live [2.6, 3.6 s) 0.001, [4.6, 5.6 s) 0.002 | held [4.5, 5.5 s) 233 Hz (input 415, bar before 311)
+Direction Euclidean        (Fixed   ) | input skew -10.88 | wet skew -28.48 | active windows  80: forward 100.0%, backward   0.0%
+Direction Euclidean        (Variable) | input skew -10.88 | wet skew -28.48 | active windows  80: forward 100.0%, backward   0.0%
+Direction GranularScatter  (Fixed   ) | input skew -10.88 | wet skew -21.22 | active windows 190: forward  99.5%, backward   0.5%
+Direction GranularScatter  (Variable) | input skew -10.88 | wet skew -21.22 | active windows 190: forward  99.5%, backward   0.5%
+Direction HarmonicDrones   (Fixed   ) | input skew -10.88 | wet skew  -7.00 | active windows 300: forward 100.0%, backward   0.0%
+Direction HarmonicDrones   (Variable) | input skew -10.88 | wet skew  -7.00 | active windows 300: forward 100.0%, backward   0.0%
+Direction NoiseBursts      (Fixed   ) | input skew -10.88 | wet skew -16.39 | active windows 240: forward 100.0%, backward   0.0%
+Direction NoiseBursts      (Variable) | input skew -10.88 | wet skew -16.39 | active windows 240: forward 100.0%, backward   0.0%
+Replayed bar Euclidean        | [2.5, 3.5 s) 233 Hz: 311  -49.1 415  -66.5 523  -79.5 | [4.5, 5.5 s) 311 Hz: 233  -49.2 415  -63.4 523  -71.8 | [6.5, 7.5 s) 415 Hz: 233  -66.4 311  -62.6 523  -63.5 |
+Replayed bar GranularScatter  | [2.5, 3.5 s) 233 Hz: 311  -36.4 415  -49.5 523  -49.3 | [4.5, 5.5 s) 311 Hz: 233  -39.4 415  -43.5 523  -48.4 | [6.5, 7.5 s) 415 Hz: 233  -40.7 311  -41.0 523  -45.2 |
+Replayed bar HarmonicDrones   | [2.5, 3.5 s) 233 Hz: 311  -57.6 415  -48.9 523  -50.6 | [4.5, 5.5 s) 311 Hz: 233  -59.8 415  -55.0 523  -52.7 | [6.5, 7.5 s) 415 Hz: 233  -72.3 311  -69.5 523  -62.2 |
+Replayed bar NoiseBursts      | [2.5, 3.5 s) 233 Hz: 311  -23.5 415   -9.1 523  -10.5 | [4.5, 5.5 s) 311 Hz: 233   +2.5 415   +0.5 523   +1.8 | [6.5, 7.5 s) 415 Hz: 233   +4.4 311   -3.6 523   +1.7 |
+NoiseBursts per burst from 2 s (dominant tone of [k x 250 ms + 20, + 180 ms)): 233 233 233 233 233 233 233 233 311 311 311 311 311 311 311 311 415 415 415 415 415 415 415 415
+Euclidean hold (1.9 s) | held tone [4.5, 5.5 s) 233 Hz (input 415) | captures before 4 s 1, after 1
+Euclidean Insert line | gaps max |out - in| 0.00e+00 | plateau input share max -300.0 dB
+Euclidean Insert hold line | input share max from 2.2 s -300.0 dB | active 100% over [2.2, 6 s)
+Audibility tone  (Fixed) | diff   -4.2 dB | moved  29% | level 0.0 dB
+Audibility drum  (Fixed) | diff   -7.2 dB | moved  18% | level 0.0 dB
+Audibility chord (Fixed) | diff   -3.7 dB | moved  28% | level 0.0 dB
+Audibility tone  (Variable) | diff   -4.2 dB | moved  29% | level 0.0 dB
+Audibility drum  (Variable) | diff  -10.1 dB | moved  11% | level 0.0 dB
+Audibility chord (Variable) | diff   -3.6 dB | moved  29% | level 0.0 dB
+GranularScatter Insert line | dry gain modulation depth p95/p5 0.000 dB
+HarmonicDrones block | RMS(diff 64 vs 512) / RMS 0.00e+00
+HarmonicDrones sweep voices 1 | worst 10 ms depth 0.62 dB (at 223 Hz) | level -0.00 .. +0.00 dB
+HarmonicDrones sweep voices 2 | worst 10 ms depth 1.48 dB (at 248 Hz) | level -0.06 .. +0.01 dB
+HarmonicDrones drum | drone p95/p5 15.0 dB, drum window 22.3 dB, difference 7.2 dB
+NoiseBursts block | RMS(diff 64 vs 512) / RMS 0.00e+00
+NoiseBursts silence | playing: wet [4.5, 6 s) -28.9 dBFS, active  76% | stopped: wet [6.5, 12 s) -600.0 dBFS
+capped (80 BPM, 2/1) | window length 220500 | peekWindow(0) 1.000000
+128 BPM, 8 bars | captures 8 | complete window lengths: 82687 82688
+===============================================================================
+All tests passed (8 assertions in 1 test case)
+

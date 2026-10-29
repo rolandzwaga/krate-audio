@@ -1906,8 +1906,7 @@ private:
             }
         }
 
-        // --- (f) Equal-power pan (FR-032), the same law GrainProcessor uses
-        //     (processors/grain_processor.h:101-103), computed ONCE. Hoisting
+        // --- (f) Equal-power pan (FR-032), computed ONCE. Hoisting
         //     these two transcendentals to birth is the single largest cost
         //     lever in the component; a regression that moved them per-sample
         //     would not change the output at all, only the CPU figure.

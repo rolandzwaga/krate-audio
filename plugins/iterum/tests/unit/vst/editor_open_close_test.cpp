@@ -12,6 +12,7 @@
 
 #include <editor_lifecycle_harness.h>
 #include <shared_editor_views_probe.h>
+#include <registered_defaults_probe.h>
 
 #include "controller/controller.h"
 
@@ -45,6 +46,22 @@ TEST_CASE("Iterum editor carries the shared update and version views",
     CHECK(count.checkButtons == 1);
     CHECK(count.versionLabels == 1);
     CHECK(count.legacyTagged == 0);
+
+    controller.terminate();
+}
+
+// A fresh instance starts every parameter at its registered default, so a
+// host's "reset to default" returns to the value the plugin opened with.
+TEST_CASE("Iterum parameters start at their registered defaults",
+          "[iterum][controller][defaults]")
+{
+    ::Iterum::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+
+    const auto mismatches = Krate::TestSupport::parametersStartingOffTheirDefault(controller);
+    for (const auto& m : mismatches)
+        UNSCOPED_INFO(m);
+    CHECK(mismatches.empty());
 
     controller.terminate();
 }

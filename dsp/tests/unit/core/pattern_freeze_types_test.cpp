@@ -233,17 +233,42 @@ TEST_CASE("PatternFreezeConstants have valid ranges", "[core][pattern_freeze][la
     SECTION("Capture buffer constants are valid") {
         REQUIRE(kMinCaptureBufferSeconds > 0.0f);
         REQUIRE(kMaxCaptureBufferSeconds >= kMinCaptureBufferSeconds);
-        REQUIRE(kDefaultCaptureBufferSeconds >= kMinCaptureBufferSeconds);
-        REQUIRE(kDefaultCaptureBufferSeconds <= kMaxCaptureBufferSeconds);
         REQUIRE(kMinReadyBufferMs > 0.0f);
-    }
-
-    SECTION("Pattern crossfade is positive") {
-        REQUIRE(kPatternCrossfadeMs > 0.0f);
     }
 
     SECTION("Max slices is reasonable") {
         REQUIRE(kMaxSlices >= 1);
         REQUIRE(kMaxSlices <= 16);  // Upper bound for sanity
     }
+}
+
+// =============================================================================
+// Capture length and Dry mode (specs/iterum-freeze/design.md 3.1, row D2)
+// =============================================================================
+
+TEST_CASE("Capture length names and beats", "[core][pattern_freeze][layer0]") {
+    REQUIRE(kCaptureLengthCount == 4);
+    REQUIRE(static_cast<uint8_t>(CaptureLength::Quarter) == 0);
+    REQUIRE(static_cast<uint8_t>(CaptureLength::Half) == 1);
+    REQUIRE(static_cast<uint8_t>(CaptureLength::Whole) == 2);
+    REQUIRE(static_cast<uint8_t>(CaptureLength::DoubleWhole) == 3);
+
+    REQUIRE(getCaptureLengthBeats(CaptureLength::Quarter) == 1.0);
+    REQUIRE(getCaptureLengthBeats(CaptureLength::Half) == 2.0);
+    REQUIRE(getCaptureLengthBeats(CaptureLength::Whole) == 4.0);
+    REQUIRE(getCaptureLengthBeats(CaptureLength::DoubleWhole) == 8.0);
+
+    REQUIRE(std::string(getCaptureLengthName(CaptureLength::Quarter)) == "1/4");
+    REQUIRE(std::string(getCaptureLengthName(CaptureLength::Half)) == "1/2");
+    REQUIRE(std::string(getCaptureLengthName(CaptureLength::Whole)) == "1/1");
+    REQUIRE(std::string(getCaptureLengthName(CaptureLength::DoubleWhole)) == "2/1");
+
+    REQUIRE(kDefaultCaptureLength == CaptureLength::Whole);
+}
+
+TEST_CASE("Dry mode defaults to Insert", "[core][pattern_freeze][layer0]") {
+    REQUIRE(kDryModeCount == 2);
+    REQUIRE(static_cast<uint8_t>(DryMode::Mix) == 0);
+    REQUIRE(static_cast<uint8_t>(DryMode::Insert) == 1);
+    REQUIRE(kDefaultDryMode == DryMode::Insert);
 }

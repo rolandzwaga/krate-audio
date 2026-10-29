@@ -251,6 +251,16 @@ public:
     /// @note FR-033: Enables reading existing content for additive excitation.
     [[nodiscard]] float peekNext(size_t offset) const noexcept;
 
+    /// @brief Add to a sample already written, @p delaySamples back from the
+    /// newest one (0 = the sample just written; the same indexing as read()).
+    ///
+    /// Lets a feedback loop write its input first and add the feedback once a
+    /// block-based processor has produced it, as long as nothing has read that
+    /// position yet.
+    ///
+    /// @note O(1) time complexity, no allocations.
+    void addToRecent(size_t delaySamples, float value) noexcept;
+
     /// @brief Bytes of heap this delay line holds, i.e. its circular buffer.
     ///
     /// `capacity()`, not `size()`: the buffer IS the whole allocation, and a
@@ -438,6 +448,10 @@ inline float DelayLine::peekNext(size_t offset) const noexcept {
     // Read from position that will be overwritten after 'offset' write() calls
     const size_t readIndex = (writeIndex_ + offset) & mask_;
     return buffer_[readIndex];
+}
+
+inline void DelayLine::addToRecent(size_t delaySamples, float value) noexcept {
+    buffer_[(writeIndex_ - 1 - delaySamples) & mask_] += value;
 }
 
 } // namespace DSP

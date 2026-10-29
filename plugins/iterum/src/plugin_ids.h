@@ -137,6 +137,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kTapeHead1PanId = 416,         // L100-R100
     kTapeHead2PanId = 417,         // L100-R100
     kTapeHead3PanId = 418,         // L100-R100
+    kTapeTimeModeId = 419,         // 0=Free, 1=Synced
+    kTapeNoteValueId = 420,        // 0-19 (note values)
     kTapeEndId = 499,
 
     // ==========================================================================
@@ -225,6 +227,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMultiTapNoteValueId = 911,      // 0-9 (note value) - for mathematical patterns only
     kMultiTapNoteModifierId = 912,   // 0-2 (none, triplet, dotted) - for mathematical patterns only
     kMultiTapSnapDivisionId = 913,   // 0-21 (off + 21 note values) - spec 046
+    kMultiTapCustomLengthId = 914,   // 0-5 (Free, 1/8, 1/4, 1/2, 1/1, 2/1) - span of the custom pattern
+    kMultiTapTempoId = 915,          // 20-300 BPM, hidden read-only output: the tempo the processor plays with
 
     // Custom Pattern Editor UI Tags (920-929) - spec 046
     // Used for visibility control (not parameters, just UI control tags)
@@ -315,6 +319,11 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kFreezeEnvelopeAttackId = 1060,   // 0-500ms
     kFreezeEnvelopeReleaseId = 1061,  // 0-2000ms
     kFreezeEnvelopeShapeId = 1062,    // 0-1 (EnvelopeShape enum: Linear, Exponential)
+
+    // Capture parameters (specs/iterum-freeze/design.md 3.1; saved in the state tail after the MultiTap Length field)
+    kFreezeHoldId = 1070,             // toggle: 0 Off, 1 On
+    kFreezeCaptureLengthId = 1071,    // 0-3 (CaptureLength enum: 1/4, 1/2, 1/1, 2/1 = 1, 2, 4, 8 beats)
+    kFreezeDryModeId = 1072,          // 0-1 (DryMode enum: Mix, Insert)
 
     kFreezeEndId = 1099,
 

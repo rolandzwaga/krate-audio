@@ -414,3 +414,54 @@ TEST_CASE("Freeze params roundtrip preserves values", "[preset][freeze][roundtri
 
     REQUIRE(controller.paramValues[Iterum::kFreezeMixId] == Approx(0.8).margin(0.001));
 }
+
+TEST_CASE("Tape sync params roundtrip preserves values", "[preset][tape][roundtrip]") {
+    // Tempo sync is stored after every mode's block (see saveTapeSyncParams)
+    Iterum::TapeParams params;
+    params.timeMode.store(1);
+    params.noteValue.store(13);  // 1/4
+
+    MemoryStream stream;
+    IBStreamer writer(&stream, kLittleEndian);
+    Iterum::saveTapeSyncParams(params, writer);
+    int64 written = 0;
+    stream.tell(&written);
+
+    stream.seek(0, IBStream::kIBSeekSet, nullptr);
+    IBStreamer processorReader(&stream, kLittleEndian);
+    Iterum::TapeParams loaded;
+    loaded.timeMode.store(0);
+    Iterum::loadTapeSyncParams(loaded, processorReader);
+    REQUIRE(loaded.timeMode.load() == 1);
+    REQUIRE(loaded.noteValue.load() == 13);
+
+    stream.seek(0, IBStream::kIBSeekSet, nullptr);
+    IBStreamer controllerReader(&stream, kLittleEndian);
+    MockController controller;
+    Iterum::syncTapeSyncParamsToController(controllerReader, controller);
+    int64 read = 0;
+    stream.tell(&read);
+
+    constexpr double noteValDivisor = Iterum::Parameters::kNoteValueDropdownCount - 1;
+    REQUIRE(read == written);
+    REQUIRE(controller.paramValues[Iterum::kTapeTimeModeId] == Approx(1.0).margin(0.001));
+    REQUIRE(controller.paramValues[Iterum::kTapeNoteValueId] == Approx(13.0 / noteValDivisor).margin(0.001));
+}
+
+TEST_CASE("A state saved before Tape had sync loads Tape on free time", "[preset][tape][legacy]") {
+    // Projects and presets from before tempo sync end after the MultiTap block:
+    // their Tape delay ran on Motor Speed, so it must not come back synced.
+    MemoryStream stream;
+
+    IBStreamer processorReader(&stream, kLittleEndian);
+    Iterum::TapeParams loaded;
+    REQUIRE(loaded.timeMode.load() == 1);  // a fresh instance is synced
+    Iterum::loadTapeSyncParams(loaded, processorReader);
+    REQUIRE(loaded.timeMode.load() == 0);
+
+    IBStreamer controllerReader(&stream, kLittleEndian);
+    MockController controller;
+    controller.paramValues[Iterum::kTapeTimeModeId] = 1.0;
+    Iterum::syncTapeSyncParamsToController(controllerReader, controller);
+    REQUIRE(controller.paramValues[Iterum::kTapeTimeModeId] == Approx(0.0));
+}

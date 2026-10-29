@@ -1,0 +1,14 @@
+Filters: "PROBE Freeze signal path at defaults"
+Randomness seeded to: 2039407612
+Euclidean        playing=1 | wet  -10.1 dB re in, peak   -5.7 dB | active  59% of 10 ms windows | best lag  174.8 ms r=0.69
+Euclidean        playing=0 | wet  -10.1 dB re in, peak   -5.7 dB | active  59% of 10 ms windows | best lag  174.8 ms r=0.69
+GranularScatter  playing=1 | wet   -9.5 dB re in, peak   +2.3 dB | active  98% of 10 ms windows | best lag  286.2 ms r=0.23
+GranularScatter  playing=0 | wet   -9.5 dB re in, peak   +2.3 dB | active  98% of 10 ms windows | best lag  286.2 ms r=0.23
+HarmonicDrones   playing=1 | wet   -7.8 dB re in, peak   -3.2 dB | active  99% of 10 ms windows | best lag   39.5 ms r=0.03
+HarmonicDrones   playing=0 | wet   -7.8 dB re in, peak   -3.2 dB | active  99% of 10 ms windows | best lag   39.5 ms r=0.03
+NoiseBursts      playing=1 | wet   -8.8 dB re in, peak   -5.5 dB | active  80% of 10 ms windows | best lag  499.0 ms r=0.05
+NoiseBursts      playing=0 | wet   -8.8 dB re in, peak   -5.5 dB | active  80% of 10 ms windows | best lag  499.0 ms r=0.05
+===============================================================================
+test cases: 1 | 1 passed
+assertions: - none -
+

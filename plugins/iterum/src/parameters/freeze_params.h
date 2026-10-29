@@ -20,6 +20,7 @@
 
 #include <krate/dsp/core/pattern_freeze_types.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 
@@ -31,7 +32,7 @@ namespace Iterum {
 
 struct FreezeParams {
     // Dry/Wet Mix (shared by all pattern types)
-    std::atomic<float> dryWet{0.5f};             // 0-1
+    std::atomic<float> dryWet{1.0f};             // 0-1 (fresh default 100 %: design 3.3)
 
     // Pattern Freeze parameters (spec 069)
     std::atomic<int> patternType{static_cast<int>(Krate::DSP::kDefaultPatternType)};
@@ -62,6 +63,18 @@ struct FreezeParams {
     std::atomic<float> envelopeAttackMs{Krate::DSP::PatternFreezeConstants::kDefaultEnvelopeAttackMs};
     std::atomic<float> envelopeReleaseMs{Krate::DSP::PatternFreezeConstants::kDefaultEnvelopeReleaseMs};
     std::atomic<int> envelopeShape{static_cast<int>(Krate::DSP::kDefaultEnvelopeShape)};
+
+    // Capture parameters (specs/iterum-freeze/design.md 3.1; the state tail of 5.1)
+    std::atomic<int> hold{0};                                                          // 0 Off, 1 On
+    std::atomic<int> captureLength{static_cast<int>(Krate::DSP::kDefaultCaptureLength)};  // 0-3: 1/4 .. 2/1
+    std::atomic<int> dryMode{static_cast<int>(Krate::DSP::kDefaultDryMode)};              // 0 Mix, 1 Insert
+
+    // The normalized Hits and Rotation, not persisted: a Steps change recomputes both absolute values from them,
+    // as the readout does (design 3.4)
+    std::atomic<double> euclideanHitsNorm{
+        static_cast<double>(Krate::DSP::PatternFreezeConstants::kDefaultEuclideanHits - 1) /
+        static_cast<double>(Krate::DSP::PatternFreezeConstants::kDefaultEuclideanSteps - 1)};
+    std::atomic<double> euclideanRotationNorm{0.0};
 };
 
 // ==============================================================================
@@ -107,17 +120,26 @@ inline void handleFreezeParamChange(
                 std::memory_order_relaxed);
             break;
 
-        case kFreezeEuclideanStepsId:
-            params.euclideanSteps.store(
-                static_cast<int>(
-                    Krate::DSP::PatternFreezeConstants::kMinEuclideanSteps +
-                    normalizedValue * (Krate::DSP::PatternFreezeConstants::kMaxEuclideanSteps -
-                                       Krate::DSP::PatternFreezeConstants::kMinEuclideanSteps) + 0.5),
+        case kFreezeEuclideanStepsId: {
+            const int steps = static_cast<int>(
+                Krate::DSP::PatternFreezeConstants::kMinEuclideanSteps +
+                normalizedValue * (Krate::DSP::PatternFreezeConstants::kMaxEuclideanSteps -
+                                   Krate::DSP::PatternFreezeConstants::kMinEuclideanSteps) + 0.5);
+            params.euclideanSteps.store(steps, std::memory_order_relaxed);
+            // Hits and Rotation follow from their normalized values at the new Steps, as the readout shows them
+            // (design 3.4)
+            params.euclideanHits.store(
+                static_cast<int>(1 + params.euclideanHitsNorm.load(std::memory_order_relaxed) * (steps - 1) + 0.5),
+                std::memory_order_relaxed);
+            params.euclideanRotation.store(
+                static_cast<int>(params.euclideanRotationNorm.load(std::memory_order_relaxed) * (steps - 1) + 0.5),
                 std::memory_order_relaxed);
             break;
+        }
 
         case kFreezeEuclideanHitsId: {
             int steps = params.euclideanSteps.load(std::memory_order_relaxed);
+            params.euclideanHitsNorm.store(normalizedValue, std::memory_order_relaxed);
             params.euclideanHits.store(
                 static_cast<int>(1 + normalizedValue * (steps - 1) + 0.5),
                 std::memory_order_relaxed);
@@ -126,6 +148,7 @@ inline void handleFreezeParamChange(
 
         case kFreezeEuclideanRotationId: {
             int steps = params.euclideanSteps.load(std::memory_order_relaxed);
+            params.euclideanRotationNorm.store(normalizedValue, std::memory_order_relaxed);
             params.euclideanRotation.store(
                 static_cast<int>(normalizedValue * (steps - 1) + 0.5),
                 std::memory_order_relaxed);
@@ -252,6 +275,22 @@ inline void handleFreezeParamChange(
                 normalizedValue >= 0.5 ? 1 : 0,
                 std::memory_order_relaxed);
             break;
+
+        // Capture parameters (design 3.1)
+        case kFreezeHoldId:
+            params.hold.store(normalizedValue >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+            break;
+
+        case kFreezeCaptureLengthId:
+            params.captureLength.store(
+                std::clamp(static_cast<int>(normalizedValue * (Krate::DSP::kCaptureLengthCount - 1) + 0.5), 0,
+                           Krate::DSP::kCaptureLengthCount - 1),
+                std::memory_order_relaxed);
+            break;
+
+        case kFreezeDryModeId:
+            params.dryMode.store(normalizedValue >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+            break;
     }
 }
 
@@ -268,7 +307,7 @@ inline void registerFreezeParams(Steinberg::Vst::ParameterContainer& parameters)
         STR16("Freeze Dry/Wet"),
         STR16("%"),
         0,
-        0.5,  // default: 50%
+        1.0,  // default: 100% (design 3.3; Dry Mode Insert keeps the music going)
         ParameterInfo::kCanAutomate,
         kFreezeMixId);
 
@@ -493,24 +532,122 @@ inline void registerFreezeParams(Steinberg::Vst::ParameterContainer& parameters)
         0,  // default: Linear
         {STR16("Linear"), STR16("Exponential")}
     ));
+
+    // ==========================================================================
+    // Capture parameters (specs/iterum-freeze/design.md 3.1)
+    // ==========================================================================
+
+    // Hold: on/off toggle (automatable, so a controller mapping makes it momentary)
+    parameters.addParameter(
+        STR16("Freeze Hold"),
+        nullptr,
+        1,  // stepCount 1 = toggle
+        0.0,  // default: Off
+        ParameterInfo::kCanAutomate,
+        kFreezeHoldId,
+        0,
+        STR16("Hold"));
+
+    // Capture length: the capture cycle (1, 2, 4 or 8 beats)
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("Freeze Capture"), kFreezeCaptureLengthId,
+        static_cast<Steinberg::int32>(Krate::DSP::kDefaultCaptureLength),  // default: 1/1
+        {STR16("1/4"), STR16("1/2"), STR16("1/1"), STR16("2/1")}
+    ));
+
+    // Dry Mode: the mix law (Mix = crossfade, Insert = the dry is ducked only under a voice)
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("Freeze Dry Mode"), kFreezeDryModeId,
+        static_cast<Steinberg::int32>(Krate::DSP::kDefaultDryMode),  // default: Insert
+        {STR16("Mix"), STR16("Insert")}
+    ));
 }
 
 // ==============================================================================
 // Parameter Display Formatting (for Controller)
 // ==============================================================================
 
+// Every mapping below is the one handleFreezeParamChange applies (the processor's denormalisation), so a readout
+// shows the value the DSP runs at. Hits and Rotation depend on the current Steps: @p stepsNormalized is the
+// normalized kFreezeEuclideanStepsId the controller holds. The dropdowns (StringListParameter) return kResultFalse
+// and are formatted by the base class.
 inline Steinberg::tresult formatFreezeParam(
     Steinberg::Vst::ParamID id,
     Steinberg::Vst::ParamValue normalizedValue,
-    Steinberg::Vst::String128 string) {
+    Steinberg::Vst::String128 string,
+    Steinberg::Vst::ParamValue stepsNormalized) {
 
     using namespace Steinberg;
+    namespace C = Krate::DSP::PatternFreezeConstants;
+
+    const auto linear = [normalizedValue](float lo, float hi) {
+        return static_cast<float>(lo + normalizedValue * (hi - lo));
+    };
+    const auto steps = static_cast<int>(
+        C::kMinEuclideanSteps + stepsNormalized * (C::kMaxEuclideanSteps - C::kMinEuclideanSteps) + 0.5);
 
     switch (id) {
-        case kFreezeMixId: {
+        case kFreezeMixId:
+        case kFreezeGranularPositionJitterId:
+        case kFreezeGranularSizeJitterId:
+        case kFreezeDroneDriftId:
+        case kFreezeNoiseFilterSweepId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
             return formatParamText(string, "%.0f%%", percent);
         }
+
+        case kFreezeSliceLengthId: {
+            float ms = linear(C::kMinSliceLengthMs, C::kMaxSliceLengthMs);
+            if (ms >= 1000.0f) {
+                return formatParamText(string, "%.2f s", ms / 1000.0f);
+            }
+            return formatParamText(string, "%.1f ms", ms);
+        }
+
+        case kFreezeEuclideanStepsId:
+            return formatParamText(string, "%d", static_cast<int>(
+                C::kMinEuclideanSteps + normalizedValue * (C::kMaxEuclideanSteps - C::kMinEuclideanSteps) + 0.5));
+
+        case kFreezeEuclideanHitsId:
+            return formatParamText(string, "%d", static_cast<int>(1 + normalizedValue * (steps - 1) + 0.5));
+
+        case kFreezeEuclideanRotationId:
+            return formatParamText(string, "%d", static_cast<int>(normalizedValue * (steps - 1) + 0.5));
+
+        case kFreezeGranularDensityId:
+            return formatParamText(string, "%.1f Hz", linear(C::kMinGranularDensityHz, C::kMaxGranularDensityHz));
+
+        case kFreezeGranularGrainSizeId:
+            return formatParamText(string, "%.0f ms",
+                                   linear(C::kMinGranularGrainSizeMs, C::kMaxGranularGrainSizeMs));
+
+        case kFreezeDroneVoiceCountId:
+            return formatParamText(string, "%d", static_cast<int>(
+                C::kMinDroneVoices + normalizedValue * (C::kMaxDroneVoices - C::kMinDroneVoices) + 0.5));
+
+        case kFreezeDroneDriftRateId:
+            return formatParamText(string, "%.2f Hz", linear(C::kMinDroneDriftRateHz, C::kMaxDroneDriftRateHz));
+
+        case kFreezeNoiseFilterCutoffId: {
+            float hz = static_cast<float>(20.0 * std::pow(1000.0, normalizedValue));
+            if (hz >= 1000.0f) {
+                return formatParamText(string, "%.2f kHz", hz / 1000.0f);
+            }
+            return formatParamText(string, "%.0f Hz", hz);
+        }
+
+        case kFreezeEnvelopeAttackId:
+            return formatParamText(string, "%.0f ms", linear(C::kMinEnvelopeAttackMs, C::kMaxEnvelopeAttackMs));
+
+        case kFreezeEnvelopeReleaseId:
+            return formatParamText(string, "%.0f ms", linear(C::kMinEnvelopeReleaseMs, C::kMaxEnvelopeReleaseMs));
+
+        case kFreezeHoldId:
+            UString(string, 128).fromAscii(normalizedValue >= 0.5 ? "On" : "Off");
+            return kResultTrue;
+
+        default:
+            break;
     }
 
     return Steinberg::kResultFalse;
@@ -624,6 +761,17 @@ inline void loadFreezeParams(FreezeParams& params, Steinberg::IBStreamer& stream
         params.envelopeReleaseMs.store(floatVal, std::memory_order_relaxed);
     if (streamer.readInt32(intVal))
         params.envelopeShape.store(intVal, std::memory_order_relaxed);
+
+    // The normalized Hits / Rotation a later Steps change recomputes from (design 3.4)
+    const int steps = params.euclideanSteps.load(std::memory_order_relaxed);
+    if (steps > 1) {
+        params.euclideanHitsNorm.store(
+            static_cast<double>(params.euclideanHits.load(std::memory_order_relaxed) - 1) /
+            static_cast<double>(steps - 1), std::memory_order_relaxed);
+        params.euclideanRotationNorm.store(
+            static_cast<double>(params.euclideanRotation.load(std::memory_order_relaxed)) /
+            static_cast<double>(steps - 1), std::memory_order_relaxed);
+    }
 }
 
 // ==============================================================================
@@ -924,6 +1072,67 @@ inline void syncFreezeParamsToController(
         [&controller](Steinberg::Vst::ParamID paramId, double normalizedValue) {
             controller.setParamNormalized(paramId, normalizedValue);
         });
+}
+
+// ==============================================================================
+// Capture tail: the LAST fields of the state (specs/iterum-freeze/design.md 5.1)
+// ==============================================================================
+// Appended after saveMultiTapLengthParams (multitap_params.h), at the very end of Processor::getState, never inside
+// the Freeze block: int32 hold (0-1), int32 captureLength (0-3), int32 dryMode (0-1). A state without it was saved
+// before the Freeze redesign: it loads as Hold off, Capture 1/1, Dry = Mix, which keeps the saved Mix value's
+// crossfade meaning. Any later feature appends AFTER these three fields.
+
+inline constexpr int kFreezeLegacyCaptureLength = static_cast<int>(Krate::DSP::CaptureLength::Whole);
+inline constexpr int kFreezeLegacyDryMode = static_cast<int>(Krate::DSP::DryMode::Mix);
+
+inline void saveFreezeCaptureParams(const FreezeParams& params, Steinberg::IBStreamer& streamer) {
+    streamer.writeInt32(params.hold.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.captureLength.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.dryMode.load(std::memory_order_relaxed));
+}
+
+inline void loadFreezeCaptureParams(FreezeParams& params, Steinberg::IBStreamer& streamer) {
+    Steinberg::int32 hold = 0;
+    Steinberg::int32 capture = kFreezeLegacyCaptureLength;
+    Steinberg::int32 dry = kFreezeLegacyDryMode;
+    if (!streamer.readInt32(hold) || !streamer.readInt32(capture) || !streamer.readInt32(dry)) {
+        // saved before the Freeze redesign: Hold off, Capture 1/1, Dry = Mix
+        hold = 0;
+        capture = kFreezeLegacyCaptureLength;
+        dry = kFreezeLegacyDryMode;
+    }
+    params.hold.store(std::clamp(static_cast<int>(hold), 0, 1), std::memory_order_relaxed);
+    params.captureLength.store(std::clamp(static_cast<int>(capture), 0, Krate::DSP::kCaptureLengthCount - 1),
+                               std::memory_order_relaxed);
+    params.dryMode.store(std::clamp(static_cast<int>(dry), 0, Krate::DSP::kDryModeCount - 1),
+                         std::memory_order_relaxed);
+}
+
+template <typename SetParamFunc>
+inline void loadFreezeCaptureParamsToController(Steinberg::IBStreamer& streamer, SetParamFunc setParam)
+{
+    Steinberg::int32 hold = 0;
+    Steinberg::int32 capture = kFreezeLegacyCaptureLength;
+    Steinberg::int32 dry = kFreezeLegacyDryMode;
+    if (!streamer.readInt32(hold) || !streamer.readInt32(capture) || !streamer.readInt32(dry)) {
+        hold = 0;  // saved before the Freeze redesign: Hold off, Capture 1/1, Dry = Mix
+        capture = kFreezeLegacyCaptureLength;
+        dry = kFreezeLegacyDryMode;
+    }
+    const int captureIndex = std::clamp(static_cast<int>(capture), 0, Krate::DSP::kCaptureLengthCount - 1);
+    setParam(kFreezeHoldId, std::clamp(static_cast<int>(hold), 0, 1) == 1 ? 1.0 : 0.0);
+    setParam(kFreezeCaptureLengthId,
+             static_cast<double>(captureIndex) / static_cast<double>(Krate::DSP::kCaptureLengthCount - 1));
+    setParam(kFreezeDryModeId, std::clamp(static_cast<int>(dry), 0, Krate::DSP::kDryModeCount - 1) == 1 ? 1.0 : 0.0);
+}
+
+inline void syncFreezeCaptureParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadFreezeCaptureParamsToController(streamer, [&controller](Steinberg::Vst::ParamID id, double value) {
+        controller.setParamNormalized(id, value);
+    });
 }
 
 } // namespace Iterum

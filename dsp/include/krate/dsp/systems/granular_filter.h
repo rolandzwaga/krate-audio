@@ -309,6 +309,7 @@ public:
         const float freezeAmount = freezeCrossfade_.process();
 
         // Write to delay buffers (unless fully frozen)
+        const bool writes = (freezeAmount < 1.0f) || !frozen_;
         if (freezeAmount < 1.0f) {
             const float writeAmount = 1.0f - freezeAmount;
             delayL_.write(inputL * writeAmount);
@@ -326,7 +327,7 @@ public:
         // Process all active grains with per-grain filtering
         float sumL = 0.0f;
         float sumR = 0.0f;
-        size_t activeCount = 0;
+        float envelopeSum = 0.0f;
 
         for (Grain* grain : pool_.activeGrains()) {
             if (grain != nullptr && grain->active) {
@@ -335,6 +336,7 @@ public:
                 // Get envelope value
                 const float envelope = GrainEnvelope::lookup(
                     envelopeTable_.data(), envelopeTableSize_, grain->envelopePhase);
+                envelopeSum += envelope;
 
                 // Read from delay buffers with interpolation
                 const float delaySamples = std::max(0.0f, grain->readPosition);
@@ -355,11 +357,10 @@ public:
                 sumL += sampleL * grain->panL;
                 sumR += sampleR * grain->panR;
 
-                // Advance grain state
+                // Advance grain state (readPosition is a delay: the write head
+                // adds to it, playback takes it away; same as GrainProcessor)
                 grain->envelopePhase += grain->envelopeIncrement;
-                grain->readPosition += std::abs(grain->playbackRate);
-
-                ++activeCount;
+                grain->readPosition += (writes ? 1.0f : 0.0f) - grain->playbackRate;
 
                 // Check if grain completed
                 if (grain->envelopePhase >= 1.0f) {
@@ -368,10 +369,8 @@ public:
             }
         }
 
-        // Apply 1/sqrt(n) gain scaling
-        const float targetGain = (activeCount > 0)
-            ? 1.0f / std::sqrt(static_cast<float>(activeCount))
-            : 1.0f;
+        // Overlap-add normalisation by the envelope sum (same as GranularEngine)
+        const float targetGain = 1.0f / std::max(1.0f, envelopeSum);
         gainScaleSmoother_.setTarget(targetGain);
         const float smoothedGain = gainScaleSmoother_.process();
 
@@ -478,7 +477,8 @@ private:
             .positionSamples = positionSamples,
             .pan = pan,
             .reverse = reverse,
-            .envelopeType = envelopeType_
+            .envelopeType = envelopeType_,
+            .frozenBuffer = frozen_
         };
 
         processor_.initializeGrain(*grain, params);

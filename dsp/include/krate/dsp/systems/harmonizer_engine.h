@@ -142,8 +142,8 @@ public:
         voiceScratch_.resize(maxBlockSize, 0.0f);
 
         // Prepare shared pitch detector (PitchSync mode optimization)
-        // Same window size (256) as the per-voice detectors in PitchSyncGranularShifter
-        sharedPitchDetector_.prepare(sampleRate, 256);
+        // Same window size as the per-voice detectors in PitchSyncGranularShifter
+        sharedPitchDetector_.prepare(sampleRate, PitchDetector::fullRangeWindowSize(sampleRate));
 
         // Prepare shared-analysis resources for PhaseVocoder mode (spec 065)
         constexpr auto fftSize = PitchShiftProcessor::getPhaseVocoderFFTSize();
