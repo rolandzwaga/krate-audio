@@ -1,0 +1,26 @@
+[
+  {
+    "isDraft": false,
+    "isPrerelease": false,
+    "publishedAt": "2026-09-01T10:00:00Z",
+    "tagName": "alpha/v1.0.0"
+  },
+  {
+    "isDraft": false,
+    "isPrerelease": false,
+    "publishedAt": "2026-10-01T10:00:00Z",
+    "tagName": "alpha/v1.1.0"
+  },
+  {
+    "isDraft": false,
+    "isPrerelease": false,
+    "publishedAt": "2026-08-20T09:30:00Z",
+    "tagName": "bravo/v2.0.0"
+  },
+  {
+    "isDraft": false,
+    "isPrerelease": true,
+    "publishedAt": "2026-10-15T10:00:00Z",
+    "tagName": "alpha/v1.2.0-beta.1"
+  }
+]

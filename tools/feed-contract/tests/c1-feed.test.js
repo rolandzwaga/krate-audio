@@ -112,6 +112,8 @@ const C1_VALID_RULES = Object.freeze([
   'FR-055/unknown-platform-key',
   'FR-055/unknown-extra-keys',
   'FR-014/sibling-same-install',
+  // Krate Manager Phase 3 (spec FR-045, plan PD-14): the mixed one-v2 / eight-v1 feed, built by fixtures/phase3/.
+  'Phase3/one-v2-eight-v1',
 ]);
 
 const C1_RULES = Object.freeze([...C1_ERROR_RULES, ...C1_VALID_RULES]);

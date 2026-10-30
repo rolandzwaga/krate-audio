@@ -8,6 +8,10 @@
 // tar leg goes through helpers/external-tools.js, the one test-side spawner).
 //
 // makeWorld({tmp, mutate, hooks}) -> {deps, calls, state, logs, served, setSigner, setKeyFile}
+//   world    (an optional fourth option) 'backfill' (default): the Phase 2 world of state.json; 'snapshot' (Phase 3, plan §4.8): the 2026-10-29
+//            snapshot releases.json as repo rolandzwaga/krate-audio, each <plugin>/v<ver> row with its three
+//            installers (<Name> from the snapshot version.json whose lower-cased name is the tag prefix); a tag with
+//            no "<plugin>/" prefix gets no asset, as no version.json names it
 //   state    a deep copy of state.json; release uploads append to it, so a second run sees them
 //   calls    every call in order: {cmd: 'gh' | 'git' | 'pkgutil' | 'lipo' | 'tar' | 'objdump' | 'sign', argv}
 //   mutate   (state, ctx) => void, before "auto" sizes and digests are filled; ctx.bytes(tag, asset) and
@@ -16,6 +20,15 @@
 //            path does not exist at the tag); machos(assetName, defaults) -> [{path, buf, lipo}] (the files the fake
 //            pkgutil writes, `lipo` the words its lipo -archs prints); lipo(file, words) -> words;
 //            upload(tag, basenames) -> {status} | undefined (undefined: the upload succeeds)
+//   gh       release list / view (field sets of VIEW_JSON) / upload, and release download in two shapes:
+//            `--dir <dir>` (made if missing) and `--output <file>` (its directory must exist, as gh -O needs)
+//
+// Phase 3 helpers, for use inside mutate (spec specs/krate-manager-phase3/spec.md FR-050; plan §4.8):
+//   addPhase2Files(state, ctx, tag, {tmp, signer, pluginsDir})  signs the release's three served installers with
+//            `signer` (throwawaySigner()), builds release.json + SHA256SUMS in-process with
+//            gen-release-manifest.buildManifest and adds the five assets (SHA256SUMS, three .minisig, release.json)
+//   addManagerRelease(state, ctx, {tag, isDraft, isPrerelease, publishedAt, latestJson})  one release row whose only
+//            asset is latest.json (`latestJson` its text), or no asset when `latestJson` is null
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
@@ -26,8 +39,12 @@ const macho = require('./macho.js');
 const externalTools = require('./external-tools.js');
 const listing = require('../../listing.js');
 const minisign = require('../../../minisign.js');
+const releaseFacts = require('../../../release-facts.js');
+const genReleaseManifest = require('../../../gen-release-manifest.js');
 
 const BACKFILL = path.join(__dirname, '..', '..', 'fixtures', 'phase2', 'backfill');
+const SNAPSHOT = path.join(__dirname, '..', '..', 'fixtures', 'gen-feed', 'snapshot-2026-10-29');
+const SNAPSHOT_REPO = 'rolandzwaga/krate-audio';
 const PLUGINS_DIR = path.join(BACKFILL, 'plugins');
 const PLUGINS_EXTRA_DIR = path.join(BACKFILL, 'plugins-extra');
 const STATE_FILE = path.join(BACKFILL, 'state.json');
@@ -36,7 +53,7 @@ const IS_WIN = process.platform === 'win32';
 
 const SUFFIX = Object.freeze({ exe: '-Windows-x64.exe', pkg: '-macOS.pkg', tar: '-Linux-x64.tar.gz' });
 const LIST_JSON = 'tagName,isPrerelease,isDraft,publishedAt';
-const VIEW_JSON = new Set(['tagName,publishedAt,isImmutable,assets', 'assets']);
+const VIEW_JSON = new Set(['tagName,publishedAt,isImmutable,assets', 'assets', 'tagName,assets']);
 
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const key = (tag, asset) => `${tag}\n${asset}`;
@@ -156,10 +173,137 @@ function throwawaySigner() {
   };
 }
 
+// --- Phase 3 (plan §4.8)
+
+const TAG_RE = /^([^/]+)\/v(.+)$/;
+const readJsonFile = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+
+/** The plugin directory under `pluginsDir` whose version.json name lower-cases to `prefix`, else throws. */
+function pluginDirFor(pluginsDir, prefix) {
+  for (const d of fs.readdirSync(pluginsDir)) {
+    const vj = path.join(pluginsDir, d, 'version.json');
+    if (fs.existsSync(vj) && String(readJsonFile(vj).name).toLowerCase() === prefix) return path.join(pluginsDir, d);
+  }
+  throw new Error(`fake-gh: no version.json under ${pluginsDir} names the tag prefix ${prefix}`);
+}
+
+/** The snapshot world: releases.json rows, each <plugin>/v<ver> row with its three installers ("auto" sized). */
+function snapshotState() {
+  const pluginsDir = path.join(SNAPSHOT, 'plugins');
+  const names = new Map();
+  for (const d of fs.readdirSync(pluginsDir)) {
+    const name = readJsonFile(path.join(pluginsDir, d, 'version.json')).name;
+    names.set(name.toLowerCase(), name);
+  }
+  const releases = readJsonFile(path.join(SNAPSHOT, 'releases.json')).map((row) => {
+    const m = TAG_RE.exec(row.tagName);
+    const name = m === null ? undefined : names.get(m[1]);
+    if (m !== null && name === undefined) throw new Error(`fake-gh: snapshot tag ${row.tagName} names no plugin`);
+    const assets =
+      name === undefined
+        ? []
+        : Object.values(SUFFIX).map((suffix) => ({ name: `${name}-${m[2]}${suffix}`, size: 'auto', digest: 'auto' }));
+    return {
+      tagName: row.tagName,
+      isPrerelease: row.isPrerelease,
+      isDraft: row.isDraft,
+      isImmutable: false,
+      publishedAt: row.publishedAt,
+      assets,
+    };
+  });
+  return { repo: SNAPSHOT_REPO, releases };
+}
+
+/**
+ * The Phase 2 file set of release `tag`, for use inside mutate: the three served installers are written to
+ * <tmp>/<tag with "/" as "-">/ and signed with `signer`, facts are recorded in-process (as
+ * tests/gen-release-manifest.test.js does), and buildManifest makes release.json and SHA256SUMS from them. The five
+ * new assets are appended ("auto" sized) and served. `pluginsDir` holds the plugin's version.json (its version is set
+ * to the tag's) and installers/windows/setup.iss. Spawns nothing (spec FR-051).
+ */
+function addPhase2Files(state, ctx, tag, { tmp, signer, pluginsDir }) {
+  const r = state.releases.find((x) => x.tagName === tag);
+  const m = TAG_RE.exec(tag);
+  if (!r || m === null) throw new Error(`fake-gh: addPhase2Files: no release ${tag}`);
+  const [, prefix, version] = m;
+  const dir = pluginDirFor(pluginsDir, prefix);
+  const versionDoc = readJsonFile(path.join(dir, 'version.json'));
+  versionDoc.version = version;
+  const versionJsonText = JSON.stringify(versionDoc, null, 2) + '\n';
+  const setupIssText = fs.readFileSync(path.join(dir, 'installers', 'windows', 'setup.iss'), 'utf8');
+
+  const assetsDir = path.join(tmp, tag.split('/').join('-'));
+  fs.mkdirSync(assetsDir, { recursive: true });
+  const installers = {};
+  for (const [kind, suffix] of Object.entries(SUFFIX)) {
+    const asset = `${versionDoc.name}-${version}${suffix}`;
+    const bytes = ctx.bytes(tag, asset);
+    if (bytes === undefined) throw new Error(`fake-gh: addPhase2Files: ${tag} serves no ${asset}`);
+    fs.writeFileSync(path.join(assetsDir, asset), bytes);
+    installers[kind] = { asset, bytes };
+  }
+
+  const pkg = installers.pkg;
+  const darwinFacts = {
+    asset: pkg.asset,
+    size: pkg.bytes.length,
+    sha256: sha256(pkg.bytes),
+    platform_key: 'darwin-universal',
+    min_os: '11.0',
+    archs: ['arm64', 'x86_64'],
+    macho: [],
+  };
+  const tarBytes = installers.tar.bytes;
+  const linuxFacts = releaseFacts.linuxFacts(
+    {
+      tarball: path.join(assetsDir, installers.tar.asset),
+      extracted: assetsDir,
+      objdumpText: fs.readFileSync(OBJDUMP_SAMPLE, 'utf8'),
+    },
+    { listDirectory: () => listing.listingFromTarGz(tarBytes) },
+  );
+  const comments = genReleaseManifest.trustedComments({ versionJsonText, assetsDir, darwinFacts });
+  for (const c of comments) signer.sign(path.join(assetsDir, c.asset), c.comment);
+
+  const { releaseJsonText, sumsText } = genReleaseManifest.buildManifest({
+    versionJsonText,
+    setupIssText,
+    assetsDir,
+    darwinFacts,
+    linuxFacts,
+    repo: state.repo,
+    pubDate: r.publishedAt,
+    publicKeyText: signer.publicKeyText,
+  });
+  const added = [
+    ['SHA256SUMS', Buffer.from(sumsText, 'utf8')],
+    ...comments.map((c) => [`${c.asset}.minisig`, fs.readFileSync(path.join(assetsDir, `${c.asset}.minisig`))]),
+    ['release.json', Buffer.from(releaseJsonText, 'utf8')],
+  ];
+  for (const [name, bytes] of added) {
+    r.assets.push({ name, size: 'auto', digest: 'auto' });
+    ctx.setServed(tag, name, bytes);
+  }
+}
+
+/** One manager release row, for use inside mutate: a latest.json asset with `latestJson`'s bytes, none when null. */
+function addManagerRelease(state, ctx, { tag, isDraft = false, isPrerelease = false, publishedAt, latestJson }) {
+  if (latestJson !== null && typeof latestJson !== 'string') {
+    throw new Error('fake-gh: addManagerRelease: latestJson is a string or null');
+  }
+  const assets = latestJson === null ? [] : [{ name: 'latest.json', size: 'auto', digest: 'auto' }];
+  state.releases.push({ tagName: tag, isPrerelease, isDraft, isImmutable: false, publishedAt, assets });
+  if (latestJson !== null) ctx.setServed(tag, 'latest.json', Buffer.from(latestJson, 'utf8'));
+}
+
 // --- the world
 
-function makeWorld({ tmp, mutate = () => {}, hooks = {} }) {
-  const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+function makeWorld({ tmp, mutate = () => {}, hooks = {}, world = 'backfill' }) {
+  let state;
+  if (world === 'backfill') state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+  else if (world === 'snapshot') state = snapshotState();
+  else throw new Error(`fake-gh: unknown world ${JSON.stringify(world)}`);
   const served = new Map();
   for (const r of state.releases) for (const a of r.assets) served.set(key(r.tagName, a.name), assetBytes(r.tagName, a.name));
   const ctx = {
@@ -231,11 +375,21 @@ function makeWorld({ tmp, mutate = () => {}, hooks = {} }) {
     }
     if (sub === 'download') {
       const [tag, ...flags] = rest;
-      const shape = flags.length === 6 && flags[0] === '--repo' && flags[2] === '--pattern' && flags[4] === '--dir';
+      const shape =
+        flags.length === 6 &&
+        flags[0] === '--repo' &&
+        flags[2] === '--pattern' &&
+        (flags[4] === '--dir' || flags[4] === '--output');
       if (!shape || flags[1] !== state.repo) throw unexpected('gh', argv);
       const r = release(tag);
       const asset = r && r.assets.find((a) => a.name === flags[3]);
       if (!asset) return failed(`no asset ${flags[3]} on ${tag}`);
+      if (flags[4] === '--output') {
+        const parent = path.dirname(flags[5]);
+        if (!fs.existsSync(parent)) return failed(`open ${flags[5]}: the directory ${parent} does not exist`);
+        fs.writeFileSync(flags[5], served.get(key(tag, asset.name)));
+        return ok();
+      }
       fs.mkdirSync(flags[5], { recursive: true });
       fs.writeFileSync(path.join(flags[5], asset.name), served.get(key(tag, asset.name)));
       return ok();
@@ -365,6 +519,8 @@ module.exports = {
   STATE_FILE,
   SUFFIX,
   makeWorld,
+  addPhase2Files,
+  addManagerRelease,
   c4Tarball,
   defaultMachos,
   universal,

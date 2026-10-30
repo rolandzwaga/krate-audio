@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "plugins": {
+    "Alpha": {
+      "version": "1.1.0",
+      "download_url": "https://krateaudio.com/alpha/",
+      "release_notes": "",
+      "tag": "alpha/v1.1.0",
+      "pub_date": "2026-10-01T10:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.1.0"
+    },
+    "Charlie": {
+      "version": "0.9.0",
+      "download_url": "https://krateaudio.com/charlie/",
+      "release_notes": "",
+      "tag": "charlie/v0.9.0",
+      "pub_date": "2026-10-20T08:15:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v0.9.0"
+    }
+  }
+}

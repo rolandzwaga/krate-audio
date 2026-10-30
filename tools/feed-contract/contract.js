@@ -96,6 +96,13 @@ const CODES = Object.freeze({
   E_BACKFILL_DIGEST: 'none',
   E_BACKFILL_ASSETS_CHANGED: 'none',
   E_SIGN_KEY_MISMATCH: 'none',
+  E_FEED_LIST_TRUNCATED: 'none',
+  E_FEED_DOWNLOAD: 'none',
+  E_FEED_SCHEMA: 'none',
+  E_FEED_NONDETERMINISTIC: 'none',
+  E_STEP_FAILED: 'none',
+  E_V1_DRIFT: 'none',
+  E_MANAGER_LATEST: 'degrade',
 });
 
 // --- platform keys and asset names

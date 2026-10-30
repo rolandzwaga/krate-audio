@@ -856,51 +856,20 @@ jobs:
               f.write(html)
           PYEOF
 
-      - name: Generate Update Checker Endpoint
-        run: |
-          # Generate versions.json for the in-plugin update checker
-          # Version comes exclusively from git tags — plugins without a release tag are skipped
-          node -e '
-          const fs = require("fs");
-          const path = require("path");
-          const { execSync } = require("child_process");
-          const glob = execSync("ls plugins/*/version.json")
-            .toString().trim().split("\n");
-
-          const plugins = {};
-          for (const vj of glob) {
-            const data = JSON.parse(fs.readFileSync(vj, "utf8"));
-            const dir = path.basename(path.dirname(vj));
-
-            // Get version from latest git tag (e.g. "ruinae/v0.9.9" -> "0.9.9")
-            const pluginLower = data.name.toLowerCase();
-            let tag = "";
-            try {
-              tag = execSync(`git tag -l "${pluginLower}/v*" --sort=-v:refname | head -1`)
-                .toString().trim();
-            } catch {}
-            if (!tag) {
-              console.log(`  No release tag for ${data.name} — skipping`);
-              continue;
-            }
-            const version = tag.replace(/.*\/v/, "");
-
-            plugins[data.name] = {
-              version,
-              download_url: data.url,
-              release_notes: ""
-            };
-          }
-
-          const output = { schema_version: 1, plugins };
-          fs.mkdirSync("_site", { recursive: true });
-          fs.writeFileSync("_site/versions.json", JSON.stringify(output, null, 2) + "\n");
-          console.log("Generated versions.json:", JSON.stringify(output, null, 2));
-          '
-
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ github.token }}
           publish_dir: ./_site
           keep_files: true
+
+  # versions.json (the in-plugin update checker and the manager read it) is built, checked and deployed by the
+  # reusable feed workflow (specs/krate-manager-phase3/spec.md FR-030; plan §4.4). On a dry run feed.yml checks only.
+  feed:
+    needs: [release, deploy-pages]
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/feed.yml
+    with:
+      dry_run: ${{ inputs.dry_run }}

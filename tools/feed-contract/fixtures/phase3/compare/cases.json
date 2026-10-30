@@ -1,0 +1,480 @@
+[
+  {
+    "case": "same",
+    "dryRun": true,
+    "exit": 0,
+    "stdout": [
+      "same Alpha 1.1.0",
+      "same Bravo 2.0.0",
+      "compare: 2 same, 0 newer, 0 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ],
+    "stderr": [],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 2 same, 0 newer, 0 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ]
+  },
+  {
+    "case": "newer",
+    "dryRun": true,
+    "exit": 0,
+    "stdout": [
+      "newer Alpha 1.0.0 -> 1.1.0 (alpha/v1.1.0 2026-10-01T10:00:00Z)",
+      "same Bravo 2.0.0",
+      "compare: 1 same, 1 newer, 0 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ],
+    "stderr": [],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 1 newer, 0 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ]
+  },
+  {
+    "case": "newer-url",
+    "dryRun": true,
+    "exit": 0,
+    "stdout": [
+      "newer Alpha 1.0.0 -> 1.1.0 (alpha/v1.1.0 2026-10-01T10:00:00Z) download_url https://krateaudio.com/alpha/ -> https://krateaudio.com/alpha-plugin/",
+      "compare: 0 same, 1 newer, 0 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ],
+    "stderr": [],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 1 newer, 0 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ]
+  },
+  {
+    "case": "added",
+    "dryRun": true,
+    "exit": 0,
+    "stdout": [
+      "same Alpha 1.1.0",
+      "added Charlie 0.9.0 (charlie/v0.9.0 2026-10-20T08:15:00Z)",
+      "compare: 1 same, 0 newer, 1 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ],
+    "stderr": [],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 0 newer, 1 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ]
+  },
+  {
+    "case": "q9-corrected-v1-live",
+    "dryRun": true,
+    "exit": 0,
+    "stdout": [
+      "q9-corrected Alpha 1.2.0-beta.1 -> 1.1.0 (prerelease alpha/v1.2.0-beta.1)",
+      "same Bravo 2.0.0",
+      "compare: 1 same, 0 newer, 0 added, 1 q9-corrected, 0 drift (0 block, 0 warn)"
+    ],
+    "stderr": [],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 0 newer, 0 added, 1 q9-corrected, 0 drift (0 block, 0 warn)"
+    ]
+  },
+  {
+    "case": "q9-corrected-v2-live",
+    "dryRun": false,
+    "exit": 0,
+    "stdout": [
+      "q9-corrected Alpha 1.2.0-beta.1 -> 1.1.0 (prerelease alpha/v1.2.0-beta.1)",
+      "same Bravo 2.0.0",
+      "compare: 1 same, 0 newer, 0 added, 1 q9-corrected, 0 drift (0 block, 0 warn)"
+    ],
+    "stderr": [],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 0 newer, 0 added, 1 q9-corrected, 0 drift (0 block, 0 warn)"
+    ]
+  },
+  {
+    "case": "q9-corrected-absent",
+    "dryRun": true,
+    "exit": 0,
+    "stdout": [
+      "same Alpha 1.1.0",
+      "q9-corrected Charlie 0.1.0-beta.1 -> absent (prerelease charlie/v0.1.0-beta.1)",
+      "compare: 1 same, 0 newer, 0 added, 1 q9-corrected, 0 drift (0 block, 0 warn)"
+    ],
+    "stderr": [],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 0 newer, 0 added, 1 q9-corrected, 0 drift (0 block, 0 warn)"
+    ]
+  },
+  {
+    "case": "edge-cache",
+    "dryRun": false,
+    "exit": 0,
+    "stdout": [
+      "same Alpha 1.1.0",
+      "newer Bravo 2.0.0 -> 2.0.1 (bravo/v2.0.1 2026-10-28T18:45:12Z)",
+      "compare: 1 same, 1 newer, 0 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ],
+    "stderr": [],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 1 newer, 0 added, 0 q9-corrected, 0 drift (0 block, 0 warn)"
+    ]
+  },
+  {
+    "case": "release-notes-not-empty-real",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [
+      "drift Alpha release_notes not empty block",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Alpha release_notes not empty block"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)",
+      "::error title=feed-drift::drift Alpha release_notes not empty block"
+    ]
+  },
+  {
+    "case": "release-notes-not-empty-dry",
+    "dryRun": true,
+    "exit": 1,
+    "stdout": [
+      "drift Alpha release_notes not empty block",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Alpha release_notes not empty block"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)",
+      "::error title=feed-drift::drift Alpha release_notes not empty block"
+    ]
+  },
+  {
+    "case": "version-lowered-real",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [
+      "drift Alpha version lowered block",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Alpha version lowered block"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)",
+      "::error title=feed-drift::drift Alpha version lowered block"
+    ]
+  },
+  {
+    "case": "version-lowered-dry",
+    "dryRun": true,
+    "exit": 1,
+    "stdout": [
+      "drift Alpha version lowered block",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Alpha version lowered block"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)",
+      "::error title=feed-drift::drift Alpha version lowered block"
+    ]
+  },
+  {
+    "case": "removed-real",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [
+      "same Alpha 1.1.0",
+      "drift Bravo removed block",
+      "compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Bravo removed block"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)",
+      "::error title=feed-drift::drift Bravo removed block"
+    ]
+  },
+  {
+    "case": "removed-dry",
+    "dryRun": true,
+    "exit": 1,
+    "stdout": [
+      "same Alpha 1.1.0",
+      "drift Bravo removed block",
+      "compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Bravo removed block"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)",
+      "::error title=feed-drift::drift Bravo removed block"
+    ]
+  },
+  {
+    "case": "url-without-release-real",
+    "dryRun": false,
+    "exit": 3,
+    "stdout": [
+      "drift Alpha download_url changed without a newer release warn",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)"
+    ],
+    "stderr": [
+      "feed-publish: WARN E_V1_DRIFT: drift Alpha download_url changed without a newer release warn"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)",
+      "::warning title=feed-drift::drift Alpha download_url changed without a newer release warn"
+    ]
+  },
+  {
+    "case": "url-without-release-dry",
+    "dryRun": true,
+    "exit": 1,
+    "stdout": [
+      "drift Alpha download_url changed without a newer release warn",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Alpha download_url changed without a newer release warn"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)",
+      "::error title=feed-drift::drift Alpha download_url changed without a newer release warn"
+    ]
+  },
+  {
+    "case": "version-without-release-real",
+    "dryRun": false,
+    "exit": 3,
+    "stdout": [
+      "drift Alpha version changed without a release warn",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)"
+    ],
+    "stderr": [
+      "feed-publish: WARN E_V1_DRIFT: drift Alpha version changed without a release warn"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)",
+      "::warning title=feed-drift::drift Alpha version changed without a release warn"
+    ]
+  },
+  {
+    "case": "version-without-release-dry",
+    "dryRun": true,
+    "exit": 1,
+    "stdout": [
+      "drift Alpha version changed without a release warn",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Alpha version changed without a release warn"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)",
+      "::error title=feed-drift::drift Alpha version changed without a release warn"
+    ]
+  },
+  {
+    "case": "added-without-release-real",
+    "dryRun": false,
+    "exit": 3,
+    "stdout": [
+      "same Alpha 1.1.0",
+      "drift Charlie added without a release warn",
+      "compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)"
+    ],
+    "stderr": [
+      "feed-publish: WARN E_V1_DRIFT: drift Charlie added without a release warn"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)",
+      "::warning title=feed-drift::drift Charlie added without a release warn"
+    ]
+  },
+  {
+    "case": "added-without-release-dry",
+    "dryRun": true,
+    "exit": 1,
+    "stdout": [
+      "same Alpha 1.1.0",
+      "drift Charlie added without a release warn",
+      "compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Charlie added without a release warn"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)",
+      "::error title=feed-drift::drift Charlie added without a release warn"
+    ]
+  },
+  {
+    "case": "version-lowered-no-prerelease",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [
+      "drift Alpha version lowered block",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Alpha version lowered block"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)",
+      "::error title=feed-drift::drift Alpha version lowered block"
+    ]
+  },
+  {
+    "case": "mixed-kinds-one-plugin",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [
+      "drift Alpha version lowered; download_url changed without a newer release block",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Alpha version lowered; download_url changed without a newer release block"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)",
+      "::error title=feed-drift::drift Alpha version lowered; download_url changed without a newer release block"
+    ]
+  },
+  {
+    "case": "mixed-two-plugins",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [
+      "drift Alpha version lowered block",
+      "drift Bravo download_url changed without a newer release warn",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 2 drift (1 block, 1 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift Alpha version lowered block",
+      "feed-publish: WARN E_V1_DRIFT: drift Bravo download_url changed without a newer release warn"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 2 drift (1 block, 1 warn)",
+      "::error title=feed-drift::drift Alpha version lowered block",
+      "::warning title=feed-drift::drift Bravo download_url changed without a newer release warn"
+    ]
+  },
+  {
+    "case": "non-semver-live",
+    "dryRun": false,
+    "exit": 3,
+    "stdout": [
+      "drift Alpha version changed without a release warn",
+      "compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)"
+    ],
+    "stderr": [
+      "feed-publish: WARN E_V1_DRIFT: drift Alpha version changed without a release warn"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 0 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (0 block, 1 warn)",
+      "::warning title=feed-drift::drift Alpha version changed without a release warn"
+    ]
+  },
+  {
+    "case": "live-not-json",
+    "dryRun": true,
+    "exit": 1,
+    "stdout": [],
+    "stderr": [
+      "feed-publish: E_INPUT: --live: not JSON"
+    ],
+    "annotations": []
+  },
+  {
+    "case": "live-without-plugins",
+    "dryRun": true,
+    "exit": 1,
+    "stdout": [],
+    "stderr": [
+      "feed-publish: E_INPUT: --live: the feed has no \"plugins\" object"
+    ],
+    "annotations": []
+  },
+  {
+    "case": "feed-fails-v2",
+    "dryRun": true,
+    "exit": 1,
+    "stdout": [],
+    "stderr": [
+      "feed-publish: E_FEED_SCHEMA: v2 /plugins/Alpha/channel: /plugins/Alpha/channel must be equal to constant"
+    ],
+    "annotations": [
+      "::error title=feed-validate::v2 /plugins/Alpha/channel: /plugins/Alpha/channel must be equal to constant"
+    ]
+  },
+  {
+    "case": "live-control-lf",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [],
+    "stderr": [
+      "feed-publish: E_INPUT: live plugins.\"X\\n::notice title=feed-verdict::green\" holds a control character"
+    ],
+    "annotations": []
+  },
+  {
+    "case": "live-control-cr",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [],
+    "stderr": [
+      "feed-publish: E_INPUT: live plugins.\"X\\r::notice title=feed-verdict::green\" holds a control character"
+    ],
+    "annotations": []
+  },
+  {
+    "case": "live-control-bel",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [],
+    "stderr": [
+      "feed-publish: E_INPUT: live plugins.\"Alpha\" holds a control character"
+    ],
+    "annotations": []
+  },
+  {
+    "case": "live-backtick",
+    "dryRun": false,
+    "exit": 1,
+    "stdout": [
+      "same Alpha 1.1.0",
+      "drift \"X```y\" removed block",
+      "compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)"
+    ],
+    "stderr": [
+      "feed-publish: E_V1_DRIFT: drift \"X```y\" removed block"
+    ],
+    "annotations": [
+      "::notice title=feed-validate::v2 ok, v1 ok",
+      "::notice title=feed-compare::compare: 1 same, 0 newer, 0 added, 0 q9-corrected, 1 drift (1 block, 0 warn)",
+      "::error title=feed-drift::drift \"X```y\" removed block"
+    ]
+  }
+]

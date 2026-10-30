@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "plugins": {
+    "Alpha": {
+      "version": "1.1.0",
+      "download_url": "https://krateaudio.com/alpha/",
+      "release_notes": ""
+    },
+    "Charlie": {
+      "version": "0.1.0-beta.1",
+      "download_url": "https://krateaudio.com/charlie/",
+      "release_notes": ""
+    }
+  }
+}

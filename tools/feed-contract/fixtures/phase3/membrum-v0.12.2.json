@@ -1,0 +1,58 @@
+{
+  "tag": "membrum/v0.12.2",
+  "name": "Membrum",
+  "version": "0.12.2",
+  "pub_date": "2026-10-26T22:50:47Z",
+  "assets": {
+    "darwin-universal": {
+      "name": "Membrum-0.12.2-macOS.pkg",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.2/Membrum-0.12.2-macOS.pkg",
+      "size": 45,
+      "sha256": "f12efab9e78b7ec5697e6608b7f9bff355ff6def247fdb709080d77c967097aa",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Membrum:0.12.2:darwin-universal:Membrum-0.12.2-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "pkg",
+      "min_os": "11.0"
+    },
+    "linux-x86_64": {
+      "name": "Membrum-0.12.2-Linux-x64.tar.gz",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.2/Membrum-0.12.2-Linux-x64.tar.gz",
+      "size": 52,
+      "sha256": "095a53e7f743d81fde2668134fdb8b02a8d2dc07f42d96edf75923125d773fbe",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Membrum:0.12.2:linux-x86_64:Membrum-0.12.2-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "tar.gz",
+      "min_os": "2.31",
+      "payload": {
+        "files": 10,
+        "sha256": "e2b37e2d3e8b24254f26de4523d4de7e9edb26193b87bc474b28b6245a16287f",
+        "list": [
+          "f 0644 CHANGELOG.txt",
+          "d 0755 Membrum.vst3",
+          "d 0755 Membrum.vst3/Contents",
+          "d 0755 Membrum.vst3/Contents/Resources",
+          "f 0644 Membrum.vst3/Contents/Resources/moduleinfo.json",
+          "d 0755 Membrum.vst3/Contents/x86_64-linux",
+          "f 0755 Membrum.vst3/Contents/x86_64-linux/Membrum.so",
+          "f 0644 README.txt",
+          "d 0755 presets",
+          "f 0644 presets/Default.preset"
+        ]
+      }
+    },
+    "windows-x86_64": {
+      "name": "Membrum-0.12.2-Windows-x64.exe",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.2/Membrum-0.12.2-Windows-x64.exe",
+      "size": 51,
+      "sha256": "54072fcd9dbe3246cbfdf3dd40a6898d670c51be479295b614f8343e141348a1",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Membrum:0.12.2:windows-x86_64:Membrum-0.12.2-Windows-x64.exe\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "inno-exe",
+      "min_os": "10.0"
+    }
+  },
+  "install": {
+    "vst3_bundle": "Membrum.vst3",
+    "au_component": "Membrum.component",
+    "preset_subdir": "Kits",
+    "windows_uninstall_key": "{B7E3C9D1-4A5F-4F2B-9E8C-3D6F1A8B2C5E}_is1",
+    "macos_pkg_id": "com.krateaudio.membrum"
+  }
+}

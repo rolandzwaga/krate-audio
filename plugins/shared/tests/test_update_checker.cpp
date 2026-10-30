@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <nlohmann/json.hpp>
 #include "update/update_checker.h"
 #include "platform/preset_paths.h"
 
@@ -6,11 +7,13 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <optional>
 #include <random>
 #include <string>
 #include <system_error>
 #include <thread>
+#include <vector>
 
 using Krate::Plugins::UpdateChecker;
 using Krate::Plugins::UpdateCheckerConfig;
@@ -453,4 +456,74 @@ TEST_CASE("UpdateChecker - feed schema v2 is read as v1", "[update]") {
         }
     }
     CHECK(readEnv(kSettingsEnvVar) == envBefore);  // SC-017: restored after the guard's scope
+}
+
+// ==============================================================================
+// Krate Manager Phase 3 (FR-046): the committed mixed feed (one v2 entry among
+// eight v1 entries) is read exactly as the live v1 snapshot, for every plugin.
+// ==============================================================================
+
+#ifndef SHARED_FIXTURES_DIR
+#error "SHARED_FIXTURES_DIR is defined by plugins/shared/tests/CMakeLists.txt"
+#endif
+
+namespace {
+std::string readFixture(const std::filesystem::path& rel) {
+    std::ifstream in(std::filesystem::path(SHARED_FIXTURES_DIR) / rel, std::ios::binary);
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+}  // namespace
+
+TEST_CASE("UpdateChecker - one v2 plugin among eight v1 plugins is read as v1", "[update]") {
+    const std::string mixed = readFixture(std::filesystem::path("feeds") / "valid" / "one-v2-eight-v1.json");
+    const std::string live = readFixture(std::filesystem::path("gen-feed") / "snapshot-2026-10-29" / "live-versions.json");
+    REQUIRE_FALSE(mixed.empty());
+    REQUIRE_FALSE(live.empty());
+
+    // Bound to a local: a range-for over parse(live).at(...).items() dangles (only the items() proxy is extended).
+    const auto liveDoc = nlohmann::json::parse(live);
+    std::vector<std::string> names;  // from the live file: no plugin name in this source
+    for (const auto& item : liveDoc.at("plugins").items()) names.push_back(item.key());
+    REQUIRE(names.size() == 9);
+
+    const auto envBefore = readEnv(kSettingsEnvVar);
+    {
+        ScopedSettingsDirRedirect settings;  // declared before every checker (its destructor comment, :97)
+        for (const auto& name : names) {
+            INFO("plugin " << name);
+            const auto settingsDir = Krate::Plugins::Platform::getAppSettingsDirectory(name);
+            REQUIRE(isUnder(settingsDir, settings.root()));
+            const UpdateCheckerConfig config{.pluginName = name, .currentVersion = "0.0.1",
+                                             .endpointUrl = "https://example.com/versions.json"};
+            const auto resultOf = [&config](const std::string& document) {
+                MockUpdateChecker checker(config, document);
+                checker.checkForUpdate(true);
+                REQUIRE(waitForResult(checker));
+                return checker.getResult();
+            };
+            // After each check, re-derive the state path (a lost redirect would move it) and prove the write landed
+            // under the temp root; the state of the live run is removed first, so existence after the mixed run proves
+            // the mixed run wrote it (as the Phase 1 case, test_update_checker.cpp:409-412, :432-433).
+            const auto statePathNow = [&name] {
+                return Krate::Plugins::Platform::getAppSettingsDirectory(name) / "update_state.json";
+            };
+            const auto onLive = resultOf(live);
+            const auto afterLive = statePathNow();
+            REQUIRE(isUnder(afterLive, settings.root()));
+            REQUIRE(std::filesystem::exists(afterLive));
+            std::filesystem::remove(afterLive);
+            REQUIRE_FALSE(std::filesystem::exists(afterLive));
+            const auto onMixed = resultOf(mixed);
+            const auto afterMixed = statePathNow();
+            REQUIRE(isUnder(afterMixed, settings.root()));
+            REQUIRE(std::filesystem::exists(afterMixed));
+            CHECK(onMixed.updateAvailable);
+            CHECK(onMixed.updateAvailable == onLive.updateAvailable);
+            CHECK(onMixed.latestVersion == onLive.latestVersion);
+            CHECK(onMixed.downloadUrl == onLive.downloadUrl);
+            CHECK(onMixed.releaseNotes.empty());
+            CHECK(onMixed.releaseNotes == onLive.releaseNotes);
+        }
+    }
+    CHECK(readEnv(kSettingsEnvVar) == envBefore);
 }

@@ -13,7 +13,8 @@
 //
 // Each set declares the files it owns (and any directory it owns entirely, where a file it did not build is a stray).
 // gen-feed goldens (expected.*) and the snapshot directory are never owned: they are not built here.
-// Requires only node: modules, ../contract.js and ../listing.js (the release set's real C4 payload listings).
+// Requires only node: modules, ../contract.js and ../listing.js (the release set's real C4 payload listings) and, for
+// the phase3 set, ../../gen-feed.js (through phase3/make-phase3.js).
 // Contains no shipped plugin name (fixture names: Alpha, Bravo, ...).
 'use strict';
 const crypto = require('node:crypto');
@@ -23,6 +24,7 @@ const path = require('node:path');
 
 const contract = require('../contract.js');
 const listing = require('../listing.js');
+const phase3 = require('./phase3/make-phase3.js');
 
 const FIXTURES_DIR = __dirname;
 
@@ -537,6 +539,8 @@ function feeds() {
     add(`feeds/${file}`, typeof change === 'string' ? change : json(changed(change)));
     cases.push({ rule, file, schema, expect: { error } });
   }
+  // The Phase 3 mixed feed (FR-045); its file is built by the phase3 set.
+  cases.push({ rule: 'Phase3/one-v2-eight-v1', file: 'valid/one-v2-eight-v1.json', schema: 'v2', expect: 'accept' });
   add('feeds/cases.json', json(cases));
   return files;
 }
@@ -1205,6 +1209,7 @@ const SETS = Object.freeze([
     keep: /^gen-feed\/[^/]+\/expected\.[^/]+$/u,
     files: genFeedCases,
   },
+  { name: 'phase3', dirs: ['phase3'], keep: /^phase3\/make-phase3\.js$/u, files: () => phase3.files({ fixtureSignature }) },
 ]);
 
 function builtFiles() {

@@ -487,6 +487,13 @@ Phase 5's Rust client reuses these names where it rejects the same thing.
 | `E_BACKFILL_DIGEST` | none | `backfill-sign.js` `download` | a downloaded asset's SHA-256 differs from GitHub's `digest` |
 | `E_BACKFILL_ASSETS_CHANGED` | none | `backfill-sign.js` `apply` (audit) | a release's asset list after the run differs from `assets_before` (+ uploads on a live run) |
 | `E_SIGN_KEY_MISMATCH` | none | `backfill-sign.js` `apply` | a signature the run produced does not verify against `--public-key` |
+| `E_FEED_LIST_TRUNCATED` | none | `feed-publish.js collect` | `gh release list --limit 1000` returned 1000 rows; releases may be missing |
+| `E_FEED_DOWNLOAD` | none | `feed-publish.js collect` | a downloaded `release.json` / `latest.json` differs from its release asset record in size, or in SHA-256 where GitHub lists a digest |
+| `E_FEED_SCHEMA` | none | `feed-publish.js compare` | the generated feed fails C1 v2 or v1 (`validateFeed`); the message names the first `instancePath` |
+| `E_FEED_NONDETERMINISTIC` | none | `feed-publish.js generate` | a second gen-feed run on the same inputs gave different bytes, exit code or stderr (PD-9) |
+| `E_STEP_FAILED` | none | `feed-publish.js outcome` | a step's tool exited other than 0 or 3 |
+| `E_V1_DRIFT` | none | `feed-publish.js compare` | a v1 key of a plugin differs from the live feed and no FR-040 case explains it |
+| `E_MANAGER_LATEST` | degrade | `feed-publish.js collect` | the manager release's `latest.json` fails the FR-025 check; nothing is copied, the plugin feed still deploys |
 
 **Exit codes of `gen-feed.js`.**
 
@@ -776,3 +783,306 @@ the `signing` environment. `--public-key` is `tools/feed-contract/keys/krate-sig
 
 There is no unsigned real release: a real run that cannot sign fails before `Create Release`. `backfill-sign.js apply`
 applies the same test-key refusal to its `--public-key` before any download or upload.
+
+## 10. Phase 3 tools
+
+Phase 3 (`specs/krate-manager-phase3/spec.md`, plan §4) builds `versions.json` (schema_version 2) from the GitHub
+releases and the `release.json` each carries, checks it, and deploys it to GitHub Pages. It adds one tool,
+`tools/feed-publish.js`, and one workflow, `.github/workflows/feed.yml`; `release.yml` calls `feed.yml` as its job
+`feed` in place of the inline "Generate Update Checker Endpoint" step it had before. Every decision of the workflow is
+the tool's: the YAML only runs it and passes exit codes along (10.4).
+
+The tool has the section 9 form (first line `#!/usr/bin/env node`, a header comment with the usage and exit codes,
+`module.exports` last), with one difference: `main(argv, io, deps)` requires a `deps` object and throws a `TypeError`
+before reading `argv` without one. `deps` carries the only effects a test replaces: `gh` (already wrapped in the retry
+of 10.3) and `genFeedMain` (the exported `main` of `tools/gen-feed.js`, run in-process). `productionDeps`, which only
+the entry point builds, is the only code that spawns anything: `gh`, with a fixed argument array and no shell. Files
+are written only at paths given as flags, through a temp file and a rename. Every expected failure is a `ContractError`
+whose code has a row in the section 7 table (the seven Phase 3 codes carry class `none` there, except
+`E_MANAGER_LATEST`, class `degrade`), printed once on stderr as `feed-publish: <CODE>: <message>`; a degrade prints
+`feed-publish: WARN <CODE>: <message>`. The tool names no plugin: every name comes from a `version.json` under
+`--plugins-dir`.
+
+Every line the tool writes, on stdout or stderr, goes through one writer that prints the line's `JSON.stringify` form
+instead of the line when it holds a code unit U+0000-U+001F or U+007F or starts with `::`; in every line it builds, a
+value taken from a release, a report or the live feed is printed raw only when it passes its own check
+(`contract.isPluginName` for a name, `parseSemVer` for a version, `checkUrl` for a URL) and as its `JSON.stringify` form
+otherwise. So no data can form a workflow command: the annotations of 10.6 are the only lines that start with `::`.
+
+### 10.1 Command lines
+
+The usage text, printed on stderr after a `feed-publish: E_USAGE: <why>` line (exit 2):
+
+```
+usage: node tools/feed-publish.js collect --plugins-dir <dir> --repo <owner/name> --out-dir <dir> [--annotate]
+       node tools/feed-publish.js generate --in-dir <dir> --plugins-dir <dir> --repo <owner/name> --site-dir <dir>
+            [--annotate]
+       node tools/feed-publish.js outcome --tool <collect|generate|compare> --exit <n> --github-output <file>
+       node tools/feed-publish.js compare --live <file> --feed <file> --releases <file> --dry-run <true|false>
+            [--report <file>] [--summary <file>] [--annotate]
+       node tools/feed-publish.js verdict --dry-run <true|false> --ref <ref> --build <result> --deploy <result>
+            --feed-degraded <true|false|""> --manager-degraded <true|false|""> --drift-warned <true|false|"">
+            [--evidence <dir>] [--annotate]
+```
+
+A known subcommand comes first; every required flag of it is present once, every optional flag at most once;
+`--annotate` is a switch; every value is non-empty and does not start with `--`, except that the three verdict flags
+accept `""` (the job output was never written because `build` failed early; it counts as not degraded); `--repo`
+matches `^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$`; `--exit` is a non-negative integer without leading zeros; `--dry-run` is
+`true` or `false`; `<result>` is one of `success`, `failure`, `cancelled`, `skipped` (the values of
+`needs.<job_id>.result`); `--ref` is the run's `github.ref`.
+
+What each subcommand writes:
+
+- `collect`: `<out-dir>/releases.json` (the `gh release list` rows, 2-space JSON), `<out-dir>/manifests/<tag with "/"
+  as "-">.json` per downloaded `release.json` (`manifests/` always exists after a successful run, empty or not),
+  `<out-dir>/manager/latest.json` only when it is copied, and `<out-dir>/collect-report.json` (10.3).
+- `generate`: creates `<site-dir>` (gen-feed does no `mkdir`) and refuses (`E_INPUT`, nothing touched, gen-feed never
+  run) a `<site-dir>/manager` that already exists. It runs gen-feed with `--plugins-dir <dir> --releases
+  <in-dir>/releases.json --manifests <in-dir>/manifests --repo <owner/name> [--manager-latest-url
+  https://krateaudio.com/manager/latest.json] --out <site-dir>/versions.json`, the `--manager-latest-url` pair exactly
+  when the report's `manager.status` is `copied`; writes gen-feed's stderr to `<in-dir>/gen-feed.log` and echoes it;
+  on gen-feed exit 0 or 3 runs gen-feed a second time into `<in-dir>/versions.again.json` and requires byte-identical
+  files, the same exit code and the same stderr (`E_FEED_NONDETERMINISTIC` otherwise); then, when `copied`, creates
+  `<site-dir>/manager/` and copies `<in-dir>/manager/latest.json` into it byte for byte. On any exit other than 0 or 3
+  no `<site-dir>/manager/` made by the run is left.
+- `outcome`: appends one `<flag>=true` or `<flag>=false` line to `--github-output` (10.4).
+- `compare`: the result lines (10.5) on stdout; `--report` writes exactly the result lines (atomic, LF, whatever the
+  exit code; empty on `E_INPUT` / `E_FEED_SCHEMA`); `--summary` appends them in a fenced `text` block whose fence is
+  `max(3, longest backtick run in the lines + 1)` backticks, so no value can close it.
+- `verdict`: its reason lines on stdout (10.4).
+
+**The feed workflow.** `feed.yml` has two triggers: `workflow_dispatch` with a boolean `dry_run` that defaults to
+`true`, and `workflow_call` with a boolean `dry_run` that every caller must state (`release.yml` passes its own
+`dry_run`). It has no `push`, `pull_request`, `release` or `schedule` trigger, top-level `permissions: contents: read`,
+no top-level `concurrency`, no `secrets.` reference and no `environment:`. A dry run builds and checks only.
+
+| Job | `needs` | Runs when | `permissions` | `concurrency` | Does |
+|---|---|---|---|---|---|
+| `build` | — | every run | `contents: read` | group `krate-feed`, `cancel-in-progress: false`, `queue: max` | `collect` → fetch the live feed (`curl --fail --silent --show-error --location --retry 3 https://krateaudio.com/versions.json`, the only network call outside `gh`) → `generate` → `compare`, each tool step followed by `outcome`; uploads `_site/` as artifact `feed-site` (only when every earlier step passed) and `$RUNNER_TEMP/feed-in/` as `feed-evidence` (always) |
+| `deploy` | `build` | `!inputs.dry_run && github.ref == 'refs/heads/main'` (no status function, so it also needs a green `build`) | `contents: write` | the same block as `build` | downloads `feed-site` and pushes it with `peaceiris/actions-gh-pages@v4`, `keep_files: true`, `cname: krateaudio.com`; runs no repository code |
+| `verdict` | `build`, `deploy` | `always()` | `contents: read` | none | downloads `feed-evidence` (allowed to fail) and runs `verdict` with both job results, the three `build` outputs and `--evidence` |
+
+So deploy happens only on a real run from `refs/heads/main`; a real run from another ref builds and uploads, skips
+`deploy`, and its `verdict` is red (`real run from <ref>`). Every `run:` step declares `shell: bash` and starts with
+`set -euo pipefail`; a tool step is `rc=0; node tools/feed-publish.js <subcommand> … || rc=$?` followed by `node
+tools/feed-publish.js outcome --tool <subcommand> --exit "$rc" --github-output "$GITHUB_OUTPUT"`, so `outcome` alone
+turns the exit code into "continue" or "fail".
+
+The `krate-feed` group sits on `build` and on `deploy`, not at the top level: GitHub documents job-level concurrency in
+a called workflow, and does not state that a called workflow's top-level `concurrency` is honoured (plan PD-1). With
+the group on both jobs, builds run one at a time in the order GitHub enqueues the runs, and each run's `deploy` is
+enqueued the moment its own `build` ends, before the next `build` can end, so deploys run in build order and a later
+deploy never carries an older release list. `queue: max` lets up to 100 jobs wait, so no feed run is cancelled.
+`release.yml`'s `feed` job declares no `concurrency`, so no group is shared between caller and callee. A `docs.yml` or
+`deploy-pages` push to `gh-pages` at the same moment is in a different group: a rejected push fails that run, and a
+fresh dispatch recovers (10.7).
+
+### 10.2 Exit codes
+
+| Subcommand | 0 | 1 | 2 | 3 |
+|---|---|---|---|---|
+| `collect` | complete | abort: nothing of `releases.json`, `manifests/`, `manager/`, `collect-report.json` left in `--out-dir`; a pre-filled `--out-dir` refused untouched | usage | complete, manager degraded (`E_MANAGER_LATEST`) |
+| `generate` | gen-feed 0, deterministic | gen-feed 1, `E_FEED_NONDETERMINISTIC`, a manager-copy or report failure, a `<site-dir>/manager` that already exists (`E_INPUT`, refused untouched); no `<site-dir>/manager/` created by this run is left | usage (its own, or gen-feed's 2) | gen-feed 3, deterministic |
+| `outcome` | continue (flag appended) | fail (`E_STEP_FAILED`, nothing appended) | usage (incl. a non-integer `--exit`) | — |
+| `compare` | no drift | a `block` drift; any drift with `--dry-run true`; `E_INPUT` (incl. a control character in the live file); `E_FEED_SCHEMA` | usage (incl. a missing or non-boolean `--dry-run`) | `--dry-run false` and every drift `warn` |
+| `verdict` | green | red | usage | — |
+
+### 10.3 collect
+
+`collect` makes its requests in this order and in no other:
+
+1. **Before any `gh` call.** The plugin names are the `name` of each `<plugins-dir>/*/version.json`: each must pass
+   `contract.isPluginName` (`E_PLUGIN_NAME`), no two may be equal after `toLowerCase()` (`E_DUPLICATE_PLUGIN`), and none
+   may lower-case to `manager` (`E_PLUGIN_NAME`); they are sorted bytewise. `--out-dir` is created when missing and
+   refused (`E_INPUT`, nothing in it touched) when it already holds `releases.json`, `manifests`, `manager` or
+   `collect-report.json`.
+2. **The list.** `gh release list --repo <repo> --limit 1000 --json tagName,isPrerelease,isDraft,publishedAt`. The rows
+   must be an array of objects with a non-empty string `tagName` and boolean `isPrerelease` and `isDraft` (`E_INPUT`;
+   `publishedAt` is checked by gen-feed); 1000 rows is `E_FEED_LIST_TRUNCATED` (releases may be missing).
+3. **The selection.** `gen-feed.js` `selectReleases` (section 7, the Q9 rule) for every plugin before any view, so an
+   `E_TAG_FORMAT` aborts first. A plugin without a stable release is `no-stable` and costs no request.
+4. **Per plugin, per selected release** (the stable release, then its prerelease sibling when there is one): `gh
+   release view <tag> --repo <repo> --json tagName,assets`. The view must return the tag asked for and assets that
+   each have a string `name`, a non-negative safe-integer `size` and a `digest` that is absent, `null` or
+   `sha256:<64 hex>` (case-insensitive), else `E_INPUT`. When an asset is named `release.json`: a `null` or absent
+   digest is refused with `E_FEED_DOWNLOAD` ("has no digest on GitHub") before any download (the Phase 2 CC-verify
+   rule, Phase 3 Clarifications P-2); otherwise `gh release download <tag> --repo <repo> --pattern release.json
+   --output <out-dir>/manifests/<tag with "/" as "-">.json`, then the written file's size and SHA-256 must equal the
+   asset record (`E_FEED_DOWNLOAD`); the release is `downloaded`. Without such an asset nothing is downloaded and the
+   release is `no-manifest`.
+5. **The manager release.** From the same rows, the non-draft, non-prerelease rows whose `tagName` matches
+   `^manager/v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`, highest by `compareSemVer`. None:
+   `manager: none`, no request. Else one view (the same check); no `latest.json` asset: `none`. Else `gh release
+   download <tag> --repo <repo> --pattern latest.json --output <out-dir>/manager/latest.json` with the step 4 digest,
+   size and SHA-256 checks (a mismatch aborts), then the `latest.json` check below.
+6. **The two files the next step reads**, written atomically after the last check: `releases.json`, then
+   `collect-report.json`.
+
+For nine plugins without siblings or a manager release that is 1 list, 9 views and at most 9 downloads: at most 19
+requests. `collect` never passes `--clobber`, never calls `gh api` and never names a host. An abort removes each of the
+four names above that the run created (after the step 1 refusal, any of them that exists is the run's), so no
+`releases.json`, `manifests/`, `manager/`, `collect-report.json` or temp file is left.
+
+**The gh retry** (spec FR-023a). The one `gh` spawn of `productionDeps` is wrapped in the exported `withGhRetry(gh,
+{sleep, log})`, for `release list`, `release view` and `release download` alike: at most **3 attempts**, a fixed
+backoff of **5 s** before the second and **15 s** before the third. Each failed attempt is logged on stderr as
+`feed-publish: WARN gh attempt <n>/3 failed: <label> (exit <code>); retrying in <s> s`, where `<label>` is `list` for
+the list and `<subcommand> <tag>` for a view or a download (e.g. `view alphaplug/v1.2.0`). Only a `gh` that fails to
+run (reported as exit `-1`) or exits non-zero is retried; before a download is retried, the partial `--output` file the
+failed attempt left is deleted (`gh` without `--clobber` refuses an existing file). A result decided on a call that
+succeeded is **never** retried: a shape mismatch (`E_INPUT`), a view for another tag, a size or digest mismatch
+(`E_FEED_DOWNLOAD`), 1000 list rows (`E_FEED_LIST_TRUNCATED`) and `E_TAG_FORMAT`. A `gh` that still fails after its
+last attempt aborts with `E_INPUT`, naming the subcommand, the tag and the attempt count. Every attempt counts in
+`gh_calls`.
+
+**`collect-report.json`** (2-space JSON, final LF, written atomically):
+
+```json
+{
+  "plugins": [
+    { "name": "<Name>", "stable": "<tag>", "sibling": "<tag> | null",
+      "manifests": [ { "tag": "<tag>", "status": "downloaded" } ] },
+    { "name": "<Name>", "status": "no-stable" }
+  ],
+  "manager": { "status": "none" },
+  "gh_calls": 10
+}
+```
+
+Plugins are bytewise by name; `manifests` lists the stable release, then the sibling, each `downloaded` or
+`no-manifest`. `manager` is `{"status": "none"}`, `{"status": "copied", "tag": "<tag>"}` or `{"status": "degraded",
+"tag": "<tag>", "message": "<message>"}`. `manager.status` is the only channel by which `generate` learns whether to
+pass `--manager-latest-url`; no stdout line is parsed by the workflow. stdout is one line per plugin, `collect: <Name>
+stable <tag> (<status>)[, sibling <tag> (<status>)]` or `collect: <Name> no-stable`, then `manager: none`, `manager:
+copied <tag>` or `manager: degraded <tag>: <message>`.
+
+**The `latest.json` check** (spec FR-025): the file is JSON; an object; its `version` a string equal to the tag's
+version after one leading `v` is stripped (for tools that write one); `platforms` a non-empty object; each platform
+entry an object with a string `signature` and a string `url` that passes `contract.checkUrl` (https, no whitespace, no
+`/releases/latest/`; an `E_URL_*` failure is reported as `E_MANAGER_LATEST` with the original code in the message). No
+other key is read: Tauri owns the format (https://v2.tauri.app/plugin/updater/). The first failure is a degrade: the
+file and `manager/` are removed, the report says `degraded` with the message, stderr gets `feed-publish: WARN
+E_MANAGER_LATEST: <message>`, and `collect` exits 3 after writing everything else. The plugin feed still deploys
+without a `manager` block, the run turns red, and the previously published `manager/latest.json` stays on Pages
+(`keep_files: true`).
+
+### 10.4 outcome and verdict
+
+`outcome` is the only place an exit code becomes a workflow decision. It appends (never rewrites) one line to
+`--github-output` in the `name=value` form:
+
+| `--tool` | Flag | `--exit 0` | `--exit 3` | Any other `--exit` |
+|---|---|---|---|---|
+| `collect` | `manager_degraded` | appends `manager_degraded=false`, exit 0 | appends `manager_degraded=true`, exit 0 | appends nothing, `feed-publish: E_STEP_FAILED: collect exited <n>`, exit 1 |
+| `generate` | `feed_degraded` | appends `feed_degraded=false`, exit 0 | appends `feed_degraded=true`, exit 0 | appends nothing, `feed-publish: E_STEP_FAILED: generate exited <n>`, exit 1 |
+| `compare` | `drift_warned` | appends `drift_warned=false`, exit 0 | appends `drift_warned=true`, exit 0 | appends nothing, `feed-publish: E_STEP_FAILED: compare exited <n>`, exit 1 |
+
+`verdict` prints one `verdict: red <reason>` line per reason, in this order, and exits 1; with no reason it prints
+`verdict: green` and exits 0:
+
+| # | Condition | Reason text |
+|---|---|---|
+| 1 | `--build` is not `success` | `build <result>` |
+| 2 | `--dry-run false` and `--ref` is not `refs/heads/main` | `real run from <ref>` |
+| 3 | `--build` is `success` and not #2: on a real run `--deploy` is not `success`; on a dry run `--deploy` is neither `success` nor `skipped` | `deploy <result>` |
+| 4 | `--feed-degraded true` | `feed degraded:`, then each `gen-feed: WARN` line of `<evidence>/gen-feed.log` on its own line |
+| 5 | `--manager-degraded true` | `manager latest.json degraded: <manager.message of collect-report.json>` |
+| 6 | `--drift-warned true` | `v1 drift deployed: <the drift … warn lines of compare.txt, joined by " / ">` |
+| 7 | `--build` is `success` and an evidence file is missing under `--evidence` | `evidence missing <file>`, once per missing file of `releases.json`, `collect-report.json`, `gen-feed.log`, `live-versions.json`, `compare.txt` |
+
+A failed build skips `deploy` (`needs: build`), so the deploy reason is not added on top of a build reason, and #2
+replaces it for the `deploy` a non-`main` ref skips. Evidence files are read only when a reason needs them; an
+unreadable one prints `(unreadable)` in place of its lines. Every quoted evidence line and the `manager.message` pass
+the writer rule of this section's introduction before they are printed or joined.
+
+### 10.5 The comparison rule
+
+`compare` reads the three files (`E_INPUT` when one is unreadable or not JSON), validates `--feed` against C1 v2 and
+then v1 with `validateFeed` (`E_FEED_SCHEMA: <schema> <instancePath>: <message>`), checks the `--releases` rows by the
+10.3 list rule (`E_INPUT`), projects both feeds with `gen-feed.js` `projectV1` (`E_INPUT` when the live file has no
+`plugins` object), and refuses (`E_INPUT: live plugins.<JSON.stringify(key)> holds a control character`, before any
+result line exists) a live file in which a `plugins` key, or a string `version`, `download_url` or `release_notes`,
+holds a code unit U+0000-U+001F or U+007F. The live file is network data: whatever can write `gh-pages` or answer for
+the domain decides it.
+
+Definitions, for plugin name `n`, `lower` = `n.toLowerCase()`, `L` the live projection and `N` the new one:
+`stableRow(v)` is a row with `isDraft` and `isPrerelease` false and `tagName` equal to `<lower>/v<v>`; `preRow(v)` is the
+same with `isPrerelease` true; `gt(a, b)` holds when both parse as SemVer and `compareSemVer(a, b) > 0` (a value that
+is not SemVer is never compared, so a non-SemVer live `version` lands in `version changed without a release`); `sel` is
+`selectReleases(n, rows)`. The names are the bytewise-sorted union of the `L` and `N` keys; per name the first matching
+case wins:
+
+| # | Case | Line |
+|---|---|---|
+| 1 | in both; `version`, `download_url`, `release_notes` all equal | `same <n> <v>` |
+| 2 | in both; `gt(N.version, L.version)`; `stableRow(N.version)`; `release_notes` equal | `newer <n> <L.v> -> <N.v> (<tag> <publishedAt>)`, with ` download_url <old> -> <new>` appended when the URL changed too |
+| 3 | in both; `preRow(L.version)` and no `stableRow(L.version)`; `sel` picks `N.version` as the stable release; `download_url` and `release_notes` equal | `q9-corrected <n> <L.v> -> <N.v> (prerelease <lower>/v<L.v>)` |
+| 4 | in `L` only; `preRow(L.version)`; `sel` is `null` | `q9-corrected <n> <L.v> -> absent (prerelease <lower>/v<L.v>)` |
+| 5 | in `N` only; `stableRow(N.version)` | `added <n> <N.v> (<tag> <publishedAt>)` |
+| 6 | anything else | `drift <n> <kind>[; <kind>…] <severity>` |
+
+`q9-corrected` covers the transition from the legacy live file, which took the highest tag with prereleases included,
+to the v2 feed, whose v1 `version` is the newest stable release. A `drift` line lists every kind that applies, in the
+fixed order below, joined by `; `; its severity is `block` when any of its kinds is `block`, else `warn`:
+
+| Kind | Severity | Applies when |
+|---|---|---|
+| `release_notes not empty` | block | in both and `L.release_notes` or `N.release_notes` is not `""` |
+| `version lowered` | block | in both and `gt(L.version, N.version)` |
+| `removed` | block | in `L` only (case 4 did not hold) |
+| `version changed without a release` | warn | in both, the versions differ, and neither `version lowered` nor case 2's release condition holds |
+| `download_url changed without a newer release` | warn | in both, the URLs differ, and not `gt(N.version, L.version)` with a stable row |
+| `added without a release` | warn | in `N` only and no `stableRow(N.version)` |
+
+The last result line is `compare: <n> same, <n> newer, <n> added, <n> q9-corrected, <n> drift (<n> block, <n> warn)`,
+counting plugins. Exit 0 with no drift; 1 with a `block` drift, or with any drift when `--dry-run true`; 3 when
+`--dry-run false` and every drift is `warn`. stderr carries one `feed-publish: E_V1_DRIFT: <line>` per drift that fails
+the run (every drift on a dry run, the `block` ones on a real run) and one `feed-publish: WARN E_V1_DRIFT: <line>` per
+`warn` drift of a real run. So a `block` drift fails `build` before `feed-site` exists and nothing deploys; a real run
+with `warn` drift only deploys and its `verdict` is red (`v1 drift deployed`); a dry run fails on any drift.
+
+**Two blocking kinds cannot heal themselves** (plan SI-7; Phase 3 Clarifications P-3, ruled: keep them `block`). C1
+fixes `release_notes` to `""` (section 2) and the new feed is validated before the rule runs, so `release_notes not
+empty` can only describe the live file; `removed` describes a plugin that is no longer under `plugins/`. No `feed.yml`
+run can change either, so once one appears every run fails before deploy. The recovery is by hand: a commit on the
+`gh-pages` branch that fixes `versions.json` (removes the non-empty `release_notes` value or the removed plugin's
+entry), then a dry-run dispatch of `feed.yml` (the plugin compares `same`, or no longer appears), then a real run. The
+same recovery applies to a live file that the control-character check refuses. The case is latent: no workflow other
+than `feed.yml` writes `versions.json`.
+
+### 10.6 Annotation titles
+
+With `--annotate`, the tool prints GitHub workflow commands (`::<level> title=<title>::<message>`) on stdout, so every
+decision is readable through the check-run annotations API without the run's logs. Each message is one line: the tool
+replaces every CR or LF in it with a space and relies on no escaping. The titles are fixed:
+
+| Title | Printed by | Level and message |
+|---|---|---|
+| `feed-collect` | `collect` | `notice`: `<n> downloaded, <n> no-manifest, <n> no-stable, manager <status>` |
+| `feed-generate` | `generate` | `notice`: `exit <n>, deterministic` |
+| `feed-degrade` | `generate` | `warning`: one per gen-feed `gen-feed: WARN` line |
+| `feed-validate` | `compare` | `notice`: `v2 ok, v1 ok`; or `error`: the `E_FEED_SCHEMA` message |
+| `feed-compare` | `compare` | `notice`: the summary line |
+| `feed-drift` | `compare` | `error`: one per drift line that fails the run; `warning`: one per `warn` drift line of a real run |
+| `feed-verdict` | `verdict` | `notice`: `green`; or `error`: one per reason (a multi-line reason on one line) |
+
+### 10.7 User steps
+
+No trigger publishes the feed on its own beyond `release.yml`'s `feed` job; these steps are the user's (spec FR-061,
+Clarifications Q4):
+
+1. **First dispatch.** `workflow_dispatch` only runs the default branch's copy of a workflow, so the first dispatch is
+   possible after `feed.yml` is merged. Dispatch `feed.yml` from `main` with `dry_run: true` (the default) and read
+   `verdict`'s annotations and the `feed-evidence` artifact.
+2. **After the green dry run,** dispatch `feed.yml` from `main` with `dry_run: false`, then check one plugin's update
+   banner against the live feed: the banner's version and download link are unchanged, or the newer release is shown.
+3. **After the live backfill** (Phase 2 `backfill-sign.yml`, job `apply-live`) has attached `release.json` to the
+   current releases, dispatch `feed.yml` with `dry_run: true`, review the result, then dispatch it with
+   `dry_run: false`. Nothing does this automatically: `backfill-sign.yml` does not call `feed.yml`.
+
+**A failed run is recovered by a fresh dispatch, not by "Re-run jobs".** A re-run job would upload `feed-site` or
+`feed-evidence` again under a name the run may still hold (`actions/upload-artifact` does not overwrite by default),
+which was not verified (plan §9). A fresh `feed.yml` dispatch is idempotent: it rebuilds the feed from the releases,
+and every `gh-pages` writer deploys with `keep_files: true`. A failed `release.yml` real run's feed is recovered the
+same way.

@@ -38,8 +38,10 @@ function scannedFiles() {
     path.join(TOOLS_DIR, 'release-facts.js'),
     path.join(TOOLS_DIR, 'gen-release-manifest.js'),
     path.join(TOOLS_DIR, 'backfill-sign.js'),
+    path.join(TOOLS_DIR, 'feed-publish.js'),
     path.join(CONTRACT_DIR, 'fixtures', 'make-fixtures.js'),
     path.join(CONTRACT_DIR, 'fixtures', 'listings', 'make-bad.js'),
+    path.join(CONTRACT_DIR, 'fixtures', 'phase3', 'make-phase3.js'),
   ].filter((f) => fs.existsSync(f));
   return [
     ...single,
@@ -72,6 +74,7 @@ const CHILD_EXEMPT = new Set([
   'tools/feed-contract/tests/helpers/write-guard.js',
   'tools/backfill-sign.js',
   'tools/feed-contract/tests/helpers/external-tools.js',
+  'tools/feed-publish.js',
 ]);
 const GUARD_REL = 'tools/feed-contract/tests/helpers/write-guard.js';
 const GUARD_LINE = "require('./helpers/write-guard.js');";
@@ -119,12 +122,14 @@ test('tools stay offline', async (t) => {
       'tools/release-facts.js',
       'tools/gen-release-manifest.js',
       'tools/backfill-sign.js',
+      'tools/feed-publish.js',
       'tools/feed-contract/contract.js',
       'tools/feed-contract/listing.js',
       'tools/feed-contract/tests/helpers/write-guard.js',
       'tools/feed-contract/tests/helpers/fixtures.js',
       'tools/feed-contract/fixtures/make-fixtures.js',
       'tools/feed-contract/fixtures/listings/make-bad.js',
+      'tools/feed-contract/fixtures/phase3/make-phase3.js',
     ].filter((r) => !scanned.has(r));
     assert.deepEqual(missing, [], 'named files missing from the scan list');
     const testFiles = [...scanned].filter((r) => r.startsWith('tools/feed-contract/tests/') && r.endsWith('.test.js'));
@@ -213,6 +218,65 @@ test('tools stay offline', async (t) => {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
+
+  // Phase 3 (SC-011, plan PD-16, tasks TA-4): main takes a required third deps argument, so the Phase 2 form test's
+  // two-argument main([], io) call cannot cover it; the git-status check named (d) in the header stays a CI step.
+  await t.test('(d) tools/feed-publish.js follows the tools/*.js form', () => {
+    const { CODES } = require('../contract.js');
+    const toolPath = path.join(TOOLS_DIR, 'feed-publish.js');
+    const mod = require(toolPath);
+    const src = fs.readFileSync(toolPath, 'utf8');
+    assert.equal(src.split(/\r?\n/)[0], '#!/usr/bin/env node', 'feed-publish.js: first line');
+    assert.equal(typeof mod.main, 'function', 'feed-publish.js: exports main');
+    const used = [];
+    const stubDeps = {
+      gh: (argv) => {
+        used.push('gh');
+        throw new Error(`stubDeps.gh used: ${JSON.stringify(argv)}`);
+      },
+      genFeedMain: (argv) => {
+        used.push('genFeedMain');
+        throw new Error(`stubDeps.genFeedMain used: ${JSON.stringify(argv)}`);
+      },
+    };
+    let stderr = '';
+    const io = {
+      stdout: { write: () => true },
+      stderr: { write: (s) => ((stderr += s), true) },
+      env: {},
+    };
+    assert.equal(mod.main([], io, stubDeps), 2, `main([], io, stubDeps) exit code; stderr ${JSON.stringify(stderr)}`);
+    assert.deepEqual(used, [], 'main([], io, stubDeps) used a dependency');
+    const usage = 'usage: node tools/feed-publish.js';
+    assert.ok(
+      stderr.split(/\r?\n/).some((l) => l.startsWith(usage)),
+      `no stderr line starts "${usage}"; stderr ${JSON.stringify(stderr)}`,
+    );
+    const literals = [...src.matchAll(/'(E_[A-Z0-9_]+)'/g)].map((m) => m[1]);
+    assert.deepEqual(
+      [...new Set(literals.filter((c) => !Object.hasOwn(CODES, c)))],
+      [],
+      'feed-publish.js: code literals that contract.js CODES does not define',
+    );
+    // The seven Phase 3 codes with their plan §3.1 class.
+    const PHASE3_CODES = {
+      E_FEED_LIST_TRUNCATED: 'none',
+      E_FEED_DOWNLOAD: 'none',
+      E_FEED_SCHEMA: 'none',
+      E_FEED_NONDETERMINISTIC: 'none',
+      E_STEP_FAILED: 'none',
+      E_V1_DRIFT: 'none',
+      E_MANAGER_LATEST: 'degrade',
+    };
+    assert.equal(Object.keys(PHASE3_CODES).length, 7);
+    assert.deepEqual(
+      Object.entries(PHASE3_CODES)
+        .filter(([c, cls]) => CODES[c] !== cls)
+        .map(([c, cls]) => `${c}: want ${cls}, CODES has ${CODES[c]}`),
+      [],
+      'Phase 3 codes missing from CODES or with the wrong class',
+    );
+  });
 });
 
 // --- SC-014: the plugin list comes from the plugins directory, never from the tools.
@@ -261,6 +325,7 @@ test('generator ships no plugin roster', async (t) => {
       path.join(TOOLS_DIR, 'release-facts.js'),
       path.join(TOOLS_DIR, 'gen-release-manifest.js'),
       path.join(TOOLS_DIR, 'backfill-sign.js'),
+      path.join(TOOLS_DIR, 'feed-publish.js'),
       path.join(CONTRACT_DIR, 'contract.js'),
       path.join(CONTRACT_DIR, 'listing.js'),
       path.join(CONTRACT_DIR, 'versions.v2.schema.json'),

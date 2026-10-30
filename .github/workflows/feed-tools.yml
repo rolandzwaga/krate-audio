@@ -14,6 +14,8 @@ on:
       - 'tools/backfill-sign.js'
       - '.github/workflows/release.yml'
       - '.github/workflows/backfill-sign.yml'
+      - 'tools/feed-publish.js'
+      - '.github/workflows/feed.yml'
   pull_request:
     paths:
       - 'tools/gen-feed.js'
@@ -27,6 +29,8 @@ on:
       - 'tools/backfill-sign.js'
       - '.github/workflows/release.yml'
       - '.github/workflows/backfill-sign.yml'
+      - 'tools/feed-publish.js'
+      - '.github/workflows/feed.yml'
   workflow_dispatch:
 
 permissions:
@@ -71,7 +75,7 @@ jobs:
           node --test --test-reporter=tap "tools/feed-contract/tests/*.test.js" | tee "$RUNNER_TEMP/tap.txt"
           node - "$RUNNER_TEMP/tap.txt" <<'TAPCHECK'
           const lines = require("fs").readFileSync(process.argv[2], "utf8").split(/\r?\n/);
-          const PLAN = "1..46";
+          const PLAN = "1..57";
           const NAMES = [
             "minisign.js verifies the rsign2 KAT",
             "minisign.js sign and verify round trip",
@@ -95,6 +99,17 @@ jobs:
             "minisign.js decrypts the rsign2 secret-key KAT",
             "minisign.js decrypt-key writes only under RUNNER_TEMP and cleans up",
             "keys README states the secrets contract and the merge order",
+            "feed pipeline reproduces the live v1 feed from the 2026-10-29 snapshot",
+            "feed pipeline is deterministic",
+            "collect downloads only the selected manifests",
+            "collect aborts cleanly",
+            "a release without release.json stays v1-only",
+            "collect copies only a valid manager latest.json",
+            "compare explains every v1 difference or fails",
+            "Phase 3 mixed feed fixture is real-shaped",
+            "feed.yml and release.yml keep the Phase 3 shape",
+            "feed-publish tests never build real effects",
+            "feed-publish decides every workflow branch",
           ];
           const bad = [];
           if (!lines.includes("# fail 0")) bad.push('no "# fail 0" line');

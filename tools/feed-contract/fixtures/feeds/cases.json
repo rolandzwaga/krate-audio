@@ -691,5 +691,11 @@
     "expect": {
       "error": "E_INSTALL_DUPLICATE"
     }
+  },
+  {
+    "rule": "Phase3/one-v2-eight-v1",
+    "file": "valid/one-v2-eight-v1.json",
+    "schema": "v2",
+    "expect": "accept"
   }
 ]

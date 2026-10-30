@@ -1,0 +1,123 @@
+{
+  "schema_version": 2,
+  "plugins": {
+    "Disrumpo": {
+      "version": "0.9.10",
+      "download_url": "https://krateaudio.com/disrumpo/",
+      "release_notes": "",
+      "tag": "disrumpo/v0.9.10",
+      "pub_date": "2026-10-10T08:02:58Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/disrumpo/v0.9.10"
+    },
+    "Gradus": {
+      "version": "1.10.2",
+      "download_url": "https://krateaudio.com/gradus/",
+      "release_notes": "",
+      "tag": "gradus/v1.10.2",
+      "pub_date": "2026-10-29T20:45:19Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.2"
+    },
+    "Innexus": {
+      "version": "1.0.4",
+      "download_url": "https://krateaudio.com/innexus/",
+      "release_notes": "",
+      "tag": "innexus/v1.0.4",
+      "pub_date": "2026-10-29T21:55:06Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/innexus/v1.0.4"
+    },
+    "Iterum": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/iterum/",
+      "release_notes": "",
+      "tag": "iterum/v1.0.0",
+      "pub_date": "2026-10-29T20:08:19Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/iterum/v1.0.0"
+    },
+    "Membrum": {
+      "version": "0.12.2",
+      "download_url": "https://krateaudio.com/membrum/",
+      "release_notes": "",
+      "tag": "membrum/v0.12.2",
+      "pub_date": "2026-10-26T22:50:47Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.2",
+      "platforms": {
+        "darwin-universal": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.2/Membrum-0.12.2-macOS.pkg",
+          "size": 45,
+          "sha256": "f12efab9e78b7ec5697e6608b7f9bff355ff6def247fdb709080d77c967097aa",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Membrum:0.12.2:darwin-universal:Membrum-0.12.2-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "pkg",
+          "min_os": "11.0"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.2/Membrum-0.12.2-Linux-x64.tar.gz",
+          "size": 52,
+          "sha256": "095a53e7f743d81fde2668134fdb8b02a8d2dc07f42d96edf75923125d773fbe",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Membrum:0.12.2:linux-x86_64:Membrum-0.12.2-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 10,
+            "sha256": "e2b37e2d3e8b24254f26de4523d4de7e9edb26193b87bc474b28b6245a16287f"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.2/Membrum-0.12.2-Windows-x64.exe",
+          "size": 51,
+          "sha256": "54072fcd9dbe3246cbfdf3dd40a6898d670c51be479295b614f8343e141348a1",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Membrum:0.12.2:windows-x86_64:Membrum-0.12.2-Windows-x64.exe\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "inno-exe",
+          "min_os": "10.0"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Membrum.vst3",
+        "au_component": "Membrum.component",
+        "preset_subdir": "Kits",
+        "windows_uninstall_key": "{B7E3C9D1-4A5F-4F2B-9E8C-3D6F1A8B2C5E}_is1",
+        "macos_pkg_id": "com.krateaudio.membrum"
+      }
+    },
+    "Profundum": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/profundum/",
+      "release_notes": "",
+      "tag": "profundum/v1.0.0",
+      "pub_date": "2026-10-27T22:28:01Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/profundum/v1.0.0"
+    },
+    "Ruinae": {
+      "version": "0.12.3",
+      "download_url": "https://krateaudio.com/ruinae/",
+      "release_notes": "",
+      "tag": "ruinae/v0.12.3",
+      "pub_date": "2026-10-29T20:35:28Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/ruinae/v0.12.3"
+    },
+    "Seraphis": {
+      "version": "1.0.3",
+      "download_url": "https://krateaudio.com/seraphis/",
+      "release_notes": "",
+      "tag": "seraphis/v1.0.3",
+      "pub_date": "2026-10-29T21:04:05Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.3"
+    },
+    "Vorago": {
+      "version": "1.0.2",
+      "download_url": "https://krateaudio.com/vorago/",
+      "release_notes": "",
+      "tag": "vorago/v1.0.2",
+      "pub_date": "2026-10-29T21:25:25Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.2"
+    }
+  }
+}

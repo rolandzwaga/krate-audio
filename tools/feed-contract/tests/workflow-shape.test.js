@@ -626,3 +626,347 @@ test('keys README states the secrets contract and the merge order', async (t) =>
     assert.deepEqual(hits, []);
   });
 });
+
+// --- SC-010: feed.yml and the release.yml feed job keep the Phase 3 shape (spec specs/krate-manager-phase3/spec.md
+// SC-010, FR-001 to FR-015, FR-030 to FR-033, FR-062; plan §4.3.1, §4.4, §7.1 T9, PD-1, PD-2). Same text helpers as
+// above; every file is only read.
+
+const FEED_STEPS = [
+  'Checkout',
+  'Setup Node',
+  'Install feed-contract deps',
+  'Collect releases',
+  'Fetch live feed',
+  'Generate feed',
+  'Compare with the live feed',
+  'Upload site',
+  'Upload evidence',
+];
+const FEED_CONCURRENCY = ['group: krate-feed', 'cancel-in-progress: false', 'queue: max'];
+const FEED_OUTPUTS = [
+  'manager_degraded: ${{ steps.collect.outputs.manager_degraded }}',
+  'feed_degraded: ${{ steps.generate.outputs.feed_degraded }}',
+  'drift_warned: ${{ steps.compare.outputs.drift_warned }}',
+];
+const outcomeLine = (tool) =>
+  `node tools/feed-publish.js outcome --tool ${tool} --exit "$rc" --github-output "$GITHUB_OUTPUT"`;
+// Plan §4.3.1 (binding): the three capture steps, verbatim.
+const CAPTURE = new Map([
+  [
+    'Collect releases',
+    [
+      'collect',
+      'rc=0; node tools/feed-publish.js collect --plugins-dir plugins --repo "$GITHUB_REPOSITORY"' +
+        ' --out-dir "$RUNNER_TEMP/feed-in" --annotate || rc=$?',
+    ],
+  ],
+  [
+    'Generate feed',
+    [
+      'generate',
+      'rc=0; node tools/feed-publish.js generate --in-dir "$RUNNER_TEMP/feed-in" --plugins-dir plugins' +
+        ' --repo "$GITHUB_REPOSITORY" --site-dir _site --annotate || rc=$?',
+    ],
+  ],
+  [
+    'Compare with the live feed',
+    [
+      'compare',
+      'rc=0; node tools/feed-publish.js compare --live "$RUNNER_TEMP/feed-in/live-versions.json"' +
+        ' --feed _site/versions.json --releases "$RUNNER_TEMP/feed-in/releases.json" --dry-run "$DRY_RUN"' +
+        ' --report "$RUNNER_TEMP/feed-in/compare.txt" --summary "$GITHUB_STEP_SUMMARY" --annotate || rc=$?',
+    ],
+  ],
+]);
+const FETCH_LIVE =
+  'curl --fail --silent --show-error --location --retry 3 https://krateaudio.com/versions.json' +
+  ' --output "$RUNNER_TEMP/feed-in/live-versions.json"';
+const VERDICT_STEPS = ['Checkout', 'Setup Node', 'Install feed-contract deps', 'Download evidence', 'Verdict'];
+const VERDICT_ENV = [
+  'DRY_RUN: ${{ inputs.dry_run }}',
+  'REF: ${{ github.ref }}',
+  'BUILD_RESULT: ${{ needs.build.result }}',
+  'DEPLOY_RESULT: ${{ needs.deploy.result }}',
+  'FEED_DEGRADED: ${{ needs.build.outputs.feed_degraded }}',
+  'MANAGER_DEGRADED: ${{ needs.build.outputs.manager_degraded }}',
+  'DRIFT_WARNED: ${{ needs.build.outputs.drift_warned }}',
+];
+const VERDICT_RUN =
+  'node tools/feed-publish.js verdict --dry-run "$DRY_RUN" --ref "$REF" --build "$BUILD_RESULT"' +
+  ' --deploy "$DEPLOY_RESULT" --feed-degraded "$FEED_DEGRADED" --manager-degraded "$MANAGER_DEGRADED"' +
+  ' --drift-warned "$DRIFT_WARNED" --evidence "$RUNNER_TEMP/evidence" --annotate';
+// A `|` that is not part of `||` (spec D13, FR-003; plan §4.3.1 notes).
+const LONE_PIPE = /(?<!\|)\|(?!\|)/;
+// Plan §4.4 (binding): the release.yml feed job and the two comment lines above it.
+const RELEASE_FEED_COMMENT = [
+  '  # versions.json (the in-plugin update checker and the manager read it) is built, checked and deployed by the',
+  '  # reusable feed workflow (specs/krate-manager-phase3/spec.md FR-030; plan §4.4). On a dry run feed.yml checks only.',
+];
+const RELEASE_FEED_JOB = [
+  '  feed:',
+  '    needs: [release, deploy-pages]',
+  "    if: ${{ !cancelled() && needs.release.result == 'success' }}",
+  '    permissions:',
+  '      contents: write',
+  '    uses: ./.github/workflows/feed.yml',
+  '    with:',
+  '      dry_run: ${{ inputs.dry_run }}',
+].join('\n');
+const DEPLOY_PAGES_STEPS = [
+  'Checkout',
+  'Generate Plugin Landing Page',
+  'Generate Signal Flow Diagram',
+  'Generate Root Index',
+  'Deploy to gh-pages',
+];
+const SNAPSHOT_PLUGINS = path.join(
+  REPO_ROOT, 'tools', 'feed-contract', 'fixtures', 'gen-feed', 'snapshot-2026-10-29', 'plugins',
+);
+
+/** Trimmed, non-blank lines of a nested() result, or null. */
+function trimmed(lines) {
+  return lines === null ? null : lines.map((l) => l.trim()).filter((l) => l !== '');
+}
+
+/** The inputs of trigger `trigger` under the top-level `on:`: {names, blocks: name -> text}, or null. */
+function triggerInputs(text, trigger) {
+  const on = nested(text, 0, 'on');
+  assert.ok(on, 'no top-level on: block');
+  const trig = nested(on.join('\n'), 2, trigger);
+  if (trig === null) return null;
+  const inputs = nested(trig.join('\n'), 4, 'inputs');
+  assert.ok(inputs, `on.${trigger} has no inputs: block`);
+  const names = [];
+  const blocks = new Map();
+  let current = null;
+  for (const line of inputs) {
+    const m = /^ {6}([A-Za-z0-9_-]+):\s*$/.exec(line);
+    if (m) {
+      current = [line];
+      names.push(m[1]);
+      blocks.set(m[1], current);
+    } else if (current) {
+      current.push(line);
+    }
+  }
+  return { names, blocks: new Map([...blocks].map(([k, v]) => [k, v.join('\n')])) };
+}
+
+/** A run: script's trimmed, non-blank lines. */
+function scriptLines(step) {
+  return runText(step).split('\n').map((l) => l.trim()).filter((l) => l !== '');
+}
+
+test('feed.yml and release.yml keep the Phase 3 shape', async (t) => {
+  // Each file is read inside its subtests, so a missing feed.yml fails the feed.yml subtests and leaves the
+  // release.yml and ci.yml ones standing.
+  let feed = null;
+  const fd = () => {
+    if (feed === null) {
+      const text = readWorkflow('feed.yml');
+      const jobs = jobNames(text);
+      const steps = new Map(jobs.map((j) => [j, stepBlocks(jobBlock(text, j))]));
+      feed = { text, jobs, steps };
+    }
+    return feed;
+  };
+
+  await t.test('feed.yml: workflow_call and workflow_dispatch only, each with the one input dry_run (FR-001)', () => {
+    const { text } = fd();
+    const on = nested(text, 0, 'on');
+    assert.ok(on, 'no top-level on: block');
+    const triggers = on.map((l) => /^ {2}([A-Za-z0-9_-]+):/.exec(l)).filter(Boolean).map((m) => m[1]);
+    assert.deepEqual(triggers, ['workflow_call', 'workflow_dispatch']);
+    assert.deepEqual(text.split('\n').filter((l) => /^\s*(?:push|pull_request(?:_target)?|schedule)\s*:/.test(l)), []);
+    const call = triggerInputs(text, 'workflow_call');
+    assert.deepEqual(call.names, ['dry_run']);
+    assert.equal(field(call.blocks.get('dry_run'), 8, 'type'), 'boolean');
+    assert.equal(field(call.blocks.get('dry_run'), 8, 'required'), 'true');
+    assert.equal(field(call.blocks.get('dry_run'), 8, 'default'), null);
+    const dispatch = triggerInputs(text, 'workflow_dispatch');
+    assert.deepEqual(dispatch.names, ['dry_run']);
+    assert.equal(field(dispatch.blocks.get('dry_run'), 8, 'type'), 'boolean');
+    assert.equal(field(dispatch.blocks.get('dry_run'), 8, 'default'), 'true');
+  });
+
+  await t.test('feed.yml: read-only at the top; krate-feed on build and deploy only, and in no other file (PD-1)', () => {
+    const { text } = fd();
+    assert.deepEqual(topLevel(text, 'permissions'), ['contents: read']);
+    assert.equal(topLevel(text, 'concurrency'), null, 'feed.yml has a top-level concurrency');
+    for (const j of ['build', 'deploy']) {
+      assert.deepEqual(trimmed(nested(jobBlock(text, j), 4, 'concurrency')), FEED_CONCURRENCY, j);
+    }
+    assert.equal(nested(jobBlock(text, 'verdict'), 4, 'concurrency'), null, 'verdict has a concurrency block');
+    assert.equal(count(text, /group: krate-feed/g), 2);
+    const others = fs
+      .readdirSync(WORKFLOWS)
+      .filter((n) => /\.ya?ml$/.test(n) && n !== 'feed.yml')
+      .filter((n) => readWorkflow(n).includes('group: krate-feed'));
+    assert.deepEqual(others, []);
+  });
+
+  await t.test('feed.yml: jobs build, deploy, verdict; deploy the only writer; no environment, secret or plugin (FR-002, FR-015)', () => {
+    const { text, jobs } = fd();
+    assert.deepEqual(jobs, ['build', 'deploy', 'verdict']);
+    assert.deepEqual(jobs.filter((j) => /contents:\s*write/.test(jobBlock(text, j))), ['deploy']);
+    assert.equal(count(text, /contents:\s*write/g), 1, 'contents: write outside the deploy job');
+    assert.deepEqual(jobPermissions(jobBlock(text, 'deploy')), ['contents: write']);
+    assert.equal(/^\s*environment\s*:/m.test(text), false, 'an environment: key');
+    assert.equal(text.includes('secrets.'), false, 'a secrets. reference');
+    const names = fs
+      .readdirSync(SNAPSHOT_PLUGINS)
+      .filter((d) => fs.existsSync(path.join(SNAPSHOT_PLUGINS, d, 'version.json')))
+      .map((d) => JSON.parse(fs.readFileSync(path.join(SNAPSHOT_PLUGINS, d, 'version.json'), 'utf8')).name);
+    assert.equal(names.length, 9, 'the snapshot holds nine version.json copies');
+    const lower = text.toLowerCase();
+    assert.deepEqual(names.filter((n) => lower.includes(String(n).toLowerCase())), []);
+  });
+
+  await t.test('feed.yml: build runs on ubuntu-latest with GH_TOKEN only, three outputs, the nine steps in order (FR-003 to FR-011)', () => {
+    const { text, steps } = fd();
+    const block = jobBlock(text, 'build');
+    assert.equal(field(block, 4, 'runs-on'), 'ubuntu-latest');
+    assert.deepEqual(trimmed(nested(block, 4, 'env')), ['GH_TOKEN: ${{ github.token }}']);
+    assert.deepEqual(trimmed(nested(block, 4, 'outputs')), FEED_OUTPUTS);
+    const build = steps.get('build');
+    assert.deepEqual(build.map((s) => s.name), FEED_STEPS);
+    const checkout = stepByName(build, 'Checkout', 'build');
+    assert.equal(field(checkout.text, 8, 'uses'), 'actions/checkout@v6');
+    assert.equal(nested(checkout.text, 8, 'with'), null, 'build checkout has a with: block');
+    assert.equal(/\b(?:ref|fetch-depth):/.test(checkout.text), false, 'build checkout sets ref or fetch-depth');
+    const node = stepByName(build, 'Setup Node', 'build');
+    assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@v4');
+    assert.equal(field(node.text, 10, 'node-version'), "'24'");
+    assert.equal(field(stepByName(build, 'Collect releases', 'build').text, 8, 'id'), 'collect');
+    assert.equal(field(stepByName(build, 'Generate feed', 'build').text, 8, 'id'), 'generate');
+    const compare = stepByName(build, 'Compare with the live feed', 'build');
+    assert.equal(field(compare.text, 8, 'id'), 'compare');
+    assert.deepEqual(trimmed(nested(compare.text, 8, 'env')), ['DRY_RUN: ${{ inputs.dry_run }}']);
+  });
+
+  await t.test('feed.yml: every run: step of build and verdict is bash, set -euo pipefail, no lone | and no ${{ (FR-003, FR-014)', () => {
+    const { steps } = fd();
+    const runs = [];
+    for (const j of ['build', 'verdict']) for (const s of steps.get(j)) if (runText(s) !== '') runs.push([j, s]);
+    assert.ok(runs.length >= 7, `only ${runs.length} run: step(s) in build and verdict`);
+    for (const [j, s] of runs) {
+      const where = `${j}: ${s.name}`;
+      assert.equal(field(s.text, 8, 'shell'), 'bash', where);
+      assert.equal(scriptLines(s)[0], 'set -euo pipefail', where);
+      assert.equal(LONE_PIPE.test(runText(s)), false, `${where}: a | that is not ||`);
+      assert.equal(runText(s).includes('${{'), false, `${where}: an expression inside the script`);
+    }
+  });
+
+  await t.test('feed.yml: the capture steps, the live fetch, and no mkdir, cmp or _site/manager outside generate (D13, FR-005)', () => {
+    const { steps } = fd();
+    const build = steps.get('build');
+    for (const [name, [tool, command]] of CAPTURE) {
+      assert.deepEqual(scriptLines(stepByName(build, name, 'build')), ['set -euo pipefail', command, outcomeLine(tool)], name);
+      assert.match(command, new RegExp(`^rc=0; node tools/feed-publish\\.js ${tool} .* \\|\\| rc=\\$\\?$`), name);
+    }
+    assert.deepEqual(scriptLines(stepByName(build, 'Fetch live feed', 'build')), ['set -euo pipefail', FETCH_LIVE]);
+    const hits = [];
+    for (const [j, list] of steps) {
+      for (const s of list) {
+        if (j === 'build' && s.name === 'Generate feed') continue;
+        if (s.text.includes('_site/manager')) hits.push(`${j}: ${s.name}: _site/manager`);
+        if (/\b(?:mkdir|cmp)\b/.test(runText(s))) hits.push(`${j}: ${s.name}: mkdir or cmp`);
+      }
+    }
+    assert.deepEqual(hits, []);
+  });
+
+  await t.test('feed.yml: Upload site fails without files; Upload evidence always runs (FR-011)', () => {
+    const build = fd().steps.get('build');
+    const site = stepByName(build, 'Upload site', 'build');
+    assert.equal(field(site.text, 8, 'uses'), 'actions/upload-artifact@v7');
+    assert.equal(field(site.text, 10, 'name'), 'feed-site');
+    assert.equal(field(site.text, 10, 'path'), '_site/');
+    assert.equal(field(site.text, 10, 'if-no-files-found'), 'error');
+    assert.equal(field(site.text, 8, 'if'), null);
+    const evidence = stepByName(build, 'Upload evidence', 'build');
+    assert.equal(field(evidence.text, 8, 'if'), 'always()');
+    assert.equal(field(evidence.text, 8, 'uses'), 'actions/upload-artifact@v7');
+    assert.equal(field(evidence.text, 10, 'name'), 'feed-evidence');
+    assert.equal(field(evidence.text, 10, 'path'), '${{ runner.temp }}/feed-in/');
+    assert.equal(field(evidence.text, 10, 'if-no-files-found'), 'warn');
+  });
+
+  await t.test('feed.yml: deploy downloads the site and pushes it with peaceiris on a real run from main (FR-012, FR-013)', () => {
+    const { text, steps } = fd();
+    const block = jobBlock(text, 'deploy');
+    assert.equal(field(block, 4, 'needs'), 'build');
+    assert.equal(field(block, 4, 'if'), "${{ !inputs.dry_run && github.ref == 'refs/heads/main' }}");
+    assert.equal(field(block, 4, 'runs-on'), 'ubuntu-latest');
+    assert.equal(/^\s*run:/m.test(block), false, 'deploy has a run: step');
+    assert.equal(block.includes('actions/checkout@'), false, 'deploy checks out');
+    const deploy = steps.get('deploy');
+    assert.deepEqual(deploy.map((s) => s.name), ['Download site', 'Deploy to gh-pages']);
+    const download = deploy[0];
+    assert.equal(field(download.text, 8, 'uses'), 'actions/download-artifact@v8');
+    assert.equal(field(download.text, 10, 'name'), 'feed-site');
+    assert.equal(field(download.text, 10, 'path'), '_site');
+    const push = deploy[1];
+    assert.equal(field(push.text, 8, 'uses'), 'peaceiris/actions-gh-pages@v4');
+    assert.equal(field(push.text, 8, 'if'), null);
+    assert.deepEqual(trimmed(nested(push.text, 8, 'with')), [
+      'github_token: ${{ github.token }}',
+      'publish_dir: ./_site',
+      'keep_files: true',
+      'cname: krateaudio.com',
+    ]);
+    assert.equal(text.includes('allow_empty_commit'), false);
+    assert.equal(count(text, /peaceiris\/actions-gh-pages@/g), 1);
+  });
+
+  await t.test('feed.yml: verdict always runs, read-only, values only through env: (FR-014)', () => {
+    const { text, steps } = fd();
+    const block = jobBlock(text, 'verdict');
+    assert.equal(field(block, 4, 'needs'), '[build, deploy]');
+    assert.equal(field(block, 4, 'if'), 'always()');
+    assert.deepEqual(jobPermissions(block), ['contents: read']);
+    const verdict = steps.get('verdict');
+    assert.deepEqual(verdict.map((s) => s.name), VERDICT_STEPS);
+    const evidence = stepByName(verdict, 'Download evidence', 'verdict');
+    assert.equal(field(evidence.text, 8, 'uses'), 'actions/download-artifact@v8');
+    assert.equal(field(evidence.text, 8, 'continue-on-error'), 'true');
+    assert.equal(field(evidence.text, 10, 'name'), 'feed-evidence');
+    assert.equal(field(evidence.text, 10, 'path'), '${{ runner.temp }}/evidence');
+    const step = stepByName(verdict, 'Verdict', 'verdict');
+    assert.deepEqual(trimmed(nested(step.text, 8, 'env')), VERDICT_ENV);
+    assert.deepEqual(scriptLines(step), ['set -euo pipefail', VERDICT_RUN]);
+    assert.equal(runText(step).includes('${{'), false);
+  });
+
+  await t.test('release.yml: the feed job replaces the inline versions.json step (FR-030 to FR-033)', () => {
+    const rel = readWorkflow('release.yml');
+    const jobs = jobNames(rel);
+    assert.ok(jobs.includes('feed'), 'release.yml has no feed job');
+    assert.equal(jobs.indexOf('feed'), jobs.indexOf('deploy-pages') + 1, 'feed is not placed after deploy-pages');
+    assert.equal(jobBlock(rel, 'feed').trimEnd(), RELEASE_FEED_JOB);
+    const lines = rel.split('\n');
+    const head = lines.indexOf('  feed:');
+    assert.deepEqual(lines.slice(head - 2, head), RELEASE_FEED_COMMENT);
+    assert.deepEqual(lines.filter((l) => l.includes('versions.json')), [RELEASE_FEED_COMMENT[0]]);
+    const named = jobs.filter((j) => stepBlocks(jobBlock(rel, j)).some((s) => s.name === 'Generate Update Checker Endpoint'));
+    assert.deepEqual(named, []);
+    const pages = jobBlock(rel, 'deploy-pages');
+    assert.equal(field(pages, 4, 'if'), '${{ !inputs.dry_run }}');
+    const pageSteps = stepBlocks(pages);
+    assert.deepEqual(pageSteps.map((s) => s.name), DEPLOY_PAGES_STEPS);
+    assert.equal(field(stepByName(pageSteps, 'Deploy to gh-pages', 'deploy-pages').text, 10, 'keep_files'), 'true');
+  });
+
+  await t.test("ci.yml: the paths-filter shared: block is still exactly - 'plugins/shared/**' (FR-062)", () => {
+    const ci = readWorkflow('ci.yml');
+    const filterSteps = [];
+    for (const j of jobNames(ci)) {
+      for (const s of stepBlocks(jobBlock(ci, j))) if (field(s.text, 8, 'uses') === 'dorny/paths-filter@v3') filterSteps.push(s);
+    }
+    assert.equal(filterSteps.length, 1, 'ci.yml: one dorny/paths-filter step');
+    const filters = nested(filterSteps[0].text, 10, 'filters');
+    assert.ok(filters, 'the paths-filter step has no filters: block');
+    assert.deepEqual(trimmed(nested(filters.join('\n'), 12, 'shared')), ["- 'plugins/shared/**'"]);
+  });
+});
