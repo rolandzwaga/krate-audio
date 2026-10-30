@@ -422,6 +422,8 @@ decision 5), or change `ci.yml`.
 
 ### Phase 3: Feed Workflow and Pages Deploy
 
+**Status: ✅ COMPLETE (PENDING-CI: 6 item(s)) (2026-10-30)** — see specs/krate-manager-phase3/compliance.md
+
 **Spec:** `krate-manager-phase3`
 
 Components:
