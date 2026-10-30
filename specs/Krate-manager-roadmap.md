@@ -236,6 +236,9 @@ tools/gen-release-manifest.js          release.json from staged assets (+ sizes,
 tools/minisign.js                      minisign keygen / sign / verify over node:crypto (tests and tools; CI signs with rsign2)
 tools/feed-contract/                   feed-v2 and release.json JSON Schemas, trusted-comment grammar, Linux archive layout,
                                        payload-digest rule, shared fixtures (Phase 1; read by the tools and the manager tests)
+tools/feed-contract/keys/krate-signing.pub  the release signing public key (minisign, two lines; committed by the user, Phase 2
+                                       FR-061); CI checks every signature against it, Phase 7 embeds it, Phase 11 is its updater pubkey
+tools/release-facts.js                 Mach-O arch set + minimum macOS, glibc floor, Linux listing check (Phase 2)
 tools/backfill-sign.js                 backfill logic over an injected `gh` runner (fixtures in tests), `node --test`
 tools/lint-manager-version.js          version.json vs tauri.conf.json vs Cargo.toml equality lint, gated in manager-ci
 ```
@@ -333,6 +336,8 @@ Does NOT: touch `release.yml`, publish anything, sign anything with a real key (
 or change any plugin source.
 
 ### Phase 2: Release Assets, Hashes, Signatures and the Backfill
+
+**Status: ✅ COMPLETE (PENDING-CI: 15 item(s)) (2026-10-30)** — see specs/krate-manager-phase2/compliance.md
 
 **Spec:** `krate-manager-phase2`
 
@@ -588,7 +593,7 @@ Components:
   a `Range` request (neither `plugin-http` nor `plugin-upload` documents resume, tauri_feasibility.md Q1), bounded
   retries.
 - 🆕 `core::verify`: `Content-Length` vs feed `size`, streamed SHA-256 vs feed `sha256`, minisign signature vs the
-  embedded public key (the `minisign-verify` crate the Tauri updater uses; https://docs.rs/minisign-verify; the spec
+  embedded public key, `tools/feed-contract/keys/krate-signing.pub` compiled in (Phase 2 FR-061; the `minisign-verify` crate the Tauri updater uses; https://docs.rs/minisign-verify; the spec
   confirms the current version; docs.rs shows 0.3.0 on 2026-10-29, whose `Signature::trusted_comment(&self) -> &str`
   exposes the trusted comment; research saw 0.2.5 and the updater's move to 0.3, self_update.md KQ1), and the
   trusted-comment binding: the comment must parse under the Phase 1 C3 grammar and its plugin, version, platform key
@@ -792,8 +797,10 @@ Components:
   (first public version 0.1.0), re-runs `tools/lint-manager-version.js` and refuses to run if `tauri.conf.json` /
   `Cargo.toml` disagree, if `apps/krate-manager/CHANGELOG.md` has no entry for that version, or if the tag exists;
   `create-release` job (tag `manager/v<ver>`), `tauri-apps/tauri-action`
-  matrix with `tagName` set so `latest.json` carries per-tag URLs (report line 65), the signing secret, then
-  `feed.yml` to publish `manager/latest.json` and the `manager` block.
+  matrix with `tagName` set so `latest.json` carries per-tag URLs (report line 65), the signing secret
+  `TAURI_SIGNING_PRIVATE_KEY` with its password `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (both environment secrets of the
+  main-only `signing` environment, Phase 2 FR-061), the updater `pubkey` taken from
+  `tools/feed-contract/keys/krate-signing.pub`, then `feed.yml` to publish `manager/latest.json` and the `manager` block.
 - **One universal macOS manager build, Intel Macs included (Q6 ruled: macOS 15 and later, `minimumSystemVersion`
   15.0).** The macOS leg runs `macos-latest` with
   `args: --target universal-apple-darwin` (both rustup targets installed) and `updaterJsonKeepUniversal: true`, as
@@ -904,7 +911,7 @@ Does NOT: add features beyond v1 scope.
 ```
 Phase 1  ✅ contracts C1-C4 (Linux tar layout), gen-feed.js, KAT fixture, feed-tools.yml
   │
-  ├──► Phase 2  SHA256SUMS, signatures, release.json, dry_run, backfill-sign ──► Phase 3  feed.yml (+ dry_run) + Pages ─┐
+  ├──► Phase 2✅SHA256SUMS, signatures, release.json, dry_run, backfill-sign ──► Phase 3  feed.yml (+ dry_run) + Pages ─┐
   │                                                                                                                      │
   │    Phase 4  scaffold, Platform/Roots, settings model, version.json + lint, manager-ci (precedes every Part B phase)  │
   │       │                                                                                                              │

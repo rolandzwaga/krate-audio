@@ -1,0 +1,917 @@
+{
+  "repo": "krate-fixture/backfill",
+  "releases": [
+    {
+      "tagName": "alphaplug/v1.3.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-01-01T12:00:00Z",
+      "assets": [
+        {
+          "name": "Alphaplug-1.3.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Alphaplug-1.3.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Alphaplug-1.3.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "alphaplug/v1.3.0-beta.1",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-02T12:01:00Z",
+      "assets": [
+        {
+          "name": "Alphaplug-1.3.0-beta.1-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Alphaplug-1.3.0-beta.1-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Alphaplug-1.3.0-beta.1-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "alphaplug/v1.2.0",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-03T12:02:00Z",
+      "assets": [
+        {
+          "name": "Alphaplug-1.2.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Alphaplug-1.2.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Alphaplug-1.2.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "alphaplug/v1.1.0",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-04T12:03:00Z",
+      "assets": [
+        {
+          "name": "Alphaplug-1.1.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Alphaplug-1.1.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Alphaplug-1.1.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "betaplug/v2.1.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-01-05T12:04:00Z",
+      "assets": [
+        {
+          "name": "Betaplug-2.1.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Betaplug-2.1.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Betaplug-2.1.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "betaplug/v2.1.0-rc.1",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-06T12:05:00Z",
+      "assets": [
+        {
+          "name": "Betaplug-2.1.0-rc.1-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Betaplug-2.1.0-rc.1-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Betaplug-2.1.0-rc.1-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "betaplug/v2.0.1",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-07T12:06:00Z",
+      "assets": [
+        {
+          "name": "Betaplug-2.0.1-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Betaplug-2.0.1-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Betaplug-2.0.1-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "betaplug/v2.0.0",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-08T12:07:00Z",
+      "assets": [
+        {
+          "name": "Betaplug-2.0.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Betaplug-2.0.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Betaplug-2.0.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "gammaplug/v0.13.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-01-09T12:08:00Z",
+      "assets": [
+        {
+          "name": "Gammaplug-0.13.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Gammaplug-0.13.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Gammaplug-0.13.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "gammaplug/v0.13.0-alpha.2",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-10T12:09:00Z",
+      "assets": [
+        {
+          "name": "Gammaplug-0.13.0-alpha.2-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Gammaplug-0.13.0-alpha.2-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Gammaplug-0.13.0-alpha.2-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "gammaplug/v0.12.0",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-11T12:10:00Z",
+      "assets": [
+        {
+          "name": "Gammaplug-0.12.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Gammaplug-0.12.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Gammaplug-0.12.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "gammaplug/v0.9.0",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-12T12:11:00Z",
+      "assets": [
+        {
+          "name": "Gammaplug-0.9.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Gammaplug-0.9.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Gammaplug-0.9.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "deltaplug/v1.11.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-01-13T12:12:00Z",
+      "assets": [
+        {
+          "name": "Deltaplug-1.11.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Deltaplug-1.11.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Deltaplug-1.11.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "deltaplug/v1.11.0-beta.1",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-14T12:13:00Z",
+      "assets": [
+        {
+          "name": "Deltaplug-1.11.0-beta.1-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Deltaplug-1.11.0-beta.1-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Deltaplug-1.11.0-beta.1-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "deltaplug/v1.10.0",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-15T12:14:00Z",
+      "assets": [
+        {
+          "name": "Deltaplug-1.10.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Deltaplug-1.10.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Deltaplug-1.10.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "deltaplug/v1.9.3",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-16T12:15:00Z",
+      "assets": [
+        {
+          "name": "Deltaplug-1.9.3-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Deltaplug-1.9.3-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Deltaplug-1.9.3-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "epsilonplug/v3.5.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-01-17T12:16:00Z",
+      "assets": [
+        {
+          "name": "Epsilonplug-3.5.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Epsilonplug-3.5.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Epsilonplug-3.5.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "epsilonplug/v3.5.0-rc.2",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-18T12:17:00Z",
+      "assets": [
+        {
+          "name": "Epsilonplug-3.5.0-rc.2-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Epsilonplug-3.5.0-rc.2-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Epsilonplug-3.5.0-rc.2-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "epsilonplug/v3.4.5",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-19T12:18:00Z",
+      "assets": [
+        {
+          "name": "Epsilonplug-3.4.5-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Epsilonplug-3.4.5-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Epsilonplug-3.4.5-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "epsilonplug/v3.4.4",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-20T12:19:00Z",
+      "assets": [
+        {
+          "name": "Epsilonplug-3.4.4-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Epsilonplug-3.4.4-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Epsilonplug-3.4.4-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "zetaplug/v1.1.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-01-21T12:20:00Z",
+      "assets": [
+        {
+          "name": "Zetaplug-1.1.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Zetaplug-1.1.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Zetaplug-1.1.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "zetaplug/v1.1.0-beta.3",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-22T12:21:00Z",
+      "assets": [
+        {
+          "name": "Zetaplug-1.1.0-beta.3-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Zetaplug-1.1.0-beta.3-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Zetaplug-1.1.0-beta.3-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "zetaplug/v1.0.0",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-23T12:22:00Z",
+      "assets": [
+        {
+          "name": "Zetaplug-1.0.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Zetaplug-1.0.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Zetaplug-1.0.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "zetaplug/v0.9.9",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-24T12:23:00Z",
+      "assets": [
+        {
+          "name": "Zetaplug-0.9.9-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Zetaplug-0.9.9-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Zetaplug-0.9.9-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "etaplug/v0.9.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-01-25T12:24:00Z",
+      "assets": [
+        {
+          "name": "Etaplug-0.9.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Etaplug-0.9.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Etaplug-0.9.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "etaplug/v0.9.0-beta.1",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-26T12:25:00Z",
+      "assets": [
+        {
+          "name": "Etaplug-0.9.0-beta.1-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Etaplug-0.9.0-beta.1-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Etaplug-0.9.0-beta.1-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "etaplug/v0.8.2",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-27T12:26:00Z",
+      "assets": [
+        {
+          "name": "Etaplug-0.8.2-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Etaplug-0.8.2-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Etaplug-0.8.2-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "etaplug/v0.8.1",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-01-28T12:27:00Z",
+      "assets": [
+        {
+          "name": "Etaplug-0.8.1-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Etaplug-0.8.1-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Etaplug-0.8.1-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "thetaplug/v4.2.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-02-01T12:28:00Z",
+      "assets": [
+        {
+          "name": "Thetaplug-4.2.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Thetaplug-4.2.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Thetaplug-4.2.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "thetaplug/v4.2.0-alpha.1",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-02-02T12:29:00Z",
+      "assets": [
+        {
+          "name": "Thetaplug-4.2.0-alpha.1-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Thetaplug-4.2.0-alpha.1-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Thetaplug-4.2.0-alpha.1-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "thetaplug/v4.1.0",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-02-03T12:30:00Z",
+      "assets": [
+        {
+          "name": "Thetaplug-4.1.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Thetaplug-4.1.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Thetaplug-4.1.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "thetaplug/v4.0.12",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-02-04T12:31:00Z",
+      "assets": [
+        {
+          "name": "Thetaplug-4.0.12-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Thetaplug-4.0.12-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Thetaplug-4.0.12-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "iotaplug/v1.1.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-02-05T12:32:00Z",
+      "assets": [
+        {
+          "name": "Iotaplug-1.1.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Iotaplug-1.1.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Iotaplug-1.1.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "iotaplug/v1.1.0-rc.1",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-02-06T12:33:00Z",
+      "assets": [
+        {
+          "name": "Iotaplug-1.1.0-rc.1-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Iotaplug-1.1.0-rc.1-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Iotaplug-1.1.0-rc.1-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "iotaplug/v1.0.4",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-02-07T12:34:00Z",
+      "assets": [
+        {
+          "name": "Iotaplug-1.0.4-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Iotaplug-1.0.4-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Iotaplug-1.0.4-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "iotaplug/v1.0.3",
+      "isPrerelease": false,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-02-08T12:35:00Z",
+      "assets": [
+        {
+          "name": "Iotaplug-1.0.3-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Iotaplug-1.0.3-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Iotaplug-1.0.3-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "kappaplug/v0.2.0",
+      "isPrerelease": false,
+      "isDraft": true,
+      "isImmutable": false,
+      "publishedAt": "2026-02-09T12:36:00Z",
+      "assets": [
+        {
+          "name": "Kappaplug-0.2.0-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Kappaplug-0.2.0-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Kappaplug-0.2.0-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    },
+    {
+      "tagName": "kappaplug/v0.1.0-beta.1",
+      "isPrerelease": true,
+      "isDraft": false,
+      "isImmutable": false,
+      "publishedAt": "2026-02-10T12:37:00Z",
+      "assets": [
+        {
+          "name": "Kappaplug-0.1.0-beta.1-Windows-x64.exe",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Kappaplug-0.1.0-beta.1-macOS.pkg",
+          "size": "auto",
+          "digest": "auto"
+        },
+        {
+          "name": "Kappaplug-0.1.0-beta.1-Linux-x64.tar.gz",
+          "size": "auto",
+          "digest": "auto"
+        }
+      ]
+    }
+  ]
+}

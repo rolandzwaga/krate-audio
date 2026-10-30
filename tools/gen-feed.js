@@ -769,4 +769,5 @@ module.exports = {
   cutChangelogSection,
   extractAppId,
   assembleEntry,
+  selectReleases,
 };

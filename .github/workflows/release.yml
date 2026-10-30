@@ -46,6 +46,10 @@ on:
         description: 'Mark as pre-release?'
         type: boolean
         default: false
+      dry_run:
+        description: 'Build, sign with a throwaway key and upload as workflow artifacts only: no tag, no release, no Pages deploy'
+        type: boolean
+        default: false
 
 # Prevent duplicate runs
 concurrency:
@@ -336,6 +340,34 @@ jobs:
             --install-location / \
             "${PLUGIN_NAME}-${VERSION}-macOS.pkg"
 
+      - name: Setup Node (facts)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Record macOS facts
+        env:
+          PKG: ${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
+        run: |
+          set -euo pipefail
+          pkgutil --expand-full "$PKG" "$RUNNER_TEMP/pkg-x"
+          node tools/release-facts.js darwin --pkg "$PKG" --expanded "$RUNNER_TEMP/pkg-x" --out darwin-facts.json > "$RUNNER_TEMP/macho.tsv"
+          while IFS=$'\t' read -r want file; do
+            got=$(lipo -archs "$RUNNER_TEMP/pkg-x/$file" | tr ' ' '\n' | sed '/^$/d' | LC_ALL=C sort | paste -sd ' ' -)
+            if [ "$got" != "$want" ]; then echo "::error::lipo -archs '$file' = '$got', release-facts = '$want'"; exit 1; fi
+          done < "$RUNNER_TEMP/macho.tsv"
+          jq -r '"platform_key=\(.platform_key) min_os=\(.min_os)"' darwin-facts.json
+
+      - name: Upload macOS facts
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-facts
+          path: darwin-facts.json
+          if-no-files-found: error
+
       - name: Upload Installer
         uses: actions/upload-artifact@v7
         with:
@@ -402,6 +434,36 @@ jobs:
           cd staging
           tar -czvf ../${PLUGIN_NAME}-${VERSION}-Linux-x64.tar.gz *
 
+      - name: Setup Node (facts)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Record Linux facts
+        env:
+          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          umask 000   # PD-13: extracted modes = archive modes
+          TARBALL="${PLUGIN_NAME}-${VERSION}-Linux-x64.tar.gz"
+          node tools/release-facts.js linux-precheck --tarball "$TARBALL"   # PD-26: listing + layout before tar runs
+          mkdir -p "$RUNNER_TEMP/tar-x"
+          tar -xzf "$TARBALL" -C "$RUNNER_TEMP/tar-x"
+          objdump -T "$RUNNER_TEMP/tar-x/${PLUGIN_NAME}.vst3/Contents/x86_64-linux/${PLUGIN_NAME}.so" > "$RUNNER_TEMP/objdump.txt"
+          node tools/release-facts.js linux --tarball "$TARBALL" --extracted "$RUNNER_TEMP/tar-x" --objdump "$RUNNER_TEMP/objdump.txt" --out linux-facts.json
+          jq -r '"glibc_floor=\(.min_os) payload_files=\(.payload.files)"' linux-facts.json
+
+      - name: Upload Linux facts
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-facts
+          path: linux-facts.json
+          if-no-files-found: error
+
       - name: Upload Archive
         uses: actions/upload-artifact@v7
         with:
@@ -414,8 +476,11 @@ jobs:
     name: Create Release
     needs: [version, windows-installer, macos-installer, linux-archive]
     runs-on: ubuntu-latest
+    environment: signing
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     outputs:
       release_url: ${{ steps.release.outputs.url }}
 
@@ -510,9 +575,113 @@ jobs:
           echo "=== Generated Release Notes ==="
           cat release_notes.md
 
+      - name: Tag must not exist                 # PD-21: never replace a published release's assets
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then echo "::error::tag $TAG already exists"; exit 1; fi
+          gh release list --repo "${{ github.repository }}" --limit 1000 --json tagName | jq -r '.[].tagName' > "$RUNNER_TEMP/release-tags.txt"
+          test "$(wc -l < "$RUNNER_TEMP/release-tags.txt")" -lt 1000
+          if grep -Fxq -- "$TAG" "$RUNNER_TEMP/release-tags.txt"; then echo "::error::release $TAG already exists"; exit 1; fi
+
+      - name: Download macOS facts
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-facts
+          path: facts
+
+      - name: Download Linux facts
+        uses: actions/download-artifact@v8
+        with:
+          name: linux-facts
+          path: facts
+
+      - name: Setup Node (signing)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Cache rsign2                       # as feed-tools.yml
+        id: rsign-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/rsign
+            ~/.cargo/bin/rsign.exe
+          key: rsign2-0.6.7-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install rsign2
+        if: steps.rsign-cache.outputs.cache-hit != 'true'
+        run: cargo install rsign2 --version 0.6.7 --locked
+
+      - name: Check rsign2 version
+        run: test "$(rsign --version)" = "rsign2 0.6.7"
+
+      - name: Signing configuration and key
+        env:
+          KRATE_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KRATE_SIGNING_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          MODE=$(node tools/gen-release-manifest.js --signing-config --dry-run ${{ inputs.dry_run }} --public-key tools/feed-contract/keys/krate-signing.pub)
+          echo "$MODE"
+          case "$MODE" in
+            signing=throwaway) rsign generate -W -p "$RUNNER_TEMP/krate.pub" -s "$RUNNER_TEMP/krate.key" < /dev/null ;;
+            signing=on)
+              node tools/minisign.js decrypt-key --out "$RUNNER_TEMP/krate.key"
+              cp tools/feed-contract/keys/krate-signing.pub "$RUNNER_TEMP/krate.pub" ;;
+            *) echo "::error::unexpected signing mode"; exit 1 ;;
+          esac
+
+      - name: Sign assets
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+        run: |
+          set -euo pipefail
+          node tools/gen-release-manifest.js --trusted-comments --version-json "plugins/${PLUGIN}/version.json" \
+            --assets installers --darwin-facts facts/darwin-facts.json > "$RUNNER_TEMP/comments.tsv"
+          test "$(wc -l < "$RUNNER_TEMP/comments.tsv")" -eq 3
+          while IFS=$'\t' read -r asset comment; do
+            rsign sign -W -s "$RUNNER_TEMP/krate.key" -t "$comment" -x "installers/${asset}.minisig" "installers/${asset}" < /dev/null
+          done < "$RUNNER_TEMP/comments.tsv"
+
+      - name: Delete signing key (after signing)  # PD-20: no later step runs while the key exists
+        run: rm -f "$RUNNER_TEMP/krate.key"
+
+      - name: Write release.json and SHA256SUMS
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          node tools/gen-release-manifest.js --version-json "plugins/${PLUGIN}/version.json" \
+            --setup-iss "plugins/${PLUGIN}/installers/windows/setup.iss" --assets installers \
+            --darwin-facts facts/darwin-facts.json --linux-facts facts/linux-facts.json \
+            --repo "${{ github.repository }}" --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --public-key "$RUNNER_TEMP/krate.pub" --out installers/release.json --sums-out installers/SHA256SUMS
+          test "$(jq -r .tag installers/release.json)" = "$TAG"   # PD-11
+
+      - name: Verify signatures and sums
+        run: |
+          set -euo pipefail
+          cd installers
+          while IFS=$'\t' read -r asset comment; do
+            node ../tools/minisign.js verify -p "$RUNNER_TEMP/krate.pub" -x "${asset}.minisig" "${asset}"
+            rsign verify -p "$RUNNER_TEMP/krate.pub" -x "${asset}.minisig" "${asset}"
+          done < "$RUNNER_TEMP/comments.tsv"
+          sha256sum -c SHA256SUMS
+
       # Create GitHub Release and tag
       - name: Create Release
         id: release
+        if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
@@ -520,10 +689,54 @@ jobs:
           draft: false
           prerelease: ${{ inputs.prerelease }}
           body_path: release_notes.md
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          fail_on_unmatched_files: true
+          overwrite_files: false
           files: |
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
+            installers/SHA256SUMS
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe.minisig
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg.minisig
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz.minisig
+            installers/release.json
+
+      - name: Attest build provenance              # PD-12: after the release exists
+        if: ${{ !inputs.dry_run }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
+
+      - name: Stage dry-run artifact
+        if: ${{ inputs.dry_run }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-dry-run"
+          cp installers/* "$RUNNER_TEMP/release-dry-run/"
+          cp "$RUNNER_TEMP/krate.pub" "$RUNNER_TEMP/release-dry-run/krate.pub"
+
+      - name: Upload dry-run artifact
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-dry-run
+          path: ${{ runner.temp }}/release-dry-run
+          if-no-files-found: error
+
+      - name: Verify dry-run artifact            # FR-048: the Node verifier over the real assets
+        if: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/release-dry-run"
+          while IFS=$'\t' read -r asset comment; do node "$GITHUB_WORKSPACE/tools/minisign.js" verify -p krate.pub -x "${asset}.minisig" "${asset}"; done < "$RUNNER_TEMP/comments.tsv"
+
+      - name: Delete signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/krate.key"
 
   # Deploy plugin landing page to GitHub Pages (incremental via gh-pages branch)
   # Each release updates only its plugin subdirectory and regenerates the root index.
@@ -531,6 +744,7 @@ jobs:
   deploy-pages:
     name: Deploy Landing Page
     needs: [version, release]
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

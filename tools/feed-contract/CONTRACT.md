@@ -418,7 +418,7 @@ Phase 5's Rust client reuses these names where it rejects the same thing.
 | Code | Class | Raised by | Meaning |
 |---|---|---|---|
 | `E_USAGE` | usage | gen-feed CLI | bad or missing flags, a repeated flag, conflicting modes (stderr: the usage line) |
-| `E_INPUT` | abort | gen-feed | a missing, unreadable or unparseable input file, a malformed `releases.json` row, a bad `--tags` line, a bad `--repo`, a bad `--manager-latest-url`, a duplicate `tagName` in `releases.json`, a non-draft `publishedAt` outside the `pub_date` pattern, a failed `--out` write |
+| `E_INPUT` | abort | gen-feed, `minisign.js`, `release-facts.js`, `gen-release-manifest.js`, `backfill-sign.js` | a missing, unreadable or unparseable input file, a malformed `releases.json` row, a bad `--tags` line, a bad `--repo`, a bad `--manager-latest-url`, a duplicate `tagName` in `releases.json`, a non-draft `publishedAt` outside the `pub_date` pattern, a failed `--out` write |
 | `E_PLUGIN_NAME` | abort | gen-feed | a `version.json` `name` that is not a string, not `^[A-Z][A-Za-z0-9]{0,63}$`, or a Windows reserved device name in any case (PD-14) |
 | `E_V1_TYPE` | abort | gen-feed | an input that would put a non-string in a v1 key (a non-string `version.json` `url`) |
 | `E_DUPLICATE_PLUGIN` | abort | gen-feed | two plugin directories whose `name`s are equal after `toLowerCase()` (PD-13: `Alpha` and `ALPHA` name one folder on NTFS and default APFS and select the same `alpha/v*` tags) |
@@ -430,16 +430,16 @@ Phase 5's Rust client reuses these names where it rejects the same thing.
 | `E_MANIFEST_SCHEMA` | degrade | `checkReleaseManifest`, `checkAssembledEntry`, gen-feed | a C2 schema failure, a `channel` key, an unparseable manifest file (PD-8), the tag / name / version / asset-name / `vst3_bundle` / `au_component` naming rules of FR-017; an assembled entry that fails C1 on its own (PD-10) |
 | `E_MANIFEST_DUPLICATE` | degrade | gen-feed | two manifest files with the same `tag` (both ignored; the plugin degrades when the tag is selected) (PD-8, Clarifications 2026-10-30 Q-A) |
 | `E_MANIFEST_MISMATCH` | degrade | gen-feed | FR-043 check 1 (`preset_subdir`, `macos_pkg_id`) or check 2 (`windows_uninstall_key` against the `setup.iss` AppId, a missing file, no `AppId=` line) |
-| `E_SIGNATURE_TEXT` | degrade | `parseMinisigText` | not four lines, a missing prefix, bad or non-canonical base64, a blob other than 74 bytes, an algorithm other than `ED`, a global signature other than 64 bytes, a CR in a C1/C2 value |
+| `E_SIGNATURE_TEXT` | degrade | `parseMinisigText`, `minisign.js` verify | not four lines, a missing prefix, bad or non-canonical base64, a blob other than 74 bytes, an algorithm other than `ED`, a global signature other than 64 bytes, a CR in a C1/C2 value |
 | `E_TC_FIELDS` | degrade | `parseTrustedComment` | not exactly six `:` fields, field 0 not `krate`, field 1 not `1`, a CR or LF in the comment |
 | `E_TC_NAME` | degrade | `parseTrustedComment` | the `<Name>` field fails FR-020 (empty included) |
 | `E_TC_VERSION` | degrade | `parseTrustedComment` | the `<version>` field fails FR-020 (empty included) |
 | `E_TC_PLATFORM` | degrade | `parseTrustedComment` | the `<platform-key>` field is not one of the five defined keys |
 | `E_TC_ASSET` | degrade | `parseTrustedComment` | the `<asset-file-name>` field fails FR-020 (empty, `.` and `..` included) |
-| `E_TC_BINDING` | degrade | `checkBinding` | a trusted-comment field differs from the expected metadata (names the first differing field) |
+| `E_TC_BINDING` | degrade | `checkBinding`, `gen-release-manifest.js` | a trusted-comment field differs from the expected metadata (names the first differing field) |
 | `E_INSTALL_VALUE` | degrade | `checkInstallValues` | an `install` value with `/`, `\`, `:`, `..`, a reserved device stem or a trailing space (PD-14), or outside its FR-008 pattern |
 | `E_INSTALL_DUPLICATE` | degrade | `validateFeed`, gen-feed | FR-014: two plugins share an install value; `vst3_bundle`, `au_component`, `macos_pkg_id` compared after ASCII case folding, `windows_uninstall_key` exactly (PD-13); every plugin sharing the value degrades |
-| `E_LAYOUT` | degrade | `checkLinuxLayout` | an FR-033 root or bundle item missing, of the wrong type, or extra (names the item) |
+| `E_LAYOUT` | degrade | `checkLinuxLayout`, `release-facts.js`, `backfill-sign.js` `facts` | an FR-033 root or bundle item missing, of the wrong type, or extra (names the item) |
 | `E_LISTING_PATH` | degrade | `listing.js` | invalid UTF-8, NUL / CR / LF, empty: in an entry path or a link target; a ` -> ` substring in an entry path |
 | `E_LISTING_ABSOLUTE` | degrade | `listing.js` | a leading `/` in an entry path or a link target |
 | `E_LISTING_DRIVE` | degrade | `listing.js` | a `^[A-Za-z]:` drive prefix in an entry path or a link target |
@@ -457,9 +457,36 @@ Phase 5's Rust client reuses these names where it rejects the same thing.
 | `E_LISTING_CORRUPT` | degrade | `listingFromTarGz` | a gzip error, a non-octal or base-256 numeric field, a malformed pax record |
 | `E_LISTING_NOT_CANONICAL` | degrade | `checkReleaseManifest` | a `payload.list` that is not its own canonical form |
 | `E_LISTING_COUNT` | degrade | `checkReleaseManifest` | `payload.files` differs from `list.length` |
-| `E_LISTING_DIGEST` | degrade | `checkReleaseManifest` | `payload.sha256` differs from `digest(list)` |
+| `E_LISTING_DIGEST` | degrade | `checkReleaseManifest`, `gen-release-manifest.js` | `payload.sha256` differs from `digest(list)` |
 | `E_LISTING_NO_POSIX_MODES` | none | `listingFromDirectory` | called on Windows, which has no POSIX modes (D4) |
 | `E_SCHEMA` | none | `validateFeed`, `validateRelease` | an Ajv finding (carries `instancePath` and `keyword`) |
+| `E_MINISIG_PUBKEY` | none | `minisign.js` `parsePublicKey` | public-key text: first line not `untrusted comment: `, second line not canonical base64, not 42 bytes, algorithm not `Ed` |
+| `E_MINISIG_SECRET_KEY` | none | `minisign.js` `decryptSecretKey` | secret-key text malformed: not 158 bytes decoded, unknown `sig_alg` / `kdf_alg` / `chk_alg`, scrypt cost above the limits (PD-2), public half ≠ the seed's public key (PD-3) |
+| `E_MINISIG_PASSWORD` | none | `minisign.js` `decryptSecretKey` | checksum mismatch after decryption: wrong password or damaged key |
+| `E_MINISIG_KEY_ID` | none | `minisign.js` `verifyBuffer` / `verifyFile` | the signature's key id differs from the public key's |
+| `E_MINISIG_SIGNATURE` | none | `minisign.js` | the Ed25519 signature over Blake2b-512 of the data does not verify |
+| `E_MINISIG_GLOBAL` | none | `minisign.js` | the global signature over signature ‖ trusted comment does not verify |
+| `E_FACTS_NO_MACHO` | none | `release-facts.js` | the expanded pkg holds no Mach-O |
+| `E_FACTS_ARCH` | none | `release-facts.js` | a thin 32-bit or big-endian 64-bit Mach-O, an unknown `cputype`, an arm64 subtype other than ALL/V8, a 32-bit or unknown fat slice |
+| `E_FACTS_ARCH_MISMATCH` | none | `release-facts.js` | two Mach-Os in one pkg report different architecture sets |
+| `E_FACTS_NO_MINOS` | none | `release-facts.js` | a slice has neither `LC_BUILD_VERSION` (macOS) nor `LC_VERSION_MIN_MACOSX` |
+| `E_FACTS_MACHO_CORRUPT` | none | `release-facts.js` | a header, slice or load command runs past the buffer; `nfat_arch` 0; `cmdsize` < 8 |
+| `E_FACTS_NO_GLIBC` | none | `release-facts.js` | `objdump -T` output names no `GLIBC_<n>.<n>[.<n>]` |
+| `E_FACTS_LISTING_MISMATCH` | none | `release-facts.js` | the extracted tree's listing differs from the tarball's (names the first differing line) |
+| `E_FACTS_LIPO_MISMATCH` | none | `backfill-sign.js` `facts` | `lipo -archs` disagrees with the Node architecture set (names the file) |
+| `E_FACTS_STALE` | none | `gen-release-manifest.js` | a facts file's `asset`, `size` or `sha256` differs from the asset in `--assets` |
+| `E_FACTS_MISSING` | none | `backfill-sign.js` `apply` | a planned release has no darwin or linux facts file and no facts-report entry |
+| `E_ASSET_MISSING` | none | `gen-release-manifest.js` | one of the three assets or its `.minisig` is absent from `--assets` |
+| `E_VERSION_MISMATCH` | none | `backfill-sign.js` `apply` | the tag's `version.json` `version` differs from the tag's version |
+| `E_SIGNING_CONFIG` | none | `gen-release-manifest.js` `signingConfig`; `backfill-sign.js` `apply` (PD-23) | a real run without a non-empty key secret, a non-empty password secret and a parsable committed public key; or a public key equal to a test key (`fixtures/kat/kat.pub`, `fixtures/phase2/kat-secret/kat.pub`), or those files unreadable in real mode |
+| `E_BACKFILL_LIST_TRUNCATED` | none | `backfill-sign.js` `plan` | `gh release list --limit 1000` returned 1000 rows |
+| `E_BACKFILL_ASSET_MISSING` | none | `backfill-sign.js` `plan` | a current release lacks one of its three asset names |
+| `E_BACKFILL_IMMUTABLE` | none | `backfill-sign.js` `plan` | the release is immutable (`isImmutable: true`) |
+| `E_BACKFILL_PARTIAL` | none | `backfill-sign.js` `plan` | `SHA256SUMS` or a `.minisig` exists without `release.json` |
+| `E_BACKFILL_SIZE` | none | `backfill-sign.js` `download` | a downloaded asset's size differs from the release listing |
+| `E_BACKFILL_DIGEST` | none | `backfill-sign.js` `download` | a downloaded asset's SHA-256 differs from GitHub's `digest` |
+| `E_BACKFILL_ASSETS_CHANGED` | none | `backfill-sign.js` `apply` (audit) | a release's asset list after the run differs from `assets_before` (+ uploads on a live run) |
+| `E_SIGN_KEY_MISMATCH` | none | `backfill-sign.js` `apply` | a signature the run produced does not verify against `--public-key` |
 
 **Exit codes of `gen-feed.js`.**
 
@@ -486,3 +513,266 @@ trusted comment: <the C3 comment that binds the asset>
 with LF endings: the blobs are zero-filled. They pass `parseMinisigText` and the C3 binding check, so they exercise
 every structural rule, but no later phase may expect them to verify cryptographically. The KAT (`fixtures/kat/`,
 section 5) is the only cryptographic fixture: Phases 2 and 7 verify it with their minisign implementations.
+
+## 9. Phase 2 tools
+
+Phase 2 (`specs/krate-manager-phase2/spec.md`, plan §4) adds four tools that make and check a release's manager files
+(`SHA256SUMS`, one `.minisig` per asset, `release.json`): `tools/minisign.js`, `tools/release-facts.js`,
+`tools/gen-release-manifest.js` and `tools/backfill-sign.js`. Each is a flat file with the `tools/gen-feed.js` form:
+first line `#!/usr/bin/env node`, a header comment with the usage and exit codes, `main(argv, io)` returning the exit
+code, `module.exports` last; tests call `main` in-process. Every expected failure is a `ContractError` whose code has
+a row in the section 7 table (the 27 Phase 2 codes carry class `none` there: they are not gen-feed outcomes, and these
+tools exit by the table in 9.2, not by a class). A failure prints one stderr line `<tool>: <CODE>: <message>`, where
+`<tool>` is the file name without `.js`. No message, stdout or stderr line ever carries a secret value, a password, a
+key byte or a base64 key line.
+
+### 9.1 Command lines
+
+The usage text each tool prints on stderr, with an `<tool>: E_USAGE: <why>` line, for a missing, unknown or repeated
+flag (exit 2):
+
+```
+usage: node tools/minisign.js verify -p <public key file> -x <.minisig file> <file>
+       node tools/minisign.js decrypt-key --out <file>   (key and password from the environment)
+
+usage: node tools/release-facts.js darwin --pkg <file> --expanded <dir> --out <json>
+       node tools/release-facts.js linux --tarball <file> --extracted <dir> --objdump <txt> --out <json>
+       node tools/release-facts.js linux-precheck --tarball <file>
+
+usage: node tools/gen-release-manifest.js --version-json <file> --setup-iss <file> --assets <dir>
+         --darwin-facts <json> --linux-facts <json> --repo <owner/name> --pub-date <YYYY-MM-DDTHH:MM:SSZ>
+         --public-key <file> --out <release.json> --sums-out <SHA256SUMS>
+       node tools/gen-release-manifest.js --trusted-comments --version-json <file> --assets <dir>
+         --darwin-facts <json>
+       node tools/gen-release-manifest.js --signing-config --dry-run <true|false> --public-key <file>
+
+usage: node tools/backfill-sign.js plan --plugins-dir <dir> --repo <owner/name> --out <plan.json>
+       node tools/backfill-sign.js download --plan <plan.json> --format <inno-exe|pkg|tar.gz> --dir <dir>
+            --repo <owner/name>
+       node tools/backfill-sign.js facts --plan <plan.json> --os <darwin|linux> --dir <download dir>
+            --work <dir> --out <facts dir>
+       node tools/backfill-sign.js apply --plan <plan.json> --plugins-dir <dir> --facts <facts dir> --key <file>
+            --public-key <file> --repo <owner/name> --work <dir> --out-dir <dir> [--dry-run]
+```
+
+What each mode writes and prints on success:
+
+- `minisign.js verify`: checks in the FR-005 order (text shape `E_SIGNATURE_TEXT`, public key `E_MINISIG_PUBKEY`, key
+  id `E_MINISIG_KEY_ID`, signature `E_MINISIG_SIGNATURE`, global signature `E_MINISIG_GLOBAL`) and prints
+  `verified: <trusted comment>`. It never checks the C3 binding (section 5); callers run `checkBinding`.
+- `minisign.js decrypt-key`: reads the key text from `KRATE_SIGNING_KEY` and its password from
+  `KRATE_SIGNING_KEY_PASSWORD` (environment only; absent or empty is `E_INPUT` naming the variable). `--out` holds no
+  `..` segment, its parent directory exists, and the parent's realpath joined with the basename is the realpath of
+  `$RUNNER_TEMP` (the OS temp directory when unset) or lies under it, case-folded on Windows, with no entry there yet
+  (plan PD-19). The unencrypted key (9.3) is written with mode `0600` through a `wx` temp file and a rename, then it
+  prints `decrypted: key id <KEYID>`. Nothing is left behind on a failure.
+- `release-facts.js darwin`: writes the darwin facts (9.4) and prints `<archs joined by a space>\t<path>` per Mach-O
+  for the workflow's `lipo -archs` cross-check. `linux`: writes the linux facts (9.4), prints nothing. `linux-precheck`
+  (plan PD-26): the tarball's listing (section 6 rules), exactly one root-level `<Name>.vst3` directory, the C4 layout
+  and `<Name>.vst3/Contents/x86_64-linux/<Name>.so` as a regular-file entry, before anything extracts the archive;
+  prints nothing. No mode runs a child process.
+- `gen-release-manifest.js` (manifest mode): checks in the FR-026 order, then writes `SHA256SUMS` (9.6) and
+  `release.json` (section 4) as one unit: both temp files first, both targets absent or regular files, the old
+  `SHA256SUMS` moved aside, the new one renamed in, `release.json` renamed in last; any failure restores the old
+  `SHA256SUMS` (plan PD-25). Prints nothing. `--trusted-comments` prints `<asset>\t<C3 comment>` per platform key,
+  keys bytewise, and reads only `--version-json` and `--darwin-facts`. `--signing-config` prints `signing=throwaway`
+  or `signing=on` (9.7).
+- `backfill-sign.js`: every effect (`gh`, `git`, `pkgutil`, `lipo`, `tar`, `objdump`, `rsign`, the log) goes through
+  an injected `deps` object; the production log is stdout. `plan` writes `plan.json` (9.5) and logs one line per
+  plugin. `download` writes one format of every planned release into `<dir>/<tag with "/" as "-">/` and
+  `<dir>/download-report.json`, then logs `digest checked: <n> of <m>`. `facts` writes
+  `<out>/<Name>-<version>.<os>.json` (9.4) and `<out>/facts-report.<os>.json`. `apply` signs and verifies in pass 1, writes `SHA256SUMS`, the three
+  `.minisig` and `release.json` to `<out-dir>/<tag with "/" as "-">/`, deletes the `--key` file, uploads in pass 2
+  (not with `--dry-run`; `SHA256SUMS` and the three `.minisig` in one call, then `release.json` alone, never
+  `--clobber`), audits every viewed release's asset list in pass 3, and logs one line per plugin
+  (`<Name>: signed | skipped (already signed) | skipped (no stable release) | reported <CODE>: <message>`), then
+  `uploads: <n>`.
+
+### 9.2 Exit codes
+
+| Tool | 0 | 1 | 2 | 3 |
+|---|---|---|---|---|
+| `minisign.js verify` | verified | rejected (`E_MINISIG_*`, `E_SIGNATURE_TEXT`) or unreadable input (`E_INPUT`) | usage | — |
+| `minisign.js decrypt-key` | key written | `E_INPUT`, `E_MINISIG_PASSWORD`, `E_MINISIG_SECRET_KEY`; nothing left behind | usage | — |
+| `release-facts.js darwin\|linux` | facts written | any `E_FACTS_*`, `E_LAYOUT`, `E_LISTING_*`, `E_INPUT`; `--out` untouched | usage | — |
+| `release-facts.js linux-precheck` | listing and layout pass | `E_LAYOUT`, `E_LISTING_*`, `E_INPUT` | usage | — |
+| `gen-release-manifest.js` (all modes) | written / printed | abort, nothing written or changed (FR-026, plan PD-25), `E_SIGNING_CONFIG` included | usage | — |
+| `backfill-sign.js plan` | loop finished (per-release failures recorded in `plan.json`) | abort, no plan file written (`E_BACKFILL_LIST_TRUNCATED`, `E_TAG_FORMAT`, a `gh release list` failure, an unreadable `--plugins-dir`) | usage | — |
+| `backfill-sign.js download\|facts` | loop finished (per-release failures recorded in the report) | abort (an unreadable `--plan` or download report, an uncreatable directory) | usage | — |
+| `backfill-sign.js apply` | nothing reported | abort (`E_SIGNING_CONFIG`, `E_SIGN_KEY_MISMATCH`, `E_BACKFILL_ASSETS_CHANGED`, `E_INPUT` for a missing facts report, an unreadable `--plan` or `--public-key`, a `--key` file that cannot be removed, or a `gh` failure outside one release) | usage | at least one release reported (an upload failure included), the rest signed |
+
+### 9.3 minisign byte layouts
+
+Sources: the format page https://jedisct1.github.io/minisign/ (minisign 0.12) and the source of the `minisign` crate
+0.9.1, the version rsign2 0.6.7 depends on (`rsign2-0.6.7/Cargo.toml:55-56`); paths below are under
+`minisign-0.9.1/src/`. Offsets are into the base64-decoded line 2. All three files are text, LF or CRLF accepted on
+input; the tools write LF with a final LF (`contract.js` `toLfMinisig`).
+
+**Public key** (`tools/feed-contract/keys/krate-signing.pub`, `fixtures/kat/kat.pub`): two lines. Line 1 is
+`untrusted comment: minisign public key: <KEYID>`, where `<KEYID>` is the key id read as a little-endian u64 and
+printed `{:016X}` (`public_key.rs:165-172`), that is the eight stored bytes reversed in upper-case hex
+(`fixtures/kat/kat.pub` line 1 ends `440FA75168B852F7`). Line 2 decodes to 42 bytes (`public_key.rs:89-101`,
+`:123-127`):
+
+| Bytes | Field | Source |
+|---|---|---|
+| 0-1 | signature algorithm `Ed` | `constants.rs:37` (`SIGALG`) |
+| 2-9 | key id (8 bytes, random at generation) | `constants.rs:25` (`KEYNUM_BYTES`) |
+| 10-41 | Ed25519 public key | `constants.rs:33` (`PUBLICKEY_BYTES`) |
+
+`minisign.js` imports bytes 10-41 behind the RFC 8410 SubjectPublicKeyInfo header `302a300506032b6570032100`. Any
+other line count, prefix, length or algorithm is `E_MINISIG_PUBKEY`.
+
+**Signature** (`<asset>.minisig`): four lines (`signature_box.rs:133-160`):
+
+```
+untrusted comment: <free text; minisign.js writes "signature from krate minisign.js">
+<base64 of the 74-byte signature blob below>
+trusted comment: <the C3 comment of section 5>
+<base64 of the 64-byte global signature>
+```
+
+| Line 2 bytes | Field | Source |
+|---|---|---|
+| 0-1 | algorithm `ED` (prehashed; legacy `Ed` is `E_SIGNATURE_TEXT`) | `constants.rs:36` (`SIGALG_PREHASHED`), `lib.rs:95` |
+| 2-9 | key id, equal to the public key's or `E_MINISIG_KEY_ID` | `signature.rs:9-25` |
+| 10-73 | Ed25519 signature over Blake2b-512 of the file | `lib.rs:41-47` (`prehash`, `PREHASH_BYTES` 64), `lib.rs:85`, `:100` |
+
+Line 4 is the Ed25519 signature over the 64 signature bytes (line 2 bytes 10-73) followed by the UTF-8 trusted comment
+without its `trusted comment: ` prefix (`lib.rs:103-108`). `rsign verify` prints `Signature and comment signature
+verified` and `Trusted comment: <comment>` on stderr (`lib.rs:202-204`).
+
+**Secret key** (rsign2, minisign and `tauri signer generate` keys): two lines; line 1 is an untrusted comment and
+line 2 decodes to 158 bytes (`secret_key.rs:79-87`, read in this order by `secret_key.rs:170-203`). A
+`TAURI_SIGNING_PRIVATE_KEY` secret holds that two-line text base64-encoded once more as one line;
+`decryptSecretKey` accepts either form.
+
+| Bytes | Field | Source |
+|---|---|---|
+| 0-1 | signature algorithm `Ed` | `constants.rs:37` |
+| 2-3 | KDF algorithm: `Sc` (scrypt, encrypted) or `00 00` (unencrypted) | `constants.rs:22-23` |
+| 4-5 | checksum algorithm `B2` | `constants.rs:19` |
+| 6-37 | scrypt salt (32 bytes) | `secret_key.rs:83`, `constants.rs:24` |
+| 38-45 | scrypt opslimit, u64 little-endian | `secret_key.rs:84` |
+| 46-53 | scrypt memlimit, u64 little-endian | `secret_key.rs:85` |
+| 54-61 | key id (8 bytes) | `constants.rs:25` |
+| 62-125 | Ed25519 secret key: seed (32) then public key (32) | `constants.rs:34`, `crypto/ed25519.rs:57-70` |
+| 126-157 | checksum: BLAKE2b with a 32-byte digest over bytes 0-1, 54-61 and 62-125 | `secret_key.rs:96-104`, `constants.rs:20` |
+
+When bytes 2-3 are `Sc`, bytes 54-157 are XORed, in that order, with a 104-byte scrypt keystream of the UTF-8
+password and the salt (`secret_key.rs:106-128`). The scrypt parameters come from minisign's `raw_scrypt_params(memlimit,
+opslimit)` (`helpers.rs:45-74`), ported exactly; the default key (`MEMLIMIT` 33554432, `OPSLIMIT` 1048576,
+`constants.rs:26-27`) gives N = 2^15, r = 8, p = 1, run with `maxmem` 2 x 128 x N x r. A memlimit above 1 GiB
+(`MEMLIMIT_MAX`, `constants.rs:28`), log2(N) above 20 (`N_LOG2_MAX`, `constants.rs:29`) or a cost 128 x N x r x p
+above 2 GiB (plan PD-2) is `E_MINISIG_SECRET_KEY`. The 32-byte checksum is not a truncated BLAKE2b-512 (the digest
+length is in the BLAKE2b parameter block, RFC 7693 §2.5), so `minisign.js` carries its own RFC 7693 BLAKE2b for it.
+A checksum mismatch after decryption is `E_MINISIG_PASSWORD` (rsign's "Wrong password for that key",
+`secret_key.rs:288`); on an unencrypted key it is `E_MINISIG_SECRET_KEY`. Bytes 94-125 must equal the public key
+derived from the seed (bytes 62-93), else `E_MINISIG_SECRET_KEY` (plan PD-3). `minisign.js` imports the seed behind
+the RFC 8410 PKCS#8 header `302e020100300506032b657004220420`.
+
+`decrypt-key` writes the unencrypted layout that `generate_unencrypted_keypair` writes (`keypair.rs:29-55`): bytes 2-3
+`00 00`, bytes 6-53 zero, bytes 54-125 in clear, the checksum over the clear bytes, and the line-1 comment text
+`krate decrypted secret key (runner temp only)`. `rsign sign -W` reads such a key without a password, because it tries
+the key as unencrypted first (`rsign2-0.6.7/src/bin/rsign/main.rs:103-113`).
+
+### 9.4 Facts files
+
+Both are `JSON.stringify(doc, null, 2) + "\n"`, keys in the order shown, written through a temp file and a rename.
+`gen-release-manifest.js` refuses a facts file whose `asset`, `size` or `sha256` differs from the asset it describes
+(`E_FACTS_STALE`), and a linux `payload` that differs from the tarball's own listing (`E_LISTING_DIGEST`).
+
+Darwin (`release-facts.js darwin --out`; `backfill-sign.js facts --os darwin` writes `<Name>-<version>.darwin.json`):
+
+```
+{
+  "asset": "<Name>-<version>-macOS.pkg",
+  "size": <bytes of the pkg>,
+  "sha256": "<64 lower-case hex of the pkg>",
+  "platform_key": "darwin-universal" | "darwin-aarch64" | "darwin-x86_64",
+  "min_os": "<X.Y, or X.Y.Z when the patch is not 0>",
+  "archs": ["arm64", "x86_64"],
+  "macho": [
+    { "path": "<path relative to the expanded pkg, / separators>", "archs": ["arm64", "x86_64"], "min_os": "<X.Y>" }
+  ]
+}
+```
+
+`archs` is the one architecture set every Mach-O reports (`E_FACTS_ARCH_MISMATCH` otherwise), sorted bytewise;
+`platform_key` follows from it (`{arm64, x86_64}`, `{arm64}`, `{x86_64}`; any other set `E_FACTS_ARCH`); `min_os` is the
+highest `minos` over every Mach-O and slice; `macho` lists every regular-file Mach-O, sorted bytewise by `path`;
+symbolic links are skipped, never followed.
+
+Linux (`release-facts.js linux --out`; `backfill-sign.js facts --os linux` writes `<Name>-<version>.linux.json`):
+
+```
+{
+  "asset": "<Name>-<version>-Linux-x64.tar.gz",
+  "size": <bytes of the tarball>,
+  "sha256": "<64 lower-case hex of the tarball>",
+  "min_os": "<the highest GLIBC_<n>.<n>[.<n>] in objdump -T of the .so, e.g. 2.34>",
+  "payload": { "files": <number of canonical listing lines>, "sha256": "<digest(listing), section 6>" }
+}
+```
+
+The listing is the tarball's (`listingFromTarGz`), and the extracted tree's listing must equal it line for line
+(`E_FACTS_LISTING_MISMATCH`, naming the first differing line).
+
+The two `backfill-sign.js` reports, `<dir>/download-report.json` and `<out>/facts-report.<os>.json`, are JSON arrays
+of `{"tag": "<tag>", "code": "<CODE>", "message": "<message>"}`, always written (`[]` when empty); a facts report starts
+with the download report's entries. `apply` treats a missing report as `E_INPUT` (that job never ran).
+
+### 9.5 plan.json
+
+Written by `backfill-sign.js plan`; releases sorted bytewise by `name`, one per `version.json` under `--plugins-dir`:
+
+```
+{
+  "repo": "<owner>/<name>",
+  "releases": [
+    { "name": "<Name>", "dir": "<plugins/ subdirectory>", "tag": "<name lower-cased>/v<X.Y.Z>",
+      "assets_before": ["<every asset name on the release at plan time, sorted bytewise>"],
+      "status": "planned", "version": "<X.Y.Z>", "publishedAt": "<YYYY-MM-DDTHH:MM:SSZ>",
+      "assets": [
+        { "name": "<Name>-<X.Y.Z>-Windows-x64.exe", "format": "inno-exe", "size": <bytes>, "digest": "sha256:<hex>" | null },
+        { "name": "<Name>-<X.Y.Z>-macOS.pkg", "format": "pkg", "size": <bytes>, "digest": "sha256:<hex>" | null },
+        { "name": "<Name>-<X.Y.Z>-Linux-x64.tar.gz", "format": "tar.gz", "size": <bytes>, "digest": "sha256:<hex>" | null }
+      ] },
+    { "name": "<Name>", "dir": "<dir>", "status": "skipped-signed", "tag": "<tag>", "assets_before": ["…"] },
+    { "name": "<Name>", "dir": "<dir>", "status": "skipped-no-stable" },
+    { "name": "<Name>", "dir": "<dir>", "status": "reported", "code": "<CODE>", "message": "<message>", "tag": "<tag>",
+      "assets_before": ["…"] }
+  ]
+}
+```
+
+The release per plugin is the one `gen-feed.js` `selectReleases` picks (section 7, the Q9 rule). Classification order:
+`release.json` present → `skipped-signed`; an asset name missing → `E_BACKFILL_ASSET_MISSING`; `isImmutable` →
+`E_BACKFILL_IMMUTABLE`; `SHA256SUMS` or a `.minisig` present → `E_BACKFILL_PARTIAL`; otherwise `planned`. A
+`reported` entry whose `gh release view` failed has no `assets_before`. `digest` is GitHub's per-asset digest or `null`
+(a best-effort check; `size` is the guaranteed one). Readers rebuild every asset name from `name` and `version` and
+require `tag` to be `<name lower-cased>/v<version>`; a listed name is compared, never used as a path.
+
+### 9.6 SHA256SUMS
+
+Three lines, one per installer asset, `<64 lower-case hex>  <asset name>` (two spaces, the GNU `sha256sum` text
+form), sorted bytewise by asset name, LF, final LF (spec D7), so `sha256sum -c SHA256SUMS` and
+`shasum -a 256 -c SHA256SUMS` work in a download folder. It is not signed: C3 has no platform key for it, and every
+asset it lists carries its own bound signature.
+
+### 9.7 Signing configuration
+
+`gen-release-manifest.js --signing-config` is the one decision of a release run (spec D6, FR-029; plan PD-23). It sees
+the two secrets only as present or absent: the workflows map `secrets.TAURI_SIGNING_PRIVATE_KEY` to
+`KRATE_SIGNING_KEY` and `secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD` to `KRATE_SIGNING_KEY_PASSWORD` in the jobs of
+the `signing` environment. `--public-key` is `tools/feed-contract/keys/krate-signing.pub`.
+
+| Run | Condition | Result |
+|---|---|---|
+| dry run (`--dry-run true`) | any; no key file is read | `signing=throwaway`: the job signs with a throwaway key made under `$RUNNER_TEMP` |
+| real run | both variables non-empty, the public key file exists and parses (`parsePublicKey`), and it is not a test key | `signing=on`: `decrypt-key` writes the key, `rsign sign -W` signs, every signature is verified against `--public-key` before upload |
+| real run | a variable absent or empty, the public key absent, unreadable or unparsable (alone or together) | `E_SIGNING_CONFIG`, exit 1, naming each missing part (secret, password, public key, in that order) and `tools/feed-contract/keys/README.md` |
+| real run | the public key's key id or 32-byte Ed25519 key equals that of `fixtures/kat/kat.pub` or `fixtures/phase2/kat-secret/kat.pub`, or either file is unreadable or unparsable (fail closed) | `E_SIGNING_CONFIG`, exit 1, `public key is a test key (<fixture path>)` |
+
+There is no unsigned real release: a real run that cannot sign fails before `Create Release`. `backfill-sign.js apply`
+applies the same test-key refusal to its `--public-key` before any download or upload.

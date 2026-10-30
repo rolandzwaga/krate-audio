@@ -10,6 +10,10 @@ on:
       - 'tools/feed-contract/package.json'
       - 'tools/feed-contract/package-lock.json'
       - '.github/workflows/feed-tools.yml'
+      - 'tools/release-facts.js'
+      - 'tools/backfill-sign.js'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/backfill-sign.yml'
   pull_request:
     paths:
       - 'tools/gen-feed.js'
@@ -19,6 +23,10 @@ on:
       - 'tools/feed-contract/package.json'
       - 'tools/feed-contract/package-lock.json'
       - '.github/workflows/feed-tools.yml'
+      - 'tools/release-facts.js'
+      - 'tools/backfill-sign.js'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/backfill-sign.yml'
   workflow_dispatch:
 
 permissions:
@@ -61,16 +69,57 @@ jobs:
         run: |
           set -o pipefail
           node --test --test-reporter=tap "tools/feed-contract/tests/*.test.js" | tee "$RUNNER_TEMP/tap.txt"
-          node -e '
-            const lines = require("fs").readFileSync(process.env.RUNNER_TEMP + "/tap.txt", "utf8").split(/\r?\n/);
-            const m = lines.map((l) => /^# tests (\d+)$/.exec(l)).find(Boolean);
-            const n = m ? Number(m[1]) : -1;
-            console.log("TAP tests=" + n);
-            if (!lines.includes("# fail 0") || n < 21) {
-              console.error("TAP check failed: need a \"# fail 0\" line and \"# tests N\" with N >= 21");
-              process.exit(1);
+          node - "$RUNNER_TEMP/tap.txt" <<'TAPCHECK'
+          const lines = require("fs").readFileSync(process.argv[2], "utf8").split(/\r?\n/);
+          const PLAN = "1..46";
+          const NAMES = [
+            "minisign.js verifies the rsign2 KAT",
+            "minisign.js sign and verify round trip",
+            "minisign.js and rsign2 interoperate",
+            "release-facts reads Mach-O arch sets and minimum macOS",
+            "release-facts reads the glibc floor",
+            "gen-release-manifest builds a verified release.json",
+            "gen-release-manifest refuses what it cannot bind",
+            "Linux payload digest equals the extracted tree's listing",
+            "gen-release-manifest prints the C3 comments",
+            "backfill signs nine current releases",
+            "backfill second run uploads nothing",
+            "backfill reports defective releases by name",
+            "backfill dry run uploads nothing",
+            "release.yml and backfill-sign.yml keep the Phase 2 shape",
+            "signing configuration is throwaway, on or a failure",
+            "minisign.js verify CLI prints and exits by contract",
+            "release-facts darwin CLI writes facts and lipo lines",
+            "backfill production signer drives rsign2",
+            "Phase 2 tools follow the tools/*.js form",
+            "minisign.js decrypts the rsign2 secret-key KAT",
+            "minisign.js decrypt-key writes only under RUNNER_TEMP and cleans up",
+            "keys README states the secrets contract and the merge order",
+          ];
+          const bad = [];
+          if (!lines.includes("# fail 0")) bad.push('no "# fail 0" line');
+          const plans = lines.filter((l) => /^1\.\.\d+$/.test(l));
+          if (plans.length !== 1 || plans[0] !== PLAN) bad.push(`top-level plan ${JSON.stringify(plans)}, want ${PLAN}`);
+          const top = lines.filter((l) => /^(not )?ok \d+ - /.test(l));
+          const nameOf = (l) => l.replace(/^(not )?ok \d+ - /, "").replace(/ # (SKIP|TODO)\b.*$/, "");
+          for (const n of NAMES) if (!top.some((l) => l.startsWith("ok ") && nameOf(l) === n)) bad.push(`missing: ${n}`);
+          const RSIGN = [
+            "minisign.js and rsign2 interoperate",
+            "backfill production signer drives rsign2",
+            "minisign.js decrypts the rsign2 secret-key KAT",
+          ];
+          if (process.env.CI) {
+            for (const l of top) if (/ # SKIP\b/.test(l)) bad.push(`skipped on CI: ${l}`);
+            for (const n of RSIGN) {   // PD-27: the whole block, subtests included
+              const start = lines.indexOf(`# Subtest: ${n}`);
+              const end = lines.findIndex((l, i) => i > start && /^(not )?ok \d+ - /.test(l) && nameOf(l) === n);
+              if (start < 0 || end < 0) { bad.push(`no TAP block: ${n}`); continue; }
+              for (const l of lines.slice(start, end + 1)) if (/ # SKIP\b/.test(l)) bad.push(`skipped rsign case: ${n}: ${l.trim()}`);
             }
-          '
+          }
+          console.log(`TAP plan=${plans.join(",")} top-level=${top.length}`);
+          if (bad.length) { console.error("TAP check failed:\n" + bad.join("\n")); process.exit(1); }
+          TAPCHECK
 
       - name: rsign verify (KAT)
         run: rsign verify -p tools/feed-contract/fixtures/kat/kat.pub tools/feed-contract/fixtures/kat/KatPlugin-1.2.3-Linux-x64.tar.gz

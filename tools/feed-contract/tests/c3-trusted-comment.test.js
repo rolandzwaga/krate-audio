@@ -272,7 +272,25 @@ test('KAT binds and no secret key is committed', () => {
   const tree = walkFiles(CONTRACT_DIR);
   assert.ok(tree.includes(KAT_MINISIG), 'the scan did not visit the KAT .minisig');
   assert.deepEqual(secretKeyRules(KAT_MINISIG), [], 'the KAT .minisig is flagged');
-  assert.deepEqual(findSecretKeyFiles(CONTRACT_DIR), []);
+  // FR-060 / FR-064: the one committed secret-key file is the test-only rsign2 KAT key. Its key id cannot be read from
+  // the file (the stored keynum_sk bytes are XORed with the scrypt keystream), so decryptSecretKey checks it below.
+  const KAT_SECRET_KEY = path.join(CONTRACT_DIR, 'fixtures', 'phase2', 'kat-secret', 'kat.key');
+  assert.deepEqual(findSecretKeyFiles(CONTRACT_DIR), [KAT_SECRET_KEY]);
+  const katKeyLines = fs.readFileSync(KAT_SECRET_KEY, 'latin1').split('\n');
+  assert.match(katKeyLines[0], RULE_B, 'kat.key line 1 is not an encrypted-secret-key header');
+  const katKeyBlob = Buffer.from(katKeyLines[1], 'base64');
+  assert.equal(katKeyBlob.length, 158, 'kat.key line 2 does not decode to 158 bytes');
+  assert.equal(katKeyBlob.toString('latin1', 0, 6), 'EdScB2', 'kat.key does not start EdScB2');
+  const minisign = require('../../minisign.js');
+  const katSecretPub = path.join(CONTRACT_DIR, 'fixtures', 'phase2', 'kat-secret', 'kat.pub');
+  const decryptedKeyId = minisign.decryptSecretKey(
+    fs.readFileSync(KAT_SECRET_KEY, 'utf8'),
+    'krate-kat-test-password',
+  ).keyId;
+  assert.ok(
+    decryptedKeyId.equals(minisign.parsePublicKey(fs.readFileSync(katSecretPub, 'utf8')).keyId),
+    'the exempt kat.key is not the published test key of kat-secret/kat.pub',
+  );
 
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'km1-keys-'));
   try {

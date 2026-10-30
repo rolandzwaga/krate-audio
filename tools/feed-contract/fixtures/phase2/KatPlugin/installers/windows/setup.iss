@@ -1,0 +1,3 @@
+[Setup]
+AppId={{0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0}
+AppName=KatPlugin

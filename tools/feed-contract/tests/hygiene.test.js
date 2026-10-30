@@ -34,6 +34,10 @@ function listFiles(dir, predicate) {
 function scannedFiles() {
   const single = [
     path.join(TOOLS_DIR, 'gen-feed.js'),
+    path.join(TOOLS_DIR, 'minisign.js'),
+    path.join(TOOLS_DIR, 'release-facts.js'),
+    path.join(TOOLS_DIR, 'gen-release-manifest.js'),
+    path.join(TOOLS_DIR, 'backfill-sign.js'),
     path.join(CONTRACT_DIR, 'fixtures', 'make-fixtures.js'),
     path.join(CONTRACT_DIR, 'fixtures', 'listings', 'make-bad.js'),
   ].filter((f) => fs.existsSync(f));
@@ -66,6 +70,8 @@ const CHILD_EXEMPT = new Set([
   'tools/feed-contract/tests/git-versionsort.test.js',
   'tools/feed-contract/tests/c4-listing-dir.test.js',
   'tools/feed-contract/tests/helpers/write-guard.js',
+  'tools/backfill-sign.js',
+  'tools/feed-contract/tests/helpers/external-tools.js',
 ]);
 const GUARD_REL = 'tools/feed-contract/tests/helpers/write-guard.js';
 const GUARD_LINE = "require('./helpers/write-guard.js');";
@@ -109,6 +115,10 @@ test('tools stay offline', async (t) => {
     const scanned = new Set(files.map(rel));
     const missing = [
       'tools/gen-feed.js',
+      'tools/minisign.js',
+      'tools/release-facts.js',
+      'tools/gen-release-manifest.js',
+      'tools/backfill-sign.js',
       'tools/feed-contract/contract.js',
       'tools/feed-contract/listing.js',
       'tools/feed-contract/tests/helpers/write-guard.js',
@@ -184,6 +194,18 @@ test('tools stay offline', async (t) => {
         outside,
       );
 
+      // FR-071: rsign only in its four fixed shapes, with a cwd under tmp.
+      const k = path.join(tmp, 'k.key');
+      const s = path.join(tmp, 'f.minisig');
+      const f = path.join(tmp, 'f');
+      assert.throws(
+        () => childProcess.spawnSync('rsign', ['sign', '-W', '-s', k, '-t', 'x', '-x', s, f, '--extra'], { cwd: tmp }),
+        outside,
+      );
+      assert.throws(() => childProcess.spawnSync('rsign', ['--version'], { cwd: repoDir }), outside);
+      // Positive control: the version shape passes the guard (the spawn itself may report ENOENT without rsign).
+      childProcess.spawnSync('rsign', ['--version'], { cwd: tmp, stdio: ['ignore', 'pipe', 'pipe'] });
+
       // Positive control: a write under the temp root succeeds.
       fs.writeFileSync(path.join(tmp, 'ok'), 'x');
       assert.equal(fs.readFileSync(path.join(tmp, 'ok'), 'utf8'), 'x');
@@ -235,6 +257,10 @@ test('generator ships no plugin roster', async (t) => {
     for (const n of names) assert.ok(typeof n === 'string' && n.length > 0, `version.json name ${JSON.stringify(n)}`);
     const products = [
       path.join(TOOLS_DIR, 'gen-feed.js'),
+      path.join(TOOLS_DIR, 'minisign.js'),
+      path.join(TOOLS_DIR, 'release-facts.js'),
+      path.join(TOOLS_DIR, 'gen-release-manifest.js'),
+      path.join(TOOLS_DIR, 'backfill-sign.js'),
       path.join(CONTRACT_DIR, 'contract.js'),
       path.join(CONTRACT_DIR, 'listing.js'),
       path.join(CONTRACT_DIR, 'versions.v2.schema.json'),
@@ -434,4 +460,98 @@ test('CONTRACT.md documents every code and field', () => {
   assert.match(s6, /Phase 8/);
   assert.match(s6, /realpath/);
   assert.match(s6, /std::fs::canonicalize/);
+});
+
+// --- SC-026 (FR-076, FR-074) and SC-021 clause 2: the Phase 2 tools' form and codes; no serial test option.
+
+const PHASE2_TOOLS = ['minisign.js', 'release-facts.js', 'gen-release-manifest.js', 'backfill-sign.js'];
+const FR074_CODES = [
+  'E_MINISIG_PUBKEY',
+  'E_MINISIG_SECRET_KEY',
+  'E_MINISIG_PASSWORD',
+  'E_MINISIG_KEY_ID',
+  'E_MINISIG_SIGNATURE',
+  'E_MINISIG_GLOBAL',
+  'E_FACTS_NO_MACHO',
+  'E_FACTS_ARCH',
+  'E_FACTS_ARCH_MISMATCH',
+  'E_FACTS_NO_MINOS',
+  'E_FACTS_MACHO_CORRUPT',
+  'E_FACTS_NO_GLIBC',
+  'E_FACTS_LISTING_MISMATCH',
+  'E_FACTS_LIPO_MISMATCH',
+  'E_FACTS_STALE',
+  'E_FACTS_MISSING',
+  'E_ASSET_MISSING',
+  'E_VERSION_MISMATCH',
+  'E_SIGNING_CONFIG',
+  'E_BACKFILL_LIST_TRUNCATED',
+  'E_BACKFILL_ASSET_MISSING',
+  'E_BACKFILL_IMMUTABLE',
+  'E_BACKFILL_PARTIAL',
+  'E_BACKFILL_SIZE',
+  'E_BACKFILL_DIGEST',
+  'E_BACKFILL_ASSETS_CHANGED',
+  'E_SIGN_KEY_MISMATCH',
+];
+
+function jsFilesUnder(dir) {
+  const out = [];
+  for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, d.name);
+    if (d.isDirectory()) out.push(...jsFilesUnder(full));
+    else if (d.isFile() && d.name.endsWith('.js')) out.push(full);
+  }
+  return out;
+}
+
+test('Phase 2 tools follow the tools/*.js form', async (t) => {
+  const { CODES } = require('../contract.js');
+  for (const file of PHASE2_TOOLS) {
+    await t.test(file, () => {
+      const toolPath = path.join(TOOLS_DIR, file);
+      const mod = require(toolPath);
+      const src = fs.readFileSync(toolPath, 'utf8');
+      assert.equal(src.split(/\r?\n/)[0], '#!/usr/bin/env node', `${file}: first line`);
+      assert.equal(typeof mod.main, 'function', `${file}: exports main`);
+      let stderr = '';
+      const io = {
+        stdout: { write: () => true },
+        stderr: { write: (s) => ((stderr += s), true) },
+        env: {},
+      };
+      assert.equal(mod.main([], io), 2, `${file}: main([], io) exit code; stderr ${JSON.stringify(stderr)}`);
+      const usage = `usage: node tools/${file}`;
+      assert.ok(
+        stderr.split(/\r?\n/).some((l) => l.startsWith(usage)),
+        `${file}: no stderr line starts "${usage}"; stderr ${JSON.stringify(stderr)}`,
+      );
+      const literals = [...src.matchAll(/'(E_[A-Z0-9_]+)'/g)].map((m) => m[1]);
+      assert.deepEqual(
+        [...new Set(literals.filter((c) => !Object.hasOwn(CODES, c)))],
+        [],
+        `${file}: code literals that contract.js CODES does not define`,
+      );
+    });
+  }
+
+  await t.test('the 27 FR-074 codes are CODES keys with class none', () => {
+    assert.equal(new Set(FR074_CODES).size, 27);
+    assert.deepEqual(
+      FR074_CODES.filter((c) => CODES[c] !== 'none'),
+      [],
+      'FR-074 codes missing from CODES or with a class other than none',
+    );
+  });
+
+  await t.test('SC-021: no test file sets a serial concurrency option', () => {
+    // Assembled from pieces so this file's own source never matches it.
+    const serialRe = new RegExp('concurren' + 'cy:\\s*(1|false)\\b');
+    const files = jsFilesUnder(TESTS_DIR);
+    assert.ok(files.length >= 10, `the scan reaches ${files.length} file(s), expected at least 10`);
+    assert.deepEqual(
+      files.filter((f) => serialRe.test(fs.readFileSync(f, 'utf8'))).map(rel),
+      [],
+    );
+  });
 });

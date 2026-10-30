@@ -11,7 +11,8 @@
 //     path.resolve collapses '<tmp>/L/../x' lexically while the kernel follows the link L first;
 //   - resolves the nearest existing ancestor with realpath.native, so a link inside tmp that points outside is caught;
 //   - checks both paths of link (a hard link from a repo file into tmp would let a later tmp write modify the repo file);
-//   - turns child_process into an allowlist: only 'git' and 'tar' in fixed argument shapes, with a cwd under tmp;
+//   - turns child_process into an allowlist: only 'git', 'tar' and 'rsign' in fixed argument shapes, with a cwd
+//     under tmp;
 //     exec, execSync, fork and shell: true always throw.
 // fd-based calls (write, fchmod, ftruncate, ...) are not wrapped: only a guarded open can hand out a writable fd.
 //
@@ -222,6 +223,28 @@ function install() {
     assertUnderTmp(path.resolve(cwd, args[3]), op);
   }
 
+  // FR-071: rsign in exactly four shapes; 'P' is a path that must land under tmp, 'T' a comment without CR or LF.
+  const RSIGN_SHAPES = [
+    ['--version'],
+    ['generate', '-W', '-p', 'P', '-s', 'P'],
+    ['sign', '-W', '-s', 'P', '-t', 'T', '-x', 'P', 'P'],
+    ['verify', '-p', 'P', '-x', 'P', 'P'],
+  ];
+
+  function checkRsign(op, args, cwd) {
+    const shape = RSIGN_SHAPES.find(
+      (sh) => sh.length === args.length && sh.every((x, i) => x === 'P' || x === 'T' || x === args[i]),
+    );
+    if (!shape) throw guardError(op, `rsign ${args.join(' ')}`, 'rsign shape');
+    shape.forEach((x, i) => {
+      if (x === 'T' && /[\r\n]/.test(args[i])) throw guardError(op, 'rsign -t <comment>', 'rsign shape');
+      if (x === 'P') {
+        rejectDotDot(args[i], op);
+        assertUnderTmp(path.resolve(cwd, args[i]), op);
+      }
+    });
+  }
+
   function checkSpawn(op, command, a, b) {
     let args = [];
     let options = b;
@@ -232,7 +255,9 @@ function install() {
     const cwd = toPathString(options.cwd);
     if (cwd === SKIP) throw guardError(op, String(command), 'no cwd');
     assertUnderTmp(cwd, op);
-    if (command !== 'git' && command !== 'tar') throw guardError(op, String(command), 'command not allowed');
+    if (command !== 'git' && command !== 'tar' && command !== 'rsign') {
+      throw guardError(op, String(command), 'command not allowed');
+    }
     if (!args.every((x) => typeof x === 'string')) throw guardError(op, String(command), 'non-string argument');
     // The child inherits process.env when options.env is absent, so the effective environment is what counts.
     const env = options.env || process.env;
@@ -240,7 +265,8 @@ function install() {
       if (GIT_ENV.has(isWin ? k.toUpperCase() : k)) throw guardError(op, k, 'git repository variable in env');
     }
     if (command === 'git') checkGit(op, args, cwd);
-    else checkTar(op, args, cwd);
+    else if (command === 'tar') checkTar(op, args, cwd);
+    else checkRsign(op, args, cwd);
   }
 
   function refuseAlways(name, why) {
