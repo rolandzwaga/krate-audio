@@ -598,8 +598,9 @@ PIPELINE LANE (this group touches release pipeline / tooling / plugin-side files
   for every changed or new .github/workflows/*.yml: npx --yes yaml@2.6.1 valid < <file>
   node tools/lint-serial-test-runs.js
 ${targets.length ? `  "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ${targets.join(' ')}   (log to a file, tail it; any warning is a red)
-  node tools/check-bundle.js build/windows-x64-release/VST3/Release/<each built plugin>.vst3
-  node tools/header-consumers.js --tag '[krate-manager]'   (no C++ test carries that tag, so it lists EVERY consumer of a
+${(() => { const plugins = targets.filter(t => !/_tests$/.test(t)); return plugins.length
+    ? `  node tools/check-bundle.js ${plugins.map(p => `build/windows-x64-release/VST3/Release/${p}.vst3`).join(' ')}   (ONLY these bundles: a bundle this phase did not build is not evidence about this change)\n`
+    : '  (no plugin target in this phase: do NOT run check-bundle; a bundle this phase did not build is not evidence about this change)\n' })()}  node tools/header-consumers.js --tag '[krate-manager]'   (no C++ test carries that tag, so it lists EVERY consumer of a
   modified shared file); then, if its last line names executables, run exactly those ONCE, sharded:
   node tools/run-gate.js --filter ${PERF_FILTER} --out ${out} <those exes> 2>&1 | tail -40   (last line GATE GREEN|RED)
   Never run a test executable as one serial process; never two run-gate commands at once.` : '  (no cmake targets in this phase: no C++ build)'}`
