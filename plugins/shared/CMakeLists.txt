@@ -107,9 +107,13 @@ if(WIN32)
     target_link_libraries(KratePluginsShared PRIVATE winhttp)
 endif()
 
-# Linux: use cpp-httplib for HTTP requests (httplib is header-only, just needs include)
+# Linux: the update checker loads libcurl at runtime (dlopen) for HTTPS; no link-time dependency on it
 if(UNIX AND NOT APPLE)
-    target_link_libraries(KratePluginsShared PRIVATE httplib::httplib)
+    target_sources(KratePluginsShared PRIVATE
+        src/update/libcurl_fetch.h
+        src/update/libcurl_fetch.cpp
+    )
+    target_link_libraries(KratePluginsShared PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
 # FR-025c: macOS AppKit framework for accessibility detection (NSWorkspace API)

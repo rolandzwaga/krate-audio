@@ -368,7 +368,7 @@ smtg_target_setup_universal_binary(PFFFT)
 # ==============================================================================
 # cpp-httplib (header-only HTTP/HTTPS client, MIT license)
 # ==============================================================================
-# Used for update checking. Requires Mbed TLS for HTTPS support.
+# Test-only: shared_tests on Linux runs a loopback HTTP server with it (test_libcurl_fetch.cpp).
 FetchContent_Declare(
     httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git

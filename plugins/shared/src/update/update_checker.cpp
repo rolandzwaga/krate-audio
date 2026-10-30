@@ -14,8 +14,8 @@
 #elif defined(__APPLE__)
 // macOS uses NSURLSession via Objective-C runtime (see .mm file)
 #else
-// Linux fallback: use httplib for HTTP-only
-#include <httplib.h>
+// Linux: libcurl, loaded at runtime
+#include "libcurl_fetch.h"
 #endif
 
 namespace Krate::Plugins {
@@ -170,21 +170,8 @@ std::string UpdateChecker::fetchJson(const std::string& url) {
     // macOS: use NSURLSession (implemented in update_checker_mac.mm)
     return fetchJsonMac(url);
 #else
-    // Linux: use httplib (HTTP only, HTTPS not supported without OpenSSL)
-    if (scheme == "https") {
-        // Fallback: try HTTP instead
-        return {};
-    }
-
-    httplib::Client client(host);
-    client.set_connection_timeout(10, 0);
-    client.set_read_timeout(10, 0);
-
-    auto res = client.Get(path);
-    if (res && res->status == 200) {
-        return res->body;
-    }
-    return {};
+    // Linux: libcurl loaded at runtime (libcurl_fetch.cpp); http and https, redirects followed
+    return detail::fetchWithLibcurl(url);
 #endif
 }
 

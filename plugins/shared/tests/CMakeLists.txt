@@ -83,6 +83,12 @@ else()
     )
 endif()
 
+# Linux: the update checker's libcurl fetch, tested against a loopback httplib server
+if(UNIX AND NOT APPLE)
+    target_sources(shared_tests PRIVATE test_libcurl_fetch.cpp)
+    target_link_libraries(shared_tests PRIVATE httplib::httplib)
+endif()
+
 # IEEE 754 compliance: test_oscillator_type_selector.cpp uses std::isnan/std::isinf
 # which are broken by -ffast-math (VST3 SDK enables it globally)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
