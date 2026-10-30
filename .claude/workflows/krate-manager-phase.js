@@ -587,7 +587,7 @@ APP LANE (only if ${APP_DIR}/ exists; if a LATER group creates it, report "not y
   npx vitest run
   cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
   cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-  cargo test --manifest-path src-tauri/Cargo.toml --all-targets
+  cargo test --workspace --locked   (never --all-targets: it builds and runs a test harness for the src-tauri lib/bin, which links tauri and can fail to load on Windows, 0xc0000139; Krate Manager Phase 4 ruling P-4)
 If the plan names a Cargo workspace or extra crates (e.g. the elevated helper), run fmt / clippy / test over the whole
 workspace instead (--workspace). Each command's output to a log file under F:/tmp/gate/, tail it. ANY warning is a red.
 Never pass --test-threads=1 or --no-file-parallelism. Never run "tauri build" with bundling in a gate (a main-loop lane).`
