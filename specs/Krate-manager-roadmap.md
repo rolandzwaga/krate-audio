@@ -462,6 +462,8 @@ Does NOT: move the feed to another domain, change the landing page, or touch the
 
 ### Phase 4: Scaffold, Platform Abstraction and the Manager's CI
 
+**Status: ✅ COMPLETE (PENDING-CI: 14 item(s)) (2026-10-30)** — see specs/krate-manager-phase4/compliance.md
+
 **Spec:** `krate-manager-phase4`
 
 Components:
@@ -470,7 +472,9 @@ Components:
 - 🆕 Cargo workspace (`crates/core`, `crates/helper`, `src-tauri`) with an empty but wired command surface.
 - 🆕 `Platform` abstraction in `core` with Windows, macOS and Linux implementations behind `cfg`, and a `Roots` value
   (plug-in roots, preset roots, state dir, staging dir) that is **always passed in**: production builds it from the
-  OS, tests build it from temp dirs. Feed URL, HTTP client base and the elevation launcher are injected the same way.
+  OS, tests build it from temp dirs. The feed URL is injected the same way (`AppContext`, Phase 4); the HTTP client
+  base joins `AppContext` in Phase 5 and the elevation launcher in Phase 10, each with its production value built in
+  the same setup (Phase 4 spec D17).
   The guard is mechanical, not a convention: (1) `core` has no OS-root constructor at all; `Roots::new` takes explicit
   paths, and `Platform::default_roots()` only *computes* the default paths (pure, testable on every OS, touches
   nothing). (2) The one production constructor, `Roots::from_os()`, combines them in `src-tauri` and is listed in the
@@ -494,7 +498,7 @@ Components:
   its tests in `feed-tools.yml`'s `node --test` set.
 - 🆕 `.github/workflows/manager-ci.yml`, path-filtered to `apps/krate-manager/**` and itself: matrix `windows-latest`,
   `macos-latest` (arm64, macOS 26 since 2026-07-22, tauri_plist_quarantine_and_runners.md Q3), an Ubuntu leg with
-  WebKitGTK 4.1 (`libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`, report line 65). Each leg runs
+  WebKitGTK 4.1 (on `ubuntu-24.04`, the current Tauri prerequisites apt line, https://v2.tauri.app/start/prerequisites/; the report line 65 `libappindicator3-dev … patchelf` set belongs to Phase 11's `ubuntu:22.04` container; Phase 4 spec D16). Each leg runs
   `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `tsc --noEmit`, the linter,
   `vitest`, and an unsigned `tauri build`. The macOS leg also asserts the built `Info.plist` has no
   `LSFileQuarantineEnabled` and `codesign --verify --deep --strict` passes (probes line 17 turned into a regression gate).
@@ -884,7 +888,8 @@ Components:
   "add `~/.vst3` to REAPER's path list" (REAPER Linux default unconfirmed, per_os_install_mechanics.md KQ6). Published
   on the landing page / README. The inline landing step in `release.yml:596-643` gains a Krate Manager card (Q5 ruled)
   linking the latest manager release per OS and carrying this text; no other landing change, and the per-plugin
-  installers stay listed beside it.
+  installers stay listed beside it. It states the supported Windows floor, Windows 10 22H2 and Windows 11 x64 (Q6),
+  which no `tauri.conf.json` key can carry (Phase 4 spec Non-goals).
 - 🆕 Release readiness for manager 0.1.0 (from `apps/krate-manager/version.json`): every Part B gate green on Windows
   and every PENDING-CI row closed by a named green `manager-ci` / `release-manager` run, and the Phase 2 backfill run
   live, so the live feed offers all nine plugins with `platforms` (no plugin re-release).

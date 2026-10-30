@@ -16,6 +16,10 @@ on:
       - '.github/workflows/backfill-sign.yml'
       - 'tools/feed-publish.js'
       - '.github/workflows/feed.yml'
+      - 'tools/lint-manager-version.js'
+      - '.github/workflows/manager-ci.yml'
+      - 'apps/krate-manager/package.json'
+      - 'apps/krate-manager/tests/required-tests.json'
   pull_request:
     paths:
       - 'tools/gen-feed.js'
@@ -31,6 +35,10 @@ on:
       - '.github/workflows/backfill-sign.yml'
       - 'tools/feed-publish.js'
       - '.github/workflows/feed.yml'
+      - 'tools/lint-manager-version.js'
+      - '.github/workflows/manager-ci.yml'
+      - 'apps/krate-manager/package.json'
+      - 'apps/krate-manager/tests/required-tests.json'
   workflow_dispatch:
 
 permissions:
@@ -75,7 +83,7 @@ jobs:
           node --test --test-reporter=tap "tools/feed-contract/tests/*.test.js" | tee "$RUNNER_TEMP/tap.txt"
           node - "$RUNNER_TEMP/tap.txt" <<'TAPCHECK'
           const lines = require("fs").readFileSync(process.argv[2], "utf8").split(/\r?\n/);
-          const PLAN = "1..57";
+          const PLAN = "1..59";
           const NAMES = [
             "minisign.js verifies the rsign2 KAT",
             "minisign.js sign and verify round trip",
@@ -110,6 +118,8 @@ jobs:
             "feed.yml and release.yml keep the Phase 3 shape",
             "feed-publish tests never build real effects",
             "feed-publish decides every workflow branch",
+            "lint-manager-version accepts equal versions and names every drift",
+            "manager-ci.yml keeps the Phase 4 shape",
           ];
           const bad = [];
           if (!lines.includes("# fail 0")) bad.push('no "# fail 0" line');

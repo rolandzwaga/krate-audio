@@ -1,0 +1,34 @@
+Krate Manager Phase 4 close lane, 2026-10-30T21:21:24.338Z, wall=142.8s, logs F:/tmp/gate/krate-manager-phase4-close/20261030-211901
+A0   GREEN rustc="rustc 1.99.1 (58cf8f9c3 2026-10-13)" node="v24.7.0" df(repo root)="F: 50G 33G 18G 65% /f"
+A0b  GREEN git status --porcelain: 95 lines (without 4 close-lane outputs) file=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A0b-git-status.txt
+A1a  GREEN step cargo fmt exit=0 last="" wall=0.5s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A1a-cargo-fmt.log
+A1b  GREEN step clippy exit=0 warning-lines=0 notices="" wall=1.7s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A1b-clippy.log
+A1c  GREEN step clippy dev-feed exit=0 warning-lines=0 notices="::notice title=clippy dev-feed (Windows)::clean" wall=1.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A1c-clippy-dev-feed.log
+A1d  GREEN step clippy-guard exit=0 notice="::notice title=clippy-guard (Windows)::rc=101 disallowed=3 from_os=1 Roots::new=1 std::env::var=1 lint-named=5 other-errors=0" copied to specs/krate-manager-phase4/evidence/clippy-guard.txt wall=1.6s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A1d-clippy-guard.log
+A1e  GREEN step cargo test exit=0 binaries=8 passed=49 binaries-with-failures=0 wall=2.4s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A1e-cargo-test.log
+A1f  GREEN check_under_temp_symlink_escape exit=0 ok-line=found link made (the escape assertion ran) wall=0.5s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A1f-symlink-case.log
+A1g  GREEN cargo tree -p krate-manager-core -e normal exit=0 crates=101 root=ok banned=none (tauri, dirs, directories, home) -> specs/krate-manager-phase4/evidence/core-tree.txt wall=0.3s
+A2a  GREEN step npm ci exit=0 last="found 0 vulnerabilities" wall=8.9s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A2a-npm-ci.log
+A2b  GREEN step typecheck exit=0 last="> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json" wall=2.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A2b-typecheck.log
+A2c  GREEN step lint exit=0 last="> eslint . --max-warnings 0" wall=2.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A2c-lint.log
+A2d  GREEN step vitest exit=0 last="JSON report written to F:/tmp/gate/krate-manager-phase4-close/20261030-211901/vitest.json" wall=1.7s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A2d-vitest.log
+A3a  GREEN node --test exit=0 plan=1..59 tests=745 pass=740 fail=0 skipped=5 nodeWarnings=0 wall=24.9s tap=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A3a-node-test.tap
+A3b  GREEN L-TAP exit=0 want "TAP plan=1..59 top-level=59" printed last="TAP plan=1..59 top-level=59" wall=0.2s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A3b-tap-check.log
+A3c  GREEN L-VLINT exit=0 stderr=none wall=0.2s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A3c-version-lint.log
+A4   GREEN L-YAML .github/workflows/manager-ci.yml exit=0 wall=2.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A4-yaml-1-manager-ci.log
+A4   GREEN L-YAML .github/workflows/feed-tools.yml exit=0 wall=1.8s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A4-yaml-2-feed-tools.log
+A5   GREEN L-LINT lint-serial-test-runs exit=0 last="lint-serial-test-runs: clean (64 files)" wall=0.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A5-lint-serial.log
+A6   GREEN gen-specs-index --check exit=0 last="specs/INDEX.md is up to date." wall=0.3s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A6-specs-index.log
+A7a  GREEN scope-check --self-test exit=0 last="SELF-TEST GREEN (9 cases)" wall=0.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A7a-scope-self-test.log
+A7b  GREEN L-SCOPE scope-check exit=0 last="scope-check: 18 paths, 3 roadmap hunks: OK" wall=1.2s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A7b-scope-check.log
+A8   GREEN L-XCHECK x86_64-unknown-linux-gnu exit=0 warning-lines=0 wall=0.5s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A8-xcheck-x86_64-unknown-linux-gnu.log
+A8   GREEN L-XCHECK aarch64-apple-darwin exit=0 warning-lines=0 wall=0.4s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A8-xcheck-aarch64-apple-darwin.log
+A9   GREEN SC-021 grep exit=1 printed nothing wall=0.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/A9-sc021-grep.log
+B1   GREEN step required tests ran exit=0 notices="::notice title=required tests ran (Windows)::49 cargo + 3 vitest" want "::notice title=required tests ran (Windows)::49 cargo + 3 vitest" wall=0.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/B1-required-tests-ran.log
+B2   GREEN step tauri build exit=0 last="F:\projects\iterum\apps\krate-manager\target\release\bundle\nsis\Krate Manager_0.1.0_x64-setup.exe (1.30 MiB)" wall=126.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/B2-tauri-build.log
+B3   GREEN step build warnings exit=0 notices="::notice title=build warnings (Windows)::0 warning lines in the release build" want "::notice title=build warnings (Windows)::0 warning lines in the release build" wall=0.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/B3-build-warnings.log
+B4   GREEN step dev-feed absent exit=0 notices="::notice title=dev-feed absent (Windows)::marker in source=1, in target/release/krate-manager.exe=0" want "::notice title=dev-feed absent (Windows)::" wall=0.1s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/B4-dev-feed-absent.log
+B5   GREEN step artifact version exit=0 notices="::notice title=artifact version (Windows)::0.1.0 (nsis=present)" want "::notice title=artifact version (Windows)::0.1.0 (nsis=present)" wall=0.6s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/B5-artifact-version.log
+C1   GREEN git status --porcelain equal to A0b (95 lines) file=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/C1-git-status.txt
+C2   GREEN L-SCOPE scope-check exit=0 last="scope-check: 18 paths, 3 roadmap hunks: OK" wall=0.4s log=F:/tmp/gate/krate-manager-phase4-close/20261030-211901/C2-scope-check.log
+CLOSE LANE GREEN

@@ -1,0 +1,38 @@
+[package]
+name = "krate-manager"
+description = "Krate Manager"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "krate_manager_lib"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[[bin]]
+name = "krate-manager"
+path = "src/main.rs"
+test = false
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+tauri = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+krate-manager-core = { workspace = true }
+
+[dev-dependencies]
+krate-manager-core = { workspace = true, features = ["test-support"] }
+
+[features]
+dev-feed = []
+
+[lints]
+workspace = true

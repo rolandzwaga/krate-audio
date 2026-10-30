@@ -1,0 +1,266 @@
+name: Manager CI
+
+# Spec: specs/krate-manager-phase4/spec.md FR-070 to FR-077, FR-106, FR-107; plan §4.16.
+# Every assertion step prints a ::notice (pass) or ::error (fail) naming the leg (D21): compliance reads annotations.
+on:
+  push:
+    paths:
+      - 'apps/krate-manager/**'
+      - '.github/workflows/manager-ci.yml'
+      - 'tools/lint-manager-version.js'
+  pull_request:
+    paths:
+      - 'apps/krate-manager/**'
+      - '.github/workflows/manager-ci.yml'
+      - 'tools/lint-manager-version.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manager-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-24.04]
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/krate-manager
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Linux system packages
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install
+          rustc --version
+          cargo clippy --version
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/krate-manager -> target
+
+      - name: npm ci
+        run: |
+          set -euo pipefail
+          npm ci
+
+      - name: version lint
+        run: |
+          set -euo pipefail
+          if node ../../tools/lint-manager-version.js; then
+            echo "::notice title=version lint ($RUNNER_OS)::version.json, tauri.conf.json and every Cargo.toml agree"
+          else
+            echo "::error title=version lint ($RUNNER_OS)::lint-manager-version failed"; exit 1
+          fi
+
+      - name: cargo fmt
+        run: |
+          set -euo pipefail
+          cargo fmt --all --check
+
+      - name: clippy
+        run: |
+          set -euo pipefail
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: clippy dev-feed
+        run: |
+          set -euo pipefail
+          if cargo clippy -p krate-manager --all-targets --features dev-feed --locked -- -D warnings; then
+            echo "::notice title=clippy dev-feed ($RUNNER_OS)::clean"
+          else
+            echo "::error title=clippy dev-feed ($RUNNER_OS)::clippy failed with --features dev-feed"; exit 1
+          fi
+
+      - name: clippy-guard
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/guard.txt"
+          rc=0
+          CARGO_TARGET_DIR="$PWD/target" cargo clippy --manifest-path tests/fixtures/clippy-guard/Cargo.toml --all-targets --locked -- -D warnings > "$out" 2>&1 || rc=$?
+          total=$(grep -c '^error: use of a disallowed method `' "$out" || true)
+          from_os=$(grep -c '^error: use of a disallowed method `krate_manager_lib::os_roots::FromOs::from_os`' "$out" || true)
+          new=$(grep -c '^error: use of a disallowed method `krate_manager_core::roots::Roots::new`' "$out" || true)
+          envvar=$(grep -c '^error: use of a disallowed method `std::env::var`' "$out" || true)
+          lint=$(grep -cE 'disallowed[-_]methods' "$out" || true)
+          other=$(grep -E '^error' "$out" | grep -vcE '^error: (use of a disallowed method `|could not compile `)' || true)
+          msg="rc=$rc disallowed=$total from_os=$from_os Roots::new=$new std::env::var=$envvar lint-named=$lint other-errors=$other"
+          if [ "$rc" != "0" ] && [ "$total" = "3" ] && [ "$from_os" = "1" ] && [ "$new" = "1" ] && [ "$envvar" = "1" ] && [ "$lint" -ge 1 ] && [ "$other" = "0" ]; then
+            echo "::notice title=clippy-guard ($RUNNER_OS)::$msg"
+          else
+            cat "$out"
+            echo "::error title=clippy-guard ($RUNNER_OS)::$msg"; exit 1
+          fi
+
+      - name: cargo test
+        run: |
+          set -euo pipefail
+          cargo test --workspace --locked 2>&1 | tee "$RUNNER_TEMP/cargo-test.txt"
+
+      - name: typecheck
+        run: |
+          set -euo pipefail
+          npm run typecheck
+
+      - name: lint
+        run: |
+          set -euo pipefail
+          npm run lint
+
+      - name: vitest
+        run: |
+          set -euo pipefail
+          npm test -- --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/vitest.json"
+
+      - name: required tests ran
+        run: |
+          set -euo pipefail
+          node - "$RUNNER_TEMP/cargo-test.txt" "$RUNNER_TEMP/vitest.json" "$RUNNER_OS" <<'REQUIRED'
+          const fs = require("fs");
+          const [cargoLog, vitestJson, runnerOs] = process.argv.slice(2);
+          const key = { Windows: "windows", macOS: "macos", Linux: "linux" }[runnerOs];
+          const req = JSON.parse(fs.readFileSync("tests/required-tests.json", "utf8"));
+          const bad = [];
+          if (!key) bad.push(`unknown RUNNER_OS ${runnerOs}`);
+          const names = [...req.cargo.all, ...(key ? req.cargo[key] : [])];
+          const passed = new Map();
+          for (const raw of fs.readFileSync(cargoLog, "utf8").split(/\r?\n/)) {
+            const m = /^test (\S+)(?: - should panic)? \.\.\. ok$/.exec(raw);
+            if (m) passed.set(m[1], (passed.get(m[1]) || 0) + 1);
+          }
+          for (const n of names) { const c = passed.get(n) || 0; if (c !== 1) bad.push(`cargo ${n}: ${c} passing line(s), want 1`); }
+          const results = JSON.parse(fs.readFileSync(vitestJson, "utf8")).testResults.flatMap((f) => f.assertionResults);
+          for (const t of req.vitest) {
+            const c = results.filter((r) => r.title === t && r.status === "passed").length;
+            if (c !== 1) bad.push(`vitest "${t}": ${c} passed, want 1`);
+          }
+          for (const b of bad) console.log(`::error title=required tests ran (${runnerOs})::${b}`);
+          if (bad.length) process.exit(1);
+          console.log(`::notice title=required tests ran (${runnerOs})::${names.length} cargo + ${req.vitest.length} vitest`);
+          REQUIRED
+
+      - name: tauri build
+        run: |
+          set -euo pipefail
+          npm run tauri build 2>&1 | tee "$RUNNER_TEMP/tauri-build.txt"
+
+      - name: build warnings
+        run: |
+          set -euo pipefail
+          clean="$RUNNER_TEMP/tauri-build.clean.txt"
+          esc=$(printf '\033')
+          sed "s/${esc}\[[0-9;]*m//g" "$RUNNER_TEMP/tauri-build.txt" > "$clean"
+          finished=$(grep -cE '^ *Finished `release` profile' "$clean" || true)
+          n=$(grep -c '^warning:' "$clean" || true)
+          if [ "$finished" -ge 1 ] && [ "$n" = "0" ]; then
+            echo "::notice title=build warnings ($RUNNER_OS)::0 warning lines in the release build"
+          else
+            grep '^warning:' "$clean" || true
+            echo "::error title=build warnings ($RUNNER_OS)::warnings=$n finished-lines=$finished"; exit 1
+          fi
+
+      - name: dev-feed absent
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in Windows) bin=target/release/krate-manager.exe ;; *) bin=target/release/krate-manager ;; esac
+          marker=$(grep -cF 'dev-feed-url.txt' src-tauri/src/dev_feed.rs || true)
+          hits=$(grep -acF 'dev-feed-url.txt' "$bin" || true)
+          if [ "$marker" -ge 1 ] && [ "$hits" = "0" ]; then
+            echo "::notice title=dev-feed absent ($RUNNER_OS)::marker in source=$marker, in $bin=0"
+          else
+            echo "::error title=dev-feed absent ($RUNNER_OS)::marker in source=$marker, in $bin=$hits"; exit 1
+          fi
+
+      - name: artifact version
+        run: |
+          set -euo pipefail
+          want=$(node -p "require('./version.json').version")
+          case "$RUNNER_OS" in
+            Windows)
+              got=$(powershell -NoProfile -Command "(Get-Item 'target/release/krate-manager.exe').VersionInfo.ProductVersion" | tr -d '\r')
+              nsis="target/release/bundle/nsis/Krate Manager_${want}_x64-setup.exe"
+              if [ -f "$nsis" ]; then extra="nsis=present"; else extra="nsis=missing"; got="$got (NSIS file missing)"; fi ;;
+            macOS)
+              got=$(plutil -extract CFBundleShortVersionString raw "target/release/bundle/macos/Krate Manager.app/Contents/Info.plist")
+              extra="app" ;;
+            Linux)
+              debs=(target/release/bundle/deb/*.deb)
+              if [ "${#debs[@]}" = "1" ] && [ -f "${debs[0]}" ]; then got=$(dpkg-deb -f "${debs[0]}" Version); else got="debs=${#debs[@]}"; fi
+              extra="deb" ;;
+          esac
+          if [ "$got" = "$want" ]; then
+            echo "::notice title=artifact version ($RUNNER_OS)::$got ($extra)"
+          else
+            echo "::error title=artifact version ($RUNNER_OS)::got '$got', want '$want' ($extra)"; exit 1
+          fi
+
+      - name: 'plist: LSMinimumSystemVersion'
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          v=$(plutil -extract LSMinimumSystemVersion raw "target/release/bundle/macos/Krate Manager.app/Contents/Info.plist")
+          if [ "$v" = "15.0" ]; then echo "::notice title=plist: LSMinimumSystemVersion::15.0"; else echo "::error title=plist: LSMinimumSystemVersion::$v"; exit 1; fi
+
+      - name: 'plist: no LSFileQuarantineEnabled'
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          if ! out=$(plutil -p "target/release/bundle/macos/Krate Manager.app/Contents/Info.plist"); then
+            echo "::error title=plist: no LSFileQuarantineEnabled::plutil -p failed"; exit 1
+          fi
+          if grep -q LSFileQuarantineEnabled <<<"$out"; then
+            echo "::error title=plist: no LSFileQuarantineEnabled::key present"; exit 1
+          fi
+          echo "::notice title=plist: no LSFileQuarantineEnabled::absent"
+
+      - name: codesign verify
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          if codesign --verify --deep --strict -v "target/release/bundle/macos/Krate Manager.app"; then
+            echo "::notice title=codesign verify::exit 0"
+          else
+            echo "::error title=codesign verify::codesign --verify --deep --strict failed"; exit 1
+          fi
+
+      - name: codesign ad-hoc
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          info=$(codesign -dv "target/release/bundle/macos/Krate Manager.app" 2>&1) || true
+          if grep -q 'Signature=adhoc' <<<"$info"; then
+            echo "::notice title=codesign ad-hoc::Signature=adhoc"
+          else
+            echo "::error title=codesign ad-hoc::no Signature=adhoc"; exit 1
+          fi
+
+      - name: Checkout unchanged
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "::notice title=checkout unchanged ($RUNNER_OS)::clean"
+          else
+            git status --porcelain
+            echo "::error title=checkout unchanged ($RUNNER_OS)::the run changed or added files"; exit 1
+          fi

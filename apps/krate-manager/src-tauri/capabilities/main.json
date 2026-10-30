@@ -1,0 +1,6 @@
+{
+  "identifier": "main",
+  "description": "The main window may call only the app's own read-only commands.",
+  "windows": ["main"],
+  "permissions": ["allow-app-version", "allow-startup-error"]
+}
