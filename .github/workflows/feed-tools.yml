@@ -1,0 +1,80 @@
+name: Feed tools
+
+on:
+  push:
+    paths:
+      - 'tools/gen-feed.js'
+      - 'tools/gen-release-manifest.js'
+      - 'tools/minisign.js'
+      - 'tools/feed-contract/**'
+      - 'tools/feed-contract/package.json'
+      - 'tools/feed-contract/package-lock.json'
+      - '.github/workflows/feed-tools.yml'
+  pull_request:
+    paths:
+      - 'tools/gen-feed.js'
+      - 'tools/gen-release-manifest.js'
+      - 'tools/minisign.js'
+      - 'tools/feed-contract/**'
+      - 'tools/feed-contract/package.json'
+      - 'tools/feed-contract/package-lock.json'
+      - '.github/workflows/feed-tools.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-test:
+    name: node-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - run: npm ci --prefix tools/feed-contract
+
+      # A cold cargo install compiles rsign2 and its deps on every leg; the key pins the exact version.
+      - name: Cache rsign2
+        id: rsign-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/rsign
+            ~/.cargo/bin/rsign.exe
+          key: rsign2-0.6.7-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install rsign2
+        if: steps.rsign-cache.outputs.cache-hit != 'true'
+        run: cargo install rsign2 --version 0.6.7 --locked
+
+      # The TAP copy goes to RUNNER_TEMP, outside the checkout, so "Checkout unchanged" stays empty.
+      - name: node --test
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test --test-reporter=tap "tools/feed-contract/tests/*.test.js" | tee "$RUNNER_TEMP/tap.txt"
+          node -e '
+            const lines = require("fs").readFileSync(process.env.RUNNER_TEMP + "/tap.txt", "utf8").split(/\r?\n/);
+            const m = lines.map((l) => /^# tests (\d+)$/.exec(l)).find(Boolean);
+            const n = m ? Number(m[1]) : -1;
+            console.log("TAP tests=" + n);
+            if (!lines.includes("# fail 0") || n < 21) {
+              console.error("TAP check failed: need a \"# fail 0\" line and \"# tests N\" with N >= 21");
+              process.exit(1);
+            }
+          '
+
+      - name: rsign verify (KAT)
+        run: rsign verify -p tools/feed-contract/fixtures/kat/kat.pub tools/feed-contract/fixtures/kat/KatPlugin-1.2.3-Linux-x64.tar.gz
+
+      - name: Checkout unchanged
+        shell: bash
+        run: test -z "$(git status --porcelain)"

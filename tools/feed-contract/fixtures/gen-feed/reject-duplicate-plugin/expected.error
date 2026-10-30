@@ -1,0 +1,1 @@
+gen-feed: E_DUPLICATE_PLUGIN: alpha2/version.json: plugin Alpha: the name equals "Alpha" of alpha1/version.json after toLowerCase() (one folder on NTFS and default APFS, the same alpha/v* tags)

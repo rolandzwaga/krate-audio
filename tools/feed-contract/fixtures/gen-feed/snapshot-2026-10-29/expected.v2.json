@@ -1,0 +1,86 @@
+{
+  "schema_version": 2,
+  "plugins": {
+    "Disrumpo": {
+      "version": "0.9.10",
+      "download_url": "https://krateaudio.com/disrumpo/",
+      "release_notes": "",
+      "tag": "disrumpo/v0.9.10",
+      "pub_date": "2026-10-10T08:02:58Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/disrumpo/v0.9.10"
+    },
+    "Gradus": {
+      "version": "1.10.2",
+      "download_url": "https://krateaudio.com/gradus/",
+      "release_notes": "",
+      "tag": "gradus/v1.10.2",
+      "pub_date": "2026-10-29T20:45:19Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.2"
+    },
+    "Innexus": {
+      "version": "1.0.4",
+      "download_url": "https://krateaudio.com/innexus/",
+      "release_notes": "",
+      "tag": "innexus/v1.0.4",
+      "pub_date": "2026-10-29T21:55:06Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/innexus/v1.0.4"
+    },
+    "Iterum": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/iterum/",
+      "release_notes": "",
+      "tag": "iterum/v1.0.0",
+      "pub_date": "2026-10-29T20:08:19Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/iterum/v1.0.0"
+    },
+    "Membrum": {
+      "version": "0.12.2",
+      "download_url": "https://krateaudio.com/membrum/",
+      "release_notes": "",
+      "tag": "membrum/v0.12.2",
+      "pub_date": "2026-10-26T22:50:47Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.2"
+    },
+    "Profundum": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/profundum/",
+      "release_notes": "",
+      "tag": "profundum/v1.0.0",
+      "pub_date": "2026-10-27T22:28:01Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/profundum/v1.0.0"
+    },
+    "Ruinae": {
+      "version": "0.12.3",
+      "download_url": "https://krateaudio.com/ruinae/",
+      "release_notes": "",
+      "tag": "ruinae/v0.12.3",
+      "pub_date": "2026-10-29T20:35:28Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/ruinae/v0.12.3"
+    },
+    "Seraphis": {
+      "version": "1.0.3",
+      "download_url": "https://krateaudio.com/seraphis/",
+      "release_notes": "",
+      "tag": "seraphis/v1.0.3",
+      "pub_date": "2026-10-29T21:04:05Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.3"
+    },
+    "Vorago": {
+      "version": "1.0.2",
+      "download_url": "https://krateaudio.com/vorago/",
+      "release_notes": "",
+      "tag": "vorago/v1.0.2",
+      "pub_date": "2026-10-29T21:25:25Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.2"
+    }
+  }
+}

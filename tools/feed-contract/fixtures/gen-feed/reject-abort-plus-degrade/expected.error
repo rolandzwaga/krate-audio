@@ -1,0 +1,1 @@
+gen-feed: E_V1_TYPE: alpha/version.json: plugin Alpha: "url" is 42, not a string (it is the v1 download_url)

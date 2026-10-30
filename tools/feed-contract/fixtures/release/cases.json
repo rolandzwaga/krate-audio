@@ -1,0 +1,352 @@
+[
+  {
+    "rule": "FR-056/darwin-aarch64",
+    "file": "valid/darwin-aarch64.json",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-056/darwin-x86_64",
+    "file": "valid/darwin-x86_64.json",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-056/darwin-universal",
+    "file": "valid/darwin-universal.json",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-056/windows-without-min_os",
+    "file": "valid/windows-without-min_os.json",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-056/prerelease-suffixed",
+    "file": "valid/prerelease-suffixed.json",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-056/plain-version",
+    "file": "valid/plain-version.json",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-015/tag-required",
+    "file": "invalid/tag-required.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": " required"
+    }
+  },
+  {
+    "rule": "FR-015/name-required",
+    "file": "invalid/name-required.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": " required"
+    }
+  },
+  {
+    "rule": "FR-015/version-required",
+    "file": "invalid/version-required.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": " required"
+    }
+  },
+  {
+    "rule": "FR-015/pub_date-required",
+    "file": "invalid/pub_date-required.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": " required"
+    }
+  },
+  {
+    "rule": "FR-015/assets-required",
+    "file": "invalid/assets-required.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": " required"
+    }
+  },
+  {
+    "rule": "FR-015/install-required",
+    "file": "invalid/install-required.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": " required"
+    }
+  },
+  {
+    "rule": "FR-015/channel-stable",
+    "file": "invalid/channel-stable.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": " additionalProperties"
+    }
+  },
+  {
+    "rule": "FR-015/channel-beta",
+    "file": "invalid/channel-beta.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": " additionalProperties"
+    }
+  },
+  {
+    "rule": "FR-015/unknown-key",
+    "file": "invalid/unknown-key.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": " additionalProperties"
+    }
+  },
+  {
+    "rule": "FR-015/name-reserved",
+    "file": "invalid/name-reserved.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/name not"
+    }
+  },
+  {
+    "rule": "FR-016/missing-asset",
+    "file": "invalid/missing-asset.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets required"
+    }
+  },
+  {
+    "rule": "FR-016/fourth-asset",
+    "file": "invalid/fourth-asset.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets maxProperties"
+    }
+  },
+  {
+    "rule": "FR-016/two-darwin-keys",
+    "file": "invalid/two-darwin-keys.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets maxProperties"
+    }
+  },
+  {
+    "rule": "FR-016/format-windows-pkg",
+    "file": "invalid/format-windows-pkg.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets/windows-x86_64/format const"
+    }
+  },
+  {
+    "rule": "FR-016/format-darwin-inno-exe",
+    "file": "invalid/format-darwin-inno-exe.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets/darwin-aarch64/format const"
+    }
+  },
+  {
+    "rule": "FR-016/format-linux-pkg",
+    "file": "invalid/format-linux-pkg.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets/linux-x86_64/format const"
+    }
+  },
+  {
+    "rule": "FR-016/min_os-linux-required",
+    "file": "invalid/min_os-linux-required.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets/linux-x86_64 required"
+    }
+  },
+  {
+    "rule": "FR-016/min_os-darwin-required",
+    "file": "invalid/min_os-darwin-required.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets/darwin-aarch64 required"
+    }
+  },
+  {
+    "rule": "FR-016/payload-tar-gz-required",
+    "file": "invalid/payload-tar-gz-required.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets/linux-x86_64 required"
+    }
+  },
+  {
+    "rule": "FR-016/payload-pkg-forbidden",
+    "file": "invalid/payload-pkg-forbidden.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets/darwin-aarch64/payload false schema"
+    }
+  },
+  {
+    "rule": "FR-016/list-empty",
+    "file": "invalid/list-empty.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/assets/linux-x86_64/payload/list minItems"
+    }
+  },
+  {
+    "rule": "FR-016/install-missing-au_component",
+    "file": "invalid/install-missing-au_component.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/install required"
+    }
+  },
+  {
+    "rule": "FR-016/install-missing-macos_pkg_id",
+    "file": "invalid/install-missing-macos_pkg_id.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/install required"
+    }
+  },
+  {
+    "rule": "FR-016/install-missing-uninstall-key",
+    "file": "invalid/install-missing-uninstall-key.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/install required"
+    }
+  },
+  {
+    "rule": "FR-016/install-missing-vst3_bundle",
+    "file": "invalid/install-missing-vst3_bundle.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": "/install required"
+    }
+  },
+  {
+    "rule": "FR-016/install-dotdot",
+    "file": "invalid/install-dotdot.json",
+    "expect": {
+      "error": "E_INSTALL_VALUE",
+      "ajv": "/install/vst3_bundle not"
+    }
+  },
+  {
+    "rule": "FR-017/tag-mismatch",
+    "file": "invalid/tag-mismatch.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/asset-name",
+    "file": "invalid/asset-name.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/vst3_bundle-name",
+    "file": "invalid/vst3_bundle-name.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/au_component-name",
+    "file": "invalid/au_component-name.json",
+    "expect": {
+      "error": "E_MANIFEST_SCHEMA",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/url-other-tag",
+    "file": "invalid/url-other-tag.json",
+    "expect": {
+      "error": "E_URL_NOT_PER_TAG",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/url-latest",
+    "file": "invalid/url-latest.json",
+    "expect": {
+      "error": "E_URL_LATEST",
+      "ajv": "/assets/windows-x86_64/url not"
+    }
+  },
+  {
+    "rule": "FR-017/url-http",
+    "file": "invalid/url-http.json",
+    "expect": {
+      "error": "E_URL_NOT_HTTPS",
+      "ajv": "/assets/windows-x86_64/url pattern"
+    }
+  },
+  {
+    "rule": "FR-017/signature-text",
+    "file": "invalid/signature-text.json",
+    "expect": {
+      "error": "E_SIGNATURE_TEXT",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/binding",
+    "file": "invalid/binding.json",
+    "expect": {
+      "error": "E_TC_BINDING",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/list-not-canonical",
+    "file": "invalid/list-not-canonical.json",
+    "expect": {
+      "error": "E_LISTING_NOT_CANONICAL",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/list-bad-path",
+    "file": "invalid/list-bad-path.json",
+    "expect": {
+      "error": "E_LISTING_DOTDOT",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/files-count",
+    "file": "invalid/files-count.json",
+    "expect": {
+      "error": "E_LISTING_COUNT",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/digest",
+    "file": "invalid/digest.json",
+    "expect": {
+      "error": "E_LISTING_DIGEST",
+      "ajv": null
+    }
+  },
+  {
+    "rule": "FR-017/layout",
+    "file": "invalid/layout.json",
+    "expect": {
+      "error": "E_LAYOUT",
+      "ajv": null
+    }
+  }
+]

@@ -1,0 +1,10 @@
+f 0644 CHANGELOG.txt
+d 0755 KatPlugin.vst3
+d 0755 KatPlugin.vst3/Contents
+d 0755 KatPlugin.vst3/Contents/Resources
+f 0644 KatPlugin.vst3/Contents/Resources/moduleinfo.json
+d 0755 KatPlugin.vst3/Contents/x86_64-linux
+f 0644 KatPlugin.vst3/Contents/x86_64-linux/KatPlugin.so
+f 0644 README.txt
+d 0755 presets
+f 0644 presets/Default.preset

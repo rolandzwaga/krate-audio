@@ -1,0 +1,1 @@
+gen-feed: E_INPUT: --releases row 1: isPrerelease "false" is not a boolean

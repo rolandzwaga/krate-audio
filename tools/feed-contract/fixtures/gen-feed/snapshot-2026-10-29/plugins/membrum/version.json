@@ -1,0 +1,9 @@
+{
+  "version": "0.12.2",
+  "name": "Membrum",
+  "description": "VST3 Synthesized Drum Machine",
+  "publisher": "Krate Audio",
+  "url": "https://krateaudio.com/membrum/",
+  "copyright": "Copyright (c) 2026 Krate Audio",
+  "preset_subdir": "Kits"
+}

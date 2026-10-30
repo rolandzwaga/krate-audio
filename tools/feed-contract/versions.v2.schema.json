@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://krateaudio.com/schemas/versions.v2.schema.json",
+  "title": "Krate Audio versions.json, schema_version 2 (C1)",
+  "$comment": "Open objects (D1): unknown keys are allowed at every level. Patterns compile with Ajv's u flag and in Rust's regex crate (no look-around, no backreferences). See CONTRACT.md.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "const": 2 },
+    "plugins": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/pluginName" },
+      "additionalProperties": { "$ref": "#/$defs/entry" }
+    },
+    "manager": {
+      "type": "object",
+      "properties": {
+        "latest_json_url": {
+          "$ref": "#/$defs/url",
+          "type": "string",
+          "pattern": "/manager/latest\\.json$"
+        }
+      },
+      "required": ["latest_json_url"]
+    }
+  },
+  "required": ["schema_version", "plugins"],
+  "$defs": {
+    "core": {
+      "$comment": "FR-004: bounded core, at most 9 digits per part, no leading zeros, no suffix.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})$"
+    },
+    "tagStable": {
+      "$comment": "FR-005: <plugin lower-case>/v<core>.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+/v(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})$"
+    },
+    "tagPre": {
+      "$comment": "FR-010: <plugin lower-case>/v<core>(-<prerelease>)?, prerelease identifiers per SemVer 2.0.0 section 9.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+/v(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$"
+    },
+    "pubDate": {
+      "$comment": "FR-005: RFC 3339 UTC, the form gh emits as publishedAt.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "url": {
+      "$comment": "FR-005: https, no whitespace, never a /releases/latest/ URL.",
+      "type": "string",
+      "pattern": "^https://[^\\s]+$",
+      "not": { "pattern": "/releases/latest/" }
+    },
+    "signature": {
+      "$comment": "FR-007: four-line minisign text, LF only. The blob length, ED algorithm and trusted comment are checked in contract.js.",
+      "type": "string",
+      "pattern": "^untrusted comment: [^\\r\\n]*\\n[A-Za-z0-9+/=]+\\ntrusted comment: [^\\r\\n]+\\n[A-Za-z0-9+/=]+\\n$"
+    },
+    "reservedStem": {
+      "$comment": "PD-14: a Windows reserved device name, any case, alone or followed by an extension. Used only under not.",
+      "type": "string",
+      "pattern": "^([Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][0-9]|[Ll][Pp][Tt][0-9])(\\..*)?$"
+    },
+    "pluginName": {
+      "$comment": "FR-002 + PD-14.",
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]{0,63}$",
+      "not": { "$ref": "#/$defs/reservedStem" }
+    },
+    "installName": {
+      "$comment": "FR-008 + PD-14: a single name with no '..' anywhere and no reserved device stem. Each install field adds its own pattern.",
+      "type": "string",
+      "allOf": [{ "not": { "pattern": "\\.\\." } }, { "not": { "$ref": "#/$defs/reservedStem" } }]
+    },
+    "install": {
+      "$comment": "FR-008. The darwin / windows conditional requirements sit in entryCommon.",
+      "type": "object",
+      "properties": {
+        "vst3_bundle": {
+          "$ref": "#/$defs/installName",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.-]*\\.vst3$"
+        },
+        "au_component": {
+          "$ref": "#/$defs/installName",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.-]*\\.component$"
+        },
+        "preset_subdir": {
+          "$ref": "#/$defs/installName",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]([A-Za-z0-9 _-]*[A-Za-z0-9_-])?$"
+        },
+        "windows_uninstall_key": {
+          "type": "string",
+          "pattern": "^\\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\\}_is1$",
+          "not": { "pattern": "\\.\\." }
+        },
+        "macos_pkg_id": {
+          "type": "string",
+          "pattern": "^com\\.krateaudio\\.[a-z0-9]+$",
+          "not": { "pattern": "\\.\\." }
+        }
+      },
+      "required": ["vst3_bundle"]
+    },
+    "platform": {
+      "$comment": "FR-006, FR-009.",
+      "type": "object",
+      "properties": {
+        "url": { "$ref": "#/$defs/url" },
+        "size": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "signature": { "$ref": "#/$defs/signature" },
+        "format": { "enum": ["inno-exe", "pkg", "tar.gz"] },
+        "min_os": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+){1,3}$" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "files": { "type": "integer", "minimum": 1 },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          },
+          "required": ["files", "sha256"]
+        }
+      },
+      "required": ["url", "size", "sha256", "signature", "format"],
+      "if": { "type": "object", "properties": { "format": { "const": "tar.gz" } } },
+      "then": { "type": "object", "properties": { "payload": true }, "required": ["payload"] },
+      "else": { "type": "object", "properties": { "payload": false } }
+    },
+    "platforms": {
+      "$comment": "FR-006. Every key matches one prefix, so every value is a platform with its prefix's format binding.",
+      "type": "object",
+      "propertyNames": { "type": "string", "pattern": "^(windows|darwin|linux)-[a-z0-9_]+$" },
+      "patternProperties": {
+        "^(windows|darwin|linux)-": { "$ref": "#/$defs/platform" },
+        "^windows-": { "type": "object", "properties": { "format": { "const": "inno-exe" } } },
+        "^darwin-": {
+          "type": "object",
+          "properties": { "format": { "const": "pkg" }, "min_os": true },
+          "required": ["min_os"]
+        },
+        "^linux-": {
+          "type": "object",
+          "properties": { "format": { "const": "tar.gz" }, "min_os": true },
+          "required": ["min_os"]
+        }
+      }
+    },
+    "entryCommon": {
+      "$comment": "FR-003, FR-008, FR-010: the shape an entry and its prerelease sibling share.",
+      "type": "object",
+      "properties": {
+        "tag": { "type": "string" },
+        "pub_date": { "$ref": "#/$defs/pubDate" },
+        "channel": { "type": "string" },
+        "release_notes_url": { "$ref": "#/$defs/url" },
+        "notes_markdown": { "type": "string" },
+        "platforms": { "$ref": "#/$defs/platforms" },
+        "install": { "$ref": "#/$defs/install" }
+      },
+      "dependentRequired": { "platforms": ["install"], "install": ["platforms"] },
+      "allOf": [
+        {
+          "$comment": "FR-008: a darwin-* platform requires au_component and macos_pkg_id.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "platforms": {
+                "type": "object",
+                "not": { "propertyNames": { "not": { "type": "string", "pattern": "^darwin-" } } }
+              }
+            },
+            "required": ["platforms"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "install": {
+                "type": "object",
+                "properties": { "au_component": true, "macos_pkg_id": true },
+                "required": ["au_component", "macos_pkg_id"]
+              }
+            }
+          }
+        },
+        {
+          "$comment": "FR-008: windows-x86_64 requires windows_uninstall_key.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "platforms": {
+                "type": "object",
+                "properties": { "windows-x86_64": true },
+                "required": ["windows-x86_64"]
+              }
+            },
+            "required": ["platforms"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "install": {
+                "type": "object",
+                "properties": { "windows_uninstall_key": true },
+                "required": ["windows_uninstall_key"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "entry": {
+      "$comment": "FR-003, FR-004, FR-005: a plugin entry; the three v1 keys keep their v1 path and type.",
+      "$ref": "#/$defs/entryCommon",
+      "type": "object",
+      "properties": {
+        "version": { "$ref": "#/$defs/core" },
+        "download_url": { "$ref": "#/$defs/url" },
+        "release_notes": { "type": "string", "const": "" },
+        "tag": { "$ref": "#/$defs/tagStable" },
+        "pub_date": true,
+        "channel": { "const": "stable" },
+        "release_notes_url": true,
+        "prerelease": { "$ref": "#/$defs/sibling" }
+      },
+      "required": ["version", "download_url", "release_notes", "tag", "pub_date", "channel", "release_notes_url"]
+    },
+    "sibling": {
+      "$comment": "FR-010 + PD-1: the prerelease sibling; the v1 keys are forbidden so no v1 reader can mistake it.",
+      "$ref": "#/$defs/entryCommon",
+      "type": "object",
+      "properties": {
+        "tag": { "$ref": "#/$defs/tagPre" },
+        "pub_date": true,
+        "channel": { "const": "beta" },
+        "release_notes_url": true,
+        "version": false,
+        "download_url": false,
+        "release_notes": false
+      },
+      "required": ["tag", "pub_date", "channel", "release_notes_url"]
+    }
+  }
+}

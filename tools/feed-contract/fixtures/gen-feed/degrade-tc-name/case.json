@@ -1,0 +1,15 @@
+{
+  "group": "degrade",
+  "modes": [
+    "v2",
+    "legacy"
+  ],
+  "repo": "rolandzwaga/krate-audio",
+  "exit": 3,
+  "warn": [
+    {
+      "code": "E_TC_NAME",
+      "plugin": "Alpha"
+    }
+  ]
+}

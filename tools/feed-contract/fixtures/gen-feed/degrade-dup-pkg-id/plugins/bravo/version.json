@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "name": "Bravo",
+  "description": "Krate fixture plugin Bravo",
+  "publisher": "Krate Audio",
+  "url": "https://krateaudio.com/bravo/",
+  "identifier": "com.krateaudio.shared"
+}

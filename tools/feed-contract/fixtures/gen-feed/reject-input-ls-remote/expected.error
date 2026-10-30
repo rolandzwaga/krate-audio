@@ -1,0 +1,1 @@
+gen-feed: E_INPUT: --tags line 1: whitespace in a tag name (raw git ls-remote output?)

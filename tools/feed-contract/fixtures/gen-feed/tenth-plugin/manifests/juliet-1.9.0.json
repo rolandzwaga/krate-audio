@@ -1,0 +1,57 @@
+{
+  "tag": "juliet/v1.9.0",
+  "name": "Juliet",
+  "version": "1.9.0",
+  "pub_date": "2026-10-29T00:00:00Z",
+  "assets": {
+    "darwin-universal": {
+      "name": "Juliet-1.9.0-macOS.pkg",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/juliet/v1.9.0/Juliet-1.9.0-macOS.pkg",
+      "size": 43,
+      "sha256": "1bb1541e08f27aa56e3ee22c34933f29856a45a1e1ed412b8817a33545bbedd4",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Juliet:1.9.0:darwin-universal:Juliet-1.9.0-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "pkg",
+      "min_os": "11.0"
+    },
+    "linux-x86_64": {
+      "name": "Juliet-1.9.0-Linux-x64.tar.gz",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/juliet/v1.9.0/Juliet-1.9.0-Linux-x64.tar.gz",
+      "size": 50,
+      "sha256": "772b231dc78b3705e3c25c72fc541b6ad61c1f989ba649298a626312d47e9ea6",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Juliet:1.9.0:linux-x86_64:Juliet-1.9.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "tar.gz",
+      "min_os": "2.31",
+      "payload": {
+        "files": 10,
+        "sha256": "96397b4cb08f4c609ef13970782359a9670978320d87d6062e2080eef7167147",
+        "list": [
+          "f 0644 CHANGELOG.txt",
+          "d 0755 Juliet.vst3",
+          "d 0755 Juliet.vst3/Contents",
+          "d 0755 Juliet.vst3/Contents/Resources",
+          "f 0644 Juliet.vst3/Contents/Resources/moduleinfo.json",
+          "d 0755 Juliet.vst3/Contents/x86_64-linux",
+          "f 0755 Juliet.vst3/Contents/x86_64-linux/Juliet.so",
+          "f 0644 README.txt",
+          "d 0755 presets",
+          "f 0644 presets/Default.preset"
+        ]
+      }
+    },
+    "windows-x86_64": {
+      "name": "Juliet-1.9.0-Windows-x64.exe",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/juliet/v1.9.0/Juliet-1.9.0-Windows-x64.exe",
+      "size": 49,
+      "sha256": "e182122105c4c3f8f926dff7b1e5c2c52b332269100f44d90404a9ec1efc0afe",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Juliet:1.9.0:windows-x86_64:Juliet-1.9.0-Windows-x64.exe\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "inno-exe",
+      "min_os": "10.0"
+    }
+  },
+  "install": {
+    "vst3_bundle": "Juliet.vst3",
+    "au_component": "Juliet.component",
+    "windows_uninstall_key": "{0A1F0000-0000-4000-8000-000000000010}_is1",
+    "macos_pkg_id": "com.krateaudio.juliet"
+  }
+}

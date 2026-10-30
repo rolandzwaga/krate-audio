@@ -1,0 +1,9 @@
+{
+  "group": "reject",
+  "modes": [
+    "v2"
+  ],
+  "repo": "rolandzwaga/krate-audio",
+  "exit": 1,
+  "error": "E_TAG_FORMAT"
+}

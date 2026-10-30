@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://krateaudio.com/schemas/versions.v1.schema.json",
+  "title": "Krate Audio versions.json compatibility floor (v1)",
+  "$comment": "FR-012: exactly what the shipped in-plugin parser needs (plugins/shared/src/update/update_checker.cpp parseResponse) and nothing else. Every v2-valid document is also v1-valid.",
+  "type": "object",
+  "properties": {
+    "plugins": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" },
+          "download_url": { "type": "string" },
+          "release_notes": { "type": "string" }
+        },
+        "required": ["version"]
+      }
+    }
+  },
+  "required": ["plugins"]
+}

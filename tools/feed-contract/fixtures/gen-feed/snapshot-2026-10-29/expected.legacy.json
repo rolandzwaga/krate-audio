@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "plugins": {
+    "Disrumpo": {
+      "version": "0.9.10",
+      "download_url": "https://krateaudio.com/disrumpo/",
+      "release_notes": ""
+    },
+    "Gradus": {
+      "version": "1.10.2",
+      "download_url": "https://krateaudio.com/gradus/",
+      "release_notes": ""
+    },
+    "Innexus": {
+      "version": "1.0.4",
+      "download_url": "https://krateaudio.com/innexus/",
+      "release_notes": ""
+    },
+    "Iterum": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/iterum/",
+      "release_notes": ""
+    },
+    "Membrum": {
+      "version": "0.12.2",
+      "download_url": "https://krateaudio.com/membrum/",
+      "release_notes": ""
+    },
+    "Profundum": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/profundum/",
+      "release_notes": ""
+    },
+    "Ruinae": {
+      "version": "0.12.3",
+      "download_url": "https://krateaudio.com/ruinae/",
+      "release_notes": ""
+    },
+    "Seraphis": {
+      "version": "1.0.3",
+      "download_url": "https://krateaudio.com/seraphis/",
+      "release_notes": ""
+    },
+    "Vorago": {
+      "version": "1.0.2",
+      "download_url": "https://krateaudio.com/vorago/",
+      "release_notes": ""
+    }
+  }
+}

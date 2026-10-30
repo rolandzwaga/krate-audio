@@ -1,0 +1,9 @@
+{
+  "version": "1.3.0",
+  "name": "Alpha",
+  "description": "Krate fixture plugin Alpha",
+  "publisher": "Krate Audio",
+  "url": "https://krateaudio.com/alpha/",
+  "identifier": "com.krateaudio.alphanext",
+  "preset_subdir": "Presets"
+}

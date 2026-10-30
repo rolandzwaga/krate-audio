@@ -1,0 +1,167 @@
+{
+  "schema_version": 2,
+  "plugins": {
+    "Alpha": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/alpha/",
+      "release_notes": "",
+      "tag": "alpha/v1.0.0",
+      "pub_date": "2026-10-01T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.0.0",
+      "platforms": {
+        "darwin-aarch64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v1.0.0/Alpha-1.0.0-macOS.pkg",
+          "size": 42,
+          "sha256": "23003b2eaedd77fafc22bce7ac70938f115172286754b705b14a574da143597d",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Alpha:1.0.0:darwin-aarch64:Alpha-1.0.0-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "pkg",
+          "min_os": "11.0"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v1.0.0/Alpha-1.0.0-Linux-x64.tar.gz",
+          "size": 49,
+          "sha256": "028ea7b5627703ed4d16e0111b6538032ba434461b9694418821eb779be36dfc",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Alpha:1.0.0:linux-x86_64:Alpha-1.0.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 10,
+            "sha256": "36f2f028ae1ecb4433c69185c7fe59db8bf6d259c57750eab577463beebb45a5"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v1.0.0/Alpha-1.0.0-Windows-x64.exe",
+          "size": 48,
+          "sha256": "a38ce1a9ca57d1d4a6f3eded052a25010d10917a6191e17f11ca2a2e020ba9f4",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Alpha:1.0.0:windows-x86_64:Alpha-1.0.0-Windows-x64.exe\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "inno-exe",
+          "min_os": "10.0"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Alpha.vst3",
+        "au_component": "Alpha.component",
+        "windows_uninstall_key": "{0A1F0000-0000-4000-8000-000000000001}_is1",
+        "macos_pkg_id": "com.krateaudio.alpha"
+      }
+    },
+    "Bravo": {
+      "version": "1.1.0",
+      "download_url": "https://krateaudio.com/bravo/",
+      "release_notes": "",
+      "tag": "bravo/v1.1.0",
+      "pub_date": "2026-10-02T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v1.1.0"
+    },
+    "Charlie": {
+      "version": "1.2.0",
+      "download_url": "https://krateaudio.com/charlie/",
+      "release_notes": "",
+      "tag": "charlie/v1.2.0",
+      "pub_date": "2026-10-03T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v1.2.0"
+    },
+    "Delta": {
+      "version": "1.3.0",
+      "download_url": "https://krateaudio.com/delta/",
+      "release_notes": "",
+      "tag": "delta/v1.3.0",
+      "pub_date": "2026-10-04T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/delta/v1.3.0"
+    },
+    "Echo": {
+      "version": "1.4.0",
+      "download_url": "https://krateaudio.com/echo/",
+      "release_notes": "",
+      "tag": "echo/v1.4.0",
+      "pub_date": "2026-10-05T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/echo/v1.4.0"
+    },
+    "Foxtrot": {
+      "version": "1.5.0",
+      "download_url": "https://krateaudio.com/foxtrot/",
+      "release_notes": "",
+      "tag": "foxtrot/v1.5.0",
+      "pub_date": "2026-10-06T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/foxtrot/v1.5.0"
+    },
+    "Golf": {
+      "version": "1.6.0",
+      "download_url": "https://krateaudio.com/golf/",
+      "release_notes": "",
+      "tag": "golf/v1.6.0",
+      "pub_date": "2026-10-07T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/golf/v1.6.0"
+    },
+    "Hotel": {
+      "version": "1.7.0",
+      "download_url": "https://krateaudio.com/hotel/",
+      "release_notes": "",
+      "tag": "hotel/v1.7.0",
+      "pub_date": "2026-10-08T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/hotel/v1.7.0"
+    },
+    "India": {
+      "version": "1.8.0",
+      "download_url": "https://krateaudio.com/india/",
+      "release_notes": "",
+      "tag": "india/v1.8.0",
+      "pub_date": "2026-10-09T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/india/v1.8.0"
+    },
+    "Juliet": {
+      "version": "1.9.0",
+      "download_url": "https://krateaudio.com/juliet/",
+      "release_notes": "",
+      "tag": "juliet/v1.9.0",
+      "pub_date": "2026-10-10T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/juliet/v1.9.0",
+      "platforms": {
+        "darwin-universal": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/juliet/v1.9.0/Juliet-1.9.0-macOS.pkg",
+          "size": 43,
+          "sha256": "1bb1541e08f27aa56e3ee22c34933f29856a45a1e1ed412b8817a33545bbedd4",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Juliet:1.9.0:darwin-universal:Juliet-1.9.0-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "pkg",
+          "min_os": "11.0"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/juliet/v1.9.0/Juliet-1.9.0-Linux-x64.tar.gz",
+          "size": 50,
+          "sha256": "772b231dc78b3705e3c25c72fc541b6ad61c1f989ba649298a626312d47e9ea6",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Juliet:1.9.0:linux-x86_64:Juliet-1.9.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 10,
+            "sha256": "96397b4cb08f4c609ef13970782359a9670978320d87d6062e2080eef7167147"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/juliet/v1.9.0/Juliet-1.9.0-Windows-x64.exe",
+          "size": 49,
+          "sha256": "e182122105c4c3f8f926dff7b1e5c2c52b332269100f44d90404a9ec1efc0afe",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Juliet:1.9.0:windows-x86_64:Juliet-1.9.0-Windows-x64.exe\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "inno-exe",
+          "min_os": "10.0"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Juliet.vst3",
+        "au_component": "Juliet.component",
+        "windows_uninstall_key": "{0A1F0000-0000-4000-8000-000000000010}_is1",
+        "macos_pkg_id": "com.krateaudio.juliet"
+      }
+    }
+  }
+}

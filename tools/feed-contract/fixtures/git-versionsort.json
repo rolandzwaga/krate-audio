@@ -1,0 +1,288 @@
+{
+  "unrelated": [
+    "v0.1.1",
+    "v0.8.0",
+    "manager/v0.1.0",
+    "alpha-v9.9.9",
+    "alpha/x2.0.0",
+    "alphav/v5.0.0",
+    "minor/1.99.0",
+    "nomatch-v1.0.0",
+    "nomatch/x1.0.0",
+    "nomatchx/v1.0.0",
+    "release-2026.10"
+  ],
+  "sets": [
+    {
+      "id": "multi-digit-minor",
+      "prefix": "minor",
+      "name": "Minor",
+      "covers": "multi-digit minor part",
+      "tags": [
+        "minor/v1.2.0",
+        "minor/v1.9.0",
+        "minor/v1.10.0",
+        "minor/v1.10.1"
+      ]
+    },
+    {
+      "id": "multi-digit-patch",
+      "prefix": "patch",
+      "name": "Patch",
+      "covers": "multi-digit patch part",
+      "tags": [
+        "patch/v1.0.9",
+        "patch/v1.0.10",
+        "patch/v1.0.99",
+        "patch/v1.0.100"
+      ]
+    },
+    {
+      "id": "multi-digit-major",
+      "prefix": "major",
+      "name": "Major",
+      "covers": "multi-digit major part",
+      "tags": [
+        "major/v2.0.0",
+        "major/v9.0.0",
+        "major/v9.10.0",
+        "major/v10.0.0"
+      ]
+    },
+    {
+      "id": "release-history",
+      "prefix": "history",
+      "name": "History",
+      "covers": "a real-shaped history",
+      "tags": [
+        "history/v0.9.4",
+        "history/v0.9.9",
+        "history/v0.9.10",
+        "history/v0.9.11",
+        "history/v0.10.0",
+        "history/v0.12.3"
+      ]
+    },
+    {
+      "id": "common-leading-digit",
+      "prefix": "common",
+      "name": "Common",
+      "covers": "digit runs sharing a first digit",
+      "tags": [
+        "common/v1.2.0",
+        "common/v1.19.0",
+        "common/v1.20.0",
+        "common/v1.199.0"
+      ]
+    },
+    {
+      "id": "rc-over-release",
+      "prefix": "rc",
+      "name": "Rc",
+      "covers": "-rc1 / -rc2 beside their release",
+      "tags": [
+        "rc/v1.0.0",
+        "rc/v1.0.0-rc1",
+        "rc/v1.0.0-rc2"
+      ]
+    },
+    {
+      "id": "rc-multi-digit",
+      "prefix": "rcten",
+      "name": "Rcten",
+      "covers": "-rc1 / -rc9 / -rc10",
+      "tags": [
+        "rcten/v1.0.0-rc1",
+        "rcten/v1.0.0-rc9",
+        "rcten/v1.0.0-rc10"
+      ]
+    },
+    {
+      "id": "beta-multi-digit",
+      "prefix": "beta",
+      "name": "Beta",
+      "covers": "-beta.1 / -beta.2 / -beta.10 over an older release",
+      "tags": [
+        "beta/v1.1.0",
+        "beta/v1.2.0-beta.1",
+        "beta/v1.2.0-beta.2",
+        "beta/v1.2.0-beta.10"
+      ]
+    },
+    {
+      "id": "beta-same-core",
+      "prefix": "betasame",
+      "name": "Betasame",
+      "covers": "a suffixed tag beside its own release",
+      "tags": [
+        "betasame/v1.1.0",
+        "betasame/v1.1.0-beta.1"
+      ]
+    },
+    {
+      "id": "beta-lower-core",
+      "prefix": "betalower",
+      "name": "Betalower",
+      "covers": "a suffixed tag with a lower core",
+      "tags": [
+        "betalower/v1.0.0-beta.1",
+        "betalower/v1.1.0"
+      ]
+    },
+    {
+      "id": "beta-leading-zero",
+      "prefix": "betazero",
+      "name": "Betazero",
+      "covers": "-beta.09 beside -beta.9 and -beta.10",
+      "tags": [
+        "betazero/v2.0.0-beta.9",
+        "betazero/v2.0.0-beta.09",
+        "betazero/v2.0.0-beta.10"
+      ]
+    },
+    {
+      "id": "leading-zero",
+      "prefix": "lead",
+      "name": "Lead",
+      "covers": "a leading zero (01)",
+      "tags": [
+        "lead/v1.0.0",
+        "lead/v1.01.0",
+        "lead/v1.1.0",
+        "lead/v1.10.0"
+      ]
+    },
+    {
+      "id": "two-leading-zeros",
+      "prefix": "leadtwo",
+      "name": "Leadtwo",
+      "covers": "leading zeros (01, 001, 00)",
+      "tags": [
+        "leadtwo/v1.001",
+        "leadtwo/v1.01",
+        "leadtwo/v1.0",
+        "leadtwo/v1.00",
+        "leadtwo/v1.1"
+      ]
+    },
+    {
+      "id": "zero-runs",
+      "prefix": "zeros",
+      "name": "Zeros",
+      "covers": "runs of zeros only",
+      "tags": [
+        "zeros/v0.0.0",
+        "zeros/v0.0.00",
+        "zeros/v0.00.0",
+        "zeros/v0.0.01"
+      ]
+    },
+    {
+      "id": "fraction-runs",
+      "prefix": "fraction",
+      "name": "Fraction",
+      "covers": "zero-led runs compared lexically",
+      "tags": [
+        "fraction/v1.05",
+        "fraction/v1.050",
+        "fraction/v1.5",
+        "fraction/v1.0050"
+      ]
+    },
+    {
+      "id": "suffix-bytes",
+      "prefix": "suffix",
+      "name": "Suffix",
+      "covers": "non-digit suffixes compared bytewise",
+      "tags": [
+        "suffix/v1.0.0",
+        "suffix/v1.0.0a",
+        "suffix/v1.0.0-a",
+        "suffix/v1.0.0.1",
+        "suffix/v1.0.0_1"
+      ]
+    },
+    {
+      "id": "prerelease-kinds",
+      "prefix": "kinds",
+      "name": "Kinds",
+      "covers": "alpha / beta / rc suffixes beside the release",
+      "tags": [
+        "kinds/v3.0.0",
+        "kinds/v3.0.0-alpha",
+        "kinds/v3.0.0-beta.1",
+        "kinds/v3.0.0-rc1",
+        "kinds/v3.0.0-rc.1"
+      ]
+    },
+    {
+      "id": "dash-number",
+      "prefix": "dashnum",
+      "name": "Dashnum",
+      "covers": "numeric suffixes",
+      "tags": [
+        "dashnum/v2.0.0-1",
+        "dashnum/v2.0.0-2",
+        "dashnum/v2.0.0-10"
+      ]
+    },
+    {
+      "id": "many-parts",
+      "prefix": "deep",
+      "name": "Deep",
+      "covers": "five-part versions",
+      "tags": [
+        "deep/v1.2.3.4",
+        "deep/v1.2.3.4.5",
+        "deep/v1.2.3.4.10"
+      ]
+    },
+    {
+      "id": "big-numbers",
+      "prefix": "big",
+      "name": "Big",
+      "covers": "a part above 2^32",
+      "tags": [
+        "big/v1.0.999",
+        "big/v1.0.1000",
+        "big/v1.0.4294967296"
+      ]
+    },
+    {
+      "id": "prefix-short",
+      "prefix": "alpha",
+      "name": "Alpha",
+      "covers": "a prefix of another prefix (alphabet/v*)",
+      "tags": [
+        "alpha/v1.0.0",
+        "alpha/v1.2.0"
+      ]
+    },
+    {
+      "id": "prefix-long",
+      "prefix": "alphabet",
+      "name": "Alphabet",
+      "covers": "the longer prefix, with higher versions",
+      "tags": [
+        "alphabet/v0.1.0",
+        "alphabet/v3.0.0"
+      ]
+    },
+    {
+      "id": "single-tag",
+      "prefix": "single",
+      "name": "Single",
+      "covers": "one tag",
+      "tags": [
+        "single/v0.1.0"
+      ]
+    },
+    {
+      "id": "no-tag",
+      "prefix": "nomatch",
+      "name": "Nomatch",
+      "covers": "no tag of its own, only near misses",
+      "tags": []
+    }
+  ]
+}
