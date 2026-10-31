@@ -5,6 +5,7 @@
 //! 16 KiB TLS record) and polled against the shutdown flag, every wait (`Stall`, `Delayed`, `HeadersThenStall`) on one
 //! `Condvar` that `Drop` signals. It opens no outbound socket: the only dial is `Drop`'s wake-up of its own listener.
 
+use std::collections::BTreeMap;
 use std::io::{ErrorKind, Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
@@ -46,6 +47,19 @@ pub enum Reply {
         after: Duration,
         reply: Box<Reply>,
     },
+    /// 206 for a `Range: bytes=<n>-` with `n` below the body length, 416 at or past it, else 200 with the whole
+    /// body (Phase 7 FR-084).
+    Ranged {
+        body: Vec<u8>,
+    },
+    /// The k-th request to the route gets the k-th reply; the last repeats. Resolved only at the top level.
+    Script(Vec<Reply>),
+    /// 200 with Content-Length, `body` sent `chunk` bytes at a time with `interval` between chunks.
+    Paced {
+        body: Vec<u8>,
+        chunk: usize,
+        interval: Duration,
+    },
 }
 
 /// One request as the server read it.
@@ -72,6 +86,8 @@ const TLS_ANSWER: &[u8] =
 struct Shared {
     routes: Mutex<Vec<(String, Reply)>>,
     requests: Mutex<Vec<RecordedRequest>>,
+    /// Per path: how many requests a `Script` route has resolved.
+    hits: Mutex<BTreeMap<String, usize>>,
     stop: Mutex<bool>,
     wake: Condvar,
     workers: Mutex<Vec<JoinHandle<()>>>,
@@ -96,11 +112,24 @@ impl Shared {
         *guard
     }
 
+    /// The route's reply; a `Script` resolves to its k-th reply for the route's k-th request (the last repeats).
     fn reply_for(&self, path: &str) -> Reply {
-        lock(&self.routes)
+        let reply = lock(&self.routes)
             .iter()
             .find(|(p, _)| p == path)
-            .map_or(Reply::Status(404), |(_, r)| r.clone())
+            .map_or(Reply::Status(404), |(_, r)| r.clone());
+        let Reply::Script(replies) = reply else {
+            return reply;
+        };
+        let mut hits = lock(&self.hits);
+        let hit = hits.entry(path.to_owned()).or_insert(0);
+        let k = *hit;
+        *hit += 1;
+        replies
+            .get(k)
+            .or_else(|| replies.last())
+            .cloned()
+            .unwrap_or(Reply::Status(404))
     }
 }
 
@@ -128,6 +157,7 @@ impl FixtureServer {
         let shared = Arc::new(Shared {
             routes: Mutex::new(routes),
             requests: Mutex::new(Vec::new()),
+            hits: Mutex::new(BTreeMap::new()),
             stop: Mutex::new(false),
             wake: Condvar::new(),
             workers: Mutex::new(Vec::new()),
@@ -284,8 +314,9 @@ impl Conn<'_> {
         }
     }
 
-    /// Answers `reply`; `true` when the connection is to be served again from the top (`ConnectOk`, PD-7).
-    fn answer(&mut self, reply: &Reply) -> bool {
+    /// Answers `reply` to `request`; `true` when the connection is to be served again from the top (`ConnectOk`,
+    /// PD-7).
+    fn answer(&mut self, reply: &Reply, request: &RecordedRequest) -> bool {
         match reply {
             Reply::Ok { body, content_type } => {
                 let head = format!(
@@ -336,7 +367,47 @@ impl Conn<'_> {
             }
             Reply::Delayed { after, reply } => {
                 if !self.shared.wait(*after) {
-                    return self.answer(reply);
+                    return self.answer(reply, request);
+                }
+            }
+            Reply::Ranged { body } => {
+                let len = body.len();
+                match range_start(request) {
+                    Some(n) if n < len => {
+                        let head = format!(
+                            "HTTP/1.1 206 {}\r\nContent-Range: bytes {n}-{}/{len}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            reason(206),
+                            len - 1,
+                            len - n
+                        );
+                        self.send(&[head.as_bytes(), &body[n..]].concat());
+                    }
+                    Some(_) => {
+                        let range = format!("bytes */{len}");
+                        self.send(&status_response(416, &[("Content-Range", &range)]));
+                    }
+                    None => {
+                        self.send(&[ok_head(len, &[]), body.clone()].concat());
+                    }
+                }
+            }
+            Reply::Script(_) => {
+                unreachable!(
+                    "reply_for resolves a top-level Script; a nested Script is not supported"
+                )
+            }
+            Reply::Paced {
+                body,
+                chunk,
+                interval,
+            } => {
+                // Every request, ranged or not, gets the whole 200 body (SC-037).
+                if self.send(&ok_head(body.len(), &[])) {
+                    for (i, part) in body.chunks((*chunk).max(1)).enumerate() {
+                        if (i > 0 && self.shared.wait(*interval)) || !self.send(part) {
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -375,8 +446,8 @@ fn serve_connection(stream: TcpStream, shared: &Shared) {
         } else {
             shared.reply_for(&request.path)
         };
-        lock(&shared.requests).push(request);
-        if !conn.answer(&reply) {
+        lock(&shared.requests).push(request.clone());
+        if !conn.answer(&reply, &request) {
             break;
         }
     }
@@ -393,6 +464,20 @@ fn is_loopback_authority(authority: &str) -> bool {
                 && port.bytes().all(|b| b.is_ascii_digit())
                 && port.parse::<u16>().is_ok()
         })
+}
+
+/// `n` of the first `Range` header (name in any ASCII case) when it is exactly `bytes=<digits>-`; digits too large
+/// for `usize` read as `usize::MAX` (past any body). `None` for no `Range` or another form.
+fn range_start(request: &RecordedRequest) -> Option<usize> {
+    let (_, value) = request
+        .headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("Range"))?;
+    let digits = value.strip_prefix("bytes=")?.strip_suffix('-')?;
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some(digits.parse().unwrap_or(usize::MAX))
 }
 
 /// `METHOD SP target SP version`, then `name: value` lines; `None` when the head is not that shape.
@@ -425,6 +510,7 @@ fn reason(status: u16) -> &'static str {
     match status {
         200 => "OK",
         204 => "No Content",
+        206 => "Partial Content",
         301 => "Moved Permanently",
         302 => "Found",
         303 => "See Other",
@@ -434,6 +520,9 @@ fn reason(status: u16) -> &'static str {
         403 => "Forbidden",
         404 => "Not Found",
         407 => "Proxy Authentication Required",
+        408 => "Request Timeout",
+        416 => "Range Not Satisfiable",
+        429 => "Too Many Requests",
         431 => "Request Header Fields Too Large",
         500 => "Internal Server Error",
         502 => "Bad Gateway",

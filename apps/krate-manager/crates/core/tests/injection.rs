@@ -7,8 +7,13 @@
 //! Phase 6 (plan §4.12): the Markdown, plist and host-I/O symbols confined (FR-002, FR-082), the
 //! test sources (FR-083), the write and listing tokens (FR-084), the two TA-1 test programs
 //! (FR-086) and the real-location scan (FR-088).
+//! Phase 7 (plan §4.10.1): the `VerifiedArtifact` seam and its minting routes (FR-043), the
+//! secret-key walk (FR-083), the Phase 7 test hosts (FR-087), the verify crates, URL literals and
+//! whole reads (FR-082), the Q-B arity rule (SI-26) and the D13 fixture-URL seam (SC-032).
 //! Every test reads files only: nothing is created, nothing is written.
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::ops::Range;
@@ -98,14 +103,16 @@ const DISALLOWED_METHODS: &str = "clippy::disallowed_methods";
 const GROUP_SUPPRESSIONS: [&str; 3] = ["clippy::style", "clippy::all", "warnings"];
 const FIXTURE_LIB: &str = "tests/fixtures/clippy-guard/src/lib.rs";
 /// FR-007: the `[dependencies]` keys of `crates/core/Cargo.toml`.
-const FR007_DEPENDENCIES: [&str; 11] = [
+const FR007_DEPENDENCIES: [&str; 13] = [
     "base64",
     "log",
+    "minisign-verify",
     "pulldown-cmark",
     "regex",
     "rustls",
     "serde",
     "serde_json",
+    "sha2",
     "tempfile",
     "thiserror",
     "url",
@@ -140,6 +147,7 @@ const CORE_SRC: &str = "crates/core/src/";
 const PLATFORM_DIR: &str = "crates/core/src/platform/";
 const DETECT_RS: &str = "crates/core/src/detect.rs";
 const DETECT_TESTS_RS: &str = "crates/core/src/detect_tests.rs";
+const DOWNLOAD_TESTS_RS: &str = "crates/core/src/download_tests.rs";
 const NOTES_RS: &str = "crates/core/src/notes.rs";
 const NOTES_TESTS_RS: &str = "crates/core/src/notes_tests.rs";
 const STATUS_RS: &str = "crates/core/src/status.rs";
@@ -148,6 +156,45 @@ const WINDOWS_RS: &str = "crates/core/src/platform/windows.rs";
 const MACOS_RS: &str = "crates/core/src/platform/macos.rs";
 const LINUX_RS: &str = "crates/core/src/platform/linux.rs";
 const COMMANDS_RS: &str = "src-tauri/src/commands.rs";
+
+// App-root-relative paths the Phase 7 rules name (`DOWNLOAD_TESTS_RS` is above).
+const DOWNLOAD_RS: &str = "crates/core/src/download.rs";
+const VERIFY_RS: &str = "crates/core/src/verify.rs";
+const VERIFY_TESTS_RS: &str = "crates/core/src/verify_tests.rs";
+const TEST_SIGNER_RS: &str = "crates/core/src/test_signer.rs";
+
+/// Q-B (PD-11, SI-26): the lint and the one group holding it that `GROUP_SUPPRESSIONS` does not
+/// already report (`clippy::all` and `warnings` are D6 findings anywhere).
+const ARITY_SUPPRESSIONS: [&str; 2] = ["clippy::too_many_arguments", "clippy::complexity"];
+/// FR-083 (SI-22): the directories the secret-key walk never enters, at any depth.
+const TREE_SKIPPED_DIRS: [&str; 3] = ["target", "node_modules", "dist"];
+const UNTRUSTED_COMMENT: &str = "untrusted comment:";
+const SECRET_KEY: &str = "secret key";
+const SIGNING_VAR: &str = "TAURI_SIGNING_PRIVATE_KEY";
+/// A CI secret reference, the one value `SIGNING_VAR` may be given.
+const SECRET_REFERENCE: &str = "${{ secrets.";
+/// FR-083 rule (5): key-generating calls no test source holds.
+const KEYGEN_TOKENS: [&str; 3] = [
+    "generate_and_write_encrypted_keypair",
+    "generate_and_write_unencrypted_keypair",
+    "generate_encrypted_keypair",
+];
+/// FR-087: the Phase 7 test files, each of which must be readable.
+const PHASE7_TEST_FILES: [&str; 4] = [
+    DOWNLOAD_TESTS_RS,
+    VERIFY_TESTS_RS,
+    TEST_SIGNER_RS,
+    TEST_SUPPORT_RS,
+];
+/// FR-087: raw-text substrings none of `PHASE7_TEST_FILES` holds.
+const PHASE7_HOST_NEEDLES: [&str; 4] = [
+    "github.com",
+    "githubusercontent.com",
+    "krateaudio.com",
+    "--test-threads",
+];
+/// FR-042, FR-087: the one test body that may name the release key.
+const RELEASE_KEY_BODY: &str = "release_key_is_the_committed_key_and_not_a_test_key";
 
 /// FR-082: the host FFI identifiers, only in `os_facts.rs`.
 const HOST_FFI: [&str; 4] = [
@@ -249,7 +296,7 @@ const CONFINED_TOKENS: [(&str, &[&str]); 18] = [
 /// FR-075, PD-31: the only files whose code names `core_foundation`.
 const CORE_FOUNDATION_FILES: [&str; 2] = [SYSPROXY_CF_RS, SYSPROXY_CF_TESTS_RS];
 /// FR-081, FR-073, FR-075: a dependency key and the only manifests that may declare it.
-const CONFINED_TOML_KEYS: [(&str, &[&str]); 9] = [
+const CONFINED_TOML_KEYS: [(&str, &[&str]); 12] = [
     ("ureq", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("rustls", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("rquickjs", &["Cargo.toml", "crates/core/Cargo.toml"]),
@@ -265,6 +312,9 @@ const CONFINED_TOML_KEYS: [(&str, &[&str]); 9] = [
         "tauri-plugin-opener",
         &["Cargo.toml", "src-tauri/Cargo.toml"],
     ),
+    ("minisign-verify", &["Cargo.toml", "crates/core/Cargo.toml"]),
+    ("sha2", &["Cargo.toml", "crates/core/Cargo.toml"]),
+    ("minisign", &["Cargo.toml", "crates/core/Cargo.toml"]),
 ];
 /// SC-026: token sequences `http.rs` never holds (one agent, one trust store).
 const SECOND_AGENT_CALLS: [&str; 6] = [
@@ -281,7 +331,7 @@ const NEWTYPES: [&str; 4] = ["PlainName", "AssetUrl", "PageUrl", "AssetName"];
 const CONSTRUCTOR_TRAITS: [&str; 5] = ["From", "TryFrom", "FromStr", "Default", "Deserialize"];
 
 /// FR-087, SI-10, SI-26: the test bodies (file, `fn` name) that may build the production config.
-const PRODUCTION_BODIES: [(&str, &str); 9] = [
+const PRODUCTION_BODIES: [(&str, &str); 10] = [
     (HTTP_TESTS_RS, "https_only_refuses_before_connecting"),
     (HTTP_TESTS_RS, "config_for_dev_url_cases"),
     (HTTP_TESTS_RS, "url_policy_cases"),
@@ -291,6 +341,7 @@ const PRODUCTION_BODIES: [(&str, &str); 9] = [
     (HTTP_TESTS_RS, "production_values"),
     (HTTP_TESTS_RS, "pac_policy_cases"),
     (PAC_TESTS_RS, "wpad_candidate_cases"),
+    (HTTP_TESTS_RS, "streamed_policy_cases"),
 ];
 /// FR-087: the test bodies that may carry a static proxy.
 const PROXY_BODIES: [(&str, &str); 5] = [
@@ -301,7 +352,7 @@ const PROXY_BODIES: [(&str, &str); 5] = [
     (FEED_TESTS_RS, "check_through_proxy_writes_cache"),
 ];
 /// FR-087, SI-26, R-15: the PAC-path and OS-path test bodies.
-const PAC_BODIES: [(&str, &str); 12] = [
+const PAC_BODIES: [(&str, &str); 13] = [
     (HTTP_TESTS_RS, "pac_path_proxy"),
     (HTTP_TESTS_RS, "pac_path_direct"),
     (HTTP_TESTS_RS, "pac_list_walk"),
@@ -314,6 +365,10 @@ const PAC_BODIES: [(&str, &str); 12] = [
     (HTTP_TESTS_RS, "os_pac_walk"),
     (HTTP_TESTS_RS, "os_pac_failure_cases"),
     (FEED_TESTS_RS, "check_survives_pac_failure"),
+    (
+        HTTP_TESTS_RS,
+        "streamed_pac_fetch_keeps_the_feed_bound_unix",
+    ),
 ];
 /// A token sequence, the bodies (file, `fn` name) it may sit in, and whether all of
 /// `tests/live_feed.rs` may hold it.
@@ -337,10 +392,20 @@ const TEST_BANNED: [&str; 6] = [
 /// The only programs a `crates/core` test may start anywhere.
 const TEST_PROGRAMS: [&str; 2] = ["sleep", "printf"];
 /// TA-1 (FR-086): a program exactly one test body may start besides `TEST_PROGRAMS`, as (file,
-/// enclosing `fn`, bare program name resolved through `PATH`).
-const TEST_PROGRAM_BODIES: [(&str, &str, &str); 2] = [
+/// enclosing `fn`, the program literal).
+const TEST_PROGRAM_BODIES: [(&str, &str, &str); 4] = [
     (DETECT_TESTS_RS, "probe_metadata_error_unix", "mkfifo"),
     (DETECT_TESTS_RS, "listing_skips_junction_windows", "cmd"),
+    (
+        DOWNLOAD_TESTS_RS,
+        "verified_file_has_no_quarantine_macos",
+        "/usr/bin/xattr",
+    ),
+    (
+        DOWNLOAD_TESTS_RS,
+        "staged_links_are_not_followed_windows",
+        "cmd",
+    ),
 ];
 
 /// FR-063, SC-039 rule 1: environment reads, only in `os_roots.rs` and `proxy_env.rs`.
@@ -452,6 +517,17 @@ const RULE_VENDOR_LITERAL: &str = "vendor-literal-outside-platform";
 const RULE_TEST_HOST_IO: &str = "host-io-in-test-source";
 const RULE_WRITE_TOKEN: &str = "write-or-listing-token";
 const RULE_READ_DIR: &str = "read-dir-site";
+const RULE_VERIFIED_SEAM: &str = "verified-artifact-seam";
+const RULE_KEY_FILE: &str = "secret-key-file-name";
+const RULE_KEY_TEXT: &str = "secret-key-text";
+const RULE_KEY_BASE64: &str = "secret-key-base64";
+const RULE_SIGNING_VAR: &str = "signing-key-variable";
+const RULE_KEYGEN: &str = "key-generation-in-test-source";
+const RULE_REAL_HOST: &str = "real-host-in-phase7-test";
+const RULE_TEST_SIGNER: &str = "test-signer-declaration";
+const RULE_URL_LITERAL: &str = "url-literal";
+const RULE_WHOLE_READ: &str = "whole-file-read";
+const RULE_FIXTURE_SEAM: &str = "fixture-url-seam";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Finding {
@@ -2385,6 +2461,659 @@ fn real_location_findings(files: &[(String, Option<String>)]) -> Vec<String> {
     out
 }
 
+/// Whether the token before `at` (an item keyword or a field name) is `pub ( crate )`.
+fn is_crate_private(toks: &[&str], at: usize) -> bool {
+    at >= 4 && toks[at - 4..at] == ["pub", "(", "crate", ")"]
+}
+
+fn seam_finding(file: &str, detail: String) -> Finding {
+    Finding {
+        file: file.to_owned(),
+        rule: RULE_VERIFIED_SEAM,
+        detail,
+    }
+}
+
+/// SI-28: `fn <name>` declared once, as `pub ( crate ) fn <name>`, in `verify.rs`; every call
+/// `<name> (` (the declaration excepted) only in `callers`.
+fn minting_route_findings(
+    toks_of: &[(&str, Vec<&str>)],
+    name: &str,
+    callers: &[&str],
+) -> Vec<Finding> {
+    let mut out = Vec::new();
+    let mut decls = Vec::new();
+    for (rel, toks) in toks_of {
+        for at in seq_at(toks, &["fn", name]) {
+            decls.push((*rel, is_crate_private(toks, at)));
+        }
+        let calls = seq_at(toks, &[name, "("])
+            .into_iter()
+            .filter(|&p| p == 0 || toks[p - 1] != "fn")
+            .count();
+        if calls > 0 && !callers.contains(rel) {
+            out.push(seam_finding(
+                rel,
+                format!("`{name} (` {calls} time(s), allowed only in {callers:?}"),
+            ));
+        }
+    }
+    if decls != [(VERIFY_RS, true)] {
+        out.push(seam_finding(
+            VERIFY_RS,
+            format!(
+                "`fn {name}` declared as (file, pub(crate)) {decls:?}, expected once, pub(crate), in verify.rs"
+            ),
+        ));
+    }
+    out
+}
+
+/// FR-043 (SI-28) over the workspace `.rs` files: `pub struct VerifiedArtifact {` once, in
+/// `verify.rs`, with no `pub` field and no `Default` / `Deserialize` derive; no constructor-trait
+/// impl for it; `VerifiedArtifact {` outside `verify.rs` only after `->`; the minting routes
+/// `relocated`, `verify_file`, `from_text` and `struct Expected` crate-private and called only
+/// where SI-28 allows.
+fn verified_artifact_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let lexed = lex(files);
+    let toks_of = tokenized(&lexed);
+    let mut out = Vec::new();
+    let decl = tokens("pub struct VerifiedArtifact {");
+    let mut decl_files = Vec::new();
+    for (rel, toks) in &toks_of {
+        for at in seq_at(toks, &decl) {
+            decl_files.push(*rel);
+            let open = at + decl.len() - 1;
+            if toks[open + 1..close_of(toks, open)].contains(&"pub") {
+                out.push(seam_finding(
+                    rel,
+                    "a `pub` field in VerifiedArtifact".to_owned(),
+                ));
+            }
+            for attr in outer_attributes(toks, at) {
+                let attr = &toks[attr];
+                if attr.contains(&"derive")
+                    && (attr.contains(&"Default") || attr.contains(&"Deserialize"))
+                {
+                    out.push(seam_finding(
+                        rel,
+                        format!("VerifiedArtifact: `#[{}]`", attr.join(" ")),
+                    ));
+                }
+            }
+        }
+        for block in impl_blocks(toks)
+            .iter()
+            .filter(|b| b.self_name == "VerifiedArtifact")
+        {
+            if let Some(tr) = block.trait_name
+                && CONSTRUCTOR_TRAITS.contains(&tr)
+            {
+                out.push(seam_finding(rel, format!("impl {tr} for VerifiedArtifact")));
+            }
+        }
+        if *rel != VERIFY_RS {
+            let literals = seq_at(toks, &["VerifiedArtifact", "{"])
+                .into_iter()
+                .filter(|&p| p < 2 || toks[p - 2..p] != ["-", ">"])
+                .count();
+            if literals > 0 {
+                out.push(seam_finding(
+                    rel,
+                    format!("`VerifiedArtifact {{` {literals} time(s) outside a return type"),
+                ));
+            }
+        }
+    }
+    if decl_files != [VERIFY_RS] {
+        out.push(seam_finding(
+            VERIFY_RS,
+            format!("`pub struct VerifiedArtifact` in {decl_files:?}, expected once, in verify.rs"),
+        ));
+    }
+    out.extend(minting_route_findings(
+        &toks_of,
+        "relocated",
+        &[DOWNLOAD_RS],
+    ));
+    out.extend(minting_route_findings(
+        &toks_of,
+        "verify_file",
+        &[VERIFY_RS, DOWNLOAD_RS, VERIFY_TESTS_RS, DOWNLOAD_TESTS_RS],
+    ));
+    out.extend(minting_route_findings(
+        &toks_of,
+        "from_text",
+        &[
+            VERIFY_RS,
+            TEST_SIGNER_RS,
+            TEST_SUPPORT_RS,
+            VERIFY_TESTS_RS,
+            DOWNLOAD_TESTS_RS,
+        ],
+    ));
+    if let Some((_, toks)) = toks_of.iter().find(|(rel, _)| *rel == VERIFY_RS) {
+        let decls = seq_at(toks, &["struct", "Expected"]);
+        if decls.len() != 1 || !is_crate_private(toks, decls[0]) {
+            out.push(seam_finding(
+                VERIFY_RS,
+                format!(
+                    "`struct Expected` {} time(s), expected once, `pub(crate) struct Expected`",
+                    decls.len()
+                ),
+            ));
+        }
+        for (_, fields) in item_bodies(toks)
+            .into_iter()
+            .filter(|(name, _)| *name == "Expected")
+        {
+            let bare = fields
+                .filter(|&k| {
+                    toks[k] == "pub" && toks.get(k + 1..k + 4) != Some(&["(", "crate", ")"][..])
+                })
+                .count();
+            if bare > 0 {
+                out.push(seam_finding(
+                    VERIFY_RS,
+                    format!("{bare} `pub` field(s) in Expected without `(crate)`"),
+                ));
+            }
+        }
+    }
+    out
+}
+
+/// FR-083 (SI-22): every file under the app root as (`/`-separated relative path, text read
+/// lossily); links are not followed and no `TREE_SKIPPED_DIRS` directory is entered.
+fn app_tree_files() -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    collect_tree(&app_root(), "", &mut out);
+    out.sort();
+    out
+}
+
+fn collect_tree(dir: &Path, prefix: &str, out: &mut Vec<(String, String)>) {
+    let entries =
+        fs::read_dir(dir).unwrap_or_else(|e| panic!("cannot list {}: {e}", dir.display()));
+    for entry in entries {
+        let entry = entry.unwrap_or_else(|e| panic!("cannot list {}: {e}", dir.display()));
+        let name = entry.file_name().to_string_lossy().into_owned();
+        // `DirEntry::file_type` does not follow a link: a link is neither a dir nor a file here.
+        let kind = entry
+            .file_type()
+            .unwrap_or_else(|e| panic!("cannot stat {}: {e}", entry.path().display()));
+        if kind.is_dir() {
+            if !TREE_SKIPPED_DIRS.contains(&name.as_str()) {
+                collect_tree(&entry.path(), &format!("{prefix}{name}/"), out);
+            }
+        } else if kind.is_file() {
+            match fs::read(entry.path()) {
+                Ok(bytes) => out.push((
+                    format!("{prefix}{name}"),
+                    String::from_utf8_lossy(&bytes).into_owned(),
+                )),
+                // A file another writer removed between the listing and the read.
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => panic!("cannot read {}: {e}", entry.path().display()),
+            }
+        }
+    }
+}
+
+/// Phase 2 rule (c)'s layout: a line whose canonical base64 decodes to at least 6 bytes with
+/// `Ed` at bytes 0-1 and `B2` at bytes 4-5 (a minisign secret-key blob).
+fn is_secret_blob(line: &str) -> bool {
+    STANDARD
+        .decode(line)
+        .is_ok_and(|b| b.len() >= 6 && b[..2] == *b"Ed" && b[4..6] == *b"B2")
+}
+
+/// FR-083 rule (2) over one text's lines: a line starting `untrusted comment:` that names a
+/// secret key, and one ending `secret key` followed by a secret-key blob (Phase 2 rule (c)).
+fn secret_text_hits(text: &str) -> Vec<String> {
+    let lines: Vec<&str> = text
+        .split('\n')
+        .map(|l| l.strip_suffix('\r').unwrap_or(l))
+        .collect();
+    let mut hits = Vec::new();
+    for (i, line) in lines.iter().enumerate() {
+        if !line.starts_with(UNTRUSTED_COMMENT) {
+            continue;
+        }
+        if line.contains(SECRET_KEY) {
+            hits.push(format!("line {}: a secret-key comment", i + 1));
+        }
+        if line.ends_with(SECRET_KEY) && lines.get(i + 1).is_some_and(|next| is_secret_blob(next)) {
+            hits.push(format!("line {}: a secret-key blob", i + 2));
+        }
+    }
+    hits
+}
+
+fn is_base64_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'+' || b == b'/'
+}
+
+/// FR-083 rule (3): every maximal run of the STANDARD alphabet, then up to two `=`, of at least
+/// 40 characters.
+fn base64_runs(text: &str) -> Vec<&str> {
+    let bytes = text.as_bytes();
+    let mut runs = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if !is_base64_byte(bytes[i]) {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while bytes.get(i).copied().is_some_and(is_base64_byte) {
+            i += 1;
+        }
+        for _ in 0..2 {
+            if bytes.get(i) == Some(&b'=') {
+                i += 1;
+            }
+        }
+        if i - start >= 40 {
+            runs.push(&text[start..i]);
+        }
+    }
+    runs
+}
+
+/// FR-083 (SI-22) over the app tree: (1) no `.key` file name; (2) no secret-key comment line or
+/// blob; (3) the same in the decoded text of every canonical base64 run; (4) no
+/// `TAURI_SIGNING_PRIVATE_KEY` given a value other than a CI secret reference; (5) no
+/// key-generating call in a test source, `test_support.rs` or `test_signer.rs`.
+fn secret_key_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    for (rel, text) in files {
+        let mut report = |rule: &'static str, detail: String| {
+            out.push(Finding {
+                file: rel.clone(),
+                rule,
+                detail,
+            });
+        };
+        if rel.ends_with(".key") {
+            report(RULE_KEY_FILE, "a file name ending in `.key`".to_owned());
+        }
+        for hit in secret_text_hits(text) {
+            report(RULE_KEY_TEXT, hit);
+        }
+        for run in base64_runs(text) {
+            let Ok(decoded) = STANDARD.decode(run) else {
+                continue;
+            };
+            for hit in secret_text_hits(&String::from_utf8_lossy(&decoded)) {
+                report(RULE_KEY_BASE64, format!("a base64 run decodes to {hit}"));
+            }
+        }
+        for (n, line) in text.lines().enumerate() {
+            for (at, _) in line.match_indices(SIGNING_VAR) {
+                let rest = line[at + SIGNING_VAR.len()..].trim_start_matches([' ', '\t']);
+                let Some(rest) = rest.strip_prefix(['=', ':']) else {
+                    continue;
+                };
+                let value = rest.trim_start_matches([' ', '\t', '"', '\'']).trim_end();
+                if !value.is_empty() && !value.starts_with(SECRET_REFERENCE) {
+                    report(
+                        RULE_SIGNING_VAR,
+                        format!("line {}: the signing variable is given a value", n + 1),
+                    );
+                }
+            }
+        }
+    }
+    let sources: Vec<(String, String)> = files
+        .iter()
+        .filter(|(rel, _)| is_test_source(rel) || rel == TEST_SUPPORT_RS || rel == TEST_SIGNER_RS)
+        .cloned()
+        .collect();
+    for l in lex(&sources) {
+        let toks = tokens(&l.code);
+        for needle in KEYGEN_TOKENS {
+            let n = seq_at(&toks, &[needle]).len();
+            if n > 0 {
+                out.push(Finding {
+                    file: l.rel.clone(),
+                    rule: RULE_KEYGEN,
+                    detail: format!("`{needle}` {n} time(s)"),
+                });
+            }
+        }
+    }
+    out
+}
+
+/// The FR-087 files, each as (app-root-relative path, its text or `None` when it cannot be read).
+fn phase7_texts() -> Vec<(String, Option<String>)> {
+    let root = app_root();
+    PHASE7_TEST_FILES
+        .iter()
+        .map(|rel| ((*rel).to_owned(), fs::read_to_string(root.join(rel)).ok()))
+        .collect()
+}
+
+/// FR-087 over the Phase 7 test files: a file that cannot be read; a `PHASE7_HOST_NEEDLES`
+/// substring in the raw text; `HttpConfig :: production` in code; `SigningKey :: release` in code
+/// outside `verify_tests.rs` `fn release_key_is_the_committed_key_and_not_a_test_key`.
+fn phase7_host_findings(files: &[(String, Option<String>)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    for (rel, text) in files {
+        let mut report = |detail: String| {
+            out.push(Finding {
+                file: rel.clone(),
+                rule: RULE_REAL_HOST,
+                detail,
+            });
+        };
+        let Some(text) = text else {
+            report("missing".to_owned());
+            continue;
+        };
+        for needle in PHASE7_HOST_NEEDLES {
+            if text.contains(needle) {
+                report(format!("{needle:?} in the text"));
+            }
+        }
+        let (code, _) = strip_comments_and_literals(text);
+        let toks = tokens(&code);
+        let n = seq_at(&toks, &tokens("HttpConfig :: production")).len();
+        if n > 0 {
+            report(format!("`HttpConfig :: production` {n} time(s)"));
+        }
+        let fns = fn_items(&toks);
+        for p in seq_at(&toks, &tokens("SigningKey :: release")) {
+            let body = enclosing_fn(&fns, p);
+            if rel != VERIFY_TESTS_RS || body != Some(RELEASE_KEY_BODY) {
+                report(format!(
+                    "`SigningKey :: release` in {}",
+                    body.unwrap_or("<item level>")
+                ));
+            }
+        }
+    }
+    out
+}
+
+/// FR-082 over the workspace `.rs` files: `minisign_verify` and `sha2` only in `verify.rs`;
+/// `minisign ::` only in the signer and the two Phase 7 test files; `ureq` only in `http.rs` and
+/// its tests; `test_signer` in `lib.rs` only as `#[cfg(test)] mod test_signer;`.
+fn verify_confinement_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let lexed = lex(files);
+    let toks_of = tokenized(&lexed);
+    let rules: [(&str, &[&str]); 4] = [
+        ("minisign_verify", &[VERIFY_RS]),
+        ("sha2", &[VERIFY_RS]),
+        (
+            "minisign ::",
+            &[TEST_SIGNER_RS, VERIFY_TESTS_RS, DOWNLOAD_TESTS_RS],
+        ),
+        ("ureq", &[HTTP_RS, HTTP_TESTS_RS]),
+    ];
+    let mut out: Vec<Finding> = rules
+        .iter()
+        .flat_map(|(needle, allowed)| confinement(&toks_of, needle, allowed, RULE_CONFINED))
+        .collect();
+    let lib = "crates/core/src/lib.rs";
+    let detail = match toks_of.iter().find(|(rel, _)| *rel == lib) {
+        None => Some("not found".to_owned()),
+        Some((_, toks)) => {
+            let named = seq_at(toks, &["test_signer"]).len();
+            let declared = seq_at(toks, &tokens("# [ cfg ( test ) ] mod test_signer ;")).len();
+            (named != 1 || declared != 1).then(|| {
+                format!(
+                    "`test_signer` {named} time(s), `#[cfg(test)] mod test_signer;` {declared} time(s), expected 1 and 1"
+                )
+            })
+        }
+    };
+    if let Some(detail) = detail {
+        out.push(Finding {
+            file: lib.to_owned(),
+            rule: RULE_TEST_SIGNER,
+            detail,
+        });
+    }
+    out
+}
+
+/// FR-082 over `download.rs` and `verify.rs`: no literal holding `http://` or `https://`; no
+/// `read_to_end`, `read_to_string` or `fs :: read (`; `read_dir` exactly once in `download.rs`,
+/// inside `fn read_dir_entries` of `impl StagingIo for FsStagingIo`, and never in `verify.rs`.
+fn download_verify_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    for rel in [DOWNLOAD_RS, VERIFY_RS] {
+        let mut report = |rule: &'static str, detail: String| {
+            out.push(Finding {
+                file: rel.to_owned(),
+                rule,
+                detail,
+            });
+        };
+        let Some((_, text)) = files.iter().find(|(r, _)| r == rel) else {
+            report(RULE_READ_DIR, "not found".to_owned());
+            continue;
+        };
+        let (code, literals) = strip_comments_and_literals(text);
+        for lit in &literals {
+            for scheme in ["http://", "https://"] {
+                if lit.text.contains(scheme) {
+                    report(RULE_URL_LITERAL, format!("{:?} holds {scheme}", lit.text));
+                }
+            }
+        }
+        let toks = tokens(&code);
+        for needle in ["read_to_end", "read_to_string", "fs :: read ("] {
+            let n = seq_at(&toks, &tokens(needle)).len();
+            if n > 0 {
+                report(RULE_WHOLE_READ, format!("`{needle}` {n} time(s)"));
+            }
+        }
+        let fns = fn_items(&toks);
+        let impls = impl_blocks(&toks);
+        let sites: Vec<bool> = seq_at(&toks, &["read_dir"])
+            .into_iter()
+            .map(|p| {
+                enclosing_fn(&fns, p) == Some("read_dir_entries")
+                    && impls.iter().any(|b| {
+                        b.trait_name == Some("StagingIo")
+                            && b.self_name == "FsStagingIo"
+                            && b.body.contains(&p)
+                    })
+            })
+            .collect();
+        if rel == DOWNLOAD_RS {
+            if sites != [true] {
+                report(
+                    RULE_READ_DIR,
+                    format!(
+                        "`read_dir` {} time(s) in download.rs, expected once, in fn read_dir_entries of impl StagingIo for FsStagingIo: {sites:?}",
+                        sites.len()
+                    ),
+                );
+            }
+        } else if !sites.is_empty() {
+            report(
+                RULE_READ_DIR,
+                format!(
+                    "`read_dir` {} time(s) in verify.rs, expected 0",
+                    sites.len()
+                ),
+            );
+        }
+    }
+    out
+}
+
+/// Q-B (PD-11, SI-26): (1) every `allow` / `expect` attribute naming an `ARITY_SUPPRESSIONS` lint
+/// (outer or inner, inside `cfg_attr` or not); (2) a `[workspace.lints.clippy]` or `[lints.clippy]`
+/// key naming one; (3) a `too-many-arguments-threshold` key in a clippy config file. One
+/// `<file>: …` line each.
+fn arity_problems(
+    rs: &[(String, String)],
+    manifests: &[(String, String)],
+    clippy_configs: &[(String, String)],
+) -> Vec<String> {
+    let mut out = Vec::new();
+    for (rel, text) in rs {
+        let (code, _) = strip_comments_and_literals(text);
+        for span in attribute_spans(&code) {
+            for lint in suppressed_lints(&code[span]) {
+                if ARITY_SUPPRESSIONS.contains(&lint.as_str()) {
+                    out.push(format!("{rel}: lint-level attribute names {lint}"));
+                }
+            }
+        }
+    }
+    let table_keys: Vec<&str> = ARITY_SUPPRESSIONS
+        .iter()
+        .filter_map(|lint| lint.strip_prefix("clippy::"))
+        .collect();
+    for (rel, text) in manifests {
+        for header in ["[workspace.lints.clippy]", "[lints.clippy]"] {
+            for key in section_keys(text, header) {
+                if table_keys.contains(&key.as_str()) {
+                    out.push(format!("{rel} {header}: {key}"));
+                }
+            }
+        }
+    }
+    for (rel, text) in clippy_configs {
+        for line in text.lines() {
+            let key = toml_uncomment(line)
+                .split('=')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .trim_matches('"');
+            if key == "too-many-arguments-threshold" {
+                out.push(format!("{rel}: {key}"));
+            }
+        }
+    }
+    out
+}
+
+/// Every `clippy.toml` / `.clippy.toml` clippy could read for a workspace member: the app root,
+/// each crate, `src-tauri` and the clippy-guard fixture, as (app-root-relative path, text).
+fn clippy_configs() -> Vec<(String, String)> {
+    let root = app_root();
+    let mut dirs = vec![String::new()];
+    dirs.extend(
+        crate_names(&root.join("crates"))
+            .into_iter()
+            .map(|name| format!("crates/{name}/")),
+    );
+    dirs.push("src-tauri/".to_owned());
+    dirs.push("tests/fixtures/clippy-guard/".to_owned());
+    let mut out = Vec::new();
+    for dir in dirs {
+        for name in ["clippy.toml", ".clippy.toml"] {
+            let rel = format!("{dir}{name}");
+            let path = root.join(&rel);
+            if path.is_file() {
+                let text = read_text(&path);
+                out.push((rel, text));
+            }
+        }
+    }
+    out
+}
+
+/// The declarations of `name` in `toks`: a `fn name`, or a field `name :` inside a `struct` /
+/// `enum` body, each as the token index the item starts at (its `fn` or its name).
+fn seam_declarations(toks: &[&str], name: &str) -> Vec<usize> {
+    let bodies: Vec<Range<usize>> = item_bodies(toks).into_iter().map(|(_, r)| r).collect();
+    let mut out: Vec<usize> = seq_at(toks, &["fn", name]);
+    out.extend(seq_at(toks, &[name, ":"]).into_iter().filter(|&p| {
+        toks.get(p + 2) != Some(&":")
+            && (p == 0 || toks[p - 1] != "fn")
+            && bodies.iter().any(|b| b.contains(&p))
+    }));
+    out.sort_unstable();
+    out
+}
+
+/// SC-032 (D13) over the workspace `.rs` files and `src-tauri/build.rs`: `with_fixture_url` and
+/// `fetch_url` declared only in `download.rs`, each declaration directly under `#[cfg(test)]`
+/// (then optionally `pub(crate)`); `with_fixture_url` elsewhere only in `download_tests.rs`; no
+/// `src-tauri/` file holds either name.
+fn fixture_seam_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let lexed = lex(files);
+    let toks_of = tokenized(&lexed);
+    let cfg_test = tokens("# [ cfg ( test ) ]");
+    let mut out = Vec::new();
+    let mut report = |file: &str, detail: String| {
+        out.push(Finding {
+            file: file.to_owned(),
+            rule: RULE_FIXTURE_SEAM,
+            detail,
+        });
+    };
+    for name in ["with_fixture_url", "fetch_url"] {
+        let mut declared_in_download = false;
+        for ((rel, toks), (_, text)) in toks_of.iter().zip(files) {
+            let decls = seam_declarations(toks, name);
+            if *rel == DOWNLOAD_RS {
+                declared_in_download = !decls.is_empty();
+                for at in decls {
+                    let start = if is_crate_private(toks, at) {
+                        at - 4
+                    } else {
+                        at
+                    };
+                    let gated = start >= cfg_test.len()
+                        && toks[start - cfg_test.len()..start] == cfg_test[..];
+                    if !gated {
+                        report(
+                            rel,
+                            format!("`{name}` declared without a directly preceding #[cfg(test)]"),
+                        );
+                    }
+                }
+            } else if !decls.is_empty() {
+                report(rel, format!("`{name}` declared outside download.rs"));
+            }
+            if name == "with_fixture_url" && ![DOWNLOAD_RS, DOWNLOAD_TESTS_RS].contains(rel) {
+                let n = seq_at(toks, &[name]).len();
+                if n > 0 {
+                    report(
+                        rel,
+                        format!("`{name}` {n} time(s), allowed only in download_tests.rs"),
+                    );
+                }
+            }
+            if rel.starts_with("src-tauri/") && text.contains(name) {
+                report(rel, format!("`{name}` in a src-tauri file"));
+            }
+        }
+        if !declared_in_download {
+            report(DOWNLOAD_RS, format!("`{name}` not declared in download.rs"));
+        }
+    }
+    out
+}
+
+/// `files` with `text` appended to `rel`, or with a new file `rel` holding `text`.
+fn plant_or_add(files: &[(String, String)], rel: &str, text: &str) -> Vec<(String, String)> {
+    if files.iter().any(|(r, _)| r == rel) {
+        return plant(files, rel, text);
+    }
+    let mut out = files.to_vec();
+    out.push((rel.to_owned(), text.to_owned()));
+    out
+}
+
+/// The SC-032 scan set: the workspace `.rs` files plus `src-tauri/build.rs`.
+fn seam_files() -> Vec<(String, String)> {
+    let mut files = workspace_rs_files();
+    let build = "src-tauri/build.rs";
+    files.push((build.to_owned(), read_text(&app_root().join(build))));
+    files
+}
+
 #[test]
 fn core_sources_hold_no_production_literal() {
     let src = app_root().join("crates").join("core").join("src");
@@ -2630,7 +3359,7 @@ fn core_dependencies_are_the_fr007_set() {
     assert_eq!(keys, expected, "crates/core/Cargo.toml [dependencies]");
     assert_eq!(
         section_keys(&manifest, "[dev-dependencies]"),
-        BTreeSet::from(["flate2".to_owned()]),
+        BTreeSet::from(["flate2".to_owned(), "minisign".to_owned()]),
         "crates/core/Cargo.toml [dev-dependencies]"
     );
 
@@ -3589,4 +4318,577 @@ fn real_location_scanner_reports_plants() {
         "quiet status_tests.rs text:\n{}",
         new.join("\n")
     );
+}
+
+#[test]
+fn verified_artifact_has_no_public_constructor() {
+    let files = workspace_rs_files();
+    for must in [
+        VERIFY_RS,
+        DOWNLOAD_RS,
+        VERIFY_TESTS_RS,
+        DOWNLOAD_TESTS_RS,
+        TEST_SIGNER_RS,
+        TEST_SUPPORT_RS,
+        COMMANDS_RS,
+    ] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    let base = verified_artifact_findings(&files);
+    assert!(base.is_empty(), "FR-043 findings:\n{}", show(&base));
+}
+
+#[test]
+fn verified_artifact_scanner_reports_plants() {
+    let files = workspace_rs_files();
+    let base = verified_artifact_findings(&files);
+    let decl = "pub struct VerifiedArtifact {";
+    let expected = "pub(crate) struct Expected<'a> {";
+    // (the planted file set, the file the finding names, what was planted)
+    let plants = [
+        (
+            replace_in(
+                &files,
+                VERIFY_RS,
+                decl,
+                &format!("{decl}\n    pub planted: u8,"),
+            ),
+            VERIFY_RS,
+            "a `pub` field in VerifiedArtifact",
+        ),
+        (
+            replace_in(
+                &files,
+                VERIFY_RS,
+                decl,
+                &format!("#[derive(Default)]\n{decl}"),
+            ),
+            VERIFY_RS,
+            "`#[derive(Default)]` on VerifiedArtifact",
+        ),
+        (
+            plant(
+                &files,
+                DOWNLOAD_RS,
+                "impl From<PathBuf> for VerifiedArtifact {\n    fn from(_p: PathBuf) -> Self {\n        todo!()\n    }\n}\n",
+            ),
+            DOWNLOAD_RS,
+            "`impl From<PathBuf> for VerifiedArtifact`",
+        ),
+        (
+            plant(
+                &files,
+                DOWNLOAD_RS,
+                "fn planted(p: PathBuf) -> u8 {\n    let _ = VerifiedArtifact { path: p };\n    0\n}\n",
+            ),
+            DOWNLOAD_RS,
+            "a struct literal",
+        ),
+        (
+            plant(
+                &files,
+                TEST_SUPPORT_RS,
+                "fn planted(a: VerifiedArtifact) {\n    let _ = a.relocated(PathBuf::new());\n}\n",
+            ),
+            TEST_SUPPORT_RS,
+            "a `relocated(` call",
+        ),
+        (
+            plant(&files, VERIFY_RS, "pub fn verify_file() {}\n"),
+            VERIFY_RS,
+            "`pub fn verify_file`",
+        ),
+        (
+            plant(
+                &files,
+                VERIFY_RS,
+                "impl SigningKey {\n    pub fn from_text() {}\n}\n",
+            ),
+            VERIFY_RS,
+            "`pub fn from_text`",
+        ),
+        (
+            plant(
+                &files,
+                COMMANDS_RS,
+                "fn planted(p: &Path, e: &Expected<'_>, k: &SigningKey) {\n    let _ = verify::verify_file(p, e, k);\n}\n",
+            ),
+            COMMANDS_RS,
+            "a `verify_file(` call",
+        ),
+        (
+            plant(
+                &files,
+                COMMANDS_RS,
+                "fn planted() {\n    let _ = SigningKey::from_text(\"x\");\n}\n",
+            ),
+            COMMANDS_RS,
+            "a `SigningKey::from_text(` call",
+        ),
+        (
+            replace_in(
+                &files,
+                VERIFY_RS,
+                expected,
+                &format!("{expected}\n    pub name: &'a str,"),
+            ),
+            VERIFY_RS,
+            "a bare `pub name` field in Expected",
+        ),
+    ];
+    for (planted, file, what) in &plants {
+        let planted = verified_artifact_findings(planted);
+        assert_reported(&base, &planted, file, RULE_VERIFIED_SEAM, what);
+    }
+    // A return type outside `verify.rs` and a comment are not findings.
+    let quiet = "fn quiet(a: VerifiedArtifact) -> VerifiedArtifact {\n    a\n}\n\
+        // VerifiedArtifact { path }, verify_file(p), SigningKey::from_text(t), a.relocated(p)\n";
+    let new = added(
+        &base,
+        &verified_artifact_findings(&plant(&files, DOWNLOAD_RS, quiet)),
+    );
+    assert!(new.is_empty(), "quiet download.rs text:\n{}", show(&new));
+}
+
+#[test]
+fn no_secret_key_in_app_tree() {
+    let files = app_tree_files();
+    for must in [
+        "Cargo.toml",
+        "Cargo.lock",
+        "package.json",
+        "clippy.toml",
+        "tests/required-tests.json",
+        COMMANDS_RS,
+        TEST_SIGNER_RS,
+        INJECTION_RS,
+    ] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not walked"
+        );
+    }
+    let skipped: Vec<&str> = files
+        .iter()
+        .map(|(r, _)| r.as_str())
+        .filter(|r| {
+            r.split('/')
+                .rev()
+                .skip(1)
+                .any(|dir| TREE_SKIPPED_DIRS.contains(&dir))
+        })
+        .collect();
+    assert!(skipped.is_empty(), "walked into a skipped dir: {skipped:?}");
+    let base = secret_key_findings(&files);
+    assert!(base.is_empty(), "FR-083 findings:\n{}", show(&base));
+}
+
+#[test]
+fn no_secret_key_scanner_reports_plants() {
+    let files = app_tree_files();
+    let base = secret_key_findings(&files);
+    // Every plant is assembled here, so this file's own text holds no key header, no encoded key
+    // and no assignment (SI-22).
+    let mut blob = vec![0u8; 74];
+    blob[..2].copy_from_slice(b"Ed");
+    blob[4..6].copy_from_slice(b"B2");
+    let header = format!(
+        "{UNTRUSTED_COMMENT} rsign encrypted {SECRET_KEY}\n{}\n",
+        STANDARD.encode(&blob)
+    );
+    let encoded = STANDARD.encode(&header);
+    let assignment = format!("{}={}\n", SIGNING_VAR, encoded);
+    let fixture = "tests/fixtures/planted.txt";
+    let mut plants: Vec<(&str, String, &str)> = vec![
+        (fixture, header.clone(), RULE_KEY_TEXT),
+        ("tests/fixtures/x.key", String::new(), RULE_KEY_FILE),
+        (fixture, format!("{encoded}\n"), RULE_KEY_BASE64),
+        (".env", assignment, RULE_SIGNING_VAR),
+    ];
+    for token in KEYGEN_TOKENS {
+        plants.push((
+            DOWNLOAD_TESTS_RS,
+            format!("fn planted() {{\n    let _ = minisign::KeyPair::{token}(None);\n}}\n"),
+            RULE_KEYGEN,
+        ));
+    }
+    for (rel, text, rule) in &plants {
+        let planted = secret_key_findings(&plant_or_add(&files, rel, text));
+        assert_reported(&base, &planted, rel, rule, text);
+    }
+    // A CI secret reference and a base64 public-key file are not findings.
+    let reference = [SIGNING_VAR, ": ", SECRET_REFERENCE, SIGNING_VAR, " }}\n"].concat();
+    let mut public = vec![0u8; 42];
+    public[..2].copy_from_slice(b"Ed");
+    let public = STANDARD.encode(format!(
+        "{UNTRUSTED_COMMENT} minisign public key: 0\n{}\n",
+        STANDARD.encode(&public)
+    ));
+    for (rel, text) in [(".env", reference), ("tests/fixtures/planted.pub", public)] {
+        let new = added(
+            &base,
+            &secret_key_findings(&plant_or_add(&files, rel, &text)),
+        );
+        assert!(new.is_empty(), "{rel}: quiet {text:?}:\n{}", show(&new));
+    }
+}
+
+#[test]
+fn phase7_tests_hold_no_real_host() {
+    let texts = phase7_texts();
+    assert_eq!(
+        texts
+            .iter()
+            .map(|(rel, _)| rel.as_str())
+            .collect::<Vec<_>>(),
+        PHASE7_TEST_FILES,
+        "FR-087 files"
+    );
+    let base = phase7_host_findings(&texts);
+    assert!(base.is_empty(), "FR-087 findings:\n{}", show(&base));
+}
+
+#[test]
+fn phase7_host_scanner_reports_plants() {
+    let texts = phase7_texts();
+    let base = phase7_host_findings(&texts);
+    let with = |rel: &str, text: Option<&str>| -> Vec<(String, Option<String>)> {
+        let mut out = texts.clone();
+        let entry = out
+            .iter_mut()
+            .find(|(r, _)| r == rel)
+            .unwrap_or_else(|| panic!("plant target {rel} not found"));
+        entry.1 = text.map(|t| format!("{}\n{t}", entry.1.as_deref().unwrap_or("")));
+        out
+    };
+    let mut plants: Vec<(&str, String)> = PHASE7_HOST_NEEDLES[..3]
+        .iter()
+        .map(|host| {
+            (
+                TEST_SIGNER_RS,
+                format!("const H: &str = \"https://{host}/x\";\n"),
+            )
+        })
+        .collect();
+    plants.extend([
+        (
+            DOWNLOAD_TESTS_RS,
+            "// cargo test -- --test-threads=2\n".to_owned(),
+        ),
+        (
+            TEST_SUPPORT_RS,
+            "fn planted() {\n    let _ = HttpConfig::production();\n}\n".to_owned(),
+        ),
+        (
+            VERIFY_TESTS_RS,
+            "fn planted() {\n    let _ = SigningKey::release();\n}\n".to_owned(),
+        ),
+        (
+            DOWNLOAD_TESTS_RS,
+            format!(
+                "#[test]\nfn {RELEASE_KEY_BODY}() {{\n    let _ = SigningKey::release();\n}}\n"
+            ),
+        ),
+    ]);
+    for (rel, text) in &plants {
+        let planted = phase7_host_findings(&with(rel, Some(text)));
+        assert_reported(&base, &planted, rel, RULE_REAL_HOST, text);
+    }
+    // A file the scan cannot read is a finding, not a pass.
+    let planted = phase7_host_findings(&with(VERIFY_TESTS_RS, None));
+    assert_reported(&base, &planted, VERIFY_TESTS_RS, RULE_REAL_HOST, "missing");
+    // The release key inside FR-042's one body, and a comment, are not findings.
+    let quiet = format!(
+        "#[test]\nfn {RELEASE_KEY_BODY}() {{\n    let _ = SigningKey::release();\n}}\n\
+         // SigningKey::release(), HttpConfig::production()\n"
+    );
+    let new = added(
+        &base,
+        &phase7_host_findings(&with(VERIFY_TESTS_RS, Some(&quiet))),
+    );
+    assert!(
+        new.is_empty(),
+        "quiet verify_tests.rs text:\n{}",
+        show(&new)
+    );
+}
+
+#[test]
+fn verify_crates_are_confined() {
+    let files = workspace_rs_files();
+    for must in [
+        VERIFY_RS,
+        VERIFY_TESTS_RS,
+        DOWNLOAD_RS,
+        DOWNLOAD_TESTS_RS,
+        TEST_SIGNER_RS,
+        TEST_SUPPORT_RS,
+        HTTP_RS,
+        "crates/core/src/lib.rs",
+    ] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    let base = verify_confinement_findings(&files);
+    assert!(base.is_empty(), "FR-082 crate findings:\n{}", show(&base));
+}
+
+#[test]
+fn verify_confinement_scanner_reports_plants() {
+    let files = workspace_rs_files();
+    let base = verify_confinement_findings(&files);
+    let plants: [(&str, &str, &str); 6] = [
+        (
+            DOWNLOAD_RS,
+            "use minisign_verify::PublicKey;\n",
+            RULE_CONFINED,
+        ),
+        (DOWNLOAD_RS, "use sha2::Sha256;\n", RULE_CONFINED),
+        (DOWNLOAD_RS, "use minisign::KeyPair;\n", RULE_CONFINED),
+        (DOWNLOAD_RS, "use ureq::Agent;\n", RULE_CONFINED),
+        (TEST_SUPPORT_RS, "use minisign::KeyPair;\n", RULE_CONFINED),
+        (
+            "crates/core/src/lib.rs",
+            "pub mod test_signer;\n",
+            RULE_TEST_SIGNER,
+        ),
+    ];
+    for (rel, text, rule) in plants {
+        let planted = verify_confinement_findings(&plant(&files, rel, text));
+        assert_reported(&base, &planted, rel, rule, text);
+    }
+    // The signer's users and a comment are not findings.
+    for (rel, text) in [
+        (
+            VERIFY_TESTS_RS,
+            "use crate::test_signer::TestSigner;\nfn quiet() { let _ = minisign::KeyPair::generate_unencrypted_keypair(); }\n",
+        ),
+        (DOWNLOAD_RS, "// minisign_verify::PublicKey, sha2::Sha256\n"),
+    ] {
+        let new = added(
+            &base,
+            &verify_confinement_findings(&plant(&files, rel, text)),
+        );
+        assert!(new.is_empty(), "{rel}: quiet {text:?}:\n{}", show(&new));
+    }
+}
+
+#[test]
+fn download_and_verify_hold_no_url_or_whole_read() {
+    let files = workspace_rs_files();
+    for must in [DOWNLOAD_RS, VERIFY_RS] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    let base = download_verify_findings(&files);
+    assert!(base.is_empty(), "FR-082 findings:\n{}", show(&base));
+}
+
+#[test]
+fn download_verify_scanner_reports_plants() {
+    let files = workspace_rs_files();
+    let base = download_verify_findings(&files);
+    let read_dir = "fn planted(p: &Path) {\n    let _ = std::fs::read_dir(p);\n}\n";
+    let plants: [(&str, &str, &str); 8] = [
+        (
+            DOWNLOAD_RS,
+            "const U: &str = \"https://assets.example.invalid/a\";\n",
+            RULE_URL_LITERAL,
+        ),
+        (
+            VERIFY_RS,
+            "const U: &str = \"http://example.invalid/a\";\n",
+            RULE_URL_LITERAL,
+        ),
+        (
+            DOWNLOAD_RS,
+            "fn planted(f: &mut std::fs::File) {\n    let mut v = Vec::new();\n    let _ = std::io::Read::read_to_end(f, &mut v);\n}\n",
+            RULE_WHOLE_READ,
+        ),
+        (
+            VERIFY_RS,
+            "fn planted(f: &mut std::fs::File) {\n    let mut s = String::new();\n    let _ = std::io::Read::read_to_string(f, &mut s);\n}\n",
+            RULE_WHOLE_READ,
+        ),
+        (
+            DOWNLOAD_RS,
+            "fn planted(p: &Path) {\n    let _ = std::fs::read(p);\n}\n",
+            RULE_WHOLE_READ,
+        ),
+        (DOWNLOAD_RS, read_dir, RULE_READ_DIR),
+        (VERIFY_RS, read_dir, RULE_READ_DIR),
+        (
+            DOWNLOAD_RS,
+            "impl StagingIo for FaultyIo {\n    fn read_dir_entries(&self, d: &Path) {\n        let _ = std::fs::read_dir(d);\n    }\n}\n",
+            RULE_READ_DIR,
+        ),
+    ];
+    for (rel, text, rule) in plants {
+        let planted = download_verify_findings(&plant(&files, rel, text));
+        assert_reported(&base, &planted, rel, rule, text);
+    }
+    // A URL in a comment and `read_link` / `read_dir_entries` are not findings.
+    let quiet = "// see https://example.invalid/ and fs::read(p)\nfn quiet(p: &Path) {\n    let _ = std::fs::read_link(p);\n}\n";
+    let new = added(
+        &base,
+        &download_verify_findings(&plant(&files, VERIFY_RS, quiet)),
+    );
+    assert!(new.is_empty(), "quiet verify.rs text:\n{}", show(&new));
+    // The one allowed site, alone in a stand-in `download.rs`, is not a finding.
+    let mut alone = files.clone();
+    let entry = alone
+        .iter_mut()
+        .find(|(r, _)| r == DOWNLOAD_RS)
+        .unwrap_or_else(|| panic!("{DOWNLOAD_RS} not found"));
+    entry.1 = "impl StagingIo for FsStagingIo {\n    fn read_dir_entries(&self, d: &Path) -> io::Result<fs::ReadDir> {\n        fs::read_dir(d)\n    }\n}\n".to_owned();
+    let findings = download_verify_findings(&alone);
+    assert!(
+        !findings.iter().any(|f| f.file == DOWNLOAD_RS),
+        "the allowed read_dir site:\n{}",
+        show(&findings)
+    );
+}
+
+#[test]
+fn too_many_arguments_is_never_suppressed() {
+    let root = app_root();
+    let mut rs = workspace_rs_files();
+    rs.extend(rs_files(
+        &root
+            .join("tests")
+            .join("fixtures")
+            .join("clippy-guard")
+            .join("src"),
+        "tests/fixtures/clippy-guard/src/",
+    ));
+    let context = "crates/core/src/context.rs";
+    for must in [DOWNLOAD_RS, COMMANDS_RS, context, FIXTURE_LIB] {
+        assert!(rs.iter().any(|(r, _)| r == must), "{must} was not scanned");
+    }
+    let manifests = manifests();
+    let configs = clippy_configs();
+    assert!(
+        configs.iter().any(|(r, _)| r == "clippy.toml"),
+        "clippy.toml not found: {configs:?}"
+    );
+    let base = arity_problems(&rs, &manifests, &configs);
+    assert!(base.is_empty(), "Q-B problems:\n{}", base.join("\n"));
+
+    // (1) an `expect` with a reason, an `allow` inside `cfg_attr`, an inner group `expect`.
+    for (rel, text, want) in [
+        (
+            DOWNLOAD_RS,
+            "#[expect(clippy::too_many_arguments, reason = \"x\")]\nfn planted() {}\n",
+            "crates/core/src/download.rs: lint-level attribute names clippy::too_many_arguments",
+        ),
+        (
+            COMMANDS_RS,
+            "#[cfg_attr(test, allow(clippy::too_many_arguments))]\nfn planted() {}\n",
+            "src-tauri/src/commands.rs: lint-level attribute names clippy::too_many_arguments",
+        ),
+        (
+            context,
+            "#![expect(clippy :: complexity)]\n",
+            "crates/core/src/context.rs: lint-level attribute names clippy::complexity",
+        ),
+    ] {
+        let problems = arity_problems(&plant(&rs, rel, text), &manifests, &configs);
+        assert!(
+            problems.iter().any(|p| p == want),
+            "planted {text:?} not reported; got:\n{}",
+            problems.join("\n")
+        );
+    }
+    // (2) a lint table entry; (3) a threshold key.
+    let lowered = replace_in(
+        &manifests,
+        "Cargo.toml",
+        "[workspace.lints.clippy]\n",
+        "[workspace.lints.clippy]\ntoo_many_arguments = \"allow\"\n",
+    );
+    let threshold = plant(
+        &configs,
+        "clippy.toml",
+        "too-many-arguments-threshold = 9\n",
+    );
+    for (problems, want) in [
+        (
+            arity_problems(&rs, &lowered, &configs),
+            "Cargo.toml [workspace.lints.clippy]: too_many_arguments",
+        ),
+        (
+            arity_problems(&rs, &manifests, &threshold),
+            "clippy.toml: too-many-arguments-threshold",
+        ),
+    ] {
+        assert!(
+            problems.iter().any(|p| p == want),
+            "{want:?} not reported; got:\n{}",
+            problems.join("\n")
+        );
+    }
+    // The lint name only in a comment and in a literal is not a suppression.
+    let quiet = "// #[expect(clippy::too_many_arguments)]\n\
+        const S: &str = \"#[allow(clippy::complexity)]\";\n";
+    let new = added(
+        &base,
+        &arity_problems(&plant(&rs, DOWNLOAD_RS, quiet), &manifests, &configs),
+    );
+    assert!(
+        new.is_empty(),
+        "quiet download.rs text:\n{}",
+        new.join("\n")
+    );
+}
+
+#[test]
+fn fixture_url_seam_is_test_only() {
+    let files = seam_files();
+    for must in [DOWNLOAD_RS, DOWNLOAD_TESTS_RS, TEST_SUPPORT_RS, COMMANDS_RS] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    let base = fixture_seam_findings(&files);
+    assert!(base.is_empty(), "SC-032 findings:\n{}", show(&base));
+}
+
+#[test]
+fn fixture_url_seam_scanner_reports_plants() {
+    let files = seam_files();
+    let base = fixture_seam_findings(&files);
+    let plants: [(&str, &str); 5] = [
+        (
+            DOWNLOAD_RS,
+            "impl Planted {\n    #[cfg(any(test, feature = \"test-support\"))]\n    pub(crate) fn with_fixture_url(self) {}\n}\n",
+        ),
+        (
+            DOWNLOAD_RS,
+            "struct Planted {\n    #[cfg(any(test, feature = \"test-support\"))]\n    fetch_url: Option<String>,\n}\n",
+        ),
+        (
+            TEST_SUPPORT_RS,
+            "fn planted(r: DownloadRequest) {\n    let _ = r.with_fixture_url(\"x\");\n}\n",
+        ),
+        (
+            COMMANDS_RS,
+            "// request.with_fixture_url(…) points at a fixture\n",
+        ),
+        (
+            TAURI_LIB_RS,
+            "struct Planted {\n    fetch_url: Option<String>,\n}\n",
+        ),
+    ];
+    for (rel, text) in plants {
+        let planted = fixture_seam_findings(&plant(&files, rel, text));
+        assert_reported(&base, &planted, rel, RULE_FIXTURE_SEAM, text);
+    }
 }

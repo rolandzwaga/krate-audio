@@ -15,6 +15,8 @@ live-network = ["test-support"]
 [dependencies]
 base64 = { workspace = true }
 log = { workspace = true }
+# Phase 7 D1: verify.rs only (FR-082)
+minisign-verify = { workspace = true }
 # Phase 6 D12: notes.rs only (FR-082)
 pulldown-cmark = { workspace = true }
 regex = { workspace = true }
@@ -22,6 +24,8 @@ regex = { workspace = true }
 rustls = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+# Phase 7 D1: verify.rs only (FR-082)
+sha2 = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
@@ -29,6 +33,8 @@ ureq = { workspace = true }
 
 [dev-dependencies]
 flate2 = { workspace = true }
+# Phase 7 D1: test_signer.rs only, never a normal dependency (FR-081)
+minisign = { workspace = true }
 
 # R-8, R-15: pac.rs only (FR-081), never on Windows; never `features`, never rust-alloc (PD-25)
 [target.'cfg(not(windows))'.dependencies]

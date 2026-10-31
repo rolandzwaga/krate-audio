@@ -12,7 +12,9 @@ use crate::http::{HttpConfig, HttpError};
 use crate::platform::VENDOR_DIR;
 use crate::roots::Roots;
 use crate::settings::Settings;
-use crate::test_support::{FakeHostFacts, fresh_temp_roots, install_capture, take_mine};
+use crate::test_support::{
+    FakeHostFacts, fresh_temp_roots, install_capture, kat_signing_key, take_mine,
+};
 use log::Level;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -81,6 +83,7 @@ fn context(roots: &Roots, feed_url: String) -> AppContext {
         settings: Settings::default(),
         feed_url,
         http: HttpConfig::loopback(SEC, SEC),
+        signing_key: kat_signing_key(),
     }
 }
 

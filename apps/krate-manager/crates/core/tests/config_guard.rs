@@ -43,7 +43,7 @@ const OPENER_DEPENDENCY_LINE: &str = "tauri-plugin-opener = { workspace = true }
 /// The capability's exact description (FR-061 as amended by SI-21).
 const CAPABILITY_DESCRIPTION: &str = "The main window may call only the app's own commands.";
 /// The strings `src-tauri/src/lib.rs` must contain (FR-017, FR-042, FR-044, FR-061, FR-101).
-const LIB_RS_STRINGS: [&str; 14] = [
+const LIB_RS_STRINGS: [&str; 15] = [
     ".plugin(navigation::guard())",
     "assemble_context(",
     ".manage(",
@@ -58,6 +58,7 @@ const LIB_RS_STRINGS: [&str; 14] = [
     ".with_pac_host(",
     "os_proxy::pac_host()",
     "proxy_env::read()",
+    "SigningKey::release()",
 ];
 /// (token, the one `src-tauri/` file it may occur in, the rule) (plan §4.11.2, PD-12, SI-3, SI-26).
 const CONFINED: [(&str, &str, &str); 11] = [
@@ -147,6 +148,11 @@ const FRONTEND_BANNED: [&str; 6] = [
 ];
 /// What no `src/**/*.css` line may hold, ASCII case-insensitive: a font, image or URL (FR-077).
 const STYLESHEET_BANNED: [&str; 4] = ["url(", "@font-face", "@import", "image-set("];
+/// The squeezed `generate_handler!` list `src-tauri/src/lib.rs` must hold, in order (FR-061, SC-019).
+const HANDLER_LIST: &str = "generate_handler![commands::app_version,commands::startup_error,commands::plugin_status,commands::check_now,commands::open_release_page,commands::download_plugin]";
+/// The crates no member's normal dependency graph may reach: the signing crate and the two it
+/// pulls in for key generation (FR-081).
+const SIGNING_CRATES: [&str; 3] = ["minisign", "rpassword", "scrypt"];
 
 /// Everything `check_config` reads from `src-tauri/` and the workspace root.
 #[derive(Clone)]
@@ -182,6 +188,15 @@ struct AppMetaFiles {
     changelog: String,
     /// `version.json`'s `version`.
     version: String,
+}
+
+/// Everything `check_signing_crates` reads (FR-081).
+#[derive(Clone)]
+struct LockFiles {
+    /// (member directory, its `Cargo.toml`) for the three FR-002 members.
+    member_manifests: Vec<(String, String)>,
+    /// The committed workspace `Cargo.lock`.
+    lock: String,
 }
 
 /// Everything `check_opener` reads (FR-065 as amended by SI-15).
@@ -367,6 +382,22 @@ fn load_app_meta() -> AppMetaFiles {
         eslint_config: read_text(&root.join("eslint.config.mjs")),
         changelog: read_text(&root.join("CHANGELOG.md")),
         version,
+    }
+}
+
+fn load_lock_files() -> LockFiles {
+    let root = app_root();
+    LockFiles {
+        member_manifests: MEMBERS
+            .iter()
+            .map(|member| {
+                (
+                    (*member).to_owned(),
+                    read_text(&root.join(member).join("Cargo.toml")),
+                )
+            })
+            .collect(),
+        lock: read_text(&root.join("Cargo.lock")),
     }
 }
 
@@ -614,7 +645,8 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
                             "allow-startup-error",
                             "allow-plugin-status",
                             "allow-check-now",
-                            "allow-open-release-page"
+                            "allow-open-release-page",
+                            "allow-download-plugin"
                         ]),
                     ),
                 ];
@@ -637,17 +669,26 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
         }
     }
 
-    // FR-040, Phase 6 FR-060: build.rs registers exactly the five commands (whitespace-insensitive).
+    // FR-040, Phase 6 FR-060, Phase 7 FR-061: build.rs registers exactly the six commands (whitespace-insensitive).
     let squeezed: String = f
         .build_rs
         .chars()
         .filter(|ch| !ch.is_whitespace())
         .collect();
     if !squeezed.replace(",]", "]").contains(
-        r#"commands(&["app_version","startup_error","plugin_status","check_now","open_release_page"])"#,
+        r#"commands(&["app_version","startup_error","plugin_status","check_now","open_release_page","download_plugin"])"#,
     ) {
         m.push(
-            "src-tauri/build.rs does not register exactly app_version, startup_error, plugin_status, check_now and open_release_page (FR-040, FR-060)"
+            "src-tauri/build.rs does not register exactly app_version, startup_error, plugin_status, check_now, open_release_page and download_plugin (FR-040, FR-060, FR-061)"
+                .to_owned(),
+        );
+    }
+
+    // FR-061, SC-019: lib.rs hands exactly the six commands to the invoke handler (whitespace-insensitive).
+    let squeezed_lib: String = f.lib_rs.chars().filter(|ch| !ch.is_whitespace()).collect();
+    if !squeezed_lib.replace(",]", "]").contains(HANDLER_LIST) {
+        m.push(
+            "src-tauri/src/lib.rs generate_handler! does not list exactly app_version, startup_error, plugin_status, check_now, open_release_page and download_plugin (FR-061, SC-019)"
                 .to_owned(),
         );
     }
@@ -828,11 +869,11 @@ fn check_http_injection(f: &ConfigFiles) -> Vec<String> {
             .map(|(rel, text)| (rel.as_str(), text.as_str())),
     );
 
-    // FR-061: `assemble_context(roots, feed_url, http)`.
+    // FR-061, Phase 7 FR-041: `assemble_context(roots, feed_url, http, signing_key)`.
     for count in call_argument_counts(&f.lib_rs, "assemble_context(") {
-        if count != 3 {
+        if count != 4 {
             m.push(format!(
-                "src-tauri/src/lib.rs calls `assemble_context(` with {count} top-level arguments, expected three (FR-061)"
+                "src-tauri/src/lib.rs calls `assemble_context(` with {count} top-level arguments, expected four (FR-061, Phase 7 FR-041)"
             ));
         }
     }
@@ -1244,6 +1285,244 @@ fn check_app_meta(f: &AppMetaFiles) -> Vec<String> {
     m
 }
 
+fn check_signing_crates(f: &LockFiles) -> Vec<String> {
+    signing_crate_findings(&f.member_manifests, &f.lock)
+}
+
+/// One `[[package]]` block of a `Cargo.lock`.
+struct LockPackage {
+    name: String,
+    version: String,
+    /// `None` for a workspace member.
+    source: Option<String>,
+    /// `"<name>"` or `"<name> <version>"`, optionally followed by `" (<source>)"`.
+    dependencies: Vec<String>,
+}
+
+/// The quoted strings of `text`.
+fn quoted(text: &str) -> impl Iterator<Item = &str> {
+    text.split('"').skip(1).step_by(2)
+}
+
+/// The `[[package]]` blocks of a `Cargo.lock` text (a `dependencies` array may span lines).
+fn parse_lock(lock: &str) -> Vec<LockPackage> {
+    let mut packages = Vec::new();
+    let mut current: Option<LockPackage> = None;
+    let mut in_dependencies = false;
+    for line in lock.lines() {
+        let line = line.trim();
+        if in_dependencies {
+            if let Some(package) = current.as_mut() {
+                package.dependencies.extend(quoted(line).map(str::to_owned));
+            }
+            in_dependencies = !line.contains(']');
+            continue;
+        }
+        if line.starts_with('[') {
+            packages.extend(current.take());
+            if line == "[[package]]" {
+                current = Some(LockPackage {
+                    name: String::new(),
+                    version: String::new(),
+                    source: None,
+                    dependencies: Vec::new(),
+                });
+            }
+            continue;
+        }
+        let (Some(package), Some((key, value))) = (current.as_mut(), line.split_once('=')) else {
+            continue;
+        };
+        let first = quoted(value).next().unwrap_or_default().to_owned();
+        match key.trim() {
+            "name" => package.name = first,
+            "version" => package.version = first,
+            "source" => package.source = Some(first),
+            "dependencies" => {
+                package
+                    .dependencies
+                    .extend(quoted(value).map(str::to_owned));
+                in_dependencies = !value.contains(']');
+            }
+            _ => {}
+        }
+    }
+    packages.extend(current);
+    packages
+}
+
+/// The package name of a lock dependency string.
+fn dependency_name(dependency: &str) -> &str {
+    dependency.split(' ').next().unwrap_or_default()
+}
+
+/// The package a lock dependency string names: by name when unique, else by name and version
+/// (and source when the string gives one).
+fn resolve(packages: &[LockPackage], dependency: &str) -> Option<usize> {
+    let (spec, source) = match dependency.split_once(" (") {
+        Some((spec, rest)) => (spec, Some(rest.trim_end_matches(')'))),
+        None => (dependency, None),
+    };
+    let (name, version) = match spec.split_once(' ') {
+        Some((name, version)) => (name, Some(version)),
+        None => (spec, None),
+    };
+    let named: Vec<usize> = packages
+        .iter()
+        .enumerate()
+        .filter(|(_, package)| package.name == name)
+        .map(|(index, _)| index)
+        .collect();
+    if let [only] = named[..] {
+        return Some(only);
+    }
+    named.into_iter().find(|&index| {
+        let package = &packages[index];
+        version.is_none_or(|v| package.version == v)
+            && source.is_none_or(|s| package.source.as_deref() == Some(s))
+    })
+}
+
+/// The dependency keys of a manifest's normal graph: `[dependencies]`, every
+/// `[target.'…'.dependencies]` and `[build-dependencies]`, never `[dev-dependencies]` (FR-081).
+/// A `[dependencies.<name>]` table header is the key `<name>`.
+fn normal_roots(toml: &str) -> Vec<String> {
+    let mut roots = Vec::new();
+    let mut inside = false;
+    for line in toml.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            let header = line.trim_start_matches('[').trim_end_matches(']').trim();
+            // `target.<spec>.<table>`: the spec may be quoted and hold dots.
+            let table = match header.strip_prefix("target.") {
+                None => header,
+                Some(rest) => match rest.chars().next() {
+                    Some(quote @ ('\'' | '"')) => rest[1..]
+                        .split_once(quote)
+                        .map_or("", |(_, after)| after.trim_start_matches('.')),
+                    _ => rest.split_once('.').map_or("", |(_, after)| after),
+                },
+            };
+            inside = table == "dependencies" || table == "build-dependencies";
+            if let Some(name) = table
+                .strip_prefix("dependencies.")
+                .or_else(|| table.strip_prefix("build-dependencies."))
+            {
+                roots.push(name.trim_matches('"').to_owned());
+            }
+        } else if inside && !line.starts_with('#') && line.contains('=') {
+            roots.push(key_of(line).trim_matches('"').to_owned());
+        }
+    }
+    roots
+}
+
+/// The `name` → path of `at` from the walk's start, as `a -> b -> c`.
+fn walk_path(packages: &[LockPackage], parent: &[Option<usize>], at: usize) -> String {
+    let mut names = vec![packages[at].name.as_str()];
+    let mut cursor = at;
+    while let Some(up) = parent[cursor] {
+        names.push(packages[up].name.as_str());
+        cursor = up;
+    }
+    names.reverse();
+    names.join(" -> ")
+}
+
+/// FR-081: the walk of every member's normal graph through the committed `Cargo.lock`. A
+/// source-less package is a workspace member, expanded through its manifest's normal roots (its
+/// lock entry also lists its dev-dependencies); a registry package through its lock entry.
+fn signing_crate_findings(manifests: &[(String, String)], lock: &str) -> Vec<String> {
+    let packages = parse_lock(lock);
+    let members: Vec<(String, &str, Vec<String>)> = manifests
+        .iter()
+        .map(|(dir, toml)| {
+            let name = string_value(&section_lines(toml, "[package]"), "name").unwrap_or_default();
+            (name, dir.as_str(), normal_roots(toml))
+        })
+        .collect();
+    let mut findings: Vec<String> = Vec::new();
+    let mut report = |finding: String| {
+        if !findings.contains(&finding) {
+            findings.push(finding);
+        }
+    };
+    for (name, dir, _) in &members {
+        let Some(start) = packages
+            .iter()
+            .position(|package| package.source.is_none() && package.name == *name)
+        else {
+            report(format!(
+                "{dir}: package `{name}` has no source-less Cargo.lock entry (FR-081)"
+            ));
+            continue;
+        };
+        let mut parent: Vec<Option<usize>> = vec![None; packages.len()];
+        let mut seen = vec![false; packages.len()];
+        seen[start] = true;
+        let mut queue = std::collections::VecDeque::from([start]);
+        while let Some(at) = queue.pop_front() {
+            let package = &packages[at];
+            if SIGNING_CRATES.contains(&package.name.as_str()) {
+                report(format!(
+                    "{dir} reaches `{}` through {} (FR-081)",
+                    package.name,
+                    walk_path(&packages, &parent, at)
+                ));
+            }
+            let edges: Vec<&str> = if package.source.is_some() {
+                package.dependencies.iter().map(String::as_str).collect()
+            } else {
+                let Some((_, member_dir, roots)) = members
+                    .iter()
+                    .find(|(member, _, _)| *member == package.name)
+                else {
+                    report(format!(
+                        "{dir} reaches the path package `{}`, which is no workspace member (FR-081)",
+                        package.name
+                    ));
+                    continue;
+                };
+                for root in roots {
+                    if !package
+                        .dependencies
+                        .iter()
+                        .any(|dependency| dependency_name(dependency) == root)
+                    {
+                        report(format!(
+                            "{member_dir}/Cargo.toml dependency `{root}` is not in `{}`'s Cargo.lock dependencies (FR-081)",
+                            package.name
+                        ));
+                    }
+                }
+                package
+                    .dependencies
+                    .iter()
+                    .filter(|dependency| {
+                        roots.iter().any(|root| root == dependency_name(dependency))
+                    })
+                    .map(String::as_str)
+                    .collect()
+            };
+            for dependency in edges {
+                match resolve(&packages, dependency) {
+                    None => report(format!(
+                        "Cargo.lock: `{}`'s dependency `{dependency}` has no package (FR-081)",
+                        package.name
+                    )),
+                    Some(next) if !seen[next] => {
+                        seen[next] = true;
+                        parent[next] = Some(at);
+                        queue.push_back(next);
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+    }
+    findings
+}
+
 fn is_exact_version(text: &str) -> bool {
     let parts: Vec<&str> = text.split('.').collect();
     parts.len() == 3
@@ -1540,7 +1819,7 @@ fn planted_config_changes_fail_the_guard() {
             },
         ),
         (
-            "sixth capability permission allow-planted",
+            "seventh capability permission allow-planted",
             &["`permissions`"],
             |f| {
                 if let Some(list) = main_capability(f)["permissions"].as_array_mut() {
@@ -1702,13 +1981,26 @@ fn planted_config_changes_fail_the_guard() {
             },
         ),
         (
-            "assemble_context( with two arguments",
-            &["calls `assemble_context(` with 2 top-level arguments"],
+            "assemble_context( with three arguments",
+            &["calls `assemble_context(` with 3 top-level arguments"],
             |f| {
                 f.lib_rs = f.lib_rs.replace(
+                    "assemble_context(roots, &feed_url, http, SigningKey::release())",
                     "assemble_context(roots, &feed_url, http)",
-                    "assemble_context(roots, &feed_url)",
                 );
+            },
+        ),
+        (
+            "commands::download_plugin removed from the handler list",
+            &["generate_handler! does not list exactly"],
+            |f| {
+                f.lib_rs = f
+                    .lib_rs
+                    .replace(
+                        "commands::open_release_page,",
+                        "commands::open_release_page",
+                    )
+                    .replace("commands::download_plugin", "");
             },
         ),
     ];
@@ -1930,6 +2222,55 @@ fn planted_app_metadata_changes_fail_the_guard() {
         ),
     ];
     assert_plants(&base, check_app_meta, plants);
+}
+
+#[test]
+fn core_has_no_signing_crate() {
+    let messages = check_signing_crates(&load_lock_files());
+    assert!(messages.is_empty(), "{messages:#?}");
+}
+
+#[test]
+fn signing_crate_scan_reports_plants() {
+    let base = load_lock_files();
+    let plants: &[Plant<LockFiles>] = &[
+        (
+            "minisign in core [dependencies]",
+            &["crates/core reaches `minisign` through krate-manager-core -> minisign"],
+            |f| {
+                let (_, toml) = f
+                    .member_manifests
+                    .iter_mut()
+                    .find(|(name, _)| name == "crates/core")
+                    .expect("crates/core manifest");
+                *toml = insert_after(toml, "[dependencies]", "minisign = { workspace = true }");
+            },
+        ),
+        (
+            "rpassword in log's lock dependencies",
+            &["crates/core reaches `rpassword` through krate-manager-core -> log -> rpassword"],
+            |f| {
+                f.lock = insert_after(&f.lock, "name = \"log\"", "dependencies = [\"rpassword\"]");
+            },
+        ),
+    ];
+    assert_plants(&base, check_signing_crates, plants);
+
+    // A dev-dependency is never a root, so core's `[dev-dependencies]` may name minisign (FR-081, SI-21).
+    let mut quiet = base.clone();
+    let (_, toml) = quiet
+        .member_manifests
+        .iter_mut()
+        .find(|(name, _)| name == "crates/core")
+        .expect("crates/core manifest");
+    *toml = remove_section(toml, "[dev-dependencies]");
+    toml.push_str("\n[dev-dependencies]\nminisign = { workspace = true }\n");
+    assert_eq!(
+        section_lines(toml, "[dev-dependencies]"),
+        ["minisign = { workspace = true }"]
+    );
+    let messages = check_signing_crates(&quiet);
+    assert!(messages.is_empty(), "{messages:#?}");
 }
 
 #[test]

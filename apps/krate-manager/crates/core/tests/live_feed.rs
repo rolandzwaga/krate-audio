@@ -7,7 +7,7 @@
 use krate_manager_core::context::assemble_context;
 use krate_manager_core::feed::{self, FetchMode, SnapshotSource};
 use krate_manager_core::http::HttpConfig;
-use krate_manager_core::test_support::fresh_temp_roots;
+use krate_manager_core::test_support::{fresh_temp_roots, kat_signing_key};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -45,7 +45,7 @@ fn feed_url() -> String {
 fn live_feed_parses() {
     let url = feed_url();
     let (_td, roots) = fresh_temp_roots();
-    let state = assemble_context(Ok(roots), &url, HttpConfig::production());
+    let state = assemble_context(Ok(roots), &url, HttpConfig::production(), kat_signing_key());
     let ctx = state
         .context
         .as_ref()

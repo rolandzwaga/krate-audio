@@ -6,6 +6,7 @@ fn main() {
             "plugin_status",
             "check_now",
             "open_release_page",
+            "download_plugin",
         ]),
     ))
     .expect("tauri-build failed");

@@ -18,6 +18,7 @@ use krate_manager_core::http::HttpConfig;
 use krate_manager_core::http::resolve_proxy;
 use krate_manager_core::platform::NativePlatform;
 use krate_manager_core::roots::Roots;
+use krate_manager_core::verify::SigningKey;
 use os_proxy::SystemProxyFromOs;
 use os_roots::FromOs;
 
@@ -53,7 +54,7 @@ pub fn run() {
         .with_pac_host(Some(os_proxy::pac_host()));
     #[cfg(feature = "dev-feed")]
     let http = dev_feed::http_config(&feed_url, resolution, Some(os_proxy::pac_host()));
-    let state = assemble_context(roots, &feed_url, http);
+    let state = assemble_context(roots, &feed_url, http, SigningKey::release());
     match &sink_roots {
         Some(r) => {
             log_sink::init(r);
@@ -88,7 +89,8 @@ pub fn run() {
             commands::startup_error,
             commands::plugin_status,
             commands::check_now,
-            commands::open_release_page
+            commands::open_release_page,
+            commands::download_plugin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

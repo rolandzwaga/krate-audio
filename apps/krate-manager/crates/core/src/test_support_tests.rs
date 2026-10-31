@@ -267,3 +267,155 @@ fn fakes_record_calls_and_answer_defaults() {
         ]
     );
 }
+
+/// TA-3: the Phase 7 helpers, on the paths that do not delegate to `FsStagingIo` (T005 writes its bodies).
+#[test]
+fn phase7_helpers_cases() {
+    use crate::feed::AssetFormat;
+    use crate::http::HttpConfig;
+    use crate::settings::Settings;
+    use io::ErrorKind::{NotFound, PermissionDenied};
+
+    assert_eq!(kat_signing_key().key_id_hex(), "440FA75168B852F7");
+    let candidates = version::platform_candidates(NativePlatform.os(), Arch::native());
+    assert_eq!(Some(&native_key()), candidates.first());
+
+    // test_feed: two plugins on the native key, the KAT signature text read in place.
+    let sig_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "../../../../tools/feed-contract/fixtures/kat/KatPlugin-1.2.3-Linux-x64.tar.gz.minisig",
+    );
+    let signature = std::fs::read_to_string(&sig_path)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", sig_path.display()));
+    let key = native_key();
+    let plugins = || {
+        [
+            TestPlugin {
+                name: "Alpha",
+                version: "1.2.3",
+                key,
+                asset: "Alpha-1.2.3-test.bin",
+                size: 452,
+                sha256: [0x11; 32],
+                signature: signature.clone(),
+                min_os: None,
+            },
+            TestPlugin {
+                name: "Bravo",
+                version: "1.2.3",
+                key,
+                asset: "Bravo-1.2.3-test.bin",
+                size: 1000,
+                sha256: [0x22; 32],
+                signature: signature.clone(),
+                min_os: None,
+            },
+        ]
+    };
+    let feed = test_feed(&plugins());
+    assert_eq!(
+        feed.plugins.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["Alpha", "Bravo"]
+    );
+    let format = match key.as_str().split('-').next() {
+        Some("darwin") => AssetFormat::Pkg,
+        Some("linux") => AssetFormat::TarGz,
+        _ => AssetFormat::InnoExe,
+    };
+    for p in plugins() {
+        let entry = &feed.plugins[p.name];
+        let release = entry.release.as_ref().expect("a stable release");
+        assert_eq!(
+            release.platforms.keys().copied().collect::<Vec<_>>(),
+            [key],
+            "{}",
+            p.name
+        );
+        let asset = &release.platforms[&key];
+        let lower = p.name.to_ascii_lowercase();
+        assert_eq!(
+            asset.url.as_str(),
+            format!("https://assets.example.invalid/{lower}/v1.2.3/{}", p.asset)
+        );
+        assert_eq!(asset.asset_name.as_str(), p.asset);
+        assert_eq!(asset.size, p.size);
+        assert_eq!(asset.sha256, p.sha256);
+        assert_eq!(asset.signature, p.signature);
+        assert_eq!(asset.format, format);
+    }
+    assert_eq!(
+        feed::parse(&test_feed_document(&plugins())).expect("the document parses"),
+        feed,
+        "TA-14: the document is the feed's"
+    );
+
+    // FaultyStagingIo: an injected failure touches nothing and is counted.
+    let (_td, roots) = fresh_temp_roots();
+    let target = roots.staging_dir().join("downloads");
+    let io = FaultyStagingIo::failing(Op::CreateDir, 1, PermissionDenied);
+    let error = io.create_dir_all(&target).expect_err("the planned failure");
+    assert_eq!(error.kind(), PermissionDenied);
+    assert!(!target.exists(), "no directory was created");
+    assert_eq!(io.calls(), 1);
+    assert_eq!(io.calls_of(Op::CreateDir), 1);
+    assert_eq!(io.calls_of(Op::KindOf), 0);
+    assert_eq!(io.written(), 0);
+
+    let io = FaultyStagingIo::failing(Op::KindOf, 1, PermissionDenied);
+    let error = io.kind_of(&target).expect_err("the planned failure");
+    assert_eq!(error.kind(), PermissionDenied);
+    assert_eq!(io.calls_of(Op::KindOf), 1);
+
+    // panic_after: the panic comes after the call returned (the call is counted).
+    assert_eq!(
+        FaultyStagingIo::panicking_after(1).faults.panic_after,
+        Some(1)
+    );
+    assert_eq!(FaultyStagingIo::healthy().faults.fail, None);
+    let mut io = FaultyStagingIo::failing(Op::LenOf, 1, NotFound);
+    io.faults.panic_after = Some(1);
+    let result = catch_unwind(AssertUnwindSafe(|| io.len_of(&target)));
+    let payload = result.expect_err("the planned panic");
+    let message = payload
+        .downcast_ref::<String>()
+        .map(String::as_str)
+        .unwrap_or_default();
+    assert!(
+        message.contains("planned panic after call 1"),
+        "message: {message}"
+    );
+    assert_eq!(io.calls(), 1);
+    assert_eq!(io.calls_of(Op::LenOf), 1);
+
+    assert_eq!(
+        test_policy(),
+        DownloadPolicy {
+            attempts: 4,
+            backoff: vec![Duration::ZERO],
+            stall: Duration::from_secs(2),
+            attempt_deadline: Duration::from_secs(10),
+        }
+    );
+
+    // DownloadRig: env() borrows the rig's own parts.
+    let ctx = AppContext {
+        roots: roots.clone(),
+        settings: Settings::default(),
+        feed_url: String::new(),
+        http: HttpConfig::loopback(Duration::from_secs(1), Duration::from_secs(1)),
+        signing_key: kat_signing_key(),
+    };
+    let rig = DownloadRig::new(ctx);
+    let env = rig.env();
+    assert!(std::ptr::eq(env.ctx, &rig.ctx));
+    assert!(std::ptr::eq(env.policy, &rig.policy));
+    assert!(std::ptr::eq(env.cancel, &rig.cancel));
+    assert_eq!(
+        std::ptr::from_ref::<dyn StagingIo>(env.io).cast::<()>(),
+        std::ptr::from_ref(&rig.io).cast::<()>()
+    );
+    assert_eq!(rig.policy, test_policy());
+    assert!(!rig.cancel.is_cancelled());
+    assert_eq!(rig.io.calls(), 0);
+    fn sync<T: Sync>() {}
+    sync::<DownloadRig>();
+}

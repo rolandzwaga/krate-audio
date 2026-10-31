@@ -6,6 +6,7 @@ use crate::platform::{NativePlatform, Os, Platform};
 use crate::roots::{Roots, RootsError};
 use crate::settings::{self, Settings, SettingsError};
 use crate::state_lock::{LockError, LockStep, StateLock};
+use crate::verify::SigningKey;
 use std::io;
 use std::sync::{Arc, PoisonError};
 use std::time::Duration;
@@ -53,6 +54,9 @@ pub struct AppContext {
     pub feed_url: String,
     /// The one HTTP configuration every request of this instance uses (FR-060).
     pub http: HttpConfig,
+    /// The key every downloaded artifact is verified against (Phase 7 FR-041): the release key
+    /// in production, a throwaway or the KAT key in tests.
+    pub signing_key: SigningKey,
 }
 
 /// What `src-tauri` manages (FR-017, FR-103). The lock lives as long as the state.
@@ -70,8 +74,9 @@ pub fn assemble_context(
     roots: Result<Roots, RootsError>,
     feed_url: &str,
     http: HttpConfig,
+    signing_key: SigningKey,
 ) -> AppState {
-    assemble_with_os(NativePlatform.os(), roots, feed_url, http)
+    assemble_with_os(NativePlatform.os(), roots, feed_url, http, signing_key)
 }
 
 /// Lock, then load, then (Linux only) fold the configured root, then return. Creates only
@@ -81,6 +86,7 @@ pub(crate) fn assemble_with_os(
     roots: Result<Roots, RootsError>,
     feed_url: &str,
     http: HttpConfig,
+    signing_key: SigningKey,
 ) -> AppState {
     let roots = match roots {
         Ok(roots) => roots,
@@ -104,6 +110,7 @@ pub(crate) fn assemble_with_os(
             settings: outcome.settings,
             feed_url: feed_url.to_owned(),
             http,
+            signing_key,
         }),
         settings_error: outcome.error,
         lock: Some(Arc::new(lock)),
@@ -138,7 +145,8 @@ pub fn reassemble(prev: &AppState, settings: Settings) -> AppState {
 
 /// No I/O. An `Err` context comes back unchanged; settings that fail `validate` keep the
 /// previous context and report the error; otherwise the roots are re-derived with the new
-/// configured root, with the same feed URL, the same HTTP configuration and the same lock.
+/// configured root, with the same feed URL, the same HTTP configuration, the same signing key
+/// and the same lock.
 pub(crate) fn reassemble_with_os(os: Os, prev: &AppState, settings: Settings) -> AppState {
     let lock = prev.lock.clone();
     let ctx = match &prev.context {
@@ -164,6 +172,7 @@ pub(crate) fn reassemble_with_os(os: Os, prev: &AppState, settings: Settings) ->
             settings,
             feed_url: ctx.feed_url.clone(),
             http: ctx.http.clone(),
+            signing_key: ctx.signing_key.clone(),
         }),
         settings_error: None,
         lock,

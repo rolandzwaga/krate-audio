@@ -598,6 +598,8 @@ Does NOT: install, write anything outside the state dir, or call the helper.
 
 ### Phase 7: Download and Verify
 
+**Status: ✅ COMPLETE (PENDING-CI: 11 item(s)) (2026-10-31)** — see specs/krate-manager-phase7/compliance.md
+
 **Spec:** `krate-manager-phase7`
 
 Components:

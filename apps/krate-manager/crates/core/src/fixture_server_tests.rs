@@ -489,3 +489,137 @@ fn replies_behave_as_scripted() {
     assert_eq!(read_n(&mut stream, 10), b"abcdefghij");
     assert!(drop_within_bound(server, stream, "HeadersThenStall").is_empty());
 }
+
+/// A GET of `path` carrying the extra header line `header` (empty: none).
+fn get_with(server: &FixtureServer, path: &str, header: &str) -> Response {
+    let extra = if header.is_empty() {
+        String::new()
+    } else {
+        format!("{header}\r\n")
+    };
+    let raw = format!("GET {path} HTTP/1.1\r\nHost: fixture\r\n{extra}\r\n");
+    response(&read_all(send(server, raw.as_bytes())))
+}
+
+#[test]
+fn ranged_cases() {
+    let body = b"abcdefghijklmnopqrstuvwxyz".to_vec();
+    let len = body.len();
+    let server = FixtureServer::start(vec![route("/r", Reply::Ranged { body: body.clone() })]);
+
+    // No Range: the whole body.
+    let r = get_with(&server, "/r", "");
+    assert_eq!(r.status_line, "HTTP/1.1 200 OK");
+    assert_eq!(r.header("Content-Length"), Some(len.to_string().as_str()));
+    assert_eq!(r.body, body);
+
+    // bytes=10-, in either header-name case: 206 and the tail.
+    for header in ["Range: bytes=10-", "range: bytes=10-"] {
+        let r = get_with(&server, "/r", header);
+        assert_eq!(r.status_line, "HTTP/1.1 206 Partial Content", "{header}");
+        assert_eq!(
+            r.header("Content-Range"),
+            Some(format!("bytes 10-{}/{len}", len - 1).as_str()),
+            "{header}"
+        );
+        assert_eq!(
+            r.header("Content-Length"),
+            Some((len - 10).to_string().as_str()),
+            "{header}"
+        );
+        assert_eq!(r.body, &body[10..], "{header}");
+    }
+
+    // bytes=<len>-: 416 naming the length, no body.
+    let r = get_with(&server, "/r", &format!("Range: bytes={len}-"));
+    assert_eq!(r.status_line, "HTTP/1.1 416 Range Not Satisfiable");
+    assert_eq!(
+        r.header("Content-Range"),
+        Some(format!("bytes */{len}").as_str())
+    );
+    assert!(r.body.is_empty());
+
+    // A Range not of the form bytes=<n>-: the whole body.
+    let r = get_with(&server, "/r", "Range: bytes=5-9");
+    assert_eq!(r.status_line, "HTTP/1.1 200 OK");
+    assert_eq!(r.header("Content-Length"), Some(len.to_string().as_str()));
+    assert_eq!(r.body, body);
+}
+
+#[test]
+fn script_advances_per_request() {
+    let server = FixtureServer::start(vec![
+        route(
+            "/s",
+            Reply::Script(vec![
+                Reply::Status(503),
+                Reply::Status(500),
+                Reply::Ok {
+                    body: b"third".to_vec(),
+                    content_type: "text/plain",
+                },
+            ]),
+        ),
+        route(
+            "/t",
+            Reply::Script(vec![Reply::Status(429), Reply::Status(408)]),
+        ),
+    ]);
+    let status = |path: &str| response(&get(&server, path));
+
+    assert_eq!(status("/s").status_line, "HTTP/1.1 503 Service Unavailable");
+    assert_eq!(
+        status("/s").status_line,
+        "HTTP/1.1 500 Internal Server Error"
+    );
+    // The second route counts from its own first request.
+    assert_eq!(status("/t").status_line, "HTTP/1.1 429 Too Many Requests");
+    for _ in 0..2 {
+        let r = status("/s");
+        assert_eq!(r.status_line, "HTTP/1.1 200 OK");
+        assert_eq!(r.body, b"third");
+    }
+    for _ in 0..2 {
+        assert_eq!(status("/t").status_line, "HTTP/1.1 408 Request Timeout");
+    }
+}
+
+#[test]
+fn paced_delivers_all_bytes_in_chunks() {
+    let body: Vec<u8> = (0u8..70).collect();
+    let server = FixtureServer::start(vec![route(
+        "/p",
+        Reply::Paced {
+            body: body.clone(),
+            chunk: 10,
+            interval: Duration::from_millis(50),
+        },
+    )]);
+    let started = Instant::now();
+    let mut stream = send(&server, &get_request("/p"));
+    let head = response(&read_head(&mut stream));
+    assert_eq!(head.status_line, "HTTP/1.1 200 OK");
+    assert_eq!(head.header("Content-Length"), Some("70"));
+
+    let mut got = Vec::new();
+    let mut stamps = Vec::new();
+    let mut buf = [0u8; 256];
+    loop {
+        let n = stream.read(&mut buf).expect("client read of a chunk");
+        if n == 0 {
+            break;
+        }
+        stamps.push(Instant::now());
+        got.extend_from_slice(&buf[..n]);
+    }
+    let whole = started.elapsed();
+
+    assert_eq!(got, body);
+    let gaps: Vec<Duration> = stamps.windows(2).map(|w| w[1] - w[0]).collect();
+    let long_gaps = gaps
+        .iter()
+        .filter(|g| **g >= Duration::from_millis(40))
+        .count();
+    assert!(long_gaps >= 6, "gaps between reads: {gaps:?}");
+    assert!(whole < Duration::from_secs(2), "the read took {whole:?}");
+}

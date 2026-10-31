@@ -4,7 +4,9 @@ use crate::platform::{NativePlatform, OsEnv, Platform};
 use crate::roots::{PluginRoot, RootKind};
 use crate::settings::SETTINGS_FILE;
 use crate::state_lock::{LOCK_FILE, LockError};
-use crate::test_support::{canonical_temp_dir, fresh_temp_roots, install_capture, take_mine};
+use crate::test_support::{
+    canonical_temp_dir, fresh_temp_roots, install_capture, kat_signing_key, take_mine,
+};
 use log::Level;
 use std::fs;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -107,7 +109,7 @@ fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
 fn assemble_cases() {
     // (a) No roots: no lock, no settings, the D9 variable named.
     let e = roots_error();
-    let state = assemble_context(Err(e), FEED, http());
+    let state = assemble_context(Err(e), FEED, http(), kat_signing_key());
     #[cfg(windows)]
     let first_var = "LOCALAPPDATA";
     #[cfg(not(windows))]
@@ -127,7 +129,7 @@ fn assemble_cases() {
         let (_td, roots) = fresh_temp_roots();
         let base = base_of(&roots);
         let before = listing(&base);
-        let state = assemble_context(Ok(roots.clone()), FEED, http());
+        let state = assemble_context(Ok(roots.clone()), FEED, http(), kat_signing_key());
         let after = listing(&base);
         let c = ctx(&state);
         assert_eq!(c.roots, roots, "no Configured entry, roots equal the input");
@@ -150,7 +152,7 @@ fn assemble_cases() {
         let base = base_of(&roots);
         fs::remove_dir_all(roots.state_dir()).expect("remove the state dir");
         let before = listing(&base);
-        let state = assemble_context(Ok(roots.clone()), FEED, http());
+        let state = assemble_context(Ok(roots.clone()), FEED, http(), kat_signing_key());
         let after = listing(&base);
         assert!(state.context.is_ok(), "got {:?}", state.context);
         assert!(state.lock.is_some());
@@ -168,7 +170,7 @@ fn assemble_cases() {
     {
         let (_td, roots) = fresh_temp_roots();
         let path = plant_corrupt(&roots);
-        let state = assemble_context(Ok(roots.clone()), FEED, http());
+        let state = assemble_context(Ok(roots.clone()), FEED, http(), kat_signing_key());
         assert_eq!(ctx(&state).settings, Settings::default());
         let error = state.settings_error.as_ref().expect("a settings error");
         assert_eq!(error.code(), "E_SETTINGS_CORRUPT");
@@ -184,7 +186,7 @@ fn assemble_locked_instance() {
     let held = StateLock::acquire(&roots).expect("the first instance holds the lock");
     let path = plant_corrupt(&roots);
     let before = listing(&base);
-    let state = assemble_context(Ok(roots.clone()), FEED, http());
+    let state = assemble_context(Ok(roots.clone()), FEED, http(), kat_signing_key());
     let after = listing(&base);
     match &state.context {
         Err(err @ StartupError::Locked) => assert_eq!(err.code(), "E_STARTUP_LOCKED"),
@@ -211,7 +213,7 @@ fn startup_notice_cases() {
         let (_td, roots) = fresh_temp_roots();
         let held = StateLock::acquire(&roots).expect("hold the lock");
         plant_corrupt(&roots);
-        let state = assemble_context(Ok(roots.clone()), FEED, http());
+        let state = assemble_context(Ok(roots.clone()), FEED, http(), kat_signing_key());
         assert_eq!(
             startup_notice(&state),
             Some("Krate Manager is already running")
@@ -222,13 +224,13 @@ fn startup_notice_cases() {
     // Healthy.
     {
         let (_td, roots) = fresh_temp_roots();
-        let state = assemble_context(Ok(roots.clone()), FEED, http());
+        let state = assemble_context(Ok(roots.clone()), FEED, http(), kat_signing_key());
         assert!(state.context.is_ok());
         assert_eq!(startup_notice(&state), None);
     }
 
     // Roots error.
-    let state = assemble_context(Err(roots_error()), FEED, http());
+    let state = assemble_context(Err(roots_error()), FEED, http(), kat_signing_key());
     assert_eq!(startup_notice(&state), None);
 
     // E_STARTUP_LOCK_IO: a regular file where the state dir should be.
@@ -236,7 +238,7 @@ fn startup_notice_cases() {
         let (_td, roots) = fresh_temp_roots();
         fs::remove_dir_all(roots.state_dir()).expect("remove the state dir");
         fs::write(roots.state_dir(), b"not a directory").expect("plant a regular file");
-        let state = assemble_context(Ok(roots.clone()), FEED, http());
+        let state = assemble_context(Ok(roots.clone()), FEED, http(), kat_signing_key());
         match &state.context {
             Err(
                 err @ StartupError::LockIo {
@@ -264,7 +266,13 @@ fn configured_root_cases() {
     // Linux with X: X first, the rest equal the input in order (Vst3User included).
     plant_settings(&roots, Some(&x));
     {
-        let state = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
+        let state = assemble_with_os(
+            Os::Linux,
+            Ok(roots.clone()),
+            FEED,
+            http(),
+            kat_signing_key(),
+        );
         let c = ctx(&state);
         assert_eq!(
             c.roots.plugin_roots()[0],
@@ -280,21 +288,33 @@ fn configured_root_cases() {
 
     // Windows and macOS ignore the stored value.
     for os in [Os::Windows, Os::Macos] {
-        let state = assemble_with_os(os, Ok(roots.clone()), FEED, http());
+        let state = assemble_with_os(os, Ok(roots.clone()), FEED, http(), kat_signing_key());
         assert_eq!(ctx(&state).roots, roots, "{os:?} ignores linux_plugin_root");
     }
 
     // Linux with null equals the input.
     plant_settings(&roots, None);
     {
-        let state = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
+        let state = assemble_with_os(
+            Os::Linux,
+            Ok(roots.clone()),
+            FEED,
+            http(),
+            kat_signing_key(),
+        );
         assert_eq!(ctx(&state).roots, roots);
     }
 
     // X equal to the Vst3User path adds no entry.
     plant_settings(&roots, Some(roots.vst3_user()));
     {
-        let state = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
+        let state = assemble_with_os(
+            Os::Linux,
+            Ok(roots.clone()),
+            FEED,
+            http(),
+            kat_signing_key(),
+        );
         let c = ctx(&state);
         assert_eq!(c.roots.plugin_roots(), roots.plugin_roots());
         unchanged(&c.roots);
@@ -306,7 +326,13 @@ fn reassemble_cases() {
     let (_td, roots) = fresh_temp_roots();
     let base = base_of(&roots);
     let x = base.join("configured");
-    let prev = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
+    let prev = assemble_with_os(
+        Os::Linux,
+        Ok(roots.clone()),
+        FEED,
+        http(),
+        kat_signing_key(),
+    );
     let prev_lock = prev
         .lock
         .clone()
@@ -330,6 +356,11 @@ fn reassemble_cases() {
     assert_eq!(&c.roots.plugin_roots()[1..], roots.plugin_roots());
     assert_eq!(c.settings, with_x);
     assert_eq!(c.feed_url, ctx(&prev).feed_url);
+    assert_eq!(
+        c.signing_key,
+        ctx(&prev).signing_key,
+        "the same key (FR-041)"
+    );
     assert!(next.settings_error.is_none());
     let next_lock = next.lock.clone().expect("the lock is carried");
     assert!(Arc::ptr_eq(&prev_lock, &next_lock), "the same lock");
@@ -343,6 +374,7 @@ fn reassemble_cases() {
     let cleared = reassemble_with_os(Os::Linux, &next, Settings::default());
     assert_eq!(ctx(&cleared).roots, roots);
     assert_eq!(ctx(&cleared).settings, Settings::default());
+    assert_eq!(ctx(&cleared).signing_key, ctx(&prev).signing_key);
 
     // A relative root: the previous context unchanged, E_SETTINGS_INVALID.
     let relative = Settings {
@@ -366,7 +398,7 @@ fn reassemble_cases() {
     assert_eq!(listing(&base), before, "no I/O");
 
     // An Err context comes back unchanged.
-    let failed = assemble_context(Err(roots_error()), FEED, http());
+    let failed = assemble_context(Err(roots_error()), FEED, http(), kat_signing_key());
     let again = reassemble_with_os(Os::Linux, &failed, with_x.clone());
     assert_eq!(
         format!("{:?}", again.context),
@@ -391,6 +423,7 @@ fn reassemble_cases() {
     };
     assert_eq!(ctx(&guard).roots, expected_roots);
     assert_eq!(ctx(&guard).settings, with_x);
+    assert_eq!(ctx(&guard).signing_key, kat_signing_key());
     assert!(Arc::ptr_eq(
         &prev_lock,
         guard.lock.as_ref().expect("the lock is carried")
@@ -415,7 +448,13 @@ fn sandbox_holds_through_assemble_and_reassemble() {
     // (a) Through assemble_with_os reading a planted settings.json.
     plant_settings(&roots, Some(&outside));
     let result = catch_unwind(AssertUnwindSafe(|| {
-        assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http())
+        assemble_with_os(
+            Os::Linux,
+            Ok(roots.clone()),
+            FEED,
+            http(),
+            kat_signing_key(),
+        )
     }));
     let message = panic_message(result.expect_err("an outside configured root panics"));
     assert!(
@@ -425,7 +464,13 @@ fn sandbox_holds_through_assemble_and_reassemble() {
 
     // (b) Through reassemble_with_os.
     plant_settings(&roots, None);
-    let prev = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
+    let prev = assemble_with_os(
+        Os::Linux,
+        Ok(roots.clone()),
+        FEED,
+        http(),
+        kat_signing_key(),
+    );
     assert!(prev.context.is_ok());
     let result = catch_unwind(AssertUnwindSafe(|| {
         reassemble_with_os(
@@ -465,7 +510,13 @@ fn http_config_is_carried() {
     };
     for config in [http(), proxied, with_pac] {
         let (_td, roots) = fresh_temp_roots();
-        let state = assemble_with_os(NativePlatform.os(), Ok(roots.clone()), FEED, config.clone());
+        let state = assemble_with_os(
+            NativePlatform.os(),
+            Ok(roots.clone()),
+            FEED,
+            config.clone(),
+            kat_signing_key(),
+        );
         assert_eq!(
             ctx(&state).http,
             config,
@@ -515,14 +566,24 @@ fn startup_errors_are_logged() {
     take_mine();
 
     // Roots error.
-    log_startup_errors(&assemble_context(Err(roots_error()), FEED, http()));
+    log_startup_errors(&assemble_context(
+        Err(roots_error()),
+        FEED,
+        http(),
+        kat_signing_key(),
+    ));
     assert_one_error(&startup_records(), "E_STARTUP_ROOTS");
 
     // Locked.
     {
         let (_td, roots) = fresh_temp_roots();
         let held = StateLock::acquire(&roots).expect("hold the lock");
-        log_startup_errors(&assemble_context(Ok(roots.clone()), FEED, http()));
+        log_startup_errors(&assemble_context(
+            Ok(roots.clone()),
+            FEED,
+            http(),
+            kat_signing_key(),
+        ));
         assert_one_error(&startup_records(), "E_STARTUP_LOCKED");
         drop(held);
     }
@@ -531,14 +592,19 @@ fn startup_errors_are_logged() {
     {
         let (_td, roots) = fresh_temp_roots();
         plant_corrupt(&roots);
-        log_startup_errors(&assemble_context(Ok(roots.clone()), FEED, http()));
+        log_startup_errors(&assemble_context(
+            Ok(roots.clone()),
+            FEED,
+            http(),
+            kat_signing_key(),
+        ));
         assert_one_error(&startup_records(), "E_SETTINGS_CORRUPT");
     }
 
     // Healthy: nothing.
     {
         let (_td, roots) = fresh_temp_roots();
-        let state = assemble_context(Ok(roots.clone()), FEED, http());
+        let state = assemble_context(Ok(roots.clone()), FEED, http(), kat_signing_key());
         assert!(state.context.is_ok() && state.settings_error.is_none());
         log_startup_errors(&state);
         let records = startup_records();

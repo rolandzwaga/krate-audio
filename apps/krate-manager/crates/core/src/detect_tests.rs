@@ -15,7 +15,7 @@ use crate::status::{
     RecordKind, RecordView, UpdateView, VersionSourceView,
 };
 use crate::test_support::{
-    FakeHostFacts, FakeHostIo, fresh_temp_roots, install_capture, take_mine,
+    FakeHostFacts, FakeHostIo, fresh_temp_roots, install_capture, kat_signing_key, take_mine,
 };
 use crate::version::Arch;
 use log::Level;
@@ -103,6 +103,7 @@ fn context(roots: &Roots) -> AppContext {
         settings: Settings::default(),
         feed_url: String::new(),
         http: HttpConfig::loopback(SEC, SEC),
+        signing_key: kat_signing_key(),
     }
 }
 

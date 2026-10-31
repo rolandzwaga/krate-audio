@@ -624,6 +624,10 @@ pub(crate) enum AgentPurpose {
     Feed,
     #[cfg(not(windows))]
     PacFetch,
+    /// A release asset (Phase 7 D2): per-read bound `stall`, octet-stream, identity encoding.
+    Download {
+        stall: Duration,
+    },
 }
 
 /// SI-20: the workspace's only `config_builder()`.
@@ -632,8 +636,11 @@ pub(crate) fn agent_config(
     proxy: Option<ureq::Proxy>,
     purpose: AgentPurpose,
 ) -> ureq::config::Config {
-    ureq::Agent::config_builder()
-        .https_only(purpose == AgentPurpose::Feed && config.policy == UrlPolicy::HttpsOnly)
+    let builder = ureq::Agent::config_builder()
+        .https_only(
+            matches!(purpose, AgentPurpose::Feed | AgentPurpose::Download { .. })
+                && config.policy == UrlPolicy::HttpsOnly,
+        )
         .max_redirects(0)
         .http_status_as_error(false)
         .proxy(proxy)
@@ -644,9 +651,15 @@ pub(crate) fn agent_config(
         )
         .timeout_connect(Some(config.connect_timeout))
         .timeout_global(Some(config.total_timeout))
-        .user_agent(concat!("krate-manager/", env!("CARGO_PKG_VERSION")))
-        .accept("application/json")
-        .build()
+        .user_agent(concat!("krate-manager/", env!("CARGO_PKG_VERSION")));
+    match purpose {
+        AgentPurpose::Download { stall } => builder
+            .accept("application/octet-stream")
+            .accept_encoding("identity")
+            .timeout_per_read(Some(stall)),
+        _ => builder.accept("application/json"),
+    }
+    .build()
 }
 
 /// Which part of a request an error arose in (FR-044).
@@ -932,13 +945,11 @@ fn pac_route(
     }
 }
 
-pub fn get(
-    config: &HttpConfig,
+/// The preamble `get` and `get_streamed` share: the URL parsed and checked, the static proxy checked and converted.
+fn prepare<'a>(
+    config: &'a HttpConfig,
     url: &str,
-    headers: &[(&str, &str)],
-    max_bytes: u64,
-) -> Result<Vec<u8>, HttpError> {
-    let deadline = Instant::now() + config.total_timeout;
+) -> Result<(url::Url, StaticProxy<'a>), HttpError> {
     let first = url::Url::parse(url).map_err(|_| HttpError::Url {
         url: redact_userinfo(url),
         reason: "the URL does not parse",
@@ -951,6 +962,17 @@ pub fn get(
         }
         None => None,
     };
+    Ok((first, static_proxy))
+}
+
+pub fn get(
+    config: &HttpConfig,
+    url: &str,
+    headers: &[(&str, &str)],
+    max_bytes: u64,
+) -> Result<Vec<u8>, HttpError> {
+    let deadline = Instant::now() + config.total_timeout;
+    let (first, static_proxy) = prepare(config, url)?;
     let mut pac_state = config
         .pac
         .as_ref()
@@ -978,29 +1000,50 @@ fn hop_rule(purpose: AgentPurpose) -> NextHop {
         AgentPurpose::Feed => next_hop,
         #[cfg(not(windows))]
         AgentPurpose::PacFetch => next_pac_hop,
+        AgentPurpose::Download { .. } => next_hop,
     }
 }
 
-/// The request chain under one deadline (PD-3): per hop the route's entries are walked (PD-33), then the purpose's
-/// redirect rule.
-fn run_chain(
+/// Private: how a hop-loop caller wants a ureq error (plan §4.2.3).
+trait ChainError: From<HttpError> {
+    fn from_ureq(e: ureq::Error, phase: Phase) -> Self;
+}
+
+impl ChainError for HttpError {
+    fn from_ureq(e: ureq::Error, phase: Phase) -> Self {
+        map_error(e, phase)
+    }
+}
+
+impl ChainError for StreamError {
+    /// A per-read timeout is a stall (FR-010); every other error goes through the unchanged `map_error`.
+    fn from_ureq(e: ureq::Error, phase: Phase) -> Self {
+        match e {
+            ureq::Error::Timeout(ureq::Timeout::PerRead) => StreamError::Stalled,
+            other => StreamError::Http(map_error(other, phase)),
+        }
+    }
+}
+
+/// The request chain under one deadline (PD-3) up to its final response: per hop the route's entries are walked
+/// (PD-33), then the purpose's redirect rule.
+fn final_response<E: ChainError>(
     config: &HttpConfig,
     first: url::Url,
     headers: &[(&str, &str)],
-    max_bytes: u64,
     deadline: Instant,
     purpose: AgentPurpose,
     route: &mut Route<'_>,
-) -> Result<Vec<u8>, HttpError> {
+) -> Result<ureq::http::Response<ureq::Body>, E> {
     let next = hop_rule(purpose);
     let mut hop_url = first;
     let mut redirects = 0u32;
     loop {
         if deadline <= Instant::now() {
-            return Err(HttpError::Timeout);
+            return Err(E::from(HttpError::Timeout));
         }
         let entries = route(&hop_url)?;
-        let mut response = walk(config, &hop_url, headers, deadline, purpose, entries)?;
+        let response = walk::<E>(config, &hop_url, headers, deadline, purpose, entries)?;
         let status = response.status().as_u16();
         let location = response
             .headers()
@@ -1010,36 +1053,50 @@ fn run_chain(
             Hop::Follow(to) => {
                 redirects += 1;
                 if redirects > MAX_REDIRECTS {
-                    return Err(HttpError::Redirect {
+                    return Err(E::from(HttpError::Redirect {
                         reason: "more than 5 redirects",
-                    });
+                    }));
                 }
                 hop_url = to;
             }
-            Hop::Done => {
-                if status != 200 {
-                    return Err(HttpError::Status { status });
-                }
-                return read_body(&mut response, max_bytes);
-            }
+            Hop::Done => return Ok(response),
         }
     }
 }
 
+/// The feed and PAC chain: the final response must be 200, its body read under `max_bytes`.
+fn run_chain(
+    config: &HttpConfig,
+    first: url::Url,
+    headers: &[(&str, &str)],
+    max_bytes: u64,
+    deadline: Instant,
+    purpose: AgentPurpose,
+    route: &mut Route<'_>,
+) -> Result<Vec<u8>, HttpError> {
+    let mut response =
+        final_response::<HttpError>(config, first, headers, deadline, purpose, route)?;
+    let status = response.status().as_u16();
+    if status != 200 {
+        return Err(HttpError::Status { status });
+    }
+    read_body(&mut response, max_bytes)
+}
+
 /// One hop's entries in order; only a no-response error advances (PD-33), each entry at most once.
-fn walk(
+fn walk<E: ChainError>(
     config: &HttpConfig,
     hop_url: &url::Url,
     headers: &[(&str, &str)],
     deadline: Instant,
     purpose: AgentPurpose,
     entries: Vec<Option<ureq::Proxy>>,
-) -> Result<ureq::http::Response<ureq::Body>, HttpError> {
+) -> Result<ureq::http::Response<ureq::Body>, E> {
     let count = entries.len();
     for (index, proxy) in entries.into_iter().enumerate() {
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
-            return Err(HttpError::Timeout);
+            return Err(E::from(HttpError::Timeout));
         }
         let hop_config = HttpConfig {
             policy: config.policy,
@@ -1061,13 +1118,13 @@ fn walk(
                 if index + 1 < count && is_no_response(&e, left) {
                     continue;
                 }
-                return Err(map_error(e, Phase::Call));
+                return Err(E::from_ureq(e, Phase::Call));
             }
         }
     }
-    Err(HttpError::Offline {
+    Err(E::from(HttpError::Offline {
         detail: "no connection entry to try".to_owned(),
-    })
+    }))
 }
 
 /// FR-043: decoded bytes, `take(max_bytes + 1)`, exactly `max_bytes` admitted.
@@ -1134,6 +1191,161 @@ pub fn bounded<T: Send + 'static>(
         })
         .ok()?;
     rx.recv_timeout(wait).ok()
+}
+
+/// FR-017: set once, read before each request, after each body chunk and between backoff slices.
+#[derive(Debug, Default)]
+pub struct CancelToken(std::sync::atomic::AtomicBool);
+
+impl CancelToken {
+    pub fn new() -> Self {
+        CancelToken(std::sync::atomic::AtomicBool::new(false))
+    }
+
+    pub fn cancel(&self) {
+        self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+/// The bounds of one streamed request (FR-010): no `max_body`, which depends on the head (SI-27).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StreamLimits {
+    pub stall: Duration,
+    pub deadline: Duration,
+}
+
+/// The final response's headers as ureq hands them over: for a `Content-Encoding: gzip` response ureq has already
+/// removed `Content-Encoding` and `Content-Length` and decodes the body (PD-17), so both are `None` here.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResponseHead {
+    pub status: u16,
+    pub content_length: Option<u64>,
+    pub content_range: Option<String>,
+    pub content_encoding: Option<String>,
+}
+
+/// What the caller wants after seeing the head: the body limit, chosen after the head is seen (SI-27).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HeadAction {
+    Read { max_body: u64 },
+    Stop,
+}
+
+/// A streamed body that ended normally: the bytes passed to the sink.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StreamEnd {
+    pub bytes: u64,
+}
+
+/// Why a streamed request ended early (plan §3): internal plumbing that `download` maps (FR-016).
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum StreamError {
+    #[error(transparent)]
+    Http(#[from] HttpError),
+    #[error("no byte arrived within the stall bound")]
+    Stalled,
+    #[error("the sink refused a chunk: {kind:?}")]
+    Sink { kind: io::ErrorKind },
+    #[error("the caller stopped at the response head")]
+    HeadStopped,
+    #[error("cancelled")]
+    Cancelled,
+}
+
+/// The largest chunk `get_streamed` reads and passes to its sink (FR-010), on the heap.
+const STREAM_CHUNK: usize = 64 * 1024;
+
+/// One GET whose body is streamed to `sink` (FR-010 to FR-012): the same policy, proxy and
+/// redirect rules as `get`, a per-read stall bound, and the body limit `on_head` returns.
+pub fn get_streamed(
+    config: &HttpConfig,
+    url: &str,
+    headers: &[(&str, &str)],
+    limits: StreamLimits,
+    on_head: &mut dyn FnMut(&ResponseHead) -> HeadAction,
+    sink: &mut dyn FnMut(&[u8]) -> io::Result<()>,
+    cancel: &CancelToken,
+) -> Result<StreamEnd, StreamError> {
+    // (1) A token set before the call: no request (FR-017).
+    if cancel.is_cancelled() {
+        return Err(StreamError::Cancelled);
+    }
+    // (2) The chain runs under the download deadline; a PAC fetch or evaluation keeps the feed bound (FR-011).
+    let start = Instant::now();
+    let deadline = start + limits.deadline;
+    let pac_deadline = start + config.total_timeout.min(limits.deadline);
+    // (3) The preamble, the PAC state and the route as `get` has them.
+    let (first, static_proxy) = prepare(config, url)?;
+    let mut pac_state = config
+        .pac
+        .as_ref()
+        .map(|pac| open_pac(config, pac, pac_deadline));
+    let mut route = |hop: &url::Url| match pac_state.as_mut() {
+        None => Ok(vec![static_route(&static_proxy, hop)]),
+        Some(state) => pac_route(config, state, hop, pac_deadline, &static_proxy),
+    };
+    // (4) The final response.
+    let mut response = final_response::<StreamError>(
+        config,
+        first,
+        headers,
+        deadline,
+        AgentPurpose::Download {
+            stall: limits.stall,
+        },
+        &mut route,
+    )?;
+    // (5) Only 200 and 206 reach the caller.
+    let status = response.status().as_u16();
+    if !matches!(status, 200 | 206) {
+        return Err(StreamError::Http(HttpError::Status { status }));
+    }
+    // (6) The head as ureq leaves it (PD-17).
+    let header = |name: &str| {
+        response
+            .headers()
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_owned)
+    };
+    let head = ResponseHead {
+        status,
+        content_length: header("content-length").and_then(|v| v.trim().parse::<u64>().ok()),
+        content_range: header("content-range"),
+        content_encoding: header("content-encoding"),
+    };
+    // (7) The caller picks this response's body limit (SI-27), or stops with the body unread.
+    let max_body = match on_head(&head) {
+        HeadAction::Stop => return Err(StreamError::HeadStopped),
+        HeadAction::Read { max_body } => max_body,
+    };
+    // (8) The body in chunks of at most `STREAM_CHUNK`.
+    let mut reader = response.body_mut().as_reader();
+    let mut buffer = vec![0u8; STREAM_CHUNK];
+    let mut bytes = 0u64;
+    loop {
+        if cancel.is_cancelled() {
+            return Err(StreamError::Cancelled);
+        }
+        let n = match reader.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(StreamError::from_ureq(ureq::Error::from(e), Phase::Body)),
+        };
+        let total = bytes.saturating_add(n as u64);
+        if total > max_body {
+            return Err(StreamError::Http(HttpError::TooLarge { max: max_body }));
+        }
+        sink(&buffer[..n]).map_err(|e| StreamError::Sink { kind: e.kind() })?;
+        bytes = total;
+    }
+    // (9)
+    Ok(StreamEnd { bytes })
 }
 
 #[cfg(test)]

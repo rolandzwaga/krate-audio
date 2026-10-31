@@ -8,7 +8,7 @@ use crate::fixture_server::{FixtureServer, Reply};
 use crate::pac::tests::{FakePacHost, OsAnswer};
 use crate::pac::{OsProxyEntry, OsProxyKind};
 use crate::settings::Settings;
-use crate::test_support::{fresh_temp_roots, install_capture, take_mine};
+use crate::test_support::{fresh_temp_roots, install_capture, kat_signing_key, take_mine};
 use std::io::Write;
 use std::sync::mpsc;
 use std::thread;
@@ -132,6 +132,7 @@ fn context(roots: crate::roots::Roots, feed_url: String, http: HttpConfig) -> Ap
         settings: Settings::default(),
         feed_url,
         http,
+        signing_key: kat_signing_key(),
     }
 }
 
@@ -2254,4 +2255,406 @@ fn pac_body_cap() {
         w[0].starts_with("E_PAC_FETCH: ") && w[0].contains("/over.pac"),
         "{w:?}"
     );
+}
+
+// ---- the streamed GET (Phase 7 FR-010 to FR-012, SC-010), every host ----------------------------------------------
+
+/// Generous bounds for the cases that are not about a bound.
+const LIMITS: StreamLimits = StreamLimits {
+    stall: Duration::from_secs(2),
+    deadline: Duration::from_secs(5),
+};
+
+fn stream_code(r: &Result<StreamEnd, StreamError>) -> &'static str {
+    match r {
+        Ok(_) => "ok",
+        Err(StreamError::Http(e)) => e.code(),
+        Err(StreamError::Stalled) => "stalled",
+        Err(StreamError::Sink { .. }) => "sink",
+        Err(StreamError::HeadStopped) => "head-stopped",
+        Err(StreamError::Cancelled) => "cancelled",
+    }
+}
+
+/// `n` bytes that are not all alike, so a prefix check means something.
+fn asset_bytes(n: usize) -> Vec<u8> {
+    (0..n)
+        .map(|i| u8::try_from(i % 251).expect("below 251"))
+        .collect()
+}
+
+fn octets(body: &[u8]) -> Reply {
+    Reply::Ok {
+        body: body.to_vec(),
+        content_type: "application/octet-stream",
+    }
+}
+
+/// What one `get_streamed` call did, as its two closures saw it.
+struct Streamed {
+    result: Result<StreamEnd, StreamError>,
+    heads: Vec<ResponseHead>,
+    body: Vec<u8>,
+    sink_calls: usize,
+    /// "head" / "sink" in call order: `on_head` once, before the first `sink` (FR-010).
+    order: Vec<&'static str>,
+}
+
+/// One `get_streamed` whose `on_head` answers `action` and whose sink collects the bytes, or fails with `sink_error`
+/// on every call.
+fn run_streamed(
+    config: &HttpConfig,
+    url: &str,
+    headers: &[(&str, &str)],
+    limits: StreamLimits,
+    action: HeadAction,
+    sink_error: Option<io::ErrorKind>,
+) -> Streamed {
+    let order = std::cell::RefCell::new(Vec::new());
+    let mut heads = Vec::new();
+    let mut body = Vec::new();
+    let mut sink_calls = 0usize;
+    let result = get_streamed(
+        config,
+        url,
+        headers,
+        limits,
+        &mut |head| {
+            order.borrow_mut().push("head");
+            heads.push(head.clone());
+            action
+        },
+        &mut |chunk| {
+            order.borrow_mut().push("sink");
+            sink_calls += 1;
+            match sink_error {
+                Some(kind) => Err(io::Error::from(kind)),
+                None => {
+                    body.extend_from_slice(chunk);
+                    Ok(())
+                }
+            }
+        },
+        &CancelToken::new(),
+    );
+    Streamed {
+        result,
+        heads,
+        body,
+        sink_calls,
+        order: order.into_inner(),
+    }
+}
+
+#[test]
+fn streamed_policy_cases() {
+    let config = HttpConfig::loopback(SEC, SEC);
+    let read_all = HeadAction::Read { max_body: 64 };
+    let s = serve(vec![
+        ("/end", octets(b"end")),
+        (
+            "/out",
+            Reply::Redirect {
+                status: 302,
+                location: "https://example.invalid/".to_owned(),
+            },
+        ),
+    ]);
+    // A URL out of policy: refused before any request.
+    let refused = run_streamed(
+        &config,
+        "https://example.invalid/x",
+        &[],
+        LIMITS,
+        read_all,
+        None,
+    );
+    assert_eq!(stream_code(&refused.result), "E_FEED_URL");
+    assert!(s.requests().is_empty());
+    assert!(refused.heads.is_empty() && refused.sink_calls == 0);
+    // A hop out of policy: the redirect is re-checked (FR-011).
+    let out = run_streamed(&config, &s.url("/out"), &[], LIMITS, read_all, None);
+    assert!(
+        matches!(out.result, Err(StreamError::Http(HttpError::Url { .. }))),
+        "{:?}",
+        out.result
+    );
+    assert_eq!(stream_code(&out.result), "E_FEED_URL");
+    assert_eq!(lines(&s), ["GET /out"]);
+    // Six redirects are one more than `MAX_REDIRECTS`.
+    let mut previous = "/end".to_owned();
+    for i in (0..6).rev() {
+        let path = format!("/c{i}");
+        s.set_route(
+            &path,
+            Reply::Redirect {
+                status: 302,
+                location: s.url(&previous),
+            },
+        );
+        previous = path;
+    }
+    let chain = run_streamed(&config, &s.url("/c0"), &[], LIMITS, read_all, None);
+    assert_eq!(stream_code(&chain.result), "E_FEED_REDIRECT");
+    assert!(!lines(&s).contains(&"GET /end".to_owned()));
+    // The Download agent (PD-1: three arguments, the stall inside the purpose).
+    let download = AgentPurpose::Download {
+        stall: Duration::from_secs(30),
+    };
+    let cfg_3600 = HttpConfig {
+        total_timeout: Duration::from_secs(3600),
+        ..HttpConfig::production()
+    };
+    let agent = agent_config(&cfg_3600, None, download);
+    assert!(
+        matches!(agent.accept(), ureq::config::AutoHeaderValue::Provided(v) if v.as_str() == "application/octet-stream"),
+        "{:?}",
+        agent.accept()
+    );
+    assert!(
+        matches!(agent.accept_encoding(), ureq::config::AutoHeaderValue::Provided(v) if v.as_str() == "identity"),
+        "{:?}",
+        agent.accept_encoding()
+    );
+    assert_eq!(agent.timeout_per_read(), Some(Duration::from_secs(30)));
+    assert_eq!(agent.timeouts().global, Some(Duration::from_secs(3600)));
+    assert_eq!(agent.max_redirects(), 0);
+    assert!(!agent.http_status_as_error());
+    assert!(agent.proxy().is_none());
+    assert!(matches!(
+        agent.tls_config().root_certs(),
+        ureq::tls::RootCerts::PlatformVerifier
+    ));
+    assert!(agent.https_only());
+    let loopback_agent = agent_config(&HttpConfig::loopback(SEC, SEC), None, download);
+    assert!(!loopback_agent.https_only());
+    assert!(matches!(
+        loopback_agent.tls_config().root_certs(),
+        ureq::tls::RootCerts::PlatformVerifier
+    ));
+    // The Feed agent is built as before.
+    let feed = agent_config(&HttpConfig::production(), None, AgentPurpose::Feed);
+    assert_eq!(feed.timeout_per_read(), None);
+    assert!(
+        matches!(feed.accept(), ureq::config::AutoHeaderValue::Provided(v) if v.as_str() == "application/json"),
+        "{:?}",
+        feed.accept()
+    );
+    assert!(
+        matches!(
+            feed.accept_encoding(),
+            ureq::config::AutoHeaderValue::Default
+        ),
+        "{:?}",
+        feed.accept_encoding()
+    );
+    assert!(feed.https_only());
+}
+
+#[test]
+fn streamed_body_cases() {
+    let config = HttpConfig::loopback(SEC, SEC);
+    let plain = asset_bytes(100_000);
+    let n = 200_000usize;
+    let served = asset_bytes(n);
+    let n64 = u64::try_from(n).expect("fits");
+    let ranged_tail = b"0123456789";
+    let br_body = b"not really brotli".to_vec();
+    let br_head = format!(
+        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Encoding: br\r\nConnection: close\r\n\r\n",
+        br_body.len()
+    );
+    let partial_head = "HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 10-19/20\r\nContent-Length: 10\r\nConnection: close\r\n\r\n";
+    let s = serve(vec![
+        ("/gz", Reply::Gzip { body: gzip(&plain) }),
+        (
+            "/br",
+            Reply::Garbage([br_head.as_bytes(), &br_body].concat()),
+        ),
+        (
+            "/206",
+            Reply::Garbage([partial_head.as_bytes(), ranged_tail].concat()),
+        ),
+        ("/asset", octets(&served)),
+        (
+            "/stall",
+            Reply::HeadersThenStall {
+                declared_len: 100,
+                sent: b"0123456789".to_vec(),
+                stall: 5 * SEC,
+            },
+        ),
+    ]);
+    let read = |max_body: usize| HeadAction::Read {
+        max_body: u64::try_from(max_body).expect("fits"),
+    };
+
+    // PD-17 pin: ureq 3.5.0 decodes a gzip body and strips Content-Encoding and Content-Length before the head is
+    // seen. An upgrade that stops stripping them turns this red, and the plan's gzip rows are then re-examined.
+    let gz = run_streamed(&config, &s.url("/gz"), &[], LIMITS, read(plain.len()), None);
+    assert_eq!(
+        gz.result,
+        Ok(StreamEnd {
+            bytes: u64::try_from(plain.len()).expect("fits")
+        })
+    );
+    assert_eq!(gz.heads.len(), 1);
+    assert_eq!(gz.heads[0].status, 200);
+    assert_eq!(gz.heads[0].content_encoding, None);
+    assert_eq!(gz.heads[0].content_length, None);
+    assert!(gz.body == plain, "the decoded bytes reach the sink");
+    // on_head once, before the first sink call.
+    assert_eq!(gz.order.first(), Some(&"head"));
+    assert_eq!(gz.order.iter().filter(|e| **e == "head").count(), 1);
+    assert!(gz.sink_calls >= 1);
+
+    // A coding ureq does not decode stays visible.
+    let br = run_streamed(&config, &s.url("/br"), &[], LIMITS, read(1024), None);
+    assert_eq!(br.heads.len(), 1, "{:?}", br.result);
+    assert_eq!(br.heads[0].content_encoding.as_deref(), Some("br"));
+    assert_eq!(
+        br.heads[0].content_length,
+        Some(u64::try_from(br_body.len()).expect("fits"))
+    );
+
+    // A 206 reaches on_head and streams.
+    let partial = run_streamed(&config, &s.url("/206"), &[], LIMITS, read(10), None);
+    assert_eq!(partial.result, Ok(StreamEnd { bytes: 10 }));
+    assert_eq!(
+        partial.heads,
+        [ResponseHead {
+            status: 206,
+            content_length: Some(10),
+            content_range: Some("bytes 10-19/20".to_owned()),
+            content_encoding: None,
+        }]
+    );
+    assert_eq!(partial.body, ranged_tail);
+
+    // Stop: no body byte reaches the sink.
+    let stopped = run_streamed(
+        &config,
+        &s.url("/asset"),
+        &[],
+        LIMITS,
+        HeadAction::Stop,
+        None,
+    );
+    assert_eq!(stopped.result, Err(StreamError::HeadStopped));
+    assert_eq!(stopped.heads.len(), 1);
+    assert_eq!(stopped.sink_calls, 0);
+
+    // A sink error ends the stream at its first call.
+    let full = run_streamed(
+        &config,
+        &s.url("/asset"),
+        &[],
+        LIMITS,
+        read(n),
+        Some(io::ErrorKind::StorageFull),
+    );
+    assert_eq!(
+        full.result,
+        Err(StreamError::Sink {
+            kind: io::ErrorKind::StorageFull
+        })
+    );
+    assert_eq!(full.sink_calls, 1);
+
+    // SI-27: the limit is the one on_head returns. A ranged request the route ignores is read whole under `n`...
+    let range = [("Range", "bytes=1000-")];
+    let whole = run_streamed(&config, &s.url("/asset"), &range, LIMITS, read(n), None);
+    assert_eq!(whole.result, Ok(StreamEnd { bytes: n64 }));
+    assert!(whole.body == served, "all n bytes passed");
+    let last = s.requests().pop().expect("the ranged request was recorded");
+    assert!(
+        last.headers
+            .iter()
+            .any(|(k, v)| k.eq_ignore_ascii_case("range") && v == "bytes=1000-"),
+        "{last:?}"
+    );
+    // ...and is too large under `n - 1000`: never a StreamEnd, only a prefix of the body passed (TA-15).
+    let over = run_streamed(
+        &config,
+        &s.url("/asset"),
+        &range,
+        LIMITS,
+        read(n - 1000),
+        None,
+    );
+    assert_eq!(
+        over.result,
+        Err(StreamError::Http(HttpError::TooLarge { max: n64 - 1000 }))
+    );
+    assert!(over.body.len() <= n - 1000, "{}", over.body.len());
+    assert!(
+        over.body == served[..over.body.len()],
+        "a prefix of the body"
+    );
+
+    // A body read that waits past the stall bound is Stalled, not a timeout.
+    let stall = StreamLimits {
+        stall: Duration::from_millis(100),
+        deadline: 5 * SEC,
+    };
+    let stalled = run_streamed(&config, &s.url("/stall"), &[], stall, read(100), None);
+    assert_eq!(stalled.result, Err(StreamError::Stalled));
+
+    // A token set before the call: no request.
+    let quiet = serve(vec![("/asset", octets(&served))]);
+    let cancel = CancelToken::new();
+    cancel.cancel();
+    let mut heads = 0usize;
+    let mut sinks = 0usize;
+    let cancelled = get_streamed(
+        &config,
+        &quiet.url("/asset"),
+        &[],
+        LIMITS,
+        &mut |_| {
+            heads += 1;
+            HeadAction::Read { max_body: n64 }
+        },
+        &mut |_| {
+            sinks += 1;
+            Ok(())
+        },
+        &cancel,
+    );
+    assert_eq!(cancelled, Err(StreamError::Cancelled));
+    assert!(quiet.requests().is_empty());
+    assert_eq!((heads, sinks), (0, 0));
+}
+
+/// SC-010: a PAC fetch inside `get_streamed` keeps the feed bound, never the hour-long download deadline (FR-011).
+#[cfg(unix)]
+#[test]
+fn streamed_pac_fetch_keeps_the_feed_bound_unix() {
+    let s = serve(vec![("/pac", Reply::Stall(5 * SEC))]);
+    let (_fake, handle) = FakePacHost::new().handle();
+    let config = HttpConfig::loopback(SEC, Duration::from_millis(300))
+        .with_pac(Some(PacSource {
+            auto_detect: false,
+            url: Some(s.url("/pac")),
+        }))
+        .with_pac_host(Some(handle));
+    let limits = StreamLimits {
+        stall: 30 * SEC,
+        deadline: 10 * SEC,
+    };
+    let start = Instant::now();
+    let result = get_streamed(
+        &config,
+        &s.url("/asset"),
+        &[],
+        limits,
+        &mut |_| HeadAction::Read { max_body: 64 },
+        &mut |_| Ok(()),
+        &CancelToken::new(),
+    );
+    let elapsed = start.elapsed();
+    println!("streamed_pac_fetch_keeps_the_feed_bound_unix elapsed {elapsed:?}");
+    assert!(result.is_err(), "{result:?}");
+    assert!(elapsed < 2 * SEC, "{elapsed:?}");
+    assert_eq!(lines(&s).first().map(String::as_str), Some("GET /pac"));
 }

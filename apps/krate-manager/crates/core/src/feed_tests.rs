@@ -10,7 +10,7 @@ use crate::http::{HttpConfig, HttpError, ProxyConfig};
 use crate::platform::Os;
 use crate::roots::Roots;
 use crate::settings::Settings;
-use crate::test_support::{fresh_temp_roots, install_capture, take_mine};
+use crate::test_support::{fresh_temp_roots, install_capture, kat_signing_key, take_mine};
 use crate::version::{self, Arch, Availability};
 use base64::Engine as _;
 use log::Level;
@@ -251,6 +251,7 @@ fn context(roots: &Roots, feed_url: String) -> AppContext {
         settings: Settings::default(),
         feed_url,
         http: HttpConfig::loopback(SEC, SEC),
+        signing_key: kat_signing_key(),
     }
 }
 

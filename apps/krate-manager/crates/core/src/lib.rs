@@ -3,6 +3,7 @@
 pub mod context;
 pub mod contract;
 pub mod detect;
+pub mod download;
 pub mod feed;
 #[cfg(any(test, feature = "test-support"))]
 pub mod fixture_server;
@@ -19,6 +20,9 @@ pub mod status;
 pub mod sysproxy;
 #[cfg(target_os = "macos")]
 pub mod sysproxy_cf;
+#[cfg(test)]
+mod test_signer;
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
+pub mod verify;
 pub mod version;

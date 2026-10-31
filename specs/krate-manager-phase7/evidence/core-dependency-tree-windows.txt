@@ -1,0 +1,10 @@
+SC-018 local reproduction of the manager-ci.yml `core dependency tree` step (.github/workflows/manager-ci.yml:122-136),
+run 2026-10-31 on the Windows dev box from apps/krate-manager with RUNNER_OS=Windows, the step's script verbatim:
+
+  cargo tree -p krate-manager-core -e normal --locked --prefix none --format "{p}"
+  -> excluded-name scan ^(tauri(-.*)?|tokio|reqwest|hyper|dirs(-.*)?|directories(-.*)?|home)$
+
+Output (exit 0):
+::notice title=core dependency tree (Windows)::88 crates, none excluded
+
+The macOS and Linux legs stay PENDING-CI: check (macos-latest), check (ubuntu-24.04), same step, same notice.
