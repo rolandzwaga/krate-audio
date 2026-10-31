@@ -1,0 +1,3 @@
+Library/Audio/Plug-Ins/VST3/Alpha.vst3
+Library/Audio/Plug-Ins/VST3/Alpha.vst3/Contents
+Library/Audio/Plug-Ins/Components/Alpha.component

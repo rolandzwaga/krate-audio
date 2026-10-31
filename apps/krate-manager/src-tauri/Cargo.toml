@@ -23,6 +23,8 @@ tauri-build = { workspace = true }
 
 [dependencies]
 tauri = { workspace = true }
+# Phase 6 D15, Q8: commands.rs only, the free fn open_url; never registered
+tauri-plugin-opener = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
@@ -31,7 +33,7 @@ krate-manager-core = { workspace = true }
 [dev-dependencies]
 krate-manager-core = { workspace = true, features = ["test-support"] }
 
-# R-2: os_proxy.rs only (the Windows proxy reader and OS PAC evaluation)
+# R-2: os_proxy.rs and os_facts.rs only (Phase 6 FR-032)
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true }
 

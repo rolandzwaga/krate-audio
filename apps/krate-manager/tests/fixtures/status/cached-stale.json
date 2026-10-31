@@ -1,0 +1,132 @@
+{
+  "os": "linux",
+  "edge_max_age_secs": 600,
+  "running_os": "2.39",
+  "feed": {
+    "source": "cached",
+    "fetched_at_unix": 1699740800,
+    "schema_version": 2,
+    "error": "E_FEED_OFFLINE: connection refused"
+  },
+  "plugins": [
+    {
+      "name": "Alpha",
+      "latest": "1.2.0",
+      "availability": "available",
+      "min_os": null,
+      "installed": "version",
+      "installed_version": "1.2.0",
+      "update": "up_to_date",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_user",
+          "vendor_folder": false,
+          "nested": false,
+          "path": "/fixture/vst3-user/Alpha.vst3",
+          "managed": true,
+          "loads_before_managed": false,
+          "version": "1.2.0",
+          "version_source": "classes",
+          "unknown_reason": null
+        },
+        {
+          "format": "vst3",
+          "place": "vst3_global",
+          "vendor_folder": false,
+          "nested": false,
+          "path": "/fixture/vst3-global/Alpha.vst3",
+          "managed": false,
+          "loads_before_managed": false,
+          "version": "1.1.0",
+          "version_source": "classes",
+          "unknown_reason": null
+        }
+      ],
+      "record": {
+        "kind": "manifest",
+        "version": "1.2.0",
+        "files": null
+      },
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.2.0",
+      "notes": [
+        {
+          "type": "heading",
+          "level": 3,
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Fixed"
+            }
+          ]
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "start": null,
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "inlines": [
+                  {
+                    "type": "text",
+                    "text": "A fixture note."
+                  }
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bravo",
+      "latest": "2.0.1",
+      "availability": "available",
+      "min_os": null,
+      "installed": "version",
+      "installed_version": "2.1.0",
+      "update": "installed_newer",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_user",
+          "vendor_folder": false,
+          "nested": false,
+          "path": "/fixture/vst3-user/Bravo.vst3",
+          "managed": true,
+          "loads_before_managed": false,
+          "version": "2.1.0",
+          "version_source": "classes",
+          "unknown_reason": null
+        }
+      ],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.0.1",
+      "notes": []
+    },
+    {
+      "name": "Charlie",
+      "latest": "0.9.0",
+      "availability": "available",
+      "min_os": null,
+      "installed": "not_installed",
+      "installed_version": null,
+      "update": "not_installed",
+      "copies": [],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v0.9.0",
+      "notes": []
+    }
+  ]
+}

@@ -1,11 +1,18 @@
 //! Temp-sandboxed roots for tests (FR-020, FR-022). Compiled only under
 //! `cfg(any(test, feature = "test-support"))`.
 
+use crate::detect::{HostFacts, InnoValues, PkgOutputs, RecordRead};
+use crate::feed::PlainName;
+use crate::platform::{HostIo, RegistryRead, RunOutcome};
 use crate::roots::{PluginRoot, PresetRoots, RootKind, RootPaths, Roots, STAGING_DIR};
+use crate::version::OsVersion;
 use log::{Level, LevelFilter, Log, Metadata, Record};
+use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock, PoisonError};
 use std::thread::{self, ThreadId};
+use std::time::Duration;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GuardError {
@@ -187,6 +194,81 @@ pub fn take_mine() -> Vec<(String, Level, String)> {
     mine.into_iter()
         .map(|(_, target, level, message)| (target, level, message))
         .collect()
+}
+
+/// The test `HostFacts` (FR-083): records every call, then answers from its maps; an unlisted key is `Absent`.
+/// Starts no process and reads no registry; `RefCell` keeps it per thread.
+#[derive(Default)]
+pub struct FakeHostFacts {
+    pub os_version: Option<OsVersion>,
+    pub inno: BTreeMap<String, RecordRead<InnoValues>>,
+    pub pkg: BTreeMap<String, RecordRead<PkgOutputs>>,
+    /// `os_version`, `inno_values <key>`, `pkg_outputs <id>`, in call order.
+    pub calls: RefCell<Vec<String>>,
+}
+
+impl HostFacts for FakeHostFacts {
+    fn os_version(&self) -> Option<OsVersion> {
+        self.calls.borrow_mut().push("os_version".to_owned());
+        self.os_version
+    }
+
+    fn inno_values(&self, key: &PlainName) -> RecordRead<InnoValues> {
+        self.calls
+            .borrow_mut()
+            .push(format!("inno_values {}", key.as_str()));
+        self.inno
+            .get(key.as_str())
+            .cloned()
+            .unwrap_or(RecordRead::Absent)
+    }
+
+    fn pkg_outputs(&self, pkg_id: &PlainName) -> RecordRead<PkgOutputs> {
+        self.calls
+            .borrow_mut()
+            .push(format!("pkg_outputs {}", pkg_id.as_str()));
+        self.pkg
+            .get(pkg_id.as_str())
+            .cloned()
+            .unwrap_or(RecordRead::Absent)
+    }
+}
+
+/// The test `HostIo` (FR-083): records every call, then answers from its maps; an unlisted argv is `NoOutput`,
+/// an unlisted subkey `NoKey`. Starts no process and reads no registry; `RefCell` keeps it per thread.
+#[derive(Default)]
+pub struct FakeHostIo {
+    pub runs: BTreeMap<Vec<String>, RunOutcome>,
+    pub registry: BTreeMap<String, RegistryRead>,
+    pub rtl: Option<(u32, u32, u32)>,
+    /// `run <argv joined by ' '>`, `registry <subkey> <n1> <n2>`, `rtl_version`, in call order.
+    pub calls: RefCell<Vec<String>>,
+}
+
+impl HostIo for FakeHostIo {
+    fn run(&self, argv: &[&str], _bound: Duration) -> RunOutcome {
+        self.calls
+            .borrow_mut()
+            .push(format!("run {}", argv.join(" ")));
+        let key: Vec<String> = argv.iter().map(|arg| (*arg).to_owned()).collect();
+        self.runs.get(&key).cloned().unwrap_or(RunOutcome::NoOutput)
+    }
+
+    fn registry_values(&self, subkey: &str, names: [&str; 2]) -> RegistryRead {
+        let [first, second] = names;
+        self.calls
+            .borrow_mut()
+            .push(format!("registry {subkey} {first} {second}"));
+        self.registry
+            .get(subkey)
+            .cloned()
+            .unwrap_or(RegistryRead::NoKey)
+    }
+
+    fn rtl_version(&self) -> Option<(u32, u32, u32)> {
+        self.calls.borrow_mut().push("rtl_version".to_owned());
+        self.rtl
+    }
 }
 
 #[cfg(test)]

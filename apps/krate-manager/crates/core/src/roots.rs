@@ -170,6 +170,20 @@ impl Roots {
         }
     }
 
+    /// FR-005: on a sandboxed (test) `Roots`, panics unless `path` is a strict descendant of the sandbox base; on a
+    /// production `Roots` (no sandbox) does nothing. Lexical, like `with_configured_plugin_root`.
+    pub(crate) fn check_sandboxed(&self, path: &Path) {
+        if let Some(base) = &self.sandbox
+            && !(path != base.as_path() && path.starts_with(base))
+        {
+            panic!(
+                "install location {} is outside the test sandbox {}",
+                path.display(),
+                base.display()
+            );
+        }
+    }
+
     pub fn plugin_roots(&self) -> &[PluginRoot] {
         &self.plugin_roots
     }

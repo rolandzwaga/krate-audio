@@ -1,0 +1,33 @@
+{
+  "Name": "Alpha",
+  "Version": "1.0.3",
+  "KMContent": "KM-CONTENT-MARKER",
+  "Factory Info": {
+    "Vendor": "Example Vendor",
+    "URL": "",
+    "E-Mail": "",
+    "Flags": {
+      "Unicode": true,
+      "Classes Discardable": false,
+      "Component Non Discardable": false,
+    },
+  },
+  "Compatibility": [
+  ],
+  "Classes": [
+    {
+      "CID": "0A1F0000000040008000000000000001",
+      "Category": "Audio Module Class",
+      "Name": "Alpha",
+      "Vendor": "Example Vendor",
+      "Version": "1.0.4.0",
+      "SDKVersion": "VST 3.7.12",
+      "Sub Categories": [
+        "Fx",
+      ],
+      "Class Flags": 1,
+      "Snapshots": [
+      ],
+    },
+  ],
+}

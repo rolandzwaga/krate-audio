@@ -17,6 +17,10 @@ core-foundation = "0.10.1"
 flate2 = "1.1.10"
 krate-manager-core = { path = "crates/core" }
 log = "0.4.34"
+# Phase 6 D12: detect.rs AU reader only (macOS); already in the macOS graph through tauri
+plist = { version = "1.10.3", default-features = false }
+# Phase 6 D12: notes.rs only; no HTML writer
+pulldown-cmark = { version = "0.13.6", default-features = false }
 regex = "1.13.1"
 # R-8, R-15: default features only, never on Windows (PD-25)
 rquickjs = "0.14.0"
@@ -27,13 +31,15 @@ serde_json = "1.0.154"
 system-configuration = "0.8.0"
 tauri = { version = "2.12.5", features = [] }
 tauri-build = { version = "2.7.4", features = [] }
+# Phase 6 D15: src-tauri commands.rs only (free fn open_url); never registered as a plugin; no opener:* permission
+tauri-plugin-opener = "2.7.2"
 tempfile = "3.27.0"
 thiserror = "2.0.21"
 # R-5, PD-2
 ureq = { version = "3.5.0", features = ["platform-verifier", "socks-proxy"] }
 url = "2.5.8"
-# R-2; R-13, R-15: exactly two features, no Win32_System_Time
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Networking_WinHttp"] }
+# R-2; R-13, R-15; Phase 6 FR-081: exactly five features, no Win32_System_Time
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Registry", "Win32_System_SystemInformation", "Wdk_System_SystemServices", "Win32_Networking_WinHttp"] }
 
 [workspace.lints.clippy]
 allow_attributes = "deny"

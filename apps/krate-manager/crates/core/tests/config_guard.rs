@@ -28,9 +28,20 @@ const PLATFORM_TARGETS: [(&str, &str); 3] = [
     ("tauri.windows.conf.json", "nsis"),
 ];
 const CAPABILITY_KEYS: [&str; 4] = ["identifier", "description", "windows", "permissions"];
-/// FR-004's `[dependencies]` key set of `src-tauri/Cargo.toml` (PD-23).
-const SRC_TAURI_DEPENDENCIES: [&str; 5] =
-    ["krate-manager-core", "log", "serde", "serde_json", "tauri"];
+/// FR-004's `[dependencies]` key set of `src-tauri/Cargo.toml` (PD-23), narrowed by Phase 6 Q8 to admit the opener
+/// crate (SI-2).
+const SRC_TAURI_DEPENDENCIES: [&str; 6] = [
+    "krate-manager-core",
+    "log",
+    "serde",
+    "serde_json",
+    "tauri",
+    "tauri-plugin-opener",
+];
+/// The one `src-tauri/Cargo.toml` line, inside `[dependencies]`, that may name a tauri-plugin crate (SI-2).
+const OPENER_DEPENDENCY_LINE: &str = "tauri-plugin-opener = { workspace = true }";
+/// The capability's exact description (FR-061 as amended by SI-21).
+const CAPABILITY_DESCRIPTION: &str = "The main window may call only the app's own commands.";
 /// The strings `src-tauri/src/lib.rs` must contain (FR-017, FR-042, FR-044, FR-061, FR-101).
 const LIB_RS_STRINGS: [&str; 14] = [
     ".plugin(navigation::guard())",
@@ -86,6 +97,20 @@ const SRC_TAURI_TARGETS: [(&str, &str); 2] = [
 ];
 /// The workspace members of FR-002, in order.
 const MEMBERS: [&str; 3] = ["crates/core", "crates/helper", "src-tauri"];
+/// The two library members that must not depend on the opener crate (FR-065).
+const LIBRARY_MEMBERS: [&str; 2] = ["crates/core", "crates/helper"];
+/// The opener crate's identifier and the one file it may occur in (FR-065, SI-15).
+const OPENER_CRATE: &str = "tauri_plugin_opener";
+const OPENER_FILE: &str = "src-tauri/src/commands.rs";
+/// What no Rust source may hold: the opener plugin is never registered, so no source builds it
+/// or names its extension trait (FR-065, SI-15, PD-20).
+const OPENER_REGISTRATION: [&str; 3] = [
+    "tauri_plugin_opener::init",
+    "tauri_plugin_opener::Builder",
+    "OpenerExt",
+];
+/// The npm counterpart, which the webview never imports (FR-065).
+const OPENER_NPM: &str = "@tauri-apps/plugin-opener";
 /// FR-062: the Keep a Changelog header the plugin changelogs use (their lines 1-6), with the
 /// product name changed.
 const CHANGELOG_HEADER: [&str; 6] = [
@@ -120,6 +145,8 @@ const FRONTEND_BANNED: [&str; 6] = [
     "insertAdjacentHTML",
     "document.write",
 ];
+/// What no `src/**/*.css` line may hold, ASCII case-insensitive: a font, image or URL (FR-077).
+const STYLESHEET_BANNED: [&str; 4] = ["url(", "@font-face", "@import", "image-set("];
 
 /// Everything `check_config` reads from `src-tauri/` and the workspace root.
 #[derive(Clone)]
@@ -155,6 +182,22 @@ struct AppMetaFiles {
     changelog: String,
     /// `version.json`'s `version`.
     version: String,
+}
+
+/// Everything `check_opener` reads (FR-065 as amended by SI-15).
+#[derive(Clone)]
+struct OpenerFiles {
+    /// Every `.rs` file below `src-tauri/src/`, `crates/core/src/` and `crates/helper/src/`:
+    /// (app-relative '/'-separated path, text).
+    rust_sources: Vec<(String, String)>,
+    /// Every file under `src-tauri/capabilities/`: (path below `capabilities/`, parsed; `Null` if not JSON).
+    capabilities: Vec<(String, Value)>,
+    /// (member directory, its `Cargo.toml`) for `crates/core` and `crates/helper`.
+    library_manifests: Vec<(String, String)>,
+    package_json: Value,
+    conf: Value,
+    /// `src/**`: ('/'-separated path, text).
+    frontend: Vec<(String, String)>,
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -324,6 +367,43 @@ fn load_app_meta() -> AppMetaFiles {
         eslint_config: read_text(&root.join("eslint.config.mjs")),
         changelog: read_text(&root.join("CHANGELOG.md")),
         version,
+    }
+}
+
+fn load_opener() -> OpenerFiles {
+    let root = app_root();
+    let mut files = Vec::new();
+    for dir in ["src-tauri/src", "crates/core/src", "crates/helper/src"] {
+        walk(&root.join(dir), dir, &mut files);
+    }
+    let rust_sources = files
+        .into_iter()
+        .filter(|(rel, _)| rel.ends_with(".rs"))
+        .map(|(rel, bytes)| {
+            let text =
+                String::from_utf8(bytes).unwrap_or_else(|e| panic!("{rel} is not UTF-8: {e}"));
+            (rel, text)
+        })
+        .collect();
+    let config = load_config();
+    OpenerFiles {
+        rust_sources,
+        capabilities: config.capabilities,
+        library_manifests: LIBRARY_MEMBERS
+            .iter()
+            .map(|member| {
+                (
+                    (*member).to_owned(),
+                    read_text(&root.join(member).join("Cargo.toml")),
+                )
+            })
+            .collect(),
+        package_json: read_json(&root.join("package.json")),
+        conf: config.conf,
+        frontend: load_frontend()
+            .into_iter()
+            .filter(|(rel, _)| rel.starts_with("src/"))
+            .collect(),
     }
 }
 
@@ -529,33 +609,45 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
                     ("windows", json!(["main"])),
                     (
                         "permissions",
-                        json!(["allow-app-version", "allow-startup-error"]),
+                        json!([
+                            "allow-app-version",
+                            "allow-startup-error",
+                            "allow-plugin-status",
+                            "allow-check-now",
+                            "allow-open-release-page"
+                        ]),
                     ),
                 ];
                 for (key, want) in expected {
                     if object.get(key) != Some(&want) {
                         m.push(format!(
-                            "capabilities/main.json `{key}` is {}, expected {want} (FR-041)",
+                            "capabilities/main.json `{key}` is {}, expected {want} (FR-041, FR-061)",
                             show(object.get(key))
                         ));
                     }
+                }
+                let description = json!(CAPABILITY_DESCRIPTION);
+                if object.get("description") != Some(&description) {
+                    m.push(format!(
+                        "capabilities/main.json `description` is {}, expected {description} (FR-061, SI-21)",
+                        show(object.get("description"))
+                    ));
                 }
             }
         }
     }
 
-    // FR-040: build.rs registers exactly the two commands (whitespace-insensitive).
+    // FR-040, Phase 6 FR-060: build.rs registers exactly the five commands (whitespace-insensitive).
     let squeezed: String = f
         .build_rs
         .chars()
         .filter(|ch| !ch.is_whitespace())
         .collect();
-    if !squeezed
-        .replace(",]", "]")
-        .contains(r#"commands(&["app_version","startup_error"])"#)
-    {
+    if !squeezed.replace(",]", "]").contains(
+        r#"commands(&["app_version","startup_error","plugin_status","check_now","open_release_page"])"#,
+    ) {
         m.push(
-            "src-tauri/build.rs does not register exactly app_version and startup_error (FR-040)"
+            "src-tauri/build.rs does not register exactly app_version, startup_error, plugin_status, check_now and open_release_page (FR-040, FR-060)"
                 .to_owned(),
         );
     }
@@ -685,10 +777,17 @@ fn check_src_tauri_manifest(f: &ConfigFiles, m: &mut Vec<String>) {
             "src-tauri/Cargo.toml [dependencies] tauri is {tauri_lines:?}, expected `tauri = {{ workspace = true }}` (FR-004)"
         ));
     }
+    // SI-2: exactly one line may name a tauri-plugin crate, the opener entry inside `[dependencies]`.
+    let mut header = "";
     for (index, line) in toml.lines().enumerate() {
-        if line.contains("tauri-plugin") {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            header = trimmed;
+        }
+        let accepted = header == "[dependencies]" && trimmed == OPENER_DEPENDENCY_LINE;
+        if line.contains("tauri-plugin") && !accepted {
             m.push(format!(
-                "src-tauri/Cargo.toml:{}: names a tauri-plugin crate (FR-004)",
+                "src-tauri/Cargo.toml:{}: names a tauri-plugin crate (FR-004, SI-2)",
                 index + 1
             ));
         }
@@ -860,8 +959,20 @@ fn call_argument_counts(text: &str, needle: &str) -> Vec<usize> {
 fn check_frontend(files: &[(String, String)]) -> Vec<String> {
     let mut m = Vec::new();
     for (name, text) in files {
+        let stylesheet = name.starts_with("src/") && name.ends_with(".css");
         for (index, line) in text.lines().enumerate() {
             let at = format!("{name}:{}", index + 1);
+            if stylesheet {
+                let lower = line.to_ascii_lowercase();
+                if STYLESHEET_BANNED
+                    .iter()
+                    .any(|banned| lower.contains(banned))
+                {
+                    m.push(format!(
+                        "{at}: a font, image or URL in a stylesheet (FR-077)"
+                    ));
+                }
+            }
             for banned in FRONTEND_BANNED {
                 if line.contains(banned) {
                     m.push(format!("{at}: `{banned}` (FR-045, FR-052)"));
@@ -885,6 +996,100 @@ fn check_frontend(files: &[(String, String)]) -> Vec<String> {
         }
     }
     m
+}
+
+/// FR-065 as amended by SI-15: the opener crate is called from `commands.rs` only, never
+/// registered, never a library dependency and never granted to the webview.
+fn check_opener(f: &OpenerFiles) -> Vec<String> {
+    let mut m = Vec::new();
+    for (rel, text) in &f.rust_sources {
+        if rel != OPENER_FILE && holds_token(text, OPENER_CRATE) {
+            m.push(format!(
+                "{rel} holds `{OPENER_CRATE}`, which may occur only in {OPENER_FILE} (FR-065, SI-15)"
+            ));
+        }
+        let joined = join_paths(text);
+        for token in OPENER_REGISTRATION {
+            if holds_token(&joined, token) {
+                m.push(format!(
+                    "{rel} holds `{token}`: the opener plugin is never registered (FR-065, SI-15, PD-20)"
+                ));
+            }
+        }
+    }
+    for (name, capability) in &f.capabilities {
+        let permissions = capability
+            .get("permissions")
+            .and_then(Value::as_array)
+            .map_or(&[][..], Vec::as_slice);
+        for permission in permissions {
+            // A permission is a string or an object with an `identifier`.
+            let identifier = permission
+                .as_str()
+                .or_else(|| permission.get("identifier").and_then(Value::as_str));
+            if let Some(identifier) = identifier.filter(|id| id.starts_with("opener:")) {
+                m.push(format!(
+                    "capabilities/{name} grants `{identifier}` (FR-065: no opener permission)"
+                ));
+            }
+        }
+    }
+    for (member, toml) in &f.library_manifests {
+        for (index, line) in toml.lines().enumerate() {
+            let line = line.trim();
+            if !line.starts_with('#') && line.contains("tauri-plugin-opener") {
+                m.push(format!(
+                    "{member}/Cargo.toml:{}: names tauri-plugin-opener; only src-tauri depends on it (FR-065)",
+                    index + 1
+                ));
+            }
+        }
+    }
+    for map in ["dependencies", "devDependencies"] {
+        if f.package_json
+            .get(map)
+            .and_then(|deps| deps.get(OPENER_NPM))
+            .is_some()
+        {
+            m.push(format!("package.json {map} has `{OPENER_NPM}` (FR-065)"));
+        }
+    }
+    if f.conf.pointer("/plugins/opener").is_some() {
+        m.push("tauri.conf.json has /plugins/opener (FR-065)".to_owned());
+    }
+    let imports = [
+        format!("from \"{OPENER_NPM}\""),
+        format!("from '{OPENER_NPM}'"),
+        format!("import(\"{OPENER_NPM}\")"),
+        format!("import('{OPENER_NPM}')"),
+    ];
+    for (name, text) in &f.frontend {
+        if name.ends_with(".test.ts") {
+            continue;
+        }
+        for (index, line) in text.lines().enumerate() {
+            if imports.iter().any(|import| line.contains(import.as_str())) {
+                m.push(format!(
+                    "{name}:{}: imports `{OPENER_NPM}`; the webview never calls the opener (FR-065)",
+                    index + 1
+                ));
+            }
+        }
+    }
+    m
+}
+
+/// `text` with the whitespace around every `::` removed, so the token sequence `a :: b` reads `a::b`.
+fn join_paths(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find("::") {
+        out.push_str(rest[..at].trim_end());
+        out.push_str("::");
+        rest = rest[at + 2..].trim_start();
+    }
+    out.push_str(rest);
+    out
 }
 
 /// PD-23: the workspace manifests, `package.json`, `tsconfig.json`, ESLint and CHANGELOG facts.
@@ -1161,6 +1366,25 @@ fn member_manifest<'a>(f: &'a mut AppMetaFiles, member: &str) -> &'a mut String 
     toml
 }
 
+/// The text of the Rust source at app-relative `rel`.
+fn rust_source<'a>(f: &'a mut OpenerFiles, rel: &str) -> &'a mut String {
+    let (_, text) = f
+        .rust_sources
+        .iter_mut()
+        .find(|(name, _)| name == rel)
+        .unwrap_or_else(|| panic!("{rel}"));
+    text
+}
+
+fn library_manifest<'a>(f: &'a mut OpenerFiles, member: &str) -> &'a mut String {
+    let (_, toml) = f
+        .library_manifests
+        .iter_mut()
+        .find(|(name, _)| name == member)
+        .expect("library manifest");
+    toml
+}
+
 // ---------------------------------------------------------------------------------------------
 // Tests
 
@@ -1308,14 +1532,46 @@ fn planted_config_changes_fail_the_guard() {
                 .push_str("\nfn planted() { eprintln!(\"planted\"); }\n");
         }),
         (
-            "tauri-plugin-opener in [dependencies]",
+            "tauri-plugin-fs in [dependencies]",
             &["[dependencies] keys", "names a tauri-plugin crate"],
             |f| {
-                f.cargo_toml = insert_after(
-                    &f.cargo_toml,
-                    "[dependencies]",
-                    "tauri-plugin-opener = \"2\"",
-                );
+                f.cargo_toml =
+                    insert_after(&f.cargo_toml, "[dependencies]", "tauri-plugin-fs = \"2\"");
+            },
+        ),
+        (
+            "sixth capability permission allow-planted",
+            &["`permissions`"],
+            |f| {
+                if let Some(list) = main_capability(f)["permissions"].as_array_mut() {
+                    list.push(json!("allow-planted"));
+                }
+            },
+        ),
+        (
+            "capability permission allow-fs-read",
+            &["`permissions`"],
+            |f| {
+                if let Some(list) = main_capability(f)["permissions"].as_array_mut() {
+                    list.push(json!("allow-fs-read"));
+                }
+            },
+        ),
+        (
+            "capability permission opener:allow-open-url",
+            &["`permissions`"],
+            |f| {
+                if let Some(list) = main_capability(f)["permissions"].as_array_mut() {
+                    list.push(json!("opener:allow-open-url"));
+                }
+            },
+        ),
+        (
+            "capability description read-only commands",
+            &["`description`"],
+            |f| {
+                main_capability(f)["description"] =
+                    json!("The main window may call only the app's own read-only commands.");
             },
         ),
         (
@@ -1511,6 +1767,28 @@ fn frontend_source_scan_reports_planted_strings() {
             "`{line}` not reported as `{needle}`: {messages:#?}"
         );
     }
+
+    // FR-077: no font, image or URL in a stylesheet (the URL plant is not http-prefixed).
+    let clean_css = vec![(
+        "src/clean.css".to_owned(),
+        "body {\n  font-family: system-ui, sans-serif;\n}\n".to_owned(),
+    )];
+    assert_eq!(check_frontend(&clean_css), Vec::<String>::new());
+    for line in [
+        "src: url(x.woff2)",
+        "@font-face {",
+        "@import \"x.css\";",
+        "background: image-set(\"a.png\" 1x)",
+        "BACKGROUND: URL(a.png)",
+    ] {
+        let files = vec![("src/planted.css".to_owned(), format!("body {{}}\n{line}\n"))];
+        let messages = check_frontend(&files);
+        assert!(
+            messages.iter().any(|message| message
+                == "src/planted.css:2: a font, image or URL in a stylesheet (FR-077)"),
+            "`{line}` not reported as a stylesheet font, image or URL: {messages:#?}"
+        );
+    }
 }
 
 #[test]
@@ -1652,4 +1930,139 @@ fn planted_app_metadata_changes_fail_the_guard() {
         ),
     ];
     assert_plants(&base, check_app_meta, plants);
+}
+
+#[test]
+fn opener_is_confined_and_not_granted_to_the_webview() {
+    let messages = check_opener(&load_opener());
+    assert!(messages.is_empty(), "{messages:#?}");
+}
+
+#[test]
+fn opener_guard_reports_plants() {
+    let base = load_opener();
+    let plants: &[Plant<OpenerFiles>] = &[
+        (
+            "capability permission opener:allow-open-url",
+            &["capabilities/main.json grants `opener:allow-open-url`"],
+            |f| {
+                let (_, capability) = f
+                    .capabilities
+                    .iter_mut()
+                    .find(|(name, _)| name == "main.json")
+                    .expect("capabilities/main.json");
+                if let Some(list) = capability["permissions"].as_array_mut() {
+                    list.push(json!("opener:allow-open-url"));
+                }
+            },
+        ),
+        (
+            "tauri_plugin_opener in status.rs",
+            &["crates/core/src/status.rs holds `tauri_plugin_opener`"],
+            |f| {
+                rust_source(f, "crates/core/src/status.rs")
+                    .push_str("\nfn planted() { let _ = tauri_plugin_opener::open_url; }\n");
+            },
+        ),
+        (
+            "tauri_plugin_opener in lib.rs",
+            &["src-tauri/src/lib.rs holds `tauri_plugin_opener`"],
+            |f| {
+                rust_source(f, "src-tauri/src/lib.rs")
+                    .push_str("\nfn planted() { let _ = tauri_plugin_opener::open_url; }\n");
+            },
+        ),
+        (
+            ".plugin(tauri_plugin_opener::init()) in commands.rs",
+            &["src-tauri/src/commands.rs holds `tauri_plugin_opener::init`"],
+            |f| {
+                rust_source(f, "src-tauri/src/commands.rs").push_str(
+                    "\nfn planted(b: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> { b.plugin(tauri_plugin_opener::init()) }\n",
+                );
+            },
+        ),
+        (
+            "tauri_plugin_opener :: Builder (spaced) in commands.rs",
+            &["src-tauri/src/commands.rs holds `tauri_plugin_opener::Builder`"],
+            |f| {
+                rust_source(f, "src-tauri/src/commands.rs").push_str(
+                    "\nfn planted() { let _ = tauri_plugin_opener ::\n    Builder::default(); }\n",
+                );
+            },
+        ),
+        (
+            "use tauri_plugin_opener::OpenerExt; in commands.rs",
+            &["src-tauri/src/commands.rs holds `OpenerExt`"],
+            |f| {
+                rust_source(f, "src-tauri/src/commands.rs")
+                    .push_str("\nuse tauri_plugin_opener::OpenerExt;\n");
+            },
+        ),
+        (
+            "tauri-plugin-opener in crates/core/Cargo.toml",
+            &["crates/core/Cargo.toml:"],
+            |f| {
+                let toml = library_manifest(f, "crates/core");
+                *toml = insert_after(toml, "[dependencies]", "tauri-plugin-opener = \"2\"");
+            },
+        ),
+        (
+            "tauri-plugin-opener in crates/helper/Cargo.toml",
+            &["crates/helper/Cargo.toml:"],
+            |f| {
+                library_manifest(f, "crates/helper")
+                    .push_str("\n[dependencies.tauri-plugin-opener]\nworkspace = true\n");
+            },
+        ),
+        (
+            "@tauri-apps/plugin-opener in devDependencies",
+            &["package.json devDependencies has `@tauri-apps/plugin-opener`"],
+            |f| {
+                f.package_json["devDependencies"]["@tauri-apps/plugin-opener"] = json!("2.7.2");
+            },
+        ),
+        (
+            "plugins.opener in tauri.conf.json",
+            &["/plugins/opener"],
+            |f| {
+                f.conf["plugins"] = json!({ "opener": { "requireLiteralLeadingDot": false } });
+            },
+        ),
+        (
+            "an opener import in src/planted.ts",
+            &["src/planted.ts:2: imports `@tauri-apps/plugin-opener`"],
+            |f| {
+                f.frontend.push((
+                    "src/planted.ts".to_owned(),
+                    "const a = 1;\nimport { openUrl } from \"@tauri-apps/plugin-opener\";\n"
+                        .to_owned(),
+                ));
+            },
+        ),
+        (
+            "a dynamic opener import in src/planted.ts",
+            &["src/planted.ts:1: imports `@tauri-apps/plugin-opener`"],
+            |f| {
+                f.frontend.push((
+                    "src/planted.ts".to_owned(),
+                    "const m = await import('@tauri-apps/plugin-opener');\n".to_owned(),
+                ));
+            },
+        ),
+    ];
+    assert_plants(&base, check_opener, plants);
+
+    // A test file may hold the import line (status.test.ts plants it in memory, FR-065).
+    let mut quiet = base.clone();
+    quiet.frontend.push((
+        "src/planted.test.ts".to_owned(),
+        "import { openUrl } from \"@tauri-apps/plugin-opener\";\n".to_owned(),
+    ));
+    let messages = check_opener(&quiet);
+    assert!(
+        !messages
+            .iter()
+            .any(|message| message.contains("src/planted.test.ts")),
+        "{messages:#?}"
+    );
 }

@@ -1,0 +1,218 @@
+{
+  "os": "linux",
+  "edge_max_age_secs": 600,
+  "running_os": "2.39",
+  "feed": {
+    "source": "fresh",
+    "fetched_at_unix": 1700000000,
+    "schema_version": 2,
+    "error": null
+  },
+  "plugins": [
+    {
+      "name": "Alpha",
+      "latest": "1.2.0",
+      "availability": "available",
+      "min_os": null,
+      "installed": "not_installed",
+      "installed_version": null,
+      "update": "not_installed",
+      "copies": [],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.2.0",
+      "notes": [
+        {
+          "type": "heading",
+          "level": 1,
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Heading one"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 5,
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Heading five"
+            }
+          ]
+        },
+        {
+          "type": "list",
+          "ordered": true,
+          "start": 3,
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "inlines": [
+                  {
+                    "type": "text",
+                    "text": "Third item"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "inlines": [
+                  {
+                    "type": "text",
+                    "text": "Fourth item"
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "start": null,
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "inlines": [
+                  {
+                    "type": "text",
+                    "text": "Outer item"
+                  }
+                ]
+              },
+              {
+                "type": "list",
+                "ordered": false,
+                "start": null,
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "inlines": [
+                        {
+                          "type": "text",
+                          "text": "Inner item"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "quote",
+          "blocks": [
+            {
+              "type": "paragraph",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "A quoted line."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "code",
+          "text": "let x = 1;\n"
+        },
+        {
+          "type": "rule"
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "A paragraph with "
+            },
+            {
+              "type": "strong",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "strong"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": ", "
+            },
+            {
+              "type": "emphasis",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "emphasis"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": " and "
+            },
+            {
+              "type": "code",
+              "text": "inline code"
+            },
+            {
+              "type": "text",
+              "text": ", then a hard break"
+            },
+            {
+              "type": "break"
+            },
+            {
+              "type": "text",
+              "text": "after two spaces."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bravo",
+      "latest": "2.0.1",
+      "availability": "available",
+      "min_os": null,
+      "installed": "not_installed",
+      "installed_version": null,
+      "update": "not_installed",
+      "copies": [],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.0.1",
+      "notes": []
+    },
+    {
+      "name": "Charlie",
+      "latest": "0.9.0",
+      "availability": "available",
+      "min_os": null,
+      "installed": "not_installed",
+      "installed_version": null,
+      "update": "not_installed",
+      "copies": [],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v0.9.0",
+      "notes": []
+    }
+  ]
+}

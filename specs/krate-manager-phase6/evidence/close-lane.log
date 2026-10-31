@@ -1,0 +1,40 @@
+Krate Manager Phase 6 close lane, 2026-10-31T18:07:45.067Z, wall=117.5s, logs F:/tmp/gate/krate-manager-phase6-close/20261031-180547 (removed by C3)
+A0    GREEN rustc="rustc 1.99.1 (58cf8f9c3 2026-10-13)" node="v24.7.0" df(repo root)="F: 50G 41G 9.4G 82% /f"
+A0b   GREEN git status --porcelain: 78 lines (without specs/krate-manager-phase6/evidence/) file=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A0b-git-status.txt
+A0c   GREEN base binary size (TA-13) 4314624 bytes from specs/krate-manager-phase6/evidence/base-binary-size.txt
+A1a   GREEN step cargo fmt last="" exit=0 wall=0.9s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A1a-cargo-fmt.log
+A1b   GREEN step clippy warning-lines=0 notices="" exit=0 wall=1.6s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A1b-clippy.log
+A1c   GREEN step clippy dev-feed warning-lines=0 notices="::notice title=clippy dev-feed (Windows)::clean" exit=0 wall=1.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A1c-clippy-dev-feed.log
+A1d   GREEN step clippy-guard notice="::notice title=clippy-guard (Windows)::rc=101 disallowed=3 from_os=1 Roots::new=1 std::env::var=1 lint-named=5 other-errors=0" copied to specs/krate-manager-phase6/evidence/clippy-guard.txt exit=0 wall=1.5s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A1d-clippy-guard.log
+A1e   GREEN step cargo test binaries=10 passed=178 binaries-with-failures=0 -> specs/krate-manager-phase6/evidence/cargo-test.txt exit=0 wall=10.8s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A1e-cargo-test.log
+A1f   GREEN step core dependency tree notices="::notice title=core dependency tree (Windows)::79 crates, none excluded" copied to specs/krate-manager-phase6/evidence/core-tree.txt exit=0 wall=0.5s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A1f-core-dependency-tree.log
+A1g   GREEN cargo tree -p krate-manager --locked -e normal --prefix none -> specs/krate-manager-phase6/evidence/tree-app.txt lines=582 exactly one line "tauri-plugin-opener v2.7.2" exit=0 wall=0.4s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A1g-tree-app.log
+A1h   GREEN cargo tree -p krate-manager-core --locked -e normal --prefix none -> specs/krate-manager-phase6/evidence/tree-core.txt lines=157 no line naming tauri-plugin-opener exit=0 wall=0.2s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A1h-tree-core.log
+A2a   GREEN node_modules present: step npm ci not run (tasks.md T010 A2)
+A2b   GREEN step typecheck last="> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json" exit=0 wall=4.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A2b-typecheck.log
+A2c   GREEN step lint last="> eslint . --max-warnings 0" exit=0 wall=4.3s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A2c-lint.log
+A2d   GREEN step vitest last="JSON report written to F:/tmp/gate/krate-manager-phase6-close/20261031-180547/vitest.json" exit=0 wall=3.3s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A2d-vitest.log
+A2e   GREEN npm ls @tauri-apps/plugin-opener exit=1 no such package ("(empty)") -> specs/krate-manager-phase6/evidence/npm-ls-opener.txt wall=1.0s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A2e-npm-ls-opener.log
+A3a   GREEN node --check on 3 files: all ok
+A3b   GREEN node --test plan=1..59 tests=752 pass=747 fail=0 skipped=5 nodeWarnings=0 tap=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A3b-node-test.tap exit=0 wall=20.6s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A3b-node-test.log
+A3c   GREEN L-TAP want "TAP plan=1..59 top-level=59" printed last="TAP plan=1..59 top-level=59" exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A3c-tap-check.log
+A3d   GREEN L-VLINT stderr=none exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A3d-version-lint.log
+A4    GREEN L-YAML .github/workflows/manager-ci.yml exit=0 wall=2.0s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A4-yaml-manager-ci.log
+A5    GREEN L-LINT lint-serial-test-runs last="lint-serial-test-runs: clean (64 files)" exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A5-lint-serial.log
+A6    GREEN L-INDEX gen-specs-index --check last="specs/INDEX.md is up to date." exit=0 wall=0.2s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A6-specs-index.log
+A7a   GREEN scope-check --self-test last="SELF-TEST GREEN (22 cases)" exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A7a-scope-self-test.log
+A7b   GREEN L-SCOPE scope-check last="scope-check: 95 paths (70 under apps/krate-manager/, 25 outside), 2 roadmap hunks: OK (base 3efe70de)" exit=0 wall=0.9s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A7b-scope-check.log
+A9    GREEN TA-4 grep (todo!( / unimplemented!( outside tests) exit=1 printed nothing wall=0.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A9-ta4-grep.log
+A10   GREEN L-WSL last="WSL LANE GREEN (192 passed, 24 s)" info="Linux-run Phase 6 tests seen ok: 6/6" -> specs/krate-manager-phase6/evidence/wsl-core.txt (early signal; closes no PENDING-CI row) exit=0 wall=30.3s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/A10-wsl-lane.log
+A11   GREEN SC-028 ok  got=1 want=1 "in the plugin's install dir under the compiled-in Windows plug-in root" | ok  got=1 want=1 "is never uninstalled by the helper" -> specs/krate-manager-phase6/evidence/sc028.txt
+B1    GREEN step required tests ran notices="::notice title=required tests ran (Windows)::172 cargo + 29 vitest" want "::notice title=required tests ran (Windows)::172 cargo + 29 vitest" exit=0 wall=0.2s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/B1-required-tests-ran.log
+B2    GREEN step tauri build last="F:\projects\iterum\apps\krate-manager\target\release\bundle\nsis\Krate Manager_0.1.0_x64-setup.exe (2.44 MiB)" exit=0 wall=98.4s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/B2-tauri-build.log
+B3    GREEN step build warnings notices="::notice title=build warnings (Windows)::0 warning lines in the release build" want "::notice title=build warnings (Windows)::0 warning lines in the release build" exit=0 wall=0.2s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/B3-build-warnings.log
+B4    GREEN step dev-feed absent notices="::notice title=dev-feed absent (Windows)::marker in source=1, in target/release/krate-manager.exe=0" want "::notice title=dev-feed absent (Windows)::" exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/B4-dev-feed-absent.log
+B5    GREEN step roster absent notices="::notice title=roster absent (Windows)::9 names, 0 hits in 4 files" (want n >= 9 names, 0 hits; a notice means the positive control was found) -> specs/krate-manager-phase6/evidence/roster-absent.txt exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/B5-roster-absent.log
+B6    GREEN step artifact version notices="::notice title=artifact version (Windows)::0.1.0 (nsis=present)" want "::notice title=artifact version (Windows)::0.1.0 (nsis=present)" exit=0 wall=0.4s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/B6-artifact-version.log
+B7    GREEN release binary 7650304 bytes, base 4314624, delta +3335680 bytes (77.3 %) -> specs/krate-manager-phase6/evidence/binary-size.txt exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/B7-binary-size.log
+C1    GREEN git status --porcelain (without specs/krate-manager-phase6/evidence/) equal to A0b (78 lines) file=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/C1-git-status.txt
+C2    GREEN L-SCOPE scope-check last="scope-check: 95 paths (70 under apps/krate-manager/, 25 outside), 2 roadmap hunks: OK (base 3efe70de)" exit=0 wall=0.4s log=F:/tmp/gate/krate-manager-phase6-close/20261031-180547/C2-scope-check.log
+C3    GREEN node tools/clean-test-output.js --apply summary="3 entries, 0.00 GB removed" exit=0 wall=0.1s (raw logs under F:/tmp/gate/krate-manager-phase6-close/20261031-180547 removed)
+CLOSE LANE GREEN

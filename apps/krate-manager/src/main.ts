@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { mountStatus } from "./status";
 
 export async function renderShell(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -20,6 +21,7 @@ export async function renderShell(root: HTMLElement): Promise<void> {
   }
   line.className = "version";
   root.append(line);
+  await mountStatus(root, invoke);
 }
 
 const app = document.getElementById("app");

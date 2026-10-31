@@ -1,0 +1,12 @@
+{
+  "os": "windows",
+  "edge_max_age_secs": 600,
+  "running_os": "10.0.26200",
+  "feed": {
+    "source": "none",
+    "fetched_at_unix": null,
+    "schema_version": null,
+    "error": "E_FEED_OFFLINE: connection refused"
+  },
+  "plugins": []
+}

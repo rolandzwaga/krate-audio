@@ -1,0 +1,7 @@
+{
+  "manifest_version": 1,
+  "plugin": "Alpha",
+  "version": "1.2.0",
+  "KMContent": "KM-CONTENT-MARKER",
+  "files": []
+}

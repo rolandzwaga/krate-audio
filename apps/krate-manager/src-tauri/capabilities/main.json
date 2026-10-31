@@ -1,6 +1,12 @@
 {
   "identifier": "main",
-  "description": "The main window may call only the app's own read-only commands.",
+  "description": "The main window may call only the app's own commands.",
   "windows": ["main"],
-  "permissions": ["allow-app-version", "allow-startup-error"]
+  "permissions": [
+    "allow-app-version",
+    "allow-startup-error",
+    "allow-plugin-status",
+    "allow-check-now",
+    "allow-open-release-page"
+  ]
 }

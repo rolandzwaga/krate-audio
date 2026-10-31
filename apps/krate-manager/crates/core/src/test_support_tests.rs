@@ -1,4 +1,5 @@
 use super::*;
+use serde_json::json;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use tempfile::TempDir;
 
@@ -189,4 +190,80 @@ fn temp_roots_inside_temp_ok() {
         );
         assert!(root.is_dir(), "{} was not created", root.display());
     }
+}
+
+/// TA-6: both fakes record every call in the plan §4.8 format and answer an unlisted input with its default.
+#[test]
+fn fakes_record_calls_and_answer_defaults() {
+    const INNO_KEY: &str = "{0A1F0000-0000-4000-8000-000000000001}_is1";
+    const PKG_ID: &str = "com.krateaudio.alpha";
+    let key = PlainName::checked("windows_uninstall_key", &json!(INNO_KEY))
+        .expect("an uninstall key of the contract pattern");
+    let pkg_id = PlainName::checked("macos_pkg_id", &json!(PKG_ID))
+        .expect("a pkg id of the contract pattern");
+
+    let empty = FakeHostFacts::default();
+    assert_eq!(empty.os_version(), None);
+    assert_eq!(empty.inno_values(&key), RecordRead::Absent);
+    assert_eq!(empty.pkg_outputs(&pkg_id), RecordRead::Absent);
+
+    let inno = InnoValues {
+        display_version: Some("1.2.0".to_owned()),
+        install_location: None,
+    };
+    let facts = FakeHostFacts {
+        os_version: OsVersion::parse("15.7.9"),
+        inno: BTreeMap::from([(INNO_KEY.to_owned(), RecordRead::Found(inno.clone()))]),
+        pkg: BTreeMap::from([(PKG_ID.to_owned(), RecordRead::Failed("E_RECORD_TIMEOUT"))]),
+        ..FakeHostFacts::default()
+    };
+    assert_eq!(facts.os_version(), OsVersion::parse("15.7.9"));
+    assert_eq!(facts.inno_values(&key), RecordRead::Found(inno));
+    assert_eq!(
+        facts.pkg_outputs(&pkg_id),
+        RecordRead::Failed("E_RECORD_TIMEOUT")
+    );
+    assert_eq!(
+        *facts.calls.borrow(),
+        [
+            "os_version".to_owned(),
+            format!("inno_values {INNO_KEY}"),
+            format!("pkg_outputs {PKG_ID}"),
+        ]
+    );
+
+    let io = FakeHostIo {
+        runs: BTreeMap::from([(
+            vec!["a".to_owned(), "b".to_owned()],
+            RunOutcome::Output("x".to_owned()),
+        )]),
+        registry: BTreeMap::from([(
+            "S".to_owned(),
+            RegistryRead::Values([Some("v".to_owned()), None]),
+        )]),
+        rtl: Some((10, 0, 26200)),
+        ..FakeHostIo::default()
+    };
+    let bound = Duration::from_secs(1);
+    assert_eq!(
+        io.run(&["a", "b"], bound),
+        RunOutcome::Output("x".to_owned())
+    );
+    assert_eq!(io.run(&["c"], bound), RunOutcome::NoOutput);
+    assert_eq!(
+        io.registry_values("S", ["N1", "N2"]),
+        RegistryRead::Values([Some("v".to_owned()), None])
+    );
+    assert_eq!(io.registry_values("T", ["N1", "N2"]), RegistryRead::NoKey);
+    assert_eq!(io.rtl_version(), Some((10, 0, 26200)));
+    assert_eq!(
+        *io.calls.borrow(),
+        [
+            "run a b",
+            "run c",
+            "registry S N1 N2",
+            "registry T N1 N2",
+            "rtl_version"
+        ]
+    );
 }

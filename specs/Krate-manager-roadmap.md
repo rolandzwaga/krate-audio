@@ -556,6 +556,8 @@ Does NOT: read the disk for installed plugins, download artifacts, or render UI 
 
 ### Phase 6: Detection and the Status Screen
 
+**Status: ✅ COMPLETE (PENDING-CI: 18 item(s)) (2026-10-31)** — see specs/krate-manager-phase6/compliance.md
+
 **Spec:** `krate-manager-phase6`
 
 Components:
@@ -717,6 +719,9 @@ Components:
     dir under the compiled-in Windows plug-in root, and runs it with the fixed arguments `/VERYSILENT
     /SUPPRESSMSGBOXES /NORESTART`, never a path or argument from the job; it then polls until the bundle folder is gone
     with a bounded timeout (the uninstaller returns before its files are removed, per_os_install_mechanics.md KQ2).
+    A managed copy whose recorded `InstallLocation` lies outside the compiled-in Windows plug-in root is
+    never uninstalled by the helper: the manager shows it as managed and tells the user to uninstall it from
+    Windows Settings.
   - `run_pkg_installer { file, sha256 }` (macOS): runs `/usr/sbin/installer -pkg <copy> -target /`, nothing else.
   - `uninstall_pkg { pkg_id }` (macOS): `pkg_id` must match `^com\.krateaudio\.[a-z0-9]+$` (the default identifier
     `release.yml:321` builds; no plugin's `version.json` overrides it today). The helper reads the receipt's install

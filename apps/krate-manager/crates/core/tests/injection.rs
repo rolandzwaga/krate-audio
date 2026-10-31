@@ -4,6 +4,9 @@
 //! Phase 5 (plan §4.11.1): the network, PAC and OS crates confined to their files (FR-073 to
 //! FR-075, FR-081), the feed-model seams (FR-026, FR-036), the test-body and FR-086 rules
 //! (FR-087, FR-088), the `src-tauri` environment reads (FR-063) and the reader crates (SC-038).
+//! Phase 6 (plan §4.12): the Markdown, plist and host-I/O symbols confined (FR-002, FR-082), the
+//! test sources (FR-083), the write and listing tokens (FR-084), the two TA-1 test programs
+//! (FR-086) and the real-location scan (FR-088).
 //! Every test reads files only: nothing is created, nothing is written.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -40,7 +43,7 @@ const FS_TOKENS: [&str; 14] = [
 ];
 /// Every string literal a non-test `platform/` file may hold outside an attribute (PD-5): the
 /// six env names of §4.2, the path components, the seven absolute D8 literals, `APP_IDENTIFIER`.
-const PLATFORM_LITERALS: [&str; 27] = [
+const PLATFORM_LITERALS: [&str; 37] = [
     "LOCALAPPDATA",
     "CommonProgramW6432",
     "ProgramData",
@@ -68,6 +71,17 @@ const PLATFORM_LITERALS: [&str; 27] = [
     "/usr/local/lib64/vst3",
     "/usr/local/lib/vst3",
     "com.krateaudio.krate-manager",
+    // Phase 6 FR-033 (PD-4, SI-8: `UNINSTALL_KEY` as its source text; SI-19: the absolute getconf).
+    "SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall",
+    "DisplayVersion",
+    "InstallLocation",
+    "/usr/sbin/pkgutil",
+    "--pkg-info",
+    "--files",
+    "/usr/bin/sw_vers",
+    "-productVersion",
+    "/usr/bin/getconf",
+    "GNU_LIBC_VERSION",
 ];
 /// The plan §4.1 D6 table, per file (app-root-relative); every other scanned file holds 0.
 const D6_SITES: [(&str, usize); 6] = [
@@ -84,9 +98,10 @@ const DISALLOWED_METHODS: &str = "clippy::disallowed_methods";
 const GROUP_SUPPRESSIONS: [&str; 3] = ["clippy::style", "clippy::all", "warnings"];
 const FIXTURE_LIB: &str = "tests/fixtures/clippy-guard/src/lib.rs";
 /// FR-007: the `[dependencies]` keys of `crates/core/Cargo.toml`.
-const FR007_DEPENDENCIES: [&str; 10] = [
+const FR007_DEPENDENCIES: [&str; 11] = [
     "base64",
     "log",
+    "pulldown-cmark",
     "regex",
     "rustls",
     "serde",
@@ -117,7 +132,91 @@ const LIVE_FEED_RS: &str = "crates/core/tests/live_feed.rs";
 const CONFIG_GUARD_RS: &str = "crates/core/tests/config_guard.rs";
 const INJECTION_RS: &str = "crates/core/tests/injection.rs";
 const OS_PROXY_RS: &str = "src-tauri/src/os_proxy.rs";
+const OS_FACTS_RS: &str = "src-tauri/src/os_facts.rs";
 const TAURI_LIB_RS: &str = "src-tauri/src/lib.rs";
+
+// App-root-relative paths the Phase 6 rules name.
+const CORE_SRC: &str = "crates/core/src/";
+const PLATFORM_DIR: &str = "crates/core/src/platform/";
+const DETECT_RS: &str = "crates/core/src/detect.rs";
+const DETECT_TESTS_RS: &str = "crates/core/src/detect_tests.rs";
+const NOTES_RS: &str = "crates/core/src/notes.rs";
+const NOTES_TESTS_RS: &str = "crates/core/src/notes_tests.rs";
+const STATUS_RS: &str = "crates/core/src/status.rs";
+const STATUS_TESTS_RS: &str = "crates/core/src/status_tests.rs";
+const WINDOWS_RS: &str = "crates/core/src/platform/windows.rs";
+const MACOS_RS: &str = "crates/core/src/platform/macos.rs";
+const LINUX_RS: &str = "crates/core/src/platform/linux.rs";
+const COMMANDS_RS: &str = "src-tauri/src/commands.rs";
+
+/// FR-082: the host FFI identifiers, only in `os_facts.rs`.
+const HOST_FFI: [&str; 4] = [
+    "RegOpenKeyExW",
+    "RegGetValueW",
+    "RegCloseKey",
+    "RtlGetVersion",
+];
+/// FR-082, FR-083 (SI-8, SI-19): each FR-033 host literal, as its value (an escaped `\\` read as
+/// one backslash, so the `UNINSTALL_KEY` source text and a raw spelling both match), and the one
+/// file whose literals may hold it.
+const HOST_LITERALS: [(&str, &str); 5] = [
+    ("/usr/sbin/pkgutil", MACOS_RS),
+    ("/usr/bin/sw_vers", MACOS_RS),
+    ("/usr/bin/getconf", LINUX_RS),
+    ("GNU_LIBC_VERSION", LINUX_RS),
+    (
+        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+        WINDOWS_RS,
+    ),
+];
+/// FR-002: the vendor folder, spelled only under `platform/` (elsewhere `platform::VENDOR_DIR`).
+const VENDOR_LITERAL: &str = "Krate Audio";
+/// FR-084: identifiers and paths (token sequences) detection, notes, status and the non-test
+/// `platform/` files never hold in code; `read_dir` has its own rule.
+const FR084_TOKENS: [&str; 19] = [
+    "create_dir",
+    "create_dir_all",
+    "OpenOptions",
+    "rename",
+    "remove_file",
+    "remove_dir",
+    "remove_dir_all",
+    "set_permissions",
+    "hard_link",
+    "symlink",
+    "Command",
+    "TcpStream",
+    "UdpSocket",
+    "thread :: spawn",
+    "thread :: scope",
+    "rayon",
+    "fs :: write",
+    "fs :: copy",
+    "File :: create",
+];
+/// FR-088 (TA-9): exactly these files (app-root-relative), each of which must be readable.
+const FR088_FILES: [&str; 6] = [
+    DETECT_TESTS_RS,
+    STATUS_TESTS_RS,
+    NOTES_TESTS_RS,
+    TEST_SUPPORT_RS,
+    "src/status.test.ts",
+    "src/main.test.ts",
+];
+/// FR-088: the eleven patterns none of `FR088_FILES` may match.
+const FR088_PATTERNS: [&str; 11] = [
+    "--test-threads",
+    r"127\.0\.0\.1:[0-9]+",
+    r"localhost:[0-9]+",
+    "OsHostIo",
+    "HKEY_",
+    "/Library",
+    "/usr/",
+    "%[A-Z_]+%",
+    "AppData",
+    "ProgramData",
+    "Program Files",
+];
 
 /// FR-073 to FR-075, FR-081, R-15, R-16: a token sequence and the only workspace `.rs` files whose
 /// code may hold it; an empty list bans it from every file.
@@ -144,13 +243,13 @@ const CONFINED_TOKENS: [(&str, &[&str]); 18] = [
     ("WinHttpFreeProxyResult", &[OS_PROXY_RS]),
     ("WinHttpSetStatusCallback", &[OS_PROXY_RS]),
     ("WinHttpSetOption", &[OS_PROXY_RS]),
-    ("windows_sys", &[OS_PROXY_RS]),
+    ("windows_sys", &[OS_PROXY_RS, OS_FACTS_RS]),
     ("system_configuration", &[OS_PROXY_RS]),
 ];
 /// FR-075, PD-31: the only files whose code names `core_foundation`.
 const CORE_FOUNDATION_FILES: [&str; 2] = [SYSPROXY_CF_RS, SYSPROXY_CF_TESTS_RS];
 /// FR-081, FR-073, FR-075: a dependency key and the only manifests that may declare it.
-const CONFINED_TOML_KEYS: [(&str, &[&str]); 6] = [
+const CONFINED_TOML_KEYS: [(&str, &[&str]); 9] = [
     ("ureq", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("rustls", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("rquickjs", &["Cargo.toml", "crates/core/Cargo.toml"]),
@@ -158,6 +257,12 @@ const CONFINED_TOML_KEYS: [(&str, &[&str]); 6] = [
     ("windows-sys", &["Cargo.toml", "src-tauri/Cargo.toml"]),
     (
         "system-configuration",
+        &["Cargo.toml", "src-tauri/Cargo.toml"],
+    ),
+    ("pulldown-cmark", &["Cargo.toml", "crates/core/Cargo.toml"]),
+    ("plist", &["Cargo.toml", "crates/core/Cargo.toml"]),
+    (
+        "tauri-plugin-opener",
         &["Cargo.toml", "src-tauri/Cargo.toml"],
     ),
 ];
@@ -229,8 +334,14 @@ const TEST_BANNED: [&str; 6] = [
     "pac_host (",
     "system_utc_offset (",
 ];
-/// The only programs a `crates/core` test may start.
+/// The only programs a `crates/core` test may start anywhere.
 const TEST_PROGRAMS: [&str; 2] = ["sleep", "printf"];
+/// TA-1 (FR-086): a program exactly one test body may start besides `TEST_PROGRAMS`, as (file,
+/// enclosing `fn`, bare program name resolved through `PATH`).
+const TEST_PROGRAM_BODIES: [(&str, &str, &str); 2] = [
+    (DETECT_TESTS_RS, "probe_metadata_error_unix", "mkfifo"),
+    (DETECT_TESTS_RS, "listing_skips_junction_windows", "cmd"),
+];
 
 /// FR-063, SC-039 rule 1: environment reads, only in `os_roots.rs` and `proxy_env.rs`.
 const ENV_READS: [&str; 6] = [
@@ -283,7 +394,13 @@ const READER_PINS: [ReaderPin; 4] = [
     ReaderPin {
         name: "windows-sys",
         version: "0.61.2",
-        features: Some(&["Win32_Foundation", "Win32_Networking_WinHttp"]),
+        features: Some(&[
+            "Win32_Foundation",
+            "Win32_System_Registry",
+            "Win32_System_SystemInformation",
+            "Wdk_System_SystemServices",
+            "Win32_Networking_WinHttp",
+        ]),
         home: ("src-tauri/Cargo.toml", WINDOWS_DEPS),
         alone: true,
     },
@@ -329,6 +446,12 @@ const RULE_FIXED_PORT: &str = "fixed-port";
 const RULE_ENV_READ: &str = "env-read";
 const RULE_DESKTOP_VAR: &str = "desktop-variable-literal";
 const RULE_PROXY_ENV_LITERAL: &str = "proxy-env-literal";
+const RULE_PLIST_SITE: &str = "plist-outside-the-macos-au-reader";
+const RULE_HOST_LITERAL: &str = "host-literal-outside-its-platform-file";
+const RULE_VENDOR_LITERAL: &str = "vendor-literal-outside-platform";
+const RULE_TEST_HOST_IO: &str = "host-io-in-test-source";
+const RULE_WRITE_TOKEN: &str = "write-or-listing-token";
+const RULE_READ_DIR: &str = "read-dir-site";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Finding {
@@ -1673,7 +1796,15 @@ fn test_source_findings(files: &[(String, String)]) -> Vec<Finding> {
                 let open = p + 4;
                 let next = spans.get(open + 1).map_or(l.code.len(), |(o, _)| *o);
                 let program = literal_between(&l.literals, spans[open].0, next);
-                let ok = program.is_some_and(|lit| TEST_PROGRAMS.contains(&lit.text.as_str()));
+                // TA-1: a program of `TEST_PROGRAM_BODIES` only inside its one named body.
+                let body = enclosing_fn(&fns, p);
+                let ok = program.is_some_and(|lit| {
+                    let name = lit.text.as_str();
+                    TEST_PROGRAMS.contains(&name)
+                        || body.is_some_and(|b| {
+                            TEST_PROGRAM_BODIES.contains(&(l.rel.as_str(), b, name))
+                        })
+                });
                 if !ok {
                     report(
                         RULE_COMMAND,
@@ -1978,6 +2109,282 @@ fn assert_reported(base: &[Finding], planted: &[Finding], file: &str, rule: &str
         show(&new)
     );
 }
+
+/// A literal's value as far as the Phase 6 scans need it: a raw literal's text, or an escaped
+/// literal's text with each `\\` read as one backslash.
+fn literal_value(lit: &Literal) -> String {
+    if lit.raw {
+        lit.text.clone()
+    } else {
+        lit.text.replace("\\\\", "\\")
+    }
+}
+
+/// The outer attributes of the `fn` whose keyword is token `at`, its visibility (`pub`,
+/// `pub(crate)`) and qualifiers skipped.
+fn fn_attributes(toks: &[&str], at: usize) -> Vec<Range<usize>> {
+    let mut k = at;
+    while k > 0 && ["const", "async", "unsafe", "extern"].contains(&toks[k - 1]) {
+        k -= 1;
+    }
+    if k >= 4 && toks[k - 1] == ")" && toks[k - 3] == "(" && toks[k - 4] == "pub" {
+        k -= 4;
+    } else if k > 0 && toks[k - 1] == "pub" {
+        k -= 1;
+    }
+    outer_attributes(toks, k)
+}
+
+/// Whether the attribute `attr` (inner token range, from `outer_attributes`) is a `cfg` naming
+/// `target_os = "macos"` with no `not`. Its literals are blanked in the code text, so the
+/// `"macos"` is looked up among the file's literals by byte offset.
+fn is_macos_cfg(
+    toks: &[&str],
+    spans: &[(usize, &str)],
+    literals: &[Literal],
+    attr: &Range<usize>,
+) -> bool {
+    let inner = &toks[attr.clone()];
+    let (Some(open), Some(close)) = (attr.start.checked_sub(1), spans.get(attr.end)) else {
+        return false;
+    };
+    let from = spans[open].0;
+    let names_macos = literals
+        .iter()
+        .any(|lit| lit.start > from && lit.start < close.0 && lit.text == "macos");
+    inner.first() == Some(&"cfg")
+        && !seq_at(inner, &["target_os", "="]).is_empty()
+        && !inner.contains(&"not")
+        && names_macos
+}
+
+/// FR-082 (crates): `pulldown_cmark` only in `notes.rs` and its tests; `plist ::` only in
+/// `detect_tests.rs` and, in `detect.rs`, only inside a `fn read_au_plist` gated on macOS.
+fn crate_confinement_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let lexed = lex(files);
+    let toks_of = tokenized(&lexed);
+    let mut out = confinement(
+        &toks_of,
+        "pulldown_cmark",
+        &[NOTES_RS, NOTES_TESTS_RS],
+        RULE_CONFINED,
+    );
+    let plist = tokens("plist ::");
+    for (l, (_, toks)) in lexed.iter().zip(&toks_of) {
+        if l.rel == DETECT_TESTS_RS {
+            continue;
+        }
+        let sites = seq_at(toks, &plist);
+        let outside: Vec<&str> = if l.rel == DETECT_RS {
+            let spans = spanned_tokens(&l.code);
+            let fns = fn_items(toks);
+            sites
+                .into_iter()
+                .filter_map(|p| {
+                    let owner = fns
+                        .iter()
+                        .filter(|f| f.body.as_ref().is_some_and(|b| b.contains(&p)))
+                        .min_by_key(|f| f.start);
+                    let ok = owner.is_some_and(|f| {
+                        f.name == "read_au_plist"
+                            && fn_attributes(toks, f.start)
+                                .iter()
+                                .any(|a| is_macos_cfg(toks, &spans, &l.literals, a))
+                    });
+                    (!ok).then(|| owner.map_or("<item level>", |f| f.name))
+                })
+                .collect()
+        } else {
+            vec!["<any site>"; sites.len()]
+        };
+        if !outside.is_empty() {
+            out.push(Finding {
+                file: l.rel.clone(),
+                rule: RULE_PLIST_SITE,
+                detail: format!(
+                    "`plist ::` {} time(s) outside a macOS-gated fn read_au_plist: {outside:?}",
+                    outside.len()
+                ),
+            });
+        }
+    }
+    out
+}
+
+/// FR-082 (host I/O) and FR-002 over the workspace `.rs` files: the FFI names only in
+/// `os_facts.rs`; `OsHostIo` only in `os_facts.rs` and `commands.rs`; each host literal only in
+/// its `platform/<os>.rs` (`injection.rs` exempt); `Krate Audio` in no core `src` literal
+/// outside `platform/`.
+fn host_io_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let lexed = lex(files);
+    let toks_of = tokenized(&lexed);
+    let mut out: Vec<Finding> = HOST_FFI
+        .iter()
+        .flat_map(|needle| confinement(&toks_of, needle, &[OS_FACTS_RS], RULE_CONFINED))
+        .collect();
+    out.extend(confinement(
+        &toks_of,
+        "OsHostIo",
+        &[OS_FACTS_RS, COMMANDS_RS],
+        RULE_CONFINED,
+    ));
+    for l in lexed.iter().filter(|l| l.rel != INJECTION_RS) {
+        let core_outside_platform = l.rel.starts_with(CORE_SRC) && !l.rel.starts_with(PLATFORM_DIR);
+        for lit in &l.literals {
+            let value = literal_value(lit);
+            for (needle, home) in HOST_LITERALS {
+                if l.rel != home && value.contains(needle) {
+                    out.push(Finding {
+                        file: l.rel.clone(),
+                        rule: RULE_HOST_LITERAL,
+                        detail: format!("{needle:?} (only in {home})"),
+                    });
+                }
+            }
+            if core_outside_platform && value.contains(VENDOR_LITERAL) {
+                out.push(Finding {
+                    file: l.rel.clone(),
+                    rule: RULE_VENDOR_LITERAL,
+                    detail: format!("{VENDOR_LITERAL:?}; use platform::VENDOR_DIR"),
+                });
+            }
+        }
+    }
+    out
+}
+
+/// FR-083 (TA-2): the `is_test_source` files plus `test_support.rs`, minus `injection.rs`, name
+/// `OsHostIo` nowhere in code and hold no host literal.
+fn test_host_io_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let scanned: Vec<(String, String)> = files
+        .iter()
+        .filter(|(rel, _)| (is_test_source(rel) || rel == TEST_SUPPORT_RS) && rel != INJECTION_RS)
+        .cloned()
+        .collect();
+    let mut out = Vec::new();
+    for l in lex(&scanned) {
+        let n = seq_at(&tokens(&l.code), &["OsHostIo"]).len();
+        if n > 0 {
+            out.push(Finding {
+                file: l.rel.clone(),
+                rule: RULE_TEST_HOST_IO,
+                detail: format!("`OsHostIo` {n} time(s)"),
+            });
+        }
+        for lit in &l.literals {
+            let value = literal_value(lit);
+            for (needle, _) in HOST_LITERALS.iter().filter(|(n, _)| value.contains(n)) {
+                out.push(Finding {
+                    file: l.rel.clone(),
+                    rule: RULE_TEST_HOST_IO,
+                    detail: format!("{needle:?}; compare with the platform constant"),
+                });
+            }
+        }
+    }
+    out
+}
+
+/// The FR-084 files: `detect.rs`, `notes.rs`, `status.rs` and the non-test `platform/*.rs`.
+fn is_fr084_file(rel: &str) -> bool {
+    [DETECT_RS, NOTES_RS, STATUS_RS].contains(&rel)
+        || rel
+            .strip_prefix(PLATFORM_DIR)
+            .is_some_and(|f| !f.contains('/') && f.ends_with(".rs") && !f.ends_with("_tests.rs"))
+}
+
+/// FR-084 over the FR-084 files of `files`: none of `FR084_TOKENS` in code; `read_dir` exactly
+/// once in `detect.rs`, inside `fn list_root`, and nowhere else.
+fn write_token_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let scanned: Vec<(String, String)> = files
+        .iter()
+        .filter(|(rel, _)| is_fr084_file(rel))
+        .cloned()
+        .collect();
+    let mut out = Vec::new();
+    for l in lex(&scanned) {
+        let toks = tokens(&l.code);
+        let mut report = |rule: &'static str, detail: String| {
+            out.push(Finding {
+                file: l.rel.clone(),
+                rule,
+                detail,
+            });
+        };
+        for needle in FR084_TOKENS {
+            let n = seq_at(&toks, &tokens(needle)).len();
+            if n > 0 {
+                report(RULE_WRITE_TOKEN, format!("`{needle}` {n} time(s)"));
+            }
+        }
+        let fns = fn_items(&toks);
+        let sites: Vec<&str> = seq_at(&toks, &["read_dir"])
+            .into_iter()
+            .map(|p| enclosing_fn(&fns, p).unwrap_or("<item level>"))
+            .collect();
+        if l.rel == DETECT_RS {
+            if sites != ["list_root"] {
+                report(
+                    RULE_READ_DIR,
+                    format!(
+                        "`read_dir` {} time(s) in detect.rs, expected once, in fn list_root: {sites:?}",
+                        sites.len()
+                    ),
+                );
+            }
+        } else if !sites.is_empty() {
+            report(
+                RULE_READ_DIR,
+                format!("`read_dir` {} time(s), expected 0: {sites:?}", sites.len()),
+            );
+        }
+    }
+    if !scanned.iter().any(|(rel, _)| rel == DETECT_RS) {
+        out.push(Finding {
+            file: DETECT_RS.to_owned(),
+            rule: RULE_READ_DIR,
+            detail: "not found".to_owned(),
+        });
+    }
+    out
+}
+
+/// The FR-088 files, each as (app-root-relative path, its text or `None` when it cannot be read).
+fn fr088_texts() -> Vec<(String, Option<String>)> {
+    let root = app_root();
+    FR088_FILES
+        .iter()
+        .map(|rel| ((*rel).to_owned(), fs::read_to_string(root.join(rel)).ok()))
+        .collect()
+}
+
+/// FR-088 (TA-9): `<file>: missing` for a file that cannot be read, and `<file>:<line>:
+/// `<pattern>`` for every line matching one of `FR088_PATTERNS`.
+fn real_location_findings(files: &[(String, Option<String>)]) -> Vec<String> {
+    let patterns: Vec<(&str, regex::Regex)> = FR088_PATTERNS
+        .iter()
+        .map(|p| {
+            let re = regex::Regex::new(p).unwrap_or_else(|e| panic!("FR-088 pattern {p:?}: {e}"));
+            (*p, re)
+        })
+        .collect();
+    let mut out = Vec::new();
+    for (rel, text) in files {
+        let Some(text) = text else {
+            out.push(format!("{rel}: missing"));
+            continue;
+        };
+        for (n, line) in text.lines().enumerate() {
+            for (p, re) in &patterns {
+                if re.is_match(line) {
+                    out.push(format!("{rel}:{}: `{p}`", n + 1));
+                }
+            }
+        }
+    }
+    out
+}
+
 #[test]
 fn core_sources_hold_no_production_literal() {
     let src = app_root().join("crates").join("core").join("src");
@@ -2237,12 +2644,15 @@ fn core_dependencies_are_the_fr007_set() {
             (header, entries)
         })
         .collect();
-    let want = |name: &str| vec![(name.to_owned(), "{workspace=true}".to_owned())];
+    let want = |name: &str| (name.to_owned(), "{workspace=true}".to_owned());
     assert_eq!(
         targets,
         BTreeMap::from([
-            (NOT_WINDOWS_DEPS.to_owned(), want("rquickjs")),
-            (MACOS_DEPS.to_owned(), want("core-foundation")),
+            (NOT_WINDOWS_DEPS.to_owned(), vec![want("rquickjs")]),
+            (
+                MACOS_DEPS.to_owned(),
+                vec![want("core-foundation"), want("plist")]
+            ),
         ]),
         "crates/core/Cargo.toml target sections"
     );
@@ -2251,6 +2661,24 @@ fn core_dependencies_are_the_fr007_set() {
         toml_entry(&workspace, WORKSPACE_DEPS, "rquickjs"),
         Some("\"0.14.0\""),
         "root rquickjs pin"
+    );
+    // PD-15: the Phase 6 parsers pinned without their default features (no HTML writer, no serde).
+    for (name, version) in [("pulldown-cmark", "0.13.6"), ("plist", "1.10.3")] {
+        assert_eq!(
+            toml_entry(&workspace, WORKSPACE_DEPS, name).map(squash),
+            Some(format!("{{version=\"{version}\",default-features=false}}")),
+            "root {name} pin"
+        );
+    }
+    assert_eq!(
+        toml_entry(
+            &toml_sections(&manifest),
+            "[dependencies]",
+            "pulldown-cmark"
+        )
+        .map(squash),
+        Some("{workspace=true}".to_owned()),
+        "crates/core/Cargo.toml [dependencies] pulldown-cmark"
     );
 
     // FR-075, PD-31: `core_foundation` only in `sysproxy_cf.rs` and its tests.
@@ -2544,6 +2972,8 @@ fn production_config_only_in_allowed_tests() {
         FIXTURE_TESTS_RS,
         CONTEXT_TESTS_RS,
         TEST_SUPPORT_RS,
+        DETECT_TESTS_RS,
+        STATUS_TESTS_RS,
     ] {
         assert!(
             files.iter().any(|(r, _)| r == must),
@@ -2553,7 +2983,7 @@ fn production_config_only_in_allowed_tests() {
     let base = test_source_findings(&files);
     let program_plant = "fn planted() { let _ = std::process::Command::new(\"gsettings\"); }\n";
     let logger_plant = "fn planted() { let _ = log::set_logger(&CAPTURE); }\n";
-    let plants: [(&str, &str, &str); 23] = [
+    let plants: [(&str, &str, &str); 26] = [
         (
             HTTP_TESTS_RS,
             "#[test]\nfn planted() {\n    let _ = HttpConfig::production();\n}\n",
@@ -2621,6 +3051,22 @@ fn production_config_only_in_allowed_tests() {
             "fn planted() { let _ = std::process::Command::new(PROGRAM); }\n",
             RULE_COMMAND,
         ),
+        // TA-1: `mkfifo` and `cmd` only in their one named body each.
+        (
+            DETECT_TESTS_RS,
+            "fn planted() { let _ = std::process::Command::new(\"mkfifo\"); }\n",
+            RULE_COMMAND,
+        ),
+        (
+            STATUS_TESTS_RS,
+            "fn planted() { let _ = std::process::Command::new(\"cmd\"); }\n",
+            RULE_COMMAND,
+        ),
+        (
+            DETECT_TESTS_RS,
+            "fn probe_metadata_error_unix() { let _ = std::process::Command::new(\"cmd\"); }\n",
+            RULE_COMMAND,
+        ),
         (TEST_SUPPORT_RS, logger_plant, RULE_SET_LOGGER),
         (CONTEXT_TESTS_RS, logger_plant, RULE_SET_LOGGER),
         // FR-086.
@@ -2678,6 +3124,11 @@ fn production_config_only_in_allowed_tests() {
         (
             SYSPROXY_TESTS_RS,
             "fn quiet() { let _ = Command::new(\"sleep\"); let _ = Command::new(\"printf\"); }\n",
+        ),
+        (
+            DETECT_TESTS_RS,
+            "#[cfg(unix)]\n#[test]\nfn probe_metadata_error_unix() {\n    let _ = std::process::Command::new(\"mkfifo\");\n}\n\
+             #[cfg(windows)]\n#[test]\nfn listing_skips_junction_windows() {\n    let _ = std::process::Command::new(\"cmd\");\n}\n",
         ),
         (
             FIXTURE_TESTS_RS,
@@ -2744,4 +3195,398 @@ fn reader_dependencies_are_the_ruled_set() {
         );
     }
     assert!(base.is_empty(), "SC-038 findings:\n{}", base.join("\n"));
+}
+
+#[test]
+fn notes_and_plist_crates_are_confined() {
+    let files = workspace_rs_files();
+    for must in [
+        NOTES_RS,
+        NOTES_TESTS_RS,
+        DETECT_RS,
+        DETECT_TESTS_RS,
+        STATUS_RS,
+    ] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    let base = crate_confinement_findings(&files);
+    assert!(base.is_empty(), "FR-082 crate findings:\n{}", show(&base));
+}
+
+#[test]
+fn host_io_symbols_are_confined() {
+    let files = workspace_rs_files();
+    for must in [
+        OS_FACTS_RS,
+        COMMANDS_RS,
+        TAURI_LIB_RS,
+        WINDOWS_RS,
+        MACOS_RS,
+        LINUX_RS,
+        DETECT_RS,
+    ] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    // Not vacuous: each host literal is spelled once in its own platform file, so the value
+    // reading of `literal_value` matches the source the scan sees.
+    let lexed = lex(&files);
+    for (needle, home) in HOST_LITERALS {
+        let held = lexed
+            .iter()
+            .filter(|l| l.rel == home)
+            .flat_map(|l| &l.literals)
+            .filter(|lit| literal_value(lit) == needle)
+            .count();
+        assert_eq!(held, 1, "{home}: literals equal to {needle:?}");
+    }
+    let base = host_io_findings(&files);
+    assert!(
+        base.is_empty(),
+        "FR-082 / FR-002 host findings:\n{}",
+        show(&base)
+    );
+}
+
+#[test]
+fn confinement_scanner_reports_plants() {
+    let files = workspace_rs_files();
+    let findings = |files: &[(String, String)]| {
+        let mut out = crate_confinement_findings(files);
+        out.extend(host_io_findings(files));
+        out
+    };
+    let base = findings(&files);
+    let plants: [(&str, &str, &str); 15] = [
+        (STATUS_RS, "use pulldown_cmark::Parser;\n", RULE_CONFINED),
+        (
+            DETECT_RS,
+            "fn f() { let _ = plist::Value::Boolean(true); }\n",
+            RULE_PLIST_SITE,
+        ),
+        (
+            STATUS_RS,
+            "fn f() { let _ = plist::Value::Boolean(true); }\n",
+            RULE_PLIST_SITE,
+        ),
+        (
+            DETECT_RS,
+            "#[cfg(not(target_os = \"macos\"))]\nfn read_au_plist() { let _ = plist::Value::Boolean(true); }\n",
+            RULE_PLIST_SITE,
+        ),
+        (
+            DETECT_RS,
+            "#[cfg(target_os = \"macos\")]\nfn read_other() { let _ = plist::Value::Boolean(true); }\n",
+            RULE_PLIST_SITE,
+        ),
+        (
+            COMMANDS_RS,
+            "fn planted() { let _ = unsafe { RtlGetVersion(std::ptr::null_mut()) }; }\n",
+            RULE_CONFINED,
+        ),
+        (
+            OS_PROXY_RS,
+            "fn planted() { let _ = unsafe { RegOpenKeyExW(0, 0, 0, 0, 0) }; }\n",
+            RULE_CONFINED,
+        ),
+        (
+            DETECT_RS,
+            "fn planted() { let _ = RegGetValueW; }\n",
+            RULE_CONFINED,
+        ),
+        (
+            TAURI_LIB_RS,
+            "fn planted() { let _ = RegCloseKey; }\n",
+            RULE_CONFINED,
+        ),
+        (
+            LINUX_RS,
+            "const P: &str = \"/usr/sbin/pkgutil\";\n",
+            RULE_HOST_LITERAL,
+        ),
+        (
+            OS_FACTS_RS,
+            "const G: &str = \"GNU_LIBC_VERSION\";\n",
+            RULE_HOST_LITERAL,
+        ),
+        (
+            MACOS_RS,
+            "const K: &str = \"SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\";\n",
+            RULE_HOST_LITERAL,
+        ),
+        (
+            COMMANDS_RS,
+            "const K: &str = r\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\";\n",
+            RULE_HOST_LITERAL,
+        ),
+        (
+            TAURI_LIB_RS,
+            "fn planted() { let _ = os_facts::OsHostIo; }\n",
+            RULE_CONFINED,
+        ),
+        (
+            DETECT_RS,
+            "const V: &str = \"Krate Audio\";\n",
+            RULE_VENDOR_LITERAL,
+        ),
+    ];
+    for (rel, text, rule) in plants {
+        let planted = findings(&plant(&files, rel, text));
+        assert_reported(&base, &planted, rel, rule, text);
+    }
+
+    // The macOS-gated AU reader, a `pub(crate)` one, comments and `platform::VENDOR_DIR` are not
+    // findings.
+    for (rel, text) in [
+        (
+            DETECT_RS,
+            "#[cfg(target_os = \"macos\")]\nfn read_au_plist(b: &[u8]) { let _ = plist::Value::from_reader(b); }\n",
+        ),
+        (
+            DETECT_RS,
+            "#[cfg(target_os = \"macos\")]\n#[must_use]\npub(crate) fn read_au_plist() { let _ = plist::Value::Boolean(true); }\n",
+        ),
+        (
+            STATUS_RS,
+            "// pulldown_cmark::Parser, plist::Value, OsHostIo, RtlGetVersion, \"Krate Audio\"\n",
+        ),
+        (
+            DETECT_RS,
+            "fn quiet() -> &'static str { crate::platform::VENDOR_DIR }\n",
+        ),
+    ] {
+        let new = added(&base, &findings(&plant(&files, rel, text)));
+        assert!(new.is_empty(), "{rel}: quiet {text:?}:\n{}", show(&new));
+    }
+}
+
+#[test]
+fn test_sources_never_name_os_host_io() {
+    let files = workspace_rs_files();
+    for must in [
+        TEST_SUPPORT_RS,
+        DETECT_TESTS_RS,
+        STATUS_TESTS_RS,
+        NOTES_TESTS_RS,
+        CONFIG_GUARD_RS,
+    ] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    // TA-2: the helper holding the fakes is scanned by name; `is_test_source` does not match it.
+    assert!(!is_test_source(TEST_SUPPORT_RS));
+    let base = test_host_io_findings(&files);
+    assert!(base.is_empty(), "FR-083 findings:\n{}", show(&base));
+}
+
+#[test]
+fn test_source_scanner_reports_planted_os_host_io() {
+    let files = workspace_rs_files();
+    let base = test_host_io_findings(&files);
+    for (rel, text) in [
+        (
+            DETECT_TESTS_RS,
+            "#[test]\nfn planted() {\n    let _ = OsHostIo;\n}\n",
+        ),
+        (TEST_SUPPORT_RS, "const P: &str = \"/usr/sbin/pkgutil\";\n"),
+        (
+            CONFIG_GUARD_RS,
+            "fn planted() -> [&'static str; 2] { [\"/usr/bin/getconf\", \"GNU_LIBC_VERSION\"] }\n",
+        ),
+    ] {
+        let planted = test_host_io_findings(&plant(&files, rel, text));
+        assert_reported(&base, &planted, rel, RULE_TEST_HOST_IO, text);
+    }
+    // The re-exported constants, `FakeHostIo`, a comment and `injection.rs` itself are quiet.
+    for (rel, text) in [
+        (
+            DETECT_TESTS_RS,
+            "fn quiet(io: &FakeHostIo) -> [&'static str; 2] { let _ = io; [platform::PKGUTIL, platform::GETCONF] }\n",
+        ),
+        (
+            STATUS_TESTS_RS,
+            "// never OsHostIo, never /usr/sbin/pkgutil\n",
+        ),
+        (
+            INJECTION_RS,
+            "fn quiet() { let _ = OsHostIo; let _ = \"/usr/sbin/pkgutil\"; }\n",
+        ),
+    ] {
+        let new = added(&base, &test_host_io_findings(&plant(&files, rel, text)));
+        assert!(new.is_empty(), "{rel}: quiet {text:?}:\n{}", show(&new));
+    }
+}
+
+#[test]
+fn detect_status_notes_hold_no_write_or_listing_token() {
+    let files = workspace_rs_files();
+    let scanned: BTreeSet<&str> = files
+        .iter()
+        .map(|(r, _)| r.as_str())
+        .filter(|r| is_fr084_file(r))
+        .collect();
+    let expected = BTreeSet::from([
+        DETECT_RS,
+        NOTES_RS,
+        STATUS_RS,
+        "crates/core/src/platform/mod.rs",
+        WINDOWS_RS,
+        MACOS_RS,
+        LINUX_RS,
+    ]);
+    assert_eq!(scanned, expected, "FR-084 files");
+    let base = write_token_findings(&files);
+    assert!(base.is_empty(), "FR-084 findings:\n{}", show(&base));
+}
+
+#[test]
+fn token_scanner_reports_planted_read_dir() {
+    let files = workspace_rs_files();
+    let base = write_token_findings(&files);
+    let read_dir = "fn planted() { let _ = std::fs::read_dir(\"x\"); }\n";
+    for (rel, text, rule) in [
+        (STATUS_RS, read_dir, RULE_READ_DIR),
+        (DETECT_RS, read_dir, RULE_READ_DIR),
+        (
+            STATUS_RS,
+            "fn planted() { let _ = std::thread::spawn(|| ()); }\n",
+            RULE_WRITE_TOKEN,
+        ),
+        (
+            STATUS_RS,
+            "#[derive(Serialize)]\npub struct Planted {\n    #[serde(rename = \"x\")]\n    pub y: u8,\n}\n",
+            RULE_WRITE_TOKEN,
+        ),
+        (
+            NOTES_RS,
+            "fn planted() { let _ = std::fs::write(\"x\", b\"\"); }\n",
+            RULE_WRITE_TOKEN,
+        ),
+        (
+            LINUX_RS,
+            "fn planted() { let _ = std::process::Command::new(GETCONF); }\n",
+            RULE_WRITE_TOKEN,
+        ),
+    ] {
+        let planted = write_token_findings(&plant(&files, rel, text));
+        assert_reported(&base, &planted, rel, rule, text);
+    }
+    // The real `detect.rs`'s one `read_dir`, in `fn list_root`, is not reported; neither are
+    // `rename_all`, `symlink_metadata` nor a comment.
+    assert!(
+        !base
+            .iter()
+            .any(|f| f.file == DETECT_RS && f.rule == RULE_READ_DIR),
+        "detect.rs read_dir:\n{}",
+        show(&base)
+    );
+    let quiet = "#[serde(rename_all = \"snake_case\")]\npub enum Q { A }\n\
+        fn quiet(p: &Path) { let _ = p.symlink_metadata(); } // std::fs::write, Command\n";
+    let new = added(
+        &base,
+        &write_token_findings(&plant(&files, STATUS_RS, quiet)),
+    );
+    assert!(new.is_empty(), "quiet status.rs text:\n{}", show(&new));
+}
+
+#[test]
+fn test_sources_hold_no_real_location() {
+    let texts = fr088_texts();
+    assert_eq!(
+        texts
+            .iter()
+            .map(|(rel, _)| rel.as_str())
+            .collect::<Vec<_>>(),
+        FR088_FILES,
+        "FR-088 files"
+    );
+    let base = real_location_findings(&texts);
+    assert!(base.is_empty(), "FR-088 findings:\n{}", base.join("\n"));
+}
+
+#[test]
+fn real_location_scanner_reports_plants() {
+    let texts = fr088_texts();
+    let base = real_location_findings(&texts);
+    let plants: [(&str, &str, &str); 11] = [
+        (
+            DETECT_TESTS_RS,
+            "// cargo test -- --test-threads=1",
+            "--test-threads",
+        ),
+        (
+            STATUS_TESTS_RS,
+            "let a = \"127.0.0.1:8080\";",
+            r"127\.0\.0\.1:[0-9]+",
+        ),
+        (
+            NOTES_TESTS_RS,
+            "let u = \"http://localhost:3000/\";",
+            r"localhost:[0-9]+",
+        ),
+        (TEST_SUPPORT_RS, "let _ = OsHostIo;", "OsHostIo"),
+        (
+            "src/status.test.ts",
+            "const k = \"HKEY_LOCAL_MACHINE\";",
+            "HKEY_",
+        ),
+        (
+            "src/main.test.ts",
+            "const p = \"/Library/Audio/Plug-Ins/VST3\";",
+            "/Library",
+        ),
+        (DETECT_TESTS_RS, "let p = \"/usr/lib/vst3\";", "/usr/"),
+        (STATUS_TESTS_RS, "let p = \"%LOCALAPPDATA%\";", "%[A-Z_]+%"),
+        (NOTES_TESTS_RS, "let p = \"AppData\";", "AppData"),
+        (TEST_SUPPORT_RS, "let p = \"ProgramData\";", "ProgramData"),
+        (
+            "src/status.test.ts",
+            "const p = \"Program Files\";",
+            "Program Files",
+        ),
+    ];
+    let with = |rel: &str, text: Option<&str>| -> Vec<(String, Option<String>)> {
+        let mut out = texts.clone();
+        let entry = out
+            .iter_mut()
+            .find(|(r, _)| r == rel)
+            .unwrap_or_else(|| panic!("plant target {rel} not found"));
+        entry.1 = text.map(|t| format!("{}\n{t}\n", entry.1.as_deref().unwrap_or("")));
+        out
+    };
+    for (rel, text, pattern) in plants {
+        let new = added(&base, &real_location_findings(&with(rel, Some(text))));
+        let (head, tail) = (format!("{rel}:"), format!(": `{pattern}`"));
+        assert!(
+            new.iter()
+                .any(|f| f.starts_with(&head) && f.ends_with(&tail)),
+            "{rel}: planted {text:?} not reported for {pattern:?}; new:\n{}",
+            new.join("\n")
+        );
+    }
+    // TA-9: a file the scan cannot read is a finding, not a pass.
+    let new = added(&base, &real_location_findings(&with(NOTES_TESTS_RS, None)));
+    assert!(
+        new.contains(&format!("{NOTES_TESTS_RS}: missing")),
+        "unreadable {NOTES_TESTS_RS} not reported; new:\n{}",
+        new.join("\n")
+    );
+    // The `/fixture/` paths of the goldens (T005) and an injected root are not real locations.
+    let quiet = "let p = PathBuf::from(\"/fixture/vst3-user/Alpha.vst3\");\nlet r = base.join(\"vst3-global\");";
+    let new = added(
+        &base,
+        &real_location_findings(&with(STATUS_TESTS_RS, Some(quiet))),
+    );
+    assert!(
+        new.is_empty(),
+        "quiet status_tests.rs text:\n{}",
+        new.join("\n")
+    );
 }

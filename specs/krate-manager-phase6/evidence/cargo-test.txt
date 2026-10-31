@@ -1,0 +1,243 @@
+note: did not finalize incremental compilation session directory `\\?\F:\projects\iterum\apps\krate-manager\target\debug\incremental\krate_manager_helper-1ao9u5phtpv0q\s-hnpbnrfdes-1ulw2kw-working`: Access is denied. (os error 5)
+  |
+  = help: the next build will not be able to reuse work from this compilation
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.50s
+     Running unittests src\lib.rs (target\debug\deps\krate_manager_core-1ce701d84da06050.exe)
+
+running 144 tests
+test context::tests::parse_dev_feed_url_cases ... ok
+test contract::tests::unsupported_schema_constructs_are_refused ... ok
+test detect::tests::host_read_mappers ... ok
+test detect::tests::listing_production_limits ... ok
+test detect::tests::os_version_parsers ... ok
+test detect::tests::trailing_comma_cases ... ok
+test detect::tests::host_facts_through_fake_io_windows ... ok
+test contract::tests::keyword_semantics_cases ... ok
+test contract::tests::ecma_pattern_translation ... ok
+test contract::tests::trusted_comment_cases ... ok
+test contract::tests::minisig_text_cases ... ok
+test contract::tests::embedded_schemas_compile ... ok
+test detect::tests::installed_elsewhere ... ok
+test feed::tests::accept_rows_parse_through_the_client ... ok
+test feed::tests::asset_name_cases ... ok
+test contract::tests::gen_feed_outputs_accepted ... ok
+test detect::tests::native_layout_windows ... ok
+test context::tests::reassemble_cases ... ok
+test context::tests::assemble_locked_instance ... ok
+test detect::tests::outside_install_location_panics - should panic ... ok
+test detect::tests::candidate_table ... ok
+test feed::tests::model_of_full_v2 ... ok
+test context::tests::configured_root_cases ... ok
+test detect::tests::listing_case_windows ... ok
+test context::tests::sandbox_holds_through_assemble_and_reassemble ... ok
+test feed::tests::sibling_prefix_filter ... ok
+test feed::tests::prerelease_sibling_is_ignored ... ok
+test feed::tests::v1_entries_are_sanitized ... ok
+test fixture_server::tests::binds_loopback_port_zero ... ok
+test feed::tests::unknown_keys_do_not_change_the_model ... ok
+test feed::tests::roster_follows_the_feed ... ok
+test http::tests::agent_trusts_the_os_store ... ok
+test fixture_server::tests::connect_to_remote_host_is_refused ... ok
+test feed::tests::check_fresh_writes_cache ... ok
+test http::tests::config_for_dev_url_cases ... ok
+test http::tests::https_only_refuses_before_connecting ... ok
+test http::tests::loopback_proxy_only ... ok
+test feed::tests::schema_version_dispatch ... ok
+test http::tests::next_hop_cases ... ok
+test http::tests::no_response_class_cases ... ok
+test http::tests::no_proxy_bypass ... ok
+test feed::tests::check_logs_one_line ... ok
+test http::tests::pac_policy_cases ... ok
+test http::tests::production_values ... ok
+test http::tests::proxy_env_from_vars_cases ... ok
+test feed::tests::check_now_sends_no_cache ... ok
+test http::tests::proxy_path_http ... ok
+test http::tests::proxy_scheme_cases ... ok
+test http::tests::proxy_path_connect ... ok
+test detect::tests::locked_moduleinfo_windows ... ok
+test http::tests::resolve_proxy_cases ... ok
+test http::tests::url_policy_cases ... ok
+test log_sink::tests::format_line_cases ... ok
+test feed::tests::check_through_proxy_writes_cache ... ok
+test navigation::tests::app_origin_cases ... ok
+test navigation::tests::is_app_origin_cases ... ok
+test detect::tests::record_parsers ... ok
+test feed::tests::concurrent_checks_leave_one_whole_file ... ok
+test detect::tests::listing_caps_honoured ... ok
+test pac::tests::pac_clock_cases ... ok
+test pac::tests::find_proxy_result_cases ... ok
+test pac::tests::pac_helper_cases ... ok
+test notes::tests::blocks_cases ... ok
+test pac::tests::wpad_candidate_cases ... ok
+test pac::tests::winhttp_answer_cases ... ok
+test platform::windows::tests::default_roots_from_env ... ok
+test context::tests::startup_errors_are_logged ... ok
+test fixture_server::tests::replies_behave_as_scripted ... ok
+test http::tests::redirects_are_rechecked ... ok
+test feed::tests::gen_feed_outputs_parse ... ok
+test http::tests::bounded_call_abandons_after_wait ... ok
+test context::tests::startup_notice_cases ... ok
+test detect::tests::detection_leaves_the_tree_unchanged ... ok
+test context::tests::http_config_is_carried ... ok
+test feed::tests::fresh_lower_version_replaces_cache ... ok
+test context::tests::assemble_cases ... ok
+test roots::tests::logs_dir_is_state_logs ... ok
+test roots::tests::with_configured_plugin_root_cases ... ok
+test roots::tests::sandboxed_roots_refuse_an_outside_configured_root ... ok
+test platform::tests::default_roots_touches_nothing ... ok
+test settings::tests::missing_file_gives_defaults_and_writes_nothing ... ok
+test contract::tests::c1_cases_reproduce ... ok
+test settings::tests::plugin_root_or_default_uses_vst3_user ... ok
+test detect::tests::listing_skips_junction_windows ... ok
+test roots::tests::new_validates_and_touches_nothing ... ok
+test settings::tests::written_bytes_are_d10 ... ok
+test state_lock::tests::acquire_creates_state_dir_and_lock_file_only ... ok
+test state_lock::tests::acquire_io_error_is_named ... ok
+test pac::tests::fake_pac_host_answers_from_its_table ... ok
+test status::tests::running_os_gates ... ok
+test status::tests::release_page_url_cases ... ok
+test state_lock::tests::lock_file_survives_drop ... ok
+test sysproxy::tests::linux_desktop_choice_cases ... ok
+test sysproxy::tests::linux_proxy_parser_cases ... ok
+test sysproxy::tests::macos_proxy_parser_cases ... ok
+test sysproxy::tests::kioslaverc_path_cases ... ok
+test sysproxy::tests::offset_range_cases ... ok
+test sysproxy::tests::parse_utc_offset_cases ... ok
+test sysproxy::tests::win_ie_strings_are_read_and_freed_once ... ok
+test sysproxy::tests::windows_proxy_parser_cases ... ok
+test settings::tests::load_rejections_keep_defaults_and_file ... ok
+test test_support::tests::fakes_record_calls_and_answer_defaults ... ok
+test state_lock::tests::second_acquire_is_held_while_first_lives ... ok
+test sysproxy::tests::kde_file_read_cases ... ok
+test settings::tests::save_rejects_invalid_values_and_writes_nothing ... ok
+test test_support::tests::temp_roots_on_temp_dir_itself_panics - should panic ... ok
+test version::tests::compare_cases ... ok
+test version::tests::native_candidates_windows ... ok
+test settings::tests::abort_leaves_previous_file_and_stray_temp_is_ignored ... ok
+test version::tests::os_version_cases ... ok
+test version::tests::parse_core_cases ... ok
+test version::tests::reduce_class_version_cases ... ok
+test version::tests::needs_newer_os_table ... ok
+test status::tests::golden_views ... ok
+test settings::tests::save_refuses_future_version_file ... ok
+test test_support::tests::temp_roots_in_outside_panics - should panic ... ok
+test test_support::tests::check_under_temp_symlink_escape ... ok
+test version::tests::resolve_table ... ok
+test settings::tests::round_trip_values ... ok
+test test_support::tests::check_under_temp_cases ... ok
+test test_support::tests::temp_roots_in_refusal_creates_nothing ... ok
+test test_support::tests::temp_roots_inside_temp_ok ... ok
+test feed::tests::model_range_cases ... ok
+test detect::tests::nested_copies_listed ... ok
+test status::tests::listing_runs_once_per_root ... ok
+test detect::tests::duplicates_in_two_roots ... ok
+test status::tests::concurrent_builds ... ok
+test status::tests::build_cases ... ok
+test settings::tests::save_overwrites_corrupt_and_invalid_files ... ok
+test feed::tests::broken_sibling_never_blocks_stable ... ok
+test log_sink::tests::rotating_log_cases ... ok
+test status::tests::feed_driven_detection ... ok
+test settings::tests::fault_at_each_step_keeps_previous_file ... ok
+test feed::tests::cache_write_fault_keeps_previous ... ok
+test feed::tests::cache_rules ... ok
+test detect::tests::records_through_fake_host ... ok
+test detect::tests::installed_state_table ... ok
+test feed::tests::rejected_feed_keeps_last_good_copy ... ok
+test http::tests::chain_shares_one_deadline ... ok
+test http::tests::status_and_body_errors ... ok
+test http::tests::os_pac_walk ... ok
+test http::tests::os_pac_failure_cases ... ok
+test feed::tests::offline_returns_cached_flagged_stale ... ok
+test feed::tests::one_attempt_per_check ... ok
+
+test result: ok. 144 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+
+     Running tests\config_guard.rs (target\debug\deps\config_guard-d92f32bb6a609953.exe)
+
+running 7 tests
+test frontend_source_scan_reports_planted_strings ... ok
+test real_app_metadata_passes_the_guard ... ok
+test planted_app_metadata_changes_fail_the_guard ... ok
+test opener_is_confined_and_not_granted_to_the_webview ... ok
+test real_src_tauri_config_passes_the_guard ... ok
+test opener_guard_reports_plants ... ok
+test planted_config_changes_fail_the_guard ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+
+     Running tests\injection.rs (target\debug\deps\injection-af63e96fa8e5412d.exe)
+
+running 18 tests
+test injection_scanner_reports_planted_violations ... ok
+test reader_dependencies_are_the_ruled_set ... ok
+test detect_status_notes_hold_no_write_or_listing_token ... ok
+test src_tauri_names_feed_host_once_and_reads_env_only_in_os_roots ... ok
+test test_sources_hold_no_real_location ... ok
+test core_sources_hold_no_production_literal ... ok
+test feed_model_seams_hold ... ok
+test test_sources_never_name_os_host_io ... ok
+test notes_and_plist_crates_are_confined ... ok
+test token_scanner_reports_planted_read_dir ... ok
+test host_io_symbols_are_confined ... ok
+test core_dependencies_are_the_fr007_set ... ok
+test disallowed_methods_expectations_are_the_seven_d6_sites ... ok
+test real_location_scanner_reports_plants ... ok
+test test_source_scanner_reports_planted_os_host_io ... ok
+test ureq_is_confined_to_http_rs ... ok
+test confinement_scanner_reports_plants ... ok
+test production_config_only_in_allowed_tests ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.11s
+
+     Running tests\live_feed.rs (target\debug\deps\live_feed-4829a4397618f274.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\roster.rs (target\debug\deps\roster-2d13b3509883c11b.exe)
+
+running 4 tests
+test roster_scanner_reports_planted_names ... ok
+test install_identifier_scanner_reports_plants ... ok
+test install_identifiers_absent_from_sources ... ok
+test roster_and_hosts_absent_from_sources ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src\lib.rs (target\debug\deps\krate_manager_helper-923ebe45a1864d88.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\krate_manager_helper-121a4b9783706466.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\stub.rs (target\debug\deps\stub-908c9b47967de531.exe)
+
+running 1 test
+test helper_stub_exits_2_with_one_line ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+   Doc-tests krate_manager_core
+
+running 4 tests
+test crates\core\src\feed.rs - feed::AssetName (line 193) - compile fail ... ok
+test crates\core\src\feed.rs - feed::PageUrl (line 175) - compile fail ... ok
+test crates\core\src\feed.rs - feed::AssetUrl (line 157) - compile fail ... ok
+test crates\core\src\feed.rs - feed::PlainName (line 137) - compile fail ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+   Doc-tests krate_manager_helper
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,6 @@
+package-id: com.krateaudio.alpha
+version: 1.2.0
+volume: /
+location: /
+install-time: 1720421876
+KM-CONTENT-MARKER: x

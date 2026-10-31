@@ -119,6 +119,22 @@ jobs:
           set -euo pipefail
           cargo test --workspace --locked 2>&1 | tee "$RUNNER_TEMP/cargo-test.txt"
 
+      - name: core dependency tree
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/core-tree.txt"
+          cargo tree -p krate-manager-core -e normal --locked --prefix none --format "{p}" > "$out"
+          names=$(awk '{print $1}' "$out" | sort -u)
+          n=$(printf '%s\n' "$names" | grep -c . || true)
+          hits=$(printf '%s\n' "$names" | grep -E '^(tauri(-.*)?|tokio|reqwest|hyper|dirs(-.*)?|directories(-.*)?|home)$' || true)
+          if [ -z "$hits" ] && [ "$n" -ge 1 ]; then
+            echo "::notice title=core dependency tree ($RUNNER_OS)::$n crates, none excluded"
+          else
+            for h in $hits; do echo "::error title=core dependency tree ($RUNNER_OS)::$h"; done
+            [ -n "$hits" ] || echo "::error title=core dependency tree ($RUNNER_OS)::no crates listed"
+            exit 1
+          fi
+
       - name: typecheck
         run: |
           set -euo pipefail

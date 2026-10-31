@@ -1,12 +1,20 @@
 //! The per-OS default roots (FR-010 to FR-012, D7-D9). Pure: every root is computed from an
 //! injected `OsEnv`; nothing here reads the process environment or touches the filesystem.
 
+use crate::detect::{InnoValues, PkgOutputs, RecordRead};
+use crate::feed::PlainName;
 use crate::roots::{RootPaths, RootsError};
+use crate::version::OsVersion;
 use std::ffi::{OsStr, OsString};
 use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 
 /// The Tauri `identifier`, the last component of the state dir on every OS (D7).
 pub const APP_IDENTIFIER: &str = "com.krateaudio.krate-manager";
+/// The vendor folder of the Windows Inno layout (FR-002); the only spelling outside the default roots.
+pub const VENDOR_DIR: &str = "Krate Audio";
+/// `sw_vers` / `getconf` bound (D8).
+pub const OS_VERSION_WAIT: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Os {
@@ -52,23 +60,57 @@ fn name_matches(key: &str, name: &str) -> bool {
     key == name
 }
 
+/// One bounded child run (FR-031). `NoOutput` folds spawn failure, non-zero exit and a read error (`run_bounded`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RunOutcome {
+    Output(String),
+    NoOutput,
+    Abandoned,
+}
+
+/// Two values of one HKLM key, 64-bit view (FR-031).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RegistryRead {
+    NoKey,
+    Values([Option<String>; 2]),
+    Failed,
+}
+
+/// The raw host primitives (D7 layer 1): no decision in any implementation.
+pub trait HostIo {
+    fn run(&self, argv: &[&str], bound: Duration) -> RunOutcome;
+    fn registry_values(&self, subkey: &str, names: [&str; 2]) -> RegistryRead;
+    fn rtl_version(&self) -> Option<(u32, u32, u32)>;
+}
+
 pub trait Platform {
     fn os(&self) -> Os;
     fn default_roots(&self, env: &OsEnv) -> Result<RootPaths, RootsError>;
+    /// FR-030, FR-036.
+    fn os_version(&self, io: &dyn HostIo) -> Option<OsVersion>;
+    /// FR-030: Windows only; elsewhere `Absent` with no `io` call.
+    fn inno_values(&self, io: &dyn HostIo, key: &PlainName) -> RecordRead<InnoValues>;
+    /// FR-030: macOS only; elsewhere `Absent` with no `io` call.
+    fn pkg_outputs(&self, io: &dyn HostIo, pkg_id: &PlainName) -> RecordRead<PkgOutputs>;
 }
 
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "windows")]
-pub use windows::{ENV_KEYS, WindowsPlatform as NativePlatform};
+pub use windows::{
+    DISPLAY_VERSION, ENV_KEYS, INSTALL_LOCATION, UNINSTALL_KEY, WindowsPlatform as NativePlatform,
+};
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
-pub use macos::{ENV_KEYS, MacosPlatform as NativePlatform};
+pub use macos::{
+    ENV_KEYS, MacosPlatform as NativePlatform, PKG_FILES_FLAG, PKG_INFO_FLAG, PKGUTIL,
+    PKGUTIL_WAIT, SW_VERS, SW_VERS_FLAG,
+};
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
-pub use linux::{ENV_KEYS, LinuxPlatform as NativePlatform};
+pub use linux::{ENV_KEYS, GETCONF, GLIBC_NAME, LinuxPlatform as NativePlatform};
 
 /// The value as a path when it is absolute and has no `Component::ParentDir` (an empty
 /// value is not absolute). Lexical only.

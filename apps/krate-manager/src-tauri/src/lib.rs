@@ -5,6 +5,7 @@ mod commands;
 mod dev_feed;
 mod log_sink;
 mod navigation;
+mod os_facts;
 mod os_proxy;
 pub mod os_roots;
 mod proxy_env;
@@ -84,7 +85,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_version,
-            commands::startup_error
+            commands::startup_error,
+            commands::plugin_status,
+            commands::check_now,
+            commands::open_release_page
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
