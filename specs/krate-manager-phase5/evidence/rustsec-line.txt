@@ -1,0 +1,1 @@
+902:- 🆕 Before every manager release, check the RustSec advisory database (https://rustsec.org/) for `rquickjs`, `rquickjs-core` and `rquickjs-sys`, the vendored QuickJS-ng PAC engine that Phase 5 pins for the macOS and Linux builds (R-15); an advisory is answered with a pin bump before the release.

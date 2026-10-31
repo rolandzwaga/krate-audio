@@ -9,14 +9,32 @@ publish.workspace = true
 
 [features]
 test-support = []
+# PD-14: never enabled by any workflow, script or gate
+live-network = ["test-support"]
 
 [dependencies]
+base64 = { workspace = true }
 log = { workspace = true }
+regex = { workspace = true }
+# only to name rustls::Error in http.rs (FR-044)
+rustls = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
+ureq = { workspace = true }
+
+[dev-dependencies]
+flate2 = { workspace = true }
+
+# R-8, R-15: pac.rs only (FR-081), never on Windows; never `features`, never rust-alloc (PD-25)
+[target.'cfg(not(windows))'.dependencies]
+rquickjs = { workspace = true }
+
+# R-6: sysproxy_cf only
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = { workspace = true }
 
 [lints]
 workspace = true

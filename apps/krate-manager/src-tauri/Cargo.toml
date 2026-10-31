@@ -31,6 +31,14 @@ krate-manager-core = { workspace = true }
 [dev-dependencies]
 krate-manager-core = { workspace = true, features = ["test-support"] }
 
+# R-2: os_proxy.rs only (the Windows proxy reader and OS PAC evaluation)
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true }
+
+# R-3: os_proxy.rs only (the macOS proxy reader)
+[target.'cfg(target_os = "macos")'.dependencies]
+system-configuration = { workspace = true }
+
 [features]
 dev-feed = []
 

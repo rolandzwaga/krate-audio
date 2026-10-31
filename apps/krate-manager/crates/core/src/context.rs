@@ -1,6 +1,7 @@
 //! Startup assembly, the locked instance, live reassembly, startup logging and the dev-feed
 //! parser (FR-017, FR-101 to FR-104, FR-106, D17, D22; plan §4.8).
 
+use crate::http::HttpConfig;
 use crate::platform::{NativePlatform, Os, Platform};
 use crate::roots::{Roots, RootsError};
 use crate::settings::{self, Settings, SettingsError};
@@ -50,6 +51,8 @@ pub struct AppContext {
     pub roots: Roots,
     pub settings: Settings,
     pub feed_url: String,
+    /// The one HTTP configuration every request of this instance uses (FR-060).
+    pub http: HttpConfig,
 }
 
 /// What `src-tauri` manages (FR-017, FR-103). The lock lives as long as the state.
@@ -63,8 +66,12 @@ pub struct AppState {
 pub type SharedState = std::sync::RwLock<AppState>;
 
 /// FR-017 on this OS.
-pub fn assemble_context(roots: Result<Roots, RootsError>, feed_url: &str) -> AppState {
-    assemble_with_os(NativePlatform.os(), roots, feed_url)
+pub fn assemble_context(
+    roots: Result<Roots, RootsError>,
+    feed_url: &str,
+    http: HttpConfig,
+) -> AppState {
+    assemble_with_os(NativePlatform.os(), roots, feed_url, http)
 }
 
 /// Lock, then load, then (Linux only) fold the configured root, then return. Creates only
@@ -73,6 +80,7 @@ pub(crate) fn assemble_with_os(
     os: Os,
     roots: Result<Roots, RootsError>,
     feed_url: &str,
+    http: HttpConfig,
 ) -> AppState {
     let roots = match roots {
         Ok(roots) => roots,
@@ -95,6 +103,7 @@ pub(crate) fn assemble_with_os(
             roots,
             settings: outcome.settings,
             feed_url: feed_url.to_owned(),
+            http,
         }),
         settings_error: outcome.error,
         lock: Some(Arc::new(lock)),
@@ -129,7 +138,7 @@ pub fn reassemble(prev: &AppState, settings: Settings) -> AppState {
 
 /// No I/O. An `Err` context comes back unchanged; settings that fail `validate` keep the
 /// previous context and report the error; otherwise the roots are re-derived with the new
-/// configured root, with the same feed URL and the same lock.
+/// configured root, with the same feed URL, the same HTTP configuration and the same lock.
 pub(crate) fn reassemble_with_os(os: Os, prev: &AppState, settings: Settings) -> AppState {
     let lock = prev.lock.clone();
     let ctx = match &prev.context {
@@ -154,6 +163,7 @@ pub(crate) fn reassemble_with_os(os: Os, prev: &AppState, settings: Settings) ->
             roots: fold(os, &ctx.roots, &settings),
             settings,
             feed_url: ctx.feed_url.clone(),
+            http: ctx.http.clone(),
         }),
         settings_error: None,
         lock,

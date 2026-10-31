@@ -8,11 +8,13 @@ on:
       - 'apps/krate-manager/**'
       - '.github/workflows/manager-ci.yml'
       - 'tools/lint-manager-version.js'
+      - 'tools/feed-contract/**'
   pull_request:
     paths:
       - 'apps/krate-manager/**'
       - '.github/workflows/manager-ci.yml'
       - 'tools/lint-manager-version.js'
+      - 'tools/feed-contract/**'
   workflow_dispatch:
 
 permissions:
@@ -190,6 +192,30 @@ jobs:
           else
             echo "::error title=dev-feed absent ($RUNNER_OS)::marker in source=$marker, in $bin=$hits"; exit 1
           fi
+
+      - name: roster absent
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in Windows) bin=target/release/krate-manager.exe ;; *) bin=target/release/krate-manager ;; esac
+          node - "$bin" <<'ROSTER'
+          const fs = require("fs"), path = require("path");
+          const [bin] = process.argv.slice(2);
+          const root = path.join("..", "..", "plugins");
+          const names = fs.readdirSync(root).map((d) => path.join(root, d, "version.json"))
+            .filter((f) => fs.existsSync(f)).map((f) => JSON.parse(fs.readFileSync(f, "utf8")).name).filter(Boolean);
+          const files = [bin, ...fs.readdirSync("dist", { recursive: true }).map((f) => path.join("dist", f))
+            .filter((f) => fs.statSync(f).isFile())];
+          const bad = [];
+          if (names.length < 9) bad.push(`only ${names.length} plugin names read`);
+          const control = fs.readFileSync(bin).includes("com.krateaudio.krate-manager");
+          if (!control) bad.push("positive control com.krateaudio.krate-manager not in the binary");
+          for (const f of files) { const b = fs.readFileSync(f);
+            for (const w of [...names, "api.github.com"]) if (b.includes(w)) bad.push(`${w} in ${f}`); }
+          const os = process.env.RUNNER_OS;
+          for (const b of bad) console.log(`::error title=roster absent (${os})::${b}`);
+          if (bad.length) process.exit(1);
+          console.log(`::notice title=roster absent (${os})::${names.length} names, 0 hits in ${files.length} files`);
+          ROSTER
 
       - name: artifact version
         run: |

@@ -5,12 +5,19 @@ mod commands;
 mod dev_feed;
 mod log_sink;
 mod navigation;
+mod os_proxy;
 pub mod os_roots;
+mod proxy_env;
 
 use krate_manager_core::context::{
     LOCKED_EXIT_DELAY, SharedState, assemble_context, log_startup_errors, startup_notice,
 };
+#[cfg(not(feature = "dev-feed"))]
+use krate_manager_core::http::HttpConfig;
+use krate_manager_core::http::resolve_proxy;
+use krate_manager_core::platform::NativePlatform;
 use krate_manager_core::roots::Roots;
+use os_proxy::SystemProxyFromOs;
 use os_roots::FromOs;
 
 const FEED_URL: &str = "https://krateaudio.com/versions.json";
@@ -31,7 +38,21 @@ pub fn run() {
         .unwrap_or_else(|| FEED_URL.to_owned());
     #[cfg(not(feature = "dev-feed"))]
     let feed_url = FEED_URL.to_owned();
-    let state = assemble_context(roots, &feed_url);
+    // The OS proxy settings, resolved once per launch (FR-048, FR-061, FR-063).
+    let inputs = proxy_env::read();
+    let resolution = resolve_proxy(
+        &inputs.env,
+        &NativePlatform.system_proxy(&inputs),
+        &feed_url,
+    );
+    #[cfg(not(feature = "dev-feed"))]
+    let http = HttpConfig::production()
+        .with_proxy(resolution.proxy)
+        .with_pac(resolution.pac)
+        .with_pac_host(Some(os_proxy::pac_host()));
+    #[cfg(feature = "dev-feed")]
+    let http = dev_feed::http_config(&feed_url, resolution, Some(os_proxy::pac_host()));
+    let state = assemble_context(roots, &feed_url, http);
     match &sink_roots {
         Some(r) => {
             log_sink::init(r);

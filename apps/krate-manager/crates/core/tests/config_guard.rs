@@ -31,8 +31,8 @@ const CAPABILITY_KEYS: [&str; 4] = ["identifier", "description", "windows", "per
 /// FR-004's `[dependencies]` key set of `src-tauri/Cargo.toml` (PD-23).
 const SRC_TAURI_DEPENDENCIES: [&str; 5] =
     ["krate-manager-core", "log", "serde", "serde_json", "tauri"];
-/// The strings `src-tauri/src/lib.rs` must contain (FR-017, FR-042, FR-044, FR-101).
-const LIB_RS_STRINGS: [&str; 7] = [
+/// The strings `src-tauri/src/lib.rs` must contain (FR-017, FR-042, FR-044, FR-061, FR-101).
+const LIB_RS_STRINGS: [&str; 14] = [
     ".plugin(navigation::guard())",
     "assemble_context(",
     ".manage(",
@@ -40,6 +40,49 @@ const LIB_RS_STRINGS: [&str; 7] = [
     "startup_notice",
     "startup_error",
     "LOCKED_EXIT_DELAY",
+    "HttpConfig::production()",
+    "resolve_proxy(",
+    ".with_proxy(",
+    ".with_pac(",
+    ".with_pac_host(",
+    "os_proxy::pac_host()",
+    "proxy_env::read()",
+];
+/// (token, the one `src-tauri/` file it may occur in, the rule) (plan §4.11.2, PD-12, SI-3, SI-26).
+const CONFINED: [(&str, &str, &str); 11] = [
+    ("config_for_dev_url", "src/dev_feed.rs", "FR-061, PD-12"),
+    ("LoopbackOnly", "src/dev_feed.rs", "FR-061, PD-12"),
+    ("HttpConfig::loopback", "src/dev_feed.rs", "FR-061, PD-12"),
+    (".with_proxy(", "src/lib.rs", "FR-063"),
+    (".with_pac(", "src/lib.rs", "FR-063"),
+    (".with_pac_host(", "src/lib.rs", "FR-063, SI-26"),
+    ("resolve_proxy(", "src/lib.rs", "FR-063"),
+    ("OsPacHost", "src/os_proxy.rs", "FR-063, SI-26"),
+    ("HTTPS_PROXY", "src/proxy_env.rs", "FR-063, SI-3"),
+    ("ALL_PROXY", "src/proxy_env.rs", "FR-063, SI-3"),
+    ("NO_PROXY", "src/proxy_env.rs", "FR-063, SI-3"),
+];
+/// The proxy variable names no `crates/core/src` file may hold (FR-063, SI-3; case-sensitive).
+const PROXY_ENV_NAMES: [&str; 3] = ["HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"];
+/// `proxy_env.rs`'s six `ProxyVars` field-to-variable pairs (plan §4.10, §4.11.2).
+const PROXY_ENV_PAIRS: [(&str, &str); 6] = [
+    ("https_upper", "HTTPS_PROXY"),
+    ("https_lower", "https_proxy"),
+    ("all_upper", "ALL_PROXY"),
+    ("all_lower", "all_proxy"),
+    ("no_upper", "NO_PROXY"),
+    ("no_lower", "no_proxy"),
+];
+/// `src-tauri/Cargo.toml`'s target sections and the one line each holds (FR-073, TA-15).
+const SRC_TAURI_TARGETS: [(&str, &str); 2] = [
+    (
+        "[target.'cfg(windows)'.dependencies]",
+        "windows-sys = { workspace = true }",
+    ),
+    (
+        "[target.'cfg(target_os = \"macos\")'.dependencies]",
+        "system-configuration = { workspace = true }",
+    ),
 ];
 /// The workspace members of FR-002, in order.
 const MEMBERS: [&str; 3] = ["crates/core", "crates/helper", "src-tauri"];
@@ -94,6 +137,8 @@ struct ConfigFiles {
     src_tauri_texts: Vec<(String, String)>,
     /// Every file under `src-tauri/`, as bytes (the icons are binary): ('/'-separated path, bytes).
     src_tauri_files: Vec<(String, Vec<u8>)>,
+    /// The `.rs` files below `crates/core/src/`: (`src/`-prefixed '/'-separated path, text).
+    core_src_texts: Vec<(String, String)>,
     tests_dir_exists: bool,
     info_plist_exists: bool,
 }
@@ -205,6 +250,21 @@ fn load_config() -> ConfigFiles {
             .next()
             .is_some_and(|name| name.eq_ignore_ascii_case("Info.plist"))
     });
+    let mut core_files = Vec::new();
+    walk(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+        "src",
+        &mut core_files,
+    );
+    let core_src_texts = core_files
+        .into_iter()
+        .filter(|(rel, _)| rel.ends_with(".rs"))
+        .map(|(rel, bytes)| {
+            let text = String::from_utf8(bytes)
+                .unwrap_or_else(|e| panic!("crates/core/{rel} is not UTF-8: {e}"));
+            (rel, text)
+        })
+        .collect();
     ConfigFiles {
         conf: read_json(&dir.join("tauri.conf.json")),
         platform_confs,
@@ -214,6 +274,7 @@ fn load_config() -> ConfigFiles {
         workspace_cargo_toml: read_text(&app_root().join("Cargo.toml")),
         lib_rs: file_text(&files, "src/lib.rs"),
         src_tauri_texts,
+        core_src_texts,
         tests_dir_exists: dir.join("tests").exists(),
         info_plist_exists,
         src_tauri_files: files,
@@ -500,6 +561,7 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
     }
 
     check_src_tauri_manifest(f, &mut m);
+    m.extend(check_http_injection(f));
 
     // FR-017, FR-042, FR-044, FR-101, FR-105: the lib.rs wiring.
     for needle in LIB_RS_STRINGS {
@@ -644,6 +706,156 @@ fn check_src_tauri_manifest(f: &ConfigFiles, m: &mut Vec<String>) {
     }
 }
 
+/// Whether `text` holds `token` as a whole token (comments included): an end of `token` that is an
+/// identifier character may not touch another one, so `WINHTTP_ACCESS_TYPE_NO_PROXY` is not `NO_PROXY`.
+fn holds_token(text: &str, token: &str) -> bool {
+    let ident = |ch: char| ch.is_alphanumeric() || ch == '_';
+    let starts_ident = token.chars().next().is_some_and(ident);
+    let ends_ident = token.chars().next_back().is_some_and(ident);
+    text.match_indices(token).any(|(at, _)| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + token.len()..].chars().next();
+        !(starts_ident && before.is_some_and(ident)) && !(ends_ident && after.is_some_and(ident))
+    })
+}
+
+/// FR-061, FR-063, PD-12, SI-3, SI-26: the HTTP, proxy and PAC injection facts (plan §4.11.2).
+fn check_http_injection(f: &ConfigFiles) -> Vec<String> {
+    let mut m = Vec::new();
+    let mut sources: Vec<(&str, &str)> = vec![("src/lib.rs", f.lib_rs.as_str())];
+    sources.extend(
+        f.src_tauri_texts
+            .iter()
+            .map(|(rel, text)| (rel.as_str(), text.as_str())),
+    );
+
+    // FR-061: `assemble_context(roots, feed_url, http)`.
+    for count in call_argument_counts(&f.lib_rs, "assemble_context(") {
+        if count != 3 {
+            m.push(format!(
+                "src-tauri/src/lib.rs calls `assemble_context(` with {count} top-level arguments, expected three (FR-061)"
+            ));
+        }
+    }
+
+    // FR-061, FR-063, PD-12, SI-3, SI-26: each token in one src-tauri file only.
+    for (token, allowed, rule) in CONFINED {
+        for (rel, text) in &sources {
+            if *rel != allowed && holds_token(text, token) {
+                m.push(format!(
+                    "src-tauri/{rel} holds `{token}`, which may occur only in src-tauri/{allowed} ({rule})"
+                ));
+            }
+        }
+    }
+    for name in PROXY_ENV_NAMES {
+        for (rel, text) in &f.core_src_texts {
+            if holds_token(text, name) {
+                m.push(format!(
+                    "crates/core/{rel} holds `{name}`: proxy variables are named only in src-tauri/src/proxy_env.rs (FR-063, SI-3)"
+                ));
+            }
+        }
+    }
+
+    // SI-3: the one untested copy step cannot swap a pair.
+    match sources.iter().find(|(rel, _)| *rel == "src/proxy_env.rs") {
+        None => m.push("src-tauri/src/proxy_env.rs is missing (FR-063, SI-3)".to_owned()),
+        Some((_, text)) => {
+            let squeezed: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+            for (field, name) in PROXY_ENV_PAIRS {
+                if !squeezed.contains(&format!("{field}:got(\"{name}\")")) {
+                    m.push(format!(
+                        "src-tauri/src/proxy_env.rs lacks `{field}: got(\"{name}\")` (FR-063, SI-3)"
+                    ));
+                }
+            }
+        }
+    }
+
+    // FR-068, FR-092, FR-095: core logs the one `warn!` per PAC failure and per unreadable offset, so the
+    // real PAC host (everything from `pub struct OsPacHost;` on) logs none; the context-leak line is not a failure.
+    if let Some((_, text)) = sources.iter().find(|(rel, _)| *rel == "src/os_proxy.rs") {
+        match text.find("pub struct OsPacHost;") {
+            None => m.push(
+                "src-tauri/src/os_proxy.rs lacks `pub struct OsPacHost;` (FR-092)".to_owned(),
+            ),
+            Some(at) => {
+                let extra: Vec<usize> = text[at..]
+                    .match_indices("warn!(")
+                    .filter(|(i, _)| {
+                        let rest = &text[at + i..];
+                        !rest[..rest.find(';').unwrap_or(rest.len())].contains("CONTEXT_VALUE")
+                    })
+                    .map(|(i, _)| text[..at + i].lines().count())
+                    .collect();
+                if !extra.is_empty() {
+                    m.push(format!(
+                        "src-tauri/src/os_proxy.rs PAC host logs its own `warn!(` at lines {extra:?}; core logs the one warn (FR-068, FR-092, FR-095)"
+                    ));
+                }
+            }
+        }
+    }
+
+    // FR-073, TA-15: exactly the two OS target sections, one line each.
+    let headers: Vec<&str> = f
+        .cargo_toml
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with("[target."))
+        .collect();
+    let expected: Vec<&str> = SRC_TAURI_TARGETS
+        .iter()
+        .map(|(header, _)| *header)
+        .collect();
+    if headers != expected {
+        m.push(format!(
+            "src-tauri/Cargo.toml target sections are {headers:?}, expected {expected:?} (FR-073)"
+        ));
+    }
+    for (header, line) in SRC_TAURI_TARGETS {
+        let lines = section_lines(&f.cargo_toml, header);
+        if lines != [line] {
+            m.push(format!(
+                "src-tauri/Cargo.toml {header} is {lines:?}, expected exactly [`{line}`] (FR-073, TA-15)"
+            ));
+        }
+    }
+    m
+}
+
+/// For each `needle` (a name ending in `(`) in `text`, the number of non-empty top-level
+/// arguments between its parentheses (nested `()`, `[]`, `{}` are one argument).
+fn call_argument_counts(text: &str, needle: &str) -> Vec<usize> {
+    text.match_indices(needle)
+        .map(|(at, _)| {
+            let mut depth = 1_usize;
+            let mut count = 0;
+            let mut current = String::new();
+            for ch in text[at + needle.len()..].chars() {
+                match ch {
+                    '(' | '[' | '{' => depth += 1,
+                    ')' | ']' | '}' => depth -= 1,
+                    _ => {}
+                }
+                if depth == 0 || (depth == 1 && ch == ',') {
+                    if !current.trim().is_empty() {
+                        count += 1;
+                    }
+                    current.clear();
+                    if depth == 0 {
+                        break;
+                    }
+                } else {
+                    current.push(ch);
+                }
+            }
+            count
+        })
+        .collect()
+}
+
 /// FR-045's lint-independent scan of `src/**` and `index.html`.
 fn check_frontend(files: &[(String, String)]) -> Vec<String> {
     let mut m = Vec::new();
@@ -723,9 +935,9 @@ fn check_app_meta(f: &AppMetaFiles) -> Vec<String> {
         }
         if member == "crates/core" {
             let features = section_lines(toml, "[features]");
-            if features != ["test-support = []"] {
+            if features != ["test-support = []", "live-network = [\"test-support\"]"] {
                 m.push(format!(
-                    "crates/core/Cargo.toml [features] is {features:?}, expected exactly [\"test-support = []\"] (FR-022)"
+                    "crates/core/Cargo.toml [features] is {features:?}, expected exactly [\"test-support = []\", \"live-network = [\\\"test-support\\\"]\"] (FR-022, FR-063)"
                 ));
             }
         }
@@ -930,6 +1142,16 @@ fn main_capability(f: &mut ConfigFiles) -> &mut Value {
     capability
 }
 
+/// The text of `src-tauri/{rel}` among the non-`lib.rs` sources.
+fn src_text<'a>(f: &'a mut ConfigFiles, rel: &str) -> &'a mut String {
+    let (_, text) = f
+        .src_tauri_texts
+        .iter_mut()
+        .find(|(name, _)| name == rel)
+        .unwrap_or_else(|| panic!("src-tauri/{rel}"));
+    text
+}
+
 fn member_manifest<'a>(f: &'a mut AppMetaFiles, member: &str) -> &'a mut String {
     let (_, toml) = f
         .member_manifests
@@ -1131,8 +1353,125 @@ fn planted_config_changes_fail_the_guard() {
                 );
             },
         ),
+        (
+            "lib.rs without HttpConfig::production()",
+            &["does not contain `HttpConfig::production()`"],
+            |f| {
+                f.lib_rs = f
+                    .lib_rs
+                    .replace("HttpConfig::production()", "HttpConfig::default()");
+            },
+        ),
+        (
+            "LoopbackOnly in commands.rs",
+            &["src-tauri/src/commands.rs holds `LoopbackOnly`"],
+            |f| {
+                src_text(f, "src/commands.rs")
+                    .push_str("\nconst PLANTED: UrlPolicy = UrlPolicy::LoopbackOnly;\n");
+            },
+        ),
+        (
+            "lib.rs without .with_proxy(",
+            &["does not contain `.with_proxy(`"],
+            |f| {
+                f.lib_rs = f.lib_rs.replace(".with_proxy(", ".proxy(");
+            },
+        ),
+        (
+            "lib.rs without .with_pac(",
+            &["does not contain `.with_pac(`"],
+            |f| {
+                f.lib_rs = f.lib_rs.replace(".with_pac(", ".pac(");
+            },
+        ),
+        (
+            ".with_pac_host( in commands.rs",
+            &["src-tauri/src/commands.rs holds `.with_pac_host(`"],
+            |f| {
+                src_text(f, "src/commands.rs").push_str(
+                    "\nfn planted(c: HttpConfig) -> HttpConfig { c.with_pac_host(None) }\n",
+                );
+            },
+        ),
+        (
+            "OsPacHost in lib.rs",
+            &["src-tauri/src/lib.rs holds `OsPacHost`"],
+            |f| {
+                f.lib_rs
+                    .push_str("\nfn planted() { let _ = os_proxy::OsPacHost; }\n");
+            },
+        ),
+        (
+            "std::env::var(\"HTTPS_PROXY\") in os_proxy.rs",
+            &["src-tauri/src/os_proxy.rs holds `HTTPS_PROXY`"],
+            |f| {
+                src_text(f, "src/os_proxy.rs")
+                    .push_str("\nfn planted() { let _ = std::env::var(\"HTTPS_PROXY\"); }\n");
+            },
+        ),
+        (
+            "NO_PROXY in a core comment",
+            &["crates/core/src/planted.rs holds `NO_PROXY`"],
+            |f| {
+                f.core_src_texts
+                    .push(("src/planted.rs".to_owned(), "// NO_PROXY wins\n".to_owned()));
+            },
+        ),
+        (
+            "a third target section in src-tauri/Cargo.toml",
+            &["src-tauri/Cargo.toml target sections are"],
+            |f| {
+                f.cargo_toml.push_str(
+                    "\n[target.'cfg(target_os = \"linux\")'.dependencies]\nlibc = \"0.2\"\n",
+                );
+            },
+        ),
+        (
+            "a warn! in the OS PAC host",
+            &["src-tauri/src/os_proxy.rs PAC host logs its own `warn!(`"],
+            |f| {
+                src_text(f, "src/os_proxy.rs")
+                    .push_str("\nfn planted() { log::warn!(\"E_PAC_FETCH: planted\"); }\n");
+            },
+        ),
+        (
+            "proxy_env.rs with a swapped pair",
+            &["lacks `https_upper: got(\"HTTPS_PROXY\")`"],
+            |f| {
+                let text = src_text(f, "src/proxy_env.rs");
+                *text = text.replace(
+                    "https_upper: got(\"HTTPS_PROXY\")",
+                    "https_upper: got(\"https_proxy\")",
+                );
+            },
+        ),
+        (
+            "assemble_context( with two arguments",
+            &["calls `assemble_context(` with 2 top-level arguments"],
+            |f| {
+                f.lib_rs = f.lib_rs.replace(
+                    "assemble_context(roots, &feed_url, http)",
+                    "assemble_context(roots, &feed_url)",
+                );
+            },
+        ),
     ];
     assert_plants(&base, check_config, plants);
+
+    // A longer identifier holding a proxy name is another token (FR-063 names tokens).
+    let mut quiet = base.clone();
+    quiet
+        .lib_rs
+        .push_str("\nfn planted() { let _ = WINHTTP_ACCESS_TYPE_NO_PROXY; }\n");
+    quiet.core_src_texts.push((
+        "src/planted.rs".to_owned(),
+        "const MY_HTTPS_PROXY_X: u8 = 0;\n".to_owned(),
+    ));
+    let messages = check_config(&quiet);
+    assert!(
+        !messages.iter().any(|message| message.contains("_PROXY`")),
+        "{messages:#?}"
+    );
 
     // An APP_IDENTIFIER unequal to the config's identifier (D7).
     let needle = "platform::APP_IDENTIFIER";
@@ -1217,6 +1556,14 @@ fn planted_app_metadata_changes_fail_the_guard() {
             |f| {
                 let toml = member_manifest(f, "crates/core");
                 *toml = insert_after(toml, "[features]", "default = [\"test-support\"]");
+            },
+        ),
+        (
+            "default = [\"live-network\"] in core [features]",
+            &["crates/core/Cargo.toml [features]"],
+            |f| {
+                let toml = member_manifest(f, "crates/core");
+                *toml = insert_after(toml, "[features]", "default = [\"live-network\"]");
             },
         ),
         (

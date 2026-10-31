@@ -526,13 +526,16 @@ Does NOT: fetch a feed, read a plug-in folder, or build a release pipeline for t
 
 ### Phase 5: Feed Client and Version Model
 
+**Status: ✅ COMPLETE (PENDING-CI: 21 item(s)) (2026-10-31)** — see specs/krate-manager-phase5/compliance.md
+
 **Spec:** `krate-manager-phase5`
 
 Components:
 - 🆕 `core::feed`: fetch `versions.json` from the injected URL (production: `https://krateaudio.com/versions.json`) over HTTPS (HTTP only for the local fixture server in
   tests), parse schema 1 and 2, ignore unknown keys, validate every v2 entry against the Phase 1 contract, and keep
-  the last good copy in the state dir for offline use. A manual "check now" bypasses caches (Pages edge cache is
-  ~10 minutes, feed_and_ci.md "Hosting").
+  the last good copy in the state dir for offline use. A manual "check now" always fetches from the network with
+  `Cache-Control: no-cache` / `Pragma: no-cache`; the Pages edge ignores them and may serve a copy up to 600 s old
+  (measured 2026-10-30).
 - 🆕 `core::version`: SemVer compare, platform-key resolution for the running OS/arch (native key, then
   `darwin-universal`), four-part class versions reduced to three parts for comparison (`check-bundle.js:52`).
 - 🆕 A local fixture HTTP server used by tests; an opt-in live-network test, ignored by default and never run in a gate.
@@ -569,6 +572,9 @@ Components:
   receipt (identifier and `--files` listing) on macOS, the install manifest on Linux, all behind the platform abstraction with fakes in tests. A plugin installed earlier by the old `.exe` or `.pkg` is simply installed (the current installers carry the same Inno AppId and pkg identifier, so a newer installer upgrades it in place); there is no "legacy" state (Q4 ruled).
 - 🆕 The first visible product: one screen listing every plugin in the feed, nine today (installed version or "not installed", available
   version, release notes from `notes_markdown` rendered with no remote content), read-only.
+- 🆕 Phase 6 owns the "check now" control, whose text states that a new release can take up to ten minutes to appear
+  (`feed::EDGE_MAX_AGE_SECS`). Phase 6 reads the running OS version through `Platform` and passes it to Phase 5's
+  `version::resolve`, which compares it with the asset's `min_os` (`Availability::NeedsNewerOs`).
 
 Measurable outcomes:
 - Fixture trees in temp dirs (current bundles, legacy `0.8.0` bundles, a bundle whose top-level `Version` and class
@@ -895,6 +901,7 @@ Components:
 - 🆕 Release readiness for manager 0.1.0 (from `apps/krate-manager/version.json`): every Part B gate green on Windows
   and every PENDING-CI row closed by a named green `manager-ci` / `release-manager` run, and the Phase 2 backfill run
   live, so the live feed offers all nine plugins with `platforms` (no plugin re-release).
+- 🆕 Before every manager release, check the RustSec advisory database (https://rustsec.org/) for `rquickjs`, `rquickjs-core` and `rquickjs-sys`, the vendored QuickJS-ng PAC engine that Phase 5 pins for the macOS and Linux builds (R-15); an advisory is answered with a pin bump before the release.
 
 Measurable outcomes:
 - "Update all" over N outdated plugins needing system roots (Windows, macOS) shows one confirmation listing every update

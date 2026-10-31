@@ -1,19 +1,24 @@
 use super::*;
+use crate::http::{HttpConfig, PacSource, ProxyConfig};
 use crate::platform::{NativePlatform, OsEnv, Platform};
 use crate::roots::{PluginRoot, RootKind};
 use crate::settings::SETTINGS_FILE;
 use crate::state_lock::{LOCK_FILE, LockError};
-use crate::test_support::{canonical_temp_dir, fresh_temp_roots};
-use log::{Level, LevelFilter, Log, Metadata, Record};
+use crate::test_support::{canonical_temp_dir, fresh_temp_roots, install_capture, take_mine};
+use log::Level;
 use std::fs;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
-use std::thread::{self, ThreadId};
+use std::sync::PoisonError;
 
 /// Never contacted: nothing in this module opens a socket.
 const FEED: &str = "http://127.0.0.1:9/versions.json";
 const CORRUPT: &[u8] = b"{ this is not json";
+
+/// The one `HttpConfig` every assembly here carries (plan §4.9): loopback, never used to connect.
+fn http() -> HttpConfig {
+    HttpConfig::loopback(Duration::from_secs(1), Duration::from_secs(1))
+}
 
 /// Recursive listing of `dir`: (relative path, is_dir, size in bytes), sorted. A directory's
 /// size is recorded as 0: its `len()` is filesystem-dependent.
@@ -102,7 +107,7 @@ fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
 fn assemble_cases() {
     // (a) No roots: no lock, no settings, the D9 variable named.
     let e = roots_error();
-    let state = assemble_context(Err(e), FEED);
+    let state = assemble_context(Err(e), FEED, http());
     #[cfg(windows)]
     let first_var = "LOCALAPPDATA";
     #[cfg(not(windows))]
@@ -122,7 +127,7 @@ fn assemble_cases() {
         let (_td, roots) = fresh_temp_roots();
         let base = base_of(&roots);
         let before = listing(&base);
-        let state = assemble_context(Ok(roots.clone()), FEED);
+        let state = assemble_context(Ok(roots.clone()), FEED, http());
         let after = listing(&base);
         let c = ctx(&state);
         assert_eq!(c.roots, roots, "no Configured entry, roots equal the input");
@@ -145,7 +150,7 @@ fn assemble_cases() {
         let base = base_of(&roots);
         fs::remove_dir_all(roots.state_dir()).expect("remove the state dir");
         let before = listing(&base);
-        let state = assemble_context(Ok(roots.clone()), FEED);
+        let state = assemble_context(Ok(roots.clone()), FEED, http());
         let after = listing(&base);
         assert!(state.context.is_ok(), "got {:?}", state.context);
         assert!(state.lock.is_some());
@@ -163,7 +168,7 @@ fn assemble_cases() {
     {
         let (_td, roots) = fresh_temp_roots();
         let path = plant_corrupt(&roots);
-        let state = assemble_context(Ok(roots.clone()), FEED);
+        let state = assemble_context(Ok(roots.clone()), FEED, http());
         assert_eq!(ctx(&state).settings, Settings::default());
         let error = state.settings_error.as_ref().expect("a settings error");
         assert_eq!(error.code(), "E_SETTINGS_CORRUPT");
@@ -179,7 +184,7 @@ fn assemble_locked_instance() {
     let held = StateLock::acquire(&roots).expect("the first instance holds the lock");
     let path = plant_corrupt(&roots);
     let before = listing(&base);
-    let state = assemble_context(Ok(roots.clone()), FEED);
+    let state = assemble_context(Ok(roots.clone()), FEED, http());
     let after = listing(&base);
     match &state.context {
         Err(err @ StartupError::Locked) => assert_eq!(err.code(), "E_STARTUP_LOCKED"),
@@ -206,7 +211,7 @@ fn startup_notice_cases() {
         let (_td, roots) = fresh_temp_roots();
         let held = StateLock::acquire(&roots).expect("hold the lock");
         plant_corrupt(&roots);
-        let state = assemble_context(Ok(roots.clone()), FEED);
+        let state = assemble_context(Ok(roots.clone()), FEED, http());
         assert_eq!(
             startup_notice(&state),
             Some("Krate Manager is already running")
@@ -217,13 +222,13 @@ fn startup_notice_cases() {
     // Healthy.
     {
         let (_td, roots) = fresh_temp_roots();
-        let state = assemble_context(Ok(roots.clone()), FEED);
+        let state = assemble_context(Ok(roots.clone()), FEED, http());
         assert!(state.context.is_ok());
         assert_eq!(startup_notice(&state), None);
     }
 
     // Roots error.
-    let state = assemble_context(Err(roots_error()), FEED);
+    let state = assemble_context(Err(roots_error()), FEED, http());
     assert_eq!(startup_notice(&state), None);
 
     // E_STARTUP_LOCK_IO: a regular file where the state dir should be.
@@ -231,7 +236,7 @@ fn startup_notice_cases() {
         let (_td, roots) = fresh_temp_roots();
         fs::remove_dir_all(roots.state_dir()).expect("remove the state dir");
         fs::write(roots.state_dir(), b"not a directory").expect("plant a regular file");
-        let state = assemble_context(Ok(roots.clone()), FEED);
+        let state = assemble_context(Ok(roots.clone()), FEED, http());
         match &state.context {
             Err(
                 err @ StartupError::LockIo {
@@ -259,7 +264,7 @@ fn configured_root_cases() {
     // Linux with X: X first, the rest equal the input in order (Vst3User included).
     plant_settings(&roots, Some(&x));
     {
-        let state = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED);
+        let state = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
         let c = ctx(&state);
         assert_eq!(
             c.roots.plugin_roots()[0],
@@ -275,21 +280,21 @@ fn configured_root_cases() {
 
     // Windows and macOS ignore the stored value.
     for os in [Os::Windows, Os::Macos] {
-        let state = assemble_with_os(os, Ok(roots.clone()), FEED);
+        let state = assemble_with_os(os, Ok(roots.clone()), FEED, http());
         assert_eq!(ctx(&state).roots, roots, "{os:?} ignores linux_plugin_root");
     }
 
     // Linux with null equals the input.
     plant_settings(&roots, None);
     {
-        let state = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED);
+        let state = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
         assert_eq!(ctx(&state).roots, roots);
     }
 
     // X equal to the Vst3User path adds no entry.
     plant_settings(&roots, Some(roots.vst3_user()));
     {
-        let state = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED);
+        let state = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
         let c = ctx(&state);
         assert_eq!(c.roots.plugin_roots(), roots.plugin_roots());
         unchanged(&c.roots);
@@ -301,7 +306,7 @@ fn reassemble_cases() {
     let (_td, roots) = fresh_temp_roots();
     let base = base_of(&roots);
     let x = base.join("configured");
-    let prev = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED);
+    let prev = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
     let prev_lock = prev
         .lock
         .clone()
@@ -361,7 +366,7 @@ fn reassemble_cases() {
     assert_eq!(listing(&base), before, "no I/O");
 
     // An Err context comes back unchanged.
-    let failed = assemble_context(Err(roots_error()), FEED);
+    let failed = assemble_context(Err(roots_error()), FEED, http());
     let again = reassemble_with_os(Os::Linux, &failed, with_x.clone());
     assert_eq!(
         format!("{:?}", again.context),
@@ -410,7 +415,7 @@ fn sandbox_holds_through_assemble_and_reassemble() {
     // (a) Through assemble_with_os reading a planted settings.json.
     plant_settings(&roots, Some(&outside));
     let result = catch_unwind(AssertUnwindSafe(|| {
-        assemble_with_os(Os::Linux, Ok(roots.clone()), FEED)
+        assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http())
     }));
     let message = panic_message(result.expect_err("an outside configured root panics"));
     assert!(
@@ -420,7 +425,7 @@ fn sandbox_holds_through_assemble_and_reassemble() {
 
     // (b) Through reassemble_with_os.
     plant_settings(&roots, None);
-    let prev = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED);
+    let prev = assemble_with_os(Os::Linux, Ok(roots.clone()), FEED, http());
     assert!(prev.context.is_ok());
     let result = catch_unwind(AssertUnwindSafe(|| {
         reassemble_with_os(
@@ -442,47 +447,59 @@ fn sandbox_holds_through_assemble_and_reassemble() {
     assert!(!outside.exists());
 }
 
-/// Records on `STARTUP_LOG_TARGET`: (thread, level, message).
-struct Capture {
-    records: Mutex<Vec<(ThreadId, Level, String)>>,
+#[test]
+fn http_config_is_carried() {
+    let proxied = HttpConfig {
+        proxy: Some(ProxyConfig {
+            url: "http://127.0.0.1:9".into(),
+            no_proxy: vec![],
+        }),
+        ..http()
+    };
+    let with_pac = HttpConfig {
+        pac: Some(PacSource {
+            auto_detect: true,
+            url: Some("http://127.0.0.1:9/p.pac".into()),
+        }),
+        ..http()
+    };
+    for config in [http(), proxied, with_pac] {
+        let (_td, roots) = fresh_temp_roots();
+        let state = assemble_with_os(NativePlatform.os(), Ok(roots.clone()), FEED, config.clone());
+        assert_eq!(
+            ctx(&state).http,
+            config,
+            "assemble_with_os stores the config"
+        );
+        assert_eq!(ctx(&state).http.proxy, config.proxy);
+        assert_eq!(ctx(&state).http.pac, config.pac);
+
+        // New settings re-derive the roots and keep the config.
+        let settings = Settings {
+            linux_graphics_workaround: true,
+            ..Settings::default()
+        };
+        let next = reassemble_with_os(NativePlatform.os(), &state, settings.clone());
+        assert_eq!(
+            ctx(&next).settings,
+            settings,
+            "the new settings are applied"
+        );
+        assert_eq!(
+            ctx(&next).http,
+            config,
+            "reassemble_with_os keeps the config"
+        );
+        assert_eq!(ctx(&next).feed_url, FEED);
+    }
 }
 
-impl Log for Capture {
-    fn enabled(&self, _metadata: &Metadata) -> bool {
-        true
-    }
-
-    fn log(&self, record: &Record) {
-        if record.target() == STARTUP_LOG_TARGET {
-            self.records
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .push((
-                    thread::current().id(),
-                    record.level(),
-                    record.args().to_string(),
-                ));
-        }
-    }
-
-    fn flush(&self) {}
-}
-
-static CAPTURE: Capture = Capture {
-    records: Mutex::new(Vec::new()),
-};
-
-/// Removes and returns this thread's captured records.
-fn take_mine() -> Vec<(Level, String)> {
-    let me = thread::current().id();
-    let mut all = CAPTURE
-        .records
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner);
-    let (mine, rest): (Vec<_>, Vec<_>) = all.drain(..).partition(|r| r.0 == me);
-    *all = rest;
-    mine.into_iter()
-        .map(|(_, level, msg)| (level, msg))
+/// This thread's captured records on `STARTUP_LOG_TARGET`: (level, message), removed from the store.
+fn startup_records() -> Vec<(Level, String)> {
+    take_mine()
+        .into_iter()
+        .filter(|(target, _, _)| target == STARTUP_LOG_TARGET)
+        .map(|(_, level, message)| (level, message))
         .collect()
 }
 
@@ -494,20 +511,19 @@ fn assert_one_error(records: &[(Level, String)], code: &str) {
 
 #[test]
 fn startup_errors_are_logged() {
-    log::set_logger(&CAPTURE).expect("the only test that installs a logger");
-    log::set_max_level(LevelFilter::Trace);
+    install_capture();
     take_mine();
 
     // Roots error.
-    log_startup_errors(&assemble_context(Err(roots_error()), FEED));
-    assert_one_error(&take_mine(), "E_STARTUP_ROOTS");
+    log_startup_errors(&assemble_context(Err(roots_error()), FEED, http()));
+    assert_one_error(&startup_records(), "E_STARTUP_ROOTS");
 
     // Locked.
     {
         let (_td, roots) = fresh_temp_roots();
         let held = StateLock::acquire(&roots).expect("hold the lock");
-        log_startup_errors(&assemble_context(Ok(roots.clone()), FEED));
-        assert_one_error(&take_mine(), "E_STARTUP_LOCKED");
+        log_startup_errors(&assemble_context(Ok(roots.clone()), FEED, http()));
+        assert_one_error(&startup_records(), "E_STARTUP_LOCKED");
         drop(held);
     }
 
@@ -515,17 +531,17 @@ fn startup_errors_are_logged() {
     {
         let (_td, roots) = fresh_temp_roots();
         plant_corrupt(&roots);
-        log_startup_errors(&assemble_context(Ok(roots.clone()), FEED));
-        assert_one_error(&take_mine(), "E_SETTINGS_CORRUPT");
+        log_startup_errors(&assemble_context(Ok(roots.clone()), FEED, http()));
+        assert_one_error(&startup_records(), "E_SETTINGS_CORRUPT");
     }
 
     // Healthy: nothing.
     {
         let (_td, roots) = fresh_temp_roots();
-        let state = assemble_context(Ok(roots.clone()), FEED);
+        let state = assemble_context(Ok(roots.clone()), FEED, http());
         assert!(state.context.is_ok() && state.settings_error.is_none());
         log_startup_errors(&state);
-        let records = take_mine();
+        let records = startup_records();
         assert!(records.is_empty(), "no record: {records:?}");
     }
 }

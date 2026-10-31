@@ -2,7 +2,10 @@
 //! `cfg(any(test, feature = "test-support"))`.
 
 use crate::roots::{PluginRoot, PresetRoots, RootKind, RootPaths, Roots, STAGING_DIR};
+use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock, PoisonError};
+use std::thread::{self, ThreadId};
 
 #[derive(Debug, thiserror::Error)]
 pub enum GuardError {
@@ -123,6 +126,67 @@ pub fn fresh_temp_roots() -> (tempfile::TempDir, Roots) {
     let td = tempfile::TempDir::new().expect("cannot create a TempDir");
     let roots = temp_roots(td.path());
     (td, roots)
+}
+
+/// The crate's `log` targets all start with this; the capture logger records only those.
+const CAPTURE_TARGET_PREFIX: &str = "krate_manager_core";
+
+/// One captured record per `log` call: (thread, target, level, message).
+type CapturedRecord = (ThreadId, String, Level, String);
+
+/// The shared capture store (FR-088). The only `log::set_logger` in the workspace's tests.
+struct Capture {
+    records: Mutex<Vec<CapturedRecord>>,
+}
+
+impl Log for Capture {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.target().starts_with(CAPTURE_TARGET_PREFIX)
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            self.records
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push((
+                    thread::current().id(),
+                    record.target().to_owned(),
+                    record.level(),
+                    record.args().to_string(),
+                ));
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+static CAPTURE: Capture = Capture {
+    records: Mutex::new(Vec::new()),
+};
+static INSTALLED: OnceLock<()> = OnceLock::new();
+
+/// Installs the one process-wide capture logger (FR-088); idempotent, safe from any number of
+/// test threads at once.
+pub fn install_capture() {
+    INSTALLED.get_or_init(|| {
+        log::set_logger(&CAPTURE).expect("the capture logger is the only logger a test installs");
+        log::set_max_level(LevelFilter::Trace);
+    });
+}
+
+/// The calling thread's captured `(target, level, message)` records, removed from the store.
+pub fn take_mine() -> Vec<(String, Level, String)> {
+    let me = thread::current().id();
+    let mut all = CAPTURE
+        .records
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    let (mine, rest): (Vec<_>, Vec<_>) = all.drain(..).partition(|r| r.0 == me);
+    *all = rest;
+    mine.into_iter()
+        .map(|(_, target, level, message)| (target, level, message))
+        .collect()
 }
 
 #[cfg(test)]

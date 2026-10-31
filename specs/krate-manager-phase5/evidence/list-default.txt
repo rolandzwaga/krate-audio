@@ -1,0 +1,147 @@
+context::tests::assemble_cases: test
+context::tests::assemble_locked_instance: test
+context::tests::configured_root_cases: test
+context::tests::http_config_is_carried: test
+context::tests::parse_dev_feed_url_cases: test
+context::tests::reassemble_cases: test
+context::tests::sandbox_holds_through_assemble_and_reassemble: test
+context::tests::startup_errors_are_logged: test
+context::tests::startup_notice_cases: test
+contract::tests::c1_cases_reproduce: test
+contract::tests::ecma_pattern_translation: test
+contract::tests::embedded_schemas_compile: test
+contract::tests::gen_feed_outputs_accepted: test
+contract::tests::keyword_semantics_cases: test
+contract::tests::minisig_text_cases: test
+contract::tests::trusted_comment_cases: test
+contract::tests::unsupported_schema_constructs_are_refused: test
+feed::tests::accept_rows_parse_through_the_client: test
+feed::tests::asset_name_cases: test
+feed::tests::broken_sibling_never_blocks_stable: test
+feed::tests::cache_rules: test
+feed::tests::cache_write_fault_keeps_previous: test
+feed::tests::check_fresh_writes_cache: test
+feed::tests::check_logs_one_line: test
+feed::tests::check_now_sends_no_cache: test
+feed::tests::check_through_proxy_writes_cache: test
+feed::tests::concurrent_checks_leave_one_whole_file: test
+feed::tests::fresh_lower_version_replaces_cache: test
+feed::tests::gen_feed_outputs_parse: test
+feed::tests::model_of_full_v2: test
+feed::tests::model_range_cases: test
+feed::tests::offline_returns_cached_flagged_stale: test
+feed::tests::one_attempt_per_check: test
+feed::tests::prerelease_sibling_is_ignored: test
+feed::tests::rejected_feed_keeps_last_good_copy: test
+feed::tests::roster_follows_the_feed: test
+feed::tests::schema_version_dispatch: test
+feed::tests::sibling_prefix_filter: test
+feed::tests::unknown_keys_do_not_change_the_model: test
+feed::tests::v1_entries_are_sanitized: test
+fixture_server::tests::binds_loopback_port_zero: test
+fixture_server::tests::connect_to_remote_host_is_refused: test
+fixture_server::tests::replies_behave_as_scripted: test
+http::tests::agent_trusts_the_os_store: test
+http::tests::bounded_call_abandons_after_wait: test
+http::tests::chain_shares_one_deadline: test
+http::tests::config_for_dev_url_cases: test
+http::tests::https_only_refuses_before_connecting: test
+http::tests::loopback_proxy_only: test
+http::tests::next_hop_cases: test
+http::tests::no_proxy_bypass: test
+http::tests::no_response_class_cases: test
+http::tests::os_pac_failure_cases: test
+http::tests::os_pac_walk: test
+http::tests::pac_policy_cases: test
+http::tests::production_values: test
+http::tests::proxy_env_from_vars_cases: test
+http::tests::proxy_path_connect: test
+http::tests::proxy_path_http: test
+http::tests::proxy_scheme_cases: test
+http::tests::redirects_are_rechecked: test
+http::tests::resolve_proxy_cases: test
+http::tests::status_and_body_errors: test
+http::tests::url_policy_cases: test
+log_sink::tests::format_line_cases: test
+log_sink::tests::rotating_log_cases: test
+navigation::tests::app_origin_cases: test
+navigation::tests::is_app_origin_cases: test
+pac::tests::fake_pac_host_answers_from_its_table: test
+pac::tests::find_proxy_result_cases: test
+pac::tests::pac_clock_cases: test
+pac::tests::pac_helper_cases: test
+pac::tests::winhttp_answer_cases: test
+pac::tests::wpad_candidate_cases: test
+platform::tests::default_roots_touches_nothing: test
+platform::windows::tests::default_roots_from_env: test
+roots::tests::logs_dir_is_state_logs: test
+roots::tests::new_validates_and_touches_nothing: test
+roots::tests::sandboxed_roots_refuse_an_outside_configured_root: test
+roots::tests::with_configured_plugin_root_cases: test
+settings::tests::abort_leaves_previous_file_and_stray_temp_is_ignored: test
+settings::tests::fault_at_each_step_keeps_previous_file: test
+settings::tests::load_rejections_keep_defaults_and_file: test
+settings::tests::missing_file_gives_defaults_and_writes_nothing: test
+settings::tests::plugin_root_or_default_uses_vst3_user: test
+settings::tests::round_trip_values: test
+settings::tests::save_overwrites_corrupt_and_invalid_files: test
+settings::tests::save_refuses_future_version_file: test
+settings::tests::save_rejects_invalid_values_and_writes_nothing: test
+settings::tests::written_bytes_are_d10: test
+state_lock::tests::acquire_creates_state_dir_and_lock_file_only: test
+state_lock::tests::acquire_io_error_is_named: test
+state_lock::tests::lock_file_survives_drop: test
+state_lock::tests::second_acquire_is_held_while_first_lives: test
+sysproxy::tests::kde_file_read_cases: test
+sysproxy::tests::kioslaverc_path_cases: test
+sysproxy::tests::linux_desktop_choice_cases: test
+sysproxy::tests::linux_proxy_parser_cases: test
+sysproxy::tests::macos_proxy_parser_cases: test
+sysproxy::tests::offset_range_cases: test
+sysproxy::tests::parse_utc_offset_cases: test
+sysproxy::tests::win_ie_strings_are_read_and_freed_once: test
+sysproxy::tests::windows_proxy_parser_cases: test
+test_support::tests::check_under_temp_cases: test
+test_support::tests::check_under_temp_symlink_escape: test
+test_support::tests::temp_roots_in_outside_panics: test
+test_support::tests::temp_roots_in_refusal_creates_nothing: test
+test_support::tests::temp_roots_inside_temp_ok: test
+test_support::tests::temp_roots_on_temp_dir_itself_panics: test
+version::tests::compare_cases: test
+version::tests::native_candidates_windows: test
+version::tests::needs_newer_os_table: test
+version::tests::os_version_cases: test
+version::tests::parse_core_cases: test
+version::tests::reduce_class_version_cases: test
+version::tests::resolve_table: test
+
+116 tests, 0 benchmarks
+frontend_source_scan_reports_planted_strings: test
+planted_app_metadata_changes_fail_the_guard: test
+planted_config_changes_fail_the_guard: test
+real_app_metadata_passes_the_guard: test
+real_src_tauri_config_passes_the_guard: test
+
+5 tests, 0 benchmarks
+core_dependencies_are_the_fr007_set: test
+core_sources_hold_no_production_literal: test
+disallowed_methods_expectations_are_the_seven_d6_sites: test
+feed_model_seams_hold: test
+injection_scanner_reports_planted_violations: test
+production_config_only_in_allowed_tests: test
+reader_dependencies_are_the_ruled_set: test
+src_tauri_names_feed_host_once_and_reads_env_only_in_os_roots: test
+ureq_is_confined_to_http_rs: test
+
+9 tests, 0 benchmarks
+0 tests, 0 benchmarks
+roster_and_hosts_absent_from_sources: test
+roster_scanner_reports_planted_names: test
+
+2 tests, 0 benchmarks
+crates\core\src\feed.rs - feed::AssetName (line 193): test
+crates\core\src\feed.rs - feed::AssetUrl (line 157): test
+crates\core\src\feed.rs - feed::PageUrl (line 175): test
+crates\core\src\feed.rs - feed::PlainName (line 137): test
+
+4 tests, 0 benchmarks

@@ -3,7 +3,8 @@ require('./helpers/write-guard.js');
 
 // SC-019: .github/workflows/manager-ci.yml keeps the Krate Manager Phase 4 shape (spec
 // specs/krate-manager-phase4/spec.md FR-070 to FR-077, FR-080, FR-106, FR-107, SC-019, SC-021; plan §4.16, §4.17,
-// §4.18, PD-11, PD-12, PD-20, PD-27).
+// §4.18, PD-11, PD-12, PD-20, PD-27), plus Phase 5's additions (specs/krate-manager-phase5/spec.md FR-083 to FR-085;
+// plan §4.12, §4.13, SI-4; tasks TA-8): the tools/feed-contract path, the roster absent step, the live-network ban.
 // The workflow is read as text with the indentation-based helpers of workflow-shape.test.js (PD-20: copied in form,
 // no shared helper file): 2-space job keys under `jobs:`, 6-space `- ` step items, 8-space step keys. No YAML
 // library. checkManagerCi(files) is pure and returns every finding; the mutation subtests apply string edits to
@@ -144,7 +145,13 @@ function count(text, needle) {
 
 // --- The Phase 4 shape (plan §4.16, binding).
 
-const PATHS = ["- 'apps/krate-manager/**'", "- '.github/workflows/manager-ci.yml'", "- 'tools/lint-manager-version.js'"];
+// Phase 5 plan §4.12 (SI-4): the feed-contract tools join the path filter.
+const PATHS = [
+  "- 'apps/krate-manager/**'",
+  "- '.github/workflows/manager-ci.yml'",
+  "- 'tools/lint-manager-version.js'",
+  "- 'tools/feed-contract/**'",
+];
 const TRIGGERS = ['push', 'pull_request', 'workflow_dispatch'];
 const CONCURRENCY = ['group: manager-ci-${{ github.ref }}', 'cancel-in-progress: true'];
 const STRATEGY = ['fail-fast: false', 'matrix:', 'os: [windows-latest, macos-latest, ubuntu-24.04]'];
@@ -173,6 +180,7 @@ const STEPS = [
   'tauri build',
   'build warnings',
   'dev-feed absent',
+  'roster absent',
   'artifact version',
   'plist: LSMinimumSystemVersion',
   'plist: no LSFileQuarantineEnabled',
@@ -196,6 +204,7 @@ const ASSERTION_STEPS = [
   'required tests ran',
   'build warnings',
   'dev-feed absent',
+  'roster absent',
   'artifact version',
   ...MACOS_STEPS,
   'Checkout unchanged',
@@ -261,6 +270,8 @@ const COMMANDS = {
     "hits=$(grep -acF 'dev-feed-url.txt' \"$bin\" || true)",
     'if [ "$marker" -ge 1 ] && [ "$hits" = "0" ]; then',
   ],
+  // Phase 5 plan §4.12 (FR-083 as amended by SI-17).
+  'roster absent': ['node - "$bin" <<\'ROSTER\''],
   'artifact version': [
     'want=$(node -p "require(\'./version.json\').version")',
     'got=$(powershell -NoProfile -Command "(Get-Item \'target/release/krate-manager.exe\').VersionInfo.ProductVersion"' +
@@ -313,6 +324,8 @@ const ELEVATION = ['Start-Process', 'RunAs', 'runas ', 'msiexec'];
 // PD-27: a match test that pipes into grep -q (any flag cluster holding q).
 const PIPE_GREP_Q = /\|\s*grep(?:\s+-[A-Za-z]+)*\s+-[A-Za-z]*q/;
 const DEV_FEED_STEPS = ['clippy dev-feed', 'dev-feed absent'];
+// Phase 5 FR-084: the opt-in live-network test never runs in CI (no github.com call from a gate).
+const LIVE_NETWORK = 'live-network';
 
 // Plan §4.18, verbatim.
 const EXPECTED_REQUIRED = {
@@ -366,10 +379,130 @@ const EXPECTED_REQUIRED = {
       'log_sink::tests::rotating_log_cases',
       'context::tests::startup_errors_are_logged',
       'context::tests::parse_dev_feed_url_cases',
+      'contract::tests::embedded_schemas_compile',
+      'contract::tests::unsupported_schema_constructs_are_refused',
+      'contract::tests::keyword_semantics_cases',
+      'contract::tests::c1_cases_reproduce',
+      'contract::tests::gen_feed_outputs_accepted',
+      'contract::tests::ecma_pattern_translation',
+      'contract::tests::trusted_comment_cases',
+      'contract::tests::minisig_text_cases',
+      'feed::tests::accept_rows_parse_through_the_client',
+      'feed::tests::gen_feed_outputs_parse',
+      'feed::tests::schema_version_dispatch',
+      'feed::tests::model_of_full_v2',
+      'feed::tests::model_range_cases',
+      'feed::tests::asset_name_cases',
+      'feed::tests::v1_entries_are_sanitized',
+      'feed::tests::unknown_keys_do_not_change_the_model',
+      'feed::tests::prerelease_sibling_is_ignored',
+      'feed::tests::check_fresh_writes_cache',
+      'feed::tests::check_now_sends_no_cache',
+      'feed::tests::rejected_feed_keeps_last_good_copy',
+      'feed::tests::broken_sibling_never_blocks_stable',
+      'feed::tests::sibling_prefix_filter',
+      'feed::tests::offline_returns_cached_flagged_stale',
+      'feed::tests::cache_rules',
+      'feed::tests::cache_write_fault_keeps_previous',
+      'feed::tests::roster_follows_the_feed',
+      'feed::tests::check_logs_one_line',
+      'feed::tests::concurrent_checks_leave_one_whole_file',
+      'feed::tests::fresh_lower_version_replaces_cache',
+      'feed::tests::one_attempt_per_check',
+      'feed::tests::check_through_proxy_writes_cache',
+      'version::tests::resolve_table',
+      'version::tests::parse_core_cases',
+      'version::tests::reduce_class_version_cases',
+      'version::tests::compare_cases',
+      'version::tests::os_version_cases',
+      'version::tests::needs_newer_os_table',
+      'http::tests::url_policy_cases',
+      'http::tests::redirects_are_rechecked',
+      'http::tests::next_hop_cases',
+      'http::tests::status_and_body_errors',
+      'http::tests::https_only_refuses_before_connecting',
+      'http::tests::config_for_dev_url_cases',
+      'http::tests::agent_trusts_the_os_store',
+      'http::tests::resolve_proxy_cases',
+      'http::tests::loopback_proxy_only',
+      'http::tests::proxy_path_connect',
+      'http::tests::proxy_path_http',
+      'http::tests::no_proxy_bypass',
+      'http::tests::proxy_env_from_vars_cases',
+      'http::tests::proxy_scheme_cases',
+      'http::tests::chain_shares_one_deadline',
+      'http::tests::production_values',
+      'sysproxy::tests::windows_proxy_parser_cases',
+      'sysproxy::tests::macos_proxy_parser_cases',
+      'sysproxy::tests::linux_proxy_parser_cases',
+      'sysproxy::tests::win_ie_strings_are_read_and_freed_once',
+      'sysproxy::tests::linux_desktop_choice_cases',
+      'sysproxy::tests::kioslaverc_path_cases',
+      'sysproxy::tests::kde_file_read_cases',
+      'fixture_server::tests::binds_loopback_port_zero',
+      'fixture_server::tests::connect_to_remote_host_is_refused',
+      'fixture_server::tests::replies_behave_as_scripted',
+      'context::tests::http_config_is_carried',
+      'ureq_is_confined_to_http_rs',
+      'feed_model_seams_hold',
+      'production_config_only_in_allowed_tests',
+      'roster_and_hosts_absent_from_sources',
+      'roster_scanner_reports_planted_names',
+      'pac::tests::pac_helper_cases',
+      'pac::tests::find_proxy_result_cases',
+      'pac::tests::wpad_candidate_cases',
+      'pac::tests::winhttp_answer_cases',
+      'pac::tests::pac_clock_cases',
+      'http::tests::pac_policy_cases',
+      'http::tests::os_pac_walk',
+      'http::tests::os_pac_failure_cases',
+      'http::tests::no_response_class_cases',
+      'http::tests::bounded_call_abandons_after_wait',
+      'sysproxy::tests::parse_utc_offset_cases',
+      'sysproxy::tests::offset_range_cases',
+      'reader_dependencies_are_the_ruled_set',
     ],
-    windows: ['platform::windows::tests::default_roots_from_env'],
-    macos: ['platform::macos::tests::default_roots_from_env'],
-    linux: ['platform::linux::tests::default_roots_from_env'],
+    windows: [
+      'platform::windows::tests::default_roots_from_env',
+      'version::tests::native_candidates_windows',
+    ],
+    macos: [
+      'platform::macos::tests::default_roots_from_env',
+      'version::tests::native_candidates_macos',
+      'sysproxy_cf::tests::from_cf_proxies_cases',
+      'sysproxy::tests::bounded_run_abandons_and_reaps',
+      'pac::tests::url_argument_cases',
+      'pac::tests::script_world_cases',
+      'pac::tests::script_failure_cases',
+      'pac::tests::dns_bound_cases',
+      'http::tests::pac_path_proxy',
+      'http::tests::pac_path_direct',
+      'http::tests::pac_list_walk',
+      'http::tests::pac_per_hop',
+      'http::tests::pac_fetched_once_never_via_proxy',
+      'http::tests::wpad_discovery_walk',
+      'http::tests::pac_fallback_to_static_proxy',
+      'http::tests::pac_body_cap',
+      'feed::tests::check_survives_pac_failure',
+    ],
+    linux: [
+      'platform::linux::tests::default_roots_from_env',
+      'version::tests::native_candidates_linux',
+      'sysproxy::tests::bounded_run_abandons_and_reaps',
+      'pac::tests::url_argument_cases',
+      'pac::tests::script_world_cases',
+      'pac::tests::script_failure_cases',
+      'pac::tests::dns_bound_cases',
+      'http::tests::pac_path_proxy',
+      'http::tests::pac_path_direct',
+      'http::tests::pac_list_walk',
+      'http::tests::pac_per_hop',
+      'http::tests::pac_fetched_once_never_via_proxy',
+      'http::tests::wpad_discovery_walk',
+      'http::tests::pac_fallback_to_static_proxy',
+      'http::tests::pac_body_cap',
+      'feed::tests::check_survives_pac_failure',
+    ],
   },
   vitest: [
     'shows the title and the version',
@@ -412,6 +545,7 @@ function checkWorkflowTop(wf, bad) {
   for (const f of SERIAL_FLAGS) if (wf.includes(f)) bad.push(`manager-ci.yml: serial test flag ${f} (FR-076)`);
   if (wf.includes('\\x1b')) bad.push('manager-ci.yml: a \\x1b escape (PD-11: build the ESC with printf)');
   if (count(wf, 'tests/required-tests.json') !== 1) bad.push('manager-ci.yml: tests/required-tests.json not read once');
+  if (wf.includes(LIVE_NETWORK)) bad.push(`manager-ci.yml: ${LIVE_NETWORK} (FR-084)`);
 }
 
 function checkJob(wf, bad) {
@@ -508,6 +642,7 @@ function checkSteps(wf, steps, bad) {
 }
 
 function checkPackageJson(text, bad) {
+  if (text.includes(LIVE_NETWORK)) bad.push(`package.json: ${LIVE_NETWORK} (FR-084)`);
   const pkg = parseJson(text, 'package.json', bad);
   if (pkg === null) return;
   for (const [name, cmd] of Object.entries(pkg.scripts || {})) {
@@ -524,7 +659,9 @@ function checkRequired(text, bad) {
     const list = req.cargo && req.cargo[os];
     if (!Array.isArray(list) || !list.includes(name)) bad.push(`required-tests.json: cargo.${os} lacks ${name}`);
   }
-  if (!util.isDeepStrictEqual(req, EXPECTED_REQUIRED)) bad.push('required-tests.json differs from plan §4.18');
+  if (!util.isDeepStrictEqual(req, EXPECTED_REQUIRED)) {
+    bad.push('required-tests.json differs from plan §4.18 + Phase 5 plan §4.13');
+  }
 }
 
 /** Every finding on the given file texts; [] when the shape holds. */
@@ -631,6 +768,46 @@ const MUTATIONS = [
     onWorkflow((w) => replaceOnce(w, 'sed "s/${esc}\\[[0-9;]*m//g"', "sed 's/\\x1b\\[[0-9;]*m//g'")),
     /\\x1b/,
   ],
+  // Phase 5 plan §4.12 (SI-4).
+  [
+    "the push path line - 'tools/feed-contract/**' removed",
+    onWorkflow((w) =>
+      replaceOnce(
+        w,
+        "  push:\n    paths:\n      - 'apps/krate-manager/**'\n      - '.github/workflows/manager-ci.yml'\n" +
+          "      - 'tools/lint-manager-version.js'\n      - 'tools/feed-contract/**'\n",
+        "  push:\n    paths:\n      - 'apps/krate-manager/**'\n      - '.github/workflows/manager-ci.yml'\n" +
+          "      - 'tools/lint-manager-version.js'\n",
+      ),
+    ),
+    /on\.push\.paths/,
+  ],
+  ['the roster absent step removed', onWorkflow((w) => removeStep(w, 'roster absent')), /no step "roster absent"/],
+  [
+    'live-network added to a step',
+    onWorkflow((w) =>
+      replaceOnce(w, 'cargo test --workspace --locked 2>&1', 'cargo test --workspace --locked --features live-network 2>&1'),
+    ),
+    /manager-ci\.yml: live-network/,
+  ],
+  [
+    'live-network added to a package.json script',
+    (files) => {
+      const pkg = JSON.parse(files.packageJson);
+      pkg.scripts.test = `${pkg.scripts.test} && cargo test --features live-network`;
+      return { ...files, packageJson: JSON.stringify(pkg, null, 2) };
+    },
+    /package\.json: live-network/,
+  ],
+  [
+    'required-tests.json without fixture_server::tests::replies_behave_as_scripted',
+    (files) => {
+      const req = JSON.parse(files.required);
+      req.cargo.all = req.cargo.all.filter((n) => n !== 'fixture_server::tests::replies_behave_as_scripted');
+      return { ...files, required: JSON.stringify(req, null, 2) };
+    },
+    /required-tests\.json differs/,
+  ],
 ];
 
 test('manager-ci.yml keeps the Phase 4 shape', async (t) => {
@@ -643,6 +820,14 @@ test('manager-ci.yml keeps the Phase 4 shape', async (t) => {
   await t.test('a CRLF copy of the real files gives no finding', () => {
     const crlf = { ...files, workflow: files.workflow.replace(/\n/g, '\r\n') };
     assert.deepEqual(checkManagerCi(crlf), []);
+  });
+
+  await t.test('manager-ci.yml does not name live-network (FR-084)', () => {
+    assert.equal(count(files.workflow, LIVE_NETWORK), 0);
+  });
+
+  await t.test('package.json does not name live-network (FR-084)', () => {
+    assert.equal(count(files.packageJson, LIVE_NETWORK), 0);
   });
 
   await t.test('a release-manager.yml naming dev-feed is a finding', () => {

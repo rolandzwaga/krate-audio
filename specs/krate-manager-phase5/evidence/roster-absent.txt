@@ -1,0 +1,2 @@
+# 2026-10-31 (Windows, T016 close lane B5, from apps/krate-manager/): manager-ci.yml step roster absent, its own run: text, exit=0
+::notice title=roster absent (Windows)::9 names, 0 hits in 4 files
