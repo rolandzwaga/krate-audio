@@ -1,0 +1,34 @@
+Krate Manager Phase 8 close lane, 2026-11-01T09:08:45.049Z, wall=80.8s, logs F:/tmp/gate/krate-manager-phase8-close/20261101-090724 (removed by C3)
+A0    GREEN rustc="rustc 1.99.1 (58cf8f9c3 2026-10-13)" node="v24.7.0" df(repo root)="F: 50G 46G 4.8G 91% /f"
+A0b   GREEN git status --porcelain: 21 lines (without specs/krate-manager-phase8/evidence/) file=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A0b-git-status.txt
+A1a   GREEN step cargo fmt last="" exit=0 wall=2.1s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A1a-cargo-fmt.log
+A1b   GREEN step clippy warning-lines=0 notices="" exit=0 wall=1.7s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A1b-clippy.log
+A1c   GREEN step clippy dev-feed warning-lines=0 notices="::notice title=clippy dev-feed (Windows)::clean" exit=0 wall=5.1s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A1c-clippy-dev-feed.log
+A1d   GREEN step clippy-guard notice="::notice title=clippy-guard (Windows)::rc=101 disallowed=3 from_os=1 Roots::new=1 std::env::var=1 lint-named=5 other-errors=0" copied to specs/krate-manager-phase8/evidence/clippy-guard.txt exit=0 wall=5.0s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A1d-clippy-guard.log
+A1e   GREEN step cargo test binaries=11 passed=276 binaries-with-failures=0 -> specs/krate-manager-phase8/evidence/cargo-test.txt exit=0 wall=35.0s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A1e-cargo-test.log
+A1f   GREEN step core dependency tree notices="::notice title=core dependency tree (Windows)::88 crates, none excluded" copied to specs/krate-manager-phase8/evidence/core-tree.txt exit=0 wall=0.6s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A1f-core-dependency-tree.log
+A1h   GREEN cargo tree -p krate-manager-core -e normal --locked --prefix none --format {p} -> specs/krate-manager-phase8/evidence/core-tree-phase8.txt lines=169 flate2 v1.1.10 present, no tar / tauri / tokio / reqwest / hyper / dirs / home exit=0 wall=0.3s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A1h-core-tree-phase8.log
+A1l   GREEN cargo tree --workspace --target all -e features -i zlib-rs --locked: "nothing to print"; cargo tree --workspace --target all -i tar --locked: "error: package ID specification `tar` did not match any packages" exit=0/exit=101 wall=5.0s logs=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A1l-zlib-rs.log F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A1l-tar.log
+A1j   GREEN SC-001 git diff -U0 2499fb13 -- apps/krate-manager -> specs/krate-manager-phase8/evidence/diff-u0.txt (2312 lines) plus 2 untracked file(s) read whole: no added allow( / expect( attribute, @ts-ignore or eslint-disable exit=0/exit=0 wall=0.1s
+A1k   GREEN FR-090 git diff --name-only 2499fb13 -- apps/krate-manager/src apps/krate-manager/src-tauri apps/krate-manager/index.html: empty; untracked under them: empty exit=0/exit=0 wall=0.1s
+A1m   GREEN rule 8 / TA-1 git diff --numstat 2499fb13: apps/krate-manager/Cargo.lock: empty (want empty); apps/krate-manager/tests/fixtures/clippy-guard/Cargo.lock: 1 0 apps/krate-manager/tests/fixtures/clippy-guard/Cargo.lock (want "1 0") exit=0/exit=0 wall=0.1s
+A2a   GREEN node_modules present: step npm ci not run (tasks.md T006 A2)
+A2b   GREEN step typecheck last="> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json" exit=0 wall=4.5s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A2b-typecheck.log
+A2c   GREEN step lint last="> eslint . --max-warnings 0" exit=0 wall=4.0s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A2c-lint.log
+A2d   GREEN step vitest last="JSON report written to F:/tmp/gate/krate-manager-phase8-close/20261101-090724/vitest.json" exit=0 wall=2.9s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A2d-vitest.log
+A3a   GREEN node --check on 3 files: all ok
+A3b   GREEN node --test plan=1..59 tests=752 pass=747 fail=0 skipped=5 nodeWarnings=0 tap=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A3b-node-test.tap exit=0 wall=24.3s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A3b-node-test.log
+A3c   GREEN L-TAP want "TAP plan=1..59 top-level=59" printed last="TAP plan=1..59 top-level=59" exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A3c-tap-check.log
+A3d   GREEN L-VLINT stderr=none exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A3d-version-lint.log
+A4    GREEN L-YAML .github/workflows/manager-ci.yml exit=0 wall=4.5s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A4-yaml-manager-ci.log
+A5    GREEN L-LINT lint-serial-test-runs last="lint-serial-test-runs: clean (64 files)" exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A5-lint-serial.log
+A6    GREEN L-INDEX gen-specs-index --check last="specs/INDEX.md is up to date." exit=0 wall=0.2s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A6-specs-index.log
+A7a   GREEN scope-check --self-test last="SELF-TEST GREEN (41 cases)" exit=0 wall=0.1s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A7a-scope-self-test.log
+A7b   GREEN L-SCOPE scope-check last="scope-check: 25 paths (14 under apps/krate-manager/, 11 outside), 1 roadmap hunks, 4 shape-test hunks: OK (base 2499fb13)" exit=0 wall=1.3s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A7b-scope-check.log
+A9    GREEN TA-1 / rule 9 grep (todo!( / unimplemented!( outside tests) exit=1 printed nothing wall=0.1s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A9-ta1-grep.log
+A10   GREEN L-WSL last="WSL LANE GREEN (294 passed, 70 s)" info="Linux-run Phase 8 tests seen ok: 5/5" -> specs/krate-manager-phase8/evidence/wsl-core.txt (early signal; closes no PENDING-CI row) exit=0 wall=79.5s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/A10-wsl-lane.log
+B1    GREEN step required tests ran notices="::notice title=required tests ran (Windows)::259 cargo + 29 vitest" want "::notice title=required tests ran (Windows)::259 cargo + 29 vitest" exit=0 wall=0.2s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/B1-required-tests-ran.log
+C1    GREEN git status --porcelain (without specs/krate-manager-phase8/evidence/) equal to A0b (21 lines) file=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/C1-git-status.txt
+C2    GREEN L-SCOPE scope-check last="scope-check: 30 paths (14 under apps/krate-manager/, 16 outside), 1 roadmap hunks, 4 shape-test hunks: OK (base 2499fb13)" exit=0 wall=0.5s log=F:/tmp/gate/krate-manager-phase8-close/20261101-090724/C2-scope-check.log
+C3    GREEN node tools/clean-test-output.js --apply summary="2 entries, 0.00 GB removed" exit=0 wall=0.1s (raw logs under F:/tmp/gate/krate-manager-phase8-close/20261101-090724 removed)
+CLOSE LANE GREEN

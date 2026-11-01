@@ -103,8 +103,9 @@ const DISALLOWED_METHODS: &str = "clippy::disallowed_methods";
 const GROUP_SUPPRESSIONS: [&str; 3] = ["clippy::style", "clippy::all", "warnings"];
 const FIXTURE_LIB: &str = "tests/fixtures/clippy-guard/src/lib.rs";
 /// FR-007: the `[dependencies]` keys of `crates/core/Cargo.toml`.
-const FR007_DEPENDENCIES: [&str; 13] = [
+const FR007_DEPENDENCIES: [&str; 14] = [
     "base64",
+    "flate2",
     "log",
     "minisign-verify",
     "pulldown-cmark",
@@ -148,6 +149,7 @@ const PLATFORM_DIR: &str = "crates/core/src/platform/";
 const DETECT_RS: &str = "crates/core/src/detect.rs";
 const DETECT_TESTS_RS: &str = "crates/core/src/detect_tests.rs";
 const DOWNLOAD_TESTS_RS: &str = "crates/core/src/download_tests.rs";
+const EXTRACT_TESTS_RS: &str = "crates/core/src/extract_tests.rs";
 const NOTES_RS: &str = "crates/core/src/notes.rs";
 const NOTES_TESTS_RS: &str = "crates/core/src/notes_tests.rs";
 const STATUS_RS: &str = "crates/core/src/status.rs";
@@ -159,6 +161,7 @@ const COMMANDS_RS: &str = "src-tauri/src/commands.rs";
 
 // App-root-relative paths the Phase 7 rules name (`DOWNLOAD_TESTS_RS` is above).
 const DOWNLOAD_RS: &str = "crates/core/src/download.rs";
+const EXTRACT_RS: &str = "crates/core/src/extract.rs";
 const VERIFY_RS: &str = "crates/core/src/verify.rs";
 const VERIFY_TESTS_RS: &str = "crates/core/src/verify_tests.rs";
 const TEST_SIGNER_RS: &str = "crates/core/src/test_signer.rs";
@@ -296,7 +299,7 @@ const CONFINED_TOKENS: [(&str, &[&str]); 18] = [
 /// FR-075, PD-31: the only files whose code names `core_foundation`.
 const CORE_FOUNDATION_FILES: [&str; 2] = [SYSPROXY_CF_RS, SYSPROXY_CF_TESTS_RS];
 /// FR-081, FR-073, FR-075: a dependency key and the only manifests that may declare it.
-const CONFINED_TOML_KEYS: [(&str, &[&str]); 12] = [
+const CONFINED_TOML_KEYS: [(&str, &[&str]); 13] = [
     ("ureq", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("rustls", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("rquickjs", &["Cargo.toml", "crates/core/Cargo.toml"]),
@@ -315,7 +318,55 @@ const CONFINED_TOML_KEYS: [(&str, &[&str]); 12] = [
     ("minisign-verify", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("sha2", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("minisign", &["Cargo.toml", "crates/core/Cargo.toml"]),
+    ("flate2", &["Cargo.toml", "crates/core/Cargo.toml"]),
 ];
+/// FR-083 (SI-2, SI-12): every std entry point that creates, truncates or removes a file or
+/// directory or makes a link; `extract.rs` holds them only inside `impl ExtractIo for FsExtractIo`.
+const EXTRACT_FS_TOKENS: [&str; 18] = [
+    "create_dir",
+    "OpenOptions",
+    "create_new",
+    "symlink",
+    "set_permissions",
+    "remove_dir_all",
+    "remove_file",
+    "rename",
+    "File :: create",
+    "fs :: write",
+    "fs :: copy",
+    "File :: options",
+    "DirBuilder",
+    "remove_dir",
+    "soft_link",
+    "symlink_file",
+    "symlink_dir",
+    "set_len",
+];
+/// SI-2: the two `ExtractIo` method names a declaration or a method call may also hold.
+const EXTRACT_IO_METHODS: [&str; 2] = ["create_dir", "symlink"];
+/// FR-083, FR-055: token sequences `extract.rs` never holds.
+const EXTRACT_BANNED: [&str; 9] = [
+    "hard_link",
+    "Command",
+    "TcpStream",
+    "xattr",
+    "thread :: spawn",
+    "sync_all",
+    "sync_data",
+    "sync_file",
+    "sync_dir",
+];
+/// Plan §4.6: the `tempfile` entry points that create under the real `env::temp_dir()`
+/// (`tempfile-3.27.0/src/dir/mod.rs:48`, `:64`, `:187`); none is in `extract.rs`.
+const TEMPFILE_REAL_TEMP: [&str; 5] = [
+    "tempfile :: tempdir",
+    ". tempdir (",
+    "TempDir :: new",
+    "tempfile (",
+    "NamedTempFile",
+];
+/// FR-054: the `fn` names no `impl StagedTree` block holds (besides the `into_` / `take_` prefixes).
+const STAGED_TREE_MOVES: [&str; 3] = ["rename", "persist", "release"];
 /// SC-026: token sequences `http.rs` never holds (one agent, one trust store).
 const SECOND_AGENT_CALLS: [&str; 6] = [
     "new_with_defaults",
@@ -393,7 +444,7 @@ const TEST_BANNED: [&str; 6] = [
 const TEST_PROGRAMS: [&str; 2] = ["sleep", "printf"];
 /// TA-1 (FR-086): a program exactly one test body may start besides `TEST_PROGRAMS`, as (file,
 /// enclosing `fn`, the program literal).
-const TEST_PROGRAM_BODIES: [(&str, &str, &str); 4] = [
+const TEST_PROGRAM_BODIES: [(&str, &str, &str); 6] = [
     (DETECT_TESTS_RS, "probe_metadata_error_unix", "mkfifo"),
     (DETECT_TESTS_RS, "listing_skips_junction_windows", "cmd"),
     (
@@ -406,6 +457,12 @@ const TEST_PROGRAM_BODIES: [(&str, &str, &str); 4] = [
         "staged_links_are_not_followed_windows",
         "cmd",
     ),
+    (
+        EXTRACT_TESTS_RS,
+        "staged_tree_has_no_xattrs_macos",
+        "/usr/bin/xattr",
+    ),
+    (EXTRACT_TESTS_RS, "symlink_entry_unsupported_windows", "cmd"),
 ];
 
 /// FR-063, SC-039 rule 1: environment reads, only in `os_roots.rs` and `proxy_env.rs`.
@@ -528,6 +585,12 @@ const RULE_TEST_SIGNER: &str = "test-signer-declaration";
 const RULE_URL_LITERAL: &str = "url-literal";
 const RULE_WHOLE_READ: &str = "whole-file-read";
 const RULE_FIXTURE_SEAM: &str = "fixture-url-seam";
+const RULE_EXTRACT_FS: &str = "fs-token-outside-fs-extract-io";
+const RULE_EXTRACT_BANNED: &str = "banned-in-extract";
+const RULE_TEMPFILE: &str = "tempfile-outside-create-work-dir";
+const RULE_TAR: &str = "tar-dependency";
+const RULE_STAGED_TREE: &str = "staged-tree-seam";
+const RULE_RELEASE_JSON: &str = "release-json-literal";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Finding {
@@ -2579,7 +2642,13 @@ fn verified_artifact_findings(files: &[(String, String)]) -> Vec<Finding> {
     out.extend(minting_route_findings(
         &toks_of,
         "verify_file",
-        &[VERIFY_RS, DOWNLOAD_RS, VERIFY_TESTS_RS, DOWNLOAD_TESTS_RS],
+        &[
+            VERIFY_RS,
+            DOWNLOAD_RS,
+            VERIFY_TESTS_RS,
+            DOWNLOAD_TESTS_RS,
+            EXTRACT_TESTS_RS,
+        ],
     ));
     out.extend(minting_route_findings(
         &toks_of,
@@ -2875,6 +2944,217 @@ fn verify_confinement_findings(files: &[(String, String)]) -> Vec<Finding> {
             rule: RULE_TEST_SIGNER,
             detail,
         });
+    }
+    out
+}
+
+/// The two lockfiles (app-root-relative path, text): the workspace's and the clippy-guard's.
+fn locks() -> Vec<(String, String)> {
+    let root = app_root();
+    ["Cargo.lock", "tests/fixtures/clippy-guard/Cargo.lock"]
+        .into_iter()
+        .map(|rel| (rel.to_owned(), read_text(&root.join(rel))))
+        .collect()
+}
+
+/// The `name` of every `[[package]]` of a lockfile.
+fn lock_package_names(lock: &str) -> Vec<String> {
+    toml_sections(lock)
+        .into_iter()
+        .filter(|(header, _)| header == "[[package]]")
+        .flat_map(|(_, entries)| entries)
+        .filter(|(key, _)| key == "name")
+        .filter_map(|(_, value)| toml_str(&value).map(str::to_owned))
+        .collect()
+}
+
+/// The `{ … }` body (inclusive) of every `trait ExtractIo` in `toks`.
+fn extract_io_traits(toks: &[&str]) -> Vec<Range<usize>> {
+    seq_at(toks, &["trait", "ExtractIo"])
+        .into_iter()
+        .filter_map(|at| (at..toks.len()).find(|&k| toks[k] == "{" || toks[k] == ";"))
+        .filter(|&open| toks[open] == "{")
+        .map(|open| open..close_of(toks, open) + 1)
+        .collect()
+}
+
+/// Phase 8 (plan §4.6 row 3, SI-2, SI-12; FR-034, FR-054, FR-055, FR-082, FR-083) over the
+/// workspace `.rs` files, the manifests and the lockfiles: `flate2` in non-test code only in
+/// `extract.rs`; `StagedTree {` in non-test code only in `extract.rs`; no `tar` manifest key and
+/// no locked `tar` package; in `extract.rs`, `EXTRACT_FS_TOKENS` only inside
+/// `impl ExtractIo for FsExtractIo` (SI-2's `ExtractIo` method declarations and calls excepted),
+/// `create_dir_all` and `tempfile` only in that impl's `fn create_work_dir`, none of
+/// `TEMPFILE_REAL_TEMP` or `EXTRACT_BANNED`, no `fn sync_*` in `trait ExtractIo`, no `pub` in
+/// `struct StagedTree`, no consuming `impl StagedTree` method and no `release.json` literal.
+/// Absence is never a finding.
+fn extract_findings(
+    files: &[(String, String)],
+    manifests: &[(String, String)],
+    locks: &[(String, String)],
+) -> Vec<Finding> {
+    let lexed = lex(files);
+    let non_test: Vec<(&str, Vec<&str>)> = tokenized(&lexed)
+        .into_iter()
+        .filter(|(rel, _)| !is_test_source(rel))
+        .collect();
+    let mut out = confinement(&non_test, "flate2", &[EXTRACT_RS], RULE_CONFINED);
+    let finding = |file: &str, rule: &'static str, detail: String| Finding {
+        file: file.to_owned(),
+        rule,
+        detail,
+    };
+    for (rel, toks) in &non_test {
+        let n = seq_at(toks, &["StagedTree", "{"]).len();
+        if *rel != EXTRACT_RS && n > 0 {
+            out.push(finding(
+                rel,
+                RULE_STAGED_TREE,
+                format!("`StagedTree {{` {n} time(s) outside extract.rs"),
+            ));
+        }
+    }
+    for (rel, text) in manifests {
+        if toml_dependency_names(text).contains("tar") {
+            out.push(finding(rel, RULE_TAR, "`tar` dependency key".to_owned()));
+        }
+    }
+    for (rel, text) in locks {
+        let n = lock_package_names(text)
+            .iter()
+            .filter(|name| *name == "tar")
+            .count();
+        if n > 0 {
+            out.push(finding(
+                rel,
+                RULE_TAR,
+                format!("`[[package]]` named `tar` {n} time(s)"),
+            ));
+        }
+    }
+    let Some(l) = lexed.iter().find(|l| l.rel == EXTRACT_RS) else {
+        return out;
+    };
+    let toks = tokens(&l.code);
+    let fns = fn_items(&toks);
+    let blocks = impl_blocks(&toks);
+    let inside = |ranges: &[Range<usize>], p: usize| ranges.iter().any(|r| r.contains(&p));
+    let io_impls: Vec<Range<usize>> = blocks
+        .iter()
+        .filter(|b| b.trait_name == Some("ExtractIo"))
+        .map(|b| b.body.clone())
+        .collect();
+    let fs_impls: Vec<Range<usize>> = blocks
+        .iter()
+        .filter(|b| b.trait_name == Some("ExtractIo") && b.self_name == "FsExtractIo")
+        .map(|b| b.body.clone())
+        .collect();
+    let traits = extract_io_traits(&toks);
+    let work_dir: Vec<Range<usize>> = fns
+        .iter()
+        .filter(|f| f.name == "create_work_dir" && inside(&fs_impls, f.start))
+        .filter_map(|f| f.body.clone())
+        .collect();
+    // SI-2: `fn create_dir` / `fn symlink` in `trait ExtractIo` or an `impl ExtractIo for …`, and
+    // `. create_dir (` / `. symlink (` (std has no method of either name).
+    let io_method_site = |p: usize| {
+        EXTRACT_IO_METHODS.contains(&toks[p])
+            && p > 0
+            && ((toks[p - 1] == "fn" && (inside(&traits, p) || inside(&io_impls, p)))
+                || (toks[p - 1] == "." && toks.get(p + 1) == Some(&"(")))
+    };
+    let mut report =
+        |rule: &'static str, detail: String| out.push(finding(EXTRACT_RS, rule, detail));
+    for needle in EXTRACT_FS_TOKENS {
+        let n = seq_at(&toks, &tokens(needle))
+            .into_iter()
+            .filter(|&p| !inside(&fs_impls, p) && !io_method_site(p))
+            .count();
+        if n > 0 {
+            report(
+                RULE_EXTRACT_FS,
+                format!("`{needle}` {n} time(s) outside impl ExtractIo for FsExtractIo"),
+            );
+        }
+    }
+    for (needle, rule) in [
+        ("create_dir_all", RULE_EXTRACT_FS),
+        ("tempfile", RULE_TEMPFILE),
+    ] {
+        let n = seq_at(&toks, &[needle])
+            .into_iter()
+            .filter(|&p| !inside(&work_dir, p))
+            .count();
+        if n > 0 {
+            report(
+                rule,
+                format!(
+                    "`{needle}` {n} time(s) outside fn create_work_dir of impl ExtractIo for FsExtractIo"
+                ),
+            );
+        }
+    }
+    for (list, rule) in [
+        (&TEMPFILE_REAL_TEMP[..], RULE_TEMPFILE),
+        (&EXTRACT_BANNED[..], RULE_EXTRACT_BANNED),
+    ] {
+        for needle in list {
+            let n = seq_at(&toks, &tokens(needle)).len();
+            if n > 0 {
+                report(rule, format!("`{needle}` {n} time(s)"));
+            }
+        }
+    }
+    for f in fns
+        .iter()
+        .filter(|f| inside(&traits, f.start) && f.name.starts_with("sync_"))
+    {
+        report(
+            RULE_EXTRACT_BANNED,
+            format!("`fn {}` declared in trait ExtractIo", f.name),
+        );
+    }
+    for (_, body) in item_bodies(&toks)
+        .into_iter()
+        .filter(|(name, _)| *name == "StagedTree")
+    {
+        let n = toks[body].iter().filter(|t| **t == "pub").count();
+        if n > 0 {
+            report(
+                RULE_STAGED_TREE,
+                format!("{n} `pub` token(s) in the body of struct StagedTree"),
+            );
+        }
+    }
+    for block in blocks.iter().filter(|b| b.self_name == "StagedTree") {
+        for f in fns.iter().filter(|f| block.body.contains(&f.start)) {
+            let params = &toks[f.params.clone()];
+            if params.first() == Some(&"self") || params.starts_with(&["mut", "self"]) {
+                report(
+                    RULE_STAGED_TREE,
+                    format!("`fn {}` of impl StagedTree takes `self` by value", f.name),
+                );
+            }
+            if f.name.starts_with("into_")
+                || f.name.starts_with("take_")
+                || STAGED_TREE_MOVES.contains(&f.name)
+            {
+                report(
+                    RULE_STAGED_TREE,
+                    format!("`fn {}` in impl StagedTree", f.name),
+                );
+            }
+        }
+    }
+    let n = l
+        .literals
+        .iter()
+        .filter(|lit| lit.text.contains("release.json"))
+        .count();
+    if n > 0 {
+        report(
+            RULE_RELEASE_JSON,
+            format!("{n} literal(s) holding `release.json`"),
+        );
     }
     out
 }
@@ -3359,7 +3639,7 @@ fn core_dependencies_are_the_fr007_set() {
     assert_eq!(keys, expected, "crates/core/Cargo.toml [dependencies]");
     assert_eq!(
         section_keys(&manifest, "[dev-dependencies]"),
-        BTreeSet::from(["flate2".to_owned(), "minisign".to_owned()]),
+        BTreeSet::from(["minisign".to_owned()]),
         "crates/core/Cargo.toml [dev-dependencies]"
     );
 
@@ -3582,6 +3862,21 @@ fn ureq_is_confined_to_http_rs() {
         "src-tauri/Cargo.toml",
         RULE_TOML_KEY,
         "ureq key",
+    );
+    // FR-080 (TA-12): `flate2` only in the root and core manifests.
+    let planted_manifests = replace_in(
+        &manifests,
+        "src-tauri/Cargo.toml",
+        "[dependencies]\n",
+        "[dependencies]\nflate2 = \"1\"\n",
+    );
+    let planted = ureq_findings(&files, &planted_manifests);
+    assert_reported(
+        &base,
+        &planted,
+        "src-tauri/Cargo.toml",
+        RULE_TOML_KEY,
+        "flate2 key",
     );
 
     // The lexer keeps `WinHttpGetProxyForUrlEx` apart from the banned `WinHttpGetProxyForUrl`.
@@ -4438,6 +4733,26 @@ fn verified_artifact_scanner_reports_plants() {
             VERIFY_RS,
             "a bare `pub name` field in Expected",
         ),
+        // Phase 8 (plan §4.6 row 5): `extract.rs` is no `verify_file` caller (FR-088) and
+        // `extract_tests.rs` is no `from_text` caller (FR-084).
+        (
+            plant(
+                &files,
+                EXTRACT_RS,
+                "fn f() {\n    let _ = verify_file(p, e, k);\n}\n",
+            ),
+            EXTRACT_RS,
+            "a `verify_file(` call in extract.rs",
+        ),
+        (
+            plant(
+                &files,
+                EXTRACT_TESTS_RS,
+                "fn f() {\n    let _ = SigningKey::from_text(t);\n}\n",
+            ),
+            EXTRACT_TESTS_RS,
+            "a `SigningKey::from_text(` call in extract_tests.rs",
+        ),
     ];
     for (planted, file, what) in &plants {
         let planted = verified_artifact_findings(planted);
@@ -4628,6 +4943,7 @@ fn verify_crates_are_confined() {
         TEST_SUPPORT_RS,
         HTTP_RS,
         "crates/core/src/lib.rs",
+        EXTRACT_RS,
     ] {
         assert!(
             files.iter().any(|(r, _)| r == must),
@@ -4636,13 +4952,28 @@ fn verify_crates_are_confined() {
     }
     let base = verify_confinement_findings(&files);
     assert!(base.is_empty(), "FR-082 crate findings:\n{}", show(&base));
+    let extract = extract_findings(&files, &manifests(), &locks());
+    assert!(
+        extract.is_empty(),
+        "FR-034 / FR-054 / FR-055 / FR-082 / FR-083 findings:\n{}",
+        show(&extract)
+    );
 }
 
 #[test]
 fn verify_confinement_scanner_reports_plants() {
     let files = workspace_rs_files();
-    let base = verify_confinement_findings(&files);
-    let plants: [(&str, &str, &str); 6] = [
+    let manifests = manifests();
+    let locks = locks();
+    // Phase 8 (plan §4.6 row 3): the `extract_findings` rules run beside the Phase 7 ones.
+    let scan =
+        |files: &[(String, String)], manifests: &[(String, String)], locks: &[(String, String)]| {
+            let mut out = verify_confinement_findings(files);
+            out.extend(extract_findings(files, manifests, locks));
+            out
+        };
+    let base = scan(&files, &manifests, &locks);
+    let plants: [(&str, &str, &str); 20] = [
         (
             DOWNLOAD_RS,
             "use minisign_verify::PublicKey;\n",
@@ -4657,23 +4988,104 @@ fn verify_confinement_scanner_reports_plants() {
             "pub mod test_signer;\n",
             RULE_TEST_SIGNER,
         ),
+        // Phase 8, FR-082: `flate2` only in `extract.rs`, `sha2` still only in `verify.rs`.
+        (FEED_RS, "use flate2::read::GzDecoder;\n", RULE_CONFINED),
+        (EXTRACT_RS, "use sha2::Sha256;\n", RULE_CONFINED),
+        // FR-083 (SI-2, SI-12): mutating tokens outside `impl ExtractIo for FsExtractIo`.
+        (
+            EXTRACT_RS,
+            "fn f() { std::fs::create_dir(\"x\").ok(); }\n",
+            RULE_EXTRACT_FS,
+        ),
+        (
+            EXTRACT_RS,
+            "fn f(p: &std::path::Path) { let _ = std::fs::File::options().write(true).create(true).open(p); }\n",
+            RULE_EXTRACT_FS,
+        ),
+        (
+            EXTRACT_RS,
+            "fn f() { let _ = std::fs::DirBuilder::new().create(\"x\"); }\n",
+            RULE_EXTRACT_FS,
+        ),
+        (
+            EXTRACT_RS,
+            "fn f() { std::fs::create_dir_all(\"x\").ok(); }\n",
+            RULE_EXTRACT_FS,
+        ),
+        // FR-055 (SC-026): no durability call, no `sync_*` in `trait ExtractIo`.
+        (
+            EXTRACT_RS,
+            "fn f(x: std::fs::File) { x.sync_all().ok(); }\n",
+            RULE_EXTRACT_BANNED,
+        ),
+        (
+            EXTRACT_RS,
+            "trait ExtractIo { fn sync_tree(&self); }\n",
+            RULE_EXTRACT_BANNED,
+        ),
+        // The `tempfile` rule: only in `fn create_work_dir`, never under the real temp dir.
+        (
+            EXTRACT_RS,
+            "fn f() { let _ = tempfile::tempdir(); }\n",
+            RULE_TEMPFILE,
+        ),
+        (EXTRACT_RS, "use tempfile::Builder;\n", RULE_TEMPFILE),
+        // SC-016, SC-025 (FR-050, FR-054): no public field, no consuming method, no literal elsewhere.
+        (
+            EXTRACT_RS,
+            "pub struct StagedTree { pub root: PathBuf }\n",
+            RULE_STAGED_TREE,
+        ),
+        (
+            EXTRACT_RS,
+            "impl StagedTree { pub fn into_bundle(self) -> PathBuf { self.root } }\n",
+            RULE_STAGED_TREE,
+        ),
+        (
+            DOWNLOAD_RS,
+            "fn f(p: PathBuf) -> u8 { let _ = StagedTree { root: p }; 0 }\n",
+            RULE_STAGED_TREE,
+        ),
+        // FR-034: no `release.json`.
+        (
+            EXTRACT_RS,
+            "const PLANTED: &str = \"release.json\";\n",
+            RULE_RELEASE_JSON,
+        ),
     ];
     for (rel, text, rule) in plants {
-        let planted = verify_confinement_findings(&plant(&files, rel, text));
+        let planted = scan(&plant(&files, rel, text), &manifests, &locks);
         assert_reported(&base, &planted, rel, rule, text);
     }
-    // The signer's users and a comment are not findings.
+    // FR-082: `tar` is no manifest key and no locked package (the lock half catches a transitive one).
+    let key = "tar = \"0.4\"";
+    let planted = scan(
+        &files,
+        &replace_in(
+            &manifests,
+            "crates/core/Cargo.toml",
+            "[dependencies]\n",
+            &format!("[dependencies]\n{key}\n"),
+        ),
+        &locks,
+    );
+    assert_reported(&base, &planted, "crates/core/Cargo.toml", RULE_TAR, key);
+    let package = "[[package]]\nname = \"tar\"\nversion = \"0.4.44\"\n";
+    let planted = scan(&files, &manifests, &plant(&locks, "Cargo.lock", package));
+    assert_reported(&base, &planted, "Cargo.lock", RULE_TAR, package);
+    // The signer's users, a comment and the `ExtractIo` method names (SI-2) are not findings.
     for (rel, text) in [
         (
             VERIFY_TESTS_RS,
             "use crate::test_signer::TestSigner;\nfn quiet() { let _ = minisign::KeyPair::generate_unencrypted_keypair(); }\n",
         ),
         (DOWNLOAD_RS, "// minisign_verify::PublicKey, sha2::Sha256\n"),
+        (
+            EXTRACT_RS,
+            "trait ExtractIo { fn create_dir(&self, p: &Path) -> io::Result<()>; fn symlink(&self, t: &str, l: &Path) -> io::Result<()>; }\nfn g(io: &dyn ExtractIo) { io.create_dir(p).ok(); }\n",
+        ),
     ] {
-        let new = added(
-            &base,
-            &verify_confinement_findings(&plant(&files, rel, text)),
-        );
+        let new = added(&base, &scan(&plant(&files, rel, text), &manifests, &locks));
         assert!(new.is_empty(), "{rel}: quiet {text:?}:\n{}", show(&new));
     }
 }

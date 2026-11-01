@@ -1,0 +1,2311 @@
+diff --git a/apps/krate-manager/Cargo.toml b/apps/krate-manager/Cargo.toml
+index c92c3582..bcbc02b2 100644
+--- a/apps/krate-manager/Cargo.toml
++++ b/apps/krate-manager/Cargo.toml
+@@ -16,0 +17 @@ core-foundation = "0.10.1"
++# Phase 8 D1: core's extract.rs (gzip); the tar reader is in-crate
+diff --git a/apps/krate-manager/crates/core/Cargo.toml b/apps/krate-manager/crates/core/Cargo.toml
+index 914ed422..8d727a02 100644
+--- a/apps/krate-manager/crates/core/Cargo.toml
++++ b/apps/krate-manager/crates/core/Cargo.toml
+@@ -16,0 +17,2 @@ base64 = { workspace = true }
++# Phase 8 D1: extract.rs only (FR-082)
++flate2 = { workspace = true }
+@@ -35 +36,0 @@ ureq = { workspace = true }
+-flate2 = { workspace = true }
+diff --git a/apps/krate-manager/crates/core/src/contract.rs b/apps/krate-manager/crates/core/src/contract.rs
+index c31c3189..be53e070 100644
+--- a/apps/krate-manager/crates/core/src/contract.rs
++++ b/apps/krate-manager/crates/core/src/contract.rs
+@@ -1024 +1024 @@ fn plugin_name_re() -> &'static Regex {
+-fn reserved_stem_re() -> &'static Regex {
++pub(crate) fn reserved_stem_re() -> &'static Regex {
+diff --git a/apps/krate-manager/crates/core/src/detect.rs b/apps/krate-manager/crates/core/src/detect.rs
+index 9237a7dd..1bddce49 100644
+--- a/apps/krate-manager/crates/core/src/detect.rs
++++ b/apps/krate-manager/crates/core/src/detect.rs
+@@ -692 +692 @@ pub fn strip_trailing_commas(text: &str) -> Cow<'_, str> {
+-fn moduleinfo_version(text: &str, path: &Path) -> CopyVersion {
++pub(crate) fn moduleinfo_version(text: &str, path: &Path) -> CopyVersion {
+diff --git a/apps/krate-manager/crates/core/src/lib.rs b/apps/krate-manager/crates/core/src/lib.rs
+index 6262611d..ff8586bf 100644
+--- a/apps/krate-manager/crates/core/src/lib.rs
++++ b/apps/krate-manager/crates/core/src/lib.rs
+@@ -6,0 +7 @@ pub mod download;
++pub mod extract;
+diff --git a/apps/krate-manager/crates/core/src/test_support.rs b/apps/krate-manager/crates/core/src/test_support.rs
+index 60805c69..04c6b454 100644
+--- a/apps/krate-manager/crates/core/src/test_support.rs
++++ b/apps/krate-manager/crates/core/src/test_support.rs
+@@ -9,0 +10,3 @@ use crate::download::{
++use crate::extract::{
++    ArchiveRead, EntryType, ExtractFile, ExtractIo, FsExtractIo, ListingEntry, NodeKind,
++};
+@@ -18,2 +21,4 @@ use std::collections::BTreeMap;
+-use std::io;
+-use std::path::{Path, PathBuf};
++use std::collections::btree_map::Entry;
++use std::ffi::OsString;
++use std::io::{self, Read};
++use std::path::{Component, Path, PathBuf};
+@@ -21 +26 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
++use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
+@@ -81,2 +86 @@ pub fn check_under_temp(base: &Path, temp_root: &Path) -> Result<PathBuf, GuardE
+-/// The guard first (panic before any directory exists), then every root as a subdirectory
+-/// of the canonical base, one `join` per component (PD-6), sandboxed to that base (PD-24).
++/// The guard first (panic before any directory exists), then `roots_at` the canonical base.
+@@ -92,3 +96,9 @@ fn temp_roots_in(base: &Path, temp_root: &Path) -> Roots {
+-    let plugins = canonical_base.join("plugins");
+-    let presets = canonical_base.join("presets");
+-    let state_dir = canonical_base.join("state");
++    roots_at(&canonical_base)
++}
++
++/// Every root as a subdirectory of `base` as spelled, one `join` per component (PD-6),
++/// sandboxed to `base` (PD-24), created. The caller has checked `base`.
++fn roots_at(base: &Path) -> Roots {
++    let plugins = base.join("plugins");
++    let presets = base.join("presets");
++    let state_dir = base.join("state");
+@@ -116 +126 @@ fn temp_roots_in(base: &Path, temp_root: &Path) -> Roots {
+-        .sandboxed(canonical_base);
++        .sandboxed(base.to_path_buf());
+@@ -133,0 +144,25 @@ fn temp_roots_in(base: &Path, temp_root: &Path) -> Roots {
++/// FR-089: roots spelled through a symlinked parent, `<canonical td>/via -> real`, sandboxed to
++/// `<canonical td>/via`; `td` is checked first (panic before anything is created).
++#[cfg(unix)]
++pub fn temp_roots_via_link(td: &Path) -> Roots {
++    let canonical = check_under_temp(td, &canonical_temp_dir())
++        .unwrap_or_else(|e| panic!("temp_roots_via_link refused: {e}"));
++    let real = canonical.join("real");
++    std::fs::create_dir(&real)
++        .unwrap_or_else(|e| panic!("temp_roots_via_link cannot create {}: {e}", real.display()));
++    let via = canonical.join("via");
++    std::os::unix::fs::symlink("real", &via)
++        .unwrap_or_else(|e| panic!("temp_roots_via_link cannot link {}: {e}", via.display()));
++    roots_at(&via)
++}
++
++/// FR-089: roots spelled on `td` exactly as `TempDir::new()` returned it (the raw temp-dir
++/// spelling), sandboxed to `td`; the canonical form is checked first.
++#[cfg(target_os = "macos")]
++pub fn temp_roots_raw(td: &Path) -> Roots {
++    if let Err(e) = check_under_temp(td, &canonical_temp_dir()) {
++        panic!("temp_roots_raw refused: {e}");
++    }
++    roots_at(td)
++}
++
+@@ -584,0 +620,1162 @@ impl DownloadRig {
++// Phase 8 test doubles (plan §4.5, FR-087; tasks TA-3, TA-4, TA-13).
++
++/// The kind of one recorded `ExtractIo` call.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum XKind {
++    OpenArchive,
++    Rewind,
++    ListDir,
++    CreateWorkDir,
++    CreateDir,
++    CreateFile,
++    Write,
++    SetMode,
++    Symlink,
++    RemoveTree,
++    RemoveEntry,
++    KindOf,
++    ReadTree,
++    Canonicalize,
++    ReadFile,
++}
++
++/// One recorded `ExtractIo` call with its path; `Write` carries the exact slice passed to
++/// `ExtractFile::write_all`, under the path `create_file` was given.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub enum XOp {
++    OpenArchive(PathBuf),
++    Rewind,
++    ListDir(PathBuf),
++    CreateWorkDir { extract: PathBuf, prefix: String },
++    CreateDir(PathBuf),
++    CreateFile(PathBuf),
++    Write { path: PathBuf, bytes: Vec<u8> },
++    SetMode(PathBuf, u32),
++    Symlink { target: String, link: PathBuf },
++    RemoveTree(PathBuf),
++    RemoveEntry(PathBuf, NodeKind),
++    KindOf(PathBuf),
++    ReadTree(PathBuf),
++    Canonicalize(PathBuf),
++    ReadFile(PathBuf),
++}
++
++impl XOp {
++    pub fn kind(&self) -> XKind {
++        match self {
++            XOp::OpenArchive(_) => XKind::OpenArchive,
++            XOp::Rewind => XKind::Rewind,
++            XOp::ListDir(_) => XKind::ListDir,
++            XOp::CreateWorkDir { .. } => XKind::CreateWorkDir,
++            XOp::CreateDir(_) => XKind::CreateDir,
++            XOp::CreateFile(_) => XKind::CreateFile,
++            XOp::Write { .. } => XKind::Write,
++            XOp::SetMode(..) => XKind::SetMode,
++            XOp::Symlink { .. } => XKind::Symlink,
++            XOp::RemoveTree(_) => XKind::RemoveTree,
++            XOp::RemoveEntry(..) => XKind::RemoveEntry,
++            XOp::KindOf(_) => XKind::KindOf,
++            XOp::ReadTree(_) => XKind::ReadTree,
++            XOp::Canonicalize(_) => XKind::Canonicalize,
++            XOp::ReadFile(_) => XKind::ReadFile,
++        }
++    }
++
++    /// The call's path: `None` only for `Rewind`; `extract` for `CreateWorkDir`, `link` for `Symlink`.
++    pub fn path(&self) -> Option<&Path> {
++        match self {
++            XOp::Rewind => None,
++            XOp::OpenArchive(path)
++            | XOp::ListDir(path)
++            | XOp::CreateDir(path)
++            | XOp::CreateFile(path)
++            | XOp::SetMode(path, _)
++            | XOp::RemoveTree(path)
++            | XOp::RemoveEntry(path, _)
++            | XOp::KindOf(path)
++            | XOp::ReadTree(path)
++            | XOp::Canonicalize(path)
++            | XOp::ReadFile(path)
++            | XOp::Write { path, .. } => Some(path),
++            XOp::CreateWorkDir { extract, .. } => Some(extract),
++            XOp::Symlink { link, .. } => Some(link),
++        }
++    }
++
++    /// True for exactly FR-087's eight mutating kinds.
++    pub fn is_mutating(&self) -> bool {
++        matches!(
++            self.kind(),
++            XKind::CreateWorkDir
++                | XKind::CreateDir
++                | XKind::CreateFile
++                | XKind::Write
++                | XKind::SetMode
++                | XKind::Symlink
++                | XKind::RemoveTree
++                | XKind::RemoveEntry
++        )
++    }
++}
++
++/// One node of a `MemExtractIo` tree.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub enum MemNode {
++    Dir { mode: u32 },
++    File { bytes: Vec<u8>, mode: u32 },
++    Link { target: String },
++}
++
++/// What `FaultyExtractIo::remove_tree` does: delegate, succeed removing nothing, or fail.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum RemoveTreeMode {
++    Forward,
++    Noop,
++    Fail(io::ErrorKind),
++}
++
++/// The archive handle's read fails with `kind` once `after` bytes of `pass` were served (pass 1 is
++/// before the first rewind).
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct ReadFault {
++    pub pass: u8,
++    pub after: u64,
++    pub kind: io::ErrorKind,
++}
++
++/// An `ArchiveRead` serving `first` until the first `rewind`, then `after_rewind`.
++pub struct TwoPhaseArchive {
++    first: Vec<u8>,
++    after_rewind: Vec<u8>,
++    pos: usize,
++    rewound: bool,
++}
++
++impl TwoPhaseArchive {
++    pub fn new(first: Vec<u8>, after_rewind: Vec<u8>) -> TwoPhaseArchive {
++        TwoPhaseArchive {
++            first,
++            after_rewind,
++            pos: 0,
++            rewound: false,
++        }
++    }
++}
++
++impl Read for TwoPhaseArchive {
++    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
++        let source = if self.rewound {
++            &self.after_rewind
++        } else {
++            &self.first
++        };
++        let rest = source.get(self.pos..).unwrap_or_default();
++        let n = rest.len().min(buf.len());
++        buf[..n].copy_from_slice(&rest[..n]);
++        self.pos += n;
++        Ok(n)
++    }
++}
++
++impl ArchiveRead for TwoPhaseArchive {
++    fn rewind(&mut self) -> io::Result<()> {
++        self.pos = 0;
++        self.rewound = true;
++        Ok(())
++    }
++}
++
++/// The number of `XKind` variants (one counter each in a `CallLog`).
++const XKIND_COUNT: usize = 15;
++
++/// The call record and per-kind counters a double shares with the handles it returns.
++#[derive(Default)]
++struct CallLog {
++    calls: Vec<XOp>,
++    per_kind: [usize; XKIND_COUNT],
++}
++
++/// Records every call of one double and its handles; fails the planned calls (`fails`: the n-th
++/// call, 1-based, of a kind returns the kind's error).
++#[derive(Clone, Default)]
++struct Recorder {
++    log: Arc<Mutex<CallLog>>,
++    fails: Vec<(XKind, usize, io::ErrorKind)>,
++}
++
++impl Recorder {
++    /// Records `op`, then returns its planned error, if any.
++    fn record(&self, op: XOp) -> io::Result<()> {
++        let kind = op.kind();
++        let nth = {
++            let mut log = self.log.lock().unwrap_or_else(PoisonError::into_inner);
++            log.calls.push(op);
++            let count = &mut log.per_kind[kind as usize];
++            *count += 1;
++            *count
++        };
++        match self.fails.iter().find(|&&(k, n, _)| k == kind && n == nth) {
++            Some(&(_, _, error)) => Err(io::Error::from(error)),
++            None => Ok(()),
++        }
++    }
++
++    fn calls(&self) -> Vec<XOp> {
++        self.log
++            .lock()
++            .unwrap_or_else(PoisonError::into_inner)
++            .calls
++            .clone()
++    }
++
++    fn mutating_calls(&self) -> usize {
++        self.log
++            .lock()
++            .unwrap_or_else(PoisonError::into_inner)
++            .calls
++            .iter()
++            .filter(|op| op.is_mutating())
++            .count()
++    }
++
++    /// `inner`, recording each `rewind` and failing a read as `fault` plans.
++    fn archive(
++        &self,
++        inner: Box<dyn ArchiveRead>,
++        fault: Option<ReadFault>,
++    ) -> Box<dyn ArchiveRead> {
++        Box::new(WatchedArchive {
++            inner,
++            rec: self.clone(),
++            fault,
++            pass: 1,
++            served: 0,
++        })
++    }
++
++    /// `inner`, recording each `write_all` as `Write` under `path` (the `create_file` argument).
++    fn file(&self, inner: Box<dyn ExtractFile>, path: &Path) -> Box<dyn ExtractFile> {
++        Box::new(WatchedFile {
++            inner,
++            rec: self.clone(),
++            path: path.to_path_buf(),
++        })
++    }
++}
++
++/// The archive handle every double returns: records `rewind`, counts the bytes of each pass.
++struct WatchedArchive {
++    inner: Box<dyn ArchiveRead>,
++    rec: Recorder,
++    fault: Option<ReadFault>,
++    /// 1 before the first rewind.
++    pass: u8,
++    /// Bytes served in this pass.
++    served: u64,
++}
++
++impl Read for WatchedArchive {
++    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
++        let mut limit = buf.len();
++        if let Some(fault) = self.fault
++            && fault.pass == self.pass
++        {
++            let left = fault.after.saturating_sub(self.served);
++            if left == 0 {
++                return Err(io::Error::from(fault.kind));
++            }
++            limit = limit.min(usize::try_from(left).unwrap_or(usize::MAX));
++        }
++        let n = self.inner.read(&mut buf[..limit])?;
++        self.served = self
++            .served
++            .saturating_add(u64::try_from(n).unwrap_or(u64::MAX));
++        Ok(n)
++    }
++}
++
++impl ArchiveRead for WatchedArchive {
++    fn rewind(&mut self) -> io::Result<()> {
++        self.rec.record(XOp::Rewind)?;
++        self.inner.rewind()?;
++        self.pass = self.pass.saturating_add(1);
++        self.served = 0;
++        Ok(())
++    }
++}
++
++/// The staged-file handle every double returns: records each slice, then delegates.
++struct WatchedFile {
++    inner: Box<dyn ExtractFile>,
++    rec: Recorder,
++    path: PathBuf,
++}
++
++impl ExtractFile for WatchedFile {
++    fn write_all(&mut self, bytes: &[u8]) -> io::Result<()> {
++        self.rec.record(XOp::Write {
++            path: self.path.clone(),
++            bytes: bytes.to_vec(),
++        })?;
++        self.inner.write_all(bytes)
++    }
++}
++
++/// A `MemExtractIo` tree: absolute keys, spelled as the test's roots.
++type MemTree = BTreeMap<PathBuf, MemNode>;
++
++/// The links one `canonicalize` follows before it gives up (Linux's `MAXSYMLINKS`).
++const MAX_LINK_HOPS: usize = 40;
++
++fn not_found() -> io::Error {
++    io::Error::from(io::ErrorKind::NotFound)
++}
++
++fn not_a_directory() -> io::Error {
++    io::Error::from(io::ErrorKind::NotADirectory)
++}
++
++/// True for a proper ancestor of `base` (an existing directory that canonicalises to itself).
++fn is_ancestor(base: &Path, path: &Path) -> bool {
++    path != base && base.starts_with(path)
++}
++
++/// The node at `key`, never following a link: a proper ancestor of `base` is a directory; any
++/// other key outside `base` is absent.
++fn mem_kind(base: &Path, tree: &MemTree, key: &Path) -> Option<NodeKind> {
++    if is_ancestor(base, key) {
++        return Some(NodeKind::Dir);
++    }
++    if !key.starts_with(base) {
++        return None;
++    }
++    tree.get(key).map(|node| match node {
++        MemNode::Dir { .. } => NodeKind::Dir,
++        MemNode::File { .. } => NodeKind::File,
++        MemNode::Link { .. } => NodeKind::Symlink,
++    })
++}
++
++/// One component of a path being resolved.
++enum Step {
++    Up,
++    Name(OsString),
++}
++
++/// `realpath` over the tree: links resolved component by component (`/`-separated targets,
++/// relative to the link's directory); an absent component, a dangling link included, is `NotFound`.
++fn mem_resolve(base: &Path, tree: &MemTree, path: &Path) -> io::Result<PathBuf> {
++    let mut root = PathBuf::new();
++    let mut rest = Vec::new();
++    for component in path.components() {
++        match component {
++            Component::Prefix(_) | Component::RootDir => root.push(component.as_os_str()),
++            Component::CurDir => {}
++            Component::ParentDir => rest.push(Step::Up),
++            Component::Normal(name) => rest.push(Step::Name(name.to_owned())),
++        }
++    }
++    rest.reverse();
++    let mut out = root.clone();
++    let mut hops = 0;
++    while let Some(step) = rest.pop() {
++        let name = match step {
++            Step::Up => {
++                out.pop();
++                continue;
++            }
++            Step::Name(name) => name,
++        };
++        let candidate = out.join(&name);
++        if is_ancestor(base, &candidate) {
++            out = candidate;
++            continue;
++        }
++        let node = if candidate.starts_with(base) {
++            tree.get(&candidate)
++        } else {
++            None
++        };
++        match node {
++            None => return Err(not_found()),
++            Some(MemNode::Dir { .. }) => out = candidate,
++            Some(MemNode::File { .. }) => {
++                if !rest.is_empty() {
++                    return Err(not_a_directory());
++                }
++                out = candidate;
++            }
++            Some(MemNode::Link { target }) => {
++                hops += 1;
++                if hops > MAX_LINK_HOPS {
++                    return Err(io::Error::other("too many levels of symbolic links"));
++                }
++                if target.starts_with('/') {
++                    out = root.clone();
++                }
++                for piece in target.split('/').rev() {
++                    match piece {
++                        "" | "." => {}
++                        ".." => rest.push(Step::Up),
++                        _ => rest.push(Step::Name(OsString::from(piece))),
++                    }
++                }
++            }
++        }
++    }
++    Ok(out)
++}
++
++/// The key of `path`'s last component with every parent link resolved (`symlink_metadata`).
++fn mem_locate(base: &Path, tree: &MemTree, path: &Path) -> io::Result<PathBuf> {
++    match (path.parent(), path.file_name()) {
++        (Some(parent), Some(name)) => Ok(mem_resolve(base, tree, parent)?.join(name)),
++        _ => mem_resolve(base, tree, path),
++    }
++}
++
++/// Inserts `node` at `path`: the name must be absent (a dangling link included, `create_new`),
++/// inside `base`, with a parent directory. Returns the key.
++fn mem_create(base: &Path, tree: &mut MemTree, path: &Path, node: MemNode) -> io::Result<PathBuf> {
++    let key = mem_locate(base, tree, path)?;
++    if mem_kind(base, tree, &key).is_some() {
++        return Err(io::Error::from(io::ErrorKind::AlreadyExists));
++    }
++    if !key.starts_with(base) {
++        return Err(not_found());
++    }
++    let parent = key.parent().ok_or_else(not_found)?;
++    if mem_kind(base, tree, parent) != Some(NodeKind::Dir) {
++        return Err(not_a_directory());
++    }
++    tree.insert(key.clone(), node);
++    Ok(key)
++}
++
++/// `create_dir_all` over the tree: new directories get mode `0o755`.
++fn mem_create_dir_all(base: &Path, tree: &mut MemTree, path: &Path) -> io::Result<()> {
++    match mem_resolve(base, tree, path) {
++        Ok(key) if mem_kind(base, tree, &key) == Some(NodeKind::Dir) => Ok(()),
++        Ok(_) => Err(io::Error::from(io::ErrorKind::AlreadyExists)),
++        Err(e) if e.kind() == io::ErrorKind::NotFound => {
++            if let Some(parent) = path.parent() {
++                mem_create_dir_all(base, tree, parent)?;
++            }
++            mem_create(base, tree, path, MemNode::Dir { mode: 0o755 })?;
++            Ok(())
++        }
++        Err(e) => Err(e),
++    }
++}
++
++/// A file `MemExtractIo::create_file` made: appends each slice to its node.
++struct MemFile {
++    tree: Arc<Mutex<MemTree>>,
++    key: PathBuf,
++}
++
++impl ExtractFile for MemFile {
++    fn write_all(&mut self, bytes: &[u8]) -> io::Result<()> {
++        let mut tree = self.tree.lock().unwrap_or_else(PoisonError::into_inner);
++        match tree.get_mut(&self.key) {
++            Some(MemNode::File { bytes: content, .. }) => {
++                content.extend_from_slice(bytes);
++                Ok(())
++            }
++            _ => Err(not_found()),
++        }
++    }
++}
++
++/// An in-memory `ExtractIo` (plan §4.5; tasks TA-3, TA-4): `new(base)` plants `base` as a
++/// directory and treats every proper ancestor of `base` as an existing directory that
++/// canonicalises to itself; every other path outside `base` is absent (`NotFound`). New
++/// directories get mode `0o755`, new files `0o644`, work dirs `0o700`; `canonicalize` resolves
++/// links component by component. Only `open_archive` touches the disk, reading the archive file.
++pub struct MemExtractIo {
++    base: PathBuf,
++    tree: Arc<Mutex<MemTree>>,
++    rec: Recorder,
++    /// The last work-dir number handed out.
++    counter: AtomicUsize,
++}
++
++impl MemExtractIo {
++    pub fn new(base: &Path) -> MemExtractIo {
++        let tree = MemTree::from([(base.to_path_buf(), MemNode::Dir { mode: 0o755 })]);
++        MemExtractIo {
++            base: base.to_path_buf(),
++            tree: Arc::new(Mutex::new(tree)),
++            rec: Recorder::default(),
++            counter: AtomicUsize::new(0),
++        }
++    }
++
++    fn lock(&self) -> MutexGuard<'_, MemTree> {
++        self.tree.lock().unwrap_or_else(PoisonError::into_inner)
++    }
++
++    /// Puts `node` at `path` as spelled (replacing any node there), with any missing parent
++    /// directory under `base` as mode `0o755`. Not recorded.
++    fn plant(&self, path: &Path, node: MemNode) {
++        let mut tree = self.lock();
++        for ancestor in path.ancestors().skip(1) {
++            if ancestor == self.base || !ancestor.starts_with(&self.base) {
++                break;
++            }
++            tree.entry(ancestor.to_path_buf())
++                .or_insert(MemNode::Dir { mode: 0o755 });
++        }
++        tree.insert(path.to_path_buf(), node);
++    }
++
++    pub fn plant_dir(&self, path: &Path, mode: u32) {
++        self.plant(path, MemNode::Dir { mode });
++    }
++
++    pub fn plant_file(&self, path: &Path, bytes: &[u8], mode: u32) {
++        self.plant(
++            path,
++            MemNode::File {
++                bytes: bytes.to_vec(),
++                mode,
++            },
++        );
++    }
++
++    pub fn plant_link(&self, path: &Path, target: &str) {
++        self.plant(
++            path,
++            MemNode::Link {
++                target: target.to_owned(),
++            },
++        );
++    }
++
++    /// The node stored at `path` as spelled (no link resolution).
++    pub fn node(&self, path: &Path) -> Option<MemNode> {
++        self.lock().get(path).cloned()
++    }
++
++    /// Every stored path strictly under `root`, sorted.
++    pub fn paths_under(&self, root: &Path) -> Vec<PathBuf> {
++        self.lock()
++            .keys()
++            .filter(|key| key.as_path() != root && key.starts_with(root))
++            .cloned()
++            .collect()
++    }
++
++    pub fn calls(&self) -> Vec<XOp> {
++        self.rec.calls()
++    }
++
++    pub fn mutating_calls(&self) -> usize {
++        self.rec.mutating_calls()
++    }
++}
++
++impl ExtractIo for MemExtractIo {
++    fn open_archive(&self, path: &Path) -> io::Result<Box<dyn ArchiveRead>> {
++        self.rec.record(XOp::OpenArchive(path.to_path_buf()))?;
++        let bytes = std::fs::read(path)?;
++        Ok(self
++            .rec
++            .archive(Box::new(TwoPhaseArchive::new(bytes.clone(), bytes)), None))
++    }
++
++    fn list_dir(&self, dir: &Path) -> io::Result<Option<Vec<(OsString, NodeKind)>>> {
++        self.rec.record(XOp::ListDir(dir.to_path_buf()))?;
++        let tree = self.lock();
++        let key = match mem_resolve(&self.base, &tree, dir) {
++            Ok(key) => key,
++            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
++            Err(e) => return Err(e),
++        };
++        if mem_kind(&self.base, &tree, &key) != Some(NodeKind::Dir) {
++            return Err(not_a_directory());
++        }
++        let mut children = BTreeMap::new();
++        for (path, node) in tree.iter() {
++            if path.parent() == Some(key.as_path())
++                && path.starts_with(&self.base)
++                && let Some(name) = path.file_name()
++            {
++                let kind = match node {
++                    MemNode::Dir { .. } => NodeKind::Dir,
++                    MemNode::File { .. } => NodeKind::File,
++                    MemNode::Link { .. } => NodeKind::Symlink,
++                };
++                children.insert(name.to_owned(), kind);
++            }
++        }
++        if is_ancestor(&self.base, &key)
++            && let Some(next) = self
++                .base
++                .strip_prefix(&key)
++                .ok()
++                .and_then(|rest| rest.components().next())
++        {
++            children.insert(next.as_os_str().to_owned(), NodeKind::Dir);
++        }
++        Ok(Some(children.into_iter().collect()))
++    }
++
++    fn create_work_dir(&self, extract: &Path, prefix: &str) -> io::Result<PathBuf> {
++        self.rec.record(XOp::CreateWorkDir {
++            extract: extract.to_path_buf(),
++            prefix: prefix.to_owned(),
++        })?;
++        let mut tree = self.lock();
++        mem_create_dir_all(&self.base, &mut tree, extract)?;
++        let key = mem_locate(&self.base, &tree, extract)?;
++        if mem_kind(&self.base, &tree, &key) != Some(NodeKind::Dir) {
++            return Err(io::Error::new(
++                io::ErrorKind::InvalidInput,
++                "the extract dir is not a directory",
++            ));
++        }
++        if !key.starts_with(&self.base) {
++            return Err(not_found());
++        }
++        loop {
++            let n = self.counter.fetch_add(1, Ordering::SeqCst) + 1;
++            let name = format!("{prefix}{n:06}");
++            if let Entry::Vacant(slot) = tree.entry(key.join(&name)) {
++                slot.insert(MemNode::Dir { mode: 0o700 });
++                return Ok(extract.join(name));
++            }
++        }
++    }
++
++    fn create_dir(&self, path: &Path) -> io::Result<()> {
++        self.rec.record(XOp::CreateDir(path.to_path_buf()))?;
++        mem_create(
++            &self.base,
++            &mut self.lock(),
++            path,
++            MemNode::Dir { mode: 0o755 },
++        )?;
++        Ok(())
++    }
++
++    fn create_file(&self, path: &Path) -> io::Result<Box<dyn ExtractFile>> {
++        self.rec.record(XOp::CreateFile(path.to_path_buf()))?;
++        let key = mem_create(
++            &self.base,
++            &mut self.lock(),
++            path,
++            MemNode::File {
++                bytes: Vec::new(),
++                mode: 0o644,
++            },
++        )?;
++        let file = MemFile {
++            tree: Arc::clone(&self.tree),
++            key,
++        };
++        Ok(self.rec.file(Box::new(file), path))
++    }
++
++    fn set_mode(&self, path: &Path, mode: u32) -> io::Result<()> {
++        self.rec.record(XOp::SetMode(path.to_path_buf(), mode))?;
++        let mut tree = self.lock();
++        let key = mem_resolve(&self.base, &tree, path)?;
++        match tree.get_mut(&key) {
++            Some(MemNode::Dir { mode: m } | MemNode::File { mode: m, .. }) => {
++                *m = mode;
++                Ok(())
++            }
++            _ => Err(not_found()),
++        }
++    }
++
++    fn symlink(&self, target: &str, link: &Path) -> io::Result<()> {
++        self.rec.record(XOp::Symlink {
++            target: target.to_owned(),
++            link: link.to_path_buf(),
++        })?;
++        mem_create(
++            &self.base,
++            &mut self.lock(),
++            link,
++            MemNode::Link {
++                target: target.to_owned(),
++            },
++        )?;
++        Ok(())
++    }
++
++    fn supports_symlinks(&self) -> bool {
++        true
++    }
++
++    /// A directory with every descendant, or a link as the link itself; a file is `NotADirectory`.
++    fn remove_tree(&self, path: &Path) -> io::Result<()> {
++        self.rec.record(XOp::RemoveTree(path.to_path_buf()))?;
++        let mut tree = self.lock();
++        let key = mem_locate(&self.base, &tree, path)?;
++        match tree.get(&key) {
++            None => Err(not_found()),
++            Some(MemNode::File { .. }) => Err(not_a_directory()),
++            Some(_) => {
++                tree.retain(|k, _| !k.starts_with(&key));
++                Ok(())
++            }
++        }
++    }
++
++    /// By the stored node: a directory as a tree, anything else (a link as itself) as one entry.
++    fn remove_entry(&self, path: &Path, kind: NodeKind) -> io::Result<()> {
++        self.rec
++            .record(XOp::RemoveEntry(path.to_path_buf(), kind))?;
++        let mut tree = self.lock();
++        let key = mem_locate(&self.base, &tree, path)?;
++        match tree.get(&key) {
++            None => Err(not_found()),
++            Some(MemNode::Dir { .. }) => {
++                tree.retain(|k, _| !k.starts_with(&key));
++                Ok(())
++            }
++            Some(_) => {
++                tree.remove(&key);
++                Ok(())
++            }
++        }
++    }
++
++    fn kind_of(&self, path: &Path) -> io::Result<Option<NodeKind>> {
++        self.rec.record(XOp::KindOf(path.to_path_buf()))?;
++        let tree = self.lock();
++        match mem_locate(&self.base, &tree, path) {
++            Ok(key) => Ok(mem_kind(&self.base, &tree, &key)),
++            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
++            Err(e) => Err(e),
++        }
++    }
++
++    /// Every node under `root` in key order: `/`-joined relative bytes, `mode: Some(..)` (links
++    /// `0o777`), a link's target bytes.
++    fn read_tree(&self, root: &Path) -> io::Result<Vec<ListingEntry>> {
++        self.rec.record(XOp::ReadTree(root.to_path_buf()))?;
++        let tree = self.lock();
++        let key = mem_resolve(&self.base, &tree, root)?;
++        if mem_kind(&self.base, &tree, &key) != Some(NodeKind::Dir) {
++            return Err(not_a_directory());
++        }
++        let mut entries = Vec::new();
++        for (path, node) in tree.iter() {
++            let Ok(rel) = path.strip_prefix(&key) else {
++                continue;
++            };
++            if rel.as_os_str().is_empty() || !path.starts_with(&self.base) {
++                continue;
++            }
++            let mut bytes = Vec::new();
++            for (i, component) in rel.components().enumerate() {
++                if i > 0 {
++                    bytes.push(b'/');
++                }
++                bytes.extend_from_slice(component.as_os_str().as_encoded_bytes());
++            }
++            let (kind, mode, target) = match node {
++                MemNode::Dir { mode } => (EntryType::Dir, *mode, None),
++                MemNode::File { mode, .. } => (EntryType::File, *mode, None),
++                MemNode::Link { target } => {
++                    (EntryType::Symlink, 0o777, Some(target.as_bytes().to_vec()))
++                }
++            };
++            entries.push(ListingEntry {
++                kind,
++                mode: Some(mode),
++                path: bytes,
++                target,
++            });
++        }
++        Ok(entries)
++    }
++
++    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
++        self.rec.record(XOp::Canonicalize(path.to_path_buf()))?;
++        mem_resolve(&self.base, &self.lock(), path)
++    }
++
++    fn read_file(&self, path: &Path, max: u64) -> io::Result<Vec<u8>> {
++        self.rec.record(XOp::ReadFile(path.to_path_buf()))?;
++        let tree = self.lock();
++        let key = mem_resolve(&self.base, &tree, path)?;
++        match tree.get(&key) {
++            Some(MemNode::File { bytes, .. }) => {
++                let limit = usize::try_from(max.saturating_add(1)).unwrap_or(usize::MAX);
++                Ok(bytes[..bytes.len().min(limit)].to_vec())
++            }
++            Some(MemNode::Dir { .. }) => Err(io::Error::from(io::ErrorKind::IsADirectory)),
++            _ => Err(not_found()),
++        }
++    }
++}
++
++/// An `ExtractIo` wrapper that fails chosen calls (plan §4.5, the `FaultyStagingIo` model): every
++/// call is recorded; a planned failure returns its error without delegating.
++pub struct FaultyExtractIo<'a> {
++    inner: &'a (dyn ExtractIo + Sync),
++    rec: Recorder,
++    remove_tree: RemoveTreeMode,
++    read_fault: Option<ReadFault>,
++}
++
++impl<'a> FaultyExtractIo<'a> {
++    pub fn new(inner: &'a (dyn ExtractIo + Sync)) -> FaultyExtractIo<'a> {
++        FaultyExtractIo {
++            inner,
++            rec: Recorder::default(),
++            remove_tree: RemoveTreeMode::Forward,
++            read_fault: None,
++        }
++    }
++
++    /// Fails the `nth` (1-based) call of `kind` with `error`; `Write` and `Rewind` calls of every
++    /// handle count too.
++    pub fn with_failure(mut self, kind: XKind, nth: usize, error: io::ErrorKind) -> Self {
++        self.rec.fails.push((kind, nth, error));
++        self
++    }
++
++    pub fn with_remove_tree(mut self, mode: RemoveTreeMode) -> Self {
++        self.remove_tree = mode;
++        self
++    }
++
++    pub fn with_read_fault(mut self, fault: ReadFault) -> Self {
++        self.read_fault = Some(fault);
++        self
++    }
++
++    pub fn calls(&self) -> Vec<XOp> {
++        self.rec.calls()
++    }
++
++    pub fn mutating_calls(&self) -> usize {
++        self.rec.mutating_calls()
++    }
++}
++
++impl ExtractIo for FaultyExtractIo<'_> {
++    fn open_archive(&self, path: &Path) -> io::Result<Box<dyn ArchiveRead>> {
++        self.rec.record(XOp::OpenArchive(path.to_path_buf()))?;
++        let inner = self.inner.open_archive(path)?;
++        Ok(self.rec.archive(inner, self.read_fault))
++    }
++
++    fn list_dir(&self, dir: &Path) -> io::Result<Option<Vec<(OsString, NodeKind)>>> {
++        self.rec.record(XOp::ListDir(dir.to_path_buf()))?;
++        self.inner.list_dir(dir)
++    }
++
++    fn create_work_dir(&self, extract: &Path, prefix: &str) -> io::Result<PathBuf> {
++        self.rec.record(XOp::CreateWorkDir {
++            extract: extract.to_path_buf(),
++            prefix: prefix.to_owned(),
++        })?;
++        self.inner.create_work_dir(extract, prefix)
++    }
++
++    fn create_dir(&self, path: &Path) -> io::Result<()> {
++        self.rec.record(XOp::CreateDir(path.to_path_buf()))?;
++        self.inner.create_dir(path)
++    }
++
++    fn create_file(&self, path: &Path) -> io::Result<Box<dyn ExtractFile>> {
++        self.rec.record(XOp::CreateFile(path.to_path_buf()))?;
++        let inner = self.inner.create_file(path)?;
++        Ok(self.rec.file(inner, path))
++    }
++
++    fn set_mode(&self, path: &Path, mode: u32) -> io::Result<()> {
++        self.rec.record(XOp::SetMode(path.to_path_buf(), mode))?;
++        self.inner.set_mode(path, mode)
++    }
++
++    fn symlink(&self, target: &str, link: &Path) -> io::Result<()> {
++        self.rec.record(XOp::Symlink {
++            target: target.to_owned(),
++            link: link.to_path_buf(),
++        })?;
++        self.inner.symlink(target, link)
++    }
++
++    fn supports_symlinks(&self) -> bool {
++        self.inner.supports_symlinks()
++    }
++
++    fn remove_tree(&self, path: &Path) -> io::Result<()> {
++        self.rec.record(XOp::RemoveTree(path.to_path_buf()))?;
++        match self.remove_tree {
++            RemoveTreeMode::Forward => self.inner.remove_tree(path),
++            RemoveTreeMode::Noop => Ok(()),
++            RemoveTreeMode::Fail(kind) => Err(io::Error::from(kind)),
++        }
++    }
++
++    fn remove_entry(&self, path: &Path, kind: NodeKind) -> io::Result<()> {
++        self.rec
++            .record(XOp::RemoveEntry(path.to_path_buf(), kind))?;
++        self.inner.remove_entry(path, kind)
++    }
++
++    fn kind_of(&self, path: &Path) -> io::Result<Option<NodeKind>> {
++        self.rec.record(XOp::KindOf(path.to_path_buf()))?;
++        self.inner.kind_of(path)
++    }
++
++    fn read_tree(&self, root: &Path) -> io::Result<Vec<ListingEntry>> {
++        self.rec.record(XOp::ReadTree(root.to_path_buf()))?;
++        self.inner.read_tree(root)
++    }
++
++    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
++        self.rec.record(XOp::Canonicalize(path.to_path_buf()))?;
++        self.inner.canonicalize(path)
++    }
++
++    fn read_file(&self, path: &Path, max: u64) -> io::Result<Vec<u8>> {
++        self.rec.record(XOp::ReadFile(path.to_path_buf()))?;
++        self.inner.read_file(path, max)
++    }
++}
++
++/// `RecordingExtractIo::with_open_archive`'s override (a named type for `clippy::type_complexity`).
++pub type OpenArchiveOverride<'a> =
++    Box<dyn Fn(&Path) -> io::Result<Box<dyn ArchiveRead>> + Send + Sync + 'a>;
++/// `RecordingExtractIo::with_read_tree`'s override.
++pub type ReadTreeOverride<'a> = Box<dyn Fn(&Path, &mut Vec<ListingEntry>) + Send + Sync + 'a>;
++/// `RecordingExtractIo::with_canonicalize`'s override.
++pub type CanonicalizeOverride<'a> =
++    Box<dyn Fn(&Path, io::Result<PathBuf>) -> io::Result<PathBuf> + Send + Sync + 'a>;
++/// `RecordingExtractIo::with_kind_of`'s override.
++pub type KindOfOverride<'a> = Box<
++    dyn Fn(&Path, io::Result<Option<NodeKind>>) -> io::Result<Option<NodeKind>> + Send + Sync + 'a,
++>;
++
++/// An `ExtractIo` wrapper that records every call (plan §4.5, FR-087): `forwarding(inner)` delegates
++/// every call; `fail_closed()` refuses every mutating call without touching the filesystem.
++pub struct RecordingExtractIo<'a> {
++    inner: &'a (dyn ExtractIo + Sync),
++    /// FR-087: the eight mutating kinds are recorded and refused.
++    fail_closed: bool,
++    rec: Recorder,
++    on_open_archive: Option<OpenArchiveOverride<'a>>,
++    on_read_tree: Option<ReadTreeOverride<'a>>,
++    on_canonicalize: Option<CanonicalizeOverride<'a>>,
++    on_kind_of: Option<KindOfOverride<'a>>,
++}
++
++impl<'a> RecordingExtractIo<'a> {
++    fn with_inner(inner: &'a (dyn ExtractIo + Sync), fail_closed: bool) -> RecordingExtractIo<'a> {
++        RecordingExtractIo {
++            inner,
++            fail_closed,
++            rec: Recorder::default(),
++            on_open_archive: None,
++            on_read_tree: None,
++            on_canonicalize: None,
++            on_kind_of: None,
++        }
++    }
++
++    pub fn forwarding(inner: &'a (dyn ExtractIo + Sync)) -> RecordingExtractIo<'a> {
++        RecordingExtractIo::with_inner(inner, false)
++    }
++
++    /// Replaces the inner archive handle.
++    pub fn with_open_archive(mut self, f: OpenArchiveOverride<'a>) -> Self {
++        self.on_open_archive = Some(f);
++        self
++    }
++
++    /// Mutates the inner `read_tree` result before it is returned.
++    pub fn with_read_tree(mut self, f: ReadTreeOverride<'a>) -> Self {
++        self.on_read_tree = Some(f);
++        self
++    }
++
++    /// Maps the inner `canonicalize` result.
++    pub fn with_canonicalize(mut self, f: CanonicalizeOverride<'a>) -> Self {
++        self.on_canonicalize = Some(f);
++        self
++    }
++
++    /// Maps the inner `kind_of` result.
++    pub fn with_kind_of(mut self, f: KindOfOverride<'a>) -> Self {
++        self.on_kind_of = Some(f);
++        self
++    }
++
++    pub fn calls(&self) -> Vec<XOp> {
++        self.rec.calls()
++    }
++
++    pub fn mutating_calls(&self) -> usize {
++        self.rec.mutating_calls()
++    }
++
++    /// The `canonicalize` arguments, in call order.
++    pub fn canonicalized(&self) -> Vec<PathBuf> {
++        self.rec
++            .calls()
++            .into_iter()
++            .filter_map(|op| match op {
++                XOp::Canonicalize(path) => Some(path),
++                _ => None,
++            })
++            .collect()
++    }
++
++    /// Records a mutating call; fail-closed refuses it (FR-087).
++    fn mutate(&self, op: XOp) -> io::Result<()> {
++        self.rec.record(op)?;
++        if self.fail_closed {
++            Err(io::Error::other("fail-closed"))
++        } else {
++            Ok(())
++        }
++    }
++}
++
++impl RecordingExtractIo<'static> {
++    /// FR-087: the mutating methods record and return `fail-closed` without reaching `std::fs`;
++    /// `open_archive`, the read-only methods and `supports_symlinks` forward to `FsExtractIo`.
++    pub fn fail_closed() -> RecordingExtractIo<'static> {
++        RecordingExtractIo::with_inner(&FsExtractIo, true)
++    }
++}
++
++impl ExtractIo for RecordingExtractIo<'_> {
++    fn open_archive(&self, path: &Path) -> io::Result<Box<dyn ArchiveRead>> {
++        self.rec.record(XOp::OpenArchive(path.to_path_buf()))?;
++        let handle = match &self.on_open_archive {
++            Some(f) => f(path)?,
++            None => self.inner.open_archive(path)?,
++        };
++        Ok(self.rec.archive(handle, None))
++    }
++
++    fn list_dir(&self, dir: &Path) -> io::Result<Option<Vec<(OsString, NodeKind)>>> {
++        self.rec.record(XOp::ListDir(dir.to_path_buf()))?;
++        self.inner.list_dir(dir)
++    }
++
++    fn create_work_dir(&self, extract: &Path, prefix: &str) -> io::Result<PathBuf> {
++        self.mutate(XOp::CreateWorkDir {
++            extract: extract.to_path_buf(),
++            prefix: prefix.to_owned(),
++        })?;
++        self.inner.create_work_dir(extract, prefix)
++    }
++
++    fn create_dir(&self, path: &Path) -> io::Result<()> {
++        self.mutate(XOp::CreateDir(path.to_path_buf()))?;
++        self.inner.create_dir(path)
++    }
++
++    fn create_file(&self, path: &Path) -> io::Result<Box<dyn ExtractFile>> {
++        self.mutate(XOp::CreateFile(path.to_path_buf()))?;
++        let inner = self.inner.create_file(path)?;
++        Ok(self.rec.file(inner, path))
++    }
++
++    fn set_mode(&self, path: &Path, mode: u32) -> io::Result<()> {
++        self.mutate(XOp::SetMode(path.to_path_buf(), mode))?;
++        self.inner.set_mode(path, mode)
++    }
++
++    fn symlink(&self, target: &str, link: &Path) -> io::Result<()> {
++        self.mutate(XOp::Symlink {
++            target: target.to_owned(),
++            link: link.to_path_buf(),
++        })?;
++        self.inner.symlink(target, link)
++    }
++
++    fn supports_symlinks(&self) -> bool {
++        self.inner.supports_symlinks()
++    }
++
++    fn remove_tree(&self, path: &Path) -> io::Result<()> {
++        self.mutate(XOp::RemoveTree(path.to_path_buf()))?;
++        self.inner.remove_tree(path)
++    }
++
++    fn remove_entry(&self, path: &Path, kind: NodeKind) -> io::Result<()> {
++        self.mutate(XOp::RemoveEntry(path.to_path_buf(), kind))?;
++        self.inner.remove_entry(path, kind)
++    }
++
++    fn kind_of(&self, path: &Path) -> io::Result<Option<NodeKind>> {
++        self.rec.record(XOp::KindOf(path.to_path_buf()))?;
++        let inner = self.inner.kind_of(path);
++        match &self.on_kind_of {
++            Some(f) => f(path, inner),
++            None => inner,
++        }
++    }
++
++    fn read_tree(&self, root: &Path) -> io::Result<Vec<ListingEntry>> {
++        self.rec.record(XOp::ReadTree(root.to_path_buf()))?;
++        let mut entries = self.inner.read_tree(root)?;
++        if let Some(f) = &self.on_read_tree {
++            f(root, &mut entries);
++        }
++        Ok(entries)
++    }
++
++    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
++        self.rec.record(XOp::Canonicalize(path.to_path_buf()))?;
++        let inner = self.inner.canonicalize(path);
++        match &self.on_canonicalize {
++            Some(f) => f(path, inner),
++            None => inner,
++        }
++    }
++
++    fn read_file(&self, path: &Path, max: u64) -> io::Result<Vec<u8>> {
++        self.rec.record(XOp::ReadFile(path.to_path_buf()))?;
++        self.inner.read_file(path, max)
++    }
++}
++
++/// Every node under `root` as (relative path, `f` / `d` / `l`, length), never following a link,
++/// sorted (SC-006).
++pub fn snapshot(root: &Path) -> Vec<(String, char, u64)> {
++    fn walk(dir: &Path, prefix: &str, out: &mut Vec<(String, char, u64)>) {
++        let entries = std::fs::read_dir(dir)
++            .unwrap_or_else(|e| panic!("snapshot cannot list {}: {e}", dir.display()));
++        for entry in entries {
++            let entry =
++                entry.unwrap_or_else(|e| panic!("snapshot cannot read in {}: {e}", dir.display()));
++            let path = entry.path();
++            let meta = std::fs::symlink_metadata(&path)
++                .unwrap_or_else(|e| panic!("snapshot cannot stat {}: {e}", path.display()));
++            let name = entry.file_name().to_string_lossy().into_owned();
++            let rel = if prefix.is_empty() {
++                name
++            } else {
++                format!("{prefix}/{name}")
++            };
++            let file_type = meta.file_type();
++            if file_type.is_symlink() {
++                out.push((rel, 'l', meta.len()));
++            } else if file_type.is_dir() {
++                out.push((rel.clone(), 'd', meta.len()));
++                walk(&path, &rel, out);
++            } else {
++                out.push((rel, 'f', meta.len()));
++            }
++        }
++    }
++    let mut out = Vec::new();
++    walk(root, "", &mut out);
++    out.sort();
++    out
++}
++
+diff --git a/apps/krate-manager/crates/core/src/test_support_tests.rs b/apps/krate-manager/crates/core/src/test_support_tests.rs
+index 184b123a..15eacc97 100644
+--- a/apps/krate-manager/crates/core/src/test_support_tests.rs
++++ b/apps/krate-manager/crates/core/src/test_support_tests.rs
+@@ -421,0 +422,464 @@ fn phase7_helpers_cases() {
++
++/// The error kind of a result, `None` for `Ok` (works for handles that are not `Debug`).
++fn err_kind<T>(result: io::Result<T>) -> Option<io::ErrorKind> {
++    result.err().map(|e| e.kind())
++}
++
++/// The sorted entry names of `dir` on the real filesystem.
++fn disk_names(dir: &Path) -> Vec<OsString> {
++    let mut names: Vec<OsString> = std::fs::read_dir(dir)
++        .expect("read_dir")
++        .map(|entry| entry.expect("dir entry").file_name())
++        .collect();
++    names.sort();
++    names
++}
++
++/// TA-6: the Phase 8 doubles on the paths that do not delegate to `FsExtractIo` (T004).
++#[test]
++fn phase8_doubles_cases() {
++    use crate::extract::EntryType;
++    use io::ErrorKind::{
++        AlreadyExists, InvalidInput, NotFound, Other, PermissionDenied, StorageFull, TimedOut,
++    };
++
++    let (td, roots) = fresh_temp_roots();
++    let staging = roots.staging_dir().to_path_buf();
++    let disk_before = disk_names(&staging);
++    let archive = td.path().join("ten.bin");
++    std::fs::write(&archive, b"0123456789").expect("write the archive fixture");
++
++    // MemExtractIo: the in-memory tree, its semantics and its record.
++    let mem = MemExtractIo::new(&staging);
++    let parent = staging.parent().expect("staging has a parent");
++    assert!(mem.supports_symlinks());
++    assert_eq!(mem.kind_of(&staging).expect("kind_of"), Some(NodeKind::Dir));
++    assert_eq!(mem.kind_of(parent).expect("kind_of"), Some(NodeKind::Dir));
++    assert_eq!(mem.kind_of(&staging.join("x")).expect("kind_of"), None);
++    assert_eq!(mem.canonicalize(&staging).expect("canonicalize"), staging);
++    assert_eq!(mem.canonicalize(parent).expect("canonicalize"), parent);
++    let extract = staging.join("extract");
++    let w = mem.create_work_dir(&extract, "ab.").expect("work dir");
++    assert_eq!(w, extract.join("ab.000001"));
++    assert_eq!(
++        mem.create_work_dir(&extract, "ab.").expect("work dir"),
++        extract.join("ab.000002")
++    );
++    assert!(matches!(mem.node(&extract), Some(MemNode::Dir { .. })));
++    mem.plant_link(&staging.join("l"), "t");
++    mem.plant_dir(&staging.join("t"), 0o755);
++    assert_eq!(
++        err_kind(mem.create_work_dir(&staging.join("l"), "p")),
++        Some(InvalidInput),
++        "PD-6: a linked extract dir is refused"
++    );
++    mem.create_dir(&w.join("d")).expect("create_dir");
++    assert_eq!(err_kind(mem.create_dir(&w.join("d"))), Some(AlreadyExists));
++    assert_eq!(
++        err_kind(mem.create_dir(&staging.join("missing").join("d"))),
++        Some(NotFound)
++    );
++    let f = w.join("f");
++    let mut file = mem.create_file(&f).expect("create_file");
++    file.write_all(b"he").expect("write");
++    file.write_all(b"llo").expect("write");
++    assert_eq!(
++        mem.node(&f),
++        Some(MemNode::File {
++            bytes: b"hello".to_vec(),
++            mode: 0o644
++        })
++    );
++    mem.create_file(&w.join("d").join("g"))
++        .expect("create_file in a subdirectory");
++    let dangling = staging.join("dl");
++    mem.plant_link(&dangling, "nowhere");
++    assert_eq!(
++        err_kind(mem.create_file(&dangling)),
++        Some(AlreadyExists),
++        "create_new over a dangling link"
++    );
++    mem.set_mode(&f, 0o755).expect("set_mode");
++    assert_eq!(
++        mem.node(&f),
++        Some(MemNode::File {
++            bytes: b"hello".to_vec(),
++            mode: 0o755
++        })
++    );
++    mem.symlink("f", &w.join("l")).expect("symlink");
++    assert_eq!(
++        mem.node(&w.join("l")),
++        Some(MemNode::Link {
++            target: "f".to_owned()
++        })
++    );
++    assert_eq!(mem.canonicalize(&w.join("l")).expect("canonicalize"), f);
++    assert_eq!(err_kind(mem.canonicalize(&dangling)), Some(NotFound));
++    assert_eq!(
++        mem.read_tree(&w).expect("read_tree"),
++        [
++            ListingEntry {
++                kind: EntryType::Dir,
++                mode: Some(0o755),
++                path: b"d".to_vec(),
++                target: None,
++            },
++            ListingEntry {
++                kind: EntryType::File,
++                mode: Some(0o644),
++                path: b"d/g".to_vec(),
++                target: None,
++            },
++            ListingEntry {
++                kind: EntryType::File,
++                mode: Some(0o755),
++                path: b"f".to_vec(),
++                target: None,
++            },
++            ListingEntry {
++                kind: EntryType::Symlink,
++                mode: Some(0o777),
++                path: b"l".to_vec(),
++                target: Some(b"f".to_vec()),
++            },
++        ]
++    );
++    assert_eq!(mem.read_file(&f, 2).expect("read_file"), b"hel");
++    assert_eq!(
++        mem.list_dir(&w).expect("list_dir"),
++        Some(vec![
++            (OsString::from("d"), NodeKind::Dir),
++            (OsString::from("f"), NodeKind::File),
++            (OsString::from("l"), NodeKind::Symlink),
++        ])
++    );
++    assert_eq!(
++        mem.list_dir(&staging.join("absent")).expect("list_dir"),
++        None
++    );
++    mem.remove_entry(&w.join("l"), NodeKind::Symlink)
++        .expect("remove_entry");
++    assert_eq!(mem.node(&w.join("l")), None);
++    assert!(mem.node(&f).is_some(), "the link target stays");
++    mem.remove_tree(&w).expect("remove_tree");
++    assert_eq!(mem.node(&w), None);
++    assert!(mem.paths_under(&w).is_empty());
++    assert!(mem.node(&extract.join("ab.000002")).is_some());
++    let mut handle = mem.open_archive(&archive).expect("open_archive");
++    let mut bytes = Vec::new();
++    handle.read_to_end(&mut bytes).expect("read");
++    assert_eq!(bytes, b"0123456789");
++    handle.rewind().expect("rewind");
++    bytes.clear();
++    handle.read_to_end(&mut bytes).expect("read after rewind");
++    assert_eq!(bytes, b"0123456789");
++    use XKind as K;
++    assert_eq!(
++        mem.calls().iter().map(XOp::kind).collect::<Vec<_>>(),
++        [
++            K::KindOf,
++            K::KindOf,
++            K::KindOf,
++            K::Canonicalize,
++            K::Canonicalize,
++            K::CreateWorkDir,
++            K::CreateWorkDir,
++            K::CreateWorkDir,
++            K::CreateDir,
++            K::CreateDir,
++            K::CreateDir,
++            K::CreateFile,
++            K::Write,
++            K::Write,
++            K::CreateFile,
++            K::CreateFile,
++            K::SetMode,
++            K::Symlink,
++            K::Canonicalize,
++            K::Canonicalize,
++            K::ReadTree,
++            K::ReadFile,
++            K::ListDir,
++            K::ListDir,
++            K::RemoveEntry,
++            K::RemoveTree,
++            K::OpenArchive,
++            K::Rewind,
++        ]
++    );
++    assert_eq!(
++        mem.calls()
++            .into_iter()
++            .filter(|op| op.kind() == K::Write)
++            .collect::<Vec<_>>(),
++        [
++            XOp::Write {
++                path: f.clone(),
++                bytes: b"he".to_vec()
++            },
++            XOp::Write {
++                path: f.clone(),
++                bytes: b"llo".to_vec()
++            },
++        ]
++    );
++    assert_eq!(
++        mem.calls()[5],
++        XOp::CreateWorkDir {
++            extract: extract.clone(),
++            prefix: "ab.".to_owned()
++        }
++    );
++    assert_eq!(mem.mutating_calls(), 15);
++    assert_eq!(
++        disk_names(&staging),
++        disk_before,
++        "Mem wrote nothing to disk"
++    );
++
++    // RecordingExtractIo::forwarding: delegation, records and the four overrides.
++    let mem = MemExtractIo::new(&staging);
++    let rec = RecordingExtractIo::forwarding(&mem)
++        .with_read_tree(Box::new(|_: &Path, entries: &mut Vec<ListingEntry>| {
++            entries.push(ListingEntry {
++                kind: EntryType::Other(b'x'),
++                mode: None,
++                path: b"extra".to_vec(),
++                target: None,
++            });
++        }))
++        .with_canonicalize(Box::new(|_: &Path, inner: io::Result<PathBuf>| {
++            inner.map(|p| p.join("mapped"))
++        }))
++        .with_kind_of(Box::new(|_: &Path, inner: io::Result<Option<NodeKind>>| {
++            inner.map(|kind| kind.map(|_| NodeKind::Other))
++        }))
++        .with_open_archive(Box::new(|_: &Path| {
++            Ok(
++                Box::new(TwoPhaseArchive::new(b"one".to_vec(), b"two".to_vec()))
++                    as Box<dyn ArchiveRead>,
++            )
++        }));
++    let w = rec
++        .create_work_dir(&staging.join("extract"), "r.")
++        .expect("work dir");
++    let f = w.join("f");
++    let mut file = rec.create_file(&f).expect("create_file");
++    file.write_all(b"xyz").expect("write");
++    assert_eq!(
++        mem.node(&f),
++        Some(MemNode::File {
++            bytes: b"xyz".to_vec(),
++            mode: 0o644
++        }),
++        "delegated to Mem"
++    );
++    let entries = rec.read_tree(&w).expect("read_tree");
++    assert_eq!(entries.len(), 2);
++    assert_eq!(entries[0].path, b"f");
++    assert_eq!(entries[1].path, b"extra");
++    assert_eq!(
++        rec.canonicalize(&f).expect("canonicalize"),
++        f.join("mapped")
++    );
++    assert_eq!(
++        err_kind(rec.canonicalize(&w.join("absent"))),
++        Some(NotFound)
++    );
++    assert_eq!(rec.kind_of(&w).expect("kind_of"), Some(NodeKind::Other));
++    assert_eq!(rec.kind_of(&w.join("absent")).expect("kind_of"), None);
++    let fake = td.path().join("nothere.tar.gz");
++    let mut handle = rec.open_archive(&fake).expect("open_archive override");
++    let mut bytes = Vec::new();
++    handle.read_to_end(&mut bytes).expect("read");
++    assert_eq!(bytes, b"one");
++    handle.rewind().expect("rewind");
++    bytes.clear();
++    handle.read_to_end(&mut bytes).expect("read");
++    assert_eq!(bytes, b"two");
++    let calls = rec.calls();
++    assert!(calls.contains(&XOp::OpenArchive(fake.clone())));
++    assert_eq!(calls.last(), Some(&XOp::Rewind));
++    assert!(calls.contains(&XOp::Write {
++        path: f.clone(),
++        bytes: b"xyz".to_vec()
++    }));
++    assert_eq!(rec.canonicalized(), [f.clone(), w.join("absent")]);
++    assert_eq!(rec.mutating_calls(), 3);
++    assert!(rec.supports_symlinks());
++
++    // RecordingExtractIo::fail_closed: every mutating call refused, nothing touched.
++    let fc = RecordingExtractIo::fail_closed();
++    let base = td.path();
++    let snap_before = snapshot(base);
++    let errors = [
++        fc.create_work_dir(&base.join("e"), "p").err(),
++        fc.create_dir(&base.join("d")).err(),
++        fc.create_file(&base.join("f")).err(),
++        fc.set_mode(&archive, 0o600).err(),
++        fc.symlink("t", &base.join("l")).err(),
++        fc.remove_tree(&base.join("plugins")).err(),
++        fc.remove_entry(&archive, NodeKind::File).err(),
++    ];
++    for error in errors {
++        let error = error.expect("fail-closed refuses every mutating call");
++        assert_eq!(error.kind(), Other);
++        assert_eq!(error.to_string(), "fail-closed");
++    }
++    assert_eq!(fc.calls().len(), 7);
++    assert_eq!(fc.mutating_calls(), 7);
++    assert_eq!(fc.calls()[5], XOp::RemoveTree(base.join("plugins")));
++    assert_eq!(snapshot(base), snap_before, "fail-closed touched nothing");
++
++    // FaultyExtractIo over Mem.
++    let mem = MemExtractIo::new(&staging);
++    let w = mem
++        .create_work_dir(&staging.join("extract"), "f.")
++        .expect("work dir");
++    let faulty = FaultyExtractIo::new(&mem)
++        .with_failure(XKind::CreateDir, 2, PermissionDenied)
++        .with_failure(XKind::Write, 1, StorageFull)
++        .with_remove_tree(RemoveTreeMode::Noop);
++    faulty.create_dir(&w.join("a")).expect("first create_dir");
++    assert_eq!(
++        err_kind(faulty.create_dir(&w.join("b"))),
++        Some(PermissionDenied)
++    );
++    assert_eq!(
++        mem.node(&w.join("b")),
++        None,
++        "the failed call did not delegate"
++    );
++    let mut first = faulty.create_file(&w.join("f1")).expect("create_file");
++    let mut second = faulty.create_file(&w.join("f2")).expect("create_file");
++    assert_eq!(err_kind(first.write_all(b"1")), Some(StorageFull));
++    second.write_all(b"2").expect("the second write passes");
++    assert_eq!(
++        mem.node(&w.join("f1")),
++        Some(MemNode::File {
++            bytes: Vec::new(),
++            mode: 0o644
++        })
++    );
++    faulty.remove_tree(&w).expect("Noop");
++    assert!(mem.node(&w).is_some(), "Noop removed nothing");
++    assert_eq!(
++        faulty.calls().iter().map(XOp::kind).collect::<Vec<_>>(),
++        [
++            K::CreateDir,
++            K::CreateDir,
++            K::CreateFile,
++            K::CreateFile,
++            K::Write,
++            K::Write,
++            K::RemoveTree,
++        ]
++    );
++    assert_eq!(faulty.mutating_calls(), 7);
++    let failing = FaultyExtractIo::new(&mem).with_remove_tree(RemoveTreeMode::Fail(TimedOut));
++    assert_eq!(err_kind(failing.remove_tree(&w)), Some(TimedOut));
++    assert!(mem.node(&w).is_some());
++    let forward = FaultyExtractIo::new(&mem).with_remove_tree(RemoveTreeMode::Forward);
++    forward.remove_tree(&w).expect("Forward");
++    assert_eq!(mem.node(&w), None);
++
++    let faulty = FaultyExtractIo::new(&mem).with_read_fault(ReadFault {
++        pass: 1,
++        after: 4,
++        kind: TimedOut,
++    });
++    let mut handle = faulty.open_archive(&archive).expect("open_archive");
++    let mut bytes = Vec::new();
++    assert_eq!(err_kind(handle.read_to_end(&mut bytes)), Some(TimedOut));
++    assert_eq!(bytes, b"0123");
++    let faulty = FaultyExtractIo::new(&mem).with_read_fault(ReadFault {
++        pass: 2,
++        after: 4,
++        kind: TimedOut,
++    });
++    let mut handle = faulty.open_archive(&archive).expect("open_archive");
++    let mut bytes = Vec::new();
++    handle
++        .read_to_end(&mut bytes)
++        .expect("pass 1 reads everything");
++    assert_eq!(bytes, b"0123456789");
++    handle.rewind().expect("rewind");
++    bytes.clear();
++    assert_eq!(err_kind(handle.read_to_end(&mut bytes)), Some(TimedOut));
++    assert_eq!(bytes, b"0123");
++    assert_eq!(
++        faulty.calls(),
++        [XOp::OpenArchive(archive.clone()), XOp::Rewind]
++    );
++
++    // TwoPhaseArchive: `first`, then `after_rewind` after every rewind.
++    let mut two = TwoPhaseArchive::new(b"ab".to_vec(), b"cd".to_vec());
++    let mut bytes = Vec::new();
++    two.read_to_end(&mut bytes).expect("read");
++    assert_eq!(bytes, b"ab");
++    for _ in 0..2 {
++        two.rewind().expect("rewind");
++        bytes.clear();
++        two.read_to_end(&mut bytes).expect("read");
++        assert_eq!(bytes, b"cd");
++    }
++
++    // snapshot: relative `/` paths, sorted, never following a link.
++    let snap_td = TempDir::new().expect("a fresh TempDir");
++    std::fs::create_dir(snap_td.path().join("a")).expect("create a");
++    std::fs::write(snap_td.path().join("a").join("f"), b"abc").expect("write a/f");
++    let snap = snapshot(snap_td.path());
++    assert_eq!(snap.len(), 2, "{snap:?}");
++    assert_eq!((snap[0].0.as_str(), snap[0].1), ("a", 'd'));
++    assert_eq!(snap[1], ("a/f".to_owned(), 'f', 3));
++    #[cfg(unix)]
++    {
++        std::os::unix::fs::symlink("a", snap_td.path().join("ln")).expect("symlink");
++        let snap = snapshot(snap_td.path());
++        assert_eq!(snap.len(), 3, "{snap:?}");
++        assert_eq!((snap[2].0.as_str(), snap[2].1), ("ln", 'l'));
++    }
++
++    // TA-4: every double is `Sync`.
++    fn sync<T: Sync>() {}
++    sync::<MemExtractIo>();
++    sync::<RecordingExtractIo<'static>>();
++    sync::<FaultyExtractIo<'static>>();
++
++    // FR-089 (unix only; `temp_roots_raw` is exercised by `raw_temp_dir_staging_root_macos`).
++    #[cfg(unix)]
++    {
++        let link_td = TempDir::new().expect("a fresh TempDir");
++        let canonical = std::fs::canonicalize(link_td.path()).expect("canonical TempDir");
++        let roots = temp_roots_via_link(link_td.path());
++        let via = canonical.join("via");
++        let mut all: Vec<&Path> = roots
++            .plugin_roots()
++            .iter()
++            .map(|r| r.path.as_path())
++            .collect();
++        all.extend([
++            roots.presets().factory.as_path(),
++            roots.presets().user.as_path(),
++            roots.state_dir(),
++            roots.staging_dir(),
++        ]);
++        for root in all {
++            assert!(root.starts_with(&via), "{} not under via", root.display());
++            assert!(root.is_dir(), "{} was not created", root.display());
++        }
++        assert_ne!(
++            std::fs::canonicalize(roots.staging_dir()).expect("canonical staging"),
++            roots.staging_dir()
++        );
++        assert!(
++            canonical
++                .join("real")
++                .join("state")
++                .join(STAGING_DIR)
++                .is_dir()
++        );
++        roots.check_sandboxed(&roots.staging_dir().join("x"));
++    }
++}
+diff --git a/apps/krate-manager/crates/core/src/verify.rs b/apps/krate-manager/crates/core/src/verify.rs
+index 1e4341fb..7d34d675 100644
+--- a/apps/krate-manager/crates/core/src/verify.rs
++++ b/apps/krate-manager/crates/core/src/verify.rs
+@@ -300,0 +301,17 @@ pub(crate) fn hex_lower(bytes: &[u8]) -> String {
++/// A streaming SHA-256 for `extract.rs` (Phase 8 FR-082): `sha2` stays confined to this file.
++pub(crate) struct Sha256Stream(Sha256);
++
++impl Sha256Stream {
++    pub(crate) fn new() -> Sha256Stream {
++        Sha256Stream(Sha256::new())
++    }
++
++    pub(crate) fn update(&mut self, bytes: &[u8]) {
++        self.0.update(bytes);
++    }
++
++    pub(crate) fn finish(self) -> [u8; 32] {
++        self.0.finalize().into()
++    }
++}
++
+diff --git a/apps/krate-manager/crates/core/src/verify_tests.rs b/apps/krate-manager/crates/core/src/verify_tests.rs
+index b3ca4486..426497bf 100644
+--- a/apps/krate-manager/crates/core/src/verify_tests.rs
++++ b/apps/krate-manager/crates/core/src/verify_tests.rs
+@@ -115,0 +116,29 @@ fn digest_helpers_cases() {
++/// Phase 8 (tasks TA-6): `Sha256Stream` equals `sha256_of` however the bytes are sliced.
++#[test]
++fn sha256_stream_cases() {
++    let empty = Sha256Stream::new().finish();
++    assert_eq!(empty, sha256_of(b""));
++    assert_eq!(
++        hex_lower(&empty),
++        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
++    );
++
++    let mut abc = Sha256Stream::new();
++    for part in [&b"a"[..], b"", b"bc"] {
++        abc.update(part);
++    }
++    let abc = abc.finish();
++    assert_eq!(abc, sha256_of(b"abc"));
++    assert_eq!(
++        hex_lower(&abc),
++        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
++    );
++
++    let big: Vec<u8> = (0..1usize << 20).map(|i| (i % 251) as u8).collect();
++    let mut sliced = Sha256Stream::new();
++    for chunk in big.chunks(7) {
++        sliced.update(chunk);
++    }
++    assert_eq!(sliced.finish(), sha256_of(&big));
++}
++
+diff --git a/apps/krate-manager/crates/core/tests/injection.rs b/apps/krate-manager/crates/core/tests/injection.rs
+index 9925b2ee..f72eff04 100644
+--- a/apps/krate-manager/crates/core/tests/injection.rs
++++ b/apps/krate-manager/crates/core/tests/injection.rs
+@@ -106 +106 @@ const FIXTURE_LIB: &str = "tests/fixtures/clippy-guard/src/lib.rs";
+-const FR007_DEPENDENCIES: [&str; 13] = [
++const FR007_DEPENDENCIES: [&str; 14] = [
+@@ -107,0 +108 @@ const FR007_DEPENDENCIES: [&str; 13] = [
++    "flate2",
+@@ -150,0 +152 @@ const DOWNLOAD_TESTS_RS: &str = "crates/core/src/download_tests.rs";
++const EXTRACT_TESTS_RS: &str = "crates/core/src/extract_tests.rs";
+@@ -161,0 +164 @@ const DOWNLOAD_RS: &str = "crates/core/src/download.rs";
++const EXTRACT_RS: &str = "crates/core/src/extract.rs";
+@@ -299 +302 @@ const CORE_FOUNDATION_FILES: [&str; 2] = [SYSPROXY_CF_RS, SYSPROXY_CF_TESTS_RS];
+-const CONFINED_TOML_KEYS: [(&str, &[&str]); 12] = [
++const CONFINED_TOML_KEYS: [(&str, &[&str]); 13] = [
+@@ -317,0 +321 @@ const CONFINED_TOML_KEYS: [(&str, &[&str]); 12] = [
++    ("flate2", &["Cargo.toml", "crates/core/Cargo.toml"]),
+@@ -318,0 +323,47 @@ const CONFINED_TOML_KEYS: [(&str, &[&str]); 12] = [
++/// FR-083 (SI-2, SI-12): every std entry point that creates, truncates or removes a file or
++/// directory or makes a link; `extract.rs` holds them only inside `impl ExtractIo for FsExtractIo`.
++const EXTRACT_FS_TOKENS: [&str; 18] = [
++    "create_dir",
++    "OpenOptions",
++    "create_new",
++    "symlink",
++    "set_permissions",
++    "remove_dir_all",
++    "remove_file",
++    "rename",
++    "File :: create",
++    "fs :: write",
++    "fs :: copy",
++    "File :: options",
++    "DirBuilder",
++    "remove_dir",
++    "soft_link",
++    "symlink_file",
++    "symlink_dir",
++    "set_len",
++];
++/// SI-2: the two `ExtractIo` method names a declaration or a method call may also hold.
++const EXTRACT_IO_METHODS: [&str; 2] = ["create_dir", "symlink"];
++/// FR-083, FR-055: token sequences `extract.rs` never holds.
++const EXTRACT_BANNED: [&str; 9] = [
++    "hard_link",
++    "Command",
++    "TcpStream",
++    "xattr",
++    "thread :: spawn",
++    "sync_all",
++    "sync_data",
++    "sync_file",
++    "sync_dir",
++];
++/// Plan §4.6: the `tempfile` entry points that create under the real `env::temp_dir()`
++/// (`tempfile-3.27.0/src/dir/mod.rs:48`, `:64`, `:187`); none is in `extract.rs`.
++const TEMPFILE_REAL_TEMP: [&str; 5] = [
++    "tempfile :: tempdir",
++    ". tempdir (",
++    "TempDir :: new",
++    "tempfile (",
++    "NamedTempFile",
++];
++/// FR-054: the `fn` names no `impl StagedTree` block holds (besides the `into_` / `take_` prefixes).
++const STAGED_TREE_MOVES: [&str; 3] = ["rename", "persist", "release"];
+@@ -396 +447 @@ const TEST_PROGRAMS: [&str; 2] = ["sleep", "printf"];
+-const TEST_PROGRAM_BODIES: [(&str, &str, &str); 4] = [
++const TEST_PROGRAM_BODIES: [(&str, &str, &str); 6] = [
+@@ -408,0 +460,6 @@ const TEST_PROGRAM_BODIES: [(&str, &str, &str); 4] = [
++    (
++        EXTRACT_TESTS_RS,
++        "staged_tree_has_no_xattrs_macos",
++        "/usr/bin/xattr",
++    ),
++    (EXTRACT_TESTS_RS, "symlink_entry_unsupported_windows", "cmd"),
+@@ -530,0 +588,6 @@ const RULE_FIXTURE_SEAM: &str = "fixture-url-seam";
++const RULE_EXTRACT_FS: &str = "fs-token-outside-fs-extract-io";
++const RULE_EXTRACT_BANNED: &str = "banned-in-extract";
++const RULE_TEMPFILE: &str = "tempfile-outside-create-work-dir";
++const RULE_TAR: &str = "tar-dependency";
++const RULE_STAGED_TREE: &str = "staged-tree-seam";
++const RULE_RELEASE_JSON: &str = "release-json-literal";
+@@ -2582 +2645,7 @@ fn verified_artifact_findings(files: &[(String, String)]) -> Vec<Finding> {
+-        &[VERIFY_RS, DOWNLOAD_RS, VERIFY_TESTS_RS, DOWNLOAD_TESTS_RS],
++        &[
++            VERIFY_RS,
++            DOWNLOAD_RS,
++            VERIFY_TESTS_RS,
++            DOWNLOAD_TESTS_RS,
++            EXTRACT_TESTS_RS,
++        ],
+@@ -2881,0 +2951,211 @@ fn verify_confinement_findings(files: &[(String, String)]) -> Vec<Finding> {
++/// The two lockfiles (app-root-relative path, text): the workspace's and the clippy-guard's.
++fn locks() -> Vec<(String, String)> {
++    let root = app_root();
++    ["Cargo.lock", "tests/fixtures/clippy-guard/Cargo.lock"]
++        .into_iter()
++        .map(|rel| (rel.to_owned(), read_text(&root.join(rel))))
++        .collect()
++}
++
++/// The `name` of every `[[package]]` of a lockfile.
++fn lock_package_names(lock: &str) -> Vec<String> {
++    toml_sections(lock)
++        .into_iter()
++        .filter(|(header, _)| header == "[[package]]")
++        .flat_map(|(_, entries)| entries)
++        .filter(|(key, _)| key == "name")
++        .filter_map(|(_, value)| toml_str(&value).map(str::to_owned))
++        .collect()
++}
++
++/// The `{ … }` body (inclusive) of every `trait ExtractIo` in `toks`.
++fn extract_io_traits(toks: &[&str]) -> Vec<Range<usize>> {
++    seq_at(toks, &["trait", "ExtractIo"])
++        .into_iter()
++        .filter_map(|at| (at..toks.len()).find(|&k| toks[k] == "{" || toks[k] == ";"))
++        .filter(|&open| toks[open] == "{")
++        .map(|open| open..close_of(toks, open) + 1)
++        .collect()
++}
++
++/// Phase 8 (plan §4.6 row 3, SI-2, SI-12; FR-034, FR-054, FR-055, FR-082, FR-083) over the
++/// workspace `.rs` files, the manifests and the lockfiles: `flate2` in non-test code only in
++/// `extract.rs`; `StagedTree {` in non-test code only in `extract.rs`; no `tar` manifest key and
++/// no locked `tar` package; in `extract.rs`, `EXTRACT_FS_TOKENS` only inside
++/// `impl ExtractIo for FsExtractIo` (SI-2's `ExtractIo` method declarations and calls excepted),
++/// `create_dir_all` and `tempfile` only in that impl's `fn create_work_dir`, none of
++/// `TEMPFILE_REAL_TEMP` or `EXTRACT_BANNED`, no `fn sync_*` in `trait ExtractIo`, no `pub` in
++/// `struct StagedTree`, no consuming `impl StagedTree` method and no `release.json` literal.
++/// Absence is never a finding.
++fn extract_findings(
++    files: &[(String, String)],
++    manifests: &[(String, String)],
++    locks: &[(String, String)],
++) -> Vec<Finding> {
++    let lexed = lex(files);
++    let non_test: Vec<(&str, Vec<&str>)> = tokenized(&lexed)
++        .into_iter()
++        .filter(|(rel, _)| !is_test_source(rel))
++        .collect();
++    let mut out = confinement(&non_test, "flate2", &[EXTRACT_RS], RULE_CONFINED);
++    let finding = |file: &str, rule: &'static str, detail: String| Finding {
++        file: file.to_owned(),
++        rule,
++        detail,
++    };
++    for (rel, toks) in &non_test {
++        let n = seq_at(toks, &["StagedTree", "{"]).len();
++        if *rel != EXTRACT_RS && n > 0 {
++            out.push(finding(
++                rel,
++                RULE_STAGED_TREE,
++                format!("`StagedTree {{` {n} time(s) outside extract.rs"),
++            ));
++        }
++    }
++    for (rel, text) in manifests {
++        if toml_dependency_names(text).contains("tar") {
++            out.push(finding(rel, RULE_TAR, "`tar` dependency key".to_owned()));
++        }
++    }
++    for (rel, text) in locks {
++        let n = lock_package_names(text)
++            .iter()
++            .filter(|name| *name == "tar")
++            .count();
++        if n > 0 {
++            out.push(finding(
++                rel,
++                RULE_TAR,
++                format!("`[[package]]` named `tar` {n} time(s)"),
++            ));
++        }
++    }
++    let Some(l) = lexed.iter().find(|l| l.rel == EXTRACT_RS) else {
++        return out;
++    };
++    let toks = tokens(&l.code);
++    let fns = fn_items(&toks);
++    let blocks = impl_blocks(&toks);
++    let inside = |ranges: &[Range<usize>], p: usize| ranges.iter().any(|r| r.contains(&p));
++    let io_impls: Vec<Range<usize>> = blocks
++        .iter()
++        .filter(|b| b.trait_name == Some("ExtractIo"))
++        .map(|b| b.body.clone())
++        .collect();
++    let fs_impls: Vec<Range<usize>> = blocks
++        .iter()
++        .filter(|b| b.trait_name == Some("ExtractIo") && b.self_name == "FsExtractIo")
++        .map(|b| b.body.clone())
++        .collect();
++    let traits = extract_io_traits(&toks);
++    let work_dir: Vec<Range<usize>> = fns
++        .iter()
++        .filter(|f| f.name == "create_work_dir" && inside(&fs_impls, f.start))
++        .filter_map(|f| f.body.clone())
++        .collect();
++    // SI-2: `fn create_dir` / `fn symlink` in `trait ExtractIo` or an `impl ExtractIo for …`, and
++    // `. create_dir (` / `. symlink (` (std has no method of either name).
++    let io_method_site = |p: usize| {
++        EXTRACT_IO_METHODS.contains(&toks[p])
++            && p > 0
++            && ((toks[p - 1] == "fn" && (inside(&traits, p) || inside(&io_impls, p)))
++                || (toks[p - 1] == "." && toks.get(p + 1) == Some(&"(")))
++    };
++    let mut report =
++        |rule: &'static str, detail: String| out.push(finding(EXTRACT_RS, rule, detail));
++    for needle in EXTRACT_FS_TOKENS {
++        let n = seq_at(&toks, &tokens(needle))
++            .into_iter()
++            .filter(|&p| !inside(&fs_impls, p) && !io_method_site(p))
++            .count();
++        if n > 0 {
++            report(
++                RULE_EXTRACT_FS,
++                format!("`{needle}` {n} time(s) outside impl ExtractIo for FsExtractIo"),
++            );
++        }
++    }
++    for (needle, rule) in [
++        ("create_dir_all", RULE_EXTRACT_FS),
++        ("tempfile", RULE_TEMPFILE),
++    ] {
++        let n = seq_at(&toks, &[needle])
++            .into_iter()
++            .filter(|&p| !inside(&work_dir, p))
++            .count();
++        if n > 0 {
++            report(
++                rule,
++                format!(
++                    "`{needle}` {n} time(s) outside fn create_work_dir of impl ExtractIo for FsExtractIo"
++                ),
++            );
++        }
++    }
++    for (list, rule) in [
++        (&TEMPFILE_REAL_TEMP[..], RULE_TEMPFILE),
++        (&EXTRACT_BANNED[..], RULE_EXTRACT_BANNED),
++    ] {
++        for needle in list {
++            let n = seq_at(&toks, &tokens(needle)).len();
++            if n > 0 {
++                report(rule, format!("`{needle}` {n} time(s)"));
++            }
++        }
++    }
++    for f in fns
++        .iter()
++        .filter(|f| inside(&traits, f.start) && f.name.starts_with("sync_"))
++    {
++        report(
++            RULE_EXTRACT_BANNED,
++            format!("`fn {}` declared in trait ExtractIo", f.name),
++        );
++    }
++    for (_, body) in item_bodies(&toks)
++        .into_iter()
++        .filter(|(name, _)| *name == "StagedTree")
++    {
++        let n = toks[body].iter().filter(|t| **t == "pub").count();
++        if n > 0 {
++            report(
++                RULE_STAGED_TREE,
++                format!("{n} `pub` token(s) in the body of struct StagedTree"),
++            );
++        }
++    }
++    for block in blocks.iter().filter(|b| b.self_name == "StagedTree") {
++        for f in fns.iter().filter(|f| block.body.contains(&f.start)) {
++            let params = &toks[f.params.clone()];
++            if params.first() == Some(&"self") || params.starts_with(&["mut", "self"]) {
++                report(
++                    RULE_STAGED_TREE,
++                    format!("`fn {}` of impl StagedTree takes `self` by value", f.name),
++                );
++            }
++            if f.name.starts_with("into_")
++                || f.name.starts_with("take_")
++                || STAGED_TREE_MOVES.contains(&f.name)
++            {
++                report(
++                    RULE_STAGED_TREE,
++                    format!("`fn {}` in impl StagedTree", f.name),
++                );
++            }
++        }
++    }
++    let n = l
++        .literals
++        .iter()
++        .filter(|lit| lit.text.contains("release.json"))
++        .count();
++    if n > 0 {
++        report(
++            RULE_RELEASE_JSON,
++            format!("{n} literal(s) holding `release.json`"),
++        );
++    }
++    out
++}
++
+@@ -3362 +3642 @@ fn core_dependencies_are_the_fr007_set() {
+-        BTreeSet::from(["flate2".to_owned(), "minisign".to_owned()]),
++        BTreeSet::from(["minisign".to_owned()]),
+@@ -3585,0 +3866,15 @@ fn ureq_is_confined_to_http_rs() {
++    // FR-080 (TA-12): `flate2` only in the root and core manifests.
++    let planted_manifests = replace_in(
++        &manifests,
++        "src-tauri/Cargo.toml",
++        "[dependencies]\n",
++        "[dependencies]\nflate2 = \"1\"\n",
++    );
++    let planted = ureq_findings(&files, &planted_manifests);
++    assert_reported(
++        &base,
++        &planted,
++        "src-tauri/Cargo.toml",
++        RULE_TOML_KEY,
++        "flate2 key",
++    );
+@@ -4440,0 +4736,20 @@ fn verified_artifact_scanner_reports_plants() {
++        // Phase 8 (plan §4.6 row 5): `extract.rs` is no `verify_file` caller (FR-088) and
++        // `extract_tests.rs` is no `from_text` caller (FR-084).
++        (
++            plant(
++                &files,
++                EXTRACT_RS,
++                "fn f() {\n    let _ = verify_file(p, e, k);\n}\n",
++            ),
++            EXTRACT_RS,
++            "a `verify_file(` call in extract.rs",
++        ),
++        (
++            plant(
++                &files,
++                EXTRACT_TESTS_RS,
++                "fn f() {\n    let _ = SigningKey::from_text(t);\n}\n",
++            ),
++            EXTRACT_TESTS_RS,
++            "a `SigningKey::from_text(` call in extract_tests.rs",
++        ),
+@@ -4630,0 +4946 @@ fn verify_crates_are_confined() {
++        EXTRACT_RS,
+@@ -4638,0 +4955,6 @@ fn verify_crates_are_confined() {
++    let extract = extract_findings(&files, &manifests(), &locks());
++    assert!(
++        extract.is_empty(),
++        "FR-034 / FR-054 / FR-055 / FR-082 / FR-083 findings:\n{}",
++        show(&extract)
++    );
+@@ -4644,2 +4966,11 @@ fn verify_confinement_scanner_reports_plants() {
+-    let base = verify_confinement_findings(&files);
+-    let plants: [(&str, &str, &str); 6] = [
++    let manifests = manifests();
++    let locks = locks();
++    // Phase 8 (plan §4.6 row 3): the `extract_findings` rules run beside the Phase 7 ones.
++    let scan =
++        |files: &[(String, String)], manifests: &[(String, String)], locks: &[(String, String)]| {
++            let mut out = verify_confinement_findings(files);
++            out.extend(extract_findings(files, manifests, locks));
++            out
++        };
++    let base = scan(&files, &manifests, &locks);
++    let plants: [(&str, &str, &str); 20] = [
+@@ -4659,0 +4991,64 @@ fn verify_confinement_scanner_reports_plants() {
++        // Phase 8, FR-082: `flate2` only in `extract.rs`, `sha2` still only in `verify.rs`.
++        (FEED_RS, "use flate2::read::GzDecoder;\n", RULE_CONFINED),
++        (EXTRACT_RS, "use sha2::Sha256;\n", RULE_CONFINED),
++        // FR-083 (SI-2, SI-12): mutating tokens outside `impl ExtractIo for FsExtractIo`.
++        (
++            EXTRACT_RS,
++            "fn f() { std::fs::create_dir(\"x\").ok(); }\n",
++            RULE_EXTRACT_FS,
++        ),
++        (
++            EXTRACT_RS,
++            "fn f(p: &std::path::Path) { let _ = std::fs::File::options().write(true).create(true).open(p); }\n",
++            RULE_EXTRACT_FS,
++        ),
++        (
++            EXTRACT_RS,
++            "fn f() { let _ = std::fs::DirBuilder::new().create(\"x\"); }\n",
++            RULE_EXTRACT_FS,
++        ),
++        (
++            EXTRACT_RS,
++            "fn f() { std::fs::create_dir_all(\"x\").ok(); }\n",
++            RULE_EXTRACT_FS,
++        ),
++        // FR-055 (SC-026): no durability call, no `sync_*` in `trait ExtractIo`.
++        (
++            EXTRACT_RS,
++            "fn f(x: std::fs::File) { x.sync_all().ok(); }\n",
++            RULE_EXTRACT_BANNED,
++        ),
++        (
++            EXTRACT_RS,
++            "trait ExtractIo { fn sync_tree(&self); }\n",
++            RULE_EXTRACT_BANNED,
++        ),
++        // The `tempfile` rule: only in `fn create_work_dir`, never under the real temp dir.
++        (
++            EXTRACT_RS,
++            "fn f() { let _ = tempfile::tempdir(); }\n",
++            RULE_TEMPFILE,
++        ),
++        (EXTRACT_RS, "use tempfile::Builder;\n", RULE_TEMPFILE),
++        // SC-016, SC-025 (FR-050, FR-054): no public field, no consuming method, no literal elsewhere.
++        (
++            EXTRACT_RS,
++            "pub struct StagedTree { pub root: PathBuf }\n",
++            RULE_STAGED_TREE,
++        ),
++        (
++            EXTRACT_RS,
++            "impl StagedTree { pub fn into_bundle(self) -> PathBuf { self.root } }\n",
++            RULE_STAGED_TREE,
++        ),
++        (
++            DOWNLOAD_RS,
++            "fn f(p: PathBuf) -> u8 { let _ = StagedTree { root: p }; 0 }\n",
++            RULE_STAGED_TREE,
++        ),
++        // FR-034: no `release.json`.
++        (
++            EXTRACT_RS,
++            "const PLANTED: &str = \"release.json\";\n",
++            RULE_RELEASE_JSON,
++        ),
+@@ -4662 +5057 @@ fn verify_confinement_scanner_reports_plants() {
+-        let planted = verify_confinement_findings(&plant(&files, rel, text));
++        let planted = scan(&plant(&files, rel, text), &manifests, &locks);
+@@ -4665 +5060,17 @@ fn verify_confinement_scanner_reports_plants() {
+-    // The signer's users and a comment are not findings.
++    // FR-082: `tar` is no manifest key and no locked package (the lock half catches a transitive one).
++    let key = "tar = \"0.4\"";
++    let planted = scan(
++        &files,
++        &replace_in(
++            &manifests,
++            "crates/core/Cargo.toml",
++            "[dependencies]\n",
++            &format!("[dependencies]\n{key}\n"),
++        ),
++        &locks,
++    );
++    assert_reported(&base, &planted, "crates/core/Cargo.toml", RULE_TAR, key);
++    let package = "[[package]]\nname = \"tar\"\nversion = \"0.4.44\"\n";
++    let planted = scan(&files, &manifests, &plant(&locks, "Cargo.lock", package));
++    assert_reported(&base, &planted, "Cargo.lock", RULE_TAR, package);
++    // The signer's users, a comment and the `ExtractIo` method names (SI-2) are not findings.
+@@ -4671,0 +5083,4 @@ fn verify_confinement_scanner_reports_plants() {
++        (
++            EXTRACT_RS,
++            "trait ExtractIo { fn create_dir(&self, p: &Path) -> io::Result<()>; fn symlink(&self, t: &str, l: &Path) -> io::Result<()>; }\nfn g(io: &dyn ExtractIo) { io.create_dir(p).ok(); }\n",
++        ),
+@@ -4673,4 +5088 @@ fn verify_confinement_scanner_reports_plants() {
+-        let new = added(
+-            &base,
+-            &verify_confinement_findings(&plant(&files, rel, text)),
+-        );
++        let new = added(&base, &scan(&plant(&files, rel, text), &manifests, &locks));
+diff --git a/apps/krate-manager/tests/fixtures/clippy-guard/Cargo.lock b/apps/krate-manager/tests/fixtures/clippy-guard/Cargo.lock
+index d6bb432a..e03404d1 100644
+--- a/apps/krate-manager/tests/fixtures/clippy-guard/Cargo.lock
++++ b/apps/krate-manager/tests/fixtures/clippy-guard/Cargo.lock
+@@ -2024,0 +2025 @@ dependencies = [
++ "flate2",
+diff --git a/apps/krate-manager/tests/required-tests.json b/apps/krate-manager/tests/required-tests.json
+index 6048ce7c..b7638a86 100644
+--- a/apps/krate-manager/tests/required-tests.json
++++ b/apps/krate-manager/tests/required-tests.json
+@@ -227 +227,25 @@
+-      "download::tests::non_retryable_transport_errors"
++      "download::tests::non_retryable_transport_errors",
++      "extract::tests::concurrent_stage_is_safe",
++      "extract::tests::file_hashes_match_written_bytes",
++      "extract::tests::moduleinfo_version_must_match",
++      "extract::tests::prune_removes_by_kind",
++      "extract::tests::path_length_bounds",
++      "extract::tests::trailing_zero_padding_is_accepted",
++      "extract::tests::good_fixtures_match_committed_listings",
++      "extract::tests::bad_fixtures_fail_with_expected_code",
++      "extract::tests::kat_archive_stages",
++      "extract::tests::real_shaped_round_trip",
++      "extract::tests::dot_slash_round_trip",
++      "extract::tests::exec_and_symlink_round_trip_logic",
++      "extract::tests::crafted_archives_are_refused",
++      "extract::tests::payload_and_layout_mismatches",
++      "extract::tests::entry_binding_cases",
++      "extract::tests::changed_archive_is_refused",
++      "extract::tests::io_failures_leave_no_tree",
++      "extract::tests::pax_xattr_records_are_ignored",
++      "extract::tests::case_fold_collision",
++      "extract::tests::discard_and_prune",
++      "extract::tests::tree_mismatch_is_refused",
++      "extract::tests::entry_path_rejects_every_bad_form",
++      "extract::tests::work_dir_must_be_inside_staging",
++      "extract::tests::stage_logs_one_line_per_outcome"
+@@ -239 +263,2 @@
+-      "download::tests::staged_links_are_not_followed_windows"
++      "download::tests::staged_links_are_not_followed_windows",
++      "extract::tests::symlink_entry_unsupported_windows"
+@@ -269 +294,8 @@
+-      "download::tests::staged_symlinks_are_not_followed"
++      "download::tests::staged_symlinks_are_not_followed",
++      "extract::tests::prune_removes_real_link_unix",
++      "extract::tests::posix_modes_and_links_unix",
++      "extract::tests::special_bits_and_mtime_not_applied_unix",
++      "extract::tests::escape_cases_unix",
++      "extract::tests::symlinked_staging_root_unix",
++      "extract::tests::staged_tree_has_no_xattrs_macos",
++      "extract::tests::raw_temp_dir_staging_root_macos"
+@@ -296 +328,6 @@
+-      "download::tests::staged_symlinks_are_not_followed"
++      "download::tests::staged_symlinks_are_not_followed",
++      "extract::tests::prune_removes_real_link_unix",
++      "extract::tests::posix_modes_and_links_unix",
++      "extract::tests::special_bits_and_mtime_not_applied_unix",
++      "extract::tests::escape_cases_unix",
++      "extract::tests::symlinked_staging_root_unix"

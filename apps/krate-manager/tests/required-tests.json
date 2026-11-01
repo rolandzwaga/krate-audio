@@ -224,7 +224,31 @@
       "download::tests::slow_moving_download_is_not_an_error",
       "too_many_arguments_is_never_suppressed",
       "download::tests::prune_spares_in_flight_artifact",
-      "download::tests::non_retryable_transport_errors"
+      "download::tests::non_retryable_transport_errors",
+      "extract::tests::concurrent_stage_is_safe",
+      "extract::tests::file_hashes_match_written_bytes",
+      "extract::tests::moduleinfo_version_must_match",
+      "extract::tests::prune_removes_by_kind",
+      "extract::tests::path_length_bounds",
+      "extract::tests::trailing_zero_padding_is_accepted",
+      "extract::tests::good_fixtures_match_committed_listings",
+      "extract::tests::bad_fixtures_fail_with_expected_code",
+      "extract::tests::kat_archive_stages",
+      "extract::tests::real_shaped_round_trip",
+      "extract::tests::dot_slash_round_trip",
+      "extract::tests::exec_and_symlink_round_trip_logic",
+      "extract::tests::crafted_archives_are_refused",
+      "extract::tests::payload_and_layout_mismatches",
+      "extract::tests::entry_binding_cases",
+      "extract::tests::changed_archive_is_refused",
+      "extract::tests::io_failures_leave_no_tree",
+      "extract::tests::pax_xattr_records_are_ignored",
+      "extract::tests::case_fold_collision",
+      "extract::tests::discard_and_prune",
+      "extract::tests::tree_mismatch_is_refused",
+      "extract::tests::entry_path_rejects_every_bad_form",
+      "extract::tests::work_dir_must_be_inside_staging",
+      "extract::tests::stage_logs_one_line_per_outcome"
     ],
     "windows": [
       "platform::windows::tests::default_roots_from_env",
@@ -236,7 +260,8 @@
       "detect::tests::listing_skips_junction_windows",
       "download::tests::prune_skips_a_file_open_without_share_delete_windows",
       "download::tests::verified_file_has_no_zone_identifier_windows",
-      "download::tests::staged_links_are_not_followed_windows"
+      "download::tests::staged_links_are_not_followed_windows",
+      "extract::tests::symlink_entry_unsupported_windows"
     ],
     "macos": [
       "platform::macos::tests::default_roots_from_env",
@@ -266,7 +291,14 @@
       "download::tests::readonly_staging_dir_unix",
       "download::tests::verified_file_has_no_quarantine_macos",
       "http::tests::streamed_pac_fetch_keeps_the_feed_bound_unix",
-      "download::tests::staged_symlinks_are_not_followed"
+      "download::tests::staged_symlinks_are_not_followed",
+      "extract::tests::prune_removes_real_link_unix",
+      "extract::tests::posix_modes_and_links_unix",
+      "extract::tests::special_bits_and_mtime_not_applied_unix",
+      "extract::tests::escape_cases_unix",
+      "extract::tests::symlinked_staging_root_unix",
+      "extract::tests::staged_tree_has_no_xattrs_macos",
+      "extract::tests::raw_temp_dir_staging_root_macos"
     ],
     "linux": [
       "platform::linux::tests::default_roots_from_env",
@@ -293,7 +325,12 @@
       "detect::tests::listing_case_exact_unix",
       "download::tests::readonly_staging_dir_unix",
       "http::tests::streamed_pac_fetch_keeps_the_feed_bound_unix",
-      "download::tests::staged_symlinks_are_not_followed"
+      "download::tests::staged_symlinks_are_not_followed",
+      "extract::tests::prune_removes_real_link_unix",
+      "extract::tests::posix_modes_and_links_unix",
+      "extract::tests::special_bits_and_mtime_not_applied_unix",
+      "extract::tests::escape_cases_unix",
+      "extract::tests::symlinked_staging_root_unix"
     ]
   },
   "vitest": [

@@ -689,7 +689,7 @@ pub fn strip_trailing_commas(text: &str) -> Cow<'_, str> {
 
 /// FR-012, FR-013: the version a parsed moduleinfo gives, with its logs. Only line and column of a parse error are
 /// logged (plan §3), never the error's text.
-fn moduleinfo_version(text: &str, path: &Path) -> CopyVersion {
+pub(crate) fn moduleinfo_version(text: &str, path: &Path) -> CopyVersion {
     let doc: Value = match serde_json::from_str(&strip_trailing_commas(text)) {
         Ok(doc) => doc,
         Err(e) => {

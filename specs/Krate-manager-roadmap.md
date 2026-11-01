@@ -633,6 +633,8 @@ Does NOT: extract, place files, or elevate.
 
 ### Phase 8: Safe Extraction and Staging (Linux tar.gz)
 
+**Status: ✅ COMPLETE (PENDING-CI: 19 item(s)) (2026-11-01)** — see specs/krate-manager-phase8/compliance.md
+
 **Spec:** `krate-manager-phase8`
 
 Components:

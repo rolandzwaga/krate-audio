@@ -1021,7 +1021,7 @@ fn plugin_name_re() -> &'static Regex {
     cached(&RE, PLUGIN_NAME_PATTERN)
 }
 
-fn reserved_stem_re() -> &'static Regex {
+pub(crate) fn reserved_stem_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     cached(&RE, RESERVED_STEM_PATTERN)
 }

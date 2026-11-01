@@ -4,6 +4,7 @@ pub mod context;
 pub mod contract;
 pub mod detect;
 pub mod download;
+pub mod extract;
 pub mod feed;
 #[cfg(any(test, feature = "test-support"))]
 pub mod fixture_server;

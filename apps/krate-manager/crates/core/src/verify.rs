@@ -298,6 +298,23 @@ pub(crate) fn hex_lower(bytes: &[u8]) -> String {
         })
 }
 
+/// A streaming SHA-256 for `extract.rs` (Phase 8 FR-082): `sha2` stays confined to this file.
+pub(crate) struct Sha256Stream(Sha256);
+
+impl Sha256Stream {
+    pub(crate) fn new() -> Sha256Stream {
+        Sha256Stream(Sha256::new())
+    }
+
+    pub(crate) fn update(&mut self, bytes: &[u8]) {
+        self.0.update(bytes);
+    }
+
+    pub(crate) fn finish(self) -> [u8; 32] {
+        self.0.finalize().into()
+    }
+}
+
 /// The SHA-256 of `bytes`, for tests (PD-13): `sha2` stays confined to this file (FR-082).
 #[cfg(test)]
 pub(crate) fn sha256_of(bytes: &[u8]) -> [u8; 32] {

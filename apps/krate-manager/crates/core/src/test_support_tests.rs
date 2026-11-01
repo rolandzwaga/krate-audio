@@ -419,3 +419,467 @@ fn phase7_helpers_cases() {
     fn sync<T: Sync>() {}
     sync::<DownloadRig>();
 }
+
+/// The error kind of a result, `None` for `Ok` (works for handles that are not `Debug`).
+fn err_kind<T>(result: io::Result<T>) -> Option<io::ErrorKind> {
+    result.err().map(|e| e.kind())
+}
+
+/// The sorted entry names of `dir` on the real filesystem.
+fn disk_names(dir: &Path) -> Vec<OsString> {
+    let mut names: Vec<OsString> = std::fs::read_dir(dir)
+        .expect("read_dir")
+        .map(|entry| entry.expect("dir entry").file_name())
+        .collect();
+    names.sort();
+    names
+}
+
+/// TA-6: the Phase 8 doubles on the paths that do not delegate to `FsExtractIo` (T004).
+#[test]
+fn phase8_doubles_cases() {
+    use crate::extract::EntryType;
+    use io::ErrorKind::{
+        AlreadyExists, InvalidInput, NotFound, Other, PermissionDenied, StorageFull, TimedOut,
+    };
+
+    let (td, roots) = fresh_temp_roots();
+    let staging = roots.staging_dir().to_path_buf();
+    let disk_before = disk_names(&staging);
+    let archive = td.path().join("ten.bin");
+    std::fs::write(&archive, b"0123456789").expect("write the archive fixture");
+
+    // MemExtractIo: the in-memory tree, its semantics and its record.
+    let mem = MemExtractIo::new(&staging);
+    let parent = staging.parent().expect("staging has a parent");
+    assert!(mem.supports_symlinks());
+    assert_eq!(mem.kind_of(&staging).expect("kind_of"), Some(NodeKind::Dir));
+    assert_eq!(mem.kind_of(parent).expect("kind_of"), Some(NodeKind::Dir));
+    assert_eq!(mem.kind_of(&staging.join("x")).expect("kind_of"), None);
+    assert_eq!(mem.canonicalize(&staging).expect("canonicalize"), staging);
+    assert_eq!(mem.canonicalize(parent).expect("canonicalize"), parent);
+    let extract = staging.join("extract");
+    let w = mem.create_work_dir(&extract, "ab.").expect("work dir");
+    assert_eq!(w, extract.join("ab.000001"));
+    assert_eq!(
+        mem.create_work_dir(&extract, "ab.").expect("work dir"),
+        extract.join("ab.000002")
+    );
+    assert!(matches!(mem.node(&extract), Some(MemNode::Dir { .. })));
+    mem.plant_link(&staging.join("l"), "t");
+    mem.plant_dir(&staging.join("t"), 0o755);
+    assert_eq!(
+        err_kind(mem.create_work_dir(&staging.join("l"), "p")),
+        Some(InvalidInput),
+        "PD-6: a linked extract dir is refused"
+    );
+    mem.create_dir(&w.join("d")).expect("create_dir");
+    assert_eq!(err_kind(mem.create_dir(&w.join("d"))), Some(AlreadyExists));
+    assert_eq!(
+        err_kind(mem.create_dir(&staging.join("missing").join("d"))),
+        Some(NotFound)
+    );
+    let f = w.join("f");
+    let mut file = mem.create_file(&f).expect("create_file");
+    file.write_all(b"he").expect("write");
+    file.write_all(b"llo").expect("write");
+    assert_eq!(
+        mem.node(&f),
+        Some(MemNode::File {
+            bytes: b"hello".to_vec(),
+            mode: 0o644
+        })
+    );
+    mem.create_file(&w.join("d").join("g"))
+        .expect("create_file in a subdirectory");
+    let dangling = staging.join("dl");
+    mem.plant_link(&dangling, "nowhere");
+    assert_eq!(
+        err_kind(mem.create_file(&dangling)),
+        Some(AlreadyExists),
+        "create_new over a dangling link"
+    );
+    mem.set_mode(&f, 0o755).expect("set_mode");
+    assert_eq!(
+        mem.node(&f),
+        Some(MemNode::File {
+            bytes: b"hello".to_vec(),
+            mode: 0o755
+        })
+    );
+    mem.symlink("f", &w.join("l")).expect("symlink");
+    assert_eq!(
+        mem.node(&w.join("l")),
+        Some(MemNode::Link {
+            target: "f".to_owned()
+        })
+    );
+    assert_eq!(mem.canonicalize(&w.join("l")).expect("canonicalize"), f);
+    assert_eq!(err_kind(mem.canonicalize(&dangling)), Some(NotFound));
+    assert_eq!(
+        mem.read_tree(&w).expect("read_tree"),
+        [
+            ListingEntry {
+                kind: EntryType::Dir,
+                mode: Some(0o755),
+                path: b"d".to_vec(),
+                target: None,
+            },
+            ListingEntry {
+                kind: EntryType::File,
+                mode: Some(0o644),
+                path: b"d/g".to_vec(),
+                target: None,
+            },
+            ListingEntry {
+                kind: EntryType::File,
+                mode: Some(0o755),
+                path: b"f".to_vec(),
+                target: None,
+            },
+            ListingEntry {
+                kind: EntryType::Symlink,
+                mode: Some(0o777),
+                path: b"l".to_vec(),
+                target: Some(b"f".to_vec()),
+            },
+        ]
+    );
+    assert_eq!(mem.read_file(&f, 2).expect("read_file"), b"hel");
+    assert_eq!(
+        mem.list_dir(&w).expect("list_dir"),
+        Some(vec![
+            (OsString::from("d"), NodeKind::Dir),
+            (OsString::from("f"), NodeKind::File),
+            (OsString::from("l"), NodeKind::Symlink),
+        ])
+    );
+    assert_eq!(
+        mem.list_dir(&staging.join("absent")).expect("list_dir"),
+        None
+    );
+    mem.remove_entry(&w.join("l"), NodeKind::Symlink)
+        .expect("remove_entry");
+    assert_eq!(mem.node(&w.join("l")), None);
+    assert!(mem.node(&f).is_some(), "the link target stays");
+    mem.remove_tree(&w).expect("remove_tree");
+    assert_eq!(mem.node(&w), None);
+    assert!(mem.paths_under(&w).is_empty());
+    assert!(mem.node(&extract.join("ab.000002")).is_some());
+    let mut handle = mem.open_archive(&archive).expect("open_archive");
+    let mut bytes = Vec::new();
+    handle.read_to_end(&mut bytes).expect("read");
+    assert_eq!(bytes, b"0123456789");
+    handle.rewind().expect("rewind");
+    bytes.clear();
+    handle.read_to_end(&mut bytes).expect("read after rewind");
+    assert_eq!(bytes, b"0123456789");
+    use XKind as K;
+    assert_eq!(
+        mem.calls().iter().map(XOp::kind).collect::<Vec<_>>(),
+        [
+            K::KindOf,
+            K::KindOf,
+            K::KindOf,
+            K::Canonicalize,
+            K::Canonicalize,
+            K::CreateWorkDir,
+            K::CreateWorkDir,
+            K::CreateWorkDir,
+            K::CreateDir,
+            K::CreateDir,
+            K::CreateDir,
+            K::CreateFile,
+            K::Write,
+            K::Write,
+            K::CreateFile,
+            K::CreateFile,
+            K::SetMode,
+            K::Symlink,
+            K::Canonicalize,
+            K::Canonicalize,
+            K::ReadTree,
+            K::ReadFile,
+            K::ListDir,
+            K::ListDir,
+            K::RemoveEntry,
+            K::RemoveTree,
+            K::OpenArchive,
+            K::Rewind,
+        ]
+    );
+    assert_eq!(
+        mem.calls()
+            .into_iter()
+            .filter(|op| op.kind() == K::Write)
+            .collect::<Vec<_>>(),
+        [
+            XOp::Write {
+                path: f.clone(),
+                bytes: b"he".to_vec()
+            },
+            XOp::Write {
+                path: f.clone(),
+                bytes: b"llo".to_vec()
+            },
+        ]
+    );
+    assert_eq!(
+        mem.calls()[5],
+        XOp::CreateWorkDir {
+            extract: extract.clone(),
+            prefix: "ab.".to_owned()
+        }
+    );
+    assert_eq!(mem.mutating_calls(), 15);
+    assert_eq!(
+        disk_names(&staging),
+        disk_before,
+        "Mem wrote nothing to disk"
+    );
+
+    // RecordingExtractIo::forwarding: delegation, records and the four overrides.
+    let mem = MemExtractIo::new(&staging);
+    let rec = RecordingExtractIo::forwarding(&mem)
+        .with_read_tree(Box::new(|_: &Path, entries: &mut Vec<ListingEntry>| {
+            entries.push(ListingEntry {
+                kind: EntryType::Other(b'x'),
+                mode: None,
+                path: b"extra".to_vec(),
+                target: None,
+            });
+        }))
+        .with_canonicalize(Box::new(|_: &Path, inner: io::Result<PathBuf>| {
+            inner.map(|p| p.join("mapped"))
+        }))
+        .with_kind_of(Box::new(|_: &Path, inner: io::Result<Option<NodeKind>>| {
+            inner.map(|kind| kind.map(|_| NodeKind::Other))
+        }))
+        .with_open_archive(Box::new(|_: &Path| {
+            Ok(
+                Box::new(TwoPhaseArchive::new(b"one".to_vec(), b"two".to_vec()))
+                    as Box<dyn ArchiveRead>,
+            )
+        }));
+    let w = rec
+        .create_work_dir(&staging.join("extract"), "r.")
+        .expect("work dir");
+    let f = w.join("f");
+    let mut file = rec.create_file(&f).expect("create_file");
+    file.write_all(b"xyz").expect("write");
+    assert_eq!(
+        mem.node(&f),
+        Some(MemNode::File {
+            bytes: b"xyz".to_vec(),
+            mode: 0o644
+        }),
+        "delegated to Mem"
+    );
+    let entries = rec.read_tree(&w).expect("read_tree");
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].path, b"f");
+    assert_eq!(entries[1].path, b"extra");
+    assert_eq!(
+        rec.canonicalize(&f).expect("canonicalize"),
+        f.join("mapped")
+    );
+    assert_eq!(
+        err_kind(rec.canonicalize(&w.join("absent"))),
+        Some(NotFound)
+    );
+    assert_eq!(rec.kind_of(&w).expect("kind_of"), Some(NodeKind::Other));
+    assert_eq!(rec.kind_of(&w.join("absent")).expect("kind_of"), None);
+    let fake = td.path().join("nothere.tar.gz");
+    let mut handle = rec.open_archive(&fake).expect("open_archive override");
+    let mut bytes = Vec::new();
+    handle.read_to_end(&mut bytes).expect("read");
+    assert_eq!(bytes, b"one");
+    handle.rewind().expect("rewind");
+    bytes.clear();
+    handle.read_to_end(&mut bytes).expect("read");
+    assert_eq!(bytes, b"two");
+    let calls = rec.calls();
+    assert!(calls.contains(&XOp::OpenArchive(fake.clone())));
+    assert_eq!(calls.last(), Some(&XOp::Rewind));
+    assert!(calls.contains(&XOp::Write {
+        path: f.clone(),
+        bytes: b"xyz".to_vec()
+    }));
+    assert_eq!(rec.canonicalized(), [f.clone(), w.join("absent")]);
+    assert_eq!(rec.mutating_calls(), 3);
+    assert!(rec.supports_symlinks());
+
+    // RecordingExtractIo::fail_closed: every mutating call refused, nothing touched.
+    let fc = RecordingExtractIo::fail_closed();
+    let base = td.path();
+    let snap_before = snapshot(base);
+    let errors = [
+        fc.create_work_dir(&base.join("e"), "p").err(),
+        fc.create_dir(&base.join("d")).err(),
+        fc.create_file(&base.join("f")).err(),
+        fc.set_mode(&archive, 0o600).err(),
+        fc.symlink("t", &base.join("l")).err(),
+        fc.remove_tree(&base.join("plugins")).err(),
+        fc.remove_entry(&archive, NodeKind::File).err(),
+    ];
+    for error in errors {
+        let error = error.expect("fail-closed refuses every mutating call");
+        assert_eq!(error.kind(), Other);
+        assert_eq!(error.to_string(), "fail-closed");
+    }
+    assert_eq!(fc.calls().len(), 7);
+    assert_eq!(fc.mutating_calls(), 7);
+    assert_eq!(fc.calls()[5], XOp::RemoveTree(base.join("plugins")));
+    assert_eq!(snapshot(base), snap_before, "fail-closed touched nothing");
+
+    // FaultyExtractIo over Mem.
+    let mem = MemExtractIo::new(&staging);
+    let w = mem
+        .create_work_dir(&staging.join("extract"), "f.")
+        .expect("work dir");
+    let faulty = FaultyExtractIo::new(&mem)
+        .with_failure(XKind::CreateDir, 2, PermissionDenied)
+        .with_failure(XKind::Write, 1, StorageFull)
+        .with_remove_tree(RemoveTreeMode::Noop);
+    faulty.create_dir(&w.join("a")).expect("first create_dir");
+    assert_eq!(
+        err_kind(faulty.create_dir(&w.join("b"))),
+        Some(PermissionDenied)
+    );
+    assert_eq!(
+        mem.node(&w.join("b")),
+        None,
+        "the failed call did not delegate"
+    );
+    let mut first = faulty.create_file(&w.join("f1")).expect("create_file");
+    let mut second = faulty.create_file(&w.join("f2")).expect("create_file");
+    assert_eq!(err_kind(first.write_all(b"1")), Some(StorageFull));
+    second.write_all(b"2").expect("the second write passes");
+    assert_eq!(
+        mem.node(&w.join("f1")),
+        Some(MemNode::File {
+            bytes: Vec::new(),
+            mode: 0o644
+        })
+    );
+    faulty.remove_tree(&w).expect("Noop");
+    assert!(mem.node(&w).is_some(), "Noop removed nothing");
+    assert_eq!(
+        faulty.calls().iter().map(XOp::kind).collect::<Vec<_>>(),
+        [
+            K::CreateDir,
+            K::CreateDir,
+            K::CreateFile,
+            K::CreateFile,
+            K::Write,
+            K::Write,
+            K::RemoveTree,
+        ]
+    );
+    assert_eq!(faulty.mutating_calls(), 7);
+    let failing = FaultyExtractIo::new(&mem).with_remove_tree(RemoveTreeMode::Fail(TimedOut));
+    assert_eq!(err_kind(failing.remove_tree(&w)), Some(TimedOut));
+    assert!(mem.node(&w).is_some());
+    let forward = FaultyExtractIo::new(&mem).with_remove_tree(RemoveTreeMode::Forward);
+    forward.remove_tree(&w).expect("Forward");
+    assert_eq!(mem.node(&w), None);
+
+    let faulty = FaultyExtractIo::new(&mem).with_read_fault(ReadFault {
+        pass: 1,
+        after: 4,
+        kind: TimedOut,
+    });
+    let mut handle = faulty.open_archive(&archive).expect("open_archive");
+    let mut bytes = Vec::new();
+    assert_eq!(err_kind(handle.read_to_end(&mut bytes)), Some(TimedOut));
+    assert_eq!(bytes, b"0123");
+    let faulty = FaultyExtractIo::new(&mem).with_read_fault(ReadFault {
+        pass: 2,
+        after: 4,
+        kind: TimedOut,
+    });
+    let mut handle = faulty.open_archive(&archive).expect("open_archive");
+    let mut bytes = Vec::new();
+    handle
+        .read_to_end(&mut bytes)
+        .expect("pass 1 reads everything");
+    assert_eq!(bytes, b"0123456789");
+    handle.rewind().expect("rewind");
+    bytes.clear();
+    assert_eq!(err_kind(handle.read_to_end(&mut bytes)), Some(TimedOut));
+    assert_eq!(bytes, b"0123");
+    assert_eq!(
+        faulty.calls(),
+        [XOp::OpenArchive(archive.clone()), XOp::Rewind]
+    );
+
+    // TwoPhaseArchive: `first`, then `after_rewind` after every rewind.
+    let mut two = TwoPhaseArchive::new(b"ab".to_vec(), b"cd".to_vec());
+    let mut bytes = Vec::new();
+    two.read_to_end(&mut bytes).expect("read");
+    assert_eq!(bytes, b"ab");
+    for _ in 0..2 {
+        two.rewind().expect("rewind");
+        bytes.clear();
+        two.read_to_end(&mut bytes).expect("read");
+        assert_eq!(bytes, b"cd");
+    }
+
+    // snapshot: relative `/` paths, sorted, never following a link.
+    let snap_td = TempDir::new().expect("a fresh TempDir");
+    std::fs::create_dir(snap_td.path().join("a")).expect("create a");
+    std::fs::write(snap_td.path().join("a").join("f"), b"abc").expect("write a/f");
+    let snap = snapshot(snap_td.path());
+    assert_eq!(snap.len(), 2, "{snap:?}");
+    assert_eq!((snap[0].0.as_str(), snap[0].1), ("a", 'd'));
+    assert_eq!(snap[1], ("a/f".to_owned(), 'f', 3));
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink("a", snap_td.path().join("ln")).expect("symlink");
+        let snap = snapshot(snap_td.path());
+        assert_eq!(snap.len(), 3, "{snap:?}");
+        assert_eq!((snap[2].0.as_str(), snap[2].1), ("ln", 'l'));
+    }
+
+    // TA-4: every double is `Sync`.
+    fn sync<T: Sync>() {}
+    sync::<MemExtractIo>();
+    sync::<RecordingExtractIo<'static>>();
+    sync::<FaultyExtractIo<'static>>();
+
+    // FR-089 (unix only; `temp_roots_raw` is exercised by `raw_temp_dir_staging_root_macos`).
+    #[cfg(unix)]
+    {
+        let link_td = TempDir::new().expect("a fresh TempDir");
+        let canonical = std::fs::canonicalize(link_td.path()).expect("canonical TempDir");
+        let roots = temp_roots_via_link(link_td.path());
+        let via = canonical.join("via");
+        let mut all: Vec<&Path> = roots
+            .plugin_roots()
+            .iter()
+            .map(|r| r.path.as_path())
+            .collect();
+        all.extend([
+            roots.presets().factory.as_path(),
+            roots.presets().user.as_path(),
+            roots.state_dir(),
+            roots.staging_dir(),
+        ]);
+        for root in all {
+            assert!(root.starts_with(&via), "{} not under via", root.display());
+            assert!(root.is_dir(), "{} was not created", root.display());
+        }
+        assert_ne!(
+            std::fs::canonicalize(roots.staging_dir()).expect("canonical staging"),
+            roots.staging_dir()
+        );
+        assert!(
+            canonical
+                .join("real")
+                .join("state")
+                .join(STAGING_DIR)
+                .is_dir()
+        );
+        roots.check_sandboxed(&roots.staging_dir().join("x"));
+    }
+}

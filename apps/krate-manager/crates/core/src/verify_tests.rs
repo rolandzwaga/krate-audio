@@ -113,6 +113,35 @@ fn digest_helpers_cases() {
     assert_eq!(hex_lower(&[]), "");
 }
 
+/// Phase 8 (tasks TA-6): `Sha256Stream` equals `sha256_of` however the bytes are sliced.
+#[test]
+fn sha256_stream_cases() {
+    let empty = Sha256Stream::new().finish();
+    assert_eq!(empty, sha256_of(b""));
+    assert_eq!(
+        hex_lower(&empty),
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
+
+    let mut abc = Sha256Stream::new();
+    for part in [&b"a"[..], b"", b"bc"] {
+        abc.update(part);
+    }
+    let abc = abc.finish();
+    assert_eq!(abc, sha256_of(b"abc"));
+    assert_eq!(
+        hex_lower(&abc),
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+
+    let big: Vec<u8> = (0..1usize << 20).map(|i| (i % 251) as u8).collect();
+    let mut sliced = Sha256Stream::new();
+    for chunk in big.chunks(7) {
+        sliced.update(chunk);
+    }
+    assert_eq!(sliced.finish(), sha256_of(&big));
+}
+
 #[test]
 fn test_signer_round_trip() {
     let signer = TestSigner::new();
