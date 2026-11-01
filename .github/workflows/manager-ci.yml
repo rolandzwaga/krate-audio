@@ -138,6 +138,19 @@ jobs:
       - name: cargo test
         run: |
           set -euo pipefail
+          # The job log is not readable with the repo's read-only token, so a red run names each failing test (or
+          # compile error) and its first panic lines as annotations (GitHub keeps 10 error annotations per step).
+          annotate_failures() {
+            tr -d '\r' < "$RUNNER_TEMP/cargo-test.txt" | awk '
+              /^failures:$/ { if (n) print buf; n = 0; next }
+              /^---- .* stdout ----$/ { if (n) print buf; buf = $2; n = 1; c = 0; next }
+              n && c < 8 && NF { buf = buf "%0A" $0; c++; next }
+              /^error(\[E[0-9]+\])?: / && e < 3 { print $0; e++ }
+              END { if (n) print buf }' | head -10 | while IFS= read -r l; do
+              echo "::error title=cargo test failure ($RUNNER_OS)::$l"
+            done
+          }
+          trap annotate_failures ERR
           cargo test --workspace --locked 2>&1 | tee "$RUNNER_TEMP/cargo-test.txt"
 
       - name: test ci-temp-roots
