@@ -1008,9 +1008,25 @@ jobs:
             Note 'DisplayVersion' $(if ($null -eq $k) { 'none: the uninstall key is absent' } else { [string]$k.GetValue('DisplayVersion') })
             $log = Join-Path $logs 'setup-1.0.1.log'
             if (-not (Test-Path -LiteralPath $log -PathType Leaf)) { Fail "the 1.0.1 setup wrote no log at $log" }
-            $lines = @(Get-Content -LiteralPath $log | Where-Object { $_ -match 'x86_64-win\\Fixture\.vst3|DeleteFile|in use|Retry|Abort|restart' } | Select-Object -First 40)
-            Note 'log lines' "$($lines.Count) matching line(s) of $log (at most 40)"
-            foreach ($l in $lines) { Note 'log line' $l }
+            # GitHub keeps 10 notices per step and this step has already printed 10, so the log lines go to a file the
+            # next step annotates (the first run lost them all).
+            $lines = @(Get-Content -LiteralPath $log | Where-Object { $_ -match 'Setup version|x86_64-win\\Fixture\.vst3|DeleteFile|in use|Retry|Abort|restart' } | Select-Object -First 40)
+            Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'inno-log-lines.txt') -Value $lines
           } finally {
             Stop-Process -Id $holder.Id -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: locked-file log lines
+        if: always()
+        run: |
+          $t = 'inno-locked-file'
+          function Esc([string]$m) { $m.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A') }
+          $file = Join-Path $env:RUNNER_TEMP 'inno-log-lines.txt'
+          if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { [Console]::Out.WriteLine("::error title=${t} (log lines)::the measurement wrote no $file"); exit 1 }
+          $lines = @(Get-Content -LiteralPath $file | Where-Object { $_ -ne '' })
+          [Console]::Out.WriteLine("::notice title=$t (log lines)::$($lines.Count) matching line(s) of setup-1.0.1.log (at most 40)")
+          # At most four notices of ten verbatim lines each, so all 40 fit under the per-step limit.
+          for ($i = 0; $i -lt $lines.Count; $i += 10) {
+            $chunk = ($lines[$i..([math]::Min($i + 9, $lines.Count - 1))]) -join "`n"
+            [Console]::Out.WriteLine("::notice title=$t (log lines $($i + 1)-$([math]::Min($i + 10, $lines.Count)))::$(Esc $chunk)")
           }
