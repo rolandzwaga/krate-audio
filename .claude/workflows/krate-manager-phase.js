@@ -593,7 +593,13 @@ APP LANE (only if ${APP_DIR}/ exists; if a LATER group creates it, report "not y
   cargo test --workspace --locked   (never --all-targets: it builds and runs a test harness for the src-tauri lib/bin, which links tauri and can fail to load on Windows, 0xc0000139; Krate Manager Phase 4 ruling P-4)
 If the plan names a Cargo workspace or extra crates (e.g. the elevated helper), run fmt / clippy / test over the whole
 workspace instead (--workspace). Each command's output to a log file under F:/tmp/gate/, tail it. ANY warning is a red.
-Never pass --test-threads=1 or --no-file-parallelism. Never run "tauri build" with bundling in a gate (a main-loop lane).`
+Never pass --test-threads=1 or --no-file-parallelism. Never run "tauri build" with bundling in a gate (a main-loop lane).
+  WSL step (only if ${APP_DIR}/crates/core exists; the Windows commands above never compile cfg(unix) code, so a Linux-only
+  compile error, dead-code warning or test failure reaches no Windows gate: Phase 9's close lane found three; user, 2026-11-01):
+    wsl -e bash -lc "timeout --kill-after=20 540 bash -c 'cd /mnt/f/projects/iterum/${APP_DIR} && export CARGO_TARGET_DIR=\\$HOME/km-target && cargo clippy -p krate-manager-core --all-targets --locked -- -D warnings && cargo test -p krate-manager-core --locked'" > <log under F:/tmp/gate/> 2>&1
+  (one foreground command, timeout 600000; WSL's own target dir, so it never contends with the Windows target dir). Its
+  clippy warnings and test failures are reds like any other; report its "test result:" lines in summary as "WSL: ...".
+  If WSL itself is unavailable (wsl.exe missing or no distro), report "WSL unavailable" and count the step red.`
 
 const PIPELINE_LANE = (targets, out) => `
 PIPELINE LANE (this group touches release pipeline / tooling / plugin-side files):
