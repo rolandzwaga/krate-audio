@@ -3,27 +3,27 @@ note: did not finalize incremental compilation session directory `\\?\F:\project
   |
   = help: the next build will not be able to reuse work from this compilation
 
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.63s
      Running unittests src\lib.rs (target\debug\deps\krate_manager_helper-f0da2a9af7c716b1.exe)
 
-running 45 tests
-test classify::tests::provisional_rule ... ok
+running 46 tests
+test os::tests::random_hex_is_32_lower_hex_and_varies ... ok
 test cli::tests::parse_args_accepts_exactly_the_two_flags ... ok
+test job::tests::parse_checks_the_target_os ... ok
+test classify::tests::recorded_locked_case ... ok
 test job::tests::parse_refuses_malformed_jobs ... ok
 test job::tests::no_field_adds_a_root ... ok
-test job::tests::parse_checks_the_target_os ... ok
-test os::tests::random_hex_is_32_lower_hex_and_varies ... ok
-test result::tests::write_error_is_reported ... ok
 test result::tests::log_tail_bounds ... ok
+test result::tests::write_error_is_reported ... ok
 test validate::tests::path_rules ... ok
-test os::tests::known_folder_resolves_each_windows ... ok
 test roots::tests::production_roots_windows ... ok
+test os::tests::known_folder_resolves_each_windows ... ok
 test validate::tests::run_dir_ancestors ... ok
 test validate::tests::run_dir_sddl ... ok
-test os::tests::lstat_reports_kind_and_absence ... ok
 test os::tests::read_bounded_stops_at_bound ... ok
-test roots::tests::canonical_refuses_non_plain_components ... ok
+test os::tests::lstat_reports_kind_and_absence ... ok
 test os::tests::open_source_refuses_link_windows ... ok
+test roots::tests::canonical_refuses_non_plain_components ... ok
 test cli::tests::malformed_hash_is_usage_error ... ok
 test ops::tests::temp_io_refuses_outside_base - should panic ... ok
 test roots::tests::binary_roots_ignore_job_and_settings ... ok
@@ -31,19 +31,20 @@ test ops::tests::temp_io_refuses_every_other_method_outside_base ... ok
 test roots::tests::canonical_keeps_missing_tails ... ok
 test cli::tests::ci_roots_file_is_read ... ok
 test ops::tests::uninstall_polls_until_gone ... ok
-test ops::tests::uninstall_only_job_has_no_run_dir ... ok
-test ops::tests::run_dir_failure_fails_installers ... ok
 test ops::tests::copy_error_is_named ... ok
+test ops::tests::uninstall_only_job_has_no_run_dir ... ok
 test ops::tests::spawn_error_is_named ... ok
 test ops::tests::uninstaller_never_exits ... ok
+test ops::tests::run_dir_failure_fails_installers ... ok
 test ops::tests::batch_timeout_stops_the_rest ... ok
 test ops::tests::batch_of_three_middle_locked ... ok
 test validate::tests::pkg_plan_classifies ... ok
 test seams::tests::fake_world_cases ... ok
 test validate::tests::verbatim_paths_windows ... ok
+test ops::tests::recorded_locked_case_through_runner ... ok
 test ops::tests::exact_argv ... ok
-test ops::tests::classify_sees_whole_bounded_log ... ok
 test ops::tests::run_dir_removed_after_job ... ok
+test ops::tests::classify_sees_whole_bounded_log ... ok
 test ops::tests::runs_the_copy_never_the_original ... ok
 test ops::tests::pkg_paths_classified ... ok
 test ops::tests::uninstall_poll_times_out ... ok
@@ -53,7 +54,7 @@ test validate::tests::performs_valid_jobs ... ok
 test validate::tests::symlinked_parent_root_windows ... ok
 test validate::tests::rejects_crafted_jobs ... ok
 
-test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.78s
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.39s
 
      Running tests\core_jobs.rs (target\debug\deps\core_jobs-d06ebd5a039628c9.exe)
 
@@ -66,7 +67,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 1 test
 test helper_usage_exits_2 ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
 
    Doc-tests krate_manager_helper
 

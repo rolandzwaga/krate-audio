@@ -6083,6 +6083,58 @@ fn batch_locked_middle_maps_each() {
     assert!(ev.jobs_left().is_empty(), "{:?}", ev.jobs_left());
 }
 
+/// The recorded `inno-locked/` run (M-1): its exit code and its log.
+fn recorded_inno_run() -> (i32, Vec<u8>) {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/helper/inno-locked");
+    let exit = fs::read_to_string(dir.join("exit_code.txt"))
+        .expect("exit_code.txt")
+        .trim()
+        .parse()
+        .expect("an integer exit code");
+    (exit, fs::read(dir.join("log.txt")).expect("log.txt"))
+}
+
+/// One Alpha install through the loopback and the production classifier, the installer exiting `code` with `log`.
+fn one_inno_install(code: i32, log: Vec<u8>) -> Vec<ActionResult> {
+    let ev = Ev::new(WIN);
+    let staged = ev.staged(&[(ALPHA, V12)]);
+    let lb = Loopback::new(Os::Windows, &ev.fx.ctx().roots, &ev.fx.base, &ev.live);
+    for (entry, _) in &staged {
+        lb.installs(&installer_hex(&entry.name, V12), entry);
+    }
+    lb.exit_for(0, code);
+    lb.serve_log(0, log);
+    ev.drive(
+        &lb,
+        &FsInstallIo,
+        staged.iter().map(|(e, a)| install_of(e, a)).collect(),
+        &mut |_| {},
+    )
+}
+
+/// SC-016 post-M-1: the recorded locked run maps to `E_INSTALL_LOCKED` through the production rule.
+#[test]
+fn recorded_locked_case_maps_to_locked() {
+    let (exit, log) = recorded_inno_run();
+    let results = one_inno_install(exit, log);
+    assert_eq!(results[0].outcome, Err(InstallError::Locked));
+}
+
+/// SC-016 post-M-1 (FR-062): the recorded exit code with a log that lacks the recorded line (an Inno that logs
+/// differently) is `E_INSTALL_INSTALLER_FAILED { exit_code }`, never `E_INSTALL_LOCKED`.
+#[test]
+fn unrecognised_log_falls_back() {
+    let (exit, _) = recorded_inno_run();
+    let log =
+        b"Log opened.\r\nSome other Inno wording for a file in use.\r\nRolling back changes.\r\n"
+            .to_vec();
+    let results = one_inno_install(exit, log);
+    assert_eq!(
+        results[0].outcome,
+        Err(InstallError::InstallerFailed { exit_code: exit })
+    );
+}
+
 /// SC-014 for `plat`: install 1.2.0, the feed moves to 1.3.0, update, remove; each through its command and the
 /// loopback, each with its notice; the status between steps.
 fn install_update_remove(plat: Plat) {

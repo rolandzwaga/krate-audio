@@ -897,6 +897,47 @@ fn spawn_error_is_named() {
     assert!(Path::new(&last[0]).ends_with("installer-1.exe"));
 }
 
+/// SC-016 post-M-1: the recorded `inno-locked/` run (its log and exit code) through the runner and the production
+/// classifier reads `locked`, and a run with the same code but without the recorded line reads `failed`.
+#[test]
+fn recorded_locked_case_through_runner() {
+    let fixture =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/helper/inno-locked");
+    let log = fs::read(fixture.join("log.txt")).expect("log.txt");
+    let exit: i32 = fs::read_to_string(fixture.join("exit_code.txt"))
+        .expect("exit_code.txt")
+        .trim()
+        .parse()
+        .expect("an integer exit code");
+    let other_log =
+        b"Log opened.\r\nDeleteFile failed; code 5.\r\nRolling back changes.\r\n".to_vec();
+    for (bytes, want) in [
+        (log, (OpOutcome::Locked, Some("E_HELPER_LOCKED"))),
+        (other_log, (OpOutcome::Failed, Some("E_HELPER_EXIT"))),
+    ] {
+        let rig = Rig::new();
+        let world = World::new();
+        let io = TempIo::new(&world, &rig.base);
+        let registry = FakeRegistry::new(&world);
+        let runner = ScriptedRunner::new(&world);
+        runner.on(Match::Any, writes_log(bytes, exit, false));
+        let seams = Seams {
+            io: &io,
+            runner: &runner,
+            registry: &registry,
+            classify: classify_inno,
+        };
+        let entries = batch(
+            &rig,
+            HelperOs::Windows,
+            &[rig.inno("alpha.exe", b"alpha")],
+            &seams,
+        );
+        assert_eq!(summary(&entries), [want]);
+        assert_eq!(entries[0].exit_code, Some(exit));
+    }
+}
+
 #[test]
 fn classify_sees_whole_bounded_log() {
     // A matching line followed by 500 more: the classifier sees every line, the result keeps the last 40.

@@ -710,7 +710,7 @@ Does NOT: run an installer or elevate (Phase 10), or self-update.
 
 **Spec:** `krate-manager-phase10`
 
-**Status: stopped at the M-1 fence (Phase 10 built; `inno-locked-file` must run after the user's push)**
+**Status: ✅ COMPLETE (PENDING-CI: 15 item(s)) (2026-11-01)** — see specs/krate-manager-phase10/compliance.md
 
 Components:
 - 🆕 `krate-manager-helper`: reads one JSON job file, performs a **fixed operation set** sequentially, and writes a
@@ -763,11 +763,12 @@ Components:
   `pkgutil` route like any other plugin. After a macOS install the core runs `killall -9 AudioComponentRegistrar` (exit
   code ignored) through the injected command runner; every install ends with a "restart or rescan your DAW" notice, and
   the macOS notice adds Apple's AU rescan steps (report line 34).
-- 🆕 **Measure the locked-file behaviour (unmeasured today).** What the Inno installer does under
-  `/NOCLOSEAPPLICATIONS` when a plug-in file is locked (exit code, log lines, whether files are replaced, whether it
-  hangs or schedules a restart) has not been measured. This phase measures it on a hosted Windows runner (job
-  `inno-locked-file`, below), records the result in the spec, and the driver's mapping to the "close your DAW and
-  retry" outcome follows the measurement, not an assumption.
+- 🆕 **Measure the locked-file behaviour (measured 2026-11-01, Phase 10 spec M-1).** On a hosted Windows runner (job
+  `inno-locked-file`, Manager CI run 41342540379, Inno Setup 6.7.1) a `/NOCLOSEAPPLICATIONS` update whose plug-in DLL
+  is held open retries `DeleteFile` four times, defaults the suppressed Abort/Retry/Ignore box to Abort and exits 5
+  after about 4 s: nothing is replaced (both files stay the old version), no restart is scheduled, it does not hang.
+  The driver maps exactly exit 5 plus the line `DeleteFile: The existing file appears to be in use (5).` to the "close
+  your DAW and retry" outcome; any other failure is "installer failed (exit N)".
 - Residual risk, accepted by the user on 2026-11-01: the per-user helper can be replaced by a process running as the
   user before the prompt; no digest check and no admin-folder copy; Q5's `currentUser` install stands (Phase 10 D19).
 

@@ -1417,17 +1417,48 @@ the **helper library** in-process against temp roots (a "loopback" fake) — nev
 
 ---
 
-## M-1: the locked-file measurement (to be recorded)
+## M-1: the locked-file measurement (recorded 2026-11-01)
 
-Not yet measured. The build stage fills this section from the `inno-locked-file (windows-latest)` annotations
-(FR-060, FR-061): date, run id, Inno Setup version reported by the compile step, exit code, run time, the 1.0.0 and
-1.0.1 digests of the DLL and the unlocked file, each installed file's digest afterwards with its class (`old` / `new` /
-`other` / `absent`), `PendingFileRenameOperations` present or not and whether it names the DLL, `DisplayVersion`
-afterwards, and the verbatim log lines. Until
-then `classify_inno` follows D10's provisional rule and SC-016's post-measurement row stays open. The documented
-behaviour suggests, but does not establish, exit 5 ("chose Abort at an Abort-Retry-Ignore box", answered Abort by
-`/SUPPRESSMSGBOXES`); the mapping is written from the measurement only (roadmap line 765-766). The build stops at this fence until the user has
-pushed and the job has run (FR-063).
+Recorded by the main loop at the resume R1 (T020) from the check-run annotations of `inno-locked-file (windows-latest)`
+in Manager CI run **41342540379** (commit `dba1dff9`, 2026-11-01T19:35:54Z). The first run (41341359391, `f6022bd5`)
+measured the same exit code, classes and pending-rename result (4.4 s) but lost the log lines to GitHub's ten notices
+per step; `dba1dff9` moved them to their own step.
+
+| Value | Recorded |
+|---|---|
+| Inno Setup | 6.7.1 (the setup log's `Setup version` line; `ISCC.exe` `ProductVersion` reads `0.0.0.0`) |
+| Exit code | **5** |
+| Run time | 4.3 s; exited within 600 s: True |
+| DLL digests | 1.0.0 `c8242b40c6432dca608ea3846634bdf1572108499c5d375c72208214b8cfd46f`, 1.0.1 `cdda15d4d08e7390a995ea8161c371985d712876a10b84493871eda4e6a5b784` |
+| Unlocked file digests | 1.0.0 `92521fc3cbd964bdc9f584a991b89fddaa5754ed1cc96d6d42445338669c1305`, 1.0.1 `d51e6ec94058554a84558a5b402ee6ef5fdf5455e35c902feda61cda8752943a` |
+| DLL afterwards | `c8242b40…`, class **old** |
+| Unlocked file afterwards | `92521fc3…`, class **old** (Inno stopped before reaching it) |
+| `PendingFileRenameOperations` | gained 0 values; names the DLL: False |
+| `DisplayVersion` afterwards | 1.0.0 |
+| Holder | pid 872, `NativeLibrary.Load` of the installed DLL |
+
+The ten matching log lines, verbatim (`tests/fixtures/helper/inno-locked/log.txt`):
+
+```
+2026-11-01 19:37:20.634   Setup version: Inno Setup version 6.7.1
+2026-11-01 19:37:20.634   Setup command line: /SL5="$3021A,846346,842752,D:\a\_temp\setups\Fixture-1.0.1-Windows-x64.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOCLOSEAPPLICATIONS /LOG=D:\a\_temp\inno-logs\setup-1.0.1.log
+2026-11-01 19:37:20.721   Dest filename: D:\a\_temp\real\root\VST3\Krate Audio\Fixture\Fixture.vst3\Contents\x86_64-win\Fixture.vst3
+2026-11-01 19:37:20.723   DeleteFile: The existing file appears to be in use (5). Retrying.
+2026-11-01 19:37:21.725   DeleteFile: The existing file appears to be in use (5). Retrying.
+2026-11-01 19:37:22.727   DeleteFile: The existing file appears to be in use (5). Retrying.
+2026-11-01 19:37:23.727   DeleteFile: The existing file appears to be in use (5). Retrying.
+2026-11-01 19:37:24.729   Defaulting to Abort for suppressed message box (Abort/Retry/Ignore):
+                          D:\a\_temp\real\root\VST3\Krate Audio\Fixture\Fixture.vst3\Contents\x86_64-win\Fixture.vst3
+                          DeleteFile failed; code 5.
+```
+
+**Reading.** The update was skipped as a whole, not scheduled and not partial: Inno retried the in-use DLL four times,
+answered its suppressed Abort/Retry/Ignore box with Abort and exited 5, leaving every file and the registered version
+at 1.0.0. None of FR-062's re-ruling cases (exit 0 with the DLL `old`, a scheduled rename, a hang) occurred. The
+measured rule (FR-062): `classify::LOCKED_EXIT = 5`, `classify::LOCKED_LINE = "DeleteFile: The existing file appears to
+be in use (5)."` (`locked_line.txt`); `classes.json` is `{"dll":"old","unlocked":"old"}`; `exit_code.txt` 5;
+`seconds.txt` 4.3. `log.txt` holds the matching lines only (the job annotates the lines matching FR-060's filter plus
+`Setup version`, not the whole log).
 
 ---
 

@@ -1,4 +1,4 @@
-# 2026-11-01 (Windows, Phase 10 close lane A1f, from apps/krate-manager/, RUNNER_TEMP=F:/tmp/gate/km10-close/20261101-181513): manager-ci.yml step clippy-guard, its own run: text (::notice title=clippy-guard (Windows)::rc=101 disallowed=3 from_os=1 Roots::new=1 std::env::var=1 lint-named=5 other-errors=0)
+# 2026-11-01 (Windows, Phase 10 close lane A1f, from apps/krate-manager/, RUNNER_TEMP=F:/tmp/gate/km10-close/20261101-195336): manager-ci.yml step clippy-guard, its own run: text (::notice title=clippy-guard (Windows)::rc=101 disallowed=3 from_os=1 Roots::new=1 std::env::var=1 lint-named=5 other-errors=0)
 note: did not finalize incremental compilation session directory `\\?\F:\projects\iterum\apps\krate-manager\target\debug\incremental\krate_manager_core-3hue3wel9si9m\s-hnrflt7dsz-1fk5rfs-working`: Access is denied. (os error 5)
   |
   = help: the next build will not be able to reuse work from this compilation
@@ -7,11 +7,11 @@ note: did not finalize incremental compilation session directory `\\?\F:\project
   |
   = help: the next build will not be able to reuse work from this compilation
 
+    Checking clippy-guard v0.0.0 (F:\projects\iterum\apps\krate-manager\tests\fixtures\clippy-guard)
 note: did not finalize incremental compilation session directory `\\?\F:\projects\iterum\apps\krate-manager\target\debug\incremental\clippy_guard-1qix0vpge23vl\s-hnrfluxdg7-1gdnbq3-working`: Access is denied. (os error 5)
   |
   = help: the next build will not be able to reuse work from this compilation
 
-    Checking clippy-guard v0.0.0 (F:\projects\iterum\apps\krate-manager\tests\fixtures\clippy-guard)
 error: use of a disallowed method `krate_manager_lib::os_roots::FromOs::from_os`
  --> src\lib.rs:9:34
   |

@@ -88,8 +88,18 @@ const LOG_DIR = `F:/tmp/gate/km10-close/${STAMP}`;
 const EVID_REL = 'specs/krate-manager-phase10/evidence/';
 const APP_REL = 'apps/krate-manager/';
 const EXPECTED_PLAN = 59; // tasks.md L-TAP; .github/workflows/feed-tools.yml PLAN = "1..59" (plan.md:898-905)
-// tasks.md L-REQ (TA-1): cargo.all 328 + cargo.windows 17; vitest 57; node 3.
-const REQUIRED_NOTICE = '::notice title=required tests ran (Windows)::345 cargo + 57 vitest + 3 node';
+// --after-m1: the resume R1 (T020, main loop 2026-11-01). G4 asserts M-1 is written in instead of the fence, G5 the four
+// replay tests instead of the provisional rule, L-REQ 348 (cargo.all 331), L-SCOPE runs with --after-m1, and C1 also
+// ignores specs/krate-manager-phase11/ (the Phase 11 plan stage runs beside this close).
+const AFTER_M1 = process.argv.includes('--after-m1');
+const M1_FILES = ['exit_code.txt', 'log.txt', 'seconds.txt', 'classes.json', 'locked_line.txt'];
+const REPLAY_TESTS = ['classify::tests::recorded_locked_case', 'ops::tests::recorded_locked_case_through_runner',
+  'install::tests::recorded_locked_case_maps_to_locked', 'install::tests::unrecognised_log_falls_back'];
+const CONCURRENT_REL = 'specs/krate-manager-phase11/';
+// tasks.md L-REQ (TA-1): cargo.all 328 + cargo.windows 17; vitest 57; node 3 (after M-1: cargo.all 331, T020).
+const REQUIRED_NOTICE_FENCE = '::notice title=required tests ran (Windows)::345 cargo + 57 vitest + 3 node';
+const REQUIRED_NOTICE_AFTER_M1 = '::notice title=required tests ran (Windows)::348 cargo + 57 vitest + 3 node';
+const REQUIRED_NOTICE = AFTER_M1 ? REQUIRED_NOTICE_AFTER_M1 : REQUIRED_NOTICE_FENCE;
 // tasks.md L-HFEAT (FR-103a): the feature-run test, outside required-tests.json (plan.md:925-926).
 const CI_ROOTS_TEST = 'cli::tests::ci_roots_file_is_read';
 // T019 step 6 (SC-016 provisional rule until the resume R1).
@@ -276,7 +286,8 @@ function needleVerdict(text, needles = ROADMAP_NEEDLES) {
 
 /** git status --porcelain lines, minus this phase's evidence outputs (C1). */
 function withoutEvidence(statusText) {
-  return lines(statusText).filter((l) => l && !l.slice(3).replace(/^"/, '').startsWith(EVID_REL)).join('\n');
+  const ignored = AFTER_M1 ? [EVID_REL, CONCURRENT_REL] : [EVID_REL];
+  return lines(statusText).filter((l) => l && !ignored.some((p) => l.slice(3).replace(/^"/, '').startsWith(p))).join('\n');
 }
 
 /** Lines present in one text and not the other (multiset, line endings ignored). */
@@ -396,7 +407,9 @@ function selfTest() {
   check('phase is 10', () => eq(PHASE, 10));
   check('base is 4a8b3e2a', () => eq(BASE, '4a8b3e2a'));
   check('required notice 345 cargo (328 all + 17 windows) + 57 vitest + 3 node (TA-1)', () =>
-    eq(REQUIRED_NOTICE, '::notice title=required tests ran (Windows)::345 cargo + 57 vitest + 3 node'));
+    eq(REQUIRED_NOTICE_FENCE, '::notice title=required tests ran (Windows)::345 cargo + 57 vitest + 3 node'));
+  check('after M-1: 348 cargo (331 all + 17 windows) (T020)', () =>
+    eq(REQUIRED_NOTICE_AFTER_M1, '::notice title=required tests ran (Windows)::348 cargo + 57 vitest + 3 node'));
   check('the WSL all-seen line is TA-11\'s 13/13', () => eq(WSL_INFO_ALL, 'Linux-run Phase 9+10 tests seen ok: 13/13'));
   check('raw log root', () => eq(LOG_DIR.startsWith('F:/tmp/gate/km10-close/'), true));
   check('evidence prefix is phase 10', () => eq(EVID_REL, 'specs/krate-manager-phase10/evidence/'));
@@ -740,8 +753,14 @@ async function a1Cargo() {
   const t = await cargoTest('A1g', ['test', '--workspace', '--locked'], 'cargo-test.txt');
   record('A1g', t.ok, `cargo test --workspace --locked binaries=${t.summaries.length} passed=${t.passed}` +
     ` binaries-with-failures=${t.failedBins} -> ${EVID_REL}cargo-test.txt ${stepLabel(t.r)}`, t.r.wallS);
-  const provisional = okCount(t.r.out, PROVISIONAL_TEST);
-  record('G5', provisional === 1, `T019 step 6: "test ${PROVISIONAL_TEST} ... ok" ${provisional} time(s) in A1g's log (want 1)`);
+  if (AFTER_M1) {
+    const counts = REPLAY_TESTS.map((n) => [n, okCount(t.r.out, n)]);
+    record('G5', counts.every(([, c]) => c === 1), `T020 SC-016 replay tests in A1g's log (want 1 each): ` +
+      counts.map(([n, c]) => `${n} x${c}`).join(', '));
+  } else {
+    const provisional = okCount(t.r.out, PROVISIONAL_TEST);
+    record('G5', provisional === 1, `T019 step 6: "test ${PROVISIONAL_TEST} ... ok" ${provisional} time(s) in A1g's log (want 1)`);
+  }
 
   const h = await cargoTest('A1h', ['test', '-p', 'krate-manager-helper', '--features', 'ci-temp-roots', '--locked'],
     'cargo-test-ci-roots.txt');
@@ -838,6 +857,18 @@ async function a6SpecsIndex() {
   const before = fs.readFileSync(indexPath, 'utf8');
   const g = await node('tools/gen-specs-index.js', [], { log: 'A6-specs-index-regen.log', ceilingMs: 5 * MIN });
   const changed = changedLines(before, fs.readFileSync(indexPath, 'utf8'));
+  if (AFTER_M1) {
+    // The uncommitted Phase 11 folder adds its row and moves the total; neither belongs in Phase 10's commit (CI's
+    // generated-artifacts check runs on a checkout without it), so the committed index is kept.
+    const concurrent = path.basename(CONCURRENT_REL) + '/';
+    const rest = changed.filter((l) => !l.includes(concurrent) && !l.includes('Total spec dirs:'));
+    if (green(g) && rest.length === 0) {
+      fs.writeFileSync(indexPath, before);
+      record('A6', true, `L-INDEX current except the uncommitted ${CONCURRENT_REL} row (${changed.length} changed line(s));` +
+        ` specs/INDEX.md kept as committed ${stepLabel(r)}`, r.wallS);
+      return;
+    }
+  }
   const foreign = changed.filter((l) => !l.includes(phaseDir));
   if (!green(g) || foreign.length) {
     fs.writeFileSync(indexPath, before);
@@ -851,7 +882,7 @@ async function a6SpecsIndex() {
 }
 
 async function scope(id, log) {
-  const r = await node(path.join(EVID, 'scope-check.js'), [], { log, ceilingMs: 2 * MIN });
+  const r = await node(path.join(EVID, 'scope-check.js'), AFTER_M1 ? ['--after-m1'] : [], { log, ceilingMs: 2 * MIN });
   record(id, green(r), `L-SCOPE scope-check last="${lastLine(r.out)}" ${stepLabel(r)}`, r.wallS);
 }
 
@@ -870,8 +901,19 @@ function greps() {
 
   const fence = fenceHits(scanned.paths.filter((p) => p.startsWith(APP_REL)), scanned.entries.filter(([p]) => p.startsWith(APP_REL)));
   const fenceDirOnDisk = fs.existsSync(path.join(ROOT, FENCE_DIR));
-  record('G4', !scanned.error && fence.length === 0 && !fenceDirOnDisk, `M-1 fence (SC-032): ${FENCE_DIR}` +
-    ` ${fenceDirOnDisk ? 'EXISTS' : 'absent'}; LOCKED_EXIT / LOCKED_LINE words: ${fence.length ? `HIT ${fence.join(' ; ')}` : 'none'}`);
+  if (AFTER_M1) {
+    // M-1 written in (FR-061, FR-062): every fixture file present, and the two constants live in classify.rs and its
+    // test module only.
+    const want = ['classify.rs', 'classify_tests.rs'].map((f) => `${APP_REL}crates/helper/src/${f}`);
+    const missing = M1_FILES.filter((f) => !fs.existsSync(path.join(ROOT, FENCE_DIR, f)));
+    const homes = [...new Set(fence.filter((h) => !h.startsWith(FENCE_DIR)).map((h) => h.replace(/:\d+$/, '')))].sort();
+    const ok = !scanned.error && missing.length === 0 && homes.join(',') === want.join(',');
+    record('G4', ok, `M-1 written in (FR-061, FR-062): ${FENCE_DIR} missing=${missing.length ? missing.join(',') : 'none'};` +
+      ` LOCKED_EXIT / LOCKED_LINE homes: ${homes.join(', ') || 'none'} (want ${want.join(', ')})`);
+  } else {
+    record('G4', !scanned.error && fence.length === 0 && !fenceDirOnDisk, `M-1 fence (SC-032): ${FENCE_DIR}` +
+      ` ${fenceDirOnDisk ? 'EXISTS' : 'absent'}; LOCKED_EXIT / LOCKED_LINE words: ${fence.length ? `HIT ${fence.join(' ; ')}` : 'none'}`);
+  }
 
   const v = needleVerdict(fs.readFileSync(ROADMAP, 'utf8'));
   record('G6', v.ok, `FR-123 needles of T002, one line each in ${rel(ROADMAP)}: ${v.detail}`);

@@ -1,27 +1,32 @@
 $ wsl -e bash -lc "timeout --kill-after=30 2400 bash -c 'cd /mnt/f/projects/iterum/apps/krate-manager && export CARGO_TARGET_DIR=$HOME/km-target && cargo clippy -p krate-manager-core -p krate-manager-helper --all-targets --locked -- -D warnings && cargo clippy -p krate-manager-helper --all-targets --features ci-temp-roots --locked -- -D warnings && cargo test -p krate-manager-core -p krate-manager-helper --locked'"
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.42s
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.57s
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+    Checking krate-manager-helper v0.1.0 (/mnt/f/projects/iterum/apps/krate-manager/crates/helper)
+    Checking krate-manager-core v0.1.0 (/mnt/f/projects/iterum/apps/krate-manager/crates/core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.46s
+    Checking krate-manager-helper v0.1.0 (/mnt/f/projects/iterum/apps/krate-manager/crates/helper)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.11s
+   Compiling krate-manager-helper v0.1.0 (/mnt/f/projects/iterum/apps/krate-manager/crates/helper)
+   Compiling krate-manager-core v0.1.0 (/mnt/f/projects/iterum/apps/krate-manager/crates/core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.86s
      Running unittests src/lib.rs (/home/roland/km-target/debug/deps/krate_manager_core-a41d7456f3409a1d)
 
-running 306 tests
+running 308 tests
 test context::tests::assemble_locked_instance ... ok
 test context::tests::configured_root_cases ... ok
 test context::tests::parse_dev_feed_url_cases ... ok
 test context::tests::assemble_runs_install_recovery ... ok
+test context::tests::reassemble_cases ... ok
 test context::tests::assemble_cases ... ok
 test context::tests::http_config_is_carried ... ok
-test context::tests::reassemble_cases ... ok
 test context::tests::sandbox_holds_through_assemble_and_reassemble ... ok
-test context::tests::startup_notice_cases ... ok
 test context::tests::startup_errors_are_logged ... ok
+test context::tests::startup_notice_cases ... ok
 test contract::tests::ecma_pattern_translation ... ok
 test contract::tests::keyword_semantics_cases ... ok
 test contract::tests::embedded_schemas_compile ... ok
 test contract::tests::trusted_comment_cases ... ok
 test contract::tests::unsupported_schema_constructs_are_refused ... ok
-test detect::tests::candidate_table ... ok
 test contract::tests::minisig_text_cases ... ok
+test detect::tests::candidate_table ... ok
 test detect::tests::duplicates_in_two_roots ... ok
 test detect::tests::host_facts_through_fake_io_linux ... ok
 test detect::tests::host_read_mappers ... ok
@@ -39,9 +44,9 @@ test detect::tests::outside_install_location_panics - should panic ... ok
 test detect::tests::parse_manifest_cases ... ok
 test detect::tests::probe_metadata_error_unix ... ok
 test detect::tests::installed_state_table ... ok
+test detect::tests::records_through_fake_host ... ok
 test detect::tests::record_parsers ... ok
 test detect::tests::trailing_comma_cases ... ok
-test detect::tests::records_through_fake_host ... ok
 test download::tests::busy_registry_is_released_on_error ... ok
 test contract::tests::c1_cases_reproduce ... ok
 test download::tests::cached_verified_file_is_reverified ... ok
@@ -50,10 +55,10 @@ test download::tests::command_flow_cases ... ok
 test contract::tests::gen_feed_outputs_accepted ... ok
 test download::tests::channel_adapter_forwards_in_order ... ok
 test download::tests::fixture_url_seam_cases ... ok
-test download::tests::cancellation_cases ... ok
 test download::tests::good_artifact_verifies ... ok
-test download::tests::interrupted_download_resumes ... ok
+test download::tests::cancellation_cases ... ok
 test download::tests::ignored_range_falls_back_to_full ... ok
+test download::tests::interrupted_download_resumes ... ok
 test download::tests::partial_from_a_previous_run_resumes ... ok
 test download::tests::non_retryable_transport_errors ... ok
 test download::tests::discard_cases ... ok
@@ -61,8 +66,8 @@ test download::tests::progress_is_monotonic_and_ends_at_size ... ok
 test download::tests::prune_keeps_only_live_artifacts ... ok
 test download::tests::prune_spares_in_flight_artifact ... ok
 test download::tests::readonly_staging_dir_unix ... ok
-test download::tests::policy_has_no_overall_budget ... ok
 test download::tests::redirect_target_never_logged ... ok
+test download::tests::policy_has_no_overall_budget ... ok
 test download::tests::request_for_cases ... ok
 test download::tests::request_for_platform_cases ... ok
 test download::tests::range_edge_cases ... ok
@@ -71,9 +76,9 @@ test download::tests::same_artifact_twice_is_busy ... ok
 test download::tests::rejections_never_reach_next_stage ... ok
 test download::tests::staged_paths_cases ... ok
 test download::tests::retries_are_bounded ... ok
-test download::tests::slow_moving_download_is_not_an_error ... ok
 test download::tests::staged_symlinks_are_not_followed ... ok
 test download::tests::staging_errors_are_named ... ok
+test download::tests::slow_moving_download_is_not_an_error ... ok
 test download::tests::truncate_failure_after_ignored_range ... ok
 test download::tests::stall_resumes ... ok
 test download::tests::two_artifacts_reach_one_consumer ... ok
@@ -84,11 +89,11 @@ test extract::tests::concurrent_stage_is_safe ... ok
 test download::tests::stall_and_deadline_are_named ... ok
 test extract::tests::discard_and_prune ... ok
 test extract::tests::dot_slash_round_trip ... ok
-test extract::tests::crafted_archives_are_refused ... ok
-test extract::tests::entry_path_rejects_every_bad_form ... ok
 test extract::tests::entry_binding_cases ... ok
-test extract::tests::exec_and_symlink_round_trip_logic ... ok
+test extract::tests::entry_path_rejects_every_bad_form ... ok
 test extract::tests::escape_cases_unix ... ok
+test extract::tests::crafted_archives_are_refused ... ok
+test extract::tests::exec_and_symlink_round_trip_logic ... ok
 test extract::tests::file_hashes_match_written_bytes ... ok
 test extract::tests::good_fixtures_match_committed_listings ... ok
 test extract::tests::kat_archive_stages ... ok
@@ -98,26 +103,26 @@ test extract::tests::pax_xattr_records_are_ignored ... ok
 test extract::tests::io_failures_leave_no_tree ... ok
 test extract::tests::posix_modes_and_links_unix ... ok
 test extract::tests::prune_removes_by_kind ... ok
-test extract::tests::prune_removes_real_link_unix ... ok
-test extract::tests::real_shaped_round_trip ... ok
 test extract::tests::payload_and_layout_mismatches ... ok
+test extract::tests::prune_removes_real_link_unix ... ok
 test extract::tests::special_bits_and_mtime_not_applied_unix ... ok
+test extract::tests::real_shaped_round_trip ... ok
 test extract::tests::stage_logs_one_line_per_outcome ... ok
 test extract::tests::symlinked_staging_root_unix ... ok
 test extract::tests::trailing_zero_padding_is_accepted ... ok
-test download::tests::writes_nothing_outside_downloads ... ok
 test extract::tests::tree_mismatch_is_refused ... ok
 test extract::tests::work_dir_must_be_inside_staging ... ok
+test download::tests::writes_nothing_outside_downloads ... ok
 test feed::tests::asset_name_cases ... ok
 test feed::tests::accept_rows_parse_through_the_client ... ok
 test feed::tests::cache_rules ... ok
 test feed::tests::check_fresh_writes_cache ... ok
 test feed::tests::check_logs_one_line ... ok
 test feed::tests::check_now_sends_no_cache ... ok
-test feed::tests::cache_write_fault_keeps_previous ... ok
 test feed::tests::broken_sibling_never_blocks_stable ... ok
-test feed::tests::check_through_proxy_writes_cache ... ok
+test feed::tests::cache_write_fault_keeps_previous ... ok
 test feed::tests::concurrent_checks_leave_one_whole_file ... ok
+test feed::tests::check_through_proxy_writes_cache ... ok
 test feed::tests::fresh_lower_version_replaces_cache ... ok
 test feed::tests::model_of_full_v2 ... ok
 test feed::tests::model_range_cases ... ok
@@ -137,8 +142,8 @@ test fixture_server::tests::ranged_cases ... ok
 test fixture_server::tests::replies_behave_as_scripted ... ok
 test fixture_server::tests::script_advances_per_request ... ok
 test http::tests::agent_trusts_the_os_store ... ok
-test feed::tests::rejected_feed_keeps_last_good_copy ... ok
 test http::tests::bounded_call_abandons_after_wait ... ok
+test feed::tests::rejected_feed_keeps_last_good_copy ... ok
 test http::tests::config_for_dev_url_cases ... ok
 test http::tests::https_only_refuses_before_connecting ... ok
 test http::tests::loopback_proxy_only ... ok
@@ -167,9 +172,9 @@ test http::tests::streamed_body_cases ... ok
 test http::tests::streamed_pac_fetch_keeps_the_feed_bound_unix ... ok
 test http::tests::streamed_policy_cases ... ok
 test http::tests::url_policy_cases ... ok
-test http::tests::pac_list_walk ... ok
-test install::loopback::loopback_smoke ... ok
 test http::tests::wpad_discovery_walk ... ok
+test install::loopback::loopback_smoke ... ok
+test http::tests::pac_list_walk ... ok
 test install::tests::batch_locked_middle_maps_each ... ok
 test install::tests::batch_runs_every_action ... ok
 test install::tests::artifact_released_after_success ... ok
@@ -188,44 +193,46 @@ test install::tests::helper_file_never_opened ... ok
 test install::tests::helper_resolved_beside_exe ... ok
 test install::tests::install_update_remove_cycle ... ok
 test install::tests::install_update_remove_cycle_unix ... ok
-test download::tests::crash_after_each_step_recovers ... ok
 test install::tests::crash_after_each_step_recovers_unix ... ok
 test install::tests::io_failures_roll_back_unix ... ok
 test install::tests::job_files_written_and_removed ... ok
 test install::tests::job_hash_is_the_verified_digest ... ok
-test install::tests::launch_program_is_the_resolved_helper ... ok
 test install::tests::launch_outcomes_map ... ok
+test install::tests::launch_program_is_the_resolved_helper ... ok
 test install::tests::logs_one_line_per_action ... ok
 test install::tests::macos_install_update_remove ... ok
-test install::tests::manifest_outside_roots_refused_unix ... ok
-test install::tests::manifest_reads_back_through_detect ... ok
-test install::tests::native_wiring_installs_linux ... ok
-test install::tests::new_error_texts ... ok
 test install::tests::manifest_outside_roots_refused ... ok
+test install::tests::manifest_outside_roots_refused_unix ... ok
+test install::tests::driver_rechecks_state ... ok
+test install::tests::manifest_reads_back_through_detect ... ok
+test install::tests::new_error_texts ... ok
 test install::tests::non_utf8_root_refused_unix ... ok
+test install::tests::native_wiring_installs_linux ... ok
 test install::tests::one_launch_per_batch ... ok
 test install::tests::osascript_outcome_parses ... ok
 test install::tests::planner_decides_stale_files ... ok
 test install::tests::pre_job_refusals ... ok
-test install::tests::progress_events ... ok
 test install::tests::not_applied_detected ... ok
-test install::tests::recover_removes_stale_jobs ... ok
 test install::tests::record_outside_sandbox_panics - should panic ... ok
+test install::tests::recorded_locked_case_maps_to_locked ... ok
+test install::tests::recover_removes_stale_jobs ... ok
+test install::tests::progress_events ... ok
 test install::tests::recovery_table_rows ... ok
 test install::tests::refused_prompt_changes_nothing ... ok
 test install::tests::remove_bundle_link_unix ... ok
 test install::tests::remove_deletes_bundle_whole ... ok
 test install::tests::remove_elsewhere_refused ... ok
-test install::tests::remove_keeps_user_files ... ok
 test install::tests::remove_crash_resumes ... ok
-test install::tests::remove_reports_another_kind_at_a_directory_entry ... ok
+test install::tests::remove_keeps_user_files ... ok
 test install::tests::sandbox_guard_panics ... ok
+test install::tests::remove_reports_another_kind_at_a_directory_entry ... ok
 test install::tests::state_checks_before_download ... ok
 test install::tests::startup_recovery ... ok
 test install::tests::state_dir_made_by_another_action ... ok
 test install::tests::symlinked_plugin_root_unix ... ok
 test install::tests::timed_out_holds_guard ... ok
 test install::tests::sync_before_commit ... ok
+test install::tests::unrecognised_log_falls_back ... ok
 test install::tests::unverified_never_installed ... ok
 test install::tests::windows_install_update_remove ... ok
 test install::tests::windows_parameters_quote ... ok
@@ -234,12 +241,12 @@ test log_sink::tests::rotating_log_cases ... ok
 test navigation::tests::app_origin_cases ... ok
 test navigation::tests::is_app_origin_cases ... ok
 test notes::tests::blocks_cases ... ok
-test install::tests::driver_rechecks_state ... ok
 test install::tests::update_preset_rules ... ok
 test pac::tests::fake_pac_host_answers_from_its_table ... ok
-test pac::tests::pac_clock_cases ... ok
 test pac::tests::find_proxy_result_cases ... ok
+test pac::tests::pac_clock_cases ... ok
 test pac::tests::pac_helper_cases ... ok
+test install::tests::io_failures_roll_back ... ok
 test pac::tests::script_world_cases ... ok
 test pac::tests::url_argument_cases ... ok
 test pac::tests::winhttp_answer_cases ... ok
@@ -264,15 +271,15 @@ test state_lock::tests::acquire_creates_state_dir_and_lock_file_only ... ok
 test state_lock::tests::acquire_io_error_is_named ... ok
 test state_lock::tests::lock_file_survives_drop ... ok
 test state_lock::tests::second_acquire_is_held_while_first_lives ... ok
-test status::tests::actions_per_state ... ok
+test pac::tests::dns_bound_cases ... ok
 test status::tests::build_cases ... ok
+test status::tests::actions_per_state ... ok
 test status::tests::concurrent_builds ... ok
 test status::tests::feed_driven_detection ... ok
-test status::tests::golden_views ... ok
 test status::tests::listing_runs_once_per_root ... ok
 test status::tests::release_page_url_cases ... ok
 test status::tests::running_os_gates ... ok
-test pac::tests::dns_bound_cases ... ok
+test status::tests::golden_views ... ok
 test sysproxy::tests::kde_file_read_cases ... ok
 test sysproxy::tests::kioslaverc_path_cases ... ok
 test sysproxy::tests::linux_desktop_choice_cases ... ok
@@ -309,17 +316,17 @@ test version::tests::parse_core_cases ... ok
 test version::tests::reduce_class_version_cases ... ok
 test version::tests::resolve_table ... ok
 test sysproxy::tests::bounded_run_abandons_and_reaps ... ok
-test install::tests::io_failures_roll_back ... ok
 test pac::tests::script_failure_cases ... ok
+test download::tests::crash_after_each_step_recovers ... ok
 
-test result: ok. 306 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.51s
+test result: ok. 308 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.00s
 
      Running tests/config_guard.rs (/home/roland/km-target/debug/deps/config_guard-827a932b35be4df5)
 
 running 9 tests
 test frontend_source_scan_reports_planted_strings ... ok
-test planted_app_metadata_changes_fail_the_guard ... ok
 test core_has_no_signing_crate ... ok
+test planted_app_metadata_changes_fail_the_guard ... ok
 test real_app_metadata_passes_the_guard ... ok
 test real_src_tauri_config_passes_the_guard ... ok
 test opener_is_confined_and_not_granted_to_the_webview ... ok
@@ -327,7 +334,7 @@ test signing_crate_scan_reports_plants ... ok
 test opener_guard_reports_plants ... ok
 test planted_config_changes_fail_the_guard ... ok
 
-test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.32s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.83s
 
      Running tests/injection.rs (/home/roland/km-target/debug/deps/injection-abfa56d45cd5949c)
 
@@ -337,8 +344,8 @@ test detect_status_notes_hold_no_write_or_listing_token ... ok
 test download_and_verify_hold_no_url_or_whole_read ... ok
 test core_dependencies_are_the_fr007_set ... ok
 test feed_model_seams_hold ... ok
-test download_verify_scanner_reports_plants ... ok
 test disallowed_methods_expectations_are_the_seven_d6_sites ... ok
+test download_verify_scanner_reports_plants ... ok
 test fixture_url_seam_is_test_only ... ok
 test host_io_symbols_are_confined ... ok
 test no_secret_key_in_app_tree ... ok
@@ -364,7 +371,7 @@ test verify_crates_are_confined ... ok
 test ureq_is_confined_to_http_rs ... ok
 test verify_confinement_scanner_reports_plants ... ok
 
-test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.89s
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.42s
 
      Running tests/live_feed.rs (/home/roland/km-target/debug/deps/live_feed-dd9cb14d1f1609f3)
 
@@ -381,7 +388,7 @@ test install_identifiers_absent_from_sources ... ok
 test roster_and_hosts_absent_from_sources ... ok
 test fixture_names_confined ... ok
 
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s
 
      Running tests/windows_quoting.rs (/home/roland/km-target/debug/deps/windows_quoting-16edc0f80072aff4)
 
@@ -391,46 +398,47 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
      Running unittests src/lib.rs (/home/roland/km-target/debug/deps/krate_manager_helper-0f1b08a1db7c9e6a)
 
-running 45 tests
-test classify::tests::provisional_rule ... ok
+running 46 tests
+test cli::tests::ci_roots_flag_is_usage_error ... ok
+test cli::tests::malformed_hash_is_usage_error ... ok
 test cli::tests::parse_args_accepts_exactly_the_two_flags ... ok
 test job::tests::parse_checks_the_target_os ... ok
-test cli::tests::malformed_hash_is_usage_error ... ok
-test cli::tests::ci_roots_flag_is_usage_error ... ok
 test job::tests::no_field_adds_a_root ... ok
 test job::tests::parse_refuses_malformed_jobs ... ok
-test ops::tests::copy_error_is_named ... ok
 test ops::tests::batch_timeout_stops_the_rest ... ok
 test ops::tests::batch_of_three_middle_locked ... ok
+test classify::tests::recorded_locked_case ... ok
+test ops::tests::copy_error_is_named ... ok
 test ops::tests::exact_argv ... ok
-test ops::tests::run_dir_failure_fails_installers ... ok
 test ops::tests::pkg_paths_classified ... ok
+test ops::tests::run_dir_failure_fails_installers ... ok
+test ops::tests::recorded_locked_case_through_runner ... ok
+test ops::tests::classify_sees_whole_bounded_log ... ok
 test ops::tests::pkg_failure_paths ... ok
 test ops::tests::run_dir_refusals_spawn_nothing ... ok
-test ops::tests::run_dir_removed_after_job ... ok
 test ops::tests::temp_io_refuses_every_other_method_outside_base ... ok
 test ops::tests::temp_io_refuses_outside_base - should panic ... ok
-test ops::tests::spawn_error_is_named ... ok
-test ops::tests::classify_sees_whole_bounded_log ... ok
 test ops::tests::uninstall_only_job_has_no_run_dir ... ok
-test ops::tests::uninstall_poll_times_out ... ok
-test os::tests::lstat_reports_kind_and_absence ... ok
+test ops::tests::spawn_error_is_named ... ok
+test ops::tests::run_dir_removed_after_job ... ok
 test ops::tests::uninstall_polls_until_gone ... ok
-test os::tests::random_hex_is_32_lower_hex_and_varies ... ok
-test ops::tests::uninstaller_never_exits ... ok
-test os::tests::read_bounded_stops_at_bound ... ok
-test os::tests::run_dir_mode_unix ... ok
+test os::tests::lstat_reports_kind_and_absence ... ok
 test os::tests::open_source_refuses_links_and_fifos_unix ... ok
+test os::tests::random_hex_is_32_lower_hex_and_varies ... ok
+test os::tests::read_bounded_stops_at_bound ... ok
+test ops::tests::uninstaller_never_exits ... ok
+test ops::tests::uninstall_poll_times_out ... ok
+test os::tests::run_dir_mode_unix ... ok
 test result::tests::log_tail_bounds ... ok
 test result::tests::write_error_is_reported ... ok
 test roots::tests::canonical_keeps_missing_tails ... ok
 test roots::tests::canonical_refuses_non_plain_components ... ok
-test roots::tests::production_roots_linux ... ok
 test roots::tests::binary_roots_ignore_job_and_settings ... ok
+test roots::tests::production_roots_linux ... ok
 test validate::tests::path_rules ... ok
-test ops::tests::runs_the_copy_never_the_original ... ok
 test seams::tests::fake_world_cases ... ok
 test validate::tests::pkg_plan_classifies ... ok
+test ops::tests::runs_the_copy_never_the_original ... ok
 test validate::tests::run_dir_ancestors ... ok
 test validate::tests::run_dir_sddl ... ok
 test validate::tests::performs_valid_jobs ... ok
@@ -438,45 +446,45 @@ test validate::tests::symlinked_parent_root_unix ... ok
 test os::tests::wait_timeout_leaves_child_unix ... ok
 test validate::tests::rejects_crafted_jobs ... ok
 
-test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
 
      Running tests/core_jobs.rs (/home/roland/km-target/debug/deps/core_jobs-dc1d23752a75a415)
 
 running 1 test
 test core_written_jobs_parse ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
 
      Running tests/usage.rs (/home/roland/km-target/debug/deps/usage-bb25a21e75ac2c26)
 
 running 1 test
 test helper_usage_exits_2 ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
    Doc-tests krate_manager_core
 
 running 2 tests
-test crates/core/src/verify.rs - verify::VerifiedArtifact (line 106) - compile ... ok
 test crates/core/src/extract.rs - extract::StagedTree (line 2056) - compile ... ok
+test crates/core/src/verify.rs - verify::VerifiedArtifact (line 106) - compile ... ok
 
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
 
 running 9 tests
-test crates/core/src/extract.rs - extract::StagedTree (line 2047) - compile fail ... ok
 test crates/core/src/extract.rs - extract::StagedTree (line 2044) - compile fail ... ok
+test crates/core/src/extract.rs - extract::StagedTree (line 2047) - compile fail ... ok
 test crates/core/src/feed.rs - feed::AssetName (line 193) - compile fail ... ok
 test crates/core/src/feed.rs - feed::AssetUrl (line 157) - compile fail ... ok
 test crates/core/src/feed.rs - feed::PageUrl (line 175) - compile fail ... ok
-test crates/core/src/feed.rs - feed::PlainName (line 137) - compile fail ... ok
 test crates/core/src/install.rs - install::Action (line 291) - compile fail ... ok
+test crates/core/src/feed.rs - feed::PlainName (line 137) - compile fail ... ok
 test crates/core/src/verify.rs - verify::VerifiedArtifact (line 103) - compile fail ... ok
 test crates/core/src/verify.rs - verify::VerifiedArtifact (line 92) - compile fail ... ok
 
-test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
 
-all doctests ran in 1.39s; merged doctests compilation took 1.24s
+all doctests ran in 1.00s; merged doctests compilation took 0.84s
    Doc-tests krate_manager_helper
 
 running 0 tests

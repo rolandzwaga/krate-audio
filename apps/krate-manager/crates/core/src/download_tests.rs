@@ -914,14 +914,17 @@ fn request_for_platform_cases() {
         Ok(r) => panic!("an unknown name: {r:?}"),
     }
 
+    // Above every OS floor: on macOS an asset without min_os still needs the macOS floor (15.0), which 2.99 is not.
+    let native_running = OsVersion::parse("99.0");
     let native = feed_of(&[entry(&Asset::new("Alpha", 7, 1000), &signer)]);
-    let delegated = request_for(&native, "Alpha", running.as_ref()).expect("the native asset");
+    let delegated =
+        request_for(&native, "Alpha", native_running.as_ref()).expect("the native asset");
     let explicit = request_for_platform(
         &native,
         "Alpha",
         NativePlatform.os(),
         Arch::native(),
-        running.as_ref(),
+        native_running.as_ref(),
     )
     .expect("the native pair");
     assert_eq!(

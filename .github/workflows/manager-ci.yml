@@ -873,7 +873,7 @@ jobs:
           set -euo pipefail
           sudo pkgutil --forget com.krateaudio.fixture || true
 
-  # FR-060, FR-102: the locked-file measurement (M-1). No FR-102a assertion yet: it needs the M-1 fixtures (FR-063).
+  # FR-060, FR-102: the locked-file measurement (M-1); FR-102a compares it with the committed M-1 fixtures.
   inno-locked-file:
     name: inno-locked-file (windows-latest)
     needs: changes
@@ -940,7 +940,7 @@ jobs:
 
       - name: locked-file measurement
         run: |
-          # Until M-1 is recorded (FR-061, FR-063) this measures: only a value that cannot be recorded is an error.
+          # Every value is annotated; then FR-102a compares them with M-1 (tests/fixtures/helper/inno-locked/).
           $t = 'inno-locked-file'
           function Esc([string]$m) { $m.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A') }
           function Note([string]$what, [string]$m) { [Console]::Out.WriteLine("::notice title=$t ($what)::$(Esc $m)") }
@@ -1012,6 +1012,20 @@ jobs:
             # next step annotates (the first run lost them all).
             $lines = @(Get-Content -LiteralPath $log | Where-Object { $_ -match 'Setup version|x86_64-win\\Fixture\.vst3|DeleteFile|in use|Retry|Abort|restart' } | Select-Object -First 40)
             Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'inno-log-lines.txt') -Value $lines
+            # FR-102a: the measured values against M-1's committed fixtures (SI-26); every mismatch is an error.
+            $m1 = 'tests/fixtures/helper/inno-locked'
+            $wantExit = (Get-Content -LiteralPath "$m1/exit_code.txt" -Raw).Trim()
+            $wantLine = Get-Content -LiteralPath "$m1/locked_line.txt" -Raw
+            $wantClasses = Get-Content -LiteralPath "$m1/classes.json" -Raw | ConvertFrom-Json
+            $bad = @()
+            if (-not $exited -or "$($p.ExitCode)" -ne $wantExit) { $bad += "exit code '$(if ($exited) { $p.ExitCode } else { 'none' })', recorded '$wantExit'" }
+            if (-not (Get-Content -LiteralPath $log -Raw).Contains($wantLine)) { $bad += "the log lacks the recorded line '$wantLine'" }
+            $gotDll = Get-FileClass $dll $old.dll $new.dll
+            $gotUnlocked = Get-FileClass $unlocked $old.unlocked $new.unlocked
+            if ($gotDll -ne $wantClasses.dll) { $bad += "DLL class $gotDll, recorded $($wantClasses.dll)" }
+            if ($gotUnlocked -ne $wantClasses.unlocked) { $bad += "unlocked file class $gotUnlocked, recorded $($wantClasses.unlocked)" }
+            foreach ($b in $bad) { [Console]::Out.WriteLine("::error title=$t (M-1 changed)::$(Esc $b)") }
+            if ($bad.Count -gt 0) { exit 1 }
           } finally {
             Stop-Process -Id $holder.Id -Force -ErrorAction SilentlyContinue
           }

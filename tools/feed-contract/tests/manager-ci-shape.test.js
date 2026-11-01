@@ -565,6 +565,11 @@ function checkElevatedJobs(wf, bad) {
   const ilf = blocks['inno-locked-file'];
   if (field(ilf, 4, 'runs-on') !== 'windows-latest') bad.push(`inno-locked-file.runs-on ${field(ilf, 4, 'runs-on')}`);
   if (count(ilf, INNO_ACTION) !== 2) bad.push('inno-locked-file: not two fixture Inno compiles (1.0.0, 1.0.1)');
+  // FR-102a (SI-26): after M-1 the job reads each committed fixture and turns a mismatch into an error.
+  for (const f of ['exit_code.txt', 'locked_line.txt', 'classes.json']) {
+    if (!ilf.includes(`"$m1/${f}"`)) bad.push(`inno-locked-file: does not compare with inno-locked/${f} (FR-102a)`);
+  }
+  if (!ilf.includes('(M-1 changed)::')) bad.push('inno-locked-file: no ::error for an M-1 mismatch (FR-102a)');
 
   // FR-106, FR-107 (SI-29): sudo only in helper-elevated (check's own rule keeps it to Linux system packages).
   for (const j of ['changes', 'inno-locked-file']) if (blocks[j].includes('sudo')) bad.push(`${j}: sudo (FR-106)`);
@@ -898,7 +903,10 @@ const EXPECTED_REQUIRED = {
       'result::tests::log_tail_bounds',
       'roots::tests::binary_roots_ignore_job_and_settings',
       'job::tests::no_field_adds_a_root',
-      'classify::tests::provisional_rule',
+      'classify::tests::recorded_locked_case',
+      'ops::tests::recorded_locked_case_through_runner',
+      'install::tests::recorded_locked_case_maps_to_locked',
+      'install::tests::unrecognised_log_falls_back',
       'cli::tests::ci_roots_flag_is_usage_error',
       'cli::tests::malformed_hash_is_usage_error',
       'os::tests::read_bounded_stops_at_bound',
@@ -1456,6 +1464,11 @@ const ELEVATED_MUTATIONS = [
     'if removed from inno-locked-file',
     onWorkflow((w) => replaceOnce(w, `    if: ${GATE_IF}\n    runs-on: windows-latest\n`, '    runs-on: windows-latest\n')),
     /inno-locked-file: if null/,
+  ],
+  [
+    'FR-102a classes comparison removed from inno-locked-file',
+    onWorkflow((w) => replaceOnce(w, 'Get-Content -LiteralPath "$m1/classes.json" -Raw', 'Get-Content -LiteralPath "classes.json" -Raw')),
+    /inno-locked-file: does not compare with inno-locked\/classes\.json/,
   ],
   [
     'check gated by changes',

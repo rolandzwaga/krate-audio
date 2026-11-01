@@ -38,6 +38,15 @@ const ROADMAP = 'specs/Krate-manager-roadmap.md';
 const SHAPE_TEST = 'tools/feed-contract/tests/manager-ci-shape.test.js';
 const MANAGER_CI = '.github/workflows/manager-ci.yml';
 const PHASE_WORKFLOW = '.claude/workflows/krate-manager-phase.js';
+// --after-m1 (the resume R1, T020; main loop 2026-11-01): the M-1 fixtures become plan files, and so do the two fixes the
+// first Manager CI run asked for (the release key's line endings, the macOS floor in request_for_platform_cases). The
+// Phase 11 plan stage runs beside this close and writes only its own spec folder.
+const AFTER_M1 = process.argv.includes('--after-m1');
+const M1_FIXTURES = ['exit_code.txt', 'log.txt', 'seconds.txt', 'classes.json', 'locked_line.txt']
+  .map((f) => `tests/fixtures/helper/inno-locked/${f}`);
+const AFTER_M1_APP = [...M1_FIXTURES, 'crates/core/src/download_tests.rs'];
+const AFTER_M1_EXACT = ['.gitattributes'];
+const AFTER_M1_PREFIXES = ['specs/krate-manager-phase11/'];
 
 // tasks.md rule 11 (spec FR-121), outside apps/krate-manager/.
 const EXACT = new Set([
@@ -46,8 +55,9 @@ const EXACT = new Set([
   'specs/INDEX.md', // regenerated only (T019)
   ROADMAP, // line-level windows below
   PHASE_WORKFLOW, // the main loop's SI-22 edit (tasks.md:232-235)
+  ...(AFTER_M1 ? AFTER_M1_EXACT : []),
 ]);
-const PREFIXES = ['specs/krate-manager-phase10/'];
+const PREFIXES = ['specs/krate-manager-phase10/', ...(AFTER_M1 ? AFTER_M1_PREFIXES : [])];
 // The 13 status goldens of 4a8b3e2a (`git ls-tree 4a8b3e2a apps/krate-manager/tests/fixtures/status/`); a new one is a
 // breach.
 const GOLDENS = ['cached-stale', 'fresh-all-states', 'future-schema', 'installed-elsewhere', 'macos-au-copies',
@@ -83,11 +93,12 @@ const APP_ALLOWED = new Set([
   'tests/fixtures/helper/.gitkeep',
   'tests/fixtures/clippy-guard/Cargo.lock',
   'tests/required-tests.json',
+  ...(AFTER_M1 ? AFTER_M1_APP : []),
 ]);
 // Named so an app-side breach says why; any other app path outside APP_ALLOWED is a breach too ("not a plan §2 file").
 const APP_NAMED = [
   [/^crates\/core\/src\/(?:extract|download|verify|feed|detect|context)\.rs$/, 'a module rule 11 / FR-122 keeps unchanged'],
-  [/^tests\/fixtures\/helper\/inno-locked\//, 'an M-1 fixture, written only at the resume R1 (SC-032)'],
+  ...(AFTER_M1 ? [] : [[/^tests\/fixtures\/helper\/inno-locked\//, 'an M-1 fixture, written only at the resume R1 (SC-032)']]),
   [/(?:^|\/)Cargo\.(?:toml|lock)$/, 'a Cargo manifest or lock plan §2 does not list (rule 8)'],
   [/^package-lock\.json$/, 'package-lock.json (rule 8)'],
   [/^src-tauri\/capabilities\//, 'the capability file (spec.md:663: unchanged)'],
@@ -123,6 +134,7 @@ const ROADMAP_WINDOWS = {
     { from: 827, to: 838, what: 'FR-123 (d): the Phase 11 universal macOS bullet' },
     { from: 864, to: 866, what: 'FR-123 (d): the Phase 11 lipo outcome' },
     { from: 906, to: 912, what: 'FR-123 (g): the Phase 12 first-launch documentation bullet' },
+    ...(AFTER_M1 ? [{ from: 762, to: 766, what: 'FR-123 (b): the M-1 bullet records the measurement (R1)' }] : []),
   ],
 };
 // The base lines the windows lean on (1-based line -> exact text, or { prefix } for a line too long to spell).
