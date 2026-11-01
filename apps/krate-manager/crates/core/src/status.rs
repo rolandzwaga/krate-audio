@@ -6,6 +6,7 @@ use crate::detect::{
     ListingLimits, Place, UnknownReason, VersionSource,
 };
 use crate::feed::{self, FeedCheck, FetchMode, PluginEntry, SnapshotSource};
+use crate::install::{self, ActionGate, ActionKind, DriverResolver, InstallIo};
 use crate::notes;
 use crate::platform::{NativePlatform, Os, Platform};
 use crate::roots::RootKind;
@@ -69,6 +70,16 @@ pub struct PluginView {
     pub record_version_differs: bool,
     pub release_page_url: Option<String>,
     pub notes: Vec<notes::Block>,
+    pub actions: Vec<ActionView>,
+}
+
+/// One action a card offers (FR-100).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActionView {
+    Install,
+    Update,
+    Remove,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -171,13 +182,37 @@ pub enum RecordKind {
     Manifest,
 }
 
-/// FR-040: one feed check, one OS-version read, one listing, one detection per entry in feed order on the calling
-/// thread, then `assemble` and one `info!`. No lock, no write, no thread (the feed-cache write is Phase 5's).
+/// FR-040: `build_with_os` for the native OS and architecture over the real filesystem.
 pub fn build(ctx: &AppContext, mode: FetchMode, now_unix: u64, host: &dyn HostFacts) -> StatusView {
+    build_with_os(
+        NativePlatform.os(),
+        Arch::native(),
+        ctx,
+        mode,
+        now_unix,
+        host,
+        &install::FsInstallIo,
+    )
+}
+
+/// FR-040: one feed check, one OS-version read, one listing, one detection per entry in feed order on the calling
+/// thread, then `assemble_with_gates` and one `info!`. No lock, no write, no thread (the feed-cache write is Phase
+/// 5's). Only when `os` has an install driver, one read-only `install::action_gate` per entry with install facts
+/// (Phase 9 FR-100, PD-15).
+pub fn build_with_os(
+    os: Os,
+    arch: Arch,
+    ctx: &AppContext,
+    mode: FetchMode,
+    now_unix: u64,
+    host: &dyn HostFacts,
+    io: &dyn InstallIo,
+) -> StatusView {
     let check = feed::check(ctx, mode, now_unix);
     let running = host.os_version();
-    let os = NativePlatform.os();
+    let driver_present = install::NativeDrivers.driver_for(os).is_some();
     let mut detections = BTreeMap::new();
+    let mut gates = BTreeMap::new();
     if let Some(snapshot) = &check.snapshot {
         let mut names: Vec<&str> = Vec::new();
         for entry in snapshot.feed.plugins.values() {
@@ -192,9 +227,21 @@ pub fn build(ctx: &AppContext, mode: FetchMode, now_unix: u64, host: &dyn HostFa
         for (key, entry) in &snapshot.feed.plugins {
             let detection = detect::detect_plugin(os, ctx, entry, host, &listing);
             detections.insert(key.clone(), detection);
+            let has_install = entry.release.as_ref().is_some_and(|r| r.install.is_some());
+            if driver_present && has_install {
+                gates.insert(key.clone(), install::action_gate(os, ctx, io, entry));
+            }
         }
     }
-    let view = assemble(os, Arch::native(), &check, running, &detections);
+    let view = assemble_with_gates(
+        os,
+        arch,
+        &check,
+        running,
+        &detections,
+        &gates,
+        driver_present,
+    );
     let copies: usize = view.plugins.iter().map(|p| p.copies.len()).sum();
     let source = match view.feed.source {
         FeedSource::Fresh => "fresh",
@@ -209,13 +256,36 @@ pub fn build(ctx: &AppContext, mode: FetchMode, now_unix: u64, host: &dyn HostFa
     view
 }
 
-/// FR-041: pure. The availability through `version::resolve`, the installed state of FR-043, the flags of FR-044.
+/// FR-041: `assemble_with_gates` with no gate and no driver, so every card's `actions` is empty.
 pub fn assemble(
     os: Os,
     arch: Arch,
     check: &FeedCheck,
     running: Option<OsVersion>,
     detections: &BTreeMap<String, Detection>,
+) -> StatusView {
+    assemble_with_gates(
+        os,
+        arch,
+        check,
+        running,
+        detections,
+        &BTreeMap::new(),
+        false,
+    )
+}
+
+/// FR-041: pure. The availability through `version::resolve`, the installed state of FR-043, the flags of FR-044;
+/// each card's `actions` from `install::allowed_actions` over its gate, empty for an entry without one (Phase 9
+/// FR-100, D13).
+pub fn assemble_with_gates(
+    os: Os,
+    arch: Arch,
+    check: &FeedCheck,
+    running: Option<OsVersion>,
+    detections: &BTreeMap<String, Detection>,
+    gates: &BTreeMap<String, ActionGate>,
+    driver_present: bool,
 ) -> StatusView {
     let plugins = check
         .snapshot
@@ -226,7 +296,15 @@ pub fn assemble(
                 .plugins
                 .iter()
                 .map(|(key, entry)| {
-                    plugin_view(os, arch, running.as_ref(), entry, detections.get(key))
+                    plugin_view(
+                        os,
+                        arch,
+                        running.as_ref(),
+                        entry,
+                        detections.get(key),
+                        gates.get(key),
+                        driver_present,
+                    )
                 })
                 .collect()
         })
@@ -282,15 +360,18 @@ fn os_name(os: Os) -> OsName {
     }
 }
 
-/// One card. `detection` absent is `NotChecked`.
+/// One card. `detection` absent is `NotChecked`; `gate` absent offers no action (Phase 9 FR-100).
 fn plugin_view(
     os: Os,
     arch: Arch,
     running: Option<&OsVersion>,
     entry: &PluginEntry,
     detection: Option<&Detection>,
+    gate: Option<&ActionGate>,
+    driver_present: bool,
 ) -> PluginView {
-    let (availability, min_os) = match version::resolve(entry, os, arch, running) {
+    let resolved = version::resolve(entry, os, arch, running);
+    let (availability, min_os) = match &resolved {
         Availability::Available { .. } => (AvailabilityView::Available, None),
         Availability::NotThroughManager => (AvailabilityView::NotThroughManager, None),
         Availability::NotForThisMachine => (AvailabilityView::NotForThisMachine, None),
@@ -298,6 +379,15 @@ fn plugin_view(
             (AvailabilityView::NeedsNewerOs, Some(min_os.to_string()))
         }
     };
+    let update = update_state(entry, detection);
+    let actions = gate
+        .map(|gate| {
+            install::allowed_actions(driver_present, gate, &resolved, update)
+                .into_iter()
+                .map(action_view)
+                .collect()
+        })
+        .unwrap_or_default();
     let release = entry.release.as_ref();
     let mut view = PluginView {
         name: entry.name.clone(),
@@ -317,6 +407,7 @@ fn plugin_view(
             .and_then(|r| r.notes_markdown.as_deref())
             .map(notes::blocks)
             .unwrap_or_default(),
+        actions,
     };
     let Some(Detection::Checked {
         copies,
@@ -327,11 +418,39 @@ fn plugin_view(
     else {
         return view;
     };
-    // FR-043: the managed VST3 copy decides; AU copies never do.
+    let ManagedState {
+        managed,
+        installed,
+        installed_version,
+        ..
+    } = managed_state(copies);
+    let managed_known = managed.and_then(|c| known_version(c.version));
+    let record_version = record.as_ref().and_then(record_core_version);
+    view.installed = installed;
+    view.installed_version = installed_version.map(|v| v.to_string());
+    view.update = update.map(update_view);
+    view.copies = copies.iter().map(|c| copy_view(c, *managed_rank)).collect();
+    view.record = record.as_ref().map(record_view);
+    view.record_error = record_error.map(str::to_owned);
+    view.record_without_files = record.is_some() && managed.is_none();
+    view.record_version_differs =
+        matches!((record_version, managed_known), (Some(r), Some(m)) if r != m);
+    view
+}
+
+/// What the managed-copy rule decides over one detection's copies (FR-043).
+struct ManagedState<'a> {
+    managed: Option<&'a DetectedCopy>,
+    installed: InstalledView,
+    installed_version: Option<CoreVersion>,
+    compared: Installed,
+}
+
+/// FR-043: the managed VST3 copy decides; AU copies never do.
+fn managed_state(copies: &[DetectedCopy]) -> ManagedState<'_> {
     let managed = copies
         .iter()
         .find(|c| c.format == CopyFormat::Vst3 && c.managed);
-    let managed_known = managed.and_then(|c| known_version(c.version));
     let (installed, installed_version, compared) = match managed {
         Some(copy) => match copy.version {
             CopyVersion::Known { version, .. } => (
@@ -358,17 +477,36 @@ fn plugin_view(
             }
         }
     };
-    let record_version = record.as_ref().and_then(record_core_version);
-    view.installed = installed;
-    view.installed_version = installed_version.map(|v| v.to_string());
-    view.update = Some(update_view(version::compare(compared, entry.version)));
-    view.copies = copies.iter().map(|c| copy_view(c, *managed_rank)).collect();
-    view.record = record.as_ref().map(record_view);
-    view.record_error = record_error.map(str::to_owned);
-    view.record_without_files = record.is_some() && managed.is_none();
-    view.record_version_differs =
-        matches!((record_version, managed_known), (Some(r), Some(m)) if r != m);
-    view
+    ManagedState {
+        managed,
+        installed,
+        installed_version,
+        compared,
+    }
+}
+
+/// The update state the card shows and the command re-checks: the managed-copy rule against the feed version; `None`
+/// when the plugin was not checked (Phase 9 PD-13, D13).
+pub(crate) fn update_state(
+    entry: &PluginEntry,
+    detection: Option<&Detection>,
+) -> Option<UpdateState> {
+    let Some(Detection::Checked { copies, .. }) = detection else {
+        return None;
+    };
+    Some(version::compare(
+        managed_state(copies).compared,
+        entry.version,
+    ))
+}
+
+/// Exhaustive, so a new action fails to compile here (Phase 9 FR-100; the PD-21 pattern).
+fn action_view(action: ActionKind) -> ActionView {
+    match action {
+        ActionKind::Install => ActionView::Install,
+        ActionKind::Update => ActionView::Update,
+        ActionKind::Remove => ActionView::Remove,
+    }
 }
 
 fn known_version(version: CopyVersion) -> Option<CoreVersion> {

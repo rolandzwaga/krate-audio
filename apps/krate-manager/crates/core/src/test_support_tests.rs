@@ -883,3 +883,643 @@ fn phase8_doubles_cases() {
         roots.check_sandboxed(&roots.staging_dir().join("x"));
     }
 }
+
+/// TA-6: the Phase 9 doubles (T004). Block 3's `FsInstallIo` read row runs last: it needs T003's bodies, and the
+/// other blocks do not.
+#[test]
+fn phase9_doubles_cases() {
+    use crate::http::HttpConfig;
+    use crate::install::{InstallProgress, Outcome, RootTag};
+    use crate::settings::Settings;
+    use IKind as I;
+    use io::ErrorKind::{
+        AlreadyExists, DirectoryNotEmpty, InvalidInput, NotFound, Other, PermissionDenied,
+        StorageFull,
+    };
+
+    let (td, roots) = fresh_temp_roots();
+    let base = roots
+        .state_dir()
+        .parent()
+        .expect("the state dir has a parent")
+        .to_path_buf();
+    let staging = roots.staging_dir().to_path_buf();
+    let user = roots.vst3_user().to_path_buf();
+    let disk_before = snapshot(&base);
+
+    // The kind split: the twelve from `CreateDirAll` on are mutating.
+    let kinds = [
+        I::KindOf,
+        I::ReadLink,
+        I::HashFile,
+        I::ReadDir,
+        I::ReadFile,
+        I::Canonicalize,
+        I::CreateDirAll,
+        I::CreateDir,
+        I::CopyNew,
+        I::WriteNew,
+        I::Symlink,
+        I::SetMode,
+        I::SyncFile,
+        I::SyncDir,
+        I::Rename,
+        I::RemoveFile,
+        I::RemoveDir,
+        I::RemoveTree,
+    ];
+    assert_eq!(kinds.iter().filter(|k| k.is_mutating()).count(), 12);
+    assert_eq!(kinds.iter().position(|k| k.is_mutating()), Some(6));
+
+    // 1. MemInstallIo over a MemExtractIo-staged tree.
+    let staged = MemExtractIo::new(&staging);
+    let src = staging.join("extract").join("w").join("f.bin");
+    staged.plant_file(&src, b"payload", 0o755);
+    let mem = MemInstallIo::new(&base, &roots, &staged);
+    assert!(mem.supports_symlinks());
+    let mut planted: Vec<&Path> = roots
+        .plugin_roots()
+        .iter()
+        .map(|r| r.path.as_path())
+        .collect();
+    planted.extend([
+        base.as_path(),
+        roots.presets().factory.as_path(),
+        roots.presets().user.as_path(),
+        roots.state_dir(),
+        roots.staging_dir(),
+    ]);
+    let n_roots = planted.len();
+    for root in &planted {
+        assert_eq!(
+            mem.kind_of(root).expect("kind_of"),
+            Some(NodeKind::Dir),
+            "{}",
+            root.display()
+        );
+    }
+    assert_eq!(
+        mem.kind_of(base.parent().expect("base has a parent"))
+            .expect("kind_of"),
+        Some(NodeKind::Dir),
+        "TA-5: a proper ancestor of base exists"
+    );
+    assert_eq!(mem.canonicalize(&base).expect("canonicalize"), base);
+    assert_eq!(
+        mem.kind_of(&src).expect("kind_of"),
+        Some(NodeKind::File),
+        "the staged tree is read through"
+    );
+    assert_eq!(mem.node(&src), staged.node(&src));
+    let dest = user.join("f.bin");
+    let mut fed = Vec::new();
+    let copied = mem
+        .copy_new(&src, &dest, &mut |chunk: &[u8]| {
+            fed.extend_from_slice(chunk)
+        })
+        .expect("copy_new");
+    assert_eq!(copied, 7);
+    assert_eq!(fed, b"payload");
+    assert_eq!(
+        mem.node(&dest),
+        Some(MemNode::File {
+            bytes: b"payload".to_vec(),
+            mode: 0o644
+        })
+    );
+    assert_eq!(
+        err_kind(mem.copy_new(&src, &dest, &mut |_: &[u8]| {})),
+        Some(AlreadyExists),
+        "create_new"
+    );
+    assert_eq!(
+        mem.hash_file(&dest).expect("hash_file"),
+        crate::verify::sha256_of(b"payload")
+    );
+    assert_eq!(mem.read_file(&dest, 2).expect("read_file"), b"pay");
+    mem.set_mode(&dest, 0o755).expect("set_mode");
+    assert_eq!(
+        mem.node(&dest),
+        Some(MemNode::File {
+            bytes: b"payload".to_vec(),
+            mode: 0o755
+        })
+    );
+    let d = user.join("d");
+    mem.create_dir(&d).expect("create_dir");
+    mem.write_new(&d.join("x"), b"x").expect("write_new");
+    let moved = user.join("moved");
+    mem.rename(&d, &moved).expect("rename a directory");
+    assert_eq!(mem.node(&d), None);
+    assert_eq!(mem.node(&d.join("x")), None);
+    assert_eq!(
+        mem.node(&moved.join("x")),
+        Some(MemNode::File {
+            bytes: b"x".to_vec(),
+            mode: 0o644
+        }),
+        "the subtree moved"
+    );
+    let full = user.join("full");
+    mem.plant_dir(&full, 0o755);
+    mem.plant_file(&full.join("y"), b"y", 0o644);
+    assert_eq!(err_kind(mem.rename(&moved, &full)), Some(DirectoryNotEmpty));
+    assert!(
+        mem.node(&moved.join("x")).is_some(),
+        "the refused rename moved nothing"
+    );
+    assert_eq!(err_kind(mem.remove_dir(&full)), Some(DirectoryNotEmpty));
+    assert!(mem.node(&full.join("y")).is_some());
+    mem.remove_file(&moved.join("x")).expect("remove_file");
+    mem.remove_dir(&moved)
+        .expect("remove_dir of an empty directory");
+    assert_eq!(mem.node(&moved), None);
+    let real = base.join("real");
+    mem.plant_dir(&real, 0o755);
+    mem.plant_file(&real.join("x"), b"xx", 0o600);
+    let a = base.join("a");
+    mem.plant_link(&a, "real");
+    assert_eq!(mem.kind_of(&a).expect("kind_of"), Some(NodeKind::Symlink));
+    assert_eq!(mem.read_link(&a).expect("read_link"), PathBuf::from("real"));
+    assert_eq!(
+        mem.kind_of(&a.join("x")).expect("kind_of"),
+        Some(NodeKind::File),
+        "a non-final link is followed"
+    );
+    assert_eq!(
+        mem.canonicalize(&a.join("x")).expect("canonicalize"),
+        real.join("x")
+    );
+    assert_eq!(
+        err_kind(mem.hash_file(&a)),
+        Some(InvalidInput),
+        "never through a final link"
+    );
+    mem.remove_file(&a).expect("remove_file of a link");
+    assert_eq!(mem.node(&a), None);
+    assert!(mem.node(&real.join("x")).is_some(), "the link target stays");
+    assert_eq!(
+        mem.read_dir(&real).expect("read_dir"),
+        [(OsString::from("x"), NodeKind::File)]
+    );
+    mem.remove_tree(&real).expect("remove_tree");
+    assert_eq!(mem.node(&real), None);
+    assert!(mem.paths_under(&real).is_empty());
+    mem.remove_tree(&real)
+        .expect("remove_tree of an absent path");
+    mem.create_dir_all(&user.join("p").join("q"))
+        .expect("create_dir_all");
+    assert_eq!(
+        mem.node(&user.join("p")),
+        Some(MemNode::Dir { mode: 0o755 })
+    );
+    mem.symlink("f.bin", &user.join("ln")).expect("symlink");
+    assert_eq!(
+        mem.node(&user.join("ln")),
+        Some(MemNode::Link {
+            target: "f.bin".to_owned()
+        })
+    );
+    mem.sync_file(&dest).expect("sync_file");
+    mem.sync_dir(&user).expect("sync_dir");
+    assert_eq!(
+        [
+            err_kind(mem.write_new(&src.with_file_name("new"), b"n")),
+            err_kind(mem.remove_file(&src)),
+            err_kind(mem.rename(&src, &user.join("stolen"))),
+        ],
+        [Some(PermissionDenied); 3],
+        "the staged tree is read-only"
+    );
+    assert_eq!(
+        staged.node(&src),
+        Some(MemNode::File {
+            bytes: b"payload".to_vec(),
+            mode: 0o755
+        })
+    );
+    assert_eq!(staged.node(&src.with_file_name("new")), None);
+    assert_eq!(mem.node(&user.join("stolen")), None);
+    assert!(
+        staged.calls().is_empty(),
+        "Mem reads the staged tree without calling it"
+    );
+    assert_eq!(
+        mem.paths_under(&user),
+        [
+            dest.clone(),
+            full.clone(),
+            full.join("y"),
+            user.join("ln"),
+            user.join("p"),
+            user.join("p").join("q"),
+        ]
+    );
+    let mut expected = vec![I::KindOf; n_roots];
+    expected.extend([
+        I::KindOf,
+        I::Canonicalize,
+        I::KindOf,
+        I::CopyNew,
+        I::CopyNew,
+        I::HashFile,
+        I::ReadFile,
+        I::SetMode,
+        I::CreateDir,
+        I::WriteNew,
+        I::Rename,
+        I::Rename,
+        I::RemoveDir,
+        I::RemoveFile,
+        I::RemoveDir,
+        I::KindOf,
+        I::ReadLink,
+        I::KindOf,
+        I::Canonicalize,
+        I::HashFile,
+        I::RemoveFile,
+        I::ReadDir,
+        I::RemoveTree,
+        I::RemoveTree,
+        I::CreateDirAll,
+        I::Symlink,
+        I::SyncFile,
+        I::SyncDir,
+        I::WriteNew,
+        I::RemoveFile,
+        I::Rename,
+    ]);
+    assert_eq!(
+        mem.calls().iter().map(IOp::kind).collect::<Vec<_>>(),
+        expected
+    );
+    assert_eq!(
+        mem.calls()[n_roots + 3],
+        IOp::CopyNew {
+            src: src.clone(),
+            dest: dest.clone()
+        }
+    );
+    assert_eq!(mem.calls()[0], IOp::KindOf(planted[0].to_path_buf()));
+    assert_eq!(mem.mutating_calls(), 20);
+
+    // 2. FaultyInstallIo over a fresh Mem.
+    let mem = MemInstallIo::new(&base, &roots, &staged);
+    for name in ["r1", "r2", "r3"] {
+        mem.plant_file(&user.join(name), name.as_bytes(), 0o644);
+    }
+    let faulty = FaultyInstallIo::new(&mem).fail(I::Rename, 2, StorageFull);
+    faulty
+        .rename(&user.join("r1"), &user.join("s1"))
+        .expect("the first rename");
+    assert_eq!(
+        err_kind(faulty.rename(&user.join("r2"), &user.join("s2"))),
+        Some(StorageFull)
+    );
+    assert!(
+        mem.node(&user.join("r2")).is_some(),
+        "the failed call was not forwarded"
+    );
+    faulty
+        .rename(&user.join("r3"), &user.join("s3"))
+        .expect("one-shot: the third rename passes");
+    assert_eq!(
+        mem.node(&user.join("s3")),
+        Some(MemNode::File {
+            bytes: b"r3".to_vec(),
+            mode: 0o644
+        })
+    );
+    assert_eq!(faulty.calls().len(), 3);
+    assert_eq!(faulty.mutating_calls(), 3);
+
+    let faulty = FaultyInstallIo::new(&mem).fail_from(I::WriteNew, 1, PermissionDenied);
+    for name in ["w1", "w2", "w3"] {
+        assert_eq!(
+            err_kind(faulty.write_new(&user.join(name), b"w")),
+            Some(PermissionDenied)
+        );
+        assert_eq!(mem.node(&user.join(name)), None);
+    }
+    faulty
+        .create_dir(&user.join("other"))
+        .expect("another kind is forwarded");
+
+    let faulty = FaultyInstallIo::new(&mem).crash_after(3);
+    for name in ["c1", "c2", "c3"] {
+        faulty.create_dir(&user.join(name)).expect("before the cut");
+        assert_eq!(
+            faulty
+                .kind_of(&user.join(name))
+                .expect("a read is not counted"),
+            Some(NodeKind::Dir)
+        );
+    }
+    let crashed = [
+        faulty
+            .create_dir(&user.join("c4"))
+            .expect_err("after the cut"),
+        faulty
+            .write_new(&user.join("c5"), b"c")
+            .expect_err("after the cut"),
+        faulty
+            .remove_dir(&user.join("c1"))
+            .expect_err("after the cut"),
+    ];
+    for error in crashed {
+        assert_eq!(error.kind(), Other);
+        assert_eq!(error.to_string(), "crash");
+    }
+    assert_eq!(mem.node(&user.join("c4")), None);
+    assert_eq!(mem.node(&user.join("c5")), None);
+    assert!(mem.node(&user.join("c1")).is_some(), "not forwarded");
+    assert_eq!(
+        faulty
+            .kind_of(&user.join("c1"))
+            .expect("reads still forward"),
+        Some(NodeKind::Dir)
+    );
+    assert_eq!(faulty.calls().len(), 10);
+    assert_eq!(faulty.mutating_calls(), 6);
+
+    let hooked = AtomicUsize::new(0);
+    let user_file = user.join("h1");
+    let faulty = FaultyInstallIo::new(&mem).on_call(I::CopyNew, 1, |inner: &dyn InstallIo| {
+        hooked.fetch_add(1, Ordering::SeqCst);
+        inner
+            .write_new(&user_file, b"user")
+            .expect("the hook writes through the inner I/O");
+    });
+    assert_eq!(
+        err_kind(faulty.copy_new(&src, &user_file, &mut |_: &[u8]| {})),
+        Some(AlreadyExists),
+        "the hook ran just before the call was forwarded"
+    );
+    assert_eq!(hooked.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        mem.node(&user_file),
+        Some(MemNode::File {
+            bytes: b"user".to_vec(),
+            mode: 0o644
+        })
+    );
+    faulty
+        .copy_new(&src, &user.join("h2"), &mut |_: &[u8]| {})
+        .expect("the second copy_new");
+    assert_eq!(hooked.load(Ordering::SeqCst), 1, "only before the nth call");
+    assert_eq!(
+        faulty.calls().iter().map(IOp::kind).collect::<Vec<_>>(),
+        [I::CopyNew, I::CopyNew],
+        "the hook's own call is not recorded"
+    );
+
+    assert!(FaultyInstallIo::new(&mem).supports_symlinks());
+    let plain = FaultyInstallIo::new(&mem).without_symlinks();
+    assert!(!plain.supports_symlinks());
+    plain
+        .symlink("h2", &user.join("ln"))
+        .expect("everything else is forwarded");
+    assert_eq!(
+        mem.node(&user.join("ln")),
+        Some(MemNode::Link {
+            target: "h2".to_owned()
+        })
+    );
+    assert_eq!(
+        plain.read_link(&user.join("ln")).expect("read_link"),
+        PathBuf::from("h2")
+    );
+    assert_eq!(
+        snapshot(&base),
+        disk_before,
+        "the Mem doubles wrote nothing to disk"
+    );
+
+    // 3. RecordingInstallIo: fail-closed refuses every mutating call; forwarding forwards both.
+    let fc = RecordingInstallIo::fail_closed();
+    let p = base.join("fc");
+    let refused = [
+        fc.create_dir_all(&p).err(),
+        fc.create_dir(&p).err(),
+        fc.copy_new(&p, &p.join("b"), &mut |_: &[u8]| {}).err(),
+        fc.write_new(&p, b"x").err(),
+        fc.symlink("t", &p).err(),
+        fc.set_mode(&p, 0o600).err(),
+        fc.sync_file(&p).err(),
+        fc.sync_dir(&p).err(),
+        fc.rename(&p, &p.join("b")).err(),
+        fc.remove_file(&p).err(),
+        fc.remove_dir(&p).err(),
+        fc.remove_tree(&base).err(),
+    ];
+    for error in refused {
+        let error = error.expect("fail-closed refuses every mutating call");
+        assert_eq!(error.kind(), Other);
+        assert_eq!(error.to_string(), "fail-closed");
+    }
+    assert_eq!(fc.calls().len(), 12);
+    assert_eq!(fc.mutating_calls(), 12);
+    assert_eq!(fc.calls()[11], IOp::RemoveTree(base.clone()));
+    assert_eq!(err_kind(std::fs::symlink_metadata(&p)), Some(NotFound));
+    assert_eq!(snapshot(&base), disk_before, "fail-closed touched nothing");
+
+    let mem = MemInstallIo::new(&base, &roots, &staged);
+    let rec = RecordingInstallIo::forwarding(&mem);
+    rec.write_new(&user.join("fw"), b"z").expect("forwarded");
+    assert_eq!(
+        rec.kind_of(&user.join("fw")).expect("forwarded"),
+        Some(NodeKind::File)
+    );
+    assert!(rec.supports_symlinks());
+    assert_eq!(
+        rec.calls(),
+        [IOp::WriteNew(user.join("fw")), IOp::KindOf(user.join("fw"))]
+    );
+    assert_eq!(rec.mutating_calls(), 1);
+    assert_eq!(mem.calls().len(), 2, "each call forwarded once");
+
+    // 4. CountingDriver, RecordingDriver, OneDriver.
+    let sig_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "../../../../tools/feed-contract/fixtures/kat/KatPlugin-1.2.3-Linux-x64.tar.gz.minisig",
+    );
+    let signature = std::fs::read_to_string(&sig_path)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", sig_path.display()));
+    let key = native_key();
+    let feed = test_feed(&[
+        TestPlugin {
+            name: "Alpha",
+            version: "1.2.3",
+            key,
+            asset: "Alpha-1.2.3-test.bin",
+            size: 452,
+            sha256: [0x11; 32],
+            signature: signature.clone(),
+            min_os: None,
+        },
+        TestPlugin {
+            name: "Beta",
+            version: "1.2.3",
+            key,
+            asset: "Beta-1.2.3-test.bin",
+            size: 452,
+            sha256: [0x22; 32],
+            signature,
+            min_os: None,
+        },
+    ]);
+    let uninstall = |name: &str| Action::Uninstall {
+        entry: feed.plugins[name].clone(),
+    };
+    let rig = InstallRig::new(AppContext {
+        roots: roots.clone(),
+        settings: Settings::default(),
+        feed_url: String::new(),
+        http: HttpConfig::loopback(Duration::from_secs(1), Duration::from_secs(1)),
+        signing_key: kat_signing_key(),
+    });
+    let kept = vec![KeptPath {
+        root: RootTag::Presets,
+        path: "a.preset".to_owned(),
+    }];
+    let recording = RecordingDriver::new(Os::Linux, kept.clone());
+    assert_eq!(recording.os(), Os::Linux);
+    assert_eq!(RecordingDriver::new(Os::Macos, Vec::new()).os(), Os::Macos);
+    let counting = CountingDriver::new(&recording);
+    assert_eq!(counting.runs(), 0);
+    assert_eq!(counting.os(), Os::Linux);
+    let mut progress = |_: InstallProgress| {};
+    let results = counting.run(
+        InstallEnv {
+            ctx: &rig.ctx,
+            io: &mem,
+            extract: rig.extract_env(&staged),
+            progress: &mut progress,
+        },
+        vec![uninstall("Alpha"), uninstall("Beta")],
+    );
+    let ok = || {
+        Ok(Outcome {
+            version: None,
+            placed: 0,
+            removed: 0,
+            kept: kept.clone(),
+        })
+    };
+    assert_eq!(
+        results
+            .into_iter()
+            .map(|r| (r.name, r.action, r.outcome))
+            .collect::<Vec<_>>(),
+        [
+            ("Alpha".to_owned(), ActionKind::Remove, ok()),
+            ("Beta".to_owned(), ActionKind::Remove, ok()),
+        ]
+    );
+    assert_eq!(counting.runs(), 1);
+    let results = counting.run(
+        InstallEnv {
+            ctx: &rig.ctx,
+            io: &mem,
+            extract: rig.extract_env(&staged),
+            progress: &mut progress,
+        },
+        vec![uninstall("Beta")],
+    );
+    assert_eq!(results.len(), 1);
+    assert_eq!(counting.runs(), 2);
+    assert_eq!(
+        recording.batches(),
+        [
+            vec![
+                (ActionKind::Remove, "Alpha".to_owned()),
+                (ActionKind::Remove, "Beta".to_owned()),
+            ],
+            vec![(ActionKind::Remove, "Beta".to_owned())],
+        ]
+    );
+    let one = OneDriver(Some(&recording));
+    let found = one.driver_for(Os::Linux).expect("the driver's own OS");
+    assert_eq!(
+        std::ptr::from_ref(found).cast::<()>(),
+        std::ptr::from_ref(&recording).cast::<()>()
+    );
+    assert!(one.driver_for(Os::Windows).is_none());
+    assert!(one.driver_for(Os::Macos).is_none());
+    assert!(OneDriver(None).driver_for(Os::Linux).is_none());
+
+    // 5. InstallRig::command_env: the inputs, through the public fields.
+    let env = rig.command_env(Os::Linux, Arch::X86_64, &mem, &staged, &one);
+    assert_eq!(env.os, Os::Linux);
+    assert_eq!(env.arch, Arch::X86_64);
+    assert!(std::ptr::eq(env.ctx, &rig.ctx));
+    assert_eq!(
+        std::ptr::from_ref::<dyn InstallIo>(env.io).cast::<()>(),
+        std::ptr::from_ref(&mem).cast::<()>()
+    );
+    assert_eq!(
+        std::ptr::from_ref::<dyn ExtractIo>(env.extract.io).cast::<()>(),
+        std::ptr::from_ref(&staged).cast::<()>()
+    );
+    assert!(std::ptr::eq(env.extract.ctx, &rig.ctx));
+    assert!(std::ptr::eq(env.extract.limits, &rig.extract_limits));
+    assert!(std::ptr::eq(env.download.ctx, &rig.ctx));
+    assert!(std::ptr::eq(env.download.policy, &rig.policy));
+    assert!(std::ptr::eq(env.download.cancel, &rig.cancel));
+    assert_eq!(
+        std::ptr::from_ref::<dyn StagingIo>(env.download.io).cast::<()>(),
+        std::ptr::from_ref(&rig.staging).cast::<()>()
+    );
+    assert!(env.drivers.driver_for(Os::Linux).is_some());
+    assert!(env.drivers.driver_for(Os::Windows).is_none());
+    let env = rig.command_env(Os::Windows, Arch::Aarch64, &mem, &staged, &one);
+    assert_eq!((env.os, env.arch), (Os::Windows, Arch::Aarch64));
+    assert_eq!(rig.extract_limits, ExtractLimits::PRODUCTION);
+    assert_eq!(rig.policy, test_policy());
+    assert!(!rig.cancel.is_cancelled());
+
+    fn sync<T: Sync>() {}
+    sync::<MemInstallIo<'static>>();
+    sync::<FaultyInstallIo<'static>>();
+    sync::<RecordingInstallIo<'static>>();
+    sync::<CountingDriver<'static>>();
+    sync::<RecordingDriver>();
+    sync::<InstallRig>();
+
+    // 6. SC-023's roots: a non-UTF-8 user preset leaf, spelled and sandboxed, not created.
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        let leaf_td = TempDir::new().expect("a fresh TempDir");
+        let canonical = std::fs::canonicalize(leaf_td.path()).expect("canonical TempDir");
+        let leaf = OsStr::from_bytes(b"u\xff");
+        let roots = temp_roots_with_user_presets(leaf_td.path(), leaf);
+        let user_presets = roots.presets().user.clone();
+        assert_eq!(user_presets, canonical.join("presets").join(leaf));
+        assert_eq!(
+            err_kind(std::fs::symlink_metadata(&user_presets)),
+            Some(NotFound),
+            "the user preset root is not created"
+        );
+        assert!(roots.presets().factory.is_dir());
+        assert!(roots.staging_dir().is_dir());
+        roots.check_sandboxed(&user_presets.join("x"));
+        let outside = canonical
+            .parent()
+            .expect("the TempDir has a parent")
+            .join("elsewhere");
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| roots.check_sandboxed(&outside))).is_err(),
+            "sandboxed to td"
+        );
+    }
+
+    // Block 3's last row: fail-closed reads forward to `FsInstallIo` (red on T003 until its bodies land).
+    let real_file = td.path().join("real.txt");
+    std::fs::write(&real_file, b"r").expect("write a real temp file");
+    assert_eq!(
+        fc.kind_of(&real_file).expect("forwarded to FsInstallIo"),
+        Some(NodeKind::File)
+    );
+    assert_eq!(fc.calls().last(), Some(&IOp::KindOf(real_file.clone())));
+    assert_eq!(fc.mutating_calls(), 12, "a read is not mutating");
+}

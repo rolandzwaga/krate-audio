@@ -1,9 +1,11 @@
-// The status section (spec FR-070 to FR-078; plan §4.10, PD-13, PD-14, PD-18). Every string comes
-// from STATUS_TEXTS or ACTION_TEXTS through `fill` and reaches the DOM through textContent; the only
-// properties set from view data are `ol.start` (notes.ts) and `button.disabled`; the release-page URL
-// lives only in its button's click closure.
+// The status section (spec FR-070 to FR-078, FR-097 to FR-099; plan §4.7, §4.10, PD-13, PD-14, PD-18,
+// PD-22). Every string comes from STATUS_TEXTS, ACTION_TEXTS or INSTALL_TEXTS through `fill` and reaches
+// the DOM through textContent; the only properties set from view data are `ol.start` (notes.ts) and
+// `button.disabled`; the release-page URL lives only in its button's click closure.
+import { Channel } from "@tauri-apps/api/core";
 import { renderBlocks } from "./notes";
-import type { CopyView, OsName, PluginView, StatusView, UnknownReason } from "./view";
+import { toActionSummary, toInstallProgress } from "./view";
+import type { ActionName, ActionSummary, CopyView, InstallProgress, OsName, PluginView, StatusView, UnknownReason } from "./view";
 
 /** Every FR-071 cell, the FR-074 feed lines, the check control and the note: each reached by a golden. */
 export const STATUS_TEXTS = {
@@ -61,6 +63,34 @@ export const ACTION_TEXTS = {
   openFailed: "Could not open the release page: {text}",
 } as const satisfies Record<string, string>;
 
+/** The FR-097 to FR-099 action texts: buttons, the in-card confirmation, progress and the outcome lines. */
+export const INSTALL_TEXTS = {
+  install: "Install",
+  update: "Update",
+  remove: "Remove",
+  confirm: "Confirm",
+  cancel: "Cancel",
+  confirmInstall: "Install {name} {latest}?",
+  confirmUpdate: "Update {name} {installed} to {latest}?",
+  confirmRemove: "Remove {name}? The plug-in and its factory presets are removed; your own presets are kept.",
+  otherCopy: "Another copy is installed at {path}. Remove it by hand; the manager does not touch it.",
+  downloading: "Downloading {done} of {total} bytes",
+  placing: "Placing {done} of {total} files",
+  removing: "Removing {done} of {total} files",
+  finishing: "Finishing",
+  installed: "Installed {version}",
+  updated: "Updated to {version}",
+  removed: "Removed",
+  rescan: "Restart your DAW or rescan its plug-ins to load the new version.",
+  kept: "Kept {path}: changed since install",
+} as const satisfies Record<string, string>;
+
+const ACTION_LABELS: Readonly<Record<ActionName, string>> = {
+  install: INSTALL_TEXTS.install,
+  update: INSTALL_TEXTS.update,
+  remove: INSTALL_TEXTS.remove,
+};
+
 const REASONS: Readonly<Record<UnknownReason, string>> = {
   single_file: STATUS_TEXTS.reasonSingleFile,
   no_moduleinfo: STATUS_TEXTS.reasonNoModuleinfo,
@@ -85,6 +115,29 @@ export function fill(template: string, values: Readonly<Record<string, string>>)
 }
 
 export type Invoker = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
+
+/**
+ * Makes the `onProgress` argument of an action command: a Tauri `Channel` in the app, a fake in tests (PD-22).
+ * Messages arrive as `unknown` and go through `toInstallProgress` (plan §4.7's `<T>` form fails the lint's
+ * no-unnecessary-type-parameters).
+ */
+export type ChannelMaker = (onMessage: (message: unknown) => void) => unknown;
+
+const tauriChannel: ChannelMaker = (onMessage) => {
+  const channel = new Channel<unknown>();
+  channel.onmessage = onMessage;
+  return channel;
+};
+
+/** What a card's actions need from the cards' owner (FR-098). */
+interface CardHost {
+  readonly invoke: Invoker;
+  readonly makeChannel: ChannelMaker;
+  /** The outcome lines per plugin name, shown on every render until that plugin's next action or `Check now`. */
+  readonly outcomes: Map<string, string[]>;
+  /** Re-reads the status after an action; the section re-renders, bare `renderCards` has nothing to re-render. */
+  refresh(): Promise<void>;
+}
 
 export interface StatusSection {
   readonly element: HTMLElement;
@@ -204,7 +257,139 @@ function releaseButton(url: string, invoke: Invoker): HTMLButtonElement {
   return button;
 }
 
-function renderCard(os: OsName, p: PluginView, invoke: Invoker): HTMLElement {
+function button(className: string, text: string): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.className = className;
+  b.textContent = text;
+  return b;
+}
+
+/** FR-099's one-item confirmation; for Install over an `elsewhere` copy also the other copy's path (FR-124). */
+function confirmLines(p: PluginView, action: ActionName): HTMLParagraphElement[] {
+  switch (action) {
+    case "install": {
+      const lines = [paragraph("confirm-text", fill(INSTALL_TEXTS.confirmInstall, { name: p.name, latest: p.latest }))];
+      const other = p.installed === "elsewhere" ? p.copies.find((c) => c.format === "vst3" && !c.managed) : undefined;
+      if (other !== undefined) lines.push(paragraph("other-copy", fill(INSTALL_TEXTS.otherCopy, { path: other.path })));
+      return lines;
+    }
+    case "update": {
+      const installed = p.installed_version ?? STATUS_TEXTS.unknownVersion;
+      return [paragraph("confirm-text", fill(INSTALL_TEXTS.confirmUpdate, { name: p.name, installed, latest: p.latest }))];
+    }
+    case "remove":
+      return [paragraph("confirm-text", fill(INSTALL_TEXTS.confirmRemove, { name: p.name }))];
+  }
+}
+
+/** FR-097's progress text for one event; null for the events that change nothing on screen. */
+function progressText(event: InstallProgress): string | null {
+  switch (event.kind) {
+    case "download":
+      return event.event.kind === "bytes"
+        ? fill(INSTALL_TEXTS.downloading, { done: String(event.event.on_disk), total: String(event.event.total) })
+        : null;
+    case "staging":
+      return null;
+    case "placing":
+      return fill(INSTALL_TEXTS.placing, { done: String(event.done), total: String(event.total) });
+    case "removing":
+      return fill(INSTALL_TEXTS.removing, { done: String(event.done), total: String(event.total) });
+    case "committing":
+    case "done":
+      return INSTALL_TEXTS.finishing;
+  }
+}
+
+/** FR-098's outcome lines of a successful action. */
+function outcomeLines(summary: ActionSummary): string[] {
+  const version = summary.version ?? STATUS_TEXTS.unknownVersion;
+  const lines: string[] = [];
+  switch (summary.action) {
+    case "install":
+      lines.push(fill(INSTALL_TEXTS.installed, { version }));
+      break;
+    case "update":
+      lines.push(fill(INSTALL_TEXTS.updated, { version }));
+      break;
+    case "remove":
+      lines.push(INSTALL_TEXTS.removed);
+      break;
+  }
+  if (summary.notice !== null) lines.push(INSTALL_TEXTS.rescan);
+  for (const kept of summary.kept) lines.push(fill(INSTALL_TEXTS.kept, { path: kept.path }));
+  return lines;
+}
+
+/**
+ * The card's `div.actions` row (FR-097 to FR-099): a click swaps it for the in-card confirmation; `Confirm` disables
+ * every action button, shows progress in front of `anchor`, runs the command, then the outcome lines and the refresh.
+ */
+function actionRow(card: HTMLElement, anchor: HTMLElement, p: PluginView, host: CardHost): HTMLDivElement {
+  const row = document.createElement("div");
+  row.className = "actions";
+  const buttons = p.actions.map((action) => {
+    const b = button(`action-${action}`, ACTION_LABELS[action]);
+    b.addEventListener("click", () => {
+      if (!b.disabled) ask(action);
+    });
+    return b;
+  });
+  row.append(...buttons);
+
+  function ask(action: ActionName): void {
+    const confirm = document.createElement("div");
+    confirm.className = "confirm";
+    const ok = button("confirm-ok", INSTALL_TEXTS.confirm);
+    const cancel = button("confirm-cancel", INSTALL_TEXTS.cancel);
+    confirm.append(...confirmLines(p, action), ok, cancel);
+    cancel.addEventListener("click", () => {
+      confirm.replaceWith(row);
+    });
+    ok.addEventListener("click", () => {
+      confirm.replaceWith(row);
+      void run(action);
+    });
+    row.replaceWith(confirm);
+  }
+
+  async function run(action: ActionName): Promise<void> {
+    host.outcomes.delete(p.name);
+    for (const line of Array.from(card.querySelectorAll(":scope > p.outcome"))) line.remove();
+    for (const b of buttons) b.disabled = true;
+    const progress = paragraph("progress", "");
+    const onProgress = host.makeChannel((message) => {
+      let text: string | null;
+      try {
+        text = progressText(toInstallProgress(message));
+      } catch {
+        return; // An event that fails its parser changes nothing; the command's result still settles the card.
+      }
+      if (text === null) return;
+      progress.textContent = text;
+      if (progress.parentNode === null) anchor.before(progress);
+    });
+    let lines: string[];
+    try {
+      const result =
+        action === "remove"
+          ? await host.invoke<unknown>("remove_plugin", { name: p.name, onProgress })
+          : await host.invoke<unknown>("install_plugin", { name: p.name, expectedVersion: p.latest, action, onProgress });
+      lines = outcomeLines(toActionSummary(result));
+    } catch (reason) {
+      lines = [rejectionText(reason)];
+    }
+    progress.remove();
+    host.outcomes.set(p.name, lines);
+    anchor.before(...lines.map((line) => paragraph("outcome", line)));
+    await host.refresh();
+    for (const b of buttons) b.disabled = false;
+  }
+
+  return row;
+}
+
+function renderCard(os: OsName, p: PluginView, host: CardHost): HTMLElement {
   const card = document.createElement("article");
   card.className = "plugin";
   const name = document.createElement("h2");
@@ -225,8 +410,10 @@ function renderCard(os: OsName, p: PluginView, invoke: Invoker): HTMLElement {
   }
   card.append(copies);
   for (const notice of noticeTexts(p)) card.append(paragraph("record-notice", notice));
-  if (p.release_page_url !== null) card.append(releaseButton(p.release_page_url, invoke));
+  if (p.release_page_url !== null) card.append(releaseButton(p.release_page_url, host.invoke));
   const details = document.createElement("details");
+  if (p.actions.length > 0) card.append(actionRow(card, details, p, host));
+  for (const line of host.outcomes.get(p.name) ?? []) card.append(paragraph("outcome", line));
   details.className = "notes";
   const summary = document.createElement("summary");
   summary.textContent = STATUS_TEXTS.releaseNotes;
@@ -242,8 +429,12 @@ function renderCard(os: OsName, p: PluginView, invoke: Invoker): HTMLElement {
   return card;
 }
 
-export function renderCards(view: StatusView, invoke: Invoker): HTMLElement[] {
-  return view.plugins.map((p) => renderCard(view.os, p, invoke));
+function renderCardsWith(view: StatusView, host: CardHost): HTMLElement[] {
+  return view.plugins.map((p) => renderCard(view.os, p, host));
+}
+
+export function renderCards(view: StatusView, invoke: Invoker, makeChannel: ChannelMaker = tauriChannel): HTMLElement[] {
+  return renderCardsWith(view, { invoke, makeChannel, outcomes: new Map(), refresh: () => Promise.resolve() });
 }
 
 function timeText(unix: number | null): string {
@@ -264,7 +455,7 @@ function feedText(view: StatusView): string {
 }
 
 /** The section in its pending state: the pending text and a disabled `Check now` button (FR-070, FR-073). */
-export function createStatusSection(invoke: Invoker): StatusSection {
+export function createStatusSection(invoke: Invoker, makeChannel: ChannelMaker = tauriChannel): StatusSection {
   const element = document.createElement("section");
   element.className = "status";
   const feedLine = paragraph("feed-line", ACTION_TEXTS.pending);
@@ -279,6 +470,21 @@ export function createStatusSection(invoke: Invoker): StatusSection {
   cards.className = "cards";
   element.append(feedLine, check, cards);
   let note: HTMLParagraphElement | null = null;
+  // FR-098: after an action the section re-reads the status and re-renders, keeping the outcome lines.
+  const host: CardHost = {
+    invoke,
+    makeChannel,
+    outcomes: new Map(),
+    async refresh() {
+      let view: StatusView | null = null;
+      try {
+        view = await invoke<StatusView>("plugin_status");
+      } catch (reason) {
+        section.reject(rejectionText(reason));
+      }
+      if (view !== null) section.render(view);
+    },
+  };
 
   const section: StatusSection = {
     element,
@@ -288,7 +494,7 @@ export function createStatusSection(invoke: Invoker): StatusSection {
       const minutes = String(Math.ceil(view.edge_max_age_secs / 60));
       note ??= check.appendChild(paragraph("check-note", ""));
       note.textContent = fill(STATUS_TEXTS.checkNote, { minutes });
-      cards.replaceChildren(...renderCards(view, invoke));
+      cards.replaceChildren(...renderCardsWith(view, host));
     },
     // PD-13: the previous cards and note stay; only the feed line changes.
     reject(text) {
@@ -300,6 +506,7 @@ export function createStatusSection(invoke: Invoker): StatusSection {
     if (button.disabled) return;
     button.disabled = true;
     button.textContent = ACTION_TEXTS.checking;
+    host.outcomes.clear();
     let view: StatusView | null = null;
     try {
       view = await invoke<StatusView>("check_now");
@@ -317,8 +524,8 @@ export function createStatusSection(invoke: Invoker): StatusSection {
 }
 
 /** Appends the section before the first `plugin_status` call is awaited (PD-18), then settles it. */
-export async function mountStatus(root: HTMLElement, invoke: Invoker): Promise<void> {
-  const section = createStatusSection(invoke);
+export async function mountStatus(root: HTMLElement, invoke: Invoker, makeChannel: ChannelMaker = tauriChannel): Promise<void> {
+  const section = createStatusSection(invoke, makeChannel);
   root.append(section.element);
   let view: StatusView | null = null;
   try {

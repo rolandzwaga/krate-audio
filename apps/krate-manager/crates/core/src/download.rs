@@ -7,8 +7,9 @@ use crate::feed::{self, Feed, FeedCheck, FeedError, FetchMode, PlatformAsset, Pl
 use crate::http::{
     self, HeadAction, HttpError, ResponseHead, StreamEnd, StreamError, StreamLimits,
 };
+use crate::platform::{NativePlatform, Os, Platform};
 use crate::verify::{Expected, VerifiedArtifact, VerifyError, hex_lower, verify_file};
-use crate::version::{self, Availability, OsVersion};
+use crate::version::{self, Arch, Availability, OsVersion};
 use log::{info, warn};
 use serde::Serialize;
 use std::cell::RefCell;
@@ -749,10 +750,12 @@ fn live_hashes(feed: &Feed, running: Option<&OsVersion>) -> BTreeSet<String> {
         .collect()
 }
 
-/// The one way to build a `DownloadRequest` (FR-001).
-pub fn request_for(
+/// The one way to build a `DownloadRequest` (FR-001): the asset resolved for `os` and `arch` (Phase 9 PD-1).
+pub fn request_for_platform(
     feed: &Feed,
     name: &str,
+    os: Os,
+    arch: Arch,
     running: Option<&OsVersion>,
 ) -> Result<DownloadRequest, DownloadError> {
     let entry = feed
@@ -765,7 +768,7 @@ pub fn request_for(
         name: name.to_owned(),
         why,
     };
-    match version::resolve_native(entry, running) {
+    match version::resolve(entry, os, arch, running) {
         Availability::Available { key, asset } => Ok(DownloadRequest {
             name: name.to_owned(),
             version_text: entry.version_text.clone(),
@@ -781,6 +784,15 @@ pub fn request_for(
             Err(unavailable(Unavailability::NeedsNewerOs { min_os }))
         }
     }
+}
+
+/// `request_for_platform` for the native OS and architecture (FR-001).
+pub fn request_for(
+    feed: &Feed,
+    name: &str,
+    running: Option<&OsVersion>,
+) -> Result<DownloadRequest, DownloadError> {
+    request_for_platform(feed, name, NativePlatform.os(), Arch::native(), running)
 }
 
 /// The target a pure function's error carries until `obtain_and` replaces it.
@@ -1514,13 +1526,16 @@ pub fn discard(artifact: VerifiedArtifact, io: &dyn StagingIo) -> Result<(), Dow
     }
 }
 
-/// The command's feed check and request (FR-060, FR-065): no staging I/O happens here.
-pub fn command_request(
+/// The command's feed check and request for `os` and `arch` (FR-060, FR-065; Phase 9 PD-1): no staging I/O
+/// happens here.
+pub fn command_request_for(
     ctx: &AppContext,
     name: &str,
     expected_version: &str,
     now_unix: u64,
     host: &dyn HostFacts,
+    os: Os,
+    arch: Arch,
 ) -> Result<(Feed, DownloadRequest), DownloadError> {
     let FeedCheck {
         snapshot, error, ..
@@ -1533,7 +1548,7 @@ pub fn command_request(
         });
     };
     let running = host.os_version();
-    let request = request_for(&snapshot.feed, name, running.as_ref())?;
+    let request = request_for_platform(&snapshot.feed, name, os, arch, running.as_ref())?;
     if request.version_text != expected_version {
         return Err(DownloadError::VersionChanged {
             name: name.to_owned(),
@@ -1542,6 +1557,25 @@ pub fn command_request(
         });
     }
     Ok((snapshot.feed, request))
+}
+
+/// `command_request_for` for the native OS and architecture (FR-060, FR-065).
+pub fn command_request(
+    ctx: &AppContext,
+    name: &str,
+    expected_version: &str,
+    now_unix: u64,
+    host: &dyn HostFacts,
+) -> Result<(Feed, DownloadRequest), DownloadError> {
+    command_request_for(
+        ctx,
+        name,
+        expected_version,
+        now_unix,
+        host,
+        NativePlatform.os(),
+        Arch::native(),
+    )
 }
 
 /// `obtain_and` for the command, summarised (FR-060, FR-062).

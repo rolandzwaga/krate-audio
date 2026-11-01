@@ -662,6 +662,8 @@ Does NOT: write into any plug-in or preset root.
 
 ### Phase 9: Linux Install, Update and Uninstall (unprivileged)
 
+**Status: ✅ COMPLETE (PENDING-CI: 18 item(s)) (2026-11-01)** — see specs/krate-manager-phase9/compliance.md
+
 **Spec:** `krate-manager-phase9`
 
 Windows and macOS run the plugins' existing installers (Phase 10). Linux has no installer, so this phase is the manager
@@ -678,8 +680,8 @@ Components:
   takes two renames, and a crash between them would leave neither. So per bundle: stage the new tree beside the target
   on the same volume (`<P>.vst3.krate-new`); write the intent (target, old-aside name, new name, step) to a journal in
   the state dir and flush it; rename old → `<P>.vst3.krate-old`; rename new → `<P>.vst3`; mark the journal done; delete
-  old. A **recovery pass at every start** reads unfinished journal entries and either completes the swap (new present,
-  target missing → rename new in) or rolls it back (new missing or incomplete → rename old back), then cleans up. The
+  old. A **recovery pass at every start** reads unfinished journal entries and either completes the swap (new absent,
+  target present → finish the presets, manifest and cleanup) or rolls it back (new missing or incomplete → rename old back), then cleans up. The commit point is the rename of new into the target: a crash before it rolls back (new present, target missing → rename old back, or a first install ends absent); from it on the recovery pass completes the swap (Phase 9 spec D7, Q1). The
   Windows rename-aside path for mapped DLLs and the macOS `renamex_np` swap of the earlier draft are dropped: those
   platforms no longer place files themselves.
 - 🆕 Install manifests in the state dir: every placed path with its hash (the only record of a Linux install). Update
@@ -886,7 +888,8 @@ Components:
   with a "restart or rescan your DAW" notice (macOS adds Apple's AU rescan steps).
 - 🆕 The settings **screen** over the Phase 4 settings model (the Linux plug-in root), and the Linux
   NVIDIA/WebKitGTK workaround as a user toggle, never shipped unconditionally (report line 22;
-  https://v2.tauri.app/develop/debug/linux-graphics/).
+  https://v2.tauri.app/develop/debug/linux-graphics/). The screen refuses to change the Linux plug-in root while any install manifest exists; the user removes those plugins first (Phase 9 FR-064, Q3).
+- 🆕 Remove for a plugin that has an install manifest but is no longer in the feed (an orphan manifest), driven by the manifest alone (Phase 9 Q8).
 - 🆕 **User-performed checks** (the user runs them on real machines; no agent can, and none runs in a gate), each
   recorded in `specs/krate-manager-phase12/` with date, OS build and screenshots or terminal output:
   - macOS GUI install, on a Mac running Sequoia 15.x and one running Tahoe 26.x: download the manager pkg with a

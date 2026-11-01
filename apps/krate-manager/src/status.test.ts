@@ -20,6 +20,7 @@ import notesRendering from "../tests/fixtures/status/notes-rendering.json";
 import recordNotices from "../tests/fixtures/status/record-notices.json";
 import { renderShell } from "./main";
 import { STATUS_TEXTS, createStatusSection, renderCards } from "./status";
+import type { ChannelMaker, Invoker, StatusSection } from "./status";
 import { toStatusView } from "./view";
 import type { CopyView, PluginView, StatusView, UnknownReason } from "./view";
 
@@ -387,4 +388,404 @@ test("no navigation path but the release page button", () => {
     const planted = `${first[1]}\nconst planted = "${needle}";\n`;
     expect(navigationHits(first[0], planted).some((hit) => hit.endsWith(`: ${needle}`)), needle).toBe(true);
   }
+});
+
+// SC-024 (FR-097 to FR-099, FR-124): the action buttons, the in-card confirmation, progress, outcome and refresh.
+
+/** One plugin in the core's `PluginView` shape: a not-installed `Alpha` unless `fields` say otherwise. */
+function pluginJson(fields: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  return {
+    name: "Alpha",
+    latest: "1.2.0",
+    availability: "available",
+    min_os: null,
+    installed: "not_installed",
+    installed_version: null,
+    update: "not_installed",
+    copies: [],
+    record: null,
+    record_error: null,
+    record_without_files: false,
+    record_version_differs: false,
+    release_page_url: null,
+    notes: [],
+    actions: [],
+    ...fields,
+  };
+}
+
+/** A status view through the runtime validator (PD-12), one card per entry of `plugins`. */
+function viewOf(os: string, plugins: readonly Readonly<Record<string, unknown>>[]): StatusView {
+  return toStatusView({
+    os,
+    edge_max_age_secs: 600,
+    running_os: null,
+    feed: { source: "fresh", fetched_at_unix: 1700000000, schema_version: 2, error: null },
+    plugins: plugins.map(pluginJson),
+  });
+}
+
+const MANIFEST = { kind: "manifest", version: "1.0.0", files: 4 };
+const NOT_INSTALLED = { actions: ["install"] };
+const UPDATE_AVAILABLE = {
+  installed: "version",
+  installed_version: "1.0.0",
+  update: "update_available",
+  record: MANIFEST,
+  actions: ["update", "remove"],
+};
+const UP_TO_DATE = {
+  installed: "version",
+  installed_version: "1.2.0",
+  update: "up_to_date",
+  record: { ...MANIFEST, version: "1.2.0" },
+  actions: ["remove"],
+};
+const ELSEWHERE = {
+  installed: "elsewhere",
+  installed_version: "0.9.0",
+  copies: [
+    {
+      format: "vst3",
+      place: "vst3_global",
+      vendor_folder: false,
+      nested: false,
+      path: "/opt/vst3/Alpha.vst3",
+      managed: false,
+      loads_before_managed: false,
+      version: "0.9.0",
+      version_source: "classes",
+      unknown_reason: null,
+    },
+  ],
+  actions: ["install"],
+};
+
+type Answer = (cmd: string, args: Record<string, unknown> | undefined) => Promise<unknown>;
+
+/** A recording `Invoker` (status.ts `Invoker`): every call is kept in order, `answer` settles it. */
+function recorder(answer: Answer): { calls: [string, Record<string, unknown> | undefined][]; invoke: Invoker } {
+  const calls: [string, Record<string, unknown> | undefined][] = [];
+  const invoke: Invoker = <T>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
+    calls.push([cmd, args]);
+    return answer(cmd, args) as Promise<T>;
+  };
+  return { calls, invoke };
+}
+
+/** A fake `ChannelMaker`: records each `onMessage` and returns `{ id: n }` (plan §7.1 SC-024). */
+function channels(): { make: ChannelMaker; made: { id: number }[]; send: (message: unknown) => void } {
+  const handlers: ((message: unknown) => void)[] = [];
+  const made: { id: number }[] = [];
+  const make: ChannelMaker = (onMessage) => {
+    handlers.push(onMessage);
+    const channel = { id: made.length + 1 };
+    made.push(channel);
+    return channel;
+  };
+  const send = (message: unknown): void => {
+    for (const handler of handlers) handler(message);
+  };
+  return { make, made, send };
+}
+
+/** A rendered section over `view` whose `plugin_status` answers `after` and whose action commands answer `action`. */
+function rig(
+  view: StatusView,
+  action: Promise<unknown>,
+  after: StatusView = view,
+): {
+  section: StatusSection;
+  calls: [string, Record<string, unknown> | undefined][];
+  ch: ReturnType<typeof channels>;
+} {
+  const { calls, invoke } = recorder((cmd) => {
+    if (cmd === "install_plugin" || cmd === "remove_plugin") return action;
+    if (cmd === "plugin_status" || cmd === "check_now") return Promise.resolve(after);
+    return Promise.reject(new Error(`unexpected command ${cmd}`));
+  });
+  const ch = channels();
+  const section = createStatusSection(invoke, ch.make);
+  section.render(view);
+  section.button.disabled = false;
+  return { section, calls, ch };
+}
+
+function click(root: ParentNode, selector: string): void {
+  only(root, selector, HTMLButtonElement).click();
+}
+
+test("renders install for not-installed linux", () => {
+  const { section } = rig(viewOf("linux", [NOT_INSTALLED]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  only(c, ":scope > div.actions", HTMLDivElement);
+  expect(texts(c, "div.actions > button")).toEqual(["Install"]);
+  only(c, "button.action-install", HTMLButtonElement);
+  expect(c.querySelector("div.confirm")).toBeNull();
+});
+
+test("renders update and remove for update-available linux", () => {
+  const { section } = rig(viewOf("linux", [UPDATE_AVAILABLE]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  expect(texts(c, "div.actions > button")).toEqual(["Update", "Remove"]);
+  expect(Array.from(c.querySelectorAll("div.actions > button"), (b) => b.className)).toEqual(["action-update", "action-remove"]);
+  expect(c.querySelector("button.action-install")).toBeNull();
+});
+
+test("renders no install buttons on windows or macos", () => {
+  for (const os of ["windows", "macos"]) {
+    const { section } = rig(viewOf(os, [{}, { name: "Beta", ...UPDATE_AVAILABLE, actions: [] }]), deferred<unknown>().promise);
+    for (const name of ["Alpha", "Beta"]) {
+      const c = card(section.element, name);
+      expect(c.querySelector("div.actions"), `${os} ${name}`).toBeNull();
+      expect(texts(c, "button"), `${os} ${name}`).toEqual([]);
+    }
+  }
+  // The control: the same cards with the Linux gate's actions do render the row, so the absence above is the gate's.
+  const { section } = rig(viewOf("linux", [NOT_INSTALLED, { name: "Beta", ...UPDATE_AVAILABLE }]), deferred<unknown>().promise);
+  expect(texts(card(section.element, "Alpha"), "div.actions > button")).toEqual(["Install"]);
+  expect(texts(card(section.element, "Beta"), "div.actions > button")).toEqual(["Update", "Remove"]);
+});
+
+test("install asks for confirmation naming the plugin and version", () => {
+  const { section, calls, ch } = rig(viewOf("linux", [NOT_INSTALLED]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-install");
+  expect(c.querySelector("div.actions")).toBeNull();
+  const confirm = only(c, ":scope > div.confirm", HTMLDivElement);
+  expect(texts(confirm, "p")).toEqual(["Install Alpha 1.2.0?"]);
+  expect(texts(confirm, "button")).toEqual(["Confirm", "Cancel"]);
+  expect(calls).toEqual([]);
+  expect(ch.made).toEqual([]);
+});
+
+test("install on an elsewhere copy names the other copy and says to remove it by hand", () => {
+  const { section, calls } = rig(viewOf("linux", [ELSEWHERE]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-install");
+  const confirm = only(c, ":scope > div.confirm", HTMLDivElement);
+  expect(texts(confirm, "p")).toEqual([
+    "Install Alpha 1.2.0?",
+    "Another copy is installed at /opt/vst3/Alpha.vst3. Remove it by hand; the manager does not touch it.",
+  ]);
+  expect(texts(confirm, "p.other-copy")).toHaveLength(1);
+  expect(calls).toEqual([]);
+});
+
+test("install without an elsewhere copy shows no other-copy line", () => {
+  const managedCopy = {
+    ...NOT_INSTALLED,
+    name: "Beta",
+    copies: [{ ...ELSEWHERE.copies[0], path: "/opt/vst3/Beta.vst3", managed: true }],
+  };
+  const { section } = rig(viewOf("linux", [NOT_INSTALLED, managedCopy]), deferred<unknown>().promise);
+  for (const name of ["Alpha", "Beta"]) {
+    const c = card(section.element, name);
+    click(c, "button.action-install");
+    const confirm = only(c, ":scope > div.confirm", HTMLDivElement);
+    expect(texts(confirm, "p"), name).toEqual([`Install ${name} 1.2.0?`]);
+    expect(confirm.querySelector("p.other-copy"), name).toBeNull();
+    expect(confirm.textContent, name).not.toContain("Another copy");
+  }
+});
+
+test("update asks for confirmation naming both versions", () => {
+  const { section, calls } = rig(viewOf("linux", [UPDATE_AVAILABLE]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-update");
+  const confirm = only(c, ":scope > div.confirm", HTMLDivElement);
+  expect(texts(confirm, "p")).toEqual(["Update Alpha 1.0.0 to 1.2.0?"]);
+  expect(texts(confirm, "button")).toEqual(["Confirm", "Cancel"]);
+  expect(calls).toEqual([]);
+});
+
+test("remove asks for confirmation first", () => {
+  const { section, calls, ch } = rig(viewOf("linux", [UP_TO_DATE]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-remove");
+  const confirm = only(c, ":scope > div.confirm", HTMLDivElement);
+  expect(texts(confirm, "p")).toEqual([
+    "Remove Alpha? The plug-in and its factory presets are removed; your own presets are kept.",
+  ]);
+  expect(texts(confirm, "button")).toEqual(["Confirm", "Cancel"]);
+  expect(calls).toEqual([]);
+  expect(ch.made).toEqual([]);
+});
+
+test("cancelling a confirmation invokes nothing", async () => {
+  const { section, calls, ch } = rig(viewOf("linux", [UPDATE_AVAILABLE]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  for (const action of ["update", "remove"]) {
+    click(c, `button.action-${action}`);
+    click(c, "div.confirm button.confirm-cancel");
+    await settle();
+    expect(c.querySelector("div.confirm"), action).toBeNull();
+    expect(texts(c, "div.actions > button"), action).toEqual(["Update", "Remove"]);
+    for (const b of Array.from(c.querySelectorAll("div.actions > button"))) {
+      expect(b instanceof HTMLButtonElement && b.disabled, action).toBe(false);
+    }
+  }
+  expect(calls).toEqual([]);
+  expect(ch.made).toEqual([]);
+  expect(c.querySelector("p.progress")).toBeNull();
+});
+
+test("confirmed install sends name, version, action and a channel", async () => {
+  const { section, calls, ch } = rig(viewOf("linux", [NOT_INSTALLED]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-install");
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  expect(ch.made).toEqual([{ id: 1 }]);
+  expect(calls).toEqual([["install_plugin", { name: "Alpha", expectedVersion: "1.2.0", action: "install", onProgress: { id: 1 } }]]);
+  expect(calls[0]?.[1]?.["onProgress"]).toBe(ch.made[0]);
+  expect(Object.keys(calls[0]?.[1] ?? {}).sort()).toEqual(["action", "expectedVersion", "name", "onProgress"]);
+});
+
+test("disables the card's buttons while an action runs", async () => {
+  const pending = deferred<unknown>();
+  const { section, calls } = rig(viewOf("linux", [UPDATE_AVAILABLE, { name: "Beta", ...NOT_INSTALLED }]), pending.promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-update");
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  const buttons = Array.from(c.querySelectorAll("div.actions > button"), (b) => b instanceof HTMLButtonElement && b.disabled);
+  expect(buttons).toEqual([true, true]);
+  click(c, "button.action-remove");
+  click(c, "button.action-update");
+  await settle();
+  expect(c.querySelector("div.confirm")).toBeNull();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["install_plugin"]);
+  expect(only(card(section.element, "Beta"), "button.action-install", HTMLButtonElement).disabled).toBe(false);
+  pending.resolve({ name: "Alpha", action: "update", version: "1.2.0", kept: [], notice: "rescan_daw" });
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["install_plugin", "plugin_status"]);
+});
+
+test("shows placing progress", async () => {
+  const pending = deferred<unknown>();
+  const { section, ch } = rig(viewOf("linux", [NOT_INSTALLED]), pending.promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-install");
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  ch.send({ kind: "download", event: { kind: "started", total: 100, resumed_from: 0 } });
+  ch.send({ kind: "download", event: { kind: "bytes", received: 40, on_disk: 40, total: 100 } });
+  expect(texts(c, "p.progress")).toEqual(["Downloading 40 of 100 bytes"]);
+  ch.send({ kind: "download", event: { kind: "verified" } });
+  ch.send({ kind: "staging" });
+  ch.send({ kind: "placing", done: 2, total: 5 });
+  expect(texts(c, "p.progress")).toEqual(["Placing 2 of 5 files"]);
+  ch.send({ kind: "placing", done: 5, total: 5 });
+  expect(texts(c, "p.progress")).toEqual(["Placing 5 of 5 files"]);
+  ch.send({ kind: "committing" });
+  expect(texts(c, "p.progress")).toEqual(["Finishing"]);
+  ch.send({ kind: "done" });
+  expect(texts(c, "p.progress")).toEqual(["Finishing"]);
+  pending.resolve({ name: "Alpha", action: "install", version: "1.2.0", kept: [], notice: "rescan_daw" });
+  await settle();
+  expect(section.element.querySelector("p.progress")).toBeNull();
+});
+
+test("shows the outcome and the DAW notice after an install", async () => {
+  const pending = deferred<unknown>();
+  const { section } = rig(viewOf("linux", [NOT_INSTALLED]), pending.promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-install");
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  expect(texts(c, "p.outcome")).toEqual([]);
+  pending.resolve({ name: "Alpha", action: "install", version: "1.2.0", kept: [], notice: "rescan_daw" });
+  await settle();
+  expect(texts(card(section.element, "Alpha"), "p.outcome")).toEqual([
+    "Installed 1.2.0",
+    "Restart your DAW or rescan its plug-ins to load the new version.",
+  ]);
+});
+
+test("shows the outcome and the DAW notice after an update", async () => {
+  const pending = deferred<unknown>();
+  const { section, ch } = rig(viewOf("linux", [UPDATE_AVAILABLE]), pending.promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-update");
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  ch.send({ kind: "placing", done: 1, total: 4 });
+  pending.resolve({ name: "Alpha", action: "update", version: "1.2.0", kept: [], notice: "rescan_daw" });
+  await settle();
+  expect(texts(card(section.element, "Alpha"), "p.outcome")).toEqual([
+    "Updated to 1.2.0",
+    "Restart your DAW or rescan its plug-ins to load the new version.",
+  ]);
+});
+
+test("shows kept files after remove", async () => {
+  const pending = deferred<unknown>();
+  const { section, calls, ch } = rig(viewOf("linux", [UP_TO_DATE]), pending.promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-remove");
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  expect(calls).toEqual([["remove_plugin", { name: "Alpha", onProgress: { id: 1 } }]]);
+  expect(calls[0]?.[1]?.["onProgress"]).toBe(ch.made[0]);
+  ch.send({ kind: "removing", done: 3, total: 7 });
+  expect(texts(c, "p.progress")).toEqual(["Removing 3 of 7 files"]);
+  pending.resolve({
+    name: "Alpha",
+    action: "remove",
+    version: null,
+    kept: [
+      { root: "presets", path: "Alpha/Mine.vstpreset" },
+      { root: "plugin", path: "Alpha.vst3/Contents/notes.txt" },
+    ],
+    notice: null,
+  });
+  await settle();
+  expect(texts(card(section.element, "Alpha"), "p.outcome")).toEqual([
+    "Removed",
+    "Kept Alpha/Mine.vstpreset: changed since install",
+    "Kept Alpha.vst3/Contents/notes.txt: changed since install",
+  ]);
+});
+
+test("shows the error code on failure", async () => {
+  const pending = deferred<unknown>();
+  const { section, calls } = rig(viewOf("linux", [NOT_INSTALLED]), pending.promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-install");
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  pending.reject(new Error("E_INSTALL_STATE_CHANGED: shown not_installed, now version"));
+  await settle();
+  const after = card(section.element, "Alpha");
+  expect(texts(after, "p.outcome")).toEqual(["E_INSTALL_STATE_CHANGED: shown not_installed, now version"]);
+  expect(texts(after, "p.outcome")[0]?.startsWith("E_INSTALL_")).toBe(true);
+  expect(after.querySelector("p.progress")).toBeNull();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["install_plugin", "plugin_status"]);
+  expect(only(after, "button.action-install", HTMLButtonElement).disabled).toBe(false);
+});
+
+test("refreshes the status after an action and keeps the outcome", async () => {
+  const pending = deferred<unknown>();
+  const installed = viewOf("linux", [UP_TO_DATE, { name: "Beta", ...NOT_INSTALLED }]);
+  const { section, calls } = rig(viewOf("linux", [NOT_INSTALLED, { name: "Beta", ...NOT_INSTALLED }]), pending.promise, installed);
+  click(card(section.element, "Alpha"), "button.action-install");
+  click(card(section.element, "Alpha"), "div.confirm button.confirm-ok");
+  await settle();
+  pending.resolve({ name: "Alpha", action: "install", version: "1.2.0", kept: [], notice: "rescan_daw" });
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["install_plugin", "plugin_status"]);
+  const outcome = ["Installed 1.2.0", "Restart your DAW or rescan its plug-ins to load the new version."];
+  const alpha = card(section.element, "Alpha");
+  expect(only(alpha, ":scope > p.installed", HTMLParagraphElement).textContent).toBe("Installed: 1.2.0");
+  expect(texts(alpha, "div.actions > button")).toEqual(["Remove"]);
+  expect(texts(alpha, "p.outcome")).toEqual(outcome);
+  expect(texts(card(section.element, "Beta"), "p.outcome")).toEqual([]);
+  // Another render (a later status) keeps the lines; Check now clears them.
+  section.render(installed);
+  expect(texts(card(section.element, "Alpha"), "p.outcome")).toEqual(outcome);
+  section.button.click();
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["install_plugin", "plugin_status", "check_now"]);
+  expect(texts(card(section.element, "Alpha"), "p.outcome")).toEqual([]);
 });

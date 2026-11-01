@@ -253,6 +253,7 @@ fn identifier_files() -> Vec<(String, PathBuf)> {
         "crates/core/src/notes.rs",
         "crates/core/src/download.rs",
         "crates/core/src/verify.rs",
+        "crates/core/src/install.rs",
         "src-tauri/src/os_facts.rs",
         "src-tauri/src/commands.rs",
     ]
@@ -280,6 +281,7 @@ fn install_identifiers_absent_from_sources() {
         "crates/core/src/notes.rs",
         "crates/core/src/download.rs",
         "crates/core/src/verify.rs",
+        "crates/core/src/install.rs",
         "crates/core/src/platform/mod.rs",
         "crates/core/src/platform/windows.rs",
         "crates/core/src/platform/macos.rs",

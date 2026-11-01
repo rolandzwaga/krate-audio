@@ -150,6 +150,8 @@ const DETECT_RS: &str = "crates/core/src/detect.rs";
 const DETECT_TESTS_RS: &str = "crates/core/src/detect_tests.rs";
 const DOWNLOAD_TESTS_RS: &str = "crates/core/src/download_tests.rs";
 const EXTRACT_TESTS_RS: &str = "crates/core/src/extract_tests.rs";
+const INSTALL_TESTS_RS: &str = "crates/core/src/install_tests.rs";
+const TAR_BUILDER_TESTS_RS: &str = "crates/core/src/tar_builder_tests.rs";
 const NOTES_RS: &str = "crates/core/src/notes.rs";
 const NOTES_TESTS_RS: &str = "crates/core/src/notes_tests.rs";
 const STATUS_RS: &str = "crates/core/src/status.rs";
@@ -162,6 +164,7 @@ const COMMANDS_RS: &str = "src-tauri/src/commands.rs";
 // App-root-relative paths the Phase 7 rules name (`DOWNLOAD_TESTS_RS` is above).
 const DOWNLOAD_RS: &str = "crates/core/src/download.rs";
 const EXTRACT_RS: &str = "crates/core/src/extract.rs";
+const INSTALL_RS: &str = "crates/core/src/install.rs";
 const VERIFY_RS: &str = "crates/core/src/verify.rs";
 const VERIFY_TESTS_RS: &str = "crates/core/src/verify_tests.rs";
 const TEST_SIGNER_RS: &str = "crates/core/src/test_signer.rs";
@@ -183,11 +186,13 @@ const KEYGEN_TOKENS: [&str; 3] = [
     "generate_encrypted_keypair",
 ];
 /// FR-087: the Phase 7 test files, each of which must be readable.
-const PHASE7_TEST_FILES: [&str; 4] = [
+const PHASE7_TEST_FILES: [&str; 6] = [
     DOWNLOAD_TESTS_RS,
     VERIFY_TESTS_RS,
     TEST_SIGNER_RS,
     TEST_SUPPORT_RS,
+    INSTALL_TESTS_RS,
+    TAR_BUILDER_TESTS_RS,
 ];
 /// FR-087: raw-text substrings none of `PHASE7_TEST_FILES` holds.
 const PHASE7_HOST_NEEDLES: [&str; 4] = [
@@ -245,13 +250,15 @@ const FR084_TOKENS: [&str; 19] = [
     "File :: create",
 ];
 /// FR-088 (TA-9): exactly these files (app-root-relative), each of which must be readable.
-const FR088_FILES: [&str; 6] = [
+const FR088_FILES: [&str; 8] = [
     DETECT_TESTS_RS,
     STATUS_TESTS_RS,
     NOTES_TESTS_RS,
     TEST_SUPPORT_RS,
     "src/status.test.ts",
     "src/main.test.ts",
+    INSTALL_TESTS_RS,
+    TAR_BUILDER_TESTS_RS,
 ];
 /// FR-088: the eleven patterns none of `FR088_FILES` may match.
 const FR088_PATTERNS: [&str; 11] = [
@@ -365,6 +372,53 @@ const TEMPFILE_REAL_TEMP: [&str; 5] = [
     "tempfile (",
     "NamedTempFile",
 ];
+/// Phase 9 FR-028, FR-112 (plan §4.8 row 1, PD-20): the tokens `install.rs` holds only inside
+/// `impl InstallIo for FsInstallIo`, besides `EXTRACT_FS_TOKENS` (which already holds `OpenOptions`):
+/// the durability calls and every std read entry point.
+const INSTALL_FS_EXTRA: [&str; 17] = [
+    "create_dir_all",
+    "sync_all",
+    "sync_data",
+    "fs :: read",
+    "fs :: read_dir",
+    "fs :: metadata",
+    "fs :: symlink_metadata",
+    "fs :: canonicalize",
+    "fs :: read_link",
+    "File :: open",
+    ". exists (",
+    ". try_exists (",
+    ". is_dir (",
+    ". is_file (",
+    ". is_symlink (",
+    ". metadata (",
+    ". symlink_metadata (",
+];
+/// Tasks TA-12: the `InstallIo` method names that are also tokens of the confined lists; a
+/// declaration in `trait InstallIo` / an `impl InstallIo for …` or a method call may hold them.
+const INSTALL_IO_METHODS: [&str; 9] = [
+    "create_dir",
+    "create_dir_all",
+    "symlink",
+    "rename",
+    "remove_file",
+    "remove_dir",
+    "read_dir",
+    "read_link",
+    "canonicalize",
+];
+/// FR-112 (plan §4.8 row 1): token sequences `install.rs` never holds, besides `TEMPFILE_REAL_TEMP`.
+const INSTALL_BANNED: [&str; 7] = [
+    "Command",
+    "TcpStream",
+    "UdpSocket",
+    "xattr",
+    "thread :: spawn",
+    "hard_link",
+    "persist",
+];
+/// PD-30 (SI-2, SI-27): the test-only asset-request seam of `CommandEnv`.
+const REQUEST_SEAM: &str = "request_seam";
 /// FR-054: the `fn` names no `impl StagedTree` block holds (besides the `into_` / `take_` prefixes).
 const STAGED_TREE_MOVES: [&str; 3] = ["rename", "persist", "release"];
 /// SC-026: token sequences `http.rs` never holds (one agent, one trust store).
@@ -591,6 +645,8 @@ const RULE_TEMPFILE: &str = "tempfile-outside-create-work-dir";
 const RULE_TAR: &str = "tar-dependency";
 const RULE_STAGED_TREE: &str = "staged-tree-seam";
 const RULE_RELEASE_JSON: &str = "release-json-literal";
+const RULE_INSTALL_FS: &str = "fs-token-outside-fs-install-io";
+const RULE_INSTALL_BANNED: &str = "banned-in-install";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Finding {
@@ -2648,6 +2704,7 @@ fn verified_artifact_findings(files: &[(String, String)]) -> Vec<Finding> {
             VERIFY_TESTS_RS,
             DOWNLOAD_TESTS_RS,
             EXTRACT_TESTS_RS,
+            INSTALL_TESTS_RS,
         ],
     ));
     out.extend(minting_route_findings(
@@ -2968,9 +3025,9 @@ fn lock_package_names(lock: &str) -> Vec<String> {
         .collect()
 }
 
-/// The `{ … }` body (inclusive) of every `trait ExtractIo` in `toks`.
-fn extract_io_traits(toks: &[&str]) -> Vec<Range<usize>> {
-    seq_at(toks, &["trait", "ExtractIo"])
+/// The `{ … }` body (inclusive) of every `trait <name>` in `toks`.
+fn trait_bodies(toks: &[&str], name: &str) -> Vec<Range<usize>> {
+    seq_at(toks, &["trait", name])
         .into_iter()
         .filter_map(|at| (at..toks.len()).find(|&k| toks[k] == "{" || toks[k] == ";"))
         .filter(|&open| toks[open] == "{")
@@ -3048,7 +3105,7 @@ fn extract_findings(
         .filter(|b| b.trait_name == Some("ExtractIo") && b.self_name == "FsExtractIo")
         .map(|b| b.body.clone())
         .collect();
-    let traits = extract_io_traits(&toks);
+    let traits = trait_bodies(&toks, "ExtractIo");
     let work_dir: Vec<Range<usize>> = fns
         .iter()
         .filter(|f| f.name == "create_work_dir" && inside(&fs_impls, f.start))
@@ -3155,6 +3212,78 @@ fn extract_findings(
             RULE_RELEASE_JSON,
             format!("{n} literal(s) holding `release.json`"),
         );
+    }
+    out
+}
+
+/// Phase 9 (plan §4.8 row 1; FR-028, FR-112, PD-20) over the workspace `.rs` files: in
+/// `install.rs`, `EXTRACT_FS_TOKENS` and `INSTALL_FS_EXTRA` only inside
+/// `impl InstallIo for FsInstallIo` (the `INSTALL_IO_METHODS` declarations in `trait InstallIo` /
+/// an `impl InstallIo for …`, their method calls and attributes excepted), and none of `INSTALL_BANNED` or
+/// `TEMPFILE_REAL_TEMP`. Absence is never a finding.
+fn install_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    let Some((_, text)) = files.iter().find(|(rel, _)| rel == INSTALL_RS) else {
+        return out;
+    };
+    let (code, _) = strip_comments_and_literals(text);
+    let toks = tokens(&code);
+    let blocks = impl_blocks(&toks);
+    let inside = |ranges: &[Range<usize>], p: usize| ranges.iter().any(|r| r.contains(&p));
+    let io_impls: Vec<Range<usize>> = blocks
+        .iter()
+        .filter(|b| b.trait_name == Some("InstallIo"))
+        .map(|b| b.body.clone())
+        .collect();
+    let fs_impls: Vec<Range<usize>> = blocks
+        .iter()
+        .filter(|b| b.trait_name == Some("InstallIo") && b.self_name == "FsInstallIo")
+        .map(|b| b.body.clone())
+        .collect();
+    let traits = trait_bodies(&toks, "InstallIo");
+    // An attribute touches no filesystem: `#[serde(rename = "f")]` is not a `rename`.
+    let attributes: Vec<Range<usize>> = (0..toks.len())
+        .filter(|&k| toks[k] == "#")
+        .filter_map(|k| {
+            let open = if toks.get(k + 1) == Some(&"!") {
+                k + 2
+            } else {
+                k + 1
+            };
+            (toks.get(open) == Some(&"[")).then(|| k..close_of(&toks, open) + 1)
+        })
+        .collect();
+    // TA-12: `fn <m>` in `trait InstallIo` or an `impl InstallIo for …`, and `. <m> (`.
+    let io_method_site = |p: usize| {
+        INSTALL_IO_METHODS.contains(&toks[p])
+            && p > 0
+            && ((toks[p - 1] == "fn" && (inside(&traits, p) || inside(&io_impls, p)))
+                || (toks[p - 1] == "." && toks.get(p + 1) == Some(&"(")))
+    };
+    let mut report = |rule: &'static str, detail: String| {
+        out.push(Finding {
+            file: INSTALL_RS.to_owned(),
+            rule,
+            detail,
+        });
+    };
+    for needle in EXTRACT_FS_TOKENS.iter().chain(&INSTALL_FS_EXTRA) {
+        let n = seq_at(&toks, &tokens(needle))
+            .into_iter()
+            .filter(|&p| !inside(&fs_impls, p) && !inside(&attributes, p) && !io_method_site(p))
+            .count();
+        if n > 0 {
+            report(
+                RULE_INSTALL_FS,
+                format!("`{needle}` {n} time(s) outside impl InstallIo for FsInstallIo"),
+            );
+        }
+    }
+    for needle in INSTALL_BANNED.iter().chain(&TEMPFILE_REAL_TEMP) {
+        let n = seq_at(&toks, &tokens(needle)).len();
+        if n > 0 {
+            report(RULE_INSTALL_BANNED, format!("`{needle}` {n} time(s)"));
+        }
     }
     out
 }
@@ -3318,8 +3447,8 @@ fn seam_declarations(toks: &[&str], name: &str) -> Vec<usize> {
 
 /// SC-032 (D13) over the workspace `.rs` files and `src-tauri/build.rs`: `with_fixture_url` and
 /// `fetch_url` declared only in `download.rs`, each declaration directly under `#[cfg(test)]`
-/// (then optionally `pub(crate)`); `with_fixture_url` elsewhere only in `download_tests.rs`; no
-/// `src-tauri/` file holds either name.
+/// (then optionally `pub(crate)`); `with_fixture_url` elsewhere only in `download_tests.rs` and
+/// `install_tests.rs` (Phase 9 SI-2); no `src-tauri/` file holds either name.
 fn fixture_seam_findings(files: &[(String, String)]) -> Vec<Finding> {
     let lexed = lex(files);
     let toks_of = tokenized(&lexed);
@@ -3356,12 +3485,16 @@ fn fixture_seam_findings(files: &[(String, String)]) -> Vec<Finding> {
             } else if !decls.is_empty() {
                 report(rel, format!("`{name}` declared outside download.rs"));
             }
-            if name == "with_fixture_url" && ![DOWNLOAD_RS, DOWNLOAD_TESTS_RS].contains(rel) {
+            if name == "with_fixture_url"
+                && ![DOWNLOAD_RS, DOWNLOAD_TESTS_RS, INSTALL_TESTS_RS].contains(rel)
+            {
                 let n = seq_at(toks, &[name]).len();
                 if n > 0 {
                     report(
                         rel,
-                        format!("`{name}` {n} time(s), allowed only in download_tests.rs"),
+                        format!(
+                            "`{name}` {n} time(s), allowed only in download_tests.rs and install_tests.rs"
+                        ),
                     );
                 }
             }
@@ -3373,7 +3506,115 @@ fn fixture_seam_findings(files: &[(String, String)]) -> Vec<Finding> {
             report(DOWNLOAD_RS, format!("`{name}` not declared in download.rs"));
         }
     }
+    // PD-30 (SI-2, SI-27): `request_seam` declared only in install.rs, directly under
+    // `#[cfg(test)]` (then optionally `pub(crate)`), and every install.rs occurrence inside what a
+    // `#[cfg(test)]` gates; in test_support.rs only as a field initialiser directly under
+    // `#[cfg(test)]`; free in install_tests.rs; nowhere else.
+    let name = REQUEST_SEAM;
+    let mut declared_in_install = false;
+    for ((rel, toks), (_, text)) in toks_of.iter().zip(files) {
+        let gated =
+            |at: usize| at >= cfg_test.len() && toks[at - cfg_test.len()..at] == cfg_test[..];
+        let decls = seam_declarations(toks, name);
+        let uses = seq_at(toks, &[name]);
+        if *rel == INSTALL_RS {
+            declared_in_install = !decls.is_empty();
+            for &at in &decls {
+                let start = if is_crate_private(toks, at) {
+                    at - 4
+                } else {
+                    at
+                };
+                if !gated(start) {
+                    report(
+                        rel,
+                        format!("`{name}` declared without a directly preceding #[cfg(test)]"),
+                    );
+                }
+            }
+            let spans = cfg_test_spans(toks, &cfg_test);
+            let n = uses
+                .iter()
+                .filter(|&&p| !spans.iter().any(|s| s.contains(&p)))
+                .count();
+            if n > 0 {
+                report(
+                    rel,
+                    format!("`{name}` {n} time(s) outside what a #[cfg(test)] gates"),
+                );
+            }
+        } else {
+            if !decls.is_empty() {
+                report(rel, format!("`{name}` declared outside install.rs"));
+            }
+            let n = if *rel == TEST_SUPPORT_RS {
+                uses.iter()
+                    .filter(|&&p| {
+                        !(gated(p)
+                            && toks.get(p + 1) == Some(&":")
+                            && toks.get(p + 2) != Some(&":"))
+                    })
+                    .count()
+            } else if *rel == INSTALL_TESTS_RS {
+                0
+            } else {
+                uses.len()
+            };
+            if n > 0 {
+                report(
+                    rel,
+                    format!(
+                        "`{name}` {n} time(s), allowed only in install.rs and install_tests.rs and as a #[cfg(test)] initialiser in test_support.rs"
+                    ),
+                );
+            }
+        }
+        if rel.starts_with("src-tauri/") && text.contains(name) {
+            report(rel, format!("`{name}` in a src-tauri file"));
+        }
+    }
+    if !declared_in_install {
+        report(INSTALL_RS, format!("`{name}` not declared in install.rs"));
+    }
     out
+}
+
+/// The token range each `#[cfg(test)]` (`cfg_test`) in `toks` gates: from the token after the
+/// attribute to the end of the item, statement, field or initialiser it precedes, which is a `;`
+/// or `,` at depth 0, the `}` closing a block opened at depth 0 (not for a `let`, which ends at its
+/// `;`), or the close of the enclosing group.
+fn cfg_test_spans(toks: &[&str], cfg_test: &[&str]) -> Vec<Range<usize>> {
+    seq_at(toks, cfg_test)
+        .into_iter()
+        .map(|at| {
+            let start = at + cfg_test.len();
+            let is_let = toks.get(start) == Some(&"let");
+            let mut depth = 0usize;
+            let mut end = toks.len();
+            for (k, &t) in toks.iter().enumerate().skip(start) {
+                match t {
+                    "(" | "[" | "{" => depth += 1,
+                    ")" | "]" | "}" if depth == 0 => {
+                        end = k;
+                        break;
+                    }
+                    ")" | "]" | "}" => {
+                        depth -= 1;
+                        if depth == 0 && t == "}" && !is_let {
+                            end = k + 1;
+                            break;
+                        }
+                    }
+                    ";" | "," if depth == 0 => {
+                        end = k + 1;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            start..end
+        })
+        .collect()
 }
 
 /// `files` with `text` appended to `rel`, or with a new file `rel` holding `text`.
@@ -3562,6 +3803,70 @@ fn injection_scanner_reports_planted_violations() {
             .iter()
             .all(|l| tricky[l.start..].starts_with(['b', 'r', '"']))
     );
+
+    // Phase 9 (plan §4.8 row 1; FR-028, FR-112, PD-20): `install.rs` touches the filesystem only
+    // inside `impl InstallIo for FsInstallIo`, holds no banned token, and `flate2` stays confined.
+    let confined: Vec<&str> = EXTRACT_FS_TOKENS
+        .iter()
+        .chain(&INSTALL_FS_EXTRA)
+        .copied()
+        .collect();
+    for needle in INSTALL_BANNED.iter().chain(&TEMPFILE_REAL_TEMP) {
+        assert!(
+            !confined.contains(needle),
+            "{needle:?} is in both install lists"
+        );
+    }
+    let files = workspace_rs_files();
+    let (manifests, locks) = (manifests(), locks());
+    let scan = |files: &[(String, String)]| {
+        let mut out = install_findings(files);
+        out.extend(extract_findings(files, &manifests, &locks));
+        out
+    };
+    let base = scan(&files);
+    let install_plants: [(&str, &str); 8] = [
+        (
+            "fn f() { std::fs::rename(\"a\", \"b\").ok(); }\n",
+            RULE_INSTALL_FS,
+        ),
+        (
+            "fn f() { let _ = std::process::Command::new(\"x\"); }\n",
+            RULE_INSTALL_BANNED,
+        ),
+        ("fn xattr() {}\n", RULE_INSTALL_BANNED),
+        ("use flate2::read::GzDecoder;\n", RULE_CONFINED),
+        (
+            "fn f() { let _ = tempfile::NamedTempFile::new(); }\n",
+            RULE_INSTALL_BANNED,
+        ),
+        (
+            "fn f(d: &std::path::Path) { let _ = tempfile::NamedTempFile::new_in(d); }\n",
+            RULE_INSTALL_BANNED,
+        ),
+        (
+            "fn f(t: tempfile::NamedTempFile) { let _ = t.persist(\"x\"); }\n",
+            RULE_INSTALL_BANNED,
+        ),
+        (
+            "fn f(p: &std::path::Path) -> bool { p.exists() }\n",
+            RULE_INSTALL_FS,
+        ),
+    ];
+    for (text, rule) in install_plants {
+        let planted = scan(&plant(&files, INSTALL_RS, text));
+        assert_reported(&base, &planted, INSTALL_RS, rule, text);
+    }
+    // The `InstallIo` declarations and calls (TA-12), the real impl, an attribute and a comment are
+    // not findings.
+    let quiet = "#[derive(Serialize)]\nenum E {\n    #[serde(rename = \"f\")]\n    F,\n}\n\
+        trait InstallIo { fn rename(&self, a: &Path, b: &Path) -> io::Result<()>; fn read_dir(&self, d: &Path); }\n\
+        impl InstallIo for MemInstallIo { fn create_dir_all(&self, p: &Path) -> io::Result<()> { Ok(()) } }\n\
+        fn g(io: &dyn InstallIo) { io.rename(a, b).ok(); io.create_dir_all(p).ok(); io.canonicalize(p).ok(); }\n\
+        impl InstallIo for FsInstallIo { fn kind_of(&self, p: &Path) -> bool { std::fs::symlink_metadata(p).is_ok() && p.exists() } }\n\
+        // std::fs::rename(a, b), Command::new(x), xattr, p.exists()\n";
+    let new = added(&base, &scan(&plant(&files, INSTALL_RS, quiet)));
+    assert!(new.is_empty(), "quiet install.rs text:\n{}", show(&new));
 }
 
 #[test]
@@ -4753,6 +5058,16 @@ fn verified_artifact_scanner_reports_plants() {
             EXTRACT_TESTS_RS,
             "a `SigningKey::from_text(` call in extract_tests.rs",
         ),
+        // Phase 9 (plan §4.8 row 2, FR-113): `install.rs` is no `verify_file` caller.
+        (
+            plant(
+                &files,
+                INSTALL_RS,
+                "fn f() {\n    let _ = verify_file(p, e, k);\n}\n",
+            ),
+            INSTALL_RS,
+            "a `verify_file(` call in install.rs",
+        ),
     ];
     for (planted, file, what) in &plants {
         let planted = verified_artifact_findings(planted);
@@ -4944,6 +5259,7 @@ fn verify_crates_are_confined() {
         HTTP_RS,
         "crates/core/src/lib.rs",
         EXTRACT_RS,
+        INSTALL_RS,
     ] {
         assert!(
             files.iter().any(|(r, _)| r == must),
@@ -4957,6 +5273,12 @@ fn verify_crates_are_confined() {
         extract.is_empty(),
         "FR-034 / FR-054 / FR-055 / FR-082 / FR-083 findings:\n{}",
         show(&extract)
+    );
+    let install = install_findings(&files);
+    assert!(
+        install.is_empty(),
+        "FR-028 / FR-112 findings:\n{}",
+        show(&install)
     );
 }
 
@@ -5263,7 +5585,14 @@ fn too_many_arguments_is_never_suppressed() {
 #[test]
 fn fixture_url_seam_is_test_only() {
     let files = seam_files();
-    for must in [DOWNLOAD_RS, DOWNLOAD_TESTS_RS, TEST_SUPPORT_RS, COMMANDS_RS] {
+    for must in [
+        DOWNLOAD_RS,
+        DOWNLOAD_TESTS_RS,
+        TEST_SUPPORT_RS,
+        COMMANDS_RS,
+        INSTALL_RS,
+        INSTALL_TESTS_RS,
+    ] {
         assert!(
             files.iter().any(|(r, _)| r == must),
             "{must} was not scanned"
@@ -5277,10 +5606,18 @@ fn fixture_url_seam_is_test_only() {
 fn fixture_url_seam_scanner_reports_plants() {
     let files = seam_files();
     let base = fixture_seam_findings(&files);
-    let plants: [(&str, &str); 5] = [
+    let plants: [(&str, &str); 8] = [
         (
             DOWNLOAD_RS,
             "impl Planted {\n    #[cfg(any(test, feature = \"test-support\"))]\n    pub(crate) fn with_fixture_url(self) {}\n}\n",
+        ),
+        // Phase 9 (plan §4.8 row 3, PD-30): `request_seam` without `#[cfg(test)]` in install.rs
+        // and test_support.rs, and in a src-tauri file.
+        (INSTALL_RS, "struct P { request_seam: Option<u8> }\n"),
+        (COMMANDS_RS, "fn f() { request_seam(); }\n"),
+        (
+            TEST_SUPPORT_RS,
+            "fn f(e: &mut CommandEnv<'_>) { e.request_seam = None; }\n",
         ),
         (
             DOWNLOAD_RS,
@@ -5302,5 +5639,28 @@ fn fixture_url_seam_scanner_reports_plants() {
     for (rel, text) in plants {
         let planted = fixture_seam_findings(&plant(&files, rel, text));
         assert_reported(&base, &planted, rel, RULE_FIXTURE_SEAM, text);
+    }
+    // PD-30's allowed forms are not findings: a `#[cfg(test)]` application and a gated field in
+    // install.rs, a gated initialiser in test_support.rs, any use in install_tests.rs.
+    for (rel, text) in [
+        (
+            INSTALL_RS,
+            "fn g(r: DownloadRequest, e: CommandEnv<'_>) -> DownloadRequest {\n    #[cfg(test)]\n    let r = match e.request_seam {\n        Some(seam) => seam(r),\n        None => r,\n    };\n    r\n}\n",
+        ),
+        (
+            INSTALL_RS,
+            "struct Q {\n    #[cfg(test)]\n    pub(crate) request_seam: Option<u8>,\n}\n",
+        ),
+        (
+            TEST_SUPPORT_RS,
+            "fn g() -> Q {\n    Q {\n        #[cfg(test)]\n        request_seam: None,\n    }\n}\n",
+        ),
+        (
+            INSTALL_TESTS_RS,
+            "fn g(e: &mut CommandEnv<'_>) {\n    e.request_seam = None;\n}\n",
+        ),
+    ] {
+        let new = added(&base, &fixture_seam_findings(&plant(&files, rel, text)));
+        assert!(new.is_empty(), "{rel}: quiet {text:?}:\n{}", show(&new));
     }
 }

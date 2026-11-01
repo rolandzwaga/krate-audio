@@ -634,3 +634,75 @@ fn parse_dev_feed_url_cases() {
         assert_eq!(parse_dev_feed_url(refused), None, "{refused:?}");
     }
 }
+
+/// Phase 9 SC-013 / FR-080: assembly runs `install::recover` once, after the fold. Planted: an update's journal at
+/// step `staged`, cut after `old_aside` (new present, target absent, old present), a manifest temp leftover and a
+/// stale `extract/` work dir.
+#[test]
+fn assemble_runs_install_recovery() {
+    let (_td, roots) = fresh_temp_roots();
+    let plugin_root = roots.vst3_user().to_path_buf();
+    let target = plugin_root.join("Alpha.vst3");
+    let new = plugin_root.join("Alpha.vst3.krate-new");
+    let old = plugin_root.join("Alpha.vst3.krate-old");
+    for (dir, marker) in [(&old, "old bundle"), (&new, "new bundle")] {
+        fs::create_dir_all(dir.join("Contents")).expect("a planted bundle");
+        fs::write(dir.join("Contents").join("marker.txt"), marker).expect("a marker");
+    }
+    let text = |p: &Path| p.to_str().expect("UTF-8 temp roots").to_owned();
+    let journal = serde_json::json!({
+        "journal_version": 1,
+        "op": "update",
+        "plugin": "Alpha",
+        "stem": "Alpha",
+        "vst3_bundle": "Alpha.vst3",
+        "preset_subdir": null,
+        "step": "staged",
+        "target": text(&target),
+        "new": text(&new),
+        "old": text(&old),
+        "had_old": true,
+        "siblings": [],
+        "created_dirs": [],
+        "pending_manifest": null,
+        "previous_manifest": null,
+    });
+    let journal_dir = roots.state_dir().join("journal");
+    fs::create_dir_all(&journal_dir).expect("the journal dir");
+    let journal_file = journal_dir.join("Alpha.json");
+    fs::write(
+        &journal_file,
+        serde_json::to_vec(&journal).expect("serialises"),
+    )
+    .expect("plant");
+    let manifests = roots.state_dir().join("manifests");
+    fs::create_dir_all(&manifests).expect("the manifests dir");
+    let temp = manifests.join(".Alpha.json.tmp");
+    fs::write(&temp, b"{ partial").expect("a temp leftover");
+    let work = roots
+        .staging_dir()
+        .join("extract")
+        .join(format!("{}.abcdef", "a".repeat(64)));
+    fs::create_dir_all(&work).expect("an extract leftover");
+    fs::write(work.join("README.txt"), b"left").expect("a staged file");
+
+    let state = assemble_with_os(
+        Os::Linux,
+        Ok(roots.clone()),
+        FEED,
+        http(),
+        kat_signing_key(),
+    );
+    assert!(state.context.is_ok(), "{:?}", state.context);
+    let gone =
+        |p: &Path| matches!(fs::symlink_metadata(p), Err(e) if e.kind() == io::ErrorKind::NotFound);
+    assert_eq!(
+        fs::read_to_string(target.join("Contents").join("marker.txt")).expect("the target is back"),
+        "old bundle",
+        "the old bundle is back at the target"
+    );
+    assert!(gone(&new) && gone(&old), "no .krate-new / .krate-old left");
+    assert!(gone(&journal_file), "the journal is resolved");
+    assert!(gone(&temp), "the manifest temp leftover is removed");
+    assert!(gone(&work), "the extract leftover is pruned");
+}

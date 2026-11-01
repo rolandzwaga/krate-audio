@@ -891,6 +891,45 @@ fn request_for_cases() {
     }
 }
 
+/// Phase 9 PD-1 (tasks TA-6): the asset is resolved for the given OS and architecture; `request_for` is the native
+/// pair.
+#[test]
+fn request_for_platform_cases() {
+    let signer = TestSigner::new();
+    let linux = Entry {
+        key: PlatformKey::LinuxX86_64,
+        ..entry(&Asset::new("Alpha", 6, 1000), &signer)
+    };
+    let feed = feed_of(&[linux]);
+    let running = OsVersion::parse("2.99");
+    let request = request_for_platform(&feed, "Alpha", Os::Linux, Arch::X86_64, running.as_ref())
+        .expect("the Linux asset");
+    assert_eq!(request.key(), PlatformKey::LinuxX86_64);
+    match request_for_platform(&feed, "Alpha", Os::Windows, Arch::X86_64, running.as_ref()) {
+        Err(e) => assert_eq!(e.code(), "E_DOWNLOAD_UNAVAILABLE", "{e}"),
+        Ok(r) => panic!("no Windows asset: {r:?}"),
+    }
+    match request_for_platform(&feed, "Zulu", Os::Linux, Arch::X86_64, running.as_ref()) {
+        Err(e) => assert_eq!(e.code(), "E_DOWNLOAD_UNKNOWN_PLUGIN", "{e}"),
+        Ok(r) => panic!("an unknown name: {r:?}"),
+    }
+
+    let native = feed_of(&[entry(&Asset::new("Alpha", 7, 1000), &signer)]);
+    let delegated = request_for(&native, "Alpha", running.as_ref()).expect("the native asset");
+    let explicit = request_for_platform(
+        &native,
+        "Alpha",
+        NativePlatform.os(),
+        Arch::native(),
+        running.as_ref(),
+    )
+    .expect("the native pair");
+    assert_eq!(
+        (delegated.key(), delegated.asset()),
+        (explicit.key(), explicit.asset())
+    );
+}
+
 // ---- SC-002, SC-005: a good artifact ------------------------------------------------------------------------------
 
 #[test]

@@ -9,6 +9,7 @@ pub mod feed;
 #[cfg(any(test, feature = "test-support"))]
 pub mod fixture_server;
 pub mod http;
+pub mod install;
 pub mod log_sink;
 pub mod navigation;
 pub mod notes;
@@ -21,6 +22,8 @@ pub mod status;
 pub mod sysproxy;
 #[cfg(target_os = "macos")]
 pub mod sysproxy_cf;
+#[cfg(test)]
+mod tar_builder_tests;
 #[cfg(test)]
 mod test_signer;
 #[cfg(any(test, feature = "test-support"))]

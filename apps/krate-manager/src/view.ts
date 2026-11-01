@@ -21,6 +21,7 @@ export type UnknownReason =
   | "not_a_bundle"
   | "au_no_version";
 export type RecordKind = "inno" | "pkg" | "manifest";
+export type ActionName = "install" | "update" | "remove";
 
 export type Inline =
   | { readonly type: "text"; readonly text: string }
@@ -83,6 +84,7 @@ export interface PluginView {
   readonly record_version_differs: boolean;
   readonly release_page_url: string | null;
   readonly notes: readonly Block[];
+  readonly actions: readonly ActionName[];
 }
 
 export interface StatusView {
@@ -113,6 +115,7 @@ const UNKNOWN_REASONS: readonly UnknownReason[] = [
   "au_no_version",
 ];
 const RECORD_KINDS: readonly RecordKind[] = ["inno", "pkg", "manifest"];
+const ACTION_NAMES: readonly ActionName[] = ["install", "update", "remove"];
 
 function fail(path: string, expected: string): never {
   throw new TypeError(`${path}: ${expected}`);
@@ -276,6 +279,7 @@ function toPlugin(value: unknown, path: string): PluginView {
     "record_version_differs",
     "release_page_url",
     "notes",
+    "actions",
   ]);
   return {
     name: string(o["name"], `${path}.name`),
@@ -292,6 +296,7 @@ function toPlugin(value: unknown, path: string): PluginView {
     record_version_differs: boolean(o["record_version_differs"], `${path}.record_version_differs`),
     release_page_url: nullableString(o["release_page_url"], `${path}.release_page_url`),
     notes: array(o["notes"], `${path}.notes`, toBlock),
+    actions: array(o["actions"], `${path}.actions`, (item, at) => oneOf(item, at, ACTION_NAMES)),
   };
 }
 
@@ -311,4 +316,146 @@ export function toStatusView(value: unknown): StatusView {
     },
     plugins: array(o["plugins"], "$.plugins", toPlugin),
   };
+}
+
+// What `install_plugin` / `remove_plugin` return and send (spec FR-091, FR-092, FR-097; plan §4.7, PD-11): the
+// core's `install::ActionSummary` and `install::InstallProgress`, whose `download` event is `download::Progress`.
+
+export type KeptRoot = "plugin" | "presets";
+export type ActionNotice = "rescan_daw";
+export type RestartReason =
+  | "range_ignored"
+  | "range_refused"
+  | "partial_too_long"
+  | "hash_mismatch_after_resume"
+  | "cached_invalid";
+
+/** A path the action kept: its root and a relative path, never an absolute one (FR-091). */
+export interface KeptPath {
+  readonly root: KeptRoot;
+  readonly path: string;
+}
+
+export interface ActionSummary {
+  readonly name: string;
+  readonly action: ActionName;
+  readonly version: string | null;
+  readonly kept: readonly KeptPath[];
+  readonly notice: ActionNotice | null;
+}
+
+export type DownloadProgress =
+  | { readonly kind: "started"; readonly total: number; readonly resumed_from: number }
+  | { readonly kind: "bytes"; readonly received: number; readonly on_disk: number; readonly total: number }
+  | { readonly kind: "restarted"; readonly reason: RestartReason }
+  | {
+      readonly kind: "retrying";
+      readonly attempt: number;
+      readonly of: number;
+      readonly code: string;
+      readonly wait_ms: number;
+    }
+  | { readonly kind: "verifying" }
+  | { readonly kind: "verified" };
+
+export type InstallProgress =
+  | { readonly kind: "download"; readonly event: DownloadProgress }
+  | { readonly kind: "staging" }
+  | { readonly kind: "placing"; readonly done: number; readonly total: number }
+  | { readonly kind: "committing" }
+  | { readonly kind: "removing"; readonly done: number; readonly total: number }
+  | { readonly kind: "done" };
+
+const KEPT_ROOTS: readonly KeptRoot[] = ["plugin", "presets"];
+const ACTION_NOTICES: readonly ActionNotice[] = ["rescan_daw"];
+const RESTART_REASONS: readonly RestartReason[] = [
+  "range_ignored",
+  "range_refused",
+  "partial_too_long",
+  "hash_mismatch_after_resume",
+  "cached_invalid",
+];
+
+function kindOf(value: unknown, path: string): string {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) fail(path, "an object");
+  return string((value as Readonly<Record<string, unknown>>)["kind"], `${path}.kind`);
+}
+
+function toKept(value: unknown, path: string): KeptPath {
+  const o = object(value, path, ["root", "path"]);
+  return { root: oneOf(o["root"], `${path}.root`, KEPT_ROOTS), path: string(o["path"], `${path}.path`) };
+}
+
+/** Checks a command's result against FR-091 and returns it typed; throws `TypeError("<json path>: <expected>")`. */
+export function toActionSummary(value: unknown): ActionSummary {
+  const o = object(value, "$", ["name", "action", "version", "kept", "notice"]);
+  return {
+    name: string(o["name"], "$.name"),
+    action: oneOf(o["action"], "$.action", ACTION_NAMES),
+    version: nullableString(o["version"], "$.version"),
+    kept: array(o["kept"], "$.kept", toKept),
+    notice: nullableOneOf(o["notice"], "$.notice", ACTION_NOTICES),
+  };
+}
+
+function toDownloadProgress(value: unknown, path: string): DownloadProgress {
+  const kind = kindOf(value, path);
+  switch (kind) {
+    case "started": {
+      const o = object(value, path, ["kind", "total", "resumed_from"]);
+      return { kind, total: count(o["total"], `${path}.total`), resumed_from: count(o["resumed_from"], `${path}.resumed_from`) };
+    }
+    case "bytes": {
+      const o = object(value, path, ["kind", "received", "on_disk", "total"]);
+      return {
+        kind,
+        received: count(o["received"], `${path}.received`),
+        on_disk: count(o["on_disk"], `${path}.on_disk`),
+        total: count(o["total"], `${path}.total`),
+      };
+    }
+    case "restarted": {
+      const o = object(value, path, ["kind", "reason"]);
+      return { kind, reason: oneOf(o["reason"], `${path}.reason`, RESTART_REASONS) };
+    }
+    case "retrying": {
+      const o = object(value, path, ["kind", "attempt", "of", "code", "wait_ms"]);
+      return {
+        kind,
+        attempt: count(o["attempt"], `${path}.attempt`),
+        of: count(o["of"], `${path}.of`),
+        code: string(o["code"], `${path}.code`),
+        wait_ms: count(o["wait_ms"], `${path}.wait_ms`),
+      };
+    }
+    case "verifying":
+    case "verified":
+      object(value, path, ["kind"]);
+      return { kind };
+    default:
+      return fail(`${path}.kind`, "one of started, bytes, restarted, retrying, verifying, verified");
+  }
+}
+
+/** Checks one channel message against FR-092 and returns it typed; throws `TypeError("<json path>: <expected>")`. */
+export function toInstallProgress(value: unknown): InstallProgress {
+  const kind = kindOf(value, "$");
+  switch (kind) {
+    case "download": {
+      const o = object(value, "$", ["kind", "event"]);
+      return { kind, event: toDownloadProgress(o["event"], "$.event") };
+    }
+    case "placing":
+    case "removing": {
+      const o = object(value, "$", ["kind", "done", "total"]);
+      return { kind, done: count(o["done"], "$.done"), total: count(o["total"], "$.total") };
+    }
+    case "staging":
+    case "committing":
+    case "done":
+      object(value, "$", ["kind"]);
+      return { kind };
+    default:
+      return fail("$.kind", "one of download, staging, placing, committing, removing, done");
+  }
 }

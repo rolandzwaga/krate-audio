@@ -8,6 +8,8 @@
     "allow-plugin-status",
     "allow-check-now",
     "allow-open-release-page",
-    "allow-download-plugin"
+    "allow-download-plugin",
+    "allow-install-plugin",
+    "allow-remove-plugin"
   ]
 }

@@ -1,4 +1,4 @@
-//! `status` unit tests (plan §7.1 rows 009, 010, 012, 018, 030, 032).
+//! `status` unit tests (plan §7.1 rows 009, 010, 012, 018, 030, 032; Phase 9 SC-016's status half).
 //!
 //! Feeds are fixture files read in place (`tools/feed-contract/fixtures/feeds/valid/`) and served by a loopback
 //! `FixtureServer`; every build runs on its own `fresh_temp_roots()` with a `FakeHostFacts`. The golden views are
@@ -6,15 +6,20 @@
 //! (PD-10): a mismatch prints the expected text for review.
 
 use super::*;
-use crate::feed::{Feed, FeedError, FeedSnapshot};
+use crate::extract::FsExtractIo;
+use crate::feed::{Feed, FeedError, FeedSnapshot, PlatformKey};
 use crate::fixture_server::{FixtureServer, Reply};
 use crate::http::{HttpConfig, HttpError};
+use crate::install::{EntryTag, FsInstallIo, Manifest, ManifestEntry, NativeDrivers, RootTag};
 use crate::platform::VENDOR_DIR;
 use crate::roots::Roots;
 use crate::settings::Settings;
+use crate::test_signer::TestSigner;
 use crate::test_support::{
-    FakeHostFacts, fresh_temp_roots, install_capture, kat_signing_key, take_mine,
+    FakeHostFacts, InstallRig, RecordingInstallIo, TestPlugin, fresh_temp_roots, install_capture,
+    kat_signing_key, take_mine, test_feed_document,
 };
+use crate::verify::{hex_lower, sha256_of};
 use log::Level;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -1392,4 +1397,498 @@ fn release_page_url_cases() {
     for p in &view.plugins {
         assert_eq!(p.release_page_url, None, "{p:?}");
     }
+}
+
+// ---- Phase 9 SC-016 -----------------------------------------------------------------------------------------------
+
+/// The feed version of every `actions_per_state` row.
+const LATEST: &str = "1.2.0";
+/// The running glibc; a row's `min_os` above it is `needs_newer_os`.
+const RUNNING_GLIBC: &str = "2.31";
+/// The bytes every row's asset is signed over; no row ever fetches its asset.
+const NEVER_FETCHED: &[u8] = b"never fetched";
+
+const NOT_NEWER: &str = "E_INSTALL_NOT_NEWER";
+const STATE_CHANGED: &str = "E_INSTALL_STATE_CHANGED";
+const NOT_MANAGED: &str = "E_INSTALL_NOT_MANAGED";
+const UNAVAILABLE: &str = "E_DOWNLOAD_UNAVAILABLE";
+const JOURNAL_PENDING: &str = "E_INSTALL_JOURNAL_PENDING";
+const BAD_MANIFEST: &str = "E_INSTALL_MANIFEST";
+const ROOT_CHANGED: &str = "E_INSTALL_ROOT_CHANGED";
+
+/// The bundle a row plants before the builds.
+#[derive(Clone, Copy)]
+enum RowDisk {
+    Absent,
+    /// At the managed Linux location, with a moduleinfo of this version.
+    Managed(&'static str),
+    /// At the managed Linux location, without a moduleinfo (version unknown).
+    ManagedNoModuleinfo,
+    /// Under the `Vst3Global` root only, with a moduleinfo of this version (FR-124's `elsewhere`).
+    Elsewhere(&'static str),
+}
+
+/// The manifest a row plants at `<state>/manifests/<stem>.json`, recording this version.
+#[derive(Clone, Copy)]
+enum RowManifest {
+    Absent,
+    Valid(&'static str),
+    /// One entry path with a `..` segment (FR-041).
+    DotDot(&'static str),
+    /// `plugin_root` names the `Vst3Global` root, not the configured one (FR-064).
+    OtherRoot(&'static str),
+}
+
+/// One plugin of the SC-016 table: its feed asset, what is on disk, what the Linux card shows, and the code each
+/// action the card omits is refused with (`install`, `update`, `remove` order).
+struct StateRow {
+    name: &'static str,
+    key: PlatformKey,
+    min_os: Option<&'static str>,
+    disk: RowDisk,
+    manifest: RowManifest,
+    journal: bool,
+    availability: AvailabilityView,
+    installed: InstalledView,
+    update: UpdateView,
+    actions: &'static [ActionView],
+    refusals: &'static [(&'static str, &'static str)],
+}
+
+/// The Phase 6 fixture states rebuilt on disk, plus the three gate rows (spec SC-016, FR-093, FR-094).
+const STATE_ROWS: [StateRow; 14] = [
+    StateRow {
+        name: "Alpha",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Absent,
+        manifest: RowManifest::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::NotInstalled,
+        update: UpdateView::NotInstalled,
+        actions: &[ActionView::Install],
+        refusals: &[("update", STATE_CHANGED), ("remove", NOT_MANAGED)],
+    },
+    StateRow {
+        name: "Bravo",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Elsewhere("1.1.0"),
+        manifest: RowManifest::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Elsewhere,
+        update: UpdateView::NotInstalled,
+        actions: &[ActionView::Install],
+        refusals: &[("update", STATE_CHANGED), ("remove", NOT_MANAGED)],
+    },
+    StateRow {
+        name: "Charlie",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Managed("1.2.0"),
+        manifest: RowManifest::Valid("1.2.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpToDate,
+        actions: &[ActionView::Remove],
+        refusals: &[("install", NOT_NEWER), ("update", NOT_NEWER)],
+    },
+    StateRow {
+        name: "Delta",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Managed("1.2.0"),
+        manifest: RowManifest::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpToDate,
+        actions: &[],
+        refusals: &[
+            ("install", NOT_NEWER),
+            ("update", NOT_NEWER),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    StateRow {
+        name: "Echo",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Managed("1.1.0"),
+        manifest: RowManifest::Valid("1.1.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpdateAvailable,
+        actions: &[ActionView::Update, ActionView::Remove],
+        refusals: &[("install", STATE_CHANGED)],
+    },
+    StateRow {
+        name: "Foxtrot",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Managed("1.1.0"),
+        manifest: RowManifest::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpdateAvailable,
+        actions: &[ActionView::Update],
+        refusals: &[("install", STATE_CHANGED), ("remove", NOT_MANAGED)],
+    },
+    StateRow {
+        name: "Golf",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Managed("1.3.0"),
+        manifest: RowManifest::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::InstalledNewer,
+        actions: &[],
+        refusals: &[
+            ("install", NOT_NEWER),
+            ("update", NOT_NEWER),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    StateRow {
+        name: "Hotel",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Managed("1.3.0"),
+        manifest: RowManifest::Valid("1.3.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::InstalledNewer,
+        actions: &[ActionView::Remove],
+        refusals: &[("install", NOT_NEWER), ("update", NOT_NEWER)],
+    },
+    StateRow {
+        name: "India",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::ManagedNoModuleinfo,
+        manifest: RowManifest::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::VersionUnknown,
+        update: UpdateView::Unknown,
+        actions: &[],
+        refusals: &[
+            ("install", STATE_CHANGED),
+            ("update", STATE_CHANGED),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    StateRow {
+        name: "Juliet",
+        key: PlatformKey::WindowsX86_64,
+        min_os: None,
+        disk: RowDisk::Absent,
+        manifest: RowManifest::Absent,
+        journal: false,
+        availability: AvailabilityView::NotForThisMachine,
+        installed: InstalledView::NotInstalled,
+        update: UpdateView::NotInstalled,
+        actions: &[],
+        refusals: &[
+            ("install", UNAVAILABLE),
+            ("update", UNAVAILABLE),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    StateRow {
+        name: "Kilo",
+        key: PlatformKey::LinuxX86_64,
+        min_os: Some("2.99"),
+        disk: RowDisk::Absent,
+        manifest: RowManifest::Absent,
+        journal: false,
+        availability: AvailabilityView::NeedsNewerOs,
+        installed: InstalledView::NotInstalled,
+        update: UpdateView::NotInstalled,
+        actions: &[],
+        refusals: &[
+            ("install", UNAVAILABLE),
+            ("update", UNAVAILABLE),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    // The three gate rows sit on an update-available managed install with a manifest, which would offer
+    // `["update", "remove"]` if the gate were open (Echo).
+    StateRow {
+        name: "Lima",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Managed("1.1.0"),
+        manifest: RowManifest::Valid("1.1.0"),
+        journal: true,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpdateAvailable,
+        actions: &[],
+        refusals: &[
+            ("install", JOURNAL_PENDING),
+            ("update", JOURNAL_PENDING),
+            ("remove", JOURNAL_PENDING),
+        ],
+    },
+    StateRow {
+        name: "Mike",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Managed("1.1.0"),
+        manifest: RowManifest::DotDot("1.1.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpdateAvailable,
+        actions: &[],
+        refusals: &[
+            ("install", BAD_MANIFEST),
+            ("update", BAD_MANIFEST),
+            ("remove", BAD_MANIFEST),
+        ],
+    },
+    StateRow {
+        name: "November",
+        key: PlatformKey::LinuxX86_64,
+        min_os: None,
+        disk: RowDisk::Managed("1.1.0"),
+        manifest: RowManifest::OtherRoot("1.1.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpdateAvailable,
+        actions: &[],
+        refusals: &[
+            ("install", ROOT_CHANGED),
+            ("update", ROOT_CHANGED),
+            ("remove", ROOT_CHANGED),
+        ],
+    },
+];
+
+/// The asset file name of a row, as the release pipeline names it.
+fn row_asset(row: &StateRow) -> String {
+    match row.key {
+        PlatformKey::WindowsX86_64 => format!("{}-{LATEST}-Windows-x64.exe", row.name),
+        _ => format!("{}-{LATEST}-Linux-x64.tar.gz", row.name),
+    }
+}
+
+/// The contract-valid feed of every row, each with its one asset signed by `signer`.
+fn rows_feed(signer: &TestSigner) -> Vec<u8> {
+    let assets: Vec<String> = STATE_ROWS.iter().map(row_asset).collect();
+    let plugins: Vec<TestPlugin<'_>> = STATE_ROWS
+        .iter()
+        .zip(&assets)
+        .map(|(row, asset)| TestPlugin {
+            name: row.name,
+            version: LATEST,
+            key: row.key,
+            asset,
+            size: NEVER_FETCHED.len() as u64,
+            sha256: sha256_of(NEVER_FETCHED),
+            signature: signer.sign_c3(NEVER_FETCHED, row.name, LATEST, row.key, asset),
+            min_os: row.min_os,
+        })
+        .collect();
+    test_feed_document(&plugins)
+}
+
+/// A temp root as the manifest records it (FR-040: absolute UTF-8).
+fn root_text(path: &Path) -> String {
+    path.to_str()
+        .unwrap_or_else(|| panic!("a temp root is not UTF-8: {}", path.display()))
+        .to_owned()
+}
+
+/// Plants a row's bundle, pending journal (`<state>/journal/<stem>.json`, FR-052) and manifest, only inside the
+/// context's temp roots.
+fn plant_row(ctx: &AppContext, row: &StateRow) {
+    let managed_root = ctx.settings.linux_plugin_root_or_default(&ctx.roots);
+    let bundle = format!("{}.vst3", row.name);
+    match row.disk {
+        RowDisk::Absent => {}
+        RowDisk::Managed(v) => {
+            write_bundle(&managed_root.join(&bundle), row.name, v, &format!("{v}.1"))
+        }
+        RowDisk::ManagedNoModuleinfo => {
+            let contents = managed_root.join(&bundle).join("Contents");
+            fs::create_dir_all(&contents)
+                .unwrap_or_else(|e| panic!("create {}: {e}", contents.display()));
+        }
+        RowDisk::Elsewhere(v) => write_bundle(
+            &root_of(&ctx.roots, RootKind::Vst3Global).join(&bundle),
+            row.name,
+            v,
+            &format!("{v}.1"),
+        ),
+    }
+    if row.journal {
+        let dir = ctx.roots.state_dir().join(install::JOURNAL_DIR);
+        fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("create {}: {e}", dir.display()));
+        let path = dir.join(format!("{}.json", row.name));
+        fs::write(&path, b"{}").unwrap_or_else(|e| panic!("write {}: {e}", path.display()));
+    }
+    let (version, recorded_root, dot_dot) = match row.manifest {
+        RowManifest::Absent => return,
+        RowManifest::Valid(v) => (v, managed_root.to_path_buf(), false),
+        RowManifest::DotDot(v) => (v, managed_root.to_path_buf(), true),
+        RowManifest::OtherRoot(v) => (v, root_of(&ctx.roots, RootKind::Vst3Global), false),
+    };
+    // The bundle's full listing as `write_bundle` placed it (FR-040).
+    let moduleinfo = format!("{bundle}/Contents/Resources/moduleinfo.json");
+    let bytes = fs::read(managed_root.join(&moduleinfo))
+        .unwrap_or_else(|e| panic!("read the {} moduleinfo: {e}", row.name));
+    let dir = |path: String| ManifestEntry {
+        root: RootTag::Plugin,
+        kind: EntryTag::D,
+        path,
+        sha256: None,
+        target: None,
+    };
+    let file = |path: String| ManifestEntry {
+        root: RootTag::Plugin,
+        kind: EntryTag::F,
+        path,
+        sha256: Some(hex_lower(&sha256_of(&bytes))),
+        target: None,
+    };
+    let mut files = vec![
+        dir(bundle.clone()),
+        dir(format!("{bundle}/Contents")),
+        dir(format!("{bundle}/Contents/Resources")),
+        file(moduleinfo),
+    ];
+    if dot_dot {
+        files.push(file(format!("{bundle}/../{}.txt", row.name)));
+    }
+    let manifest = Manifest {
+        manifest_version: 1,
+        plugin: row.name.to_owned(),
+        version: version.to_owned(),
+        vst3_bundle: bundle,
+        archive_sha256: hex_lower(&sha256_of(NEVER_FETCHED)),
+        plugin_root: root_text(&recorded_root),
+        preset_root: root_text(&ctx.roots.presets().user),
+        files,
+    };
+    let manifests = ctx.roots.state_dir().join(detect::MANIFESTS_DIR);
+    fs::create_dir_all(&manifests)
+        .unwrap_or_else(|e| panic!("create {}: {e}", manifests.display()));
+    let path = manifests.join(format!("{}.json", row.name));
+    let text = serde_json::to_vec_pretty(&manifest).expect("a manifest serialises");
+    fs::write(&path, text).unwrap_or_else(|e| panic!("write {}: {e}", path.display()));
+}
+
+/// The command spelling of a card action (FR-090 step 1).
+fn action_text(action: ActionView) -> &'static str {
+    match action {
+        ActionView::Install => "install",
+        ActionView::Update => "update",
+        ActionView::Remove => "remove",
+    }
+}
+
+/// SC-016 (status half; FR-093, FR-094, FR-100, D13; plan PD-15, PD-16): the Linux card actions per state equal the
+/// table, every other OS offers none and reads no gate, and every action a Linux card omits is refused by the command
+/// with its code, with no mutating `InstallIo` call and no asset request.
+#[test]
+fn actions_per_state() {
+    let signer = TestSigner::new();
+    let server = FixtureServer::start(vec![(FEED_PATH.to_owned(), ok(rows_feed(&signer)))]);
+    let (_td, roots) = fresh_temp_roots();
+    let rig = InstallRig::new(context(&roots, server.url(FEED_PATH)));
+    let ctx = &rig.ctx;
+    for row in &STATE_ROWS {
+        plant_row(ctx, row);
+    }
+    let host = FakeHostFacts {
+        os_version: Some(os_version(RUNNING_GLIBC)),
+        ..FakeHostFacts::default()
+    };
+
+    // Linux: the table.
+    let view = build_with_os(
+        Os::Linux,
+        Arch::X86_64,
+        ctx,
+        FetchMode::Normal,
+        NOW,
+        &host,
+        &FsInstallIo,
+    );
+    assert_eq!(view.feed.source, FeedSource::Fresh, "{:?}", view.feed.error);
+    assert_eq!(view.plugins.len(), STATE_ROWS.len(), "{view:?}");
+    for row in &STATE_ROWS {
+        let card = plugin(&view, row.name);
+        assert_eq!(
+            (card.availability, card.installed, card.update),
+            (row.availability, row.installed, Some(row.update)),
+            "{}: the planted state: {card:?}",
+            row.name
+        );
+        assert_eq!(card.actions, row.actions, "{}: {card:?}", row.name);
+    }
+
+    // Windows and macOS: no driver, so no action and no gate read (PD-15).
+    for (os, arch) in [(Os::Windows, Arch::X86_64), (Os::Macos, Arch::Aarch64)] {
+        let io = RecordingInstallIo::forwarding(&FsInstallIo);
+        let view = build_with_os(os, arch, ctx, FetchMode::Normal, NOW, &host, &io);
+        assert_eq!(view.plugins.len(), STATE_ROWS.len(), "{os:?}: {view:?}");
+        for card in &view.plugins {
+            assert!(card.actions.is_empty(), "{os:?}: {card:?}");
+        }
+        assert!(io.calls().is_empty(), "{os:?}: {:?}", io.calls());
+    }
+
+    // Linux: every omitted action is refused with its code before any asset request, nothing written (D13).
+    for row in &STATE_ROWS {
+        let offered: Vec<&str> = row.actions.iter().map(|a| action_text(*a)).collect();
+        let omitted: Vec<&str> = ["install", "update", "remove"]
+            .into_iter()
+            .filter(|a| !offered.contains(a))
+            .collect();
+        let refused: Vec<&str> = row.refusals.iter().map(|(a, _)| *a).collect();
+        assert_eq!(
+            refused, omitted,
+            "{}: refusals cover the omitted actions",
+            row.name
+        );
+        for &(action, code) in row.refusals {
+            let io = RecordingInstallIo::fail_closed();
+            let env = rig.command_env(Os::Linux, Arch::X86_64, &io, &FsExtractIo, &NativeDrivers);
+            let result = if action == "remove" {
+                install::remove_for_command(env, row.name, NOW, &mut |_| {})
+            } else {
+                install::for_command(env, row.name, LATEST, action, NOW, &host, &mut |_| {})
+            };
+            match result {
+                Ok(summary) => panic!("{} {action}: accepted: {summary:?}", row.name),
+                Err(e) => assert_eq!(e.code(), code, "{} {action}: {e}", row.name),
+            }
+            assert_eq!(
+                io.mutating_calls(),
+                0,
+                "{} {action}: {:?}",
+                row.name,
+                io.calls()
+            );
+        }
+    }
+    let assets: Vec<String> = server
+        .requests()
+        .into_iter()
+        .filter(|r| r.path != FEED_PATH)
+        .map(|r| r.path)
+        .collect();
+    assert!(assets.is_empty(), "asset requests: {assets:?}");
 }

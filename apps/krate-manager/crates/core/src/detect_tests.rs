@@ -1072,6 +1072,7 @@ fn duplicates_in_two_roots() {
             record_version_differs: false,
             release_page_url: release_url(&alpha),
             notes: notes_of(&alpha),
+            actions: Vec::new(),
         };
         let want_bravo = PluginView {
             name: "Bravo".to_owned(),
@@ -1099,6 +1100,7 @@ fn duplicates_in_two_roots() {
             record_version_differs: false,
             release_page_url: release_url(&bravo),
             notes: notes_of(&bravo),
+            actions: Vec::new(),
         };
         assert_eq!(
             assembled(os, &feed, &detections, "Alpha"),
@@ -2847,5 +2849,46 @@ fn installed_elsewhere() {
             assert_eq!(view.installed_version.as_deref(), version, "{os:?} {label}");
             assert_eq!(view.update, Some(update), "{os:?} {label}");
         }
+    }
+}
+
+/// Phase 9 PD-14 (tasks TA-6): `parse_manifest` is `read_manifest` without the bounded read.
+#[test]
+fn parse_manifest_cases() {
+    let (_td, roots) = fresh_temp_roots();
+    let state = roots.state_dir();
+    let manifest = state.join(MANIFESTS_DIR).join("Alpha.json");
+    let phase9 = br#"{"manifest_version": 1, "plugin": "Alpha", "version": "1.2.0", "vst3_bundle": "Alpha.vst3", "archive_sha256": "", "plugin_root": "/fixture/plugins", "preset_root": "/fixture/presets", "files": []}"#;
+    let cases: [(&str, &[u8], RecordRead<InstallerRecord>); 5] = [
+        (
+            "a Phase 9 manifest with extra keys",
+            phase9,
+            RecordRead::Found(InstallerRecord::Manifest {
+                version_text: "1.2.0".to_owned(),
+                version: CoreVersion::parse("1.2.0"),
+            }),
+        ),
+        (
+            "manifest_version 2",
+            br#"{"manifest_version": 2, "plugin": "Alpha", "version": "1.2.0"}"#,
+            RecordRead::Failed(E_RECORD_FUTURE),
+        ),
+        (
+            "another plugin",
+            br#"{"manifest_version": 1, "plugin": "Beta", "version": "1.2.0"}"#,
+            RecordRead::Failed(E_RECORD_MISMATCH),
+        ),
+        ("not JSON", b"not json", RecordRead::Failed(E_RECORD_PARSE)),
+        (
+            "no version",
+            br#"{"manifest_version": 1, "plugin": "Alpha"}"#,
+            RecordRead::Failed(E_RECORD_PARSE),
+        ),
+    ];
+    for (label, bytes, want) in cases {
+        write(&manifest, bytes);
+        let read = read_manifest(state, "Alpha", "Alpha");
+        assert_eq!(parse_manifest(bytes, "Alpha"), read, "{label}");
+        assert_eq!(read, want, "{label}");
     }
 }

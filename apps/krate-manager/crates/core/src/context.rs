@@ -1,7 +1,9 @@
 //! Startup assembly, the locked instance, live reassembly, startup logging and the dev-feed
 //! parser (FR-017, FR-101 to FR-104, FR-106, D17, D22; plan §4.8).
 
+use crate::extract::{ExtractEnv, ExtractLimits, FsExtractIo};
 use crate::http::HttpConfig;
+use crate::install;
 use crate::platform::{NativePlatform, Os, Platform};
 use crate::roots::{Roots, RootsError};
 use crate::settings::{self, Settings, SettingsError};
@@ -104,14 +106,26 @@ pub(crate) fn assemble_with_os(
     };
     let outcome = settings::load(&roots);
     let roots = fold(os, &roots, &outcome.settings);
+    let ctx = AppContext {
+        roots,
+        settings: outcome.settings,
+        feed_url: feed_url.to_owned(),
+        http,
+        signing_key,
+    };
+    // Phase 9 FR-080: the install recovery pass, once, on every OS; its report is logged, the state unchanged.
+    let report = install::recover(
+        &ctx,
+        &install::FsInstallIo,
+        ExtractEnv {
+            ctx: &ctx,
+            io: &FsExtractIo,
+            limits: &ExtractLimits::PRODUCTION,
+        },
+    );
+    install::log_recovery(&report);
     AppState {
-        context: Ok(AppContext {
-            roots,
-            settings: outcome.settings,
-            feed_url: feed_url.to_owned(),
-            http,
-            signing_key,
-        }),
+        context: Ok(ctx),
         settings_error: outcome.error,
         lock: Some(Arc::new(lock)),
     }

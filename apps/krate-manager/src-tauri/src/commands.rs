@@ -1,4 +1,4 @@
-//! The app's commands (FR-040, FR-042; Phase 6 FR-060, FR-064; Phase 7 FR-060, FR-061).
+//! The app's commands (FR-040, FR-042; Phase 6 FR-060, FR-064; Phase 7 FR-060, FR-061; Phase 9 FR-096).
 
 use crate::os_facts::OsHostIo;
 use krate_manager_core::context::{SharedState, startup_notice};
@@ -7,7 +7,9 @@ use krate_manager_core::download::{
     self, CancelToken, DownloadEnv, DownloadError, DownloadPolicy, DownloadSummary, FsStagingIo,
     Progress,
 };
+use krate_manager_core::extract::{ExtractEnv, ExtractLimits, FsExtractIo};
 use krate_manager_core::feed::FetchMode;
+use krate_manager_core::install::{self, ActionSummary, FsInstallIo, InstallProgress};
 use krate_manager_core::status::{self, StatusView};
 use std::sync::PoisonError;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -87,6 +89,103 @@ pub async fn download_plugin(
             now_unix,
             &PlatformFacts { io: &OsHostIo },
             &mut download::channel_progress(|e| on_progress.send(e)),
+        )
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| {
+        DownloadError::Task {
+            detail: e.to_string(),
+        }
+        .to_string()
+    })?
+}
+
+/// Install or update one plugin (Phase 9 FR-096): a thin wrapper over `install::for_command` with
+/// `install::native_env`; progress goes to `on_progress`.
+#[tauri::command]
+pub async fn install_plugin(
+    state: tauri::State<'_, SharedState>,
+    name: String,
+    expected_version: String,
+    action: String,
+    on_progress: tauri::ipc::Channel<InstallProgress>,
+) -> Result<ActionSummary, String> {
+    let ctx = {
+        let guard = state.read().unwrap_or_else(PoisonError::into_inner);
+        guard.context.clone().map_err(|e| e.to_string())?
+    }; // the guard is dropped before any await
+    let now_unix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    tauri::async_runtime::spawn_blocking(move || {
+        let policy = DownloadPolicy::production();
+        let cancel = CancelToken::new(); // never set in Phase 9
+        let download = DownloadEnv {
+            ctx: &ctx,
+            io: &FsStagingIo,
+            policy: &policy,
+            cancel: &cancel,
+        };
+        let extract = ExtractEnv {
+            ctx: &ctx,
+            io: &FsExtractIo,
+            limits: &ExtractLimits::PRODUCTION,
+        };
+        install::for_command(
+            install::native_env(&ctx, &FsInstallIo, extract, download),
+            &name,
+            &expected_version,
+            &action,
+            now_unix,
+            &PlatformFacts { io: &OsHostIo },
+            &mut install::channel_progress(|e| on_progress.send(e)),
+        )
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| {
+        DownloadError::Task {
+            detail: e.to_string(),
+        }
+        .to_string()
+    })?
+}
+
+/// Remove one plugin the manager installed (Phase 9 FR-096): a thin wrapper over
+/// `install::remove_for_command` with `install::native_env`; progress goes to `on_progress`.
+#[tauri::command]
+pub async fn remove_plugin(
+    state: tauri::State<'_, SharedState>,
+    name: String,
+    on_progress: tauri::ipc::Channel<InstallProgress>,
+) -> Result<ActionSummary, String> {
+    let ctx = {
+        let guard = state.read().unwrap_or_else(PoisonError::into_inner);
+        guard.context.clone().map_err(|e| e.to_string())?
+    }; // the guard is dropped before any await
+    let now_unix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    tauri::async_runtime::spawn_blocking(move || {
+        let policy = DownloadPolicy::production();
+        let cancel = CancelToken::new(); // never set in Phase 9
+        let download = DownloadEnv {
+            ctx: &ctx,
+            io: &FsStagingIo,
+            policy: &policy,
+            cancel: &cancel,
+        };
+        let extract = ExtractEnv {
+            ctx: &ctx,
+            io: &FsExtractIo,
+            limits: &ExtractLimits::PRODUCTION,
+        };
+        install::remove_for_command(
+            install::native_env(&ctx, &FsInstallIo, extract, download),
+            &name,
+            now_unix,
+            &mut install::channel_progress(|e| on_progress.send(e)),
         )
         .map_err(|e| e.to_string())
     })

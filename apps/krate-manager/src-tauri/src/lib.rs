@@ -90,7 +90,9 @@ pub fn run() {
             commands::plugin_status,
             commands::check_now,
             commands::open_release_page,
-            commands::download_plugin
+            commands::download_plugin,
+            commands::install_plugin,
+            commands::remove_plugin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

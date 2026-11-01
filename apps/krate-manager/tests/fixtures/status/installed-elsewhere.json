@@ -77,7 +77,8 @@
             ]
           ]
         }
-      ]
+      ],
+      "actions": []
     },
     {
       "name": "Bravo",
@@ -106,7 +107,8 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.0.1",
-      "notes": []
+      "notes": [],
+      "actions": []
     },
     {
       "name": "Charlie",
@@ -122,7 +124,8 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": null,
-      "notes": []
+      "notes": [],
+      "actions": []
     }
   ]
 }

@@ -880,15 +880,9 @@ pub fn pkg_record(
     })
 }
 
-/// FR-028 (as amended by SI-18): `<state_dir>/manifests/<stem>.json`, bounded to 4 MiB.
-pub fn read_manifest(state_dir: &Path, stem: &str, plugin: &str) -> RecordRead<InstallerRecord> {
-    let path = state_dir.join(MANIFESTS_DIR).join(format!("{stem}.json"));
-    let bytes = match read_bounded(&path, MAX_MANIFEST_BYTES) {
-        Ok(bytes) => bytes,
-        Err(ReadFail::NotFound) => return RecordRead::Absent,
-        Err(ReadFail::TooLarge | ReadFail::Io) => return RecordRead::Failed(E_RECORD_READ),
-    };
-    let Ok(doc) = serde_json::from_slice::<Value>(&bytes) else {
+/// The three-key manifest check of `read_manifest` over bytes already read (Phase 9 PD-14).
+pub(crate) fn parse_manifest(bytes: &[u8], plugin: &str) -> RecordRead<InstallerRecord> {
+    let Ok(doc) = serde_json::from_slice::<Value>(bytes) else {
         return RecordRead::Failed(E_RECORD_PARSE);
     };
     let Some(root) = doc.as_object() else {
@@ -911,6 +905,17 @@ pub fn read_manifest(state_dir: &Path, stem: &str, plugin: &str) -> RecordRead<I
         }),
         None => RecordRead::Failed(E_RECORD_PARSE),
     }
+}
+
+/// FR-028 (as amended by SI-18): `<state_dir>/manifests/<stem>.json`, bounded to 4 MiB.
+pub fn read_manifest(state_dir: &Path, stem: &str, plugin: &str) -> RecordRead<InstallerRecord> {
+    let path = state_dir.join(MANIFESTS_DIR).join(format!("{stem}.json"));
+    let bytes = match read_bounded(&path, MAX_MANIFEST_BYTES) {
+        Ok(bytes) => bytes,
+        Err(ReadFail::NotFound) => return RecordRead::Absent,
+        Err(ReadFail::TooLarge | ReadFail::Io) => return RecordRead::Failed(E_RECORD_READ),
+    };
+    parse_manifest(&bytes, plugin)
 }
 
 /// FR-034.

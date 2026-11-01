@@ -149,7 +149,9 @@ const FRONTEND_BANNED: [&str; 6] = [
 /// What no `src/**/*.css` line may hold, ASCII case-insensitive: a font, image or URL (FR-077).
 const STYLESHEET_BANNED: [&str; 4] = ["url(", "@font-face", "@import", "image-set("];
 /// The squeezed `generate_handler!` list `src-tauri/src/lib.rs` must hold, in order (FR-061, SC-019).
-const HANDLER_LIST: &str = "generate_handler![commands::app_version,commands::startup_error,commands::plugin_status,commands::check_now,commands::open_release_page,commands::download_plugin]";
+const HANDLER_LIST: &str = "generate_handler![commands::app_version,commands::startup_error,commands::plugin_status,commands::check_now,commands::open_release_page,commands::download_plugin,commands::install_plugin,commands::remove_plugin]";
+/// Phase 9 FR-096: the commands whose parameters may be only `State`, `String` and `Channel<InstallProgress>`.
+const INSTALL_COMMANDS: [&str; 2] = ["install_plugin", "remove_plugin"];
 /// The crates no member's normal dependency graph may reach: the signing crate and the two it
 /// pulls in for key generation (FR-081).
 const SIGNING_CRATES: [&str; 3] = ["minisign", "rpassword", "scrypt"];
@@ -500,6 +502,69 @@ fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
         .position(|window| window == needle)
 }
 
+/// Phase 9 FR-096: `install_plugin` and `remove_plugin` in `commands.rs` take only `State`, `String` and
+/// `Channel<InstallProgress>` parameters, so no path (`Path`, `PathBuf`, `OsString`) reaches the core from the webview.
+fn check_install_command_params(f: &ConfigFiles) -> Vec<String> {
+    let Some((_, text)) = f
+        .src_tauri_texts
+        .iter()
+        .find(|(rel, _)| rel == "src/commands.rs")
+    else {
+        return vec!["src-tauri/src/commands.rs is missing (FR-096)".to_owned()];
+    };
+    let squeezed: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    let mut m = Vec::new();
+    for name in INSTALL_COMMANDS {
+        let head = format!("fn{name}(");
+        let Some(at) = squeezed.find(&head) else {
+            m.push(format!(
+                "src-tauri/src/commands.rs has no `fn {name}(` (FR-096)"
+            ));
+            continue;
+        };
+        for param in top_level_params(&squeezed[at + head.len()..]) {
+            let ty = param.split_once(':').map_or(param, |(_, ty)| ty);
+            let allowed = ty.starts_with("tauri::State<")
+                || ty.starts_with("State<")
+                || ty == "String"
+                || ty == "tauri::ipc::Channel<InstallProgress>"
+                || ty == "Channel<InstallProgress>";
+            if !allowed {
+                m.push(format!(
+                    "src-tauri/src/commands.rs `{name}` takes `{param}`, expected only State, String and Channel<InstallProgress> parameters (FR-096)"
+                ));
+            }
+        }
+    }
+    m
+}
+
+/// The top-level comma-separated items of a whitespace-free parameter list, up to its closing `)`.
+fn top_level_params(rest: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut depth = 0usize;
+    let mut start = 0;
+    for (i, ch) in rest.char_indices() {
+        match ch {
+            '<' | '(' | '[' => depth += 1,
+            '>' | ']' => depth = depth.saturating_sub(1),
+            ')' if depth == 0 => {
+                if start < i {
+                    out.push(&rest[start..i]);
+                }
+                return out;
+            }
+            ')' => depth -= 1,
+            ',' if depth == 0 => {
+                out.push(&rest[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 fn show(value: Option<&Value>) -> String {
     value.map_or_else(|| "absent".to_owned(), Value::to_string)
 }
@@ -646,7 +711,9 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
                             "allow-plugin-status",
                             "allow-check-now",
                             "allow-open-release-page",
-                            "allow-download-plugin"
+                            "allow-download-plugin",
+                            "allow-install-plugin",
+                            "allow-remove-plugin"
                         ]),
                     ),
                 ];
@@ -669,29 +736,32 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
         }
     }
 
-    // FR-040, Phase 6 FR-060, Phase 7 FR-061: build.rs registers exactly the six commands (whitespace-insensitive).
+    // FR-040, Phase 6 FR-060, Phase 7 FR-061, Phase 9 FR-096: build.rs registers exactly the eight commands
+    // (whitespace-insensitive).
     let squeezed: String = f
         .build_rs
         .chars()
         .filter(|ch| !ch.is_whitespace())
         .collect();
     if !squeezed.replace(",]", "]").contains(
-        r#"commands(&["app_version","startup_error","plugin_status","check_now","open_release_page","download_plugin"])"#,
+        r#"commands(&["app_version","startup_error","plugin_status","check_now","open_release_page","download_plugin","install_plugin","remove_plugin"])"#,
     ) {
         m.push(
-            "src-tauri/build.rs does not register exactly app_version, startup_error, plugin_status, check_now, open_release_page and download_plugin (FR-040, FR-060, FR-061)"
+            "src-tauri/build.rs does not register exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin and remove_plugin (FR-040, FR-060, FR-061, FR-096)"
                 .to_owned(),
         );
     }
 
-    // FR-061, SC-019: lib.rs hands exactly the six commands to the invoke handler (whitespace-insensitive).
+    // FR-061, SC-019, Phase 9 FR-096: lib.rs hands exactly the eight commands to the invoke handler
+    // (whitespace-insensitive).
     let squeezed_lib: String = f.lib_rs.chars().filter(|ch| !ch.is_whitespace()).collect();
     if !squeezed_lib.replace(",]", "]").contains(HANDLER_LIST) {
         m.push(
-            "src-tauri/src/lib.rs generate_handler! does not list exactly app_version, startup_error, plugin_status, check_now, open_release_page and download_plugin (FR-061, SC-019)"
+            "src-tauri/src/lib.rs generate_handler! does not list exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin and remove_plugin (FR-061, SC-019, FR-096)"
                 .to_owned(),
         );
     }
+    m.extend(check_install_command_params(f));
 
     check_src_tauri_manifest(f, &mut m);
     m.extend(check_http_injection(f));
@@ -2001,6 +2071,21 @@ fn planted_config_changes_fail_the_guard() {
                         "commands::open_release_page",
                     )
                     .replace("commands::download_plugin", "");
+            },
+        ),
+        (
+            "commands::install_plugin removed from the handler list",
+            &["generate_handler! does not list exactly"],
+            |f| {
+                f.lib_rs = f.lib_rs.replace("commands::install_plugin,", "");
+            },
+        ),
+        (
+            "path: PathBuf added to remove_plugin",
+            &["`remove_plugin` takes `path:PathBuf`"],
+            |f| {
+                let text = src_text(f, "src/commands.rs");
+                *text = text.replacen("fn remove_plugin(", "fn remove_plugin(path: PathBuf, ", 1);
             },
         ),
     ];
