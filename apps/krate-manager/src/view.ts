@@ -69,6 +69,9 @@ export interface RecordView {
   readonly files: number | null;
 }
 
+/** Where a card points the user to remove a copy the manager may not remove (Phase 10 FR-083, FR-134). */
+export type RemoveHint = "windows_settings";
+
 export interface PluginView {
   readonly name: string;
   readonly latest: string;
@@ -85,6 +88,7 @@ export interface PluginView {
   readonly release_page_url: string | null;
   readonly notes: readonly Block[];
   readonly actions: readonly ActionName[];
+  readonly remove_hint: RemoveHint | null;
 }
 
 export interface StatusView {
@@ -116,6 +120,7 @@ const UNKNOWN_REASONS: readonly UnknownReason[] = [
 ];
 const RECORD_KINDS: readonly RecordKind[] = ["inno", "pkg", "manifest"];
 const ACTION_NAMES: readonly ActionName[] = ["install", "update", "remove"];
+const REMOVE_HINTS: readonly RemoveHint[] = ["windows_settings"];
 
 function fail(path: string, expected: string): never {
   throw new TypeError(`${path}: ${expected}`);
@@ -280,6 +285,7 @@ function toPlugin(value: unknown, path: string): PluginView {
     "release_page_url",
     "notes",
     "actions",
+    "remove_hint",
   ]);
   return {
     name: string(o["name"], `${path}.name`),
@@ -297,6 +303,7 @@ function toPlugin(value: unknown, path: string): PluginView {
     release_page_url: nullableString(o["release_page_url"], `${path}.release_page_url`),
     notes: array(o["notes"], `${path}.notes`, toBlock),
     actions: array(o["actions"], `${path}.actions`, (item, at) => oneOf(item, at, ACTION_NAMES)),
+    remove_hint: nullableOneOf(o["remove_hint"], `${path}.remove_hint`, REMOVE_HINTS),
   };
 }
 
@@ -322,7 +329,7 @@ export function toStatusView(value: unknown): StatusView {
 // core's `install::ActionSummary` and `install::InstallProgress`, whose `download` event is `download::Progress`.
 
 export type KeptRoot = "plugin" | "presets";
-export type ActionNotice = "rescan_daw";
+export type ActionNotice = "rescan_daw" | "rescan_daw_macos";
 export type RestartReason =
   | "range_ignored"
   | "range_refused"
@@ -364,10 +371,11 @@ export type InstallProgress =
   | { readonly kind: "placing"; readonly done: number; readonly total: number }
   | { readonly kind: "committing" }
   | { readonly kind: "removing"; readonly done: number; readonly total: number }
-  | { readonly kind: "done" };
+  | { readonly kind: "done" }
+  | { readonly kind: "elevating" };
 
 const KEPT_ROOTS: readonly KeptRoot[] = ["plugin", "presets"];
-const ACTION_NOTICES: readonly ActionNotice[] = ["rescan_daw"];
+const ACTION_NOTICES: readonly ActionNotice[] = ["rescan_daw", "rescan_daw_macos"];
 const RESTART_REASONS: readonly RestartReason[] = [
   "range_ignored",
   "range_refused",
@@ -453,9 +461,10 @@ export function toInstallProgress(value: unknown): InstallProgress {
     case "staging":
     case "committing":
     case "done":
+    case "elevating":
       object(value, "$", ["kind"]);
       return { kind };
     default:
-      return fail("$.kind", "one of download, staging, placing, committing, removing, done");
+      return fail("$.kind", "one of download, staging, placing, committing, removing, done, elevating");
   }
 }

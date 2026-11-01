@@ -321,6 +321,243 @@ fn install_identifiers_absent_from_sources() {
     );
 }
 
+/// FR-113 (plan §4.8.3): the CI fixture's names, the Inno `AppName` and the pkg identifier.
+const FIXTURE_NAME: &str = "Fixture";
+const FIXTURE_PKG_ID: &str = "com.krateaudio.fixture";
+/// The one app directory that may name the fixture.
+const FIXTURE_DIR: &str = "tests/fixtures/";
+/// This guard spells both names; it is not scanned for them.
+const ROSTER_RS: &str = "crates/core/tests/roster.rs";
+/// The manager workflow (repo-relative) and the two elevated jobs that may name the fixture.
+const MANAGER_CI: &str = ".github/workflows/manager-ci.yml";
+const FIXTURE_JOBS: [&str; 2] = ["helper-elevated", "inno-locked-file"];
+/// Directories the app walk never enters, at any depth (build output and dependencies).
+const SKIPPED_DIRS: [&str; 3] = ["target", "node_modules", "dist"];
+
+/// The byte offsets where `word` stands as a whole word in `line` (no ASCII letter, digit or `_`
+/// beside it: `Fixtures` and `FixtureServer` are other words).
+fn word_at(line: &str, word: &str) -> Vec<usize> {
+    let is_word = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
+    let bytes = line.as_bytes();
+    line.match_indices(word)
+        .map(|(at, _)| at)
+        .filter(|&at| {
+            let end = at + word.len();
+            (at == 0 || !is_word(bytes[at - 1])) && bytes.get(end).is_none_or(|&b| !is_word(b))
+        })
+        .collect()
+}
+
+/// Whether byte `at` of a Rust source line lies inside a `"…"` string or a `//` comment: there the
+/// word is text (the fixture's name); elsewhere it is code, a Rust identifier such as
+/// `detect_tests.rs`'s `Input::Fixture` (a heuristic per line, enough for a planted name).
+fn is_rust_text(line: &str, at: usize) -> bool {
+    let bytes = line.as_bytes();
+    let mut quoted = false;
+    let mut i = 0;
+    while i < at {
+        match bytes[i] {
+            b'\\' if quoted => i += 1,
+            b'"' => quoted = !quoted,
+            b'/' if !quoted && bytes.get(i + 1) == Some(&b'/') => return true,
+            _ => {}
+        }
+        i += 1;
+    }
+    quoted
+}
+
+/// The fixture-name hits of one text line as `"<rel>:<line>: <needle>"`: the pkg identifier
+/// anywhere, the name as a whole word (in a Rust source only as text, `is_rust_text`).
+fn fixture_line_hits(rel: &str, number: usize, line: &str, out: &mut Vec<String>) {
+    if line.contains(FIXTURE_PKG_ID) {
+        out.push(format!("{rel}:{number}: {FIXTURE_PKG_ID}"));
+    }
+    let rust = rel.ends_with(".rs");
+    if word_at(line, FIXTURE_NAME)
+        .into_iter()
+        .any(|at| !rust || is_rust_text(line, at))
+    {
+        out.push(format!("{rel}:{number}: {FIXTURE_NAME}"));
+    }
+}
+
+/// Every `"<rel>:<line>: <needle>"` fixture-name hit outside `FIXTURE_DIR` of `app_files`, then
+/// outside the `FIXTURE_JOBS` of `workflow` (FR-113), comments included, case-sensitively.
+fn fixture_name_hits(app_files: &[(String, String)], workflow: &str) -> Vec<String> {
+    let mut hits = Vec::new();
+    for (rel, text) in app_files
+        .iter()
+        .filter(|(r, _)| !r.starts_with(FIXTURE_DIR) && r != ROSTER_RS)
+    {
+        for (index, line) in text.lines().enumerate() {
+            fixture_line_hits(rel, index + 1, line, &mut hits);
+        }
+    }
+    // A top-level key ends `jobs:`; a key indented by exactly two spaces under it names a job.
+    let (mut in_jobs, mut job) = (false, None::<&str>);
+    for (index, line) in workflow.lines().enumerate() {
+        if !line.starts_with([' ', '#']) && !line.trim().is_empty() {
+            in_jobs = line.trim_end() == "jobs:";
+            job = None;
+        } else if in_jobs
+            && let Some(key) = line
+                .strip_prefix("  ")
+                .filter(|rest| !rest.starts_with([' ', '#']))
+                .and_then(|rest| rest.split_once(':'))
+                .map(|(key, _)| key)
+        {
+            job = Some(key);
+        }
+        if !job.is_some_and(|j| FIXTURE_JOBS.contains(&j)) {
+            fixture_line_hits(MANAGER_CI, index + 1, line, &mut hits);
+        }
+    }
+    hits
+}
+
+/// Every file under the app root as (`/`-separated relative path, text read lossily); links are
+/// not followed and no `SKIPPED_DIRS` directory is entered.
+fn app_files() -> Vec<(String, String)> {
+    fn walk(dir: &Path, prefix: &str, out: &mut Vec<(String, String)>) {
+        let entries =
+            fs::read_dir(dir).unwrap_or_else(|e| panic!("cannot list {}: {e}", dir.display()));
+        for entry in entries {
+            let entry = entry.unwrap_or_else(|e| panic!("cannot list {}: {e}", dir.display()));
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let kind = entry
+                .file_type()
+                .unwrap_or_else(|e| panic!("cannot stat {}: {e}", entry.path().display()));
+            if kind.is_dir() {
+                if !SKIPPED_DIRS.contains(&name.as_str()) {
+                    walk(&entry.path(), &format!("{prefix}{name}/"), out);
+                }
+            } else if kind.is_file() {
+                match fs::read(entry.path()) {
+                    Ok(bytes) => out.push((
+                        format!("{prefix}{name}"),
+                        String::from_utf8_lossy(&bytes).into_owned(),
+                    )),
+                    // A file another writer removed between the listing and the read.
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => panic!("cannot read {}: {e}", entry.path().display()),
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(&app_root(), "", &mut out);
+    out.sort();
+    out
+}
+
+#[test]
+fn fixture_names_confined() {
+    let files = app_files();
+    for must in [
+        "crates/core/src/lib.rs",
+        "crates/helper/src/main.rs",
+        "src-tauri/src/lib.rs",
+        "src/main.ts",
+        "package.json",
+        "index.html",
+    ] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    let workflow_path = MANAGER_CI.split('/').fold(repo_root(), |p, c| p.join(c));
+    let workflow = fs::read_to_string(&workflow_path)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", workflow_path.display()));
+    assert!(
+        workflow.lines().any(|l| l.trim_end() == "jobs:"),
+        "{MANAGER_CI} has no `jobs:` line: the job scan is vacuous"
+    );
+    let base = fixture_name_hits(&files, &workflow);
+
+    // The task's plant: the fixture's name in `scripts/bundle.js` text, and each name elsewhere.
+    let with = |rel: &str, text: &str| {
+        let mut out: Vec<(String, String)> =
+            files.iter().filter(|(r, _)| r != rel).cloned().collect();
+        let old = files
+            .iter()
+            .find(|(r, _)| r == rel)
+            .map_or(String::new(), |(_, t)| format!("{t}\n"));
+        out.push((rel.to_owned(), format!("{old}{text}\n")));
+        out
+    };
+    let plants = [
+        ("scripts/bundle.js", "const APP = 'Fixture';", FIXTURE_NAME),
+        (
+            "crates/helper/src/ops.rs",
+            "const P: &str = \"com.krateaudio.fixture\";",
+            FIXTURE_PKG_ID,
+        ),
+        (
+            "crates/core/src/install_tests.rs",
+            "const N: &str = \"Fixture\";",
+            FIXTURE_NAME,
+        ),
+        (
+            "crates/helper/src/job_tests.rs",
+            "// the Inno Fixture setup",
+            FIXTURE_NAME,
+        ),
+        ("src/status.ts", "// Fixture", FIXTURE_NAME),
+    ];
+    for (rel, text, needle) in plants {
+        let planted = fixture_name_hits(&with(rel, text), &workflow);
+        let new: Vec<&String> = planted.iter().filter(|h| !base.contains(h)).collect();
+        assert!(
+            new.iter()
+                .any(|h| h.starts_with(&format!("{rel}:")) && h.ends_with(&format!(": {needle}"))),
+            "{rel}: planted {text:?} not reported as {needle}; new hits: {new:?}"
+        );
+    }
+    // A workflow line outside the two jobs is a hit; inside them it is not.
+    let workflow_plant = "jobs:\n  check:\n    steps:\n      - run: echo com.krateaudio.fixture\n  \
+        helper-elevated:\n    steps:\n      - run: echo com.krateaudio.fixture # Fixture\n  \
+        inno-locked-file:\n    steps:\n      - run: echo Fixture\n  after:\n    steps:\n      - run: echo Fixture\n";
+    assert_eq!(
+        fixture_name_hits(&[], workflow_plant),
+        [
+            format!("{MANAGER_CI}:4: {FIXTURE_PKG_ID}"),
+            format!("{MANAGER_CI}:13: {FIXTURE_NAME}"),
+        ],
+        "only the `check` and `after` lines are hits"
+    );
+    // The fixture directory, a Rust identifier `Fixture`, other words and lower case are not hits.
+    for (rel, text) in [
+        (
+            "tests/fixtures/inno/fixture.iss",
+            "#define AppName \"Fixture\"\nAppId=com.krateaudio.fixture",
+        ),
+        (
+            "crates/core/src/detect_tests.rs",
+            "enum Input { Fixture(&'static str) }\nstruct Fixture { base: u8 }\nfn f(x: &Fixture) -> Fixture { Fixture { base: 1 } }",
+        ),
+        (
+            "scripts/bundle.js",
+            "const a = 'Fixtures'; const b = 'FixtureServer'; const c = 'fixture';",
+        ),
+    ] {
+        let planted = fixture_name_hits(&with(rel, text), &workflow);
+        let new: Vec<&String> = planted.iter().filter(|h| !base.contains(h)).collect();
+        assert!(new.is_empty(), "{rel}: quiet {text:?}: {new:?}");
+    }
+    assert!(
+        base.is_empty(),
+        "fixture names outside {FIXTURE_DIR} and the jobs {FIXTURE_JOBS:?} of {MANAGER_CI} ({} app files scanned):\n{}",
+        files.len(),
+        base.join("\n")
+    );
+    println!(
+        "{} app files and {MANAGER_CI} scanned for the fixture names, 0 hits",
+        files.len()
+    );
+}
+
 #[test]
 fn install_identifier_scanner_reports_plants() {
     let patterns = identifier_patterns();

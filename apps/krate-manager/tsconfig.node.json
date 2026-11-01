@@ -6,7 +6,9 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "scripts/*.js"]
 }

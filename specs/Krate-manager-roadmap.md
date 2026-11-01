@@ -475,8 +475,8 @@ Components:
 - 🆕 `Platform` abstraction in `core` with Windows, macOS and Linux implementations behind `cfg`, and a `Roots` value
   (plug-in roots, preset roots, state dir, staging dir) that is **always passed in**: production builds it from the
   OS, tests build it from temp dirs. The feed URL is injected the same way (`AppContext`, Phase 4); the HTTP client
-  base joins `AppContext` in Phase 5 and the elevation launcher in Phase 10, each with its production value built in
-  the same setup (Phase 4 spec D17).
+  base joins `AppContext` in Phase 5 and the elevation launcher in Phase 10, which joins `CommandEnv` beside the driver
+  resolver rather than `AppContext` (Phase 10 D8), each with its production value built in the same setup (Phase 4 spec D17).
   The guard is mechanical, not a convention: (1) `core` has no OS-root constructor at all; `Roots::new` takes explicit
   paths, and `Platform::default_roots()` only *computes* the default paths (pure, testable on every OS, touches
   nothing). (2) The one production constructor, `Roots::from_os()`, combines them in `src-tauri` and is listed in the
@@ -710,6 +710,8 @@ Does NOT: run an installer or elevate (Phase 10), or self-update.
 
 **Spec:** `krate-manager-phase10`
 
+**Status: stopped at the M-1 fence (Phase 10 built; `inno-locked-file` must run after the user's push)**
+
 Components:
 - 🆕 `krate-manager-helper`: reads one JSON job file, performs a **fixed operation set** sequentially, and writes a
   result file with one entry per operation (so one failed plugin never hides the others). No shell strings, no
@@ -732,7 +734,9 @@ Components:
   - `uninstall_pkg { pkg_id }` (macOS): `pkg_id` must match `^com\.krateaudio\.[a-z0-9]+$` (the default identifier
     `release.yml:321` builds; no plugin's `version.json` overrides it today). The helper reads the receipt's install
     location (`pkgutil --pkg-info`) and file list (`pkgutil --files`), validates **every** path (joined to the install
-    location, canonicalized) against `AllowedRoots` before removing anything (one path outside refuses the whole op),
+    location, canonicalized) against `AllowedRoots` before removing anything (one path outside refuses the whole op
+    (a directory entry that is an allowed root, an ancestor of one, or `/Applications` is structural: accepted and
+    never removed; a file entry never is, Phase 10 D16)),
     removes the files (symlinks as links, directories only when empty and never a root itself), then runs `/usr/sbin/pkgutil
     --forget <pkg_id>`.
   Linux has no elevated operation. There is no generic copy / rename / remove op.
@@ -764,6 +768,8 @@ Components:
   hangs or schedules a restart) has not been measured. This phase measures it on a hosted Windows runner (job
   `inno-locked-file`, below), records the result in the spec, and the driver's mapping to the "close your DAW and
   retry" outcome follows the measurement, not an assumption.
+- Residual risk, accepted by the user on 2026-11-01: the per-user helper can be replaced by a process running as the
+  user before the prompt; no digest check and no admin-folder copy; Q5's `currentUser` install stands (Phase 10 D19).
 
 Measurable outcomes:
 - The helper's validation library, run **unelevated** against temp roots, rejects every crafted job (installer outside
@@ -836,6 +842,10 @@ Components:
   `darwin-x86_64` / `darwin-universal` plug-in entries, and the manager on an Intel Mac shows those plugins as "not
   available for this Mac" (Phase 5's platform-key resolution) while still updating itself. Whether the plugins
   should build universal is a plugin-build question outside this roadmap.
+  The release build stages a universal `krate-manager-helper` (`lipo -create` of the aarch64 and x86_64 helper
+  builds) under the sidecar name the universal target needs, merges `src-tauri/tauri.helper.conf.json` (Phase 10
+  D12), and the PENDING-CI `release-manager.yml` macOS row asserts `lipo -archs` on
+  `Contents/MacOS/krate-manager-helper` lists `x86_64 arm64`.
 - 🆕 **The manager's first-install packaging (Q5 ruled), built here:** Windows Tauri NSIS `installMode: currentUser`
   (self-update never prompts); macOS an unsigned `.pkg` wrapping the ad-hoc-signed universal `.app`, made with `pkgbuild`
   like the plugins' pkgs (`release.yml:331-337`; Tauri's `BundleType` has no pkg, only `deb, rpm, appimage, msi, nsis,
@@ -861,7 +871,8 @@ Measurable outcomes:
   tauri_feasibility.md line 83) or replace a bundle on the dev box. The successful download → install → relaunch
   path runs only in the e2e gate on ephemeral runners.
 - The e2e gate is green on all three legs (PENDING-CI, `release-manager.yml` job `updater-e2e`, named per leg).
-- PENDING-CI, `release-manager.yml` macOS leg: `lipo -archs` on the built binary lists `x86_64 arm64`, and the
+- PENDING-CI, `release-manager.yml` macOS leg: `lipo -archs` on the built binary lists `x86_64 arm64`, and `lipo -archs`
+  on `Contents/MacOS/krate-manager-helper` lists `x86_64 arm64`, and the
   generated `latest.json` carries `darwin-aarch64`, `darwin-x86_64` and `darwin-universal` entries, each with a
   per-tag URL (no `/releases/latest/`).
 - PENDING-CI, first-install artifacts on fresh hosted runners (never the dev box): the macOS leg installs the manager
@@ -909,7 +920,8 @@ Components:
   on the landing page / README. The inline landing step in `release.yml:596-643` gains a Krate Manager card (Q5 ruled)
   linking the latest manager release per OS and carrying this text; no other landing change, and the per-plugin
   installers stay listed beside it. It states the supported Windows floor, Windows 10 22H2 and Windows 11 x64 (Q6),
-  which no `tauri.conf.json` key can carry (Phase 4 spec Non-goals).
+  which no `tauri.conf.json` key can carry (Phase 4 spec Non-goals). A redirected `%LOCALAPPDATA%` is unsupported on
+  Windows: every elevated batch is refused with `E_HELPER_JOB_LOCATION` (Phase 10 D17).
 - 🆕 Release readiness for manager 0.1.0 (from `apps/krate-manager/version.json`): every Part B gate green on Windows
   and every PENDING-CI row closed by a named green `manager-ci` / `release-manager` run, and the Phase 2 backfill run
   live, so the live feed offers all nine plugins with `platforms` (no plugin re-release).

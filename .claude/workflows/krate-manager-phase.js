@@ -597,6 +597,9 @@ Never pass --test-threads=1 or --no-file-parallelism. Never run "tauri build" wi
   WSL step (only if ${APP_DIR}/crates/core exists; the Windows commands above never compile cfg(unix) code, so a Linux-only
   compile error, dead-code warning or test failure reaches no Windows gate: Phase 9's close lane found three; user, 2026-11-01):
     wsl -e bash -lc "timeout --kill-after=20 540 bash -c 'cd /mnt/f/projects/iterum/${APP_DIR} && export CARGO_TARGET_DIR=\\$HOME/km-target && cargo clippy -p krate-manager-core --all-targets --locked -- -D warnings && cargo test -p krate-manager-core --locked'" > <log under F:/tmp/gate/> 2>&1
+  Once ${APP_DIR}/crates/helper exists, the same command also covers the elevated helper: every "-p krate-manager-core" becomes
+  "-p krate-manager-core -p krate-manager-helper", plus one more clippy before the tests for each helper feature the plan defines
+  (e.g. "cargo clippy -p krate-manager-helper --all-targets --features ci-temp-roots --locked -- -D warnings"; Phase 10 SI-22).
   (one foreground command, timeout 600000; WSL's own target dir, so it never contends with the Windows target dir). Its
   clippy warnings and test failures are reds like any other; report its "test result:" lines in summary as "WSL: ...".
   If WSL itself is unavailable (wsl.exe missing or no distro), report "WSL unavailable" and count the step red.`
@@ -763,7 +766,7 @@ const report = await run(
 if (finalFailures.length === 0) {
   const mark = pendingCi.length ? `✅ COMPLETE (PENDING-CI: ${pendingCi.length} item(s))` : '✅ COMPLETE'
   await run(
-    `You are in the Krate Audio monorepo at f:/projects/iterum. Krate Manager roadmap Phase ${phaseNum} is verified. Update ${ROADMAP}:\n1. Directly under the "### Phase ${phaseNum}: ..." heading, insert the status line: "**Status: ${mark} (<today's date, YYYY-MM-DD — get it by running the date command>)** — see ${COMPLIANCE}".\n2. Touch NOTHING else: not the Dependency Graph (a diagram hunk is outside every phase's scope-check windows; Phase 6's close lane went red on one).`,
+    `You are in the Krate Audio monorepo at f:/projects/iterum. Krate Manager roadmap Phase ${phaseNum} is verified. Update ${ROADMAP}:\n1. Directly under the "### Phase ${phaseNum}: ..." heading, insert the status line: "**Status: ${mark} (<today's date, YYYY-MM-DD — get it by running the date command>)** — see ${COMPLIANCE}". If a "**Status:" line already sits directly under that heading (e.g. a "stopped at the M-1 fence" line a task wrote), REPLACE that line instead, so the phase has exactly one status line.\n2. Touch NOTHING else: not the Dependency Graph (a diagram hunk is outside every phase's scope-check windows; Phase 6's close lane went red on one).`,
     { label: 'mark-roadmap', phase: 'Report', model: TRIVIAL },
   )
   log(`Roadmap phase ${phaseNum} marked ${mark}`)

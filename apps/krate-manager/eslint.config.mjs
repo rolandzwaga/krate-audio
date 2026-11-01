@@ -8,6 +8,16 @@ export default defineConfig(
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   { languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname } } },
+  // The project service reads only the nearest tsconfig.json (include: src); scripts/*.js live in tsconfig.node.json.
+  {
+    files: ["scripts/*.js"],
+    languageOptions: {
+      parserOptions: {
+        projectService: { allowDefaultProject: ["scripts/*.js"], defaultProject: "tsconfig.node.json" },
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
   { linterOptions: { reportUnusedDisableDirectives: "error" } },
   {
     rules: {

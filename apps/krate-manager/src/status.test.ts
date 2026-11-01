@@ -410,6 +410,7 @@ function pluginJson(fields: Readonly<Record<string, unknown>>): Record<string, u
     release_page_url: null,
     notes: [],
     actions: [],
+    remove_hint: null,
     ...fields,
   };
 }
@@ -532,19 +533,106 @@ test("renders update and remove for update-available linux", () => {
   expect(c.querySelector("button.action-install")).toBeNull();
 });
 
-test("renders no install buttons on windows or macos", () => {
-  for (const os of ["windows", "macos"]) {
-    const { section } = rig(viewOf(os, [{}, { name: "Beta", ...UPDATE_AVAILABLE, actions: [] }]), deferred<unknown>().promise);
-    for (const name of ["Alpha", "Beta"]) {
+// Phase 10 SC-025 (FR-130 to FR-135): the Windows / macOS sentences, written here as literals so the renderer's table
+// is checked, not copied. The rejection strings are FR-133's, which the core's `InstallError` `Display` produces (PD-15).
+const ADMIN_LINE = {
+  windows: "Windows will ask for administrator permission once.",
+  macos: "macOS will ask for your administrator password once.",
+} as const;
+const ELEVATED_OSES = ["windows", "macos"] as const;
+const REFUSED = "E_INSTALL_REFUSED: Administrator permission was not given; nothing was changed.";
+const LOCKED = "E_INSTALL_LOCKED: A plug-in file is in use. Close your DAW and retry.";
+const BUSY_STALE = "E_INSTALL_ELEVATION_BUSY: An installer is still running. Wait for it to finish, then retry.";
+const NOT_APPLIED =
+  "E_INSTALL_NOT_APPLIED: The installer finished but the change was not applied. Check the installed version and retry.";
+const WAITING = "Waiting for administrator permission and the installer…";
+const RECORD_PER_OS = {
+  windows: { kind: "inno", version: "1.0.0", files: null },
+  macos: { kind: "pkg", version: "1.0.0", files: null },
+} as const;
+
+/** `UPDATE_AVAILABLE` with the OS's installer record (Inno on Windows, pkg on macOS). */
+function updateAvailableOn(os: (typeof ELEVATED_OSES)[number]): Record<string, unknown> {
+  return { ...UPDATE_AVAILABLE, record: RECORD_PER_OS[os] };
+}
+
+/** The card's action buttons' `disabled` flags, in order. */
+function disabledFlags(c: ParentNode): boolean[] {
+  return Array.from(c.querySelectorAll("div.actions > button"), (b) => b instanceof HTMLButtonElement && b.disabled);
+}
+
+test("renders install on windows and macos", async () => {
+  for (const os of ELEVATED_OSES) {
+    const view = viewOf(os, [NOT_INSTALLED, { name: "Beta", ...updateAvailableOn(os) }, { name: "Gamma", actions: [] }]);
+    const { section, calls } = rig(view, deferred<unknown>().promise);
+    const alpha = card(section.element, "Alpha");
+    only(alpha, ":scope > div.actions", HTMLDivElement);
+    expect(texts(alpha, "div.actions > button"), os).toEqual(["Install"]);
+    const beta = card(section.element, "Beta");
+    expect(texts(beta, "div.actions > button"), os).toEqual(["Update", "Remove"]);
+    expect(Array.from(beta.querySelectorAll("div.actions > button"), (b) => b.className), os).toEqual([
+      "action-update",
+      "action-remove",
+    ]);
+    // A card the core lists no action for renders no row, exactly as on Linux.
+    expect(card(section.element, "Gamma").querySelector("div.actions"), os).toBeNull();
+    // Every listed action opens the in-card confirmation, which carries the OS's administrator line (FR-131).
+    for (const [name, action] of [
+      ["Alpha", "install"],
+      ["Beta", "update"],
+      ["Beta", "remove"],
+    ] as const) {
       const c = card(section.element, name);
-      expect(c.querySelector("div.actions"), `${os} ${name}`).toBeNull();
-      expect(texts(c, "button"), `${os} ${name}`).toEqual([]);
+      click(c, `button.action-${action}`);
+      const confirm = only(c, ":scope > div.confirm", HTMLDivElement);
+      expect(texts(confirm, "button"), `${os} ${action}`).toEqual(["Confirm", "Cancel"]);
+      const lines = texts(confirm, "p");
+      expect(lines[lines.length - 1], `${os} ${action}`).toBe(ADMIN_LINE[os]);
+      click(c, "div.confirm button.confirm-cancel");
     }
+    // A confirmed install sends the same command and arguments as on Linux.
+    click(alpha, "button.action-install");
+    click(alpha, "div.confirm button.confirm-ok");
+    await settle();
+    expect(calls, os).toEqual([["install_plugin", { name: "Alpha", expectedVersion: "1.2.0", action: "install", onProgress: { id: 1 } }]]);
   }
-  // The control: the same cards with the Linux gate's actions do render the row, so the absence above is the gate's.
-  const { section } = rig(viewOf("linux", [NOT_INSTALLED, { name: "Beta", ...UPDATE_AVAILABLE }]), deferred<unknown>().promise);
-  expect(texts(card(section.element, "Alpha"), "div.actions > button")).toEqual(["Install"]);
-  expect(texts(card(section.element, "Beta"), "div.actions > button")).toEqual(["Update", "Remove"]);
+});
+
+test("windows confirmation mentions the administrator prompt", () => {
+  const { section, calls } = rig(viewOf("windows", [NOT_INSTALLED, { name: "Beta", ...updateAvailableOn("windows") }]), deferred<unknown>().promise);
+  const alpha = card(section.element, "Alpha");
+  click(alpha, "button.action-install");
+  expect(texts(only(alpha, ":scope > div.confirm", HTMLDivElement), "p")).toEqual([
+    "Install Alpha 1.2.0?",
+    "Windows will ask for administrator permission once.",
+  ]);
+  const beta = card(section.element, "Beta");
+  click(beta, "button.action-update");
+  const confirm = only(beta, ":scope > div.confirm", HTMLDivElement);
+  expect(texts(confirm, "p")).toEqual(["Update Beta 1.0.0 to 1.2.0?", "Windows will ask for administrator permission once."]);
+  expect(confirm.textContent).not.toContain("password");
+  expect(calls).toEqual([]);
+  // The control: a Linux card's confirmation has no administrator line.
+  const linux = rig(viewOf("linux", [NOT_INSTALLED]), deferred<unknown>().promise);
+  const l = card(linux.section.element, "Alpha");
+  click(l, "button.action-install");
+  expect(texts(only(l, ":scope > div.confirm", HTMLDivElement), "p")).toEqual(["Install Alpha 1.2.0?"]);
+});
+
+test("macos confirmation mentions the administrator password", () => {
+  const { section, calls } = rig(viewOf("macos", [NOT_INSTALLED, { name: "Beta", ...updateAvailableOn("macos") }]), deferred<unknown>().promise);
+  const alpha = card(section.element, "Alpha");
+  click(alpha, "button.action-install");
+  expect(texts(only(alpha, ":scope > div.confirm", HTMLDivElement), "p")).toEqual([
+    "Install Alpha 1.2.0?",
+    "macOS will ask for your administrator password once.",
+  ]);
+  const beta = card(section.element, "Beta");
+  click(beta, "button.action-update");
+  const confirm = only(beta, ":scope > div.confirm", HTMLDivElement);
+  expect(texts(confirm, "p")).toEqual(["Update Beta 1.0.0 to 1.2.0?", "macOS will ask for your administrator password once."]);
+  expect(confirm.textContent).not.toContain("Windows");
+  expect(calls).toEqual([]);
 });
 
 test("install asks for confirmation naming the plugin and version", () => {
@@ -788,4 +876,199 @@ test("refreshes the status after an action and keeps the outcome", async () => {
   await settle();
   expect(calls.map(([cmd]) => cmd)).toEqual(["install_plugin", "plugin_status", "check_now"]);
   expect(texts(card(section.element, "Alpha"), "p.outcome")).toEqual([]);
+});
+
+/** Clicks the card's `action` button, then the confirmation's `Confirm`. */
+function confirmAction(c: ParentNode, action: string): void {
+  click(c, `button.action-${action}`);
+  click(c, "div.confirm button.confirm-ok");
+}
+
+test("shows waiting for administrator permission", async () => {
+  for (const os of ELEVATED_OSES) {
+    const pending = deferred<unknown>();
+    const { section, ch } = rig(viewOf(os, [NOT_INSTALLED]), pending.promise);
+    const c = card(section.element, "Alpha");
+    confirmAction(c, "install");
+    await settle();
+    ch.send({ kind: "download", event: { kind: "bytes", received: 40, on_disk: 40, total: 100 } });
+    expect(texts(c, "p.progress"), os).toEqual(["Downloading 40 of 100 bytes"]);
+    ch.send({ kind: "download", event: { kind: "verified" } });
+    ch.send({ kind: "elevating" });
+    expect(texts(c, "p.progress"), os).toEqual([WAITING]);
+    expect(disabledFlags(c), os).toEqual([true]);
+    pending.resolve({ name: "Alpha", action: "install", version: "1.2.0", kept: [], notice: "rescan_daw" });
+    await settle();
+    const after = card(section.element, "Alpha");
+    expect(section.element.querySelector("p.progress"), os).toBeNull();
+    expect(texts(after, "p.outcome")[0], os).toBe("Installed 1.2.0");
+  }
+});
+
+test("refused permission shows nothing changed and keeps the actions", async () => {
+  for (const os of ELEVATED_OSES) {
+    const pending = deferred<unknown>();
+    const { section, calls, ch } = rig(viewOf(os, [updateAvailableOn(os)]), pending.promise);
+    const before = card(section.element, "Alpha");
+    expect(texts(before, "div.actions > button"), os).toEqual(["Update", "Remove"]);
+    confirmAction(before, "update");
+    await settle();
+    ch.send({ kind: "elevating" });
+    expect(texts(before, "p.progress"), os).toEqual([WAITING]);
+    pending.reject(new Error(REFUSED));
+    await settle();
+    const after = card(section.element, "Alpha");
+    expect(texts(after, "p.outcome"), os).toEqual([REFUSED]);
+    expect(after.querySelector("p.progress"), os).toBeNull();
+    expect(texts(after, "div.actions > button"), os).toEqual(["Update", "Remove"]);
+    expect(Array.from(after.querySelectorAll("div.actions > button"), (b) => b.className), os).toEqual([
+      "action-update",
+      "action-remove",
+    ]);
+    expect(disabledFlags(after), os).toEqual([false, false]);
+    expect(calls.map(([cmd]) => cmd), os).toEqual(["install_plugin", "plugin_status"]);
+  }
+});
+
+test("locked shows close your daw and retry", async () => {
+  const pending = deferred<unknown>();
+  const { section, ch } = rig(viewOf("windows", [updateAvailableOn("windows")]), pending.promise);
+  confirmAction(card(section.element, "Alpha"), "update");
+  await settle();
+  ch.send({ kind: "elevating" });
+  expect(texts(card(section.element, "Alpha"), "p.progress")).toEqual([WAITING]);
+  pending.reject(new Error(LOCKED));
+  await settle();
+  const after = card(section.element, "Alpha");
+  const lines = texts(after, "p.outcome");
+  expect(lines).toEqual([LOCKED]);
+  expect(lines[0]?.startsWith("E_INSTALL_LOCKED")).toBe(true);
+  expect(lines[0]).toContain("Close your DAW and retry.");
+  expect(after.querySelector("p.progress")).toBeNull();
+  expect(disabledFlags(after)).toEqual([false, false]);
+});
+
+test("macos install shows the au rescan steps", async () => {
+  const pending = deferred<unknown>();
+  const { section } = rig(viewOf("macos", [NOT_INSTALLED]), pending.promise);
+  confirmAction(card(section.element, "Alpha"), "install");
+  await settle();
+  pending.resolve({ name: "Alpha", action: "install", version: "1.2.0", kept: [], notice: "rescan_daw_macos" });
+  await settle();
+  const after = card(section.element, "Alpha");
+  const lines = texts(after, "p.outcome");
+  // TA-12: the AU-cache phrase is built, never written whole in this file.
+  const auCache = ["~", "Library", "Caches", "AudioUnitCache"].join("/");
+  expect(lines).toEqual([
+    "Installed 1.2.0",
+    "Restart your DAW or rescan its plug-ins to load the new version.",
+    "If a Logic or GarageBand AU does not appear: 1. Restart the Mac.",
+    "2. In Logic's Plug-in Manager, use 'Reset & Rescan Selection'.",
+    "3. Still missing: use 'Full Audio Unit Reset', then reopen Logic.",
+    `4. Last resort: move the files in ${auCache} out, restart, and reopen Logic (the rescan can take a while).`,
+    "Apple's guide: support.apple.com/en-us/122179",
+  ]);
+  // Apple's order (FR-133): each phrase after the one before.
+  const joined = lines.join("\n");
+  let from = 0;
+  for (const phrase of ["Restart the Mac", "Reset & Rescan Selection", "Full Audio Unit Reset", auCache, "support.apple.com/en-us/122179"]) {
+    const at = joined.indexOf(phrase, from);
+    expect(at, phrase).toBeGreaterThanOrEqual(from);
+    from = at + phrase.length;
+  }
+  // The guide is plain text: no link, no attribute beyond the FR-075 set.
+  expect(section.element.querySelectorAll("a").length).toBe(0);
+  expect(attributeFindings(section.element)).toEqual([]);
+});
+
+test("outside-root install shows the windows settings hint and no remove", async () => {
+  const hint = "Installed outside the standard folder: uninstall it from Windows Settings → Apps.";
+  const outside = { ...updateAvailableOn("windows"), actions: ["update"], remove_hint: "windows_settings" };
+  const view = viewOf("windows", [
+    outside,
+    { ...outside, name: "Beta", actions: ["update", "remove"] },
+    { name: "Gamma", ...updateAvailableOn("windows") },
+  ]);
+  const { section, calls } = rig(view, deferred<unknown>().promise);
+  for (const name of ["Alpha", "Beta"]) {
+    const c = card(section.element, name);
+    expect(texts(c, ":scope > p.remove-hint"), name).toEqual([hint]);
+    expect(texts(c, "div.actions > button"), name).toEqual(["Update"]);
+    expect(c.querySelector("button.action-remove"), name).toBeNull();
+  }
+  // The control: the same card without the hint keeps Remove and shows no hint line.
+  const gamma = card(section.element, "Gamma");
+  expect(gamma.querySelector("p.remove-hint")).toBeNull();
+  expect(texts(gamma, "div.actions > button")).toEqual(["Update", "Remove"]);
+  // Update still runs the installer (spec edge case, FR-080).
+  confirmAction(card(section.element, "Alpha"), "update");
+  await settle();
+  expect(calls.map(([cmd, args]) => [cmd, args?.["action"]])).toEqual([["install_plugin", "update"]]);
+});
+
+test("windows remove confirmation names the uninstaller", async () => {
+  const { section, calls } = rig(viewOf("windows", [{ ...UP_TO_DATE, record: RECORD_PER_OS.windows }]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-remove");
+  const confirm = only(c, ":scope > div.confirm", HTMLDivElement);
+  expect(texts(confirm, "p")).toEqual([
+    "Remove Alpha? Its installer's uninstaller removes the plug-in and its factory presets; your own presets are kept.",
+    "Windows will ask for administrator permission once.",
+  ]);
+  expect(confirm.textContent).not.toContain("are removed;");
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  expect(calls).toEqual([["remove_plugin", { name: "Alpha", onProgress: { id: 1 } }]]);
+});
+
+test("stale busy shows installer still running", async () => {
+  const pending = deferred<unknown>();
+  const { section, calls } = rig(viewOf("windows", [updateAvailableOn("windows")]), pending.promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-update");
+  expect(texts(only(c, ":scope > div.confirm", HTMLDivElement), "p")).toEqual([
+    "Update Alpha 1.0.0 to 1.2.0?",
+    "Windows will ask for administrator permission once.",
+  ]);
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  pending.reject(new Error(BUSY_STALE));
+  await settle();
+  const after = card(section.element, "Alpha");
+  expect(texts(after, "p.outcome")).toEqual([BUSY_STALE]);
+  expect(texts(after, "p.outcome")[0]).toContain("An installer is still running.");
+  expect(texts(after, "div.actions > button")).toEqual(["Update", "Remove"]);
+  expect(disabledFlags(after)).toEqual([false, false]);
+  expect(calls.map(([cmd]) => cmd)).toEqual(["install_plugin", "plugin_status"]);
+});
+
+test("not applied shows the change was not applied", async () => {
+  const pending = deferred<unknown>();
+  const { section, ch } = rig(viewOf("macos", [updateAvailableOn("macos")]), pending.promise);
+  confirmAction(card(section.element, "Alpha"), "update");
+  await settle();
+  ch.send({ kind: "elevating" });
+  expect(texts(card(section.element, "Alpha"), "p.progress")).toEqual([WAITING]);
+  pending.reject(new Error(NOT_APPLIED));
+  await settle();
+  const after = card(section.element, "Alpha");
+  expect(texts(after, "p.outcome")).toEqual([NOT_APPLIED]);
+  expect(texts(after, "p.outcome")[0]?.startsWith("E_INSTALL_NOT_APPLIED: ")).toBe(true);
+  expect(after.querySelector("p.progress")).toBeNull();
+  expect(disabledFlags(after)).toEqual([false, false]);
+});
+
+test("macos remove confirmation names the uninstaller", async () => {
+  const { section, calls } = rig(viewOf("macos", [{ ...UP_TO_DATE, record: RECORD_PER_OS.macos }]), deferred<unknown>().promise);
+  const c = card(section.element, "Alpha");
+  click(c, "button.action-remove");
+  const confirm = only(c, ":scope > div.confirm", HTMLDivElement);
+  expect(texts(confirm, "p")).toEqual([
+    "Remove Alpha? Its installer's uninstaller removes the plug-in and its factory presets; your own presets are kept.",
+    "macOS will ask for your administrator password once.",
+  ]);
+  expect(confirm.textContent).not.toContain("are removed;");
+  click(c, "div.confirm button.confirm-ok");
+  await settle();
+  expect(calls).toEqual([["remove_plugin", { name: "Alpha", onProgress: { id: 1 } }]]);
 });

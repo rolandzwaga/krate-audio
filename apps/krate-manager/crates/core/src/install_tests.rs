@@ -4,31 +4,35 @@
 //! `RecordingInstallIo::fail_closed()` and asserts zero mutating calls (FR-115). Archives are built here at run time
 //! with a payload from the listing this file writes for them (FR-114, plan §4.4).
 
+use super::loopback::Loopback;
 use super::*;
 use crate::download::{DOWNLOADS_DIR, DownloadRequest};
 use crate::extract::{EXTRACT_DIR, FsExtractIo};
 use crate::feed::PlatformKey;
 use crate::fixture_server::{FixtureServer, Reply};
 use crate::http::HttpConfig;
+use crate::platform;
 use crate::roots::Roots;
 use crate::settings::Settings;
 use crate::status::{InstalledView, RecordKind, UpdateView};
 use crate::tar_builder_tests::{Tar, gz, literal_payload, sha};
 use crate::test_signer::TestSigner;
 use crate::test_support::{
-    CountingDriver, FakeHostFacts, FaultyInstallIo, FaultyStagingIo, IKind, IOp, InstallRig,
-    MemExtractIo, MemInstallIo, MemNode, OneDriver, Op, RecordingDriver, RecordingInstallIo,
-    fresh_temp_roots, install_capture, native_key, snapshot, take_mine, test_feed_document,
+    CountingDriver, FakeElevation, FakeHostFacts, FaultyInstallIo, FaultyStagingIo, IKind, IOp,
+    InstallRig, LiveHostFacts, MemExtractIo, MemInstallIo, MemNode, OneDriver, Op, RecordingDriver,
+    RecordingInstallIo, Scripted, fresh_elevated_roots, fresh_temp_roots, install_capture,
+    native_key, snapshot, take_mine, test_feed_document,
 };
 use crate::verify::{Expected, hex_lower, verify_file};
 use crate::version::OsVersion;
+use krate_manager_helper::classify::InnoVerdict;
 use log::Level;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::fs;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 use std::time::Duration;
 use tempfile::TempDir;
 
@@ -629,7 +633,7 @@ impl Fx {
     fn remove(&self, io: &dyn InstallIo, name: &str) -> Result<ActionSummary, InstallError> {
         let seam = self.seam();
         let env = self.env(Os::Linux, Arch::X86_64, io, &NativeDrivers, &seam);
-        remove_for_command(env, name, NOW, &mut |_| {})
+        remove_for_command(env, name, NOW, &host(), &mut |_| {})
     }
 
     /// A contract-valid feed of `releases` (one `linux-x86_64` asset each, SI-1), each signed as given, then `patch`.
@@ -782,6 +786,9 @@ impl Fx {
                 io,
                 extract: self.rig.extract_env(xio.as_extract()),
                 progress: &mut |_| {},
+                elevation: &self.rig.elevation,
+                host_io: &self.rig.host_io,
+                host: &host(),
             },
             batch,
         )
@@ -1494,6 +1501,7 @@ fn manifest_outside_roots_refused() {
             fx.ctx(),
             &FsInstallIo,
             &Fx::entry_in(&fx.doc(&[&Release::of(ALPHA, V13)]), ALPHA),
+            &Detection::NotChecked,
         );
         assert!(
             matches!(
@@ -1517,6 +1525,7 @@ fn manifest_outside_roots_refused() {
             fx.ctx(),
             &FsInstallIo,
             &Fx::entry_in(&fx.doc(&[&Release::of(ALPHA, V13)]), ALPHA),
+            &Detection::NotChecked,
         );
         assert!(
             matches!(
@@ -1551,6 +1560,7 @@ fn manifest_outside_roots_refused_unix() {
         fx.ctx(),
         &FsInstallIo,
         &Fx::entry_in(&fx.doc(&[&Release::of(ALPHA, V13)]), ALPHA),
+        &Detection::NotChecked,
     );
     match gate {
         ActionGate::Blocked(InstallError::OutsideRoot { path }) => assert_eq!(
@@ -3437,7 +3447,7 @@ fn recovery_table_rows() {
                 assert_eq!(after, before, "row {row}: nothing touched");
                 assert!(mem.kind_of(&fx.journal(ALPHA)).expect("kind_of").is_some());
                 assert!(matches!(
-                    action_gate(Os::Linux, fx.ctx(), &mem, &e13),
+                    action_gate(Os::Linux, fx.ctx(), &mem, &e13, &Detection::NotChecked),
                     ActionGate::Blocked(InstallError::JournalPending { .. })
                 ));
             }
@@ -3738,7 +3748,7 @@ fn progress_events() {
         .count() as u64;
     let env = fx.env(Os::Linux, Arch::X86_64, &FsInstallIo, &NativeDrivers, &seam);
     let mut events = Vec::new();
-    remove_for_command(env, ALPHA, NOW, &mut |e| events.push(e)).expect("remove");
+    remove_for_command(env, ALPHA, NOW, &host(), &mut |e| events.push(e)).expect("remove");
     let total = 1 + presets;
     let mut want: Vec<InstallProgress> = (0..=total)
         .map(|done| InstallProgress::Removing { done, total })
@@ -3774,52 +3784,14 @@ fn add_platform(fx: &Fx, doc: &mut Value, name: &str, key: PlatformKey) {
     entry["platforms"][key.as_str()] = platform;
 }
 
+/// SC-012 (Phase 10 FR-070): a driver for every OS, each with the matching `os()`, through `driver_for` and the
+/// production resolver (replaces Phase 9's `no_driver_off_linux`).
 #[test]
-fn no_driver_off_linux() {
-    assert!(driver_for(Os::Windows).is_none());
-    assert!(driver_for(Os::Macos).is_none());
-    assert!(
-        NativeDrivers.driver_for(Os::Windows).is_none()
-            && NativeDrivers.driver_for(Os::Macos).is_none()
-    );
-    let r = Release::of(ALPHA, V12);
-    for (os, arch, key, running) in [
-        (
-            Os::Windows,
-            Arch::X86_64,
-            PlatformKey::WindowsX86_64,
-            "10.0",
-        ),
-        (Os::Macos, Arch::Aarch64, PlatformKey::DarwinAarch64, "15.0"),
-    ] {
-        let fx = Fx::new();
-        let doc = fx.doc_signed(&[(&r, fx.sign(&r))], |doc| {
-            add_platform(&fx, doc, ALPHA, key)
-        });
-        fx.serve(doc, &[&r]);
-        let facts = FakeHostFacts {
-            os_version: OsVersion::parse(running),
-            ..FakeHostFacts::default()
-        };
-        let seam = fx.seam();
-        let (code, counts) = refused_row(&fx, |io| {
-            let env = fx.env(os, arch, io, &NativeDrivers, &seam);
-            for_command(env, ALPHA, V12, "install", NOW, &facts, &mut |_| {})
-        });
-        assert_eq!(
-            (code, counts),
-            ("E_INSTALL_NO_DRIVER", (1, 0)),
-            "{os:?} install"
-        );
-        let (code, counts) = refused_row(&fx, |io| {
-            let env = fx.env(os, arch, io, &NativeDrivers, &seam);
-            remove_for_command(env, ALPHA, NOW, &mut |_| {})
-        });
-        assert_eq!(
-            (code, counts),
-            ("E_INSTALL_NO_DRIVER", (1, 0)),
-            "{os:?} remove"
-        );
+fn drivers_per_os() {
+    for os in [Os::Windows, Os::Macos, Os::Linux] {
+        let driver = driver_for(os).unwrap_or_else(|| panic!("{os:?} has a driver"));
+        assert_eq!(driver.os(), os);
+        assert_eq!(NativeDrivers.driver_for(os).map(|d| d.os()), Some(os));
     }
 }
 
@@ -3841,59 +3813,76 @@ fn native_fx(running: &str) -> (Fx, FakeHostFacts) {
     (fx, facts)
 }
 
-// Only the Windows and macOS no-driver tests call these two; on Linux they would be dead code.
+/// SC-024 (replaces Phase 9's `native_wiring_offers_nothing_*`): on the native OS `status::build` offers
+/// `["install"]`, and `for_command` over `native_env(…, &FakeElevation, &FakeHostIo)` reaches exactly one launch whose
+/// job holds one op of the OS's installer kind; the fake refuses, so nothing is installed and no job file is left.
 #[cfg(any(windows, target_os = "macos"))]
-fn native_commands(
-    fx: &Fx,
-    facts: &FakeHostFacts,
-) -> (
-    Result<ActionSummary, InstallError>,
-    Result<ActionSummary, InstallError>,
-) {
-    let seam = fx.seam();
-    let extract = fx.rig.extract_env(&FsExtractIo);
-    let mut env = native_env(fx.ctx(), &FsInstallIo, extract, fx.rig.download_env());
-    env.request_seam = Some(&seam);
-    let install = for_command(env, ALPHA, V12, "install", NOW, facts, &mut |_| {});
-    let remove = remove_for_command(env, ALPHA, NOW, &mut |_| {});
-    (install, remove)
-}
-
-#[cfg(any(windows, target_os = "macos"))]
-fn offers_nothing(running: &str) {
+fn native_wiring(running: &str, installer_op: &str) {
     let (fx, facts) = native_fx(running);
+    // `add_platform`'s installer is the one byte `x`, served where the feed's URL points.
+    let key = native_key();
+    let asset = format!("{ALPHA}-{V12}-{}", key.as_str());
+    fx.server.set_route(
+        &format!("/{}/v{V12}/{asset}", ALPHA.to_ascii_lowercase()),
+        Reply::Ranged {
+            body: b"x".to_vec(),
+        },
+    );
     let before = (
         snap(&fx.base.join("plugins")),
         snap(&fx.base.join("presets")),
     );
     let view = status::build(fx.ctx(), FetchMode::Normal, NOW, &facts);
-    assert!(!view.plugins.is_empty());
-    assert!(
-        view.plugins.iter().all(|p| p.actions.is_empty()),
-        "every card []"
+    assert_eq!(
+        card(&view, ALPHA).actions,
+        vec![status::ActionView::Install]
     );
-    let (install, remove) = native_commands(&fx, &facts);
-    assert_eq!(code_of(&install), "E_INSTALL_NO_DRIVER");
-    assert_eq!(code_of(&remove), "E_INSTALL_NO_DRIVER");
+    let elevation = FakeElevation::refusing();
+    let host_io = crate::test_support::FakeHostIo::default();
+    let seam = fx.seam();
+    let mut env = native_env(
+        fx.ctx(),
+        &FsInstallIo,
+        fx.rig.extract_env(&FsExtractIo),
+        fx.rig.download_env(),
+        &elevation,
+        &host_io,
+    );
+    env.request_seam = Some(&seam);
+    let install = for_command(env, ALPHA, V12, "install", NOW, &facts, &mut |_| {});
+    assert_eq!(code_of(&install), "E_INSTALL_REFUSED");
+    assert_eq!(elevation.launches().len(), 1, "exactly one launch");
+    let jobs = elevation.jobs();
+    let job: Value = serde_json::from_slice(&jobs[0]).expect("the job is JSON");
+    let ops = job["ops"].as_array().expect("ops");
+    assert_eq!(ops.len(), 1, "{job}");
+    assert_eq!(ops[0]["op"], json!(installer_op), "{job}");
     assert_eq!(
         (
             snap(&fx.base.join("plugins")),
             snap(&fx.base.join("presets"))
         ),
-        before
+        before,
+        "nothing installed"
     );
+    assert!(
+        jobs_left(&fx.state()).is_empty(),
+        "no job file left: {:?}",
+        jobs_left(&fx.state())
+    );
+    assert!(host_io.calls.borrow().is_empty(), "no host run");
 }
 
 #[cfg(windows)]
 #[test]
-fn native_wiring_offers_nothing_windows() {
-    offers_nothing("10.0");
+fn native_wiring_windows() {
+    native_wiring("10.0", "run_inno_installer");
 }
 
 #[cfg(target_os = "macos")]
 #[test]
-fn native_wiring_offers_nothing_macos() {
-    offers_nothing("15.0");
+fn native_wiring_macos() {
+    native_wiring("15.0", "run_pkg_installer");
 }
 
 #[cfg(target_os = "linux")]
@@ -3911,6 +3900,8 @@ fn native_wiring_installs_linux() {
         &FsInstallIo,
         fx.rig.extract_env(&FsExtractIo),
         fx.rig.download_env(),
+        &fx.rig.elevation,
+        &fx.rig.host_io,
     );
     env.request_seam = Some(&seam);
     for_command(env, ALPHA, V12, "install", NOW, &facts, &mut |_| {}).expect("installs");
@@ -4112,7 +4103,7 @@ fn commands_run_over_the_driver() {
     let update = for_command(env, ALPHA, V13, "update", NOW, &host(), &mut |_| {}).expect("update");
     assert_eq!(update.notice, Some(Notice::RescanDaw));
     let before = fx.counts();
-    let remove = remove_for_command(env, ALPHA, NOW, &mut |_| {}).expect("remove");
+    let remove = remove_for_command(env, ALPHA, NOW, &host(), &mut |_| {}).expect("remove");
     let after = fx.counts();
     assert_eq!(remove.notice, None);
     assert_eq!(remove.kept, kept, "the driver's kept");
@@ -4175,6 +4166,2067 @@ fn batch_runs_every_action() {
     );
 }
 
+// ---- Phase 10: the elevated drivers (plan §7.1; SC-003 core twin, SC-009 to SC-015, SC-022, SC-024, SC-028 to SC-030) -
+
+const GAMMA: &str = "Gamma";
+/// The test classifier's locked exit and log line (SC-003's twin; the production rule is M-1's).
+const TEST_LOCKED_EXIT: i32 = 99;
+const TEST_LOCKED_LINE: &str = "a plug-in file is in use (the test classifier's line)";
+
+/// `exit 0` installed; `TEST_LOCKED_EXIT` with `TEST_LOCKED_LINE` locked; anything else failed.
+fn locked_classify(code: i32, log: &[String]) -> InnoVerdict {
+    if code == 0 {
+        InnoVerdict::Installed
+    } else if code == TEST_LOCKED_EXIT && log.iter().any(|l| l.contains(TEST_LOCKED_LINE)) {
+        InnoVerdict::Locked
+    } else {
+        InnoVerdict::Failed
+    }
+}
+
+/// One OS the elevated drivers serve, with the architecture, feed key and running version its tests use.
+#[derive(Clone, Copy, Debug)]
+struct Plat {
+    os: Os,
+    arch: Arch,
+    key: PlatformKey,
+    running: &'static str,
+}
+
+const WIN: Plat = Plat {
+    os: Os::Windows,
+    arch: Arch::X86_64,
+    key: PlatformKey::WindowsX86_64,
+    running: "10.0.19045",
+};
+const MAC: Plat = Plat {
+    os: Os::Macos,
+    arch: Arch::Aarch64,
+    key: PlatformKey::DarwinAarch64,
+    running: "15.0",
+};
+
+impl Plat {
+    fn asset(self, name: &str, version: &str) -> String {
+        match self.os {
+            Os::Windows => format!("{name}-{version}-Windows-x64.exe"),
+            _ => format!("{name}-{version}-macOS.pkg"),
+        }
+    }
+
+    fn installer_op(self) -> &'static str {
+        match self.os {
+            Os::Windows => "run_inno_installer",
+            _ => "run_pkg_installer",
+        }
+    }
+
+    fn driver(self) -> &'static dyn InstallDriver {
+        match self.os {
+            Os::Windows => &WindowsDriver,
+            _ => &MacosDriver,
+        }
+    }
+
+    fn notice(self) -> Notice {
+        match self.os {
+            Os::Macos => Notice::RescanDawMacos,
+            _ => Notice::RescanDaw,
+        }
+    }
+}
+
+/// The installer bytes of one release (any bytes: the drivers never look inside).
+fn installer(name: &str, version: &str) -> Vec<u8> {
+    format!("the {name} {version} installer").into_bytes()
+}
+
+/// The file names left in `<state>/jobs/` (none when the folder is absent).
+fn jobs_left(state: &Path) -> Vec<String> {
+    match fs::read_dir(state.join(job::JOBS_DIR)) {
+        Ok(entries) => entries
+            .map(|e| {
+                e.expect("a jobs entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect(),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// The installer a real setup would leave for one plugin (SC-014, SC-030): its managed VST3 bundle with a
+/// `moduleinfo.json` and its record in the shared `LiveHostFacts`. `Clone + Send` so a scripted launch can run it.
+#[derive(Clone)]
+struct Machine {
+    os: Os,
+    live: Arc<LiveHostFacts>,
+    name: String,
+    /// The Windows uninstall key or the macOS pkg id: the record's key.
+    record_key: String,
+    install_dir: PathBuf,
+    bundle: PathBuf,
+}
+
+impl Machine {
+    fn place(&self, version: &str) {
+        let info = self
+            .bundle
+            .join("Contents")
+            .join("Resources")
+            .join("moduleinfo.json");
+        fs::create_dir_all(info.parent().expect("a parent")).expect("the bundle dirs");
+        fs::write(&info, moduleinfo_for(&self.name, version)).expect("the moduleinfo");
+    }
+
+    fn record(&self, version: &str) {
+        match self.os {
+            Os::Windows => {
+                let location = format!("{}{}", text(&self.install_dir), std::path::MAIN_SEPARATOR);
+                self.live
+                    .inno
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .insert(
+                        self.record_key.clone(),
+                        detect::RecordRead::Found(detect::InnoValues {
+                            display_version: Some(version.to_owned()),
+                            install_location: Some(location),
+                        }),
+                    );
+            }
+            _ => {
+                self.live
+                    .pkg
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .insert(
+                        self.record_key.clone(),
+                        detect::RecordRead::Found(detect::PkgOutputs {
+                            pkg_info: format!(
+                                "package-id: {}\nversion: {version}\n",
+                                self.record_key
+                            ),
+                            files: format!("{}.vst3\n", self.name),
+                        }),
+                    );
+            }
+        }
+    }
+
+    fn install(&self, version: &str) {
+        self.place(version);
+        self.record(version);
+    }
+
+    fn unplace(&self) {
+        let _ = fs::remove_dir_all(&self.bundle);
+    }
+
+    fn unrecord(&self) {
+        self.live
+            .inno
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&self.record_key);
+        self.live
+            .pkg
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&self.record_key);
+    }
+
+    fn uninstall(&self) {
+        self.unplace();
+        self.unrecord();
+    }
+}
+
+/// Phase 10's rig: `Fx` over `fresh_elevated_roots()` (state dir `<base>/<APP_IDENTIFIER>`, SI-21), one OS, and
+/// the `LiveHostFacts` every detection of the test reads.
+struct Ev {
+    fx: Fx,
+    plat: Plat,
+    live: Arc<LiveHostFacts>,
+}
+
+impl Ev {
+    fn new(plat: Plat) -> Ev {
+        let (td, roots) = fresh_elevated_roots();
+        Ev::over(Fx::over(td, roots, None), plat)
+    }
+
+    fn over(fx: Fx, plat: Plat) -> Ev {
+        Ev {
+            fx,
+            plat,
+            live: Arc::new(LiveHostFacts::new(OsVersion::parse(plat.running))),
+        }
+    }
+
+    /// A contract-valid feed of `releases` ((name, version)), one signed `plat` installer asset each.
+    fn doc_for(&self, plat: Plat, releases: &[(&str, &str)]) -> Vec<u8> {
+        let assets: Vec<String> = releases.iter().map(|&(n, v)| plat.asset(n, v)).collect();
+        let bodies: Vec<Vec<u8>> = releases.iter().map(|&(n, v)| installer(n, v)).collect();
+        let plugins: Vec<crate::test_support::TestPlugin<'_>> = releases
+            .iter()
+            .zip(&assets)
+            .zip(&bodies)
+            .map(
+                |((&(name, version), asset), body)| crate::test_support::TestPlugin {
+                    name,
+                    version,
+                    key: plat.key,
+                    asset,
+                    size: body.len() as u64,
+                    sha256: sha(body),
+                    signature: self.fx.signer.sign_c3(body, name, version, plat.key, asset),
+                    min_os: None,
+                },
+            )
+            .collect();
+        test_feed_document(&plugins)
+    }
+
+    /// Serves `releases` as the feed and each installer at the route its URL names.
+    fn offer(&self, releases: &[(&str, &str)]) {
+        self.fx.server.set_route(
+            FEED_ROUTE,
+            Reply::Ok {
+                body: self.doc_for(self.plat, releases),
+                content_type: "application/json",
+            },
+        );
+        for &(name, version) in releases {
+            let route = format!(
+                "/{}/v{version}/{}",
+                name.to_ascii_lowercase(),
+                self.plat.asset(name, version)
+            );
+            self.fx.server.set_route(
+                &route,
+                Reply::Ranged {
+                    body: installer(name, version),
+                },
+            );
+        }
+    }
+
+    /// Each release's entry and a real `VerifiedArtifact` at `<staging>/downloads/<sha hex>/<asset>` (SI-20), for
+    /// `plat`'s asset format.
+    fn staged_as(
+        &self,
+        plat: Plat,
+        releases: &[(&str, &str)],
+    ) -> Vec<(PluginEntry, VerifiedArtifact)> {
+        let doc = self.doc_for(plat, releases);
+        releases
+            .iter()
+            .map(|&(name, version)| {
+                let entry = Fx::entry_in(&doc, name);
+                let body = installer(name, version);
+                let platform = entry
+                    .release
+                    .as_ref()
+                    .and_then(|r| r.platforms.get(&plat.key))
+                    .expect("the asset")
+                    .clone();
+                let dir = self
+                    .fx
+                    .ctx()
+                    .roots
+                    .staging_dir()
+                    .join(DOWNLOADS_DIR)
+                    .join(hex_lower(&sha(&body)));
+                fs::create_dir_all(&dir).expect("the staged dir");
+                let path = dir.join(platform.asset_name.as_str());
+                fs::write(&path, &body).expect("stage the installer");
+                let expected = Expected {
+                    name: &entry.name,
+                    version: &entry.version_text,
+                    platform: plat.key,
+                    asset: &platform.asset_name,
+                    format: platform.format,
+                    size: platform.size,
+                    sha256: platform.sha256,
+                    signature: &platform.signature,
+                };
+                let artifact = verify_file(&path, &expected, &self.fx.signer.key())
+                    .expect("the staged installer verifies");
+                (entry, artifact)
+            })
+            .collect()
+    }
+
+    fn staged(&self, releases: &[(&str, &str)]) -> Vec<(PluginEntry, VerifiedArtifact)> {
+        self.staged_as(self.plat, releases)
+    }
+
+    fn entry(&self, name: &str, version: &str) -> PluginEntry {
+        Fx::entry_in(&self.doc_for(self.plat, &[(name, version)]), name)
+    }
+
+    /// The installer state of `entry`'s plugin on this OS (the managed VST3 copy detection reads).
+    fn machine(&self, entry: &PluginEntry) -> Machine {
+        let facts = entry
+            .release
+            .as_ref()
+            .and_then(|r| r.install.as_ref())
+            .expect("install facts");
+        let record_key = match self.plat.os {
+            Os::Windows => facts.windows_uninstall_key.as_ref(),
+            _ => facts.macos_pkg_id.as_ref(),
+        }
+        .expect("a record key")
+        .as_str()
+        .to_owned();
+        let global = self.fx.ctx().roots.vst3_global().to_path_buf();
+        let install_dir = global.join(platform::VENDOR_DIR).join(&entry.name);
+        let bundle = match self.plat.os {
+            Os::Windows => install_dir.join(facts.vst3_bundle.as_str()),
+            _ => global.join(facts.vst3_bundle.as_str()),
+        };
+        Machine {
+            os: self.plat.os,
+            live: Arc::clone(&self.live),
+            name: entry.name.clone(),
+            record_key,
+            install_dir,
+            bundle,
+        }
+    }
+
+    /// One run of this OS's driver.
+    fn drive(
+        &self,
+        elevation: &dyn Elevation,
+        io: &dyn InstallIo,
+        batch: Vec<Action>,
+        progress: &mut dyn FnMut(InstallProgress),
+    ) -> Vec<ActionResult> {
+        self.drive_with(elevation, io, &*self.live, batch, progress)
+    }
+
+    fn drive_with(
+        &self,
+        elevation: &dyn Elevation,
+        io: &dyn InstallIo,
+        host: &dyn HostFacts,
+        batch: Vec<Action>,
+        progress: &mut dyn FnMut(InstallProgress),
+    ) -> Vec<ActionResult> {
+        self.plat.driver().run(
+            InstallEnv {
+                ctx: self.fx.ctx(),
+                io,
+                extract: self.fx.rig.extract_env(&FsExtractIo),
+                progress,
+                elevation,
+                host_io: &self.fx.rig.host_io,
+                host,
+            },
+            batch,
+        )
+    }
+
+    /// The commands' `CommandEnv` for this OS with `elevation`, the rig's `host_io` and the fixture seam.
+    fn env<'a>(
+        &'a self,
+        io: &'a dyn InstallIo,
+        elevation: &'a dyn Elevation,
+        seam: &'a Seam<'a>,
+    ) -> CommandEnv<'a> {
+        let mut env = self.fx.rig.command_env_with(
+            self.plat.os,
+            self.plat.arch,
+            io,
+            &FsExtractIo,
+            &NativeDrivers,
+            (elevation, &self.fx.rig.host_io),
+        );
+        env.request_seam = Some(seam);
+        env
+    }
+
+    fn jobs_dir(&self) -> PathBuf {
+        self.fx.state().join(job::JOBS_DIR)
+    }
+
+    fn jobs_left(&self) -> Vec<String> {
+        jobs_left(&self.fx.state())
+    }
+
+    /// How often the rig's `host_io` ran `platform::KILLALL_ARGV` (FR-077).
+    fn killalls(&self) -> usize {
+        let want = format!("run {}", platform::KILLALL_ARGV.join(" "));
+        self.fx
+            .rig
+            .host_io
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .calls
+            .borrow()
+            .iter()
+            .filter(|c| **c == want)
+            .count()
+    }
+
+    /// Every `host_io` call of the rig.
+    fn host_calls(&self) -> Vec<String> {
+        self.fx
+            .rig
+            .host_io
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .calls
+            .borrow()
+            .clone()
+    }
+
+    fn view(&self) -> status::StatusView {
+        status::build_with_os(
+            self.plat.os,
+            self.plat.arch,
+            self.fx.ctx(),
+            FetchMode::Normal,
+            NOW,
+            &*self.live,
+            &FsInstallIo,
+        )
+    }
+}
+
+/// The result file a helper would write for the job at `job` (FR-003): `build(job path, job bytes, job ops)`.
+type Build = fn(&Path, &[u8], &[Value]) -> Value;
+
+/// A scripted launch: `outcome`, and the result `build` makes (written by `FakeElevation` beside the job).
+fn scripted(outcome: LaunchOutcome, build: Build) -> Scripted {
+    Scripted {
+        outcome,
+        result: Some(Box::new(move |job: &Path| {
+            let bytes = fs::read(job).expect("the job");
+            let doc: Value = serde_json::from_slice(&bytes).expect("the job is JSON");
+            let ops = doc["ops"].as_array().cloned().unwrap_or_default();
+            Some(serde_json::to_vec(&build(job, &bytes, &ops)).expect("JSON"))
+        })),
+    }
+}
+
+/// One op entry per job op, all with `outcome` / `code` / `exit_code`; the log tail names the job path (FR-114: it
+/// may reach `debug!`, never `info!`).
+fn entries(
+    job: &Path,
+    ops: &[Value],
+    outcome: &str,
+    code: Option<&str>,
+    exit_code: Option<i32>,
+) -> Vec<Value> {
+    ops.iter()
+        .enumerate()
+        .map(|(i, op)| {
+            json!({
+                "index": i, "op": op["op"], "outcome": outcome, "code": code, "exit_code": exit_code,
+                "seconds": 1.5, "log_tail": [format!("log of {}", text(job))],
+            })
+        })
+        .collect()
+}
+
+fn result_doc(bytes: &[u8], job_error: Option<&str>, ops: Vec<Value>) -> Value {
+    json!({ "result_version": 1, "job_sha256": hex_lower(&sha(bytes)), "job_error": job_error, "ops": ops })
+}
+
+fn all_done(job: &Path, bytes: &[u8], ops: &[Value]) -> Value {
+    result_doc(bytes, None, entries(job, ops, "done", None, None))
+}
+
+/// `Exited(0)` with every op `done`, after `effect` changed the machine (what the installers did).
+fn done_after(effect: impl Fn() + Send + 'static) -> Scripted {
+    Scripted {
+        outcome: LaunchOutcome::Exited(0),
+        result: Some(Box::new(move |job: &Path| {
+            effect();
+            let bytes = fs::read(job).expect("the job");
+            let doc: Value = serde_json::from_slice(&bytes).expect("the job is JSON");
+            let ops = doc["ops"].as_array().cloned().unwrap_or_default();
+            Some(serde_json::to_vec(&all_done(job, &bytes, &ops)).expect("JSON"))
+        })),
+    }
+}
+
+/// An `Elevation` that records each launch into the same log as the progress events (SI-24).
+struct EventElevation<'a> {
+    inner: FakeElevation,
+    log: &'a Mutex<Vec<&'static str>>,
+}
+
+impl Elevation for EventElevation<'_> {
+    fn helper(&self) -> Option<&Path> {
+        self.inner.helper()
+    }
+
+    fn launch(&self, command: &ElevatedCommand, timeout: Duration) -> LaunchOutcome {
+        self.log
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push("launch");
+        self.inner.launch(command, timeout)
+    }
+
+    fn guard(&self) -> &ElevationGuard {
+        self.inner.guard()
+    }
+}
+
+fn event_name(e: &InstallProgress) -> &'static str {
+    match e {
+        InstallProgress::Download { .. } => "download",
+        InstallProgress::Elevating => "elevating",
+        _ => "other",
+    }
+}
+
+/// `HostFacts` over a `LiveHostFacts` that counts its record reads (FR-076a: a `locked` action is not re-detected).
+struct CountingHost<'a> {
+    inner: &'a LiveHostFacts,
+    reads: AtomicUsize,
+}
+
+impl HostFacts for CountingHost<'_> {
+    fn os_version(&self) -> Option<OsVersion> {
+        self.inner.os_version()
+    }
+
+    fn inno_values(&self, key: &feed::PlainName) -> detect::RecordRead<detect::InnoValues> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        self.inner.inno_values(key)
+    }
+
+    fn pkg_outputs(&self, pkg_id: &feed::PlainName) -> detect::RecordRead<detect::PkgOutputs> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        self.inner.pkg_outputs(pkg_id)
+    }
+}
+
+fn outcome_of(results: &[ActionResult]) -> Vec<Result<&'static str, &'static str>> {
+    results
+        .iter()
+        .map(|r| match &r.outcome {
+            Ok(_) => Ok("ok"),
+            Err(e) => Err(e.code()),
+        })
+        .collect()
+}
+
+/// The canonical text of `path` (the form the job names, FR-073).
+fn canonical_text(path: &Path) -> String {
+    text(&fs::canonicalize(path).expect("canonicalize"))
+}
+
+/// A detection over the plug-in roots (as the gate's callers make it).
+fn detection(os: Os, ctx: &AppContext, entry: &PluginEntry, host: &dyn HostFacts) -> Detection {
+    let bundle = entry
+        .release
+        .as_ref()
+        .and_then(|r| r.install.as_ref())
+        .map(|f| f.vst3_bundle.as_str().to_owned())
+        .unwrap_or_default();
+    let listing = Listing::scan(
+        ctx.roots.plugin_roots(),
+        &[bundle.as_str()],
+        ListingLimits::PRODUCTION,
+    );
+    detect::detect_plugin(os, ctx, entry, host, &listing)
+}
+
+fn remove_basis_of(gate: ActionGate) -> RemoveBasis {
+    match gate {
+        ActionGate::Open { remove, .. } => remove,
+        ActionGate::Blocked(e) => panic!("blocked: {e}"),
+    }
+}
+
+#[test]
+fn new_error_texts() {
+    // TA-5: T001 made these real, so this row passes on its first run; each sentence is §3.2's / FR-133's literal.
+    for (error, want) in [
+        (
+            InstallError::Refused,
+            "E_INSTALL_REFUSED: Administrator permission was not given; nothing was changed.",
+        ),
+        (
+            InstallError::Locked,
+            "E_INSTALL_LOCKED: A plug-in file is in use. Close your DAW and retry.",
+        ),
+        (
+            InstallError::ElevationBusy { stale: false },
+            "E_INSTALL_ELEVATION_BUSY: Another install is running. Retry when it finishes.",
+        ),
+        (
+            InstallError::ElevationBusy { stale: true },
+            "E_INSTALL_ELEVATION_BUSY: An installer is still running. Wait for it to finish, then retry.",
+        ),
+        (
+            InstallError::NotApplied,
+            "E_INSTALL_NOT_APPLIED: The installer finished but the change was not applied. Check the installed version and retry.",
+        ),
+        (
+            InstallError::RemoveElsewhere,
+            "E_INSTALL_REMOVE_ELSEWHERE: installed outside the standard folder; uninstall it from Windows Settings",
+        ),
+        (
+            InstallError::HelperMissing,
+            "E_INSTALL_HELPER_MISSING: the elevated helper is not installed beside the manager",
+        ),
+        (
+            InstallError::Helper {
+                code: "E_HELPER_HASH",
+            },
+            "E_INSTALL_HELPER: the helper reported E_HELPER_HASH",
+        ),
+    ] {
+        assert_eq!(error.to_string(), want);
+        assert_eq!(Some(error.code()), want.split(':').next());
+    }
+    // §3.2 gives these three no sentence: the code, ": ", and the value they carry.
+    for (error, code, carried) in [
+        (InstallError::NoResult, "E_INSTALL_NO_RESULT", None),
+        (
+            InstallError::InstallerFailed { exit_code: 5 },
+            "E_INSTALL_INSTALLER_FAILED",
+            Some("5"),
+        ),
+        (
+            InstallError::Elevation {
+                code: "E_ELEVATION_SHELLEXECUTE",
+            },
+            "E_INSTALL_ELEVATION",
+            Some("E_ELEVATION_SHELLEXECUTE"),
+        ),
+    ] {
+        let shown = error.to_string();
+        assert_eq!(error.code(), code);
+        assert!(shown.starts_with(&format!("{code}: ")), "{shown}");
+        assert!(shown.len() > code.len() + 2, "{shown}");
+        if let Some(value) = carried {
+            assert!(shown.contains(value), "{shown}");
+        }
+    }
+    assert_eq!(Step::JobWritten.as_str(), "job_written");
+    assert_eq!(Step::JobRemoved.as_str(), "job_removed");
+}
+
+#[test]
+fn osascript_outcome_parses() {
+    assert_eq!(osascript_outcome(Some(0), ""), LaunchOutcome::Exited(0));
+    assert_eq!(
+        osascript_outcome(Some(1), "0:180: execution error: User canceled. (-128)\n"),
+        LaunchOutcome::Refused
+    );
+    assert_eq!(
+        osascript_outcome(Some(1), "0:180: execution error: the helper failed (3)\n"),
+        LaunchOutcome::Exited(3)
+    );
+    assert_eq!(
+        osascript_outcome(Some(1), "0:180: execution error: (4)"),
+        LaunchOutcome::Exited(4)
+    );
+    for garbage in [
+        "",
+        "garbage",
+        "osascript: no such file",
+        "an error (x3)",
+        "an error (-60005)\n",
+        "()",
+    ] {
+        assert_eq!(
+            osascript_outcome(Some(1), garbage),
+            LaunchOutcome::Failed("E_ELEVATION_OSASCRIPT"),
+            "{garbage:?}"
+        );
+    }
+    assert_eq!(
+        osascript_outcome(None, ""),
+        LaunchOutcome::Failed("E_ELEVATION_OSASCRIPT")
+    );
+}
+
+#[test]
+fn windows_parameters_quote() {
+    let args = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<String>>();
+    for (given, want) in [
+        (
+            args(&[
+                "--job",
+                r"D:\Temp dir\jobs\job-1.json",
+                "--job-sha256",
+                "ab",
+            ]),
+            r#"--job "D:\Temp dir\jobs\job-1.json" --job-sha256 ab"#,
+        ),
+        (args(&[r"D:\plain\path"]), r"D:\plain\path"),
+        (args(&[r"D:\ends\"]), r"D:\ends\"),
+        (args(&[r"D:\with space\"]), r#""D:\with space\\""#),
+        (args(&[r"D:\with space\\"]), r#""D:\with space\\\\""#),
+        (
+            args(&[r"\\?\D:\John Smith\state\jobs\job-2.json"]),
+            r#""\\?\D:\John Smith\state\jobs\job-2.json""#,
+        ),
+        (
+            args(&[r"\\?\D:\nospace\job.json"]),
+            r"\\?\D:\nospace\job.json",
+        ),
+        (args(&["a\tb"]), "\"a\tb\""),
+        (args(&[""]), "\"\""),
+    ] {
+        assert_eq!(windows_parameters(&given).as_deref(), Ok(want), "{given:?}");
+    }
+    for refused in [args(&["--job", "a\"b"]), args(&["nul\0here"])] {
+        assert_eq!(
+            windows_parameters(&refused),
+            Err(InstallError::Elevation {
+                code: "E_ELEVATION_ARGS"
+            }),
+            "{refused:?}"
+        );
+    }
+}
+
+#[test]
+fn helper_resolved_beside_exe() {
+    let (td, _roots) = fresh_temp_roots();
+    for (os, helper, other) in [
+        (
+            Os::Windows,
+            "krate-manager-helper.exe",
+            "krate-manager-helper",
+        ),
+        (
+            Os::Macos,
+            "krate-manager-helper",
+            "krate-manager-helper.exe",
+        ),
+        (
+            Os::Linux,
+            "krate-manager-helper",
+            "krate-manager-helper.exe",
+        ),
+    ] {
+        let dir = td.path().join(format!("{os:?}"));
+        fs::create_dir_all(&dir).expect("the exe dir");
+        let exe = dir.join(if os == Os::Windows {
+            "krate-manager.exe"
+        } else {
+            "krate-manager"
+        });
+        assert_eq!(
+            helper_beside(os, Some(&exe), &FsInstallIo),
+            None,
+            "{os:?} absent"
+        );
+        // The other OS's spelling never counts.
+        fs::write(dir.join(other), b"helper").expect("the other spelling");
+        assert_eq!(
+            helper_beside(os, Some(&exe), &FsInstallIo),
+            None,
+            "{os:?} other"
+        );
+        // A directory of the helper's name is not the helper.
+        fs::create_dir(dir.join(helper)).expect("a directory");
+        assert_eq!(
+            helper_beside(os, Some(&exe), &FsInstallIo),
+            None,
+            "{os:?} dir"
+        );
+        fs::remove_dir(dir.join(helper)).expect("remove the directory");
+        fs::write(dir.join(helper), b"helper").expect("the helper");
+        let want = (os != Os::Linux).then(|| dir.join(helper));
+        assert_eq!(helper_beside(os, Some(&exe), &FsInstallIo), want, "{os:?}");
+        assert_eq!(helper_beside(os, None, &FsInstallIo), None, "{os:?} no exe");
+        // A bare name has an empty parent: never the CWD or PATH.
+        assert_eq!(
+            helper_beside(os, Some(Path::new("krate-manager")), &FsInstallIo),
+            None,
+            "{os:?} bare"
+        );
+    }
+}
+
+#[test]
+fn gate_remove_basis() {
+    let ev = Ev::new(WIN);
+    let ctx = ev.fx.ctx();
+    let entry = ev.entry(ALPHA, V12);
+    let key = entry
+        .release
+        .as_ref()
+        .and_then(|r| r.install.as_ref())
+        .and_then(|f| f.windows_uninstall_key.as_ref())
+        .expect("the uninstall key")
+        .as_str()
+        .to_owned();
+    let inno = |location: Option<String>| FakeHostFacts {
+        os_version: OsVersion::parse(WIN.running),
+        inno: BTreeMap::from([(
+            key.clone(),
+            detect::RecordRead::Found(detect::InnoValues {
+                display_version: Some(V12.to_owned()),
+                install_location: location,
+            }),
+        )]),
+        ..FakeHostFacts::default()
+    };
+    let basis = |os: Os, entry: &PluginEntry, host: &dyn HostFacts| {
+        remove_basis_of(action_gate(
+            os,
+            ctx,
+            &FsInstallIo,
+            entry,
+            &detection(os, ctx, entry, host),
+        ))
+    };
+    // Windows: the standard folder (with Inno's trailing separator) → Inno, the key up to its first `}`.
+    let vendor = ctx
+        .roots
+        .vst3_global()
+        .join(platform::VENDOR_DIR)
+        .join(ALPHA);
+    let standard = inno(Some(format!(
+        "{}{}",
+        text(&vendor),
+        std::path::MAIN_SEPARATOR
+    )));
+    let app_id = key[..=key.find('}').expect("a GUID")].to_owned();
+    assert_eq!(format!("{app_id}_is1"), key);
+    assert_eq!(
+        basis(Os::Windows, &entry, &standard),
+        RemoveBasis::Inno { app_id }
+    );
+    // A location elsewhere inside the sandbox → OutsideRoot; no location → NotManaged; no record → NotManaged.
+    let elsewhere = inno(Some(text(&ev.fx.base.join("elsewhere").join(ALPHA))));
+    assert_eq!(
+        basis(Os::Windows, &entry, &elsewhere),
+        RemoveBasis::OutsideRoot
+    );
+    assert_eq!(
+        basis(Os::Windows, &entry, &inno(None)),
+        RemoveBasis::NotManaged
+    );
+    assert_eq!(basis(Os::Windows, &entry, &host()), RemoveBasis::NotManaged);
+    // macOS: a pkg record → Pkg; none → NotManaged.
+    let mac = Ev::new(MAC);
+    let mac_entry = mac.entry(ALPHA, V12);
+    let pkg_id = format!("com.krateaudio.{}", ALPHA.to_ascii_lowercase());
+    let receipt = FakeHostFacts {
+        os_version: OsVersion::parse(MAC.running),
+        pkg: BTreeMap::from([(
+            pkg_id.clone(),
+            detect::RecordRead::Found(detect::PkgOutputs {
+                pkg_info: format!("package-id: {pkg_id}\nversion: {V12}\n"),
+                files: format!("{ALPHA}.vst3\n"),
+            }),
+        )]),
+        ..FakeHostFacts::default()
+    };
+    let mac_ctx = mac.fx.ctx();
+    let mac_basis = |host: &dyn HostFacts| {
+        remove_basis_of(action_gate(
+            Os::Macos,
+            mac_ctx,
+            &FsInstallIo,
+            &mac_entry,
+            &detection(Os::Macos, mac_ctx, &mac_entry, host),
+        ))
+    };
+    assert_eq!(mac_basis(&receipt), RemoveBasis::Pkg { pkg_id });
+    assert_eq!(mac_basis(&host()), RemoveBasis::NotManaged);
+    // Linux unchanged: Manifest iff a manifest.
+    let fx = Fx::new();
+    let r = Release::of(ALPHA, V12);
+    fx.offer(&[&r]);
+    let (linux_entry, _) = fx.artifact(&r);
+    let linux_basis = || {
+        remove_basis_of(action_gate(
+            Os::Linux,
+            fx.ctx(),
+            &FsInstallIo,
+            &linux_entry,
+            &detection(Os::Linux, fx.ctx(), &linux_entry, &host()),
+        ))
+    };
+    assert_eq!(linux_basis(), RemoveBasis::NotManaged);
+    fx.install(ALPHA, V12);
+    assert_eq!(linux_basis(), RemoveBasis::Manifest);
+}
+
+#[test]
+fn remove_elsewhere_refused() {
+    let ev = Ev::new(WIN);
+    ev.offer(&[(ALPHA, V12)]);
+    let entry = ev.entry(ALPHA, V12);
+    let elsewhere = ev.machine(&entry);
+    let moved = Machine {
+        install_dir: ev.fx.base.join("elsewhere").join(ALPHA),
+        bundle: ev
+            .fx
+            .base
+            .join("elsewhere")
+            .join(ALPHA)
+            .join(format!("{ALPHA}.vst3")),
+        ..elsewhere
+    };
+    moved.install(V12);
+    let elevation = FakeElevation::refusing();
+    let seam = ev.fx.seam();
+    let (code, counts) = refused_row(&ev.fx, |io| {
+        remove_for_command(
+            ev.env(io, &elevation, &seam),
+            ALPHA,
+            NOW,
+            &*ev.live,
+            &mut |_| {},
+        )
+    });
+    assert_eq!((code, counts), ("E_INSTALL_REMOVE_ELSEWHERE", (1, 0)));
+    // The driver refuses it the same way, before any job.
+    let rec = RecordingInstallIo::fail_closed();
+    let results = ev.drive(&elevation, &rec, vec![uninstall_of(&entry)], &mut |_| {});
+    assert_eq!(
+        outcome_of(&results),
+        vec![Err("E_INSTALL_REMOVE_ELSEWHERE")]
+    );
+    assert_eq!(rec.mutating_calls(), 0);
+    assert!(elevation.launches().is_empty(), "no launch");
+}
+
+#[test]
+#[should_panic(expected = "outside the test sandbox")]
+fn record_outside_sandbox_panics() {
+    let ev = Ev::new(WIN);
+    ev.offer(&[(ALPHA, V12)]);
+    let entry = ev.entry(ALPHA, V12);
+    // A second, unrelated temp dir: never a real system path.
+    let (other, _other_roots) = fresh_temp_roots();
+    let foreign = Machine {
+        install_dir: other.path().join(ALPHA),
+        ..ev.machine(&entry)
+    };
+    foreign.record(V12);
+    let elevation = FakeElevation::refusing();
+    let seam = ev.fx.seam();
+    let rec = RecordingInstallIo::fail_closed();
+    let _ = remove_for_command(
+        ev.env(&rec, &elevation, &seam),
+        ALPHA,
+        NOW,
+        &*ev.live,
+        &mut |_| {},
+    );
+}
+
+#[test]
+fn pre_job_refusals() {
+    for (plat, foreign) in [(WIN, MAC), (MAC, WIN)] {
+        let ev = Ev::new(plat);
+        let wrong = ev.staged_as(foreign, &[(ALPHA, V12)]).remove(0);
+        let good = ev.staged(&[(BETA, V12)]).remove(0);
+        let tar = ev.fx.artifact(&Release::of(GAMMA, V12));
+        // The right format, verified outside staging (SI-13).
+        let entry = ev.entry(ALPHA, V12);
+        let asset = plat.asset(ALPHA, V12);
+        let body = installer(ALPHA, V12);
+        let signature = ev.fx.signer.sign_c3(&body, ALPHA, V12, plat.key, &asset);
+        let outside = ev.fx.verified(&entry, plat.key, &asset, &body, &signature);
+        assert!(!outside.path().starts_with(ev.fx.ctx().roots.staging_dir()));
+        let elevation = FakeElevation::refusing();
+        let rec = RecordingInstallIo::fail_closed();
+        let results = ev.drive(
+            &elevation,
+            &rec,
+            vec![
+                install_of(&wrong.0, &wrong.1),
+                install_of(&tar.0, &tar.1),
+                update_of(&entry, &outside),
+            ],
+            &mut |_| {},
+        );
+        assert_eq!(
+            outcome_of(&results),
+            vec![
+                Err("E_INSTALL_FORMAT"),
+                Err("E_INSTALL_FORMAT"),
+                Err("E_INSTALL_PATH")
+            ],
+            "{plat:?}"
+        );
+        assert_eq!(rec.mutating_calls(), 0, "{plat:?}: {:?}", rec.calls());
+        assert!(elevation.launches().is_empty(), "{plat:?}: no launch");
+        // In a mixed batch each refused action keeps its own place; the job holds the one good op.
+        let elevation = FakeElevation::refusing();
+        let beta = ev.machine(&good.0);
+        elevation.push(done_after(move || beta.install(V12)));
+        let results = ev.drive(
+            &elevation,
+            &FsInstallIo,
+            vec![
+                install_of(&wrong.0, &wrong.1),
+                install_of(&good.0, &good.1),
+                install_of(&entry, &outside),
+            ],
+            &mut |_| {},
+        );
+        assert_eq!(
+            outcome_of(&results),
+            vec![Err("E_INSTALL_FORMAT"), Ok("ok"), Err("E_INSTALL_PATH")],
+            "{plat:?}"
+        );
+        let names: Vec<&str> = results.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, vec![ALPHA, BETA, ALPHA]);
+        let job: Value = serde_json::from_slice(&elevation.jobs()[0]).expect("job JSON");
+        assert_eq!(job["ops"].as_array().map(Vec::len), Some(1), "{job}");
+    }
+}
+
+#[test]
+fn one_launch_per_batch() {
+    for plat in [WIN, MAC] {
+        let ev = Ev::new(plat);
+        let staged = ev.staged(&[(ALPHA, V12), (BETA, V13), (GAMMA, V12)]);
+        let ((ea, aa), (eb, ab), (ec, _)) = (&staged[0], &staged[1], &staged[2]);
+        ev.machine(ec).install(V12);
+        let elevation = FakeElevation::refusing();
+        let results = ev.drive(
+            &elevation,
+            &FsInstallIo,
+            vec![install_of(ea, aa), update_of(eb, ab), uninstall_of(ec)],
+            &mut |_| {},
+        );
+        assert_eq!(
+            outcome_of(&results),
+            vec![Err("E_INSTALL_REFUSED"); 3],
+            "{plat:?}"
+        );
+        assert_eq!(elevation.launches().len(), 1, "{plat:?}: one launch");
+        let bytes = elevation.jobs().remove(0);
+        let facts = ec
+            .release
+            .as_ref()
+            .and_then(|r| r.install.as_ref())
+            .expect("facts");
+        let uninstall = match plat.os {
+            Os::Windows => {
+                let key = facts.windows_uninstall_key.as_ref().expect("key").as_str();
+                json!({ "op": "run_inno_uninstaller", "app_id": &key[..=key.find('}').expect("}")] })
+            }
+            _ => json!({
+                "op": "uninstall_pkg",
+                "pkg_id": facts.macos_pkg_id.as_ref().expect("pkg id").as_str(),
+            }),
+        };
+        let installer_entry = |a: &VerifiedArtifact| {
+            json!({
+                "op": plat.installer_op(),
+                "file": canonical_text(a.path()),
+                "sha256": hex_lower(a.sha256()),
+            })
+        };
+        let job: Value = serde_json::from_slice(&bytes).expect("job JSON");
+        assert_eq!(
+            job,
+            json!({ "job_version": 1, "ops": [installer_entry(aa), installer_entry(ab), uninstall] }),
+            "{plat:?}"
+        );
+        // FR-001's key order, compact.
+        let shown = String::from_utf8(bytes).expect("UTF-8");
+        assert!(
+            shown.starts_with(&format!(
+                "{{\"job_version\":1,\"ops\":[{{\"op\":\"{}\",\"file\":",
+                plat.installer_op()
+            )),
+            "{shown}"
+        );
+        // A batch whose every action is refused before the job: no launch, nothing written.
+        let elevation = FakeElevation::refusing();
+        let rec = RecordingInstallIo::fail_closed();
+        let tar = ev.fx.artifact(&Release::of(ALPHA, V12));
+        let results = ev.drive(
+            &elevation,
+            &rec,
+            vec![uninstall_of(eb), install_of(&tar.0, &tar.1)],
+            &mut |_| {},
+        );
+        assert_eq!(
+            outcome_of(&results),
+            vec![Err("E_INSTALL_NOT_MANAGED"), Err("E_INSTALL_FORMAT")],
+            "{plat:?}"
+        );
+        assert!(elevation.launches().is_empty(), "{plat:?}");
+        assert_eq!(rec.mutating_calls(), 0, "{plat:?}");
+    }
+}
+
+#[test]
+fn elevating_event_order() {
+    for plat in [WIN, MAC] {
+        // (1) Through the command: every Download event, then one Elevating, then the launch.
+        let ev = Ev::new(plat);
+        ev.offer(&[(ALPHA, V12)]);
+        let log = Mutex::new(Vec::new());
+        let elevation = EventElevation {
+            inner: FakeElevation::refusing(),
+            log: &log,
+        };
+        let seam = ev.fx.seam();
+        let result = for_command(
+            ev.env(&FsInstallIo, &elevation, &seam),
+            ALPHA,
+            V12,
+            "install",
+            NOW,
+            &*ev.live,
+            &mut |e| {
+                log.lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push(event_name(&e))
+            },
+        );
+        assert_eq!(code_of(&result), "E_INSTALL_REFUSED");
+        let events = log.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        let elevating = events
+            .iter()
+            .position(|e| *e == "elevating")
+            .unwrap_or_else(|| panic!("{plat:?}: no Elevating in {events:?}"));
+        assert!(events[..elevating].contains(&"download"), "{events:?}");
+        assert!(
+            events[..elevating].iter().all(|e| *e == "download"),
+            "{events:?}"
+        );
+        assert_eq!(events[elevating + 1..], ["launch"], "{plat:?}: {events:?}");
+        // (2) The driver over two pre-verified installs: one Elevating, before the one launch.
+        let log = Mutex::new(Vec::new());
+        let elevation = EventElevation {
+            inner: FakeElevation::refusing(),
+            log: &log,
+        };
+        let staged = ev.staged(&[(ALPHA, V12), (BETA, V12)]);
+        ev.drive(
+            &elevation,
+            &FsInstallIo,
+            staged.iter().map(|(e, a)| install_of(e, a)).collect(),
+            &mut |e| {
+                log.lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push(event_name(&e))
+            },
+        );
+        assert_eq!(
+            *log.lock().unwrap_or_else(PoisonError::into_inner),
+            ["elevating", "launch"],
+            "{plat:?}"
+        );
+        // An uninstall-only batch: one Elevating, no Download.
+        let log = Mutex::new(Vec::new());
+        let elevation = EventElevation {
+            inner: FakeElevation::refusing(),
+            log: &log,
+        };
+        ev.machine(&staged[0].0).install(V12);
+        ev.drive(
+            &elevation,
+            &FsInstallIo,
+            vec![uninstall_of(&staged[0].0)],
+            &mut |e| {
+                log.lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push(event_name(&e))
+            },
+        );
+        assert_eq!(
+            *log.lock().unwrap_or_else(PoisonError::into_inner),
+            ["elevating", "launch"],
+            "{plat:?}"
+        );
+    }
+}
+
+/// One `Install Alpha 1.2.0` through `plat`'s driver with `elevation`; its one result.
+fn one_install(
+    ev: &Ev,
+    elevation: &dyn Elevation,
+    io: &dyn InstallIo,
+) -> Result<Outcome, InstallError> {
+    let (entry, artifact) = ev.staged(&[(ALPHA, V12)]).remove(0);
+    let mut results = ev.drive(
+        elevation,
+        io,
+        vec![install_of(&entry, &artifact)],
+        &mut |_| {},
+    );
+    assert_eq!(results.len(), 1);
+    results.remove(0).outcome
+}
+
+#[test]
+fn launch_outcomes_map() {
+    install_capture();
+    let _ = take_mine();
+    for plat in [WIN, MAC] {
+        let ev = Ev::new(plat);
+        let row = |scripted: Option<Scripted>, otherwise: LaunchOutcome| {
+            let elevation = FakeElevation::returning(otherwise);
+            if let Some(s) = scripted {
+                elevation.push(s);
+            }
+            let r = one_install(&ev, &elevation, &FsInstallIo);
+            assert_eq!(elevation.launches().len(), 1, "{plat:?}: one launch");
+            r
+        };
+        let none = |outcome| Scripted {
+            outcome,
+            result: None,
+        };
+        let shell = LaunchOutcome::Failed("E_ELEVATION_SHELLEXECUTE");
+        assert_eq!(
+            row(None, shell),
+            Err(InstallError::Elevation {
+                code: "E_ELEVATION_SHELLEXECUTE"
+            })
+        );
+        assert_eq!(
+            row(None, LaunchOutcome::TimedOut),
+            Err(InstallError::NoResult)
+        );
+        // The timed-out job stays for its late result (FR-078a, `timed_out_holds_guard`); clear it for the rows
+        // below, as the next start's recovery would.
+        let stale = ev.jobs_left();
+        assert_eq!(stale.len(), 1, "{plat:?}: {stale:?}");
+        for name in stale {
+            fs::remove_file(ev.jobs_dir().join(name)).expect("clear the stale job");
+        }
+        assert_eq!(
+            row(Some(none(LaunchOutcome::Exited(0))), shell),
+            Err(InstallError::NoResult),
+            "Exited(0), no result file"
+        );
+        let other_hash: Build = |job, _bytes, ops| {
+            result_doc(b"another job", None, entries(job, ops, "done", None, None))
+        };
+        assert_eq!(
+            row(Some(scripted(LaunchOutcome::Exited(0), other_hash)), shell),
+            Err(InstallError::NoResult),
+            "another job's hash"
+        );
+        let one_fewer: Build = |_job, bytes, _ops| result_doc(bytes, None, Vec::new());
+        assert_eq!(
+            row(Some(scripted(LaunchOutcome::Exited(0), one_fewer)), shell),
+            Err(InstallError::NoResult),
+            "one op fewer"
+        );
+        let job_error: Build =
+            |_job, bytes, _ops| result_doc(bytes, Some("E_HELPER_JOB_HASH"), Vec::new());
+        assert_eq!(
+            row(Some(scripted(LaunchOutcome::Exited(3), job_error)), shell),
+            Err(InstallError::Helper {
+                code: "E_HELPER_JOB_HASH"
+            })
+        );
+        assert_eq!(
+            row(Some(scripted(LaunchOutcome::Exited(4), all_done)), shell),
+            Err(InstallError::NoResult),
+            "exit 4"
+        );
+        let exit5: Build = |job, bytes, ops| {
+            result_doc(
+                bytes,
+                None,
+                entries(job, ops, "failed", Some("E_HELPER_EXIT"), Some(5)),
+            )
+        };
+        assert_eq!(
+            row(Some(scripted(LaunchOutcome::Exited(0), exit5)), shell),
+            Err(InstallError::InstallerFailed { exit_code: 5 })
+        );
+        let timeout: Build = |job, bytes, ops| {
+            result_doc(
+                bytes,
+                None,
+                entries(job, ops, "failed", Some("E_HELPER_TIMEOUT"), None),
+            )
+        };
+        assert_eq!(
+            row(Some(scripted(LaunchOutcome::Exited(0), timeout)), shell),
+            Err(InstallError::Helper {
+                code: "E_HELPER_TIMEOUT"
+            })
+        );
+        let not_run: Build = |job, bytes, ops| {
+            result_doc(
+                bytes,
+                None,
+                entries(job, ops, "not_run", Some("E_HELPER_AFTER_TIMEOUT"), None),
+            )
+        };
+        assert_eq!(
+            row(Some(scripted(LaunchOutcome::Exited(0), not_run)), shell),
+            Err(InstallError::Helper {
+                code: "E_HELPER_AFTER_TIMEOUT"
+            })
+        );
+        let locked: Build = |job, bytes, ops| {
+            result_doc(
+                bytes,
+                None,
+                entries(job, ops, "locked", Some("E_HELPER_LOCKED"), None),
+            )
+        };
+        assert_eq!(
+            row(Some(scripted(LaunchOutcome::Exited(0), locked)), shell),
+            Err(InstallError::Locked)
+        );
+        let unknown: Build = |job, bytes, ops| {
+            result_doc(
+                bytes,
+                None,
+                entries(job, ops, "failed", Some("E_HELPER_INVENTED"), None),
+            )
+        };
+        assert_eq!(
+            row(Some(scripted(LaunchOutcome::Exited(0), unknown)), shell),
+            Err(InstallError::NoResult),
+            "a code outside the catalogue"
+        );
+        // No helper beside the manager: nothing written, no launch.
+        let missing = FakeElevation::missing();
+        let rec = RecordingInstallIo::fail_closed();
+        assert_eq!(
+            one_install(&ev, &missing, &rec),
+            Err(InstallError::HelperMissing)
+        );
+        assert_eq!(rec.mutating_calls(), 0);
+        assert!(missing.launches().is_empty());
+        // A second batch while the first holds the guard (on its Elevating event): refused, zero writes, never queued.
+        let elevation = FakeElevation::refusing();
+        let (entry, artifact) = ev.staged(&[(ALPHA, V12)]).remove(0);
+        let rec = RecordingInstallIo::fail_closed();
+        let mut second = None;
+        ev.drive(
+            &elevation,
+            &FsInstallIo,
+            vec![install_of(&entry, &artifact)],
+            &mut |e| {
+                if e == InstallProgress::Elevating {
+                    second = Some(ev.drive(
+                        &elevation,
+                        &rec,
+                        vec![install_of(&entry, &artifact)],
+                        &mut |_| {},
+                    ));
+                }
+            },
+        );
+        let second = second.expect("the second batch ran while the first was elevating");
+        assert_eq!(
+            second[0].outcome,
+            Err(InstallError::ElevationBusy { stale: false })
+        );
+        assert_eq!(rec.mutating_calls(), 0);
+        assert_eq!(elevation.launches().len(), 1, "only the first launched");
+        assert!(ev.jobs_left().is_empty(), "{:?}", ev.jobs_left());
+    }
+    // FR-114: one info! per launch outcome and per op; no absolute path in any info! line.
+    let infos: Vec<String> = take_mine()
+        .into_iter()
+        .filter(|(t, l, _)| t == LOG_TARGET && *l == Level::Info)
+        .map(|(_, _, m)| m)
+        .collect();
+    assert!(
+        infos.iter().any(|m| m.contains("Exited(0)")),
+        "a launch-outcome line: {infos:?}"
+    );
+    assert!(
+        infos
+            .iter()
+            .any(|m| m.contains("E_HELPER_EXIT") && m.contains('5')),
+        "a per-op line: {infos:?}"
+    );
+    // The canonical temp dir without a verbatim prefix matches both spellings of every path under it.
+    let temp = text(&crate::test_support::canonical_temp_dir());
+    let temp = temp.strip_prefix(r"\\?\").unwrap_or(&temp).to_owned();
+    for m in &infos {
+        assert!(!m.contains(&temp), "a path in {m:?}");
+        assert!(!m.contains("log of "), "a log tail line in info: {m:?}");
+    }
+}
+
+#[test]
+fn refused_prompt_changes_nothing() {
+    for plat in [WIN, MAC] {
+        let ev = Ev::new(plat);
+        let jobs = ev.jobs_dir();
+        let only_job_files = |rec: &RecordingInstallIo<'_>, label: &str| {
+            let muts: Vec<IOp> = rec.calls().into_iter().filter(IOp::is_mutating).collect();
+            let canonical_jobs = fs::canonicalize(&jobs).expect("the jobs dir");
+            let written = muts
+                .iter()
+                .find_map(|c| match c {
+                    IOp::WriteNew(p) => Some(p.clone()),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("{plat:?} {label}: no job write in {muts:?}"));
+            assert_eq!(written.parent(), Some(canonical_jobs.as_path()));
+            let mut want = Vec::new();
+            if muts.first() == Some(&IOp::CreateDir(jobs.clone())) {
+                want.push(IOp::CreateDir(jobs.clone()));
+            }
+            want.extend([
+                IOp::WriteNew(written.clone()),
+                IOp::SyncFile(written.clone()),
+                IOp::RemoveFile(written),
+            ]);
+            assert_eq!(muts, want, "{plat:?} {label}");
+            assert!(
+                ev.jobs_left().is_empty(),
+                "{plat:?} {label}: {:?}",
+                ev.jobs_left()
+            );
+        };
+        let seam = ev.fx.seam();
+        let elevation = FakeElevation::refusing();
+        // Install, then a retry: the verified artifact stays cached (no second asset request).
+        ev.offer(&[(ALPHA, V12)]);
+        let before = snap(&ev.fx.base.join("plugins"));
+        for (label, assets) in [("install", 1), ("install retry", 0)] {
+            let rec = RecordingInstallIo::forwarding(&FsInstallIo);
+            let counts = ev.fx.counts();
+            let r = for_command(
+                ev.env(&rec, &elevation, &seam),
+                ALPHA,
+                V12,
+                "install",
+                NOW,
+                &*ev.live,
+                &mut |_| {},
+            );
+            assert_eq!(code_of(&r), "E_INSTALL_REFUSED", "{plat:?} {label}");
+            assert_eq!(ev.fx.counts().1 - counts.1, assets, "{plat:?} {label}");
+            only_job_files(&rec, label);
+        }
+        assert_eq!(snap(&ev.fx.base.join("plugins")), before, "{plat:?}");
+        // Update and Remove over an installed 1.2.0.
+        let entry = ev.entry(ALPHA, V12);
+        ev.machine(&entry).install(V12);
+        ev.offer(&[(ALPHA, V13)]);
+        let before = snap(&ev.fx.base.join("plugins"));
+        let rec = RecordingInstallIo::forwarding(&FsInstallIo);
+        let r = for_command(
+            ev.env(&rec, &elevation, &seam),
+            ALPHA,
+            V13,
+            "update",
+            NOW,
+            &*ev.live,
+            &mut |_| {},
+        );
+        assert_eq!(code_of(&r), "E_INSTALL_REFUSED", "{plat:?} update");
+        only_job_files(&rec, "update");
+        let rec = RecordingInstallIo::forwarding(&FsInstallIo);
+        let r = remove_for_command(
+            ev.env(&rec, &elevation, &seam),
+            ALPHA,
+            NOW,
+            &*ev.live,
+            &mut |_| {},
+        );
+        assert_eq!(code_of(&r), "E_INSTALL_REFUSED", "{plat:?} remove");
+        only_job_files(&rec, "remove");
+        assert_eq!(snap(&ev.fx.base.join("plugins")), before, "{plat:?}");
+        assert_eq!(
+            elevation.launches().len(),
+            4,
+            "{plat:?}: one launch per command"
+        );
+        let view = ev.view();
+        assert_eq!(
+            card(&view, ALPHA).actions,
+            vec![status::ActionView::Update, status::ActionView::Remove],
+            "{plat:?}: the card's actions are what they were"
+        );
+    }
+}
+
+#[test]
+fn job_files_written_and_removed() {
+    for plat in [WIN, MAC] {
+        let ev = Ev::new(plat);
+        let (entry, artifact) = ev.staged(&[(ALPHA, V12)]).remove(0);
+        let batch = || vec![install_of(&entry, &artifact)];
+        let machine = ev.machine(&entry);
+        let done = FakeElevation::refusing();
+        done.push(done_after(move || machine.install(V12)));
+        let missing = FakeElevation::missing();
+        let no_result = FakeElevation::returning(LaunchOutcome::Exited(0));
+        for (label, elevation, want) in [
+            ("done", &done, Ok("ok")),
+            (
+                "refused",
+                &FakeElevation::refusing(),
+                Err("E_INSTALL_REFUSED"),
+            ),
+            ("helper-missing", &missing, Err("E_INSTALL_HELPER_MISSING")),
+            ("no-result", &no_result, Err("E_INSTALL_NO_RESULT")),
+        ] {
+            let results = ev.drive(elevation, &FsInstallIo, batch(), &mut |_| {});
+            assert_eq!(outcome_of(&results), vec![want], "{plat:?} {label}");
+            assert!(
+                ev.jobs_left().is_empty(),
+                "{plat:?} {label}: {:?}",
+                ev.jobs_left()
+            );
+        }
+        assert_eq!(done.jobs().len(), 1, "the done job was written and read");
+        // A full disk at the job write: every action E_INSTALL_FULL { job_written }, no launch.
+        let elevation = FakeElevation::refusing();
+        let faulty =
+            FaultyInstallIo::new(&FsInstallIo).fail(IKind::WriteNew, 1, io::ErrorKind::StorageFull);
+        let results = ev.drive(
+            &elevation,
+            &faulty,
+            vec![install_of(&entry, &artifact), install_of(&entry, &artifact)],
+            &mut |_| {},
+        );
+        for r in &results {
+            assert_eq!(
+                r.outcome,
+                Err(InstallError::Full {
+                    step: Step::JobWritten
+                }),
+                "{plat:?}"
+            );
+        }
+        assert_eq!(results.len(), 2);
+        assert!(elevation.launches().is_empty(), "{plat:?}: no launch");
+        assert!(ev.jobs_left().is_empty(), "{plat:?}: {:?}", ev.jobs_left());
+    }
+}
+
+#[test]
+fn recover_removes_stale_jobs() {
+    let fx = Fx::new();
+    let jobs = fx.state().join(job::JOBS_DIR);
+    fs::create_dir_all(&jobs).expect("the jobs dir");
+    let hex = "0123456789abcdef0123456789abcdef";
+    let job_file = jobs.join(format!("job-{hex}.json"));
+    let result_file = jobs.join(format!("job-{hex}.result.json"));
+    fs::write(&job_file, b"{}").expect("a stale job");
+    fs::write(&result_file, b"{}").expect("a stale result");
+    let notes = jobs.join("notes.txt");
+    fs::write(&notes, b"keep").expect("an unrelated file");
+    let target = fx.base.join("link-target.json");
+    fs::write(&target, b"keep").expect("the link target");
+    let link = jobs.join(format!("job-{}.json", "f".repeat(32)));
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&target, &link).expect("a symlink");
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_file(&target, &link)
+        .expect("symbolic-link privilege not held: enable Developer Mode");
+    let not_hex = jobs.join("job-XYZ.json");
+    fs::write(&not_hex, b"keep").expect("a near-miss name");
+    let report = fx.recover_over(&FsInstallIo, &FsExtractIo);
+    assert_eq!(report.jobs_removed, 2);
+    assert!(
+        absent(&job_file) && absent(&result_file),
+        "the two job files removed"
+    );
+    assert!(
+        fs::symlink_metadata(&link)
+            .expect("the link stays")
+            .file_type()
+            .is_symlink()
+    );
+    for kept in [&notes, &target, &not_hex] {
+        assert_eq!(fs::read(kept).expect("kept"), b"keep", "{kept:?}");
+    }
+}
+
+/// The batches SC-028 runs per OS: install, update and remove, each alone, then all three in one batch.
+fn helper_batches(ev: &Ev) -> Vec<Vec<Action>> {
+    let staged = ev.staged(&[(ALPHA, V12), (BETA, V13), (GAMMA, V12)]);
+    ev.machine(&staged[2].0).install(V12);
+    let (a, b, c) = (&staged[0], &staged[1], &staged[2]);
+    vec![
+        vec![install_of(&a.0, &a.1)],
+        vec![update_of(&b.0, &b.1)],
+        vec![uninstall_of(&c.0)],
+        vec![
+            install_of(&a.0, &a.1),
+            update_of(&b.0, &b.1),
+            uninstall_of(&c.0),
+        ],
+    ]
+}
+
+#[test]
+fn launch_program_is_the_resolved_helper() {
+    for plat in [WIN, MAC] {
+        // The settings name another executable-looking path (the configured Linux root); the installers are
+        // executables too; none of them may reach the launch.
+        let (td, roots) = fresh_elevated_roots();
+        let ev = Ev::over(
+            Fx::over(td, roots, Some("decoy/krate-manager-helper")),
+            plat,
+        );
+        let helper = ev.fx.base.join("bin").join("krate-manager-helper");
+        let elevation = FakeElevation::refusing().with_helper(helper.clone());
+        let jobs = fs::canonicalize(ev.fx.state())
+            .expect("state")
+            .join(job::JOBS_DIR);
+        for batch in helper_batches(&ev) {
+            ev.drive(&elevation, &FsInstallIo, batch, &mut |_| {});
+        }
+        let launches = elevation.launches();
+        let written = elevation.jobs();
+        assert_eq!(launches.len(), 4, "{plat:?}");
+        for ((command, timeout), bytes) in launches.iter().zip(&written) {
+            assert_eq!(command.program, helper, "{plat:?}");
+            assert_eq!(command.args.len(), 4, "{command:?}");
+            assert_eq!(command.args[0], "--job");
+            assert_eq!(command.args[2], "--job-sha256");
+            assert_eq!(
+                command.args[3],
+                hex_lower(&sha(bytes)),
+                "the job's own hash"
+            );
+            let job_path = Path::new(&command.args[1]);
+            assert_eq!(job_path.parent(), Some(jobs.as_path()), "{command:?}");
+            let name = job_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .expect("a name");
+            let hex = name
+                .strip_prefix("job-")
+                .and_then(|n| n.strip_suffix(".json"))
+                .expect("job-<hex>.json");
+            assert!(
+                hex.len() == 32 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')),
+                "{name}"
+            );
+            assert!(*timeout > job::ELEVATION_MARGIN, "{timeout:?}");
+        }
+    }
+}
+
+#[test]
+fn helper_file_never_opened() {
+    for plat in [WIN, MAC] {
+        let ev = Ev::new(plat);
+        let helper = ev.fx.base.join("bin").join("krate-manager-helper");
+        fs::create_dir_all(helper.parent().expect("bin")).expect("bin");
+        fs::write(&helper, b"the helper").expect("the helper file");
+        let elevation = FakeElevation::refusing().with_helper(helper.clone());
+        let rec = RecordingInstallIo::forwarding(&FsInstallIo);
+        for batch in helper_batches(&ev) {
+            ev.drive(&elevation, &rec, batch, &mut |_| {});
+        }
+        assert_eq!(elevation.launches().len(), 4);
+        for call in rec.calls() {
+            let paths: Vec<PathBuf> = match &call {
+                IOp::KindOf(p)
+                | IOp::ReadLink(p)
+                | IOp::HashFile(p)
+                | IOp::ReadDir(p)
+                | IOp::ReadFile(p)
+                | IOp::Canonicalize(p) => vec![p.clone()],
+                IOp::CopyNew { src, dest } => vec![src.clone(), dest.clone()],
+                other => op_path(other).map(Path::to_path_buf).into_iter().collect(),
+            };
+            for p in paths {
+                assert!(!p.starts_with(&helper), "{plat:?}: {call:?}");
+            }
+        }
+        let shown = text(&helper);
+        for c in ev.host_calls() {
+            assert!(!c.contains(&shown), "{c}");
+        }
+    }
+}
+
+#[test]
+fn timed_out_holds_guard() {
+    for plat in [WIN, MAC] {
+        let ev = Ev::new(plat);
+        let staged = ev.staged(&[(ALPHA, V12), (BETA, V12)]);
+        let both = || {
+            staged
+                .iter()
+                .map(|(e, a)| install_of(e, a))
+                .collect::<Vec<_>>()
+        };
+        let alpha = || vec![install_of(&staged[0].0, &staged[0].1)];
+        // Batch 1 times out: every action NO_RESULT, the job stays.
+        let elevation = FakeElevation::returning(LaunchOutcome::TimedOut);
+        let results = ev.drive(&elevation, &FsInstallIo, both(), &mut |_| {});
+        assert_eq!(
+            outcome_of(&results),
+            vec![Err("E_INSTALL_NO_RESULT"); 2],
+            "{plat:?}"
+        );
+        let left = ev.jobs_left();
+        assert_eq!(left.len(), 1, "{plat:?}: the job stays: {left:?}");
+        let stem = left[0].strip_suffix(".json").expect("a job").to_owned();
+        // Batch 2: stale busy, zero mutating calls, no launch.
+        let rec = RecordingInstallIo::fail_closed();
+        let results = ev.drive(&elevation, &rec, alpha(), &mut |_| {});
+        assert_eq!(
+            results[0].outcome,
+            Err(InstallError::ElevationBusy { stale: true })
+        );
+        assert_eq!(rec.mutating_calls(), 0, "{plat:?}");
+        assert_eq!(elevation.launches().len(), 1, "{plat:?}");
+        // The timed-out helper finishes: batch 3 proceeds and the stale files go.
+        fs::write(ev.jobs_dir().join(format!("{stem}.result.json")), b"{}")
+            .expect("the late result");
+        elevation.push(Scripted {
+            outcome: LaunchOutcome::Refused,
+            result: None,
+        });
+        let results = ev.drive(&elevation, &FsInstallIo, alpha(), &mut |_| {});
+        assert_eq!(
+            outcome_of(&results),
+            vec![Err("E_INSTALL_REFUSED")],
+            "{plat:?}"
+        );
+        assert_eq!(elevation.launches().len(), 2, "{plat:?}");
+        assert!(ev.jobs_left().is_empty(), "{plat:?}: {:?}", ev.jobs_left());
+        // A restart (a fresh launcher) is unblocked without the result.
+        let stale = FakeElevation::returning(LaunchOutcome::TimedOut);
+        ev.drive(&stale, &FsInstallIo, alpha(), &mut |_| {});
+        assert_eq!(ev.jobs_left().len(), 1);
+        let fresh = FakeElevation::refusing();
+        let results = ev.drive(&fresh, &FsInstallIo, alpha(), &mut |_| {});
+        assert_eq!(
+            outcome_of(&results),
+            vec![Err("E_INSTALL_REFUSED")],
+            "{plat:?}"
+        );
+        assert_eq!(fresh.launches().len(), 1, "{plat:?}");
+        // A concurrent batch while the first runs: not stale, never queued.
+        let running = FakeElevation::refusing();
+        let rec = RecordingInstallIo::fail_closed();
+        let mut second = None;
+        ev.drive(&running, &FsInstallIo, alpha(), &mut |e| {
+            if e == InstallProgress::Elevating {
+                second = Some(ev.drive(&running, &rec, alpha(), &mut |_| {}));
+            }
+        });
+        assert_eq!(
+            second.expect("the concurrent batch")[0].outcome,
+            Err(InstallError::ElevationBusy { stale: false })
+        );
+        assert_eq!(rec.mutating_calls(), 0);
+        assert_eq!(running.launches().len(), 1);
+    }
+}
+
+/// One SC-030 row: `pre` (an installed version, if any) on the machine, `kind` of Alpha at `version` through the
+/// driver, the helper reporting `done` after `effect` ran; the outcome and the killall count. Every mutating call
+/// stays in the jobs folder (FR-076a: the detection mutates nothing).
+fn applied_row(
+    plat: Plat,
+    kind: ActionKind,
+    pre: Option<&str>,
+    version: &str,
+    effect: fn(&Machine),
+) -> (Result<Outcome, InstallError>, usize) {
+    let ev = Ev::new(plat);
+    let (entry, artifact) = ev.staged(&[(ALPHA, version)]).remove(0);
+    let machine = ev.machine(&entry);
+    if let Some(v) = pre {
+        machine.install(v);
+    }
+    let elevation = FakeElevation::refusing();
+    let after = machine.clone();
+    elevation.push(done_after(move || effect(&after)));
+    let rec = RecordingInstallIo::forwarding(&FsInstallIo);
+    let action = match kind {
+        ActionKind::Install => install_of(&entry, &artifact),
+        ActionKind::Update => update_of(&entry, &artifact),
+        ActionKind::Remove => uninstall_of(&entry),
+    };
+    let mut results = ev.drive(&elevation, &rec, vec![action], &mut |_| {});
+    let jobs = fs::canonicalize(ev.jobs_dir()).expect("the jobs dir");
+    for c in rec.calls().iter().filter(|c| c.is_mutating()) {
+        let p = op_path(c).expect("a path");
+        assert!(
+            p == ev.jobs_dir() || p.parent() == Some(jobs.as_path()),
+            "{plat:?}: a mutating call outside the jobs folder: {c:?}"
+        );
+    }
+    (results.remove(0).outcome, ev.killalls())
+}
+
+/// One SC-030 install / update row: the action, the version installed before, the entry's version, the effect.
+type AppliedRow = (ActionKind, Option<&'static str>, &'static str, fn(&Machine));
+
+#[test]
+fn not_applied_detected() {
+    let kills = |plat: Plat| usize::from(plat.os == Os::Macos);
+    for plat in [WIN, MAC] {
+        let not_applied = Err(InstallError::NotApplied);
+        // Installs and updates whose class Version is not the entry's.
+        let rows: [AppliedRow; 3] = [
+            (ActionKind::Install, None, V13, |m| m.install(V12)),
+            (ActionKind::Install, None, V12, |_| {}),
+            (ActionKind::Update, Some(V12), V13, |_| {}),
+        ];
+        for (kind, pre, version, effect) in rows {
+            let (outcome, killalls) = applied_row(plat, kind, pre, version, effect);
+            assert_eq!(outcome, not_applied, "{plat:?} {kind:?} {version}");
+            // FR-077 keys on the helper's `done`, before re-detection.
+            assert_eq!(killalls, kills(plat), "{plat:?} {kind:?}");
+        }
+        // Removes whose copy or record remains.
+        let rows: [fn(&Machine); 2] = [Machine::unrecord, Machine::unplace];
+        for effect in rows {
+            let (outcome, killalls) = applied_row(plat, ActionKind::Remove, Some(V12), V12, effect);
+            assert_eq!(outcome, not_applied, "{plat:?} remove");
+            assert_eq!(killalls, 0, "{plat:?}: no registrar kill after a remove");
+        }
+        // The same actions with the matching state.
+        let (install, k) = applied_row(plat, ActionKind::Install, None, V12, |m| m.install(V12));
+        assert_eq!(
+            install,
+            Ok(Outcome {
+                version: Some(V12.to_owned()),
+                placed: 0,
+                removed: 0,
+                kept: Vec::new()
+            }),
+            "{plat:?}"
+        );
+        assert_eq!(k, kills(plat));
+        let (update, _) = applied_row(plat, ActionKind::Update, Some(V12), V13, |m| m.install(V13));
+        assert_eq!(
+            update.map(|o| o.version),
+            Ok(Some(V13.to_owned())),
+            "{plat:?}"
+        );
+        let (remove, k) = applied_row(plat, ActionKind::Remove, Some(V12), V12, Machine::uninstall);
+        assert_eq!(remove.map(|o| o.version), Ok(None), "{plat:?}");
+        assert_eq!(k, 0);
+        // A locked install is not re-detected (no record read after the launch).
+        let ev = Ev::new(plat);
+        let counting = CountingHost {
+            inner: &ev.live,
+            reads: AtomicUsize::new(0),
+        };
+        let (entry, artifact) = ev.staged(&[(ALPHA, V12)]).remove(0);
+        let elevation = FakeElevation::refusing();
+        let locked: Build = |job, bytes, ops| {
+            result_doc(
+                bytes,
+                None,
+                entries(job, ops, "locked", Some("E_HELPER_LOCKED"), None),
+            )
+        };
+        elevation.push(scripted(LaunchOutcome::Exited(0), locked));
+        let results = ev.drive_with(
+            &elevation,
+            &FsInstallIo,
+            &counting,
+            vec![install_of(&entry, &artifact)],
+            &mut |_| {},
+        );
+        assert_eq!(results[0].outcome, Err(InstallError::Locked));
+        assert_eq!(
+            counting.reads.load(Ordering::SeqCst),
+            0,
+            "{plat:?}: re-detected"
+        );
+        assert_eq!(ev.killalls(), 0, "{plat:?}: no done, no registrar kill");
+    }
+}
+
+// ---- Phase 10 loopback rows (T010's `Loopback`, tasks TA-14) ------------------------------------------------------
+
+/// The hex digest of the installer `installer(name, version)`.
+fn installer_hex(name: &str, version: &str) -> String {
+    hex_lower(&sha(&installer(name, version)))
+}
+
+#[test]
+fn batch_locked_middle_maps_each() {
+    let ev = Ev::new(WIN);
+    let staged = ev.staged(&[(ALPHA, V12), (BETA, V12), (GAMMA, V12)]);
+    let lb = Loopback::new(Os::Windows, &ev.fx.ctx().roots, &ev.fx.base, &ev.live)
+        .classify(locked_classify);
+    for (entry, _) in &staged {
+        lb.installs(&installer_hex(&entry.name, V12), entry);
+    }
+    lb.exit_for(1, TEST_LOCKED_EXIT);
+    lb.serve_log(
+        1,
+        format!("starting\n{TEST_LOCKED_LINE}\nrolling back\n").into_bytes(),
+    );
+    let results = ev.drive(
+        &lb,
+        &FsInstallIo,
+        staged.iter().map(|(e, a)| install_of(e, a)).collect(),
+        &mut |_| {},
+    );
+    assert_eq!(
+        outcome_of(&results),
+        vec![Ok("ok"), Err("E_INSTALL_LOCKED"), Ok("ok")]
+    );
+    assert_eq!(lb.launches().len(), 1, "one launch for the batch");
+    assert_eq!(lb.spawns().len(), 3, "every installer ran");
+    assert!(ev.jobs_left().is_empty(), "{:?}", ev.jobs_left());
+}
+
+/// SC-014 for `plat`: install 1.2.0, the feed moves to 1.3.0, update, remove; each through its command and the
+/// loopback, each with its notice; the status between steps.
+fn install_update_remove(plat: Plat) {
+    let ev = Ev::new(plat);
+    let lb = Loopback::new(plat.os, &ev.fx.ctx().roots, &ev.fx.base, &ev.live);
+    let seam = ev.fx.seam();
+    let actions = |view: &status::StatusView| card(view, ALPHA).actions;
+    // Install 1.2.0.
+    ev.offer(&[(ALPHA, V12)]);
+    lb.installs(&installer_hex(ALPHA, V12), &ev.entry(ALPHA, V12));
+    assert_eq!(actions(&ev.view()), vec![status::ActionView::Install]);
+    let summary = for_command(
+        ev.env(&FsInstallIo, &lb, &seam),
+        ALPHA,
+        V12,
+        "install",
+        NOW,
+        &*ev.live,
+        &mut |_| {},
+    )
+    .unwrap_or_else(|e| panic!("{plat:?} install: {e}"));
+    assert_eq!(summary.notice, Some(plat.notice()));
+    assert_eq!(summary.version.as_deref(), Some(V12));
+    let view = ev.view();
+    let alpha = card(&view, ALPHA);
+    assert_eq!(alpha.update, Some(UpdateView::UpToDate), "{alpha:?}");
+    assert_eq!(alpha.actions, vec![status::ActionView::Remove]);
+    let killalls = ev.killalls();
+    assert_eq!(killalls, usize::from(plat.os == Os::Macos), "after install");
+    // The feed moves to 1.3.0; update.
+    ev.offer(&[(ALPHA, V13)]);
+    lb.installs(&installer_hex(ALPHA, V13), &ev.entry(ALPHA, V13));
+    assert_eq!(
+        actions(&ev.view()),
+        vec![status::ActionView::Update, status::ActionView::Remove]
+    );
+    let summary = for_command(
+        ev.env(&FsInstallIo, &lb, &seam),
+        ALPHA,
+        V13,
+        "update",
+        NOW,
+        &*ev.live,
+        &mut |_| {},
+    )
+    .unwrap_or_else(|e| panic!("{plat:?} update: {e}"));
+    assert_eq!(summary.notice, Some(plat.notice()));
+    let view = ev.view();
+    let alpha = card(&view, ALPHA);
+    assert_eq!(alpha.update, Some(UpdateView::UpToDate), "{alpha:?}");
+    assert_eq!(alpha.actions, vec![status::ActionView::Remove]);
+    assert_eq!(
+        ev.killalls(),
+        2 * usize::from(plat.os == Os::Macos),
+        "after update"
+    );
+    // Remove.
+    let summary = remove_for_command(
+        ev.env(&FsInstallIo, &lb, &seam),
+        ALPHA,
+        NOW,
+        &*ev.live,
+        &mut |_| {},
+    )
+    .unwrap_or_else(|e| panic!("{plat:?} remove: {e}"));
+    assert_eq!(summary.notice, None);
+    let view = ev.view();
+    assert_eq!(
+        card(&view, ALPHA).actions,
+        vec![status::ActionView::Install]
+    );
+    assert_eq!(
+        ev.killalls(),
+        2 * usize::from(plat.os == Os::Macos),
+        "never after remove"
+    );
+    assert_eq!(lb.launches().len(), 3, "one launch per command");
+    let machine = ev.machine(&ev.entry(ALPHA, V13));
+    assert!(absent(&machine.bundle), "no copy left");
+    assert!(
+        ev.live
+            .inno
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_empty()
+            && ev
+                .live
+                .pkg
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_empty(),
+        "no record left"
+    );
+    assert!(ev.jobs_left().is_empty(), "{:?}", ev.jobs_left());
+    if plat.os == Os::Windows {
+        assert!(
+            ev.host_calls().is_empty(),
+            "the Windows run never calls host_io.run"
+        );
+    }
+}
+
+#[test]
+fn windows_install_update_remove() {
+    install_update_remove(WIN);
+}
+
+#[test]
+fn macos_install_update_remove() {
+    install_update_remove(MAC);
+}
+
+#[test]
+fn job_hash_is_the_verified_digest() {
+    for plat in [WIN, MAC] {
+        let ev = Ev::new(plat);
+        let (entry, artifact) = ev.staged(&[(ALPHA, V12)]).remove(0);
+        let lb = Loopback::new(plat.os, &ev.fx.ctx().roots, &ev.fx.base, &ev.live);
+        lb.installs(&hex_lower(artifact.sha256()), &entry);
+        // Staging is user-writable: the staged file changes after verification.
+        fs::write(artifact.path(), b"a different installer").expect("rewrite the staged file");
+        let results = ev.drive(
+            &lb,
+            &FsInstallIo,
+            vec![install_of(&entry, &artifact)],
+            &mut |_| {},
+        );
+        let job: Value = serde_json::from_slice(&lb.jobs()[0]).expect("job JSON");
+        assert_eq!(
+            job["ops"][0]["sha256"],
+            json!(hex_lower(artifact.sha256())),
+            "{plat:?}: the job carries the verified digest"
+        );
+        assert_eq!(
+            results[0].outcome,
+            Err(InstallError::Helper {
+                code: "E_HELPER_HASH"
+            }),
+            "{plat:?}"
+        );
+        assert!(lb.spawns().is_empty(), "{plat:?}: nothing spawned");
+    }
+}
+
 // ---- the Unix-only rows --------------------------------------------------------------------------------------------
 
 #[cfg(unix)]
@@ -4196,6 +6248,9 @@ fn non_utf8_root_refused_unix() {
             io: &rec,
             extract: rig.extract_env(&FsExtractIo),
             progress: &mut |_| {},
+            elevation: &rig.elevation,
+            host_io: &rig.host_io,
+            host: &host(),
         },
         vec![install_of(&e, &a)],
     );

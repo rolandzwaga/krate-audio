@@ -6,6 +6,7 @@
 //! (PD-10): a mismatch prints the expected text for review.
 
 use super::*;
+use crate::detect::{InnoValues, PkgOutputs, RecordRead};
 use crate::extract::FsExtractIo;
 use crate::feed::{Feed, FeedError, FeedSnapshot, PlatformKey};
 use crate::fixture_server::{FixtureServer, Reply};
@@ -16,15 +17,15 @@ use crate::roots::Roots;
 use crate::settings::Settings;
 use crate::test_signer::TestSigner;
 use crate::test_support::{
-    FakeHostFacts, InstallRig, RecordingInstallIo, TestPlugin, fresh_temp_roots, install_capture,
-    kat_signing_key, take_mine, test_feed_document,
+    FakeElevation, FakeHostFacts, InstallRig, RecordingInstallIo, TestPlugin, fresh_temp_roots,
+    install_capture, kat_signing_key, take_mine, test_feed_document,
 };
 use crate::verify::{hex_lower, sha256_of};
 use log::Level;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{MAIN_SEPARATOR_STR, Path, PathBuf};
 use std::sync::Barrier;
 use std::thread;
 use std::time::Duration;
@@ -1677,9 +1678,17 @@ const STATE_ROWS: [StateRow; 14] = [
 
 /// The asset file name of a row, as the release pipeline names it.
 fn row_asset(row: &StateRow) -> String {
-    match row.key {
-        PlatformKey::WindowsX86_64 => format!("{}-{LATEST}-Windows-x64.exe", row.name),
-        _ => format!("{}-{LATEST}-Linux-x64.tar.gz", row.name),
+    asset_name(row.name, row.key)
+}
+
+/// The asset file name of `name`'s one asset under `key`, as the release pipeline names it.
+fn asset_name(name: &str, key: PlatformKey) -> String {
+    match key {
+        PlatformKey::WindowsX86_64 => format!("{name}-{LATEST}-Windows-x64.exe"),
+        PlatformKey::DarwinAarch64 | PlatformKey::DarwinX86_64 | PlatformKey::DarwinUniversal => {
+            format!("{name}-{LATEST}-macOS.pkg")
+        }
+        PlatformKey::LinuxX86_64 => format!("{name}-{LATEST}-Linux-x64.tar.gz"),
     }
 }
 
@@ -1733,10 +1742,7 @@ fn plant_row(ctx: &AppContext, row: &StateRow) {
         ),
     }
     if row.journal {
-        let dir = ctx.roots.state_dir().join(install::JOURNAL_DIR);
-        fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("create {}: {e}", dir.display()));
-        let path = dir.join(format!("{}.json", row.name));
-        fs::write(&path, b"{}").unwrap_or_else(|e| panic!("write {}: {e}", path.display()));
+        plant_journal(ctx, row.name);
     }
     let (version, recorded_root, dot_dot) = match row.manifest {
         RowManifest::Absent => return,
@@ -1789,6 +1795,590 @@ fn plant_row(ctx: &AppContext, row: &StateRow) {
     fs::write(&path, text).unwrap_or_else(|e| panic!("write {}: {e}", path.display()));
 }
 
+/// A pending journal for `name` (`<state>/journal/<stem>.json`, FR-052), inside the context's temp state dir.
+fn plant_journal(ctx: &AppContext, name: &str) {
+    let dir = ctx.roots.state_dir().join(install::JOURNAL_DIR);
+    fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("create {}: {e}", dir.display()));
+    let path = dir.join(format!("{name}.json"));
+    fs::write(&path, b"{}").unwrap_or_else(|e| panic!("write {}: {e}", path.display()));
+}
+
+// ---- Phase 10 SC-013 (FR-080 to FR-083) ---------------------------------------------------------------------------
+
+/// The running Windows build; a row's `min_os` above it is `needs_newer_os`.
+const WINDOWS_RUNNING: &str = "10.0.19045";
+const WINDOWS_NEWER: &str = "10.0.26100";
+/// The running macOS; the test feed's default `min_os` for a `darwin-*` asset is 15.0.
+const MACOS_RUNNING: &str = "15.7.9";
+const MACOS_NEWER: &str = "26.0";
+const REMOVE_ELSEWHERE: &str = "E_INSTALL_REMOVE_ELSEWHERE";
+
+/// Which asset an elevated row's feed entry carries.
+#[derive(Clone, Copy)]
+enum Offer {
+    /// This machine's platform key.
+    Native,
+    /// Another machine's key only (`not_for_this_machine`).
+    Foreign,
+    /// This machine's key with a `min_os` above the running OS (`needs_newer_os`).
+    NeedsNewer,
+}
+
+/// The bundle an elevated row plants before the builds.
+#[derive(Clone, Copy)]
+enum ElevatedDisk {
+    Absent,
+    /// At the managed location (Windows `<Vst3Global>/<vendor>/<Name>/`, macOS `<Vst3Global>/`, FR-001), with a
+    /// moduleinfo of this version.
+    Managed(&'static str),
+    /// At the managed location, without a moduleinfo (version unknown).
+    ManagedNoModuleinfo,
+    /// Under the `Vst3User` root only, with a moduleinfo of this version.
+    Elsewhere(&'static str),
+    /// In `<sandbox>/elsewhere/<Name>/` (the outside record's folder, SC-012), with a moduleinfo of this version.
+    Outside(&'static str),
+}
+
+/// The installer record an elevated row's `FakeHostFacts` answers with, recording this version.
+#[derive(Clone, Copy)]
+enum ElevatedRecord {
+    Absent,
+    /// Windows: an Inno record whose `InstallLocation` is the managed folder; macOS: a pkg receipt.
+    Managed(&'static str),
+    /// Windows only: an Inno record whose `InstallLocation` is `<sandbox>/elsewhere/<Name>/`, inside the temp
+    /// sandbox and outside `<Vst3Global>/<vendor>` (SC-012), never a real path.
+    Outside(&'static str),
+}
+
+/// One plugin of the SC-013 table on Windows and macOS: its asset, what is on disk, its record, what the card shows,
+/// and the code each action the card omits is refused with (`install`, `update`, `remove` order).
+struct ElevatedRow {
+    name: &'static str,
+    offer: Offer,
+    disk: ElevatedDisk,
+    record: ElevatedRecord,
+    journal: bool,
+    availability: AvailabilityView,
+    installed: InstalledView,
+    update: UpdateView,
+    actions: &'static [ActionView],
+    /// `remove_hint` is `"windows_settings"` (FR-083).
+    windows_settings: bool,
+    refusals: &'static [(&'static str, &'static str)],
+}
+
+/// Phase 6's fixture states with a Windows / macOS record where the state has one (spec SC-013), the journal gate,
+/// and the two outside-root rows (Windows only).
+const ELEVATED_ROWS: [ElevatedRow; 16] = [
+    ElevatedRow {
+        name: "Alpha",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Absent,
+        record: ElevatedRecord::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::NotInstalled,
+        update: UpdateView::NotInstalled,
+        actions: &[ActionView::Install],
+        windows_settings: false,
+        refusals: &[("update", STATE_CHANGED), ("remove", NOT_MANAGED)],
+    },
+    ElevatedRow {
+        name: "Bravo",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Elsewhere("1.1.0"),
+        record: ElevatedRecord::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Elsewhere,
+        update: UpdateView::NotInstalled,
+        actions: &[ActionView::Install],
+        windows_settings: false,
+        refusals: &[("update", STATE_CHANGED), ("remove", NOT_MANAGED)],
+    },
+    ElevatedRow {
+        name: "Charlie",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Managed("1.2.0"),
+        record: ElevatedRecord::Managed("1.2.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpToDate,
+        actions: &[ActionView::Remove],
+        windows_settings: false,
+        refusals: &[("install", NOT_NEWER), ("update", NOT_NEWER)],
+    },
+    ElevatedRow {
+        name: "Delta",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Managed("1.2.0"),
+        record: ElevatedRecord::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpToDate,
+        actions: &[],
+        windows_settings: false,
+        refusals: &[
+            ("install", NOT_NEWER),
+            ("update", NOT_NEWER),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    ElevatedRow {
+        name: "Echo",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Managed("1.1.0"),
+        record: ElevatedRecord::Managed("1.1.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpdateAvailable,
+        actions: &[ActionView::Update, ActionView::Remove],
+        windows_settings: false,
+        refusals: &[("install", STATE_CHANGED)],
+    },
+    ElevatedRow {
+        name: "Foxtrot",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Managed("1.1.0"),
+        record: ElevatedRecord::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpdateAvailable,
+        actions: &[ActionView::Update],
+        windows_settings: false,
+        refusals: &[("install", STATE_CHANGED), ("remove", NOT_MANAGED)],
+    },
+    ElevatedRow {
+        name: "Golf",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Managed("1.3.0"),
+        record: ElevatedRecord::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::InstalledNewer,
+        actions: &[],
+        windows_settings: false,
+        refusals: &[
+            ("install", NOT_NEWER),
+            ("update", NOT_NEWER),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    ElevatedRow {
+        name: "Hotel",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Managed("1.3.0"),
+        record: ElevatedRecord::Managed("1.3.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::InstalledNewer,
+        actions: &[ActionView::Remove],
+        windows_settings: false,
+        refusals: &[("install", NOT_NEWER), ("update", NOT_NEWER)],
+    },
+    ElevatedRow {
+        name: "India",
+        offer: Offer::Native,
+        disk: ElevatedDisk::ManagedNoModuleinfo,
+        record: ElevatedRecord::Absent,
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::VersionUnknown,
+        update: UpdateView::Unknown,
+        actions: &[],
+        windows_settings: false,
+        refusals: &[
+            ("install", STATE_CHANGED),
+            ("update", STATE_CHANGED),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    ElevatedRow {
+        name: "Juliet",
+        offer: Offer::Foreign,
+        disk: ElevatedDisk::Absent,
+        record: ElevatedRecord::Absent,
+        journal: false,
+        availability: AvailabilityView::NotForThisMachine,
+        installed: InstalledView::NotInstalled,
+        update: UpdateView::NotInstalled,
+        actions: &[],
+        windows_settings: false,
+        refusals: &[
+            ("install", UNAVAILABLE),
+            ("update", UNAVAILABLE),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    ElevatedRow {
+        name: "Kilo",
+        offer: Offer::NeedsNewer,
+        disk: ElevatedDisk::Absent,
+        record: ElevatedRecord::Absent,
+        journal: false,
+        availability: AvailabilityView::NeedsNewerOs,
+        installed: InstalledView::NotInstalled,
+        update: UpdateView::NotInstalled,
+        actions: &[],
+        windows_settings: false,
+        refusals: &[
+            ("install", UNAVAILABLE),
+            ("update", UNAVAILABLE),
+            ("remove", NOT_MANAGED),
+        ],
+    },
+    // The journal gate sits on an update-available managed install with a record, which would offer
+    // `["update", "remove"]` if the gate were open (Echo).
+    ElevatedRow {
+        name: "Lima",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Managed("1.1.0"),
+        record: ElevatedRecord::Managed("1.1.0"),
+        journal: true,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpdateAvailable,
+        actions: &[],
+        windows_settings: false,
+        refusals: &[
+            ("install", JOURNAL_PENDING),
+            ("update", JOURNAL_PENDING),
+            ("remove", JOURNAL_PENDING),
+        ],
+    },
+    // Not available / needs a newer OS with a record: `remove` only.
+    ElevatedRow {
+        name: "Mike",
+        offer: Offer::Foreign,
+        disk: ElevatedDisk::Absent,
+        record: ElevatedRecord::Managed("1.1.0"),
+        journal: false,
+        availability: AvailabilityView::NotForThisMachine,
+        installed: InstalledView::NotInstalled,
+        update: UpdateView::NotInstalled,
+        actions: &[ActionView::Remove],
+        windows_settings: false,
+        refusals: &[("install", UNAVAILABLE), ("update", UNAVAILABLE)],
+    },
+    ElevatedRow {
+        name: "November",
+        offer: Offer::NeedsNewer,
+        disk: ElevatedDisk::Absent,
+        record: ElevatedRecord::Managed("1.1.0"),
+        journal: false,
+        availability: AvailabilityView::NeedsNewerOs,
+        installed: InstalledView::NotInstalled,
+        update: UpdateView::NotInstalled,
+        actions: &[ActionView::Remove],
+        windows_settings: false,
+        refusals: &[("install", UNAVAILABLE), ("update", UNAVAILABLE)],
+    },
+    // Windows only: a record outside the root (FR-080 `OutsideRoot`) offers no `remove` and points to Settings.
+    ElevatedRow {
+        name: "Oscar",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Outside("1.1.0"),
+        record: ElevatedRecord::Outside("1.1.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpdateAvailable,
+        actions: &[ActionView::Update],
+        windows_settings: true,
+        refusals: &[("install", STATE_CHANGED), ("remove", REMOVE_ELSEWHERE)],
+    },
+    ElevatedRow {
+        name: "Papa",
+        offer: Offer::Native,
+        disk: ElevatedDisk::Outside("1.2.0"),
+        record: ElevatedRecord::Outside("1.2.0"),
+        journal: false,
+        availability: AvailabilityView::Available,
+        installed: InstalledView::Version,
+        update: UpdateView::UpToDate,
+        actions: &[],
+        windows_settings: true,
+        refusals: &[
+            ("install", NOT_NEWER),
+            ("update", NOT_NEWER),
+            ("remove", REMOVE_ELSEWHERE),
+        ],
+    },
+];
+
+/// The rows `os` runs: every row on Windows; on macOS all but the outside-root rows (a pkg record has no
+/// `InstallLocation`).
+fn elevated_rows(os: Os) -> Vec<&'static ElevatedRow> {
+    ELEVATED_ROWS
+        .iter()
+        .filter(|row| os == Os::Windows || !matches!(row.record, ElevatedRecord::Outside(_)))
+        .collect()
+}
+
+/// The running OS version of `os` and the `min_os` a `NeedsNewer` row's asset carries.
+fn elevated_os(os: Os) -> (&'static str, &'static str) {
+    match os {
+        Os::Windows => (WINDOWS_RUNNING, WINDOWS_NEWER),
+        _ => (MACOS_RUNNING, MACOS_NEWER),
+    }
+}
+
+/// The platform key of a row's one asset on `os` (Windows x86_64 or macOS aarch64, `version::platform_candidates`).
+fn elevated_key(os: Os, offer: Offer) -> PlatformKey {
+    match (os, offer) {
+        (Os::Windows, Offer::Foreign) => PlatformKey::LinuxX86_64,
+        (Os::Windows, _) => PlatformKey::WindowsX86_64,
+        (_, Offer::Foreign) => PlatformKey::DarwinX86_64,
+        _ => PlatformKey::DarwinAarch64,
+    }
+}
+
+/// The contract-valid feed of `os`'s rows, each with its one asset signed by `signer`. On Windows a `Foreign` row
+/// (a Linux asset, which the test feed gives no uninstall key) gets a `windows_uninstall_key` of its own, outside the
+/// builder's key family, so its record can be found.
+fn elevated_feed(os: Os, signer: &TestSigner) -> Vec<u8> {
+    let rows = elevated_rows(os);
+    let (_, newer) = elevated_os(os);
+    let assets: Vec<String> = rows
+        .iter()
+        .map(|row| asset_name(row.name, elevated_key(os, row.offer)))
+        .collect();
+    let plugins: Vec<TestPlugin<'_>> = rows
+        .iter()
+        .zip(&assets)
+        .map(|(row, asset)| {
+            let key = elevated_key(os, row.offer);
+            TestPlugin {
+                name: row.name,
+                version: LATEST,
+                key,
+                asset,
+                size: NEVER_FETCHED.len() as u64,
+                sha256: sha256_of(NEVER_FETCHED),
+                signature: signer.sign_c3(NEVER_FETCHED, row.name, LATEST, key, asset),
+                min_os: matches!(row.offer, Offer::NeedsNewer).then_some(newer),
+            }
+        })
+        .collect();
+    let bytes = test_feed_document(&plugins);
+    if os != Os::Windows {
+        return bytes;
+    }
+    let mut doc: Value = serde_json::from_slice(&bytes).expect("the test feed is JSON");
+    for (n, row) in rows.iter().enumerate() {
+        if matches!(row.offer, Offer::Foreign) {
+            doc["plugins"][row.name]["install"]["windows_uninstall_key"] =
+                Value::String(format!("{{FFFFFFFF-0000-4000-8000-{:012X}}}_is1", n + 1));
+        }
+    }
+    serde_json::to_vec(&doc).expect("the test feed serialises")
+}
+
+/// `<Vst3Global>/<vendor>/<Name>`: the folder a Windows managed install and its Inno record name (FR-001, FR-080).
+fn vendor_folder(ctx: &AppContext, name: &str) -> PathBuf {
+    root_of(&ctx.roots, RootKind::Vst3Global)
+        .join(VENDOR_DIR)
+        .join(name)
+}
+
+/// `<sandbox>/elsewhere/<Name>`: inside the `fresh_temp_roots()` sandbox (the state dir's parent), outside every
+/// root, never a real path (SC-012).
+fn outside_folder(ctx: &AppContext, name: &str) -> PathBuf {
+    ctx.roots
+        .state_dir()
+        .parent()
+        .unwrap_or_else(|| panic!("the temp state dir has no parent"))
+        .join("elsewhere")
+        .join(name)
+}
+
+/// Plants an elevated row's bundle and pending journal, only inside the context's temp roots.
+fn plant_elevated(os: Os, ctx: &AppContext, row: &ElevatedRow) {
+    let bundle = format!("{}.vst3", row.name);
+    let managed = match os {
+        Os::Windows => vendor_folder(ctx, row.name).join(&bundle),
+        _ => root_of(&ctx.roots, RootKind::Vst3Global).join(&bundle),
+    };
+    let class = |v: &str| format!("{v}.1");
+    match row.disk {
+        ElevatedDisk::Absent => {}
+        ElevatedDisk::Managed(v) => write_bundle(&managed, row.name, v, &class(v)),
+        ElevatedDisk::ManagedNoModuleinfo => {
+            let contents = managed.join("Contents");
+            fs::create_dir_all(&contents)
+                .unwrap_or_else(|e| panic!("create {}: {e}", contents.display()));
+        }
+        ElevatedDisk::Elsewhere(v) => write_bundle(
+            &root_of(&ctx.roots, RootKind::Vst3User).join(&bundle),
+            row.name,
+            v,
+            &class(v),
+        ),
+        ElevatedDisk::Outside(v) => write_bundle(
+            &outside_folder(ctx, row.name).join(&bundle),
+            row.name,
+            v,
+            &class(v),
+        ),
+    }
+    if row.journal {
+        plant_journal(ctx, row.name);
+    }
+}
+
+/// The `FakeHostFacts` of `os`'s rows: the running OS and each row's record under the key or package id `document`
+/// names. Windows: `DisplayVersion` and an `InstallLocation` with Inno's trailing separator; macOS: a receipt.
+fn elevated_host(os: Os, ctx: &AppContext, document: &[u8]) -> FakeHostFacts {
+    let parsed = feed::parse(document).unwrap_or_else(|e| panic!("the {os:?} feed: {e:?}"));
+    let (running, _) = elevated_os(os);
+    let mut host = FakeHostFacts {
+        os_version: Some(os_version(running)),
+        ..FakeHostFacts::default()
+    };
+    for row in elevated_rows(os) {
+        let (version, folder) = match row.record {
+            ElevatedRecord::Absent => continue,
+            ElevatedRecord::Managed(v) => (v, vendor_folder(ctx, row.name)),
+            ElevatedRecord::Outside(v) => (v, outside_folder(ctx, row.name)),
+        };
+        let install = parsed.plugins[row.name]
+            .release
+            .as_ref()
+            .and_then(|r| r.install.as_ref())
+            .unwrap_or_else(|| panic!("{}: no install facts", row.name));
+        if os == Os::Windows {
+            let key = install
+                .windows_uninstall_key
+                .as_ref()
+                .unwrap_or_else(|| panic!("{}: no uninstall key", row.name));
+            host.inno.insert(
+                key.as_str().to_owned(),
+                RecordRead::Found(InnoValues {
+                    display_version: Some(version.to_owned()),
+                    install_location: Some(format!("{}{MAIN_SEPARATOR_STR}", root_text(&folder))),
+                }),
+            );
+        } else {
+            let id = install
+                .macos_pkg_id
+                .as_ref()
+                .unwrap_or_else(|| panic!("{}: no pkg id", row.name));
+            host.pkg.insert(
+                id.as_str().to_owned(),
+                RecordRead::Found(PkgOutputs {
+                    pkg_info: format!("package-id: {}\nversion: {version}\n", id.as_str()),
+                    files: format!("{0}.vst3\n{0}.vst3/Contents\n", row.name),
+                }),
+            );
+        }
+    }
+    host
+}
+
+/// SC-013 on one elevated OS: the card actions and `remove_hint` equal the table (a read-only build), and every
+/// action a card omits is refused by the command with its code, with no mutating `InstallIo` call, no launch and no
+/// asset request.
+fn elevated_actions_per_state(os: Os, arch: Arch) {
+    let signer = TestSigner::new();
+    let feed = elevated_feed(os, &signer);
+    let server = FixtureServer::start(vec![(FEED_PATH.to_owned(), ok(feed.clone()))]);
+    let (_td, roots) = fresh_temp_roots();
+    let rig = InstallRig {
+        elevation: FakeElevation::refusing(),
+        ..InstallRig::new(context(&roots, server.url(FEED_PATH)))
+    };
+    let ctx = &rig.ctx;
+    let rows = elevated_rows(os);
+    for row in &rows {
+        plant_elevated(os, ctx, row);
+    }
+    let host = elevated_host(os, ctx, &feed);
+
+    let io = RecordingInstallIo::forwarding(&FsInstallIo);
+    let view = build_with_os(os, arch, ctx, FetchMode::Normal, NOW, &host, &io);
+    assert_eq!(
+        view.feed.source,
+        FeedSource::Fresh,
+        "{os:?}: {:?}",
+        view.feed.error
+    );
+    assert_eq!(view.plugins.len(), rows.len(), "{os:?}: {view:?}");
+    for row in &rows {
+        let card = plugin(&view, row.name);
+        assert_eq!(
+            (card.availability, card.installed, card.update),
+            (row.availability, row.installed, Some(row.update)),
+            "{os:?} {}: the planted state: {card:?}",
+            row.name
+        );
+        assert_eq!(card.actions, row.actions, "{os:?} {}: {card:?}", row.name);
+        let hint = if row.windows_settings {
+            "\"windows_settings\""
+        } else {
+            "null"
+        };
+        assert_eq!(
+            json(&card.remove_hint),
+            hint,
+            "{os:?} {}: {card:?}",
+            row.name
+        );
+    }
+    assert_eq!(io.mutating_calls(), 0, "{os:?}: {:?}", io.calls());
+
+    for row in &rows {
+        let offered: Vec<&str> = row.actions.iter().map(|a| action_text(*a)).collect();
+        let omitted: Vec<&str> = ["install", "update", "remove"]
+            .into_iter()
+            .filter(|a| !offered.contains(a))
+            .collect();
+        let refused: Vec<&str> = row.refusals.iter().map(|(a, _)| *a).collect();
+        assert_eq!(
+            refused, omitted,
+            "{os:?} {}: refusals cover the omitted actions",
+            row.name
+        );
+        for &(action, code) in row.refusals {
+            let io = RecordingInstallIo::fail_closed();
+            let env = rig.command_env(os, arch, &io, &FsExtractIo, &NativeDrivers);
+            let result = if action == "remove" {
+                install::remove_for_command(env, row.name, NOW, &host, &mut |_| {})
+            } else {
+                install::for_command(env, row.name, LATEST, action, NOW, &host, &mut |_| {})
+            };
+            match result {
+                Ok(summary) => panic!("{os:?} {} {action}: accepted: {summary:?}", row.name),
+                Err(e) => assert_eq!(e.code(), code, "{os:?} {} {action}: {e}", row.name),
+            }
+            assert_eq!(
+                io.mutating_calls(),
+                0,
+                "{os:?} {} {action}: {:?}",
+                row.name,
+                io.calls()
+            );
+            assert!(
+                rig.elevation.launches().is_empty(),
+                "{os:?} {} {action}: launched",
+                row.name
+            );
+        }
+    }
+    let assets: Vec<String> = server
+        .requests()
+        .into_iter()
+        .filter(|r| r.path != FEED_PATH)
+        .map(|r| r.path)
+        .collect();
+    assert!(assets.is_empty(), "{os:?}: asset requests: {assets:?}");
+}
+
 /// The command spelling of a card action (FR-090 step 1).
 fn action_text(action: ActionView) -> &'static str {
     match action {
@@ -1799,8 +2389,9 @@ fn action_text(action: ActionView) -> &'static str {
 }
 
 /// SC-016 (status half; FR-093, FR-094, FR-100, D13; plan PD-15, PD-16): the Linux card actions per state equal the
-/// table, every other OS offers none and reads no gate, and every action a Linux card omits is refused by the command
-/// with its code, with no mutating `InstallIo` call and no asset request.
+/// table, and every action a Linux card omits is refused by the command with its code, with no mutating `InstallIo`
+/// call and no asset request. Phase 10 SC-013 (FR-080 to FR-083): the same over `(Os::Windows, Arch::X86_64)` and
+/// `(Os::Macos, Arch::Aarch64)` with their records, `remove_hint` included, and no launch.
 #[test]
 fn actions_per_state() {
     let signer = TestSigner::new();
@@ -1837,17 +2428,7 @@ fn actions_per_state() {
             row.name
         );
         assert_eq!(card.actions, row.actions, "{}: {card:?}", row.name);
-    }
-
-    // Windows and macOS: no driver, so no action and no gate read (PD-15).
-    for (os, arch) in [(Os::Windows, Arch::X86_64), (Os::Macos, Arch::Aarch64)] {
-        let io = RecordingInstallIo::forwarding(&FsInstallIo);
-        let view = build_with_os(os, arch, ctx, FetchMode::Normal, NOW, &host, &io);
-        assert_eq!(view.plugins.len(), STATE_ROWS.len(), "{os:?}: {view:?}");
-        for card in &view.plugins {
-            assert!(card.actions.is_empty(), "{os:?}: {card:?}");
-        }
-        assert!(io.calls().is_empty(), "{os:?}: {:?}", io.calls());
+        assert_eq!(card.remove_hint, None, "{}: {card:?}", row.name);
     }
 
     // Linux: every omitted action is refused with its code before any asset request, nothing written (D13).
@@ -1867,7 +2448,7 @@ fn actions_per_state() {
             let io = RecordingInstallIo::fail_closed();
             let env = rig.command_env(Os::Linux, Arch::X86_64, &io, &FsExtractIo, &NativeDrivers);
             let result = if action == "remove" {
-                install::remove_for_command(env, row.name, NOW, &mut |_| {})
+                install::remove_for_command(env, row.name, NOW, &host, &mut |_| {})
             } else {
                 install::for_command(env, row.name, LATEST, action, NOW, &host, &mut |_| {})
             };
@@ -1891,4 +2472,8 @@ fn actions_per_state() {
         .map(|r| r.path)
         .collect();
     assert!(assets.is_empty(), "asset requests: {assets:?}");
+
+    // Windows and macOS: their own table, each on its own feed and temp roots (Phase 10 SC-013).
+    elevated_actions_per_state(Os::Windows, Arch::X86_64);
+    elevated_actions_per_state(Os::Macos, Arch::Aarch64);
 }

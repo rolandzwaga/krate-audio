@@ -15,6 +15,8 @@ pub const APP_IDENTIFIER: &str = "com.krateaudio.krate-manager";
 pub const VENDOR_DIR: &str = "Krate Audio";
 /// `sw_vers` / `getconf` bound (D8).
 pub const OS_VERSION_WAIT: Duration = Duration::from_secs(2);
+/// Phase 10 FR-077: the one process signal, after a macOS install or update (cfg-free so every leg tests the driver).
+pub const KILLALL_ARGV: [&str; 3] = ["/usr/bin/killall", "-9", "AudioComponentRegistrar"];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Os {

@@ -13,17 +13,20 @@ use crate::extract::{
 };
 use crate::feed::{self, Feed, PlainName, PlatformKey};
 use crate::install::{
-    Action, ActionKind, ActionResult, CommandEnv, DriverResolver, FsInstallIo, InstallDriver,
-    InstallEnv, InstallIo, KeptPath, Outcome,
+    Action, ActionKind, ActionResult, CommandEnv, DriverResolver, ElevatedCommand, Elevation,
+    ElevationGuard, FsInstallIo, InstallDriver, InstallEnv, InstallIo, KeptPath, LaunchOutcome,
+    Outcome,
 };
-use crate::platform::{HostIo, NativePlatform, Os, Platform, RegistryRead, RunOutcome};
+use crate::platform::{
+    APP_IDENTIFIER, HostIo, NativePlatform, Os, Platform, RegistryRead, RunOutcome,
+};
 use crate::roots::{PluginRoot, PresetRoots, RootKind, RootPaths, Roots, STAGING_DIR};
 use crate::verify::{Sha256Stream, SigningKey, hex_lower};
 use crate::version::{self, Arch, OsVersion};
 use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::cell::RefCell;
-use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
+use std::collections::{BTreeMap, VecDeque};
 use std::ffi::{OsStr, OsString};
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
@@ -125,9 +128,14 @@ fn root_dirs(roots: &Roots) -> Vec<&Path> {
 /// `roots_at`, with `presets().user` spelled `<base>/presets/<leaf>` and not created when `user_leaf` is `Some`
 /// (SI-15).
 fn roots_at_with(base: &Path, user_leaf: Option<&OsStr>) -> Roots {
+    roots_at_state(base, user_leaf, OsStr::new("state"))
+}
+
+/// `roots_at_with`, with the state dir spelled `<base>/<state_leaf>` (Phase 10 SI-21).
+fn roots_at_state(base: &Path, user_leaf: Option<&OsStr>, state_leaf: &OsStr) -> Roots {
     let plugins = base.join("plugins");
     let presets = base.join("presets");
-    let state_dir = base.join("state");
+    let state_dir = base.join(state_leaf);
     let paths = RootPaths {
         plugin_roots: PLUGIN_DIRS
             .iter()
@@ -203,6 +211,16 @@ pub fn temp_roots(base: &Path) -> Roots {
 pub fn fresh_temp_roots() -> (tempfile::TempDir, Roots) {
     let td = tempfile::TempDir::new().expect("cannot create a TempDir");
     let roots = temp_roots(td.path());
+    (td, roots)
+}
+
+/// Phase 10 SI-21: `fresh_temp_roots`' layout with the state dir `<base>/<APP_IDENTIFIER>` (the last component the
+/// helper requires, FR-021) and staging under it; keep the `TempDir` alive while the roots are used.
+pub fn fresh_elevated_roots() -> (tempfile::TempDir, Roots) {
+    let td = tempfile::TempDir::new().expect("cannot create a TempDir");
+    let canonical = check_under_temp(td.path(), &canonical_temp_dir())
+        .unwrap_or_else(|e| panic!("fresh_elevated_roots refused: {e}"));
+    let roots = roots_at_state(&canonical, None, OsStr::new(APP_IDENTIFIER));
     (td, roots)
 }
 
@@ -339,6 +357,198 @@ impl HostIo for FakeHostIo {
     fn rtl_version(&self) -> Option<(u32, u32, u32)> {
         self.calls.borrow_mut().push("rtl_version".to_owned());
         self.rtl
+    }
+}
+
+/// Phase 10 (plan §4.4): `HostFacts` whose records a loopback effect can change; `Sync`, keyed by the `PlainName`
+/// string; an unlisted key is `Absent`, as in `FakeHostFacts`.
+pub struct LiveHostFacts {
+    pub os_version: Option<OsVersion>,
+    pub inno: Mutex<BTreeMap<String, RecordRead<InnoValues>>>,
+    pub pkg: Mutex<BTreeMap<String, RecordRead<PkgOutputs>>>,
+}
+
+impl LiveHostFacts {
+    pub fn new(os_version: Option<OsVersion>) -> LiveHostFacts {
+        LiveHostFacts {
+            os_version,
+            inno: Mutex::new(BTreeMap::new()),
+            pkg: Mutex::new(BTreeMap::new()),
+        }
+    }
+}
+
+impl HostFacts for LiveHostFacts {
+    fn os_version(&self) -> Option<OsVersion> {
+        self.os_version
+    }
+
+    fn inno_values(&self, key: &PlainName) -> RecordRead<InnoValues> {
+        self.inno
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(key.as_str())
+            .cloned()
+            .unwrap_or(RecordRead::Absent)
+    }
+
+    fn pkg_outputs(&self, pkg_id: &PlainName) -> RecordRead<PkgOutputs> {
+        self.pkg
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(pkg_id.as_str())
+            .cloned()
+            .unwrap_or(RecordRead::Absent)
+    }
+}
+
+/// What a scripted launch writes as `<job stem>.result.json` beside the job, given the job's path (`None`: nothing).
+pub type ScriptedResult = Box<dyn Fn(&Path) -> Option<Vec<u8>> + Send>;
+
+/// One scripted launch of `FakeElevation` (plan §4.4).
+pub struct Scripted {
+    pub outcome: LaunchOutcome,
+    pub result: Option<ScriptedResult>,
+}
+
+/// Phase 10 (plan §4.4, PD-9): an `Elevation` that never starts a process. Every `launch` reads the job named by
+/// `args[1]` into `jobs`, records the command, then answers with the next scripted launch (writing its result file),
+/// or with `otherwise` when none is left. Its guard is its own, so parallel tests never share one.
+pub struct FakeElevation {
+    pub helper: Option<PathBuf>,
+    pub script: Mutex<VecDeque<Scripted>>,
+    pub launches: Mutex<Vec<(ElevatedCommand, Duration)>>,
+    pub jobs: Mutex<Vec<Vec<u8>>>,
+    /// The outcome of a launch with no scripted entry left.
+    pub otherwise: LaunchOutcome,
+    guard: ElevationGuard,
+}
+
+/// The helper path a `FakeElevation` reports by default: a bare name, never executed.
+const FAKE_HELPER: &str = "fake-krate-manager-helper";
+
+impl FakeElevation {
+    fn with_outcome(helper: Option<PathBuf>, otherwise: LaunchOutcome) -> FakeElevation {
+        FakeElevation {
+            helper,
+            script: Mutex::new(VecDeque::new()),
+            launches: Mutex::new(Vec::new()),
+            jobs: Mutex::new(Vec::new()),
+            otherwise,
+            guard: ElevationGuard::new(),
+        }
+    }
+
+    /// Every launch is `Refused`.
+    pub fn refusing() -> FakeElevation {
+        FakeElevation::with_outcome(Some(PathBuf::from(FAKE_HELPER)), LaunchOutcome::Refused)
+    }
+
+    /// Every unscripted launch is `outcome`.
+    pub fn returning(outcome: LaunchOutcome) -> FakeElevation {
+        FakeElevation::with_outcome(Some(PathBuf::from(FAKE_HELPER)), outcome)
+    }
+
+    /// No helper beside the manager (`helper()` is `None`).
+    pub fn missing() -> FakeElevation {
+        FakeElevation::with_outcome(None, LaunchOutcome::Failed("E_ELEVATION_NONE"))
+    }
+
+    pub fn with_helper(self, path: PathBuf) -> FakeElevation {
+        FakeElevation {
+            helper: Some(path),
+            ..self
+        }
+    }
+
+    pub fn push(&self, s: Scripted) {
+        self.script
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push_back(s);
+    }
+
+    pub fn launches(&self) -> Vec<(ElevatedCommand, Duration)> {
+        self.launches
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    pub fn jobs(&self) -> Vec<Vec<u8>> {
+        self.jobs
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+}
+
+impl Elevation for FakeElevation {
+    fn helper(&self) -> Option<&Path> {
+        self.helper.as_deref()
+    }
+
+    fn launch(&self, command: &ElevatedCommand, timeout: Duration) -> LaunchOutcome {
+        let job = command
+            .args
+            .get(1)
+            .map(PathBuf::from)
+            .unwrap_or_else(|| panic!("FakeElevation: no job argument in {:?}", command.args));
+        let bytes = std::fs::read(&job)
+            .unwrap_or_else(|e| panic!("FakeElevation cannot read the job {}: {e}", job.display()));
+        self.jobs
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(bytes);
+        self.launches
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push((command.clone(), timeout));
+        let next = self
+            .script
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .pop_front();
+        let Some(scripted) = next else {
+            return self.otherwise;
+        };
+        if let Some(result) = &scripted.result
+            && let Some(bytes) = result(&job)
+        {
+            let stem = job
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let path = job.with_file_name(format!("{stem}.result.json"));
+            std::fs::write(&path, bytes)
+                .unwrap_or_else(|e| panic!("FakeElevation cannot write {}: {e}", path.display()));
+        }
+        scripted.outcome
+    }
+
+    fn guard(&self) -> &ElevationGuard {
+        &self.guard
+    }
+}
+
+/// Phase 10: a `FakeHostIo` shared across threads (the `InstallRig` field); each call locks it.
+impl HostIo for Mutex<FakeHostIo> {
+    fn run(&self, argv: &[&str], bound: Duration) -> RunOutcome {
+        self.lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .run(argv, bound)
+    }
+
+    fn registry_values(&self, subkey: &str, names: [&str; 2]) -> RegistryRead {
+        self.lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .registry_values(subkey, names)
+    }
+
+    fn rtl_version(&self) -> Option<(u32, u32, u32)> {
+        self.lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .rtl_version()
     }
 }
 
@@ -3020,6 +3230,10 @@ pub struct InstallRig {
     pub policy: DownloadPolicy,
     pub cancel: CancelToken,
     pub extract_limits: ExtractLimits,
+    /// Phase 10: `FakeElevation::missing()` by default.
+    pub elevation: FakeElevation,
+    /// Phase 10: an empty `FakeHostIo` by default, behind a `Mutex` so the rig stays `Sync`.
+    pub host_io: Mutex<FakeHostIo>,
 }
 
 impl InstallRig {
@@ -3032,6 +3246,8 @@ impl InstallRig {
             policy: test_policy(),
             cancel: CancelToken::new(),
             extract_limits: ExtractLimits::PRODUCTION,
+            elevation: FakeElevation::missing(),
+            host_io: Mutex::new(FakeHostIo::default()),
         }
     }
 
@@ -3052,7 +3268,8 @@ impl InstallRig {
         }
     }
 
-    /// Seam-free (PD-30): a test that needs the fixture server sets the seam itself.
+    /// Seam-free (PD-30): a test that needs the fixture server sets the seam itself. Borrows the rig's own
+    /// `elevation` and `host_io`.
     pub fn command_env<'a>(
         &'a self,
         os: Os,
@@ -3060,6 +3277,27 @@ impl InstallRig {
         io: &'a dyn InstallIo,
         extract_io: &'a dyn ExtractIo,
         drivers: &'a dyn DriverResolver,
+    ) -> CommandEnv<'a> {
+        self.command_env_with(
+            os,
+            arch,
+            io,
+            extract_io,
+            drivers,
+            (&self.elevation, &self.host_io),
+        )
+    }
+
+    /// `command_env` with the Phase 10 launcher and host I/O given (FR-071), as one `(elevation, host_io)` pair:
+    /// a seventh parameter would trip `clippy::too_many_arguments`, which `injection.rs` never lets be suppressed.
+    pub fn command_env_with<'a>(
+        &'a self,
+        os: Os,
+        arch: Arch,
+        io: &'a dyn InstallIo,
+        extract_io: &'a dyn ExtractIo,
+        drivers: &'a dyn DriverResolver,
+        (elevation, host_io): (&'a dyn Elevation, &'a dyn HostIo),
     ) -> CommandEnv<'a> {
         CommandEnv {
             os,
@@ -3069,6 +3307,8 @@ impl InstallRig {
             extract: self.extract_env(extract_io),
             download: self.download_env(),
             drivers,
+            elevation,
+            host_io,
             #[cfg(test)]
             request_seam: None,
         }

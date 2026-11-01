@@ -1,5 +1,6 @@
 //! The app's commands (FR-040, FR-042; Phase 6 FR-060, FR-064; Phase 7 FR-060, FR-061; Phase 9 FR-096).
 
+use crate::os_elevation::NativeElevation;
 use crate::os_facts::OsHostIo;
 use krate_manager_core::context::{SharedState, startup_notice};
 use krate_manager_core::detect::PlatformFacts;
@@ -11,7 +12,7 @@ use krate_manager_core::extract::{ExtractEnv, ExtractLimits, FsExtractIo};
 use krate_manager_core::feed::FetchMode;
 use krate_manager_core::install::{self, ActionSummary, FsInstallIo, InstallProgress};
 use krate_manager_core::status::{self, StatusView};
-use std::sync::PoisonError;
+use std::sync::{Arc, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[tauri::command]
@@ -110,7 +111,9 @@ pub async fn install_plugin(
     expected_version: String,
     action: String,
     on_progress: tauri::ipc::Channel<InstallProgress>,
+    elevation: tauri::State<'_, Arc<NativeElevation>>,
 ) -> Result<ActionSummary, String> {
+    let elevation = Arc::clone(&elevation);
     let ctx = {
         let guard = state.read().unwrap_or_else(PoisonError::into_inner);
         guard.context.clone().map_err(|e| e.to_string())?
@@ -133,7 +136,14 @@ pub async fn install_plugin(
             limits: &ExtractLimits::PRODUCTION,
         };
         install::for_command(
-            install::native_env(&ctx, &FsInstallIo, extract, download),
+            install::native_env(
+                &ctx,
+                &FsInstallIo,
+                extract,
+                download,
+                &*elevation,
+                &OsHostIo,
+            ),
             &name,
             &expected_version,
             &action,
@@ -159,7 +169,9 @@ pub async fn remove_plugin(
     state: tauri::State<'_, SharedState>,
     name: String,
     on_progress: tauri::ipc::Channel<InstallProgress>,
+    elevation: tauri::State<'_, Arc<NativeElevation>>,
 ) -> Result<ActionSummary, String> {
+    let elevation = Arc::clone(&elevation);
     let ctx = {
         let guard = state.read().unwrap_or_else(PoisonError::into_inner);
         guard.context.clone().map_err(|e| e.to_string())?
@@ -182,9 +194,17 @@ pub async fn remove_plugin(
             limits: &ExtractLimits::PRODUCTION,
         };
         install::remove_for_command(
-            install::native_env(&ctx, &FsInstallIo, extract, download),
+            install::native_env(
+                &ctx,
+                &FsInstallIo,
+                extract,
+                download,
+                &*elevation,
+                &OsHostIo,
+            ),
             &name,
             now_unix,
+            &PlatformFacts { io: &OsHostIo },
             &mut install::channel_progress(|e| on_progress.send(e)),
         )
         .map_err(|e| e.to_string())

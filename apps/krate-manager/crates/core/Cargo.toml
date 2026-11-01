@@ -33,7 +33,15 @@ thiserror = { workspace = true }
 url = { workspace = true }
 ureq = { workspace = true }
 
+[[bin]]
+# Phase 10 SC-015: windows_quoting.rs's echo target; never shipped
+name = "argv-echo"
+path = "tests/bin/argv_echo.rs"
+test = false
+
 [dev-dependencies]
+# Phase 10 PD-8: the loopback (install_loopback_tests.rs)
+krate-manager-helper = { workspace = true, features = ["test-support"] }
 # Phase 7 D1: test_signer.rs only, never a normal dependency (FR-081)
 minisign = { workspace = true }
 

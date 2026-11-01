@@ -5,6 +5,7 @@ mod commands;
 mod dev_feed;
 mod log_sink;
 mod navigation;
+pub mod os_elevation;
 mod os_facts;
 mod os_proxy;
 pub mod os_roots;
@@ -16,13 +17,25 @@ use krate_manager_core::context::{
 #[cfg(not(feature = "dev-feed"))]
 use krate_manager_core::http::HttpConfig;
 use krate_manager_core::http::resolve_proxy;
-use krate_manager_core::platform::NativePlatform;
+use krate_manager_core::install::{self, FsInstallIo};
+use krate_manager_core::platform::{NativePlatform, Platform};
 use krate_manager_core::roots::Roots;
 use krate_manager_core::verify::SigningKey;
 use os_proxy::SystemProxyFromOs;
 use os_roots::FromOs;
+use std::path::Path;
+use std::sync::Arc;
 
 const FEED_URL: &str = "https://krateaudio.com/versions.json";
+
+/// Phase 10 PD-23: the one construction of `NativeElevation`, the helper resolved beside `exe` once (FR-090).
+pub fn resolve_elevation(exe: Option<&Path>) -> os_elevation::NativeElevation {
+    os_elevation::NativeElevation::new(install::helper_beside(
+        NativePlatform.os(),
+        exe,
+        &FsInstallIo,
+    ))
+}
 
 pub fn run() {
     #[expect(
@@ -74,6 +87,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(navigation::guard())
         .manage(SharedState::new(state))
+        .manage(Arc::new(resolve_elevation(
+            std::env::current_exe().ok().as_deref(),
+        )))
         .setup(move |app| {
             if locked {
                 let handle = app.handle().clone();

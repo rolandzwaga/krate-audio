@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "bundle": "node scripts/bundle.js"
   },
   "dependencies": { "@tauri-apps/api": "2.12.4" },
   "devDependencies": {

@@ -1,5 +1,5 @@
-// The status section (spec FR-070 to FR-078, FR-097 to FR-099; plan §4.7, §4.10, PD-13, PD-14, PD-18,
-// PD-22). Every string comes from STATUS_TEXTS, ACTION_TEXTS or INSTALL_TEXTS through `fill` and reaches
+// The status section (spec FR-070 to FR-078, FR-097 to FR-099, Phase 10 FR-130 to FR-135; plan §4.7, §4.10, PD-13,
+// PD-14, PD-18, PD-22). Every string comes from STATUS_TEXTS, ACTION_TEXTS or INSTALL_TEXTS through `fill` and reaches
 // the DOM through textContent; the only properties set from view data are `ol.start` (notes.ts) and
 // `button.disabled`; the release-page URL lives only in its button's click closure.
 import { Channel } from "@tauri-apps/api/core";
@@ -83,7 +83,28 @@ export const INSTALL_TEXTS = {
   removed: "Removed",
   rescan: "Restart your DAW or rescan its plug-ins to load the new version.",
   kept: "Kept {path}: changed since install",
+  // Phase 10 FR-131 to FR-134: the Windows / macOS confirmation lines, the elevation progress, the AU steps in Apple's
+  // order (the guide is plain text: the webview opens no remote content) and the outside-root hint.
+  adminWindows: "Windows will ask for administrator permission once.",
+  adminMacos: "macOS will ask for your administrator password once.",
+  confirmRemoveInstaller:
+    "Remove {name}? Its installer's uninstaller removes the plug-in and its factory presets; your own presets are kept.",
+  elevating: "Waiting for administrator permission and the installer…",
+  rescanMacos1: "If a Logic or GarageBand AU does not appear: 1. Restart the Mac.",
+  rescanMacos2: "2. In Logic's Plug-in Manager, use 'Reset & Rescan Selection'.",
+  rescanMacos3: "3. Still missing: use 'Full Audio Unit Reset', then reopen Logic.",
+  rescanMacos4:
+    "4. Last resort: move the files in ~/Library/Caches/AudioUnitCache out, restart, and reopen Logic (the rescan can take a while).",
+  appleGuide: "Apple's guide: support.apple.com/en-us/122179",
+  removeElsewhere: "Installed outside the standard folder: uninstall it from Windows Settings → Apps.",
 } as const satisfies Record<string, string>;
+
+/** FR-131's administrator line per OS; Linux actions run unelevated and add none. */
+const ADMIN_LINES: Readonly<Record<OsName, string | null>> = {
+  windows: INSTALL_TEXTS.adminWindows,
+  macos: INSTALL_TEXTS.adminMacos,
+  linux: null,
+};
 
 const ACTION_LABELS: Readonly<Record<ActionName, string>> = {
   install: INSTALL_TEXTS.install,
@@ -264,22 +285,33 @@ function button(className: string, text: string): HTMLButtonElement {
   return b;
 }
 
-/** FR-099's one-item confirmation; for Install over an `elsewhere` copy also the other copy's path (FR-124). */
-function confirmLines(p: PluginView, action: ActionName): HTMLParagraphElement[] {
+/**
+ * FR-099's one-item confirmation; for Install over an `elsewhere` copy also the other copy's path (FR-124). On Windows
+ * and macOS Remove names the installer's uninstaller and every action ends with the administrator line (FR-131).
+ */
+function confirmLines(os: OsName, p: PluginView, action: ActionName): HTMLParagraphElement[] {
+  const lines: HTMLParagraphElement[] = [];
   switch (action) {
     case "install": {
-      const lines = [paragraph("confirm-text", fill(INSTALL_TEXTS.confirmInstall, { name: p.name, latest: p.latest }))];
+      lines.push(paragraph("confirm-text", fill(INSTALL_TEXTS.confirmInstall, { name: p.name, latest: p.latest })));
       const other = p.installed === "elsewhere" ? p.copies.find((c) => c.format === "vst3" && !c.managed) : undefined;
       if (other !== undefined) lines.push(paragraph("other-copy", fill(INSTALL_TEXTS.otherCopy, { path: other.path })));
-      return lines;
+      break;
     }
     case "update": {
       const installed = p.installed_version ?? STATUS_TEXTS.unknownVersion;
-      return [paragraph("confirm-text", fill(INSTALL_TEXTS.confirmUpdate, { name: p.name, installed, latest: p.latest }))];
+      lines.push(paragraph("confirm-text", fill(INSTALL_TEXTS.confirmUpdate, { name: p.name, installed, latest: p.latest })));
+      break;
     }
-    case "remove":
-      return [paragraph("confirm-text", fill(INSTALL_TEXTS.confirmRemove, { name: p.name }))];
+    case "remove": {
+      const template = os === "linux" ? INSTALL_TEXTS.confirmRemove : INSTALL_TEXTS.confirmRemoveInstaller;
+      lines.push(paragraph("confirm-text", fill(template, { name: p.name })));
+      break;
+    }
   }
+  const admin = ADMIN_LINES[os];
+  if (admin !== null) lines.push(paragraph("admin-note", admin));
+  return lines;
 }
 
 /** FR-097's progress text for one event; null for the events that change nothing on screen. */
@@ -291,6 +323,8 @@ function progressText(event: InstallProgress): string | null {
         : null;
     case "staging":
       return null;
+    case "elevating":
+      return INSTALL_TEXTS.elevating;
     case "placing":
       return fill(INSTALL_TEXTS.placing, { done: String(event.done), total: String(event.total) });
     case "removing":
@@ -301,7 +335,7 @@ function progressText(event: InstallProgress): string | null {
   }
 }
 
-/** FR-098's outcome lines of a successful action. */
+/** FR-098's outcome lines of a successful action; `rescan_daw_macos` adds Apple's AU steps and guide (FR-133). */
 function outcomeLines(summary: ActionSummary): string[] {
   const version = summary.version ?? STATUS_TEXTS.unknownVersion;
   const lines: string[] = [];
@@ -317,6 +351,15 @@ function outcomeLines(summary: ActionSummary): string[] {
       break;
   }
   if (summary.notice !== null) lines.push(INSTALL_TEXTS.rescan);
+  if (summary.notice === "rescan_daw_macos") {
+    lines.push(
+      INSTALL_TEXTS.rescanMacos1,
+      INSTALL_TEXTS.rescanMacos2,
+      INSTALL_TEXTS.rescanMacos3,
+      INSTALL_TEXTS.rescanMacos4,
+      INSTALL_TEXTS.appleGuide,
+    );
+  }
   for (const kept of summary.kept) lines.push(fill(INSTALL_TEXTS.kept, { path: kept.path }));
   return lines;
 }
@@ -325,10 +368,10 @@ function outcomeLines(summary: ActionSummary): string[] {
  * The card's `div.actions` row (FR-097 to FR-099): a click swaps it for the in-card confirmation; `Confirm` disables
  * every action button, shows progress in front of `anchor`, runs the command, then the outcome lines and the refresh.
  */
-function actionRow(card: HTMLElement, anchor: HTMLElement, p: PluginView, host: CardHost): HTMLDivElement {
+function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: PluginView, host: CardHost): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "actions";
-  const buttons = p.actions.map((action) => {
+  const buttons = shownActions(p).map((action) => {
     const b = button(`action-${action}`, ACTION_LABELS[action]);
     b.addEventListener("click", () => {
       if (!b.disabled) ask(action);
@@ -342,7 +385,7 @@ function actionRow(card: HTMLElement, anchor: HTMLElement, p: PluginView, host: 
     confirm.className = "confirm";
     const ok = button("confirm-ok", INSTALL_TEXTS.confirm);
     const cancel = button("confirm-cancel", INSTALL_TEXTS.cancel);
-    confirm.append(...confirmLines(p, action), ok, cancel);
+    confirm.append(...confirmLines(os, p, action), ok, cancel);
     cancel.addEventListener("click", () => {
       confirm.replaceWith(row);
     });
@@ -389,6 +432,11 @@ function actionRow(card: HTMLElement, anchor: HTMLElement, p: PluginView, host: 
   return row;
 }
 
+/** The core's `actions`, without Remove on a card the user removes from Windows Settings (FR-134). */
+function shownActions(p: PluginView): readonly ActionName[] {
+  return p.remove_hint === null ? p.actions : p.actions.filter((action) => action !== "remove");
+}
+
 function renderCard(os: OsName, p: PluginView, host: CardHost): HTMLElement {
   const card = document.createElement("article");
   card.className = "plugin";
@@ -410,9 +458,10 @@ function renderCard(os: OsName, p: PluginView, host: CardHost): HTMLElement {
   }
   card.append(copies);
   for (const notice of noticeTexts(p)) card.append(paragraph("record-notice", notice));
+  if (p.remove_hint !== null) card.append(paragraph("remove-hint", INSTALL_TEXTS.removeElsewhere));
   if (p.release_page_url !== null) card.append(releaseButton(p.release_page_url, host.invoke));
   const details = document.createElement("details");
-  if (p.actions.length > 0) card.append(actionRow(card, details, p, host));
+  if (shownActions(p).length > 0) card.append(actionRow(os, card, details, p, host));
   for (const line of host.outcomes.get(p.name) ?? []) card.append(paragraph("outcome", line));
   details.className = "notes";
   const summary = document.createElement("summary");

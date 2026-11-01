@@ -1,12 +1,16 @@
 //! Install, update and uninstall of one plugin's Linux `tar.gz` (Phase 9, spec FR-001 to FR-124; plan §3, §4.1).
 //! Every filesystem step goes through `InstallIo` (FR-028); only `driver_for` decides where a driver is offered.
+//! Phase 10: the Windows and macOS drivers write one job and make one elevated helper launch per batch (FR-070 to
+//! FR-084).
 
 use crate::context::AppContext;
-use crate::detect::{self, CopyFormat, CopyVersion, Detection, HostFacts, Listing, ListingLimits};
+use crate::detect::{
+    self, CopyFormat, CopyVersion, Detection, HostFacts, InstallerRecord, Listing, ListingLimits,
+};
 use crate::download::{self, DownloadEnv, DownloadError, Progress};
 use crate::extract::{self, ExtractEnv, ExtractError, NodeKind, StagedTree};
 use crate::feed::{self, AssetFormat, FetchMode, PluginEntry};
-use crate::platform::{NativePlatform, Os, Platform};
+use crate::platform::{self, HostIo, NativePlatform, Os, Platform};
 use crate::status;
 use crate::verify::{self, Sha256Stream, VerifiedArtifact};
 use crate::version::{self, Arch, Availability, CoreVersion, Installed, UpdateState};
@@ -18,6 +22,7 @@ use std::ffi::OsString;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
+use std::time::Duration;
 
 /// The `log` target of every install line (FR-117).
 pub const LOG_TARGET: &str = "krate_manager_core::install";
@@ -70,6 +75,8 @@ pub enum Step {
     RemoveBegun,
     RemoveEntries,
     ManifestRemoved,
+    JobWritten,
+    JobRemoved,
 }
 
 impl Step {
@@ -91,6 +98,8 @@ impl Step {
             Step::RemoveBegun => "remove_begun",
             Step::RemoveEntries => "remove_entries",
             Step::ManifestRemoved => "manifest_removed",
+            Step::JobWritten => "job_written",
+            Step::JobRemoved => "job_removed",
         }
     }
 }
@@ -140,7 +149,7 @@ pub enum InstallError {
     Collision { path: KeptPath },
     #[error("E_INSTALL_UNSUPPORTED: this filesystem cannot hold a symlink")]
     Unsupported,
-    #[error("E_INSTALL_FORMAT: the artifact is not a tar.gz")]
+    #[error("E_INSTALL_FORMAT: the artifact is not this system's installer format")]
     Format,
     #[error("E_INSTALL_CHANGED: {path:?} changed after staging")]
     Changed { path: KeptPath },
@@ -159,6 +168,40 @@ pub enum InstallError {
     /// A Phase 8 `E_EXTRACT_*` / `E_LISTING_*` / `E_LAYOUT` error (FR-002).
     #[error("{0}")]
     Extract(ExtractError),
+    // ---- Phase 10 (FR-079, FR-133; plan §3.2, PD-15) ----
+    #[error("E_INSTALL_REFUSED: Administrator permission was not given; nothing was changed.")]
+    Refused,
+    #[error("E_INSTALL_ELEVATION: the elevated helper could not be started ({code})")]
+    Elevation { code: &'static str },
+    #[error("E_INSTALL_ELEVATION_BUSY: {}", busy_sentence(.stale))]
+    ElevationBusy { stale: bool },
+    #[error(
+        "E_INSTALL_NOT_APPLIED: The installer finished but the change was not applied. Check the installed version and retry."
+    )]
+    NotApplied,
+    #[error("E_INSTALL_HELPER_MISSING: the elevated helper is not installed beside the manager")]
+    HelperMissing,
+    #[error("E_INSTALL_NO_RESULT: the elevated helper left no usable result")]
+    NoResult,
+    #[error("E_INSTALL_HELPER: the helper reported {code}")]
+    Helper { code: &'static str },
+    #[error("E_INSTALL_LOCKED: A plug-in file is in use. Close your DAW and retry.")]
+    Locked,
+    #[error("E_INSTALL_INSTALLER_FAILED: the installer exited with code {exit_code}")]
+    InstallerFailed { exit_code: i32 },
+    #[error(
+        "E_INSTALL_REMOVE_ELSEWHERE: installed outside the standard folder; uninstall it from Windows Settings"
+    )]
+    RemoveElsewhere,
+}
+
+/// FR-133's two `E_INSTALL_ELEVATION_BUSY` sentences (FR-078a).
+fn busy_sentence(stale: &bool) -> &'static str {
+    if *stale {
+        "An installer is still running. Wait for it to finish, then retry."
+    } else {
+        "Another install is running. Retry when it finishes."
+    }
 }
 
 impl InstallError {
@@ -191,6 +234,16 @@ impl InstallError {
             InstallError::Record(code) => code,
             InstallError::Download(e) => e.code(),
             InstallError::Extract(e) => e.code(),
+            InstallError::Refused => "E_INSTALL_REFUSED",
+            InstallError::Elevation { .. } => "E_INSTALL_ELEVATION",
+            InstallError::ElevationBusy { .. } => "E_INSTALL_ELEVATION_BUSY",
+            InstallError::NotApplied => "E_INSTALL_NOT_APPLIED",
+            InstallError::HelperMissing => "E_INSTALL_HELPER_MISSING",
+            InstallError::NoResult => "E_INSTALL_NO_RESULT",
+            InstallError::Helper { .. } => "E_INSTALL_HELPER",
+            InstallError::Locked => "E_INSTALL_LOCKED",
+            InstallError::InstallerFailed { .. } => "E_INSTALL_INSTALLER_FAILED",
+            InstallError::RemoveElsewhere => "E_INSTALL_REMOVE_ELSEWHERE",
         }
     }
 }
@@ -307,6 +360,8 @@ pub struct ActionResult {
 #[serde(rename_all = "snake_case")]
 pub enum Notice {
     RescanDaw,
+    /// Phase 10 FR-084: the rescan line plus Apple's AU steps.
+    RescanDawMacos,
 }
 
 /// What a command returns to the webview: no absolute path (FR-091).
@@ -323,12 +378,22 @@ pub struct ActionSummary {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum InstallProgress {
-    Download { event: Progress },
+    Download {
+        event: Progress,
+    },
     Staging,
-    Placing { done: u64, total: u64 },
+    Placing {
+        done: u64,
+        total: u64,
+    },
     Committing,
-    Removing { done: u64, total: u64 },
+    Removing {
+        done: u64,
+        total: u64,
+    },
     Done,
+    /// Phase 10 FR-075: once per elevated batch, just before the launch.
+    Elevating,
 }
 
 /// An OS's install driver: runs a batch in order, one result per action (FR-001, D10).
@@ -366,6 +431,7 @@ impl InstallDriver for LinuxDriver {
             io,
             extract,
             progress,
+            ..
         } = env;
         batch
             .into_iter()
@@ -405,23 +471,60 @@ impl InstallDriver for LinuxDriver {
     }
 }
 
-static LINUX: LinuxDriver = LinuxDriver;
+/// The Windows driver: one elevated Inno batch (Phase 10 FR-070); OS-neutral logic, offered by `driver_for` on
+/// Windows only.
+pub struct WindowsDriver;
 
-/// The Linux driver for `Os::Linux`, none elsewhere until Phase 10 (FR-004).
-pub fn driver_for(os: Os) -> Option<&'static dyn InstallDriver> {
-    matches!(os, Os::Linux).then_some(&LINUX)
+impl InstallDriver for WindowsDriver {
+    fn os(&self) -> Os {
+        Os::Windows
+    }
+
+    fn run(&self, env: InstallEnv<'_>, batch: Vec<Action>) -> Vec<ActionResult> {
+        run_elevated(Os::Windows, env, batch)
+    }
 }
 
-/// What a driver run borrows (FR-001).
+/// The macOS driver: one elevated pkg batch and the registrar kill (Phase 10 FR-070, FR-077); OS-neutral logic,
+/// offered by `driver_for` on macOS only.
+pub struct MacosDriver;
+
+impl InstallDriver for MacosDriver {
+    fn os(&self) -> Os {
+        Os::Macos
+    }
+
+    fn run(&self, env: InstallEnv<'_>, batch: Vec<Action>) -> Vec<ActionResult> {
+        run_elevated(Os::Macos, env, batch)
+    }
+}
+
+static LINUX: LinuxDriver = LinuxDriver;
+static WINDOWS: WindowsDriver = WindowsDriver;
+static MACOS: MacosDriver = MacosDriver;
+
+/// Each OS's driver (Phase 10 FR-070): the only place that decides where a driver is offered.
+pub fn driver_for(os: Os) -> Option<&'static dyn InstallDriver> {
+    Some(match os {
+        Os::Windows => &WINDOWS,
+        Os::Macos => &MACOS,
+        Os::Linux => &LINUX,
+    })
+}
+
+/// What a driver run borrows (FR-001; Phase 10 FR-071, PD-10).
 pub struct InstallEnv<'a> {
     pub ctx: &'a AppContext,
     pub io: &'a dyn InstallIo,
     pub extract: ExtractEnv<'a>,
     pub progress: &'a mut dyn FnMut(InstallProgress),
+    pub elevation: &'a dyn Elevation,
+    pub host_io: &'a dyn HostIo,
+    pub host: &'a dyn HostFacts,
 }
 
-/// What a command borrows (FR-004, FR-090): the OS and architecture it acts for, the context, the I/O seams and the
-/// driver resolver. `Copy` (tasks TA-4).
+/// What a command borrows (FR-004, FR-090): the OS and architecture it acts for, the context, the I/O seams, the
+/// driver resolver, the elevation launcher and the host I/O (Phase 10 FR-071, D8). `Copy` (tasks TA-4).
 #[derive(Clone, Copy)]
 pub struct CommandEnv<'a> {
     pub os: Os,
@@ -431,6 +534,8 @@ pub struct CommandEnv<'a> {
     pub extract: ExtractEnv<'a>,
     pub download: DownloadEnv<'a>,
     pub drivers: &'a dyn DriverResolver,
+    pub elevation: &'a dyn Elevation,
+    pub host_io: &'a dyn HostIo,
     #[cfg(test)]
     pub(crate) request_seam:
         Option<&'a dyn Fn(crate::download::DownloadRequest) -> crate::download::DownloadRequest>,
@@ -442,6 +547,8 @@ pub fn native_env<'a>(
     io: &'a dyn InstallIo,
     extract: ExtractEnv<'a>,
     download: DownloadEnv<'a>,
+    elevation: &'a dyn Elevation,
+    host_io: &'a dyn HostIo,
 ) -> CommandEnv<'a> {
     CommandEnv {
         os: NativePlatform.os(),
@@ -451,8 +558,816 @@ pub fn native_env<'a>(
         extract,
         download,
         drivers: &NativeDrivers,
+        elevation,
+        host_io,
         #[cfg(test)]
         request_seam: None,
+    }
+}
+
+// ---- elevation (Phase 10 plan §4.2.1; FR-071, FR-090, FR-091; PD-9, PD-18) -----------------------------------------
+
+/// The one elevated launch of a batch (FR-076): the helper and its four arguments.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ElevatedCommand {
+    pub program: PathBuf,
+    pub args: Vec<String>,
+}
+
+/// How a launch ended (FR-071).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LaunchOutcome {
+    Exited(i32),
+    Refused,
+    Failed(&'static str),
+    TimedOut,
+}
+
+/// The elevation launcher (FR-071, PD-9): the resolved helper, one launch, and its own guard.
+pub trait Elevation: Sync {
+    fn helper(&self) -> Option<&Path>;
+    fn launch(&self, command: &ElevatedCommand, timeout: Duration) -> LaunchOutcome;
+    fn guard(&self) -> &ElevationGuard;
+}
+
+/// What an `ElevationGuard` holds (FR-078, FR-078a).
+enum Hold {
+    Free,
+    Running,
+    /// A timed-out batch: its job and the result it may still get (FR-078a).
+    Stale {
+        job: PathBuf,
+        result: PathBuf,
+    },
+}
+
+/// One elevated batch at a time per launcher, with the stale hold of FR-078a (PD-9).
+pub struct ElevationGuard {
+    hold: Mutex<Hold>,
+}
+
+impl ElevationGuard {
+    pub const fn new() -> ElevationGuard {
+        ElevationGuard {
+            hold: Mutex::new(Hold::Free),
+        }
+    }
+
+    /// FR-078, FR-078a: a running batch refuses `{ stale: false }`; a stale hold ends once its result file exists
+    /// (the job and result are removed), else refuses `{ stale: true }`. Lock poisoning is ignored, as `BUSY`.
+    fn enter(&self, io: &dyn InstallIo) -> Result<Held<'_>, InstallError> {
+        let mut hold = self.hold.lock().unwrap_or_else(PoisonError::into_inner);
+        match &*hold {
+            Hold::Running => return Err(InstallError::ElevationBusy { stale: false }),
+            Hold::Stale { job, result } => {
+                if !matches!(io.kind_of(result), Ok(Some(NodeKind::File))) {
+                    return Err(InstallError::ElevationBusy { stale: true });
+                }
+                remove_job_files(io, job, result);
+            }
+            Hold::Free => {}
+        }
+        *hold = Hold::Running;
+        Ok(Held {
+            guard: self,
+            stale: None,
+        })
+    }
+}
+
+/// A held guard: dropping it frees the guard (on unwind too, FR-078) unless `stale` recorded a timed-out job.
+struct Held<'a> {
+    guard: &'a ElevationGuard,
+    stale: Option<Hold>,
+}
+
+impl Held<'_> {
+    /// FR-078a: the guard stays held by the timed-out job until its result appears.
+    fn stale(mut self, job: PathBuf, result: PathBuf) {
+        self.stale = Some(Hold::Stale { job, result });
+    }
+}
+
+impl Drop for Held<'_> {
+    fn drop(&mut self) {
+        let next = self.stale.take().unwrap_or(Hold::Free);
+        *self
+            .guard
+            .hold
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = next;
+    }
+}
+
+/// FR-073: the job and its result removed (step `job_removed`), each error one `warn!`; an absent result is not
+/// touched.
+fn remove_job_files(io: &dyn InstallIo, job: &Path, result: &Path) {
+    for (path, which) in [(job, "job"), (result, "result")] {
+        if matches!(io.kind_of(path), Ok(None)) {
+            continue;
+        }
+        if let Err(e) = io.remove_file(path) {
+            warn!(
+                target: LOG_TARGET,
+                "{}: the {which} file was not removed",
+                io_err(Step::JobRemoved, &e).code()
+            );
+        }
+    }
+}
+
+impl Default for ElevationGuard {
+    fn default() -> ElevationGuard {
+        ElevationGuard::new()
+    }
+}
+
+/// FR-090: the fixed AppleScript; no job, feed or UI string is ever part of the script text.
+pub const OSASCRIPT_LINES: [&str; 3] = [
+    "on run argv",
+    "do shell script (quoted form of item 1 of argv) & \" \" & (quoted form of item 2 of argv) & \" \" & (quoted form of item 3 of argv) & \" \" & (quoted form of item 4 of argv) & \" \" & (quoted form of item 5 of argv) with administrator privileges",
+    "end run",
+];
+
+/// FR-077: the registrar kill's bound.
+pub const KILLALL_WAIT: Duration = Duration::from_secs(5);
+
+/// FR-090: `osascript`'s status and stderr → the outcome: exit 0 → `Exited(0)`; `(-128)` (the user cancelled) →
+/// `Refused`; stderr ending in `(<n>)` → `Exited(n)` (`do shell script`'s error number is the helper's exit status,
+/// so only a non-negative number is one; a negative one is AppleScript's own error); otherwise
+/// `Failed("E_ELEVATION_OSASCRIPT")`.
+pub fn osascript_outcome(status: Option<i32>, stderr: &str) -> LaunchOutcome {
+    if status == Some(0) {
+        return LaunchOutcome::Exited(0);
+    }
+    if stderr.contains("(-128)") {
+        return LaunchOutcome::Refused;
+    }
+    let number = stderr
+        .trim_end()
+        .strip_suffix(')')
+        .and_then(|rest| rest.rsplit_once('('))
+        .map(|(_, n)| n)
+        .filter(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+        .and_then(|n| n.parse::<i32>().ok());
+    match number {
+        Some(n) => LaunchOutcome::Exited(n),
+        None => LaunchOutcome::Failed("E_ELEVATION_OSASCRIPT"),
+    }
+}
+
+/// FR-091: the `lpParameters` string for `args`, by the MS C argument rules: an argument holding `"` or NUL is
+/// refused; one holding a space or tab (or empty, which would otherwise vanish) is quoted with its trailing
+/// backslashes doubled; every other backslash, and the verbatim `\\?\` prefix, is ordinary text.
+pub fn windows_parameters(args: &[String]) -> Result<String, InstallError> {
+    let mut out = String::new();
+    for (i, arg) in args.iter().enumerate() {
+        if arg.contains(['"', '\0']) {
+            return Err(InstallError::Elevation {
+                code: "E_ELEVATION_ARGS",
+            });
+        }
+        if i > 0 {
+            out.push(' ');
+        }
+        if arg.is_empty() || arg.contains([' ', '\t']) {
+            let trailing = arg.len() - arg.trim_end_matches('\\').len();
+            out.push('"');
+            out.push_str(arg);
+            out.extend(std::iter::repeat_n('\\', trailing));
+            out.push('"');
+        } else {
+            out.push_str(arg);
+        }
+    }
+    Ok(out)
+}
+
+/// The helper's file name beside the manager, without the Windows `.exe` (FR-090).
+const HELPER_NAME: &str = "krate-manager-helper";
+
+/// FR-090, PD-23: the helper beside `exe` (`krate-manager-helper`, `.exe` on Windows) when it is a file; `None` on
+/// Linux, for no `exe`, or for an `exe` without a non-empty parent (a bare name never resolves against the CWD).
+pub fn helper_beside(os: Os, exe: Option<&Path>, io: &dyn InstallIo) -> Option<PathBuf> {
+    if os == Os::Linux {
+        return None;
+    }
+    let dir = exe?.parent().filter(|p| !p.as_os_str().is_empty())?;
+    let path = if os == Os::Windows {
+        dir.join(format!("{HELPER_NAME}.exe"))
+    } else {
+        dir.join(HELPER_NAME)
+    };
+    matches!(io.kind_of(&path), Ok(Some(NodeKind::File))).then_some(path)
+}
+
+// ---- the job (Phase 10 plan §4.2.2; FR-073, FR-076; PD-11, PD-12, SI-11) -------------------------------------------
+
+/// The job file the core writes and the helper's result read back.
+pub mod job {
+    use super::{InstallError, LOG_TARGET, NOT_A_DIR, Step, at, hex};
+    use crate::extract::NodeKind;
+    use crate::install::InstallIo;
+    use crate::verify::Sha256Stream;
+    use log::{debug, info};
+    use serde::{Deserialize, Serialize};
+    use std::collections::hash_map::RandomState;
+    use std::hash::BuildHasher;
+    use std::io;
+    use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::Duration;
+
+    /// The folder under the state dir (FR-073).
+    pub const JOBS_DIR: &str = "jobs";
+    /// FR-076: the result read bound.
+    pub const MAX_RESULT_BYTES: u64 = 1 << 20;
+    /// The helper's timeouts (PD-11: the core's own copies, cross-checked by SC-011).
+    pub const INNO_INSTALL_TIMEOUT: Duration = Duration::from_secs(600);
+    pub const PKG_INSTALL_TIMEOUT: Duration = Duration::from_secs(600);
+    pub const UNINSTALL_POLL_TIMEOUT: Duration = Duration::from_secs(120);
+    pub const UNINSTALL_POLL_INTERVAL: Duration = Duration::from_millis(500);
+    pub const PKGUTIL_TIMEOUT: Duration = Duration::from_secs(30);
+    /// D14: added to the sum of the op ceilings.
+    pub const ELEVATION_MARGIN: Duration = Duration::from_secs(120);
+
+    /// One op as the core writes it (FR-001, PD-12).
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+    #[serde(tag = "op", rename_all = "snake_case")]
+    pub enum JobOp {
+        RunInnoInstaller { file: String, sha256: String },
+        RunInnoUninstaller { app_id: String },
+        RunPkgInstaller { file: String, sha256: String },
+        UninstallPkg { pkg_id: String },
+    }
+
+    /// A job on disk: its path, its result's path, its stem, its SHA-256 (hex) and its ops.
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct WrittenJob {
+        pub path: PathBuf,
+        pub result: PathBuf,
+        pub stem: String,
+        pub sha256: String,
+        pub ops: Vec<JobOp>,
+    }
+
+    /// One op's report from the result file (FR-076).
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub enum OpReport {
+        Done,
+        Locked,
+        Failed {
+            code: &'static str,
+            exit_code: Option<i32>,
+        },
+        Refused {
+            code: &'static str,
+        },
+        NotRun {
+            code: &'static str,
+        },
+    }
+
+    /// Why a result is unusable (FR-076, SI-11).
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum ResultError {
+        NoResult,
+        Helper(&'static str),
+    }
+
+    /// PD-11: the helper's 25 codes (plan §3.1), the core's own copy; SC-011 checks it against the helper's `CODES`.
+    const HELPER_CODES: [&str; 25] = [
+        "E_HELPER_ROOTS",
+        "E_HELPER_JOB_LOCATION",
+        "E_HELPER_RESULT_EXISTS",
+        "E_HELPER_RESULT_WRITE",
+        "E_HELPER_JOB_READ",
+        "E_HELPER_JOB_HASH",
+        "E_HELPER_JOB_PARSE",
+        "E_HELPER_SOURCE",
+        "E_HELPER_APP_ID",
+        "E_HELPER_UNINSTALLER",
+        "E_HELPER_PKG_ID",
+        "E_HELPER_PKG_PATH",
+        "E_HELPER_RUN_DIR",
+        "E_HELPER_COPY",
+        "E_HELPER_HASH",
+        "E_HELPER_SPAWN",
+        "E_HELPER_EXIT",
+        "E_HELPER_TIMEOUT",
+        "E_HELPER_NO_KEY",
+        "E_HELPER_UNINSTALL_TIMEOUT",
+        "E_HELPER_PKG_RECEIPT",
+        "E_HELPER_REMOVE",
+        "E_HELPER_FORGET",
+        "E_HELPER_LOCKED",
+        "E_HELPER_AFTER_TIMEOUT",
+    ];
+    /// PD-19: how many fresh names `write` tries before it gives up.
+    const NAME_TRIES: usize = 4;
+
+    /// FR-001's key order: `job_version`, then `ops`.
+    #[derive(Serialize)]
+    struct JobFile<'a> {
+        job_version: u32,
+        ops: &'a [JobOp],
+    }
+
+    /// A private mirror of the helper's result file (FR-003); any other key is refused.
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct ResultMirror {
+        result_version: u32,
+        job_sha256: String,
+        job_error: Option<String>,
+        ops: Vec<OpMirror>,
+    }
+
+    /// One op entry of the mirror.
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct OpMirror {
+        index: u32,
+        op: String,
+        outcome: String,
+        code: Option<String>,
+        exit_code: Option<i32>,
+        seconds: f64,
+        log_tail: Vec<String>,
+    }
+
+    /// The `op` value of each kind (FR-001).
+    fn kind_name(op: &JobOp) -> &'static str {
+        match op {
+            JobOp::RunInnoInstaller { .. } => "run_inno_installer",
+            JobOp::RunInnoUninstaller { .. } => "run_inno_uninstaller",
+            JobOp::RunPkgInstaller { .. } => "run_pkg_installer",
+            JobOp::UninstallPkg { .. } => "uninstall_pkg",
+        }
+    }
+
+    /// PD-19: `job-<32 lower hex>` from two `RandomState` hashers ("initialized with random keys") over a process
+    /// counter and the process id; collision-checked by `write_new`, not a secret.
+    fn job_stem() -> String {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let a = RandomState::new().hash_one((n, std::process::id()));
+        let b = RandomState::new().hash_one((std::process::id(), n));
+        format!("job-{a:016x}{b:016x}")
+    }
+
+    /// FR-073: `<state>/jobs/job-<32 hex>.json`, written new and synced, hashed over the written bytes.
+    pub fn write(
+        io: &dyn InstallIo,
+        state_dir: &Path,
+        ops: Vec<JobOp>,
+    ) -> Result<WrittenJob, InstallError> {
+        let err = at(Step::JobWritten);
+        let jobs = state_dir.join(JOBS_DIR);
+        match io.kind_of(&jobs).map_err(&err)? {
+            Some(NodeKind::Dir) => {}
+            None => match io.create_dir(&jobs) {
+                Ok(()) => {}
+                // Made meanwhile (another launcher of the same state dir): fine when it is a directory.
+                Err(e)
+                    if e.kind() == io::ErrorKind::AlreadyExists
+                        && matches!(io.kind_of(&jobs), Ok(Some(NodeKind::Dir))) => {}
+                Err(e) => return Err(err(e)),
+            },
+            Some(_) => return Err(InstallError::Path { reason: NOT_A_DIR }),
+        }
+        let dir = io.canonicalize(&jobs).map_err(&err)?;
+        if dir.to_str().is_none() {
+            return Err(InstallError::PathNotUtf8 { which: "state" });
+        }
+        let bytes = serde_json::to_vec(&JobFile {
+            job_version: 1,
+            ops: &ops,
+        })
+        .map_err(|_| InstallError::Path {
+            reason: "the job does not serialise",
+        })?;
+        for _ in 0..NAME_TRIES {
+            let stem = job_stem();
+            let path = dir.join(format!("{stem}.json"));
+            if let Err(e) = io.write_new(&path, &bytes) {
+                if e.kind() == io::ErrorKind::AlreadyExists {
+                    continue;
+                }
+                discard_partial(io, &path);
+                return Err(err(e));
+            }
+            if let Err(e) = io.sync_file(&path) {
+                discard_partial(io, &path);
+                return Err(err(e));
+            }
+            let mut sha = Sha256Stream::new();
+            sha.update(&bytes);
+            return Ok(WrittenJob {
+                result: dir.join(format!("{stem}.result.json")),
+                path,
+                stem,
+                sha256: hex(&sha.finish()),
+                ops,
+            });
+        }
+        Err(err(io::Error::from(io::ErrorKind::AlreadyExists)))
+    }
+
+    /// A job file a failed write left behind is removed (best effort; the next start's recovery removes it too).
+    fn discard_partial(io: &dyn InstallIo, path: &Path) {
+        if matches!(io.kind_of(path), Ok(Some(NodeKind::File))) {
+            let _ = io.remove_file(path);
+        }
+    }
+
+    /// D14, PD-17: the batch ceiling, the sum of the op ceilings plus `ELEVATION_MARGIN`.
+    pub fn ceiling(ops: &[JobOp]) -> Duration {
+        ops.iter()
+            .map(|op| match op {
+                JobOp::RunInnoInstaller { .. } => INNO_INSTALL_TIMEOUT,
+                JobOp::RunPkgInstaller { .. } => PKG_INSTALL_TIMEOUT,
+                // The uninstaller's own wait, then the poll (PD-24).
+                JobOp::RunInnoUninstaller { .. } => 2 * UNINSTALL_POLL_TIMEOUT,
+                // Three reads and `--forget`.
+                JobOp::UninstallPkg { .. } => 4 * PKGUTIL_TIMEOUT,
+            })
+            .sum::<Duration>()
+            + ELEVATION_MARGIN
+    }
+
+    /// FR-076, SI-11: the result's per-op reports, or why there are none: `result_version` 1 and the job's hash, else
+    /// `NoResult`; `job_error` → `Helper(code)`; then one entry per op, in order, of the job's kinds, else `NoResult`.
+    /// A code outside the catalogue is `NoResult` (PD-11).
+    pub fn read_result(bytes: &[u8], job: &WrittenJob) -> Result<Vec<OpReport>, ResultError> {
+        let mirror = parse(bytes).ok_or(ResultError::NoResult)?;
+        reports(&mirror, job)
+    }
+
+    /// `read_result` with FR-114's lines: one `info!` per op (catalogue code, exit code, seconds), the log tail as
+    /// `debug!`.
+    pub(super) fn read_logged(
+        bytes: &[u8],
+        job: &WrittenJob,
+    ) -> Result<Vec<OpReport>, ResultError> {
+        let mirror = parse(bytes).ok_or(ResultError::NoResult)?;
+        for op in &mirror.ops {
+            info!(
+                target: LOG_TARGET,
+                "helper op {} {}: {}, code {}, exit {}, {:.1} s",
+                op.index,
+                JOB_KINDS
+                    .iter()
+                    .find(|k| **k == op.op)
+                    .copied()
+                    .unwrap_or("unknown"),
+                OUTCOMES
+                    .iter()
+                    .find(|k| **k == op.outcome)
+                    .copied()
+                    .unwrap_or("unknown"),
+                op.code
+                    .as_deref()
+                    .map(|c| helper_code(c).unwrap_or("unknown"))
+                    .unwrap_or("none"),
+                op.exit_code
+                    .map_or_else(|| "none".to_owned(), |c| c.to_string()),
+                op.seconds
+            );
+            for line in &op.log_tail {
+                debug!(target: LOG_TARGET, "helper op {} log: {line}", op.index);
+            }
+        }
+        reports(&mirror, job)
+    }
+
+    /// The four `op` values and the five outcomes (FR-001, FR-003), for the log lines.
+    const JOB_KINDS: [&str; 4] = [
+        "run_inno_installer",
+        "run_inno_uninstaller",
+        "run_pkg_installer",
+        "uninstall_pkg",
+    ];
+    const OUTCOMES: [&str; 5] = ["done", "locked", "failed", "refused", "not_run"];
+
+    fn parse(bytes: &[u8]) -> Option<ResultMirror> {
+        if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > MAX_RESULT_BYTES {
+            return None;
+        }
+        serde_json::from_slice(bytes).ok()
+    }
+
+    fn reports(mirror: &ResultMirror, job: &WrittenJob) -> Result<Vec<OpReport>, ResultError> {
+        if mirror.result_version != 1 || mirror.job_sha256 != job.sha256 {
+            return Err(ResultError::NoResult);
+        }
+        if let Some(code) = &mirror.job_error {
+            return Err(helper_code(code).map_or(ResultError::NoResult, ResultError::Helper));
+        }
+        if mirror.ops.len() != job.ops.len() {
+            return Err(ResultError::NoResult);
+        }
+        mirror
+            .ops
+            .iter()
+            .zip(&job.ops)
+            .enumerate()
+            .map(|(i, (entry, op))| {
+                let in_order = usize::try_from(entry.index).ok() == Some(i);
+                if !in_order || entry.op != kind_name(op) {
+                    return Err(ResultError::NoResult);
+                }
+                let code = || {
+                    entry
+                        .code
+                        .as_deref()
+                        .and_then(helper_code)
+                        .ok_or(ResultError::NoResult)
+                };
+                Ok(match entry.outcome.as_str() {
+                    "done" => OpReport::Done,
+                    "locked" => OpReport::Locked,
+                    "failed" => OpReport::Failed {
+                        code: code()?,
+                        exit_code: entry.exit_code,
+                    },
+                    "refused" => OpReport::Refused { code: code()? },
+                    "not_run" => OpReport::NotRun { code: code()? },
+                    _ => return Err(ResultError::NoResult),
+                })
+            })
+            .collect()
+    }
+
+    /// PD-11: the helper code catalogue; an unknown code is `None`.
+    pub fn helper_code(s: &str) -> Option<&'static str> {
+        HELPER_CODES.iter().find(|c| **c == s).copied()
+    }
+}
+
+// ---- the elevated drivers (Phase 10 plan §4.2.3; FR-070, FR-072 to FR-078a, FR-114; PD-16, PD-17) ------------------
+
+/// One action of an elevated batch: its entry, its kind and its op's index in the job, or why it has none (FR-072).
+struct Slot {
+    entry: PluginEntry,
+    kind: ActionKind,
+    op: Result<usize, InstallError>,
+}
+
+/// The Windows and macOS batch (plan §4.2.3's eleven steps): each action's op, at most one job and one launch, the
+/// result mapped per op, the registrar kill (macOS), the confirmation by detection, one log line per action.
+fn run_elevated(os: Os, env: InstallEnv<'_>, batch: Vec<Action>) -> Vec<ActionResult> {
+    let InstallEnv {
+        ctx,
+        io,
+        progress,
+        elevation,
+        host_io,
+        host,
+        ..
+    } = env;
+    // 1. Each action's op, or its refusal; nothing mutates.
+    let staging = io.canonicalize(ctx.roots.staging_dir()).ok();
+    let mut ops = Vec::new();
+    let slots: Vec<Slot> = batch
+        .into_iter()
+        .map(|action| {
+            let kind = action.kind();
+            let (entry, op) = match action {
+                Action::Install { entry, artifact } | Action::Update { entry, artifact } => {
+                    let op = installer_op(os, io, staging.as_deref(), &artifact);
+                    (entry, op)
+                }
+                Action::Uninstall { entry } => {
+                    let op = uninstall_op(os, ctx, io, host, &entry);
+                    (entry, op)
+                }
+            };
+            let op = op.map(|op| {
+                ops.push(op);
+                ops.len() - 1
+            });
+            Slot { entry, kind, op }
+        })
+        .collect();
+    // 2 to 8. The job, the launch and the result (no op, no job).
+    let reports = if ops.is_empty() {
+        Ok(Vec::new())
+    } else {
+        elevate(ctx, io, progress, elevation, &ops)
+    };
+    let report_of = |slot: &Slot| -> Result<&job::OpReport, InstallError> {
+        let index = slot.op.clone()?;
+        match &reports {
+            Ok(reports) => reports.get(index).ok_or(InstallError::NoResult),
+            Err(e) => Err(e.clone()),
+        }
+    };
+    // 9. macOS: the registrar kill once, keyed on the helper's `done` of an install or update (FR-077).
+    let installed = slots
+        .iter()
+        .any(|s| s.kind != ActionKind::Remove && matches!(report_of(s), Ok(job::OpReport::Done)));
+    if os == Os::Macos && installed {
+        let _ = host_io.run(&platform::KILLALL_ARGV, KILLALL_WAIT);
+    }
+    // 10, 11. Per action: the mapped report, a `done` confirmed by detection (FR-076a), one log line.
+    slots
+        .iter()
+        .map(|slot| {
+            let outcome = match report_of(slot) {
+                Err(e) => Err(e),
+                Ok(job::OpReport::Done) => {
+                    if confirmed(os, ctx, host, &slot.entry, slot.kind) {
+                        Ok(Outcome {
+                            version: (slot.kind != ActionKind::Remove)
+                                .then(|| slot.entry.version_text.clone()),
+                            placed: 0,
+                            removed: 0,
+                            kept: Vec::new(),
+                        })
+                    } else {
+                        Err(InstallError::NotApplied)
+                    }
+                }
+                Ok(job::OpReport::Locked) => Err(InstallError::Locked),
+                Ok(job::OpReport::Failed {
+                    code: "E_HELPER_EXIT",
+                    exit_code: Some(exit_code),
+                }) => Err(InstallError::InstallerFailed {
+                    exit_code: *exit_code,
+                }),
+                Ok(
+                    job::OpReport::Failed { code, .. }
+                    | job::OpReport::Refused { code }
+                    | job::OpReport::NotRun { code },
+                ) => Err(InstallError::Helper { code }),
+            };
+            let name = slot.entry.name.clone();
+            log_result(&name, &slot.entry.version_text, slot.kind, &outcome);
+            ActionResult {
+                name,
+                action: slot.kind,
+                outcome,
+            }
+        })
+        .collect()
+}
+
+/// FR-072: an installer op from a verified artifact of the OS's format inside the canonical staging dir; the op's
+/// `sha256` is the digest verification checked, never a re-hash (§6 "Verify before execute").
+fn installer_op(
+    os: Os,
+    io: &dyn InstallIo,
+    staging: Option<&Path>,
+    artifact: &VerifiedArtifact,
+) -> Result<job::JobOp, InstallError> {
+    let format = if os == Os::Windows {
+        AssetFormat::InnoExe
+    } else {
+        AssetFormat::Pkg
+    };
+    if artifact.format() != format {
+        return Err(InstallError::Format);
+    }
+    let outside = || InstallError::Path {
+        reason: "the artifact is not in staging",
+    };
+    let staging = staging.ok_or_else(outside)?;
+    let file = io.canonicalize(artifact.path()).map_err(|_| outside())?;
+    if file == staging || !file.starts_with(staging) {
+        return Err(outside());
+    }
+    let file = file
+        .to_str()
+        .ok_or(InstallError::PathNotUtf8 { which: "staging" })?
+        .to_owned();
+    let sha256 = hex(artifact.sha256());
+    Ok(if os == Os::Windows {
+        job::JobOp::RunInnoInstaller { file, sha256 }
+    } else {
+        job::JobOp::RunPkgInstaller { file, sha256 }
+    })
+}
+
+/// FR-072: an uninstall op from a fresh detection's gate: `Inno` / `Pkg`; `OutsideRoot` → `E_INSTALL_REMOVE_ELSEWHERE`;
+/// anything else `E_INSTALL_NOT_MANAGED`.
+fn uninstall_op(
+    os: Os,
+    ctx: &AppContext,
+    io: &dyn InstallIo,
+    host: &dyn HostFacts,
+    entry: &PluginEntry,
+) -> Result<job::JobOp, InstallError> {
+    let detection = detection_of(os, ctx, entry, host);
+    match action_gate(os, ctx, io, entry, &detection) {
+        ActionGate::Blocked(e) => Err(e),
+        ActionGate::Open { remove, .. } => match (os, remove) {
+            (Os::Windows, RemoveBasis::Inno { app_id }) => {
+                Ok(job::JobOp::RunInnoUninstaller { app_id })
+            }
+            (Os::Macos, RemoveBasis::Pkg { pkg_id }) => Ok(job::JobOp::UninstallPkg { pkg_id }),
+            (_, RemoveBasis::OutsideRoot) => Err(InstallError::RemoveElsewhere),
+            _ => Err(InstallError::NotManaged {
+                name: entry.name.clone(),
+            }),
+        },
+    }
+}
+
+/// One listing scan of the entry's bundle and its detection, read-only (FR-076a, FR-082).
+fn detection_of(os: Os, ctx: &AppContext, entry: &PluginEntry, host: &dyn HostFacts) -> Detection {
+    let bundle = entry
+        .release
+        .as_ref()
+        .and_then(|r| r.install.as_ref())
+        .map(|f| f.vst3_bundle.as_str());
+    let names: Vec<&str> = bundle.into_iter().collect();
+    let listing = Listing::scan(ctx.roots.plugin_roots(), &names, ListingLimits::PRODUCTION);
+    detect::detect_plugin(os, ctx, entry, host, &listing)
+}
+
+/// Steps 2 to 8: the helper, the guard, the job, `Elevating`, the one launch, its outcome, the job files removed
+/// (kept after a timeout, FR-078a), the guard released.
+fn elevate(
+    ctx: &AppContext,
+    io: &dyn InstallIo,
+    progress: &mut dyn FnMut(InstallProgress),
+    elevation: &dyn Elevation,
+    ops: &[job::JobOp],
+) -> Result<Vec<job::OpReport>, InstallError> {
+    let helper = elevation.helper().ok_or(InstallError::HelperMissing)?;
+    let held = elevation.guard().enter(io)?;
+    let state = ctx.roots.state_dir();
+    ctx.roots.check_sandboxed(&state.join(job::JOBS_DIR));
+    let written = job::write(io, state, ops.to_vec())?;
+    progress(InstallProgress::Elevating);
+    let command = ElevatedCommand {
+        program: helper.to_path_buf(),
+        args: vec![
+            "--job".to_owned(),
+            text(&written.path),
+            "--job-sha256".to_owned(),
+            written.sha256.clone(),
+        ],
+    };
+    let outcome = elevation.launch(&command, job::ceiling(ops));
+    info!(target: LOG_TARGET, "elevated batch of {} op(s): launch {outcome:?}", ops.len());
+    let reports = match outcome {
+        LaunchOutcome::Refused => Err(InstallError::Refused),
+        LaunchOutcome::Failed(code) => Err(InstallError::Elevation { code }),
+        LaunchOutcome::TimedOut => {
+            held.stale(written.path, written.result);
+            return Err(InstallError::NoResult);
+        }
+        LaunchOutcome::Exited(0 | 3) => read_reports(io, &written),
+        LaunchOutcome::Exited(_) => Err(InstallError::NoResult),
+    };
+    remove_job_files(io, &written.path, &written.result);
+    drop(held);
+    reports
+}
+
+/// FR-076: the result file, bounded to 1 MiB, through the reader.
+fn read_reports(
+    io: &dyn InstallIo,
+    written: &job::WrittenJob,
+) -> Result<Vec<job::OpReport>, InstallError> {
+    let bytes = io
+        .read_file(&written.result, job::MAX_RESULT_BYTES)
+        .map_err(|_| InstallError::NoResult)?;
+    job::read_logged(&bytes, written).map_err(|e| match e {
+        job::ResultError::NoResult => InstallError::NoResult,
+        job::ResultError::Helper(code) => InstallError::Helper { code },
+    })
+}
+
+/// FR-076a: an install or update is confirmed when the managed VST3 copy's version is the entry's; a remove when
+/// no managed copy and no installer record remain (an unreadable record confirms nothing).
+fn confirmed(
+    os: Os,
+    ctx: &AppContext,
+    host: &dyn HostFacts,
+    entry: &PluginEntry,
+    kind: ActionKind,
+) -> bool {
+    let Detection::Checked {
+        copies,
+        record,
+        record_error,
+        ..
+    } = detection_of(os, ctx, entry, host)
+    else {
+        return false;
+    };
+    match kind {
+        ActionKind::Remove => {
+            record.is_none() && record_error.is_none() && !copies.iter().any(|c| c.managed)
+        }
+        ActionKind::Install | ActionKind::Update => copies.iter().any(|c| {
+            c.format == CopyFormat::Vst3
+                && c.managed
+                && matches!(c.version, CopyVersion::Known { version, .. } if Some(version) == entry.version)
+        }),
     }
 }
 
@@ -2410,6 +3325,8 @@ pub struct RecoveryReport {
     pub journals: Vec<Recovered>,
     pub temp_removed: usize,
     pub extract_pruned: usize,
+    /// Phase 10 FR-074: stale `job-<hex>.json` / `job-<hex>.result.json` files removed from `<state>/jobs/`.
+    pub jobs_removed: usize,
 }
 
 /// The start-up recovery pass over every journal; never fails, never panics on input (FR-070 to FR-075, D14).
@@ -2418,8 +3335,10 @@ pub fn recover(ctx: &AppContext, io: &dyn InstallIo, extract: ExtractEnv<'_>) ->
     let state = ctx.roots.state_dir();
     let journal_dir = state.join(JOURNAL_DIR);
     let manifests_dir = state.join(detect::MANIFESTS_DIR);
+    let jobs_dir = state.join(job::JOBS_DIR);
     ctx.roots.check_sandboxed(&journal_dir);
     ctx.roots.check_sandboxed(&manifests_dir);
+    ctx.roots.check_sandboxed(&jobs_dir);
     let mut report = RecoveryReport::default();
     match io.kind_of(&journal_dir) {
         Ok(Some(NodeKind::Dir)) => {
@@ -2457,8 +3376,28 @@ pub fn recover(ctx: &AppContext, io: &dyn InstallIo, extract: ExtractEnv<'_>) ->
             }
         }
     }
+    // Phase 10 FR-074: stale job and result files, regular files only (a link is never followed or removed).
+    if is_real_dir(io.kind_of(&jobs_dir).ok().flatten()) {
+        for (name, kind) in io.read_dir(&jobs_dir).unwrap_or_default() {
+            let stale = name.to_str().is_some_and(is_job_file_name);
+            if stale && kind == NodeKind::File && io.remove_file(&jobs_dir.join(&name)).is_ok() {
+                report.jobs_removed += 1;
+            }
+        }
+    }
     report.extract_pruned = extract::prune(extract);
     report
+}
+
+/// FR-074: `job-<32 lower hex>.json` or `job-<32 lower hex>.result.json`.
+fn is_job_file_name(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix("job-") else {
+        return false;
+    };
+    let hex = rest
+        .strip_suffix(".result.json")
+        .or_else(|| rest.strip_suffix(".json"));
+    hex.is_some_and(|h| h.len() == 32 && h.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
 }
 
 /// FR-071 to FR-074 for one journal file.
@@ -2579,6 +3518,13 @@ pub(crate) fn log_recovery(report: &RecoveryReport) {
             report.extract_pruned
         );
     }
+    if report.jobs_removed > 0 {
+        info!(
+            target: LOG_TARGET,
+            "recovery: {} stale job files removed",
+            report.jobs_removed
+        );
+    }
 }
 
 // ---- uninstall (plan §4.1.10) --------------------------------------------------------------------------------------
@@ -2689,23 +3635,94 @@ fn remove_entries(
 
 // ---- the gate and the action table (plan §4.1.11) -----------------------------------------------------------------
 
-/// Whether a plugin's actions may run, and its manifest when they may (FR-093).
+/// What a Remove would act on (Phase 10 FR-080).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RemoveBasis {
+    NotManaged,
+    Manifest,
+    Inno { app_id: String },
+    Pkg { pkg_id: String },
+    OutsideRoot,
+}
+
+/// Whether a plugin's actions may run, and its manifest and Remove basis when they may (FR-093; Phase 10 FR-080).
 #[derive(Debug)]
 pub enum ActionGate {
     Blocked(InstallError),
-    Open { manifest: Option<Manifest> },
+    Open {
+        manifest: Option<Manifest>,
+        remove: RemoveBasis,
+    },
 }
 
-/// The read-only gate of one plugin: destinations, journal, and on Linux the manifest and its roots (FR-093).
+/// The read-only gate of one plugin: destinations, journal, and on Linux the manifest and its roots (FR-093), over
+/// the plugin's detection (Phase 10 FR-080).
 pub fn action_gate(
     os: Os,
     ctx: &AppContext,
     io: &dyn InstallIo,
     entry: &PluginEntry,
+    detection: &Detection,
 ) -> ActionGate {
     match gate(os, ctx, io, entry) {
-        Ok(manifest) => ActionGate::Open { manifest },
+        Ok(manifest) => {
+            let remove = remove_basis(os, ctx, entry, detection, manifest.is_some());
+            ActionGate::Open { manifest, remove }
+        }
         Err(e) => ActionGate::Blocked(e),
+    }
+}
+
+/// FR-080: Linux `Manifest` iff a manifest; Windows `Inno` iff the record is an Inno record whose install location's
+/// parent is `<Vst3Global>\Krate Audio` and the entry has an uninstall key (`app_id` the key up to its first `}`,
+/// PD-13), `OutsideRoot` for a location elsewhere; macOS `Pkg` iff a pkg record and a pkg id; else `NotManaged`.
+fn remove_basis(
+    os: Os,
+    ctx: &AppContext,
+    entry: &PluginEntry,
+    detection: &Detection,
+    has_manifest: bool,
+) -> RemoveBasis {
+    let facts = entry.release.as_ref().and_then(|r| r.install.as_ref());
+    let record = match detection {
+        Detection::Checked { record, .. } => record.as_ref(),
+        Detection::NotChecked => None,
+    };
+    match os {
+        Os::Linux if has_manifest => RemoveBasis::Manifest,
+        Os::Linux => RemoveBasis::NotManaged,
+        Os::Windows => {
+            let key = facts.and_then(|f| f.windows_uninstall_key.as_ref());
+            let (
+                Some(InstallerRecord::Inno {
+                    install_location: Some(location),
+                    ..
+                }),
+                Some(key),
+            ) = (record, key)
+            else {
+                return RemoveBasis::NotManaged;
+            };
+            let vendor = ctx.roots.vst3_global().join(platform::VENDOR_DIR);
+            if !location
+                .parent()
+                .is_some_and(|parent| detect::same_path(parent, &vendor))
+            {
+                return RemoveBasis::OutsideRoot;
+            }
+            match key.as_str().find('}') {
+                Some(end) => RemoveBasis::Inno {
+                    app_id: key.as_str()[..=end].to_owned(),
+                },
+                None => RemoveBasis::NotManaged,
+            }
+        }
+        Os::Macos => match (record, facts.and_then(|f| f.macos_pkg_id.as_ref())) {
+            (Some(InstallerRecord::Pkg { .. }), Some(pkg_id)) => RemoveBasis::Pkg {
+                pkg_id: pkg_id.as_str().to_owned(),
+            },
+            _ => RemoveBasis::NotManaged,
+        },
     }
 }
 
@@ -2738,14 +3755,15 @@ fn gate(
 }
 
 /// The actions a card offers (FR-093, FR-100, D13): none without a driver or behind a blocked gate; else `Install`
-/// iff available and not installed, `Update` iff available and an update, `Remove` iff a manifest, in that order.
+/// iff available and not installed, `Update` iff available and an update, `Remove` iff the gate's Remove basis is
+/// `Manifest`, `Inno` or `Pkg` (Phase 10 FR-081), in that order.
 pub fn allowed_actions(
     driver_present: bool,
     gate: &ActionGate,
     availability: &Availability<'_>,
     update: Option<UpdateState>,
 ) -> Vec<ActionKind> {
-    let ActionGate::Open { manifest } = gate else {
+    let ActionGate::Open { remove, .. } = gate else {
         return Vec::new();
     };
     if !driver_present {
@@ -2759,7 +3777,10 @@ pub fn allowed_actions(
     if available && update == Some(UpdateState::UpdateAvailable) {
         actions.push(ActionKind::Update);
     }
-    if manifest.is_some() {
+    if matches!(
+        remove,
+        RemoveBasis::Manifest | RemoveBasis::Inno { .. } | RemoveBasis::Pkg { .. }
+    ) {
         actions.push(ActionKind::Remove);
     }
     actions
@@ -2858,7 +3879,7 @@ pub fn for_command(
 ) -> Result<ActionSummary, InstallError> {
     let ran = Cell::new(false);
     let result = install_command(env, name, expected_version, action, now_unix, host)
-        .and_then(|checked| obtain_and_run(env, checked, progress, &ran));
+        .and_then(|checked| obtain_and_run(env, checked, host, progress, &ran));
     if !ran.get() {
         log_refusal(name, expected_version, action, &result);
     }
@@ -2928,14 +3949,14 @@ fn install_command<'a>(
         .drivers
         .driver_for(env.os)
         .ok_or(InstallError::NoDriver)?;
-    // 4. The gate, the detection and the action table (D13).
-    let gate = action_gate(env.os, env.ctx, env.io, &entry);
+    // 4. The detection, the gate over it (Phase 10 FR-082) and the action table (D13).
     let listing = Listing::scan(
         env.ctx.roots.plugin_roots(),
         &[bundle.as_str()],
         ListingLimits::PRODUCTION,
     );
     let detection = detect::detect_plugin(env.os, env.ctx, &entry, host, &listing);
+    let gate = action_gate(env.os, env.ctx, env.io, &entry, &detection);
     let update = status::update_state(&entry, Some(&detection));
     let running = host.os_version();
     let availability = version::resolve(&entry, env.os, env.arch, running.as_ref());
@@ -2969,6 +3990,7 @@ fn install_command<'a>(
 fn obtain_and_run(
     env: CommandEnv<'_>,
     checked: Checked<'_>,
+    host: &dyn HostFacts,
     progress: &mut dyn FnMut(InstallProgress),
     ran: &Cell<bool>,
 ) -> Result<ActionSummary, InstallError> {
@@ -3010,6 +4032,9 @@ fn obtain_and_run(
                     io: env.io,
                     extract: env.extract,
                     progress: &mut |e| (*sink.borrow_mut())(e),
+                    elevation: env.elevation,
+                    host_io: env.host_io,
+                    host,
                 },
                 vec![action],
             );
@@ -3027,24 +4052,32 @@ fn obtain_and_run(
     if let Err(e) = download::discard(keep, env.download.io) {
         warn!(target: LOG_TARGET, "{} {}: the verified artifact was not released", e.code(), entry.name);
     }
+    // PD-16, FR-084: the macOS notice adds Apple's AU steps.
+    let notice = if env.os == Os::Macos {
+        Notice::RescanDawMacos
+    } else {
+        Notice::RescanDaw
+    };
     Ok(ActionSummary {
         name: entry.name.clone(),
         action: kind,
         version: outcome.version,
         kept: outcome.kept,
-        notice: Some(Notice::RescanDaw),
+        notice: Some(notice),
     })
 }
 
-/// The `remove_plugin` command: feed, gate, then one driver run of `Uninstall`; no asset request (FR-094).
+/// The `remove_plugin` command: feed, detection, gate, then one driver run of `Uninstall`; no asset request (FR-094;
+/// Phase 10 FR-082).
 pub fn remove_for_command(
     env: CommandEnv<'_>,
     name: &str,
     now_unix: u64,
+    host: &dyn HostFacts,
     progress: &mut dyn FnMut(InstallProgress),
 ) -> Result<ActionSummary, InstallError> {
     let ran = std::cell::Cell::new(false);
-    let result = command_remove(env, name, now_unix, progress, &ran);
+    let result = command_remove(env, name, now_unix, host, progress, &ran);
     if !ran.get() {
         log_refusal(name, "-", "remove", &result);
     }
@@ -3055,6 +4088,7 @@ fn command_remove(
     env: CommandEnv<'_>,
     name: &str,
     now_unix: u64,
+    host: &dyn HostFacts,
     progress: &mut dyn FnMut(InstallProgress),
     ran: &std::cell::Cell<bool>,
 ) -> Result<ActionSummary, InstallError> {
@@ -3088,19 +4122,32 @@ fn command_remove(
         });
     };
     Destinations::of(env.ctx, &entry)?;
-    // 3. The driver; 4. the gate.
+    // 3. The driver; 4. the detection and the gate over it (Phase 10 FR-082).
     let driver = env
         .drivers
         .driver_for(env.os)
         .ok_or(InstallError::NoDriver)?;
-    match action_gate(env.os, env.ctx, env.io, &entry) {
+    let listing = Listing::scan(
+        env.ctx.roots.plugin_roots(),
+        &[bundle],
+        ListingLimits::PRODUCTION,
+    );
+    let detection = detect::detect_plugin(env.os, env.ctx, &entry, host, &listing);
+    match action_gate(env.os, env.ctx, env.io, &entry, &detection) {
         ActionGate::Blocked(e) => return Err(e),
-        ActionGate::Open { manifest: None } => {
+        ActionGate::Open {
+            remove: RemoveBasis::NotManaged,
+            ..
+        } => {
             return Err(InstallError::NotManaged {
                 name: entry.name.clone(),
             });
         }
-        ActionGate::Open { manifest: Some(_) } => {}
+        ActionGate::Open {
+            remove: RemoveBasis::OutsideRoot,
+            ..
+        } => return Err(InstallError::RemoveElsewhere),
+        ActionGate::Open { .. } => {}
     }
     // 5. Exactly one run of `Uninstall`.
     ran.set(true);
@@ -3111,6 +4158,9 @@ fn command_remove(
             io: env.io,
             extract: env.extract,
             progress,
+            elevation: env.elevation,
+            host_io: env.host_io,
+            host,
         },
         vec![Action::Uninstall { entry }],
     );
@@ -3173,6 +4223,10 @@ fn log_refusal(
         );
     }
 }
+
+#[cfg(test)]
+#[path = "install_loopback_tests.rs"]
+mod loopback;
 
 #[cfg(test)]
 #[path = "install_tests.rs"]

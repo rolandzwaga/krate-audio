@@ -2,6 +2,9 @@ name: Manager CI
 
 # Spec: specs/krate-manager-phase4/spec.md FR-070 to FR-077, FR-106, FR-107; plan §4.16.
 # Every assertion step prints a ::notice (pass) or ::error (fail) naming the leg (D21): compliance reads annotations.
+# Phase 10: specs/krate-manager-phase10/spec.md FR-100 to FR-111; plan §4.8.4, §8.2. The changes job gates the two
+# elevated jobs (FR-102b); they write only under RUNNER_TEMP, the admin-only run directory, the fixture receipt and
+# the fixture's own uninstall key (FR-111), on ephemeral hosted runners only.
 on:
   push:
     paths:
@@ -94,6 +97,24 @@ jobs:
             echo "::error title=clippy dev-feed ($RUNNER_OS)::clippy failed with --features dev-feed"; exit 1
           fi
 
+      - name: clippy ci-temp-roots
+        run: |
+          set -euo pipefail
+          if cargo clippy -p krate-manager-helper --all-targets --features ci-temp-roots --locked -- -D warnings; then
+            echo "::notice title=clippy ci-temp-roots ($RUNNER_OS)::clean (debug profile, never run elevated)"
+          else
+            echo "::error title=clippy ci-temp-roots ($RUNNER_OS)::clippy failed with the ci-temp-roots feature"; exit 1
+          fi
+
+      - name: clippy manual-elevation example
+        run: |
+          set -euo pipefail
+          if cargo clippy -p krate-manager --example manual_elevation --features manual-elevation --locked -- -D warnings; then
+            echo "::notice title=clippy manual-elevation example ($RUNNER_OS)::clean (compiled and linted, never run)"
+          else
+            echo "::error title=clippy manual-elevation example ($RUNNER_OS)::clippy failed on the example"; exit 1
+          fi
+
       - name: clippy-guard
         run: |
           set -euo pipefail
@@ -118,6 +139,18 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --workspace --locked 2>&1 | tee "$RUNNER_TEMP/cargo-test.txt"
+
+      - name: test ci-temp-roots
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/cargo-test-ci-roots.txt"
+          cargo test -p krate-manager-helper --features ci-temp-roots --locked 2>&1 | tee "$log"
+          n=$(tr -d '\r' < "$log" | grep -cxF 'test cli::tests::ci_roots_file_is_read ... ok' || true)
+          if [ "$n" = "1" ]; then
+            echo "::notice title=test ci-temp-roots ($RUNNER_OS)::cli::tests::ci_roots_file_is_read passed once"
+          else
+            echo "::error title=test ci-temp-roots ($RUNNER_OS)::cli::tests::ci_roots_file_is_read ok lines=$n, want 1"; exit 1
+          fi
 
       - name: core dependency tree
         run: |
@@ -145,6 +178,15 @@ jobs:
           set -euo pipefail
           npm run lint
 
+      - name: node --test
+        run: |
+          set -euo pipefail
+          if node --test --test-reporter=tap "scripts/*.test.js" | tee "$RUNNER_TEMP/node-tap.txt"; then
+            echo "::notice title=node --test ($RUNNER_OS)::scripts/*.test.js passed"
+          else
+            echo "::error title=node --test ($RUNNER_OS)::scripts/*.test.js failed"; exit 1
+          fi
+
       - name: vitest
         run: |
           set -euo pipefail
@@ -153,9 +195,9 @@ jobs:
       - name: required tests ran
         run: |
           set -euo pipefail
-          node - "$RUNNER_TEMP/cargo-test.txt" "$RUNNER_TEMP/vitest.json" "$RUNNER_OS" <<'REQUIRED'
+          node - "$RUNNER_TEMP/cargo-test.txt" "$RUNNER_TEMP/vitest.json" "$RUNNER_TEMP/node-tap.txt" "$RUNNER_OS" <<'REQUIRED'
           const fs = require("fs");
-          const [cargoLog, vitestJson, runnerOs] = process.argv.slice(2);
+          const [cargoLog, vitestJson, nodeTap, runnerOs] = process.argv.slice(2);
           const key = { Windows: "windows", macOS: "macos", Linux: "linux" }[runnerOs];
           const req = JSON.parse(fs.readFileSync("tests/required-tests.json", "utf8"));
           const bad = [];
@@ -172,15 +214,21 @@ jobs:
             const c = results.filter((r) => r.title === t && r.status === "passed").length;
             if (c !== 1) bad.push(`vitest "${t}": ${c} passed, want 1`);
           }
+          const tap = new Map();
+          for (const raw of fs.readFileSync(nodeTap, "utf8").split(/\r?\n/)) {
+            const m = /^ *ok \d+ - (.*?)(?: # .*)?$/.exec(raw);
+            if (m) tap.set(m[1], (tap.get(m[1]) || 0) + 1);
+          }
+          for (const t of req.node) { const c = tap.get(t) || 0; if (c !== 1) bad.push(`node "${t}": ${c} passing line(s), want 1`); }
           for (const b of bad) console.log(`::error title=required tests ran (${runnerOs})::${b}`);
           if (bad.length) process.exit(1);
-          console.log(`::notice title=required tests ran (${runnerOs})::${names.length} cargo + ${req.vitest.length} vitest`);
+          console.log(`::notice title=required tests ran (${runnerOs})::${names.length} cargo + ${req.vitest.length} vitest + ${req.node.length} node`);
           REQUIRED
 
       - name: tauri build
         run: |
           set -euo pipefail
-          npm run tauri build 2>&1 | tee "$RUNNER_TEMP/tauri-build.txt"
+          npm run bundle 2>&1 | tee "$RUNNER_TEMP/tauri-build.txt"
 
       - name: build warnings
         run: |
@@ -195,6 +243,90 @@ jobs:
           else
             grep '^warning:' "$clean" || true
             echo "::error title=build warnings ($RUNNER_OS)::warnings=$n finished-lines=$finished"; exit 1
+          fi
+
+      - name: helper bundled
+        run: |
+          set -euo pipefail
+          tuple=$(rustc --print host-tuple)
+          case "$RUNNER_OS" in
+            Windows)
+              staged="src-tauri/binaries/krate-manager-helper-$tuple.exe"
+              setups=(target/release/bundle/nsis/*-setup.exe)
+              if ! command -v 7z > /dev/null; then echo "::error title=helper bundled (Windows)::7z not found"; exit 1; fi
+              if [ "${#setups[@]}" != "1" ] || [ ! -f "${setups[0]}" ]; then
+                echo "::error title=helper bundled (Windows)::NSIS setups found: ${#setups[@]} (${setups[*]})"; exit 1
+              fi
+              7z l -slt "${setups[0]}" > "$RUNNER_TEMP/nsis-list.txt"
+              entries=$(sed -n 's/^Path = //p' "$RUNNER_TEMP/nsis-list.txt" | tr -d '\r')
+              helper=$(grep -E '(^|[\\/])krate-manager-helper\.exe$' <<<"$entries" || true)
+              app=$(grep -E '(^|[\\/])krate-manager\.exe$' <<<"$entries" || true)
+              nh=$(grep -c . <<<"$helper" || true)
+              na=$(grep -c . <<<"$app" || true)
+              if [ "$nh" != "1" ] || [ "$na" != "1" ] || [ "${helper%krate-manager-helper.exe}" != "${app%krate-manager.exe}" ]; then
+                echo "::error title=helper bundled (Windows)::helper entries=$nh app entries=$na helper='$helper' app='$app'"; exit 1
+              fi
+              out="$RUNNER_TEMP/nsis-helper"
+              rm -rf "$out"
+              7z e "${setups[0]}" -o"$out" "$helper" -y > /dev/null
+              got=$(sha256sum < "$out/krate-manager-helper.exe" | cut -d' ' -f1)
+              want=$(sha256sum < "$staged" | cut -d' ' -f1)
+              if [ "$got" = "$want" ]; then
+                echo "::notice title=helper bundled (Windows)::entry '$helper' beside '$app'; extracted sha256 $got equals the staged $staged"
+              else
+                echo "::error title=helper bundled (Windows)::extracted sha256 $got, staged $staged sha256 $want"; exit 1
+              fi ;;
+            macOS)
+              bundled="target/release/bundle/macos/Krate Manager.app/Contents/MacOS/krate-manager-helper"
+              if [ -f "$bundled" ]; then
+                echo "::notice title=helper bundled (macOS)::$bundled present (codesign verify checks the signed bundle)"
+              else
+                echo "::error title=helper bundled (macOS)::$bundled missing"; exit 1
+              fi ;;
+            Linux)
+              debs=(target/release/bundle/deb/*.deb)
+              if [ "${#debs[@]}" != "1" ] || [ ! -f "${debs[0]}" ]; then
+                echo "::error title=helper bundled (Linux)::debs found: ${#debs[@]}"; exit 1
+              fi
+              n=$(dpkg-deb -c "${debs[0]}" | grep -c 'krate-manager-helper' || true)
+              if [ "$n" = "0" ]; then
+                echo "::notice title=helper bundled (Linux)::no helper entry in ${debs[0]} (D18)"
+              else
+                echo "::error title=helper bundled (Linux)::$n helper entries in ${debs[0]}"; exit 1
+              fi ;;
+            *) echo "::error title=helper bundled::unknown RUNNER_OS $RUNNER_OS"; exit 1 ;;
+          esac
+
+      - name: ci-temp-roots absent
+        run: |
+          set -euo pipefail
+          tree=$(cargo tree -p krate-manager-helper -e features --locked)
+          hits=$(grep -cF 'ci-temp-roots' <<<"$tree" || true)
+          marker=$(grep -cF -- '--ci-roots' crates/helper/src/cli.rs || true)
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            echo "::notice::no Linux helper binary is built (D18)"
+            if [ "$hits" = "0" ] && [ "$marker" -ge 1 ]; then
+              echo "::notice title=ci-temp-roots absent (Linux)::cargo tree hits=0, marker in source=$marker"
+            else
+              echo "::error title=ci-temp-roots absent (Linux)::cargo tree hits=$hits, marker in source=$marker"; exit 1
+            fi
+            exit 0
+          fi
+          tuple=$(rustc --print host-tuple)
+          case "$RUNNER_OS" in
+            Windows) bundled="$RUNNER_TEMP/nsis-helper/krate-manager-helper.exe"; staged="src-tauri/binaries/krate-manager-helper-$tuple.exe" ;;
+            *) bundled="target/release/bundle/macos/Krate Manager.app/Contents/MacOS/krate-manager-helper"; staged="src-tauri/binaries/krate-manager-helper-$tuple" ;;
+          esac
+          for f in "$bundled" "$staged"; do
+            if [ ! -f "$f" ]; then echo "::error title=ci-temp-roots absent ($RUNNER_OS)::$f missing"; exit 1; fi
+          done
+          inb=$(grep -acF -- '--ci-roots' "$bundled" || true)
+          ins=$(grep -acF -- '--ci-roots' "$staged" || true)
+          msg="cargo tree hits=$hits, marker in source=$marker, in the bundled helper=$inb, in the staged sidecar=$ins"
+          if [ "$hits" = "0" ] && [ "$marker" -ge 1 ] && [ "$inb" = "0" ] && [ "$ins" = "0" ]; then
+            echo "::notice title=ci-temp-roots absent ($RUNNER_OS)::$msg"
+          else
+            echo "::error title=ci-temp-roots absent ($RUNNER_OS)::$msg"; exit 1
           fi
 
       - name: dev-feed absent
@@ -306,3 +438,566 @@ jobs:
             git status --porcelain
             echo "::error title=checkout unchanged ($RUNNER_OS)::the run changed or added files"; exit 1
           fi
+
+  # FR-102b (PD-21): decides whether the two elevated jobs run. Fail open: when the base is unknown, they run.
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      elevated: ${{ steps.paths.outputs.elevated }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: changed paths
+        id: paths
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # FR-102b plus SI-27; a trailing / is a directory prefix, any other entry an exact path.
+          PATHS=(
+            apps/krate-manager/crates/helper/
+            apps/krate-manager/tests/fixtures/helper/
+            apps/krate-manager/tests/fixtures/inno/
+            apps/krate-manager/tests/fixtures/locked-dll/
+            apps/krate-manager/tests/fixtures/argv-recorder/
+            apps/krate-manager/scripts/write-test-job.js
+            apps/krate-manager/Cargo.toml
+            apps/krate-manager/Cargo.lock
+            .github/workflows/manager-ci.yml
+          )
+          elevated=false
+          why="no elevated path changed"
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            elevated=true; why="workflow_dispatch"
+          else
+            if [ "$EVENT" = "pull_request" ]; then from="$BASE"; to="$HEAD"; else from="$BEFORE"; to="$SHA"; fi
+            if [ -z "$from" ] || [ -z "${from//0/}" ]; then
+              elevated=true; why="no base commit (fail open)"
+            elif ! files=$(git diff --name-only "$from" "$to"); then
+              elevated=true; why="git diff failed (fail open)"
+            else
+              while IFS= read -r f; do
+                [ -n "$f" ] || continue
+                for p in "${PATHS[@]}"; do
+                  case "$p" in
+                    */) if [ "${f#"$p"}" != "$f" ]; then elevated=true; why="$f changed"; fi ;;
+                    *) if [ "$f" = "$p" ]; then elevated=true; why="$f changed"; fi ;;
+                  esac
+                done
+              done <<<"$files"
+            fi
+          fi
+          echo "elevated=$elevated" >> "$GITHUB_OUTPUT"
+          echo "::notice title=changes::elevated=$elevated ($why)"
+
+  # FR-100 (SC-017, SC-018): the helper built with ci-temp-roots, run elevated against temp roots under RUNNER_TEMP.
+  helper-elevated:
+    name: helper-elevated (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.elevated == 'true'
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/krate-manager
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # Before any helper run: UAC is disabled on the hosted runner, so its session token is the elevated one.
+      - name: elevation check
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+          $admin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+          $high = @(whoami /groups | Select-String -SimpleMatch 'S-1-16-12288').Count -gt 0
+          if ($admin -and $high) {
+            Write-Output "::notice title=helper-elevated (Windows)::the process token is elevated (Administrators enabled, High Mandatory Level)"
+          } else {
+            Write-Output "::error title=helper-elevated (Windows)::the process token is not elevated (Administrators=$admin, High Mandatory Level=$high)"; exit 1
+          }
+
+      - name: Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install
+          rustc --version
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/krate-manager -> target
+
+      - name: build the helper
+        run: |
+          set -euo pipefail
+          cargo build -p krate-manager-helper --release --locked --features ci-temp-roots
+
+      # The state dir, the plug-in roots and the two --ci-roots files (FR-052, FR-100), all under RUNNER_TEMP/real.
+      - name: temp roots
+        run: |
+          set -euo pipefail
+          node - "$RUNNER_OS" "$RUNNER_TEMP" <<'ROOTS'
+          const fs = require("fs"), path = require("path");
+          const [runnerOs, tempArg] = process.argv.slice(2);
+          const temp = fs.realpathSync.native(tempArg);
+          const real = path.join(temp, "real"), link = path.join(temp, "link");
+          const stateName = "com.krateaudio.krate-manager";
+          for (const d of ["jobs", "staging"]) fs.mkdirSync(path.join(real, stateName, d), { recursive: true });
+          fs.mkdirSync(path.join(real, "root"), { recursive: true });
+          const roots = (base) => {
+            const r = path.join(base, "root");
+            if (runnerOs === "Windows") {
+              return { state_dir: path.join(base, stateName), vst3_vendor: path.join(r, "VST3", "Krate Audio"),
+                preset_vendor: path.join(r, "ProgramData", "Krate Audio") };
+            }
+            const lib = path.join(r, "Library");
+            return { state_dir: path.join(base, stateName), vst3: path.join(lib, "Audio", "Plug-Ins", "VST3"),
+              components: path.join(lib, "Audio", "Plug-Ins", "Components"),
+              presets: path.join(lib, "Application Support", "Krate Audio"), applications: path.join(r, "Applications") };
+          };
+          fs.writeFileSync(path.join(real, "ci-roots.json"), JSON.stringify(roots(real)));
+          fs.writeFileSync(path.join(real, "ci-roots-link.json"), JSON.stringify(roots(link)));
+          fs.appendFileSync(process.env.GITHUB_ENV, `KM_REAL=${real}\nKM_LINK=${link}\nKM_STATE=${path.join(real, stateName)}\n`);
+          console.log(`::notice title=temp roots (${runnerOs})::roots under ${real}; ci-roots-link.json names them through ${link}`);
+          ROOTS
+
+      - name: Windows fixtures
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:CARGO_TARGET_DIR = Join-Path $env:RUNNER_TEMP 'fixture-target'
+          $env:ARGV_RECORDER_OUT = Join-Path $env:RUNNER_TEMP 'argv-record.json'
+          cargo build --manifest-path tests/fixtures/argv-recorder/Cargo.toml --release --locked
+          if ($LASTEXITCODE -ne 0) { Write-Output "::error title=helper-elevated (Windows)::argv-recorder build failed"; exit 1 }
+          $env:LOCKED_DLL_VERSION = '1.0.0'
+          cargo build --manifest-path tests/fixtures/locked-dll/Cargo.toml --release --locked
+          if ($LASTEXITCODE -ne 0) { Write-Output "::error title=helper-elevated (Windows)::locked-dll build failed"; exit 1 }
+          $payload = Join-Path $env:RUNNER_TEMP 'payload-1.0.0'
+          $bin = Join-Path $payload 'Fixture.vst3\Contents\x86_64-win'
+          New-Item -ItemType Directory -Force -Path $bin, (Join-Path $payload 'presets') | Out-Null
+          Copy-Item -LiteralPath (Join-Path $env:CARGO_TARGET_DIR 'release\locked_dll.dll') -Destination (Join-Path $bin 'Fixture.vst3')
+          Set-Content -LiteralPath (Join-Path $payload 'version.txt') -Value '1.0.0' -NoNewline
+          Set-Content -LiteralPath (Join-Path $payload 'presets\a.vstpreset') -Value 'fixture preset 1.0.0' -NoNewline
+          Copy-Item -LiteralPath (Join-Path $env:CARGO_TARGET_DIR 'release\argv-recorder.exe') -Destination (Join-Path $env:KM_STATE 'staging\argv-recorder.exe')
+          Write-Output "::notice title=helper-elevated (Windows)::argv-recorder staged; locked-dll 1.0.0 payload at $payload"
+
+      # The action passes each options line as one argument (src/index.js v1.2.7, getMultilineInput); /O keeps the
+      # output under RUNNER_TEMP instead of the script's OutputDir.
+      - name: compile the setup 1.0.0
+        if: runner.os == 'Windows'
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        with:
+          path: apps/krate-manager/tests/fixtures/inno/fixture.iss
+          options: |
+            /DVersion=1.0.0
+            /DRoot=${{ runner.temp }}\real\root
+            /DPayload=${{ runner.temp }}\payload-1.0.0
+            /O${{ runner.temp }}\setups
+
+      # SC-017: the stub installer, the fixture setup's install and uninstall, and the link case. The helper is a
+      # GUI-subsystem program (FR-050): Start-Process -Wait -PassThru reports its own exit code.
+      - name: helper jobs (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $t = 'helper-elevated (Windows)'
+          function Esc([string]$m) { $m.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A') }
+          function Note([string]$m) { [Console]::Out.WriteLine("::notice title=${t}::$(Esc $m)") }
+          function Fail([string]$m) { [Console]::Out.WriteLine("::error title=${t}::$(Esc $m)"); exit 1 }
+          function Sha([string]$p) { (Get-FileHash -Algorithm SHA256 -LiteralPath $p).Hash.ToLowerInvariant() }
+          $helper = Join-Path $PWD 'target\release\krate-manager-helper.exe'
+          $roots = Join-Path $env:KM_REAL 'ci-roots.json'
+          $linkRoots = Join-Path $env:KM_REAL 'ci-roots-link.json'
+          $staging = Join-Path $env:KM_STATE 'staging'
+          $runBase = Join-Path $env:SystemRoot 'Temp'
+          function RunDirs { @(Get-ChildItem -LiteralPath $runBase -Directory -Filter 'run-*' -ErrorAction SilentlyContinue | ForEach-Object Name) }
+          function Assert-NoNewRunDir([string[]]$before, [string]$what) {
+            $new = @(RunDirs | Where-Object { $before -notcontains $_ })
+            if ($new.Count -ne 0) { Fail "$what left run directories: $($new -join ', ')" }
+            Note "$what left no run-* directory under $runBase"
+          }
+          # write-test-job.js prints `<verbatim job path> <sha256>`; the path is passed on unchanged (plan §4.6).
+          function New-TestJob([string[]]$opArgs) {
+            $line = node scripts/write-test-job.js --state $env:KM_STATE @opArgs
+            if ($LASTEXITCODE -ne 0) { Fail "write-test-job.js exit $LASTEXITCODE" }
+            $i = $line.LastIndexOf(' ')
+            return @($line.Substring(0, $i), $line.Substring($i + 1))
+          }
+          function Invoke-Helper([string]$job, [string]$sha, [string]$rootsFile) {
+            $p = Start-Process -FilePath $helper -ArgumentList '--job', $job, '--job-sha256', $sha, '--ci-roots', $rootsFile -Wait -PassThru
+            $result = ($job -replace '^\\\\\?\\', '') -replace '\.json$', '.result.json'
+            $present = Test-Path -LiteralPath $result -PathType Leaf
+            if ($null -eq $p.ExitCode -or $p.ExitCode -ne 0 -or -not $present) { Fail "helper exit code '$($p.ExitCode)', result file present: $present" }
+            Note "helper exit code 0 (its own, Start-Process -Wait -PassThru); result file $result present"
+            return Get-Content -Raw -LiteralPath $result | ConvertFrom-Json
+          }
+          function OpsText($r) { $r.ops | ConvertTo-Json -Compress -Depth 4 }
+
+          # 1. The stub installer through run_inno_installer: its argv, current_exe and the run directory's DACL (D7).
+          $record = Join-Path $env:RUNNER_TEMP 'argv-record.json'
+          Remove-Item -LiteralPath $record -ErrorAction SilentlyContinue
+          $stub = Join-Path $staging 'argv-recorder.exe'
+          $before = RunDirs
+          $job, $sha = New-TestJob @('--op', 'run_inno_installer', '--file', $stub, '--sha256', (Sha $stub))
+          $r = Invoke-Helper $job $sha $roots
+          if (@($r.ops).Count -ne 1 -or $r.ops[0].outcome -ne 'done' -or $r.ops[0].exit_code -ne 0) { Fail "stub job ops $(OpsText $r)" }
+          Note 'stub job: outcome done, exit_code 0'
+          if (-not (Test-Path -LiteralPath $record -PathType Leaf)) { Fail "the stub wrote no record at $record" }
+          $rec = Get-Content -Raw -LiteralPath $record | ConvertFrom-Json
+          $argv = @($rec.args | ForEach-Object { [string]$_ })
+          $runDir = Split-Path -Parent $argv[0]
+          if ((Split-Path -Parent $runDir) -ne $runBase -or (Split-Path -Leaf $runDir) -notmatch '^run-[0-9a-f]{32}$') { Fail "argv[0] $($argv[0]) is not in $runBase\run-<32 hex>" }
+          $want = @("$runDir\installer-0.exe", '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOCLOSEAPPLICATIONS', "/LOG=$runDir\inno-0.log")
+          if (($argv -join "`n") -ne ($want -join "`n")) { Fail "stub argv $($argv -join ' | '), want $($want -join ' | ')" }
+          Note "stub argv equals SC-002's Inno argv: $($argv -join ' ')"
+          $exe = ([string]$rec.current_exe) -replace '^\\\\\?\\', ''
+          if ((Split-Path -Parent $exe) -ne $runDir) { Fail "stub current_exe $exe is not in $runDir" }
+          Note "stub current_exe $exe lies in the run directory"
+          $sddl = [string]$rec.sddl
+          Note "run directory SDDL: $sddl"
+          if ($sddl -notmatch 'D:([A-Z]*)((?:\([^)]*\))*)') { Fail "no DACL in the SDDL $sddl" }
+          $flags = $Matches[1]
+          $aces = @([regex]::Matches($Matches[2], '\([^)]*\)') | ForEach-Object Value)
+          $inherited = @($aces | Where-Object { $_.Trim('(', ')').Split(';')[1] -cmatch 'ID' })
+          $sorted = ($aces | Sort-Object) -join ''
+          if ($flags -cnotmatch 'P' -or $aces.Count -ne 2 -or $sorted -cne '(A;OICI;FA;;;BA)(A;OICI;FA;;;SY)' -or $inherited.Count -ne 0) {
+            Fail "run directory DACL flags '$flags', ACEs $($aces -join '')"
+          }
+          Note "run directory DACL protected (flags $flags), exactly (A;OICI;FA;;;SY)(A;OICI;FA;;;BA), no inherited ACE"
+          if (Test-Path -LiteralPath $runDir) { Fail "the run directory $runDir still exists after the job" }
+          Assert-NoNewRunDir $before 'the stub job'
+
+          # 2. The fixture setup: installed through run_inno_installer, removed through run_inno_uninstaller.
+          $appId = '{2258598C-E668-45BD-A814-B9C5D1D2C5CD}'
+          $key = "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${appId}_is1"
+          $hklm = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryView]::Registry64)
+          function KeyPresent { $k = $hklm.OpenSubKey($key); if ($null -eq $k) { return $false }; $k.Dispose(); return $true }
+          $bundle = Join-Path $env:KM_REAL 'root\VST3\Krate Audio\Fixture\Fixture.vst3'
+          $dll = Join-Path $bundle 'Contents\x86_64-win\Fixture.vst3'
+          $setup = Join-Path $staging 'Fixture-1.0.0-Windows-x64.exe'
+          Copy-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'setups\Fixture-1.0.0-Windows-x64.exe') -Destination $setup
+          if (KeyPresent) { Fail "HKLM (64-bit) $key exists before the install" }
+          $before = RunDirs
+          $job, $sha = New-TestJob @('--op', 'run_inno_installer', '--file', $setup, '--sha256', (Sha $setup))
+          $r = Invoke-Helper $job $sha $roots
+          if ($r.ops[0].outcome -ne 'done' -or $r.ops[0].exit_code -ne 0) { Fail "fixture install ops $(OpsText $r)" }
+          if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { Fail "$dll missing after the install" }
+          if (-not (KeyPresent)) { Fail "HKLM (64-bit) $key missing after the install" }
+          Note "fixture install done in $($r.ops[0].seconds) s: $dll placed, HKLM (64-bit) $key written"
+          Assert-NoNewRunDir $before 'the fixture install job'
+          $job, $sha = New-TestJob @('--op', 'run_inno_uninstaller', '--app-id', $appId)
+          $r = Invoke-Helper $job $sha $roots
+          if ($r.ops[0].outcome -ne 'done') { Fail "fixture uninstall ops $(OpsText $r)" }
+          if (Test-Path -LiteralPath $bundle) { Fail "$bundle still exists after the uninstall" }
+          if (KeyPresent) { Fail "HKLM (64-bit) $key still exists after the uninstall" }
+          Note "fixture uninstall done, seconds $($r.ops[0].seconds): $bundle and HKLM (64-bit) $key gone"
+          Assert-NoNewRunDir $before 'the fixture uninstall job'
+
+          # 3. The link case (FR-100): the roots named through RUNNER_TEMP\link.
+          New-Item -ItemType SymbolicLink -Path $env:KM_LINK -Target $env:KM_REAL | Out-Null
+          $before = RunDirs
+          $job, $sha = New-TestJob @('--op', 'run_inno_installer', '--file', $stub, '--sha256', (Sha $stub))
+          $r = Invoke-Helper $job $sha $linkRoots
+          if ($r.ops[0].outcome -ne 'done') { Fail "link roots, canonical source: ops $(OpsText $r)" }
+          Note 'link roots: the job whose file is the canonical staging path was accepted (done)'
+          # write-test-job.js canonicalizes every --file on Windows (plan §4.6), so the linked spelling is written here.
+          $linked = '\\?\' + (Join-Path $env:KM_LINK 'com.krateaudio.krate-manager\staging\argv-recorder.exe')
+          $body = [ordered]@{ job_version = 1; ops = @([ordered]@{ op = 'run_inno_installer'; file = $linked; sha256 = (Sha $stub) }) } | ConvertTo-Json -Compress -Depth 4
+          $bytes = [Text.UTF8Encoding]::new($false).GetBytes($body)
+          $plain = Join-Path $env:KM_STATE ('jobs\job-' + [guid]::NewGuid().ToString('N') + '.json')
+          [IO.File]::WriteAllBytes($plain, $bytes)
+          $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+          $r = Invoke-Helper ('\\?\' + $plain) $hash $linkRoots
+          if ($r.ops[0].outcome -ne 'refused' -or $r.ops[0].code -ne 'E_HELPER_SOURCE') { Fail "link roots, linked source: ops $(OpsText $r)" }
+          Note "link roots: the job whose file is spelled through the link ($linked) was refused E_HELPER_SOURCE"
+          Assert-NoNewRunDir $before 'the link jobs'
+
+      # The pkg's preinstall (run as root) records its $1 and the owner, mode and type of that path's directory.
+      - name: fixture pkg (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/pkg-stage"
+          scripts="$RUNNER_TEMP/pkg-scripts"
+          for d in "Library/Audio/Plug-Ins/VST3/Fixture.vst3/Contents/MacOS" "Library/Audio/Plug-Ins/Components/Fixture.component/Contents/MacOS" \
+            "Library/Application Support/Krate Audio/Fixture" "Applications/Fixture AUv3.app/Contents/MacOS"; do
+            mkdir -p "$stage/$d"
+          done
+          printf 'fixture vst3\n' > "$stage/Library/Audio/Plug-Ins/VST3/Fixture.vst3/Contents/MacOS/Fixture"
+          printf 'fixture component\n' > "$stage/Library/Audio/Plug-Ins/Components/Fixture.component/Contents/MacOS/Fixture"
+          printf 'fixture preset\n' > "$stage/Library/Application Support/Krate Audio/Fixture/a.vstpreset"
+          printf 'fixture auv3\n' > "$stage/Applications/Fixture AUv3.app/Contents/MacOS/Fixture"
+          mkdir -p "$scripts"
+          cat > "$scripts/preinstall" <<'PREINSTALL'
+          #!/bin/sh
+          { printf '%s\n' "$1"; /usr/bin/stat -f '%u %Sp %Lp' "$(/usr/bin/dirname "$1")"; } > "@RECORD@"
+          exit 0
+          PREINSTALL
+          sed -i '' "s|@RECORD@|$RUNNER_TEMP/preinstall-record.txt|" "$scripts/preinstall"
+          chmod 755 "$scripts/preinstall"
+          pkgbuild --root "$stage" --identifier com.krateaudio.fixture --version 1.0.0 --install-location "$KM_REAL/root" \
+            --scripts "$scripts" "$KM_STATE/staging/fixture.pkg"
+          echo "::notice title=helper-elevated (macOS)::fixture.pkg built: com.krateaudio.fixture 1.0.0, install location $KM_REAL/root"
+
+      # SC-018: run_pkg_installer, uninstall_pkg and the link case, every value annotated.
+      - name: helper jobs (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          t="helper-elevated (macOS)"
+          note() { echo "::notice title=$t::$1"; }
+          fail() { echo "::error title=$t::$1"; exit 1; }
+          helper="$PWD/target/release/krate-manager-helper"
+          base="/Library/Application Support/com.krateaudio.krate-manager-helper"
+          root="$KM_REAL/root"
+          pkg="$KM_STATE/staging/fixture.pkg"
+          sum=$(shasum -a 256 "$pkg" | cut -d' ' -f1)
+          FILES=(
+            "Library/Audio/Plug-Ins/VST3/Fixture.vst3/Contents/MacOS/Fixture"
+            "Library/Audio/Plug-Ins/Components/Fixture.component/Contents/MacOS/Fixture"
+            "Library/Application Support/Krate Audio/Fixture/a.vstpreset"
+            "Applications/Fixture AUv3.app/Contents/MacOS/Fixture"
+          )
+          STRUCTURAL=(
+            "Library" "Library/Audio" "Library/Audio/Plug-Ins" "Library/Audio/Plug-Ins/VST3" "Library/Audio/Plug-Ins/Components"
+            "Library/Application Support" "Library/Application Support/Krate Audio" "Applications"
+          )
+          rundirs() { sudo ls "$base" 2>/dev/null | grep '^run-' || true; }
+          outcomes() { node -p 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).ops.map((o) => `${o.outcome}:${o.code ?? ""}`).join(",")' "$1"; }
+          # run_job <ci-roots file> <write-test-job.js op arguments...>: sets result to the result file's path.
+          run_job() {
+            local rootsFile=$1 line job sha rc=0
+            shift
+            line=$(node scripts/write-test-job.js --state "$KM_STATE" "$@")
+            job=${line% *}
+            sha=${line##* }
+            sudo "$helper" --job "$job" --job-sha256 "$sha" --ci-roots "$rootsFile" || rc=$?
+            result="${job%.json}.result.json"
+            if [ "$rc" != "0" ] || [ ! -f "$result" ]; then fail "helper exit $rc, result file $result present: $([ -f "$result" ] && echo yes || echo no)"; fi
+            note "helper exit 0; result file $result present"
+          }
+
+          # 1. run_pkg_installer: the four trees, no quarantine, the run directory as the pkg op saw it, the listing.
+          before=$(rundirs)
+          run_job "$KM_REAL/ci-roots.json" --op run_pkg_installer --file "$pkg" --sha256 "$sum"
+          got=$(outcomes "$result")
+          [ "$got" = "done:" ] || fail "pkg install ops $got, want done:"
+          for f in "${FILES[@]}"; do [ -f "$root/$f" ] || fail "$root/$f not placed"; done
+          note "run_pkg_installer placed the four fixture trees under $root"
+          q=$(find "$root" -exec xattr -l {} + 2>/dev/null | grep -c 'com.apple.quarantine' || true)
+          [ "$q" = "0" ] || fail "$q placed path(s) carry com.apple.quarantine"
+          note "no placed path carries com.apple.quarantine (xattr -l)"
+          record="$RUNNER_TEMP/preinstall-record.txt"
+          [ -f "$record" ] || fail "the preinstall wrote no record at $record"
+          arg=$(sed -n 1p "$record")
+          facts=$(sed -n 2p "$record")
+          rundir=$(dirname "$arg")
+          note "preinstall \$1: $arg"
+          note "preinstall stat of the run directory (uid mode-string mode): $facts"
+          if [[ ! "$rundir" =~ ^/Library/Application\ Support/com\.krateaudio\.krate-manager-helper/run-[0-9a-f]{32}$ ]] || [ "$facts" != "0 drwx------ 700" ]; then
+            fail "run directory $rundir with '$facts', want a directory owned by uid 0, mode 0700, under $base/"
+          fi
+          note "the run directory $rundir was a directory owned by uid 0, mode 0700, while the pkg op ran (D7)"
+          if sudo test -e "$rundir"; then fail "the run directory $rundir still exists after the job"; fi
+          [ "$(rundirs)" = "$before" ] || fail "the pkg install job left run directories"
+          note "the run directory is gone after the job"
+          listing=$(pkgutil --files com.krateaudio.fixture --only-dirs)
+          while IFS= read -r l; do note "pkgutil --only-dirs: $l"; done <<<"$listing"
+          for d in "${STRUCTURAL[@]}"; do
+            [ "$(grep -cxF "$d" <<<"$listing" || true)" = "1" ] || fail "the --only-dirs listing lacks the structural ancestor $d"
+          done
+          note "the --only-dirs listing contains the ${#STRUCTURAL[@]} structural ancestors"
+
+          # 2. uninstall_pkg: every fixture file gone, the structural directories kept, the receipt forgotten.
+          before=$(rundirs)
+          run_job "$KM_REAL/ci-roots.json" --op uninstall_pkg --pkg-id com.krateaudio.fixture
+          got=$(outcomes "$result")
+          [ "$got" = "done:" ] || fail "uninstall_pkg ops $got, want done:"
+          for f in "${FILES[@]}"; do [ ! -e "$root/$f" ] || fail "$root/$f still exists after uninstall_pkg"; done
+          note "every fixture file is gone"
+          for d in "${STRUCTURAL[@]}"; do [ -d "$root/$d" ] || fail "uninstall_pkg removed the structural directory $d"; done
+          note "uninstall_pkg left the ${#STRUCTURAL[@]} structural directories in place"
+          n=$(pkgutil --pkgs | grep -cxF com.krateaudio.fixture || true)
+          [ "$n" = "0" ] || fail "pkgutil --pkgs still lists com.krateaudio.fixture"
+          note "pkgutil --pkgs no longer lists com.krateaudio.fixture"
+          [ "$(rundirs)" = "$before" ] || fail "the uninstall job left run directories"
+
+          # 3. The link case (FR-100): the roots named through RUNNER_TEMP/link.
+          ln -s "$KM_REAL" "$KM_LINK"
+          before=$(rundirs)
+          run_job "$KM_REAL/ci-roots-link.json" --op run_pkg_installer --file "$pkg" --sha256 "$sum" \
+            --op run_pkg_installer --file "$KM_LINK/com.krateaudio.krate-manager/staging/fixture.pkg" --sha256 "$sum" \
+            --op uninstall_pkg --pkg-id com.krateaudio.fixture
+          got=$(outcomes "$result")
+          [ "$got" = "done:,refused:E_HELPER_SOURCE,done:" ] || fail "link case ops $got, want done:,refused:E_HELPER_SOURCE,done:"
+          note "link roots: the canonical source was accepted, the one spelled through $KM_LINK refused E_HELPER_SOURCE"
+          [ "$(rundirs)" = "$before" ] || fail "the link job left run directories"
+          note "no run directory is left after the jobs"
+
+      - name: forget the fixture receipt (macOS)
+        if: always() && runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          sudo pkgutil --forget com.krateaudio.fixture || true
+
+  # FR-060, FR-102: the locked-file measurement (M-1). No FR-102a assertion yet: it needs the M-1 fixtures (FR-063).
+  inno-locked-file:
+    name: inno-locked-file (windows-latest)
+    needs: changes
+    if: needs.changes.outputs.elevated == 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: apps/krate-manager
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          rustc --version
+
+      # Each version embeds its own string (FR-060), so the two setups ship different DLL and unlocked-file bytes.
+      - name: locked-dll builds
+        run: |
+          foreach ($v in '1.0.0', '1.0.1') {
+            $env:LOCKED_DLL_VERSION = $v
+            $env:CARGO_TARGET_DIR = Join-Path $env:RUNNER_TEMP "locked-dll-$v"
+            cargo build --manifest-path tests/fixtures/locked-dll/Cargo.toml --release --locked
+            if ($LASTEXITCODE -ne 0) { Write-Output "::error title=inno-locked-file::locked-dll $v build failed"; exit 1 }
+            $payload = Join-Path $env:RUNNER_TEMP "payload-$v"
+            $bin = Join-Path $payload 'Fixture.vst3\Contents\x86_64-win'
+            New-Item -ItemType Directory -Force -Path $bin, (Join-Path $payload 'presets') | Out-Null
+            Copy-Item -LiteralPath (Join-Path $env:CARGO_TARGET_DIR 'release\locked_dll.dll') -Destination (Join-Path $bin 'Fixture.vst3')
+            Set-Content -LiteralPath (Join-Path $payload 'version.txt') -Value $v -NoNewline
+            Set-Content -LiteralPath (Join-Path $payload 'presets\a.vstpreset') -Value "fixture preset $v" -NoNewline
+          }
+          Write-Output "::notice title=inno-locked-file::locked-dll 1.0.0 and 1.0.1 payloads staged under $env:RUNNER_TEMP"
+
+      - name: compile the setup 1.0.0
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        with:
+          path: apps/krate-manager/tests/fixtures/inno/fixture.iss
+          options: |
+            /DVersion=1.0.0
+            /DRoot=${{ runner.temp }}\real\root
+            /DPayload=${{ runner.temp }}\payload-1.0.0
+            /O${{ runner.temp }}\setups
+
+      - name: compile the setup 1.0.1
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        with:
+          path: apps/krate-manager/tests/fixtures/inno/fixture.iss
+          options: |
+            /DVersion=1.0.1
+            /DRoot=${{ runner.temp }}\real\root
+            /DPayload=${{ runner.temp }}\payload-1.0.1
+            /O${{ runner.temp }}\setups
+
+      # For M-1: the compiler the action ran (it runs Program Files (x86)\Inno Setup 6\iscc.exe, src/index.js v1.2.7).
+      - name: Inno version
+        run: |
+          $iscc = @(Get-ChildItem -Path "${env:ProgramFiles(x86)}\Inno Setup *\ISCC.exe" -ErrorAction SilentlyContinue)
+          if ($iscc.Count -eq 0) { Write-Output "::error title=inno-locked-file (Inno version)::no ISCC.exe under ${env:ProgramFiles(x86)}"; exit 1 }
+          foreach ($f in $iscc) { Write-Output "::notice title=inno-locked-file (Inno version)::$($f.VersionInfo.ProductVersion) ($($f.FullName))" }
+
+      - name: locked-file measurement
+        run: |
+          # Until M-1 is recorded (FR-061, FR-063) this measures: only a value that cannot be recorded is an error.
+          $t = 'inno-locked-file'
+          function Esc([string]$m) { $m.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A') }
+          function Note([string]$what, [string]$m) { [Console]::Out.WriteLine("::notice title=$t ($what)::$(Esc $m)") }
+          function Fail([string]$m) { [Console]::Out.WriteLine("::error title=${t}::$(Esc $m)"); exit 1 }
+          function Sha([string]$p) { if (Test-Path -LiteralPath $p -PathType Leaf) { (Get-FileHash -Algorithm SHA256 -LiteralPath $p).Hash.ToLowerInvariant() } else { '' } }
+          function Get-FileClass([string]$p, [string]$old, [string]$new) { $h = Sha $p; if ($h -eq '') { 'absent' } elseif ($h -eq $old) { 'old' } elseif ($h -eq $new) { 'new' } else { 'other' } }
+          $flags = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOCLOSEAPPLICATIONS')
+          $setups = Join-Path $env:RUNNER_TEMP 'setups'
+          $logs = Join-Path $env:RUNNER_TEMP 'inno-logs'
+          New-Item -ItemType Directory -Force -Path $logs | Out-Null
+          $app = Join-Path $env:RUNNER_TEMP 'real\root\VST3\Krate Audio\Fixture'
+          $dll = Join-Path $app 'Fixture.vst3\Contents\x86_64-win\Fixture.vst3'
+          $unlocked = Join-Path $app 'Fixture.vst3\version.txt'
+          $key = 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{2258598C-E668-45BD-A814-B9C5D1D2C5CD}_is1'
+          $sm = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager'
+          function Pending { @((Get-ItemProperty -LiteralPath $sm -ErrorAction SilentlyContinue).PendingFileRenameOperations | Where-Object { $_ }) }
+          # The setup's own exit code: the handle is taken at start, and Wait-Process bounds the wait at 600 s.
+          function Start-Setup([string]$v) {
+            $p = Start-Process -FilePath (Join-Path $setups "Fixture-$v-Windows-x64.exe") -ArgumentList ($flags + "/LOG=$(Join-Path $logs "setup-$v.log")") -PassThru
+            $null = $p.Handle
+            return $p
+          }
+          $digest = @{}
+          foreach ($v in '1.0.0', '1.0.1') {
+            $payload = Join-Path $env:RUNNER_TEMP "payload-$v"
+            $digest[$v] = @{ dll = Sha (Join-Path $payload 'Fixture.vst3\Contents\x86_64-win\Fixture.vst3'); unlocked = Sha (Join-Path $payload 'version.txt') }
+          }
+          $old = $digest['1.0.0']
+          $new = $digest['1.0.1']
+          if ($old.dll -eq '' -or $old.dll -eq $new.dll -or $old.unlocked -eq $new.unlocked) { Fail 'the 1.0.0 and 1.0.1 inputs are missing or equal' }
+          Note 'digests' "DLL old $($old.dll) new $($new.dll); unlocked file old $($old.unlocked) new $($new.unlocked)"
+
+          $p = Start-Setup '1.0.0'
+          try { Wait-Process -InputObject $p -Timeout 600 -ErrorAction Stop } catch { $null = $_ }
+          if (-not $p.HasExited -or $p.ExitCode -ne 0) { Fail "the 1.0.0 setup: exited $($p.HasExited), exit code '$($p.ExitCode)'" }
+          if ((Get-FileClass $dll $old.dll $new.dll) -ne 'old' -or (Get-FileClass $unlocked $old.unlocked $new.unlocked) -ne 'old') { Fail "the 1.0.0 setup did not place the 1.0.0 files under $app" }
+          Note '1.0.0 install' "exit code 0; the DLL and the unlocked file are class old under $app"
+
+          # The holder maps the installed 1.0.0 DLL (FR-102); the command is passed encoded, since its path holds a space.
+          $ready = Join-Path $env:RUNNER_TEMP 'holder-ready.txt'
+          $code = "[System.Runtime.InteropServices.NativeLibrary]::Load('$dll') | Out-Null; Set-Content -LiteralPath '$ready' -Value loaded; Start-Sleep 900"
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code))
+          $holder = Start-Process -FilePath pwsh -ArgumentList '-NoProfile', '-EncodedCommand', $encoded -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(60)
+            while (-not (Test-Path -LiteralPath $ready) -and -not $holder.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 200 }
+            if (-not (Test-Path -LiteralPath $ready)) { Fail "the holder process did not report the load (exited $($holder.HasExited))" }
+            Note 'holder' "pid $($holder.Id) mapped $dll with NativeLibrary.Load"
+            $before = Pending
+            $clock = [Diagnostics.Stopwatch]::StartNew()
+            $p = Start-Setup '1.0.1'
+            try { Wait-Process -InputObject $p -Timeout 600 -ErrorAction Stop } catch { $null = $_ }
+            $seconds = [math]::Round($clock.Elapsed.TotalSeconds, 1)
+            $exited = $p.HasExited
+            Note 'exit code' $(if ($exited) { "$($p.ExitCode)" } else { 'none: still running at 600 s' })
+            Note 'seconds' "$seconds"
+            Note 'exited within 600 s' "$exited"
+            Note 'DLL' "sha256 '$(Sha $dll)', class $(Get-FileClass $dll $old.dll $new.dll)"
+            Note 'unlocked file' "sha256 '$(Sha $unlocked)', class $(Get-FileClass $unlocked $old.unlocked $new.unlocked)"
+            $gained = @(Pending | Where-Object { $before -notcontains $_ })
+            $namesDll = @($gained | Where-Object { $_ -like '*x86_64-win\Fixture.vst3*' }).Count -gt 0
+            Note 'PendingFileRenameOperations' "gained $($gained.Count) value(s); names the DLL: $namesDll"
+            foreach ($g in $gained) { Note 'PendingFileRenameOperations value' $g }
+            $k = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryView]::Registry64).OpenSubKey($key)
+            Note 'DisplayVersion' $(if ($null -eq $k) { 'none: the uninstall key is absent' } else { [string]$k.GetValue('DisplayVersion') })
+            $log = Join-Path $logs 'setup-1.0.1.log'
+            if (-not (Test-Path -LiteralPath $log -PathType Leaf)) { Fail "the 1.0.1 setup wrote no log at $log" }
+            $lines = @(Get-Content -LiteralPath $log | Where-Object { $_ -match 'x86_64-win\\Fixture\.vst3|DeleteFile|in use|Retry|Abort|restart' } | Select-Object -First 40)
+            Note 'log lines' "$($lines.Count) matching line(s) of $log (at most 40)"
+            foreach ($l in $lines) { Note 'log line' $l }
+          } finally {
+            Stop-Process -Id $holder.Id -Force -ErrorAction SilentlyContinue
+          }

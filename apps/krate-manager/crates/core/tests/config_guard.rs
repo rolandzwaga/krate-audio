@@ -27,6 +27,23 @@ const PLATFORM_TARGETS: [(&str, &str); 3] = [
     ("tauri.macos.conf.json", "app"),
     ("tauri.windows.conf.json", "nsis"),
 ];
+/// Phase 10 FR-092: the one more `tauri.*.conf.json`, the helper sidecar overlay `bundle.js` passes to `tauri build`.
+const HELPER_CONF: &str = "tauri.helper.conf.json";
+/// Phase 10 FR-105: the manual elevation example, compiled and linted, never run.
+const EXAMPLE_LINES: [&str; 3] = [
+    "name = \"manual_elevation\"",
+    "path = \"examples/manual_elevation.rs\"",
+    "required-features = [\"manual-elevation\"]",
+];
+/// Phase 10 SC-015: core's one `[[bin]]`, the never-shipped echo target of `windows_quoting.rs`.
+const CORE_BIN_LINES: [&str; 3] = [
+    "name = \"argv-echo\"",
+    "path = \"tests/bin/argv_echo.rs\"",
+    "test = false",
+];
+/// Phase 10 PD-8: core's dev-dependency on the helper, for the loopback (never a normal dependency, D1).
+const CORE_HELPER_DEV_DEPENDENCY: &str =
+    "krate-manager-helper = { workspace = true, features = [\"test-support\"] }";
 const CAPABILITY_KEYS: [&str; 4] = ["identifier", "description", "windows", "permissions"];
 /// FR-004's `[dependencies]` key set of `src-tauri/Cargo.toml` (PD-23), narrowed by Phase 6 Q8 to admit the opener
 /// crate (SI-2).
@@ -663,9 +680,23 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
         &mut m,
     );
 
-    // D15: the platform files set only bundle.targets.
+    // D15: the platform files set only bundle.targets; Phase 10 FR-092: the helper overlay sets only the sidecar.
+    let helper_conf = json!({ "bundle": { "externalBin": ["binaries/krate-manager-helper"] } });
+    match f
+        .platform_confs
+        .iter()
+        .find(|(file, _)| file == HELPER_CONF)
+    {
+        None => m.push(format!("src-tauri/{HELPER_CONF} is missing (FR-092)")),
+        Some((_, got)) if *got != helper_conf => {
+            m.push(format!(
+                "src-tauri/{HELPER_CONF} is {got}, expected {helper_conf} (FR-092)"
+            ));
+        }
+        Some(_) => {}
+    }
     for (name, _) in &f.platform_confs {
-        if !PLATFORM_TARGETS.iter().any(|(known, _)| known == name) {
+        if name != HELPER_CONF && !PLATFORM_TARGETS.iter().any(|(known, _)| known == name) {
             m.push(format!(
                 "src-tauri/{name} is not one of the three platform files (D15)"
             ));
@@ -867,8 +898,24 @@ fn check_src_tauri_manifest(f: &ConfigFiles, m: &mut Vec<String>) {
             "src-tauri/Cargo.toml [features] has a `default` feature (FR-004, FR-106)".to_owned(),
         );
     }
-    if features != ["dev-feed = []"] {
-        m.push(format!("src-tauri/Cargo.toml [features] is {features:?}, expected exactly [\"dev-feed = []\"] (FR-106)"));
+    if features != ["dev-feed = []", "manual-elevation = []"] {
+        m.push(format!("src-tauri/Cargo.toml [features] is {features:?}, expected exactly [\"dev-feed = []\", \"manual-elevation = []\"] (FR-106, Phase 10 FR-105)"));
+    }
+    let example = section_lines(toml, "[[example]]");
+    if example != EXAMPLE_LINES {
+        m.push(format!(
+            "src-tauri/Cargo.toml [[example]] is {example:?}, expected exactly {EXAMPLE_LINES:?} (Phase 10 FR-105)"
+        ));
+    }
+    if !f
+        .lib_rs
+        .lines()
+        .any(|line| line.trim() == "pub mod os_elevation;")
+    {
+        m.push(
+            "src-tauri/src/lib.rs lacks `pub mod os_elevation;` (Phase 10 FR-090, PD-23)"
+                .to_owned(),
+        );
     }
     let dependencies = section_lines(toml, "[dependencies]");
     let mut keys: Vec<&str> = dependencies.iter().map(|line| key_of(line)).collect();
@@ -1245,7 +1292,12 @@ fn check_app_meta(f: &AppMetaFiles) -> Vec<String> {
                 continue;
             }
             let core_features = member == "crates/core" && section == "[features]";
-            if line.contains("test-support") && section != "[dev-dependencies]" && !core_features {
+            let helper_features = member == "crates/helper" && section == "[features]";
+            if line.contains("test-support")
+                && section != "[dev-dependencies]"
+                && !core_features
+                && !helper_features
+            {
                 m.push(format!("{member}/Cargo.toml {section} `{line}` names test-support outside [dev-dependencies] (FR-022)"));
             }
         }
@@ -1254,6 +1306,34 @@ fn check_app_meta(f: &AppMetaFiles) -> Vec<String> {
             if features != ["test-support = []", "live-network = [\"test-support\"]"] {
                 m.push(format!(
                     "crates/core/Cargo.toml [features] is {features:?}, expected exactly [\"test-support = []\", \"live-network = [\\\"test-support\\\"]\"] (FR-022, FR-063)"
+                ));
+            }
+            let bin = section_lines(toml, "[[bin]]");
+            if bin != CORE_BIN_LINES {
+                m.push(format!(
+                    "crates/core/Cargo.toml [[bin]] is {bin:?}, expected exactly {CORE_BIN_LINES:?} (Phase 10 SC-015)"
+                ));
+            }
+            if !section_lines(toml, "[dev-dependencies]").contains(&CORE_HELPER_DEV_DEPENDENCY) {
+                m.push(format!(
+                    "crates/core/Cargo.toml [dev-dependencies] lacks `{CORE_HELPER_DEV_DEPENDENCY}` (Phase 10 PD-8)"
+                ));
+            }
+            if section_lines(toml, "[dependencies]")
+                .iter()
+                .any(|line| key_of(line) == "krate-manager-helper")
+            {
+                m.push(
+                    "crates/core/Cargo.toml [dependencies] names krate-manager-helper: the core never depends on the helper (Phase 10 D1, PD-8)"
+                        .to_owned(),
+                );
+            }
+        }
+        if member == "crates/helper" {
+            let features = section_lines(toml, "[features]");
+            if features != ["ci-temp-roots = []", "test-support = []"] {
+                m.push(format!(
+                    "crates/helper/Cargo.toml [features] is {features:?}, expected exactly [\"ci-temp-roots = []\", \"test-support = []\"] (Phase 10 FR-052, PD-8)"
                 ));
             }
         }
@@ -1299,10 +1379,11 @@ fn check_app_meta(f: &AppMetaFiles) -> Vec<String> {
         "lint": "eslint . --max-warnings 0",
         "test": "vitest run",
         "tauri": "tauri",
+        "bundle": "node scripts/bundle.js",
     });
     if package.get("scripts") != Some(&scripts) {
         m.push(format!(
-            "package.json scripts is {}, expected FR-050's six (FR-050)",
+            "package.json scripts is {}, expected FR-050's six plus Phase 10's bundle (FR-050, FR-092)",
             show(package.get("scripts"))
         ));
     }
@@ -1846,6 +1927,51 @@ fn planted_config_changes_fail_the_guard() {
             },
         ),
         (
+            "Cargo.toml without the manual-elevation feature",
+            &["src-tauri/Cargo.toml [features] is"],
+            |f| {
+                f.cargo_toml = remove_lines(&f.cargo_toml, |line| line == "manual-elevation = []");
+            },
+        ),
+        (
+            "[[example]] without required-features",
+            &["src-tauri/Cargo.toml [[example]] is"],
+            |f| {
+                f.cargo_toml =
+                    remove_lines(&f.cargo_toml, |line| line.starts_with("required-features"));
+            },
+        ),
+        (
+            "lib.rs with a private os_elevation",
+            &["lacks `pub mod os_elevation;`"],
+            |f| {
+                f.lib_rs = f
+                    .lib_rs
+                    .replace("pub mod os_elevation;", "mod os_elevation;");
+            },
+        ),
+        (
+            "tauri.helper.conf.json with a second sidecar",
+            &["src-tauri/tauri.helper.conf.json is {"],
+            |f| {
+                for (name, value) in &mut f.platform_confs {
+                    if name == HELPER_CONF {
+                        *value = json!({ "bundle": { "externalBin": [
+                            "binaries/krate-manager-helper",
+                            "binaries/other"
+                        ] } });
+                    }
+                }
+            },
+        ),
+        (
+            "tauri.helper.conf.json removed",
+            &["src-tauri/tauri.helper.conf.json is missing"],
+            |f| {
+                f.platform_confs.retain(|(name, _)| name != HELPER_CONF);
+            },
+        ),
+        (
             "capability without allow-startup-error",
             &["`permissions`"],
             |f| {
@@ -2219,6 +2345,41 @@ fn planted_app_metadata_changes_fail_the_guard() {
             |f| {
                 let toml = member_manifest(f, "crates/core");
                 *toml = insert_after(toml, "[features]", "default = [\"live-network\"]");
+            },
+        ),
+        (
+            "default = [\"ci-temp-roots\"] in helper [features]",
+            &["crates/helper/Cargo.toml [features] is"],
+            |f| {
+                let toml = member_manifest(f, "crates/helper");
+                *toml = insert_after(toml, "[features]", "default = [\"ci-temp-roots\"]");
+            },
+        ),
+        (
+            "core [[bin]] without test = false",
+            &["crates/core/Cargo.toml [[bin]] is"],
+            |f| {
+                let toml = member_manifest(f, "crates/core");
+                *toml = remove_lines(toml, |line| line == "test = false");
+            },
+        ),
+        (
+            "the helper moved into core [dependencies]",
+            &[
+                "crates/core/Cargo.toml [dev-dependencies] lacks",
+                "[dependencies] names krate-manager-helper",
+            ],
+            |f| {
+                let toml = member_manifest(f, "crates/core");
+                *toml = remove_lines(toml, |line| line == CORE_HELPER_DEV_DEPENDENCY);
+                *toml = insert_after(toml, "[dependencies]", CORE_HELPER_DEV_DEPENDENCY);
+            },
+        ),
+        (
+            "package.json bundle script changed",
+            &["plus Phase 10's bundle"],
+            |f| {
+                f.package_json["scripts"]["bundle"] = json!("node scripts/other.js");
             },
         ),
         (

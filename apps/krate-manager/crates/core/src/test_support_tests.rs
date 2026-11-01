@@ -1394,6 +1394,9 @@ fn phase9_doubles_cases() {
             io: &mem,
             extract: rig.extract_env(&staged),
             progress: &mut progress,
+            elevation: &rig.elevation,
+            host_io: &rig.host_io,
+            host: &FakeHostFacts::default(),
         },
         vec![uninstall("Alpha"), uninstall("Beta")],
     );
@@ -1422,6 +1425,9 @@ fn phase9_doubles_cases() {
             io: &mem,
             extract: rig.extract_env(&staged),
             progress: &mut progress,
+            elevation: &rig.elevation,
+            host_io: &rig.host_io,
+            host: &FakeHostFacts::default(),
         },
         vec![uninstall("Beta")],
     );

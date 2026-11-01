@@ -5,6 +5,10 @@ require('./helpers/write-guard.js');
 // specs/krate-manager-phase4/spec.md FR-070 to FR-077, FR-080, FR-106, FR-107, SC-019, SC-021; plan §4.16, §4.17,
 // §4.18, PD-11, PD-12, PD-20, PD-27), plus Phase 5's additions (specs/krate-manager-phase5/spec.md FR-083 to FR-085;
 // plan §4.12, §4.13, SI-4; tasks TA-8): the tools/feed-contract path, the roster absent step, the live-network ban.
+// Phase 10 (specs/krate-manager-phase10/spec.md FR-100 to FR-109, FR-111, SC-017 to SC-020, SC-031; plan §4.8.4,
+// §8.2, PD-20 to PD-22, PD-27, SI-2, SI-15, SI-18, SI-27, SI-29): the check job's helper steps, the `changes` job and
+// the two path-gated elevated jobs `helper-elevated` and `inno-locked-file`, checked by the `elevated jobs are
+// path-gated` subtest.
 // The workflow is read as text with the indentation-based helpers of workflow-shape.test.js (PD-20: copied in form,
 // no shared helper file): 2-space job keys under `jobs:`, 6-space `- ` step items, 8-space step keys. No YAML
 // library. checkManagerCi(files) is pure and returns every finding; the mutation subtests apply string edits to
@@ -171,15 +175,21 @@ const STEPS = [
   'cargo fmt',
   'clippy',
   'clippy dev-feed',
+  'clippy ci-temp-roots',
+  'clippy manual-elevation example',
   'clippy-guard',
   'cargo test',
+  'test ci-temp-roots',
   'core dependency tree',
   'typecheck',
   'lint',
+  'node --test',
   'vitest',
   'required tests ran',
   'tauri build',
   'build warnings',
+  'helper bundled',
+  'ci-temp-roots absent',
   'dev-feed absent',
   'roster absent',
   'artifact version',
@@ -201,10 +211,16 @@ const MACOS_STEPS = [
 const ASSERTION_STEPS = [
   'version lint',
   'clippy dev-feed',
+  'clippy ci-temp-roots',
+  'clippy manual-elevation example',
   'clippy-guard',
+  'test ci-temp-roots',
   'core dependency tree',
+  'node --test',
   'required tests ran',
   'build warnings',
+  'helper bundled',
+  'ci-temp-roots absent',
   'dev-feed absent',
   'roster absent',
   'artifact version',
@@ -225,6 +241,14 @@ const COMMANDS = {
   'cargo fmt': ['cargo fmt --all --check'],
   clippy: ['cargo clippy --workspace --all-targets --locked -- -D warnings'],
   'clippy dev-feed': ['if cargo clippy -p krate-manager --all-targets --features dev-feed --locked -- -D warnings; then'],
+  // Phase 10 FR-103a, FR-105 (plan §4.8.4).
+  'clippy ci-temp-roots': [
+    'if cargo clippy -p krate-manager-helper --all-targets --features ci-temp-roots --locked -- -D warnings; then',
+  ],
+  'clippy manual-elevation example': [
+    'if cargo clippy -p krate-manager --example manual_elevation --features manual-elevation --locked -- -D warnings;' +
+      ' then',
+  ],
   'clippy-guard': [
     'out="$RUNNER_TEMP/guard.txt"',
     'rc=0',
@@ -242,15 +266,26 @@ const COMMANDS = {
       ' [ "$envvar" = "1" ] && [ "$lint" -ge 1 ] && [ "$other" = "0" ]; then',
   ],
   'cargo test': ['cargo test --workspace --locked 2>&1 | tee "$RUNNER_TEMP/cargo-test.txt"'],
+  // Phase 10 FR-103a: its own log, so the required tests ran counts are unaffected.
+  'test ci-temp-roots': [
+    'log="$RUNNER_TEMP/cargo-test-ci-roots.txt"',
+    'cargo test -p krate-manager-helper --features ci-temp-roots --locked 2>&1 | tee "$log"',
+    "n=$(tr -d '\\r' < \"$log\" | grep -cxF 'test cli::tests::ci_roots_file_is_read ... ok' || true)",
+    'if [ "$n" = "1" ]; then',
+  ],
   'core dependency tree': [
     'cargo tree -p krate-manager-core -e normal --locked --prefix none --format "{p}" > "$out"',
     'if [ -z "$hits" ] && [ "$n" -ge 1 ]; then',
   ],
   typecheck: ['npm run typecheck'],
   lint: ['npm run lint'],
+  // Phase 10 FR-109 (PD-22: between lint and vitest).
+  'node --test': ['if node --test --test-reporter=tap "scripts/*.test.js" | tee "$RUNNER_TEMP/node-tap.txt"; then'],
   vitest: ['npm test -- --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/vitest.json"'],
   'required tests ran': [
-    'node - "$RUNNER_TEMP/cargo-test.txt" "$RUNNER_TEMP/vitest.json" "$RUNNER_OS" <<\'REQUIRED\'',
+    'node - "$RUNNER_TEMP/cargo-test.txt" "$RUNNER_TEMP/vitest.json" "$RUNNER_TEMP/node-tap.txt" "$RUNNER_OS"' +
+      " <<'REQUIRED'",
+    'const [cargoLog, vitestJson, nodeTap, runnerOs] = process.argv.slice(2);',
     'const key = { Windows: "windows", macOS: "macos", Linux: "linux" }[runnerOs];',
     'const req = JSON.parse(fs.readFileSync("tests/required-tests.json", "utf8"));',
     'const names = [...req.cargo.all, ...(key ? req.cargo[key] : [])];',
@@ -258,10 +293,17 @@ const COMMANDS = {
     'for (const n of names) { const c = passed.get(n) || 0; if (c !== 1) bad.push(`cargo ${n}: ${c} passing' +
       ' line(s), want 1`); }',
     'const c = results.filter((r) => r.title === t && r.status === "passed").length;',
+    // Phase 10 FR-109, PD-27: the TAP read leniently, every node name passing exactly once.
+    'const m = /^ *ok \\d+ - (.*?)(?: # .*)?$/.exec(raw);',
+    'for (const t of req.node) { const c = tap.get(t) || 0; if (c !== 1) bad.push(`node "${t}": ${c} passing' +
+      ' line(s), want 1`); }',
     'if (bad.length) process.exit(1);',
+    'console.log(`::notice title=required tests ran (${runnerOs})::${names.length} cargo + ${req.vitest.length}' +
+      ' vitest + ${req.node.length} node`);',
     'REQUIRED',
   ],
-  'tauri build': ['npm run tauri build 2>&1 | tee "$RUNNER_TEMP/tauri-build.txt"'],
+  // Phase 10 FR-104, PD-20: the step keeps its name and its tee; npm run bundle runs tauri build.
+  'tauri build': ['npm run bundle 2>&1 | tee "$RUNNER_TEMP/tauri-build.txt"'],
   'build warnings': [
     'clean="$RUNNER_TEMP/tauri-build.clean.txt"',
     "esc=$(printf '\\033')",
@@ -269,6 +311,30 @@ const COMMANDS = {
     "finished=$(grep -cE '^ *Finished `release` profile' \"$clean\" || true)",
     "n=$(grep -c '^warning:' \"$clean\" || true)",
     'if [ "$finished" -ge 1 ] && [ "$n" = "0" ]; then',
+  ],
+  // Phase 10 FR-104 (SC-020): what the bundler produced, never cargo's output.
+  'helper bundled': [
+    'tuple=$(rustc --print host-tuple)',
+    'setups=(target/release/bundle/nsis/*-setup.exe)',
+    'if ! command -v 7z > /dev/null; then echo "::error title=helper bundled (Windows)::7z not found"; exit 1; fi',
+    '7z l -slt "${setups[0]}" > "$RUNNER_TEMP/nsis-list.txt"',
+    'if [ "$nh" != "1" ] || [ "$na" != "1" ] || [ "${helper%krate-manager-helper.exe}" != "${app%krate-manager.exe}" ];' +
+      ' then',
+    '7z e "${setups[0]}" -o"$out" "$helper" -y > /dev/null',
+    "got=$(sha256sum < \"$out/krate-manager-helper.exe\" | cut -d' ' -f1)",
+    "want=$(sha256sum < \"$staged\" | cut -d' ' -f1)",
+    `bundled="${APP}/Contents/MacOS/krate-manager-helper"`,
+    "n=$(dpkg-deb -c \"${debs[0]}\" | grep -c 'krate-manager-helper' || true)",
+  ],
+  // Phase 10 FR-103 (SC-019); Linux builds no helper binary (PD-20, D18).
+  'ci-temp-roots absent': [
+    'tree=$(cargo tree -p krate-manager-helper -e features --locked)',
+    "hits=$(grep -cF 'ci-temp-roots' <<<\"$tree\" || true)",
+    "marker=$(grep -cF -- '--ci-roots' crates/helper/src/cli.rs || true)",
+    'echo "::notice::no Linux helper binary is built (D18)"',
+    "inb=$(grep -acF -- '--ci-roots' \"$bundled\" || true)",
+    "ins=$(grep -acF -- '--ci-roots' \"$staged\" || true)",
+    'if [ "$hits" = "0" ] && [ "$marker" -ge 1 ] && [ "$inb" = "0" ] && [ "$ins" = "0" ]; then',
   ],
   'dev-feed absent': [
     'case "$RUNNER_OS" in Windows) bin=target/release/krate-manager.exe ;; *) bin=target/release/krate-manager ;; esac',
@@ -333,6 +399,203 @@ const DEV_FEED_STEPS = ['clippy dev-feed', 'dev-feed absent'];
 // Phase 5 FR-084: the opt-in live-network test never runs in CI (no github.com call from a gate).
 const LIVE_NETWORK = 'live-network';
 
+// --- Phase 10: the changes job and the two path-gated elevated jobs (FR-100 to FR-107, FR-111; plan §4.8.4, §8.2).
+
+const JOBS = ['check', 'changes', 'helper-elevated', 'inno-locked-file'];
+const ELEVATED_JOBS = ['helper-elevated', 'inno-locked-file'];
+const GATE_IF = "needs.changes.outputs.elevated == 'true'";
+// FR-102b plus SI-27's two workspace files; a trailing `/` is a directory prefix, any other entry an exact path.
+const CHANGED_PATHS = [
+  'apps/krate-manager/crates/helper/',
+  'apps/krate-manager/tests/fixtures/helper/',
+  'apps/krate-manager/tests/fixtures/inno/',
+  'apps/krate-manager/tests/fixtures/locked-dll/',
+  'apps/krate-manager/tests/fixtures/argv-recorder/',
+  'apps/krate-manager/scripts/write-test-job.js',
+  'apps/krate-manager/Cargo.toml',
+  'apps/krate-manager/Cargo.lock',
+  '.github/workflows/manager-ci.yml',
+];
+// PD-21 (SI-18): the event values through env:, never ${{ }} in run: text.
+const CHANGES_ENV = [
+  'EVENT: ${{ github.event_name }}',
+  'BEFORE: ${{ github.event.before }}',
+  'SHA: ${{ github.sha }}',
+  'BASE: ${{ github.event.pull_request.base.sha }}',
+  'HEAD: ${{ github.event.pull_request.head.sha }}',
+];
+// PD-21: workflow_dispatch -> true; pull_request base -> head; push before -> sha; the two fail-open branches.
+const CHANGES_LINES = [
+  'if [ "$EVENT" = "workflow_dispatch" ]; then',
+  'elevated=true; why="workflow_dispatch"',
+  'if [ "$EVENT" = "pull_request" ]; then from="$BASE"; to="$HEAD"; else from="$BEFORE"; to="$SHA"; fi',
+  'if [ -z "$from" ] || [ -z "${from//0/}" ]; then',
+  'elevated=true; why="no base commit (fail open)"',
+  'elif ! files=$(git diff --name-only "$from" "$to"); then',
+  'elevated=true; why="git diff failed (fail open)"',
+  'echo "elevated=$elevated" >> "$GITHUB_OUTPUT"',
+];
+const CI_FEATURE = '--features ci-temp-roots';
+// FR-103a: the only check steps that name the feature, each a -p krate-manager-helper command.
+const CI_FEATURE_STEPS = {
+  'clippy ci-temp-roots': 'cargo clippy -p krate-manager-helper ',
+  'test ci-temp-roots': 'cargo test -p krate-manager-helper ',
+};
+const HELPER_BUILD = 'cargo build -p krate-manager-helper --release --locked --features ci-temp-roots';
+const MANUAL = 'manual-elevation';
+const MANUAL_STEP = 'clippy manual-elevation example';
+// FR-106 (SI-29): only in helper-elevated / inno-locked-file.
+const ELEVATED_ONLY = ['pkgbuild', '/usr/sbin/installer', 'installer -pkg', 'Minionguyjpro/Inno-Setup-Action', 'ISCC'];
+const INNO_ACTION = 'uses: Minionguyjpro/Inno-Setup-Action@v1.2.7';
+// FR-106: the helper binary run with an argument (one line: spaces or tabs, then --job, --ci-roots or a $-variable).
+const HELPER_RUN = /krate-manager-helper(?:\.exe)?['"]?[ \t]+(?:--job|--ci-roots|\$)/g;
+// FR-100: the Windows run form of the GUI-subsystem helper; macOS runs it under sudo.
+const WINDOWS_HELPER_RUN = 'Start-Process -FilePath $helper ';
+const MACOS_HELPER_RUN = 'sudo "$helper" --job ';
+// FR-111: the fixture receipt is forgotten again whatever happened.
+const FORGET = 'sudo pkgutil --forget com.krateaudio.fixture || true';
+const FORGET_IF = "always() && runner.os == 'macOS'";
+
+/** Every match of the global regex `re` in `text`. */
+function countMatches(text, re) {
+  return (text.match(re) || []).length;
+}
+
+/** The entries of the `PATHS=(` … `)` array in a run: script, trimmed, or null. */
+function pathArray(run) {
+  const lines = run.split('\n').map((l) => l.trim());
+  const head = lines.indexOf('PATHS=(');
+  if (head < 0) return null;
+  const end = lines.indexOf(')', head);
+  return end < 0 ? null : lines.slice(head + 1, end).filter((l) => l !== '');
+}
+
+/** FR-100 to FR-107 on the Phase 10 jobs (SC-031); every finding into `bad`. */
+function checkElevatedJobs(wf, bad) {
+  const blocks = Object.fromEntries(JOBS.map((j) => [j, jobBlock(wf, j)]));
+  for (const j of JOBS) if (blocks[j] === null) bad.push(`manager-ci.yml: no ${j} job`);
+  if (JOBS.some((j) => blocks[j] === null)) return;
+  const steps = Object.fromEntries(JOBS.map((j) => [j, stepBlocks(blocks[j])]));
+  const named = (job, name) => steps[job].find((s) => s.label === name) || null;
+
+  // FR-102b: check is never gated; the two elevated jobs are, by the changes job.
+  for (const key of ['needs', 'if']) {
+    if (field(blocks.check, 4, key) !== null) bad.push(`check: ${key}: ${field(blocks.check, 4, key)} (check is not gated)`);
+  }
+  for (const j of ELEVATED_JOBS) {
+    if (field(blocks[j], 4, 'needs') !== 'changes') bad.push(`${j}: needs ${field(blocks[j], 4, 'needs')}, want changes`);
+    if (field(blocks[j], 4, 'if') !== GATE_IF) bad.push(`${j}: if ${field(blocks[j], 4, 'if')}, want ${GATE_IF}`);
+  }
+  // FR-100, FR-102, FR-102b: contents: read, no environment, no secret.
+  for (const j of JOBS.slice(1)) {
+    const perms = trimmed(nested(blocks[j], 4, 'permissions'));
+    if (!util.isDeepStrictEqual(perms, ['contents: read'])) bad.push(`${j}: permissions ${JSON.stringify(perms)}`);
+    if (/^\s*environment\s*:/m.test(blocks[j])) bad.push(`${j}: an environment: key`);
+    if (blocks[j].includes('secrets.')) bad.push(`${j}: a secrets. reference`);
+  }
+
+  // The changes job (PD-21, SI-2, SI-18, SI-27).
+  if (field(blocks.changes, 4, 'runs-on') !== 'ubuntu-24.04') {
+    bad.push(`changes.runs-on ${field(blocks.changes, 4, 'runs-on')}, want ubuntu-24.04`);
+  }
+  const outputs = trimmed(nested(blocks.changes, 4, 'outputs'));
+  if (!util.isDeepStrictEqual(outputs, ['elevated: ${{ steps.paths.outputs.elevated }}'])) {
+    bad.push(`changes.outputs ${JSON.stringify(outputs)}`);
+  }
+  const labels = steps.changes.map((s) => s.label);
+  if (!util.isDeepStrictEqual(labels, ['uses: actions/checkout@v6', 'changed paths'])) {
+    bad.push(`changes: steps ${JSON.stringify(labels)}`);
+  }
+  const checkout = steps.changes[0];
+  if (!checkout || field(checkout.text, 10, 'fetch-depth') !== '0') bad.push('changes: checkout without fetch-depth: 0');
+  const paths = named('changes', 'changed paths');
+  if (paths) {
+    if (field(paths.text, 8, 'id') !== 'paths') bad.push('changes: changed paths has no id: paths');
+    if (field(paths.text, 8, 'shell') !== 'bash') bad.push('changes: changed paths is not shell: bash');
+    const env = trimmed(nested(paths.text, 8, 'env'));
+    if (!util.isDeepStrictEqual(env, CHANGES_ENV)) bad.push(`changes: env ${JSON.stringify(env)}`);
+    const run = runText(paths);
+    if (run.includes('${{')) bad.push('changes: a ${{ }} expression inside run: text (SI-18)');
+    if (scriptLines(paths)[0] !== 'set -euo pipefail') bad.push('changes: the script does not start set -euo pipefail');
+    const have = new Set(scriptLines(paths));
+    for (const l of CHANGES_LINES) if (!have.has(l)) bad.push(`changes: no line ${JSON.stringify(l)}`);
+    const list = pathArray(run);
+    if (!util.isDeepStrictEqual(list, CHANGED_PATHS)) {
+      bad.push(`changes: changed-paths list ${JSON.stringify(list)}, want FR-102b + SI-27`);
+    }
+  }
+
+  // helper-elevated (FR-100) and inno-locked-file (FR-102).
+  const he = blocks['helper-elevated'];
+  if (field(he, 4, 'name') !== 'helper-elevated (${{ matrix.os }})') bad.push(`helper-elevated.name ${field(he, 4, 'name')}`);
+  if (field(he, 4, 'runs-on') !== '${{ matrix.os }}') bad.push(`helper-elevated.runs-on ${field(he, 4, 'runs-on')}`);
+  const matrix = trimmed(nested(he, 4, 'strategy'));
+  if (!util.isDeepStrictEqual(matrix, ['fail-fast: false', 'matrix:', 'os: [macos-latest, windows-latest]'])) {
+    bad.push(`helper-elevated.strategy ${JSON.stringify(matrix)}`);
+  }
+  if (!he.includes(HELPER_BUILD)) bad.push(`helper-elevated: no ${HELPER_BUILD}`);
+  if (count(he, 'pkgbuild --root ') < 1) bad.push('helper-elevated: no pkgbuild of the fixture pkg');
+  if (count(he, INNO_ACTION) < 1) bad.push('helper-elevated: no fixture Inno compile');
+  const forget = steps['helper-elevated'].find((s) => runText(s).includes(FORGET));
+  if (!forget) bad.push(`helper-elevated: no step running ${FORGET} (FR-111)`);
+  else if (field(forget.text, 8, 'if') !== FORGET_IF) bad.push(`helper-elevated: the forget step if: ${field(forget.text, 8, 'if')}`);
+  // FR-100, FR-107: every Windows step naming the helper runs it with pwsh and Start-Process -Wait -PassThru.
+  let windowsRuns = 0;
+  let macosRuns = 0;
+  for (const s of steps['helper-elevated']) {
+    const run = runText(s);
+    if (!run.includes('$helper')) continue;
+    const gate = field(s.text, 8, 'if');
+    if (gate === "runner.os == 'Windows'") {
+      if (field(s.text, 8, 'shell') !== 'pwsh') bad.push(`helper-elevated: Windows helper step "${s.label}" is not shell: pwsh`);
+      const starts = run.split('\n').filter((l) => l.includes(WINDOWS_HELPER_RUN));
+      if (starts.length === 0) bad.push(`helper-elevated: Windows helper step "${s.label}" has no ${WINDOWS_HELPER_RUN.trim()}`);
+      for (const l of starts) {
+        if (!/ -Wait\b/.test(l) || !/ -PassThru\b/.test(l)) {
+          bad.push(`helper-elevated: "${s.label}": ${l.trim()} without -Wait -PassThru`);
+        }
+      }
+      windowsRuns += starts.length;
+    } else if (gate === "runner.os == 'macOS'") {
+      macosRuns += count(run, MACOS_HELPER_RUN);
+    }
+  }
+  if (windowsRuns === 0) bad.push('helper-elevated: no Windows helper run');
+  if (macosRuns === 0) bad.push('helper-elevated: no macOS helper run');
+  const ilf = blocks['inno-locked-file'];
+  if (field(ilf, 4, 'runs-on') !== 'windows-latest') bad.push(`inno-locked-file.runs-on ${field(ilf, 4, 'runs-on')}`);
+  if (count(ilf, INNO_ACTION) !== 2) bad.push('inno-locked-file: not two fixture Inno compiles (1.0.0, 1.0.1)');
+
+  // FR-106, FR-107 (SI-29): sudo only in helper-elevated (check's own rule keeps it to Linux system packages).
+  for (const j of ['changes', 'inno-locked-file']) if (blocks[j].includes('sudo')) bad.push(`${j}: sudo (FR-106)`);
+  const elevatedText = ELEVATED_JOBS.map((j) => blocks[j]);
+  for (const tok of ELEVATED_ONLY) {
+    const inside = elevatedText.reduce((n, b) => n + count(b, tok), 0);
+    if (count(wf, tok) !== inside) bad.push(`${tok} outside helper-elevated / inno-locked-file (FR-106)`);
+  }
+  const runsInside = elevatedText.reduce((n, b) => n + countMatches(b, HELPER_RUN), 0);
+  if (countMatches(wf, HELPER_RUN) !== runsInside) {
+    bad.push('a helper run with arguments outside helper-elevated / inno-locked-file (FR-106)');
+  }
+  // FR-103a, FR-107: the feature only in the two jobs and check's two named steps.
+  let featureInCheck = 0;
+  for (const [name, cmd] of Object.entries(CI_FEATURE_STEPS)) {
+    const s = named('check', name);
+    if (!s) continue;
+    const line = scriptLines(s).find((l) => l.includes(CI_FEATURE));
+    if (!line || !line.includes(cmd)) bad.push(`${name}: no ${cmd.trim()} ... ${CI_FEATURE} command`);
+    featureInCheck += count(s.text, CI_FEATURE);
+  }
+  const featureInside = elevatedText.reduce((n, b) => n + count(b, CI_FEATURE), 0);
+  if (count(wf, CI_FEATURE) !== featureInside + featureInCheck) {
+    bad.push(`${CI_FEATURE} outside the two elevated jobs and check's two FR-103a steps`);
+  }
+  // FR-105: manual-elevation only in its compile-only step.
+  const manual = named('check', MANUAL_STEP);
+  if (!manual) bad.push(`no check step "${MANUAL_STEP}" (FR-105)`);
+  else if (count(wf, MANUAL) !== count(manual.text, MANUAL)) bad.push(`${MANUAL} outside the step "${MANUAL_STEP}"`);
+}
+
 // Plan §4.18, verbatim.
 const EXPECTED_REQUIRED = {
   cargo: {
@@ -370,7 +633,6 @@ const EXPECTED_REQUIRED = {
       'planted_app_metadata_changes_fail_the_guard',
       'navigation::tests::is_app_origin_cases',
       'navigation::tests::app_origin_cases',
-      'helper_stub_exits_2_with_one_line',
       'context::tests::assemble_cases',
       'state_lock::tests::second_acquire_is_held_while_first_lives',
       'state_lock::tests::acquire_creates_state_dir_and_lock_file_only',
@@ -602,7 +864,6 @@ const EXPECTED_REQUIRED = {
       'install::tests::recovery_table_rows',
       'install::tests::concurrent_actions',
       'install::tests::sync_before_commit',
-      'install::tests::no_driver_off_linux',
       'install::tests::progress_events',
       'install::tests::sandbox_guard_panics',
       'install::tests::artifact_released_after_success',
@@ -613,6 +874,60 @@ const EXPECTED_REQUIRED = {
       'install::tests::cut_before_new_in_rolls_back_in_process',
       'context::tests::assemble_runs_install_recovery',
       'status::tests::actions_per_state',
+      'validate::tests::rejects_crafted_jobs',
+      'validate::tests::performs_valid_jobs',
+      'validate::tests::run_dir_ancestors',
+      'validate::tests::run_dir_sddl',
+      'ops::tests::exact_argv',
+      'ops::tests::batch_of_three_middle_locked',
+      'ops::tests::batch_timeout_stops_the_rest',
+      'ops::tests::uninstall_only_job_has_no_run_dir',
+      'ops::tests::run_dir_failure_fails_installers',
+      'ops::tests::copy_error_is_named',
+      'ops::tests::spawn_error_is_named',
+      'ops::tests::classify_sees_whole_bounded_log',
+      'ops::tests::uninstall_polls_until_gone',
+      'ops::tests::uninstall_poll_times_out',
+      'ops::tests::uninstaller_never_exits',
+      'ops::tests::runs_the_copy_never_the_original',
+      'ops::tests::pkg_paths_classified',
+      'ops::tests::pkg_failure_paths',
+      'ops::tests::run_dir_removed_after_job',
+      'ops::tests::run_dir_refusals_spawn_nothing',
+      'ops::tests::temp_io_refuses_outside_base',
+      'result::tests::log_tail_bounds',
+      'roots::tests::binary_roots_ignore_job_and_settings',
+      'job::tests::no_field_adds_a_root',
+      'classify::tests::provisional_rule',
+      'cli::tests::ci_roots_flag_is_usage_error',
+      'cli::tests::malformed_hash_is_usage_error',
+      'os::tests::read_bounded_stops_at_bound',
+      'core_written_jobs_parse',
+      'helper_usage_exits_2',
+      'install::tests::batch_locked_middle_maps_each',
+      'install::tests::refused_prompt_changes_nothing',
+      'install::tests::one_launch_per_batch',
+      'install::tests::drivers_per_os',
+      'install::tests::gate_remove_basis',
+      'install::tests::remove_elsewhere_refused',
+      'install::tests::record_outside_sandbox_panics',
+      'install::tests::windows_install_update_remove',
+      'install::tests::macos_install_update_remove',
+      'install::tests::launch_outcomes_map',
+      'install::tests::pre_job_refusals',
+      'install::tests::elevating_event_order',
+      'install::tests::osascript_outcome_parses',
+      'install::tests::windows_parameters_quote',
+      'install::tests::job_files_written_and_removed',
+      'install::tests::recover_removes_stale_jobs',
+      'install::tests::launch_program_is_the_resolved_helper',
+      'install::tests::helper_file_never_opened',
+      'install::tests::timed_out_holds_guard',
+      'install::tests::not_applied_detected',
+      'install::tests::new_error_texts',
+      'install::tests::job_hash_is_the_verified_digest',
+      'install::tests::helper_resolved_beside_exe',
+      'fixture_names_confined',
     ],
     windows: [
       'platform::windows::tests::default_roots_from_env',
@@ -626,7 +941,12 @@ const EXPECTED_REQUIRED = {
       'download::tests::verified_file_has_no_zone_identifier_windows',
       'download::tests::staged_links_are_not_followed_windows',
       'extract::tests::symlink_entry_unsupported_windows',
-      'install::tests::native_wiring_offers_nothing_windows',
+      'validate::tests::verbatim_paths_windows',
+      'roots::tests::production_roots_windows',
+      'validate::tests::symlinked_parent_root_windows',
+      'windows_parameters_parse_back_windows',
+      'install::tests::native_wiring_windows',
+      'os::tests::open_source_refuses_link_windows',
     ],
     macos: [
       'platform::macos::tests::default_roots_from_env',
@@ -672,7 +992,12 @@ const EXPECTED_REQUIRED = {
       'install::tests::non_utf8_root_refused_unix',
       'install::tests::symlinked_plugin_root_unix',
       'install::tests::remove_bundle_link_unix',
-      'install::tests::native_wiring_offers_nothing_macos',
+      'roots::tests::production_roots_macos',
+      'install::tests::native_wiring_macos',
+      'validate::tests::symlinked_parent_root_unix',
+      'os::tests::open_source_refuses_links_and_fifos_unix',
+      'os::tests::run_dir_mode_unix',
+      'os::tests::wait_timeout_leaves_child_unix',
     ],
     linux: [
       'platform::linux::tests::default_roots_from_env',
@@ -714,6 +1039,10 @@ const EXPECTED_REQUIRED = {
       'install::tests::symlinked_plugin_root_unix',
       'install::tests::remove_bundle_link_unix',
       'install::tests::native_wiring_installs_linux',
+      'validate::tests::symlinked_parent_root_unix',
+      'os::tests::open_source_refuses_links_and_fifos_unix',
+      'os::tests::run_dir_mode_unix',
+      'os::tests::wait_timeout_leaves_child_unix',
     ],
   },
   vitest: [
@@ -748,7 +1077,6 @@ const EXPECTED_REQUIRED = {
     'check now is enabled after a rejected first load',
     'renders install for not-installed linux',
     'renders update and remove for update-available linux',
-    'renders no install buttons on windows or macos',
     'install asks for confirmation naming the plugin and version',
     'install on an elsewhere copy names the other copy and says to remove it by hand',
     'install without an elsewhere copy shows no other-copy line',
@@ -763,6 +1091,23 @@ const EXPECTED_REQUIRED = {
     'shows kept files after remove',
     'shows the error code on failure',
     'refreshes the status after an action and keeps the outcome',
+    'renders install on windows and macos',
+    'windows confirmation mentions the administrator prompt',
+    'macos confirmation mentions the administrator password',
+    'shows waiting for administrator permission',
+    'refused permission shows nothing changed and keeps the actions',
+    'locked shows close your daw and retry',
+    'macos install shows the au rescan steps',
+    'outside-root install shows the windows settings hint and no remove',
+    'windows remove confirmation names the uninstaller',
+    'stale busy shows installer still running',
+    'not applied shows the change was not applied',
+    'macos remove confirmation names the uninstaller',
+  ],
+  node: [
+    'bundle sidecar name per host tuple',
+    'fixture inno script keeps the plugin directives',
+    'write test job prints verbatim windows paths',
   ],
 };
 
@@ -805,7 +1150,7 @@ function checkWorkflowTop(wf, bad) {
 
 function checkJob(wf, bad) {
   const jobs = jobNames(wf);
-  if (!util.isDeepStrictEqual(jobs, ['check'])) bad.push(`jobs ${JSON.stringify(jobs)}`);
+  if (!util.isDeepStrictEqual(jobs, JOBS)) bad.push(`jobs ${JSON.stringify(jobs)}`);
   const block = jobBlock(wf, 'check');
   if (block === null) {
     bad.push('manager-ci.yml: no check job');
@@ -891,8 +1236,10 @@ function checkSteps(wf, steps, bad) {
   const inSteps = DEV_FEED_STEPS.reduce((n, name) => n + (step(name) ? count(step(name).text, 'dev-feed') : 0), 0);
   for (const name of DEV_FEED_STEPS) if (!step(name)) bad.push(`no step "${name}" (FR-071, FR-106, FR-107)`);
   if (count(wf, 'dev-feed') !== inSteps) bad.push('manager-ci.yml: dev-feed outside the two named steps');
+  // Phase 10 PD-20: `npm run bundle` runs tauri build.
   for (const line of wf.split('\n')) {
-    if (line.includes('tauri build') && line.includes('dev-feed')) bad.push(`dev-feed on a tauri build line: ${line.trim()}`);
+    const build = line.includes('tauri build') || line.includes('npm run bundle');
+    if (build && line.includes('dev-feed')) bad.push(`dev-feed on a tauri build line: ${line.trim()}`);
   }
 }
 
@@ -926,6 +1273,7 @@ function checkManagerCi(files) {
   checkWorkflowTop(wf, bad);
   const steps = checkJob(wf, bad);
   if (steps) checkSteps(wf, steps, bad);
+  checkElevatedJobs(wf, bad);
   checkPackageJson(files.packageJson, bad);
   if (files.releaseManager !== null && files.releaseManager.includes('dev-feed')) {
     bad.push('release-manager.yml: dev-feed (FR-107)');
@@ -995,7 +1343,7 @@ const MUTATIONS = [
   ['the dev-feed absent step removed', onWorkflow((w) => removeStep(w, 'dev-feed absent')), /no step "dev-feed absent"/],
   [
     '--features dev-feed on the tauri build line',
-    onWorkflow((w) => replaceOnce(w, 'npm run tauri build 2>&1', 'npm run tauri build -- --features dev-feed 2>&1')),
+    onWorkflow((w) => replaceOnce(w, 'npm run bundle 2>&1', 'npm run bundle -- --features dev-feed 2>&1')),
     /dev-feed on a tauri build line/,
   ],
   [
@@ -1065,8 +1413,137 @@ const MUTATIONS = [
   ],
 ];
 
+// Phase 10 (plan §4.8.4, SC-031, SI-29): the gate, the changes script and FR-106's bans.
+const CHECK_PLANT_ANCHOR = 'cargo test --workspace --locked 2>&1 | tee "$RUNNER_TEMP/cargo-test.txt"';
+const plantInCheck = (line) => onWorkflow((w) => replaceOnce(w, CHECK_PLANT_ANCHOR, `${CHECK_PLANT_ANCHOR}\n          ${line}`));
+const CLIPPY_LINE = 'cargo clippy --workspace --all-targets --locked -- -D warnings';
+
+const ELEVATED_MUTATIONS = [
+  [
+    'needs removed from helper-elevated',
+    onWorkflow((w) =>
+      replaceOnce(
+        w,
+        '    name: helper-elevated (${{ matrix.os }})\n    needs: changes\n',
+        '    name: helper-elevated (${{ matrix.os }})\n',
+      ),
+    ),
+    /helper-elevated: needs null, want changes/,
+  ],
+  [
+    'if removed from helper-elevated',
+    onWorkflow((w) =>
+      replaceOnce(
+        w,
+        `    needs: changes\n    if: ${GATE_IF}\n    runs-on: \${{ matrix.os }}\n`,
+        '    needs: changes\n    runs-on: ${{ matrix.os }}\n',
+      ),
+    ),
+    /helper-elevated: if null/,
+  ],
+  [
+    'needs removed from inno-locked-file',
+    onWorkflow((w) =>
+      replaceOnce(
+        w,
+        '    name: inno-locked-file (windows-latest)\n    needs: changes\n',
+        '    name: inno-locked-file (windows-latest)\n',
+      ),
+    ),
+    /inno-locked-file: needs null, want changes/,
+  ],
+  [
+    'if removed from inno-locked-file',
+    onWorkflow((w) => replaceOnce(w, `    if: ${GATE_IF}\n    runs-on: windows-latest\n`, '    runs-on: windows-latest\n')),
+    /inno-locked-file: if null/,
+  ],
+  [
+    'check gated by changes',
+    onWorkflow((w) => replaceOnce(w, '  check:\n    name: check', '  check:\n    needs: changes\n    name: check')),
+    /check: needs: changes \(check is not gated\)/,
+  ],
+  [
+    'the workflow_dispatch trigger removed',
+    onWorkflow((w) => replaceOnce(w, '  workflow_dispatch:\n', '')),
+    /on: triggers/,
+  ],
+  [
+    "a feature token in check's clippy step",
+    onWorkflow((w) => replaceOnce(w, CLIPPY_LINE, CLIPPY_LINE.replace('--locked', `${CI_FEATURE} --locked`))),
+    /--features ci-temp-roots outside the two elevated jobs/,
+  ],
+  [
+    'manual-elevation outside its step',
+    onWorkflow((w) => replaceOnce(w, CLIPPY_LINE, `${CLIPPY_LINE} && cargo check -p krate-manager --features ${MANUAL}`)),
+    /manual-elevation outside the step/,
+  ],
+  [
+    'sudo in inno-locked-file',
+    onWorkflow((w) =>
+      replaceOnce(w, '      - name: locked-dll builds\n        run: |\n', '      - name: locked-dll builds\n        run: |\n          sudo whoami\n'),
+    ),
+    /inno-locked-file: sudo/,
+  ],
+  [
+    'a bash Windows helper step',
+    onWorkflow((w) =>
+      replaceOnce(
+        w,
+        "      - name: helper jobs (Windows)\n        if: runner.os == 'Windows'\n        shell: pwsh\n",
+        "      - name: helper jobs (Windows)\n        if: runner.os == 'Windows'\n        shell: bash\n",
+      ),
+    ),
+    /Windows helper step "helper jobs \(Windows\)" is not shell: pwsh/,
+  ],
+  [
+    'ubuntu-latest in changes',
+    onWorkflow((w) => replaceOnce(w, '    runs-on: ubuntu-24.04\n', '    runs-on: ubuntu-latest\n')),
+    /changes\.runs-on ubuntu-latest/,
+  ],
+  ['pkgbuild in check', plantInCheck('pkgbuild --root "$RUNNER_TEMP/s" x.pkg'), /pkgbuild outside/],
+  [
+    'Minionguyjpro/Inno-Setup-Action in changes',
+    onWorkflow((w) =>
+      replaceOnce(w, '        with:\n          fetch-depth: 0\n', `        with:\n          fetch-depth: 0\n\n      - ${INNO_ACTION}\n`),
+    ),
+    /Minionguyjpro\/Inno-Setup-Action outside/,
+  ],
+  ['installer -pkg in check', plantInCheck('installer -pkg x.pkg -target /'), /installer -pkg outside/],
+  [
+    'a helper run with --job in check',
+    plantInCheck('target/release/krate-manager-helper --job "$RUNNER_TEMP/j.json" --job-sha256 0'),
+    /a helper run with arguments outside/,
+  ],
+  [
+    'the pull_request branch removed',
+    onWorkflow((w) => replaceOnce(w, CHANGES_LINES[2], 'from="$BEFORE"; to="$SHA"')),
+    /changes: no line ".*pull_request/,
+  ],
+  [
+    'the all-zero before fail-open removed',
+    onWorkflow((w) => replaceOnce(w, CHANGES_LINES[3], 'if false; then')),
+    /changes: no line "if \[ -z/,
+  ],
+  [
+    'the failing git diff fail-open removed',
+    onWorkflow((w) => replaceOnce(w, CHANGES_LINES[5], CHANGES_LINES[5].replace('"$to")', '"$to" || true)'))),
+    /changes: no line "elif ! files/,
+  ],
+  [
+    'Cargo.lock dropped from the changed-paths list',
+    onWorkflow((w) => replaceOnce(w, '            apps/krate-manager/Cargo.lock\n', '')),
+    /changes: changed-paths list/,
+  ],
+  [
+    'the receipt forget step without always()',
+    onWorkflow((w) => replaceOnce(w, `if: ${FORGET_IF}`, "if: runner.os == 'macOS'")),
+    /the forget step if/,
+  ],
+];
+
 test('manager-ci.yml keeps the Phase 4 shape', async (t) => {
   const files = readFiles();
+  let pathGatedRan = false;
 
   await t.test('the real files give no finding', () => {
     assert.deepEqual(checkManagerCi(files), []);
@@ -1075,6 +1552,35 @@ test('manager-ci.yml keeps the Phase 4 shape', async (t) => {
   await t.test('a CRLF copy of the real files gives no finding', () => {
     const crlf = { ...files, workflow: files.workflow.replace(/\n/g, '\r\n') };
     assert.deepEqual(checkManagerCi(crlf), []);
+  });
+
+  // SC-031 (plan §4.8.4 placement): a subtest, so the feed-tools TAP plan stays 1..59.
+  await t.test('elevated jobs are path-gated', async (t2) => {
+    const wf = files.workflow;
+    const own = [];
+    checkElevatedJobs(wf, own);
+    assert.deepEqual(own, []);
+    const triggers = (nested(wf, 0, 'on') || []).map((l) => /^ {2}([A-Za-z0-9_-]+):/.exec(l)).filter(Boolean);
+    assert.ok(triggers.some((m) => m[1] === 'workflow_dispatch'), 'workflow_dispatch is not a trigger');
+    assert.deepEqual(jobNames(wf), JOBS);
+    for (const j of ELEVATED_JOBS) {
+      assert.equal(field(jobBlock(wf, j), 4, 'needs'), 'changes', `${j} needs`);
+      assert.equal(field(jobBlock(wf, j), 4, 'if'), GATE_IF, `${j} if`);
+    }
+    assert.equal(field(jobBlock(wf, 'check'), 4, 'needs'), null, 'check needs');
+    assert.equal(field(jobBlock(wf, 'check'), 4, 'if'), null, 'check if');
+    const paths = stepBlocks(jobBlock(wf, 'changes')).find((s) => s.label === 'changed paths');
+    assert.ok(paths, 'no changed paths step');
+    assert.deepEqual(pathArray(runText(paths)), CHANGED_PATHS);
+    for (const [name, mutate, expected] of ELEVATED_MUTATIONS) {
+      await t2.test(`mutation: ${name}`, () => {
+        const mutated = mutate(files);
+        assert.notDeepEqual(mutated, files, 'the mutation changed nothing');
+        const errs = checkManagerCi(mutated);
+        assert.ok(errs.some((e) => expected.test(e)), `no finding matches ${expected}: ${JSON.stringify(errs)}`);
+      });
+    }
+    pathGatedRan = true;
   });
 
   await t.test('manager-ci.yml does not name live-network (FR-084)', () => {
@@ -1108,4 +1614,6 @@ test('manager-ci.yml keeps the Phase 4 shape', async (t) => {
       assert.ok(errs.some((e) => expected.test(e)), `no finding matches ${expected}: ${JSON.stringify(errs)}`);
     });
   }
+
+  assert.equal(pathGatedRan, true, 'elevated jobs are path-gated did not run');
 });

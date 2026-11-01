@@ -2052,6 +2052,7 @@ dependencies = [
  "base64 0.23.1",
  "core-foundation",
  "flate2",
+ "krate-manager-helper",
  "log",
  "minisign",
  "minisign-verify",
@@ -2074,6 +2075,11 @@ name = "krate-manager-helper"
 version = "0.1.0"
 dependencies = [
  "krate-manager-core",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -214,6 +214,16 @@ impl Roots {
             .map(|r| r.path.as_path())
             .expect("Roots::new guarantees a Vst3User root")
     }
+
+    /// The first `Vst3Global` root; `new` guarantees one and `with_configured_plugin_root`
+    /// never removes it (Phase 10 FR-080).
+    pub fn vst3_global(&self) -> &Path {
+        self.plugin_roots
+            .iter()
+            .find(|r| r.kind == RootKind::Vst3Global)
+            .map(|r| r.path.as_path())
+            .expect("Roots::new guarantees a Vst3Global root")
+    }
 }
 
 #[cfg(test)]

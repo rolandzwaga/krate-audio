@@ -1073,6 +1073,7 @@ fn duplicates_in_two_roots() {
             release_page_url: release_url(&alpha),
             notes: notes_of(&alpha),
             actions: Vec::new(),
+            remove_hint: None,
         };
         let want_bravo = PluginView {
             name: "Bravo".to_owned(),
@@ -1101,6 +1102,7 @@ fn duplicates_in_two_roots() {
             release_page_url: release_url(&bravo),
             notes: notes_of(&bravo),
             actions: Vec::new(),
+            remove_hint: None,
         };
         assert_eq!(
             assembled(os, &feed, &detections, "Alpha"),

@@ -43,6 +43,13 @@ system-configuration = { workspace = true }
 
 [features]
 dev-feed = []
+# FR-105: never default; only the check job's clippy manual-elevation example step names it
+manual-elevation = []
+
+[[example]]
+name = "manual_elevation"
+path = "examples/manual_elevation.rs"
+required-features = ["manual-elevation"]
 
 [lints]
 workspace = true

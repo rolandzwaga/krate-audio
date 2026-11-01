@@ -71,6 +71,15 @@ pub struct PluginView {
     pub release_page_url: Option<String>,
     pub notes: Vec<notes::Block>,
     pub actions: Vec<ActionView>,
+    /// Phase 10 FR-083: `Some(WindowsSettings)` iff the gate's Remove basis is `OutsideRoot`.
+    pub remove_hint: Option<RemoveHint>,
+}
+
+/// Where a card points the user to remove a copy the manager may not remove (Phase 10 FR-083, FR-134).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RemoveHint {
+    WindowsSettings,
 }
 
 /// One action a card offers (FR-100).
@@ -226,11 +235,14 @@ pub fn build_with_os(
         let listing = Listing::scan(ctx.roots.plugin_roots(), &names, ListingLimits::PRODUCTION);
         for (key, entry) in &snapshot.feed.plugins {
             let detection = detect::detect_plugin(os, ctx, entry, host, &listing);
-            detections.insert(key.clone(), detection);
             let has_install = entry.release.as_ref().is_some_and(|r| r.install.is_some());
             if driver_present && has_install {
-                gates.insert(key.clone(), install::action_gate(os, ctx, io, entry));
+                gates.insert(
+                    key.clone(),
+                    install::action_gate(os, ctx, io, entry, &detection),
+                );
             }
+            detections.insert(key.clone(), detection);
         }
     }
     let view = assemble_with_gates(
@@ -408,6 +420,13 @@ fn plugin_view(
             .map(notes::blocks)
             .unwrap_or_default(),
         actions,
+        remove_hint: match gate {
+            Some(ActionGate::Open {
+                remove: install::RemoveBasis::OutsideRoot,
+                ..
+            }) => Some(RemoveHint::WindowsSettings),
+            _ => None,
+        },
     };
     let Some(Detection::Checked {
         copies,

@@ -48,7 +48,7 @@ const FS_TOKENS: [&str; 14] = [
 ];
 /// Every string literal a non-test `platform/` file may hold outside an attribute (PD-5): the
 /// six env names of §4.2, the path components, the seven absolute D8 literals, `APP_IDENTIFIER`.
-const PLATFORM_LITERALS: [&str; 37] = [
+const PLATFORM_LITERALS: [&str; 40] = [
     "LOCALAPPDATA",
     "CommonProgramW6432",
     "ProgramData",
@@ -87,6 +87,10 @@ const PLATFORM_LITERALS: [&str; 37] = [
     "-productVersion",
     "/usr/bin/getconf",
     "GNU_LIBC_VERSION",
+    // Phase 10 PD-14 (FR-077): `KILLALL_ARGV`, cfg-free in `platform/mod.rs`.
+    "/usr/bin/killall",
+    "-9",
+    "AudioComponentRegistrar",
 ];
 /// The plan §4.1 D6 table, per file (app-root-relative); every other scanned file holds 0.
 const D6_SITES: [(&str, usize); 6] = [
@@ -142,6 +146,62 @@ const INJECTION_RS: &str = "crates/core/tests/injection.rs";
 const OS_PROXY_RS: &str = "src-tauri/src/os_proxy.rs";
 const OS_FACTS_RS: &str = "src-tauri/src/os_facts.rs";
 const TAURI_LIB_RS: &str = "src-tauri/src/lib.rs";
+
+// App-root-relative paths the Phase 10 rules name (tasks TA-7: the homes G2 code needs).
+const OS_ELEVATION_RS: &str = "src-tauri/src/os_elevation.rs";
+const HELPER_OS_RS: &str = "crates/helper/src/os.rs";
+const HELPER_OPS_RS: &str = "crates/helper/src/ops.rs";
+const HELPER_OPS_TESTS_RS: &str = "crates/helper/src/ops_tests.rs";
+const HELPER_DIGEST_RS: &str = "crates/helper/src/digest.rs";
+const WINDOWS_QUOTING_RS: &str = "crates/core/tests/windows_quoting.rs";
+/// D-1: the one `Command::new(env!(…))` program, the never-shipped echo binary, and its one test body.
+const ARGV_ECHO_ENV: &str = "CARGO_BIN_EXE_argv-echo";
+const ARGV_ECHO_BODY: &str = "windows_parameters_parse_back_windows";
+// The Phase 10 confinements and bans (plan §4.8.1, tasks T012; FR-024, FR-112, SI-25, SI-29).
+const HELPER_SRC: &str = "crates/helper/src/";
+const HELPER_MAIN_RS: &str = "crates/helper/src/main.rs";
+const HELPER_OS_TESTS_RS: &str = "crates/helper/src/os_tests.rs";
+const PLATFORM_MOD_RS: &str = "crates/core/src/platform/mod.rs";
+/// PD-23: the manual example is scanned beside the workspace files (it must use `resolve_elevation`).
+const TAURI_EXAMPLES: &str = "src-tauri/examples/";
+/// FR-112: the elevation mechanism's words, only in `os_elevation.rs` and `install.rs` (its constants;
+/// `install_tests.rs` is `install::tests`, which tests them). A code token equal to the word or a
+/// literal holding it (case-insensitively); the phrase only in literals or as a token sequence.
+const ELEVATION_WORDS: [&str; 4] = [
+    "ShellExecuteExW",
+    "runas",
+    "osascript",
+    "administrator privileges",
+];
+const ELEVATION_HOMES: [&str; 3] = [OS_ELEVATION_RS, INSTALL_RS, INSTALL_TESTS_RS];
+/// FR-112: literals only the helper's non-test sources hold (`ops_tests.rs` asserts the exact argv).
+const HELPER_ONLY_LITERALS: [&str; 2] = ["/usr/sbin/installer", "--forget"];
+/// FR-112: FFI names only the helper's non-test sources hold.
+const HELPER_ONLY_FFI: [&str; 2] = ["CreateDirectoryW", "SHGetKnownFolderPath"];
+/// FR-053, SI-25: the real seams, named only where they are defined or built.
+const REAL_SEAMS: [&str; 3] = ["OsRunner", "OsRegistry", "OsHelperIo"];
+const REAL_SEAM_HOMES: [&str; 3] = [HELPER_OS_RS, HELPER_MAIN_RS, HELPER_OS_TESTS_RS];
+/// FR-041, SI-25: the wall clocks, in the helper's non-test sources only in `os.rs`.
+const HELPER_CLOCKS: [&str; 2] = ["Instant :: now", "SystemTime"];
+/// FR-024, SI-29: identifier fragments no non-test helper source holds in code (`setxattr`,
+/// `fchown`, `SetNamedSecurityInfoW` included) and the literal words none holds.
+const FR024_IDENTIFIERS: [&str; 5] = [
+    "xattr",
+    "chown",
+    "SetNamedSecurityInfo",
+    "SetFileSecurity",
+    "SetSecurityInfo",
+];
+const FR024_LITERALS: [&str; 6] = [
+    "xattr",
+    "chown",
+    "SetNamedSecurityInfo",
+    "SetFileSecurity",
+    "SetSecurityInfo",
+    "com.apple.quarantine",
+];
+/// Tasks TA-12 (PD-14): the registrar kill, spelled only in `platform/mod.rs` (`KILLALL_ARGV`).
+const KILLALL: &str = "killall";
 
 // App-root-relative paths the Phase 6 rules name.
 const CORE_SRC: &str = "crates/core/src/";
@@ -204,24 +264,30 @@ const PHASE7_HOST_NEEDLES: [&str; 4] = [
 /// FR-042, FR-087: the one test body that may name the release key.
 const RELEASE_KEY_BODY: &str = "release_key_is_the_committed_key_and_not_a_test_key";
 
-/// FR-082: the host FFI identifiers, only in `os_facts.rs`.
+/// FR-082: the host FFI identifiers, only in `os_facts.rs` (and, Phase 10 SI-6, the helper's `os.rs`).
 const HOST_FFI: [&str; 4] = [
     "RegOpenKeyExW",
     "RegGetValueW",
     "RegCloseKey",
     "RtlGetVersion",
 ];
+/// The files whose code may name a `HOST_FFI` identifier.
+const HOST_FFI_HOMES: [&str; 2] = [OS_FACTS_RS, HELPER_OS_RS];
 /// FR-082, FR-083 (SI-8, SI-19): each FR-033 host literal, as its value (an escaped `\\` read as
-/// one backslash, so the `UNINSTALL_KEY` source text and a raw spelling both match), and the one
-/// file whose literals may hold it.
-const HOST_LITERALS: [(&str, &str); 5] = [
-    ("/usr/sbin/pkgutil", MACOS_RS),
-    ("/usr/bin/sw_vers", MACOS_RS),
-    ("/usr/bin/getconf", LINUX_RS),
-    ("GNU_LIBC_VERSION", LINUX_RS),
+/// one backslash, so the `UNINSTALL_KEY` source text and a raw spelling both match), and the files
+/// whose literals may hold it: its platform file first (Phase 10 SI-6: plus the helper's `ops.rs`
+/// constants and the exact-argv assertions of `ops_tests.rs`).
+const HOST_LITERALS: [(&str, &[&str]); 5] = [
+    (
+        "/usr/sbin/pkgutil",
+        &[MACOS_RS, HELPER_OPS_RS, HELPER_OPS_TESTS_RS],
+    ),
+    ("/usr/bin/sw_vers", &[MACOS_RS]),
+    ("/usr/bin/getconf", &[LINUX_RS]),
+    ("GNU_LIBC_VERSION", &[LINUX_RS]),
     (
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
-        WINDOWS_RS,
+        &[WINDOWS_RS, HELPER_OPS_RS, HELPER_OPS_TESTS_RS],
     ),
 ];
 /// FR-002: the vendor folder, spelled only under `platform/` (elsewhere `platform::VENDOR_DIR`).
@@ -300,7 +366,10 @@ const CONFINED_TOKENS: [(&str, &[&str]); 18] = [
     ("WinHttpFreeProxyResult", &[OS_PROXY_RS]),
     ("WinHttpSetStatusCallback", &[OS_PROXY_RS]),
     ("WinHttpSetOption", &[OS_PROXY_RS]),
-    ("windows_sys", &[OS_PROXY_RS, OS_FACTS_RS]),
+    (
+        "windows_sys",
+        &[OS_PROXY_RS, OS_FACTS_RS, OS_ELEVATION_RS, HELPER_OS_RS],
+    ),
     ("system_configuration", &[OS_PROXY_RS]),
 ];
 /// FR-075, PD-31: the only files whose code names `core_foundation`.
@@ -311,7 +380,14 @@ const CONFINED_TOML_KEYS: [(&str, &[&str]); 13] = [
     ("rustls", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("rquickjs", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("core-foundation", &["Cargo.toml", "crates/core/Cargo.toml"]),
-    ("windows-sys", &["Cargo.toml", "src-tauri/Cargo.toml"]),
+    (
+        "windows-sys",
+        &[
+            "Cargo.toml",
+            "src-tauri/Cargo.toml",
+            "crates/helper/Cargo.toml",
+        ],
+    ),
     (
         "system-configuration",
         &["Cargo.toml", "src-tauri/Cargo.toml"],
@@ -323,7 +399,14 @@ const CONFINED_TOML_KEYS: [(&str, &[&str]); 13] = [
         &["Cargo.toml", "src-tauri/Cargo.toml"],
     ),
     ("minisign-verify", &["Cargo.toml", "crates/core/Cargo.toml"]),
-    ("sha2", &["Cargo.toml", "crates/core/Cargo.toml"]),
+    (
+        "sha2",
+        &[
+            "Cargo.toml",
+            "crates/core/Cargo.toml",
+            "crates/helper/Cargo.toml",
+        ],
+    ),
     ("minisign", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("flate2", &["Cargo.toml", "crates/core/Cargo.toml"]),
 ];
@@ -555,8 +638,9 @@ struct ReaderPin {
     version: &'static str,
     /// `Some(list)`: exactly these features (an empty list: no `features` key); `None`: unchecked.
     features: Option<&'static [&'static str]>,
-    home: (&'static str, &'static str),
-    /// The home table holds this crate and nothing else.
+    /// Every (manifest, table) that declares the crate (Phase 10 D-2: `windows-sys` has two).
+    homes: &'static [(&'static str, &'static str)],
+    /// Each home table holds this crate and nothing else.
     alone: bool,
 }
 const READER_PINS: [ReaderPin; 4] = [
@@ -564,34 +648,44 @@ const READER_PINS: [ReaderPin; 4] = [
         name: "ureq",
         version: "3.5.0",
         features: Some(&["platform-verifier", "socks-proxy"]),
-        home: ("crates/core/Cargo.toml", "[dependencies]"),
+        homes: &[("crates/core/Cargo.toml", "[dependencies]")],
         alone: false,
     },
     ReaderPin {
         name: "windows-sys",
         version: "0.61.2",
+        // Phase 10 FR-093: the five of Phase 6 plus six.
         features: Some(&[
             "Win32_Foundation",
             "Win32_System_Registry",
             "Win32_System_SystemInformation",
             "Wdk_System_SystemServices",
             "Win32_Networking_WinHttp",
+            "Win32_UI_Shell",
+            "Win32_System_Com",
+            "Win32_System_Threading",
+            "Win32_Security",
+            "Win32_Security_Authorization",
+            "Win32_Storage_FileSystem",
         ]),
-        home: ("src-tauri/Cargo.toml", WINDOWS_DEPS),
+        homes: &[
+            ("src-tauri/Cargo.toml", WINDOWS_DEPS),
+            ("crates/helper/Cargo.toml", WINDOWS_DEPS),
+        ],
         alone: true,
     },
     ReaderPin {
         name: "system-configuration",
         version: "0.8.0",
         features: None,
-        home: ("src-tauri/Cargo.toml", MACOS_DEPS),
+        homes: &[("src-tauri/Cargo.toml", MACOS_DEPS)],
         alone: true,
     },
     ReaderPin {
         name: "rquickjs",
         version: "0.14.0",
         features: Some(&[]),
-        home: ("crates/core/Cargo.toml", NOT_WINDOWS_DEPS),
+        homes: &[("crates/core/Cargo.toml", NOT_WINDOWS_DEPS)],
         alone: true,
     },
 ];
@@ -647,6 +741,14 @@ const RULE_STAGED_TREE: &str = "staged-tree-seam";
 const RULE_RELEASE_JSON: &str = "release-json-literal";
 const RULE_INSTALL_FS: &str = "fs-token-outside-fs-install-io";
 const RULE_INSTALL_BANNED: &str = "banned-in-install";
+const RULE_ELEVATION_WORD: &str = "elevation-word-outside-its-files";
+const RULE_HELPER_ONLY: &str = "helper-only-token";
+const RULE_REAL_SEAMS: &str = "real-seams-outside-main";
+const RULE_SEAMS_BUILT: &str = "seams-built-outside-main";
+const RULE_HELPER_CLOCK: &str = "wall-clock-outside-helper-os";
+const RULE_NATIVE_ELEVATION: &str = "native-elevation-built-outside-lib";
+const RULE_FR024: &str = "attribute-owner-or-acl-token-in-helper";
+const RULE_KILLALL: &str = "killall-outside-platform-mod";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Finding {
@@ -1993,13 +2095,28 @@ fn test_source_findings(files: &[(String, String)]) -> Vec<Finding> {
                 let program = literal_between(&l.literals, spans[open].0, next);
                 // TA-1: a program of `TEST_PROGRAM_BODIES` only inside its one named body.
                 let body = enclosing_fn(&fns, p);
-                let ok = program.is_some_and(|lit| {
-                    let name = lit.text.as_str();
-                    TEST_PROGRAMS.contains(&name)
-                        || body.is_some_and(|b| {
-                            TEST_PROGRAM_BODIES.contains(&(l.rel.as_str(), b, name))
-                        })
+                // Phase 10 D-1: `env!("CARGO_BIN_EXE_argv-echo")` only inside its one body of `windows_quoting.rs`.
+                let env_program = (toks.get(open + 1) == Some(&"env")
+                    && toks.get(open + 2) == Some(&"!")
+                    && toks.get(open + 3) == Some(&"("))
+                .then(|| {
+                    let to = spans.get(open + 4).map_or(l.code.len(), |(o, _)| *o);
+                    literal_between(&l.literals, spans[open + 3].0, to)
+                })
+                .flatten();
+                let echo = env_program.is_some_and(|lit| {
+                    lit.text == ARGV_ECHO_ENV
+                        && l.rel == WINDOWS_QUOTING_RS
+                        && body == Some(ARGV_ECHO_BODY)
                 });
+                let ok = echo
+                    || program.is_some_and(|lit| {
+                        let name = lit.text.as_str();
+                        TEST_PROGRAMS.contains(&name)
+                            || body.is_some_and(|b| {
+                                TEST_PROGRAM_BODIES.contains(&(l.rel.as_str(), b, name))
+                            })
+                    });
                 if !ok {
                     report(
                         RULE_COMMAND,
@@ -2188,7 +2305,7 @@ fn reader_dependency_findings(manifests: &[(String, String)]) -> Vec<String> {
                     if *rel == "Cargo.toml" && header == WORKSPACE_DEPS {
                         continue;
                     }
-                    if (*rel, header.as_str()) != pin.home {
+                    if !pin.homes.contains(&(*rel, header.as_str())) {
                         out.push(format!("{}: declared in {rel} {header}", pin.name));
                         continue;
                     }
@@ -2210,15 +2327,16 @@ fn reader_dependency_findings(manifests: &[(String, String)]) -> Vec<String> {
                 }
             }
         }
-        let (rel, header) = pin.home;
-        let keys = toml_section_keys(sections_of(rel), header);
-        if !keys.iter().any(|k| k == pin.name) {
-            out.push(format!("{}: missing from {rel} {header}", pin.name));
-        } else if pin.alone && keys != [pin.name] {
-            out.push(format!(
-                "{rel} {header}: crates {keys:?}, expected [\"{}\"]",
-                pin.name
-            ));
+        for &(rel, header) in pin.homes {
+            let keys = toml_section_keys(sections_of(rel), header);
+            if !keys.iter().any(|k| k == pin.name) {
+                out.push(format!("{}: missing from {rel} {header}", pin.name));
+            } else if pin.alone && keys != [pin.name] {
+                out.push(format!(
+                    "{rel} {header}: crates {keys:?}, expected [\"{}\"]",
+                    pin.name
+                ));
+            }
         }
     }
     if FR007_DEPENDENCIES.contains(&"rquickjs") {
@@ -2415,7 +2533,7 @@ fn host_io_findings(files: &[(String, String)]) -> Vec<Finding> {
     let toks_of = tokenized(&lexed);
     let mut out: Vec<Finding> = HOST_FFI
         .iter()
-        .flat_map(|needle| confinement(&toks_of, needle, &[OS_FACTS_RS], RULE_CONFINED))
+        .flat_map(|needle| confinement(&toks_of, needle, &HOST_FFI_HOMES, RULE_CONFINED))
         .collect();
     out.extend(confinement(
         &toks_of,
@@ -2427,12 +2545,12 @@ fn host_io_findings(files: &[(String, String)]) -> Vec<Finding> {
         let core_outside_platform = l.rel.starts_with(CORE_SRC) && !l.rel.starts_with(PLATFORM_DIR);
         for lit in &l.literals {
             let value = literal_value(lit);
-            for (needle, home) in HOST_LITERALS {
-                if l.rel != home && value.contains(needle) {
+            for (needle, homes) in HOST_LITERALS {
+                if !homes.contains(&l.rel.as_str()) && value.contains(needle) {
                     out.push(Finding {
                         file: l.rel.clone(),
                         rule: RULE_HOST_LITERAL,
-                        detail: format!("{needle:?} (only in {home})"),
+                        detail: format!("{needle:?} (only in {})", homes.join(", ")),
                     });
                 }
             }
@@ -2466,7 +2584,9 @@ fn test_host_io_findings(files: &[(String, String)]) -> Vec<Finding> {
                 detail: format!("`OsHostIo` {n} time(s)"),
             });
         }
-        for lit in &l.literals {
+        // Phase 10 SI-6: the helper's exact-argv assertions compare against the literal itself.
+        let literals_exempt = l.rel == HELPER_OPS_TESTS_RS;
+        for lit in l.literals.iter().filter(|_| !literals_exempt) {
             let value = literal_value(lit);
             for (needle, _) in HOST_LITERALS.iter().filter(|(n, _)| value.contains(n)) {
                 out.push(Finding {
@@ -2971,7 +3091,7 @@ fn verify_confinement_findings(files: &[(String, String)]) -> Vec<Finding> {
     let toks_of = tokenized(&lexed);
     let rules: [(&str, &[&str]); 4] = [
         ("minisign_verify", &[VERIFY_RS]),
-        ("sha2", &[VERIFY_RS]),
+        ("sha2", &[VERIFY_RS, HELPER_DIGEST_RS]),
         (
             "minisign ::",
             &[TEST_SIGNER_RS, VERIFY_TESTS_RS, DOWNLOAD_TESTS_RS],
@@ -3283,6 +3403,216 @@ fn install_findings(files: &[(String, String)]) -> Vec<Finding> {
         let n = seq_at(&toks, &tokens(needle)).len();
         if n > 0 {
             report(RULE_INSTALL_BANNED, format!("`{needle}` {n} time(s)"));
+        }
+    }
+    out
+}
+
+/// The Phase 10 scan set: the workspace `.rs` files plus `src-tauri/examples/*.rs` (PD-23).
+fn phase10_files() -> Vec<(String, String)> {
+    let mut files = workspace_rs_files();
+    let examples = app_root().join("src-tauri").join("examples");
+    if examples.is_dir() {
+        files.extend(rs_files(&examples, TAURI_EXAMPLES));
+    }
+    files
+}
+
+/// The token ranges of a file's code that `#[cfg(test)]` or
+/// `#[cfg(any(test, feature = "test-support"))]` gates (FR-112: "`Seams` built outside `#[cfg(test)]`
+/// code"); the feature literal is blanked in the code text, so it is looked up by byte offset.
+fn test_gated_spans(l: &Lexed, toks: &[&str]) -> Vec<Range<usize>> {
+    let mut spans = cfg_test_spans(toks, &tokens("# [ cfg ( test ) ]"));
+    let any = tokens("# [ cfg ( any ( test , feature = ) ) ]");
+    let offsets = spanned_tokens(&l.code);
+    for (at, span) in seq_at(toks, &any)
+        .into_iter()
+        .zip(cfg_test_spans(toks, &any))
+    {
+        // `=` is token 9 of the attribute, the `)` after the literal token 10.
+        let (from, to) = (offsets[at + 9].0, offsets[at + 10].0);
+        if literal_between(&l.literals, from, to).is_some_and(|lit| lit.text == "test-support") {
+            spans.push(span);
+        }
+    }
+    spans
+}
+
+/// Whether `Name {` at token `at` (the name) declares the type or opens a body after a return type,
+/// rather than building a value.
+fn is_type_brace(toks: &[&str], at: usize) -> bool {
+    // Step back over a path prefix (`os_elevation :: NativeElevation`).
+    let mut k = at;
+    while k >= 3 && toks[k - 1] == ":" && toks[k - 2] == ":" && is_ident(toks[k - 3]) {
+        k -= 3;
+    }
+    let arrow = k >= 2 && toks[k - 1] == ">" && toks[k - 2] == "-";
+    arrow
+        || k.checked_sub(1)
+            .is_some_and(|p| ["struct", "enum", "union", "impl", "for", "trait"].contains(&toks[p]))
+}
+
+/// Phase 10 (plan §4.8.1; FR-024, FR-112, SI-25, SI-29; tasks TA-12) over `phase10_files`
+/// (`injection.rs` exempt: it spells every needle). A "non-test" source is one `is_test_source`
+/// rejects (SI-25).
+/// - The `ELEVATION_WORDS` only in `ELEVATION_HOMES`.
+/// - `HELPER_ONLY_LITERALS` only in the helper's non-test sources and `ops_tests.rs`;
+///   `HELPER_ONLY_FFI` only in the helper's non-test sources.
+/// - `REAL_SEAMS` named only in `os.rs` (their definitions), `main.rs` and `os_tests.rs`; `Seams {`
+///   built in no non-test source but `main.rs`, outside test-gated code.
+/// - `HELPER_CLOCKS` in no non-test helper source but `os.rs`.
+/// - `NativeElevation :: <fn> (` only in `src-tauri/src/lib.rs`; `NativeElevation {` built only
+///   in `os_elevation.rs` (its own constructor).
+/// - FR-024: no `FR024_IDENTIFIERS` fragment in a code identifier and no `FR024_LITERALS` word in
+///   a literal of a non-test helper source.
+/// - `killall` (literal or token) only in `platform/mod.rs`.
+fn phase10_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    for l in lex(files).iter().filter(|l| l.rel != INJECTION_RS) {
+        let rel = l.rel.as_str();
+        let toks = tokens(&l.code);
+        let values: Vec<String> = l.literals.iter().map(literal_value).collect();
+        let test = is_test_source(rel);
+        let helper_code = rel.starts_with(HELPER_SRC) && !test;
+        let in_code = |needle: &str| seq_at(&toks, &tokens(needle)).len();
+        let in_literals = |needle: &str, fold: bool| {
+            let needle_folded = needle.to_lowercase();
+            values
+                .iter()
+                .filter(|v| {
+                    if fold {
+                        v.to_lowercase().contains(&needle_folded)
+                    } else {
+                        v.contains(needle)
+                    }
+                })
+                .count()
+        };
+        let mut report = |rule: &'static str, detail: String| {
+            out.push(Finding {
+                file: rel.to_owned(),
+                rule,
+                detail,
+            });
+        };
+        if !ELEVATION_HOMES.contains(&rel) {
+            for word in ELEVATION_WORDS {
+                let n = in_code(word) + in_literals(word, true);
+                if n > 0 {
+                    report(
+                        RULE_ELEVATION_WORD,
+                        format!(
+                            "`{word}` {n} time(s) (only in {})",
+                            ELEVATION_HOMES.join(", ")
+                        ),
+                    );
+                }
+            }
+        }
+        if !helper_code && rel != HELPER_OPS_TESTS_RS {
+            for needle in HELPER_ONLY_LITERALS {
+                let n = in_literals(needle, false);
+                if n > 0 {
+                    report(
+                        RULE_HELPER_ONLY,
+                        format!("{needle:?} {n} time(s) (only in the helper's sources)"),
+                    );
+                }
+            }
+        }
+        if !helper_code {
+            for needle in HELPER_ONLY_FFI {
+                let n = in_code(needle);
+                if n > 0 {
+                    report(
+                        RULE_HELPER_ONLY,
+                        format!("`{needle}` {n} time(s) (only in the helper's sources)"),
+                    );
+                }
+            }
+        }
+        if !REAL_SEAM_HOMES.contains(&rel) {
+            for name in REAL_SEAMS {
+                let n = in_code(name);
+                if n > 0 {
+                    report(
+                        RULE_REAL_SEAMS,
+                        format!("`{name}` {n} time(s) (built only in main.rs; tests: os_tests.rs)"),
+                    );
+                }
+            }
+        }
+        if !test && rel != HELPER_MAIN_RS {
+            let gated = test_gated_spans(l, &toks);
+            let n = seq_at(&toks, &["Seams", "{"])
+                .into_iter()
+                .filter(|&p| !is_type_brace(&toks, p) && !gated.iter().any(|g| g.contains(&p)))
+                .count();
+            if n > 0 {
+                report(
+                    RULE_SEAMS_BUILT,
+                    format!("`Seams {{` {n} time(s) outside test-gated code (only in main.rs)"),
+                );
+            }
+        }
+        if helper_code && rel != HELPER_OS_RS {
+            for clock in HELPER_CLOCKS {
+                let n = in_code(clock);
+                if n > 0 {
+                    report(
+                        RULE_HELPER_CLOCK,
+                        format!("`{clock}` {n} time(s) (only in {HELPER_OS_RS})"),
+                    );
+                }
+            }
+        }
+        let native: Vec<usize> = seq_at(&toks, &["NativeElevation"])
+            .into_iter()
+            .filter(|&p| {
+                let call = toks
+                    .get(p + 1..p + 5)
+                    .is_some_and(|w| w[0] == ":" && w[1] == ":" && is_ident(w[2]) && w[3] == "(");
+                let literal = toks.get(p + 1) == Some(&"{") && !is_type_brace(&toks, p);
+                (call && rel != TAURI_LIB_RS) || (literal && rel != OS_ELEVATION_RS)
+            })
+            .collect();
+        if !native.is_empty() {
+            report(
+                RULE_NATIVE_ELEVATION,
+                format!(
+                    "`NativeElevation` built {} time(s) (only through resolve_elevation in {TAURI_LIB_RS})",
+                    native.len()
+                ),
+            );
+        }
+        if helper_code {
+            for fragment in FR024_IDENTIFIERS {
+                let n = toks
+                    .iter()
+                    .filter(|t| is_ident(t) && t.contains(fragment))
+                    .count();
+                if n > 0 {
+                    report(
+                        RULE_FR024,
+                        format!("an identifier holding `{fragment}` {n} time(s)"),
+                    );
+                }
+            }
+            for word in FR024_LITERALS {
+                let n = in_literals(word, false);
+                if n > 0 {
+                    report(RULE_FR024, format!("{word:?} in {n} literal(s)"));
+                }
+            }
+        }
+        if rel != PLATFORM_MOD_RS {
+            let n = in_code(KILLALL) + in_literals(KILLALL, false);
+            if n > 0 {
+                report(
+                    RULE_KILLALL,
+                    format!("`{KILLALL}` {n} time(s) (only platform::KILLALL_ARGV)"),
+                );
+            }
         }
     }
     out
@@ -3867,6 +4197,236 @@ fn injection_scanner_reports_planted_violations() {
         // std::fs::rename(a, b), Command::new(x), xattr, p.exists()\n";
     let new = added(&base, &scan(&plant(&files, INSTALL_RS, quiet)));
     assert!(new.is_empty(), "quiet install.rs text:\n{}", show(&new));
+
+    // Phase 10 (plan §4.8.1, tasks T012; FR-024, FR-112, SI-25, SI-29, TA-12): one plant per rule.
+    let files = phase10_files();
+    for must in [
+        COMMANDS_RS,
+        TAURI_LIB_RS,
+        OS_ELEVATION_RS,
+        INSTALL_RS,
+        STATUS_RS,
+        PLATFORM_MOD_RS,
+        HELPER_MAIN_RS,
+        HELPER_OS_RS,
+        HELPER_OPS_RS,
+        HELPER_OS_TESTS_RS,
+        "crates/helper/src/lib.rs",
+        "crates/helper/src/seams.rs",
+        "crates/helper/src/validate_tests.rs",
+        "src-tauri/examples/manual_elevation.rs",
+    ] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    let base = phase10_findings(&files);
+    let validate_tests = "crates/helper/src/validate_tests.rs";
+    let seams_rs = "crates/helper/src/seams.rs";
+    let phase10_plants: [(&str, &str, &str); 26] = [
+        (
+            COMMANDS_RS,
+            "fn planted() { let _ = unsafe { ShellExecuteExW(std::ptr::null_mut()) }; }\n",
+            RULE_ELEVATION_WORD,
+        ),
+        (
+            TAURI_LIB_RS,
+            "const VERB: &str = \"runas\";\n",
+            RULE_ELEVATION_WORD,
+        ),
+        (
+            TEST_SUPPORT_RS,
+            "fn planted() { let _ = std::process::Command::new(\"osascript\"); }\n",
+            RULE_ELEVATION_WORD,
+        ),
+        (
+            STATUS_RS,
+            "const A: &str = \"with Administrator Privileges\";\n",
+            RULE_ELEVATION_WORD,
+        ),
+        (
+            INSTALL_RS,
+            "const I: &str = \"/usr/sbin/installer\";\n",
+            RULE_HELPER_ONLY,
+        ),
+        // A helper test other than `ops_tests.rs` is not a home.
+        (
+            validate_tests,
+            "const F: &str = \"--forget\";\n",
+            RULE_HELPER_ONLY,
+        ),
+        (
+            OS_ELEVATION_RS,
+            "fn planted() { let _ = unsafe { CreateDirectoryW(std::ptr::null(), std::ptr::null()) }; }\n",
+            RULE_HELPER_ONLY,
+        ),
+        (
+            "src-tauri/src/os_roots.rs",
+            "fn planted() { let _ = SHGetKnownFolderPath; }\n",
+            RULE_HELPER_ONLY,
+        ),
+        (
+            "crates/helper/src/lib.rs",
+            "fn planted() { let _ = os::OsRunner::new(); }\n",
+            RULE_REAL_SEAMS,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted<'a>(io: &'a dyn HelperIo, r: &'a dyn ProcessRunner, g: &'a dyn Registry) -> Seams<'a> {\n    Seams { io, runner: r, registry: g, classify: crate::classify::classify_inno }\n}\n",
+            RULE_SEAMS_BUILT,
+        ),
+        (
+            seams_rs,
+            "#[cfg(any(test, feature = \"ci-temp-roots\"))]\nfn planted<'a>(w: &'a W) -> Seams<'a> {\n    Seams { io: w, runner: w, registry: w, classify: c }\n}\n",
+            RULE_SEAMS_BUILT,
+        ),
+        (
+            validate_tests,
+            "fn planted() { let _ = crate::os::OsHelperIo::new(); }\n",
+            RULE_REAL_SEAMS,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = std::time::Instant::now(); }\n",
+            RULE_HELPER_CLOCK,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted(t: std::time::SystemTime) -> bool { t.elapsed().is_ok() }\n",
+            RULE_HELPER_CLOCK,
+        ),
+        (
+            COMMANDS_RS,
+            "fn planted() { let _ = NativeElevation::new(None); }\n",
+            RULE_NATIVE_ELEVATION,
+        ),
+        (
+            TAURI_LIB_RS,
+            "fn planted() { let _ = os_elevation::NativeElevation { helper: None }; }\n",
+            RULE_NATIVE_ELEVATION,
+        ),
+        // FR-024: each token of the four families.
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = std::process::Command::new(\"/usr/bin/xattr\"); }\n",
+            RULE_FR024,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = unsafe { setxattr(0, 0, 0, 0, 0) }; }\n",
+            RULE_FR024,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = unsafe { removexattr(0, 0) }; }\n",
+            RULE_FR024,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted(p: &Path) { let _ = std::os::unix::fs::chown(p, Some(0), Some(0)); }\n",
+            RULE_FR024,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = unsafe { fchown(0, 0, 0) }; }\n",
+            RULE_FR024,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = unsafe { lchown(0, 0, 0) }; }\n",
+            RULE_FR024,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = unsafe { SetNamedSecurityInfoW(0, 0, 0, 0, 0, 0, 0) }; }\n",
+            RULE_FR024,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = unsafe { SetFileSecurityW(0, 0, 0) }; }\n",
+            RULE_FR024,
+        ),
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = SetSecurityInfo; }\n",
+            RULE_FR024,
+        ),
+        (
+            HELPER_OPS_RS,
+            "const Q: &str = \"com.apple.quarantine\";\n",
+            RULE_FR024,
+        ),
+    ];
+    for (rel, text, rule) in phase10_plants {
+        let planted = phase10_findings(&plant(&files, rel, text));
+        assert_reported(&base, &planted, rel, rule, text);
+    }
+    let killall = "const K: &str = \"killall\";\n";
+    assert_reported(
+        &base,
+        &phase10_findings(&plant(&files, STATUS_RS, killall)),
+        STATUS_RS,
+        RULE_KILLALL,
+        killall,
+    );
+    // The homes, test-gated helper code, type positions and comments are not findings.
+    for (rel, text) in [
+        (
+            OS_ELEVATION_RS,
+            "fn quiet() { let _ = (ShellExecuteExW, \"runas\", \"/usr/bin/osascript\"); }\n",
+        ),
+        (
+            INSTALL_RS,
+            "const QUIET: &str = \"with administrator privileges\";\nfn quiet() { let _ = platform::KILLALL_ARGV; }\n",
+        ),
+        (
+            HELPER_OPS_TESTS_RS,
+            "fn quiet<'a>(io: &'a TempIo<'a>, r: &'a ScriptedRunner<'a>, g: &'a FakeRegistry<'a>) -> Seams<'a> {\n    let _ = (\"/usr/sbin/installer\", \"--forget\", std::time::Instant::now());\n    Seams { io, runner: r, registry: g, classify: c }\n}\n",
+        ),
+        (
+            HELPER_OS_TESTS_RS,
+            "fn quiet() { let _ = (OsHelperIo::new(), OsRunner::new(), OsRegistry); }\n",
+        ),
+        (
+            HELPER_MAIN_RS,
+            "fn quiet() { let s = Seams { io: &OsHelperIo::new(), runner: &OsRunner::new(), registry: &OsRegistry, classify: c }; }\n",
+        ),
+        (
+            HELPER_OS_RS,
+            "fn quiet() { let _ = (std::time::Instant::now(), std::time::SystemTime::now(), CreateDirectoryW, SHGetKnownFolderPath); }\n",
+        ),
+        (
+            HELPER_OPS_RS,
+            "#[cfg(test)]\nfn quiet<'a>(w: &'a W) -> Seams<'a> {\n    Seams { io: w, runner: w, registry: w, classify: c }\n}\n\
+             const I: &str = \"/usr/sbin/installer\";\n\
+             // ShellExecuteExW runas osascript xattr chown com.apple.quarantine Instant::now() killall\n",
+        ),
+        (
+            seams_rs,
+            "#[cfg(any(test, feature = \"test-support\"))]\npub mod quiet {\n    fn seams<'a>(w: &'a W) -> Seams<'a> {\n        Seams { io: w, runner: w, registry: w, classify: c }\n    }\n}\n",
+        ),
+        (
+            COMMANDS_RS,
+            "fn quiet(e: tauri::State<'_, Arc<NativeElevation>>) -> Arc<NativeElevation> { e.inner().clone() }\n",
+        ),
+        (
+            TAURI_LIB_RS,
+            "fn quiet() -> NativeElevation { os_elevation::NativeElevation::new(None) }\n",
+        ),
+        (
+            COMMANDS_RS,
+            "fn quiet(e: &Arc<NativeElevation>) -> crate::os_elevation::NativeElevation { todo!() }\n",
+        ),
+    ] {
+        let new = added(&base, &phase10_findings(&plant(&files, rel, text)));
+        assert!(new.is_empty(), "{rel}: quiet {text:?}:\n{}", show(&new));
+    }
+    assert!(
+        base.is_empty(),
+        "FR-024 / FR-112 findings on the tree:\n{}",
+        show(&base)
+    );
 }
 
 #[test]
@@ -3944,7 +4504,7 @@ fn core_dependencies_are_the_fr007_set() {
     assert_eq!(keys, expected, "crates/core/Cargo.toml [dependencies]");
     assert_eq!(
         section_keys(&manifest, "[dev-dependencies]"),
-        BTreeSet::from(["minisign".to_owned()]),
+        BTreeSet::from(["krate-manager-helper".to_owned(), "minisign".to_owned()]),
         "crates/core/Cargo.toml [dev-dependencies]"
     );
 
@@ -4080,8 +4640,14 @@ fn ureq_is_confined_to_http_rs() {
     }
     let manifests = manifests();
     let base = ureq_findings(&files, &manifests);
-    let plants: [(&str, &str, &str); 16] = [
+    let plants: [(&str, &str, &str); 17] = [
         (FEED_RS, "use ureq as u;\n", RULE_CONFINED),
+        // Phase 10 (tasks TA-6, TA-7): in the helper `windows_sys` only in `os.rs`.
+        (
+            "crates/helper/src/roots.rs",
+            "use windows_sys::Win32::Foundation::GlobalFree;\n",
+            RULE_CONFINED,
+        ),
         (HTTP_RS, "pub use ureq as u;\n", RULE_PUB_SIGNATURE),
         (
             HTTP_RS,
@@ -4183,6 +4749,23 @@ fn ureq_is_confined_to_http_rs() {
         RULE_TOML_KEY,
         "flate2 key",
     );
+    // Phase 10 FR-093, SI-6: `sha2` and `windows-sys` reach the helper manifest, never src-tauri's / core's.
+    for (rel, line) in [
+        ("src-tauri/Cargo.toml", "sha2 = { workspace = true }"),
+        (
+            "crates/core/Cargo.toml",
+            "windows-sys = { workspace = true }",
+        ),
+    ] {
+        let planted_manifests = replace_in(
+            &manifests,
+            rel,
+            "[dependencies]\n",
+            &format!("[dependencies]\n{line}\n"),
+        );
+        let planted = ureq_findings(&files, &planted_manifests);
+        assert_reported(&base, &planted, rel, RULE_TOML_KEY, line);
+    }
 
     // The lexer keeps `WinHttpGetProxyForUrlEx` apart from the banned `WinHttpGetProxyForUrl`.
     let quiet = "fn quiet(r: u32) { unsafe { WinHttpGetProxyForUrlEx(r, 0, 0, 0) }; }\n";
@@ -4312,7 +4895,7 @@ fn production_config_only_in_allowed_tests() {
     let base = test_source_findings(&files);
     let program_plant = "fn planted() { let _ = std::process::Command::new(\"gsettings\"); }\n";
     let logger_plant = "fn planted() { let _ = log::set_logger(&CAPTURE); }\n";
-    let plants: [(&str, &str, &str); 26] = [
+    let plants: [(&str, &str, &str); 27] = [
         (
             HTTP_TESTS_RS,
             "#[test]\nfn planted() {\n    let _ = HttpConfig::production();\n}\n",
@@ -4396,6 +4979,12 @@ fn production_config_only_in_allowed_tests() {
             "fn probe_metadata_error_unix() { let _ = std::process::Command::new(\"cmd\"); }\n",
             RULE_COMMAND,
         ),
+        // Phase 10 D-1: the echo binary only in its one body of `windows_quoting.rs`.
+        (
+            STATUS_TESTS_RS,
+            "fn windows_parameters_parse_back_windows() { let _ = Command::new(env!(\"CARGO_BIN_EXE_argv-echo\")); }\n",
+            RULE_COMMAND,
+        ),
         (TEST_SUPPORT_RS, logger_plant, RULE_SET_LOGGER),
         (CONTEXT_TESTS_RS, logger_plant, RULE_SET_LOGGER),
         // FR-086.
@@ -4434,6 +5023,32 @@ fn production_config_only_in_allowed_tests() {
         let planted = test_source_findings(&plant(&files, rel, text));
         assert_reported(&base, &planted, rel, rule, text);
     }
+    // Phase 10 D-1: in `windows_quoting.rs` (a G2 file, so spelled here) the echo binary runs only in its one body.
+    let with_quoting = |text: &str| {
+        let mut out: Vec<(String, String)> = files
+            .iter()
+            .filter(|(r, _)| r != WINDOWS_QUOTING_RS)
+            .cloned()
+            .collect();
+        out.push((WINDOWS_QUOTING_RS.to_owned(), text.to_owned()));
+        out
+    };
+    let echo_elsewhere =
+        "fn planted() { let _ = Command::new(env!(\"CARGO_BIN_EXE_argv-echo\")); }\n";
+    assert_reported(
+        &base,
+        &test_source_findings(&with_quoting(echo_elsewhere)),
+        WINDOWS_QUOTING_RS,
+        RULE_COMMAND,
+        echo_elsewhere,
+    );
+    let echo_quiet = "#[cfg(windows)]\n#[test]\nfn windows_parameters_parse_back_windows() {\n    let _ = std::process::Command::new(env!(\"CARGO_BIN_EXE_argv-echo\"));\n}\n";
+    let new = added(&base, &test_source_findings(&with_quoting(echo_quiet)));
+    assert!(
+        new.is_empty(),
+        "{WINDOWS_QUOTING_RS}: quiet {echo_quiet:?}:\n{}",
+        show(&new)
+    );
 
     // Allowed bodies, the fake's handle, the two programs, port 0 and a `'static` lifetime are
     // not findings.
@@ -4482,11 +5097,11 @@ fn production_config_only_in_allowed_tests() {
 fn reader_dependencies_are_the_ruled_set() {
     let manifests = manifests();
     let base = reader_dependency_findings(&manifests);
-    let plants: [(&str, &str, &str, &str); 5] = [
+    let plants: [(&str, &str, &str, &str); 8] = [
         (
             "Cargo.toml",
-            "\"Win32_Networking_WinHttp\"]",
-            "\"Win32_Networking_WinHttp\", \"Win32_System_Time\"]",
+            "\"Win32_Storage_FileSystem\"]",
+            "\"Win32_Storage_FileSystem\", \"Win32_System_Time\"]",
             "windows-sys: root features",
         ),
         (
@@ -4494,6 +5109,25 @@ fn reader_dependencies_are_the_ruled_set() {
             "windows-sys = { workspace = true }",
             "windows-sys = { workspace = true }\nwinreg = \"0.55.0\"",
             "src-tauri/Cargo.toml [target.'cfg(windows)'.dependencies]: crates",
+        ),
+        // Phase 10 FR-093: the helper is the second home, alone too; core is never one.
+        (
+            "crates/helper/Cargo.toml",
+            "windows-sys = { workspace = true }",
+            "windows-sys = { workspace = true }\nwinreg = \"0.55.0\"",
+            "crates/helper/Cargo.toml [target.'cfg(windows)'.dependencies]: crates",
+        ),
+        (
+            "crates/helper/Cargo.toml",
+            "windows-sys = { workspace = true }",
+            "",
+            "windows-sys: missing from crates/helper/Cargo.toml",
+        ),
+        (
+            "crates/core/Cargo.toml",
+            "[lints]",
+            "[target.'cfg(windows)'.dependencies]\nwindows-sys = { workspace = true }\n\n[lints]",
+            "windows-sys: declared in crates/core/Cargo.toml [target.'cfg(windows)'.dependencies]",
         ),
         (
             "crates/core/Cargo.toml",
@@ -4565,7 +5199,8 @@ fn host_io_symbols_are_confined() {
     // Not vacuous: each host literal is spelled once in its own platform file, so the value
     // reading of `literal_value` matches the source the scan sees.
     let lexed = lex(&files);
-    for (needle, home) in HOST_LITERALS {
+    for (needle, homes) in HOST_LITERALS {
+        let home = homes[0];
         let held = lexed
             .iter()
             .filter(|l| l.rel == home)
@@ -4591,8 +5226,19 @@ fn confinement_scanner_reports_plants() {
         out
     };
     let base = findings(&files);
-    let plants: [(&str, &str, &str); 15] = [
+    let plants: [(&str, &str, &str); 17] = [
         (STATUS_RS, "use pulldown_cmark::Parser;\n", RULE_CONFINED),
+        // Phase 10 SI-6: the helper's FFI only in `os.rs`, its host literals only in `ops.rs` (and its tests).
+        (
+            HELPER_OPS_RS,
+            "fn planted() { let _ = unsafe { RegOpenKeyExW(0, 0, 0, 0, 0) }; }\n",
+            RULE_CONFINED,
+        ),
+        (
+            "crates/helper/src/validate.rs",
+            "const P: &str = \"/usr/sbin/pkgutil\";\n",
+            RULE_HOST_LITERAL,
+        ),
         (
             DETECT_RS,
             "fn f() { let _ = plist::Value::Boolean(true); }\n",
@@ -4729,6 +5375,15 @@ fn test_source_scanner_reports_planted_os_host_io() {
             CONFIG_GUARD_RS,
             "fn planted() -> [&'static str; 2] { [\"/usr/bin/getconf\", \"GNU_LIBC_VERSION\"] }\n",
         ),
+        // Phase 10 SI-6: of the helper tests only `ops_tests.rs` may spell a host literal, and never `OsHostIo`.
+        (
+            "crates/helper/src/validate_tests.rs",
+            "const P: &str = \"/usr/sbin/pkgutil\";\n",
+        ),
+        (
+            HELPER_OPS_TESTS_RS,
+            "#[test]\nfn planted() {\n    let _ = OsHostIo;\n}\n",
+        ),
     ] {
         let planted = test_host_io_findings(&plant(&files, rel, text));
         assert_reported(&base, &planted, rel, RULE_TEST_HOST_IO, text);
@@ -4746,6 +5401,10 @@ fn test_source_scanner_reports_planted_os_host_io() {
         (
             INJECTION_RS,
             "fn quiet() { let _ = OsHostIo; let _ = \"/usr/sbin/pkgutil\"; }\n",
+        ),
+        (
+            HELPER_OPS_TESTS_RS,
+            "fn quiet() -> [&'static str; 2] { [\"/usr/sbin/pkgutil\", \"SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\"] }\n",
         ),
     ] {
         let new = added(&base, &test_host_io_findings(&plant(&files, rel, text)));
@@ -5295,13 +5954,15 @@ fn verify_confinement_scanner_reports_plants() {
             out
         };
     let base = scan(&files, &manifests, &locks);
-    let plants: [(&str, &str, &str); 20] = [
+    let plants: [(&str, &str, &str); 21] = [
         (
             DOWNLOAD_RS,
             "use minisign_verify::PublicKey;\n",
             RULE_CONFINED,
         ),
         (DOWNLOAD_RS, "use sha2::Sha256;\n", RULE_CONFINED),
+        // Phase 10 SI-6: in the helper `sha2` only in `digest.rs`.
+        (HELPER_OPS_RS, "use sha2::Sha256;\n", RULE_CONFINED),
         (DOWNLOAD_RS, "use minisign::KeyPair;\n", RULE_CONFINED),
         (DOWNLOAD_RS, "use ureq::Agent;\n", RULE_CONFINED),
         (TEST_SUPPORT_RS, "use minisign::KeyPair;\n", RULE_CONFINED),

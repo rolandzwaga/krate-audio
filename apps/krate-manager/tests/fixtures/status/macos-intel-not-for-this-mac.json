@@ -53,7 +53,8 @@
           ]
         }
       ],
-      "actions": []
+      "actions": [],
+      "remove_hint": null
     },
     {
       "name": "Bravo",
@@ -99,7 +100,8 @@
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.0.1",
       "notes": [],
-      "actions": []
+      "actions": [],
+      "remove_hint": null
     },
     {
       "name": "Charlie",
@@ -116,7 +118,8 @@
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v0.9.0",
       "notes": [],
-      "actions": []
+      "actions": [],
+      "remove_hint": null
     }
   ]
 }
