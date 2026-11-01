@@ -710,7 +710,7 @@ Does NOT: run an installer or elevate (Phase 10), or self-update.
 
 **Spec:** `krate-manager-phase10`
 
-**Status: ✅ COMPLETE (PENDING-CI: 15 item(s)) (2026-11-01)** — see specs/krate-manager-phase10/compliance.md
+**Status: ✅ COMPLETE (PENDING-CI: 1 item(s)) (2026-11-01)** — see specs/krate-manager-phase10/compliance.md
 
 Components:
 - 🆕 `krate-manager-helper`: reads one JSON job file, performs a **fixed operation set** sequentially, and writes a
