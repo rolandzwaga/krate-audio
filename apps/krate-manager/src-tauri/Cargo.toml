@@ -1,0 +1,61 @@
+[package]
+name = "krate-manager"
+description = "Krate Manager"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "krate_manager_lib"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[[bin]]
+name = "krate-manager"
+path = "src/main.rs"
+test = false
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+tauri = { workspace = true }
+# Phase 6 D15, Q8: commands.rs only, the free fn open_url; never registered
+tauri-plugin-opener = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+krate-manager-core = { workspace = true }
+# Phase 11 PD-5, PD-30, SI-28: self_update.rs only (redirect::Policy, ClientBuilder::read_timeout); the updater's own reqwest, socks unified into its client
+reqwest = { version = "=0.13.5", default-features = false, features = ["socks"] }
+# Phase 11 FR-001: self_update.rs only
+tauri-plugin-updater = { workspace = true }
+
+[dev-dependencies]
+krate-manager-core = { workspace = true, features = ["test-support"] }
+
+# R-2: os_proxy.rs and os_facts.rs only (Phase 6 FR-032)
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true }
+
+# R-3: os_proxy.rs only (the macOS proxy reader)
+[target.'cfg(target_os = "macos")'.dependencies]
+system-configuration = { workspace = true }
+
+[features]
+dev-feed = []
+# FR-105: never default; only the check job's clippy manual-elevation example step names it
+manual-elevation = []
+# Phase 11 FR-070: never default; only release-manager.yml's updater-e2e job enables it
+updater-e2e = []
+
+[[example]]
+name = "manual_elevation"
+path = "examples/manual_elevation.rs"
+required-features = ["manual-elevation"]
+
+[lints]
+workspace = true

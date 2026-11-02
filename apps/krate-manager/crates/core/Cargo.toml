@@ -1,0 +1,58 @@
+[package]
+name = "krate-manager-core"
+description = "Krate Manager core: platform roots, settings, startup state (Tauri-free)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+test-support = []
+# PD-14: never enabled by any workflow, script or gate
+live-network = ["test-support"]
+
+[dependencies]
+base64 = { workspace = true }
+# Phase 8 D1: extract.rs only (FR-082)
+flate2 = { workspace = true }
+log = { workspace = true }
+# Phase 7 D1: verify.rs only (FR-082)
+minisign-verify = { workspace = true }
+# Phase 6 D12: notes.rs only (FR-082)
+pulldown-cmark = { workspace = true }
+regex = { workspace = true }
+# only to name rustls::Error in http.rs (FR-044)
+rustls = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# Phase 7 D1: verify.rs only (FR-082)
+sha2 = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }
+ureq = { workspace = true }
+
+[[bin]]
+# Phase 10 SC-015: windows_quoting.rs's echo target; never shipped
+name = "argv-echo"
+path = "tests/bin/argv_echo.rs"
+test = false
+
+[dev-dependencies]
+# Phase 10 PD-8: the loopback (install_loopback_tests.rs)
+krate-manager-helper = { workspace = true, features = ["test-support"] }
+# Phase 7 D1: test_signer.rs only, never a normal dependency (FR-081)
+minisign = { workspace = true }
+
+# R-8, R-15: pac.rs only (FR-081), never on Windows; never `features`, never rust-alloc (PD-25)
+[target.'cfg(not(windows))'.dependencies]
+rquickjs = { workspace = true }
+
+# R-6: sysproxy_cf only; Phase 6: detect.rs AU reader only
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = { workspace = true }
+plist = { workspace = true }
+
+[lints]
+workspace = true

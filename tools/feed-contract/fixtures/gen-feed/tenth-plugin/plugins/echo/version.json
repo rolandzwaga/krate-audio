@@ -1,0 +1,7 @@
+{
+  "version": "1.4.0",
+  "name": "Echo",
+  "description": "Krate fixture plugin Echo",
+  "publisher": "Krate Audio",
+  "url": "https://krateaudio.com/echo/"
+}

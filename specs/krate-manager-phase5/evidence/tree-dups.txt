@@ -1,0 +1,1026 @@
+base64 v0.21.7
+├── swift-rs v1.0.9
+│   └── tauri-utils v2.10.2
+│       ├── tauri-build v2.7.4
+│       │   [build-dependencies]
+│       │   ├── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+│       │   └── tauri v2.12.5
+│       │       └── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+│       ├── tauri-codegen v2.7.4
+│       │   └── tauri-macros v2.7.4 (proc-macro)
+│       │       └── tauri v2.12.5 (*)
+│       └── tauri-macros v2.7.4 (proc-macro) (*)
+│       [build-dependencies]
+│       └── tauri v2.12.5 (*)
+└── swift-rs v1.0.9
+    └── tauri v2.12.5 (*)
+
+base64 v0.23.1
+├── hyper-util v0.1.21
+│   └── reqwest v0.13.5
+│       └── tauri v2.12.5 (*)
+├── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core)
+│   └── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+│   [dev-dependencies]
+│   ├── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+│   └── krate-manager-helper v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\helper)
+├── plist v1.10.3
+│   ├── tauri v2.12.5 (*)
+│   ├── tauri-codegen v2.7.4 (*)
+│   ├── tauri-utils v2.10.2 (*)
+│   └── tauri-utils v2.10.2
+│       ├── tauri v2.12.5 (*)
+│       ├── tauri-runtime v2.12.2
+│       │   ├── tauri v2.12.5 (*)
+│       │   └── tauri-runtime-wry v2.12.3
+│       │       └── tauri v2.12.5 (*)
+│       └── tauri-runtime-wry v2.12.3 (*)
+├── reqwest v0.13.5 (*)
+├── tauri-codegen v2.7.4 (*)
+├── ureq v3.5.0
+│   └── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+├── ureq-proto v0.6.5
+│   └── ureq v3.5.0 (*)
+└── wry v0.57.1
+    └── tauri-runtime-wry v2.12.3 (*)
+
+bitflags v1.3.2
+├── javascriptcore-rs v1.1.2
+│   ├── webkit2gtk v2.0.2
+│   │   ├── tauri v2.12.5 (*)
+│   │   ├── tauri-runtime v2.12.2 (*)
+│   │   ├── tauri-runtime-wry v2.12.3 (*)
+│   │   └── wry v0.57.1 (*)
+│   └── wry v0.57.1 (*)
+├── webkit2gtk v2.0.2 (*)
+└── webkit2gtk-sys v2.0.2
+    ├── webkit2gtk v2.0.2 (*)
+    └── wry v0.57.1 (*)
+
+bitflags v2.13.2
+├── cairo-rs v0.18.5
+│   ├── gdk v0.18.2
+│   │   ├── gdkx11 v0.18.2
+│   │   │   └── wry v0.57.1 (*)
+│   │   ├── gtk v0.18.2
+│   │   │   ├── muda v0.20.0
+│   │   │   │   └── tauri v2.12.5 (*)
+│   │   │   ├── tao v0.37.2
+│   │   │   │   └── tauri-runtime-wry v2.12.3 (*)
+│   │   │   ├── tauri v2.12.5 (*)
+│   │   │   ├── tauri-runtime v2.12.2 (*)
+│   │   │   ├── tauri-runtime-wry v2.12.3 (*)
+│   │   │   ├── webkit2gtk v2.0.2 (*)
+│   │   │   └── wry v0.57.1 (*)
+│   │   └── webkit2gtk v2.0.2 (*)
+│   ├── gtk v0.18.2 (*)
+│   └── webkit2gtk v2.0.2 (*)
+├── core-graphics v0.25.0
+│   └── tao v0.37.2 (*)
+├── core-graphics-types v0.2.0
+│   └── core-graphics v0.25.0 (*)
+├── dispatch2 v0.3.1
+│   └── tao v0.37.2 (*)
+├── glib v0.18.5
+│   ├── atk v0.18.2
+│   │   └── gtk v0.18.2 (*)
+│   ├── cairo-rs v0.18.5 (*)
+│   ├── gdk v0.18.2 (*)
+│   ├── gdk-pixbuf v0.18.5
+│   │   ├── gdk v0.18.2 (*)
+│   │   └── gtk v0.18.2 (*)
+│   ├── gdkx11 v0.18.2 (*)
+│   ├── gio v0.18.4
+│   │   ├── gdk v0.18.2 (*)
+│   │   ├── gdk-pixbuf v0.18.5 (*)
+│   │   ├── gdkx11 v0.18.2 (*)
+│   │   ├── gtk v0.18.2 (*)
+│   │   ├── pango v0.18.3
+│   │   │   ├── gdk v0.18.2 (*)
+│   │   │   └── gtk v0.18.2 (*)
+│   │   ├── soup3 v0.5.0
+│   │   │   ├── webkit2gtk v2.0.2 (*)
+│   │   │   └── wry v0.57.1 (*)
+│   │   └── webkit2gtk v2.0.2 (*)
+│   ├── gtk v0.18.2 (*)
+│   ├── javascriptcore-rs v1.1.2 (*)
+│   ├── pango v0.18.3 (*)
+│   ├── soup3 v0.5.0 (*)
+│   └── webkit2gtk v2.0.2 (*)
+├── keyboard-types v0.8.3
+│   └── muda v0.20.0 (*)
+├── ndk v0.9.0
+│   ├── softbuffer v0.4.8
+│   │   └── tauri-runtime-wry v2.12.3 (*)
+│   ├── tao v0.37.2 (*)
+│   └── wry v0.57.1 (*)
+├── objc2-app-kit v0.3.2
+│   ├── muda v0.20.0 (*)
+│   ├── objc2-web-kit v0.3.2
+│   │   ├── tauri v2.12.5 (*)
+│   │   ├── tauri-runtime v2.12.2 (*)
+│   │   └── wry v0.57.1 (*)
+│   ├── tao v0.37.2 (*)
+│   ├── tauri v2.12.5 (*)
+│   ├── tauri-runtime-wry v2.12.3 (*)
+│   ├── window-vibrancy v0.8.1
+│   │   └── tauri v2.12.5 (*)
+│   └── wry v0.57.1 (*)
+├── objc2-cloud-kit v0.3.2
+│   └── objc2-ui-kit v0.3.2
+│       ├── tao v0.37.2 (*)
+│       ├── tauri v2.12.5 (*)
+│       ├── tauri-runtime v2.12.2 (*)
+│       └── wry v0.57.1 (*)
+├── objc2-core-foundation v0.3.2
+│   ├── muda v0.20.0 (*)
+│   ├── objc2-app-kit v0.3.2 (*)
+│   ├── objc2-core-graphics v0.3.2
+│   │   ├── objc2-ui-kit v0.3.2 (*)
+│   │   └── softbuffer v0.4.8 (*)
+│   ├── objc2-core-text v0.3.2
+│   │   └── objc2-ui-kit v0.3.2 (*)
+│   ├── objc2-foundation v0.3.2
+│   │   ├── muda v0.20.0 (*)
+│   │   ├── objc2-app-kit v0.3.2 (*)
+│   │   ├── objc2-cloud-kit v0.3.2 (*)
+│   │   ├── objc2-core-data v0.3.2
+│   │   │   └── objc2-ui-kit v0.3.2 (*)
+│   │   ├── objc2-core-image v0.3.2
+│   │   │   └── objc2-ui-kit v0.3.2 (*)
+│   │   ├── objc2-core-location v0.3.2
+│   │   │   └── objc2-ui-kit v0.3.2 (*)
+│   │   ├── objc2-quartz-core v0.3.2
+│   │   │   ├── objc2-app-kit v0.3.2 (*)
+│   │   │   ├── objc2-ui-kit v0.3.2 (*)
+│   │   │   ├── softbuffer v0.4.8 (*)
+│   │   │   └── window-vibrancy v0.8.1 (*)
+│   │   ├── objc2-ui-kit v0.3.2 (*)
+│   │   ├── objc2-user-notifications v0.3.2
+│   │   │   └── objc2-ui-kit v0.3.2 (*)
+│   │   ├── objc2-web-kit v0.3.2 (*)
+│   │   ├── softbuffer v0.4.8 (*)
+│   │   ├── tao v0.37.2 (*)
+│   │   ├── tauri v2.12.5 (*)
+│   │   ├── window-vibrancy v0.8.1 (*)
+│   │   └── wry v0.57.1 (*)
+│   ├── objc2-quartz-core v0.3.2 (*)
+│   ├── objc2-ui-kit v0.3.2 (*)
+│   ├── objc2-web-kit v0.3.2 (*)
+│   ├── softbuffer v0.4.8 (*)
+│   ├── window-vibrancy v0.8.1 (*)
+│   └── wry v0.57.1 (*)
+├── objc2-core-graphics v0.3.2 (*)
+├── objc2-core-text v0.3.2 (*)
+├── objc2-foundation v0.3.2 (*)
+├── objc2-quartz-core v0.3.2 (*)
+├── objc2-ui-kit v0.3.2 (*)
+├── objc2-web-kit v0.3.2 (*)
+├── png v0.18.1
+│   ├── ico v0.6.0
+│   │   └── tauri-codegen v2.7.4 (*)
+│   ├── muda v0.20.0 (*)
+│   └── tauri-codegen v2.7.4 (*)
+├── rustix v1.1.6
+│   └── tempfile v3.27.0
+│       └── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+├── security-framework v3.7.0
+│   ├── rustls-native-certs v0.8.5
+│   │   └── rustls-platform-verifier v0.7.1
+│   │       └── ureq v3.5.0 (*)
+│   └── rustls-platform-verifier v0.7.1 (*)
+├── system-configuration v0.8.0
+│   └── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+├── tao v0.37.2 (*)
+└── tower-http v0.6.11
+    └── reqwest v0.13.5 (*)
+
+bitflags v2.13.2
+├── objc2-foundation v0.3.2
+│   [build-dependencies]
+│   └── wry v0.57.1 (*)
+├── redox_syscall v0.5.18
+│   ├── parking_lot_core v0.9.12
+│   │   └── parking_lot v0.12.5
+│   │       ├── string_cache v0.9.0
+│   │       │   └── web_atoms v0.2.6
+│   │       │       └── markup5ever v0.39.0
+│   │       │           └── html5ever v0.39.0
+│   │       │               └── dom_query v0.28.0
+│   │       │                   ├── tauri-utils v2.10.2 (*)
+│   │       │                   └── wry v0.57.1 (*)
+│   │       └── tao v0.37.2 (*)
+│   └── softbuffer v0.4.8 (*)
+└── selectors v0.38.0
+    └── dom_query v0.28.0 (*)
+
+fastrand v2.5.0
+└── phf_generator v0.13.1
+    ├── phf_codegen v0.13.1
+    │   [build-dependencies]
+    │   ├── selectors v0.38.0 (*)
+    │   └── web_atoms v0.2.6 (*)
+    ├── phf_macros v0.13.1 (proc-macro)
+    │   └── phf v0.13.1
+    │       ├── cssparser v0.37.0
+    │       │   ├── dom_query v0.28.0 (*)
+    │       │   └── selectors v0.38.0 (*)
+    │       ├── selectors v0.38.0 (*)
+    │       ├── tauri-utils v2.10.2 (*)
+    │       ├── tauri-utils v2.10.2 (*)
+    │       └── web_atoms v0.2.6 (*)
+    └── string_cache_codegen v0.6.1
+        [build-dependencies]
+        └── web_atoms v0.2.6 (*)
+
+fastrand v2.5.0
+└── tempfile v3.27.0 (*)
+
+getrandom v0.2.17
+└── ring v0.17.14
+    ├── rustls v0.23.46
+    │   ├── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+    │   ├── rustls-platform-verifier v0.7.1 (*)
+    │   └── ureq v3.5.0 (*)
+    └── rustls-webpki v0.103.16
+        ├── rustls v0.23.46 (*)
+        └── rustls-platform-verifier v0.7.1 (*)
+
+getrandom v0.3.4
+└── tauri v2.12.5 (*)
+
+getrandom v0.4.3
+├── tempfile v3.27.0 (*)
+└── uuid v1.29.0
+    ├── cfb v0.14.0
+    │   └── infer v0.22.0
+    │       ├── tauri-utils v2.10.2 (*)
+    │       └── tauri-utils v2.10.2 (*)
+    ├── schemars v0.8.22
+    │   ├── tauri-build v2.7.4 (*)
+    │   └── tauri-utils v2.10.2 (*)
+    ├── tauri-codegen v2.7.4 (*)
+    └── tauri-utils v2.10.2 (*)
+
+hashbrown v0.12.3
+└── indexmap v1.9.3
+    └── schemars v0.8.22 (*)
+
+hashbrown v0.17.1
+└── indexmap v2.14.2
+    ├── plist v1.10.3 (*)
+    ├── toml_edit v0.19.15
+    │   └── proc-macro-crate v1.3.1
+    │       └── gtk3-macros v0.18.2 (proc-macro)
+    │           └── gtk v0.18.2 (*)
+    ├── toml_edit v0.20.2
+    │   ├── proc-macro-crate v2.0.2
+    │   │   └── glib-macros v0.18.5 (proc-macro)
+    │   │       └── glib v0.18.5 (*)
+    │   └── toml v0.8.2
+    │       └── system-deps v6.2.2
+    │           [build-dependencies]
+    │           ├── atk-sys v0.18.2
+    │           │   ├── atk v0.18.2 (*)
+    │           │   └── gtk-sys v0.18.2
+    │           │       ├── gtk v0.18.2 (*)
+    │           │       ├── webkit2gtk v2.0.2 (*)
+    │           │       └── webkit2gtk-sys v2.0.2 (*)
+    │           ├── cairo-sys-rs v0.18.2
+    │           │   ├── cairo-rs v0.18.5 (*)
+    │           │   ├── gdk-sys v0.18.2
+    │           │   │   ├── gdk v0.18.2 (*)
+    │           │   │   ├── gdkwayland-sys v0.18.2
+    │           │   │   │   └── tao v0.37.2 (*)
+    │           │   │   ├── gdkx11-sys v0.18.2
+    │           │   │   │   ├── gdkx11 v0.18.2 (*)
+    │           │   │   │   └── tao v0.37.2 (*)
+    │           │   │   ├── gtk-sys v0.18.2 (*)
+    │           │   │   ├── webkit2gtk v2.0.2 (*)
+    │           │   │   └── webkit2gtk-sys v2.0.2 (*)
+    │           │   ├── gtk-sys v0.18.2 (*)
+    │           │   └── webkit2gtk-sys v2.0.2 (*)
+    │           ├── gdk-pixbuf-sys v0.18.0
+    │           │   ├── gdk-pixbuf v0.18.5 (*)
+    │           │   ├── gdk-sys v0.18.2 (*)
+    │           │   └── gtk-sys v0.18.2 (*)
+    │           ├── gdk-sys v0.18.2 (*)
+    │           ├── gdkwayland-sys v0.18.2 (*)
+    │           ├── gdkx11-sys v0.18.2 (*)
+    │           ├── gio-sys v0.18.1
+    │           │   ├── gdk-pixbuf-sys v0.18.0 (*)
+    │           │   ├── gdk-sys v0.18.2 (*)
+    │           │   ├── gio v0.18.4 (*)
+    │           │   ├── glib v0.18.5 (*)
+    │           │   ├── gtk-sys v0.18.2 (*)
+    │           │   ├── soup3-sys v0.5.0
+    │           │   │   ├── soup3 v0.5.0 (*)
+    │           │   │   └── webkit2gtk-sys v2.0.2 (*)
+    │           │   ├── webkit2gtk v2.0.2 (*)
+    │           │   └── webkit2gtk-sys v2.0.2 (*)
+    │           ├── glib-sys v0.18.1
+    │           │   ├── atk-sys v0.18.2 (*)
+    │           │   ├── cairo-sys-rs v0.18.2 (*)
+    │           │   ├── gdk-pixbuf-sys v0.18.0 (*)
+    │           │   ├── gdk-sys v0.18.2 (*)
+    │           │   ├── gdkwayland-sys v0.18.2 (*)
+    │           │   ├── gdkx11-sys v0.18.2 (*)
+    │           │   ├── gio-sys v0.18.1 (*)
+    │           │   ├── glib v0.18.5 (*)
+    │           │   ├── gobject-sys v0.18.0
+    │           │   │   ├── atk-sys v0.18.2 (*)
+    │           │   │   ├── gdk-pixbuf-sys v0.18.0 (*)
+    │           │   │   ├── gdk-sys v0.18.2 (*)
+    │           │   │   ├── gdkwayland-sys v0.18.2 (*)
+    │           │   │   ├── gio-sys v0.18.1 (*)
+    │           │   │   ├── glib v0.18.5 (*)
+    │           │   │   ├── gtk-sys v0.18.2 (*)
+    │           │   │   ├── javascriptcore-rs-sys v1.1.1
+    │           │   │   │   ├── javascriptcore-rs v1.1.2 (*)
+    │           │   │   │   └── webkit2gtk-sys v2.0.2 (*)
+    │           │   │   ├── pango-sys v0.18.0
+    │           │   │   │   ├── gdk-sys v0.18.2 (*)
+    │           │   │   │   ├── gtk-sys v0.18.2 (*)
+    │           │   │   │   └── pango v0.18.3 (*)
+    │           │   │   ├── soup3-sys v0.5.0 (*)
+    │           │   │   ├── webkit2gtk v2.0.2 (*)
+    │           │   │   └── webkit2gtk-sys v2.0.2 (*)
+    │           │   ├── gtk-sys v0.18.2 (*)
+    │           │   ├── javascriptcore-rs-sys v1.1.1 (*)
+    │           │   ├── pango-sys v0.18.0 (*)
+    │           │   ├── soup3-sys v0.5.0 (*)
+    │           │   ├── webkit2gtk v2.0.2 (*)
+    │           │   └── webkit2gtk-sys v2.0.2 (*)
+    │           ├── gobject-sys v0.18.0 (*)
+    │           ├── gtk-sys v0.18.2 (*)
+    │           ├── javascriptcore-rs-sys v1.1.1 (*)
+    │           ├── pango-sys v0.18.0 (*)
+    │           ├── soup3-sys v0.5.0 (*)
+    │           └── webkit2gtk-sys v2.0.2 (*)
+    └── toml_edit v0.25.17+spec-1.1.0
+        └── proc-macro-crate v3.5.0
+            └── num_enum_derive v0.7.6 (proc-macro)
+                └── num_enum v0.7.6
+                    └── ndk v0.9.0 (*)
+
+hashbrown v0.17.1
+└── rquickjs-core v0.14.0
+    └── rquickjs v0.14.0
+        └── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+
+heck v0.4.1
+└── glib-macros v0.18.5 (proc-macro) (*)
+
+heck v0.5.0
+├── system-deps v6.2.2 (*)
+├── tauri v2.12.5 (*)
+├── tauri-build v2.7.4 (*)
+└── tauri-macros v2.7.4 (proc-macro) (*)
+[build-dependencies]
+└── tauri v2.12.5 (*)
+
+indexmap v1.9.3 (*)
+
+indexmap v2.14.2 (*)
+
+jni v0.21.1
+├── tao v0.37.2 (*)
+├── tauri v2.12.5 (*)
+├── tauri-runtime v2.12.2 (*)
+├── tauri-runtime-wry v2.12.3 (*)
+└── wry v0.57.1 (*)
+
+jni v0.22.4
+└── rustls-platform-verifier v0.7.1 (*)
+
+jni-sys v0.3.1
+├── jni v0.21.1 (*)
+├── ndk v0.9.0 (*)
+└── ndk-sys v0.6.0+11769913
+    ├── ndk v0.9.0 (*)
+    └── tao v0.37.2 (*)
+
+jni-sys v0.4.1
+├── jni v0.22.4 (*)
+└── jni-sys v0.3.1 (*)
+
+miniz_oxide v0.8.9
+└── png v0.18.1 (*)
+
+miniz_oxide v0.9.1
+└── flate2 v1.1.10
+    ├── png v0.18.1 (*)
+    └── ureq v3.5.0 (*)
+    [dev-dependencies]
+    └── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+
+objc2 v0.6.5
+├── block2 v0.6.2
+│   ├── dispatch2 v0.3.1 (*)
+│   ├── objc2-app-kit v0.3.2 (*)
+│   ├── objc2-foundation v0.3.2 (*)
+│   ├── objc2-ui-kit v0.3.2 (*)
+│   ├── objc2-web-kit v0.3.2 (*)
+│   ├── tao v0.37.2 (*)
+│   └── wry v0.57.1 (*)
+├── dispatch2 v0.3.1 (*)
+├── muda v0.20.0 (*)
+├── objc2-app-kit v0.3.2 (*)
+├── objc2-cloud-kit v0.3.2 (*)
+├── objc2-core-data v0.3.2 (*)
+├── objc2-core-foundation v0.3.2 (*)
+├── objc2-core-graphics v0.3.2 (*)
+├── objc2-core-image v0.3.2 (*)
+├── objc2-core-location v0.3.2 (*)
+├── objc2-core-text v0.3.2 (*)
+├── objc2-foundation v0.3.2 (*)
+├── objc2-quartz-core v0.3.2 (*)
+├── objc2-ui-kit v0.3.2 (*)
+├── objc2-user-notifications v0.3.2 (*)
+├── objc2-web-kit v0.3.2 (*)
+├── softbuffer v0.4.8 (*)
+├── tao v0.37.2 (*)
+├── tauri v2.12.5 (*)
+├── tauri-runtime v2.12.2 (*)
+├── tauri-runtime-wry v2.12.3 (*)
+├── window-vibrancy v0.8.1 (*)
+└── wry v0.57.1 (*)
+
+objc2 v0.6.5
+└── objc2-foundation v0.3.2 (*)
+
+objc2-foundation v0.3.2 (*)
+
+objc2-foundation v0.3.2 (*)
+
+proc-macro-crate v1.3.1 (*)
+
+proc-macro-crate v2.0.2 (*)
+
+proc-macro-crate v3.5.0 (*)
+
+r-efi v5.3.0
+└── getrandom v0.3.4 (*)
+
+r-efi v6.0.0
+└── getrandom v0.4.3 (*)
+
+semver v1.0.28
+├── cargo_metadata v0.19.2
+│   └── tauri-utils v2.10.2 (*)
+├── cargo_toml v1.0.1
+│   └── tauri-build v2.7.4 (*)
+├── rustc_version v0.4.1
+│   └── embed-resource v3.0.12
+│       └── tauri-winres v0.3.7
+│           └── tauri-build v2.7.4 (*)
+│   [build-dependencies]
+│   ├── derive_more-impl v2.1.1 (proc-macro)
+│   │   └── derive_more v2.1.1
+│   │       └── selectors v0.38.0 (*)
+│   ├── field-offset v0.3.6
+│   │   └── gtk v0.18.2 (*)
+│   ├── jni-macros v0.22.4 (proc-macro)
+│   │   └── jni v0.22.4 (*)
+│   └── simd_cesu8 v1.2.0
+│       ├── jni v0.22.4 (*)
+│       └── jni-macros v0.22.4 (proc-macro) (*)
+├── tauri-build v2.7.4 (*)
+├── tauri-codegen v2.7.4 (*)
+└── tauri-utils v2.10.2 (*)
+
+semver v1.0.28
+└── tauri-utils v2.10.2 (*)
+
+serde v1.0.229
+├── bytes v1.12.1
+│   ├── combine v4.6.9
+│   │   ├── jni v0.21.1 (*)
+│   │   └── jni v0.22.4 (*)
+│   ├── http v1.5.0
+│   │   ├── http-body v1.1.0
+│   │   │   ├── http-body-util v0.1.5
+│   │   │   │   └── reqwest v0.13.5 (*)
+│   │   │   ├── hyper v1.12.0
+│   │   │   │   ├── hyper-util v0.1.21 (*)
+│   │   │   │   └── reqwest v0.13.5 (*)
+│   │   │   ├── hyper-util v0.1.21 (*)
+│   │   │   ├── reqwest v0.13.5 (*)
+│   │   │   └── tower-http v0.6.11 (*)
+│   │   ├── http-body-util v0.1.5 (*)
+│   │   ├── hyper v1.12.0 (*)
+│   │   ├── hyper-util v0.1.21 (*)
+│   │   ├── reqwest v0.13.5 (*)
+│   │   ├── tauri v2.12.5 (*)
+│   │   ├── tauri-runtime v2.12.2 (*)
+│   │   ├── tauri-runtime-wry v2.12.3 (*)
+│   │   ├── tauri-utils v2.10.2 (*)
+│   │   ├── tauri-utils v2.10.2 (*)
+│   │   ├── tower-http v0.6.11 (*)
+│   │   ├── ureq-proto v0.6.5 (*)
+│   │   └── wry v0.57.1 (*)
+│   ├── http-body v1.1.0 (*)
+│   ├── http-body-util v0.1.5 (*)
+│   ├── hyper v1.12.0 (*)
+│   ├── hyper-util v0.1.21 (*)
+│   ├── reqwest v0.13.5 (*)
+│   ├── tauri v2.12.5 (*)
+│   ├── tokio v1.54.1
+│   │   ├── hyper v1.12.0 (*)
+│   │   ├── hyper-util v0.1.21 (*)
+│   │   ├── reqwest v0.13.5 (*)
+│   │   ├── tauri v2.12.5 (*)
+│   │   ├── tokio-util v0.7.20
+│   │   │   └── reqwest v0.13.5 (*)
+│   │   ├── tower v0.5.3
+│   │   │   ├── reqwest v0.13.5 (*)
+│   │   │   └── tower-http v0.6.11 (*)
+│   │   └── wasm-bindgen-futures v0.4.80
+│   │       ├── reqwest v0.13.5 (*)
+│   │       └── wasm-streams v0.5.0
+│   │           └── reqwest v0.13.5 (*)
+│   ├── tokio-util v0.7.20 (*)
+│   └── tower-http v0.6.11 (*)
+├── dpi v0.1.2
+│   ├── muda v0.20.0 (*)
+│   ├── tao v0.37.2 (*)
+│   ├── tauri-runtime v2.12.2 (*)
+│   └── wry v0.57.1 (*)
+├── keyboard-types v0.8.3 (*)
+├── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+├── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+├── muda v0.20.0 (*)
+├── plist v1.10.3 (*)
+├── reqwest v0.13.5 (*)
+├── serde_json v1.0.154
+│   ├── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+│   ├── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+│   ├── reqwest v0.13.5 (*)
+│   ├── serialize-to-javascript v0.1.2
+│   │   └── tauri v2.12.5 (*)
+│   ├── tauri v2.12.5 (*)
+│   ├── tauri-runtime v2.12.2 (*)
+│   └── tauri-utils v2.10.2 (*)
+├── serialize-to-javascript v0.1.2 (*)
+├── tauri v2.12.5 (*)
+├── tauri-runtime v2.12.2 (*)
+├── tauri-utils v2.10.2 (*)
+└── url v2.5.8
+    ├── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+    ├── reqwest v0.13.5 (*)
+    ├── schemars v0.8.22 (*)
+    ├── tao v0.37.2 (*)
+    ├── tauri v2.12.5 (*)
+    ├── tauri-codegen v2.7.4 (*)
+    ├── tauri-runtime v2.12.2 (*)
+    ├── tauri-runtime-wry v2.12.3 (*)
+    ├── tauri-utils v2.10.2 (*)
+    ├── tauri-utils v2.10.2 (*)
+    ├── tower-http v0.6.11 (*)
+    ├── urlpattern v0.6.0
+    │   ├── tauri-utils v2.10.2 (*)
+    │   └── tauri-utils v2.10.2 (*)
+    └── wry v0.57.1 (*)
+
+serde v1.0.229
+├── cargo-platform v0.1.9
+│   └── cargo_metadata v0.19.2 (*)
+├── cargo_metadata v0.19.2 (*)
+├── cargo_toml v1.0.1 (*)
+├── erased-serde v0.4.11
+│   └── serde-untagged v0.1.9
+│       ├── tauri-utils v2.10.2 (*)
+│       └── tauri-utils v2.10.2 (*)
+├── indexmap v1.9.3 (*)
+├── json-patch v4.2.0
+│   ├── tauri-build v2.7.4 (*)
+│   ├── tauri-codegen v2.7.4 (*)
+│   ├── tauri-utils v2.10.2 (*)
+│   └── tauri-utils v2.10.2 (*)
+├── jsonptr v0.7.1
+│   └── json-patch v4.2.0 (*)
+├── schemars v0.8.22 (*)
+├── semver v1.0.28 (*)
+├── serde-untagged v0.1.9 (*)
+├── serde_json v1.0.154
+│   ├── cargo_metadata v0.19.2 (*)
+│   ├── json-patch v4.2.0 (*)
+│   ├── jsonptr v0.7.1 (*)
+│   ├── schemars v0.8.22 (*)
+│   ├── swift-rs v1.0.9 (*)
+│   ├── tauri-build v2.7.4 (*)
+│   ├── tauri-codegen v2.7.4 (*)
+│   └── tauri-utils v2.10.2 (*)
+│   [build-dependencies]
+│   ├── swift-rs v1.0.9 (*)
+│   └── swift-rs v1.0.9 (*)
+├── serde_spanned v0.6.9
+│   ├── toml v0.8.2 (*)
+│   └── toml_edit v0.20.2 (*)
+├── swift-rs v1.0.9 (*)
+├── tauri-build v2.7.4 (*)
+├── tauri-codegen v2.7.4 (*)
+├── tauri-utils v2.10.2 (*)
+├── toml v0.8.2 (*)
+├── toml_datetime v0.6.3
+│   ├── proc-macro-crate v2.0.2 (*)
+│   ├── toml v0.8.2 (*)
+│   ├── toml_edit v0.19.15 (*)
+│   └── toml_edit v0.20.2 (*)
+├── toml_edit v0.20.2 (*)
+└── urlpattern v0.6.0 (*)
+[build-dependencies]
+├── swift-rs v1.0.9 (*)
+└── swift-rs v1.0.9 (*)
+
+serde_core v1.0.229
+├── camino v1.2.6
+│   └── cargo_metadata v0.19.2 (*)
+├── erased-serde v0.4.11 (*)
+├── semver v1.0.28 (*)
+├── serde v1.0.229 (*)
+├── serde-untagged v0.1.9 (*)
+├── serde_json v1.0.154 (*)
+├── serde_spanned v1.1.2
+│   └── toml v1.1.8+spec-1.1.0
+│       ├── cargo_toml v1.0.1 (*)
+│       ├── embed-resource v3.0.12 (*)
+│       ├── tauri-utils v2.10.2 (*)
+│       ├── tauri-utils v2.10.2 (*)
+│       └── tauri-winres v0.3.7 (*)
+├── serde_with v3.24.0
+│   ├── tauri-utils v2.10.2 (*)
+│   └── tauri-utils v2.10.2 (*)
+├── toml v1.1.8+spec-1.1.0 (*)
+├── toml_datetime v1.1.2+spec-1.1.0
+│   ├── toml v1.1.8+spec-1.1.0 (*)
+│   └── toml_edit v0.25.17+spec-1.1.0 (*)
+└── uuid v1.29.0 (*)
+
+serde_core v1.0.229
+├── bitflags v2.13.2 (*)
+├── serde v1.0.229 (*)
+├── serde_json v1.0.154 (*)
+└── uuid v1.29.0
+    └── tauri-utils v2.10.2 (*)
+
+serde_json v1.0.154 (*)
+
+serde_json v1.0.154 (*)
+
+serde_spanned v0.6.9 (*)
+
+serde_spanned v1.1.2 (*)
+
+smallvec v1.16.4
+├── cfg-expr v0.15.8
+│   └── system-deps v6.2.2 (*)
+├── cssparser v0.37.0 (*)
+├── parking_lot_core v0.9.12 (*)
+└── selectors v0.38.0 (*)
+
+smallvec v1.16.4
+├── gio v0.18.4 (*)
+├── glib v0.18.5 (*)
+├── hyper v1.12.0 (*)
+├── icu_normalizer v2.4.0
+│   └── idna_adapter v1.2.2
+│       └── idna v1.1.0
+│           └── url v2.5.8 (*)
+└── idna v1.1.0 (*)
+
+swift-rs v1.0.9 (*)
+
+swift-rs v1.0.9 (*)
+
+syn v1.0.109
+└── proc-macro-error v1.0.4
+    ├── glib-macros v0.18.5 (proc-macro) (*)
+    └── gtk3-macros v0.18.2 (proc-macro) (*)
+
+syn v2.0.119
+├── derive_more-impl v2.1.1 (proc-macro) (*)
+├── dlopen2_derive v0.4.3 (proc-macro)
+│   └── dlopen2 v0.8.2
+│       └── tao v0.37.2 (*)
+├── glib-macros v0.18.5 (proc-macro) (*)
+├── gtk3-macros v0.18.2 (proc-macro) (*)
+├── jni-macros v0.22.4 (proc-macro) (*)
+├── jni-sys-macros v0.4.1 (proc-macro)
+│   └── jni-sys v0.4.1 (*)
+├── num_enum_derive v0.7.6 (proc-macro) (*)
+├── phf_macros v0.13.1 (proc-macro) (*)
+├── schemars_derive v0.8.22 (proc-macro)
+│   └── schemars v0.8.22 (*)
+├── serde_derive_internals v0.29.1
+│   └── schemars_derive v0.8.22 (proc-macro) (*)
+├── serialize-to-javascript-impl v0.1.2 (proc-macro)
+│   └── serialize-to-javascript v0.1.2 (*)
+├── tao-macros v0.1.4 (proc-macro)
+│   ├── tao v0.37.2 (*)
+│   └── wry v0.57.1 (*)
+├── tauri-codegen v2.7.4 (*)
+├── tauri-macros v2.7.4 (proc-macro) (*)
+├── thiserror-impl v1.0.69 (proc-macro)
+│   └── thiserror v1.0.69
+│       ├── cairo-rs v0.18.5 (*)
+│       ├── gio v0.18.4 (*)
+│       ├── glib v0.18.5 (*)
+│       ├── jni v0.21.1 (*)
+│       └── ndk v0.9.0 (*)
+├── webview2-com-macros v0.8.1 (proc-macro)
+│   └── webview2-com v0.39.1
+│       ├── tauri v2.12.5 (*)
+│       ├── tauri-runtime v2.12.2 (*)
+│       ├── tauri-runtime-wry v2.12.3 (*)
+│       └── wry v0.57.1 (*)
+├── windows-implement v0.60.2 (proc-macro)
+│   └── windows-core v0.62.2
+│       ├── tao v0.37.2 (*)
+│       ├── webview2-com v0.39.1 (*)
+│       ├── webview2-com-sys v0.39.1
+│       │   └── webview2-com v0.39.1 (*)
+│       ├── windows v0.62.2
+│       │   ├── tao v0.37.2 (*)
+│       │   ├── tauri v2.12.5 (*)
+│       │   ├── tauri-runtime v2.12.2 (*)
+│       │   ├── tauri-runtime-wry v2.12.3 (*)
+│       │   ├── webview2-com v0.39.1 (*)
+│       │   ├── webview2-com-sys v0.39.1 (*)
+│       │   └── wry v0.57.1 (*)
+│       ├── windows-collections v0.3.2
+│       │   └── windows v0.62.2 (*)
+│       ├── windows-future v0.3.2
+│       │   └── windows v0.62.2 (*)
+│       ├── windows-numerics v0.3.1
+│       │   └── windows v0.62.2 (*)
+│       └── wry v0.57.1 (*)
+└── windows-interface v0.59.3 (proc-macro)
+    └── windows-core v0.62.2 (*)
+
+syn v3.0.9
+├── cssparser-macros v0.7.1 (proc-macro)
+│   └── cssparser v0.37.0 (*)
+├── darling_core v0.24.1
+│   ├── darling v0.24.1
+│   │   └── serde_with_macros v3.24.0 (proc-macro)
+│   │       └── serde_with v3.24.0 (*)
+│   └── darling_macro v0.24.1 (proc-macro)
+│       └── darling v0.24.1 (*)
+├── darling_macro v0.24.1 (proc-macro) (*)
+├── displaydoc v0.2.7 (proc-macro)
+│   ├── icu_collections v2.4.0
+│   │   ├── icu_normalizer v2.4.0 (*)
+│   │   └── icu_properties v2.4.0
+│   │       ├── idna_adapter v1.2.2 (*)
+│   │       └── urlpattern v0.6.0 (*)
+│   ├── icu_locale_core v2.4.0
+│   │   ├── icu_properties v2.4.0 (*)
+│   │   └── icu_provider v2.4.0
+│   │       ├── icu_normalizer v2.4.0 (*)
+│   │       └── icu_properties v2.4.0 (*)
+│   ├── icu_properties v2.4.0 (*)
+│   ├── icu_provider v2.4.0 (*)
+│   ├── tinystr v0.8.5
+│   │   └── icu_locale_core v2.4.0 (*)
+│   └── zerotrie v0.2.5
+│       ├── icu_properties v2.4.0 (*)
+│       └── icu_provider v2.4.0 (*)
+├── foreign-types-macros v0.2.4 (proc-macro)
+│   └── foreign-types v0.5.0
+│       └── core-graphics v0.25.0 (*)
+├── futures-macro v0.3.34 (proc-macro)
+│   └── futures-util v0.3.34
+│       ├── futures-executor v0.3.34
+│       │   └── glib v0.18.5 (*)
+│       ├── gio v0.18.4 (*)
+│       ├── glib v0.18.5 (*)
+│       ├── hyper-util v0.1.21 (*)
+│       ├── js-sys v0.3.107
+│       │   ├── reqwest v0.13.5 (*)
+│       │   ├── softbuffer v0.4.8 (*)
+│       │   ├── wasm-bindgen-futures v0.4.80 (*)
+│       │   ├── wasm-streams v0.5.0 (*)
+│       │   ├── web-sys v0.3.107
+│       │   │   ├── reqwest v0.13.5 (*)
+│       │   │   ├── softbuffer v0.4.8 (*)
+│       │   │   └── wasm-streams v0.5.0 (*)
+│       │   └── web-time v1.1.0
+│       │       └── cfb v0.14.0 (*)
+│       ├── reqwest v0.13.5 (*)
+│       ├── tower v0.5.3 (*)
+│       ├── tower-http v0.6.11 (*)
+│       └── wasm-streams v0.5.0 (*)
+├── serde_derive v1.0.229 (proc-macro)
+│   ├── serde v1.0.229 (*)
+│   ├── serde v1.0.229 (*)
+│   ├── serde_core v1.0.229 (*)
+│   ├── serde_core v1.0.229 (*)
+│   └── url v2.5.8 (*)
+├── serde_repr v0.1.21 (proc-macro)
+│   └── tauri v2.12.5 (*)
+├── serde_with_macros v3.24.0 (proc-macro) (*)
+├── synstructure v0.14.0
+│   ├── yoke-derive v0.8.4 (proc-macro)
+│   │   └── yoke v0.8.4
+│   │       ├── icu_collections v2.4.0 (*)
+│   │       ├── icu_provider v2.4.0 (*)
+│   │       ├── zerotrie v0.2.5 (*)
+│   │       └── zerovec v0.11.9
+│   │           ├── icu_collections v2.4.0 (*)
+│   │           ├── icu_locale_core v2.4.0 (*)
+│   │           ├── icu_normalizer v2.4.0 (*)
+│   │           ├── icu_properties v2.4.0 (*)
+│   │           ├── icu_provider v2.4.0 (*)
+│   │           ├── potential_utf v0.1.6
+│   │           │   └── icu_collections v2.4.0 (*)
+│   │           └── tinystr v0.8.5 (*)
+│   └── zerofrom-derive v0.1.8 (proc-macro)
+│       └── zerofrom v0.1.8
+│           ├── icu_collections v2.4.0 (*)
+│           ├── icu_provider v2.4.0 (*)
+│           ├── yoke v0.8.4 (*)
+│           ├── zerotrie v0.2.5 (*)
+│           └── zerovec v0.11.9 (*)
+├── thiserror-impl v2.0.21 (proc-macro)
+│   └── thiserror v2.0.21
+│       ├── cargo_metadata v0.19.2 (*)
+│       ├── jni v0.22.4 (*)
+│       ├── json-patch v4.2.0 (*)
+│       ├── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+│       ├── muda v0.20.0 (*)
+│       ├── redox_users v0.5.3
+│       │   └── dirs-sys v0.5.0
+│       │       └── dirs v7.0.0
+│       │           ├── tauri v2.12.5 (*)
+│       │           ├── tauri-build v2.7.4 (*)
+│       │           └── wry v0.57.1 (*)
+│       ├── tauri v2.12.5 (*)
+│       ├── tauri-codegen v2.7.4 (*)
+│       ├── tauri-runtime v2.12.2 (*)
+│       ├── tauri-utils v2.10.2 (*)
+│       ├── tauri-utils v2.10.2 (*)
+│       └── wry v0.57.1 (*)
+│       [build-dependencies]
+│       └── webview2-com-sys v0.39.1 (*)
+├── wasm-bindgen-macro-support v0.2.130
+│   └── wasm-bindgen-macro v0.2.130 (proc-macro)
+│       ├── wasm-bindgen v0.2.130
+│       │   ├── js-sys v0.3.107 (*)
+│       │   ├── reqwest v0.13.5 (*)
+│       │   ├── softbuffer v0.4.8 (*)
+│       │   ├── wasm-bindgen-futures v0.4.80 (*)
+│       │   ├── wasm-streams v0.5.0 (*)
+│       │   └── web-sys v0.3.107 (*)
+│       └── wasm-bindgen v0.2.130
+│           └── web-time v1.1.0 (*)
+├── yoke-derive v0.8.4 (proc-macro) (*)
+├── zerofrom-derive v0.1.8 (proc-macro) (*)
+└── zerovec-derive v0.11.7 (proc-macro)
+    └── zerovec v0.11.9 (*)
+
+tauri-utils v2.10.2 (*)
+
+tauri-utils v2.10.2 (*)
+
+thiserror v1.0.69 (*)
+
+thiserror v2.0.21 (*)
+
+thiserror-impl v1.0.69 (proc-macro) (*)
+
+thiserror-impl v2.0.21 (proc-macro) (*)
+
+time v0.3.55
+├── cookie v0.18.2
+│   ├── tauri v2.12.5 (*)
+│   ├── tauri-runtime v2.12.2 (*)
+│   └── wry v0.57.1 (*)
+└── plist v1.10.3 (*)
+
+time v0.3.55
+└── tauri-codegen v2.7.4 (*)
+
+toml v0.8.2 (*)
+
+toml v1.1.8+spec-1.1.0 (*)
+
+toml_datetime v0.6.3 (*)
+
+toml_datetime v1.1.2+spec-1.1.0 (*)
+
+toml_edit v0.19.15 (*)
+
+toml_edit v0.20.2 (*)
+
+toml_edit v0.25.17+spec-1.1.0 (*)
+
+uuid v1.29.0 (*)
+
+uuid v1.29.0 (*)
+
+wasm-bindgen v0.2.130 (*)
+
+wasm-bindgen v0.2.130 (*)
+
+windows-sys v0.45.0
+└── jni v0.21.1 (*)
+
+windows-sys v0.52.0
+└── ring v0.17.14 (*)
+
+windows-sys v0.61.2
+├── dbus v0.9.12
+│   └── tao v0.37.2 (*)
+├── dirs-sys v0.5.0 (*)
+├── errno v0.3.14
+│   └── rustix v1.1.6 (*)
+├── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+├── mio v1.2.4
+│   └── tokio v1.54.1 (*)
+├── muda v0.20.0 (*)
+├── rustix v1.1.6 (*)
+├── rustls-platform-verifier v0.7.1 (*)
+├── schannel v0.1.30
+│   └── rustls-native-certs v0.8.5 (*)
+├── socket2 v0.6.5
+│   ├── hyper-util v0.1.21 (*)
+│   └── tokio v1.54.1 (*)
+├── softbuffer v0.4.8 (*)
+├── tempfile v3.27.0 (*)
+├── tokio v1.54.1 (*)
+└── window-vibrancy v0.8.1 (*)
+
+windows-sys v0.61.2
+├── winapi-util v0.1.11
+│   ├── same-file v1.0.6
+│   │   └── walkdir v2.5.0
+│   │       ├── tauri-build v2.7.4 (*)
+│   │       ├── tauri-codegen v2.7.4 (*)
+│   │       ├── tauri-utils v2.10.2 (*)
+│   │       └── tauri-utils v2.10.2 (*)
+│   │       [build-dependencies]
+│   │       ├── jni v0.21.1 (*)
+│   │       └── jni v0.22.4 (*)
+│   └── walkdir v2.5.0 (*)
+└── winreg v0.56.0
+    └── embed-resource v3.0.12 (*)
+
+windows-targets v0.42.2
+└── windows-sys v0.45.0 (*)
+
+windows-targets v0.52.6
+└── windows-sys v0.52.0 (*)
+
+windows_aarch64_gnullvm v0.42.2
+└── windows-targets v0.42.2 (*)
+
+windows_aarch64_gnullvm v0.52.6
+└── windows-targets v0.52.6 (*)
+
+windows_aarch64_msvc v0.42.2
+└── windows-targets v0.42.2 (*)
+
+windows_aarch64_msvc v0.52.6
+└── windows-targets v0.52.6 (*)
+
+windows_i686_gnu v0.42.2
+└── windows-targets v0.42.2 (*)
+
+windows_i686_gnu v0.52.6
+└── windows-targets v0.52.6 (*)
+
+windows_i686_msvc v0.42.2
+└── windows-targets v0.42.2 (*)
+
+windows_i686_msvc v0.52.6
+└── windows-targets v0.52.6 (*)
+
+windows_x86_64_gnu v0.42.2
+└── windows-targets v0.42.2 (*)
+
+windows_x86_64_gnu v0.52.6
+└── windows-targets v0.52.6 (*)
+
+windows_x86_64_gnullvm v0.42.2
+└── windows-targets v0.42.2 (*)
+
+windows_x86_64_gnullvm v0.52.6
+└── windows-targets v0.52.6 (*)
+
+windows_x86_64_msvc v0.42.2
+└── windows-targets v0.42.2 (*)
+
+windows_x86_64_msvc v0.52.6
+└── windows-targets v0.52.6 (*)
+
+winnow v0.5.40
+├── toml_edit v0.19.15 (*)
+└── toml_edit v0.20.2 (*)
+
+winnow v1.0.4
+├── toml v1.1.8+spec-1.1.0 (*)
+├── toml_edit v0.25.17+spec-1.1.0 (*)
+└── toml_parser v1.1.5+spec-1.1.0
+    ├── toml v1.1.8+spec-1.1.0 (*)
+    └── toml_edit v0.25.17+spec-1.1.0 (*)

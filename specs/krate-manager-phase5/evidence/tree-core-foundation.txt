@@ -1,0 +1,23 @@
+core-foundation v0.10.1
+├── core-graphics v0.25.0
+│   └── tao v0.37.2
+│       └── tauri-runtime-wry v2.12.3
+│           └── tauri v2.12.5
+│               └── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+├── core-graphics-types v0.2.0
+│   └── core-graphics v0.25.0 (*)
+├── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core)
+│   └── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+│   [dev-dependencies]
+│   ├── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+│   └── krate-manager-helper v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\helper)
+├── rustls-platform-verifier v0.7.1
+│   └── ureq v3.5.0
+│       └── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+├── security-framework v3.7.0
+│   ├── rustls-native-certs v0.8.5
+│   │   └── rustls-platform-verifier v0.7.1 (*)
+│   └── rustls-platform-verifier v0.7.1 (*)
+├── system-configuration v0.8.0
+│   └── krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+└── tao v0.37.2 (*)

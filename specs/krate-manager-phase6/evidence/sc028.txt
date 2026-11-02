@@ -1,0 +1,4 @@
+# 2026-10-31 close lane A11 (SC-028): specs/Krate-manager-roadmap.md, every whitespace run collapsed to one space;
+# needles and counts from specs/krate-manager-phase6/evidence/sc028-needles.json; the roadmap's hunks are checked by L-SCOPE (A7b, C2)
+ok  got=1 want=1 "in the plugin's install dir under the compiled-in Windows plug-in root"
+ok  got=1 want=1 "is never uninstalled by the helper"

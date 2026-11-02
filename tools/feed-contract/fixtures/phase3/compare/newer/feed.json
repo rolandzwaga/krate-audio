@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "plugins": {
+    "Alpha": {
+      "version": "1.1.0",
+      "download_url": "https://krateaudio.com/alpha/",
+      "release_notes": "",
+      "tag": "alpha/v1.1.0",
+      "pub_date": "2026-10-01T10:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.1.0"
+    },
+    "Bravo": {
+      "version": "2.0.0",
+      "download_url": "https://krateaudio.com/bravo/",
+      "release_notes": "",
+      "tag": "bravo/v2.0.0",
+      "pub_date": "2026-08-20T09:30:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.0.0"
+    }
+  }
+}

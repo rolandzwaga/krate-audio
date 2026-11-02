@@ -1,0 +1,1 @@
+gen-feed: E_URL_NOT_HTTPS: alpha/version.json: plugin Alpha: url: not an https URL without whitespace: "http://krateaudio.com/alpha/" (it is the v1 download_url)

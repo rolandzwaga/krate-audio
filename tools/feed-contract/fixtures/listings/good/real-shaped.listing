@@ -1,0 +1,14 @@
+d 0755 Alpha.vst3
+d 0755 Alpha.vst3/Contents
+d 0755 Alpha.vst3/Contents/Resources
+f 0644 Alpha.vst3/Contents/Resources/editor.uidesc
+f 0644 Alpha.vst3/Contents/Resources/moduleinfo.json
+d 0755 Alpha.vst3/Contents/x86_64-linux
+f 0644 Alpha.vst3/Contents/x86_64-linux/Alpha.so
+f 0644 CHANGELOG.txt
+f 0644 README.txt
+d 0755 presets
+f 0644 presets/Init.vstpreset
+d 0755 presets/Warm Pads
+f 0644 presets/Warm Pads/Night Air.vstpreset
+f 0644 presets/Warm Pads/Slow Swell.vstpreset

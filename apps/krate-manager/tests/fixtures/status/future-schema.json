@@ -1,0 +1,13 @@
+{
+  "os": "macos",
+  "edge_max_age_secs": 600,
+  "running_os": "15.7.9",
+  "feed": {
+    "source": "none",
+    "fetched_at_unix": null,
+    "schema_version": null,
+    "error": "E_FEED_FUTURE_SCHEMA: schema_version 3: a newer Krate Manager is needed"
+  },
+  "plugins": [],
+  "orphans": []
+}

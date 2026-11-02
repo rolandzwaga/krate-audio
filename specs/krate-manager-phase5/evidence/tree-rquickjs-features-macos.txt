@@ -1,0 +1,6 @@
+rquickjs v0.14.0
+├── rquickjs feature "default"
+│   └── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core)
+│       └── krate-manager-core feature "default" (command-line)
+└── rquickjs feature "std"
+    └── rquickjs feature "default" (*)

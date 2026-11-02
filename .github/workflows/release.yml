@@ -46,6 +46,10 @@ on:
         description: 'Mark as pre-release?'
         type: boolean
         default: false
+      dry_run:
+        description: 'Build, sign with a throwaway key and upload as workflow artifacts only: no tag, no release, no Pages deploy'
+        type: boolean
+        default: false
 
 # Prevent duplicate runs
 concurrency:
@@ -336,6 +340,34 @@ jobs:
             --install-location / \
             "${PLUGIN_NAME}-${VERSION}-macOS.pkg"
 
+      - name: Setup Node (facts)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Record macOS facts
+        env:
+          PKG: ${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
+        run: |
+          set -euo pipefail
+          pkgutil --expand-full "$PKG" "$RUNNER_TEMP/pkg-x"
+          node tools/release-facts.js darwin --pkg "$PKG" --expanded "$RUNNER_TEMP/pkg-x" --out darwin-facts.json > "$RUNNER_TEMP/macho.tsv"
+          while IFS=$'\t' read -r want file; do
+            got=$(lipo -archs "$RUNNER_TEMP/pkg-x/$file" | tr ' ' '\n' | sed '/^$/d' | LC_ALL=C sort | paste -sd ' ' -)
+            if [ "$got" != "$want" ]; then echo "::error::lipo -archs '$file' = '$got', release-facts = '$want'"; exit 1; fi
+          done < "$RUNNER_TEMP/macho.tsv"
+          jq -r '"platform_key=\(.platform_key) min_os=\(.min_os)"' darwin-facts.json
+
+      - name: Upload macOS facts
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-facts
+          path: darwin-facts.json
+          if-no-files-found: error
+
       - name: Upload Installer
         uses: actions/upload-artifact@v7
         with:
@@ -402,6 +434,36 @@ jobs:
           cd staging
           tar -czvf ../${PLUGIN_NAME}-${VERSION}-Linux-x64.tar.gz *
 
+      - name: Setup Node (facts)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Record Linux facts
+        env:
+          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          umask 000   # PD-13: extracted modes = archive modes
+          TARBALL="${PLUGIN_NAME}-${VERSION}-Linux-x64.tar.gz"
+          node tools/release-facts.js linux-precheck --tarball "$TARBALL"   # PD-26: listing + layout before tar runs
+          mkdir -p "$RUNNER_TEMP/tar-x"
+          tar -xzf "$TARBALL" -C "$RUNNER_TEMP/tar-x"
+          objdump -T "$RUNNER_TEMP/tar-x/${PLUGIN_NAME}.vst3/Contents/x86_64-linux/${PLUGIN_NAME}.so" > "$RUNNER_TEMP/objdump.txt"
+          node tools/release-facts.js linux --tarball "$TARBALL" --extracted "$RUNNER_TEMP/tar-x" --objdump "$RUNNER_TEMP/objdump.txt" --out linux-facts.json
+          jq -r '"glibc_floor=\(.min_os) payload_files=\(.payload.files)"' linux-facts.json
+
+      - name: Upload Linux facts
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-facts
+          path: linux-facts.json
+          if-no-files-found: error
+
       - name: Upload Archive
         uses: actions/upload-artifact@v7
         with:
@@ -414,8 +476,11 @@ jobs:
     name: Create Release
     needs: [version, windows-installer, macos-installer, linux-archive]
     runs-on: ubuntu-latest
+    environment: signing
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     outputs:
       release_url: ${{ steps.release.outputs.url }}
 
@@ -510,9 +575,103 @@ jobs:
           echo "=== Generated Release Notes ==="
           cat release_notes.md
 
+      - name: Tag must not exist                 # PD-21: never replace a published release's assets
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then echo "::error::tag $TAG already exists"; exit 1; fi
+          gh release list --repo "${{ github.repository }}" --limit 1000 --json tagName | jq -r '.[].tagName' > "$RUNNER_TEMP/release-tags.txt"
+          test "$(wc -l < "$RUNNER_TEMP/release-tags.txt")" -lt 1000
+          if grep -Fxq -- "$TAG" "$RUNNER_TEMP/release-tags.txt"; then echo "::error::release $TAG already exists"; exit 1; fi
+
+      - name: Download macOS facts
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-facts
+          path: facts
+
+      - name: Download Linux facts
+        uses: actions/download-artifact@v8
+        with:
+          name: linux-facts
+          path: facts
+
+      - name: Setup Node (signing)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Install rsign2                     # fresh, never a cache: this job decrypts the real key (R-15)
+        run: cargo install rsign2 --version 0.6.7 --locked
+
+      - name: Check rsign2 version
+        run: test "$(rsign --version)" = "rsign2 0.6.7"
+
+      - name: Signing configuration and key
+        env:
+          KRATE_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KRATE_SIGNING_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          MODE=$(node tools/gen-release-manifest.js --signing-config --dry-run ${{ inputs.dry_run }} --public-key tools/feed-contract/keys/krate-signing.pub)
+          echo "$MODE"
+          case "$MODE" in
+            signing=throwaway) rsign generate -W -p "$RUNNER_TEMP/krate.pub" -s "$RUNNER_TEMP/krate.key" < /dev/null ;;
+            signing=on)
+              node tools/minisign.js decrypt-key --out "$RUNNER_TEMP/krate.key"
+              cp tools/feed-contract/keys/krate-signing.pub "$RUNNER_TEMP/krate.pub" ;;
+            *) echo "::error::unexpected signing mode"; exit 1 ;;
+          esac
+
+      - name: Sign assets
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+        run: |
+          set -euo pipefail
+          node tools/gen-release-manifest.js --trusted-comments --version-json "plugins/${PLUGIN}/version.json" \
+            --assets installers --darwin-facts facts/darwin-facts.json > "$RUNNER_TEMP/comments.tsv"
+          test "$(wc -l < "$RUNNER_TEMP/comments.tsv")" -eq 3
+          while IFS=$'\t' read -r asset comment; do
+            rsign sign -W -s "$RUNNER_TEMP/krate.key" -t "$comment" -x "installers/${asset}.minisig" "installers/${asset}" < /dev/null
+          done < "$RUNNER_TEMP/comments.tsv"
+
+      - name: Delete signing key (after signing)  # PD-20: no later step runs while the key exists
+        run: rm -f "$RUNNER_TEMP/krate.key"
+
+      - name: Write release.json and SHA256SUMS
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          node tools/gen-release-manifest.js --version-json "plugins/${PLUGIN}/version.json" \
+            --setup-iss "plugins/${PLUGIN}/installers/windows/setup.iss" --assets installers \
+            --darwin-facts facts/darwin-facts.json --linux-facts facts/linux-facts.json \
+            --repo "${{ github.repository }}" --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --public-key "$RUNNER_TEMP/krate.pub" --out installers/release.json --sums-out installers/SHA256SUMS
+          test "$(jq -r .tag installers/release.json)" = "$TAG"   # PD-11
+
+      - name: Verify signatures and sums
+        run: |
+          set -euo pipefail
+          cd installers
+          while IFS=$'\t' read -r asset comment; do
+            node ../tools/minisign.js verify -p "$RUNNER_TEMP/krate.pub" -x "${asset}.minisig" "${asset}"
+            rsign verify -p "$RUNNER_TEMP/krate.pub" -x "${asset}.minisig" "${asset}"
+          done < "$RUNNER_TEMP/comments.tsv"
+          sha256sum -c SHA256SUMS
+
       # Create GitHub Release and tag
       - name: Create Release
         id: release
+        if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
@@ -520,10 +679,54 @@ jobs:
           draft: false
           prerelease: ${{ inputs.prerelease }}
           body_path: release_notes.md
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          fail_on_unmatched_files: true
+          overwrite_files: false
           files: |
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
+            installers/SHA256SUMS
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe.minisig
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg.minisig
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz.minisig
+            installers/release.json
+
+      - name: Attest build provenance              # PD-12: after the release exists
+        if: ${{ !inputs.dry_run }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
+
+      - name: Stage dry-run artifact
+        if: ${{ inputs.dry_run }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-dry-run"
+          cp installers/* "$RUNNER_TEMP/release-dry-run/"
+          cp "$RUNNER_TEMP/krate.pub" "$RUNNER_TEMP/release-dry-run/krate.pub"
+
+      - name: Upload dry-run artifact
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-dry-run
+          path: ${{ runner.temp }}/release-dry-run
+          if-no-files-found: error
+
+      - name: Verify dry-run artifact            # FR-048: the Node verifier over the real assets
+        if: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/release-dry-run"
+          while IFS=$'\t' read -r asset comment; do node "$GITHUB_WORKSPACE/tools/minisign.js" verify -p krate.pub -x "${asset}.minisig" "${asset}"; done < "$RUNNER_TEMP/comments.tsv"
+
+      - name: Delete signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/krate.key"
 
   # Deploy plugin landing page to GitHub Pages (incremental via gh-pages branch)
   # Each release updates only its plugin subdirectory and regenerates the root index.
@@ -531,6 +734,7 @@ jobs:
   deploy-pages:
     name: Deploy Landing Page
     needs: [version, release]
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -582,6 +786,11 @@ jobs:
               "_site/${PLUGIN}/signal-flow.html"
           fi
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Generate Root Index
         env:
           REPO: ${{ github.repository }}
@@ -591,98 +800,7 @@ jobs:
           # Copy root page assets
           cp docs/assets/style.css _site/assets/
 
-          # Generate plugin cards from all version.json files and fill root template
-          # Version comes from git tags — plugins without a tag show no version badge
-          python3 << 'PYEOF'
-          import json, glob, os, subprocess
-
-          plugins = []
-          for vj in sorted(glob.glob('plugins/*/version.json')):
-              plugin_dir = os.path.basename(os.path.dirname(vj))
-              # Check for a release tag first — unreleased plugins get no card
-              try:
-                  tag = subprocess.check_output(
-                      f'git tag -l "{plugin_dir}/v*" --sort=-v:refname | head -1',
-                      shell=True, text=True
-                  ).strip()
-              except Exception:
-                  tag = ''
-              if not tag:
-                  continue
-              with open(vj) as f:
-                  data = json.load(f)
-              data['dir'] = plugin_dir
-              data['has_page'] = os.path.isfile(f'plugins/{plugin_dir}/docs/index.html')
-              data['version'] = tag.split('/v')[-1]
-              plugins.append(data)
-
-          cards = '\n'.join([
-              f'                <a href="{p["dir"]}/" class="plugin-card">'
-              f'\n                    <h2>{p["name"]}</h2>'
-              f'\n                    <p class="description">{p["description"]}</p>'
-              f'\n                    <span class="version">v{p["version"]}</span>'
-              f'\n                </a>'
-              if p['has_page'] else
-              f'                <div class="plugin-card">'
-              f'\n                    <h2>{p["name"]}</h2>'
-              f'\n                    <p class="description">{p["description"]}</p>'
-              f'\n                    <span class="version">v{p["version"]}</span>'
-              f'\n                </div>'
-              for p in plugins
-          ])
-
-          repo = os.environ['REPO']
-          with open('docs/index-template.html') as f:
-              template = f.read()
-
-          html = template.replace('{{PLUGIN_CARDS}}', cards).replace('{{REPO}}', repo)
-
-          os.makedirs('_site', exist_ok=True)
-          with open('_site/index.html', 'w') as f:
-              f.write(html)
-          PYEOF
-
-      - name: Generate Update Checker Endpoint
-        run: |
-          # Generate versions.json for the in-plugin update checker
-          # Version comes exclusively from git tags — plugins without a release tag are skipped
-          node -e '
-          const fs = require("fs");
-          const path = require("path");
-          const { execSync } = require("child_process");
-          const glob = execSync("ls plugins/*/version.json")
-            .toString().trim().split("\n");
-
-          const plugins = {};
-          for (const vj of glob) {
-            const data = JSON.parse(fs.readFileSync(vj, "utf8"));
-            const dir = path.basename(path.dirname(vj));
-
-            // Get version from latest git tag (e.g. "ruinae/v0.9.9" -> "0.9.9")
-            const pluginLower = data.name.toLowerCase();
-            let tag = "";
-            try {
-              tag = execSync(`git tag -l "${pluginLower}/v*" --sort=-v:refname | head -1`)
-                .toString().trim();
-            } catch {}
-            if (!tag) {
-              console.log(`  No release tag for ${data.name} — skipping`);
-              continue;
-            }
-            const version = tag.replace(/.*\/v/, "");
-
-            plugins[data.name] = {
-              version,
-              download_url: data.url,
-              release_notes: ""
-            };
-          }
-
-          const output = { schema_version: 1, plugins };
-          fs.mkdirSync("_site", { recursive: true });
-          fs.writeFileSync("_site/versions.json", JSON.stringify(output, null, 2) + "\n");
-          console.log("Generated versions.json:", JSON.stringify(output, null, 2));
-          '
+          node tools/gen-root-index.js --out _site/index.html
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
@@ -690,3 +808,14 @@ jobs:
           github_token: ${{ github.token }}
           publish_dir: ./_site
           keep_files: true
+
+  # versions.json (the in-plugin update checker and the manager read it) is built, checked and deployed by the
+  # reusable feed workflow (specs/krate-manager-phase3/spec.md FR-030; plan §4.4). On a dry run feed.yml checks only.
+  feed:
+    needs: [release, deploy-pages]
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/feed.yml
+    with:
+      dry_run: ${{ inputs.dry_run }}

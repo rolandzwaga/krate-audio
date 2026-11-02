@@ -1,0 +1,281 @@
+name: Backfill sign
+
+# ==============================================================================
+# Backfill sign: adds SHA256SUMS, one .minisig per asset and release.json to each
+# plugin's current GitHub release, published before the release workflow signed
+# (specs/krate-manager-phase2/spec.md FR-051 to FR-059a; plan §4.9).
+#
+# Manual dispatch only. The default is a dry run: everything is signed with the
+# real key in a job whose token cannot write, and the output is uploaded as a
+# workflow artifact. A live run adds files to releases and never replaces one.
+# The plugin set is the version.json files under plugins/, never a list here.
+#
+# The signing secrets are environment secrets of the `signing` environment
+# (deployment branches: main only); only the two apply jobs reference it.
+# ==============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Sign and upload as workflow artifacts only (no gh release upload)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: backfill-sign
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Plan the backfill
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/plan"
+          node tools/backfill-sign.js plan --plugins-dir plugins --repo "${{ github.repository }}" --out "$RUNNER_TEMP/plan/plan.json"
+
+      - name: Upload plan
+        uses: actions/upload-artifact@v7
+        with:
+          name: backfill-plan
+          path: ${{ runner.temp }}/plan
+          if-no-files-found: error
+
+  facts-macos:
+    name: Facts (macOS)
+    needs: plan
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Download plan
+        uses: actions/download-artifact@v8
+        with:
+          name: backfill-plan
+          path: ${{ runner.temp }}/plan
+
+      - name: Download macOS installers
+        run: node tools/backfill-sign.js download --plan "$RUNNER_TEMP/plan/plan.json" --format pkg --dir "$RUNNER_TEMP/dl" --repo "${{ github.repository }}"
+
+      - name: Record macOS facts
+        run: node tools/backfill-sign.js facts --plan "$RUNNER_TEMP/plan/plan.json" --os darwin --dir "$RUNNER_TEMP/dl" --work "$RUNNER_TEMP/work" --out "$RUNNER_TEMP/facts"
+
+      - name: Upload macOS facts
+        uses: actions/upload-artifact@v7
+        with:
+          name: backfill-facts-darwin
+          path: ${{ runner.temp }}/facts
+          if-no-files-found: error
+
+  facts-linux:
+    name: Facts (Linux)
+    needs: plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Download plan
+        uses: actions/download-artifact@v8
+        with:
+          name: backfill-plan
+          path: ${{ runner.temp }}/plan
+
+      - name: Download Linux archives
+        run: node tools/backfill-sign.js download --plan "$RUNNER_TEMP/plan/plan.json" --format tar.gz --dir "$RUNNER_TEMP/dl" --repo "${{ github.repository }}"
+
+      - name: Record Linux facts
+        run: |
+          umask 000   # PD-13: extracted modes = archive modes
+          set -euo pipefail
+          node tools/backfill-sign.js facts --plan "$RUNNER_TEMP/plan/plan.json" --os linux --dir "$RUNNER_TEMP/dl" --work "$RUNNER_TEMP/work" --out "$RUNNER_TEMP/facts"
+
+      - name: Upload Linux facts
+        uses: actions/upload-artifact@v7
+        with:
+          name: backfill-facts-linux
+          path: ${{ runner.temp }}/facts
+          if-no-files-found: error
+
+  apply-dry:
+    name: Apply (dry run)
+    if: ${{ inputs.dry_run }}
+    needs: [plan, facts-macos, facts-linux]
+    runs-on: ubuntu-latest
+    environment: signing
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # PD-14: git show <tag>:... needs the tags
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Install rsign2                     # fresh, never a cache: this job decrypts the real key (R-15)
+        run: cargo install rsign2 --version 0.6.7 --locked
+
+      - name: Check rsign2 version
+        run: test "$(rsign --version)" = "rsign2 0.6.7"
+
+      - name: Download plan
+        uses: actions/download-artifact@v8
+        with:
+          name: backfill-plan
+          path: ${{ runner.temp }}/plan
+
+      - name: Download facts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: backfill-facts-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/facts
+
+      - name: Signing configuration and key
+        env:
+          KRATE_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KRATE_SIGNING_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          MODE=$(node tools/gen-release-manifest.js --signing-config --dry-run false --public-key tools/feed-contract/keys/krate-signing.pub)
+          echo "$MODE"
+          test "$MODE" = "signing=on"
+          node tools/minisign.js decrypt-key --out "$RUNNER_TEMP/krate.key"
+
+      - name: Backfill apply
+        run: |
+          set -euo pipefail
+          node tools/backfill-sign.js apply --plan "$RUNNER_TEMP/plan/plan.json" --plugins-dir plugins \
+            --facts "$RUNNER_TEMP/facts" --key "$RUNNER_TEMP/krate.key" \
+            --public-key tools/feed-contract/keys/krate-signing.pub --repo "${{ github.repository }}" \
+            --work "$RUNNER_TEMP/work" --out-dir "$RUNNER_TEMP/out" --dry-run
+
+      - name: Upload backfill output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backfill-sign-output
+          path: ${{ runner.temp }}/out
+
+      - name: Delete signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/krate.key"
+
+  apply-live:
+    name: Apply (live)
+    if: ${{ !inputs.dry_run }}
+    needs: [plan, facts-macos, facts-linux]
+    runs-on: ubuntu-latest
+    environment: signing
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # PD-14: git show <tag>:... needs the tags
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
+      - name: Install rsign2                     # fresh, never a cache: this job decrypts the real key (R-15)
+        run: cargo install rsign2 --version 0.6.7 --locked
+
+      - name: Check rsign2 version
+        run: test "$(rsign --version)" = "rsign2 0.6.7"
+
+      - name: Download plan
+        uses: actions/download-artifact@v8
+        with:
+          name: backfill-plan
+          path: ${{ runner.temp }}/plan
+
+      - name: Download facts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: backfill-facts-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/facts
+
+      - name: Signing configuration and key
+        env:
+          KRATE_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KRATE_SIGNING_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          MODE=$(node tools/gen-release-manifest.js --signing-config --dry-run false --public-key tools/feed-contract/keys/krate-signing.pub)
+          echo "$MODE"
+          test "$MODE" = "signing=on"
+          node tools/minisign.js decrypt-key --out "$RUNNER_TEMP/krate.key"
+
+      - name: Backfill apply
+        run: |
+          set -euo pipefail
+          node tools/backfill-sign.js apply --plan "$RUNNER_TEMP/plan/plan.json" --plugins-dir plugins \
+            --facts "$RUNNER_TEMP/facts" --key "$RUNNER_TEMP/krate.key" \
+            --public-key tools/feed-contract/keys/krate-signing.pub --repo "${{ github.repository }}" \
+            --work "$RUNNER_TEMP/work" --out-dir "$RUNNER_TEMP/out"
+
+      - name: Upload backfill output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backfill-sign-output
+          path: ${{ runner.temp }}/out
+
+      - name: Delete signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/krate.key"

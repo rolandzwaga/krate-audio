@@ -1,0 +1,375 @@
+{
+  "os": "windows",
+  "edge_max_age_secs": 600,
+  "running_os": "10.0.26200",
+  "feed": {
+    "source": "fresh",
+    "fetched_at_unix": 1700000000,
+    "schema_version": 2,
+    "error": null
+  },
+  "plugins": [
+    {
+      "name": "Alpha",
+      "latest": "1.2.0",
+      "availability": "available",
+      "min_os": null,
+      "installed": "version",
+      "installed_version": "1.2.0",
+      "update": "up_to_date",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_user",
+          "vendor_folder": false,
+          "nested": false,
+          "path": "/fixture/vst3-user/Alpha.vst3",
+          "managed": false,
+          "loads_before_managed": true,
+          "version": "1.1.0",
+          "version_source": "top_level",
+          "unknown_reason": null
+        },
+        {
+          "format": "vst3",
+          "place": "vst3_global",
+          "vendor_folder": true,
+          "nested": false,
+          "path": "/fixture/vst3-global/Krate Audio/Alpha/Alpha.vst3",
+          "managed": true,
+          "loads_before_managed": false,
+          "version": "1.2.0",
+          "version_source": "classes",
+          "unknown_reason": null
+        }
+      ],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.2.0",
+      "notes": [
+        {
+          "type": "heading",
+          "level": 3,
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Fixed"
+            }
+          ]
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "start": null,
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "inlines": [
+                  {
+                    "type": "text",
+                    "text": "A fixture note."
+                  }
+                ]
+              }
+            ]
+          ]
+        }
+      ],
+      "actions": [],
+      "remove_hint": null
+    },
+    {
+      "name": "Bravo",
+      "latest": "2.0.1",
+      "availability": "available",
+      "min_os": null,
+      "installed": "version",
+      "installed_version": "1.0.0",
+      "update": "update_available",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_global",
+          "vendor_folder": true,
+          "nested": false,
+          "path": "/fixture/vst3-global/Krate Audio/Bravo/Bravo.vst3",
+          "managed": true,
+          "loads_before_managed": false,
+          "version": "1.0.0",
+          "version_source": "classes",
+          "unknown_reason": null
+        }
+      ],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.0.1",
+      "notes": [],
+      "actions": [],
+      "remove_hint": null
+    },
+    {
+      "name": "Charlie",
+      "latest": "0.9.0",
+      "availability": "available",
+      "min_os": null,
+      "installed": "version_unknown",
+      "installed_version": null,
+      "update": "unknown",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_global",
+          "vendor_folder": true,
+          "nested": false,
+          "path": "/fixture/vst3-global/Krate Audio/Charlie/Charlie.vst3",
+          "managed": true,
+          "loads_before_managed": false,
+          "version": null,
+          "version_source": null,
+          "unknown_reason": "single_file"
+        }
+      ],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v0.9.0",
+      "notes": [],
+      "actions": [],
+      "remove_hint": null
+    },
+    {
+      "name": "Delta",
+      "latest": "0.1.0",
+      "availability": "not_for_this_machine",
+      "min_os": null,
+      "installed": "version",
+      "installed_version": "0.2.0",
+      "update": "installed_newer",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_global",
+          "vendor_folder": true,
+          "nested": false,
+          "path": "/fixture/vst3-global/Krate Audio/Delta/Delta.vst3",
+          "managed": true,
+          "loads_before_managed": false,
+          "version": "0.2.0",
+          "version_source": "classes",
+          "unknown_reason": null
+        }
+      ],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/delta/v0.1.0",
+      "notes": [],
+      "actions": [],
+      "remove_hint": null
+    },
+    {
+      "name": "Echo",
+      "latest": "0.2.0",
+      "availability": "not_for_this_machine",
+      "min_os": null,
+      "installed": "not_installed",
+      "installed_version": null,
+      "update": "not_installed",
+      "copies": [],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/echo/v0.2.0",
+      "notes": [],
+      "actions": [],
+      "remove_hint": null
+    },
+    {
+      "name": "Foxtrot",
+      "latest": "0.3.0",
+      "availability": "not_for_this_machine",
+      "min_os": null,
+      "installed": "elsewhere",
+      "installed_version": "0.3.0",
+      "update": "not_installed",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_user",
+          "vendor_folder": false,
+          "nested": false,
+          "path": "/fixture/vst3-user/Foxtrot.vst3",
+          "managed": false,
+          "loads_before_managed": true,
+          "version": null,
+          "version_source": null,
+          "unknown_reason": "no_moduleinfo"
+        },
+        {
+          "format": "vst3",
+          "place": "vst3_global",
+          "vendor_folder": false,
+          "nested": false,
+          "path": "/fixture/vst3-global/Foxtrot.vst3",
+          "managed": false,
+          "loads_before_managed": false,
+          "version": "0.3.0",
+          "version_source": "classes",
+          "unknown_reason": null
+        }
+      ],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/foxtrot/v0.3.0",
+      "notes": [],
+      "actions": [],
+      "remove_hint": null
+    },
+    {
+      "name": "Golf",
+      "latest": "0.4.0",
+      "availability": "not_for_this_machine",
+      "min_os": null,
+      "installed": "version_unknown",
+      "installed_version": null,
+      "update": "unknown",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_user",
+          "vendor_folder": false,
+          "nested": false,
+          "path": "/fixture/vst3-user/Golf.vst3",
+          "managed": false,
+          "loads_before_managed": true,
+          "version": null,
+          "version_source": null,
+          "unknown_reason": "classes_disagree"
+        },
+        {
+          "format": "vst3",
+          "place": "vst3_global",
+          "vendor_folder": true,
+          "nested": false,
+          "path": "/fixture/vst3-global/Krate Audio/Golf/Golf.vst3",
+          "managed": true,
+          "loads_before_managed": false,
+          "version": null,
+          "version_source": null,
+          "unknown_reason": "too_large"
+        }
+      ],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/golf/v0.4.0",
+      "notes": [],
+      "actions": [],
+      "remove_hint": null
+    },
+    {
+      "name": "Hotel",
+      "latest": "0.5.0",
+      "availability": "not_for_this_machine",
+      "min_os": null,
+      "installed": "version_unknown",
+      "installed_version": null,
+      "update": "unknown",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_user",
+          "vendor_folder": false,
+          "nested": false,
+          "path": "/fixture/vst3-user/Hotel.vst3",
+          "managed": false,
+          "loads_before_managed": true,
+          "version": null,
+          "version_source": null,
+          "unknown_reason": "no_version"
+        },
+        {
+          "format": "vst3",
+          "place": "vst3_global",
+          "vendor_folder": true,
+          "nested": false,
+          "path": "/fixture/vst3-global/Krate Audio/Hotel/Hotel.vst3",
+          "managed": true,
+          "loads_before_managed": false,
+          "version": null,
+          "version_source": null,
+          "unknown_reason": "unreadable"
+        }
+      ],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/hotel/v0.5.0",
+      "notes": [],
+      "actions": [],
+      "remove_hint": null
+    },
+    {
+      "name": "India",
+      "latest": "0.6.0",
+      "availability": "not_for_this_machine",
+      "min_os": null,
+      "installed": "version_unknown",
+      "installed_version": null,
+      "update": "unknown",
+      "copies": [
+        {
+          "format": "vst3",
+          "place": "vst3_global",
+          "vendor_folder": true,
+          "nested": false,
+          "path": "/fixture/vst3-global/Krate Audio/India/India.vst3",
+          "managed": true,
+          "loads_before_managed": false,
+          "version": null,
+          "version_source": null,
+          "unknown_reason": "corrupt"
+        }
+      ],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/india/v0.6.0",
+      "notes": [],
+      "actions": [],
+      "remove_hint": null
+    },
+    {
+      "name": "Juliet",
+      "latest": "0.7.0",
+      "availability": "not_through_manager",
+      "min_os": null,
+      "installed": "not_checked",
+      "installed_version": null,
+      "update": null,
+      "copies": [],
+      "record": null,
+      "record_error": null,
+      "record_without_files": false,
+      "record_version_differs": false,
+      "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/juliet/v0.7.0",
+      "notes": [],
+      "actions": [],
+      "remove_hint": null
+    }
+  ],
+  "orphans": []
+}

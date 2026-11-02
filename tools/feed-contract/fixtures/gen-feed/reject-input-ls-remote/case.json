@@ -1,0 +1,9 @@
+{
+  "group": "reject",
+  "modes": [
+    "legacy"
+  ],
+  "repo": "rolandzwaga/krate-audio",
+  "exit": 1,
+  "error": "E_INPUT"
+}

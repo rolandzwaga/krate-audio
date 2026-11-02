@@ -1,0 +1,23 @@
+webpki-roots v1.0.11
+└── ureq v3.5.0
+    ├── ureq feature "_ring"
+    │   └── ureq feature "rustls"
+    │       └── ureq feature "default"
+    │           └── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core)
+    │               └── krate-manager-core feature "default" (command-line)
+    ├── ureq feature "_rustls"
+    │   └── ureq feature "rustls-no-provider"
+    │       └── ureq feature "rustls" (*)
+    ├── ureq feature "_tls"
+    │   └── ureq feature "rustls-no-provider" (*)
+    ├── ureq feature "default" (*)
+    ├── ureq feature "gzip"
+    │   └── ureq feature "default" (*)
+    ├── ureq feature "platform-verifier"
+    │   └── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)
+    ├── ureq feature "rustls" (*)
+    ├── ureq feature "rustls-no-provider" (*)
+    ├── ureq feature "rustls-webpki-roots"
+    │   └── ureq feature "rustls" (*)
+    └── ureq feature "socks-proxy"
+        └── krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core) (*)

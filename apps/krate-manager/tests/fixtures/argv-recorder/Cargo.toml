@@ -1,0 +1,4 @@
+[package]
+name = "argv-recorder"
+edition = "2024"
+publish = false

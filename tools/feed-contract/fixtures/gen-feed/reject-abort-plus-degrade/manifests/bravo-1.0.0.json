@@ -1,0 +1,57 @@
+{
+  "tag": "bravo/v1.0.0",
+  "name": "Bravo",
+  "version": "1.0.0",
+  "pub_date": "2026-10-29T00:00:00Z",
+  "assets": {
+    "darwin-aarch64": {
+      "name": "Bravo-1.0.0-macOS.pkg",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/bravo/v1.0.0/Bravo-1.0.0-macOS.pkg",
+      "size": 42,
+      "sha256": "db288a3d76216fcf10c011849c896ef446c976b2867034d0eb7dde819b629a69",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Bravo:1.0.0:darwin-aarch64:Bravo-1.0.0-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "pkg",
+      "min_os": "11.0"
+    },
+    "linux-x86_64": {
+      "name": "Bravo-1.0.0-Linux-x64.tar.gz",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/bravo/v1.0.0/Bravo-1.0.0-Linux-x64.tar.gz",
+      "size": 49,
+      "sha256": "0aa22a0629eb860c5db8b28230cd3d573014fd081a8a2911eca5f740d5714524",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Bravo:1.0.0:linux-x86_64:Bravo-1.0.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "tar.gz",
+      "min_os": "2.31",
+      "payload": {
+        "files": 10,
+        "sha256": "00d5aeb6b16e6fc10fb64a98a3bcd0b2fe78dddda662c3b7e73e7d718985414f",
+        "list": [
+          "d 0755 Bravo.vst3",
+          "d 0755 Bravo.vst3/Contents",
+          "d 0755 Bravo.vst3/Contents/Resources",
+          "f 0644 Bravo.vst3/Contents/Resources/moduleinfo.json",
+          "d 0755 Bravo.vst3/Contents/x86_64-linux",
+          "f 0755 Bravo.vst3/Contents/x86_64-linux/Bravo.so",
+          "f 0644 CHANGELOG.txt",
+          "f 0644 README.txt",
+          "d 0755 presets",
+          "f 0644 presets/Default.preset"
+        ]
+      }
+    },
+    "windows-x86_64": {
+      "name": "Bravo-1.0.0-Windows-x64.exe",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/bravo/v1.0.0/Bravo-1.0.0-Windows-x64.exe",
+      "size": 48,
+      "sha256": "c9d99a16b8c8c3b62cb2b0d29ef2d20e458c9915b4b6fb0ea0a1904e7ac03a0b",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Bravo:1.0.0:linux-x86_64:Bravo-1.0.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "inno-exe",
+      "min_os": "10.0"
+    }
+  },
+  "install": {
+    "vst3_bundle": "Bravo.vst3",
+    "au_component": "Bravo.component",
+    "windows_uninstall_key": "{0A1F0000-0000-4000-8000-000000000002}_is1",
+    "macos_pkg_id": "com.krateaudio.bravo"
+  }
+}

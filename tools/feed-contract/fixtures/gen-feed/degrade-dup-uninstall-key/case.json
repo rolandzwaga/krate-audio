@@ -1,0 +1,19 @@
+{
+  "group": "degrade",
+  "modes": [
+    "v2",
+    "legacy"
+  ],
+  "repo": "rolandzwaga/krate-audio",
+  "exit": 3,
+  "warn": [
+    {
+      "code": "E_INSTALL_DUPLICATE",
+      "plugin": "Alpha"
+    },
+    {
+      "code": "E_INSTALL_DUPLICATE",
+      "plugin": "Bravo"
+    }
+  ]
+}

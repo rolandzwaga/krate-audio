@@ -1,0 +1,13 @@
+Krate Manager Phase 7 base records (tasks T001, TA-11), recorded 2026-10-31 on feat/krate-manager at HEAD 2f3c93d7.
+
+$ ls -l --time-style=long-iso apps/krate-manager/target/release/krate-manager.exe
+-rwxr-xr-x 2 scab 197609 7650304 2026-10-31 19:07 apps/krate-manager/target/release/krate-manager.exe
+
+$ git log --format='%h %ci' -1 -- apps/krate-manager
+03d97890 2026-10-31 19:08:42 +0100
+
+$ git diff --stat 03d97890 2f3c93d7 -- apps/
+(empty: no app file changed between 03d97890 and 2f3c93d7)
+
+base binary: 7650304 bytes (Phase 6 close-lane release build, specs/krate-manager-phase6/evidence/timings.md row B7)
+scope base: 2f3c93d7

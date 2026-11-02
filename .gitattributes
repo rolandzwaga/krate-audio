@@ -20,3 +20,19 @@ specs/INDEX.md                     text eol=lf
 
 # Run from WSL against this (Windows, core.autocrlf=true) checkout: a CRLF copy fails in bash on the first line.
 tools/macos-fastmath-repro.sh       text eol=lf
+
+# A shebang tool: gen-manager-latest.test.js asserts LF, and a CRLF Windows checkout failed it (Feed tools, 29ba6cef).
+tools/gen-manager-latest.js         text eol=lf
+# A shebang tool whose test reads it as LF, like gen-manager-latest.js above (Krate Manager Phase 12, PD-16).
+tools/gen-root-index.js         text eol=lf
+
+# Byte-exact fixtures: signatures, SHA-256 digests and golden outputs compare raw bytes, and this checkout runs
+# core.autocrlf=true, which would rewrite them on Windows checkout.
+tools/feed-contract/fixtures/** -text
+# The release public key is compared as text by the manager's tests (verify_tests.rs) and compiled into it; a fresh
+# Windows checkout turned it CRLF (Manager CI's first run).
+tools/feed-contract/keys/** -text
+# M-1's recorded Inno run (Krate Manager Phase 10): replayed byte for byte by the helper and core tests.
+apps/krate-manager/tests/fixtures/helper/inno-locked/** -text
+# The rsign-format fixture of the Krate Manager Phase 11 refusal harness: its signature covers the raw bytes.
+apps/krate-manager/tests/fixtures/updater-refusals/fixtures/** -text

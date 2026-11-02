@@ -1,0 +1,7 @@
+[package]
+name = "locked-dll"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]

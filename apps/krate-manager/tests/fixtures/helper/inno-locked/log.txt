@@ -1,0 +1,10 @@
+2026-11-01 19:37:20.634   Setup version: Inno Setup version 6.7.1
+2026-11-01 19:37:20.634   Setup command line: /SL5="$3021A,846346,842752,D:\a\_temp\setups\Fixture-1.0.1-Windows-x64.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOCLOSEAPPLICATIONS /LOG=D:\a\_temp\inno-logs\setup-1.0.1.log
+2026-11-01 19:37:20.721   Dest filename: D:\a\_temp\real\root\VST3\Krate Audio\Fixture\Fixture.vst3\Contents\x86_64-win\Fixture.vst3
+2026-11-01 19:37:20.723   DeleteFile: The existing file appears to be in use (5). Retrying.
+2026-11-01 19:37:21.725   DeleteFile: The existing file appears to be in use (5). Retrying.
+2026-11-01 19:37:22.727   DeleteFile: The existing file appears to be in use (5). Retrying.
+2026-11-01 19:37:23.727   DeleteFile: The existing file appears to be in use (5). Retrying.
+2026-11-01 19:37:24.729   Defaulting to Abort for suppressed message box (Abort/Retry/Ignore):
+                          D:\a\_temp\real\root\VST3\Krate Audio\Fixture\Fixture.vst3\Contents\x86_64-win\Fixture.vst3
+                          DeleteFile failed; code 5.

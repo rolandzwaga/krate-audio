@@ -1,0 +1,26 @@
+[package]
+name = "updater-refusals"
+edition = "2024"
+publish = false
+
+[dependencies]
+krate-manager = { path = "../../../src-tauri" }
+krate-manager-core = { path = "../../../crates/core", features = ["test-support"] }
+tauri = { version = "2.12.5", features = ["test"] }
+tauri-plugin-updater = { version = "=2.14.1", default-features = false, features = ["rustls-tls"] }
+minisign = "0.10.0"
+tempfile = "3.27.0"
+serde_json = "1.0.154"
+base64 = "0.23.1"
+url = "2.5.8"
+semver = "1.0.28"          # map-errors: Error::Semver          (all four already locked, plan §1.2)
+http = "1.5.0"             # map-errors: Http, InvalidHeaderValue, InvalidHeaderName
+minisign-verify = "0.3.0"  # map-errors: Error::Minisign
+dirs = "7.0.0"             # src/confinement.rs only: the Windows known-folder snapshot (SI-29)
+
+[build-dependencies]
+tauri-winres = "0.3.7"
+
+[lints.clippy]
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"

@@ -1,0 +1,7 @@
+alpha/v1.9.0
+alpha/v1.10.0
+alpha/v2.0.0
+bravo/v1.9.0
+bravo/v1.10.0
+v0.8.0
+manager/v0.1.0

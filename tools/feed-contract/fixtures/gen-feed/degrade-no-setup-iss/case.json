@@ -1,0 +1,16 @@
+{
+  "group": "degrade",
+  "modes": [
+    "v2",
+    "legacy"
+  ],
+  "repo": "rolandzwaga/krate-audio",
+  "exit": 3,
+  "warn": [
+    {
+      "code": "E_MANIFEST_MISMATCH",
+      "plugin": "Alpha",
+      "file": "alpha/installers/windows/setup.iss"
+    }
+  ]
+}

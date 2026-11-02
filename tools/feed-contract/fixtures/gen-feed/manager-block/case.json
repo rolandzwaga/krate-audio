@@ -1,0 +1,10 @@
+{
+  "group": "clean",
+  "modes": [
+    "v2",
+    "legacy"
+  ],
+  "repo": "rolandzwaga/krate-audio",
+  "managerLatestUrl": "https://rolandzwaga.github.io/krate-audio/manager/latest.json",
+  "exit": 0
+}

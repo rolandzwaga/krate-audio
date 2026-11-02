@@ -1,0 +1,5 @@
+# T002 base binary size (TA-24), recorded before any rebuild, 2026-10-31
+$ ls -l --time-style=long-iso target/release/krate-manager.exe
+-rwxr-xr-x 2 scab 197609 4269056 2026-10-30 22:21 target/release/krate-manager.exe
+$ git log --format='%h %ci' -1 -- apps/krate-manager
+ac307f7e 2026-10-30 22:22:46 +0100

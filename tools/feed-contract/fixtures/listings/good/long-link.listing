@@ -1,0 +1,13 @@
+d 0755 Alpha.vst3
+d 0755 Alpha.vst3/Contents
+d 0755 Alpha.vst3/Contents/Resources
+d 0755 Alpha.vst3/Contents/Resources/a-deliberately-long-directory-name-for-the-gnu-long-link-fixture
+f 0644 Alpha.vst3/Contents/Resources/a-deliberately-long-directory-name-for-the-gnu-long-link-fixture/a-deliberately-long-file-name-for-the-long-link-target.json
+f 0644 Alpha.vst3/Contents/Resources/moduleinfo.json
+d 0755 Alpha.vst3/Contents/x86_64-linux
+f 0644 Alpha.vst3/Contents/x86_64-linux/Alpha.so
+l 0777 Alpha.vst3/Contents/x86_64-linux/long-link.json -> ../Resources/a-deliberately-long-directory-name-for-the-gnu-long-link-fixture/a-deliberately-long-file-name-for-the-long-link-target.json
+f 0644 CHANGELOG.txt
+f 0644 README.txt
+d 0755 presets
+f 0644 presets/Init.vstpreset

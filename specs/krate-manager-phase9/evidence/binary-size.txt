@@ -1,0 +1,5 @@
+# 2026-11-01 close lane B7 (Windows, from apps/krate-manager/): the release binary after step tauri build (TA-11;
+# the growth is core::install and the install_plugin / remove_plugin commands)
+$ ls -l target/release/krate-manager.exe
+-rwxr-xr-x 2 scab 197609 8332288 Nov  1 14:02 target/release/krate-manager.exe
+# reference (A0c, specs/krate-manager-phase7/evidence/binary-size.txt, Phase 7's B7): 7850496 bytes; now 8332288 bytes; delta +481792 bytes (6.1 %)

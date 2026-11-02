@@ -1,0 +1,11 @@
+d 0755 Alpha.vst3
+d 0755 Alpha.vst3/Contents
+d 0755 Alpha.vst3/Contents/Resources
+f 0644 Alpha.vst3/Contents/Resources/moduleinfo.json
+d 0755 Alpha.vst3/Contents/x86_64-linux
+f 0755 Alpha.vst3/Contents/x86_64-linux/Alpha.so
+l 0777 Alpha.vst3/Contents/x86_64-linux/libalpha.so -> Alpha.so
+f 0644 CHANGELOG.txt
+f 0644 README.txt
+d 0755 presets
+f 0644 presets/Init.vstpreset

@@ -1,0 +1,8 @@
+[package]
+name = "clippy-guard"
+edition = "2024"
+publish = false
+
+[dependencies]
+krate-manager = { path = "../../../src-tauri" }
+krate-manager-core = { path = "../../../crates/core" }

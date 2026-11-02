@@ -1,0 +1,63 @@
+[workspace]
+members = ["crates/core", "crates/helper", "src-tauri"]
+exclude = ["tests/fixtures/clippy-guard", "tests/fixtures/argv-recorder", "tests/fixtures/locked-dll", "tests/fixtures/updater-refusals"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+base64 = "0.23.1"
+# R-6: core's sysproxy_cf only (macOS)
+core-foundation = "0.10.1"
+# Phase 8 D1: core's extract.rs (gzip); the tar reader is in-crate
+flate2 = "1.1.10"
+krate-manager-core = { path = "crates/core" }
+krate-manager-helper = { path = "crates/helper" }
+log = "0.4.34"
+# Phase 7 D1: core's tests only (TestSigner), never a normal dependency (FR-081)
+minisign = "0.10.0"
+# Phase 7 D1: verify.rs only (FR-082)
+minisign-verify = "0.3.0"
+# Phase 6 D12: detect.rs AU reader only (macOS); already in the macOS graph through tauri
+plist = { version = "1.10.3", default-features = false }
+# Phase 6 D12: notes.rs only; no HTML writer
+pulldown-cmark = { version = "0.13.6", default-features = false }
+regex = "1.13.1"
+# R-8, R-15: default features only, never on Windows (PD-25)
+rquickjs = "0.14.0"
+rustls = { version = "0.23.46", default-features = false }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+# Phase 7 D1: verify.rs only (FR-082)
+sha2 = "0.11.1"
+# R-3: the macOS proxy reader in src-tauri
+system-configuration = "0.8.0"
+tauri = { version = "2.12.5", features = [] }
+tauri-build = { version = "2.7.4", features = [] }
+# Phase 6 D15: src-tauri commands.rs only (free fn open_url); never registered as a plugin; no opener:* permission
+tauri-plugin-opener = "2.7.2"
+# Phase 11 FR-001, PD-2: src-tauri self_update.rs only; exact pin (SI-1), no zip (SI-3), no system-proxy (D1)
+tauri-plugin-updater = { version = "=2.14.1", default-features = false, features = ["rustls-tls"] }
+tempfile = "3.27.0"
+thiserror = "2.0.21"
+# R-5, PD-2
+ureq = { version = "3.5.0", features = ["platform-verifier", "socks-proxy"] }
+url = "2.5.8"
+# R-2; R-13, R-15; Phase 6 FR-081: exactly five features, no Win32_System_Time; Phase 10 FR-093: eleven features, homes src-tauri and crates/helper only, never crates/core
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Registry", "Win32_System_SystemInformation", "Wdk_System_SystemServices", "Win32_Networking_WinHttp", "Win32_UI_Shell", "Win32_System_Com", "Win32_System_Threading", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem"] }
+
+[workspace.lints.clippy]
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

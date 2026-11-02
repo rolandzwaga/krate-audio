@@ -1,0 +1,8 @@
+{
+  "name": "krate-feed-contract",
+  "private": true,
+  "description": "Dependencies of tools/feed-contract and tools/gen-feed.js (Krate Manager Phase 1, FR-062).",
+  "devDependencies": {
+    "ajv": "8.20.0"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "tag": "alpha/v1.2.0",
+  "name": "Alpha",
+  "version": "1.2.0",
+  "pub_date": "2026-10-29T00:00:00Z",
+  "install": {
+    "vst3_bundle": "Alpha.vst3",
+    "au_component": "Alpha.component",
+    "windows_uninstall_key": "{0A1F0000-0000-4000-8000-000000000001}_is1",
+    "macos_pkg_id": "com.krateaudio.alpha"
+  }
+}

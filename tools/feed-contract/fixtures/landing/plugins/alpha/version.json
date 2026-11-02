@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "name": "Alpha",
+  "description": "Alpha keeps $& and $1 literal, &amp; stays escaped, {{REPO}} is filled",
+  "publisher": "Fixture Publisher"
+}

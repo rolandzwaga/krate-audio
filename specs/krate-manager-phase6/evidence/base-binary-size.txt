@@ -1,0 +1,9 @@
+Base records for Krate Manager Phase 6 (T001, tasks TA-13), read 2026-10-31 before any Phase 6 build.
+
+$ ls -l --time-style=long-iso apps/krate-manager/target/release/krate-manager.exe
+-rwxr-xr-x 2 scab 197609 4314624 2026-10-31 15:22 apps/krate-manager/target/release/krate-manager.exe
+
+$ git log --format='%h %ci' -1 -- apps/krate-manager
+3efe70de 2026-10-31 15:24:50 +0100
+
+scope base: 3efe70de

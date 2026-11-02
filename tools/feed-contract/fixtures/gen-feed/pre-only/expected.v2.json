@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "plugins": {
+    "Bravo": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/bravo/",
+      "release_notes": "",
+      "tag": "bravo/v1.0.0",
+      "pub_date": "2026-10-03T12:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v1.0.0"
+    }
+  }
+}

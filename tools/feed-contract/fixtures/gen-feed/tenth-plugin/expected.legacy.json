@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "plugins": {
+    "Alpha": {
+      "version": "1.0.0",
+      "download_url": "https://krateaudio.com/alpha/",
+      "release_notes": ""
+    },
+    "Bravo": {
+      "version": "1.1.0",
+      "download_url": "https://krateaudio.com/bravo/",
+      "release_notes": ""
+    },
+    "Charlie": {
+      "version": "1.2.0",
+      "download_url": "https://krateaudio.com/charlie/",
+      "release_notes": ""
+    },
+    "Delta": {
+      "version": "1.3.0",
+      "download_url": "https://krateaudio.com/delta/",
+      "release_notes": ""
+    },
+    "Echo": {
+      "version": "1.4.0",
+      "download_url": "https://krateaudio.com/echo/",
+      "release_notes": ""
+    },
+    "Foxtrot": {
+      "version": "1.5.0",
+      "download_url": "https://krateaudio.com/foxtrot/",
+      "release_notes": ""
+    },
+    "Golf": {
+      "version": "1.6.0",
+      "download_url": "https://krateaudio.com/golf/",
+      "release_notes": ""
+    },
+    "Hotel": {
+      "version": "1.7.0",
+      "download_url": "https://krateaudio.com/hotel/",
+      "release_notes": ""
+    },
+    "India": {
+      "version": "1.8.0",
+      "download_url": "https://krateaudio.com/india/",
+      "release_notes": ""
+    },
+    "Juliet": {
+      "version": "1.9.0",
+      "download_url": "https://krateaudio.com/juliet/",
+      "release_notes": ""
+    }
+  }
+}

@@ -1,0 +1,331 @@
+{
+  "schema_version": 2,
+  "plugins": {
+    "Alpha": {
+      "version": "1.2.0",
+      "download_url": "https://krateaudio.com/alpha/",
+      "release_notes": "",
+      "tag": "alpha/v1.2.0",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.2.0",
+      "notes_markdown": "### Fixed\n\n- A fixture note.",
+      "platforms": {
+        "darwin-aarch64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v1.2.0/Alpha-1.2.0-macOS.pkg",
+          "size": 42,
+          "sha256": "53bbe37eaa509e77a4bf39d7351e96e226b05f6a62865336ba0da4fd36024c04",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Alpha:1.2.0:darwin-aarch64:Alpha-1.2.0-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "pkg",
+          "min_os": "11.0"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v1.2.0/Alpha-1.2.0-Linux-x64.tar.gz",
+          "size": 49,
+          "sha256": "04b395c48a860e7927f3eca77af27a31d55c22fc1553adcb7d2493e314e10d58",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Alpha:1.2.0:linux-x86_64:Alpha-1.2.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "c06ced7dc587e2294b46edcd0687ea5b0398e4a31e675432618ca6e2fe4b5758"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v1.2.0/Alpha-1.2.0-Windows-x64.exe",
+          "size": 48,
+          "sha256": "e1d28b3fbd6332eb56dd8e23b3dc0483e150c68c20ad0890e00d07ff63415682",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Alpha:1.2.0:windows-x86_64:Alpha-1.2.0-Windows-x64.exe\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "inno-exe"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Alpha.vst3",
+        "au_component": "Alpha.component",
+        "windows_uninstall_key": "{0A1F0000-0000-4000-8000-000000000001}_is1",
+        "macos_pkg_id": "com.krateaudio.alpha"
+      }
+    },
+    "Bravo": {
+      "version": "2.0.1",
+      "download_url": "https://krateaudio.com/bravo/",
+      "release_notes": "",
+      "tag": "bravo/v2.0.1",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.0.1",
+      "platforms": {
+        "darwin-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/bravo/v2.0.1/Bravo-2.0.1-macOS.pkg",
+          "size": 42,
+          "sha256": "7fc14dc93795977f5a2735368bc60dfbe80cc7b20cbdbe30d3e13c0122833cc4",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Bravo:2.0.1:darwin-x86_64:Bravo-2.0.1-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "pkg",
+          "min_os": "11.0"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/bravo/v2.0.1/Bravo-2.0.1-Linux-x64.tar.gz",
+          "size": 49,
+          "sha256": "027ca495d6ea2486685364afd362aa5d27189fa56365f79e711df7bd7a668bda",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Bravo:2.0.1:linux-x86_64:Bravo-2.0.1-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "9178a0a6ec27937cb36b907f0d3cfd0554dee1c0ba9b8266a1eea704798df0b9"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/bravo/v2.0.1/Bravo-2.0.1-Windows-x64.exe",
+          "size": 48,
+          "sha256": "c2019539707d1c2e895459ea199726700601849feba55cf50c872b3bca4eba40",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Bravo:2.0.1:windows-x86_64:Bravo-2.0.1-Windows-x64.exe\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "inno-exe"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Bravo.vst3",
+        "au_component": "Bravo.component",
+        "preset_subdir": "Kits",
+        "windows_uninstall_key": "{0A1F0000-0000-4000-8000-000000000002}_is1",
+        "macos_pkg_id": "com.krateaudio.bravo"
+      },
+      "prerelease": {
+        "tag": "bravo/v2.1.0-beta.1",
+        "pub_date": "2026-10-29T00:00:00Z",
+        "channel": "beta",
+        "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.1.0-beta.1"
+      }
+    },
+    "Charlie": {
+      "version": "0.9.0",
+      "download_url": "https://krateaudio.com/charlie/",
+      "release_notes": "",
+      "tag": "charlie/v0.9.0",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v0.9.0",
+      "platforms": {
+        "darwin-universal": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/charlie/v0.9.0/Charlie-0.9.0-macOS.pkg",
+          "size": 44,
+          "sha256": "6c199bd9608a8db4ae6aa14a3af7cdcfefc50f7c7fe674f961e1cf5073a1cf95",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Charlie:0.9.0:darwin-universal:Charlie-0.9.0-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "pkg",
+          "min_os": "11.0"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/charlie/v0.9.0/Charlie-0.9.0-Linux-x64.tar.gz",
+          "size": 51,
+          "sha256": "55724f49147bb4760ab4f47f474e6eff78b19563bb653eca391ac5507ee70137",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Charlie:0.9.0:linux-x86_64:Charlie-0.9.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "b6c9f4df6576bdede05c5abb7001dc2370ebe7fd2567291a2a39e7b87d994095"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/charlie/v0.9.0/Charlie-0.9.0-Windows-x64.exe",
+          "size": 50,
+          "sha256": "d7e1d8c8be0dc1ac7d6ee715c227df0c84bea35ca84dcda00e2eeb5b1adc3b2c",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Charlie:0.9.0:windows-x86_64:Charlie-0.9.0-Windows-x64.exe\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "inno-exe",
+          "min_os": "10.0"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Charlie.vst3",
+        "au_component": "Charlie.component",
+        "windows_uninstall_key": "{0A1F0000-0000-4000-8000-000000000003}_is1",
+        "macos_pkg_id": "com.krateaudio.charlie"
+      }
+    },
+    "Delta": {
+      "version": "0.1.0",
+      "download_url": "https://krateaudio.com/delta/",
+      "release_notes": "",
+      "tag": "delta/v0.1.0",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/delta/v0.1.0",
+      "platforms": {
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/delta/v0.1.0/Delta-0.1.0-Linux-x64.tar.gz",
+          "size": 49,
+          "sha256": "bef2dfe7e89b73c88e941d30b6c864ac33251a646cff1a089366856e04d35378",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Delta:0.1.0:linux-x86_64:Delta-0.1.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "f0e3b7888e1df8cf166af203b5bd8157552be94d3ab1b946cf3394eae239bb91"
+          }
+        }
+      },
+      "install": {
+        "vst3_bundle": "Delta.vst3"
+      }
+    },
+    "Echo": {
+      "version": "0.2.0",
+      "download_url": "https://krateaudio.com/echo/",
+      "release_notes": "",
+      "tag": "echo/v0.2.0",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/echo/v0.2.0",
+      "platforms": {
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/echo/v0.2.0/Echo-0.2.0-Linux-x64.tar.gz",
+          "size": 48,
+          "sha256": "e93a7d902a6b40cd0b00c130e12e468acf3b4ff273dd5c0ad91cbc8f48221b0f",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Echo:0.2.0:linux-x86_64:Echo-0.2.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "4f7a772bc4680ead037bba1aa58d024dd858e1fbd0377e183547b4f1abd1d634"
+          }
+        }
+      },
+      "install": {
+        "vst3_bundle": "Echo.vst3"
+      }
+    },
+    "Foxtrot": {
+      "version": "0.3.0",
+      "download_url": "https://krateaudio.com/foxtrot/",
+      "release_notes": "",
+      "tag": "foxtrot/v0.3.0",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/foxtrot/v0.3.0",
+      "platforms": {
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/foxtrot/v0.3.0/Foxtrot-0.3.0-Linux-x64.tar.gz",
+          "size": 51,
+          "sha256": "7f881fb0d523c2773ba41329e69f159cf81d92427609d48855f9f1c372727b75",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Foxtrot:0.3.0:linux-x86_64:Foxtrot-0.3.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "dd9964dfb948e6d720f7b2114e0087a39ca379717f10b0583cb477b941986cd8"
+          }
+        }
+      },
+      "install": {
+        "vst3_bundle": "Foxtrot.vst3"
+      }
+    },
+    "Golf": {
+      "version": "0.4.0",
+      "download_url": "https://krateaudio.com/golf/",
+      "release_notes": "",
+      "tag": "golf/v0.4.0",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/golf/v0.4.0",
+      "platforms": {
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/golf/v0.4.0/Golf-0.4.0-Linux-x64.tar.gz",
+          "size": 48,
+          "sha256": "2dbda8592f896a3783f133189e9b5db097833e815c2426c1a880f557a474cdb6",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Golf:0.4.0:linux-x86_64:Golf-0.4.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "bf8b149f7e10d8115961aae44ca2e4add5aaf7031f9db2057f41d3af0c4e5b3a"
+          }
+        }
+      },
+      "install": {
+        "vst3_bundle": "Golf.vst3"
+      }
+    },
+    "Hotel": {
+      "version": "0.5.0",
+      "download_url": "https://krateaudio.com/hotel/",
+      "release_notes": "",
+      "tag": "hotel/v0.5.0",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/hotel/v0.5.0",
+      "platforms": {
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/hotel/v0.5.0/Hotel-0.5.0-Linux-x64.tar.gz",
+          "size": 49,
+          "sha256": "df1cae43fa4e10ae5c06984da9c332b8d2adf56b19ae99b02822671351068c8a",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Hotel:0.5.0:linux-x86_64:Hotel-0.5.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "ee44e8dfacda5881dc72b4536b8d2cd0a61efb9b3d3cb1fadb6e7e4221bec35c"
+          }
+        }
+      },
+      "install": {
+        "vst3_bundle": "Hotel.vst3"
+      }
+    },
+    "India": {
+      "version": "0.6.0",
+      "download_url": "https://krateaudio.com/india/",
+      "release_notes": "",
+      "tag": "india/v0.6.0",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/india/v0.6.0",
+      "platforms": {
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/india/v0.6.0/India-0.6.0-Linux-x64.tar.gz",
+          "size": 49,
+          "sha256": "0bcb13a5d6e0fdd2af25628ed8b6956a7ae40b978631b1e250caf50558a05cff",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:India:0.6.0:linux-x86_64:India-0.6.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "f309e4fdf3054a2be697f7d32b57d951d3ebfd6cb457f30021db25afef8953db"
+          }
+        }
+      },
+      "install": {
+        "vst3_bundle": "India.vst3"
+      }
+    },
+    "Juliet": {
+      "version": "0.7.0",
+      "download_url": "https://krateaudio.com/juliet/",
+      "release_notes": "",
+      "tag": "juliet/v0.7.0",
+      "pub_date": "2026-10-29T00:00:00Z",
+      "channel": "stable",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/juliet/v0.7.0",
+      "platforms": {
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/juliet/v0.7.0/Juliet-0.7.0-Linux-x64.tar.gz",
+          "size": 50,
+          "sha256": "ada4fdb274226f0e1fcb30b30e916901a4af635f40cb0be7519f456d9b715867",
+          "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Juliet:0.7.0:linux-x86_64:Juliet-0.7.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+          "format": "tar.gz",
+          "min_os": "2.31",
+          "payload": {
+            "files": 3,
+            "sha256": "5ff67792e32e688836b4e4a035b779687287fe485652714085140e0b5e0c1bac"
+          }
+        }
+      },
+      "install": {
+        "vst3_bundle": "Juliet.vst3"
+      }
+    }
+  },
+  "manager": {
+    "latest_json_url": "https://rolandzwaga.github.io/krate-audio/manager/latest.json"
+  }
+}

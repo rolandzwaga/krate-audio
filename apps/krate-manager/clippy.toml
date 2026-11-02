@@ -1,0 +1,10 @@
+disallowed-methods = [
+  { path = "krate_manager_lib::os_roots::FromOs::from_os", reason = "production roots only in app setup; tests use temp_roots()" },
+  { path = "krate_manager_core::roots::Roots::new", reason = "tests build roots with temp_roots(); production with Roots::from_os()" },
+  { path = "std::env::var", reason = "the environment is read only in os_roots.rs and test_support (D9)" },
+  { path = "std::env::var_os", reason = "the environment is read only in os_roots.rs and test_support (D9)" },
+  { path = "std::env::vars", reason = "the environment is read only in os_roots.rs and test_support (D9)" },
+  { path = "std::env::vars_os", reason = "the environment is read only in os_roots.rs and test_support (D9)" },
+  { path = "std::env::home_dir", reason = "the environment is read only in os_roots.rs and test_support (D9)" },
+  { path = "std::env::temp_dir", reason = "the environment is read only in os_roots.rs and test_support (D9)" },
+]

@@ -1,0 +1,57 @@
+{
+  "tag": "alpha/v2.0.0",
+  "name": "Alpha",
+  "version": "2.0.0",
+  "pub_date": "2026-10-29T00:00:00Z",
+  "assets": {
+    "darwin-aarch64": {
+      "name": "Alpha-2.0.0-macOS.pkg",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v2.0.0/Alpha-2.0.0-macOS.pkg",
+      "size": 42,
+      "sha256": "c0b154a9e547bec015782e0f75d86391abb431f37ad8ce2882289bf95dddb2a6",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Alpha:2.0.0:darwin-aarch64:Alpha-2.0.0-macOS.pkg\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "pkg",
+      "min_os": "11.0"
+    },
+    "linux-x86_64": {
+      "name": "Alpha-2.0.0-Linux-x64.tar.gz",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v2.0.0/Alpha-2.0.0-Linux-x64.tar.gz",
+      "size": 49,
+      "sha256": "f7e414fa9bb8fb157254451bb344bf8c02a345eeb84bd5f2bef78d2e17e13e51",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Alpha:2.0.0:linux-x86_64:Alpha-2.0.0-Linux-x64.tar.gz\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "tar.gz",
+      "min_os": "2.31",
+      "payload": {
+        "files": 10,
+        "sha256": "36f2f028ae1ecb4433c69185c7fe59db8bf6d259c57750eab577463beebb45a5",
+        "list": [
+          "d 0755 Alpha.vst3",
+          "d 0755 Alpha.vst3/Contents",
+          "d 0755 Alpha.vst3/Contents/Resources",
+          "f 0644 Alpha.vst3/Contents/Resources/moduleinfo.json",
+          "d 0755 Alpha.vst3/Contents/x86_64-linux",
+          "f 0755 Alpha.vst3/Contents/x86_64-linux/Alpha.so",
+          "f 0644 CHANGELOG.txt",
+          "f 0644 README.txt",
+          "d 0755 presets",
+          "f 0644 presets/Default.preset"
+        ]
+      }
+    },
+    "windows-x86_64": {
+      "name": "Alpha-2.0.0-Windows-x64.exe",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v2.0.0/Alpha-2.0.0-Windows-x64.exe",
+      "size": 48,
+      "sha256": "56bded5614836b92dbf843b1fc257715906d1c3efadde2d3e5aca9c1a79ea78b",
+      "signature": "untrusted comment: krate fixture signature (not cryptographic)\nRUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\ntrusted comment: krate:1:Alpha:2.0.0:windows-x86_64:Alpha-2.0.0-Windows-x64.exe\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n",
+      "format": "inno-exe",
+      "min_os": "10.0"
+    }
+  },
+  "install": {
+    "vst3_bundle": "Alpha.vst3",
+    "au_component": "Alpha.component",
+    "windows_uninstall_key": "{0A1F0000-0000-4000-8000-000000000001}_is1",
+    "macos_pkg_id": "com.krateaudio.alpha"
+  }
+}

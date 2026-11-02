@@ -1,0 +1,25 @@
+$ rsign "--version"
+  > rsign2 0.6.7
+  >   exit 0
+wrote fixtures/rsign/package.bin (35 bytes)
+key dir: C:\Users\scab\AppData\Local\Temp\km11-rsign-5I9f8p
+$ rsign "generate" "-W" "-p" "C:\\Users\\scab\\AppData\\Local\\Temp\\km11-rsign-5I9f8p\\rsign.pub" "-s" "C:\\Users\\scab\\AppData\\Local\\Temp\\km11-rsign-5I9f8p\\k.key"
+  > 
+  > The secret key was saved as C:\Users\scab\AppData\Local\Temp\km11-rsign-5I9f8p\k.key - Keep it secret!
+  > The public key was saved as C:\Users\scab\AppData\Local\Temp\km11-rsign-5I9f8p\rsign.pub - That one can be public.
+  > 
+  > Files signed using this key pair can be verified with the following command:
+  > 
+  > rsign verify <file> -P RWTY8/YNk3tY/GU9rLL0x9PZiUbDP/NhtOiXU77RKidFBqix0Ex68AFW
+  >   exit 0
+$ rsign "sign" "-W" "-s" "C:\\Users\\scab\\AppData\\Local\\Temp\\km11-rsign-5I9f8p\\k.key" "-c" "rsign-format fixture (Krate Manager Phase 11)" "-t" "timestamp:0\tfile:package.bin\tversion:0.2.0" "-x" "C:\\Users\\scab\\AppData\\Local\\Temp\\km11-rsign-5I9f8p\\package.bin.minisig" "fixtures/rsign/package.bin"
+  exit 0
+rsign.pub: before CR=0 LF=2; after CR=0 LF=2
+package.bin.minisig: before CR=0 LF=4; after CR=0 LF=4
+key dir C:\Users\scab\AppData\Local\Temp\km11-rsign-5I9f8p deleted (existsSync false)
+minisig line 1: untrusted comment: rsign-format fixture (Krate Manager Phase 11)
+minisig line 2: RUTY8/YNk3tY/HsvLOWX1WSxqEED+r97oICMiVuUOGjAGG/cOP4s7ptrXEhwdAsE6KDXR90uMoxdaVbdzXe+0Yna5ptmhKPXvw4=
+sha256 e64dd60709bfd19a8d3d1ffe1d3430f5a3817e33224cb8ba2a0864b682079ae9  fixtures/rsign/package.bin
+sha256 0211aa588602203be25c50b2e9c39b641afa070429976048f278fa754c68b5fe  fixtures/rsign/package.bin.minisig
+sha256 d2f0c7c46e40daaabee42c6333a7f6376e5f4ae659c866e7518bb8ed761104d8  fixtures/rsign/rsign.pub
+MAKE-RSIGN-FIXTURE DONE

@@ -90,8 +90,8 @@ tmpclaude-*
 /docs/versions.json
 
 node_modules/
-package.json
-package-lock.json
+/package.json
+/package-lock.json
 /.fallow
 
 # Profundum Phase 9 listening renders (65 MB, reproducible with evidence/close/listen.sh)

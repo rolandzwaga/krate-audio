@@ -1,0 +1,1 @@
+gen-feed: E_URL_LATEST: alpha/version.json: plugin Alpha: url: a /releases/latest/ URL is never allowed: https://github.com/rolandzwaga/krate-audio/releases/latest/download/Alpha-1.0.0-Windows-x64.exe (it is the v1 download_url)

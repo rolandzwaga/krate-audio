@@ -1,0 +1,167 @@
+name: Feed
+
+# Builds versions.json (schema_version 2) from the GitHub releases and the release.json each carries, checks it
+# against C1, against itself (determinism) and against the live feed, then deploys it to GitHub Pages.
+# Spec: specs/krate-manager-phase3/spec.md FR-001 to FR-015; plan §4.3. Every decision is tools/feed-publish.js's.
+# dry_run (default true on a manual dispatch) builds and checks only: deploy is skipped and nothing is pushed.
+
+on:
+  workflow_call:
+    inputs:
+      dry_run:
+        description: 'Build and check the feed only: no Pages deploy'
+        type: boolean
+        required: true
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and check the feed only: no Pages deploy'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: krate-feed
+      cancel-in-progress: false
+      queue: max
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      manager_degraded: ${{ steps.collect.outputs.manager_degraded }}
+      feed_degraded: ${{ steps.generate.outputs.feed_degraded }}
+      drift_warned: ${{ steps.compare.outputs.drift_warned }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix tools/feed-contract
+
+      - name: Collect releases
+        id: collect
+        shell: bash
+        run: |
+          set -euo pipefail
+          rc=0; node tools/feed-publish.js collect --plugins-dir plugins --repo "$GITHUB_REPOSITORY" --out-dir "$RUNNER_TEMP/feed-in" --annotate || rc=$?
+          node tools/feed-publish.js outcome --tool collect --exit "$rc" --github-output "$GITHUB_OUTPUT"
+
+      - name: Fetch live feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 https://krateaudio.com/versions.json --output "$RUNNER_TEMP/feed-in/live-versions.json"
+
+      - name: Generate feed
+        id: generate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rc=0; node tools/feed-publish.js generate --in-dir "$RUNNER_TEMP/feed-in" --plugins-dir plugins --repo "$GITHUB_REPOSITORY" --site-dir _site --annotate || rc=$?
+          node tools/feed-publish.js outcome --tool generate --exit "$rc" --github-output "$GITHUB_OUTPUT"
+
+      - name: Compare with the live feed
+        id: compare
+        shell: bash
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          rc=0; node tools/feed-publish.js compare --live "$RUNNER_TEMP/feed-in/live-versions.json" --feed _site/versions.json --releases "$RUNNER_TEMP/feed-in/releases.json" --dry-run "$DRY_RUN" --report "$RUNNER_TEMP/feed-in/compare.txt" --summary "$GITHUB_STEP_SUMMARY" --annotate || rc=$?
+          node tools/feed-publish.js outcome --tool compare --exit "$rc" --github-output "$GITHUB_OUTPUT"
+
+      - name: Upload site
+        uses: actions/upload-artifact@v7
+        with:
+          name: feed-site
+          path: _site/
+          if-no-files-found: error
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: feed-evidence
+          path: ${{ runner.temp }}/feed-in/
+          if-no-files-found: warn
+
+  deploy:
+    needs: build
+    if: ${{ !inputs.dry_run && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: krate-feed
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Download site
+        uses: actions/download-artifact@v8
+        with:
+          name: feed-site
+          path: _site
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ github.token }}
+          publish_dir: ./_site
+          keep_files: true
+          cname: krateaudio.com
+
+  verdict:
+    needs: [build, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install feed-contract deps
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix tools/feed-contract
+
+      - name: Download evidence
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: feed-evidence
+          path: ${{ runner.temp }}/evidence
+
+      - name: Verdict
+        shell: bash
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          REF: ${{ github.ref }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          FEED_DEGRADED: ${{ needs.build.outputs.feed_degraded }}
+          MANAGER_DEGRADED: ${{ needs.build.outputs.manager_degraded }}
+          DRIFT_WARNED: ${{ needs.build.outputs.drift_warned }}
+        run: |
+          set -euo pipefail
+          node tools/feed-publish.js verdict --dry-run "$DRY_RUN" --ref "$REF" --build "$BUILD_RESULT" --deploy "$DEPLOY_RESULT" --feed-degraded "$FEED_DEGRADED" --manager-degraded "$MANAGER_DEGRADED" --drift-warned "$DRIFT_WARNED" --evidence "$RUNNER_TEMP/evidence" --annotate

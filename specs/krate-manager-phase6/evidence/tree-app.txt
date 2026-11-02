@@ -1,0 +1,582 @@
+krate-manager v0.1.0 (F:\projects\iterum\apps\krate-manager\src-tauri)
+krate-manager-core v0.1.0 (F:\projects\iterum\apps\krate-manager\crates\core)
+base64 v0.23.1
+log v0.4.34
+pulldown-cmark v0.13.6
+bitflags v2.13.2
+serde_core v1.0.229
+memchr v2.8.3
+unicase v2.10.0
+regex v1.13.1
+aho-corasick v1.1.5
+memchr v2.8.3
+memchr v2.8.3
+regex-automata v0.4.18
+aho-corasick v1.1.5 (*)
+memchr v2.8.3
+regex-syntax v0.8.11
+regex-syntax v0.8.11
+rustls v0.23.46
+log v0.4.34
+once_cell v1.21.4
+ring v0.17.14
+cfg-if v1.0.5
+getrandom v0.2.17
+cfg-if v1.0.5
+untrusted v0.9.0
+rustls-pki-types v1.15.1
+zeroize v1.9.1
+rustls-webpki v0.103.16
+ring v0.17.14 (*)
+rustls-pki-types v1.15.1 (*)
+untrusted v0.9.0
+subtle v2.6.1
+zeroize v1.9.1
+serde v1.0.229
+serde_core v1.0.229
+serde_derive v1.0.229 (proc-macro)
+proc-macro2 v1.0.107
+unicode-ident v1.0.27
+quote v1.0.47
+proc-macro2 v1.0.107 (*)
+syn v3.0.9
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+unicode-ident v1.0.27
+serde_json v1.0.154
+itoa v1.0.18
+memchr v2.8.3
+serde_core v1.0.229
+zmij v1.0.23
+tempfile v3.27.0
+fastrand v2.5.0
+getrandom v0.4.3
+cfg-if v1.0.5
+once_cell v1.21.4
+windows-sys v0.61.2
+windows-link v0.2.1
+thiserror v2.0.21
+thiserror-impl v2.0.21 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+ureq v3.5.0
+base64 v0.23.1
+flate2 v1.1.10
+crc32fast v1.5.3
+cfg-if v1.0.5
+miniz_oxide v0.9.1
+adler2 v2.0.1
+simd-adler32 v0.3.10
+log v0.4.34
+percent-encoding v2.3.2
+rustls v0.23.46 (*)
+rustls-pki-types v1.15.1 (*)
+rustls-platform-verifier v0.7.1
+log v0.4.34
+rustls v0.23.46 (*)
+windows-sys v0.61.2 (*)
+ureq-proto v0.6.5
+base64 v0.23.1
+http v1.5.0
+bytes v1.12.1
+itoa v1.0.18
+httparse v1.10.1
+log v0.4.34
+utf8-zero v0.8.1
+webpki-roots v1.0.11
+rustls-pki-types v1.15.1 (*)
+url v2.5.8
+form_urlencoded v1.2.2
+percent-encoding v2.3.2
+idna v1.1.0
+idna_adapter v1.2.2
+icu_normalizer v2.4.0
+icu_collections v2.4.0
+displaydoc v0.2.7 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+potential_utf v0.1.6
+zerovec v0.11.9
+yoke v0.8.4
+stable_deref_trait v1.2.1
+yoke-derive v0.8.4 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+synstructure v0.14.0
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+zerofrom v0.1.8
+zerofrom-derive v0.1.8 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+synstructure v0.14.0 (*)
+zerofrom v0.1.8 (*)
+zerovec-derive v0.11.7 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+utf8_iter v1.1.0
+utf_types v1.0.0
+yoke v0.8.4 (*)
+zerofrom v0.1.8 (*)
+zerovec v0.11.9 (*)
+icu_normalizer_data v2.4.0
+icu_provider v2.4.0
+displaydoc v0.2.7 (proc-macro) (*)
+icu_locale_core v2.4.0
+displaydoc v0.2.7 (proc-macro) (*)
+litemap v0.8.3
+tinystr v0.8.5
+displaydoc v0.2.7 (proc-macro) (*)
+zerovec v0.11.9 (*)
+writeable v0.6.4
+zerovec v0.11.9 (*)
+writeable v0.6.4
+yoke v0.8.4 (*)
+zerofrom v0.1.8 (*)
+zerotrie v0.2.5
+displaydoc v0.2.7 (proc-macro) (*)
+yoke v0.8.4 (*)
+zerofrom v0.1.8 (*)
+zerovec v0.11.9 (*)
+smallvec v1.16.4
+zerovec v0.11.9 (*)
+icu_properties v2.4.0
+displaydoc v0.2.7 (proc-macro) (*)
+icu_collections v2.4.0 (*)
+icu_locale_core v2.4.0 (*)
+icu_properties_data v2.4.0
+icu_provider v2.4.0 (*)
+zerotrie v0.2.5 (*)
+zerovec v0.11.9 (*)
+smallvec v1.16.4
+utf8_iter v1.1.0 (*)
+percent-encoding v2.3.2
+serde v1.0.229 (*)
+serde_derive v1.0.229 (proc-macro) (*)
+log v0.4.34
+serde v1.0.229 (*)
+serde_json v1.0.154 (*)
+tauri v2.12.5
+anyhow v1.0.104
+cookie v0.18.2
+time v0.3.55
+deranged v0.5.9
+num-conv v0.2.2
+powerfmt v0.2.1
+time-core v0.1.9
+time-macros v0.2.32 (proc-macro)
+num-conv v0.2.2
+time-core v0.1.9
+dirs v7.0.0
+dirs-sys v0.5.0
+option-ext v0.2.0
+windows-sys v0.61.2 (*)
+dunce v1.0.5
+getrandom v0.3.4
+cfg-if v1.0.5
+glob v0.3.4
+heck v0.5.0
+http v1.5.0 (*)
+log v0.4.34
+mime v0.3.17
+muda v0.20.0
+crossbeam-channel v0.5.17
+crossbeam-utils v0.8.23
+dpi v0.1.2
+serde v1.0.229 (*)
+keyboard-types v0.8.3
+bitflags v2.13.2 (*)
+serde v1.0.229 (*)
+once_cell v1.21.4
+serde v1.0.229 (*)
+thiserror v2.0.21 (*)
+windows-sys v0.61.2 (*)
+percent-encoding v2.3.2
+raw-window-handle v0.6.2
+serde v1.0.229 (*)
+serde_json v1.0.154 (*)
+serde_repr v0.1.21 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+serialize-to-javascript v0.1.2
+serde v1.0.229 (*)
+serde_json v1.0.154 (*)
+serialize-to-javascript-impl v0.1.2 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+unicode-ident v1.0.27
+tauri-macros v2.7.4 (proc-macro)
+heck v0.5.0
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119 (*)
+tauri-codegen v2.7.4
+base64 v0.23.1
+brotli v9.1.1
+alloc-no-stdlib v3.0.0
+alloc-stdlib v0.3.0
+alloc-no-stdlib v3.0.0
+brotli-decompressor v6.2.0
+alloc-no-stdlib v3.0.0
+alloc-stdlib v0.3.0 (*)
+ico v0.6.0
+byteorder v1.5.0
+png v0.18.1
+bitflags v2.13.2
+crc32fast v1.5.3
+cfg-if v1.0.5
+fdeflate v0.3.7
+simd-adler32 v0.3.10
+flate2 v1.1.10 (*)
+miniz_oxide v0.8.9
+adler2 v2.0.1
+simd-adler32 v0.3.10
+json-patch v4.2.0
+jsonptr v0.7.1
+serde v1.0.229
+serde_core v1.0.229
+serde_derive v1.0.229 (proc-macro) (*)
+serde_json v1.0.154
+itoa v1.0.18
+memchr v2.8.3
+serde_core v1.0.229
+zmij v1.0.23
+serde v1.0.229 (*)
+serde_json v1.0.154 (*)
+thiserror v2.0.21 (*)
+png v0.18.1 (*)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+semver v1.0.28
+serde_core v1.0.229
+serde v1.0.229 (*)
+serde_json v1.0.154 (*)
+sha2 v0.10.9
+cfg-if v1.0.5
+cpufeatures v0.2.17
+digest v0.10.7
+block-buffer v0.10.4
+generic-array v0.14.7
+typenum v1.20.1
+crypto-common v0.1.7
+generic-array v0.14.7 (*)
+typenum v1.20.1
+syn v2.0.119 (*)
+tauri-utils v2.10.2
+anyhow v1.0.104
+brotli v9.1.1 (*)
+cargo_metadata v0.19.2
+camino v1.2.6
+serde_core v1.0.229
+cargo-platform v0.1.9
+serde v1.0.229 (*)
+semver v1.0.28 (*)
+serde v1.0.229 (*)
+serde_json v1.0.154 (*)
+thiserror v2.0.21 (*)
+ctor v1.0.13
+dom_query v0.28.0
+bit-set v0.8.0
+bit-vec v0.8.0
+cssparser v0.37.0
+cssparser-macros v0.7.1 (proc-macro)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+dtoa-short v0.3.5
+dtoa v1.0.11
+itoa v1.0.18
+phf v0.13.1
+phf_macros v0.13.1 (proc-macro)
+phf_generator v0.13.1
+fastrand v2.5.0
+phf_shared v0.13.1
+siphasher v1.0.4
+phf_shared v0.13.1 (*)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119 (*)
+phf_shared v0.13.1 (*)
+smallvec v1.16.4
+foldhash v0.2.0
+html5ever v0.39.0
+log v0.4.34
+markup5ever v0.39.0
+log v0.4.34
+tendril v0.5.1
+new_debug_unreachable v1.0.6
+web_atoms v0.2.6
+phf v0.13.1 (*)
+string_cache v0.9.0
+new_debug_unreachable v1.0.6
+parking_lot v0.12.5
+lock_api v0.4.14
+scopeguard v1.2.0
+parking_lot_core v0.9.12
+cfg-if v1.0.5
+smallvec v1.16.4
+windows-link v0.2.1
+phf_shared v0.13.1 (*)
+precomputed-hash v0.1.1
+precomputed-hash v0.1.1
+selectors v0.38.0
+bitflags v2.13.2
+cssparser v0.37.0 (*)
+derive_more v2.1.1
+derive_more-impl v2.1.1 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119 (*)
+log v0.4.34
+new_debug_unreachable v1.0.6
+phf v0.13.1 (*)
+precomputed-hash v0.1.1
+rustc-hash v2.1.3
+servo_arc v0.4.3
+stable_deref_trait v1.2.1
+smallvec v1.16.4
+tendril v0.5.1 (*)
+dunce v1.0.5
+glob v0.3.4
+http v1.5.0 (*)
+infer v0.22.0
+cfb v0.14.0
+fnv v1.0.7
+uuid v1.29.0
+getrandom v0.4.3 (*)
+serde_core v1.0.229
+web-time v1.1.0
+json-patch v4.2.0 (*)
+log v0.4.34
+memchr v2.8.3
+phf v0.13.1 (*)
+plist v1.10.3
+base64 v0.23.1
+indexmap v2.14.2
+equivalent v1.0.3
+hashbrown v0.17.1
+quick-xml v0.42.0
+memchr v2.8.3
+serde v1.0.229 (*)
+time v0.3.55
+deranged v0.5.9
+num-conv v0.2.2
+powerfmt v0.2.1
+time-core v0.1.9
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+regex v1.13.1 (*)
+schemars v0.8.22
+dyn-clone v1.0.20
+indexmap v1.9.3
+hashbrown v0.12.3
+serde v1.0.229 (*)
+schemars_derive v0.8.22 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+serde_derive_internals v0.29.1
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119 (*)
+syn v2.0.119 (*)
+serde v1.0.229 (*)
+serde_json v1.0.154 (*)
+url v2.5.8 (*)
+uuid v1.29.0 (*)
+semver v1.0.28 (*)
+serde v1.0.229 (*)
+serde-untagged v0.1.9
+erased-serde v0.4.11
+serde_core v1.0.229
+typeid v1.0.3
+serde_core v1.0.229
+typeid v1.0.3
+serde_json v1.0.154 (*)
+serde_with v3.24.0
+serde_core v1.0.229
+serde_with_macros v3.24.0 (proc-macro)
+darling v0.24.1
+darling_core v0.24.1
+ident_case v1.0.1
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+strsim v0.11.1
+syn v3.0.9 (*)
+darling_macro v0.24.1 (proc-macro)
+darling_core v0.24.1 (*)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.9 (*)
+thiserror v2.0.21 (*)
+toml v1.1.8+spec-1.1.0
+serde_core v1.0.229
+serde_spanned v1.1.2
+serde_core v1.0.229
+toml_datetime v1.1.2+spec-1.1.0
+serde_core v1.0.229
+toml_parser v1.1.5+spec-1.1.0
+winnow v1.0.4
+toml_writer v1.1.3+spec-1.1.0
+winnow v1.0.4
+url v2.5.8 (*)
+urlpattern v0.6.0
+icu_properties v2.4.0 (*)
+regex v1.13.1 (*)
+serde v1.0.229 (*)
+url v2.5.8 (*)
+uuid v1.29.0 (*)
+walkdir v2.5.0
+same-file v1.0.6
+winapi-util v0.1.11
+windows-sys v0.61.2
+windows-link v0.2.1
+winapi-util v0.1.11 (*)
+thiserror v2.0.21 (*)
+url v2.5.8 (*)
+uuid v1.29.0 (*)
+walkdir v2.5.0 (*)
+tauri-utils v2.10.2 (*)
+tauri-runtime v2.12.2
+cookie v0.18.2 (*)
+dpi v0.1.2 (*)
+http v1.5.0 (*)
+raw-window-handle v0.6.2
+serde v1.0.229 (*)
+serde_json v1.0.154 (*)
+tauri-utils v2.10.2
+anyhow v1.0.104
+brotli v9.1.1 (*)
+ctor v1.0.13
+dunce v1.0.5
+glob v0.3.4
+http v1.5.0 (*)
+infer v0.22.0 (*)
+json-patch v4.2.0 (*)
+log v0.4.34
+memchr v2.8.3
+phf v0.13.1 (*)
+plist v1.10.3 (*)
+regex v1.13.1 (*)
+semver v1.0.28
+serde v1.0.229 (*)
+serde-untagged v0.1.9 (*)
+serde_json v1.0.154 (*)
+serde_with v3.24.0 (*)
+thiserror v2.0.21 (*)
+toml v1.1.8+spec-1.1.0 (*)
+url v2.5.8 (*)
+urlpattern v0.6.0 (*)
+uuid v1.29.0
+serde_core v1.0.229
+walkdir v2.5.0 (*)
+thiserror v2.0.21 (*)
+url v2.5.8 (*)
+webview2-com v0.39.1
+webview2-com-macros v0.8.1 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119 (*)
+webview2-com-sys v0.39.1
+windows v0.62.2
+windows-collections v0.3.2
+windows-core v0.62.2
+windows-implement v0.60.2 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119 (*)
+windows-interface v0.59.3 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119 (*)
+windows-link v0.2.1
+windows-result v0.4.1
+windows-link v0.2.1
+windows-strings v0.5.1
+windows-link v0.2.1
+windows-core v0.62.2 (*)
+windows-future v0.3.2
+windows-core v0.62.2 (*)
+windows-link v0.2.1
+windows-threading v0.2.1
+windows-link v0.2.1
+windows-numerics v0.3.1
+windows-core v0.62.2 (*)
+windows-link v0.2.1
+windows-core v0.62.2 (*)
+windows v0.62.2 (*)
+windows-core v0.62.2 (*)
+windows v0.62.2 (*)
+tauri-runtime-wry v2.12.3
+http v1.5.0 (*)
+log v0.4.34
+raw-window-handle v0.6.2
+softbuffer v0.4.8
+raw-window-handle v0.6.2
+tracing v0.1.44
+pin-project-lite v0.2.17
+tracing-core v0.1.36
+windows-sys v0.61.2 (*)
+tao v0.37.2
+bitflags v2.13.2 (*)
+crossbeam-channel v0.5.17 (*)
+dpi v0.1.2 (*)
+libc v0.2.191
+log v0.4.34
+parking_lot v0.12.5 (*)
+raw-window-handle v0.6.2
+unicode-segmentation v1.13.3
+url v2.5.8 (*)
+windows v0.62.2 (*)
+windows-core v0.62.2 (*)
+windows-version v0.1.7
+windows-link v0.2.1
+tauri-runtime v2.12.2 (*)
+tauri-utils v2.10.2 (*)
+url v2.5.8 (*)
+webview2-com v0.39.1 (*)
+windows v0.62.2 (*)
+wry v0.57.1
+cookie v0.18.2 (*)
+dpi v0.1.2 (*)
+dunce v1.0.5
+http v1.5.0 (*)
+raw-window-handle v0.6.2
+thiserror v2.0.21 (*)
+webview2-com v0.39.1 (*)
+windows v0.62.2 (*)
+windows-core v0.62.2 (*)
+windows-version v0.1.7 (*)
+tauri-utils v2.10.2 (*)
+thiserror v2.0.21 (*)
+tokio v1.54.1
+bytes v1.12.1
+pin-project-lite v0.2.17
+url v2.5.8 (*)
+webview2-com v0.39.1 (*)
+window-vibrancy v0.8.1
+raw-window-handle v0.6.2
+windows-sys v0.61.2 (*)
+windows-version v0.1.7 (*)
+windows v0.62.2 (*)
+tauri-plugin-opener v2.7.2
+dunce v1.0.5
+glob v0.3.4
+open v5.4.5
+dunce v1.0.5
+serde v1.0.229 (*)
+serde_json v1.0.154 (*)
+tauri v2.12.5 (*)
+thiserror v2.0.21 (*)
+windows v0.62.2 (*)
+windows-sys v0.61.2 (*)

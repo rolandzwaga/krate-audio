@@ -65,6 +65,12 @@ target_include_directories(shared_tests
 
 target_compile_features(shared_tests PRIVATE cxx_std_20)
 
+# Krate Manager Phase 3 (FR-046): the committed feed fixtures the "one v2 plugin among eight v1 plugins" case reads.
+target_compile_definitions(shared_tests
+    PRIVATE
+        SHARED_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/tools/feed-contract/fixtures"
+)
+
 # Compiler warnings
 if(MSVC)
     target_compile_options(shared_tests PRIVATE
@@ -81,6 +87,12 @@ else()
         -Wpedantic
         -Wno-unused-parameter
     )
+endif()
+
+# Linux: the update checker's libcurl fetch, tested against a loopback httplib server
+if(UNIX AND NOT APPLE)
+    target_sources(shared_tests PRIVATE test_libcurl_fetch.cpp)
+    target_link_libraries(shared_tests PRIVATE httplib::httplib)
 endif()
 
 # IEEE 754 compliance: test_oscillator_type_selector.cpp uses std::isnan/std::isinf

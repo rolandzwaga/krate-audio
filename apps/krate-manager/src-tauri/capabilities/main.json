@@ -1,0 +1,20 @@
+{
+  "identifier": "main",
+  "description": "The main window may call only the app's own commands.",
+  "windows": ["main"],
+  "permissions": [
+    "allow-app-version",
+    "allow-startup-error",
+    "allow-plugin-status",
+    "allow-check-now",
+    "allow-open-release-page",
+    "allow-download-plugin",
+    "allow-install-plugin",
+    "allow-remove-plugin",
+    "allow-manager-update-check",
+    "allow-manager-update-install",
+    "allow-update-all",
+    "allow-settings-view",
+    "allow-settings-save"
+  ]
+}

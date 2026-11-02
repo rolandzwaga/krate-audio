@@ -1,0 +1,188 @@
+name: Feed tools
+
+on:
+  push:
+    paths:
+      - 'tools/gen-feed.js'
+      - 'tools/gen-release-manifest.js'
+      - 'tools/minisign.js'
+      - 'tools/feed-contract/**'
+      - 'tools/feed-contract/package.json'
+      - 'tools/feed-contract/package-lock.json'
+      - '.github/workflows/feed-tools.yml'
+      - 'tools/release-facts.js'
+      - 'tools/backfill-sign.js'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/backfill-sign.yml'
+      - 'tools/feed-publish.js'
+      - '.github/workflows/feed.yml'
+      - 'tools/lint-manager-version.js'
+      - '.github/workflows/manager-ci.yml'
+      - 'apps/krate-manager/package.json'
+      - 'apps/krate-manager/tests/required-tests.json'
+      - 'tools/gen-manager-latest.js'
+      - 'tools/manager-release-preflight.js'
+      - '.github/workflows/release-manager.yml'
+      - '.gitattributes'                      # line endings decide shebang / byte-exact fixture tests (d925be34)
+      - 'docs/manager-card-template.html'     # Krate Manager Phase 12 FR-086 (SI-16): the card, the README, the
+      - 'docs/index-template.html'            # release procedure, the landing generator and its third caller, and
+      - 'apps/krate-manager/README.md'        # the FR-073 record that flips SC-016b
+      - 'apps/krate-manager/RELEASING.md'
+      - 'tools/gen-root-index.js'
+      - 'tools/manager-readiness-counts.js'
+      - '.github/workflows/docs.yml'
+      - 'specs/krate-manager-phase12/user-checks.md'
+  pull_request:
+    paths:
+      - 'tools/gen-feed.js'
+      - 'tools/gen-release-manifest.js'
+      - 'tools/minisign.js'
+      - 'tools/feed-contract/**'
+      - 'tools/feed-contract/package.json'
+      - 'tools/feed-contract/package-lock.json'
+      - '.github/workflows/feed-tools.yml'
+      - 'tools/release-facts.js'
+      - 'tools/backfill-sign.js'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/backfill-sign.yml'
+      - 'tools/feed-publish.js'
+      - '.github/workflows/feed.yml'
+      - 'tools/lint-manager-version.js'
+      - '.github/workflows/manager-ci.yml'
+      - 'apps/krate-manager/package.json'
+      - 'apps/krate-manager/tests/required-tests.json'
+      - 'tools/gen-manager-latest.js'
+      - 'tools/manager-release-preflight.js'
+      - '.github/workflows/release-manager.yml'
+      - '.gitattributes'                      # line endings decide shebang / byte-exact fixture tests (d925be34)
+      - 'docs/manager-card-template.html'     # Krate Manager Phase 12 FR-086 (SI-16): the card, the README, the
+      - 'docs/index-template.html'            # release procedure, the landing generator and its third caller, and
+      - 'apps/krate-manager/README.md'        # the FR-073 record that flips SC-016b
+      - 'apps/krate-manager/RELEASING.md'
+      - 'tools/gen-root-index.js'
+      - 'tools/manager-readiness-counts.js'
+      - '.github/workflows/docs.yml'
+      - 'specs/krate-manager-phase12/user-checks.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-test:
+    name: node-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - run: npm ci --prefix tools/feed-contract
+
+      # A cold cargo install compiles rsign2 and its deps on every leg; the key pins the exact version.
+      - name: Cache rsign2
+        id: rsign-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/rsign
+            ~/.cargo/bin/rsign.exe
+          key: rsign2-0.6.7-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install rsign2
+        if: steps.rsign-cache.outputs.cache-hit != 'true'
+        run: cargo install rsign2 --version 0.6.7 --locked
+
+      # The TAP copy goes to RUNNER_TEMP, outside the checkout, so "Checkout unchanged" stays empty.
+      - name: node --test
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test --test-reporter=tap "tools/feed-contract/tests/*.test.js" | tee "$RUNNER_TEMP/tap.txt"
+          node - "$RUNNER_TEMP/tap.txt" <<'TAPCHECK'
+          const lines = require("fs").readFileSync(process.argv[2], "utf8").split(/\r?\n/);
+          const PLAN = "1..69";
+          const NAMES = [
+            "minisign.js verifies the rsign2 KAT",
+            "minisign.js sign and verify round trip",
+            "minisign.js and rsign2 interoperate",
+            "release-facts reads Mach-O arch sets and minimum macOS",
+            "release-facts reads the glibc floor",
+            "gen-release-manifest builds a verified release.json",
+            "gen-release-manifest refuses what it cannot bind",
+            "Linux payload digest equals the extracted tree's listing",
+            "gen-release-manifest prints the C3 comments",
+            "backfill signs nine current releases",
+            "backfill second run uploads nothing",
+            "backfill reports defective releases by name",
+            "backfill dry run uploads nothing",
+            "release.yml and backfill-sign.yml keep the Phase 2 shape",
+            "signing configuration is throwaway, on or a failure",
+            "minisign.js verify CLI prints and exits by contract",
+            "release-facts darwin CLI writes facts and lipo lines",
+            "backfill production signer drives rsign2",
+            "Phase 2 tools follow the tools/*.js form",
+            "minisign.js decrypts the rsign2 secret-key KAT",
+            "minisign.js decrypt-key writes only under RUNNER_TEMP and cleans up",
+            "keys README states the secrets contract and the merge order",
+            "feed pipeline reproduces the live v1 feed from the 2026-10-29 snapshot",
+            "feed pipeline is deterministic",
+            "collect downloads only the selected manifests",
+            "collect aborts cleanly",
+            "a release without release.json stays v1-only",
+            "collect copies only a valid manager latest.json",
+            "compare explains every v1 difference or fails",
+            "Phase 3 mixed feed fixture is real-shaped",
+            "feed.yml and release.yml keep the Phase 3 shape",
+            "feed-publish tests never build real effects",
+            "feed-publish decides every workflow branch",
+            "lint-manager-version accepts equal versions and names every drift",
+            "manager-ci.yml keeps the Phase 4 shape",
+            "gen-manager-latest writes per-tag latest.json",
+            "gen-manager-latest refuses what it cannot verify",
+            "manager release preflight refuses by name",
+            "manager release body is exact",
+            "release-manager.yml keeps the Phase 11 shape",
+            "root index renders the plugin cards and the manager card",
+            "first-launch statements are in the README and the card",
+            "readiness counts and the closed post-release list",
+            "manager release preflight enforces the RustSec record",
+            "landing pages render with gen-root-index.js",
+          ];
+          const bad = [];
+          if (!lines.includes("# fail 0")) bad.push('no "# fail 0" line');
+          const plans = lines.filter((l) => /^1\.\.\d+$/.test(l));
+          if (plans.length !== 1 || plans[0] !== PLAN) bad.push(`top-level plan ${JSON.stringify(plans)}, want ${PLAN}`);
+          const top = lines.filter((l) => /^(not )?ok \d+ - /.test(l));
+          const nameOf = (l) => l.replace(/^(not )?ok \d+ - /, "").replace(/ # (SKIP|TODO)\b.*$/, "");
+          for (const n of NAMES) if (!top.some((l) => l.startsWith("ok ") && nameOf(l) === n)) bad.push(`missing: ${n}`);
+          const RSIGN = [
+            "minisign.js and rsign2 interoperate",
+            "backfill production signer drives rsign2",
+            "minisign.js decrypts the rsign2 secret-key KAT",
+          ];
+          if (process.env.CI) {
+            for (const l of top) if (/ # SKIP\b/.test(l)) bad.push(`skipped on CI: ${l}`);
+            for (const n of RSIGN) {   // PD-27: the whole block, subtests included
+              const start = lines.indexOf(`# Subtest: ${n}`);
+              const end = lines.findIndex((l, i) => i > start && /^(not )?ok \d+ - /.test(l) && nameOf(l) === n);
+              if (start < 0 || end < 0) { bad.push(`no TAP block: ${n}`); continue; }
+              for (const l of lines.slice(start, end + 1)) if (/ # SKIP\b/.test(l)) bad.push(`skipped rsign case: ${n}: ${l.trim()}`);
+            }
+          }
+          console.log(`TAP plan=${plans.join(",")} top-level=${top.length}`);
+          if (bad.length) { console.error("TAP check failed:\n" + bad.join("\n")); process.exit(1); }
+          TAPCHECK
+
+      - name: rsign verify (KAT)
+        run: rsign verify -p tools/feed-contract/fixtures/kat/kat.pub tools/feed-contract/fixtures/kat/KatPlugin-1.2.3-Linux-x64.tar.gz
+
+      - name: Checkout unchanged
+        shell: bash
+        run: test -z "$(git status --porcelain)"

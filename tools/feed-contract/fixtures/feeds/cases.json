@@ -1,0 +1,701 @@
+[
+  {
+    "rule": "FR-055/v1-only",
+    "file": "valid/v1-only.json",
+    "schema": "v1",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-055/full-v2",
+    "file": "valid/full-v2.json",
+    "schema": "v2",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-055/mixed",
+    "file": "valid/mixed.json",
+    "schema": "v2",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-055/prerelease-suffixed",
+    "file": "valid/prerelease-suffixed.json",
+    "schema": "v2",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-055/prerelease-plain",
+    "file": "valid/prerelease-plain.json",
+    "schema": "v2",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-055/notes-14000",
+    "file": "valid/notes-14000.json",
+    "schema": "v2",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-055/tenth-plugin",
+    "file": "valid/tenth-plugin.json",
+    "schema": "v2",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-055/unknown-platform-key",
+    "file": "valid/unknown-platform-key.json",
+    "schema": "v2",
+    "expect": "accept-without-platforms",
+    "plugin": "Delta"
+  },
+  {
+    "rule": "FR-055/unknown-extra-keys",
+    "file": "valid/unknown-extra-keys.json",
+    "schema": "v2",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-014/sibling-same-install",
+    "file": "valid/sibling-same-install.json",
+    "schema": "v2",
+    "expect": "accept"
+  },
+  {
+    "rule": "FR-001/malformed-json",
+    "file": "invalid/malformed-json.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_INPUT"
+    }
+  },
+  {
+    "rule": "FR-001/schema_version-const",
+    "file": "invalid/schema_version-const.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/schema_version const"
+    }
+  },
+  {
+    "rule": "FR-001/plugins-required",
+    "file": "invalid/plugins-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": " required"
+    }
+  },
+  {
+    "rule": "FR-002/plugin-key-pattern",
+    "file": "invalid/plugin-key-pattern.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins pattern"
+    }
+  },
+  {
+    "rule": "FR-002/plugin-key-reserved",
+    "file": "invalid/plugin-key-reserved.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins not"
+    }
+  },
+  {
+    "rule": "FR-003/version-type",
+    "file": "invalid/version-type.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/version type"
+    }
+  },
+  {
+    "rule": "FR-003/download_url-required",
+    "file": "invalid/download_url-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha required"
+    }
+  },
+  {
+    "rule": "FR-003/release_notes-const",
+    "file": "invalid/release_notes-const.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/release_notes const"
+    }
+  },
+  {
+    "rule": "FR-003/tag-required",
+    "file": "invalid/tag-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha required"
+    }
+  },
+  {
+    "rule": "FR-003/pub_date-required",
+    "file": "invalid/pub_date-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha required"
+    }
+  },
+  {
+    "rule": "FR-003/channel-required",
+    "file": "invalid/channel-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha required"
+    }
+  },
+  {
+    "rule": "FR-003/release_notes_url-required",
+    "file": "invalid/release_notes_url-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha required"
+    }
+  },
+  {
+    "rule": "FR-003/channel-stable-const",
+    "file": "invalid/channel-stable-const.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/channel const"
+    }
+  },
+  {
+    "rule": "FR-003/notes_markdown-type",
+    "file": "invalid/notes_markdown-type.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/notes_markdown type"
+    }
+  },
+  {
+    "rule": "FR-003/platforms-requires-install",
+    "file": "invalid/platforms-requires-install.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha dependentRequired"
+    }
+  },
+  {
+    "rule": "FR-003/install-requires-platforms",
+    "file": "invalid/install-requires-platforms.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha dependentRequired"
+    }
+  },
+  {
+    "rule": "FR-004/version-suffix",
+    "file": "invalid/version-suffix.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/version pattern"
+    }
+  },
+  {
+    "rule": "FR-004/version-ten-digits",
+    "file": "invalid/version-ten-digits.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/version pattern"
+    }
+  },
+  {
+    "rule": "FR-004/version-leading-zero",
+    "file": "invalid/version-leading-zero.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/version pattern"
+    }
+  },
+  {
+    "rule": "FR-005/tag-pattern",
+    "file": "invalid/tag-pattern.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/tag pattern"
+    }
+  },
+  {
+    "rule": "FR-005/tag-stable-suffix",
+    "file": "invalid/tag-stable-suffix.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/tag pattern"
+    }
+  },
+  {
+    "rule": "FR-005/pub_date-pattern",
+    "file": "invalid/pub_date-pattern.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/pub_date pattern"
+    }
+  },
+  {
+    "rule": "FR-005/url-https",
+    "file": "invalid/url-https.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/windows-x86_64/url pattern"
+    }
+  },
+  {
+    "rule": "FR-005/url-whitespace",
+    "file": "invalid/url-whitespace.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/download_url pattern"
+    }
+  },
+  {
+    "rule": "FR-005/url-latest",
+    "file": "invalid/url-latest.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/download_url not"
+    }
+  },
+  {
+    "rule": "FR-006/platform-key-pattern",
+    "file": "invalid/platform-key-pattern.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms pattern"
+    }
+  },
+  {
+    "rule": "FR-006/platform-url-required",
+    "file": "invalid/platform-url-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/windows-x86_64 required"
+    }
+  },
+  {
+    "rule": "FR-006/platform-size-zero",
+    "file": "invalid/platform-size-zero.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/windows-x86_64/size minimum"
+    }
+  },
+  {
+    "rule": "FR-006/platform-size-max",
+    "file": "invalid/platform-size-max.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/windows-x86_64/size maximum"
+    }
+  },
+  {
+    "rule": "FR-006/platform-size-type",
+    "file": "invalid/platform-size-type.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/windows-x86_64/size type"
+    }
+  },
+  {
+    "rule": "FR-006/platform-sha256-length",
+    "file": "invalid/platform-sha256-length.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/windows-x86_64/sha256 pattern"
+    }
+  },
+  {
+    "rule": "FR-006/platform-sha256-hex",
+    "file": "invalid/platform-sha256-hex.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/windows-x86_64/sha256 pattern"
+    }
+  },
+  {
+    "rule": "FR-006/format-windows",
+    "file": "invalid/format-windows.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/windows-x86_64/format const"
+    }
+  },
+  {
+    "rule": "FR-006/format-darwin",
+    "file": "invalid/format-darwin.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Charlie/platforms/darwin-universal/format const"
+    }
+  },
+  {
+    "rule": "FR-006/format-linux",
+    "file": "invalid/format-linux.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/linux-x86_64/format const"
+    }
+  },
+  {
+    "rule": "FR-006/min_os-darwin-required",
+    "file": "invalid/min_os-darwin-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/darwin-aarch64 required"
+    }
+  },
+  {
+    "rule": "FR-006/min_os-linux-required",
+    "file": "invalid/min_os-linux-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/linux-x86_64 required"
+    }
+  },
+  {
+    "rule": "FR-006/min_os-pattern",
+    "file": "invalid/min_os-pattern.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/darwin-aarch64/min_os pattern"
+    }
+  },
+  {
+    "rule": "FR-007/signature-legacy-Ed",
+    "file": "invalid/signature-legacy-Ed.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_SIGNATURE_TEXT"
+    }
+  },
+  {
+    "rule": "FR-007/signature-cr",
+    "file": "invalid/signature-cr.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_SIGNATURE_TEXT"
+    }
+  },
+  {
+    "rule": "FR-007/signature-blob-length",
+    "file": "invalid/signature-blob-length.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_SIGNATURE_TEXT"
+    }
+  },
+  {
+    "rule": "FR-007/signature-noncanonical-base64",
+    "file": "invalid/signature-noncanonical-base64.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_SIGNATURE_TEXT"
+    }
+  },
+  {
+    "rule": "FR-007/signature-trusted-comment",
+    "file": "invalid/signature-trusted-comment.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_TC_FIELDS"
+    }
+  },
+  {
+    "rule": "FR-007/signature-no-final-lf",
+    "file": "invalid/signature-no-final-lf.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/linux-x86_64/signature pattern"
+    }
+  },
+  {
+    "rule": "FR-008/install-dotdot",
+    "file": "invalid/install-dotdot.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_INSTALL_VALUE"
+    }
+  },
+  {
+    "rule": "FR-008/install-slash",
+    "file": "invalid/install-slash.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_INSTALL_VALUE"
+    }
+  },
+  {
+    "rule": "FR-008/install-backslash",
+    "file": "invalid/install-backslash.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_INSTALL_VALUE"
+    }
+  },
+  {
+    "rule": "FR-008/vst3_bundle-required",
+    "file": "invalid/vst3_bundle-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/install required"
+    }
+  },
+  {
+    "rule": "FR-008/uninstall-key-pattern",
+    "file": "invalid/uninstall-key-pattern.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/install/windows_uninstall_key pattern"
+    }
+  },
+  {
+    "rule": "FR-008/pkg-id-pattern",
+    "file": "invalid/pkg-id-pattern.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/install/macos_pkg_id pattern"
+    }
+  },
+  {
+    "rule": "FR-008/darwin-requires-au_component",
+    "file": "invalid/darwin-requires-au_component.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/install required"
+    }
+  },
+  {
+    "rule": "FR-008/darwin-requires-macos_pkg_id",
+    "file": "invalid/darwin-requires-macos_pkg_id.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/install required"
+    }
+  },
+  {
+    "rule": "FR-008/windows-requires-uninstall-key",
+    "file": "invalid/windows-requires-uninstall-key.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/install required"
+    }
+  },
+  {
+    "rule": "FR-008/bundle-reserved-stem",
+    "file": "invalid/bundle-reserved-stem.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/install/vst3_bundle not"
+    }
+  },
+  {
+    "rule": "FR-008/component-reserved-stem",
+    "file": "invalid/component-reserved-stem.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/install/au_component not"
+    }
+  },
+  {
+    "rule": "FR-008/preset_subdir-reserved",
+    "file": "invalid/preset_subdir-reserved.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Bravo/install/preset_subdir not"
+    }
+  },
+  {
+    "rule": "FR-008/preset_subdir-trailing-space",
+    "file": "invalid/preset_subdir-trailing-space.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Bravo/install/preset_subdir pattern"
+    }
+  },
+  {
+    "rule": "FR-009/payload-tar-gz-required",
+    "file": "invalid/payload-tar-gz-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/linux-x86_64 required"
+    }
+  },
+  {
+    "rule": "FR-009/payload-inno-exe-forbidden",
+    "file": "invalid/payload-inno-exe-forbidden.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/windows-x86_64/payload false schema"
+    }
+  },
+  {
+    "rule": "FR-009/payload-pkg-forbidden",
+    "file": "invalid/payload-pkg-forbidden.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/darwin-aarch64/payload false schema"
+    }
+  },
+  {
+    "rule": "FR-009/payload-files-min",
+    "file": "invalid/payload-files-min.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/linux-x86_64/payload/files minimum"
+    }
+  },
+  {
+    "rule": "FR-009/payload-sha256-pattern",
+    "file": "invalid/payload-sha256-pattern.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/platforms/linux-x86_64/payload/sha256 pattern"
+    }
+  },
+  {
+    "rule": "FR-010/sibling-version-forbidden",
+    "file": "invalid/sibling-version-forbidden.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Bravo/prerelease/version false schema"
+    }
+  },
+  {
+    "rule": "FR-010/sibling-download_url-forbidden",
+    "file": "invalid/sibling-download_url-forbidden.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Bravo/prerelease/download_url false schema"
+    }
+  },
+  {
+    "rule": "FR-010/sibling-release_notes-forbidden",
+    "file": "invalid/sibling-release_notes-forbidden.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Bravo/prerelease/release_notes false schema"
+    }
+  },
+  {
+    "rule": "FR-010/sibling-channel-const",
+    "file": "invalid/sibling-channel-const.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Bravo/prerelease/channel const"
+    }
+  },
+  {
+    "rule": "FR-010/sibling-tag-required",
+    "file": "invalid/sibling-tag-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Bravo/prerelease required"
+    }
+  },
+  {
+    "rule": "FR-010/sibling-tag-pattern",
+    "file": "invalid/sibling-tag-pattern.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Bravo/prerelease/tag pattern"
+    }
+  },
+  {
+    "rule": "FR-010/sibling-platforms-requires-install",
+    "file": "invalid/sibling-platforms-requires-install.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Bravo/prerelease dependentRequired"
+    }
+  },
+  {
+    "rule": "FR-011/manager-latest_json_url-required",
+    "file": "invalid/manager-latest_json_url-required.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/manager required"
+    }
+  },
+  {
+    "rule": "FR-011/manager-latest_json_url-suffix",
+    "file": "invalid/manager-latest_json_url-suffix.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/manager/latest_json_url pattern"
+    }
+  },
+  {
+    "rule": "FR-011/manager-latest_json_url-https",
+    "file": "invalid/manager-latest_json_url-https.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/manager/latest_json_url pattern"
+    }
+  },
+  {
+    "rule": "FR-012/v1-version-required",
+    "file": "invalid/v1-version-required.json",
+    "schema": "v1",
+    "expect": {
+      "error": "/plugins/Alpha required"
+    }
+  },
+  {
+    "rule": "FR-012/v1-version-type",
+    "file": "invalid/v1-version-type.json",
+    "schema": "v1",
+    "expect": {
+      "error": "/plugins/Alpha/version type"
+    }
+  },
+  {
+    "rule": "FR-014/dup-vst3_bundle",
+    "file": "invalid/dup-vst3_bundle.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_INSTALL_DUPLICATE"
+    }
+  },
+  {
+    "rule": "FR-014/dup-au_component",
+    "file": "invalid/dup-au_component.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_INSTALL_DUPLICATE"
+    }
+  },
+  {
+    "rule": "FR-014/dup-uninstall-key",
+    "file": "invalid/dup-uninstall-key.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_INSTALL_DUPLICATE"
+    }
+  },
+  {
+    "rule": "FR-014/dup-pkg-id",
+    "file": "invalid/dup-pkg-id.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_INSTALL_DUPLICATE"
+    }
+  },
+  {
+    "rule": "FR-014/dup-vst3_bundle-casefold",
+    "file": "invalid/dup-vst3_bundle-casefold.json",
+    "schema": "v2",
+    "expect": {
+      "error": "E_INSTALL_DUPLICATE"
+    }
+  },
+  {
+    "rule": "Phase3/one-v2-eight-v1",
+    "file": "valid/one-v2-eight-v1.json",
+    "schema": "v2",
+    "expect": "accept"
+  }
+]
