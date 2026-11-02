@@ -182,14 +182,50 @@
       }
     },
     "Membrum": {
-      "version": "0.12.2",
+      "version": "0.12.3",
       "download_url": "https://krateaudio.com/membrum/",
       "release_notes": "",
-      "tag": "membrum/v0.12.2",
-      "pub_date": "2026-10-26T22:50:47Z",
+      "tag": "membrum/v0.12.3",
+      "pub_date": "2026-11-02T22:00:24Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.2",
-      "notes_markdown": "### Added\n\n- **Update check** — When the editor opens, Membrum checks online for a newer version, at\n  most once a day, and shows a banner across the top of the window when one exists. A\n  Check for Updates button under the meters checks right away.\n- **Version in the editor** — The plugin version is shown next to the Check for Updates\n  button.\n\n### Changed\n\n- **Preset descriptions in the browser** — The kit and pad preset browsers have a line\n  under the preset list that shows the selected preset's description, for presets that\n  carry one."
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.3",
+      "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Membrum AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.",
+      "platforms": {
+        "darwin-universal": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.3/Membrum-0.12.3-macOS.pkg",
+          "size": 6796309,
+          "sha256": "e99125d8933a1e652ee5a41c59eeead9ab306fde3111a08e1da7e6242eea638e",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn78brqyJq6edwytPb/6CjLE1wVKeEW6BYnbN+0cKVWw9ROJq1/gjDFtGMEvI0hUA5Lt1Q2v8EYlbDhUtnfh6pQk=\ntrusted comment: krate:1:Membrum:0.12.3:darwin-universal:Membrum-0.12.3-macOS.pkg\nVwtYB+sO9ytD6fWuiz5QJz0QT8oiCtB4qWVaJNZGfy/GZp+ubDOVD3yZHHnqV7ufQEuXImm5QeXHqP6XoxznDA==\n",
+          "format": "pkg",
+          "min_os": "26.5"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.3/Membrum-0.12.3-Linux-x64.tar.gz",
+          "size": 1582943,
+          "sha256": "1f31cef1aa48be01c8437dd34dc22a4d65f95a4eec88dfb10a6d107f09b3a509",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn6Q1OZp9raHuVU398IWB1QXbe7TF2rZLiwHIHu/JlOcCdcU2Z8amnr0ll6J14aRgyuLdvJeIPscfymi0nfT8CgE=\ntrusted comment: krate:1:Membrum:0.12.3:linux-x86_64:Membrum-0.12.3-Linux-x64.tar.gz\nRqSh3wFhLiOHSZKYTiYnni1Q2I6isFhREDmALvoFyYvL9cWylxyVk5pC9kz8nuf6BgIH3dQyzljz2r34L/9BBw==\n",
+          "format": "tar.gz",
+          "min_os": "2.38",
+          "payload": {
+            "files": 34,
+            "sha256": "3ffe4bdb6b3968461bc6be10fbd4edd3501ade06fa8a6438ffb31af469f19fa3"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.3/Membrum-0.12.3-Windows-x64.exe",
+          "size": 3491997,
+          "sha256": "6b903141bc3e3c214b13a8dc3a0d5a4664084da9cd2bf429497f822d4c517b07",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn+CMBXsgCXLM9WK4k0/jn0/1FnwZ918KJx7rDFOFYspq0rDqe9+DCUhyD8haBopnE5sl/K56TQ/oaSBJKyLLugk=\ntrusted comment: krate:1:Membrum:0.12.3:windows-x86_64:Membrum-0.12.3-Windows-x64.exe\nI87zq2qJNlVpQ7M8L/EwcelCCpG3KWFTFPNwBuQUMTuOeyGWslXXWOoskUsOpLREAUOwTMqebLBFtThVPK3eBw==\n",
+          "format": "inno-exe"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Membrum.vst3",
+        "au_component": "Membrum.component",
+        "preset_subdir": "Kits",
+        "windows_uninstall_key": "{B7E3C9D1-4A5F-4F2B-9E8C-3D6F1A8B2C5E}_is1",
+        "macos_pkg_id": "com.krateaudio.membrum"
+      }
     },
     "Profundum": {
       "version": "1.0.0",
