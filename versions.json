@@ -57,14 +57,49 @@
       "notes_markdown": "### Fixed\n\n- **Euclidean mode at 32 steps went silent when rotated** *(shared DSP)* — The step mask was built with a\n  shift by the full 32-bit width, which gave an empty mask, so a 32-step Euclidean pattern with any Rotation\n  (and a full 32 of 32) played no notes. It now plays every hit.\n- **Reset to default jumped three menus to their first option** — Arp Note Value, MIDI Delay\n  Lane Speed and Seq Note Lane Speed opened on the right value in a fresh instance, but a\n  host's \"reset to default\" (for example a double-click) put them on their first option\n  instead (Note Value 1/64T, Lane Speed 0.25x). They now reset to the value they open with.\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins."
     },
     "Innexus": {
-      "version": "1.0.4",
+      "version": "1.0.5",
       "download_url": "https://krateaudio.com/innexus/",
       "release_notes": "",
-      "tag": "innexus/v1.0.4",
-      "pub_date": "2026-10-29T21:55:06Z",
+      "tag": "innexus/v1.0.5",
+      "pub_date": "2026-11-02T21:35:20Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/innexus/v1.0.4",
-      "notes_markdown": "### Added\n\n- **Update check** — When the editor opens, Innexus checks online for a newer version, at most once a day, and shows a banner across the top of the window when one exists. Before, the banner was in place but the check never ran. A Check for Updates button under the preset buttons checks right away.\n\n### Changed\n\n- **Version label** — The version at the bottom of the editor is drawn by the same label every Krate plugin uses, and reads \"v1.0.3\" instead of \"Innexus v1.0.3 | Krate Audio\".\n\n### Fixed\n\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins."
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/innexus/v1.0.5",
+      "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Innexus AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
+      "platforms": {
+        "darwin-universal": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/innexus/v1.0.5/Innexus-1.0.5-macOS.pkg",
+          "size": 7127531,
+          "sha256": "16c24f4233844eeeaff5e607fd62796ac20a9eb4b3f9005468e248f12cfcf1e5",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn16KfmUOGJxuIjSIqeHgpkPbMn/gdHc73YQCyzJSJRR3Yjb8WvVYu94ZnYp2/XuiuDLSYxhdMawFq1PoIAZatg4=\ntrusted comment: krate:1:Innexus:1.0.5:darwin-universal:Innexus-1.0.5-macOS.pkg\n+/A6rQIMI8iKyzxPaVh0yaH2Ugvh2d+rsFl9sD6v9BkLzEwCLpAl9gBWb2w+scTWitn65ghh7b2wvd/DpAYGAA==\n",
+          "format": "pkg",
+          "min_os": "26.5"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/innexus/v1.0.5/Innexus-1.0.5-Linux-x64.tar.gz",
+          "size": 1660321,
+          "sha256": "fdbeb158c06f275c9b38bc1fd4a6edfc07a36b376879d61eb06833b438ac1be9",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn2pCt0FYFJvZ7ZDdPZucfNE3wJtXZbN9m6egLZ1OJqWD7SD9A/xCjWUEW9B+qq2Wok7w4JafWVziS3IZWHmKDQ4=\ntrusted comment: krate:1:Innexus:1.0.5:linux-x86_64:Innexus-1.0.5-Linux-x64.tar.gz\nnYCpH3FchFgzp0lnJDAPxYf4SpIc/PLwqCAQtGtL6PVj5lvGofkY6L6CwKLHfdI+Ww3euzUcIx/MheICTerKCg==\n",
+          "format": "tar.gz",
+          "min_os": "2.38",
+          "payload": {
+            "files": 52,
+            "sha256": "046547ba15e2c71ce9bac9dd537655a2fb73472fb0ca20285a5f83aaf7b3c05c"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/innexus/v1.0.5/Innexus-1.0.5-Windows-x64.exe",
+          "size": 3526773,
+          "sha256": "41300b7c8b7fded400094f9afc9a7ae735b4f91bb56b4ad56bdf329bfc30b4b5",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnxuLO+0s50zvfqc+iISM6SPH5z7etkmyPXhWZcneWXatYvFOHvJQET0m3brgbuFF7lM45fvMMoroq8IjPvojwgI=\ntrusted comment: krate:1:Innexus:1.0.5:windows-x86_64:Innexus-1.0.5-Windows-x64.exe\nY0qQNTFLZW/g0e/5JixBh7ix2obru487au4wjkHEjU2L6tWV/dwKYq1HqWF6UECL990Y6dc51d5NVta5P8l+DA==\n",
+          "format": "inno-exe"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Innexus.vst3",
+        "au_component": "Innexus.component",
+        "windows_uninstall_key": "{A3C8F5E1-7B2D-4E6A-91D3-5F0C2A8E4D7B}_is1",
+        "macos_pkg_id": "com.krateaudio.innexus"
+      }
     },
     "Iterum": {
       "version": "1.0.1",
