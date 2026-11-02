@@ -47,14 +47,49 @@
       }
     },
     "Gradus": {
-      "version": "1.10.2",
+      "version": "1.10.3",
       "download_url": "https://krateaudio.com/gradus/",
       "release_notes": "",
-      "tag": "gradus/v1.10.2",
-      "pub_date": "2026-10-29T20:45:19Z",
+      "tag": "gradus/v1.10.3",
+      "pub_date": "2026-11-02T21:47:54Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.2",
-      "notes_markdown": "### Fixed\n\n- **Euclidean mode at 32 steps went silent when rotated** *(shared DSP)* — The step mask was built with a\n  shift by the full 32-bit width, which gave an empty mask, so a 32-step Euclidean pattern with any Rotation\n  (and a full 32 of 32) played no notes. It now plays every hit.\n- **Reset to default jumped three menus to their first option** — Arp Note Value, MIDI Delay\n  Lane Speed and Seq Note Lane Speed opened on the right value in a fresh instance, but a\n  host's \"reset to default\" (for example a double-click) put them on their first option\n  instead (Note Value 1/64T, Lane Speed 0.25x). They now reset to the value they open with.\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins."
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.3",
+      "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Gradus AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
+      "platforms": {
+        "darwin-universal": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.3/Gradus-1.10.3-macOS.pkg",
+          "size": 6661972,
+          "sha256": "19076d32dc0ddb725cf9dd05738415c96ac1fb6e8bf4c3531f78c1e7f9e27f2f",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnyhkjuduKiLL6RtFLnbEpwo4rKRm4AFUm/OApvroWtJlmtvmefzlKeWd7JZyZNXdQ1LgcLIhOrzHLioFFN2ryA8=\ntrusted comment: krate:1:Gradus:1.10.3:darwin-universal:Gradus-1.10.3-macOS.pkg\np/fL2muNaYryVRopp+GofSWV6WtzGCQlikhFNEFCUUfqWixZxKhxG+hzdhzPyquJQew+FUO/rCKf6PIHEiJrCA==\n",
+          "format": "pkg",
+          "min_os": "26.5"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.3/Gradus-1.10.3-Linux-x64.tar.gz",
+          "size": 1538172,
+          "sha256": "b55c255c15b3150a7e840d18257085e236115b1db44512a8af6502cc6fc08298",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn4WwCpe41B/lD1lcKESVl40viz8MOwIEjsN5N/qrYqmBNPhd+O4Y91t2PQ4658PFbfyh9cIV1Fy9QzMsZT0kKgM=\ntrusted comment: krate:1:Gradus:1.10.3:linux-x86_64:Gradus-1.10.3-Linux-x64.tar.gz\nFSeMceOq10OM1Og3XTlsA4+uAsyJCwnv20uUA1cZvgl4MW286MY+qRv7IK8HYR6T3jwrDdGetxtpBn7xPhwsCg==\n",
+          "format": "tar.gz",
+          "min_os": "2.38",
+          "payload": {
+            "files": 81,
+            "sha256": "d8fe0fc13a3b6716c96f080ec3ccb1562045912a7043895dc15f30878538aabd"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.3/Gradus-1.10.3-Windows-x64.exe",
+          "size": 3448572,
+          "sha256": "f5aafd8b9ca1e5d31fadc1189af248de2c666e0525ca9e19b82aecceb77b4287",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnzM8deI9m9/AeoRhO+FyrhWos1foIrB7gvfGwZlJ7HiNGcSJxYiOtJQLIKb0Z3Izo6KNmj59C2bkY6T2T0XPBAk=\ntrusted comment: krate:1:Gradus:1.10.3:windows-x86_64:Gradus-1.10.3-Windows-x64.exe\nkM3LGK+fY0jM2OSLtIMecks01QiIRWU2v7lUowj3wFM4R2BAZk+iJ3x/Wqrl+6dhFnrN2BGtmg4F1hrDky5kCw==\n",
+          "format": "inno-exe"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Gradus.vst3",
+        "au_component": "Gradus.component",
+        "windows_uninstall_key": "{D4F7A2B6-8C3E-4F1D-A5E9-7B0D3C6F8A2E}_is1",
+        "macos_pkg_id": "com.krateaudio.gradus"
+      }
     },
     "Innexus": {
       "version": "1.0.5",
