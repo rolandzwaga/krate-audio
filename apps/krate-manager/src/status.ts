@@ -144,7 +144,7 @@ export type Invoker = <T>(cmd: string, args?: Record<string, unknown>) => Promis
  */
 export type ChannelMaker = (onMessage: (message: unknown) => void) => unknown;
 
-const tauriChannel: ChannelMaker = (onMessage) => {
+export const tauriChannel: ChannelMaker = (onMessage) => {
   const channel = new Channel<unknown>();
   channel.onmessage = onMessage;
   return channel;
@@ -158,6 +158,8 @@ interface CardHost {
   readonly outcomes: Map<string, string[]>;
   /** Re-reads the status after an action; the section re-renders, bare `renderCards` has nothing to re-render. */
   refresh(): Promise<void>;
+  /** False while Krate Manager updates itself (Phase 11 FR-025): every action button stays disabled. */
+  actionsEnabled(): boolean;
 }
 
 export interface StatusSection {
@@ -165,10 +167,12 @@ export interface StatusSection {
   readonly button: HTMLButtonElement;
   render(view: StatusView): void;
   reject(text: string): void;
+  /** Phase 11 FR-025: disables or re-enables every card action button and `Check now`. */
+  setActionsEnabled(enabled: boolean): void;
 }
 
 /** The text of a rejected command: Tauri rejects with the command's `Err(String)`. */
-function rejectionText(reason: unknown): string {
+export function rejectionText(reason: unknown): string {
   if (typeof reason === "string") return reason;
   if (reason instanceof Error) return reason.message;
   return String(reason);
@@ -247,11 +251,14 @@ function noticeTexts(p: PluginView): string[] {
   return notices;
 }
 
-/** The `Open release page` button (FR-078); `url` is held by the click closure only. */
-function releaseButton(url: string, invoke: Invoker): HTMLButtonElement {
+/**
+ * The `Open release page` button (FR-078); `url` is held by the click closure only. Phase 11 PD-31: the update line's
+ * "Download the new .deb" is this button with its own `label`.
+ */
+export function releaseButton(url: string, invoke: Invoker, label: string = STATUS_TEXTS.openReleasePage): HTMLButtonElement {
   const button = document.createElement("button");
   button.className = "open-release";
-  button.textContent = STATUS_TEXTS.openReleasePage;
+  button.textContent = label;
   let error: HTMLParagraphElement | null = null;
   async function open(): Promise<void> {
     if (button.disabled) return;
@@ -373,6 +380,7 @@ function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: Plugin
   row.className = "actions";
   const buttons = shownActions(p).map((action) => {
     const b = button(`action-${action}`, ACTION_LABELS[action]);
+    b.disabled = !host.actionsEnabled();
     b.addEventListener("click", () => {
       if (!b.disabled) ask(action);
     });
@@ -387,9 +395,12 @@ function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: Plugin
     const cancel = button("confirm-cancel", INSTALL_TEXTS.cancel);
     confirm.append(...confirmLines(os, p, action), ok, cancel);
     cancel.addEventListener("click", () => {
+      // The row was detached while asking: a self-update may have started or ended meanwhile (FR-025).
+      for (const b of buttons) b.disabled = !host.actionsEnabled();
       confirm.replaceWith(row);
     });
     ok.addEventListener("click", () => {
+      if (ok.disabled) return;
       confirm.replaceWith(row);
       void run(action);
     });
@@ -399,6 +410,8 @@ function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: Plugin
   async function run(action: ActionName): Promise<void> {
     host.outcomes.delete(p.name);
     for (const line of Array.from(card.querySelectorAll(":scope > p.outcome"))) line.remove();
+    // `running` keeps `setActionsEnabled(true)` from re-enabling this row before its command settles.
+    row.classList.add("running");
     for (const b of buttons) b.disabled = true;
     const progress = paragraph("progress", "");
     const onProgress = host.makeChannel((message) => {
@@ -426,7 +439,8 @@ function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: Plugin
     host.outcomes.set(p.name, lines);
     anchor.before(...lines.map((line) => paragraph("outcome", line)));
     await host.refresh();
-    for (const b of buttons) b.disabled = false;
+    row.classList.remove("running");
+    for (const b of buttons) b.disabled = !host.actionsEnabled();
   }
 
   return row;
@@ -483,7 +497,13 @@ function renderCardsWith(view: StatusView, host: CardHost): HTMLElement[] {
 }
 
 export function renderCards(view: StatusView, invoke: Invoker, makeChannel: ChannelMaker = tauriChannel): HTMLElement[] {
-  return renderCardsWith(view, { invoke, makeChannel, outcomes: new Map(), refresh: () => Promise.resolve() });
+  return renderCardsWith(view, {
+    invoke,
+    makeChannel,
+    outcomes: new Map(),
+    refresh: () => Promise.resolve(),
+    actionsEnabled: () => true,
+  });
 }
 
 function timeText(unix: number | null): string {
@@ -503,8 +523,20 @@ function feedText(view: StatusView): string {
   }
 }
 
-/** The section in its pending state: the pending text and a disabled `Check now` button (FR-070, FR-073). */
-export function createStatusSection(invoke: Invoker, makeChannel: ChannelMaker = tauriChannel): StatusSection {
+/** What `mountStatus` and `Check now` call once a status read settles (Phase 11 FR-026: the manager's update check). */
+export type AfterSettle = () => Promise<void>;
+
+const nothingAfter: AfterSettle = () => Promise.resolve();
+
+/**
+ * The section in its pending state: the pending text and a disabled `Check now` button (FR-070, FR-073); `afterSettle`
+ * runs after each `check_now` settles, success or rejection (Phase 11 FR-024).
+ */
+export function createStatusSection(
+  invoke: Invoker,
+  makeChannel: ChannelMaker = tauriChannel,
+  afterSettle: AfterSettle = nothingAfter,
+): StatusSection {
   const element = document.createElement("section");
   element.className = "status";
   const feedLine = paragraph("feed-line", ACTION_TEXTS.pending);
@@ -519,11 +551,14 @@ export function createStatusSection(invoke: Invoker, makeChannel: ChannelMaker =
   cards.className = "cards";
   element.append(feedLine, check, cards);
   let note: HTMLParagraphElement | null = null;
+  let actionsEnabled = true;
+  let checking = false;
   // FR-098: after an action the section re-reads the status and re-renders, keeping the outcome lines.
   const host: CardHost = {
     invoke,
     makeChannel,
     outcomes: new Map(),
+    actionsEnabled: () => actionsEnabled,
     async refresh() {
       let view: StatusView | null = null;
       try {
@@ -549,11 +584,18 @@ export function createStatusSection(invoke: Invoker, makeChannel: ChannelMaker =
     reject(text) {
       feedLine.textContent = fill(STATUS_TEXTS.feedNone, { error: text });
     },
+    setActionsEnabled(enabled) {
+      actionsEnabled = enabled;
+      const selector = "div.actions:not(.running) > button, div.confirm > button.confirm-ok";
+      for (const b of Array.from(cards.querySelectorAll<HTMLButtonElement>(selector))) b.disabled = !enabled;
+      button.disabled = !enabled || checking;
+    },
   };
 
   async function checkNow(): Promise<void> {
     if (button.disabled) return;
     button.disabled = true;
+    checking = true;
     button.textContent = ACTION_TEXTS.checking;
     host.outcomes.clear();
     let view: StatusView | null = null;
@@ -564,7 +606,9 @@ export function createStatusSection(invoke: Invoker, makeChannel: ChannelMaker =
     }
     if (view !== null) section.render(view);
     button.textContent = STATUS_TEXTS.checkNow;
-    button.disabled = false;
+    checking = false;
+    button.disabled = !actionsEnabled;
+    await afterSettle();
   }
   button.addEventListener("click", () => {
     void checkNow();
@@ -572,10 +616,20 @@ export function createStatusSection(invoke: Invoker, makeChannel: ChannelMaker =
   return section;
 }
 
-/** Appends the section before the first `plugin_status` call is awaited (PD-18), then settles it. */
-export async function mountStatus(root: HTMLElement, invoke: Invoker, makeChannel: ChannelMaker = tauriChannel): Promise<void> {
-  const section = createStatusSection(invoke, makeChannel);
+/**
+ * Appends the section before the first `plugin_status` call is awaited (PD-18), then settles it and runs `afterSettle`,
+ * whether that call succeeded or was rejected (Phase 11 FR-026). `onMount` receives the section once it is appended.
+ */
+export async function mountStatus(
+  root: HTMLElement,
+  invoke: Invoker,
+  makeChannel: ChannelMaker = tauriChannel,
+  afterSettle: AfterSettle = nothingAfter,
+  onMount: (section: StatusSection) => void = () => undefined,
+): Promise<void> {
+  const section = createStatusSection(invoke, makeChannel, afterSettle);
   root.append(section.element);
+  onMount(section);
   let view: StatusView | null = null;
   try {
     view = await invoke<StatusView>("plugin_status");
@@ -584,4 +638,5 @@ export async function mountStatus(root: HTMLElement, invoke: Invoker, makeChanne
   }
   if (view !== null) section.render(view);
   section.button.disabled = false;
+  await afterSettle();
 }

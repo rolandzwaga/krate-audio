@@ -208,7 +208,7 @@ Legend: ✅ reused unchanged · 🔶 changed (additively) · 🆕 new.
 | Probe script | `specs/krate-manager/probes/macos-gatekeeper-probe.js` | The quarantine / signature checks to turn into regression gates | 🔶 Phase 4 reuses its Q6 checks inside the manager CI workflow |
 | Gate tooling | `tools/run-gate.js`, `tools/header-consumers.js` | The one C++ test change (Phase 1) runs `shared_tests` sharded | ✅ |
 | CI build artifacts | `ci.yml:960-969` (macOS: raw `.vst3` / `.component` / AUv3 `.app` via `upload-artifact@v7`, zipped, so modes are lost); Linux uploads `ci.yml:1287-1351` | Nothing: the manager runs the released installers, not these bundles | ✅ unchanged (the tar upload that would have preserved modes for new zips is dropped with the zips) |
-| 🆕 | `apps/krate-manager/` (proposal), `.github/workflows/{manager-ci,feed,feed-tools,release-manager,backfill-sign}.yml`, `tools/gen-feed.js`, `tools/gen-release-manifest.js`, `tools/minisign.js`, `tools/feed-contract/`, `tools/lint-manager-version.js`, `tools/backfill-sign.js` | — | New |
+| 🆕 | `apps/krate-manager/` (proposal), `.github/workflows/{manager-ci,feed,feed-tools,release-manager,backfill-sign}.yml`, `tools/gen-feed.js`, `tools/gen-release-manifest.js`, `tools/minisign.js`, `tools/feed-contract/`, `tools/lint-manager-version.js`, `tools/backfill-sign.js`, `tools/gen-manager-latest.js`, `tools/manager-release-preflight.js` | — | New |
 
 ## Repository Layout (decided, Q1)
 
@@ -229,7 +229,7 @@ apps/krate-manager/
 .github/workflows/manager-ci.yml       fmt, clippy, cargo test, tsc, lint, vitest, tauri build on 3 OSes
 .github/workflows/feed-tools.yml       node --test for tools/gen-feed.js, gen-release-manifest.js, minisign.js on 3 OSes
 .github/workflows/feed.yml             builds versions.json v2 from Releases + release.json, deploys Pages
-.github/workflows/release-manager.yml  tauri-action matrix, manual dispatch, tag manager/vX.Y.Z, latest.json → feed.yml
+.github/workflows/release-manager.yml  bundle.js --release matrix, manual dispatch, tag manager/vX.Y.Z, tools/gen-manager-latest.js writes latest.json → feed.yml (Phase 11 D4)
 .github/workflows/backfill-sign.yml    one-time: signs each plugin's current release assets, attaches SHA256SUMS, .minisigs, release.json
 tools/gen-feed.js                      pure feed builder (fixtures in, versions.json out), `node --test`
 tools/gen-release-manifest.js          release.json from staged assets (+ sizes, sha256, signatures)
@@ -241,6 +241,8 @@ tools/feed-contract/keys/krate-signing.pub  the release signing public key (mini
 tools/release-facts.js                 Mach-O arch set + minimum macOS, glibc floor, Linux listing check (Phase 2)
 tools/backfill-sign.js                 backfill logic over an injected `gh` runner (fixtures in tests), `node --test`
 tools/lint-manager-version.js          version.json vs tauri.conf.json vs Cargo.toml equality lint, gated in manager-ci
+tools/gen-manager-latest.js            `latest.json` with per-tag URLs, every signature verified (Phase 11)
+tools/manager-release-preflight.js     version, CHANGELOG, tag, updater-config and key checks; the release body (Phase 11)
 ```
 
 `apps/` is outside `plugins/`, so the plugin roster lints (`tools/lint-plugin-roster.js`,
@@ -820,23 +822,26 @@ Linux (no elevation).
 
 **Spec:** `krate-manager-phase11`
 
+**Status: ✅ COMPLETE (PENDING-CI: 22 item(s)) (2026-11-02)** — see specs/krate-manager-phase11/compliance.md
+
 Components:
 - 🆕 `tauri-plugin-updater` ≥ 2.14.1 with `requireSignedVersion: true`, `allowDowngrades` false, `createUpdaterArtifacts:
   true`, Windows `passive` (self_update.md KQ7); `relaunch()` after install on macOS/Linux.
 - 🆕 `.github/workflows/release-manager.yml`, **manual dispatch only** (Q1 ruled): reads `apps/krate-manager/version.json`
   (first public version 0.1.0), re-runs `tools/lint-manager-version.js` and refuses to run if `tauri.conf.json` /
   `Cargo.toml` disagree, if `apps/krate-manager/CHANGELOG.md` has no entry for that version, or if the tag exists;
-  `create-release` job (tag `manager/v<ver>`), `tauri-apps/tauri-action`
-  matrix with `tagName` set so `latest.json` carries per-tag URLs (report line 65), the signing secret
+  tag `manager/v<ver>`; `bundle.js --release` builds each leg (no `tauri-action`: 1.0.0 writes `api.github.com`
+  asset URLs and dropped the `tagName` rewrite, Phase 11 D4); `gh release upload`; `tools/gen-manager-latest.js`
+  writes `latest.json` with per-tag github.com URLs and the three darwin keys; the signing secret
   `TAURI_SIGNING_PRIVATE_KEY` with its password `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (both environment secrets of the
   main-only `signing` environment, Phase 2 FR-061), the updater `pubkey` taken from
   `tools/feed-contract/keys/krate-signing.pub`, then `feed.yml` to publish `manager/latest.json` and the `manager` block.
 - **One universal macOS manager build, Intel Macs included (Q6 ruled: macOS 15 and later, `minimumSystemVersion`
   15.0).** The macOS leg runs `macos-latest` with
-  `args: --target universal-apple-darwin` (both rustup targets installed) and `updaterJsonKeepUniversal: true`, as
-  the report recommends (report line 65; feed_and_ci.md line 210). tauri-action maps a universal build to both
-  `darwin-aarch64` and `darwin-x86_64` entries in `latest.json`, and `updaterJsonKeepUniversal` adds a
-  `darwin-universal` entry (feed_and_ci.md line 198). tauri_feasibility.md line 178 notes that tauri-action's
+  `bundle.js --release --target universal-apple-darwin` (both rustup targets installed), and
+  `tools/gen-manager-latest.js` writes the three darwin keys `darwin-aarch64`, `darwin-x86_64` and
+  `darwin-universal` for the one universal archive (Phase 11 D4, D6: no `tauri-action`, see the bullet above).
+  tauri_feasibility.md line 178 notes that tauri-action's
   documented matrix instead builds aarch64 and x86_64 as two jobs; one universal job is chosen because it costs one
   macOS runner slot instead of two and yields a single `.app` for the pkg below. The manager runs on Intel Macs
   whatever Phase 2's `lipo -archs` finds for the plugins: if the plug-in binaries turn out arm64-only, the feed has no
@@ -854,9 +859,7 @@ Components:
   one-liner beside it (provisional until Phase 12's Open Anyway GUI check); Linux AppImage + `.deb` built inside an
   `ubuntu:22.04` container on the Ubuntu leg (report line 65 on the 22.04 runner's retirement). The Linux floor is that
   image's glibc (Q6), recorded with `objdump -T` on the built binary.
-- Updater endpoint: the Pages `manager/latest.json`, at `https://krateaudio.com/manager/latest.json`. The report suggests a per-tag release asset as a second endpoint
-  (report line 54), but a compiled-in URL cannot follow a per-release tag and `/releases/latest/` is forbidden in a
-  monorepo, so v1 ships one endpoint unless the spec finds a stable second host.
+- Updater endpoint: one endpoint, `https://krateaudio.com/manager/latest.json`; no stable second host (D5).
 - 🆕 End-to-end self-replace gate (the one probe item never tested, probes line 19): CI builds two versions with a
   throwaway key, serves `latest.json` from a local server, runs the old build's updater headless, and asserts the new
   version launches, `codesign --verify --deep --strict` passes and no quarantine xattr exists (macOS); the Windows and
@@ -915,6 +918,8 @@ Components:
     installing one plugin through the manager (the real Inno `.exe` / the real `.pkg`) and recording the prompt text and
     the result; on Windows additionally with the plug-in loaded in a DAW, recording the "close your DAW and retry"
     path; and once uninstalling the plugin again (Inno uninstaller / `pkgutil` removal). Linux has no elevation.
+  - the self-update of a pkg-installed manager on macOS: record the admin prompt and that the swapped bundle is then
+    user-owned (Phase 11 D11).
 - 🆕 First-launch documentation as a deliverable: Windows SmartScreen "More info → Run anyway" and Smart App Control
   unsupported; macOS first launch per Q5, **written from the recorded macOS GUI check above**; Linux format notes and
   "add `~/.vst3` to REAPER's path list" (REAPER Linux default unconfirmed, per_os_install_mechanics.md KQ6). Published

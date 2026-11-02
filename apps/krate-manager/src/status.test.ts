@@ -380,7 +380,7 @@ function nonTestSources(): (readonly [string, string])[] {
 
 test("no navigation path but the release page button", () => {
   const sources = nonTestSources();
-  expect(sources.map(([name]) => name).sort()).toEqual(["main.ts", "notes.ts", "status.ts", "view.ts"]);
+  expect(sources.map(([name]) => name).sort()).toEqual(["main.ts", "manager_update.ts", "notes.ts", "status.ts", "view.ts"]);
   expect(sources.flatMap(([name, text]) => navigationHits(name, text))).toEqual([]);
   const [first] = sources;
   if (first === undefined) throw new Error("no sources");
@@ -531,6 +531,37 @@ test("renders update and remove for update-available linux", () => {
   expect(texts(c, "div.actions > button")).toEqual(["Update", "Remove"]);
   expect(Array.from(c.querySelectorAll("div.actions > button"), (b) => b.className)).toEqual(["action-update", "action-remove"]);
   expect(c.querySelector("button.action-install")).toBeNull();
+});
+
+// Phase 11 SC-023 (FR-025): the unit case of `setActionsEnabled`; the wiring is main.test.ts's.
+test("re-enables plugin actions after a failed manager update", async () => {
+  const view = viewOf("linux", [UPDATE_AVAILABLE, { ...NOT_INSTALLED, name: "Beta" }]);
+  const { section, calls } = rig(view, deferred<unknown>().promise);
+  const flags = (): boolean[] => [
+    ...Array.from(section.element.querySelectorAll<HTMLButtonElement>("div.actions > button"), (b) => b.disabled),
+    section.button.disabled,
+  ];
+  expect(flags()).toEqual([false, false, false, false]);
+  section.setActionsEnabled(false);
+  expect(flags()).toEqual([true, true, true, true]);
+  section.render(view);
+  expect(flags()).toEqual([true, true, true, true]);
+  section.button.click();
+  click(card(section.element, "Beta"), "button.action-install");
+  await settle();
+  expect(calls).toEqual([]);
+  expect(section.element.querySelector("div.confirm")).toBeNull();
+  section.setActionsEnabled(true);
+  expect(flags()).toEqual([false, false, false, false]);
+  // A confirmation open when the self-update starts: its Confirm is disabled, and Cancel brings back disabled buttons.
+  const beta = card(section.element, "Beta");
+  click(beta, "button.action-install");
+  section.setActionsEnabled(false);
+  expect(only(beta, "button.confirm-ok", HTMLButtonElement).disabled).toBe(true);
+  click(beta, "button.confirm-cancel");
+  expect(flags()).toEqual([true, true, true, true]);
+  section.setActionsEnabled(true);
+  expect(flags()).toEqual([false, false, false, false]);
 });
 
 // Phase 10 SC-025 (FR-130 to FR-135): the Windows / macOS sentences, written here as literals so the renderer's table

@@ -10,6 +10,7 @@ mod os_facts;
 mod os_proxy;
 pub mod os_roots;
 mod proxy_env;
+pub mod self_update;
 
 use krate_manager_core::context::{
     LOCKED_EXIT_DELAY, SharedState, assemble_context, log_startup_errors, startup_notice,
@@ -67,6 +68,9 @@ pub fn run() {
         .with_pac_host(Some(os_proxy::pac_host()));
     #[cfg(feature = "dev-feed")]
     let http = dev_feed::http_config(&feed_url, resolution, Some(os_proxy::pac_host()));
+    #[cfg(feature = "updater-e2e")]
+    let (feed_url, http) = self_update::e2e::override_feed(feed_url, http);
+    let self_update_http = self_update::SelfUpdateHttp(http.clone());
     let state = assemble_context(roots, &feed_url, http, SigningKey::release());
     match &sink_roots {
         Some(r) => {
@@ -86,10 +90,13 @@ pub fn run() {
     let locked = startup_notice(&state).is_some();
     tauri::Builder::default()
         .plugin(navigation::guard())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(SharedState::new(state))
         .manage(Arc::new(resolve_elevation(
             std::env::current_exe().ok().as_deref(),
         )))
+        .manage(self_update_http)
+        .manage(self_update::KeptUpdate::default())
         .setup(move |app| {
             if locked {
                 let handle = app.handle().clone();
@@ -98,6 +105,8 @@ pub fn run() {
                     handle.exit(1);
                 });
             }
+            #[cfg(feature = "updater-e2e")]
+            self_update::e2e::start(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -108,7 +117,9 @@ pub fn run() {
             commands::open_release_page,
             commands::download_plugin,
             commands::install_plugin,
-            commands::remove_plugin
+            commands::remove_plugin,
+            commands::manager_update_check,
+            commands::manager_update_install
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

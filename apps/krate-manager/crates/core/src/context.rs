@@ -231,6 +231,34 @@ pub fn parse_dev_feed_url(text: &str) -> Option<String> {
     (web && host).then(|| t.to_owned())
 }
 
+/// What `release_for_restart` did with the state lock (Phase 11 FR-016, PD-10).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LockRelease {
+    Released,
+    NoLock,
+    StillShared,
+}
+
+/// Phase 11 FR-016: the state lock released before the manager restarts into its update. The
+/// last `Arc` dropped closes the lock file, which releases the lock (PD-10); an `Arc` still
+/// shared is put back.
+pub fn release_for_restart(state: &SharedState) -> LockRelease {
+    let mut guard = state.write().unwrap_or_else(PoisonError::into_inner);
+    let Some(lock) = guard.lock.take() else {
+        return LockRelease::NoLock;
+    };
+    match Arc::try_unwrap(lock) {
+        Ok(lock) => {
+            drop(lock);
+            LockRelease::Released
+        }
+        Err(shared) => {
+            guard.lock = Some(shared);
+            LockRelease::StillShared
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "context_tests.rs"]
 mod tests;

@@ -193,6 +193,9 @@ pub enum InstallError {
         "E_INSTALL_REMOVE_ELSEWHERE: installed outside the standard folder; uninstall it from Windows Settings"
     )]
     RemoveElsewhere,
+    // ---- Phase 11 (FR-018) ----
+    #[error(transparent)]
+    SelfUpdating(#[from] crate::self_update::SelfUpdating),
 }
 
 /// FR-133's two `E_INSTALL_ELEVATION_BUSY` sentences (FR-078a).
@@ -244,6 +247,7 @@ impl InstallError {
             InstallError::Locked => "E_INSTALL_LOCKED",
             InstallError::InstallerFailed { .. } => "E_INSTALL_INSTALLER_FAILED",
             InstallError::RemoveElsewhere => "E_INSTALL_REMOVE_ELSEWHERE",
+            InstallError::SelfUpdating(_) => crate::self_update::SELF_UPDATING_CODE,
         }
     }
 }
@@ -632,6 +636,51 @@ impl ElevationGuard {
             guard: self,
             stale: None,
         })
+    }
+}
+
+impl ElevationGuard {
+    /// Phase 11 FR-015: a batch is running, or a timed-out one still holds the guard.
+    pub fn is_held(&self) -> bool {
+        !matches!(
+            *self.hold.lock().unwrap_or_else(PoisonError::into_inner),
+            Hold::Free
+        )
+    }
+
+    /// Phase 11 tasks TA-8: the guard held as a running batch until the returned value drops (tests only).
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn hold_for_test(&self) -> GuardHeldForTest<'_> {
+        self.set_for_test(Hold::Running)
+    }
+
+    /// Phase 11 tasks TA-8: the guard held by a timed-out batch until the returned value drops (tests only).
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn hold_stale_for_test(&self, job: PathBuf, result: PathBuf) -> GuardHeldForTest<'_> {
+        self.set_for_test(Hold::Stale { job, result })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn set_for_test(&self, hold: Hold) -> GuardHeldForTest<'_> {
+        *self.hold.lock().unwrap_or_else(PoisonError::into_inner) = hold;
+        GuardHeldForTest { guard: self }
+    }
+}
+
+/// Phase 11 tasks TA-8: a test hold of an `ElevationGuard`; dropping it frees the guard.
+#[cfg(any(test, feature = "test-support"))]
+pub struct GuardHeldForTest<'a> {
+    guard: &'a ElevationGuard,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl Drop for GuardHeldForTest<'_> {
+    fn drop(&mut self) {
+        *self
+            .guard
+            .hold
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Hold::Free;
     }
 }
 
@@ -1295,6 +1344,7 @@ fn elevate(
     elevation: &dyn Elevation,
     ops: &[job::JobOp],
 ) -> Result<Vec<job::OpReport>, InstallError> {
+    crate::self_update::action_gate(ctx.roots.state_dir())?;
     let helper = elevation.helper().ok_or(InstallError::HelperMissing)?;
     let held = elevation.guard().enter(io)?;
     let state = ctx.roots.state_dir();
@@ -3865,6 +3915,28 @@ impl Drop for Busy {
     }
 }
 
+/// Phase 11 FR-015: whether any plugin action of `state_dir` is running in this process.
+pub fn any_busy(state_dir: &Path) -> bool {
+    BUSY.lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .iter()
+        .any(|(d, _)| d == state_dir)
+}
+
+/// Phase 11 tasks TA-8: a test hold of one `(state_dir, stem)` registry key; dropping it releases the key.
+#[cfg(any(test, feature = "test-support"))]
+pub struct BusyHeldForTest {
+    _busy: Busy,
+}
+
+/// Phase 11 tasks TA-8: `(state_dir, stem)` held as a running action (tests only).
+#[cfg(any(test, feature = "test-support"))]
+pub fn hold_busy_for_test(state_dir: &Path, stem: &str) -> BusyHeldForTest {
+    BusyHeldForTest {
+        _busy: Busy::enter(state_dir, stem).expect("busy key already held"),
+    }
+}
+
 // ---- the commands (plan §4.1.13) -----------------------------------------------------------------------------------
 
 /// The `install_plugin` command: re-check, download, verify, then one driver run (FR-090).
@@ -3877,6 +3949,7 @@ pub fn for_command(
     host: &dyn HostFacts,
     progress: &mut dyn FnMut(InstallProgress),
 ) -> Result<ActionSummary, InstallError> {
+    crate::self_update::action_gate(env.ctx.roots.state_dir())?;
     let ran = Cell::new(false);
     let result = install_command(env, name, expected_version, action, now_unix, host)
         .and_then(|checked| obtain_and_run(env, checked, host, progress, &ran));
@@ -4076,6 +4149,7 @@ pub fn remove_for_command(
     host: &dyn HostFacts,
     progress: &mut dyn FnMut(InstallProgress),
 ) -> Result<ActionSummary, InstallError> {
+    crate::self_update::action_gate(env.ctx.roots.state_dir())?;
     let ran = std::cell::Cell::new(false);
     let result = command_remove(env, name, now_unix, host, progress, &ran);
     if !ran.get() {

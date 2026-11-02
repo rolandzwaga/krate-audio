@@ -21,5 +21,14 @@
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "macOS": { "signingIdentity": "-", "minimumSystemVersion": "15.0" },
     "windows": { "nsis": { "installMode": "currentUser" } }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlGRUIzNkY5MTE0MjczQkMKUldTOGMwSVIrVGJybi9pWUNqR2RudFF0N3ZuQm9LcE43VVZPdmhIVWVNa1FpN0t5REdBMkpxeUoK",
+      "endpoints": ["https://krateaudio.com/manager/latest.json"],
+      "requireSignedVersion": true,
+      "allowDowngrades": false,
+      "windows": { "installMode": "passive" }
+    }
   }
 }

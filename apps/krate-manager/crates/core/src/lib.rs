@@ -16,6 +16,7 @@ pub mod notes;
 pub mod pac;
 pub mod platform;
 pub mod roots;
+pub mod self_update;
 pub mod settings;
 pub mod state_lock;
 pub mod status;

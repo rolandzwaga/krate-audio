@@ -124,7 +124,7 @@ function latestJson(version, repo, edit = () => {}) {
     platforms: {
       'windows-x86_64': {
         signature: 'dW50cnVzdGVkIGNvbW1lbnQ6IGZpeHR1cmUK',
-        url: `https://github.com/${repo}/releases/download/manager%2Fv${version}/manager_${version}_x64-setup.exe`,
+        url: `https://github.com/${repo}/releases/download/manager/v${version}/manager_${version}_x64-setup.exe`,
       },
     },
   };
@@ -1048,5 +1048,66 @@ test('collect copies only a valid manager latest.json', async (t) => {
       '::notice title=feed-collect::0 downloaded, 18 no-manifest, 0 no-stable, manager degraded',
     );
     assert.ok(![...r.out, ...r.err].some((l) => l.startsWith('line two')), 'the value is quoted, never raw');
+  });
+
+  // Phase 11 FR-043 (plan §4.9, PD-17): every platforms.*.url is a per-tag release asset URL of collect's --repo.
+  await t.test('(7) only a per-tag release asset URL of the repo is copied', async (st) => {
+    const repo = REPO;
+    const withUrl = (url) =>
+      latestJson('0.2.0', repo, (d) => {
+        d.platforms['windows-x86_64'].url = url;
+      });
+    const bad = [
+      ['an api.github.com asset URL', 'https://api.github.com/repos/o/r/releases/assets/1'],
+      ['a foreign host', `https://example.invalid/${repo}/releases/download/${MANAGER_TAG}/m.exe`],
+      ['another tag', `https://github.com/${repo}/releases/download/manager/v0.1.0/m.exe`],
+    ];
+    for (const [label, url] of bad) {
+      await st.test(label, (s) => {
+        const w = managerWorld(s, 'mgr-pertag-bad', [{ tag: MANAGER_TAG, latestJson: withUrl(url) }]);
+        const r = run(collectArgv(w), plainDeps(w));
+        assert.equal(r.code, 3, r.err.join('\n'));
+        assert.equal(fs.existsSync(path.join(w.outDir, 'manager')), false, 'nothing copied');
+        const m = report(w).manager;
+        assert.equal(m.status, 'degraded');
+        assert.equal(m.tag, MANAGER_TAG);
+        assert.ok(m.message.includes(`is not a per-tag release asset URL of ${repo}`), m.message);
+        const warns = r.err.filter((l) => l.startsWith('feed-publish: WARN E_MANAGER_LATEST: '));
+        assert.equal(warns.length, 1, r.err.join('\n'));
+      });
+    }
+
+    await st.test('a per-tag github.com URL is copied', (s) => {
+      const text = withUrl(`https://github.com/${repo}/releases/download/${MANAGER_TAG}/x`);
+      const w = managerWorld(s, 'mgr-pertag-ok', [{ tag: MANAGER_TAG, latestJson: text }]);
+      const r = run(collectArgv(w), plainDeps(w));
+      assert.equal(r.code, 0, r.err.join('\n'));
+      assert.deepEqual(report(w).manager, { status: 'copied', tag: MANAGER_TAG });
+      assert.ok(fs.readFileSync(managerPath(w.outDir)).equals(w.world.served.bytes(MANAGER_TAG, 'latest.json')));
+    });
+
+    await st.test('checkLatestJson takes exactly one asset segment after the prefix', () => {
+      const { checkLatestJson } = feedPublish;
+      assert.equal(typeof checkLatestJson, 'function', 'checkLatestJson is exported');
+      const prefix = `https://github.com/${repo}/releases/download/${MANAGER_TAG}/`;
+      const bytesOf = (url) => Buffer.from(withUrl(url), 'utf8');
+      assert.doesNotThrow(() => checkLatestJson(bytesOf(`${prefix}m.exe`), MANAGER_TAG, '0.2.0', repo));
+      for (const name of ['', 'a/m.exe', 'm.exe?x=1', 'm.exe#frag']) {
+        assert.throws(
+          () => checkLatestJson(bytesOf(`${prefix}${name}`), MANAGER_TAG, '0.2.0', repo),
+          (err) =>
+            err instanceof contract.ContractError &&
+            err.code === 'E_MANAGER_LATEST' &&
+            err.message.includes(`is not a per-tag release asset URL of ${repo}`),
+          JSON.stringify(name),
+        );
+      }
+      // Another repo's per-tag URL is not this repo's.
+      const foreign = bytesOf(`https://github.com/o/r/releases/download/${MANAGER_TAG}/m.exe`);
+      assert.throws(
+        () => checkLatestJson(foreign, MANAGER_TAG, '0.2.0', repo),
+        (err) => err instanceof contract.ContractError && err.code === 'E_MANAGER_LATEST',
+      );
+    });
   });
 });

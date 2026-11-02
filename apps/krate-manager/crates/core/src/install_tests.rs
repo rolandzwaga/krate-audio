@@ -6365,3 +6365,209 @@ fn symlinked_plugin_root_unix() {
         real
     );
 }
+
+// ---- Phase 11 SC-023 (FR-018) ---------------------------------------------------------------------------------------
+
+/// FR-018's refusal: its code (`self_update::SELF_UPDATING_CODE`) and its fixed sentence.
+fn assert_self_updating(code: &str, text: String, label: &str) {
+    assert_eq!(code, crate::self_update::SELF_UPDATING_CODE, "{label}");
+    assert_eq!(
+        text,
+        format!(
+            "{}: Krate Manager is updating itself. Try again after it restarts.",
+            crate::self_update::SELF_UPDATING_CODE
+        ),
+        "{label}"
+    );
+}
+
+/// SC-023 (FR-018): with a self-update in flight for the context's state dir, `download_plugin`, `install_plugin`,
+/// `remove_plugin` and the start of an elevated batch refuse with `E_INSTALL_SELF_UPDATING` before any request,
+/// `InstallIo` call or launch, and leave no `BUSY` entry; with the flag clear each goes past the gate.
+#[test]
+fn refuse_while_self_updating() {
+    use crate::self_update::{InFlightGuard, in_flight};
+
+    // download_plugin (`download::for_command`).
+    let fx = Fx::new();
+    let state = fx.state();
+    let flag = InFlightGuard::enter(Some(&state));
+    let r = download::for_command(fx.rig.download_env(), ALPHA, V12, NOW, &host(), &mut |_| {});
+    let e = r.expect_err("download refused");
+    assert_self_updating(e.code(), e.to_string(), "download");
+    assert_eq!(fx.counts(), (0, 0), "download: no request");
+    assert_eq!(fx.rig.staging.calls(), 0, "download: no staging call");
+    assert!(!any_busy(&state), "download: no BUSY entry");
+    drop(flag);
+    let r = download::for_command(fx.rig.download_env(), ALPHA, V12, NOW, &host(), &mut |_| {});
+    let e = r.expect_err("no feed is served");
+    assert_ne!(
+        e.code(),
+        crate::self_update::SELF_UPDATING_CODE,
+        "download clear"
+    );
+    assert_eq!(fx.counts(), (1, 0), "download clear: the feed request ran");
+
+    // install_plugin (`install::for_command`) and remove_plugin (`install::remove_for_command`).
+    let ev = Ev::new(WIN);
+    ev.offer(&[(ALPHA, V12)]);
+    let state = ev.fx.state();
+    let seam = ev.fx.seam();
+    let elevation = FakeElevation::refusing();
+    let flag = InFlightGuard::enter(Some(&state));
+    let rec = RecordingInstallIo::fail_closed();
+    let r = for_command(
+        ev.env(&rec, &elevation, &seam),
+        ALPHA,
+        V12,
+        "install",
+        NOW,
+        &*ev.live,
+        &mut |_| {},
+    );
+    assert_self_updating(code_of(&r), r.unwrap_err().to_string(), "install");
+    let rec_remove = RecordingInstallIo::fail_closed();
+    let r = remove_for_command(
+        ev.env(&rec_remove, &elevation, &seam),
+        ALPHA,
+        NOW,
+        &*ev.live,
+        &mut |_| {},
+    );
+    assert_self_updating(code_of(&r), r.unwrap_err().to_string(), "remove");
+    for (label, rec) in [("install", &rec), ("remove", &rec_remove)] {
+        assert!(
+            rec.calls().is_empty(),
+            "{label}: no InstallIo call: {:?}",
+            rec.calls()
+        );
+    }
+    assert_eq!(ev.fx.counts(), (0, 0), "install/remove: no request");
+    assert_eq!(
+        ev.fx.rig.staging.calls(),
+        0,
+        "install/remove: no staging call"
+    );
+    assert!(elevation.launches().is_empty(), "install/remove: no launch");
+    assert!(!any_busy(&state), "install/remove: no BUSY entry");
+    drop(flag);
+    let r = for_command(
+        ev.env(&FsInstallIo, &elevation, &seam),
+        ALPHA,
+        V12,
+        "install",
+        NOW,
+        &*ev.live,
+        &mut |_| {},
+    );
+    assert_eq!(code_of(&r), "E_INSTALL_REFUSED", "install clear");
+    assert_eq!(
+        ev.fx.counts(),
+        (1, 1),
+        "install clear: feed and asset requested"
+    );
+    assert_eq!(elevation.launches().len(), 1, "install clear: one launch");
+    let rec = RecordingInstallIo::fail_closed();
+    let r = remove_for_command(
+        ev.env(&rec, &elevation, &seam),
+        ALPHA,
+        NOW,
+        &*ev.live,
+        &mut |_| {},
+    );
+    assert_ne!(
+        code_of(&r),
+        crate::self_update::SELF_UPDATING_CODE,
+        "remove clear"
+    );
+    assert_eq!(ev.fx.counts(), (2, 1), "remove clear: the feed request ran");
+    assert!(!any_busy(&state), "clear: no BUSY entry left");
+
+    // The elevated batch: the flag is clear when `install::for_command` starts and set by the staging dir's
+    // `canonicalize`, the elevated path's first `InstallIo` call (`run_elevated`), so `elevate`'s own gate refuses.
+    for plat in [WIN, MAC] {
+        // The control run finds that call and shows nothing mutates before it.
+        let ev = Ev::new(plat);
+        ev.offer(&[(ALPHA, V12)]);
+        let staging = ev.fx.ctx().roots.staging_dir().to_path_buf();
+        let seam = ev.fx.seam();
+        let elevation = FakeElevation::refusing();
+        let rec = RecordingInstallIo::forwarding(&FsInstallIo);
+        let r = for_command(
+            ev.env(&rec, &elevation, &seam),
+            ALPHA,
+            V12,
+            "install",
+            NOW,
+            &*ev.live,
+            &mut |_| {},
+        );
+        assert_eq!(code_of(&r), "E_INSTALL_REFUSED", "{plat:?} control");
+        assert_eq!(
+            elevation.launches().len(),
+            1,
+            "{plat:?} control: one launch"
+        );
+        let calls = rec.calls();
+        let is_staging = |c: &IOp| matches!(c, IOp::Canonicalize(p) if *p == staging);
+        let at = calls
+            .iter()
+            .position(is_staging)
+            .expect("the staging dir is canonicalized");
+        assert!(
+            calls[..at].iter().all(|c| !c.is_mutating()),
+            "{plat:?}: nothing mutates before it: {calls:?}"
+        );
+        let nth = nth_of(&calls, IKind::Canonicalize, is_staging);
+        // The armed run, on fresh roots.
+        let ev = Ev::new(plat);
+        ev.offer(&[(ALPHA, V12)]);
+        let state = ev.fx.state();
+        let seam = ev.fx.seam();
+        let elevation = FakeElevation::refusing();
+        let held: Mutex<Option<InFlightGuard>> = Mutex::new(None);
+        let faulty = FaultyInstallIo::new(&FsInstallIo).on_call(
+            IKind::Canonicalize,
+            nth,
+            |_inner: &dyn InstallIo| {
+                *held.lock().unwrap_or_else(PoisonError::into_inner) =
+                    Some(InFlightGuard::enter(Some(&state)));
+            },
+        );
+        let r = for_command(
+            ev.env(&faulty, &elevation, &seam),
+            ALPHA,
+            V12,
+            "install",
+            NOW,
+            &*ev.live,
+            &mut |_| {},
+        );
+        assert_self_updating(
+            code_of(&r),
+            r.unwrap_err().to_string(),
+            &format!("{plat:?} elevated batch"),
+        );
+        assert!(
+            held.lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_some(),
+            "{plat:?}: the flag was set mid-flight"
+        );
+        assert_eq!(
+            ev.fx.counts(),
+            (1, 1),
+            "{plat:?}: the download ran before the batch"
+        );
+        assert!(elevation.launches().is_empty(), "{plat:?}: no launch");
+        assert_eq!(faulty.mutating_calls(), 0, "{plat:?}: {:?}", faulty.calls());
+        assert!(
+            ev.jobs_left().is_empty(),
+            "{plat:?}: no job file: {:?}",
+            ev.jobs_left()
+        );
+        assert!(!any_busy(&state), "{plat:?}: no BUSY entry");
+        drop(held.lock().unwrap_or_else(PoisonError::into_inner).take());
+        assert!(!in_flight(&state), "{plat:?}: the flag is cleared");
+    }
+}

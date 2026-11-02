@@ -10,6 +10,8 @@
     "allow-open-release-page",
     "allow-download-plugin",
     "allow-install-plugin",
-    "allow-remove-plugin"
+    "allow-remove-plugin",
+    "allow-manager-update-check",
+    "allow-manager-update-install"
   ]
 }

@@ -54,7 +54,7 @@ test("shows the title and the version", async () => {
   expect(root.querySelector("p.version")?.textContent).toBe("0.1.0");
   expect(root.querySelector(".notice")).toBeNull();
   expect(root.querySelector("section.status")).not.toBeNull();
-  expect(calls).toEqual(["startup_error", "app_version", "plugin_status"]);
+  expect(calls).toEqual(["startup_error", "app_version", "plugin_status", "manager_update_check"]);
 });
 
 test('shows "version unavailable" when app_version fails', async () => {
@@ -70,7 +70,7 @@ test('shows "version unavailable" when app_version fails', async () => {
   expect(root.querySelector("p.version")?.textContent).toBe("version unavailable");
   expect(root.querySelector(".notice")).toBeNull();
   expect(feedLine(root)).toBe("Could not load the plugin list: x");
-  expect(calls).toEqual(["startup_error", "app_version", "plugin_status"]);
+  expect(calls).toEqual(["startup_error", "app_version", "plugin_status", "manager_update_check"]);
 });
 
 test("shows only the notice when another instance is running", async () => {
@@ -107,11 +107,17 @@ test("shows the version when startup_error fails", async () => {
   expect(root.querySelector("p.version")?.textContent).toBe("0.1.0");
   expect(root.querySelector(".notice")).toBeNull();
   expect(root.querySelector("section.status")).not.toBeNull();
-  expect(calls).toEqual(["startup_error", "app_version", "plugin_status"]);
+  expect(calls).toEqual(["startup_error", "app_version", "plugin_status", "manager_update_check"]);
 });
 
-/** Mocks an unlocked start whose first `plugin_status` answers `first` and whose `check_now` calls `checkNow`. */
-function unlocked(first: () => unknown, checkNow: () => unknown = () => null): string[] {
+/** The core's `ManagerUpdateView` with nothing to offer. */
+const NO_UPDATE = { os: "windows", current: "0.1.0", available: null, error: null };
+
+/**
+ * Mocks an unlocked start whose first `plugin_status` answers `first`, whose `check_now` calls `checkNow` and whose
+ * `manager_update_check` calls `managerCheck`.
+ */
+function unlocked(first: () => unknown, checkNow: () => unknown = () => null, managerCheck: () => unknown = () => NO_UPDATE): string[] {
   const calls: string[] = [];
   mockIPC((cmd) => {
     calls.push(cmd);
@@ -119,10 +125,13 @@ function unlocked(first: () => unknown, checkNow: () => unknown = () => null): s
     if (cmd === "app_version") return "0.1.0";
     if (cmd === "plugin_status") return first();
     if (cmd === "check_now") return checkNow();
+    if (cmd === "manager_update_check") return managerCheck();
     throw new Error(`unexpected command ${cmd}`);
   });
   return calls;
 }
+
+const AFTER_START = ["startup_error", "app_version", "plugin_status", "manager_update_check"];
 
 test("check now disables the button while pending", async () => {
   const root = document.createElement("main");
@@ -143,6 +152,7 @@ test("check now disables the button while pending", async () => {
   await settle();
   expect(button.disabled).toBe(false);
   expect(button.textContent).toBe("Check now");
+  expect(calls).toEqual([...AFTER_START, "check_now", "manager_update_check"]);
 });
 
 test("check now calls check_now and re-renders", async () => {
@@ -153,7 +163,7 @@ test("check now calls check_now and re-renders", async () => {
   expect(cardNames(root)).toEqual(toStatusView(noFeed).plugins.map((p) => p.name));
   checkButton(root).click();
   await settle();
-  expect(calls).toEqual(["startup_error", "app_version", "plugin_status", "check_now"]);
+  expect(calls).toEqual([...AFTER_START, "check_now", "manager_update_check"]);
   expect(cardNames(root)).toEqual(fresh.plugins.map((p) => p.name));
   expect(cardNames(root).length).toBeGreaterThan(0);
   expect(feedLine(root)?.startsWith("Checked ")).toBe(true);
@@ -165,7 +175,7 @@ test("check now calls check_now and re-renders", async () => {
 test("check now recovers from a rejection", async () => {
   const root = document.createElement("main");
   const view = toStatusView(installedElsewhere);
-  unlocked(
+  const calls = unlocked(
     () => view,
     () => {
       throw new Error("E_FEED_OFFLINE: offline");
@@ -176,6 +186,7 @@ test("check now recovers from a rejection", async () => {
   expect(before.length).toBeGreaterThan(0);
   checkButton(root).click();
   await settle();
+  expect(calls).toEqual([...AFTER_START, "check_now", "manager_update_check"]);
   expect(feedLine(root)).toBe("Could not load the plugin list: E_FEED_OFFLINE: offline");
   expect(cardNames(root)).toEqual(before);
   expect(checkButton(root).disabled).toBe(false);
@@ -214,7 +225,7 @@ test("shows the pending text until the first result", async () => {
   expect(root.querySelector("section.status")?.textContent.includes("Checking for plugins…")).toBe(false);
   expect(cardNames(root)).toEqual(fresh.plugins.map((p) => p.name));
   expect(checkButton(root).disabled).toBe(false);
-  expect(calls).toEqual(["startup_error", "app_version", "plugin_status"]);
+  expect(calls).toEqual(AFTER_START);
 });
 
 test("check now stays disabled until the first result", async () => {
@@ -236,7 +247,7 @@ test("check now stays disabled until the first result", async () => {
   pending.resolve(toStatusView(noFeed));
   await done;
   expect(button.disabled).toBe(false);
-  expect(calls).toEqual(["startup_error", "app_version", "plugin_status"]);
+  expect(calls).toEqual(AFTER_START);
 });
 
 test("check now is enabled after a rejected first load", async () => {
@@ -249,5 +260,149 @@ test("check now is enabled after a rejected first load", async () => {
   expect(cardNames(root)).toEqual([]);
   expect(root.querySelector("section.status p.check-note")).toBeNull();
   expect(checkButton(root).disabled).toBe(false);
+  expect(calls).toEqual(AFTER_START);
+});
+
+// Phase 11 SC-025 (FR-024, FR-026): the manager's own update check follows the first `plugin_status` once it settles.
+
+/** The core's `ManagerUpdateView` offering 0.2.0 as an install-and-restart update. */
+const UPDATE = {
+  os: "windows",
+  current: "0.1.0",
+  available: { version: "0.2.0", date: null, notes: [], action: { kind: "install_and_restart" } },
+  error: null,
+};
+
+function updateLine(root: HTMLElement): HTMLElement {
+  const line = root.querySelector("div.manager-update");
+  if (!(line instanceof HTMLElement)) throw new Error("no update line");
+  return line;
+}
+
+test("checks for a manager update after plugin_status is rejected", async () => {
+  const root = document.createElement("main");
+  const calls = unlocked(
+    () => {
+      throw new Error("E_STARTUP_ROOTS: no roots");
+    },
+    () => null,
+    () => UPDATE,
+  );
+  await renderShell(root);
+  expect(feedLine(root)).toBe("Could not load the plugin list: E_STARTUP_ROOTS: no roots");
+  expect(calls).toEqual(AFTER_START);
+  expect(updateLine(root).querySelector("p.update-available")?.textContent).toBe("Krate Manager 0.2.0 is available.");
+  // The line sits in the header: after the version line, before the status section.
+  expect(Array.from(root.children, (e) => e.tagName.toLowerCase() + "." + e.className)).toEqual([
+    "h1.",
+    "p.version",
+    "div.manager-update",
+    "section.status",
+  ]);
+});
+
+test("checks for a manager update after plugin_status succeeds", async () => {
+  const root = document.createElement("main");
+  const arrived = deferred<null>();
+  const pending = deferred<unknown>();
+  const calls = unlocked(
+    () => {
+      arrived.resolve(null);
+      return pending.promise;
+    },
+    () => toStatusView(noFeed),
+    () => UPDATE,
+  );
+  const done = renderShell(root);
+  await arrived.promise;
+  await settle();
   expect(calls).toEqual(["startup_error", "app_version", "plugin_status"]);
+  pending.resolve(toStatusView(noFeed));
+  await done;
+  expect(calls).toEqual(AFTER_START);
+  expect(updateLine(root).querySelector("p.update-available")?.textContent).toBe("Krate Manager 0.2.0 is available.");
+  checkButton(root).click();
+  await settle();
+  expect(calls).toEqual([...AFTER_START, "check_now", "manager_update_check"]);
+  expect(updateLine(root).querySelectorAll("p.update-available").length).toBe(1);
+});
+
+test("does not check for a manager update when the context is locked", async () => {
+  const root = document.createElement("main");
+  const calls: string[] = [];
+  mockIPC((cmd) => {
+    calls.push(cmd);
+    if (cmd === "startup_error") return "Krate Manager is already running";
+    if (cmd === "manager_update_check") return UPDATE;
+    throw new Error(`unexpected command ${cmd}`);
+  });
+  await renderShell(root);
+  await settle();
+  expect(calls).toEqual(["startup_error"]);
+  expect(root.querySelector("div.manager-update")).toBeNull();
+  expect(root.textContent.includes("is available")).toBe(false);
+});
+
+test("disables plugin actions while the manager updates itself", async () => {
+  const root = document.createElement("main");
+  const install = deferred<unknown>();
+  const plugin = {
+    name: "Alpha",
+    latest: "1.2.0",
+    availability: "available",
+    min_os: null,
+    installed: "not_installed",
+    installed_version: null,
+    update: "not_installed",
+    copies: [],
+    record: null,
+    record_error: null,
+    record_without_files: false,
+    record_version_differs: false,
+    release_page_url: null,
+    notes: [],
+    actions: ["install"],
+    remove_hint: null,
+  };
+  const status = toStatusView({
+    os: "windows",
+    edge_max_age_secs: 600,
+    running_os: null,
+    feed: { source: "fresh", fetched_at_unix: 1700000000, schema_version: 2, error: null },
+    plugins: [plugin],
+  });
+  const calls: string[] = [];
+  mockIPC((cmd) => {
+    calls.push(cmd);
+    if (cmd === "startup_error") return null;
+    if (cmd === "app_version") return "0.1.0";
+    if (cmd === "plugin_status") return status;
+    if (cmd === "manager_update_check") return UPDATE;
+    if (cmd === "manager_update_install") return install.promise;
+    throw new Error(`unexpected command ${cmd}`);
+  });
+  await renderShell(root);
+  const flags = (): boolean[] => [
+    ...Array.from(root.querySelectorAll<HTMLButtonElement>("section.status div.actions > button"), (b) => b.disabled),
+    checkButton(root).disabled,
+  ];
+  expect(flags()).toEqual([false, false]);
+  const line = updateLine(root);
+  const restart = line.querySelector("button.update-restart");
+  if (!(restart instanceof HTMLButtonElement)) throw new Error("no Update and restart button");
+  expect(restart.textContent).toBe("Update and restart");
+  restart.click();
+  expect(flags()).toEqual([false, false]);
+  const yes = line.querySelector("button.update-yes");
+  if (!(yes instanceof HTMLButtonElement)) throw new Error("no confirmation");
+  yes.click();
+  await settle();
+  expect(calls).toEqual([...AFTER_START, "manager_update_install"]);
+  expect(flags()).toEqual([true, true]);
+  expect(line.querySelector("p.update-progress")?.textContent).toBe("Downloading and verifying…");
+  const sentence = "Krate Manager could not install its update. It keeps running the current version.";
+  install.reject(new Error(JSON.stringify({ code: "E_SELF_UPDATE_INSTALL", sentence, detail: "x" })));
+  await settle();
+  expect(flags()).toEqual([false, false]);
+  expect(line.querySelector("p.update-failure")?.textContent).toBe(`E_SELF_UPDATE_INSTALL: ${sentence}`);
 });

@@ -2658,3 +2658,36 @@ fn streamed_pac_fetch_keeps_the_feed_bound_unix() {
     assert!(elapsed < 2 * SEC, "{elapsed:?}");
     assert_eq!(lines(&s).first().map(String::as_str), Some("GET /pac"));
 }
+
+// ---- route_choice (Phase 11 PD-6, TA-10) ---------------------------------------------------------------------------
+
+#[test]
+fn route_choice_static_direct_and_refused() {
+    let c = serve(vec![("/versions.json", ok(b"never"))]);
+    let b = serve(vec![(&authority(&c), Reply::ConnectOk)]);
+    let target = u(&c.url("/versions.json"));
+    // A static proxy: the request would go through it.
+    let cfg = proxy_config(&b);
+    let config = HttpConfig::loopback(SEC, SEC).with_proxy(Some(cfg.clone()));
+    assert_eq!(route_choice(&config, &target), Ok(ProxyChoice::Proxy(cfg)));
+    // The target's host on the static bypass list: direct.
+    let bypassed = ProxyConfig {
+        no_proxy: vec!["127.0.0.1".to_owned()],
+        ..proxy_config(&b)
+    };
+    let config = HttpConfig::loopback(SEC, SEC).with_proxy(Some(bypassed));
+    assert_eq!(route_choice(&config, &target), Ok(ProxyChoice::Direct));
+    // No proxy: direct.
+    let config = HttpConfig::loopback(SEC, SEC);
+    assert_eq!(route_choice(&config, &target), Ok(ProxyChoice::Direct));
+    // A static proxy `check_proxy` refuses in `prepare`: an error, never `Direct`.
+    let refused = ProxyConfig {
+        url: format!("ftp://{}", authority(&b)),
+        no_proxy: Vec::new(),
+    };
+    let config = HttpConfig::loopback(SEC, SEC).with_proxy(Some(refused));
+    let result = route_choice(&config, &target);
+    assert!(result.is_err(), "{result:?}");
+    // The decision makes no request.
+    assert!(b.requests().is_empty() && c.requests().is_empty());
+}

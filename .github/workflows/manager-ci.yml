@@ -115,6 +115,20 @@ jobs:
             echo "::error title=clippy manual-elevation example ($RUNNER_OS)::clippy failed on the example"; exit 1
           fi
 
+      # Phase 11 PD-32 (FR-073, FR-083): the e2e module's build, with dummy values for its env! reads; never run.
+      - name: clippy updater-e2e
+        env:
+          KRATE_E2E_FEED_URL: 'http://127.0.0.1:9/versions.json'
+          KRATE_E2E_MARKER_DIR: 'never-run'
+          KRATE_E2E_OLD_VERSION: '0.0.0'
+        run: |
+          set -euo pipefail
+          if cargo clippy -p krate-manager --all-targets --features updater-e2e --locked -- -D warnings; then
+            echo "::notice title=clippy updater-e2e ($RUNNER_OS)::clean (compiled and linted, never run)"
+          else
+            echo "::error title=clippy updater-e2e ($RUNNER_OS)::clippy failed with the e2e feature"; exit 1
+          fi
+
       - name: clippy-guard
         run: |
           set -euo pipefail
@@ -133,6 +147,20 @@ jobs:
           else
             cat "$out"
             echo "::error title=clippy-guard ($RUNNER_OS)::$msg"; exit 1
+          fi
+
+      # Phase 11 FR-083: the refusal harness is clippy- and fmt-clean on every leg (PD-33: whatever D9 measured).
+      - name: clippy updater-refusals
+        run: |
+          set -euo pipefail
+          rc=0
+          CARGO_TARGET_DIR="$PWD/target" cargo clippy --manifest-path tests/fixtures/updater-refusals/Cargo.toml --all-targets --locked -- -D warnings || rc=$?
+          frc=0
+          cargo fmt --check --manifest-path tests/fixtures/updater-refusals/Cargo.toml || frc=$?
+          if [ "$rc" = "0" ] && [ "$frc" = "0" ]; then
+            echo "::notice title=clippy updater-refusals ($RUNNER_OS)::clippy -D warnings and cargo fmt --check clean"
+          else
+            echo "::error title=clippy updater-refusals ($RUNNER_OS)::clippy rc=$rc, cargo fmt --check rc=$frc"; exit 1
           fi
 
       - name: cargo test
@@ -163,6 +191,49 @@ jobs:
             echo "::notice title=test ci-temp-roots ($RUNNER_OS)::cli::tests::ci_roots_file_is_read passed once"
           else
             echo "::error title=test ci-temp-roots ($RUNNER_OS)::cli::tests::ci_roots_file_is_read ok lines=$n, want 1"; exit 1
+          fi
+
+      # Phase 11 FR-084 (FR-081 (f), FR-082; PD-38): the 27 harness lines, each ok exactly once, and the summary; then
+      # each plant exits 1 with its code as its only stdout line (a plant run starts only the `good` child). PD-33:
+      # specs/krate-manager-phase11/evidence/d9-windows.txt reads `D9 WINDOWS LOADS`, so the step runs on every leg.
+      - name: updater refusals
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in Windows) bin=target/debug/updater-refusals.exe ;; *) bin=target/debug/updater-refusals ;; esac
+          CARGO_TARGET_DIR="$PWD/target" cargo build --manifest-path tests/fixtures/updater-refusals/Cargo.toml --locked
+          log="$RUNNER_TEMP/updater-refusals.txt"
+          rc=0
+          "$bin" > "$log" || rc=$?
+          tr -d '\r' < "$log"
+          names=(api-host busy busy-after-download confinement corrupt-manifest deb-install downgrade endpoint-latest-path failed-install-clears good latest-path map-errors no-platform offline other-key production-inputs recheck-replaces redirect-loop redirect-to-api-host redirect-to-http replayed-old rsign-format same-version socks-proxy stall tampered unversioned)
+          bad=()
+          for n in "${names[@]}"; do
+            c=$(tr -d '\r' < "$log" | grep -cxF "ok $n" || true)
+            if [ "$c" != "1" ]; then bad+=("ok $n lines=$c, want 1"); fi
+          done
+          oks=$(tr -d '\r' < "$log" | grep -c '^ok ' || true)
+          summary=$(tr -d '\r' < "$log" | grep -cxF 'harness: 27 ok, 0 not ok' || true)
+          if [ "$rc" != "0" ] || [ "${#names[@]}" != "27" ] || [ "$oks" != "27" ] || [ "$summary" != "1" ]; then
+            bad+=("run exit=$rc names=${#names[@]} ok-lines=$oks summary-lines=$summary, want 0 27 27 1")
+          fi
+          for plant in committed-key:E_HARNESS_KEY bind-any:E_HARNESS_BIND; do
+            p="${plant%%:*}"
+            code="${plant#*:}"
+            out="$RUNNER_TEMP/updater-refusals-$p.txt"
+            prc=0
+            "$bin" --plant "$p" > "$out" || prc=$?
+            lines=$(tr -d '\r' < "$out" | grep -c . || true)
+            first=$(tr -d '\r' < "$out" | sed -n '1p')
+            pok=$(tr -d '\r' < "$out" | grep -c '^ok ' || true)
+            if [ "$prc" != "1" ] || [ "$lines" != "1" ] || [ "${first%%:*}" != "$code" ] || [ "$pok" != "0" ]; then
+              bad+=("plant $p: exit=$prc lines=$lines first='$first' ok-lines=$pok, want 1 1 $code 0")
+            fi
+          done
+          if [ "${#bad[@]}" = "0" ]; then
+            echo "::notice title=updater refusals ($RUNNER_OS)::27 ok, 0 not ok; plants exit 1"
+          else
+            for b in "${bad[@]}"; do echo "::error title=updater refusals ($RUNNER_OS)::$b"; done
+            exit 1
           fi
 
       - name: core dependency tree
@@ -352,6 +423,31 @@ jobs:
             echo "::notice title=dev-feed absent ($RUNNER_OS)::marker in source=$marker, in $bin=0"
           else
             echo "::error title=dev-feed absent ($RUNNER_OS)::marker in source=$marker, in $bin=$hits"; exit 1
+          fi
+
+      # Phase 11 FR-073 (SI-25): the release build carries no e2e feature and no e2e marker.
+      - name: updater-e2e absent
+        run: |
+          set -euo pipefail
+          tree=$(cargo tree -p krate-manager -e features --locked)
+          hits=$(grep -cF 'updater-e2e' <<<"$tree" || true)
+          marker=$(grep -cF 'krate-e2e-marker-v1' src-tauri/src/self_update.rs || true)
+          case "$RUNNER_OS" in
+            Windows) bins=(target/release/krate-manager.exe) ;;
+            macOS) bins=(target/release/krate-manager "target/release/bundle/macos/Krate Manager.app/Contents/MacOS/krate-manager") ;;
+            *) bins=(target/release/krate-manager) ;;
+          esac
+          inb=0
+          for b in "${bins[@]}"; do
+            if [ ! -f "$b" ]; then echo "::error title=updater-e2e absent ($RUNNER_OS)::$b missing"; exit 1; fi
+            n=$(grep -acF 'krate-e2e-marker-v1' "$b" || true)
+            inb=$((inb + n))
+          done
+          msg="cargo tree hits=$hits, marker in source=$marker, in ${#bins[@]} release binaries=$inb"
+          if [ "$hits" = "0" ] && [ "$marker" -ge 1 ] && [ "$inb" = "0" ]; then
+            echo "::notice title=updater-e2e absent ($RUNNER_OS)::$msg"
+          else
+            echo "::error title=updater-e2e absent ($RUNNER_OS)::$msg"; exit 1
           fi
 
       - name: roster absent

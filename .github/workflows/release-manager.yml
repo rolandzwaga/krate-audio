@@ -1,0 +1,1749 @@
+name: Release Krate Manager
+
+# Spec: specs/krate-manager-phase11/spec.md FR-050 to FR-078, D14; plan §4.10 as of revision 4 (the job table, "Where
+# keys exist", the updater-e2e cases, first-install), PD-13, PD-19 to PD-24, PD-27, PD-34, PD-35, SI-10, SI-14, SI-20,
+# SI-21, SI-34, SI-37, SI-38, SI-40. Shape-tested by tools/feed-contract/tests/release-manager-shape.test.js.
+# One manual dispatch builds, signs and, unless dry_run, releases tag manager/vX.Y.Z (the version is version.json's).
+# The real signing key exists only between the sign job's key step and the step that deletes it, in a job without the
+# app source; every build leg bundles with its own throwaway key, and the built app trusts only the committed key.
+# Every assertion step prints a ::notice (pass) or an ::error (fail) naming the leg (FR-074). Everything this workflow
+# installs, launches or edits is on ephemeral GitHub-hosted runners (FR-090).
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build, sign with throwaway keys and check only: no release, no tag, no Pages deploy'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: krate-manager-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # FR-051: the release refusals by name, on any ref, before any build. No key of any kind.
+  preflight:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.preflight.outputs.version }}
+      tag: ${{ steps.preflight.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: npm ci (feed-contract)
+        run: npm ci --prefix tools/feed-contract --ignore-scripts
+
+      - name: tags file
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tags="$RUNNER_TEMP/tags.txt"
+          {
+            echo '# tags'
+            git ls-remote --tags origin | awk '{print $2}' | { grep -v '\^{}$' || true; }
+            echo '# releases'
+            gh release list --repo "${{ github.repository }}" --limit 1000 --json tagName --jq '.[].tagName'
+          } > "$tags"
+          echo "::notice title=tags file::$(grep -c . "$tags") lines (remote tags and release tags)"
+
+      - name: preflight
+        id: preflight
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release-notes"
+          if node tools/manager-release-preflight.js --app-dir apps/krate-manager --dry-run ${{ inputs.dry_run }} --tags "$RUNNER_TEMP/tags.txt" --repo "${{ github.repository }}" --notes "$RUNNER_TEMP/release-notes/notes.md" --body "$RUNNER_TEMP/release-notes/body.md" --github-output "$GITHUB_OUTPUT"; then
+            echo "::notice title=preflight::passed (dry_run=${{ inputs.dry_run }}, repo ${{ github.repository }})"
+          else
+            echo "::error title=preflight::manager-release-preflight refused (its code is in the log above)"; exit 1
+          fi
+
+      - name: upload release-notes
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/release-notes/
+          if-no-files-found: error
+
+  # PD-23: the environment's main-only rule stops a branch dispatch here, before any build. No checkout, no secret.
+  main-only:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    environment: signing
+    permissions:
+      contents: read
+    steps:
+      - name: main-only
+        run: echo "::notice title=main-only::environment signing admitted $GITHUB_REF"
+
+  # FR-052 to FR-056, FR-064, FR-065 (PD-23): no environment, no secret. The leg's throwaway key and its password live
+  # only inside the bundle step and RUNNER_TEMP; the signatures it makes are never uploaded.
+  build:
+    name: build (${{ matrix.leg }})
+    needs: [preflight, main-only]
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: windows-latest
+            os: windows-latest
+            assets: windows
+          - leg: macos-latest
+            os: macos-latest
+            assets: macos
+          - leg: linux
+            os: ubuntu-24.04
+            container: ubuntu:22.04
+            assets: linux
+    steps:
+      # D12: the container is the glibc floor. Runs before checkout so actions/checkout has git.
+      - name: container packages
+        if: matrix.leg == 'linux'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils build-essential curl file binutils ca-certificates git libxdo-dev libssl-dev
+          git config --global --add safe.directory '*'
+
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Rust toolchain
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          if ! command -v rustup > /dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup toolchain install
+          if [ "${{ matrix.leg }}" = "macos-latest" ]; then rustup target add aarch64-apple-darwin x86_64-apple-darwin; fi
+          rustc --version
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/krate-manager -> target
+          key: release-${{ matrix.leg }}
+
+      - name: npm ci
+        working-directory: apps/krate-manager
+        run: npm ci
+
+      - name: npm ci (feed-contract)
+        run: npm ci --prefix tools/feed-contract --ignore-scripts
+
+      - name: extra config empty
+        run: |
+          set -euo pipefail
+          if [ -n "${KRATE_BUNDLE_EXTRA_CONFIG:-}" ]; then
+            echo "::error title=extra config empty (${{ matrix.leg }})::KRATE_BUNDLE_EXTRA_CONFIG is not empty: $KRATE_BUNDLE_EXTRA_CONFIG"; exit 1
+          fi
+          echo "::notice title=extra config empty (${{ matrix.leg }})::KRATE_BUNDLE_EXTRA_CONFIG unset, so the app carries the committed pubkey"
+
+      - name: bundle
+        working-directory: apps/krate-manager
+        env:
+          # PD-34: read only by linuxdeploy (the Linux AppImage); no other leg's bundler reads it.
+          NO_STRIP: 'true'
+        run: |
+          set -euo pipefail
+          case "${{ matrix.leg }}" in
+            macos-latest) extra=(--target universal-apple-darwin) ;;
+            linux) extra=(--bundles appimage,deb) ;;
+            *) extra=() ;;
+          esac
+          mkdir -p "$RUNNER_TEMP/leg"
+          PW=$(openssl rand -hex 16)
+          echo "::add-mask::$PW"
+          npx tauri signer generate --ci -p "$PW" -w "$RUNNER_TEMP/leg/k.key"
+          TAURI_SIGNING_PRIVATE_KEY="$RUNNER_TEMP/leg/k.key" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PW" node scripts/bundle.js --release ${extra[@]+"${extra[@]}"} 2>&1 | tee "$RUNNER_TEMP/tauri-build.txt"
+          rm -f "$RUNNER_TEMP/leg/k.key"
+
+      - name: leg key is not the release key
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          esc=$(printf '\033')
+          sed "s/${esc}\[[0-9;]*m//g" "$RUNNER_TEMP/tauri-build.txt" > "$RUNNER_TEMP/leg/build.clean.txt"
+          warned=$(grep -cF 'does not match the public key from `plugins > updater > pubkey`' "$RUNNER_TEMP/leg/build.clean.txt" || true)
+          sigs=$(find target -path '*/bundle/*' -name '*.sig' -type f | wc -l | tr -d ' ')
+          msg="key-mismatch warnings=$warned, .sig files the CLI wrote=$sigs"
+          if [ "$warned" -ge 1 ] && [ "$warned" = "$sigs" ]; then
+            echo "::notice title=leg key is not the release key (${{ matrix.leg }})::$msg"
+          else
+            echo "::error title=leg key is not the release key (${{ matrix.leg }})::$msg"; exit 1
+          fi
+
+      - name: updater-e2e absent
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          tree=$(cargo tree -p krate-manager -e features --locked)
+          hits=$(grep -cF 'updater-e2e' <<<"$tree" || true)
+          marker=$(grep -cF 'krate-e2e-marker-v1' src-tauri/src/self_update.rs || true)
+          case "${{ matrix.leg }}" in
+            windows-latest) bins=(target/release/krate-manager.exe) ;;
+            macos-latest) bins=(target/universal-apple-darwin/release/krate-manager "target/universal-apple-darwin/release/bundle/macos/Krate Manager.app/Contents/MacOS/krate-manager") ;;
+            *) bins=(target/release/krate-manager) ;;
+          esac
+          inb=0
+          for b in "${bins[@]}"; do
+            if [ ! -f "$b" ]; then echo "::error title=updater-e2e absent (${{ matrix.leg }})::$b missing"; exit 1; fi
+            n=$(grep -acF 'krate-e2e-marker-v1' "$b" || true)
+            inb=$((inb + n))
+          done
+          msg="cargo tree hits=$hits, marker in source=$marker, in ${#bins[@]} release binaries=$inb"
+          if [ "$hits" = "0" ] && [ "$marker" -ge 1 ] && [ "$inb" = "0" ]; then
+            echo "::notice title=updater-e2e absent (${{ matrix.leg }})::$msg"
+          else
+            echo "::error title=updater-e2e absent (${{ matrix.leg }})::$msg"; exit 1
+          fi
+
+      - name: ci-temp-roots absent
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          tree=$(cargo tree -p krate-manager-helper -e features --locked)
+          hits=$(grep -cF 'ci-temp-roots' <<<"$tree" || true)
+          marker=$(grep -cF -- '--ci-roots' crates/helper/src/cli.rs || true)
+          shopt -s nullglob
+          staged=(src-tauri/binaries/krate-manager-helper-*)
+          if [ "${{ matrix.leg }}" = "linux" ]; then
+            msg="cargo tree hits=$hits, marker in source=$marker, staged src-tauri/binaries/krate-manager-helper-* files=${#staged[@]} (D18: no Linux helper)"
+            if [ "$hits" = "0" ] && [ "$marker" -ge 1 ] && [ "${#staged[@]}" = "0" ]; then
+              echo "::notice title=ci-temp-roots absent (linux)::$msg"
+            else
+              echo "::error title=ci-temp-roots absent (linux)::$msg"; exit 1
+            fi
+            exit 0
+          fi
+          files=("${staged[@]}")
+          want=1
+          if [ "${{ matrix.leg }}" = "macos-latest" ]; then
+            files+=("target/universal-apple-darwin/release/bundle/macos/Krate Manager.app/Contents/MacOS/krate-manager-helper")
+            want=4
+          fi
+          inb=0
+          for f in "${files[@]}"; do
+            if [ ! -f "$f" ]; then echo "::error title=ci-temp-roots absent (${{ matrix.leg }})::$f missing"; exit 1; fi
+            n=$(grep -acF -- '--ci-roots' "$f" || true)
+            inb=$((inb + n))
+          done
+          msg="cargo tree hits=$hits, marker in source=$marker, in ${#files[@]} shipped helper files (want $want)=$inb"
+          if [ "$hits" = "0" ] && [ "$marker" -ge 1 ] && [ "${#files[@]}" = "$want" ] && [ "$inb" = "0" ]; then
+            echo "::notice title=ci-temp-roots absent (${{ matrix.leg }})::$msg"
+          else
+            echo "::error title=ci-temp-roots absent (${{ matrix.leg }})::$msg"; exit 1
+          fi
+
+      - name: build warnings
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          clean="$RUNNER_TEMP/tauri-build.clean.txt"
+          esc=$(printf '\033')
+          sed "s/${esc}\[[0-9;]*m//g" "$RUNNER_TEMP/tauri-build.txt" > "$clean"
+          finished=$(grep -cE '^ *Finished `release` profile' "$clean" || true)
+          n=$(grep -c '^warning:' "$clean" || true)
+          if [ "$finished" -ge 1 ] && [ "$n" = "0" ]; then
+            echo "::notice title=build warnings ($RUNNER_OS)::0 warning lines in the release build"
+          else
+            grep '^warning:' "$clean" || true
+            echo "::error title=build warnings ($RUNNER_OS)::warnings=$n finished-lines=$finished"; exit 1
+          fi
+
+      - name: signatures
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          v=$(node -p "require('./version.json').version")
+          node -e 'const fs = require("fs"); fs.writeFileSync(process.argv[2], Buffer.from(fs.readFileSync(process.argv[1], "utf8").trim(), "base64"))' "$RUNNER_TEMP/leg/k.key.pub" "$RUNNER_TEMP/leg/k.pub"
+          printf 'check only\n' > "$RUNNER_TEMP/leg/notes.md"
+          if node ../../tools/gen-manager-latest.js --version "$v" --tag "manager/v$v" --repo "$GITHUB_REPOSITORY" --notes "$RUNNER_TEMP/leg/notes.md" --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets target/release-assets --pubkey "$RUNNER_TEMP/leg/k.pub" --out "$RUNNER_TEMP/leg/latest.json" --check-only --platform-subset "${{ matrix.assets }}"; then
+            echo "::notice title=signatures (${{ matrix.leg }})::every .sig verifies against this leg's throwaway key with version:$v"
+          else
+            echo "::error title=signatures (${{ matrix.leg }})::gen-manager-latest --check-only refused this leg's .sig files"; exit 1
+          fi
+
+      - name: artifact version
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          want=$(node -p "require('./version.json').version")
+          dir=target/release-assets
+          case "${{ matrix.leg }}" in
+            windows-latest)
+              got=$(powershell -NoProfile -Command "(Get-Item 'target/release/krate-manager.exe').VersionInfo.ProductVersion" | tr -d '\r')
+              if [ -f "$dir/Krate-Manager-$want-Windows-x64-setup.exe" ]; then extra="setup present"; else got="$got (setup missing)"; extra="setup missing"; fi ;;
+            macos-latest)
+              got=$(plutil -extract CFBundleShortVersionString raw "target/universal-apple-darwin/release/bundle/macos/Krate Manager.app/Contents/Info.plist")
+              if [ -f "$dir/Krate-Manager-$want-macOS-universal.app.tar.gz" ]; then extra="app.tar.gz present"; else got="$got (app.tar.gz missing)"; extra="app.tar.gz missing"; fi ;;
+            *)
+              deb="$dir/Krate-Manager-$want-Linux-amd64.deb"
+              if [ -f "$deb" ]; then got=$(dpkg-deb -f "$deb" Version); pkg=$(dpkg-deb -f "$deb" Package); else got="deb missing"; pkg="?"; fi
+              if [ "$pkg" != "krate-manager" ]; then got="$got (package $pkg)"; fi
+              if [ -f "$dir/Krate-Manager-$want-Linux-x86_64.AppImage" ]; then extra="deb package $pkg, AppImage present"; else got="$got (AppImage missing)"; extra="AppImage missing"; fi ;;
+          esac
+          if [ "$got" = "$want" ]; then
+            echo "::notice title=artifact version (${{ matrix.leg }})::$got ($extra)"
+          else
+            echo "::error title=artifact version (${{ matrix.leg }})::got '$got', want '$want' ($extra)"; exit 1
+          fi
+
+      - name: lipo
+        if: matrix.leg == 'macos-latest'
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          app="target/universal-apple-darwin/release/bundle/macos/Krate Manager.app"
+          bad=0
+          for exe in krate-manager krate-manager-helper; do
+            archs=$(lipo -archs "$app/Contents/MacOS/$exe" | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ *$//')
+            if [ "$archs" = "arm64 x86_64" ]; then
+              echo "::notice title=lipo::$exe: $archs"
+            else
+              echo "::error title=lipo::$exe: '$archs', want arm64 x86_64"; bad=1
+            fi
+          done
+          exit "$bad"
+
+      - name: 'plist: LSMinimumSystemVersion'
+        if: matrix.leg == 'macos-latest'
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          v=$(plutil -extract LSMinimumSystemVersion raw "target/universal-apple-darwin/release/bundle/macos/Krate Manager.app/Contents/Info.plist")
+          if [ "$v" = "15.0" ]; then echo "::notice title=plist: LSMinimumSystemVersion::15.0"; else echo "::error title=plist: LSMinimumSystemVersion::$v"; exit 1; fi
+
+      - name: 'plist: no LSFileQuarantineEnabled'
+        if: matrix.leg == 'macos-latest'
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          if ! out=$(plutil -p "target/universal-apple-darwin/release/bundle/macos/Krate Manager.app/Contents/Info.plist"); then
+            echo "::error title=plist: no LSFileQuarantineEnabled::plutil -p failed"; exit 1
+          fi
+          if grep -q LSFileQuarantineEnabled <<<"$out"; then
+            echo "::error title=plist: no LSFileQuarantineEnabled::key present"; exit 1
+          fi
+          echo "::notice title=plist: no LSFileQuarantineEnabled::absent"
+
+      - name: codesign verify
+        if: matrix.leg == 'macos-latest'
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          if codesign --verify --deep --strict -v "target/universal-apple-darwin/release/bundle/macos/Krate Manager.app"; then
+            echo "::notice title=codesign verify::exit 0"
+          else
+            echo "::error title=codesign verify::codesign --verify --deep --strict failed"; exit 1
+          fi
+
+      - name: codesign ad-hoc
+        if: matrix.leg == 'macos-latest'
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          info=$(codesign -dv "target/universal-apple-darwin/release/bundle/macos/Krate Manager.app" 2>&1) || true
+          if grep -q 'Signature=adhoc' <<<"$info"; then
+            echo "::notice title=codesign ad-hoc::Signature=adhoc"
+          else
+            echo "::error title=codesign ad-hoc::no Signature=adhoc"; exit 1
+          fi
+
+      - name: glibc floor
+        if: matrix.leg == 'linux'
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          objdump -T target/release/krate-manager > "$RUNNER_TEMP/objdump.txt"
+          floor=$(node -e 'console.log(require(process.argv[1]).glibcFloor(require("fs").readFileSync(process.argv[2], "utf8")))' "$PWD/../../tools/release-facts.js" "$RUNNER_TEMP/objdump.txt")
+          have=$(ldd --version 2>&1 | sed -n 1p | grep -oE '[0-9]+\.[0-9]+$')
+          top=$(printf '%s\n%s\n' "$floor" "$have" | sort -V | sed -n 2p)
+          if [ "$top" = "$have" ]; then
+            echo "::notice title=glibc floor::$floor (container $have)"
+            echo "glibc floor: $floor (container $have)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error title=glibc floor::$floor exceeds the container's $have"; exit 1
+          fi
+
+      - name: upload release-assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets-${{ matrix.assets }}
+          path: |
+            apps/krate-manager/target/release-assets/
+            !apps/krate-manager/target/release-assets/*.sig
+          if-no-files-found: error
+
+      # package-macos's input: upload-artifact drops modes and symlinks, a ditto zip keeps them. Never a release asset.
+      - name: app zip
+        if: matrix.leg == 'macos-latest'
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/app-zip"
+          ditto -c -k --keepParent "target/universal-apple-darwin/release/bundle/macos/Krate Manager.app" "$RUNNER_TEMP/app-zip/Krate-Manager-app.zip"
+
+      - name: upload release-app-macos
+        if: matrix.leg == 'macos-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-app-macos
+          path: ${{ runner.temp }}/app-zip/Krate-Manager-app.zip
+          if-no-files-found: error
+
+  # SI-20 / PD-35: the only job that sees the real key. No app source (sparse checkout of tools/), no npm but the
+  # ajv install with lifecycle scripts off, no cargo but the fresh, uncached rsign2 install, both before the key step.
+  sign:
+    needs: [preflight, build]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    environment: signing
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: tools
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: npm ci (feed-contract)
+        run: npm ci --prefix tools/feed-contract --ignore-scripts
+
+      - name: install rsign2
+        run: |
+          cargo install rsign2 --version 0.6.7 --locked
+          test "$(rsign --version)" = "rsign2 0.6.7"
+
+      - name: download release-assets-windows
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-windows
+          path: assets
+
+      - name: download release-assets-macos
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-macos
+          path: assets
+
+      - name: download release-assets-linux
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-linux
+          path: assets
+
+      - name: updater asset list
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+          ONLY: all
+        run: |
+          set -euo pipefail
+          node - "$VERSION" "$ONLY" "$RUNNER_TEMP/updater-assets.txt" <<'ASSETS'
+          const fs = require("fs");
+          const { ASSET_TABLE } = require("./tools/gen-manager-latest.js");
+          const [version, only, out] = process.argv.slice(2);
+          const ci = process.env.RUNNER_OS;
+          // Every ASSET_TABLE row's updater asset carries a .sig; its release-only asset (.pkg, .deb) carries none.
+          const names = ASSET_TABLE.filter((r) => only === "all" || r.os === only).map((r) => r.updater.replace("<v>", version));
+          const want = only === "all" ? 3 : 1;
+          if (names.length !== want) {
+            console.log(`::error title=updater asset list (${ci})::${names.length} updater assets for ${only}, want ${want}`);
+            process.exit(1);
+          }
+          fs.writeFileSync(out, names.join("\n") + "\n");
+          console.log(`::notice title=updater asset list (${ci})::${only}: ${names.join(", ")}`);
+          ASSETS
+
+      - name: signing key
+        env:
+          KRATE_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KRATE_SIGNING_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          node tools/minisign.js decrypt-key --out "$RUNNER_TEMP/krate.key"
+          cp tools/feed-contract/keys/krate-signing.pub "$RUNNER_TEMP/krate.pub"
+
+      - name: sign updater artifacts
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+          ASSET_DIR: assets
+        run: |
+          set -euo pipefail
+          n=0
+          while IFS= read -r name; do
+            rsign sign -W -s "$RUNNER_TEMP/krate.key" -t "timestamp:$(date +%s)"$'\t'"file:$name"$'\t'"version:$VERSION" -x "$RUNNER_TEMP/$name.minisig" "$ASSET_DIR/$name" < /dev/null
+            base64 -w0 < "$RUNNER_TEMP/$name.minisig" > "$ASSET_DIR/$name.sig"
+            n=$((n + 1))
+          done < "$RUNNER_TEMP/updater-assets.txt"
+          echo "::notice title=sign updater artifacts ($RUNNER_OS)::$n updater asset(s) signed with version:$VERSION"
+
+      - name: delete signing key (after signing)
+        run: rm -f "$RUNNER_TEMP/krate.key"
+
+      - name: verify
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          printf 'verify only\n' > "$RUNNER_TEMP/verify-notes.md"
+          if ! node tools/gen-manager-latest.js --version "$VERSION" --tag "manager/v$VERSION" --repo "$GITHUB_REPOSITORY" --notes "$RUNNER_TEMP/verify-notes.md" --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets assets --pubkey "$RUNNER_TEMP/krate.pub" --out "$RUNNER_TEMP/verify-latest.json" --check-only; then
+            echo "::error title=verify::gen-manager-latest --check-only refused the release .sig files"; exit 1
+          fi
+          n=0
+          while IFS= read -r name; do
+            if ! rsign verify -p "$RUNNER_TEMP/krate.pub" -x "$RUNNER_TEMP/$name.minisig" "assets/$name" < /dev/null; then
+              echo "::error title=verify::rsign verify refused $name"; exit 1
+            fi
+            n=$((n + 1))
+          done < "$RUNNER_TEMP/updater-assets.txt"
+          echo "::notice title=verify::$n .sig file(s) verified against $(sed -n 1p "$RUNNER_TEMP/krate.pub")"
+
+      - name: upload release-sigs
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-sigs
+          path: assets/*.sig
+          if-no-files-found: error
+
+      - name: upload signing public key
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.dry_run && 'dry-signing.pub' || 'signing.pub' }}
+          path: ${{ runner.temp }}/krate.pub
+          if-no-files-found: error
+
+  # The dry-run twin of sign: the same steps but the key step (shape-tested), a throwaway rsign key, no environment.
+  sign-dry:
+    needs: [preflight, build]
+    if: ${{ inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: tools
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: npm ci (feed-contract)
+        run: npm ci --prefix tools/feed-contract --ignore-scripts
+
+      - name: install rsign2
+        run: |
+          cargo install rsign2 --version 0.6.7 --locked
+          test "$(rsign --version)" = "rsign2 0.6.7"
+
+      - name: download release-assets-windows
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-windows
+          path: assets
+
+      - name: download release-assets-macos
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-macos
+          path: assets
+
+      - name: download release-assets-linux
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-linux
+          path: assets
+
+      - name: updater asset list
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+          ONLY: all
+        run: |
+          set -euo pipefail
+          node - "$VERSION" "$ONLY" "$RUNNER_TEMP/updater-assets.txt" <<'ASSETS'
+          const fs = require("fs");
+          const { ASSET_TABLE } = require("./tools/gen-manager-latest.js");
+          const [version, only, out] = process.argv.slice(2);
+          const ci = process.env.RUNNER_OS;
+          // Every ASSET_TABLE row's updater asset carries a .sig; its release-only asset (.pkg, .deb) carries none.
+          const names = ASSET_TABLE.filter((r) => only === "all" || r.os === only).map((r) => r.updater.replace("<v>", version));
+          const want = only === "all" ? 3 : 1;
+          if (names.length !== want) {
+            console.log(`::error title=updater asset list (${ci})::${names.length} updater assets for ${only}, want ${want}`);
+            process.exit(1);
+          }
+          fs.writeFileSync(out, names.join("\n") + "\n");
+          console.log(`::notice title=updater asset list (${ci})::${only}: ${names.join(", ")}`);
+          ASSETS
+
+      - name: throwaway signing key
+        run: rsign generate -W -p "$RUNNER_TEMP/krate.pub" -s "$RUNNER_TEMP/krate.key" < /dev/null
+
+      - name: sign updater artifacts
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+          ASSET_DIR: assets
+        run: |
+          set -euo pipefail
+          n=0
+          while IFS= read -r name; do
+            rsign sign -W -s "$RUNNER_TEMP/krate.key" -t "timestamp:$(date +%s)"$'\t'"file:$name"$'\t'"version:$VERSION" -x "$RUNNER_TEMP/$name.minisig" "$ASSET_DIR/$name" < /dev/null
+            base64 -w0 < "$RUNNER_TEMP/$name.minisig" > "$ASSET_DIR/$name.sig"
+            n=$((n + 1))
+          done < "$RUNNER_TEMP/updater-assets.txt"
+          echo "::notice title=sign updater artifacts ($RUNNER_OS)::$n updater asset(s) signed with version:$VERSION"
+
+      - name: delete signing key (after signing)
+        run: rm -f "$RUNNER_TEMP/krate.key"
+
+      - name: verify
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          printf 'verify only\n' > "$RUNNER_TEMP/verify-notes.md"
+          if ! node tools/gen-manager-latest.js --version "$VERSION" --tag "manager/v$VERSION" --repo "$GITHUB_REPOSITORY" --notes "$RUNNER_TEMP/verify-notes.md" --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets assets --pubkey "$RUNNER_TEMP/krate.pub" --out "$RUNNER_TEMP/verify-latest.json" --check-only; then
+            echo "::error title=verify::gen-manager-latest --check-only refused the release .sig files"; exit 1
+          fi
+          n=0
+          while IFS= read -r name; do
+            if ! rsign verify -p "$RUNNER_TEMP/krate.pub" -x "$RUNNER_TEMP/$name.minisig" "assets/$name" < /dev/null; then
+              echo "::error title=verify::rsign verify refused $name"; exit 1
+            fi
+            n=$((n + 1))
+          done < "$RUNNER_TEMP/updater-assets.txt"
+          echo "::notice title=verify::$n .sig file(s) verified against $(sed -n 1p "$RUNNER_TEMP/krate.pub")"
+
+      - name: upload release-sigs
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-sigs
+          path: assets/*.sig
+          if-no-files-found: error
+
+      - name: upload signing public key
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.dry_run && 'dry-signing.pub' || 'signing.pub' }}
+          path: ${{ runner.temp }}/krate.pub
+          if-no-files-found: error
+
+  # FR-061, FR-062, SI-37: the first-install pkg from the build leg's universal .app. No privilege.
+  package-macos:
+    needs: [preflight, build]
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: tools
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: npm ci (feed-contract)
+        run: npm ci --prefix tools/feed-contract --ignore-scripts
+
+      - name: download release-app-macos
+        uses: actions/download-artifact@v8
+        with:
+          name: release-app-macos
+          path: ${{ runner.temp }}/app-zip
+
+      - name: stage
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/unzipped" "$RUNNER_TEMP/stage" "$RUNNER_TEMP/pkg"
+          mkdir -p "$RUNNER_TEMP/unzipped" "$RUNNER_TEMP/stage/Applications" "$RUNNER_TEMP/pkg"
+          ditto -x -k "$RUNNER_TEMP/app-zip/Krate-Manager-app.zip" "$RUNNER_TEMP/unzipped"
+          ditto "$RUNNER_TEMP/unzipped/Krate Manager.app" "$RUNNER_TEMP/stage/Applications/Krate Manager.app"
+
+      - name: pkgbuild
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          leg=package-macos
+          stage="$RUNNER_TEMP/stage"
+          plist="$RUNNER_TEMP/comp.plist"
+          pkgver="$VERSION"
+          pkg="$RUNNER_TEMP/pkg/Krate-Manager-$VERSION-macOS.pkg"
+          # FR-061 pkgbuild block begin (package-macos and the pkg-installed case hold it verbatim)
+          pkgbuild --analyze --root "$stage" "$plist"
+          plutil -replace 0.BundleIsRelocatable -bool NO "$plist"
+          reloc=$(plutil -extract 0.BundleIsRelocatable raw "$plist")
+          if [ "$reloc" != "false" ]; then echo "::error title=pkgbuild ($leg)::BundleIsRelocatable reads $reloc"; exit 1; fi
+          pkgbuild --root "$stage" --component-plist "$plist" --identifier com.krateaudio.krate-manager --version "$pkgver" --install-location / "$pkg"
+          echo "::notice title=pkgbuild ($leg)::$(basename "$pkg") built, BundleIsRelocatable=$reloc"
+          # FR-061 pkgbuild block end
+
+      - name: payload
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          pkg="$RUNNER_TEMP/pkg/Krate-Manager-$VERSION-macOS.pkg"
+          pkgutil --payload-files "$pkg" > "$RUNNER_TEMP/payload.txt"
+          other=$(grep -cvE '^\.(/Applications(/Krate Manager\.app(/.*)?)?)?$' "$RUNNER_TEMP/payload.txt" || true)
+          inapp=$(grep -c '^\./Applications/Krate Manager\.app/' "$RUNNER_TEMP/payload.txt" || true)
+          if [ "$other" = "0" ] && [ "$inapp" -ge 1 ]; then
+            echo "::notice title=payload::$inapp entries, all under ./Applications/Krate Manager.app"
+          else
+            grep -vE '^\.(/Applications(/Krate Manager\.app(/.*)?)?)?$' "$RUNNER_TEMP/payload.txt" || true
+            echo "::error title=payload::$other entries outside ./Applications/Krate Manager.app, $inapp inside"; exit 1
+          fi
+
+      - name: pkg facts
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          pkg="$RUNNER_TEMP/pkg/Krate-Manager-$VERSION-macOS.pkg"
+          x="$RUNNER_TEMP/pkg-x"
+          rm -rf "$x"
+          pkgutil --expand-full "$pkg" "$x"
+          mkdir -p "$RUNNER_TEMP/packageinfo"
+          cp "$x/PackageInfo" "$RUNNER_TEMP/packageinfo/PackageInfo"
+          { echo '### PackageInfo (package-macos)'; echo; echo '```xml'; cat "$x/PackageInfo"; echo; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          relocated=$(xmllint --xpath 'count(//relocate/*)' "$x/PackageInfo")
+          present=$(xmllint --xpath 'count(//relocate)' "$x/PackageInfo")
+          if [ "$present" = "0" ]; then form="no relocate element"; else form="$present relocate element(s)"; fi
+          node - "$x/Payload/Applications/Krate Manager.app/Contents/MacOS" <<'FACTS'
+          const fs = require("fs");
+          const path = require("path");
+          const { machoFacts } = require(path.resolve("tools/release-facts.js"));
+          const [dir] = process.argv.slice(2);
+          const bad = [];
+          for (const exe of ["krate-manager", "krate-manager-helper"]) {
+            const archs = machoFacts(fs.readFileSync(path.join(dir, exe))).archs.slice().sort().join(" ");
+            if (archs === "arm64 x86_64") console.log(`::notice title=pkg facts::${exe}: ${archs}`);
+            else bad.push(`${exe}: ${archs}, want arm64 x86_64`);
+          }
+          for (const b of bad) console.log(`::error title=pkg facts::${b}`);
+          if (bad.length) process.exit(1);
+          FACTS
+          if [ "$relocated" != "0" ]; then
+            echo "::error title=pkg facts::count(//relocate/*) = $relocated ($form): the Installer would search for the bundle"; exit 1
+          fi
+          echo "::notice title=pkg facts::count(//relocate/*) = 0 ($form)"
+
+      - name: upload release-pkg-macos
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-pkg-macos
+          path: ${{ runner.temp }}/pkg/
+          if-no-files-found: error
+
+      - name: upload packageinfo
+        uses: actions/upload-artifact@v7
+        with:
+          name: packageinfo
+          path: ${{ runner.temp }}/packageinfo/PackageInfo
+          if-no-files-found: error
+
+  # FR-070 to FR-074, PD-13, PD-22, PD-24, PD-34, PD-35: two throwaway versions, a loopback server, a real self-update.
+  # Its release-signing key is its own rsign throwaway; each build bundles with a second per-build CLI key.
+  updater-e2e:
+    name: updater-e2e (${{ matrix.os }})
+    needs: preflight
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-24.04]
+        include:
+          - os: windows-latest
+            only: windows
+          - os: macos-latest
+            only: macos
+          - os: ubuntu-24.04
+            only: linux
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Linux system packages
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libfuse2t64 xvfb xauth
+
+      - name: Rust toolchain
+        working-directory: apps/krate-manager
+        run: |
+          set -euo pipefail
+          rustup toolchain install
+          if [ "$RUNNER_OS" = "macOS" ]; then rustup target add aarch64-apple-darwin x86_64-apple-darwin; fi
+          rustc --version
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/krate-manager -> target
+          key: e2e
+
+      - name: npm ci
+        working-directory: apps/krate-manager
+        run: npm ci
+
+      - name: npm ci (feed-contract)
+        run: npm ci --prefix tools/feed-contract --ignore-scripts
+
+      # The shared signing steps use GNU base64 -w0; the macOS system base64 may not take -w.
+      - name: base64 -w0 (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          if printf 'x' | base64 -w0 > /dev/null 2>&1; then
+            echo "::notice title=base64 -w0 (macOS)::the system base64 takes -w0"
+          else
+            brew install coreutils
+            mkdir -p "$RUNNER_TEMP/gnu"
+            ln -sf "$(brew --prefix coreutils)/bin/gbase64" "$RUNNER_TEMP/gnu/base64"
+            echo "$RUNNER_TEMP/gnu" >> "$GITHUB_PATH"
+            echo "::notice title=base64 -w0 (macOS)::GNU base64 from coreutils first on PATH"
+          fi
+
+      - name: install rsign2
+        run: |
+          cargo install rsign2 --version 0.6.7 --locked
+          test "$(rsign --version)" = "rsign2 0.6.7"
+
+      - name: throwaway signing key
+        run: rsign generate -W -p "$RUNNER_TEMP/krate.pub" -s "$RUNNER_TEMP/krate.key" < /dev/null
+
+      - name: server
+        env:
+          OLD: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          serve="$RUNNER_TEMP/serve"
+          mkdir -p "$serve" "$RUNNER_TEMP/marker"
+          cp tools/feed-contract/fixtures/feeds/valid/full-v2.json "$serve/versions.json"
+          : > "$RUNNER_TEMP/requests.log"
+          nohup node apps/krate-manager/scripts/e2e-update-server.js --dir "$serve" --port-file "$RUNNER_TEMP/port.txt" --log "$RUNNER_TEMP/requests.log" > "$RUNNER_TEMP/server.out" 2>&1 &
+          for _ in $(seq 1 100); do
+            if [ -s "$RUNNER_TEMP/port.txt" ]; then break; fi
+            sleep 0.1
+          done
+          if [ ! -s "$RUNNER_TEMP/port.txt" ]; then
+            cat "$RUNNER_TEMP/server.out" || true
+            echo "::error title=updater-e2e ($RUNNER_OS) server::no port file after 10 s"; exit 1
+          fi
+          port=$(tr -d '\r\n' < "$RUNNER_TEMP/port.txt")
+          new=$(node -p 'const [a, b, c] = process.argv[1].split(".").map(Number); `${a}.${b}.${c + 1}`' "$OLD")
+          {
+            echo "KRATE_E2E_FEED_URL=http://127.0.0.1:$port/versions.json"
+            echo "KRATE_E2E_MARKER_DIR=$RUNNER_TEMP/marker"
+            echo "KRATE_E2E_OLD_VERSION=$OLD"
+            echo "E2E_OLD=$OLD"
+            echo "E2E_NEW=$new"
+            echo "E2E_PORT=$port"
+            echo "E2E_START=$(date +%s)"
+          } >> "$GITHUB_ENV"
+          echo "::notice title=updater-e2e ($RUNNER_OS) server::127.0.0.1:$port serves $serve; old $OLD, new $new"
+
+      - name: build old
+        working-directory: apps/krate-manager
+        env:
+          NO_STRIP: 'true'
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in
+            macOS) extra=(--target universal-apple-darwin) ;;
+            Linux) extra=(--bundles appimage,deb) ;;
+            *) extra=() ;;
+          esac
+          dir="$RUNNER_TEMP/e2e-old"
+          mkdir -p "$dir"
+          pub=$(base64 -w0 < "$RUNNER_TEMP/krate.pub")
+          node -e 'const [f, v, pub, port] = process.argv.slice(1); require("fs").writeFileSync(f, JSON.stringify({ version: v, plugins: { updater: { pubkey: pub, endpoints: [`http://127.0.0.1:${port}/latest.json`], dangerousInsecureTransportProtocol: true } } }))' "$dir/config.json" "$E2E_OLD" "$pub" "$E2E_PORT"
+          PW=$(openssl rand -hex 16)
+          echo "::add-mask::$PW"
+          npx tauri signer generate --ci -p "$PW" -w "$RUNNER_TEMP/e2e-old/k.key"
+          KRATE_BUNDLE_EXTRA_CONFIG="$dir/config.json" TAURI_SIGNING_PRIVATE_KEY="$RUNNER_TEMP/e2e-old/k.key" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PW" node scripts/bundle.js --release --features updater-e2e ${extra[@]+"${extra[@]}"} 2>&1 | tee "$dir/build.txt"
+          rm -f "$RUNNER_TEMP/e2e-old/k.key"
+          rm -rf "$RUNNER_TEMP/old-assets"
+          mv target/release-assets "$RUNNER_TEMP/old-assets"
+          echo "::notice title=updater-e2e ($RUNNER_OS) build old::$E2E_OLD set aside: $(ls "$RUNNER_TEMP/old-assets" | tr '\n' ' ')"
+
+      - name: marker present
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in
+            Windows) exe=apps/krate-manager/target/release/krate-manager.exe ;;
+            macOS) exe="apps/krate-manager/target/universal-apple-darwin/release/bundle/macos/Krate Manager.app/Contents/MacOS/krate-manager" ;;
+            *) exe=apps/krate-manager/target/release/krate-manager ;;
+          esac
+          n=$({ LC_ALL=C grep -a -o 'krate-e2e-marker-v1' "$exe" || true; } | wc -l | tr -d ' ')
+          if [ "$n" -ge 1 ]; then
+            echo "::notice title=updater-e2e ($RUNNER_OS) marker present::$n occurrence(s) in the old e2e build's $exe"
+          else
+            echo "::error title=updater-e2e ($RUNNER_OS) marker present::0 occurrences in $exe"; exit 1
+          fi
+
+      - name: build new
+        working-directory: apps/krate-manager
+        env:
+          NO_STRIP: 'true'
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in
+            macOS) extra=(--target universal-apple-darwin) ;;
+            Linux) extra=(--bundles appimage,deb) ;;
+            *) extra=() ;;
+          esac
+          dir="$RUNNER_TEMP/e2e-new"
+          mkdir -p "$dir"
+          pub=$(base64 -w0 < "$RUNNER_TEMP/krate.pub")
+          node -e 'const [f, v, pub, port] = process.argv.slice(1); require("fs").writeFileSync(f, JSON.stringify({ version: v, plugins: { updater: { pubkey: pub, endpoints: [`http://127.0.0.1:${port}/latest.json`], dangerousInsecureTransportProtocol: true } } }))' "$dir/config.json" "$E2E_NEW" "$pub" "$E2E_PORT"
+          PW=$(openssl rand -hex 16)
+          echo "::add-mask::$PW"
+          npx tauri signer generate --ci -p "$PW" -w "$RUNNER_TEMP/e2e-new/k.key"
+          KRATE_BUNDLE_EXTRA_CONFIG="$dir/config.json" TAURI_SIGNING_PRIVATE_KEY="$RUNNER_TEMP/e2e-new/k.key" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PW" node scripts/bundle.js --release --features updater-e2e ${extra[@]+"${extra[@]}"} 2>&1 | tee "$dir/build.txt"
+          rm -f "$RUNNER_TEMP/e2e-new/k.key"
+          echo "::notice title=updater-e2e ($RUNNER_OS) build new::$E2E_NEW: $(ls target/release-assets | tr '\n' ' ')"
+
+      - name: updater asset list
+        env:
+          VERSION: ${{ env.E2E_NEW }}
+          ONLY: ${{ matrix.only }}
+        run: |
+          set -euo pipefail
+          node - "$VERSION" "$ONLY" "$RUNNER_TEMP/updater-assets.txt" <<'ASSETS'
+          const fs = require("fs");
+          const { ASSET_TABLE } = require("./tools/gen-manager-latest.js");
+          const [version, only, out] = process.argv.slice(2);
+          const ci = process.env.RUNNER_OS;
+          // Every ASSET_TABLE row's updater asset carries a .sig; its release-only asset (.pkg, .deb) carries none.
+          const names = ASSET_TABLE.filter((r) => only === "all" || r.os === only).map((r) => r.updater.replace("<v>", version));
+          const want = only === "all" ? 3 : 1;
+          if (names.length !== want) {
+            console.log(`::error title=updater asset list (${ci})::${names.length} updater assets for ${only}, want ${want}`);
+            process.exit(1);
+          }
+          fs.writeFileSync(out, names.join("\n") + "\n");
+          console.log(`::notice title=updater asset list (${ci})::${only}: ${names.join(", ")}`);
+          ASSETS
+
+      # Overwrites the CLI's .sig of the new updater asset with the rsign one (PD-35).
+      - name: sign updater artifacts
+        env:
+          VERSION: ${{ env.E2E_NEW }}
+          ASSET_DIR: apps/krate-manager/target/release-assets
+        run: |
+          set -euo pipefail
+          n=0
+          while IFS= read -r name; do
+            rsign sign -W -s "$RUNNER_TEMP/krate.key" -t "timestamp:$(date +%s)"$'\t'"file:$name"$'\t'"version:$VERSION" -x "$RUNNER_TEMP/$name.minisig" "$ASSET_DIR/$name" < /dev/null
+            base64 -w0 < "$RUNNER_TEMP/$name.minisig" > "$ASSET_DIR/$name.sig"
+            n=$((n + 1))
+          done < "$RUNNER_TEMP/updater-assets.txt"
+          echo "::notice title=sign updater artifacts ($RUNNER_OS)::$n updater asset(s) signed with version:$VERSION"
+
+      - name: delete signing key (after signing)
+        run: rm -f "$RUNNER_TEMP/krate.key"
+
+      - name: latest.json
+        run: |
+          set -euo pipefail
+          printf 'Krate Manager %s (updater-e2e)\n' "$E2E_NEW" > "$RUNNER_TEMP/e2e-notes.md"
+          if node tools/gen-manager-latest.js --version "$E2E_NEW" --tag "manager/v$E2E_NEW" --repo ${{ github.repository }} --notes "$RUNNER_TEMP/e2e-notes.md" --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets apps/krate-manager/target/release-assets --pubkey "$RUNNER_TEMP/krate.pub" --out "$RUNNER_TEMP/serve/latest.json" --repo-url-base "http://127.0.0.1:$E2E_PORT" --only ${{ matrix.only }}; then
+            cp apps/krate-manager/target/release-assets/* "$RUNNER_TEMP/serve/"
+            echo "::notice title=updater-e2e ($RUNNER_OS) latest.json::$E2E_NEW served from $RUNNER_TEMP/serve"
+          else
+            echo "::error title=updater-e2e ($RUNNER_OS) latest.json::gen-manager-latest refused the new build's assets"; exit 1
+          fi
+
+      - name: rsign signature served
+        run: |
+          set -euo pipefail
+          name=$(sed -n 1p "$RUNNER_TEMP/updater-assets.txt")
+          want=$(base64 -w0 < "$RUNNER_TEMP/$name.minisig")
+          comment=$(sed -n 1p "$RUNNER_TEMP/$name.minisig")
+          node - "$RUNNER_TEMP/serve/latest.json" "$name" "$want" "$RUNNER_OS" "$comment" <<'SERVED'
+          const fs = require("fs");
+          const [file, name, want, os, comment] = process.argv.slice(2);
+          const doc = JSON.parse(fs.readFileSync(file, "utf8"));
+          const entries = Object.entries(doc.platforms || {}).filter(([, e]) => typeof e.url === "string" && e.url.endsWith("/" + name));
+          const bad = [];
+          if (entries.length === 0) bad.push(`no platforms entry serves ${name}`);
+          for (const [key, e] of entries) if (e.signature !== want) bad.push(`${key}: the served signature is not base64 -w0 of ${name}.minisig`);
+          for (const b of bad) console.log(`::error title=updater-e2e (${os}) rsign signature served::${b}`);
+          if (bad.length) process.exit(1);
+          console.log(`::notice title=updater-e2e (${os}) rsign signature served::${entries.map(([k]) => k).join(", ")} serve the rsign .sig of ${name} (${comment})`);
+          SERVED
+
+      - name: case windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $leg = 'updater-e2e (windows-latest) windows'
+          $old = $env:E2E_OLD
+          $new = $env:E2E_NEW
+          $marker = Join-Path $env:RUNNER_TEMP 'marker'
+          $start = Get-Date
+          $setup = Join-Path $env:RUNNER_TEMP "old-assets\Krate-Manager-$old-Windows-x64-setup.exe"
+          $p = Start-Process -FilePath $setup -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Write-Output "::error title=$($leg)::old setup /S exited $($p.ExitCode)"; exit 1 }
+          $exe = "$env:LOCALAPPDATA\Krate Manager\krate-manager.exe"
+          if (-not (Test-Path -LiteralPath $exe)) { Write-Output "::error title=$($leg)::$exe missing after the old setup"; exit 1 }
+          Start-Process -FilePath $exe | Out-Null
+          $launched = Join-Path $marker "launched-$new"
+          $deadline = (Get-Date).AddSeconds(300)
+          while (-not (Test-Path -LiteralPath $launched) -and (Get-Date) -lt $deadline) {
+            if (@(Get-ChildItem -LiteralPath $marker -Filter 'error-*' -ErrorAction SilentlyContinue).Count -gt 0) { break }
+            Start-Sleep -Seconds 2
+          }
+          $errors = @(Get-ChildItem -LiteralPath $marker -Filter 'error-*' -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
+          $bad = @()
+          if (-not (Test-Path -LiteralPath $launched)) { $bad += "no launched-$new within 300 s (markers: $($errors -join ', '))" }
+          elseif ((Get-Content -LiteralPath $launched -Raw) -cne 'krate-e2e-marker-v1') { $bad += "launched-$new content is not the marker" }
+          $pv = (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion
+          if ($pv -ne $new) { $bad += "installed ProductVersion $pv, want $new" }
+          $log = @(Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'requests.log'))
+          $gets = @($log | Where-Object { $_ -like "GET */Krate-Manager-$new-Windows-x64-setup.exe *" })
+          if ($gets.Count -ne 1) { $bad += "server log: $($gets.Count) GETs of the new setup, want 1" }
+          Get-Process -Name 'krate-manager' -ErrorAction SilentlyContinue | Stop-Process -Force
+          foreach ($b in $bad) { Write-Output "::error title=$($leg)::$b" }
+          if ($bad.Count -gt 0) { exit 1 }
+          $secs = [int]((Get-Date) - $start).TotalSeconds
+          Write-Output "::notice title=$($leg)::$old -> $new in $secs s; ProductVersion $pv; the setup was downloaded once"
+
+      - name: case user-placed
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          leg="updater-e2e (macos-latest) user-placed"
+          marker="$RUNNER_TEMP/marker"
+          x="$RUNNER_TEMP/old-x"
+          apps="$RUNNER_TEMP/apps"
+          app="$apps/Krate Manager.app"
+          rm -rf "$x" "$apps"
+          mkdir -p "$x" "$apps"
+          tar -xzf "$RUNNER_TEMP/old-assets/Krate-Manager-$E2E_OLD-macOS-universal.app.tar.gz" -C "$x"
+          ditto "$x/Krate Manager.app" "$app"
+          start=$(date +%s)
+          open -n "$app"
+          for _ in $(seq 1 300); do
+            if [ -f "$marker/launched-$E2E_NEW" ] || compgen -G "$marker/error-*" > /dev/null; then break; fi
+            sleep 1
+          done
+          bad=()
+          f="$marker/launched-$E2E_NEW"
+          if [ ! -f "$f" ]; then
+            bad+=("no launched-$E2E_NEW within 300 s (markers: $(ls "$marker" | tr '\n' ' '))")
+          elif [ "$(cat "$f")" != "krate-e2e-marker-v1" ]; then
+            bad+=("launched-$E2E_NEW content is not the marker")
+          fi
+          v=$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist" 2> /dev/null || echo missing)
+          if [ "$v" != "$E2E_NEW" ]; then bad+=("CFBundleShortVersionString $v at $app, want $E2E_NEW"); fi
+          if ! codesign --verify --deep --strict "$app"; then bad+=("codesign --verify --deep --strict failed"); fi
+          q=$(xattr -lr "$app" | grep -c 'com.apple.quarantine' || true)
+          if [ "$q" != "0" ]; then bad+=("$q com.apple.quarantine attribute(s)"); fi
+          pkill -f "$app/Contents/MacOS/krate-manager" || true
+          for b in ${bad[@]+"${bad[@]}"}; do echo "::error title=$leg::$b"; done
+          if [ "${#bad[@]}" -gt 0 ]; then exit 1; fi
+          echo "::notice title=$leg::$E2E_OLD -> $E2E_NEW in place at $app in $(( $(date +%s) - start )) s; codesign verifies; no quarantine"
+
+      - name: case pkg-installed
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          leg="updater-e2e (macos-latest) pkg-installed"
+          marker="$RUNNER_TEMP/marker"
+          pkill -x krate-manager || true
+          rm -rf "$marker"
+          mkdir -p "$marker"
+          x="$RUNNER_TEMP/old-x2"
+          stage="$RUNNER_TEMP/e2e-stage"
+          plist="$RUNNER_TEMP/e2e-comp.plist"
+          pkgver="$E2E_OLD"
+          pkg="$RUNNER_TEMP/e2e-old.pkg"
+          rm -rf "$x" "$stage"
+          mkdir -p "$x" "$stage/Applications"
+          tar -xzf "$RUNNER_TEMP/old-assets/Krate-Manager-$E2E_OLD-macOS-universal.app.tar.gz" -C "$x"
+          ditto "$x/Krate Manager.app" "$stage/Applications/Krate Manager.app"
+          # FR-061 pkgbuild block begin (package-macos and the pkg-installed case hold it verbatim)
+          pkgbuild --analyze --root "$stage" "$plist"
+          plutil -replace 0.BundleIsRelocatable -bool NO "$plist"
+          reloc=$(plutil -extract 0.BundleIsRelocatable raw "$plist")
+          if [ "$reloc" != "false" ]; then echo "::error title=pkgbuild ($leg)::BundleIsRelocatable reads $reloc"; exit 1; fi
+          pkgbuild --root "$stage" --component-plist "$plist" --identifier com.krateaudio.krate-manager --version "$pkgver" --install-location / "$pkg"
+          echo "::notice title=pkgbuild ($leg)::$(basename "$pkg") built, BundleIsRelocatable=$reloc"
+          # FR-061 pkgbuild block end
+          sudo installer -pkg "$pkg" -target /
+          app="/Applications/Krate Manager.app"
+          manifest() { (cd "$app" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256); }
+          manifest > "$RUNNER_TEMP/manifest-before.txt"
+          open -n "$app"
+          # PD-13: the updater asks for authorization in-process (osakit); SecurityAgent draws the prompt.
+          seen=0
+          accepted=0
+          for _ in $(seq 1 60); do
+            if pgrep -x SecurityAgent > /dev/null; then seen=1; break; fi
+            if [ -f "$marker/launched-$E2E_NEW" ]; then accepted=1; break; fi
+            sleep 1
+          done
+          for _ in $(seq 1 30); do
+            if [ -f "$marker/error-E_SELF_UPDATE_INSTALL" ]; then break; fi
+            sudo pkill -x SecurityAgent || true
+            sleep 1
+          done
+          bad=()
+          if [ "$accepted" = "1" ]; then bad+=("accepted without a prompt: launched-$E2E_NEW appeared"); fi
+          if [ "$seen" = "0" ] && [ "$accepted" = "0" ]; then bad+=("prompt never seen within 60 s (pgrep -x SecurityAgent)"); fi
+          f="$marker/error-E_SELF_UPDATE_INSTALL"
+          if [ ! -f "$f" ]; then
+            bad+=("no error-E_SELF_UPDATE_INSTALL within 30 s of the cancel (markers: $(ls "$marker" | tr '\n' ' '))")
+          elif [ "$(cat "$f")" != "krate-e2e-marker-v1" ]; then
+            bad+=("error-E_SELF_UPDATE_INSTALL content is not the marker")
+          fi
+          if [ -f "$marker/launched-$E2E_NEW" ]; then bad+=("launched-$E2E_NEW exists"); fi
+          pkill -f "$app/Contents/MacOS/krate-manager" || true
+          manifest > "$RUNNER_TEMP/manifest-after.txt"
+          if ! cmp -s "$RUNNER_TEMP/manifest-before.txt" "$RUNNER_TEMP/manifest-after.txt"; then bad+=("the bundle's SHA-256 manifest changed"); fi
+          v=$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist" 2> /dev/null || echo missing)
+          if [ "$v" != "$E2E_OLD" ]; then bad+=("CFBundleShortVersionString $v, want $E2E_OLD"); fi
+          if ! codesign --verify --deep --strict "$app"; then bad+=("codesign --verify --deep --strict failed"); fi
+          open -n "$app"
+          sleep 12
+          if ! pgrep -f "$app/Contents/MacOS/krate-manager" > /dev/null; then bad+=("the old app no longer launches"); fi
+          pkill -f "$app/Contents/MacOS/krate-manager" || true
+          sudo pkill -x SecurityAgent || true
+          for b in ${bad[@]+"${bad[@]}"}; do echo "::error title=$leg::$b"; done
+          if [ "${#bad[@]}" -gt 0 ]; then exit 1; fi
+          echo "::notice title=$leg::prompt seen and cancelled; E_SELF_UPDATE_INSTALL; bundle unchanged at $E2E_OLD; still launches"
+
+      # The persistent Xvfb outlives the old process, which the updater's restart replaces (xvfb-run would end the
+      # display with its child, before the relaunched app starts).
+      - name: case appimage
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          leg="updater-e2e (ubuntu-24.04) appimage"
+          marker="$RUNNER_TEMP/marker"
+          rm -rf "$marker"
+          mkdir -p "$marker"
+          Xvfb :99 -screen 0 1280x1024x24 > "$RUNNER_TEMP/xvfb-99.log" 2>&1 &
+          export DISPLAY=:99
+          apps="$RUNNER_TEMP/apps"
+          img="$apps/Krate-Manager.AppImage"
+          rm -rf "$apps"
+          mkdir -p "$apps"
+          cp "$RUNNER_TEMP/old-assets/Krate-Manager-$E2E_OLD-Linux-x86_64.AppImage" "$img"
+          chmod +x "$img"
+          start=$(date +%s)
+          "$img" > "$RUNNER_TEMP/appimage.log" 2>&1 &
+          for _ in $(seq 1 300); do
+            if [ -f "$marker/launched-$E2E_NEW" ] || compgen -G "$marker/error-*" > /dev/null; then break; fi
+            sleep 1
+          done
+          bad=()
+          f="$marker/launched-$E2E_NEW"
+          if [ ! -f "$f" ]; then
+            bad+=("no launched-$E2E_NEW within 300 s (markers: $(ls "$marker" | tr '\n' ' '))")
+          elif [ "$(cat "$f")" != "krate-e2e-marker-v1" ]; then
+            bad+=("launched-$E2E_NEW content is not the marker")
+          fi
+          got=$(sha256sum < "$img" | cut -d' ' -f1)
+          want=$(sha256sum < "apps/krate-manager/target/release-assets/Krate-Manager-$E2E_NEW-Linux-x86_64.AppImage" | cut -d' ' -f1)
+          if [ "$got" != "$want" ]; then bad+=("$img sha256 $got is not the new AppImage's $want"); fi
+          pkill -x krate-manager || true
+          for b in ${bad[@]+"${bad[@]}"}; do echo "::error title=$leg::$b"; done
+          if [ "${#bad[@]}" -gt 0 ]; then exit 1; fi
+          echo "::notice title=$leg::$E2E_OLD -> $E2E_NEW in place at $img in $(( $(date +%s) - start )) s (sha256 $got)"
+
+      - name: case deb
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          leg="updater-e2e (ubuntu-24.04) deb"
+          marker="$RUNNER_TEMP/marker"
+          pkill -x krate-manager || true
+          rm -rf "$marker"
+          mkdir -p "$marker"
+          Xvfb :98 -screen 0 1280x1024x24 > "$RUNNER_TEMP/xvfb-98.log" 2>&1 &
+          export DISPLAY=:98
+          (cd "$RUNNER_TEMP/old-assets" && sudo apt-get install -y ./"Krate-Manager-$E2E_OLD-Linux-amd64.deb")
+          before=$(wc -l < "$RUNNER_TEMP/requests.log")
+          krate-manager > "$RUNNER_TEMP/deb.log" 2>&1 &
+          for _ in $(seq 1 300); do
+            if compgen -G "$marker/error-*" > /dev/null || [ -f "$marker/launched-$E2E_NEW" ]; then break; fi
+            sleep 1
+          done
+          sleep 2
+          pkill -x krate-manager || true
+          tail -n +"$((before + 1))" "$RUNNER_TEMP/requests.log" > "$RUNNER_TEMP/deb-requests.log"
+          bad=()
+          f="$marker/error-E_SELF_UPDATE_UNSUPPORTED"
+          if [ ! -f "$f" ]; then
+            bad+=("no error-E_SELF_UPDATE_UNSUPPORTED within 300 s (markers: $(ls "$marker" | tr '\n' ' '))")
+          elif [ "$(cat "$f")" != "krate-e2e-marker-v1" ]; then
+            bad+=("error-E_SELF_UPDATE_UNSUPPORTED content is not the marker")
+          fi
+          if [ -f "$marker/launched-$E2E_NEW" ]; then bad+=("launched-$E2E_NEW exists"); fi
+          dv=$(dpkg-query -W -f '${Version}' krate-manager)
+          if [ "$dv" != "$E2E_OLD" ]; then bad+=("dpkg-query Version $dv, want $E2E_OLD"); fi
+          latest=$(grep -c '^GET /latest.json ' "$RUNNER_TEMP/deb-requests.log" || true)
+          pkgs=$(grep -cE '^GET [^ ]*\.(AppImage|deb) ' "$RUNNER_TEMP/deb-requests.log" || true)
+          if [ "$latest" -lt 1 ]; then bad+=("server log: no GET /latest.json"); fi
+          if [ "$pkgs" != "0" ]; then bad+=("server log: $pkgs package GET(s)"); fi
+          for b in ${bad[@]+"${bad[@]}"}; do echo "::error title=$leg::$b"; done
+          if [ "${#bad[@]}" -gt 0 ]; then exit 1; fi
+          echo "::notice title=$leg::E_SELF_UPDATE_UNSUPPORTED; still $dv; $latest GET /latest.json, 0 package GETs"
+
+      - name: annotate
+        if: always()
+        run: |
+          set -uo pipefail
+          leg="updater-e2e ($RUNNER_OS)"
+          now=$(date +%s)
+          dur=$(( now - ${E2E_START:-$now} ))
+          log="$RUNNER_TEMP/requests.log"
+          if [ ! -f "$log" ]; then echo "::error title=$leg annotate::no request log"; exit 0; fi
+          echo "::notice title=$leg annotate::old ${E2E_OLD:-?}, new ${E2E_NEW:-?}, run time $dur s, $(wc -l < "$log" | tr -d ' ') request(s)"
+          while IFS= read -r line; do echo "::notice title=$leg request::$line"; done < "$log"
+
+      - name: upload request log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: updater-e2e-${{ matrix.only }}
+          path: |
+            ${{ runner.temp }}/requests.log
+            ${{ runner.temp }}/server.out
+            ${{ runner.temp }}/marker/
+          if-no-files-found: warn
+
+  # FR-075 to FR-078: the shipped artifacts, installed on fresh runners. Launches check process presence only.
+  first-install:
+    name: first-install (${{ matrix.leg }})
+    needs: [build, package-macos]
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: windows-latest
+            os: windows-latest
+            assets: windows
+          - leg: macos-latest
+            os: macos-latest
+            assets: macos
+          - leg: ubuntu-24.04
+            os: ubuntu-24.04
+            assets: linux
+          - leg: ubuntu-22.04-container
+            os: ubuntu-24.04
+            container: ubuntu:22.04
+            assets: linux
+    steps:
+      - name: download release-assets
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-${{ matrix.assets }}
+          path: assets
+
+      - name: download release-pkg-macos
+        if: matrix.leg == 'macos-latest'
+        uses: actions/download-artifact@v8
+        with:
+          name: release-pkg-macos
+          path: assets
+
+      - name: install
+        if: matrix.leg == 'macos-latest'
+        run: |
+          set -euo pipefail
+          leg="first-install (macos-latest)"
+          shopt -s nullglob
+          pkgs=(assets/Krate-Manager-*-macOS.pkg)
+          if [ "${#pkgs[@]}" != "1" ]; then echo "::error title=$leg::${#pkgs[@]} pkgs downloaded, want 1"; exit 1; fi
+          q="$RUNNER_TEMP/quarantined.pkg"
+          cp "${pkgs[0]}" "$q"
+          xattr -w com.apple.quarantine "0083;$(printf '%x' "$(date +%s)");Safari;$(uuidgen)" "$q"
+          sudo installer -pkg "$q" -target /
+          app="/Applications/Krate Manager.app"
+          bad=()
+          qn=$(xattr -lr "$app" | grep -c 'com.apple.quarantine' || true)
+          if [ "$qn" != "0" ]; then bad+=("$qn com.apple.quarantine attribute(s) in the installed app"); fi
+          loose=$(find "$app" \( ! -user root -o -perm -g+w -o -perm -o+w \) -print | wc -l | tr -d ' ')
+          if [ "$loose" != "0" ]; then bad+=("$loose installed path(s) not root-owned or group/other-writable"); fi
+          read -r owner mode <<<"$(stat -f '%Su %Lp' /Applications)"
+          if [ "$owner" != "root" ] || [ $(( 8#$mode & 2 )) -ne 0 ]; then bad+=("/Applications is $owner $mode"); fi
+          if ! pkgutil --pkg-info com.krateaudio.krate-manager > /dev/null; then bad+=("pkgutil --pkg-info com.krateaudio.krate-manager failed"); fi
+          for b in ${bad[@]+"${bad[@]}"}; do echo "::error title=$leg::$b"; done
+          if [ "${#bad[@]}" -gt 0 ]; then exit 1; fi
+          echo "::notice title=$leg::quarantined pkg installed; no quarantine on the app; root-owned, not group/other-writable; /Applications $owner $mode"
+
+      - name: block live host
+        if: matrix.leg == 'macos-latest'
+        run: |
+          set -euo pipefail
+          leg="first-install (macos-latest)"
+          printf '127.0.0.1 krateaudio.com\n127.0.0.1 www.krateaudio.com\n' | sudo tee -a /etc/hosts > /dev/null
+          sudo dscacheutil -flushcache
+          sudo killall -HUP mDNSResponder
+          got=$(dscacheutil -q host -a name krateaudio.com || true)
+          if grep -q 'ip_address: 127.0.0.1' <<<"$got"; then
+            echo "::notice title=$leg block live host::krateaudio.com resolves to 127.0.0.1"
+          else
+            echo "::error title=$leg block live host::krateaudio.com does not resolve to 127.0.0.1: $got"; exit 1
+          fi
+
+      - name: launch
+        if: matrix.leg == 'macos-latest'
+        run: |
+          set -euo pipefail
+          leg="first-install (macos-latest)"
+          app="/Applications/Krate Manager.app"
+          open -n "$app"
+          sleep 12
+          if pgrep -f "$app/Contents/MacOS/krate-manager" > /dev/null; then
+            pkill -f "$app/Contents/MacOS/krate-manager" || true
+            echo "::notice title=$leg launch::running after 12 s"
+          else
+            echo "::error title=$leg launch::not running after 12 s"; exit 1
+          fi
+
+      - name: install
+        if: matrix.leg == 'ubuntu-24.04'
+        run: |
+          set -euo pipefail
+          leg="first-install (ubuntu-24.04)"
+          sudo apt-get update
+          sudo apt-get install -y libfuse2t64 xvfb xauth
+          shopt -s nullglob
+          debs=(assets/Krate-Manager-*-Linux-amd64.deb)
+          imgs=(assets/Krate-Manager-*-Linux-x86_64.AppImage)
+          if [ "${#debs[@]}" != "1" ] || [ "${#imgs[@]}" != "1" ]; then echo "::error title=$leg::${#debs[@]} debs and ${#imgs[@]} AppImages, want 1 each"; exit 1; fi
+          (cd assets && sudo apt-get install -y ./"$(basename "${debs[0]}")")
+          if ! command -v krate-manager > /dev/null; then echo "::error title=$leg::krate-manager not on PATH after the .deb install"; exit 1; fi
+          chmod +x "${imgs[0]}"
+          echo "::notice title=$leg::$(basename "${debs[0]}") installed ($(dpkg-query -W -f '${Version}' krate-manager)); AppImage executable"
+
+      - name: block live host
+        if: matrix.leg == 'ubuntu-24.04'
+        run: |
+          set -euo pipefail
+          leg="first-install (ubuntu-24.04)"
+          printf '127.0.0.1 krateaudio.com\n127.0.0.1 www.krateaudio.com\n' | sudo tee -a /etc/hosts > /dev/null
+          got=$(getent hosts krateaudio.com || true)
+          if [ "$(awk '{print $1}' <<<"$got")" = "127.0.0.1" ]; then
+            echo "::notice title=$leg block live host::krateaudio.com resolves to 127.0.0.1"
+          else
+            echo "::error title=$leg block live host::krateaudio.com resolves to '$got'"; exit 1
+          fi
+
+      - name: launch
+        if: matrix.leg == 'ubuntu-24.04'
+        run: |
+          set -euo pipefail
+          leg="first-install (ubuntu-24.04)"
+          pids() { { grep -lx 'krate-manager' /proc/[0-9]*/comm 2> /dev/null || true; } | cut -d/ -f3; }
+          stop() { for p in $(pids); do kill "$p" 2> /dev/null || true; done; }
+          bad=()
+          xvfb-run -a krate-manager > "$RUNNER_TEMP/deb-launch.log" 2>&1 &
+          sleep 12
+          if [ -z "$(pids)" ]; then bad+=("the .deb's krate-manager is not running after 12 s"); fi
+          stop
+          wait || true
+          img=$(ls assets/Krate-Manager-*-Linux-x86_64.AppImage)
+          xvfb-run -a "$img" > "$RUNNER_TEMP/appimage-launch.log" 2>&1 &
+          sleep 12
+          if [ -z "$(pids)" ]; then bad+=("the AppImage is not running after 12 s"); fi
+          stop
+          wait || true
+          for b in ${bad[@]+"${bad[@]}"}; do echo "::error title=$leg launch::$b"; done
+          if [ "${#bad[@]}" -gt 0 ]; then exit 1; fi
+          echo "::notice title=$leg launch::the .deb and the AppImage each running after 12 s"
+
+      - name: install
+        if: matrix.leg == 'ubuntu-22.04-container'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          leg="first-install (ubuntu-22.04-container)"
+          shopt -s nullglob
+          debs=(assets/Krate-Manager-*-Linux-amd64.deb)
+          if [ "${#debs[@]}" != "1" ]; then echo "::error title=$leg::${#debs[@]} debs, want 1"; exit 1; fi
+          apt-get update
+          (cd assets && apt-get install -y ./"$(basename "${debs[0]}")" xvfb xauth)
+          if ! command -v krate-manager > /dev/null; then echo "::error title=$leg::krate-manager not on PATH after the .deb install"; exit 1; fi
+          echo "::notice title=$leg::$(basename "${debs[0]}") installed on ubuntu:22.04 ($(dpkg-query -W -f '${Version}' krate-manager))"
+
+      - name: block live host
+        if: matrix.leg == 'ubuntu-22.04-container'
+        run: |
+          set -euo pipefail
+          leg="first-install (ubuntu-22.04-container)"
+          printf '127.0.0.1 krateaudio.com\n127.0.0.1 www.krateaudio.com\n' | tee -a /etc/hosts > /dev/null
+          got=$(getent hosts krateaudio.com || true)
+          if [ "$(awk '{print $1}' <<<"$got")" = "127.0.0.1" ]; then
+            echo "::notice title=$leg block live host::krateaudio.com resolves to 127.0.0.1"
+          else
+            echo "::error title=$leg block live host::krateaudio.com resolves to '$got'"; exit 1
+          fi
+
+      - name: launch
+        if: matrix.leg == 'ubuntu-22.04-container'
+        run: |
+          set -euo pipefail
+          leg="first-install (ubuntu-22.04-container)"
+          pids() { { grep -lx 'krate-manager' /proc/[0-9]*/comm 2> /dev/null || true; } | cut -d/ -f3; }
+          xvfb-run -a krate-manager > "$RUNNER_TEMP/deb-launch.log" 2>&1 &
+          sleep 12
+          running=$(pids)
+          for p in $running; do kill "$p" 2> /dev/null || true; done
+          wait || true
+          if [ -n "$running" ]; then
+            echo "::notice title=$leg launch::running after 12 s"
+          else
+            echo "::error title=$leg launch::not running after 12 s"; exit 1
+          fi
+
+      - name: install
+        if: matrix.leg == 'windows-latest'
+        shell: pwsh
+        run: |
+          $leg = 'first-install (windows-latest)'
+          $setup = @(Get-ChildItem -Path assets -Filter 'Krate-Manager-*-Windows-x64-setup.exe')
+          if ($setup.Count -ne 1) { Write-Output "::error title=$($leg)::$($setup.Count) setups downloaded, want 1"; exit 1 }
+          $p = Start-Process -FilePath $setup[0].FullName -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Write-Output "::error title=$($leg)::setup /S exited $($p.ExitCode)"; exit 1 }
+          $exe = "$env:LOCALAPPDATA\Krate Manager\krate-manager.exe"
+          if (-not (Test-Path -LiteralPath $exe)) { Write-Output "::error title=$($leg)::$exe missing"; exit 1 }
+          $machine = @($env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ } | ForEach-Object { Join-Path $_ 'Krate Manager\krate-manager.exe' } | Where-Object { Test-Path -LiteralPath $_ }
+          if (@($machine).Count -gt 0) { Write-Output "::error title=$($leg)::also installed under Program Files: $($machine -join ', ')"; exit 1 }
+          Write-Output "::notice title=$($leg)::$($setup[0].Name) /S exit 0; $exe present, nothing under Program Files"
+
+      - name: block live host
+        if: matrix.leg == 'windows-latest'
+        shell: pwsh
+        run: |
+          $leg = 'first-install (windows-latest)'
+          $hosts = 'C:\Windows\System32\drivers\etc\hosts'
+          Add-Content -LiteralPath $hosts -Value "`r`n127.0.0.1 krateaudio.com`r`n127.0.0.1 www.krateaudio.com"
+          ipconfig /flushdns | Out-Null
+          $ips = @((Resolve-DnsName krateaudio.com -Type A -ErrorAction SilentlyContinue).IPAddress)
+          if ($ips -contains '127.0.0.1') {
+            Write-Output "::notice title=$($leg) block live host::krateaudio.com resolves to 127.0.0.1"
+          } else {
+            Write-Output "::error title=$($leg) block live host::krateaudio.com resolves to '$($ips -join ', ')'"; exit 1
+          }
+
+      - name: launch
+        if: matrix.leg == 'windows-latest'
+        shell: pwsh
+        run: |
+          $leg = 'first-install (windows-latest)'
+          $exe = "$env:LOCALAPPDATA\Krate Manager\krate-manager.exe"
+          Start-Process -FilePath $exe | Out-Null
+          Start-Sleep -Seconds 12
+          $running = @(Get-Process -Name 'krate-manager' -ErrorAction SilentlyContinue)
+          $running | Stop-Process -Force
+          if ($running.Count -ge 1) {
+            Write-Output "::notice title=$($leg) launch::running after 12 s"
+          } else {
+            Write-Output "::error title=$($leg) launch::not running after 12 s"; exit 1
+          }
+
+  # FR-057 (SI-20): no private key; the release .sigs come from sign. A failure before the edit leaves a draft.
+  publish:
+    needs: [preflight, build, sign, package-macos, updater-e2e, first-install]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    environment: signing
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: tools
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: npm ci (feed-contract)
+        run: npm ci --prefix tools/feed-contract --ignore-scripts
+
+      - name: download release-assets-windows
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-windows
+          path: assets
+
+      - name: download release-assets-macos
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-macos
+          path: assets
+
+      - name: download release-assets-linux
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-linux
+          path: assets
+
+      - name: download release-pkg-macos
+        uses: actions/download-artifact@v8
+        with:
+          name: release-pkg-macos
+          path: assets
+
+      - name: download release-sigs
+        uses: actions/download-artifact@v8
+        with:
+          name: release-sigs
+          path: assets
+
+      - name: download release-notes
+        uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: notes
+
+      - name: release create
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.preflight.outputs.version }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --latest=false --title "Krate Manager $VERSION" --notes-file notes/body.md --target ${{ github.sha }}
+
+      - name: release upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" assets/*
+
+      - name: release latest.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.preflight.outputs.version }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/latest"
+          node tools/gen-manager-latest.js --version "$VERSION" --tag "$TAG" --repo "$GITHUB_REPOSITORY" --notes notes/notes.md --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets assets --pubkey tools/feed-contract/keys/krate-signing.pub --out "$RUNNER_TEMP/latest/latest.json"
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$RUNNER_TEMP/latest/latest.json"
+
+      - name: compare downloaded assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          set -euo pipefail
+          back="$RUNNER_TEMP/back"
+          rm -rf "$back"
+          mkdir -p "$back"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$back"
+          bad=0
+          n=0
+          for f in assets/* "$RUNNER_TEMP/latest/latest.json"; do
+            name=$(basename "$f")
+            want=$(sha256sum < "$f" | cut -d' ' -f1)
+            if [ ! -f "$back/$name" ]; then echo "::error title=compare downloaded assets::$name not in the release"; bad=1; continue; fi
+            got=$(sha256sum < "$back/$name" | cut -d' ' -f1)
+            if [ "$got" = "$want" ]; then n=$((n + 1)); else echo "::error title=compare downloaded assets::$name sha256 $got, built $want"; bad=1; fi
+          done
+          total=$(find "$back" -type f | wc -l | tr -d ' ')
+          if [ "$bad" = "0" ] && [ "$total" = "$n" ]; then
+            echo "::notice title=compare downloaded assets::$n assets downloaded back, every SHA-256 equal"
+          else
+            echo "::error title=compare downloaded assets::$n equal of $total downloaded"; exit 1
+          fi
+
+      - name: release publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
+
+  # FR-059 (SI-20): no environment, no secret; creates no release, tag or Pages commit.
+  dry-publish:
+    needs: [preflight, build, sign-dry, package-macos, updater-e2e, first-install]
+    if: ${{ inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: tools
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: npm ci (feed-contract)
+        run: npm ci --prefix tools/feed-contract --ignore-scripts
+
+      - name: download release-assets-windows
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-windows
+          path: assets
+
+      - name: download release-assets-macos
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-macos
+          path: assets
+
+      - name: download release-assets-linux
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets-linux
+          path: assets
+
+      - name: download release-pkg-macos
+        uses: actions/download-artifact@v8
+        with:
+          name: release-pkg-macos
+          path: assets
+
+      - name: download release-sigs
+        uses: actions/download-artifact@v8
+        with:
+          name: release-sigs
+          path: assets
+
+      - name: download dry-signing.pub
+        uses: actions/download-artifact@v8
+        with:
+          name: dry-signing.pub
+          path: dry-key
+
+      - name: download release-notes
+        uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: notes
+
+      - name: dry latest.json
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dry"
+          if node tools/gen-manager-latest.js --version "$VERSION" --tag "manager/v$VERSION" --repo "$GITHUB_REPOSITORY" --notes notes/notes.md --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets assets --pubkey dry-key/krate.pub --out "$RUNNER_TEMP/dry/latest.json"; then
+            echo "::notice title=dry latest.json::every .sig verifies against sign-dry's throwaway key"
+          else
+            echo "::error title=dry latest.json::gen-manager-latest refused the dry-run assets"; exit 1
+          fi
+
+      - name: sigs not committed key
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/neg"
+          n=0
+          bad=0
+          for sig in assets/*.sig; do
+            name=$(basename "$sig" .sig)
+            base64 -d < "$sig" > "$RUNNER_TEMP/neg/$name.minisig"
+            rc=0
+            node tools/minisign.js verify -p tools/feed-contract/keys/krate-signing.pub -x "$RUNNER_TEMP/neg/$name.minisig" "assets/$name" > /dev/null 2> "$RUNNER_TEMP/neg/$name.err" || rc=$?
+            if [ "$rc" = "1" ] && grep -q '^minisign: E_MINISIG_KEY_ID' "$RUNNER_TEMP/neg/$name.err"; then
+              n=$((n + 1))
+            else
+              echo "::error title=sigs not committed key::$name: exit $rc, $(cat "$RUNNER_TEMP/neg/$name.err")"; bad=1
+            fi
+          done
+          if [ "$bad" = "0" ] && [ "$n" = "3" ]; then
+            echo "::notice title=sigs not committed key::$n of 3 .sig files refused by krate-signing.pub with minisign: E_MINISIG_KEY_ID"
+          else
+            echo "::error title=sigs not committed key::$n of 3 refused with E_MINISIG_KEY_ID"; exit 1
+          fi
+
+      - name: check latest.json
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          node - "$RUNNER_TEMP/dry/latest.json" "manager/v$VERSION" "$VERSION" "$GITHUB_REPOSITORY" <<'CHECK'
+          const fs = require("fs");
+          const path = require("path");
+          const { checkLatestJson } = require(path.resolve("tools/feed-publish.js"));
+          const [file, tag, version, repo] = process.argv.slice(2);
+          try {
+            checkLatestJson(fs.readFileSync(file), tag, version, repo);
+            console.log(`::notice title=check latest.json::checkLatestJson accepts ${tag} for ${repo}`);
+          } catch (err) {
+            console.log(`::error title=check latest.json::${err.code || "error"}: ${err.message}`);
+            process.exit(1);
+          }
+          CHECK
+          cp "$RUNNER_TEMP/dry/latest.json" assets/latest.json
+
+      - name: upload manager-release-dry-run
+        uses: actions/upload-artifact@v7
+        with:
+          name: manager-release-dry-run
+          path: assets/
+          if-no-files-found: error
+
+  # FR-058, PD-19: a called workflow can hold no more than its caller grants; feed.yml's deploy declares write.
+  feed:
+    needs: publish
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/feed.yml
+    with:
+      dry_run: false
+
+  feed-dry:
+    needs: dry-publish
+    if: ${{ inputs.dry_run }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/feed.yml
+    with:
+      dry_run: true

@@ -331,7 +331,7 @@ function downloadChecked(deps, counter, repo, tag, asset, file) {
 }
 
 /** FR-025: the manager's latest.json, structurally; throws E_MANAGER_LATEST (values quoted, PD-18 (b)). */
-function checkLatestJson(bytes, tag, version) {
+function checkLatestJson(bytes, tag, version, repo) {
   const bad = (why) => fail('E_MANAGER_LATEST', `${tag} latest.json: ${why}`, { field: 'latest.json' });
   let doc;
   try {
@@ -356,6 +356,12 @@ function checkLatestJson(bytes, tag, version) {
     } catch (err) {
       if (!(err instanceof ContractError)) throw err;
       throw bad(`${where}.url ${show(entry.url)} fails contract.checkUrl (${err.code})`);
+    }
+    // Phase 11 FR-043: one asset segment under this repo's release of this tag.
+    const prefix = `https://github.com/${repo}/releases/download/${tag}/`;
+    const name = entry.url.startsWith(prefix) ? entry.url.slice(prefix.length) : '';
+    if (name === '' || /[/?#]/u.test(name)) {
+      throw bad(`${where}.url ${show(entry.url)} is not a per-tag release asset URL of ${repo}`);
     }
   }
 }
@@ -383,7 +389,7 @@ function collectManager(deps, counter, repo, rows, outDir) {
   fs.mkdirSync(dir);
   const bytes = downloadChecked(deps, counter, repo, release.tag, asset, path.join(dir, 'latest.json'));
   try {
-    checkLatestJson(bytes, release.tag, release.version);
+    checkLatestJson(bytes, release.tag, release.version, repo);
   } catch (err) {
     if (!(err instanceof ContractError)) throw err;
     fs.rmSync(dir, { recursive: true, force: true });
@@ -1040,4 +1046,5 @@ module.exports = {
   GH_BACKOFF_MS,
   MANAGER_TAG_RE,
   MANAGER_LATEST_URL,
+  checkLatestJson,
 };

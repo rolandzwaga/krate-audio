@@ -120,7 +120,7 @@ function latestJson(version, repo) {
     platforms: {
       'windows-x86_64': {
         signature: 'dW50cnVzdGVkIGNvbW1lbnQ6IGZpeHR1cmUK',
-        url: `https://github.com/${repo}/releases/download/manager%2Fv${version}/manager_${version}_x64-setup.exe`,
+        url: `https://github.com/${repo}/releases/download/manager/v${version}/manager_${version}_x64-setup.exe`,
       },
     },
   };

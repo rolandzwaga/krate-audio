@@ -2,8 +2,11 @@
 //! (spec FR-045, SC-015; plan §4.10, PD-23). It lives in core so its test binary links no
 //! `tauri` (D12a). Every test reads files only: nothing is created, nothing is written.
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use krate_manager_core::navigation::DEV_URL;
 use krate_manager_core::platform::APP_IDENTIFIER;
+use krate_manager_core::verify::RELEASE_KEY_TEXT;
 use serde_json::{Value, json};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -29,6 +32,8 @@ const PLATFORM_TARGETS: [(&str, &str); 3] = [
 ];
 /// Phase 10 FR-092: the one more `tauri.*.conf.json`, the helper sidecar overlay `bundle.js` passes to `tauri build`.
 const HELPER_CONF: &str = "tauri.helper.conf.json";
+/// Phase 11 FR-003 (d): the release overlay `bundle.js --release` passes to `tauri build`.
+const RELEASE_CONF: &str = "tauri.release.conf.json";
 /// Phase 10 FR-105: the manual elevation example, compiled and linted, never run.
 const EXAMPLE_LINES: [&str; 3] = [
     "name = \"manual_elevation\"",
@@ -46,17 +51,21 @@ const CORE_HELPER_DEV_DEPENDENCY: &str =
     "krate-manager-helper = { workspace = true, features = [\"test-support\"] }";
 const CAPABILITY_KEYS: [&str; 4] = ["identifier", "description", "windows", "permissions"];
 /// FR-004's `[dependencies]` key set of `src-tauri/Cargo.toml` (PD-23), narrowed by Phase 6 Q8 to admit the opener
-/// crate (SI-2).
-const SRC_TAURI_DEPENDENCIES: [&str; 6] = [
+/// crate (SI-2), widened by Phase 11 (FR-001, SI-28) to admit the updater and the direct `reqwest`.
+const SRC_TAURI_DEPENDENCIES: [&str; 8] = [
     "krate-manager-core",
     "log",
+    "reqwest",
     "serde",
     "serde_json",
     "tauri",
     "tauri-plugin-opener",
+    "tauri-plugin-updater",
 ];
-/// The one `src-tauri/Cargo.toml` line, inside `[dependencies]`, that may name a tauri-plugin crate (SI-2).
+/// The `src-tauri/Cargo.toml` lines, inside `[dependencies]`, that may name a tauri-plugin crate (SI-2; Phase 11
+/// FR-001: the updater).
 const OPENER_DEPENDENCY_LINE: &str = "tauri-plugin-opener = { workspace = true }";
+const UPDATER_DEPENDENCY_LINE: &str = "tauri-plugin-updater = { workspace = true }";
 /// The capability's exact description (FR-061 as amended by SI-21).
 const CAPABILITY_DESCRIPTION: &str = "The main window may call only the app's own commands.";
 /// The strings `src-tauri/src/lib.rs` must contain (FR-017, FR-042, FR-044, FR-061, FR-101).
@@ -77,19 +86,28 @@ const LIB_RS_STRINGS: [&str; 15] = [
     "proxy_env::read()",
     "SigningKey::release()",
 ];
-/// (token, the one `src-tauri/` file it may occur in, the rule) (plan §4.11.2, PD-12, SI-3, SI-26).
-const CONFINED: [(&str, &str, &str); 11] = [
-    ("config_for_dev_url", "src/dev_feed.rs", "FR-061, PD-12"),
-    ("LoopbackOnly", "src/dev_feed.rs", "FR-061, PD-12"),
-    ("HttpConfig::loopback", "src/dev_feed.rs", "FR-061, PD-12"),
-    (".with_proxy(", "src/lib.rs", "FR-063"),
-    (".with_pac(", "src/lib.rs", "FR-063"),
-    (".with_pac_host(", "src/lib.rs", "FR-063, SI-26"),
-    ("resolve_proxy(", "src/lib.rs", "FR-063"),
-    ("OsPacHost", "src/os_proxy.rs", "FR-063, SI-26"),
-    ("HTTPS_PROXY", "src/proxy_env.rs", "FR-063, SI-3"),
-    ("ALL_PROXY", "src/proxy_env.rs", "FR-063, SI-3"),
-    ("NO_PROXY", "src/proxy_env.rs", "FR-063, SI-3"),
+/// (token, the `src-tauri/` files it may occur in, the rule) (plan §4.11.2, PD-12, SI-3, SI-26; Phase 11 tasks TA-3:
+/// the updater-e2e module's loopback config is the second home of `LoopbackOnly` and `HttpConfig::loopback`).
+const CONFINED: [(&str, &[&str], &str); 11] = [
+    ("config_for_dev_url", &["src/dev_feed.rs"], "FR-061, PD-12"),
+    (
+        "LoopbackOnly",
+        &["src/dev_feed.rs", "src/self_update.rs"],
+        "FR-061, PD-12; Phase 11 FR-070",
+    ),
+    (
+        "HttpConfig::loopback",
+        &["src/dev_feed.rs", "src/self_update.rs"],
+        "FR-061, PD-12; Phase 11 FR-070",
+    ),
+    (".with_proxy(", &["src/lib.rs"], "FR-063"),
+    (".with_pac(", &["src/lib.rs"], "FR-063"),
+    (".with_pac_host(", &["src/lib.rs"], "FR-063, SI-26"),
+    ("resolve_proxy(", &["src/lib.rs"], "FR-063"),
+    ("OsPacHost", &["src/os_proxy.rs"], "FR-063, SI-26"),
+    ("HTTPS_PROXY", &["src/proxy_env.rs"], "FR-063, SI-3"),
+    ("ALL_PROXY", &["src/proxy_env.rs"], "FR-063, SI-3"),
+    ("NO_PROXY", &["src/proxy_env.rs"], "FR-063, SI-3"),
 ];
 /// The proxy variable names no `crates/core/src` file may hold (FR-063, SI-3; case-sensitive).
 const PROXY_ENV_NAMES: [&str; 3] = ["HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"];
@@ -165,13 +183,39 @@ const FRONTEND_BANNED: [&str; 6] = [
 ];
 /// What no `src/**/*.css` line may hold, ASCII case-insensitive: a font, image or URL (FR-077).
 const STYLESHEET_BANNED: [&str; 4] = ["url(", "@font-face", "@import", "image-set("];
-/// The squeezed `generate_handler!` list `src-tauri/src/lib.rs` must hold, in order (FR-061, SC-019).
-const HANDLER_LIST: &str = "generate_handler![commands::app_version,commands::startup_error,commands::plugin_status,commands::check_now,commands::open_release_page,commands::download_plugin,commands::install_plugin,commands::remove_plugin]";
+/// The squeezed `generate_handler!` list `src-tauri/src/lib.rs` must hold, in order (FR-061, SC-019; Phase 11 FR-020).
+const HANDLER_LIST: &str = "generate_handler![commands::app_version,commands::startup_error,commands::plugin_status,commands::check_now,commands::open_release_page,commands::download_plugin,commands::install_plugin,commands::remove_plugin,commands::manager_update_check,commands::manager_update_install]";
 /// Phase 9 FR-096: the commands whose parameters may be only `State`, `String` and `Channel<InstallProgress>`.
 const INSTALL_COMMANDS: [&str; 2] = ["install_plugin", "remove_plugin"];
 /// The crates no member's normal dependency graph may reach: the signing crate and the two it
 /// pulls in for key generation (FR-081).
 const SIGNING_CRATES: [&str; 3] = ["minisign", "rpassword", "scrypt"];
+/// Phase 11 FR-003 (b), D5: the one updater endpoint.
+const UPDATER_ENDPOINT: &str = "https://krateaudio.com/manager/latest.json";
+/// Phase 11 FR-003 (a): the keys of `plugins.updater`, sorted.
+const UPDATER_KEYS: [&str; 5] = [
+    "allowDowngrades",
+    "endpoints",
+    "pubkey",
+    "requireSignedVersion",
+    "windows",
+];
+/// Phase 11 FR-003 (c), FR-097: the committed release key below the app root, the file `verify.rs:15-16` includes.
+const SIGNING_KEY_PATH: [&str; 6] = [
+    "..",
+    "..",
+    "tools",
+    "feed-contract",
+    "keys",
+    "krate-signing.pub",
+];
+/// Phase 11 FR-001, PD-2, SI-1 (f): the one `[workspace.dependencies]` updater line.
+const UPDATER_WORKSPACE_LINE: &str = "tauri-plugin-updater = { version = \"=2.14.1\", default-features = false, features = [\"rustls-tls\"] }";
+/// Phase 11 PD-30, SI-28: the one `src-tauri/Cargo.toml` `reqwest` line.
+const REQWEST_DEPENDENCY_LINE: &str =
+    "reqwest = { version = \"=0.13.5\", default-features = false, features = [\"socks\"] }";
+/// Phase 11 FR-021: the permission prefixes no capability may grant.
+const BANNED_PERMISSION_PREFIXES: [&str; 5] = ["updater:", "process:", "shell:", "fs:", "http:"];
 
 /// Everything `check_config` reads from `src-tauri/` and the workspace root.
 #[derive(Clone)]
@@ -193,6 +237,8 @@ struct ConfigFiles {
     core_src_texts: Vec<(String, String)>,
     tests_dir_exists: bool,
     info_plist_exists: bool,
+    /// Phase 11 FR-003 (c): the bytes of `tools/feed-contract/keys/krate-signing.pub`, read from disk.
+    signing_key_pub: Vec<u8>,
 }
 
 /// Everything `check_app_meta` reads from the app root (PD-23).
@@ -355,6 +401,12 @@ fn load_config() -> ConfigFiles {
         tests_dir_exists: dir.join("tests").exists(),
         info_plist_exists,
         src_tauri_files: files,
+        signing_key_pub: {
+            let key = SIGNING_KEY_PATH
+                .iter()
+                .fold(app_root(), |path, part| path.join(part));
+            fs::read(&key).unwrap_or_else(|e| panic!("cannot read {}: {e}", key.display()))
+        },
     }
 }
 
@@ -664,7 +716,6 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
         "/bundle/createUpdaterArtifacts",
         "/bundle/externalBin",
         "/bundle/targets",
-        "/plugins",
     ];
     for pointer in must_be_absent {
         if conf.pointer(pointer).is_some() {
@@ -695,8 +746,16 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
         }
         Some(_) => {}
     }
-    for (name, _) in &f.platform_confs {
-        if name != HELPER_CONF && !PLATFORM_TARGETS.iter().any(|(known, _)| known == name) {
+    // Phase 11 FR-003 (d): the release overlay sets only createUpdaterArtifacts.
+    let release_conf = json!({ "bundle": { "createUpdaterArtifacts": true } });
+    for (name, got) in &f.platform_confs {
+        if name == RELEASE_CONF {
+            if *got != release_conf {
+                m.push(format!(
+                    "src-tauri/{RELEASE_CONF} is {got}, expected {release_conf} (Phase 11 FR-003)"
+                ));
+            }
+        } else if name != HELPER_CONF && !PLATFORM_TARGETS.iter().any(|(known, _)| known == name) {
             m.push(format!(
                 "src-tauri/{name} is not one of the three platform files (D15)"
             ));
@@ -744,7 +803,9 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
                             "allow-open-release-page",
                             "allow-download-plugin",
                             "allow-install-plugin",
-                            "allow-remove-plugin"
+                            "allow-remove-plugin",
+                            "allow-manager-update-check",
+                            "allow-manager-update-install"
                         ]),
                     ),
                 ];
@@ -767,28 +828,28 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
         }
     }
 
-    // FR-040, Phase 6 FR-060, Phase 7 FR-061, Phase 9 FR-096: build.rs registers exactly the eight commands
-    // (whitespace-insensitive).
+    // FR-040, Phase 6 FR-060, Phase 7 FR-061, Phase 9 FR-096, Phase 11 FR-020: build.rs registers exactly the ten
+    // commands (whitespace-insensitive).
     let squeezed: String = f
         .build_rs
         .chars()
         .filter(|ch| !ch.is_whitespace())
         .collect();
     if !squeezed.replace(",]", "]").contains(
-        r#"commands(&["app_version","startup_error","plugin_status","check_now","open_release_page","download_plugin","install_plugin","remove_plugin"])"#,
+        r#"commands(&["app_version","startup_error","plugin_status","check_now","open_release_page","download_plugin","install_plugin","remove_plugin","manager_update_check","manager_update_install"])"#,
     ) {
         m.push(
-            "src-tauri/build.rs does not register exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin and remove_plugin (FR-040, FR-060, FR-061, FR-096)"
+            "src-tauri/build.rs does not register exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin, remove_plugin, manager_update_check and manager_update_install (FR-040, FR-060, FR-061, FR-096, Phase 11 FR-020)"
                 .to_owned(),
         );
     }
 
-    // FR-061, SC-019, Phase 9 FR-096: lib.rs hands exactly the eight commands to the invoke handler
+    // FR-061, SC-019, Phase 9 FR-096, Phase 11 FR-020: lib.rs hands exactly the ten commands to the invoke handler
     // (whitespace-insensitive).
     let squeezed_lib: String = f.lib_rs.chars().filter(|ch| !ch.is_whitespace()).collect();
     if !squeezed_lib.replace(",]", "]").contains(HANDLER_LIST) {
         m.push(
-            "src-tauri/src/lib.rs generate_handler! does not list exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin and remove_plugin (FR-061, SC-019, FR-096)"
+            "src-tauri/src/lib.rs generate_handler! does not list exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin, remove_plugin, manager_update_check and manager_update_install (FR-061, SC-019, FR-096, Phase 11 FR-020)"
                 .to_owned(),
         );
     }
@@ -898,8 +959,8 @@ fn check_src_tauri_manifest(f: &ConfigFiles, m: &mut Vec<String>) {
             "src-tauri/Cargo.toml [features] has a `default` feature (FR-004, FR-106)".to_owned(),
         );
     }
-    if features != ["dev-feed = []", "manual-elevation = []"] {
-        m.push(format!("src-tauri/Cargo.toml [features] is {features:?}, expected exactly [\"dev-feed = []\", \"manual-elevation = []\"] (FR-106, Phase 10 FR-105)"));
+    if features != ["dev-feed = []", "manual-elevation = []", "updater-e2e = []"] {
+        m.push(format!("src-tauri/Cargo.toml [features] is {features:?}, expected exactly [\"dev-feed = []\", \"manual-elevation = []\", \"updater-e2e = []\"] (FR-106, Phase 10 FR-105, Phase 11 FR-070)"));
     }
     let example = section_lines(toml, "[[example]]");
     if example != EXAMPLE_LINES {
@@ -935,14 +996,16 @@ fn check_src_tauri_manifest(f: &ConfigFiles, m: &mut Vec<String>) {
             "src-tauri/Cargo.toml [dependencies] tauri is {tauri_lines:?}, expected `tauri = {{ workspace = true }}` (FR-004)"
         ));
     }
-    // SI-2: exactly one line may name a tauri-plugin crate, the opener entry inside `[dependencies]`.
+    // SI-2: only the opener entry and (Phase 11 FR-001) the updater entry, inside `[dependencies]`, may name a
+    // tauri-plugin crate.
     let mut header = "";
     for (index, line) in toml.lines().enumerate() {
         let trimmed = line.trim();
         if trimmed.starts_with('[') {
             header = trimmed;
         }
-        let accepted = header == "[dependencies]" && trimmed == OPENER_DEPENDENCY_LINE;
+        let accepted = header == "[dependencies]"
+            && (trimmed == OPENER_DEPENDENCY_LINE || trimmed == UPDATER_DEPENDENCY_LINE);
         if line.contains("tauri-plugin") && !accepted {
             m.push(format!(
                 "src-tauri/Cargo.toml:{}: names a tauri-plugin crate (FR-004, SI-2)",
@@ -998,9 +1061,10 @@ fn check_http_injection(f: &ConfigFiles) -> Vec<String> {
     // FR-061, FR-063, PD-12, SI-3, SI-26: each token in one src-tauri file only.
     for (token, allowed, rule) in CONFINED {
         for (rel, text) in &sources {
-            if *rel != allowed && holds_token(text, token) {
+            if !allowed.contains(rel) && holds_token(text, token) {
                 m.push(format!(
-                    "src-tauri/{rel} holds `{token}`, which may occur only in src-tauri/{allowed} ({rule})"
+                    "src-tauri/{rel} holds `{token}`, which may occur only in src-tauri/{} ({rule})",
+                    allowed.join(", src-tauri/")
                 ));
             }
         }
@@ -1077,6 +1141,149 @@ fn check_http_injection(f: &ConfigFiles) -> Vec<String> {
             m.push(format!(
                 "src-tauri/Cargo.toml {header} is {lines:?}, expected exactly [`{line}`] (FR-073, TA-15)"
             ));
+        }
+    }
+    m
+}
+
+/// Phase 11 FR-003 (a)-(d), FR-001 / PD-2 (SI-1 (f)), PD-30 and FR-021: the updater's config, the key it
+/// trusts, its dependency lines and the capability.
+fn check_updater_config(f: &ConfigFiles) -> Vec<String> {
+    let mut m = Vec::new();
+    let conf = &f.conf;
+
+    // (a) `plugins` holds exactly `updater`, which holds exactly the five keys.
+    let keys_of = |pointer: &str| -> Vec<String> {
+        let mut keys: Vec<String> = conf
+            .pointer(pointer)
+            .and_then(Value::as_object)
+            .map(|object| object.keys().cloned().collect())
+            .unwrap_or_default();
+        keys.sort_unstable();
+        keys
+    };
+    let plugin_keys = keys_of("/plugins");
+    if plugin_keys != ["updater"] {
+        m.push(format!(
+            "tauri.conf.json /plugins keys are {plugin_keys:?}, expected exactly [\"updater\"] (Phase 11 FR-003 (a))"
+        ));
+    }
+    let updater_keys = keys_of("/plugins/updater");
+    if updater_keys != UPDATER_KEYS {
+        m.push(format!(
+            "tauri.conf.json /plugins/updater keys are {updater_keys:?}, expected exactly {UPDATER_KEYS:?} (Phase 11 FR-003 (a))"
+        ));
+    }
+
+    // (b) the values; (c) the key, as standard base64 of the committed file's bytes.
+    let expected_values = [
+        ("/plugins/updater/requireSignedVersion", json!(true)),
+        ("/plugins/updater/allowDowngrades", json!(false)),
+        (
+            "/plugins/updater/windows",
+            json!({ "installMode": "passive" }),
+        ),
+        ("/plugins/updater/endpoints", json!([UPDATER_ENDPOINT])),
+        (
+            "/plugins/updater/pubkey",
+            json!(STANDARD.encode(&f.signing_key_pub)),
+        ),
+    ];
+    for (pointer, want) in expected_values {
+        let got = conf.pointer(pointer);
+        if got != Some(&want) {
+            m.push(format!(
+                "tauri.conf.json {pointer} is {}, expected {want} (Phase 11 FR-003 (b), (c))",
+                show(got)
+            ));
+        }
+    }
+    if f.signing_key_pub.contains(&b'\r') {
+        m.push(
+            "tools/feed-contract/keys/krate-signing.pub holds a CR byte (Phase 11 FR-003 (c), FR-097)"
+                .to_owned(),
+        );
+    }
+    if f.signing_key_pub != RELEASE_KEY_TEXT.as_bytes() {
+        m.push(
+            "tools/feed-contract/keys/krate-signing.pub differs from verify::RELEASE_KEY_TEXT, the text verify.rs compiles in (Phase 11 FR-003 (c))"
+                .to_owned(),
+        );
+    }
+
+    // (d) only the release overlay sets createUpdaterArtifacts.
+    if conf.pointer("/bundle/createUpdaterArtifacts").is_some() {
+        m.push(
+            "tauri.conf.json has /bundle/createUpdaterArtifacts (Phase 11 FR-003 (d))".to_owned(),
+        );
+    }
+    for (name, platform) in &f.platform_confs {
+        if name != RELEASE_CONF && platform.pointer("/bundle/createUpdaterArtifacts").is_some() {
+            m.push(format!(
+                "src-tauri/{name} has /bundle/createUpdaterArtifacts; only {RELEASE_CONF} sets it (Phase 11 FR-003 (d))"
+            ));
+        }
+    }
+
+    // FR-001, PD-2 (SI-1 (f)), PD-30: each dependency line exactly, once, in its section.
+    for (toml, file, header, want) in [
+        (
+            &f.workspace_cargo_toml,
+            "workspace Cargo.toml",
+            "[workspace.dependencies]",
+            UPDATER_WORKSPACE_LINE,
+        ),
+        (
+            &f.cargo_toml,
+            "src-tauri/Cargo.toml",
+            "[dependencies]",
+            UPDATER_DEPENDENCY_LINE,
+        ),
+        (
+            &f.cargo_toml,
+            "src-tauri/Cargo.toml",
+            "[dependencies]",
+            REQWEST_DEPENDENCY_LINE,
+        ),
+    ] {
+        let key = key_of(want);
+        let mut section = "";
+        let mut got = Vec::new();
+        for line in toml.lines() {
+            let line = line.trim();
+            if line.starts_with('[') {
+                section = line;
+            } else if !line.starts_with('#') && line.contains('=') && key_of(line) == key {
+                got.push((section, line));
+            }
+        }
+        if got != [(header, want)] {
+            m.push(format!(
+                "{file} `{key}` lines are {got:?}, expected exactly `{want}` in {header} (Phase 11 FR-001, PD-2, PD-30)"
+            ));
+        }
+    }
+
+    // FR-021: no capability grants an updater, process, shell, fs or http permission.
+    for (name, capability) in &f.capabilities {
+        let permissions = capability
+            .get("permissions")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        for permission in permissions {
+            let id = permission
+                .as_str()
+                .or_else(|| permission.get("identifier").and_then(Value::as_str))
+                .unwrap_or_default();
+            if BANNED_PERMISSION_PREFIXES
+                .iter()
+                .any(|prefix| id.starts_with(prefix))
+            {
+                m.push(format!(
+                    "capabilities/{name} grants `{id}` (Phase 11 FR-021: no updater:, process:, shell:, fs: or http: permission)"
+                ));
+            }
         }
     }
     m
@@ -2652,4 +2859,174 @@ fn opener_guard_reports_plants() {
             .any(|message| message.contains("src/planted.test.ts")),
         "{messages:#?}"
     );
+}
+
+/// The `plugins.updater` object of a planted copy.
+fn updater_object(f: &mut ConfigFiles) -> &mut Value {
+    &mut f.conf["plugins"]["updater"]
+}
+
+fn platform_conf<'a>(f: &'a mut ConfigFiles, name: &str) -> &'a mut Value {
+    let (_, conf) = f
+        .platform_confs
+        .iter_mut()
+        .find(|(file, _)| file == name)
+        .unwrap_or_else(|| panic!("src-tauri/{name}"));
+    conf
+}
+
+fn push_permission(f: &mut ConfigFiles, permission: Value) {
+    main_capability(f)["permissions"]
+        .as_array_mut()
+        .expect("permissions array")
+        .push(permission);
+}
+
+#[test]
+fn updater_config_pinned() {
+    let findings = check_updater_config(&load_config());
+    assert!(findings.is_empty(), "{findings:#?}");
+}
+
+#[test]
+fn planted_updater_config_fails_the_guard() {
+    let base = load_config();
+    let plants: &[Plant<ConfigFiles>] = &[
+        (
+            "requireSignedVersion false",
+            &["/plugins/updater/requireSignedVersion"],
+            |f| updater_object(f)["requireSignedVersion"] = json!(false),
+        ),
+        (
+            "allowDowngrades true",
+            &["/plugins/updater/allowDowngrades"],
+            |f| updater_object(f)["allowDowngrades"] = json!(true),
+        ),
+        (
+            "windows installMode basicUi",
+            &["/plugins/updater/windows"],
+            |f| updater_object(f)["windows"] = json!({ "installMode": "basicUi" }),
+        ),
+        ("a second endpoint", &["/plugins/updater/endpoints"], |f| {
+            updater_object(f)["endpoints"] = json!([
+                UPDATER_ENDPOINT,
+                "https://mirror.example/manager/latest.json"
+            ]);
+        }),
+        ("another pubkey", &["/plugins/updater/pubkey"], |f| {
+            updater_object(f)["pubkey"] =
+                json!(STANDARD.encode(b"untrusted comment: another key\nRWQ=\n"));
+        }),
+        (
+            "a sixth updater key dangerousInsecureTransportProtocol",
+            &["/plugins/updater keys"],
+            |f| updater_object(f)["dangerousInsecureTransportProtocol"] = json!(true),
+        ),
+        ("a second plugin", &["/plugins keys"], |f| {
+            f.conf["plugins"]["shell"] = json!({});
+        }),
+        (
+            "a CRLF copy of the key file",
+            &["holds a CR byte", "/plugins/updater/pubkey"],
+            |f| {
+                let text = String::from_utf8(f.signing_key_pub.clone()).expect("UTF-8 key");
+                f.signing_key_pub = text.replace('\n', "\r\n").into_bytes();
+            },
+        ),
+        (
+            "createUpdaterArtifacts in tauri.windows.conf.json",
+            &["src-tauri/tauri.windows.conf.json has /bundle/createUpdaterArtifacts"],
+            |f| {
+                platform_conf(f, "tauri.windows.conf.json")["bundle"]["createUpdaterArtifacts"] =
+                    json!(true);
+            },
+        ),
+        (
+            "createUpdaterArtifacts in tauri.conf.json",
+            &["tauri.conf.json has /bundle/createUpdaterArtifacts"],
+            |f| f.conf["bundle"]["createUpdaterArtifacts"] = json!(true),
+        ),
+        (
+            "updater:default in the capability",
+            &["grants `updater:default`"],
+            |f| push_permission(f, json!("updater:default")),
+        ),
+        (
+            "a shell: permission object in the capability",
+            &["grants `shell:allow-open`"],
+            |f| push_permission(f, json!({ "identifier": "shell:allow-open" })),
+        ),
+        (
+            "the workspace updater version without `=`",
+            &["workspace Cargo.toml `tauri-plugin-updater`"],
+            |f| {
+                f.workspace_cargo_toml = f.workspace_cargo_toml.replacen(
+                    "version = \"=2.14.1\"",
+                    "version = \"2.14.1\"",
+                    1,
+                );
+            },
+        ),
+        (
+            "the workspace updater with zip",
+            &["workspace Cargo.toml `tauri-plugin-updater`"],
+            |f| {
+                f.workspace_cargo_toml = f.workspace_cargo_toml.replacen(
+                    "features = [\"rustls-tls\"]",
+                    "features = [\"rustls-tls\", \"zip\"]",
+                    1,
+                );
+            },
+        ),
+        (
+            "the src-tauri updater line with a feature",
+            &["src-tauri/Cargo.toml `tauri-plugin-updater`"],
+            |f| {
+                f.cargo_toml = f.cargo_toml.replacen(
+                    "tauri-plugin-updater = { workspace = true }",
+                    "tauri-plugin-updater = { workspace = true, features = [\"zip\"] }",
+                    1,
+                );
+            },
+        ),
+        (
+            "reqwest without socks",
+            &["src-tauri/Cargo.toml `reqwest`"],
+            |f| {
+                f.cargo_toml = f.cargo_toml.replacen(
+                    "default-features = false, features = [\"socks\"] }",
+                    "default-features = false }",
+                    1,
+                );
+            },
+        ),
+        (
+            "reqwest with a second feature",
+            &["src-tauri/Cargo.toml `reqwest`"],
+            |f| {
+                f.cargo_toml = f.cargo_toml.replacen(
+                    "features = [\"socks\"]",
+                    "features = [\"socks\", \"blocking\"]",
+                    1,
+                );
+            },
+        ),
+        (
+            "reqwest version without `=`",
+            &["src-tauri/Cargo.toml `reqwest`"],
+            |f| {
+                f.cargo_toml =
+                    f.cargo_toml
+                        .replacen("version = \"=0.13.5\"", "version = \"0.13.5\"", 1);
+            },
+        ),
+    ];
+    assert_plants(&base, check_updater_config, plants);
+
+    // The `[features]` pin (FR-094) is `check_config`'s (`check_src_tauri_manifest`): a fourth feature is reported there.
+    let features: &[Plant<ConfigFiles>] =
+        &[("a fourth feature extra = []", &["[features] is"], |f| {
+            f.cargo_toml = insert_after(&f.cargo_toml, "updater-e2e = []", "extra = []")
+        })];
+    assert_plants(&base, check_config, features);
 }

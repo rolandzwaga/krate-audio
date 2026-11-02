@@ -900,6 +900,27 @@ fn os_find(
     Ok(choices)
 }
 
+/// The hop's one choice without a PAC answer: the static proxy, or `Direct` when it is absent or bypassed (PD-4).
+fn static_choice(static_cfg: Option<&ProxyConfig>, hop: &url::Url) -> ProxyChoice {
+    match static_cfg {
+        Some(p) if !bypasses(&p.no_proxy, hop.host_str().unwrap_or("")) => {
+            ProxyChoice::Proxy(p.clone())
+        }
+        _ => ProxyChoice::Direct,
+    }
+}
+
+/// One choice as a hop entry: `Direct` is `None`, a proxy is checked and converted (PD-23).
+fn to_entry(config: &HttpConfig, choice: &ProxyChoice) -> Result<Option<ureq::Proxy>, HttpError> {
+    match choice {
+        ProxyChoice::Direct => Ok(None),
+        ProxyChoice::Proxy(p) => {
+            check_proxy(config.policy, p)?;
+            Ok(Some(to_ureq_proxy(p)?))
+        }
+    }
+}
+
 /// The hop's choice list through the PAC state (§4.5.1); a PAC failure warns once and takes the fallback.
 fn pac_route(
     config: &HttpConfig,
@@ -908,6 +929,22 @@ fn pac_route(
     deadline: Instant,
     static_proxy: &StaticProxy<'_>,
 ) -> Result<Vec<Option<ureq::Proxy>>, HttpError> {
+    let static_cfg = static_proxy.as_ref().map(|(p, _)| *p);
+    pac_choices(config, state, hop, deadline, static_cfg)?
+        .iter()
+        .map(|choice| to_entry(config, choice))
+        .collect()
+}
+
+/// The PAC answer for the hop, or its static fallback, as `ProxyChoice` (PD-6); a PAC failure warns once and
+/// leaves the state `Failed` for every later hop.
+fn pac_choices(
+    config: &HttpConfig,
+    state: &mut PacState,
+    hop: &url::Url,
+    deadline: Instant,
+    static_cfg: Option<&ProxyConfig>,
+) -> Result<Vec<ProxyChoice>, HttpError> {
     let answer = match state {
         #[cfg(not(windows))]
         PacState::Engine {
@@ -921,26 +958,14 @@ fn pac_route(
             source,
             source_for_log,
         } => os_find(host, source, hop, deadline).map_err(|e| (e, source_for_log.clone())),
-        PacState::Failed => return Ok(vec![static_route(static_proxy, hop)]),
+        PacState::Failed => return Ok(vec![static_choice(static_cfg, hop)]),
     };
     match answer {
-        Ok(choices) => {
-            let mut entries = Vec::with_capacity(choices.len());
-            for choice in &choices {
-                match choice {
-                    ProxyChoice::Direct => entries.push(None),
-                    ProxyChoice::Proxy(p) => {
-                        check_proxy(config.policy, p)?;
-                        entries.push(Some(to_ureq_proxy(p)?));
-                    }
-                }
-            }
-            Ok(entries)
-        }
+        Ok(choices) => Ok(choices),
         Err((e, source_for_log)) => {
             warn_pac_failure(e.code, &source_for_log, &e.detail, config.proxy.is_some());
             *state = PacState::Failed;
-            Ok(vec![static_route(static_proxy, hop)])
+            Ok(vec![static_choice(static_cfg, hop)])
         }
     }
 }
@@ -1346,6 +1371,31 @@ pub fn get_streamed(
     }
     // (9)
     Ok(StreamEnd { bytes })
+}
+
+/// Phase 11 PD-6: the route a request to `url` takes under `config` (static proxy, bypass, PAC), without making it.
+/// The steps of `get` up to its first hop: `prepare`, `open_pac` under the `total_timeout` deadline, the hop's choice
+/// list, each entry checked as `pac_route` checks it; the first entry. Where `get` would refuse, this errs.
+pub fn route_choice(config: &HttpConfig, url: &url::Url) -> Result<ProxyChoice, HttpError> {
+    let deadline = Instant::now() + config.total_timeout;
+    let (first, static_proxy) = prepare(config, url.as_str())?;
+    let static_cfg = static_proxy.as_ref().map(|(p, _)| *p);
+    let choices = match &config.pac {
+        None => vec![static_choice(static_cfg, &first)],
+        Some(pac) => {
+            let mut state = open_pac(config, pac, deadline);
+            pac_choices(config, &mut state, &first, deadline, static_cfg)?
+        }
+    };
+    for choice in &choices {
+        to_entry(config, choice)?;
+    }
+    choices
+        .into_iter()
+        .next()
+        .ok_or_else(|| HttpError::Offline {
+            detail: "no connection entry to try".to_owned(),
+        })
 }
 
 #[cfg(test)]

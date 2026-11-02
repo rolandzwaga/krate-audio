@@ -331,7 +331,31 @@
       "install::tests::new_error_texts",
       "install::tests::job_hash_is_the_verified_digest",
       "install::tests::helper_resolved_beside_exe",
-      "fixture_names_confined"
+      "fixture_names_confined",
+      "self_update::tests::url_policy",
+      "self_update::tests::redirect_hops",
+      "self_update::tests::proxy_choice_matches_core",
+      "self_update::tests::codes_and_sentences",
+      "self_update::tests::view_from_update",
+      "self_update::tests::endpoint_matches_feed_tool",
+      "self_update::tests::busy_rule",
+      "self_update::tests::in_flight_flag",
+      "self_update::tests::timeouts",
+      "self_update::tests::no_context_defaults",
+      "self_update::tests::packaging_rule",
+      "self_update::tests::progress_events_serialize",
+      "context::tests::release_for_restart_frees_the_lock",
+      "install::tests::refuse_while_self_updating",
+      "updater_config_pinned",
+      "planted_updater_config_fails_the_guard",
+      "self_update_confinement_holds",
+      "planted_self_update_confinement_fails",
+      "updater_tar_only_through_the_plugin",
+      "updater_e2e_cfg_sites_are_counted",
+      "planted_updater_e2e_cfg_site_fails",
+      "harness_source_names_no_installer_or_root",
+      "update_inputs_only_from_production",
+      "planted_update_inputs_fail_the_pin"
     ],
     "windows": [
       "platform::windows::tests::default_roots_from_env",
@@ -506,11 +530,27 @@
     "windows remove confirmation names the uninstaller",
     "stale busy shows installer still running",
     "not applied shows the change was not applied",
-    "macos remove confirmation names the uninstaller"
+    "macos remove confirmation names the uninstaller",
+    "renders the manager update line",
+    "confirms before updating",
+    "manager update confirmation names the admin prompt on macOS only",
+    "shows a failed update by code",
+    "shows no banner when the check fails",
+    "shows downloading then installing progress",
+    "offers the new .deb instead of an update on a system-package install",
+    "a failed .deb release-page open shows its code",
+    "disables plugin actions while the manager updates itself",
+    "re-enables plugin actions after a failed manager update",
+    "checks for a manager update after plugin_status is rejected",
+    "checks for a manager update after plugin_status succeeds",
+    "does not check for a manager update when the context is locked"
   ],
   "node": [
     "bundle sidecar name per host tuple",
     "fixture inno script keeps the plugin directives",
-    "write test job prints verbatim windows paths"
+    "write test job prints verbatim windows paths",
+    "bundle release mode argv",
+    "bundle release asset table",
+    "e2e update server serves only its directory"
   ]
 }

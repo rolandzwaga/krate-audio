@@ -706,3 +706,50 @@ fn assemble_runs_install_recovery() {
     assert!(gone(&temp), "the manifest temp leftover is removed");
     assert!(gone(&work), "the extract leftover is pruned");
 }
+
+#[test]
+fn release_for_restart_frees_the_lock() {
+    let (_td, roots) = fresh_temp_roots();
+    let state = SharedState::new(assemble_context(
+        Ok(roots.clone()),
+        FEED,
+        http(),
+        kat_signing_key(),
+    ));
+    assert!(matches!(StateLock::acquire(&roots), Err(LockError::Held)));
+    assert_eq!(release_for_restart(&state), LockRelease::Released);
+    assert!(
+        state
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .lock
+            .is_none()
+    );
+    let next = StateLock::acquire(&roots).expect("the restarted instance takes the lock");
+    assert_eq!(release_for_restart(&state), LockRelease::NoLock);
+    drop(next);
+
+    // A lock `Arc` still cloned elsewhere is put back, not released.
+    let (_td, roots) = fresh_temp_roots();
+    let state = SharedState::new(assemble_context(
+        Ok(roots.clone()),
+        FEED,
+        http(),
+        kat_signing_key(),
+    ));
+    let clone = state
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .lock
+        .clone()
+        .expect("an assembled state holds the lock");
+    assert_eq!(release_for_restart(&state), LockRelease::StillShared);
+    let back = state
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .lock
+        .clone()
+        .expect("the lock is put back");
+    assert!(Arc::ptr_eq(&clone, &back), "the same lock");
+    assert!(matches!(StateLock::acquire(&roots), Err(LockError::Held)));
+}

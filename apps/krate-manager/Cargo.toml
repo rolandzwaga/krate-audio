@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/core", "crates/helper", "src-tauri"]
-exclude = ["tests/fixtures/clippy-guard", "tests/fixtures/argv-recorder", "tests/fixtures/locked-dll"]
+exclude = ["tests/fixtures/clippy-guard", "tests/fixtures/argv-recorder", "tests/fixtures/locked-dll", "tests/fixtures/updater-refusals"]
 resolver = "3"
 
 [workspace.package]
@@ -41,6 +41,8 @@ tauri = { version = "2.12.5", features = [] }
 tauri-build = { version = "2.7.4", features = [] }
 # Phase 6 D15: src-tauri commands.rs only (free fn open_url); never registered as a plugin; no opener:* permission
 tauri-plugin-opener = "2.7.2"
+# Phase 11 FR-001, PD-2: src-tauri self_update.rs only; exact pin (SI-1), no zip (SI-3), no system-proxy (D1)
+tauri-plugin-updater = { version = "=2.14.1", default-features = false, features = ["rustls-tls"] }
 tempfile = "3.27.0"
 thiserror = "2.0.21"
 # R-5, PD-2

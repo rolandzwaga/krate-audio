@@ -1,7 +1,9 @@
-//! The app's commands (FR-040, FR-042; Phase 6 FR-060, FR-064; Phase 7 FR-060, FR-061; Phase 9 FR-096).
+//! The app's commands (FR-040, FR-042; Phase 6 FR-060, FR-064; Phase 7 FR-060, FR-061; Phase 9 FR-096;
+//! Phase 11 FR-020).
 
 use crate::os_elevation::NativeElevation;
 use crate::os_facts::OsHostIo;
+use crate::self_update::{self, NativeUpdateInstaller, SelfUpdateHttp, UpdateInputs};
 use krate_manager_core::context::{SharedState, startup_notice};
 use krate_manager_core::detect::PlatformFacts;
 use krate_manager_core::download::{
@@ -11,6 +13,9 @@ use krate_manager_core::download::{
 use krate_manager_core::extract::{ExtractEnv, ExtractLimits, FsExtractIo};
 use krate_manager_core::feed::FetchMode;
 use krate_manager_core::install::{self, ActionSummary, FsInstallIo, InstallProgress};
+use krate_manager_core::self_update::{
+    ManagerUpdateView, SelfUpdateProgress, self_update_busy, self_update_http,
+};
 use krate_manager_core::status::{self, StatusView};
 use std::sync::{Arc, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -216,4 +221,53 @@ pub async fn remove_plugin(
         }
         .to_string()
     })?
+}
+
+/// Check for a Krate Manager update (Phase 11 FR-020, D7): a thin wrapper over `self_update::check`; with no
+/// startup context the self-update fallback `HttpConfig` is used (PD-9, FR-026).
+#[tauri::command]
+pub async fn manager_update_check(
+    app: tauri::AppHandle,
+    http: tauri::State<'_, SelfUpdateHttp>,
+    state: tauri::State<'_, SharedState>,
+) -> Result<ManagerUpdateView, String> {
+    let ctx = {
+        let guard = state.read().unwrap_or_else(PoisonError::into_inner);
+        guard.context.clone().ok()
+    }; // the guard is dropped before any await
+    let inputs = UpdateInputs::production(self_update_http(ctx.as_ref(), &http.0));
+    Ok(self_update::check(&app, &inputs).await)
+}
+
+/// Install the kept Krate Manager update (Phase 11 FR-020, D7): a thin wrapper over `self_update::install`;
+/// progress goes to `on_progress`, a failure is the serialized `ErrorView` (tasks TA-21).
+#[tauri::command]
+pub async fn manager_update_install(
+    app: tauri::AppHandle,
+    http: tauri::State<'_, SelfUpdateHttp>,
+    state: tauri::State<'_, SharedState>,
+    elevation: tauri::State<'_, Arc<NativeElevation>>,
+    on_progress: tauri::ipc::Channel<SelfUpdateProgress>,
+) -> Result<(), String> {
+    let elevation = Arc::clone(&elevation);
+    let ctx = {
+        let guard = state.read().unwrap_or_else(PoisonError::into_inner);
+        guard.context.clone().ok()
+    }; // the guard is dropped before any await
+    let inputs = UpdateInputs::production(self_update_http(ctx.as_ref(), &http.0));
+    let busy = || self_update_busy(&*elevation, ctx.as_ref());
+    let state_dir = ctx.as_ref().map(|c| c.roots.state_dir());
+    let progress = |p| {
+        let _ = on_progress.send(p);
+    };
+    self_update::install(
+        &app,
+        &inputs,
+        &NativeUpdateInstaller,
+        &busy,
+        state_dir,
+        &progress,
+    )
+    .await
+    .map_err(|e| serde_json::to_string(&e.view()).unwrap_or_else(|_| e.to_string()))
 }

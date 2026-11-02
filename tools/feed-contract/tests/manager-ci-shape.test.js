@@ -9,6 +9,8 @@ require('./helpers/write-guard.js');
 // §8.2, PD-20 to PD-22, PD-27, SI-2, SI-15, SI-18, SI-27, SI-29): the check job's helper steps, the `changes` job and
 // the two path-gated elevated jobs `helper-elevated` and `inno-locked-file`, checked by the `elevated jobs are
 // path-gated` subtest.
+// Phase 11 (specs/krate-manager-phase11/spec.md FR-073, FR-083, FR-084, FR-091; plan §4.11, PD-32, PD-33, PD-38): the
+// four check steps `clippy updater-e2e`, `clippy updater-refusals`, `updater refusals`, `updater-e2e absent`.
 // The workflow is read as text with the indentation-based helpers of workflow-shape.test.js (PD-20: copied in form,
 // no shared helper file): 2-space job keys under `jobs:`, 6-space `- ` step items, 8-space step keys. No YAML
 // library. checkManagerCi(files) is pure and returns every finding; the mutation subtests apply string edits to
@@ -177,9 +179,12 @@ const STEPS = [
   'clippy dev-feed',
   'clippy ci-temp-roots',
   'clippy manual-elevation example',
+  'clippy updater-e2e',
   'clippy-guard',
+  'clippy updater-refusals',
   'cargo test',
   'test ci-temp-roots',
+  'updater refusals',
   'core dependency tree',
   'typecheck',
   'lint',
@@ -191,6 +196,7 @@ const STEPS = [
   'helper bundled',
   'ci-temp-roots absent',
   'dev-feed absent',
+  'updater-e2e absent',
   'roster absent',
   'artifact version',
   'plist: LSMinimumSystemVersion',
@@ -213,8 +219,11 @@ const ASSERTION_STEPS = [
   'clippy dev-feed',
   'clippy ci-temp-roots',
   'clippy manual-elevation example',
+  'clippy updater-e2e',
   'clippy-guard',
+  'clippy updater-refusals',
   'test ci-temp-roots',
+  'updater refusals',
   'core dependency tree',
   'node --test',
   'required tests ran',
@@ -222,11 +231,49 @@ const ASSERTION_STEPS = [
   'helper bundled',
   'ci-temp-roots absent',
   'dev-feed absent',
+  'updater-e2e absent',
   'roster absent',
   'artifact version',
   ...MACOS_STEPS,
   'Checkout unchanged',
 ];
+
+// Phase 11 PD-33 (tasks TA-22, T017): written from specs/krate-manager-phase11/evidence/d9-windows.txt, which reads
+// `D9 WINDOWS LOADS`. true: `updater refusals` has no if: (all three legs); false (`D9 WINDOWS LOAD FAILURE ...`): it
+// has exactly `if: runner.os != 'Windows'`.
+const HARNESS_ON_WINDOWS = true;
+// Phase 11 FR-082 (SI-35; tasks T014): the 27 harness lines, the 26 scenarios plus `confinement`, sorted.
+const HARNESS_NAMES = [
+  'api-host',
+  'busy',
+  'busy-after-download',
+  'confinement',
+  'corrupt-manifest',
+  'deb-install',
+  'downgrade',
+  'endpoint-latest-path',
+  'failed-install-clears',
+  'good',
+  'latest-path',
+  'map-errors',
+  'no-platform',
+  'offline',
+  'other-key',
+  'production-inputs',
+  'recheck-replaces',
+  'redirect-loop',
+  'redirect-to-api-host',
+  'redirect-to-http',
+  'replayed-old',
+  'rsign-format',
+  'same-version',
+  'socks-proxy',
+  'stall',
+  'tampered',
+  'unversioned',
+];
+const HARNESS_MANIFEST = 'tests/fixtures/updater-refusals/Cargo.toml';
+const E2E_MARKER = 'krate-e2e-marker-v1';
 
 // Plan §4.16: the command lines each run: step must hold (trimmed, exact).
 const COMMANDS = {
@@ -249,6 +296,10 @@ const COMMANDS = {
     'if cargo clippy -p krate-manager --example manual_elevation --features manual-elevation --locked -- -D warnings;' +
       ' then',
   ],
+  // Phase 11 PD-32 (FR-073, FR-083): compiled and linted with dummy KRATE_E2E_* values, never run.
+  'clippy updater-e2e': [
+    'if cargo clippy -p krate-manager --all-targets --features updater-e2e --locked -- -D warnings; then',
+  ],
   'clippy-guard': [
     'out="$RUNNER_TEMP/guard.txt"',
     'rc=0',
@@ -265,6 +316,13 @@ const COMMANDS = {
     'if [ "$rc" != "0" ] && [ "$total" = "3" ] && [ "$from_os" = "1" ] && [ "$new" = "1" ] &&' +
       ' [ "$envvar" = "1" ] && [ "$lint" -ge 1 ] && [ "$other" = "0" ]; then',
   ],
+  // Phase 11 FR-083: the harness is clippy- and fmt-clean on all three legs, whatever D9 measured (PD-33).
+  'clippy updater-refusals': [
+    `CARGO_TARGET_DIR="$PWD/target" cargo clippy --manifest-path ${HARNESS_MANIFEST} --all-targets --locked --` +
+      ' -D warnings || rc=$?',
+    `cargo fmt --check --manifest-path ${HARNESS_MANIFEST} || frc=$?`,
+    'if [ "$rc" = "0" ] && [ "$frc" = "0" ]; then',
+  ],
   'cargo test': ['cargo test --workspace --locked 2>&1 | tee "$RUNNER_TEMP/cargo-test.txt"'],
   // Phase 10 FR-103a: its own log, so the required tests ran counts are unaffected.
   'test ci-temp-roots': [
@@ -272,6 +330,26 @@ const COMMANDS = {
     'cargo test -p krate-manager-helper --features ci-temp-roots --locked 2>&1 | tee "$log"',
     "n=$(tr -d '\\r' < \"$log\" | grep -cxF 'test cli::tests::ci_roots_file_is_read ... ok' || true)",
     'if [ "$n" = "1" ]; then',
+  ],
+  // Phase 11 FR-084 (FR-082, FR-081 (f), PD-38): every name ok once, the summary, then both plants exit 1 with their
+  // code as their only stdout line and no `ok ` line.
+  'updater refusals': [
+    'case "$RUNNER_OS" in Windows) bin=target/debug/updater-refusals.exe ;; *) bin=target/debug/updater-refusals ;;' +
+      ' esac',
+    `CARGO_TARGET_DIR="$PWD/target" cargo build --manifest-path ${HARNESS_MANIFEST} --locked`,
+    '"$bin" > "$log" || rc=$?',
+    `names=(${HARNESS_NAMES.join(' ')})`,
+    'c=$(tr -d \'\\r\' < "$log" | grep -cxF "ok $n" || true)',
+    'oks=$(tr -d \'\\r\' < "$log" | grep -c \'^ok \' || true)',
+    "summary=$(tr -d '\\r' < \"$log\" | grep -cxF 'harness: 27 ok, 0 not ok' || true)",
+    'if [ "$rc" != "0" ] || [ "${#names[@]}" != "27" ] || [ "$oks" != "27" ] || [ "$summary" != "1" ]; then',
+    'for plant in committed-key:E_HARNESS_KEY bind-any:E_HARNESS_BIND; do',
+    '"$bin" --plant "$p" > "$out" || prc=$?',
+    'lines=$(tr -d \'\\r\' < "$out" | grep -c . || true)',
+    "first=$(tr -d '\\r' < \"$out\" | sed -n '1p')",
+    'pok=$(tr -d \'\\r\' < "$out" | grep -c \'^ok \' || true)',
+    'if [ "$prc" != "1" ] || [ "$lines" != "1" ] || [ "${first%%:*}" != "$code" ] || [ "$pok" != "0" ]; then',
+    'echo "::notice title=updater refusals ($RUNNER_OS)::27 ok, 0 not ok; plants exit 1"',
   ],
   'core dependency tree': [
     'cargo tree -p krate-manager-core -e normal --locked --prefix none --format "{p}" > "$out"',
@@ -342,6 +420,17 @@ const COMMANDS = {
     "hits=$(grep -acF 'dev-feed-url.txt' \"$bin\" || true)",
     'if [ "$marker" -ge 1 ] && [ "$hits" = "0" ]; then',
   ],
+  // Phase 11 FR-073 (SI-25): no updater-e2e feature in the tree, the marker in source, none in the release binaries.
+  'updater-e2e absent': [
+    'tree=$(cargo tree -p krate-manager -e features --locked)',
+    "hits=$(grep -cF 'updater-e2e' <<<\"$tree\" || true)",
+    `marker=$(grep -cF '${E2E_MARKER}' src-tauri/src/self_update.rs || true)`,
+    'Windows) bins=(target/release/krate-manager.exe) ;;',
+    `macOS) bins=(target/release/krate-manager "${APP}/Contents/MacOS/krate-manager") ;;`,
+    '*) bins=(target/release/krate-manager) ;;',
+    `n=$(grep -acF '${E2E_MARKER}' "$b" || true)`,
+    'if [ "$hits" = "0" ] && [ "$marker" -ge 1 ] && [ "$inb" = "0" ]; then',
+  ],
   // Phase 5 plan §4.12 (FR-083 as amended by SI-17).
   'roster absent': ['node - "$bin" <<\'ROSTER\''],
   'artifact version': [
@@ -376,6 +465,8 @@ const COMMANDS = {
 const GATED = new Map([
   ['Linux system packages', "runner.os == 'Linux'"],
   ...MACOS_STEPS.map((n) => [n, "runner.os == 'macOS'"]),
+  // Phase 11 PD-33: only under `D9 WINDOWS LOAD FAILURE`.
+  ...(HARNESS_ON_WINDOWS ? [] : [['updater refusals', "runner.os != 'Windows'"]]),
 ]);
 
 // FR-076 and SC-021: no flag that serialises a test run.
@@ -441,6 +532,16 @@ const CI_FEATURE_STEPS = {
   'clippy ci-temp-roots': 'cargo clippy -p krate-manager-helper ',
   'test ci-temp-roots': 'cargo test -p krate-manager-helper ',
 };
+// Phase 11 PD-32 (FR-083, SI-32): within check, the feature and the three KRATE_E2E_* names only in this step, a
+// -p krate-manager command, its env: exactly the three dummies, and no dev-feed in it.
+const E2E_FEATURE = '--features updater-e2e';
+const E2E_FEATURE_STEPS = { 'clippy updater-e2e': 'cargo clippy -p krate-manager ' };
+const E2E_NAMES = ['KRATE_E2E_FEED_URL', 'KRATE_E2E_MARKER_DIR', 'KRATE_E2E_OLD_VERSION'];
+const E2E_ENV = [
+  "KRATE_E2E_FEED_URL: 'http://127.0.0.1:9/versions.json'",
+  "KRATE_E2E_MARKER_DIR: 'never-run'",
+  "KRATE_E2E_OLD_VERSION: '0.0.0'",
+];
 const HELPER_BUILD = 'cargo build -p krate-manager-helper --release --locked --features ci-temp-roots';
 const MANUAL = 'manual-elevation';
 const MANUAL_STEP = 'clippy manual-elevation example';
@@ -936,6 +1037,30 @@ const EXPECTED_REQUIRED = {
       'install::tests::job_hash_is_the_verified_digest',
       'install::tests::helper_resolved_beside_exe',
       'fixture_names_confined',
+      'self_update::tests::url_policy',
+      'self_update::tests::redirect_hops',
+      'self_update::tests::proxy_choice_matches_core',
+      'self_update::tests::codes_and_sentences',
+      'self_update::tests::view_from_update',
+      'self_update::tests::endpoint_matches_feed_tool',
+      'self_update::tests::busy_rule',
+      'self_update::tests::in_flight_flag',
+      'self_update::tests::timeouts',
+      'self_update::tests::no_context_defaults',
+      'self_update::tests::packaging_rule',
+      'self_update::tests::progress_events_serialize',
+      'context::tests::release_for_restart_frees_the_lock',
+      'install::tests::refuse_while_self_updating',
+      'updater_config_pinned',
+      'planted_updater_config_fails_the_guard',
+      'self_update_confinement_holds',
+      'planted_self_update_confinement_fails',
+      'updater_tar_only_through_the_plugin',
+      'updater_e2e_cfg_sites_are_counted',
+      'planted_updater_e2e_cfg_site_fails',
+      'harness_source_names_no_installer_or_root',
+      'update_inputs_only_from_production',
+      'planted_update_inputs_fail_the_pin',
     ],
     windows: [
       'platform::windows::tests::default_roots_from_env',
@@ -1111,11 +1236,27 @@ const EXPECTED_REQUIRED = {
     'stale busy shows installer still running',
     'not applied shows the change was not applied',
     'macos remove confirmation names the uninstaller',
+    'renders the manager update line',
+    'confirms before updating',
+    'manager update confirmation names the admin prompt on macOS only',
+    'shows a failed update by code',
+    'shows no banner when the check fails',
+    'shows downloading then installing progress',
+    'offers the new .deb instead of an update on a system-package install',
+    'a failed .deb release-page open shows its code',
+    'disables plugin actions while the manager updates itself',
+    're-enables plugin actions after a failed manager update',
+    'checks for a manager update after plugin_status is rejected',
+    'checks for a manager update after plugin_status succeeds',
+    'does not check for a manager update when the context is locked',
   ],
   node: [
     'bundle sidecar name per host tuple',
     'fixture inno script keeps the plugin directives',
     'write test job prints verbatim windows paths',
+    'bundle release mode argv',
+    'bundle release asset table',
+    'e2e update server serves only its directory',
   ],
 };
 
@@ -1249,6 +1390,23 @@ function checkSteps(wf, steps, bad) {
     const build = line.includes('tauri build') || line.includes('npm run bundle');
     if (build && line.includes('dev-feed')) bad.push(`dev-feed on a tauri build line: ${line.trim()}`);
   }
+
+  // Phase 11 PD-32: --features updater-e2e and the KRATE_E2E_* names, within check, only in clippy updater-e2e.
+  for (const [name, cmd] of Object.entries(E2E_FEATURE_STEPS)) {
+    const s = step(name);
+    if (!s) continue;
+    const line = scriptLines(s).find((l) => l.includes(E2E_FEATURE));
+    if (!line || !line.includes(cmd)) bad.push(`${name}: no ${cmd.trim()} ... ${E2E_FEATURE} command`);
+    const env = trimmed(nested(s.text, 8, 'env'));
+    if (!util.isDeepStrictEqual(env, E2E_ENV)) bad.push(`${name}: env ${JSON.stringify(env)}, want the PD-32 dummies`);
+    if (s.text.includes('dev-feed')) bad.push(`${name}: dev-feed`);
+    for (const tok of [E2E_FEATURE, ...E2E_NAMES]) {
+      const inStep = count(s.text, tok);
+      const inCheck = steps.reduce((n, x) => n + count(x.text, tok), 0);
+      if (inStep < 1) bad.push(`${name}: no ${tok}`);
+      if (inCheck !== inStep) bad.push(`${tok} outside the step "${name}" in check`);
+    }
+  }
 }
 
 function checkPackageJson(text, bad) {
@@ -1299,9 +1457,8 @@ function replaceOnce(text, from, to) {
   return text.replace(from, () => to);
 }
 
-/** `text` without the step named `name` (its `- name:` line up to the next step item or the end). */
-function removeStep(text, name) {
-  const lines = text.split('\n');
+/** [head, end) of the step named `name` in `lines` (its `- name:` line up to the next step item or the end). */
+function stepSpan(lines, name) {
   const head = lines.findIndex((l) => {
     const m = /^ {6}- name:\s*(.*)$/.exec(l);
     return m !== null && unquote(stripComment(m[1])) === name;
@@ -1311,7 +1468,34 @@ function removeStep(text, name) {
   while (end < lines.length && !/^ {6}- /.test(lines[end]) && !(lines[end].trim() !== '' && indentOf(lines[end]) < 6)) {
     end++;
   }
+  return [head, end];
+}
+
+/** `text` without the step named `name`. */
+function removeStep(text, name) {
+  const lines = text.split('\n');
+  const [head, end] = stepSpan(lines, name);
   return [...lines.slice(0, head), ...lines.slice(end)].join('\n');
+}
+
+/** `text` with the step named `name` moved to just before the step named `before`. */
+function moveStepBefore(text, name, before) {
+  const lines = text.split('\n');
+  const [head, end] = stepSpan(lines, name);
+  const moved = lines.slice(head, end);
+  const rest = [...lines.slice(0, head), ...lines.slice(end)];
+  const [at] = stepSpan(rest, before);
+  return [...rest.slice(0, at), ...moved, ...rest.slice(at)].join('\n');
+}
+
+/** `text` without the lines from the one trimmed equal to `first` through the next one trimmed equal to `last`. */
+function dropLines(text, first, last) {
+  const lines = text.split('\n');
+  const head = lines.findIndex((l) => l.trim() === first);
+  if (head < 0 || lines.filter((l) => l.trim() === first).length !== 1) throw new Error(`mutation anchor: ${first}`);
+  const end = lines.findIndex((l, i) => i > head && l.trim() === last);
+  if (end < 0) throw new Error(`mutation: no ${last} after ${first}`);
+  return [...lines.slice(0, head), ...lines.slice(end + 1)].join('\n');
 }
 
 const onWorkflow = (edit) => (files) => ({ ...files, workflow: edit(files.workflow) });
@@ -1418,6 +1602,59 @@ const MUTATIONS = [
       return { ...files, required: JSON.stringify(req, null, 2) };
     },
     /required-tests\.json differs/,
+  ],
+  // Phase 11 (plan §4.11; PD-32, PD-33, PD-38; tasks T017).
+  ...['clippy updater-e2e', 'clippy updater-refusals', 'updater refusals', 'updater-e2e absent'].map((name) => [
+    `the ${name} step removed`,
+    onWorkflow((w) => removeStep(w, name)),
+    new RegExp(`no step "${name}"`),
+  ]),
+  [
+    'clippy updater-e2e moved after clippy-guard',
+    onWorkflow((w) => moveStepBefore(w, 'clippy updater-e2e', 'clippy updater-refusals')),
+    /steps out of the plan §4\.16 order/,
+  ],
+  [
+    "clippy updater-e2e's env: dropped",
+    onWorkflow((w) =>
+      replaceOnce(
+        w,
+        '      - name: clippy updater-e2e\n        env:\n' + E2E_ENV.map((l) => `          ${l}\n`).join(''),
+        '      - name: clippy updater-e2e\n',
+      ),
+    ),
+    /clippy updater-e2e: env null/,
+  ],
+  [
+    `${E2E_FEATURE} added to clippy`,
+    onWorkflow((w) => replaceOnce(w, CLIPPY_LINE, CLIPPY_LINE.replace('--locked', `${E2E_FEATURE} --locked`))),
+    /--features updater-e2e outside the step "clippy updater-e2e" in check/,
+  ],
+  [
+    'the harness count changed from 27',
+    onWorkflow((w) => replaceOnce(w, "'harness: 27 ok, 0 not ok'", "'harness: 26 ok, 0 not ok'")),
+    /updater refusals: no line "summary=/,
+  ],
+  [
+    'the plant check dropped',
+    onWorkflow((w) => dropLines(w, 'for plant in committed-key:E_HARNESS_KEY bind-any:E_HARNESS_BIND; do', 'done')),
+    /updater refusals: no line "for plant in/,
+  ],
+  [
+    'the marker count check dropped',
+    onWorkflow((w) =>
+      replaceOnce(w, '[ "$hits" = "0" ] && [ "$marker" -ge 1 ] && [ "$inb" = "0" ]; then', '[ "$hits" = "0" ] && [ "$inb" = "0" ]; then'),
+    ),
+    /updater-e2e absent: no line "if \[/,
+  ],
+  [
+    `the updater refusals if: flipped against HARNESS_ON_WINDOWS (${HARNESS_ON_WINDOWS})`,
+    onWorkflow((w) =>
+      HARNESS_ON_WINDOWS
+        ? replaceOnce(w, '      - name: updater refusals\n', "      - name: updater refusals\n        if: runner.os != 'Windows'\n")
+        : replaceOnce(w, "      - name: updater refusals\n        if: runner.os != 'Windows'\n", '      - name: updater refusals\n'),
+    ),
+    /updater refusals: if: /,
   ],
 ];
 
@@ -1567,7 +1804,7 @@ test('manager-ci.yml keeps the Phase 4 shape', async (t) => {
     assert.deepEqual(checkManagerCi(crlf), []);
   });
 
-  // SC-031 (plan §4.8.4 placement): a subtest, so the feed-tools TAP plan stays 1..59.
+  // SC-031 (plan §4.8.4 placement): a subtest, so it adds no top-level test to the feed-tools TAP plan.
   await t.test('elevated jobs are path-gated', async (t2) => {
     const wf = files.workflow;
     const own = [];

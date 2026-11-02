@@ -1,0 +1,45 @@
+Krate Manager Phase 11 close lane, 2026-11-02T06:22:06.833Z, wall=91.3s, logs F:/tmp/gate/km11-close/20261102-062035 (removed by C3)
+D9: D9 WINDOWS LOADS
+A0    GREEN rustc="rustc 1.99.1 (58cf8f9c3 2026-10-13)" node="v24.7.0" df(repo root)="F: 50G 48G 2.5G 96% /f"
+D9    GREEN specs/krate-manager-phase11/evidence/d9-windows.txt: loads "D9 WINDOWS LOADS" (TA-22, T014; a LOAD FAILURE is the recorded Windows gap of SC-007, PD-33)
+A0b   GREEN git status --porcelain: 70 lines (without specs/krate-manager-phase11/evidence/) file=F:/tmp/gate/km11-close/20261102-062035/A0b-git-status.txt
+G1    GREEN Rule 9: todo!( / unimplemented!( outside *_tests.rs and tests/ (the harness tree counts) in 23 changed .rs files: none
+G2    GREEN Rule 2 / SC-012: added suppressions over the diff from 30878b36 and 43 untracked file(s): none unexpected; the harness build.rs #[expect( x1 (want 1), clippy::disallowed_methods + reason = "a build script reads cargo's CARGO_CFG_TARGET_OS" present
+G3    GREEN Rule 6: no --test-threads / --no-file-parallelism in the change set (exempt the ban lists' homes apps/krate-manager/crates/core/tests/injection.rs, tools/feed-contract/tests/manager-ci-shape.test.js, tools/feed-contract/tests/release-manager-shape.test.js): none
+G4    GREEN FR-083 / Rule 1: no *.key under apps/krate-manager/ (tracked, untracked or ignored) and no secret-key comment in its changed files: none
+G5    GREEN FR-097 / TA-2 git check-attr -a: text: unset for tools/feed-contract/keys/krate-signing.pub and the three rsign fixture files: all four (output: tools/feed-contract/keys/krate-signing.pub: text: unset | apps/krate-manager/tests/fixtures/updater-refusals/fixtures/rsign/package.bin: text: unset | apps/krate-manager/tests/fixtures/updater-refusals/fixtures/rsign/package.bin.minisig: text: unset | apps/krate-manager/tests/fixtures/updater-refusals/fixtures/rsign/rsign.pub: text: unset)
+G6    GREEN TA-2: git diff 30878b36 -- .gitattributes adds exactly the two lines: yes
+G7    GREEN TA-25: head -1 apps/krate-manager/tests/fixtures/updater-refusals/fixtures/rsign/package.bin.minisig = "untrusted comment: rsign-format fixture (Krate Manager Phase 11)"
+G8    GREEN Rule 10: F:/tmp/km11-target gone
+A1a   GREEN L-RS cargo fmt --all --check last="" exit=0 wall=1.6s log=F:/tmp/gate/km11-close/20261102-062035/A1a-cargo-fmt.log
+A1b   GREEN L-RS cargo clippy --workspace --all-targets --locked -- -D warnings warning-lines=0 exit=0 wall=6.5s log=F:/tmp/gate/km11-close/20261102-062035/A1b-clippy.log
+A1c   GREEN L-APP cargo clippy -p krate-manager --all-targets --locked -- -D warnings warning-lines=0 exit=0 wall=0.9s log=F:/tmp/gate/km11-close/20261102-062035/A1c-clippy.log
+A1d   GREEN L-DEVFEED cargo clippy -p krate-manager --all-targets --features dev-feed --locked -- -D warnings warning-lines=0 exit=0 wall=8.2s log=F:/tmp/gate/km11-close/20261102-062035/A1d-clippy.log
+A1e   GREEN L-MANUAL cargo clippy -p krate-manager --example manual_elevation --features manual-elevation --locked -- -D warnings warning-lines=0 exit=0 wall=4.7s log=F:/tmp/gate/km11-close/20261102-062035/A1e-clippy.log
+A1f   GREEN L-E2E KRATE_E2E_FEED_URL=http://127.0.0.1:9/versions.json KRATE_E2E_MARKER_DIR=never-run KRATE_E2E_OLD_VERSION=0.0.0 cargo clippy -p krate-manager --all-targets --features updater-e2e --locked -- -D warnings warning-lines=0 exit=0 wall=5.0s log=F:/tmp/gate/km11-close/20261102-062035/A1f-clippy.log
+A1g   GREEN L-GUARD step clippy-guard notice="::notice title=clippy-guard (Windows)::rc=101 disallowed=3 from_os=1 Roots::new=1 std::env::var=1 lint-named=5 other-errors=0" copied to specs/krate-manager-phase11/evidence/clippy-guard.txt exit=0 wall=1.2s log=F:/tmp/gate/km11-close/20261102-062035/A1g-clippy-guard.log
+A1h   GREEN L-RS cargo test --workspace --locked binaries=12 passed=411 binaries-with-failures=0 -> specs/krate-manager-phase11/evidence/cargo-test.txt exit=0 wall=53.6s log=F:/tmp/gate/km11-close/20261102-062035/A1h-cargo-test.log
+H     GREEN L-HARNESS last="HARNESS LANE GREEN (Windows, 27 ok, 3521 ms)" exit=0 wall=11.2s log=F:/tmp/gate/km11-close/20261102-062035/H-harness-lane.log
+A2a   GREEN node_modules present: npm ci not run
+A2b   GREEN L-TS npm run typecheck last="> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json" exit=0 wall=7.0s log=F:/tmp/gate/km11-close/20261102-062035/A2b.log
+A2c   GREEN L-TS npm run lint last="> eslint . --max-warnings 0" exit=0 wall=14.6s log=F:/tmp/gate/km11-close/20261102-062035/A2c.log
+A2d   GREEN L-TS npm test -- --reporter=default --reporter=json --outputFile.json=F:/tmp/gate/km11-close/20261102-062035/vitest.json vitest.json success=true passed=71 failed=0 total=71 exit=0 wall=3.9s log=F:/tmp/gate/km11-close/20261102-062035/A2d.log
+A2e   GREEN L-NAPP node --test --test-reporter=tap "scripts/*.test.js" fail=0 "bundle sidecar name per host tuple" ok x1, "fixture inno script keeps the plugin directives" ok x1, "write test job prints verbatim windows paths" ok x1, "bundle release mode argv" ok x1, "bundle release asset table" ok x1, "e2e update server serves only its directory" ok x1 (want 1 each) warning-lines=0 tap=F:/tmp/gate/km11-close/20261102-062035/node-tap.txt exit=0 wall=0.4s log=F:/tmp/gate/km11-close/20261102-062035/A2e-node-test-scripts.log
+A3a   GREEN node --check on 21 files: all ok
+A3b   GREEN --self-test of scope-check, wsl-lane, harness-lane, close-lane: all GREEN
+A3c   GREEN L-NODE node --test plan=1..64 tests=869 pass=864 fail=0 nodeWarnings=0 tap=F:/tmp/gate/km11-close/20261102-062035/feed-tap.txt exit=0 wall=25.2s log=F:/tmp/gate/km11-close/20261102-062035/A3c-node-test.log
+A3d   GREEN L-TAP want "TAP plan=1..64 top-level=64" printed last="TAP plan=1..64 top-level=64" exit=0 wall=0.1s log=F:/tmp/gate/km11-close/20261102-062035/A3d-tap-check.log
+A3e   GREEN L-VLINT stderr=none exit=0 wall=0.1s log=F:/tmp/gate/km11-close/20261102-062035/A3e-version-lint.log
+A3f   GREEN node apps/krate-manager/tests/fixtures/updater-refusals/make-rsign-fixture.js --self-test last="make-rsign-fixture self-test: ok" exit=0 wall=0.1s log=F:/tmp/gate/km11-close/20261102-062035/A3f-make-rsign-self-test.log
+A4a   GREEN L-YAML .github/workflows/release-manager.yml exit=0 wall=19.3s log=F:/tmp/gate/km11-close/20261102-062035/A4a-yaml.log
+A4b   GREEN L-YAML .github/workflows/manager-ci.yml exit=0 wall=1.6s log=F:/tmp/gate/km11-close/20261102-062035/A4b-yaml.log
+A4c   GREEN L-YAML .github/workflows/feed-tools.yml exit=0 wall=1.5s log=F:/tmp/gate/km11-close/20261102-062035/A4c-yaml.log
+A5    GREEN L-LINT lint-serial-test-runs last="lint-serial-test-runs: clean (64 files)" exit=0 wall=0.2s log=F:/tmp/gate/km11-close/20261102-062035/A5-lint-serial.log
+A6    GREEN L-INDEX gen-specs-index --check last="specs/INDEX.md is up to date." exit=0 wall=0.5s log=F:/tmp/gate/km11-close/20261102-062035/A6-specs-index.log
+A7    GREEN L-SCOPE scope-check last="scope-check: 81 paths (48 under apps/krate-manager/, 33 outside): OK (base 30878b36)" exit=0 wall=0.8s log=F:/tmp/gate/km11-close/20261102-062035/A7-scope-check.log
+A10   GREEN L-WSL last="WSL LANE GREEN (437 passed, 81 s)" info="Linux-run Phase 9+10 tests seen ok: 13/13" -> specs/krate-manager-phase11/evidence/wsl-core.txt (early signal; closes no PENDING-CI row) exit=0 wall=89.2s log=F:/tmp/gate/km11-close/20261102-062035/A10-wsl-lane.log
+B2    GREEN L-REQ step required tests ran notices="::notice title=required tests ran (Windows)::372 cargo + 70 vitest + 6 node" want "::notice title=required tests ran (Windows)::372 cargo + 70 vitest + 6 node" exit=0 wall=0.1s log=F:/tmp/gate/km11-close/20261102-062035/B2-required-tests-ran.log
+C1    GREEN git status --porcelain (without specs/krate-manager-phase11/evidence/) equal to A0b (70 lines; changed: none)
+C2    GREEN L-SCOPE scope-check last="scope-check: 81 paths (48 under apps/krate-manager/, 33 outside): OK (base 30878b36)" exit=0 wall=0.6s log=F:/tmp/gate/km11-close/20261102-062035/C2-scope-check.log
+C3    GREEN raw logs F:/tmp/gate/km11-close/20261102-062035 removed wall=0.0s
+CLOSE LANE GREEN

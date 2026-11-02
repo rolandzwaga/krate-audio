@@ -45,8 +45,9 @@ signature CI makes is verified against it before anything is uploaded.
    Only jobs that reference the environment receive these secrets. The `release` job of `release.yml` and the
    `apply-dry` / `apply-live` jobs of `backfill-sign.yml` carry `environment: signing`, so every one of those runs, dry
    or real, starts only from `main` (PD-22). Any later job that uses these secrets must reference the same environment:
-   Phase 11 (the manager's own release) passes the same password to Tauri through
-   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` and signs manager updates with the same key.
+   Phase 11 (the manager's own release) reads the same two secrets in one place only, the `sign` job of
+   `release-manager.yml`: `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` decrypts the key with `node tools/minisign.js
+   decrypt-key`, and `rsign` signs manager updates with it, as `release.yml` does; no manager build job receives them.
 4. Base64-decode the `.pub` into `tools/feed-contract/keys/krate-signing.pub` and commit it:
 
    ```sh

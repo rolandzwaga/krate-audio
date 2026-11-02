@@ -428,6 +428,9 @@ pub enum DownloadError {
         target: Box<Target>,
         error: VerifyError,
     },
+    // ---- Phase 11 (FR-018) ----
+    #[error(transparent)]
+    SelfUpdating(#[from] crate::self_update::SelfUpdating),
 }
 
 fn staging_code(code: StagingCode) -> &'static str {
@@ -461,6 +464,7 @@ impl DownloadError {
             DownloadError::Body { .. } => "E_DOWNLOAD_BODY",
             DownloadError::Staging { code, .. } => staging_code(*code),
             DownloadError::Verify { error, .. } => error.code(),
+            DownloadError::SelfUpdating(_) => crate::self_update::SELF_UPDATING_CODE,
         }
     }
 
@@ -668,6 +672,25 @@ impl InFlight {
 impl Drop for InFlight {
     fn drop(&mut self) {
         registry().remove(&self.key);
+    }
+}
+
+/// Phase 11 FR-015: whether any artifact of `downloads` is in flight in this process.
+pub fn any_in_flight(downloads: &Path) -> bool {
+    registry().iter().any(|(d, _)| d == downloads)
+}
+
+/// Phase 11 tasks TA-8: a test hold of one in-flight key of `downloads`; dropping it removes the key.
+#[cfg(any(test, feature = "test-support"))]
+pub struct InFlightHeldForTest {
+    _held: InFlight,
+}
+
+/// Phase 11 tasks TA-8: `(downloads, [0xA5; 32])` held in flight (tests only).
+#[cfg(any(test, feature = "test-support"))]
+pub fn hold_in_flight_for_test(downloads: &Path) -> InFlightHeldForTest {
+    InFlightHeldForTest {
+        _held: InFlight::enter(downloads, [0xA5; 32]).expect("in-flight key already held"),
     }
 }
 
@@ -1608,6 +1631,7 @@ pub fn for_command(
     host: &dyn HostFacts,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<DownloadSummary, DownloadError> {
+    crate::self_update::action_gate(env.ctx.roots.state_dir())?;
     let (feed, request) = command_request(env.ctx, name, expected_version, now_unix, host)?;
     run_command(env, &feed, &request, progress)
 }

@@ -139,6 +139,7 @@ const SYSPROXY_TESTS_RS: &str = "crates/core/src/sysproxy_tests.rs";
 const SYSPROXY_CF_RS: &str = "crates/core/src/sysproxy_cf.rs";
 const SYSPROXY_CF_TESTS_RS: &str = "crates/core/src/sysproxy_cf_tests.rs";
 const CONTEXT_TESTS_RS: &str = "crates/core/src/context_tests.rs";
+const SELF_UPDATE_TESTS_RS: &str = "crates/core/src/self_update_tests.rs";
 const TEST_SUPPORT_RS: &str = "crates/core/src/test_support.rs";
 const LIVE_FEED_RS: &str = "crates/core/tests/live_feed.rs";
 const CONFIG_GUARD_RS: &str = "crates/core/tests/config_guard.rs";
@@ -375,7 +376,7 @@ const CONFINED_TOKENS: [(&str, &[&str]); 18] = [
 /// FR-075, PD-31: the only files whose code names `core_foundation`.
 const CORE_FOUNDATION_FILES: [&str; 2] = [SYSPROXY_CF_RS, SYSPROXY_CF_TESTS_RS];
 /// FR-081, FR-073, FR-075: a dependency key and the only manifests that may declare it.
-const CONFINED_TOML_KEYS: [(&str, &[&str]); 13] = [
+const CONFINED_TOML_KEYS: [(&str, &[&str]); 15] = [
     ("ureq", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("rustls", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("rquickjs", &["Cargo.toml", "crates/core/Cargo.toml"]),
@@ -409,6 +410,12 @@ const CONFINED_TOML_KEYS: [(&str, &[&str]); 13] = [
     ),
     ("minisign", &["Cargo.toml", "crates/core/Cargo.toml"]),
     ("flate2", &["Cargo.toml", "crates/core/Cargo.toml"]),
+    // Phase 11 FR-094, SI-28: the updater in the root and src-tauri manifests; reqwest in src-tauri only.
+    (
+        "tauri-plugin-updater",
+        &["Cargo.toml", "src-tauri/Cargo.toml"],
+    ),
+    ("reqwest", &["src-tauri/Cargo.toml"]),
 ];
 /// FR-083 (SI-2, SI-12): every std entry point that creates, truncates or removes a file or
 /// directory or makes a link; `extract.rs` holds them only inside `impl ExtractIo for FsExtractIo`.
@@ -519,7 +526,8 @@ const NEWTYPES: [&str; 4] = ["PlainName", "AssetUrl", "PageUrl", "AssetName"];
 const CONSTRUCTOR_TRAITS: [&str; 5] = ["From", "TryFrom", "FromStr", "Default", "Deserialize"];
 
 /// FR-087, SI-10, SI-26: the test bodies (file, `fn` name) that may build the production config.
-const PRODUCTION_BODIES: [(&str, &str); 10] = [
+/// Phase 11: SC-025's fallback is built as `lib.rs` builds it; SC-001's hop rules are `HttpsOnly`.
+const PRODUCTION_BODIES: [(&str, &str); 12] = [
     (HTTP_TESTS_RS, "https_only_refuses_before_connecting"),
     (HTTP_TESTS_RS, "config_for_dev_url_cases"),
     (HTTP_TESTS_RS, "url_policy_cases"),
@@ -530,17 +538,22 @@ const PRODUCTION_BODIES: [(&str, &str); 10] = [
     (HTTP_TESTS_RS, "pac_policy_cases"),
     (PAC_TESTS_RS, "wpad_candidate_cases"),
     (HTTP_TESTS_RS, "streamed_policy_cases"),
+    (SELF_UPDATE_TESTS_RS, "no_context_defaults"),
+    (SELF_UPDATE_TESTS_RS, "redirect_hops"),
 ];
-/// FR-087: the test bodies that may carry a static proxy.
-const PROXY_BODIES: [(&str, &str); 5] = [
+/// FR-087: the test bodies that may carry a static proxy (Phase 11: TA-10, SC-002, SC-025).
+const PROXY_BODIES: [(&str, &str); 8] = [
     (HTTP_TESTS_RS, "proxy_path_connect"),
     (HTTP_TESTS_RS, "proxy_path_http"),
     (HTTP_TESTS_RS, "no_proxy_bypass"),
     (HTTP_TESTS_RS, "loopback_proxy_only"),
     (FEED_TESTS_RS, "check_through_proxy_writes_cache"),
+    (HTTP_TESTS_RS, "route_choice_static_direct_and_refused"),
+    (SELF_UPDATE_TESTS_RS, "proxy_choice_matches_core"),
+    (SELF_UPDATE_TESTS_RS, "no_context_defaults"),
 ];
-/// FR-087, SI-26, R-15: the PAC-path and OS-path test bodies.
-const PAC_BODIES: [(&str, &str); 13] = [
+/// FR-087, SI-26, R-15: the PAC-path and OS-path test bodies (Phase 11: SC-002's `pac_config`, SC-025).
+const PAC_BODIES: [(&str, &str); 15] = [
     (HTTP_TESTS_RS, "pac_path_proxy"),
     (HTTP_TESTS_RS, "pac_path_direct"),
     (HTTP_TESTS_RS, "pac_list_walk"),
@@ -557,6 +570,8 @@ const PAC_BODIES: [(&str, &str); 13] = [
         HTTP_TESTS_RS,
         "streamed_pac_fetch_keeps_the_feed_bound_unix",
     ),
+    (SELF_UPDATE_TESTS_RS, "pac_config"),
+    (SELF_UPDATE_TESTS_RS, "no_context_defaults"),
 ];
 /// A token sequence, the bodies (file, `fn` name) it may sit in, and whether all of
 /// `tests/live_feed.rs` may hold it.
@@ -3125,24 +3140,158 @@ fn verify_confinement_findings(files: &[(String, String)]) -> Vec<Finding> {
     out
 }
 
-/// The two lockfiles (app-root-relative path, text): the workspace's and the clippy-guard's.
+/// The three lockfiles (app-root-relative path, text): the workspace's, the clippy-guard's and (Phase 11, tasks TA-4)
+/// the refusal harness's.
 fn locks() -> Vec<(String, String)> {
     let root = app_root();
-    ["Cargo.lock", "tests/fixtures/clippy-guard/Cargo.lock"]
-        .into_iter()
-        .map(|rel| (rel.to_owned(), read_text(&root.join(rel))))
-        .collect()
+    [
+        "Cargo.lock",
+        "tests/fixtures/clippy-guard/Cargo.lock",
+        "tests/fixtures/updater-refusals/Cargo.lock",
+    ]
+    .into_iter()
+    .map(|rel| (rel.to_owned(), read_text(&root.join(rel))))
+    .collect()
 }
 
-/// The `name` of every `[[package]]` of a lockfile.
-fn lock_package_names(lock: &str) -> Vec<String> {
-    toml_sections(lock)
-        .into_iter()
-        .filter(|(header, _)| header == "[[package]]")
-        .flat_map(|(_, entries)| entries)
-        .filter(|(key, _)| key == "name")
-        .filter_map(|(_, value)| toml_str(&value).map(str::to_owned))
-        .collect()
+/// One `[[package]]` of a lockfile (Phase 11 SI-2).
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct LockPkg {
+    name: String,
+    version: String,
+    source: Option<String>,
+    /// The raw entries: `name`, `name version` or `name version (source)`.
+    dependencies: Vec<String>,
+}
+
+/// Every `[[package]]` of a lockfile with its `dependencies` list (single- or multi-line).
+fn lock_packages(lock: &str) -> Vec<LockPkg> {
+    let mut out: Vec<LockPkg> = Vec::new();
+    let mut in_package = false;
+    let mut in_list = false;
+    let quoted_items = |text: &str| -> Vec<String> {
+        text.split('"')
+            .skip(1)
+            .step_by(2)
+            .map(str::to_owned)
+            .collect()
+    };
+    for line in lock.lines() {
+        let t = line.trim();
+        if in_list {
+            if let Some(last) = out.last_mut() {
+                last.dependencies.extend(quoted_items(t));
+            }
+            if t.starts_with(']') {
+                in_list = false;
+            }
+            continue;
+        }
+        if t.starts_with('[') {
+            in_package = t == "[[package]]";
+            if in_package {
+                out.push(LockPkg {
+                    name: String::new(),
+                    version: String::new(),
+                    source: None,
+                    dependencies: Vec::new(),
+                });
+            }
+            continue;
+        }
+        let Some(last) = out.last_mut().filter(|_| in_package) else {
+            continue;
+        };
+        let Some((key, value)) = t.split_once('=') else {
+            continue;
+        };
+        let value = value.trim();
+        match key.trim() {
+            "name" => last.name = toml_str(value).unwrap_or_default().to_owned(),
+            "version" => last.version = toml_str(value).unwrap_or_default().to_owned(),
+            "source" => last.source = toml_str(value).map(str::to_owned),
+            "dependencies" => {
+                last.dependencies.extend(quoted_items(value));
+                in_list = !value.ends_with(']');
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// The crate name of a lockfile `dependencies` entry.
+fn dependency_name(entry: &str) -> &str {
+    entry.split(' ').next().unwrap_or(entry)
+}
+
+/// The one crate a lock may reach `tar` through (Phase 11 SI-2).
+const TAR_CARRIER: &str = "tauri-plugin-updater";
+
+/// FR-082, FR-083: no `tar` manifest key. Phase 11 SI-2 (tasks TA-4), per lockfile: (1) no path from a root (path)
+/// package reaches `tar` without passing through `tauri-plugin-updater` (a BFS that never expands the updater);
+/// (2) no more `tar` packages are locked than the updater's own `dependencies` list names (zero without it).
+fn tar_findings(manifests: &[(String, String)], locks: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    let finding = |file: &str, detail: String| Finding {
+        file: file.to_owned(),
+        rule: RULE_TAR,
+        detail,
+    };
+    for (rel, text) in manifests {
+        if toml_dependency_names(text).contains("tar") {
+            out.push(finding(rel, "`tar` dependency key".to_owned()));
+        }
+    }
+    for (rel, text) in locks {
+        let packages = lock_packages(text);
+        // (1) The walk from every path package, the updater never expanded.
+        let mut seen: BTreeSet<usize> = BTreeSet::new();
+        let mut queue: Vec<(usize, String)> = packages
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.source.is_none())
+            .map(|(k, p)| (k, p.name.clone()))
+            .collect();
+        while let Some((at, path)) = queue.pop() {
+            if !seen.insert(at) || packages[at].name == TAR_CARRIER {
+                continue;
+            }
+            for entry in &packages[at].dependencies {
+                let name = dependency_name(entry);
+                let version = entry.split(' ').nth(1);
+                if name == "tar" {
+                    out.push(finding(
+                        rel,
+                        format!("`{path}` reaches `tar` without `{TAR_CARRIER}`"),
+                    ));
+                    continue;
+                }
+                for (k, p) in packages.iter().enumerate() {
+                    if p.name == name && version.is_none_or(|v| p.version == v) {
+                        queue.push((k, format!("{path} -> {name}")));
+                    }
+                }
+            }
+        }
+        // (2) No more `tar` packages than the updater lists.
+        let locked = packages.iter().filter(|p| p.name == "tar").count();
+        let carried = packages
+            .iter()
+            .filter(|p| p.name == TAR_CARRIER)
+            .flat_map(|p| &p.dependencies)
+            .filter(|entry| dependency_name(entry) == "tar")
+            .count();
+        if locked > carried {
+            out.push(finding(
+                rel,
+                format!(
+                    "`[[package]]` named `tar` {locked} time(s), `{TAR_CARRIER}` lists {carried}"
+                ),
+            ));
+        }
+    }
+    out
 }
 
 /// The `{ … }` body (inclusive) of every `trait <name>` in `toks`.
@@ -3190,24 +3339,7 @@ fn extract_findings(
             ));
         }
     }
-    for (rel, text) in manifests {
-        if toml_dependency_names(text).contains("tar") {
-            out.push(finding(rel, RULE_TAR, "`tar` dependency key".to_owned()));
-        }
-    }
-    for (rel, text) in locks {
-        let n = lock_package_names(text)
-            .iter()
-            .filter(|name| *name == "tar")
-            .count();
-        if n > 0 {
-            out.push(finding(
-                rel,
-                RULE_TAR,
-                format!("`[[package]]` named `tar` {n} time(s)"),
-            ));
-        }
-    }
+    out.extend(tar_findings(manifests, locks));
     let Some(l) = lexed.iter().find(|l| l.rel == EXTRACT_RS) else {
         return out;
     };
@@ -4886,6 +5018,7 @@ fn production_config_only_in_allowed_tests() {
         TEST_SUPPORT_RS,
         DETECT_TESTS_RS,
         STATUS_TESTS_RS,
+        SELF_UPDATE_TESTS_RS,
     ] {
         assert!(
             files.iter().any(|(r, _)| r == must),
@@ -4895,7 +5028,13 @@ fn production_config_only_in_allowed_tests() {
     let base = test_source_findings(&files);
     let program_plant = "fn planted() { let _ = std::process::Command::new(\"gsettings\"); }\n";
     let logger_plant = "fn planted() { let _ = log::set_logger(&CAPTURE); }\n";
-    let plants: [(&str, &str, &str); 27] = [
+    let plants: [(&str, &str, &str); 28] = [
+        // Phase 11: the newly allowed file still reports a body its lists do not name.
+        (
+            SELF_UPDATE_TESTS_RS,
+            "fn planted(c: HttpConfig) { let _ = c.with_proxy(None); }\n",
+            RULE_TEST_BODY,
+        ),
         (
             HTTP_TESTS_RS,
             "#[test]\nfn planted() {\n    let _ = HttpConfig::production();\n}\n",
@@ -6073,6 +6212,123 @@ fn verify_confinement_scanner_reports_plants() {
     }
 }
 
+/// `lock` with `entry` inserted at the head of the `dependencies` list of the `[[package]]` named `name`.
+fn add_lock_dependency(lock: &str, name: &str, entry: &str) -> String {
+    let lock = lock.replace("\r\n", "\n");
+    let at = lock
+        .find(&format!("[[package]]\nname = \"{name}\"\n"))
+        .unwrap_or_else(|| panic!("no locked package {name}"));
+    let list = at
+        + lock[at..]
+            .find("dependencies = [\n")
+            .unwrap_or_else(|| panic!("{name} has no dependencies list"))
+        + "dependencies = [\n".len();
+    format!("{} \"{entry}\",\n{}", &lock[..list], &lock[list..])
+}
+
+/// `lock` without the `[[package]]` named `name`.
+fn remove_lock_package(lock: &str, name: &str) -> String {
+    let lock = lock.replace("\r\n", "\n");
+    let head = format!("[[package]]\nname = \"{name}\"\n");
+    let at = lock
+        .find(&head)
+        .unwrap_or_else(|| panic!("no locked package {name}"));
+    let end = lock[at + head.len()..]
+        .find("\n[[package]]\n")
+        .map_or(lock.len(), |k| at + head.len() + k + 1);
+    format!("{}{}", &lock[..at], &lock[end..])
+}
+
+/// Phase 11 SI-2 (FR-094, tasks TA-4): a lock may hold `tar` only through `tauri-plugin-updater`: no path from a
+/// root package reaches it without passing through the updater, and no more `tar` packages are locked than the
+/// updater itself lists. The manifest-key half is unchanged.
+#[test]
+fn updater_tar_only_through_the_plugin() {
+    let (manifests, locks) = (manifests(), locks());
+    for must in [
+        "Cargo.lock",
+        "tests/fixtures/clippy-guard/Cargo.lock",
+        "tests/fixtures/updater-refusals/Cargo.lock",
+    ] {
+        assert!(
+            locks.iter().any(|(rel, _)| rel == must),
+            "{must} was not scanned"
+        );
+    }
+    let base = tar_findings(&manifests, &locks);
+    assert!(base.is_empty(), "SI-2 tar findings:\n{}", show(&base));
+    // The updater's own `tar` is allowed: the real lock holds it, through the updater only.
+    let (_, lock) = locks
+        .iter()
+        .find(|(rel, _)| rel == "Cargo.lock")
+        .expect("the workspace lock");
+    let packages = lock_packages(lock);
+    assert!(
+        packages.iter().any(|p| p.name == "tar"),
+        "the workspace lock holds no `tar`: the updater's row is vacuous"
+    );
+    assert!(
+        packages.iter().any(|p| p.name == "tauri-plugin-updater"
+            && p.dependencies.iter().any(|d| dependency_name(d) == "tar")),
+        "the locked tauri-plugin-updater lists no `tar`"
+    );
+    let replace_lock = |rel: &str, text: String| -> Vec<(String, String)> {
+        let mut out = locks.clone();
+        let entry = out
+            .iter_mut()
+            .find(|(r, _)| r == rel)
+            .unwrap_or_else(|| panic!("lock {rel} not found"));
+        entry.1 = text;
+        out
+    };
+    // A root package that reaches `tar` itself.
+    let planted = tar_findings(
+        &manifests,
+        &replace_lock(
+            "Cargo.lock",
+            add_lock_dependency(lock, "krate-manager-core", "tar"),
+        ),
+    );
+    assert_reported(
+        &base,
+        &planted,
+        "Cargo.lock",
+        RULE_TAR,
+        "krate-manager-core -> tar",
+    );
+    // A second, orphan `tar` package.
+    let package = "[[package]]\nname = \"tar\"\nversion = \"0.4.44\"\n";
+    let planted = tar_findings(&manifests, &plant(&locks, "Cargo.lock", package));
+    assert_reported(&base, &planted, "Cargo.lock", RULE_TAR, package);
+    // The updater gone while its `tar` stays.
+    let planted = tar_findings(
+        &manifests,
+        &replace_lock(
+            "Cargo.lock",
+            remove_lock_package(lock, "tauri-plugin-updater"),
+        ),
+    );
+    assert_reported(
+        &base,
+        &planted,
+        "Cargo.lock",
+        RULE_TAR,
+        "tauri-plugin-updater removed",
+    );
+    // The manifest half: a `tar` key.
+    let key = "tar = \"0.4\"";
+    let planted = tar_findings(
+        &replace_in(
+            &manifests,
+            "crates/core/Cargo.toml",
+            "[dependencies]\n",
+            &format!("[dependencies]\n{key}\n"),
+        ),
+        &locks,
+    );
+    assert_reported(&base, &planted, "crates/core/Cargo.toml", RULE_TAR, key);
+}
+
 #[test]
 fn download_and_verify_hold_no_url_or_whole_read() {
     let files = workspace_rs_files();
@@ -6324,4 +6580,1127 @@ fn fixture_url_seam_scanner_reports_plants() {
         let new = added(&base, &fixture_seam_findings(&plant(&files, rel, text)));
         assert!(new.is_empty(), "{rel}: quiet {text:?}:\n{}", show(&new));
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Phase 11: the self-update confinements and pins (spec FR-003 (e), FR-018, FR-022, FR-081 (a), FR-094; plan §4.12;
+// PD-9, PD-26, PD-30, PD-36, PD-37; SI-15, SI-24, SI-28, SI-29, SI-35, SI-39; tasks T013, TA-13, TA-26)
+
+const TAURI_SELF_UPDATE_RS: &str = "src-tauri/src/self_update.rs";
+const CORE_SELF_UPDATE_RS: &str = "crates/core/src/self_update.rs";
+const TAURI_SRC: &str = "src-tauri/src/";
+/// FR-094: the only workspace `.rs` files whose code names the updater crate.
+const UPDATER_CRATE_HOMES: [&str; 3] = [TAURI_LIB_RS, TAURI_SELF_UPDATE_RS, COMMANDS_RS];
+/// FR-022, FR-094, TA-13: in `src-tauri/src`, only inside `impl … for NativeUpdateInstaller`.
+const NATIVE_INSTALLER_TOKENS: [&str; 4] = [
+    ". install (",
+    "download_and_install",
+    ". restart (",
+    "process :: restart",
+];
+const NATIVE_INSTALLER: &str = "NativeUpdateInstaller";
+/// FR-003 (e): each needle as its parts (only whitespace may separate two parts), which no workspace `.rs` file and
+/// no `src-tauri` JSON holds outside `mod e2e` of `src-tauri/src/self_update.rs`, comments included. The two guard
+/// files spell them to plant them.
+const FR003E_NEEDLES: [&[&str]; 6] = [
+    &["version_comparator"],
+    &["default_version_comparator"],
+    &["dangerousInsecureTransportProtocol"],
+    &["dangerous_insecure_transport_protocol"],
+    &["dangerousAccept"],
+    &["allowDowngrades\"", ":", "true"],
+];
+/// FR-070: the e2e marker, only inside `mod e2e` of `src-tauri/src/self_update.rs` (`injection.rs` spells it).
+const E2E_MARKER: &str = "krate-e2e-marker-v1";
+/// FR-018: the refusal code, spelled among the non-test sources only in `crates/core/src/self_update.rs`.
+const SELF_UPDATING_LITERAL: &str = "E_INSTALL_SELF_UPDATING";
+/// FR-018, SI-15: what follows `SelfUpdating` used as a value (not a type, a path or a declaration).
+const VALUE_FOLLOWERS: [&str; 4] = [")", ",", ";", "}"];
+/// FR-018, SI-15: (file, `fn`) of the four entry points, each body holding one `action_gate (` call.
+const GATE_SITES: [(&str, &str); 4] = [
+    (DOWNLOAD_RS, "for_command"),
+    (INSTALL_RS, "for_command"),
+    (INSTALL_RS, "remove_for_command"),
+    (INSTALL_RS, "elevate"),
+];
+const GATE_CALL: &str = "action_gate (";
+/// SI-24: what the body of `fn build_updater` in `src-tauri/src/self_update.rs` holds.
+const BUILD_UPDATER_CALLS: [&str; 2] = [
+    ". timeout ( inputs . timeouts . check )",
+    ". read_timeout ( inputs . timeouts . stall )",
+];
+/// SI-24: the one assignment to `update.timeout`, inside `fn prepare_download`.
+const TIMEOUT_ASSIGNMENT: &str = "update . timeout =";
+const DOWNLOAD_TIMEOUT_ASSIGNMENT: &str =
+    "update . timeout = Some ( inputs . timeouts . download )";
+/// PD-9: the fallback `HttpConfig`, cloned from the startup one before `assemble_context` takes it.
+const SELF_UPDATE_HTTP: &str = "SelfUpdateHttp ( http . clone ( ) )";
+const ASSEMBLE_CALL: &str = "assemble_context ( roots , & feed_url , http ,";
+/// PD-37, SI-39: the macOS relaunch pre-check, inside the free `fn install`, before the kept update is taken.
+const RELAUNCH_CHECK: &str = "current_binary (";
+const KEPT_TAKE: &str = ". take (";
+/// PD-36: the body of `UpdateInputs::production`, compared as code tokens (the normalisation of `BODY_RULES` and
+/// `confinement`, which match `tokens(needle)`; a `,` directly before a closing `}` is rustfmt's and is dropped).
+const PRODUCTION_INPUTS_BODY: &str = "Self { http , policy : UrlPolicy :: HttpsOnly , timeouts : UpdateTimeouts :: production ( ) , packaging : packaging ( ) }";
+/// PD-36: `commands.rs` builds the inputs only through `UpdateInputs::production`, once per command.
+const PRODUCTION_INPUTS_CALL: &str = "UpdateInputs :: production (";
+const PRODUCTION_INPUTS_CALLS: usize = 2;
+/// PD-36: the base of the e2e module's one `UpdateInputs { … }` literal.
+const E2E_INPUTS_BASE: &str = ". . UpdateInputs :: production (";
+const LOOPBACK_POLICY: &str = "UrlPolicy :: LoopbackOnly";
+/// PD-26: the files holding `feature = "updater-e2e"` and how often; every other workspace `.rs` file holds none.
+const UPDATER_E2E_CFG_SITES: [(&str, usize); 2] = [(TAURI_SELF_UPDATE_RS, 1), (TAURI_LIB_RS, 2)];
+const UPDATER_E2E_FEATURE: &str = "updater-e2e";
+/// The refusal harness sources: plan §2's six files (`socks.rs` included, PD-30).
+const HARNESS_SRC: &str = "tests/fixtures/updater-refusals/src/";
+const HARNESS_SCENARIOS_RS: &str = "tests/fixtures/updater-refusals/src/scenarios.rs";
+const HARNESS_CONFINEMENT_RS: &str = "tests/fixtures/updater-refusals/src/confinement.rs";
+const HARNESS_SOCKS_RS: &str = "tests/fixtures/updater-refusals/src/socks.rs";
+const HARNESS_FILES: [&str; 6] = [
+    HARNESS_CONFINEMENT_RS,
+    "tests/fixtures/updater-refusals/src/keys.rs",
+    "tests/fixtures/updater-refusals/src/main.rs",
+    "tests/fixtures/updater-refusals/src/map_errors.rs",
+    HARNESS_SCENARIOS_RS,
+    HARNESS_SOCKS_RS,
+];
+/// FR-081 (a), SI-28, SI-29: what no harness source names: the real roots, key, context and run, the real installer,
+/// a restart, Tauri's path resolver.
+const HARNESS_BANNED: [&str; 12] = [
+    "Roots :: from_os",
+    "from_os (",
+    "SigningKey :: release",
+    "assemble_context",
+    "krate_manager_lib :: run",
+    "NativeUpdateInstaller",
+    ". install (",
+    "download_and_install",
+    ". restart (",
+    "process :: restart",
+    "app . path (",
+    "BaseDirectory",
+];
+/// SI-29, PD-30: (token, the one harness file that may hold it).
+const HARNESS_CONFINED: [(&str, &str); 2] = [
+    ("dirs ::", HARNESS_CONFINEMENT_RS),
+    ("TcpStream :: connect", HARNESS_SOCKS_RS),
+];
+const RULE_NATIVE_INSTALLER: &str = "self-install-outside-native-installer";
+const RULE_SELF_UPDATING: &str = "self-updating-outside-action-gate";
+const RULE_GATE_SITE: &str = "action-gate-site";
+const RULE_FR003E: &str = "updater-escape-hatch";
+const RULE_E2E_MARKER: &str = "e2e-marker-outside-e2e";
+const RULE_TIMEOUT_PIN: &str = "self-update-timeout-pin";
+const RULE_FALLBACK_PIN: &str = "self-update-http-fallback-pin";
+const RULE_RELAUNCH_PIN: &str = "macos-relaunch-precheck";
+const RULE_PRODUCTION_INPUTS: &str = "update-inputs-not-production";
+const RULE_E2E_CFG: &str = "updater-e2e-cfg-count";
+const RULE_HARNESS: &str = "harness-source";
+
+/// A planted file set: (app-root-relative path, text).
+type Files = Vec<(String, String)>;
+
+/// The token range of the body (`{` to `}` inclusive) of the first `mod <name> {` of `toks`.
+fn mod_body(toks: &[&str], name: &str) -> Option<Range<usize>> {
+    seq_at(toks, &["mod", name, "{"])
+        .first()
+        .map(|&at| at + 2..close_of(toks, at + 2) + 1)
+}
+
+/// The byte range a token range covers, given the file's `spanned_tokens`.
+fn byte_range(spans: &[(usize, &str)], range: &Range<usize>) -> Range<usize> {
+    let start = spans.get(range.start).map_or(usize::MAX, |(at, _)| *at);
+    let end = range
+        .end
+        .checked_sub(1)
+        .and_then(|last| spans.get(last))
+        .map_or(start, |(at, t)| at + t.len());
+    start..end
+}
+
+/// The byte range of `mod e2e` in a source text; empty when it has none.
+fn e2e_bytes(text: &str) -> Range<usize> {
+    let (code, _) = strip_comments_and_literals(text);
+    let spans = spanned_tokens(&code);
+    let toks: Vec<&str> = spans.iter().map(|(_, t)| *t).collect();
+    mod_body(&toks, "e2e").map_or(0..0, |body| byte_range(&spans, &body))
+}
+
+/// The byte offsets where `parts` occur in `text` in order, only whitespace between two parts.
+fn loose_hits(text: &str, parts: &[&str]) -> Vec<usize> {
+    let Some((first, rest)) = parts.split_first() else {
+        return Vec::new();
+    };
+    text.match_indices(first)
+        .filter(|(at, _)| {
+            let mut i = at + first.len();
+            rest.iter().all(|part| {
+                i = text.len() - text[i..].trim_start().len();
+                let held = text[i..].starts_with(part);
+                i += part.len();
+                held
+            })
+        })
+        .map(|(at, _)| at)
+        .collect()
+}
+
+/// `src-tauri/*.json` and `src-tauri/capabilities/*.json` (the generated `gen/` schemas are not config), as
+/// (app-root-relative path, text), sorted.
+fn src_tauri_json_files() -> Vec<(String, String)> {
+    let root = app_root();
+    let mut out = Vec::new();
+    for sub in ["src-tauri", "src-tauri/capabilities"] {
+        let dir = root.join(sub);
+        let entries =
+            fs::read_dir(&dir).unwrap_or_else(|e| panic!("cannot list {}: {e}", dir.display()));
+        for entry in entries {
+            let entry = entry.unwrap_or_else(|e| panic!("cannot list {}: {e}", dir.display()));
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.ends_with(".json") && entry.path().is_file() {
+                out.push((format!("{sub}/{name}"), read_text(&entry.path())));
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Every `.rs` file under the refusal harness's `src/`.
+fn harness_files() -> Vec<(String, String)> {
+    let dir = app_root()
+        .join("tests")
+        .join("fixtures")
+        .join("updater-refusals")
+        .join("src");
+    rs_files(&dir, HARNESS_SRC)
+}
+
+/// `files` with `rel`'s text replaced by `text`.
+fn with_text(files: &[(String, String)], rel: &str, text: String) -> Vec<(String, String)> {
+    let mut out = files.to_vec();
+    let entry = out
+        .iter_mut()
+        .find(|(r, _)| r == rel)
+        .unwrap_or_else(|| panic!("plant target {rel} not found"));
+    entry.1 = text;
+    out
+}
+
+/// `files` with the first line of `rel` holding `needle` after the first `head` removed (line endings made `\n`).
+fn remove_line_after(
+    files: &[(String, String)],
+    rel: &str,
+    head: &str,
+    needle: &str,
+) -> Vec<(String, String)> {
+    let text = file_text(files, rel).replace("\r\n", "\n");
+    let start = text
+        .find(head)
+        .unwrap_or_else(|| panic!("plant anchor {head:?}"));
+    let hit = text[start..]
+        .find(needle)
+        .map(|i| start + i)
+        .unwrap_or_else(|| panic!("plant anchor {needle:?} after {head:?}"));
+    let line_start = text[..hit].rfind('\n').map_or(0, |i| i + 1);
+    let line_end = text[hit..].find('\n').map_or(text.len(), |i| hit + i + 1);
+    with_text(
+        files,
+        rel,
+        format!("{}{}", &text[..line_start], &text[line_end..]),
+    )
+}
+
+/// The plant added a finding of `rule` in `file` whose detail names `` `needle` ``.
+fn assert_detail(base: &[Finding], planted: &[Finding], file: &str, rule: &str, needle: &str) {
+    let new = added(base, planted);
+    let want = format!("`{needle}`");
+    assert!(
+        new.iter()
+            .any(|f| f.file == file && f.rule == rule && f.detail.contains(&want)),
+        "{file}: planted `{needle}` not reported as {rule}; new findings:\n{}",
+        show(&new)
+    );
+}
+
+/// The `src-tauri/src` files among `files`.
+fn tauri_src(files: Vec<(String, String)>) -> Vec<(String, String)> {
+    files
+        .into_iter()
+        .filter(|(rel, _)| rel.starts_with(TAURI_SRC))
+        .collect()
+}
+
+#[test]
+fn self_update_confinement_holds() {
+    let files = workspace_rs_files();
+    for must in [
+        TAURI_SELF_UPDATE_RS,
+        CORE_SELF_UPDATE_RS,
+        COMMANDS_RS,
+        TAURI_LIB_RS,
+        INSTALL_RS,
+        DOWNLOAD_RS,
+        HTTP_RS,
+    ] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    let json = src_tauri_json_files();
+    for must in [
+        "src-tauri/tauri.conf.json",
+        "src-tauri/tauri.release.conf.json",
+        "src-tauri/capabilities/main.json",
+    ] {
+        assert!(
+            json.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    // Not vacuous: the scan reads the pinned `allowDowngrades` value, one part short of the banned needle.
+    assert_eq!(
+        loose_hits(
+            file_text(&json, "src-tauri/tauri.conf.json"),
+            &["allowDowngrades\"", ":", "false"]
+        )
+        .len(),
+        1
+    );
+    let base = self_update_findings(&files, &json);
+    assert!(
+        base.is_empty(),
+        "FR-003 (e), FR-018, FR-022, FR-094, PD-9, PD-37, SI-24 findings:\n{}",
+        show(&base)
+    );
+}
+
+#[test]
+fn planted_self_update_confinement_fails() {
+    let files = workspace_rs_files();
+    let json = src_tauri_json_files();
+    let base = self_update_findings(&files, &json);
+    let su = TAURI_SELF_UPDATE_RS;
+    let appended: [(&str, &str, &str); 12] = [
+        (
+            HTTP_RS,
+            "use tauri_plugin_updater::Update;\n",
+            RULE_CONFINED,
+        ),
+        (
+            COMMANDS_RS,
+            "use reqwest::redirect::Policy;\n",
+            RULE_CONFINED,
+        ),
+        (
+            COMMANDS_RS,
+            "fn planted(x: &tauri_plugin_updater::Update, b: Vec<u8>) { let _ = x.install(b); }\n",
+            RULE_NATIVE_INSTALLER,
+        ),
+        (
+            TAURI_LIB_RS,
+            "fn planted(app: &tauri::AppHandle) { app.restart(); }\n",
+            RULE_NATIVE_INSTALLER,
+        ),
+        (
+            INSTALL_RS,
+            "const PLANTED: &str = \"E_INSTALL_SELF_UPDATING: planted\";\n",
+            RULE_SELF_UPDATING,
+        ),
+        (
+            DOWNLOAD_RS,
+            "fn planted() -> Result<(), crate::self_update::SelfUpdating> { Err(crate::self_update::SelfUpdating) }\n",
+            RULE_SELF_UPDATING,
+        ),
+        (
+            su,
+            "fn planted(b: tauri_plugin_updater::UpdaterBuilder) -> tauri_plugin_updater::UpdaterBuilder { b.version_comparator(|_, _| true) }\n",
+            RULE_FR003E,
+        ),
+        (
+            TAURI_LIB_RS,
+            "const PLANTED: &str = \"krate-e2e-marker-v1\";\n",
+            RULE_E2E_MARKER,
+        ),
+        (
+            su,
+            "fn planted(update: &mut Update, inputs: &UpdateInputs) { update.timeout = Some(inputs.timeouts.download); }\n",
+            RULE_TIMEOUT_PIN,
+        ),
+        (su, "// retry once\n", RULE_TIMEOUT_PIN),
+        (
+            su,
+            "fn planted(e: &tauri::Env) { tauri::process::restart(e); }\n",
+            RULE_NATIVE_INSTALLER,
+        ),
+        (
+            COMMANDS_RS,
+            "async fn planted(u: tauri_plugin_updater::Update) { let _ = u.download_and_install(|_, _| {}, || {}).await; }\n",
+            RULE_NATIVE_INSTALLER,
+        ),
+    ];
+    for (rel, text, rule) in appended {
+        let planted = self_update_findings(&plant(&files, rel, text), &json);
+        assert_reported(&base, &planted, rel, rule, text);
+    }
+    let edited: [(&str, Files, &str, &str); 5] = [
+        (
+            "the current_binary( line removed",
+            remove_line_after(&files, su, "fn install<", "current_binary("),
+            su,
+            RULE_RELAUNCH_PIN,
+        ),
+        (
+            "the action_gate( call removed from elevate",
+            remove_line_after(&files, INSTALL_RS, "fn elevate(", "action_gate("),
+            INSTALL_RS,
+            RULE_GATE_SITE,
+        ),
+        (
+            "the .read_timeout(...) call deleted",
+            replace_in(&files, su, ".read_timeout(inputs.timeouts.stall)", ""),
+            su,
+            RULE_TIMEOUT_PIN,
+        ),
+        (
+            "the .timeout(...) call deleted",
+            replace_in(&files, su, ".timeout(inputs.timeouts.check)", ""),
+            su,
+            RULE_TIMEOUT_PIN,
+        ),
+        (
+            "SelfUpdateHttp(HttpConfig::production()) in lib.rs",
+            replace_in(
+                &files,
+                TAURI_LIB_RS,
+                "SelfUpdateHttp(http.clone())",
+                "SelfUpdateHttp(HttpConfig::production())",
+            ),
+            TAURI_LIB_RS,
+            RULE_FALLBACK_PIN,
+        ),
+    ];
+    for (what, planted, rel, rule) in edited {
+        assert_reported(
+            &base,
+            &self_update_findings(&planted, &json),
+            rel,
+            rule,
+            what,
+        );
+    }
+    // FR-003 (e) in the config JSON: whitespace may sit between the parts.
+    let planted_json = replace_in(
+        &json,
+        "src-tauri/tauri.conf.json",
+        "\"allowDowngrades\": false",
+        "\"allowDowngrades\" : true",
+    );
+    assert_reported(
+        &base,
+        &self_update_findings(&files, &planted_json),
+        "src-tauri/tauri.conf.json",
+        RULE_FR003E,
+        "allowDowngrades true",
+    );
+    // FR-094: the two new dependency keys only in their manifests (`CONFINED_TOML_KEYS`).
+    let manifests = manifests();
+    let toml_base = ureq_findings(&files, &manifests);
+    for (rel, header, line) in [
+        (
+            "crates/core/Cargo.toml",
+            "[dependencies]",
+            "reqwest = \"0.13\"",
+        ),
+        (
+            "Cargo.toml",
+            "[workspace.dependencies]",
+            "reqwest = \"0.13\"",
+        ),
+        (
+            "crates/helper/Cargo.toml",
+            "[dependencies]",
+            "tauri-plugin-updater = { workspace = true }",
+        ),
+    ] {
+        let planted = replace_in(
+            &manifests,
+            rel,
+            &format!("{header}\n"),
+            &format!("{header}\n{line}\n"),
+        );
+        assert_reported(
+            &toml_base,
+            &ureq_findings(&files, &planted),
+            rel,
+            RULE_TOML_KEY,
+            line,
+        );
+    }
+    // Quiet: the e2e module may name an FR-003 (e) token, and `SelfUpdating` as a type is not a value.
+    let quiet = [
+        replace_in(
+            &files,
+            su,
+            "pub mod e2e {",
+            "pub mod e2e {\n    fn quiet(b: Builder) -> Builder { b.version_comparator(|_, _| true) }",
+        ),
+        plant(
+            &files,
+            DOWNLOAD_RS,
+            "use crate::self_update::SelfUpdating;\nstruct Quiet(SelfUpdating);\n",
+        ),
+    ];
+    for files in quiet {
+        let new = added(&base, &self_update_findings(&files, &json));
+        assert!(new.is_empty(), "quiet plant reported:\n{}", show(&new));
+    }
+}
+
+#[test]
+fn update_inputs_only_from_production() {
+    let files = tauri_src(workspace_rs_files());
+    for must in [TAURI_SELF_UPDATE_RS, COMMANDS_RS, TAURI_LIB_RS] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    let base = update_inputs_findings(&files);
+    assert!(base.is_empty(), "PD-36 findings:\n{}", show(&base));
+}
+
+#[test]
+fn planted_update_inputs_fail_the_pin() {
+    let files = tauri_src(workspace_rs_files());
+    let base = update_inputs_findings(&files);
+    let su = TAURI_SELF_UPDATE_RS;
+    let planted: [(&str, Files, &str); 7] = [
+        (
+            "HttpsOnly -> LoopbackOnly in the body",
+            replace_in(
+                &files,
+                su,
+                "policy: UrlPolicy::HttpsOnly",
+                "policy: UrlPolicy::LoopbackOnly",
+            ),
+            su,
+        ),
+        (
+            "a longer stall in the body",
+            replace_in(
+                &files,
+                su,
+                "timeouts: UpdateTimeouts::production(),",
+                "timeouts: UpdateTimeouts { stall: Duration::from_secs(300), ..UpdateTimeouts::production() },",
+            ),
+            su,
+        ),
+        (
+            "packaging: Packaging::SelfContained in the body",
+            replace_in(
+                &files,
+                su,
+                "packaging: packaging()",
+                "packaging: Packaging::SelfContained",
+            ),
+            su,
+        ),
+        (
+            "an UpdateInputs literal in commands.rs",
+            plant(
+                &files,
+                COMMANDS_RS,
+                "fn planted(i: UpdateInputs) -> UpdateInputs { UpdateInputs { policy: UrlPolicy::HttpsOnly, ..i } }\n",
+            ),
+            COMMANDS_RS,
+        ),
+        (
+            "a third UpdateInputs::production( in commands.rs",
+            plant(
+                &files,
+                COMMANDS_RS,
+                "fn planted(h: HttpConfig) -> UpdateInputs { UpdateInputs::production(h) }\n",
+            ),
+            COMMANDS_RS,
+        ),
+        (
+            "UrlPolicy::LoopbackOnly outside mod e2e",
+            plant(
+                &files,
+                COMMANDS_RS,
+                "const PLANTED: UrlPolicy = UrlPolicy::LoopbackOnly;\n",
+            ),
+            COMMANDS_RS,
+        ),
+        (
+            "the e2e literal without its production base",
+            replace_in(&files, su, "..UpdateInputs::production(", "http: ("),
+            su,
+        ),
+    ];
+    for (what, planted, rel) in planted {
+        assert_reported(
+            &base,
+            &update_inputs_findings(&planted),
+            rel,
+            RULE_PRODUCTION_INPUTS,
+            what,
+        );
+    }
+}
+
+#[test]
+fn updater_e2e_cfg_sites_are_counted() {
+    let files = workspace_rs_files();
+    let base = updater_e2e_cfg_findings(&files);
+    assert!(base.is_empty(), "PD-26 findings:\n{}", show(&base));
+}
+
+#[test]
+fn planted_updater_e2e_cfg_site_fails() {
+    let files = workspace_rs_files();
+    let base = updater_e2e_cfg_findings(&files);
+    let arm = "#[cfg(feature = \"updater-e2e\")]\nfn planted() {}\n";
+    for rel in [COMMANDS_RS, TAURI_LIB_RS] {
+        let planted = updater_e2e_cfg_findings(&plant(&files, rel, arm));
+        assert_reported(&base, &planted, rel, RULE_E2E_CFG, arm);
+    }
+}
+
+#[test]
+fn harness_source_names_no_installer_or_root() {
+    let files = harness_files();
+    let base = harness_source_findings(&files);
+    let plants: [(&str, &str); 14] = [
+        (
+            "Roots :: from_os",
+            "fn planted() { let _ = krate_manager_core::roots::Roots::from_os(); }\n",
+        ),
+        ("from_os (", "fn planted() { let _ = FromOs::from_os(); }\n"),
+        (
+            "SigningKey :: release",
+            "fn planted() { let _ = SigningKey::release(); }\n",
+        ),
+        (
+            "assemble_context",
+            "use krate_manager_core::context::assemble_context;\n",
+        ),
+        (
+            "krate_manager_lib :: run",
+            "fn planted() { krate_manager_lib::run(); }\n",
+        ),
+        (
+            "NativeUpdateInstaller",
+            "use krate_manager_lib::self_update::NativeUpdateInstaller;\n",
+        ),
+        (
+            ". install (",
+            "fn planted(u: Update) { let _ = u.install(Vec::new()); }\n",
+        ),
+        (
+            "download_and_install",
+            "async fn planted(u: Update) { let _ = u.download_and_install(|_, _| {}, || {}).await; }\n",
+        ),
+        (
+            ". restart (",
+            "fn planted(app: AppHandle) { app.restart(); }\n",
+        ),
+        (
+            "process :: restart",
+            "fn planted(e: &Env) { tauri::process::restart(e); }\n",
+        ),
+        (
+            "app . path (",
+            "fn planted(app: AppHandle) { let _ = app.path().home_dir(); }\n",
+        ),
+        ("BaseDirectory", "use tauri::path::BaseDirectory;\n"),
+        ("dirs ::", "fn planted() { let _ = dirs::home_dir(); }\n"),
+        (
+            "TcpStream :: connect",
+            "fn planted() { let _ = std::net::TcpStream::connect(\"127.0.0.1:1\"); }\n",
+        ),
+    ];
+    for (needle, text) in plants {
+        let planted = harness_source_findings(&plant_or_add(&files, HARNESS_SCENARIOS_RS, text));
+        assert_detail(&base, &planted, HARNESS_SCENARIOS_RS, RULE_HARNESS, needle);
+    }
+    // Quiet: each confined token in its one home.
+    for (rel, text) in [
+        (
+            HARNESS_CONFINEMENT_RS,
+            "fn quiet() { let _ = dirs::home_dir(); }\n",
+        ),
+        (
+            HARNESS_SOCKS_RS,
+            "fn quiet() { let _ = std::net::TcpStream::connect(\"127.0.0.1:1\"); }\n",
+        ),
+    ] {
+        let new = added(
+            &base,
+            &harness_source_findings(&plant_or_add(&files, rel, text)),
+        );
+        assert!(
+            new.is_empty(),
+            "{rel}: quiet plant reported:\n{}",
+            show(&new)
+        );
+    }
+    // The completeness row: the scan reaches the six harness sources (expected red until T014 lands).
+    assert!(
+        base.is_empty(),
+        "harness source findings (FR-081 (a), SI-28, SI-29, PD-30):\n{}",
+        show(&base)
+    );
+}
+
+/// Plan §4.12 over the workspace `.rs` files and the `src-tauri` JSON (`json`):
+/// - FR-094: `tauri_plugin_updater` only in `UPDATER_CRATE_HOMES`; `reqwest` only in `src-tauri/src/self_update.rs`
+///   (SI-28).
+/// - FR-022, TA-13: in `src-tauri/src`, the `NATIVE_INSTALLER_TOKENS` only inside `impl … for NativeUpdateInstaller`.
+/// - FR-018, SI-15: no non-test source but `crates/core/src/self_update.rs` holds `E_INSTALL_SELF_UPDATING`;
+///   `SelfUpdating` as a value only inside its `fn action_gate`; each of the `GATE_SITES` holds one `action_gate (`.
+/// - FR-003 (e) and FR-070: the `FR003E_NEEDLES` and the e2e marker only inside `mod e2e` of
+///   `src-tauri/src/self_update.rs`, raw text (comments included); the guard files that spell them are exempt.
+/// - SI-24, PD-37 over `src-tauri/src/self_update.rs` (`self_update_pins`); PD-9 over `src-tauri/src/lib.rs`.
+fn self_update_findings(files: &[(String, String)], json: &[(String, String)]) -> Vec<Finding> {
+    let lexed = lex(files);
+    let toks_of = tokenized(&lexed);
+    let mut out = confinement(
+        &toks_of,
+        "tauri_plugin_updater",
+        &UPDATER_CRATE_HOMES,
+        RULE_CONFINED,
+    );
+    out.extend(confinement(
+        &toks_of,
+        "reqwest",
+        &[TAURI_SELF_UPDATE_RS],
+        RULE_CONFINED,
+    ));
+    let mut report = |file: &str, rule: &'static str, detail: String| {
+        out.push(Finding {
+            file: file.to_owned(),
+            rule,
+            detail,
+        });
+    };
+    for (l, (rel, toks)) in lexed.iter().zip(&toks_of) {
+        let rel = *rel;
+        if rel.starts_with(TAURI_SRC) {
+            let homes: Vec<Range<usize>> = impl_blocks(toks)
+                .into_iter()
+                .filter(|b| b.trait_name.is_some() && b.self_name == NATIVE_INSTALLER)
+                .map(|b| b.body)
+                .collect();
+            for needle in NATIVE_INSTALLER_TOKENS {
+                let n = seq_at(toks, &tokens(needle))
+                    .into_iter()
+                    .filter(|p| !homes.iter().any(|h| h.contains(p)))
+                    .count();
+                if n > 0 {
+                    report(
+                        rel,
+                        RULE_NATIVE_INSTALLER,
+                        format!("`{needle}` {n} time(s) outside `impl … for {NATIVE_INSTALLER}`"),
+                    );
+                }
+            }
+        }
+        if is_test_source(rel) {
+            continue;
+        }
+        if rel != CORE_SELF_UPDATE_RS {
+            let n = l
+                .literals
+                .iter()
+                .filter(|lit| lit.text.contains(SELF_UPDATING_LITERAL))
+                .count()
+                + seq_at(toks, &[SELF_UPDATING_LITERAL]).len();
+            if n > 0 {
+                report(
+                    rel,
+                    RULE_SELF_UPDATING,
+                    format!(
+                        "`{SELF_UPDATING_LITERAL}` {n} time(s) (only in {CORE_SELF_UPDATE_RS})"
+                    ),
+                );
+            }
+        }
+        let fns = fn_items(toks);
+        let typed: Vec<Range<usize>> = use_ranges(toks)
+            .into_iter()
+            .chain(item_bodies(toks).into_iter().map(|(_, fields)| fields))
+            .collect();
+        let values = seq_at(toks, &["SelfUpdating"])
+            .into_iter()
+            .filter(|&p| {
+                let value = toks.get(p + 1).is_some_and(|t| VALUE_FOLLOWERS.contains(t));
+                let declared = p > 0 && ["struct", "enum"].contains(&toks[p - 1]);
+                let gate =
+                    rel == CORE_SELF_UPDATE_RS && enclosing_fn(&fns, p) == Some("action_gate");
+                value && !declared && !gate && !typed.iter().any(|r| r.contains(&p))
+            })
+            .count();
+        if values > 0 {
+            report(
+                rel,
+                RULE_SELF_UPDATING,
+                format!(
+                    "`SelfUpdating` built {values} time(s) (only in fn action_gate of {CORE_SELF_UPDATE_RS})"
+                ),
+            );
+        }
+    }
+    for (rel, name) in GATE_SITES {
+        let Some((_, toks)) = toks_of.iter().find(|(r, _)| *r == rel) else {
+            report(rel, RULE_GATE_SITE, "not found".to_owned());
+            continue;
+        };
+        let counts: Vec<usize> = fn_items(toks)
+            .into_iter()
+            .filter(|f| f.name == name)
+            .filter_map(|f| f.body)
+            .map(|body| seq_at(&toks[body], &tokens(GATE_CALL)).len())
+            .collect();
+        if counts != [1] {
+            report(
+                rel,
+                RULE_GATE_SITE,
+                format!(
+                    "`fn {name}` bodies hold `{GATE_CALL}` {counts:?} time(s), expected [1] (FR-018)"
+                ),
+            );
+        }
+    }
+    let e2e = files
+        .iter()
+        .find(|(r, _)| r == TAURI_SELF_UPDATE_RS)
+        .map_or(0..0, |(_, text)| e2e_bytes(text));
+    for (rel, text) in files.iter().chain(json) {
+        let rel = rel.as_str();
+        let outside = |at: &usize| rel != TAURI_SELF_UPDATE_RS || !e2e.contains(at);
+        if ![INJECTION_RS, CONFIG_GUARD_RS].contains(&rel) {
+            for parts in FR003E_NEEDLES {
+                let n = loose_hits(text, parts)
+                    .into_iter()
+                    .filter(|at| outside(at))
+                    .count();
+                if n > 0 {
+                    report(
+                        rel,
+                        RULE_FR003E,
+                        format!(
+                            "`{}` {n} time(s) outside mod e2e of {TAURI_SELF_UPDATE_RS} (FR-003 (e))",
+                            parts.join(" ")
+                        ),
+                    );
+                }
+            }
+        }
+        if rel != INJECTION_RS {
+            let n = loose_hits(text, &[E2E_MARKER])
+                .into_iter()
+                .filter(|at| outside(at))
+                .count();
+            if n > 0 {
+                report(
+                    rel,
+                    RULE_E2E_MARKER,
+                    format!(
+                        "`{E2E_MARKER}` {n} time(s) outside mod e2e of {TAURI_SELF_UPDATE_RS} (FR-070)"
+                    ),
+                );
+            }
+        }
+    }
+    match files.iter().find(|(r, _)| r == TAURI_SELF_UPDATE_RS) {
+        None => report(
+            TAURI_SELF_UPDATE_RS,
+            RULE_TIMEOUT_PIN,
+            "not found".to_owned(),
+        ),
+        Some((_, text)) => {
+            for (rule, detail) in self_update_pins(text) {
+                report(TAURI_SELF_UPDATE_RS, rule, detail);
+            }
+        }
+    }
+    match toks_of.iter().find(|(r, _)| *r == TAURI_LIB_RS) {
+        None => report(TAURI_LIB_RS, RULE_FALLBACK_PIN, "not found".to_owned()),
+        Some((_, toks)) => {
+            let clones = seq_at(toks, &tokens(SELF_UPDATE_HTTP));
+            let calls = seq_at(toks, &tokens(ASSEMBLE_CALL));
+            let before = clones.len() == 1 && calls.first().is_some_and(|&call| clones[0] < call);
+            if !before {
+                report(
+                    TAURI_LIB_RS,
+                    RULE_FALLBACK_PIN,
+                    format!(
+                        "`{SELF_UPDATE_HTTP}` {} time(s), `{ASSEMBLE_CALL}` {} time(s): expected the clone once, before the call (PD-9)",
+                        clones.len(),
+                        calls.len()
+                    ),
+                );
+            }
+        }
+    }
+    out
+}
+
+/// SI-24 and PD-37 over the text of `src-tauri/src/self_update.rs`: (rule, detail) per finding.
+fn self_update_pins(text: &str) -> Vec<(&'static str, String)> {
+    let (code, _) = strip_comments_and_literals(text);
+    let toks = tokens(&code);
+    let fns = fn_items(&toks);
+    let mut out = Vec::new();
+    let build: Vec<Range<usize>> = fns
+        .iter()
+        .filter(|f| f.name == "build_updater")
+        .filter_map(|f| f.body.clone())
+        .collect();
+    for call in BUILD_UPDATER_CALLS {
+        let held: Vec<usize> = build
+            .iter()
+            .map(|body| seq_at(&toks[body.clone()], &tokens(call)).len())
+            .collect();
+        if held.len() != 1 || held[0] == 0 {
+            out.push((
+                RULE_TIMEOUT_PIN,
+                format!("`fn build_updater` bodies hold `{call}` {held:?} time(s), expected one body holding it (SI-24)"),
+            ));
+        }
+    }
+    let assignment = tokens(DOWNLOAD_TIMEOUT_ASSIGNMENT);
+    let sites: Vec<(Option<&str>, bool)> = seq_at(&toks, &tokens(TIMEOUT_ASSIGNMENT))
+        .into_iter()
+        .filter(|&p| toks.get(p + 4) != Some(&"="))
+        .map(|p| (enclosing_fn(&fns, p), toks[p..].starts_with(&assignment)))
+        .collect();
+    if sites != [(Some("prepare_download"), true)] {
+        out.push((
+            RULE_TIMEOUT_PIN,
+            format!(
+                "`{TIMEOUT_ASSIGNMENT}` sites (fn, is `{DOWNLOAD_TIMEOUT_ASSIGNMENT}`): {sites:?}, expected [(Some(\"prepare_download\"), true)] (SI-24)"
+            ),
+        ));
+    }
+    if text.to_ascii_lowercase().contains("retry") {
+        out.push((
+            RULE_TIMEOUT_PIN,
+            "the file's text holds `retry` (SI-24: the self-update never retries)".to_owned(),
+        ));
+    }
+    let impls: Vec<Range<usize>> = impl_blocks(&toks).into_iter().map(|b| b.body).collect();
+    let installs: Vec<Range<usize>> = fns
+        .iter()
+        .filter(|f| f.name == "install" && !impls.iter().any(|i| i.contains(&f.start)))
+        .filter_map(|f| f.body.clone())
+        .collect();
+    let checks = seq_at(&toks, &tokens(RELAUNCH_CHECK));
+    let take = tokens(KEPT_TAKE);
+    let placed = match (installs.as_slice(), checks.as_slice()) {
+        ([body], [at]) => {
+            body.contains(at)
+                && seq_at(&toks[body.clone()], &take)
+                    .first()
+                    .is_some_and(|&t| *at < body.start + t)
+        }
+        _ => false,
+    };
+    if !placed {
+        out.push((
+            RULE_RELAUNCH_PIN,
+            format!(
+                "`{RELAUNCH_CHECK}` {} time(s), {} free `fn install` bodies: expected one `{RELAUNCH_CHECK}`, inside `fn install`, before its first `{KEPT_TAKE}` (PD-37)",
+                checks.len(),
+                installs.len()
+            ),
+        ));
+    }
+    out
+}
+
+/// PD-36, SI-35, TA-26 over the `src-tauri/src` files: the body of `UpdateInputs::production` is
+/// `PRODUCTION_INPUTS_BODY`; `commands.rs` calls `UpdateInputs::production(` exactly twice; the only `UpdateInputs {`
+/// literal (one directly after `struct`, `impl`, `for` or `->` is a type, not a literal) is inside `mod e2e` of
+/// `self_update.rs` and holds `..UpdateInputs::production(`; `UrlPolicy::LoopbackOnly` only inside that module.
+fn update_inputs_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    let mut report = |file: &str, detail: String| {
+        out.push(Finding {
+            file: file.to_owned(),
+            rule: RULE_PRODUCTION_INPUTS,
+            detail,
+        });
+    };
+    let mut e2e_literals = 0;
+    let mut bodies_seen = false;
+    for l in lex(files).iter().filter(|l| l.rel.starts_with(TAURI_SRC)) {
+        let rel = l.rel.as_str();
+        let toks = tokens(&l.code);
+        let e2e = if rel == TAURI_SELF_UPDATE_RS {
+            mod_body(&toks, "e2e")
+        } else {
+            None
+        };
+        let in_e2e = |p: usize| e2e.as_ref().is_some_and(|body| body.contains(&p));
+        if rel == TAURI_SELF_UPDATE_RS {
+            bodies_seen = true;
+            let impls: Vec<Range<usize>> = impl_blocks(&toks)
+                .into_iter()
+                .filter(|b| b.trait_name.is_none() && b.self_name == "UpdateInputs")
+                .map(|b| b.body)
+                .collect();
+            let got: Vec<String> = fn_items(&toks)
+                .into_iter()
+                .filter(|f| f.name == "production" && impls.iter().any(|i| i.contains(&f.start)))
+                .filter_map(|f| f.body)
+                .map(|body| {
+                    let inner =
+                        &toks[body.start + 1..body.end.saturating_sub(1).max(body.start + 1)];
+                    inner
+                        .iter()
+                        .enumerate()
+                        .filter(|&(k, t)| !(*t == "," && inner.get(k + 1) == Some(&"}")))
+                        .map(|(_, t)| *t)
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                })
+                .collect();
+            let want = tokens(PRODUCTION_INPUTS_BODY).join(" ");
+            if got != [want.as_str()] {
+                report(
+                    rel,
+                    format!(
+                        "`impl UpdateInputs` `fn production` bodies are {got:?}, expected [{want:?}] (PD-36)"
+                    ),
+                );
+            }
+        }
+        if rel == COMMANDS_RS {
+            let n = seq_at(&toks, &tokens(PRODUCTION_INPUTS_CALL)).len();
+            if n != PRODUCTION_INPUTS_CALLS {
+                report(
+                    rel,
+                    format!(
+                        "`{PRODUCTION_INPUTS_CALL}` {n} time(s), expected {PRODUCTION_INPUTS_CALLS}, one per command (PD-36)"
+                    ),
+                );
+            }
+        }
+        for p in seq_at(&toks, &["UpdateInputs", "{"]) {
+            if is_type_brace(&toks, p) {
+                continue;
+            }
+            let end = close_of(&toks, p + 1).min(toks.len() - 1);
+            let based = !seq_at(&toks[p + 1..=end], &tokens(E2E_INPUTS_BASE)).is_empty();
+            if in_e2e(p) && based {
+                e2e_literals += 1;
+            } else {
+                let place = if in_e2e(p) {
+                    "without `..UpdateInputs::production(`"
+                } else {
+                    "outside mod e2e"
+                };
+                report(
+                    rel,
+                    format!(
+                        "an `UpdateInputs {{` literal {place} (only mod e2e of {TAURI_SELF_UPDATE_RS} builds one, on the production base; PD-36)"
+                    ),
+                );
+            }
+        }
+        let n = seq_at(&toks, &tokens(LOOPBACK_POLICY))
+            .into_iter()
+            .filter(|&p| !in_e2e(p))
+            .count();
+        if n > 0 {
+            report(
+                rel,
+                format!(
+                    "`{LOOPBACK_POLICY}` {n} time(s) outside mod e2e of {TAURI_SELF_UPDATE_RS} (PD-36)"
+                ),
+            );
+        }
+    }
+    if !bodies_seen {
+        report(TAURI_SELF_UPDATE_RS, "not found".to_owned());
+    }
+    if e2e_literals != 1 {
+        report(
+            TAURI_SELF_UPDATE_RS,
+            format!(
+                "mod e2e builds {e2e_literals} `UpdateInputs {{ …, ..UpdateInputs::production(…) }}` literal(s), expected 1 (PD-36)"
+            ),
+        );
+    }
+    out
+}
+
+/// PD-26 over the workspace `.rs` files: `feature = "updater-e2e"` in code (the literal looked up by byte offset)
+/// exactly as often as `UPDATER_E2E_CFG_SITES` says, and in no other file.
+fn updater_e2e_cfg_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    for (rel, _) in UPDATER_E2E_CFG_SITES {
+        if !files.iter().any(|(r, _)| r == rel) {
+            out.push(Finding {
+                file: rel.to_owned(),
+                rule: RULE_E2E_CFG,
+                detail: "not found".to_owned(),
+            });
+        }
+    }
+    for l in lex(files) {
+        let spans = spanned_tokens(&l.code);
+        let n = spans
+            .windows(2)
+            .enumerate()
+            .filter(|(_, w)| w[0].1 == "feature" && w[1].1 == "=")
+            .filter(|(k, _)| {
+                let from = spans[k + 1].0;
+                let to = spans.get(k + 2).map_or(l.code.len(), |(at, _)| *at);
+                literal_between(&l.literals, from, to)
+                    .is_some_and(|lit| lit.text == UPDATER_E2E_FEATURE)
+            })
+            .count();
+        let want = UPDATER_E2E_CFG_SITES
+            .iter()
+            .find(|(rel, _)| *rel == l.rel)
+            .map_or(0, |(_, n)| *n);
+        if n != want {
+            out.push(Finding {
+                file: l.rel.clone(),
+                rule: RULE_E2E_CFG,
+                detail: format!(
+                    "`feature = \"{UPDATER_E2E_FEATURE}\"` {n} time(s), expected {want} (PD-26)"
+                ),
+            });
+        }
+    }
+    out
+}
+
+/// FR-081 (a), SI-28, SI-29, PD-30 over the harness sources: plan §2's six files present; no `HARNESS_BANNED` token
+/// in code; each `HARNESS_CONFINED` token only in its file.
+fn harness_source_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let lexed = lex(files);
+    let toks_of = tokenized(&lexed);
+    let mut out: Vec<Finding> = HARNESS_FILES
+        .iter()
+        .filter(|rel| !files.iter().any(|(r, _)| r == *rel))
+        .map(|rel| Finding {
+            file: (*rel).to_owned(),
+            rule: RULE_HARNESS,
+            detail: "not found: the scan must reach plan §2's six harness sources".to_owned(),
+        })
+        .collect();
+    for needle in HARNESS_BANNED {
+        out.extend(confinement(&toks_of, needle, &[], RULE_HARNESS));
+    }
+    for (needle, home) in HARNESS_CONFINED {
+        out.extend(confinement(&toks_of, needle, &[home], RULE_HARNESS));
+    }
+    out
 }

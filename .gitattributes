@@ -29,3 +29,5 @@ tools/feed-contract/fixtures/** -text
 tools/feed-contract/keys/** -text
 # M-1's recorded Inno run (Krate Manager Phase 10): replayed byte for byte by the helper and core tests.
 apps/krate-manager/tests/fixtures/helper/inno-locked/** -text
+# The rsign-format fixture of the Krate Manager Phase 11 refusal harness: its signature covers the raw bytes.
+apps/krate-manager/tests/fixtures/updater-refusals/fixtures/** -text

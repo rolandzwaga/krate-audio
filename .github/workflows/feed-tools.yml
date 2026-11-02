@@ -20,6 +20,9 @@ on:
       - '.github/workflows/manager-ci.yml'
       - 'apps/krate-manager/package.json'
       - 'apps/krate-manager/tests/required-tests.json'
+      - 'tools/gen-manager-latest.js'
+      - 'tools/manager-release-preflight.js'
+      - '.github/workflows/release-manager.yml'
   pull_request:
     paths:
       - 'tools/gen-feed.js'
@@ -39,6 +42,9 @@ on:
       - '.github/workflows/manager-ci.yml'
       - 'apps/krate-manager/package.json'
       - 'apps/krate-manager/tests/required-tests.json'
+      - 'tools/gen-manager-latest.js'
+      - 'tools/manager-release-preflight.js'
+      - '.github/workflows/release-manager.yml'
   workflow_dispatch:
 
 permissions:
@@ -83,7 +89,7 @@ jobs:
           node --test --test-reporter=tap "tools/feed-contract/tests/*.test.js" | tee "$RUNNER_TEMP/tap.txt"
           node - "$RUNNER_TEMP/tap.txt" <<'TAPCHECK'
           const lines = require("fs").readFileSync(process.argv[2], "utf8").split(/\r?\n/);
-          const PLAN = "1..59";
+          const PLAN = "1..64";
           const NAMES = [
             "minisign.js verifies the rsign2 KAT",
             "minisign.js sign and verify round trip",
@@ -120,6 +126,11 @@ jobs:
             "feed-publish decides every workflow branch",
             "lint-manager-version accepts equal versions and names every drift",
             "manager-ci.yml keeps the Phase 4 shape",
+            "gen-manager-latest writes per-tag latest.json",
+            "gen-manager-latest refuses what it cannot verify",
+            "manager release preflight refuses by name",
+            "manager release body is exact",
+            "release-manager.yml keeps the Phase 11 shape",
           ];
           const bad = [];
           if (!lines.includes("# fail 0")) bad.push('no "# fail 0" line');
