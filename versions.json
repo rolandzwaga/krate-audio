@@ -283,14 +283,49 @@
       }
     },
     "Seraphis": {
-      "version": "1.0.3",
+      "version": "1.0.4",
       "download_url": "https://krateaudio.com/seraphis/",
       "release_notes": "",
-      "tag": "seraphis/v1.0.3",
-      "pub_date": "2026-10-29T21:04:05Z",
+      "tag": "seraphis/v1.0.4",
+      "pub_date": "2026-11-02T22:24:05Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.3",
-      "notes_markdown": "### Fixed\n\n- **The FX delay was up to 6 dB too quiet** *(shared DSP)* — The FX delay is the shared spectral delay, which delays each frequency band in whole analysis frames and reached delay times between two frames by blending the two frames, which partly cancels: at 250 ms a tone came back 4.7 to 5.8 dB low and short notes 5 dB low. The delayed bands now come from the nearer frame, shifted the rest of the way in phase, so the echo comes back at full level at any delay time. Presets that use the FX delay get a louder echo, by up to about 6 dB depending on the delay time. Found while tuning Iterum, which uses the same delay. The Restless preset, which leans on the FX delay, now sets Delay Mix to 25 % (was 45 %), so it keeps the balance it was voiced with.\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins."
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.4",
+      "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Seraphis AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
+      "platforms": {
+        "darwin-universal": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.4/Seraphis-1.0.4-macOS.pkg",
+          "size": 7227331,
+          "sha256": "a47b7d0a891be0fd16a352c2cfeb1c9b15acf197658fc86db8bff2b6f7aa5651",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn1SN97oLaJvGN9M3q6+axmxsQ3+9SfG4fvidyhclUbbX6DVGG5uBXWWKw5dvU5yeyemmviANSqbrGuQDFAqUjgQ=\ntrusted comment: krate:1:Seraphis:1.0.4:darwin-universal:Seraphis-1.0.4-macOS.pkg\nGiaQYKtEKTz/bfcxN8Wl//OeADtbYwcdbii/QVwy/NBhl0AUNx/J86eCHbFarAm8jpKHWGPrtZ4e6wa33gMqAQ==\n",
+          "format": "pkg",
+          "min_os": "26.5"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.4/Seraphis-1.0.4-Linux-x64.tar.gz",
+          "size": 1675426,
+          "sha256": "2e1258161311a6d69a05c3de0a607c5d32862166e6731811220e402cf94436c8",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn7E6oJOilSBnGjYGNGP6ximnvgoJDF7Fc6yG6navywxppRDsf9YII/6LtToXK+TzITx5GcrfLsBqdNbx6ohD2Qo=\ntrusted comment: krate:1:Seraphis:1.0.4:linux-x86_64:Seraphis-1.0.4-Linux-x64.tar.gz\nNuhqUr71mGCXgPh3WmAcsXcpJCGR3mfI4nwDdxYlREky3shWMpminsBiH7IcmqLqtwJ09GorMZDHZE2/v7E6Dw==\n",
+          "format": "tar.gz",
+          "min_os": "2.38",
+          "payload": {
+            "files": 59,
+            "sha256": "c4aa8186878eea3d67ee776378b2b78a864eb8f766bd55986d578142ba44553a"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.4/Seraphis-1.0.4-Windows-x64.exe",
+          "size": 3525302,
+          "sha256": "a185f18d683d2f9c57ae2242cb49e99dfb856c16bd236c7d1b86529692ffc5f2",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn72igrnrNqWw8Njag34C1T3imxY/etxQ9M3F3clB7OPewVdd500MXzqZEUer8Bb73ZXTFaC7IDiigroZk6mJAw8=\ntrusted comment: krate:1:Seraphis:1.0.4:windows-x86_64:Seraphis-1.0.4-Windows-x64.exe\nqtqbmSUpcOD8yeXzww/RVrlR7rtGRDT2YmTempAIUttVZ9e5z7KXJLpCN/NfbNTbp4LMyc8AamkF6hZSAuJjBg==\n",
+          "format": "inno-exe"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Seraphis.vst3",
+        "au_component": "Seraphis.component",
+        "windows_uninstall_key": "{13374501-3449-485E-A0F7-E7A3D28E12E9}_is1",
+        "macos_pkg_id": "com.krateaudio.seraphis"
+      }
     },
     "Vorago": {
       "version": "1.0.2",
