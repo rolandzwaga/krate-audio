@@ -822,7 +822,7 @@ Linux (no elevation).
 
 **Spec:** `krate-manager-phase11`
 
-**Status: ✅ COMPLETE (PENDING-CI: 22 item(s)) (2026-11-02)** — see specs/krate-manager-phase11/compliance.md
+**Status: ✅ COMPLETE (PENDING-CI: 17 item(s)) (2026-11-02)** — see specs/krate-manager-phase11/compliance.md
 
 Components:
 - 🆕 `tauri-plugin-updater` ≥ 2.14.1 with `requireSignedVersion: true`, `allowDowngrades` false, `createUpdaterArtifacts:

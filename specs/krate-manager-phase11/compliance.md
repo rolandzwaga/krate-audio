@@ -1,6 +1,6 @@
 # Krate Manager Phase 11 (krate-manager-phase11) - Compliance
 
-Overall status: COMPLETE (PENDING-CI: 22 item(s))
+Overall status: COMPLETE (PENDING-CI: 17 item(s)) (update 2026-11-02: Manager CI run 41405595006 (`29ba6cef`, all jobs success) proved FR-073, FR-084, FR-096, SC-007 macOS/Linux, SC-017; the rest need release-manager.yml dispatches)
 
 ## Honest gap list (first)
 
@@ -62,7 +62,7 @@ Overall status: COMPLETE (PENDING-CI: 22 item(s))
 | FR-070 | pass | updater-e2e feature not default; one `mod e2e` in self_update.rs; lib.rs 2 cfg sites; injection.rs:6652. |
 | FR-071 | pass | updater-e2e job :780-1256 structure; e2e-update-server binds 127.0.0.1; 'e2e update server serves only its directory' ok. |
 | FR-072 | pending-ci | Cases exist (windows, user-placed, pkg-installed, appimage, deb). Whether the hosted runner can raise and cancel the SecurityAgent prompt is unmeasured. Proof: `updater-e2e (windows-latest)`, `(macos-latest)`, `(ubuntu-24.04)` (SC-015). |
-| FR-073 | pending-ci | Local: updater-e2e cargo tree count 0, marker count 1 in source, close-lane A1f clippy `warning-lines=0 exit=0`. Release-binary zero count needs `check (...)` step 'updater-e2e absent' notice. |
+| FR-073 | pass (CI) | Local: updater-e2e cargo tree count 0, marker count 1 in source, close-lane A1f clippy `warning-lines=0 exit=0`. Release-binary zero count needs `check (...)` step 'updater-e2e absent' notice. CI Manager CI run 41405595006 (`29ba6cef`, all jobs success): 'updater-e2e absent (Windows)', 'updater-e2e absent (macOS)', 'updater-e2e absent (Linux)' "cargo tree hits=0, marker in source=1, in 1 release binaries=0" (macOS: "in 2 release binaries=0"); 'clippy updater-e2e (Windows)', 'clippy updater-e2e (macOS)', 'clippy updater-e2e (Linux)' "clean (compiled and linted, never run)". |
 | FR-074 | pass | 'annotate' step :1235-1245; per-leg `::error title=$leg::` messages; logs uploaded. |
 | FR-075 | pass | first-install :1259-1295 matrix and artifacts. |
 | FR-076 | pending-ci | Per-leg install/launch code present (:1297-1493). Proven only by `first-install (<leg>)` on CI (SC-016). |
@@ -72,14 +72,14 @@ Overall status: COMPLETE (PENDING-CI: 22 item(s))
 | FR-081 | pass | temp_roots confinement; `--plant committed-key` printed `E_HARNESS_KEY: the harness key is the committed release key` rc=1; `--plant bind-any` printed `E_HARNESS_BIND: the harness binds 127.0.0.1 only, not 0.0.0.0:0` rc=1. |
 | FR-082 | pass | main.rs LINE_COUNT 27; output `harness: 27 ok, 0 not ok`, rc=0. |
 | FR-083 | pass | harness clippy `Finished dev profile` rc=0, fmt --check exit 0; manager-ci shape test ok. |
-| FR-084 | pending-ci | Windows: 27 ok, 0 not ok, plants rc=1 (d9-windows.txt `D9 WINDOWS LOADS`). Proof for other legs: `check (macos-latest)`/`check (ubuntu-24.04)` notice `updater refusals::27 ok, 0 not ok; plants exit 1`. |
+| FR-084 | pass (CI) | Windows: 27 ok, 0 not ok, plants rc=1 (d9-windows.txt `D9 WINDOWS LOADS`). Proof for other legs: `check (macos-latest)`/`check (ubuntu-24.04)` notice `updater refusals::27 ok, 0 not ok; plants exit 1`. CI Manager CI run 41405595006 (`29ba6cef`, all jobs success): 'updater refusals (Windows)', 'updater refusals (macOS)', 'updater refusals (Linux)' "27 ok, 0 not ok; plants exit 1"; 'clippy updater-refusals (Windows)', 'clippy updater-refusals (macOS)', 'clippy updater-refusals (Linux)' "clippy -D warnings and cargo fmt --check clean". |
 | FR-090 | pass | Only panicking/refusing installers locally; real installers/hosts edits only in release-manager.yml hosted jobs. |
 | FR-091 | pass | feed-tools.yml wired; shape test mutation table; `node --test` of the 5 Phase 11 test files: tests 219, pass 219, fail 0. |
 | FR-092 | pass | `git diff --name-only 30878b36 -- <fenced paths>` printed nothing; `scope-check: 80 paths (48 under apps/krate-manager/, 32 outside): OK (base 30878b36)`. |
 | FR-093 | pass | Roadmap edits (a)-(c),(e) present; status line (d) is written only by the workflow's mark-roadmap step after zero fail/partial (krate-manager-phase.js:766-773), so absent now by design. |
 | FR-094 | pass | config_guard.rs:963 [features] pin; injection.rs:6586-7180 rules with plants; injection 39 passed, 0 failed. |
 | FR-095 | pass | required-tests.json updated; close-lane B2 `::notice title=required tests ran (Windows)::372 cargo + 70 vitest + 6 node`. |
-| FR-096 | pending-ci | 'roster absent' unchanged; local target/release/krate-manager.exe is older than self_update.rs so proves nothing. Proof: `check (windows/macos/ubuntu)` step 'roster absent' notice on the updater-linked binary. |
+| FR-096 | pass (CI) | 'roster absent' unchanged; local target/release/krate-manager.exe is older than self_update.rs so proves nothing. Proof: `check (windows/macos/ubuntu)` step 'roster absent' notice on the updater-linked binary. CI Manager CI run 41405595006 (`29ba6cef`, all jobs success): 'roster absent (Windows)', 'roster absent (macOS)', 'roster absent (Linux)' "9 names, 0 hits in 4 files". |
 | FR-097 | pass | `.gitattributes` line added; `git check-attr -a tools/feed-contract/keys/krate-signing.pub` printed `text: unset`. |
 | SC-001 | pass | `cargo test --workspace --locked` exit 0, core 296 passed 0 failed; url_policy, redirect_hops ok. Deviation: spec row `https://API.GITHUB.COM/x` is tested as `https://API.GITHUB.COM./x` (trailing dot); dotless form covered by url::Url lowercasing. |
 | SC-002 | pass | proxy_choice_matches_core ok; `assert_eq!(matched, 5)` passed (5/5). |
@@ -87,7 +87,7 @@ Overall status: COMPLETE (PENDING-CI: 22 item(s))
 | SC-004 | pass | updater_config_pinned, planted_updater_config_fails_the_guard, endpoint_matches_feed_tool ok (config_guard 11 passed). |
 | SC-005 | pass | busy_rule ok. |
 | SC-006 | pass | release_for_restart_frees_the_lock ok (spec's `Locked` is code variant `Held`). |
-| SC-007 | pass (Windows); macOS/Linux pending-ci | Windows: 27 ok lines, `harness: 27 ok, 0 not ok`, plants rc=1; macOS/Linux legs via manager-ci.yml step `updater refusals` (:199-235). |
+| SC-007 | pass | Windows: 27 ok lines, `harness: 27 ok, 0 not ok`, plants rc=1; macOS/Linux legs via manager-ci.yml step `updater refusals` (:199-235). CI Manager CI run 41405595006 (`29ba6cef`, all jobs success): 'updater refusals (macOS)' and '(Linux)' "27 ok, 0 not ok; plants exit 1"; 'required tests ran' (Windows) "372 cargo + 70 vitest + 6 node", (macOS) "404 cargo + 70 vitest + 6 node", (Linux) "398 cargo + 70 vitest + 6 node". |
 | SC-008 | pass | `node --test scripts/*.test.js`: 'bundle release mode argv', 'bundle release asset table' ok, tests 6 pass 6 fail 0. |
 | SC-009 | pass | `node --test tools/feed-contract/tests/*.test.js`: tests 869, pass 864, fail 0, skipped 5 (POSIX-only pre-existing). |
 | SC-010 | pass | 'collect copies only a valid manager latest.json' ok incl. group (7). |
@@ -97,7 +97,7 @@ Overall status: COMPLETE (PENDING-CI: 22 item(s))
 | SC-014 | pending-ci | Needs `dry-publish` (:1610) and `publish` (:1496); `checkLatestJson` at :1713-1717. |
 | SC-015 | pending-ci | Needs `updater-e2e (<os>)` jobs; local early signal `ok rsign-format`. |
 | SC-016 | pending-ci | Needs `first-install (<leg>)` jobs. |
-| SC-017 | pending-ci | Needs manager-ci.yml `check` on every leg: 'clippy updater-e2e', 'updater refusals', 'updater-e2e absent'. Local updater-e2e clippy exit=0, 0 warnings. |
+| SC-017 | pass (CI) | Needs manager-ci.yml `check` on every leg: 'clippy updater-e2e', 'updater refusals', 'updater-e2e absent'. Local updater-e2e clippy exit=0, 0 warnings. CI Manager CI run 41405595006 (`29ba6cef`, all jobs success): 'clippy updater-e2e (Windows)', 'clippy updater-e2e (macOS)', 'clippy updater-e2e (Linux)' "clean (compiled and linted, never run)"; 'updater refusals (Windows)', 'updater refusals (macOS)', 'updater refusals (Linux)' "27 ok, 0 not ok; plants exit 1"; 'updater-e2e absent (Windows)', 'updater-e2e absent (macOS)', 'updater-e2e absent (Linux)' release binaries=0. |
 | SC-018 | pending-ci | Needs `build (linux)` 'glibc floor' notice. |
 | SC-019 | pending-ci | Needs a `dry_run: true` dispatch by the user; ls-remote before/after readings do not exist yet. |
 | SC-020 | pending-ci | Phase 12 exit criterion; needs the user's first real dispatch. |
