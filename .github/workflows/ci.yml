@@ -955,6 +955,9 @@ jobs:
       # The release's own facts rule (tools/release-facts.js, E_FACTS_ARCH_MISMATCH) on every AUv3 app built
       # here: each Mach-O inside, the bundled VST3 included, must be arm64 + x86_64. The app and its extension
       # were arm64-only until 2026-11-02, and backfill-sign refused every macOS release on it.
+      - name: Install feed-contract deps
+        run: npm ci --prefix tools/feed-contract
+
       - name: Verify AUv3 apps are universal
         run: |
           shopt -s nullglob
