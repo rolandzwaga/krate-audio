@@ -193,14 +193,18 @@ pub(crate) fn reassemble_with_os(os: Os, prev: &AppState, settings: Settings) ->
     }
 }
 
-/// The one way to swap in new settings (PD-2): the read guard is dropped before the write
-/// guard is taken, so this thread never holds both.
+/// The one way to swap in new settings (PD-2): one write guard, so no reassembled lock clone
+/// outlives it.
 pub fn apply_settings(shared: &SharedState, settings: Settings) {
-    let next = {
-        let guard = shared.read().unwrap_or_else(PoisonError::into_inner);
-        reassemble(&guard, settings)
-    };
-    *shared.write().unwrap_or_else(PoisonError::into_inner) = next;
+    apply_settings_with_os(NativePlatform.os(), shared, settings);
+}
+
+/// `apply_settings` for a forced OS (Phase 12 PD-9): the reassembly is computed and assigned
+/// under one write guard, so `release_for_restart` never sees the lock still shared by a save.
+pub(crate) fn apply_settings_with_os(os: Os, shared: &SharedState, settings: Settings) {
+    let mut guard = shared.write().unwrap_or_else(PoisonError::into_inner);
+    let next = reassemble_with_os(os, &guard, settings);
+    *guard = next;
 }
 
 /// `LOCKED_NOTICE` exactly when another instance holds the lock (FR-101).

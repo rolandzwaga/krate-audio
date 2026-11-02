@@ -28,6 +28,15 @@ pub struct StatusView {
     pub running_os: Option<String>,
     pub feed: FeedView,
     pub plugins: Vec<PluginView>,
+    /// Phase 12 FR-052: plugins the manager installed that the feed no longer offers (Linux only).
+    pub orphans: Vec<OrphanView>,
+}
+
+/// Phase 12 FR-052 (PD-13): one orphan card, named by its manifest.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct OrphanView {
+    pub name: String,
+    pub version: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -207,7 +216,7 @@ pub fn build(ctx: &AppContext, mode: FetchMode, now_unix: u64, host: &dyn HostFa
 /// FR-040: one feed check, one OS-version read, one listing, one detection per entry in feed order on the calling
 /// thread, then `assemble_with_gates` and one `info!`. No lock, no write, no thread (the feed-cache write is Phase
 /// 5's). Only when `os` has an install driver, one read-only `install::action_gate` per entry with install facts
-/// (Phase 9 FR-100, PD-15).
+/// (Phase 9 FR-100, PD-15). On Linux with a snapshot, one bounded manifest listing through `io` (Phase 12 FR-052).
 pub fn build_with_os(
     os: Os,
     arch: Arch,
@@ -245,7 +254,7 @@ pub fn build_with_os(
             detections.insert(key.clone(), detection);
         }
     }
-    let view = assemble_with_gates(
+    let mut view = assemble_with_gates(
         os,
         arch,
         &check,
@@ -254,6 +263,7 @@ pub fn build_with_os(
         &gates,
         driver_present,
     );
+    view.orphans = orphans(os, &check, ctx, io);
     let copies: usize = view.plugins.iter().map(|p| p.copies.len()).sum();
     let source = match view.feed.source {
         FeedSource::Fresh => "fresh",
@@ -266,6 +276,27 @@ pub fn build_with_os(
         view.plugins.len()
     );
     view
+}
+
+/// Phase 12 FR-052, FR-054 (PD-13): Linux only, over a snapshot; every manifest whose `plugin` is no snapshot key and
+/// whose `version` is a string, sorted by name. Any `manifest_heads` error (over 256 entries among them) lists none.
+fn orphans(os: Os, check: &FeedCheck, ctx: &AppContext, io: &dyn InstallIo) -> Vec<OrphanView> {
+    let (Os::Linux, Some(snapshot)) = (os, &check.snapshot) else {
+        return Vec::new();
+    };
+    let Ok(heads) = install::manifest_heads(io, ctx.roots.state_dir()) else {
+        return Vec::new();
+    };
+    let mut orphans: Vec<OrphanView> = heads
+        .into_iter()
+        .filter_map(|head| {
+            let name = head.plugin?;
+            let version = head.version?;
+            (!snapshot.feed.plugins.contains_key(&name)).then_some(OrphanView { name, version })
+        })
+        .collect();
+    orphans.sort_by(|a, b| a.name.cmp(&b.name));
+    orphans
 }
 
 /// FR-041: `assemble_with_gates` with no gate and no driver, so every card's `actions` is empty.
@@ -344,6 +375,7 @@ pub fn assemble_with_gates(
         running_os: running.map(|v| v.to_string()),
         feed,
         plugins,
+        orphans: Vec::new(),
     }
 }
 

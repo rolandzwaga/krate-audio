@@ -24,6 +24,14 @@ on:
       - 'tools/manager-release-preflight.js'
       - '.github/workflows/release-manager.yml'
       - '.gitattributes'                      # line endings decide shebang / byte-exact fixture tests (d925be34)
+      - 'docs/manager-card-template.html'     # Krate Manager Phase 12 FR-086 (SI-16): the card, the README, the
+      - 'docs/index-template.html'            # release procedure, the landing generator and its third caller, and
+      - 'apps/krate-manager/README.md'        # the FR-073 record that flips SC-016b
+      - 'apps/krate-manager/RELEASING.md'
+      - 'tools/gen-root-index.js'
+      - 'tools/manager-readiness-counts.js'
+      - '.github/workflows/docs.yml'
+      - 'specs/krate-manager-phase12/user-checks.md'
   pull_request:
     paths:
       - 'tools/gen-feed.js'
@@ -47,6 +55,14 @@ on:
       - 'tools/manager-release-preflight.js'
       - '.github/workflows/release-manager.yml'
       - '.gitattributes'                      # line endings decide shebang / byte-exact fixture tests (d925be34)
+      - 'docs/manager-card-template.html'     # Krate Manager Phase 12 FR-086 (SI-16): the card, the README, the
+      - 'docs/index-template.html'            # release procedure, the landing generator and its third caller, and
+      - 'apps/krate-manager/README.md'        # the FR-073 record that flips SC-016b
+      - 'apps/krate-manager/RELEASING.md'
+      - 'tools/gen-root-index.js'
+      - 'tools/manager-readiness-counts.js'
+      - '.github/workflows/docs.yml'
+      - 'specs/krate-manager-phase12/user-checks.md'
   workflow_dispatch:
 
 permissions:
@@ -91,7 +107,7 @@ jobs:
           node --test --test-reporter=tap "tools/feed-contract/tests/*.test.js" | tee "$RUNNER_TEMP/tap.txt"
           node - "$RUNNER_TEMP/tap.txt" <<'TAPCHECK'
           const lines = require("fs").readFileSync(process.argv[2], "utf8").split(/\r?\n/);
-          const PLAN = "1..64";
+          const PLAN = "1..69";
           const NAMES = [
             "minisign.js verifies the rsign2 KAT",
             "minisign.js sign and verify round trip",
@@ -133,6 +149,11 @@ jobs:
             "manager release preflight refuses by name",
             "manager release body is exact",
             "release-manager.yml keeps the Phase 11 shape",
+            "root index renders the plugin cards and the manager card",
+            "first-launch statements are in the README and the card",
+            "readiness counts and the closed post-release list",
+            "manager release preflight enforces the RustSec record",
+            "landing pages render with gen-root-index.js",
           ];
           const bad = [];
           if (!lines.includes("# fail 0")) bad.push('no "# fail 0" line');

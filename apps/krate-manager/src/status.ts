@@ -1,11 +1,23 @@
 // The status section (spec FR-070 to FR-078, FR-097 to FR-099, Phase 10 FR-130 to FR-135; plan §4.7, §4.10, PD-13,
-// PD-14, PD-18, PD-22). Every string comes from STATUS_TEXTS, ACTION_TEXTS or INSTALL_TEXTS through `fill` and reaches
+// PD-14, PD-18, PD-22; Phase 12 FR-021 to FR-028 (Update all) and FR-053 (orphan cards), plan §4.7, PD-15). Every string comes from STATUS_TEXTS, ACTION_TEXTS or INSTALL_TEXTS through `fill` and reaches
 // the DOM through textContent; the only properties set from view data are `ol.start` (notes.ts) and
 // `button.disabled`; the release-page URL lives only in its button's click closure.
 import { Channel } from "@tauri-apps/api/core";
 import { renderBlocks } from "./notes";
-import { toActionSummary, toInstallProgress } from "./view";
-import type { ActionName, ActionSummary, CopyView, InstallProgress, OsName, PluginView, StatusView, UnknownReason } from "./view";
+import { toActionSummary, toBatchProgress, toBatchSummary, toInstallProgress } from "./view";
+import type {
+  ActionName,
+  ActionNotice,
+  ActionSummary,
+  BatchProgress,
+  CopyView,
+  InstallProgress,
+  OrphanView,
+  OsName,
+  PluginView,
+  StatusView,
+  UnknownReason,
+} from "./view";
 
 /** Every FR-071 cell, the FR-074 feed lines, the check control and the note: each reached by a golden. */
 export const STATUS_TEXTS = {
@@ -97,6 +109,11 @@ export const INSTALL_TEXTS = {
     "4. Last resort: move the files in ~/Library/Caches/AudioUnitCache out, restart, and reopen Logic (the rescan can take a while).",
   appleGuide: "Apple's guide: support.apple.com/en-us/122179",
   removeElsewhere: "Installed outside the standard folder: uninstall it from Windows Settings → Apps.",
+  // Phase 12 FR-021 to FR-025, FR-053: the Update-all control, its confirmation lines and the orphan card's line.
+  updateAll: "Update all",
+  confirmUpdateAll: "Update these plugins?",
+  updateAllLine: "{name} {installed} → {latest}",
+  orphanLine: "{name} {version}: no longer offered; installed by Krate Manager",
 } as const satisfies Record<string, string>;
 
 /** FR-131's administrator line per OS; Linux actions run unelevated and add none. */
@@ -158,8 +175,10 @@ interface CardHost {
   readonly outcomes: Map<string, string[]>;
   /** Re-reads the status after an action; the section re-renders, bare `renderCards` has nothing to re-render. */
   refresh(): Promise<void>;
-  /** False while Krate Manager updates itself (Phase 11 FR-025): every action button stays disabled. */
+  /** False while Krate Manager updates itself (Phase 11 FR-025) or a batch runs (PD-15): every action button stays disabled. */
   actionsEnabled(): boolean;
+  /** A card action started (its row is `running`) or settled: the section clears its batch lines and recomputes Update all. */
+  actionChanged(): void;
 }
 
 export interface StatusSection {
@@ -169,6 +188,10 @@ export interface StatusSection {
   reject(text: string): void;
   /** Phase 11 FR-025: disables or re-enables every card action button and `Check now`. */
   setActionsEnabled(enabled: boolean): void;
+  /** Phase 12 PD-14: the OS of the last rendered view; `null` before the first render. */
+  readonly lastOs: OsName | null;
+  /** Phase 12 PD-14: re-reads the status (one `plugin_status` call) and re-renders, keeping the outcome lines. */
+  refresh(): Promise<void>;
 }
 
 /** The text of a rejected command: Tauri rejects with the command's `Err(String)`. */
@@ -357,28 +380,41 @@ function outcomeLines(summary: ActionSummary): string[] {
       lines.push(INSTALL_TEXTS.removed);
       break;
   }
-  if (summary.notice !== null) lines.push(INSTALL_TEXTS.rescan);
-  if (summary.notice === "rescan_daw_macos") {
-    lines.push(
-      INSTALL_TEXTS.rescanMacos1,
-      INSTALL_TEXTS.rescanMacos2,
-      INSTALL_TEXTS.rescanMacos3,
-      INSTALL_TEXTS.rescanMacos4,
-      INSTALL_TEXTS.appleGuide,
-    );
-  }
+  lines.push(...noticeLines(summary.notice));
   for (const kept of summary.kept) lines.push(fill(INSTALL_TEXTS.kept, { path: kept.path }));
   return lines;
 }
 
+/** The DAW notice's lines: `rescan`, plus Apple's AU steps and guide for `rescan_daw_macos` (FR-133). */
+function noticeLines(notice: ActionNotice | null): string[] {
+  if (notice === null) return [];
+  if (notice === "rescan_daw") return [INSTALL_TEXTS.rescan];
+  return [
+    INSTALL_TEXTS.rescan,
+    INSTALL_TEXTS.rescanMacos1,
+    INSTALL_TEXTS.rescanMacos2,
+    INSTALL_TEXTS.rescanMacos3,
+    INSTALL_TEXTS.rescanMacos4,
+    INSTALL_TEXTS.appleGuide,
+  ];
+}
+
+/** What one card's action row acts on: a plugin card or an orphan card (Phase 12 FR-053). */
+interface RowTarget {
+  readonly name: string;
+  readonly latest: string;
+  readonly actions: readonly ActionName[];
+  confirmLines(action: ActionName): HTMLParagraphElement[];
+}
+
 /**
  * The card's `div.actions` row (FR-097 to FR-099): a click swaps it for the in-card confirmation; `Confirm` disables
- * every action button, shows progress in front of `anchor`, runs the command, then the outcome lines and the refresh.
+ * every action button, shows progress through `place`, runs the command, then the outcome lines and the refresh.
  */
-function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: PluginView, host: CardHost): HTMLDivElement {
+function actionRow(card: HTMLElement, place: (...nodes: Node[]) => void, p: RowTarget, host: CardHost): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "actions";
-  const buttons = shownActions(p).map((action) => {
+  const buttons = p.actions.map((action) => {
     const b = button(`action-${action}`, ACTION_LABELS[action]);
     b.disabled = !host.actionsEnabled();
     b.addEventListener("click", () => {
@@ -393,7 +429,7 @@ function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: Plugin
     confirm.className = "confirm";
     const ok = button("confirm-ok", INSTALL_TEXTS.confirm);
     const cancel = button("confirm-cancel", INSTALL_TEXTS.cancel);
-    confirm.append(...confirmLines(os, p, action), ok, cancel);
+    confirm.append(...p.confirmLines(action), ok, cancel);
     cancel.addEventListener("click", () => {
       // The row was detached while asking: a self-update may have started or ended meanwhile (FR-025).
       for (const b of buttons) b.disabled = !host.actionsEnabled();
@@ -410,9 +446,11 @@ function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: Plugin
   async function run(action: ActionName): Promise<void> {
     host.outcomes.delete(p.name);
     for (const line of Array.from(card.querySelectorAll(":scope > p.outcome"))) line.remove();
-    // `running` keeps `setActionsEnabled(true)` from re-enabling this row before its command settles.
+    // `running` keeps `setActionsEnabled(true)` from re-enabling this row before its command settles, and disables
+    // Update all meanwhile (PD-15).
     row.classList.add("running");
     for (const b of buttons) b.disabled = true;
+    host.actionChanged();
     const progress = paragraph("progress", "");
     const onProgress = host.makeChannel((message) => {
       let text: string | null;
@@ -423,7 +461,7 @@ function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: Plugin
       }
       if (text === null) return;
       progress.textContent = text;
-      if (progress.parentNode === null) anchor.before(progress);
+      if (progress.parentNode === null) place(progress);
     });
     let lines: string[];
     try {
@@ -437,10 +475,11 @@ function actionRow(os: OsName, card: HTMLElement, anchor: HTMLElement, p: Plugin
     }
     progress.remove();
     host.outcomes.set(p.name, lines);
-    anchor.before(...lines.map((line) => paragraph("outcome", line)));
+    place(...lines.map((line) => paragraph("outcome", line)));
     await host.refresh();
     row.classList.remove("running");
     for (const b of buttons) b.disabled = !host.actionsEnabled();
+    host.actionChanged();
   }
 
   return row;
@@ -475,7 +514,13 @@ function renderCard(os: OsName, p: PluginView, host: CardHost): HTMLElement {
   if (p.remove_hint !== null) card.append(paragraph("remove-hint", INSTALL_TEXTS.removeElsewhere));
   if (p.release_page_url !== null) card.append(releaseButton(p.release_page_url, host.invoke));
   const details = document.createElement("details");
-  if (shownActions(p).length > 0) card.append(actionRow(os, card, details, p, host));
+  const target: RowTarget = {
+    name: p.name,
+    latest: p.latest,
+    actions: shownActions(p),
+    confirmLines: (action) => confirmLines(os, p, action),
+  };
+  if (target.actions.length > 0) card.append(actionRow(card, (...nodes) => { details.before(...nodes); }, target, host));
   for (const line of host.outcomes.get(p.name) ?? []) card.append(paragraph("outcome", line));
   details.className = "notes";
   const summary = document.createElement("summary");
@@ -492,8 +537,37 @@ function renderCard(os: OsName, p: PluginView, host: CardHost): HTMLElement {
   return card;
 }
 
-function renderCardsWith(view: StatusView, host: CardHost): HTMLElement[] {
-  return view.plugins.map((p) => renderCard(view.os, p, host));
+/**
+ * FR-053's card for a plugin the manager installed that the feed no longer offers: its line and one `Remove`, which
+ * runs the Phase 9 Remove confirmation (`confirmRemove`) and `remove_plugin`.
+ */
+function renderOrphan(os: OsName, o: OrphanView, host: CardHost): HTMLElement {
+  const card = document.createElement("article");
+  card.className = "plugin orphan";
+  card.append(paragraph("orphan-line", fill(INSTALL_TEXTS.orphanLine, { name: o.name, version: o.version })));
+  const admin = ADMIN_LINES[os];
+  const target: RowTarget = {
+    name: o.name,
+    latest: o.version,
+    actions: ["remove"],
+    confirmLines: () => [
+      paragraph("confirm-text", fill(INSTALL_TEXTS.confirmRemove, { name: o.name })),
+      ...(admin === null ? [] : [paragraph("admin-note", admin)]),
+    ],
+  };
+  card.append(actionRow(card, (...nodes) => { card.append(...nodes); }, target, host));
+  for (const line of host.outcomes.get(o.name) ?? []) card.append(paragraph("outcome", line));
+  return card;
+}
+
+/** The plugin cards in status order, each also recorded in `byName`, then the orphan cards (FR-053). */
+function renderCardsWith(view: StatusView, host: CardHost, byName: Map<string, HTMLElement> = new Map()): HTMLElement[] {
+  const plugins = view.plugins.map((p) => {
+    const card = renderCard(view.os, p, host);
+    byName.set(p.name, card);
+    return card;
+  });
+  return [...plugins, ...view.orphans.map((o) => renderOrphan(view.os, o, host))];
 }
 
 export function renderCards(view: StatusView, invoke: Invoker, makeChannel: ChannelMaker = tauriChannel): HTMLElement[] {
@@ -503,6 +577,7 @@ export function renderCards(view: StatusView, invoke: Invoker, makeChannel: Chan
     outcomes: new Map(),
     refresh: () => Promise.resolve(),
     actionsEnabled: () => true,
+    actionChanged: () => undefined,
   });
 }
 
@@ -521,6 +596,35 @@ function feedText(view: StatusView): string {
     case "none":
       return fill(STATUS_TEXTS.feedNone, { error });
   }
+}
+
+/** FR-021's `div.update-all` row with its one button. */
+function updateAllRow(): { row: HTMLDivElement; b: HTMLButtonElement } {
+  const row = document.createElement("div");
+  row.className = "update-all";
+  const b = button("update-all", INSTALL_TEXTS.updateAll);
+  row.append(b);
+  return { row, b };
+}
+
+/** FR-022's in-page confirmation: every offered update in status order, the OS administrator line once. */
+function confirmAllBox(
+  os: OsName,
+  listed: readonly PluginView[],
+): { confirm: HTMLDivElement; ok: HTMLButtonElement; cancel: HTMLButtonElement } {
+  const confirm = document.createElement("div");
+  confirm.className = "confirm-all";
+  const ok = button("confirm-ok", INSTALL_TEXTS.confirm);
+  const cancel = button("confirm-cancel", INSTALL_TEXTS.cancel);
+  confirm.append(paragraph("confirm-text", INSTALL_TEXTS.confirmUpdateAll));
+  for (const p of listed) {
+    const installed = p.installed_version ?? STATUS_TEXTS.unknownVersion;
+    confirm.append(paragraph("confirm-line", fill(INSTALL_TEXTS.updateAllLine, { name: p.name, installed, latest: p.latest })));
+  }
+  const admin = ADMIN_LINES[os];
+  if (admin !== null) confirm.append(paragraph("admin-note", admin));
+  confirm.append(ok, cancel);
+  return { confirm, ok, cancel };
 }
 
 /** What `mountStatus` and `Check now` call once a status read settles (Phase 11 FR-026: the manager's update check). */
@@ -553,12 +657,164 @@ export function createStatusSection(
   let note: HTMLParagraphElement | null = null;
   let actionsEnabled = true;
   let checking = false;
+  let lastOs: OsName | null = null;
+  // PD-15: while `update_all` runs every card action, `Check now` and the Update-all control stay disabled.
+  let batchRunning = false;
+  // The rendered plugin cards by name (the batch's progress and outcome lines go to them), the Update-all slot (the
+  // `div.update-all` row or its `div.confirm-all` confirmation, right after `div.check`) and its two buttons.
+  const cardsByName = new Map<string, HTMLElement>();
+  let allSlot: HTMLElement | null = null;
+  let allButton: HTMLButtonElement | null = null;
+  let allOk: HTMLButtonElement | null = null;
+  // FR-025: the section's `p.batch-outcome` lines, kept (they sit outside `cards`) until the next action or `Check now`.
+  let batchLines: HTMLParagraphElement[] = [];
+  const enabled = (): boolean => actionsEnabled && !batchRunning;
+  // PD-15: Update all also waits for a single running action (its `div.actions.running` row).
+  const allBlocked = (): boolean => !enabled() || cards.querySelector("div.actions.running") !== null;
+
+  /** Recomputes every card button, `Check now` and the Update-all control (FR-023, Phase 11 FR-025, PD-15). */
+  function sync(): void {
+    const on = enabled();
+    const selector = "div.actions:not(.running) > button, div.confirm > button.confirm-ok";
+    for (const b of Array.from(cards.querySelectorAll<HTMLButtonElement>(selector))) b.disabled = !on;
+    button.disabled = !on || checking;
+    const blocked = allBlocked();
+    if (allButton !== null) allButton.disabled = blocked;
+    if (allOk !== null) allOk.disabled = blocked;
+  }
+
+  function clearBatchLines(): void {
+    for (const line of batchLines) line.remove();
+    batchLines = [];
+  }
+
+  function placeAll(next: HTMLElement | null): void {
+    if (allSlot === null) {
+      if (next !== null) check.after(next);
+    } else if (next === null) {
+      allSlot.remove();
+    } else {
+      allSlot.replaceWith(next);
+    }
+    allSlot = next;
+  }
+
+  /** FR-021: the Update-all row when at least one card offers `update`, none otherwise. */
+  function renderUpdateAll(view: StatusView): void {
+    const listed = view.plugins.filter((p) => p.actions.includes("update"));
+    allOk = null;
+    if (listed.length === 0) {
+      allButton = null;
+      placeAll(null);
+      return;
+    }
+    const { row, b } = updateAllRow();
+    b.disabled = allBlocked();
+    b.addEventListener("click", () => {
+      if (!b.disabled) askAll(view.os, listed, row);
+    });
+    allButton = b;
+    placeAll(row);
+  }
+
+  function askAll(os: OsName, listed: readonly PluginView[], row: HTMLDivElement): void {
+    const { confirm, ok, cancel } = confirmAllBox(os, listed);
+    // A re-render while asking replaced the slot: this confirmation is detached and does nothing.
+    cancel.addEventListener("click", () => {
+      if (allSlot !== confirm) return;
+      allOk = null;
+      placeAll(row);
+      sync();
+    });
+    ok.addEventListener("click", () => {
+      if (allSlot !== confirm || ok.disabled) return;
+      allOk = null;
+      placeAll(row);
+      void runBatch(listed);
+    });
+    ok.disabled = allBlocked();
+    allOk = ok;
+    placeAll(confirm);
+  }
+
+  /** The anchor of a plugin card's progress and outcome lines: in front of its release notes, as for one action. */
+  function placeOnCard(card: HTMLElement, ...nodes: Node[]): void {
+    const notes = card.querySelector(":scope > details.notes");
+    if (notes === null) card.append(...nodes);
+    else notes.before(...nodes);
+  }
+
+  /** FR-023 to FR-025: one `update_all` call for exactly the listed cards, their progress and outcome lines, the refresh. */
+  async function runBatch(listed: readonly PluginView[]): Promise<void> {
+    batchRunning = true;
+    clearBatchLines();
+    for (const p of listed) {
+      host.outcomes.delete(p.name);
+      const card = cardsByName.get(p.name);
+      for (const line of Array.from(card?.querySelectorAll(":scope > p.outcome") ?? [])) line.remove();
+    }
+    sync();
+    const names = new Set(listed.map((p) => p.name));
+    const progress = new Map<string, HTMLParagraphElement>();
+    const elevating = paragraph("batch-progress", INSTALL_TEXTS.elevating);
+    const onProgress = host.makeChannel((message) => {
+      let event: BatchProgress;
+      try {
+        event = toBatchProgress(message);
+      } catch {
+        return; // FR-026: an event that fails its parser changes nothing; the command's result still settles the batch.
+      }
+      if (event.kind === "elevating") {
+        if (elevating.parentNode === null) cards.before(elevating);
+        return;
+      }
+      const card = names.has(event.name) ? cardsByName.get(event.name) : undefined;
+      const text = progressText(event.event);
+      if (card === undefined || text === null) return;
+      const line = progress.get(event.name);
+      if (line === undefined) {
+        const created = paragraph("progress", text);
+        progress.set(event.name, created);
+        placeOnCard(card, created);
+      } else {
+        line.textContent = text;
+      }
+    });
+    const items = listed.map((p) => ({ name: p.name, expectedVersion: p.latest }));
+    let sectionLines: string[];
+    try {
+      const summary = toBatchSummary(await host.invoke<unknown>("update_all", { items, onProgress }));
+      for (const result of summary.results) {
+        // The per-item notice is shown once, by the section (FR-025).
+        const lines =
+          result.summary === null ? [result.error ?? ""] : outcomeLines({ ...result.summary, notice: null });
+        host.outcomes.set(result.name, lines);
+        const card = cardsByName.get(result.name);
+        if (card !== undefined) placeOnCard(card, ...lines.map((line) => paragraph("outcome", line)));
+      }
+      sectionLines = noticeLines(summary.notice);
+    } catch (reason) {
+      sectionLines = [rejectionText(reason)]; // A rejected command or a malformed result: one line (FR-026).
+    }
+    for (const line of progress.values()) line.remove();
+    elevating.remove();
+    batchLines = sectionLines.map((line) => paragraph("batch-outcome", line));
+    cards.before(...batchLines);
+    await host.refresh();
+    batchRunning = false;
+    sync();
+  }
+
   // FR-098: after an action the section re-reads the status and re-renders, keeping the outcome lines.
   const host: CardHost = {
     invoke,
     makeChannel,
     outcomes: new Map(),
-    actionsEnabled: () => actionsEnabled,
+    actionsEnabled: enabled,
+    actionChanged() {
+      clearBatchLines();
+      sync();
+    },
     async refresh() {
       let view: StatusView | null = null;
       try {
@@ -573,22 +829,27 @@ export function createStatusSection(
   const section: StatusSection = {
     element,
     button,
+    get lastOs() {
+      return lastOs;
+    },
+    refresh: () => host.refresh(),
     render(view) {
+      lastOs = view.os;
       feedLine.textContent = feedText(view);
       const minutes = String(Math.ceil(view.edge_max_age_secs / 60));
       note ??= check.appendChild(paragraph("check-note", ""));
       note.textContent = fill(STATUS_TEXTS.checkNote, { minutes });
-      cards.replaceChildren(...renderCardsWith(view, host));
+      cardsByName.clear();
+      cards.replaceChildren(...renderCardsWith(view, host, cardsByName));
+      renderUpdateAll(view);
     },
     // PD-13: the previous cards and note stay; only the feed line changes.
     reject(text) {
       feedLine.textContent = fill(STATUS_TEXTS.feedNone, { error: text });
     },
-    setActionsEnabled(enabled) {
-      actionsEnabled = enabled;
-      const selector = "div.actions:not(.running) > button, div.confirm > button.confirm-ok";
-      for (const b of Array.from(cards.querySelectorAll<HTMLButtonElement>(selector))) b.disabled = !enabled;
-      button.disabled = !enabled || checking;
+    setActionsEnabled(on) {
+      actionsEnabled = on;
+      sync();
     },
   };
 
@@ -598,6 +859,7 @@ export function createStatusSection(
     checking = true;
     button.textContent = ACTION_TEXTS.checking;
     host.outcomes.clear();
+    clearBatchLines();
     let view: StatusView | null = null;
     try {
       view = await invoke<StatusView>("check_now");

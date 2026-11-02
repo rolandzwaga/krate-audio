@@ -12,6 +12,9 @@
     "allow-install-plugin",
     "allow-remove-plugin",
     "allow-manager-update-check",
-    "allow-manager-update-install"
+    "allow-manager-update-install",
+    "allow-update-all",
+    "allow-settings-view",
+    "allow-settings-save"
   ]
 }

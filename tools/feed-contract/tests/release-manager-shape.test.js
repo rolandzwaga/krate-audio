@@ -207,6 +207,8 @@ const JOBS = [
   'dry-publish',
   'feed',
   'feed-dry',
+  'landing',
+  'landing-dry',
 ];
 const REAL = '${{ !inputs.dry_run }}';
 const DRY = '${{ inputs.dry_run }}';
@@ -224,10 +226,21 @@ const NEEDS_IF = {
   'dry-publish': ['[preflight, build, sign-dry, package-macos, updater-e2e, first-install]', DRY],
   feed: ['publish', REAL],
   'feed-dry': ['dry-publish', DRY],
+  // Krate Manager Phase 12 PD-25 (SI-3: needs.preflight.outputs exists only for a direct dependency).
+  landing: ['[preflight, feed]', REAL],
+  'landing-dry': ['[preflight, feed-dry]', DRY],
 };
 const SIGNING_JOBS = ['main-only', 'sign', 'publish'];
-const WRITE_JOBS = ['publish', 'feed', 'feed-dry'];
-const NO_SECRET_JOBS = ['preflight', 'main-only', 'build', 'sign-dry', 'package-macos', 'updater-e2e', 'first-install', 'publish', 'dry-publish'];
+const WRITE_JOBS = ['publish', 'feed', 'feed-dry', 'landing'];
+const NO_SECRET_JOBS = ['preflight', 'main-only', 'build', 'sign-dry', 'package-macos', 'updater-e2e', 'first-install', 'publish', 'dry-publish', 'landing', 'landing-dry'];
+
+// Phase 12 PD-25: the landing render step both landing jobs run, and its env (the REPO line of release.yml / docs.yml).
+const LANDING_RENDER =
+  'mkdir -p _site/assets && cp docs/assets/style.css _site/assets/ && ' +
+  'node tools/gen-root-index.js --out _site/index.html --manager-version "$VERSION"';
+const LANDING_ENV = ['VERSION: ${{ needs.preflight.outputs.version }}', 'REPO: ${{ github.repository }}'];
+// SC-032, FR-105: an automated advisory scan invoked from a workflow or a tool.
+const ADVISORY_SCAN_RE = /\bcargo[ \t]+(?:audit|deny)\b/;
 
 // PD-35: the release signing steps every signing job shares byte for byte (name and run).
 const SHARED_SIGNING_STEPS = ['install rsign2', 'updater asset list', 'sign updater artifacts', 'delete signing key (after signing)'];
@@ -972,6 +985,55 @@ test('release-manager.yml keeps the Phase 11 shape', async (t) => {
 
   await t.test('the plugin roster is read', () => {
     assert.ok(pluginNames().length >= 9, `only ${pluginNames().length} plugin names read`);
+  });
+
+  // Phase 12 PD-25, FR-085, SC-029: checkout (full history, for the plugin tags), Node 24, render, then deploy or upload.
+  const landingJob = (job, last) => {
+    const block = jobBlock(text, job);
+    assert.ok(block, `no job ${job}`);
+    assert.equal(field(block, 4, 'runs-on'), 'ubuntu-24.04', `${job}: runs-on`);
+    const steps = stepBlocks(block);
+    assert.deepEqual(steps.map((s) => usesOf(s) || s.name), ['actions/checkout@v6', 'actions/setup-node@v4', 'render', last], `${job}: steps`);
+    assert.deepEqual(stepWith(steps[0]), ['fetch-depth: 0'], `${job}: checkout`);
+    assert.deepEqual(stepWith(steps[1]), ["node-version: '24'"], `${job}: setup-node`);
+    assert.deepEqual(scriptLines(steps[2]), [LANDING_RENDER], `${job}: render run`);
+    assert.deepEqual(stepEnv(steps[2]), LANDING_ENV, `${job}: render env`);
+    return { block, steps };
+  };
+
+  await t.test('landing: needs [preflight, feed], real runs only, contents: write, render then gh-pages with keep_files (PD-25, FR-085)', () => {
+    const { block, steps } = landingJob('landing', 'peaceiris/actions-gh-pages@v4');
+    assert.equal(field(block, 4, 'needs'), '[preflight, feed]');
+    assert.equal(field(block, 4, 'if'), REAL);
+    assert.deepEqual(trimmed(nested(block, 4, 'permissions')), ['contents: write']);
+    assert.deepEqual(stepWith(steps[3]), ['github_token: ${{ github.token }}', 'publish_dir: ./_site', 'keep_files: true']);
+    assert.equal(count(text, 'peaceiris/actions-gh-pages@'), 1, 'a second gh-pages deploy in release-manager.yml');
+  });
+
+  await t.test('landing-dry: needs [preflight, feed-dry], dry runs only, contents: read, the same render, uploaded, never deployed (PD-25, FR-085)', () => {
+    const { block, steps } = landingJob('landing-dry', 'actions/upload-artifact@v7');
+    assert.equal(field(block, 4, 'needs'), '[preflight, feed-dry]');
+    assert.equal(field(block, 4, 'if'), DRY);
+    assert.deepEqual(trimmed(nested(block, 4, 'permissions')), ['contents: read']);
+    assert.deepEqual(stepWith(steps[3]), ['name: manager-landing-dry-run', 'path: _site/index.html', 'if-no-files-found: error']);
+    assert.equal(block.includes('peaceiris/'), false, 'landing-dry deploys');
+    assert.equal(steps[2].text, stepBlocks(jobBlock(text, 'landing'))[2].text, 'the two render steps differ');
+  });
+
+  await t.test('no_advisory_scan_tool: no workflow and no tools/*.js runs cargo audit or cargo deny (SC-032, FR-105)', () => {
+    const workflows = path.join(REPO_ROOT, '.github', 'workflows');
+    const tools = path.join(REPO_ROOT, 'tools');
+    const files = [
+      ...fs.readdirSync(workflows).filter((n) => /\.ya?ml$/.test(n)).map((n) => path.join(workflows, n)),
+      ...fs.readdirSync(tools).filter((n) => n.endsWith('.js')).map((n) => path.join(tools, n)),
+    ];
+    assert.ok(files.length >= 20, `only ${files.length} files scanned`);
+    const hits = files
+      .filter((f) => ADVISORY_SCAN_RE.test(readText(f)))
+      .map((f) => path.relative(REPO_ROOT, f).split(path.sep).join('/'));
+    assert.deepEqual(hits, []);
+    assert.ok(ADVISORY_SCAN_RE.test('run: cargo audit --deny warnings'), 'the pattern misses cargo audit');
+    assert.ok(ADVISORY_SCAN_RE.test('cargo  deny check advisories'), 'the pattern misses cargo deny');
   });
 
   for (const [name, mutate, expected] of MUTATIONS) {

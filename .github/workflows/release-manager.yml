@@ -1747,3 +1747,66 @@ jobs:
     uses: ./.github/workflows/feed.yml
     with:
       dry_run: true
+
+  # Krate Manager Phase 12 FR-085, PD-25: the landing page gains the manager card on every manager release, rendered by
+  # the tool release.yml's deploy-pages and docs.yml also run (FR-081), so the newest deploy is always a complete page.
+  # preflight is a direct need because needs.preflight.outputs exists only for direct dependencies (SI-3). Full history:
+  # the plugin cards come from the plugin release tags. Only index.html and assets/style.css change on gh-pages.
+  landing:
+    needs: [preflight, feed]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: render
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p _site/assets && cp docs/assets/style.css _site/assets/ && node tools/gen-root-index.js --out _site/index.html --manager-version "$VERSION"
+
+      - name: deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ github.token }}
+          publish_dir: ./_site
+          keep_files: true
+
+  # The dry run renders the same page for the dispatched version and uploads it for reading; it never deploys.
+  landing-dry:
+    needs: [preflight, feed-dry]
+    if: ${{ inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: render
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p _site/assets && cp docs/assets/style.css _site/assets/ && node tools/gen-root-index.js --out _site/index.html --manager-version "$VERSION"
+
+      - name: upload manager-landing-dry-run
+        uses: actions/upload-artifact@v7
+        with:
+          name: manager-landing-dry-run
+          path: _site/index.html
+          if-no-files-found: error

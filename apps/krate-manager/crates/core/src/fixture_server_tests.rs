@@ -623,3 +623,67 @@ fn paced_delivers_all_bytes_in_chunks() {
     assert!(long_gaps >= 6, "gaps between reads: {gaps:?}");
     assert!(whole < Duration::from_secs(2), "the read took {whole:?}");
 }
+
+/// Nothing has arrived on `stream` yet (a non-blocking read would block).
+fn nothing_yet(stream: &mut TcpStream, what: &str) {
+    stream.set_nonblocking(true).expect("client non-blocking");
+    let mut byte = [0u8; 1];
+    match stream.read(&mut byte) {
+        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+        other => panic!("{what}: expected no bytes yet, got {other:?}"),
+    }
+    stream.set_nonblocking(false).expect("client blocking");
+}
+
+/// PD-21 (tasks TA-3): held replies stay unanswered until released, oldest first; the server's Drop ends a hold.
+#[test]
+fn held_reply_releases() {
+    let gate = HoldGate::new();
+    let held = |body: &[u8]| Reply::Held {
+        gate: gate.clone(),
+        reply: Box::new(Reply::Ok {
+            body: body.to_vec(),
+            content_type: "text/plain",
+        }),
+    };
+    let server = FixtureServer::start(vec![
+        route("/a", held(b"alpha")),
+        route("/b", held(b"beta")),
+    ]);
+    assert_eq!(gate.release_one(), None, "nothing held yet");
+
+    let mut a = send(&server, &get_request("/a"));
+    assert!(gate.wait_open(1, CLIENT_TIMEOUT), "/a is held");
+    let mut b = send(&server, &get_request("/b"));
+    assert!(gate.wait_open(2, CLIENT_TIMEOUT), "both are held");
+    assert_eq!(gate.open(), ["/a", "/b"]);
+
+    thread::sleep(Duration::from_millis(300));
+    nothing_yet(&mut a, "/a before any release");
+    nothing_yet(&mut b, "/b before any release");
+    assert_eq!(gate.open(), ["/a", "/b"], "300 ms later, still held");
+
+    assert_eq!(gate.release_one(), Some("/a".to_owned()), "the older hold");
+    let ra = response(&read_all(a));
+    assert_eq!(ra.status_line, "HTTP/1.1 200 OK");
+    assert_eq!(ra.body, b"alpha");
+    nothing_yet(&mut b, "/b after /a was released");
+    assert_eq!(gate.open(), ["/b"]);
+
+    gate.release_all();
+    let rb = response(&read_all(b));
+    assert_eq!(rb.body, b"beta");
+    assert!(gate.open().is_empty());
+
+    // A third client still held when the server drops: the drop ends the hold and the client sees EOF.
+    let c = send(&server, &get_request("/a"));
+    assert!(
+        gate.wait_open(1, CLIENT_TIMEOUT),
+        "the third request is held"
+    );
+    let started = Instant::now();
+    let got = drop_within_bound(server, c, "a held reply");
+    assert!(started.elapsed() < CLIENT_TIMEOUT);
+    assert!(got.is_empty(), "no answer after the drop: {got:?}");
+    assert!(gate.open().is_empty(), "the drop withdrew the hold");
+}

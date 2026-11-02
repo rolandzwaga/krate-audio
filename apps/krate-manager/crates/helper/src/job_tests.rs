@@ -352,3 +352,13 @@ fn parse_checks_the_target_os() {
         }])
     );
 }
+
+/// FR-002 (SI-2): core caps a batch at the helper's op cap, so a job core writes is never refused after the prompt.
+#[test]
+fn core_and_helper_op_caps_agree() {
+    assert_eq!(
+        krate_manager_core::install::job::MAX_OPS,
+        crate::job::MAX_OPS
+    );
+    assert_eq!(crate::job::MAX_OPS, 32);
+}

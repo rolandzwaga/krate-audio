@@ -46,6 +46,10 @@ pub struct DownloadRequest {
     asset: PlatformAsset,
     /// The OS version the request was resolved with; the prune resolves the feed with it (PD-3).
     running: Option<OsVersion>,
+    /// Phase 12: the OS and architecture the request was resolved for; the prune resolves the feed for them, so a
+    /// batch for a forced OS never prunes another item's verified artifact (D6). Native in production.
+    os: Os,
+    arch: Arch,
     /// D13: the loopback URL a test fetches instead of the feed's `AssetUrl`.
     #[cfg(test)]
     fetch_url: Option<String>,
@@ -762,13 +766,16 @@ fn remove_link(io: &dyn StagingIo, path: &Path) -> io::Result<()> {
     io.remove_file(path).or_else(|_| io.remove_dir_all(path))
 }
 
-/// The lower-case hex of every feed entry's native asset, resolved with `running` (FR-005).
-fn live_hashes(feed: &Feed, running: Option<&OsVersion>) -> BTreeSet<String> {
+/// The lower-case hex of every feed entry's asset for the request's platform (native in production), resolved with
+/// the request's `running` (FR-005).
+fn live_hashes(feed: &Feed, request: &DownloadRequest) -> BTreeSet<String> {
     feed.plugins
         .values()
-        .filter_map(|entry| match version::resolve_native(entry, running) {
-            Availability::Available { asset, .. } => Some(hex_lower(&asset.sha256)),
-            _ => None,
+        .filter_map(|entry| {
+            match version::resolve(entry, request.os, request.arch, request.running.as_ref()) {
+                Availability::Available { asset, .. } => Some(hex_lower(&asset.sha256)),
+                _ => None,
+            }
         })
         .collect()
 }
@@ -798,6 +805,8 @@ pub fn request_for_platform(
             key,
             asset: asset.clone(),
             running: running.copied(),
+            os,
+            arch,
             #[cfg(test)]
             fetch_url: None,
         }),
@@ -1418,11 +1427,7 @@ fn obtain_body<T>(
     env.io
         .create_dir_all(&downloads)
         .map_err(|e| job.staging(StagingStep::CreateDir, &e))?;
-    prune(
-        env.io,
-        &downloads,
-        &live_hashes(feed, request.running.as_ref()),
-    );
+    prune(env.io, &downloads, &live_hashes(feed, request));
     let mut meter = Meter {
         progress,
         size: asset.size,
@@ -1570,8 +1575,22 @@ pub fn command_request_for(
             detail: error.map(|e| scrub(&e.to_string())).unwrap_or_default(),
         });
     };
+    let request = request_in_feed(&snapshot.feed, name, expected_version, host, os, arch)?;
+    Ok((snapshot.feed, request))
+}
+
+/// The request for `name` at `expected_version` in a feed already checked (Phase 12 PD-2 (a)): the running OS
+/// version, `request_for_platform`, the version compare. No feed request and no staging I/O happen here.
+pub fn request_in_feed(
+    feed: &Feed,
+    name: &str,
+    expected_version: &str,
+    host: &dyn HostFacts,
+    os: Os,
+    arch: Arch,
+) -> Result<DownloadRequest, DownloadError> {
     let running = host.os_version();
-    let request = request_for_platform(&snapshot.feed, name, os, arch, running.as_ref())?;
+    let request = request_for_platform(feed, name, os, arch, running.as_ref())?;
     if request.version_text != expected_version {
         return Err(DownloadError::VersionChanged {
             name: name.to_owned(),
@@ -1579,7 +1598,7 @@ pub fn command_request_for(
             found: request.version_text,
         });
     }
-    Ok((snapshot.feed, request))
+    Ok(request)
 }
 
 /// `command_request_for` for the native OS and architecture (FR-060, FR-065).

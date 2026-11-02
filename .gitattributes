@@ -23,6 +23,8 @@ tools/macos-fastmath-repro.sh       text eol=lf
 
 # A shebang tool: gen-manager-latest.test.js asserts LF, and a CRLF Windows checkout failed it (Feed tools, 29ba6cef).
 tools/gen-manager-latest.js         text eol=lf
+# A shebang tool whose test reads it as LF, like gen-manager-latest.js above (Krate Manager Phase 12, PD-16).
+tools/gen-root-index.js         text eol=lf
 
 # Byte-exact fixtures: signatures, SHA-256 digests and golden outputs compare raw bytes, and this checkout runs
 # core.autocrlf=true, which would rewrite them on Windows checkout.

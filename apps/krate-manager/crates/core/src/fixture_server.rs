@@ -3,9 +3,11 @@
 //!
 //! `std` only. Binds `127.0.0.1:0` or `[::1]:0`, one thread per connection, every read bounded (64 KiB request head,
 //! 16 KiB TLS record) and polled against the shutdown flag, every wait (`Stall`, `Delayed`, `HeadersThenStall`) on one
-//! `Condvar` that `Drop` signals. It opens no outbound socket: the only dial is `Drop`'s wake-up of its own listener.
+//! `Condvar` that `Drop` signals (a `Held` reply re-checks the shutdown flag every `POLL`). It opens no outbound socket:
+//! the only dial is `Drop`'s wake-up of its own listener.
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::io::{ErrorKind, Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
@@ -60,6 +62,114 @@ pub enum Reply {
         chunk: usize,
         interval: Duration,
     },
+    /// Phase 12 PD-21: held (listed by `gate.open()`) until the test releases it, then answered with `reply`; a hold
+    /// still waiting when the server drops ends unanswered.
+    Held {
+        gate: HoldGate,
+        reply: Box<Reply>,
+    },
+}
+
+/// Phase 12 PD-21: the test's handle on `Reply::Held` answers. Clones share one set of holds.
+#[derive(Clone, Default)]
+pub struct HoldGate(Arc<HoldState>);
+
+#[derive(Default)]
+struct HoldState {
+    holds: Mutex<Holds>,
+    changed: Condvar,
+}
+
+#[derive(Default)]
+struct Holds {
+    next: u64,
+    /// The held requests, oldest first: (ticket, path).
+    open: Vec<(u64, String)>,
+}
+
+impl HoldGate {
+    pub fn new() -> HoldGate {
+        HoldGate::default()
+    }
+
+    /// The paths whose response is held, oldest first.
+    pub fn open(&self) -> Vec<String> {
+        lock(&self.0.holds)
+            .open
+            .iter()
+            .map(|(_, path)| path.clone())
+            .collect()
+    }
+
+    /// Waits until at least `n` responses are held or `timeout` passes; `true` when `n` are held.
+    pub fn wait_open(&self, n: usize, timeout: Duration) -> bool {
+        let guard = lock(&self.0.holds);
+        let (guard, _) = self
+            .0
+            .changed
+            .wait_timeout_while(guard, timeout, |h| h.open.len() < n)
+            .unwrap_or_else(PoisonError::into_inner);
+        guard.open.len() >= n
+    }
+
+    /// Releases the oldest held response; its path, or `None` when nothing is held.
+    pub fn release_one(&self) -> Option<String> {
+        let mut holds = lock(&self.0.holds);
+        if holds.open.is_empty() {
+            return None;
+        }
+        let (_, path) = holds.open.remove(0);
+        drop(holds);
+        self.0.changed.notify_all();
+        Some(path)
+    }
+
+    /// Releases every held response.
+    pub fn release_all(&self) {
+        lock(&self.0.holds).open.clear();
+        self.0.changed.notify_all();
+    }
+
+    /// Records `path` as held; the ticket `wait_release` waits on.
+    fn enter(&self, path: &str) -> u64 {
+        let mut holds = lock(&self.0.holds);
+        let ticket = holds.next;
+        holds.next += 1;
+        holds.open.push((ticket, path.to_owned()));
+        drop(holds);
+        self.0.changed.notify_all();
+        ticket
+    }
+
+    /// Waits in `POLL` slices until `ticket` is released (`true`) or the server stops (`false`, the hold withdrawn).
+    fn wait_release(&self, ticket: u64, shared: &Shared) -> bool {
+        let mut holds = lock(&self.0.holds);
+        loop {
+            if !holds.open.iter().any(|(t, _)| *t == ticket) {
+                return true;
+            }
+            if shared.stopping() {
+                holds.open.retain(|(t, _)| *t != ticket);
+                drop(holds);
+                self.0.changed.notify_all();
+                return false;
+            }
+            holds = self
+                .0
+                .changed
+                .wait_timeout(holds, POLL)
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
+        }
+    }
+}
+
+impl fmt::Debug for HoldGate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HoldGate")
+            .field("open", &self.open())
+            .finish()
+    }
 }
 
 /// One request as the server read it.
@@ -408,6 +518,12 @@ impl Conn<'_> {
                             break;
                         }
                     }
+                }
+            }
+            Reply::Held { gate, reply } => {
+                let ticket = gate.enter(&request.path);
+                if gate.wait_release(ticket, self.shared) {
+                    return self.answer(reply, request);
                 }
             }
         }

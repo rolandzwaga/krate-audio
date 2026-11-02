@@ -91,12 +91,19 @@ export interface PluginView {
   readonly remove_hint: RemoveHint | null;
 }
 
+/** A plugin the manager installed that the feed no longer offers (Phase 12 FR-052, PD-13). */
+export interface OrphanView {
+  readonly name: string;
+  readonly version: string;
+}
+
 export interface StatusView {
   readonly os: OsName;
   readonly edge_max_age_secs: number;
   readonly running_os: string | null;
   readonly feed: FeedView;
   readonly plugins: readonly PluginView[];
+  readonly orphans: readonly OrphanView[];
 }
 
 const OS_NAMES: readonly OsName[] = ["windows", "macos", "linux"];
@@ -307,9 +314,14 @@ function toPlugin(value: unknown, path: string): PluginView {
   };
 }
 
+function toOrphan(value: unknown, path: string): OrphanView {
+  const o = object(value, path, ["name", "version"]);
+  return { name: string(o["name"], `${path}.name`), version: string(o["version"], `${path}.version`) };
+}
+
 /** Checks `value` against FR-046 / FR-051 and returns it typed; throws `TypeError("<json path>: <expected>")`. */
 export function toStatusView(value: unknown): StatusView {
-  const o = object(value, "$", ["os", "edge_max_age_secs", "running_os", "feed", "plugins"]);
+  const o = object(value, "$", ["os", "edge_max_age_secs", "running_os", "feed", "plugins", "orphans"]);
   const feed = object(o["feed"], "$.feed", ["source", "fetched_at_unix", "schema_version", "error"]);
   return {
     os: oneOf(o["os"], "$.os", OS_NAMES),
@@ -322,6 +334,7 @@ export function toStatusView(value: unknown): StatusView {
       error: nullableString(feed["error"], "$.feed.error"),
     },
     plugins: array(o["plugins"], "$.plugins", toPlugin),
+    orphans: array(o["orphans"], "$.orphans", toOrphan),
   };
 }
 
@@ -394,16 +407,20 @@ function toKept(value: unknown, path: string): KeptPath {
   return { root: oneOf(o["root"], `${path}.root`, KEPT_ROOTS), path: string(o["path"], `${path}.path`) };
 }
 
+function actionSummaryAt(value: unknown, path: string): ActionSummary {
+  const o = object(value, path, ["name", "action", "version", "kept", "notice"]);
+  return {
+    name: string(o["name"], `${path}.name`),
+    action: oneOf(o["action"], `${path}.action`, ACTION_NAMES),
+    version: nullableString(o["version"], `${path}.version`),
+    kept: array(o["kept"], `${path}.kept`, toKept),
+    notice: nullableOneOf(o["notice"], `${path}.notice`, ACTION_NOTICES),
+  };
+}
+
 /** Checks a command's result against FR-091 and returns it typed; throws `TypeError("<json path>: <expected>")`. */
 export function toActionSummary(value: unknown): ActionSummary {
-  const o = object(value, "$", ["name", "action", "version", "kept", "notice"]);
-  return {
-    name: string(o["name"], "$.name"),
-    action: oneOf(o["action"], "$.action", ACTION_NAMES),
-    version: nullableString(o["version"], "$.version"),
-    kept: array(o["kept"], "$.kept", toKept),
-    notice: nullableOneOf(o["notice"], "$.notice", ACTION_NOTICES),
-  };
+  return actionSummaryAt(value, "$");
 }
 
 function toDownloadProgress(value: unknown, path: string): DownloadProgress {
@@ -445,26 +462,112 @@ function toDownloadProgress(value: unknown, path: string): DownloadProgress {
   }
 }
 
-/** Checks one channel message against FR-092 and returns it typed; throws `TypeError("<json path>: <expected>")`. */
-export function toInstallProgress(value: unknown): InstallProgress {
-  const kind = kindOf(value, "$");
+function installProgressAt(value: unknown, path: string): InstallProgress {
+  const kind = kindOf(value, path);
   switch (kind) {
     case "download": {
-      const o = object(value, "$", ["kind", "event"]);
-      return { kind, event: toDownloadProgress(o["event"], "$.event") };
+      const o = object(value, path, ["kind", "event"]);
+      return { kind, event: toDownloadProgress(o["event"], `${path}.event`) };
     }
     case "placing":
     case "removing": {
-      const o = object(value, "$", ["kind", "done", "total"]);
-      return { kind, done: count(o["done"], "$.done"), total: count(o["total"], "$.total") };
+      const o = object(value, path, ["kind", "done", "total"]);
+      return { kind, done: count(o["done"], `${path}.done`), total: count(o["total"], `${path}.total`) };
     }
     case "staging":
     case "committing":
     case "done":
     case "elevating":
+      object(value, path, ["kind"]);
+      return { kind };
+    default:
+      return fail(`${path}.kind`, "one of download, staging, placing, committing, removing, done, elevating");
+  }
+}
+
+/** Checks one channel message against FR-092 and returns it typed; throws `TypeError("<json path>: <expected>")`. */
+export function toInstallProgress(value: unknown): InstallProgress {
+  return installProgressAt(value, "$");
+}
+
+// What `update_all` returns and sends (Phase 12 FR-001, FR-024, FR-060; plan §4.7, PD-5): the core's
+// `install::BatchSummaryView` and `install::BatchProgress`; and what `settings_view` / `settings_save` return
+// (FR-040; plan §4.4): `settings::SettingsView`.
+
+export type BatchProgress =
+  | { readonly kind: "item"; readonly name: string; readonly event: InstallProgress }
+  | { readonly kind: "elevating" };
+
+/** One item's result: exactly one of `summary` / `error` is non-null; `error` begins with its code. */
+export interface BatchItemView {
+  readonly name: string;
+  readonly summary: ActionSummary | null;
+  readonly error: string | null;
+}
+
+export interface BatchSummary {
+  readonly results: readonly BatchItemView[];
+  readonly notice: ActionNotice | null;
+}
+
+export interface SettingsView {
+  readonly os: OsName;
+  readonly linux_plugin_root: string;
+  readonly root_is_default: boolean;
+  readonly graphics_workaround: boolean;
+  readonly root_locked_by: readonly string[];
+  readonly error: string | null;
+}
+
+/** Checks one batch channel message against FR-024 and returns it typed; throws `TypeError("<json path>: <expected>")`. */
+export function toBatchProgress(value: unknown): BatchProgress {
+  const kind = kindOf(value, "$");
+  switch (kind) {
+    case "item": {
+      const o = object(value, "$", ["kind", "name", "event"]);
+      return { kind, name: string(o["name"], "$.name"), event: installProgressAt(o["event"], "$.event") };
+    }
+    case "elevating":
       object(value, "$", ["kind"]);
       return { kind };
     default:
-      return fail("$.kind", "one of download, staging, placing, committing, removing, done, elevating");
+      return fail("$.kind", "one of item, elevating");
   }
+}
+
+function toBatchItem(value: unknown, path: string): BatchItemView {
+  const o = object(value, path, ["name", "summary", "error"]);
+  const summary = o["summary"] === null ? null : actionSummaryAt(o["summary"], `${path}.summary`);
+  const error = nullableString(o["error"], `${path}.error`);
+  if ((summary === null) === (error === null)) fail(path, "exactly one of summary and error");
+  return { name: string(o["name"], `${path}.name`), summary, error };
+}
+
+/** Checks `update_all`'s result against FR-001 / FR-060 and returns it typed; throws `TypeError("<json path>: <expected>")`. */
+export function toBatchSummary(value: unknown): BatchSummary {
+  const o = object(value, "$", ["results", "notice"]);
+  return {
+    results: array(o["results"], "$.results", toBatchItem),
+    notice: nullableOneOf(o["notice"], "$.notice", ACTION_NOTICES),
+  };
+}
+
+/** Checks a settings command's result against FR-040 and returns it typed; throws `TypeError("<json path>: <expected>")`. */
+export function toSettingsView(value: unknown): SettingsView {
+  const o = object(value, "$", [
+    "os",
+    "linux_plugin_root",
+    "root_is_default",
+    "graphics_workaround",
+    "root_locked_by",
+    "error",
+  ]);
+  return {
+    os: oneOf(o["os"], "$.os", OS_NAMES),
+    linux_plugin_root: string(o["linux_plugin_root"], "$.linux_plugin_root"),
+    root_is_default: boolean(o["root_is_default"], "$.root_is_default"),
+    graphics_workaround: boolean(o["graphics_workaround"], "$.graphics_workaround"),
+    root_locked_by: array(o["root_locked_by"], "$.root_locked_by", string),
+    error: nullableString(o["error"], "$.error"),
+  };
 }

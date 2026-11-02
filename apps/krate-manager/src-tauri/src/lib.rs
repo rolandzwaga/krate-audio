@@ -46,6 +46,22 @@ pub fn run() {
     let roots = Roots::from_os();
     // PD-25: the log sink takes `&Roots`.
     let sink_roots = roots.as_ref().ok().cloned();
+    // Phase 12 FR-045, FR-046 (PD-12): the Linux graphics workaround from the stored settings, before any thread.
+    #[cfg(target_os = "linux")]
+    let loaded = roots
+        .as_ref()
+        .ok()
+        .map(krate_manager_core::settings::load)
+        .and_then(|o| o.error.is_none().then_some(o.settings));
+    #[cfg(target_os = "linux")]
+    krate_manager_core::platform::apply_graphics_env(
+        NativePlatform.os(),
+        loaded.as_ref(),
+        |name, value| {
+            // SAFETY: single-threaded: before the first thread (sysproxy.rs:210 can spawn one from :61)
+            unsafe { std::env::set_var(name, value) }
+        },
+    );
     #[cfg(feature = "dev-feed")]
     let feed_url = roots
         .as_ref()
@@ -119,7 +135,10 @@ pub fn run() {
             commands::install_plugin,
             commands::remove_plugin,
             commands::manager_update_check,
-            commands::manager_update_install
+            commands::manager_update_install,
+            commands::update_all,
+            commands::settings_view,
+            commands::settings_save
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

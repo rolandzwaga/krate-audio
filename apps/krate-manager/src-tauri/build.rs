@@ -11,6 +11,9 @@ fn main() {
             "remove_plugin",
             "manager_update_check",
             "manager_update_install",
+            "update_all",
+            "settings_view",
+            "settings_save",
         ]),
     ))
     .expect("tauri-build failed");

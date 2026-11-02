@@ -42,6 +42,8 @@ function scannedFiles() {
     path.join(TOOLS_DIR, 'lint-manager-version.js'),
     path.join(TOOLS_DIR, 'gen-manager-latest.js'),
     path.join(TOOLS_DIR, 'manager-release-preflight.js'),
+    path.join(TOOLS_DIR, 'gen-root-index.js'),
+    path.join(TOOLS_DIR, 'manager-readiness-counts.js'),
     path.join(CONTRACT_DIR, 'fixtures', 'make-fixtures.js'),
     path.join(CONTRACT_DIR, 'fixtures', 'listings', 'make-bad.js'),
     path.join(CONTRACT_DIR, 'fixtures', 'phase3', 'make-phase3.js'),
@@ -78,6 +80,7 @@ const CHILD_EXEMPT = new Set([
   'tools/backfill-sign.js',
   'tools/feed-contract/tests/helpers/external-tools.js',
   'tools/feed-publish.js',
+  'tools/gen-root-index.js',
 ]);
 const GUARD_REL = 'tools/feed-contract/tests/helpers/write-guard.js';
 const GUARD_LINE = "require('./helpers/write-guard.js');";
@@ -129,6 +132,8 @@ test('tools stay offline', async (t) => {
       'tools/lint-manager-version.js',
       'tools/gen-manager-latest.js',
       'tools/manager-release-preflight.js',
+      'tools/gen-root-index.js',
+      'tools/manager-readiness-counts.js',
       'tools/feed-contract/contract.js',
       'tools/feed-contract/listing.js',
       'tools/feed-contract/tests/helpers/write-guard.js',

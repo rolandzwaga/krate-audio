@@ -2477,3 +2477,136 @@ fn actions_per_state() {
     elevated_actions_per_state(Os::Windows, Arch::X86_64);
     elevated_actions_per_state(Os::Macos, Arch::Aarch64);
 }
+
+// ---- Phase 12 SC-015, SC-031 (FR-052, FR-054) ---------------------------------------------------------------------
+
+/// Writes `<state>/manifests/<stem>.json` with the given text.
+fn plant_manifest(roots: &Roots, stem: &str, text: &str) {
+    let dir = roots.state_dir().join(detect::MANIFESTS_DIR);
+    fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("create {}: {e}", dir.display()));
+    let file = dir.join(format!("{stem}.json"));
+    fs::write(&file, text).unwrap_or_else(|e| panic!("write {}: {e}", file.display()));
+}
+
+fn head_text(plugin: &str, version: &str) -> String {
+    format!("{{\"manifest_version\": 1, \"plugin\": \"{plugin}\", \"version\": \"{version}\"}}")
+}
+
+fn orphan(name: &str, version: &str) -> OrphanView {
+    OrphanView {
+        name: name.to_owned(),
+        version: version.to_owned(),
+    }
+}
+
+fn build_as(os: Os, ctx: &AppContext, now_unix: u64) -> StatusView {
+    build_with_os(
+        os,
+        Arch::X86_64,
+        ctx,
+        FetchMode::Normal,
+        now_unix,
+        &FakeHostFacts::default(),
+        &FsInstallIo,
+    )
+}
+
+#[test]
+fn orphans_cases() {
+    let server = FixtureServer::start(vec![(FEED_PATH.to_owned(), ok(feed_fixture(MIXED)))]);
+    let (_td, roots) = fresh_temp_roots();
+    let ctx = context(&roots, server.url(FEED_PATH));
+
+    // A served feed first, so the cache holds it; then the feed fails, so every build below runs on the cached copy.
+    let first = build_as(Os::Linux, &ctx, NOW);
+    assert_eq!(
+        first.feed.source,
+        FeedSource::Fresh,
+        "{:?}",
+        first.feed.error
+    );
+    assert_eq!(first.orphans, Vec::new(), "no manifest yet");
+    server.set_route(FEED_PATH, Reply::Close);
+
+    // Stems sort the other way from the names, so the listing is proven sorted by name.
+    plant_manifest(&roots, "aaa", &head_text("Zulu", "2.0.0"));
+    plant_manifest(&roots, "zzz", &head_text("Mike", "0.9.1"));
+    // A feed plugin with an `install` block (`Alpha`) and one without (`Delta`, FR-054) are never orphans.
+    plant_manifest(&roots, "Alpha", &head_text("Alpha", "1.0.0"));
+    plant_manifest(&roots, "Delta", &head_text("Delta", "1.0.0"));
+    // No string `version` → not listed.
+    plant_manifest(
+        &roots,
+        "Number",
+        "{\"manifest_version\": 1, \"plugin\": \"Number\", \"version\": 3}",
+    );
+    plant_manifest(
+        &roots,
+        "Absent",
+        "{\"manifest_version\": 1, \"plugin\": \"Absent\"}",
+    );
+    // Not manifest version 1, or not JSON → no plugin name, not listed.
+    plant_manifest(
+        &roots,
+        "Two",
+        "{\"manifest_version\": 2, \"plugin\": \"Two\", \"version\": \"1.0.0\"}",
+    );
+    plant_manifest(&roots, "Corrupt", "{ not json");
+
+    let view = build_as(Os::Linux, &ctx, NOW + 1);
+    assert_eq!(
+        view.feed.source,
+        FeedSource::Cached,
+        "{:?}",
+        view.feed.error
+    );
+    assert_eq!(view.plugins.len(), 4, "{view:?}");
+    assert!(
+        view.plugins.iter().any(|p| p.name == "Delta"),
+        "Delta is a snapshot key: {view:?}"
+    );
+    assert_eq!(
+        view.orphans,
+        vec![orphan("Mike", "0.9.1"), orphan("Zulu", "2.0.0")]
+    );
+
+    // The view serialises `orphans` as its last key, each `{ name, version }`.
+    let text = json(&view);
+    assert!(
+        text.ends_with(
+            ",\"orphans\":[{\"name\":\"Mike\",\"version\":\"0.9.1\"},{\"name\":\"Zulu\",\"version\":\"2.0.0\"}]}"
+        ),
+        "{text}"
+    );
+
+    // Windows and macOS forced → empty over the same cached feed and manifests.
+    for os in [Os::Windows, Os::Macos] {
+        let view = build_as(os, &ctx, NOW + 2);
+        assert_eq!(view.feed.source, FeedSource::Cached, "{os:?}");
+        assert_eq!(view.orphans, Vec::new(), "{os:?}");
+    }
+
+    // 257 manifest entries → empty, and the view is still built.
+    let present = 8;
+    for i in present..=install::MAX_MANIFEST_ENTRIES {
+        plant_manifest(&roots, &format!("filler-{i:03}"), "{}");
+    }
+    let view = build_as(Os::Linux, &ctx, NOW + 3);
+    assert_eq!(
+        view.feed.source,
+        FeedSource::Cached,
+        "{:?}",
+        view.feed.error
+    );
+    assert_eq!(view.plugins.len(), 4, "{view:?}");
+    assert_eq!(view.orphans, Vec::new());
+
+    // No snapshot (no cache, the feed fails) → empty, even with a manifest on disk.
+    let (_td2, roots2) = fresh_temp_roots();
+    let ctx2 = context(&roots2, server.url(FEED_PATH));
+    plant_manifest(&roots2, "Zulu", &head_text("Zulu", "2.0.0"));
+    let view = build_as(Os::Linux, &ctx2, NOW);
+    assert_eq!(view.feed.source, FeedSource::None);
+    assert!(view.plugins.is_empty());
+    assert_eq!(view.orphans, Vec::new());
+}

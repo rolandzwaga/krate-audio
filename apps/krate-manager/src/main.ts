@@ -1,7 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createUpdateLine } from "./manager_update";
+import { createSettingsSection } from "./settings";
 import { mountStatus, tauriChannel } from "./status";
 import type { StatusSection } from "./status";
+import { toSettingsView } from "./view";
+import type { SettingsView } from "./view";
 
 export async function renderShell(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -32,11 +35,31 @@ export async function renderShell(root: HTMLElement): Promise<void> {
     },
   });
   root.append(updateLine.element);
+  // Phase 12 PD-14 (FR-047, D8): the settings section is Linux-only. `settings_view` is read once, the first time a
+  // settle finds a Linux status, and the section mounts below the status section; a saved root change re-reads it.
+  let settingsRead = false;
+  async function mountSettings(): Promise<void> {
+    const section = status;
+    if (settingsRead || section?.lastOs !== "linux") return;
+    settingsRead = true;
+    let view: SettingsView;
+    try {
+      view = toSettingsView(await invoke<unknown>("settings_view"));
+    } catch {
+      return; // a rejected or malformed view mounts nothing
+    }
+    const settings = createSettingsSection(invoke, () => section.refresh());
+    settings.render(view);
+    section.element.after(settings.element);
+  }
   await mountStatus(
     root,
     invoke,
     tauriChannel,
-    () => updateLine.check(),
+    async () => {
+      await updateLine.check();
+      await mountSettings();
+    },
     (section) => {
       status = section;
     },

@@ -8,5 +8,6 @@
     "schema_version": null,
     "error": "E_FEED_OFFLINE: connection refused"
   },
-  "plugins": []
+  "plugins": [],
+  "orphans": []
 }

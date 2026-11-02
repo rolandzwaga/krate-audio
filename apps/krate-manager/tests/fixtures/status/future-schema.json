@@ -8,5 +8,6 @@
     "schema_version": null,
     "error": "E_FEED_FUTURE_SCHEMA: schema_version 3: a newer Krate Manager is needed"
   },
-  "plugins": []
+  "plugins": [],
+  "orphans": []
 }

@@ -197,7 +197,7 @@ Legend: ✅ reused unchanged · 🔶 changed (additively) · 🆕 new.
 |---|---|---|---|
 | Release workflow | `.github/workflows/release.yml` — manual `workflow_dispatch` with `plugin` choice and `prerelease` flag (`:26-48`); tag `<plugin>/v<ver>` (`:76`); Windows job stages `<Name>.vst3` + `presets/` + `CHANGELOG.txt` (`:221-237`); macOS job stages VST3 + component + optional AUv3 app + presets and reads `preset_subdir` and `identifier` from `version.json` (`:285-337`); Linux job tars `<Name>.vst3/` + `presets/` + `README.txt` + `CHANGELOG.txt` (`:379-403`); `release` job uploads three assets with `softprops/action-gh-release@v2` (`:514-526`) | The existing assets the manager downloads verbatim (`.exe`, `.pkg`, `.tar.gz`) | 🔶 Phase 2: add `SHA256SUMS`, `.minisig`s, `release.json`, provenance attestation (no new archives), `make_latest: false`, a dry-run input. Phase 3: replace the inline feed step with a call to `feed.yml` |
 | Feed generator | `release.yml:645-685` (inline Node: per `plugins/*/version.json`, latest local git tag, emits `{schema_version: 1, plugins: {Name: {version, download_url: data.url, release_notes: ""}}}`; needs `fetch-depth: 0`, `:542`) | The v1 key semantics to preserve | 🆕 `tools/gen-feed.js` (Phase 1) + 🆕 `feed.yml` (Phase 3) replace it. Note: today's step takes the highest git tag including tags of GitHub prereleases (`:665`); Phase 1 states the v1 `version` rule explicitly (Q9) |
-| Landing page | `release.yml:596-643` (inline Python) | — | 🔶 Phase 12: gains a Krate Manager card, nothing else. It breaks the repo's Node-only rule; noted, not in manager scope |
+| Landing page | the 'Generate Root Index' step of `release.yml` and the root-index step of `docs.yml` (`tools/gen-root-index.js`), also run by `release-manager.yml` job `landing` | — | 🔶 Phase 12: ported to `tools/gen-root-index.js` (Node; Clarifications Q2), which renders the plugin cards byte-for-byte as before plus a Krate Manager card |
 | In-plugin parser | `plugins/shared/src/update/update_checker.cpp:222-262`; tests `plugins/shared/tests/test_update_checker.cpp:79` ("UpdateChecker - JSON parsing", `[update]`) | The compatibility contract | 🔶 Phase 1: one added test case feeding a v2 document (test-only change, no plugin release) |
 | Plugin feed URL | `plugins/*/src/update/*_update_config.h` (e.g. `iterum_update_config.h:12`) | The Pages site stays the feed home; the shipped plugins reach it through the `github.io` 301, the manager uses `https://krateaudio.com/versions.json` | ✅ |
 | `version.json` | `plugins/<p>/version.json` (e.g. Membrum: `"version": "0.12.2"`, `"preset_subdir": "Kits"`); read by `cmake/KratePlugin.cmake:35-56` (`krate_plugin_read_version`, sets `PROJECT_VERSION` so moduleinfo carries it) | Name, version, `preset_subdir`, optional `identifier` (`release.yml:17,321`) feed the `install` block | ✅ read only. `preset_subdir` is consumed only by the macOS job (`release.yml:306`); the Windows script hard-codes `Kits` (`membrum/installers/windows/setup.iss:69`); the feed takes it from `version.json` |
@@ -918,18 +918,20 @@ Components:
     installing one plugin through the manager (the real Inno `.exe` / the real `.pkg`) and recording the prompt text and
     the result; on Windows additionally with the plug-in loaded in a DAW, recording the "close your DAW and retry"
     path; and once uninstalling the plugin again (Inno uninstaller / `pkgutil` removal). Linux has no elevation.
+  - Linux: install and Remove one plugin through the real manager, recording that no prompt appears and the placed
+    paths (`~/.vst3/<P>.vst3`, `~/Documents/Krate Audio/<P>`) (Phase 12 spec FR-074 (f)).
   - the self-update of a pkg-installed manager on macOS: record the admin prompt and that the swapped bundle is then
-    user-owned (Phase 11 D11).
+    user-owned (Phase 11 D11), recorded after the first self-update between two public releases (D17 R-POST-2).
 - 🆕 First-launch documentation as a deliverable: Windows SmartScreen "More info → Run anyway" and Smart App Control
   unsupported; macOS first launch per Q5, **written from the recorded macOS GUI check above**; Linux format notes and
   "add `~/.vst3` to REAPER's path list" (REAPER Linux default unconfirmed, per_os_install_mechanics.md KQ6). Published
-  on the landing page / README. The inline landing step in `release.yml:596-643` gains a Krate Manager card (Q5 ruled)
-  linking the latest manager release per OS and carrying this text; no other landing change, and the per-plugin
+  on the landing page / README. The landing step, the 'Generate Root Index' step of `release.yml` and the root-index step of `docs.yml` (`tools/gen-root-index.js`), also run by `release-manager.yml` job `landing`, gains a Krate Manager card (Q5 ruled)
+  linking the latest manager release per OS and carrying this text; the landing page is rendered by `tools/gen-root-index.js` for `release.yml`, `docs.yml` and `release-manager.yml` (Phase 12 Q2 ruled), the plugin cards unchanged byte-for-byte, and the per-plugin
   installers stay listed beside it. It states the supported Windows floor, Windows 10 22H2 and Windows 11 x64 (Q6),
   which no `tauri.conf.json` key can carry (Phase 4 spec Non-goals). A redirected `%LOCALAPPDATA%` is unsupported on
   Windows: every elevated batch is refused with `E_HELPER_JOB_LOCATION` (Phase 10 D17).
 - 🆕 Release readiness for manager 0.1.0 (from `apps/krate-manager/version.json`): every Part B gate green on Windows
-  and every PENDING-CI row closed by a named green `manager-ci` / `release-manager` run, and the Phase 2 backfill run
+  and every PENDING-CI row closed by a named green `manager-ci` / `release-manager` run, except the post-release rows listed in specs/krate-manager-phase12/spec.md D17 (Phase 11 SC-014's `publish` half and SC-020, Phase 12 R-POST-1 to R-POST-3), which the first real dispatch and the release after it close, and the Phase 2 backfill run
   live, so the live feed offers all nine plugins with `platforms` (no plugin re-release).
 - 🆕 Before every manager release, check the RustSec advisory database (https://rustsec.org/) for `rquickjs`, `rquickjs-core` and `rquickjs-sys`, the vendored QuickJS-ng PAC engine that Phase 5 pins for the macOS and Linux builds (R-15); an advisory is answered with a pin bump before the release.
 

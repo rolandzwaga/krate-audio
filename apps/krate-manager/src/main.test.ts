@@ -1,7 +1,9 @@
 import { afterEach, expect, test } from "vitest";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
+import cachedStale from "../tests/fixtures/status/cached-stale.json";
 import freshAllStates from "../tests/fixtures/status/fresh-all-states.json";
 import installedElsewhere from "../tests/fixtures/status/installed-elsewhere.json";
+import macosAuCopies from "../tests/fixtures/status/macos-au-copies.json";
 import noFeed from "../tests/fixtures/status/no-feed.json";
 import { renderShell } from "./main";
 import { toStatusView } from "./view";
@@ -370,6 +372,7 @@ test("disables plugin actions while the manager updates itself", async () => {
     running_os: null,
     feed: { source: "fresh", fetched_at_unix: 1700000000, schema_version: 2, error: null },
     plugins: [plugin],
+    orphans: [],
   });
   const calls: string[] = [];
   mockIPC((cmd) => {
@@ -405,4 +408,197 @@ test("disables plugin actions while the manager updates itself", async () => {
   await settle();
   expect(flags()).toEqual([false, false]);
   expect(line.querySelector("p.update-failure")?.textContent).toBe(`E_SELF_UPDATE_INSTALL: ${sentence}`);
+});
+
+// Phase 12 PD-14 (FR-047, FR-048): the settings section mounts only after a Linux status and re-reads it on a root change.
+
+/** The core's `SettingsView` on Linux: the default root, unlocked, unless `fields` say otherwise. */
+function settingsJson(fields: Readonly<Record<string, unknown>> = {}): Record<string, unknown> {
+  return {
+    os: "linux",
+    linux_plugin_root: "/home/alpha/.vst3",
+    root_is_default: true,
+    graphics_workaround: false,
+    root_locked_by: [],
+    error: null,
+    ...fields,
+  };
+}
+
+const LINUX_NO_UPDATE = { ...NO_UPDATE, os: "linux" };
+
+/** Mocks an unlocked Linux start over `cached-stale.json`; `save` answers each `settings_save`. */
+function linuxStart(save: (args: unknown) => unknown = () => settingsJson()): string[] {
+  const calls: string[] = [];
+  mockIPC((cmd, args) => {
+    calls.push(cmd);
+    if (cmd === "startup_error") return null;
+    if (cmd === "app_version") return "0.1.0";
+    if (cmd === "plugin_status") return toStatusView(cachedStale);
+    if (cmd === "check_now") return toStatusView(cachedStale);
+    if (cmd === "manager_update_check") return LINUX_NO_UPDATE;
+    if (cmd === "settings_view") return settingsJson();
+    if (cmd === "settings_save") return save(args);
+    throw new Error(`unexpected command ${cmd}`);
+  });
+  return calls;
+}
+
+function count(calls: readonly string[], cmd: string): number {
+  return calls.filter((c) => c === cmd).length;
+}
+
+test("main_mounts_settings_on_linux", async () => {
+  expect(cachedStale.os).toBe("linux");
+  const root = document.createElement("main");
+  const calls = linuxStart();
+  await renderShell(root);
+  expect(calls).toEqual([...AFTER_START, "settings_view"]);
+  expect(calls.indexOf("settings_view")).toBeGreaterThan(calls.indexOf("plugin_status"));
+  expect(root.querySelectorAll("section.settings").length).toBe(1);
+  // Below the status section.
+  expect(root.querySelector("section.status")?.nextElementSibling?.className).toBe("settings");
+  expect(root.querySelector("section.settings button.settings-toggle")?.textContent).toBe("Settings");
+  // Later settles never read the settings again.
+  checkButton(root).click();
+  await settle();
+  expect(calls).toEqual([...AFTER_START, "settings_view", "check_now", "manager_update_check"]);
+  expect(count(calls, "settings_view")).toBe(1);
+  expect(root.querySelectorAll("section.settings").length).toBe(1);
+});
+
+test("main_skips_settings_on_macos", async () => {
+  expect(macosAuCopies.os).toBe("macos");
+  const root = document.createElement("main");
+  const calls = unlocked(
+    () => toStatusView(macosAuCopies),
+    () => toStatusView(macosAuCopies),
+    () => ({ ...NO_UPDATE, os: "macos" }),
+  );
+  await renderShell(root);
+  expect(calls).toEqual(AFTER_START);
+  expect(root.querySelector("section.settings")).toBeNull();
+  checkButton(root).click();
+  await settle();
+  expect(calls).toEqual([...AFTER_START, "check_now", "manager_update_check"]);
+  expect(root.querySelector("section.settings")).toBeNull();
+});
+
+test("main_rereads_status_after_root_change", async () => {
+  const root = document.createElement("main");
+  let answer = settingsJson({ linux_plugin_root: "/home/alpha/plugins", root_is_default: false });
+  const calls = linuxStart(() => answer);
+  await renderShell(root);
+  expect(count(calls, "plugin_status")).toBe(1);
+  const section = root.querySelector("section.settings");
+  if (!(section instanceof HTMLElement)) throw new Error("no settings section");
+  section.querySelector<HTMLButtonElement>("button.settings-toggle")?.click();
+  const field = section.querySelector("input.root");
+  const save = section.querySelector("button.save");
+  const graphics = section.querySelector("input.graphics");
+  if (!(field instanceof HTMLInputElement) || !(save instanceof HTMLButtonElement) || !(graphics instanceof HTMLInputElement)) {
+    throw new Error("no settings controls");
+  }
+  // A saved root change: exactly one further plugin_status.
+  field.value = "/home/alpha/plugins";
+  save.click();
+  await settle();
+  expect(count(calls, "settings_save")).toBe(1);
+  expect(count(calls, "plugin_status")).toBe(2);
+  expect(calls[calls.length - 1]).toBe("plugin_status");
+  // A save that keeps the root: none.
+  answer = settingsJson({ linux_plugin_root: "/home/alpha/plugins", root_is_default: false, graphics_workaround: true });
+  graphics.checked = true;
+  save.click();
+  await settle();
+  expect(count(calls, "settings_save")).toBe(2);
+  expect(count(calls, "plugin_status")).toBe(2);
+  expect(count(calls, "settings_view")).toBe(1);
+});
+
+/** One Windows card offering an update from `installed` to `latest`. */
+function updateCard(name: string, installed: string, latest: string): Record<string, unknown> {
+  return {
+    name,
+    latest,
+    availability: "available",
+    min_os: null,
+    installed: "version",
+    installed_version: installed,
+    update: "update_available",
+    copies: [],
+    record: null,
+    record_error: null,
+    record_without_files: false,
+    record_version_differs: false,
+    release_page_url: null,
+    notes: [],
+    actions: ["update", "remove"],
+    remove_hint: null,
+  };
+}
+
+test("update_all_excludes_manager_line", async () => {
+  const status = toStatusView({
+    os: "windows",
+    edge_max_age_secs: 600,
+    running_os: null,
+    feed: { source: "fresh", fetched_at_unix: 1700000000, schema_version: 2, error: null },
+    plugins: [updateCard("Alpha", "1.0.0", "1.2.0"), updateCard("Beta", "2.0.0", "2.1.0")],
+    orphans: [],
+  });
+  /** Renders the shell with `manager` as the manager's update check; returns the Update-all items sent, if any. */
+  async function shell(manager: unknown): Promise<{ root: HTMLElement; items: unknown[] }> {
+    const root = document.createElement("main");
+    const items: unknown[] = [];
+    mockIPC((cmd, args) => {
+      if (cmd === "startup_error") return null;
+      if (cmd === "app_version") return "0.1.0";
+      if (cmd === "plugin_status") return status;
+      if (cmd === "manager_update_check") return manager;
+      if (cmd === "update_all") {
+        items.push((args as Record<string, unknown> | undefined)?.["items"]);
+        return new Promise(() => undefined); // stays running: the case is about what was sent
+      }
+      throw new Error(`unexpected command ${cmd}`);
+    });
+    await renderShell(root);
+    return { root, items };
+  }
+  function control(root: HTMLElement): HTMLButtonElement {
+    const found = root.querySelector("section.status button.update-all");
+    if (!(found instanceof HTMLButtonElement)) throw new Error("no Update all control");
+    return found;
+  }
+
+  const without = await shell(NO_UPDATE);
+  expect(without.root.querySelector("p.update-available")).toBeNull();
+  const enabledWithout = !control(without.root).disabled;
+  clearMocks();
+
+  const offered = await shell(UPDATE);
+  expect(updateLine(offered.root).querySelector("p.update-available")?.textContent).toBe("Krate Manager 0.2.0 is available.");
+  const all = control(offered.root);
+  // The manager's update does not enable, disable or alter the control.
+  expect(!all.disabled).toBe(enabledWithout);
+  expect(all.textContent).toBe(control(without.root).textContent);
+  all.click();
+  const confirm = offered.root.querySelector("section.status div.confirm-all");
+  if (!(confirm instanceof HTMLElement)) throw new Error("no Update all confirmation");
+  const lines = Array.from(confirm.querySelectorAll("p.confirm-line"), (p) => p.textContent);
+  expect(lines.length).toBe(2);
+  expect(lines[0]?.includes("Alpha")).toBe(true);
+  expect(lines[1]?.includes("Beta")).toBe(true);
+  expect(confirm.textContent.includes("Krate Manager")).toBe(false);
+  expect(confirm.textContent.includes("0.2.0")).toBe(false);
+  const ok = confirm.querySelector("button.confirm-ok");
+  if (!(ok instanceof HTMLButtonElement)) throw new Error("no confirm button");
+  ok.click();
+  await settle();
+  expect(offered.items).toEqual([
+    [
+      { name: "Alpha", expectedVersion: "1.2.0" },
+      { name: "Beta", expectedVersion: "2.1.0" },
+    ],
+  ]);
 });

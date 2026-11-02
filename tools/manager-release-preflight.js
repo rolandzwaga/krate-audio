@@ -13,13 +13,22 @@
 //
 // Usage: node tools/manager-release-preflight.js --app-dir <dir> --dry-run <true|false> --tags <file>
 //          --repo <owner/repo> [--notes <out>] [--body <out>] [--github-output <file>] [--pubkey <file>]
+//          [--run-date <YYYY-MM-DD>]
 //   --tags     two sections: "# tags" (one refs/tags/<name> per line, git ls-remote --tags origin without the sha and
 //              the ^{} lines) and "# releases" (one release tag name per line, gh release list --limit 1000)
 //   --pubkey   the release public key (default tools/feed-contract/keys/krate-signing.pub)
+//   --run-date the date the RustSec record's age is measured from (default the UTC date of now)
 // Checks, in order, each exit 1 with "manager-release-preflight: <CODE>: <message>" on stderr: E_PREFLIGHT_VERSION,
 // E_PREFLIGHT_UPDATER_CONFIG, E_PREFLIGHT_CHANGELOG, E_PREFLIGHT_CHANGELOG_UNDATED (real run; a dry run warns),
-// E_PREFLIGHT_TAG_LIST, E_PREFLIGHT_REPO, E_PREFLIGHT_TAG_EXISTS, E_SIGNING_CONFIG (real run only). Nothing is written
-// unless every check passes. Exit 2 = usage or internal error. Offline: no network, no child process.
+// E_PREFLIGHT_TAG_LIST, E_PREFLIGHT_REPO, E_PREFLIGHT_TAG_EXISTS, E_PREFLIGHT_RUSTSEC, E_SIGNING_CONFIG (real run
+// only). Nothing is written unless every check passes. Exit 2 = usage or internal error. Offline: no network, no child
+// process.
+//
+// E_PREFLIGHT_RUSTSEC (Phase 12 FR-104, PD-19), on both kinds of run: <app-dir>/RELEASING.md's one "## RustSec" section
+// holds a table "| version | date | rquickjs | rquickjs-core | rquickjs-sys | result |" with exactly one row for the
+// version; its three crate cells equal each crate's one `version = "…"` line in <app-dir>/Cargo.lock; its result is
+// "no advisory" or "RUSTSEC-YYYY-NNNN[, …] answered by bump to rquickjs <v>, rquickjs-core <v>, rquickjs-sys <v>"
+// naming each crate's own locked version; its date is 0 to 7 days before the run date.
 // =============================================================================
 'use strict';
 
@@ -34,6 +43,7 @@ const NAME = 'manager-release-preflight';
 const USAGE = [
   'usage: node tools/manager-release-preflight.js --app-dir <dir> --dry-run <true|false> --tags <file>',
   '         --repo <owner/repo> [--notes <out>] [--body <out>] [--github-output <file>] [--pubkey <file>]',
+  '         [--run-date <YYYY-MM-DD>]',
 ].join('\n');
 const DEFAULT_PUBKEY = path.join(__dirname, 'feed-contract', 'keys', 'krate-signing.pub');
 // D2: the compiled updater endpoint (tools/feed-publish.js MANAGER_LATEST_URL; the T013 guard pins the two equal).
@@ -43,7 +53,19 @@ const RELEASE_LIST_LIMIT = 1000;
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const MANAGER_REPO_RE = /^pub const MANAGER_REPO: &str = "([^"]+)";\r?$/gm;
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const OPTIONS = ['--app-dir', '--dry-run', '--tags', '--repo', '--notes', '--body', '--github-output', '--pubkey'];
+const OPTIONS = [
+  '--app-dir', '--dry-run', '--tags', '--repo', '--notes', '--body', '--github-output', '--pubkey', '--run-date',
+];
+// FR-104: the crates whose RustSec record a release needs, in table column order.
+const RUSTSEC_CRATES = ['rquickjs', 'rquickjs-core', 'rquickjs-sys'];
+const RUSTSEC_HEADER = ['version', 'date', ...RUSTSEC_CRATES, 'result'];
+const RUSTSEC_BUMP_RE = new RegExp(
+  '^RUSTSEC-\\d{4}-\\d{4}(?:, RUSTSEC-\\d{4}-\\d{4})* answered by bump to ' +
+    'rquickjs (\\S+), rquickjs-core (\\S+), rquickjs-sys (\\S+)$',
+);
+// FR-104: how many days before the run date a RustSec record may be dated.
+const RUSTSEC_MAX_AGE_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 class PreflightError extends Error {
   constructor(code, message) {
@@ -155,11 +177,90 @@ function isRealDate(s) {
   return d.toISOString().slice(0, 10) === s;
 }
 
+/** FR-104: { <crate>: version } from the `version = "…"` line after each crate's one `name = "…"` lock line. */
+function lockedVersions(lockText) {
+  const lines = lockText.split(/\r?\n/);
+  const out = {};
+  for (const crate of RUSTSEC_CRATES) {
+    const at = lines.flatMap((l, i) => (l === `name = "${crate}"` ? [i] : []));
+    if (at.length !== 1) throw refuse('E_PREFLIGHT_RUSTSEC', `Cargo.lock: ${at.length} "${crate}" packages, not 1`);
+    const m = /^version = "([^"]+)"$/.exec(lines[at[0] + 1] ?? '');
+    if (!m) throw refuse('E_PREFLIGHT_RUSTSEC', `Cargo.lock: no version line after name = "${crate}"`);
+    out[crate] = m[1];
+  }
+  return out;
+}
+
+// The cells of a Markdown table line "| a | b |" -> ['a', 'b'].
+const tableCells = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+
+/**
+ * FR-104: the one row for `version` of the table in RELEASING.md's one "## RustSec" section, as
+ * { version, date, <crate>…, result }. Throws E_PREFLIGHT_RUSTSEC on any other shape.
+ */
+function rustsecRecord(releasingText, version) {
+  const bad = (why) => refuse('E_PREFLIGHT_RUSTSEC', `RELEASING.md: ${why}`);
+  const lines = releasingText.split(/\r?\n/);
+  const at = lines.flatMap((l, i) => (l.trimEnd() === '## RustSec' ? [i] : []));
+  if (at.length !== 1) throw bad(`${at.length} "## RustSec" sections, not 1`);
+  let end = lines.findIndex((l, i) => i > at[0] && l.startsWith('## '));
+  if (end < 0) end = lines.length;
+  const section = lines.slice(at[0] + 1, end);
+  const head = section.findIndex((l) => l.trim().startsWith('|'));
+  if (head < 0) throw bad('the RustSec section has no table');
+  const header = tableCells(section[head]);
+  if (header.join('|') !== RUSTSEC_HEADER.join('|')) {
+    throw bad(`the RustSec table's columns are "${header.join(' | ')}", not "${RUSTSEC_HEADER.join(' | ')}"`);
+  }
+  const rule = section[head + 1] === undefined ? [] : tableCells(section[head + 1]);
+  if (rule.length !== RUSTSEC_HEADER.length || !rule.every((c) => /^:?-{3,}:?$/.test(c))) {
+    throw bad('the RustSec table has no delimiter row under its header');
+  }
+  const rows = [];
+  for (const line of section.slice(head + 2)) {
+    if (!line.trim().startsWith('|')) break;
+    const cells = tableCells(line);
+    if (cells.length !== RUSTSEC_HEADER.length) throw bad(`a RustSec row has ${cells.length} cells, not 6: ${line}`);
+    if (cells[0] === version) rows.push(Object.fromEntries(RUSTSEC_HEADER.map((k, i) => [k, cells[i]])));
+  }
+  if (rows.length !== 1) throw bad(`${rows.length} RustSec rows for version ${version}, not 1`);
+  return rows[0];
+}
+
+/** FR-104: the RustSec record for `version` matches Cargo.lock and is 0 to 7 days older than `runDate`. */
+function checkRustsec(appDir, version, runDate) {
+  const locked = lockedVersions(readAppFile(appDir, 'Cargo.lock', 'E_PREFLIGHT_RUSTSEC'));
+  const row = rustsecRecord(readAppFile(appDir, 'RELEASING.md', 'E_PREFLIGHT_RUSTSEC'), version);
+  const bad = (why) => refuse('E_PREFLIGHT_RUSTSEC', `RELEASING.md RustSec row ${version}: ${why}`);
+  for (const crate of RUSTSEC_CRATES) {
+    if (row[crate] !== locked[crate]) throw bad(`${crate} ${row[crate]} != Cargo.lock ${crate} ${locked[crate]}`);
+  }
+  if (row.result !== 'no advisory') {
+    const m = RUSTSEC_BUMP_RE.exec(row.result);
+    if (!m) {
+      const want = '"<advisory ids> answered by bump to rquickjs <v>, rquickjs-core <v>, rquickjs-sys <v>"';
+      throw bad(`result "${row.result}" is neither "no advisory" nor ${want}`);
+    }
+    RUSTSEC_CRATES.forEach((crate, i) => {
+      if (m[i + 1] !== locked[crate]) {
+        throw bad(`result bumps ${crate} to ${m[i + 1]}, but Cargo.lock locks ${crate} ${locked[crate]}`);
+      }
+    });
+  }
+  if (!isRealDate(row.date)) throw bad(`date "${row.date}" is not a YYYY-MM-DD date`);
+  const age = (Date.parse(`${runDate}T00:00:00Z`) - Date.parse(`${row.date}T00:00:00Z`)) / DAY_MS;
+  if (age < 0) throw bad(`date ${row.date} is after the run date ${runDate}`);
+  if (age > RUSTSEC_MAX_AGE_DAYS) {
+    throw bad(`date ${row.date} is ${age} days before the run date ${runDate} (at most ${RUSTSEC_MAX_AGE_DAYS})`);
+  }
+}
+
 /**
  * Runs every check in order (throws a PreflightError naming the first refusal) and returns
- * { version, tag, notes, body, warnings }. opts: { appDir, dryRun, tagsText, repo, pubkeyText }.
+ * { version, tag, notes, body, warnings }. opts: { appDir, dryRun, tagsText, repo, pubkeyText, runDate } (runDate
+ * YYYY-MM-DD).
  */
-function preflight({ appDir, dryRun, tagsText, repo, pubkeyText }) {
+function preflight({ appDir, dryRun, tagsText, repo, pubkeyText, runDate }) {
   const warnings = [];
 
   // E_PREFLIGHT_VERSION: one version everywhere (lint-manager-version.js).
@@ -235,6 +336,9 @@ function preflight({ appDir, dryRun, tagsText, repo, pubkeyText }) {
   if (tags.has(tag)) throw refuse('E_PREFLIGHT_TAG_EXISTS', `tag ${tag} exists on the remote`);
   if (releases.includes(tag)) throw refuse('E_PREFLIGHT_TAG_EXISTS', `release ${tag} exists`);
 
+  // E_PREFLIGHT_RUSTSEC, on both kinds of run (Phase 12 FR-104, PD-19).
+  checkRustsec(appDir, version, runDate);
+
   // E_SIGNING_CONFIG, real run only: never a test key as the release key (gen-release-manifest.js, PD-23).
   if (!dryRun) {
     try {
@@ -264,6 +368,9 @@ function parseArgs(argv) {
     throw new UsageError(`--dry-run must be true or false, not ${opts['--dry-run']}`);
   }
   if (!REPO_RE.test(opts['--repo'])) throw new UsageError(`--repo must be <owner>/<repo>, not ${opts['--repo']}`);
+  if (Object.hasOwn(opts, '--run-date') && !isRealDate(opts['--run-date'])) {
+    throw new UsageError(`--run-date must be a YYYY-MM-DD date, not ${opts['--run-date']}`);
+  }
   return opts;
 }
 
@@ -302,6 +409,7 @@ function main(argv, io) {
       tagsText,
       repo: opts['--repo'],
       pubkeyText,
+      runDate: opts['--run-date'] ?? new Date().toISOString().slice(0, 10),
     });
     for (const w of result.warnings) io.stdout.write(`::warning title=preflight::${w}\n`);
     if (opts['--notes'] !== undefined) writeAtomic(opts['--notes'], result.notes);

@@ -1,0 +1,40 @@
+Krate Manager Phase 12 close lane, 2026-11-02T10:40:06.807Z, wall=125.1s, logs F:/tmp/gate/km12-close/20261102-103801 (removed by C3)
+A0    GREEN rustc="rustc 1.99.1 (58cf8f9c3 2026-10-13)" node="v24.7.0" df(repo root)="F: 50G 37G 14G 74% /f"
+A0b   GREEN git status --porcelain: 99 lines (without specs/krate-manager-phase12/evidence/) file=F:/tmp/gate/km12-close/20261102-103801/A0b-git-status.txt
+G1    GREEN todo!( / unimplemented!( outside *_tests.rs and tests/ in 20 changed .rs files: none
+G2    GREEN Rule 2: added #[allow( / #[expect( / @ts-ignore / @ts-nocheck / eslint-disable over the diff from 7c4b6837 and 50 untracked file(s): none
+G3    GREEN Rule 6: no --test-threads / --no-file-parallelism / --test-concurrency=1 / --test-concurrency 1 in the change set (exempt the ban lists' homes apps/krate-manager/crates/core/tests/injection.rs, tools/feed-contract/tests/manager-ci-shape.test.js, tools/feed-contract/tests/release-manager-shape.test.js, tools/feed-contract/tests/hygiene.test.js): none
+G4    GREEN T001 step 14: git check-attr eol tools/gen-root-index.js -> "tools/gen-root-index.js: eol: lf" (want "tools/gen-root-index.js: eol: lf")
+G5    GREEN Rule 1: no file named *.key under apps/krate-manager/ (tracked, untracked or ignored): none
+A1a   GREEN L-RS cargo fmt --all --check last="" exit=0 wall=3.1s log=F:/tmp/gate/km12-close/20261102-103801/A1a-cargo-fmt.log
+A1b   GREEN L-RS cargo clippy --workspace --all-targets --locked -- -D warnings warning-lines=0 exit=0 wall=4.4s log=F:/tmp/gate/km12-close/20261102-103801/A1b-clippy.log
+A1c   GREEN L-APP cargo clippy -p krate-manager --all-targets --locked -- -D warnings warning-lines=0 exit=0 wall=1.2s log=F:/tmp/gate/km12-close/20261102-103801/A1c-clippy.log
+A1d   GREEN L-DEVFEED cargo clippy -p krate-manager --all-targets --features dev-feed --locked -- -D warnings warning-lines=0 exit=0 wall=1.1s log=F:/tmp/gate/km12-close/20261102-103801/A1d-clippy.log
+A1e   GREEN L-MANUAL cargo clippy -p krate-manager --example manual_elevation --features manual-elevation --locked -- -D warnings warning-lines=0 exit=0 wall=1.3s log=F:/tmp/gate/km12-close/20261102-103801/A1e-clippy.log
+A1f   GREEN L-E2E KRATE_E2E_FEED_URL=http://127.0.0.1:9/versions.json KRATE_E2E_MARKER_DIR=never-run KRATE_E2E_OLD_VERSION=0.0.0 cargo clippy -p krate-manager --all-targets --features updater-e2e --locked -- -D warnings warning-lines=0 exit=0 wall=1.2s log=F:/tmp/gate/km12-close/20261102-103801/A1f-clippy.log
+A1g   GREEN L-GUARD step clippy-guard notice="::notice title=clippy-guard (Windows)::rc=101 disallowed=3 from_os=1 Roots::new=1 std::env::var=1 lint-named=5 other-errors=0" error-lines=0 (want other-errors=0, no ::error) copied to specs/krate-manager-phase12/evidence/clippy-guard.txt exit=0 wall=2.1s log=F:/tmp/gate/km12-close/20261102-103801/A1g-clippy-guard.log
+A1h   GREEN L-RS cargo test --workspace --locked binaries=12 passed=445 binaries-with-failures=0 -> specs/krate-manager-phase12/evidence/cargo-test.txt exit=0 wall=81.6s log=F:/tmp/gate/km12-close/20261102-103801/A1h-cargo-test.log
+H     GREEN L-HARNESS last="HARNESS LANE GREEN (Windows, 27 ok, 2953 ms)" exit=0 wall=18.4s log=F:/tmp/gate/km12-close/20261102-103801/H-harness-lane.log
+A2a   GREEN node_modules present: npm ci not run
+A2b   GREEN L-TS npm run typecheck last="> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json" exit=0 wall=7.2s log=F:/tmp/gate/km12-close/20261102-103801/A2b.log
+A2c   GREEN L-TS npm run lint last="> eslint . --max-warnings 0" exit=0 wall=13.9s log=F:/tmp/gate/km12-close/20261102-103801/A2c.log
+A2d   GREEN L-TS npm test -- --reporter=default --reporter=json --outputFile.json=F:/tmp/gate/km12-close/20261102-103801/vitest.json vitest.json success=true passed=87 failed=0 total=87 exit=0 wall=9.1s log=F:/tmp/gate/km12-close/20261102-103801/A2d.log
+A2e   GREEN L-NAPP node --test --test-reporter=tap "scripts/*.test.js" fail=0 "bundle sidecar name per host tuple" ok x1, "fixture inno script keeps the plugin directives" ok x1, "write test job prints verbatim windows paths" ok x1, "bundle release mode argv" ok x1, "bundle release asset table" ok x1, "e2e update server serves only its directory" ok x1 (want 1 each) warning-lines=0 tap=F:/tmp/gate/km12-close/20261102-103801/node-tap.txt exit=0 wall=0.6s log=F:/tmp/gate/km12-close/20261102-103801/A2e-node-test-scripts.log
+A3a   GREEN node --check on 15 files (the change set's .js and the four evidence scripts): all ok
+A3b   GREEN --self-test of scope-check, wsl-lane, close-lane, rustsec-check: all GREEN
+A3c   GREEN L-NODE node --test plan=1..69 tests=937 pass=932 fail=0 nodeWarnings=0 want plan = feed-tools.yml PLAN=1..69 tap=F:/tmp/gate/km12-close/20261102-103801/feed-tap.txt exit=0 wall=44.6s log=F:/tmp/gate/km12-close/20261102-103801/A3c-node-test.log
+A3d   GREEN L-TAP want "TAP plan=1..69 top-level=69" printed last="TAP plan=1..69 top-level=69" exit=0 wall=0.1s log=F:/tmp/gate/km12-close/20261102-103801/A3d-tap-check.log
+A3e   GREEN L-VLINT stderr=none exit=0 wall=0.1s log=F:/tmp/gate/km12-close/20261102-103801/A3e-version-lint.log
+A4a   GREEN L-YAML .github/workflows/release.yml exit=0 wall=3.5s log=F:/tmp/gate/km12-close/20261102-103801/A4a-yaml.log
+A4b   GREEN L-YAML .github/workflows/docs.yml exit=0 wall=2.6s log=F:/tmp/gate/km12-close/20261102-103801/A4b-yaml.log
+A4c   GREEN L-YAML .github/workflows/release-manager.yml exit=0 wall=2.0s log=F:/tmp/gate/km12-close/20261102-103801/A4c-yaml.log
+A4d   GREEN L-YAML .github/workflows/feed-tools.yml exit=0 wall=1.9s log=F:/tmp/gate/km12-close/20261102-103801/A4d-yaml.log
+A5    GREEN L-LINT lint-serial-test-runs last="lint-serial-test-runs: clean (64 files)" exit=0 wall=0.2s log=F:/tmp/gate/km12-close/20261102-103801/A5-lint-serial.log
+A6    GREEN L-INDEX gen-specs-index --check last="specs/INDEX.md is up to date." exit=0 wall=0.4s log=F:/tmp/gate/km12-close/20261102-103801/A6-specs-index.log
+A7    GREEN L-SCOPE scope-check last="scope-check: 104 paths (46 under apps/krate-manager/, 58 outside): OK (base 7c4b6837)" exit=0 wall=2.4s log=F:/tmp/gate/km12-close/20261102-103801/A7-scope-check.log
+A8    GREEN FR-111 / TA-17 node tools/header-consumers.js --tag '[krate-manager]' last="CONSUMERS OUTSIDE [krate-manager]: none" (want "CONSUMERS OUTSIDE [krate-manager]: none") exit=0 wall=0.2s log=F:/tmp/gate/km12-close/20261102-103801/A8-header-consumers.log
+A10   GREEN L-WSL last="WSL LANE GREEN (471 passed, 112 s)" info="Linux-run Phase 9+10 tests seen ok: 13/13 | Phase 12 required cargo tests seen ok: 34/34" -> specs/krate-manager-phase12/evidence/wsl-core.txt (early signal; closes no PENDING-CI row) exit=0 wall=122.7s log=F:/tmp/gate/km12-close/20261102-103801/A10-wsl-lane.log
+B2    GREEN L-REQ step required tests ran notices="::notice title=required tests ran (Windows)::406 cargo + 86 vitest + 6 node" want "::notice title=required tests ran (Windows)::406 cargo + 86 vitest + 6 node" exit=0 wall=0.3s log=F:/tmp/gate/km12-close/20261102-103801/B2-required-tests-ran.log
+C1    GREEN git status --porcelain (without specs/krate-manager-phase12/evidence/) equal to A0b (99 lines; changed: none)
+C3    GREEN raw logs F:/tmp/gate/km12-close/20261102-103801 removed wall=0.0s
+CLOSE LANE GREEN

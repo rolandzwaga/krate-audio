@@ -3311,6 +3311,8 @@ impl InstallRig {
             host_io,
             #[cfg(test)]
             request_seam: None,
+            #[cfg(test)]
+            stage_seam: None,
         }
     }
 }

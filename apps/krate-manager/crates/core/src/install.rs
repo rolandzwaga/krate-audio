@@ -21,7 +21,8 @@ use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::io;
 use std::path::{Component, Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, PoisonError, mpsc};
 use std::time::Duration;
 
 /// The `log` target of every install line (FR-117).
@@ -196,6 +197,9 @@ pub enum InstallError {
     // ---- Phase 11 (FR-018) ----
     #[error(transparent)]
     SelfUpdating(#[from] crate::self_update::SelfUpdating),
+    // ---- Phase 12 (FR-002; plan §3) ----
+    #[error("E_INSTALL_BATCH: {reason}")]
+    Batch { reason: &'static str },
 }
 
 /// FR-133's two `E_INSTALL_ELEVATION_BUSY` sentences (FR-078a).
@@ -248,6 +252,7 @@ impl InstallError {
             InstallError::InstallerFailed { .. } => "E_INSTALL_INSTALLER_FAILED",
             InstallError::RemoveElsewhere => "E_INSTALL_REMOVE_ELSEWHERE",
             InstallError::SelfUpdating(_) => crate::self_update::SELF_UPDATING_CODE,
+            InstallError::Batch { .. } => "E_INSTALL_BATCH",
         }
     }
 }
@@ -400,6 +405,100 @@ pub enum InstallProgress {
     Elevating,
 }
 
+// ---- Update all (Phase 12 plan §4.1; FR-001 to FR-020; PD-5) --------------------------------------------------------
+
+/// One plugin of an Update-all batch, as the webview sends it: `{ name, expectedVersion }` and nothing else (FR-060,
+/// SI-10).
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BatchItem {
+    pub name: String,
+    pub expected_version: String,
+}
+
+/// How a batch downloads (FR-001, D3): a fixed bound, never a setting.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BatchPolicy {
+    pub parallel_downloads: usize,
+}
+
+impl BatchPolicy {
+    /// D3: three downloads at a time.
+    pub const PRODUCTION: BatchPolicy = BatchPolicy {
+        parallel_downloads: 3,
+    };
+}
+
+/// FR-002 (SI-2): a batch is one job, so it holds at most the helper's op cap.
+pub const MAX_BATCH_ITEMS: usize = job::MAX_OPS;
+
+/// One progress event of a batch, serialized for the `Channel` (FR-024, FR-060).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum BatchProgress {
+    /// An event of one item's download or install.
+    Item {
+        name: String,
+        event: InstallProgress,
+    },
+    /// Once per elevated batch, just before the launch (Windows, macOS).
+    Elevating,
+}
+
+/// One item's result, in request order (FR-001).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BatchItemResult {
+    pub name: String,
+    pub outcome: Result<ActionSummary, InstallError>,
+}
+
+/// What a batch did (FR-001, D7): every item's result and the batch's one notice.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BatchSummary {
+    pub results: Vec<BatchItemResult>,
+    pub notice: Option<Notice>,
+}
+
+/// What `update_all` returns to the webview: no absolute path, the error as its text (FR-060, FR-091).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct BatchSummaryView {
+    pub results: Vec<BatchItemView>,
+    pub notice: Option<Notice>,
+}
+
+/// One item of a `BatchSummaryView`: exactly one of `summary` / `error` is `Some`; `error` is the code-first text.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct BatchItemView {
+    pub name: String,
+    pub summary: Option<ActionSummary>,
+    pub error: Option<String>,
+}
+
+impl BatchSummary {
+    /// The webview's view of this summary (PD-5).
+    pub fn view(&self) -> BatchSummaryView {
+        BatchSummaryView {
+            results: self
+                .results
+                .iter()
+                .map(|r| match &r.outcome {
+                    Ok(summary) => BatchItemView {
+                        name: r.name.clone(),
+                        summary: Some(summary.clone()),
+                        error: None,
+                    },
+                    Err(e) => BatchItemView {
+                        name: r.name.clone(),
+                        summary: None,
+                        error: Some(e.to_string()),
+                    },
+                })
+                .collect(),
+            notice: self.notice,
+        }
+    }
+}
+
 /// An OS's install driver: runs a batch in order, one result per action (FR-001, D10).
 pub trait InstallDriver: Sync {
     fn os(&self) -> Os;
@@ -543,6 +642,19 @@ pub struct CommandEnv<'a> {
     #[cfg(test)]
     pub(crate) request_seam:
         Option<&'a dyn Fn(crate::download::DownloadRequest) -> crate::download::DownloadRequest>,
+    /// Phase 12 PD-6 (3b): called once at each batch stage boundary, on the calling thread (tests only).
+    #[cfg(test)]
+    pub(crate) stage_seam: Option<&'a dyn Fn(BatchStage)>,
+}
+
+/// Phase 12 PD-6 (3b): the batch stage boundaries a test can observe.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BatchStage {
+    /// Every item checked; no worker spawned yet.
+    ChecksDone,
+    /// Every download joined; no driver run yet.
+    DownloadsDone,
 }
 
 /// The one production `CommandEnv`: the native OS and architecture and `NativeDrivers` (FR-096, plan PD-6).
@@ -566,6 +678,8 @@ pub fn native_env<'a>(
         host_io,
         #[cfg(test)]
         request_seam: None,
+        #[cfg(test)]
+        stage_seam: None,
     }
 }
 
@@ -839,6 +953,8 @@ pub mod job {
     pub const PKGUTIL_TIMEOUT: Duration = Duration::from_secs(30);
     /// D14: added to the sum of the op ceilings.
     pub const ELEVATION_MARGIN: Duration = Duration::from_secs(120);
+    /// FR-002 (SI-2): the helper's op cap (crates/helper/src/job.rs:11); one job, so one batch, holds at most this many ops.
+    pub const MAX_OPS: usize = 32;
 
     /// One op as the core writes it (FR-001, PD-12).
     #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -1431,6 +1547,16 @@ pub fn channel_progress<E>(
     }
 }
 
+/// The batch `Channel` adapter (Phase 12 FR-024, FR-060): each event to `send`, a `send` error dropped.
+pub fn batch_channel_progress<E>(
+    mut send: impl FnMut(BatchProgress) -> Result<(), E>,
+) -> impl FnMut(BatchProgress) {
+    move |event: BatchProgress| {
+        // The webview may be gone; the batch goes on (FR-024).
+        let _ = send(event);
+    }
+}
+
 // ---- InstallIo and FsInstallIo (plan §4.1.2) -----------------------------------------------------------------------
 
 /// Every filesystem step of Phase 9 (FR-028): the only way this module touches the filesystem.
@@ -1996,6 +2122,78 @@ pub fn read_manifest_full(
         })?;
     check_manifest(&manifest, &format!("{stem}.vst3"))?;
     Ok(Some(manifest))
+}
+
+/// Phase 12 PD-7: the most entries `manifest_heads` reads from `<state>/manifests/`.
+pub(crate) const MAX_MANIFEST_ENTRIES: usize = 256;
+
+/// Phase 12 PD-7: what one manifest file names: its file stem, and its string `plugin` (manifest version 1 only) and
+/// `version`, each `None` when absent, of another type or unreadable.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ManifestHead {
+    pub stem: String,
+    pub plugin: Option<String>,
+    pub version: Option<String>,
+}
+
+/// Phase 12 PD-7 (FR-041, FR-050, FR-052): one head per `<stem>.json` file of `<state>/manifests/`, sorted by stem,
+/// read through `io` with each file bounded; dot files (the atomic-write temp) and other names are skipped.
+pub(crate) fn manifest_heads(
+    io: &dyn InstallIo,
+    state_dir: &Path,
+) -> Result<Vec<ManifestHead>, InstallError> {
+    let dir = state_dir.join(detect::MANIFESTS_DIR);
+    match io.kind_of(&dir) {
+        Ok(None) => return Ok(Vec::new()),
+        Ok(Some(NodeKind::Dir)) => {}
+        Ok(Some(_)) => return Err(InstallError::Manifest { reason: NOT_A_DIR }),
+        Err(_) => return Err(InstallError::Record("E_RECORD_READ")),
+    }
+    let entries = io
+        .read_dir(&dir)
+        .map_err(|_| InstallError::Record("E_RECORD_READ"))?;
+    if entries.len() > MAX_MANIFEST_ENTRIES {
+        return Err(InstallError::Manifest {
+            reason: "too many manifests",
+        });
+    }
+    let mut heads: Vec<ManifestHead> = entries
+        .into_iter()
+        .filter(|(_, kind)| *kind == NodeKind::File)
+        .filter_map(|(name, _)| {
+            let name = name.into_string().ok()?;
+            let stem = name.strip_suffix(".json")?;
+            (!stem.starts_with('.') && !stem.is_empty()).then(|| stem.to_owned())
+        })
+        .map(|stem| {
+            let doc = io
+                .read_file(
+                    &dir.join(format!("{stem}.json")),
+                    detect::MAX_MANIFEST_BYTES,
+                )
+                .ok()
+                .filter(|bytes| bytes.len() as u64 <= detect::MAX_MANIFEST_BYTES)
+                .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+            let text = |key: &str| {
+                doc.as_ref()
+                    .and_then(|d| d.get(key))
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+            };
+            let version_one = doc
+                .as_ref()
+                .and_then(|d| d.get("manifest_version"))
+                .and_then(serde_json::Value::as_u64)
+                == Some(1);
+            ManifestHead {
+                plugin: text("plugin").filter(|_| version_one),
+                version: text("version"),
+                stem,
+            }
+        })
+        .collect();
+    heads.sort_by(|a, b| a.stem.cmp(&b.stem));
+    Ok(heads)
 }
 
 /// An absolute, normal path text (FR-041).
@@ -3588,7 +3786,17 @@ fn run_uninstall(
     entry: &PluginEntry,
 ) -> Result<Outcome, InstallError> {
     let dest = Destinations::of(ctx, entry)?;
-    check_state_dirs(io, &dest)?;
+    run_uninstall_at(ctx, io, progress, &dest)
+}
+
+/// `run_uninstall` from its destinations on (Phase 12 PD-8): the feed entry's or an orphan manifest's.
+fn run_uninstall_at(
+    ctx: &AppContext,
+    io: &dyn InstallIo,
+    progress: &mut dyn FnMut(InstallProgress),
+    dest: &Destinations,
+) -> Result<Outcome, InstallError> {
+    check_state_dirs(io, dest)?;
     if io
         .kind_of(&dest.journal)
         .map_err(at(Step::RemoveBegun))?
@@ -3603,9 +3811,9 @@ fn run_uninstall(
             name: dest.name.clone(),
         });
     };
-    roots_match(ctx, io, &dest, &m)?;
-    resolve_entries(io, &dest, &m)?;
-    let mut journal = Journal::empty(&dest, JournalOp::Remove);
+    roots_match(ctx, io, dest, &m)?;
+    resolve_entries(io, dest, &m)?;
+    let mut journal = Journal::empty(dest, JournalOp::Remove);
     journal.previous_manifest = Some(m.clone());
     let total = 1 + m
         .files
@@ -3613,9 +3821,9 @@ fn run_uninstall(
         .filter(|e| e.root == RootTag::Presets)
         .count() as u64;
     progress(InstallProgress::Removing { done: 0, total });
-    write_journal(io, &dest, &journal, Step::RemoveBegun)?;
+    write_journal(io, dest, &journal, Step::RemoveBegun)?;
     let mut kept_paths = Vec::new();
-    let removed = remove_entries(io, &dest, &m, progress, &mut kept_paths)?;
+    let removed = remove_entries(io, dest, &m, progress, &mut kept_paths)?;
     progress(InstallProgress::Done);
     Ok(Outcome {
         version: Some(m.version.clone()),
@@ -3959,10 +4167,10 @@ pub fn for_command(
     result
 }
 
-/// What steps 1 to 4 of FR-090 resolved: the feed, the request, the entry, the driver, the held guard.
+/// What steps 2 to 4 of FR-090 resolved for one plugin: the request, the entry, the driver, the held guard (the feed
+/// stays beside it, Phase 12 PD-2 (b)).
 struct Checked<'a> {
     kind: ActionKind,
-    feed: feed::Feed,
     request: download::DownloadRequest,
     entry: PluginEntry,
     driver: &'a dyn InstallDriver,
@@ -3977,7 +4185,7 @@ fn install_command<'a>(
     action: &str,
     now_unix: u64,
     host: &dyn HostFacts,
-) -> Result<Checked<'a>, InstallError> {
+) -> Result<(feed::Feed, Checked<'a>), InstallError> {
     // 1. The action word.
     let kind = match action {
         "install" => ActionKind::Install,
@@ -3999,9 +4207,23 @@ fn install_command<'a>(
         env.arch,
     )
     .map_err(|e| InstallError::Download(Box::new(e)))?;
+    let checked = check_item(env, &feed, request, kind, host)?;
+    Ok((feed, checked))
+}
+
+/// FR-090 steps 2 to 4 after the request, against a feed already checked (Phase 12 PD-2 (b), FR-005): the entry, the
+/// install facts, the guard, the destinations, the driver, the detection, the gate and the action table. Shared by
+/// the single command and the batch; no asset request, no mutating `InstallIo` call.
+fn check_item<'a>(
+    env: CommandEnv<'a>,
+    feed: &feed::Feed,
+    request: download::DownloadRequest,
+    kind: ActionKind,
+    host: &dyn HostFacts,
+) -> Result<Checked<'a>, InstallError> {
     let Some(entry) = feed.plugins.get(request.name()).cloned() else {
         return Err(InstallError::UnknownPlugin {
-            name: name.to_owned(),
+            name: request.name().to_owned(),
         });
     };
     let Some(facts) = entry.release.as_ref().and_then(|r| r.install.as_ref()) else {
@@ -4050,7 +4272,6 @@ fn install_command<'a>(
     }
     Ok(Checked {
         kind,
-        feed,
         request,
         entry,
         driver,
@@ -4062,14 +4283,13 @@ fn install_command<'a>(
 /// `obtain_and` returned (PD-3, PD-4).
 fn obtain_and_run(
     env: CommandEnv<'_>,
-    checked: Checked<'_>,
+    (feed, checked): (feed::Feed, Checked<'_>),
     host: &dyn HostFacts,
     progress: &mut dyn FnMut(InstallProgress),
     ran: &Cell<bool>,
 ) -> Result<ActionSummary, InstallError> {
     let Checked {
         kind,
-        feed,
         request,
         entry,
         driver,
@@ -4140,6 +4360,362 @@ fn obtain_and_run(
     })
 }
 
+/// The `update_all` command (Phase 12 FR-001 to FR-020, plan PD-6): input checks, one feed check, every item's
+/// check, at most `policy.parallel_downloads` downloads at a time, then one driver run (one elevated launch on
+/// Windows and macOS). `staging` is the batch's only staging seam (PD-4).
+pub fn batch_for_command(
+    env: CommandEnv<'_>,
+    staging: &(dyn download::StagingIo + Sync),
+    policy: &BatchPolicy,
+    items: &[BatchItem],
+    now_unix: u64,
+    host: &dyn HostFacts,
+    progress: &mut dyn FnMut(BatchProgress),
+) -> Result<BatchSummary, InstallError> {
+    // 0. FR-002: the input, before any request or busy key.
+    let reason = if items.is_empty() {
+        Some("no items")
+    } else if items.len() > MAX_BATCH_ITEMS {
+        Some("more than 32 items")
+    } else {
+        let mut seen = BTreeSet::new();
+        (!items.iter().all(|item| seen.insert(item.name.as_str())))
+            .then_some("a plugin is named twice")
+    };
+    if let Some(reason) = reason {
+        return Err(InstallError::Batch { reason });
+    }
+    // 1. FR-004: a self-update refuses the whole batch.
+    crate::self_update::action_gate(env.ctx.roots.state_dir())?;
+    // 2. FR-005: one feed check and the OS's driver, each for the whole batch.
+    let check = feed::check(env.ctx, FetchMode::Normal, now_unix);
+    let Some(snapshot) = check.snapshot else {
+        return Err(InstallError::NoFeed {
+            cause: check
+                .error
+                .as_ref()
+                .map(feed::FeedError::code)
+                .unwrap_or_default(),
+        });
+    };
+    let feed = snapshot.feed;
+    let driver = env
+        .drivers
+        .driver_for(env.os)
+        .ok_or(InstallError::NoDriver)?;
+    // 3. Stage 1, per item in order: the shared single-item check (FR-005, FR-006); a refusal is the item's result.
+    let mut slots: Vec<ItemSlot<'_>> = items
+        .iter()
+        .map(|item| {
+            let checked = download::request_in_feed(
+                &feed,
+                &item.name,
+                &item.expected_version,
+                host,
+                env.os,
+                env.arch,
+            )
+            .map_err(|e| InstallError::Download(Box::new(e)))
+            .and_then(|request| {
+                #[cfg(test)]
+                let request = match env.request_seam {
+                    Some(seam) => seam(request),
+                    None => request,
+                };
+                check_item(env, &feed, request, ActionKind::Update, host)
+            });
+            match checked {
+                Ok(checked) => ItemSlot::Checked(checked),
+                Err(e) => {
+                    log_refusal(
+                        &item.name,
+                        &item.expected_version,
+                        "update",
+                        &Err(e.clone()),
+                    );
+                    ItemSlot::Done(Err(e))
+                }
+            }
+        })
+        .collect();
+    let accepted = slots
+        .iter()
+        .filter(|s| matches!(s, ItemSlot::Checked(_)))
+        .count();
+    // 3b. Every check done, no worker spawned yet.
+    #[cfg(test)]
+    at_stage(env, BatchStage::ChecksDone);
+    // 4. Stage 2: the downloads (PD-3), each failure the item's result (FR-009).
+    let downloaded = download_all(env, staging, policy, &feed, &slots, progress);
+    // FR-007: a failed item's key stays held until the batch returns.
+    let mut retired: Vec<Checked<'_>> = Vec::new();
+    for (i, result) in downloaded {
+        let checked =
+            match std::mem::replace(&mut slots[i], ItemSlot::Done(Err(InstallError::NoResult))) {
+                ItemSlot::Checked(checked) => checked,
+                other => {
+                    slots[i] = other;
+                    continue;
+                }
+            };
+        slots[i] = match result {
+            Ok(artifact) => ItemSlot::Verified(checked, artifact),
+            Err(e) => {
+                let e = InstallError::Download(Box::new(e));
+                log_refusal(
+                    &items[i].name,
+                    &items[i].expected_version,
+                    "update",
+                    &Err(e.clone()),
+                );
+                retired.push(checked);
+                ItemSlot::Done(Err(e))
+            }
+        };
+    }
+    // 4b. Every download joined, no driver run yet.
+    #[cfg(test)]
+    at_stage(env, BatchStage::DownloadsDone);
+    // 5. Stage 3 (FR-010 to FR-016): only verified artifacts, in item order.
+    let verified: Vec<usize> = (0..slots.len())
+        .filter(|&i| matches!(slots[i], ItemSlot::Verified(..)))
+        .collect();
+    let notice = if env.os == Os::Macos {
+        Notice::RescanDawMacos
+    } else {
+        Notice::RescanDaw
+    };
+    let outcomes = install_verified(env, driver, host, &slots, &verified, progress);
+    let mut ok = 0;
+    for (i, outcome) in verified.iter().copied().zip(outcomes) {
+        let (checked, artifact) =
+            match std::mem::replace(&mut slots[i], ItemSlot::Done(Err(InstallError::NoResult))) {
+                ItemSlot::Verified(checked, artifact) => (checked, artifact),
+                other => {
+                    slots[i] = other;
+                    continue;
+                }
+            };
+        let result = outcome.map(|o| ActionSummary {
+            name: checked.entry.name.clone(),
+            action: ActionKind::Update,
+            version: o.version,
+            kept: o.kept,
+            notice: Some(notice),
+        });
+        // 6. D6: an updated item's artifact is released; a failed item's stays for a retry.
+        if result.is_ok() {
+            ok += 1;
+            if let Err(e) = download::discard(artifact, staging) {
+                warn!(target: LOG_TARGET, "{} {}: the verified artifact was not released", e.code(), checked.entry.name);
+            }
+        }
+        retired.push(checked);
+        slots[i] = ItemSlot::Done(result);
+    }
+    // 7. FR-020: one line per batch; the results in request order.
+    info!(
+        target: LOG_TARGET,
+        "batch of {}: {accepted} accepted, {} verified, {ok} updated",
+        items.len(),
+        verified.len()
+    );
+    let results = items
+        .iter()
+        .zip(slots)
+        .map(|(item, slot)| BatchItemResult {
+            name: item.name.clone(),
+            outcome: match slot {
+                ItemSlot::Done(outcome) => outcome,
+                ItemSlot::Checked(_) | ItemSlot::Verified(..) => Err(InstallError::NoResult),
+            },
+        })
+        .collect();
+    Ok(BatchSummary {
+        results,
+        notice: (ok > 0).then_some(notice),
+    })
+}
+
+/// One item of a batch on its way through the three stages (plan §4.1).
+enum ItemSlot<'a> {
+    /// Accepted by stage 1: its request, entry, driver and held key.
+    Checked(Checked<'a>),
+    /// Downloaded and verified in stage 2.
+    Verified(Checked<'a>, VerifiedArtifact),
+    /// The item's result.
+    Done(Result<ActionSummary, InstallError>),
+}
+
+/// What a stage-2 worker sends the calling thread (PD-3).
+enum Msg {
+    Progress(usize, Progress),
+    Done(usize, Result<VerifiedArtifact, DownloadError>),
+}
+
+/// PD-6 (3b), (4b): the test seam at a stage boundary, on the calling thread.
+#[cfg(test)]
+fn at_stage(env: CommandEnv<'_>, stage: BatchStage) {
+    if let Some(seam) = env.stage_seam {
+        seam(stage);
+    }
+}
+
+/// Stage 2 (PD-3, PD-4, FR-008): at most `policy.parallel_downloads` scoped workers (0 is 1) take the accepted items
+/// in order and run `obtain_and` each over a `DownloadEnv` they build from shared parts, with `staging` as the I/O;
+/// the calling thread forwards every event as the item's `Download` progress and collects one result per item. The
+/// callback, `HostFacts` and `HostIo` never cross a thread.
+fn download_all(
+    env: CommandEnv<'_>,
+    staging: &(dyn download::StagingIo + Sync),
+    policy: &BatchPolicy,
+    feed: &feed::Feed,
+    slots: &[ItemSlot<'_>],
+    progress: &mut dyn FnMut(BatchProgress),
+) -> Vec<(usize, Result<VerifiedArtifact, DownloadError>)> {
+    let jobs: Vec<(usize, &download::DownloadRequest)> = slots
+        .iter()
+        .enumerate()
+        .filter_map(|(i, slot)| match slot {
+            ItemSlot::Checked(checked) => Some((i, &checked.request)),
+            _ => None,
+        })
+        .collect();
+    if jobs.is_empty() {
+        return Vec::new();
+    }
+    let workers = policy.parallel_downloads.clamp(1, jobs.len());
+    let (ctx, download_policy, cancel) = (env.ctx, env.download.policy, env.download.cancel);
+    let next = AtomicUsize::new(0);
+    let mut results: Vec<Option<Result<VerifiedArtifact, DownloadError>>> =
+        jobs.iter().map(|_| None).collect();
+    std::thread::scope(|scope| {
+        let (tx, rx) = mpsc::channel::<Msg>();
+        for _ in 0..workers {
+            let (tx, next, jobs) = (tx.clone(), &next, &jobs);
+            scope.spawn(move || {
+                let worker_env = DownloadEnv {
+                    ctx,
+                    io: staging,
+                    policy: download_policy,
+                    cancel,
+                };
+                loop {
+                    let k = next.fetch_add(1, Ordering::SeqCst);
+                    let Some(&(_, request)) = jobs.get(k) else {
+                        break;
+                    };
+                    let result = download::obtain_and(
+                        worker_env,
+                        feed,
+                        request,
+                        &mut |p| {
+                            // The calling thread is gone only when the batch itself is unwinding.
+                            let _ = tx.send(Msg::Progress(k, p));
+                        },
+                        |artifact| artifact,
+                    )
+                    .map(|obtained| obtained.value);
+                    if tx.send(Msg::Done(k, result)).is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+        drop(tx);
+        for msg in rx {
+            match msg {
+                Msg::Progress(k, event) => progress(BatchProgress::Item {
+                    name: jobs[k].1.name().to_owned(),
+                    event: InstallProgress::Download { event },
+                }),
+                Msg::Done(k, result) => results[k] = Some(result),
+            }
+        }
+    });
+    jobs.iter()
+        .zip(results)
+        .filter_map(|(&(i, _), result)| result.map(|r| (i, r)))
+        .collect()
+}
+
+/// Stage 3 (FR-010 to FR-015, FR-017): Windows and macOS one driver run with one `Update` per verified item, in item
+/// order (one job, one launch); Linux one run per item, in item order, on this thread. One outcome per item of
+/// `verified`; a missing driver result is `E_INSTALL_NO_DRIVER`.
+fn install_verified(
+    env: CommandEnv<'_>,
+    driver: &dyn InstallDriver,
+    host: &dyn HostFacts,
+    slots: &[ItemSlot<'_>],
+    verified: &[usize],
+    progress: &mut dyn FnMut(BatchProgress),
+) -> Vec<Result<Outcome, InstallError>> {
+    let parts: Vec<(&PluginEntry, &VerifiedArtifact)> = verified
+        .iter()
+        .filter_map(|&i| match &slots[i] {
+            ItemSlot::Verified(checked, artifact) => Some((&checked.entry, artifact)),
+            _ => None,
+        })
+        .collect();
+    if parts.is_empty() {
+        return Vec::new();
+    }
+    let action = |(entry, artifact): (&PluginEntry, &VerifiedArtifact)| Action::Update {
+        entry: entry.clone(),
+        artifact: artifact.clone(),
+    };
+    let run = |batch: Vec<Action>, progress: &mut dyn FnMut(InstallProgress)| {
+        let wanted = batch.len();
+        let mut outcomes: Vec<Result<Outcome, InstallError>> = driver
+            .run(
+                InstallEnv {
+                    ctx: env.ctx,
+                    io: env.io,
+                    extract: env.extract,
+                    progress,
+                    elevation: env.elevation,
+                    host_io: env.host_io,
+                    host,
+                },
+                batch,
+            )
+            .into_iter()
+            .map(|r| r.outcome)
+            .collect();
+        outcomes.resize_with(wanted, || Err(InstallError::NoDriver));
+        outcomes
+    };
+    if env.os == Os::Linux {
+        return parts
+            .into_iter()
+            .flat_map(|part| {
+                let name = part.0.name.clone();
+                run(vec![action(part)], &mut |event| {
+                    progress(BatchProgress::Item {
+                        name: name.clone(),
+                        event,
+                    })
+                })
+            })
+            .collect();
+    }
+    // The elevated run emits `Elevating` once; any other event belongs to the action in progress, which a `Done`
+    // ends (actions run in order).
+    let names: Vec<String> = parts.iter().map(|(entry, _)| entry.name.clone()).collect();
+    let mut current = 0;
+    run(parts.into_iter().map(action).collect(), &mut |event| {
+        if event == InstallProgress::Elevating {
+            progress(BatchProgress::Elevating);
+            return;
+        }
+        let name = names[current.min(names.len() - 1)].clone();
+        if event == InstallProgress::Done {
+            current += 1;
+        }
+        progress(BatchProgress::Item { name, event });
+    })
+}
+
 /// The `remove_plugin` command: feed, detection, gate, then one driver run of `Uninstall`; no asset request (FR-094;
 /// Phase 10 FR-082).
 pub fn remove_for_command(
@@ -4178,6 +4754,10 @@ fn command_remove(
         });
     };
     let Some(entry) = snapshot.feed.plugins.get(name).cloned() else {
+        // Phase 12 FR-050: on Linux a name the feed dropped may still have the manager's manifest.
+        if env.os == Os::Linux {
+            return orphan_remove(env, name, progress, ran);
+        }
         return Err(InstallError::UnknownPlugin {
             name: name.to_owned(),
         });
@@ -4251,6 +4831,86 @@ fn command_remove(
     })
 }
 
+/// Phase 12 FR-050, FR-051 (plan §4.3, PD-8): the Remove of a name the feed no longer offers, from the one manifest
+/// that names it; no feed field, no asset request, no driver (Linux runs no installer).
+fn orphan_remove(
+    env: CommandEnv<'_>,
+    name: &str,
+    progress: &mut dyn FnMut(InstallProgress),
+    ran: &Cell<bool>,
+) -> Result<ActionSummary, InstallError> {
+    let state = env.ctx.roots.state_dir();
+    let heads = manifest_heads(env.io, state)?;
+    let mut named = heads.iter().filter(|h| h.plugin.as_deref() == Some(name));
+    let head = match (named.next(), named.next()) {
+        (None, _) => {
+            return Err(InstallError::UnknownPlugin {
+                name: name.to_owned(),
+            });
+        }
+        (Some(_), Some(_)) => {
+            return Err(InstallError::Manifest {
+                reason: "two manifests name this plugin",
+            });
+        }
+        (Some(head), None) => head,
+    };
+    let Some(vst3_bundle) = manifest_bundle(env.io, state, &head.stem)? else {
+        return Err(InstallError::UnknownPlugin {
+            name: name.to_owned(),
+        });
+    };
+    let dest = Destinations::from_parts(env.ctx, name, &vst3_bundle, None)?;
+    if dest.stem != head.stem {
+        return Err(InstallError::Manifest {
+            reason: "the manifest file name is not its bundle's",
+        });
+    }
+    let Some(_busy) = Busy::enter(state, &dest.stem) else {
+        return Err(InstallError::Busy {
+            name: name.to_owned(),
+        });
+    };
+    ran.set(true);
+    let outcome = run_uninstall_at(env.ctx, env.io, progress, &dest);
+    log_result(
+        name,
+        head.version.as_deref().unwrap_or("-"),
+        ActionKind::Remove,
+        &outcome,
+    );
+    let outcome = outcome?;
+    Ok(ActionSummary {
+        name: name.to_owned(),
+        action: ActionKind::Remove,
+        version: outcome.version,
+        kept: outcome.kept,
+        notice: None,
+    })
+}
+
+/// Phase 12 PD-8: the `vst3_bundle` of `<state>/manifests/<stem>.json`, read bounded through `io`; `None` when the
+/// file is gone. `run_uninstall_at` reads the manifest again with every Phase 9 check (`read_manifest_full`).
+fn manifest_bundle(
+    io: &dyn InstallIo,
+    state_dir: &Path,
+    stem: &str,
+) -> Result<Option<String>, InstallError> {
+    let path = state_dir
+        .join(detect::MANIFESTS_DIR)
+        .join(format!("{stem}.json"));
+    let bytes = match io.read_file(&path, detect::MAX_MANIFEST_BYTES) {
+        Ok(bytes) if bytes.len() as u64 <= detect::MAX_MANIFEST_BYTES => bytes,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        _ => return Err(InstallError::Record("E_RECORD_READ")),
+    };
+    let manifest: Manifest =
+        serde_json::from_slice(&bytes).map_err(|_| InstallError::Manifest {
+            reason: "a Phase 9 key is missing or has the wrong type",
+        })?;
+    Ok(Some(manifest.vst3_bundle))
+}
+
 // ---- logging (plan §4.1.14) ----------------------------------------------------------------------------------------
 
 /// FR-117: one `info!` per action result; paths never appear.
@@ -4301,6 +4961,10 @@ fn log_refusal(
 #[cfg(test)]
 #[path = "install_loopback_tests.rs"]
 mod loopback;
+
+#[cfg(test)]
+#[path = "install_batch_tests.rs"]
+mod batch;
 
 #[cfg(test)]
 #[path = "install_tests.rs"]

@@ -36,33 +36,33 @@ use std::sync::{Arc, mpsc};
 use std::time::Duration;
 use tempfile::TempDir;
 
-const NOW: u64 = 1_793_404_800;
-const FEED_ROUTE: &str = "/versions.json";
+pub(super) const NOW: u64 = 1_793_404_800;
+pub(super) const FEED_ROUTE: &str = "/versions.json";
 const SEC: Duration = Duration::from_secs(1);
-const V12: &str = "1.2.0";
-const V13: &str = "1.3.0";
-const ALPHA: &str = "Alpha";
-const BETA: &str = "Beta";
+pub(super) const V12: &str = "1.2.0";
+pub(super) const V13: &str = "1.3.0";
+pub(super) const ALPHA: &str = "Alpha";
+pub(super) const BETA: &str = "Beta";
 
 // ---- archives (plan §4.4) ------------------------------------------------------------------------------------------
 
 /// One archive entry: a directory, a file (mode, bytes) or a link (target).
 #[derive(Clone, Debug)]
-enum Ent {
+pub(super) enum Ent {
     Dir(String),
     File(String, u32, Vec<u8>),
     Link(String, String),
 }
 
 impl Ent {
-    fn path(&self) -> &str {
+    pub(super) fn path(&self) -> &str {
         match self {
             Ent::Dir(p) | Ent::File(p, ..) | Ent::Link(p, _) => p,
         }
     }
 
     /// The C4 line (`<t> <mode> <path>[ -> <target>]`).
-    fn line(&self) -> String {
+    pub(super) fn line(&self) -> String {
         match self {
             Ent::Dir(p) => format!("d 0755 {p}"),
             Ent::File(p, mode, _) if mode & 0o111 != 0 => format!("f 0755 {p}"),
@@ -95,7 +95,7 @@ fn presets_v13() -> Vec<(String, Vec<u8>)> {
 }
 
 /// `{"Name", "Version", "Classes": [{"Name", "Version"}]}` for any plugin (the moved `moduleinfo` names Alpha only).
-fn moduleinfo_for(name: &str, version: &str) -> Vec<u8> {
+pub(super) fn moduleinfo_for(name: &str, version: &str) -> Vec<u8> {
     format!(
         r#"{{"Name": "{name}", "Version": "{version}", "Classes": [{{"Name": "{name}", "Version": "{version}"}}]}}"#
     )
@@ -104,19 +104,19 @@ fn moduleinfo_for(name: &str, version: &str) -> Vec<u8> {
 
 /// One versioned release of a plugin: what its archive holds (plan §4.4).
 #[derive(Clone, Debug)]
-struct Release {
-    name: String,
-    version: String,
-    presets: Vec<(String, Vec<u8>)>,
-    subdir: Option<String>,
-    exec: bool,
-    link: bool,
-    moduleinfo: bool,
-    extra: Vec<Ent>,
+pub(super) struct Release {
+    pub(super) name: String,
+    pub(super) version: String,
+    pub(super) presets: Vec<(String, Vec<u8>)>,
+    pub(super) subdir: Option<String>,
+    pub(super) exec: bool,
+    pub(super) link: bool,
+    pub(super) moduleinfo: bool,
+    pub(super) extra: Vec<Ent>,
 }
 
 impl Release {
-    fn of(name: &str, version: &str) -> Release {
+    pub(super) fn of(name: &str, version: &str) -> Release {
         Release {
             name: name.to_owned(),
             version: version.to_owned(),
@@ -133,32 +133,32 @@ impl Release {
         }
     }
 
-    fn kits(mut self) -> Release {
+    pub(super) fn kits(mut self) -> Release {
         self.subdir = Some("Kits".to_owned());
         self
     }
 
     /// The exec bit on the `.so` and the in-bundle link (the Unix and Mem rows).
-    fn unix(mut self) -> Release {
+    pub(super) fn unix(mut self) -> Release {
         self.exec = true;
         self.link = true;
         self
     }
 
-    fn with_presets(mut self, presets: Vec<(String, Vec<u8>)>) -> Release {
+    pub(super) fn with_presets(mut self, presets: Vec<(String, Vec<u8>)>) -> Release {
         self.presets = presets;
         self
     }
 
-    fn bundle(&self) -> String {
+    pub(super) fn bundle(&self) -> String {
         format!("{}.vst3", self.name)
     }
 
-    fn asset(&self) -> String {
+    pub(super) fn asset(&self) -> String {
         format!("{}-{}-Linux-x64.tar.gz", self.name, self.version)
     }
 
-    fn route(&self) -> String {
+    pub(super) fn route(&self) -> String {
         format!(
             "/{}/v{}/{}",
             self.name.to_ascii_lowercase(),
@@ -168,7 +168,7 @@ impl Release {
     }
 
     /// `<Name>[/<subdir>]`, relative to the user preset root.
-    fn preset_rel(&self) -> String {
+    pub(super) fn preset_rel(&self) -> String {
         match &self.subdir {
             Some(s) => format!("{}/{s}", self.name),
             None => self.name.clone(),
@@ -176,7 +176,7 @@ impl Release {
     }
 
     /// Every entry, in archive order (directories before what they hold).
-    fn entries(&self) -> Vec<Ent> {
+    pub(super) fn entries(&self) -> Vec<Ent> {
         let b = self.bundle();
         let so = format!("{b}/Contents/x86_64-linux/{}.so", self.name);
         let mut out = vec![
@@ -236,14 +236,14 @@ impl Release {
     }
 
     /// The C4 listing this test writes for the archive, sorted by path (the payload's source, FR-114).
-    fn lines(&self) -> Vec<String> {
+    pub(super) fn lines(&self) -> Vec<String> {
         let mut entries = self.entries();
         entries.sort_by(|a, b| a.path().cmp(b.path()));
         entries.iter().map(Ent::line).collect()
     }
 
     /// The gzip'd ustar archive.
-    fn archive(&self) -> Vec<u8> {
+    pub(super) fn archive(&self) -> Vec<u8> {
         let mut t = Tar::new();
         for e in self.entries() {
             match e {
@@ -259,7 +259,7 @@ impl Release {
     }
 
     /// The installed bundle as `tree_of` reads it, relative to the target.
-    fn bundle_tree(&self) -> Vec<(String, String)> {
+    pub(super) fn bundle_tree(&self) -> Vec<(String, String)> {
         let prefix = format!("{}/", self.bundle());
         let mut out: Vec<(String, String)> = self
             .entries()
@@ -274,7 +274,7 @@ impl Release {
     }
 
     /// The factory preset files, relative to the user preset root.
-    fn preset_files(&self) -> Vec<(String, Vec<u8>)> {
+    pub(super) fn preset_files(&self) -> Vec<(String, Vec<u8>)> {
         self.presets
             .iter()
             .map(|(p, b)| (format!("{}/{p}", self.preset_rel()), b.clone()))
@@ -282,7 +282,7 @@ impl Release {
     }
 
     /// `snapshot` rows of the bundle under the plug-in root (directories as length 0).
-    fn plugin_rows(&self) -> Vec<(String, char, u64)> {
+    pub(super) fn plugin_rows(&self) -> Vec<(String, char, u64)> {
         let bundle = self.bundle();
         let mut out: Vec<(String, char, u64)> = self
             .entries()
@@ -295,7 +295,7 @@ impl Release {
     }
 
     /// `snapshot` rows of the factory presets under the user preset root, chain directories included.
-    fn preset_rows(&self) -> Vec<(String, char, u64)> {
+    pub(super) fn preset_rows(&self) -> Vec<(String, char, u64)> {
         let base = self.preset_rel();
         let mut out = chain_rows(&base);
         for e in self.entries() {
@@ -442,14 +442,14 @@ fn absent(p: &Path) -> bool {
     matches!(fs::symlink_metadata(p), Err(e) if e.kind() == io::ErrorKind::NotFound)
 }
 
-fn host() -> FakeHostFacts {
+pub(super) fn host() -> FakeHostFacts {
     FakeHostFacts {
         os_version: OsVersion::parse("2.99"),
         ..FakeHostFacts::default()
     }
 }
 
-fn code_of<T: std::fmt::Debug>(r: &Result<T, InstallError>) -> &'static str {
+pub(super) fn code_of<T: std::fmt::Debug>(r: &Result<T, InstallError>) -> &'static str {
     match r {
         Ok(v) => panic!("expected an error, got {v:?}"),
         Err(e) => e.code(),
@@ -468,31 +468,31 @@ fn presets_kept(paths: &[&str]) -> Vec<KeptPath> {
 
 // ---- the rig (plan §7) ---------------------------------------------------------------------------------------------
 
-type Seam<'a> = dyn Fn(DownloadRequest) -> DownloadRequest + 'a;
+pub(super) type Seam<'a> = dyn Fn(DownloadRequest) -> DownloadRequest + 'a;
 
 /// Temp roots, the fixture server (feed + assets), a throwaway signer and an `InstallRig` over them.
-struct Fx {
-    server: FixtureServer,
-    rig: InstallRig,
-    signer: TestSigner,
-    base: PathBuf,
-    next: AtomicUsize,
-    _td: TempDir,
+pub(super) struct Fx {
+    pub(super) server: FixtureServer,
+    pub(super) rig: InstallRig,
+    pub(super) signer: TestSigner,
+    pub(super) base: PathBuf,
+    pub(super) next: AtomicUsize,
+    pub(super) _td: TempDir,
 }
 
 impl Fx {
-    fn new() -> Fx {
+    pub(super) fn new() -> Fx {
         let (td, roots) = fresh_temp_roots();
         Fx::over(td, roots, None)
     }
 
     /// The Linux plug-in root configured at `<base>/<rel>` (folded into the roots, as `context` does).
-    fn configured(rel: &str) -> Fx {
+    pub(super) fn configured(rel: &str) -> Fx {
         let (td, roots) = fresh_temp_roots();
         Fx::over(td, roots, Some(rel))
     }
 
-    fn over(td: TempDir, roots: Roots, configured: Option<&str>) -> Fx {
+    pub(super) fn over(td: TempDir, roots: Roots, configured: Option<&str>) -> Fx {
         let base = roots
             .state_dir()
             .parent()
@@ -535,52 +535,52 @@ impl Fx {
         }
     }
 
-    fn ctx(&self) -> &AppContext {
+    pub(super) fn ctx(&self) -> &AppContext {
         &self.rig.ctx
     }
 
-    fn plugin_root(&self) -> PathBuf {
+    pub(super) fn plugin_root(&self) -> PathBuf {
         self.ctx()
             .settings
             .linux_plugin_root_or_default(&self.ctx().roots)
             .to_path_buf()
     }
 
-    fn user(&self) -> PathBuf {
+    pub(super) fn user(&self) -> PathBuf {
         self.ctx().roots.presets().user.clone()
     }
 
-    fn state(&self) -> PathBuf {
+    pub(super) fn state(&self) -> PathBuf {
         self.ctx().roots.state_dir().to_path_buf()
     }
 
-    fn target(&self, name: &str) -> PathBuf {
+    pub(super) fn target(&self, name: &str) -> PathBuf {
         self.plugin_root().join(format!("{name}.vst3"))
     }
 
-    fn journal(&self, stem: &str) -> PathBuf {
+    pub(super) fn journal(&self, stem: &str) -> PathBuf {
         self.state().join(JOURNAL_DIR).join(format!("{stem}.json"))
     }
 
-    fn manifest_path(&self, stem: &str) -> PathBuf {
+    pub(super) fn manifest_path(&self, stem: &str) -> PathBuf {
         self.state()
             .join(detect::MANIFESTS_DIR)
             .join(format!("{stem}.json"))
     }
 
-    fn extract(&self) -> PathBuf {
+    pub(super) fn extract(&self) -> PathBuf {
         self.ctx().roots.staging_dir().join(EXTRACT_DIR)
     }
 
     /// The (feed, asset) requests the server has seen so far.
-    fn counts(&self) -> (usize, usize) {
+    pub(super) fn counts(&self) -> (usize, usize) {
         let paths: Vec<String> = self.server.requests().into_iter().map(|r| r.path).collect();
         let feed = paths.iter().filter(|p| *p == FEED_ROUTE).count();
         (feed, paths.len() - feed)
     }
 
     /// PD-2: each request fetched from the fixture server at its feed URL's path.
-    fn seam(&self) -> impl Fn(DownloadRequest) -> DownloadRequest + '_ {
+    pub(super) fn seam(&self) -> impl Fn(DownloadRequest) -> DownloadRequest + '_ {
         move |request: DownloadRequest| {
             let path = url::Url::parse(request.asset().url.as_str())
                 .expect("an asset URL")
@@ -593,7 +593,7 @@ impl Fx {
     }
 
     /// The rig's seam-free `CommandEnv` with the seam set here (PD-30).
-    fn env<'a>(
+    pub(super) fn env<'a>(
         &'a self,
         os: Os,
         arch: Arch,
@@ -607,7 +607,7 @@ impl Fx {
     }
 
     /// `for_command` for `(Os::Linux, Arch::X86_64)` over `io` and the native resolver.
-    fn act(
+    pub(super) fn act(
         &self,
         io: &dyn InstallIo,
         name: &str,
@@ -619,25 +619,29 @@ impl Fx {
         for_command(env, name, version, action, NOW, &host(), &mut |_| {})
     }
 
-    fn install(&self, name: &str, version: &str) -> ActionSummary {
+    pub(super) fn install(&self, name: &str, version: &str) -> ActionSummary {
         self.act(&FsInstallIo, name, version, "install")
             .unwrap_or_else(|e| panic!("install {name} {version}: {e}"))
     }
 
-    fn update(&self, name: &str, version: &str) -> ActionSummary {
+    pub(super) fn update(&self, name: &str, version: &str) -> ActionSummary {
         self.act(&FsInstallIo, name, version, "update")
             .unwrap_or_else(|e| panic!("update {name} {version}: {e}"))
     }
 
     /// `remove_for_command` for `Os::Linux` over `io`.
-    fn remove(&self, io: &dyn InstallIo, name: &str) -> Result<ActionSummary, InstallError> {
+    pub(super) fn remove(
+        &self,
+        io: &dyn InstallIo,
+        name: &str,
+    ) -> Result<ActionSummary, InstallError> {
         let seam = self.seam();
         let env = self.env(Os::Linux, Arch::X86_64, io, &NativeDrivers, &seam);
         remove_for_command(env, name, NOW, &host(), &mut |_| {})
     }
 
     /// A contract-valid feed of `releases` (one `linux-x86_64` asset each, SI-1), each signed as given, then `patch`.
-    fn doc_signed(
+    pub(super) fn doc_signed(
         &self,
         releases: &[(&Release, String)],
         patch: impl FnOnce(&mut Value),
@@ -681,7 +685,7 @@ impl Fx {
         serde_json::to_vec(&doc).expect("serialises")
     }
 
-    fn sign(&self, r: &Release) -> String {
+    pub(super) fn sign(&self, r: &Release) -> String {
         self.signer.sign_c3(
             &r.archive(),
             &r.name,
@@ -691,13 +695,13 @@ impl Fx {
         )
     }
 
-    fn doc(&self, releases: &[&Release]) -> Vec<u8> {
+    pub(super) fn doc(&self, releases: &[&Release]) -> Vec<u8> {
         let signed: Vec<(&Release, String)> = releases.iter().map(|r| (*r, self.sign(r))).collect();
         self.doc_signed(&signed, |_| {})
     }
 
     /// Serve `doc` as the feed and each release's archive at its route.
-    fn serve(&self, doc: Vec<u8>, releases: &[&Release]) {
+    pub(super) fn serve(&self, doc: Vec<u8>, releases: &[&Release]) {
         self.server.set_route(
             FEED_ROUTE,
             Reply::Ok {
@@ -711,12 +715,12 @@ impl Fx {
         }
     }
 
-    fn offer(&self, releases: &[&Release]) {
+    pub(super) fn offer(&self, releases: &[&Release]) {
         self.serve(self.doc(releases), releases);
     }
 
     /// The parsed feed entry of `name` in `doc`.
-    fn entry_in(doc: &[u8], name: &str) -> PluginEntry {
+    pub(super) fn entry_in(doc: &[u8], name: &str) -> PluginEntry {
         feed::parse(doc)
             .expect("a valid feed")
             .plugins
@@ -726,7 +730,7 @@ impl Fx {
     }
 
     /// A real `VerifiedArtifact` of `r` (FR-113): written into the `TempDir`, signed in memory, `verify_file`d.
-    fn artifact(&self, r: &Release) -> (PluginEntry, VerifiedArtifact) {
+    pub(super) fn artifact(&self, r: &Release) -> (PluginEntry, VerifiedArtifact) {
         let signature = self.sign(r);
         let doc = self.doc_signed(&[(r, signature.clone())], |_| {});
         let entry = Fx::entry_in(&doc, &r.name);
@@ -740,7 +744,7 @@ impl Fx {
         (entry, artifact)
     }
 
-    fn verified(
+    pub(super) fn verified(
         &self,
         entry: &PluginEntry,
         key: PlatformKey,
@@ -774,7 +778,7 @@ impl Fx {
     }
 
     /// One `LinuxDriver::run` over `io` / `xio`.
-    fn drive(
+    pub(super) fn drive(
         &self,
         io: &dyn InstallIo,
         xio: &dyn ExtractIoRef,
@@ -795,7 +799,7 @@ impl Fx {
     }
 
     /// One action through the driver; its one outcome.
-    fn drive_one(
+    pub(super) fn drive_one(
         &self,
         io: &dyn InstallIo,
         xio: &dyn ExtractIoRef,
@@ -806,16 +810,20 @@ impl Fx {
         results.remove(0).outcome
     }
 
-    fn recover_over(&self, io: &dyn InstallIo, xio: &dyn ExtractIoRef) -> RecoveryReport {
+    pub(super) fn recover_over(
+        &self,
+        io: &dyn InstallIo,
+        xio: &dyn ExtractIoRef,
+    ) -> RecoveryReport {
         recover(self.ctx(), io, self.rig.extract_env(xio.as_extract()))
     }
 
-    fn manifest(&self, io: &dyn InstallIo, name: &str) -> Option<Manifest> {
+    pub(super) fn manifest(&self, io: &dyn InstallIo, name: &str) -> Option<Manifest> {
         read_manifest_full(io, &self.state(), name, name).expect("a readable manifest")
     }
 
     /// Plants `files` (relative to the user preset root) on disk.
-    fn plant(&self, files: &[(String, Vec<u8>)]) {
+    pub(super) fn plant(&self, files: &[(String, Vec<u8>)]) {
         for (rel, bytes) in files {
             let path = dest_path(&self.user(), rel).expect("a plain path");
             fs::create_dir_all(path.parent().expect("a parent")).expect("a parent dir");
@@ -825,7 +833,7 @@ impl Fx {
 }
 
 /// The extract I/O a driver run uses: the real one or a Mem one.
-trait ExtractIoRef {
+pub(super) trait ExtractIoRef {
     fn as_extract(&self) -> &dyn crate::extract::ExtractIo;
 }
 
@@ -4186,20 +4194,20 @@ fn locked_classify(code: i32, log: &[String]) -> InnoVerdict {
 
 /// One OS the elevated drivers serve, with the architecture, feed key and running version its tests use.
 #[derive(Clone, Copy, Debug)]
-struct Plat {
-    os: Os,
-    arch: Arch,
-    key: PlatformKey,
-    running: &'static str,
+pub(super) struct Plat {
+    pub(super) os: Os,
+    pub(super) arch: Arch,
+    pub(super) key: PlatformKey,
+    pub(super) running: &'static str,
 }
 
-const WIN: Plat = Plat {
+pub(super) const WIN: Plat = Plat {
     os: Os::Windows,
     arch: Arch::X86_64,
     key: PlatformKey::WindowsX86_64,
     running: "10.0.19045",
 };
-const MAC: Plat = Plat {
+pub(super) const MAC: Plat = Plat {
     os: Os::Macos,
     arch: Arch::Aarch64,
     key: PlatformKey::DarwinAarch64,
@@ -4207,28 +4215,28 @@ const MAC: Plat = Plat {
 };
 
 impl Plat {
-    fn asset(self, name: &str, version: &str) -> String {
+    pub(super) fn asset(self, name: &str, version: &str) -> String {
         match self.os {
             Os::Windows => format!("{name}-{version}-Windows-x64.exe"),
             _ => format!("{name}-{version}-macOS.pkg"),
         }
     }
 
-    fn installer_op(self) -> &'static str {
+    pub(super) fn installer_op(self) -> &'static str {
         match self.os {
             Os::Windows => "run_inno_installer",
             _ => "run_pkg_installer",
         }
     }
 
-    fn driver(self) -> &'static dyn InstallDriver {
+    pub(super) fn driver(self) -> &'static dyn InstallDriver {
         match self.os {
             Os::Windows => &WindowsDriver,
             _ => &MacosDriver,
         }
     }
 
-    fn notice(self) -> Notice {
+    pub(super) fn notice(self) -> Notice {
         match self.os {
             Os::Macos => Notice::RescanDawMacos,
             _ => Notice::RescanDaw,
@@ -4237,12 +4245,12 @@ impl Plat {
 }
 
 /// The installer bytes of one release (any bytes: the drivers never look inside).
-fn installer(name: &str, version: &str) -> Vec<u8> {
+pub(super) fn installer(name: &str, version: &str) -> Vec<u8> {
     format!("the {name} {version} installer").into_bytes()
 }
 
 /// The file names left in `<state>/jobs/` (none when the folder is absent).
-fn jobs_left(state: &Path) -> Vec<String> {
+pub(super) fn jobs_left(state: &Path) -> Vec<String> {
     match fs::read_dir(state.join(job::JOBS_DIR)) {
         Ok(entries) => entries
             .map(|e| {
@@ -4259,18 +4267,18 @@ fn jobs_left(state: &Path) -> Vec<String> {
 /// The installer a real setup would leave for one plugin (SC-014, SC-030): its managed VST3 bundle with a
 /// `moduleinfo.json` and its record in the shared `LiveHostFacts`. `Clone + Send` so a scripted launch can run it.
 #[derive(Clone)]
-struct Machine {
-    os: Os,
-    live: Arc<LiveHostFacts>,
-    name: String,
+pub(super) struct Machine {
+    pub(super) os: Os,
+    pub(super) live: Arc<LiveHostFacts>,
+    pub(super) name: String,
     /// The Windows uninstall key or the macOS pkg id: the record's key.
-    record_key: String,
-    install_dir: PathBuf,
-    bundle: PathBuf,
+    pub(super) record_key: String,
+    pub(super) install_dir: PathBuf,
+    pub(super) bundle: PathBuf,
 }
 
 impl Machine {
-    fn place(&self, version: &str) {
+    pub(super) fn place(&self, version: &str) {
         let info = self
             .bundle
             .join("Contents")
@@ -4280,7 +4288,7 @@ impl Machine {
         fs::write(&info, moduleinfo_for(&self.name, version)).expect("the moduleinfo");
     }
 
-    fn record(&self, version: &str) {
+    pub(super) fn record(&self, version: &str) {
         match self.os {
             Os::Windows => {
                 let location = format!("{}{}", text(&self.install_dir), std::path::MAIN_SEPARATOR);
@@ -4315,16 +4323,16 @@ impl Machine {
         }
     }
 
-    fn install(&self, version: &str) {
+    pub(super) fn install(&self, version: &str) {
         self.place(version);
         self.record(version);
     }
 
-    fn unplace(&self) {
+    pub(super) fn unplace(&self) {
         let _ = fs::remove_dir_all(&self.bundle);
     }
 
-    fn unrecord(&self) {
+    pub(super) fn unrecord(&self) {
         self.live
             .inno
             .lock()
@@ -4337,7 +4345,7 @@ impl Machine {
             .remove(&self.record_key);
     }
 
-    fn uninstall(&self) {
+    pub(super) fn uninstall(&self) {
         self.unplace();
         self.unrecord();
     }
@@ -4345,19 +4353,19 @@ impl Machine {
 
 /// Phase 10's rig: `Fx` over `fresh_elevated_roots()` (state dir `<base>/<APP_IDENTIFIER>`, SI-21), one OS, and
 /// the `LiveHostFacts` every detection of the test reads.
-struct Ev {
-    fx: Fx,
-    plat: Plat,
-    live: Arc<LiveHostFacts>,
+pub(super) struct Ev {
+    pub(super) fx: Fx,
+    pub(super) plat: Plat,
+    pub(super) live: Arc<LiveHostFacts>,
 }
 
 impl Ev {
-    fn new(plat: Plat) -> Ev {
+    pub(super) fn new(plat: Plat) -> Ev {
         let (td, roots) = fresh_elevated_roots();
         Ev::over(Fx::over(td, roots, None), plat)
     }
 
-    fn over(fx: Fx, plat: Plat) -> Ev {
+    pub(super) fn over(fx: Fx, plat: Plat) -> Ev {
         Ev {
             fx,
             plat,
@@ -4366,7 +4374,7 @@ impl Ev {
     }
 
     /// A contract-valid feed of `releases` ((name, version)), one signed `plat` installer asset each.
-    fn doc_for(&self, plat: Plat, releases: &[(&str, &str)]) -> Vec<u8> {
+    pub(super) fn doc_for(&self, plat: Plat, releases: &[(&str, &str)]) -> Vec<u8> {
         let assets: Vec<String> = releases.iter().map(|&(n, v)| plat.asset(n, v)).collect();
         let bodies: Vec<Vec<u8>> = releases.iter().map(|&(n, v)| installer(n, v)).collect();
         let plugins: Vec<crate::test_support::TestPlugin<'_>> = releases
@@ -4390,7 +4398,7 @@ impl Ev {
     }
 
     /// Serves `releases` as the feed and each installer at the route its URL names.
-    fn offer(&self, releases: &[(&str, &str)]) {
+    pub(super) fn offer(&self, releases: &[(&str, &str)]) {
         self.fx.server.set_route(
             FEED_ROUTE,
             Reply::Ok {
@@ -4415,7 +4423,7 @@ impl Ev {
 
     /// Each release's entry and a real `VerifiedArtifact` at `<staging>/downloads/<sha hex>/<asset>` (SI-20), for
     /// `plat`'s asset format.
-    fn staged_as(
+    pub(super) fn staged_as(
         &self,
         plat: Plat,
         releases: &[(&str, &str)],
@@ -4459,16 +4467,16 @@ impl Ev {
             .collect()
     }
 
-    fn staged(&self, releases: &[(&str, &str)]) -> Vec<(PluginEntry, VerifiedArtifact)> {
+    pub(super) fn staged(&self, releases: &[(&str, &str)]) -> Vec<(PluginEntry, VerifiedArtifact)> {
         self.staged_as(self.plat, releases)
     }
 
-    fn entry(&self, name: &str, version: &str) -> PluginEntry {
+    pub(super) fn entry(&self, name: &str, version: &str) -> PluginEntry {
         Fx::entry_in(&self.doc_for(self.plat, &[(name, version)]), name)
     }
 
     /// The installer state of `entry`'s plugin on this OS (the managed VST3 copy detection reads).
-    fn machine(&self, entry: &PluginEntry) -> Machine {
+    pub(super) fn machine(&self, entry: &PluginEntry) -> Machine {
         let facts = entry
             .release
             .as_ref()
@@ -4498,7 +4506,7 @@ impl Ev {
     }
 
     /// One run of this OS's driver.
-    fn drive(
+    pub(super) fn drive(
         &self,
         elevation: &dyn Elevation,
         io: &dyn InstallIo,
@@ -4508,7 +4516,7 @@ impl Ev {
         self.drive_with(elevation, io, &*self.live, batch, progress)
     }
 
-    fn drive_with(
+    pub(super) fn drive_with(
         &self,
         elevation: &dyn Elevation,
         io: &dyn InstallIo,
@@ -4531,7 +4539,7 @@ impl Ev {
     }
 
     /// The commands' `CommandEnv` for this OS with `elevation`, the rig's `host_io` and the fixture seam.
-    fn env<'a>(
+    pub(super) fn env<'a>(
         &'a self,
         io: &'a dyn InstallIo,
         elevation: &'a dyn Elevation,
@@ -4549,16 +4557,16 @@ impl Ev {
         env
     }
 
-    fn jobs_dir(&self) -> PathBuf {
+    pub(super) fn jobs_dir(&self) -> PathBuf {
         self.fx.state().join(job::JOBS_DIR)
     }
 
-    fn jobs_left(&self) -> Vec<String> {
+    pub(super) fn jobs_left(&self) -> Vec<String> {
         jobs_left(&self.fx.state())
     }
 
     /// How often the rig's `host_io` ran `platform::KILLALL_ARGV` (FR-077).
-    fn killalls(&self) -> usize {
+    pub(super) fn killalls(&self) -> usize {
         let want = format!("run {}", platform::KILLALL_ARGV.join(" "));
         self.fx
             .rig
@@ -4573,7 +4581,7 @@ impl Ev {
     }
 
     /// Every `host_io` call of the rig.
-    fn host_calls(&self) -> Vec<String> {
+    pub(super) fn host_calls(&self) -> Vec<String> {
         self.fx
             .rig
             .host_io
@@ -4584,7 +4592,7 @@ impl Ev {
             .clone()
     }
 
-    fn view(&self) -> status::StatusView {
+    pub(super) fn view(&self) -> status::StatusView {
         status::build_with_os(
             self.plat.os,
             self.plat.arch,
@@ -4598,10 +4606,10 @@ impl Ev {
 }
 
 /// The result file a helper would write for the job at `job` (FR-003): `build(job path, job bytes, job ops)`.
-type Build = fn(&Path, &[u8], &[Value]) -> Value;
+pub(super) type Build = fn(&Path, &[u8], &[Value]) -> Value;
 
 /// A scripted launch: `outcome`, and the result `build` makes (written by `FakeElevation` beside the job).
-fn scripted(outcome: LaunchOutcome, build: Build) -> Scripted {
+pub(super) fn scripted(outcome: LaunchOutcome, build: Build) -> Scripted {
     Scripted {
         outcome,
         result: Some(Box::new(move |job: &Path| {
@@ -4615,7 +4623,7 @@ fn scripted(outcome: LaunchOutcome, build: Build) -> Scripted {
 
 /// One op entry per job op, all with `outcome` / `code` / `exit_code`; the log tail names the job path (FR-114: it
 /// may reach `debug!`, never `info!`).
-fn entries(
+pub(super) fn entries(
     job: &Path,
     ops: &[Value],
     outcome: &str,
@@ -4633,16 +4641,16 @@ fn entries(
         .collect()
 }
 
-fn result_doc(bytes: &[u8], job_error: Option<&str>, ops: Vec<Value>) -> Value {
+pub(super) fn result_doc(bytes: &[u8], job_error: Option<&str>, ops: Vec<Value>) -> Value {
     json!({ "result_version": 1, "job_sha256": hex_lower(&sha(bytes)), "job_error": job_error, "ops": ops })
 }
 
-fn all_done(job: &Path, bytes: &[u8], ops: &[Value]) -> Value {
+pub(super) fn all_done(job: &Path, bytes: &[u8], ops: &[Value]) -> Value {
     result_doc(bytes, None, entries(job, ops, "done", None, None))
 }
 
 /// `Exited(0)` with every op `done`, after `effect` changed the machine (what the installers did).
-fn done_after(effect: impl Fn() + Send + 'static) -> Scripted {
+pub(super) fn done_after(effect: impl Fn() + Send + 'static) -> Scripted {
     Scripted {
         outcome: LaunchOutcome::Exited(0),
         result: Some(Box::new(move |job: &Path| {
@@ -4656,9 +4664,9 @@ fn done_after(effect: impl Fn() + Send + 'static) -> Scripted {
 }
 
 /// An `Elevation` that records each launch into the same log as the progress events (SI-24).
-struct EventElevation<'a> {
-    inner: FakeElevation,
-    log: &'a Mutex<Vec<&'static str>>,
+pub(super) struct EventElevation<'a> {
+    pub(super) inner: FakeElevation,
+    pub(super) log: &'a Mutex<Vec<&'static str>>,
 }
 
 impl Elevation for EventElevation<'_> {
@@ -6570,4 +6578,339 @@ fn refuse_while_self_updating() {
         drop(held.lock().unwrap_or_else(PoisonError::into_inner).take());
         assert!(!in_flight(&state), "{plat:?}: the flag is cleared");
     }
+}
+
+// ---- Phase 12: the orphan-manifest reader (tasks TA-2, plan PD-7) ------------------------------------------------
+
+/// TA-2: absent folder, a file in its place, the 256 bound, the skipped names and the per-file heads, sorted by stem.
+#[test]
+fn manifest_heads_cases() {
+    let (_td, roots) = fresh_temp_roots();
+    let state = roots.state_dir().to_path_buf();
+    let dir = state.join(detect::MANIFESTS_DIR);
+
+    // No manifests folder: no heads.
+    assert_eq!(manifest_heads(&FsInstallIo, &state), Ok(vec![]));
+
+    // A regular file where the folder belongs.
+    fs::create_dir_all(&state).unwrap();
+    fs::write(&dir, b"").unwrap();
+    assert_eq!(
+        manifest_heads(&FsInstallIo, &state),
+        Err(InstallError::Manifest { reason: NOT_A_DIR })
+    );
+    fs::remove_file(&dir).unwrap();
+    fs::create_dir(&dir).unwrap();
+
+    let write = |name: &str, doc: Value| fs::write(dir.join(name), doc.to_string()).unwrap();
+    write(
+        "alpha.json",
+        json!({"manifest_version": 1, "plugin": ALPHA, "version": V12}),
+    );
+    // A later manifest version names no plugin; its version string still reads.
+    write(
+        "beta.json",
+        json!({"manifest_version": 2, "plugin": BETA, "version": V13}),
+    );
+    // A non-string version.
+    write(
+        "gamma.json",
+        json!({"manifest_version": 1, "plugin": "Gamma", "version": 7}),
+    );
+    // Unparsable, and larger than the read bound: heads with both `None`.
+    fs::write(dir.join("delta.json"), b"{ not json").unwrap();
+    let pad = "x".repeat(usize::try_from(detect::MAX_MANIFEST_BYTES).unwrap());
+    write(
+        "epsilon.json",
+        json!({"manifest_version": 1, "plugin": "Epsilon", "version": V12, "pad": pad}),
+    );
+    // Skipped: the atomic-write temp form, a dot file, another extension and a sub-directory.
+    write(
+        ".alpha.json.tmp",
+        json!({"manifest_version": 1, "plugin": ALPHA, "version": V13}),
+    );
+    write(
+        ".hidden.json",
+        json!({"manifest_version": 1, "plugin": "Hidden", "version": V13}),
+    );
+    fs::write(dir.join("readme.txt"), b"not a manifest").unwrap();
+    fs::create_dir(dir.join("sub.json")).unwrap();
+
+    let head = |stem: &str, plugin: Option<&str>, version: Option<&str>| ManifestHead {
+        stem: stem.to_owned(),
+        plugin: plugin.map(str::to_owned),
+        version: version.map(str::to_owned),
+    };
+    let expected = vec![
+        head("alpha", Some(ALPHA), Some(V12)),
+        head("beta", None, Some(V13)),
+        head("delta", None, None),
+        head("epsilon", None, None),
+        head("gamma", Some("Gamma"), None),
+    ];
+    assert_eq!(manifest_heads(&FsInstallIo, &state), Ok(expected.clone()));
+
+    // Exactly MAX_MANIFEST_ENTRIES entries are read; one more is refused.
+    let present = fs::read_dir(&dir).unwrap().count();
+    for i in present..MAX_MANIFEST_ENTRIES {
+        fs::write(dir.join(format!("filler-{i:03}.txt")), b"").unwrap();
+    }
+    assert_eq!(fs::read_dir(&dir).unwrap().count(), 256);
+    assert_eq!(manifest_heads(&FsInstallIo, &state), Ok(expected));
+    fs::write(dir.join("filler-last.txt"), b"").unwrap();
+    assert_eq!(
+        manifest_heads(&FsInstallIo, &state),
+        Err(InstallError::Manifest {
+            reason: "too many manifests"
+        })
+    );
+}
+
+// ---- Phase 12: orphan-manifest Remove (spec FR-050, FR-051, FR-054; SC-014, SC-031; plan §4.3, PD-8) ---------------
+
+/// SC-014: Alpha 1.2.0 placed by `LinuxDriver`, one placed preset edited, a user preset in a factory folder and an
+/// unplaced file in the plug-in root beside it, then a feed that offers Beta only, so Alpha is an orphan.
+fn orphan_fx() -> Fx {
+    let fx = Fx::new();
+    fx.offer(&[&Release::of(ALPHA, V12)]);
+    fx.install(ALPHA, V12);
+    let factory = fx.user().join(ALPHA).join("Warm Pads");
+    fs::write(factory.join("Night Air.vstpreset"), b"my edit").expect("edit a placed preset");
+    fs::write(factory.join("Mine.vstpreset"), b"my own").expect("a user preset");
+    fs::write(fx.plugin_root().join("unplaced.txt"), b"not ours").expect("an unplaced file");
+    fx.offer(&[&Release::of(BETA, V12)]);
+    fx
+}
+
+/// The plug-in root, the user preset root and the manifests folder, as `snap` reads them.
+fn orphan_tree(fx: &Fx) -> Vec<Vec<(String, char, u64)>> {
+    vec![
+        snap(&fx.plugin_root()),
+        snap(&fx.user()),
+        snap(&fx.state().join(detect::MANIFESTS_DIR)),
+    ]
+}
+
+/// One Remove of `name` for `os` through a counting `LinuxDriver` (so a Phase 9 run is visible), over `io`.
+fn counted_remove(
+    fx: &Fx,
+    os: Os,
+    io: &dyn InstallIo,
+    name: &str,
+) -> (Result<ActionSummary, InstallError>, usize) {
+    let counting = CountingDriver::new(&LinuxDriver);
+    let drivers = OneDriver(Some(&counting));
+    let seam = fx.seam();
+    let env = fx.env(os, Arch::X86_64, io, &drivers, &seam);
+    let result = remove_for_command(env, name, NOW, &host(), &mut |_| {});
+    (result, counting.runs())
+}
+
+/// A refused orphan Remove: the code and reason, zero mutating calls, zero asset requests, every file present.
+fn orphan_refused(fx: &Fx, os: Os, want: InstallError, label: &str) {
+    let before = orphan_tree(fx);
+    let assets = fx.counts().1;
+    let rec = RecordingInstallIo::fail_closed();
+    let (result, runs) = counted_remove(fx, os, &rec, ALPHA);
+    assert_eq!(result, Err(want), "{label}");
+    assert_eq!(runs, 0, "{label}: no driver run");
+    assert_eq!(rec.mutating_calls(), 0, "{label}: {:?}", rec.calls());
+    assert_eq!(fx.counts().1, assets, "{label}: no asset request");
+    assert_eq!(orphan_tree(fx), before, "{label}: every file present");
+}
+
+#[test]
+fn orphan_remove_cases() {
+    // A manifest for a plugin absent from the feed: removed from the manifest alone.
+    {
+        let fx = orphan_fx();
+        let assets = fx.counts().1;
+        let (result, runs) = counted_remove(&fx, Os::Linux, &FsInstallIo, ALPHA);
+        assert_eq!(
+            result,
+            Ok(ActionSummary {
+                name: ALPHA.to_owned(),
+                action: ActionKind::Remove,
+                version: Some(V12.to_owned()),
+                kept: presets_kept(&["Alpha/Warm Pads/Night Air.vstpreset"]),
+                notice: None,
+            })
+        );
+        assert_eq!(runs, 0, "the orphan path runs no driver");
+        assert_eq!(fx.counts().1, assets, "no asset request");
+        assert!(absent(&fx.target(ALPHA)), "the bundle is gone");
+        assert!(
+            absent(&fx.user().join(ALPHA).join("Init.vstpreset")),
+            "a placed preset is gone"
+        );
+        let factory = fx.user().join(ALPHA).join("Warm Pads");
+        assert_eq!(
+            fs::read(factory.join("Night Air.vstpreset")).expect("kept"),
+            b"my edit"
+        );
+        assert_eq!(
+            fs::read(factory.join("Mine.vstpreset")).expect("kept"),
+            b"my own"
+        );
+        assert_eq!(
+            fs::read(fx.plugin_root().join("unplaced.txt")).expect("kept"),
+            b"not ours"
+        );
+        assert!(absent(&fx.manifest_path(ALPHA)), "no manifest left");
+        assert!(absent(&fx.journal(ALPHA)), "no journal left");
+    }
+    // The same name present in the feed: the Phase 9 path (one driver run).
+    {
+        let fx = orphan_fx();
+        fx.offer(&[&Release::of(ALPHA, V13)]);
+        let (result, runs) = counted_remove(&fx, Os::Linux, &FsInstallIo, ALPHA);
+        assert_eq!(result.map(|s| s.action), Ok(ActionKind::Remove));
+        assert_eq!(runs, 1, "the feed entry's Remove runs the driver");
+        assert!(absent(&fx.target(ALPHA)));
+    }
+    // Two manifests name the plugin.
+    {
+        let fx = orphan_fx();
+        let bytes = fs::read(fx.manifest_path(ALPHA)).expect("the manifest");
+        fs::write(fx.manifest_path("Alpha2"), bytes).expect("a second manifest");
+        orphan_refused(
+            &fx,
+            Os::Linux,
+            InstallError::Manifest {
+                reason: "two manifests name this plugin",
+            },
+            "two manifests",
+        );
+    }
+    // The manifest file's stem is not its bundle's.
+    {
+        let fx = orphan_fx();
+        fs::rename(fx.manifest_path(ALPHA), fx.manifest_path("Other")).expect("rename");
+        orphan_refused(
+            &fx,
+            Os::Linux,
+            InstallError::Manifest {
+                reason: "the manifest file name is not its bundle's",
+            },
+            "stem",
+        );
+    }
+    // 257 entries in manifests/: refused; 256: the normal path.
+    {
+        let fx = orphan_fx();
+        let dir = fx.state().join(detect::MANIFESTS_DIR);
+        let present = fs::read_dir(&dir).expect("manifests").count();
+        for i in present..=MAX_MANIFEST_ENTRIES {
+            fs::write(dir.join(format!("filler-{i:03}.txt")), b"").expect("a filler");
+        }
+        assert_eq!(fs::read_dir(&dir).expect("manifests").count(), 257);
+        orphan_refused(
+            &fx,
+            Os::Linux,
+            InstallError::Manifest {
+                reason: "too many manifests",
+            },
+            "257 entries",
+        );
+        fs::remove_file(dir.join(format!("filler-{MAX_MANIFEST_ENTRIES:03}.txt")))
+            .expect("one filler fewer");
+        assert_eq!(fs::read_dir(&dir).expect("manifests").count(), 256);
+        let (result, runs) = counted_remove(&fx, Os::Linux, &FsInstallIo, ALPHA);
+        assert_eq!(result.map(|s| s.version), Ok(Some(V12.to_owned())), "256");
+        assert_eq!(runs, 0);
+        assert!(absent(&fx.target(ALPHA)), "256: removed");
+    }
+    // The plug-in root the manifest records is not the configured one.
+    {
+        let fx = orphan_fx();
+        let path = fx.manifest_path(ALPHA);
+        let mut doc: Value =
+            serde_json::from_slice(&fs::read(&path).expect("manifest")).expect("JSON");
+        doc["plugin_root"] = json!(text(&fx.base.join("plugins").join("other")));
+        fs::write(&path, serde_json::to_vec_pretty(&doc).expect("JSON")).expect("rewrite");
+        orphan_refused(
+            &fx,
+            Os::Linux,
+            InstallError::RootChanged { which: "plugin" },
+            "roots changed",
+        );
+    }
+    // A held busy key for the orphan's stem.
+    {
+        let fx = orphan_fx();
+        let held = hold_busy_for_test(&fx.state(), ALPHA);
+        orphan_refused(
+            &fx,
+            Os::Linux,
+            InstallError::Busy {
+                name: ALPHA.to_owned(),
+            },
+            "busy",
+        );
+        drop(held);
+    }
+    // A pending journal.
+    {
+        let fx = orphan_fx();
+        fs::create_dir_all(fx.journal(ALPHA).parent().expect("journal dir")).expect("journal dir");
+        fs::write(fx.journal(ALPHA), b"{}").expect("a pending journal");
+        orphan_refused(
+            &fx,
+            Os::Linux,
+            InstallError::JournalPending {
+                name: ALPHA.to_owned(),
+            },
+            "journal",
+        );
+    }
+    // Off Linux the step is unchanged.
+    {
+        let fx = orphan_fx();
+        orphan_refused(
+            &fx,
+            Os::Windows,
+            InstallError::UnknownPlugin {
+                name: ALPHA.to_owned(),
+            },
+            "windows",
+        );
+    }
+}
+
+#[test]
+fn not_manageable_is_not_orphan() {
+    let fx = Fx::new();
+    let (v12, v13) = (Release::of(ALPHA, V12), Release::of(ALPHA, V13));
+    fx.offer(&[&v12]);
+    fx.install(ALPHA, V12);
+    // Alpha is a key of the snapshot, its entry without an install block (F-7). The contract requires
+    // `platforms` and `install` together (versions.v2.schema.json `dependentRequired`), so the entry has no asset
+    // either: the shape of Phase 9 row 13 (`state_checks_before_download`).
+    let doc = fx.doc_signed(&[(&v13, fx.sign(&v13))], |doc| {
+        let entry = doc["plugins"][ALPHA].as_object_mut().expect("an entry");
+        entry.remove("platforms");
+        entry.remove("install");
+    });
+    fx.serve(doc, &[]);
+    let manifests = fx.state().join(detect::MANIFESTS_DIR);
+    let before = orphan_tree(&fx);
+    let listed = |rec: &RecordingInstallIo<'_>| {
+        rec.calls()
+            .iter()
+            .any(|c| matches!(c, IOp::ReadDir(p) if *p == manifests))
+    };
+    let rec = RecordingInstallIo::fail_closed();
+    let (remove, runs) = counted_remove(&fx, Os::Linux, &rec, ALPHA);
+    assert_eq!(code_of(&remove), "E_INSTALL_NOT_MANAGEABLE");
+    assert_eq!(runs, 0);
+    assert!(!listed(&rec), "Remove: the manifests folder is not listed");
+    // Update keeps the single path's code for this feed shape (FR-019): no asset, so the request is refused
+    // before the install facts are read.
+    let rec = RecordingInstallIo::fail_closed();
+    assert_eq!(
+        code_of(&fx.act(&rec, ALPHA, V13, "update")),
+        "E_DOWNLOAD_UNAVAILABLE"
+    );
+    assert!(!listed(&rec), "Update: the manifests folder is not listed");
+    assert_eq!(orphan_tree(&fx), before, "nothing removed");
 }

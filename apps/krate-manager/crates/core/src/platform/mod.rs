@@ -4,6 +4,7 @@
 use crate::detect::{InnoValues, PkgOutputs, RecordRead};
 use crate::feed::PlainName;
 use crate::roots::{RootPaths, RootsError};
+use crate::settings::Settings;
 use crate::version::OsVersion;
 use std::ffi::{OsStr, OsString};
 use std::path::{Component, Path, PathBuf};
@@ -17,6 +18,8 @@ pub const VENDOR_DIR: &str = "Krate Audio";
 pub const OS_VERSION_WAIT: Duration = Duration::from_secs(2);
 /// Phase 10 FR-077: the one process signal, after a macOS install or update (cfg-free so every leg tests the driver).
 pub const KILLALL_ARGV: [&str; 3] = ["/usr/bin/killall", "-9", "AudioComponentRegistrar"];
+/// Phase 12 FR-045 (D9): the one variable the Linux graphics workaround sets, and its value.
+pub const GRAPHICS_ENV: (&str, &str) = ("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Os {
@@ -137,6 +140,19 @@ fn joined(base: &Path, components: &[&str]) -> PathBuf {
         path.push(component);
     }
     path
+}
+
+/// Phase 12 FR-045 (PD-12): `GRAPHICS_ENV` when `os` is Linux and the stored toggle is on, else `None`.
+pub fn graphics_env(os: Os, settings: &Settings) -> Option<(&'static str, &'static str)> {
+    (os == Os::Linux && settings.linux_graphics_workaround).then_some(GRAPHICS_ENV)
+}
+
+/// Phase 12 FR-045, FR-046 (PD-12): calls `set` once with `graphics_env`'s pair when there is one; never with no
+/// settings (a settings error at startup).
+pub fn apply_graphics_env(os: Os, settings: Option<&Settings>, set: impl FnOnce(&str, &str)) {
+    if let Some((name, value)) = settings.and_then(|s| graphics_env(os, s)) {
+        set(name, value)
+    }
 }
 
 #[cfg(test)]

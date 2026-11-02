@@ -183,10 +183,25 @@ const FRONTEND_BANNED: [&str; 6] = [
 ];
 /// What no `src/**/*.css` line may hold, ASCII case-insensitive: a font, image or URL (FR-077).
 const STYLESHEET_BANNED: [&str; 4] = ["url(", "@font-face", "@import", "image-set("];
-/// The squeezed `generate_handler!` list `src-tauri/src/lib.rs` must hold, in order (FR-061, SC-019; Phase 11 FR-020).
-const HANDLER_LIST: &str = "generate_handler![commands::app_version,commands::startup_error,commands::plugin_status,commands::check_now,commands::open_release_page,commands::download_plugin,commands::install_plugin,commands::remove_plugin,commands::manager_update_check,commands::manager_update_install]";
+/// The squeezed `generate_handler!` list `src-tauri/src/lib.rs` must hold, in order (FR-061, SC-019; Phase 11 FR-020;
+/// Phase 12 FR-061).
+const HANDLER_LIST: &str = "generate_handler![commands::app_version,commands::startup_error,commands::plugin_status,commands::check_now,commands::open_release_page,commands::download_plugin,commands::install_plugin,commands::remove_plugin,commands::manager_update_check,commands::manager_update_install,commands::update_all,commands::settings_view,commands::settings_save]";
 /// Phase 9 FR-096: the commands whose parameters may be only `State`, `String` and `Channel<InstallProgress>`.
 const INSTALL_COMMANDS: [&str; 2] = ["install_plugin", "remove_plugin"];
+/// Phase 12 FR-061: besides `State`, the parameter types `update_all` may take (names and versions only, PD-5).
+const UPDATE_ALL_TYPES: [&str; 3] = [
+    "Vec<BatchItem>",
+    "tauri::ipc::Channel<BatchProgress>",
+    "Channel<BatchProgress>",
+];
+/// Phase 12 FR-061: besides `State`, the parameter types `settings_save` may take (the root as a string, SI-20).
+const SETTINGS_SAVE_TYPES: [&str; 2] = ["Option<String>", "bool"];
+/// Phase 12 FR-061: each new command and the parameter types it may take besides `State` (`settings_view`: none).
+const PHASE12_COMMANDS: [(&str, &[&str]); 3] = [
+    ("update_all", &UPDATE_ALL_TYPES),
+    ("settings_view", &[]),
+    ("settings_save", &SETTINGS_SAVE_TYPES),
+];
 /// The crates no member's normal dependency graph may reach: the signing crate and the two it
 /// pulls in for key generation (FR-081).
 const SIGNING_CRATES: [&str; 3] = ["minisign", "rpassword", "scrypt"];
@@ -608,6 +623,40 @@ fn check_install_command_params(f: &ConfigFiles) -> Vec<String> {
     m
 }
 
+/// Phase 12 FR-061: `update_all`, `settings_view` and `settings_save` in `commands.rs` take only `State` and their
+/// `PHASE12_COMMANDS` types, so no path or URL reaches the core from the webview.
+fn check_phase12_command_params(f: &ConfigFiles) -> Vec<String> {
+    let Some((_, text)) = f
+        .src_tauri_texts
+        .iter()
+        .find(|(rel, _)| rel == "src/commands.rs")
+    else {
+        return vec!["src-tauri/src/commands.rs is missing (Phase 12 FR-061)".to_owned()];
+    };
+    let squeezed: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    let mut m = Vec::new();
+    for (name, types) in PHASE12_COMMANDS {
+        let head = format!("fn{name}(");
+        let Some(at) = squeezed.find(&head) else {
+            m.push(format!(
+                "src-tauri/src/commands.rs has no `fn {name}(` (Phase 12 FR-061)"
+            ));
+            continue;
+        };
+        for param in top_level_params(&squeezed[at + head.len()..]) {
+            let ty = param.split_once(':').map_or(param, |(_, ty)| ty);
+            let allowed =
+                ty.starts_with("tauri::State<") || ty.starts_with("State<") || types.contains(&ty);
+            if !allowed {
+                m.push(format!(
+                    "src-tauri/src/commands.rs `{name}` takes `{param}`, expected only State and {types:?} parameters (Phase 12 FR-061)"
+                ));
+            }
+        }
+    }
+    m
+}
+
 /// The top-level comma-separated items of a whitespace-free parameter list, up to its closing `)`.
 fn top_level_params(rest: &str) -> Vec<&str> {
     let mut out = Vec::new();
@@ -805,14 +854,17 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
                             "allow-install-plugin",
                             "allow-remove-plugin",
                             "allow-manager-update-check",
-                            "allow-manager-update-install"
+                            "allow-manager-update-install",
+                            "allow-update-all",
+                            "allow-settings-view",
+                            "allow-settings-save"
                         ]),
                     ),
                 ];
                 for (key, want) in expected {
                     if object.get(key) != Some(&want) {
                         m.push(format!(
-                            "capabilities/main.json `{key}` is {}, expected {want} (FR-041, FR-061)",
+                            "capabilities/main.json `{key}` is {}, expected {want} (FR-041, FR-061, Phase 12 FR-061)",
                             show(object.get(key))
                         ));
                     }
@@ -828,32 +880,33 @@ fn check_config_against(f: &ConfigFiles, app_identifier: &str) -> Vec<String> {
         }
     }
 
-    // FR-040, Phase 6 FR-060, Phase 7 FR-061, Phase 9 FR-096, Phase 11 FR-020: build.rs registers exactly the ten
-    // commands (whitespace-insensitive).
+    // FR-040, Phase 6 FR-060, Phase 7 FR-061, Phase 9 FR-096, Phase 11 FR-020, Phase 12 FR-061: build.rs registers
+    // exactly the thirteen commands (whitespace-insensitive).
     let squeezed: String = f
         .build_rs
         .chars()
         .filter(|ch| !ch.is_whitespace())
         .collect();
     if !squeezed.replace(",]", "]").contains(
-        r#"commands(&["app_version","startup_error","plugin_status","check_now","open_release_page","download_plugin","install_plugin","remove_plugin","manager_update_check","manager_update_install"])"#,
+        r#"commands(&["app_version","startup_error","plugin_status","check_now","open_release_page","download_plugin","install_plugin","remove_plugin","manager_update_check","manager_update_install","update_all","settings_view","settings_save"])"#,
     ) {
         m.push(
-            "src-tauri/build.rs does not register exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin, remove_plugin, manager_update_check and manager_update_install (FR-040, FR-060, FR-061, FR-096, Phase 11 FR-020)"
+            "src-tauri/build.rs does not register exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin, remove_plugin, manager_update_check, manager_update_install, update_all, settings_view and settings_save (FR-040, FR-060, FR-061, FR-096, Phase 11 FR-020, Phase 12 FR-061)"
                 .to_owned(),
         );
     }
 
-    // FR-061, SC-019, Phase 9 FR-096, Phase 11 FR-020: lib.rs hands exactly the ten commands to the invoke handler
-    // (whitespace-insensitive).
+    // FR-061, SC-019, Phase 9 FR-096, Phase 11 FR-020, Phase 12 FR-061: lib.rs hands exactly the thirteen commands to
+    // the invoke handler (whitespace-insensitive).
     let squeezed_lib: String = f.lib_rs.chars().filter(|ch| !ch.is_whitespace()).collect();
     if !squeezed_lib.replace(",]", "]").contains(HANDLER_LIST) {
         m.push(
-            "src-tauri/src/lib.rs generate_handler! does not list exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin, remove_plugin, manager_update_check and manager_update_install (FR-061, SC-019, FR-096, Phase 11 FR-020)"
+            "src-tauri/src/lib.rs generate_handler! does not list exactly app_version, startup_error, plugin_status, check_now, open_release_page, download_plugin, install_plugin, remove_plugin, manager_update_check, manager_update_install, update_all, settings_view and settings_save (FR-061, SC-019, FR-096, Phase 11 FR-020, Phase 12 FR-061)"
                 .to_owned(),
         );
     }
     m.extend(check_install_command_params(f));
+    m.extend(check_phase12_command_params(f));
 
     check_src_tauri_manifest(f, &mut m);
     m.extend(check_http_injection(f));
@@ -2419,6 +2472,58 @@ fn planted_config_changes_fail_the_guard() {
             |f| {
                 let text = src_text(f, "src/commands.rs");
                 *text = text.replacen("fn remove_plugin(", "fn remove_plugin(path: PathBuf, ", 1);
+            },
+        ),
+        // Phase 12 FR-061: the three new commands.
+        (
+            "commands::settings_save removed from the handler list",
+            &["generate_handler! does not list exactly"],
+            |f| {
+                f.lib_rs = f.lib_rs.replace("commands::settings_save", "");
+            },
+        ),
+        (
+            "build.rs without update_all",
+            &["src-tauri/build.rs does not register exactly"],
+            |f| {
+                f.build_rs = f.build_rs.replace("\"update_all\",", "");
+            },
+        ),
+        (
+            "capability without allow-settings-view",
+            &["`permissions`"],
+            |f| {
+                if let Some(list) = main_capability(f)["permissions"].as_array_mut() {
+                    list.retain(|p| p != "allow-settings-view");
+                }
+            },
+        ),
+        (
+            "url: String added to update_all",
+            &["`update_all` takes `url:String`"],
+            |f| {
+                let text = src_text(f, "src/commands.rs");
+                *text = text.replacen("fn update_all(", "fn update_all(url: String, ", 1);
+            },
+        ),
+        (
+            "settings_save taking a PathBuf root",
+            &["`settings_save` takes `linux_plugin_root:Option<PathBuf>`"],
+            |f| {
+                let text = src_text(f, "src/commands.rs");
+                *text = text.replacen(
+                    "linux_plugin_root: Option<String>",
+                    "linux_plugin_root: Option<PathBuf>",
+                    1,
+                );
+            },
+        ),
+        (
+            "settings_view taking a String",
+            &["`settings_view` takes `root:String`"],
+            |f| {
+                let text = src_text(f, "src/commands.rs");
+                *text = text.replacen("fn settings_view(", "fn settings_view(root: String, ", 1);
             },
         ),
     ];

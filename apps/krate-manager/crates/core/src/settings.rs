@@ -1,9 +1,17 @@
 //! Settings schema v1 and its atomic persistence (FR-030 to FR-036, D10; plan §4.5).
 
+use crate::context::{self, AppContext, AppState, SharedState, StartupError};
+use crate::extract::NodeKind;
+use crate::install::{self, InstallIo as _};
+use crate::platform::{NativePlatform, Os, Platform as _};
 use crate::roots::Roots;
+use crate::status::OsName;
+use crate::{detect, download, self_update};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::io::{self, Write as _};
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Condvar, Mutex, MutexGuard, PoisonError, RwLockReadGuard};
 use tempfile::NamedTempFile;
 
 pub const SETTINGS_FILE: &str = "settings.json";
@@ -304,6 +312,309 @@ pub(crate) fn save_with(
     #[cfg(unix)]
     io.sync_dir(dir).map_err(at(SettingsStep::SyncDir))?;
     Ok(())
+}
+
+// ---- the settings commands and the root gate (Phase 12 plan §4.4; FR-040 to FR-044; PD-9 to PD-11) ---------------
+
+/// What the settings section shows (FR-040): the effective Linux plug-in root as text, whether it is the default, the
+/// graphics toggle, the plugins that lock the root (FR-041) and the startup settings error's text (SI-17).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct SettingsView {
+    pub os: OsName,
+    pub linux_plugin_root: String,
+    pub root_is_default: bool,
+    pub graphics_workaround: bool,
+    pub root_locked_by: Vec<String>,
+    pub error: Option<String>,
+}
+
+/// Why a settings command was refused (FR-041 to FR-044, PD-10). Every `Display` begins with its code.
+#[derive(Debug, thiserror::Error)]
+pub enum SettingsCommandError {
+    #[error("E_SETTINGS_ROOT_IN_USE: Remove {} before changing the plug-in folder", .names.join(", "))]
+    RootInUse { names: Vec<String> },
+    #[error(
+        "E_SETTINGS_BUSY: an install, download or self-update is running; try again when it finishes"
+    )]
+    Busy,
+    #[error("E_SETTINGS_UNSUPPORTED_OS: settings exist on Linux only")]
+    UnsupportedOs,
+    #[error(transparent)]
+    Settings(#[from] SettingsError),
+    #[error(transparent)]
+    Startup(StartupError),
+}
+
+impl SettingsCommandError {
+    /// The code the `Display` begins with; the inner code for the two wrappers.
+    pub fn code(&self) -> &'static str {
+        match self {
+            SettingsCommandError::RootInUse { .. } => "E_SETTINGS_ROOT_IN_USE",
+            SettingsCommandError::Busy => "E_SETTINGS_BUSY",
+            SettingsCommandError::UnsupportedOs => "E_SETTINGS_UNSUPPORTED_OS",
+            SettingsCommandError::Settings(e) => e.code(),
+            SettingsCommandError::Startup(e) => e.code(),
+        }
+    }
+}
+
+/// The `settings_view` command on this OS (FR-040).
+pub fn view(state: &SharedState) -> Result<SettingsView, SettingsCommandError> {
+    view_with_os(NativePlatform.os(), state)
+}
+
+/// `view` for a forced OS (plan §4.4): the stored values read under the read guard, then the root lock (FR-041),
+/// computed even when nothing changes. Off Linux the view is still returned.
+pub(crate) fn view_with_os(
+    os: Os,
+    state: &SharedState,
+) -> Result<SettingsView, SettingsCommandError> {
+    let (state_dir, view) = {
+        let guard = read(state);
+        let ctx = guard
+            .context
+            .as_ref()
+            .map_err(|e| SettingsCommandError::Startup(e.clone()))?;
+        let view = SettingsView {
+            os: os_name(os),
+            linux_plugin_root: ctx
+                .settings
+                .linux_plugin_root_or_default(&ctx.roots)
+                .to_string_lossy()
+                .into_owned(),
+            root_is_default: ctx.settings.linux_plugin_root.is_none(),
+            graphics_workaround: ctx.settings.linux_graphics_workaround,
+            root_locked_by: Vec::new(),
+            error: guard.settings_error.as_ref().map(ToString::to_string),
+        };
+        (ctx.roots.state_dir().to_path_buf(), view)
+    };
+    Ok(SettingsView {
+        root_locked_by: root_locked_by(&state_dir),
+        ..view
+    })
+}
+
+/// The `settings_save` command on this OS (FR-041 to FR-043, PD-11).
+pub fn save_for_command(
+    state: &SharedState,
+    root: Option<String>,
+    graphics: bool,
+) -> Result<SettingsView, SettingsCommandError> {
+    save_for_command_with_os(NativePlatform.os(), state, root, graphics)
+}
+
+/// `save_for_command` for a forced OS (PD-11's eleven steps, in order). Steps 4 to 8 make no write, so a refusal at
+/// any step leaves the file and the running context unchanged.
+pub(crate) fn save_for_command_with_os(
+    os: Os,
+    state: &SharedState,
+    root: Option<String>,
+    graphics: bool,
+) -> Result<SettingsView, SettingsCommandError> {
+    // (1) Linux only.
+    if !matches!(os, Os::Linux) {
+        return Err(SettingsCommandError::UnsupportedOs);
+    }
+    // (2) The state dir, or the startup error (SI-15).
+    let state_dir = state_dir_of(state).map_err(SettingsCommandError::Startup)?;
+    // (3) The save gate: no plugin command holds a ticket and no other save runs, until this returns.
+    let Some(_gate) = SaveGate::try_enter(&state_dir) else {
+        return Err(SettingsCommandError::Busy);
+    };
+    // (4) The authoritative context, read under the gate.
+    let ctx = read(state)
+        .context
+        .clone()
+        .map_err(SettingsCommandError::Startup)?;
+    // (5) Nothing running (FR-042): the self-update gate, a busy key, a download in flight.
+    if something_runs(&ctx) {
+        return Err(SettingsCommandError::Busy);
+    }
+    // (6) The value to store.
+    let next = Settings {
+        linux_plugin_root: root.map(PathBuf::from),
+        linux_graphics_workaround: graphics,
+    };
+    // (7) The root lock, only when the root changes, compared as stored values (FR-041, FR-043).
+    if next.linux_plugin_root != ctx.settings.linux_plugin_root {
+        let names = root_locked_by(&state_dir);
+        if !names.is_empty() {
+            return Err(SettingsCommandError::RootInUse { names });
+        }
+    }
+    // (8) to (10) Validate, write atomically (refusing over a newer file), swap the context in.
+    validate(&next)?;
+    save(&ctx.roots, &next)?;
+    context::apply_settings_with_os(os, state, next);
+    // (11) What the section shows now.
+    view_with_os(os, state)
+}
+
+fn read(state: &SharedState) -> RwLockReadGuard<'_, AppState> {
+    state.read().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// The context's state dir, or a clone of the startup error; the read guard is dropped on return.
+fn state_dir_of(state: &SharedState) -> Result<PathBuf, StartupError> {
+    match &read(state).context {
+        Ok(ctx) => Ok(ctx.roots.state_dir().to_path_buf()),
+        Err(e) => Err(e.clone()),
+    }
+}
+
+fn os_name(os: Os) -> OsName {
+    match os {
+        Os::Windows => OsName::Windows,
+        Os::Macos => OsName::Macos,
+        Os::Linux => OsName::Linux,
+    }
+}
+
+/// FR-042 (PD-11 step 5): the manager updating itself, a plugin action, or a download of this instance in flight (the
+/// in-flight path of `self_update::self_update_busy`).
+fn something_runs(ctx: &AppContext) -> bool {
+    let state_dir = ctx.roots.state_dir();
+    self_update::action_gate(state_dir).is_err()
+        || install::any_busy(state_dir)
+        || download::any_in_flight(&ctx.roots.staging_dir().join(download::DOWNLOADS_DIR))
+}
+
+/// FR-041: the manifests' `plugin` values (a manifest without one named by its stem), then the stems of the pending
+/// journals, sorted and de-duplicated; an unreadable directory is named by itself, so it still locks the root.
+fn root_locked_by(state_dir: &Path) -> Vec<String> {
+    let io = &install::FsInstallIo;
+    let mut names: Vec<String> = match install::manifest_heads(io, state_dir) {
+        Ok(heads) => heads
+            .into_iter()
+            .map(|head| head.plugin.unwrap_or(head.stem))
+            .collect(),
+        Err(_) => vec![detect::MANIFESTS_DIR.to_owned()],
+    };
+    let journal = state_dir.join(install::JOURNAL_DIR);
+    let entries = match io.kind_of(&journal) {
+        Ok(None) => Ok(Vec::new()),
+        Ok(Some(NodeKind::Dir)) => io.read_dir(&journal).map_err(|_| ()),
+        Ok(Some(_)) | Err(_) => Err(()),
+    };
+    match entries {
+        Ok(entries) => names.extend(entries.into_iter().filter_map(|(name, kind)| {
+            let name = name.into_string().ok()?;
+            let stem = name.strip_suffix(".json")?;
+            (kind == NodeKind::File && !stem.is_empty()).then(|| stem.to_owned())
+        })),
+        Err(()) => names.push(install::JOURNAL_DIR.to_owned()),
+    }
+    names.sort();
+    names.dedup();
+    names
+}
+
+/// PD-11: per state dir, the plugin commands holding a ticket and whether a save runs.
+#[derive(Default)]
+struct Gate {
+    commands: usize,
+    saving: bool,
+}
+
+/// PD-11: the root gate of every state dir of this process, keyed as `install`'s busy registry is; an idle gate is
+/// removed.
+static ROOT_GATE: Mutex<BTreeMap<PathBuf, Gate>> = Mutex::new(BTreeMap::new());
+/// PD-11: signalled whenever a gate changes, so a waiting `command_context` re-checks.
+static ROOT_GATE_FREE: Condvar = Condvar::new();
+
+fn root_gate() -> MutexGuard<'static, BTreeMap<PathBuf, Gate>> {
+    ROOT_GATE.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Applies `change` to `state_dir`'s gate, removes it when idle, then wakes every waiter.
+fn release_gate(state_dir: &Path, change: impl FnOnce(&mut Gate)) {
+    let mut gates = root_gate();
+    if let Some(gate) = gates.get_mut(state_dir) {
+        change(gate);
+        if gate.commands == 0 && !gate.saving {
+            gates.remove(state_dir);
+        }
+    }
+    drop(gates);
+    ROOT_GATE_FREE.notify_all();
+}
+
+/// PD-11: a plugin command's hold on its state dir's root gate, from before its context clone until its core call
+/// returns; a settings save is `E_SETTINGS_BUSY` while one is held.
+#[must_use]
+pub struct RootTicket {
+    state_dir: PathBuf,
+}
+
+impl Drop for RootTicket {
+    fn drop(&mut self) {
+        release_gate(&self.state_dir, |gate| {
+            gate.commands = gate.commands.saturating_sub(1);
+        });
+    }
+}
+
+/// PD-11: a ticket on the root gate (waiting out a running save), then the context clone.
+pub fn command_context(state: &SharedState) -> Result<(RootTicket, AppContext), StartupError> {
+    // (i) The state dir; the read guard is dropped before the gate is waited on.
+    let state_dir = state_dir_of(state)?;
+    // (ii) Wait out a running save, then count this command in.
+    let gates = root_gate();
+    let mut gates = ROOT_GATE_FREE
+        .wait_while(gates, |gates| {
+            gates.get(&state_dir).is_some_and(|gate| gate.saving)
+        })
+        .unwrap_or_else(PoisonError::into_inner);
+    gates.entry(state_dir.clone()).or_default().commands += 1;
+    drop(gates);
+    // Built only after the registry lock is released: its `Drop` locks the registry again.
+    let ticket = RootTicket { state_dir };
+    // (iii) The context, cloned under the ticket (an `Err` drops the ticket).
+    let ctx = read(state).context.clone()?;
+    Ok((ticket, ctx))
+}
+
+/// PD-11 step 3: a running save of one state dir; dropping it (also while unwinding) ends the save.
+struct SaveGate {
+    state_dir: PathBuf,
+}
+
+impl SaveGate {
+    /// `None` while a plugin command holds a ticket or another save runs. The guard is built only after the registry
+    /// lock is released: its `Drop` locks the registry again.
+    fn try_enter(state_dir: &Path) -> Option<SaveGate> {
+        let mut gates = root_gate();
+        let gate = gates.entry(state_dir.to_path_buf()).or_default();
+        let free = gate.commands == 0 && !gate.saving;
+        if free {
+            gate.saving = true;
+        }
+        drop(gates);
+        free.then(|| SaveGate {
+            state_dir: state_dir.to_path_buf(),
+        })
+    }
+}
+
+impl Drop for SaveGate {
+    fn drop(&mut self) {
+        release_gate(&self.state_dir, |gate| gate.saving = false);
+    }
+}
+
+/// PD-11: a test hold of a state dir's save gate (a save in progress); dropping it releases the gate.
+#[cfg(any(test, feature = "test-support"))]
+pub struct SaveGateHeldForTest {
+    _gate: SaveGate,
+}
+
+/// PD-11: `state_dir`'s save gate held as a running save (tests only), as `install::hold_busy_for_test`.
+#[cfg(any(test, feature = "test-support"))]
+pub fn hold_save_gate_for_test(state_dir: &Path) -> SaveGateHeldForTest {
+    SaveGateHeldForTest {
+        _gate: SaveGate::try_enter(state_dir).expect("the save gate is not free"),
+    }
 }
 
 #[cfg(test)]

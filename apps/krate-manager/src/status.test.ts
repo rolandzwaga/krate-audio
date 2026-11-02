@@ -22,7 +22,7 @@ import { renderShell } from "./main";
 import { STATUS_TEXTS, createStatusSection, renderCards } from "./status";
 import type { ChannelMaker, Invoker, StatusSection } from "./status";
 import { toStatusView } from "./view";
-import type { CopyView, PluginView, StatusView, UnknownReason } from "./view";
+import type { CopyView, OsName, PluginView, StatusView, UnknownReason } from "./view";
 
 afterEach(clearMocks);
 
@@ -380,7 +380,7 @@ function nonTestSources(): (readonly [string, string])[] {
 
 test("no navigation path but the release page button", () => {
   const sources = nonTestSources();
-  expect(sources.map(([name]) => name).sort()).toEqual(["main.ts", "manager_update.ts", "notes.ts", "status.ts", "view.ts"]);
+  expect(sources.map(([name]) => name).sort()).toEqual(["main.ts", "manager_update.ts", "notes.ts", "settings.ts", "status.ts", "view.ts"]);
   expect(sources.flatMap(([name, text]) => navigationHits(name, text))).toEqual([]);
   const [first] = sources;
   if (first === undefined) throw new Error("no sources");
@@ -423,6 +423,7 @@ function viewOf(os: string, plugins: readonly Readonly<Record<string, unknown>>[
     running_os: null,
     feed: { source: "fresh", fetched_at_unix: 1700000000, schema_version: 2, error: null },
     plugins: plugins.map(pluginJson),
+    orphans: [],
   });
 }
 
@@ -1102,4 +1103,441 @@ test("macos remove confirmation names the uninstaller", async () => {
   click(c, "div.confirm button.confirm-ok");
   await settle();
   expect(calls).toEqual([["remove_plugin", { name: "Alpha", onProgress: { id: 1 } }]]);
+});
+
+// Phase 12 SC-001, SC-005, SC-006, SC-010, SC-015, SC-027, SC-030 (FR-021 to FR-028, FR-053; plan §4.7, PD-15): the
+// Update-all control, its confirmation, progress, outcome and refresh, and the orphan cards.
+
+const ALL_OSES = ["windows", "macos", "linux"] as const;
+const RESCAN = "Restart your DAW or rescan its plug-ins to load the new version.";
+
+/** A status view with `orphans`, through the runtime validator (PD-12). */
+function viewWithOrphans(
+  os: string,
+  plugins: readonly Readonly<Record<string, unknown>>[],
+  orphans: readonly { name: string; version: string }[],
+): StatusView {
+  return toStatusView({
+    os,
+    edge_max_age_secs: 600,
+    running_os: null,
+    feed: { source: "fresh", fetched_at_unix: 1700000000, schema_version: 2, error: null },
+    plugins: plugins.map(pluginJson),
+    orphans,
+  });
+}
+
+/** `UPDATE_AVAILABLE` with the OS's record (Inno on Windows, pkg on macOS, the manifest on Linux). */
+function updateOn(os: OsName): Record<string, unknown> {
+  return os === "linux" ? { ...UPDATE_AVAILABLE } : updateAvailableOn(os);
+}
+
+/** SC-001's fixture: three `update` cards (Alpha, Beta, Gamma) and two others (Delta, Epsilon), interleaved. */
+function fiveCards(os: OsName): StatusView {
+  const update = updateOn(os);
+  return viewOf(os, [
+    update,
+    { ...NOT_INSTALLED, name: "Delta" },
+    { ...update, name: "Beta", installed_version: "1.1.0", latest: "1.3.0" },
+    { ...UP_TO_DATE, name: "Epsilon" },
+    { ...update, name: "Gamma" },
+  ]);
+}
+
+/** A rendered section whose `update_all` answers `batch`, `plugin_status` / `check_now` `after`, a card action `action`. */
+function batchRig(
+  view: StatusView,
+  batch: Promise<unknown>,
+  after: StatusView = view,
+  action: Promise<unknown> = deferred<unknown>().promise,
+): { section: StatusSection; calls: [string, Record<string, unknown> | undefined][]; ch: ReturnType<typeof channels> } {
+  const { calls, invoke } = recorder((cmd) => {
+    if (cmd === "update_all") return batch;
+    if (cmd === "install_plugin" || cmd === "remove_plugin") return action;
+    if (cmd === "plugin_status" || cmd === "check_now") return Promise.resolve(after);
+    return Promise.reject(new Error(`unexpected command ${cmd}`));
+  });
+  const ch = channels();
+  const section = createStatusSection(invoke, ch.make);
+  section.render(view);
+  section.button.disabled = false;
+  return { section, calls, ch };
+}
+
+/** Clicks `Update all`, then the confirmation's `Confirm`. */
+function confirmAll(root: ParentNode): void {
+  click(root, "div.update-all > button.update-all");
+  click(root, "div.confirm-all > button.confirm-ok");
+}
+
+/** One `update_all` result item that updated (its per-item notice is the core's; the page shows it once, FR-025). */
+function updatedItem(name: string, version: string): Record<string, unknown> {
+  return { name, summary: { name, action: "update", version, kept: [], notice: "rescan_daw" }, error: null };
+}
+
+function failedItem(name: string, error: string): Record<string, unknown> {
+  return { name, summary: null, error };
+}
+
+/** Every card button, `Check now` and the Update-all control: their `disabled` flags. */
+function controlFlags(section: StatusSection): boolean[] {
+  return [
+    ...Array.from(section.element.querySelectorAll<HTMLButtonElement>("article.plugin button"), (b) => b.disabled),
+    section.button.disabled,
+    only(section.element, "button.update-all", HTMLButtonElement).disabled,
+  ];
+}
+
+test("update_all_confirmation_lists_every_update", async () => {
+  for (const os of ALL_OSES) {
+    const { section, calls, ch } = batchRig(fiveCards(os), deferred<unknown>().promise);
+    const root = section.element;
+    expect(texts(root, "button.update-all"), os).toEqual(["Update all"]);
+    only(root, ":scope > div.update-all", HTMLDivElement);
+    click(root, "div.update-all > button.update-all");
+    const confirm = only(root, ":scope > div.confirm-all", HTMLDivElement);
+    expect(root.querySelector("div.update-all"), os).toBeNull();
+    expect(texts(confirm, "p.confirm-text"), os).toEqual(["Update these plugins?"]);
+    expect(texts(confirm, "p.confirm-line"), os).toEqual(["Alpha 1.0.0 → 1.2.0", "Beta 1.1.0 → 1.3.0", "Gamma 1.0.0 → 1.2.0"]);
+    expect(texts(confirm, "p.admin-note"), os).toEqual(os === "linux" ? [] : [ADMIN_LINE[os]]);
+    expect(texts(confirm, "button"), os).toEqual(["Confirm", "Cancel"]);
+    click(confirm, "button.confirm-cancel");
+    await settle();
+    expect(calls, os).toEqual([]);
+    expect(ch.made, os).toEqual([]);
+    expect(root.querySelector("div.confirm-all"), os).toBeNull();
+    expect(only(root, "button.update-all", HTMLButtonElement).disabled, os).toBe(false);
+    confirmAll(root);
+    await settle();
+    expect(calls, os).toEqual([
+      [
+        "update_all",
+        {
+          items: [
+            { name: "Alpha", expectedVersion: "1.2.0" },
+            { name: "Beta", expectedVersion: "1.3.0" },
+            { name: "Gamma", expectedVersion: "1.2.0" },
+          ],
+          onProgress: { id: 1 },
+        },
+      ],
+    ]);
+    expect(calls[0]?.[1]?.["onProgress"], os).toBe(ch.made[0]);
+    expect(Object.keys(calls[0]?.[1] ?? {}).sort(), os).toEqual(["items", "onProgress"]);
+  }
+  // The control (FR-021): no card offers `update`, so no Update-all control is rendered.
+  const none = batchRig(viewOf("linux", [NOT_INSTALLED, { ...UP_TO_DATE, name: "Beta" }]), deferred<unknown>().promise);
+  expect(none.section.element.querySelector("div.update-all, button.update-all")).toBeNull();
+});
+
+test("update_all_locked_text", async () => {
+  const pending = deferred<unknown>();
+  const update = updateOn("windows");
+  const view = viewOf("windows", [update, { ...update, name: "Beta" }, { ...update, name: "Gamma" }]);
+  const { section, calls } = batchRig(view, pending.promise);
+  const root = section.element;
+  confirmAll(root);
+  await settle();
+  pending.resolve({
+    results: [updatedItem("Alpha", "1.2.0"), failedItem("Beta", LOCKED), updatedItem("Gamma", "1.2.0")],
+    notice: "rescan_daw",
+  });
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["update_all", "plugin_status"]);
+  expect(texts(card(root, "Alpha"), "p.outcome")).toEqual(["Updated to 1.2.0"]);
+  expect(texts(card(root, "Beta"), "p.outcome")).toEqual([LOCKED]);
+  expect(texts(card(root, "Gamma"), "p.outcome")).toEqual(["Updated to 1.2.0"]);
+  expect(texts(root, "p.batch-outcome")).toEqual([RESCAN]);
+  expect(root.textContent.split(RESCAN).length - 1).toBe(1);
+});
+
+test("update_all_macos_notice", async () => {
+  const pending = deferred<unknown>();
+  const update = updateOn("macos");
+  const { section } = batchRig(viewOf("macos", [update, { ...update, name: "Beta" }]), pending.promise);
+  const root = section.element;
+  confirmAll(root);
+  await settle();
+  pending.resolve({ results: [updatedItem("Alpha", "1.2.0"), updatedItem("Beta", "1.2.0")], notice: "rescan_daw_macos" });
+  await settle();
+  // TA-12: the AU-cache phrase is built, never written whole in this file.
+  const auCache = ["~", "Library", "Caches", "AudioUnitCache"].join("/");
+  const lines = [
+    RESCAN,
+    "If a Logic or GarageBand AU does not appear: 1. Restart the Mac.",
+    "2. In Logic's Plug-in Manager, use 'Reset & Rescan Selection'.",
+    "3. Still missing: use 'Full Audio Unit Reset', then reopen Logic.",
+    `4. Last resort: move the files in ${auCache} out, restart, and reopen Logic (the rescan can take a while).`,
+    "Apple's guide: support.apple.com/en-us/122179",
+  ];
+  expect(texts(root, "p.batch-outcome")).toEqual(lines);
+  for (const line of lines) expect(root.textContent.split(line).length - 1, line).toBe(1);
+  for (const name of ["Alpha", "Beta"]) expect(texts(card(root, name), "p.outcome"), name).toEqual(["Updated to 1.2.0"]);
+  expect(root.querySelectorAll("a").length).toBe(0);
+  expect(attributeFindings(root)).toEqual([]);
+});
+
+test("update_all_linux_notice", async () => {
+  const pending = deferred<unknown>();
+  const view = viewOf("linux", [UPDATE_AVAILABLE, { ...UPDATE_AVAILABLE, name: "Beta" }]);
+  const { section } = batchRig(view, pending.promise);
+  const root = section.element;
+  confirmAll(root);
+  await settle();
+  pending.resolve({ results: [updatedItem("Alpha", "1.2.0"), updatedItem("Beta", "1.2.0")], notice: "rescan_daw" });
+  await settle();
+  expect(texts(root, "p.batch-outcome")).toEqual([RESCAN]);
+  expect(root.textContent.split(RESCAN).length - 1).toBe(1);
+  for (const phrase of ["Restart the Mac", "Reset & Rescan Selection", "Full Audio Unit Reset", "support.apple.com"]) {
+    expect(root.textContent, phrase).not.toContain(phrase);
+  }
+  // The control (SC-006 `None`): nothing updated, so no notice line.
+  const failing = deferred<unknown>();
+  const second = batchRig(view, failing.promise);
+  confirmAll(second.section.element);
+  await settle();
+  failing.resolve({ results: [failedItem("Alpha", LOCKED), failedItem("Beta", LOCKED)], notice: null });
+  await settle();
+  expect(texts(second.section.element, "p.batch-outcome")).toEqual([]);
+  expect(texts(card(second.section.element, "Beta"), "p.outcome")).toEqual([LOCKED]);
+});
+
+test("update_all_disables_actions", async () => {
+  const pending = deferred<unknown>();
+  const single = deferred<unknown>();
+  const view = viewWithOrphans(
+    "linux",
+    [UPDATE_AVAILABLE, { ...NOT_INSTALLED, name: "Delta" }, { ...UPDATE_AVAILABLE, name: "Beta" }],
+    [{ name: "Omega", version: "0.9.0" }],
+  );
+  const { section, calls } = batchRig(view, pending.promise, view, single.promise);
+  const root = section.element;
+  const flags = (): boolean[] => controlFlags(section);
+  expect(flags().length).toBe(8);
+  expect(flags().every((disabled) => !disabled)).toBe(true);
+  confirmAll(root);
+  await settle();
+  expect(flags().every((disabled) => disabled)).toBe(true);
+  // A self-update ending meanwhile (Phase 11 FR-025) does not re-enable anything while the batch runs.
+  section.setActionsEnabled(true);
+  expect(flags().every((disabled) => disabled)).toBe(true);
+  click(card(root, "Delta"), "button.action-install");
+  click(root, "button.update-all");
+  section.button.click();
+  await settle();
+  expect(root.querySelector("div.confirm, div.confirm-all")).toBeNull();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["update_all"]);
+  pending.resolve({ results: [updatedItem("Alpha", "1.2.0"), updatedItem("Beta", "1.2.0")], notice: "rescan_daw" });
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["update_all", "plugin_status"]);
+  expect(flags().every((disabled) => !disabled)).toBe(true);
+  // PD-15: a single action running (a `div.actions.running` row) disables the Update-all control until it settles.
+  confirmAction(card(root, "Delta"), "install");
+  await settle();
+  only(root, "div.actions.running", HTMLDivElement);
+  expect(only(root, "button.update-all", HTMLButtonElement).disabled).toBe(true);
+  click(root, "button.update-all");
+  expect(root.querySelector("div.confirm-all")).toBeNull();
+  single.resolve({ name: "Delta", action: "install", version: "1.2.0", kept: [], notice: "rescan_daw" });
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["update_all", "plugin_status", "install_plugin", "plugin_status"]);
+  expect(only(root, "button.update-all", HTMLButtonElement).disabled).toBe(false);
+});
+
+test("orphan_card_renders_remove", async () => {
+  const pending = deferred<unknown>();
+  const view = viewWithOrphans("linux", [UP_TO_DATE], [
+    { name: "Omega", version: "0.9.0" },
+    { name: "Psi", version: "2.0.1" },
+  ]);
+  const after = viewWithOrphans("linux", [UP_TO_DATE], [{ name: "Psi", version: "2.0.1" }]);
+  const { section, calls, ch } = batchRig(view, deferred<unknown>().promise, after, pending.promise);
+  const root = section.element;
+  const orphans = root.querySelectorAll("article.plugin.orphan");
+  expect(orphans.length).toBe(2);
+  expect(texts(root, "article.plugin.orphan > p.orphan-line")).toEqual([
+    "Omega 0.9.0: no longer offered; installed by Krate Manager",
+    "Psi 2.0.1: no longer offered; installed by Krate Manager",
+  ]);
+  // An orphan offers no update: the Update-all control is absent.
+  expect(root.querySelector("button.update-all")).toBeNull();
+  const omega = orphans[0];
+  if (!(omega instanceof HTMLElement)) throw new Error("no orphan card");
+  expect(texts(omega, "button")).toEqual(["Remove"]);
+  only(omega, "div.actions > button.action-remove", HTMLButtonElement);
+  click(omega, "button.action-remove");
+  const confirm = only(omega, ":scope > div.confirm", HTMLDivElement);
+  expect(texts(confirm, "p")).toEqual([
+    "Remove Omega? The plug-in and its factory presets are removed; your own presets are kept.",
+  ]);
+  expect(texts(confirm, "button")).toEqual(["Confirm", "Cancel"]);
+  click(omega, "div.confirm button.confirm-cancel");
+  await settle();
+  expect(calls).toEqual([]);
+  confirmAction(omega, "remove");
+  await settle();
+  expect(calls).toEqual([["remove_plugin", { name: "Omega", onProgress: { id: 1 } }]]);
+  expect(calls[0]?.[1]?.["onProgress"]).toBe(ch.made[0]);
+  ch.send({ kind: "removing", done: 2, total: 6 });
+  expect(texts(omega, "p.progress")).toEqual(["Removing 2 of 6 files"]);
+  pending.resolve({ name: "Omega", action: "remove", version: null, kept: [], notice: null });
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["remove_plugin", "plugin_status"]);
+  expect(texts(root, "article.plugin.orphan > p.orphan-line")).toEqual([
+    "Psi 2.0.1: no longer offered; installed by Krate Manager",
+  ]);
+  expect(attributeFindings(root)).toEqual([]);
+});
+
+test("update_all_progress_lines", async () => {
+  const pending = deferred<unknown>();
+  const update = updateOn("windows");
+  const view = viewOf("windows", [update, { ...NOT_INSTALLED, name: "Delta" }, { ...update, name: "Beta" }]);
+  const { section, ch } = batchRig(view, pending.promise);
+  const root = section.element;
+  confirmAll(root);
+  await settle();
+  const bytes = (name: string, done: number, total: number): unknown => ({
+    kind: "item",
+    name,
+    event: { kind: "download", event: { kind: "bytes", received: done, on_disk: done, total } },
+  });
+  ch.send(bytes("Alpha", 40, 100));
+  expect(texts(card(root, "Alpha"), "p.progress")).toEqual(["Downloading 40 of 100 bytes"]);
+  expect(texts(card(root, "Beta"), "p.progress")).toEqual([]);
+  ch.send(bytes("Beta", 10, 50));
+  expect(texts(card(root, "Beta"), "p.progress")).toEqual(["Downloading 10 of 50 bytes"]);
+  expect(texts(card(root, "Alpha"), "p.progress")).toEqual(["Downloading 40 of 100 bytes"]);
+  ch.send({ kind: "item", name: "Alpha", event: { kind: "download", event: { kind: "verified" } } });
+  expect(texts(card(root, "Alpha"), "p.progress")).toEqual(["Downloading 40 of 100 bytes"]);
+  ch.send({ kind: "elevating" });
+  ch.send({ kind: "elevating" });
+  expect(texts(root, "p.batch-progress")).toEqual([WAITING]);
+  expect(texts(card(root, "Delta"), "p.progress")).toEqual([]);
+  pending.resolve({ results: [updatedItem("Alpha", "1.2.0"), updatedItem("Beta", "1.2.0")], notice: "rescan_daw" });
+  await settle();
+  expect(root.querySelector("p.progress, p.batch-progress")).toBeNull();
+  // Linux: the per-item stage-3 events (FR-017) reach the item's card.
+  const linuxPending = deferred<unknown>();
+  const linux = batchRig(viewOf("linux", [UPDATE_AVAILABLE, { ...UPDATE_AVAILABLE, name: "Beta" }]), linuxPending.promise);
+  const l = linux.section.element;
+  confirmAll(l);
+  await settle();
+  linux.ch.send({ kind: "item", name: "Alpha", event: { kind: "placing", done: 2, total: 5 } });
+  expect(texts(card(l, "Alpha"), "p.progress")).toEqual(["Placing 2 of 5 files"]);
+  linux.ch.send({ kind: "item", name: "Beta", event: { kind: "staging" } });
+  expect(texts(card(l, "Beta"), "p.progress")).toEqual([]);
+  linux.ch.send({ kind: "item", name: "Alpha", event: { kind: "committing" } });
+  expect(texts(card(l, "Alpha"), "p.progress")).toEqual(["Finishing"]);
+  linux.ch.send({ kind: "item", name: "Beta", event: { kind: "done" } });
+  expect(texts(card(l, "Beta"), "p.progress")).toEqual(["Finishing"]);
+  expect(texts(l, "p.batch-progress")).toEqual([]);
+  linuxPending.resolve({ results: [updatedItem("Alpha", "1.2.0"), updatedItem("Beta", "1.2.0")], notice: "rescan_daw" });
+  await settle();
+  expect(l.querySelector("p.progress")).toBeNull();
+});
+
+test("update_all_malformed", async () => {
+  const pending = deferred<unknown>();
+  const view = viewOf("linux", [UPDATE_AVAILABLE, { ...UPDATE_AVAILABLE, name: "Beta" }]);
+  const { section, calls, ch } = batchRig(view, pending.promise);
+  const root = section.element;
+  confirmAll(root);
+  await settle();
+  const before = Array.from(root.querySelectorAll("article.plugin"), (a) => a.textContent);
+  for (const message of [
+    { kind: "item", name: "Alpha", event: { kind: "bogus" } },
+    { kind: "item", name: "Alpha" },
+    { kind: "item", name: "Alpha", event: { kind: "placing", done: 1, total: 2 }, extra: true },
+    { kind: "item", name: "Nobody", event: { kind: "committing" } },
+    { kind: "elevating", name: "Alpha" },
+    { kind: "placing", done: 1, total: 2 },
+    "text",
+    null,
+  ]) {
+    ch.send(message);
+  }
+  expect(Array.from(root.querySelectorAll("article.plugin"), (a) => a.textContent)).toEqual(before);
+  expect(root.querySelector("p.progress, p.batch-progress")).toBeNull();
+  // A result item with neither a summary nor an error fails `toBatchSummary`: one rejection line, no card line.
+  pending.resolve({ results: [{ name: "Alpha", summary: null, error: null }], notice: null });
+  await settle();
+  expect(texts(root, "p.batch-outcome")).toEqual(["$.results[0]: exactly one of summary and error"]);
+  expect(root.querySelector("p.outcome")).toBeNull();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["update_all", "plugin_status"]);
+  expect(controlFlags(section).every((disabled) => !disabled)).toBe(true);
+  // A rejected command (its `Err(String)`) is the same one line.
+  const rejected = deferred<unknown>();
+  const second = batchRig(view, rejected.promise);
+  confirmAll(second.section.element);
+  await settle();
+  rejected.reject(new Error("E_INSTALL_SELF_UPDATING: Krate Manager is updating itself."));
+  await settle();
+  expect(texts(second.section.element, "p.batch-outcome")).toEqual(["E_INSTALL_SELF_UPDATING: Krate Manager is updating itself."]);
+  expect(controlFlags(second.section).every((disabled) => !disabled)).toBe(true);
+});
+
+test("update_all_settle_rereads_status", async () => {
+  const pending = deferred<unknown>();
+  const view = viewOf("linux", [UPDATE_AVAILABLE, { ...NOT_INSTALLED, name: "Delta" }, { ...UPDATE_AVAILABLE, name: "Beta" }]);
+  const after = viewOf("linux", [UP_TO_DATE, { ...NOT_INSTALLED, name: "Delta" }, { ...UP_TO_DATE, name: "Beta" }]);
+  const { section, calls } = batchRig(view, pending.promise, after);
+  const root = section.element;
+  confirmAll(root);
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["update_all"]);
+  pending.resolve({ results: [updatedItem("Alpha", "1.2.0"), updatedItem("Beta", "1.2.0")], notice: "rescan_daw" });
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["update_all", "plugin_status"]);
+  const check = (): void => {
+    for (const name of ["Alpha", "Beta"]) {
+      const c = card(root, name);
+      expect(only(c, ":scope > p.installed", HTMLParagraphElement).textContent, name).toBe("Installed: 1.2.0");
+      expect(texts(c, "p.outcome"), name).toEqual(["Updated to 1.2.0"]);
+    }
+    expect(texts(card(root, "Delta"), "p.outcome")).toEqual([]);
+    expect(texts(root, "p.batch-outcome")).toEqual([RESCAN]);
+    expect(root.textContent.split(RESCAN).length - 1).toBe(1);
+  };
+  check();
+  // Nothing is offered any more, so the control is gone.
+  expect(root.querySelector("button.update-all")).toBeNull();
+  // Another render keeps the lines; Check now clears them (Phase 9 FR-098).
+  section.render(after);
+  check();
+  section.button.click();
+  await settle();
+  expect(calls.map(([cmd]) => cmd)).toEqual(["update_all", "plugin_status", "check_now"]);
+  expect(root.querySelector("p.outcome, p.batch-outcome")).toBeNull();
+});
+
+/** Elements whose class, name or leaf text is a stop word (FR-027). */
+function stopControls(root: Element): Element[] {
+  const word = /^(cancel|stop|abort)$/i;
+  return Array.from(root.querySelectorAll("*")).filter(
+    (e) =>
+      Array.from(e.classList).some((c) => c.split("-").some((part) => word.test(part))) ||
+      word.test(e.getAttribute("name") ?? "") ||
+      (e.children.length === 0 && word.test(e.textContent.trim())),
+  );
+}
+
+test("update_all_no_cancel_control", async () => {
+  for (const os of ALL_OSES) {
+    const pending = deferred<unknown>();
+    const { section } = batchRig(fiveCards(os), pending.promise);
+    const root = section.element;
+    click(root, "div.update-all > button.update-all");
+    // The scan has teeth: the confirmation's dismiss button is the one hit while it is open.
+    expect(stopControls(root).map((e) => e.className), os).toEqual(["confirm-cancel"]);
+    click(root, "div.confirm-all > button.confirm-ok");
+    await settle();
+    expect(stopControls(root), os).toEqual([]);
+    expect(root.querySelectorAll("input, select, textarea, a, [tabindex]").length, os).toBe(0);
+    const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>("button"));
+    expect(buttons.length, os).toBeGreaterThan(0);
+    expect(buttons.filter((b) => !b.disabled).map((b) => b.className), os).toEqual([]);
+    pending.resolve({ results: [], notice: null });
+    await settle();
+  }
 });

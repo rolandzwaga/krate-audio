@@ -106,7 +106,7 @@ function toNotes(value: unknown): readonly Block[] {
     remove_hint: null,
   };
   const feed = { source: "none", fetched_at_unix: null, schema_version: null, error: null };
-  const view = toStatusView({ os: "linux", edge_max_age_secs: 0, running_os: null, feed, plugins: [plugin] });
+  const view = toStatusView({ os: "linux", edge_max_age_secs: 0, running_os: null, feed, plugins: [plugin], orphans: [] });
   return view.plugins[0]?.notes ?? fail("$.available.notes", "an array of blocks");
 }
 

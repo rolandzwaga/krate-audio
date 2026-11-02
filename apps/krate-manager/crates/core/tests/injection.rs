@@ -48,7 +48,7 @@ const FS_TOKENS: [&str; 14] = [
 ];
 /// Every string literal a non-test `platform/` file may hold outside an attribute (PD-5): the
 /// six env names of §4.2, the path components, the seven absolute D8 literals, `APP_IDENTIFIER`.
-const PLATFORM_LITERALS: [&str; 40] = [
+const PLATFORM_LITERALS: [&str; 42] = [
     "LOCALAPPDATA",
     "CommonProgramW6432",
     "ProgramData",
@@ -91,6 +91,9 @@ const PLATFORM_LITERALS: [&str; 40] = [
     "/usr/bin/killall",
     "-9",
     "AudioComponentRegistrar",
+    // Phase 12 FR-045 (PD-12, SI-6): `GRAPHICS_ENV`, in `platform/mod.rs`.
+    "WEBKIT_DISABLE_DMABUF_RENDERER",
+    "1",
 ];
 /// The plan §4.1 D6 table, per file (app-root-relative); every other scanned file holds 0.
 const D6_SITES: [(&str, usize); 6] = [
@@ -212,6 +215,8 @@ const DETECT_TESTS_RS: &str = "crates/core/src/detect_tests.rs";
 const DOWNLOAD_TESTS_RS: &str = "crates/core/src/download_tests.rs";
 const EXTRACT_TESTS_RS: &str = "crates/core/src/extract_tests.rs";
 const INSTALL_TESTS_RS: &str = "crates/core/src/install_tests.rs";
+/// Phase 12 (tasks TA-5): the Update-all cases, `install::batch`.
+const INSTALL_BATCH_TESTS_RS: &str = "crates/core/src/install_batch_tests.rs";
 const TAR_BUILDER_TESTS_RS: &str = "crates/core/src/tar_builder_tests.rs";
 const NOTES_RS: &str = "crates/core/src/notes.rs";
 const NOTES_TESTS_RS: &str = "crates/core/src/notes_tests.rs";
@@ -247,13 +252,15 @@ const KEYGEN_TOKENS: [&str; 3] = [
     "generate_encrypted_keypair",
 ];
 /// FR-087: the Phase 7 test files, each of which must be readable.
-const PHASE7_TEST_FILES: [&str; 6] = [
+const PHASE7_TEST_FILES: [&str; 7] = [
     DOWNLOAD_TESTS_RS,
     VERIFY_TESTS_RS,
     TEST_SIGNER_RS,
     TEST_SUPPORT_RS,
     INSTALL_TESTS_RS,
     TAR_BUILDER_TESTS_RS,
+    // Phase 12 (tasks T007): the Update-all cases.
+    INSTALL_BATCH_TESTS_RS,
 ];
 /// FR-087: raw-text substrings none of `PHASE7_TEST_FILES` holds.
 const PHASE7_HOST_NEEDLES: [&str; 4] = [
@@ -317,7 +324,7 @@ const FR084_TOKENS: [&str; 19] = [
     "File :: create",
 ];
 /// FR-088 (TA-9): exactly these files (app-root-relative), each of which must be readable.
-const FR088_FILES: [&str; 8] = [
+const FR088_FILES: [&str; 9] = [
     DETECT_TESTS_RS,
     STATUS_TESTS_RS,
     NOTES_TESTS_RS,
@@ -326,6 +333,8 @@ const FR088_FILES: [&str; 8] = [
     "src/main.test.ts",
     INSTALL_TESTS_RS,
     TAR_BUILDER_TESTS_RS,
+    // Phase 12 (tasks T007): the Update-all cases.
+    INSTALL_BATCH_TESTS_RS,
 ];
 /// FR-088: the eleven patterns none of `FR088_FILES` may match.
 const FR088_PATTERNS: [&str; 11] = [
@@ -509,6 +518,8 @@ const INSTALL_BANNED: [&str; 7] = [
 ];
 /// PD-30 (SI-2, SI-27): the test-only asset-request seam of `CommandEnv`.
 const REQUEST_SEAM: &str = "request_seam";
+/// Phase 12 PD-6 (3b): the test-only batch stage seam of `CommandEnv`, under `REQUEST_SEAM`'s rule.
+const STAGE_SEAM: &str = "stage_seam";
 /// FR-054: the `fn` names no `impl StagedTree` block holds (besides the `into_` / `take_` prefixes).
 const STAGED_TREE_MOVES: [&str; 3] = ["rename", "persist", "release"];
 /// SC-026: token sequences `http.rs` never holds (one agent, one trust store).
@@ -3909,8 +3920,9 @@ fn seam_declarations(toks: &[&str], name: &str) -> Vec<usize> {
 
 /// SC-032 (D13) over the workspace `.rs` files and `src-tauri/build.rs`: `with_fixture_url` and
 /// `fetch_url` declared only in `download.rs`, each declaration directly under `#[cfg(test)]`
-/// (then optionally `pub(crate)`); `with_fixture_url` elsewhere only in `download_tests.rs` and
-/// `install_tests.rs` (Phase 9 SI-2); no `src-tauri/` file holds either name.
+/// (then optionally `pub(crate)`); `with_fixture_url` elsewhere only in `download_tests.rs`,
+/// `install_tests.rs` (Phase 9 SI-2) and `install_batch_tests.rs` (Phase 12 tasks TA-5); no
+/// `src-tauri/` file holds either name.
 fn fixture_seam_findings(files: &[(String, String)]) -> Vec<Finding> {
     let lexed = lex(files);
     let toks_of = tokenized(&lexed);
@@ -3948,14 +3960,20 @@ fn fixture_seam_findings(files: &[(String, String)]) -> Vec<Finding> {
                 report(rel, format!("`{name}` declared outside download.rs"));
             }
             if name == "with_fixture_url"
-                && ![DOWNLOAD_RS, DOWNLOAD_TESTS_RS, INSTALL_TESTS_RS].contains(rel)
+                && ![
+                    DOWNLOAD_RS,
+                    DOWNLOAD_TESTS_RS,
+                    INSTALL_TESTS_RS,
+                    INSTALL_BATCH_TESTS_RS,
+                ]
+                .contains(rel)
             {
                 let n = seq_at(toks, &[name]).len();
                 if n > 0 {
                     report(
                         rel,
                         format!(
-                            "`{name}` {n} time(s), allowed only in download_tests.rs and install_tests.rs"
+                            "`{name}` {n} time(s), allowed only in download_tests.rs, install_tests.rs and install_batch_tests.rs"
                         ),
                     );
                 }
@@ -3971,72 +3989,74 @@ fn fixture_seam_findings(files: &[(String, String)]) -> Vec<Finding> {
     // PD-30 (SI-2, SI-27): `request_seam` declared only in install.rs, directly under
     // `#[cfg(test)]` (then optionally `pub(crate)`), and every install.rs occurrence inside what a
     // `#[cfg(test)]` gates; in test_support.rs only as a field initialiser directly under
-    // `#[cfg(test)]`; free in install_tests.rs; nowhere else.
-    let name = REQUEST_SEAM;
-    let mut declared_in_install = false;
-    for ((rel, toks), (_, text)) in toks_of.iter().zip(files) {
-        let gated =
-            |at: usize| at >= cfg_test.len() && toks[at - cfg_test.len()..at] == cfg_test[..];
-        let decls = seam_declarations(toks, name);
-        let uses = seq_at(toks, &[name]);
-        if *rel == INSTALL_RS {
-            declared_in_install = !decls.is_empty();
-            for &at in &decls {
-                let start = if is_crate_private(toks, at) {
-                    at - 4
-                } else {
-                    at
-                };
-                if !gated(start) {
+    // `#[cfg(test)]`; free in install_tests.rs and install_batch_tests.rs (Phase 12 tasks TA-5);
+    // nowhere else. Phase 12 PD-6 (3b): `stage_seam` by the same rule.
+    for name in [REQUEST_SEAM, STAGE_SEAM] {
+        let mut declared_in_install = false;
+        for ((rel, toks), (_, text)) in toks_of.iter().zip(files) {
+            let gated =
+                |at: usize| at >= cfg_test.len() && toks[at - cfg_test.len()..at] == cfg_test[..];
+            let decls = seam_declarations(toks, name);
+            let uses = seq_at(toks, &[name]);
+            if *rel == INSTALL_RS {
+                declared_in_install = !decls.is_empty();
+                for &at in &decls {
+                    let start = if is_crate_private(toks, at) {
+                        at - 4
+                    } else {
+                        at
+                    };
+                    if !gated(start) {
+                        report(
+                            rel,
+                            format!("`{name}` declared without a directly preceding #[cfg(test)]"),
+                        );
+                    }
+                }
+                let spans = cfg_test_spans(toks, &cfg_test);
+                let n = uses
+                    .iter()
+                    .filter(|&&p| !spans.iter().any(|s| s.contains(&p)))
+                    .count();
+                if n > 0 {
                     report(
                         rel,
-                        format!("`{name}` declared without a directly preceding #[cfg(test)]"),
+                        format!("`{name}` {n} time(s) outside what a #[cfg(test)] gates"),
+                    );
+                }
+            } else {
+                if !decls.is_empty() {
+                    report(rel, format!("`{name}` declared outside install.rs"));
+                }
+                let n = if *rel == TEST_SUPPORT_RS {
+                    uses.iter()
+                        .filter(|&&p| {
+                            !(gated(p)
+                                && toks.get(p + 1) == Some(&":")
+                                && toks.get(p + 2) != Some(&":"))
+                        })
+                        .count()
+                } else if *rel == INSTALL_TESTS_RS || *rel == INSTALL_BATCH_TESTS_RS {
+                    0
+                } else {
+                    uses.len()
+                };
+                if n > 0 {
+                    report(
+                        rel,
+                        format!(
+                            "`{name}` {n} time(s), allowed only in install.rs, install_tests.rs and install_batch_tests.rs and as a #[cfg(test)] initialiser in test_support.rs"
+                        ),
                     );
                 }
             }
-            let spans = cfg_test_spans(toks, &cfg_test);
-            let n = uses
-                .iter()
-                .filter(|&&p| !spans.iter().any(|s| s.contains(&p)))
-                .count();
-            if n > 0 {
-                report(
-                    rel,
-                    format!("`{name}` {n} time(s) outside what a #[cfg(test)] gates"),
-                );
-            }
-        } else {
-            if !decls.is_empty() {
-                report(rel, format!("`{name}` declared outside install.rs"));
-            }
-            let n = if *rel == TEST_SUPPORT_RS {
-                uses.iter()
-                    .filter(|&&p| {
-                        !(gated(p)
-                            && toks.get(p + 1) == Some(&":")
-                            && toks.get(p + 2) != Some(&":"))
-                    })
-                    .count()
-            } else if *rel == INSTALL_TESTS_RS {
-                0
-            } else {
-                uses.len()
-            };
-            if n > 0 {
-                report(
-                    rel,
-                    format!(
-                        "`{name}` {n} time(s), allowed only in install.rs and install_tests.rs and as a #[cfg(test)] initialiser in test_support.rs"
-                    ),
-                );
+            if rel.starts_with("src-tauri/") && text.contains(name) {
+                report(rel, format!("`{name}` in a src-tauri file"));
             }
         }
-        if rel.starts_with("src-tauri/") && text.contains(name) {
-            report(rel, format!("`{name}` in a src-tauri file"));
+        if !declared_in_install {
+            report(INSTALL_RS, format!("`{name}` not declared in install.rs"));
         }
-    }
-    if !declared_in_install {
-        report(INSTALL_RS, format!("`{name}` not declared in install.rs"));
     }
     out
 }
@@ -5642,7 +5662,13 @@ fn test_sources_hold_no_real_location() {
 fn real_location_scanner_reports_plants() {
     let texts = fr088_texts();
     let base = real_location_findings(&texts);
-    let plants: [(&str, &str, &str); 11] = [
+    let plants: [(&str, &str, &str); 12] = [
+        // Phase 12 (tasks T007 item 6): the batch tests are an FR-088 file.
+        (
+            INSTALL_BATCH_TESTS_RS,
+            "let a = \"localhost:8080\";",
+            r"localhost:[0-9]+",
+        ),
         (
             DETECT_TESTS_RS,
             "// cargo test -- --test-threads=1",
@@ -6013,6 +6039,11 @@ fn phase7_host_scanner_reports_plants() {
         (
             VERIFY_TESTS_RS,
             "fn planted() {\n    let _ = SigningKey::release();\n}\n".to_owned(),
+        ),
+        // Phase 12 (tasks T007 item 6): the batch tests are a Phase 7 test file.
+        (
+            INSTALL_BATCH_TESTS_RS,
+            "// cargo test -- --test-threads=2\n".to_owned(),
         ),
         (
             DOWNLOAD_TESTS_RS,
@@ -6523,6 +6554,28 @@ fn fixture_url_seam_is_test_only() {
 fn fixture_url_seam_scanner_reports_plants() {
     let files = seam_files();
     let base = fixture_seam_findings(&files);
+    // Phase 12 PD-6 (3b): `stage_seam` under `request_seam`'s rule, one plant per arm: declared
+    // outside install.rs, used outside a #[cfg(test)] span in install.rs, a non-initialiser use in
+    // test_support.rs, a use in a src-tauri file.
+    let stage_plants: [(&str, &str); 4] = [
+        (
+            DOWNLOAD_RS,
+            "struct Planted {\n    #[cfg(test)]\n    pub(crate) stage_seam: Option<u8>,\n}\n",
+        ),
+        (
+            INSTALL_RS,
+            "fn planted(e: CommandEnv<'_>) {\n    let _ = e.stage_seam;\n}\n",
+        ),
+        (
+            TEST_SUPPORT_RS,
+            "fn planted(e: &mut CommandEnv<'_>) {\n    e.stage_seam = None;\n}\n",
+        ),
+        (COMMANDS_RS, "// env.stage_seam observes the batch\n"),
+    ];
+    for (rel, text) in stage_plants {
+        let planted = fixture_seam_findings(&plant(&files, rel, text));
+        assert_detail(&base, &planted, rel, RULE_FIXTURE_SEAM, STAGE_SEAM);
+    }
     let plants: [(&str, &str); 8] = [
         (
             DOWNLOAD_RS,
@@ -6575,6 +6628,24 @@ fn fixture_url_seam_scanner_reports_plants() {
         (
             INSTALL_TESTS_RS,
             "fn g(e: &mut CommandEnv<'_>) {\n    e.request_seam = None;\n}\n",
+        ),
+        // Phase 12 PD-6 (3b): the same forms for `stage_seam`, and both seams free in
+        // install_batch_tests.rs (tasks TA-5).
+        (
+            INSTALL_RS,
+            "fn g(e: CommandEnv<'_>) {\n    #[cfg(test)]\n    if let Some(seam) = e.stage_seam {\n        seam(BatchStage::ChecksDone);\n    }\n}\n",
+        ),
+        (
+            TEST_SUPPORT_RS,
+            "fn g() -> Q {\n    Q {\n        #[cfg(test)]\n        stage_seam: None,\n    }\n}\n",
+        ),
+        (
+            INSTALL_TESTS_RS,
+            "fn g(e: &mut CommandEnv<'_>) {\n    e.stage_seam = None;\n}\n",
+        ),
+        (
+            INSTALL_BATCH_TESTS_RS,
+            "fn g(e: &mut CommandEnv<'_>) {\n    e.request_seam = None;\n    e.stage_seam = None;\n}\n",
         ),
     ] {
         let new = added(&base, &fixture_seam_findings(&plant(&files, rel, text)));
@@ -7703,4 +7774,603 @@ fn harness_source_findings(files: &[(String, String)]) -> Vec<Finding> {
         out.extend(confinement(&toks_of, needle, &[home], RULE_HARNESS));
     }
     out
+}
+
+// ---------------------------------------------------------------------------------------------
+// Phase 12: no process enumeration, the one environment write, no cancel setter, the root ticket (spec FR-018,
+// FR-027, FR-046; SC-007, SC-013, SC-030; plan §7.1 rows SC-007, SC-013, SC-030, PD-11; tasks T007)
+
+/// SC-007: the identifiers no non-test source of the three crates holds as a whole token (case-sensitive).
+const PROCESS_TOKENS: [&str; 11] = [
+    "CreateToolhelp32Snapshot",
+    "Process32First",
+    "EnumProcesses",
+    "OpenProcess",
+    "proc_listpids",
+    "runningApplications",
+    "sysinfo",
+    "pgrep",
+    "pkill",
+    "tasklist",
+    "taskkill",
+];
+/// SC-007: raw-text substrings no such source holds (the literal `"ps"`, any `/proc/` path).
+const PROCESS_SUBSTRINGS: [&str; 2] = ["\"ps\"", "/proc/"];
+/// SC-007: the one `killall` of the three crates, in `platform/mod.rs` (`KILLALL_ARGV`).
+const KILLALL_LITERAL: &str = "\"/usr/bin/killall\"";
+/// SC-013 (FR-046): the variable, spelled only in `platform::GRAPHICS_ENV`, never in `src-tauri/src`.
+const GRAPHICS_VAR: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
+const GRAPHICS_CALL: &str = "apply_graphics_env (";
+/// SC-013: the attribute over the call; its `"linux"` is blanked in the code text (looked up by offset).
+const LINUX_CFG: &str = "# [ cfg ( target_os = ) ]";
+/// SC-013: the calls the graphics call precedes in `run()`.
+const AFTER_GRAPHICS: [&str; 2] = ["proxy_env :: read (", "assemble_context ("];
+const TAURI_BUILD_RS: &str = "src-tauri/build.rs";
+const CAPABILITY_JSON: &str = "src-tauri/capabilities/main.json";
+/// SC-030 (FR-027): the setter call no `src-tauri/src` source holds.
+const CANCEL_CALL: &str = ". cancel (";
+/// PD-11: the plugin commands that take their context through the root gate.
+const ROOT_TICKET_COMMANDS: [&str; 3] = ["install_plugin", "remove_plugin", "update_all"];
+const ROOT_TICKET_CALL: &str = "settings :: command_context (";
+const CONTEXT_CLONE: &str = "context . clone (";
+const RULE_PROCESS: &str = "process-enumeration";
+const RULE_ENV_WRITE: &str = "env-write-site";
+const RULE_CANCEL: &str = "cancel-setter";
+const RULE_ROOT_TICKET: &str = "plugin-command-root-ticket";
+
+/// The non-test sources of `crates/core/src`, `crates/helper/src` and `src-tauri/src` among `files`
+/// (`is_scanned` on the path below `src/`).
+fn non_test_sources(files: &[(String, String)]) -> Vec<(String, String)> {
+    files
+        .iter()
+        .filter(|(rel, _)| {
+            [CORE_SRC, HELPER_SRC, TAURI_SRC]
+                .iter()
+                .any(|dir| rel.strip_prefix(dir).is_some_and(is_scanned))
+        })
+        .cloned()
+        .collect()
+}
+
+/// The occurrences of `word` in `text` bounded on both sides by a non-identifier byte or the text's ends.
+fn whole_token_hits(text: &str, word: &str) -> usize {
+    let bytes = text.as_bytes();
+    text.match_indices(word)
+        .filter(|(at, _)| {
+            let before = at.checked_sub(1).map(|i| bytes[i]);
+            let after = bytes.get(at + word.len()).copied();
+            !before.is_some_and(is_ident_byte) && !after.is_some_and(is_ident_byte)
+        })
+        .count()
+}
+
+/// SC-007 over the raw text (comments and literals included) of `non_test_sources`: no `PROCESS_TOKENS` whole
+/// token, no `PROCESS_SUBSTRINGS`, and exactly one whole-token `killall`, the `KILLALL_LITERAL` of `platform/mod.rs`.
+fn process_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    let mut killall_in_platform_mod = false;
+    for (rel, text) in non_test_sources(files) {
+        let mut report = |detail: String| {
+            out.push(Finding {
+                file: rel.clone(),
+                rule: RULE_PROCESS,
+                detail,
+            });
+        };
+        for word in PROCESS_TOKENS {
+            let n = whole_token_hits(&text, word);
+            if n > 0 {
+                report(format!("`{word}` {n} time(s)"));
+            }
+        }
+        for needle in PROCESS_SUBSTRINGS {
+            let n = text.matches(needle).count();
+            if n > 0 {
+                report(format!("{needle} {n} time(s)"));
+            }
+        }
+        let n = whole_token_hits(&text, KILLALL);
+        let literals = text.matches(KILLALL_LITERAL).count();
+        if rel == PLATFORM_MOD_RS {
+            killall_in_platform_mod = true;
+            if n != 1 || literals != 1 {
+                report(format!(
+                    "`{KILLALL}` {n} time(s), {KILLALL_LITERAL} {literals} time(s); expected exactly one, that literal"
+                ));
+            }
+        } else if n > 0 {
+            report(format!(
+                "`{KILLALL}` {n} time(s) (the one is {KILLALL_LITERAL} in {PLATFORM_MOD_RS})"
+            ));
+        }
+    }
+    if !killall_in_platform_mod {
+        out.push(Finding {
+            file: PLATFORM_MOD_RS.to_owned(),
+            rule: RULE_PROCESS,
+            detail: "not scanned: the one `killall` is its KILLALL_ARGV".to_owned(),
+        });
+    }
+    out
+}
+
+/// SC-013 over `non_test_sources`: exactly one `set_var` and no `remove_var`; the `set_var` inside the
+/// argument list of the one `apply_graphics_env (` call of `src-tauri/src/lib.rs`, which sits directly under
+/// `#[cfg(target_os = "linux")]` and starts before `AFTER_GRAPHICS`; no `GRAPHICS_VAR` literal in `src-tauri/src`.
+fn env_write_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    let mut report = |file: &str, detail: String| {
+        out.push(Finding {
+            file: file.to_owned(),
+            rule: RULE_ENV_WRITE,
+            detail,
+        });
+    };
+    let cfg = tokens(LINUX_CFG);
+    let mut lib_scanned = false;
+    for l in &lex(&non_test_sources(files)) {
+        let rel = l.rel.as_str();
+        let spans = spanned_tokens(&l.code);
+        let toks: Vec<&str> = spans.iter().map(|(_, t)| *t).collect();
+        let sets = seq_at(&toks, &["set_var"]);
+        let removes = seq_at(&toks, &["remove_var"]).len();
+        if removes > 0 {
+            report(
+                rel,
+                format!("`remove_var` {removes} time(s) (none allowed)"),
+            );
+        }
+        if rel.starts_with(TAURI_SRC) {
+            let n = l
+                .literals
+                .iter()
+                .filter(|lit| lit.text.contains(GRAPHICS_VAR))
+                .count();
+            if n > 0 {
+                report(
+                    rel,
+                    format!("`{GRAPHICS_VAR}` in {n} literal(s) (only platform::GRAPHICS_ENV)"),
+                );
+            }
+        }
+        if rel != TAURI_LIB_RS {
+            if !sets.is_empty() {
+                report(
+                    rel,
+                    format!(
+                        "`set_var` {} time(s) (the one site is the `{GRAPHICS_CALL}` call in {TAURI_LIB_RS})",
+                        sets.len()
+                    ),
+                );
+            }
+            continue;
+        }
+        lib_scanned = true;
+        let calls = seq_at(&toks, &tokens(GRAPHICS_CALL));
+        let [call] = calls[..] else {
+            report(
+                rel,
+                format!("`{GRAPHICS_CALL}` {} time(s), expected 1", calls.len()),
+            );
+            continue;
+        };
+        let close = close_of(&toks, call + 1);
+        let inside = sets.iter().filter(|&&p| p > call + 1 && p < close).count();
+        if sets.len() != 1 || inside != 1 {
+            report(
+                rel,
+                format!(
+                    "`set_var` {} time(s), {inside} inside the `{GRAPHICS_CALL}` arguments; expected exactly one, inside",
+                    sets.len()
+                ),
+            );
+        }
+        // The statement starts at the path's first segment (`krate_manager_core :: platform :: …`).
+        let mut start = call;
+        while start >= 3
+            && toks[start - 1] == ":"
+            && toks[start - 2] == ":"
+            && is_ident(toks[start - 3])
+        {
+            start -= 3;
+        }
+        // `=` is token 5 of the attribute, the `)` after the literal token 6.
+        let linux = start >= cfg.len() && toks[start - cfg.len()..start] == cfg[..] && {
+            let at = start - cfg.len();
+            literal_between(&l.literals, spans[at + 5].0, spans[at + 6].0)
+                .is_some_and(|lit| lit.text == "linux")
+        };
+        if !linux {
+            report(
+                rel,
+                format!("`{GRAPHICS_CALL}` not directly under #[cfg(target_os = \"linux\")]"),
+            );
+        }
+        for later in AFTER_GRAPHICS {
+            match seq_at(&toks, &tokens(later)).first() {
+                Some(&p) if spans[p].0 > spans[call].0 => {}
+                Some(_) => report(rel, format!("`{GRAPHICS_CALL}` does not precede `{later}`")),
+                None => report(rel, format!("`{later}` not found")),
+            }
+        }
+    }
+    if !lib_scanned {
+        report(TAURI_LIB_RS, "not scanned".to_owned());
+    }
+    out
+}
+
+/// `src-tauri/src/*.rs`, `src-tauri/build.rs` and the capability, as (app-root-relative path, text).
+fn cancel_files() -> Vec<(String, String)> {
+    let root = app_root();
+    let mut files = rs_files(&root.join("src-tauri").join("src"), TAURI_SRC);
+    for rel in [TAURI_BUILD_RS, CAPABILITY_JSON] {
+        files.push((rel.to_owned(), read_text(&root.join(rel))));
+    }
+    files
+}
+
+/// SC-030 (FR-027) over `cancel_files`: no `CANCEL_CALL` in a non-test `src-tauri/src` source; no handler of
+/// the one `generate_handler ! [` of `lib.rs`, no `build.rs` command and no capability permission (an `allow-`
+/// or `deny-` prefix removed) whose name starts with `cancel`.
+fn cancel_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let mut out = Vec::new();
+    let mut report = |file: &str, detail: String| {
+        out.push(Finding {
+            file: file.to_owned(),
+            rule: RULE_CANCEL,
+            detail,
+        });
+    };
+    let setter = tokens(CANCEL_CALL);
+    let mut handler_lists = 0;
+    for l in &lex(files) {
+        let rel = l.rel.as_str();
+        let toks = tokens(&l.code);
+        if rel.strip_prefix(TAURI_SRC).is_some_and(is_scanned) {
+            let n = seq_at(&toks, &setter).len();
+            if n > 0 {
+                report(
+                    rel,
+                    format!("`{CANCEL_CALL}` {n} time(s) (FR-027: no cancel)"),
+                );
+            }
+        }
+        if rel == TAURI_LIB_RS {
+            for at in seq_at(&toks, &["generate_handler", "!", "["]) {
+                handler_lists += 1;
+                let close = close_of(&toks, at + 2);
+                for t in toks[at + 3..close]
+                    .iter()
+                    .filter(|t| t.starts_with("cancel"))
+                {
+                    report(rel, format!("handler `{t}` (FR-027: no cancel)"));
+                }
+            }
+        }
+        if rel == TAURI_BUILD_RS || rel == CAPABILITY_JSON {
+            for lit in &l.literals {
+                let text = lit.text.as_str();
+                let name = text
+                    .strip_prefix("allow-")
+                    .or_else(|| text.strip_prefix("deny-"))
+                    .unwrap_or(text);
+                if name.starts_with("cancel") {
+                    report(
+                        rel,
+                        format!("command or permission {text:?} (FR-027: no cancel)"),
+                    );
+                }
+            }
+        }
+    }
+    if handler_lists != 1 {
+        report(
+            TAURI_LIB_RS,
+            format!("`generate_handler ! [` {handler_lists} time(s), expected 1"),
+        );
+    }
+    for must in [TAURI_BUILD_RS, CAPABILITY_JSON] {
+        if !files.iter().any(|(r, _)| r == must) {
+            report(must, "not scanned".to_owned());
+        }
+    }
+    out
+}
+
+/// PD-11 over `src-tauri/src/commands.rs`: each `ROOT_TICKET_COMMANDS` body holds exactly one
+/// `ROOT_TICKET_CALL` and no `CONTEXT_CLONE`.
+fn root_ticket_findings(files: &[(String, String)]) -> Vec<Finding> {
+    let (code, _) = strip_comments_and_literals(file_text(files, COMMANDS_RS));
+    let toks = tokens(&code);
+    let fns = fn_items(&toks);
+    let (call, clone) = (tokens(ROOT_TICKET_CALL), tokens(CONTEXT_CLONE));
+    ROOT_TICKET_COMMANDS
+        .iter()
+        .filter_map(|name| {
+            let bodies: Vec<Range<usize>> = fns
+                .iter()
+                .filter(|f| f.name == *name)
+                .filter_map(|f| f.body.clone())
+                .collect();
+            let detail = match bodies.as_slice() {
+                [body] => {
+                    let body = &toks[body.clone()];
+                    let (calls, clones) = (seq_at(body, &call).len(), seq_at(body, &clone).len());
+                    (calls != 1 || clones != 0).then(|| {
+                        format!(
+                            "`{name}`: `{ROOT_TICKET_CALL}` {calls} time(s), `{CONTEXT_CLONE}` {clones} time(s); expected 1 and 0"
+                        )
+                    })
+                }
+                _ => Some(format!("`{name}`: {} bodies, expected 1", bodies.len())),
+            };
+            detail.map(|detail| Finding {
+                file: COMMANDS_RS.to_owned(),
+                rule: RULE_ROOT_TICKET,
+                detail,
+            })
+        })
+        .collect()
+}
+
+/// `files` with the first `from` after the first `head` of `rel` replaced by `to` (line endings made `\n`).
+fn replace_after(
+    files: &[(String, String)],
+    rel: &str,
+    head: &str,
+    from: &str,
+    to: &str,
+) -> Vec<(String, String)> {
+    let text = file_text(files, rel).replace("\r\n", "\n");
+    let start = text
+        .find(head)
+        .unwrap_or_else(|| panic!("plant anchor {head:?}"));
+    let hit = text[start..]
+        .find(from)
+        .map(|i| start + i)
+        .unwrap_or_else(|| panic!("plant anchor {from:?} after {head:?}"));
+    with_text(
+        files,
+        rel,
+        format!("{}{to}{}", &text[..hit], &text[hit + from.len()..]),
+    )
+}
+
+/// `new` (findings `planted` adds to `base`) is empty.
+fn assert_quiet(base: &[Finding], planted: &[Finding], what: &str) {
+    let new = added(base, planted);
+    assert!(new.is_empty(), "quiet {what:?}:\n{}", show(&new));
+}
+
+#[test]
+fn no_process_enumeration() {
+    let files = workspace_rs_files();
+    let sources = non_test_sources(&files);
+    for must in [PLATFORM_MOD_RS, HELPER_MAIN_RS, COMMANDS_RS, TAURI_LIB_RS] {
+        assert!(
+            sources.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    for skipped in [TEST_SUPPORT_RS, INSTALL_TESTS_RS, HELPER_OPS_TESTS_RS] {
+        assert!(
+            !sources.iter().any(|(r, _)| r == skipped),
+            "{skipped} is a test source"
+        );
+    }
+    let base = process_findings(&files);
+    assert!(base.is_empty(), "SC-007 findings:\n{}", show(&base));
+    // The two plants of the SC (a `tasklist` token, a second "/usr/bin/killall"), then every other needle.
+    let mut plants: Vec<(&str, String)> = vec![
+        (
+            COMMANDS_RS,
+            "fn planted() {\n    let _ = tasklist();\n}\n".to_owned(),
+        ),
+        (
+            PLATFORM_MOD_RS,
+            "const SECOND: &str = \"/usr/bin/killall\";\n".to_owned(),
+        ),
+        (HELPER_OPS_RS, "const K: &str = \"killall\";\n".to_owned()),
+        (HELPER_OPS_RS, "const P: &str = \"ps\";\n".to_owned()),
+        (
+            INSTALL_RS,
+            "const P: &str = \"/proc/self/status\";\n".to_owned(),
+        ),
+    ];
+    plants.extend(
+        PROCESS_TOKENS
+            .iter()
+            .map(|word| (TAURI_LIB_RS, format!("// {word}\n"))),
+    );
+    for (rel, text) in &plants {
+        let planted = process_findings(&plant(&files, rel, text));
+        assert_reported(&base, &planted, rel, RULE_PROCESS, text);
+    }
+    // Identifiers that only contain a needle, and a test source, are not hits.
+    for (rel, text) in [
+        (
+            COMMANDS_RS,
+            "struct TaskListMarker;\nconst KILLALL_WAIT: u8 = 0;\nfn sysinfo_view() {}\nconst PS: &str = \"psx\";\n",
+        ),
+        (
+            INSTALL_TESTS_RS,
+            "const K: &str = \"tasklist /usr/bin/killall\";\n",
+        ),
+    ] {
+        assert_quiet(&base, &process_findings(&plant(&files, rel, text)), text);
+    }
+}
+
+#[test]
+fn one_set_var_site_before_threads() {
+    let files = workspace_rs_files();
+    let lib = TAURI_LIB_RS;
+    assert!(
+        non_test_sources(&files).iter().any(|(r, _)| r == lib),
+        "{lib} was not scanned"
+    );
+    let base = env_write_findings(&files);
+    assert!(base.is_empty(), "SC-013 findings:\n{}", show(&base));
+    let call = "krate_manager_core::platform::apply_graphics_env(";
+    let inputs = "    let inputs = proxy_env::read();\n";
+    let sink = "    let sink_roots = roots.as_ref().ok().cloned();\n";
+    let locked = "    let locked = startup_notice(&state).is_some();\n";
+    let plants: [(&str, &str, Files); 5] = [
+        (
+            HELPER_MAIN_RS,
+            "set_var",
+            plant(
+                &files,
+                HELPER_MAIN_RS,
+                "fn planted() {\n    unsafe { std::env::set_var(\"KRATE_PLANTED\", \"1\") };\n}\n",
+            ),
+        ),
+        (
+            INSTALL_RS,
+            "remove_var",
+            plant(
+                &files,
+                INSTALL_RS,
+                "fn planted() {\n    unsafe { std::env::remove_var(\"KRATE_PLANTED\") };\n}\n",
+            ),
+        ),
+        (
+            lib,
+            AFTER_GRAPHICS[0],
+            replace_in(
+                &replace_in(&files, lib, inputs, ""),
+                lib,
+                sink,
+                &format!("{sink}{inputs}"),
+            ),
+        ),
+        (
+            lib,
+            "set_var",
+            replace_in(
+                &files,
+                lib,
+                locked,
+                &format!(
+                    "    std::env::set_var(\"WEBKIT_DISABLE_DMABUF_RENDERER\", \"1\");\n{locked}"
+                ),
+            ),
+        ),
+        (
+            lib,
+            GRAPHICS_CALL,
+            replace_in(
+                &files,
+                lib,
+                &format!("#[cfg(target_os = \"linux\")]\n    {call}"),
+                call,
+            ),
+        ),
+    ];
+    // Each plant is reported for its own rule: the detail names the needle.
+    for (rel, needle, planted) in &plants {
+        assert_detail(
+            &base,
+            &env_write_findings(planted),
+            rel,
+            RULE_ENV_WRITE,
+            needle,
+        );
+    }
+    // A comment naming `set_var` and a test source's `set_var` are not sites.
+    for (rel, text) in [
+        (COMMANDS_RS, "// std::env::set_var runs once, in lib.rs\n"),
+        (
+            INSTALL_TESTS_RS,
+            "fn t() {\n    unsafe { std::env::set_var(\"K\", \"1\") };\n}\n",
+        ),
+    ] {
+        assert_quiet(&base, &env_write_findings(&plant(&files, rel, text)), text);
+    }
+}
+
+#[test]
+fn no_cancel_setter() {
+    let files = cancel_files();
+    for must in [COMMANDS_RS, TAURI_LIB_RS, TAURI_BUILD_RS, CAPABILITY_JSON] {
+        assert!(
+            files.iter().any(|(r, _)| r == must),
+            "{must} was not scanned"
+        );
+    }
+    // Not vacuous: the scan reads the lists that name the batch command.
+    assert!(file_text(&files, TAURI_LIB_RS).contains("commands::update_all"));
+    assert!(file_text(&files, TAURI_BUILD_RS).contains("\"update_all\""));
+    assert!(file_text(&files, CAPABILITY_JSON).contains("\"allow-update-all\""));
+    let base = cancel_findings(&files);
+    assert!(base.is_empty(), "SC-030 findings:\n{}", show(&base));
+    let plants: [(&str, &str, Files); 4] = [
+        (
+            COMMANDS_RS,
+            "a cancel.cancel(); line",
+            plant(
+                &files,
+                COMMANDS_RS,
+                "fn planted(cancel: &CancelToken) {\n    cancel.cancel();\n}\n",
+            ),
+        ),
+        (
+            TAURI_LIB_RS,
+            "a commands::cancel_batch handler",
+            replace_in(
+                &files,
+                TAURI_LIB_RS,
+                "commands::settings_save",
+                "commands::settings_save,\n            commands::cancel_batch",
+            ),
+        ),
+        (
+            TAURI_BUILD_RS,
+            "a cancel_batch command",
+            replace_in(
+                &files,
+                TAURI_BUILD_RS,
+                "\"settings_save\",",
+                "\"settings_save\",\n            \"cancel_batch\",",
+            ),
+        ),
+        (
+            CAPABILITY_JSON,
+            "an allow-cancel-batch permission",
+            replace_in(
+                &files,
+                CAPABILITY_JSON,
+                "\"allow-settings-save\"",
+                "\"allow-settings-save\",\n    \"allow-cancel-batch\"",
+            ),
+        ),
+    ];
+    for (rel, what, planted) in &plants {
+        assert_reported(&base, &cancel_findings(planted), rel, RULE_CANCEL, what);
+    }
+    // A token made and passed, and a read of it, are not setters.
+    let quiet = "fn quiet() {\n    let cancel = CancelToken::new();\n    let _ = (&cancel, cancel.is_cancelled());\n}\n";
+    assert_quiet(
+        &base,
+        &cancel_findings(&plant(&files, COMMANDS_RS, quiet)),
+        quiet,
+    );
+}
+
+#[test]
+fn plugin_commands_take_the_root_ticket() {
+    let files = workspace_rs_files();
+    let base = root_ticket_findings(&files);
+    assert!(base.is_empty(), "PD-11 findings:\n{}", show(&base));
+    // One plant per body: the pre-Phase 12 clone block in place of the ticket.
+    let ticket =
+        "let (ticket, ctx) = settings::command_context(&state).map_err(|e| e.to_string())?;";
+    let clone = "let ctx = {\n        let guard = state.read().unwrap_or_else(PoisonError::into_inner);\n        guard.context.clone().map_err(|e| e.to_string())?\n    }; // the guard is dropped before any await";
+    for name in ROOT_TICKET_COMMANDS {
+        let head = format!("pub async fn {name}(");
+        let planted =
+            root_ticket_findings(&replace_after(&files, COMMANDS_RS, &head, ticket, clone));
+        assert_detail(&base, &planted, COMMANDS_RS, RULE_ROOT_TICKET, name);
+    }
 }

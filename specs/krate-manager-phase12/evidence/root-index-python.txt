@@ -1,0 +1,66 @@
+root-index.expected.html: produced by the unchanged Python of release.yml (T011, tasks TA-10)
+
+Date: 2026-11-02
+Python source: git show 7c4b6837:.github/workflows/release.yml, lines 801-846 (between "python3 << 'PYEOF'" at :800
+and "PYEOF" at :847), dedented by 10 spaces (the YAML block indentation), written to gen.py unchanged.
+Input tree: tools/feed-contract/fixtures/landing/plugins/ copied to <tmp>/plugins/, and
+tools/feed-contract/fixtures/landing/index-template.html (= git show 7c4b6837:docs/index-template.html) copied to
+<tmp>/docs/index-template.html, in a fresh `mktemp -d` git repository inside WSL (Ubuntu); the repository was
+removed after the run (last line of the output below).
+Tags created (lightweight): alpha/v1.2.0, alpha/v1.10.0, beta/v0.3.0, delta/v2.0.0, delta-x/v0.1.0
+(`-c tag.gpgSign=false`: the WSL user's global git config sets tag.gpgsign=true, which turns `git tag <name>` into an
+editor prompt; the release runner has no such setting, so its tags are lightweight too.)
+The driver (a Node script writing gen.py and run-python.sh, then `wsl -e bash run-python.sh`) lived in the session
+scratchpad, outside the repository (tasks Rule 9; Node-only rule for committed code).
+
+WSL commands (wsl -e bash run-python.sh):
+    set -eu
+    T=$(mktemp -d)
+    echo "tmp=$T"
+    mkdir -p "$T/docs"
+    cp -r '<repo>/tools/feed-contract/fixtures/landing/plugins' "$T/plugins"
+    cp '<repo>/tools/feed-contract/fixtures/landing/index-template.html' "$T/docs/index-template.html"
+    cp '<scratchpad>/gen.py' "$T/gen.py"
+    cd "$T"
+    git init -q
+    git add plugins docs
+    git -c user.name=fixture -c user.email=fixture@example.invalid commit -q -m fixture
+    git -c tag.gpgSign=false tag 'alpha/v1.2.0'
+    git -c tag.gpgSign=false tag 'alpha/v1.10.0'
+    git -c tag.gpgSign=false tag 'beta/v0.3.0'
+    git -c tag.gpgSign=false tag 'delta/v2.0.0'
+    git -c tag.gpgSign=false tag 'delta-x/v0.1.0'
+    echo "--- git tag -l --sort=-v:refname"
+    git tag -l --sort=-v:refname
+    echo "--- python3 --version"
+    python3 --version
+    echo "--- REPO=o/r python3 gen.py"
+    REPO=o/r python3 gen.py
+    echo "--- sha256sum / wc -c"
+    sha256sum _site/index.html
+    wc -c < _site/index.html
+    cp _site/index.html '<scratchpad>/python-out.html'
+    cd /
+    rm -rf "$T"
+    test ! -e "$T" && echo "removed $T"
+
+Output:
+    tmp=/tmp/tmp.FL29fIdsJJ
+    --- git tag -l --sort=-v:refname
+    delta/v2.0.0
+    delta-x/v0.1.0
+    beta/v0.3.0
+    alpha/v1.10.0
+    alpha/v1.2.0
+    --- python3 --version
+    Python 3.12.3
+    --- REPO=o/r python3 gen.py
+    --- sha256sum / wc -c
+    f6041f79e4592c17e0f9d55a5b6fe96495dde6a84b87df6f16986f8ecd4e8e81  _site/index.html
+    4168
+    removed /tmp/tmp.FL29fIdsJJ
+
+Recorded fixture: tools/feed-contract/fixtures/landing/root-index.expected.html
+  sha256 f6041f79e4592c17e0f9d55a5b6fe96495dde6a84b87df6f16986f8ecd4e8e81
+  bytes  4168
+  CR bytes 0
