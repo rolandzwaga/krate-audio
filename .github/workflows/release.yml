@@ -607,17 +607,7 @@ jobs:
       - name: Install feed-contract deps
         run: npm ci --prefix tools/feed-contract
 
-      - name: Cache rsign2                       # as feed-tools.yml
-        id: rsign-cache
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/bin/rsign
-            ~/.cargo/bin/rsign.exe
-          key: rsign2-0.6.7-${{ runner.os }}-${{ runner.arch }}
-
-      - name: Install rsign2
-        if: steps.rsign-cache.outputs.cache-hit != 'true'
+      - name: Install rsign2                     # fresh, never a cache: this job decrypts the real key (R-15)
         run: cargo install rsign2 --version 0.6.7 --locked
 
       - name: Check rsign2 version

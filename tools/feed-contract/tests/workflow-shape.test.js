@@ -142,7 +142,6 @@ const PHASE2_STEPS = {
       'Download Linux facts',
       'Setup Node (signing)',
       'Install feed-contract deps',
-      'Cache rsign2',
       'Install rsign2',
       'Check rsign2 version',
       'Signing configuration and key',
@@ -541,6 +540,19 @@ test('release.yml and backfill-sign.yml keep the Phase 2 shape', async (t) => {
       const del = stepByName(steps.get(j), 'Delete signing key', j);
       assert.equal(field(del.text, 8, 'if'), 'always()', `${j}: Delete signing key`);
       assert.match(runText(del), /\brm -f "\$RUNNER_TEMP\/krate\.key"/);
+    }
+  });
+
+  // Krate Manager Phase 11 R-15 (user ruling 2026-11-02): a job that decrypts the real key compiles rsign2 fresh; a cache
+  // another workflow also writes could hand it a planted binary.
+  await t.test('release.yml and backfill-sign.yml: no key-holding job restores a cache or skips the rsign2 install', () => {
+    const jobs = [['release.yml', 'release', release], ...APPLY_JOBS.map((j) => ['backfill-sign.yml', j, bf().steps.get(j)])];
+    for (const [file, job, steps] of jobs) {
+      assert.ok(steps.some((s) => s.text.includes('minisign.js decrypt-key')), `${file} ${job} decrypts the key`);
+      assert.deepEqual(steps.filter((s) => s.text.includes('actions/cache')).map((s) => s.name), [], `${file} ${job} cache`);
+      const install = stepByName(steps, 'Install rsign2', job);
+      assert.equal(field(install.text, 8, 'if'), null, `${file} ${job}: Install rsign2 has an if:`);
+      assert.equal(runText(install).trim(), 'cargo install rsign2 --version 0.6.7 --locked');
     }
   });
 
