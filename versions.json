@@ -328,14 +328,49 @@
       }
     },
     "Vorago": {
-      "version": "1.0.2",
+      "version": "1.0.3",
       "download_url": "https://krateaudio.com/vorago/",
       "release_notes": "",
-      "tag": "vorago/v1.0.2",
-      "pub_date": "2026-10-29T21:25:25Z",
+      "tag": "vorago/v1.0.3",
+      "pub_date": "2026-11-02T22:44:38Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.2",
-      "notes_markdown": "### Added\n\n- **Preset descriptions in the browser** — The preset browser shows the selected preset's description on a line under the list, so you can read what a preset is built around before loading it. Every factory preset has one.\n\n### Fixed\n\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins."
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.3",
+      "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Vorago AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
+      "platforms": {
+        "darwin-universal": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.3/Vorago-1.0.3-macOS.pkg",
+          "size": 7486418,
+          "sha256": "d187d1a4023ed8a0bebdd70cc403a66556be6c996a41342cdc9ad5217cc5ff75",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnzD094a1Jzsahr5m5pZpp1U/8CKFSzd695vMft8T95KOX742Xkp6Qhmr3zBm+hMf7tulG8vt3rArBQuD0PTJdA4=\ntrusted comment: krate:1:Vorago:1.0.3:darwin-universal:Vorago-1.0.3-macOS.pkg\nFk0qbMFDQjyrbV5FLniyfmAl4SuXPdqArdhgoLVrf6hENQroQzlNOVam6i7iFWejaE6UoPlghct0stF7uT5lAQ==\n",
+          "format": "pkg",
+          "min_os": "26.5"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.3/Vorago-1.0.3-Linux-x64.tar.gz",
+          "size": 1704237,
+          "sha256": "3486c58966b267f6da20af7f6b728beabf4754d0bfc08f2120ed61c40a028f78",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn3WTw34wlw3a+4CcLm6eNKnrrZGOy8yOZ7hx3LLYIvKREytvIkc6ZI2CENEQgv335YJdg9HNSM0DqAuxfgKkzwY=\ntrusted comment: krate:1:Vorago:1.0.3:linux-x86_64:Vorago-1.0.3-Linux-x64.tar.gz\n3v5xwUUiD17TNJIC1JR/zxA1/R3ejpwnQblknONKiGcCOpM+wuvKqcRdVPjkyG2SwihOa/HReFcBQHCuiWWnBg==\n",
+          "format": "tar.gz",
+          "min_os": "2.38",
+          "payload": {
+            "files": 61,
+            "sha256": "974940008dd6cea98994082d35c5a535fc59e69ae1746705f04a0c02dfb2cbfb"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.3/Vorago-1.0.3-Windows-x64.exe",
+          "size": 3546896,
+          "sha256": "b29e10300ff71feeab33178a05044229638eccb0f5215c0b5c3535fea57457c6",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn2PQwo5XiZ6yrxP4ZgGzIq9EqrU62T/sRzdyDRtD7ccczkii5C5k4vCMKNjCBYqS8VqcFE9kYMzCk48n5/DswQg=\ntrusted comment: krate:1:Vorago:1.0.3:windows-x86_64:Vorago-1.0.3-Windows-x64.exe\n7a/UUO2QDGNe4OS/ylZfYOMAQJr2g/eATUsxGmnwbk8kaRVRuu/NvSpCq5Q2nTB7WDJrXB95ZxoSVFM+NWYxCg==\n",
+          "format": "inno-exe"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Vorago.vst3",
+        "au_component": "Vorago.component",
+        "windows_uninstall_key": "{5716199F-E321-435B-A60E-4F7AFAA1ADBD}_is1",
+        "macos_pkg_id": "com.krateaudio.vorago"
+      }
     }
   }
 }
