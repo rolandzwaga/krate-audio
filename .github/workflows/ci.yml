@@ -952,6 +952,20 @@ jobs:
           test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in Profundum AUv3"; exit 1; }
           echo "[Profundum] AUv3 bundle OK"
 
+      # The release's own facts rule (tools/release-facts.js, E_FACTS_ARCH_MISMATCH) on every AUv3 app built
+      # here: each Mach-O inside, the bundled VST3 included, must be arm64 + x86_64. The app and its extension
+      # were arm64-only until 2026-11-02, and backfill-sign refused every macOS release on it.
+      - name: Verify AUv3 apps are universal
+        run: |
+          shopt -s nullglob
+          apps=("build/bin/${{ env.BUILD_TYPE }}"/*" AUv3.app")
+          if [ ${#apps[@]} -eq 0 ]; then echo "No AUv3 app built"; exit 0; fi
+          for app in "${apps[@]}"; do
+            node -e 'const f = require("./tools/release-facts.js").darwinFactsFromTree(process.argv[1]);
+              if (f.platform_key !== "darwin-universal") { console.error(`${process.argv[1]}: ${f.platform_key}`); process.exit(1); }
+              console.log(`${process.argv[1]}: ${f.archs.join(" ")} (${f.macho.length} Mach-O files)`);' "$app"
+          done
+
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
         if: always()

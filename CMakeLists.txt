@@ -228,6 +228,9 @@ if(SMTG_MAC AND XCODE AND SMTG_ENABLE_AUV3_BUILDS)
         ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/auv3wrapper
         ${PROJECT_BINARY_DIR}/vst3sdk_auv3wrapper
     )
+    # The wrapper's CMakeLists never applies the SDK's universal-binary setting; the AUv3 app and
+    # extension that link it are universal (cmake/KratePlugin.cmake).
+    smtg_target_setup_universal_binary(auv3_wrapper_macos)
 endif()
 
 # Restore clang-tidy for our code
