@@ -2,14 +2,49 @@
   "schema_version": 2,
   "plugins": {
     "Disrumpo": {
-      "version": "0.9.10",
+      "version": "0.9.11",
       "download_url": "https://krateaudio.com/disrumpo/",
       "release_notes": "",
-      "tag": "disrumpo/v0.9.10",
-      "pub_date": "2026-10-10T08:02:58Z",
+      "tag": "disrumpo/v0.9.11",
+      "pub_date": "2026-11-02T20:59:10Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/disrumpo/v0.9.10",
-      "notes_markdown": "### Fixed\n\n- **The spectrum analyzer stayed empty on macOS in some hosts** — In the AU version, and in VST3 hosts that leave the processor-to-editor data transfer to the plugin, the editor never received a spectrum block: the transfer blocks were requested at a size macOS's aligned allocator rejects, so every block came back empty and every update was dropped without a message. The block size is now rounded up to the required alignment. Hosts that provide their own transfer handler, and Windows and Linux, were never affected; the sound was never affected anywhere."
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/disrumpo/v0.9.11",
+      "notes_markdown": "### Added\n\n- **Version in the editor** — The plugin version is shown in the top bar, next to the Check for Updates button.\n\n### Fixed\n\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Disrumpo AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
+      "platforms": {
+        "darwin-universal": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/disrumpo/v0.9.11/Disrumpo-0.9.11-macOS.pkg",
+          "size": 7816341,
+          "sha256": "d7399dd7dbe5526311e7834081a447afcf58f5171231e5aa0cd4ee866ef333d3",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnxZwduGY6CTbz+zW6IBn3aGbZ1S0EfnxpNZbvDwgJKhk/23uYaOqtxsJXSy/2ObTFO+f2hVaC8yg04upxyDE8Ao=\ntrusted comment: krate:1:Disrumpo:0.9.11:darwin-universal:Disrumpo-0.9.11-macOS.pkg\nlgU+tmqA71Lr18E+GUNoVwwndAHy9BcXiSMb60bB/40lhPlj4giLNtLKkFoL5TKlqxE5rBCL9OM4IZX1kQnmAQ==\n",
+          "format": "pkg",
+          "min_os": "26.5"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/disrumpo/v0.9.11/Disrumpo-0.9.11-Linux-x64.tar.gz",
+          "size": 1646490,
+          "sha256": "51700dc4bbe613c9d14465d4b8343c36a8895c077b8d9f817756d458af7a8c56",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrnw/VA5USdJi0f9AflDor0EHRhn2rp3aaaEetSlpLVphbOPn8CL5MfOBPs7GO38SYIsYGIAKlLqTNz/cFzPvfWgo=\ntrusted comment: krate:1:Disrumpo:0.9.11:linux-x86_64:Disrumpo-0.9.11-Linux-x64.tar.gz\ngIfU1U5DVWiShNg8uZc2PBe+Ai4Ej2tfHl15vqK2/6HiS18s3kqsRZB99vhqGGTBblSprzntJ3VpJ1IbDBe2AA==\n",
+          "format": "tar.gz",
+          "min_os": "2.38",
+          "payload": {
+            "files": 140,
+            "sha256": "f17faff848478cd2a13beb09d7ae377e3d21bc47ed4e7229b5f390499fca202b"
+          }
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/disrumpo/v0.9.11/Disrumpo-0.9.11-Windows-x64.exe",
+          "size": 3477114,
+          "sha256": "549d7a7feeef52b3fb8689c083c058a8a558e0a3e30bda30e0c8287823dde3c6",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnzYyzqWoIxiRdtbauaai35o51Fkwb0PJrPWU/j8XNPKOiqrr3Rpk2XZjdEgtA16o0k4lcUnyBdUKVpcHUegFoQE=\ntrusted comment: krate:1:Disrumpo:0.9.11:windows-x86_64:Disrumpo-0.9.11-Windows-x64.exe\ng4wGhM3qGxxm80TjS6NcrpaotvywLcyIvur5zHU8JEqiu6NItBhBd7WTHYg+s6HMThUuLIvqWE/AqdoPAlCNBw==\n",
+          "format": "inno-exe"
+        }
+      },
+      "install": {
+        "vst3_bundle": "Disrumpo.vst3",
+        "au_component": "Disrumpo.component",
+        "windows_uninstall_key": "{A3E9B7D1-6F2C-4A8E-B5D4-7C1E9F3A2B8D}_is1",
+        "macos_pkg_id": "com.krateaudio.disrumpo"
+      }
     },
     "Gradus": {
       "version": "1.10.2",
