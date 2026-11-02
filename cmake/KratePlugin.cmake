@@ -232,6 +232,13 @@ function(krate_plugin_platform_setup target)
                 add_dependencies(${AUV3_EXTENSION_TARGET} auv3_wrapper_macos)
             endif()
 
+            # smtg_add_auv3_app never applies the SDK's universal-binary setting (the VST3 and AU targets
+            # get it), so the container app and its extension shipped arm64-only beside a universal VST3:
+            # E_FACTS_ARCH_MISMATCH in every macOS pkg (backfill-sign, 2026-11-02).
+            foreach(auv3_target IN ITEMS ${AUV3_APP_TARGET} ${AUV3_EXTENSION_TARGET})
+                smtg_target_setup_universal_binary(${auv3_target})
+            endforeach()
+
             # ViewController.m imports ViewController.h from a sibling directory.
             # Also need SDK root for public.sdk/source/vst/auv3wrapper includes.
             if(AUV3_APP_TARGET)
