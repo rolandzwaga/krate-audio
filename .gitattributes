@@ -21,6 +21,9 @@ specs/INDEX.md                     text eol=lf
 # Run from WSL against this (Windows, core.autocrlf=true) checkout: a CRLF copy fails in bash on the first line.
 tools/macos-fastmath-repro.sh       text eol=lf
 
+# A shebang tool: gen-manager-latest.test.js asserts LF, and a CRLF Windows checkout failed it (Feed tools, 29ba6cef).
+tools/gen-manager-latest.js         text eol=lf
+
 # Byte-exact fixtures: signatures, SHA-256 digests and golden outputs compare raw bytes, and this checkout runs
 # core.autocrlf=true, which would rewrite them on Windows checkout.
 tools/feed-contract/fixtures/** -text
