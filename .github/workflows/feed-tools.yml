@@ -23,6 +23,7 @@ on:
       - 'tools/gen-manager-latest.js'
       - 'tools/manager-release-preflight.js'
       - '.github/workflows/release-manager.yml'
+      - '.gitattributes'                      # line endings decide shebang / byte-exact fixture tests (d925be34)
   pull_request:
     paths:
       - 'tools/gen-feed.js'
@@ -45,6 +46,7 @@ on:
       - 'tools/gen-manager-latest.js'
       - 'tools/manager-release-preflight.js'
       - '.github/workflows/release-manager.yml'
+      - '.gitattributes'                      # line endings decide shebang / byte-exact fixture tests (d925be34)
   workflow_dispatch:
 
 permissions:
