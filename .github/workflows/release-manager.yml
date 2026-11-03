@@ -137,12 +137,18 @@ jobs:
         working-directory: apps/krate-manager
         run: |
           set -euo pipefail
+          fresh=0
           if ! command -v rustup > /dev/null; then
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
             echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
             export PATH="$HOME/.cargo/bin:$PATH"
+            fresh=1
           fi
           rustup toolchain install
+          # A fresh rustup (the Linux container) has no default, so rustc outside this directory, where
+          # rust-toolchain.toml does not apply, failed ("rustup could not choose a version of rustc to run"). The
+          # default is the pinned toolchain, never a second one.
+          if [ "$fresh" = "1" ]; then rustup default "$(rustup show active-toolchain | cut -d' ' -f1)"; fi
           if [ "${{ matrix.leg }}" = "macos-latest" ]; then rustup target add aarch64-apple-darwin x86_64-apple-darwin; fi
           rustc --version
 
@@ -1115,39 +1121,22 @@ jobs:
           app="/Applications/Krate Manager.app"
           manifest() { (cd "$app" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256); }
           manifest > "$RUNNER_TEMP/manifest-before.txt"
-          # Diagnostics (R-5, 2026-11-03): the first dry run saw SecurityAgent but never got the error marker. The
-          # timeline records, each second, the SecurityAgent and app PIDs, the request count and the markers. It showed
-          # one SecurityAgent alive through all 30 SIGTERMs (run 41625257363); kept until the SIGKILL cancel is measured.
-          t0=$(date +%s)
-          timeline="$RUNNER_TEMP/pkg-timeline.txt"
-          : > "$timeline"
-          snap() { echo "$1 t=$(( $(date +%s) - t0 ))s sa=[$(pgrep -x SecurityAgent | tr '\n' ' ' || true)] km=[$(pgrep -f "$app/Contents/MacOS/krate-manager" | tr '\n' ' ' || true)] req=$(wc -l < "$RUNNER_TEMP/requests.log" | tr -d ' ') markers=[$(ls "$marker" | tr '\n' ' ')]" >> "$timeline"; }
-          snap before-open
           open -n "$app"
           # PD-13: the updater asks for authorization in-process (osakit); SecurityAgent draws the prompt.
           seen=0
           accepted=0
           for _ in $(seq 1 60); do
-            snap wait
             if pgrep -x SecurityAgent > /dev/null; then seen=1; break; fi
             if [ -f "$marker/launched-$E2E_NEW" ]; then accepted=1; break; fi
             sleep 1
           done
-          sa_ps=$(ps -o pid=,etime=,command= -p "$(pgrep -x SecurityAgent | paste -sd, - || true)" 2> /dev/null | tr '\n' ';' || true)
           for _ in $(seq 1 30); do
-            snap cancel
             if [ -f "$marker/error-E_SELF_UPDATE_INSTALL" ]; then break; fi
             # SIGKILL: SecurityAgent defers SIGTERM while it holds XPC transactions ("Remaining transactions after
             # SIGTERM: 2"), so a plain pkill left the prompt up.
             sudo pkill -KILL -x SecurityAgent || true
             sleep 1
           done
-          snap after-cancel
-          echo "::notice title=$leg diag SecurityAgent at seen::seen=$seen accepted=$accepted ps(pid etime command)=${sa_ps:-none}"
-          echo "::notice title=$leg diag timeline::$(uniq -f 2 "$timeline" | tr '\n' '|')"
-          applog=$(find "$HOME/Library" -maxdepth 5 -name krate-manager.log 2> /dev/null | head -n 1 || true)
-          echo "::notice title=$leg diag app log::file=${applog:-missing}|$( [ -n "$applog" ] && tail -n 25 "$applog" | tr '\n' '|' || true)"
-          echo "::notice title=$leg diag authd::$(log show --last 3m --style compact --predicate 'process == "authd" OR process == "SecurityAgent"' 2> /dev/null | tail -n 25 | tr '\n' '|' || true)"
           bad=()
           if [ "$accepted" = "1" ]; then bad+=("accepted without a prompt: launched-$E2E_NEW appeared"); fi
           if [ "$seen" = "0" ] && [ "$accepted" = "0" ]; then bad+=("prompt never seen within 60 s (pgrep -x SecurityAgent)"); fi
