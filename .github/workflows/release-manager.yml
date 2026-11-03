@@ -137,12 +137,18 @@ jobs:
         working-directory: apps/krate-manager
         run: |
           set -euo pipefail
+          fresh=0
           if ! command -v rustup > /dev/null; then
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
             echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
             export PATH="$HOME/.cargo/bin:$PATH"
+            fresh=1
           fi
           rustup toolchain install
+          # A fresh rustup (the Linux container) has no default, so rustc outside this directory, where
+          # rust-toolchain.toml does not apply, failed ("rustup could not choose a version of rustc to run"). The
+          # default is the pinned toolchain, never a second one.
+          if [ "$fresh" = "1" ]; then rustup default "$(rustup show active-toolchain | cut -d' ' -f1)"; fi
           if [ "${{ matrix.leg }}" = "macos-latest" ]; then rustup target add aarch64-apple-darwin x86_64-apple-darwin; fi
           rustc --version
 

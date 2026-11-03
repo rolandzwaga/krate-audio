@@ -527,6 +527,11 @@ function checkBuild(wf, bad) {
     const s = named(steps, name)[0];
     if (s && field(s.text, 8, 'if') !== "matrix.leg == 'macos-latest'") bad.push(`build: ${name} is not macOS-only`);
   }
+  // The Linux leg's fresh rustup (--default-toolchain none) needs a default for rustc outside apps/krate-manager.
+  const rust = named(steps, 'Rust toolchain')[0];
+  if (rust && !runText(rust).includes('rustup default "$(rustup show active-toolchain | cut -d\' \' -f1)"')) {
+    bad.push('build: Rust toolchain does not make the pinned toolchain the default of a fresh rustup');
+  }
   const glibc = named(steps, 'glibc floor')[0];
   if (glibc && (field(glibc.text, 8, 'if') !== "matrix.leg == 'linux'" || !runText(glibc).includes('::notice title=glibc floor::'))) {
     bad.push('build: glibc floor is not the Linux FR-065 notice');
