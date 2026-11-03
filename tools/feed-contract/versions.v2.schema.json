@@ -222,6 +222,11 @@
         "pub_date": true,
         "channel": { "const": "stable" },
         "release_notes_url": true,
+        "description": {
+          "$comment": "Krate Manager Phase 12 FR-112: the plugin's one-line description, 1 to 120 characters, no control character.",
+          "type": "string",
+          "pattern": "^[^\\x00-\\x1F\\x7F-\\x9F]{1,120}$"
+        },
         "prerelease": { "$ref": "#/$defs/sibling" }
       },
       "required": ["version", "download_url", "release_notes", "tag", "pub_date", "channel", "release_notes_url"]

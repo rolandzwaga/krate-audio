@@ -28,6 +28,7 @@
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.2.0",
       "plugin_page_url": "https://krateaudio.com/alpha/",
+      "description": null,
       "notes": [
         {
           "type": "heading",
@@ -105,6 +106,7 @@
       "record_version_differs": true,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.0.1",
       "plugin_page_url": "https://krateaudio.com/bravo/",
+      "description": null,
       "notes": [],
       "actions": [],
       "remove_hint": null
@@ -137,6 +139,7 @@
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v0.9.0",
       "plugin_page_url": "https://krateaudio.com/charlie/",
+      "description": null,
       "notes": [],
       "actions": [],
       "remove_hint": null

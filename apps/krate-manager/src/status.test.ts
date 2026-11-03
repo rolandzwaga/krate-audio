@@ -396,6 +396,18 @@ test("open plugin page shows a rejection", async () => {
   expect(texts(c, "p.open-error")).toEqual(["Could not open the plugin page: E_OPEN_REJECTED"]);
 });
 
+// Phase 12 SC-037 (FR-112): the feed's description is one plain-text line right under the card's name.
+test("renders the plugin description under the name", () => {
+  const holder = document.createElement("div");
+  holder.append(...renderCards(viewOf("windows", [{ description: "Multi-Mode Delay & <Echo>" }, { name: "Bravo" }]), invoke));
+  const line = only(card(holder, "Alpha"), "p.description", HTMLParagraphElement);
+  expect(line.textContent).toBe("Multi-Mode Delay & <Echo>");
+  expect(line.childElementCount).toBe(0);
+  expect(line.previousElementSibling?.tagName).toBe("H2");
+  expect(card(holder, "Bravo").querySelector("p.description")).toBeNull();
+  expect(() => viewOf("windows", [{ description: 7 }])).toThrow(/description/);
+});
+
 // SC-034 / FR-078: the needles are built by concatenation so this file never holds one literally.
 const NAVIGATION_NEEDLES = [
   "window." + "open",
@@ -452,6 +464,7 @@ function pluginJson(fields: Readonly<Record<string, unknown>>): Record<string, u
     record_version_differs: false,
     release_page_url: null,
     plugin_page_url: null,
+    description: null,
     notes: [],
     actions: [],
     remove_hint: null,

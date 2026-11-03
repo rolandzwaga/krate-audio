@@ -1502,6 +1502,69 @@ fn plugin_page_url_cases() {
     }
 }
 
+#[test]
+fn description_cases() {
+    // Phase 12 FR-112: the feed entry's `description` reaches its card verbatim (markup characters are text); a feed
+    // without one, and every v1 feed, gives `None`.
+    let with = parsed("description.json");
+    assert_eq!(
+        with.plugins["Alpha"].description.as_deref(),
+        Some("Multi-Mode Delay & <Echo>")
+    );
+    assert_eq!(
+        with.plugins["Bravo"].description.as_deref(),
+        Some("ü".repeat(120).as_str())
+    );
+    assert_eq!(with.plugins["Charlie"].description, None);
+    let view = assemble(
+        Os::Linux,
+        Arch::X86_64,
+        &fresh(with),
+        None,
+        &BTreeMap::new(),
+    );
+    let cards: Vec<(&str, Option<&str>)> = view
+        .plugins
+        .iter()
+        .map(|p| (p.name.as_str(), p.description.as_deref()))
+        .collect();
+    let bravo = "ü".repeat(120);
+    assert_eq!(
+        cards,
+        [
+            ("Alpha", Some("Multi-Mode Delay & <Echo>")),
+            ("Bravo", Some(bravo.as_str())),
+            ("Charlie", None),
+        ]
+    );
+    for fixture in [FULL, V1_ONLY] {
+        let view = assemble(
+            Os::Windows,
+            Arch::X86_64,
+            &fresh(parsed(fixture)),
+            None,
+            &BTreeMap::new(),
+        );
+        assert!(
+            view.plugins.iter().all(|p| p.description.is_none()),
+            "{fixture}"
+        );
+    }
+    // A sibling's `description` is never read: the entry's stands alone.
+    let mut doc: Value = serde_json::from_slice(&feed_fixture("description.json")).expect("JSON");
+    doc["plugins"]["Bravo"]["prerelease"]["description"] = Value::from("Beta text");
+    doc["plugins"]["Charlie"]["description"] = Value::from("Charlie text");
+    let feed = feed::parse(&serde_json::to_vec(&doc).expect("serialises")).expect("C1 accepts it");
+    assert_eq!(
+        feed.plugins["Bravo"].description.as_deref(),
+        Some(bravo.as_str())
+    );
+    assert_eq!(
+        feed.plugins["Charlie"].description.as_deref(),
+        Some("Charlie text")
+    );
+}
+
 // ---- Phase 9 SC-016 -----------------------------------------------------------------------------------------------
 
 /// The feed version of every `actions_per_state` row.

@@ -640,6 +640,15 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   exactly once, a member carries its own version or a lock holds a workspace crate at another version
   (`E_BUMP_ANCHOR`); after writing, the lint must report the new version (`E_BUMP_VERIFY`). Each file keeps its
   line endings. `version.json` stays the one source; `lint-manager-version` is unchanged. `RELEASING.md` names it.
+- **FR-112** (spec revision 2026-11-03, Clarifications R-7) Every plugin card whose feed entry has a `description`
+  shows it as one plain-text line right under the plugin's name. C1 gains the optional entry key
+  `plugins.<Name>.description`: a string matching `^[^\x00-\x1F\x7F-\x9F]{1,120}$` (one line, 1 to 120 characters,
+  no control character), additive under D1, so manager 1.0.0 and the in-plugin update checker ignore it. gen-feed
+  writes it from the plugin's `version.json` `description` (the text of its landing-page card), right after
+  `release_notes_url`, on the entry only; a `description` the rule rejects is `E_INPUT` naming the file and the field,
+  and the feed is not written. The core reads the entry's (never the sibling's) into `PluginEntry.description` and
+  `PluginView.description`; a v1 feed gives none. The card sets it as text (`textContent`), never as markup. Manager
+  1.0.1.
 
 ### H. Release readiness for manager 1.0.0 (roadmap lines 931-934; Q10; D14, D17)
 
@@ -948,6 +957,8 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   `full-v2.json` and `v1-only.json` carries its `download_url`. The status goldens hold `plugin_page_url`.
   `injection.rs` `core_sources_hold_no_production_literal` and the one-`krateaudio.com`-in-`src-tauri/src` check
   stay green.
+  `status.test.ts`: every golden card shows `Open plugin page` iff it has the URL, the click invokes
+  `open_release_page` with it, a rejection shows the plugin-page text. USER: the button opens the plugin's page.
 - **SC-036 (the bump command, FR-089).** `tools/feed-contract/tests/bump-manager-version.test.js` "bump-manager-version
   writes every copy or nothing": a bump writes exactly the expected bytes of every file (CRLF and LF kept, a
   third-party crate and a dependency line at the old version untouched, a fixture lock without workspace crates not
@@ -955,8 +966,18 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   copy, a member version, a missing or other-version lock entry, an existing or missing CHANGELOG heading) prints its
   one line and changes no file; usage errors exit 2. A run on a copy of the real tree changes exactly the 11 lines the
   1.0.0 bump changed by hand.
-  `status.test.ts`: every golden card shows `Open plugin page` iff it has the URL, the click invokes
-  `open_release_page` with it, a rejection shows the plugin-page text. USER: the button opens the plugin's page.
+- **SC-037 (the plugin description, FR-112).** `tests/c1-feed.test.js`: the `feeds/cases.json` rows
+  `Phase12/description` (markup characters, 120 non-ASCII characters) pass, `Phase12/description-type`, `-empty`,
+  `-line-break` and `-121` fail at `/plugins/Alpha/description`; `contract::tests::c1_cases_reproduce` (the Rust
+  validator over the same rows) and `feed::tests::accept_rows_parse_through_the_client` agree. `tests/gen-feed-description.test.js` "gen-feed writes each plugin description from
+  version.json": the text follows `release_notes_url` on the entry and never reaches the sibling, a `version.json`
+  without one gives none, 120 characters pass and every rejected value is `E_INPUT` naming the file and the field,
+  every `plugins/*/version.json` description passes the rule; four of its five subtests fail on the gen-feed before
+  this change. Every gen-feed `expected.v2.json` differs from its reviewed bytes by exactly the inserted key.
+  `status::tests::description_cases`: the model and every card carry the entry's text verbatim, `full-v2.json` and
+  `v1-only.json` give none, a sibling's is never read; the status goldens hold `description`. `status.test.ts`
+  "renders the plugin description under the name": one `p.description` right after the `h2`, the text as text, none
+  without one, a non-string refused by the view validator. USER: each card shows its line.
 
 ---
 
@@ -1113,6 +1134,7 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
 | FR-087 | SC-034 |
 | FR-088 | SC-035 |
 | FR-089 | SC-036 |
+| FR-112 | SC-037 |
 | FR-090 | SC-026 |
 | FR-100 | SC-020, SC-028 |
 | FR-101 | SC-024 |
@@ -1251,3 +1273,8 @@ Every question of the clarify scan was decided by the user; each line ends with 
 - R-6: A version bump touched four files by hand. → A: The user asked for one command; `version.json` stays the
   source (Cargo cannot read it, so the copies stay, kept in step by the lint) and the command writes the copies.
   [FR-089, SC-036]
+- R-7: A user asked for a one-line description of each plugin on the manager's cards. → A: The user agreed it goes in
+  the feed, from the `description` every `version.json` already holds, and had the nine descriptions rewritten without
+  "VST3" and "Plugin" (Iterum `MultiMode` became `Multi-Mode`); the landing-page cards, the plugin pages (Gradus's
+  hard-coded text now reads `{{DESCRIPTION}}` like the other eight) and the Windows file description show the new
+  text too. Manager 1.0.0 is released, so this ships as 1.0.1. [FR-112, SC-037]

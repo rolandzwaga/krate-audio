@@ -9,6 +9,7 @@
       "pub_date": "2026-10-01T12:00:00Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.0.0",
+      "description": "Krate fixture plugin Alpha",
       "platforms": {
         "darwin-aarch64": {
           "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v1.0.0/Alpha-1.0.0-macOS.pkg",
@@ -53,7 +54,8 @@
       "tag": "bravo/v1.1.0",
       "pub_date": "2026-10-02T12:00:00Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v1.1.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v1.1.0",
+      "description": "Krate fixture plugin Bravo"
     },
     "Charlie": {
       "version": "1.2.0",
@@ -62,7 +64,8 @@
       "tag": "charlie/v1.2.0",
       "pub_date": "2026-10-03T12:00:00Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v1.2.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v1.2.0",
+      "description": "Krate fixture plugin Charlie"
     },
     "Delta": {
       "version": "1.3.0",
@@ -71,7 +74,8 @@
       "tag": "delta/v1.3.0",
       "pub_date": "2026-10-04T12:00:00Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/delta/v1.3.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/delta/v1.3.0",
+      "description": "Krate fixture plugin Delta"
     },
     "Echo": {
       "version": "1.4.0",
@@ -80,7 +84,8 @@
       "tag": "echo/v1.4.0",
       "pub_date": "2026-10-05T12:00:00Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/echo/v1.4.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/echo/v1.4.0",
+      "description": "Krate fixture plugin Echo"
     },
     "Foxtrot": {
       "version": "1.5.0",
@@ -89,7 +94,8 @@
       "tag": "foxtrot/v1.5.0",
       "pub_date": "2026-10-06T12:00:00Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/foxtrot/v1.5.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/foxtrot/v1.5.0",
+      "description": "Krate fixture plugin Foxtrot"
     },
     "Golf": {
       "version": "1.6.0",
@@ -98,7 +104,8 @@
       "tag": "golf/v1.6.0",
       "pub_date": "2026-10-07T12:00:00Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/golf/v1.6.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/golf/v1.6.0",
+      "description": "Krate fixture plugin Golf"
     },
     "Hotel": {
       "version": "1.7.0",
@@ -107,7 +114,8 @@
       "tag": "hotel/v1.7.0",
       "pub_date": "2026-10-08T12:00:00Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/hotel/v1.7.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/hotel/v1.7.0",
+      "description": "Krate fixture plugin Hotel"
     },
     "India": {
       "version": "1.8.0",
@@ -116,7 +124,8 @@
       "tag": "india/v1.8.0",
       "pub_date": "2026-10-09T12:00:00Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/india/v1.8.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/india/v1.8.0",
+      "description": "Krate fixture plugin India"
     },
     "Juliet": {
       "version": "1.9.0",
@@ -126,6 +135,7 @@
       "pub_date": "2026-10-10T12:00:00Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/juliet/v1.9.0",
+      "description": "Krate fixture plugin Juliet",
       "platforms": {
         "darwin-universal": {
           "url": "https://github.com/rolandzwaga/krate-audio/releases/download/juliet/v1.9.0/Juliet-1.9.0-macOS.pkg",

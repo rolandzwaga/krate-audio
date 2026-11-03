@@ -80,6 +80,8 @@ pub struct PluginView {
     pub release_page_url: Option<String>,
     /// Phase 12 FR-088: the feed's `download_url`, the plugin's page on the site (`plugin_page_url`).
     pub plugin_page_url: Option<String>,
+    /// Phase 12 FR-112: the feed's one-line `description` of the plugin, shown under its name.
+    pub description: Option<String>,
     pub notes: Vec<notes::Block>,
     pub actions: Vec<ActionView>,
     /// Phase 10 FR-083: `Some(WindowsSettings)` iff the gate's Remove basis is `OutsideRoot`.
@@ -476,6 +478,7 @@ fn plugin_view(
             .download_url
             .as_ref()
             .and_then(|u| plugin_page_url(u.as_str())),
+        description: entry.description.clone(),
         notes: release
             .and_then(|r| r.notes_markdown.as_deref())
             .map(notes::blocks)

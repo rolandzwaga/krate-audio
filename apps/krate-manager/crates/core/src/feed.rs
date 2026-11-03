@@ -48,6 +48,8 @@ pub struct PluginEntry {
     pub version: Option<CoreVersion>,
     /// PD-22, SI-19: a page link, never fetched for install.
     pub download_url: Option<PageUrl>,
+    /// Phase 12 FR-112: the plugin's one-line description, plain text (C1 `description`); a v1 feed has none.
+    pub description: Option<String>,
     pub release: Option<StableRelease>,
 }
 
@@ -423,6 +425,7 @@ fn v1_entry(key: &str, entry: &Value) -> Option<PluginEntry> {
         version_text: version_text.to_owned(),
         version: CoreVersion::parse(version_text),
         download_url,
+        description: None,
         release: None,
     })
 }
@@ -473,6 +476,8 @@ fn v2_entry(key: &str, entry: &Value) -> Option<PluginEntry> {
         version_text: version_text.to_owned(),
         version: CoreVersion::parse(version_text),
         download_url: Some(download_url),
+        // C1 holds it to one line of 1 to 120 characters; the sibling's is never read (FR-024).
+        description: str_of(entry, "description").map(str::to_owned),
         release: Some(StableRelease {
             tag: tag.to_owned(),
             pub_date: pub_date.to_owned(),
