@@ -27,7 +27,7 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const LOCK = path.join(ROOT, 'apps', 'krate-manager', 'Cargo.lock');
-const MANAGER_VERSION = '0.1.0'; // the release this row is for (tasks.md T015, TA-14)
+const MANAGER_VERSION = '1.0.0'; // the release this row is for (tasks.md T015, TA-14)
 const CRATES = ['rquickjs', 'rquickjs-core', 'rquickjs-sys'];
 const pageUrl = (crate) => `https://rustsec.org/packages/${crate}.html`;
 const FETCH_TIMEOUT_MS = 30 * 1000;
@@ -165,9 +165,9 @@ async function selfTest() {
   await check('page: 301 -> failed', () => eq(pageReading(301, '').kind, 'failed'));
 
   await check('row: no advisory, each crate its own version', () =>
-    eq(releasingRow(versions, '2026-11-02', []), '| 0.1.0 | 2026-11-02 | 0.14.1 | 0.14.0 | 0.14.2 | no advisory |'));
+    eq(releasingRow(versions, '2026-11-02', []), '| 1.0.0 | 2026-11-02 | 0.14.1 | 0.14.0 | 0.14.2 | no advisory |'));
   await check('row: the ids for the user to answer', () => eq(releasingRow(versions, '2026-11-02', ['RUSTSEC-2025-0042']),
-    '| 0.1.0 | 2026-11-02 | 0.14.1 | 0.14.0 | 0.14.2 | RUSTSEC-2025-0042 |'));
+    '| 1.0.0 | 2026-11-02 | 0.14.1 | 0.14.0 | 0.14.2 | RUSTSEC-2025-0042 |'));
   await check('urls are the three package pages (spec.md:137)', () => eq(CRATES.map(pageUrl).join(' '),
     'https://rustsec.org/packages/rquickjs.html https://rustsec.org/packages/rquickjs-core.html' +
     ' https://rustsec.org/packages/rquickjs-sys.html'));
@@ -186,7 +186,7 @@ async function selfTest() {
     const r = await runCheck({ fetchPage: fake({}), lockText: lock, date });
     eq(r.exitCode, 0);
     eq(r.lines[r.lines.length - 1], 'RUSTSEC NO ADVISORY');
-    eq(r.lines[r.lines.length - 2], '| 0.1.0 | 2026-11-02 | 0.14.1 | 0.14.0 | 0.14.2 | no advisory |');
+    eq(r.lines[r.lines.length - 2], '| 1.0.0 | 2026-11-02 | 0.14.1 | 0.14.0 | 0.14.2 | no advisory |');
     eq(r.lines[0], 'page https://rustsec.org/packages/rquickjs.html: 404 -> no advisory page');
     eq(r.lines.includes('Cargo.lock: rquickjs 0.14.1, rquickjs-core 0.14.0, rquickjs-sys 0.14.2'), true);
     eq(asked.slice().sort().join(' '), CRATES.map(pageUrl).sort().join(' '));
@@ -196,7 +196,7 @@ async function selfTest() {
       lockText: lock, date });
     eq(r.exitCode, 1);
     eq(r.lines[r.lines.length - 1], 'RUSTSEC ADVISORY: RUSTSEC-2024-0007, RUSTSEC-2025-0042');
-    eq(r.lines[r.lines.length - 2], '| 0.1.0 | 2026-11-02 | 0.14.1 | 0.14.0 | 0.14.2 | RUSTSEC-2024-0007, RUSTSEC-2025-0042 |');
+    eq(r.lines[r.lines.length - 2], '| 1.0.0 | 2026-11-02 | 0.14.1 | 0.14.0 | 0.14.2 | RUSTSEC-2024-0007, RUSTSEC-2025-0042 |');
   });
   await check('flow: ids on two pages are merged and deduplicated', async () => {
     const r = await runCheck({ fetchPage: fake({ [pageUrl('rquickjs')]: { status: 200, text: advisoryHtml },
@@ -208,7 +208,7 @@ async function selfTest() {
       lockText: lock, date });
     eq(r.exitCode, 2);
     eq(r.lines[r.lines.length - 1], 'RUSTSEC CHECK FAILED: rquickjs-sys fetch error: getaddrinfo ENOTFOUND');
-    eq(r.lines.some((l) => l.startsWith('| 0.1.0 ')), false);
+    eq(r.lines.some((l) => l.startsWith('| 1.0.0 ')), false);
   });
   await check('flow: a 503 -> CHECK FAILED', async () => {
     const r = await runCheck({ fetchPage: fake({ [pageUrl('rquickjs')]: { status: 503, text: '' } }), lockText: lock, date });

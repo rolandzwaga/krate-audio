@@ -180,7 +180,7 @@ from a plan block or close what the plan left open.
 | TA-11 | **Plugin order is the Python's: the relative paths `plugins/<dir>/version.json` sorted by code unit**, not the dir names. They differ when one dir name is a prefix of another followed by a character below `/` (`plugins/delta-x/version.json` < `plugins/delta/version.json`, while `delta` < `delta-x`); the fixture tree has `delta` and `delta-x` to pin it | PD-16 says "plugin dirs … sorted by code unit (ASCII names: equal to Python sorted)", which is false in that case (Defect D-3) | no |
 | TA-12 | **`gen-root-index.test.js` uses fixture templates only** (`fixtures/landing/index-template.html`, an LF copy of `docs/index-template.html` at `7c4b6837`, and `fixtures/landing/manager-card.fixture.html`); one subtest asserts the live `docs/index-template.html`, `\r\n` → `\n`, equals the fixture copy (FR-081: the template does not change). The real card's `href` set and statements are pinned by T010's `manager-first-launch.test.js` (SC-016a) | the real card template is T010's file; a test of T011 reading it would be a cross-task dependency inside G2 | no |
 | TA-13 | **The preflight tests write their own `RELEASING.md` and `Cargo.lock`** into each fixture app dir (a `## RustSec` table whose row is dated the run date and names the real lock's three versions unless a case mutates it), never a copy of the real `RELEASING.md` | PD-19 says "copies a valid `RELEASING.md`", which would tie every earlier preflight case to T010's file and to the real row's age (Defect D-12) | no |
-| TA-14 | **The 0.1.0 RustSec row is written before the U-1 dry run, by the main loop.** T010 writes `RELEASING.md` with the `## RustSec` section and the table header but no row; the main loop runs L-RUSTSEC (T015's script) on the day it asks the user for the readiness `release-manager.yml` dry run, and pastes the printed row (that day's UTC date) into the table. G5 re-runs it if the ledger closes more than 7 days later | FR-073 needs a green `release-manager.yml` dry run at the readiness commit, and its `preflight` refuses `E_PREFLIGHT_RUSTSEC` without a row at most 7 days old (FR-104); the plan does not say when the row is written (Defect D-10); a network reading is a main-loop step | no |
+| TA-14 | **The 1.0.0 RustSec row is written before the U-1 dry run, by the main loop.** T010 writes `RELEASING.md` with the `## RustSec` section and the table header but no row; the main loop runs L-RUSTSEC (T015's script) on the day it asks the user for the readiness `release-manager.yml` dry run, and pastes the printed row (that day's UTC date) into the table. G5 re-runs it if the ledger closes more than 7 days later | FR-073 needs a green `release-manager.yml` dry run at the readiness commit, and its `preflight` refuses `E_PREFLIGHT_RUSTSEC` without a row at most 7 days old (FR-104); the plan does not say when the row is written (Defect D-10); a network reading is a main-loop step | no |
 | TA-15 | **`feed-tools.yml`'s `PLAN` and `NAMES` are set by T016 from a local TAP run** after every new node test exists (PD-27). Expected: 64 + 5 = 69 top-level tests (`gen-root-index.test.js`, `manager-first-launch.test.js`, `manager-readiness-counts.test.js`, the preflight's "manager release preflight enforces the RustSec record", the workflow-shape "landing pages render with gen-root-index.js"; `release-manager-shape.test.js` adds subtests only, PD-28); the measured count wins | pinned values must follow the tests, never be hand-added | no |
 | TA-16 | **The ledger layout is fixed here, for T012 and T013 alike**: headings `## Counts`, `## PENDING-CI rows`, `## Gates`, `## Backfill and live feed`, `## RustSec`, `## Asset host`, `## Post-release rows`; the two row tables have exactly the columns `\| id \| job and assertion \| closing workflow \| run URL \| commit \| verdict \|`; ids `phase<N>:<row id>` (and `phase11:SC-014:publish`); a literal `\|` inside a cell is written `\|` and the parser splits on unescaped pipes only; an empty cell is empty text; verdicts `green`, `post-release` or empty (open) | PD-26 fixes the columns and ids but not the headings or the escaping, and T012 (parser) and T013 (writer) run side by side | no |
 | TA-17 | **`header-consumers.js` needs `--tag`** (`tools/header-consumers.js:22-25`: without it, the usage line and exit 2). T017 runs `node tools/header-consumers.js --tag '[krate-manager]'` and records the last line `CONSUMERS OUTSIDE [krate-manager]: none` | plan §7.4 / FR-111 call it bare (Defect D-2) | spec: FR-111 |
@@ -585,7 +585,7 @@ read its `landing-dry` artifact, the R-7 line "Before each manager release, open
 release and confirm its redirect host is `release-assets.githubusercontent.com` (`RELEASE_ASSET_HOST`,
 `crates/core/src/self_update.rs:32`)", then the real dispatch; `## RustSec`: the URL `https://rustsec.org/`, the three
 package-page URLs, the three crates, the rule sentence of FR-104, and the table header `| version | date | rquickjs |
-rquickjs-core | rquickjs-sys | result |` with **no row** (TA-14)); `CHANGELOG.md` `## [0.1.0] - Unreleased` `### Added`
+rquickjs-core | rquickjs-sys | result |` with **no row** (TA-14)); `CHANGELOG.md` `## [1.0.0] - Unreleased` `### Added`
 gains three lines (FR-072: Update all; the Linux settings screen and graphics toggle; orphan Remove); `user-checks.md`
 (plan §4.10: one table per check, FR-070 columns plus first column `id` and last column `result`, id rows
 `FR-073-sequoia`, `FR-073-tahoe`, `FR-074-a` … `FR-074-f`, `FR-075`, `R-POST-3`, every `result` cell empty, a header
@@ -717,7 +717,7 @@ valid row → accepted on `--dry-run true` and `--dry-run false` (the real run w
 - `rustsec-check.js` (L-RUSTSEC, TA-14): Node's global `fetch` of `https://rustsec.org/packages/rquickjs.html`,
   `…/rquickjs-core.html`, `…/rquickjs-sys.html` (status code each; 404 = no advisory page; a 200 page's advisory ids
   `RUSTSEC-\d{4}-\d{4}` listed), the three versions from `apps/krate-manager/Cargo.lock`, and one row
-  `| 0.1.0 | <UTC date> | <v> | <v> | <v> | no advisory |` (or the ids, for the user to answer with a bump). Never run
+  `| 1.0.0 | <UTC date> | <v> | <v> | <v> | no advisory |` (or the ids, for the user to answer with a bump). Never run
   by an agent or a gate; its `--self-test` parses fixture HTML and a fixture lock without the network.
 
 **Lane:** `--self-test` of each script; `node --check`. Return with notes "deferred to the main loop: L-CLOSE and L-WSL
@@ -792,7 +792,7 @@ no Mac before release).
 
 ## G4 — Post-release, R-POST-4 [P] (two tasks, disjoint files)
 
-Runs after the first real dispatch, once a Mac has recorded both FR-073 rows against the public 0.1.0 pkg (spec
+Runs after the first real dispatch, once a Mac has recorded both FR-073 rows against the public 1.0.0 pkg (spec
 revision 2026-11-03); its changes ship with the next manager release.
 
 ### T018 [P] — The macOS first-launch text (spec FR-073 → FR-084 (b), FR-076; SC-016b green, SC-018 cite; D11)
@@ -854,9 +854,9 @@ Defect D-11).
 | SI-2 | `check (*)` | `job::tests::core_and_helper_op_caps_agree` passing |
 | SC-024 | `check (windows-latest)`, `check (macos-latest)`, `check (ubuntu-24.04)`; `feed-tools.yml` `node-test` on its three legs | all green; the TAP check prints `TAP plan=1..<P>` and `# fail 0` |
 | SC-016a / SC-016b, SC-020 / SC-028 tool, SC-021 tool, SC-029 generator on macOS / Linux | `feed-tools.yml` `node-test (ubuntu-latest)`, `node-test (macos-latest)` | the five new top-level names `ok` |
-| SC-021 | `release-manager.yml` `dry_run: true`, job `preflight` | `::notice title=preflight::passed` with the committed 0.1.0 row |
+| SC-021 | `release-manager.yml` `dry_run: true`, job `preflight` | `::notice title=preflight::passed` with the committed 1.0.0 row |
 | SC-029 | `release-manager.yml` `dry_run: true`, job `landing-dry` | artifact `manager-landing-dry-run` `index.html` holds exactly one `manager-card` with the four per-tag URLs of the dispatched version |
-| R-POST-1 (D17) | user, after the first real dispatch | `https://krateaudio.com/` shows the card for 0.1.0's four installers |
+| R-POST-1 (D17) | user, after the first real dispatch | `https://krateaudio.com/` shows the card for 1.0.0's four installers |
 | R-POST-4, R-POST-5 (D17, spec revision 2026-11-03) | user, on a Mac after the first real dispatch | FR-073 on Sequoia and Tahoe (then G4); FR-074 (d), (e) |
 | R-POST-2, R-POST-3 (D17), Phase 11 SC-014 `publish`, Phase 11 SC-020 | user, first real dispatch and the release after it | FR-075; Phase 11 rows as `specs/krate-manager-phase11/compliance.md:97`, `:103` name them |
 
@@ -873,6 +873,6 @@ Defect D-11).
 | D-7 | A `todo!("T006")` message is a string literal `PLATFORM_LITERALS` would report in `platform/mod.rs` | Rule 4 (b), Rule 7, TA-6 |
 | D-8 | Per-task target dirs on F: would fill it (2.5 GB free, 14 GB target) | Rule 10 |
 | D-9 | `update_all_excludes_manager_line` (SC-030) cannot be written over the status section alone | TA-18 |
-| D-10 | The plan does not say when the 0.1.0 RustSec row is written; U-1's dry run already needs it | TA-14 |
+| D-10 | The plan does not say when the 1.0.0 RustSec row is written; U-1's dry run already needs it | TA-14 |
 | D-11 | FR-101's "no `apps/krate-manager/**` change between" makes the post-U-1 README edit invalidate U-1's runs for the ledger | T020 "Needs" |
 | D-12 | PD-19's "copies a valid `RELEASING.md`" ties the preflight tests to T010's file and to the real row's date | TA-13 |

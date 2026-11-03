@@ -1,6 +1,6 @@
 # Krate Manager Phase 12: readiness ledger (krate-manager-phase12)
 
-The manager 0.1.0 readiness ledger (spec FR-100 to FR-103, D14, D17; tasks TA-16). A row closes by a green run
+The manager 1.0.0 readiness ledger (spec FR-100 to FR-103, D14, D17; tasks TA-16). A row closes by a green run
 (`https://github.com/<owner>/<repo>/actions/runs/<n>`, a 7-40 hex commit, verdict `green`) or is deferred
 (verdict `post-release`, one of the five D17 ids, also listed under "Post-release rows").
 
@@ -177,7 +177,7 @@ Pasted from `node tools/manager-readiness-counts.js --specs specs --roadmap spec
 
 ## RustSec
 
-The 0.1.0 row of `apps/krate-manager/RELEASING.md`'s RustSec table (FR-104), read from
+The 1.0.0 row of `apps/krate-manager/RELEASING.md`'s RustSec table (FR-104), read from
 `https://rustsec.org/packages/rquickjs.html`, `https://rustsec.org/packages/rquickjs-core.html` and
 `https://rustsec.org/packages/rquickjs-sys.html` against the `Cargo.lock` versions.
 
@@ -195,8 +195,8 @@ The 0.1.0 row of `apps/krate-manager/RELEASING.md`'s RustSec table (FR-104), rea
 |---|---|---|---|---|---|
 | phase11:SC-014:publish | Phase 11 SC-014, the `publish` half only (phase11/compliance.md line 97: "Needs `dry-publish` (:1610) and `publish` (:1496)"); the `dry-publish` half is the PENDING-CI row `phase11:SC-014` | The user's first real dispatch of `release-manager.yml` (`dry_run: false`), job `publish` | | | post-release |
 | phase11:SC-020 | Phase 11 SC-020 (phase11/compliance.md line 103: "needs the user's first real dispatch") | The user's first real dispatch of `release-manager.yml` (`dry_run: false`) | | | post-release |
-| phase12:R-POST-1 | The live landing card links manager 0.1.0's four installers (FR-085), read by the user on `https://krateaudio.com/` | The user's first real dispatch of `release-manager.yml` (`dry_run: false`), job `landing` | | | post-release |
-| phase12:R-POST-2 | FR-075: the macOS self-update of a pkg-installed 0.1.0 to the next public release | The next public manager release after 0.1.0 (its real `release-manager.yml` dispatch) | | | post-release |
-| phase12:R-POST-3 | The shipped-build confirmation that a pkg-installed 0.1.0 sees that next release (the same run as R-POST-2), recorded on Windows and Linux too: the version changes after the update | The same next public manager release as R-POST-2 | | | post-release |
-| phase12:R-POST-4 | FR-073: the macOS GUI pkg check on Sequoia 15.x and Tahoe 26.x, the public 0.1.0 pkg downloaded with a browser from its per-tag URL (spec revision 2026-11-03: no Mac before release); then SC-016b's recorded branch, SC-017 and SC-018 (tasks T018, T019) | The user's first real dispatch of `release-manager.yml` (`dry_run: false`), then a Mac on each OS | | | post-release |
+| phase12:R-POST-1 | The live landing card links manager 1.0.0's four installers (FR-085), read by the user on `https://krateaudio.com/` | The user's first real dispatch of `release-manager.yml` (`dry_run: false`), job `landing` | | | post-release |
+| phase12:R-POST-2 | FR-075: the macOS self-update of a pkg-installed 1.0.0 to the next public release | The next public manager release after 1.0.0 (its real `release-manager.yml` dispatch) | | | post-release |
+| phase12:R-POST-3 | The shipped-build confirmation that a pkg-installed 1.0.0 sees that next release (the same run as R-POST-2), recorded on Windows and Linux too: the version changes after the update | The same next public manager release as R-POST-2 | | | post-release |
+| phase12:R-POST-4 | FR-073: the macOS GUI pkg check on Sequoia 15.x and Tahoe 26.x, the public 1.0.0 pkg downloaded with a browser from its per-tag URL (spec revision 2026-11-03: no Mac before release); then SC-016b's recorded branch, SC-017 and SC-018 (tasks T018, T019) | The user's first real dispatch of `release-manager.yml` (`dry_run: false`), then a Mac on each OS | | | post-release |
 | phase12:R-POST-5 | FR-074 (d) and (e): a plug-in installed and removed through the manager on macOS (spec revision 2026-11-03: no Mac before release) | The user's first real dispatch of `release-manager.yml` (`dry_run: false`), then a Mac | | | post-release |

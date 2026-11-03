@@ -4,7 +4,7 @@
 // =============================================================================
 // Counts the PENDING-CI rows of the Krate Manager phases and checks the release-readiness ledger against them.
 //
-// WHY. Manager 0.1.0 is ready to dispatch only when every PENDING-CI row of Phases 1-11 is closed by a named green run,
+// WHY. Manager 1.0.0 is ready to dispatch only when every PENDING-CI row of Phases 1-11 is closed by a named green run,
 // except the seven post-release rows of D17 (specs/krate-manager-phase12/spec.md FR-100, D14, D17; SC-020, SC-028;
 // plan PD-26; tasks TA-16). The counts move whenever a compliance file is rewritten, and the roadmap status lines
 // already disagree with the files (spec F-4), so no count is hard-coded: this tool computes both at the readiness
