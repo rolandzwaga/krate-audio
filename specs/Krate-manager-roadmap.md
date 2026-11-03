@@ -32,6 +32,7 @@ and 12 and the phase count is twelve.
 - 2026-10-29 Q9, prereleases and the v1 `version` key: the v1 `version` key the nine in-editor banners read is the newest non-prerelease; prereleases appear only in a v2 `prerelease` sibling with `channel: "beta"`, which the manager ignores in v1. [Phase 1; Phase 5; Not in v1]
 - 2026-10-29 ROSTER, where the plugin list comes from: data-driven. The manager lists exactly the plugins under the feed's `plugins` key and ships no plugin names, bundle names, AppIds or pkg identifiers of its own; detection, install and uninstall take every per-plugin fact from that plugin's feed entry (`install` block, `platforms`). A new plugin appears in the manager when its release reaches the feed, with no manager release. A v1-only entry (no `install` block) is listed with its available version and shown as "not available through the manager". [Phase 5; Phase 6; Cross-Cutting Constraints]
 - 2026-10-29 Q10, plugins whose newest release predates Part A: backfill-sign. A one-time CI job (`backfill-sign.yml`) downloads each plugin's current `.exe`, `.pkg` and `.tar.gz`, writes `SHA256SUMS`, one minisign signature per asset and `release.json`, and attaches them to the existing releases, so all nine plugins are manageable at the first manager release with no plugin re-release; detection still falls back to the class `Version` where the top-level `moduleinfo` `Version` says 0.8.0. [Reuse Inventory; Repository Layout; Phase 2; Phase 3; Phase 6; Phase 12; Dependency Graph]
+- 2026-11-03 first public version: 1.0.0, not Q1's 0.1.0 (the user: the manager is feature complete). Phase 12 spec revision R-5. [Phase 12]
 
 ## Positioning
 
@@ -216,7 +217,7 @@ Legend: ✅ reused unchanged · 🔶 changed (additively) · 🆕 new.
 apps/krate-manager/
   Cargo.toml                 workspace: core, helper, src-tauri
   package.json, tsconfig.json (strict), vite + vitest + linter config (chosen in Phase 4)
-  version.json               single version source (like plugins/<p>/version.json); first public version 0.1.0;
+  version.json               single version source (like plugins/<p>/version.json); first public version 1.0.0;
                              a lint checks tauri.conf.json and Cargo.toml equal it
   CHANGELOG.md               manager changelog (one entry per released version)
   src/                       TypeScript UI (view + state only)
@@ -497,7 +498,7 @@ Components:
   Windows 10 22H2 / 11 x64, Linux at the glibc of the `ubuntu:22.04` build), Windows NSIS `installMode: "currentUser"`, no
   `LSFileQuarantineEnabled` (the bundler writes none, tauri_plist_quarantine_and_runners.md Q1).
 - 🆕 **Version source (Q1):** `apps/krate-manager/version.json` is the single version source (first public version
-  0.1.0, tag `manager/vX.Y.Z`, `apps/krate-manager/CHANGELOG.md`), and `tools/lint-manager-version.js` fails when
+  1.0.0, tag `manager/vX.Y.Z`, `apps/krate-manager/CHANGELOG.md`), and `tools/lint-manager-version.js` fails when
   `tauri.conf.json` or any `Cargo.toml` version in the workspace differs from it. The lint runs in `manager-ci.yml` and
   its tests in `feed-tools.yml`'s `node --test` set.
 - 🆕 `.github/workflows/manager-ci.yml`, path-filtered to `apps/krate-manager/**` and itself: matrix `windows-latest`,
@@ -828,7 +829,7 @@ Components:
 - 🆕 `tauri-plugin-updater` ≥ 2.14.1 with `requireSignedVersion: true`, `allowDowngrades` false, `createUpdaterArtifacts:
   true`, Windows `passive` (self_update.md KQ7); `relaunch()` after install on macOS/Linux.
 - 🆕 `.github/workflows/release-manager.yml`, **manual dispatch only** (Q1 ruled): reads `apps/krate-manager/version.json`
-  (first public version 0.1.0), re-runs `tools/lint-manager-version.js` and refuses to run if `tauri.conf.json` /
+  (first public version 1.0.0), re-runs `tools/lint-manager-version.js` and refuses to run if `tauri.conf.json` /
   `Cargo.toml` disagree, if `apps/krate-manager/CHANGELOG.md` has no entry for that version, or if the tag exists;
   tag `manager/v<ver>`; `bundle.js --release` builds each leg (no `tauri-action`: 1.0.0 writes `api.github.com`
   asset URLs and dropped the `tagName` rewrite, Phase 11 D4); `gh release upload`; `tools/gen-manager-latest.js`
@@ -907,7 +908,7 @@ Components:
 - 🆕 Remove for a plugin that has an install manifest but is no longer in the feed (an orphan manifest), driven by the manifest alone (Phase 9 Q8).
 - 🆕 **User-performed checks** (the user runs them on real machines; no agent can, and none runs in a gate), each
   recorded in `specs/krate-manager-phase12/` with date, OS build and screenshots or terminal output:
-  - macOS GUI install, on a Mac running Sequoia 15.x and one running Tahoe 26.x, after 0.1.0 is public (D17 R-POST-4,
+  - macOS GUI install, on a Mac running Sequoia 15.x and one running Tahoe 26.x, after 1.0.0 is public (D17 R-POST-4,
     Phase 12 spec revision 2026-11-03: no Mac before release; so is the macOS launcher check below, R-POST-5): download
     the manager pkg with a browser, double-click it, record whether Installer.app refuses it and whether Privacy & Security then offers
     "Open Anyway"; complete the install that way if offered, then run `xattr -l` on the installed `.app` and record
@@ -931,7 +932,7 @@ Components:
   installers stay listed beside it. It states the supported Windows floor, Windows 10 22H2 and Windows 11 x64 (Q6),
   which no `tauri.conf.json` key can carry (Phase 4 spec Non-goals). A redirected `%LOCALAPPDATA%` is unsupported on
   Windows: every elevated batch is refused with `E_HELPER_JOB_LOCATION` (Phase 10 D17).
-- 🆕 Release readiness for manager 0.1.0 (from `apps/krate-manager/version.json`): every Part B gate green on Windows
+- 🆕 Release readiness for manager 1.0.0 (from `apps/krate-manager/version.json`): every Part B gate green on Windows
   and every PENDING-CI row closed by a named green `manager-ci` / `release-manager` run, except the post-release rows listed in specs/krate-manager-phase12/spec.md D17 (Phase 11 SC-014's `publish` half and SC-020, Phase 12 R-POST-1 to R-POST-5), which the first real dispatch and the release after it close, and the Phase 2 backfill run
   live, so the live feed offers all nine plugins with `platforms` (no plugin re-release).
 - 🆕 Before every manager release, check the RustSec advisory database (https://rustsec.org/) for `rquickjs`, `rquickjs-core` and `rquickjs-sys`, the vendored QuickJS-ng PAC engine that Phase 5 pins for the macOS and Linux builds (R-15); an advisory is answered with a pin bump before the release.

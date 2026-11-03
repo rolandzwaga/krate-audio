@@ -622,9 +622,9 @@ SC-014 is the `check (ubuntu-24.04)` leg's "required tests ran" notice.
 |---|---|---|
 | SC-002 macOS / Linux, SC-012, SC-013, SC-014, SC-015, SC-011 Linux | `manager-ci.yml` `check (macos-latest)`, `check (ubuntu-24.04)` | "required tests ran" notice lists the Phase 12 names, each one passing line (`manager-ci.yml:279-310`) |
 | SC-024 | `check (windows-latest)`, `check (macos-latest)`, `check (ubuntu-24.04)`; `feed-tools.yml` `node-test` × 3 | green; TAP check `PLAN` and `# fail 0` |
-| SC-021 | `release-manager.yml` `dry_run: true`, job `preflight` | `::notice title=preflight::passed` with the committed 0.1.0 row |
+| SC-021 | `release-manager.yml` `dry_run: true`, job `preflight` | `::notice title=preflight::passed` with the committed 1.0.0 row |
 | SC-029 | `release-manager.yml` `dry_run: true`, job `landing-dry` | artifact `manager-landing-dry-run` `index.html` holds one `manager-card` with the four per-tag URLs of the dispatched version |
-| R-POST-1 | user, after the real dispatch | `https://krateaudio.com/` shows the card for 0.1.0 |
+| R-POST-1 | user, after the real dispatch | `https://krateaudio.com/` shows the card for 1.0.0 |
 | R-POST-2, R-POST-3 | user, after the next release | FR-075 |
 | R-POST-4, R-POST-5 | user, on a Mac after the real dispatch (spec revision 2026-11-03) | FR-073 on Sequoia and Tahoe, then T018 / T019; FR-074 (d), (e) |
 

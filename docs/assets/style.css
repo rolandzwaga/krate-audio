@@ -114,6 +114,71 @@ section h2 {
     font-weight: 500;
 }
 
+/* Krate Manager card: the full grid width, above the plugin cards */
+.manager-card {
+    grid-column: 1 / -1;
+    border-color: var(--color-accent);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, var(--color-surface) 60%);
+}
+
+.manager-card:hover {
+    transform: none;
+}
+
+.manager-card ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+}
+
+.manager-card ul a {
+    display: inline-block;
+    padding: 0.55rem 1.1rem;
+    background: var(--color-accent);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.manager-card ul a:hover {
+    background: var(--color-accent-hover);
+}
+
+.manager-card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 1.25rem 0 0.5rem;
+}
+
+.manager-card .supported-systems,
+.manager-card details p {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-bottom: 0.6rem;
+}
+
+.manager-card details {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.manager-card details summary {
+    cursor: pointer;
+    color: var(--color-accent-hover);
+    font-weight: 500;
+}
+
+.manager-card details a {
+    color: var(--color-accent-hover);
+}
+
 /* Footer */
 footer {
     text-align: center;
