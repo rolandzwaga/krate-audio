@@ -535,6 +535,7 @@ fn model_of_full_v2() {
             version_text: version.to_owned(),
             version: CoreVersion::parse(version),
             download_url: Some(PageUrl(format!("https://krateaudio.com/{lower}/"))),
+            description: None,
             release: Some(StableRelease {
                 pub_date: "2026-10-29T00:00:00Z".to_owned(),
                 release_notes_url: format!(

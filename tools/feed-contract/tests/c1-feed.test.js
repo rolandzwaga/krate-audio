@@ -98,6 +98,11 @@ const C1_ERROR_RULES = Object.freeze([
   'FR-014/dup-uninstall-key',
   'FR-014/dup-pkg-id',
   'FR-014/dup-vst3_bundle-casefold',
+  // Krate Manager Phase 12 (spec FR-112): the optional one-line description.
+  'Phase12/description-type',
+  'Phase12/description-empty',
+  'Phase12/description-line-break',
+  'Phase12/description-121',
 ]);
 
 // plan §4.7, the valid ids listed under the table (FR-055's valid minimum set plus FR-014's sibling row).
@@ -114,6 +119,8 @@ const C1_VALID_RULES = Object.freeze([
   'FR-014/sibling-same-install',
   // Krate Manager Phase 3 (spec FR-045, plan PD-14): the mixed one-v2 / eight-v1 feed, built by fixtures/phase3/.
   'Phase3/one-v2-eight-v1',
+  // Krate Manager Phase 12 (spec FR-112).
+  'Phase12/description',
 ]);
 
 const C1_RULES = Object.freeze([...C1_ERROR_RULES, ...C1_VALID_RULES]);

@@ -9,6 +9,7 @@
       "pub_date": "2026-10-01T12:00:00Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.1.0",
+      "description": "Krate fixture plugin Alpha",
       "notes_markdown": "### Fixed\n\n- Fixture fix number 1.",
       "prerelease": {
         "tag": "alpha/v1.2.0-beta.1",

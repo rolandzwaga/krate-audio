@@ -8,7 +8,8 @@
       "tag": "disrumpo/v0.9.10",
       "pub_date": "2026-10-10T08:02:58Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/disrumpo/v0.9.10"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/disrumpo/v0.9.10",
+      "description": "VST3 Multiband Morphing Distortion Plugin"
     },
     "Gradus": {
       "version": "1.10.2",
@@ -17,7 +18,8 @@
       "tag": "gradus/v1.10.2",
       "pub_date": "2026-10-29T20:45:19Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.2"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.2",
+      "description": "VST3 Step Arpeggiator"
     },
     "Innexus": {
       "version": "1.0.4",
@@ -26,7 +28,8 @@
       "tag": "innexus/v1.0.4",
       "pub_date": "2026-10-29T21:55:06Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/innexus/v1.0.4"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/innexus/v1.0.4",
+      "description": "VST3 Harmonic Analysis & Synthesis Engine"
     },
     "Iterum": {
       "version": "1.0.0",
@@ -35,7 +38,8 @@
       "tag": "iterum/v1.0.0",
       "pub_date": "2026-10-29T20:08:19Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/iterum/v1.0.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/iterum/v1.0.0",
+      "description": "VST3 MultiMode Delay Plugin"
     },
     "Membrum": {
       "version": "0.12.2",
@@ -45,6 +49,7 @@
       "pub_date": "2026-10-26T22:50:47Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.2",
+      "description": "VST3 Synthesized Drum Machine",
       "platforms": {
         "darwin-universal": {
           "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.2/Membrum-0.12.2-macOS.pkg",
@@ -90,7 +95,8 @@
       "tag": "profundum/v1.0.0",
       "pub_date": "2026-10-27T22:28:01Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/profundum/v1.0.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/profundum/v1.0.0",
+      "description": "VST3 Mass Bass Instrument"
     },
     "Ruinae": {
       "version": "0.12.3",
@@ -99,7 +105,8 @@
       "tag": "ruinae/v0.12.3",
       "pub_date": "2026-10-29T20:35:28Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/ruinae/v0.12.3"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/ruinae/v0.12.3",
+      "description": "VST3 Chaos/Spectral Hybrid Synthesizer"
     },
     "Seraphis": {
       "version": "1.0.3",
@@ -108,7 +115,8 @@
       "tag": "seraphis/v1.0.3",
       "pub_date": "2026-10-29T21:04:05Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.3"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.3",
+      "description": "VST3 Spectral Organism Synthesizer"
     },
     "Vorago": {
       "version": "1.0.2",
@@ -117,7 +125,8 @@
       "tag": "vorago/v1.0.2",
       "pub_date": "2026-10-29T21:25:25Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.2"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.2",
+      "description": "VST3 Dark-Ambient Drone Instrument"
     }
   }
 }

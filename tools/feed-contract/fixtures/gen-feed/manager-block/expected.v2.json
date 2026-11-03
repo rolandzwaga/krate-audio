@@ -9,6 +9,7 @@
       "pub_date": "2026-10-01T12:00:00Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.2.0",
+      "description": "Krate fixture plugin Alpha",
       "platforms": {
         "darwin-aarch64": {
           "url": "https://github.com/rolandzwaga/krate-audio/releases/download/alpha/v1.2.0/Alpha-1.2.0-macOS.pkg",
@@ -53,7 +54,8 @@
       "tag": "bravo/v1.0.0",
       "pub_date": "2026-10-02T12:00:00Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v1.0.0"
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v1.0.0",
+      "description": "Krate fixture plugin Bravo"
     }
   },
   "manager": {

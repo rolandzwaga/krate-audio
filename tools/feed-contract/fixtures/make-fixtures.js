@@ -430,6 +430,11 @@ const C1_INVALID = [
     // PD-13: ALPHA (Linux only, so its only install name is vst3_bundle) next to Alpha; ALPHA.vst3 folds to Alpha.vst3.
     (d, p) => (p.ALPHA = entryFor('ALPHA', '1.2.0', { keys: ['linux-x86_64'] })),
   ],
+  // Krate Manager Phase 12 (spec FR-112): the optional one-line description.
+  ['Phase12/description-type', '/plugins/Alpha/description type', (d, p) => (p.Alpha.description = 7)],
+  ['Phase12/description-empty', '/plugins/Alpha/description pattern', (d, p) => (p.Alpha.description = '')],
+  ['Phase12/description-line-break', '/plugins/Alpha/description pattern', (d, p) => (p.Alpha.description = 'Multi-Mode\nDelay')],
+  ['Phase12/description-121', '/plugins/Alpha/description pattern', (d, p) => (p.Alpha.description = 'x'.repeat(121))],
 ];
 
 const TENTH_NAMES = Object.freeze(['Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliet']);
@@ -518,6 +523,16 @@ const C1_VALID = [
       (d, p) =>
         (p.Bravo.prerelease = siblingFor('Bravo', '2.1.0-beta.1', { keys: BRAVO_KEYS, install: { ...p.Bravo.install } })),
     ),
+    'accept',
+  ],
+  [
+    // Krate Manager Phase 12 (spec FR-112): markup characters are text; 120 non-ASCII characters is the longest.
+    'Phase12/description',
+    'description',
+    changed((d, p) => {
+      p.Alpha.description = 'Multi-Mode Delay & <Echo>';
+      p.Bravo.description = 'ü'.repeat(120);
+    }),
     'accept',
   ],
 ];

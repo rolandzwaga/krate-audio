@@ -61,6 +61,12 @@
     "expect": "accept"
   },
   {
+    "rule": "Phase12/description",
+    "file": "valid/description.json",
+    "schema": "v2",
+    "expect": "accept"
+  },
+  {
     "rule": "FR-001/malformed-json",
     "file": "invalid/malformed-json.json",
     "schema": "v2",
@@ -690,6 +696,38 @@
     "schema": "v2",
     "expect": {
       "error": "E_INSTALL_DUPLICATE"
+    }
+  },
+  {
+    "rule": "Phase12/description-type",
+    "file": "invalid/description-type.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/description type"
+    }
+  },
+  {
+    "rule": "Phase12/description-empty",
+    "file": "invalid/description-empty.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/description pattern"
+    }
+  },
+  {
+    "rule": "Phase12/description-line-break",
+    "file": "invalid/description-line-break.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/description pattern"
+    }
+  },
+  {
+    "rule": "Phase12/description-121",
+    "file": "invalid/description-121.json",
+    "schema": "v2",
+    "expect": {
+      "error": "/plugins/Alpha/description pattern"
     }
   },
   {

@@ -42,6 +42,11 @@ const {
   parseSemVer,
   validateFeed,
 } = require('./feed-contract/contract.js');
+// Krate Manager Phase 12 FR-112: the C1 description rule, read from the schema so the check and the schema never drift.
+const DESCRIPTION_RE = new RegExp(
+  require('./feed-contract/versions.v2.schema.json').$defs.entry.properties.description.pattern,
+  'u',
+);
 
 const USAGE = [
   'usage: node tools/gen-feed.js --plugins-dir <dir> --releases <file> --manifests <dir> --repo <owner/name>',
@@ -376,6 +381,15 @@ function checkPluginInputs(plugins) {
         field: 'url',
       });
     }
+    const description = versionJson.description;
+    if (description !== undefined && (typeof description !== 'string' || !DESCRIPTION_RE.test(description))) {
+      throw new ContractError(
+        'E_INPUT',
+        `${file}: plugin ${name}: "description" ${show(description)} is not one line of 1 to 120 characters without a ` +
+          'control character',
+        { plugin: name, file, field: 'description' },
+      );
+    }
     const lower = name.toLowerCase();
     if (byLowerName.has(lower)) {
       const other = byLowerName.get(lower);
@@ -558,6 +572,8 @@ function assembleEntry({ plugin, stable, sibling, stableManifest, siblingManifes
     channel: 'stable',
     release_notes_url: releaseNotesUrl(repo, stable.tagName),
   };
+  // FR-112: the plugin's own line, checked in step 1; on the entry only, never the sibling.
+  if (typeof plugin.versionJson.description === 'string') entry.description = plugin.versionJson.description;
   const notes = cutChangelogSection(plugin.changelog, stable.version);
   if (notes !== undefined) entry.notes_markdown = notes;
   let prerelease;

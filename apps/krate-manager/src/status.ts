@@ -506,8 +506,9 @@ function renderCard(os: OsName, p: PluginView, host: CardHost): HTMLElement {
   card.className = "plugin";
   const name = document.createElement("h2");
   name.textContent = p.name;
+  card.append(name);
+  if (p.description !== null) card.append(paragraph("description", p.description));
   card.append(
-    name,
     paragraph("installed", fill(STATUS_TEXTS.installedLine, { installed: installedText(p) })),
     paragraph("latest", fill(STATUS_TEXTS.latestLine, { latest: p.latest })),
   );

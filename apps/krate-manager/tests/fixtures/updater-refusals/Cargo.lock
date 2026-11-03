@@ -2057,7 +2057,7 @@ dependencies = [
 
 [[package]]
 name = "krate-manager"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "krate-manager-core",
  "log",
@@ -2074,7 +2074,7 @@ dependencies = [
 
 [[package]]
 name = "krate-manager-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "base64 0.23.1",
  "core-foundation",

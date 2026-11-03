@@ -287,6 +287,11 @@ field by field against FR-043. They add byte stability (SC-012); correctness is 
 - case `snapshot-2026-10-29`: nine v1-only entries (no manifests), each `version` equal to `live-versions.json`, `tag`
   `<dir>/v<version>`, `pub_date` the release's `publishedAt` (Membrum `membrum/v0.12.2`, `2026-10-26T22:50:47Z`, checked
   against `releases.json`).
+- 2026-11-03, Krate Manager Phase 12 FR-112: every `expected.v2.json` (clean, prerelease and degrade cases) gained one
+  key per entry whose `version.json` has a `description`: `description`, that text, right after `release_notes_url`.
+  The goldens were edited by inserting exactly that key into the reviewed files (no other byte changed), and gen-feed's
+  output was then checked equal to them; the legacy goldens are unchanged. The feed rows `Phase12/description*` in
+  `feeds/cases.json` cover the C1 rule.
 
 Read by: Phase 1 `tests/gen-feed-v2.test.js` (SC-002, SC-003, SC-011, SC-012), `tests/gen-feed-errors.test.js` (T016:
 SC-022 to SC-025, SC-027 read `pre-plain`, `pre-plain-promoted`, `clean-version-ahead`, `pre-newer`,

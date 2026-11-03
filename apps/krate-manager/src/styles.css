@@ -274,6 +274,12 @@ div.update-all,
   line-height: 1.3;
 }
 
+/* Phase 12 FR-112: the feed's one-line description, under the name. */
+.plugin .description {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
 .plugin .installed {
   font-size: 0.95rem;
 }
