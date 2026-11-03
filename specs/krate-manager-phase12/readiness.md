@@ -173,6 +173,7 @@ Pasted from `node tools/manager-readiness-counts.js --specs specs --roadmap spec
 
 | record | run URL | commit | versions.json summary (entries with `install`, `windows-x86_64`, `linux-x86_64`, `darwin-*`) | date (UTC) | verdict |
 |---|---|---|---|---|---|
+| FR-103: live `backfill-sign.yml` (after the green dry run 41600605893; job `Apply (live)` ran, every release already signed by `release.yml` after the 2026-11-02 universal-AUv3 re-release) and the user's read of `https://krateaudio.com/versions.json` | https://github.com/rolandzwaga/krate-audio/actions/runs/41641554059 | 255b3835 | 9 plugin entries, 9 with `install`, `windows-x86_64`, `linux-x86_64` and `darwin-universal`: Disrumpo 0.9.11, Gradus 1.10.3, Innexus 1.0.5, Iterum 1.0.1, Membrum 0.12.3, Profundum 1.0.1, Ruinae 0.12.4, Seraphis 1.0.4, Vorago 1.0.3 (printed by the user, 2026-11-03) | 2026-11-03 | green |
 
 ## RustSec
 
