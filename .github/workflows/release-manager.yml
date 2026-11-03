@@ -1116,7 +1116,8 @@ jobs:
           manifest() { (cd "$app" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256); }
           manifest > "$RUNNER_TEMP/manifest-before.txt"
           # Diagnostics (R-5, 2026-11-03): the first dry run saw SecurityAgent but never got the error marker. The
-          # timeline records, each second, the SecurityAgent and app PIDs, the request count and the markers.
+          # timeline records, each second, the SecurityAgent and app PIDs, the request count and the markers. It showed
+          # one SecurityAgent alive through all 30 SIGTERMs (run 41625257363); kept until the SIGKILL cancel is measured.
           t0=$(date +%s)
           timeline="$RUNNER_TEMP/pkg-timeline.txt"
           : > "$timeline"
@@ -1136,14 +1137,16 @@ jobs:
           for _ in $(seq 1 30); do
             snap cancel
             if [ -f "$marker/error-E_SELF_UPDATE_INSTALL" ]; then break; fi
-            sudo pkill -x SecurityAgent || true
+            # SIGKILL: SecurityAgent defers SIGTERM while it holds XPC transactions ("Remaining transactions after
+            # SIGTERM: 2"), so a plain pkill left the prompt up.
+            sudo pkill -KILL -x SecurityAgent || true
             sleep 1
           done
           snap after-cancel
           echo "::notice title=$leg diag SecurityAgent at seen::seen=$seen accepted=$accepted ps(pid etime command)=${sa_ps:-none}"
           echo "::notice title=$leg diag timeline::$(uniq -f 2 "$timeline" | tr '\n' '|')"
           applog=$(find "$HOME/Library" -maxdepth 5 -name krate-manager.log 2> /dev/null | head -n 1 || true)
-          echo "::notice title=$leg diag app log ${applog:-missing}::$( [ -n "$applog" ] && tail -n 25 "$applog" | tr '\n' '|' || true)"
+          echo "::notice title=$leg diag app log::file=${applog:-missing}|$( [ -n "$applog" ] && tail -n 25 "$applog" | tr '\n' '|' || true)"
           echo "::notice title=$leg diag authd::$(log show --last 3m --style compact --predicate 'process == "authd" OR process == "SecurityAgent"' 2> /dev/null | tail -n 25 | tr '\n' '|' || true)"
           bad=()
           if [ "$accepted" = "1" ]; then bad+=("accepted without a prompt: launched-$E2E_NEW appeared"); fi
@@ -1165,7 +1168,7 @@ jobs:
           sleep 12
           if ! pgrep -f "$app/Contents/MacOS/krate-manager" > /dev/null; then bad+=("the old app no longer launches"); fi
           pkill -f "$app/Contents/MacOS/krate-manager" || true
-          sudo pkill -x SecurityAgent || true
+          sudo pkill -KILL -x SecurityAgent || true
           for b in ${bad[@]+"${bad[@]}"}; do echo "::error title=$leg::$b"; done
           if [ "${#bad[@]}" -gt 0 ]; then exit 1; fi
           echo "::notice title=$leg::prompt seen and cancelled; E_SELF_UPDATE_INSTALL; bundle unchanged at $E2E_OLD; still launches"

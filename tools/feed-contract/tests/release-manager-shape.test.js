@@ -711,7 +711,8 @@ function checkE2e(wf, bad) {
   const pkg = named(steps, 'case pkg-installed')[0];
   if (pkg) {
     const run = runText(pkg);
-    for (const piece of ['pgrep -x SecurityAgent', 'sudo pkill -x SecurityAgent', 'error-E_SELF_UPDATE_INSTALL', 'sudo installer -pkg']) {
+    // SIGKILL: SecurityAgent defers SIGTERM while it holds XPC transactions, so the prompt stayed up (run 41625257363).
+    for (const piece of ['pgrep -x SecurityAgent', 'sudo pkill -KILL -x SecurityAgent', 'error-E_SELF_UPDATE_INSTALL', 'sudo installer -pkg']) {
       if (!run.includes(piece)) bad.push(`updater-e2e: case pkg-installed lacks ${piece} (PD-13)`);
     }
   }
