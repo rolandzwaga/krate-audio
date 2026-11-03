@@ -315,6 +315,10 @@ fn release_url(entry: &PluginEntry) -> Option<String> {
     entry.release.as_ref().map(|r| r.release_notes_url.clone())
 }
 
+fn page_url(entry: &PluginEntry) -> Option<String> {
+    entry.download_url.as_ref().map(|u| u.as_str().to_owned())
+}
+
 fn inno_host(values: InnoValues) -> FakeHostFacts {
     FakeHostFacts {
         inno: BTreeMap::from([(ALPHA_KEY.to_owned(), RecordRead::Found(values))]),
@@ -1071,6 +1075,7 @@ fn duplicates_in_two_roots() {
             record_without_files: false,
             record_version_differs: false,
             release_page_url: release_url(&alpha),
+            plugin_page_url: page_url(&alpha),
             notes: notes_of(&alpha),
             actions: Vec::new(),
             remove_hint: None,
@@ -1100,6 +1105,7 @@ fn duplicates_in_two_roots() {
             record_without_files: false,
             record_version_differs: false,
             release_page_url: release_url(&bravo),
+            plugin_page_url: page_url(&bravo),
             notes: notes_of(&bravo),
             actions: Vec::new(),
             remove_hint: None,

@@ -101,6 +101,7 @@ function toNotes(value: unknown): readonly Block[] {
     record_without_files: false,
     record_version_differs: false,
     release_page_url: null,
+    plugin_page_url: null,
     notes: value,
     actions: [],
     remove_hint: null,

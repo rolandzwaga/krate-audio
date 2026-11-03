@@ -86,6 +86,8 @@ export interface PluginView {
   readonly record_without_files: boolean;
   readonly record_version_differs: boolean;
   readonly release_page_url: string | null;
+  /** Phase 12 FR-088: the plugin's krateaudio.com page. */
+  readonly plugin_page_url: string | null;
   readonly notes: readonly Block[];
   readonly actions: readonly ActionName[];
   readonly remove_hint: RemoveHint | null;
@@ -290,6 +292,7 @@ function toPlugin(value: unknown, path: string): PluginView {
     "record_without_files",
     "record_version_differs",
     "release_page_url",
+    "plugin_page_url",
     "notes",
     "actions",
     "remove_hint",
@@ -308,6 +311,7 @@ function toPlugin(value: unknown, path: string): PluginView {
     record_without_files: boolean(o["record_without_files"], `${path}.record_without_files`),
     record_version_differs: boolean(o["record_version_differs"], `${path}.record_version_differs`),
     release_page_url: nullableString(o["release_page_url"], `${path}.release_page_url`),
+    plugin_page_url: nullableString(o["plugin_page_url"], `${path}.plugin_page_url`),
     notes: array(o["notes"], `${path}.notes`, toBlock),
     actions: array(o["actions"], `${path}.actions`, (item, at) => oneOf(item, at, ACTION_NAMES)),
     remove_hint: nullableOneOf(o["remove_hint"], `${path}.remove_hint`, REMOVE_HINTS),

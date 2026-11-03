@@ -29,6 +29,11 @@ use std::sync::Arc;
 
 const FEED_URL: &str = "https://krateaudio.com/versions.json";
 
+/// Phase 12 FR-088: a plugin page opens only on the production feed's host.
+pub(crate) fn plugin_page_host() -> String {
+    krate_manager_core::status::url_host(FEED_URL).unwrap_or_default()
+}
+
 /// Phase 10 PD-23: the one construction of `NativeElevation`, the helper resolved beside `exe` once (FR-090).
 pub fn resolve_elevation(exe: Option<&Path>) -> os_elevation::NativeElevation {
     os_elevation::NativeElevation::new(install::helper_beside(

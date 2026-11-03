@@ -15,3 +15,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Linux settings screen: choose the plug-in folder (or go back to the default `~/.vst3`) and turn on a graphics
   workaround for a blank or flickering window, which takes effect at the next start.
 - Remove for a plug-in that Krate Manager installed on Linux but that the plug-in list no longer names.
+- An "Open plugin page" button on every plug-in card, next to "Open release page": it opens the plug-in's page on
+  krateaudio.com.

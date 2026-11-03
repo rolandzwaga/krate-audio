@@ -59,6 +59,7 @@ export const STATUS_TEXTS = {
   recordVersionDiffers: "The installer's record says {record}; the installed files say {installed}.",
   recordError: "The installer's record could not be read ({code}).",
   openReleasePage: "Open release page",
+  openPluginPage: "Open plugin page",
   releaseNotes: "Release notes",
   noReleaseNotes: "No release notes.",
   feedFresh: "Checked {time}",
@@ -73,6 +74,7 @@ export const ACTION_TEXTS = {
   pending: "Checking for plugins…",
   checking: "Checking…",
   openFailed: "Could not open the release page: {text}",
+  openPluginPageFailed: "Could not open the plugin page: {text}",
 } as const satisfies Record<string, string>;
 
 /** The FR-097 to FR-099 action texts: buttons, the in-card confirmation, progress and the outcome lines. */
@@ -279,8 +281,17 @@ function noticeTexts(p: PluginView): string[] {
  * "Download the new .deb" is this button with its own `label`.
  */
 export function releaseButton(url: string, invoke: Invoker, label: string = STATUS_TEXTS.openReleasePage): HTMLButtonElement {
+  return openButton(url, invoke, label, "open-release", ACTION_TEXTS.openFailed);
+}
+
+/** Phase 12 FR-088: the `Open plugin page` button, through the same command as the release page. */
+function pluginPageButton(url: string, invoke: Invoker): HTMLButtonElement {
+  return openButton(url, invoke, STATUS_TEXTS.openPluginPage, "open-plugin-page", ACTION_TEXTS.openPluginPageFailed);
+}
+
+function openButton(url: string, invoke: Invoker, label: string, className: string, failed: string): HTMLButtonElement {
   const button = document.createElement("button");
-  button.className = "open-release";
+  button.className = className;
   button.textContent = label;
   let error: HTMLParagraphElement | null = null;
   async function open(): Promise<void> {
@@ -291,7 +302,7 @@ export function releaseButton(url: string, invoke: Invoker, label: string = STAT
       error?.remove();
       error = null;
     } catch (reason) {
-      const text = fill(ACTION_TEXTS.openFailed, { text: rejectionText(reason) });
+      const text = fill(failed, { text: rejectionText(reason) });
       if (error === null) {
         error = paragraph("open-error", text);
         button.after(error);
@@ -513,6 +524,7 @@ function renderCard(os: OsName, p: PluginView, host: CardHost): HTMLElement {
   for (const notice of noticeTexts(p)) card.append(paragraph("record-notice", notice));
   if (p.remove_hint !== null) card.append(paragraph("remove-hint", INSTALL_TEXTS.removeElsewhere));
   if (p.release_page_url !== null) card.append(releaseButton(p.release_page_url, host.invoke));
+  if (p.plugin_page_url !== null) card.append(pluginPageButton(p.plugin_page_url, host.invoke));
   const details = document.createElement("details");
   const target: RowTarget = {
     name: p.name,

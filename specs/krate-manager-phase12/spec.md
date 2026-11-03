@@ -622,6 +622,14 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   The app icons (`src-tauri/icons/`, the same 16 files: window, taskbar, Dock and installer) are generated from the
   site favicon by `npx tauri icon docs/assets/favicon.svg` in place of Tauri's default; its iOS / Android output and
   extra 64x64 are not kept.
+- **FR-088** (spec revision 2026-11-03, Clarifications R-4) Every plugin card whose feed entry has a `download_url`
+  on krateaudio.com shows an `Open plugin page` button after `Open release page`; it opens that page (Vorago:
+  `https://krateaudio.com/vorago/`) in the browser. The core carries it as `PluginView.plugin_page_url`, accepted by
+  FR-049's rule without its host (`https`, no user name, no password, no port, at most 2048 bytes);
+  `open_release_page` opens a release page or a plugin page on the feed URL's host (`status::open_url`, the host
+  `url_host(FEED_URL)` in `src-tauri/src/lib.rs`, so FR-021 holds: the production host stays out of the core and
+  appears once in `src-tauri/src`) and refuses anything else with `E_OPEN_REJECTED`. A failed open shows
+  `Could not open the plugin page: <code>`. No new command, no `<a>`.
 
 ### H. Release readiness for manager 0.1.0 (roadmap lines 931-934; Q10; D14, D17)
 
@@ -923,6 +931,15 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   the `src` line, an `@import` or a `url()` in `src/styles.css` is still reported; `real_src_tauri_config_passes_the_guard`
   on the real tree; `npm run build` emits `dist/fonts/InterVariable.woff2` and a stylesheet whose only `url(` is
   `/fonts/InterVariable.woff2`. USER: the installed manager shows the dark site palette in Inter.
+- **SC-035 (the plugin page button, FR-088).** `status::tests::plugin_page_url_cases`: an `https` page passes
+  (host lower-cased, `:443` dropped, 2048 bytes), `http`, a user name, a password, another port and 2049 bytes are
+  refused; `open_url` passes a release page and a plugin page on the given host, and refuses another host, a
+  subdomain, an empty host and every refused shape; `url_host` reads the feed URL's host; every card of
+  `full-v2.json` and `v1-only.json` carries its `download_url`. The status goldens hold `plugin_page_url`.
+  `injection.rs` `core_sources_hold_no_production_literal` and the one-`krateaudio.com`-in-`src-tauri/src` check
+  stay green.
+  `status.test.ts`: every golden card shows `Open plugin page` iff it has the URL, the click invokes
+  `open_release_page` with it, a rejection shows the plugin-page text. USER: the button opens the plugin's page.
 
 ---
 
@@ -1077,6 +1094,7 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
 | FR-085 | SC-029 (shape, PENDING-CI `landing-dry`, POST-RELEASE R-POST-1) |
 | FR-086 | SC-029 (`workflow-shape.test.js`) |
 | FR-087 | SC-034 |
+| FR-088 | SC-035 |
 | FR-090 | SC-026 |
 | FR-100 | SC-020, SC-028 |
 | FR-101 | SC-024 |
@@ -1205,3 +1223,5 @@ Every question of the clarify scan was decided by the user; each line ends with 
 - R-3: The manager looked nothing like the website. → A: The user asked for the website's look and feel and chose to
   bundle Inter over a system-font fallback (the CSP allows only same-origin fonts). FR-077's ban gains the two Inter
   lines in `src/styles.css` as its only exception. [FR-087, SC-034]
+- R-4: The cards linked only to the GitHub release page. → A: The user asked for a link to the plugin's page too
+  (Vorago: `https://krateaudio.com/vorago/`); the feed's `download_url` already holds it. [FR-088, SC-035]

@@ -298,7 +298,8 @@ div.update-all,
   overflow-wrap: anywhere;
 }
 
-.plugin .open-release {
+.plugin .open-release,
+.plugin .open-plugin-page {
   align-self: flex-start;
 }
 
