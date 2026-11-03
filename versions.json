@@ -9,6 +9,7 @@
       "pub_date": "2026-11-02T20:59:10Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/disrumpo/v0.9.11",
+      "description": "Multiband Morphing Distortion",
       "notes_markdown": "### Added\n\n- **Version in the editor** — The plugin version is shown in the top bar, next to the Check for Updates button.\n\n### Fixed\n\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Disrumpo AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
       "platforms": {
         "darwin-universal": {
@@ -54,6 +55,7 @@
       "pub_date": "2026-11-02T21:47:54Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.3",
+      "description": "Step Arpeggiator",
       "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Gradus AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
       "platforms": {
         "darwin-universal": {
@@ -99,6 +101,7 @@
       "pub_date": "2026-11-02T21:35:20Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/innexus/v1.0.5",
+      "description": "Harmonic Analysis & Synthesis Engine",
       "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Innexus AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
       "platforms": {
         "darwin-universal": {
@@ -144,6 +147,7 @@
       "pub_date": "2026-11-02T20:36:33Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/iterum/v1.0.1",
+      "description": "Multi-Mode Delay",
       "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Iterum AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
       "platforms": {
         "darwin-universal": {
@@ -189,6 +193,7 @@
       "pub_date": "2026-11-02T22:00:24Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.3",
+      "description": "Synthesized Drum Machine",
       "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Membrum AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.",
       "platforms": {
         "darwin-universal": {
@@ -235,6 +240,7 @@
       "pub_date": "2026-11-02T23:10:15Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/profundum/v1.0.1",
+      "description": "Mass Bass Instrument",
       "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Profundum AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.",
       "platforms": {
         "darwin-universal": {
@@ -280,6 +286,7 @@
       "pub_date": "2026-11-02T21:21:56Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/ruinae/v0.12.4",
+      "description": "Chaos/Spectral Hybrid Synthesizer",
       "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Ruinae AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
       "platforms": {
         "darwin-universal": {
@@ -325,6 +332,7 @@
       "pub_date": "2026-11-02T22:24:05Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.4",
+      "description": "Spectral Organism Synthesizer",
       "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Seraphis AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
       "platforms": {
         "darwin-universal": {
@@ -370,6 +378,7 @@
       "pub_date": "2026-11-02T22:44:38Z",
       "channel": "stable",
       "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.3",
+      "description": "Dark-Ambient Drone Instrument",
       "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Vorago AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
       "platforms": {
         "darwin-universal": {
