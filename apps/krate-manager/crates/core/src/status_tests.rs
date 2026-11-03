@@ -1400,6 +1400,73 @@ fn release_page_url_cases() {
     }
 }
 
+// ---- Phase 12 SC-035 ----------------------------------------------------------------------------------------------
+
+#[test]
+fn plugin_page_url_cases() {
+    let accepted = [
+        (
+            "https://krateaudio.com/vorago/",
+            "https://krateaudio.com/vorago/",
+        ),
+        ("https://KrateAudio.com/x", "https://krateaudio.com/x"),
+        ("https://krateaudio.com:443/x", "https://krateaudio.com/x"),
+    ];
+    for (text, want) in accepted {
+        assert_eq!(plugin_page_url(text).as_deref(), Some(want), "{text}");
+    }
+    let long = format!(
+        "https://krateaudio.com/{}",
+        "a".repeat(2049 - "https://krateaudio.com/".len())
+    );
+    assert_eq!(long.len(), 2049);
+    let refused = [
+        "http://krateaudio.com/x",
+        "https://krateaudio.com.example.test/x",
+        "https://www.krateaudio.com/x",
+        "https://example.test/krateaudio.com",
+        "https://user@krateaudio.com/x",
+        "https://user:secret@krateaudio.com/x",
+        "https://krateaudio.com:8443/x",
+        "javascript:alert(1)",
+        "",
+        long.as_str(),
+    ];
+    for text in refused {
+        assert_eq!(plugin_page_url(text), None, "{text}");
+        assert_ne!(
+            open_url(text).as_deref(),
+            Some(text),
+            "open_url passes {text}"
+        );
+    }
+    assert_eq!(plugin_page_url("https://github.com/example/x"), None);
+    // The open command takes either page; nothing else.
+    for page in [
+        "https://krateaudio.com/vorago/",
+        "https://github.com/example/repo/releases/tag/alpha/v1.2.0",
+    ] {
+        assert_eq!(open_url(page).as_deref(), Some(page), "{page}");
+    }
+    assert_eq!(open_url("https://example.test/x"), None);
+
+    // Through `assemble`: each card's page is its `download_url`, in a v2 and a v1 feed alike.
+    for fixture in [FULL, V1_ONLY] {
+        let view = assemble(
+            Os::Windows,
+            Arch::X86_64,
+            &fresh(parsed(fixture)),
+            None,
+            &BTreeMap::new(),
+        );
+        assert_eq!(view.plugins.len(), 3, "{fixture}");
+        for p in &view.plugins {
+            let want = format!("https://krateaudio.com/{}/", p.name.to_lowercase());
+            assert_eq!(p.plugin_page_url, Some(want), "{fixture}: {p:?}");
+        }
+    }
+}
+
 // ---- Phase 9 SC-016 -----------------------------------------------------------------------------------------------
 
 /// The feed version of every `actions_per_state` row.

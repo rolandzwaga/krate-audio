@@ -231,8 +231,11 @@ for (const [scenario, golden] of GOLDENS) {
       expect(texts(c, ":scope > p.state")).toEqual(state === null ? [] : [state]);
       expect(texts(c, ":scope > ul.copies > li")).toEqual(p.copies.map(copyText));
       expect(texts(c, ":scope > p.record-notice")).toEqual(noticeTexts(p));
-      // Read-only (roadmap line 574): the release page button is the card's only control.
-      expect(texts(c, "button")).toEqual(p.release_page_url === null ? [] : ["Open release page"]);
+      // Read-only (roadmap line 574): the release page and plugin page buttons are the card's only controls.
+      expect(texts(c, "button")).toEqual([
+        ...(p.release_page_url === null ? [] : ["Open release page"]),
+        ...(p.plugin_page_url === null ? [] : ["Open plugin page"]),
+      ]);
       const details = only(c, ":scope > details.notes", HTMLDetailsElement);
       expect(details.open).toBe(false);
       expect(details.firstElementChild?.tagName.toLowerCase()).toBe("summary");
@@ -353,6 +356,46 @@ test("open release page shows a rejection", async () => {
   expect(c.querySelector("p.open-error")).toBeNull();
 });
 
+// Phase 12 SC-035 (FR-088): every card the feed gives a krateaudio.com page opens it through the same command.
+test("renders the open plugin page button", () => {
+  const { view, holder } = elsewhereCards();
+  expect(view.plugins.length).toBeGreaterThan(0);
+  for (const p of view.plugins) {
+    expect(p.plugin_page_url?.endsWith(`/${p.name.toLowerCase()}/`)).toBe(true);
+    expect(texts(card(holder, p.name), "button.open-plugin-page")).toEqual(["Open plugin page"]);
+  }
+  const none = document.createElement("div");
+  none.append(...renderCards(viewOf("windows", [{}]), invoke));
+  expect(none.querySelectorAll("button.open-plugin-page").length).toBe(0);
+});
+
+test("open plugin page calls open_release_page with the plugin page", async () => {
+  const { view, holder } = elsewhereCards();
+  const p = withUrl(view);
+  const calls: [string, unknown][] = [];
+  mockIPC((cmd, payload) => {
+    calls.push([cmd, payload]);
+    if (cmd === "open_release_page") return null;
+    throw new Error(`unexpected command ${cmd}`);
+  });
+  only(card(holder, p.name), "button.open-plugin-page", HTMLButtonElement).click();
+  await settle();
+  expect(calls).toEqual([["open_release_page", { url: p.plugin_page_url }]]);
+});
+
+test("open plugin page shows a rejection", async () => {
+  const { view, holder } = elsewhereCards();
+  const p = withUrl(view);
+  mockIPC((cmd) => {
+    if (cmd !== "open_release_page") throw new Error(`unexpected command ${cmd}`);
+    throw new Error("E_OPEN_REJECTED");
+  });
+  const c = card(holder, p.name);
+  only(c, "button.open-plugin-page", HTMLButtonElement).click();
+  await settle();
+  expect(texts(c, "p.open-error")).toEqual(["Could not open the plugin page: E_OPEN_REJECTED"]);
+});
+
 // SC-034 / FR-078: the needles are built by concatenation so this file never holds one literally.
 const NAVIGATION_NEEDLES = [
   "window." + "open",
@@ -408,6 +451,7 @@ function pluginJson(fields: Readonly<Record<string, unknown>>): Record<string, u
     record_without_files: false,
     record_version_differs: false,
     release_page_url: null,
+    plugin_page_url: null,
     notes: [],
     actions: [],
     remove_hint: null,

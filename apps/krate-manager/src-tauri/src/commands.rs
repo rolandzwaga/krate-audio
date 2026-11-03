@@ -61,7 +61,7 @@ async fn status_for(state: &SharedState, mode: FetchMode) -> Result<StatusView, 
 
 #[tauri::command]
 pub fn open_release_page(url: String) -> Result<(), String> {
-    let Some(valid) = status::release_page_url(&url) else {
+    let Some(valid) = status::open_url(&url) else {
         return Err("E_OPEN_REJECTED".to_owned());
     };
     tauri_plugin_opener::open_url(valid, None::<&str>).map_err(|e| format!("E_OPEN_FAILED: {e}"))

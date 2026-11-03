@@ -48,6 +48,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/alpha/v1.2.0",
+      "plugin_page_url": "https://krateaudio.com/alpha/",
       "notes": [
         {
           "type": "heading",
@@ -108,6 +109,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/bravo/v2.0.1",
+      "plugin_page_url": "https://krateaudio.com/bravo/",
       "notes": [],
       "actions": [],
       "remove_hint": null
@@ -139,6 +141,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/charlie/v0.9.0",
+      "plugin_page_url": "https://krateaudio.com/charlie/",
       "notes": [],
       "actions": [],
       "remove_hint": null
@@ -170,6 +173,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/delta/v0.1.0",
+      "plugin_page_url": "https://krateaudio.com/delta/",
       "notes": [],
       "actions": [],
       "remove_hint": null
@@ -188,6 +192,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/echo/v0.2.0",
+      "plugin_page_url": "https://krateaudio.com/echo/",
       "notes": [],
       "actions": [],
       "remove_hint": null
@@ -231,6 +236,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/foxtrot/v0.3.0",
+      "plugin_page_url": "https://krateaudio.com/foxtrot/",
       "notes": [],
       "actions": [],
       "remove_hint": null
@@ -274,6 +280,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/golf/v0.4.0",
+      "plugin_page_url": "https://krateaudio.com/golf/",
       "notes": [],
       "actions": [],
       "remove_hint": null
@@ -317,6 +324,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/hotel/v0.5.0",
+      "plugin_page_url": "https://krateaudio.com/hotel/",
       "notes": [],
       "actions": [],
       "remove_hint": null
@@ -348,6 +356,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/india/v0.6.0",
+      "plugin_page_url": "https://krateaudio.com/india/",
       "notes": [],
       "actions": [],
       "remove_hint": null
@@ -366,6 +375,7 @@
       "record_without_files": false,
       "record_version_differs": false,
       "release_page_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/juliet/v0.7.0",
+      "plugin_page_url": "https://krateaudio.com/juliet/",
       "notes": [],
       "actions": [],
       "remove_hint": null

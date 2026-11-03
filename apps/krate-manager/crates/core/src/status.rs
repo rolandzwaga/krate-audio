@@ -17,7 +17,9 @@ use std::collections::BTreeMap;
 
 /// The only host a release page may be opened on (FR-049).
 pub const RELEASE_PAGE_HOST: &str = "github.com";
-/// The longest release-page URL accepted, in bytes (FR-049).
+/// The only host a plugin page may be opened on (Phase 12 FR-088).
+pub const PLUGIN_PAGE_HOST: &str = "krateaudio.com";
+/// The longest release-page or plugin-page URL accepted, in bytes (FR-049).
 pub const MAX_RELEASE_PAGE_URL_BYTES: usize = 2048;
 pub(crate) const LOG_TARGET: &str = "krate_manager_core::status";
 
@@ -78,6 +80,8 @@ pub struct PluginView {
     pub record_without_files: bool,
     pub record_version_differs: bool,
     pub release_page_url: Option<String>,
+    /// Phase 12 FR-088: the feed's `download_url`, the plugin's krateaudio.com page.
+    pub plugin_page_url: Option<String>,
     pub notes: Vec<notes::Block>,
     pub actions: Vec<ActionView>,
     /// Phase 10 FR-083: `Some(WindowsSettings)` iff the gate's Remove basis is `OutsideRoot`.
@@ -382,14 +386,26 @@ pub fn assemble_with_gates(
 /// FR-049: an `https` URL on `RELEASE_PAGE_HOST`, no user name, no password, no port, at most 2048 bytes; the
 /// parser's serialisation (lower-cased host, default port dropped).
 pub fn release_page_url(text: &str) -> Option<String> {
+    page_url(text, RELEASE_PAGE_HOST)
+}
+
+/// Phase 12 FR-088: FR-049's rule on `PLUGIN_PAGE_HOST`.
+pub fn plugin_page_url(text: &str) -> Option<String> {
+    page_url(text, PLUGIN_PAGE_HOST)
+}
+
+/// What the open command opens: a release page or a plugin page (FR-049, Phase 12 FR-088).
+pub fn open_url(text: &str) -> Option<String> {
+    release_page_url(text).or_else(|| plugin_page_url(text))
+}
+
+fn page_url(text: &str, host: &str) -> Option<String> {
     if text.len() > MAX_RELEASE_PAGE_URL_BYTES {
         return None;
     }
     let url = url::Url::parse(text).ok()?;
     let accepted = url.scheme() == "https"
-        && url
-            .host_str()
-            .is_some_and(|h| h.eq_ignore_ascii_case(RELEASE_PAGE_HOST))
+        && url.host_str().is_some_and(|h| h.eq_ignore_ascii_case(host))
         && url.username().is_empty()
         && url.password().is_none()
         && url.port().is_none();
@@ -447,6 +463,10 @@ fn plugin_view(
         record_without_files: false,
         record_version_differs: false,
         release_page_url: release.and_then(|r| release_page_url(&r.release_notes_url)),
+        plugin_page_url: entry
+            .download_url
+            .as_ref()
+            .and_then(|u| plugin_page_url(u.as_str())),
         notes: release
             .and_then(|r| r.notes_markdown.as_deref())
             .map(notes::blocks)
