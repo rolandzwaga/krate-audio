@@ -619,6 +619,9 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   in `public/fonts/` and loaded same-origin (`font-src 'self'`, never Google Fonts); FR-077's stylesheet ban (Phase 6)
   lets through exactly its two lines (`@font-face {`, `src: url("/fonts/InterVariable.woff2") format("woff2");`) in
   `src/styles.css` only (`config_guard.rs` `STYLESHEET_ALLOWED`).
+  The app icons (`src-tauri/icons/`, the same 16 files: window, taskbar, Dock and installer) are generated from the
+  site favicon by `npx tauri icon docs/assets/favicon.svg` in place of Tauri's default; its iOS / Android output and
+  extra 64x64 are not kept.
 
 ### H. Release readiness for manager 0.1.0 (roadmap lines 931-934; Q10; D14, D17)
 
