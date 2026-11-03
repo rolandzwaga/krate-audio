@@ -17,7 +17,7 @@ use crate::roots::{
 use crate::seams::fake::{
     Call, Event, FakeRegistry, Fault, Hook, Match, Script, ScriptedRunner, TempIo, World,
 };
-use crate::seams::{HelperIo, Seams};
+use crate::seams::{HelperIo, Registry, Seams};
 use crate::validate::JobPlace;
 use crate::{Exit, HelperOs, run};
 use serde_json::{Value, json};
@@ -1056,6 +1056,80 @@ fn uninstall_polls_until_gone() {
         6
     );
     assert!(!alpha.install_dir.join("Alpha.vst3").exists());
+}
+
+/// `<bundle>\Contents\x86_64-win\<plugin>.vst3`, the binary a DAW loads.
+fn plugin_binary(unins: &Unins, plugin: &str) -> PathBuf {
+    let dir = unins.bundle.join("Contents").join("x86_64-win");
+    mkdirs(&dir);
+    let binary = dir.join(format!("{plugin}.vst3"));
+    fs::write(&binary, b"plugin binary").expect("write the plugin binary");
+    binary
+}
+
+#[test]
+fn uninstall_refuses_a_plugin_binary_in_use() {
+    // Phase 12 FR-055 (U-1, 2026-11-03): Remove with the plug-in loaded in a DAW ran the uninstaller, which deleted
+    // its own exe, the key and the resources but not the held binary; the plug-in was left with no uninstaller.
+    let rig = Rig::new();
+    let world = World::new();
+    let io = TempIo::new(&world, &rig.base);
+    let registry = FakeRegistry::new(&world);
+    let alpha = rig.inno_install(&registry, APP_A, "Alpha");
+    let binary = plugin_binary(&alpha, "Alpha");
+    world.fault(Fault::InUse(binary.clone()));
+    let runner = ScriptedRunner::new(&world);
+    let seams = Seams {
+        io: &io,
+        runner: &runner,
+        registry: &registry,
+        classify: classify_inno,
+    };
+    let entries = batch(
+        &rig,
+        HelperOs::Windows,
+        &[Op::RunInnoUninstaller {
+            app_id: APP_A.to_owned(),
+        }],
+        &seams,
+    );
+    assert_eq!(
+        summary(&entries),
+        [(OpOutcome::Locked, Some("E_HELPER_LOCKED"))]
+    );
+    assert!(world.spawns().is_empty(), "the uninstaller never starts");
+    assert_eq!(count(&world, |c| matches!(c, Call::Sleep(_))), 0);
+    assert!(alpha.exe.exists() && binary.exists());
+    assert!(registry.key_exists(&alpha.subkey));
+}
+
+#[test]
+fn uninstall_checks_a_free_plugin_binary_and_runs() {
+    let rig = Rig::new();
+    let world = World::new();
+    let io = TempIo::new(&world, &rig.base);
+    let registry = FakeRegistry::new(&world);
+    let alpha = rig.inno_install(&registry, APP_A, "Alpha");
+    let binary = plugin_binary(&alpha, "Alpha");
+    vanish_at(&world, &alpha, Duration::from_secs(1));
+    let runner = ScriptedRunner::new(&world);
+    let seams = Seams {
+        io: &io,
+        runner: &runner,
+        registry: &registry,
+        classify: classify_inno,
+    };
+    let entries = batch(
+        &rig,
+        HelperOs::Windows,
+        &[Op::RunInnoUninstaller {
+            app_id: APP_A.to_owned(),
+        }],
+        &seams,
+    );
+    assert_eq!(summary(&entries), [(OpOutcome::Done, None)]);
+    assert_eq!(count(&world, |c| *c == Call::InUse(binary.clone())), 1);
+    assert_eq!(world.spawns().len(), 1);
 }
 
 #[test]

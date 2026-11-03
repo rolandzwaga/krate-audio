@@ -464,6 +464,15 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   vitest) gain `"orphans": []` as their last key, edited by hand, and `toStatusView` gains the key (plan SI-9, PD-13).
 - **FR-053** UI: each orphan renders a card "<Name> <version>: no longer offered; installed by Krate Manager" with one
   `Remove` button and the Phase 9 Remove confirmation (`INSTALL_TEXTS.confirmRemove`).
+- **FR-055** (spec revision 2026-11-03, Clarifications R-2) Windows Remove refuses a plug-in a DAW has loaded before
+  anything is touched: the helper's `run_inno_uninstaller` op, after the uninstaller passes validation and before it
+  is started, checks every regular file in `<bundle>\Contents\x86_64-win` of each `.vst3` entry of the install
+  directory with a write open that writes nothing (`HelperIo::in_use`); a sharing violation is `Locked` with
+  `E_HELPER_LOCKED`, which the core already maps to `E_INSTALL_LOCKED` ("A plug-in file is in use. Close your DAW and
+  retry."). The uninstaller is not started, so its exe, its key and the bundle stay. Found at U-1: the uninstaller
+  deleted everything but the held binary, its own exe and key included, leaving a plug-in no uninstaller can remove,
+  and the helper waited 120 s for `E_HELPER_UNINSTALL_TIMEOUT`. A failed listing or check counts as free (the
+  uninstaller runs as before). macOS and Linux delete a held file, so `in_use` is false there.
 
 ### E. Commands and capability (roadmap lines 104-106; Cross-Cutting lines 1018-1019)
 
@@ -889,6 +898,13 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   no such name (FR-054).
 - **SC-032 (no automated advisory scan).** `workflow-shape.test.js` / `release-manager-shape.test.js` case
   `no_advisory_scan_tool`: no workflow file and no `tools/*.js` invokes `cargo audit` or `cargo deny` (FR-105).
+- **SC-033 (Remove refuses a loaded plug-in, FR-055).** `ops::tests::uninstall_refuses_a_plugin_binary_in_use`: a
+  binary the fake reports in use → `[(Locked, E_HELPER_LOCKED)]`, no spawn, no sleep, the exe, the binary and the key
+  remain; `ops::tests::uninstall_checks_a_free_plugin_binary_and_runs`: a free binary is checked once and the
+  uninstaller runs (`Done`); `os::tests::in_use_sees_a_mapped_image_and_a_held_file` (Windows): the running test
+  binary is in use, a file held without write sharing is in use until released, its bytes unchanged, an absent file
+  is not; `os::tests::in_use_is_false_off_windows`. All four in `tests/required-tests.json`. USER: FR-074 (c) repeated
+  with the DAW open shows the "close your DAW and retry" text and the plug-in intact.
 
 ---
 
@@ -1028,6 +1044,7 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
 | FR-050, FR-051 | SC-014 |
 | FR-054 | SC-031, SC-014 |
 | FR-052, FR-053 | SC-015 |
+| FR-055 | SC-033 |
 | FR-060, FR-061 | SC-023 |
 | FR-070 | SC-018, SC-019 |
 | FR-071 | SC-024 (`manager-ci` reads `required-tests.json`) |
@@ -1162,3 +1179,7 @@ Every question of the clarify scan was decided by the user; each line ends with 
   sentence and the provisional Terminal line. FR-074 (f) stays pre-release, under WSL with WSLg. This supersedes the
   "Which pkg" answer and the "Exactly five" count above. [D11, D17, FR-073, FR-074, FR-076, SC-016b, SC-017, SC-018,
   SC-019, SC-028]
+- R-2: Remove with the plug-in loaded in a DAW (found by FR-074 (c) at U-1: Vorago left as a lone binary, no
+  uninstaller, no key, no pending delete). → A: The user ruled "go" on the proposed fix: the helper checks the plug-in
+  binaries before starting the Inno uninstaller and refuses `Locked` (measured: a DLL loaded in a second process refuses
+  a write open and a delete, allows a read open and a rename). [FR-055, SC-033, FR-074 (c)]

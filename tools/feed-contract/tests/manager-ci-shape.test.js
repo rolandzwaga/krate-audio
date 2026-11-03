@@ -994,6 +994,8 @@ const EXPECTED_REQUIRED = {
       'ops::tests::classify_sees_whole_bounded_log',
       'ops::tests::uninstall_polls_until_gone',
       'ops::tests::uninstall_poll_times_out',
+      'ops::tests::uninstall_refuses_a_plugin_binary_in_use',
+      'ops::tests::uninstall_checks_a_free_plugin_binary_and_runs',
       'ops::tests::uninstaller_never_exits',
       'ops::tests::runs_the_copy_never_the_original',
       'ops::tests::pkg_paths_classified',
@@ -1114,6 +1116,7 @@ const EXPECTED_REQUIRED = {
       'windows_parameters_parse_back_windows',
       'install::tests::native_wiring_windows',
       'os::tests::open_source_refuses_link_windows',
+      'os::tests::in_use_sees_a_mapped_image_and_a_held_file',
     ],
     macos: [
       'platform::macos::tests::default_roots_from_env',
@@ -1165,6 +1168,7 @@ const EXPECTED_REQUIRED = {
       'os::tests::open_source_refuses_links_and_fifos_unix',
       'os::tests::run_dir_mode_unix',
       'os::tests::wait_timeout_leaves_child_unix',
+      'os::tests::in_use_is_false_off_windows',
     ],
     linux: [
       'platform::linux::tests::default_roots_from_env',
@@ -1210,6 +1214,7 @@ const EXPECTED_REQUIRED = {
       'os::tests::open_source_refuses_links_and_fifos_unix',
       'os::tests::run_dir_mode_unix',
       'os::tests::wait_timeout_leaves_child_unix',
+      'os::tests::in_use_is_false_off_windows',
     ],
   },
   vitest: [
