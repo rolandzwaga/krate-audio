@@ -260,6 +260,17 @@ impl HelperIo for OsHelperIo {
         std::fs::remove_dir(path)
     }
 
+    #[cfg(windows)]
+    fn in_use(&self, path: &Path) -> io::Result<bool> {
+        windows::in_use(path)
+    }
+
+    /// Phase 12 FR-055: only Windows refuses to delete a file another process holds.
+    #[cfg(not(windows))]
+    fn in_use(&self, _path: &Path) -> io::Result<bool> {
+        Ok(false)
+    }
+
     fn random_hex(&self) -> String {
         let n = NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
         let pid = std::process::id();
@@ -428,7 +439,7 @@ impl Registry for OsRegistry {
     }
 }
 
-/// The Windows FFI of the real seams: the run directory's DACL, known folders, HKLM reads.
+/// The Windows FFI of the real seams: the run directory's DACL, known folders, HKLM reads, the in-use check.
 #[cfg(windows)]
 mod windows {
     use super::KnownFolder;
@@ -438,13 +449,20 @@ mod windows {
     use std::os::windows::ffi::{OsStrExt, OsStringExt};
     use std::path::{Path, PathBuf};
     use std::ptr::{null, null_mut};
-    use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, LocalFree};
+    use windows_sys::Win32::Foundation::{
+        ERROR_FILE_NOT_FOUND, ERROR_LOCK_VIOLATION, ERROR_SHARING_VIOLATION, ERROR_SUCCESS,
+        LocalFree,
+    };
     use windows_sys::Win32::Security::Authorization::{
         ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
     };
     use windows_sys::Win32::Security::{PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES};
-    use windows_sys::Win32::Storage::FileSystem::CreateDirectoryW;
-    pub use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT;
+    use windows_sys::Win32::Storage::FileSystem::{
+        CreateDirectoryW, FILE_SHARE_DELETE, FILE_SHARE_WRITE,
+    };
+    pub use windows_sys::Win32::Storage::FileSystem::{
+        FILE_FLAG_OPEN_REPARSE_POINT, FILE_SHARE_READ,
+    };
     use windows_sys::Win32::System::Com::CoTaskMemFree;
     use windows_sys::Win32::System::Registry::{
         HKEY, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY, RRF_RT_REG_SZ, RegCloseKey,
@@ -470,6 +488,30 @@ mod windows {
             ));
         }
         Ok(units.into_iter().chain(Some(0)).collect())
+    }
+
+    /// Phase 12 FR-055: a write open (no truncation, nothing written) sharing everything; another process holding
+    /// the file without write sharing refuses it with `ERROR_SHARING_VIOLATION`, and so does a loaded DLL's image
+    /// mapping (measured 2026-11-03: a DLL loaded in a second process refused the write open and the delete, and
+    /// allowed a read open and a rename). Absent → not in use.
+    pub fn in_use(path: &Path) -> io::Result<bool> {
+        use std::os::windows::fs::OpenOptionsExt;
+        let opened = std::fs::OpenOptions::new()
+            .write(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+            .open(path);
+        match opened {
+            Ok(_) => Ok(false),
+            Err(e)
+                if e.raw_os_error() == Some(ERROR_SHARING_VIOLATION as i32)
+                    || e.raw_os_error() == Some(ERROR_LOCK_VIOLATION as i32) =>
+            {
+                Ok(true)
+            }
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
+            Err(e) => Err(e),
+        }
     }
 
     /// D7: the directory is created with `RUN_DIR_SDDL` as its DACL (protected: SYSTEM and Administrators only);

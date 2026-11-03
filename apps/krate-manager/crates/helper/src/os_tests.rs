@@ -241,3 +241,56 @@ fn wait_timeout_leaves_child_unix() {
     child.kill().expect("kill the child");
     child.wait().expect("reap the child");
 }
+
+/// Phase 12 FR-055: the running test binary is a mapped image, which refuses a write open like a DAW's loaded
+/// plug-in; a file held by a handle without write sharing is in use until the handle closes; nothing is written.
+#[cfg(windows)]
+#[test]
+fn in_use_sees_a_mapped_image_and_a_held_file() {
+    use super::windows::FILE_SHARE_READ;
+    use std::os::windows::fs::OpenOptionsExt;
+    let io = OsHelperIo::new();
+    let exe = std::env::current_exe().expect("the test binary");
+    assert!(
+        io.in_use(&exe).expect("in_use on the test binary"),
+        "a mapped image is in use"
+    );
+
+    let td = temp();
+    let path = td.path().join("plugin.vst3");
+    std::fs::write(&path, b"plugin binary").expect("write the file");
+    assert!(
+        !io.in_use(&path).expect("in_use, free"),
+        "a free file is not in use"
+    );
+    let held = std::fs::OpenOptions::new()
+        .read(true)
+        .share_mode(FILE_SHARE_READ)
+        .open(&path)
+        .expect("hold the file without write sharing");
+    assert!(
+        io.in_use(&path).expect("in_use, held"),
+        "a held file is in use"
+    );
+    drop(held);
+    assert!(!io.in_use(&path).expect("in_use, released"), "released");
+    assert_eq!(
+        std::fs::read(&path).expect("read back"),
+        b"plugin binary",
+        "nothing written"
+    );
+    assert!(
+        !io.in_use(&td.path().join("absent.vst3"))
+            .expect("in_use, absent"),
+        "absent"
+    );
+}
+
+/// Phase 12 FR-055: off Windows nothing is in use (a held file can be deleted there).
+#[cfg(not(windows))]
+#[test]
+fn in_use_is_false_off_windows() {
+    let io = OsHelperIo::new();
+    let exe = std::env::current_exe().expect("the test binary");
+    assert!(!io.in_use(&exe).expect("in_use"));
+}

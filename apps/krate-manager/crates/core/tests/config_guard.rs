@@ -183,6 +183,15 @@ const FRONTEND_BANNED: [&str; 6] = [
 ];
 /// What no `src/**/*.css` line may hold, ASCII case-insensitive: a font, image or URL (FR-077).
 const STYLESHEET_BANNED: [&str; 4] = ["url(", "@font-face", "@import", "image-set("];
+/// Phase 12 FR-087: the bundled Inter (`public/fonts`, same-origin under `font-src 'self'`), the only stylesheet lines
+/// FR-077's ban lets through: in `src/styles.css` only, each line exactly as written (trimmed).
+const STYLESHEET_ALLOWED: [(&str, &str); 2] = [
+    ("src/styles.css", "@font-face {"),
+    (
+        "src/styles.css",
+        "src: url(\"/fonts/InterVariable.woff2\") format(\"woff2\");",
+    ),
+];
 /// The squeezed `generate_handler!` list `src-tauri/src/lib.rs` must hold, in order (FR-061, SC-019; Phase 11 FR-020;
 /// Phase 12 FR-061).
 const HANDLER_LIST: &str = "generate_handler![commands::app_version,commands::startup_error,commands::plugin_status,commands::check_now,commands::open_release_page,commands::download_plugin,commands::install_plugin,commands::remove_plugin,commands::manager_update_check,commands::manager_update_install,commands::update_all,commands::settings_view,commands::settings_save]";
@@ -1380,7 +1389,7 @@ fn check_frontend(files: &[(String, String)]) -> Vec<String> {
         let stylesheet = name.starts_with("src/") && name.ends_with(".css");
         for (index, line) in text.lines().enumerate() {
             let at = format!("{name}:{}", index + 1);
-            if stylesheet {
+            if stylesheet && !STYLESHEET_ALLOWED.contains(&(name.as_str(), line.trim())) {
                 let lower = line.to_ascii_lowercase();
                 if STYLESHEET_BANNED
                     .iter()
@@ -2602,6 +2611,33 @@ fn frontend_source_scan_reports_planted_strings() {
             messages.iter().any(|message| message
                 == "src/planted.css:2: a font, image or URL in a stylesheet (FR-077)"),
             "`{line}` not reported as a stylesheet font, image or URL: {messages:#?}"
+        );
+    }
+
+    // Phase 12 FR-087: the bundled Inter's two lines pass in src/styles.css only, exactly as written; any other font,
+    // URL or import there is still reported.
+    let allowed =
+        "@font-face {\n  src: url(\"/fonts/InterVariable.woff2\") format(\"woff2\");\n}\n";
+    let styles = vec![("src/styles.css".to_owned(), allowed.to_owned())];
+    assert_eq!(check_frontend(&styles), Vec::<String>::new());
+    let elsewhere = vec![("src/other.css".to_owned(), allowed.to_owned())];
+    assert_eq!(
+        check_frontend(&elsewhere).len(),
+        2,
+        "the allowed lines outside src/styles.css"
+    );
+    for line in [
+        "  src: url(\"/fonts/Other.woff2\") format(\"woff2\");",
+        "  src: url(\"/fonts/InterVariable.woff2\") format(\"woff2\"), url(\"https://x\");",
+        "@import \"x.css\";",
+        "  background: url(a.png);",
+    ] {
+        let files = vec![("src/styles.css".to_owned(), format!("{allowed}{line}\n"))];
+        let messages = check_frontend(&files);
+        assert!(
+            messages.iter().any(|message| message
+                == "src/styles.css:4: a font, image or URL in a stylesheet (FR-077)"),
+            "`{line}` in src/styles.css not reported: {messages:#?}"
         );
     }
 }

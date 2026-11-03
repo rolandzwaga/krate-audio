@@ -464,6 +464,15 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   vitest) gain `"orphans": []` as their last key, edited by hand, and `toStatusView` gains the key (plan SI-9, PD-13).
 - **FR-053** UI: each orphan renders a card "<Name> <version>: no longer offered; installed by Krate Manager" with one
   `Remove` button and the Phase 9 Remove confirmation (`INSTALL_TEXTS.confirmRemove`).
+- **FR-055** (spec revision 2026-11-03, Clarifications R-2) Windows Remove refuses a plug-in a DAW has loaded before
+  anything is touched: the helper's `run_inno_uninstaller` op, after the uninstaller passes validation and before it
+  is started, checks every regular file in `<bundle>\Contents\x86_64-win` of each `.vst3` entry of the install
+  directory with a write open that writes nothing (`HelperIo::in_use`); a sharing violation is `Locked` with
+  `E_HELPER_LOCKED`, which the core already maps to `E_INSTALL_LOCKED` ("A plug-in file is in use. Close your DAW and
+  retry."). The uninstaller is not started, so its exe, its key and the bundle stay. Found at U-1: the uninstaller
+  deleted everything but the held binary, its own exe and key included, leaving a plug-in no uninstaller can remove,
+  and the helper waited 120 s for `E_HELPER_UNINSTALL_TIMEOUT`. A failed listing or check counts as free (the
+  uninstaller runs as before). macOS and Linux delete a held file, so `in_use` is false there.
 
 ### E. Commands and capability (roadmap lines 104-106; Cross-Cutting lines 1018-1019)
 
@@ -600,6 +609,19 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   that records the FR-073 rows flips SC-016b's branch, so it must run the TAP check); `tools/feed-contract/fixtures/landing/**`
   is already covered by `tools/feed-contract/**` (plan SI-16). No test pins these paths today: the new
   `workflow-shape.test.js` test "landing pages render with gen-root-index.js" (plan PD-28) pins both lists (plan SI-5).
+- **FR-087** (spec revision 2026-11-03, Clarifications R-3) The manager window takes the krateaudio.com look
+  (`docs/assets/style.css` and the plugin pages): their palette (`--color-bg` `#0a0a0f`, `--color-surface` `#12121a`,
+  `--color-border` `#2a2a3a`, text `#e8e8f0` / `#8888a0`, the landing page's accent `#6366f1` / `#818cf8`), dark
+  only; Inter; the gradient title; the version and the card state as the site's pill; plugins as its 12 px surface
+  cards in an `auto-fit, minmax(300px, 1fr)` grid; the accent on the action a row exists for (Install, Update,
+  Update all, Confirm, Update and restart, Save), outlined buttons otherwise. `src/styles.css` only: no element,
+  class or text changes. Inter 4.1's `InterVariable.woff2` (SIL OFL 1.1, `public/fonts/Inter-LICENSE.txt`) is bundled
+  in `public/fonts/` and loaded same-origin (`font-src 'self'`, never Google Fonts); FR-077's stylesheet ban (Phase 6)
+  lets through exactly its two lines (`@font-face {`, `src: url("/fonts/InterVariable.woff2") format("woff2");`) in
+  `src/styles.css` only (`config_guard.rs` `STYLESHEET_ALLOWED`).
+  The app icons (`src-tauri/icons/`, the same 16 files: window, taskbar, Dock and installer) are generated from the
+  site favicon by `npx tauri icon docs/assets/favicon.svg` in place of Tauri's default; its iOS / Android output and
+  extra 64x64 are not kept.
 
 ### H. Release readiness for manager 0.1.0 (roadmap lines 931-934; Q10; D14, D17)
 
@@ -889,6 +911,18 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   no such name (FR-054).
 - **SC-032 (no automated advisory scan).** `workflow-shape.test.js` / `release-manager-shape.test.js` case
   `no_advisory_scan_tool`: no workflow file and no `tools/*.js` invokes `cargo audit` or `cargo deny` (FR-105).
+- **SC-033 (Remove refuses a loaded plug-in, FR-055).** `ops::tests::uninstall_refuses_a_plugin_binary_in_use`: a
+  binary the fake reports in use → `[(Locked, E_HELPER_LOCKED)]`, no spawn, no sleep, the exe, the binary and the key
+  remain; `ops::tests::uninstall_checks_a_free_plugin_binary_and_runs`: a free binary is checked once and the
+  uninstaller runs (`Done`); `os::tests::in_use_sees_a_mapped_image_and_a_held_file` (Windows): the running test
+  binary is in use, a file held without write sharing is in use until released, its bytes unchanged, an absent file
+  is not; `os::tests::in_use_is_false_off_windows`. All four in `tests/required-tests.json`. USER: FR-074 (c) repeated
+  with the DAW open shows the "close your DAW and retry" text and the plug-in intact.
+- **SC-034 (the site's look, FR-087).** `config_guard.rs` `frontend_source_scan_reports_planted_strings`: the two
+  Inter lines pass in `src/styles.css`, are reported in any other stylesheet, and another font URL, a second URL on
+  the `src` line, an `@import` or a `url()` in `src/styles.css` is still reported; `real_src_tauri_config_passes_the_guard`
+  on the real tree; `npm run build` emits `dist/fonts/InterVariable.woff2` and a stylesheet whose only `url(` is
+  `/fonts/InterVariable.woff2`. USER: the installed manager shows the dark site palette in Inter.
 
 ---
 
@@ -1028,6 +1062,7 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
 | FR-050, FR-051 | SC-014 |
 | FR-054 | SC-031, SC-014 |
 | FR-052, FR-053 | SC-015 |
+| FR-055 | SC-033 |
 | FR-060, FR-061 | SC-023 |
 | FR-070 | SC-018, SC-019 |
 | FR-071 | SC-024 (`manager-ci` reads `required-tests.json`) |
@@ -1041,6 +1076,7 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
 | FR-083 | SC-017 (POST-RELEASE R-POST-4) |
 | FR-085 | SC-029 (shape, PENDING-CI `landing-dry`, POST-RELEASE R-POST-1) |
 | FR-086 | SC-029 (`workflow-shape.test.js`) |
+| FR-087 | SC-034 |
 | FR-090 | SC-026 |
 | FR-100 | SC-020, SC-028 |
 | FR-101 | SC-024 |
@@ -1162,3 +1198,10 @@ Every question of the clarify scan was decided by the user; each line ends with 
   sentence and the provisional Terminal line. FR-074 (f) stays pre-release, under WSL with WSLg. This supersedes the
   "Which pkg" answer and the "Exactly five" count above. [D11, D17, FR-073, FR-074, FR-076, SC-016b, SC-017, SC-018,
   SC-019, SC-028]
+- R-2: Remove with the plug-in loaded in a DAW (found by FR-074 (c) at U-1: Vorago left as a lone binary, no
+  uninstaller, no key, no pending delete). → A: The user ruled "go" on the proposed fix: the helper checks the plug-in
+  binaries before starting the Inno uninstaller and refuses `Locked` (measured: a DLL loaded in a second process refuses
+  a write open and a delete, allows a read open and a rename). [FR-055, SC-033, FR-074 (c)]
+- R-3: The manager looked nothing like the website. → A: The user asked for the website's look and feel and chose to
+  bundle Inter over a system-font fallback (the CSP allows only same-origin fonts). FR-077's ban gains the two Inter
+  lines in `src/styles.css` as its only exception. [FR-087, SC-034]

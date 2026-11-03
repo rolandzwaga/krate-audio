@@ -31,6 +31,9 @@ pub trait HelperIo {
     fn list_dir(&self, dir: &Path) -> io::Result<Vec<OsString>>;
     fn remove_file(&self, path: &Path) -> io::Result<()>;
     fn remove_dir(&self, path: &Path) -> io::Result<()>;
+    /// Phase 12 FR-055: another process holds the file without write sharing (a loaded DLL included); `Ok(false)`
+    /// when absent, and always off Windows. Writes nothing.
+    fn in_use(&self, path: &Path) -> io::Result<bool>;
     /// 32 lower-case hex digits (PD-19).
     fn random_hex(&self) -> String;
     fn sleep(&self, d: Duration);
@@ -109,6 +112,8 @@ pub mod fake {
             kind: io::ErrorKind,
         },
         RemoveFile(PathBuf),
+        /// `in_use` answers true for this path (a DAW holding the plug-in binary).
+        InUse(PathBuf),
     }
 
     /// A change to a source around its copy.
@@ -168,6 +173,7 @@ pub mod fake {
         RemoveDir(PathBuf),
         UninstallValues(String),
         KeyExists(String),
+        InUse(PathBuf),
     }
 
     /// A lock that survives a panic in another holder (the sandbox rows panic on purpose).
@@ -683,6 +689,17 @@ pub mod fake {
             self.check("remove_dir", path);
             self.world.record(Call::RemoveDir(path.to_path_buf()));
             fs::remove_dir(path)
+        }
+
+        fn in_use(&self, path: &Path) -> io::Result<bool> {
+            self.check("in_use", path);
+            self.world.record(Call::InUse(path.to_path_buf()));
+            let k = key(path);
+            let held = self.world.find_fault(|f| match f {
+                Fault::InUse(p) if key(p) == k => Some(()),
+                _ => None,
+            });
+            Ok(held.is_some())
         }
 
         fn random_hex(&self) -> String {

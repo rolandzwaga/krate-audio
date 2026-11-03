@@ -8,7 +8,7 @@ use crate::job::Op;
 use crate::result::{self, OpEntry, OpOutcome};
 use crate::roots::{CanonicalRoots, OsRoots};
 use crate::seams::{HelperIo, Seams, WriteSync};
-use crate::validate::{self, JobPlace, LstatFacts};
+use crate::validate::{self, JobPlace, Kind, LstatFacts};
 use std::ffi::OsString;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -351,6 +351,10 @@ fn inno_uninstaller(app_id: &str, ctx: &OpCtx<'_>, seams: &Seams<'_>) -> Step {
         Ok(unins) => unins,
         Err(e) => return Step::refused(e),
     };
+    // Phase 12 FR-055: a plug-in a DAW has loaded is refused before anything is touched.
+    if binary_in_use(io, &unins.install_dir) {
+        return Step::of(OpOutcome::Locked, error::LOCKED);
+    }
     // FR-027: `exe` is the registry's own (unquoted) string, whose canonical form passed FR-031.
     let mut argv = vec![unins.exe.clone().into_os_string()];
     argv.extend(UNINSTALL_FLAGS.iter().map(OsString::from));
@@ -376,6 +380,32 @@ fn inno_uninstaller(app_id: &str, ctx: &OpCtx<'_>, seams: &Seams<'_>) -> Step {
         }
         io.sleep(UNINSTALL_POLL_INTERVAL);
     }
+}
+
+/// Phase 12 FR-055: a regular file in `<bundle>\Contents\x86_64-win` of a `.vst3` entry of `dir` is in use. The
+/// uninstaller deletes everything it can and skips a held file, its own exe and key included, so a plug-in loaded
+/// in a DAW was left behind with no uninstaller (U-1, 2026-11-03). A listing or check that fails counts as free:
+/// the uninstaller then runs as it did before.
+fn binary_in_use(io: &dyn HelperIo, dir: &Path) -> bool {
+    let Ok(names) = io.list_dir(dir) else {
+        return false;
+    };
+    names
+        .iter()
+        .filter(|n| n.to_string_lossy().to_ascii_lowercase().ends_with(".vst3"))
+        .map(|n| dir.join(n).join("Contents").join("x86_64-win"))
+        .filter_map(|bin| io.list_dir(&bin).ok().map(|files| (bin, files)))
+        .flat_map(|(bin, files)| files.into_iter().map(move |f| bin.join(f)))
+        .filter(|p| {
+            matches!(
+                io.lstat(p),
+                Ok(Some(LstatFacts {
+                    kind: Kind::File,
+                    ..
+                }))
+            )
+        })
+        .any(|p| matches!(io.in_use(&p), Ok(true)))
 }
 
 /// D6: no entry of `dir` ends in `.vst3` (ASCII case-insensitive); an absent directory has none, any other listing

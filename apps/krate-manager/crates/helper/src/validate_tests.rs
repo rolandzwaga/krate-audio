@@ -1500,6 +1500,9 @@ impl crate::seams::HelperIo for Counting<'_> {
     fn remove_dir(&self, path: &Path) -> io::Result<()> {
         self.inner.remove_dir(path)
     }
+    fn in_use(&self, path: &Path) -> io::Result<bool> {
+        self.inner.in_use(path)
+    }
     fn random_hex(&self) -> String {
         self.inner.random_hex()
     }
