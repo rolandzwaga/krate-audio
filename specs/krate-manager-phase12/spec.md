@@ -625,9 +625,11 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
 - **FR-088** (spec revision 2026-11-03, Clarifications R-4) Every plugin card whose feed entry has a `download_url`
   on krateaudio.com shows an `Open plugin page` button after `Open release page`; it opens that page (Vorago:
   `https://krateaudio.com/vorago/`) in the browser. The core carries it as `PluginView.plugin_page_url`, accepted by
-  FR-049's rule on `PLUGIN_PAGE_HOST` (`krateaudio.com`: `https`, no user name, no password, no port, at most 2048
-  bytes); `open_release_page` opens a release page or a plugin page (`status::open_url`) and refuses anything else
-  with `E_OPEN_REJECTED`. A failed open shows `Could not open the plugin page: <code>`. No new command, no `<a>`.
+  FR-049's rule without its host (`https`, no user name, no password, no port, at most 2048 bytes);
+  `open_release_page` opens a release page or a plugin page on the feed URL's host (`status::open_url`, the host
+  `url_host(FEED_URL)` in `src-tauri/src/lib.rs`, so FR-021 holds: the production host stays out of the core and
+  appears once in `src-tauri/src`) and refuses anything else with `E_OPEN_REJECTED`. A failed open shows
+  `Could not open the plugin page: <code>`. No new command, no `<a>`.
 
 ### H. Release readiness for manager 0.1.0 (roadmap lines 931-934; Q10; D14, D17)
 
@@ -929,10 +931,13 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   the `src` line, an `@import` or a `url()` in `src/styles.css` is still reported; `real_src_tauri_config_passes_the_guard`
   on the real tree; `npm run build` emits `dist/fonts/InterVariable.woff2` and a stylesheet whose only `url(` is
   `/fonts/InterVariable.woff2`. USER: the installed manager shows the dark site palette in Inter.
-- **SC-035 (the plugin page button, FR-088).** `status::tests::plugin_page_url_cases`: krateaudio.com pages pass
-  (host lower-cased, `:443` dropped), `http`, another host or subdomain, a user name, a password, another port and
-  2049 bytes are refused; `open_url` passes a release page and a plugin page and nothing else; every card of
+- **SC-035 (the plugin page button, FR-088).** `status::tests::plugin_page_url_cases`: an `https` page passes
+  (host lower-cased, `:443` dropped, 2048 bytes), `http`, a user name, a password, another port and 2049 bytes are
+  refused; `open_url` passes a release page and a plugin page on the given host, and refuses another host, a
+  subdomain, an empty host and every refused shape; `url_host` reads the feed URL's host; every card of
   `full-v2.json` and `v1-only.json` carries its `download_url`. The status goldens hold `plugin_page_url`.
+  `injection.rs` `core_sources_hold_no_production_literal` and the one-`krateaudio.com`-in-`src-tauri/src` check
+  stay green.
   `status.test.ts`: every golden card shows `Open plugin page` iff it has the URL, the click invokes
   `open_release_page` with it, a rejection shows the plugin-page text. USER: the button opens the plugin's page.
 

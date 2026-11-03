@@ -17,8 +17,6 @@ use std::collections::BTreeMap;
 
 /// The only host a release page may be opened on (FR-049).
 pub const RELEASE_PAGE_HOST: &str = "github.com";
-/// The only host a plugin page may be opened on (Phase 12 FR-088).
-pub const PLUGIN_PAGE_HOST: &str = "krateaudio.com";
 /// The longest release-page or plugin-page URL accepted, in bytes (FR-049).
 pub const MAX_RELEASE_PAGE_URL_BYTES: usize = 2048;
 pub(crate) const LOG_TARGET: &str = "krate_manager_core::status";
@@ -80,7 +78,7 @@ pub struct PluginView {
     pub record_without_files: bool,
     pub record_version_differs: bool,
     pub release_page_url: Option<String>,
-    /// Phase 12 FR-088: the feed's `download_url`, the plugin's krateaudio.com page.
+    /// Phase 12 FR-088: the feed's `download_url`, the plugin's page on the site (`plugin_page_url`).
     pub plugin_page_url: Option<String>,
     pub notes: Vec<notes::Block>,
     pub actions: Vec<ActionView>,
@@ -386,26 +384,37 @@ pub fn assemble_with_gates(
 /// FR-049: an `https` URL on `RELEASE_PAGE_HOST`, no user name, no password, no port, at most 2048 bytes; the
 /// parser's serialisation (lower-cased host, default port dropped).
 pub fn release_page_url(text: &str) -> Option<String> {
-    page_url(text, RELEASE_PAGE_HOST)
+    page_url(text, Some(RELEASE_PAGE_HOST))
 }
 
-/// Phase 12 FR-088: FR-049's rule on `PLUGIN_PAGE_HOST`.
+/// Phase 12 FR-088: FR-049's rule on any host; the host is the open command's to check (`open_url`).
 pub fn plugin_page_url(text: &str) -> Option<String> {
-    page_url(text, PLUGIN_PAGE_HOST)
+    page_url(text, None)
 }
 
-/// What the open command opens: a release page or a plugin page (FR-049, Phase 12 FR-088).
-pub fn open_url(text: &str) -> Option<String> {
-    release_page_url(text).or_else(|| plugin_page_url(text))
+/// What the open command opens (FR-049, Phase 12 FR-088): a release page, or a plugin page on `plugin_page_host`,
+/// which `src-tauri` takes from its feed URL (FR-021: the production host is never a core literal).
+pub fn open_url(text: &str, plugin_page_host: &str) -> Option<String> {
+    release_page_url(text).or_else(|| page_url(text, Some(plugin_page_host)))
 }
 
-fn page_url(text: &str, host: &str) -> Option<String> {
+/// The lower-cased host of a URL; `None` when it does not parse or has none.
+pub fn url_host(text: &str) -> Option<String> {
+    url::Url::parse(text)
+        .ok()?
+        .host_str()
+        .map(str::to_ascii_lowercase)
+}
+
+fn page_url(text: &str, host: Option<&str>) -> Option<String> {
     if text.len() > MAX_RELEASE_PAGE_URL_BYTES {
         return None;
     }
     let url = url::Url::parse(text).ok()?;
     let accepted = url.scheme() == "https"
-        && url.host_str().is_some_and(|h| h.eq_ignore_ascii_case(host))
+        && url
+            .host_str()
+            .is_some_and(|h| host.is_none_or(|want| h.eq_ignore_ascii_case(want)))
         && url.username().is_empty()
         && url.password().is_none()
         && url.port().is_none();

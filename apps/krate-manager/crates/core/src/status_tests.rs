@@ -1402,8 +1402,12 @@ fn release_page_url_cases() {
 
 // ---- Phase 12 SC-035 ----------------------------------------------------------------------------------------------
 
+/// The host `src-tauri` passes to `open_url`: its feed URL's (`plugin_page_host`).
+const SITE: &str = "krateaudio.com";
+
 #[test]
 fn plugin_page_url_cases() {
+    // The card's page: FR-049's rule on any host (the host is `open_url`'s).
     let accepted = [
         (
             "https://krateaudio.com/vorago/",
@@ -1411,6 +1415,7 @@ fn plugin_page_url_cases() {
         ),
         ("https://KrateAudio.com/x", "https://krateaudio.com/x"),
         ("https://krateaudio.com:443/x", "https://krateaudio.com/x"),
+        ("https://example.test/x", "https://example.test/x"),
     ];
     for (text, want) in accepted {
         assert_eq!(plugin_page_url(text).as_deref(), Some(want), "{text}");
@@ -1420,35 +1425,65 @@ fn plugin_page_url_cases() {
         "a".repeat(2049 - "https://krateaudio.com/".len())
     );
     assert_eq!(long.len(), 2049);
+    let at_limit = format!(
+        "https://krateaudio.com/{}",
+        "a".repeat(2048 - "https://krateaudio.com/".len())
+    );
+    assert_eq!(
+        plugin_page_url(&at_limit).as_deref(),
+        Some(at_limit.as_str())
+    );
     let refused = [
         "http://krateaudio.com/x",
-        "https://krateaudio.com.example.test/x",
-        "https://www.krateaudio.com/x",
-        "https://example.test/krateaudio.com",
         "https://user@krateaudio.com/x",
         "https://user:secret@krateaudio.com/x",
         "https://krateaudio.com:8443/x",
         "javascript:alert(1)",
+        "file:///x",
+        "//krateaudio.com/x",
         "",
+        "not a url",
         long.as_str(),
     ];
     for text in refused {
         assert_eq!(plugin_page_url(text), None, "{text}");
-        assert_ne!(
-            open_url(text).as_deref(),
-            Some(text),
-            "open_url passes {text}"
-        );
+        assert_eq!(open_url(text, SITE), None, "open_url passes {text}");
     }
-    assert_eq!(plugin_page_url("https://github.com/example/x"), None);
-    // The open command takes either page; nothing else.
+
+    // The open command: a release page, or a plugin page on the host it is given; nothing else.
     for page in [
         "https://krateaudio.com/vorago/",
         "https://github.com/example/repo/releases/tag/alpha/v1.2.0",
     ] {
-        assert_eq!(open_url(page).as_deref(), Some(page), "{page}");
+        assert_eq!(open_url(page, SITE).as_deref(), Some(page), "{page}");
     }
-    assert_eq!(open_url("https://example.test/x"), None);
+    assert_eq!(
+        open_url("https://KrateAudio.com/x", "KRATEAUDIO.COM").as_deref(),
+        Some("https://krateaudio.com/x")
+    );
+    for other in [
+        "https://example.test/x",
+        "https://krateaudio.com.example.test/x",
+        "https://www.krateaudio.com/x",
+        "https://example.test/krateaudio.com",
+        "https://api.github.com/x",
+    ] {
+        assert_eq!(open_url(other, SITE), None, "{other}");
+    }
+    assert_eq!(
+        open_url("https://krateaudio.com/vorago/", "example.test"),
+        None
+    );
+    assert_eq!(open_url("https://krateaudio.com/vorago/", ""), None);
+
+    // `src-tauri` takes the host from its feed URL.
+    assert_eq!(
+        url_host("https://KrateAudio.com/versions.json").as_deref(),
+        Some(SITE)
+    );
+    for text in ["", "not a url", "file:///x"] {
+        assert_eq!(url_host(text), None, "{text}");
+    }
 
     // Through `assemble`: each card's page is its `download_url`, in a v2 and a v1 feed alike.
     for fixture in [FULL, V1_ONLY] {
@@ -1461,7 +1496,7 @@ fn plugin_page_url_cases() {
         );
         assert_eq!(view.plugins.len(), 3, "{fixture}");
         for p in &view.plugins {
-            let want = format!("https://krateaudio.com/{}/", p.name.to_lowercase());
+            let want = format!("https://{SITE}/{}/", p.name.to_lowercase());
             assert_eq!(p.plugin_page_url, Some(want), "{fixture}: {p:?}");
         }
     }
