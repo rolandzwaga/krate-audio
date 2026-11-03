@@ -50,3 +50,4 @@ answered them (`RUSTSEC-YYYY-NNNN answered by bump to rquickjs A.B.C, rquickjs-c
 | version | date | rquickjs | rquickjs-core | rquickjs-sys | result |
 |---|---|---|---|---|---|
 | 1.0.0 | 2026-11-03 | 0.14.0 | 0.14.0 | 0.14.0 | no advisory |
+| 1.0.1 | 2026-11-03 | 0.14.0 | 0.14.0 | 0.14.0 | no advisory |
