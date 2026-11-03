@@ -609,6 +609,16 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   that records the FR-073 rows flips SC-016b's branch, so it must run the TAP check); `tools/feed-contract/fixtures/landing/**`
   is already covered by `tools/feed-contract/**` (plan SI-16). No test pins these paths today: the new
   `workflow-shape.test.js` test "landing pages render with gen-root-index.js" (plan PD-28) pins both lists (plan SI-5).
+- **FR-087** (spec revision 2026-11-03, Clarifications R-3) The manager window takes the krateaudio.com look
+  (`docs/assets/style.css` and the plugin pages): their palette (`--color-bg` `#0a0a0f`, `--color-surface` `#12121a`,
+  `--color-border` `#2a2a3a`, text `#e8e8f0` / `#8888a0`, the landing page's accent `#6366f1` / `#818cf8`), dark
+  only; Inter; the gradient title; the version and the card state as the site's pill; plugins as its 12 px surface
+  cards in an `auto-fit, minmax(300px, 1fr)` grid; the accent on the action a row exists for (Install, Update,
+  Update all, Confirm, Update and restart, Save), outlined buttons otherwise. `src/styles.css` only: no element,
+  class or text changes. Inter 4.1's `InterVariable.woff2` (SIL OFL 1.1, `public/fonts/Inter-LICENSE.txt`) is bundled
+  in `public/fonts/` and loaded same-origin (`font-src 'self'`, never Google Fonts); FR-077's stylesheet ban (Phase 6)
+  lets through exactly its two lines (`@font-face {`, `src: url("/fonts/InterVariable.woff2") format("woff2");`) in
+  `src/styles.css` only (`config_guard.rs` `STYLESHEET_ALLOWED`).
 
 ### H. Release readiness for manager 0.1.0 (roadmap lines 931-934; Q10; D14, D17)
 
@@ -905,6 +915,11 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   binary is in use, a file held without write sharing is in use until released, its bytes unchanged, an absent file
   is not; `os::tests::in_use_is_false_off_windows`. All four in `tests/required-tests.json`. USER: FR-074 (c) repeated
   with the DAW open shows the "close your DAW and retry" text and the plug-in intact.
+- **SC-034 (the site's look, FR-087).** `config_guard.rs` `frontend_source_scan_reports_planted_strings`: the two
+  Inter lines pass in `src/styles.css`, are reported in any other stylesheet, and another font URL, a second URL on
+  the `src` line, an `@import` or a `url()` in `src/styles.css` is still reported; `real_src_tauri_config_passes_the_guard`
+  on the real tree; `npm run build` emits `dist/fonts/InterVariable.woff2` and a stylesheet whose only `url(` is
+  `/fonts/InterVariable.woff2`. USER: the installed manager shows the dark site palette in Inter.
 
 ---
 
@@ -1058,6 +1073,7 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
 | FR-083 | SC-017 (POST-RELEASE R-POST-4) |
 | FR-085 | SC-029 (shape, PENDING-CI `landing-dry`, POST-RELEASE R-POST-1) |
 | FR-086 | SC-029 (`workflow-shape.test.js`) |
+| FR-087 | SC-034 |
 | FR-090 | SC-026 |
 | FR-100 | SC-020, SC-028 |
 | FR-101 | SC-024 |
@@ -1183,3 +1199,6 @@ Every question of the clarify scan was decided by the user; each line ends with 
   uninstaller, no key, no pending delete). → A: The user ruled "go" on the proposed fix: the helper checks the plug-in
   binaries before starting the Inno uninstaller and refuses `Locked` (measured: a DLL loaded in a second process refuses
   a write open and a delete, allows a read open and a rename). [FR-055, SC-033, FR-074 (c)]
+- R-3: The manager looked nothing like the website. → A: The user asked for the website's look and feel and chose to
+  bundle Inter over a system-font fallback (the CSP allows only same-origin fonts). FR-077's ban gains the two Inter
+  lines in `src/styles.css` as its only exception. [FR-087, SC-034]
