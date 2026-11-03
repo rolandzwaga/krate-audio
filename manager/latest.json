@@ -1,0 +1,35 @@
+{
+  "notes": "### Added\n\n- Scaffold: Tauri 2 app, platform abstraction, settings model and the manager CI.\n- Update all: one confirmation lists every offered plug-in update, then downloads them (three at a time) and installs\n  them in one run, behind at most one administrator prompt on Windows and macOS.\n- Linux settings screen: choose the plug-in folder (or go back to the default `~/.vst3`) and turn on a graphics\n  workaround for a blank or flickering window, which takes effect at the next start.\n- Remove for a plug-in that Krate Manager installed on Linux but that the plug-in list no longer names.\n- An \"Open plugin page\" button on every plug-in card, next to \"Open release page\": it opens the plug-in's page on\n  krateaudio.com.",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHJzaWduIHNlY3JldCBrZXkKUlVTOGMwSVIrVGJybnlIREFOTmpxNGppTmtvUWdnQlRRUVhnNUVxZFgvZXZMTmVMQXdKRDExTzFPSjRPVm9lRXZFMGlGL1pGU1VGZzBQMGpMV1hLRk9icjVwRkRLVmJxK0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzM5NjM4CWZpbGU6S3JhdGUtTWFuYWdlci0xLjAuMC1tYWNPUy11bml2ZXJzYWwuYXBwLnRhci5negl2ZXJzaW9uOjEuMC4wCm5QOUZ3VE9wcGJTRzBsZzZBdmxuaWVlVlhheFFyalJNNk5nVHplWHhFY2orV05JeS9nM2RpLzEyS0VBWXBwVmRxcG5rTEhZRGZweFlCbDlEeHVyWEN3PT0K",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-macOS-universal.app.tar.gz"
+    },
+    "darwin-universal": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHJzaWduIHNlY3JldCBrZXkKUlVTOGMwSVIrVGJybnlIREFOTmpxNGppTmtvUWdnQlRRUVhnNUVxZFgvZXZMTmVMQXdKRDExTzFPSjRPVm9lRXZFMGlGL1pGU1VGZzBQMGpMV1hLRk9icjVwRkRLVmJxK0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzM5NjM4CWZpbGU6S3JhdGUtTWFuYWdlci0xLjAuMC1tYWNPUy11bml2ZXJzYWwuYXBwLnRhci5negl2ZXJzaW9uOjEuMC4wCm5QOUZ3VE9wcGJTRzBsZzZBdmxuaWVlVlhheFFyalJNNk5nVHplWHhFY2orV05JeS9nM2RpLzEyS0VBWXBwVmRxcG5rTEhZRGZweFlCbDlEeHVyWEN3PT0K",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-macOS-universal.app.tar.gz"
+    },
+    "darwin-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHJzaWduIHNlY3JldCBrZXkKUlVTOGMwSVIrVGJybnlIREFOTmpxNGppTmtvUWdnQlRRUVhnNUVxZFgvZXZMTmVMQXdKRDExTzFPSjRPVm9lRXZFMGlGL1pGU1VGZzBQMGpMV1hLRk9icjVwRkRLVmJxK0F3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzM5NjM4CWZpbGU6S3JhdGUtTWFuYWdlci0xLjAuMC1tYWNPUy11bml2ZXJzYWwuYXBwLnRhci5negl2ZXJzaW9uOjEuMC4wCm5QOUZ3VE9wcGJTRzBsZzZBdmxuaWVlVlhheFFyalJNNk5nVHplWHhFY2orV05JeS9nM2RpLzEyS0VBWXBwVmRxcG5rTEhZRGZweFlCbDlEeHVyWEN3PT0K",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-macOS-universal.app.tar.gz"
+    },
+    "linux-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHJzaWduIHNlY3JldCBrZXkKUlVTOGMwSVIrVGJybjlnVGtucEY0L2t6bytCM3ZOcFkwUmJQc1VSczZUQmU1VmF1Tlh4bTNSOUdxQXIvRkUwaldvZHh1cDcrdm5hN0RONzdhaFAybldTeGZEalJTZjRVaVFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzM5NjM4CWZpbGU6S3JhdGUtTWFuYWdlci0xLjAuMC1MaW51eC14ODZfNjQuQXBwSW1hZ2UJdmVyc2lvbjoxLjAuMApBMFIwUWRKNE1KcXhNYkwrVlZrUjlaQjU1bmE3VjA4R1VBbytnWk1QdDFTZjFnMzdScThidU9EZUQ5SFluVXpqdVlKTkloK3BkME5zRVRlT1RzRnBEdz09Cg==",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-Linux-x86_64.AppImage"
+    },
+    "linux-x86_64-appimage": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHJzaWduIHNlY3JldCBrZXkKUlVTOGMwSVIrVGJybjlnVGtucEY0L2t6bytCM3ZOcFkwUmJQc1VSczZUQmU1VmF1Tlh4bTNSOUdxQXIvRkUwaldvZHh1cDcrdm5hN0RONzdhaFAybldTeGZEalJTZjRVaVFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzM5NjM4CWZpbGU6S3JhdGUtTWFuYWdlci0xLjAuMC1MaW51eC14ODZfNjQuQXBwSW1hZ2UJdmVyc2lvbjoxLjAuMApBMFIwUWRKNE1KcXhNYkwrVlZrUjlaQjU1bmE3VjA4R1VBbytnWk1QdDFTZjFnMzdScThidU9EZUQ5SFluVXpqdVlKTkloK3BkME5zRVRlT1RzRnBEdz09Cg==",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-Linux-x86_64.AppImage"
+    },
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHJzaWduIHNlY3JldCBrZXkKUlVTOGMwSVIrVGJybjY1ZTlsczk1QU9LNm5acHlDaXhJSGk0bS9ZcXd0MHNMVlFITWQrT2NrMjFPZ2RHanY3N0UyZ2VUWVNHSml0bTNDeU5MMnF4UWtRV211aElROWY3c2dzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzM5NjM4CWZpbGU6S3JhdGUtTWFuYWdlci0xLjAuMC1XaW5kb3dzLXg2NC1zZXR1cC5leGUJdmVyc2lvbjoxLjAuMApyRGZ6OVlGNDBWTGN6RVdlRzAzdDMyNU45SEdQZ2s4TWpTR2F5K1hRTFRycnRvb05OWkttN3FHTzA2RVhjZmtxZTlsNlg4OENNSWMvTVFrWWg3THpBZz09Cg==",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-Windows-x64-setup.exe"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHJzaWduIHNlY3JldCBrZXkKUlVTOGMwSVIrVGJybjY1ZTlsczk1QU9LNm5acHlDaXhJSGk0bS9ZcXd0MHNMVlFITWQrT2NrMjFPZ2RHanY3N0UyZ2VUWVNHSml0bTNDeU5MMnF4UWtRV211aElROWY3c2dzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzM5NjM4CWZpbGU6S3JhdGUtTWFuYWdlci0xLjAuMC1XaW5kb3dzLXg2NC1zZXR1cC5leGUJdmVyc2lvbjoxLjAuMApyRGZ6OVlGNDBWTGN6RVdlRzAzdDMyNU45SEdQZ2s4TWpTR2F5K1hRTFRycnRvb05OWkttN3FHTzA2RVhjZmtxZTlsNlg4OENNSWMvTVFrWWg3THpBZz09Cg==",
+      "url": "https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-Windows-x64-setup.exe"
+    }
+  },
+  "pub_date": "2026-11-03T21:02:47Z",
+  "version": "1.0.0"
+}

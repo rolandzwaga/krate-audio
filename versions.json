@@ -407,5 +407,8 @@
         "macos_pkg_id": "com.krateaudio.vorago"
       }
     }
+  },
+  "manager": {
+    "latest_json_url": "https://krateaudio.com/manager/latest.json"
   }
 }
