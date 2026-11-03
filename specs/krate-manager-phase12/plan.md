@@ -498,7 +498,7 @@ filter already covers every app file; `required tests ran` reads the new names).
   or a duplicate id fails the case (the file is malformed, never treated as "not recorded").
 - `specs/krate-manager-phase12/readiness.md`: "Counts" (the tool's output, pasted), "PENDING-CI rows" (every Phase 1-11
   row, the two deferred Phase 11 rows included with verdict `post-release`, PD-26), "Gates" (FR-101),
-  "Backfill and live feed" (FR-103), "RustSec" (FR-102), "Asset host" (P-2), "Post-release rows" (the five D17 ids).
+  "Backfill and live feed" (FR-103), "RustSec" (FR-102), "Asset host" (P-2), "Post-release rows" (the seven D17 ids).
 
 ### 4.11 Roadmap amendments (FR-090), by the build stage
 
@@ -626,6 +626,7 @@ SC-014 is the `check (ubuntu-24.04)` leg's "required tests ran" notice.
 | SC-029 | `release-manager.yml` `dry_run: true`, job `landing-dry` | artifact `manager-landing-dry-run` `index.html` holds one `manager-card` with the four per-tag URLs of the dispatched version |
 | R-POST-1 | user, after the real dispatch | `https://krateaudio.com/` shows the card for 0.1.0 |
 | R-POST-2, R-POST-3 | user, after the next release | FR-075 |
+| R-POST-4, R-POST-5 | user, on a Mac after the real dispatch (spec revision 2026-11-03) | FR-073 on Sequoia and Tahoe, then T018 / T019; FR-074 (d), (e) |
 
 ### 7.4 Local close procedure (Windows, this box)
 

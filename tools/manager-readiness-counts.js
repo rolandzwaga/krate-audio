@@ -5,7 +5,7 @@
 // Counts the PENDING-CI rows of the Krate Manager phases and checks the release-readiness ledger against them.
 //
 // WHY. Manager 0.1.0 is ready to dispatch only when every PENDING-CI row of Phases 1-11 is closed by a named green run,
-// except the five post-release rows of D17 (specs/krate-manager-phase12/spec.md FR-100, D14, D17; SC-020, SC-028;
+// except the seven post-release rows of D17 (specs/krate-manager-phase12/spec.md FR-100, D14, D17; SC-020, SC-028;
 // plan PD-26; tasks TA-16). The counts move whenever a compliance file is rewritten, and the roadmap status lines
 // already disagree with the files (spec F-4), so no count is hard-coded: this tool computes both at the readiness
 // commit, and its --check-ledger mode refuses a ledger that lists the wrong number of rows, repeats one, leaves one
@@ -28,7 +28,7 @@
 //   E_LEDGER_COUNT         the PENDING-CI row count differs from the Phases 1-11 file total
 //   E_LEDGER_REPEAT        a PENDING-CI id repeats
 //   E_LEDGER_ROW           a PENDING-CI row is neither closed by a run nor deferred
-//   E_LEDGER_POST_RELEASE  the Post-release ids are not exactly the five D17 ids, or one verdict is not post-release
+//   E_LEDGER_POST_RELEASE  the Post-release ids are not exactly the seven D17 ids, or one verdict is not post-release
 //   E_LEDGER_BOTH          a PENDING-CI row closed by a run has an id that is also a Post-release id
 // Exit 2 = usage, an unreadable argument, or an internal error. Reads only its arguments (and the compliance files
 // under --specs); writes nothing; no network, no child process.
@@ -58,6 +58,9 @@ const D17_IDS = [
   'phase12:R-POST-1',
   'phase12:R-POST-2',
   'phase12:R-POST-3',
+  // Spec revision 2026-11-03: no Mac before release, so the macOS user checks follow the first real dispatch.
+  'phase12:R-POST-4',
+  'phase12:R-POST-5',
 ];
 // TA-16: the two row tables' headings and columns.
 const PENDING_HEADING = 'PENDING-CI rows';
@@ -233,7 +236,7 @@ function checkLedger(text, fileTotal) {
     refuse('E_LEDGER_ROW', `line ${r.line}: ${r.id} is not closed by a run: ${notClosedReason(r)}`);
   }
 
-  // (c) the Post-release table is exactly the five D17 rows.
+  // (c) the Post-release table is exactly the seven D17 rows.
   const postSeen = new Set();
   for (const r of post) {
     if (postSeen.has(r.id)) refuse('E_LEDGER_POST_RELEASE', `line ${r.line}: ${r.id} repeats`);

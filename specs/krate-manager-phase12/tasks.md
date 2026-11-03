@@ -42,8 +42,9 @@ by this file's TA rows, and T002 writes SI-1 to SI-22 into `spec.md` in G2 besid
   TAP plan, the new step names, the `gen-root-index.js` CLI) depend on G2's files. This is also the integration group
   the phase needs (the per-OS CI additions of this phase's SCs, written, never pushed).
 - **Fence U-1** (spec FR-076, D11) sits between G3 and G4: the build stops there until the user has recorded FR-103,
-  then FR-073 and FR-074. G4 (post-U-1, [P]) writes the macOS text from the record; G5 closes the readiness ledger after
-  the user's final CI runs.
+  then FR-074 (a)-(c) and (f); G5 closes the readiness ledger after the user's final CI runs. G4 is post-release (spec
+  revision 2026-11-03, D17 R-POST-4: no Mac before release): it writes the macOS text once both FR-073 rows exist,
+  after the first real dispatch.
 - Each task section is the executor's authoritative instruction: files, the failing test to write first (file, test
   name, assertions), the implementation intent, the lane. Where a block is too long to copy without drift, the section
   names the `plan.md` row (PD-n, SI-n, §4.x, §7.1 SC row) that holds it; that text is then **binding, verbatim**, as
@@ -196,9 +197,9 @@ from a plan block or close what the plan left open.
 | G1 Foundation | **sequential** (1) | T001: every shared file and every cross-task surface (see "How to read this file") | Preconditions |
 | G2 Code, UI, docs, tools, ledger, evidence | **[P]** (14) | T002 spec + roadmap · T003 core install: batch, split helpers, orphan Remove · T004 core settings command and root gate · T005 core status orphans · T006 core graphics env · T007 guards (`injection.rs`) · T008 UI: Update all and orphan cards · T009 UI: settings section and main · T010 docs: statements, README, RELEASING, CHANGELOG, card, user-checks, first-launch test · T011 `gen-root-index.js` · T012 `manager-readiness-counts.js` · T013 readiness ledger · T014 preflight RustSec · T015 evidence scripts | G1 |
 | G3 Integration | **sequential** (2, in order) | T016 workflows (`release.yml`, `docs.yml`, `release-manager.yml`, `feed-tools.yml`) + their shape tests + `hygiene.test.js` + TAP pins · T017 integration checks, INDEX, PENDING-CI list, hand-over | G2 |
-| — Fence U-1 | user | FR-103 recorded, then FR-073 and FR-074 recorded in `user-checks.md` (and the readiness dry run, TA-14) | G3 + L-CLOSE green |
-| G4 Post-U-1 | **[P]** (2) | T018 macOS first-launch text · T019 release body | U-1 |
-| G5 Readiness close | **sequential** (1, main loop) | T020 the ledger closed against the user's final runs | G4 + the user's final CI runs |
+| — Fence U-1 | user | FR-103 recorded, then FR-074 (a)-(c) and (f) recorded in `user-checks.md` (and the readiness dry run, TA-14) | G3 + L-CLOSE green |
+| G5 Readiness close | **sequential** (1, main loop) | T020 the ledger closed against the user's final runs | U-1 + the user's final CI runs |
+| G4 Post-release (R-POST-4) | **[P]** (2) | T018 macOS first-launch text · T019 release body | both FR-073 rows recorded, after the first real dispatch |
 
 **File ownership in G2 (each file has exactly one G2 writer).** T002: `specs/krate-manager-phase12/spec.md`,
 `specs/Krate-manager-roadmap.md`. T003: `crates/core/src/install.rs`, `install_batch_tests.rs`, `install_tests.rs`,
@@ -643,7 +644,7 @@ subtests: over the fixture specs and roadmap the tool prints one `phase<N> file=
 compliance row whose verdict cell is `PENDING-CI` in capitals counts; a `pending-ci` word outside a verdict cell does
 not; a status line without `PENDING-CI:` gives `status=null`; `--check-ledger readiness-ok.md` (shaped like the real
 ledger per PD-26 and TA-16: Phase 11 SC-020 `pending-ci` in the fixture compliance, a PENDING-CI row `phase11:SC-020`
-verdict `post-release` with no run, `phase11:SC-014` closed by a green run, the five D17 ids in Post-release) → exit
+verdict `post-release` with no run, `phase11:SC-014` closed by a green run, the seven D17 ids in Post-release) → exit
 0; mutations written in memory to temp copies, each → exit 1: `phase11:SC-020` dropped from PENDING-CI (count short);
 present in PENDING-CI but not in Post-release; a repeated id; a run-closed row whose id is also a Post-release id;
 a `post-release` row whose id is not a D17 id (`post_release_rows_are_closed`, a planted sixth exemption); a
@@ -662,7 +663,7 @@ row's evidence text as written there (pipes escaped), column 3 the workflow that
 Phases 1-3 per `phase2/compliance.md:131-146`, `phase3/compliance.md:99-110`), columns 4-6 empty except
 `phase11:SC-020`, whose verdict is `post-release` (D17). Counted this session: 13, 15, 6, 14, 20, 17, 11, 19, 18, 1, 17
 rows (151; no id repeats within a phase); re-count at writing time and use that count. `## Post-release rows`: the
-five D17 ids, verdict `post-release`, column 3 the run or release that closes each (D17 text). `## Counts`:
+seven D17 ids, verdict `post-release`, column 3 the run or release that closes each (D17 text). `## Counts`:
 "Pasted from `node tools/manager-readiness-counts.js --specs specs --roadmap specs/Krate-manager-roadmap.md` at the
 readiness commit (G5)" and nothing else yet. `## Gates`, `## Backfill and live feed`, `## RustSec`, `## Asset host`:
 one empty table each with the fields FR-101, FR-103, FR-102 and P-2 name.
@@ -782,13 +783,17 @@ and paste its row into `apps/krate-manager/RELEASING.md` (TA-14); then fence U-1
 
 ## Fence U-1 (the user; no agent performs or fills these rows)
 
-In order (spec FR-076, FR-074 precondition, FR-073): the live `backfill-sign.yml` run after its green dry run and the
+In order (spec FR-076, FR-074 precondition): the live `backfill-sign.yml` run after its green dry run and the
 `versions.json` summary (FR-103, SC-022, recorded in `readiness.md` `## Backfill and live feed` from the user's
 message); a green `manager-ci` and a green `release-manager.yml` `dry_run: true` at the readiness commit (after the
-RustSec row, TA-14); FR-073 on Sequoia and Tahoe from that dry run's `manager-release-dry-run` pkg served over HTTP(S)
-and downloaded with a browser (D16); FR-074 (a)-(f). The user fills `user-checks.md`; the build resumes at G4.
+RustSec row, TA-14); FR-074 (a)-(c) and (f), (f) possibly under WSL with WSLg. The user fills `user-checks.md`; the
+build resumes at G5. FR-073 and FR-074 (d), (e) are post-release (D17 R-POST-4, R-POST-5; spec revision 2026-11-03:
+no Mac before release).
 
-## G4 — Post-U-1 [P] (two tasks, disjoint files)
+## G4 — Post-release, R-POST-4 [P] (two tasks, disjoint files)
+
+Runs after the first real dispatch, once a Mac has recorded both FR-073 rows against the public 0.1.0 pkg (spec
+revision 2026-11-03); its changes ship with the next manager release.
 
 ### T018 [P] — The macOS first-launch text (spec FR-073 → FR-084 (b), FR-076; SC-016b green, SC-018 cite; D11)
 
@@ -819,7 +824,7 @@ and downloaded with a browser (D16); FR-074 (a)-(f). The user fills `user-checks
 ### T020 — The ledger closed (spec FR-100 to FR-103, D17; SC-020, SC-021 ledger, SC-022, SC-028 real ledger)
 
 **Files:** `specs/krate-manager-phase12/readiness.md`, and `apps/krate-manager/RELEASING.md` only if the RustSec row
-must be re-dated (TA-14). Needs: G4 merged into the commit the user pushed, and the user's green `manager-ci` (all
+must be re-dated (TA-14). Needs: U-1 recorded in the commit the user pushed, and the user's green `manager-ci` (all
 legs), `feed-tools.yml` (three legs) and `release-manager.yml` `dry_run: true` runs at that commit or a later one with
 no `apps/krate-manager/**` change between (FR-101; the post-U-1 README edit means the runs of U-1 do not count,
 Defect D-11).
@@ -852,6 +857,7 @@ Defect D-11).
 | SC-021 | `release-manager.yml` `dry_run: true`, job `preflight` | `::notice title=preflight::passed` with the committed 0.1.0 row |
 | SC-029 | `release-manager.yml` `dry_run: true`, job `landing-dry` | artifact `manager-landing-dry-run` `index.html` holds exactly one `manager-card` with the four per-tag URLs of the dispatched version |
 | R-POST-1 (D17) | user, after the first real dispatch | `https://krateaudio.com/` shows the card for 0.1.0's four installers |
+| R-POST-4, R-POST-5 (D17, spec revision 2026-11-03) | user, on a Mac after the first real dispatch | FR-073 on Sequoia and Tahoe (then G4); FR-074 (d), (e) |
 | R-POST-2, R-POST-3 (D17), Phase 11 SC-014 `publish`, Phase 11 SC-020 | user, first real dispatch and the release after it | FR-075; Phase 11 rows as `specs/krate-manager-phase11/compliance.md:97`, `:103` name them |
 
 ## Defects found (in the plan, while writing this list)

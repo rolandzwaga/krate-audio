@@ -12,13 +12,12 @@ The macOS first-launch text (`macos.*` in `tools/feed-contract/first-launch-stat
 both FR-073 rows are recorded (FR-076); `tools/feed-contract/tests/manager-first-launch.test.js` reads their `result`
 cells.
 
-## FR-073 Sequoia: macOS GUI pkg check on macOS 15.x
+## FR-073 Sequoia / R-POST-4: macOS GUI pkg check on macOS 15.x (post-release)
 
-The pkg is `Krate-Manager-<v>-macOS.pkg` from the `manager-release-dry-run` artifact of a green `release-manager.yml`
-`dry_run` at the readiness commit (record the run URL and commit), served as a plain file over HTTP(S) from a machine
-you control and downloaded on the Mac by opening its URL (record it) in a browser (record its name and version).
-Opening the artifact's zip, copying the pkg by `scp` / `curl` / AirDrop, or adding the attribute with `xattr -w` does
-not count. Before the double-click record `xattr -l` and `xattr -p com.apple.quarantine` of the downloaded pkg;
+After manager 0.1.0 is public (spec revision 2026-11-03: no Mac before release). The pkg is the public
+`Krate-Manager-0.1.0-macOS.pkg`, downloaded on the Mac by opening its per-tag release URL (record it) in a browser
+(record its name and version). Copying the pkg by `scp` / `curl` / AirDrop, or adding the attribute with `xattr -w`,
+does not count. Before the double-click record `xattr -l` and `xattr -p com.apple.quarantine` of the downloaded pkg;
 double-click; record whether Installer.app refuses it and whether Privacy & Security offers "Open Anyway"; if offered,
 complete the install; then record `xattr -l "/Applications/Krate Manager.app"` and whether the app launches.
 
@@ -26,7 +25,7 @@ complete the install; then record `xattr -l "/Applications/Krate Manager.app"` a
 |---|---|---|---|---|---|---|---|---|
 | FR-073-sequoia | | | | | | | | |
 
-## FR-073 Tahoe: macOS GUI pkg check on macOS 26.x
+## FR-073 Tahoe / R-POST-4: macOS GUI pkg check on macOS 26.x (post-release)
 
 The same steps as FR-073 Sequoia, on Tahoe 26.x.
 
@@ -62,7 +61,7 @@ Remove the plugin through the manager (the Inno uninstaller); record the result.
 |---|---|---|---|---|---|---|---|---|
 | FR-074-c | | | | | | | | |
 
-## FR-074 (d): macOS install through the manager
+## FR-074 (d) / R-POST-5: macOS install through the manager (post-release)
 
 Install one plugin through the manager (the real `.pkg`); record the osascript prompt text, the result and the AU
 rescan notice.
@@ -71,7 +70,7 @@ rescan notice.
 |---|---|---|---|---|---|---|---|---|
 | FR-074-d | | | | | | | | |
 
-## FR-074 (e): macOS Remove
+## FR-074 (e) / R-POST-5: macOS Remove (post-release)
 
 Remove the plugin through the manager (the `pkgutil` route); record the result.
 
@@ -82,7 +81,7 @@ Remove the plugin through the manager (the `pkgutil` route); record the result.
 ## FR-074 (f): Linux install and Remove
 
 Install and Remove one plugin through the manager; record that no prompt appears and the placed paths
-(`~/.vst3/<P>.vst3`, `~/Documents/Krate Audio/<P>`).
+(`~/.vst3/<P>.vst3`, `~/Documents/Krate Audio/<P>`). WSL with WSLg counts; record the distribution and its version.
 
 | id | date | machine | OS name and build | manager version and source | steps as performed | observed result | evidence files | result |
 |---|---|---|---|---|---|---|---|---|

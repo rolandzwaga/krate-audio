@@ -68,3 +68,5 @@ total file=13 status=14
 | phase12:R-POST-1 | the live landing card links 0.1.0's four installers | the first real dispatch of release-manager.yml |  |  | post-release |
 | phase12:R-POST-2 | FR-075, the macOS self-update of a pkg-installed 0.1.0 | the release after 0.1.0 |  |  | post-release |
 | phase12:R-POST-3 | a pkg-installed 0.1.0 sees the next release | the release after 0.1.0 |  |  | post-release |
+| phase12:R-POST-4 | FR-073, the macOS GUI pkg check on Sequoia and Tahoe | the first real dispatch of release-manager.yml |  |  | post-release |
+| phase12:R-POST-5 | FR-074 (d) and (e), the macOS plug-in install and Remove | the first real dispatch of release-manager.yml |  |  | post-release |
