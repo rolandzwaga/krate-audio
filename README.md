@@ -38,6 +38,9 @@ krate-audio/
 │   ├── profundum/            # Profundum - Mass bass instrument
 │   └── shared/               # Shared plugin infrastructure (UI controls, presets, MIDI, update)
 │
+├── apps/
+│   └── krate-manager/        # Krate Manager - plug-in install/update manager (Tauri 2: Rust core + TypeScript UI)
+│
 ├── tools/
 │   ├── control_testbench/    # Standalone app for testing custom VSTGUI controls
 │   ├── krate-render/         # Offline plugin renderer (audio verification)
@@ -111,6 +114,14 @@ A bass instrument built around mass rather than layers: one additive harmonic co
 
 [**Website & Documentation**](https://krateaudio.com/profundum/) | [**Plugin README**](plugins/profundum/README.md) | [**Changelog**](plugins/profundum/CHANGELOG.md)
 
+Every plugin ships for Windows (x64), macOS (one universal build for Apple silicon and Intel: VST3, AU and the AUv3 app) and Linux (x86_64), and each release is signed (`SHA256SUMS`, one `.minisig` per asset, `release.json`).
+
+## Krate Manager
+
+[**Krate Manager**](apps/krate-manager/README.md) is a desktop app for Windows, macOS and Linux that shows which Krate Audio plug-ins are installed, whether updates exist, and installs, updates and removes them, one at a time or with Update all. It reads the release feed at `https://krateaudio.com/versions.json`, checks each download's signature before it runs an installer, refuses to update or remove a plug-in a DAW has loaded on Windows ("close your DAW and retry"), and updates itself. Its window follows the website's look.
+
+[**README and first launch**](apps/krate-manager/README.md) | [**Changelog**](apps/krate-manager/CHANGELOG.md) | [**Release procedure**](apps/krate-manager/RELEASING.md)
+
 ## KrateDSP Library
 
 The KrateDSP library provides reusable DSP components organized in a 5-layer architecture where each layer can only depend on layers below it:
@@ -172,6 +183,21 @@ cmake --build build/windows-x64-release --config Release --target dsp_core_tests
 | Plugin tests | `build/<preset>/bin/Release/<plugin>_tests` (Iterum: `plugin_tests` and `approval_tests`) |
 | Shared infrastructure tests | `build/<preset>/bin/Release/shared_tests` |
 | KrateDSP library | `build/<preset>/lib/Release/KrateDSP.lib` |
+
+### Krate Manager
+
+Krate Manager builds on its own, without CMake: Rust stable (pinned by `apps/krate-manager/rust-toolchain.toml`), Node.js 24, and on Linux the WebKitGTK packages of the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+
+```bash
+cd apps/krate-manager
+npm ci
+npm run tauri dev                     # run the app
+cargo test --workspace --locked       # Rust core, helper and app tests
+npm run typecheck && npm run lint && npm test   # UI checks and vitest
+npm run bundle                        # installers for this OS
+```
+
+`npm run bundle` writes the installers to `apps/krate-manager/target/release/bundle/`. Release builds (`node scripts/bundle.js --release`, the universal macOS build and the release file names in `target/release-assets/`) are made by `release-manager.yml`; see [RELEASING.md](apps/krate-manager/RELEASING.md).
 
 ## Technical Highlights
 
