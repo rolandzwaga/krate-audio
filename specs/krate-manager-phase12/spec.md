@@ -68,7 +68,7 @@ recorded at lines 929-930; Phase 11 FR-093 (c), recorded at lines 921-922).
 
 | Not here | Owner / reason |
 |---|---|
-| Publishing the public manager release | The user's dispatch of `release-manager.yml` after this phase (roadmap line 892). The D17 rows (Phase 11 SC-014's `publish` half and SC-020, Phase 12's R-POST-1 to R-POST-3) close on that run or on the following release |
+| Publishing the public manager release | The user's dispatch of `release-manager.yml` after this phase (roadmap line 892). The D17 rows (Phase 11 SC-014's `publish` half and SC-020, Phase 12's R-POST-1 to R-POST-5) close on that run or on the following release |
 | An "Install all" for not-installed plugins | Not in the roadmap: Q7 and line 899 name "Update all" only |
 | Cancelling a running batch or download | Not in the roadmap's Phase 12 text; Phase 7 provides the `CancelToken` parameter only (`commands.rs:84`, `:131`, `:189` pass a token nothing sets). Finding F-6 |
 | DAW process detection, closing or killing a DAW | Never (Q7, Not in v1 line 1000) |
@@ -200,8 +200,11 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
 - **D11, the user-performed checks are records in this directory, gated like Phase 10's M-1.** `specs/krate-manager-phase12/user-checks.md`
   holds one row per check (date, OS build, machine, the exact steps, the result, the evidence file under
   `specs/krate-manager-phase12/evidence/`). The build stage stops at fence **U-1** once everything not listed in FR-076
-  is green; the user performs the pre-release checks (FR-073, FR-074) and records them; the build resumes and writes
-  the macOS first-launch text from the record. The macOS self-update of a pkg-installed manager (FR-075) needs a newer,
+  is green; the user performs the pre-release checks (FR-074 (a)-(c) and (f)) and records them; the build resumes at
+  the readiness close (G5). The macOS checks, FR-073 and FR-074 (d), (e), are post-release rows R-POST-4 and R-POST-5 of
+  D17 (spec revision 2026-11-03: the user has no Mac before release, Clarifications R-1); the build writes the macOS
+  first-launch text from FR-073's record after the first real dispatch, and until then the README's macOS section
+  points to the release notes' Terminal route (FR-083's provisional line). The macOS self-update of a pkg-installed manager (FR-075) needs a newer,
   validly signed version announced at the one production endpoint (`https://krateaudio.com/manager/latest.json`,
   roadmap line 862), which exists only after the first two public releases (roadmap line 892), and production builds
   have no other feed (`lib.rs:49-56`, `:71-72`: overrides only under the `dev-feed` and `updater-e2e` features). So
@@ -251,10 +254,16 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   - Phase 12 R-POST-2: FR-075, the macOS self-update of a pkg-installed 0.1.0 to the next public release.
   - Phase 12 R-POST-3: the shipped-build confirmation that a pkg-installed 0.1.0 sees that next release (the same run as
     R-POST-2, recorded on Windows and Linux too: the version changes after the update).
+  - Phase 12 R-POST-4 (spec revision 2026-11-03): FR-073, the macOS GUI pkg check on Sequoia and Tahoe, with the
+    public 0.1.0 pkg; then T018 and T019 write the macOS text and the release body's macOS line from it (SC-016b's
+    recorded branch, SC-017, SC-018).
+  - Phase 12 R-POST-5 (spec revision 2026-11-03): FR-074 (d) and (e), a plug-in installed and removed through the
+    manager on macOS.
   No other row may be exempted: a row added to this list needs a spec revision. Phase 11 SC-020 calls itself "the exit
   criterion of Phase 12, not of this phase" (phase11/spec.md:1208); this spec agrees in the PENDING-CI sense every
-  phase uses: Phase 12's compliance closes `COMPLETE (PENDING-CI)` carrying these five rows, each with the named run
-  that closes it, and the user's first real dispatch (and, for R-POST-2 and R-POST-3, the next release) closes them.
+  phase uses: Phase 12's compliance closes `COMPLETE (PENDING-CI)` carrying these seven rows, each with the named run
+  that closes it, and the user's first real dispatch (and, for R-POST-2 and R-POST-3, the next release; for R-POST-4
+  and R-POST-5, the checks on a Mac against the published release) closes them.
   The roadmap text at line 932 gains this exception (FR-090 (d)).
 
 ### Departures and findings for the clarify scan
@@ -486,10 +495,9 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   screen and graphics toggle, and orphan Remove.
 - **FR-073** The macOS GUI pkg check, run once on Sequoia 15.x and once on Tahoe 26.x (D16): the manager pkg is
   downloaded **with a browser** (Safari, or another browser whose name and version the row records). The check runs
-  before 0.1.0 is public (U-1), so the pkg is `Krate-Manager-<v>-macOS.pkg` from the `manager-release-dry-run` artifact
-  of a green `release-manager.yml` `dry_run` at the readiness commit (run URL and commit recorded), served as a plain
-  file over HTTP(S) from a machine the user controls and downloaded on the Mac by opening its URL (recorded) in the
-  browser: the browser, not a tool, assigns the quarantine attribute. Opening the artifact's zip instead, copying the pkg
+  after 0.1.0 is public, as post-release row R-POST-4 of D17 (spec revision 2026-11-03, Clarifications R-1: the user
+  has no Mac before release), so the pkg is the public `Krate-Manager-0.1.0-macOS.pkg`, downloaded on the Mac by opening
+  its per-tag release URL (recorded) in the browser: the browser, not a tool, assigns the quarantine attribute. Copying the pkg
   by `scp` / `curl` / AirDrop, or adding the attribute with `xattr -w` does not count. Before the double-click,
   `xattr -l` and `xattr -p com.apple.quarantine` of the downloaded pkg are recorded; double-click; record whether Installer.app refuses it and whether
   Privacy & Security offers "Open Anyway"; if offered complete the install; then `xattr -l "/Applications/Krate
@@ -504,7 +512,9 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   retry" text; then close the DAW and retry, recording success; (c) Windows: Remove it (Inno uninstaller); (d) macOS:
   install one plugin (real `.pkg`), recording the osascript prompt text and the result, and the AU rescan notice; (e)
   macOS: Remove it (`pkgutil` route); (f) Linux: install and Remove one plugin, recording that no prompt appears and the
-  placed paths (`~/.vst3/<P>.vst3`, `~/Documents/Krate Audio/<P>`) (F-3).
+  placed paths (`~/.vst3/<P>.vst3`, `~/Documents/Krate Audio/<P>`) (F-3). (a)-(c) and (f) are pre-release; (f) may run
+  under WSL with WSLg (the row records the distribution). (d) and (e) are post-release row R-POST-5 of D17 (spec revision
+  2026-11-03: no Mac before release).
 - **FR-075** The macOS self-update of a pkg-installed manager (Phase 11 D11, FR-093 (c)), a post-release row (D17
   R-POST-2): after manager 0.1.0 is public, the user installs 0.1.0 from its pkg (FR-073's route), and when the next
   public manager release is announced at `https://krateaudio.com/manager/latest.json` lets 0.1.0 update itself; the row
@@ -514,9 +524,10 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   same next release (the version shown after relaunch). No pre-release substitute counts: the `updater-e2e` and
   `dev-feed` builds are not the shipped build (`lib.rs:49-56`, `:71-72`), and the self-replace path of those builds is
   already gated by Phase 11's `updater-e2e` job.
-- **FR-076** Fence U-1: the build stage stops once everything is green except SC-016b, SC-017, SC-018, SC-019's
-  pre-release part and the D17 rows; it waits until FR-103, then FR-073 and FR-074, are recorded; it never writes the
-  macOS first-launch text (the `post-u1` statements, FR-084 (b)) from an assumption. FR-075 is not part of U-1.
+- **FR-076** Fence U-1: the build stage stops once everything is green except SC-019's pre-release part and the D17
+  rows; it waits until FR-103, then FR-074 (a)-(c) and (f), are recorded; it never writes the macOS first-launch text
+  (the `post-u1` statements, FR-084 (b)) from an assumption. FR-073, FR-074 (d), (e) and FR-075 are not part of U-1 (D17
+  R-POST-4, R-POST-5, R-POST-2); SC-016b's recorded branch, SC-017 and SC-018 follow R-POST-4.
 
 ### G. First-launch documentation and the landing card (roadmap lines 923-930; Q5, Q6; Key decision 7; Phase 10 FR-123 (g))
 
@@ -639,11 +650,11 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   (`tools/gen-root-index.js`), also run by `release-manager.yml` job `landing`" (plan SI-1); (b) Phase 12's user-performed checks gain the Linux record of FR-074 (f);
   (c) the Phase 12 status line `**Status: ✅ COMPLETE (PENDING-CI: n item(s)) (<date>)**`, written by the workflow only
   after compliance has zero fail / partial items; Phase 12's `compliance.md` overall status then reads `COMPLETE
-  (PENDING-CI: n item(s))`, and its "Post-release rows" table lists exactly the five D17 rows (Phase 11 SC-014's
-  `publish` half and SC-020, Phase 12 R-POST-1 to R-POST-3), each with verdict `post-release`, which counts neither as
+  (PENDING-CI: n item(s))`, and its "Post-release rows" table lists exactly the seven D17 rows (Phase 11 SC-014's
+  `publish` half and SC-020, Phase 12 R-POST-1 to R-POST-5), each with verdict `post-release`, which counts neither as
   fail / partial nor as pass (Clarifications Q1); (d) line
   932 gains "except the post-release rows listed in specs/krate-manager-phase12/spec.md D17 (Phase 11 SC-014's `publish`
-  half and SC-020, Phase 12 R-POST-1 to R-POST-3), which the first real dispatch and the release after it close";
+  half and SC-020, Phase 12 R-POST-1 to R-POST-5), which the first real dispatch and the release after it close";
   (e) lines 921-922 gain "recorded after the first self-update between two public releases (D17 R-POST-2)"; (f) line
   200's Landing page row: "🔶 Phase 12: gains a Krate Manager card, nothing else. It breaks the repo's Node-only rule;
   noted, not in manager scope" → "🔶 Phase 12: ported to `tools/gen-root-index.js` (Node; Clarifications Q2), which
@@ -777,17 +788,19 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   `specs/krate-manager-phase12/user-checks.md` holds no FR-073 row, every `post-u1` entry's `text` must be `null` (so no
   macOS route is written from an assumption, FR-076); once both FR-073 rows exist, every `post-u1` `text` must be a
   non-empty string present in the README and the card under SC-016a's matching rules. Their text equals what the
-  FR-073 rows record (SC-018).
-- **SC-017 (release body, post-U-1).** `manager-release-preflight.test.js` against the updated `release-body.expected.md`:
-  the macOS line has no "provisional" and names the README section.
+  FR-073 rows record (SC-018). FR-073 is post-release (R-POST-4), so 0.1.0 ships the `null` branch, green.
+- **SC-017 (release body, POST-RELEASE R-POST-4).** `manager-release-preflight.test.js` against the updated
+  `release-body.expected.md`: the macOS line has no "provisional" and names the README section. 0.1.0's release body
+  keeps the provisional line; T019 runs once both FR-073 rows exist, for the next manager release.
 - **SC-018 (USER: macOS first-launch matches the record).** `user-checks.md` holds FR-073 rows for Sequoia 15.x and
-  Tahoe 26.x, each naming the browser and version, the pkg's source run URL and the HTTP(S) URL it was downloaded from,
+  Tahoe 26.x, each naming the browser and version and the per-tag release URL the pkg was downloaded from,
   and showing `xattr -l` / `xattr -p com.apple.quarantine` of the downloaded pkg before the double-click (a browser
   agent in the attribute); every `macos.*` statement equals what those rows record (reviewed in compliance, cited row
-  by row). Stays open until both rows exist; a failing pkg route re-rules Q5 first (D11).
-- **SC-019 (USER: launcher checks).** Pre-release: `user-checks.md` holds FR-074 (a)-(f) with evidence files: Windows
-  (UAC, the previous release installed by hand from its per-tag URL, locked then retried, Remove), macOS (osascript,
-  Remove), Linux (no prompt), each dated after the FR-103 record. **POST-RELEASE (D17 R-POST-2, R-POST-3):** FR-075's
+  by row). POST-RELEASE (D17 R-POST-4): stays open until both rows exist; a failing pkg route re-rules Q5 first (D11).
+- **SC-019 (USER: launcher checks).** Pre-release: `user-checks.md` holds FR-074 (a)-(c) and (f) with evidence files: Windows
+  (UAC, the previous release installed by hand from its per-tag URL, locked then retried, Remove), Linux (no prompt),
+  each dated after the FR-103 record. **POST-RELEASE (D17 R-POST-5):** FR-074 (d), (e), macOS (osascript, Remove).
+  **POST-RELEASE (D17 R-POST-2, R-POST-3):** FR-075's
   row (the two release versions and URLs, the admin prompt, the user-owned `ls -l` of the app and the helper) and the
   Windows / Linux version change, entered in readiness.md's "Post-release rows" table.
 - **SC-020 (readiness ledger).** `readiness.md` holds the output of `node tools/manager-readiness-counts.js` at the
@@ -819,7 +832,7 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
 - **SC-026 (roadmap and verdict).** The FR-090 hunks (a) to (g) exist and `git diff` of `specs/Krate-manager-roadmap.md`
   touches no other line; after line 200 and line 927 are amended, neither still contains "not in manager scope" or "no
   other landing change". Phase 12's `compliance.md` overall status reads `COMPLETE (PENDING-CI: n item(s))` and its
-  "Post-release rows" table names exactly the five D17 rows, each `post-release` (FR-090 (c)).
+  "Post-release rows" table names exactly the seven D17 rows, each `post-release` (FR-090 (c)).
 - **SC-027 (the remaining FRs).** `cargo test -p krate-manager-core batch::` cases, scripted effects as above:
   `batch::input_checks` (FR-002): empty, 33 items (plan SI-2), a duplicate name → `E_INSTALL_BATCH`, 0 feed requests,
   0 busy keys held during or after; `job::tests::core_and_helper_op_caps_agree` (helper crate):
@@ -838,9 +851,9 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   shows one rejection line and re-enables the controls); `settings_root_change_rereads_status` (FR-048: a saved root
   change makes exactly one status re-read).
 - **SC-028 (D17 is a closed list).** `manager-readiness-counts.test.js` case `post_release_rows_are_closed`: the tool's
-  `--check-ledger <readiness.md>` mode exits non-zero when a ledger row has no green run URL and is not one of the five
-  D17 ids (`phase11:SC-014:publish`, `phase11:SC-020`, `phase12:R-POST-1`, `phase12:R-POST-2`, `phase12:R-POST-3`); a
-  planted sixth exemption fails; the five pass. Run on the real `readiness.md` at the readiness commit, it exits 0.
+  `--check-ledger <readiness.md>` mode exits non-zero when a ledger row has no green run URL and is not one of the seven
+  D17 ids (`phase11:SC-014:publish`, `phase11:SC-020`, `phase12:R-POST-1` to `phase12:R-POST-5`); a
+  planted eighth exemption fails; the seven pass. Run on the real `readiness.md` at the readiness commit, it exits 0.
 - **SC-029 (landing generator and jobs).** `node --test tools/feed-contract/tests/gen-root-index.test.js`: no
   `manager/v*` tag → no card and an index whose bytes equal the plugin-only fixture; one tag → one card; tags
   `manager/v0.9.0`, `manager/v0.10.0`, `manager/v0.10.0-rc.1` (not a release tag of the manager: ignored unless it
@@ -1019,13 +1032,13 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
 | FR-070 | SC-018, SC-019 |
 | FR-071 | SC-024 (`manager-ci` reads `required-tests.json`) |
 | FR-072 | Compliance reads the CHANGELOG lines (cited by line) |
-| FR-073 | SC-018 |
-| FR-074 | SC-019 (pre-release) |
+| FR-073 | SC-018 (POST-RELEASE R-POST-4) |
+| FR-074 | SC-019 ((a)-(c), (f) pre-release; (d), (e) POST-RELEASE R-POST-5) |
 | FR-075 | SC-019 (POST-RELEASE R-POST-2, R-POST-3) |
-| FR-076 | SC-016b, SC-017, SC-018 open until the records exist |
+| FR-076 | SC-019's pre-release part open until the records exist |
 | FR-080, FR-082, FR-084 | SC-016a, SC-016b |
 | FR-081 | SC-016a (links), SC-029 |
-| FR-083 | SC-017 |
+| FR-083 | SC-017 (POST-RELEASE R-POST-4) |
 | FR-085 | SC-029 (shape, PENDING-CI `landing-dry`, POST-RELEASE R-POST-1) |
 | FR-086 | SC-029 (`workflow-shape.test.js`) |
 | FR-090 | SC-026 |
@@ -1139,3 +1152,13 @@ Every question of the clarify scan was decided by the user; each line ends with 
 - P-2: Phase 11 R-7 release-asset redirect-host check? → A: One manual line in RELEASING.md's checklist (read the Location of one real release-asset download, confirm its host is `RELEASE_ASSET_HOST`) and one readiness.md row; no preflight enforcement. [FR-100, SC-020]
 - P-3: The Update-all batch cap (spec 64) vs the helper's `MAX_OPS` 32? → A: Cap at 32, a core constant pinned equal to `crates/helper/src/job.rs` `MAX_OPS` by a cross-crate test; 33 items → `E_INSTALL_BATCH` before any prompt. [FR-002, SC-027]
 - TA-14: Who makes the 0.1.0 RustSec reading? → A: The main loop runs `evidence/rustsec-check.js` (reads rustsec.org for rquickjs / rquickjs-core / rquickjs-sys at the Cargo.lock versions) on the day of the readiness dry run, writes the dated RELEASING.md row, and shows the user its output. [FR-102, FR-104, SC-021]
+
+### Revision 2026-11-03 (the user, at fence U-1)
+
+- R-1: The user has no Mac before release, so FR-073 and FR-074 (d), (e) cannot run at U-1. → A: Option 3 of three
+  (a tester with a Mac, a rented cloud Mac, post-release): FR-073 and FR-074 (d), (e) are post-release rows R-POST-4
+  and R-POST-5 of D17, which now holds seven rows. FR-073 uses the public 0.1.0 pkg downloaded with a browser from its
+  per-tag URL (D16). T018 and T019 (G4) run after both FR-073 rows exist, so 0.1.0 ships the README's placeholder macOS
+  sentence and the provisional Terminal line. FR-074 (f) stays pre-release, under WSL with WSLg. This supersedes the
+  "Which pkg" answer and the "Exactly five" count above. [D11, D17, FR-073, FR-074, FR-076, SC-016b, SC-017, SC-018,
+  SC-019, SC-028]

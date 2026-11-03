@@ -907,8 +907,9 @@ Components:
 - 🆕 Remove for a plugin that has an install manifest but is no longer in the feed (an orphan manifest), driven by the manifest alone (Phase 9 Q8).
 - 🆕 **User-performed checks** (the user runs them on real machines; no agent can, and none runs in a gate), each
   recorded in `specs/krate-manager-phase12/` with date, OS build and screenshots or terminal output:
-  - macOS GUI install, on a Mac running Sequoia 15.x and one running Tahoe 26.x: download the manager pkg with a
-    browser, double-click it, record whether Installer.app refuses it and whether Privacy & Security then offers
+  - macOS GUI install, on a Mac running Sequoia 15.x and one running Tahoe 26.x, after 0.1.0 is public (D17 R-POST-4,
+    Phase 12 spec revision 2026-11-03: no Mac before release; so is the macOS launcher check below, R-POST-5): download
+    the manager pkg with a browser, double-click it, record whether Installer.app refuses it and whether Privacy & Security then offers
     "Open Anyway"; complete the install that way if offered, then run `xattr -l` on the installed `.app` and record
     whether it carries `com.apple.quarantine` and whether it launches. Neither fact is measured yet: the probes
     tested only `sudo installer -pkg` (probes line 14), the Open Anyway UI "could not be checked headless" (probes
@@ -931,7 +932,7 @@ Components:
   which no `tauri.conf.json` key can carry (Phase 4 spec Non-goals). A redirected `%LOCALAPPDATA%` is unsupported on
   Windows: every elevated batch is refused with `E_HELPER_JOB_LOCATION` (Phase 10 D17).
 - 🆕 Release readiness for manager 0.1.0 (from `apps/krate-manager/version.json`): every Part B gate green on Windows
-  and every PENDING-CI row closed by a named green `manager-ci` / `release-manager` run, except the post-release rows listed in specs/krate-manager-phase12/spec.md D17 (Phase 11 SC-014's `publish` half and SC-020, Phase 12 R-POST-1 to R-POST-3), which the first real dispatch and the release after it close, and the Phase 2 backfill run
+  and every PENDING-CI row closed by a named green `manager-ci` / `release-manager` run, except the post-release rows listed in specs/krate-manager-phase12/spec.md D17 (Phase 11 SC-014's `publish` half and SC-020, Phase 12 R-POST-1 to R-POST-5), which the first real dispatch and the release after it close, and the Phase 2 backfill run
   live, so the live feed offers all nine plugins with `platforms` (no plugin re-release).
 - 🆕 Before every manager release, check the RustSec advisory database (https://rustsec.org/) for `rquickjs`, `rquickjs-core` and `rquickjs-sys`, the vendored QuickJS-ng PAC engine that Phase 5 pins for the macOS and Linux builds (R-15); an advisory is answered with a pin bump before the release.
 

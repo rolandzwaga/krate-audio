@@ -4,7 +4,7 @@ require('./helpers/write-guard.js');
 // tools/manager-readiness-counts.js (spec FR-100, SC-020, SC-028; plan PD-26; tasks T012, TA-16). The counts run over
 // the fixture tree tools/feed-contract/fixtures/landing/readiness/ (eleven small compliance files and a roadmap); the
 // ledger check runs over readiness-ok.md, shaped like the real ledger (Phase 11 SC-014 closed by a run, Phase 11 SC-020
-// deferred, the five D17 ids in Post-release). Every mutation is made in memory and written to a temp copy; main(argv,
+// deferred, the seven D17 ids in Post-release). Every mutation is made in memory and written to a temp copy; main(argv,
 // io) runs in-process with a capturing io. The fixture tree is only read.
 
 const test = require('node:test');
@@ -192,7 +192,7 @@ test('readiness counts and the closed post-release list', async (t) => {
     assert.ok(r.stdout.startsWith(EXPECTED_COUNTS), r.stdout);
     assert.equal(
       r.stdout.slice(EXPECTED_COUNTS.length),
-      'ledger ok: 13 PENDING-CI rows (12 closed by a run, 1 deferred), 5 post-release rows\n',
+      'ledger ok: 13 PENDING-CI rows (12 closed by a run, 1 deferred), 7 post-release rows\n',
     );
   });
 
@@ -226,17 +226,19 @@ test('readiness counts and the closed post-release list', async (t) => {
       'phase12:R-POST-1',
       'phase12:R-POST-2',
       'phase12:R-POST-3',
+      'phase12:R-POST-4',
+      'phase12:R-POST-5',
     ]);
-    // The five pass.
+    // The seven pass.
     assert.equal(checkLedgerText(LEDGER_TEXT).code, 0);
-    // A sixth exemption planted in PENDING-CI only.
+    // An eighth exemption planted in PENDING-CI only.
     const planted = setRow(LEDGER_TEXT, PENDING, 'phase5:FR-010', deferredRow('phase5:FR-010'));
     assertLedgerRefused(checkLedgerText(planted), 'E_LEDGER_ROW');
-    // ... and in Post-release too: still not a D17 id, and the Post-release set is no longer the five.
+    // ... and in Post-release too: still not a D17 id, and the Post-release set is no longer the seven.
     const both = addRow(planted, POST, deferredRow('phase5:FR-010'));
     assertLedgerRefused(checkLedgerText(both), 'E_LEDGER_ROW');
     assertLedgerRefused(checkLedgerText(both), 'E_LEDGER_POST_RELEASE');
-    // One of the five missing from Post-release.
+    // One of the seven missing from Post-release.
     assertLedgerRefused(checkLedgerText(setRow(LEDGER_TEXT, POST, 'phase12:R-POST-3', null)), 'E_LEDGER_POST_RELEASE');
     // A Post-release id repeated.
     const repeated = addRow(LEDGER_TEXT, POST, deferredRow('phase12:R-POST-3'));
