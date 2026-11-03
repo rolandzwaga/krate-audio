@@ -4,6 +4,20 @@ One manual dispatch of `.github/workflows/release-manager.yml` ("Release Krate M
 `apps/krate-manager/version.json` as tag `manager/vX.Y.Z`. Its `preflight` job refuses a release by error code before
 any build.
 
+## Version
+
+Set a new version with one command from the repository root, never by hand:
+
+```
+node tools/bump-manager-version.js X.Y.Z
+```
+
+It writes `version.json` and every copy (`Cargo.toml`'s workspace version, `src-tauri/tauri.conf.json`, the manager
+crates' entries in `Cargo.lock` and `tests/fixtures/*/Cargo.lock`) and the `CHANGELOG.md` heading: an unreleased
+newest entry takes the new number, otherwise a new `## [X.Y.Z] - Unreleased` goes above it. It refuses, writing
+nothing, when `tools/lint-manager-version.js` fails on the tree or the version is not newer, and checks the lint again
+afterwards.
+
 ## Procedure
 
 1. Record the RustSec check for the version in the table below (section "RustSec"). Without a matching row at most

@@ -630,6 +630,16 @@ No new crate, npm package or Tauri plugin is added in this phase (FR-061, SC-023
   `url_host(FEED_URL)` in `src-tauri/src/lib.rs`, so FR-021 holds: the production host stays out of the core and
   appears once in `src-tauri/src`) and refuses anything else with `E_OPEN_REJECTED`. A failed open shows
   `Could not open the plugin page: <code>`. No new command, no `<a>`.
+- **FR-089** (spec revision 2026-11-03, Clarifications R-6) `node tools/bump-manager-version.js X.Y.Z` sets the
+  manager version: `version.json` and every copy D18 needs (`Cargo.toml` `[workspace.package]` version,
+  `src-tauri/tauri.conf.json` `version`, the workspace crates' entries in `Cargo.lock` and in every
+  `tests/fixtures/*/Cargo.lock`, a third-party crate at the same version untouched) and the `CHANGELOG.md` heading
+  (an `## [<old>] - Unreleased` newest entry takes the new number; otherwise a new `## [X.Y.Z] - Unreleased` goes
+  above the newest entry). It refuses, writing nothing, when `lint-manager-version` fails on the tree
+  (`E_BUMP_LINT`), the version is not X.Y.Z or not newer (`E_BUMP_VERSION`), or an edit's anchor does not match
+  exactly once, a member carries its own version or a lock holds a workspace crate at another version
+  (`E_BUMP_ANCHOR`); after writing, the lint must report the new version (`E_BUMP_VERIFY`). Each file keeps its
+  line endings. `version.json` stays the one source; `lint-manager-version` is unchanged. `RELEASING.md` names it.
 
 ### H. Release readiness for manager 1.0.0 (roadmap lines 931-934; Q10; D14, D17)
 
@@ -938,6 +948,13 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
   `full-v2.json` and `v1-only.json` carries its `download_url`. The status goldens hold `plugin_page_url`.
   `injection.rs` `core_sources_hold_no_production_literal` and the one-`krateaudio.com`-in-`src-tauri/src` check
   stay green.
+- **SC-036 (the bump command, FR-089).** `tools/feed-contract/tests/bump-manager-version.test.js` "bump-manager-version
+  writes every copy or nothing": a bump writes exactly the expected bytes of every file (CRLF and LF kept, a
+  third-party crate and a dependency line at the old version untouched, a fixture lock without workspace crates not
+  written); a released newest entry gains a heading above it; each refusal (same, older, malformed version, a drifted
+  copy, a member version, a missing or other-version lock entry, an existing or missing CHANGELOG heading) prints its
+  one line and changes no file; usage errors exit 2. A run on a copy of the real tree changes exactly the 11 lines the
+  1.0.0 bump changed by hand.
   `status.test.ts`: every golden card shows `Open plugin page` iff it has the URL, the click invokes
   `open_release_page` with it, a rejection shows the plugin-page text. USER: the button opens the plugin's page.
 
@@ -1095,6 +1112,7 @@ before stage 1 (that fixture is refused `E_INSTALL_NOT_NEWER` and could never be
 | FR-086 | SC-029 (`workflow-shape.test.js`) |
 | FR-087 | SC-034 |
 | FR-088 | SC-035 |
+| FR-089 | SC-036 |
 | FR-090 | SC-026 |
 | FR-100 | SC-020, SC-028 |
 | FR-101 | SC-024 |
@@ -1230,3 +1248,6 @@ Every question of the clarify scan was decided by the user; each line ends with 
   `Cargo.lock` files and CHANGELOG `[1.0.0]`; RELEASING.md's RustSec row was read again for 1.0.0 on 2026-11-03.
   Every requirement above that named 0.1.0 names 1.0.0; the answers above keep their 0.1.0 as recorded.
   [FR-072, FR-102, FR-104, D17, SC-021]
+- R-6: A version bump touched four files by hand. → A: The user asked for one command; `version.json` stays the
+  source (Cargo cannot read it, so the copies stay, kept in step by the lint) and the command writes the copies.
+  [FR-089, SC-036]

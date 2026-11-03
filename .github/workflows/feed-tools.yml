@@ -17,6 +17,7 @@ on:
       - 'tools/feed-publish.js'
       - '.github/workflows/feed.yml'
       - 'tools/lint-manager-version.js'
+      - 'tools/bump-manager-version.js'
       - '.github/workflows/manager-ci.yml'
       - 'apps/krate-manager/package.json'
       - 'apps/krate-manager/tests/required-tests.json'
@@ -48,6 +49,7 @@ on:
       - 'tools/feed-publish.js'
       - '.github/workflows/feed.yml'
       - 'tools/lint-manager-version.js'
+      - 'tools/bump-manager-version.js'
       - '.github/workflows/manager-ci.yml'
       - 'apps/krate-manager/package.json'
       - 'apps/krate-manager/tests/required-tests.json'
@@ -107,7 +109,7 @@ jobs:
           node --test --test-reporter=tap "tools/feed-contract/tests/*.test.js" | tee "$RUNNER_TEMP/tap.txt"
           node - "$RUNNER_TEMP/tap.txt" <<'TAPCHECK'
           const lines = require("fs").readFileSync(process.argv[2], "utf8").split(/\r?\n/);
-          const PLAN = "1..69";
+          const PLAN = "1..70";
           const NAMES = [
             "minisign.js verifies the rsign2 KAT",
             "minisign.js sign and verify round trip",
@@ -143,6 +145,7 @@ jobs:
             "feed-publish tests never build real effects",
             "feed-publish decides every workflow branch",
             "lint-manager-version accepts equal versions and names every drift",
+            "bump-manager-version writes every copy or nothing",
             "manager-ci.yml keeps the Phase 4 shape",
             "gen-manager-latest writes per-tag latest.json",
             "gen-manager-latest refuses what it cannot verify",

@@ -85,7 +85,7 @@ Install and Remove one plugin through the manager; record that no prompt appears
 
 | id | date | machine | OS name and build | manager version and source | steps as performed | observed result | evidence files | result |
 |---|---|---|---|---|---|---|---|---|
-| FR-074-f | | | | | | | | |
+| FR-074-f | 2026-11-03 | the user's Windows PC, WSL2 with WSLg | Ubuntu 24.04.3 LTS (WSL2 kernel 6.18.54.1-microsoft-standard-WSL2, read from the distribution) | 0.1.0 (before the 1.0.0 bump), the Linux build (AppImage or .deb not recorded) from the `manager-release-dry-run` artifact of the `release-manager.yml` dry run on main after the plugin-page PR (run URL not given) | Installed and removed a plugin through the manager | Works (the user: "linux is tested and confirmed"); the prompt-free run and the placed paths were not recorded separately | none: written from the user's report (the user's ruling 2026-11-03, no screenshots) | pass (user report) |
 
 ## FR-075 / R-POST-2: macOS self-update of a pkg-installed manager (post-release)
 
