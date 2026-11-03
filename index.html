@@ -57,7 +57,38 @@
         <section class="plugins">
             <h2>Plugins</h2>
             <div class="plugin-grid">
-                                <a href="disrumpo/" class="plugin-card">
+                                <div class="plugin-card manager-card">
+                    <h2>Krate Manager</h2>
+                    <p class="description">Shows which Krate Audio plug-ins are installed and whether updates exist, installs, updates and removes them, and updates itself.</p>
+                    <span class="version">v1.0.0</span>
+                    <ul>
+                        <li><a href="https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-Windows-x64-setup.exe">Windows setup (.exe)</a></li>
+                        <li><a href="https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-macOS.pkg">macOS installer (.pkg)</a></li>
+                        <li><a href="https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-Linux-x86_64.AppImage">Linux AppImage</a></li>
+                        <li><a href="https://github.com/rolandzwaga/krate-audio/releases/download/manager/v1.0.0/Krate-Manager-1.0.0-Linux-amd64.deb">Linux .deb package</a></li>
+                    </ul>
+                    <h3>Supported systems</h3>
+                    <p class="supported-systems">Windows 10 22H2 and Windows 11 x64; macOS 15 and later (Apple silicon and Intel); Linux x86_64 at the glibc of the ubuntu:22.04 build.</p>
+                    <details>
+                        <summary>First launch</summary>
+                        <h3>Windows</h3>
+                        <p>Krate Manager is not code-signed, so when you run its Windows setup, Windows shows &quot;Windows protected your PC&quot;: click &quot;More info&quot;, then &quot;Run anyway&quot;. The plug-in installers Krate Manager downloads itself do not show this warning.</p>
+                        <p>Windows 11 Smart App Control in enforcement mode blocks unsigned programs, Krate Manager and the plug-in installers included, so it is not supported: Krate Manager runs there only after Smart App Control is turned off.</p>
+                        <p>A %LOCALAPPDATA% folder redirected outside the Windows user profiles folder is not supported: Krate Manager then refuses every install, update and removal that needs administrator rights, with the error E_HELPER_JOB_LOCATION.</p>
+                        <h3>macOS</h3>
+                        <p>Written from the recorded checks; see the release notes until then.</p>
+                        <h3>Linux</h3>
+                        <p>On Linux, Krate Manager comes as an AppImage, which updates itself, and as a .deb package, which does not: to update a .deb install, download the new .deb from the release page and install it.</p>
+                        <p>On Linux, Krate Manager installs plug-ins to ~/.vst3 unless you choose another folder in Settings, and factory presets to ~/Documents/Krate Audio, one folder per plug-in.</p>
+                        <p>REAPER on Linux may not scan ~/.vst3: add ~/.vst3 to REAPER&#39;s VST path list in Preferences &gt; Plug-ins &gt; VST &gt; Edit path list, then rescan.</p>
+                        <p>If the Krate Manager window is blank or flickers (seen with NVIDIA graphics), turn on &quot;Work around a blank or flickering window (NVIDIA)&quot; in Settings: it sets WEBKIT_DISABLE_DMABUF_RENDERER=1 the next time Krate Manager starts, and nothing else. The toggle does not set the other fixes, which you apply yourself: the nvidia_drm.modeset=1 kernel parameter (NVIDIA drivers older than 545) and starting Krate Manager from a terminal with __NV_DISABLE_EXPLICIT_SYNC=1, both worth trying first because they keep hardware acceleration, and, as a last resort, starting it from a terminal with WEBKIT_DISABLE_COMPOSITING_MODE=1.</p>
+                        <p>If the window is already blank, so Settings cannot be reached, start Krate Manager once from a terminal with WEBKIT_DISABLE_DMABUF_RENDERER=1 in front of its command, then turn the toggle on.</p>
+                        <h3>Every system</h3>
+                        <p>After Krate Manager installs or updates a plug-in, restart your DAW or rescan its plug-ins so that it finds the new version.</p>
+                        <p><a href="https://github.com/rolandzwaga/krate-audio/blob/main/apps/krate-manager/README.md#first-launch">The first-launch notes in the README</a></p>
+                    </details>
+                </div>
+                <a href="disrumpo/" class="plugin-card">
                     <h2>Disrumpo</h2>
                     <p class="description">VST3 Multiband Morphing Distortion Plugin</p>
                     <span class="version">v0.9.11</span>
