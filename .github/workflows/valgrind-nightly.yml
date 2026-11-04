@@ -139,7 +139,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -158,13 +158,13 @@ jobs:
           test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@v1.2.24
         with:
           key: linux-valgrind-${{ env.BUILD_TYPE }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: build-vg/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vg-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -239,7 +239,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -258,13 +258,13 @@ jobs:
           test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@v1.2.24
         with:
           key: linux-valgrind-editor-${{ env.BUILD_TYPE }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: build-vg-editor/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vgedit-${{ hashFiles('**/CMakeLists.txt') }}
