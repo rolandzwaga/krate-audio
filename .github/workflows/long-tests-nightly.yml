@@ -102,7 +102,7 @@ jobs:
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -122,7 +122,7 @@ jobs:
           test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vorago-sweep-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt') }}
@@ -183,7 +183,7 @@ jobs:
         os: [windows-2022, macos-latest, ubuntu-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -203,7 +203,7 @@ jobs:
           test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vorago-sweep-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt') }}
@@ -233,7 +233,7 @@ jobs:
           fi
 
       - name: Download this OS's shard records
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: vorago-sweep-${{ matrix.os }}-*
           path: sweep-in
