@@ -16,8 +16,8 @@ cmake --preset windows-x64-release
 cmake --build build/windows-x64-release --config Release --target membrum_fit
 ```
 
-External deps fetched at configure time: Eigen 3.4 (MPL-2), CLI11 v2.4.2
-(BSD-3), NLopt v2.7.1 (BSD/MIT for the algorithms used). All gated by
+External deps fetched at configure time: Eigen 5 (MPL-2), CLI11 v2.7.2
+(BSD-3), NLopt v2.11.0 (BSD/MIT for the algorithms used). All gated by
 `-DVSTWORK_BUILD_MEMBRUM_FIT=OFF` if you want to skip the tool entirely.
 
 NLopt can be disabled separately with `-DMEMBRUM_FIT_ENABLE_NLOPT=OFF`;
@@ -118,7 +118,7 @@ External deps:
 | Dep | License |
 |---|---|
 | dr_wav | Public Domain / MIT-0 |
-| Eigen 3.4 | MPL-2 |
+| Eigen 5 | MPL-2 |
 | CLI11 | BSD-3 |
 | NLopt (BOBYQA, CRS, ESPRIT-via-MP) | BSD/MIT subset |
 | nlohmann/json | MIT |

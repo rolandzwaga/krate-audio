@@ -1186,7 +1186,6 @@ constexpr int kProbeSeedIndex = 7;
         }
     }
     FAIL("no probe value for ID " << id);
-    return 0.0;
 }
 
 /// A standalone engine at `sr` driven by a matrix carrying the plugin's own
@@ -1823,7 +1822,6 @@ TEST_CASE("Vorago_RegisteredDefaultsMatchEngine", "[vorago][integration]") {
             }
         }
         FAIL("ID not registered: " << id);
-        return 0.0;
     };
 
     // References, all built WITHOUT a Processor.

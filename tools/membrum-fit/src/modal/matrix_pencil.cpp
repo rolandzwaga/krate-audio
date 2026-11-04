@@ -147,7 +147,7 @@ ModalDecomposition extractModesMatrixPencil(std::span<const float> decayIn,
     }
     Eigen::VectorXcd y(static_cast<Eigen::Index>(N));
     for (std::size_t n = 0; n < N; ++n) y(static_cast<Eigen::Index>(n)) = analytic[n];
-    const Eigen::VectorXcd amps = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(y);
+    const Eigen::VectorXcd amps = A.jacobiSvd<Eigen::ComputeThinU | Eigen::ComputeThinV>().solve(y);
 
     double totalRmsSq = 0.0;
     for (std::size_t n = 0; n < N; ++n) totalRmsSq += std::norm(analytic[n]);

@@ -99,7 +99,8 @@ const results = [];
 function runOne(job) {
     return new Promise((resolve) => {
         const log = path.join(OUT, `${job.exe}-${job.pass === 2 ? 'wallclock-' : ''}${job.k}.log`);
-        const argv = [job.filter, '--allow-running-no-tests', '--shard-count', String(job.count), '--shard-index', String(job.k)];
+        // --order decl: Catch2 >= 3.9 defaults to random order, which re-seeds every shard and breaks disjoint coverage.
+        const argv = [job.filter, '--allow-running-no-tests', '--order', 'decl', '--shard-count', String(job.count), '--shard-index', String(job.k)];
         const s0 = Date.now();
         const child = spawn(exePath(job.exe), argv, { cwd: process.cwd(), windowsHide: true });
         const chunks = [];

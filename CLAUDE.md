@@ -345,7 +345,7 @@ The `FFT` class (`dsp/include/krate/dsp/primitives/fft.h`) uses **pffft** ([mart
 
 ### Google Highway (SIMD-Accelerated Math)
 
-KrateDSP uses [Google Highway](https://github.com/google/highway) (v1.2.0, Apache-2.0) for SIMD-accelerated spectral math. Fetched via FetchContent in root `CMakeLists.txt`.
+KrateDSP uses [Google Highway](https://github.com/google/highway) (v1.4.0, Apache-2.0) for SIMD-accelerated spectral math. Fetched via FetchContent in root `CMakeLists.txt`.
 
 - **Runtime dispatch**: Automatically uses best available ISA (SSE2/AVX2/AVX-512 on x86, NEON on ARM)
 - **Build integration**: Linked PRIVATE to KrateDSP — no Highway headers in public API

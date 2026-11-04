@@ -32,7 +32,8 @@ const PARALLEL = Number(opt('--parallel', Math.max(2, os.cpus().length - 2)));
 // Every suite lane is cut into Catch2 shards (--shard-count/--shard-index) so one heavy executable never pins a single
 // core while the pool idles (user ruling 2026-10-26: shard every non-timing run; see tools/run-gate.js).
 const SUITE_SHARDS = Number(opt('--suite-shards', 8));
-const shardArgv = (k) => ['--allow-running-no-tests', '--shard-count', String(SUITE_SHARDS), '--shard-index', String(k)];
+// --order decl: Catch2 >= 3.9 defaults to random order, which re-seeds every shard and breaks disjoint coverage.
+const shardArgv = (k) => ['--allow-running-no-tests', '--order', 'decl', '--shard-count', String(SUITE_SHARDS), '--shard-index', String(k)];
 const DRY = flag('--dry-run');
 const SKIP_SWEEP = flag('--skip-sweep');
 const EXE = (n) => path.join(BIN, process.platform === 'win32' ? `${n}.exe` : n);

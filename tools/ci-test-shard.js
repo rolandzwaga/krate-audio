@@ -233,7 +233,8 @@ const property = (s) => annotation(s).replace(/:/g, '%3A').replace(/,/g, '%2C');
     const failedCases = [];
     for (const u of mine) {
         const exe = path.join(binDir, osName === 'windows' ? `${u.suite}.exe` : u.suite);
-        const argv = [kFilter, '--skip-benchmarks'];
+        // --order decl: Catch2 >= 3.9 defaults to random order, which re-seeds every shard and breaks disjoint coverage.
+        const argv = [kFilter, '--skip-benchmarks', '--order', 'decl'];
         // A Catch2 shard of a small [long] set can hold zero cases; so can a whole suite with no [long] cases.
         if (longLane || u.k > 1) argv.push('--allow-running-no-tests');
         if (u.k > 1) argv.push('--shard-count', String(u.k), '--shard-index', String(u.idx));

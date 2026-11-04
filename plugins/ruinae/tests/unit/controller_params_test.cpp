@@ -165,7 +165,6 @@ TEST_CASE("Discrete parameters have correct step counts", "[controller][params]"
             if (info.id == id) return info.stepCount;
         }
         FAIL("Parameter " << id << " not found");
-        return -1;
     };
 
     // Boolean parameters: stepCount = 1
@@ -293,7 +292,6 @@ TEST_CASE("Harmonizer voice interval params are StringListParameter with kIsList
             if (info.id == id) return info.flags;
         }
         FAIL("Parameter " << id << " not found");
-        return -1;
     };
 
     auto getStepCount = [&](ParamID id) -> int32 {
@@ -303,7 +301,6 @@ TEST_CASE("Harmonizer voice interval params are StringListParameter with kIsList
             if (info.id == id) return info.stepCount;
         }
         FAIL("Parameter " << id << " not found");
-        return -1;
     };
 
     auto getDefault = [&](ParamID id) -> double {
