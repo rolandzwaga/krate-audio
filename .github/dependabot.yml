@@ -1,0 +1,75 @@
+# Dependabot version updates.
+# Reference: https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
+#
+# Not covered (Dependabot has no CMake ecosystem): the FetchContent pins in the root CMakeLists.txt
+# (Catch2, ApprovalTests.cpp, Highway, pffft, cpp-httplib) and the vendored extern/dr_libs. Those stay manual.
+# rust-toolchain.toml uses channel "stable", so there is nothing for the rust-toolchain ecosystem to bump.
+
+version: 2
+
+updates:
+  # Every workflow under .github/workflows. One PR a week for all action bumps.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Krate Manager Rust workspace plus the updater-refusals fixture, which declares the same crates and builds
+  # with --locked in manager-ci. group-by: dependency-name gives one PR per crate covering both directories, so
+  # the two manifests and lockfiles move together. tests/fixtures/clippy-guard depends on the workspace by path
+  # only: when a PR raises a workspace requirement, its Cargo.lock needs `cargo update -w` by hand before CI goes green.
+  # tauri-plugin-updater is pinned exactly (=2.14.1, specs/krate-manager-phase11 PD-2): its bump needs the error map
+  # (map-errors) reviewed against the new variant list.
+  - package-ecosystem: "cargo"
+    directories:
+      - "/apps/krate-manager"
+      - "/apps/krate-manager/tests/fixtures/updater-refusals"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      cargo:
+        patterns: ["*"]
+        group-by: "dependency-name"
+
+  # Krate Manager front end and the feed-contract tooling. Minor and patch bumps are batched per directory;
+  # majors get their own PRs.
+  - package-ecosystem: "npm"
+    directories:
+      - "/apps/krate-manager"
+      - "/tools/feed-contract"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # extern/vst3sdk. Dependabot moves the pin to the latest commit on the SDK's branch (not a release tag).
+  - package-ecosystem: "gitsubmodule"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "build"
+      include: "scope"
