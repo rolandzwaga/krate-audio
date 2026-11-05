@@ -55,9 +55,9 @@
 #include <public.sdk/source/vst/hosting/hostclasses.h>
 #include <public.sdk/source/common/memorystream.h>
 
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
-#include <algorithm>
 #include <array>
 #include <bit>
 #include <cmath>
@@ -105,7 +105,7 @@ public:
     }
 
     void addTestPoint(Steinberg::int32 offset, double value) {
-        points_.push_back(Point{offset, value});
+        points_.push_back(Point{.offset = offset, .value = value});
     }
 
     Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID /*iid*/,
@@ -124,7 +124,7 @@ public:
     Steinberg::tresult PLUGIN_API getPoint(Steinberg::int32 index,
                                            Steinberg::int32& sampleOffset,
                                            Steinberg::Vst::ParamValue& value) override {
-        if (index < 0 || index >= static_cast<Steinberg::int32>(points_.size())) {
+        if (index < 0 || std::cmp_greater_equal(index, points_.size())) {
             return Steinberg::kResultFalse;
         }
         const Point& p = points_[static_cast<std::size_t>(index)];
@@ -199,7 +199,7 @@ public:
 
     Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(
         Steinberg::int32 index) override {
-        if (index < 0 || index >= static_cast<Steinberg::int32>(activeCount_)) {
+        if (index < 0 || std::cmp_greater_equal(index, activeCount_)) {
             return nullptr;
         }
         return &queues_[static_cast<std::size_t>(index)];
@@ -574,7 +574,7 @@ struct ProcessorFixture {
         setup.maxSamplesPerBlock = maxBlock;
         setup.sampleRate = sr;
         const Steinberg::tresult r = proc->setupProcessing(setup);
-        proc->setActive(true);
+        proc->setActive(1u);
         return r;
     }
 
@@ -623,7 +623,7 @@ struct ProcessorFixture {
     }
 
     // A parameter-only call: numOutputs = 0, numSamples = 0.
-    Steinberg::tresult processNoOutputs(Steinberg::Vst::IParameterChanges* pc) {
+    Steinberg::tresult processNoOutputs(Steinberg::Vst::IParameterChanges* pc) const {
         Steinberg::Vst::ProcessData data{};
         data.processMode = Steinberg::Vst::kRealtime;
         data.symbolicSampleSize = Steinberg::Vst::kSample32;
@@ -899,7 +899,7 @@ struct DirectEngine {
     }
 
 private:
-    void apply(const DirectEvent& ev) noexcept {
+    void apply(const DirectEvent& ev) const noexcept {
         switch (ev.kind) {
             case DirectEvent::Kind::NoteOn:
                 e->noteOn(ev.note, ev.velocity);
@@ -972,7 +972,7 @@ inline constexpr std::size_t kToEnd = std::numeric_limits<std::size_t>::max();
 
 [[nodiscard]] inline float maxAbsDiff(std::span<const float> a, std::span<const float> b,
                                       std::size_t from = 0, std::size_t to = kToEnd) {
-    const std::size_t end = std::min(to, std::min(a.size(), b.size()));
+    const std::size_t end = std::min({to, a.size(), b.size()});
     REQUIRE(from <= end);
     float worst = 0.0f;
     for (std::size_t i = from; i < end; ++i) {

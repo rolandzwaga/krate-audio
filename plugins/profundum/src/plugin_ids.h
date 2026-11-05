@@ -73,7 +73,7 @@ static_assert(kStateNamesEnd == 590, "plan 4.5 / Phase 15: the two name blocks e
 constexpr std::size_t kStateMorphModOffset = kStateNamesEnd;
 constexpr std::size_t kStateMorphModBytes = 36;
 constexpr std::size_t kStateV3Bytes = kStateMorphModOffset + kStateMorphModBytes;   // 626 (Phase 14: 610)
-static_assert(kStateMorphModBytes == 9u * 4u, "C-10: nine 4-byte fields");
+static_assert(kStateMorphModBytes == std::size_t{9} * 4u, "C-10: nine 4-byte fields");
 static_assert(kStateV3Bytes == 626, "Phase 15: v3 is 626 bytes (Phase 14: 610)");
 
 // ------------------------------------------------------------------------------
@@ -127,6 +127,9 @@ static const char* const kSubCategories = "Instrument|Synth";
 ///   0-99 Global | 100-199 Macros + Mass + Morph position | 200-299 Core | 300-399 Anchor
 ///   400-499 Drop / note behaviour / amp envelope | 500-599 Fold / Shape | 600-699 Character | 700-799 Mass dynamics
 ///   800-899 Stereo field | 900-999 Motion | 1000-1099 Morph control. Phase 11 owns 104+ and 200+.
+// Unscoped and ParamID-based on purpose: hosts, IMessage and the parameter tables all use these IDs as plain ParamIDs.
+// Each band starts at an explicit ID and the rest count on from it, so not every enumerator has a value.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size,readability-enum-initial-value)
 enum ParameterIDs : Steinberg::Vst::ParamID {
     kOutputGainId = 0,
     kVoiceModeId = 1,

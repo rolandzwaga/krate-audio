@@ -269,7 +269,7 @@ private:
     Krate::DSP::ProfundumEngineSeams engineSeamsForTest_{};
 };
 
-static_assert(sizeof(Processor) < 64u * 1024u,
+static_assert(sizeof(Processor) < std::size_t{64} * 1024u,
               "the ~800 KB engine must live on the heap (FR-022, FR-064)");
 
 }  // namespace Profundum

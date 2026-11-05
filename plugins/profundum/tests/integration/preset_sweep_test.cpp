@@ -1300,7 +1300,7 @@ TEST_CASE("Profundum_PresetAuditionRenders", "[profundum][.listen]") {
                 storedE1 = std::move(r);
             }
         }
-        REQUIRE(storedE1.has_value());
+        if (!storedE1) FAIL("the E1 sweep stored no render");
 
         // Endpoint B on its own (both endpoints = B, so Morph Position 0 renders B): the A / B comparison every preset
         // owes the listener, since Morph is part of every preset's sound. Its E1 level beside A's goes on the sheet.

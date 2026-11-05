@@ -73,20 +73,14 @@ namespace morph_pack_detail {
 /// (b) every list row has labelCount == maxEnum + 1 (a Sync Rate row: the 30-entry product);
 /// (d) every Bool row has labelCount == 2; continuous rows carry no labels.
 [[nodiscard]] constexpr bool morphRowsLabelsMatch() noexcept {
-    for (const auto& r : kMorphSoundRows) {
+    return std::ranges::all_of(kMorphSoundRows, [&](const auto& r) {
         const FieldInfo& f = lawOf(r.leaf);
         if (r.leaf2 != kNoLeaf) {
             const int product = (static_cast<int>(f.maxEnum) + 1) * (static_cast<int>(lawOf(r.leaf2).maxEnum) + 1);
-            if (r.labelCount != product || product != Krate::DSP::kNoteValueDropdownCount || r.labels == nullptr) {
-                return false;
-            }
-            continue;
+            return !(r.labelCount != product || product != Krate::DSP::kNoteValueDropdownCount || r.labels == nullptr);
         }
         if (f.kind == MorphState::Kind::F32) {
-            if (r.labels != nullptr || r.labelCount != 0 || r.display == DisplayUnit::List) {
-                return false;
-            }
-            continue;
+            return !(r.labels != nullptr || r.labelCount != 0 || r.display == DisplayUnit::List);
         }
         if (r.labels == nullptr || r.labelCount != static_cast<int>(f.maxEnum) + 1) {
             return false;
@@ -94,19 +88,16 @@ namespace morph_pack_detail {
         if (f.kind == MorphState::Kind::Bool && r.labelCount != 2) {
             return false;
         }
-    }
-    return true;
+        return true;
+    });
 }
 
 /// (c) every row ID lies in the pack's band: 104-199 (the macro band; Mass sits there per roadmap line 763).
 [[nodiscard]] constexpr bool morphRowsInBand() noexcept {
-    for (const auto& r : kMorphSoundRows) {
-        if (r.id < static_cast<Steinberg::Vst::ParamID>(kMassId) ||
-            r.id >= static_cast<Steinberg::Vst::ParamID>(kMacroParamRangeEnd)) {
-            return false;
-        }
-    }
-    return true;
+    return std::ranges::all_of(kMorphSoundRows, [&](const auto& r) {
+        return !(r.id < static_cast<Steinberg::Vst::ParamID>(kMassId) ||
+            r.id >= static_cast<Steinberg::Vst::ParamID>(kMacroParamRangeEnd));
+    });
 }
 
 }  // namespace morph_pack_detail
@@ -158,9 +149,9 @@ enum class CompareMode : std::uint8_t { AB = 0, A = 1, B = 2 };
 // ------------------------------------------------------------------------------
 
 /// Morph Ramp Time (1002): [5, 2000] ms log (plan 4.1 non-leaf laws).
-inline constexpr PlainLaw kMorphRampLaw{static_cast<double>(Krate::DSP::BassMorphEngine::kMinPositionRampMs),
-                                        static_cast<double>(Krate::DSP::BassMorphEngine::kMaxPositionRampMs), 0.0,
-                                        true};
+inline constexpr PlainLaw kMorphRampLaw{.lo = static_cast<double>(Krate::DSP::BassMorphEngine::kMinPositionRampMs),
+                                        .hi = static_cast<double>(Krate::DSP::BassMorphEngine::kMaxPositionRampMs), .logOffset = 0.0,
+                                        .logarithmic = true};
 static_assert(Krate::DSP::BassMorphEngine::kMinPositionRampMs == 5.0f &&
                   Krate::DSP::BassMorphEngine::kMaxPositionRampMs == 2000.0f,
               "spec ID table: Morph Ramp Time [5, 2000] ms (bass_morph_engine.h:67-68)");

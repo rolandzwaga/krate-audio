@@ -89,10 +89,16 @@ inline constexpr std::array<std::int32_t, 14> kSessionTags{
 
 /// Plan 4.7: compare segment index 0 -> A, 1 -> A.B, 2 -> B.
 [[nodiscard]] constexpr CompareMode compareModeOfSegment(int index) noexcept {
-    return index <= 0 ? CompareMode::A : (index == 1 ? CompareMode::AB : CompareMode::B);
+    if (index <= 0) {
+        return CompareMode::A;
+    }
+    return index == 1 ? CompareMode::AB : CompareMode::B;
 }
 [[nodiscard]] constexpr int segmentOfCompareMode(CompareMode m) noexcept {
-    return m == CompareMode::A ? 0 : (m == CompareMode::AB ? 1 : 2);
+    if (m == CompareMode::A) {
+        return 0;
+    }
+    return m == CompareMode::AB ? 1 : 2;
 }
 
 class ProfundumPanelSubController : public VSTGUI::DelegationController,

@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <iterator>
 #include <string_view>
+#include <algorithm>
 
 namespace Profundum {
 
@@ -27,10 +28,10 @@ inline constexpr const Steinberg::Vst::TChar* kCharacterLabels[] = {STR16("Tube"
                                                                     STR16("Crush"), STR16("Fracture")};
 
 inline constexpr std::array<SoundParamRow, 3> kCharacterSoundRows{{
-    {kCharacterId, 11, kNoLeaf, STR16("Character"), STR16(""), kCharacterLabels,
-     static_cast<std::uint8_t>(std::size(kCharacterLabels)), DisplayUnit::List},
-    {kCharacterAmountId, 12, kNoLeaf, STR16("Character Amount"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kCharacterToneId, 13, kNoLeaf, STR16("Character Tone"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
+    {.id = kCharacterId, .leaf = 11, .leaf2 = kNoLeaf, .title = STR16("Character"), .units = STR16(""), .labels = kCharacterLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kCharacterLabels)), .display = DisplayUnit::List},
+    {.id = kCharacterAmountId, .leaf = 12, .leaf2 = kNoLeaf, .title = STR16("Character Amount"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kCharacterToneId, .leaf = 13, .leaf2 = kNoLeaf, .title = STR16("Character Tone"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
 }};
 
 // ---- compile-time proofs (FR-002; tasks.md G7 rules a-d) ----
@@ -62,7 +63,7 @@ static_assert(
 // (b) / (d) a non-F32 leaf is a list whose label count is maxEnum + 1 (2 for a Bool); an F32 leaf has no labels.
 static_assert(
     [] {
-        for (const auto& r : kCharacterSoundRows) {
+        return std::ranges::all_of(kCharacterSoundRows, [&](const auto& r) {
             const auto& f = lawOf(r.leaf);
             if (f.kind == MorphState::Kind::F32) {
                 if (r.labels != nullptr || r.labelCount != 0 || r.display == DisplayUnit::List) {
@@ -77,20 +78,17 @@ static_assert(
                     return false;
                 }
             }
-        }
-        return true;
+            return true;
+        });
     }(),
     "character pack: list label counts equal lawOf(leaf).maxEnum + 1");
 
 // (c) every ID lies in the character band [600, 700).
 static_assert(
     [] {
-        for (const auto& r : kCharacterSoundRows) {
-            if (r.id < kCharacterId || r.id >= kCharacterParamRangeEnd) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kCharacterSoundRows, [&](const auto& r) {
+            return !(r.id < kCharacterId || r.id >= kCharacterParamRangeEnd);
+        });
     }(),
     "character pack: every ID lies in 600-699");
 

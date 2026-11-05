@@ -15,12 +15,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <algorithm>
 
 namespace Profundum {
 
 inline constexpr std::array<SoundParamRow, 2> kDynamicsSoundRows{{
-    {kDynamicsTransientAttackId, 53, kNoLeaf, STR16("Transient Attack"), STR16("dB"), nullptr, 0, DisplayUnit::Db},
-    {kDynamicsTransientSustainId, 54, kNoLeaf, STR16("Transient Sustain"), STR16("dB"), nullptr, 0, DisplayUnit::Db},
+    {.id = kDynamicsTransientAttackId, .leaf = 53, .leaf2 = kNoLeaf, .title = STR16("Transient Attack"), .units = STR16("dB"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Db},
+    {.id = kDynamicsTransientSustainId, .leaf = 54, .leaf2 = kNoLeaf, .title = STR16("Transient Sustain"), .units = STR16("dB"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Db},
 }};
 
 // ---- compile-time proofs (FR-002; tasks.md G7 rules a-d) ----
@@ -52,24 +53,18 @@ static_assert(
 // (b) / (d) no dynamics row is a list, so every row is a continuous F32 leaf.
 static_assert(
     [] {
-        for (const auto& r : kDynamicsSoundRows) {
-            if (r.labels != nullptr || r.labelCount != 0 || lawOf(r.leaf).kind != MorphState::Kind::F32) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kDynamicsSoundRows, [&](const auto& r) {
+            return !(r.labels != nullptr || r.labelCount != 0 || lawOf(r.leaf).kind != MorphState::Kind::F32);
+        });
     }(),
     "dynamics pack: every row is a continuous F32 leaf");
 
 // (c) every ID lies in the dynamics band [700, 800).
 static_assert(
     [] {
-        for (const auto& r : kDynamicsSoundRows) {
-            if (r.id < kDynamicsTransientAttackId || r.id >= kDynamicsParamRangeEnd) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kDynamicsSoundRows, [&](const auto& r) {
+            return !(r.id < kDynamicsTransientAttackId || r.id >= kDynamicsParamRangeEnd);
+        });
     }(),
     "dynamics pack: every ID lies in 700-799");
 

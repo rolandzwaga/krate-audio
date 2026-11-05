@@ -27,6 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <algorithm>
 
 namespace Profundum {
 
@@ -44,21 +45,21 @@ inline constexpr const Steinberg::Vst::TChar* kFieldSyncLabels[] = {STR16("Off")
 // ------------------------------------------------------------------------------
 
 inline constexpr std::array<SoundParamRow, 10> kFieldRows = {{
-    {kFieldImageModeId, 25, kNoLeaf, STR16("Image Mode"), STR16(""), kFieldImageModeLabels,
-     static_cast<std::uint8_t>(std::size(kFieldImageModeLabels)), DisplayUnit::List},
-    {kFieldSpreadId, 26, kNoLeaf, STR16("Spread"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kFieldGravityId, 27, kNoLeaf, STR16("Gravity"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kFieldCrossoverId, 28, kNoLeaf, STR16("Crossover"), STR16("Hz"), nullptr, 0, DisplayUnit::Hz},
-    {kFieldCurveId, 29, kNoLeaf, STR16("Curve"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kFieldMotionDepthId, 30, kNoLeaf, STR16("Field Motion Depth"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kFieldMotionRateId, 31, kNoLeaf, STR16("Field Motion Rate"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kFieldMotionSourceId, 32, kNoLeaf, STR16("Field Motion Source"), STR16(""), kFieldMotionSourceLabels,
-     static_cast<std::uint8_t>(std::size(kFieldMotionSourceLabels)), DisplayUnit::List},
-    {kFieldSyncId, 33, kNoLeaf, STR16("Field Sync"), STR16(""), kFieldSyncLabels,
-     static_cast<std::uint8_t>(std::size(kFieldSyncLabels)), DisplayUnit::List},
-    {kFieldSyncRateId, 34, 35, STR16("Field Sync Rate"), STR16(""),
-     Krate::Plugins::Parameters::kNoteValueDropdownStrings,
-     static_cast<std::uint8_t>(std::size(Krate::Plugins::Parameters::kNoteValueDropdownStrings)), DisplayUnit::List},
+    {.id = kFieldImageModeId, .leaf = 25, .leaf2 = kNoLeaf, .title = STR16("Image Mode"), .units = STR16(""), .labels = kFieldImageModeLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kFieldImageModeLabels)), .display = DisplayUnit::List},
+    {.id = kFieldSpreadId, .leaf = 26, .leaf2 = kNoLeaf, .title = STR16("Spread"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kFieldGravityId, .leaf = 27, .leaf2 = kNoLeaf, .title = STR16("Gravity"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kFieldCrossoverId, .leaf = 28, .leaf2 = kNoLeaf, .title = STR16("Crossover"), .units = STR16("Hz"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Hz},
+    {.id = kFieldCurveId, .leaf = 29, .leaf2 = kNoLeaf, .title = STR16("Curve"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kFieldMotionDepthId, .leaf = 30, .leaf2 = kNoLeaf, .title = STR16("Field Motion Depth"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kFieldMotionRateId, .leaf = 31, .leaf2 = kNoLeaf, .title = STR16("Field Motion Rate"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kFieldMotionSourceId, .leaf = 32, .leaf2 = kNoLeaf, .title = STR16("Field Motion Source"), .units = STR16(""), .labels = kFieldMotionSourceLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kFieldMotionSourceLabels)), .display = DisplayUnit::List},
+    {.id = kFieldSyncId, .leaf = 33, .leaf2 = kNoLeaf, .title = STR16("Field Sync"), .units = STR16(""), .labels = kFieldSyncLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kFieldSyncLabels)), .display = DisplayUnit::List},
+    {.id = kFieldSyncRateId, .leaf = 34, .leaf2 = 35, .title = STR16("Field Sync Rate"), .units = STR16(""),
+     .labels = Krate::Plugins::Parameters::kNoteValueDropdownStrings,
+     .labelCount = static_cast<std::uint8_t>(std::size(Krate::Plugins::Parameters::kNoteValueDropdownStrings)), .display = DisplayUnit::List},
 }};
 
 // ------------------------------------------------------------------------------
@@ -94,7 +95,7 @@ template <std::size_t N>
 /// (b) + (d): list rows carry maxEnum + 1 labels (Bool: 2; Sync Rate pair: 10 x 3 == 30); continuous rows none.
 template <std::size_t N>
 [[nodiscard]] constexpr bool labelsMatchLaws(const std::array<SoundParamRow, N>& rows) noexcept {
-    for (const auto& r : rows) {
+    return std::ranges::all_of(rows, [&](const auto& r) {
         const FieldInfo& f = lawOf(r.leaf);
         if (r.leaf2 != kNoLeaf) {
             const FieldInfo& f2 = lawOf(r.leaf2);
@@ -115,8 +116,8 @@ template <std::size_t N>
         } else if (r.labels != nullptr || r.labelCount != 0 || r.display == DisplayUnit::List) {
             return false;
         }
-    }
-    return true;
+        return true;
+    });
 }
 
 /// (c) Every ID lies in the band, and the rows are dense from the band's first ID (O(1) dispatch).

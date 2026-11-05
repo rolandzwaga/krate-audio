@@ -53,6 +53,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace ProfundumPluginTest {
@@ -66,7 +67,7 @@ public:
 
     ~PresetHost() {
         if (active_) {
-            proc_->setActive(false);
+            proc_->setActive(0u);
             active_ = false;
         }
         if (initialized_) {
@@ -98,7 +99,7 @@ public:
         if (r != Steinberg::kResultOk) {
             return r;
         }
-        r = proc_->setActive(true);
+        r = proc_->setActive(1u);
         if (r != Steinberg::kResultOk) {
             return r;
         }
@@ -191,7 +192,7 @@ public:
             const Steinberg::tresult w = stream->write(
                 const_cast<std::uint8_t*>(comp.data()),  // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 static_cast<Steinberg::int32>(comp.size()), &written);
-            if (w != Steinberg::kResultOk || written != static_cast<Steinberg::int32>(comp.size())) {
+            if (w != Steinberg::kResultOk || std::cmp_not_equal(written, comp.size())) {
                 return Steinberg::kResultFalse;
             }
         }
