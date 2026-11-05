@@ -15,6 +15,6 @@ void fitUnnaturalZone(std::span<const float> samples,
                       double sampleRate,
                       const ModalDecomposition& modes,
                       const Membrum::PadConfig& fittedBody,
-                      Membrum::PadConfig& config);
+                      Membrum::PadConfig& cfg);
 
 }  // namespace MembrumFit

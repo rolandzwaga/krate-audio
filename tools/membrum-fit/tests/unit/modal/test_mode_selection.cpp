@@ -4,12 +4,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 TEST_CASE("selectModelOrder: bounded result on a 3-mode signal") {
     constexpr double sr = 44100.0;
     constexpr int N = 4096;
-    constexpr float pi = 3.14159265358979323846f;
+    constexpr float pi = std::numbers::pi_v<float>;
     std::vector<float> x(N);
     for (int n = 0; n < N; ++n) {
         const float t = n / static_cast<float>(sr);

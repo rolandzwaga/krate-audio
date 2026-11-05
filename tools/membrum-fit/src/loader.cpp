@@ -2,8 +2,16 @@
 
 #include <krate/dsp/primitives/sample_rate_converter.h>
 
+// dr_wav is vendored third-party code; 0.14.6 shadows a local ('fileSize', C4456) under /W4.
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable : 4456)
+#endif
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -16,11 +24,14 @@ namespace {
 
 float computeCorrelation(const std::vector<float>& l, const std::vector<float>& r) {
     if (l.size() != r.size() || l.empty()) return 1.0f;
-    double meanL = 0.0, meanR = 0.0;
+    double meanL = 0.0;
+    double meanR = 0.0;
     for (std::size_t i = 0; i < l.size(); ++i) { meanL += l[i]; meanR += r[i]; }
     meanL /= static_cast<double>(l.size());
     meanR /= static_cast<double>(r.size());
-    double num = 0.0, denL = 0.0, denR = 0.0;
+    double num = 0.0;
+    double denL = 0.0;
+    double denR = 0.0;
     for (std::size_t i = 0; i < l.size(); ++i) {
         const double dL = l[i] - meanL;
         const double dR = r[i] - meanR;
@@ -38,11 +49,11 @@ float computeCorrelation(const std::vector<float>& l, const std::vector<float>& 
 std::vector<float> resampleLinear(const std::vector<float>& src, double srIn, double srOut) {
     if (std::abs(srIn - srOut) < 1e-6) return src;
     const double ratio = srOut / srIn;
-    const std::size_t outLen = static_cast<std::size_t>(std::round(src.size() * ratio));
+    const auto outLen = static_cast<std::size_t>(std::round(src.size() * ratio));
     std::vector<float> out(outLen);
     for (std::size_t i = 0; i < outLen; ++i) {
         const double srcPos = static_cast<double>(i) / ratio;
-        const std::size_t i0 = static_cast<std::size_t>(std::floor(srcPos));
+        const auto i0 = static_cast<std::size_t>(std::floor(srcPos));
         const double frac = srcPos - static_cast<double>(i0);
         const std::size_t i1 = std::min(i0 + 1, src.size() - 1);
         out[i] = static_cast<float>(src[i0] * (1.0 - frac) + src[i1] * frac);
@@ -73,7 +84,8 @@ std::optional<LoadedSample> loadSample(const std::filesystem::path& wav,
         std::copy_n(interleaved, totalFrames, mono.begin());
         s.channelCorrelation = 1.0f;
     } else {
-        std::vector<float> l(totalFrames), r(totalFrames);
+        std::vector<float> l(totalFrames);
+        std::vector<float> r(totalFrames);
         for (drwav_uint64 i = 0; i < totalFrames; ++i) {
             l[i] = interleaved[i * channels + 0];
             r[i] = interleaved[i * channels + 1];

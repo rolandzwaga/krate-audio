@@ -28,6 +28,7 @@
       'disrumpo'  - Disrumpo plugin source
       'ruinae'    - Ruinae plugin source
       'innexus'   - Innexus plugin source
+      'membrum-fit' - tools/membrum-fit offline fitter (src + tests); not part of 'all'
       'all'       - Everything
     Default: all
 
@@ -64,7 +65,7 @@
 param(
     [string]$BuildDir = "build/windows-x64-release",
     [switch]$Fix,
-    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "shared", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago", "profundum")]
+    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "shared", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago", "profundum", "membrum-fit")]
     [string]$Target = "all",
     [switch]$Quiet,
     [int]$Jobs = 0,
@@ -249,6 +250,17 @@ switch ($Target) {
         $IncludeDirs += "tests"
         $IncludeDirs += "extern/vst3sdk"
     }
+    "membrum-fit" {
+        # src and tests, matching run-clang-tidy.sh's `membrum-fit)` case. Tests include "src/...", the sources
+        # include Membrum's "dsp/..." headers; Eigen, CLI11 and nlohmann_json come only from compile_commands.json.
+        $SourceDirs += "tools/membrum-fit/src"
+        $SourceDirs += "tools/membrum-fit/tests"
+        $IncludeDirs += "dsp/include"
+        $IncludeDirs += "tools/membrum-fit"
+        $IncludeDirs += "tools/membrum-fit/src"
+        $IncludeDirs += "plugins/membrum/src"
+        $IncludeDirs += "extern/dr_libs"
+    }
     "all" {
         $SourceDirs += "dsp/include"
         $SourceDirs += "dsp/tests"
@@ -371,9 +383,10 @@ function Process-TidyOutput {
         return @{ Warnings = 0; Errors = 0; Lines = @() }
     }
 
-    # Filter to only our code paths (plugins/ and dsp/)
+    # Filter to only our code paths (plugins/, dsp/ and tools/membrum-fit/; without the last, the membrum-fit target
+    # reported 0 warnings while clang-tidy printed them)
     $OurLines = $Output -split "`n" | Where-Object {
-        ($_ -match "plugins[/\\]" -or $_ -match "dsp[/\\]") -and
+        ($_ -match "plugins[/\\]" -or $_ -match "dsp[/\\]" -or $_ -match "tools[/\\]membrum-fit[/\\]") -and
         $_ -notmatch "Processing file" -and
         $_ -notmatch "Error while processing"
     }

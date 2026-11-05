@@ -5,13 +5,14 @@
 #include <catch2/catch_approx.hpp>
 
 #include <cmath>
+#include <numbers>
 #include <random>
 #include <vector>
 
 namespace {
 std::vector<float> synthesise(float f, float g, float sr, int n) {
     std::vector<float> x(n);
-    constexpr float pi = 3.14159265358979323846f;
+    constexpr float pi = std::numbers::pi_v<float>;
     for (int i = 0; i < n; ++i) {
         const float t = static_cast<float>(i) / sr;
         x[i] = std::exp(-g * t) * std::cos(2.0f * pi * f * t);

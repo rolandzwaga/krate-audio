@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <numbers>
+#include <utility>
 #include <vector>
 
 namespace MembrumFit::Modal {
@@ -30,7 +32,7 @@ std::vector<std::complex<double>> hilbertAnalytic(std::span<const float> x) {
             if (i < j) std::swap(a[i], a[j]);
         }
         for (std::size_t len = 2; len <= M; len <<= 1) {
-            const double ang = (invert ? 2.0 : -2.0) * 3.14159265358979323846 / static_cast<double>(len);
+            const double ang = (invert ? 2.0 : -2.0) * std::numbers::pi / static_cast<double>(len);
             const std::complex<double> wlen(std::cos(ang), std::sin(ang));
             for (std::size_t i = 0; i < M; i += len) {
                 std::complex<double> w(1.0, 0.0);
@@ -106,7 +108,7 @@ ModalDecomposition extractModesMatrixPencil(std::span<const float> decayIn,
     // Solve V1 * Psi = V2  -> eigenvalues of Psi are the poles.
     Eigen::MatrixXcd Psi = V1.completeOrthogonalDecomposition().solve(V2);
     Eigen::ComplexEigenSolver<Eigen::MatrixXcd> ces(Psi);
-    const auto poles = ces.eigenvalues();
+    const auto& poles = ces.eigenvalues();
 
     // Recover (f, gamma) per pole. Reject growing exponentials (|z|>=1+eps)
     // and DC/Nyquist poles.
@@ -118,11 +120,11 @@ ModalDecomposition extractModesMatrixPencil(std::span<const float> decayIn,
         if (mag <= 0.0 || mag > 1.0 + 1e-3) continue;
         const double omega = std::arg(z);  // sign depends on Hilbert/SVD convention
         if (std::abs(omega) < 1e-6) continue;
-        const double freqHz = std::abs(omega) * sampleRate / (2.0 * 3.14159265358979323846);
+        const double freqHz = std::abs(omega) * sampleRate / (2.0 * std::numbers::pi);
         const double gamma  = -std::log(mag) * sampleRate;
         if (gamma < -1.0) continue;  // allow tiny negatives from numerical noise
         if (freqHz <= 10.0 || freqHz >= sampleRate * 0.49) continue;
-        raws.push_back({freqHz, std::max(gamma, 0.0), z});
+        raws.push_back({.freqHz = freqHz, .gamma = std::max(gamma, 0.0), .pole = z});
     }
     // Deduplicate (frequency-collapse poles within ~1 Hz are conjugate pairs).
     std::sort(raws.begin(), raws.end(), [](const Raw& a, const Raw& b){ return a.freqHz < b.freqHz; });
@@ -165,7 +167,7 @@ ModalDecomposition extractModesMatrixPencil(std::span<const float> decayIn,
     }
     std::sort(out.modes.begin(), out.modes.end(),
               [](const Mode& a, const Mode& b){ return a.amplitude > b.amplitude; });
-    if (static_cast<int>(out.modes.size()) > maxModes) out.modes.resize(maxModes);
+    if (std::cmp_greater(out.modes.size(), maxModes)) out.modes.resize(maxModes);
 
     // Residual RMS (signal minus resynthesised).
     double resSq = 0.0;

@@ -5,12 +5,13 @@
 #include <catch2/catch_approx.hpp>
 
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 namespace {
 std::vector<float> sine(float hz, float sr, int n) {
     std::vector<float> x(n);
-    constexpr float pi = 3.14159265358979323846f;
+    constexpr float pi = std::numbers::pi_v<float>;
     for (int i = 0; i < n; ++i) x[i] = std::sin(2.0f * pi * hz * i / sr);
     return x;
 }

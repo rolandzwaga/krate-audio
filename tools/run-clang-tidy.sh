@@ -65,8 +65,8 @@ while [[ $# -gt 0 ]]; do
             echo "                    (auto-detected if not specified)"
             echo "  --target TARGET   Target to analyze: all, dsp, shared, iterum, disrumpo,"
             echo "                    ruinae, innexus, gradus, membrum, seraphis, vorago,"
-            echo "                    profundum"
-            echo "                    ('all' covers dsp + every plugin). Default: all"
+            echo "                    profundum, membrum-fit"
+            echo "                    ('all' covers dsp + every plugin, not membrum-fit). Default: all"
             echo "  --fix             Apply automatic fixes (use with caution)"
             echo "  --quiet           Suppress progress output"
             echo "  --parallel N      Number of parallel processes (default: $PARALLEL)"
@@ -163,6 +163,10 @@ case $TARGET in
         ;;
     profundum)
         SOURCE_DIRS=("plugins/profundum/src" "plugins/profundum/tests")
+        ;;
+    membrum-fit)
+        # Offline fitter tool, not a plugin: not part of `all`. Same file set as run-clang-tidy.ps1's case.
+        SOURCE_DIRS=("tools/membrum-fit/src" "tools/membrum-fit/tests")
         ;;
     all)
         # MUST cover dsp + shared + EVERY plugin, or Linux/macOS pre-commit lint

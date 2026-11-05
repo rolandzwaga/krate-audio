@@ -42,13 +42,13 @@ FitResult fitSample(const std::filesystem::path& wavPath, const FitOptions& opti
         return res;
     }
     if (loaded->channelCorrelation < 0.7f) {
-        res.quality.warnings.push_back("low channel correlation; mono-summing wide stereo input");
+        res.quality.warnings.emplace_back("low channel correlation; mono-summing wide stereo input");
         res.quality.hasWarnings = true;
     }
 
     const auto seg = segmentSample(loaded->samples, loaded->sampleRate);
     if (!isSegmentationUsable(seg, loaded->sampleRate)) {
-        res.quality.warnings.push_back("decay window < 100 ms; sample rejected");
+        res.quality.warnings.emplace_back("decay window < 100 ms; sample rejected");
         res.quality.hasWarnings = true;
         // Return DefaultKit::Kick as fallback so downstream stays sane.
         Membrum::DefaultKit::applyTemplate(res.padConfig, Membrum::DrumTemplate::Kick);
@@ -297,7 +297,7 @@ FitResult fitSample(const std::filesystem::path& wavPath, const FitOptions& opti
             rctx.optimisable.push_back(idx);
         }
     }
-    rctx.weights = LossWeights{ options.wSTFT, options.wMFCC, options.wEnv };
+    rctx.weights = LossWeights{ .stft = options.wSTFT, .mfcc = options.wMFCC, .env = options.wEnv };
     rctx.maxEvals = options.maxBobyqaEvals;
     auto rr = refineBOBYQA(rctx, voice);
 

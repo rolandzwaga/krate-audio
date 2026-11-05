@@ -47,11 +47,11 @@ Membrum::PadConfig invertMembrane(const ModalDecomposition& modes,
     cfg.decay = invertDecay(gamma);
 
     // Material from brightness: ratio of high-mode to low-mode amplitude.
-    float lowEng = 0.0f, highEng = 0.0f;
+    float lowEng = 0.0f;
+    float highEng = 0.0f;
     for (const auto& m : modes.modes) {
-        const float* dst = (m.freqHz < f0 * 3.0f) ? &lowEng : &highEng;
-        const float val = m.amplitude * m.amplitude;
-        const_cast<float*>(dst)[0] += val;
+        float* dst = (m.freqHz < f0 * 3.0f) ? &lowEng : &highEng;
+        *dst += m.amplitude * m.amplitude;
     }
     const float brightness = (lowEng + highEng > 0.0f) ? highEng / (lowEng + highEng) : 0.5f;
     cfg.material = std::clamp(brightness, 0.0f, 1.0f);

@@ -567,8 +567,9 @@ ctest --test-dir build-asan -C Debug -j 30 --output-on-failure
 Run before every commit (canonical todo list step 6) and after significant refactoring:
 
 ```powershell
-./tools/run-clang-tidy.ps1 -Target <all|dsp|shared|iterum|disrumpo|ruinae|innexus|gradus|membrum|seraphis|vorago|profundum> -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target <all|dsp|shared|iterum|disrumpo|ruinae|innexus|gradus|membrum|seraphis|vorago|profundum|membrum-fit> -BuildDir build/windows-ninja
 # Linux/macOS: ./tools/run-clang-tidy.sh --target <same roster>
+# membrum-fit (tools/membrum-fit, src + tests) is a separate target, not part of `all`.
 ```
 
 **`all` MUST cover dsp + every plugin** — a new plugin needs its case added to BOTH scripts, or the

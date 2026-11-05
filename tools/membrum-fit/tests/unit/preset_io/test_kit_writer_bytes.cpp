@@ -35,14 +35,12 @@ std::vector<char> slurp(const std::filesystem::path& p) {
 
 TEST_CASE("Kit writer: component-state bytes match direct codec output") {
     std::array<Membrum::PadConfig, 32> pads{};
+    constexpr std::array kTemplates{
+        Membrum::DrumTemplate::Kick, Membrum::DrumTemplate::Snare,  Membrum::DrumTemplate::Tom,
+        Membrum::DrumTemplate::Hat,  Membrum::DrumTemplate::Cymbal, Membrum::DrumTemplate::Perc,
+    };
     for (std::size_t i = 0; i < pads.size(); ++i) {
-        Membrum::DefaultKit::applyTemplate(pads[i],
-            (i % 6 == 0) ? Membrum::DrumTemplate::Kick
-          : (i % 6 == 1) ? Membrum::DrumTemplate::Snare
-          : (i % 6 == 2) ? Membrum::DrumTemplate::Tom
-          : (i % 6 == 3) ? Membrum::DrumTemplate::Hat
-          : (i % 6 == 4) ? Membrum::DrumTemplate::Cymbal
-                         : Membrum::DrumTemplate::Perc);
+        Membrum::DefaultKit::applyTemplate(pads[i], kTemplates[i % kTemplates.size()]);
     }
 
     const auto outPath = std::filesystem::temp_directory_path() / "membrum_fit_kit_bytes.vstpreset";

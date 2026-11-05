@@ -33,7 +33,8 @@ void fitUnnaturalZone(std::span<const float> /*samples*/,
     if (modes.modes.size() < 3) return;
 
     const float f0 = modes.modes.front().freqHz;
-    float injectedEnergy = 0.0f, naturalEnergy = 0.0f;
+    float injectedEnergy = 0.0f;
+    float naturalEnergy = 0.0f;
     for (const auto& m : modes.modes) {
         const float e = m.amplitude * m.amplitude;
         if (isNaturalHarmonic(m.freqHz, f0)) naturalEnergy  += e;
@@ -47,7 +48,8 @@ void fitUnnaturalZone(std::span<const float> /*samples*/,
     // Decay skew: if high modes decay SLOWER than low modes (inverted), set
     // a negative skew. We measure the median decayRate among low (< 2*f0) vs
     // high (>= 2*f0) modes.
-    std::vector<float> lowGs, highGs;
+    std::vector<float> lowGs;
+    std::vector<float> highGs;
     for (const auto& m : modes.modes) {
         if (m.freqHz < 2.0f * f0) lowGs.push_back(m.decayRate);
         else                      highGs.push_back(m.decayRate);

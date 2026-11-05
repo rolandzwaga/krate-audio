@@ -26,7 +26,8 @@ Membrum::PadConfig invertShell(const ModalDecomposition& modes,
         cfg.decay = 0.3f;
     }
     // Shell brightness: 0.85 + 0.15*material -> material = (brightness - 0.85) / 0.15.
-    float lowEng = 0.0f, highEng = 0.0f;
+    float lowEng = 0.0f;
+    float highEng = 0.0f;
     for (const auto& m : modes.modes) {
         const float val = m.amplitude * m.amplitude;
         if (m.freqHz < f0 * 3.0f) lowEng += val; else highEng += val;

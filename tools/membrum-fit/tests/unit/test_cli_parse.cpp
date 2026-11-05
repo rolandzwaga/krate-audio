@@ -10,6 +10,7 @@ namespace {
 
 std::vector<char*> mkArgv(std::vector<std::string>& store) {
     std::vector<char*> argv;
+    argv.reserve(store.size());
     for (auto& s : store) argv.push_back(s.data());
     return argv;
 }

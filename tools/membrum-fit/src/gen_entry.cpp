@@ -15,6 +15,7 @@
 #include "dr_wav.h"  // implementation is provided by loader.cpp inside membrum_fit_core
 
 #include <cstdio>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -146,7 +147,7 @@ bool writeWav(const std::filesystem::path& outPath,
     fmt.bitsPerSample = 32;
 
     drwav w;
-    if (!drwav_init_file_write(&w, outPath.string().c_str(), &fmt, nullptr)) {
+    if (drwav_init_file_write(&w, outPath.string().c_str(), &fmt, nullptr) == 0u) {
         return false;
     }
     const drwav_uint64 frames = drwav_write_pcm_frames(&w, samples.size(), samples.data());
@@ -160,9 +161,7 @@ int usage() {
     return 1;
 }
 
-}  // namespace
-
-int main(int argc, char** argv) {
+int run(int argc, char** argv) {
     if (argc < 3) return usage();
     std::filesystem::path inPath  = argv[1];
     std::filesystem::path outPath = argv[2];
@@ -196,4 +195,20 @@ int main(int argc, char** argv) {
     }
     std::fprintf(stdout, "wrote %zu frames to %s\n", samples.size(), outPath.string().c_str());
     return 0;
+}
+
+}  // namespace
+
+// Same shape as entry.cpp: a malformed --sr / --sec / --vel (std::stod) or JSON input throws; report it instead of
+// letting it escape main.
+int main(int argc, char** argv) {
+    try {
+        return run(argc, argv);
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "membrum-fit-gen: fatal: %s\n", e.what());
+        return 2;
+    } catch (...) {
+        std::fprintf(stderr, "membrum-fit-gen: fatal: unknown exception\n");
+        return 2;
+    }
 }

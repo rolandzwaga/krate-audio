@@ -24,7 +24,9 @@ KitSpec loadKitJson(const std::filesystem::path& jsonPath) {
             std::filesystem::path p = name;
             if (p.is_relative()) p = spec.rootDir / p;
             spec.midiNoteToFile[note] = p;
-        } catch (...) {}
+        } catch (...) {
+            continue;  // non-numeric key or non-string value: not a pad entry, skip it
+        }
     }
     return spec;
 }

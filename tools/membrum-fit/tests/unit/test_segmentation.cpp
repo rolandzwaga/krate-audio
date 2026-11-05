@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 TEST_CASE("Segmentation: locates onset of a synthetic transient within 1024 samples") {
@@ -11,7 +12,7 @@ TEST_CASE("Segmentation: locates onset of a synthetic transient within 1024 samp
     constexpr int    N  = 8192;
     constexpr int    onset = 2048;
     std::vector<float> x(N, 0.0f);
-    constexpr float pi = 3.14159265358979323846f;
+    constexpr float pi = std::numbers::pi_v<float>;
     for (int i = onset; i < N; ++i) {
         const float t = (i - onset) / static_cast<float>(sr);
         x[i] = std::exp(-10.0f * t) * std::sin(2.0f * pi * 220.0f * t);
@@ -26,7 +27,7 @@ TEST_CASE("Segmentation: short sample (<100ms decay) is rejected") {
     constexpr double sr = 44100.0;
     constexpr int N = static_cast<int>(0.05 * sr);  // 50 ms total
     std::vector<float> x(N);
-    constexpr float pi = 3.14159265358979323846f;
+    constexpr float pi = std::numbers::pi_v<float>;
     for (int i = 0; i < N; ++i) {
         const float t = i / static_cast<float>(sr);
         x[i] = std::exp(-30.0f * t) * std::sin(2.0f * pi * 220.0f * t);

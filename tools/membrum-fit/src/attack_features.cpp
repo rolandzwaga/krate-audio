@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <numbers>
 #include <numeric>
 
 namespace MembrumFit {
@@ -24,7 +25,7 @@ void fftInPlace(std::vector<std::complex<float>>& x) {
         if (i < j) std::swap(x[i], x[j]);
     }
     for (std::size_t len = 2; len <= n; len <<= 1) {
-        const float ang = -2.0f * 3.14159265358979323846f / static_cast<float>(len);
+        const float ang = -2.0f * std::numbers::pi_v<float> / static_cast<float>(len);
         const std::complex<float> wlen(std::cos(ang), std::sin(ang));
         for (std::size_t i = 0; i < n; i += len) {
             std::complex<float> w(1.0f, 0.0f);
@@ -66,7 +67,8 @@ float computeLogAttackTime(std::span<const float> w, double sr) {
     if (peak <= 1e-9f) return -6.0f;
     const float thStart = peak * 0.02f;
     const float thEnd   = peak * 0.90f;
-    std::size_t iStart = 0, iEnd = w.size() - 1;
+    std::size_t iStart = 0;
+    std::size_t iEnd = w.size() - 1;
     for (std::size_t i = 0; i < w.size(); ++i) if (std::abs(w[i]) >= thStart) { iStart = i; break; }
     for (std::size_t i = iStart; i < w.size(); ++i) if (std::abs(w[i]) >= thEnd)   { iEnd = i; break; }
     const float dt = (iEnd > iStart) ? static_cast<float>((iEnd - iStart) / sr) : 1e-6f;
@@ -76,7 +78,8 @@ float computeLogAttackTime(std::span<const float> w, double sr) {
 float computeSpectralFlatness(std::span<const float> w, double) {
     float dc; const auto mag = magnitudeSpectrum(w, dc);
     if (mag.size() < 2) return 0.0f;
-    double logSum = 0.0, arith = 0.0; std::size_t n = 0;
+    double logSum = 0.0;
+    double arith = 0.0; std::size_t n = 0;
     for (std::size_t k = 1; k < mag.size(); ++k) {
         const float m = mag[k];
         if (m > 1e-12f) { logSum += std::log(m); arith += m; ++n; }
@@ -90,7 +93,8 @@ float computeSpectralFlatness(std::span<const float> w, double) {
 float computeSpectralCentroid(std::span<const float> w, double sr) {
     float dc; const auto mag = magnitudeSpectrum(w, dc);
     if (mag.empty()) return 0.0f;
-    double num = 0.0, den = 0.0;
+    double num = 0.0;
+    double den = 0.0;
     const double binHz = sr / (2.0 * static_cast<double>(mag.size()));
     for (std::size_t k = 1; k < mag.size(); ++k) {
         num += mag[k] * k * binHz;
@@ -122,7 +126,7 @@ float computeInharmonicity(std::span<const float> w, double sr, float f1) {
     double sumSq = 0.0; int N = 0;
     for (int k = 2; k <= 8; ++k) {
         const double target = k * f1;
-        const std::size_t idx = static_cast<std::size_t>(std::round(target / binHz));
+        const auto idx = static_cast<std::size_t>(std::round(target / binHz));
         if (idx >= mag.size()) break;
         // find local peak within +-3 bins
         std::size_t best = idx;
@@ -170,8 +174,8 @@ AttackFeatures extractAttackFeatures(std::span<const float> s, const SegmentedSa
             f.centroidTrajectory[i] = computeSpectralCentroid(attack.subspan(off, hops), sr);
         }
     }
-    const std::size_t minLag = static_cast<std::size_t>(0.0005 * sr);
-    const std::size_t maxLag = static_cast<std::size_t>(0.02   * sr);
+    const auto minLag = static_cast<std::size_t>(0.0005 * sr);
+    const auto maxLag = static_cast<std::size_t>(0.02   * sr);
     const std::size_t lookback = std::min<std::size_t>(seg.onsetSample, 2 * maxLag);
     if (lookback > maxLag) {
         f.preOnsetARPeak = computeAutocorrelationPeak(
@@ -181,8 +185,9 @@ AttackFeatures extractAttackFeatures(std::span<const float> s, const SegmentedSa
     f.inharmonicity = computeInharmonicity(attack, sr, f1);
 
     // Decay / total energy ratio.
-    float total = 0.0f, decay = 0.0f;
-    for (std::size_t i = 0; i < s.size(); ++i) total += s[i] * s[i];
+    float total = 0.0f;
+    float decay = 0.0f;
+    for (const float x : s) total += x * x;
     for (std::size_t i = seg.decayStartSample; i < seg.decayEndSample && i < s.size(); ++i)
         decay += s[i] * s[i];
     f.decayTailEnergyRatio = (total > 1e-9f) ? decay / total : 0.0f;

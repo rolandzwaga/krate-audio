@@ -30,7 +30,7 @@ bool writeFloatWav(const std::filesystem::path& p, const std::vector<float>& s, 
     fmt.sampleRate = sr;
     fmt.bitsPerSample = 32;
     drwav w;
-    if (!drwav_init_file_write(&w, p.string().c_str(), &fmt, nullptr)) return false;
+    if (drwav_init_file_write(&w, p.string().c_str(), &fmt, nullptr) == 0u) return false;
     const auto wrote = drwav_write_pcm_frames(&w, s.size(), s.data());
     drwav_uninit(&w);
     return wrote == s.size();

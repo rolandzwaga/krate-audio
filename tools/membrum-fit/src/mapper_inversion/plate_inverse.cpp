@@ -29,7 +29,8 @@ Membrum::PadConfig invertPlate(const ModalDecomposition& modes,
         cfg.decay = 0.3f;
     }
     // Brightness: 0.5 + 0.5*material -> material = 2*brightness - 1.
-    float lowEng = 0.0f, highEng = 0.0f;
+    float lowEng = 0.0f;
+    float highEng = 0.0f;
     for (const auto& m : modes.modes) {
         const float val = m.amplitude * m.amplitude;
         if (m.freqHz < f0 * 3.0f) lowEng += val; else highEng += val;
