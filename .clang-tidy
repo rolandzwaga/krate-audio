@@ -28,6 +28,11 @@ FormatStyle: file
 #   - Enable checks that catch real bugs and performance issues
 #   - Disable noisy checks that conflict with DSP/audio coding patterns
 #   - Prioritize checks that improve real-time safety
+#
+# readability-redundant-member-init is off: it calls `member_{}` redundant when the member's type has a
+# `T() = default;` constructor, but value-initialisation then zero-fills every field without its own initializer,
+# which `member_;` does not. Its fix-it can leave DSP state indeterminate (Seraphis SpectralDelay, BrownianDrift,
+# MidSideProcessor, 2026-11-05).
 # ==============================================================================
 
 Checks: >
@@ -76,6 +81,7 @@ Checks: >
   -readability-math-missing-parentheses,
   -readability-named-parameter,
   -readability-redundant-access-specifiers,
+  -readability-redundant-member-init,
   -readability-uppercase-literal-suffix,
 
 # ==============================================================================

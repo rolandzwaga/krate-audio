@@ -31,10 +31,10 @@ namespace Seraphis {
 // Field order is load-bearing (plugins/shared/src/preset/preset_manager_config.h:16-18).
 inline Krate::Plugins::PresetManagerConfig makeSeraphisPresetConfig() {
     return Krate::Plugins::PresetManagerConfig{
-        /*.processorUID =*/ kProcessorUID,
-        /*.pluginName =*/ "Seraphis",
-        /*.pluginCategoryDesc =*/ "Synth",
-        /*.subcategoryNames =*/ {"Textures", "Pads", "Drones", "Bells",
+        .processorUID = kProcessorUID,
+        .pluginName = "Seraphis",
+        .pluginCategoryDesc = "Synth",
+        .subcategoryNames = {"Textures", "Pads", "Drones", "Bells",
                                  "Choirs", "Motion", "Cinematic"}
     };
 }

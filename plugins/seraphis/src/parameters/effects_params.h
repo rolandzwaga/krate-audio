@@ -87,7 +87,7 @@ inline constexpr float kFxDelayFeedbackMax = 0.95f;
 // std::abs is NOT used: <cmath>'s float overloads are not constexpr before C++23
 // on every toolchain leg, so the branchless form is mandatory.
 
-[[nodiscard]] inline constexpr float tiltCompensatedFeedback(float fb, float tilt) noexcept {
+[[nodiscard]] constexpr float tiltCompensatedFeedback(float fb, float tilt) noexcept {
     const float mag = (tilt < 0.0f) ? -tilt : tilt;
     return fb / (1.0f + mag);
 }

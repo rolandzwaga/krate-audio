@@ -239,7 +239,7 @@ inline bool loadGlobalParams(GlobalParams& params, Steinberg::IBStreamer& stream
 
 template <typename SetParamFunc>
 inline void loadGlobalParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
 
     float floatVal = 0.0f;
     Steinberg::int32 intVal = 0;
@@ -291,7 +291,7 @@ inline bool loadGlobalSeed(GlobalParams& params, Steinberg::IBStreamer& streamer
 
 template <typename SetParamFunc>
 inline void loadGlobalSeedToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
 
     Steinberg::int32 intVal = 0;
 

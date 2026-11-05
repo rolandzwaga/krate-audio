@@ -112,7 +112,7 @@ public:
                                         const VSTGUI::CButtonState& buttons) override;
 
     // --- mode / slot -------------------------------------------------------
-    enum class Mode { Observe, Edit };
+    enum class Mode : std::uint8_t { Observe, Edit };
 
     void setMode(Mode m) noexcept;
     [[nodiscard]] Mode mode() const noexcept { return mode_; }

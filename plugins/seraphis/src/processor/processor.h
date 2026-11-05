@@ -47,6 +47,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <numbers>
 #include <span>
 #include <vector>
 
@@ -81,7 +82,7 @@ inline constexpr std::size_t kGenerationSentinel = static_cast<std::size_t>(-1);
 /// values and the ordinary compare-against-tracker path delivers whatever changed,
 /// so forcing an UNCHANGED seed or polyphony through would be a gratuitous
 /// discontinuity.
-enum class SurfaceInvalidation { Reprepared, PresetLoad };
+enum class SurfaceInvalidation : std::uint8_t { Reprepared, PresetLoad };
 
 /// FR-047 (plan 3.4). `lastPushedPolyphony_`'s force-push sentinel. 0 is never a
 /// legal clamped voice count - clampPolyphony() floors at 1 (global_params.h:75)
@@ -215,7 +216,7 @@ inline constexpr float kWanderWidthSpanPercent = 50.0f;
 /// argument needs) and centre is exactly unity per channel, so FR-010's skip
 /// boundary is continuous. Peak per-channel gain at full deflection is +3.01 dB,
 /// bounded by the limiter.
-inline constexpr float kFxAzimuthCentreComp = 1.41421356f;  // sqrt(2) = 1 / cos(pi/4)
+inline constexpr float kFxAzimuthCentreComp = std::numbers::sqrt2_v<float>;  // sqrt(2) = 1 / cos(pi/4)
 
 /// FR-010 / FR-010a. How far from unity the azimuth pair may sit and still count
 /// as IDENTITY for wanderAtIdentity()'s purposes.
@@ -507,10 +508,10 @@ public:
     /// The LENGTH IS CARRIED BY THE SPAN and is the number of samples this
     /// process() call actually taped - see preOutputTapTruncatedForTest().
     [[nodiscard]] std::span<const float> preOutputTapLForTest() const noexcept {
-        return std::span<const float>(preOutTapL_.data(), preOutTapSize_);
+        return {preOutTapL_.data(), preOutTapSize_};
     }
     [[nodiscard]] std::span<const float> preOutputTapRForTest() const noexcept {
-        return std::span<const float>(preOutTapR_.data(), preOutTapSize_);
+        return {preOutTapR_.data(), preOutTapSize_};
     }
     /// TRUE when the most recent process() call delivered more samples than the
     /// tap buffers hold. The buffers are pinned to
@@ -659,7 +660,7 @@ public:
     // shipped plugin executes no clock read here - it pays one always-false
     // branch per timed region. Diagnostic only: no criterion gates on these.
     // =========================================================================
-    enum class DecompStage : std::size_t {
+    enum class DecompStage : std::uint8_t {
         Params,      ///< processParameterChanges(), top of process()
         PreSlice,    ///< force-push consume .. masterGain target (all once-per-call pushes)
         SlicePush,   ///< advanceParamSmoothers + pushVoiceParams + pushMacroSurfaces, per slice
@@ -1626,7 +1627,7 @@ private:
 // FR-067: unique_ptr ownership keeps the object small enough for a stack local
 // in tests. If this ever fails, the tests must heap-allocate the processor
 // (seraphis_engine.h:119-122).
-static_assert(sizeof(Processor) < 64u * 1024u,
+static_assert(sizeof(Processor) < std::size_t{64} * 1024u,
               "FR-067: Processor must stay small; the 771 968 B engine lives on the heap");
 
 }  // namespace Seraphis
