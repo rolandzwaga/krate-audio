@@ -20,12 +20,12 @@ struct BellBody
 {
     void prepare(double /*sampleRate*/, std::uint32_t /*voiceId*/) noexcept {}
 
-    void reset(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
+    static void reset(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
     {
         sharedBank.reset();
     }
 
-    void configureForNoteOn(Krate::DSP::ModalResonatorBank& sharedBank,
+    static void configureForNoteOn(Krate::DSP::ModalResonatorBank& sharedBank,
                             const VoiceCommonParams& params,
                             float pitchHz) noexcept
     {
@@ -38,20 +38,20 @@ struct BellBody
                             r.scatter);
     }
 
-    [[nodiscard]] float processSample(Krate::DSP::ModalResonatorBank& sharedBank,
+    [[nodiscard]] static float processSample(Krate::DSP::ModalResonatorBank& sharedBank,
                                       float excitation) noexcept
     {
         return sharedBank.processSample(excitation);
     }
 
-    [[nodiscard]] float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
+    [[nodiscard]] static float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
                                               float excitation) noexcept
     {
         return sharedBank.processSampleNoSmooth(excitation);
     }
 
     // Block-rate fast path (Phase 9 SIMD emergency fallback / plan.md §SIMD).
-    void processBlock(Krate::DSP::ModalResonatorBank& sharedBank,
+    static void processBlock(Krate::DSP::ModalResonatorBank& sharedBank,
                       const float* excitation,
                       float* out,
                       int numSamples) noexcept

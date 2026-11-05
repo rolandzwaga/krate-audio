@@ -86,7 +86,7 @@ public:
     // Types
     // =========================================================================
 
-    enum class DragTarget {
+    enum class DragTarget : std::uint8_t {
         None,
         Start,      // vertical only
         End,        // vertical only
@@ -359,24 +359,24 @@ public:
         float rightX = static_cast<float>(vs.right) - kPadding;
         switch (target) {
             case DragTarget::Start:
-                return VSTGUI::CPoint(leftX, pitchToPixelY(startN_));
+                return {leftX, pitchToPixelY(startN_)};
             case DragTarget::End:
-                return VSTGUI::CPoint(rightX, pitchToPixelY(endN_));
+                return {rightX, pitchToPixelY(endN_)};
             case DragTarget::Time:
-                return VSTGUI::CPoint(timeToPixelX(timeN_), curveYAtTime(timeN_));
+                return {timeToPixelX(timeN_), curveYAtTime(timeN_)};
             case DragTarget::Mid:
-                return VSTGUI::CPoint(timeToPixelX(midFractionN_), pitchToPixelY(midPitchN_));
+                return {timeToPixelX(midFractionN_), pitchToPixelY(midPitchN_)};
             case DragTarget::Curve1:
-                return VSTGUI::CPoint(timeToPixelX(segmentMidpointXNorm(1)),
-                                      segmentMidpointY(1));
+                return {timeToPixelX(segmentMidpointXNorm(1)),
+                                      segmentMidpointY(1)};
             case DragTarget::Curve2:
-                return VSTGUI::CPoint(timeToPixelX(segmentMidpointXNorm(2)),
-                                      segmentMidpointY(2));
+                return {timeToPixelX(segmentMidpointXNorm(2)),
+                                      segmentMidpointY(2)};
             case DragTarget::Curve:
                 // Legacy single-segment curve handle (same as segment 1 midpoint).
-                return VSTGUI::CPoint(timeToPixelX(0.5f), segmentMidpointY(1));
+                return {timeToPixelX(0.5f), segmentMidpointY(1)};
             default:
-                return VSTGUI::CPoint(0, 0);
+                return {0, 0};
         }
     }
 
@@ -623,7 +623,7 @@ private:
             case DragTarget::Start:  return startParamId_;
             case DragTarget::End:    return endParamId_;
             case DragTarget::Time:   return timeParamId_;
-            case DragTarget::Curve:  return curveParamId_;
+            case DragTarget::Curve:
             case DragTarget::Curve1: return curveParamId_;   // segment 1 == legacy curve param
             case DragTarget::Curve2: return curve2ParamId_;
             // Mid is handled separately (multi-ID) in notify{Begin,End}Edit;
@@ -1042,6 +1042,6 @@ struct PitchEnvelopeDisplayCreator : VSTGUI::ViewCreatorAdapter {
 
 // Inline variable (C++17) - safe for inclusion from multiple translation units.
 // Include this header from each plugin's entry.cpp to register the view type.
-inline PitchEnvelopeDisplayCreator gPitchEnvelopeDisplayCreator;
+inline const PitchEnvelopeDisplayCreator gPitchEnvelopeDisplayCreator;
 
 } // namespace Krate::Plugins

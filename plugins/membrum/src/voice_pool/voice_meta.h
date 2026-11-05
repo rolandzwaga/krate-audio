@@ -35,7 +35,7 @@ enum class VoiceSlotState : std::uint8_t
 
 /// Per-slot metadata. Kept cache-line-sized so future parallelization across
 /// voices cannot suffer false sharing.
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #  pragma warning(push)
 #  pragma warning(disable : 4324)  // structure padded due to alignment specifier (intentional)
 #endif
@@ -49,7 +49,7 @@ struct alignas(64) VoiceMeta
     VoiceSlotState state             = VoiceSlotState::Free;    // FR-172 slot lifecycle
     std::uint8_t   _pad              = 0;                       // reserved for Phase 4+ flags
 };
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #  pragma warning(pop)
 #endif
 

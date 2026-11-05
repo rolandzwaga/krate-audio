@@ -27,8 +27,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Precomputed minimum-phase band-limited step function table.
 ///
@@ -73,7 +73,7 @@ public:
     ///
     /// @param oversamplingFactor Sub-sample resolution (default 64)
     /// @param zeroCrossings Sinc lobes per side (default 8)
-    inline void prepare(size_t oversamplingFactor = 64, size_t zeroCrossings = 8) {
+    void prepare(size_t oversamplingFactor = 64, size_t zeroCrossings = 8) {
         // FR-006: Handle invalid parameters gracefully
         if (oversamplingFactor == 0 || zeroCrossings == 0) {
             table_.clear();
@@ -94,7 +94,8 @@ public:
         std::vector<float> sinc(sincLength, 0.0f);
 
         // Generate windowed sinc
-        const auto halfLen = static_cast<float>(sincLength / 2);
+        const size_t centre = sincLength / 2;  // sincLength is odd: the centre sample index
+        const auto halfLen = static_cast<float>(centre);
         for (size_t n = 0; n < sincLength; ++n) {
             float x = static_cast<float>(n) - halfLen;
             if (std::abs(x) < 1e-7f) {
@@ -119,12 +120,8 @@ public:
 
         // Zero-pad to next power-of-2 FFT size
         size_t fftSize = std::bit_ceil(sincLength);
-        if (fftSize < kMinFFTSize) {
-            fftSize = kMinFFTSize;
-        }
-        if (fftSize > kMaxFFTSize) {
-            fftSize = kMaxFFTSize;
-        }
+        fftSize = std::max(fftSize, kMinFFTSize);
+        fftSize = std::min(fftSize, kMaxFFTSize);
 
         FFT fft;
         fft.prepare(fftSize);
@@ -146,7 +143,7 @@ public:
         std::vector<Complex> logMagSpectrum(numBins);
         for (size_t k = 0; k < numBins; ++k) {
             float mag = spectrum[k].magnitude();
-            logMagSpectrum[k] = {std::log(mag + 1e-10f), 0.0f};
+            logMagSpectrum[k] = {.real = std::log(mag + 1e-10f), .imag = 0.0f};
         }
 
         // Step 2d: Inverse FFT of log-magnitude to cepstrum domain
@@ -176,7 +173,7 @@ public:
             float r = minPhaseSpectrum[k].real;
             float i = minPhaseSpectrum[k].imag;
             float expR = std::exp(r);
-            minPhaseSpectrum[k] = {expR * std::cos(i), expR * std::sin(i)};
+            minPhaseSpectrum[k] = {.real = expR * std::cos(i), .imag = expR * std::sin(i)};
         }
 
         // Step 2h: Inverse FFT to obtain minimum-phase sinc
@@ -265,7 +262,7 @@ public:
     /// @param index Output-rate sample index [0, length())
     /// @return Interpolated table value. Returns 1.0 if index >= length().
     ///         Returns 0.0 if not prepared.
-    [[nodiscard]] inline float sample(float subsampleOffset, size_t index) const noexcept {
+    [[nodiscard]] float sample(float subsampleOffset, size_t index) const noexcept {
         // FR-013: Return 0.0 if not prepared
         if (!prepared_ || length_ == 0) {
             return 0.0f;
@@ -277,9 +274,7 @@ public:
         }
 
         // FR-011: Clamp subsampleOffset to [0, 1)
-        if (subsampleOffset < 0.0f) {
-            subsampleOffset = 0.0f;
-        }
+        subsampleOffset = std::max(subsampleOffset, 0.0f);
         if (subsampleOffset >= 1.0f) {
             subsampleOffset = 1.0f - 1e-7f;
         }
@@ -324,7 +319,7 @@ public:
     /// @param index Output-rate sample index [0, length())
     /// @return Interpolated BLAMP table value. Returns 0.0 if index >= length()
     ///         or if not prepared.
-    [[nodiscard]] inline float sampleBlamp(float subsampleOffset, size_t index) const noexcept {
+    [[nodiscard]] float sampleBlamp(float subsampleOffset, size_t index) const noexcept {
         if (!prepared_ || length_ == 0) {
             return 0.0f;
         }
@@ -335,9 +330,7 @@ public:
         }
 
         // Clamp subsampleOffset to [0, 1)
-        if (subsampleOffset < 0.0f) {
-            subsampleOffset = 0.0f;
-        }
+        subsampleOffset = std::max(subsampleOffset, 0.0f);
         if (subsampleOffset >= 1.0f) {
             subsampleOffset = 1.0f - 1e-7f;
         }
@@ -370,12 +363,12 @@ public:
     // =========================================================================
 
     /// @brief Number of output-rate samples in the table (= zeroCrossings * 2).
-    [[nodiscard]] inline size_t length() const noexcept {
+    [[nodiscard]] size_t length() const noexcept {
         return length_;
     }
 
     /// @brief Whether prepare() has been called successfully.
-    [[nodiscard]] inline bool isPrepared() const noexcept {
+    [[nodiscard]] bool isPrepared() const noexcept {
         return prepared_;
     }
 
@@ -402,8 +395,7 @@ public:
         /// Allocates ring buffer of table.length() samples. NOT real-time safe.
         explicit Residual(const MinBlepTable& table)
             : table_(&table)
-            , buffer_(table.length(), 0.0f)
-            , readIdx_(0) {
+            , buffer_(table.length(), 0.0f) {
         }
 
         /// @brief Default constructor (no table, consume returns 0.0).
@@ -420,7 +412,7 @@ public:
         /// Correction formula: correction[i] = amplitude * (table.sample(offset, i) - 1.0)
         /// Corrections are accumulated (added to existing buffer contents).
         /// NaN/Inf amplitude treated as 0.0 (FR-037).
-        inline void addBlep(float subsampleOffset, float amplitude) noexcept {
+        void addBlep(float subsampleOffset, float amplitude) noexcept {
             // FR-037: Handle NaN/Inf amplitude
             if (detail::isNaN(amplitude) || detail::isInf(amplitude)) {
                 return;
@@ -445,7 +437,7 @@ public:
         /// MinBLAMP corrects derivative discontinuities (kinks, direction reversals).
         /// Correction formula: correction[i] = amplitude * table.sampleBlamp(offset, i)
         /// NaN/Inf amplitude treated as 0.0.
-        inline void addBlamp(float subsampleOffset, float amplitude) noexcept {
+        void addBlamp(float subsampleOffset, float amplitude) noexcept {
             if (detail::isNaN(amplitude) || detail::isInf(amplitude)) {
                 return;
             }
@@ -466,7 +458,7 @@ public:
         ///
         /// Returns buffer[readIdx], clears it to 0.0, advances readIdx.
         /// Returns 0.0 if buffer is empty or no corrections pending.
-        [[nodiscard]] inline float consume() noexcept {
+        [[nodiscard]] float consume() noexcept {
             if (buffer_.empty()) {
                 return 0.0f;
             }
@@ -478,7 +470,7 @@ public:
         }
 
         /// @brief Clear all pending corrections (FR-022).
-        inline void reset() noexcept {
+        void reset() noexcept {
             std::fill(buffer_.begin(), buffer_.end(), 0.0f);
             readIdx_ = 0;
         }
@@ -497,5 +489,5 @@ private:
     bool prepared_ = false;         ///< prepare() called successfully
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

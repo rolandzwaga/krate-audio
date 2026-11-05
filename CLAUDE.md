@@ -345,7 +345,7 @@ The `FFT` class (`dsp/include/krate/dsp/primitives/fft.h`) uses **pffft** ([mart
 
 ### Google Highway (SIMD-Accelerated Math)
 
-KrateDSP uses [Google Highway](https://github.com/google/highway) (v1.2.0, Apache-2.0) for SIMD-accelerated spectral math. Fetched via FetchContent in root `CMakeLists.txt`.
+KrateDSP uses [Google Highway](https://github.com/google/highway) (v1.4.0, Apache-2.0) for SIMD-accelerated spectral math. Fetched via FetchContent in root `CMakeLists.txt`.
 
 - **Runtime dispatch**: Automatically uses best available ISA (SSE2/AVX2/AVX-512 on x86, NEON on ARM)
 - **Build integration**: Linked PRIVATE to KrateDSP — no Highway headers in public API
@@ -567,8 +567,9 @@ ctest --test-dir build-asan -C Debug -j 30 --output-on-failure
 Run before every commit (canonical todo list step 6) and after significant refactoring:
 
 ```powershell
-./tools/run-clang-tidy.ps1 -Target <all|dsp|shared|iterum|disrumpo|ruinae|innexus|gradus|membrum|seraphis|vorago|profundum> -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target <all|dsp|shared|iterum|disrumpo|ruinae|innexus|gradus|membrum|seraphis|vorago|profundum|membrum-fit> -BuildDir build/windows-ninja
 # Linux/macOS: ./tools/run-clang-tidy.sh --target <same roster>
+# membrum-fit (tools/membrum-fit, src + tests) is a separate target, not part of `all`.
 ```
 
 **`all` MUST cover dsp + every plugin** — a new plugin needs its case added to BOTH scripts, or the

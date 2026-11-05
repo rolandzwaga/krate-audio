@@ -32,7 +32,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <vector>
+#include <cstdint>
 
 namespace Krate::Plugins {
 
@@ -40,7 +42,7 @@ namespace Krate::Plugins {
 // Waveform Enum (mirrors DSP Waveform but avoids DSP dependency)
 // ==============================================================================
 
-enum class LfoDisplayShape {
+enum class LfoDisplayShape : std::uint8_t {
     Sine = 0,
     Triangle,
     Sawtooth,
@@ -69,7 +71,7 @@ namespace LfoWaveformMath {
 [[nodiscard]] inline float computeWaveformValue(LfoDisplayShape shape, float phase) noexcept {
     switch (shape) {
     case LfoDisplayShape::Sine:
-        return std::sin(phase * 2.0f * 3.14159265358979f);
+        return std::sin(phase * 2.0f * std::numbers::pi_v<float>);
 
     case LfoDisplayShape::Triangle: {
         if (phase < 0.25f)
@@ -87,8 +89,6 @@ namespace LfoWaveformMath {
 
     case LfoDisplayShape::SampleHold:
     case LfoDisplayShape::SmoothRandom:
-        return 0.0f;
-
     default:
         return 0.0f;
     }
@@ -129,7 +129,6 @@ public:
     explicit LfoWaveformDisplay(const VSTGUI::CRect& size)
         : AnimatedModDisplay(size) {
         points_.resize(kNumPoints);
-        dirty_ = true;
     }
 
     LfoWaveformDisplay(const LfoWaveformDisplay& other)
@@ -141,8 +140,7 @@ public:
         , phaseOffset_(other.phaseOffset_)
         , frequencyHz_(other.frequencyHz_)
         , depth_(other.depth_)
-        , fadeInMs_(other.fadeInMs_)
-        , dirty_(true) {
+        , fadeInMs_(other.fadeInMs_) {
         points_.resize(kNumPoints);
     }
 
@@ -421,7 +419,7 @@ private:
     float playbackPhase_ = 0.0f;
 };
 
-inline ModDisplayCreator<LfoWaveformDisplay> gLfoWaveformDisplayCreator{
+inline const ModDisplayCreator<LfoWaveformDisplay> gLfoWaveformDisplayCreator{
     "LfoWaveformDisplay", "LFO Waveform Display", "lfo-color", {0, 0, 510, 230}};
 
 } // namespace Krate::Plugins

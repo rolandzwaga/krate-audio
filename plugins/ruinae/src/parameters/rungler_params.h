@@ -100,7 +100,7 @@ inline void handleRunglerParamChange(
 inline void registerRunglerParams(Steinberg::Vst::ParameterContainer& parameters) {
     using namespace Steinberg::Vst;
     // Osc1 Freq: continuous, log mapping [0.1, 100] Hz, default 2.0 Hz (norm ~0.4337)
-    parameters.addParameter(STR16("Rng Osc1 Freq"), STR16("Hz"), 0, 0.4337,
+    parameters.addParameter(STR16("Rng Osc1 Freq"), STR16("Hz"), 0, 0.4337,  // NOLINT(modernize-use-std-numbers): a normalized default, not log10(e)
         ParameterInfo::kCanAutomate, kRunglerOsc1FreqId);
     // Osc2 Freq: continuous, log mapping [0.1, 100] Hz, default 3.0 Hz (norm ~0.4924)
     parameters.addParameter(STR16("Rng Osc2 Freq"), STR16("Hz"), 0, 0.4924,
@@ -149,7 +149,6 @@ inline Steinberg::tresult formatRunglerParam(
         }
         case kRunglerLoopModeId:
             // Let framework handle on/off display
-            return kResultFalse;
         default:
             return kResultFalse;
     }
@@ -198,7 +197,7 @@ inline bool loadRunglerParams(RunglerParams& params,
 
 template<typename SetParamFunc>
 inline void loadRunglerParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f;
     Steinberg::int32 iv = 0;
 

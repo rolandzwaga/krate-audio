@@ -59,6 +59,8 @@ namespace Krate::DSP {
 /// @note Non-copyable and non-movable -- the guard must not outlive its scope.
 class ScopedDenormalMode {
 public:
+    // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer): the saved modes and their members exist only
+    // under KRATE_HAS_SSE_DENORMAL_CONTROL; an init list would sit outside the #if and break arm64.
     ScopedDenormalMode() noexcept {
 #if KRATE_HAS_SSE_DENORMAL_CONTROL
         savedFlushZero_ = _MM_GET_FLUSH_ZERO_MODE();
@@ -67,6 +69,7 @@ public:
         _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 #endif
     }
+    // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
 
     ~ScopedDenormalMode() noexcept {
 #if KRATE_HAS_SSE_DENORMAL_CONTROL

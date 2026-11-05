@@ -113,8 +113,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // NoiseOrganismModel (FR-011)
@@ -1456,7 +1456,7 @@ private:
 
     /// @brief The constant generator-side level for one type (FR-017).
     [[nodiscard]] static float sourceGeneratorDb(NoiseType type) noexcept {
-        const std::size_t idx = static_cast<std::size_t>(type);
+        const auto idx = static_cast<std::size_t>(type);
         const float drive = (idx < kNumNoiseTypes) ? kSourceDriveDb[idx] : 0.0f;
         return kSourceReferenceDb + drive;
     }
@@ -1543,7 +1543,7 @@ private:
 
     /// @brief dbToGain(kModelTrimDb[model]), hoisted once per chunk (plan S5.3).
     [[nodiscard]] static float modelTrimGain(NoiseOrganismModel model) noexcept {
-        const std::size_t idx = static_cast<std::size_t>(model);
+        const auto idx = static_cast<std::size_t>(model);
         return dbToGain(idx < kModelTrimDb.size() ? kModelTrimDb[idx] : 0.0f);
     }
 
@@ -2201,7 +2201,7 @@ private:
     [[nodiscard]] static bool chainActive(const Slot& s) noexcept {
         // Exact comparison is correct here: gateSteady() assigns a literal 0.0f
         // and LinearRamp lands exactly on its target (smoother.h:380-383).
-        return !(s.gate.isComplete() && s.gate.getCurrentValue() == 0.0f);
+        return !s.gate.isComplete() || s.gate.getCurrentValue() != 0.0f;
     }
 
     /// @brief 1 when the FR-068 master switch is on, 0 when it is off.
@@ -2654,5 +2654,5 @@ private:
     std::array<Slot, kMaxSources> slots_{};
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

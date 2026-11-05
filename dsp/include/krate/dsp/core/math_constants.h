@@ -1,3 +1,5 @@
+#include <numbers>
+
 // ==============================================================================
 // Layer 0: Core Utility - Math Constants
 // ==============================================================================
@@ -16,8 +18,8 @@
 
 #pragma once
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Mathematical Constants
@@ -25,7 +27,7 @@ namespace DSP {
 
 /// Pi constant for DSP calculations
 /// Provides full float precision: 3.14159265358979323846
-inline constexpr float kPi = 3.14159265358979323846f;
+inline constexpr float kPi = std::numbers::pi_v<float>;
 
 /// Two times Pi (full circle in radians)
 /// Used for angular frequency calculations: omega = kTwoPi * f / fs
@@ -45,11 +47,11 @@ inline constexpr float kPiSquared = kPi * kPi;
 
 /// Golden ratio (phi)
 /// Used in diffusion networks and allpass filter coefficients
-inline constexpr float kGoldenRatio = 1.6180339887498948f;
+inline constexpr float kGoldenRatio = std::numbers::phi_v<float>;
 
 /// Inverse golden ratio (1/phi = phi - 1)
 /// Common allpass coefficient for maximum diffusion
 inline constexpr float kInverseGoldenRatio = 0.6180339887498948f;
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

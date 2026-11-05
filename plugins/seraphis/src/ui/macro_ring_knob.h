@@ -137,6 +137,6 @@ struct MacroRingKnobCreator : VSTGUI::ViewCreatorAdapter {
 // Inline variable (C++17) - safe for inclusion from multiple translation units.
 // It only registers in a TU that is actually LINKED, which is why entry.cpp
 // includes this header (arc_knob.h:714-716's rule).
-inline MacroRingKnobCreator gMacroRingKnobCreator;
+inline const MacroRingKnobCreator gMacroRingKnobCreator;
 
 }  // namespace Seraphis::UI

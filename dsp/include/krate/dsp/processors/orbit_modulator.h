@@ -91,8 +91,8 @@
 #include <cstdint>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Two coupled phase oscillators with a clamped radius envelope.
 ///
@@ -329,5 +329,5 @@ private:
     OnePoleSmoother ySmoother_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

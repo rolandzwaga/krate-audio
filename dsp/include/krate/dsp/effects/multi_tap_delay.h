@@ -42,8 +42,8 @@
 #include <cstdint>
 #include <span>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // TimingPattern Enumeration (FR-002, FR-002a)
@@ -796,17 +796,11 @@ private:
             case TimingPattern::EighthNote:
             case TimingPattern::SixteenthNote:
             case TimingPattern::ThirtySecondNote:
-                tapManager_.loadPatternWithBaseTime(TapPattern::QuarterNote, tapCount, patternBaseTime);
-                break;
-
             // Dotted patterns use even spacing (base time already includes dotted multiplier)
             case TimingPattern::DottedHalf:
             case TimingPattern::DottedQuarter:
             case TimingPattern::DottedEighth:
             case TimingPattern::DottedSixteenth:
-                tapManager_.loadPatternWithBaseTime(TapPattern::QuarterNote, tapCount, patternBaseTime);
-                break;
-
             // Triplet patterns use even spacing (base time already includes triplet multiplier)
             case TimingPattern::TripletHalf:
             case TimingPattern::TripletQuarter:
@@ -1221,5 +1215,5 @@ private:
     std::array<float, kMaxDryBufferSize> dryBufferR_ = {};
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

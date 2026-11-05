@@ -44,12 +44,12 @@
 #include <vector>
 
 // Debug logging
-#if defined(_DEBUG)
+#ifdef _DEBUG
 #include <cstdio>
 #endif
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // DigitalEra Enumeration (FR-005)
@@ -905,5 +905,5 @@ private:
     bool antiAliasEnabled_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -160,8 +160,8 @@
 #include <cstdint>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Band-limited fBm Perlin-noise modulation source (1-4 octaves).
 ///
@@ -364,7 +364,10 @@ private:
         if (detail::isNaN(value)) {
             return lo;
         }
-        return (value < lo) ? lo : ((value > hi) ? hi : value);
+        if (value < lo) {
+            return lo;
+        }
+        return (value > hi) ? hi : value;
     }
 
     /// Mirror Xorshift32's zero-seed substitution (random.h:44, :73-74) so that
@@ -405,7 +408,7 @@ private:
     /// Stateless unit gradient at a lattice index (FR-012). NEVER a running
     /// stream: the value at a position must not depend on the path to it.
     [[nodiscard]] float gradientAt(std::size_t k, std::int64_t index) const noexcept {
-        const std::size_t salt =
+        const auto salt =
             static_cast<std::size_t>(static_cast<std::uint64_t>(index + kIndexBias));
         return (deriveStreamSeed(octaveSeeds_[k], salt) & 1u) != 0u ? 1.0f : -1.0f;
     }
@@ -480,5 +483,5 @@ private:
     OnePoleSmoother outputSmoother_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

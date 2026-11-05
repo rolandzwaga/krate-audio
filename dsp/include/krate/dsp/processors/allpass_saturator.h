@@ -38,8 +38,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // NetworkTopology Enumeration (FR-004 to FR-008)
@@ -820,7 +820,8 @@ inline float AllpassSaturator::processKarplusStrong(float input) noexcept {
     const float delaySamples = static_cast<float>(sampleRate_) / smoothedFreq;
 
     // Calculate feedback and lowpass cutoff from decay time
-    float ksFeedback, ksCutoff;
+    float ksFeedback;
+    float ksCutoff;
     decayToFeedbackAndCutoff(decay_, smoothedFreq, ksFeedback, ksCutoff);
 
     // Apply damping: scale cutoff down exponentially
@@ -857,7 +858,7 @@ inline float AllpassSaturator::processFeedbackMatrix(float input) noexcept {
     const float feedback = feedbackSmoother_.getCurrentValue();
 
     // Apply Householder matrix to previous outputs for cross-coupling
-    std::array<float, 4> feedbackSignals;
+    std::array<float, 4> feedbackSignals{};
     HouseholderMatrix::multiply(matrixLastOutputs_.data(), feedbackSignals.data());
 
     // Scale by feedback amount
@@ -868,7 +869,7 @@ inline float AllpassSaturator::processFeedbackMatrix(float input) noexcept {
     // Process each stage: input goes to first channel, cross-feedback to all
     // Each stage also has internal feedback for self-oscillation
     const float internalFeedback = feedback * 0.7f;  // Scaled internal feedback
-    std::array<float, 4> outputs;
+    std::array<float, 4> outputs{};
     outputs[0] = matrixStages_[0].process(input + feedbackSignals[0], internalFeedback);
     outputs[1] = matrixStages_[1].process(feedbackSignals[1], internalFeedback);
     outputs[2] = matrixStages_[2].process(feedbackSignals[2], internalFeedback);
@@ -917,5 +918,5 @@ inline void AllpassSaturator::decayToFeedbackAndCutoff(
     outCutoff = std::clamp(outCutoff, 20.0f, maxCutoff);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

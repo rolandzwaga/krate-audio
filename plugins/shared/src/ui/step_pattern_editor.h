@@ -372,7 +372,7 @@ public:
         if (numSteps_ < 2) return;
         float first = stepLevels_[0];
         for (int i = 0; i < numSteps_ - 1; ++i) {
-            stepLevels_[static_cast<size_t>(i)] = stepLevels_[static_cast<size_t>(i + 1)];
+            stepLevels_[static_cast<size_t>(i)] = stepLevels_[static_cast<size_t>(i) + 1];
         }
         stepLevels_[static_cast<size_t>(numSteps_ - 1)] = first;
 
@@ -390,28 +390,28 @@ public:
     // Color Configuration (FR-036)
     // =========================================================================
 
-    void setBarColorAccent(VSTGUI::CColor color) { barColorAccent_ = color; }
+    void setBarColorAccent(const VSTGUI::CColor& color) { barColorAccent_ = color; }
     [[nodiscard]] VSTGUI::CColor getBarColorAccent() const { return barColorAccent_; }
 
-    void setBarColorNormal(VSTGUI::CColor color) { barColorNormal_ = color; }
+    void setBarColorNormal(const VSTGUI::CColor& color) { barColorNormal_ = color; }
     [[nodiscard]] VSTGUI::CColor getBarColorNormal() const { return barColorNormal_; }
 
-    void setBarColorGhost(VSTGUI::CColor color) { barColorGhost_ = color; }
+    void setBarColorGhost(const VSTGUI::CColor& color) { barColorGhost_ = color; }
     [[nodiscard]] VSTGUI::CColor getBarColorGhost() const { return barColorGhost_; }
 
-    void setSilentOutlineColor(VSTGUI::CColor color) { silentOutlineColor_ = color; }
+    void setSilentOutlineColor(const VSTGUI::CColor& color) { silentOutlineColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getSilentOutlineColor() const { return silentOutlineColor_; }
 
-    void setGridColor(VSTGUI::CColor color) { gridColor_ = color; }
+    void setGridColor(const VSTGUI::CColor& color) { gridColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getGridColor() const { return gridColor_; }
 
-    void setEditorBackgroundColor(VSTGUI::CColor color) { backgroundColor_ = color; }
+    void setEditorBackgroundColor(const VSTGUI::CColor& color) { backgroundColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getEditorBackgroundColor() const { return backgroundColor_; }
 
-    void setPlaybackColor(VSTGUI::CColor color) { playbackColor_ = color; }
+    void setPlaybackColor(const VSTGUI::CColor& color) { playbackColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getPlaybackColor() const { return playbackColor_; }
 
-    void setTextColor(VSTGUI::CColor color) { textColor_ = color; }
+    void setTextColor(const VSTGUI::CColor& color) { textColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getTextColor() const { return textColor_; }
 
     // =========================================================================
@@ -450,7 +450,7 @@ public:
         float left = static_cast<float>(vs.left) + barAreaLeftOffset_;
         float right = static_cast<float>(vs.right);
 
-        return VSTGUI::CRect(left, top, right, bottom);
+        return {left, top, right, bottom};
     }
 
     /// Get the rectangle for a specific bar
@@ -458,12 +458,12 @@ public:
         VSTGUI::CRect barArea = getBarArea();
         float barAreaWidth = static_cast<float>(barArea.getWidth());
         int steps = getVisibleStepCount();
-        if (steps <= 0) return VSTGUI::CRect();
+        if (steps <= 0) return {};
 
         float barWidth = barAreaWidth / static_cast<float>(steps);
         int visibleIndex = stepIndex - scrollOffset_;
         if (visibleIndex < 0 || visibleIndex >= steps)
-            return VSTGUI::CRect();
+            return {};
 
         float level = stepLevels_[static_cast<size_t>(stepIndex)];
         float barHeight = static_cast<float>(barArea.getHeight());
@@ -471,7 +471,7 @@ public:
         float barLeft = static_cast<float>(barArea.left) + static_cast<float>(visibleIndex) * barWidth + kBarPadding;
         float barRight = barLeft + barWidth - 2.0f * kBarPadding;
 
-        return VSTGUI::CRect(barLeft, barTop, barRight, static_cast<float>(barArea.bottom));
+        return {barLeft, barTop, barRight, static_cast<float>(barArea.bottom)};
     }
 
     /// Get the step index from a point, or -1 if outside
@@ -524,15 +524,15 @@ public:
 
     /// Get the playback indicator rectangle
     [[nodiscard]] VSTGUI::CRect getPlaybackIndicatorRect() const {
-        if (playbackStep_ < 0 || playbackStep_ >= numSteps_) return VSTGUI::CRect();
+        if (playbackStep_ < 0 || playbackStep_ >= numSteps_) return {};
 
         VSTGUI::CRect barArea = getBarArea();
         float barAreaWidth = static_cast<float>(barArea.getWidth());
         int steps = getVisibleStepCount();
-        if (steps <= 0) return VSTGUI::CRect();
+        if (steps <= 0) return {};
 
         int visibleIndex = playbackStep_ - scrollOffset_;
-        if (visibleIndex < 0 || visibleIndex >= steps) return VSTGUI::CRect();
+        if (visibleIndex < 0 || visibleIndex >= steps) return {};
 
         float barWidth = barAreaWidth / static_cast<float>(steps);
         float centerX = static_cast<float>(barArea.left) +
@@ -542,8 +542,8 @@ public:
         top += kStepLabelHeight;
 
         float halfWidth = 4.0f;
-        return VSTGUI::CRect(centerX - halfWidth, top,
-                              centerX + halfWidth, top + kPlaybackIndicatorHeight);
+        return {centerX - halfWidth, top,
+                              centerX + halfWidth, top + kPlaybackIndicatorHeight};
     }
 
     /// Compute phase offset start step
@@ -1312,6 +1312,6 @@ struct StepPatternEditorCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline StepPatternEditorCreator gStepPatternEditorCreator;
+inline const StepPatternEditorCreator gStepPatternEditorCreator;
 
 } // namespace Krate::Plugins

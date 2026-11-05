@@ -16,12 +16,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <algorithm>
 
 namespace Profundum {
 
 inline constexpr std::array<SoundParamRow, 2> kFoldShapeSoundRows{{
-    {kFoldAmountId, 9, kNoLeaf, STR16("Harmonic Fold"), STR16(""), nullptr, 0, DisplayUnit::Mass100},
-    {kFoldShapeId, 10, kNoLeaf, STR16("Shape"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
+    {.id = kFoldAmountId, .leaf = 9, .leaf2 = kNoLeaf, .title = STR16("Harmonic Fold"), .units = STR16(""), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Mass100},
+    {.id = kFoldShapeId, .leaf = 10, .leaf2 = kNoLeaf, .title = STR16("Shape"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
 }};
 
 // ---- compile-time proofs (FR-002; tasks.md G7 rules a-d) ----
@@ -53,24 +54,18 @@ static_assert(
 // (b) / (d) no fold/shape row is a list, so every row is a continuous F32 leaf.
 static_assert(
     [] {
-        for (const auto& r : kFoldShapeSoundRows) {
-            if (r.labels != nullptr || r.labelCount != 0 || lawOf(r.leaf).kind != MorphState::Kind::F32) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kFoldShapeSoundRows, [&](const auto& r) {
+            return !(r.labels != nullptr || r.labelCount != 0 || lawOf(r.leaf).kind != MorphState::Kind::F32);
+        });
     }(),
     "fold/shape pack: every row is a continuous F32 leaf");
 
 // (c) every ID lies in the fold/shape band [500, 600).
 static_assert(
     [] {
-        for (const auto& r : kFoldShapeSoundRows) {
-            if (r.id < kFoldAmountId || r.id >= kFoldParamRangeEnd) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kFoldShapeSoundRows, [&](const auto& r) {
+            return !(r.id < kFoldAmountId || r.id >= kFoldParamRangeEnd);
+        });
     }(),
     "fold/shape pack: every ID lies in 500-599");
 

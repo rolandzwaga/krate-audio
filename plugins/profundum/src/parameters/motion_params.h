@@ -27,6 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <algorithm>
 
 namespace Profundum {
 
@@ -49,29 +50,29 @@ inline constexpr const Steinberg::Vst::TChar* kMotionPolarityLabels[] = {STR16("
 // ------------------------------------------------------------------------------
 
 inline constexpr std::array<SoundParamRow, 15> kMotionRows = {{
-    {kMotionSourceId, 36, kNoLeaf, STR16("Motion Source"), STR16(""), kMotionSourceLabels,
-     static_cast<std::uint8_t>(std::size(kMotionSourceLabels)), DisplayUnit::List},
-    {kMotionTargetId, 37, kNoLeaf, STR16("Motion Target"), STR16(""), kMotionTargetLabels,
-     static_cast<std::uint8_t>(std::size(kMotionTargetLabels)), DisplayUnit::List},
-    {kMotionAmountId, 38, kNoLeaf, STR16("Motion Amount"), STR16("%"), nullptr, 0, DisplayUnit::BipolarPercent},
-    {kMotionDepthId, 39, kNoLeaf, STR16("Motion Depth"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kMotionCycleRateId, 40, kNoLeaf, STR16("Cycle Rate"), STR16("Hz"), nullptr, 0, DisplayUnit::Hz},
-    {kMotionCycleShapeId, 41, kNoLeaf, STR16("Cycle Shape"), STR16(""), kMotionCycleShapeLabels,
-     static_cast<std::uint8_t>(std::size(kMotionCycleShapeLabels)), DisplayUnit::List},
-    {kMotionCycleSyncId, 42, kNoLeaf, STR16("Cycle Sync"), STR16(""), kMotionCycleSyncLabels,
-     static_cast<std::uint8_t>(std::size(kMotionCycleSyncLabels)), DisplayUnit::List},
-    {kMotionCycleSyncRateId, 43, 44, STR16("Cycle Sync Rate"), STR16(""),
-     Krate::Plugins::Parameters::kNoteValueDropdownStrings,
-     static_cast<std::uint8_t>(std::size(Krate::Plugins::Parameters::kNoteValueDropdownStrings)), DisplayUnit::List},
-    {kMotionCyclePhaseId, 45, kNoLeaf, STR16("Cycle Phase"), STR16("deg"), nullptr, 0, DisplayUnit::Degrees},
-    {kMotionCycleRetriggerId, 46, kNoLeaf, STR16("Cycle Retrigger"), STR16(""), kMotionCycleRetriggerLabels,
-     static_cast<std::uint8_t>(std::size(kMotionCycleRetriggerLabels)), DisplayUnit::List},
-    {kMotionCycleFadeInId, 47, kNoLeaf, STR16("Cycle Fade-In"), STR16("ms"), nullptr, 0, DisplayUnit::Time},
-    {kMotionPolarityId, 48, kNoLeaf, STR16("Motion Polarity"), STR16(""), kMotionPolarityLabels,
-     static_cast<std::uint8_t>(std::size(kMotionPolarityLabels)), DisplayUnit::List},
-    {kMotionDriftSmoothnessId, 49, kNoLeaf, STR16("Drift Smoothness"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kMotionEnvAttackId, 50, kNoLeaf, STR16("Env Attack"), STR16("ms"), nullptr, 0, DisplayUnit::Time},
-    {kMotionEnvDecayId, 51, kNoLeaf, STR16("Env Decay"), STR16("ms"), nullptr, 0, DisplayUnit::Time},
+    {.id = kMotionSourceId, .leaf = 36, .leaf2 = kNoLeaf, .title = STR16("Motion Source"), .units = STR16(""), .labels = kMotionSourceLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kMotionSourceLabels)), .display = DisplayUnit::List},
+    {.id = kMotionTargetId, .leaf = 37, .leaf2 = kNoLeaf, .title = STR16("Motion Target"), .units = STR16(""), .labels = kMotionTargetLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kMotionTargetLabels)), .display = DisplayUnit::List},
+    {.id = kMotionAmountId, .leaf = 38, .leaf2 = kNoLeaf, .title = STR16("Motion Amount"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::BipolarPercent},
+    {.id = kMotionDepthId, .leaf = 39, .leaf2 = kNoLeaf, .title = STR16("Motion Depth"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kMotionCycleRateId, .leaf = 40, .leaf2 = kNoLeaf, .title = STR16("Cycle Rate"), .units = STR16("Hz"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Hz},
+    {.id = kMotionCycleShapeId, .leaf = 41, .leaf2 = kNoLeaf, .title = STR16("Cycle Shape"), .units = STR16(""), .labels = kMotionCycleShapeLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kMotionCycleShapeLabels)), .display = DisplayUnit::List},
+    {.id = kMotionCycleSyncId, .leaf = 42, .leaf2 = kNoLeaf, .title = STR16("Cycle Sync"), .units = STR16(""), .labels = kMotionCycleSyncLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kMotionCycleSyncLabels)), .display = DisplayUnit::List},
+    {.id = kMotionCycleSyncRateId, .leaf = 43, .leaf2 = 44, .title = STR16("Cycle Sync Rate"), .units = STR16(""),
+     .labels = Krate::Plugins::Parameters::kNoteValueDropdownStrings,
+     .labelCount = static_cast<std::uint8_t>(std::size(Krate::Plugins::Parameters::kNoteValueDropdownStrings)), .display = DisplayUnit::List},
+    {.id = kMotionCyclePhaseId, .leaf = 45, .leaf2 = kNoLeaf, .title = STR16("Cycle Phase"), .units = STR16("deg"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Degrees},
+    {.id = kMotionCycleRetriggerId, .leaf = 46, .leaf2 = kNoLeaf, .title = STR16("Cycle Retrigger"), .units = STR16(""), .labels = kMotionCycleRetriggerLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kMotionCycleRetriggerLabels)), .display = DisplayUnit::List},
+    {.id = kMotionCycleFadeInId, .leaf = 47, .leaf2 = kNoLeaf, .title = STR16("Cycle Fade-In"), .units = STR16("ms"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Time},
+    {.id = kMotionPolarityId, .leaf = 48, .leaf2 = kNoLeaf, .title = STR16("Motion Polarity"), .units = STR16(""), .labels = kMotionPolarityLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kMotionPolarityLabels)), .display = DisplayUnit::List},
+    {.id = kMotionDriftSmoothnessId, .leaf = 49, .leaf2 = kNoLeaf, .title = STR16("Drift Smoothness"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kMotionEnvAttackId, .leaf = 50, .leaf2 = kNoLeaf, .title = STR16("Env Attack"), .units = STR16("ms"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Time},
+    {.id = kMotionEnvDecayId, .leaf = 51, .leaf2 = kNoLeaf, .title = STR16("Env Decay"), .units = STR16("ms"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Time},
 }};
 
 // ------------------------------------------------------------------------------
@@ -107,7 +108,7 @@ template <std::size_t N>
 /// (b) + (d): list rows carry maxEnum + 1 labels (Bool: 2; Sync Rate pair: 10 x 3 == 30); continuous rows none.
 template <std::size_t N>
 [[nodiscard]] constexpr bool labelsMatchLaws(const std::array<SoundParamRow, N>& rows) noexcept {
-    for (const auto& r : rows) {
+    return std::ranges::all_of(rows, [&](const auto& r) {
         const FieldInfo& f = lawOf(r.leaf);
         if (r.leaf2 != kNoLeaf) {
             const FieldInfo& f2 = lawOf(r.leaf2);
@@ -128,8 +129,8 @@ template <std::size_t N>
         } else if (r.labels != nullptr || r.labelCount != 0 || r.display == DisplayUnit::List) {
             return false;
         }
-    }
-    return true;
+        return true;
+    });
 }
 
 /// (c) Every ID lies in the band, and the rows are dense from the band's first ID (O(1) dispatch).

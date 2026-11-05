@@ -100,8 +100,8 @@
 #include <cstdint>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Slow, bounded, C1-continuous path through random waypoints.
 ///
@@ -283,5 +283,5 @@ private:
     Xorshift32 rng_{kDefaultSplineSeed};
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

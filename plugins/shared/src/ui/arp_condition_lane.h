@@ -353,7 +353,7 @@ public:
                 if (len > 1) {
                     float first = result[0];
                     for (int32_t i = 0; i < len - 1; ++i) {
-                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i + 1)];
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i) + 1];
                     }
                     result[static_cast<size_t>(len - 1)] = first;
                 }
@@ -487,8 +487,8 @@ public:
                                 frameWhere.x + 1, frameWhere.y + 1);
         auto* menu = new VSTGUI::COptionMenu(menuRect, nullptr, -1);
 
-        for (int i = 0; i < kConditionCount; ++i) {
-            menu->addEntry(kConditionFullNames[i]);
+        for (const auto* name : kConditionFullNames) {
+            menu->addEntry(name);
         }
 
         // Set current selection
@@ -753,6 +753,6 @@ private:
 // the ArpConditionLane class. Preserves the "step-condition-base-param-id" attr.
 using ArpConditionLaneCreator = ArpLaneViewCreator<ArpConditionLane>;
 
-inline ArpConditionLaneCreator gArpConditionLaneCreator;
+inline const ArpConditionLaneCreator gArpConditionLaneCreator;
 
 } // namespace Krate::Plugins

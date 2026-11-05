@@ -22,9 +22,9 @@
 #include <krate/dsp/core/db_utils.h>  // detail::isNaN, detail::isInf
 #include <limits>
 
-namespace Krate {
-namespace DSP {
-namespace FastMath {
+
+
+namespace Krate::DSP::FastMath {
 
 // =============================================================================
 // Internal Implementation Details
@@ -88,6 +88,6 @@ using Krate::DSP::detail::isInf;
     return x * (945.0f + 105.0f * x2 + x4) / (945.0f + 420.0f * x2 + 15.0f * x4);
 }
 
-} // namespace FastMath
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP::FastMath
+
+

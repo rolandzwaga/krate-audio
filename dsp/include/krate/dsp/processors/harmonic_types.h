@@ -14,6 +14,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 
 namespace Krate::DSP {
 
@@ -77,7 +78,7 @@ struct MultiF0Result {
 };
 
 /// Analysis mode for the pipeline
-enum class AnalysisMode : int {
+enum class AnalysisMode : std::uint8_t {
     Mono = 0,   ///< Always use YIN monophonic detection
     Poly = 1,   ///< Always use multi-pitch detection
     Auto = 2    ///< Switch based on YIN confidence

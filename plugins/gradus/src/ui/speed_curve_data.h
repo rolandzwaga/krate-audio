@@ -108,10 +108,14 @@ struct SpeedCurveData {
             const auto& p3 = points[seg + 1];
 
             // Bezier control points (absolute coordinates)
-            float bx0 = p0.x,       by0 = p0.y;
-            float bx1 = p0.cpRightX, by1 = p0.cpRightY;
-            float bx2 = p3.cpLeftX,  by2 = p3.cpLeftY;
-            float bx3 = p3.x,       by3 = p3.y;
+            float bx0 = p0.x;
+            float by0 = p0.y;
+            float bx1 = p0.cpRightX;
+            float by1 = p0.cpRightY;
+            float bx2 = p3.cpLeftX;
+            float by2 = p3.cpLeftY;
+            float bx3 = p3.x;
+            float by3 = p3.y;
 
             // Number of samples proportional to segment x-span
             float segSpan = bx3 - bx0;

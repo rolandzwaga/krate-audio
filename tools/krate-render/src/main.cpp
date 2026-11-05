@@ -13,7 +13,7 @@
 // dr_wav is vendored third-party code; silence its warnings under our /W4 posture.
 #if defined(_MSC_VER)
 #  pragma warning(push)
-#  pragma warning(disable : 4244 4267 4996 4701 4703)
+#  pragma warning(disable : 4244 4267 4996 4701 4703 4456)
 #endif
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"

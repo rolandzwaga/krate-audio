@@ -16,6 +16,7 @@
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ustring.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 
@@ -64,7 +65,7 @@ inline void handleSpectralParamChange(
             {
                 int index = static_cast<int>(normalizedValue * 3.0 + 0.5);
                 int sizes[] = {512, 1024, 2048, 4096};
-                params.fftSize.store(sizes[index < 0 ? 0 : (index > 3 ? 3 : index)],
+                params.fftSize.store(sizes[std::clamp(index, 0, 3)],
                     std::memory_order_relaxed);
             }
             break;

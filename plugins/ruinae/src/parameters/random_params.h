@@ -137,7 +137,7 @@ inline bool loadRandomParams(RandomParams& params,
 
 template<typename SetParamFunc>
 inline void loadRandomParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f;
     Steinberg::int32 iv = 0;
 

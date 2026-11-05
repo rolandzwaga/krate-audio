@@ -38,8 +38,8 @@ public:
         : CView(size), action_(std::move(action)) {}
 
     void setAction(std::function<void()> action) { action_ = std::move(action); }
-    void setIconColor(VSTGUI::CColor color) { iconColor_ = color; invalid(); }
-    void setHoverColor(VSTGUI::CColor color) { hoverColor_ = color; }
+    void setIconColor(const VSTGUI::CColor& color) { iconColor_ = color; invalid(); }
+    void setHoverColor(const VSTGUI::CColor& color) { hoverColor_ = color; }
 
     void draw(VSTGUI::CDrawContext* context) override {
         context->setDrawMode(VSTGUI::kAntiAliasing | VSTGUI::kNonIntegralMode);

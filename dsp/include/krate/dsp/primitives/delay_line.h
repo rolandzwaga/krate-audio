@@ -17,13 +17,13 @@
 #include <cmath>
 #include <algorithm>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Compute next power of 2 greater than or equal to n.
 /// @param n Input value
 /// @return Next power of 2, or n if already power of 2
-inline constexpr size_t nextPowerOf2(size_t n) noexcept {
+constexpr size_t nextPowerOf2(size_t n) noexcept {
     if (n == 0) return 1;
     --n;
     n |= n >> 1;
@@ -206,7 +206,7 @@ public:
     /// @param fn Callable `float(size_t index, float interpolatedRead)`
     ///           returning the value to write.
     template <typename Fn>
-    void processFixedTap(const AllpassTap& tap, std::size_t numSamples, Fn&& fn) noexcept {
+    void processFixedTap(const AllpassTap& tap, std::size_t numSamples, Fn&& fn) noexcept {  // NOLINT(cppcoreguidelines-missing-std-forward): fn runs once per sample
         float* const buf = buffer_.data();
         const std::size_t m = mask_;
         std::size_t w = writeIndex_;
@@ -454,5 +454,5 @@ inline void DelayLine::addToRecent(size_t delaySamples, float value) noexcept {
     buffer_[(writeIndex_ - 1 - delaySamples) & mask_] += value;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

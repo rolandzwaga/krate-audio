@@ -17,12 +17,13 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants (FR-002, FR-003)
@@ -175,15 +176,11 @@ private:
 
     // Clamp to [0.0, kMaxMipmapLevels - 1.0]
     const float maxLevel = static_cast<float>(kMaxMipmapLevels - 1);
-    if (fracLevel < 0.0f) {
-        fracLevel = 0.0f;
-    }
-    if (fracLevel > maxLevel) {
-        fracLevel = maxLevel;
-    }
+    fracLevel = std::max(fracLevel, 0.0f);
+    fracLevel = std::min(fracLevel, maxLevel);
 
     return fracLevel;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

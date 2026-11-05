@@ -99,37 +99,37 @@ namespace detail {
 /// Data from data-model.md E-003.
 inline constexpr std::array<ScaleData, 16> kScaleIntervals = {{
     // Major (0):           7 degrees
-    {{0, 2, 4, 5, 7, 9, 11, 0, 0, 0, 0, 0}, 7},
+    {.intervals = {0, 2, 4, 5, 7, 9, 11, 0, 0, 0, 0, 0}, .degreeCount = 7},
     // NaturalMinor (1):    7 degrees
-    {{0, 2, 3, 5, 7, 8, 10, 0, 0, 0, 0, 0}, 7},
+    {.intervals = {0, 2, 3, 5, 7, 8, 10, 0, 0, 0, 0, 0}, .degreeCount = 7},
     // HarmonicMinor (2):   7 degrees
-    {{0, 2, 3, 5, 7, 8, 11, 0, 0, 0, 0, 0}, 7},
+    {.intervals = {0, 2, 3, 5, 7, 8, 11, 0, 0, 0, 0, 0}, .degreeCount = 7},
     // MelodicMinor (3):    7 degrees
-    {{0, 2, 3, 5, 7, 9, 11, 0, 0, 0, 0, 0}, 7},
+    {.intervals = {0, 2, 3, 5, 7, 9, 11, 0, 0, 0, 0, 0}, .degreeCount = 7},
     // Dorian (4):          7 degrees
-    {{0, 2, 3, 5, 7, 9, 10, 0, 0, 0, 0, 0}, 7},
+    {.intervals = {0, 2, 3, 5, 7, 9, 10, 0, 0, 0, 0, 0}, .degreeCount = 7},
     // Mixolydian (5):      7 degrees
-    {{0, 2, 4, 5, 7, 9, 10, 0, 0, 0, 0, 0}, 7},
+    {.intervals = {0, 2, 4, 5, 7, 9, 10, 0, 0, 0, 0, 0}, .degreeCount = 7},
     // Phrygian (6):        7 degrees
-    {{0, 1, 3, 5, 7, 8, 10, 0, 0, 0, 0, 0}, 7},
+    {.intervals = {0, 1, 3, 5, 7, 8, 10, 0, 0, 0, 0, 0}, .degreeCount = 7},
     // Lydian (7):          7 degrees
-    {{0, 2, 4, 6, 7, 9, 11, 0, 0, 0, 0, 0}, 7},
+    {.intervals = {0, 2, 4, 6, 7, 9, 11, 0, 0, 0, 0, 0}, .degreeCount = 7},
     // Chromatic (8):      12 degrees
-    {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 12},
+    {.intervals = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, .degreeCount = 12},
     // Locrian (9):         7 degrees
-    {{0, 1, 3, 5, 6, 8, 10, 0, 0, 0, 0, 0}, 7},
+    {.intervals = {0, 1, 3, 5, 6, 8, 10, 0, 0, 0, 0, 0}, .degreeCount = 7},
     // MajorPentatonic (10): 5 degrees
-    {{0, 2, 4, 7, 9, 0, 0, 0, 0, 0, 0, 0}, 5},
+    {.intervals = {0, 2, 4, 7, 9, 0, 0, 0, 0, 0, 0, 0}, .degreeCount = 5},
     // MinorPentatonic (11): 5 degrees
-    {{0, 3, 5, 7, 10, 0, 0, 0, 0, 0, 0, 0}, 5},
+    {.intervals = {0, 3, 5, 7, 10, 0, 0, 0, 0, 0, 0, 0}, .degreeCount = 5},
     // Blues (12):           6 degrees
-    {{0, 3, 5, 6, 7, 10, 0, 0, 0, 0, 0, 0}, 6},
+    {.intervals = {0, 3, 5, 6, 7, 10, 0, 0, 0, 0, 0, 0}, .degreeCount = 6},
     // WholeTone (13):      6 degrees
-    {{0, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0}, 6},
+    {.intervals = {0, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0}, .degreeCount = 6},
     // DiminishedWH (14):   8 degrees
-    {{0, 2, 3, 5, 6, 8, 9, 11, 0, 0, 0, 0}, 8},
+    {.intervals = {0, 2, 3, 5, 6, 8, 9, 11, 0, 0, 0, 0}, .degreeCount = 8},
     // DiminishedHW (15):   8 degrees
-    {{0, 1, 3, 4, 6, 7, 9, 10, 0, 0, 0, 0}, 8},
+    {.intervals = {0, 1, 3, 4, 6, 7, 9, 10, 0, 0, 0, 0}, .degreeCount = 8},
 }};
 
 /// Build reverse lookup table for a given scale type at compile time.
@@ -264,10 +264,10 @@ public:
         if (scale_ == ScaleType::Chromatic) {
             int target = std::clamp(inputMidiNote + diatonicSteps, kMinMidiNote, kMaxMidiNote);
             return DiatonicInterval{
-                target - inputMidiNote,
-                target,
-                -1,
-                0
+                .semitones = target - inputMidiNote,
+                .targetNote = target,
+                .scaleDegree = -1,
+                .octaveOffset = 0
             };
         }
 
@@ -281,7 +281,7 @@ public:
             int pitchClass = ((inputMidiNote % 12) + 12) % 12;
             int offset = ((pitchClass - rootNote_) % 12 + 12) % 12;
             int inputDegree = detail::kReverseLookup[static_cast<size_t>(scaleIdx)][static_cast<size_t>(offset)];
-            return DiatonicInterval{0, inputMidiNote, inputDegree, 0};
+            return DiatonicInterval{.semitones = 0, .targetNote = inputMidiNote, .scaleDegree = inputDegree, .octaveOffset = 0};
         }
 
         // Diatonic mode
@@ -328,10 +328,10 @@ public:
         semitoneShift = targetNote - inputMidiNote;
 
         return DiatonicInterval{
-            semitoneShift,
-            targetNote,
-            targetDegree,
-            octaves
+            .semitones = semitoneShift,
+            .targetNote = targetNote,
+            .scaleDegree = targetDegree,
+            .octaveOffset = octaves
         };
     }
 

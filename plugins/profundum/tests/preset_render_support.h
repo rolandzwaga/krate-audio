@@ -503,7 +503,7 @@ inline void applyMorphModOverlay(auPt::VoiceEngineScript& e, const PresetArmCont
         owned = std::make_unique<ProcessorFixture>();
         fx = owned.get();
     } else {
-        fx->proc->setActive(false);   // a reused processor: inactive before the state and the re-prepare
+        fx->proc->setActive(0u);   // a reused processor: inactive before the state and the re-prepare
     }
 
     // 2. State: probe -> a fresh processor's stream; preset -> ctx.comp. Endpoints, seed, then setState.
@@ -614,7 +614,7 @@ inline void applyMorphModOverlay(auPt::VoiceEngineScript& e, const PresetArmCont
     if (fx->engine() != nullptr) {
         taps.droppedEvents = fx->engine()->droppedEvents();
     }
-    fx->proc->setActive(false);
+    fx->proc->setActive(0u);
     fx->proc->setEngineObserverForTest(nullptr);
     fx->proc->setEngineSeamsForTest(Krate::DSP::ProfundumEngineSeams{});
     ctx.lastSumL = taps.sumL;
@@ -630,7 +630,7 @@ inline void applyMorphModOverlay(auPt::VoiceEngineScript& e, const PresetArmCont
             taps.linearCoreL = tw.coreL;
             taps.linearCoreR = tw.coreR;
         } else {
-            REQUIRE(static_cast<std::size_t>(twinVoice) < tw.tappedVoices);
+            REQUIRE(std::cmp_less(twinVoice, tw.tappedVoices));
             taps.linearCoreL = tw.voices[static_cast<std::size_t>(twinVoice)].coreL;
             taps.linearCoreR = tw.voices[static_cast<std::size_t>(twinVoice)].coreR;
         }
@@ -1231,20 +1231,20 @@ inline constexpr double kMorphModWindowMs =
             };
             // The auShardMotion rows (AT-34..38 CYCLE on their target, AT-39 ENV and AT-40 DRIFT on Mass).
             const std::array<MotionRow, 7> rows{{
-                {sd::MSrc::Cycle, sd::MTgt::Mass, auRd::AuFrameDesc::ESub, auRd::kAuBarDb, ">= 3 dB", "E_sub_p2p",
-                 "Motion target Mass: Motion Off -> stored CYCLE"},
-                {sd::MSrc::Cycle, sd::MTgt::Depth, auRd::AuFrameDesc::ESub, auRd::kAuBarDb, ">= 3 dB", "E_sub_p2p",
-                 "Motion target Depth: Motion Off -> stored CYCLE"},
-                {sd::MSrc::Cycle, sd::MTgt::Body, auRd::AuFrameDesc::DCx, auRd::kAuBarDb, ">= 3 dB", "D_cx_p2p",
-                 "Motion target Body: Motion Off -> stored CYCLE"},
-                {sd::MSrc::Cycle, sd::MTgt::Edge, auRd::AuFrameDesc::DBr, auRd::kAuBarOct, ">= 0.25 oct", "D_br_p2p",
-                 "Motion target Edge: Motion Off -> stored CYCLE"},
-                {sd::MSrc::Cycle, sd::MTgt::Shift, auRd::AuFrameDesc::DBr, auRd::kAuBarOct, ">= 0.25 oct",
-                 "D_br_p2p", "Motion target Shift: Motion Off -> stored CYCLE"},
-                {sd::MSrc::Env, sd::MTgt::Mass, auRd::AuFrameDesc::ESub, auRd::kAuBarDb, ">= 3 dB", "E_sub_p2p",
-                 "Motion source -> Mass: Off -> stored ENV (retriggered every 2 s)"},
-                {sd::MSrc::Drift, sd::MTgt::Mass, auRd::AuFrameDesc::ESub, auRd::kAuBarDb, ">= 3 dB", "E_sub_p2p",
-                 "Motion source -> Mass: Off -> stored DRIFT"},
+                {.source = sd::MSrc::Cycle, .target = sd::MTgt::Mass, .d = auRd::AuFrameDesc::ESub, .bar = auRd::kAuBarDb, .barText = ">= 3 dB", .descriptor = "E_sub_p2p",
+                 .contrast = "Motion target Mass: Motion Off -> stored CYCLE"},
+                {.source = sd::MSrc::Cycle, .target = sd::MTgt::Depth, .d = auRd::AuFrameDesc::ESub, .bar = auRd::kAuBarDb, .barText = ">= 3 dB", .descriptor = "E_sub_p2p",
+                 .contrast = "Motion target Depth: Motion Off -> stored CYCLE"},
+                {.source = sd::MSrc::Cycle, .target = sd::MTgt::Body, .d = auRd::AuFrameDesc::DCx, .bar = auRd::kAuBarDb, .barText = ">= 3 dB", .descriptor = "D_cx_p2p",
+                 .contrast = "Motion target Body: Motion Off -> stored CYCLE"},
+                {.source = sd::MSrc::Cycle, .target = sd::MTgt::Edge, .d = auRd::AuFrameDesc::DBr, .bar = auRd::kAuBarOct, .barText = ">= 0.25 oct", .descriptor = "D_br_p2p",
+                 .contrast = "Motion target Edge: Motion Off -> stored CYCLE"},
+                {.source = sd::MSrc::Cycle, .target = sd::MTgt::Shift, .d = auRd::AuFrameDesc::DBr, .bar = auRd::kAuBarOct, .barText = ">= 0.25 oct",
+                 .descriptor = "D_br_p2p", .contrast = "Motion target Shift: Motion Off -> stored CYCLE"},
+                {.source = sd::MSrc::Env, .target = sd::MTgt::Mass, .d = auRd::AuFrameDesc::ESub, .bar = auRd::kAuBarDb, .barText = ">= 3 dB", .descriptor = "E_sub_p2p",
+                 .contrast = "Motion source -> Mass: Off -> stored ENV (retriggered every 2 s)"},
+                {.source = sd::MSrc::Drift, .target = sd::MTgt::Mass, .d = auRd::AuFrameDesc::ESub, .bar = auRd::kAuBarDb, .barText = ">= 3 dB", .descriptor = "E_sub_p2p",
+                 .contrast = "Motion source -> Mass: Off -> stored DRIFT"},
             }};
             const std::size_t i = idx - static_cast<std::size_t>(C::AT34);
             const MotionRow r = rows[i];

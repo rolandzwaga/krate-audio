@@ -30,8 +30,8 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // PDWaveform Enumeration (FR-002)
@@ -106,15 +106,7 @@ public:
     /// - distortion = 0.0 (pure sine)
     /// - waveform = Saw
     /// - unprepared state (process() returns 0.0)
-    PhaseDistortionOscillator() noexcept
-        : frequency_(440.0f)
-        , distortion_(0.0f)
-        , waveform_(PDWaveform::Saw)
-        , maxResonanceFactor_(kDefaultMaxResonanceFactor)
-        , sampleRate_(0.0f)
-        , phaseWrapped_(false)
-        , prepared_(false) {
-    }
+    PhaseDistortionOscillator() noexcept = default;
 
     /// @brief Destructor.
     ~PhaseDistortionOscillator() = default;
@@ -495,7 +487,7 @@ private:
             // Second half: compress back towards 0
             phiDistorted = 1.0f - (phi - 0.5f) * 2.0f;
             // Wrap to [0, 1)
-            if (phiDistorted < 0.0f) phiDistorted = 0.0f;
+            phiDistorted = std::max(phiDistorted, 0.0f);
         }
         // Blend between linear and distorted
         return Interpolation::linearInterpolate(phi, phiDistorted, distortion_);
@@ -657,5 +649,5 @@ private:
     bool prepared_ = false;               ///< True after prepare() called
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

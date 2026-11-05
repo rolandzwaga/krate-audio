@@ -36,9 +36,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Bow exciter implementing STK power-law friction model.
 ///
@@ -102,7 +103,7 @@ public:
 
         // Noise highpass coefficient: simple one-pole HP at ~200 Hz
         // HP coeff = exp(-2 * pi * fc / sr)
-        noiseHpCoeff_ = std::exp(-2.0f * 3.14159265f * kRosinNoiseCutoff
+        noiseHpCoeff_ = std::exp(-2.0f * std::numbers::pi_v<float> * kRosinNoiseCutoff
                                  / static_cast<float>(sampleRate));
 
         // Energy EMA alpha: ~10ms time constant
@@ -367,5 +368,5 @@ private:
     bool active_{false};
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

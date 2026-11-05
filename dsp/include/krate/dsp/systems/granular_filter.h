@@ -392,7 +392,7 @@ private:
 
     /// Get grain slot index from grain pointer
     /// Uses a simple hash based on pointer address since grains are in a fixed array
-    [[nodiscard]] size_t getGrainSlotIndex(const Grain* grain) noexcept {
+    [[nodiscard]] static size_t getGrainSlotIndex(const Grain* grain) noexcept {
         // Use pointer value modulo max grains as stable index
         // This works because grains are allocated in a fixed contiguous array
         return reinterpret_cast<uintptr_t>(grain) / sizeof(Grain) % GrainPool::kMaxGrains;

@@ -190,7 +190,8 @@ public:
     // Processor's atomics, the broadcast is allocation-free.
     // ------------------------------------------------------------------
     template <typename Fn>
-    void forEachMainVoice(Fn&& fn) noexcept
+    // Called once per voice, so fn is not forwarded: forwarding could move from it after the first call.
+    void forEachMainVoice(Fn&& fn) noexcept  // NOLINT(cppcoreguidelines-missing-std-forward)
     {
         for (int i = 0; i < kMaxVoices; ++i)
             fn(mainVoiceRef(i));

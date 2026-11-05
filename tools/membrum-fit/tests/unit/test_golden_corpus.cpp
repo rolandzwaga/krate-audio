@@ -12,7 +12,7 @@
 // Marked "[.corpus]" so it's hidden by default; run with:
 //   membrum_fit_tests "[corpus]"
 #include "src/body_classifier.h"
-#include "src/features.h"
+#include "src/attack_features.h"
 #include "src/mapper_inversion/bell_inverse.h"
 #include "src/mapper_inversion/membrane_inverse.h"
 #include "src/mapper_inversion/noise_body_inverse.h"
@@ -30,6 +30,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cstdio>
 #include <random>
 #include <span>
@@ -41,10 +42,10 @@ Membrum::PadConfig randomPad(std::mt19937& rng, int idx) {
     cfg.bodyModel   = static_cast<Membrum::BodyModelType>(idx % 6);
     // Restrict to exciters whose signature is robust under our coarse fit
     // pipeline without BOBYQA (Impulse / Mallet / NoiseBurst).
-    const int exIdx = idx % 3;
-    cfg.exciterType = (exIdx == 0) ? Membrum::ExciterType::Impulse
-                    : (exIdx == 1) ? Membrum::ExciterType::Mallet
-                                   : Membrum::ExciterType::NoiseBurst;
+    constexpr std::array kExciters{
+        Membrum::ExciterType::Impulse, Membrum::ExciterType::Mallet, Membrum::ExciterType::NoiseBurst,
+    };
+    cfg.exciterType = kExciters[static_cast<std::size_t>(idx % 3)];
     std::uniform_real_distribution<float> ui(0.2f, 0.8f);
     cfg.material       = ui(rng);
     cfg.size           = ui(rng);

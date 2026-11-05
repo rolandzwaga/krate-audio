@@ -72,6 +72,8 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //              LatchMode, Retrigger)
 // ==============================================================================
 
+// Unscoped and ParamID-based on purpose: hosts, IMessage and the parameter tables all use these IDs as plain ParamIDs.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
 enum ParameterIDs : Steinberg::Vst::ParamID {
     // ==========================================================================
     // ID Range Allocation:

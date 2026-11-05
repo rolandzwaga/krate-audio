@@ -80,8 +80,8 @@
 #include <cstdint>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Slow, bounded, mean-reverting random walk (Ornstein-Uhlenbeck).
 ///
@@ -288,5 +288,5 @@ private:
     OnePoleSmoother outputSmoother_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

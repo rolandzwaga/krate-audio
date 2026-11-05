@@ -180,7 +180,8 @@ private:
 
         for (size_t s = 0; s < config_.scopeSize; ++s) {
             // Get frequency boundaries for this scope point (midpoints to neighbors)
-            float freqLow, freqHigh;
+            float freqLow;
+            float freqHigh;
 
             if (s == 0) {
                 freqLow = scopeIndexToFreq(0);
@@ -199,7 +200,7 @@ private:
                 static_cast<float>(numBins - 1), freqHigh / binHz));
 
             // Ensure at least one bin
-            if (binHigh < binLow) binHigh = binLow;
+            binHigh = std::max(binHigh, binLow);
             if (binLow >= numBins) binLow = numBins - 1;
             if (binHigh >= numBins) binHigh = numBins - 1;
 
@@ -219,11 +220,11 @@ private:
 
             for (size_t b = scopeBinLow_[s]; b <= scopeBinHigh_[s]; ++b) {
                 float mag = fftOutput_[b].magnitude() * normFactor;
-                if (mag > maxMag) maxMag = mag;
+                maxMag = std::max(maxMag, mag);
             }
 
             // Convert to dB
-            if (maxMag < 1e-10f) maxMag = 1e-10f;  // Avoid log(0)
+            maxMag = std::max(maxMag, 1e-10f);  // Avoid log(0)
             rawDecimated_[s] = 20.0f * std::log10(maxMag);
         }
     }
@@ -252,9 +253,7 @@ private:
                 peakHoldCountdown_[s] -= deltaTimeSec;
                 if (peakHoldCountdown_[s] <= 0.0f) {
                     peakDb_[s] -= config_.peakFallRate * deltaTimeSec;
-                    if (peakDb_[s] < config_.minDb) {
-                        peakDb_[s] = config_.minDb;
-                    }
+                    peakDb_[s] = std::max(peakDb_[s], config_.minDb);
                 }
             }
         }
@@ -270,9 +269,7 @@ private:
             peakHoldCountdown_[s] -= deltaTimeSec;
             if (peakHoldCountdown_[s] <= 0.0f) {
                 peakDb_[s] -= config_.peakFallRate * deltaTimeSec;
-                if (peakDb_[s] < config_.minDb) {
-                    peakDb_[s] = config_.minDb;
-                }
+                peakDb_[s] = std::max(peakDb_[s], config_.minDb);
             }
         }
     }

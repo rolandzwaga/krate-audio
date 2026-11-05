@@ -27,8 +27,8 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 class ImpactExciter {
 public:
@@ -81,8 +81,7 @@ public:
 
         // Compute attack ramp samples: 0.3ms
         attackRampSamples_ = static_cast<int>(0.0003f * static_cast<float>(sampleRate));
-        if (attackRampSamples_ < 1)
-            attackRampSamples_ = 1;
+        attackRampSamples_ = std::max(attackRampSamples_, 1);
 
         prepared_ = true;
     }
@@ -207,8 +206,7 @@ public:
 
             // Bounce duration same as primary (but shorter perceptually)
             bounceSamplesTotal_ = pulseSamplesTotal_ / 2;
-            if (bounceSamplesTotal_ < 1)
-                bounceSamplesTotal_ = 1;
+            bounceSamplesTotal_ = std::max(bounceSamplesTotal_, 1);
             bounceGamma_ = gamma_;
 
             bounceDelayCounter_ = bounceDelay_;
@@ -369,5 +367,5 @@ private:
     int attackRampCounter_ = 0;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

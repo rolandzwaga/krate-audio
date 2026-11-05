@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <complex>
+#include <numbers>
 #include <numeric>
 
 namespace MembrumFit {
@@ -21,7 +22,7 @@ void fftInPlace(std::vector<std::complex<float>>& x) {
         if (i < j) std::swap(x[i], x[j]);
     }
     for (std::size_t len = 2; len <= n; len <<= 1) {
-        const float ang = -2.0f * 3.14159265358979323846f / static_cast<float>(len);
+        const float ang = -2.0f * std::numbers::pi_v<float> / static_cast<float>(len);
         const std::complex<float> wlen(std::cos(ang), std::sin(ang));
         for (std::size_t i = 0; i < n; i += len) {
             std::complex<float> w(1.0f, 0.0f);
@@ -39,16 +40,18 @@ void fftInPlace(std::vector<std::complex<float>>& x) {
 std::vector<float> hannWindow(std::size_t n) {
     std::vector<float> w(n);
     for (std::size_t i = 0; i < n; ++i)
-        w[i] = 0.5f * (1.0f - std::cos(2.0f * 3.14159265358979323846f * i / (n - 1)));
+        w[i] = 0.5f * (1.0f - std::cos(2.0f * std::numbers::pi_v<float> * i / (n - 1)));
     return w;
 }
 
 float singleScaleSTFT(std::span<const float> a, std::span<const float> b, std::size_t fftN) {
     const std::size_t hop = fftN / 4;
+    const std::size_t bins = fftN / 2;  // exact: fftN is a power of two
     const auto w = hannWindow(fftN);
     const std::size_t len = std::min(a.size(), b.size());
     if (len < fftN) return 0.0f;
-    std::vector<std::complex<float>> bufA(fftN), bufB(fftN);
+    std::vector<std::complex<float>> bufA(fftN);
+    std::vector<std::complex<float>> bufB(fftN);
     double sum = 0.0; std::size_t frames = 0;
     for (std::size_t off = 0; off + fftN <= len; off += hop) {
         for (std::size_t i = 0; i < fftN; ++i) {
@@ -57,14 +60,14 @@ float singleScaleSTFT(std::span<const float> a, std::span<const float> b, std::s
         }
         fftInPlace(bufA);
         fftInPlace(bufB);
-        for (std::size_t k = 0; k < fftN / 2; ++k) {
+        for (std::size_t k = 0; k < bins; ++k) {
             const float ma = std::log1p(std::abs(bufA[k]));
             const float mb = std::log1p(std::abs(bufB[k]));
             sum += std::abs(ma - mb);
         }
         ++frames;
     }
-    return (frames > 0) ? static_cast<float>(sum / static_cast<double>(frames * (fftN / 2))) : 0.0f;
+    return (frames > 0) ? static_cast<float>(sum / static_cast<double>(frames * bins)) : 0.0f;
 }
 
 }  // namespace
@@ -118,7 +121,7 @@ std::vector<float> computeMFCC(std::span<const float> signal, double sampleRate)
         float s = 0.0f;
         for (int m = 0; m < kNumMel; ++m) {
             s += melEnergies[m]
-               * std::cos(3.14159265358979323846f * n * (2 * m + 1) / (2 * kNumMel));
+               * std::cos(std::numbers::pi_v<float> * n * (2 * m + 1) / (2 * kNumMel));
         }
         mfcc[n] = s;
     }

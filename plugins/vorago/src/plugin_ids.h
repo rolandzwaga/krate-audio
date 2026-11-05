@@ -88,6 +88,8 @@ static const char* const kSubCategories = "Instrument|Synth";
 ///   1600+     UNASSIGNED
 /// REGISTERED TYPES ARE FROZEN (roadmap line 559): kMasterGainId + 12 macros are plain
 /// Steinberg::Vst::Parameter; kPolyphonyId is a StringListParameter.
+// Unscoped and ParamID-based on purpose: hosts, IMessage and the parameter tables all use these IDs as plain ParamIDs.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
 enum ParameterIDs : Steinberg::Vst::ParamID {
     // --- Global (0-99) ---
     kMasterGainId = 0,

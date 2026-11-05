@@ -178,6 +178,8 @@ inline void handleTapeParamChange(
                 static_cast<float>(normalizedValue * 2.0 - 1.0),
                 std::memory_order_relaxed);
             break;
+        default:
+            break;
     }
 }
 
@@ -453,6 +455,8 @@ inline Steinberg::tresult formatTapeParam(
             }
             return formatParamText(string, "C");
         }
+        default:
+            break;
     }
 
     return Steinberg::kResultFalse;

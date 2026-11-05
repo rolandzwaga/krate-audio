@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <cstdio>
 
 namespace Ruinae {
@@ -48,7 +49,8 @@ inline constexpr int kMaxArpSteps =
 // applyParamsToEngine).
 
 // Arp operating mode: determines how arp interacts with MIDI and mod engine
-enum ArpOperatingMode {
+// Unscoped on purpose: the modes are compared with and stored as plain ints (parameter values).
+enum ArpOperatingMode : std::uint8_t {  // NOLINT(cppcoreguidelines-use-enum-class)
     kArpOff = 0,      // Arp disabled, MIDI goes direct to engine
     kArpMIDI = 1,     // Arp enabled, events dispatched to engine (classic behavior)
     kArpMod = 2,      // Arp runs as modulation source only, MIDI goes direct to engine
@@ -1466,7 +1468,7 @@ inline bool loadArpParams(
 template<typename SetParamFunc>
 inline void loadArpParamsToController(
     Steinberg::IBStreamer& streamer,
-    SetParamFunc setParam,
+    const SetParamFunc& setParam,
     Steinberg::int32 stateVersion = kCurrentStateVersion)
 {
     Steinberg::int32 intVal = 0;

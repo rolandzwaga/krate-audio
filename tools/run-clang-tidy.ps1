@@ -28,6 +28,7 @@
       'disrumpo'  - Disrumpo plugin source
       'ruinae'    - Ruinae plugin source
       'innexus'   - Innexus plugin source
+      'membrum-fit' - tools/membrum-fit offline fitter (src + tests); not part of 'all'
       'all'       - Everything
     Default: all
 
@@ -64,7 +65,7 @@
 param(
     [string]$BuildDir = "build/windows-x64-release",
     [switch]$Fix,
-    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "shared", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago", "profundum")]
+    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "shared", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum", "seraphis", "vorago", "profundum", "membrum-fit")]
     [string]$Target = "all",
     [switch]$Quiet,
     [int]$Jobs = 0,
@@ -249,6 +250,17 @@ switch ($Target) {
         $IncludeDirs += "tests"
         $IncludeDirs += "extern/vst3sdk"
     }
+    "membrum-fit" {
+        # src and tests, matching run-clang-tidy.sh's `membrum-fit)` case. Tests include "src/...", the sources
+        # include Membrum's "dsp/..." headers; Eigen, CLI11 and nlohmann_json come only from compile_commands.json.
+        $SourceDirs += "tools/membrum-fit/src"
+        $SourceDirs += "tools/membrum-fit/tests"
+        $IncludeDirs += "dsp/include"
+        $IncludeDirs += "tools/membrum-fit"
+        $IncludeDirs += "tools/membrum-fit/src"
+        $IncludeDirs += "plugins/membrum/src"
+        $IncludeDirs += "extern/dr_libs"
+    }
     "all" {
         $SourceDirs += "dsp/include"
         $SourceDirs += "dsp/tests"
@@ -305,6 +317,25 @@ foreach ($Dir in $RootSourceDirs) {
         $Files = Get-ChildItem -Path $FullPath -Filter "*.cpp" |
             Where-Object { $_.FullName -notmatch "[\/](extern|build|vst3sdk)[\/]" }
         $SourceFiles += $Files
+    }
+}
+
+# A TU the build does not compile on this platform (e.g. the Linux-only test_libcurl_fetch.cpp) has no
+# compile_commands.json entry; clang-tidy would guess its flags and report a missing include as an error.
+if ($UseCompileCommands) {
+    $Compiled = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($Entry in (Get-Content -Raw $CompileCommands | ConvertFrom-Json)) {
+        $Path = if ([System.IO.Path]::IsPathRooted($Entry.file)) { $Entry.file } else { Join-Path $Entry.directory $Entry.file }
+        [void]$Compiled.Add([System.IO.Path]::GetFullPath($Path))
+    }
+    $NotCompiled = @($SourceFiles | Where-Object { -not $Compiled.Contains($_.FullName) })
+    if ($NotCompiled.Count -gt 0) {
+        if (-not $Quiet) {
+            foreach ($File in $NotCompiled) {
+                Write-Info "Skipping (not in compile_commands.json on this platform): $($File.FullName.Replace($ProjectRoot + '\', ''))"
+            }
+        }
+        $SourceFiles = @($SourceFiles | Where-Object { $Compiled.Contains($_.FullName) })
     }
 }
 
@@ -371,9 +402,10 @@ function Process-TidyOutput {
         return @{ Warnings = 0; Errors = 0; Lines = @() }
     }
 
-    # Filter to only our code paths (plugins/ and dsp/)
+    # Filter to only our code paths (plugins/, dsp/ and tools/membrum-fit/; without the last, the membrum-fit target
+    # reported 0 warnings while clang-tidy printed them)
     $OurLines = $Output -split "`n" | Where-Object {
-        ($_ -match "plugins[/\\]" -or $_ -match "dsp[/\\]") -and
+        ($_ -match "plugins[/\\]" -or $_ -match "dsp[/\\]" -or $_ -match "tools[/\\]membrum-fit[/\\]") -and
         $_ -notmatch "Processing file" -and
         $_ -notmatch "Error while processing"
     }

@@ -53,6 +53,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <initializer_list>
+#include <utility>
 
 namespace Profundum {
 
@@ -61,17 +62,17 @@ namespace Profundum {
 // ==============================================================================
 
 inline constexpr std::array<SoundParamRow, 11> kNoteRows{{
-    {kDropAmountId, 14, kNoLeaf, STR16("Drop Amount"), STR16("st"), nullptr, 0, DisplayUnit::Semitone},
-    {kDropTimeId, 15, kNoLeaf, STR16("Drop Time"), STR16("ms"), nullptr, 0, DisplayUnit::Time},
-    {kDropShapeId, 16, kNoLeaf, STR16("Drop Shape"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kDropReboundId, 17, kNoLeaf, STR16("Drop Rebound"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kAmpAttackId, 18, kNoLeaf, STR16("Attack"), STR16("ms"), nullptr, 0, DisplayUnit::Time},
-    {kAmpDecayId, 19, kNoLeaf, STR16("Decay"), STR16("ms"), nullptr, 0, DisplayUnit::Time},
-    {kAmpSustainId, 20, kNoLeaf, STR16("Sustain"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kAmpReleaseId, 21, kNoLeaf, STR16("Release"), STR16("ms"), nullptr, 0, DisplayUnit::Time},
-    {kAmpAttackCurveId, 22, kNoLeaf, STR16("Attack Curve"), STR16("%"), nullptr, 0, DisplayUnit::BipolarPercent},
-    {kAmpDecayCurveId, 23, kNoLeaf, STR16("Decay Curve"), STR16("%"), nullptr, 0, DisplayUnit::BipolarPercent},
-    {kAmpReleaseCurveId, 24, kNoLeaf, STR16("Release Curve"), STR16("%"), nullptr, 0, DisplayUnit::BipolarPercent},
+    {.id = kDropAmountId, .leaf = 14, .leaf2 = kNoLeaf, .title = STR16("Drop Amount"), .units = STR16("st"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Semitone},
+    {.id = kDropTimeId, .leaf = 15, .leaf2 = kNoLeaf, .title = STR16("Drop Time"), .units = STR16("ms"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Time},
+    {.id = kDropShapeId, .leaf = 16, .leaf2 = kNoLeaf, .title = STR16("Drop Shape"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kDropReboundId, .leaf = 17, .leaf2 = kNoLeaf, .title = STR16("Drop Rebound"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kAmpAttackId, .leaf = 18, .leaf2 = kNoLeaf, .title = STR16("Attack"), .units = STR16("ms"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Time},
+    {.id = kAmpDecayId, .leaf = 19, .leaf2 = kNoLeaf, .title = STR16("Decay"), .units = STR16("ms"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Time},
+    {.id = kAmpSustainId, .leaf = 20, .leaf2 = kNoLeaf, .title = STR16("Sustain"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kAmpReleaseId, .leaf = 21, .leaf2 = kNoLeaf, .title = STR16("Release"), .units = STR16("ms"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Time},
+    {.id = kAmpAttackCurveId, .leaf = 22, .leaf2 = kNoLeaf, .title = STR16("Attack Curve"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::BipolarPercent},
+    {.id = kAmpDecayCurveId, .leaf = 23, .leaf2 = kNoLeaf, .title = STR16("Decay Curve"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::BipolarPercent},
+    {.id = kAmpReleaseCurveId, .leaf = 24, .leaf2 = kNoLeaf, .title = STR16("Release Curve"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::BipolarPercent},
 }};
 
 namespace note_params_detail {
@@ -106,23 +107,17 @@ inline constexpr std::uint8_t kLastLeaf = 24;
 /// (b) Every list row has maxEnum + 1 labels (a Sync Rate pair: the 30-entry product); continuous rows have none
 /// and name an F32 leaf. (d) Every Bool row has exactly 2 labels.
 [[nodiscard]] constexpr bool rowsLabelCountsMatchLaw() noexcept {
-    for (const SoundParamRow& r : kNoteRows) {
+    return std::ranges::all_of(kNoteRows, [&](const SoundParamRow& r) {
         const FieldInfo& f = lawOf(r.leaf);
         if (f.kind == MorphState::Kind::F32) {
-            if (r.labels != nullptr || r.labelCount != 0 || r.leaf2 != kNoLeaf) {
-                return false;
-            }
-            continue;
+            return r.labels == nullptr && r.labelCount == 0 && r.leaf2 == kNoLeaf;
         }
         if (r.labels == nullptr) {
             return false;
         }
         if (r.leaf2 != kNoLeaf) {
             const int product = (static_cast<int>(f.maxEnum) + 1) * (static_cast<int>(lawOf(r.leaf2).maxEnum) + 1);
-            if (product != Krate::DSP::kNoteValueDropdownCount || r.labelCount != product) {
-                return false;
-            }
-            continue;
+            return product == Krate::DSP::kNoteValueDropdownCount && !std::cmp_not_equal(r.labelCount, product);
         }
         if (static_cast<int>(r.labelCount) != static_cast<int>(f.maxEnum) + 1) {
             return false;
@@ -130,31 +125,25 @@ inline constexpr std::uint8_t kLastLeaf = 24;
         if (f.kind == MorphState::Kind::Bool && r.labelCount != 2) {
             return false;
         }
-    }
-    return true;
+        return true;
+    });
 }
 
 /// (c) Every row ID lies in the note band [400, 500).
 [[nodiscard]] constexpr bool rowsInBand() noexcept {
-    for (const SoundParamRow& r : kNoteRows) {
-        if (r.id < static_cast<Steinberg::Vst::ParamID>(kDropAmountId) ||
-            r.id >= static_cast<Steinberg::Vst::ParamID>(kNoteParamRangeEnd)) {
-            return false;
-        }
-    }
-    return true;
+    return std::ranges::all_of(kNoteRows, [&](const SoundParamRow& r) {
+        return r.id >= static_cast<Steinberg::Vst::ParamID>(kDropAmountId) &&
+            r.id < static_cast<Steinberg::Vst::ParamID>(kNoteParamRangeEnd);
+    });
 }
 
 /// FR-054: no E row sits on a note-behaviour ID (410-417); together with registerNoteParams the band holds
 /// exactly {400-403, 410-417, 420-426}.
 [[nodiscard]] constexpr bool rowsAvoidNoteBehaviourIds() noexcept {
-    for (const SoundParamRow& r : kNoteRows) {
-        if (r.id >= static_cast<Steinberg::Vst::ParamID>(kNoteMonoPriorityId) &&
-            r.id <= static_cast<Steinberg::Vst::ParamID>(kNotePitchBendRangeId)) {
-            return false;
-        }
-    }
-    return true;
+    return std::ranges::all_of(kNoteRows, [&](const SoundParamRow& r) {
+        return r.id < static_cast<Steinberg::Vst::ParamID>(kNoteMonoPriorityId) ||
+            r.id > static_cast<Steinberg::Vst::ParamID>(kNotePitchBendRangeId);
+    });
 }
 
 }  // namespace note_params_detail
@@ -223,9 +212,9 @@ static_assert(kMaxMonoPriorityIndex == 2 && kMaxPortamentoModeIndex == 1 && kMax
               "the list labels below assume these enum extents");
 
 /// 412: [0, 10000] ms, offset-log law on (t + 1 ms) (spec ID table; MonoHandler clamp, mono_handler.h:111-112).
-inline constexpr PlainLaw kPortamentoLaw{static_cast<double>(Krate::DSP::MonoHandler::kMinPortamentoTimeMs),
-                                         static_cast<double>(Krate::DSP::MonoHandler::kMaxPortamentoTimeMs), 1.0,
-                                         true};
+inline constexpr PlainLaw kPortamentoLaw{.lo = static_cast<double>(Krate::DSP::MonoHandler::kMinPortamentoTimeMs),
+                                         .hi = static_cast<double>(Krate::DSP::MonoHandler::kMaxPortamentoTimeMs), .logOffset = 1.0,
+                                         .logarithmic = true};
 static_assert(kPortamentoLaw.lo == 0.0 && kPortamentoLaw.hi == 10000.0 && kPortamentoLaw.logOffset == 1.0 &&
                   kPortamentoLaw.logarithmic,
               "412 law is PlainLaw{0, 10000, 1, true}");

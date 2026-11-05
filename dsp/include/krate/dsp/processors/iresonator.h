@@ -11,8 +11,8 @@
 
 #pragma once
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Shared interface for interchangeable resonator types.
 ///
@@ -72,5 +72,5 @@ public:
     [[nodiscard]] virtual float getFeedbackVelocity() const noexcept { return 0.0f; }
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

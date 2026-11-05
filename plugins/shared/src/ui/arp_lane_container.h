@@ -178,7 +178,7 @@ public:
     // =========================================================================
 
     void drawBackgroundRect(VSTGUI::CDrawContext* context,
-                            const VSTGUI::CRect& _updateRect) override {
+                            const VSTGUI::CRect& /*_updateRect*/) override {
         // Fill with dark background
         VSTGUI::CColor bgColor{25, 25, 28, 255};
         context->setFillColor(bgColor);
@@ -279,6 +279,6 @@ struct ArpLaneContainerCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline ArpLaneContainerCreator gArpLaneContainerCreator;
+inline const ArpLaneContainerCreator gArpLaneContainerCreator;
 
 } // namespace Krate::Plugins

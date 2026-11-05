@@ -32,9 +32,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // VowelStep (FR-016, FR-017)
@@ -299,14 +300,14 @@ private:
 
 inline void VowelSequencer::initializeDefaultPattern() noexcept {
     // FR-015a: Default pattern is palindrome A,E,I,O,U,O,I,E
-    steps_[0] = VowelStep{Vowel::A, 0.0f};
-    steps_[1] = VowelStep{Vowel::E, 0.0f};
-    steps_[2] = VowelStep{Vowel::I, 0.0f};
-    steps_[3] = VowelStep{Vowel::O, 0.0f};
-    steps_[4] = VowelStep{Vowel::U, 0.0f};
-    steps_[5] = VowelStep{Vowel::O, 0.0f};
-    steps_[6] = VowelStep{Vowel::I, 0.0f};
-    steps_[7] = VowelStep{Vowel::E, 0.0f};
+    steps_[0] = VowelStep{.vowel = Vowel::A, .formantShift = 0.0f};
+    steps_[1] = VowelStep{.vowel = Vowel::E, .formantShift = 0.0f};
+    steps_[2] = VowelStep{.vowel = Vowel::I, .formantShift = 0.0f};
+    steps_[3] = VowelStep{.vowel = Vowel::O, .formantShift = 0.0f};
+    steps_[4] = VowelStep{.vowel = Vowel::U, .formantShift = 0.0f};
+    steps_[5] = VowelStep{.vowel = Vowel::O, .formantShift = 0.0f};
+    steps_[6] = VowelStep{.vowel = Vowel::I, .formantShift = 0.0f};
+    steps_[7] = VowelStep{.vowel = Vowel::E, .formantShift = 0.0f};
 
     // Default to 8 steps
     core_.setNumSteps(kMaxSteps);
@@ -504,7 +505,7 @@ inline void VowelSequencer::processBlock(float* buffer, size_t numSamples,
 }
 
 inline void VowelSequencer::applyStepParameters(int stepIndex) noexcept {
-    if (stepIndex < 0 || stepIndex >= static_cast<int>(kMaxSteps)) return;
+    if (stepIndex < 0 || std::cmp_greater_equal(stepIndex, kMaxSteps)) return;
 
     const auto& step = steps_[static_cast<size_t>(stepIndex)];
 
@@ -515,5 +516,5 @@ inline void VowelSequencer::applyStepParameters(int stepIndex) noexcept {
     filter_.setFormantShift(step.formantShift);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

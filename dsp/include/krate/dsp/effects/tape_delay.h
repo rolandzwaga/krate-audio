@@ -33,8 +33,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // TapeHead Structure (FR-015 to FR-020)
@@ -74,7 +74,7 @@ public:
     /// @brief Prepare for processing
     /// @param sampleRate Sample rate in Hz
     /// @param maxBlockSize Maximum samples per process call
-    void prepare(float sampleRate, size_t maxBlockSize) noexcept {
+    void prepare(float sampleRate, size_t /*maxBlockSize*/) noexcept {
         sampleRate_ = sampleRate;
         delaySmoother_.configure(kDefaultInertiaMs, sampleRate);
         delaySmoother_.snapTo(0.0f);
@@ -814,5 +814,5 @@ private:
     OnePoleSmoother mixSmoother_;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

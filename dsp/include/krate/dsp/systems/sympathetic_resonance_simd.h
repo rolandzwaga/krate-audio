@@ -16,8 +16,8 @@
 
 #pragma once
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief SIMD-accelerated driven resonator batch processing for one sample.
 ///
@@ -48,5 +48,5 @@ void processSympatheticBankSIMD(
     float releaseCoeff,
     float* envelopes) noexcept;
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

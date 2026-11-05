@@ -10,10 +10,11 @@
 #include "pad_config.h"
 #include "exciter_type.h"
 #include "body_model_type.h"
+#include <cstdint>
 
 namespace Membrum {
 
-enum class PadCategory : int {
+enum class PadCategory : std::uint8_t {
     Kick,       // Membrane body + pitch envelope active (tsPitchEnvTime > 0)
     Snare,      // Membrane body + NoiseBurst exciter
     Tom,        // Membrane body (no pitch env, no noise exciter)

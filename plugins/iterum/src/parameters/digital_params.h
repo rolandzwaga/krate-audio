@@ -146,6 +146,8 @@ inline void handleDigitalParamChange(
                 static_cast<float>(normalizedValue * 2.0 - 1.0),
                 std::memory_order_relaxed);
             break;
+        default:
+            break;
     }
 }
 
@@ -347,6 +349,8 @@ inline Steinberg::tresult formatDigitalParam(
             float percent = static_cast<float>((normalizedValue - 0.5) * 200.0);  // -100 to +100
             return formatParamText(string, "%+.0f%%", percent);
         }
+        default:
+            break;
     }
 
     return Steinberg::kResultFalse;

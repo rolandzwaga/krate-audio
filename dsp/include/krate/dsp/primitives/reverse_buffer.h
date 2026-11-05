@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <vector>
 #include <krate/dsp/core/crossfade_utils.h>
@@ -137,10 +138,8 @@ inline void ReverseBuffer::reset() noexcept {
 inline void ReverseBuffer::setChunkSizeMs(float ms) noexcept {
     // Clamp to valid range
     constexpr float kMinChunkMs = 10.0f;
-    if (ms < kMinChunkMs) ms = kMinChunkMs;
-    if (ms > static_cast<float>(maxChunkSamples_) * 1000.0f / static_cast<float>(sampleRate_)) {
-        ms = static_cast<float>(maxChunkSamples_) * 1000.0f / static_cast<float>(sampleRate_);
-    }
+    ms = std::max(ms, kMinChunkMs);
+    ms = std::min(ms, static_cast<float>(maxChunkSamples_) * 1000.0f / static_cast<float>(sampleRate_));
 
     chunkSizeMs_ = ms;
     chunkSizeSamples_ = static_cast<std::size_t>(sampleRate_ * ms / 1000.0);

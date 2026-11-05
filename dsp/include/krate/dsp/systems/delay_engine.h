@@ -23,12 +23,13 @@
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // Note: TimeMode is now defined in note_value.h (Layer 0)
 // and imported via that include
@@ -195,12 +196,8 @@ inline void DelayEngine::setDelayTimeMs(float ms) noexcept {
     }
 
     // FR-010: Clamp to valid range
-    if (ms < 0.0f) {
-        ms = 0.0f;
-    }
-    if (ms > maxDelayMs_) {
-        ms = maxDelayMs_;
-    }
+    ms = std::max(ms, 0.0f);
+    ms = std::min(ms, maxDelayMs_);
 
     targetDelayMs_ = ms;
 }
@@ -212,8 +209,8 @@ inline void DelayEngine::setNoteValue(NoteValue note, NoteModifier mod) noexcept
 
 inline void DelayEngine::setMix(float wetRatio) noexcept {
     // Clamp to [0, 1]
-    if (wetRatio < 0.0f) wetRatio = 0.0f;
-    if (wetRatio > 1.0f) wetRatio = 1.0f;
+    wetRatio = std::max(wetRatio, 0.0f);
+    wetRatio = std::min(wetRatio, 1.0f);
     mix_ = wetRatio;
     mixSmoother_.setTarget(wetRatio);
 }
@@ -232,9 +229,7 @@ inline void DelayEngine::updateDelayTarget(const BlockContext& ctx) noexcept {
         targetMs = static_cast<float>(delaySamples * 1000.0 / ctx.sampleRate);
 
         // Clamp to max
-        if (targetMs > maxDelayMs_) {
-            targetMs = maxDelayMs_;
-        }
+        targetMs = std::min(targetMs, maxDelayMs_);
     }
 
     delaySmoother_.setTarget(targetMs);
@@ -327,5 +322,5 @@ inline float DelayEngine::msToSamples(float ms) const noexcept {
     return static_cast<float>(ms * sampleRate_ / 1000.0);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

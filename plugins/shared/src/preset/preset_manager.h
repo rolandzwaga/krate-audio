@@ -22,12 +22,12 @@
 #include <functional>
 
 namespace Steinberg {
-    class IBStream;
+    class IBStream;  // NOLINT(cppcoreguidelines-virtual-class-destructor): SDK interface, refcounted
 }
 
 namespace Steinberg::Vst {
-    class IComponent;
-    class IEditController;
+    class IComponent;  // NOLINT(cppcoreguidelines-virtual-class-destructor): SDK interface, refcounted
+    class IEditController;  // NOLINT(cppcoreguidelines-virtual-class-destructor): SDK interface, refcounted
 }
 
 namespace Krate::Plugins {

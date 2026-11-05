@@ -60,6 +60,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <vector>
 
 namespace Krate::DSP {
@@ -668,7 +669,7 @@ private:
         // tilt = +1 lengthens the lows, so its INVERSE tau carries 10^-T; tilt =
         // -1 carries 10^+T. Getting that pair the wrong way round inverts the
         // whole tilt control and SC-004 (d) is the criterion that sees it.
-        constexpr float kLog10e = 0.43429448190325176f;
+        constexpr float kLog10e = std::numbers::log10e_v<float>;
         const float     scale =
             -static_cast<float>(hopSize_) / static_cast<float>(sampleRate_) * kLog10e;
         constexpr float kInvTauMin = 1.0f / kMaxSmearSeconds;  // tau = 10 s

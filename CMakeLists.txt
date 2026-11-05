@@ -303,7 +303,7 @@ if(VSTWORK_BUILD_TESTS)
     FetchContent_Declare(
         Catch2
         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.4.0
+        GIT_TAG v3.16.1
     )
     FetchContent_MakeAvailable(Catch2)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
@@ -336,7 +336,7 @@ include(FetchContent)
 FetchContent_Declare(
     highway
     GIT_REPOSITORY https://github.com/google/highway.git
-    GIT_TAG 1.2.0
+    GIT_TAG 1.4.0
 )
 set(HWY_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -354,7 +354,7 @@ smtg_target_setup_universal_binary(hwy_contrib)
 FetchContent_Declare(
     pffft
     GIT_REPOSITORY https://github.com/marton78/pffft.git
-    GIT_TAG v1.1.0
+    GIT_TAG v1.2.0
 )
 set(PFFFT_USE_TYPE_DOUBLE OFF CACHE BOOL "" FORCE)
 set(PFFFT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -375,7 +375,7 @@ smtg_target_setup_universal_binary(PFFFT)
 FetchContent_Declare(
     httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
-    GIT_TAG v0.18.3
+    GIT_TAG v0.64.0
 )
 set(HTTPLIB_REQUIRE_OPENSSL OFF CACHE BOOL "" FORCE)
 set(HTTPLIB_REQUIRE_ZLIB OFF CACHE BOOL "" FORCE)
@@ -390,14 +390,14 @@ FetchContent_MakeAvailable(httplib)
 FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.3
+    GIT_TAG v3.12.0
 )
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 set(JSON_Install OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(nlohmann_json)
 
 # ==============================================================================
-# Eigen 3.4 (linear algebra, MPL-2 license) -- used by tools/membrum-fit
+# Eigen 5 (linear algebra, MPL-2 license) -- used by tools/membrum-fit
 # ==============================================================================
 # Header-only. Imported as an INTERFACE target to skip Eigen's own CMake
 # machinery (tests, docs, install rules). Provides Eigen3::Eigen.
@@ -407,13 +407,12 @@ if(VSTWORK_BUILD_MEMBRUM_FIT)
     FetchContent_Declare(
         Eigen3
         GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-        GIT_TAG 3.4.0
+        GIT_TAG 5.0.1
         GIT_SHALLOW TRUE
+        # No CMakeLists.txt there, so MakeAvailable populates without add_subdirectory().
+        SOURCE_SUBDIR _krate_no_cmake
     )
-    FetchContent_GetProperties(Eigen3)
-    if(NOT eigen3_POPULATED)
-        FetchContent_Populate(Eigen3)
-    endif()
+    FetchContent_MakeAvailable(Eigen3)
     if(NOT TARGET Eigen3::Eigen)
         add_library(Eigen3_headeronly INTERFACE)
         target_include_directories(Eigen3_headeronly INTERFACE ${eigen3_SOURCE_DIR})
@@ -426,7 +425,7 @@ if(VSTWORK_BUILD_MEMBRUM_FIT)
     FetchContent_Declare(
         cli11
         GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
-        GIT_TAG v2.4.2
+        GIT_TAG v2.7.2
         GIT_SHALLOW TRUE
     )
     set(CLI11_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -444,7 +443,7 @@ if(VSTWORK_BUILD_MEMBRUM_FIT)
         FetchContent_Declare(
             nlopt
             GIT_REPOSITORY https://github.com/stevengj/nlopt.git
-            GIT_TAG v2.7.1
+            GIT_TAG v2.11.0
             GIT_SHALLOW TRUE
         )
         set(NLOPT_PYTHON OFF CACHE BOOL "" FORCE)
@@ -455,17 +454,9 @@ if(VSTWORK_BUILD_MEMBRUM_FIT)
         set(NLOPT_TESTS OFF CACHE BOOL "" FORCE)
         set(NLOPT_FORTRAN OFF CACHE BOOL "" FORCE)
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-        # NLopt v2.7.1 uses cmake_minimum_required(VERSION 2.8.12), which CMake 4.x
-        # (shipped on current macOS CI runners) rejects. Scope the compatibility
-        # shim to this FetchContent call and restore afterwards so other deps
-        # are not affected.
-        set(_KA_PREV_POLICY_MIN "${CMAKE_POLICY_VERSION_MINIMUM}")
-        set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
         FetchContent_MakeAvailable(nlopt)
-        set(CMAKE_POLICY_VERSION_MINIMUM "${_KA_PREV_POLICY_MIN}")
-        unset(_KA_PREV_POLICY_MIN)
 
-        # NLopt v2.7.1 generates nlopt.f via a custom command attached as a
+        # NLopt generates nlopt.f via a custom command attached as a
         # source to BOTH the `nlopt` library and the `generate-fortran` utility
         # target. Xcode's new build system rejects that unless one is a
         # dependency of the other ("attached to multiple targets" error).

@@ -153,7 +153,7 @@ inline bool loadSampleHoldParams(SampleHoldParams& params,
 
 template<typename SetParamFunc>
 inline void loadSampleHoldParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f;
     Steinberg::int32 iv = 0;
 

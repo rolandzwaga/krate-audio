@@ -53,8 +53,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Forward declarations for SIMD kernels (defined in fdn_reverb_simd.cpp)
@@ -563,8 +563,8 @@ private:
             fbGain = 1.0f;
         }
 
-        for (size_t i = 0; i < kNumChannels; ++i) {
-            feedbackGains_[i] = fbGain;
+        for (float& feedbackGain : feedbackGains_) {
+            feedbackGain = fbGain;
         }
 
         // Jot's per-delay-line absorption: each delay line gets a correction
@@ -817,8 +817,8 @@ private:
     float lfoMaxExcursion_ = 0.0f;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+
 
 #ifdef _MSC_VER
 #pragma warning(pop)

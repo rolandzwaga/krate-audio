@@ -17,8 +17,8 @@
 
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// Curve shape for envelope stage transitions.
 enum class EnvCurve : uint8_t {
@@ -27,5 +27,5 @@ enum class EnvCurve : uint8_t {
     Logarithmic
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

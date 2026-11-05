@@ -167,7 +167,7 @@ using SetParamFunc = std::function<void(Steinberg::Vst::ParamID, double)>;
 
 inline void loadInnexusParamsToController(
     Steinberg::IBStreamer& streamer,
-    SetParamFunc setParam)
+    const SetParamFunc& setParam)
 {
     float floatVal = 0.0f;
 

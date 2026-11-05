@@ -410,7 +410,7 @@ inline bool loadBodyParams(BodyParams& params, Steinberg::IBStreamer& streamer) 
 
 template <typename SetParamFunc>
 inline void loadBodyParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
 
     float fv = 0.0f;
     Steinberg::int32 iv = 0;

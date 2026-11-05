@@ -306,7 +306,7 @@ public:
                 if (len > 1) {
                     float first = result[0];
                     for (int32_t i = 0; i < len - 1; ++i) {
-                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i + 1)];
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i) + 1];
                     }
                     result[static_cast<size_t>(len - 1)] = first;
                 }
@@ -699,6 +699,6 @@ private:
 // the ArpModifierLane class. Preserves the "step-flag-base-param-id" attribute.
 using ArpModifierLaneCreator = ArpLaneViewCreator<ArpModifierLane>;
 
-inline ArpModifierLaneCreator gArpModifierLaneCreator;
+inline const ArpModifierLaneCreator gArpModifierLaneCreator;
 
 } // namespace Krate::Plugins

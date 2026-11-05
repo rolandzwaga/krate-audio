@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <utility>
 #include <vector>
 
 namespace Gradus {
@@ -52,7 +53,7 @@ public:
         numSteps_ = numSteps; colW_ = colW; bodyTop_ = bodyTop;
         knobAreaH_ = knobAreaH; bodyLeft_ = bodyLeft;
     }
-    void setAccentColor(VSTGUI::CColor c) { accentColor_ = c; }
+    void setAccentColor(const VSTGUI::CColor& c) { accentColor_ = c; }
 
     void draw(VSTGUI::CDrawContext* context) override {
         if (playheadStep_ < 0 && trailSteps_[0] < 0) { setDirty(false); return; }
@@ -100,7 +101,7 @@ public:
     // Types & Constants
     // =========================================================================
 
-    enum class KnobRow : int {
+    enum class KnobRow : std::uint8_t {
         kActive = 0,     // Power toggle: on/off per step
         kTimeMode,       // Sync toggle: Free / Synced
         kDelayTime,
@@ -483,7 +484,7 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override
     {
-        if (scrollbarDragging_ && (buttons & VSTGUI::kLButton)) {
+        if (scrollbarDragging_ && ((buttons & VSTGUI::kLButton) != 0)) {
             float dx = static_cast<float>(where.x) - scrollDragStartX_;
             float bodyW = static_cast<float>(getViewSize().getWidth()) - kLeftMargin;
             float colW = bodyW / static_cast<float>(std::min(numSteps_, kMaxVisibleSteps));
@@ -562,7 +563,7 @@ private:
         float knobSize = std::max(std::min(colW, rowH) * 0.7f, 14.0f);
 
         scrollOffsetPx_ = 0.0f;
-        controlPtrs_.reserve(static_cast<size_t>(numSteps_ * kRowCount));
+        controlPtrs_.reserve(static_cast<size_t>(numSteps_) * static_cast<size_t>(kRowCount));
 
         // Child rects in container-local coordinates (0-based).
         float ox = 0.0f;
@@ -597,7 +598,7 @@ private:
                     knob->setValue(value);
                     knob->setDefaultValue(getDefaultValue(knobRow));
                     knob->setArcColor(accentColor_);
-                    knob->setPopupPosition(Krate::Plugins::ArcKnob::kPopupTop);
+                    knob->setPopupPosition(Krate::Plugins::ArcKnob::PopupPosition::kPopupTop);
                     addView(knob);
                     controlPtrs_.push_back(knob);
                 }
@@ -639,7 +640,7 @@ private:
         for (int step = 0; step < numSteps_; ++step) {
             for (int row = 0; row < kRowCount; ++row) {
                 int idx = step * kRowCount + row;
-                if (idx >= static_cast<int>(controlPtrs_.size())) break;
+                if (std::cmp_greater_equal(idx, controlPtrs_.size())) break;
 
                 float x0 = kLeftMargin + static_cast<float>(step) * colW - scrollOffsetPx_;
                 float yTop = bodyTop + static_cast<float>(row) * rowH;
@@ -674,7 +675,7 @@ private:
         for (int row = static_cast<int>(KnobRow::kTimeMode);
              row < kRowCount; ++row) {
             int idx = step * kRowCount + row;
-            if (idx >= 0 && idx < static_cast<int>(controlPtrs_.size())) {
+            if (idx >= 0 && std::cmp_less(idx, controlPtrs_.size())) {
                 controlPtrs_[static_cast<size_t>(idx)]->setVisible(active);
             }
         }
@@ -685,7 +686,7 @@ private:
     void updateControlValue(int step, KnobRow row)
     {
         int idx = step * kRowCount + static_cast<int>(row);
-        if (idx >= 0 && idx < static_cast<int>(controlPtrs_.size())) {
+        if (idx >= 0 && std::cmp_less(idx, controlPtrs_.size())) {
             auto* ctrl = dynamic_cast<VSTGUI::CControl*>(controlPtrs_[static_cast<size_t>(idx)]);
             if (ctrl) {
                 ctrl->setValue(stepValues_[step][static_cast<int>(row)]);
@@ -729,20 +730,20 @@ private:
     [[nodiscard]] static StepRowResult tagToStepRow(uint32_t tag)
     {
         if (tag >= kArpMidiDelayActiveStep0Id && tag <= kArpMidiDelayActiveStep0Id + 31)
-            return {static_cast<int>(tag - kArpMidiDelayActiveStep0Id), KnobRow::kActive};
+            return {.step = static_cast<int>(tag - kArpMidiDelayActiveStep0Id), .row = KnobRow::kActive};
         if (tag >= kArpMidiDelayTimeModeStep0Id && tag <= kArpMidiDelayTimeModeStep0Id + 31)
-            return {static_cast<int>(tag - kArpMidiDelayTimeModeStep0Id), KnobRow::kTimeMode};
+            return {.step = static_cast<int>(tag - kArpMidiDelayTimeModeStep0Id), .row = KnobRow::kTimeMode};
         if (tag >= kArpMidiDelayTimeStep0Id && tag <= kArpMidiDelayTimeStep0Id + 31)
-            return {static_cast<int>(tag - kArpMidiDelayTimeStep0Id), KnobRow::kDelayTime};
+            return {.step = static_cast<int>(tag - kArpMidiDelayTimeStep0Id), .row = KnobRow::kDelayTime};
         if (tag >= kArpMidiDelayFeedbackStep0Id && tag <= kArpMidiDelayFeedbackStep0Id + 31)
-            return {static_cast<int>(tag - kArpMidiDelayFeedbackStep0Id), KnobRow::kFeedback};
+            return {.step = static_cast<int>(tag - kArpMidiDelayFeedbackStep0Id), .row = KnobRow::kFeedback};
         if (tag >= kArpMidiDelayVelDecayStep0Id && tag <= kArpMidiDelayVelDecayStep0Id + 31)
-            return {static_cast<int>(tag - kArpMidiDelayVelDecayStep0Id), KnobRow::kVelDecay};
+            return {.step = static_cast<int>(tag - kArpMidiDelayVelDecayStep0Id), .row = KnobRow::kVelDecay};
         if (tag >= kArpMidiDelayPitchShiftStep0Id && tag <= kArpMidiDelayPitchShiftStep0Id + 31)
-            return {static_cast<int>(tag - kArpMidiDelayPitchShiftStep0Id), KnobRow::kPitchShift};
+            return {.step = static_cast<int>(tag - kArpMidiDelayPitchShiftStep0Id), .row = KnobRow::kPitchShift};
         if (tag >= kArpMidiDelayGateScaleStep0Id && tag <= kArpMidiDelayGateScaleStep0Id + 31)
-            return {static_cast<int>(tag - kArpMidiDelayGateScaleStep0Id), KnobRow::kGateScale};
-        return {-1, KnobRow::kCount};
+            return {.step = static_cast<int>(tag - kArpMidiDelayGateScaleStep0Id), .row = KnobRow::kGateScale};
+        return {.step = -1, .row = KnobRow::kCount};
     }
 
     [[nodiscard]] static float getDefaultValue(KnobRow row)
@@ -752,7 +753,7 @@ private:
             case KnobRow::kTimeMode:   return 1.0f;
             case KnobRow::kDelayTime:  return 10.0f / 29.0f;
             case KnobRow::kFeedback:   return 3.0f / 16.0f;
-            case KnobRow::kVelDecay:   return 0.5f;
+            case KnobRow::kVelDecay:
             case KnobRow::kPitchShift: return 0.5f;
             case KnobRow::kGateScale:  return (1.0f - 0.1f) / 1.9f;
             default: return 0.0f;

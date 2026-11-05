@@ -32,8 +32,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // FilterSlope Enumeration
@@ -438,5 +438,5 @@ private:
     std::vector<float> oversampledBuffer_;  // Pre-allocated in prepare()
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

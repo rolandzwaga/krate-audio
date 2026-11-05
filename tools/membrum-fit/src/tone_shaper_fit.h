@@ -11,7 +11,7 @@ namespace MembrumFit {
 // Phase 1 fits pitch envelope + filter cutoff only; Phase 2 adds ADSR+drive+fold.
 void fitToneShaper(std::span<const float> samples,
                    const SegmentedSample& seg,
-                   double sampleRate,
+                   double sr,
                    const ModalDecomposition& modes,
                    Membrum::PadConfig& config);
 
@@ -22,10 +22,10 @@ void fitToneShaper(std::span<const float> samples,
 struct PitchTrackPoint { float timeSec; float freqHz; };
 std::vector<PitchTrackPoint> trackPitch(std::span<const float> samples,
                                         const SegmentedSample& seg,
-                                        double sampleRate);
+                                        double sr);
 
 // Returns true if the fundamental falls > 20% within 200 ms (=> enable env).
 bool detectPitchEnvelope(const std::vector<PitchTrackPoint>& track,
-                         float& startHz, float& endHz, float& durationSec);
+                         float& startHz, float& endHz, float& durSec);
 
 }  // namespace MembrumFit

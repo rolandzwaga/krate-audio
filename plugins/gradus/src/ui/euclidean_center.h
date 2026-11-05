@@ -11,6 +11,7 @@
 #include "vstgui/lib/ccolor.h"
 
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 namespace Gradus {
@@ -42,7 +43,7 @@ public:
 
         const float dotRadius = 4.0f;
         const float angleStep = 6.28318530718f / static_cast<float>(steps_);
-        const float startAngle = -3.14159265359f / 2.0f; // 12 o'clock
+        const float startAngle = -std::numbers::pi_v<float> / 2.0f; // 12 o'clock
 
         for (int i = 0; i < steps_; ++i) {
             float angle = startAngle + static_cast<float>(i) * angleStep;
@@ -70,9 +71,11 @@ public:
             context->setFrameColor(lineColor_);
             context->setLineWidth(1.0f);
 
-            float prevX = 0.0f, prevY = 0.0f;
+            float prevX = 0.0f;
+            float prevY = 0.0f;
             bool havePrev = false;
-            float firstX = 0.0f, firstY = 0.0f;
+            float firstX = 0.0f;
+            float firstY = 0.0f;
             bool haveFirst = false;
 
             for (int i = 0; i < steps_; ++i) {

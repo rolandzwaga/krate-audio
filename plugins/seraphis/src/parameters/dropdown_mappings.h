@@ -166,8 +166,8 @@ inline constexpr std::array<const Steinberg::Vst::TChar*, 3> kStateCountLabels =
     STR16("2"), STR16("3"), STR16("4")};
 
 static_assert(kStateCountLabels.size()
-                  == static_cast<std::size_t>(Krate::DSP::SpectralMorphEngine::kMaxStates
-                                              - Krate::DSP::SpectralMorphEngine::kMinStates + 1),
+                  == static_cast<std::size_t>(Krate::DSP::SpectralMorphEngine::kMaxStates)
+                         - static_cast<std::size_t>(Krate::DSP::SpectralMorphEngine::kMinStates) + 1,
               "FR-015: the state-count list must span [kMinStates, kMaxStates]");
 
 // ==============================================================================

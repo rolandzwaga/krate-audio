@@ -102,7 +102,7 @@ public:
         }
 
         // pffft minimum for real transforms is 32
-        if (fftSize_ < 32) fftSize_ = 32;
+        fftSize_ = std::max<size_t>(fftSize_, 32);
 
         setup_ = pffft_new_setup(static_cast<int>(fftSize_), PFFFT_REAL);
         if (!setup_) {

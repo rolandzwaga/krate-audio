@@ -51,7 +51,7 @@ public:
     [[nodiscard]] uint32_t getModDestId() const noexcept { return modDestId_; }
 
     /// @brief Set the modulation indicator color.
-    void setModColor(VSTGUI::CColor color) noexcept { modColor_ = color; }
+    void setModColor(const VSTGUI::CColor& color) noexcept { modColor_ = color; }
 
     void draw(VSTGUI::CDrawContext* context) override {
         // Draw the base CSlider (background, frame, value bar, handle)
@@ -154,7 +154,8 @@ struct ModSliderCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-// Static instance auto-registers with UIViewFactory at startup
-static ModSliderCreator __gModSliderCreator;
+// One instance auto-registers with UIViewFactory at startup. `inline`, not `static`: a static in a header gave every
+// including TU its own instance, each registering the view again.
+inline const ModSliderCreator gModSliderCreator;
 
 } // namespace Disrumpo

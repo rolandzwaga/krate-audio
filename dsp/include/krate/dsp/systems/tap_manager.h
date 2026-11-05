@@ -41,8 +41,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations (FR-022 to FR-026)
@@ -392,7 +392,7 @@ private:
     void updateTapFilter(size_t tapIndex) noexcept;
 
     /// @brief Calculate constant-power pan coefficients
-    void calcPanCoefficients(float pan, float& outL, float& outR) const noexcept;
+    static void calcPanCoefficients(float pan, float& outL, float& outR) noexcept;
 
     /// @brief Apply soft limiter to prevent feedback runaway (FR-021)
     [[nodiscard]] static float softLimit(float sample) noexcept {
@@ -766,7 +766,7 @@ inline void TapManager::setDryWetMix(float mix) noexcept {
     dryWetMix_ = std::clamp(mix, 0.0f, 100.0f);
 }
 
-inline void TapManager::calcPanCoefficients(float pan, float& outL, float& outR) const noexcept {
+inline void TapManager::calcPanCoefficients(float pan, float& outL, float& outR) noexcept {
     // Constant-power pan law using sine/cosine (FR-013, SC-004)
     // pan: -100 (full left) to +100 (full right)
     // theta: 0 (full left) to pi/2 (full right)
@@ -855,7 +855,8 @@ inline void TapManager::process(const float* leftIn, const float* rightIn,
             // Calculate pan coefficients (constant-power)
             tap.panSmoother.setTarget(tap.pan);
             const float smoothedPan = tap.panSmoother.process();
-            float panL, panR;
+            float panL;
+            float panR;
             calcPanCoefficients(smoothedPan, panL, panR);
 
             // Add to stereo output
@@ -936,5 +937,5 @@ inline float TapManager::getTapFilterQ(size_t tapIndex) const noexcept {
     return taps_[tapIndex].filterQ;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

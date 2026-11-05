@@ -54,7 +54,7 @@ inline constexpr int kSpatialPatternDropdownCount = 7;
 /// @param index Dropdown index (0-3)
 /// @return BBDChipModel enum value, defaults to MN3005 for out-of-range
 /// @note Lookup table approach for O(1) access and explicit mapping
-inline constexpr Krate::DSP::BBDChipModel getBBDEraFromDropdown(int index) noexcept {
+constexpr Krate::DSP::BBDChipModel getBBDEraFromDropdown(int index) noexcept {
     using Krate::DSP::BBDChipModel;
 
     // Explicit lookup table - order matches UI dropdown
@@ -79,7 +79,7 @@ inline constexpr Krate::DSP::BBDChipModel getBBDEraFromDropdown(int index) noexc
 /// @brief Convert dropdown index to LRRatio enum
 /// @param index Dropdown index (0-6)
 /// @return LRRatio enum value, defaults to OneToOne for out-of-range
-inline constexpr Krate::DSP::LRRatio getLRRatioFromDropdown(int index) noexcept {
+constexpr Krate::DSP::LRRatio getLRRatioFromDropdown(int index) noexcept {
     using Krate::DSP::LRRatio;
 
     // Explicit lookup table - order matches UI dropdown
@@ -107,7 +107,7 @@ inline constexpr Krate::DSP::LRRatio getLRRatioFromDropdown(int index) noexcept 
 /// @brief Convert dropdown index to TimingPattern enum
 /// @param index Dropdown index (0-19)
 /// @return TimingPattern enum value, defaults to QuarterNote for out-of-range
-inline constexpr Krate::DSP::TimingPattern getTimingPatternFromDropdown(int index) noexcept {
+constexpr Krate::DSP::TimingPattern getTimingPatternFromDropdown(int index) noexcept {
     using Krate::DSP::TimingPattern;
 
     // Explicit lookup table - order matches UI dropdown
@@ -157,7 +157,7 @@ inline constexpr Krate::DSP::TimingPattern getTimingPatternFromDropdown(int inde
 /// @brief Convert dropdown index to SpatialPattern enum
 /// @param index Dropdown index (0-6)
 /// @return SpatialPattern enum value, defaults to Centered for out-of-range
-inline constexpr Krate::DSP::SpatialPattern getSpatialPatternFromDropdown(int index) noexcept {
+constexpr Krate::DSP::SpatialPattern getSpatialPatternFromDropdown(int index) noexcept {
     using Krate::DSP::SpatialPattern;
 
     // Explicit lookup table - order matches UI dropdown

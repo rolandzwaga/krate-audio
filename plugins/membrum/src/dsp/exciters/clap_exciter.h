@@ -36,6 +36,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 
 namespace Membrum {
 
@@ -163,7 +164,7 @@ struct ClapExciter
     }
 
 private:
-    static constexpr float kPi = 3.14159265358979323846f;
+    static constexpr float kPi = std::numbers::pi_v<float>;
 
     Krate::DSP::NoiseOscillator noise_{};
     Krate::DSP::SVF             filter_{};

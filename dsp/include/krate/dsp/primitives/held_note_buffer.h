@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <utility>
 
 namespace Krate::DSP {
 
@@ -115,7 +116,7 @@ public:
             return;  // Silently ignore if full
         }
 
-        HeldNote newNote{note, velocity, nextInsertOrder_};
+        HeldNote newNote{.note = note, .velocity = velocity, .insertOrder = nextInsertOrder_};
         ++nextInsertOrder_;
 
         // Append to entries_ (insertion order)
@@ -580,13 +581,11 @@ private:
                      ArpNoteResult& result) noexcept {
         walkIndex_ = std::min(walkIndex_, size - 1);
         int step = (rng_.next() & 1) ? 1 : -1;
-        if (step == -1 && walkIndex_ == 0) {
-            // Clamped at lower bound
-        } else if (step == 1 && walkIndex_ >= size - 1) {
-            // Clamped at upper bound
-        } else {
-            walkIndex_ = static_cast<size_t>(static_cast<int>(walkIndex_) + step);
-        }
+        if (step == 1 && walkIndex_ < size - 1) {
+            ++walkIndex_;
+        } else if (step == -1 && walkIndex_ > 0) {
+            --walkIndex_;
+        }  // else clamped at the upper / lower bound
         if (octaveMode_ == OctaveMode::Sequential) {
             result.notes[0] = applyOctave(pitched[walkIndex_].note, octaveOffset_);
             result.velocities[0] = pitched[walkIndex_].velocity;
@@ -674,7 +673,7 @@ private:
                 const int deg = ScaleHarmonizer::noteToScaleDegree(
                     markovScale_, markovRoot_,
                     static_cast<int>(pitched[i].note));
-                if (deg >= 0 && deg < static_cast<int>(kMarkovMatrixDim)) {
+                if (deg >= 0 && std::cmp_less(deg, kMarkovMatrixDim)) {
                     // First-come wins on conflict (lowest pitch with that degree)
                     if (heldNotesByDegree[static_cast<size_t>(deg)] < 0) {
                         heldNotesByDegree[static_cast<size_t>(deg)] =
@@ -688,9 +687,9 @@ private:
         // state, pick the lowest available degree as the starting row.
         int currentDegree = lastMarkovDegree_;
         if (currentDegree < 0 ||
-            currentDegree >= static_cast<int>(kMarkovMatrixDim)) {
+            std::cmp_greater_equal(currentDegree, kMarkovMatrixDim)) {
             currentDegree = 0;
-            for (int d = 0; d < static_cast<int>(kMarkovMatrixDim); ++d) {
+            for (int d = 0; std::cmp_less(d, kMarkovMatrixDim); ++d) {
                 if (heldNotesByDegree[static_cast<size_t>(d)] >= 0) {
                     currentDegree = d;
                     break;
@@ -732,7 +731,7 @@ private:
             const int targetDegree = nextDegree;
             int bestDistance = static_cast<int>(kMarkovMatrixDim) + 1;
             int bestDegree = -1;
-            for (int d = 0; d < static_cast<int>(kMarkovMatrixDim); ++d) {
+            for (int d = 0; std::cmp_less(d, kMarkovMatrixDim); ++d) {
                 const int held = heldNotesByDegree[static_cast<size_t>(d)];
                 if (held < 0) continue;
                 const int dist = std::abs(d - targetDegree);
@@ -744,11 +743,7 @@ private:
             }
             if (bestDegree >= 0) nextDegree = bestDegree;
         }
-        if (pickIdx < 0) {
-            // No held notes matched any degree — shouldn't happen because
-            // at least one degree must have a held note (size > 0).
-            pickIdx = 0;
-        }
+        pickIdx = std::max(pickIdx, 0);
 
         const auto& picked = pitched[static_cast<size_t>(pickIdx)];
         result.notes[0] = applyOctave(picked.note, octaveOffset_);

@@ -36,8 +36,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // CharacterMode Enumeration
@@ -120,7 +120,7 @@ public:
 
         // Calculate crossfade increment (samples to reach 1.0)
         crossfadeSamples_ = static_cast<size_t>(sampleRate_ * kCrossfadeTimeMs / 1000.0);
-        if (crossfadeSamples_ < 1) crossfadeSamples_ = 1;
+        crossfadeSamples_ = std::max<size_t>(crossfadeSamples_, 1);
         crossfadeIncrement_ = 1.0f / static_cast<float>(crossfadeSamples_);
 
         // Prepare sub-components
@@ -288,7 +288,8 @@ private:
 
             // Crossfade between modes (equal power) using Layer 0 utility
             for (size_t i = 0; i < numSamples; ++i) {
-                float fadeOut, fadeIn;
+                float fadeOut;
+                float fadeIn;
                 equalPowerGains(crossfadePosition_, fadeOut, fadeIn);
 
                 buffer[i] = previousModeBufferL_[i] * fadeOut + buffer[i] * fadeIn;
@@ -457,7 +458,7 @@ private:
     }
 
     /// @brief Process Clean mode (passthrough)
-    void processClean(float* buffer, size_t numSamples) noexcept {
+    static void processClean(const float* buffer, size_t numSamples) noexcept {
         // Unity gain passthrough - no processing
         (void)buffer;
         (void)numSamples;
@@ -626,5 +627,5 @@ private:
     bool isRightChannel_ = false;        ///< Used to select correct noise generator
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

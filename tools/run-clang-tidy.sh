@@ -65,8 +65,8 @@ while [[ $# -gt 0 ]]; do
             echo "                    (auto-detected if not specified)"
             echo "  --target TARGET   Target to analyze: all, dsp, shared, iterum, disrumpo,"
             echo "                    ruinae, innexus, gradus, membrum, seraphis, vorago,"
-            echo "                    profundum"
-            echo "                    ('all' covers dsp + every plugin). Default: all"
+            echo "                    profundum, membrum-fit"
+            echo "                    ('all' covers dsp + every plugin, not membrum-fit). Default: all"
             echo "  --fix             Apply automatic fixes (use with caution)"
             echo "  --quiet           Suppress progress output"
             echo "  --parallel N      Number of parallel processes (default: $PARALLEL)"
@@ -164,6 +164,10 @@ case $TARGET in
     profundum)
         SOURCE_DIRS=("plugins/profundum/src" "plugins/profundum/tests")
         ;;
+    membrum-fit)
+        # Offline fitter tool, not a plugin: not part of `all`. Same file set as run-clang-tidy.ps1's case.
+        SOURCE_DIRS=("tools/membrum-fit/src" "tools/membrum-fit/tests")
+        ;;
     all)
         # MUST cover dsp + shared + EVERY plugin, or Linux/macOS pre-commit lint
         # silently skips code the .ps1 (and CI) would analyze. Keep in sync with
@@ -199,6 +203,18 @@ for dir in "${SOURCE_DIRS[@]}"; do
         done < <(find "$dir" -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) -print0 2>/dev/null)
     fi
 done
+
+# A .cpp the build does not compile on this platform (e.g. the Linux-only libcurl fetch on macOS) has no
+# compile_commands.json entry; clang-tidy would guess its flags and report a missing include as an error.
+COMPILED_FILES=()
+for file in "${SOURCE_FILES[@]}"; do
+    if [[ "$file" == *.cpp ]] && ! grep -qF "\"file\": \"$(cd "$(dirname "$file")" && pwd)/$(basename "$file")\"" "$BUILD_DIR/compile_commands.json"; then
+        [[ $QUIET -eq 0 ]] && info "Skipping (not in compile_commands.json on this platform): $file"
+        continue
+    fi
+    COMPILED_FILES+=("$file")
+done
+SOURCE_FILES=("${COMPILED_FILES[@]}")
 
 if [[ ${#SOURCE_FILES[@]} -eq 0 ]]; then
     warn "No source files found for target: $TARGET"

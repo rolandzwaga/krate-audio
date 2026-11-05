@@ -33,8 +33,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // NoiseType Enumeration
@@ -793,5 +793,5 @@ private:
     Biquad radioLowPass_;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

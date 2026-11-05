@@ -24,8 +24,8 @@
 #include <cstddef>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Sample & Hold modulation source.
 ///
@@ -174,5 +174,5 @@ private:
     const LFO* lfo2Ptr_ = nullptr;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

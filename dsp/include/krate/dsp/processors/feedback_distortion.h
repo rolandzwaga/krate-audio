@@ -30,8 +30,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Layer 2 DSP Processor - Feedback distortion with controlled runaway.
 ///
@@ -209,8 +209,8 @@ public:
     void reset() noexcept {
         delayLine_.reset();
         toneFilter_.reset();
-        for (int i = 0; i < kMaxFilterStages - 1; ++i)
-            extraFilters_[i].reset();
+        for (auto& extraFilter : extraFilters_)
+            extraFilter.reset();
         dcBlocker_.reset();
         limiterEnvelope_.reset();
         feedbackSample_ = 0.0f;
@@ -526,7 +526,7 @@ public:
 
     /// @brief Get processing latency in samples. (SC-007)
     /// @return Always 0 (no lookahead required)
-    [[nodiscard]] constexpr size_t getLatency() const noexcept { return 0; }
+    [[nodiscard]] static constexpr size_t getLatency() noexcept { return 0; }
 
 private:
     // =========================================================================
@@ -605,5 +605,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

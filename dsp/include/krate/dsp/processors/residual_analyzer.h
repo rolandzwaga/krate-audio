@@ -163,7 +163,7 @@ private:
     void resynthesizeHarmonics(
         const HarmonicFrame& frame,
         float* output,
-        size_t numSamples) noexcept
+        size_t numSamples) const noexcept
     {
         std::fill_n(output, numSamples, 0.0f);
 
@@ -185,7 +185,7 @@ private:
         }
     }
 
-    void extractSpectralEnvelope(
+    static void extractSpectralEnvelope(
         const float* magnitudes,
         size_t numBins,
         std::array<float, kResidualBands>& bandEnergies) noexcept
@@ -236,7 +236,7 @@ private:
         }
     }
 
-    [[nodiscard]] float computeTotalEnergy(
+    [[nodiscard]] static float computeTotalEnergy(
         const float* magnitudes,
         size_t numBins) noexcept
     {

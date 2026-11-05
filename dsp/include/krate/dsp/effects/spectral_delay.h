@@ -43,8 +43,8 @@
 #include <initializer_list>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // SpreadDirection - Delay time distribution modes
@@ -755,10 +755,10 @@ private:
     }
 
     /// @brief Calculate tilted feedback gain for a specific bin
-    [[nodiscard]] float calculateTiltedFeedback(std::size_t bin,
+    [[nodiscard]] static float calculateTiltedFeedback(std::size_t bin,
                                                 std::size_t numBins,
                                                 float globalFeedback,
-                                                float tilt) const noexcept {
+                                                float tilt) noexcept {
         if (numBins <= 1) return globalFeedback;
 
         const float normalizedBin = static_cast<float>(bin) /
@@ -1104,5 +1104,5 @@ private:
     DelayedSpectrum delayedR_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

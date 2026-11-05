@@ -44,7 +44,7 @@ void RenderableMembrumVoice::render(const Membrum::PadConfig& cfg, float velocit
 std::vector<float> RenderableMembrumVoice::renderToVector(const Membrum::PadConfig& cfg,
                                                           float velocity,
                                                           float lenSec) {
-    const std::size_t n = static_cast<std::size_t>(std::round(lenSec * sampleRate_));
+    const auto n = static_cast<std::size_t>(std::round(lenSec * sampleRate_));
     std::vector<float> out(n, 0.0f);
     render(cfg, velocity, out);
     return out;

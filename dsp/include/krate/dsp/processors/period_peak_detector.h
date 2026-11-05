@@ -134,7 +134,7 @@ private:
 
     /// HarmonicFold advanceDetector's first half (harmonic_fold.h:403-417), verbatim: the larger
     /// of |x| and the parabolic-interpolated local maxima of |x| upsampled kPeakOversampling x.
-    [[nodiscard]] float truePeak(Estimator& e, float x) noexcept {
+    [[nodiscard]] float truePeak(Estimator& e, float x) const noexcept {
         float d = std::abs(x);
         std::size_t n = 1;
         if (peakFactor_ == 1) {   // T032: the input is the oversampled stream

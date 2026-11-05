@@ -19,9 +19,9 @@
 #include <algorithm>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
-namespace Chebyshev {
+
+
+namespace Krate::DSP::Chebyshev {
 
 // =============================================================================
 // Constants
@@ -180,9 +180,7 @@ constexpr int kMaxHarmonics = 32;
     }
 
     // Clamp to maximum harmonics
-    if (numHarmonics > static_cast<std::size_t>(kMaxHarmonics)) {
-        numHarmonics = static_cast<std::size_t>(kMaxHarmonics);
-    }
+    numHarmonics = std::min(numHarmonics, static_cast<std::size_t>(kMaxHarmonics));
 
     // Clenshaw's algorithm for evaluating sum of Chebyshev polynomials
     // We compute sum(c[k] * T_k(x)) where c[k] = weights[k-1] for k = 1..numHarmonics
@@ -213,6 +211,6 @@ constexpr int kMaxHarmonics = 32;
     return x * b1 - b2;
 }
 
-} // namespace Chebyshev
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP::Chebyshev
+
+

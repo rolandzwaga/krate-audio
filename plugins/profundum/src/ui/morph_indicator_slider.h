@@ -86,6 +86,6 @@ struct MorphIndicatorSliderCreator : VSTGUI::ViewCreatorAdapter {
 
 // Inline variable (C++17) - safe for inclusion from multiple translation units.
 // It only registers in a TU that is actually LINKED (offset_ring_knob.h's rule).
-inline MorphIndicatorSliderCreator gMorphIndicatorSliderCreator;
+inline const MorphIndicatorSliderCreator gMorphIndicatorSliderCreator;
 
 }  // namespace Profundum

@@ -88,6 +88,6 @@ struct OffsetRingKnobCreator : VSTGUI::ViewCreatorAdapter {
 
 // Inline variable (C++17) - safe for inclusion from multiple translation units.
 // It only registers in a TU that is actually LINKED (arc_knob.h's rule).
-inline OffsetRingKnobCreator gOffsetRingKnobCreator;
+inline const OffsetRingKnobCreator gOffsetRingKnobCreator;
 
 }  // namespace Profundum

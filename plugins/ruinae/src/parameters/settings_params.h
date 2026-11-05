@@ -135,7 +135,7 @@ inline bool loadSettingsParams(SettingsParams& params, Steinberg::IBStreamer& st
 
 template<typename SetParamFunc>
 inline void loadSettingsParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     // Pitch Bend Range: inverse of (normalized * 24)
     if (streamer.readFloat(fv)) setParam(kSettingsPitchBendRangeId, static_cast<double>(fv) / 24.0);

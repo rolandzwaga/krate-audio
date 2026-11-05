@@ -30,8 +30,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // GateStep (FR-001)
@@ -115,7 +115,7 @@ public:
         pattern_.fill(1.0f);
         attackSmoother_.snapTo(1.0f);
         releaseSmoother_.snapTo(1.0f);
-        currentGainValue_ = 1.0f;
+
         updateStepDuration();
         attackSmoother_.configure(params_.attackMs, static_cast<float>(sampleRate_));
         releaseSmoother_.configure(params_.releaseMs, static_cast<float>(sampleRate_));
@@ -456,9 +456,7 @@ private:
             samplesPerStep_ = static_cast<size_t>(sampleRate_ / static_cast<double>(clampedRate));
         }
         // Ensure at least 1 sample per step
-        if (samplesPerStep_ < 1) {
-            samplesPerStep_ = 1;
-        }
+        samplesPerStep_ = std::max<size_t>(samplesPerStep_, 1);
     }
 
     // =========================================================================
@@ -480,5 +478,5 @@ private:
     int rotationOffset_{0};                      ///< Step read offset from phaseOffset
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

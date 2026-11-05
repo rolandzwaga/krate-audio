@@ -24,12 +24,12 @@ struct MembraneBody
         // sharedBank_ is owned by BodyBank and prepared separately.
     }
 
-    void reset(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
+    static void reset(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
     {
         sharedBank.reset();
     }
 
-    void configureForNoteOn(Krate::DSP::ModalResonatorBank& sharedBank,
+    static void configureForNoteOn(Krate::DSP::ModalResonatorBank& sharedBank,
                             const VoiceCommonParams& params,
                             float pitchHz) noexcept
     {
@@ -42,7 +42,7 @@ struct MembraneBody
                             result.scatter);
     }
 
-    [[nodiscard]] float processSample(Krate::DSP::ModalResonatorBank& sharedBank,
+    [[nodiscard]] static float processSample(Krate::DSP::ModalResonatorBank& sharedBank,
                                       float excitation) noexcept
     {
         return sharedBank.processSample(excitation);
@@ -51,7 +51,7 @@ struct MembraneBody
     /// Slow-path companion: SIMD per-sample with block-rate smoothing.
     /// DrumVoice's FeedbackExciter loop calls this after a single
     /// `sharedBank.prepareBlockSmoothing()` at block start.
-    [[nodiscard]] float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
+    [[nodiscard]] static float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
                                               float excitation) noexcept
     {
         return sharedBank.processSampleNoSmooth(excitation);
@@ -60,7 +60,7 @@ struct MembraneBody
     // Block-rate fast path (Phase 9 SIMD emergency fallback / plan.md §SIMD).
     // Delegates to ModalResonatorBank::processBlock, which uses the Highway
     // SIMD kernel (processModalBankSampleSIMD) for the per-mode inner loop.
-    void processBlock(Krate::DSP::ModalResonatorBank& sharedBank,
+    static void processBlock(Krate::DSP::ModalResonatorBank& sharedBank,
                       const float* excitation,
                       float* out,
                       int numSamples) noexcept

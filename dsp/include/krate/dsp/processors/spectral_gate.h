@@ -46,8 +46,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Layer 2 DSP Processor - Per-bin spectral noise gate
 ///
@@ -148,13 +148,13 @@ public:
     /// @note NOT real-time safe (allocates memory)
     void prepare(double sampleRate, std::size_t fftSize = kDefaultFFTSize) noexcept {
         // Clamp FFT size to valid range
-        if (fftSize < kMinFFTSize) fftSize = kMinFFTSize;
-        if (fftSize > kMaxFFTSize) fftSize = kMaxFFTSize;
+        fftSize = std::max(fftSize, kMinFFTSize);
+        fftSize = std::min(fftSize, kMaxFFTSize);
 
         // Round to nearest power of 2
         std::size_t pow2 = 1;
         while (pow2 < fftSize) pow2 <<= 1;
-        if (pow2 > kMaxFFTSize) pow2 = kMaxFFTSize;
+        pow2 = std::min(pow2, kMaxFFTSize);
         fftSize = pow2;
 
         sampleRate_ = sampleRate;
@@ -520,11 +520,8 @@ private:
             }
 
             // OPTIMIZATION 1 continued: Linear domain comparison (no log10 per bin)
-            if (envelope >= thresholdLinear) {
-                // Above threshold - unity gain
-                gateGains_[bin] = 1.0f;
-            } else if (isBypass) {
-                // Ratio = 1 means bypass (no expansion)
+            if (envelope >= thresholdLinear || isBypass) {
+                // Above threshold, or ratio = 1 (bypass, no expansion): unity gain
                 gateGains_[bin] = 1.0f;
             } else {
                 // Below threshold - apply expansion in linear domain
@@ -588,9 +585,7 @@ private:
 
             const float envelope = binEnvelopes_[bin];
 
-            if (envelope >= thresholdLinear) {
-                gateGains_[bin] = 1.0f;
-            } else if (isBypass) {
+            if (envelope >= thresholdLinear || isBypass) {
                 gateGains_[bin] = 1.0f;
             } else {
                 const float envClamped = std::max(envelope, minEnvelope);
@@ -696,7 +691,7 @@ private:
 
         // Ensure valid range
         if (highBin_ >= numBins_) highBin_ = numBins_ - 1;
-        if (lowBin_ > highBin_) lowBin_ = highBin_;
+        lowBin_ = std::min(lowBin_, highBin_);
     }
 
     /// @brief Update smearing kernel size
@@ -762,5 +757,5 @@ private:
     std::size_t singleSampleReadPos_ = 0;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -25,8 +25,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Ducking State Enumeration
@@ -341,7 +341,7 @@ public:
 
     /// @brief Get processing latency in samples
     /// @return Latency (always 0 for DuckingProcessor per SC-008)
-    [[nodiscard]] size_t getLatency() const noexcept {
+    [[nodiscard]] static size_t getLatency() noexcept {
         return 0;
     }
 
@@ -370,9 +370,7 @@ private:
                     // Still ducking - update gain reduction
                     targetGainReduction_ = calculateGainReduction(envelopeDb);
                     // Track the deepest gain reduction achieved during ducking
-                    if (targetGainReduction_ < peakGainReduction_) {
-                        peakGainReduction_ = targetGainReduction_;
-                    }
+                    peakGainReduction_ = std::min(peakGainReduction_, targetGainReduction_);
                 } else {
                     // DUCKING -> HOLDING: sidechain dropped below threshold
                     if (holdSamplesTotal_ > 0) {
@@ -473,5 +471,5 @@ private:
     Biquad sidechainFilter_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

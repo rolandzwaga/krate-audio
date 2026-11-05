@@ -23,8 +23,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Accumulate one grain's span into the stereo bus.
 ///
@@ -48,5 +48,5 @@ void accumulateGrainSpanSIMD(const float* ringL, const float* ringR, const std::
                              const float* envFrac, float panL, float panR, std::size_t count,
                              float* busL, float* busR) noexcept;
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

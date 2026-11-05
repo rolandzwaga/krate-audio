@@ -16,10 +16,10 @@ namespace Ruinae {
 
 inline Krate::Plugins::PresetManagerConfig makeRuinaePresetConfig() {
     return Krate::Plugins::PresetManagerConfig{
-        /*.processorUID =*/ kProcessorUID,
-        /*.pluginName =*/ "Ruinae",
-        /*.pluginCategoryDesc =*/ "Synth",
-        /*.subcategoryNames =*/ {
+        .processorUID = kProcessorUID,
+        .pluginName = "Ruinae",
+        .pluginCategoryDesc = "Synth",
+        .subcategoryNames = {
             "Pads", "Leads", "Bass", "Textures", "Rhythmic", "Experimental",
             "Arp User", "Arp Classic", "Arp Acid", "Arp Euclidean", "Arp Polymetric",
             "Arp Generative", "Arp Performance", "Arp Chords"

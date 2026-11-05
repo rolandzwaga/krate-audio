@@ -118,7 +118,7 @@ public:
         case P::kAmpAttackCurveId: return static_cast<double>(d.getAttackCurve());
         case P::kAmpDecayCurveId: return static_cast<double>(d.getDecayCurve());
         case P::kAmpReleaseCurveId: return static_cast<double>(d.getReleaseCurve());
-        default: FAIL("not an amp envelope ID: " << id); return 0.0;
+        default: FAIL("not an amp envelope ID: " << id);
     }
 }
 
@@ -151,7 +151,7 @@ void dragFrom(ADSRDisplay& d, VSTGUI::CPoint start, double dx, double dy) {
         case DragTarget::AttackCurve: return {0.5 * static_cast<double>(l.attackStartX + l.attackEndX), y};
         case DragTarget::DecayCurve: return {0.5 * static_cast<double>(l.attackEndX + l.decayEndX), y};
         case DragTarget::ReleaseCurve: return {0.5 * static_cast<double>(l.sustainEndX + l.releaseEndX), y};
-        default: FAIL("not a curve target"); return {};
+        default: FAIL("not a curve target");
     }
 }
 

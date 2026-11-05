@@ -42,8 +42,8 @@
 #include <limits>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // PhaseSource Enumeration
@@ -124,8 +124,8 @@ public:
     /// @note FR-014
     void prepare(double sampleRate, std::size_t fftSize = kDefaultFFTSize) noexcept {
         // Clamp FFT size to valid range
-        if (fftSize < kMinFFTSize) fftSize = kMinFFTSize;
-        if (fftSize > kMaxFFTSize) fftSize = kMaxFFTSize;
+        fftSize = std::max(fftSize, kMinFFTSize);
+        fftSize = std::min(fftSize, kMaxFFTSize);
 
         sampleRate_ = sampleRate;
         fftSize_ = fftSize;
@@ -400,8 +400,8 @@ public:
     /// @param frames Number of frames (typically 2-8)
     /// @note FR-006: Default 4 frames
     void setSnapshotFrameCount(std::size_t frames) noexcept {
-        if (frames < 1) frames = 1;
-        if (frames > 16) frames = 16;
+        frames = std::max<size_t>(frames, 1);
+        frames = std::min<size_t>(frames, 16);
         snapshotFrameCount_ = frames;
     }
 
@@ -588,7 +588,7 @@ private:
     }
 
     /// @brief Apply magnitude interpolation between two spectra
-    void applyMagnitudeInterpolation(
+    static void applyMagnitudeInterpolation(
         const SpectralBuffer& specA,
         const SpectralBuffer& specB,
         SpectralBuffer& output,
@@ -606,7 +606,7 @@ private:
     }
 
     /// @brief Apply phase selection
-    void applyPhaseSelection(
+    static void applyPhaseSelection(
         const SpectralBuffer& specA,
         const SpectralBuffer& specB,
         SpectralBuffer& output,
@@ -729,7 +729,7 @@ private:
     }
 
     /// @brief Copy spectrum from source to destination
-    void copySpectrum(const SpectralBuffer& src, SpectralBuffer& dst) noexcept {
+    static void copySpectrum(const SpectralBuffer& src, SpectralBuffer& dst) noexcept {
         const std::size_t numBins = src.numBins();
         for (std::size_t bin = 0; bin < numBins; ++bin) {
             const float real = src.getReal(bin);
@@ -794,5 +794,5 @@ private:
     std::vector<float> zeroBuffer_;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

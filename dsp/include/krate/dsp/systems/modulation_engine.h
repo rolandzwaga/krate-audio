@@ -34,8 +34,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Maximum number of modulatable destination parameters.
 inline constexpr size_t kMaxModDestinations = 128;
@@ -878,5 +878,5 @@ private:
     size_t maxBlockSize_ = 512;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

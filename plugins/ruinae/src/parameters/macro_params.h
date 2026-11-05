@@ -81,7 +81,7 @@ inline bool loadMacroParams(MacroParams& params, Steinberg::IBStreamer& streamer
 
 template<typename SetParamFunc>
 inline void loadMacroParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f;
     if (streamer.readFloat(fv)) setParam(kMacro1ValueId, static_cast<double>(fv));
     if (streamer.readFloat(fv)) setParam(kMacro2ValueId, static_cast<double>(fv));

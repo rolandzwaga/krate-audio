@@ -59,10 +59,10 @@ public:
     // Color (single color for outline + title text)
     // =========================================================================
 
-    void setColor(VSTGUI::CColor color) noexcept { color_ = color; setDirty(); }
+    void setColor(const VSTGUI::CColor& color) noexcept { color_ = color; setDirty(); }
     [[nodiscard]] VSTGUI::CColor getColor() const noexcept { return color_; }
 
-    void setTitleColor(VSTGUI::CColor color) noexcept { titleColor_ = color; hasTitleColor_ = true; setDirty(); }
+    void setTitleColor(const VSTGUI::CColor& color) noexcept { titleColor_ = color; hasTitleColor_ = true; setDirty(); }
     [[nodiscard]] VSTGUI::CColor getTitleColor() const noexcept { return hasTitleColor_ ? titleColor_ : color_; }
     [[nodiscard]] bool hasTitleColor() const noexcept { return hasTitleColor_; }
 
@@ -259,7 +259,7 @@ private:
             VSTGUI::CCoord x0 = left + r + t0 * kFadeLength;
             VSTGUI::CCoord x1 = left + r + t1 * kFadeLength;
             if (x0 >= topFadeEnd) break;
-            if (x1 > topFadeEnd) x1 = topFadeEnd;
+            x1 = std::min(x1, topFadeEnd);
 
             context->setFrameColor(segColor);
             context->drawLine(VSTGUI::CPoint(x0, top),
@@ -277,7 +277,7 @@ private:
 
             VSTGUI::CCoord y0 = top + r + t0 * kFadeLength;
             VSTGUI::CCoord y1 = top + r + t1 * kFadeLength;
-            if (y1 > leftFadeEnd) y1 = leftFadeEnd;
+            y1 = std::min(y1, leftFadeEnd);
 
             context->setFrameColor(segColor);
             context->drawLine(VSTGUI::CPoint(left, y0),
@@ -374,7 +374,7 @@ struct FieldsetContainerCreator : VSTGUI::ViewCreatorAdapter {
             container->setTitleColor(titleColor);
 
         // Title string attribute
-        if (auto val = attributes.getAttributeValue("fieldset-title"))
+        if (const auto *val = attributes.getAttributeValue("fieldset-title"))
             container->setTitle(*val);
 
         // Numeric attributes
@@ -456,6 +456,6 @@ struct FieldsetContainerCreator : VSTGUI::ViewCreatorAdapter {
 
 // Inline variable (C++17) - safe for inclusion from multiple translation units.
 // Include this header from each plugin's entry.cpp to register the view type.
-inline FieldsetContainerCreator gFieldsetContainerCreator;
+inline const FieldsetContainerCreator gFieldsetContainerCreator;
 
 } // namespace Krate::Plugins

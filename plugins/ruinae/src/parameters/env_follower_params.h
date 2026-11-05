@@ -164,7 +164,7 @@ inline bool loadEnvFollowerParams(EnvFollowerParams& params,
 
 template<typename SetParamFunc>
 inline void loadEnvFollowerParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f;
 
     // Sensitivity: already in [0,1] range

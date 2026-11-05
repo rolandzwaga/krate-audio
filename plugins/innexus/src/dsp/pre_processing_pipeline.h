@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 namespace Innexus {
 
@@ -80,7 +81,7 @@ public:
         // FR-005: DC estimator coefficient
         // alpha = exp(-2*pi*freq/sampleRate)
         dcAlpha_ = static_cast<float>(
-            std::exp(-2.0 * 3.14159265358979 *
+            std::exp(-2.0 * std::numbers::pi *
                      static_cast<double>(kDcEstimatorFreqHz) / sampleRate));
 
         // FR-006: Butterworth HPF at 30 Hz

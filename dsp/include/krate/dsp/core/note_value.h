@@ -13,11 +13,12 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>  // size_t
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations
@@ -92,7 +93,7 @@ inline constexpr float kModifierMultiplier[] = {
 /// @param note Base note value
 /// @param modifier Timing modifier (dotted, triplet, or none)
 /// @return Duration in beats (e.g., quarter note = 1.0 beat)
-[[nodiscard]] inline constexpr float getBeatsForNote(
+[[nodiscard]] constexpr float getBeatsForNote(
     NoteValue note,
     NoteModifier modifier = NoteModifier::None
 ) noexcept {
@@ -135,56 +136,56 @@ struct NoteValueMapping {
 /// Index 0-20 maps to the expanded tempo sync dropdown (grouped by note value)
 inline constexpr NoteValueMapping kNoteValueDropdownMapping[] = {
     // 1/64 variants
-    {NoteValue::SixtyFourth, NoteModifier::Triplet},  // 0:  1/64T (0.0417 beats)
-    {NoteValue::SixtyFourth, NoteModifier::None},     // 1:  1/64  (0.0625 beats)
-    {NoteValue::SixtyFourth, NoteModifier::Dotted},   // 2:  1/64D (0.09375 beats)
+    {.note = NoteValue::SixtyFourth, .modifier = NoteModifier::Triplet},  // 0:  1/64T (0.0417 beats)
+    {.note = NoteValue::SixtyFourth, .modifier = NoteModifier::None},     // 1:  1/64  (0.0625 beats)
+    {.note = NoteValue::SixtyFourth, .modifier = NoteModifier::Dotted},   // 2:  1/64D (0.09375 beats)
     // 1/32 variants
-    {NoteValue::ThirtySecond, NoteModifier::Triplet}, // 3:  1/32T (0.0833 beats)
-    {NoteValue::ThirtySecond, NoteModifier::None},    // 4:  1/32  (0.125 beats)
-    {NoteValue::ThirtySecond, NoteModifier::Dotted},  // 5:  1/32D (0.1875 beats)
+    {.note = NoteValue::ThirtySecond, .modifier = NoteModifier::Triplet}, // 3:  1/32T (0.0833 beats)
+    {.note = NoteValue::ThirtySecond, .modifier = NoteModifier::None},    // 4:  1/32  (0.125 beats)
+    {.note = NoteValue::ThirtySecond, .modifier = NoteModifier::Dotted},  // 5:  1/32D (0.1875 beats)
     // 1/16 variants
-    {NoteValue::Sixteenth, NoteModifier::Triplet},    // 6:  1/16T (0.167 beats)
-    {NoteValue::Sixteenth, NoteModifier::None},       // 7:  1/16  (0.25 beats)
-    {NoteValue::Sixteenth, NoteModifier::Dotted},     // 8:  1/16D (0.375 beats)
+    {.note = NoteValue::Sixteenth, .modifier = NoteModifier::Triplet},    // 6:  1/16T (0.167 beats)
+    {.note = NoteValue::Sixteenth, .modifier = NoteModifier::None},       // 7:  1/16  (0.25 beats)
+    {.note = NoteValue::Sixteenth, .modifier = NoteModifier::Dotted},     // 8:  1/16D (0.375 beats)
     // 1/8 variants
-    {NoteValue::Eighth, NoteModifier::Triplet},       // 9:  1/8T  (0.333 beats)
-    {NoteValue::Eighth, NoteModifier::None},          // 10: 1/8   (0.5 beats) DEFAULT
-    {NoteValue::Eighth, NoteModifier::Dotted},        // 11: 1/8D  (0.75 beats)
+    {.note = NoteValue::Eighth, .modifier = NoteModifier::Triplet},       // 9:  1/8T  (0.333 beats)
+    {.note = NoteValue::Eighth, .modifier = NoteModifier::None},          // 10: 1/8   (0.5 beats) DEFAULT
+    {.note = NoteValue::Eighth, .modifier = NoteModifier::Dotted},        // 11: 1/8D  (0.75 beats)
     // 1/4 variants
-    {NoteValue::Quarter, NoteModifier::Triplet},      // 12: 1/4T  (0.667 beats)
-    {NoteValue::Quarter, NoteModifier::None},         // 13: 1/4   (1.0 beats)
-    {NoteValue::Quarter, NoteModifier::Dotted},       // 14: 1/4D  (1.5 beats)
+    {.note = NoteValue::Quarter, .modifier = NoteModifier::Triplet},      // 12: 1/4T  (0.667 beats)
+    {.note = NoteValue::Quarter, .modifier = NoteModifier::None},         // 13: 1/4   (1.0 beats)
+    {.note = NoteValue::Quarter, .modifier = NoteModifier::Dotted},       // 14: 1/4D  (1.5 beats)
     // 1/2 variants
-    {NoteValue::Half, NoteModifier::Triplet},         // 15: 1/2T  (1.333 beats)
-    {NoteValue::Half, NoteModifier::None},            // 16: 1/2   (2.0 beats)
-    {NoteValue::Half, NoteModifier::Dotted},          // 17: 1/2D  (3.0 beats)
+    {.note = NoteValue::Half, .modifier = NoteModifier::Triplet},         // 15: 1/2T  (1.333 beats)
+    {.note = NoteValue::Half, .modifier = NoteModifier::None},            // 16: 1/2   (2.0 beats)
+    {.note = NoteValue::Half, .modifier = NoteModifier::Dotted},          // 17: 1/2D  (3.0 beats)
     // 1/1 variants
-    {NoteValue::Whole, NoteModifier::Triplet},        // 18: 1/1T  (2.667 beats)
-    {NoteValue::Whole, NoteModifier::None},           // 19: 1/1   (4.0 beats)
-    {NoteValue::Whole, NoteModifier::Dotted},         // 20: 1/1D  (6.0 beats)
+    {.note = NoteValue::Whole, .modifier = NoteModifier::Triplet},        // 18: 1/1T  (2.667 beats)
+    {.note = NoteValue::Whole, .modifier = NoteModifier::None},           // 19: 1/1   (4.0 beats)
+    {.note = NoteValue::Whole, .modifier = NoteModifier::Dotted},         // 20: 1/1D  (6.0 beats)
     // 2/1 variants
-    {NoteValue::DoubleWhole, NoteModifier::Triplet},  // 21: 2/1T  (5.333 beats)
-    {NoteValue::DoubleWhole, NoteModifier::None},     // 22: 2/1   (8.0 beats)
-    {NoteValue::DoubleWhole, NoteModifier::Dotted},   // 23: 2/1D  (12.0 beats)
+    {.note = NoteValue::DoubleWhole, .modifier = NoteModifier::Triplet},  // 21: 2/1T  (5.333 beats)
+    {.note = NoteValue::DoubleWhole, .modifier = NoteModifier::None},     // 22: 2/1   (8.0 beats)
+    {.note = NoteValue::DoubleWhole, .modifier = NoteModifier::Dotted},   // 23: 2/1D  (12.0 beats)
     // 3/1 variants
-    {NoteValue::TripleWhole, NoteModifier::Triplet},  // 24: 3/1T  (8.0 beats)
-    {NoteValue::TripleWhole, NoteModifier::None},     // 25: 3/1   (12.0 beats)
-    {NoteValue::TripleWhole, NoteModifier::Dotted},   // 26: 3/1D  (18.0 beats)
+    {.note = NoteValue::TripleWhole, .modifier = NoteModifier::Triplet},  // 24: 3/1T  (8.0 beats)
+    {.note = NoteValue::TripleWhole, .modifier = NoteModifier::None},     // 25: 3/1   (12.0 beats)
+    {.note = NoteValue::TripleWhole, .modifier = NoteModifier::Dotted},   // 26: 3/1D  (18.0 beats)
     // 4/1 variants
-    {NoteValue::QuadrupleWhole, NoteModifier::Triplet}, // 27: 4/1T  (10.667 beats)
-    {NoteValue::QuadrupleWhole, NoteModifier::None},    // 28: 4/1   (16.0 beats)
-    {NoteValue::QuadrupleWhole, NoteModifier::Dotted},  // 29: 4/1D  (24.0 beats)
+    {.note = NoteValue::QuadrupleWhole, .modifier = NoteModifier::Triplet}, // 27: 4/1T  (10.667 beats)
+    {.note = NoteValue::QuadrupleWhole, .modifier = NoteModifier::None},    // 28: 4/1   (16.0 beats)
+    {.note = NoteValue::QuadrupleWhole, .modifier = NoteModifier::Dotted},  // 29: 4/1D  (24.0 beats)
 };
 
 /// @brief Convert dropdown index to (NoteValue, NoteModifier) pair
 /// @param dropdownIndex Index from UI dropdown (0-19)
 /// @return NoteValueMapping with note value and modifier
-[[nodiscard]] inline constexpr NoteValueMapping getNoteValueFromDropdown(
+[[nodiscard]] constexpr NoteValueMapping getNoteValueFromDropdown(
     int dropdownIndex
 ) noexcept {
     if (dropdownIndex < 0 || dropdownIndex >= kNoteValueDropdownCount) {
         // Default to 1/8 note if out of range
-        return {NoteValue::Eighth, NoteModifier::None};
+        return {.note = NoteValue::Eighth, .modifier = NoteModifier::None};
     }
     return kNoteValueDropdownMapping[dropdownIndex];
 }
@@ -223,14 +224,13 @@ inline constexpr double kMaxTempoSyncBPM = 300.0;
 /// float delayMs = noteToDelayMs(NoteValue::Quarter, NoteModifier::None, 120.0);
 /// // delayMs == 500.0f
 /// @endcode
-[[nodiscard]] inline constexpr float noteToDelayMs(
+[[nodiscard]] constexpr float noteToDelayMs(
     NoteValue note,
     NoteModifier modifier,
     double tempoBPM
 ) noexcept {
     // Clamp tempo to safe range (avoid division issues and unreasonable values)
-    const double clampedTempo = (tempoBPM < kMinTempoSyncBPM) ? kMinTempoSyncBPM
-                              : (tempoBPM > kMaxTempoSyncBPM ? kMaxTempoSyncBPM : tempoBPM);
+    const double clampedTempo = std::clamp(tempoBPM, kMinTempoSyncBPM, kMaxTempoSyncBPM);
 
     // Get beat duration for note value with modifier
     const float beatsPerNote = getBeatsForNote(note, modifier);
@@ -256,7 +256,7 @@ inline constexpr double kMaxTempoSyncBPM = 300.0;
 /// float delayMs = dropdownToDelayMs(8, 100.0);
 /// // delayMs == 200.0f (eighth triplet = 0.333 beats = 200ms at 100 BPM)
 /// @endcode
-[[nodiscard]] inline constexpr float dropdownToDelayMs(
+[[nodiscard]] constexpr float dropdownToDelayMs(
     int dropdownIndex,
     double tempoBPM
 ) noexcept {
@@ -264,5 +264,5 @@ inline constexpr double kMaxTempoSyncBPM = 300.0;
     return noteToDelayMs(mapping.note, mapping.modifier, tempoBPM);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

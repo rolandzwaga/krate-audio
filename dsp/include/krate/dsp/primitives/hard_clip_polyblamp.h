@@ -22,13 +22,14 @@
 
 #include <krate/dsp/core/sigmoid.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // HardClipPolyBLAMP Class
@@ -241,8 +242,8 @@ private:
 
     void applyCorrection(float d, float slopeChange, size_t prevIdx, size_t currIdx) noexcept {
         // Clamp d to valid range
-        if (d < 0.0f) d = 0.0f;
-        if (d > 1.0f) d = 1.0f;
+        d = std::max(d, 0.0f);
+        d = std::min(d, 1.0f);
 
         // Apply 4-point polyBLAMP correction kernel (from DAFx-16 paper Table 1)
         // The crossing is between prevIdx (sample -1) and currIdx (sample 0)
@@ -267,5 +268,5 @@ private:
     float threshold_{1.0f};  // Default threshold
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

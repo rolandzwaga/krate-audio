@@ -163,15 +163,18 @@ struct PlainLaw {
 
 /// min(maxIndex, int(v * maxIndex + 0.5)) with v clamped to [0, 1] (NaN -> 0).
 [[nodiscard]] constexpr int indexFromNormalized(double v, int maxIndex) noexcept {
-    const double c = v > 0.0 ? (v < 1.0 ? v : 1.0) : 0.0;
+    double c = 0.0;  // NaN and v <= 0 stay 0
+    if (v > 0.0) {
+        c = v < 1.0 ? v : 1.0;
+    }
     const int idx = static_cast<int>(c * static_cast<double>(maxIndex) + 0.5);
     return idx < maxIndex ? idx : maxIndex;
 }
 
 /// The continuous law of an F32 leaf (Linear and EqualPower knobs are linear, FR-002).
 [[nodiscard]] constexpr PlainLaw plainLawOf(const FieldInfo& f) noexcept {
-    return PlainLaw{static_cast<double>(f.lo), static_cast<double>(f.hi), static_cast<double>(f.logOffset),
-                    f.law == MorphState::Law::Logarithmic};
+    return PlainLaw{.lo = static_cast<double>(f.lo), .hi = static_cast<double>(f.hi), .logOffset = static_cast<double>(f.logOffset),
+                    .logarithmic = f.law == MorphState::Law::Logarithmic};
 }
 
 /// F32 rows: normalised -> plain. Stepped rows: the rounded index.

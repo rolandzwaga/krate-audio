@@ -32,8 +32,8 @@
 #include <cstdint>
 #include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Tuning Mode Enumeration (FR-006)
@@ -976,5 +976,5 @@ inline float TimeVaryingCombBank::computeInharmonicDelay(size_t index) const noe
     return 1000.0f / frequency;
 }
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

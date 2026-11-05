@@ -33,8 +33,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // TriggerSource Enumeration (FR-001)
@@ -306,7 +306,8 @@ public:
         }
 
         // Calculate stereo cutoffs with pan offset
-        float leftCutoff, rightCutoff;
+        float leftCutoff;
+        float rightCutoff;
         calculateStereoCutoffs(leftCutoff, rightCutoff);
 
         float finalQ = calculateFinalQ();
@@ -896,5 +897,5 @@ private:
     float maxCutoff_ = kMaxAudioFreqHz;         ///< Cached max cutoff for sample rate
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

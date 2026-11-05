@@ -21,6 +21,7 @@
 #include <krate/dsp/primitives/i_feedback_processor.h>
 #include <krate/dsp/core/random.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 
@@ -140,8 +141,8 @@ public:
     /// @param ms Chunk size (clamped to [10, 2000] ms)
     void setChunkSizeMs(float ms) noexcept {
         // Clamp to valid range
-        if (ms < kMinChunkMs) ms = kMinChunkMs;
-        if (ms > kMaxChunkMs) ms = kMaxChunkMs;
+        ms = std::max(ms, kMinChunkMs);
+        ms = std::min(ms, kMaxChunkMs);
 
         bufferL_.setChunkSizeMs(ms);
         bufferR_.setChunkSizeMs(ms);

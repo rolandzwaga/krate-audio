@@ -38,8 +38,8 @@
 #include <krate/dsp/processors/fuzz_processor.h>
 #include <krate/dsp/processors/envelope_follower.h>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // GateType Enumeration (FR-021b)
@@ -327,7 +327,7 @@ private:
     /// @brief Convert BufferCutoff enum to Hz value
     /// @param cutoff Buffer cutoff selection
     /// @return Frequency in Hz
-    [[nodiscard]] float cutoffToHz(BufferCutoff cutoff) const noexcept;
+    [[nodiscard]] static float cutoffToHz(BufferCutoff cutoff) noexcept;
 
     // =========================================================================
     // Composed Processors
@@ -401,22 +401,7 @@ private:
 // Inline Implementation
 // =============================================================================
 
-inline FuzzPedal::FuzzPedal() noexcept
-    : gateTypeCrossfadeActive_(false)
-    , gateTypeCrossfadePosition_(0.0f)
-    , gateTypeCrossfadeIncrement_(0.0f)
-    , previousGateType_(GateType::SoftKnee)
-    , volumeDb_(kDefaultVolumeDb)
-    , gateThresholdDb_(kDefaultGateThresholdDb)
-    , inputBufferEnabled_(false)
-    , bufferCutoff_(BufferCutoff::Hz10)
-    , gateEnabled_(false)
-    , gateType_(GateType::SoftKnee)
-    , gateTiming_(GateTiming::Normal)
-    , sampleRate_(44100.0)
-    , prepared_(false)
-{
-}
+inline FuzzPedal::FuzzPedal() noexcept = default;
 
 inline void FuzzPedal::prepare(double sampleRate, size_t maxBlockSize) noexcept {
     sampleRate_ = sampleRate;
@@ -665,7 +650,7 @@ inline float FuzzPedal::calculateGateGain(float envelope, GateType type) const n
     }
 }
 
-inline float FuzzPedal::cutoffToHz(BufferCutoff cutoff) const noexcept {
+inline float FuzzPedal::cutoffToHz(BufferCutoff cutoff) noexcept {
     switch (cutoff) {
         case BufferCutoff::Hz5:
             return 5.0f;
@@ -729,7 +714,8 @@ inline void FuzzPedal::process(float* buffer, size_t numSamples) noexcept {
                 const float previousGain = calculateGateGain(envelope, previousGateType_);
 
                 // Equal-power crossfade blend
-                float fadeOut, fadeIn;
+                float fadeOut;
+                float fadeIn;
                 equalPowerGains(gateTypeCrossfadePosition_, fadeOut, fadeIn);
                 gateGain = previousGain * fadeOut + currentGain * fadeIn;
 
@@ -754,5 +740,5 @@ inline void FuzzPedal::process(float* buffer, size_t numSamples) noexcept {
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

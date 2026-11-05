@@ -38,8 +38,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations (FR-001, FR-002)
@@ -103,28 +103,7 @@ public:
     // =========================================================================
 
     /// @brief Default constructor with safe defaults (FR-006).
-    TapeSaturator() noexcept
-        : model_(TapeModel::Simple)
-        , solver_(HysteresisSolver::RK4)
-        , driveDb_(0.0f)
-        , saturation_(0.5f)
-        , bias_(0.0f)
-        , mix_(1.0f)
-        , ja_a_(kDefaultJA_a)
-        , ja_alpha_(kDefaultJA_alpha)
-        , ja_c_(kDefaultJA_c)
-        , ja_k_(kDefaultJA_k)
-        , ja_Ms_(kDefaultJA_Ms)
-        , sampleRate_(0.0)
-        , prepared_(false)
-        , M_(0.0f)
-        , H_prev_(0.0f)
-        , TScale_(1.0f)
-        , crossfadeActive_(false)
-        , crossfadePosition_(0.0f)
-        , crossfadeIncrement_(0.0f)
-        , previousModel_(TapeModel::Simple) {
-    }
+    TapeSaturator() noexcept = default;
 
     /// @brief Destructor.
     ~TapeSaturator() = default;
@@ -373,7 +352,8 @@ public:
                 }
 
                 // Equal-power crossfade
-                float fadeOut, fadeIn;
+                float fadeOut;
+                float fadeIn;
                 equalPowerGains(crossfadePosition_, fadeOut, fadeIn);
                 wetOutput = oldOutput * fadeOut + newOutput * fadeIn;
 
@@ -435,7 +415,7 @@ private:
 
     /// @brief Langevin function L(x) = coth(x) - 1/x
     /// Uses Taylor series for small x to avoid numerical issues
-    [[nodiscard]] float langevin(float x) const noexcept {
+    [[nodiscard]] static float langevin(float x) noexcept {
         const float absX = std::abs(x);
         if (absX < 0.001f) {
             // Taylor series: L(x) ~ x/3 - x^3/45 + 2x^5/945
@@ -447,7 +427,7 @@ private:
     }
 
     /// @brief Derivative of Langevin function L'(x)
-    [[nodiscard]] float langevinDerivative(float x) const noexcept {
+    [[nodiscard]] static float langevinDerivative(float x) noexcept {
         const float absX = std::abs(x);
         if (absX < 0.001f) {
             // Taylor series: L'(x) ~ 1/3 - x^2/15
@@ -590,34 +570,34 @@ private:
     // =========================================================================
 
     // Parameters
-    TapeModel model_;
-    HysteresisSolver solver_;
-    float driveDb_;
-    float saturation_;
-    float bias_;
-    float mix_;
+    TapeModel model_{TapeModel::Simple};
+    HysteresisSolver solver_{HysteresisSolver::RK4};
+    float driveDb_{0.0f};
+    float saturation_{0.5f};
+    float bias_{0.0f};
+    float mix_{1.0f};
 
     // Jiles-Atherton parameters
-    float ja_a_;
-    float ja_alpha_;
-    float ja_c_;
-    float ja_k_;
-    float ja_Ms_;
+    float ja_a_{kDefaultJA_a};
+    float ja_alpha_{kDefaultJA_alpha};
+    float ja_c_{kDefaultJA_c};
+    float ja_k_{kDefaultJA_k};
+    float ja_Ms_{kDefaultJA_Ms};
 
     // Configuration
-    double sampleRate_;
-    bool prepared_;
+    double sampleRate_{0.0};
+    bool prepared_{false};
 
     // Hysteresis state
-    float M_;       ///< Current magnetization
-    float H_prev_;  ///< Previous magnetic field value
-    float TScale_;  ///< Time scaling for sample rate independence
+    float M_{0.0f};       ///< Current magnetization
+    float H_prev_{0.0f};  ///< Previous magnetic field value
+    float TScale_{1.0f};  ///< Time scaling for sample rate independence
 
     // Crossfade state
-    bool crossfadeActive_;
-    float crossfadePosition_;
-    float crossfadeIncrement_;
-    TapeModel previousModel_;
+    bool crossfadeActive_{false};
+    float crossfadePosition_{0.0f};
+    float crossfadeIncrement_{0.0f};
+    TapeModel previousModel_{TapeModel::Simple};
 
     // Components
     Biquad preEmphasis_;
@@ -629,5 +609,5 @@ private:
     OnePoleSmoother mixSmoother_;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

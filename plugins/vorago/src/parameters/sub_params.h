@@ -52,11 +52,11 @@ inline constexpr int kNumSubParams = 5;
 
 /// Ascending ID order == stream order.
 inline constexpr std::array<SubRange, kNumSubParams> kSubRanges{{
-    {kSubLevelOffsetId, -24.0, 24.0},
-    {kSubTrackingId, 0.0, 1.0},
-    {kSubDiv2LevelId, -60.0, 6.0},
-    {kSubDiv4LevelId, -60.0, 6.0},
-    {kSubFifthBelowLevelId, -60.0, 6.0},
+    {.id = kSubLevelOffsetId, .mn = -24.0, .mx = 24.0},
+    {.id = kSubTrackingId, .mn = 0.0, .mx = 1.0},
+    {.id = kSubDiv2LevelId, .mn = -60.0, .mx = 6.0},
+    {.id = kSubDiv4LevelId, .mn = -60.0, .mx = 6.0},
+    {.id = kSubFifthBelowLevelId, .mn = -60.0, .mx = 6.0},
 }};
 
 /// Index into kSubRanges for `id`, or -1 for any other ID.

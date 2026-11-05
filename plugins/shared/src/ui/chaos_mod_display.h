@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 namespace Krate::Plugins {
 
@@ -33,7 +34,7 @@ public:
     static constexpr int kHistoryLength = 256;
     static constexpr int kStepsPerFrame = 48;
 
-    enum class Model { Lorenz = 0, Rossler = 1 };
+    enum class Model : std::uint8_t { Lorenz = 0, Rossler = 1 };
 
     // =========================================================================
     // Construction / Destruction
@@ -142,10 +143,10 @@ private:
         if (trailCount_ < 2) return;
 
         constexpr double kPadding = 8.0;
-        RingBufferView trailXView{trailX_.data(), trailHead_,
-                                   std::min(trailCount_, kTrailLength), kTrailLength};
-        RingBufferView trailYView{trailY_.data(), trailHead_,
-                                   std::min(trailCount_, kTrailLength), kTrailLength};
+        RingBufferView trailXView{.data = trailX_.data(), .head = trailHead_,
+                                   .count = std::min(trailCount_, kTrailLength), .capacity = kTrailLength};
+        RingBufferView trailYView{.data = trailY_.data(), .head = trailHead_,
+                                   .count = std::min(trailCount_, kTrailLength), .capacity = kTrailLength};
         drawXYTrail(context,
             left + kPadding, top + kPadding,
             w - 2.0 * kPadding, h - 2.0 * kPadding,
@@ -168,8 +169,8 @@ private:
 
         constexpr double kPadX = 4.0;
         constexpr double kPadY = 8.0;
-        RingBufferView histView{history_.data(), historyHead_,
-                                 std::min(historyCount_, kHistoryLength), kHistoryLength};
+        RingBufferView histView{.data = history_.data(), .head = historyHead_,
+                                 .count = std::min(historyCount_, kHistoryLength), .capacity = kHistoryLength};
         drawTimeSeriesCurve(context,
             left + kPadX, top + kPadY,
             w - 2.0 * kPadX, h - 2.0 * kPadY,
@@ -295,7 +296,7 @@ private:
     int historyCount_ = 0;
 };
 
-inline ModDisplayCreator<ChaosModDisplay> gChaosModDisplayCreator{
+inline const ModDisplayCreator<ChaosModDisplay> gChaosModDisplayCreator{
     "ChaosModDisplay", "Chaos Mod Display", "chaos-color", {0, 0, 510, 230}};
 
 } // namespace Krate::Plugins

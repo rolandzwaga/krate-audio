@@ -86,12 +86,12 @@ static_assert(Krate::DSP::kNoteValueDropdownMapping[kDefaultMorphModSyncRateInde
 // Laws (C-12). The time and rate laws are the 913 / 904 laws, so 1005 / 1009 map exactly as those do.
 // ------------------------------------------------------------------------------
 
-inline constexpr PlainLaw kMorphModAmountLaw{-1.0, 1.0, 0.0, false};
-inline constexpr PlainLaw kMorphModTimeLaw{static_cast<double>(Krate::DSP::kMinEnvelopeTimeMs),
-                                           static_cast<double>(Krate::DSP::kMaxEnvelopeTimeMs), 0.0, true};
-inline constexpr PlainLaw kMorphModSustainLaw{0.0, 1.0, 0.0, false};
-inline constexpr PlainLaw kMorphModRateLaw{static_cast<double>(Krate::DSP::kMinFrequency),
-                                           static_cast<double>(Krate::DSP::kMaxFrequency), 0.0, true};
+inline constexpr PlainLaw kMorphModAmountLaw{.lo = -1.0, .hi = 1.0, .logOffset = 0.0, .logarithmic = false};
+inline constexpr PlainLaw kMorphModTimeLaw{.lo = static_cast<double>(Krate::DSP::kMinEnvelopeTimeMs),
+                                           .hi = static_cast<double>(Krate::DSP::kMaxEnvelopeTimeMs), .logOffset = 0.0, .logarithmic = true};
+inline constexpr PlainLaw kMorphModSustainLaw{.lo = 0.0, .hi = 1.0, .logOffset = 0.0, .logarithmic = false};
+inline constexpr PlainLaw kMorphModRateLaw{.lo = static_cast<double>(Krate::DSP::kMinFrequency),
+                                           .hi = static_cast<double>(Krate::DSP::kMaxFrequency), .logOffset = 0.0, .logarithmic = true};
 
 namespace morph_mod_detail {
 

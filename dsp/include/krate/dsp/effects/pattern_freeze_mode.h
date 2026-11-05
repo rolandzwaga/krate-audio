@@ -620,7 +620,7 @@ private:
             for (int64_t k = lastIdx + 1; static_cast<double>(k) * interval < end && count < cap; ++k) {
                 const double off =
                     std::clamp(std::round((static_cast<double>(k) * interval - pos0) / beatsPerSample), 0.0, last);
-                out[count++] = ClockEvent{static_cast<size_t>(off), k};
+                out[count++] = ClockEvent{.offset = static_cast<size_t>(off), .index = k};
                 lastIdx = k;
             }
             return count;
@@ -855,7 +855,7 @@ private:
         if (appliedType_ != PatternType::Euclidean || numHitEvents_ >= eventCapacity_) {
             return;
         }
-        hitEvents_[numHitEvents_++] = ClockEvent{offset, scheduler_.getLastFiredIndex()};
+        hitEvents_[numHitEvents_++] = ClockEvent{.offset = offset, .index = scheduler_.getLastFiredIndex()};
     }
 
     void applyPatternChange() noexcept {
@@ -1112,7 +1112,7 @@ private:
             const int64_t st = std::clamp(start, s.lo, s.hi - n);
             for (int64_t j = 0; j < n; ++j) {
                 srcRead(s, st + j, dstL[j], dstR[j]);
-                peak = std::max(peak, std::max(std::abs(dstL[j]), std::abs(dstR[j])));
+                peak = std::max({peak, std::abs(dstL[j]), std::abs(dstR[j])});
             }
             return st;
         }
@@ -1158,7 +1158,7 @@ private:
             dstR[j] = 0.0f;
         }
         for (int64_t j = 0; j < n; ++j) {
-            peak = std::max(peak, std::max(std::abs(dstL[j]), std::abs(dstR[j])));
+            peak = std::max({peak, std::abs(dstL[j]), std::abs(dstR[j])});
         }
         return s.lo;
     }
@@ -1278,7 +1278,7 @@ private:
         return 1.0f;
     }
 
-    void voiceRead(const VoiceCore& c, const float* L, const float* R, float& l, float& r) const noexcept {
+    static void voiceRead(const VoiceCore& c, const float* L, const float* R, float& l, float& r) noexcept {
         const auto p = static_cast<size_t>(c.pos);
         if (c.looping && c.pos >= c.loopEnd) {
             const int64_t j = c.pos - c.loopEnd;
@@ -2061,7 +2061,7 @@ private:
     std::array<float, kChunk> droneFifoR_{};
     std::array<std::array<float, kChunk>, kUpperVoices> voiceL_{};
     std::array<std::array<float, kChunk>, kUpperVoices> voiceR_{};
-    std::array<PitchShiftProcessor, 2 * kUpperVoices> shifters_{};
+    std::array<PitchShiftProcessor, 2 * static_cast<std::size_t>(kUpperVoices)> shifters_{};
     std::array<bool, kUpperVoices> voiceOn_{};
     std::array<int, kUpperVoices> joinDelay_{};
     std::array<OnePoleSmoother, kUpperVoices> droneVoiceGain_{};

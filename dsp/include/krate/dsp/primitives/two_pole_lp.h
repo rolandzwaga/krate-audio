@@ -19,8 +19,8 @@
 
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Two-pole (12dB/octave) Butterworth lowpass filter.
 ///
@@ -123,5 +123,5 @@ private:
     bool prepared_ = false;       ///< True after prepare() called
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

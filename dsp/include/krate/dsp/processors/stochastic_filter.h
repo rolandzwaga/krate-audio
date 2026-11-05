@@ -27,8 +27,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // RandomMode Enumeration (FR-001)
@@ -826,5 +826,5 @@ private:
     }
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

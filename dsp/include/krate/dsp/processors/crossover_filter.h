@@ -30,8 +30,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // TrackingMode Enumeration
@@ -121,11 +121,11 @@ public:
 
     // Move operations
     CrossoverLR4(CrossoverLR4&& other) noexcept
-        : lpStage1_(std::move(other.lpStage1_))
-        , lpStage2_(std::move(other.lpStage2_))
-        , hpStage1_(std::move(other.hpStage1_))
-        , hpStage2_(std::move(other.hpStage2_))
-        , frequencySmoother_(std::move(other.frequencySmoother_))
+        : lpStage1_(other.lpStage1_)
+        , lpStage2_(other.lpStage2_)
+        , hpStage1_(other.hpStage1_)
+        , hpStage2_(other.hpStage2_)
+        , frequencySmoother_(other.frequencySmoother_)
         , sampleRate_(other.sampleRate_)
         , lastCoefficientFreq_(other.lastCoefficientFreq_)
         , prepared_(other.prepared_)
@@ -136,11 +136,11 @@ public:
 
     CrossoverLR4& operator=(CrossoverLR4&& other) noexcept {
         if (this != &other) {
-            lpStage1_ = std::move(other.lpStage1_);
-            lpStage2_ = std::move(other.lpStage2_);
-            hpStage1_ = std::move(other.hpStage1_);
-            hpStage2_ = std::move(other.hpStage2_);
-            frequencySmoother_ = std::move(other.frequencySmoother_);
+            lpStage1_ = other.lpStage1_;
+            lpStage2_ = other.lpStage2_;
+            hpStage1_ = other.hpStage1_;
+            hpStage2_ = other.hpStage2_;
+            frequencySmoother_ = other.frequencySmoother_;
             sampleRate_ = other.sampleRate_;
             lastCoefficientFreq_ = other.lastCoefficientFreq_;
             crossoverFrequency_.store(other.crossoverFrequency_.load(std::memory_order_relaxed),
@@ -288,7 +288,7 @@ public:
     /// @note Real-time safe (noexcept, no allocation)
     [[nodiscard]] CrossoverLR4Outputs process(float input) noexcept {
         if (!prepared_) {
-            return CrossoverLR4Outputs{0.0f, 0.0f};
+            return CrossoverLR4Outputs{.low = 0.0f, .high = 0.0f};
         }
 
         // Update frequency from smoother
@@ -319,7 +319,7 @@ public:
         float high = hpStage1_.process(input);
         high = hpStage2_.process(high);
 
-        return CrossoverLR4Outputs{low, high};
+        return CrossoverLR4Outputs{.low = low, .high = high};
     }
 
     /// @brief Process block of samples through crossover.
@@ -547,7 +547,7 @@ public:
     /// @return Crossover3WayOutputs with low, mid, high band samples
     [[nodiscard]] Crossover3WayOutputs process(float input) noexcept {
         if (!prepared_) {
-            return Crossover3WayOutputs{0.0f, 0.0f, 0.0f};
+            return Crossover3WayOutputs{.low = 0.0f, .mid = 0.0f, .high = 0.0f};
         }
 
         // First split: input -> low + highFrom1
@@ -563,7 +563,7 @@ public:
             lowOut = lowBandAllpass_.process(lowOut);
         }
 
-        return Crossover3WayOutputs{lowOut, split2.low, split2.high};
+        return Crossover3WayOutputs{.low = lowOut, .mid = split2.low, .high = split2.high};
     }
 
     /// @brief Process block of samples through 3-way crossover.
@@ -786,7 +786,7 @@ public:
 
     [[nodiscard]] Crossover4WayOutputs process(float input) noexcept {
         if (!prepared_) {
-            return Crossover4WayOutputs{0.0f, 0.0f, 0.0f, 0.0f};
+            return Crossover4WayOutputs{.sub = 0.0f, .low = 0.0f, .mid = 0.0f, .high = 0.0f};
         }
 
         // First split: input -> sub + highFrom1
@@ -811,7 +811,7 @@ public:
             lowOut = lowBandAllpassMidHigh_.process(lowOut);
         }
 
-        return Crossover4WayOutputs{subOut, lowOut, split3.low, split3.high};
+        return Crossover4WayOutputs{.sub = subOut, .low = lowOut, .mid = split3.low, .high = split3.high};
     }
 
     void processBlock(const float* input, float* sub, float* low,
@@ -861,5 +861,5 @@ private:
     std::atomic<bool> allpassCompensationEnabled_{false};
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

@@ -167,7 +167,9 @@ RefineResult refineBOBYQA(const RefineContext& ctx, RenderableMembrumVoice& voic
     nlopt_opt opt = nlopt_create(NLOPT_LN_BOBYQA, dim);
     if (!opt) return r;
 
-    std::vector<double> lb(dim, 0.0), ub(dim, 1.0), x(dim, 0.0);
+    std::vector<double> lb(dim, 0.0);
+    std::vector<double> ub(dim, 1.0);
+    std::vector<double> x(dim, 0.0);
     auto x0 = padConfigToVector(ctx.initial, ctx.optimisable);
     for (unsigned i = 0; i < dim; ++i) x[i] = static_cast<double>(x0[i]);
     nlopt_set_lower_bounds(opt, lb.data());

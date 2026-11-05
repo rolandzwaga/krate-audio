@@ -32,8 +32,8 @@
 #include <numbers>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 class WaveguideString : public IResonator {
 public:
@@ -205,8 +205,8 @@ public:
         // Dispersion allpass cascade (FR-009)
         float x = dcOut;
         if (frozenStiffness_ > 1e-6f) {
-            for (int i = 0; i < kMaxDispersionSections; ++i)
-                x = dispersionFilters_[i].process(x);
+            for (auto& dispersionFilter : dispersionFilters_)
+                x = dispersionFilter.process(x);
         }
 
         // Loss filter: H(z) = rho * [(1-S) + S * z^-1] (FR-005, R-003)
@@ -248,8 +248,8 @@ public:
         nutSideDelay_.reset();
         bridgeSideDelay_.reset();
         dcBlocker_.reset();
-        for (int i = 0; i < kMaxDispersionSections; ++i)
-            dispersionFilters_[i].reset();
+        for (auto& dispersionFilter : dispersionFilters_)
+            dispersionFilter.reset();
         lossState_ = 0.0f;
         controlEnergy_ = 0.0f;
         perceptualEnergy_ = 0.0f;
@@ -623,8 +623,8 @@ private:
     /// Returns signed phase delay (negative = phase lead at audio frequencies)
     /// IMPORTANT: Uses the same R clamping as DCBlocker::prepare() to match
     /// the actual filter behavior in the process loop.
-    [[nodiscard]] float computeDcBlockerPhaseDelay(
-        float f0, float sr) const noexcept
+    [[nodiscard]] static float computeDcBlockerPhaseDelay(
+        float f0, float sr) noexcept
     {
         float R = std::exp(-2.0f * std::numbers::pi_v<float> * kDcBlockerCutoffHz / sr);
         // DCBlocker::prepare() clamps R to [0.9, 0.9999] -- match that here
@@ -646,8 +646,8 @@ private:
     /// Compute DC blocker group delay at f0
     /// H(z) = (1-z^{-1})/(1-R*z^{-1})
     /// GD = 0.5 + R*(R-cos(w))/(1+R^2-2*R*cos(w))
-    [[nodiscard]] float computeDcBlockerGroupDelay(
-        float f0, float sr) const noexcept
+    [[nodiscard]] static float computeDcBlockerGroupDelay(
+        float f0, float sr) noexcept
     {
         float R = std::exp(-2.0f * std::numbers::pi_v<float> * kDcBlockerCutoffHz / sr);
         float w0 = 2.0f * std::numbers::pi_v<float> * f0 / sr;
@@ -721,8 +721,8 @@ private:
         float cosW = std::cos(w);
         float total = 0.0f;
 
-        for (int i = 0; i < kMaxDispersionSections; ++i) {
-            const auto& c = dispersionFilters_[i].coefficients();
+        for (const auto& dispersionFilter : dispersionFilters_) {
+            const auto& c = dispersionFilter.coefficients();
             // Identity check: first-order allpass has b1=1.0
             if (c.b1 < 0.5f) continue;
 
@@ -754,8 +754,8 @@ private:
     void configureDispersionFilters(float B, float f0, float sr) noexcept
     {
         if (B < 1e-7f) {
-            for (int i = 0; i < kMaxDispersionSections; ++i)
-                dispersionFilters_[i].reset();
+            for (auto& dispersionFilter : dispersionFilters_)
+                dispersionFilter.reset();
             return;
         }
 
@@ -782,8 +782,8 @@ private:
             / static_cast<float>(kMaxDispersionSections);
 
         if (targetDiff < 0.001f) {
-            for (int i = 0; i < kMaxDispersionSections; ++i)
-                dispersionFilters_[i].reset();
+            for (auto& dispersionFilter : dispersionFilters_)
+                dispersionFilter.reset();
             return;
         }
 
@@ -814,14 +814,14 @@ private:
         }
         float aBest = (lo + hi) * 0.5f;
 
-        for (int i = 0; i < kMaxDispersionSections; ++i) {
+        for (auto& dispersionFilter : dispersionFilters_) {
             BiquadCoefficients coeffs;
             coeffs.b0 = aBest;
             coeffs.b1 = 1.0f;
             coeffs.b2 = 0.0f;
             coeffs.a1 = aBest;
             coeffs.a2 = 0.0f;
-            dispersionFilters_[i].setCoefficients(coeffs);
+            dispersionFilter.setCoefficients(coeffs);
         }
     }
 
@@ -888,5 +888,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

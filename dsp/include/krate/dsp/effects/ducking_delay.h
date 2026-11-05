@@ -37,8 +37,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // DuckTarget Enumeration (FR-010)
@@ -736,5 +736,5 @@ inline void DuckingDelay::process(float* left, float* right, std::size_t numSamp
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

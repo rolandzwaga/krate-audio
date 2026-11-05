@@ -83,7 +83,7 @@ public:
     void setCell(int sourceRow, int destCol, float amount, bool active) {
         if (sourceRow >= 0 && sourceRow < kMaxSources &&
             destCol >= 0 && destCol < kMaxDestinations) {
-            cellData_[static_cast<size_t>(sourceRow)][static_cast<size_t>(destCol)] = {amount, active};
+            cellData_[static_cast<size_t>(sourceRow)][static_cast<size_t>(destCol)] = {.amount = amount, .active = active};
             setDirty();
         }
     }
@@ -188,7 +188,7 @@ public:
     VSTGUI::CMouseEventResult onMouseDown(
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return VSTGUI::kMouseEventNotHandled;
 
         auto [s, d] = hitTestCell(where);
@@ -247,15 +247,15 @@ private:
         VSTGUI::CCoord localY = where.y - vs.top - kHeaderHeight;
 
         if (localX < 0 || localY < 0 || cellW <= 0 || cellH <= 0)
-            return {-1, -1};
+            return {.source = -1, .dest = -1};
 
         int d = static_cast<int>(localX / cellW);
         int s = static_cast<int>(localY / cellH);
 
         if (s >= 0 && s < numSources && d >= 0 && d < numDests)
-            return {s, d};
+            return {.source = s, .dest = d};
 
-        return {-1, -1};
+        return {.source = -1, .dest = -1};
     }
 
     // =========================================================================
@@ -318,6 +318,6 @@ struct ModHeatmapCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline ModHeatmapCreator gModHeatmapCreator;
+inline const ModHeatmapCreator gModHeatmapCreator;
 
 } // namespace Krate::Plugins

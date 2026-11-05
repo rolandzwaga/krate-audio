@@ -87,6 +87,8 @@ inline void handleModMatrixParamChange(
                     std::clamp(static_cast<float>(value * 2.0 - 1.0), -1.0f, 1.0f),
                     std::memory_order_relaxed);
                 break;
+            default:
+                break;
         }
         return;
     }
@@ -119,6 +121,8 @@ inline void handleModMatrixParamChange(
                 slot.bypass.store(
                     value >= 0.5 ? 1 : 0,
                     std::memory_order_relaxed);
+                break;
+            default:
                 break;
         }
     }
@@ -172,12 +176,16 @@ inline void registerModMatrixParams(Steinberg::Vst::ParameterContainer& paramete
 
     for (int i = 0; i < 8; ++i) {
         // --- Base parameters (Source, Dest, Amount) ---
-        char srcName[64], dstName[64], amtName[64];
+        char srcName[64];
+        char dstName[64];
+        char amtName[64];
         snprintf(srcName, sizeof(srcName), "Mod %d Source", i + 1);
         snprintf(dstName, sizeof(dstName), "Mod %d Dest", i + 1);
         snprintf(amtName, sizeof(amtName), "Mod %d Amount", i + 1);
 
-        Steinberg::Vst::String128 srcNameW, dstNameW, amtNameW;
+        Steinberg::Vst::String128 srcNameW;
+        Steinberg::Vst::String128 dstNameW;
+        Steinberg::Vst::String128 amtNameW;
         Steinberg::UString(srcNameW, 128).fromAscii(srcName);
         Steinberg::UString(dstNameW, 128).fromAscii(dstName);
         Steinberg::UString(amtNameW, 128).fromAscii(amtName);
@@ -201,13 +209,19 @@ inline void registerModMatrixParams(Steinberg::Vst::ParameterContainer& paramete
             ParameterInfo::kCanAutomate, slotAmountIds[i]);
 
         // --- Detail parameters (Curve, Smooth, Scale, Bypass) ---
-        char curveName[64], smoothName[64], scaleName[64], bypassName[64];
+        char curveName[64];
+        char smoothName[64];
+        char scaleName[64];
+        char bypassName[64];
         snprintf(curveName, sizeof(curveName), "Mod %d Curve", i + 1);
         snprintf(smoothName, sizeof(smoothName), "Mod %d Smooth", i + 1);
         snprintf(scaleName, sizeof(scaleName), "Mod %d Scale", i + 1);
         snprintf(bypassName, sizeof(bypassName), "Mod %d Bypass", i + 1);
 
-        Steinberg::Vst::String128 curveNameW, smoothNameW, scaleNameW, bypassNameW;
+        Steinberg::Vst::String128 curveNameW;
+        Steinberg::Vst::String128 smoothNameW;
+        Steinberg::Vst::String128 scaleNameW;
+        Steinberg::Vst::String128 bypassNameW;
         Steinberg::UString(curveNameW, 128).fromAscii(curveName);
         Steinberg::UString(smoothNameW, 128).fromAscii(smoothName);
         Steinberg::UString(scaleNameW, 128).fromAscii(scaleName);
@@ -217,7 +231,7 @@ inline void registerModMatrixParams(Steinberg::Vst::ParameterContainer& paramete
         auto* curveParam = new StringListParameter(
             curveNameW, slotCurveIds[i], nullptr,
             ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
-        for (int c = 0; c < kModCurveCount; ++c) curveParam->appendString(kModCurveStrings[c]);
+        for (const auto* name : kModCurveStrings) curveParam->appendString(name);
         parameters.addParameter(curveParam);
 
         // Smooth - RangeParameter 0-100ms (T014)
@@ -228,7 +242,7 @@ inline void registerModMatrixParams(Steinberg::Vst::ParameterContainer& paramete
         auto* scaleParam = new StringListParameter(
             scaleNameW, slotScaleIds[i], nullptr,
             ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
-        for (int s = 0; s < kModScaleCount; ++s) scaleParam->appendString(kModScaleStrings[s]);
+        for (const auto* name : kModScaleStrings) scaleParam->appendString(name);
         // Start at, and register as the default, x1 (index 2)
         Krate::Plugins::applyDefaultIndex(scaleParam, 2);
         parameters.addParameter(scaleParam);
@@ -326,7 +340,7 @@ inline bool loadModMatrixParams(ModMatrixParams& params, Steinberg::IBStreamer& 
 
 template<typename SetParamFunc>
 inline void loadModMatrixParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     const Steinberg::Vst::ParamID srcIds[] = {
         kModMatrixSlot0SourceId, kModMatrixSlot1SourceId, kModMatrixSlot2SourceId,

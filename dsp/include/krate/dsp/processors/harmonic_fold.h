@@ -407,7 +407,7 @@ private:
     ///   and back up. After a real level drop env settles at most h above the new peak (G low
     ///   by <= 0.043 dB); rising levels are still caught instantly.
     /// d >= |x|, so the instant-attack guarantee G·|x| <= P is unchanged despite detOs's delay.
-    void advanceDetector(Channel& ch, float x) noexcept {
+    void advanceDetector(Channel& ch, float x) const noexcept {
         float d = std::abs(x);
         ch.detOs.upsample(x, ch.detBuf.data());
         for (std::size_t i = 0; i < ch.detOs.factor(); ++i) {

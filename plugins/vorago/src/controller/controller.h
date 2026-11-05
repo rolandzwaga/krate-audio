@@ -46,7 +46,7 @@ class UpdateBannerView;
 }  // namespace Krate::Plugins
 
 namespace VSTGUI {
-class CTextLabel;
+class CTextLabel;  // NOLINT(cppcoreguidelines-virtual-class-destructor): VSTGUI's class, protected virtual dtor by design
 }  // namespace VSTGUI
 
 namespace Vorago::UI {

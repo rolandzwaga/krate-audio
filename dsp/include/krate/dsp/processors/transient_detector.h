@@ -22,8 +22,8 @@
 #include <numbers>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Transient detector modulation source.
 ///
@@ -212,5 +212,5 @@ private:
     double sampleRate_ = 44100.0;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

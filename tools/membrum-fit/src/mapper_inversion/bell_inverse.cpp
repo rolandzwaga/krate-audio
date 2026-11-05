@@ -36,7 +36,8 @@ Membrum::PadConfig invertBell(const ModalDecomposition& modes,
         cfg.decay = 0.3f;
     }
     // Bell brightness: 0.7 + 0.3 * material -> material = (b - 0.7) / 0.3.
-    float lowEng = 0.0f, highEng = 0.0f;
+    float lowEng = 0.0f;
+    float highEng = 0.0f;
     for (const auto& m : modes.modes) {
         const float val = m.amplitude * m.amplitude;
         if (m.freqHz < nominalHz * 3.0f) lowEng += val; else highEng += val;

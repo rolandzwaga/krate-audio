@@ -116,7 +116,7 @@ private:
     /// Reads partials into a temporary buffer, applies nearest-neighbor blend
     /// using coupling weight, and normalizes by sum-of-squares to preserve energy.
     /// Only amplitudes are modified; frequencies, phases, and other fields are unchanged.
-    void applyCoupling(Krate::DSP::HarmonicFrame& frame) noexcept
+    void applyCoupling(Krate::DSP::HarmonicFrame& frame) const noexcept
     {
         // FR-007: bit-exact bypass when coupling is zero
         if (coupling_ == 0.0f)
@@ -152,7 +152,7 @@ private:
         for (int i = 0; i < n; ++i)
         {
             const float left = (i > 0) ? temp[static_cast<size_t>(i - 1)] : 0.0f;
-            const float right = (i < n - 1) ? temp[static_cast<size_t>(i + 1)] : 0.0f;
+            const float right = (i < n - 1) ? temp[static_cast<size_t>(i) + 1] : 0.0f;
             frame.partials[static_cast<size_t>(i)].amplitude =
                 self * temp[static_cast<size_t>(i)] + neighbor * (left + right);
         }
@@ -180,7 +180,7 @@ private:
     /// at 48kHz/512-sample hop), not on audio samples. Aliasing from tanh is
     /// not applicable at the analysis frame rate, so oversampling is not
     /// required (Constitution Principle X).
-    void applyWarmth(Krate::DSP::HarmonicFrame& frame) noexcept
+    void applyWarmth(Krate::DSP::HarmonicFrame& frame) const noexcept
     {
         // FR-002: bit-exact bypass when warmth is zero
         if (warmth_ == 0.0f)

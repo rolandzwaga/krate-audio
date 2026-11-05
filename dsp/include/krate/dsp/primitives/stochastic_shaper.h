@@ -38,8 +38,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Noise Color for Stochastic Modulation
@@ -49,7 +49,7 @@ namespace DSP {
 ///
 /// Controls the spectral character of the random values feeding the jitter
 /// and drive modulation smoothers.
-enum class StochasticNoiseColor : int {
+enum class StochasticNoiseColor : std::uint8_t {
     White = 0,   ///< Flat spectrum — uniform variation (default)
     Pink = 1,    ///< -3dB/oct — organic 1/f analog drift
     Brown = 2,   ///< -6dB/oct — slow brownian wander
@@ -173,7 +173,7 @@ public:
     static constexpr float kMaxOutputSmoothMs = 20.0f;    ///< Maximum output smooth time ms
 
     /// Correlation mode: controls coupling between jitter and drive modulation
-    enum class CorrelationMode : int {
+    enum class CorrelationMode : std::uint8_t {
         None = 0,    ///< Independent random streams (default)
         Sample = 1,  ///< Both use same random value per sample
         Param = 2,   ///< Drive mod depth scales with current jitter offset
@@ -647,7 +647,7 @@ private:
     // =========================================================================
 
     /// @brief Sanitize input for NaN/Inf (FR-029, FR-030)
-    [[nodiscard]] float sanitizeInput(float x) const noexcept {
+    [[nodiscard]] static float sanitizeInput(float x) noexcept {
         // FR-029: NaN input treated as 0.0
         if (detail::isNaN(x)) {
             return 0.0f;
@@ -663,7 +663,7 @@ private:
     ///
     /// Converts jitter rate (Hz) to OnePoleSmoother time constant.
     /// Formula: smoothTimeMs = 800 / jitterRate, clamped to [0.1, 1000]
-    [[nodiscard]] float calculateSmoothingTime(float rateHz) const noexcept {
+    [[nodiscard]] static float calculateSmoothingTime(float rateHz) noexcept {
         // From research.md R1: smoothTimeMs = 800 / jitterRate
         // Clamped to smoother valid range
         return std::clamp(800.0f / rateHz, kMinSmoothingTimeMs, kMaxSmoothingTimeMs);
@@ -737,5 +737,5 @@ private:
     float currentDriveMod_ = kDefaultDrive;   ///< Last computed effective drive
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

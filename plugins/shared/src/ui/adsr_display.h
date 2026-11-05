@@ -94,7 +94,7 @@ public:
     // Types
     // =========================================================================
 
-    enum class DragTarget {
+    enum class DragTarget : std::uint8_t {
         None,
         PeakPoint,       // Horizontal only (attack time)
         SustainPoint,    // Both axes (decay time + sustain level)
@@ -440,7 +440,7 @@ public:
                 break;
         }
 
-        return VSTGUI::CPoint(dotX, dotY);
+        return {dotX, dotY};
     }
 
     // =========================================================================
@@ -495,15 +495,15 @@ public:
     [[nodiscard]] VSTGUI::CPoint getControlPointPosition(DragTarget target) const {
         switch (target) {
             case DragTarget::PeakPoint:
-                return VSTGUI::CPoint(layout_.attackEndX,
-                                       levelToPixelY(peakLevel_));
+                return {layout_.attackEndX,
+                                       levelToPixelY(peakLevel_)};
             case DragTarget::SustainPoint:
-                return VSTGUI::CPoint(layout_.decayEndX,
-                                       levelToPixelY(sustainLevel_));
+                return {layout_.decayEndX,
+                                       levelToPixelY(sustainLevel_)};
             case DragTarget::EndPoint:
-                return VSTGUI::CPoint(layout_.releaseEndX, layout_.bottomY);
+                return {layout_.releaseEndX, layout_.bottomY};
             default:
-                return VSTGUI::CPoint(0, 0);
+                return {0, 0};
         }
     }
 
@@ -896,8 +896,10 @@ private:
         float normX = (handle == 0) ? bh.cp1x : bh.cp2x;
         float normY = (handle == 0) ? bh.cp1y : bh.cp2y;
 
-        float segStartX = 0.0f, segEndX = 0.0f;
-        float segStartY = 0.0f, segEndY = 0.0f;
+        float segStartX = 0.0f;
+        float segEndX = 0.0f;
+        float segStartY = 0.0f;
+        float segEndY = 0.0f;
 
         switch (seg) {
             case 0: // Attack: bottom to top
@@ -919,12 +921,12 @@ private:
                 segEndY = layout_.bottomY;
                 break;
             default:
-                return VSTGUI::CPoint(0, 0);
+                return {0, 0};
         }
 
         float pixelX = segStartX + normX * (segEndX - segStartX);
         float pixelY = segStartY + normY * (segEndY - segStartY);
-        return VSTGUI::CPoint(pixelX, pixelY);
+        return {pixelX, pixelY};
     }
 
     // =========================================================================
@@ -1077,8 +1079,10 @@ private:
         auto& bh = bezierHandles_[static_cast<size_t>(seg)];
 
         // Get segment bounds for pixel-to-normalized conversion
-        float segStartX = 0.0f, segEndX = 0.0f;
-        float segStartY = 0.0f, segEndY = 0.0f;
+        float segStartX = 0.0f;
+        float segEndX = 0.0f;
+        float segStartY = 0.0f;
+        float segEndY = 0.0f;
         getSegmentBounds(seg, segStartX, segEndX, segStartY, segEndY);
 
         float segWidth = segEndX - segStartX;
@@ -1669,8 +1673,6 @@ private:
     static void formatTimeLabel(char* buf, size_t bufSize, float timeMs) {
         if (timeMs >= 1000.0f) {
             std::snprintf(buf, bufSize, "%.1fs", timeMs / 1000.0f);
-        } else if (timeMs >= 100.0f) {
-            std::snprintf(buf, bufSize, "%.0fms", timeMs);
         } else if (timeMs >= 10.0f) {
             std::snprintf(buf, bufSize, "%.0fms", timeMs);
         } else {
@@ -1783,9 +1785,10 @@ private:
             VSTGUI::kBoldFace);
         context->setFont(font);
         context->setFontColor(VSTGUI::CColor(220, 220, 230, 255));
-        const char* label = useFullLabels
-            ? (bezierEnabled_ ? "Bezier" : "Simple")
-            : (bezierEnabled_ ? "B" : "S");
+        const char* label = bezierEnabled_ ? "B" : "S";
+        if (useFullLabels) {
+            label = bezierEnabled_ ? "Bezier" : "Simple";
+        }
         context->drawString(VSTGUI::UTF8String(label),
             btnRect, VSTGUI::kCenterText);
     }
@@ -1836,8 +1839,10 @@ private:
         context->setLineStyle(VSTGUI::kLineSolid);
 
         for (int seg = 0; seg < 3; ++seg) {
-            float segStartX = 0.0f, segEndX = 0.0f;
-            float segStartY = 0.0f, segEndY = 0.0f;
+            float segStartX = 0.0f;
+            float segEndX = 0.0f;
+            float segStartY = 0.0f;
+            float segEndY = 0.0f;
             getSegmentBounds(seg, segStartX, segEndX, segStartY, segEndY);
 
             VSTGUI::CPoint segStart(segStartX, segStartY);
@@ -1888,9 +1893,9 @@ private:
     // Bezier mode
     bool bezierEnabled_ = false;
     std::array<BezierHandles, 3> bezierHandles_{
-        BezierHandles{0.33f, 0.33f, 0.67f, 0.67f},  // Attack
-        BezierHandles{0.33f, 0.67f, 0.67f, 0.33f},  // Decay
-        BezierHandles{0.33f, 0.67f, 0.67f, 0.33f}   // Release
+        BezierHandles{.cp1x = 0.33f, .cp1y = 0.33f, .cp2x = 0.67f, .cp2y = 0.67f},  // Attack
+        BezierHandles{.cp1x = 0.33f, .cp1y = 0.67f, .cp2x = 0.67f, .cp2y = 0.33f},  // Decay
+        BezierHandles{.cp1x = 0.33f, .cp1y = 0.67f, .cp2x = 0.67f, .cp2y = 0.33f}   // Release
     };
 
     // Cached layout
@@ -2111,6 +2116,6 @@ struct ADSRDisplayCreator : VSTGUI::ViewCreatorAdapter {
 
 // Inline variable (C++17) - safe for inclusion from multiple translation units.
 // Include this header from each plugin's entry.cpp to register the view type.
-inline ADSRDisplayCreator gADSRDisplayCreator;
+inline const ADSRDisplayCreator gADSRDisplayCreator;
 
 } // namespace Krate::Plugins

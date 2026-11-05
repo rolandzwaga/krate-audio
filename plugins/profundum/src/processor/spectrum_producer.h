@@ -37,6 +37,7 @@
 #include <limits>
 #include <numbers>
 #include <span>
+#include <utility>
 
 namespace Profundum {
 
@@ -114,7 +115,7 @@ public:
                 if (!engine.voiceRenderedThisInterval(v) || !engine.voiceForDisplay(v).held())
                     continue;
                 const int note = engine.voiceMidiNote(v);
-                if (note < 0 || note >= static_cast<int>(noteSeq_.size()))
+                if (note < 0 || std::cmp_greater_equal(note, noteSeq_.size()))
                     continue;
                 const std::uint64_t seq = noteSeq_[static_cast<std::size_t>(note)];
                 if (focus < 0 || seq > bestSeq) {
@@ -145,13 +146,13 @@ public:
                       std::span<const float> aR, float f0Hz, std::uint8_t focusVoice, bool poly,
                       std::uint64_t intervalStartSample) noexcept {
         using Krate::DSP::detail::isFinite;
-        const std::size_t n = std::min(std::min(cL.size(), cR.size()), std::min(aL.size(), aR.size()));
+        const std::size_t n = std::min({cL.size(), cR.size(), aL.size(), aR.size()});
         const double f0 = static_cast<double>(f0Hz);
         if (!f0Usable(f0)) {
             feedSilence(intervalStartSample + n);
             return;
         }
-        if (!windowActive_ || static_cast<int>(focusVoice) != focusOfWindow_) {
+        if (!windowActive_ || std::cmp_not_equal(focusVoice, focusOfWindow_)) {
             startWindow(f0, focusVoice, poly);
         } else {
             const double dev = std::abs(f0 / f0Latched_ - 1.0);
@@ -323,7 +324,7 @@ private:
         const auto& s2L = gL_[1];
         const auto& s1R = gR_[0];
         const auto& s2R = gR_[1];
-        for (std::size_t p = 0; ok && p < static_cast<std::size_t>(count_); ++p) {
+        for (std::size_t p = 0; ok && std::cmp_less(p, count_); ++p) {
             const double magL = s1L[p] * s1L[p] + s2L[p] * s2L[p] - coef_[p] * s1L[p] * s2L[p];
             const double magR = s1R[p] * s1R[p] + s2R[p] * s2R[p] - coef_[p] * s1R[p] * s2R[p];
             ok = publishPower(scale * (magL + magR), f.partialPower[p]);

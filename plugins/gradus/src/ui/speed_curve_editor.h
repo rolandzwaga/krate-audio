@@ -32,6 +32,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <cstdint>
+#include <utility>
 
 namespace Gradus {
 
@@ -155,9 +157,9 @@ public:
             const auto& pt = data_.points[i];
             auto pos = curveToPixel(pt.x, pt.y,
                 contentLeft, contentBottom, contentW, contentH);
-            bool isSelected = (selectedPointIndex_ == static_cast<int>(i));
+            bool isSelected = (std::cmp_equal(selectedPointIndex_, i));
             bool isDragged = (isDragging_ && dragTarget_ == DragTarget::Point &&
-                              dragIndex_ == static_cast<int>(i));
+                              std::cmp_equal(dragIndex_, i));
 
             // Selection ring (outer glow)
             if (isSelected) {
@@ -187,17 +189,21 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override
     {
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return VSTGUI::kMouseEventNotHandled;
 
         auto r = getViewSize();
-        float cL = r.left + kPadding, cR = r.right - kPadding;
-        float cT = r.top + kPadding, cB = r.bottom - kPadding;
-        float cW = cR - cL, cH = cB - cT;
+        float cL = r.left + kPadding;
+        float cR = r.right - kPadding;
+        float cT = r.top + kPadding;
+        float cB = r.bottom - kPadding;
+        float cW = cR - cL;
+        float cH = cB - cT;
 
         // Left-click: check hit targets
         // Priority: handle > point > empty (double-click = add point)
-        int handleSeg = -1, handleSide = -1;
+        int handleSeg = -1;
+        int handleSide = -1;
         if (hitTestHandle(where, cL, cB, cW, cH, handleSeg, handleSide)) {
             isDragging_ = true;
             dragTarget_ = DragTarget::Handle;
@@ -222,7 +228,7 @@ public:
         }
 
         // Single click on empty area: deselect
-        if (!(buttons & VSTGUI::kDoubleClick)) {
+        if ((buttons & VSTGUI::kDoubleClick) == 0) {
             selectedPointIndex_ = -1;
             invalid();
             return VSTGUI::kMouseEventHandled;
@@ -273,9 +279,12 @@ public:
             return VSTGUI::kMouseEventNotHandled;
 
         auto r = getViewSize();
-        float cL = r.left + kPadding, cR = r.right - kPadding;
-        float cT [[maybe_unused]] = r.top + kPadding, cB = r.bottom - kPadding;
-        float cW = cR - cL, cH = cB - cT;
+        float cL = r.left + kPadding;
+        float cR = r.right - kPadding;
+        float cT [[maybe_unused]] = r.top + kPadding;
+        float cB = r.bottom - kPadding;
+        float cW = cR - cL;
+        float cH = cB - cT;
 
         float sensitivity = (buttons & VSTGUI::kShift) ? 0.1f : 1.0f;
         float dx = static_cast<float>(where.x - lastDragPoint_.x) * sensitivity;
@@ -286,7 +295,7 @@ public:
         lastDragPoint_ = where;
 
         if (dragTarget_ == DragTarget::Point && dragIndex_ >= 0 &&
-            dragIndex_ < static_cast<int>(data_.points.size())) {
+            std::cmp_less(dragIndex_, data_.points.size())) {
             auto& pt = data_.points[static_cast<size_t>(dragIndex_)];
 
             // Endpoints: only allow Y movement
@@ -311,7 +320,7 @@ public:
             invalid();
         }
         else if (dragTarget_ == DragTarget::Handle && dragIndex_ >= 0 &&
-                 dragIndex_ < static_cast<int>(data_.points.size())) {
+                 std::cmp_less(dragIndex_, data_.points.size())) {
             auto& pt = data_.points[static_cast<size_t>(dragIndex_)];
             if (dragHandleSide_ == 0) {
                 // Left handle
@@ -389,7 +398,7 @@ private:
     // Drag State
     // =========================================================================
 
-    enum class DragTarget { None, Point, Handle };
+    enum class DragTarget : std::uint8_t { None, Point, Handle };
 
     bool isDragging_ = false;
     DragTarget dragTarget_ = DragTarget::None;
@@ -478,7 +487,7 @@ private:
     // Drawing Helpers
     // =========================================================================
 
-    void drawDiamond(VSTGUI::CDrawContext* ctx, VSTGUI::CPoint center, float size) {
+    static void drawDiamond(VSTGUI::CDrawContext* ctx, VSTGUI::CPoint center, float size) {
         ctx->setFillColor(VSTGUI::CColor(200, 200, 100, 200));
         auto path = VSTGUI::owned(ctx->createGraphicsPath());
         if (!path) return;
@@ -494,7 +503,7 @@ private:
 
     void drawCurveFill(VSTGUI::CDrawContext* ctx,
                        const std::array<float, 256>& table,
-                       float cL, float cT, float cW, float cH, float cB) {
+                       float cL, float /*cT*/, float cW, float cH, float cB) const {
         if (data_.points.size() < 2) return;
 
         auto path = VSTGUI::owned(ctx->createGraphicsPath());
@@ -522,7 +531,7 @@ private:
 
     void drawCurveStroke(VSTGUI::CDrawContext* ctx,
                          const std::array<float, 256>& table,
-                         float cL, float cT, float cW, float cH, float cB) {
+                         float cL, float cT, float cW, float cH, float cB) const {
         (void)cT;
         if (data_.points.size() < 2) return;
 

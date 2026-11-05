@@ -333,7 +333,7 @@ inline bool loadLifeModParams(LifeModParams& params, Steinberg::IBStreamer& stre
 
 template <typename SetParamFunc>
 inline void loadLifeModParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
 
     float fv = 0.0f;
     Steinberg::int32 iv = 0;

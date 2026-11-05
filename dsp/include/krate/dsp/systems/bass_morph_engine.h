@@ -141,7 +141,11 @@ public:
         if (!detail::isFinite(p)) {
             return;
         }
-        p = (p < kDenormalThreshold) ? 0.0f : (p >= 1.0f ? 1.0f : p);
+        if (p < kDenormalThreshold) {
+            p = 0.0f;
+        } else if (p >= 1.0f) {
+            p = 1.0f;
+        }
         target_ = p;
         posSlew_.setTarget(p);
     }

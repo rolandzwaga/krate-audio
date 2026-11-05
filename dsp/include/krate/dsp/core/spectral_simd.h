@@ -18,8 +18,8 @@
 
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// Minimum input value for log operations. Clamps zero/negative to avoid NaN/inf.
 /// Shared constant: FormantPreserver and batchLog10 use this instead of separate equivalents.
@@ -88,5 +88,5 @@ void batchWrapPhase(const float* input, float* output, std::size_t count) noexce
 /// @note SIMD-accelerated with runtime ISA dispatch
 void batchWrapPhase(float* data, std::size_t count) noexcept;
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -20,6 +20,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 
 namespace Gradus {
 
@@ -29,7 +30,7 @@ namespace Gradus {
 
 static constexpr int kRingCount = 4;
 static constexpr int kMaxSteps = 32;
-static constexpr float kPi = 3.14159265358979323846f;
+static constexpr float kPi = std::numbers::pi_v<float>;
 static constexpr float kTwoPi = 2.0f * kPi;
 
 /// Start angle: 12 o'clock = -PI/2 in standard math coordinates.
@@ -168,14 +169,14 @@ public:
         centerRadius_ = 75.0f;
 
         // Ring 0 (outer): Velocity + Gate
-        rings_[0] = {245.0f, 320.0f, 282.0f, -1.0f};
+        rings_[0] = {.innerRadius = 245.0f, .outerRadius = 320.0f, .splitRadius = 282.0f, .split2Radius = -1.0f};
         // Ring 1: Pitch
-        rings_[1] = {185.0f, 240.0f, -1.0f, -1.0f};
+        rings_[1] = {.innerRadius = 185.0f, .outerRadius = 240.0f, .splitRadius = -1.0f, .split2Radius = -1.0f};
         // Ring 2: Modifier + Condition
-        rings_[2] = {135.0f, 180.0f, 157.0f, -1.0f};
+        rings_[2] = {.innerRadius = 135.0f, .outerRadius = 180.0f, .splitRadius = 157.0f, .split2Radius = -1.0f};
         // Ring 3: Ratchet + Chord + Inversion (3 sub-zones, ~17px each)
         // Ratchet: 113-130, Chord: 97-113, Inversion: 80-97
-        rings_[3] = {80.0f, 130.0f, 113.0f, 97.0f};
+        rings_[3] = {.innerRadius = 80.0f, .outerRadius = 130.0f, .splitRadius = 113.0f, .split2Radius = 97.0f};
 
         laneStepCounts_.fill(16);
     }
@@ -237,7 +238,7 @@ public:
 
         // Check center
         if (radius <= centerRadius_) {
-            return {-1, SubZone::kEuclidean, -1, true};
+            return {.ringIndex = -1, .subZone = SubZone::kEuclidean, .stepIndex = -1, .isCenter = true};
         }
 
         // Check each ring from inner to outer

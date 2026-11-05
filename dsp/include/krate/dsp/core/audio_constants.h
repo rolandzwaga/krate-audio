@@ -11,8 +11,8 @@
 
 #pragma once
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // -----------------------------------------------------------------------------
 // Frequency limits
@@ -39,5 +39,5 @@ constexpr float kSilenceThreshold = 1e-6f;
 /// denormals in coefficient math. Was previously written inline as `1e-12f`.
 constexpr float kDenormalGuard = 1e-12f;
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

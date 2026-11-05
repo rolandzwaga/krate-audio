@@ -41,6 +41,7 @@
 #include <sstream>
 #include <iomanip>
 #include <string>
+#include <utility>
 
 namespace Krate::Plugins {
 
@@ -199,7 +200,7 @@ public:
             // Shift remaining routes up
             for (int i = slot; i < kMaxGlobalRoutes - 1; ++i) {
                 globalRoutes_[static_cast<size_t>(i)] =
-                    globalRoutes_[static_cast<size_t>(i + 1)];
+                    globalRoutes_[static_cast<size_t>(i) + 1];
             }
             globalRoutes_[kMaxGlobalRoutes - 1] = ModRoute{}; // Clear last slot
             if (routeRemovedCallback_)
@@ -209,7 +210,7 @@ public:
         } else if (activeTab_ == 1 && slot >= 0 && slot < kMaxVoiceRoutes) {
             for (int i = slot; i < kMaxVoiceRoutes - 1; ++i) {
                 voiceRoutes_[static_cast<size_t>(i)] =
-                    voiceRoutes_[static_cast<size_t>(i + 1)];
+                    voiceRoutes_[static_cast<size_t>(i) + 1];
             }
             voiceRoutes_[kMaxVoiceRoutes - 1] = ModRoute{};
             if (routeRemovedCallback_)
@@ -241,7 +242,7 @@ public:
         for (int i = 0; i < maxSlots; ++i) {
             const ModRoute& r = getRouteForTab(activeTab_, i);
             if (r.active &&
-                static_cast<int>(r.source) == sourceIndex &&
+                std::cmp_equal(r.source, sourceIndex) &&
                 static_cast<int>(r.destination) == destIndex) {
                 selectedSlot_ = i;
                 setDirty();
@@ -257,7 +258,7 @@ public:
     // =========================================================================
 
     void toggleExpanded(int slot) {
-        if (slot >= 0 && slot < static_cast<int>(expanded_.size())) {
+        if (slot >= 0 && std::cmp_less(slot, expanded_.size())) {
             expanded_[static_cast<size_t>(slot)] = !expanded_[static_cast<size_t>(slot)];
             // If attached to a frame, animate; otherwise snap instantly
             if (getFrame()) {
@@ -272,14 +273,14 @@ public:
     }
 
     [[nodiscard]] bool isExpanded(int slot) const {
-        if (slot >= 0 && slot < static_cast<int>(expanded_.size()))
+        if (slot >= 0 && std::cmp_less(slot, expanded_.size()))
             return expanded_[static_cast<size_t>(slot)];
         return false;
     }
 
     /// Get expand animation progress for a slot (0.0 = collapsed, 1.0 = expanded).
     [[nodiscard]] float getExpandProgress(int slot) const {
-        if (slot >= 0 && slot < static_cast<int>(expandProgress_.size()))
+        if (slot >= 0 && std::cmp_less(slot, expandProgress_.size()))
             return expandProgress_[static_cast<size_t>(slot)];
         return 0.0f;
     }
@@ -391,7 +392,7 @@ public:
     VSTGUI::CMouseEventResult onMouseDown(
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return CViewContainer::onMouseDown(where, buttons);
 
         VSTGUI::CRect vs = getViewSize();
@@ -756,7 +757,7 @@ private:
 
     /// Get the current animated row height for a slot.
     [[nodiscard]] VSTGUI::CCoord computeRowHeight(int slot) const {
-        if (slot < 0 || slot >= static_cast<int>(expandProgress_.size()))
+        if (slot < 0 || std::cmp_greater_equal(slot, expandProgress_.size()))
             return kRowHeight;
         float progress = expandProgress_[static_cast<size_t>(slot)];
         return kRowHeight + static_cast<VSTGUI::CCoord>(
@@ -805,19 +806,18 @@ private:
     // Inline Slider Rect Computation (T036)
     // =========================================================================
 
-    [[nodiscard]] VSTGUI::CRect computeSliderRect(VSTGUI::CCoord rowY,
-                                                    VSTGUI::CCoord width) const {
+    [[nodiscard]] static VSTGUI::CRect computeSliderRect(VSTGUI::CCoord rowY,
+                                                    VSTGUI::CCoord width) {
         // Slider is placed after destination label, before amount text + remove button
         // Layout: disclosure(16) + dot(12) + src(42) + arrow(22) + dst(42) = 134
         VSTGUI::CCoord sliderLeft = 138.0;
         VSTGUI::CCoord sliderRight = sliderLeft + kSliderWidth;
         // Clamp to available space
-        if (sliderRight > width - 70.0)
-            sliderRight = width - 70.0;
+        sliderRight = std::min(sliderRight, width - 70.0);
 
         VSTGUI::CCoord sliderTop = rowY + (kRowHeight - kSliderHeight) / 2.0;
-        return VSTGUI::CRect(sliderLeft, sliderTop,
-                              sliderRight, sliderTop + kSliderHeight);
+        return {sliderLeft, sliderTop,
+                              sliderRight, sliderTop + kSliderHeight};
     }
 
     // =========================================================================
@@ -1254,11 +1254,11 @@ private:
     }
 
     // Inline BipolarSlider rendering within a route row (T036)
-    void drawInlineSlider(VSTGUI::CDrawContext* context,
+    static void drawInlineSlider(VSTGUI::CDrawContext* context,
                           const ModRoute& route,
                           const VSTGUI::CColor& srcColor,
                           const VSTGUI::CRect& rect,
-                          bool isBypassed) const {
+                          bool isBypassed) {
         VSTGUI::CColor trackColor(50, 50, 55, 255);
         VSTGUI::CColor baseColor = isBypassed ? darkenColor(srcColor, 0.5f) : srcColor;
 
@@ -1304,7 +1304,7 @@ private:
     void drawDetailSection(VSTGUI::CDrawContext* context,
                            const ModRoute& route,
                            [[maybe_unused]] int slot,
-                           VSTGUI::CCoord y, VSTGUI::CCoord width) const {
+                           VSTGUI::CCoord y, VSTGUI::CCoord /*width*/) const {
         auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 9.0);
         context->setFont(font);
 
@@ -1385,8 +1385,8 @@ private:
                             VSTGUI::kCenterText, true);
     }
 
-    void drawAddButton(VSTGUI::CDrawContext* context,
-                       VSTGUI::CCoord y, VSTGUI::CCoord width) const {
+    static void drawAddButton(VSTGUI::CDrawContext* context,
+                       VSTGUI::CCoord y, VSTGUI::CCoord width) {
         VSTGUI::CRect btnRect(0, y, width, y + kAddButtonHeight);
         context->setFillColor(VSTGUI::CColor(35, 40, 38, 255));
         context->drawRect(btnRect, VSTGUI::kDrawFilled);
@@ -1517,6 +1517,6 @@ struct ModMatrixGridCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline ModMatrixGridCreator gModMatrixGridCreator;
+inline const ModMatrixGridCreator gModMatrixGridCreator;
 
 } // namespace Krate::Plugins

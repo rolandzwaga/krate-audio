@@ -27,8 +27,8 @@
 #include <array>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Harmonic control primitive using Chebyshev polynomial mixing.
 ///
@@ -219,5 +219,5 @@ private:
 
 static_assert(sizeof(ChebyshevShaper) <= 40, "SC-007: ChebyshevShaper must be <= 40 bytes");
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

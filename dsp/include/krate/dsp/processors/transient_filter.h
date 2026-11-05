@@ -29,8 +29,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // TransientFilterMode Enumeration (FR-014)
@@ -166,7 +166,7 @@ public:
 
     /// @brief Get processing latency in samples (FR-023)
     /// @return Latency (0 - no lookahead in this processor)
-    [[nodiscard]] size_t getLatency() const noexcept { return 0; }
+    [[nodiscard]] static size_t getLatency() noexcept { return 0; }
 
     // =========================================================================
     // Processing (FR-016, FR-017, FR-018, FR-019, FR-020)
@@ -308,7 +308,7 @@ private:
     /// @brief Map TransientFilterMode to SVFMode
     /// @param type TransientFilterMode enum value
     /// @return Corresponding SVFMode
-    [[nodiscard]] SVFMode mapFilterType(TransientFilterMode type) const noexcept;
+    [[nodiscard]] static SVFMode mapFilterType(TransientFilterMode type) noexcept;
 
     /// @brief Clamp cutoff to valid range based on sample rate
     /// @param hz Frequency to clamp
@@ -537,7 +537,7 @@ inline float TransientAwareFilter::calculateResonance(float transientAmount) con
     return std::clamp(totalQ, kMinResonance, kMaxTotalResonance);
 }
 
-inline SVFMode TransientAwareFilter::mapFilterType(TransientFilterMode type) const noexcept {
+inline SVFMode TransientAwareFilter::mapFilterType(TransientFilterMode type) noexcept {
     switch (type) {
         case TransientFilterMode::Lowpass:
             return SVFMode::Lowpass;
@@ -555,5 +555,5 @@ inline float TransientAwareFilter::clampCutoff(float hz) const noexcept {
     return std::clamp(hz, kMinCutoffHz, maxCutoff);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

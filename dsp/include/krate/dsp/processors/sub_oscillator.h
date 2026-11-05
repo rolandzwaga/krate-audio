@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <krate/dsp/core/phase_utils.h>
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/crossfade_utils.h>
@@ -35,8 +36,8 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // SubOctave Enumeration (FR-001)
@@ -139,7 +140,7 @@ public:
     /// MinBlepTable pointer is nullptr, not prepared, or has length > 64.
     ///
     /// @param sampleRate Sample rate in Hz
-    inline void prepare(double sampleRate) noexcept {
+    void prepare(double sampleRate) noexcept {
         // FR-004: Validate table pointer
         if (table_ == nullptr || !table_->isPrepared() || table_->length() > 64) {
             prepared_ = false;
@@ -169,7 +170,7 @@ public:
     ///
     /// Resets flip-flop states to false, sub phase to 0.0, clears residual.
     /// Preserves: octave, waveform, mix, sample rate.
-    inline void reset() noexcept {
+    void reset() noexcept {
         flipFlop1_ = false;
         flipFlop2_ = false;
         subPhase_.reset();
@@ -183,26 +184,26 @@ public:
 
     /// @brief Select the frequency division mode.
     /// @param octave OneOctave (master/2) or TwoOctaves (master/4)
-    inline void setOctave(SubOctave octave) noexcept {
+    void setOctave(SubOctave octave) noexcept {
         octave_ = octave;
     }
 
     /// @brief Select the sub-oscillator waveform type.
     /// @param waveform Square, Sine, or Triangle
-    inline void setWaveform(SubWaveform waveform) noexcept {
+    void setWaveform(SubWaveform waveform) noexcept {
         waveform_ = waveform;
     }
 
     /// @brief Set the dry/wet balance.
     /// @param mix 0.0 = main only, 1.0 = sub only. Clamped to [0, 1].
     ///        NaN/Inf ignored (previous value retained).
-    inline void setMix(float mix) noexcept {
+    void setMix(float mix) noexcept {
         // FR-008: NaN and Inf are ignored
         if (detail::isNaN(mix) || detail::isInf(mix)) {
             return;
         }
         // Clamp to [0.0, 1.0]
-        mix_ = (mix < 0.0f) ? 0.0f : ((mix > 1.0f) ? 1.0f : mix);
+        mix_ = std::clamp(mix, 0.0f, 1.0f);
         // Cache equal-power gains (FR-020, FR-021)
         equalPowerGains(mix_, mainGain_, subGain_);
     }
@@ -219,7 +220,7 @@ public:
     ///        increment (frequency / sampleRate) for this sample
     /// @return Sub-oscillator output sample. Sanitized to [-2.0, 2.0].
     ///         Returns 0.0 if not prepared.
-    [[nodiscard]] inline float process(bool masterPhaseWrapped,
+    [[nodiscard]] float process(bool masterPhaseWrapped,
                                        float masterPhaseIncrement) noexcept {
         if (!prepared_) {
             return 0.0f;
@@ -245,7 +246,7 @@ public:
                 subsamplePhaseWrapOffset(masterPhaseEstimate_,
                                          masterInc));
             // Clamp offset to valid range
-            if (subsampleOffset < 0.0f) subsampleOffset = 0.0f;
+            subsampleOffset = std::max(subsampleOffset, 0.0f);
             if (subsampleOffset >= 1.0f) subsampleOffset = 1.0f - 1e-7f;
 
             // First-stage flip-flop toggles on every master wrap (FR-011)
@@ -372,7 +373,7 @@ public:
             masterPhaseEstimate_ = wrapPhase(masterPhaseEstimate_);
             subsampleOffset = static_cast<float>(
                 subsamplePhaseWrapOffset(masterPhaseEstimate_, masterInc));
-            if (subsampleOffset < 0.0f) subsampleOffset = 0.0f;
+            subsampleOffset = std::max(subsampleOffset, 0.0f);
             if (subsampleOffset >= 1.0f) subsampleOffset = 1.0f - 1e-7f;
 
             flipFlop1_ = !flipFlop1_;
@@ -423,7 +424,7 @@ public:
     /// @param masterPhaseWrapped true if the master's phase wrapped
     /// @param masterPhaseIncrement The master's phase increment
     /// @return Mixed output = mainOutput * mainGain + subOutput * subGain
-    [[nodiscard]] inline float processMixed(float mainOutput,
+    [[nodiscard]] float processMixed(float mainOutput,
                                             bool masterPhaseWrapped,
                                             float masterPhaseIncrement) noexcept {
         float subOutput = process(masterPhaseWrapped, masterPhaseIncrement);
@@ -437,7 +438,7 @@ private:
     // =========================================================================
 
     /// @brief Branchless output sanitization (FR-029).
-    [[nodiscard]] static inline float sanitize(float x) noexcept {
+    [[nodiscard]] static float sanitize(float x) noexcept {
         const auto bits = detail::opaqueFloatBits(x);  // fast-math-immune read
         const bool isNan = ((bits & 0x7F800000u) == 0x7F800000u) &&
                            ((bits & 0x007FFFFFu) != 0);
@@ -470,5 +471,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

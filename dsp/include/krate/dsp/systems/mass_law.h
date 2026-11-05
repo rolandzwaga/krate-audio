@@ -133,7 +133,7 @@ public:
         // FR-026 (bit-identical outputs for the same inputs, neutral at kNeutralMass) needs IEEE order here. Under
         // the macOS SDK's -ffast-math, clang rewrote (mass - 50) * 0.02f as fma(mass, 0.02f, -1): -2.2e-8 at Mass 50,
         // so Mass 50 was not neutral and the same evaluate() differed by call site (macOS arm64 CI, 2026-10-25).
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang fp contract(off) reassociate(off)
 #endif
         if (!detail::isFinite(mass)) mass = kNeutralMass;
@@ -236,43 +236,36 @@ static_assert(
     "MassLaw::kRows: exactly one row per target, in Target order");
 static_assert(
     [] {
-        for (const auto& r : MassLaw::kRows) {
-            if (!(r.lo < r.hi)) return false;
-        }
-        return true;
+        return std::ranges::all_of(MassLaw::kRows, [&](const auto& r) {
+            return static_cast<bool>(r.lo < r.hi);
+        });
     }(),
     "MassLaw::kRows: lo < hi");
 static_assert(
     [] {
-        for (const auto& r : MassLaw::kRows) {
+        return std::ranges::all_of(MassLaw::kRows, [&](const auto& r) {
             if (!(r.amountUp * r.amountDown >= 0.0f)) return false;
             // D-2: Depth falls; the output trim falls (non-increasing, G8-5 ruling 2026-10-17); the other five rise
             const bool falls = (r.target == MassLaw::Target::Depth || r.target == MassLaw::Target::OutputTrim);
-            if (falls ? (r.amountUp > 0.0f || r.amountDown > 0.0f) : (r.amountUp < 0.0f || r.amountDown < 0.0f))
-                return false;
-        }
-        return true;
+            return !(falls ? (r.amountUp > 0.0f || r.amountDown > 0.0f) : (r.amountUp < 0.0f || r.amountDown < 0.0f));
+        });
     }(),
     "MassLaw::kRows: amounts carry the D-2 direction (Depth and OutputTrim <= 0, the other five >= 0)");
 static_assert(
     [] {
-        for (const auto& r : MassLaw::kRows) {
-            if (r.curve == ModCurve::Stepped) return false;
-        }
-        return true;
+        return std::ranges::all_of(MassLaw::kRows, [&](const auto& r) {
+            return static_cast<bool>(r.curve != ModCurve::Stepped);
+        });
     }(),
     "MassLaw::kRows: Stepped curve forbidden");
 static_assert(
     [] {
-        for (const auto& r : MassLaw::kRows) {
+        return std::ranges::all_of(MassLaw::kRows, [&](const auto& r) {
             const float aUp = r.amountUp >= 0.0f ? r.amountUp : -r.amountUp;
             const float aDown = r.amountDown >= 0.0f ? r.amountDown : -r.amountDown;
             const float a = aUp > aDown ? aUp : aDown;
-            if (a * MassLaw::maxSlope(r.curve) >
-                (r.hi - r.lo) * MassLaw::kMassSweepMs / (2.0f * MassLaw::kSlewBoundRefMs))
-                return false;
-        }
-        return true;
+            return static_cast<bool>(a * MassLaw::maxSlope(r.curve) <= (r.hi - r.lo) * MassLaw::kMassSweepMs / (2.0f * MassLaw::kSlewBoundRefMs));
+        });
     }(),
     "MassLaw::kRows: slew bound (plan C-7): max(|aUp|, |aDown|) * maxSlope <= range * kMassSweepMs / (2 * kSlewBoundRefMs)");
 static_assert(MassLaw::kRows[static_cast<std::size_t>(MassLaw::Target::TransientDuration)].lo ==

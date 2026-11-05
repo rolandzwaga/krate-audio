@@ -15,11 +15,12 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 namespace Membrum {
 
 /// GM drum map template archetypes.
-enum class DrumTemplate
+enum class DrumTemplate : std::uint8_t
 {
     Kick,
     Snare,
@@ -467,7 +468,7 @@ inline void apply(std::array<PadConfig, kNumPads>& pads)
         // headroom -- the voice ends in a softClip and > 1 risks clipping).
         constexpr float tomLevel[6] = {0.95f, 0.88f, 0.82f, 0.76f, 0.71f, 0.67f};
         auto toLogNorm = [](float hz) {
-            return static_cast<float>(std::log(hz / 20.0f) / std::log(100.0f));
+            return (std::log(hz / 20.0f) / std::log(100.0f));
         };
         for (int i = 0; i < 6; ++i) {
             PadConfig& c = pads[static_cast<std::size_t>(tomPad[i])];

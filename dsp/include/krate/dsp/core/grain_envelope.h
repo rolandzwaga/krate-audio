@@ -182,7 +182,7 @@ inline void generate(float* output, size_t size, GrainEnvelopeType type,
     // The comparison ORDER also makes a NaN phase land on 0 rather than on
     // `static_cast<size_t>(NaN)`, which was an out-of-range table index.
     if (!(phase >= 0.0f)) { phase = 0.0f; }  // negatives, -Inf, NaN
-    if (phase > 1.0f)     { phase = 1.0f; }  // +Inf, over-range finite
+    phase = std::min(phase, 1.0f);  // +Inf, over-range finite
 
     // Calculate fractional index
     const auto last = static_cast<ptrdiff_t>(tableSize - 1);

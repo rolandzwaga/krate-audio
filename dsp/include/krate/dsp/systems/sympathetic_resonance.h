@@ -28,8 +28,8 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -399,7 +399,7 @@ private:
     /// the peak gain at ω₀ is: 1 / [(1-r) × √(1 - 2r⋅cos(2ω₀) + r²)]
     /// Returns the reciprocal so it can be used directly as a gain multiplier.
     [[nodiscard]] static float computeResonatorPeakGainInverse(
-        const ResonatorCoeffs& c, float freq
+        const ResonatorCoeffs& c, float /*freq*/
     ) noexcept {
         // Recover r from r²
         float r = std::sqrt(c.rSquared);
@@ -413,7 +413,7 @@ private:
 
         // |D|² = (1-r)² × (1 - 2r⋅cos(2ω) + r²)
         float inner = 1.0f - 2.0f * r * cos2Omega + c.rSquared;
-        if (inner < kDenormalGuard) inner = kDenormalGuard;
+        inner = std::max(inner, kDenormalGuard);
         float sqrtInner = std::sqrt(inner);
 
         return oneMinusR * sqrtInner;
@@ -430,8 +430,8 @@ private:
         float r = std::exp(-kPi * delta_f / sampleRate);
         float omega = kTwoPi * f / sampleRate;
         return ResonatorCoeffs{
-            2.0f * r * std::cos(omega),
-            r * r
+            .coeff = 2.0f * r * std::cos(omega),
+            .rSquared = r * r
         };
     }
 
@@ -547,5 +547,5 @@ private:
     OnePoleSmoother amountSmoother_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

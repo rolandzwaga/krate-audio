@@ -93,8 +93,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// The twelve performance controls (roadmap line 464, OQ-2 confirmed at twelve).
 ///
@@ -800,7 +800,7 @@ public:
     /// would name a forwarder that does not exist on the owner it claims.
     [[nodiscard]] static constexpr bool everyRowOwnerIsValid(
         const std::array<VoragoMacroRow, kNumRows>& rows) noexcept {
-        for (const VoragoMacroRow& row : rows) {
+        return std::ranges::all_of(rows, [&](const VoragoMacroRow& row) {
             if (static_cast<std::size_t>(row.macro) >= kNumMacros) {
                 return false;
             }
@@ -810,19 +810,16 @@ public:
             if (row.owner != ownerOfTarget(row.target)) {
                 return false;
             }
-        }
-        return true;
+            return true;
+        });
     }
 
     /// FR-063: a Cavern row absent from VoragoCavernTargets is a compile error.
     [[nodiscard]] static constexpr bool everyCavernRowHasAPodField(
         const std::array<VoragoMacroRow, kNumRows>& rows) noexcept {
-        for (const VoragoMacroRow& row : rows) {
-            if (row.owner == VoragoMacroTargetOwner::Cavern && cavernFieldIndex(row.target) < 0) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(rows, [&](const VoragoMacroRow& row) {
+            return row.owner != VoragoMacroTargetOwner::Cavern || cavernFieldIndex(row.target) >= 0;
+        });
     }
 
     /// FR-065. ModCurve::Stepped is std::floor(x*4)/3
@@ -831,12 +828,9 @@ public:
     /// CONSTRUCTION. Linear | Exponential | SCurve only.
     [[nodiscard]] static constexpr bool noRowUsesSteppedCurve(
         const std::array<VoragoMacroRow, kNumRows>& rows) noexcept {
-        for (const VoragoMacroRow& row : rows) {
-            if (row.curve == ModCurve::Stepped) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(rows, [&](const VoragoMacroRow& row) {
+            return row.curve != ModCurve::Stepped;
+        });
     }
 
     /// FR-068: every enumerated target is claimed by at least one row. The enum
@@ -1243,5 +1237,5 @@ static_assert(VoragoMacroMatrix::kFirstCavernTarget + VoragoMacroMatrix::kNumCav
                   == VoragoMacroMatrix::kNumTargets,
               "FR-063: the Cavern block must be the LAST block, so cavernFieldIndex() is an offset");
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

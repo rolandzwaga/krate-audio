@@ -28,8 +28,8 @@
 #include <algorithm>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // MidSideProcessor Class
@@ -274,6 +274,6 @@ private:
     OnePoleSmoother soloSideSmoother_;    ///< Smoothed solo side [0.0-1.0]
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+
 

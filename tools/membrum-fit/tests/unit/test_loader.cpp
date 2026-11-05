@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <filesystem>
+#include <numbers>
 #include <vector>
 
 TEST_CASE("Loader: round-trips a synthetic mono WAV") {
@@ -16,7 +17,7 @@ TEST_CASE("Loader: round-trips a synthetic mono WAV") {
     constexpr unsigned len = 4096;
     std::vector<float> sine(len);
     for (unsigned i = 0; i < len; ++i)
-        sine[i] = 0.5f * std::sin(2.0f * 3.14159265358979323846f * 440.0f * i / sr);
+        sine[i] = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * i / sr);
 
     drwav_data_format fmt{};
     fmt.container = drwav_container_riff;
@@ -30,7 +31,7 @@ TEST_CASE("Loader: round-trips a synthetic mono WAV") {
     drwav_uninit(&w);
 
     auto loaded = MembrumFit::loadSample(path, 44100.0);
-    REQUIRE(loaded.has_value());
+    if (!loaded) FAIL("loadSample returned no sample");
     REQUIRE(loaded->samples.size() == len);
     REQUIRE(loaded->sampleRate == Catch::Approx(44100.0));
     REQUIRE(loaded->channelCorrelation == Catch::Approx(1.0f));

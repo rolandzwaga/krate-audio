@@ -42,6 +42,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <utility>
 
 // Suppress MSVC C4324: structure was padded due to alignment specifier
 #ifdef _MSC_VER
@@ -188,7 +189,7 @@ public:
         // Crossfade length in samples (FR-040, default 3ms)
         crossfadeLengthSamples_ = static_cast<int>(
             kDefaultCrossfadeTimeSec * static_cast<float>(sampleRate));
-        if (crossfadeLengthSamples_ < 1) crossfadeLengthSamples_ = 1;
+        crossfadeLengthSamples_ = std::max(crossfadeLengthSamples_, 1);
 
         // Semitone ratio threshold for crossfade detection (> 1 semitone)
         crossfadeThresholdRatio_ = semitonesToRatio(1.0f);
@@ -454,13 +455,14 @@ public:
         int totalPartials = 0;
 
         // Load partials from each source
-        for (int s = 0; s < polyFrame.numSources && totalPartials < static_cast<int>(kMaxPartials); ++s) {
+        for (int s = 0; s < polyFrame.numSources && std::cmp_less(totalPartials, kMaxPartials); ++s) {
             const auto& src = polyFrame.sources[s];
+            const float fallbackPitch = src.f0 > 0.0f ? defaultPitch : 0.0f;
             float srcPitch = (sourcePitches != nullptr && sourcePitches[s] > 0.0f)
                                  ? sourcePitches[s]
-                                 : (src.f0 > 0.0f ? defaultPitch : 0.0f);
+                                 : fallbackPitch;
 
-            for (int i = 0; i < src.numPartials && totalPartials < static_cast<int>(kMaxPartials); ++i) {
+            for (int i = 0; i < src.numPartials && std::cmp_less(totalPartials, kMaxPartials); ++i) {
                 const auto& partial = src.partials[i];
                 harmonicIndex_[totalPartials] = partial.harmonicIndex;
                 relativeFrequency_[totalPartials] = partial.relativeFrequency;
@@ -1141,7 +1143,7 @@ private:
             // The MCF sin output has amplitude 1/cos(pi*f/fs), so we
             // pre-compensate by multiplying by cos(pi*f/fs).
             float mcfCorrection = std::cos(kPi * freq * inverseSampleRate_);
-            if (mcfCorrection < 0.0f) mcfCorrection = 0.0f; // past Nyquist -> silence
+            mcfCorrection = std::max(mcfCorrection, 0.0f); // past Nyquist -> silence
 
             float aaGain;
             if (freq <= fadeStart) {

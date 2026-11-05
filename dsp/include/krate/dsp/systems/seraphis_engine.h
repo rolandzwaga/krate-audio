@@ -91,9 +91,10 @@
 // commonly drag it in through <array>/<algorithm>, libc++ need not - so a
 // toolchain that leaks it would go green while CI's did not.
 #include <type_traits>
+#include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Engine construction options; `voice` is forwarded verbatim to every slot.
 struct SeraphisEngineConfig {
@@ -285,7 +286,7 @@ public:
     /// figure for `compliance.md` is printed by
     /// SeraphisEngine_PolyphonyAndPreparation.
     static constexpr std::size_t kEngineSizeBound =
-        kMaxVoices * SeraphisVoice::kVoiceSizeBound + (64u * 1024u);
+        kMaxVoices * SeraphisVoice::kVoiceSizeBound + (std::size_t{64} * 1024u);
 
     /// FR-070 lifecycle hook (plan D4/D5). Bitmasks over voice slots; consumed by
     /// the caller so it can drive AetherReverb's bloom triggers one control chunk
@@ -444,7 +445,7 @@ public:
         // does. orphanTail_ is the ONLY predicate that identifies those slots at
         // dispatch time - see the NoteOn row in dispatch().
         for (const VoiceEvent& e : allocator_.setVoiceCount(polyphony_)) {  // :326
-            const std::size_t i = static_cast<std::size_t>(e.voiceIndex);
+            const auto i = static_cast<std::size_t>(e.voiceIndex);
             if (i >= kMaxVoices || e.type != VoiceEvent::Type::NoteOff) {
                 continue;
             }
@@ -1039,7 +1040,7 @@ public:
         if (index >= kMaxVoices) {
             return {};
         }
-        return std::span<const float>(lastBloomPartials_[index].data(), lastBloomCount_[index]);
+        return {lastBloomPartials_[index].data(), lastBloomCount_[index]};
     }
     [[nodiscard]] std::size_t getLastBloomCount(std::size_t index) const noexcept {
         return (index < kMaxVoices) ? lastBloomCount_[index] : std::size_t{0};
@@ -1472,7 +1473,7 @@ private:
     void dispatch(std::span<const VoiceEvent> events) noexcept {
         std::uint32_t served = 0u;
         for (const VoiceEvent& e : events) {
-            const std::size_t i = static_cast<std::size_t>(e.voiceIndex);
+            const auto i = static_cast<std::size_t>(e.voiceIndex);
             if (i >= kMaxVoices) {
                 continue;
             }
@@ -1525,7 +1526,7 @@ private:
                     // that follows it in the same span does the work; running the
                     // FR-047 teardown here would wipe a live, sounding voice,
                     // call voices_[i].noteOn() twice and bump the serial twice.
-                    if (static_cast<int>(i) == retriggerSlot_) {
+                    if (std::cmp_equal(i, retriggerSlot_)) {
                         break;  // ignore the event ENTIRELY
                     }
                     // Engine-initiated steal. With §3.6.1 in place this branch is
@@ -1628,5 +1629,5 @@ static_assert(SeraphisEngine::kVoiceSaltBase > SeraphisVoice::kOrbitSalt,
               "FR-050: the engine's per-voice salt range must be disjoint from every "
               "SeraphisVoice sub-component salt");
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

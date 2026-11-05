@@ -78,6 +78,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <numbers>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -321,9 +322,11 @@ enum class AuFrameDesc : std::uint8_t { ESub, DCx, DBr };
 
 // ported from profundum_engine_audibility_test.cpp:532
 [[nodiscard]] inline double auGoertzelPower(const float* x, std::size_t n, double cyclesPerSample) {
-    const double w = 2.0 * 3.14159265358979323846 * cyclesPerSample;
+    const double w = 2.0 * std::numbers::pi * cyclesPerSample;
     const double c = 2.0 * std::cos(w);
-    double s0 = 0.0, s1 = 0.0, s2 = 0.0;
+    double s0 = 0.0;
+    double s1 = 0.0;
+    double s2 = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
         s0 = static_cast<double>(x[i]) + c * s1 - s2;
         s2 = s1;
@@ -482,38 +485,38 @@ struct PpBarRow {
 
 // Transcribed from the CSV (`value`, `bar`), one entry per gated (row, note) line; never re-derived.
 inline constexpr std::array<PpBarRow, 30> kPpBars{{
-    {PpRow::AT27, "AT-27", kAuE1, PpBase::B, "dL_K = L_K(dyn) - L_K(Sum) (dB)", "dynL/R and sumL/R", "L_K output (dB)", 3.51596, 3.0, 106},
-    {PpRow::AT27, "AT-27", kAuC3, PpBase::Bs, "dL_K = L_K(dyn) - L_K(Sum) (dB)", "dynL/R and sumL/R", "L_K output (dB)", 4.01259, 3.0, 114},
-    {PpRow::AT01, "AT-01", kAuE1, PpBase::AsEdge1, "D_nl (dB)", "Char / twin", "L_K output (dB)", 29.3673, 3.0, 52},
-    {PpRow::AT01, "AT-01", kAuC3, PpBase::AsEdge1, "D_nl (dB)", "Char / twin", "L_K output (dB)", 29.4025, 3.0, 62},
-    {PpRow::AT10, "AT-10", kAuE1, PpBase::As, "E_sub (dB)", "sumL/R", "E_sub output (dB)", 5.94809, 2.0, 2},
-    {PpRow::AT10, "AT-10", kAuC3, PpBase::As, "E_sub (dB)", "sumL/R", "E_sub output (dB)", 5.92968, 2.0, 13},
-    {PpRow::AT11, "AT-11", kAuE1, PpBase::As, "E_sub over [0, punchTimeMs) (dB; LS fit)", "sumL/R", "E_sub output, same window (dB)", 2.08853, 2.0, 3},
-    {PpRow::AT11, "AT-11", kAuC3, PpBase::As, "E_sub over [0, punchTimeMs) (dB; LS fit)", "sumL/R", "E_sub output, same window (dB)", 2.03878, 2.0, 14},
-    {PpRow::AT21, "AT-21", kAuE1, PpBase::As, "alpha (mean d over [0, N] / A)", "fCore / fRes voice 0", "L_K output short (dB)", 0.755316, 0.1, 168},
-    {PpRow::AT21, "AT-21", kAuC3, PpBase::As, "alpha (mean d over [0, N] / A)", "fCore / fRes voice 0", "L_K output short (dB)", 0.767995, 0.1, 173},
-    {PpRow::AT23, "AT-23", kAuE1, PpBase::As, "t_50 ratio (samples)", "fRes voice 0", "L_K output short (dB)", 287.344, 2.0, 170},
-    {PpRow::AT23, "AT-23", kAuC3, PpBase::As, "t_50 ratio (samples)", "fRes voice 0", "L_K output short (dB)", 287.219, 2.0, 175},
-    {PpRow::AT25, "AT-25", kAuE1, PpBase::As, "D_t release reading ratio (ms)", "sumL/R", "D_t output release (ms)", 38.1903, 2.0, 70},
-    {PpRow::AT25, "AT-25", kAuC3, PpBase::As, "D_t release reading ratio (ms)", "sumL/R", "D_t output release (ms)", 40.3031, 2.0, 73},
-    {PpRow::AT43, "AT-43", kAuE1, PpBase::As, "core-h1 phase jump (deg)", "coreL/R", "L_K output short (dB)", 177.667, 30.0, 158},
-    {PpRow::AT43, "AT-43", kAuC3, PpBase::As, "core-h1 phase jump (deg)", "coreL/R", "L_K output short (dB)", 167.525, 30.0, 162},
-    {PpRow::AT03, "AT-03", kAuE1, PpBase::As, "D_nl (dB)", "Char / twin", "L_K output (dB)", 47.6755, 3.0, 57},
-    {PpRow::AT03, "AT-03", kAuC3, PpBase::As, "D_nl (dB)", "Char / twin", "L_K output (dB)", 47.6593, 3.0, 67},
-    {PpRow::AT02, "AT-02", kAuE1, PpBase::AsSawEdgeHalf, "D_br (oct)", "sumL/R", "D_br output (oct)", 2.47299, 0.25, 56},
-    {PpRow::AT02, "AT-02", kAuC3, PpBase::Bs, "D_br (oct)", "sumL/R", "D_br output (oct)", 0.378903, 0.25, 64},
-    {PpRow::AT05, "AT-05", kAuE1, PpBase::As, "D_nl (dB)", "Char / twin", "L_K output (dB)", 6.50986, 3.0, 26},
-    {PpRow::AT05, "AT-05", kAuC3, PpBase::As, "D_nl (dB)", "Char / twin", "L_K output (dB)", 6.49428, 3.0, 38},
-    {PpRow::AT28, "AT-28", kAuE1, PpBase::B, "onset ratio (dB)", "dynL/R", "onset ratio output (dB)", 10.4185, 3.0, 108},
-    {PpRow::AT28, "AT-28", kAuC3, PpBase::B, "onset ratio (dB)", "dynL/R", "onset ratio output (dB)", 10.6639, 3.0, 115},
-    {PpRow::AT33, "AT-33", kAuE1, PpBase::Bs, "frame-wise D_st p2p (dB; G8-1)", "fieldL/R", "frame-wise D_st p2p output (dB)", 16.3826, 3.0, 81},
+    {.row = PpRow::AT27, .id = "AT-27", .note = kAuE1, .base = PpBase::B, .descriptor = "dL_K = L_K(dyn) - L_K(Sum) (dB)", .tap = "dynL/R and sumL/R", .outDescriptor = "L_K output (dB)", .phase9Value = 3.51596, .bar = 3.0, .csvLine = 106},
+    {.row = PpRow::AT27, .id = "AT-27", .note = kAuC3, .base = PpBase::Bs, .descriptor = "dL_K = L_K(dyn) - L_K(Sum) (dB)", .tap = "dynL/R and sumL/R", .outDescriptor = "L_K output (dB)", .phase9Value = 4.01259, .bar = 3.0, .csvLine = 114},
+    {.row = PpRow::AT01, .id = "AT-01", .note = kAuE1, .base = PpBase::AsEdge1, .descriptor = "D_nl (dB)", .tap = "Char / twin", .outDescriptor = "L_K output (dB)", .phase9Value = 29.3673, .bar = 3.0, .csvLine = 52},
+    {.row = PpRow::AT01, .id = "AT-01", .note = kAuC3, .base = PpBase::AsEdge1, .descriptor = "D_nl (dB)", .tap = "Char / twin", .outDescriptor = "L_K output (dB)", .phase9Value = 29.4025, .bar = 3.0, .csvLine = 62},
+    {.row = PpRow::AT10, .id = "AT-10", .note = kAuE1, .base = PpBase::As, .descriptor = "E_sub (dB)", .tap = "sumL/R", .outDescriptor = "E_sub output (dB)", .phase9Value = 5.94809, .bar = 2.0, .csvLine = 2},
+    {.row = PpRow::AT10, .id = "AT-10", .note = kAuC3, .base = PpBase::As, .descriptor = "E_sub (dB)", .tap = "sumL/R", .outDescriptor = "E_sub output (dB)", .phase9Value = 5.92968, .bar = 2.0, .csvLine = 13},
+    {.row = PpRow::AT11, .id = "AT-11", .note = kAuE1, .base = PpBase::As, .descriptor = "E_sub over [0, punchTimeMs) (dB; LS fit)", .tap = "sumL/R", .outDescriptor = "E_sub output, same window (dB)", .phase9Value = 2.08853, .bar = 2.0, .csvLine = 3},
+    {.row = PpRow::AT11, .id = "AT-11", .note = kAuC3, .base = PpBase::As, .descriptor = "E_sub over [0, punchTimeMs) (dB; LS fit)", .tap = "sumL/R", .outDescriptor = "E_sub output, same window (dB)", .phase9Value = 2.03878, .bar = 2.0, .csvLine = 14},
+    {.row = PpRow::AT21, .id = "AT-21", .note = kAuE1, .base = PpBase::As, .descriptor = "alpha (mean d over [0, N] / A)", .tap = "fCore / fRes voice 0", .outDescriptor = "L_K output short (dB)", .phase9Value = 0.755316, .bar = 0.1, .csvLine = 168},
+    {.row = PpRow::AT21, .id = "AT-21", .note = kAuC3, .base = PpBase::As, .descriptor = "alpha (mean d over [0, N] / A)", .tap = "fCore / fRes voice 0", .outDescriptor = "L_K output short (dB)", .phase9Value = 0.767995, .bar = 0.1, .csvLine = 173},
+    {.row = PpRow::AT23, .id = "AT-23", .note = kAuE1, .base = PpBase::As, .descriptor = "t_50 ratio (samples)", .tap = "fRes voice 0", .outDescriptor = "L_K output short (dB)", .phase9Value = 287.344, .bar = 2.0, .csvLine = 170},
+    {.row = PpRow::AT23, .id = "AT-23", .note = kAuC3, .base = PpBase::As, .descriptor = "t_50 ratio (samples)", .tap = "fRes voice 0", .outDescriptor = "L_K output short (dB)", .phase9Value = 287.219, .bar = 2.0, .csvLine = 175},
+    {.row = PpRow::AT25, .id = "AT-25", .note = kAuE1, .base = PpBase::As, .descriptor = "D_t release reading ratio (ms)", .tap = "sumL/R", .outDescriptor = "D_t output release (ms)", .phase9Value = 38.1903, .bar = 2.0, .csvLine = 70},
+    {.row = PpRow::AT25, .id = "AT-25", .note = kAuC3, .base = PpBase::As, .descriptor = "D_t release reading ratio (ms)", .tap = "sumL/R", .outDescriptor = "D_t output release (ms)", .phase9Value = 40.3031, .bar = 2.0, .csvLine = 73},
+    {.row = PpRow::AT43, .id = "AT-43", .note = kAuE1, .base = PpBase::As, .descriptor = "core-h1 phase jump (deg)", .tap = "coreL/R", .outDescriptor = "L_K output short (dB)", .phase9Value = 177.667, .bar = 30.0, .csvLine = 158},
+    {.row = PpRow::AT43, .id = "AT-43", .note = kAuC3, .base = PpBase::As, .descriptor = "core-h1 phase jump (deg)", .tap = "coreL/R", .outDescriptor = "L_K output short (dB)", .phase9Value = 167.525, .bar = 30.0, .csvLine = 162},
+    {.row = PpRow::AT03, .id = "AT-03", .note = kAuE1, .base = PpBase::As, .descriptor = "D_nl (dB)", .tap = "Char / twin", .outDescriptor = "L_K output (dB)", .phase9Value = 47.6755, .bar = 3.0, .csvLine = 57},
+    {.row = PpRow::AT03, .id = "AT-03", .note = kAuC3, .base = PpBase::As, .descriptor = "D_nl (dB)", .tap = "Char / twin", .outDescriptor = "L_K output (dB)", .phase9Value = 47.6593, .bar = 3.0, .csvLine = 67},
+    {.row = PpRow::AT02, .id = "AT-02", .note = kAuE1, .base = PpBase::AsSawEdgeHalf, .descriptor = "D_br (oct)", .tap = "sumL/R", .outDescriptor = "D_br output (oct)", .phase9Value = 2.47299, .bar = 0.25, .csvLine = 56},
+    {.row = PpRow::AT02, .id = "AT-02", .note = kAuC3, .base = PpBase::Bs, .descriptor = "D_br (oct)", .tap = "sumL/R", .outDescriptor = "D_br output (oct)", .phase9Value = 0.378903, .bar = 0.25, .csvLine = 64},
+    {.row = PpRow::AT05, .id = "AT-05", .note = kAuE1, .base = PpBase::As, .descriptor = "D_nl (dB)", .tap = "Char / twin", .outDescriptor = "L_K output (dB)", .phase9Value = 6.50986, .bar = 3.0, .csvLine = 26},
+    {.row = PpRow::AT05, .id = "AT-05", .note = kAuC3, .base = PpBase::As, .descriptor = "D_nl (dB)", .tap = "Char / twin", .outDescriptor = "L_K output (dB)", .phase9Value = 6.49428, .bar = 3.0, .csvLine = 38},
+    {.row = PpRow::AT28, .id = "AT-28", .note = kAuE1, .base = PpBase::B, .descriptor = "onset ratio (dB)", .tap = "dynL/R", .outDescriptor = "onset ratio output (dB)", .phase9Value = 10.4185, .bar = 3.0, .csvLine = 108},
+    {.row = PpRow::AT28, .id = "AT-28", .note = kAuC3, .base = PpBase::B, .descriptor = "onset ratio (dB)", .tap = "dynL/R", .outDescriptor = "onset ratio output (dB)", .phase9Value = 10.6639, .bar = 3.0, .csvLine = 115},
+    {.row = PpRow::AT33, .id = "AT-33", .note = kAuE1, .base = PpBase::Bs, .descriptor = "frame-wise D_st p2p (dB; G8-1)", .tap = "fieldL/R", .outDescriptor = "frame-wise D_st p2p output (dB)", .phase9Value = 16.3826, .bar = 3.0, .csvLine = 81},
     // Profundum Phase 14 R12: 21.7963, not the CSV's 11.2431. Its depth-0 arm read 3.22 dB of float-ADAA noise swing
     // that TanhADAA::processFast removes (0.023 dB now); every other row reads the pre-R11 value to 5-6 digits.
-    {PpRow::AT33, "AT-33", kAuC3, PpBase::As, "frame-wise D_st p2p (dB; G8-1)", "fieldL/R", "frame-wise D_st p2p output (dB)", 21.7963, 3.0, 89},
-    {PpRow::AT38, "AT-38", kAuE1, PpBase::Bs, "frame-wise D_br p2p (oct)", "sumL/R", "frame-wise D_br p2p output (oct)", 0.299477, 0.25, 131},
-    {PpRow::AT38, "AT-38", kAuC3, PpBase::Bs, "frame-wise D_br p2p (oct)", "sumL/R", "frame-wise D_br p2p output (oct)", 0.303864, 0.25, 150},
-    {PpRow::AT42, "AT-42", kAuE1, PpBase::ShowcasePair, "D_nl (dB)", "Char / twin", "L_K output (dB)", 8.15013, 3.0, 117},
-    {PpRow::AT42, "AT-42", kAuC3, PpBase::ShowcasePair, "D_nl (dB)", "Char / twin", "L_K output (dB)", 6.72976, 3.0, 119},
+    {.row = PpRow::AT33, .id = "AT-33", .note = kAuC3, .base = PpBase::As, .descriptor = "frame-wise D_st p2p (dB; G8-1)", .tap = "fieldL/R", .outDescriptor = "frame-wise D_st p2p output (dB)", .phase9Value = 21.7963, .bar = 3.0, .csvLine = 89},
+    {.row = PpRow::AT38, .id = "AT-38", .note = kAuE1, .base = PpBase::Bs, .descriptor = "frame-wise D_br p2p (oct)", .tap = "sumL/R", .outDescriptor = "frame-wise D_br p2p output (oct)", .phase9Value = 0.299477, .bar = 0.25, .csvLine = 131},
+    {.row = PpRow::AT38, .id = "AT-38", .note = kAuC3, .base = PpBase::Bs, .descriptor = "frame-wise D_br p2p (oct)", .tap = "sumL/R", .outDescriptor = "frame-wise D_br p2p output (oct)", .phase9Value = 0.303864, .bar = 0.25, .csvLine = 150},
+    {.row = PpRow::AT42, .id = "AT-42", .note = kAuE1, .base = PpBase::ShowcasePair, .descriptor = "D_nl (dB)", .tap = "Char / twin", .outDescriptor = "L_K output (dB)", .phase9Value = 8.15013, .bar = 3.0, .csvLine = 117},
+    {.row = PpRow::AT42, .id = "AT-42", .note = kAuC3, .base = PpBase::ShowcasePair, .descriptor = "D_nl (dB)", .tap = "Char / twin", .outDescriptor = "L_K output (dB)", .phase9Value = 6.72976, .bar = 3.0, .csvLine = 119},
 }};
 
 // -----------------------------------------------------------------------------
@@ -644,7 +647,7 @@ enum class PpPath : std::uint8_t { EngineDirect, Processor };
     }
 
     // 6. Detach while inactive (FR-067), before the observer goes out of scope.
-    fx->proc->setActive(false);
+    fx->proc->setActive(0u);
     fx->proc->setEngineObserverForTest(nullptr);
     return taps;
 }
@@ -696,16 +699,16 @@ enum class PpPath : std::uint8_t { EngineDirect, Processor };
 [[nodiscard]] inline std::vector<PpParam> ppBaseParams(PpBase b) {
     namespace P = ::Profundum;
     if (b == PpBase::AsEdge1) {
-        return {{P::kCoreEdgeId, ppNorm(P::kCoreEdgeId, 1.0)}};
+        return {{.id = P::kCoreEdgeId, .norm = ppNorm(P::kCoreEdgeId, 1.0)}};
     }
     if (b == PpBase::AsSawEdgeHalf) {
         const Kd::SpectralShapeRecipe::Controls r = Kd::SpectralShapeRecipe::kSawAnchor;
-        return {{P::kCoreDepthId, ppNorm(P::kCoreDepthId, static_cast<double>(r.depth))},
-                {P::kCoreBodyId, ppNorm(P::kCoreBodyId, static_cast<double>(r.body))},
-                {P::kCoreBodyCurvatureId, ppNorm(P::kCoreBodyCurvatureId, static_cast<double>(r.bodyCurvature))},
-                {P::kCoreBodyEmphasisId, ppNorm(P::kCoreBodyEmphasisId, static_cast<double>(r.bodyEmphasis))},
-                {P::kCoreEdgeId, ppNorm(P::kCoreEdgeId, 0.5)},
-                {P::kCoreShiftId, ppNorm(P::kCoreShiftId, static_cast<double>(r.shift))}};
+        return {{.id = P::kCoreDepthId, .norm = ppNorm(P::kCoreDepthId, static_cast<double>(r.depth))},
+                {.id = P::kCoreBodyId, .norm = ppNorm(P::kCoreBodyId, static_cast<double>(r.body))},
+                {.id = P::kCoreBodyCurvatureId, .norm = ppNorm(P::kCoreBodyCurvatureId, static_cast<double>(r.bodyCurvature))},
+                {.id = P::kCoreBodyEmphasisId, .norm = ppNorm(P::kCoreBodyEmphasisId, static_cast<double>(r.bodyEmphasis))},
+                {.id = P::kCoreEdgeId, .norm = ppNorm(P::kCoreEdgeId, 0.5)},
+                {.id = P::kCoreShiftId, .norm = ppNorm(P::kCoreShiftId, static_cast<double>(r.shift))}};
     }
     return {};
 }
@@ -777,7 +780,7 @@ struct PpReading {
                 Kd::MorphState s = base;
                 s.mass = mass;
                 const PpArm arm = ppArm(auOne(s), note, auSteadyTotal(), 0, host, host,
-                                        ppWith(held, {{P::kMassId, ppNorm(P::kMassId, mass)}}));
+                                        ppWith(held, {{.id = P::kMassId, .norm = ppNorm(P::kMassId, mass)}}));
                 const auPt::VoiceEngineTaps t = ppRender(path, arm, false);
                 outLk = auBm::lKDb(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Output), kAuFs);
                 return auBm::lKDb(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Dynamics), kAuFs)
@@ -796,8 +799,8 @@ struct PpReading {
                 if (on)
                     s.excitation.drive = 1.0f;
                 const PpArm arm = ppArm(auOne(s), note, auSteadyTotal(), 0, host, host,
-                                        ppWith(held, {{P::kCoreExcitationDriveId, ppNorm(P::kCoreExcitationDriveId, 1.0)},
-                                                      {P::kCoreExcitationMixId, ppNorm(P::kCoreExcitationMixId, on ? 1.0 : 0.0)}}));
+                                        ppWith(held, {{.id = P::kCoreExcitationDriveId, .norm = ppNorm(P::kCoreExcitationDriveId, 1.0)},
+                                                      {.id = P::kCoreExcitationMixId, .norm = ppNorm(P::kCoreExcitationMixId, on ? 1.0 : 0.0)}}));
                 return ppReadDnl(ppRender(path, arm, true), f0, out);
             };
             r.lo = read(false, r.outLo);
@@ -811,7 +814,7 @@ struct PpReading {
                 Kd::MorphState s = base;
                 s.anchor.level = level;
                 const PpArm arm = ppArm(auOne(s), note, auSteadyTotal(), 0, host, host,
-                                        ppWith(held, {{P::kAnchorLevelId, ppNorm(P::kAnchorLevelId, level)}}));
+                                        ppWith(held, {{.id = P::kAnchorLevelId, .norm = ppNorm(P::kAnchorLevelId, level)}}));
                 const auPt::VoiceEngineTaps t = ppRender(path, arm, false);
                 out = auBm::eSubDb(t.outL, t.outR, f0, kAuFs);
                 return auBm::eSubDb(t.sumL, t.sumR, f0, kAuFs);
@@ -834,8 +837,8 @@ struct PpReading {
                 }
                 const double modeIndex = static_cast<double>(static_cast<int>(s.anchor.mode));
                 const PpArm arm = ppArm(auOne(s), note, auAt(1.0), 0, host, host,
-                                        ppWith(held, {{P::kAnchorLevelId, ppNorm(P::kAnchorLevelId, 1.0)},
-                                                      {P::kAnchorModeId, ppNorm(P::kAnchorModeId, modeIndex)}}));
+                                        ppWith(held, {{.id = P::kAnchorLevelId, .norm = ppNorm(P::kAnchorLevelId, 1.0)},
+                                                      {.id = P::kAnchorModeId, .norm = ppNorm(P::kAnchorModeId, modeIndex)}}));
                 const auPt::VoiceEngineTaps t = ppRender(path, arm, false);
                 const auto len = static_cast<std::size_t>(std::llround(40.0 * kAuFs / 1000.0));
                 out = auWindowESubDb(t.outL, t.outR, 0, len, f0);
@@ -853,8 +856,8 @@ struct PpReading {
                 s.dropAmountSt = static_cast<float>(kAuDropAmountSt);
                 s.dropShape = shape;
                 const PpArm arm = ppArm(auOne(s), note, auAt(2.0), 1, host, host,
-                                        ppWith(held, {{P::kDropAmountId, ppNorm(P::kDropAmountId, kAuDropAmountSt)},
-                                                      {P::kDropShapeId, ppNorm(P::kDropShapeId, shape)}}));
+                                        ppWith(held, {{.id = P::kDropAmountId, .norm = ppNorm(P::kDropAmountId, kAuDropAmountSt)},
+                                                      {.id = P::kDropShapeId, .norm = ppNorm(P::kDropShapeId, shape)}}));
                 const auPt::VoiceEngineTaps t = ppRender(path, arm, false);
                 const auPt::VoiceEngineVoiceTapSet& v = t.voices[0];
                 std::vector<double> d;
@@ -886,8 +889,8 @@ struct PpReading {
             const auto read = [&](float portaMs, double& out) {
                 const std::uint64_t t1 = auAt(0.5);
                 PpArm arm = ppArm(auOne(base), note, auAt(1.5), 1, host, host,
-                                  ppWith(held, {{P::kVoiceModeId, ppNorm(P::kVoiceModeId, 0.0)},
-                                                {P::kNotePortamentoId, ppNorm(P::kNotePortamentoId, portaMs)}}));
+                                  ppWith(held, {{.id = P::kVoiceModeId, .norm = ppNorm(P::kVoiceModeId, 0.0)},
+                                                {.id = P::kNotePortamentoId, .norm = ppNorm(P::kNotePortamentoId, portaMs)}}));
                 arm.direct.events.push_back(auSetValue(0, AuKind::PortamentoTimeMs, portaMs));
                 arm.direct.events.push_back(auOn(t1, target));
                 const auPt::VoiceEngineTaps t = ppRender(path, arm, false);
@@ -914,7 +917,7 @@ struct PpReading {
                 Kd::MorphState s = base;
                 s.ampEnv.releaseMs = releaseMs;
                 const AuReading g = ppGateReleaseDt(path, s, host,
-                                                    ppWith(held, {{P::kAmpReleaseId, ppNorm(P::kAmpReleaseId, releaseMs)}}),
+                                                    ppWith(held, {{.id = P::kAmpReleaseId, .norm = ppNorm(P::kAmpReleaseId, releaseMs)}}),
                                                     note);
                 out = g.out;
                 ok = ok && g.valid;
@@ -936,9 +939,9 @@ struct PpReading {
                 const auto len = static_cast<std::size_t>(std::llround(4.0 * kAuFs / f2));
                 const std::uint64_t ws = t1 + auAt(0.020);
                 PpArm arm = ppArm(auOne(base), note, ws + len + kAuGrid, 0, host, host,
-                                  ppWith(held, {{P::kVoiceModeId, ppNorm(P::kVoiceModeId, 0.0)},
-                                                {P::kNoteRetriggerId, ppNorm(P::kNoteRetriggerId, 0.0)},
-                                                {P::kNoteMemoryId, ppNorm(P::kNoteMemoryId, static_cast<double>(static_cast<int>(mode)))}}));
+                                  ppWith(held, {{.id = P::kVoiceModeId, .norm = ppNorm(P::kVoiceModeId, 0.0)},
+                                                {.id = P::kNoteRetriggerId, .norm = ppNorm(P::kNoteRetriggerId, 0.0)},
+                                                {.id = P::kNoteMemoryId, .norm = ppNorm(P::kNoteMemoryId, static_cast<double>(static_cast<int>(mode)))}}));
                 arm.direct.events.push_back(auSetIndex(0, AuKind::NoteMemoryMode, static_cast<int>(mode)));
                 arm.direct.events.push_back(
                     auSetIndex(0, AuKind::NoteRetrigger, static_cast<int>(Kd::NoteMemory::Retrigger::Reset)));
@@ -964,7 +967,7 @@ struct PpReading {
                 Kd::MorphState s = base;
                 s.foldAmount = fold;
                 const PpArm arm = ppArm(auOne(s), note, auSteadyTotal(), 0, host, host,
-                                        ppWith(held, {{P::kFoldAmountId, ppNorm(P::kFoldAmountId, fold)}}));
+                                        ppWith(held, {{.id = P::kFoldAmountId, .norm = ppNorm(P::kFoldAmountId, fold)}}));
                 return ppReadDnl(ppRender(path, arm, true), f0, out);
             };
             r.lo = read(0.0f, r.outLo);
@@ -978,7 +981,7 @@ struct PpReading {
                 Kd::MorphState s = base;
                 s.shape = shape;
                 const PpArm arm = ppArm(auOne(s), note, auSteadyTotal(), 0, host, host,
-                                        ppWith(held, {{P::kFoldShapeId, ppNorm(P::kFoldShapeId, shape)}}));
+                                        ppWith(held, {{.id = P::kFoldShapeId, .norm = ppNorm(P::kFoldShapeId, shape)}}));
                 const auPt::VoiceEngineTaps t = ppRender(path, arm, false);
                 out = auBm::dBrOct(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Output), f0, kAuFs);
                 return auBm::dBrOct(auPt::asFieldTaps(t, auPt::VoiceEngineTap::Sum), f0, kAuFs);
@@ -993,8 +996,8 @@ struct PpReading {
             const auto read = [&](float amount, double& out) {
                 const double foldIndex = static_cast<double>(static_cast<int>(Alg::Fold));
                 const PpArm arm = ppArm(auOne(auWith(base, Alg::Fold, amount)), note, auSteadyTotal(), 0, host, host,
-                                        ppWith(held, {{P::kCharacterId, ppNorm(P::kCharacterId, foldIndex)},
-                                                      {P::kCharacterAmountId, ppNorm(P::kCharacterAmountId, amount)}}));
+                                        ppWith(held, {{.id = P::kCharacterId, .norm = ppNorm(P::kCharacterId, foldIndex)},
+                                                      {.id = P::kCharacterAmountId, .norm = ppNorm(P::kCharacterAmountId, amount)}}));
                 return ppReadDnl(ppRender(path, arm, true), f0, out);
             };
             r.lo = read(0.0f, r.outLo);
@@ -1008,8 +1011,8 @@ struct PpReading {
                 Kd::MorphState s = base;
                 s.transientAttackDb = attackDb;
                 const PpArm arm = ppArm(auOne(s), note, auAt(1.0), 0, host, host,
-                                        ppWith(held, {{P::kDynamicsTransientAttackId,
-                                                       ppNorm(P::kDynamicsTransientAttackId, attackDb)}}));
+                                        ppWith(held, {{.id = P::kDynamicsTransientAttackId,
+                                                       .norm = ppNorm(P::kDynamicsTransientAttackId, attackDb)}}));
                 const auPt::VoiceEngineTaps t = ppRender(path, arm, false);
                 out = auOnsetRatioDb(t.outL, t.outR);
                 return auOnsetRatioDb(t.dynL, t.dynR);
@@ -1030,9 +1033,9 @@ struct PpReading {
                 s.field.motionDepth = depth;
                 const double spreadIndex = static_cast<double>(static_cast<int>(Kd::BassStereoField::ImageMode::Spread));
                 const PpArm arm = ppArm(auOne(s), note, static_cast<std::uint64_t>(to) + kAuGrid, 0, host, host,
-                                        ppWith(held, {{P::kFieldImageModeId, ppNorm(P::kFieldImageModeId, spreadIndex)},
-                                                      {P::kFieldSpreadId, ppNorm(P::kFieldSpreadId, 1.0)},
-                                                      {P::kFieldMotionDepthId, ppNorm(P::kFieldMotionDepthId, depth)}}));
+                                        ppWith(held, {{.id = P::kFieldImageModeId, .norm = ppNorm(P::kFieldImageModeId, spreadIndex)},
+                                                      {.id = P::kFieldSpreadId, .norm = ppNorm(P::kFieldSpreadId, 1.0)},
+                                                      {.id = P::kFieldMotionDepthId, .norm = ppNorm(P::kFieldMotionDepthId, depth)}}));
                 const auPt::VoiceEngineTaps t = ppRender(path, arm, false);
                 const double fc = static_cast<double>(s.field.crossoverHz);
                 std::size_t outInvalid = 0;
@@ -1060,11 +1063,11 @@ struct PpReading {
                 const double source = static_cast<double>(static_cast<int>(on ? Motion::Source::Cycle : Motion::Source::Off));
                 const double shift = static_cast<double>(static_cast<int>(Motion::Target::Shift));
                 const PpArm arm = ppArm(auOne(s), note, static_cast<std::uint64_t>(to) + kAuGrid, 0, host, host,
-                                        ppWith(held, {{P::kMotionTargetId, ppNorm(P::kMotionTargetId, shift)},
-                                                      {P::kMotionAmountId, ppNorm(P::kMotionAmountId, 1.0)},
-                                                      {P::kMotionDepthId, ppNorm(P::kMotionDepthId, 1.0)},
-                                                      {P::kMotionCycleRateId, ppNorm(P::kMotionCycleRateId, kAuMotionRateHz)},
-                                                      {P::kMotionSourceId, ppNorm(P::kMotionSourceId, source)}}));
+                                        ppWith(held, {{.id = P::kMotionTargetId, .norm = ppNorm(P::kMotionTargetId, shift)},
+                                                      {.id = P::kMotionAmountId, .norm = ppNorm(P::kMotionAmountId, 1.0)},
+                                                      {.id = P::kMotionDepthId, .norm = ppNorm(P::kMotionDepthId, 1.0)},
+                                                      {.id = P::kMotionCycleRateId, .norm = ppNorm(P::kMotionCycleRateId, kAuMotionRateHz)},
+                                                      {.id = P::kMotionSourceId, .norm = ppNorm(P::kMotionSourceId, source)}}));
                 const auPt::VoiceEngineTaps t = ppRender(path, arm, false);
                 outP2p = auP2p(auFrameSeries(t.outL, t.outR, f0, from, to, AuFrameDesc::DBr));
                 return auP2p(auFrameSeries(t.sumL, t.sumR, f0, from, to, AuFrameDesc::DBr));
@@ -1079,7 +1082,7 @@ struct PpReading {
             const auto read = [&](float position, double& out) {
                 const AuSetting s{.a = auStateAs(), .b = auStateB(), .position = position};
                 const PpArm arm = ppArm(s, note, auSteadyTotal(), 0, auStateAs(), auStateB(),
-                                        {{P::kMorphPositionId, ppNorm(P::kMorphPositionId, position)}});
+                                        {{.id = P::kMorphPositionId, .norm = ppNorm(P::kMorphPositionId, position)}});
                 return ppReadDnl(ppRender(path, arm, true), f0, out);
             };
             r.lo = read(0.0f, r.outLo);
@@ -1107,9 +1110,9 @@ struct PpReading {
     Kd::MorphState b = auStateBs();
     b.mass = 0.0f;
     const AuSetting s{.a = a, .b = b, .position = position};
-    std::vector<PpParam> params{{P::kMorphPositionId, ppNorm(P::kMorphPositionId, position)}};
+    std::vector<PpParam> params{{.id = P::kMorphPositionId, .norm = ppNorm(P::kMorphPositionId, position)}};
     if (modWheel > 0.0) {
-        params.push_back({P::kModWheelId, ppNorm(P::kModWheelId, modWheel)});
+        params.push_back({.id = P::kModWheelId, .norm = ppNorm(P::kModWheelId, modWheel)});
     }
     const PpArm arm = ppArm(s, kAuE1, auSteadyTotal(), 0, a, b, std::move(params));
     const auPt::VoiceEngineTaps t = ppRenderProcessor(arm, false);

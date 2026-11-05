@@ -40,6 +40,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace VoragoTest {
@@ -50,7 +51,7 @@ public:
 
     ~PresetHost() {
         if (active_) {
-            proc_->setActive(false);
+            proc_->setActive(0u);
             active_ = false;
         }
         if (initialized_) {
@@ -82,7 +83,7 @@ public:
         if (r != Steinberg::kResultOk) {
             return r;
         }
-        r = proc_->setActive(true);
+        r = proc_->setActive(1u);
         if (r != Steinberg::kResultOk) {
             return r;
         }
@@ -137,7 +138,7 @@ public:
                 const_cast<std::uint8_t*>(comp.data()),  // NOLINT(cppcoreguidelines-pro-type-const-cast)
                 static_cast<Steinberg::int32>(comp.size()), &written);
             if (w != Steinberg::kResultOk ||
-                written != static_cast<Steinberg::int32>(comp.size())) {
+                std::cmp_not_equal(written, comp.size())) {
                 return Steinberg::kResultFalse;
             }
         }

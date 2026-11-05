@@ -373,6 +373,8 @@ constexpr BandParamType kProxyIndexToBandParam[kNumDisplayedProxyParams] = {
 // =============================================================================
 // These constants maintain backward compatibility with existing code
 
+// Unscoped and ParamID-based on purpose: hosts, IMessage and the parameter tables all use these IDs as plain ParamIDs.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
 enum ParameterIDs : Steinberg::Vst::ParamID {
     // Global Parameters (0x0Fxx)
     kInputGainId     = 0x0F00,  // 3840 - Input gain control

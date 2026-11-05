@@ -191,7 +191,7 @@ inline bool loadPitchFollowerParams(PitchFollowerParams& params,
 
 template<typename SetParamFunc>
 inline void loadPitchFollowerParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f;
 
     // Min Hz: read Hz, convert back to normalized

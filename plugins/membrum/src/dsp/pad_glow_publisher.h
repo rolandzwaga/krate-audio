@@ -19,6 +19,7 @@
 #include <array>
 #include <atomic>
 #include <bit>
+#include <algorithm>
 #include <cstdint>
 
 namespace Membrum {
@@ -50,8 +51,7 @@ public:
     {
         if (padIndex < 0 || padIndex >= kNumPads)
             return;
-        const float clamped = (amplitude < 0.0f) ? 0.0f
-                              : (amplitude > 1.0f) ? 1.0f : amplitude;
+        const float clamped = std::clamp(amplitude, 0.0f, 1.0f);
         const int bucket = static_cast<int>(
             clamped * static_cast<float>(kAmplitudeBuckets - 1) + 0.5f);
         const std::uint32_t word = (bucket > 0) ? (1u << bucket) : 0u;

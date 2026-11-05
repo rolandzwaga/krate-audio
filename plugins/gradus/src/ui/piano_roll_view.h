@@ -29,6 +29,7 @@
 #include "base/source/fobject.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <string>
@@ -100,7 +101,7 @@ public:
         hoveredPitch_ = -1;
 
         if (buttons.isRightButton()) {
-            auto edit = stateMachine_.onRightMouseDown(step, steps_[stepIndex(step)]);
+            auto edit = Gradus::PianoRollViewLogic::MouseStateMachine::onRightMouseDown(step, steps_[stepIndex(step)]);
             applyEdit(edit);
             invalid();
             return VSTGUI::kMouseEventHandled;
@@ -170,7 +171,7 @@ public:
             return VSTGUI::kMouseEventNotHandled;
         }
         const int startStep = stateMachine_.dragStartStep();
-        PianoRollLogic::StepData currentAtStart{ 60, true };
+        PianoRollLogic::StepData currentAtStart{ .pitch = 60, .isRest = true };
         if (startStep >= 0 && startStep < PianoRollLogic::kMaxSteps) {
             currentAtStart = steps_[stepIndex(startStep)];
         }
@@ -236,7 +237,7 @@ public:
     }
 
     // --- Configuration ---
-    void setAccentColor(VSTGUI::CColor color) { accentColor_ = color; invalid(); }
+    void setAccentColor(const VSTGUI::CColor& color) { accentColor_ = color; invalid(); }
 
     CLASS_METHODS(PianoRollView, VSTGUI::CView)
 
@@ -433,8 +434,8 @@ private:
         // Pitches are RangeParameter(0..127). toPlain returns the int value.
         const double plain = p->toPlain(p->getNormalized());
         int v = static_cast<int>(plain + 0.5);
-        if (v < 0) v = 0;
-        if (v > 127) v = 127;
+        v = std::max(v, 0);
+        v = std::min(v, 127);
         return static_cast<std::uint8_t>(v);
     }
 
@@ -552,8 +553,8 @@ private:
     {
         if (!controller_) return;
         double v = value;
-        if (v < 0.0) v = 0.0;
-        if (v > 1.0) v = 1.0;
+        v = std::max(v, 0.0);
+        v = std::min(v, 1.0);
         controller_->beginEdit(id);
         controller_->setParamNormalized(id, v);
         controller_->performEdit(id, v);

@@ -39,11 +39,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <numbers>
 
 namespace Membrum {
 
 // Minimal enum so plugin_ids can reference filter-type values symbolically.
-enum class ToneShaperFilterType : int
+enum class ToneShaperFilterType : std::uint8_t
 {
     Lowpass  = 0,
     Highpass = 1,
@@ -56,7 +58,7 @@ enum class ToneShaperFilterType : int
 // existing perf/test/tooling code that constructs a ToneShaper directly does
 // not need to change; the legacy setPitchEnvCurve(ToneShaperCurve) below maps
 // the two discrete options to representative continuous amounts.
-enum class ToneShaperCurve : int
+enum class ToneShaperCurve : std::uint8_t
 {
     Exponential = 0,  // -> curveAmount -0.7 (fast initial drop, slow approach)
     Linear      = 1,  // -> curveAmount  0.0 (straight line)
@@ -216,7 +218,7 @@ public:
     {
         foldAmount_ = std::clamp(amount, 0.0f, 1.0f);
         // Map [0, 1] to wavefolder fold intensity [0, pi] (Serge-typical).
-        wavefolder_.setFoldAmount(foldAmount_ * 3.14159265f);
+        wavefolder_.setFoldAmount(foldAmount_ * std::numbers::pi_v<float>);
     }
 
     // ------------------------------------------------------------------

@@ -28,8 +28,8 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations
@@ -619,5 +619,5 @@ inline void FrequencyShifter::processStereo(float& left, float& right) noexcept 
     right = detail::flushDenormal(right);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

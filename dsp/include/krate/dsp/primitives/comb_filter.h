@@ -21,8 +21,8 @@
 #include <algorithm>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -589,5 +589,5 @@ private:
     double sampleRate_ = 0.0;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

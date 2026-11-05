@@ -37,8 +37,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations
@@ -502,5 +502,5 @@ private:
     bool prepared_ = false;         ///< Whether prepare() has been called
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <string>
 
 namespace Krate::Plugins {
@@ -108,7 +109,7 @@ public:
         uint32_t pattern =
             Krate::DSP::EuclideanPattern::generate(hits_, steps_, rotation_);
 
-        constexpr float kPi = 3.14159265358979323846f;
+        constexpr float kPi = std::numbers::pi_v<float>;
 
         for (int i = 0; i < steps_; ++i) {
             // Angle: start from top (-PI/2), go clockwise
@@ -258,6 +259,6 @@ struct EuclideanDotDisplayCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline EuclideanDotDisplayCreator gEuclideanDotDisplayCreator;
+inline const EuclideanDotDisplayCreator gEuclideanDotDisplayCreator;
 
 } // namespace Krate::Plugins

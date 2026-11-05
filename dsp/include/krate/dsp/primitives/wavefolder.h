@@ -34,8 +34,8 @@
 #include <cstdint>
 #include <limits>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // WavefoldType Enumeration (FR-001, FR-002)
@@ -294,5 +294,5 @@ private:
 
 static_assert(sizeof(Wavefolder) <= 16, "SC-007: Wavefolder must be < 16 bytes");
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

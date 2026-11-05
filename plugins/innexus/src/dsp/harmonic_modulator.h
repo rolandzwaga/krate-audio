@@ -17,11 +17,12 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 namespace Innexus {
 
 /// LFO waveform types for harmonic modulation (FR-024).
-enum class ModulatorWaveform : int {
+enum class ModulatorWaveform : std::uint8_t {
     Sine = 0,
     Triangle = 1,
     Square = 2,
@@ -30,7 +31,7 @@ enum class ModulatorWaveform : int {
 };
 
 /// Modulation target types (FR-024).
-enum class ModulatorTarget : int {
+enum class ModulatorTarget : std::uint8_t {
     Amplitude = 0,  ///< Multiplicative unipolar (FR-025)
     Frequency = 1,  ///< Additive cents bipolar (FR-026)
     Pan = 2         ///< Offset bipolar (FR-027)

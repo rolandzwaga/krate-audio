@@ -18,25 +18,22 @@ namespace {
 
 // Build a reference ratio vector for each body from the compiled mode tables.
 std::vector<float> membraneRatios() {
-    return std::vector<float>(Membrum::kMembraneRatios.begin(), Membrum::kMembraneRatios.end());
+    return {Membrum::kMembraneRatios.begin(), Membrum::kMembraneRatios.end()};
 }
 
 std::vector<float> plateRatios() {
     // Free-plate Chladni model (signal-path audit §3-B): the template must match
     // the ratios the body actually produces, so read the authoritative table
     // directly rather than recomputing the (now superseded) (m^2+n^2)/2 ladder.
-    return std::vector<float>(std::begin(Membrum::Bodies::kPlateRatios),
-                              std::end(Membrum::Bodies::kPlateRatios));
+    return {std::begin(Membrum::Bodies::kPlateRatios), std::end(Membrum::Bodies::kPlateRatios)};
 }
 
 std::vector<float> shellRatios() {
-    return std::vector<float>(std::begin(Membrum::Bodies::kShellRatios),
-                              std::end(Membrum::Bodies::kShellRatios));
+    return {std::begin(Membrum::Bodies::kShellRatios), std::end(Membrum::Bodies::kShellRatios)};
 }
 
 std::vector<float> bellRatios() {
-    return std::vector<float>(std::begin(Membrum::Bodies::kBellRatios),
-                              std::end(Membrum::Bodies::kBellRatios));
+    return {std::begin(Membrum::Bodies::kBellRatios), std::end(Membrum::Bodies::kBellRatios)};
 }
 
 std::vector<float> stringRatios() {
@@ -83,9 +80,13 @@ float scoreRatios(std::span<const float> measuredRatios,
         ? (ref.size() - measuredRatios.size() + 1) : 1;
     for (std::size_t s = 0; s < maxOffset; ++s) {
         const float v = scoreShift(measuredRatios, measuredWeights, ref, s);
-        if (v < best) best = v;
+        best = std::min(best, v);
     }
-    return best;
+    // A perfect match scores exactly 0 under IEEE math (GCC) and ~1e-8 under /fp:fast (MSVC). Floor it at a value
+    // above that rounding noise so the NoiseBody multiplier below (x0.5 noisy, x2+ clean) still orders NoiseBody
+    // against Plate; at 0 both read 0 and Plate won the tie on index alone.
+    constexpr float kScoreFloor = 1e-6f;
+    return std::max(best, kScoreFloor);
 }
 
 }  // namespace
@@ -110,7 +111,8 @@ BodyScoreList classifyBody(const ModalDecomposition& md,
     const float f0 = byFreq.front().freqHz;
 
     const std::size_t K = std::min<std::size_t>(byFreq.size(), 12);
-    std::vector<float> ratios(K), weights(K);
+    std::vector<float> ratios(K);
+    std::vector<float> weights(K);
     for (std::size_t k = 0; k < K; ++k) {
         ratios[k]  = byFreq[k].freqHz / std::max(f0, 1e-3f);
         weights[k] = byFreq[k].amplitude;

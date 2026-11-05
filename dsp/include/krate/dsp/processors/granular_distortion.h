@@ -39,8 +39,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Granular distortion processor with per-grain variation.
 ///
@@ -721,5 +721,5 @@ private:
     bool algorithmVariation_ = false;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

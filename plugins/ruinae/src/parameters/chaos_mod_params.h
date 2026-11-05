@@ -104,7 +104,7 @@ inline bool loadChaosModParams(ChaosModParams& params, Steinberg::IBStreamer& st
 
 template<typename SetParamFunc>
 inline void loadChaosModParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
     if (streamer.readFloat(fv)) setParam(kChaosModRateId, lfoRateToNormalized(fv));
     if (streamer.readInt32(iv)) setParam(kChaosModTypeId, static_cast<double>(iv) / (kChaosTypeCount - 1));

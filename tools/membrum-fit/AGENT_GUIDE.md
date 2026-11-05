@@ -140,9 +140,9 @@ preset bytes are guaranteed identical regardless of the producer
 | Dep | Source | License | Used by |
 |---|---|---|---|
 | dr_wav | vendored `extern/dr_libs/dr_wav.h` | Public Domain / MIT-0 | loader, gen tool, tests |
-| Eigen 3.4 | FetchContent (gitlab.com/libeigen/eigen) imported as INTERFACE | MPL-2 | matrix_pencil |
-| CLI11 v2.4.2 | FetchContent (CLIUtils/CLI11) | BSD-3 | cli.cpp |
-| NLopt v2.7.1 | FetchContent (stevengj/nlopt), gated by MEMBRUM_FIT_ENABLE_NLOPT | BSD/MIT for the algos used | bobyqa_refine, cmaes_refine |
+| Eigen 5 | FetchContent (gitlab.com/libeigen/eigen) imported as INTERFACE | MPL-2 | matrix_pencil |
+| CLI11 v2.7.2 | FetchContent (CLIUtils/CLI11) | BSD-3 | cli.cpp |
+| NLopt v2.11.0 | FetchContent (stevengj/nlopt), gated by MEMBRUM_FIT_ENABLE_NLOPT | BSD/MIT for the algos used | bobyqa_refine, cmaes_refine |
 | nlohmann/json | FetchContent (existing root pull) | MIT | json_writer, gen tool, ingestion |
 | KrateDSP | sibling CMake target (`dsp/`) | project | render_voice via DrumVoice |
 | membrum_dsp | new INTERFACE in `plugins/membrum/CMakeLists.txt` | project | render_voice, body_classifier, mapper_inversion |

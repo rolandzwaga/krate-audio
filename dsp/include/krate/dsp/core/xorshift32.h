@@ -18,8 +18,8 @@
 
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 struct XorShift32 {
     uint32_t state = 0x12345678u;
@@ -56,5 +56,5 @@ struct XorShift32 {
     }
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

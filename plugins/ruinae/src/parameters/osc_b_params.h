@@ -7,6 +7,8 @@
 // implementation lives in osc_params.h; this header exists so call sites keep
 // their bank-specific names.
 
+#include <utility>
+
 #include "parameters/osc_params.h"
 
 namespace Ruinae {
@@ -39,8 +41,8 @@ inline bool loadOscBParams(OscBParams& params, Steinberg::IBStreamer& streamer) 
 
 template<typename SetParamFunc>
 inline void loadOscBParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadOscParamsToController(kOscBTypeId, streamer, setParam);
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    loadOscParamsToController(kOscBTypeId, streamer, std::move(setParam));
 }
 
 } // namespace Ruinae

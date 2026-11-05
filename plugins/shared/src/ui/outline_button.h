@@ -82,7 +82,7 @@ public:
                          VSTGUI::IControlListener* listener,
                          int32_t tag,
                          std::string title,
-                         VSTGUI::CColor frameColor = VSTGUI::CColor(64, 64, 72))
+                         const VSTGUI::CColor& frameColor = VSTGUI::CColor(64, 64, 72))
         : CControl(size, listener, tag)
         , title_(std::move(title))
         , frameColor_(frameColor)
@@ -144,7 +144,7 @@ public:
     // Dark-theme convenience: only the frame color varies (hover/font keep the
     // dark defaults). Covers the common Presets/Save/Expand buttons.
     OutlineButton(const VSTGUI::CRect& size, std::string title,
-                  VSTGUI::CColor frameColor = VSTGUI::CColor(64, 64, 72))
+                  const VSTGUI::CColor& frameColor = VSTGUI::CColor(64, 64, 72))
         : CView(size)
         , title_(std::move(title)) {
         colors_.frame = frameColor;
@@ -152,14 +152,14 @@ public:
 
     // Full control over all three colors (e.g. Iterum's light theme).
     OutlineButton(const VSTGUI::CRect& size, std::string title,
-                  const OutlineButtonColors& colors)
+                  OutlineButtonColors  colors)
         : CView(size)
         , title_(std::move(title))
-        , colors_(colors) {}
+        , colors_(std::move(colors)) {}
 
-    void setTitle(std::string title) {
+    void setTitle(const std::string& title) {
         if (title != title_) {
-            title_ = std::move(title);
+            title_ = title;
             invalid();
         }
     }
@@ -224,7 +224,7 @@ public:
                         std::function<void()> action)
         : OutlineButton(size, std::move(title), colors), action_(std::move(action)) {}
 
-    void setAction(std::function<void()> action) { action_ = std::move(action); }
+    void setAction(const std::function<void()>& action) { action_ = action; }
 
 protected:
     void onClick() override { if (action_) action_(); }

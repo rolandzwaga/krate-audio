@@ -364,9 +364,9 @@ inline void saveMorphParams(const MorphParams& params, Steinberg::IBStreamer& st
     streamer.writeInt32(
         static_cast<Steinberg::int32>(params.stateCount.load(std::memory_order_relaxed)));
 
-    for (std::size_t i = 0; i < params.slot.size(); ++i) {
+    for (const auto& slot : params.slot) {
         streamer.writeInt32(
-            static_cast<Steinberg::int32>(params.slot[i].load(std::memory_order_relaxed)));
+            static_cast<Steinberg::int32>(slot.load(std::memory_order_relaxed)));
     }
 }
 
@@ -386,9 +386,9 @@ inline void saveMorphParams(const MorphParams& params, Steinberg::IBStreamer& st
 inline void saveSpectralPayloads(const std::array<Krate::DSP::SpectralState, 4>& source,
                                  Steinberg::IBStreamer& streamer) {
     std::array<std::byte, Krate::DSP::kSpectralStateBytes> buf{};
-    for (std::size_t i = 0; i < source.size(); ++i) {
+    for (const auto& state : source) {
         const std::size_t written =
-            Krate::DSP::serializeSpectralState(source[i], buf.data(), buf.size());
+            Krate::DSP::serializeSpectralState(state, buf.data(), buf.size());
         if (written == 0) {
             buf.fill(std::byte{0});
         }
@@ -448,9 +448,9 @@ inline bool loadMorphParams(MorphParams& params, Steinberg::IBStreamer& streamer
         std::clamp(static_cast<int>(iv), kMorphStateCountMin, kMorphStateCountMax),
         std::memory_order_relaxed);
 
-    for (std::size_t i = 0; i < params.slot.size(); ++i) {
+    for (auto& slot : params.slot) {
         if (!streamer.readInt32(iv)) { return false; }
-        params.slot[i].store(
+        slot.store(
             std::clamp(static_cast<int>(iv), 0,
                        static_cast<int>(kSpectralStateLabels.size()) - 1),
             std::memory_order_relaxed);
@@ -476,13 +476,13 @@ inline bool loadMorphParams(MorphParams& params,
     // --- the four payloads (plan 5.4's decoder) ------------------------------
     std::array<std::byte, Krate::DSP::kSpectralStateBytes> buf{};
     const auto payloadBytes = static_cast<Steinberg::TSize>(buf.size());
-    for (std::size_t i = 0; i < destination.size(); ++i) {
+    for (auto& state : destination) {
         if (streamer.readRaw(buf.data(), payloadBytes) != payloadBytes) {
             return false;  // EOF-safe: this and every later slot stay factory.
         }
         // deserializeSpectralState leaves `out` BITWISE UNTOUCHED on rejection
         // (spectral_state.h:274-286), so a bad slot is not a bad preset.
-        (void) Krate::DSP::deserializeSpectralState(buf.data(), buf.size(), destination[i]);
+        (void) Krate::DSP::deserializeSpectralState(buf.data(), buf.size(), state);
     }
 
     return true;
@@ -500,7 +500,7 @@ inline bool loadMorphParams(MorphParams& params,
 
 template <typename SetParamFunc>
 inline void loadMorphParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam,
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam,
     std::array<Krate::DSP::SpectralState, 4>& mirror) {
 
     float fv = 0.0f;
@@ -580,11 +580,11 @@ inline void loadMorphParamsToController(
     // that follows.
     std::array<std::byte, Krate::DSP::kSpectralStateBytes> scratch{};
     const auto payloadBytes = static_cast<Steinberg::TSize>(scratch.size());
-    for (std::size_t i = 0; i < mirror.size(); ++i) {
+    for (auto& state : mirror) {
         if (streamer.readRaw(scratch.data(), payloadBytes) != payloadBytes) {
             return;  // EOF-safe: this and every later slot keep their value.
         }
-        (void) Krate::DSP::deserializeSpectralState(scratch.data(), scratch.size(), mirror[i]);
+        (void) Krate::DSP::deserializeSpectralState(scratch.data(), scratch.size(), state);
     }
 }
 

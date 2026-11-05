@@ -6,13 +6,14 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 TEST_CASE("Pitch env detector: downsweep 200->50 Hz / 30 ms triggers") {
     constexpr double sr = 44100.0;
     constexpr int N = static_cast<int>(0.5 * sr);
     std::vector<float> x(N);
-    constexpr float pi = 3.14159265358979323846f;
+    constexpr float pi = std::numbers::pi_v<float>;
     // Phase-accumulated sinusoid sweeping linearly from 200 -> 50 Hz over 30 ms,
     // then sustains at 50 Hz for the rest.
     float phase = 0.0f;
@@ -33,7 +34,9 @@ TEST_CASE("Pitch env detector: downsweep 200->50 Hz / 30 ms triggers") {
 
     const auto track = MembrumFit::trackPitch(x, seg, sr);
     REQUIRE(track.size() >= 4);
-    float startHz = 0, endHz = 0, durSec = 0;
+    float startHz = 0;
+    float endHz = 0;
+    float durSec = 0;
     REQUIRE(MembrumFit::detectPitchEnvelope(track, startHz, endHz, durSec));
     REQUIRE(startHz > endHz);
     REQUIRE(durSec  < 0.2f);

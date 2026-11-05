@@ -264,7 +264,7 @@ private:
 public:
     /// Get latency in samples
     /// Granular delay has no inherent latency (grains tap delay buffer)
-    [[nodiscard]] size_t getLatencySamples() const noexcept { return 0; }
+    [[nodiscard]] static size_t getLatencySamples() noexcept { return 0; }
 
     /// Get current active grain count
     [[nodiscard]] size_t activeGrainCount() const noexcept {

@@ -66,8 +66,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Spectral freeze oscillator that captures and resynthesizes FFT frames.
 ///
@@ -105,12 +105,12 @@ public:
     /// @note NOT real-time safe (allocates memory)
     void prepare(double sampleRate, size_t fftSize = 2048) noexcept {
         // Validate and clamp FFT size to [256, 8192] power-of-2
-        if (fftSize < kMinFFTSize) fftSize = kMinFFTSize;
-        if (fftSize > kMaxFFTSize) fftSize = kMaxFFTSize;
+        fftSize = std::max(fftSize, kMinFFTSize);
+        fftSize = std::min(fftSize, kMaxFFTSize);
         if (!std::has_single_bit(fftSize)) {
             // Clamp to nearest lower power of 2
             fftSize = std::bit_floor(fftSize);
-            if (fftSize < kMinFFTSize) fftSize = kMinFFTSize;
+            fftSize = std::max(fftSize, kMinFFTSize);
         }
 
         sampleRate_ = sampleRate;
@@ -452,7 +452,7 @@ private:
     ///
     /// For destination bin k, the source bin is k / ratio. Fractional source
     /// bins are linearly interpolated. Bins outside [0, N/2] are zeroed (FR-015).
-    void applyPitchShift(const float* inputMags, float* outputMags) noexcept {
+    void applyPitchShift(const float* inputMags, float* outputMags) const noexcept {
         const float ratio = semitonesToRatio(pitchShiftSemitones_);
 
         for (size_t k = 0; k < numBins_; ++k) {
@@ -476,7 +476,7 @@ private:
     /// via output sample clamping to [-2.0, +2.0], matching the AdditiveOscillator
     /// pattern. This keeps spectral tilt calculations clean while preventing
     /// IFFT overflow in the output domain where it matters.
-    void applySpectralTilt(float* magnitudes) noexcept {
+    void applySpectralTilt(float* magnitudes) const noexcept {
         if (spectralTiltDbPerOctave_ == 0.0f) return;  // Optimization: skip when 0
 
         // Reference frequency is bin 1's frequency
@@ -497,7 +497,7 @@ private:
             magnitudes[k] *= gainLinear;
 
             // FR-018: Clamp magnitude floor to zero
-            if (magnitudes[k] < 0.0f) magnitudes[k] = 0.0f;
+            magnitudes[k] = std::max(magnitudes[k], 0.0f);
         }
     }
 
@@ -530,7 +530,7 @@ private:
 
         // Apply formant preservation: output = mag * (shifted_env / original_env)
         // This is FR-022
-        formantPreserver_.applyFormantPreservation(
+        Krate::DSP::FormantPreserver::applyFormantPreservation(
             magnitudes,
             originalEnvelope_.data(),
             shiftedEnvelope_.data(),
@@ -665,5 +665,5 @@ private:
     static constexpr size_t kMaxFFTSize = 8192;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

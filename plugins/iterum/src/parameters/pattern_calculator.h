@@ -85,13 +85,13 @@ inline constexpr double kPrimeRatios[16] = {0.5,  0.75, 1.25, 1.75,  2.75,  3.25
     const double tap = static_cast<double>(i + 1);
 
     if (timingPattern < 0 || timingPattern > D::kLastPresetPattern || n == 0) {
-        return {static_cast<float>(D::kMinMs), 0.0f, levelDb};
+        return {.ms = static_cast<float>(D::kMinMs), .beats = 0.0f, .levelDb = levelDb};
     }
 
     if (timingPattern <= 13) {
         const double baseBeats = D::rhythmicBeats(timingPattern);
         const double baseMs = std::clamp(baseBeats * q, D::kMinMs, D::kMaxMs);
-        return {static_cast<float>(std::min(tap * baseMs, D::kMaxMs)), static_cast<float>(tap * baseBeats), levelDb};
+        return {.ms = static_cast<float>(std::min(tap * baseMs, D::kMaxMs)), .beats = static_cast<float>(tap * baseBeats), .levelDb = levelDb};
     }
 
     const auto mapping = multiTapNoteValueFromDropdown(noteValueIdx, noteModifierIdx);
@@ -137,7 +137,7 @@ inline constexpr double kPrimeRatios[16] = {0.5,  0.75, 1.25, 1.75,  2.75,  3.25
             break;
         }
     }
-    return {static_cast<float>(ms), static_cast<float>(beats), levelDb};
+    return {.ms = static_cast<float>(ms), .beats = static_cast<float>(beats), .levelDb = levelDb};
 }
 
 /// True when any of the @p n taps plays at a time other than its musical value at @p bpm, i.e. when any of the

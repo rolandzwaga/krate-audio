@@ -22,9 +22,6 @@
 
 namespace Disrumpo {
 
-// Forward declaration
-class MidiCCManager;
-
 class KeyboardShortcutHandler : public VSTGUI::IKeyboardHook {
 public:
     /// @param controller The edit controller for parameter access

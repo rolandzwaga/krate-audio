@@ -42,6 +42,7 @@
 #include <functional>
 #include <random>
 #include <string>
+#include <utility>
 
 namespace Krate::Plugins {
 
@@ -96,7 +97,7 @@ public:
 
     void setStepValue(int index, uint8_t value) {
         if (index >= 0 && index < kMaxSteps) {
-            if (value >= kValueCount) value = 0;
+            if (std::cmp_greater_equal(value, kValueCount)) value = 0;
             stepValues_[static_cast<size_t>(index)] = value;
         }
     }
@@ -294,7 +295,7 @@ public:
                 if (len > 1) {
                     float first = result[0];
                     for (int32_t i = 0; i < len - 1; ++i)
-                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i + 1)];
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i) + 1];
                     result[static_cast<size_t>(len - 1)] = first;
                 }
                 break;
@@ -419,7 +420,7 @@ public:
             menu->addEntry(Traits::kFullNames[i]);
 
         uint8_t currentVal = stepValues_[static_cast<size_t>(step)];
-        if (currentVal < kValueCount)
+        if (std::cmp_less(currentVal, kValueCount))
             menu->setCurrent(static_cast<int32_t>(currentVal));
 
         menu->setListener(nullptr);
@@ -514,7 +515,7 @@ protected:
 
         for (int i = 0; i < numSteps_; ++i) {
             uint8_t val = stepValues_[static_cast<size_t>(i)];
-            if (val >= kValueCount) val = 0;
+            if (std::cmp_greater_equal(val, kValueCount)) val = 0;
 
             float cellLeft = contentLeft + static_cast<float>(i) * cellWidth;
             float cellRight = cellLeft + cellWidth;

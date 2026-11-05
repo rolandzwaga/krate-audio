@@ -26,9 +26,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Direction Enumeration
@@ -337,7 +338,7 @@ inline bool SequencerCore::isPrepared() const noexcept {
 inline void SequencerCore::setNumSteps(size_t numSteps) noexcept {
     numSteps_ = std::clamp(numSteps, size_t{1}, kMaxSteps);
     // Ensure current step is within bounds
-    if (currentStep_ >= static_cast<int>(numSteps_)) {
+    if (std::cmp_greater_equal(currentStep_, numSteps_)) {
         currentStep_ = 0;
     }
 }
@@ -535,6 +536,7 @@ inline int SequencerCore::calculateNextStep() noexcept {
                 next = 0;
             } else {
                 // Rejection sampling with xorshift PRNG
+                // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while): rejection sampling draws before it tests
                 do {
                     rngState_ ^= rngState_ << 13;
                     rngState_ ^= rngState_ >> 17;
@@ -575,7 +577,7 @@ inline int SequencerCore::calculatePingPongStep(double stepsIntoPattern) const n
 
     // First half: ascending (0 to N-1)
     // Second half: descending (N-2 to 1)
-    if (posInCycle < static_cast<int>(numSteps_)) {
+    if (std::cmp_less(posInCycle, numSteps_)) {
         return posInCycle;
     } else {
         // Mirror back: position N maps to N-2, N+1 maps to N-3, etc.
@@ -583,5 +585,5 @@ inline int SequencerCore::calculatePingPongStep(double stepsIntoPattern) const n
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

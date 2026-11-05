@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <numbers>
 #include <string>
 
 namespace Krate::Plugins {
@@ -28,7 +29,7 @@ namespace Krate::Plugins {
 // TransformType - Enum for Lane Transform Operations (Phase 11c)
 // ==============================================================================
 
-enum class TransformType {
+enum class TransformType : std::uint8_t {
     kInvert = 0,
     kShiftLeft = 1,
     kShiftRight = 2,
@@ -135,7 +136,7 @@ public:
     void setSpeedMultiplier(float speed) { speedMultiplier_ = speed; }
     [[nodiscard]] float getSpeedMultiplier() const { return speedMultiplier_; }
 
-    [[nodiscard]] float getHeight() const { return kHeight; }
+    [[nodiscard]] static float getHeight() { return kHeight; }
 
     // =========================================================================
     // Transform Button Rendering (Phase 11c - Phase 5, T044)
@@ -465,7 +466,7 @@ private:
     // =========================================================================
 
     void drawCollapseTriangle(VSTGUI::CDrawContext* context,
-                              const VSTGUI::CRect& headerRect) {
+                              const VSTGUI::CRect& headerRect) const {
         if (!collapseVisible_) return;
 
         auto path = VSTGUI::owned(context->createGraphicsPath());
@@ -583,8 +584,8 @@ private:
     /// 2=ShiftRight, 3=Randomize). Buttons are laid out right-to-left:
     /// [Invert][gap][ShiftLeft][gap][ShiftRight][gap][Randomize][margin]
     /// Starting from headerRect.right - kButtonsRightMargin.
-    [[nodiscard]] VSTGUI::CRect getButtonRect(const VSTGUI::CRect& headerRect,
-                                               int buttonIndex) const {
+    [[nodiscard]] static VSTGUI::CRect getButtonRect(const VSTGUI::CRect& headerRect,
+                                               int buttonIndex) {
         // Rightmost button (index 3 = Randomize) is at the far right
         float rightEdge = static_cast<float>(headerRect.right) - kButtonsRightMargin;
         float btnY = static_cast<float>(headerRect.top) +
@@ -596,7 +597,7 @@ private:
             (kButtonSize + kButtonGap);
         float btnLeft = btnRight - kButtonSize;
 
-        return VSTGUI::CRect(btnLeft, btnY, btnRight, btnY + kButtonSize);
+        return {btnLeft, btnY, btnRight, btnY + kButtonSize};
     }
 
     // =========================================================================
@@ -604,9 +605,9 @@ private:
     // =========================================================================
 
     /// Draw a miniature Invert icon (two opposing vertical arrows)
-    void drawMiniInvertIcon(VSTGUI::CDrawContext* context,
+    static void drawMiniInvertIcon(VSTGUI::CDrawContext* context,
                             float cx, float cy, float half,
-                            const VSTGUI::CColor& color) const {
+                            const VSTGUI::CColor& color) {
         float spacing = half * 0.5f;
         float arrowLen = half * 0.8f;
         float headSize = half * 0.35f;
@@ -644,10 +645,10 @@ private:
     }
 
     /// Draw a miniature Shift icon (horizontal arrow left or right)
-    void drawMiniShiftIcon(VSTGUI::CDrawContext* context,
+    static void drawMiniShiftIcon(VSTGUI::CDrawContext* context,
                            float cx, float cy, float half,
                            const VSTGUI::CColor& color,
-                           float direction) const {
+                           float direction) {
         float shaftLen = half * 0.7f;
         float headSize = half * 0.4f;
 
@@ -670,9 +671,9 @@ private:
     }
 
     /// Draw a miniature Regen/Randomize icon (circular arc with arrowhead)
-    void drawMiniRegenIcon(VSTGUI::CDrawContext* context,
+    static void drawMiniRegenIcon(VSTGUI::CDrawContext* context,
                            float cx, float cy, float half,
-                           const VSTGUI::CColor& color) const {
+                           const VSTGUI::CColor& color) {
         float radius = half * 0.7f;
 
         context->setFrameColor(color);
@@ -689,7 +690,7 @@ private:
 
         // Small arrowhead at ~330 degrees
         float headSize = half * 0.3f;
-        constexpr float kPi = 3.14159265f;
+        constexpr float kPi = std::numbers::pi_v<float>;
         float angle330 = 330.0f * kPi / 180.0f;
         float tipX = cx + radius * std::cos(angle330);
         float tipY = cy + radius * std::sin(angle330);

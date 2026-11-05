@@ -28,6 +28,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>  // std::memcmp - FR-085 lever 1's bit-identical array skip
+#include <utility>
 
 // Suppress MSVC C4324: structure was padded due to alignment specifier.
 // Same idiom as harmonic_oscillator_bank.h:45-49 — the alignas(32) on the SoA
@@ -1468,7 +1469,7 @@ private:
             kRichnessMinExponent + (kRichnessMaxExponent - kRichnessMinExponent) * richness_;
 
         for (std::size_t i = 0; i < kMaxPartials; ++i) {
-            if (static_cast<int>(i) >= activeCount_) {
+            if (std::cmp_greater_equal(i, activeCount_)) {
                 baseAmplitude_[i] = 0.0f;  // a_n = 0 for n > N(r)
                 continue;
             }
@@ -1689,7 +1690,7 @@ private:
         // de-zippering stage (FR-014) that cannot express per-partial timing at all.
         const float chunkSeconds = static_cast<float>(numSamples) * invSampleRate_;
 
-        for (std::size_t i = 0; i < static_cast<std::size_t>(kernelCount_); ++i) {
+        for (std::size_t i = 0; std::cmp_less(i, kernelCount_); ++i) {
             // FR-033. The clamp is `BrownianDrift::getCurrentValue()`'s own shape
             // (`brownian_drift.h:212-214`) — the source range is fixed at [-1, +1]
             // regardless of depth, so the cents bound is applied HERE by the cloud
@@ -1782,7 +1783,7 @@ private:
         // Hence the sweep below is over `kernelCount_`, i.e. everything the kernel
         // is actually handed, and uses the same 1e-8 idiom the reference applies to
         // its own tail (`harmonic_oscillator_bank.h:756`), generalised.
-        for (std::size_t i = 0; i < static_cast<std::size_t>(kernelCount_); ++i) {
+        for (std::size_t i = 0; std::cmp_less(i, kernelCount_); ++i) {
             if (targetAmplitude_[i] == 0.0f && currentAmplitude_[i] < kTailSilenceThreshold) {
                 currentAmplitude_[i] = 0.0f;
             }
@@ -1860,7 +1861,7 @@ private:
     ///
     /// @param bank       Lane bank to configure
     /// @param smoothness Correlation control in [0, 1]; tau = lerp(0.2 s, 30 s)
-    void updateDriftCoefficients(DriftLanes& bank, float smoothness) noexcept {
+    void updateDriftCoefficients(DriftLanes& bank, float smoothness) const noexcept {
         const double controlDtSeconds =
             static_cast<double>(kDriftControlInterval) / sampleRate_;
         const double tau = static_cast<double>(kDriftTauMin) +
@@ -1885,7 +1886,7 @@ private:
     /// Every lane of the bank steps, not just the `activeCount_` ones: a partial
     /// that Richness re-activates must find its walk where it would have been had
     /// it never gone quiet, not frozen at the value it held when it left.
-    void advanceControlStepAllLanes(DriftLanes& bank) noexcept {
+    static void advanceControlStepAllLanes(DriftLanes& bank) noexcept {
         for (std::size_t i = 0; i < kMaxPartials; ++i) {
             const float z0 = bank.rng[i].rng.nextFloat();
             const float z1 = bank.rng[i].rng.nextFloat();
@@ -1961,7 +1962,7 @@ private:
     /// @param numSamples Samples to advance; bounded by kDriftControlInterval,
     ///                   because the caller only ever advances to the next control
     ///                   boundary.
-    void advanceSmootherAllLanes(DriftLanes& bank, int numSamples) noexcept {
+    void advanceSmootherAllLanes(DriftLanes& bank, int numSamples) const noexcept {
         if (numSamples <= 0) {  // `advanceSamples(0)` is a no-op (smoother.h:244)
             return;
         }

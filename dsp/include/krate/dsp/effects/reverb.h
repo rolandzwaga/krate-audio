@@ -50,10 +50,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -617,7 +618,7 @@ private:
     // =========================================================================
 
     /// Section indices into the contiguous buffer
-    enum Section : size_t {
+    enum Section : std::uint8_t {  // NOLINT(cppcoreguidelines-use-enum-class): an index into the section offsets, implicit conversion is the point
         kPreDelay = 0,
         kInputDiff0 = 1,
         kInputDiff1 = 2,
@@ -950,5 +951,5 @@ private:
     OnePoleSmoother modDepthSmoother_;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

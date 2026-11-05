@@ -46,6 +46,8 @@ static const Steinberg::FUID kControllerUID(0x87654321, 0x87654321, 0x87654321, 
 
 // Note: DelayMode enum is defined in delay_mode.h to allow use without VST3 SDK
 
+// Unscoped and ParamID-based on purpose: hosts, IMessage and the parameter tables all use these IDs as plain ParamIDs.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
 enum ParameterIDs : Steinberg::Vst::ParamID {
     // ==========================================================================
     // Global Parameters (0-99)

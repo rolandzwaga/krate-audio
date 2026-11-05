@@ -5,14 +5,17 @@
 #include <catch2/catch_approx.hpp>
 
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 TEST_CASE("Matrix Pencil: recovers two damped sinusoids at infinite SNR") {
     constexpr double sr = 44100.0;
     constexpr int    N  = 4096;
-    constexpr float  pi = 3.14159265358979323846f;
-    const float f1 = 220.0f, g1 = 8.0f;
-    const float f2 = 660.0f, g2 = 12.0f;
+    constexpr float  pi = std::numbers::pi_v<float>;
+    const float f1 = 220.0f;
+    const float g1 = 8.0f;
+    const float f2 = 660.0f;
+    const float g2 = 12.0f;
 
     std::vector<float> x(N);
     for (int n = 0; n < N; ++n) {
@@ -24,7 +27,8 @@ TEST_CASE("Matrix Pencil: recovers two damped sinusoids at infinite SNR") {
     auto md = MembrumFit::Modal::extractModesMatrixPencil(x, sr, /*maxModes*/ 8);
     REQUIRE(md.modes.size() >= 2);
     // Top two modes (sorted by amplitude desc) should be near f1 and f2 in some order.
-    bool hit1 = false, hit2 = false;
+    bool hit1 = false;
+    bool hit2 = false;
     for (const auto& m : md.modes) {
         if (std::abs(m.freqHz - f1) < 5.0f) hit1 = true;
         if (std::abs(m.freqHz - f2) < 5.0f) hit2 = true;

@@ -120,8 +120,6 @@ constexpr float kLog2FreqRange = kLog2MaxFreq - kLog2MinFreq;  // ~9.966
         case MorphLinkMode::Custom:
             // Custom mode should use CustomCurve::evaluate()
             // Fall back to linear if called directly
-            return x;
-
         default:
             return x;
     }
@@ -155,9 +153,7 @@ constexpr float kLog2FreqRange = kLog2MaxFreq - kLog2MinFreq;  // ~9.966
     float sigma = widthOctaves / 2.0f;
 
     // Avoid division by zero
-    if (sigma < 0.001f) {
-        sigma = 0.001f;
-    }
+    sigma = std::max(sigma, 0.001f);
 
     // Gaussian falloff (FR-008)
     float normalizedDist = distanceOctaves / sigma;
@@ -191,9 +187,7 @@ constexpr float kLog2FreqRange = kLog2MaxFreq - kLog2MinFreq;  // ~9.966
     float halfWidth = widthOctaves / 2.0f;
 
     // Avoid division by zero
-    if (halfWidth < 0.001f) {
-        halfWidth = 0.001f;
-    }
+    halfWidth = std::max(halfWidth, 0.001f);
 
     // Linear falloff, exactly 0.0 at edge and beyond
     float falloff = std::max(0.0f, 1.0f - distanceOctaves / halfWidth);

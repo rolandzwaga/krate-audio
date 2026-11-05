@@ -22,8 +22,8 @@
 #include <atomic>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Lock-free SPSC ring buffer for streaming audio samples to UI thread.
 ///
@@ -131,5 +131,5 @@ private:
     std::atomic<size_t> writePos_{0};  // Cumulative write position (only producer modifies)
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

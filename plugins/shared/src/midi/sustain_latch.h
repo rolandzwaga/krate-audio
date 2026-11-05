@@ -44,7 +44,7 @@ public:
     /// Pedal transition. On down -> up, every latched note whose key is not held
     /// is passed to `release(std::uint8_t)` in ascending order; the latch clears.
     template <typename Release>
-    void setPedal(bool down, Release&& release) noexcept {
+    void setPedal(bool down, Release&& release) noexcept {  // NOLINT(cppcoreguidelines-missing-std-forward): called once per note, so not forwarded
         if (down_ && !down) {
             for (std::size_t n = 0; n < kNumNotes; ++n) {
                 if (latched_.test(n) && !held_.test(n)) release(static_cast<std::uint8_t>(n));
@@ -56,7 +56,7 @@ public:
 
     /// Releases every latched note (setActive(false) path) and lifts the pedal.
     template <typename Release>
-    void releaseAll(Release&& release) noexcept {
+    void releaseAll(Release&& release) noexcept {  // NOLINT(cppcoreguidelines-missing-std-forward): called once per note, so not forwarded
         for (std::size_t n = 0; n < kNumNotes; ++n) {
             if (latched_.test(n)) release(static_cast<std::uint8_t>(n));
         }

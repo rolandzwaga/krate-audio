@@ -6,6 +6,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace MembrumFit::Ingestion {
 
@@ -151,9 +152,9 @@ KitSpec loadKitSFZ(const std::filesystem::path& sfzPath) {
     // loudest layer per note; multi-velocity is Phase 5 deferred).
     std::map<int, Region> picks;
     for (const auto& r : regions) {
-        const int midiNote = (r.key >= 0) ? r.key
-                           : (r.loKey >= 0 && r.hiKey >= r.loKey) ? r.loKey
-                           : r.pitchKeycenter;
+        int midiNote = r.pitchKeycenter;
+        if (r.key >= 0) midiNote = r.key;
+        else if (r.loKey >= 0 && r.hiKey >= r.loKey) midiNote = r.loKey;
         if (midiNote < 36 || midiNote > 67) continue;
         if (r.sample.empty()) continue;
         const auto it = picks.find(midiNote);

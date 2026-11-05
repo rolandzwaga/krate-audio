@@ -30,8 +30,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations (FR-001, FR-002, FR-003)
@@ -444,8 +444,8 @@ private:
     // Wavetable Reading with Linear Interpolation
     // =========================================================================
 
-    [[nodiscard]] float readWavetable(const std::array<float, kWavetableSize>& table,
-                                       double phase) const noexcept {
+    [[nodiscard]] static float readWavetable(const std::array<float, kWavetableSize>& table,
+                                       double phase) noexcept {
         // Scale phase to table index
         double scaledPhase = phase * static_cast<double>(kWavetableSize);
         size_t index0 = static_cast<size_t>(scaledPhase);
@@ -620,9 +620,9 @@ private:
         upsampled[1] = 0.0f;
 
         // Process at oversampled rate
-        for (int i = 0; i < 2; ++i) {
+        for (float& sample : upsampled) {
             float osModulator = getModulatorValueOversampled(modulator, 2);
-            upsampled[i] = processFilterFM(upsampled[i], osModulator);
+            sample = processFilterFM(sample, osModulator);
         }
 
         // Downsample (take first sample for simplicity with IIR mode)
@@ -638,9 +638,9 @@ private:
         upsampled[3] = 0.0f;
 
         // Process at oversampled rate
-        for (int i = 0; i < 4; ++i) {
+        for (float& sample : upsampled) {
             float osModulator = getModulatorValueOversampled(modulator, 4);
-            upsampled[i] = processFilterFM(upsampled[i], osModulator);
+            sample = processFilterFM(sample, osModulator);
         }
 
         // Downsample
@@ -691,5 +691,5 @@ private:
     std::vector<float> modulatorBuffer_;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

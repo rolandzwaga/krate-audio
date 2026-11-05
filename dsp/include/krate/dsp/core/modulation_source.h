@@ -19,8 +19,8 @@
 
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Abstract interface for modulation sources.
 ///
@@ -41,5 +41,5 @@ public:
     [[nodiscard]] virtual std::pair<float, float> getSourceRange() const noexcept = 0;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

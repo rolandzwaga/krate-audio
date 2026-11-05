@@ -42,10 +42,11 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 #include <variant>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Forward Declarations
@@ -125,6 +126,13 @@ using ProcessorVariant = std::variant<
     FuzzProcessor,
     BitcrusherProcessor
 >;
+
+// A slot changes only by move-assigning createProcessor()'s result, and a variant goes valueless only when that move
+// construction throws; the noexcept process / reset visits rely on it never doing so (.clang-tidy ignores
+// bad_variant_access for that reason).
+static_assert([]<typename... T>(std::variant<T...>*) {
+    return (std::is_nothrow_move_constructible_v<T> && ...);
+}(static_cast<ProcessorVariant*>(nullptr)), "a throwing move constructor could leave a slot's variant valueless");
 
 // =============================================================================
 // DistortionRack Class
@@ -437,7 +445,7 @@ private:
     void prepareSlotProcessor(Slot& slot) noexcept;
 
     /// @brief Create a processor variant for a slot type.
-    [[nodiscard]] ProcessorVariant createProcessor(SlotType type) const noexcept;
+    [[nodiscard]] static ProcessorVariant createProcessor(SlotType type) noexcept;
 
     // =========================================================================
     // ProcessVisitor for std::variant dispatch (FR-019a)
@@ -652,8 +660,8 @@ inline void DistortionRack::processSlot(size_t slotIndex, float* left, float* ri
         float wetR = dryR;
 
         // Use visitor to dispatch to the correct processor
-        ProcessVisitor visitorL{&wetL, 1};
-        ProcessVisitor visitorR{&wetR, 1};
+        ProcessVisitor visitorL{.buffer = &wetL, .numSamples = 1};
+        ProcessVisitor visitorR{.buffer = &wetR, .numSamples = 1};
         std::visit(visitorL, slot.processorL);
         std::visit(visitorR, slot.processorR);
 
@@ -791,7 +799,7 @@ inline bool DistortionRack::getDCBlockingEnabled() const noexcept {
     return dcBlockingEnabled_;
 }
 
-inline ProcessorVariant DistortionRack::createProcessor(SlotType type) const noexcept {
+inline ProcessorVariant DistortionRack::createProcessor(SlotType type) noexcept {
     switch (type) {
         case SlotType::Empty:
             return std::monostate{};
@@ -816,10 +824,10 @@ inline ProcessorVariant DistortionRack::createProcessor(SlotType type) const noe
 
 inline void DistortionRack::prepareSlotProcessor(Slot& slot) noexcept {
     // Prepare the processor using visitor pattern
-    detail::PrepareProcessorVisitor visitor{sampleRate_, maxBlockSize_};
+    detail::PrepareProcessorVisitor visitor{.sampleRate = sampleRate_, .maxBlockSize = maxBlockSize_};
     std::visit(visitor, slot.processorL);
     std::visit(visitor, slot.processorR);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

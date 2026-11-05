@@ -47,6 +47,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <numbers>
 
 namespace Krate::DSP {
 
@@ -383,12 +384,12 @@ public:
     [[nodiscard]] static constexpr std::size_t latencySamples() noexcept { return 0; }   // FR-033
 
 private:
-    static constexpr double kPiDouble = 3.14159265358979323846;   // == ProfundumCore::kPiDouble (profundum_core.h:813)
+    static constexpr double kPiDouble = std::numbers::pi;   // == ProfundumCore::kPiDouble (profundum_core.h:813)
     static constexpr double kTwoPiD = 2.0 * kPiDouble;            // S4.5 angle reduction
     static constexpr double kMaxBankEpsilonD = 1.99;              // the core's kMaxBankEpsilon (profundum_core.h:814)
     static constexpr float kMaxBankEpsilonF = 1.99f;              // the bank's kMaxEpsilon (harmonic_oscillator_bank.h:1060)
     static constexpr float kMaxBaseStepSemitones = 0.9f;          // == ProfundumCore::kMaxBaseStepSemitones (profundum_core.h:103)
-    static constexpr double kSqrt2D = 1.4142135623730950488;      // S4.5: the sine's unit-RMS scale
+    static constexpr double kSqrt2D = std::numbers::sqrt2;      // S4.5: the sine's unit-RMS scale
     static constexpr double kGainScale = static_cast<double>(kAnchorToH1) * 0.70710678118654752;   // k/√2 (S4.4)
     static constexpr double kInvRmsA025 = 1.3719886811400708;     // 1/√0.53125 = √(32/17): rounded and asymmetric (S4.5)
     static constexpr std::size_t kTaperTableSize = 2 * kTriangleTerms - 1;   // harmonics 1..31
@@ -980,7 +981,7 @@ private:
         if (qa == 0.0)
             return true;   // g' ∝ −m0·(t − 1): no interior extremum
         const double t = m0 / qa;
-        if (!(t > 0.0 && t < 1.0))
+        if (t <= 0.0 || t >= 1.0)
             return true;   // not interior
         const double t2 = t * t;
         const double t3 = t2 * t;
@@ -1070,12 +1071,10 @@ private:
     }
 
     [[nodiscard]] bool envelopeFinite() const noexcept {
-        for (const Segment& s : seg_) {
-            if (!(detail::isFinite(s.g0) && detail::isFinite(s.a) && detail::isFinite(s.m0) && detail::isFinite(s.g1)
-                  && detail::isFinite(s.rc) && detail::isFinite(s.rs)))
-                return false;
-        }
-        return true;
+        return std::ranges::all_of(seg_, [&](const Segment& s) {
+            return detail::isFinite(s.g0) && detail::isFinite(s.a) && detail::isFinite(s.m0) && detail::isFinite(s.g1)
+                  && detail::isFinite(s.rc) && detail::isFinite(s.rs);
+        });
     }
 
     // ---- S4.1 state (fixed-size, trivially copyable) ----

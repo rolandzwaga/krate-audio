@@ -169,7 +169,7 @@ struct DropCurve {
     /// Integral of g(n, d(n)) dn over [from, endSample] in samples (plan S1 C-2, S3.3): GL8 on
     /// fixed panels, 2 per piece, 4 on pieces longer than 0.5*N. O(1) in T, allocation-free.
     template <class F>
-    [[nodiscard]] double integrate(F&& g, double from = 0.0) const noexcept {
+    [[nodiscard]] double integrate(F&& g, double from = 0.0) const noexcept {  // NOLINT(cppcoreguidelines-missing-std-forward): g runs at every quadrature node
         double sum = 0.0;
         for (int i = 0; i < numPieces; ++i) {
             const Piece& p = pieces[static_cast<std::size_t>(i)];
@@ -226,21 +226,21 @@ struct DropFamilyRegion {
         if (region < 2)
             r.eDown = 1.0;
         else
-            r = {eA, -k * eA, 0.0, 0.0, 0.0, 0.0};
+            r = {.p0 = eA, .m0 = -k * eA, .p1 = 0.0, .m1 = 0.0, .eDown = 0.0, .eUp = 0.0};
     } else if (id == 1) {  // linear: 1 - u, then the landing fillet
         if (region == 0)
-            r = {1.0, -1.0, 1.0 - df, -1.0, 0.0, 0.0};
+            r = {.p0 = 1.0, .m0 = -1.0, .p1 = 1.0 - df, .m1 = -1.0, .eDown = 0.0, .eUp = 0.0};
         else if (region == 1)
-            r = {1.0 - df, -1.0, df, -1.0, 0.0, 0.0};
+            r = {.p0 = 1.0 - df, .m0 = -1.0, .p1 = df, .m1 = -1.0, .eDown = 0.0, .eUp = 0.0};
         else
-            r = {df, -1.0, 0.0, 0.0, 0.0, 0.0};
+            r = {.p0 = df, .m0 = -1.0, .p1 = 0.0, .m1 = 0.0, .eDown = 0.0, .eUp = 0.0};
     } else {  // logarithmic / elastic fall: 1 - p_exp(1 - u), landing fillet
         if (region == 0)  // the mirrored exponential fillet: p'(0) = 0, "holds, then falls"
-            r = {1.0, 0.0, 1.0 - eA, -k * eA, 0.0, 0.0};
+            r = {.p0 = 1.0, .m0 = 0.0, .p1 = 1.0 - eA, .m1 = -k * eA, .eDown = 0.0, .eUp = 0.0};
         else if (region == 1)
-            r = {1.0, 0.0, 1.0, 0.0, 0.0, -1.0};
+            r = {.p0 = 1.0, .m0 = 0.0, .p1 = 1.0, .m1 = 0.0, .eDown = 0.0, .eUp = -1.0};
         else
-            r = {1.0 - eD, -k * eD, 0.0, id == 3 ? -DropCurve::kElasticLandingSlope : 0.0, 0.0, 0.0};
+            r = {.p0 = 1.0 - eD, .m0 = -k * eD, .p1 = 0.0, .m1 = id == 3 ? -DropCurve::kElasticLandingSlope : 0.0, .eDown = 0.0, .eUp = 0.0};
     }
     return r;
 }

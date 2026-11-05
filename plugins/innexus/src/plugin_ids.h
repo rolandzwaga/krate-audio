@@ -12,6 +12,7 @@
 
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/vst/vsttypes.h"
+#include <cstdint>
 
 namespace Innexus {
 
@@ -43,6 +44,8 @@ static constexpr auto kSubCategories = "Instrument|Synth";
 //   700-799:   Output (Stereo spread, voice management)
 // ==============================================================================
 
+// Unscoped and ParamID-based on purpose: hosts, IMessage and the parameter tables all use these IDs as plain ParamIDs.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
 enum ParameterIds : Steinberg::Vst::ParamID
 {
     // Global
@@ -181,7 +184,7 @@ enum ParameterIds : Steinberg::Vst::ParamID
 // ==============================================================================
 // Input Source Enum (M3: Live Sidechain Mode)
 // ==============================================================================
-enum class InputSource : int
+enum class InputSource : std::uint8_t
 {
     Sample = 0,
     Sidechain = 1
@@ -190,7 +193,7 @@ enum class InputSource : int
 // ==============================================================================
 // Latency Mode Enum (M3: Live Sidechain Mode)
 // ==============================================================================
-enum class LatencyMode : int
+enum class LatencyMode : std::uint8_t
 {
     LowLatency = 0,
     HighPrecision = 1
@@ -199,7 +202,7 @@ enum class LatencyMode : int
 // ==============================================================================
 // Harmonic Filter Type Enum (M4: Musical Control Layer)
 // ==============================================================================
-enum class HarmonicFilterType : int
+enum class HarmonicFilterType : std::uint8_t
 {
     AllPass = 0,
     OddOnly = 1,
@@ -211,7 +214,7 @@ enum class HarmonicFilterType : int
 // ==============================================================================
 // Exciter Type Enum (Spec 128: Impact Exciter)
 // ==============================================================================
-enum class ExciterType : int
+enum class ExciterType : std::uint8_t
 {
     Residual = 0,
     Impact = 1,

@@ -32,6 +32,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <utility>
 
 namespace Krate::DSP {
 
@@ -94,7 +95,7 @@ public:
         numCandidates_ = 0;
         float f = kMinF0;
         const float centsToRatio = std::pow(2.0f, kCandidateSpacingCents / 1200.0f);
-        while (f <= kMaxF0 && numCandidates_ < static_cast<int>(kMaxCandidates)) {
+        while (f <= kMaxF0 && std::cmp_less(numCandidates_, kMaxCandidates)) {
             candidates_[static_cast<size_t>(numCandidates_)] = f;
             ++numCandidates_;
             f *= centsToRatio;
@@ -131,7 +132,7 @@ public:
         for (int i = 0; i < np; ++i) {
             workFreqs_[static_cast<size_t>(i)] = peakFreqs[i];
             workAmps_[static_cast<size_t>(i)] = peakAmps[i];
-            if (peakAmps[i] > maxAmp) maxAmp = peakAmps[i];
+            maxAmp = std::max(maxAmp, peakAmps[i]);
         }
 
         // Adaptive salience threshold scales with input amplitude so the
@@ -222,7 +223,7 @@ private:
     /// its harmonic amplitudes, then subtracts the estimated contribution
     /// from each matched peak (Klapuri-style spectral cancellation).
     void cancelHarmonics(float f0, const float* freqs, float* amps,
-                         int numPeaks) noexcept
+                         int numPeaks) const noexcept
     {
         // Step 1: Collect harmonic amplitudes to estimate spectral envelope
         std::array<float, kNumHarmonics> harmonicAmps{};

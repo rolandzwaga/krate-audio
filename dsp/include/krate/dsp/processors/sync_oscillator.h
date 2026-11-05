@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <krate/dsp/core/phase_utils.h>
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/db_utils.h>
@@ -33,8 +34,8 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // SyncMode Enumeration (FR-001)
@@ -121,7 +122,7 @@ public:
     // =========================================================================
 
     /// @brief Initialize for the given sample rate. NOT real-time safe.
-    inline void prepare(double sampleRate) noexcept {
+    void prepare(double sampleRate) noexcept {
         // FR-025: Validate table pointer
         if (table_ == nullptr || !table_->isPrepared()) {
             prepared_ = false;
@@ -154,7 +155,7 @@ public:
     }
 
     /// @brief Reset phase and state without changing configuration.
-    inline void reset() noexcept {
+    void reset() noexcept {
         masterPhase_.reset();
         slavePhase_.reset();
         residual_.reset();
@@ -167,13 +168,11 @@ public:
 
     /// @brief Set the master oscillator frequency in Hz.
     /// Clamped to [0, sampleRate/2). NaN/Inf treated as 0.0.
-    inline void setMasterFrequency(float hz) noexcept {
+    void setMasterFrequency(float hz) noexcept {
         if (detail::isNaN(hz) || detail::isInf(hz)) {
             hz = 0.0f;
         }
-        if (hz < 0.0f) {
-            hz = 0.0f;
-        }
+        hz = std::max(hz, 0.0f);
         const float nyquist = sampleRate_ * 0.5f;
         if (hz >= nyquist) {
             hz = nyquist - 0.001f;
@@ -185,13 +184,11 @@ public:
 
     /// @brief Set the slave oscillator frequency in Hz.
     /// Clamped to [0, sampleRate/2). NaN/Inf treated as 0.0.
-    inline void setSlaveFrequency(float hz) noexcept {
+    void setSlaveFrequency(float hz) noexcept {
         if (detail::isNaN(hz) || detail::isInf(hz)) {
             hz = 0.0f;
         }
-        if (hz < 0.0f) {
-            hz = 0.0f;
-        }
+        hz = std::max(hz, 0.0f);
         const float nyquist = sampleRate_ * 0.5f;
         if (hz >= nyquist) {
             hz = nyquist - 0.001f;
@@ -201,28 +198,28 @@ public:
     }
 
     /// @brief Set the slave oscillator waveform.
-    inline void setSlaveWaveform(OscWaveform waveform) noexcept {
+    void setSlaveWaveform(OscWaveform waveform) noexcept {
         slaveWaveform_ = waveform;
     }
 
     /// @brief Set the active sync mode.
-    inline void setSyncMode(SyncMode mode) noexcept {
+    void setSyncMode(SyncMode mode) noexcept {
         syncMode_ = mode;
     }
 
     /// @brief Set sync intensity [0.0, 1.0].
     /// 0.0 = no sync (slave runs freely). 1.0 = full sync.
-    inline void setSyncAmount(float amount) noexcept {
+    void setSyncAmount(float amount) noexcept {
         if (detail::isNaN(amount) || detail::isInf(amount)) {
             return;
         }
-        syncAmount_ = (amount < 0.0f) ? 0.0f : ((amount > 1.0f) ? 1.0f : amount);
+        syncAmount_ = std::clamp(amount, 0.0f, 1.0f);
     }
 
     /// @brief Set pulse width for the Pulse slave waveform.
     /// Clamped to [0.01, 0.99].
-    inline void setSlavePulseWidth(float width) noexcept {
-        slavePulseWidth_ = (width < 0.01f) ? 0.01f : ((width > 0.99f) ? 0.99f : width);
+    void setSlavePulseWidth(float width) noexcept {
+        slavePulseWidth_ = std::clamp(width, 0.01f, 0.99f);
     }
 
     // =========================================================================
@@ -245,7 +242,7 @@ public:
     /// The slave advances BEFORE sync processing so that at integer ratios
     /// (e.g., 1:1), the slave naturally reaches the correct phase and the
     /// sync is a no-op.
-    [[nodiscard]] inline float process() noexcept {
+    [[nodiscard]] float process() noexcept {
         if (!prepared_) {
             return 0.0f;
         }
@@ -293,7 +290,7 @@ public:
                     slavePhase_.phase, slavePhase_.increment);
             }
             float wrapOffset = static_cast<float>(ssOff);
-            if (wrapOffset < 0.0f) wrapOffset = 0.0f;
+            wrapOffset = std::max(wrapOffset, 0.0f);
             if (wrapOffset >= 1.0f) wrapOffset = 1.0f - 1e-7f;
 
             float wrapDiscontinuity = computeWrapDiscontinuity(
@@ -315,7 +312,7 @@ public:
                 masterPhase_.phase, masterPhase_.increment);
 
             float ssOffset = static_cast<float>(subsampleOffset);
-            if (ssOffset < 0.0f) ssOffset = 0.0f;
+            ssOffset = std::max(ssOffset, 0.0f);
             if (ssOffset >= 1.0f) ssOffset = 1.0f - 1e-7f;
 
             switch (syncMode_) {
@@ -344,7 +341,7 @@ public:
 
     /// @brief Generate numSamples into the provided buffer.
     /// Result is identical to calling process() that many times.
-    inline void processBlock(float* output, size_t numSamples) noexcept {
+    void processBlock(float* output, size_t numSamples) noexcept {
         for (size_t i = 0; i < numSamples; ++i) {
             output[i] = process();
         }
@@ -356,7 +353,7 @@ private:
     // =========================================================================
 
     /// @brief Evaluate the naive (uncorrected) slave waveform at arbitrary phase.
-    [[nodiscard]] static inline float evaluateWaveform(
+    [[nodiscard]] static float evaluateWaveform(
         OscWaveform wf, float phase, float pulseWidth) noexcept {
         switch (wf) {
             case OscWaveform::Sine:
@@ -377,26 +374,24 @@ private:
     }
 
     /// @brief Evaluate the waveform derivative at arbitrary phase.
-    [[nodiscard]] static inline float evaluateWaveformDerivative(
-        OscWaveform wf, float phase, float pulseWidth) noexcept {
+    [[nodiscard]] static float evaluateWaveformDerivative(
+        OscWaveform wf, float phase, float /*pulseWidth*/) noexcept {
         switch (wf) {
             case OscWaveform::Sine:
                 return kTwoPi * std::cos(kTwoPi * phase);
             case OscWaveform::Sawtooth:
                 return 2.0f;
-            case OscWaveform::Square:
-                return 0.0f;
-            case OscWaveform::Pulse:
-                return 0.0f;
             case OscWaveform::Triangle:
                 return (phase < 0.5f) ? 4.0f : -4.0f;
+            case OscWaveform::Square:
+            case OscWaveform::Pulse:
             default:
                 return 0.0f;
         }
     }
 
     /// @brief Compute waveform step discontinuity at the phase wrap point.
-    [[nodiscard]] static inline float computeWrapDiscontinuity(
+    [[nodiscard]] static float computeWrapDiscontinuity(
         OscWaveform wf, float pulseWidth) noexcept {
         float valueBefore = evaluateWaveform(wf, 1.0f - 1e-6f, pulseWidth);
         float valueAfter = evaluateWaveform(wf, 0.0f, pulseWidth);
@@ -404,7 +399,7 @@ private:
     }
 
     /// @brief Branchless output sanitization (FR-036).
-    [[nodiscard]] static inline float sanitize(float x) noexcept {
+    [[nodiscard]] static float sanitize(float x) noexcept {
         const auto bits = detail::opaqueFloatBits(x);  // fast-math-immune read
         const bool isNan = ((bits & 0x7F800000u) == 0x7F800000u) &&
                            ((bits & 0x007FFFFFu) != 0);
@@ -422,7 +417,7 @@ private:
     /// difference drives the sync correction.
     ///
     /// @param subsampleOffset Fraction of sample elapsed since master wrap [0, 1)
-    inline void processHardSync(float subsampleOffset) noexcept {
+    void processHardSync(float subsampleOffset) noexcept {
         double currentSlavePhase = slavePhase_.phase;
         double slaveInc = slavePhase_.increment;
         double masterInc = static_cast<double>(masterIncrement_);
@@ -461,7 +456,7 @@ private:
     }
 
     /// @brief Process reverse sync event (FR-019 through FR-021a).
-    inline void processReverseSync(float subsampleOffset) noexcept {
+    void processReverseSync(float subsampleOffset) noexcept {
         reversed_ = !reversed_;
 
         double currentSlavePhase = slavePhase_.phase;
@@ -478,7 +473,7 @@ private:
     }
 
     /// @brief Process phase advance sync event (FR-022 through FR-024).
-    inline void processPhaseAdvanceSync(float subsampleOffset) noexcept {
+    void processPhaseAdvanceSync(float subsampleOffset) noexcept {
         double currentSlavePhase = slavePhase_.phase;
         float valueBefore = evaluateWaveform(
             slaveWaveform_, static_cast<float>(currentSlavePhase), slavePulseWidth_);
@@ -532,5 +527,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -45,7 +45,7 @@ public:
                const VSTGUI::IUIDescription* /*description*/) const override {
         auto* display = dynamic_cast<ViewT*>(view);
         if (!display) return false;
-        if (auto colorStr = attrs.getAttributeValue(colorAttr_))
+        if (const auto *colorStr = attrs.getAttributeValue(colorAttr_))
             display->setColorFromString(*colorStr);
         return true;
     }

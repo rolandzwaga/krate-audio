@@ -30,7 +30,8 @@ Membrum::PadConfig invertString(const ModalDecomposition& modes,
         cfg.decay = 0.3f;
     }
     // measure brightness, then invert: material = 1 - brightness.
-    float lowEng = 0.0f, highEng = 0.0f;
+    float lowEng = 0.0f;
+    float highEng = 0.0f;
     for (const auto& m : modes.modes) {
         const float val = m.amplitude * m.amplitude;
         if (m.freqHz < f0 * 3.0f) lowEng += val; else highEng += val;

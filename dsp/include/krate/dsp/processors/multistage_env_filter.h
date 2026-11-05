@@ -26,8 +26,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // EnvelopeState Enumeration (FR-026, FR-027)
@@ -249,9 +249,7 @@ public:
     void setLoopStart(int stage) noexcept {
         loopStart_ = std::clamp(stage, 0, numStages_ - 1);
         // Ensure loopEnd >= loopStart
-        if (loopEnd_ < loopStart_) {
-            loopEnd_ = loopStart_;
-        }
+        loopEnd_ = std::max(loopEnd_, loopStart_);
     }
 
     /// @brief Set the loop end point (FR-010)
@@ -491,7 +489,7 @@ private:
     /// @param t Linear phase [0, 1]
     /// @param curve Curve parameter [-1, +1]
     /// @return Curved phase [0, 1]
-    [[nodiscard]] float applyCurve(float t, float curve) const noexcept {
+    [[nodiscard]] static float applyCurve(float t, float curve) noexcept {
         // Clamp t to [0, 1]
         t = std::clamp(t, 0.0f, 1.0f);
 
@@ -675,5 +673,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

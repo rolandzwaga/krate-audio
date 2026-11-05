@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <iterator>
 #include <string_view>
+#include <algorithm>
 
 namespace Profundum {
 
@@ -29,15 +30,15 @@ inline constexpr const Steinberg::Vst::TChar* kAnchorModeLabels[] = {STR16("Lock
                                                                      STR16("Ghost")};
 
 inline constexpr std::array<SoundParamRow, 7> kAnchorSoundRows{{
-    {kAnchorWaveformId, 55, kNoLeaf, STR16("Anchor Waveform"), STR16(""), kAnchorWaveformLabels,
-     static_cast<std::uint8_t>(std::size(kAnchorWaveformLabels)), DisplayUnit::List},
-    {kAnchorModeId, 56, kNoLeaf, STR16("Anchor Mode"), STR16(""), kAnchorModeLabels,
-     static_cast<std::uint8_t>(std::size(kAnchorModeLabels)), DisplayUnit::List},
-    {kAnchorLevelId, 57, kNoLeaf, STR16("Anchor Level"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kAnchorPunchBoostId, 58, kNoLeaf, STR16("Punch Boost"), STR16("dB"), nullptr, 0, DisplayUnit::Db},
-    {kAnchorPunchTimeId, 59, kNoLeaf, STR16("Punch Time"), STR16("ms"), nullptr, 0, DisplayUnit::Time},
-    {kAnchorGhostTimeId, 60, kNoLeaf, STR16("Ghost Time"), STR16("ms"), nullptr, 0, DisplayUnit::Time},
-    {kAnchorFoldFeedId, 61, kNoLeaf, STR16("Anchor Fold Feed"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
+    {.id = kAnchorWaveformId, .leaf = 55, .leaf2 = kNoLeaf, .title = STR16("Anchor Waveform"), .units = STR16(""), .labels = kAnchorWaveformLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kAnchorWaveformLabels)), .display = DisplayUnit::List},
+    {.id = kAnchorModeId, .leaf = 56, .leaf2 = kNoLeaf, .title = STR16("Anchor Mode"), .units = STR16(""), .labels = kAnchorModeLabels,
+     .labelCount = static_cast<std::uint8_t>(std::size(kAnchorModeLabels)), .display = DisplayUnit::List},
+    {.id = kAnchorLevelId, .leaf = 57, .leaf2 = kNoLeaf, .title = STR16("Anchor Level"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kAnchorPunchBoostId, .leaf = 58, .leaf2 = kNoLeaf, .title = STR16("Punch Boost"), .units = STR16("dB"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Db},
+    {.id = kAnchorPunchTimeId, .leaf = 59, .leaf2 = kNoLeaf, .title = STR16("Punch Time"), .units = STR16("ms"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Time},
+    {.id = kAnchorGhostTimeId, .leaf = 60, .leaf2 = kNoLeaf, .title = STR16("Ghost Time"), .units = STR16("ms"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Time},
+    {.id = kAnchorFoldFeedId, .leaf = 61, .leaf2 = kNoLeaf, .title = STR16("Anchor Fold Feed"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
 }};
 
 // ---- compile-time proofs (FR-002; tasks.md G7 rules a-d) ----
@@ -69,7 +70,7 @@ static_assert(
 // (b) / (d) a non-F32 leaf is a list whose label count is maxEnum + 1 (2 for a Bool); an F32 leaf has no labels.
 static_assert(
     [] {
-        for (const auto& r : kAnchorSoundRows) {
+        return std::ranges::all_of(kAnchorSoundRows, [&](const auto& r) {
             const auto& f = lawOf(r.leaf);
             if (f.kind == MorphState::Kind::F32) {
                 if (r.labels != nullptr || r.labelCount != 0 || r.display == DisplayUnit::List) {
@@ -84,20 +85,17 @@ static_assert(
                     return false;
                 }
             }
-        }
-        return true;
+            return true;
+        });
     }(),
     "anchor pack: list label counts equal lawOf(leaf).maxEnum + 1");
 
 // (c) every ID lies in the anchor band [300, 400).
 static_assert(
     [] {
-        for (const auto& r : kAnchorSoundRows) {
-            if (r.id < kAnchorWaveformId || r.id >= kAnchorParamRangeEnd) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kAnchorSoundRows, [&](const auto& r) {
+            return !(r.id < kAnchorWaveformId || r.id >= kAnchorParamRangeEnd);
+        });
     }(),
     "anchor pack: every ID lies in 300-399");
 

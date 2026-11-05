@@ -34,7 +34,8 @@ constexpr std::uint8_t kFirstDrumNote = 36;
 constexpr std::uint8_t kLastDrumNote = 67;
 
 /// Per-pad parameter offsets within each pad's stride.
-enum PadParamOffset : int
+// Unscoped on purpose: the offsets (0-66) are added to each pad's base ParamID.
+enum PadParamOffset : std::uint8_t  // NOLINT(cppcoreguidelines-use-enum-class)
 {
     kPadExciterType          = 0,
     kPadBodyModel            = 1,

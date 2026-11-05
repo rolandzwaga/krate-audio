@@ -30,8 +30,8 @@
 // Layer 1 dependencies
 #include <krate/dsp/primitives/smoother.h>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -286,7 +286,7 @@ public:
     /// @param routeIndex Index returned by createRoute()
     /// @param depth New depth [0, 1]
     void setRouteDepth(int routeIndex, float depth) noexcept {
-        if (routeIndex < 0 || static_cast<size_t>(routeIndex) >= maxRoutes_) {
+        if (routeIndex < 0 || std::cmp_greater_equal(routeIndex, maxRoutes_)) {
             return;
         }
 
@@ -305,7 +305,7 @@ public:
     /// @param routeIndex Index returned by createRoute()
     /// @param enabled true to enable, false to disable
     void setRouteEnabled(int routeIndex, bool enabled) noexcept {
-        if (routeIndex < 0 || static_cast<size_t>(routeIndex) >= maxRoutes_) {
+        if (routeIndex < 0 || std::cmp_greater_equal(routeIndex, maxRoutes_)) {
             return;
         }
 
@@ -320,7 +320,7 @@ public:
     /// @param routeIndex Index returned by createRoute()
     /// @return Current smoothed depth
     [[nodiscard]] float getRouteDepth(int routeIndex) const noexcept {
-        if (routeIndex < 0 || static_cast<size_t>(routeIndex) >= maxRoutes_) {
+        if (routeIndex < 0 || std::cmp_greater_equal(routeIndex, maxRoutes_)) {
             return 0.0f;
         }
 
@@ -335,7 +335,7 @@ public:
     /// @param routeIndex Index returned by createRoute()
     /// @return true if enabled
     [[nodiscard]] bool isRouteEnabled(int routeIndex) const noexcept {
-        if (routeIndex < 0 || static_cast<size_t>(routeIndex) >= maxRoutes_) {
+        if (routeIndex < 0 || std::cmp_greater_equal(routeIndex, maxRoutes_)) {
             return false;
         }
 
@@ -398,16 +398,9 @@ public:
             float range = dest.maxValue - dest.minValue;
             float halfRange = range * 0.5f;
 
-            // Calculate modulation amount
-            // For bipolar: sourceValue * depth * halfRange
-            // For unipolar: mappedValue * depth * halfRange (but shifted)
-            float modulation;
-            if (route.mode == ModulationMode::Bipolar) {
-                modulation = mappedValue * smoothedDepth * halfRange;
-            } else {
-                // Unipolar: full range modulation but only positive
-                modulation = mappedValue * smoothedDepth * halfRange;
-            }
+            // Calculate modulation amount: mappedValue * depth * halfRange for both modes
+            // (Unipolar's shift to [0, 1] already happened in mappedValue, so it only goes positive)
+            const float modulation = mappedValue * smoothedDepth * halfRange;
 
             route.currentModulation = modulation;
 
@@ -495,5 +488,5 @@ private:
     std::array<float, kMaxModulationDestinations> modulationSums_ = {};
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

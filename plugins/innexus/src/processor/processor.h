@@ -713,7 +713,7 @@ private:
     // =========================================================================
     // Morph Interpolation (M4: FR-010 to FR-018)
     // =========================================================================
-    Krate::DSP::OnePoleSmoother morphPositionSmoother_{};
+    Krate::DSP::OnePoleSmoother morphPositionSmoother_;
     // morphedFrame_ and morphedResidualFrame_ are now in voice_
 
     // =========================================================================

@@ -28,10 +28,10 @@ namespace Vorago {
 // Field order is load-bearing (plugins/shared/src/preset/preset_manager_config.h:19-24).
 inline Krate::Plugins::PresetManagerConfig makeVoragoPresetConfig() {
     return Krate::Plugins::PresetManagerConfig{
-        /*.processorUID      =*/kProcessorUID,
-        /*.pluginName        =*/"Vorago",
-        /*.pluginCategoryDesc=*/"Synth",
-        /*.subcategoryNames  =*/{"Init", "Drones", "Abyss", "Caverns", "Organisms",
+        .processorUID = kProcessorUID,
+        .pluginName = "Vorago",
+        .pluginCategoryDesc = "Synth",
+        .subcategoryNames = {"Init", "Drones", "Abyss", "Caverns", "Organisms",
                                  "Machines", "Textures", "Ghosts"}};
 }
 

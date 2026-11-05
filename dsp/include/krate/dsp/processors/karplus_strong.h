@@ -29,8 +29,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Karplus-Strong plucked string synthesizer.
 ///
@@ -477,5 +477,5 @@ private:
     bool stretchActive_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

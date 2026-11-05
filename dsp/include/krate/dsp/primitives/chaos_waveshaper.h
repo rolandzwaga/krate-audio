@@ -33,8 +33,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // ChaosModel Enumeration (FR-005 to FR-008)
@@ -351,7 +351,7 @@ private:
     // =========================================================================
 
     /// @brief Sanitize input for NaN/Inf (FR-031, FR-032)
-    [[nodiscard]] float sanitizeInput(float input) const noexcept;
+    [[nodiscard]] static float sanitizeInput(float input) noexcept;
 
     /// @brief Apply waveshaping with current chaos-modulated drive (FR-020, FR-022)
     [[nodiscard]] float applyWaveshaping(float input) const noexcept;
@@ -530,7 +530,7 @@ inline size_t ChaosWaveshaper::latency() const noexcept {
     return oversampler_.getLatency();
 }
 
-inline float ChaosWaveshaper::sanitizeInput(float input) const noexcept {
+inline float ChaosWaveshaper::sanitizeInput(float input) noexcept {
     // FR-031: NaN treated as 0.0
     if (detail::isNaN(input)) {
         return 0.0f;
@@ -699,7 +699,7 @@ inline void ChaosWaveshaper::resetModelState() noexcept {
         case ChaosModel::Aizawa:
         case ChaosModel::Lorenz:
             // Lorenz: sigma=10, rho=28, beta=8/3
-            state_ = {1.0f, 1.0f, 1.0f};  // Near attractor
+            state_ = {.x = 1.0f, .y = 1.0f, .z = 1.0f};  // Near attractor
             baseDt_ = 0.005f;
             safeBound_ = 50.0f;
             normalizationFactor_ = 20.0f;
@@ -708,7 +708,7 @@ inline void ChaosWaveshaper::resetModelState() noexcept {
 
         case ChaosModel::Rossler:
             // Rossler: a=0.2, b=0.2, c=5.7
-            state_ = {0.1f, 0.0f, 0.0f};  // Near attractor
+            state_ = {.x = 0.1f, .y = 0.0f, .z = 0.0f};  // Near attractor
             baseDt_ = 0.02f;
             safeBound_ = 20.0f;
             normalizationFactor_ = 10.0f;
@@ -717,7 +717,7 @@ inline void ChaosWaveshaper::resetModelState() noexcept {
 
         case ChaosModel::Chua:
             // Chua: alpha=15.6, beta=28, m0=-1.143, m1=-0.714
-            state_ = {0.1f, 0.0f, 0.0f};  // Near one scroll
+            state_ = {.x = 0.1f, .y = 0.0f, .z = 0.0f};  // Near one scroll
             baseDt_ = 0.01f;
             safeBound_ = 10.0f;
             normalizationFactor_ = 5.0f;
@@ -726,7 +726,7 @@ inline void ChaosWaveshaper::resetModelState() noexcept {
 
         case ChaosModel::Henon:
             // Henon: a=1.4, b=0.3
-            state_ = {0.0f, 0.0f, 0.0f};  // y stored in y, z unused
+            state_ = {.x = 0.0f, .y = 0.0f, .z = 0.0f};  // y stored in y, z unused
             henonPhase_ = 0.0f;
             baseDt_ = 1.0f;  // One iteration per update
             safeBound_ = 5.0f;
@@ -847,5 +847,5 @@ inline void ChaosWaveshaper::updateSmoothCoeff() noexcept {
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

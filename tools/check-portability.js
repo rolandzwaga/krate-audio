@@ -47,6 +47,7 @@ const INCLUDES = [
     'plugins/shared/src',
     'extern/vst3sdk',
     'extern/vst3sdk/vstgui4',
+    'extern/dr_libs',   // Innexus sample_analyzer.cpp, krate-render, membrum-fit (dr_wav.h)
 ];
 
 // Generated / fetched include roots, discovered rather than hard-coded so this
@@ -68,6 +69,8 @@ function discoverGeneratedIncludes() {
             'highway-src',
             'nlohmann_json-src/single_include',   // plugins/shared/src/update/update_checker.cpp
             'httplib-src',                        // same file's non-Windows branch (CMakeLists.txt: cpp-httplib)
+            'eigen3-src',                         // tools/membrum-fit (Eigen)
+            'cli11-src/include',                  // tools/membrum-fit (CLI11)
         ];
         for (const c of candidates) {
             const p = path.join(deps, c);
@@ -109,6 +112,15 @@ function pluginFlagsFor(file) {
     // (root CMakeLists.txt, profundum_preset_generator target): mirror its include roots.
     if (file === 'tools/profundum_preset_generator.cpp') {
         return ['-I plugins/profundum/src', '-I plugins/profundum/tests', '-I tests/test_helpers', '-I tools'];
+    }
+    // tools/membrum-fit/CMakeLists.txt: src/ is PUBLIC, tests include "src/...", and both reach Membrum's "dsp/..."
+    // headers through membrum_dsp. NLopt is optional there; compile the fallback path (no fetched nlopt.hpp needed).
+    if (file.startsWith('tools/membrum-fit/')) {
+        return ['-I tools/membrum-fit', '-I tools/membrum-fit/src', '-I plugins/membrum/src', '-DMEMBRUM_FIT_HAVE_NLOPT=0'];
+    }
+    // tools/krate-render/CMakeLists.txt: renders Membrum through its processor.
+    if (file.startsWith('tools/krate-render/')) {
+        return ['-I plugins/membrum/src'];
     }
     const m = file.match(/plugins\/([a-z0-9-]+)\//);
     if (!m) return [];

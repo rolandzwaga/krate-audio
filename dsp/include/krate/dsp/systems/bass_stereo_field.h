@@ -363,7 +363,8 @@ public:
             const float c = lawCurve(fk, log2F0 + log2Harmonic_[idx]);
             const float mag = magnitudeScale_ * c;
             // FR-014: k even = odd harmonic = left (-), bank:1155-1156. Rule 4: zero is +0, never -0.
-            const float target = (mag > 0.0f) ? ((k % 2 == 0) ? -mag : mag) : 0.0f;
+            const float signedMag = (k % 2 == 0) ? -mag : mag;
+            const float target = (mag > 0.0f) ? signedMag : 0.0f;
             float v = target;
             if (primed) {
                 const float prev = state.previous[idx];

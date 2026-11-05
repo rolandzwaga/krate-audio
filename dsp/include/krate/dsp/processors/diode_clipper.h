@@ -35,8 +35,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations
@@ -189,7 +189,7 @@ public:
 
     /// @brief Get the latency introduced by this processor (FR-021).
     /// @return Latency in samples (always 0 for this processor)
-    [[nodiscard]] constexpr size_t getLatency() const noexcept {
+    [[nodiscard]] static constexpr size_t getLatency() noexcept {
         return 0;
     }
 
@@ -361,7 +361,7 @@ private:
     /// @param voltage Forward voltage threshold
     /// @param knee Knee sharpness
     /// @return Clipped sample
-    [[nodiscard]] float applyDiodeClip(float x, float voltage, float knee) const noexcept;
+    [[nodiscard]] static float applyDiodeClip(float x, float voltage, float knee) noexcept;
 
     // =========================================================================
     // Parameters
@@ -480,7 +480,7 @@ inline void DiodeClipper::setOutputLevel(float dB) noexcept {
     outputSmoother_.setTarget(dbToGain(outputLevelDb_));
 }
 
-inline float DiodeClipper::applyDiodeClip(float x, float voltage, float knee) const noexcept {
+inline float DiodeClipper::applyDiodeClip(float x, float voltage, float knee) noexcept {
     // Pure odd function for symmetric clipping (SC-002: odd harmonics only)
     //
     // Uses tanh-based saturation which is mathematically an odd function:
@@ -608,5 +608,5 @@ inline void DiodeClipper::process(float* buffer, size_t numSamples) noexcept {
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

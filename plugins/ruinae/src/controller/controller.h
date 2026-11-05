@@ -31,6 +31,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <cstdint>
 
 namespace Ruinae {
 class ADSRExpandedOverlayView;
@@ -180,7 +181,7 @@ public:
     // ADSR Expanded Overlay
     // ===========================================================================
 
-    enum class EnvelopeType { kAmp, kFilter, kMod };
+    enum class EnvelopeType : std::uint8_t { kAmp, kFilter, kMod };
 
     /// Open the ADSR expanded overlay for a specific envelope
     void openAdsrExpandedOverlay(EnvelopeType env);
@@ -210,9 +211,9 @@ public:
     DEFINE_INTERFACES
         DEF_INTERFACE(Steinberg::Vst::IEditController)
         DEF_INTERFACE(Steinberg::Vst::IEditController2)
-    END_DEFINE_INTERFACES(EditController)
+    END_DEFINE_INTERFACES(EditController)  // NOLINT(bugprone-parent-virtual-call): SDK macro, forwards to the base on purpose
 
-    DELEGATE_REFCOUNT(EditController)
+    DELEGATE_REFCOUNT(EditController)  // NOLINT(bugprone-parent-virtual-call): SDK macro, forwards to the base on purpose
 
     // ===========================================================================
     // Test hooks

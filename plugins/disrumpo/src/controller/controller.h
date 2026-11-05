@@ -221,9 +221,10 @@ public:
         DEF_INTERFACE(Steinberg::Vst::IEditController2)
         DEF_INTERFACE(Steinberg::Vst::IMidiMapping)
         DEF_INTERFACE(Steinberg::Vst::IDataExchangeReceiver)
-    END_DEFINE_INTERFACES(EditController)
+    // The SDK macros forward queryInterface / addRef / release to the base on purpose.
+    END_DEFINE_INTERFACES(EditController)  // NOLINT(bugprone-parent-virtual-call)
 
-    DELEGATE_REFCOUNT(EditController)
+    DELEGATE_REFCOUNT(EditController)  // NOLINT(bugprone-parent-virtual-call)
 
     // ==========================================================================
     // Test Accessors

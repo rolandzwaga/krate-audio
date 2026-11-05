@@ -137,7 +137,7 @@ public:
         }
 
         // pffft minimum for real transforms is 32
-        if (fftSize_ < 32) fftSize_ = 32;
+        fftSize_ = std::max<size_t>(fftSize_, 32);
 
         setup_ = pffft_new_setup(static_cast<int>(fftSize_), PFFFT_REAL);
         if (!setup_) {
@@ -415,9 +415,7 @@ private:
             diffBuf_[tau] = eFull0 + eFullT - 2.0f * crossCorr;
 
             // Clamp to non-negative (numerical errors can produce small negatives)
-            if (diffBuf_[tau] < 0.0f) {
-                diffBuf_[tau] = 0.0f;
-            }
+            diffBuf_[tau] = std::max(diffBuf_[tau], 0.0f);
         }
     }
 

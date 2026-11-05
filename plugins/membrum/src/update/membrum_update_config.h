@@ -7,9 +7,9 @@ namespace Membrum {
 
 inline Krate::Plugins::UpdateCheckerConfig makeMembrumUpdateConfig() {
     return Krate::Plugins::UpdateCheckerConfig{
-        /*.pluginName =*/ stringPluginName,
-        /*.currentVersion =*/ VERSION_STR,
-        /*.endpointUrl =*/ "https://rolandzwaga.github.io/krate-audio/versions.json"
+        .pluginName = stringPluginName,
+        .currentVersion = VERSION_STR,
+        .endpointUrl = "https://rolandzwaga.github.io/krate-audio/versions.json"
     };
 }
 

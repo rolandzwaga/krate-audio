@@ -11,8 +11,9 @@
 # Note: Run after generating compile_commands.json (cmake --preset <preset>)
 # ==============================================================================
 
-# Header filter: Only check our own headers, not external dependencies
-HeaderFilterRegex: '(dsp/include/krate|plugins/(iterum|disrumpo)/src)/.*'
+# Header filter: Only check our own headers, not external dependencies. Every plugin's src/ (shared included) and
+# tools/membrum-fit/src; until 2026-11-05 it named only Iterum and Disrumpo, the plugins that existed when it was written.
+HeaderFilterRegex: '(dsp[/\\]include[/\\]krate|plugins[/\\][^/\\]+[/\\]src|tools[/\\]membrum-fit[/\\]src)[/\\].*'
 
 # Treat these as errors (blocking in CI)
 WarningsAsErrors: ''
@@ -27,6 +28,11 @@ FormatStyle: file
 #   - Enable checks that catch real bugs and performance issues
 #   - Disable noisy checks that conflict with DSP/audio coding patterns
 #   - Prioritize checks that improve real-time safety
+#
+# readability-redundant-member-init is off: it calls `member_{}` redundant when the member's type has a
+# `T() = default;` constructor, but value-initialisation then zero-fills every field without its own initializer,
+# which `member_;` does not. Its fix-it can leave DSP state indeterminate (Seraphis SpectralDelay, BrownianDrift,
+# MidSideProcessor, 2026-11-05).
 # ==============================================================================
 
 Checks: >
@@ -75,6 +81,7 @@ Checks: >
   -readability-math-missing-parentheses,
   -readability-named-parameter,
   -readability-redundant-access-specifiers,
+  -readability-redundant-member-init,
   -readability-uppercase-literal-suffix,
 
 # ==============================================================================
@@ -82,6 +89,17 @@ Checks: >
 # ==============================================================================
 
 CheckOptions:
+  # --------------------------------------------------------------------------
+  # Exception escape: allocation failure and valueless variants are not handled, by design
+  # --------------------------------------------------------------------------
+  # prepare()/setup functions are noexcept and size their buffers once, off the audio thread
+  # (setupProcessing / setActive). Running out of memory there terminates, and no exception could cross the
+  # VST3 ABI anyway. bad_variant_access: std::visit throws it only on a valueless variant, and every variant on
+  # the audio path static_asserts that its alternatives are nothrow default-constructible (Membrum BodyBank /
+  # ExciterBank), so it cannot be valueless. Every other exception type still counts. Unqualified names,
+  # comma-separated: a ';' list or std::-qualified names are silently ignored (LLVM 21).
+  - key: bugprone-exception-escape.IgnoredExceptions
+    value: 'bad_alloc,bad_array_new_length,length_error,bad_variant_access'
   # --------------------------------------------------------------------------
   # Naming Conventions (align with CLAUDE.md style guide)
   # --------------------------------------------------------------------------

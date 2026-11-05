@@ -29,8 +29,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // SpectralBuffer Class
@@ -69,7 +69,7 @@ public:
     /// @brief Reset all bins to zero
     /// @note Real-time safe
     void reset() noexcept {
-        std::fill(data_.begin(), data_.end(), Complex{0.0f, 0.0f});
+        std::fill(data_.begin(), data_.end(), Complex{.real = 0.0f, .imag = 0.0f});
         std::fill(mags_.begin(), mags_.end(), 0.0f);
         std::fill(phases_.begin(), phases_.end(), 0.0f);
         polarValid_ = true;
@@ -216,5 +216,5 @@ private:
     size_t numBins_ = 0;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

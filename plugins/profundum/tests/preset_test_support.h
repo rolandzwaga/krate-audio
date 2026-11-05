@@ -325,7 +325,7 @@ struct SweepTimeline {
 
 [[nodiscard]] inline SweepTimeline makeTimeline(double fs, Steinberg::uint32 tailSamples) {
     const auto noteOff = static_cast<std::size_t>(std::llround(3.0 * fs));
-    return SweepTimeline{fs, 512, noteOff, noteOff + static_cast<std::size_t>(tailSamples)};
+    return SweepTimeline{.fs = fs, .block = 512, .noteOff = noteOff, .total = noteOff + static_cast<std::size_t>(tailSamples)};
 }
 
 }  // namespace ProfundumPluginTest

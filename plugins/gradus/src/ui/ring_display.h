@@ -47,14 +47,14 @@ public:
         if (std::abs(scale - 1.0f) > 0.01f) {
             // Re-apply default layout scaled
             geo.setCenterRadius(75.0f * scale);
-            geo.setRingConfig(0, {245.0f * scale, 320.0f * scale,
-                                  282.0f * scale, -1.0f});
-            geo.setRingConfig(1, {185.0f * scale, 240.0f * scale,
-                                  -1.0f, -1.0f});
-            geo.setRingConfig(2, {135.0f * scale, 180.0f * scale,
-                                  157.0f * scale, -1.0f});
-            geo.setRingConfig(3, {80.0f * scale, 130.0f * scale,
-                                  113.0f * scale, 97.0f * scale});
+            geo.setRingConfig(0, {.innerRadius = 245.0f * scale, .outerRadius = 320.0f * scale,
+                                  .splitRadius = 282.0f * scale, .split2Radius = -1.0f});
+            geo.setRingConfig(1, {.innerRadius = 185.0f * scale, .outerRadius = 240.0f * scale,
+                                  .splitRadius = -1.0f, .split2Radius = -1.0f});
+            geo.setRingConfig(2, {.innerRadius = 135.0f * scale, .outerRadius = 180.0f * scale,
+                                  .splitRadius = 157.0f * scale, .split2Radius = -1.0f});
+            geo.setRingConfig(3, {.innerRadius = 80.0f * scale, .outerRadius = 130.0f * scale,
+                                  .splitRadius = 113.0f * scale, .split2Radius = 97.0f * scale});
         }
 
         renderer_->invalid();

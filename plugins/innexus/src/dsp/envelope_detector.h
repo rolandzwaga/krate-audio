@@ -37,9 +37,11 @@ public:
     /// @param frames The harmonic analysis frames (ordered by time)
     /// @param hopTimeSec Time between consecutive frames (seconds)
     /// @return Detected ADSR parameters with sensible defaults for edge cases
+    /// Not noexcept: builds a std::vector contour (std::bad_alloc). Only SampleAnalyzer's background analysis thread
+    /// calls it, never the audio thread.
     [[nodiscard]] static DetectedADSR detect(
         const std::vector<Krate::DSP::HarmonicFrame>& frames,
-        float hopTimeSec) noexcept
+        float hopTimeSec)
     {
         const auto numFrames = static_cast<int>(frames.size());
 
@@ -263,8 +265,8 @@ public:
             susEnd = steadyStateEnd + 1;
         }
 
-        return DetectedADSR{attackMs, decayMs, sustainLevel, releaseMs,
-                            susStart, susEnd};
+        return DetectedADSR{.attackMs = attackMs, .decayMs = decayMs, .sustainLevel = sustainLevel, .releaseMs = releaseMs,
+                            .sustainStartFrame = susStart, .sustainEndFrame = susEnd};
     }
 
 private:

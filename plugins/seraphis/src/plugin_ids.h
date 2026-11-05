@@ -75,6 +75,8 @@ static const char* const kSubCategories = "Instrument|Synth";
 ///   1200-1399 Aether            (Phase 9 - SHIPPED)
 ///   1400+     Effects           (Phase 10)
 // ==============================================================================
+// Unscoped and ParamID-based on purpose: hosts, IMessage and the parameter tables all use these IDs as plain ParamIDs.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
 enum ParameterIDs : Steinberg::Vst::ParamID {
     // --- Global (0-99) ---
     kMasterGainId = 0,

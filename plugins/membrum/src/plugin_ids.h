@@ -44,6 +44,8 @@ constexpr int kPhase6GlobalCount = 2;
 // Phase 3 parameter range: 250-259 (Polyphony, Voice Stealing, Choke Groups)
 // ==============================================================================
 
+// Unscoped and ParamID-based on purpose: hosts, IMessage and the parameter tables all use these IDs as plain ParamIDs.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
 enum ParameterIds : Steinberg::Vst::ParamID
 {
     // ====== Phase 1 (frozen) ======

@@ -28,7 +28,7 @@ public:
 
     // Callback when selection changes
     using SelectionCallback = std::function<void(int)>;
-    void setSelectionCallback(SelectionCallback cb) { selectionCallback_ = std::move(cb); }
+    void setSelectionCallback(const SelectionCallback& cb) { selectionCallback_ = cb; }
 
     // CView overrides
     void draw(VSTGUI::CDrawContext* context) override;

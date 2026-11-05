@@ -30,8 +30,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // EnvStageConfig (FR-002)
@@ -138,7 +138,7 @@ public:
         sustainPoint_ = std::clamp(sustainPoint_, 0, numStages_ - 1);
         loopStart_ = std::clamp(loopStart_, 0, numStages_ - 1);
         loopEnd_ = std::clamp(loopEnd_, 0, numStages_ - 1);
-        if (loopStart_ > loopEnd_) loopStart_ = loopEnd_;
+        loopStart_ = std::min(loopStart_, loopEnd_);
     }
 
     ITERUM_NOINLINE void setStageLevel(int stage, float level) noexcept {
@@ -190,13 +190,13 @@ public:
     void setLoopStart(int stage) noexcept {
         loopStart_ = std::clamp(stage, 0, numStages_ - 1);
         // FR-025: Enforce loopStart <= loopEnd by adjusting whichever was set
-        if (loopStart_ > loopEnd_) loopEnd_ = loopStart_;
+        loopEnd_ = std::max(loopEnd_, loopStart_);
     }
 
     void setLoopEnd(int stage) noexcept {
         loopEnd_ = std::clamp(stage, 0, numStages_ - 1);
         // FR-025: Enforce loopStart <= loopEnd
-        if (loopStart_ > loopEnd_) loopStart_ = loopEnd_;
+        loopStart_ = std::min(loopStart_, loopEnd_);
     }
 
     // =========================================================================
@@ -303,11 +303,11 @@ private:
             // stage length, avoiding floating-point precision issues with
             // one-pole at very long durations.
             logPhase_ += logPhaseInc_;
-            if (logPhase_ > 1.0f) logPhase_ = 1.0f;
+            logPhase_ = std::min(logPhase_, 1.0f);
             output_ = stageStartLevel_ + (stage.targetLevel - stageStartLevel_) * logPhase_;
         } else if (stage.curve == EnvCurve::Logarithmic) {
             logPhase_ += logPhaseInc_;
-            if (logPhase_ > 1.0f) logPhase_ = 1.0f;
+            logPhase_ = std::min(logPhase_, 1.0f);
 
             bool rising = stage.targetLevel >= stageStartLevel_;
             if (rising) {
@@ -507,5 +507,5 @@ private:
     float sampleRate_ = 44100.0f;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

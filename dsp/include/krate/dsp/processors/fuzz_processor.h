@@ -35,8 +35,8 @@
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/smoother.h>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // FuzzType Enumeration (FR-001)
@@ -216,7 +216,7 @@ private:
     [[nodiscard]] float processGermanium(float input) noexcept;
 
     /// @brief Process a single sample through Silicon saturation path
-    [[nodiscard]] float processSilicon(float input) noexcept;
+    [[nodiscard]] static float processSilicon(float input) noexcept;
 
     /// @brief Update tone filter coefficients for current tone value
     void updateToneFilter() noexcept;
@@ -271,21 +271,7 @@ private:
 // Inline Implementation
 // =============================================================================
 
-inline FuzzProcessor::FuzzProcessor() noexcept
-    : type_(FuzzType::Germanium)
-    , fuzz_(kDefaultFuzz)
-    , volumeDb_(kDefaultVolumeDb)
-    , bias_(kDefaultBias)
-    , tone_(kDefaultTone)
-    , octaveUp_(false)
-    , sampleRate_(44100.0)
-    , sagEnvelope_(0.0f)
-    , sagAttackCoeff_(0.0f)
-    , sagReleaseCoeff_(0.0f)
-    , prepared_(false)
-    , lastToneValue_(-1.0f)
-{
-}
+inline FuzzProcessor::FuzzProcessor() noexcept = default;
 
 inline void FuzzProcessor::prepare(double sampleRate, size_t /*maxBlockSize*/) noexcept {
     sampleRate_ = sampleRate;
@@ -538,7 +524,8 @@ inline void FuzzProcessor::process(float* buffer, size_t numSamples) noexcept {
             }
 
             // Equal-power crossfade blend
-            float fadeOut, fadeIn;
+            float fadeOut;
+            float fadeIn;
             equalPowerGains(crossfadePosition_, fadeOut, fadeIn);
             saturated = previousOutput * fadeOut + currentOutput * fadeIn;
 
@@ -579,5 +566,5 @@ inline void FuzzProcessor::process(float* buffer, size_t numSamples) noexcept {
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

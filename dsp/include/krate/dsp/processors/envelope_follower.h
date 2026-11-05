@@ -30,8 +30,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // DetectionMode Enumeration
@@ -283,7 +283,7 @@ public:
 
     /// @brief Get processing latency in samples
     /// @return Latency (0 - Biquad filter is zero-latency)
-    [[nodiscard]] size_t getLatency() const noexcept {
+    [[nodiscard]] static size_t getLatency() noexcept {
         return 0;  // Biquad (TDF2) has zero latency
     }
 
@@ -400,5 +400,5 @@ private:
     Biquad sidechainFilter_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

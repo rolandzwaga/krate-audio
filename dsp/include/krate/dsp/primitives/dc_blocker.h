@@ -51,9 +51,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Lightweight 1st-order DC blocking filter for audio signals.
 ///
@@ -100,14 +101,7 @@ public:
     /// @brief Default constructor.
     /// Initializes to unprepared state. process() returns input unchanged
     /// until prepare() is called.
-    DCBlocker() noexcept
-        : R_(0.0f)
-        , x1_(0.0f)
-        , y1_(0.0f)
-        , prepared_(false)
-        , sampleRate_(0.0)
-        , cutoffHz_(10.0f) {
-    }
+    DCBlocker() noexcept = default;
 
     /// @brief Destructor.
     ~DCBlocker() = default;
@@ -246,12 +240,12 @@ private:
         R_ = std::clamp(R_, 0.9f, 0.9999f);
     }
 
-    float R_;           ///< Pole coefficient [0.9, 0.9999]
-    float x1_;          ///< Previous input sample
-    float y1_;          ///< Previous output sample (state)
-    bool prepared_;     ///< Whether prepare() has been called
-    double sampleRate_; ///< Stored sample rate for setCutoff()
-    float cutoffHz_;    ///< Stored cutoff frequency
+    float R_{0.0f};           ///< Pole coefficient [0.9, 0.9999]
+    float x1_{0.0f};          ///< Previous input sample
+    float y1_{0.0f};          ///< Previous output sample (state)
+    bool prepared_{false};     ///< Whether prepare() has been called
+    double sampleRate_{0.0}; ///< Stored sample rate for setCutoff()
+    float cutoffHz_{10.0f};    ///< Stored cutoff frequency
 };
 
 // =============================================================================
@@ -370,7 +364,7 @@ private:
         const float fc = std::clamp(cutoffHz_, 1.0f, maxCutoff);
 
         // Bessel Q for 2nd order (maximally flat group delay)
-        constexpr float Q = 0.5773502691896258f;  // 1/sqrt(3)
+        constexpr float Q = std::numbers::inv_sqrt3_v<float>;  // 1/sqrt(3)
 
         // Pre-warp the cutoff frequency for bilinear transform
         const float w0 = kTwoPi * fc / static_cast<float>(sampleRate_);
@@ -403,5 +397,5 @@ private:
     float cutoffHz_ = 10.0f;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

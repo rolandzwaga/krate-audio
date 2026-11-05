@@ -33,6 +33,7 @@
 #include <fstream>
 #include <memory>
 #include <numeric>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -65,14 +66,21 @@ struct WavHeader {
     uint32_t dataSize  = 0;
 };
 
+// One folder per test process: sharded runs execute cases in parallel processes, and several cases write the same
+// file name (sine_440Hz.wav), so a shared folder let one shard delete a file another shard still had open.
+static std::filesystem::path tempTestDir()
+{
+    static const std::string run = std::to_string(std::random_device{}());
+    auto dir = std::filesystem::temp_directory_path() / "innexus_tests" / run;
+    std::filesystem::create_directories(dir);
+    return dir;
+}
+
 static std::string writeSineWav(float frequency, float durationSec,
                                 float amplitude = 0.8f,
                                 uint32_t sampleRate = 44100)
 {
-    namespace fs = std::filesystem;
-
-    auto tempDir = fs::temp_directory_path() / "innexus_tests";
-    fs::create_directories(tempDir);
+    auto tempDir = tempTestDir();
 
     char filename[128];
     std::snprintf(filename, sizeof(filename), "sine_%.0fHz.wav", frequency);
@@ -115,10 +123,7 @@ static std::string writeHarmonicWav(float f0, int numHarmonics,
                                      float amplitude = 0.5f,
                                      uint32_t sampleRate = 44100)
 {
-    namespace fs = std::filesystem;
-
-    auto tempDir = fs::temp_directory_path() / "innexus_tests";
-    fs::create_directories(tempDir);
+    auto tempDir = tempTestDir();
 
     char filename[128];
     std::snprintf(filename, sizeof(filename), "harmonic_%.0fHz_%dh.wav",

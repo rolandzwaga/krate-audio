@@ -515,7 +515,8 @@ private:
                     feedbackR_[i] = processedR_[i];
                 } else {
                     // Intermediate - equal-power crossfade
-                    float bypassGain, processGain;
+                    float bypassGain;
+                    float processGain;
                     equalPowerGains(routeMix, bypassGain, processGain);
                     feedbackL_[i] = bypassL_[i] * bypassGain + processedL_[i] * processGain;
                     feedbackR_[i] = bypassR_[i] * bypassGain + processedR_[i] * processGain;

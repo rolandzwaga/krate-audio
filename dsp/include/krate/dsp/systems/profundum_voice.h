@@ -119,7 +119,7 @@ public:
         }
         /// One input sample (the mid of the Character input). Holds (no accumulation, no reading) for f/fs >= 0.5.
         void process(float x) noexcept {
-            if (!(inc_ > 0.0 && inc_ < 0.5))
+            if (inc_ <= 0.0 || inc_ >= 0.5)
                 return;
             const auto xd = static_cast<double>(x);
             z1Re_ += xd * zRe_;
@@ -818,9 +818,12 @@ private:
         dropTriggerPending_ = false;
         drop_.trigger(dropSnapPending_);
         lockTriggerPending_ = true;
-        lockKind_ = !dropSnapPending_ ? DropPhaseLock::TriggerKind::Bridged
-                                      : (dropResetBranch_ ? DropPhaseLock::TriggerKind::SnapReset
-                                                          : DropPhaseLock::TriggerKind::SnapFreeRunning);
+        if (!dropSnapPending_) {
+            lockKind_ = DropPhaseLock::TriggerKind::Bridged;
+        } else {
+            lockKind_ = dropResetBranch_ ? DropPhaseLock::TriggerKind::SnapReset
+                                         : DropPhaseLock::TriggerKind::SnapFreeRunning;
+        }
     }
 
     /// S5.6 step 1: the deferred transition at the switch sample (interval position k).
@@ -901,7 +904,7 @@ private:
         // 5b. The Rectify meter (C-5, S9.6) on the Shape output mid, BEFORE the Anchor feed (G14-13, 2026-10-21):
         //     the Fold preserves half-wave symmetry (odd sine fold, soft saturation, a gain), the Anchor at ratio 2
         //     is the even harmonic that broke it, and a meter that saw the Anchor fed back into the ratio.
-        constexpr std::uint32_t U = static_cast<std::uint32_t>(ProfundumCore::kPitchUpdateInterval);
+        constexpr auto U = static_cast<std::uint32_t>(ProfundumCore::kPitchUpdateInterval);
         for (std::size_t i = 0; i < m; ++i) {
             if ((gridAtStart + static_cast<std::uint32_t>(i)) % U == 0u || (i == 0 && noteOnNow))
                 meter_.setFrequency(meterFrequency(fCore_[k0 + i]));

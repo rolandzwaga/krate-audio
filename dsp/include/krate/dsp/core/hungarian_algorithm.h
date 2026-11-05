@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <utility>
 
 namespace Krate::DSP {
 
@@ -64,7 +65,7 @@ public:
 
         // Work on a square matrix of dimension n = max(rows, cols)
         const int n = std::max(rows, cols);
-        if (n > static_cast<int>(kMaxSize)) {
+        if (std::cmp_greater(n, kMaxSize)) {
             // Fallback: no assignment if matrix too large
             rowAssignment_.fill(kUnassigned);
             colAssignment_.fill(kUnassigned);
@@ -102,6 +103,7 @@ public:
                 used_[j] = false;
             }
 
+            // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while): the shortest-path step runs before the column test
             do {
                 used_[j0] = true;
                 int i0 = colMatch_[j0];
@@ -136,6 +138,7 @@ public:
             } while (colMatch_[j0] != 0);
 
             // Augment along the path
+            // NOLINTNEXTLINE(cppcoreguidelines-avoid-do-while): the augmenting path has at least one edge
             do {
                 int j1 = way_[j0];
                 colMatch_[j0] = colMatch_[j1];
@@ -160,7 +163,7 @@ public:
     /// @param row Row index (0-based)
     /// @return Column index (0-based) or kUnassigned
     [[nodiscard]] int getRowAssignment(int row) const noexcept {
-        if (row < 0 || row >= static_cast<int>(kMaxSize)) return kUnassigned;
+        if (row < 0 || std::cmp_greater_equal(row, kMaxSize)) return kUnassigned;
         return rowAssignment_[static_cast<size_t>(row)];
     }
 
@@ -168,7 +171,7 @@ public:
     /// @param col Column index (0-based)
     /// @return Row index (0-based) or kUnassigned
     [[nodiscard]] int getColAssignment(int col) const noexcept {
-        if (col < 0 || col >= static_cast<int>(kMaxSize)) return kUnassigned;
+        if (col < 0 || std::cmp_greater_equal(col, kMaxSize)) return kUnassigned;
         return colAssignment_[static_cast<size_t>(col)];
     }
 

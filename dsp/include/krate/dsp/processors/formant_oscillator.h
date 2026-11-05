@@ -33,8 +33,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Extended Formant Data Structures
@@ -54,24 +54,24 @@ struct FormantData5 {
 /// Data from Csound formant table (Peterson & Barney, 1952).
 inline constexpr std::array<FormantData5, kNumVowels> kVowelFormants5 = {{
     // Vowel A: /a/ as in "father" (Vowel::A = 0)
-    {{{600.0f, 1040.0f, 2250.0f, 2450.0f, 2750.0f}},   // frequencies
-     {{60.0f, 70.0f, 110.0f, 120.0f, 130.0f}}},        // bandwidths
+    {.frequencies = {{600.0f, 1040.0f, 2250.0f, 2450.0f, 2750.0f}},   // frequencies
+     .bandwidths = {{60.0f, 70.0f, 110.0f, 120.0f, 130.0f}}},        // bandwidths
 
     // Vowel E: /e/ as in "bed" (Vowel::E = 1)
-    {{{400.0f, 1620.0f, 2400.0f, 2800.0f, 3100.0f}},
-     {{40.0f, 80.0f, 100.0f, 120.0f, 120.0f}}},
+    {.frequencies = {{400.0f, 1620.0f, 2400.0f, 2800.0f, 3100.0f}},
+     .bandwidths = {{40.0f, 80.0f, 100.0f, 120.0f, 120.0f}}},
 
     // Vowel I: /i/ as in "see" (Vowel::I = 2)
-    {{{250.0f, 1750.0f, 2600.0f, 3050.0f, 3340.0f}},
-     {{60.0f, 90.0f, 100.0f, 120.0f, 120.0f}}},
+    {.frequencies = {{250.0f, 1750.0f, 2600.0f, 3050.0f, 3340.0f}},
+     .bandwidths = {{60.0f, 90.0f, 100.0f, 120.0f, 120.0f}}},
 
     // Vowel O: /o/ as in "go" (Vowel::O = 3)
-    {{{400.0f, 750.0f, 2400.0f, 2600.0f, 2900.0f}},
-     {{40.0f, 80.0f, 100.0f, 120.0f, 120.0f}}},
+    {.frequencies = {{400.0f, 750.0f, 2400.0f, 2600.0f, 2900.0f}},
+     .bandwidths = {{40.0f, 80.0f, 100.0f, 120.0f, 120.0f}}},
 
     // Vowel U: /u/ as in "boot" (Vowel::U = 4)
-    {{{350.0f, 600.0f, 2400.0f, 2675.0f, 2950.0f}},
-     {{40.0f, 80.0f, 100.0f, 120.0f, 120.0f}}},
+    {.frequencies = {{350.0f, 600.0f, 2400.0f, 2675.0f, 2950.0f}},
+     .bandwidths = {{40.0f, 80.0f, 100.0f, 120.0f, 120.0f}}},
 }};
 
 /// @brief Default amplitude scaling for each formant (FR-006).
@@ -482,7 +482,7 @@ private:
     }
 
     /// @brief Find oldest active grain in a formant for recycling.
-    [[nodiscard]] FOFGrain* findOldestGrain(FormantGenerator& formant) noexcept {
+    [[nodiscard]] static FOFGrain* findOldestGrain(FormantGenerator& formant) noexcept {
         // First, look for an inactive grain
         for (auto& grain : formant.grains) {
             if (!grain.active) {
@@ -532,7 +532,7 @@ private:
     }
 
     /// @brief Process a single grain, returns its contribution.
-    [[nodiscard]] float processGrain(FOFGrain& grain) noexcept {
+    [[nodiscard]] static float processGrain(FOFGrain& grain) noexcept {
         if (!grain.active) {
             return 0.0f;
         }
@@ -574,7 +574,7 @@ private:
     }
 
     /// @brief Process all grains in a formant, returns summed output.
-    [[nodiscard]] float processFormant(FormantGenerator& formant) noexcept {
+    [[nodiscard]] static float processFormant(FormantGenerator& formant) noexcept {
         float output = 0.0f;
         for (auto& grain : formant.grains) {
             output += processGrain(grain);
@@ -638,5 +638,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

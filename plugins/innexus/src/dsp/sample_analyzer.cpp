@@ -22,6 +22,7 @@
 #ifdef _MSC_VER
     #pragma warning(push)
     #pragma warning(disable: 4244) // conversion from 'drwav_uint64' to 'drwav_uint32'
+    #pragma warning(disable: 4456) // dr_wav 0.14.6: inner 'fileSize' shadows an outer one
 #endif
 
 #define DR_WAV_IMPLEMENTATION

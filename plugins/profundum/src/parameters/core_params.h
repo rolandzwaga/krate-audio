@@ -18,22 +18,23 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <algorithm>
 
 namespace Profundum {
 
 inline constexpr std::array<SoundParamRow, 11> kCoreSoundRows{{
-    {kCoreDepthId, 0, kNoLeaf, STR16("Depth"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kCoreBodyId, 1, kNoLeaf, STR16("Body"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kCoreBodyCurvatureId, 2, kNoLeaf, STR16("Body Curvature"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kCoreBodyEmphasisId, 3, kNoLeaf, STR16("Body Emphasis"), STR16("%"), nullptr, 0, DisplayUnit::BipolarPercent},
-    {kCoreEdgeId, 4, kNoLeaf, STR16("Edge"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kCoreShiftId, 5, kNoLeaf, STR16("Spectral Shift"), STR16("%"), nullptr, 0, DisplayUnit::BipolarPercent},
-    {kCoreExcitationMixId, 6, kNoLeaf, STR16("Excitation Mix"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kCoreExcitationDriveId, 7, kNoLeaf, STR16("Excitation Drive"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kCoreExcitationAsymmetryId, 8, kNoLeaf, STR16("Excitation Asymmetry"), STR16("%"), nullptr, 0,
-     DisplayUnit::Percent},
-    {kCoreStiffnessId, 62, kNoLeaf, STR16("Stiffness"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
-    {kCorePhaseId, 63, kNoLeaf, STR16("Phase"), STR16("%"), nullptr, 0, DisplayUnit::Percent},
+    {.id = kCoreDepthId, .leaf = 0, .leaf2 = kNoLeaf, .title = STR16("Depth"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kCoreBodyId, .leaf = 1, .leaf2 = kNoLeaf, .title = STR16("Body"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kCoreBodyCurvatureId, .leaf = 2, .leaf2 = kNoLeaf, .title = STR16("Body Curvature"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kCoreBodyEmphasisId, .leaf = 3, .leaf2 = kNoLeaf, .title = STR16("Body Emphasis"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::BipolarPercent},
+    {.id = kCoreEdgeId, .leaf = 4, .leaf2 = kNoLeaf, .title = STR16("Edge"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kCoreShiftId, .leaf = 5, .leaf2 = kNoLeaf, .title = STR16("Spectral Shift"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::BipolarPercent},
+    {.id = kCoreExcitationMixId, .leaf = 6, .leaf2 = kNoLeaf, .title = STR16("Excitation Mix"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kCoreExcitationDriveId, .leaf = 7, .leaf2 = kNoLeaf, .title = STR16("Excitation Drive"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kCoreExcitationAsymmetryId, .leaf = 8, .leaf2 = kNoLeaf, .title = STR16("Excitation Asymmetry"), .units = STR16("%"), .labels = nullptr, .labelCount = 0,
+     .display = DisplayUnit::Percent},
+    {.id = kCoreStiffnessId, .leaf = 62, .leaf2 = kNoLeaf, .title = STR16("Stiffness"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
+    {.id = kCorePhaseId, .leaf = 63, .leaf2 = kNoLeaf, .title = STR16("Phase"), .units = STR16("%"), .labels = nullptr, .labelCount = 0, .display = DisplayUnit::Percent},
 }};
 
 // ---- compile-time proofs (FR-002; tasks.md G7 rules a-d) ----
@@ -65,24 +66,18 @@ static_assert(
 // (b) / (d) every list row's label count matches its leaf; no core row is a list, so every row is an F32 leaf.
 static_assert(
     [] {
-        for (const auto& r : kCoreSoundRows) {
-            if (r.labels != nullptr || r.labelCount != 0 || lawOf(r.leaf).kind != MorphState::Kind::F32) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kCoreSoundRows, [&](const auto& r) {
+            return !(r.labels != nullptr || r.labelCount != 0 || lawOf(r.leaf).kind != MorphState::Kind::F32);
+        });
     }(),
     "core pack: every row is a continuous F32 leaf");
 
 // (c) every ID lies in the core band [200, 300).
 static_assert(
     [] {
-        for (const auto& r : kCoreSoundRows) {
-            if (r.id < kCoreDepthId || r.id >= kCoreParamRangeEnd) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kCoreSoundRows, [&](const auto& r) {
+            return !(r.id < kCoreDepthId || r.id >= kCoreParamRangeEnd);
+        });
     }(),
     "core pack: every ID lies in 200-299");
 

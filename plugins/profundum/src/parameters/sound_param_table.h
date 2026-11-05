@@ -36,6 +36,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <algorithm>
 
 namespace Profundum {
 
@@ -82,7 +83,7 @@ namespace sound_table_detail {
     std::array<ParamRoute, kNumRoutedIds> t{};  // every entry {None, 0}
     const auto setRange = [&t](Steinberg::Vst::ParamID first, Steinberg::Vst::ParamID last, RouteKind kind) {
         for (Steinberg::Vst::ParamID id = first; id <= last; ++id) {
-            t[id] = ParamRoute{kind, 0};
+            t[id] = ParamRoute{.kind = kind, .index = 0};
         }
     };
     setRange(kOutputGainId, kOutputCeilingId, RouteKind::Global);           // 0-3
@@ -93,7 +94,7 @@ namespace sound_table_detail {
     setRange(kMorphModSourceId, kMorphModCycleSyncRateId, RouteKind::MorphMod);  // 1003-1011 (Phase 14 C-12)
     setRange(kNoteMonoPriorityId, kNotePitchBendRangeId, RouteKind::Note);  // 410-417
     for (std::size_t i = 0; i < kSoundRows.size(); ++i) {
-        t[kSoundRows[i].id] = ParamRoute{RouteKind::Sound, static_cast<std::uint8_t>(i)};
+        t[kSoundRows[i].id] = ParamRoute{.kind = RouteKind::Sound, .index = static_cast<std::uint8_t>(i)};
     }
     return t;
 }
@@ -145,12 +146,9 @@ namespace sound_table_detail {
             ++hits[r.leaf2];
         }
     }
-    for (const int h : hits) {
-        if (h != 1) {
-            return false;
-        }
-    }
-    return true;
+    return std::ranges::all_of(hits, [&](const int h) {
+        return h == 1;
+    });
 }
 
 /// Every sound row's route points back to that row (no sound ID overwrote, or was overwritten by, another block).

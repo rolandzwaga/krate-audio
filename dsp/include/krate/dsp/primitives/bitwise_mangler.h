@@ -20,8 +20,8 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // ==============================================================================
 // BitwiseOperation Enum
@@ -250,7 +250,7 @@ private:
     // Mode-Specific Processing
     // =========================================================================
 
-    [[nodiscard]] float processXorPattern(float x) noexcept {
+    [[nodiscard]] float processXorPattern(float x) const noexcept {
         int32_t intSample = floatToInt24(x);
         uint32_t unsignedSample = static_cast<uint32_t>(intSample) & kInt24Mask;
         uint32_t patternMasked = pattern_ & kInt24Mask;
@@ -279,7 +279,7 @@ private:
         return int24ToFloat(mangledInt);
     }
 
-    [[nodiscard]] float processOverflowWrap(float x) noexcept {
+    [[nodiscard]] static float processOverflowWrap(float x) noexcept {
         float scaled = x * kInt24Scale;
         int64_t largeInt = static_cast<int64_t>(scaled);
         uint32_t wrapped = static_cast<uint32_t>(largeInt) & kInt24Mask;
@@ -314,5 +314,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

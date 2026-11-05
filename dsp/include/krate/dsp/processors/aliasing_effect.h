@@ -28,8 +28,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Layer 2 DSP Processor - Intentional aliasing with band isolation
 ///
@@ -248,9 +248,7 @@ public:
         highHz = std::clamp(highHz, kMinBandFrequencyHz, maxBandFrequencyHz_);
 
         // Ensure low <= high (FR-015)
-        if (lowHz > highHz) {
-            lowHz = highHz;
-        }
+        lowHz = std::min(lowHz, highHz);
 
         bandLowHz_ = lowHz;
         bandHighHz_ = highHz;
@@ -469,5 +467,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

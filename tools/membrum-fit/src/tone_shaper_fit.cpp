@@ -1,9 +1,10 @@
 #include "tone_shaper_fit.h"
-#include "features.h"
+#include "attack_features.h"
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <numbers>
 #include <vector>
 
 namespace MembrumFit {
@@ -12,12 +13,12 @@ std::vector<PitchTrackPoint> trackPitch(std::span<const float> s,
                                         const SegmentedSample& seg,
                                         double sr) {
     std::vector<PitchTrackPoint> out;
-    const std::size_t hop  = static_cast<std::size_t>(0.005 * sr);
-    const std::size_t win  = static_cast<std::size_t>(0.020 * sr);
+    const auto hop  = static_cast<std::size_t>(0.005 * sr);
+    const auto win  = static_cast<std::size_t>(0.020 * sr);
     const std::size_t end  = std::min(s.size(), seg.onsetSample + static_cast<std::size_t>(0.100 * sr));
     for (std::size_t i = seg.onsetSample; i + win < end; i += hop) {
         const float f = estimateFundamental(s.subspan(i, win), sr);
-        out.push_back({ static_cast<float>((i - seg.onsetSample) / sr), f });
+        out.push_back({ .timeSec = static_cast<float>((i - seg.onsetSample) / sr), .freqHz = f });
     }
     return out;
 }
@@ -27,11 +28,12 @@ bool detectPitchEnvelope(const std::vector<PitchTrackPoint>& t,
     if (t.size() < 2) return false;
     startHz = t.front().freqHz;
     endHz   = t.front().freqHz;
-    float minHz = startHz, maxHz = startHz;
+    float minHz = startHz;
+    float maxHz = startHz;
     float minT = 0.0f;
     for (const auto& p : t) {
         if (p.freqHz < minHz) { minHz = p.freqHz; minT = p.timeSec; }
-        if (p.freqHz > maxHz) { maxHz = p.freqHz; }
+        maxHz = std::max(maxHz, p.freqHz);
     }
     if (startHz > 0.0f && minHz < startHz * 0.8f && minT < 0.2f) {
         endHz  = minHz;
@@ -50,12 +52,12 @@ std::vector<CentroidTick> centroidTrajectory(std::span<const float> s,
                                              const SegmentedSample& seg,
                                              double sr) {
     std::vector<CentroidTick> out;
-    const std::size_t hop = static_cast<std::size_t>(0.010 * sr);
-    const std::size_t win = static_cast<std::size_t>(0.040 * sr);
+    const auto hop = static_cast<std::size_t>(0.010 * sr);
+    const auto win = static_cast<std::size_t>(0.040 * sr);
     const std::size_t end = std::min(s.size(), seg.decayEndSample);
     for (std::size_t i = seg.onsetSample; i + win < end; i += hop) {
         const float c = computeSpectralCentroid(s.subspan(i, win), sr);
-        out.push_back({ static_cast<float>((i - seg.onsetSample) / sr), c });
+        out.push_back({ .t = static_cast<float>((i - seg.onsetSample) / sr), .hz = c });
     }
     return out;
 }
@@ -73,7 +75,7 @@ float fitFilterEnvelopeTauSec(const std::vector<CentroidTick>& traj) {
     if (cMin > thresh) return -1.0f;
 
     // Find first time the trajectory hits c0/e (natural log decay).
-    const float target = cMin + (c0 - cMin) / static_cast<float>(2.71828);
+    const float target = cMin + (c0 - cMin) / std::numbers::e_v<float>;
     for (const auto& p : traj) {
         if (p.hz <= target) return std::max(p.t, 1e-3f);
     }
@@ -100,7 +102,7 @@ float computeTHD(std::span<const float> window, double sr, float f1) {
             if (i < j) std::swap(a[i], a[j]);
         }
         for (std::size_t len = 2; len <= M; len <<= 1) {
-            const float ang = -2.0f * 3.14159265358979323846f / static_cast<float>(len);
+            const float ang = -2.0f * std::numbers::pi_v<float> / static_cast<float>(len);
             const std::complex<float> wlen(std::cos(ang), std::sin(ang));
             for (std::size_t i = 0; i < M; i += len) {
                 std::complex<float> w(1.0f, 0.0f);
@@ -116,7 +118,8 @@ float computeTHD(std::span<const float> window, double sr, float f1) {
     };
     fft(buf);
     const float binHz = static_cast<float>(sr) / static_cast<float>(n);
-    float fund = 0.0f, rest = 0.0f;
+    float fund = 0.0f;
+    float rest = 0.0f;
     for (std::size_t k = 1; k < n / 2; ++k) {
         const float hz = k * binHz;
         const float mag = std::abs(buf[k]);
@@ -136,7 +139,9 @@ void fitToneShaper(std::span<const float> samples,
                    Membrum::PadConfig& config) {
     // --- Pitch envelope ---
     const auto track = trackPitch(samples, seg, sr);
-    float start = 0.0f, end = 0.0f, durSec = 0.0f;
+    float start = 0.0f;
+    float end = 0.0f;
+    float durSec = 0.0f;
     if (detectPitchEnvelope(track, start, end, durSec)) {
         auto toNorm = [](float hz){
             return static_cast<float>(std::log(std::max(hz, 20.0f) / 20.0f) / std::log(100.0));
@@ -194,7 +199,7 @@ void fitToneShaper(std::span<const float> samples,
                     if (i < j) std::swap(a[i], a[j]);
                 }
                 for (std::size_t len = 2; len <= M; len <<= 1) {
-                    const float ang = -2.0f * 3.14159265358979323846f / static_cast<float>(len);
+                    const float ang = -2.0f * std::numbers::pi_v<float> / static_cast<float>(len);
                     const std::complex<float> wlen(std::cos(ang), std::sin(ang));
                     for (std::size_t i = 0; i < M; i += len) {
                         std::complex<float> w(1.0f, 0.0f);
@@ -210,7 +215,8 @@ void fitToneShaper(std::span<const float> samples,
             };
             fft(buf);
             const float binHz = static_cast<float>(sr) / static_cast<float>(n);
-            float fundMag = 0.0f, highHarmMag = 0.0f;
+            float fundMag = 0.0f;
+            float highHarmMag = 0.0f;
             for (std::size_t k = 1; k < n / 2; ++k) {
                 const float hz = k * binHz;
                 const float mag = std::abs(buf[k]);

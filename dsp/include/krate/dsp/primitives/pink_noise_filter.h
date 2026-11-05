@@ -15,10 +15,11 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Paul Kellet's pink noise filter.
 ///
@@ -96,7 +97,7 @@ public:
         // and clamp to ensure we never exceed the range
         // (RF-002: exact normalization factor 0.2f preserved)
         float normalized = pink * 0.2f;
-        return (normalized > 1.0f) ? 1.0f : ((normalized < -1.0f) ? -1.0f : normalized);
+        return std::clamp(normalized, -1.0f, 1.0f);
     }
 
     /// @brief Re-derive the stage coefficients for a sample rate.
@@ -160,5 +161,5 @@ private:
     float b6_ = 0.0f;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

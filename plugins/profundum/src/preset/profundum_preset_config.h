@@ -27,10 +27,10 @@ namespace Profundum {
 // Field order is load-bearing (plugins/shared/src/preset/preset_manager_config.h:18-23).
 inline Krate::Plugins::PresetManagerConfig makeProfundumPresetConfig() {
     return Krate::Plugins::PresetManagerConfig{
-        /*.processorUID      =*/kProcessorUID,
-        /*.pluginName        =*/"Profundum",
-        /*.pluginCategoryDesc=*/"Synth",
-        /*.subcategoryNames  =*/{"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated", "Kicks"}};
+        .processorUID = kProcessorUID,
+        .pluginName = "Profundum",
+        .pluginCategoryDesc = "Synth",
+        .subcategoryNames = {"Sub", "Resonant", "Harmonic", "Driven", "Plucked", "Animated", "Kicks"}};
 }
 
 /// The preset browser tab labels: "All" first, then the config subcategory list in

@@ -426,7 +426,7 @@ inline bool loadAtmosphereParams(AtmosphereParams& params, Steinberg::IBStreamer
 
 template <typename SetParamFunc>
 inline void loadAtmosphereParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
 
     float fv = 0.0f;
     Steinberg::int32 iv = 0;

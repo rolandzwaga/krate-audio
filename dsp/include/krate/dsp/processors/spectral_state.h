@@ -33,6 +33,7 @@
 #include <cstdint>
 #include <cstring>
 #include <type_traits>
+#include <utility>
 
 namespace Krate::DSP {
 
@@ -80,7 +81,7 @@ static_assert(SpectralState::kStatePartials == 64);
 ///
 /// Real-time safe: no allocation, no locks, no exceptions.
 [[nodiscard]] inline bool isValidSpectralState(const SpectralState& s) noexcept {
-    if (s.numPartials < 0 || s.numPartials > static_cast<int>(SpectralState::kStatePartials)) {
+    if (s.numPartials < 0 || std::cmp_greater(s.numPartials, SpectralState::kStatePartials)) {
         return false;
     }
 
@@ -156,9 +157,7 @@ inline void normalizeSpectralState(SpectralState& s) noexcept {
     std::size_t count = 0;
     if (s.numPartials > 0) {
         count = static_cast<std::size_t>(s.numPartials);
-        if (count > SpectralState::kStatePartials) {
-            count = SpectralState::kStatePartials;
-        }
+        count = std::min(count, SpectralState::kStatePartials);
     }
 
     float sumSquares = 0.0f;
@@ -528,7 +527,7 @@ inline void setPartial(SpectralState& s, std::size_t index, float ratio,
 
     // (1) The precondition step 2's cast relies on. Subsumed by step 0 in
     // practice; kept because it costs one predicted branch.
-    if (s.numPartials < 0 || s.numPartials > static_cast<int>(SpectralState::kStatePartials)) {
+    if (s.numPartials < 0 || std::cmp_greater(s.numPartials, SpectralState::kStatePartials)) {
         return;
     }
     const auto count = static_cast<std::size_t>(s.numPartials);

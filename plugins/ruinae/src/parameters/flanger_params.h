@@ -6,6 +6,8 @@
 // Binding of the shared modulation-effect parameter module to the flanger block.
 // The implementation lives in modulation_effect_params.h.
 
+#include <utility>
+
 #include "parameters/modulation_effect_params.h"
 
 namespace Ruinae {
@@ -40,8 +42,8 @@ inline bool loadFlangerParams(RuinaeFlangerParams& params,
 
 template<typename SetParamFunc>
 inline void loadFlangerParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadModEffectParamsToController(kFlangerConfig, streamer, setParam);
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    loadModEffectParamsToController(kFlangerConfig, streamer, std::move(setParam));
 }
 
 } // namespace Ruinae

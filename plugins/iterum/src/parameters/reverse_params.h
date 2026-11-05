@@ -109,6 +109,8 @@ inline void handleReverseParamChange(
                 static_cast<float>(normalizedValue),
                 std::memory_order_relaxed);
             break;
+        default:
+            break;
     }
 }
 
@@ -182,7 +184,7 @@ inline void registerReverseParams(Steinberg::Vst::ParameterContainer& parameters
         STR16("Reverse Filter Cutoff"),
         STR16("Hz"),
         0,
-        0.434,  // default: ~4000Hz (log scale)
+        0.434,  // default: ~4000Hz (log scale)  NOLINT(modernize-use-std-numbers): a normalized default, not log10(e)
         ParameterInfo::kCanAutomate,
         kReverseFilterCutoffId);
 
@@ -253,6 +255,8 @@ inline Steinberg::tresult formatReverseParam(
             float percent = static_cast<float>(normalizedValue * 100.0);
             return formatParamText(string, "%.0f%%", percent);
         }
+        default:
+            break;
     }
 
     return Steinberg::kResultFalse;

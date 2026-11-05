@@ -18,8 +18,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Apply modulation curve to a [0, 1] input value.
 ///
@@ -80,5 +80,5 @@ namespace DSP {
     return sign * curved * amount;
 }
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

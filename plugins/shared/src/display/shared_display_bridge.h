@@ -22,6 +22,9 @@ public:
     /// Meyer's singleton — single global registry across all plugin instances
     static SharedDisplayBridge& instance();
 
+    SharedDisplayBridge(const SharedDisplayBridge&) = delete;
+    SharedDisplayBridge& operator=(const SharedDisplayBridge&) = delete;
+
     /// Register a processor's shared display data. Called from initialize().
     /// @param id Unique instance identifier (random uint64)
     /// @param data Pointer to processor-owned display data struct
@@ -36,8 +39,6 @@ public:
 private:
     SharedDisplayBridge() = default;
     ~SharedDisplayBridge() = default;
-    SharedDisplayBridge(const SharedDisplayBridge&) = delete;
-    SharedDisplayBridge& operator=(const SharedDisplayBridge&) = delete;
 
     mutable std::mutex mutex_;
     std::unordered_map<uint64_t, void*> registry_;

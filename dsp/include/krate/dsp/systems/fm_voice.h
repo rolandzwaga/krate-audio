@@ -112,7 +112,7 @@ static constexpr AlgorithmTopology kAlgorithmTopologies[8] = {
         .carrierMask = 0b0001,           // Operator 0 is carrier
         .feedbackOperator = 1,           // Op 1 has feedback
         .numEdges = 1,
-        .edges = {{1, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
+        .edges = {{.source = 1, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}},
         .processOrder = {1, 0, 2, 3},    // Process modulator (1) before carrier (0)
         .carrierCount = 1
     },
@@ -122,7 +122,7 @@ static constexpr AlgorithmTopology kAlgorithmTopologies[8] = {
         .carrierMask = 0b0001,           // Operator 0 is carrier
         .feedbackOperator = 3,           // Op 3 (top of chain) has feedback
         .numEdges = 3,
-        .edges = {{3, 2}, {2, 1}, {1, 0}, {0, 0}, {0, 0}, {0, 0}},
+        .edges = {{.source = 3, .target = 2}, {.source = 2, .target = 1}, {.source = 1, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}},
         .processOrder = {3, 2, 1, 0},    // Top to bottom
         .carrierCount = 1
     },
@@ -132,7 +132,7 @@ static constexpr AlgorithmTopology kAlgorithmTopologies[8] = {
         .carrierMask = 0b0101,           // Operators 0 and 2 are carriers
         .feedbackOperator = 1,           // Op 1 has feedback
         .numEdges = 2,
-        .edges = {{1, 0}, {3, 2}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
+        .edges = {{.source = 1, .target = 0}, {.source = 3, .target = 2}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}},
         .processOrder = {1, 3, 0, 2},    // Modulators first, then carriers
         .carrierCount = 2
     },
@@ -142,7 +142,7 @@ static constexpr AlgorithmTopology kAlgorithmTopologies[8] = {
         .carrierMask = 0b0001,           // Operator 0 is carrier
         .feedbackOperator = 2,           // Op 2 has feedback
         .numEdges = 2,
-        .edges = {{1, 0}, {2, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
+        .edges = {{.source = 1, .target = 0}, {.source = 2, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}},
         .processOrder = {1, 2, 0, 3},    // Both modulators before carrier
         .carrierCount = 1
     },
@@ -152,7 +152,7 @@ static constexpr AlgorithmTopology kAlgorithmTopologies[8] = {
         .carrierMask = 0b0011,           // Operators 0 and 1 are carriers
         .feedbackOperator = 3,           // Op 3 (top of stack) has feedback
         .numEdges = 2,
-        .edges = {{3, 2}, {2, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
+        .edges = {{.source = 3, .target = 2}, {.source = 2, .target = 1}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}},
         .processOrder = {3, 2, 1, 0},    // Stack top to bottom, then independent
         .carrierCount = 2
     },
@@ -162,7 +162,7 @@ static constexpr AlgorithmTopology kAlgorithmTopologies[8] = {
         .carrierMask = 0b1111,           // All operators are carriers
         .feedbackOperator = 0,           // Op 0 has feedback (arbitrary choice)
         .numEdges = 0,
-        .edges = {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
+        .edges = {{.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}},
         .processOrder = {0, 1, 2, 3},    // Any order works
         .carrierCount = 4
     },
@@ -173,7 +173,7 @@ static constexpr AlgorithmTopology kAlgorithmTopologies[8] = {
         .carrierMask = 0b0001,           // Operator 0 is carrier
         .feedbackOperator = 3,           // Op 3 has feedback
         .numEdges = 4,
-        .edges = {{3, 1}, {3, 2}, {1, 0}, {2, 0}, {0, 0}, {0, 0}},
+        .edges = {{.source = 3, .target = 1}, {.source = 3, .target = 2}, {.source = 1, .target = 0}, {.source = 2, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}},
         .processOrder = {3, 1, 2, 0},    // Top first, then both mid-level, then carrier
         .carrierCount = 1
     },
@@ -184,7 +184,7 @@ static constexpr AlgorithmTopology kAlgorithmTopologies[8] = {
         .carrierMask = 0b0001,           // Operator 0 is carrier
         .feedbackOperator = 2,           // Mid-chain feedback (differs from Stacked4Op)
         .numEdges = 3,
-        .edges = {{3, 2}, {2, 1}, {1, 0}, {0, 0}, {0, 0}, {0, 0}},
+        .edges = {{.source = 3, .target = 2}, {.source = 2, .target = 1}, {.source = 1, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}, {.source = 0, .target = 0}},
         .processOrder = {3, 2, 1, 0},    // Top to bottom
         .carrierCount = 1
     }
@@ -233,18 +233,14 @@ constexpr bool validateTopology(const AlgorithmTopology& topology) noexcept {
             ++countFromMask;
         }
     }
-    if (countFromMask != topology.carrierCount) {
-        return false;
-    }
-
-    return true;
+    return countFromMask == topology.carrierCount;
 }
 
 /// @brief Validates all algorithm topologies at compile time.
 /// @return true if all topologies are valid
 constexpr bool validateAllTopologies() noexcept {
-    for (size_t i = 0; i < 8; ++i) {
-        if (!validateTopology(kAlgorithmTopologies[i])) {
+    for (const auto& topology : kAlgorithmTopologies) {
+        if (!validateTopology(topology)) {
             return false;
         }
     }
@@ -593,9 +589,7 @@ public:
         std::array<float, kNumOperators> modulation{};
 
         // Phase 3: Process operators in dependency order (FR-021)
-        for (size_t i = 0; i < kNumOperators; ++i) {
-            const uint8_t opIdx = topology.processOrder[i];
-
+        for (unsigned char opIdx : topology.processOrder) {
             // Process this operator with accumulated modulation (FR-022)
             (void)operators_[opIdx].process(modulation[opIdx]);
 

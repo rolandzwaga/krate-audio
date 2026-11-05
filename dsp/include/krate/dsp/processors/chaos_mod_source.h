@@ -25,8 +25,8 @@
 #include <cstdint>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Chaotic attractor modulation source.
 ///
@@ -223,19 +223,17 @@ private:
     void resetModelState() noexcept {
         switch (model_) {
             case ChaosModel::Lorenz:
-                state_ = {1.0f, 1.0f, 1.0f};
+                state_ = {.x = 1.0f, .y = 1.0f, .z = 1.0f};
                 break;
             case ChaosModel::Rossler:
-                state_ = {0.1f, 0.0f, 0.0f};
+                state_ = {.x = 0.1f, .y = 0.0f, .z = 0.0f};
                 break;
             case ChaosModel::Chua:
-                state_ = {0.7f, 0.0f, 0.0f};
+                state_ = {.x = 0.7f, .y = 0.0f, .z = 0.0f};
                 break;
             case ChaosModel::Henon:
-                state_ = {0.1f, 0.0f, 0.0f};
-                break;
             case ChaosModel::Aizawa:
-                state_ = {0.1f, 0.0f, 0.0f};
+                state_ = {.x = 0.1f, .y = 0.0f, .z = 0.0f};
                 break;
         }
         prevHenonX_ = state_.x;
@@ -390,7 +388,7 @@ private:
     }
 
     // State
-    AttractorState state_{1.0f, 1.0f, 1.0f};
+    AttractorState state_{.x = 1.0f, .y = 1.0f, .z = 1.0f};
     float normalizedOutput_ = 0.0f;
     float inputLevel_ = 0.0f;
     int samplesUntilUpdate_ = 0;
@@ -419,5 +417,5 @@ private:
     float normalizationScale_ = 20.0f;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

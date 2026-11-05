@@ -95,7 +95,7 @@ inline bool loadMonoModeParams(MonoModeParams& params, Steinberg::IBStreamer& st
 
 template<typename SetParamFunc>
 inline void loadMonoModeParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     if (streamer.readInt32(iv)) setParam(kMonoPriorityId, static_cast<double>(iv) / (kMonoModeCount - 1));
     if (streamer.readInt32(iv)) setParam(kMonoLegatoId, iv != 0 ? 1.0 : 0.0);

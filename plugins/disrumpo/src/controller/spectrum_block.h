@@ -28,10 +28,10 @@ static constexpr uint32_t kSpectrumBlockMaxSamples = 2048;
 /// @note Must remain POD / trivially copyable for memcpy transport.
 struct SpectrumBlock {
     /// Pre-distortion mono samples (L+R)*0.5
-    float inputSamples[kSpectrumBlockMaxSamples];
+    float inputSamples[kSpectrumBlockMaxSamples]{};
 
     /// Post-distortion mono samples (L+R)*0.5
-    float outputSamples[kSpectrumBlockMaxSamples];
+    float outputSamples[kSpectrumBlockMaxSamples]{};
 
     /// Actual number of valid samples in this block
     uint32_t numSamples = 0;

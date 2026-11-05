@@ -63,8 +63,8 @@ public:
             titleLabel_->setText(title);
     }
 
-    void setColors(VSTGUI::CColor stroke, VSTGUI::CColor fill,
-                   VSTGUI::CColor controlPoint)
+    void setColors(const VSTGUI::CColor& stroke, const VSTGUI::CColor& fill,
+                   const VSTGUI::CColor& controlPoint)
     {
         if (adsrDisplay_) {
             adsrDisplay_->setStrokeColor(stroke);

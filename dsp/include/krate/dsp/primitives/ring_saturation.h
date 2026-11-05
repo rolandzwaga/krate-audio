@@ -42,9 +42,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Carrier Waveform and Frequency Mode Enums
@@ -93,12 +94,7 @@ public:
     RingSaturation() noexcept
         : shaper_()
         , dcBlocker_()
-        , crossfade_()
-        , drive_(1.0f)
-        , depth_(1.0f)
-        , stages_(1)
-        , sampleRate_(44100.0)
-        , prepared_(false) {
+        , crossfade_() {
         shaper_.setType(WaveshapeType::Tanh);
         shaper_.setDrive(drive_);
     }
@@ -133,7 +129,7 @@ public:
         randomCounter_ = 0;
 
         // Pre-compute random smoother coefficient: ~5 Hz smoothing
-        float tau = 1.0f / (2.0f * 3.14159265f * 5.0f);
+        float tau = 1.0f / (2.0f * std::numbers::pi_v<float> * 5.0f);
         float dt = 1.0f / static_cast<float>(sampleRate_);
         randomSmooth_ = dt / (tau + dt);
 
@@ -401,7 +397,7 @@ private:
         randomCounter_++;
         // Change target ~10 times per second
         int interval = static_cast<int>(sampleRate_ * 0.1);
-        if (interval < 1) interval = 1;
+        interval = std::max(interval, 1);
         if (randomCounter_ >= interval) {
             float r = nextRandom();
             // Random freq in [50, 2000] Hz
@@ -458,5 +454,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

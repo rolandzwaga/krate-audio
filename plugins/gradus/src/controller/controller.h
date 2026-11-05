@@ -119,7 +119,8 @@ public:
     // --- Deferred UI sync (thread-safe setParamNormalized) ---
     // Dirty flags categorize which UI regions need syncing.
     // setParamNormalized sets flags; a timer flushes on the UI thread.
-    enum DirtyFlags : uint32_t {
+    // Unscoped on purpose: the flags are OR-ed together into one uint32_t mask.
+    enum DirtyFlags : uint32_t {  // NOLINT(cppcoreguidelines-use-enum-class)
         kDirtyVelocityLane  = 1u << 0,
         kDirtyGateLane      = 1u << 1,
         kDirtyPitchLane     = 1u << 2,

@@ -216,7 +216,10 @@ public:
         for (std::size_t n = 0; n < numSamples; ++n) {
             // 1. Sanitise (FR-007): every later step sees only xL / xR.
             const float xL = detail::isFinite(left[n]) ? left[n] : 0.0f;
-            const float xR = mono ? xL : (detail::isFinite(right[n]) ? right[n] : 0.0f);
+            float xR = xL;
+            if (!mono) {
+                xR = detail::isFinite(right[n]) ? right[n] : 0.0f;
+            }
 
             // 2. Detection (FR-004, FR-005). Probe branch: SC-009's negative control.
             float m = 0.0f;
@@ -349,11 +352,9 @@ static_assert(TransientShaper::kDurationTable.back().durationMs == TransientShap
               "kDurationTable ends at kMaxDurationMs");
 static_assert(
     [] {
-        for (const auto& p : TransientShaper::kDurationTable) {
-            if (p.slowAttackArgMs < EnvelopeFollower::kMinAttackMs || p.slowAttackArgMs > EnvelopeFollower::kMaxAttackMs)
-                return false;
-        }
-        return true;
+        return std::ranges::all_of(TransientShaper::kDurationTable, [&](const auto& p) {
+            return !(p.slowAttackArgMs < EnvelopeFollower::kMinAttackMs || p.slowAttackArgMs > EnvelopeFollower::kMaxAttackMs);
+        });
     }(),
     "kDurationTable: every slow argument inside EnvelopeFollower's attack range");
 

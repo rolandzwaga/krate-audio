@@ -36,8 +36,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Zero-latency true-peak limiter (stereo-linked).
 ///
@@ -168,7 +168,7 @@ public:
 private:
     void processChunk(float* left, float* right, int numSamples) noexcept
     {
-        const std::size_t n = static_cast<std::size_t>(numSamples);
+        const auto n = static_cast<std::size_t>(numSamples);
 
         // 4x oversample each channel for true-peak detection (zero added latency).
         // T029: with the halfband detector the interpolation runs per sample below.
@@ -232,8 +232,7 @@ private:
                     currentGain_ = avg;
                 else
                     currentGain_ += (avg - currentGain_) * releaseCoeff_;
-                if (currentGain_ > avg)   // the release can not lift the gain above the window's own bound
-                    currentGain_ = avg;
+                currentGain_ = std::min(currentGain_, avg);
                 const float dl = laDelayL_[laPos_];
                 const float dr = laDelayR_[laPos_];
                 laDelayL_[laPos_] = inL;
@@ -287,5 +286,5 @@ private:
     float currentGain_ = 1.0f;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

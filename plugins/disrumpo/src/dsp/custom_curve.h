@@ -64,8 +64,8 @@ public:
 
     /// @brief Reset to default linear curve (0,0) to (1,1).
     void reset() noexcept {
-        breakpoints_[0] = Breakpoint{0.0f, 0.0f};
-        breakpoints_[1] = Breakpoint{1.0f, 1.0f};
+        breakpoints_[0] = Breakpoint{.x = 0.0f, .y = 0.0f};
+        breakpoints_[1] = Breakpoint{.x = 1.0f, .y = 1.0f};
         count_ = 2;
     }
 
@@ -126,7 +126,7 @@ public:
         y = std::clamp(y, 0.0f, 1.0f);
 
         // Add the new breakpoint
-        breakpoints_[count_] = Breakpoint{x, y};
+        breakpoints_[count_] = Breakpoint{.x = x, .y = y};
         ++count_;
 
         // Re-sort

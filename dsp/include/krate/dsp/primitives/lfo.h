@@ -24,8 +24,8 @@
 #include <cstdint>
 #include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -138,9 +138,7 @@ public:
 
             // Advance crossfade
             crossfadeProgress_ += crossfadeIncrement_;
-            if (crossfadeProgress_ >= 1.0f) {
-                crossfadeProgress_ = 1.0f;  // Crossfade complete
-            }
+            crossfadeProgress_ = std::min(crossfadeProgress_, 1.0f);
         } else {
             output = newValue;
         }
@@ -590,5 +588,5 @@ private:
     int quantizeSteps_ = 0;           ///< 0 = off, 2-16 = number of discrete steps
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

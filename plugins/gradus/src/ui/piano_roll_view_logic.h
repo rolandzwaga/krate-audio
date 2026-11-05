@@ -19,8 +19,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 
-namespace Gradus { namespace PianoRollViewLogic {
+namespace Gradus::PianoRollViewLogic {
 
 // -----------------------------------------------------------------------------
 // MIDI pitch → note name (scientific pitch notation, C4 = middle C = MIDI 60).
@@ -30,8 +31,8 @@ namespace Gradus { namespace PianoRollViewLogic {
 [[nodiscard]] inline std::string noteName(int midi) {
     static constexpr const char* kNames[12] = {
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
-    if (midi < 0) midi = 0;
-    if (midi > 127) midi = 127;
+    midi = std::max(midi, 0);
+    midi = std::min(midi, 127);
     const int octave = midi / 12 - 1;   // MIDI 60 → octave 4
     return std::string(kNames[midi % 12]) + std::to_string(octave);
 }
@@ -92,7 +93,7 @@ using StepArray = std::array<StepData, kMaxSteps>;
         return false;
     }
     const StepData& s = steps[static_cast<std::size_t>(hoveredStep)];
-    return !s.isRest && static_cast<int>(s.pitch) == hoveredPitch;
+    return !s.isRest && std::cmp_equal(s.pitch, hoveredPitch);
 }
 
 // -----------------------------------------------------------------------------
@@ -150,7 +151,7 @@ using StepArray = std::array<StepData, kMaxSteps>;
     const float rh = rowHeight(viewHeight);
     if (rh <= 0.0f) return -1;
     int row = static_cast<int>(y / rh);
-    if (row < 0) row = 0;
+    row = std::max(row, 0);
     if (row >= kPitchRows) row = kPitchRows - 1;
     return kMidiHigh - row;
 }
@@ -179,14 +180,14 @@ struct EditResult {
 [[nodiscard]] inline EditResult resolveSingleClick(StepData current, int clickedPitch) noexcept {
     // Click on a resting step → place note at clicked row (FR-030).
     if (current.isRest) {
-        return EditResult{ clickedPitch, false };
+        return EditResult{ .pitch = clickedPitch, .isRest = false };
     }
     // Same-pitch click → toggle to rest (FR-030).
-    if (static_cast<int>(current.pitch) == clickedPitch) {
-        return EditResult{ static_cast<int>(current.pitch), true };
+    if (std::cmp_equal(current.pitch, clickedPitch)) {
+        return EditResult{ .pitch = static_cast<int>(current.pitch), .isRest = true };
     }
     // Different-pitch click → silent replace (FR-030).
-    return EditResult{ clickedPitch, false };
+    return EditResult{ .pitch = clickedPitch, .isRest = false };
 }
 
 // -----------------------------------------------------------------------------
@@ -196,7 +197,7 @@ struct EditResult {
 // -----------------------------------------------------------------------------
 class MouseStateMachine {
 public:
-    enum class State { kIdle, kDragging };
+    enum class State : std::uint8_t { kIdle, kDragging };
 
     struct PendingEdit {
         bool valid  = false;
@@ -233,14 +234,14 @@ public:
     // existing rest is a no-op edit but still returns a valid edit; the
     // controller path collapses it via Parameter::setNormalized noop).
     // Does NOT enter drag mode. Returns an edit when step is in range.
-    [[nodiscard]] PendingEdit onRightMouseDown(int clickedStep, StepData current) const noexcept {
+    [[nodiscard]] static PendingEdit onRightMouseDown(int clickedStep, StepData current) noexcept {
         if (clickedStep < 0) return PendingEdit{};
         // Preserve the step's current pitch; only force rest=true.
         return PendingEdit{
-            true,
-            clickedStep,
-            static_cast<int>(current.pitch),
-            true
+            .valid = true,
+            .step = clickedStep,
+            .pitch = static_cast<int>(current.pitch),
+            .isRest = true
         };
     }
 
@@ -255,7 +256,7 @@ public:
         if (stepUnderCursor == dragStartStep_) return PendingEdit{};
         if (stepUnderCursor == lastPaintedStep_) return PendingEdit{};
         lastPaintedStep_ = stepUnderCursor;
-        return PendingEdit{ true, stepUnderCursor, dragPitch_, /*isRest=*/false };
+        return PendingEdit{ .valid = true, .step = stepUnderCursor, .pitch = dragPitch_, /*isRest=*/.isRest = false };
     }
 
     // ---- LEFT mouse up ----
@@ -266,7 +267,7 @@ public:
         PendingEdit edit{};
         if (state_ == State::kDragging && lastPaintedStep_ == -1 && dragStartStep_ >= 0) {
             auto r = resolveSingleClick(currentAtStart, dragPitch_);
-            edit = PendingEdit{ true, dragStartStep_, r.pitch, r.isRest };
+            edit = PendingEdit{ .valid = true, .step = dragStartStep_, .pitch = r.pitch, .isRest = r.isRest };
         }
         state_ = State::kIdle;
         dragStartStep_ = -1;
@@ -311,7 +312,7 @@ struct HoverResult {
     const int s = stepFromX(x, viewWidth, activeLength);
     const int p = pitchFromY(y, viewHeight);
     const bool ch = (s != prevStep) || (p != prevPitch);
-    return HoverResult{ s, p, ch };
+    return HoverResult{ .step = s, .pitch = p, .changed = ch };
 }
 
-}} // namespace Gradus::PianoRollViewLogic
+} // namespace Gradus::PianoRollViewLogic

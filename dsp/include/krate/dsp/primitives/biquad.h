@@ -27,8 +27,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Forward Declarations
@@ -152,7 +152,7 @@ inline bool isNaNBits(float x) noexcept {
 // Note: flushDenormal is defined in dsp/core/db_utils.h (Layer 0)
 
 /// Clamp frequency to valid range
-inline constexpr float clampFrequency(float freq, float sampleRate) noexcept {
+constexpr float clampFrequency(float freq, float sampleRate) noexcept {
     // Handle invalid sample rate (would cause maxFreq < minFreq)
     if (sampleRate <= 0.0f) {
         return kMinFilterFrequency;  // Return safe default
@@ -166,7 +166,7 @@ inline constexpr float clampFrequency(float freq, float sampleRate) noexcept {
 }
 
 /// Clamp Q to valid range
-inline constexpr float clampQ(float q) noexcept {
+constexpr float clampQ(float q) noexcept {
     return std::clamp(q, kMinQ, kMaxQ);
 }
 
@@ -177,27 +177,27 @@ inline constexpr float clampQ(float q) noexcept {
 // =============================================================================
 
 /// Calculate maximum filter frequency for given sample rate
-[[nodiscard]] inline constexpr float maxFilterFrequency(float sampleRate) noexcept {
+[[nodiscard]] constexpr float maxFilterFrequency(float sampleRate) noexcept {
     return sampleRate * detail::kMaxFrequencyRatio;
 }
 
 /// Get minimum allowed filter frequency
-[[nodiscard]] inline constexpr float minFilterFrequency() noexcept {
+[[nodiscard]] constexpr float minFilterFrequency() noexcept {
     return kMinFilterFrequency;
 }
 
 /// Get minimum allowed Q value
-[[nodiscard]] inline constexpr float minQ() noexcept {
+[[nodiscard]] constexpr float minQ() noexcept {
     return kMinQ;
 }
 
 /// Get maximum allowed Q value
-[[nodiscard]] inline constexpr float maxQ() noexcept {
+[[nodiscard]] constexpr float maxQ() noexcept {
     return kMaxQ;
 }
 
 /// Get Butterworth Q value
-[[nodiscard]] inline constexpr float butterworthQ() noexcept {
+[[nodiscard]] constexpr float butterworthQ() noexcept {
     return kButterworthQ;
 }
 
@@ -643,11 +643,11 @@ private:
         }
     };
 
-    Smoother smootherB0_{0.0f, 1.0f};   // Initialize to match target_.b0
-    Smoother smootherB1_{0.0f, 0.0f};
-    Smoother smootherB2_{0.0f, 0.0f};
-    Smoother smootherA1_{0.0f, 0.0f};
-    Smoother smootherA2_{0.0f, 0.0f};
+    Smoother smootherB0_{.coeff_ = 0.0f, .state_ = 1.0f};   // Initialize to match target_.b0
+    Smoother smootherB1_{.coeff_ = 0.0f, .state_ = 0.0f};
+    Smoother smootherB2_{.coeff_ = 0.0f, .state_ = 0.0f};
+    Smoother smootherA1_{.coeff_ = 0.0f, .state_ = 0.0f};
+    Smoother smootherA2_{.coeff_ = 0.0f, .state_ = 0.0f};
 
     float sampleRate_ = 44100.0f;
 };
@@ -678,8 +678,12 @@ inline BiquadCoefficients BiquadCoefficients::calculate(
     const float cosOmega = std::cos(omega);
     const float alpha = sinOmega / (2.0f * Q);
 
-    float b0 = 0.0f, b1 = 0.0f, b2 = 0.0f;
-    float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f;
+    float b0 = 0.0f;
+    float b1 = 0.0f;
+    float b2 = 0.0f;
+    float a0 = 0.0f;
+    float a1 = 0.0f;
+    float a2 = 0.0f;
 
     switch (type) {
         case FilterType::Lowpass: {
@@ -794,10 +798,13 @@ constexpr BiquadCoefficients BiquadCoefficients::calculateConstexpr(
     if (maxFreq < kMinFilterFrequency) {
         frequency = maxFreq;
     } else {
-        frequency = (frequency < kMinFilterFrequency) ? kMinFilterFrequency :
-                    (frequency > maxFreq) ? maxFreq : frequency;
+        if (frequency < kMinFilterFrequency) {
+            frequency = kMinFilterFrequency;
+        } else if (frequency > maxFreq) {
+            frequency = maxFreq;
+        }
     }
-    Q = (Q < kMinQ) ? kMinQ : (Q > kMaxQ) ? kMaxQ : Q;
+    Q = std::clamp(Q, kMinQ, kMaxQ);
 
     // Common intermediate values using constexpr math
     const float omega = kTwoPi * frequency / sampleRate;
@@ -805,8 +812,12 @@ constexpr BiquadCoefficients BiquadCoefficients::calculateConstexpr(
     const float cosOmega = detail::constexprCos(omega);
     const float alpha = sinOmega / (2.0f * Q);
 
-    float b0 = 0.0f, b1 = 0.0f, b2 = 0.0f;
-    float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f;
+    float b0 = 0.0f;
+    float b1 = 0.0f;
+    float b2 = 0.0f;
+    float a0 = 0.0f;
+    float a1 = 0.0f;
+    float a2 = 0.0f;
 
     switch (type) {
         case FilterType::Lowpass: {
@@ -903,5 +914,5 @@ constexpr BiquadCoefficients BiquadCoefficients::calculateConstexpr(
     return coeffs;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

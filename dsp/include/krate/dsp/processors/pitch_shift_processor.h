@@ -763,7 +763,7 @@ private:
         float grainSizeF = period * kPeriodMultiplier;
 
         // Clamp to valid range
-        std::size_t newGrainSize = static_cast<std::size_t>(grainSizeF);
+        auto newGrainSize = static_cast<std::size_t>(grainSizeF);
         newGrainSize = std::clamp(newGrainSize, minGrainSamples_, maxGrainSamples_);
 
         // Only update if significantly different (avoid jitter)
@@ -938,7 +938,7 @@ public:
     void process(const float* input, float* output, std::size_t numSamples,
                  float pitchRatio) noexcept;
 
-    [[nodiscard]] std::size_t getLatencySamples() const noexcept {
+    [[nodiscard]] static std::size_t getLatencySamples() noexcept {
         // Total latency: FFT size + hop size
         return kFFTSize + kHopSize;
     }
@@ -1362,7 +1362,7 @@ inline std::size_t PitchShiftProcessor::getLatencySamples() const noexcept {
             return pImpl_->granularShifter.getLatencySamples();
         case PitchMode::PhaseVocoder:
             // Use actual latency from the phase vocoder
-            return pImpl_->phaseVocoderShifter.getLatencySamples();
+            return Krate::DSP::PhaseVocoderPitchShifter::getLatencySamples();
         case PitchMode::PitchSync:
             // Use actual latency from the pitch-sync shifter (variable, ~5-20ms)
             return pImpl_->pitchSyncShifter.getLatencySamples();

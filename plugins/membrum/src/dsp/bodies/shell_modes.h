@@ -25,6 +25,7 @@
 // ==============================================================================
 
 #include <cmath>
+#include <numbers>
 
 namespace Membrum::Bodies {
 
@@ -52,7 +53,7 @@ inline constexpr float kShellRatios[kShellModeCount] = {
     };
     if (modeIdx >= 0 && modeIdx < 6)
         return kBetaL[modeIdx];
-    constexpr double kPi = 3.14159265358979;
+    constexpr double kPi = std::numbers::pi;
     // 1-based mode number n = modeIdx + 1 -> (2n + 1) * pi / 2.
     return (2.0 * static_cast<double>(modeIdx + 1) + 1.0) * kPi * 0.5;
 }

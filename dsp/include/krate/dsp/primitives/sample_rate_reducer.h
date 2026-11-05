@@ -19,8 +19,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Layer 1 DSP Primitive - Sample rate reduction
 ///
@@ -45,7 +45,7 @@ public:
     static constexpr float kMaxReductionFactor = 32.0f;
     static constexpr float kDefaultReductionFactor = 1.0f;
 
-    enum class Mode : int { ZOH = 0, Linear = 1 };
+    enum class Mode : std::uint8_t { ZOH = 0, Linear = 1 };
 
     // =========================================================================
     // Lifecycle
@@ -182,5 +182,5 @@ private:
     float smoothState_ = 0.0f;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

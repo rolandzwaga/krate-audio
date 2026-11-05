@@ -32,8 +32,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Layer 2 DSP Processor - Formant/Vowel Filter
 ///
@@ -550,5 +550,5 @@ inline void FormantFilter::processBlock(float* buffer, size_t numSamples) noexce
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

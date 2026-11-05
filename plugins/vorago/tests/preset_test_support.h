@@ -238,7 +238,6 @@ namespace detail {
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
-#include <optional>
 #include <string>
 #include <thread>
 #include <utility>
@@ -496,7 +495,7 @@ inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1
             if (!Krate::DSP::detail::isFinite(l) || !Krate::DSP::detail::isFinite(rr)) {
                 out.finite = false;
             }
-            out.peak = std::max(out.peak, std::max(std::fabs(l), std::fabs(rr)));
+            out.peak = std::max({out.peak, std::fabs(l), std::fabs(rr)});
             powL += static_cast<double>(l) * static_cast<double>(l);
             powR += static_cast<double>(rr) * static_cast<double>(rr);
         }
@@ -537,8 +536,8 @@ inline constexpr int kPolyphonyChoices = 6;                   // kPolyphonyId: 1
             std::min(eco.getNumLoops(), Krate::DSP::FeedbackEcology::kMaxLoops);
         out.loopLifeEnd.reserve(loops);
         for (std::size_t l = 0; l < loops; ++l) {
-            out.loopLifeEnd.push_back(LoopLifeReading{eco.getLoopWakeAmount(l), eco.getLoopGate(l),
-                                                      eco.isLoopDormant(l), eco.getLoopGain(l)});
+            out.loopLifeEnd.push_back(LoopLifeReading{.wake = eco.getLoopWakeAmount(l), .gate = eco.getLoopGate(l),
+                                                      .dormant = eco.isLoopDormant(l), .gain = eco.getLoopGain(l)});
         }
     }
     return out;
@@ -1824,7 +1823,7 @@ struct Shard {
         count == 0u || index >= count) {
         return {};
     }
-    return Shard{index, count};
+    return Shard{.index = index, .count = count};
 }
 
 /// VORAGO_SWEEP_SHARD, default "0/1" when unset.
@@ -1886,7 +1885,7 @@ inline constexpr double kWindowEpsilonSeconds = 1e-9;
     const long long s1 = std::max(s0, std::llround(t1 * sr));
     const long long first = (s0 + block - 1) / block;
     const long long end = std::max(first, s1 / block);
-    return SweepWindow{t0, t1, static_cast<std::size_t>(first), static_cast<std::size_t>(end)};
+    return SweepWindow{.t0 = t0, .t1 = t1, .firstBlock = static_cast<std::size_t>(first), .endBlock = static_cast<std::size_t>(end)};
 }
 
 /// Stereo power (sumL + sumR) / (2n) over blocks [first, end) in dB,
@@ -2192,8 +2191,8 @@ struct ArmResult {
     spec.noteOffAt = tl.H;
     spec.end = tl.total;
     spec.capture.reserve(4u);
-    for (int k = 0; k < 3; ++k) {
-        spec.capture.emplace_back(tl.m[k][0], tl.m[k][1]);
+    for (const auto *k : tl.m) {
+        spec.capture.emplace_back(k[0], k[1]);
     }
     if (attackWindowEnd.has_value()) {
         spec.capture.emplace_back(0.0, *attackWindowEnd);
@@ -2993,7 +2992,7 @@ struct GestureBlock {
     const long long target =
         std::max(0LL, std::llround((attackSeconds + kGestureAfterAttackSeconds) * sr));
     const long long block = (target + b - 1) / b;
-    return GestureBlock{block, block * b, (block * b) - target};
+    return GestureBlock{.block = block, .startSample = block * b, .latenessSamples = (block * b) - target};
 }
 
 /// Plan 6.3 G / G0 score. `g` is the gesture render on `tlG` (makeTimeline(st,
@@ -3082,8 +3081,8 @@ inline void scoreRateArm1(const SweepCapture& cap, double end, double sr, bool& 
     spec.sr = kSweepSampleRate;
     spec.noteOffAt = tl.H;
     spec.end = tl.m[2][1];
-    for (int k = 0; k < 3; ++k) {
-        spec.capture.emplace_back(tl.m[k][0], tl.m[k][1]);
+    for (const auto *k : tl.m) {
+        spec.capture.emplace_back(k[0], k[1]);
     }
     const SweepCapture cap = renderPreset(spec);
     std::array<PresetDescriptor, 3> minutes{};

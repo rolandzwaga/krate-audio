@@ -26,15 +26,15 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Compiler Compatibility Macros
 // =============================================================================
 
 #ifndef ITERUM_NOINLINE
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #define ITERUM_NOINLINE __declspec(noinline)
 #elif defined(__GNUC__) || defined(__clang__)
 #define ITERUM_NOINLINE __attribute__((noinline))
@@ -94,7 +94,7 @@ struct StageCoefficients {
 {
     StageCoefficients result;
     float rate = timeMs * 0.001f * sampleRate;
-    if (rate < 1.0f) rate = 1.0f;
+    rate = std::max(rate, 1.0f);
 
     result.coef = std::exp(-std::log((1.0f + targetRatio) / targetRatio) / rate);
 
@@ -131,5 +131,5 @@ struct StageCoefficients {
     return kDefaultTargetRatioDR;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

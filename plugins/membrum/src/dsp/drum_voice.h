@@ -1398,12 +1398,12 @@ private:
         ExciterType exciter) noexcept
     {
         const StrikeNormKey key{
-            body, exciter, p.material, p.size, p.decay, p.strikePos, p.modeStretch,
-            p.decaySkew, p.airLoading, p.modeScatter,
-            p.bodyDampingB1, p.bodyDampingB3,
-            clickLayerParams_.mix, clickLayerParams_.contactMs,
-            clickLayerParams_.brightness,
-            exciterBank_.getPendingNoiseBurstContactNorm()};
+            .body = body, .exciter = exciter, .material = p.material, .size = p.size, .decay = p.decay, .strikePos = p.strikePos, .modeStretch = p.modeStretch,
+            .decaySkew = p.decaySkew, .airLoading = p.airLoading, .modeScatter = p.modeScatter,
+            .b1 = p.bodyDampingB1, .b3 = p.bodyDampingB3,
+            .clickMix = clickLayerParams_.mix, .clickContact = clickLayerParams_.contactMs,
+            .clickBright = clickLayerParams_.brightness,
+            .noiseBurstContact = exciterBank_.getPendingNoiseBurstContactNorm()};
         if (!(key == strikeNormKey_)) {
             strikeNormGain_ = measuredStrikeOutputGainExcited(bank, exciter);
             strikeNormKey_  = key;
@@ -1440,7 +1440,7 @@ private:
         {
             freqs[k] = f0 * Bodies::kShellRatios[k];
             amps[k]  = std::abs(Bodies::computeShellAmplitude(k, shellStrike));
-            if (amps[k] < 0.03f) amps[k] = 0.03f;
+            amps[k] = std::max(amps[k], 0.03f);
         }
         for (int k = shellCount; k < kSecondaryModes; ++k) {
             freqs[k] = 0.0f;
@@ -1478,7 +1478,7 @@ private:
         const float b1 = std::max(25.0f, 2.5f * bodyB1) +
                          (1.0f - mat) * 15.0f;
         const float b3 = mat * 1.0e-5f;
-        const Krate::DSP::ModalResonatorBank::DampingLaw law{b1, b3};
+        const Krate::DSP::ModalResonatorBank::DampingLaw law{.b1 = b1, .b3 = b3};
         secondaryBank_.setModes(freqs, amps, shellCount,
                                 law, /*stretch*/ 0.0f, /*scatter*/ 0.0f);
     }

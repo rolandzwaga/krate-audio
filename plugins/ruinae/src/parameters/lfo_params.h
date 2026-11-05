@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 
 namespace Ruinae {
@@ -41,7 +42,8 @@ struct LFOParams {
 };
 
 // ID offsets from the per-LFO block base (kLFO1RateId / kLFO2RateId).
-enum LFOParamOffset {
+// Unscoped on purpose: the offsets are added to a block's base ParamID.
+enum LFOParamOffset : std::uint8_t {  // NOLINT(cppcoreguidelines-use-enum-class)
     kLFORateOffset = 0,
     kLFOShapeOffset = 1,
     kLFODepthOffset = 2,
@@ -280,7 +282,7 @@ inline bool loadLFOExtendedParams(LFOParams& params, Steinberg::IBStreamer& stre
 
 template<typename SetParamFunc>
 inline void loadLFOParamsToController(
-    Steinberg::Vst::ParamID base, Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::Vst::ParamID base, Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
     if (streamer.readFloat(fv)) setParam(base + kLFORateOffset, lfoRateToNormalized(fv));
     if (streamer.readInt32(iv)) setParam(base + kLFOShapeOffset, static_cast<double>(iv) / (kWaveformCount - 1));
@@ -290,7 +292,7 @@ inline void loadLFOParamsToController(
 
 template<typename SetParamFunc>
 inline void loadLFOExtendedParamsToController(
-    Steinberg::Vst::ParamID base, Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::Vst::ParamID base, Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
     if (streamer.readFloat(fv)) setParam(base + kLFOPhaseOffsetOffset, static_cast<double>(fv) / 360.0);
     if (streamer.readInt32(iv)) setParam(base + kLFORetriggerOffset, iv != 0 ? 1.0 : 0.0);

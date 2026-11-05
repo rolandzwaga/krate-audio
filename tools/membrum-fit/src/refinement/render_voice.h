@@ -25,12 +25,12 @@ public:
 
     // Trigger a hit with the given PadConfig and render numSamples into `out`.
     // `out.size()` must equal numSamples.
-    void render(const Membrum::PadConfig& config,
+    void render(const Membrum::PadConfig& cfg,
                 float velocity01,
                 std::span<float> out);
 
     // Convenience: allocate and return a buffer of length lenSec * sampleRate.
-    std::vector<float> renderToVector(const Membrum::PadConfig& config,
+    std::vector<float> renderToVector(const Membrum::PadConfig& cfg,
                                       float velocity01,
                                       float lenSec);
 

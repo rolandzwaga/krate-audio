@@ -19,6 +19,8 @@
 #include "exciters/noise_burst_exciter.h"
 
 #include <cstdint>
+#include <utility>
+#include <type_traits>
 #include <variant>
 
 namespace Membrum {
@@ -107,7 +109,7 @@ public:
     template <typename Fn>
     void withActive(Fn&& fn) noexcept
     {
-        std::visit([&fn](auto& e) noexcept { fn(e); }, active_);
+        std::visit([&fn](auto& e) noexcept { std::forward<Fn>(fn)(e); }, active_);
     }
 
     [[nodiscard]] bool isActive() const noexcept
@@ -185,6 +187,13 @@ private:
         FMImpulseExciter,
         FeedbackExciter,
         ClapExciter>;
+
+    // std::visit throws bad_variant_access only on a valueless variant, and a variant only becomes valueless when an
+    // emplace throws. Every alternative is nothrow default-constructible (applyPendingSwap only default-emplaces), so
+    // the visits on the audio path cannot throw (.clang-tidy ignores bad_variant_access for that reason).
+    static_assert([]<typename... T>(std::variant<T...>*) {
+        return (std::is_nothrow_default_constructible_v<T> && ...);
+    }(static_cast<Variant*>(nullptr)), "a throwing alternative constructor could leave the variant valueless");
 
     void applyPendingSwap() noexcept
     {

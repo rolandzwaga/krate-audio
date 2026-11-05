@@ -43,8 +43,8 @@
 #include <cstdint>
 #include <cstring>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// The five performance controls (roadmap lines 300-308).
 enum class SeraphisMacro : std::uint8_t { Dream = 0, Bloom, Dissolve, Gravity, Entropy, Count };
@@ -584,7 +584,7 @@ public:
     /// with a Voice owner is a compile error rather than a silently dead row.
     [[nodiscard]] static constexpr bool everyRowOwnerIsValid(
         const std::array<SeraphisMacroRow, kNumRows>& rows) noexcept {
-        for (const SeraphisMacroRow& row : rows) {
+        return std::ranges::all_of(rows, [&](const SeraphisMacroRow& row) {
             if (static_cast<std::size_t>(row.macro) >= kNumMacros) {
                 return false;
             }
@@ -605,33 +605,27 @@ public:
                 && row.owner != SeraphisMacroTargetOwner::Engine) {
                 return false;
             }
-        }
-        return true;
+            return true;
+        });
     }
 
     /// FR-058: an Aether row absent from SeraphisAetherTargets is a compile error.
     [[nodiscard]] static constexpr bool everyAetherRowHasAPodField(
         const std::array<SeraphisMacroRow, kNumRows>& rows) noexcept {
-        for (const SeraphisMacroRow& row : rows) {
-            if (row.owner == SeraphisMacroTargetOwner::Aether
-                && aetherFieldIndex(row.target) < 0) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(rows, [&](const SeraphisMacroRow& row) {
+            return row.owner != SeraphisMacroTargetOwner::Aether
+                || aetherFieldIndex(row.target) >= 0;
+        });
     }
 
     /// Phase 11 / C-10: an Effects row absent from SeraphisEffectsTargets is a
     /// compile error. Mirrors everyAetherRowHasAPodField above.
     [[nodiscard]] static constexpr bool everyEffectsRowHasAPodField(
         const std::array<SeraphisMacroRow, kNumRows>& rows) noexcept {
-        for (const SeraphisMacroRow& row : rows) {
-            if (row.owner == SeraphisMacroTargetOwner::Effects
-                && effectsFieldIndex(row.target) < 0) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(rows, [&](const SeraphisMacroRow& row) {
+            return row.owner != SeraphisMacroTargetOwner::Effects
+                || effectsFieldIndex(row.target) >= 0;
+        });
     }
 
     /// FR-057 / RA-7. ModCurve::Stepped is std::floor(x*4)/3
@@ -640,12 +634,9 @@ public:
     /// fails SC-009's 3x continuity bound BY CONSTRUCTION.
     [[nodiscard]] static constexpr bool noRowUsesSteppedCurve(
         const std::array<SeraphisMacroRow, kNumRows>& rows) noexcept {
-        for (const SeraphisMacroRow& row : rows) {
-            if (row.curve == ModCurve::Stepped) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(rows, [&](const SeraphisMacroRow& row) {
+            return row.curve != ModCurve::Stepped;
+        });
     }
 
     /// FR-061..FR-065: every enumerated target is claimed by at least one row.
@@ -997,5 +988,5 @@ static_assert(static_cast<std::size_t>(SeraphisMacroTarget::Count) == 29,
               "C-10 / SC-021(d): 27 pre-Phase-11 targets + EXACTLY 2; a third needs a spec "
               "amendment");
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

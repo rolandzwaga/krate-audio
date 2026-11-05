@@ -288,11 +288,11 @@ private:
                     std::clamp(echo.noteOnRemaining, int64_t{0}, blockSize - 1));
 
                 outputEvents[outCount++] = ArpEvent{
-                    ArpEvent::Type::NoteOn,
-                    echo.note,
-                    echo.velocity,
-                    offset,
-                    false};
+                    .type = ArpEvent::Type::NoteOn,
+                    .note = echo.note,
+                    .velocity = echo.velocity,
+                    .sampleOffset = offset,
+                    .legato = false};
                 echo.noteOnEmitted = true;
             }
 
@@ -303,11 +303,11 @@ private:
                     std::clamp(echo.noteOffRemaining, int64_t{0}, blockSize - 1));
 
                 outputEvents[outCount++] = ArpEvent{
-                    ArpEvent::Type::NoteOff,
-                    echo.note,
-                    0,
-                    offset,
-                    false};
+                    .type = ArpEvent::Type::NoteOff,
+                    .note = echo.note,
+                    .velocity = 0,
+                    .sampleOffset = offset,
+                    .legato = false};
                 echo.noteOffEmitted = true;
             }
         }
@@ -410,7 +410,7 @@ private:
         }
 
         pendingEchoes_[pendingCount_] = PendingEcho{
-            note, velocity, noteOnRemaining, noteOffRemaining, false, false};
+            .note = note, .velocity = velocity, .noteOnRemaining = noteOnRemaining, .noteOffRemaining = noteOffRemaining, .noteOnEmitted = false, .noteOffEmitted = false};
         ++pendingCount_;
     }
 
@@ -423,11 +423,11 @@ private:
         size_t emitted = 0;
         for (; emitted < emergencyNoteOffCount_ && outCount < maxOutput; ++emitted) {
             outputEvents[outCount++] = ArpEvent{
-                ArpEvent::Type::NoteOff,
-                emergencyNoteOffs_[emitted],
-                0,
-                0,
-                false};
+                .type = ArpEvent::Type::NoteOff,
+                .note = emergencyNoteOffs_[emitted],
+                .velocity = 0,
+                .sampleOffset = 0,
+                .legato = false};
         }
         // Keep whatever did not fit in this block's output span -- clearing the
         // queue unconditionally would drop the note-off obligation entirely and

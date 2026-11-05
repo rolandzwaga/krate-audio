@@ -22,8 +22,8 @@
 #include <algorithm>  // std::clamp
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// Pre-computed velocity values for multiple modulation destinations.
 /// Each field contains the velocity-curved value scaled by its destination depth.
@@ -56,16 +56,6 @@ public:
 
     /// Default constructor. A4=440Hz, bend range=2 semitones, smoothing=5ms.
     NoteProcessor() noexcept
-        : a4Reference_(kA4FrequencyHz)
-        , pitchBendRange_(2.0f)
-        , smoothingTimeMs_(5.0f)
-        , currentBendSemitones_(0.0f)
-        , currentBendRatio_(1.0f)
-        , velocityCurve_(VelocityCurve::Linear)
-        , ampVelocityDepth_(1.0f)
-        , filterVelocityDepth_(0.0f)
-        , envTimeVelocityDepth_(0.0f)
-        , sampleRate_(44100.0f)
     {
         bendSmoother_.configure(smoothingTimeMs_, sampleRate_);
     }
@@ -213,17 +203,17 @@ public:
 
 private:
     OnePoleSmoother bendSmoother_;       ///< Smooths bipolar pitch bend input
-    float a4Reference_;                  ///< A4 tuning reference in Hz [400, 480]
-    float pitchBendRange_;               ///< Pitch bend range in semitones [0, 24]
-    float smoothingTimeMs_;              ///< Pitch bend smoothing time in ms
-    float currentBendSemitones_;         ///< Cached: smoothedBend * pitchBendRange_
-    float currentBendRatio_;             ///< Cached: semitonesToRatio(currentBendSemitones_)
-    VelocityCurve velocityCurve_;        ///< Active velocity curve type
-    float ampVelocityDepth_;             ///< Amplitude velocity depth [0, 1]
-    float filterVelocityDepth_;          ///< Filter velocity depth [0, 1]
-    float envTimeVelocityDepth_;         ///< Envelope time velocity depth [0, 1]
-    float sampleRate_;                   ///< Current sample rate in Hz
+    float a4Reference_{kA4FrequencyHz};                  ///< A4 tuning reference in Hz [400, 480]
+    float pitchBendRange_{2.0f};               ///< Pitch bend range in semitones [0, 24]
+    float smoothingTimeMs_{5.0f};              ///< Pitch bend smoothing time in ms
+    float currentBendSemitones_{0.0f};         ///< Cached: smoothedBend * pitchBendRange_
+    float currentBendRatio_{1.0f};             ///< Cached: semitonesToRatio(currentBendSemitones_)
+    VelocityCurve velocityCurve_{VelocityCurve::Linear};        ///< Active velocity curve type
+    float ampVelocityDepth_{1.0f};             ///< Amplitude velocity depth [0, 1]
+    float filterVelocityDepth_{0.0f};          ///< Filter velocity depth [0, 1]
+    float envTimeVelocityDepth_{0.0f};         ///< Envelope time velocity depth [0, 1]
+    float sampleRate_{44100.0f};                   ///< Current sample rate in Hz
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+
