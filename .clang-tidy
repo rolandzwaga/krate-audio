@@ -11,8 +11,9 @@
 # Note: Run after generating compile_commands.json (cmake --preset <preset>)
 # ==============================================================================
 
-# Header filter: Only check our own headers, not external dependencies
-HeaderFilterRegex: '(dsp/include/krate|plugins/(iterum|disrumpo)/src)/.*'
+# Header filter: Only check our own headers, not external dependencies. Every plugin's src/ (shared included) and
+# tools/membrum-fit/src; until 2026-11-05 it named only Iterum and Disrumpo, the plugins that existed when it was written.
+HeaderFilterRegex: '(dsp[/\\]include[/\\]krate|plugins[/\\][^/\\]+[/\\]src|tools[/\\]membrum-fit[/\\]src)[/\\].*'
 
 # Treat these as errors (blocking in CI)
 WarningsAsErrors: ''
