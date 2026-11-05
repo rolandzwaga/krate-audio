@@ -204,6 +204,18 @@ for dir in "${SOURCE_DIRS[@]}"; do
     fi
 done
 
+# A .cpp the build does not compile on this platform (e.g. the Linux-only libcurl fetch on macOS) has no
+# compile_commands.json entry; clang-tidy would guess its flags and report a missing include as an error.
+COMPILED_FILES=()
+for file in "${SOURCE_FILES[@]}"; do
+    if [[ "$file" == *.cpp ]] && ! grep -qF "\"file\": \"$(cd "$(dirname "$file")" && pwd)/$(basename "$file")\"" "$BUILD_DIR/compile_commands.json"; then
+        [[ $QUIET -eq 0 ]] && info "Skipping (not in compile_commands.json on this platform): $file"
+        continue
+    fi
+    COMPILED_FILES+=("$file")
+done
+SOURCE_FILES=("${COMPILED_FILES[@]}")
+
 if [[ ${#SOURCE_FILES[@]} -eq 0 ]]; then
     warn "No source files found for target: $TARGET"
     exit 0

@@ -320,6 +320,25 @@ foreach ($Dir in $RootSourceDirs) {
     }
 }
 
+# A TU the build does not compile on this platform (e.g. the Linux-only test_libcurl_fetch.cpp) has no
+# compile_commands.json entry; clang-tidy would guess its flags and report a missing include as an error.
+if ($UseCompileCommands) {
+    $Compiled = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($Entry in (Get-Content -Raw $CompileCommands | ConvertFrom-Json)) {
+        $Path = if ([System.IO.Path]::IsPathRooted($Entry.file)) { $Entry.file } else { Join-Path $Entry.directory $Entry.file }
+        [void]$Compiled.Add([System.IO.Path]::GetFullPath($Path))
+    }
+    $NotCompiled = @($SourceFiles | Where-Object { -not $Compiled.Contains($_.FullName) })
+    if ($NotCompiled.Count -gt 0) {
+        if (-not $Quiet) {
+            foreach ($File in $NotCompiled) {
+                Write-Info "Skipping (not in compile_commands.json on this platform): $($File.FullName.Replace($ProjectRoot + '\', ''))"
+            }
+        }
+        $SourceFiles = @($SourceFiles | Where-Object { $Compiled.Contains($_.FullName) })
+    }
+}
+
 if ($SourceFiles.Count -eq 0) {
     Write-Warn "No source files found for target: $Target"
     exit 0
