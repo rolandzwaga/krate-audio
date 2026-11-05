@@ -169,10 +169,10 @@ private:
         if (trailCount_ < 2) return;
 
         constexpr double kPadding = 8.0;
-        RingBufferView trailXView{trailX_.data(), trailHead_,
-                                   std::min(trailCount_, kTrailLength), kTrailLength};
-        RingBufferView trailYView{trailY_.data(), trailHead_,
-                                   std::min(trailCount_, kTrailLength), kTrailLength};
+        RingBufferView trailXView{.data = trailX_.data(), .head = trailHead_,
+                                   .count = std::min(trailCount_, kTrailLength), .capacity = kTrailLength};
+        RingBufferView trailYView{.data = trailY_.data(), .head = trailHead_,
+                                   .count = std::min(trailCount_, kTrailLength), .capacity = kTrailLength};
         drawXYTrail(context,
             left + kPadding, top + kPadding,
             w - 2.0 * kPadding, h - 2.0 * kPadding,
@@ -287,7 +287,7 @@ private:
 
         for (int i = 0; i < numBits; ++i) {
             int bitIdx = numBits - 1 - i;
-            bool bitOn = (registerState_ >> static_cast<uint32_t>(bitIdx)) & 1u;
+            bool bitOn = ((registerState_ >> static_cast<uint32_t>(bitIdx)) & 1u) != 0u;
 
             double cx = startX + i * (kDotRadius * 2.0 + kDotSpacing) + kDotRadius;
             VSTGUI::CRect dotRect(cx - kDotRadius, centerY - kDotRadius,
@@ -446,7 +446,7 @@ private:
     int historyCount_ = 0;
 };
 
-inline ModDisplayCreator<RunglerDisplay> gRunglerDisplayCreator{
+inline const ModDisplayCreator<RunglerDisplay> gRunglerDisplayCreator{
     "RunglerDisplay", "Rungler Display", "rungler-color", {0, 0, 510, 230}};
 
 } // namespace Krate::Plugins

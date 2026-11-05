@@ -24,6 +24,7 @@
 #include "vstgui/lib/controls/itexteditlistener.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include "search_debouncer.h"
+#include <cstdint>
 
 namespace Krate::Plugins {
 
@@ -32,7 +33,7 @@ class PresetDataSource;
 class CategoryTabBar;
 
 // Button tag constants for IControlListener
-enum PresetBrowserButtonTags {
+enum PresetBrowserButtonTags : std::uint8_t {  // NOLINT(cppcoreguidelines-use-enum-class): VSTGUI control tags are plain int32 values
     kSaveButtonTag = 1,
     kSearchFieldTag = 2,
     kImportButtonTag = 3,

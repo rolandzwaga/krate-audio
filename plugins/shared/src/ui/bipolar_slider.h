@@ -61,7 +61,6 @@ public:
         , fillColor_(other.fillColor_)
         , trackColor_(other.trackColor_)
         , centerTickColor_(other.centerTickColor_)
-        , dragging_(false)
         , preDragValue_(other.preDragValue_) {}
 
     CLASS_METHODS(BipolarSlider, CControl)
@@ -164,7 +163,7 @@ public:
     VSTGUI::CMouseEventResult onMouseDown(
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return VSTGUI::kMouseEventNotHandled;
 
         beginEdit();
@@ -200,8 +199,8 @@ public:
     }
 
     VSTGUI::CMouseEventResult onMouseUp(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override {
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
         if (!dragging_)
             return VSTGUI::kMouseEventNotHandled;
 
@@ -322,6 +321,6 @@ struct BipolarSliderCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline BipolarSliderCreator gBipolarSliderCreator;
+inline const BipolarSliderCreator gBipolarSliderCreator;
 
 } // namespace Krate::Plugins

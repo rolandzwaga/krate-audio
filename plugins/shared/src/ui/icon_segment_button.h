@@ -35,7 +35,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <string>
+#include <cstdint>
 #include <vector>
 #include <sstream>
 
@@ -51,7 +53,7 @@ public:
     // Layout Mode
     // =========================================================================
 
-    enum LayoutMode {
+    enum class LayoutMode : std::uint8_t {
         kIconOrText,   // Default: icon if available, else text label
         kIconAndText   // Stacked: icon above, text below
     };
@@ -90,8 +92,7 @@ public:
         , iconSize_(other.iconSize_)
         , strokeWidth_(other.strokeWidth_)
         , textFontSize_(other.textFontSize_)
-        , textFontName_(other.textFontName_)
-        , hoverSegment_(kNoSegment) {}
+        , textFontName_(other.textFontName_) {}
 
     CLASS_METHODS(IconSegmentButton, CControl)
 
@@ -249,7 +250,7 @@ public:
 
     VSTGUI::CMouseEventResult onMouseEntered(
         VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override {
+        const VSTGUI::CButtonState& /*buttons*/) override {
         if (auto* frame = getFrame())
             frame->setCursor(VSTGUI::kCursorHand);
         updateHoverTooltip(where);
@@ -257,8 +258,8 @@ public:
     }
 
     VSTGUI::CMouseEventResult onMouseExited(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override {
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
         if (auto* frame = getFrame())
             frame->setCursor(VSTGUI::kCursorDefault);
         hoverSegment_ = kNoSegment;
@@ -268,7 +269,7 @@ public:
 
     VSTGUI::CMouseEventResult onMouseMoved(
         VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override {
+        const VSTGUI::CButtonState& /*buttons*/) override {
         updateHoverTooltip(where);
         return VSTGUI::kMouseEventHandled;
     }
@@ -276,7 +277,7 @@ public:
     VSTGUI::CMouseEventResult onMouseDown(
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return VSTGUI::kMouseEventNotHandled;
 
         uint32_t hit = hitTestSegment(where);
@@ -417,7 +418,7 @@ private:
                   const std::string& iconName,
                   const VSTGUI::CColor& color,
                   const std::string& segName = {}) const {
-        if (layoutMode_ == kIconAndText) {
+        if (layoutMode_ == LayoutMode::kIconAndText) {
             drawIconAndText(context, segRect, iconName, color, segName);
             return;
         }
@@ -445,7 +446,7 @@ private:
         if (!path) return;
 
         constexpr int kTeeth = 6;
-        constexpr double kPi = 3.14159265358979323846;
+        constexpr double kPi = std::numbers::pi;
 
         // Build gear outline: alternating inner/outer arcs
         for (int i = 0; i < kTeeth; ++i) {
@@ -592,7 +593,7 @@ private:
         context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
         // Sparkle dots
         constexpr double kSparkles[][2] = {{0.3, -0.6}, {-0.4, -0.3}, {0.5, 0.0}};
-        for (auto& sp : kSparkles) {
+        for (const auto& sp : kSparkles) {
             double sx = cx + sp[0] * r;
             double sy = cy + sp[1] * r;
             double sr = 1.2 * (dim / 20.0);
@@ -784,7 +785,7 @@ private:
                      * static_cast<double>(iconSize_);
         double r = dim / 2.0 * 0.7;
         // Snowflake: 3 lines crossing at center (60° intervals) with end ticks
-        constexpr double kPi = 3.14159265358979323846;
+        constexpr double kPi = std::numbers::pi;
         context->setFrameColor(color);
         context->setLineWidth(strokeWidth_);
         for (int i = 0; i < 3; ++i) {
@@ -820,9 +821,9 @@ private:
             VSTGUI::kCenterText);
     }
 
-    void drawFallbackDot(VSTGUI::CDrawContext* context,
+    static void drawFallbackDot(VSTGUI::CDrawContext* context,
                          const VSTGUI::CRect& segRect,
-                         const VSTGUI::CColor& color) const {
+                         const VSTGUI::CColor& color) {
         double cx = segRect.left + segRect.getWidth() / 2.0;
         double cy = segRect.top + segRect.getHeight() / 2.0;
         double r = 3.0;
@@ -842,7 +843,10 @@ private:
                                     const VSTGUI::CRect& r, double radius,
                                     bool tl, bool tr, bool br, bool bl) {
         // Build a rect with selective rounded corners
-        double x1 = r.left, y1 = r.top, x2 = r.right, y2 = r.bottom;
+        double x1 = r.left;
+        double y1 = r.top;
+        double x2 = r.right;
+        double y2 = r.bottom;
 
         path->beginSubpath(VSTGUI::CPoint(x1 + (tl ? radius : 0), y1));
 
@@ -942,8 +946,8 @@ private:
 
     static constexpr uint32_t kNoSegment = 0xFFFFFFFF;
 
-    std::vector<Segment> segments_;
-    LayoutMode layoutMode_ = kIconOrText;
+    std::vector<Segment> segments_{};
+    LayoutMode layoutMode_ = LayoutMode::kIconOrText;
     VSTGUI::CColor selectedColor_{100, 200, 220, 255};
     VSTGUI::CColor unselectedColor_{120, 120, 130, 255};
     VSTGUI::CColor frameColor_{60, 60, 68, 255};
@@ -991,17 +995,17 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
             return false;
 
         // Layout mode
-        if (auto val = attributes.getAttributeValue("layout-mode")) {
+        if (const auto *val = attributes.getAttributeValue("layout-mode")) {
             if (*val == "icon-and-text")
-                btn->setLayoutMode(IconSegmentButton::kIconAndText);
+                btn->setLayoutMode(IconSegmentButton::LayoutMode::kIconAndText);
             else
-                btn->setLayoutMode(IconSegmentButton::kIconOrText);
+                btn->setLayoutMode(IconSegmentButton::LayoutMode::kIconOrText);
         }
 
         // Segment configuration
-        if (auto val = attributes.getAttributeValue("segment-names"))
+        if (const auto *val = attributes.getAttributeValue("segment-names"))
             btn->setSegmentNames(*val);
-        if (auto val = attributes.getAttributeValue("segment-icons"))
+        if (const auto *val = attributes.getAttributeValue("segment-icons"))
             btn->setSegmentIcons(*val);
 
         // Color attributes
@@ -1029,7 +1033,7 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
             btn->setStrokeWidth(d);
         if (attributes.getDoubleAttribute("font-size", d))
             btn->setTextFontSize(d);
-        if (auto val = attributes.getAttributeValue("font-name"))
+        if (const auto *val = attributes.getAttributeValue("font-name"))
             btn->setTextFontName(*val);
 
         return true;
@@ -1078,7 +1082,7 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
             return false;
 
         if (attributeName == "layout-mode") {
-            stringValue = (btn->getLayoutMode() == IconSegmentButton::kIconAndText)
+            stringValue = (btn->getLayoutMode() == IconSegmentButton::LayoutMode::kIconAndText)
                 ? "icon-and-text" : "icon-or-text";
             return true;
         }
@@ -1138,6 +1142,6 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline IconSegmentButtonCreator gIconSegmentButtonCreator;
+inline const IconSegmentButtonCreator gIconSegmentButtonCreator;
 
 } // namespace Krate::Plugins

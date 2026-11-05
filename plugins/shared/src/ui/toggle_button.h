@@ -38,7 +38,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <string>
+#include <cstdint>
 
 namespace Krate::Plugins {
 
@@ -46,9 +48,9 @@ namespace Krate::Plugins {
 // Enums
 // ==============================================================================
 
-enum class IconStyle { kPower, kChevron, kGear, kExpand };
-enum class Orientation { kRight, kDown, kLeft, kUp };
-enum class TitlePosition { kNone, kLeft, kRight, kTop, kBottom };
+enum class IconStyle : std::uint8_t { kPower, kChevron, kGear, kExpand };
+enum class Orientation : std::uint8_t { kRight, kDown, kLeft, kUp };
+enum class TitlePosition : std::uint8_t { kNone, kLeft, kRight, kTop, kBottom };
 
 // ==============================================================================
 // ToggleButton Control
@@ -174,25 +176,25 @@ public:
     // =========================================================================
 
     VSTGUI::CMouseEventResult onMouseEntered(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override {
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
         if (auto* frame = getFrame())
             frame->setCursor(VSTGUI::kCursorHand);
         return VSTGUI::kMouseEventHandled;
     }
 
     VSTGUI::CMouseEventResult onMouseExited(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override {
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
         if (auto* frame = getFrame())
             frame->setCursor(VSTGUI::kCursorDefault);
         return VSTGUI::kMouseEventHandled;
     }
 
     VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& where,
+        VSTGUI::CPoint& /*where*/,
         const VSTGUI::CButtonState& buttons) override {
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return VSTGUI::kMouseEventNotHandled;
 
         beginEdit();
@@ -279,13 +281,13 @@ private:
 
         Orientation orient = isOn ? onOrientation_ : offOrientation_;
         double angleDeg = orientationToDegrees(orient);
-        double angleRad = angleDeg * 3.14159265358979323846 / 180.0;
+        double angleRad = angleDeg * std::numbers::pi / 180.0;
         double cosA = std::cos(angleRad);
         double sinA = std::sin(angleRad);
 
         auto rotate = [&](double x, double y) -> VSTGUI::CPoint {
-            return VSTGUI::CPoint(cx + x * cosA - y * sinA,
-                                  cy + x * sinA + y * cosA);
+            return {cx + x * cosA - y * sinA,
+                                  cy + x * sinA + y * cosA};
         };
 
         VSTGUI::CPoint tip = rotate(tipX, 0.0);
@@ -312,7 +314,7 @@ private:
     void drawGearIconInRect(VSTGUI::CDrawContext* context,
                             const VSTGUI::CRect& rect,
                             const VSTGUI::CColor& color) const {
-        constexpr double kPi = 3.14159265358979323846;
+        constexpr double kPi = std::numbers::pi;
         constexpr int kNumTeeth = 6;
         constexpr double kInnerRatio = 0.65;
         constexpr double kToothHalfAngleFraction = 0.45;
@@ -634,25 +636,25 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
             btn->setStrokeWidth(d);
 
         // Icon style
-        if (auto val = attributes.getAttributeValue("icon-style"))
+        if (const auto *val = attributes.getAttributeValue("icon-style"))
             btn->setIconStyle(iconStyleFromString(*val));
 
         // Orientation attributes
-        if (auto val = attributes.getAttributeValue("on-orientation"))
+        if (const auto *val = attributes.getAttributeValue("on-orientation"))
             btn->setOnOrientation(orientationFromString(*val));
-        if (auto val = attributes.getAttributeValue("off-orientation"))
+        if (const auto *val = attributes.getAttributeValue("off-orientation"))
             btn->setOffOrientation(orientationFromString(*val));
 
         // Title and title position
-        if (auto val = attributes.getAttributeValue("title"))
+        if (const auto *val = attributes.getAttributeValue("title"))
             btn->setTitle(*val);
-        if (auto val = attributes.getAttributeValue("title-position"))
+        if (const auto *val = attributes.getAttributeValue("title-position"))
             btn->setTitlePosition(titlePositionFromString(*val));
 
         // Font (resolved from IUIDescription named fonts)
-        if (auto val = attributes.getAttributeValue("font")) {
+        if (const auto *val = attributes.getAttributeValue("font")) {
             if (description) {
-                auto font = description->getFont(val->data());
+                auto *font = description->getFont(val->data());
                 if (font)
                     btn->setFont(font);
             }
@@ -779,7 +781,7 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
         }
         if (attributeName == "font") {
             if (desc) {
-                auto fontName = desc->lookupFontName(btn->getFont());
+                const auto *fontName = desc->lookupFontName(btn->getFont());
                 if (fontName)
                     stringValue = fontName;
             }
@@ -789,6 +791,6 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline ToggleButtonCreator gToggleButtonCreator;
+inline const ToggleButtonCreator gToggleButtonCreator;
 
 } // namespace Krate::Plugins

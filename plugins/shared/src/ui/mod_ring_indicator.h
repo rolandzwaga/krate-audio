@@ -33,6 +33,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Krate::Plugins {
@@ -183,12 +184,12 @@ public:
     VSTGUI::CMouseEventResult onMouseDown(
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return VSTGUI::kMouseEventNotHandled;
 
         // Hit test against arcs - find the nearest one
         int hitIndex = hitTestArc(where);
-        if (hitIndex >= 0 && hitIndex < static_cast<int>(arcs_.size())) {
+        if (hitIndex >= 0 && std::cmp_less(hitIndex, arcs_.size())) {
             // Notify controller for cross-component selection (FR-027)
             if (selectCallback_) {
                 selectCallback_(arcs_[static_cast<size_t>(hitIndex)].sourceIndex,
@@ -204,7 +205,7 @@ public:
         const VSTGUI::CButtonState& /*buttons*/) override {
         // Dynamic tooltip updates (FR-028)
         int hitIndex = hitTestArc(where);
-        if (hitIndex >= 0 && hitIndex < static_cast<int>(arcs_.size())) {
+        if (hitIndex >= 0 && std::cmp_less(hitIndex, arcs_.size())) {
             const auto& arc = arcs_[static_cast<size_t>(hitIndex)];
             std::ostringstream tooltip;
             tooltip << sourceNameForTab(0, arc.sourceIndex)
@@ -436,6 +437,6 @@ struct ModRingIndicatorCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline ModRingIndicatorCreator gModRingIndicatorCreator;
+inline const ModRingIndicatorCreator gModRingIndicatorCreator;
 
 } // namespace Krate::Plugins

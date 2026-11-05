@@ -32,7 +32,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <string>
+#include <cstdint>
 
 namespace Krate::Plugins {
 
@@ -40,7 +42,7 @@ namespace Krate::Plugins {
 // Enums
 // ==============================================================================
 
-enum class ActionIconStyle { kInvert, kShiftLeft, kShiftRight, kRegen };
+enum class ActionIconStyle : std::uint8_t { kInvert, kShiftLeft, kShiftRight, kRegen };
 
 // ==============================================================================
 // ActionButton Control
@@ -134,25 +136,25 @@ public:
     // =========================================================================
 
     VSTGUI::CMouseEventResult onMouseEntered(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override {
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
         if (auto* frame = getFrame())
             frame->setCursor(VSTGUI::kCursorHand);
         return VSTGUI::kMouseEventHandled;
     }
 
     VSTGUI::CMouseEventResult onMouseExited(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override {
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
         if (auto* frame = getFrame())
             frame->setCursor(VSTGUI::kCursorDefault);
         return VSTGUI::kMouseEventHandled;
     }
 
     VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& where,
+        VSTGUI::CPoint& /*where*/,
         const VSTGUI::CButtonState& buttons) override {
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return VSTGUI::kMouseEventNotHandled;
 
         pressed_ = true;
@@ -172,7 +174,7 @@ public:
     }
 
     VSTGUI::CMouseEventResult onMouseUp(
-        VSTGUI::CPoint& where,
+        VSTGUI::CPoint& /*where*/,
         const VSTGUI::CButtonState& /*buttons*/) override {
         if (pressed_) {
             pressed_ = false;
@@ -338,7 +340,7 @@ private:
 
         // Arrowhead at the end of the arc (at 330 degrees = upper-right)
         // 330 degrees in VSTGUI = 30 degrees above East = upper-right
-        double endAngleRad = 330.0 * 3.14159265358979323846 / 180.0;
+        double endAngleRad = 330.0 * std::numbers::pi / 180.0;
         double endX = cx + radius * std::cos(endAngleRad);
         double endY = cy + radius * std::sin(endAngleRad);
 
@@ -346,7 +348,7 @@ private:
         auto head = VSTGUI::owned(context->createGraphicsPath());
         if (head) {
             // Tangent at 330 deg points roughly toward 60 deg (perpendicular, clockwise)
-            double tangentAngle = endAngleRad + 3.14159265358979323846 / 2.0;
+            double tangentAngle = endAngleRad + std::numbers::pi / 2.0;
             double cosT = std::cos(tangentAngle);
             double sinT = std::sin(tangentAngle);
             double perpX = -sinT;
@@ -448,7 +450,7 @@ struct ActionButtonCreator : VSTGUI::ViewCreatorAdapter {
             btn->setStrokeWidth(d);
 
         // Icon style
-        if (auto val = attributes.getAttributeValue("icon-style"))
+        if (const auto *val = attributes.getAttributeValue("icon-style"))
             btn->setIconStyle(actionIconStyleFromString(*val));
 
         return true;
@@ -527,6 +529,6 @@ struct ActionButtonCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline ActionButtonCreator gActionButtonCreator;
+inline const ActionButtonCreator gActionButtonCreator;
 
 } // namespace Krate::Plugins

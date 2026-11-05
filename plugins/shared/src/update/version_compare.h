@@ -42,7 +42,7 @@ struct SemVer {
             return std::nullopt;
 
         // Reject trailing characters (except whitespace)
-        for (auto* c = p3; c != str.data() + str.size(); ++c) {
+        for (const auto* c = p3; c != str.data() + str.size(); ++c) {
             if (*c != ' ' && *c != '\t' && *c != '\r' && *c != '\n')
                 return std::nullopt;
         }

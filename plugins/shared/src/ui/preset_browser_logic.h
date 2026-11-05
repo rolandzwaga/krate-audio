@@ -12,14 +12,14 @@
 namespace Krate::Plugins {
 
 /// Simplified key codes for testable logic (maps from VSTGUI::VirtualKey)
-enum class KeyCode {
+enum class KeyCode : std::uint8_t {
     Escape,
     Enter,  // Return or Enter key
     Other
 };
 
 /// Actions that can result from keyboard input
-enum class KeyAction {
+enum class KeyAction : std::uint8_t {
     None,                   // No action, pass to parent
     CloseBrowser,           // Close the entire preset browser
     ConfirmSaveDialog,      // Confirm the save dialog
@@ -82,7 +82,7 @@ inline KeyAction determineKeyAction(
 // =============================================================================
 
 /// @brief Result of determining what selection action to take
-enum class SelectionAction {
+enum class SelectionAction : std::uint8_t {
     AllowDefault,  ///< Let CDataBrowser handle selection normally
     Deselect       ///< Deselect the currently selected row (toggle off)
 };
@@ -134,18 +134,18 @@ public:
     /// @param isDoubleClick True if this is a double-click
     /// @param hasDoubleClickCallback True if a double-click callback is registered
     /// @return MouseDownResult indicating what action to take
-    MouseDownResult handleMouseDown(int32_t clickedRow, bool isDoubleClick, bool hasDoubleClickCallback) {
+    MouseDownResult handleMouseDown(int32_t clickedRow, bool isDoubleClick, bool hasDoubleClickCallback) const {
         // Double-click with callback is handled separately
         if (isDoubleClick && hasDoubleClickCallback) {
-            return {false, true};  // Handled, but not deselect
+            return {.shouldDeselect = false, .handled = true};  // Handled, but not deselect
         }
 
         auto action = determineSelectionAction(clickedRow, previousSelectedRow_);
         if (action == SelectionAction::Deselect) {
-            return {true, true};  // Should deselect, handled
+            return {.shouldDeselect = true, .handled = true};  // Should deselect, handled
         }
 
-        return {false, false};  // Not handled, let browser do default
+        return {.shouldDeselect = false, .handled = false};  // Not handled, let browser do default
     }
 
 private:

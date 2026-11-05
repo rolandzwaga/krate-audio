@@ -44,8 +44,8 @@ struct PlayheadTrailState {
 
     /// Clear all trail positions and skip overlays.
     void clear() {
-        for (int i = 0; i < kTrailLength; ++i) steps[i] = -1;
-        for (int i = 0; i < 32; ++i) skipped[i] = false;
+        for (int& step : steps) step = -1;
+        for (bool& flag : skipped) flag = false;
     }
 
     /// Mark a step as skipped.
@@ -58,8 +58,8 @@ struct PlayheadTrailState {
         // Clear skip flags for steps that are NOT in the current trail
         for (int i = 0; i < 32; ++i) {
             bool inTrail = false;
-            for (int t = 0; t < kTrailLength; ++t) {
-                if (steps[t] == i) { inTrail = true; break; }
+            for (int step : steps) {
+                if (step == i) { inTrail = true; break; }
             }
             if (!inTrail) skipped[i] = false;
         }
@@ -71,7 +71,7 @@ struct PlayheadTrailState {
 // ==============================================================================
 
 /// Identifies the type of lane data in the clipboard for cross-type normalization.
-enum class ClipboardLaneType {
+enum class ClipboardLaneType : std::uint8_t {
     kVelocity = 0,   // 0.0-1.0 normalized
     kGate = 1,       // 0.0-1.0 normalized (represents 0-200%)
     kPitch = 2,      // 0.0-1.0 normalized (represents -24..+24 semitones)

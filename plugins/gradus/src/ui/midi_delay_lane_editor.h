@@ -598,7 +598,7 @@ private:
                     knob->setValue(value);
                     knob->setDefaultValue(getDefaultValue(knobRow));
                     knob->setArcColor(accentColor_);
-                    knob->setPopupPosition(Krate::Plugins::ArcKnob::kPopupTop);
+                    knob->setPopupPosition(Krate::Plugins::ArcKnob::PopupPosition::kPopupTop);
                     addView(knob);
                     controlPtrs_.push_back(knob);
                 }

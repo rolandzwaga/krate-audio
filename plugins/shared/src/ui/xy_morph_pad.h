@@ -145,32 +145,32 @@ public:
 
     // --- Gradient corner colors ---
 
-    void setColorBottomLeft(VSTGUI::CColor color) { colorBottomLeft_ = color; }
+    void setColorBottomLeft(const VSTGUI::CColor& color) { colorBottomLeft_ = color; }
     [[nodiscard]] VSTGUI::CColor getColorBottomLeft() const {
         return colorBottomLeft_;
     }
 
-    void setColorBottomRight(VSTGUI::CColor color) { colorBottomRight_ = color; }
+    void setColorBottomRight(const VSTGUI::CColor& color) { colorBottomRight_ = color; }
     [[nodiscard]] VSTGUI::CColor getColorBottomRight() const {
         return colorBottomRight_;
     }
 
-    void setColorTopLeft(VSTGUI::CColor color) { colorTopLeft_ = color; }
+    void setColorTopLeft(const VSTGUI::CColor& color) { colorTopLeft_ = color; }
     [[nodiscard]] VSTGUI::CColor getColorTopLeft() const {
         return colorTopLeft_;
     }
 
-    void setColorTopRight(VSTGUI::CColor color) { colorTopRight_ = color; }
+    void setColorTopRight(const VSTGUI::CColor& color) { colorTopRight_ = color; }
     [[nodiscard]] VSTGUI::CColor getColorTopRight() const {
         return colorTopRight_;
     }
 
     // --- Cursor and label colors ---
 
-    void setCursorColor(VSTGUI::CColor color) { cursorColor_ = color; }
+    void setCursorColor(const VSTGUI::CColor& color) { cursorColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getCursorColor() const { return cursorColor_; }
 
-    void setLabelColor(VSTGUI::CColor color) { labelColor_ = color; }
+    void setLabelColor(const VSTGUI::CColor& color) { labelColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getLabelColor() const { return labelColor_; }
 
     // --- Crosshair opacity ---
@@ -907,6 +907,6 @@ struct XYMorphPadCreator : VSTGUI::ViewCreatorAdapter {
 
 // Inline variable (C++17) - safe for inclusion from multiple translation units.
 // Include this header from each plugin's entry.cpp to register the view type.
-inline XYMorphPadCreator gXYMorphPadCreator;
+inline const XYMorphPadCreator gXYMorphPadCreator;
 
 } // namespace Krate::Plugins

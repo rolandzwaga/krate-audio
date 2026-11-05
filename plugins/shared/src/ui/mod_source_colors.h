@@ -18,6 +18,8 @@
 // Spec: 049-mod-matrix-grid
 // ==============================================================================
 
+#include <utility>
+
 #include "mod_matrix_types.h"
 #include "vstgui/lib/ccolor.h"
 
@@ -77,13 +79,13 @@ static_assert(kVoiceSourceColors.size() == kVoiceSourceNames.size(),
 /// Returns white for invalid indices.
 [[nodiscard]] inline VSTGUI::CColor sourceColorForTab(int tab, int index) {
     if (tab == 0) {
-        if (index >= 0 && index < static_cast<int>(kGlobalSourceColors.size()))
+        if (index >= 0 && std::cmp_less(index, kGlobalSourceColors.size()))
             return kGlobalSourceColors[static_cast<size_t>(index)];
     } else {
-        if (index >= 0 && index < static_cast<int>(kVoiceSourceColors.size()))
+        if (index >= 0 && std::cmp_less(index, kVoiceSourceColors.size()))
             return kVoiceSourceColors[static_cast<size_t>(index)];
     }
-    return VSTGUI::CColor(255, 255, 255, 255);
+    return {255, 255, 255, 255};
 }
 
 } // namespace Krate::Plugins

@@ -67,6 +67,6 @@ public:
 
 using ArpChordLaneCreator = EnumPopupArpLaneCreator<ArpChordLane>;
 
-inline ArpChordLaneCreator gArpChordLaneCreator;
+inline const ArpChordLaneCreator gArpChordLaneCreator;
 
 } // namespace Krate::Plugins

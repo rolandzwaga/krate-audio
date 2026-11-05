@@ -23,11 +23,11 @@ namespace Krate::Plugins {
 /// @return Interpolated color
 [[nodiscard]] inline VSTGUI::CColor lerpColor(
     const VSTGUI::CColor& a, const VSTGUI::CColor& b, float t) {
-    return VSTGUI::CColor(
+    return {
         static_cast<uint8_t>(a.red + (b.red - a.red) * t),
         static_cast<uint8_t>(a.green + (b.green - a.green) * t),
         static_cast<uint8_t>(a.blue + (b.blue - a.blue) * t),
-        static_cast<uint8_t>(a.alpha + (b.alpha - a.alpha) * t));
+        static_cast<uint8_t>(a.alpha + (b.alpha - a.alpha) * t)};
 }
 
 /// @brief Darken a color by a factor.
@@ -36,11 +36,11 @@ namespace Krate::Plugins {
 /// @return Darkened color
 [[nodiscard]] inline VSTGUI::CColor darkenColor(
     const VSTGUI::CColor& color, float factor) {
-    return VSTGUI::CColor(
+    return {
         static_cast<uint8_t>(color.red * factor),
         static_cast<uint8_t>(color.green * factor),
         static_cast<uint8_t>(color.blue * factor),
-        color.alpha);
+        color.alpha};
 }
 
 /// @brief Brighten a color by a factor.
@@ -49,11 +49,11 @@ namespace Krate::Plugins {
 /// @return Brightened color (clamped to 255)
 [[nodiscard]] inline VSTGUI::CColor brightenColor(
     const VSTGUI::CColor& color, float factor) {
-    return VSTGUI::CColor(
+    return {
         static_cast<uint8_t>(std::min(255.0f, color.red * factor)),
         static_cast<uint8_t>(std::min(255.0f, color.green * factor)),
         static_cast<uint8_t>(std::min(255.0f, color.blue * factor)),
-        color.alpha);
+        color.alpha};
 }
 
 /// @brief Bilinear interpolation of 4 corner colors.

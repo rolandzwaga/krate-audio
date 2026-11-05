@@ -132,6 +132,6 @@ struct SyncableArcKnobCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline SyncableArcKnobCreator gSyncableArcKnobCreator;
+inline const SyncableArcKnobCreator gSyncableArcKnobCreator;
 
 } // namespace Krate::Plugins

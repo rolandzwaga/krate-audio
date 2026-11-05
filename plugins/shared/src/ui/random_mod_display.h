@@ -88,8 +88,8 @@ public:
 
         constexpr double kPadX = 4.0;
         constexpr double kPadY = 8.0;
-        RingBufferView histView{history_.data(), historyHead_,
-                                 std::min(historyCount_, kHistoryLength), kHistoryLength};
+        RingBufferView histView{.data = history_.data(), .head = historyHead_,
+                                 .count = std::min(historyCount_, kHistoryLength), .capacity = kHistoryLength};
         drawTimeSeriesCurve(context,
             plotLeft + kPadX, plotTop + kPadY,
             plotW - 2.0 * kPadX, plotH - 2.0 * kPadY,
@@ -149,7 +149,7 @@ private:
     int historyCount_ = 0;
 };
 
-inline ModDisplayCreator<RandomModDisplay> gRandomModDisplayCreator{
+inline const ModDisplayCreator<RandomModDisplay> gRandomModDisplayCreator{
     "RandomModDisplay", "Random Mod Display", "random-color", {0, 0, 510, 290}};
 
 } // namespace Krate::Plugins

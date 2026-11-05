@@ -18,6 +18,7 @@
 
 #include <array>
 #include <cstdint>
+#include <utility>
 
 namespace Krate::Plugins {
 
@@ -54,7 +55,7 @@ enum class ModDestination : uint8_t {
     OscAPitch,
     OscBPitch,
     SpectralTilt,
-    kNumDestinations = 8
+    kNumDestinations
 };
 
 /// Number of destinations visible in the Voice tab (per-voice)
@@ -147,34 +148,34 @@ struct ModDestInfo {
 
 /// Voice tab destinations (indices 0-7): per-voice targets
 inline constexpr std::array<ModDestInfo, 8> kVoiceDestNames = {{
-    {"Filter Cutoff",      "Flt Cutoff",     "FCut"},
-    {"Filter Resonance",   "Flt Reso",       "FRes"},
-    {"Morph Position",     "Morph Pos",      "Mrph"},
-    {"Distortion Drive",   "Dist Drive",     "Drv"},
-    {"TranceGate Depth",   "Gate Depth",     "Gate"},
-    {"OSC A Pitch",        "OSC A Pitch",    "OsA"},
-    {"OSC B Pitch",        "OSC B Pitch",    "OsB"},
-    {"Spectral Tilt",      "Spectral Tilt",  "Tilt"},
+    {.fullName = "Filter Cutoff",      .hostName = "Flt Cutoff",     .abbreviation = "FCut"},
+    {.fullName = "Filter Resonance",   .hostName = "Flt Reso",       .abbreviation = "FRes"},
+    {.fullName = "Morph Position",     .hostName = "Morph Pos",      .abbreviation = "Mrph"},
+    {.fullName = "Distortion Drive",   .hostName = "Dist Drive",     .abbreviation = "Drv"},
+    {.fullName = "TranceGate Depth",   .hostName = "Gate Depth",     .abbreviation = "Gate"},
+    {.fullName = "OSC A Pitch",        .hostName = "OSC A Pitch",    .abbreviation = "OsA"},
+    {.fullName = "OSC B Pitch",        .hostName = "OSC B Pitch",    .abbreviation = "OsB"},
+    {.fullName = "Spectral Tilt",      .hostName = "Spectral Tilt",  .abbreviation = "Tilt"},
 }};
 
 /// Global tab destinations (indices 0-14): matching DSP RuinaeModDest 64-78
 inline constexpr std::array<ModDestInfo, 15> kGlobalDestNames = {{
-    {"Global Filter Cutoff",    "Global Flt Cutoff",     "GFCt"},
-    {"Global Filter Resonance", "Global Flt Reso",       "GFRs"},
-    {"Master Volume",           "Master Volume",         "Mstr"},
-    {"Effect Mix",              "Effect Mix",            "FxMx"},
-    {"All Voice Filter Cutoff", "All Voice Flt Cutoff",  "VFCt"},
-    {"All Voice Morph Pos",     "All Voice Morph Pos",   "VMrp"},
-    {"All Voice Gate Rate",     "All Voice Gate Rate",   "VGat"},
-    {"All Voice Spectral Tilt", "All Voice Spectral Tilt", "VTlt"},
-    {"All Voice Resonance",     "All Voice Resonance",   "VRso"},
-    {"All Voice Flt Env Amt",   "All Voice Flt Env Amt", "VEnv"},
+    {.fullName = "Global Filter Cutoff",    .hostName = "Global Flt Cutoff",     .abbreviation = "GFCt"},
+    {.fullName = "Global Filter Resonance", .hostName = "Global Flt Reso",       .abbreviation = "GFRs"},
+    {.fullName = "Master Volume",           .hostName = "Master Volume",         .abbreviation = "Mstr"},
+    {.fullName = "Effect Mix",              .hostName = "Effect Mix",            .abbreviation = "FxMx"},
+    {.fullName = "All Voice Filter Cutoff", .hostName = "All Voice Flt Cutoff",  .abbreviation = "VFCt"},
+    {.fullName = "All Voice Morph Pos",     .hostName = "All Voice Morph Pos",   .abbreviation = "VMrp"},
+    {.fullName = "All Voice Gate Rate",     .hostName = "All Voice Gate Rate",   .abbreviation = "VGat"},
+    {.fullName = "All Voice Spectral Tilt", .hostName = "All Voice Spectral Tilt", .abbreviation = "VTlt"},
+    {.fullName = "All Voice Resonance",     .hostName = "All Voice Resonance",   .abbreviation = "VRso"},
+    {.fullName = "All Voice Flt Env Amt",   .hostName = "All Voice Flt Env Amt", .abbreviation = "VEnv"},
     // Arpeggiator destinations (078-modulation-integration)
-    {"Arp Rate",                "Arp Rate",              "ARate"},
-    {"Arp Gate Length",         "Arp Gate",              "AGat"},
-    {"Arp Octave Range",        "Arp Octave",            "AOct"},
-    {"Arp Swing",               "Arp Swing",             "ASwg"},
-    {"Arp Spice",               "Arp Spice",             "ASpc"},
+    {.fullName = "Arp Rate",                .hostName = "Arp Rate",              .abbreviation = "ARate"},
+    {.fullName = "Arp Gate Length",         .hostName = "Arp Gate",              .abbreviation = "AGat"},
+    {.fullName = "Arp Octave Range",        .hostName = "Arp Octave",            .abbreviation = "AOct"},
+    {.fullName = "Arp Swing",               .hostName = "Arp Swing",             .abbreviation = "ASwg"},
+    {.fullName = "Arp Spice",               .hostName = "Arp Spice",             .abbreviation = "ASpc"},
 }};
 
 // ==============================================================================
@@ -188,32 +189,32 @@ struct ModSourceName {
 
 /// Global tab sources (indices 0-13, matching DSP ModSource 1-14)
 inline constexpr std::array<ModSourceName, 14> kGlobalSourceNames = {{
-    {"LFO 1",           "LF1"},
-    {"LFO 2",           "LF2"},
-    {"Env Follower",    "EnvF"},
-    {"Random",          "Rnd"},
-    {"Macro 1",         "M1"},
-    {"Macro 2",         "M2"},
-    {"Macro 3",         "M3"},
-    {"Macro 4",         "M4"},
-    {"Chaos",           "Chao"},
-    {"Rungler",         "Rung"},
-    {"Sample & Hold",   "S&H"},
-    {"Pitch Follower",  "PFol"},
-    {"Transient",       "Tran"},
-    {"Arp Pitch",       "ArpP"},
+    {.fullName = "LFO 1",           .abbreviation = "LF1"},
+    {.fullName = "LFO 2",           .abbreviation = "LF2"},
+    {.fullName = "Env Follower",    .abbreviation = "EnvF"},
+    {.fullName = "Random",          .abbreviation = "Rnd"},
+    {.fullName = "Macro 1",         .abbreviation = "M1"},
+    {.fullName = "Macro 2",         .abbreviation = "M2"},
+    {.fullName = "Macro 3",         .abbreviation = "M3"},
+    {.fullName = "Macro 4",         .abbreviation = "M4"},
+    {.fullName = "Chaos",           .abbreviation = "Chao"},
+    {.fullName = "Rungler",         .abbreviation = "Rung"},
+    {.fullName = "Sample & Hold",   .abbreviation = "S&H"},
+    {.fullName = "Pitch Follower",  .abbreviation = "PFol"},
+    {.fullName = "Transient",       .abbreviation = "Tran"},
+    {.fullName = "Arp Pitch",       .abbreviation = "ArpP"},
 }};
 
 /// Voice tab sources (indices 0-7, matching DSP VoiceModSource 0-7)
 inline constexpr std::array<ModSourceName, 8> kVoiceSourceNames = {{
-    {"ENV 1 (Amp)",     "E1"},
-    {"ENV 2 (Filter)",  "E2"},
-    {"ENV 3 (Mod)",     "E3"},
-    {"Voice LFO",       "VLFO"},
-    {"Gate Output",     "Gt"},
-    {"Velocity",        "Vel"},
-    {"Key Track",       "Key"},
-    {"Aftertouch",      "AT"},
+    {.fullName = "ENV 1 (Amp)",     .abbreviation = "E1"},
+    {.fullName = "ENV 2 (Filter)",  .abbreviation = "E2"},
+    {.fullName = "ENV 3 (Mod)",     .abbreviation = "E3"},
+    {.fullName = "Voice LFO",       .abbreviation = "VLFO"},
+    {.fullName = "Gate Output",     .abbreviation = "Gt"},
+    {.fullName = "Velocity",        .abbreviation = "Vel"},
+    {.fullName = "Key Track",       .abbreviation = "Key"},
+    {.fullName = "Aftertouch",      .abbreviation = "AT"},
 }};
 
 // ==============================================================================
@@ -235,10 +236,10 @@ static_assert(kVoiceDestNames.size() == static_cast<size_t>(kNumVoiceDestination
 /// Get the full source name for a given tab and source index.
 [[nodiscard]] inline const char* sourceNameForTab(int tab, int index) {
     if (tab == 0) {
-        if (index >= 0 && index < static_cast<int>(kGlobalSourceNames.size()))
+        if (index >= 0 && std::cmp_less(index, kGlobalSourceNames.size()))
             return kGlobalSourceNames[static_cast<size_t>(index)].fullName;
     } else {
-        if (index >= 0 && index < static_cast<int>(kVoiceSourceNames.size()))
+        if (index >= 0 && std::cmp_less(index, kVoiceSourceNames.size()))
             return kVoiceSourceNames[static_cast<size_t>(index)].fullName;
     }
     return "Unknown";
@@ -247,10 +248,10 @@ static_assert(kVoiceDestNames.size() == static_cast<size_t>(kNumVoiceDestination
 /// Get the abbreviated source name for a given tab and source index.
 [[nodiscard]] inline const char* sourceAbbrForTab(int tab, int index) {
     if (tab == 0) {
-        if (index >= 0 && index < static_cast<int>(kGlobalSourceNames.size()))
+        if (index >= 0 && std::cmp_less(index, kGlobalSourceNames.size()))
             return kGlobalSourceNames[static_cast<size_t>(index)].abbreviation;
     } else {
-        if (index >= 0 && index < static_cast<int>(kVoiceSourceNames.size()))
+        if (index >= 0 && std::cmp_less(index, kVoiceSourceNames.size()))
             return kVoiceSourceNames[static_cast<size_t>(index)].abbreviation;
     }
     return "?";
@@ -259,10 +260,10 @@ static_assert(kVoiceDestNames.size() == static_cast<size_t>(kNumVoiceDestination
 /// Get the full destination name for a given tab and destination index.
 [[nodiscard]] inline const char* destinationNameForTab(int tab, int index) {
     if (tab == 0) {
-        if (index >= 0 && index < static_cast<int>(kGlobalDestNames.size()))
+        if (index >= 0 && std::cmp_less(index, kGlobalDestNames.size()))
             return kGlobalDestNames[static_cast<size_t>(index)].fullName;
     } else {
-        if (index >= 0 && index < static_cast<int>(kVoiceDestNames.size()))
+        if (index >= 0 && std::cmp_less(index, kVoiceDestNames.size()))
             return kVoiceDestNames[static_cast<size_t>(index)].fullName;
     }
     return "Unknown";
@@ -271,10 +272,10 @@ static_assert(kVoiceDestNames.size() == static_cast<size_t>(kNumVoiceDestination
 /// Get the abbreviated destination name for a given tab and destination index.
 [[nodiscard]] inline const char* destinationAbbrForTab(int tab, int index) {
     if (tab == 0) {
-        if (index >= 0 && index < static_cast<int>(kGlobalDestNames.size()))
+        if (index >= 0 && std::cmp_less(index, kGlobalDestNames.size()))
             return kGlobalDestNames[static_cast<size_t>(index)].abbreviation;
     } else {
-        if (index >= 0 && index < static_cast<int>(kVoiceDestNames.size()))
+        if (index >= 0 && std::cmp_less(index, kVoiceDestNames.size()))
             return kVoiceDestNames[static_cast<size_t>(index)].abbreviation;
     }
     return "?";
@@ -295,31 +296,31 @@ static_assert(kVoiceDestNames.size() == static_cast<size_t>(kNumVoiceDestination
 inline constexpr int kModMatrixBaseParamId = 1300;
 inline constexpr int kModMatrixDetailBaseParamId = 1324;
 
-[[nodiscard]] inline constexpr int modSlotSourceId(int slot) {
+[[nodiscard]] constexpr int modSlotSourceId(int slot) {
     return kModMatrixBaseParamId + slot * 3;
 }
 
-[[nodiscard]] inline constexpr int modSlotDestinationId(int slot) {
+[[nodiscard]] constexpr int modSlotDestinationId(int slot) {
     return kModMatrixBaseParamId + slot * 3 + 1;
 }
 
-[[nodiscard]] inline constexpr int modSlotAmountId(int slot) {
+[[nodiscard]] constexpr int modSlotAmountId(int slot) {
     return kModMatrixBaseParamId + slot * 3 + 2;
 }
 
-[[nodiscard]] inline constexpr int modSlotCurveId(int slot) {
+[[nodiscard]] constexpr int modSlotCurveId(int slot) {
     return kModMatrixDetailBaseParamId + slot * 4;
 }
 
-[[nodiscard]] inline constexpr int modSlotSmoothId(int slot) {
+[[nodiscard]] constexpr int modSlotSmoothId(int slot) {
     return kModMatrixDetailBaseParamId + slot * 4 + 1;
 }
 
-[[nodiscard]] inline constexpr int modSlotScaleId(int slot) {
+[[nodiscard]] constexpr int modSlotScaleId(int slot) {
     return kModMatrixDetailBaseParamId + slot * 4 + 2;
 }
 
-[[nodiscard]] inline constexpr int modSlotBypassId(int slot) {
+[[nodiscard]] constexpr int modSlotBypassId(int slot) {
     return kModMatrixDetailBaseParamId + slot * 4 + 3;
 }
 

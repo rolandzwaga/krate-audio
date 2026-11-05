@@ -110,7 +110,7 @@ public:
         }
 
         // Time series curve
-        RingBufferView histView{history_.data(), historyHead_, count, kHistoryLength};
+        RingBufferView histView{.data = history_.data(), .head = historyHead_, .count = count, .capacity = kHistoryLength};
         drawTimeSeriesCurve(context,
             innerLeft, innerTop, innerW, innerH,
             histView, color_, zeroY);
@@ -175,7 +175,7 @@ private:
     int historyCount_ = 0;
 };
 
-inline ModDisplayCreator<SampleHoldDisplay> gSampleHoldDisplayCreator{
+inline const ModDisplayCreator<SampleHoldDisplay> gSampleHoldDisplayCreator{
     "SampleHoldDisplay", "Sample Hold Display", "sh-color", {0, 0, 510, 290}};
 
 } // namespace Krate::Plugins

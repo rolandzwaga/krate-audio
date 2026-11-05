@@ -24,13 +24,14 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
 
 namespace Krate::Plugins {
 
 class PresetManager;
 
 // Button tag constants
-enum SavePresetDialogTags {
+enum SavePresetDialogTags : std::uint8_t {  // NOLINT(cppcoreguidelines-use-enum-class): VSTGUI control tags are plain int32 values
     kSavePresetDialogSaveTag = 100,
     kSavePresetDialogCancelTag = 101,
     kSavePresetDialogNameFieldTag = 102,

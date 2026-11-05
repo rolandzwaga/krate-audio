@@ -48,7 +48,7 @@ namespace Krate::Plugins {
 
 class ArcKnob : public VSTGUI::CKnobBase {
 public:
-    enum PopupPosition { kPopupBottom, kPopupTop };
+    enum class PopupPosition : std::uint8_t { kPopupBottom, kPopupTop };
 
     ArcKnob(const VSTGUI::CRect& size, VSTGUI::IControlListener* listener,
             int32_t tag)
@@ -84,13 +84,13 @@ public:
     // Color Configuration
     // =========================================================================
 
-    void setArcColor(VSTGUI::CColor color) noexcept { arcColor_ = color; }
+    void setArcColor(const VSTGUI::CColor& color) noexcept { arcColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getArcColor() const noexcept { return arcColor_; }
 
-    void setModColor(VSTGUI::CColor color) noexcept { modColor_ = color; }
+    void setModColor(const VSTGUI::CColor& color) noexcept { modColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getModColor() const noexcept { return modColor_; }
 
-    void setGuideColor(VSTGUI::CColor color) noexcept { guideColor_ = color; }
+    void setGuideColor(const VSTGUI::CColor& color) noexcept { guideColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getGuideColor() const noexcept { return guideColor_; }
 
     // =========================================================================
@@ -138,7 +138,7 @@ public:
         mouseState_.firstPoint = where;
         mouseState_.entryValue = value;
         mouseState_.range = knobRange;
-        if (buttons & kZoomModifier)
+        if ((buttons & kZoomModifier) != 0)
             mouseState_.range *= zoomFactor;
         mouseState_.coef = (getMax() - getMin()) / mouseState_.range;
         mouseState_.oldButton = buttons();  // Use int32_t assignment to avoid deprecated implicit copy
@@ -158,7 +158,7 @@ public:
 
         if (buttons != mouseState_.oldButton) {
             mouseState_.range = knobRange;
-            if (buttons & kZoomModifier)
+            if ((buttons & kZoomModifier) != 0)
                 mouseState_.range *= zoomFactor;
             float newCoef = (getMax() - getMin()) / mouseState_.range;
             mouseState_.entryValue +=
@@ -248,8 +248,8 @@ private:
         VSTGUI::CRect vs = getViewSize();
         double cx = vs.left + vs.getWidth() / 2.0;
         double cy = vs.top + vs.getHeight() / 2.0;
-        return VSTGUI::CPoint(cx + std::cos(angleRad) * radius,
-                              cy + std::sin(angleRad) * radius);
+        return {cx + std::cos(angleRad) * radius,
+                              cy + std::sin(angleRad) * radius};
     }
 
     /// Get the arc rectangle (centered in view, inset for indicator).
@@ -259,8 +259,8 @@ private:
         double arcRadius = dim / 2.0 - indicatorLength_ / 2.0;
         double cx = vs.left + vs.getWidth() / 2.0;
         double cy = vs.top + vs.getHeight() / 2.0;
-        return VSTGUI::CRect(cx - arcRadius, cy - arcRadius,
-                              cx + arcRadius, cy + arcRadius);
+        return {cx - arcRadius, cy - arcRadius,
+                              cx + arcRadius, cy + arcRadius};
     }
 
     /// Get the arc radius.
@@ -441,11 +441,11 @@ private:
         VSTGUI::CRect vs = getViewSize();
         VSTGUI::CPoint anchorPoint(
             vs.left + vs.getWidth() / 2.0,
-            popupPosition_ == kPopupTop ? vs.top : vs.bottom);
+            popupPosition_ == PopupPosition::kPopupTop ? vs.top : vs.bottom);
         localToFrame(anchorPoint);
 
         VSTGUI::CRect popupRect;
-        if (popupPosition_ == kPopupTop) {
+        if (popupPosition_ == PopupPosition::kPopupTop) {
             popupRect = VSTGUI::CRect(
                 anchorPoint.x - popupWidth / 2.0,
                 anchorPoint.y - kGap - kPopupHeight,
@@ -542,7 +542,7 @@ private:
     VSTGUI::CCoord arcLineWidth_ = 1.0;
     VSTGUI::CCoord modArcLineWidth_ = 1.0;
 
-    PopupPosition popupPosition_ = kPopupBottom;
+    PopupPosition popupPosition_ = PopupPosition::kPopupBottom;
 };
 
 // =============================================================================
@@ -598,11 +598,11 @@ struct ArcKnobCreator : VSTGUI::ViewCreatorAdapter {
         if (attributes.getDoubleAttribute("mod-arc-width", d))
             knob->setModArcLineWidth(d);
 
-        if (auto val = attributes.getAttributeValue("popup-position")) {
+        if (const auto *val = attributes.getAttributeValue("popup-position")) {
             if (*val == "top")
-                knob->setPopupPosition(ArcKnob::kPopupTop);
+                knob->setPopupPosition(ArcKnob::PopupPosition::kPopupTop);
             else
-                knob->setPopupPosition(ArcKnob::kPopupBottom);
+                knob->setPopupPosition(ArcKnob::PopupPosition::kPopupBottom);
         }
 
         // Also apply CKnobBase attributes (angle-start, angle-range, etc.)
@@ -703,7 +703,7 @@ struct ArcKnobCreator : VSTGUI::ViewCreatorAdapter {
             return true;
         }
         if (attributeName == "popup-position") {
-            stringValue = (knob->getPopupPosition() == ArcKnob::kPopupTop)
+            stringValue = (knob->getPopupPosition() == ArcKnob::PopupPosition::kPopupTop)
                 ? "top" : "bottom";
             return true;
         }
@@ -713,6 +713,6 @@ struct ArcKnobCreator : VSTGUI::ViewCreatorAdapter {
 
 // Inline variable (C++17) - safe for inclusion from multiple translation units.
 // Include this header from each plugin's entry.cpp to register the view type.
-inline ArcKnobCreator gArcKnobCreator;
+inline const ArcKnobCreator gArcKnobCreator;
 
 } // namespace Krate::Plugins

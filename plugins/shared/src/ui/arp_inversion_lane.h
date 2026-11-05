@@ -67,6 +67,6 @@ public:
 
 using ArpInversionLaneCreator = EnumPopupArpLaneCreator<ArpInversionLane>;
 
-inline ArpInversionLaneCreator gArpInversionLaneCreator;
+inline const ArpInversionLaneCreator gArpInversionLaneCreator;
 
 } // namespace Krate::Plugins

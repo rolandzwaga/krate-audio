@@ -148,8 +148,8 @@ struct IconPath {
     case Krate::DSP::OscType::PolyBLEP:
         // Sawtooth: rise from bottom-left to top-right, vertical drop, repeat
         path.points = {{
-            {0.0f, 0.8f}, {0.45f, 0.2f}, {0.45f, 0.8f},
-            {0.95f, 0.2f}, {0.95f, 0.8f}, {1.0f, 0.75f}
+            {.x = 0.0f, .y = 0.8f}, {.x = 0.45f, .y = 0.2f}, {.x = 0.45f, .y = 0.8f},
+            {.x = 0.95f, .y = 0.2f}, {.x = 0.95f, .y = 0.8f}, {.x = 1.0f, .y = 0.75f}
         }};
         path.count = 6;
         break;
@@ -157,8 +157,8 @@ struct IconPath {
     case Krate::DSP::OscType::Wavetable:
         // 3 overlapping sine-like waves offset vertically
         path.points = {{
-            {0.0f, 0.5f}, {0.15f, 0.25f}, {0.35f, 0.75f}, {0.5f, 0.5f},
-            {0.5f, 0.4f}, {0.65f, 0.15f}, {0.85f, 0.65f}, {1.0f, 0.4f}
+            {.x = 0.0f, .y = 0.5f}, {.x = 0.15f, .y = 0.25f}, {.x = 0.35f, .y = 0.75f}, {.x = 0.5f, .y = 0.5f},
+            {.x = 0.5f, .y = 0.4f}, {.x = 0.65f, .y = 0.15f}, {.x = 0.85f, .y = 0.65f}, {.x = 1.0f, .y = 0.4f}
         }};
         path.count = 8;
         break;
@@ -166,8 +166,8 @@ struct IconPath {
     case Krate::DSP::OscType::PhaseDistortion:
         // Bent sine: gentle start, sharp peak, asymmetric descent
         path.points = {{
-            {0.0f, 0.5f}, {0.1f, 0.45f}, {0.25f, 0.15f},
-            {0.35f, 0.5f}, {0.6f, 0.85f}, {1.0f, 0.5f}
+            {.x = 0.0f, .y = 0.5f}, {.x = 0.1f, .y = 0.45f}, {.x = 0.25f, .y = 0.15f},
+            {.x = 0.35f, .y = 0.5f}, {.x = 0.6f, .y = 0.85f}, {.x = 1.0f, .y = 0.5f}
         }};
         path.count = 6;
         break;
@@ -175,9 +175,9 @@ struct IconPath {
     case Krate::DSP::OscType::Sync:
         // Truncated burst: partial saw cycles getting shorter
         path.points = {{
-            {0.0f, 0.5f}, {0.2f, 0.2f}, {0.2f, 0.7f},
-            {0.35f, 0.25f}, {0.35f, 0.65f}, {0.45f, 0.3f},
-            {0.45f, 0.6f}, {0.55f, 0.35f}
+            {.x = 0.0f, .y = 0.5f}, {.x = 0.2f, .y = 0.2f}, {.x = 0.2f, .y = 0.7f},
+            {.x = 0.35f, .y = 0.25f}, {.x = 0.35f, .y = 0.65f}, {.x = 0.45f, .y = 0.3f},
+            {.x = 0.45f, .y = 0.6f}, {.x = 0.55f, .y = 0.35f}
         }};
         path.count = 8;
         break;
@@ -185,11 +185,11 @@ struct IconPath {
     case Krate::DSP::OscType::Additive:
         // 5 vertical bars descending in height (spectrum display)
         path.points = {{
-            {0.1f, 0.85f}, {0.1f, 0.15f},
-            {0.3f, 0.85f}, {0.3f, 0.3f},
-            {0.5f, 0.85f}, {0.5f, 0.4f},
-            {0.7f, 0.85f}, {0.7f, 0.55f},
-            {0.9f, 0.85f}, {0.9f, 0.65f}
+            {.x = 0.1f, .y = 0.85f}, {.x = 0.1f, .y = 0.15f},
+            {.x = 0.3f, .y = 0.85f}, {.x = 0.3f, .y = 0.3f},
+            {.x = 0.5f, .y = 0.85f}, {.x = 0.5f, .y = 0.4f},
+            {.x = 0.7f, .y = 0.85f}, {.x = 0.7f, .y = 0.55f},
+            {.x = 0.9f, .y = 0.85f}, {.x = 0.9f, .y = 0.65f}
         }};
         path.count = 10;
         break;
@@ -197,8 +197,8 @@ struct IconPath {
     case Krate::DSP::OscType::Chaos:
         // Looping squiggle (Lorenz-like attractor shape)
         path.points = {{
-            {0.2f, 0.5f}, {0.05f, 0.2f}, {0.35f, 0.1f}, {0.6f, 0.3f},
-            {0.95f, 0.15f}, {0.8f, 0.6f}, {0.5f, 0.85f}, {0.2f, 0.5f}
+            {.x = 0.2f, .y = 0.5f}, {.x = 0.05f, .y = 0.2f}, {.x = 0.35f, .y = 0.1f}, {.x = 0.6f, .y = 0.3f},
+            {.x = 0.95f, .y = 0.15f}, {.x = 0.8f, .y = 0.6f}, {.x = 0.5f, .y = 0.85f}, {.x = 0.2f, .y = 0.5f}
         }};
         path.count = 8;
         path.closePath = true;
@@ -207,8 +207,8 @@ struct IconPath {
     case Krate::DSP::OscType::Particle:
         // Scattered dots + arc envelope curve
         path.points = {{
-            {0.05f, 0.7f}, {0.15f, 0.35f}, {0.25f, 0.55f}, {0.35f, 0.2f},
-            {0.5f, 0.45f}, {0.65f, 0.3f}, {0.8f, 0.6f}, {0.95f, 0.75f}
+            {.x = 0.05f, .y = 0.7f}, {.x = 0.15f, .y = 0.35f}, {.x = 0.25f, .y = 0.55f}, {.x = 0.35f, .y = 0.2f},
+            {.x = 0.5f, .y = 0.45f}, {.x = 0.65f, .y = 0.3f}, {.x = 0.8f, .y = 0.6f}, {.x = 0.95f, .y = 0.75f}
         }};
         path.count = 8;
         break;
@@ -216,8 +216,8 @@ struct IconPath {
     case Krate::DSP::OscType::Formant:
         // 2-3 resonant humps (vocal formant peaks)
         path.points = {{
-            {0.0f, 0.8f}, {0.15f, 0.2f}, {0.3f, 0.7f},
-            {0.5f, 0.15f}, {0.7f, 0.65f}, {0.85f, 0.35f}, {1.0f, 0.8f}
+            {.x = 0.0f, .y = 0.8f}, {.x = 0.15f, .y = 0.2f}, {.x = 0.3f, .y = 0.7f},
+            {.x = 0.5f, .y = 0.15f}, {.x = 0.7f, .y = 0.65f}, {.x = 0.85f, .y = 0.35f}, {.x = 1.0f, .y = 0.8f}
         }};
         path.count = 7;
         break;
@@ -225,11 +225,11 @@ struct IconPath {
     case Krate::DSP::OscType::SpectralFreeze:
         // Vertical bars of varying height (frozen spectrum)
         path.points = {{
-            {0.05f, 0.85f}, {0.05f, 0.25f},
-            {0.2f, 0.85f}, {0.2f, 0.45f},
-            {0.4f, 0.85f}, {0.4f, 0.15f},
-            {0.6f, 0.85f}, {0.6f, 0.5f},
-            {0.8f, 0.85f}, {0.8f, 0.3f}
+            {.x = 0.05f, .y = 0.85f}, {.x = 0.05f, .y = 0.25f},
+            {.x = 0.2f, .y = 0.85f}, {.x = 0.2f, .y = 0.45f},
+            {.x = 0.4f, .y = 0.85f}, {.x = 0.4f, .y = 0.15f},
+            {.x = 0.6f, .y = 0.85f}, {.x = 0.6f, .y = 0.5f},
+            {.x = 0.8f, .y = 0.85f}, {.x = 0.8f, .y = 0.3f}
         }};
         path.count = 10;
         break;
@@ -237,15 +237,15 @@ struct IconPath {
     case Krate::DSP::OscType::Noise:
         // Jagged random-looking horizontal line
         path.points = {{
-            {0.0f, 0.5f}, {0.12f, 0.3f}, {0.25f, 0.7f}, {0.37f, 0.25f},
-            {0.5f, 0.6f}, {0.62f, 0.35f}, {0.75f, 0.72f}, {1.0f, 0.45f}
+            {.x = 0.0f, .y = 0.5f}, {.x = 0.12f, .y = 0.3f}, {.x = 0.25f, .y = 0.7f}, {.x = 0.37f, .y = 0.25f},
+            {.x = 0.5f, .y = 0.6f}, {.x = 0.62f, .y = 0.35f}, {.x = 0.75f, .y = 0.72f}, {.x = 1.0f, .y = 0.45f}
         }};
         path.count = 8;
         break;
 
     default:
         // Fallback: simple horizontal line
-        path.points = {{{0.0f, 0.5f}, {1.0f, 0.5f}}};
+        path.points = {{{.x = 0.0f, .y = 0.5f}, {.x = 1.0f, .y = 0.5f}}};
         path.count = 2;
         break;
     }
@@ -388,12 +388,7 @@ public:
     OscillatorTypeSelector(const OscillatorTypeSelector& other)
         : CControl(other)
         , identityColor_(other.identityColor_)
-        , identityId_(other.identityId_)
-        , popupOpen_(false)
-        , popupView_(nullptr)
-        , hoveredCell_(-1)
-        , focusedCell_(-1)
-        , isHovered_(false) {}
+        , identityId_(other.identityId_) {}
 
     ~OscillatorTypeSelector() override {
         if (popupOpen_)
@@ -455,9 +450,9 @@ public:
     // =========================================================================
 
     VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& where,
+        VSTGUI::CPoint& /*where*/,
         const VSTGUI::CButtonState& buttons) override {
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return VSTGUI::kMouseEventNotHandled;
 
         if (popupOpen_) {
@@ -546,7 +541,7 @@ public:
     // IMouseObserver Overrides (modal popup dismissal)
     // =========================================================================
 
-    void onMouseEvent(VSTGUI::MouseEvent& event, VSTGUI::CFrame* frame) override {
+    void onMouseEvent(VSTGUI::MouseEvent& event, VSTGUI::CFrame* /*frame*/) override {
         if (!popupOpen_) return;
 
         if (event.type == VSTGUI::EventType::MouseMove) {
@@ -675,8 +670,8 @@ private:
         drawDropdownArrow(context, r);
     }
 
-    void drawDropdownArrow(VSTGUI::CDrawContext* context,
-                           const VSTGUI::CRect& controlRect) const {
+    static void drawDropdownArrow(VSTGUI::CDrawContext* context,
+                           const VSTGUI::CRect& controlRect) {
         VSTGUI::CCoord arrowX = controlRect.right - kCollapsedPadX - kArrowW;
         VSTGUI::CCoord arrowY = controlRect.top +
                                 (controlRect.getHeight() - kArrowH) / 2.0;
@@ -932,10 +927,10 @@ private:
                                col * (kCellW + kCellGap);
             VSTGUI::CCoord y = popupRect.top + kPopupPadding +
                                row * (kCellH + kCellGap);
-            return VSTGUI::CRect(x, y, x + kCellW, y + kCellH);
+            return {x, y, x + kCellW, y + kCellH};
         }
 
-        OscillatorTypeSelector& owner_;
+        OscillatorTypeSelector& owner_;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members): bound to its owner for life
     };
 
     // =========================================================================
@@ -992,7 +987,7 @@ private:
     // =========================================================================
 
     void navigateFocus(VSTGUI::VirtualKey direction) {
-        if (focusedCell_ < 0) focusedCell_ = 0;
+        focusedCell_ = std::max(focusedCell_, 0);
 
         int col = focusedCell_ % kGridCols;
         int row = focusedCell_ / kGridCols;
@@ -1074,7 +1069,7 @@ struct OscillatorTypeSelectorCreator : VSTGUI::ViewCreatorAdapter {
         auto* sel = dynamic_cast<OscillatorTypeSelector*>(view);
         if (!sel) return false;
 
-        if (auto identity = attributes.getAttributeValue("osc-identity"))
+        if (const auto *identity = attributes.getAttributeValue("osc-identity"))
             sel->setIdentity(*identity);
 
         return true;
@@ -1107,6 +1102,6 @@ struct OscillatorTypeSelectorCreator : VSTGUI::ViewCreatorAdapter {
 
 /// Inline variable (C++17) -- safe for inclusion from multiple translation units.
 /// Include this header from each plugin's entry.cpp to register the view type.
-inline OscillatorTypeSelectorCreator gOscillatorTypeSelectorCreator;
+inline const OscillatorTypeSelectorCreator gOscillatorTypeSelectorCreator;
 
 } // namespace Krate::Plugins

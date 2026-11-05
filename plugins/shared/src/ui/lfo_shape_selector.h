@@ -138,10 +138,10 @@ struct IconPath {
     case Krate::DSP::Waveform::Sine:
         // Smooth sine wave: one full cycle
         path.points = {{
-            {0.0f, 0.5f}, {0.08f, 0.3f}, {0.17f, 0.15f}, {0.25f, 0.1f},
-            {0.33f, 0.15f}, {0.42f, 0.3f}, {0.5f, 0.5f},
-            {0.58f, 0.7f}, {0.67f, 0.85f}, {0.75f, 0.9f},
-            {0.83f, 0.85f}, {0.92f, 0.7f}, {1.0f, 0.5f}
+            {.x = 0.0f, .y = 0.5f}, {.x = 0.08f, .y = 0.3f}, {.x = 0.17f, .y = 0.15f}, {.x = 0.25f, .y = 0.1f},
+            {.x = 0.33f, .y = 0.15f}, {.x = 0.42f, .y = 0.3f}, {.x = 0.5f, .y = 0.5f},
+            {.x = 0.58f, .y = 0.7f}, {.x = 0.67f, .y = 0.85f}, {.x = 0.75f, .y = 0.9f},
+            {.x = 0.83f, .y = 0.85f}, {.x = 0.92f, .y = 0.7f}, {.x = 1.0f, .y = 0.5f}
         }};
         path.count = 13;
         break;
@@ -149,7 +149,7 @@ struct IconPath {
     case Krate::DSP::Waveform::Triangle:
         // Triangle: linear up, linear down
         path.points = {{
-            {0.0f, 0.5f}, {0.25f, 0.1f}, {0.75f, 0.9f}, {1.0f, 0.5f}
+            {.x = 0.0f, .y = 0.5f}, {.x = 0.25f, .y = 0.1f}, {.x = 0.75f, .y = 0.9f}, {.x = 1.0f, .y = 0.5f}
         }};
         path.count = 4;
         break;
@@ -157,8 +157,8 @@ struct IconPath {
     case Krate::DSP::Waveform::Sawtooth:
         // Sawtooth: ramp up, instant drop
         path.points = {{
-            {0.0f, 0.9f}, {0.47f, 0.1f}, {0.47f, 0.9f},
-            {0.97f, 0.1f}, {0.97f, 0.9f}
+            {.x = 0.0f, .y = 0.9f}, {.x = 0.47f, .y = 0.1f}, {.x = 0.47f, .y = 0.9f},
+            {.x = 0.97f, .y = 0.1f}, {.x = 0.97f, .y = 0.9f}
         }};
         path.count = 5;
         break;
@@ -166,8 +166,8 @@ struct IconPath {
     case Krate::DSP::Waveform::Square:
         // Square: flat high, drop, flat low, rise
         path.points = {{
-            {0.0f, 0.15f}, {0.45f, 0.15f}, {0.45f, 0.85f},
-            {0.95f, 0.85f}, {0.95f, 0.15f}, {1.0f, 0.15f}
+            {.x = 0.0f, .y = 0.15f}, {.x = 0.45f, .y = 0.15f}, {.x = 0.45f, .y = 0.85f},
+            {.x = 0.95f, .y = 0.85f}, {.x = 0.95f, .y = 0.15f}, {.x = 1.0f, .y = 0.15f}
         }};
         path.count = 6;
         break;
@@ -175,10 +175,10 @@ struct IconPath {
     case Krate::DSP::Waveform::SampleHold:
         // Stepped random: horizontal segments at different heights
         path.points = {{
-            {0.0f, 0.3f}, {0.18f, 0.3f}, {0.18f, 0.75f},
-            {0.36f, 0.75f}, {0.36f, 0.2f}, {0.54f, 0.2f},
-            {0.54f, 0.6f}, {0.72f, 0.6f}, {0.72f, 0.4f},
-            {0.9f, 0.4f}, {0.9f, 0.8f}, {1.0f, 0.8f}
+            {.x = 0.0f, .y = 0.3f}, {.x = 0.18f, .y = 0.3f}, {.x = 0.18f, .y = 0.75f},
+            {.x = 0.36f, .y = 0.75f}, {.x = 0.36f, .y = 0.2f}, {.x = 0.54f, .y = 0.2f},
+            {.x = 0.54f, .y = 0.6f}, {.x = 0.72f, .y = 0.6f}, {.x = 0.72f, .y = 0.4f},
+            {.x = 0.9f, .y = 0.4f}, {.x = 0.9f, .y = 0.8f}, {.x = 1.0f, .y = 0.8f}
         }};
         path.count = 12;
         break;
@@ -186,16 +186,16 @@ struct IconPath {
     case Krate::DSP::Waveform::SmoothRandom:
         // Smooth random: irregular smooth curves
         path.points = {{
-            {0.0f, 0.5f}, {0.12f, 0.25f}, {0.28f, 0.7f},
-            {0.42f, 0.2f}, {0.58f, 0.65f}, {0.72f, 0.35f},
-            {0.88f, 0.75f}, {1.0f, 0.45f}
+            {.x = 0.0f, .y = 0.5f}, {.x = 0.12f, .y = 0.25f}, {.x = 0.28f, .y = 0.7f},
+            {.x = 0.42f, .y = 0.2f}, {.x = 0.58f, .y = 0.65f}, {.x = 0.72f, .y = 0.35f},
+            {.x = 0.88f, .y = 0.75f}, {.x = 1.0f, .y = 0.45f}
         }};
         path.count = 8;
         break;
 
     default:
         // Fallback: horizontal line
-        path.points = {{{0.0f, 0.5f}, {1.0f, 0.5f}}};
+        path.points = {{{.x = 0.0f, .y = 0.5f}, {.x = 1.0f, .y = 0.5f}}};
         path.count = 2;
         break;
     }
@@ -320,12 +320,7 @@ public:
 
     LfoShapeSelector(const LfoShapeSelector& other)
         : CControl(other)
-        , highlightColor_(other.highlightColor_)
-        , popupOpen_(false)
-        , popupView_(nullptr)
-        , hoveredCell_(-1)
-        , focusedCell_(-1)
-        , isHovered_(false) {}
+        , highlightColor_(other.highlightColor_) {}
 
     ~LfoShapeSelector() override {
         if (popupOpen_)
@@ -400,7 +395,7 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
         (void)where;
-        if (!(buttons & VSTGUI::kLButton))
+        if ((buttons & VSTGUI::kLButton) == 0)
             return VSTGUI::kMouseEventNotHandled;
 
         if (popupOpen_) {
@@ -600,8 +595,8 @@ private:
         drawDropdownArrow(context, r);
     }
 
-    void drawDropdownArrow(VSTGUI::CDrawContext* context,
-                           const VSTGUI::CRect& controlRect) const {
+    static void drawDropdownArrow(VSTGUI::CDrawContext* context,
+                           const VSTGUI::CRect& controlRect) {
         VSTGUI::CCoord arrowX = controlRect.right - kCollapsedPadX - kArrowW;
         VSTGUI::CCoord arrowY = controlRect.top +
                                 (controlRect.getHeight() - kArrowH) / 2.0;
@@ -846,10 +841,10 @@ private:
                                col * (kCellW + kCellGap);
             VSTGUI::CCoord y = popupRect.top + kPopupPadding +
                                row * (kCellH + kCellGap);
-            return VSTGUI::CRect(x, y, x + kCellW, y + kCellH);
+            return {x, y, x + kCellW, y + kCellH};
         }
 
-        LfoShapeSelector& owner_;
+        LfoShapeSelector& owner_;  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members): bound to its owner for life
     };
 
     // =========================================================================
@@ -901,7 +896,7 @@ private:
     // =========================================================================
 
     void navigateFocus(VSTGUI::VirtualKey direction) {
-        if (focusedCell_ < 0) focusedCell_ = 0;
+        focusedCell_ = std::max(focusedCell_, 0);
 
         int col = focusedCell_ % kGridCols;
         int row = focusedCell_ / kGridCols;
@@ -979,7 +974,7 @@ struct LfoShapeSelectorCreator : VSTGUI::ViewCreatorAdapter {
         auto* sel = dynamic_cast<LfoShapeSelector*>(view);
         if (!sel) return false;
 
-        if (auto colorStr = attributes.getAttributeValue("lfo-color"))
+        if (const auto *colorStr = attributes.getAttributeValue("lfo-color"))
             sel->setHighlightColorFromString(*colorStr);
 
         return true;
@@ -1011,6 +1006,6 @@ struct LfoShapeSelectorCreator : VSTGUI::ViewCreatorAdapter {
 };
 
 /// Inline variable (C++17) -- safe for inclusion from multiple translation units.
-inline LfoShapeSelectorCreator gLfoShapeSelectorCreator;
+inline const LfoShapeSelectorCreator gLfoShapeSelectorCreator;
 
 } // namespace Krate::Plugins

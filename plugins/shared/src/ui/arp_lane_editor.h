@@ -52,7 +52,7 @@ namespace Krate::Plugins {
 // ArpLaneType Enum
 // ==============================================================================
 
-enum class ArpLaneType {
+enum class ArpLaneType : std::uint8_t {
     kVelocity = 0,
     kGate = 1,
     kPitch = 2,
@@ -415,7 +415,7 @@ public:
                 if (len > 1) {
                     float first = result[0];
                     for (int32_t i = 0; i < len - 1; ++i) {
-                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i + 1)];
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i) + 1];
                     }
                     result[static_cast<size_t>(len - 1)] = first;
                 }
@@ -774,7 +774,8 @@ private:
                 continue;
             }
 
-            float barTop, barBottom;
+            float barTop;
+            float barBottom;
             if (signedValue > 0.0f) {
                 barTop = centerY - (signedValue * barHeight / 2.0f);
                 barBottom = centerY;
@@ -894,7 +895,8 @@ private:
             float barRight = barLeft + barWidth - 1.0f;
             if (barRight <= barLeft) continue;
 
-            float barTop, barBottom;
+            float barTop;
+            float barBottom;
             if (signedValue > 0.0f) {
                 barTop = centerY - (signedValue * previewHeight / 2.0f);
                 barBottom = centerY;
@@ -1303,7 +1305,7 @@ private:
         // Clamp to view bounds
         VSTGUI::CRect vs = getViewSize();
         float minY = static_cast<float>(vs.top) + kHeaderHeight + kDotRadius;
-        if (dotCenterY < minY) dotCenterY = minY;
+        dotCenterY = std::max(dotCenterY, minY);
 
         // Generate pattern
         uint32_t pattern = Krate::DSP::EuclideanPattern::generate(
@@ -1585,6 +1587,6 @@ struct ArpLaneEditorCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline ArpLaneEditorCreator gArpLaneEditorCreator;
+inline const ArpLaneEditorCreator gArpLaneEditorCreator;
 
 } // namespace Krate::Plugins

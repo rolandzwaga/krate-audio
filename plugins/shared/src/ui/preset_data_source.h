@@ -87,13 +87,13 @@ public:
     };
     MouseDownResult handleMouseDownForTesting(int32_t row, bool isDoubleClick) {
         if (isDoubleClick && doubleClickCallback_) {
-            return {false, true};
+            return {.shouldDeselect = false, .handled = true};
         }
         auto action = determineSelectionAction(row, preClickSelectedRow_);
         if (action == SelectionAction::Deselect) {
-            return {true, true};
+            return {.shouldDeselect = true, .handled = true};
         }
-        return {false, false};
+        return {.shouldDeselect = false, .handled = false};
     }
 
 private:
