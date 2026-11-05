@@ -81,7 +81,7 @@ public:
     /// @brief Enable high contrast mode (Spec 012 FR-025a)
     /// Uses high contrast accent color for sweep line and curve.
     void setHighContrastMode(bool enabled,
-                             VSTGUI::CColor accentColor = VSTGUI::CColor(0x3A, 0x96, 0xDD)) noexcept {
+                             const VSTGUI::CColor& accentColor = VSTGUI::CColor(0x3A, 0x96, 0xDD)) noexcept {
         highContrastEnabled_ = enabled;
         if (enabled) {
             indicatorColor_ = accentColor;

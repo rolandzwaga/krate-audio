@@ -25,12 +25,13 @@
 #include "morph_node.h"
 #include "oversampling_utils.h"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 #include <array>
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <numbers>
 
 namespace Disrumpo {
 
@@ -42,7 +43,7 @@ public:
     // Constants
     // =========================================================================
 
-    static constexpr float kPi = 3.14159265358979323846f;
+    static constexpr float kPi = std::numbers::pi_v<float>;
     static constexpr int kMaxOversampleFactor = 8;
     static constexpr int kDefaultOversampleFactor = 2;
     static constexpr size_t kMaxBlockSize = 2048;
@@ -149,7 +150,7 @@ public:
         oversampler8xInner_.reset();
         distortion_.reset();
         if (morphEngine_) {
-            morphEngine_->reset();
+            (*morphEngine_).reset();
         }
 
         // Reset crossfade state
@@ -372,7 +373,7 @@ public:
 
     /// @brief Get latency introduced by oversampling.
     /// FR-018, FR-019: IIR mode = 0 latency always
-    [[nodiscard]] int getLatency() const noexcept {
+    [[nodiscard]] static int getLatency() noexcept {
         // Economy/ZeroLatency mode = 0 latency
         return 0;
     }
@@ -441,9 +442,9 @@ public:
             savedCommonParams_ = distortion_.getCommonParams();
             savedDistortionParams_ = distortion_.getParams();
             distortion_.setCommonParams({
-                std::clamp(savedCommonParams_.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f),
-                std::clamp(savedCommonParams_.mix + mixModOffset_, 0.0f, 1.0f),
-                std::clamp(savedCommonParams_.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f)});
+                .drive = std::clamp(savedCommonParams_.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f),
+                .mix = std::clamp(savedCommonParams_.mix + mixModOffset_, 0.0f, 1.0f),
+                .toneHz = std::clamp(savedCommonParams_.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f)});
             auto modParams = savedDistortionParams_;
             modParams.bias = std::clamp(modParams.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
             distortion_.setParams(modParams);
@@ -665,9 +666,7 @@ private:
         size_t completedAt = numSamples; // Track where crossfade finishes
         for (size_t i = 0; i < numSamples; ++i) {
             crossfadeProgress_ += crossfadeIncrement_;
-            if (crossfadeProgress_ >= 1.0f) {
-                crossfadeProgress_ = 1.0f;
-            }
+            crossfadeProgress_ = std::min(crossfadeProgress_, 1.0f);
 
             float fadeOut = 0.0f;
             float fadeIn = 0.0f;
@@ -693,13 +692,9 @@ private:
     /// @brief Initiate or restart an oversampling crossfade transition (FR-010).
     /// @param newFactor Target oversampling factor
     void startCrossfade(int newFactor) noexcept {
-        if (crossfadeActive_) {
-            // Abort-and-restart: current "new" factor becomes the "old" factor
-            crossfadeOldFactor_ = currentOversampleFactor_;
-        } else {
-            // Normal start: current factor becomes old
-            crossfadeOldFactor_ = currentOversampleFactor_;
-        }
+        // Normal start: the current factor becomes old. Abort-and-restart (crossfadeActive_): the current "new"
+        // factor becomes the "old" factor. Both are the same assignment.
+        crossfadeOldFactor_ = currentOversampleFactor_;
 
         // Set new target as current
         currentOversampleFactor_ = newFactor;

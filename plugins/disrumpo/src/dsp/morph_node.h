@@ -62,7 +62,6 @@ struct MorphNode {
     /// @param y Y position in morph space [0, 1]
     constexpr MorphNode(int nodeId, float x, float y) noexcept
         : id(nodeId)
-        , type(DistortionType::SoftClip)
         , params()
         , commonParams()
         , posX(x)
@@ -98,13 +97,13 @@ struct ShapeShadowStorage {
     static constexpr int kSlotCount = MorphNode::kShapeSlotCount;
 
     /// Storage: typeSlots[typeIndex][slotIndex] = normalized value [0,1]
-    float typeSlots[kDistortionTypeCount][kSlotCount];
+    float typeSlots[kDistortionTypeCount][kSlotCount]{};
 
     ShapeShadowStorage() noexcept {
         // Default all slots to 0.5 (center value, works for most types)
         for (auto& type : typeSlots)
-            for (int s = 0; s < kSlotCount; ++s)
-                type[s] = 0.5f;
+            for (float& s : type)
+                s = 0.5f;
 
         // BitwiseMangler defaults: 4 ops (0-3), use XorPattern (op=0)
         const int bmIdx = static_cast<int>(DistortionType::BitwiseMangler);

@@ -23,11 +23,12 @@
 #include <array>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 namespace Disrumpo {
 
 /// @brief Display mode for the spectrum visualizer
-enum class SpectrumViewMode { kWet, kDry, kBoth };
+enum class SpectrumViewMode : std::uint8_t { kWet, kDry, kBoth };
 
 /// @brief Listener interface for SpectrumDisplay events
 class SpectrumDisplayListener {

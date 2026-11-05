@@ -214,8 +214,8 @@ public:
         const auto* customViewName = attributes.getAttributeValue("custom-view-name");
         if (customViewName) {
             auto* modified = new VSTGUI::UIAttributes(attributes.empty() ? 0 : 16);
-            for (auto it = attributes.begin(); it != attributes.end(); ++it) {
-                modified->setAttribute(it->first, it->second);
+            for (const auto& attribute : attributes) {
+                modified->setAttribute(attribute.first, attribute.second);
             }
             modified->setAttribute("band", std::to_string(bandIndex_));
             auto* view = controller->createView(*modified, description);

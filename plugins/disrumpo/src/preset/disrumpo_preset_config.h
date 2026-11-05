@@ -26,10 +26,10 @@ namespace Disrumpo {
 /// - 11 subcategories matching Disrumpo's preset organization (FR-027)
 inline Krate::Plugins::PresetManagerConfig makeDisrumpoPresetConfig() {
     return Krate::Plugins::PresetManagerConfig{
-        /*.processorUID =*/ kProcessorUID,
-        /*.pluginName =*/ "Disrumpo",
-        /*.pluginCategoryDesc =*/ "Distortion",
-        /*.subcategoryNames =*/ {
+        .processorUID = kProcessorUID,
+        .pluginName = "Disrumpo",
+        .pluginCategoryDesc = "Distortion",
+        .subcategoryNames = {
             "Init", "Sweep", "Morph", "Bass", "Leads",
             "Pads", "Drums", "Experimental", "Chaos", "Dynamic", "Lo-Fi"
         }
