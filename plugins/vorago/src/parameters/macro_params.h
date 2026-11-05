@@ -128,18 +128,18 @@ inline void registerMacroParams(Steinberg::Vst::ParameterContainer& parameters) 
     };
     // VoragoMacro order; defaults are VoragoMacroValues (gravity 0.5, the rest 0).
     const std::array<MacroDef, static_cast<std::size_t>(kNumMacroParams)> defs{{
-        {STR16("Darkness"), 0.0},
-        {STR16("Age"), 0.0},
-        {STR16("Density"), 0.0},
-        {STR16("Movement"), 0.0},
-        {STR16("Gravity"), 0.5},
-        {STR16("Entropy"), 0.0},
-        {STR16("Pressure"), 0.0},
-        {STR16("Weight"), 0.0},
-        {STR16("Fog"), 0.0},
-        {STR16("Life"), 0.0},
-        {STR16("Depth"), 0.0},
-        {STR16("Mass"), 0.0},
+        {.title = STR16("Darkness"), .defaultValue = 0.0},
+        {.title = STR16("Age"), .defaultValue = 0.0},
+        {.title = STR16("Density"), .defaultValue = 0.0},
+        {.title = STR16("Movement"), .defaultValue = 0.0},
+        {.title = STR16("Gravity"), .defaultValue = 0.5},
+        {.title = STR16("Entropy"), .defaultValue = 0.0},
+        {.title = STR16("Pressure"), .defaultValue = 0.0},
+        {.title = STR16("Weight"), .defaultValue = 0.0},
+        {.title = STR16("Fog"), .defaultValue = 0.0},
+        {.title = STR16("Life"), .defaultValue = 0.0},
+        {.title = STR16("Depth"), .defaultValue = 0.0},
+        {.title = STR16("Mass"), .defaultValue = 0.0},
     }};
 
     for (int i = 0; i < kNumMacroParams; ++i) {

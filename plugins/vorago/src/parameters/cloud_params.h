@@ -52,13 +52,13 @@ struct CloudParamSpec {
 };
 
 inline constexpr std::array<CloudParamSpec, 7> kCloudParamSpecs = {{
-    {kCloudRichnessId, 0.0, 1.0, 0.70},
-    {kCloudTiltId, -12.0, 12.0, -4.0},
-    {kCloudMutationId, 0.0, 1.0, 0.15},
-    {kCloudInharmonicityId, 0.0, 0.1, 0.015},
-    {kCloudDriftDepthId, 0.0, 50.0, 8.0},
-    {kCloudStereoSpreadId, 0.0, 1.0, 0.45},
-    {kCloudSpectralGravityId, -1.0, 1.0, 0.10},
+    {.id = kCloudRichnessId, .minPlain = 0.0, .maxPlain = 1.0, .defaultPlain = 0.70},
+    {.id = kCloudTiltId, .minPlain = -12.0, .maxPlain = 12.0, .defaultPlain = -4.0},
+    {.id = kCloudMutationId, .minPlain = 0.0, .maxPlain = 1.0, .defaultPlain = 0.15},
+    {.id = kCloudInharmonicityId, .minPlain = 0.0, .maxPlain = 0.1, .defaultPlain = 0.015},
+    {.id = kCloudDriftDepthId, .minPlain = 0.0, .maxPlain = 50.0, .defaultPlain = 8.0},
+    {.id = kCloudStereoSpreadId, .minPlain = 0.0, .maxPlain = 1.0, .defaultPlain = 0.45},
+    {.id = kCloudSpectralGravityId, .minPlain = -1.0, .maxPlain = 1.0, .defaultPlain = 0.10},
 }};
 
 inline constexpr int kNumCloudParams = static_cast<int>(kCloudParamSpecs.size());
@@ -137,13 +137,13 @@ inline void registerCloudParams(Steinberg::Vst::ParameterContainer& parameters) 
         const TChar* units;
     };
     const std::array<CloudDef, static_cast<std::size_t>(kNumCloudParams)> defs{{
-        {STR16("Cloud Richness"), STR16("%")},
-        {STR16("Cloud Tilt"), STR16("dB/oct")},
-        {STR16("Cloud Mutation"), STR16("%")},
-        {STR16("Cloud Inharmonicity"), STR16("")},
-        {STR16("Cloud Drift Depth"), STR16("ct")},
-        {STR16("Cloud Stereo Spread"), STR16("%")},
-        {STR16("Cloud Spectral Gravity"), STR16("")},
+        {.title = STR16("Cloud Richness"), .units = STR16("%")},
+        {.title = STR16("Cloud Tilt"), .units = STR16("dB/oct")},
+        {.title = STR16("Cloud Mutation"), .units = STR16("%")},
+        {.title = STR16("Cloud Inharmonicity"), .units = STR16("")},
+        {.title = STR16("Cloud Drift Depth"), .units = STR16("ct")},
+        {.title = STR16("Cloud Stereo Spread"), .units = STR16("%")},
+        {.title = STR16("Cloud Spectral Gravity"), .units = STR16("")},
     }};
 
     for (int i = 0; i < kNumCloudParams; ++i) {

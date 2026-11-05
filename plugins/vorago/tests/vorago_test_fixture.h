@@ -35,15 +35,16 @@
 #include <pluginterfaces/vst/ivstevents.h>
 #include <pluginterfaces/vst/ivstparameterchanges.h>
 
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 #include <limits>
 #include <memory>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace VoragoTest {
@@ -68,7 +69,7 @@ public:
     }
 
     void addTestPoint(Steinberg::int32 offset, double value) {
-        points_.push_back(Point{offset, value});
+        points_.push_back(Point{.offset = offset, .value = value});
     }
 
     Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID /*iid*/,
@@ -87,7 +88,7 @@ public:
     Steinberg::tresult PLUGIN_API getPoint(Steinberg::int32 index,
                                            Steinberg::int32& sampleOffset,
                                            Steinberg::Vst::ParamValue& value) override {
-        if (index < 0 || index >= static_cast<Steinberg::int32>(points_.size())) {
+        if (index < 0 || std::cmp_greater_equal(index, points_.size())) {
             return Steinberg::kResultFalse;
         }
         const Point& p = points_[static_cast<std::size_t>(index)];
@@ -149,7 +150,7 @@ public:
 
     Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(
         Steinberg::int32 index) override {
-        if (index < 0 || index >= static_cast<Steinberg::int32>(activeCount_)) {
+        if (index < 0 || std::cmp_greater_equal(index, activeCount_)) {
             return nullptr;
         }
         return &queues_[static_cast<std::size_t>(index)];
@@ -270,7 +271,7 @@ struct ProcessorFixture {
     }
 
     // A parameter-only call: numOutputs = 0, numSamples = 0.
-    Steinberg::tresult processNoOutputs(Steinberg::Vst::IParameterChanges* pc) {
+    Steinberg::tresult processNoOutputs(Steinberg::Vst::IParameterChanges* pc) const {
         Steinberg::Vst::ProcessData data{};
         data.processMode = Steinberg::Vst::kRealtime;
         data.symbolicSampleSize = Steinberg::Vst::kSample32;
@@ -290,7 +291,7 @@ struct ProcessorFixture {
     // Parameter-only call writing kEnvelopeStage0TimeId = shortStage0Normalized()
     // (see kShortStage0Ms). Latched now; pushed to the engine by the next rendered
     // block, before that block's events, so a note-on in it already uses it.
-    void shortenStage0() {
+    void shortenStage0() const {
         MultiParamChanges pc;
         pc.addQueue(::Vorago::kEnvelopeStage0TimeId).addTestPoint(0, shortStage0Normalized());
         REQUIRE(processNoOutputs(&pc) == Steinberg::kResultOk);
@@ -396,7 +397,7 @@ inline constexpr std::size_t kToEnd = std::numeric_limits<std::size_t>::max();
 
 [[nodiscard]] inline float maxAbsDiff(std::span<const float> a, std::span<const float> b,
                                       std::size_t from = 0, std::size_t to = kToEnd) {
-    const std::size_t end = std::min(to, std::min(a.size(), b.size()));
+    const std::size_t end = std::min({to, a.size(), b.size()});
     REQUIRE(from <= end);
     float worst = 0.0f;
     for (std::size_t i = from; i < end; ++i) {
@@ -407,7 +408,7 @@ inline constexpr std::size_t kToEnd = std::numeric_limits<std::size_t>::max();
 
 [[nodiscard]] inline double rmsDiff(std::span<const float> a, std::span<const float> b,
                                     std::size_t from = 0, std::size_t to = kToEnd) {
-    const std::size_t end = std::min(to, std::min(a.size(), b.size()));
+    const std::size_t end = std::min({to, a.size(), b.size()});
     REQUIRE(from <= end);
     if (from == end) {
         return 0.0;

@@ -171,10 +171,10 @@ public:
     };
     // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     [[nodiscard]] PacksForTest packsForTest() const noexcept {  // SC-010
-        return PacksForTest{globalParams_,    macroParams_,     cloudParams_,  noiseParams_,
-                            resonanceParams_, ecologyParams_,   subParams_,    smearParams_,
-                            eventsParams_,    ecosystemParams_, bodyParams_,   spaceParams_,
-                            envelopeParams_,  bloomParams_,     ghostParams_,  lifeParams_};
+        return PacksForTest{.global = globalParams_,    .macro = macroParams_,     .cloud = cloudParams_,  .noise = noiseParams_,
+                            .resonance = resonanceParams_, .ecology = ecologyParams_,   .sub = subParams_,    .smear = smearParams_,
+                            .events = eventsParams_,    .ecosystem = ecosystemParams_, .body = bodyParams_,   .space = spaceParams_,
+                            .envelope = envelopeParams_,  .bloom = bloomParams_,     .ghost = ghostParams_,  .life = lifeParams_};
     }
 
     // FR-024 steps 5-6 (master gain, then the engine's output stage with the
@@ -336,6 +336,6 @@ private:
 };
 
 // FR-064: unique_ptr ownership keeps the object small; tests still heap-allocate it.
-static_assert(sizeof(Processor) < 64u * 1024u, "FR-064: the 808 KB engine must live on the heap");
+static_assert(sizeof(Processor) < std::size_t{64} * 1024u, "FR-064: the 808 KB engine must live on the heap");
 
 }  // namespace Vorago
