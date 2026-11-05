@@ -7,9 +7,9 @@ namespace Innexus {
 
 inline Krate::Plugins::UpdateCheckerConfig makeInnexusUpdateConfig() {
     return Krate::Plugins::UpdateCheckerConfig{
-        /*.pluginName =*/ stringPluginName,
-        /*.currentVersion =*/ VERSION_STR,
-        /*.endpointUrl =*/ "https://rolandzwaga.github.io/krate-audio/versions.json"
+        .pluginName = stringPluginName,
+        .currentVersion = VERSION_STR,
+        .endpointUrl = "https://rolandzwaga.github.io/krate-audio/versions.json"
     };
 }
 

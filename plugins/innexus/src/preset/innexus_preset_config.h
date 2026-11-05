@@ -16,10 +16,10 @@ namespace Innexus {
 
 inline Krate::Plugins::PresetManagerConfig makeInnexusPresetConfig() {
     return Krate::Plugins::PresetManagerConfig{
-        /*.processorUID =*/ kProcessorUID,
-        /*.pluginName =*/ "Innexus",
-        /*.pluginCategoryDesc =*/ "Instrument",
-        /*.subcategoryNames =*/ {
+        .processorUID = kProcessorUID,
+        .pluginName = "Innexus",
+        .pluginCategoryDesc = "Instrument",
+        .subcategoryNames = {
             "Voice", "Strings", "Keys", "Brass and Winds",
             "Drums and Perc", "Pads and Drones", "Found Sound"
         }

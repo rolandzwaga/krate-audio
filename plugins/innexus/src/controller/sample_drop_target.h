@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <string>
 #include <string_view>
+#include <cstdint>
 
 namespace Innexus {
 
@@ -46,7 +47,7 @@ inline bool isSupportedAudioFile(std::string_view path)
 // ==============================================================================
 // Drag state for visual feedback
 // ==============================================================================
-enum class DragState
+enum class DragState : std::uint8_t
 {
     None,
     Valid,
@@ -73,7 +74,7 @@ public:
 
 private:
     // Check if the drag data contains a supported audio file, and return its path.
-    std::string findSupportedFile(VSTGUI::IDataPackage* pkg) const
+    static std::string findSupportedFile(VSTGUI::IDataPackage* pkg)
     {
         for (auto it = VSTGUI::begin(pkg); it != VSTGUI::end(pkg); ++it)
         {
@@ -246,7 +247,7 @@ inline VSTGUI::DragOperation SampleDropTarget::onDragEnter(VSTGUI::DragEventData
     return VSTGUI::DragOperation::None;
 }
 
-inline VSTGUI::DragOperation SampleDropTarget::onDragMove(VSTGUI::DragEventData data)
+inline VSTGUI::DragOperation SampleDropTarget::onDragMove(VSTGUI::DragEventData /*data*/)
 {
     // Maintain current state; onDragEnter already set it
     if (overlay_->getDragState() == DragState::Valid)
@@ -254,7 +255,7 @@ inline VSTGUI::DragOperation SampleDropTarget::onDragMove(VSTGUI::DragEventData 
     return VSTGUI::DragOperation::None;
 }
 
-inline void SampleDropTarget::onDragLeave(VSTGUI::DragEventData data)
+inline void SampleDropTarget::onDragLeave(VSTGUI::DragEventData /*data*/)
 {
     overlay_->setDragState(DragState::None);
 }

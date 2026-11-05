@@ -19,11 +19,12 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 namespace Innexus {
 
 /// Evolution traversal modes (FR-017).
-enum class EvolutionMode : int {
+enum class EvolutionMode : std::uint8_t {
     Cycle = 0,      ///< Wrap: 1->2->3->4->1->2->...
     PingPong = 1,   ///< Bounce: 1->2->3->4->3->2->1->...
     RandomWalk = 2  ///< Random drift within depth range

@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <utility>
 
 namespace Innexus {
 
@@ -416,14 +417,14 @@ inline bool jsonToSnapshot(const std::string& json,
 
     // FR-026: numPartials must be in range [0, 48]
     if (numPartials < 0 ||
-        numPartials > static_cast<int>(Krate::DSP::kMaxPartials))
+        std::cmp_greater(numPartials, Krate::DSP::kMaxPartials))
         return false;
 
     // Validate array lengths match numPartials
-    if (static_cast<int>(relativeFreqs.size()) != numPartials) return false;
-    if (static_cast<int>(normalizedAmps.size()) != numPartials) return false;
-    if (static_cast<int>(phases.size()) != numPartials) return false;
-    if (static_cast<int>(inharmonicDeviation.size()) != numPartials)
+    if (std::cmp_not_equal(relativeFreqs.size(), numPartials)) return false;
+    if (std::cmp_not_equal(normalizedAmps.size(), numPartials)) return false;
+    if (std::cmp_not_equal(phases.size(), numPartials)) return false;
+    if (std::cmp_not_equal(inharmonicDeviation.size(), numPartials))
         return false;
 
     // Residual bands must have exactly kResidualBands entries
