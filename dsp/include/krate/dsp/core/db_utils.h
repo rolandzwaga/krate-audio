@@ -18,10 +18,11 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <numbers>
 #include <type_traits>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // ==============================================================================
 // Constants
@@ -45,7 +46,7 @@ namespace detail {
 /// wall time (measured: dsp_processors_tests 69 s -> 156 s) — which blew CI's
 /// 20-minute all-suites budget. Forcing the inline restores the old codegen:
 /// after inlining the checks are the same integer bit tests they always were.
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #define KRATE_DETAIL_FORCEINLINE __forceinline
 #else
 #define KRATE_DETAIL_FORCEINLINE inline __attribute__((always_inline))
@@ -78,7 +79,7 @@ namespace detail {
 // functions are themselves evaluated at compile time (static_assert /
 // constexpr tables), which is expected and harmless — same treatment as
 // -Wnan-infinity-disabled further down.
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wconstant-evaluated"
 #elif defined(_MSC_VER)
@@ -139,24 +140,24 @@ KRATE_DETAIL_FORCEINLINE constexpr bool isNaN(float x) noexcept {
     return (bits & 0x7FFFFFFFu) == 0x7F800000u;
 }
 
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 
 /// Natural log of 10, used in dB conversions
-constexpr float kLn10 = 2.302585093f;
+constexpr float kLn10 = std::numbers::ln10_v<float>;
 
 /// 1 / ln(10), used for log10 calculation
-constexpr float kInvLn10 = 0.434294482f;
+constexpr float kInvLn10 = std::numbers::log10e_v<float>;
 
 /// Natural log of 2. Shared by every constexprExp(x * ln 2) constant.
-constexpr float kLn2 = 0.693147181f;
+constexpr float kLn2 = std::numbers::ln2_v<float>;
 
 // Suppress -Wnan-infinity-disabled for constexpr math functions that legitimately
 // use infinity. These are evaluated at compile time, not affected by -ffast-math.
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnan-infinity-disabled"
 #endif
@@ -252,7 +253,7 @@ constexpr float constexprPow10(float x) noexcept {
     return constexprExp(x * kLn10);
 }
 
-#if defined(__clang__)
+#ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 
@@ -260,7 +261,7 @@ constexpr float constexprPow10(float x) noexcept {
 /// Denormalized floats can cause 100x CPU slowdowns on some processors.
 /// @param x Value to check
 /// @return 0 if |x| < kDenormalThreshold, otherwise x
-[[nodiscard]] inline constexpr float flushDenormal(float x) noexcept {
+[[nodiscard]] constexpr float flushDenormal(float x) noexcept {
     return (x > -kDenormalThreshold && x < kDenormalThreshold) ? 0.0f : x;
 }
 
@@ -319,5 +320,5 @@ constexpr float constexprPow10(float x) noexcept {
     return (result < kSilenceFloorDb) ? kSilenceFloorDb : result;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

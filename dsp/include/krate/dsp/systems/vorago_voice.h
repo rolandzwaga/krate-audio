@@ -147,8 +147,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 class VoragoEngine;
 class VoragoMacroMatrix;
@@ -395,7 +395,7 @@ public:
 
     // --- noise decorrelation (FR-015, B-3) ----------------------------------
     /// Second-order all-pass coefficient for the left branch.
-    static constexpr float kNoiseApCoeffL = 0.6923878f;
+    static constexpr float kNoiseApCoeffL = 0.6923878f;  // NOLINT(modernize-use-std-numbers): an allpass coefficient, not ln 2
     /// Second-order all-pass coefficient for the right branch. The pair is flat
     /// PER CHANNEL by construction; the MONO SUM is bounded, not flat (B-3).
     ///
@@ -883,7 +883,7 @@ public:
     /// proves nothing was RESIZED, while AllocationScope proves nothing was
     /// allocated. Both still run.
     [[nodiscard]] std::size_t getAllocatedBytes() const noexcept {
-        return noise_.getAllocatedBytes() + resonance_.getAllocatedBytes()
+        return noise_.getAllocatedBytes() + Krate::DSP::ResonanceDriftNetwork::getAllocatedBytes()
                + ecology_.getAllocatedBytes() + bloom_.getAllocatedBytes()
                + ecosystem_.getAllocatedBytes() + bodies_[0].getAllocatedBytes()
                + bodies_[1].getAllocatedBytes();
@@ -1127,7 +1127,7 @@ public:
     static constexpr float kLoopWakeLaneGain = 2.5f;
     [[nodiscard]] static constexpr float combineWake(float base, float eco,
                                                      float sched) noexcept {
-        return std::max(base, std::max(eco, sched));
+        return std::max({base, eco, sched});
     }
 
     // =========================================================================
@@ -2783,7 +2783,7 @@ private:
         //     this voice contributes.
         float chunkPeak = 0.0f;
         for (std::size_t s = 0; s < n; ++s) {
-            chunkPeak = std::max(chunkPeak, std::max(std::fabs(carryL_[s]), std::fabs(carryR_[s])));
+            chunkPeak = std::max({chunkPeak, std::fabs(carryL_[s]), std::fabs(carryR_[s])});
         }
         updateLevel(chunkPeak);
 
@@ -2999,5 +2999,5 @@ static_assert(sizeof(VoragoVoice) <= VoragoVoice::kVoiceSizeBound,
 static_assert(VoragoVoice::kControlChunkSamples == 64,
               "FR-007: the shared Phase 2-9 control grid");
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

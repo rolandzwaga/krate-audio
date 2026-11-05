@@ -24,8 +24,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // STFT Class
@@ -379,5 +379,5 @@ private:
     size_t samplesReady_ = 0;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

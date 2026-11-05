@@ -81,8 +81,8 @@
 #include <cstdint>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief One-shot logistic rise-and-hold envelope (Seraphis life modulator).
 ///
@@ -218,7 +218,7 @@ public:
     }
 
 private:
-    enum class Phase { Idle, Rising, Complete };
+    enum class Phase : std::uint8_t { Idle, Rising, Complete };
 
     /// Raw (un-normalized) logistic at tau.
     [[nodiscard]] static double rawLogistic(double tau) noexcept {
@@ -276,5 +276,5 @@ private:
     OnePoleSmoother outputSmoother_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

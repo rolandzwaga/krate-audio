@@ -20,11 +20,12 @@
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/pink_noise_filter.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Lightweight noise oscillator providing eight noise colors.
 ///
@@ -320,8 +321,8 @@ inline float NoiseOscillator::processBrown(float white) noexcept {
 
     // Scale output to usable level and clamp to [-1, 1]
     float output = brown_ * 5.0f;
-    if (output > 1.0f) output = 1.0f;
-    if (output < -1.0f) output = -1.0f;
+    output = std::min(output, 1.0f);
+    output = std::max(output, -1.0f);
     return output;
 }
 
@@ -332,8 +333,8 @@ inline float NoiseOscillator::processBlue(float pink) noexcept {
     prevPink_ = pink;
 
     // Clamp to [-1, 1]
-    if (blue > 1.0f) blue = 1.0f;
-    if (blue < -1.0f) blue = -1.0f;
+    blue = std::min(blue, 1.0f);
+    blue = std::max(blue, -1.0f);
     return blue;
 }
 
@@ -344,8 +345,8 @@ inline float NoiseOscillator::processViolet(float white) noexcept {
     prevWhite_ = white;
 
     // Clamp to [-1, 1]
-    if (violet > 1.0f) violet = 1.0f;
-    if (violet < -1.0f) violet = -1.0f;
+    violet = std::min(violet, 1.0f);
+    violet = std::max(violet, -1.0f);
     return violet;
 }
 
@@ -356,8 +357,8 @@ inline float NoiseOscillator::processGrey(float white) noexcept {
     grey = greyHighShelf_.process(grey);
 
     // Clamp to [-1, 1]
-    if (grey > 1.0f) grey = 1.0f;
-    if (grey < -1.0f) grey = -1.0f;
+    grey = std::min(grey, 1.0f);
+    grey = std::max(grey, -1.0f);
     return grey;
 }
 
@@ -387,8 +388,8 @@ inline float NoiseOscillator::processRadioStatic(float white) noexcept {
     float radio = radioLowPass_.process(white);
 
     // Clamp to [-1, 1]
-    if (radio > 1.0f) radio = 1.0f;
-    if (radio < -1.0f) radio = -1.0f;
+    radio = std::min(radio, 1.0f);
+    radio = std::max(radio, -1.0f);
     return radio;
 }
 
@@ -411,5 +412,5 @@ inline void NoiseOscillator::resetFilterState() noexcept {
     radioLowPass_.reset();
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

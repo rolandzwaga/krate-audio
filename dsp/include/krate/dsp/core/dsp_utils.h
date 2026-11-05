@@ -22,8 +22,8 @@
 #include "db_utils.h"
 #include "math_constants.h"
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // ==============================================================================
 // Gain Utilities - Use Krate::DSP (core/db_utils.h)
@@ -95,7 +95,7 @@ inline void clear(float* buffer, size_t numSamples) noexcept {
 // ==============================================================================
 
 /// Hard clip a sample to [-1, 1] range
-[[nodiscard]] inline constexpr float hardClip(float sample) noexcept {
+[[nodiscard]] constexpr float hardClip(float sample) noexcept {
     return std::clamp(sample, -1.0f, 1.0f);
 }
 
@@ -143,5 +143,5 @@ inline void clear(float* buffer, size_t numSamples) noexcept {
     return peak;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

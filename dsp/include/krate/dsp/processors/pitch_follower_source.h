@@ -21,10 +21,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Pitch follower modulation source.
 ///
@@ -134,7 +135,7 @@ private:
     [[nodiscard]] float hzToModValue(float hz) const noexcept {
         // Logarithmic mapping via MIDI note numbers
         // midiNote = 69 + 12 * log2(freq / 440)
-        constexpr float kLog2Inv = 1.4426950408889634f;  // 1/ln(2)
+        constexpr float kLog2Inv = std::numbers::log2e_v<float>;  // 1/ln(2)
 
         float midiNote = 69.0f + 12.0f * std::log(hz / 440.0f) * kLog2Inv;
         float minMidi = 69.0f + 12.0f * std::log(minHz_ / 440.0f) * kLog2Inv;
@@ -158,5 +159,5 @@ private:
     double sampleRate_ = 44100.0;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

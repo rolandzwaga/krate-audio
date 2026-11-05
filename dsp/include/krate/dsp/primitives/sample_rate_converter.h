@@ -19,9 +19,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // SRCInterpolationType Enum (FR-001)
@@ -281,11 +282,11 @@ private:
     /// @param bufferSize Size of buffer
     /// @param idx Index to read (may be negative or >= bufferSize)
     /// @return Clamped sample value
-    [[nodiscard]] float getSampleClamped(const float* buffer, size_t bufferSize, int idx) const noexcept {
+    [[nodiscard]] static float getSampleClamped(const float* buffer, size_t bufferSize, int idx) noexcept {
         if (idx < 0) {
             return buffer[0];
         }
-        if (static_cast<size_t>(idx) >= bufferSize) {
+        if (std::cmp_greater_equal(idx, bufferSize)) {
             return buffer[bufferSize - 1];
         }
         return buffer[static_cast<size_t>(idx)];
@@ -301,7 +302,7 @@ private:
         const float frac = position_ - static_cast<float>(intPos);
 
         // FR-019: At integer positions, return exact sample
-        if (frac == 0.0f && intPos >= 0 && static_cast<size_t>(intPos) < bufferSize) {
+        if (frac == 0.0f && intPos >= 0 && std::cmp_less(intPos, bufferSize)) {
             return buffer[static_cast<size_t>(intPos)];
         }
 
@@ -354,5 +355,5 @@ private:
     bool isComplete_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

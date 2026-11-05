@@ -42,8 +42,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // LRRatio Enumeration (FR-005)
@@ -400,7 +400,8 @@ public:
         }
 
         // Get ratio multipliers
-        float leftMult, rightMult;
+        float leftMult;
+        float rightMult;
         getRatioMultipliers(lrRatio_, leftMult, rightMult);
 
         // Sample-by-sample processing
@@ -451,7 +452,8 @@ public:
             // Cross inputs for ping-pong routing (stereoCrossBlend from Layer 0)
             // At crossAmount=1.0: left input → right delay, right input → left delay
             // This makes first echo appear on opposite channel with correct timing
-            float writeL, writeR;
+            float writeL;
+            float writeR;
             stereoCrossBlend(left[i] + feedbackL, right[i] + feedbackR,
                            currentCrossFeedback, writeL, writeR);
             delayLineL_.write(writeL);
@@ -570,5 +572,5 @@ private:
     std::array<float, kMaxDryBufferSize> dryBufferR_ = {};
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

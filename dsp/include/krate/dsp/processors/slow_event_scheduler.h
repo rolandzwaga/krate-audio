@@ -132,8 +132,8 @@
 #include <cstdint>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Seeded slow-event generator: draw a period, wait, swell, repeat.
 ///
@@ -238,7 +238,7 @@ public:
     void setIntervalRange(float minSeconds, float maxSeconds) noexcept {
         minIntervalSeconds_ = sanitizeClamp(minSeconds, kMinIntervalSeconds, kMaxIntervalSeconds);
         maxIntervalSeconds_ = sanitizeClamp(maxSeconds, kMinIntervalSeconds, kMaxIntervalSeconds);
-        if (maxIntervalSeconds_ < minIntervalSeconds_) maxIntervalSeconds_ = minIntervalSeconds_;
+        maxIntervalSeconds_ = std::max(maxIntervalSeconds_, minIntervalSeconds_);
     }
 
     /// @brief Configured (pre-fit) attack / hold / release in seconds (FR-055).
@@ -255,7 +255,7 @@ public:
     void setDepthRange(float minDepth, float maxDepth) noexcept {
         minDepth_ = sanitizeClamp(minDepth, 0.0f, 1.0f);
         maxDepth_ = sanitizeClamp(maxDepth, 0.0f, 1.0f);
-        if (maxDepth_ < minDepth_) maxDepth_ = minDepth_;
+        maxDepth_ = std::max(maxDepth_, minDepth_);
     }
 
     /// @brief Probability that an event swings NEGATIVE (FR-057).
@@ -423,7 +423,12 @@ private:
     /// f'(0) = f'(1) = f''(0) = f''(1) = 0, which is what makes all four cycle
     /// joins C2. Peak slope 1.875 at u = 0.5, peak curvature 10/sqrt(3).
     [[nodiscard]] static double riseShape(double u) noexcept {
-        const double c = (u <= 0.0) ? 0.0 : (u >= 1.0) ? 1.0 : u;
+        double c = u;
+        if (u <= 0.0) {
+            c = 0.0;  // also maps -0.0 to +0.0
+        } else if (u >= 1.0) {
+            c = 1.0;
+        }
         return c * c * c * (c * (6.0 * c - 15.0) + 10.0);
     }
 
@@ -601,5 +606,5 @@ private:
     Xorshift32 rng_{kDefaultEventSeed};
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

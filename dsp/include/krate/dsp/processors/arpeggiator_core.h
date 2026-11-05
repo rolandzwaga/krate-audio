@@ -33,6 +33,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <utility>
 
 namespace Krate::DSP {
 
@@ -43,7 +44,7 @@ namespace Krate::DSP {
 /// @brief Per-step modifier flags stored as bitmask in modifier lane.
 /// Multiple flags can be combined on a single step.
 /// If kStepActive is not set, the step is a rest (silence).
-enum ArpStepFlags : uint8_t {
+enum ArpStepFlags : uint8_t {  // NOLINT(cppcoreguidelines-use-enum-class): OR-ed into a bitmask
     kStepActive = 0x01,   ///< Note fires. Off = Rest.
     kStepTie    = 0x02,   ///< Sustain previous note, no retrigger
     kStepSlide  = 0x04,   ///< Legato noteOn, suppress previous noteOff, portamento
@@ -251,7 +252,7 @@ public:
     /// @brief Initialize for processing.
     /// @param sampleRate Sample rate in Hz (clamped to >= 1000)
     /// @param maxBlockSize Maximum block size (for validation)
-    inline void prepare(double sampleRate,
+    void prepare(double sampleRate,
                         [[maybe_unused]] size_t maxBlockSize) noexcept {
         sampleRate_ = (sampleRate >= kMinSampleRate) ? sampleRate : kMinSampleRate;
         reset();
@@ -267,7 +268,7 @@ public:
     /// stranded downstream. Call this instead whenever a deactivation flush is
     /// still outstanding: all timing state is reset for the new sample rate, but
     /// the note-off obligation survives to discharge on the next `processBlock`.
-    inline void prepareRetainingPanicNoteOff(double sampleRate,
+    void prepareRetainingPanicNoteOff(double sampleRate,
                                              size_t maxBlockSize) noexcept {
         const bool panic = panicRequested_;
         const bool disableNoteOff = needsDisableNoteOff_;
@@ -285,7 +286,7 @@ public:
     }
 
     /// @brief Reset all state to initial values. Configuration preserved.
-    inline void reset() noexcept {
+    void reset() noexcept {
         sampleCounter_ = 0;
         currentStepDuration_ = 0;
         swingStepCounter_ = 0;
@@ -310,7 +311,7 @@ public:
 
     /// @brief Handle incoming MIDI note-on.
     /// Applies latch logic (replace vs accumulate) and retrigger logic.
-    inline void noteOn(uint8_t note, uint8_t velocity) noexcept {
+    void noteOn(uint8_t note, uint8_t velocity) noexcept {
         ++physicalKeysHeld_;
 
         // Latch Hold: if currently latched (all keys were released), clear old
@@ -350,7 +351,7 @@ public:
     /// Spec 142 (T030e, FR-022): in Sequencer mode the Latch parameter is
     /// inert — the transposition root must revert on physical key release.
     /// We bypass the switch entirely and always remove the note.
-    inline void noteOff(uint8_t note) noexcept {
+    void noteOff(uint8_t note) noexcept {
         if (physicalKeysHeld_ > 0) {
             --physicalKeysHeld_;
         }
@@ -390,7 +391,7 @@ public:
 
     /// @brief Enable or disable the arpeggiator (FR-008, FR-022).
     /// Disable->enable transition resets all lane positions to step 0.
-    inline void setEnabled(bool enabled) noexcept {
+    void setEnabled(bool enabled) noexcept {
         if (enabled_ && !enabled) {
             needsDisableNoteOff_ = true;
             ratchetSubStepsRemaining_ = 0;  // 074-ratcheting: clear pending sub-steps (FR-026)
@@ -406,57 +407,57 @@ public:
 
     /// @brief Set arp mode, delegating to NoteSelector (FR-009).
     /// Also resets swingStepCounter_ to 0 so next step gets even timing.
-    inline void setMode(ArpMode mode) noexcept {
+    void setMode(ArpMode mode) noexcept {
         arpMode_ = mode;
         selector_.setMode(mode);  // setMode() calls reset() internally
         swingStepCounter_ = 0;
     }
 
     /// @brief Set octave range 1-4, delegating to NoteSelector (FR-010).
-    inline void setOctaveRange(int octaves) noexcept {
+    void setOctaveRange(int octaves) noexcept {
         selector_.setOctaveRange(std::clamp(octaves, 1, 4));
     }
 
     /// @brief Set octave traversal mode, delegating to NoteSelector (FR-011).
-    inline void setOctaveMode(OctaveMode mode) noexcept {
+    void setOctaveMode(OctaveMode mode) noexcept {
         selector_.setOctaveMode(mode);
     }
 
     /// @brief Toggle tempo sync vs free rate mode (FR-012).
-    inline void setTempoSync(bool sync) noexcept {
+    void setTempoSync(bool sync) noexcept {
         tempoSync_ = sync;
     }
 
     /// @brief Set tempo-synced step rate (FR-013).
-    inline void setNoteValue(NoteValue val, NoteModifier mod) noexcept {
+    void setNoteValue(NoteValue val, NoteModifier mod) noexcept {
         noteValue_ = val;
         noteModifier_ = mod;
     }
 
     /// @brief Set free-running rate in Hz, clamped 0.5-50.0 (FR-014).
-    inline void setFreeRate(float hz) noexcept {
+    void setFreeRate(float hz) noexcept {
         freeRateHz_ = std::clamp(hz, kMinFreeRate, kMaxFreeRate);
     }
 
     /// @brief Set gate length as percentage 1-200% (FR-015).
-    inline void setGateLength(float percent) noexcept {
+    void setGateLength(float percent) noexcept {
         gateLengthPercent_ = std::clamp(percent, kMinGateLength, kMaxGateLength);
     }
 
     /// @brief Set swing as percentage 0-75% (FR-016).
     /// Stored internally as 0.0-0.75 (divided by 100).
-    inline void setSwing(float percent) noexcept {
+    void setSwing(float percent) noexcept {
         float clamped = std::clamp(percent, kMinSwing, kMaxSwing);
         swing_ = clamped / 100.0f;
     }
 
     /// @brief Set latch mode (FR-017).
-    inline void setLatchMode(LatchMode mode) noexcept {
+    void setLatchMode(LatchMode mode) noexcept {
         latchMode_ = mode;
     }
 
     /// @brief Set retrigger mode (FR-018).
-    inline void setRetrigger(ArpRetriggerMode mode) noexcept {
+    void setRetrigger(ArpRetriggerMode mode) noexcept {
         retriggerMode_ = mode;
     }
 
@@ -520,7 +521,7 @@ public:
     /// Clamps to [kMinSteps (2), kMaxSteps (32)].
     /// Also re-clamps euclideanHits_ to [0, new step count].
     /// Regenerates the pattern bitmask.
-    inline void setEuclideanSteps(int steps) noexcept {
+    void setEuclideanSteps(int steps) noexcept {
         euclideanSteps_ = std::clamp(steps,
             EuclideanPattern::kMinSteps, EuclideanPattern::kMaxSteps);
         // Re-clamp hits against new step count
@@ -531,7 +532,7 @@ public:
     /// @brief Set the number of hit pulses in the Euclidean pattern.
     /// Clamps to [0, euclideanSteps_].
     /// Regenerates the pattern bitmask.
-    inline void setEuclideanHits(int hits) noexcept {
+    void setEuclideanHits(int hits) noexcept {
         euclideanHits_ = std::clamp(hits, 0, euclideanSteps_);
         regenerateEuclideanPattern();
     }
@@ -539,7 +540,7 @@ public:
     /// @brief Set the rotation offset for the Euclidean pattern.
     /// Clamps to [0, kMaxSteps - 1 (31)].
     /// Regenerates the pattern bitmask.
-    inline void setEuclideanRotation(int rotation) noexcept {
+    void setEuclideanRotation(int rotation) noexcept {
         euclideanRotation_ = std::clamp(rotation, 0,
             EuclideanPattern::kMaxSteps - 1);
         regenerateEuclideanPattern();
@@ -548,7 +549,7 @@ public:
     /// @brief Enable or disable Euclidean timing mode.
     /// When transitioning from disabled to enabled, resets euclideanPosition_ to 0.
     /// Does NOT clear ratchet sub-step state (in-flight sub-steps complete normally).
-    inline void setEuclideanEnabled(bool enabled) noexcept {
+    void setEuclideanEnabled(bool enabled) noexcept {
         if (!euclideanEnabled_ && enabled) {
             // Transitioning from disabled to enabled: reset position (FR-010)
             euclideanPosition_ = 0;
@@ -562,22 +563,22 @@ public:
     // =========================================================================
 
     /// @brief Check if Euclidean timing mode is enabled.
-    [[nodiscard]] inline bool euclideanEnabled() const noexcept {
+    [[nodiscard]] bool euclideanEnabled() const noexcept {
         return euclideanEnabled_;
     }
 
     /// @brief Get the number of hit pulses in the Euclidean pattern.
-    [[nodiscard]] inline int euclideanHits() const noexcept {
+    [[nodiscard]] int euclideanHits() const noexcept {
         return euclideanHits_;
     }
 
     /// @brief Get the number of steps in the Euclidean pattern.
-    [[nodiscard]] inline int euclideanSteps() const noexcept {
+    [[nodiscard]] int euclideanSteps() const noexcept {
         return euclideanSteps_;
     }
 
     /// @brief Get the rotation offset for the Euclidean pattern.
-    [[nodiscard]] inline int euclideanRotation() const noexcept {
+    [[nodiscard]] int euclideanRotation() const noexcept {
         return euclideanRotation_;
     }
 
@@ -1079,7 +1080,7 @@ private:
     /// @brief Calculate step duration in samples from current settings.
     /// Uses double precision to avoid float * double precision loss.
     /// Returns at minimum 1 sample.
-    inline size_t calculateStepDuration(const BlockContext& ctx) const noexcept {
+    size_t calculateStepDuration(const BlockContext& ctx) const noexcept {
         size_t baseDuration = 0;
         if (tempoSync_) {
             // (f) Double-precision: cast getBeatsForNote() to double before multiply
@@ -1115,7 +1116,7 @@ private:
     /// @return Offset within block (0 to blockSize-1) of the bar boundary,
     ///         or SIZE_MAX if no bar boundary falls within this block.
     /// Uses ctx.transportPositionSamples and ctx.samplesPerBar() (FR-023).
-    inline size_t detectBarBoundary(const BlockContext& ctx) const noexcept {
+    static size_t detectBarBoundary(const BlockContext& ctx) noexcept {
         const size_t barSamples = ctx.samplesPerBar();
         if (barSamples == 0) {
             return SIZE_MAX;  // Prevent division by zero
@@ -1140,7 +1141,7 @@ private:
 
         // Check if bar boundary falls within [0, blockSize)
         if (barBoundarySample >= 0 &&
-            barBoundarySample < static_cast<int64_t>(ctx.blockSize)) {
+            std::cmp_less(barBoundarySample, ctx.blockSize)) {
             return static_cast<size_t>(barBoundarySample);
         }
 
@@ -1151,7 +1152,7 @@ private:
     /// Gate duration = stepDuration * gateLengthPercent / 100 * gateLaneValue,
     /// clamped to minimum 1 sample (FR-014: ensures NoteOff always fires).
     /// @param gateLaneValue Gate lane multiplier (default 1.0f for backward compat)
-    inline size_t calculateGateDuration(float gateLaneValue = 1.0f) const noexcept {
+    size_t calculateGateDuration(float gateLaneValue = 1.0f) const noexcept {
         return std::max(size_t{1}, static_cast<size_t>(
             static_cast<double>(currentStepDuration_) *
             static_cast<double>(gateLengthPercent_) / 100.0 *
@@ -1161,7 +1162,7 @@ private:
     /// @brief Compute per-sub-step durations and gate durations with ratchet swing.
     /// Groups sub-steps into consecutive pairs and applies swingRatio to each pair.
     /// Odd remainder (count 3) keeps baseDuration for the last sub-step.
-    inline void computeSwungSubStepDurations(
+    void computeSwungSubStepDurations(
         size_t stepDuration, uint8_t ratchetCount,
         float gateScale, float gateOffsetRatio) noexcept
     {
@@ -1212,7 +1213,7 @@ private:
     }
 
     /// @brief Decrement all pending NoteOff samplesRemaining by given amount.
-    inline void decrementPendingNoteOffs(size_t samples) noexcept {
+    void decrementPendingNoteOffs(size_t samples) noexcept {
         for (size_t i = 0; i < pendingNoteOffCount_; ++i) {
             if (pendingNoteOffs_[i].samplesRemaining >= samples) {
                 pendingNoteOffs_[i].samplesRemaining -= samples;
@@ -1224,7 +1225,7 @@ private:
 
     /// @brief Emit all pending NoteOffs whose samplesRemaining == 0.
     /// Removes them from the array by compacting.
-    inline void emitDuePendingNoteOffs(int32_t sampleOffset,
+    void emitDuePendingNoteOffs(int32_t sampleOffset,
                                         std::span<ArpEvent> outputEvents,
                                         size_t& eventCount,
                                         size_t maxEvents) noexcept {
@@ -1233,10 +1234,10 @@ private:
             if (pendingNoteOffs_[i].samplesRemaining == 0) {
                 // Emit NoteOff event
                 outputEvents[eventCount++] = ArpEvent{
-                    ArpEvent::Type::NoteOff,
-                    pendingNoteOffs_[i].note,
-                    0,
-                    sampleOffset};
+                    .type = ArpEvent::Type::NoteOff,
+                    .note = pendingNoteOffs_[i].note,
+                    .velocity = 0,
+                    .sampleOffset = sampleOffset};
 
                 // Remove from currentArpNotes_ tracking
                 removeFromCurrentArpNotes(pendingNoteOffs_[i].note);
@@ -1253,7 +1254,7 @@ private:
 
     /// @brief Add a pending NoteOff to the array.
     /// If at capacity, emit the oldest one at sampleOffset 0 (overflow handling).
-    inline void addPendingNoteOff(uint8_t note, size_t samplesRemaining,
+    void addPendingNoteOff(uint8_t note, size_t samplesRemaining,
                                    std::span<ArpEvent> outputEvents,
                                    size_t& eventCount,
                                    size_t maxEvents) noexcept {
@@ -1261,10 +1262,10 @@ private:
             // Overflow: emit oldest (first entry) at sampleOffset 0
             if (eventCount < maxEvents) {
                 outputEvents[eventCount++] = ArpEvent{
-                    ArpEvent::Type::NoteOff,
-                    pendingNoteOffs_[0].note,
-                    0,
-                    0};
+                    .type = ArpEvent::Type::NoteOff,
+                    .note = pendingNoteOffs_[0].note,
+                    .velocity = 0,
+                    .sampleOffset = 0};
                 removeFromCurrentArpNotes(pendingNoteOffs_[0].note);
             }
             // Compact: shift everything down
@@ -1274,13 +1275,13 @@ private:
             --pendingNoteOffCount_;
         }
 
-        pendingNoteOffs_[pendingNoteOffCount_] = PendingNoteOff{note, samplesRemaining};
+        pendingNoteOffs_[pendingNoteOffCount_] = PendingNoteOff{.note = note, .samplesRemaining = samplesRemaining};
         ++pendingNoteOffCount_;
     }
 
     /// @brief Apply a curve transform to a normalized 0-1 velocity value.
     /// Returns the curved value (also 0-1). (v1.5 Velocity Curve)
-    [[nodiscard]] inline float applyVelocityCurve(float x) const noexcept {
+    [[nodiscard]] float applyVelocityCurve(float x) const noexcept {
         x = std::clamp(x, 0.0f, 1.0f);
         switch (velocityCurveType_) {
             case 1: // Exponential — slow rise, fast end (x^2)
@@ -1298,7 +1299,7 @@ private:
     /// @brief Precompute per-note strum offsets into strumOffsets_ for a chord.
     /// Called ONCE at the start of each chord emission. Direction is picked
     /// once per chord (important for Random/Alternate modes). (v1.5 Strum Mode)
-    inline void prepareStrumOffsets(size_t noteCount) noexcept {
+    void prepareStrumOffsets(size_t noteCount) noexcept {
         // Clear first
         strumOffsets_.fill(0);
 
@@ -1332,7 +1333,7 @@ private:
     }
 
     /// @brief Get precomputed strum offset for a note index (after prepareStrumOffsets).
-    [[nodiscard]] inline int32_t strumOffsetFor(size_t noteIndex) const noexcept {
+    [[nodiscard]] int32_t strumOffsetFor(size_t noteIndex) const noexcept {
         return (noteIndex < 32) ? strumOffsets_[noteIndex] : 0;
     }
 
@@ -1356,7 +1357,7 @@ private:
     /// Uses loopCount_ for A:B ratio and First conditions.
     /// Uses fillActive_ for Fill/NotFill conditions.
     /// Values >= kCount are treated as Always (defensive fallback).
-    inline bool evaluateCondition(uint8_t condition) noexcept {
+    bool evaluateCondition(uint8_t condition) noexcept {
         const auto cond = static_cast<TrigCondition>(condition);
         switch (cond) {
             case TrigCondition::Always:
@@ -1413,7 +1414,7 @@ private:
     /// every still-pending NoteOff, then clear both trackers.
     /// Shared by the disabled path, the empty-held-buffer path and the
     /// unconditional panic discharge -- they had three copies of this loop.
-    inline void emitPanicNoteOffs(std::span<ArpEvent> outputEvents,
+    void emitPanicNoteOffs(std::span<ArpEvent> outputEvents,
                                   size_t& eventCount,
                                   size_t maxEvents) noexcept {
         for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
@@ -1451,7 +1452,7 @@ private:
     /// 64-sample host block. Neither the processor nor MidiNoteDelay re-clamps,
     /// so such an event reaches the host out of range and is dropped -- while
     /// its gate NoteOff, scheduled in range, still fires.
-    [[nodiscard]] static inline int32_t clampOffsetToBlock(
+    [[nodiscard]] static int32_t clampOffsetToBlock(
         int32_t offset, size_t blockSize) noexcept {
         const int32_t last =
             (blockSize > 0) ? static_cast<int32_t>(blockSize) - 1 : 0;
@@ -1466,7 +1467,7 @@ private:
     /// step (which schedules no pending NoteOff) those notes would have no
     /// output NoteOff, no pending NoteOff and no tracking entry, leaving them
     /// unreleasable even by a panic flush.
-    inline void retainUnreleasedArpNotes(size_t releasedCount) noexcept {
+    void retainUnreleasedArpNotes(size_t releasedCount) noexcept {
         if (releasedCount >= currentArpNoteCount_) {
             currentArpNoteCount_ = 0;
             return;
@@ -1479,7 +1480,7 @@ private:
     }
 
     /// @brief Remove a note from the currentArpNotes_ tracking array.
-    inline void removeFromCurrentArpNotes(uint8_t note) noexcept {
+    void removeFromCurrentArpNotes(uint8_t note) noexcept {
         for (size_t i = 0; i < currentArpNoteCount_; ++i) {
             if (currentArpNotes_[i] == note) {
                 // Compact: move last to this slot
@@ -1492,7 +1493,7 @@ private:
 
     /// @brief Cancel all pending noteOffs for currently sounding notes.
     /// Used by Tie evaluation to override gate-based noteOff scheduling (FR-012).
-    inline void cancelPendingNoteOffsForCurrentNotes() noexcept {
+    void cancelPendingNoteOffsForCurrentNotes() noexcept {
         for (size_t n = 0; n < currentArpNoteCount_; ++n) {
             uint8_t note = currentArpNotes_[n];
             // Remove all pending noteOffs matching this note
@@ -1510,7 +1511,7 @@ private:
 
     /// @brief Process pending NoteOffs for the entire block when no new steps fire.
     /// Used when heldNotes_ is empty but pending NoteOffs remain.
-    inline void processPendingNoteOffsForBlock(
+    void processPendingNoteOffsForBlock(
         size_t blockSize,
         std::span<ArpEvent> outputEvents,
         size_t& eventCount,
@@ -1522,10 +1523,10 @@ private:
                 int32_t offset = static_cast<int32_t>(
                     pendingNoteOffs_[i].samplesRemaining);
                 outputEvents[eventCount++] = ArpEvent{
-                    ArpEvent::Type::NoteOff,
-                    pendingNoteOffs_[i].note,
-                    0,
-                    offset};
+                    .type = ArpEvent::Type::NoteOff,
+                    .note = pendingNoteOffs_[i].note,
+                    .velocity = 0,
+                    .sampleOffset = offset};
                 removeFromCurrentArpNotes(pendingNoteOffs_[i].note);
                 // Compact
                 pendingNoteOffs_[i] = pendingNoteOffs_[pendingNoteOffCount_ - 1];
@@ -1543,7 +1544,7 @@ private:
 
     /// @brief Regenerate the Euclidean pattern bitmask from current parameters.
     /// Called by setters and constructor to keep euclideanPattern_ in sync.
-    inline void regenerateEuclideanPattern() noexcept {
+    void regenerateEuclideanPattern() noexcept {
         euclideanPattern_ = EuclideanPattern::generate(
             euclideanHits_, euclideanSteps_, euclideanRotation_);
     }

@@ -269,7 +269,8 @@ public:
             crossfadePosition_ += crossfadeIncrement_;
 
             // Calculate equal-power gains from position
-            float fadeOut, fadeIn;
+            float fadeOut;
+            float fadeIn;
             equalPowerGains(crossfadePosition_, fadeOut, fadeIn);
 
             if (activeIsTapA_) {

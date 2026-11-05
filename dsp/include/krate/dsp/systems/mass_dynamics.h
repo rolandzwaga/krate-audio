@@ -217,7 +217,10 @@ public:
             // 1. Sanitise (FR-017): one substituted 0.0f for the audio path and the detection path,
             //    so the DynamicsProcessor's own NaN / Inf branch is never reached.
             const float xL = detail::isFinite(left[i]) ? left[i] : 0.0f;
-            const float xR = mono ? xL : (detail::isFinite(right[i]) ? right[i] : 0.0f);
+            float xR = xL;
+            if (!mono) {
+                xR = detail::isFinite(right[i]) ? right[i] : 0.0f;
+            }
             // 2.-4., 6. (advanceGain) then 5. the application. Phase 9 T029 factored the loop body into
             // advanceGain() so the opt-in can compute the gain without applying it; bit-identical here.
             advanceGain(xL, xR, mono);
@@ -330,7 +333,7 @@ private:
 
     /// Corner target for a key (FR-018): log2(clamp(2·f0, 20, 500)), or log2(80) for "no voice".
     [[nodiscard]] static float cornerTargetLog2For(float keyHz) noexcept {
-        if (!(detail::isFinite(keyHz) && keyHz > 0.0f))
+        if (!detail::isFinite(keyHz) || keyHz <= 0.0f)
             return std::log2(kFallbackCornerHz);
         return std::log2(std::clamp(2.0f * keyHz, kMinCornerHz, kMaxCornerHz));
     }
@@ -714,7 +717,10 @@ private:
                 // showed the compressor's reading is detector gain jitter, which inner-rate detection removes
                 // (-91 dBFS at 4x). The gain computer, the gain application and the trim stay at the base rate.
                 const float xL = detail::isFinite(left[pos + k]) ? left[pos + k] : 0.0f;
-                const float xR = mono ? xL : (detail::isFinite(right[pos + k]) ? right[pos + k] : 0.0f);
+                float xR = xL;
+                if (!mono) {
+                    xR = detail::isFinite(right[pos + k]) ? right[pos + k] : 0.0f;
+                }
                 osL_.upsample(xL, upL_.data());
                 if (!mono)
                     osR_.upsample(xR, upR_.data());

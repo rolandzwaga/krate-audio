@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <krate/dsp/core/polyblep.h>
 #include <krate/dsp/core/phase_utils.h>
 #include <krate/dsp/core/math_constants.h>
@@ -26,8 +27,8 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // OscWaveform Enumeration (FR-001, FR-002)
@@ -93,7 +94,7 @@ public:
     /// @brief Initialize the oscillator for the given sample rate.
     /// Resets all internal state. NOT real-time safe.
     /// @param sampleRate Sample rate in Hz (e.g., 44100.0, 48000.0, 96000.0)
-    inline void prepare(double sampleRate) noexcept {
+    void prepare(double sampleRate) noexcept {
         sampleRate_ = static_cast<float>(sampleRate);
         frequency_ = 440.0f;
         pulseWidth_ = 0.5f;
@@ -113,7 +114,7 @@ public:
     /// @brief Reset phase and internal state without changing configuration.
     /// Resets: phase to 0, integrator to 0, phaseWrapped to false, FM/PM to 0.
     /// Preserves: frequency, waveform, pulse width, sample rate.
-    inline void reset() noexcept {
+    void reset() noexcept {
         phaseAcc_.reset();
         integrator_ = 0.0f;
         fmOffset_ = 0.0f;
@@ -128,14 +129,20 @@ public:
     /// @brief Set the oscillator frequency in Hz.
     /// Silently clamped to [0, sampleRate/2) to satisfy PolyBLEP precondition.
     /// @param hz Frequency in Hz
-    inline void setFrequency(float hz) noexcept {
+    void setFrequency(float hz) noexcept {
         // Guard against NaN/Inf (FR-033)
         if (detail::isNaN(hz) || detail::isInf(hz)) {
             hz = 0.0f;
         }
         // Clamp to [0, sampleRate/2) (FR-006)
         const float nyquist = sampleRate_ * 0.5f;
-        frequency_ = (hz < 0.0f) ? 0.0f : ((hz >= nyquist) ? (nyquist - 0.001f) : hz);
+        if (hz < 0.0f) {
+            frequency_ = 0.0f;
+        } else if (hz >= nyquist) {
+            frequency_ = nyquist - 0.001f;
+        } else {
+            frequency_ = hz;
+        }
         updatePhaseIncrement();
     }
 
@@ -143,7 +150,7 @@ public:
     /// When switching away from or to Triangle, the leaky integrator state is cleared.
     /// Phase is maintained for continuity.
     /// @param waveform The waveform to generate
-    inline void setWaveform(OscWaveform waveform) noexcept {
+    void setWaveform(OscWaveform waveform) noexcept {
         // Clear integrator when entering or leaving Triangle (FR-007)
         if (waveform_ == OscWaveform::Triangle || waveform == OscWaveform::Triangle) {
             integrator_ = 0.0f;
@@ -154,9 +161,9 @@ public:
     /// @brief Set the pulse width for the Pulse waveform.
     /// Silently clamped to [0.01, 0.99]. Has no effect on other waveforms.
     /// @param width Duty cycle (0.5 = square wave)
-    inline void setPulseWidth(float width) noexcept {
+    void setPulseWidth(float width) noexcept {
         // Clamp to [0.01, 0.99] (FR-008)
-        pulseWidth_ = (width < 0.01f) ? 0.01f : ((width > 0.99f) ? 0.99f : width);
+        pulseWidth_ = std::clamp(width, 0.01f, 0.99f);
     }
 
     // =========================================================================
@@ -166,7 +173,7 @@ public:
     /// @brief Generate and return one sample of anti-aliased output.
     /// Real-time safe: no allocation, no exceptions, no blocking, no I/O.
     /// @return Audio sample, nominally in [-1, 1] with small PolyBLEP overshoot
-    [[nodiscard]] inline float process() noexcept {
+    [[nodiscard]] float process() noexcept {
         // Compute effective frequency with FM offset (FR-021)
         float effectiveFreq = frequency_ + fmOffset_;
 
@@ -177,8 +184,11 @@ public:
 
         // Clamp effective frequency to [0, sampleRate/2)
         const float nyquist = sampleRate_ * 0.5f;
-        effectiveFreq = (effectiveFreq < 0.0f) ? 0.0f
-                      : ((effectiveFreq >= nyquist) ? (nyquist - 0.001f) : effectiveFreq);
+        if (effectiveFreq < 0.0f) {
+            effectiveFreq = 0.0f;
+        } else if (effectiveFreq >= nyquist) {
+            effectiveFreq = nyquist - 0.001f;
+        }
 
         // Compute dt for this sample
         const float dt = (sampleRate_ > 0.0f) ? (effectiveFreq / sampleRate_) : 0.0f;
@@ -273,7 +283,7 @@ public:
     /// Result is identical to calling process() that many times (SC-008).
     /// @param output Pointer to output buffer (must hold numSamples floats)
     /// @param numSamples Number of samples to generate (0 = no-op)
-    inline void processBlock(float* output, size_t numSamples) noexcept {
+    void processBlock(float* output, size_t numSamples) noexcept {
         for (size_t i = 0; i < numSamples; ++i) {
             output[i] = process();
         }
@@ -285,13 +295,13 @@ public:
 
     /// @brief Get the current phase position.
     /// @return Phase in [0, 1), representing the oscillator's position in the cycle
-    [[nodiscard]] inline double phase() const noexcept {
+    [[nodiscard]] double phase() const noexcept {
         return phaseAcc_.phase;
     }
 
     /// @brief Check if the most recent process() call produced a phase wrap.
     /// @return true if the phase crossed from near-1.0 to near-0.0
-    [[nodiscard]] inline bool phaseWrapped() const noexcept {
+    [[nodiscard]] bool phaseWrapped() const noexcept {
         return phaseWrapped_;
     }
 
@@ -299,7 +309,7 @@ public:
     /// Value is wrapped to [0, 1) if outside range.
     /// When used for hard sync, the Triangle integrator state is preserved (FR-019).
     /// @param newPhase Phase position (default: 0.0)
-    inline void resetPhase(double newPhase = 0.0) noexcept {
+    void resetPhase(double newPhase = 0.0) noexcept {
         phaseAcc_.phase = wrapPhase(newPhase);
     }
 
@@ -311,7 +321,7 @@ public:
     /// Converted from radians to normalized [0, 1) internally.
     /// Does NOT accumulate between samples -- set before each process() call.
     /// @param radians Phase offset in radians
-    inline void setPhaseModulation(float radians) noexcept {
+    void setPhaseModulation(float radians) noexcept {
         pmOffset_ = radians;
     }
 
@@ -319,20 +329,20 @@ public:
     /// Effective frequency is clamped to [0, sampleRate/2).
     /// Does NOT accumulate between samples -- set before each process() call.
     /// @param hz Frequency offset in Hz (can be negative)
-    inline void setFrequencyModulation(float hz) noexcept {
+    void setFrequencyModulation(float hz) noexcept {
         fmOffset_ = hz;
     }
 
 private:
     /// @brief Update the cached phase increment from current frequency and sample rate.
-    inline void updatePhaseIncrement() noexcept {
+    void updatePhaseIncrement() noexcept {
         dt_ = (sampleRate_ > 0.0f) ? (frequency_ / sampleRate_) : 0.0f;
         phaseAcc_.increment = static_cast<double>(dt_);
     }
 
     /// @brief Branchless output sanitization (FR-036).
     /// NaN detection via bit manipulation, clamp to [-2.0, 2.0].
-    [[nodiscard]] static inline float sanitize(float x) noexcept {
+    [[nodiscard]] static float sanitize(float x) noexcept {
         // NaN check via bit manipulation, read through the fast-math barrier
         // (a plain bit_cast is foldable under newer fast-math compilers)
         const auto bits = detail::opaqueFloatBits(x);
@@ -358,5 +368,5 @@ private:
     bool phaseWrapped_ = false;                        // Last process() produced a wrap
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

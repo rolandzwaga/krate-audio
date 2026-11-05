@@ -75,6 +75,7 @@
 #include <cstdint>
 #include <cstring>
 #include <span>
+#include <utility>
 
 namespace Krate::DSP {
 
@@ -643,7 +644,7 @@ private:
     /// The exact float a MIDI note's frequency is (POLY f_res source); -1 when none matches (the Phase 4 harness's
     /// noteFromFrequency, profundum_note_behaviour_test_helpers.h:415-421).
     [[nodiscard]] static int noteFromFrequency(float hz) noexcept {
-        for (int n = 0; n < static_cast<int>(kNumMidiNotes); ++n) {
+        for (int n = 0; std::cmp_less(n, kNumMidiNotes); ++n) {
             if (midiNoteToFrequency(n) == hz)
                 return n;
         }
@@ -846,9 +847,10 @@ private:
             if (!mev.isNoteOn)
                 return;
             monoActiveNote_ = noteFromFrequency(mev.frequency);
-            const NoteMemory::Transition t = !audible ? NoteMemory::Transition::FromSilence
-                                                      : (wasHeld ? NoteMemory::Transition::Overlap
-                                                                 : NoteMemory::Transition::Tail);
+            NoteMemory::Transition t = NoteMemory::Transition::FromSilence;
+            if (audible) {
+                t = wasHeld ? NoteMemory::Transition::Overlap : NoteMemory::Transition::Tail;
+            }
             followsMono_[0] = true;
             v0.noteEvent(t, 0.0f, false);   // fNote unused in MONO: f_res is the portamento trajectory
             return;
@@ -865,10 +867,10 @@ private:
                     break;
                 case VoiceEvent::Type::NoteOn: {
                     ProfundumVoice& voice = voices_[v];
-                    const NoteMemory::Transition t =
-                        stolen[v] ? NoteMemory::Transition::VoiceReuse
-                                  : (voice.audible() ? NoteMemory::Transition::Tail
-                                                     : NoteMemory::Transition::FromSilence);
+                    NoteMemory::Transition t = NoteMemory::Transition::VoiceReuse;
+                    if (!stolen[v]) {
+                        t = voice.audible() ? NoteMemory::Transition::Tail : NoteMemory::Transition::FromSilence;
+                    }
                     followsMono_[v] = false;
                     // C-11: midiNoteToFrequency(note), not VoiceEvent::frequency (the allocator's own tuning).
                     voice.noteEvent(t, midiNoteToFrequency(static_cast<int>(e.note)), stolen[v]);
@@ -892,7 +894,7 @@ private:
                 monoActiveNote_ = -1;
                 return;
             }
-            if (static_cast<int>(note) != monoActiveNote_)
+            if (std::cmp_not_equal(note, monoActiveNote_))
                 return;   // a non-active held key changes nothing
             monoActiveNote_ = noteFromFrequency(mev.frequency);
             followsMono_[0] = true;

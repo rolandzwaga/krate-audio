@@ -112,7 +112,7 @@ public:
                 activeList_[count++] = &grain;
             }
         }
-        return std::span<Grain* const>(activeList_.data(), count);
+        return {activeList_.data(), count};
     }
 
     /// Get count of active grains

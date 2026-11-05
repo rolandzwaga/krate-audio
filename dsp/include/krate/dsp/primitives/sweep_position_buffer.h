@@ -19,8 +19,8 @@
 #include <atomic>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // Forward declaration of SweepFalloff (defined in plugin)
 // Using uint8_t to avoid circular dependency
@@ -254,5 +254,5 @@ private:
     std::atomic<int> elementCount_{0};  // Shared between threads
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

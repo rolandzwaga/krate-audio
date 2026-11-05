@@ -44,8 +44,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // BBDChipModel Enumeration (FR-024 to FR-029)
@@ -136,10 +136,10 @@ public:
         float noiseDb;
         float makeupDb;
     };
-    static constexpr ChipSpec kMN3005Spec{4096.0f, 0.10f, 0.0f, 0.0f};    ///< Clean, quiet
-    static constexpr ChipSpec kMN3007Spec{1024.0f, 0.15f, 2.0f, -0.3f};   ///< Short chip, clean
-    static constexpr ChipSpec kMN3205Spec{4096.0f, 0.70f, 4.0f, -3.1f};   ///< Low headroom
-    static constexpr ChipSpec kSAD1024Spec{1024.0f, 0.90f, 12.0f, -4.0f}; ///< Dirty and hissy
+    static constexpr ChipSpec kMN3005Spec{.stages = 4096.0f, .drive = 0.10f, .noiseDb = 0.0f, .makeupDb = 0.0f};    ///< Clean, quiet
+    static constexpr ChipSpec kMN3007Spec{.stages = 1024.0f, .drive = 0.15f, .noiseDb = 2.0f, .makeupDb = -0.3f};   ///< Short chip, clean
+    static constexpr ChipSpec kMN3205Spec{.stages = 4096.0f, .drive = 0.70f, .noiseDb = 4.0f, .makeupDb = -3.1f};   ///< Low headroom
+    static constexpr ChipSpec kSAD1024Spec{.stages = 1024.0f, .drive = 0.90f, .noiseDb = 12.0f, .makeupDb = -4.0f}; ///< Dirty and hissy
 
     // =========================================================================
     // Construction / Destruction
@@ -681,5 +681,5 @@ private:
     std::array<float, kMaxDryBufferSize> dryBufferR_ = {};
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

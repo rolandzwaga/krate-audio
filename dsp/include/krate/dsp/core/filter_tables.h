@@ -15,8 +15,8 @@
 #include <array>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Vowel Enum (FR-005)
@@ -85,19 +85,19 @@ struct FormantData {
 /// ```
 inline constexpr std::array<FormantData, kNumVowels> kVowelFormants = {{
     // Vowel A: F1=600, F2=1040, F3=2250, F4=3300, F5=4500 Hz
-    {600.0f, 1040.0f, 2250.0f, 3300.0f, 4500.0f, 60.0f, 70.0f, 110.0f, 250.0f, 300.0f},
+    {.f1 = 600.0f, .f2 = 1040.0f, .f3 = 2250.0f, .f4 = 3300.0f, .f5 = 4500.0f, .bw1 = 60.0f, .bw2 = 70.0f, .bw3 = 110.0f, .bw4 = 250.0f, .bw5 = 300.0f},
 
     // Vowel E: F1=400, F2=1620, F3=2400, F4=3200, F5=4400 Hz
-    {400.0f, 1620.0f, 2400.0f, 3200.0f, 4400.0f, 40.0f, 80.0f, 100.0f, 200.0f, 280.0f},
+    {.f1 = 400.0f, .f2 = 1620.0f, .f3 = 2400.0f, .f4 = 3200.0f, .f5 = 4400.0f, .bw1 = 40.0f, .bw2 = 80.0f, .bw3 = 100.0f, .bw4 = 200.0f, .bw5 = 280.0f},
 
     // Vowel I: F1=250, F2=1750, F3=2600, F4=3350, F5=4700 Hz
-    {250.0f, 1750.0f, 2600.0f, 3350.0f, 4700.0f, 60.0f, 90.0f, 100.0f, 250.0f, 300.0f},
+    {.f1 = 250.0f, .f2 = 1750.0f, .f3 = 2600.0f, .f4 = 3350.0f, .f5 = 4700.0f, .bw1 = 60.0f, .bw2 = 90.0f, .bw3 = 100.0f, .bw4 = 250.0f, .bw5 = 300.0f},
 
     // Vowel O: F1=400, F2=750, F3=2400, F4=3300, F5=4500 Hz
-    {400.0f, 750.0f, 2400.0f, 3300.0f, 4500.0f, 40.0f, 80.0f, 100.0f, 250.0f, 300.0f},
+    {.f1 = 400.0f, .f2 = 750.0f, .f3 = 2400.0f, .f4 = 3300.0f, .f5 = 4500.0f, .bw1 = 40.0f, .bw2 = 80.0f, .bw3 = 100.0f, .bw4 = 250.0f, .bw5 = 300.0f},
 
     // Vowel U: F1=350, F2=600, F3=2400, F4=3300, F5=4500 Hz
-    {350.0f, 600.0f, 2400.0f, 3300.0f, 4500.0f, 40.0f, 80.0f, 100.0f, 250.0f, 300.0f},
+    {.f1 = 350.0f, .f2 = 600.0f, .f3 = 2400.0f, .f4 = 3300.0f, .f5 = 4500.0f, .bw1 = 40.0f, .bw2 = 80.0f, .bw3 = 100.0f, .bw4 = 250.0f, .bw5 = 300.0f},
 }};
 
 // =============================================================================
@@ -116,9 +116,9 @@ inline constexpr std::array<FormantData, kNumVowels> kVowelFormants = {{
 /// const auto& formant = getFormant(Vowel::I);
 /// // Use formant.f1, formant.f2, formant.f3 to configure bandpass filters
 /// ```
-[[nodiscard]] inline constexpr const FormantData& getFormant(Vowel v) noexcept {
+[[nodiscard]] constexpr const FormantData& getFormant(Vowel v) noexcept {
     return kVowelFormants[static_cast<size_t>(v)];
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -98,16 +98,7 @@ public:
     /// @brief Default constructor (FR-001).
     /// Pre-allocates all internal data structures. No heap allocation.
     PolySynthEngine() noexcept
-        : mode_(VoiceMode::Poly)
-        , polyphonyCount_(8)
-        , masterGain_(1.0f)
-        , gainCompensation_(1.0f / std::sqrt(8.0f))
-        , softLimitEnabled_(true)
-        , globalFilterEnabled_(false)
-        , sampleRate_(0.0)
-        , prepared_(false)
-        , timestampCounter_(0)
-        , monoVoiceNote_(-1)
+        : gainCompensation_(1.0f / std::sqrt(8.0f))
     {
         noteOnTimestamps_.fill(0);
     }
@@ -207,8 +198,8 @@ public:
     /// @param count Number of voices to use
     void setPolyphony(size_t count) noexcept {
         // Clamp to valid range
-        if (count < 1) count = 1;
-        if (count > kMaxPolyphony) count = kMaxPolyphony;
+        count = std::max<size_t>(count, 1);
+        count = std::min(count, kMaxPolyphony);
 
         polyphonyCount_ = count;
 
@@ -607,10 +598,7 @@ private:
                     noteOnTimestamps_[event.voiceIndex] = ++timestampCounter_;
                     break;
                 }
-                case VoiceEvent::Type::Steal: {
-                    voices_[event.voiceIndex].noteOff();
-                    break;
-                }
+                case VoiceEvent::Type::Steal:
                 case VoiceEvent::Type::NoteOff: {
                     voices_[event.voiceIndex].noteOff();
                     break;
@@ -875,17 +863,17 @@ private:
     // State
     // =========================================================================
 
-    VoiceMode mode_;
-    size_t polyphonyCount_;
-    float masterGain_;
+    VoiceMode mode_{VoiceMode::Poly};
+    size_t polyphonyCount_{8};
+    float masterGain_{1.0f};
     float gainCompensation_;
-    bool softLimitEnabled_;
-    bool globalFilterEnabled_;
-    double sampleRate_;
-    bool prepared_;
-    uint64_t timestampCounter_;
-    std::array<uint64_t, kMaxPolyphony> noteOnTimestamps_;
-    int8_t monoVoiceNote_;
+    bool softLimitEnabled_{true};
+    bool globalFilterEnabled_{false};
+    double sampleRate_{0.0};
+    bool prepared_{false};
+    uint64_t timestampCounter_{0};
+    std::array<uint64_t, kMaxPolyphony> noteOnTimestamps_{};
+    int8_t monoVoiceNote_{-1};
 };
 
 } // namespace Krate::DSP

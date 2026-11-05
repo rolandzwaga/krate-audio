@@ -27,8 +27,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Olli Niemitalo Hilbert Transform Coefficients
@@ -57,7 +57,7 @@ namespace {
 /// Path 1 (In-phase): Odd-indexed coefficients from Niemitalo table (a1,a3,a5,a7)
 /// "The ones with odd index go in one path" - 1-sample delay AFTER this cascade
 constexpr float kHilbertPath1Coeffs[4] = {
-    0.6923878f,           // a1
+    0.6923878f,           // a1. NOLINT(modernize-use-std-numbers): an allpass coefficient, not ln 2
     0.9360654322959f,     // a3
     0.9882295226860f,     // a5
     0.9987488452737f      // a7
@@ -199,7 +199,7 @@ public:
         // FR-019: NaN/Inf check
         if (detail::isNaN(input) || detail::isInf(input)) {
             reset();
-            return HilbertOutput{0.0f, 0.0f};
+            return HilbertOutput{.i = 0.0f, .q = 0.0f};
         }
 
         // Niemitalo Hilbert transform structure:
@@ -272,7 +272,7 @@ public:
         if (std::abs(outQ) < kHilbertDenormalThreshold) outQ = 0.0f;
         if (std::abs(delay_) < kHilbertDenormalThreshold) delay_ = 0.0f;
 
-        return HilbertOutput{outI, outQ};
+        return HilbertOutput{.i = outI, .q = outQ};
     }
 
     /// Process a block of samples.
@@ -317,7 +317,7 @@ public:
     ///
     /// @return Fixed latency of 5 samples
     /// @note FR-016
-    [[nodiscard]] int getLatencySamples() const noexcept {
+    [[nodiscard]] static int getLatencySamples() noexcept {
         return kHilbertLatencySamples;
     }
 
@@ -346,5 +346,5 @@ private:
     double sampleRate_ = 44100.0;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

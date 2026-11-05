@@ -9,7 +9,7 @@
       "scope": "Krate::DSP::Rectifier",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/rectifier.h",
-      "line": 68
+      "line": 69
     },
     {
       "name": "Actions",
@@ -113,7 +113,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/anchor_oscillator.h",
-      "line": 55
+      "line": 56
     },
     {
       "name": "ArpeggiatorCore",
@@ -121,7 +121,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 152
+      "line": 153
     },
     {
       "name": "ArpEvent",
@@ -129,7 +129,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 114
+      "line": 115
     },
     {
       "name": "ArpLane",
@@ -145,7 +145,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/held_note_buffer.h",
-      "line": 68
+      "line": 69
     },
     {
       "name": "AtmosphereEngine",
@@ -217,7 +217,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 76
+      "line": 78
     },
     {
       "name": "BassCompressor",
@@ -297,7 +297,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 882
+      "line": 884
     },
     {
       "name": "BitwiseMangler",
@@ -329,7 +329,7 @@
       "scope": "Krate::DSP::SeraphisEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/seraphis_engine.h",
-      "line": 293
+      "line": 294
     },
     {
       "name": "BodyMode",
@@ -361,7 +361,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/bow_exciter.h",
-      "line": 60
+      "line": 61
     },
     {
       "name": "BracketEnds",
@@ -377,7 +377,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 165
+      "line": 167
     },
     {
       "name": "BreathingModulator",
@@ -385,7 +385,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/breathing_modulator.h",
-      "line": 105
+      "line": 106
     },
     {
       "name": "BrownianDrift",
@@ -409,7 +409,7 @@
       "scope": "Krate::DSP::MultiSourceSieve",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/multi_source_sieve.h",
-      "line": 79
+      "line": 80
     },
     {
       "name": "CandidateResult",
@@ -425,7 +425,7 @@
       "scope": "Krate::DSP",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/cavern_verb.h",
-      "line": 193
+      "line": 192
     },
     {
       "name": "Channel",
@@ -441,7 +441,7 @@
       "scope": "Krate::DSP::Rectifier",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/rectifier.h",
-      "line": 218
+      "line": 219
     },
     {
       "name": "Channel",
@@ -585,7 +585,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/continuous_body.h",
-      "line": 71
+      "line": 72
     },
     {
       "name": "Controls",
@@ -601,7 +601,7 @@
       "scope": "Krate::DSP::AnchorOscillator",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/anchor_oscillator.h",
-      "line": 99
+      "line": 100
     },
     {
       "name": "Controls",
@@ -617,7 +617,7 @@
       "scope": "Krate::DSP::RingSaturation",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/ring_saturation.h",
-      "line": 304
+      "line": 300
     },
     {
       "name": "CrossfadingDelayLine",
@@ -705,7 +705,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/dc_blocker.h",
-      "line": 94
+      "line": 95
     },
     {
       "name": "DCBlocker2",
@@ -713,7 +713,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/dc_blocker.h",
-      "line": 282
+      "line": 276
     },
     {
       "name": "DecayCloud",
@@ -721,7 +721,7 @@
       "scope": "Krate::DSP::ContinuousBody",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/continuous_body.h",
-      "line": 1995
+      "line": 1996
     },
     {
       "name": "DelayedSpectrum",
@@ -737,7 +737,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/delay_engine.h",
-      "line": 50
+      "line": 51
     },
     {
       "name": "DelayLine",
@@ -793,7 +793,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/distortion_rack.h",
-      "line": 182
+      "line": 190
     },
     {
       "name": "DriftLaneRng",
@@ -809,7 +809,7 @@
       "scope": "Krate::DSP::HarmonicCloud",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/harmonic_cloud.h",
-      "line": 1125
+      "line": 1126
     },
     {
       "name": "DroneHead",
@@ -873,7 +873,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 2850
+      "line": 2844
     },
     {
       "name": "DurationPoint",
@@ -905,7 +905,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 519
+      "line": 520
     },
     {
       "name": "EarlyTap",
@@ -913,7 +913,7 @@
       "scope": "Krate::DSP::CavernVerb",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/cavern_verb.h",
-      "line": 848
+      "line": 847
     },
     {
       "name": "EcosystemEngine",
@@ -1001,7 +1001,7 @@
       "scope": "Krate::DSP::ProfundumCore",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_core.h",
-      "line": 1419
+      "line": 1420
     },
     {
       "name": "ExcitationControls",
@@ -1009,7 +1009,7 @@
       "scope": "Krate::DSP::ProfundumCore",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_core.h",
-      "line": 362
+      "line": 363
     },
     {
       "name": "F0Estimate",
@@ -1017,7 +1017,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/harmonic_types.h",
-      "line": 26
+      "line": 27
     },
     {
       "name": "FDNReverb",
@@ -1049,7 +1049,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/feedback_ecology.h",
-      "line": 185
+      "line": 186
     },
     {
       "name": "FeedbackNetwork",
@@ -1105,7 +1105,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/filter_feedback_matrix.h",
-      "line": 72
+      "line": 73
     },
     {
       "name": "FilterStepSequencer",
@@ -1113,7 +1113,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/filter_step_sequencer.h",
-      "line": 105
+      "line": 106
     },
     {
       "name": "Flanger",
@@ -1137,7 +1137,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 139
+      "line": 141
     },
     {
       "name": "FMOperator",
@@ -1153,7 +1153,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/fm_voice.h",
-      "line": 287
+      "line": 283
     },
     {
       "name": "FOFGrain",
@@ -1169,7 +1169,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 766
+      "line": 768
     },
     {
       "name": "FormantData",
@@ -1313,7 +1313,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/grain_processor.h",
-      "line": 27
+      "line": 28
     },
     {
       "name": "GrainPool",
@@ -1329,7 +1329,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/grain_processor.h",
-      "line": 39
+      "line": 40
     },
     {
       "name": "GrainScheduler",
@@ -1417,7 +1417,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/hard_clip_polyblamp.h",
-      "line": 41
+      "line": 42
     },
     {
       "name": "HarmonicBalanceMeter",
@@ -1433,7 +1433,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/harmonic_cloud.h",
-      "line": 127
+      "line": 128
     },
     {
       "name": "HarmonicFold",
@@ -1449,7 +1449,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/harmonic_types.h",
-      "line": 54
+      "line": 55
     },
     {
       "name": "HarmonicModelBuilder",
@@ -1465,7 +1465,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h",
-      "line": 75
+      "line": 76
     },
     {
       "name": "HarmonicSnapshot",
@@ -1489,7 +1489,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/held_note_buffer.h",
-      "line": 34
+      "line": 35
     },
     {
       "name": "HeldNoteBuffer",
@@ -1497,7 +1497,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/held_note_buffer.h",
-      "line": 87
+      "line": 88
     },
     {
       "name": "HilbertOutput",
@@ -1521,7 +1521,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 939
+      "line": 941
     },
     {
       "name": "HouseholderMatrix",
@@ -1537,7 +1537,7 @@
       "scope": "Krate::DSP",
       "layer": "core",
       "header": "dsp/include/krate/dsp/core/hungarian_algorithm.h",
-      "line": 35
+      "line": 36
     },
     {
       "name": "IdentityLanes",
@@ -1625,7 +1625,7 @@
       "scope": "Krate::DSP::HarmonicCloud",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/harmonic_cloud.h",
-      "line": 1121
+      "line": 1122
     },
     {
       "name": "LeakyIntegrator",
@@ -1633,7 +1633,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/one_pole.h",
-      "line": 279
+      "line": 285
     },
     {
       "name": "LFO",
@@ -1649,7 +1649,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/smoother.h",
-      "line": 305
+      "line": 303
     },
     {
       "name": "LinearReader",
@@ -1673,7 +1673,7 @@
       "scope": "Krate::DSP::FeedbackEcology",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/feedback_ecology.h",
-      "line": 1591
+      "line": 1592
     },
     {
       "name": "LowpassBiquadD",
@@ -1705,7 +1705,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/mass_dynamics.h",
-      "line": 525
+      "line": 528
     },
     {
       "name": "MassLaw",
@@ -1721,7 +1721,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/modal_resonator.h",
-      "line": 91
+      "line": 92
     },
     {
       "name": "MaterialProfile",
@@ -1729,7 +1729,7 @@
       "scope": "Krate::DSP::ContinuousBody",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/continuous_body.h",
-      "line": 673
+      "line": 674
     },
     {
       "name": "MatrixMorph",
@@ -1785,7 +1785,7 @@
       "scope": "Krate::DSP::AnchorOscillator",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/anchor_oscillator.h",
-      "line": 109
+      "line": 110
     },
     {
       "name": "ModalData",
@@ -1793,7 +1793,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/modal_resonator.h",
-      "line": 73
+      "line": 74
     },
     {
       "name": "ModalResonator",
@@ -1801,7 +1801,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/modal_resonator.h",
-      "line": 152
+      "line": 153
     },
     {
       "name": "ModalResonatorBank",
@@ -1889,7 +1889,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 1355
+      "line": 1357
     },
     {
       "name": "MorphState",
@@ -1929,7 +1929,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/harmonic_types.h",
-      "line": 74
+      "line": 75
     },
     {
       "name": "MultimodeFilter",
@@ -1945,7 +1945,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/multi_pitch_detector.h",
-      "line": 49
+      "line": 50
     },
     {
       "name": "MultiSourceSieve",
@@ -1953,7 +1953,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/multi_source_sieve.h",
-      "line": 36
+      "line": 37
     },
     {
       "name": "MultiStageEnvelope",
@@ -2025,7 +2025,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/noise_oscillator.h",
-      "line": 69
+      "line": 70
     },
     {
       "name": "NoteEntry",
@@ -2041,7 +2041,7 @@
       "scope": "Krate::DSP::VoiceAllocator",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/voice_allocator.h",
-      "line": 732
+      "line": 731
     },
     {
       "name": "NoteMemory",
@@ -2073,7 +2073,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/held_note_buffer.h",
-      "line": 226
+      "line": 227
     },
     {
       "name": "NoteValueMapping",
@@ -2081,7 +2081,7 @@
       "scope": "Krate::DSP",
       "layer": "core",
       "header": "dsp/include/krate/dsp/core/note_value.h",
-      "line": 129
+      "line": 130
     },
     {
       "name": "Offsets",
@@ -2105,7 +2105,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/one_pole.h",
-      "line": 175
+      "line": 178
     },
     {
       "name": "OnePoleLP",
@@ -2121,7 +2121,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/smoother.h",
-      "line": 134
+      "line": 132
     },
     {
       "name": "OperatorConfig",
@@ -2129,7 +2129,7 @@
       "scope": "Krate::DSP::FMVoice",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/fm_voice.h",
-      "line": 653
+      "line": 647
     },
     {
       "name": "OrbitModulator",
@@ -2225,7 +2225,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/harmonic_types.h",
-      "line": 36
+      "line": 37
     },
     {
       "name": "PartialTracker",
@@ -2233,7 +2233,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/partial_tracker.h",
-      "line": 60
+      "line": 61
     },
     {
       "name": "ParticleCold",
@@ -2241,7 +2241,7 @@
       "scope": "Krate::DSP::ParticleOscillator",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/particle_oscillator.h",
-      "line": 493
+      "line": 475
     },
     {
       "name": "ParticleOscillator",
@@ -2273,7 +2273,7 @@
       "scope": "Krate::DSP::ResonanceDriftNetwork",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/resonance_drift_network.h",
-      "line": 1011
+      "line": 1012
     },
     {
       "name": "PendingEcho",
@@ -2289,7 +2289,7 @@
       "scope": "Krate::DSP::ArpeggiatorCore",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 1070
+      "line": 1071
     },
     {
       "name": "PeriodPeakDetector",
@@ -2377,7 +2377,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/pink_noise_filter.h",
-      "line": 69
+      "line": 70
     },
     {
       "name": "PitchDetector",
@@ -2393,7 +2393,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_follower_source.h",
-      "line": 35
+      "line": 36
     },
     {
       "name": "PitchShiftProcessor",
@@ -2449,7 +2449,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/polyblep_oscillator.h",
-      "line": 78
+      "line": 79
     },
     {
       "name": "PolyphaseHalfbandOversampler",
@@ -2465,7 +2465,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/harmonic_types.h",
-      "line": 89
+      "line": 90
     },
     {
       "name": "PolySynthEngine",
@@ -2489,7 +2489,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 528
+      "line": 529
     },
     {
       "name": "PostSumTap",
@@ -2497,7 +2497,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 540
+      "line": 541
     },
     {
       "name": "PredictorCache",
@@ -2521,7 +2521,7 @@
       "scope": "Krate::DSP::CavernVerb",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/cavern_verb.h",
-      "line": 300
+      "line": 299
     },
     {
       "name": "PrepareConfig",
@@ -2529,7 +2529,7 @@
       "scope": "Krate::DSP::SpectralSmear",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/spectral_smear.h",
-      "line": 138
+      "line": 139
     },
     {
       "name": "PrepareConfig",
@@ -2561,7 +2561,7 @@
       "scope": "Krate::DSP::FeedbackEcology",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/feedback_ecology.h",
-      "line": 607
+      "line": 608
     },
     {
       "name": "PrepareConfig",
@@ -2593,7 +2593,7 @@
       "scope": "Krate::DSP::detail",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/distortion_rack.h",
-      "line": 74
+      "line": 75
     },
     {
       "name": "ProcessVisitor",
@@ -2601,7 +2601,7 @@
       "scope": "Krate::DSP::DistortionRack",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/distortion_rack.h",
-      "line": 447
+      "line": 455
     },
     {
       "name": "ProfundumCallRecord",
@@ -2617,7 +2617,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_core.h",
-      "line": 93
+      "line": 94
     },
     {
       "name": "ProfundumEngine",
@@ -2625,7 +2625,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 97
+      "line": 98
     },
     {
       "name": "ProfundumEngineConfig",
@@ -2633,7 +2633,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 86
+      "line": 87
     },
     {
       "name": "ProfundumEngineObserver",
@@ -2729,7 +2729,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 513
+      "line": 514
     },
     {
       "name": "RampLaw",
@@ -2737,7 +2737,7 @@
       "scope": "Krate::DSP::Rectifier",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/rectifier.h",
-      "line": 62
+      "line": 63
     },
     {
       "name": "RandomSource",
@@ -2753,7 +2753,7 @@
       "scope": "Krate::DSP::PartialTracker",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/partial_tracker.h",
-      "line": 956
+      "line": 957
     },
     {
       "name": "Rectifier",
@@ -2761,7 +2761,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/rectifier.h",
-      "line": 59
+      "line": 60
     },
     {
       "name": "RectifyBranch",
@@ -2769,7 +2769,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 823
+      "line": 825
     },
     {
       "name": "ResetProcessorVisitor",
@@ -2777,7 +2777,7 @@
       "scope": "Krate::DSP::detail",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/distortion_rack.h",
-      "line": 63
+      "line": 64
     },
     {
       "name": "Residual",
@@ -2785,7 +2785,7 @@
       "scope": "Krate::DSP::MinBlepTable",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/minblep_table.h",
-      "line": 400
+      "line": 393
     },
     {
       "name": "ResidualAnalyzer",
@@ -2849,7 +2849,7 @@
       "scope": "Krate::DSP::AtmosphereEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/atmosphere_engine.h",
-      "line": 2843
+      "line": 2837
     },
     {
       "name": "RetriggerDeclick",
@@ -2865,7 +2865,7 @@
       "scope": "Krate::DSP",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/reverb.h",
-      "line": 187
+      "line": 188
     },
     {
       "name": "ReverbParams",
@@ -2873,7 +2873,7 @@
       "scope": "Krate::DSP",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/reverb.h",
-      "line": 148
+      "line": 149
     },
     {
       "name": "ReverseBuffer",
@@ -2881,7 +2881,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/reverse_buffer.h",
-      "line": 27
+      "line": 28
     },
     {
       "name": "ReverseDelay",
@@ -2897,7 +2897,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/reverse_feedback_processor.h",
-      "line": 51
+      "line": 52
     },
     {
       "name": "RingModulator",
@@ -2913,7 +2913,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/ring_saturation.h",
-      "line": 73
+      "line": 74
     },
     {
       "name": "RollingCaptureBuffer",
@@ -2961,7 +2961,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/sample_rate_converter.h",
-      "line": 75
+      "line": 76
     },
     {
       "name": "SampleRateReducer",
@@ -3041,7 +3041,7 @@
       "scope": "Krate::DSP::AnchorOscillator",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/anchor_oscillator.h",
-      "line": 835
+      "line": 836
     },
     {
       "name": "SelectableOscillator",
@@ -3065,7 +3065,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/sequencer_core.h",
-      "line": 80
+      "line": 81
     },
     {
       "name": "SequencerStep",
@@ -3073,7 +3073,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/filter_step_sequencer.h",
-      "line": 45
+      "line": 46
     },
     {
       "name": "SeraphisAetherTargets",
@@ -3097,7 +3097,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/seraphis_engine.h",
-      "line": 205
+      "line": 206
     },
     {
       "name": "SeraphisEngineConfig",
@@ -3105,7 +3105,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/seraphis_engine.h",
-      "line": 99
+      "line": 100
     },
     {
       "name": "SeraphisMacroMatrix",
@@ -3137,7 +3137,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/seraphis_voice.h",
-      "line": 127
+      "line": 128
     },
     {
       "name": "SeraphisVoiceConfig",
@@ -3145,7 +3145,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/seraphis_voice.h",
-      "line": 107
+      "line": 108
     },
     {
       "name": "SeraphisVoiceParams",
@@ -3153,7 +3153,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/seraphis_engine.h",
-      "line": 118
+      "line": 119
     },
     {
       "name": "Settings",
@@ -3161,7 +3161,7 @@
       "scope": "Krate::DSP::ProfundumEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/profundum_engine.h",
-      "line": 497
+      "line": 498
     },
     {
       "name": "ShapedRamp",
@@ -3169,7 +3169,7 @@
       "scope": "Krate::DSP::CavernVerb",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/cavern_verb.h",
-      "line": 865
+      "line": 864
     },
     {
       "name": "ShapeMorph",
@@ -3225,7 +3225,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/smoother.h",
-      "line": 468
+      "line": 466
     },
     {
       "name": "Slice",
@@ -3257,7 +3257,7 @@
       "scope": "Krate::DSP::ContinuousBody",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/continuous_body.h",
-      "line": 1958
+      "line": 1959
     },
     {
       "name": "Slot",
@@ -3265,7 +3265,7 @@
       "scope": "Krate::DSP::DistortionRack",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/distortion_rack.h",
-      "line": 405
+      "line": 413
     },
     {
       "name": "Slot",
@@ -3377,7 +3377,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/spectral_smear.h",
-      "line": 76
+      "line": 77
     },
     {
       "name": "SpectralState",
@@ -3385,7 +3385,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/spectral_state.h",
-      "line": 44
+      "line": 45
     },
     {
       "name": "SpectralTilt",
@@ -3449,7 +3449,7 @@
       "scope": "Krate::DSP::BassCharacterStage::HoldEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 940
+      "line": 942
     },
     {
       "name": "StereoField",
@@ -3513,7 +3513,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/sub_oscillator.h",
-      "line": 111
+      "line": 112
     },
     {
       "name": "SVF",
@@ -3569,7 +3569,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/sync_oscillator.h",
-      "line": 99
+      "line": 100
     },
     {
       "name": "SynthVoice",
@@ -3585,7 +3585,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/tanh_adaa.h",
-      "line": 67
+      "line": 68
     },
     {
       "name": "Tap",
@@ -3665,7 +3665,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/tidal_modulator.h",
-      "line": 122
+      "line": 123
     },
     {
       "name": "TimeVaryingCombBank",
@@ -3737,7 +3737,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 689
+      "line": 691
     },
     {
       "name": "TubeStage",
@@ -3769,7 +3769,7 @@
       "scope": "Krate::DSP::AnchorOscillator",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/anchor_oscillator.h",
-      "line": 851
+      "line": 852
     },
     {
       "name": "VectorMixer",
@@ -3865,7 +3865,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vorago_engine.h",
-      "line": 219
+      "line": 220
     },
     {
       "name": "VoragoEngineConfig",
@@ -3873,7 +3873,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vorago_engine.h",
-      "line": 106
+      "line": 107
     },
     {
       "name": "VoragoMacroMatrix",
@@ -3921,7 +3921,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vorago_engine.h",
-      "line": 160
+      "line": 161
     },
     {
       "name": "VowelSequencer",
@@ -3929,7 +3929,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vowel_sequencer.h",
-      "line": 106
+      "line": 107
     },
     {
       "name": "VowelStep",
@@ -3937,7 +3937,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/vowel_sequencer.h",
-      "line": 46
+      "line": 47
     },
     {
       "name": "Wavefolder",
@@ -3961,7 +3961,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/waveguide_resonator.h",
-      "line": 84
+      "line": 85
     },
     {
       "name": "WaveguideString",
@@ -3985,7 +3985,7 @@
       "scope": "Krate::DSP",
       "layer": "core",
       "header": "dsp/include/krate/dsp/core/wavetable_data.h",
-      "line": 58
+      "line": 59
     },
     {
       "name": "WavetableOscillator",
@@ -3993,7 +3993,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/wavetable_oscillator.h",
-      "line": 53
+      "line": 54
     },
     {
       "name": "Weights",

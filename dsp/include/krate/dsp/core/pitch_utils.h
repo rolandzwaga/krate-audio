@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 
 namespace Krate::DSP {
 
@@ -61,7 +62,7 @@ enum class PitchQuantMode : uint8_t {
 ///
 /// @param cents Detune in cents; accurate on `[-50, +50]`, degrading outside it
 [[nodiscard]] inline float centsToPitchRatioFast(float cents) noexcept {
-    constexpr float kCentsToNatLog = 0.693147180559945309f / 1200.0f;  // ln(2)/1200
+    constexpr float kCentsToNatLog = std::numbers::ln2_v<float> / 1200.0f;  // ln(2)/1200
     const float u = cents * kCentsToNatLog;
     // e^u = 1 + u(1 + u/2(1 + u/3(1 + u/4)))  -- Horner, 4 fused multiply-adds.
     return 1.0f + u * (1.0f + u * (0.5f + u * (1.0f / 6.0f + u * (1.0f / 24.0f))));

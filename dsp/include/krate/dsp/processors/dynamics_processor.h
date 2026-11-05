@@ -27,8 +27,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Detection Mode Enumeration
@@ -503,5 +503,5 @@ private:
     Biquad sidechainFilter_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

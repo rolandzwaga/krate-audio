@@ -20,8 +20,8 @@
 #include <cstring>
 #include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// Internal bandpass filter for bowed-mode velocity taps (FR-020).
 /// Standard biquad BPF: b1 is always 0 for BPF, so only b0, b2 are stored.
@@ -135,7 +135,7 @@ public:
     {
         decayTime = std::clamp(decayTime, 0.01f, 5.0f);
         brightness = std::clamp(brightness, 0.0f, 1.0f);
-        return DampingLaw{1.0f / decayTime, (1.0f - brightness) * kLegacyMaxB3};
+        return DampingLaw{.b1 = 1.0f / decayTime, .b3 = (1.0f - brightness) * kLegacyMaxB3};
     }
 
     ModalResonatorBank() noexcept = default;
@@ -696,7 +696,7 @@ private:
     float storedFrequency_ = 440.0f;
     float storedDecayTime_ = 0.5f;
     float storedBrightness_ = 0.5f;
-    DampingLaw storedDampingLaw_{2.0f, 2.0e-5f};
+    DampingLaw storedDampingLaw_{.b1 = 2.0f, .b3 = 2.0e-5f};
 
     // Bowed-mode coupling state (FR-020)
     std::array<BowedModeBPF, kNumBowedModes> bowedModeFilters_{};
@@ -765,7 +765,7 @@ private:
         // allow slightly below that since b3 now contributes separately.
         const float b1 = std::max(b1In, 1.0f / 5.0f);
         const float b3 = std::max(b3In, 0.0f);
-        storedDampingLaw_ = DampingLaw{b1, b3};
+        storedDampingLaw_ = DampingLaw{.b1 = b1, .b3 = b3};
 
         // Inharmonicity parameters. `scatter` is bank-wide across every
         // consumer; Phase 8C widens the per-mode dither ceiling from 2 %
@@ -1003,5 +1003,5 @@ private:
 #pragma warning(pop)
 #endif
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

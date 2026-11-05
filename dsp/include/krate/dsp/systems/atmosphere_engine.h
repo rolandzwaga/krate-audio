@@ -173,8 +173,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // AtmosphereEngine
@@ -1122,7 +1122,7 @@ public:
     // FALSE on every shipping path, so a shipped render pays five always-false
     // branches per control chunk and never reads a clock.
     // =========================================================================
-    enum class ProcessStage : std::size_t {
+    enum class ProcessStage : std::uint8_t {
         Control,  ///< (A) runControlStep on the 64-sample grid
         Grains,   ///< (B) renderGrainChunk: capture, scheduler, grain sweep
         Blur,     ///< (C) pumpBlur STFT round-trip (or the copy at blur off)
@@ -1677,12 +1677,8 @@ private:
     /// therefore loses nothing and costs a handful of compares per grain per 64
     /// samples instead of per sample.
     void foldObservedAge(float age) noexcept {
-        if (age < minObservedAge_) {
-            minObservedAge_ = age;
-        }
-        if (age > maxObservedAge_) {
-            maxObservedAge_ = age;
-        }
+        minObservedAge_ = std::min(minObservedAge_, age);
+        maxObservedAge_ = std::max(maxObservedAge_, age);
     }
 
     /// @brief Recompute one live grain's playback ratio from its drift lane
@@ -2108,15 +2104,15 @@ private:
                 // clamp and the index1-at-the-boundary rule, so no gather can
                 // overread the envelope bank). Everything lands in stack arrays
                 // sized for one control chunk (~2.3 KB).
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL0;
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL1;
-                alignas(32) std::array<float, kControlChunkSamples> fracL;
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR0;
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR1;
-                alignas(32) std::array<float, kControlChunkSamples> fracR;
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI0;
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI1;
-                alignas(32) std::array<float, kControlChunkSamples> envF;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL0{};
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL1{};
+                alignas(32) std::array<float, kControlChunkSamples> fracL{};
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR0{};
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR1{};
+                alignas(32) std::array<float, kControlChunkSamples> fracR{};
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI0{};
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI1{};
+                alignas(32) std::array<float, kControlChunkSamples> envF{};
 
                 const bool decorr = decorrAge > 0.0f;
                 const auto lastEnv = static_cast<std::ptrdiff_t>(kEnvelopeTableSize - 1);
@@ -2144,9 +2140,7 @@ private:
                     if (!(phase >= 0.0f)) {
                         phase = 0.0f;
                     }
-                    if (phase > 1.0f) {
-                        phase = 1.0f;
-                    }
+                    phase = std::min(phase, 1.0f);
                     const float indexFloat = phase * static_cast<float>(lastEnv);
                     const auto e0 = static_cast<std::ptrdiff_t>(indexFloat);
                     envI0[m] = static_cast<std::int32_t>(e0);
@@ -2264,7 +2258,7 @@ private:
                     dueScratch_[k] = dueScratch_[k - 1];
                     --k;
                 }
-                dueScratch_[k] = DueEntry{r, static_cast<std::uint8_t>(slot)};
+                dueScratch_[k] = DueEntry{.r = r, .slot = static_cast<std::uint8_t>(slot)};
                 ++dueCount;
             }
         }
@@ -2319,7 +2313,7 @@ private:
                     dueScratch_[k] = dueScratch_[k - 1];
                     --k;
                 }
-                dueScratch_[k] = DueEntry{r, static_cast<std::uint8_t>(slot)};
+                dueScratch_[k] = DueEntry{.r = r, .slot = static_cast<std::uint8_t>(slot)};
                 ++dueCount;
             }
             return true;
@@ -2982,5 +2976,5 @@ private:
     std::array<double, static_cast<std::size_t>(ProcessStage::Count)> processStageNs_{};
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

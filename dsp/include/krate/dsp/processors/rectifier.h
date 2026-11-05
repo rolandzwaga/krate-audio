@@ -47,6 +47,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 
 namespace Krate::DSP {
 
@@ -212,7 +213,7 @@ public:
 private:
     friend struct detail::RectifierProbe;
 
-    static constexpr double kPi = 3.14159265358979323846;
+    static constexpr double kPi = std::numbers::pi;
     static constexpr std::size_t kMaxFactor = PolyphaseHalfbandOversampler::kMaxFactor;
 
     struct Channel {

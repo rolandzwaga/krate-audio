@@ -28,8 +28,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -89,7 +89,7 @@ inline constexpr float kLn1000 = 6.907755278982137f;
 /// @param rt60Seconds Decay time (time to decay by 60dB) in seconds
 /// @return Q factor for resonant filter
 /// @note Formula: Q = (pi * frequency * RT60) / ln(1000)
-[[nodiscard]] inline constexpr float rt60ToQ(float frequency, float rt60Seconds) noexcept {
+[[nodiscard]] constexpr float rt60ToQ(float frequency, float rt60Seconds) noexcept {
     if (rt60Seconds <= 0.0f || frequency <= 0.0f) {
         return kMinResonatorQ;
     }
@@ -723,5 +723,5 @@ private:
     float triggerVelocity_ = 0.0f;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -29,8 +29,8 @@
 #include <array>
 #include <cmath>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -289,5 +289,5 @@ inline void simpleCurveToBezier(
     cp2y = std::pow(2.0f / 3.0f, exponent);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

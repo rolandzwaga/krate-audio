@@ -24,9 +24,10 @@
 
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // TanhADAA Class (FR-001 to FR-025)
@@ -75,12 +76,7 @@ public:
     /// Initializes with:
     /// - Drive: 1.0 (unity gain, standard tanh behavior)
     /// - State: No previous sample history
-    TanhADAA() noexcept
-        : x1_(0.0f)
-        , drive_(1.0f)
-        , hasPreviousSample_(false)
-    {
-    }
+    TanhADAA() noexcept = default;
 
     // Default copy/move (trivially copyable - per-channel instances)
     TanhADAA(const TanhADAA&) = default;
@@ -184,15 +180,15 @@ private:
     static constexpr float kOverflowThreshold = 20.0f;
 
     /// Natural log of 2, used in asymptotic approximation
-    static constexpr float kLn2 = 0.693147180559945f;
+    static constexpr float kLn2 = std::numbers::ln2_v<float>;
 
     // =========================================================================
     // Member Variables
     // =========================================================================
 
-    float x1_;                  ///< Previous input sample
-    float drive_;               ///< Saturation intensity (>= 0)
-    bool hasPreviousSample_;    ///< True after first sample processed
+    float x1_{0.0f};                  ///< Previous input sample
+    float drive_{1.0f};               ///< Saturation intensity (>= 0)
+    bool hasPreviousSample_{false};    ///< True after first sample processed
     // Profundum Phase 9 T029 (bit-identical): F1(x1_ * drive_) is F1(x * drive_) of the previous
     // ADAA sample while drive_ is unchanged, so it is kept instead of being recomputed (one exp
     // and one log1p per sample fewer). Invalid after setDrive(), reset() and every branch that
@@ -247,7 +243,7 @@ inline float TanhADAA::F1(float x) noexcept {
 }
 
 inline double TanhADAA::F1Fast(double x) noexcept {
-    constexpr double kLn2d = 0.69314718055994531;
+    constexpr double kLn2d = std::numbers::ln2;
     const double absX = (x >= 0.0) ? x : -x;
     if (absX >= static_cast<double>(kOverflowThreshold)) {
         return absX - kLn2d;
@@ -342,5 +338,5 @@ inline void TanhADAA::processBlock(float* buffer, size_t n) noexcept {
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

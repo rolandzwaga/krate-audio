@@ -99,8 +99,8 @@
 // Every include above reaches DOWNWARD only (Layers 0-2). There is no <vector>
 // and no <memory>: this component has no heap term at all (spec correction C-1).
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Up to twelve slowly drifting resonant peaks, stereo in / stereo out.
 ///
@@ -493,7 +493,8 @@ public:
         Xorshift32 panRng{deriveStreamSeed(seed_, kSaltPanPosition)};
         for (std::size_t i = 0; i < kMaxPeaks; ++i) {
             const float side = ((i % 2u) == 0u) ? 1.0f : -1.0f;
-            const float step = static_cast<float>((i / 2u) + 1u)
+            const std::size_t pair = i / 2u;  // peaks 2k and 2k+1 share |pan|
+            const float step = static_cast<float>(pair + 1u)
                                / (static_cast<float>(kMaxPeaks) * 0.5f);
             const float base = side * step;
             const float jitter = panRng.nextFloat() * (1.0f / static_cast<float>(kMaxPeaks));
@@ -925,7 +926,7 @@ public:
     /// every buffer is a fixed-size member, and the render is per-sample with
     /// local dry capture, so even the dry path needs no scratch. The getter
     /// exists so the Phase-10 host can total its children uniformly.
-    [[nodiscard]] std::size_t getAllocatedBytes() const noexcept { return 0u; }
+    [[nodiscard]] static std::size_t getAllocatedBytes() noexcept { return 0u; }
 
     /// @brief The CLAMPED PrepareConfig::maxBlockSamples, in [64, 8192].
     ///
@@ -1935,5 +1936,5 @@ private:
     }
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

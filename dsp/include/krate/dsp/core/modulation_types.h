@@ -17,8 +17,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Modulation Source Enumeration (FR-002)
@@ -166,5 +166,5 @@ enum class SampleHoldInputType : uint8_t {
     External = 3    ///< Input audio amplitude [0, +1]
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

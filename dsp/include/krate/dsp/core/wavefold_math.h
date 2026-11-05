@@ -21,12 +21,13 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numbers>
 
 #include <krate/dsp/core/db_utils.h>
 
-namespace Krate {
-namespace DSP {
-namespace WavefoldMath {
+
+
+namespace Krate::DSP::WavefoldMath {
 
 // =============================================================================
 // Constants
@@ -103,7 +104,7 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
         // Near branch point: Puiseux series expansion around x = -1/e
         // W(x) = -1 + p - p^2/3 + 11p^3/72 - 43p^4/540 + ...
         // where p = sqrt(2(1+ex))
-        const float e = 2.7182818284590452f;
+        const float e = std::numbers::e_v<float>;
         const float p = std::sqrt(2.0f * (1.0f + e * x));
         const float p2 = p * p;
         const float p3 = p2 * p;
@@ -201,7 +202,7 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
     float w;
     if (x < -0.32f) {
         // Near branch point: Puiseux series expansion
-        const float e = 2.7182818284590452f;
+        const float e = std::numbers::e_v<float>;
         const float p = std::sqrt(2.0f * (1.0f + e * x));
         const float p2 = p * p;
         const float p3 = p2 * p;
@@ -381,6 +382,6 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
     return std::sin(gain * x);
 }
 
-} // namespace WavefoldMath
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP::WavefoldMath
+
+

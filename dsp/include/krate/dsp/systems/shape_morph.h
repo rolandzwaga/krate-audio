@@ -255,8 +255,8 @@ public:
                     enterRegimes(channels_[c], roundEnters, hollowEnters, biteEnters);
                 rekey = true;
             }
-            const std::uint32_t sBits = std::bit_cast<std::uint32_t>(s);
-            const std::uint32_t f0Bits = std::bit_cast<std::uint32_t>(f0_);
+            const auto sBits = std::bit_cast<std::uint32_t>(s);
+            const auto f0Bits = std::bit_cast<std::uint32_t>(f0_);
             if (rekey || sBits != appliedShapeBits_ || f0Bits != appliedF0Bits_) {
                 computeControls(s, roundOn_, biteOn_);
                 for (std::size_t c = 0; c < active; ++c)
@@ -290,7 +290,7 @@ public:
     [[nodiscard]] bool stateFinite() const noexcept {
         if (!detail::isFinite(shapeSm_.getCurrentValue()) || !detail::isFinite(engage_.getCurrentValue()))
             return false;
-        for (const auto& ch : channels_) {
+        return std::ranges::all_of(channels_, [&](const auto& ch) {
             if (!ch.path.stateFinite() || !ch.biteAdaa.stateFinite())
                 return false;
             if (!ch.inverse.stateFinite())
@@ -299,8 +299,8 @@ public:
                 || !detail::isFinite(ch.roundOut) || !detail::isFinite(ch.hollowOut)
                 || !detail::isFinite(ch.biteTiltOut) || !detail::isFinite(ch.biteOut))
                 return false;
-        }
-        return true;
+            return true;
+        });
     }
 
     [[nodiscard]] static constexpr std::size_t latencySamples() noexcept { return 0; }
@@ -563,7 +563,7 @@ private:
     }
 
     /// One base sample of one channel; returns the loudness-compensated z (before the engage mix).
-    [[nodiscard]] float processChannel(Channel& ch, float x, const Weights& w) noexcept {
+    [[nodiscard]] float processChannel(Channel& ch, float x, const Weights& w) const noexcept {
         float xin = x;
         if (biteOn_) {
             xin = ch.biteTilt.process(x);  // C-23: BITE's emphasis before the shared upsample
@@ -574,7 +574,8 @@ private:
         std::array<float, kMaxFactor> res{};
         ch.path.upsample(xin, u.data());
         const std::size_t factor = ch.path.factor();
-        const float wNl = roundOn_ ? w.round : (biteOn_ ? w.bite : 0.0f);
+        const float wBite = biteOn_ ? w.bite : 0.0f;
+        const float wNl = roundOn_ ? w.round : wBite;
         for (std::size_t k = 0; k < factor; ++k) {
             const float l = ch.uPrev;  // l = 1·u[n-1] for every regime
             ch.uPrev = u[k];

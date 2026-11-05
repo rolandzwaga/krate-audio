@@ -51,8 +51,8 @@
 #pragma warning(disable : 4324)
 #endif
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // SpawnMode Enumeration (FR-008)
@@ -123,25 +123,7 @@ public:
 
     /// @brief Default constructor (T024).
     ParticleOscillator() noexcept
-        : centerFrequency_(440.0f)
-        , scatter_(0.0f)
-        , density_(1.0f)
-        , lifetimeMs_(100.0f)
-        , spawnMode_(SpawnMode::Regular)
-        , driftAmount_(0.0f)
-        , currentEnvType_(0)
-        , normFactor_(1.0f)
-        , lifetimeSamples_(0.0f)
-        , interonsetSamples_(0.0f)
-        , nyquist_(22050.0f)
-        , driftFilterCoeff_(0.0f)
-        , driftOneMinusCoeff_(1.0f)
-        , inverseSampleRate_(1.0f / 44100.0f)
-        , activeCount_(0)
-        , sampleRate_(44100.0)
-        , samplesUntilNextSpawn_(0.0f)
-        , rng_(12345)
-        , prepared_(false) {
+        : rng_(12345) {
     }
 
     /// @brief Destructor.
@@ -390,7 +372,7 @@ public:
                     float deviationHz = particleCold_[idx].driftState *
                                         driftAmount_ * particleCold_[idx].driftRange;
                     float driftedFreq = particleCold_[idx].baseFrequency + deviationHz;
-                    if (driftedFreq < kMinFrequency) driftedFreq = kMinFrequency;
+                    driftedFreq = std::max(driftedFreq, kMinFrequency);
                     epsilon_[idx] = 2.0f * std::sin(kPi * driftedFreq * inverseSampleRate_);
                 }
             }
@@ -625,38 +607,38 @@ private:
     std::array<uint8_t, kMaxParticles> slotActive_{};     ///< Per-slot active flag
 
     // --- Configuration state (set via setters) ---
-    float centerFrequency_;     ///< Center frequency (Hz)
-    float scatter_;             ///< Scatter half-range (semitones)
-    float density_;             ///< Target particle count [1, 64]
-    float lifetimeMs_;          ///< Particle lifetime (ms)
-    SpawnMode spawnMode_;       ///< Current spawn mode
-    float driftAmount_;         ///< Drift magnitude [0, 1]
-    size_t currentEnvType_;     ///< Active envelope table index [0, 5]
+    float centerFrequency_{440.0f};     ///< Center frequency (Hz)
+    float scatter_{0.0f};             ///< Scatter half-range (semitones)
+    float density_{1.0f};             ///< Target particle count [1, 64]
+    float lifetimeMs_{100.0f};          ///< Particle lifetime (ms)
+    SpawnMode spawnMode_{SpawnMode::Regular};       ///< Current spawn mode
+    float driftAmount_{0.0f};         ///< Drift magnitude [0, 1]
+    size_t currentEnvType_{0};     ///< Active envelope table index [0, 5]
 
     // --- Derived state (computed from configuration) ---
-    float normFactor_;          ///< 1/sqrt(density) (FR-016)
-    float lifetimeSamples_;     ///< Lifetime in samples
-    float interonsetSamples_;   ///< Spawn interval in samples
-    float nyquist_;             ///< Nyquist frequency (Hz)
-    float driftFilterCoeff_;    ///< One-pole LPF coefficient for drift
-    float driftOneMinusCoeff_;  ///< 1.0f - driftFilterCoeff_ (precomputed)
-    float inverseSampleRate_;   ///< 1.0f / sampleRate (for fast division)
+    float normFactor_{1.0f};          ///< 1/sqrt(density) (FR-016)
+    float lifetimeSamples_{0.0f};     ///< Lifetime in samples
+    float interonsetSamples_{0.0f};   ///< Spawn interval in samples
+    float nyquist_{22050.0f};             ///< Nyquist frequency (Hz)
+    float driftFilterCoeff_{0.0f};    ///< One-pole LPF coefficient for drift
+    float driftOneMinusCoeff_{1.0f};  ///< 1.0f - driftFilterCoeff_ (precomputed)
+    float inverseSampleRate_{1.0f / 44100.0f};   ///< 1.0f / sampleRate (for fast division)
 
     // --- Active count (after inverseSampleRate_ to match initializer order) ---
-    size_t activeCount_;        ///< Number of active particles
+    size_t activeCount_{0};        ///< Number of active particles
 
     // --- Processing state ---
-    double sampleRate_;         ///< Current sample rate
-    float samplesUntilNextSpawn_; ///< Countdown to next spawn
+    double sampleRate_{44100.0};         ///< Current sample rate
+    float samplesUntilNextSpawn_{0.0f}; ///< Countdown to next spawn
     Xorshift32 rng_;            ///< PRNG (FR-020)
-    bool prepared_;             ///< Whether prepare() has been called
+    bool prepared_{false};             ///< Whether prepare() has been called
 
     // --- Precomputed tables ---
     std::array<std::array<float, kEnvTableSize>, kNumEnvelopeTypes> envelopeTables_{};
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+
 
 #ifdef _MSC_VER
 #pragma warning(pop)

@@ -221,7 +221,7 @@ public:
                 sumR += grainR;
 
                 // Check if grain completed
-                if (processor_.isGrainComplete(*grain)) {
+                if (Krate::DSP::GrainProcessor::isGrainComplete(*grain)) {
                     pool_.releaseGrain(grain);
                 }
             }

@@ -29,8 +29,8 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/envelope_follower.h>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // ProcessingOrder Enumeration
@@ -360,7 +360,7 @@ public:
 
     /// @brief Get processing latency in samples.
     /// @return Always 0 (no internal latency)
-    [[nodiscard]] constexpr size_t getLatency() const noexcept { return 0; }
+    [[nodiscard]] static constexpr size_t getLatency() noexcept { return 0; }
 
 private:
     // =========================================================================
@@ -398,5 +398,5 @@ private:
     std::vector<float> dryBuffer_;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

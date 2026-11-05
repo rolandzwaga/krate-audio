@@ -29,8 +29,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // PitchTrackingFilterMode Enumeration (FR-009)
@@ -173,7 +173,7 @@ public:
 
     /// @brief Get processing latency in samples (FR-021)
     /// @return Latency (equals pitch detector window, ~256 samples)
-    [[nodiscard]] size_t getLatency() const noexcept {
+    [[nodiscard]] static size_t getLatency() noexcept {
         return PitchDetector::kDefaultWindowSize;
     }
 
@@ -356,7 +356,7 @@ private:
     /// @brief Map PitchTrackingFilterMode to SVFMode
     /// @param type PitchTrackingFilterMode enum value
     /// @return Corresponding SVFMode
-    [[nodiscard]] SVFMode mapFilterType(PitchTrackingFilterMode type) const noexcept {
+    [[nodiscard]] static SVFMode mapFilterType(PitchTrackingFilterMode type) noexcept {
         switch (type) {
             case PitchTrackingFilterMode::Lowpass:
                 return SVFMode::Lowpass;
@@ -674,5 +674,5 @@ inline void PitchTrackingFilter::processBlock(float* buffer, size_t numSamples) 
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -30,9 +30,10 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // SequencerStep (FR-001 to FR-006)
@@ -594,7 +595,7 @@ inline void FilterStepSequencer::processBlock(float* buffer, size_t numSamples,
 }
 
 inline void FilterStepSequencer::applyStepParameters(int stepIndex) noexcept {
-    if (stepIndex < 0 || stepIndex >= static_cast<int>(kMaxSteps)) return;
+    if (stepIndex < 0 || std::cmp_greater_equal(stepIndex, kMaxSteps)) return;
 
     const auto& step = steps_[static_cast<size_t>(stepIndex)];
 
@@ -633,5 +634,5 @@ inline void FilterStepSequencer::applyStepParameters(int stepIndex) noexcept {
     gainRamp_.setTarget(step.gainDb);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

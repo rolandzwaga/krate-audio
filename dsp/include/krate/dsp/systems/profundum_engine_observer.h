@@ -50,12 +50,12 @@ enum class ProfundumCall : std::uint8_t {
 struct ProfundumCallRecord { std::uint64_t sample; std::uint8_t voice; ProfundumCall call; bool issued; float value; };
 
 struct ProfundumGridRecord {                     // per interval
-    std::uint64_t sample;
-    const BassMorphEngine::Resolved* resolved;
-    const MorphState* afterMacros;               // a copy kept by the engine only while an observer is attached
-    const MorphState* afterMotion;
-    float motionSource, motionOutput, massIn, smoothedMass, anchorMassUsed, anchorLevel, compressionHanded;
-    float compressorGrDb;                        // dynamics_.compressor().currentGainReductionDb() (mass_dynamics.h:571, 272)
+    std::uint64_t sample{};
+    const BassMorphEngine::Resolved* resolved{};
+    const MorphState* afterMacros{};               // a copy kept by the engine only while an observer is attached
+    const MorphState* afterMotion{};
+    float motionSource{}, motionOutput{}, massIn{}, smoothedMass{}, anchorMassUsed{}, anchorLevel{}, compressionHanded{};
+    float compressorGrDb{};                        // dynamics_.compressor().currentGainReductionDb() (mass_dynamics.h:571, 272)
     MassLaw::Targets targets;
     // Phase 14 (specs/profundum-phase14-morph-modulation, plan S4.3): the Morph Modulation source value s, the offset
     // clamp(amount * s, -1, 1) and the target handed to BassMorphEngine::setPosition at this grid point.
@@ -64,13 +64,13 @@ struct ProfundumGridRecord {                     // per interval
     float morphTarget = 0.0f;
 };
 struct ProfundumVoiceTaps {                      // per voice, per rendered chunk; spans into the voice's scratch
-    std::uint8_t voice; std::uint64_t sample; std::size_t n;
+    std::uint8_t voice{}; std::uint64_t sample{}; std::size_t n{};
     std::span<const float> coreL, coreR, charL, charR, anchorL, anchorR, gAmp, gD, fRes, fCore, fAnchor, anchorPhase,
                            feed;                 // the per-sample fold-feed g actually multiplied (S5.6 step 6; +0 when skipped)
-    float followRatio, a1, anchorLevel, feedFrom, feedTo, meterTheta, meterFreqHz; bool halfWave;
+    float followRatio{}, a1{}, anchorLevel{}, feedFrom{}, feedTo{}, meterTheta{}, meterFreqHz{}; bool halfWave{};
 };
 struct ProfundumEngineTaps {                     // per chunk
-    std::uint64_t sample; std::size_t n;
+    std::uint64_t sample{}; std::size_t n{};
     std::span<const float> sumL, sumR, dynL, dynR, fieldL, fieldR, dcL, dcR, outL, outR;
 };
 class ProfundumEngineObserver {

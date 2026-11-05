@@ -25,8 +25,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -49,7 +49,7 @@ inline constexpr float kDiffusionSmoothingMs = 10.0f;
 
 /// Irrational delay ratios per stage (based on square roots, similar to Lexicon)
 inline constexpr std::array<float, kNumDiffusionStages> kDelayRatiosL = {
-    1.000f, 1.127f, 1.414f, 1.732f, 2.236f, 2.828f, 3.317f, 4.123f
+    1.000f, 1.127f, 1.414f, 1.732f, 2.236f, 2.828f, 3.317f, 4.123f  // NOLINT(modernize-use-std-numbers): 3-digit ratios; ContinuousBody pins their sum
 };
 
 /// Stereo decorrelation multiplier for right channel
@@ -681,5 +681,5 @@ private:
     float sampleRate_ = 44100.0f;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

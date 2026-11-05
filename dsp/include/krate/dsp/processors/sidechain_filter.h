@@ -29,8 +29,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations
@@ -524,9 +524,7 @@ private:
             case SidechainFilterState::Active: {
                 activeEnvelope_ = envFollower_.getCurrentValue();
                 // Track peak envelope during active phase for use in hold
-                if (activeEnvelope_ > holdEnvelope_) {
-                    holdEnvelope_ = activeEnvelope_;
-                }
+                holdEnvelope_ = std::max(holdEnvelope_, activeEnvelope_);
                 if (!aboveThreshold) {
                     if (holdSamplesTotal_ > 0) {
                         state_ = SidechainFilterState::Holding;
@@ -606,7 +604,7 @@ private:
     /// @brief Map SidechainFilterMode to SVFMode
     /// @param type SidechainFilterMode enum
     /// @return Corresponding SVFMode
-    [[nodiscard]] SVFMode mapFilterType(SidechainFilterMode type) const noexcept {
+    [[nodiscard]] static SVFMode mapFilterType(SidechainFilterMode type) noexcept {
         switch (type) {
             case SidechainFilterMode::Lowpass:  return SVFMode::Lowpass;
             case SidechainFilterMode::Bandpass: return SVFMode::Bandpass;
@@ -674,5 +672,5 @@ private:
     float maxCutoffLimit_ = kMaxAudioFreqHz;   ///< Nyquist-safe limit
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

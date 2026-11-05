@@ -22,8 +22,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // SVFMode Enumeration (FR-001)
@@ -421,13 +421,13 @@ public:
     [[nodiscard]] SVFOutputs processMulti(float input) noexcept {
         // FR-021: Return zeros if not prepared
         if (!prepared_) {
-            return SVFOutputs{0.0f, 0.0f, 0.0f, 0.0f};
+            return SVFOutputs{.low = 0.0f, .high = 0.0f, .band = 0.0f, .notch = 0.0f};
         }
 
         // FR-022: Handle NaN/Inf input
         if (detail::isNaN(input) || detail::isInf(input)) {
             reset();
-            return SVFOutputs{0.0f, 0.0f, 0.0f, 0.0f};
+            return SVFOutputs{.low = 0.0f, .high = 0.0f, .band = 0.0f, .notch = 0.0f};
         }
 
         // Per-sample coefficient smoothing (when enabled)
@@ -451,7 +451,7 @@ public:
         // Compute all outputs
         // Note: HP = v0 - k*v1 - v2 (using input v0, not v3)
         // Note: Band is normalized by k for constant 0dB peak gain (BPK)
-        SVFOutputs out;
+        SVFOutputs out{};
         out.low = v2;
         out.band = k_ * v1;  // Normalized for constant 0dB peak
         out.high = input - k_ * v1 - v2;
@@ -695,14 +695,14 @@ private:
     }
 
     /// @brief Clamp Q factor to valid range.
-    [[nodiscard]] float clampQ(float q) const noexcept {
+    [[nodiscard]] static float clampQ(float q) noexcept {
         if (q < kMinQ) return kMinQ;
         if (q > kMaxQ) return kMaxQ;
         return q;
     }
 
     /// @brief Clamp gain to valid range.
-    [[nodiscard]] float clampGainDb(float dB) const noexcept {
+    [[nodiscard]] static float clampGainDb(float dB) noexcept {
         if (dB < kMinGainDb) return kMinGainDb;
         if (dB > kMaxGainDb) return kMaxGainDb;
         return dB;
@@ -750,5 +750,5 @@ private:
     bool smoothingEnabled_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

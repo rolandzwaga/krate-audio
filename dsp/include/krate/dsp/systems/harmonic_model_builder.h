@@ -186,8 +186,7 @@ public:
         {
             float peakAmp = 0.0f;
             for (int i = 0; i < numPartials; ++i) {
-                if (frame.partials[i].amplitude > peakAmp)
-                    peakAmp = frame.partials[i].amplitude;
+                peakAmp = std::max(peakAmp, frame.partials[i].amplitude);
             }
             // Convert dB threshold to linear: -60 dB = 10^(-60/20) = 0.001
             const float gateThreshold = peakAmp * kRelativeGateLinear;

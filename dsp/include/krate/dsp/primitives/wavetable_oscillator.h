@@ -24,12 +24,13 @@
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/db_utils.h>
 
+#include <algorithm>
 #include <bit>
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // WavetableOscillator Class (FR-029 through FR-052)
@@ -154,8 +155,8 @@ public:
 
         // Clamp fracLevel to valid range
         const float maxLevel = static_cast<float>(numLevels - 1);
-        if (fracLevel > maxLevel) fracLevel = maxLevel;
-        if (fracLevel < 0.0f) fracLevel = 0.0f;
+        fracLevel = std::min(fracLevel, maxLevel);
+        fracLevel = std::max(fracLevel, 0.0f);
 
         // Determine crossfade
         auto intLevel = static_cast<size_t>(fracLevel);
@@ -290,5 +291,5 @@ private:
     bool phaseWrapped_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

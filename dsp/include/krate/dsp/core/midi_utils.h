@@ -22,8 +22,8 @@
 #include <cmath>     // For std::sqrt, std::pow
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // ==============================================================================
 // Constants
@@ -103,9 +103,7 @@ inline constexpr int kMaxMidiVelocity = 127;
 ///
 [[nodiscard]] constexpr float velocityToGain(int velocity) noexcept {
     // Clamp velocity to valid range
-    const int clampedVelocity = (velocity < kMinMidiVelocity) ? kMinMidiVelocity
-                              : (velocity > kMaxMidiVelocity) ? kMaxMidiVelocity
-                              : velocity;
+    const int clampedVelocity = std::clamp(velocity, kMinMidiVelocity, kMaxMidiVelocity);
     return static_cast<float>(clampedVelocity) / static_cast<float>(kMaxMidiVelocity);
 }
 
@@ -145,9 +143,7 @@ enum class VelocityCurve : uint8_t {
 ///
 [[nodiscard]] inline float mapVelocity(int velocity, VelocityCurve curve) noexcept {
     // Clamp velocity to valid range (FR-016)
-    const int clamped = (velocity < kMinMidiVelocity) ? kMinMidiVelocity
-                      : (velocity > kMaxMidiVelocity) ? kMaxMidiVelocity
-                      : velocity;
+    const int clamped = std::clamp(velocity, kMinMidiVelocity, kMaxMidiVelocity);
 
     // Velocity 0 always returns 0.0 regardless of curve (FR-015)
     if (clamped == 0) {
@@ -212,5 +208,5 @@ enum class VelocityCurve : uint8_t {
     return bipolar * rangeSemitones;
 }
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

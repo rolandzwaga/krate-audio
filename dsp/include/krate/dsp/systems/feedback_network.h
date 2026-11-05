@@ -37,8 +37,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Layer 3 System Component - Feedback Network for Delay Effects
 ///
@@ -162,7 +162,7 @@ public:
     // =========================================================================
 
     /// @brief Process mono audio buffer
-    void process(float* buffer, size_t numSamples, const BlockContext& ctx) noexcept {
+    void process(float* buffer, size_t numSamples, const BlockContext& /*ctx*/) noexcept {
         if (!prepared_ || numSamples == 0) return;
 
         hasProcessed_ = true;
@@ -215,7 +215,7 @@ public:
     }
 
     /// @brief Process stereo audio buffers
-    void process(float* left, float* right, size_t numSamples, const BlockContext& ctx) noexcept {
+    void process(float* left, float* right, size_t numSamples, const BlockContext& /*ctx*/) noexcept {
         if (!prepared_ || numSamples == 0) return;
 
         hasProcessed_ = true;
@@ -260,7 +260,8 @@ public:
             feedbackR = dcBlockerR_.process(feedbackR);
 
             // Apply cross-feedback (stereo routing)
-            float crossedL, crossedR;
+            float crossedL;
+            float crossedR;
             stereoCrossBlend(feedbackL, feedbackR, crossFeedback, crossedL, crossedR);
 
             // Scale by feedback amount
@@ -426,7 +427,7 @@ public:
     // Query
     // =========================================================================
 
-    [[nodiscard]] size_t getLatency() const noexcept {
+    [[nodiscard]] static size_t getLatency() noexcept {
         // Latency comes from oversampling in filter/saturator
         // For now, return 0 (no additional latency beyond delay)
         return 0;
@@ -483,5 +484,5 @@ private:
     }
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

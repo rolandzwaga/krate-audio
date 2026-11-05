@@ -43,8 +43,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations (FR-031, FR-004, FR-005)
@@ -143,36 +143,7 @@ public:
     // =========================================================================
 
     /// @brief Default constructor with safe defaults.
-    TapeMachine() noexcept
-        : machineModel_(MachineModel::Studer)
-        , tapeSpeed_(TapeSpeed::IPS_15)
-        , tapeType_(TapeType::Type456)
-        , inputLevelDb_(0.0f)
-        , outputLevelDb_(0.0f)
-        , bias_(0.0f)
-        , saturation_(0.5f)
-        , headBumpAmount_(0.5f)
-        , headBumpFrequency_(kStuderHeadBump_15)
-        , headBumpFrequencyManual_(false)
-        , hfRolloffAmount_(0.5f)
-        , hfRolloffFrequency_(kHfRolloff_15)
-        , hfRolloffFrequencyManual_(false)
-        , hissAmount_(0.0f)
-        , wowAmount_(0.0f)
-        , flutterAmount_(0.0f)
-        , wowRate_(0.5f)
-        , flutterRate_(6.0f)
-        , wowDepthCents_(kStuderWowDepth)
-        , flutterDepthCents_(kStuderFlutterDepth)
-        , wowDepthManual_(false)
-        , flutterDepthManual_(false)
-        , driveOffset_(0.0f)
-        , saturationMultiplier_(1.0f)
-        , biasOffset_(0.0f)
-        , sampleRate_(0.0)
-        , maxBlockSize_(0)
-        , prepared_(false) {
-    }
+    TapeMachine() noexcept = default;
 
     /// @brief Destructor.
     ~TapeMachine() = default;
@@ -727,50 +698,50 @@ private:
     // =========================================================================
 
     // Machine/Speed/Type selection
-    MachineModel machineModel_;
-    TapeSpeed tapeSpeed_;
-    TapeType tapeType_;
+    MachineModel machineModel_{MachineModel::Studer};
+    TapeSpeed tapeSpeed_{TapeSpeed::IPS_15};
+    TapeType tapeType_{TapeType::Type456};
 
     // Gain staging
-    float inputLevelDb_;
-    float outputLevelDb_;
+    float inputLevelDb_{0.0f};
+    float outputLevelDb_{0.0f};
 
     // Saturation parameters
-    float bias_;
-    float saturation_;
+    float bias_{0.0f};
+    float saturation_{0.5f};
 
     // Head bump parameters
-    float headBumpAmount_;
-    float headBumpFrequency_;
-    bool headBumpFrequencyManual_;
+    float headBumpAmount_{0.5f};
+    float headBumpFrequency_{kStuderHeadBump_15};
+    bool headBumpFrequencyManual_{false};
 
     // HF rolloff parameters
-    float hfRolloffAmount_;
-    float hfRolloffFrequency_;
-    bool hfRolloffFrequencyManual_;
+    float hfRolloffAmount_{0.5f};
+    float hfRolloffFrequency_{kHfRolloff_15};
+    bool hfRolloffFrequencyManual_{false};
 
     // Hiss parameter
-    float hissAmount_;
+    float hissAmount_{0.0f};
 
     // Wow/flutter parameters
-    float wowAmount_;
-    float flutterAmount_;
-    float wowRate_;
-    float flutterRate_;
-    float wowDepthCents_;
-    float flutterDepthCents_;
-    bool wowDepthManual_;
-    bool flutterDepthManual_;
+    float wowAmount_{0.0f};
+    float flutterAmount_{0.0f};
+    float wowRate_{0.5f};
+    float flutterRate_{6.0f};
+    float wowDepthCents_{kStuderWowDepth};
+    float flutterDepthCents_{kStuderFlutterDepth};
+    bool wowDepthManual_{false};
+    bool flutterDepthManual_{false};
 
     // Tape type modifiers
-    float driveOffset_;
-    float saturationMultiplier_;
-    float biasOffset_;
+    float driveOffset_{0.0f};
+    float saturationMultiplier_{1.0f};
+    float biasOffset_{0.0f};
 
     // Runtime state
-    double sampleRate_;
-    size_t maxBlockSize_;
-    bool prepared_;
+    double sampleRate_{0.0};
+    size_t maxBlockSize_{0};
+    bool prepared_{false};
 
     // Filter state tracking (for coefficient update optimization)
     float lastHeadBumpFreq_ = -1.0f;
@@ -800,5 +771,5 @@ private:
     size_t wowFlutterWriteIndex_ = 0;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

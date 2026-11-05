@@ -18,8 +18,8 @@
 
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief SIMD-accelerated MCF oscillator batch processing.
 ///
@@ -45,5 +45,5 @@ void processMcfBatchSIMD(
     float& sumL,
     float& sumR) noexcept;
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

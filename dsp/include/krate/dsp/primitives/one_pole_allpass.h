@@ -25,8 +25,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -273,5 +273,5 @@ private:
 /// @deprecated Use OnePoleAllpass instead. Will be removed in future version.
 using Allpass1Pole = OnePoleAllpass;
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

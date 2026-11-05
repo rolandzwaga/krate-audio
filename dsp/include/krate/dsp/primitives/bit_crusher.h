@@ -19,8 +19,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Layer 1 DSP Primitive - Bit depth reduction
 ///
@@ -183,9 +183,7 @@ private:
         levels_ = std::pow(2.0f, bitDepth_) - 1.0f;
 
         // Prevent division by zero for extreme cases
-        if (levels_ < 1.0f) {
-            levels_ = 1.0f;
-        }
+        levels_ = std::max(levels_, 1.0f);
     }
 
     /// @brief Generate next random value in [-1, 1] using xorshift32
@@ -222,5 +220,5 @@ private:
     uint32_t rngState_ = kDefaultRngSeed;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

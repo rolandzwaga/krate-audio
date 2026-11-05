@@ -34,8 +34,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations
@@ -89,22 +89,22 @@ struct AttractorState {
 /// stored in a constexpr array indexed by ChaosAttractor enum value.
 struct AttractorConstants {
     // Numerical integration
-    float dtMax;              ///< Maximum stable dt per RK4 substep
-    float baseDt;             ///< Base dt for frequency scaling
-    float referenceFrequency; ///< Reference frequency for dt scaling
+    float dtMax{};              ///< Maximum stable dt per RK4 substep
+    float baseDt{};             ///< Base dt for frequency scaling
+    float referenceFrequency{}; ///< Reference frequency for dt scaling
 
     // Safety
-    float safeBound;          ///< State bound for divergence detection
+    float safeBound{};          ///< State bound for divergence detection
 
     // Normalization
-    float xScale;             ///< Normalization divisor for x axis
-    float yScale;             ///< Normalization divisor for y axis
-    float zScale;             ///< Normalization divisor for z axis
+    float xScale{};             ///< Normalization divisor for x axis
+    float yScale{};             ///< Normalization divisor for y axis
+    float zScale{};             ///< Normalization divisor for z axis
 
     // Chaos parameter mapping
-    float chaosMin;           ///< Minimum chaos parameter value
-    float chaosMax;           ///< Maximum chaos parameter value
-    float chaosDefault;       ///< Default chaos parameter value
+    float chaosMin{};           ///< Minimum chaos parameter value
+    float chaosMax{};           ///< Maximum chaos parameter value
+    float chaosDefault{};       ///< Default chaos parameter value
 
     // Initial conditions
     AttractorState initialState; ///< Reset state for this attractor
@@ -129,7 +129,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
         .chaosMin = 25.0f,   // Must be above Lorenz bifurcation point (rho~24.74)
         .chaosMax = 28.0f,
         .chaosDefault = 28.0f,
-        .initialState = {1.0f, 1.0f, 1.0f}
+        .initialState = {.x = 1.0f, .y = 1.0f, .z = 1.0f}
     },
     // Rossler (FR-002)
     {
@@ -143,7 +143,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
         .chaosMin = 4.0f,
         .chaosMax = 8.0f,
         .chaosDefault = 5.7f,
-        .initialState = {0.1f, 0.0f, 0.0f}
+        .initialState = {.x = 0.1f, .y = 0.0f, .z = 0.0f}
     },
     // Chua (FR-003)
     {
@@ -157,7 +157,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
         .chaosMin = 12.0f,
         .chaosMax = 18.0f,
         .chaosDefault = 15.6f,
-        .initialState = {0.7f, 0.0f, 0.0f}
+        .initialState = {.x = 0.7f, .y = 0.0f, .z = 0.0f}
     },
     // Duffing (FR-004)
     {
@@ -171,7 +171,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
         .chaosMin = 0.2f,
         .chaosMax = 0.5f,
         .chaosDefault = 0.35f,
-        .initialState = {0.5f, 0.0f, 0.0f}
+        .initialState = {.x = 0.5f, .y = 0.0f, .z = 0.0f}
     },
     // VanDerPol (FR-005)
     {
@@ -185,7 +185,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
         .chaosMin = 0.5f,
         .chaosMax = 5.0f,
         .chaosDefault = 1.0f,
-        .initialState = {0.5f, 0.0f, 0.0f}
+        .initialState = {.x = 0.5f, .y = 0.0f, .z = 0.0f}
     }
 };
 
@@ -711,7 +711,7 @@ private:
     /// @brief Sanitize external input (FR-014).
     ///
     /// Replaces NaN with 0.
-    [[nodiscard]] float sanitizeInput(float input) const noexcept {
+    [[nodiscard]] static float sanitizeInput(float input) noexcept {
         return detail::isNaN(input) ? 0.0f : input;
     }
 
@@ -769,5 +769,5 @@ private:
     DCBlocker dcBlocker_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

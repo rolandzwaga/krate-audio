@@ -16,8 +16,8 @@
 // - Principle IX: Layer 2 (depends on Layer 0)
 // ==============================================================================
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief SIMD-accelerated coupled-form resonator batch processing for one sample.
 ///
@@ -42,5 +42,5 @@ float processModalBankSampleSIMD(
     float excitation,
     int numModes) noexcept;
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

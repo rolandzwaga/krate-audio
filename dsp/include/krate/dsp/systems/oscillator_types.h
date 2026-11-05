@@ -59,7 +59,7 @@ enum class PhaseMode : uint8_t {
 ///
 /// @note Values are DSP-domain (not normalized VST values).
 /// @note Adapters silently ignore OscParam values they don't recognize.
-enum class OscParam : uint16_t {
+enum class OscParam : uint8_t {  // NOLINT(readability-enum-initial-value): groups start at multiples of 10
     // PolyBLEP (Waveform/PulseWidth unique to PolyBLEP;
     // PhaseModulation/FrequencyModulation shared with Wavetable)
     Waveform = 0,

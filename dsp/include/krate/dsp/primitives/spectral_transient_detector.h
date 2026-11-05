@@ -25,8 +25,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Spectral flux-based transient detector for onset detection in
 ///        magnitude spectra (Layer 1 primitive).
@@ -229,5 +229,5 @@ private:
     std::size_t numBins_ = 0;                 ///< Prepared bin count
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

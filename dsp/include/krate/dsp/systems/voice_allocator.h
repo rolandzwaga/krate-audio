@@ -267,11 +267,11 @@ public:
                 voices_[i].state.store(static_cast<uint8_t>(VoiceState::Releasing),
                                        std::memory_order_relaxed);
                 pushEvent(VoiceEvent{
-                    VoiceEvent::Type::NoteOff,
-                    static_cast<uint8_t>(i),
-                    note,
-                    voices_[i].velocity,
-                    voices_[i].frequency
+                    .type = VoiceEvent::Type::NoteOff,
+                    .voiceIndex = static_cast<uint8_t>(i),
+                    .note = note,
+                    .velocity = voices_[i].velocity,
+                    .frequency = voices_[i].frequency
                 });
             }
         }
@@ -327,8 +327,8 @@ public:
         clearEvents();
 
         // Clamp to valid range
-        if (count < 1) count = 1;
-        if (count > kMaxVoices) count = kMaxVoices;
+        count = std::max<size_t>(count, 1);
+        count = std::min(count, kMaxVoices);
 
         // If reducing, release excess voices
         if (count < voiceCount_) {
@@ -339,11 +339,11 @@ public:
                     uint8_t voiceNote = static_cast<uint8_t>(
                         voices_[i].note.load(std::memory_order_relaxed));
                     pushEvent(VoiceEvent{
-                        VoiceEvent::Type::NoteOff,
-                        static_cast<uint8_t>(i),
-                        voiceNote,
-                        voices_[i].velocity,
-                        voices_[i].frequency
+                        .type = VoiceEvent::Type::NoteOff,
+                        .voiceIndex = static_cast<uint8_t>(i),
+                        .note = voiceNote,
+                        .velocity = voices_[i].velocity,
+                        .frequency = voices_[i].frequency
                     });
                     voices_[i].state.store(static_cast<uint8_t>(VoiceState::Idle),
                                            std::memory_order_relaxed);
@@ -363,8 +363,8 @@ public:
     /// New count applies to subsequent noteOn events only (FR-033).
     /// @param count Voices per note
     void setUnisonCount(size_t count) noexcept {
-        if (count < 1) count = 1;
-        if (count > kMaxUnisonCount) count = kMaxUnisonCount;
+        count = std::max<size_t>(count, 1);
+        count = std::min(count, kMaxUnisonCount);
         unisonCount_ = count;
     }
 
@@ -373,8 +373,8 @@ public:
     /// @param amount Detune amount
     void setUnisonDetune(float amount) noexcept {
         if (detail::isNaN(amount) || detail::isInf(amount)) return;
-        if (amount < 0.0f) amount = 0.0f;
-        if (amount > 1.0f) amount = 1.0f;
+        amount = std::max(amount, 0.0f);
+        amount = std::min(amount, 1.0f);
         unisonDetune_ = amount;
     }
 
@@ -544,7 +544,6 @@ private:
                 return findIdleVoiceOldest();
             case AllocationMode::LowestVelocity:
             case AllocationMode::HighestNote:
-                return findIdleVoiceAny();
             default:
                 return findIdleVoiceAny();
         }
@@ -845,11 +844,11 @@ private:
         if (unisonCount_ <= 1) {
             // Single voice retrigger
             pushEvent(VoiceEvent{
-                VoiceEvent::Type::Steal,
-                static_cast<uint8_t>(firstVoice),
-                static_cast<uint8_t>(voices_[firstVoice].note.load(std::memory_order_relaxed)),
-                voices_[firstVoice].velocity,
-                voices_[firstVoice].frequency
+                .type = VoiceEvent::Type::Steal,
+                .voiceIndex = static_cast<uint8_t>(firstVoice),
+                .note = static_cast<uint8_t>(voices_[firstVoice].note.load(std::memory_order_relaxed)),
+                .velocity = voices_[firstVoice].velocity,
+                .frequency = voices_[firstVoice].frequency
             });
 
             float freq = computeFrequency(note);
@@ -862,11 +861,11 @@ private:
             voices_[firstVoice].frequency = freq;
 
             pushEvent(VoiceEvent{
-                VoiceEvent::Type::NoteOn,
-                static_cast<uint8_t>(firstVoice),
-                note,
-                velocity,
-                freq
+                .type = VoiceEvent::Type::NoteOn,
+                .voiceIndex = static_cast<uint8_t>(firstVoice),
+                .note = note,
+                .velocity = velocity,
+                .frequency = freq
             });
         } else {
             // Unison retrigger: steal all voices in the group, then re-assign
@@ -886,11 +885,11 @@ private:
             for (size_t i = 0; i < groupSize; ++i) {
                 size_t vi = groupVoices[i];
                 pushEvent(VoiceEvent{
-                    VoiceEvent::Type::Steal,
-                    static_cast<uint8_t>(vi),
-                    static_cast<uint8_t>(voices_[vi].note.load(std::memory_order_relaxed)),
-                    voices_[vi].velocity,
-                    voices_[vi].frequency
+                    .type = VoiceEvent::Type::Steal,
+                    .voiceIndex = static_cast<uint8_t>(vi),
+                    .note = static_cast<uint8_t>(voices_[vi].note.load(std::memory_order_relaxed)),
+                    .velocity = voices_[vi].velocity,
+                    .frequency = voices_[vi].frequency
                 });
             }
 
@@ -909,11 +908,11 @@ private:
                 voices_[vi].frequency = freq;
 
                 pushEvent(VoiceEvent{
-                    VoiceEvent::Type::NoteOn,
-                    static_cast<uint8_t>(vi),
-                    note,
-                    velocity,
-                    freq
+                    .type = VoiceEvent::Type::NoteOn,
+                    .voiceIndex = static_cast<uint8_t>(vi),
+                    .note = note,
+                    .velocity = velocity,
+                    .frequency = freq
                 });
             }
         }
@@ -968,19 +967,19 @@ private:
                     size_t vi = victimVoices[i];
                     if (stealMode_ == StealMode::Hard) {
                         pushEvent(VoiceEvent{
-                            VoiceEvent::Type::Steal,
-                            static_cast<uint8_t>(vi),
-                            static_cast<uint8_t>(voices_[vi].note.load(std::memory_order_relaxed)),
-                            voices_[vi].velocity,
-                            voices_[vi].frequency
+                            .type = VoiceEvent::Type::Steal,
+                            .voiceIndex = static_cast<uint8_t>(vi),
+                            .note = static_cast<uint8_t>(voices_[vi].note.load(std::memory_order_relaxed)),
+                            .velocity = voices_[vi].velocity,
+                            .frequency = voices_[vi].frequency
                         });
                     } else {
                         pushEvent(VoiceEvent{
-                            VoiceEvent::Type::NoteOff,
-                            static_cast<uint8_t>(vi),
-                            static_cast<uint8_t>(voices_[vi].note.load(std::memory_order_relaxed)),
-                            voices_[vi].velocity,
-                            voices_[vi].frequency
+                            .type = VoiceEvent::Type::NoteOff,
+                            .voiceIndex = static_cast<uint8_t>(vi),
+                            .note = static_cast<uint8_t>(voices_[vi].note.load(std::memory_order_relaxed)),
+                            .velocity = voices_[vi].velocity,
+                            .frequency = voices_[vi].frequency
                         });
                     }
                     allocated[allocCount++] = vi;
@@ -1000,19 +999,19 @@ private:
                         if (isAlreadyAllocated(allocated, allocCount, idx)) break;
                         if (stealMode_ == StealMode::Hard) {
                             pushEvent(VoiceEvent{
-                                VoiceEvent::Type::Steal,
-                                static_cast<uint8_t>(idx),
-                                static_cast<uint8_t>(voices_[idx].note.load(std::memory_order_relaxed)),
-                                voices_[idx].velocity,
-                                voices_[idx].frequency
+                                .type = VoiceEvent::Type::Steal,
+                                .voiceIndex = static_cast<uint8_t>(idx),
+                                .note = static_cast<uint8_t>(voices_[idx].note.load(std::memory_order_relaxed)),
+                                .velocity = voices_[idx].velocity,
+                                .frequency = voices_[idx].frequency
                             });
                         } else {
                             pushEvent(VoiceEvent{
-                                VoiceEvent::Type::NoteOff,
-                                static_cast<uint8_t>(idx),
-                                static_cast<uint8_t>(voices_[idx].note.load(std::memory_order_relaxed)),
-                                voices_[idx].velocity,
-                                voices_[idx].frequency
+                                .type = VoiceEvent::Type::NoteOff,
+                                .voiceIndex = static_cast<uint8_t>(idx),
+                                .note = static_cast<uint8_t>(voices_[idx].note.load(std::memory_order_relaxed)),
+                                .velocity = voices_[idx].velocity,
+                                .frequency = voices_[idx].frequency
                             });
                         }
                     } else if (isAlreadyAllocated(allocated, allocCount, idx)) {
@@ -1025,19 +1024,19 @@ private:
                 // Single voice steal
                 if (stealMode_ == StealMode::Hard) {
                     pushEvent(VoiceEvent{
-                        VoiceEvent::Type::Steal,
-                        static_cast<uint8_t>(victimVoice),
-                        static_cast<uint8_t>(voices_[victimVoice].note.load(std::memory_order_relaxed)),
-                        voices_[victimVoice].velocity,
-                        voices_[victimVoice].frequency
+                        .type = VoiceEvent::Type::Steal,
+                        .voiceIndex = static_cast<uint8_t>(victimVoice),
+                        .note = static_cast<uint8_t>(voices_[victimVoice].note.load(std::memory_order_relaxed)),
+                        .velocity = voices_[victimVoice].velocity,
+                        .frequency = voices_[victimVoice].frequency
                     });
                 } else {
                     pushEvent(VoiceEvent{
-                        VoiceEvent::Type::NoteOff,
-                        static_cast<uint8_t>(victimVoice),
-                        static_cast<uint8_t>(voices_[victimVoice].note.load(std::memory_order_relaxed)),
-                        voices_[victimVoice].velocity,
-                        voices_[victimVoice].frequency
+                        .type = VoiceEvent::Type::NoteOff,
+                        .voiceIndex = static_cast<uint8_t>(victimVoice),
+                        .note = static_cast<uint8_t>(voices_[victimVoice].note.load(std::memory_order_relaxed)),
+                        .velocity = voices_[victimVoice].velocity,
+                        .frequency = voices_[victimVoice].frequency
                     });
                 }
                 allocated[0] = victimVoice;
@@ -1059,11 +1058,11 @@ private:
             voices_[vi].frequency = freq;
 
             pushEvent(VoiceEvent{
-                VoiceEvent::Type::NoteOn,
-                static_cast<uint8_t>(vi),
-                note,
-                velocity,
-                freq
+                .type = VoiceEvent::Type::NoteOn,
+                .voiceIndex = static_cast<uint8_t>(vi),
+                .note = note,
+                .velocity = velocity,
+                .frequency = freq
             });
         }
 

@@ -23,8 +23,8 @@
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/math_constants.h>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Type Aliases
@@ -264,7 +264,7 @@ namespace Sigmoid {
 /// @return Clipped output in range [-threshold, threshold]
 ///
 /// @harmonics All harmonics (harsh, digital character)
-[[nodiscard]] inline constexpr float hardClip(float x, float threshold = 1.0f) noexcept {
+[[nodiscard]] constexpr float hardClip(float x, float threshold = 1.0f) noexcept {
     return std::clamp(x, -threshold, threshold);
 }
 
@@ -425,5 +425,5 @@ template <typename Func>
 
 } // namespace Asymmetric
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

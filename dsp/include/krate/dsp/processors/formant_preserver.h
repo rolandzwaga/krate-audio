@@ -153,12 +153,12 @@ public:
     /// @brief Apply formant preservation to pitch-shifted spectrum
     ///
     /// Formula: output[k] = shifted[k] * (originalEnv[k] / shiftedEnv[k])
-    void applyFormantPreservation(
+    static void applyFormantPreservation(
             const float* shiftedMagnitudes,
             const float* originalEnvelope,
             const float* shiftedEnvelope,
             float* outputMagnitudes,
-            std::size_t numBins) const noexcept {
+            std::size_t numBins) noexcept {
 
         for (std::size_t k = 0; k < numBins; ++k) {
             float shiftedEnv = std::max(shiftedEnvelope[k], kMinMagnitude);
@@ -197,7 +197,7 @@ private:
     /// @brief Compute real cepstrum from log-magnitude spectrum
     void computeCepstrum() noexcept {
         for (std::size_t k = 0; k < numBins_; ++k) {
-            complexBuf_[k] = {logMag_[k], 0.0f};
+            complexBuf_[k] = {.real = logMag_[k], .imag = 0.0f};
         }
 
         fft_.inverse(complexBuf_.data(), cepstrum_.data());

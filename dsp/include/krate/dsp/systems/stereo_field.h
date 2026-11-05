@@ -36,8 +36,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // StereoMode Enumeration (FR-001)
@@ -198,10 +198,10 @@ private:
                         float* leftOut, float* rightOut, size_t numSamples) noexcept;
 
     /// @brief Apply constant-power panning. (FR-020)
-    void applyPan(float sample, float panAmount, float& left, float& right) noexcept;
+    static void applyPan(float sample, float panAmount, float& left, float& right) noexcept;
 
     /// @brief Sanitize input (replace NaN with 0). (FR-019)
-    [[nodiscard]] float sanitizeInput(float sample) const noexcept;
+    [[nodiscard]] static float sanitizeInput(float sample) noexcept;
 
     /// @brief Convert milliseconds to samples.
     [[nodiscard]] float msToSamples(float ms) const noexcept;
@@ -375,8 +375,10 @@ inline void StereoField::process(const float* leftIn, const float* rightIn,
             const float inR = sanitizeInput(rightIn[i]);
 
             // Process old mode
-            float oldL = 0.0f, oldR = 0.0f;
-            float newL = 0.0f, newR = 0.0f;
+            float oldL = 0.0f;
+            float oldR = 0.0f;
+            float newL = 0.0f;
+            float newR = 0.0f;
 
             // Single sample processing for crossfade
             const float* singleInL = &inL;
@@ -619,7 +621,8 @@ inline void StereoField::processDualMono(const float* leftIn, const float* right
 
         // Apply constant-power pan separately to each channel's signal
         // DualMono outputs both signals independently with their respective timing
-        float panL, panR;
+        float panL;
+        float panR;
         applyPan(delayedL, panAmount, panL, panR);
         leftOut[i] = panL;
 
@@ -680,7 +683,7 @@ inline void StereoField::applyPan(float sample, float panAmount, float& left, fl
     right = sample * gainR;
 }
 
-inline float StereoField::sanitizeInput(float sample) const noexcept {
+inline float StereoField::sanitizeInput(float sample) noexcept {
     // FR-019: NaN treated as 0.0
     if (detail::isNaN(sample)) {
         return 0.0f;
@@ -692,5 +695,5 @@ inline float StereoField::msToSamples(float ms) const noexcept {
     return static_cast<float>(ms * sampleRate_ / 1000.0);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -38,8 +38,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations
@@ -144,13 +144,13 @@ public:
     /// @note NOT real-time safe (allocates memory)
     void prepare(double sampleRate, std::size_t fftSize = kDefaultFFTSize) noexcept {
         // Clamp FFT size to valid range
-        if (fftSize < kMinFFTSize) fftSize = kMinFFTSize;
-        if (fftSize > kMaxFFTSize) fftSize = kMaxFFTSize;
+        fftSize = std::max(fftSize, kMinFFTSize);
+        fftSize = std::min(fftSize, kMaxFFTSize);
 
         // Round to nearest power of 2
         std::size_t pow2 = 1;
         while (pow2 < fftSize) pow2 <<= 1;
-        if (pow2 > kMaxFFTSize) pow2 = kMaxFFTSize;
+        pow2 = std::min(pow2, kMaxFFTSize);
         fftSize = pow2;
 
         sampleRate_ = sampleRate;
@@ -583,7 +583,7 @@ private:
         }
 
         const std::size_t startBin = processDCNyquist_ ? 0 : 1;
-        const std::size_t endBin = processDCNyquist_ ? numBins_ : (numBins_ > 1 ? numBins_ - 1 : numBins_);
+        const std::size_t endBin = (processDCNyquist_ || numBins_ <= 1) ? numBins_ : numBins_ - 1;
 
         // Copy DC bin if excluded
         if (!processDCNyquist_ && numBins_ > 0) {
@@ -641,7 +641,7 @@ private:
         }
 
         const std::size_t startBin = processDCNyquist_ ? 0 : 1;
-        const std::size_t endBin = processDCNyquist_ ? numBins_ : (numBins_ > 1 ? numBins_ - 1 : numBins_);
+        const std::size_t endBin = (processDCNyquist_ || numBins_ <= 1) ? numBins_ : numBins_ - 1;
 
         // Copy DC bin if excluded
         if (!processDCNyquist_ && numBins_ > 0) {
@@ -691,7 +691,7 @@ private:
     /// @brief Apply bin-selective saturation with per-band drive (FR-022)
     void applyBinSelective() noexcept {
         const std::size_t startBin = processDCNyquist_ ? 0 : 1;
-        const std::size_t endBin = processDCNyquist_ ? numBins_ : (numBins_ > 1 ? numBins_ - 1 : numBins_);
+        const std::size_t endBin = (processDCNyquist_ || numBins_ <= 1) ? numBins_ : numBins_ - 1;
 
         // Copy DC bin if excluded
         if (!processDCNyquist_ && numBins_ > 0) {
@@ -745,7 +745,7 @@ private:
     /// @brief Apply spectral bitcrushing (FR-024)
     void applySpectralBitcrush() noexcept {
         const std::size_t startBin = processDCNyquist_ ? 0 : 1;
-        const std::size_t endBin = processDCNyquist_ ? numBins_ : (numBins_ > 1 ? numBins_ - 1 : numBins_);
+        const std::size_t endBin = (processDCNyquist_ || numBins_ <= 1) ? numBins_ : numBins_ - 1;
 
         // Copy DC bin if excluded
         if (!processDCNyquist_ && numBins_ > 0) {
@@ -876,7 +876,7 @@ private:
                 }
                 if (peakMag < 1e-20f) break;
                 const float invPeak = 1.0f / peakMag;
-                const float invLog2 = 1.0f / std::log(2.0f);
+                const float invLog2 = 1.0f / std::numbers::ln2_v<float>;
 
                 for (std::size_t bin = 0; bin < numBins_; ++bin) {
                     float mag = outputSpectrum_.getMagnitude(bin);
@@ -1095,5 +1095,5 @@ private:
     std::vector<float> zeroBuffer_;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

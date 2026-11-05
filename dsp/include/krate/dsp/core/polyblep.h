@@ -39,8 +39,8 @@
 
 #include <krate/dsp/core/math_constants.h>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // 2-Point PolyBLEP (FR-001, FR-005, FR-006, FR-007)
@@ -286,5 +286,5 @@ namespace DSP {
     return 0.0f;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

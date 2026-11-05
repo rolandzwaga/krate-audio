@@ -26,8 +26,8 @@
 
 #pragma once
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Phase Utility Functions
@@ -179,5 +179,5 @@ struct PhaseAccumulator {
     }
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

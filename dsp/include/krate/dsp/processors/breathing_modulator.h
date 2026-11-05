@@ -90,10 +90,11 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Slow, asymmetric, bounded breath cycle.
 ///
@@ -229,7 +230,7 @@ public:
     }
 
 private:
-    static constexpr double kPi = 3.14159265358979323846;
+    static constexpr double kPi = std::numbers::pi;
 
     void initState() noexcept {
         rng_.seed(configuredSeed_);
@@ -300,5 +301,5 @@ private:
     OnePoleSmoother outputSmoother_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

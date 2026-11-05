@@ -28,8 +28,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Bin-Frequency Conversion
@@ -40,7 +40,7 @@ namespace DSP {
 /// @param fftSize FFT size (e.g., 2048)
 /// @param sampleRate Sample rate in Hz
 /// @return Frequency in Hz
-[[nodiscard]] inline constexpr float binToFrequency(
+[[nodiscard]] constexpr float binToFrequency(
     size_t bin,
     size_t fftSize,
     float sampleRate) noexcept
@@ -53,7 +53,7 @@ namespace DSP {
 /// @param fftSize FFT size
 /// @param sampleRate Sample rate in Hz
 /// @return Fractional bin index
-[[nodiscard]] inline constexpr float frequencyToBin(
+[[nodiscard]] constexpr float frequencyToBin(
     float frequency,
     size_t fftSize,
     float sampleRate) noexcept
@@ -82,7 +82,7 @@ namespace DSP {
 /// @param fftSize FFT size
 /// @param sampleRate Sample rate in Hz
 /// @return Frequency spacing between bins in Hz
-[[nodiscard]] inline constexpr float getBinSpacing(
+[[nodiscard]] constexpr float getBinSpacing(
     size_t fftSize,
     float sampleRate) noexcept
 {
@@ -127,7 +127,7 @@ namespace DSP {
 /// @param b Second value
 /// @param t Interpolation factor [0, 1]
 /// @return Interpolated value
-[[nodiscard]] inline constexpr float lerp(float a, float b, float t) noexcept {
+[[nodiscard]] constexpr float lerp(float a, float b, float t) noexcept {
     return a + t * (b - a);
 }
 
@@ -358,5 +358,5 @@ inline void smoothMagnitudesExponential(
     return geometricMean / arithmeticMean;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -29,8 +29,8 @@
 #include <functional>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Forward Declarations
@@ -106,7 +106,7 @@ constexpr size_t kHighFirLatency = 31;  // (63-1)/2
 constexpr std::array<float, 15> kHighFirCoeffs = {{
     // Coefficients for odd offsets from center: h[±1], h[±3], ..., h[±29]
     // Formula: h[k] = sin(πk/2) / (πk) * Kaiser_window(k, β=10.06, M=31)
-     0.3177744f,   // h[±1]:  (1/π) * w[1]
+     0.3177744f,   // h[±1]:  (1/π) * w[1]. NOLINT(modernize-use-std-numbers): windowed, not 1/pi
     -0.1044151f,   // h[±3]: -(1/3π) * w[3]
      0.0607996f,   // h[±5]:  (1/5π) * w[5]
     -0.0413280f,   // h[±7]: -(1/7π) * w[7]
@@ -900,5 +900,5 @@ size_t Oversampler<Factor, NumChannels>::getOversampledBufferSize() const noexce
     return maxBlockSize_ * Factor;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

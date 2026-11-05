@@ -17,8 +17,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // ==============================================================================
 // Xorshift32 PRNG
@@ -110,5 +110,5 @@ private:
     return (h != 0u) ? h : 0x2545F491u;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

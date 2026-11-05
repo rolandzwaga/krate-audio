@@ -26,8 +26,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // HardClipADAA Class (FR-001 to FR-034)
@@ -93,15 +93,7 @@ public:
     /// - Order: First (efficient, good quality)
     /// - Threshold: 1.0 (standard [-1, 1] range)
     /// - State: No previous sample history
-    HardClipADAA() noexcept
-        : x1_(0.0f)
-        , D1_prev_(0.0f)
-        , threshold_(1.0f)
-        , order_(Order::First)
-        , hasPreviousSample_(false)
-        , hasValidD1Prev_(false)
-    {
-    }
+    HardClipADAA() noexcept = default;
 
     // Default copy/move (trivially copyable - per-channel instances)
     HardClipADAA(const HardClipADAA&) = default;
@@ -214,7 +206,7 @@ private:
     // =========================================================================
 
     /// @brief First-order ADAA processing (FR-016, FR-017)
-    [[nodiscard]] float processFirstOrder(float x) noexcept;
+    [[nodiscard]] float processFirstOrder(float x) const noexcept;
 
     /// @brief Second-order ADAA processing (FR-018 to FR-021)
     [[nodiscard]] float processSecondOrder(float x) noexcept;
@@ -223,12 +215,12 @@ private:
     // Member Variables
     // =========================================================================
 
-    float x1_;                  ///< Previous input sample
-    float D1_prev_;             ///< Previous first-order result (for ADAA2)
-    float threshold_;           ///< Clipping threshold (>= 0)
-    Order order_;               ///< Selected ADAA algorithm
-    bool hasPreviousSample_;    ///< True after first sample processed
-    bool hasValidD1Prev_;       ///< True when D1_prev_ is valid for second-order
+    float x1_{0.0f};                  ///< Previous input sample
+    float D1_prev_{0.0f};             ///< Previous first-order result (for ADAA2)
+    float threshold_{1.0f};           ///< Clipping threshold (>= 0)
+    Order order_{Order::First};               ///< Selected ADAA algorithm
+    bool hasPreviousSample_{false};    ///< True after first sample processed
+    bool hasValidD1Prev_{false};       ///< True when D1_prev_ is valid for second-order
 };
 
 // =============================================================================
@@ -298,7 +290,7 @@ inline float HardClipADAA::F2(float x, float threshold) noexcept {
     }
 }
 
-inline float HardClipADAA::processFirstOrder(float x) noexcept {
+inline float HardClipADAA::processFirstOrder(float x) const noexcept {
     // FR-016: First-order ADAA formula
     // y = (F1(x[n]) - F1(x[n-1])) / (x[n] - x[n-1])
 
@@ -409,5 +401,5 @@ inline void HardClipADAA::processBlock(float* buffer, size_t n) noexcept {
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

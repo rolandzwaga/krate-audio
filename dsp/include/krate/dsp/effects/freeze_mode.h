@@ -40,8 +40,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // FreezeFeedbackProcessor - IFeedbackProcessor for freeze effect
@@ -797,5 +797,5 @@ inline void FreezeMode::process(float* left, float* right, std::size_t numSample
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <numbers>
 #include <span>
 
 namespace Krate::DSP {
@@ -917,7 +918,7 @@ private:
 
     // ---- Phase 15 helpers ----
 
-    static constexpr double kPhasePi = 3.14159265358979323846;
+    static constexpr double kPhasePi = std::numbers::pi;
 
     /// x wrapped to [−π, π].
     [[nodiscard]] static double wrapPi(double x) noexcept {
@@ -1065,7 +1066,7 @@ private:
         return previous;
     }
 
-    static constexpr double kPiDouble = 3.14159265358979323846;
+    static constexpr double kPiDouble = std::numbers::pi;
     static constexpr double kMaxBankEpsilon = 1.99;   // the bank's kMaxEpsilon (:1060)
 
     // ---- S4.2 state (all fixed-size members) ----
@@ -1192,7 +1193,7 @@ private:
                     sumSin += v * sinPhi[k];
                 }
                 const double rms = std::sqrt(sumSq / static_cast<double>(kK));   // > 0: drive >= 1/16
-                const double makeup = (p / std::sqrt(2.0)) / rms;
+                const double makeup = (p / std::numbers::sqrt2) / rms;
                 const double h1 = makeup * (2.0 / static_cast<double>(kK)) * sumSin / p;
                 const std::size_t cell = i * detail::kExcitationTableBiasPoints + j;
                 excMakeup_[cell] = static_cast<float>(makeup);

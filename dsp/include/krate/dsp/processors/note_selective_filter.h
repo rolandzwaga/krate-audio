@@ -28,8 +28,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // NoDetectionMode Enumeration (FR-022 through FR-025)
@@ -602,7 +602,7 @@ inline bool NoteSelectiveFilter::isCurrentlyFiltering() const noexcept {
 // =============================================================================
 
 inline std::bitset<12> NoteSelectiveFilter::getTargetNotes() const noexcept {
-    return std::bitset<12>(targetNotes_.load(std::memory_order_relaxed));
+    return {targetNotes_.load(std::memory_order_relaxed)};
 }
 
 inline float NoteSelectiveFilter::getNoteTolerance() const noexcept {
@@ -646,5 +646,5 @@ inline float NoteSelectiveFilter::clampCutoff(float hz) const noexcept {
     return std::clamp(hz, kMinCutoffHz, maxCutoff);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -115,7 +115,7 @@ public:
     // OscillatorSlot Interface Implementation
     // =========================================================================
 
-    void prepare(double sampleRate, size_t maxBlockSize) noexcept override {
+    void prepare(double sampleRate, size_t /*maxBlockSize*/) noexcept override {
         sampleRate_ = sampleRate;
 
         // Types with FFT-based processing use reduced 1024-point FFT per voice

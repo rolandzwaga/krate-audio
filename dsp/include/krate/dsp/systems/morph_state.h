@@ -341,7 +341,7 @@ using Leaf = std::integral_constant<std::size_t, I>;
 /// Calls f(Leaf<i>{}, s.<leaf i>...) for i = 0..63 in table order (plan S3.3); S... are MorphState or
 /// const MorphState. A template visitor keeps every access inlined (straight-line code, plan S10).
 template <class F, class... S>
-constexpr void forEachMorphLeaf(F&& f, S&... s) {
+constexpr void forEachMorphLeaf(F&& f, S&... s) {  // NOLINT(cppcoreguidelines-missing-std-forward): f runs once per leaf
     f(Leaf<0>{}, s.recipe.depth...);
     f(Leaf<1>{}, s.recipe.body...);
     f(Leaf<2>{}, s.recipe.bodyCurvature...);
@@ -511,7 +511,7 @@ static_assert(std::endian::native == std::endian::little,
 /// depend on the thread's MXCSR: under DAZ an ordinary float compare reads a denormal as 0 and admits
 /// nextafter(0, -inf) into a [0, x] box (the test main and the audio thread both run with FTZ/DAZ).
 [[nodiscard]] constexpr std::int64_t orderedFloatKey(float x) noexcept {
-    const std::uint32_t u = std::bit_cast<std::uint32_t>(x);
+    const auto u = std::bit_cast<std::uint32_t>(x);
     const auto magnitude = static_cast<std::int64_t>(u & 0x7FFFFFFFu);
     return (u & 0x80000000u) != 0u ? -magnitude : magnitude;
 }

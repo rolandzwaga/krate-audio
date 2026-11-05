@@ -19,8 +19,8 @@
 #include <utility>
 #include <krate/dsp/core/math_constants.h>  // For kHalfPi
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // Note: kHalfPi is defined in math_constants.h to avoid ODR violations
 
@@ -91,5 +91,5 @@ inline void equalPowerGains(float position, float& fadeOut, float& fadeIn) noexc
     return (samples > 0.0f) ? (1.0f / samples) : 1.0f;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

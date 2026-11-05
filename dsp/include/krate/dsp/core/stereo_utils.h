@@ -9,8 +9,8 @@
 
 #pragma once
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Apply stereo cross-blend routing (FR-017)
 ///
@@ -48,5 +48,5 @@ constexpr void stereoCrossBlend(
     outR = inR * keep + inL * crossAmount;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

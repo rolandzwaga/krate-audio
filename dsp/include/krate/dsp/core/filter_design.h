@@ -17,9 +17,10 @@
 
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+
 
 /// @brief Filter design utility functions.
 ///
@@ -29,7 +30,7 @@ namespace DSP {
 /// - Chebyshev Type I Q value calculation
 /// - Bessel filter Q value lookup
 /// - Butterworth pole angle calculation
-namespace FilterDesign {
+namespace Krate::DSP::FilterDesign {
 
 // =============================================================================
 // Implementation Details (not part of public API)
@@ -40,17 +41,17 @@ namespace detail {
 /// Bessel Q lookup table for orders 2-8.
 /// Table layout: besselQTable[order-2][stage]
 inline constexpr float besselQTable[7][4] = {
-    {0.57735f,  0.0f,     0.0f,     0.0f},      // Order 2: 1 biquad
+    {0.57735f,  0.0f,     0.0f,     0.0f},      // Order 2: 1 biquad. NOLINT(modernize-use-std-numbers): the table is 5-digit Q values
     {0.69105f,  0.0f,     0.0f,     0.0f},      // Order 3: 1st-order + 1 biquad
     {0.80554f,  0.52193f, 0.0f,     0.0f},      // Order 4: 2 biquads
-    {0.91648f,  0.56354f, 0.0f,     0.0f},      // Order 5: 1st-order + 2 biquads
+    {0.91648f,  0.56354f, 0.0f,     0.0f},      // Order 5: 1st-order + 2 biquads. NOLINT(modernize-use-std-numbers): a Bessel Q, not 1/sqrt(pi)
     {1.02331f,  0.61119f, 0.51032f, 0.0f},      // Order 6: 3 biquads
     {1.12626f,  0.66082f, 0.53236f, 0.0f},      // Order 7: 1st-order + 3 biquads
     {1.22567f,  0.71085f, 0.55961f, 0.50599f},  // Order 8: 4 biquads
 };
 
 /// Natural log of 10 for dB conversions.
-inline constexpr float kLn10 = 2.302585093f;
+inline constexpr float kLn10 = std::numbers::ln10_v<float>;
 
 } // namespace detail
 
@@ -274,6 +275,6 @@ inline constexpr float kLn10 = 2.302585093f;
     return kPi * (2.0f * static_cast<float>(k) + 1.0f) / (2.0f * static_cast<float>(N));
 }
 
-} // namespace FilterDesign
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP::FilterDesign
+
+

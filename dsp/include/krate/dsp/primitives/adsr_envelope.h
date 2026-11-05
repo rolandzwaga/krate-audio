@@ -31,8 +31,8 @@
 
 #include <krate/dsp/core/db_utils.h>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations (FR-001)
@@ -561,5 +561,5 @@ private:
     bool gateOn_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

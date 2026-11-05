@@ -33,8 +33,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Tube gain stage processor with configurable drive, bias, and saturation.
 ///
@@ -340,5 +340,5 @@ private:
     double sampleRate_ = 44100.0;  ///< Current sample rate
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

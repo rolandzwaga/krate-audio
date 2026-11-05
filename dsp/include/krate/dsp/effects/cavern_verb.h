@@ -73,9 +73,10 @@
 #include <cmath>      // exp, pow, fabs
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 namespace detail {
 
@@ -157,9 +158,7 @@ template <std::size_t N>
                         diff = -diff;
                     }
                     const double metric = diff / smaller;
-                    if (metric < worst) {
-                        worst = metric;
-                    }
+                    worst = std::min(worst, metric);
                 }
             }
         }
@@ -457,10 +456,10 @@ public:
         // 9. dampers, for EVERY slot and not only numChannels_, so a later
         //    prepare() at N = 16 cannot inherit a stale stream (the
         //    reseedStreams() reasoning at aether_reverb.h:2993-2995).
-        for (std::size_t i = 0; i < kMaxChannels; ++i) {
-            damper_[i].prepare(sampleRate_);
-            damper_[i].setDepth(damperDepth_);
-            damper_[i].setSmoothness(1.0f - damperRate_);
+        for (auto& damper : damper_) {
+            damper.prepare(sampleRate_);
+            damper.setDepth(damperDepth_);
+            damper.setSmoothness(1.0f - damperRate_);
         }
 
         // 10. re-apply every shadowed control, re-seed, then reset.
@@ -496,8 +495,8 @@ public:
         dryAlignR_.reset();
         erAlignL_.reset();
         erAlignR_.reset();
-        for (std::size_t i = 0; i < kEarlyTapCount; ++i) {
-            taps_[i].state = 0.0f;
+        for (auto& tap : taps_) {
+            tap.state = 0.0f;
         }
         clearScratch();
 
@@ -539,8 +538,8 @@ public:
     void silence() noexcept {
         engine_.silence();
         erLine_.reset();
-        for (std::size_t i = 0; i < kEarlyTapCount; ++i) {
-            taps_[i].state = 0.0f;
+        for (auto& tap : taps_) {
+            tap.state = 0.0f;
         }
     }
 
@@ -716,8 +715,8 @@ public:
     /// (brownian_drift.h:249-251), so a second multiply would square it.
     void setDamperDepth(float v) noexcept {
         damperDepth_ = std::clamp(isFinite(v) ? v : kDefaultDamperDepth, 0.0f, 1.0f);
-        for (std::size_t i = 0; i < kMaxChannels; ++i) {
-            damper_[i].setDepth(damperDepth_);
+        for (auto& damper : damper_) {
+            damper.setDepth(damperDepth_);
         }
     }
 
@@ -725,8 +724,8 @@ public:
     /// fastest (tau = 0.2 s). brownian_drift.h:97-99, :231-234.
     void setDamperRate(float v) noexcept {
         damperRate_ = std::clamp(isFinite(v) ? v : kDefaultDamperRate, 0.0f, 1.0f);
-        for (std::size_t i = 0; i < kMaxChannels; ++i) {
-            damper_[i].setSmoothness(1.0f - damperRate_);
+        for (auto& damper : damper_) {
+            damper.setSmoothness(1.0f - damperRate_);
         }
     }
 
@@ -805,7 +804,7 @@ public:
         return (erFloats + (4u * alignFloats)) * sizeof(float);
     }
 
-    [[nodiscard]] std::size_t getEarlyTapCount() const noexcept { return kEarlyTapCount; }
+    [[nodiscard]] static std::size_t getEarlyTapCount() noexcept { return kEarlyTapCount; }
 
     /// @brief The CURRENT, size-scaled delay of one tap, in samples.
     [[nodiscard]] float getEarlyTapDelaySamples(std::size_t tap) const noexcept {
@@ -992,8 +991,8 @@ private:
         if (!bypass && absorptionBypass_) {
             // Leaving bypass: the states hold history the filter was not running
             // on, so they are zeroed before the one-pole is re-engaged.
-            for (std::size_t i = 0; i < kEarlyTapCount; ++i) {
-                taps_[i].state = 0.0f;
+            for (auto& tap : taps_) {
+                tap.state = 0.0f;
             }
         }
         absorptionBypass_ = bypass;
@@ -1008,9 +1007,9 @@ private:
             // which is only exactly fcMax by grace of pow(x, 0) == 1 - so
             // FR-027's "reports fcMax while bypassed" holds by construction
             // instead of by a rounding that a future libm could give up.
-            for (std::size_t i = 0; i < kEarlyTapCount; ++i) {
-                taps_[i].fcHz = fcMax;
-                taps_[i].a = 0.0f;  // never read: renderSlice branches on the flag
+            for (auto& tap : taps_) {
+                tap.fcHz = fcMax;
+                tap.a = 0.0f;  // never read: renderSlice branches on the flag
             }
             return;
         }
@@ -1060,9 +1059,9 @@ private:
         // FR-073: the tap one-poles are first-order IIRs, so their states ARE a
         // recirculating quantity. The per-chunk flush bounds the exposure to at
         // most one control chunk of denormal arithmetic on twelve scalars.
-        for (std::size_t i = 0; i < kEarlyTapCount; ++i) {
-            if (std::fabs(taps_[i].state) < 1.0e-20f) {
-                taps_[i].state = 0.0f;
+        for (auto& tap : taps_) {
+            if (std::fabs(tap.state) < 1.0e-20f) {
+                tap.state = 0.0f;
             }
         }
     }
@@ -1309,7 +1308,7 @@ private:
     /// Recompute gate for the absorption coefficients (the :2785 idiom).
     static constexpr float kAbsorptionEpsilon = 1.0e-7f;
     /// pi, so the absorption coefficient reads as 1 - exp(-2*pi*fc/sr).
-    static constexpr float kPi = 3.14159265358979f;
+    static constexpr float kPi = std::numbers::pi_v<float>;
 
     // --- prepared configuration ---
     bool prepared_ = false;
@@ -1415,5 +1414,5 @@ static_assert(static_cast<double>(CavernVerb::kEarlyGainSum) - detail::kCavernMe
                   1.0e-5,
               "kEarlyGainSum must equal the table's actual gain sum (lower side)");
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

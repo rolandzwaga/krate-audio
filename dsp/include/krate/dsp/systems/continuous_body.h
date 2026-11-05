@@ -49,6 +49,7 @@
 #include <cstdint>
 #include <cstring>  // std::memcpy - the bit-pattern finiteness check (FR-007)
 #include <numbers>  // kScatterD mirrors modal_resonator_bank.h:604-605 exactly
+#include <utility>
 
 // NOTE ON core/dsp_utils.h: deliberately NOT included. Nothing in this component
 // calls softClip - FR-037's guard is a std::clamp, and every soft clip on the
@@ -61,8 +62,8 @@
 // DENORMAL guard, never a finiteness guard: `(x > -k && x < k) ? 0.0f : x`
 // returns NaN and +/-Inf unchanged, because both comparisons are false for NaN.
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Continuously-excited resonant body with five materials, three engines,
 ///        a crossfading material selector and a per-voice slow decay cloud.
@@ -671,16 +672,16 @@ public:
     /// C++17+, so the pointer targets have external linkage with no out-of-line
     /// definition and no ODR hazard.
     struct MaterialProfile {
-        Engine engine;
-        const float* ratios;  ///< nullptr for non-modal; points at a class-scoped table
-        int defaultModeCount;  ///< <= kModeCountCeiling
-        float amplitudeExponent;  ///< alpha in a_k = k^-alpha
+        Engine engine{};
+        const float* ratios{};  ///< nullptr for non-modal; points at a class-scoped table
+        int defaultModeCount{};  ///< <= kModeCountCeiling
+        float amplitudeExponent{};  ///< alpha in a_k = k^-alpha
         ModalResonatorBank::DampingLaw damping;  ///< {b1, b3}; b3 also = hfDampingParam (modal)
-        float stretch;
-        float scatter;
-        float referenceHz;
-        float t60AtMaxResonanceSec;
-        float hfDampingParam;  ///< modal: == damping.b3; waveguide: S; comb: per-comb damping
+        float stretch{};
+        float scatter{};
+        float referenceHz{};
+        float t60AtMaxResonanceSec{};
+        float hfDampingParam{};  ///< modal: == damping.b3; waveguide: S; comb: per-comb damping
     };
 
     // =========================================================================
@@ -1760,7 +1761,7 @@ public:
     [[nodiscard]] float getModeFrequencyHz(std::size_t k) const noexcept
     {
         const Slot& slot = slots_[static_cast<std::size_t>(soundingSlot_)];
-        if (slot.modalIndex < 0 || k >= static_cast<std::size_t>(slot.modeCount)) {
+        if (slot.modalIndex < 0 || std::cmp_greater_equal(k, slot.modeCount)) {
             return 0.0f;
         }
         return modal_[static_cast<std::size_t>(slot.modalIndex)]
@@ -3105,7 +3106,7 @@ private:
     /// law (`:789-794`) and its CLAMPED delay range (`:737-741`, `[1, 50]` ms).
     /// Using the unclamped delay would mis-solve `fb_n` for any comb the bank
     /// then clamps.
-    [[nodiscard]] float combTauSec(std::size_t n, float f0) const noexcept
+    [[nodiscard]] static float combTauSec(std::size_t n, float f0) noexcept
     {
         const float freq =
             f0 * std::sqrt(1.0f + (static_cast<float>(n) * kCombSpread));
@@ -3117,8 +3118,8 @@ private:
     /// FR-035/FR-036: `fb_n = min(10^(-3*tau_n/T60_eff), kMaxCombFeedback)`.
     /// The ceiling sits well inside the bank's own +/-0.9999 (`comb_filter.h:32`,
     /// `:35`, applied at `timevar_comb_bank.h:488`).
-    [[nodiscard]] float combFeedbackFor(std::size_t n, float t60Eff,
-                                        float f0) const noexcept
+    [[nodiscard]] static float combFeedbackFor(std::size_t n, float t60Eff,
+                                        float f0) noexcept
     {
         const float tau = combTauSec(n, f0);
         return std::min(exp10Fast(-3.0f * tau / std::max(t60Eff, kGainBoundEps)),
@@ -3168,8 +3169,8 @@ private:
     ///
     /// @param outputGain the bank's own `outputGain_`, applied by
     ///        `applyOutputStage` (`:816-823`) downstream of the mode sum.
-    [[nodiscard]] float modalGainBound(const ModalResonatorBank& bank, int count,
-                                       float outputGain) const noexcept
+    [[nodiscard]] static float modalGainBound(const ModalResonatorBank& bank, int count,
+                                       float outputGain) noexcept
     {
         const float* epsTargets = bank.getEpsilonTargets();
         const float* radiusTargets = bank.getRadiusTargets();
@@ -3229,7 +3230,7 @@ private:
     /// FR-032's `G-hat` for the comb slot: `Sum_n 1/max(1 - fb_n, eps)` over the
     /// six active combs - the all-combs-in-phase worst case, the same shape as
     /// the modal sum.
-    [[nodiscard]] float combGainBound(float t60Eff, float f0) const noexcept
+    [[nodiscard]] static float combGainBound(float t60Eff, float f0) noexcept
     {
         float sum = 0.0f;
         for (std::size_t n = 0; n < kNumCombs; ++n) {
@@ -3783,8 +3784,8 @@ private:
         // cloud that has nothing left to say.
         const float cloudMix = std::clamp(cloudMixSmoother_.getCurrentValue(),
                                           kMinCloudMix, kMaxCloudMix);
-        const bool cloudActive = !((cloudMix < kCloudBypassEpsilon)
-                                   && (cloud_.lastPeak < kCloudSilenceFloor));
+        const bool cloudActive = (cloudMix >= kCloudBypassEpsilon)
+                                   || (cloud_.lastPeak >= kCloudSilenceFloor);
         if (cloudActive) {
             runCloud(bodyScratch_.data(), n);
         }
@@ -4379,7 +4380,7 @@ private:
         slot.lastEngineSample = 0.0f;
 
         if (!isFiniteBits(slot.gain)) {
-            slot.gain = (static_cast<int>(slotIndex) == soundingSlot_) ? 1.0f : 0.0f;
+            slot.gain = (std::cmp_equal(slotIndex, soundingSlot_)) ? 1.0f : 0.0f;
         }
         if (!isFiniteBits(slot.gainBound)) {
             slot.gainBound = 1.0f;
@@ -4697,5 +4698,5 @@ static_assert(ContinuousBody::ratioTableStrictlyAscending(ContinuousBody::kClamp
 static_assert(ContinuousBody::ratioTableStrictlyAscending(ContinuousBody::kBarRatios),
               "FR-033 / :669-671");
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

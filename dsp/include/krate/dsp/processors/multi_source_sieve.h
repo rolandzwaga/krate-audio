@@ -26,6 +26,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <utility>
 
 namespace Krate::DSP {
 
@@ -66,7 +67,7 @@ public:
     void assignSources(
         std::array<Partial, kMaxPartials>& partials,
         int numPartials,
-        const MultiF0Result& f0s) noexcept
+        const MultiF0Result& f0s) const noexcept
     {
         if (f0s.numDetected <= 0 || numPartials <= 0) {
             return;
@@ -122,7 +123,7 @@ public:
                     int nc = numCandidates[static_cast<size_t>(p)];
                     if (nc < kMaxCandidatesPerPartial) {
                         candidates[static_cast<size_t>(p)][static_cast<size_t>(nc)] = {
-                            s + 1, bestH, bestErr / tolerance};
+                            .source = s + 1, .harmonic = bestH, .freqScore = bestErr / tolerance};
                         numCandidates[static_cast<size_t>(p)] = nc + 1;
                     }
                 }
@@ -245,7 +246,7 @@ public:
     /// @param f0s Multi-F0 detection result
     /// @param globalAmplitude Global RMS amplitude
     /// @return PolyphonicFrame with separated sources
-    [[nodiscard]] PolyphonicFrame buildPolyphonicFrame(
+    [[nodiscard]] static PolyphonicFrame buildPolyphonicFrame(
         const std::array<Partial, kMaxPartials>& partials,
         int numPartials,
         const MultiF0Result& f0s,
@@ -262,7 +263,7 @@ public:
 
             if (partial.sourceId == 0) {
                 // Inharmonic partial
-                if (frame.numInharmonicPartials < static_cast<int>(kMaxPartials)) {
+                if (std::cmp_less(frame.numInharmonicPartials, kMaxPartials)) {
                     frame.inharmonicPartials[
                         static_cast<size_t>(frame.numInharmonicPartials)] = partial;
                     ++frame.numInharmonicPartials;
@@ -272,7 +273,7 @@ public:
                 int srcIdx = partial.sourceId - 1;
                 if (srcIdx >= 0 && srcIdx < f0s.numDetected) {
                     auto& src = frame.sources[static_cast<size_t>(srcIdx)];
-                    if (src.numPartials < static_cast<int>(kMaxPartials)) {
+                    if (std::cmp_less(src.numPartials, kMaxPartials)) {
                         src.partials[static_cast<size_t>(src.numPartials)] = partial;
                         ++src.numPartials;
                     }
@@ -300,8 +301,10 @@ private:
         int targetH) noexcept
     {
         // Find nearest lower and upper known harmonics
-        int lowerH = -1, upperH = -1;
-        float lowerAmp = 0.0f, upperAmp = 0.0f;
+        int lowerH = -1;
+        int upperH = -1;
+        float lowerAmp = 0.0f;
+        float upperAmp = 0.0f;
 
         for (int h = targetH - 1; h >= 1; --h) {
             if (isSet[static_cast<size_t>(h)]) {

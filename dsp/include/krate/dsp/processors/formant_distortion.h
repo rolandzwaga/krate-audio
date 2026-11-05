@@ -40,8 +40,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Layer 2 DSP Processor - Formant Distortion
 ///
@@ -475,5 +475,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

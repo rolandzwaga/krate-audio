@@ -13,9 +13,9 @@
 
 #pragma once
 
-namespace Krate {
-namespace DSP {
-namespace Interpolation {
+
+
+namespace Krate::DSP::Interpolation {
 
 // =============================================================================
 // Linear Interpolation (FR-017)
@@ -167,6 +167,6 @@ namespace Interpolation {
     return L0 * ym1 + L1 * y0 + L2 * y1 + L3 * y2;
 }
 
-} // namespace Interpolation
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP::Interpolation
+
+

@@ -33,8 +33,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Benjolin-inspired Rungler / Shift Register Oscillator.
 ///
@@ -480,5 +480,5 @@ private:
     Xorshift32 rng_{1};                          ///< PRNG for shift register seeding (Layer 0)
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

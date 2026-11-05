@@ -27,12 +27,13 @@
 #include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/core/audio_constants.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Multiple SVF filters with configurable feedback routing between them.
 ///
@@ -272,7 +273,10 @@ private:
     /// @brief Clamp a value to a range
     template <typename T>
     [[nodiscard]] static constexpr T clamp(T value, T min, T max) noexcept {
-        return (value < min) ? min : (value > max) ? max : value;
+        if (value < min) {
+            return min;
+        }
+        return (value > max) ? max : value;
     }
 
     /// @brief Process the internal network for one channel
@@ -296,7 +300,7 @@ private:
     std::array<SVF, N> filtersL_;
     std::array<std::array<DelayLine, N>, N> delayLinesL_;
     std::array<std::array<DCBlocker, N>, N> dcBlockersL_;
-    std::array<float, N> filterOutputsL_;  // Previous filter outputs for feedback
+    std::array<float, N> filterOutputsL_{};  // Previous filter outputs for feedback
 
     // =========================================================================
     // Member Variables - Right Channel (Stereo)
@@ -305,16 +309,16 @@ private:
     std::array<SVF, N> filtersR_;
     std::array<std::array<DelayLine, N>, N> delayLinesR_;
     std::array<std::array<DCBlocker, N>, N> dcBlockersR_;
-    std::array<float, N> filterOutputsR_;
+    std::array<float, N> filterOutputsR_{};
 
     // =========================================================================
     // Configuration Matrices
     // =========================================================================
 
-    std::array<std::array<float, N>, N> feedbackMatrix_;  // Target feedback amounts
-    std::array<std::array<float, N>, N> delayMatrix_;     // Delay times in ms
-    std::array<float, N> inputGains_;                     // Input routing
-    std::array<float, N> outputGains_;                    // Output mix
+    std::array<std::array<float, N>, N> feedbackMatrix_{};  // Target feedback amounts
+    std::array<std::array<float, N>, N> delayMatrix_{};     // Delay times in ms
+    std::array<float, N> inputGains_{};                     // Input routing
+    std::array<float, N> outputGains_{};                    // Output mix
 
     // =========================================================================
     // Smoothers for Click-Free Parameter Changes
@@ -342,16 +346,7 @@ private:
 
 template <size_t N>
 FilterFeedbackMatrix<N>::FilterFeedbackMatrix() noexcept
-    : filterOutputsL_{}
-    , filterOutputsR_{}
-    , feedbackMatrix_{}
-    , delayMatrix_{}
-    , inputGains_{}
-    , outputGains_{}
-    , sampleRate_(44100.0)
-    , activeFilters_(N)
-    , globalFeedback_(1.0f)
-    , prepared_(false) {
+    : activeFilters_(N) {
 
     // Initialize input/output gains to 1.0 (unity)
     inputGains_.fill(1.0f);
@@ -457,7 +452,7 @@ void FilterFeedbackMatrix<N>::setActiveFilters(size_t count) noexcept {
         // Would assert here, but we'll just clamp
     }
 #endif
-    activeFilters_ = (count < 1) ? 1 : (count > N) ? N : count;
+    activeFilters_ = clamp(count, size_t{1}, N);
 }
 
 template <size_t N>
@@ -580,9 +575,7 @@ float FilterFeedbackMatrix<N>::processNetwork(
                 // Get delay in samples (minimum 1 sample for causality)
                 const float delayMs = delaySmoothers_[from][to].process();
                 float delaySamples = msToSamples(delayMs);
-                if (delaySamples < 1.0f) {
-                    delaySamples = 1.0f;
-                }
+                delaySamples = std::max(delaySamples, 1.0f);
 
                 // Read from delay line with linear interpolation
                 float delayed = delayLines[from][to].readLinear(delaySamples);
@@ -672,5 +665,5 @@ template class FilterFeedbackMatrix<2>;
 template class FilterFeedbackMatrix<3>;
 template class FilterFeedbackMatrix<4>;
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

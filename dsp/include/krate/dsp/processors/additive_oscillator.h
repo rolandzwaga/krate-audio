@@ -34,8 +34,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // AdditiveOscillator Class
@@ -132,8 +132,8 @@ public:
     /// @note NOT real-time safe (allocates memory)
     void prepare(double sampleRate, size_t fftSize = kDefaultFFTSize) noexcept {
         // Validate and clamp FFT size
-        if (fftSize < kMinFFTSize) fftSize = kMinFFTSize;
-        if (fftSize > kMaxFFTSize) fftSize = kMaxFFTSize;
+        fftSize = std::max(fftSize, kMinFFTSize);
+        fftSize = std::min(fftSize, kMaxFFTSize);
 
         // Ensure power of 2
         if ((fftSize & (fftSize - 1)) != 0) {
@@ -261,9 +261,7 @@ public:
         }
 
         // Clamp to maximum
-        if (ratio > kMaxFrequencyRatio) {
-            ratio = kMaxFrequencyRatio;
-        }
+        ratio = std::min(ratio, kMaxFrequencyRatio);
 
         size_t index = partialNumber - 1;
         partialRatios_[index] = ratio;
@@ -493,7 +491,7 @@ private:
     void constructSpectrum() noexcept {
         // Clear spectrum
         for (size_t i = 0; i < numBins_; ++i) {
-            spectrum_[i] = {0.0f, 0.0f};
+            spectrum_[i] = {.real = 0.0f, .imag = 0.0f};
         }
 
         // Amplitude scaling factor:
@@ -650,5 +648,5 @@ private:
     bool prepared_ = false;          ///< True after prepare() called
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

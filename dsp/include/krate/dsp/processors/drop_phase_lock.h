@@ -241,20 +241,20 @@ private:
 
     /// b(x) = 16 x^2 (1 - x)^2 on (0, 1), else 0 (Horner: x^2 (16 + x (-32 + 16 x))).
     [[nodiscard]] static double bump(double x) noexcept {
-        if (!(x > 0.0 && x < 1.0))
+        if (x <= 0.0 || x >= 1.0)
             return 0.0;
         return x * x * (16.0 + x * (-32.0 + 16.0 * x));
     }
     /// b'(x) = 32 x (1 - x)(1 - 2x) on (0, 1), else 0.
     [[nodiscard]] static double bumpSlope(double x) noexcept {
-        if (!(x > 0.0 && x < 1.0))
+        if (x <= 0.0 || x >= 1.0)
             return 0.0;
         return 32.0 * x * (1.0 - x) * (1.0 - 2.0 * x);
     }
 
     /// Hermite carry from (c0, c0') to (0, 0) over [0, len] samples (S5.5); 0 outside.
     [[nodiscard]] static double carryAt(double n, double c0, double c0Slope, double len) noexcept {
-        if (!(len > 0.0) || !(n >= 0.0 && n < len))
+        if (!(len > 0.0) || n < 0.0 || n >= len)
             return 0.0;
         const double t = n / len;
         const double h00 = (2.0 * t - 3.0) * t * t + 1.0;
@@ -262,7 +262,7 @@ private:
         return c0 * h00 + c0Slope * len * h10;
     }
     [[nodiscard]] static double carrySlopeAt(double n, double c0, double c0Slope, double len) noexcept {
-        if (!(len > 0.0) || !(n >= 0.0 && n < len))
+        if (!(len > 0.0) || n < 0.0 || n >= len)
             return 0.0;
         const double t = n / len;
         return (c0 * (6.0 * t * t - 6.0 * t) + c0Slope * len * ((3.0 * t - 4.0) * t + 1.0)) / len;
@@ -383,7 +383,7 @@ private:
             if (unclamped)
                 dSum += 0.5 * c.U * kLn2Over12 * c.emB * f;
         }
-        return {sum * c.invFs, dSum * c.invFs};
+        return {.phi = sum * c.invFs, .dPhi = dSum * c.invFs};
     }
 
     /// Phi_hat at the bracket ends -48 / +48 st: target-independent, so evaluated at most once per
@@ -403,32 +403,32 @@ private:
         constexpr double lim = kMaxCorrectionSemitones;
         const double r0 = at0.phi - target;
         if (std::abs(r0) < kSolveTolerance)
-            return {0.0, std::abs(r0), true};
+            return {.gamma = 0.0, .residual = std::abs(r0), .feasible = true};
         if (!ends.haveLo) {
             ends.lo = evaluate(cache_, -lim).phi;
             ends.haveLo = true;
         }
         const double fLo = ends.lo - target;
         if (fLo > 0.0)
-            return {-lim, fLo, false};  // the target lies below every reachable value
+            return {.gamma = -lim, .residual = fLo, .feasible = false};  // the target lies below every reachable value
         if (!ends.haveHi) {
             ends.hi = evaluate(cache_, lim).phi;
             ends.haveHi = true;
         }
         const double fHi = ends.hi - target;
         if (fHi < 0.0)
-            return {lim, -fHi, false};  // the target lies above every reachable value
+            return {.gamma = lim, .residual = -fHi, .feasible = false};  // the target lies above every reachable value
         if (std::abs(fLo) < kSolveTolerance)
-            return {-lim, std::abs(fLo), true};
+            return {.gamma = -lim, .residual = std::abs(fLo), .feasible = true};
         if (std::abs(fHi) < kSolveTolerance)
-            return {lim, std::abs(fHi), true};
+            return {.gamma = lim, .residual = std::abs(fHi), .feasible = true};
 
         double lo = -lim;
         double hi = lim;
         double fAtLo = fLo;  // F at the bracket ends: < 0 at lo, > 0 at hi
         double fAtHi = fHi;
         double g = at0.dPhi > 0.0 ? -r0 / at0.dPhi : 0.5 * (lo + hi);
-        if (!(g > lo && g < hi))
+        if (g <= lo || g >= hi)
             g = 0.5 * (lo + hi);
         double residual = std::abs(r0);
         double fLast = r0;
@@ -447,12 +447,12 @@ private:
                 fAtHi = F;
             }
             double next = e.dPhi > 0.0 ? g - F / e.dPhi : 0.5 * (lo + hi);
-            if (!(next > lo && next < hi))
+            if (next <= lo || next >= hi)
                 next = 0.5 * (lo + hi);
             g = next;
         }
         if (!(residual > kContinuationThresholdCycles))
-            return {g, residual, true};
+            return {.gamma = g, .residual = residual, .feasible = true};
 
         // Continuation (Illinois): fold the last Newton point into the bracket, then false position
         // with the stale end's F halved after two same-side steps. A flat stretch of the clamp
@@ -467,7 +467,7 @@ private:
         int side = 0;
         for (int it = 0; it < kMaxContinuationEvaluations; ++it) {
             double next = (lo * fAtHi - hi * fAtLo) / (fAtHi - fAtLo);
-            if (!(next > lo && next < hi))
+            if (next <= lo || next >= hi)
                 next = 0.5 * (lo + hi);
             const double F = evaluate(cache_, next).phi - target;
             if (std::abs(F) < residual) {
@@ -490,7 +490,7 @@ private:
                 side = 1;
             }
         }
-        return {g, residual, true};
+        return {.gamma = g, .residual = residual, .feasible = true};
     }
 
     /// The running correction gamma * b(n / D_s) + carry(n) and its slope (st per sample) at the
@@ -574,9 +574,11 @@ private:
         double bestTarget = nLo;
         if (nHi != nLo) {
             const CandidateResult b = solveCandidate(nHi - offset, at0, ends);
-            const bool takeB = (a.feasible != b.feasible) ? b.feasible
-                                                          : (a.feasible ? std::abs(b.gamma) < std::abs(a.gamma)
-                                                                        : b.residual < a.residual);
+            // Exactly one feasible: take it. Both: the smaller |gamma|. Neither: the smaller residual.
+            bool takeB = b.feasible;
+            if (a.feasible == b.feasible) {
+                takeB = a.feasible ? std::abs(b.gamma) < std::abs(a.gamma) : b.residual < a.residual;
+            }
             if (takeB) {
                 best = b;
                 bestTarget = nHi;

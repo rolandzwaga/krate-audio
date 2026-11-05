@@ -749,8 +749,8 @@
 #include <utility>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 namespace detail {
 
@@ -1813,8 +1813,8 @@ public:
         // this function; only the rate- and order-derived constants live here.
         bloomReleaseCoeff_ =
             std::exp(-1.0f / (kBloomReleaseSeconds * static_cast<float>(sampleRate_)));
-        for (std::size_t i = 0; i < kMaxChannels; ++i) {
-            bloomInjectMask_[i] = 0.0f;
+        for (float& mask : bloomInjectMask_) {
+            mask = 0.0f;
         }
         bloomInjectionGain_ = 0.0f;
         if (bloomEnabled_) {
@@ -1891,11 +1891,11 @@ public:
         breath_.setRate(kBreathRateHz);
         tide_.prepare(sampleRate_);
         tide_.setRate(kTideRateNormalised);
-        for (std::size_t j = 0; j < (kMaxChannels / 2u); ++j) {
-            drift_[j].prepare(sampleRate_);
+        for (auto& drift : drift_) {
+            drift.prepare(sampleRate_);
             // BrownianDrift's own default smoothness is 0.5f (:107); FR-009's
             // is 0.6f, so it is pushed explicitly rather than inherited.
-            drift_[j].setSmoothness(modSmoothness_);
+            drift.setSmoothness(modSmoothness_);
         }
 
         // --- the Dimensionality geodesic (FR-020 - FR-022, plan S7.4 / S7.5).
@@ -2313,8 +2313,8 @@ public:
     /// delegates to.
     void setModSmoothness(float v) noexcept {
         modSmoothness_ = std::clamp(isFinite(v) ? v : kDefaultModSmoothness, 0.0f, 1.0f);
-        for (std::size_t j = 0; j < (kMaxChannels / 2u); ++j) {
-            drift_[j].setSmoothness(modSmoothness_);
+        for (auto& drift : drift_) {
+            drift.setSmoothness(modSmoothness_);
         }
     }
 
@@ -2468,8 +2468,8 @@ public:
     ///       new interface.
     void setDamperOffsetsOctaves(const float* offsets, std::size_t count) noexcept {
         if ((offsets == nullptr) || (count == 0u)) {
-            for (std::size_t i = 0; i < kMaxChannels; ++i) {
-                damperOffset_[i] = 0.0f;
+            for (float& offset : damperOffset_) {
+                offset = 0.0f;
             }
             return;
         }
@@ -2821,7 +2821,7 @@ public:
         return true;
     }
 
-#if defined(KRATE_DSP_AETHER_TEST_HOOKS)
+#ifdef KRATE_DSP_AETHER_TEST_HOOKS
     // ---- FR-083 fault injection - TEST BUILDS ONLY --------------------------
     /// @brief Writes a bit-pattern NaN into filterState_[0] - the exact array
     ///        FR-083's control-grid sweep tests.
@@ -3080,7 +3080,7 @@ private:
     /// means what the caller expects and a post-reset render matches the
     /// original (SC-010 clause 3).
     void applyControl(OnePoleSmoother& smoother, float v, float fallback, float lo,
-                      float hi) noexcept {
+                      float hi) const noexcept {
         const float clamped = std::clamp(isFinite(v) ? v : fallback, lo, hi);
         if (prepared_ && !anySamplesProcessed_) {
             smoother.snapTo(clamped);
@@ -3613,9 +3613,7 @@ private:
         const float cosOmega = (r > kDenormalGuard) ? (coeff / (2.0f * r)) : 1.0f;
         const float cos2Omega = (2.0f * cosOmega * cosOmega) - 1.0f;
         float inner = 1.0f - (2.0f * r * cos2Omega) + rSquared;
-        if (inner < kDenormalGuard) {
-            inner = kDenormalGuard;
-        }
+        inner = std::max(inner, kDenormalGuard);
         return oneMinusR * std::sqrt(inner);
     }
 
@@ -3736,14 +3734,14 @@ private:
         }
         const float fdnGain = fdnRecirculationGain();
         float worst = 0.0f;
-        for (std::size_t k = 0; k < static_cast<std::size_t>(kMaxBloomResonators); ++k) {
-            if (bloomFreq_[k] <= 0.0f) {
+        for (float freq : bloomFreq_) {
+            if (freq <= 0.0f) {
                 continue;
             }
-            const float shelf = shelfMagnitude(bloomShelfCoeff_, bloomFreq_[k]);
+            const float shelf = shelfMagnitude(bloomShelfCoeff_, freq);
             const float stated = kTapReadNormalisation * base * shelf * gLine;
             const float recirculating = base * shelf * fdnGain;
-            worst = std::max(worst, std::max(stated, recirculating));
+            worst = std::max({worst, stated, recirculating});
         }
         bloomGuardScale_ =
             (worst > kBloomLoopGainCeiling) ? (kBloomLoopGainCeiling / worst) : 1.0f;
@@ -5013,8 +5011,8 @@ static_assert(AetherReverb::kBloomInjectCount16 + (2u * AetherReverb::kShimmerIn
                   16u,
               "FR-055: the three N=16 subsets must partition all sixteen channels");
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+
 
 #ifdef _MSC_VER
 #pragma warning(pop)

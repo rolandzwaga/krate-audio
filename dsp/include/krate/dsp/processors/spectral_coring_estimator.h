@@ -74,7 +74,7 @@ public:
     /// @return ResidualFrame with band energies from non-harmonic bins
     [[nodiscard]] ResidualFrame estimateResidual(
         const SpectralBuffer& spectrum,
-        const HarmonicFrame& frame) noexcept
+        const HarmonicFrame& frame) const noexcept
     {
         ResidualFrame result{};
 

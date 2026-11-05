@@ -128,36 +128,27 @@ public:
     }
 
     [[nodiscard]] static constexpr bool noSteppedCurve() noexcept {
-        for (const auto& row : kRows) {
-            if (row.curve == ModCurve::Stepped) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kRows, [&](const auto& row) {
+            return static_cast<bool>(row.curve != ModCurve::Stepped);
+        });
     }
 
     [[nodiscard]] static constexpr bool ownersDocumented() noexcept {
-        for (const auto& row : kRows) {
-            if (row.macro != documentedOwner(row.target)) {
-                return false;
-            }
-        }
-        return true;
+        return std::ranges::all_of(kRows, [&](const auto& row) {
+            return static_cast<bool>(row.macro == documentedOwner(row.target));
+        });
     }
 
     /// FR-052 signs: TransientAttackDb and CompressionAmount fall as their macro rises; every other row rises.
     [[nodiscard]] static constexpr bool signsDocumented() noexcept {
-        for (const auto& row : kRows) {
+        return std::ranges::all_of(kRows, [&](const auto& row) {
             if (row.target == ProfundumMacroTarget::Shape && row.amount == 0.0f) {
-                continue;   // ruling B10-2 (2026-10-20): SHAPE is dropped from Dark <-> Bright (amount 0)
+                return true;   // ruling B10-2 (2026-10-20): SHAPE is dropped from Dark <-> Bright (amount 0)
             }
             const bool negative = row.target == ProfundumMacroTarget::TransientAttackDb
                                   || row.target == ProfundumMacroTarget::CompressionAmount;
-            if (negative ? !(row.amount < 0.0f) : !(row.amount > 0.0f)) {
-                return false;
-            }
-        }
-        return true;
+            return !(negative ? !(row.amount < 0.0f) : !(row.amount > 0.0f));
+        });
     }
 
     // ---- coordinates (FR-055, FR-061) ----

@@ -28,8 +28,8 @@
 #include <bit>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // FMOperator Class (FR-001 through FR-015)
@@ -80,15 +80,7 @@ public:
     /// - unprepared state
     ///
     /// process() returns 0.0 until prepare() is called (FR-014).
-    FMOperator() noexcept
-        : frequency_(0.0f)
-        , ratio_(1.0f)
-        , feedbackAmount_(0.0f)
-        , level_(0.0f)
-        , previousRawOutput_(0.0f)
-        , sampleRate_(0.0)
-        , prepared_(false) {
-    }
+    FMOperator() noexcept = default;
 
     /// @brief Destructor.
     ~FMOperator() = default;
@@ -287,9 +279,7 @@ public:
         if (effectiveFreq >= nyquist) {
             effectiveFreq = nyquist - 0.001f;
         }
-        if (effectiveFreq < 0.0f) {
-            effectiveFreq = 0.0f;
-        }
+        effectiveFreq = std::max(effectiveFreq, 0.0f);
 
         // Step 2: Compute feedback contribution (FR-011)
         // feedbackPM = tanh(previousRawOutput * feedbackAmount)
@@ -367,5 +357,5 @@ private:
     bool prepared_ = false;           ///< True after prepare() called
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -42,8 +42,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // ShimmerFeedbackProcessor - IFeedbackProcessor for shimmer effect
@@ -773,5 +773,5 @@ inline void ShimmerDelay::process(float* left, float* right, size_t numSamples,
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

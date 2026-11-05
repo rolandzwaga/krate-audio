@@ -63,7 +63,9 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <type_traits>
+#include <utility>
 
 namespace Krate::DSP {
 
@@ -528,7 +530,7 @@ private:
     static constexpr float kDbToNepers = 0.11512925464970229f;                       // ln(10) / 20
     static constexpr float kBiteDriveLoDb = -12.0f;         // S5.4: g = 10^{(-12 + 30A)/20}
     static constexpr float kBiteDriveSpanDb = 30.0f;
-    static constexpr double kPiD = 3.14159265358979323846264338327950;
+    static constexpr double kPiD = std::numbers::pi;
     /// 1 / tanh(kFractureSquareSharpness) (tanh(4) = 0.99932929973906703); std::tanh is not constexpr.
     static constexpr float kFractureInvTanhSharpness = 1.0006711504016825f;
     static_assert(kFractureSquareSharpness == 4.0f, "kFractureInvTanhSharpness is 1/tanh(4)");
@@ -751,8 +753,8 @@ private:
             return {.y = y, .lin = l};
         }
         [[nodiscard]] float post(float z) noexcept { return postTilt.process(z); }
-        [[nodiscard]] float linearCoefficient() const noexcept { return 1.0f; }
-        [[nodiscard]] float dryShare() const noexcept { return 0.0f; }
+        [[nodiscard]] static float linearCoefficient() noexcept { return 1.0f; }
+        [[nodiscard]] static float dryShare() noexcept { return 0.0f; }
         [[nodiscard]] bool stateFinite() const noexcept {
             return os.stateFinite() && detail::isFinite(u1) && detail::isFinite(u2);
         }
@@ -803,7 +805,7 @@ private:
                 fresh = false;
             }
         }
-        [[nodiscard]] float pre(float x) const noexcept { return x; }
+        [[nodiscard]] static float pre(float x) noexcept { return x; }
         [[nodiscard]] BranchOut process(float u) noexcept {
             float buf = u * kInvP;
             folder.process(&buf, 1);
@@ -811,7 +813,7 @@ private:
         }
         [[nodiscard]] float post(float z) noexcept { return postTilt.process(z); }
         [[nodiscard]] float linearCoefficient() const noexcept { return linC; }
-        [[nodiscard]] float dryShare() const noexcept { return 0.0f; }
+        [[nodiscard]] static float dryShare() noexcept { return 0.0f; }
         [[nodiscard]] bool stateFinite() const noexcept { return detail::isFinite(makeup) && detail::isFinite(linC); }
     };
 
@@ -854,7 +856,7 @@ private:
             mk = Rectifier::sineMakeup(b);
             linC = (1.0f - wet) + wet * mk * Rectifier::linearCoefficient(b);
         }
-        [[nodiscard]] float pre(float x) const noexcept { return x; }
+        [[nodiscard]] static float pre(float x) noexcept { return x; }
         [[nodiscard]] BranchOut process(float u) noexcept {
             const auto ud = static_cast<double>(u);
             const auto bd = static_cast<double>(b);
@@ -928,8 +930,8 @@ private:
         /// at the base rate, no path, no ADAA (x arrives already pre-tilted from runSlot).
         [[nodiscard]] float naive(float x) const noexcept { return outScale * Asymmetric::diode(gainOverP * x); }
         [[nodiscard]] float post(float z) noexcept { return postTilt.process(z); }
-        [[nodiscard]] float linearCoefficient() const noexcept { return 1.0f; }
-        [[nodiscard]] float dryShare() const noexcept { return 0.0f; }
+        [[nodiscard]] static float linearCoefficient() noexcept { return 1.0f; }
+        [[nodiscard]] static float dryShare() noexcept { return 0.0f; }
         [[nodiscard]] bool stateFinite() const noexcept { return adaa.stateFinite() && detail::isFinite(uPrev); }
     };
 
@@ -1024,11 +1026,9 @@ private:
                 if (!detail::isFinite(v))
                     return false;
             }
-            for (const float v : slotInput) {
-                if (!detail::isFinite(v))
-                    return false;
-            }
-            return true;
+            return std::ranges::all_of(slotInput, [&](const float v) {
+                return detail::isFinite(v);
+            });
         }
     };
 
@@ -1109,7 +1109,7 @@ private:
         /// FR-072: θ = frac(cycles), cycles of f0 (the crossing count's convention, sample points at
         /// θ = (k + ½)/m).
         void setPhase(double cycles) noexcept { phase = cycles - std::floor(cycles); }
-        [[nodiscard]] float pre(float x) const noexcept { return x; }
+        [[nodiscard]] static float pre(float x) noexcept { return x; }
         [[nodiscard]] BranchOut process(float u) noexcept {
             const double mEff = std::max(1.0, std::min(mAmount, mCap));
             const auto mLo = static_cast<int>(std::floor(mEff));
@@ -1158,8 +1158,8 @@ private:
             return {.y = (1.0f - frac) * out[eLo] + frac * out[eHi], .lin = 0.0f};
         }
         [[nodiscard]] float post(float z) noexcept { return postTilt.process(z); }
-        [[nodiscard]] float linearCoefficient() const noexcept { return 0.0f; }
-        [[nodiscard]] float dryShare() const noexcept { return 0.0f; }
+        [[nodiscard]] static float linearCoefficient() noexcept { return 0.0f; }
+        [[nodiscard]] static float dryShare() noexcept { return 0.0f; }
         [[nodiscard]] bool stateFinite() const noexcept {
             return detail::isFinite(static_cast<float>(phase)) && detail::isFinite(uPrev) && engine[0].stateFinite()
                    && engine[1].stateFinite();
@@ -1249,7 +1249,7 @@ private:
             biasGain = g * beta;
             linHalf = 0.5f * (1.0f - a) * tableAt(cFrac, amount);
         }
-        [[nodiscard]] float pre(float x) const noexcept { return x; }
+        [[nodiscard]] static float pre(float x) noexcept { return x; }
         [[nodiscard]] BranchOut process(float u) noexcept {
             const auto s = static_cast<float>(rotS);
             const auto sMid = static_cast<float>(rotS * halfC - rotC * halfS);  // sin π(φ - Δφ/2)
@@ -1271,7 +1271,7 @@ private:
         }
         [[nodiscard]] float post(float z) noexcept { return postTilt.process(z); }
         [[nodiscard]] float linearCoefficient() const noexcept { return (1.0f - a) * tableAt(cFrac, a); }
-        [[nodiscard]] float dryShare() const noexcept { return 0.0f; }
+        [[nodiscard]] static float dryShare() noexcept { return 0.0f; }
         [[nodiscard]] bool stateFinite() const noexcept {
             return detail::isFinite(phase) && detail::isFinite(rotC) && detail::isFinite(rotS)
                    && detail::isFinite(uPrev);
@@ -1303,19 +1303,19 @@ private:
     static decltype(auto) visitBranch(ChannelT& ch, Algorithm a, Fn&& fn) noexcept {
         switch (a) {
             case Algorithm::Fold:
-                return fn(ch.fold);
+                return std::forward<Fn>(fn)(ch.fold);
             case Algorithm::Rectify:
-                return fn(ch.rect);
+                return std::forward<Fn>(fn)(ch.rect);
             case Algorithm::Bite:
-                return fn(ch.bite);
+                return std::forward<Fn>(fn)(ch.bite);
             case Algorithm::Crush:
-                return fn(ch.crush);
+                return std::forward<Fn>(fn)(ch.crush);
             case Algorithm::Fracture:
-                return fn(ch.frac);
+                return std::forward<Fn>(fn)(ch.frac);
             case Algorithm::Tube:
                 break;
         }
-        return fn(ch.tube);
+        return std::forward<Fn>(fn)(ch.tube);
     }
 
     static void resetSlot(Slot& s) noexcept {
@@ -1327,7 +1327,7 @@ private:
     /// Reset a branch, then re-key it with the current f0 before its first sample (S5.3 step 1).
     /// FR-072: after a syncPhase() since reset(), Crush and Fracture start at the synced clock's phase
     /// instead of 0 (the re-key then seeds Fracture's rotor from it).
-    void startBranch(Channel& ch, Algorithm a) noexcept {
+    void startBranch(Channel& ch, Algorithm a) const noexcept {
         const float f0 = f0_;
         const bool synced = phaseSynced_;
         const double cycles = syncCycles_;
@@ -1342,7 +1342,7 @@ private:
         });
     }
 
-    void keyBranch(Channel& ch, Algorithm a) noexcept {
+    void keyBranch(Channel& ch, Algorithm a) const noexcept {
         const float f0 = f0_;
         visitBranch(ch, a, [f0](auto& br) noexcept { br.setFundamentalHz(f0); });
     }

@@ -34,8 +34,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -77,38 +77,38 @@ static constexpr std::array<std::array<BodyMode, kBodyModeCount>, kBodyPresetCou
         // Wood Q: higher at LF, drops significantly at HF (frequency-dependent
         // damping characteristic of wood). Metal Q: uniformly high.
         {{
-            {275.0f,  0.60f,  50.0f, 200.0f},  // A0 Helmholtz
-            {460.0f,  0.80f,  40.0f, 300.0f},  // B1- corpus bending
-            {550.0f,  1.00f,  35.0f, 350.0f},  // B1+ (strongest)
-            {700.0f,  0.50f,  25.0f, 250.0f},  // Higher plate
-            {950.0f,  0.30f,  15.0f, 150.0f},  // Upper plate
-            {1400.0f, 0.20f,  10.0f, 100.0f},  //
-            {2500.0f, 0.40f,   5.0f,  60.0f},  // Bridge hill
-            {3200.0f, 0.15f,   4.0f,  40.0f},  // Bridge hill tail
+            {.freq = 275.0f,  .gain = 0.60f,  .qWood = 50.0f, .qMetal = 200.0f},  // A0 Helmholtz
+            {.freq = 460.0f,  .gain = 0.80f,  .qWood = 40.0f, .qMetal = 300.0f},  // B1- corpus bending
+            {.freq = 550.0f,  .gain = 1.00f,  .qWood = 35.0f, .qMetal = 350.0f},  // B1+ (strongest)
+            {.freq = 700.0f,  .gain = 0.50f,  .qWood = 25.0f, .qMetal = 250.0f},  // Higher plate
+            {.freq = 950.0f,  .gain = 0.30f,  .qWood = 15.0f, .qMetal = 150.0f},  // Upper plate
+            {.freq = 1400.0f, .gain = 0.20f,  .qWood = 10.0f, .qMetal = 100.0f},  //
+            {.freq = 2500.0f, .gain = 0.40f,   .qWood = 5.0f,  .qMetal = 60.0f},  // Bridge hill
+            {.freq = 3200.0f, .gain = 0.15f,   .qWood = 4.0f,  .qMetal = 40.0f},  // Bridge hill tail
         }},
         // Index 1: Medium (guitar-scale) -- modes around ~90 Hz
         {{
-            { 90.0f,  0.70f,  50.0f, 150.0f},  // A0 Helmholtz
-            {110.0f, -0.50f,  45.0f, 200.0f},  // T(1,1) anti-phase w/ A0
-            {280.0f,  0.80f,  35.0f, 250.0f},  // T(2,1)
-            {370.0f,  1.00f,  30.0f, 300.0f},  // Second plate (strongest)
-            {450.0f,  0.50f,  20.0f, 200.0f},  //
-            {580.0f,  0.30f,  12.0f, 150.0f},  //
-            {750.0f,  0.20f,   8.0f, 100.0f},  //
-            {1100.0f, 0.10f,   5.0f,  80.0f},  // Upper register
+            { .freq = 90.0f,  .gain = 0.70f,  .qWood = 50.0f, .qMetal = 150.0f},  // A0 Helmholtz
+            {.freq = 110.0f, .gain = -0.50f,  .qWood = 45.0f, .qMetal = 200.0f},  // T(1,1) anti-phase w/ A0
+            {.freq = 280.0f,  .gain = 0.80f,  .qWood = 35.0f, .qMetal = 250.0f},  // T(2,1)
+            {.freq = 370.0f,  .gain = 1.00f,  .qWood = 30.0f, .qMetal = 300.0f},  // Second plate (strongest)
+            {.freq = 450.0f,  .gain = 0.50f,  .qWood = 20.0f, .qMetal = 200.0f},  //
+            {.freq = 580.0f,  .gain = 0.30f,  .qWood = 12.0f, .qMetal = 150.0f},  //
+            {.freq = 750.0f,  .gain = 0.20f,   .qWood = 8.0f, .qMetal = 100.0f},  //
+            {.freq = 1100.0f, .gain = 0.10f,   .qWood = 5.0f,  .qMetal = 80.0f},  // Upper register
         }},
         // Index 2: Large (cello-scale) -- modes below ~100 Hz
         // Strong LF emphasis: lowest modes have highest gains, decaying
         // rapidly above 250 Hz to ensure LF spectral concentration.
         {{
-            { 60.0f,  0.80f,  45.0f, 120.0f},  // A0 Helmholtz
-            {110.0f,  1.00f,  40.0f, 180.0f},  // First plate (strongest)
-            {175.0f,  0.90f,  35.0f, 250.0f},  // Main radiating
-            {250.0f,  0.50f,  28.0f, 220.0f},  //
-            {340.0f,  0.25f,  20.0f, 180.0f},  //
-            {500.0f,  0.12f,  12.0f, 140.0f},  //
-            {750.0f,  0.08f,   8.0f, 100.0f},  //
-            {1200.0f, 0.05f,   5.0f,  60.0f},  //
+            { .freq = 60.0f,  .gain = 0.80f,  .qWood = 45.0f, .qMetal = 120.0f},  // A0 Helmholtz
+            {.freq = 110.0f,  .gain = 1.00f,  .qWood = 40.0f, .qMetal = 180.0f},  // First plate (strongest)
+            {.freq = 175.0f,  .gain = 0.90f,  .qWood = 35.0f, .qMetal = 250.0f},  // Main radiating
+            {.freq = 250.0f,  .gain = 0.50f,  .qWood = 28.0f, .qMetal = 220.0f},  //
+            {.freq = 340.0f,  .gain = 0.25f,  .qWood = 20.0f, .qMetal = 180.0f},  //
+            {.freq = 500.0f,  .gain = 0.12f,  .qWood = 12.0f, .qMetal = 140.0f},  //
+            {.freq = 750.0f,  .gain = 0.08f,   .qWood = 8.0f, .qMetal = 100.0f},  //
+            {.freq = 1200.0f, .gain = 0.05f,   .qWood = 5.0f,  .qMetal = 60.0f},  //
         }},
     }};
 
@@ -703,5 +703,5 @@ private:
     bool prepared_ = false;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

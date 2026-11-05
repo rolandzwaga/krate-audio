@@ -90,9 +90,10 @@
 #include <cstdint>
 #include <span>
 #include <type_traits>
+#include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // VoragoEngineConfig (FR-042, FR-052; plan S6.3, S8.1)
@@ -304,7 +305,7 @@ public:
     /// pool (allocator, atmosphere, subharmonic, smear, output stage, scalars),
     /// and the guard still fires on a ninth voice slot or on a forbidden member.
     static constexpr std::size_t kEngineSizeBound =
-        kMaxVoices * VoragoVoice::kVoiceSizeBound + (64u * 1024u);
+        kMaxVoices * VoragoVoice::kVoiceSizeBound + (std::size_t{64} * 1024u);
 
     // =========================================================================
     // Construction
@@ -589,7 +590,7 @@ public:
     void setPolyphony(std::size_t n) noexcept {
         polyphony_ = std::clamp(n, std::size_t{1}, kMaxVoices);
         for (const VoiceEvent& e : allocator_.setVoiceCount(polyphony_)) {  // :326
-            const std::size_t i = static_cast<std::size_t>(e.voiceIndex);
+            const auto i = static_cast<std::size_t>(e.voiceIndex);
             if (i >= kMaxVoices || e.type != VoiceEvent::Type::NoteOff) {
                 continue;
             }
@@ -769,7 +770,7 @@ public:
                                                std::span<const float> levels,
                                                std::span<const std::uint64_t> serials) noexcept {
         const std::size_t count =
-            std::min(states.size(), std::min(levels.size(), serials.size()));
+            std::min({states.size(), levels.size(), serials.size()});
         for (std::size_t i = 0; i < count; ++i) {
             if (states[i] == VoiceState::Idle) {
                 return -1;
@@ -1870,7 +1871,7 @@ private:
             // allocator steal by itself" instead of freeing slot 0 by accident.
             return false;
         }
-        const std::size_t victim = static_cast<std::size_t>(chosen);
+        const auto victim = static_cast<std::size_t>(chosen);
 
         // An Active victim has to reach Releasing before voiceFinished() will
         // touch it (voice_allocator.h:288-292 early-outs on anything else). The
@@ -1920,7 +1921,7 @@ private:
     void dispatch(std::span<const VoiceEvent> events) noexcept {
         std::uint32_t served = 0u;
         for (const VoiceEvent& e : events) {
-            const std::size_t i = static_cast<std::size_t>(e.voiceIndex);
+            const auto i = static_cast<std::size_t>(e.voiceIndex);
             if (i >= kMaxVoices) {
                 continue;
             }
@@ -1965,7 +1966,7 @@ private:
                     // NoteOn that follows it in the same span does the work;
                     // running the teardown here would wipe a live, sounding
                     // voice, call noteOn() twice and bump the serial twice.
-                    if (static_cast<int>(i) == retriggerSlot_) {
+                    if (std::cmp_equal(i, retriggerSlot_)) {
                         break;  // ignore the event ENTIRELY
                     }
                     // Engine-initiated steal. With the free-before-allocate
@@ -2067,5 +2068,5 @@ static_assert(sizeof(VoragoEngine) <= VoragoEngine::kEngineSizeBound,
               "FR-013: VoragoEngine has grown past kMaxVoices voice slots plus 64 KiB - "
               "check for a forbidden member before raising the bound");
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

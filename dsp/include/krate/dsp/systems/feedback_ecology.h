@@ -119,6 +119,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 
 // WHY primitives/delay_line.h IS LISTED EXPLICITLY (FR-001): getAllocatedBytes()
 // computes its figure with Krate::DSP::nextPowerOf2 (delay_line.h:26), which
@@ -526,7 +527,7 @@ public:
         kMaxTotalLoopGain * kDcBlockerPeakGainBound;
     /// FR-041: the equal-power two-tap blend worst case, cos(t) + sin(t) at
     /// t = pi/4. TRANSIENT, and what FR-042 clip is sized against.
-    static constexpr float kDelayCrossfadeMaxGain = 1.41421356f;
+    static constexpr float kDelayCrossfadeMaxGain = std::numbers::sqrt2_v<float>;
     /// FR-042 RUNG 2: |tanh(x)| < 1 for every finite x, and the shipped
     /// FastMath::fastTanh preserves the bound (see its call site in renderChunk).
     static constexpr float kSoftClipCeiling = 1.0f;

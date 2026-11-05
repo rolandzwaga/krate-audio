@@ -24,8 +24,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Forward Declarations
@@ -328,5 +328,5 @@ inline void generateBlackmanHarris(float* output, size_t size) noexcept {
 
 } // namespace Window
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -133,7 +133,7 @@ public:
         }
 
         // Check bit at position
-        return (pattern >> position) & 1u;
+        return ((pattern >> position) & 1u) != 0u;
     }
 
     /// @brief Count the number of hits in a pattern

@@ -27,8 +27,8 @@
 // Layer 0 dependency for shared math utilities
 #include <krate/dsp/core/db_utils.h>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Compiler Compatibility Macros
@@ -36,7 +36,7 @@ namespace DSP {
 
 /// @brief Cross-platform noinline attribute to prevent function inlining.
 /// Required to prevent branch elimination with NaN checks under /fp:fast.
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #define ITERUM_NOINLINE __declspec(noinline)
 #elif defined(__GNUC__) || defined(__clang__)
 #define ITERUM_NOINLINE __attribute__((noinline))
@@ -79,9 +79,7 @@ inline constexpr float kMaxSmoothingTimeMs = 1000.0f;
     float sampleRate
 ) noexcept {
     // Clamp smoothing time to valid range
-    const float clampedTime = (smoothTimeMs < kMinSmoothingTimeMs) ? kMinSmoothingTimeMs
-                            : (smoothTimeMs > kMaxSmoothingTimeMs) ? kMaxSmoothingTimeMs
-                            : smoothTimeMs;
+    const float clampedTime = std::clamp(smoothTimeMs, kMinSmoothingTimeMs, kMaxSmoothingTimeMs);
 
     // Time to 99% ≈ 5 * tau, so tau = smoothTimeMs / 5.0
     // But we specify smoothTimeMs as time to 99%, so:
@@ -623,5 +621,5 @@ private:
     float sampleRate_;     ///< Sample rate in Hz
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

@@ -17,8 +17,8 @@
 
 #include <cmath>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // MusicalStepPosition
@@ -75,8 +75,8 @@ struct MusicalStepPosition {
     const int step = static_cast<int>(posInPattern / beatsPerStep) % numSteps;
     const double stepFraction = std::fmod(posInPattern, beatsPerStep) / beatsPerStep;
 
-    return {step, stepFraction};
+    return {.step = step, .stepFraction = stepFraction};
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

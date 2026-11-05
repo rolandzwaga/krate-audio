@@ -40,8 +40,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Enumerations
@@ -831,5 +831,5 @@ inline void AmpChannel::process(float* buffer, size_t numSamples) noexcept {
     }
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

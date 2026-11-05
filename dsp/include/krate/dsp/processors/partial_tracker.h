@@ -34,6 +34,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <utility>
 #include <vector>
 
 namespace Krate::DSP {
@@ -574,7 +575,7 @@ private:
             float bestError = std::numeric_limits<float>::max();
             int bestHarmonic = 0;
 
-            for (int n = 1; n <= static_cast<int>(kMaxPartials); ++n) {
+            for (int n = 1; std::cmp_less_equal(n, kMaxPartials); ++n) {
                 const float harmonicFreq = harmonicTemplate(n, f0, B);
                 if (harmonicFreq >= nyquist) break;
 
@@ -754,7 +755,7 @@ private:
             if (prevPartial.frequency <= 0.0f) {
                 // Dead partial: set all costs to infinity
                 for (int p = 0; p < cols; ++p) {
-                    costMatrix_[static_cast<size_t>(t * cols + p)] = kForbiddenCost;
+                    costMatrix_[static_cast<size_t>(t) * static_cast<size_t>(cols) + static_cast<size_t>(p)] = kForbiddenCost;
                 }
                 continue;
             }
@@ -769,7 +770,7 @@ private:
 
                 if (freqDist > maxDist) {
                     // Too far: forbidden assignment
-                    costMatrix_[static_cast<size_t>(t * cols + p)] = kForbiddenCost;
+                    costMatrix_[static_cast<size_t>(t) * static_cast<size_t>(cols) + static_cast<size_t>(p)] = kForbiddenCost;
                 } else {
                     // Cost = normalized frequency distance + amplitude similarity penalty
                     float normalizedFreqDist = freqDist / maxDist;
@@ -784,7 +785,7 @@ private:
                         ampDist = std::min(ampDist, 1.0f); // cap at 1.0
                     }
 
-                    costMatrix_[static_cast<size_t>(t * cols + p)] =
+                    costMatrix_[static_cast<size_t>(t) * static_cast<size_t>(cols) + static_cast<size_t>(p)] =
                         (1.0f - kAmplitudeWeight) * normalizedFreqDist +
                         kAmplitudeWeight * ampDist;
                 }
@@ -798,7 +799,7 @@ private:
         for (int t = 0; t < rows; ++t) {
             int assignedPeak = hungarian_.getRowAssignment(t);
             if (assignedPeak >= 0 && assignedPeak < cols) {
-                float cost = costMatrix_[static_cast<size_t>(t * cols + assignedPeak)];
+                float cost = costMatrix_[static_cast<size_t>(t) * static_cast<size_t>(cols) + static_cast<size_t>(assignedPeak)];
                 if (cost < kForbiddenCost * 0.5f) {
                     // Valid assignment
                     peakMatched_[static_cast<size_t>(assignedPeak)] = true;
@@ -825,7 +826,7 @@ private:
         int newCount = 0;
 
         // 1. Continue matched partials (update from peaks)
-        for (int p = 0; p < numPeaks_ && newCount < static_cast<int>(kMaxPartials); ++p) {
+        for (int p = 0; p < numPeaks_ && std::cmp_less(newCount, kMaxPartials); ++p) {
             const auto pidx = static_cast<size_t>(p);
             if (!peakMatched_[pidx]) continue;
 
@@ -869,7 +870,7 @@ private:
 
         // 2. Handle unmatched previous partials (grace period / death)
         for (int prev = 0; prev < previousActiveCount_ &&
-                           newCount < static_cast<int>(kMaxPartials);
+                           std::cmp_less(newCount, kMaxPartials);
              ++prev) {
             if (matched_[static_cast<size_t>(prev)]) continue;
 
@@ -899,7 +900,7 @@ private:
         }
 
         // 3. Birth new (unmatched) peaks
-        for (int p = 0; p < numPeaks_ && newCount < static_cast<int>(kMaxPartials); ++p) {
+        for (int p = 0; p < numPeaks_ && std::cmp_less(newCount, kMaxPartials); ++p) {
             const auto pidx = static_cast<size_t>(p);
             if (peakMatched_[pidx]) continue;
 
@@ -950,7 +951,7 @@ private:
     /// Enforce the 48-partial cap. Rank by energy * stability, with
     /// hysteresis to prevent rapid replacement.
     void enforcePartialCap() noexcept {
-        if (activeCount_ <= static_cast<int>(kMaxPartials)) return;
+        if (std::cmp_less_equal(activeCount_, kMaxPartials)) return;
 
         // Compute ranking score for each partial
         struct RankedPartial {
@@ -971,7 +972,7 @@ private:
             if (p.age > kGracePeriodFrames) {
                 score *= 1.5f; // Hysteresis bonus (FR-027)
             }
-            ranked[static_cast<size_t>(i)] = {i, score};
+            ranked[static_cast<size_t>(i)] = {.index = i, .score = score};
         }
 
         // Sort by score descending (simple selection sort -- small N)

@@ -29,8 +29,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // WaveshapeType Enumeration (FR-001, FR-002)
@@ -224,7 +224,7 @@ public:
     /// @param numSamples Number of samples in buffer
     ///
     /// @note No memory allocation occurs during this call
-    void processBlock(float* buffer, size_t numSamples) noexcept {
+    void processBlock(float* buffer, size_t numSamples) const noexcept {
         // FR-011: Equivalent to N sequential process() calls
         for (size_t i = 0; i < numSamples; ++i) {
             buffer[i] = process(buffer[i]);
@@ -276,5 +276,5 @@ private:
     float asymmetry_ = 0.0f;                    ///< DC bias for asymmetry [-1.0, 1.0]
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

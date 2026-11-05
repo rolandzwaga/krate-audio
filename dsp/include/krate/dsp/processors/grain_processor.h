@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <utility>
 #include <vector>
 
@@ -75,7 +76,7 @@ public:
     /// Initialize a grain with given parameters
     /// @param grain Grain state to initialize
     /// @param params Grain parameters
-    void initializeGrain(Grain& grain, const GrainParams& params) noexcept {
+    void initializeGrain(Grain& grain, const GrainParams& params) const noexcept {
         // Calculate grain duration in samples
         const float grainSizeSamples =
             params.grainSizeMs * static_cast<float>(sampleRate_) / 1000.0f;
@@ -168,13 +169,13 @@ public:
     /// Check if grain has completed playback
     /// @param grain Grain to check
     /// @return true if grain envelope has completed
-    [[nodiscard]] bool isGrainComplete(const Grain& grain) const noexcept {
+    [[nodiscard]] static bool isGrainComplete(const Grain& grain) noexcept {
         return grain.envelopePhase >= 1.0f;
     }
 
 private:
     static constexpr float kHalfPi = 1.5707963267948966f;
-    static constexpr float kSqrt2 = 1.4142135623730951f;
+    static constexpr float kSqrt2 = std::numbers::sqrt2_v<float>;
 
     void regenerateEnvelope(GrainEnvelopeType type) noexcept {
         GrainEnvelope::generate(envelopeTable_.data(), envelopeTableSize_, type);

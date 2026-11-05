@@ -26,8 +26,8 @@
 #include <cmath>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Internal Helpers (not part of public API)
@@ -58,7 +58,7 @@ inline void normalizeToPeak(float* data, size_t count, float targetPeak = 0.96f)
     float peak = 0.0f;
     for (size_t i = 0; i < count; ++i) {
         float absVal = std::abs(data[i]);
-        if (absVal > peak) peak = absVal;
+        peak = std::max(peak, absVal);
     }
     if (peak > 0.0f) {
         float scale = targetPeak / peak;
@@ -91,7 +91,7 @@ inline void generateLevels(WavetableData& data, SpectrumFiller filler) {
         size_t maxH = maxHarmonicForLevel(level, kDefaultTableSize);
 
         // Clear spectrum
-        std::fill(spectrum.begin(), spectrum.end(), Complex{0.0f, 0.0f});
+        std::fill(spectrum.begin(), spectrum.end(), Complex{.real = 0.0f, .imag = 0.0f});
 
         // Fill spectrum with harmonics
         filler(spectrum.data(), maxH, numBins);
@@ -137,7 +137,7 @@ inline void generateLevels(WavetableData& data, SpectrumFiller filler) {
 inline void generateMipmappedSaw(WavetableData& data) {
     detail::generateLevels(data, [](Complex* spectrum, size_t maxHarmonic, [[maybe_unused]] size_t numBins) {
         for (size_t n = 1; n <= maxHarmonic; ++n) {
-            spectrum[n] = {0.0f, -1.0f / static_cast<float>(n)};
+            spectrum[n] = {.real = 0.0f, .imag = -1.0f / static_cast<float>(n)};
         }
     });
 }
@@ -152,7 +152,7 @@ inline void generateMipmappedSaw(WavetableData& data) {
 inline void generateMipmappedSquare(WavetableData& data) {
     detail::generateLevels(data, [](Complex* spectrum, size_t maxHarmonic, [[maybe_unused]] size_t numBins) {
         for (size_t n = 1; n <= maxHarmonic; n += 2) {
-            spectrum[n] = {0.0f, -1.0f / static_cast<float>(n)};
+            spectrum[n] = {.real = 0.0f, .imag = -1.0f / static_cast<float>(n)};
         }
     });
 }
@@ -170,7 +170,7 @@ inline void generateMipmappedTriangle(WavetableData& data) {
             // Alternating sign: +1 for n=1, -1 for n=3, +1 for n=5, etc.
             float sign = (((n - 1) / 2) % 2 == 0) ? 1.0f : -1.0f;
             float amplitude = 1.0f / static_cast<float>(n * n);
-            spectrum[n] = {0.0f, sign * amplitude};
+            spectrum[n] = {.real = 0.0f, .imag = sign * amplitude};
         }
     });
 }
@@ -208,7 +208,7 @@ inline void generateMipmappedFromHarmonics(
         for (size_t n = 1; n <= limit; ++n) {
             // harmonicAmplitudes[0] = fundamental (harmonic 1), etc.
             float amplitude = harmonicAmplitudes[n - 1];
-            spectrum[n] = {0.0f, -amplitude};
+            spectrum[n] = {.real = 0.0f, .imag = -amplitude};
         }
     });
 }
@@ -252,8 +252,8 @@ inline void generateMipmappedFromSamples(
             fftSize <<= 1;
         }
         // Clamp to valid FFT range
-        if (fftSize < kMinFFTSize) fftSize = kMinFFTSize;
-        if (fftSize > kMaxFFTSize) fftSize = kMaxFFTSize;
+        fftSize = std::max(fftSize, kMinFFTSize);
+        fftSize = std::min(fftSize, kMaxFFTSize);
 
         fft.prepare(fftSize);
         std::vector<float> padded(fftSize, 0.0f);
@@ -268,7 +268,7 @@ inline void generateMipmappedFromSamples(
         // Resample spectrum to table size bins
         fftTable.prepare(kDefaultTableSize);
         size_t tableBins = fftTable.numBins();
-        inputSpectrum.resize(tableBins, Complex{0.0f, 0.0f});
+        inputSpectrum.resize(tableBins, Complex{.real = 0.0f, .imag = 0.0f});
 
         size_t inputBins = fft.numBins();
         size_t copyBins = (inputBins < tableBins) ? inputBins : tableBins;
@@ -276,7 +276,7 @@ inline void generateMipmappedFromSamples(
         // Scale factor for spectrum resampling
         float scaleFactor = static_cast<float>(kDefaultTableSize) / static_cast<float>(fftSize);
         for (size_t i = 0; i < copyBins; ++i) {
-            inputSpectrum[i] = {rawSpectrum[i].real * scaleFactor, rawSpectrum[i].imag * scaleFactor};
+            inputSpectrum[i] = {.real = rawSpectrum[i].real * scaleFactor, .imag = rawSpectrum[i].imag * scaleFactor};
         }
     }
 
@@ -296,7 +296,7 @@ inline void generateMipmappedFromSamples(
             if (n <= maxH) {
                 levelSpectrum[n] = inputSpectrum[n];
             } else {
-                levelSpectrum[n] = {0.0f, 0.0f};
+                levelSpectrum[n] = {.real = 0.0f, .imag = 0.0f};
             }
         }
 
@@ -319,5 +319,5 @@ inline void generateMipmappedFromSamples(
     data.setNumLevels(kMaxMipmapLevels);
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

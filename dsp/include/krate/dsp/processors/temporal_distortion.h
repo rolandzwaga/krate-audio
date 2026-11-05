@@ -33,8 +33,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // TemporalMode Enumeration (FR-001)
@@ -435,7 +435,7 @@ public:
 
     /// @brief Get processing latency in samples. (SC-009)
     /// @return Always 0 (no lookahead required)
-    [[nodiscard]] constexpr size_t getLatency() const noexcept { return 0; }
+    [[nodiscard]] static constexpr size_t getLatency() noexcept { return 0; }
 
 private:
     // =========================================================================
@@ -540,5 +540,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

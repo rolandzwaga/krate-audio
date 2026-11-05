@@ -25,9 +25,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Constants
@@ -98,15 +99,15 @@ struct MaterialCoefficients {
 /// Material preset coefficients from research.md
 inline constexpr MaterialCoefficients kMaterialPresets[] = {
     // Wood: warm, quick HF decay
-    { 2.0f, 1.0e-7f, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, 8 },
+    { .b1 = 2.0f, .b3 = 1.0e-7f, .ratios = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, .numModes = 8 },
     // Metal: bright, sustained
-    { 0.3f, 1.0e-9f, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, 8 },
+    { .b1 = 0.3f, .b3 = 1.0e-9f, .ratios = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, .numModes = 8 },
     // Glass: bright, ringing
-    { 0.5f, 5.0e-8f, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, 8 },
+    { .b1 = 0.5f, .b3 = 5.0e-8f, .ratios = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, .numModes = 8 },
     // Ceramic: warm/bright, medium
-    { 1.5f, 8.0e-8f, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, 8 },
+    { .b1 = 1.5f, .b3 = 8.0e-8f, .ratios = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, .numModes = 8 },
     // Nylon: dull, heavily damped
-    { 4.0f, 2.0e-7f, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, 8 }
+    { .b1 = 4.0f, .b3 = 2.0e-7f, .ratios = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}, .numModes = 8 }
 };
 
 // =============================================================================
@@ -244,7 +245,7 @@ public:
     /// @note Frequency is clamped to valid range.
     /// @note Uses smoothing to prevent clicks (FR-030).
     void setModeFrequency(int index, float hz) noexcept {
-        if (index < 0 || static_cast<size_t>(index) >= kMaxModes) return;
+        if (index < 0 || std::cmp_greater_equal(index, kMaxModes)) return;
 
         const float maxFreq = static_cast<float>(sampleRate_) * kMaxModeFrequencyRatio;
         frequencies_[static_cast<size_t>(index)] = std::clamp(hz, kMinModeFrequency, maxFreq);
@@ -261,7 +262,7 @@ public:
     /// @param t60Seconds Decay time in seconds [0.001, 30.0]
     /// @note Decay is clamped to valid range.
     void setModeDecay(int index, float t60Seconds) noexcept {
-        if (index < 0 || static_cast<size_t>(index) >= kMaxModes) return;
+        if (index < 0 || std::cmp_greater_equal(index, kMaxModes)) return;
 
         t60s_[static_cast<size_t>(index)] = std::clamp(t60Seconds, kMinModeDecay, kMaxModeDecay);
 
@@ -277,7 +278,7 @@ public:
     /// @note Amplitude is clamped to valid range.
     /// @note Uses smoothing to prevent clicks (FR-030).
     void setModeAmplitude(int index, float amplitude) noexcept {
-        if (index < 0 || static_cast<size_t>(index) >= kMaxModes) return;
+        if (index < 0 || std::cmp_greater_equal(index, kMaxModes)) return;
 
         gains_[static_cast<size_t>(index)] = std::clamp(amplitude, 0.0f, 1.0f);
 
@@ -497,7 +498,7 @@ public:
     /// @param index Mode index [0, kMaxModes-1]
     /// @return Frequency in Hz, or 0.0f if index invalid
     [[nodiscard]] float getModeFrequency(int index) const noexcept {
-        if (index < 0 || static_cast<size_t>(index) >= kMaxModes) return 0.0f;
+        if (index < 0 || std::cmp_greater_equal(index, kMaxModes)) return 0.0f;
         return frequencies_[static_cast<size_t>(index)];
     }
 
@@ -505,7 +506,7 @@ public:
     /// @param index Mode index [0, kMaxModes-1]
     /// @return Decay time in seconds, or 0.0f if index invalid
     [[nodiscard]] float getModeDecay(int index) const noexcept {
-        if (index < 0 || static_cast<size_t>(index) >= kMaxModes) return 0.0f;
+        if (index < 0 || std::cmp_greater_equal(index, kMaxModes)) return 0.0f;
         return t60s_[static_cast<size_t>(index)];
     }
 
@@ -513,7 +514,7 @@ public:
     /// @param index Mode index [0, kMaxModes-1]
     /// @return Amplitude [0.0, 1.0], or 0.0f if index invalid
     [[nodiscard]] float getModeAmplitude(int index) const noexcept {
-        if (index < 0 || static_cast<size_t>(index) >= kMaxModes) return 0.0f;
+        if (index < 0 || std::cmp_greater_equal(index, kMaxModes)) return 0.0f;
         return gains_[static_cast<size_t>(index)];
     }
 
@@ -521,7 +522,7 @@ public:
     /// @param index Mode index [0, kMaxModes-1]
     /// @return true if mode is enabled, false if disabled or index invalid
     [[nodiscard]] bool isModeEnabled(int index) const noexcept {
-        if (index < 0 || static_cast<size_t>(index) >= kMaxModes) return false;
+        if (index < 0 || std::cmp_greater_equal(index, kMaxModes)) return false;
         return enabled_[static_cast<size_t>(index)];
     }
 
@@ -559,7 +560,7 @@ private:
     /// @param b1 Global damping coefficient (Hz)
     /// @param b3 Frequency-dependent damping coefficient (s)
     /// @return T60 decay time in seconds
-    [[nodiscard]] float calculateMaterialT60(float frequency, float b1, float b3) const noexcept {
+    [[nodiscard]] static float calculateMaterialT60(float frequency, float b1, float b3) noexcept {
         // Loss factor: R_k = b1 + b3 * f_k^2
         // T60 = 6.91 / R_k
         const float lossFactor = b1 + b3 * frequency * frequency;
@@ -628,5 +629,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

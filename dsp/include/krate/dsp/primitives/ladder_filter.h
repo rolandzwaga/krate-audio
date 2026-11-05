@@ -31,8 +31,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // LadderModel Enum
@@ -515,7 +515,7 @@ private:
     ///
     /// Uses the standard bilinear transform coefficient for the one-pole
     /// stages in the ladder filter. Includes clamping to prevent instability.
-    [[nodiscard]] float calculateG(float cutoff, float rate) noexcept {
+    [[nodiscard]] static float calculateG(float cutoff, float rate) noexcept {
         // Clamp to prevent instability near Nyquist
         // Use 0.45 as max ratio to stay well away from the pi/2 singularity
         float fc = std::min(cutoff, rate * 0.45f);
@@ -621,7 +621,7 @@ private:
     }
 
     /// Apply resonance gain compensation
-    [[nodiscard]] float applyCompensation(float output, float k) noexcept {
+    [[nodiscard]] static float applyCompensation(float output, float k) noexcept {
         float compensation = 1.0f / (1.0f + k * 0.25f);
         return output * compensation;
     }
@@ -665,5 +665,5 @@ private:
     }
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

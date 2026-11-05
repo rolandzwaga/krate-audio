@@ -22,8 +22,8 @@
 #include <cmath>
 #include <cstddef>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // OnePoleLP - First-Order Lowpass Filter (FR-013, FR-016, FR-017, FR-018-FR-025)
@@ -64,6 +64,9 @@ public:
     /// @note Clamps sampleRate to minimum 1000.0 if invalid
     void prepare(double sampleRate) noexcept {
         sampleRate_ = (sampleRate > 0.0) ? sampleRate : 44100.0;
+        // std::max here changes MSVC /fp:fast inlining so the cutoff coefficient constant-folds in one caller and
+        // not another (process() vs processBlock() 1 ulp apart, SC-009).
+        // NOLINTNEXTLINE(readability-use-std-min-max)
         if (sampleRate_ < 1000.0) sampleRate_ = 1000.0;
         prepared_ = true;
         updateCoefficient();
@@ -180,6 +183,9 @@ public:
     /// @param sampleRate Sample rate in Hz (must be > 0)
     void prepare(double sampleRate) noexcept {
         sampleRate_ = (sampleRate > 0.0) ? sampleRate : 44100.0;
+        // std::max here changes MSVC /fp:fast inlining so the cutoff coefficient constant-folds in one caller and
+        // not another (process() vs processBlock() 1 ulp apart, SC-009).
+        // NOLINTNEXTLINE(readability-use-std-min-max)
         if (sampleRate_ < 1000.0) sampleRate_ = 1000.0;
         prepared_ = true;
         updateCoefficient();
@@ -290,7 +296,7 @@ public:
     /// @param a Leak coefficient (clamped to [0, 0.9999999])
     void setLeak(float a) noexcept {
         // Clamp to valid range [0, 1)
-        if (a < 0.0f) a = 0.0f;
+        a = std::max(a, 0.0f);
         if (a >= 1.0f) a = 0.9999999f;
         leak_ = a;
     }
@@ -336,5 +342,5 @@ private:
     float state_ = 0.0f;   ///< Accumulated state y[n-1]
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

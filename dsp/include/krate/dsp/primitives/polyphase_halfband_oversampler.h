@@ -81,7 +81,7 @@ public:
     /// Reads factor() samples; `atTwoX(float) -> float` is applied to each 2fs-rate sample
     /// before the outer decimation (for F = 2 that is the oversampled rate itself).
     template <class AtTwoX>
-    [[nodiscard]] float downsample(const float* in, AtTwoX&& atTwoX) noexcept {
+    [[nodiscard]] float downsample(const float* in, AtTwoX&& atTwoX) noexcept {  // NOLINT(cppcoreguidelines-missing-std-forward): called on both 2x samples
         float a = 0.0f;
         float b = 0.0f;
         if (factor_ == 2) {

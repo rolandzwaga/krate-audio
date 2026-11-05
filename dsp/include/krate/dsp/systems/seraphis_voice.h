@@ -74,9 +74,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 namespace detail {
 /// @brief SC-003 positive control (b). DECLARED HERE, DEFINED ONLY BY A TEST TU.
@@ -161,7 +162,7 @@ public:
     /// FR-025. Azimuth-balance smoothing time.
     static constexpr float kSpatialSmoothMs = 20.0f;
     /// FR-025. Unity-at-centre constant-power constant.
-    static constexpr float kSqrt2 = 1.41421356f;
+    static constexpr float kSqrt2 = std::numbers::sqrt2_v<float>;
     /// FR-020. The ONE curve every envelope setStage() call uses. `EnvCurve` is
     /// core/env_curve.h:24 (Layer 0) - NOT primitives/envelope_utils.h, which
     /// declares RetriggerMode (:64) and no curve enum.
@@ -874,7 +875,7 @@ public:
     // gate is FALSE on every shipping path, so a shipped render pays six
     // always-false branches per chunk and never reads a clock.
     // =========================================================================
-    enum class RenderStage : std::size_t {
+    enum class RenderStage : std::uint8_t {
         Morph,       ///< step 1: morph_.updateChunk + cloud_.setSpectralTarget
         Cloud,       ///< step 2: cloud_.processStereoBlock (the additive bank)
         Envelope,    ///< step 3: the per-sample envelope gate
@@ -1130,7 +1131,7 @@ private:
         //    the POST-spatial buffer, i.e. exactly what the voice contributes.
         float chunkPeak = 0.0f;
         for (std::size_t s = 0; s < n; ++s) {
-            chunkPeak = std::max(chunkPeak, std::max(std::fabs(carryL_[s]), std::fabs(carryR_[s])));
+            chunkPeak = std::max({chunkPeak, std::fabs(carryL_[s]), std::fabs(carryR_[s])});
         }
         updateLevel(chunkPeak);
         if (inst) {
@@ -1301,7 +1302,7 @@ static_assert(sizeof(SeraphisVoice) <= SeraphisVoice::kVoiceSizeBound,
               "FR-002: SeraphisVoice grew past its measured bound - check for a StereoField, "
               "VoiceModRouter, ModulationEngine, PolySynthEngine, SynthVoice or AetherReverb "
               "member, and re-record kVoiceSizeBound if the growth is legitimate");
-static_assert(sizeof(SeraphisVoice) < 3 * 1024 * 1024, "FR-013");
+static_assert(sizeof(SeraphisVoice) < std::size_t{3} * 1024 * 1024, "FR-013");
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

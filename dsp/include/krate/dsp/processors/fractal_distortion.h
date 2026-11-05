@@ -41,8 +41,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // FractalMode Enumeration (FR-004 to FR-009)
@@ -1037,10 +1037,10 @@ private:
     WaveshapeType curveType_ = WaveshapeType::Tanh;             ///< Saturation curve for all modes
     WaveshapeType oddHarmonicCurve_ = WaveshapeType::Tanh;     ///< FR-037: Default Tanh
     WaveshapeType evenHarmonicCurve_ = WaveshapeType::Tube;    ///< FR-037: Default Tube
-    std::array<WaveshapeType, kMaxIterations> levelWaveshapers_;  ///< Cascade mode per-level types
+    std::array<WaveshapeType, kMaxIterations> levelWaveshapers_{};  ///< Cascade mode per-level types
     float feedbackAmount_ = 0.0f;
     FractalBlendMode blendMode_ = FractalBlendMode::Add;          ///< Level combination mode
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

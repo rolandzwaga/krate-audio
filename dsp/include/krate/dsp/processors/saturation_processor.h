@@ -36,8 +36,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // SaturationType Enumeration
@@ -329,7 +329,7 @@ public:
     /// @return Always 0 (no internal oversampling)
     ///
     /// @note If using external Oversampler, add its latency to host compensation
-    [[nodiscard]] size_t getLatency() const noexcept {
+    [[nodiscard]] static size_t getLatency() noexcept {
         return 0;  // No internal oversampling = no latency
     }
 
@@ -428,5 +428,5 @@ private:
     std::vector<float> dryBuffer_;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

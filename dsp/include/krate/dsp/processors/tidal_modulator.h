@@ -107,10 +107,11 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <utility>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Very slow, bounded, never-exactly-repeating tidal drift.
 ///
@@ -147,7 +148,7 @@ public:
     /// Fixed, mutually incommensurate irrational ratios (FR-032). Hardcoded,
     /// NOT seed-drawn: {1, sqrt(2), sqrt(3)}.
     static constexpr std::array<float, kNumLayers> kLayerRatios{
-        1.0f, 1.41421356f, 1.73205081f};
+        1.0f, std::numbers::sqrt2_v<float>, std::numbers::sqrt3_v<float>};
 
     /// Slowest base period (seconds), i.e. the period of layer 0 at rate 0.
     /// Chosen so the SLOWEST layer lands exactly on kMaxPeriod there and no
@@ -334,5 +335,5 @@ private:
     OnePoleSmoother outputSmoother_;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

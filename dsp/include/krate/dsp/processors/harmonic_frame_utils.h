@@ -65,12 +65,10 @@ inline HarmonicFrame lerpHarmonicFrame(
         // RelativeFrequency: lerp, missing side = float(harmonicIndex)
         // For the missing side, use the other side's harmonicIndex to get
         // the ideal harmonic ratio as the default
-        const float relFreqA = inA
-            ? ap.relativeFrequency
-            : static_cast<float>(inB ? bp.harmonicIndex : (i + 1));
-        const float relFreqB = inB
-            ? bp.relativeFrequency
-            : static_cast<float>(inA ? ap.harmonicIndex : (i + 1));
+        const auto idealA = static_cast<float>(inB ? bp.harmonicIndex : (i + 1));
+        const auto idealB = static_cast<float>(inA ? ap.harmonicIndex : (i + 1));
+        const float relFreqA = inA ? ap.relativeFrequency : idealA;
+        const float relFreqB = inB ? bp.relativeFrequency : idealB;
         rp.relativeFrequency = oneMinusT * relFreqA + t * relFreqB;
 
         // Frequency & inharmonicDeviation: lerp (missing side = ideal harmonic)
@@ -90,7 +88,8 @@ inline HarmonicFrame lerpHarmonicFrame(
         // Phase, harmonicIndex, age: copy from dominant source
         // Phase is NOT interpolated — the oscillator bank maintains
         // phase continuity through its MCF recurrence.
-        if (bDominant && inB)
+        // B when it is dominant, or the only source; otherwise A.
+        if (inB && (bDominant || !inA))
         {
             rp.phase = bp.phase;
             rp.harmonicIndex = bp.harmonicIndex;
@@ -101,12 +100,6 @@ inline HarmonicFrame lerpHarmonicFrame(
             rp.phase = ap.phase;
             rp.harmonicIndex = ap.harmonicIndex;
             rp.age = ap.age;
-        }
-        else if (inB)
-        {
-            rp.phase = bp.phase;
-            rp.harmonicIndex = bp.harmonicIndex;
-            rp.age = bp.age;
         }
         else
         {

@@ -543,7 +543,7 @@ private:
     /// @param bank       Bank to configure
     /// @param smoothness Correlation control in [0, 1]; tau = lerp(0.2 s, 30 s)
     /// @param smoothMs   Output-smoother time to 99 % (primitives/smoother.h:86-91)
-    void updateBankCoefficients(OuBank& bank, float smoothness, float smoothMs) noexcept {
+    void updateBankCoefficients(OuBank& bank, float smoothness, float smoothMs) const noexcept {
         const double controlDt = static_cast<double>(kEntropyControlInterval) / sampleRate_;
         const double tau = static_cast<double>(BrownianDrift::kTauMin) +
                            (static_cast<double>(smoothness) *

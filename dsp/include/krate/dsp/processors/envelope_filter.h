@@ -26,8 +26,8 @@
 #include <cmath>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Envelope filter (auto-wah) processor
 ///
@@ -123,9 +123,7 @@ public:
         maxFrequencyLimit_ = static_cast<float>(sampleRate_) * 0.45f;
 
         // Clamp maxFrequency if needed
-        if (maxFrequency_ > maxFrequencyLimit_) {
-            maxFrequency_ = maxFrequencyLimit_;
-        }
+        maxFrequency_ = std::min(maxFrequency_, maxFrequencyLimit_);
 
         // Prepare composed components
         envFollower_.prepare(sampleRate_, 512);  // maxBlockSize not used by EnvelopeFollower
@@ -408,7 +406,7 @@ private:
     /// @brief Map FilterType to SVFMode
     /// @param type Filter type
     /// @return Corresponding SVF mode
-    [[nodiscard]] SVFMode mapFilterType(FilterType type) const noexcept {
+    [[nodiscard]] static SVFMode mapFilterType(FilterType type) noexcept {
         switch (type) {
             case FilterType::Lowpass:
                 return SVFMode::Lowpass;
@@ -452,5 +450,5 @@ private:
     bool prepared_ = false;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

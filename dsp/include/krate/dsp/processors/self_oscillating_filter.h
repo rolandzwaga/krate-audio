@@ -53,8 +53,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Melodically playable self-oscillating filter
 ///
@@ -646,7 +646,7 @@ private:
     ///
     /// @param normalized User resonance (0.0 to 1.0)
     /// @return Filter resonance (0.0 to 5.0)
-    [[nodiscard]] float mapResonanceToFilter(float normalized) const noexcept {
+    [[nodiscard]] static float mapResonanceToFilter(float normalized) noexcept {
         if (normalized <= 0.0f) {
             return 0.0f;
         }
@@ -705,5 +705,5 @@ private:
     bool prepared_ = false;
 };
 
-}  // namespace DSP
-}  // namespace Krate
+} // namespace Krate::DSP
+

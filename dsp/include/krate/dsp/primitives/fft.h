@@ -26,8 +26,8 @@
 
 #include <pffft/pffft.h>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 // =============================================================================
 // Forward Declarations
@@ -61,22 +61,22 @@ struct Complex {
     // -------------------------------------------------------------------------
 
     [[nodiscard]] constexpr Complex operator+(const Complex& other) const noexcept {
-        return {real + other.real, imag + other.imag};
+        return {.real = real + other.real, .imag = imag + other.imag};
     }
 
     [[nodiscard]] constexpr Complex operator-(const Complex& other) const noexcept {
-        return {real - other.real, imag - other.imag};
+        return {.real = real - other.real, .imag = imag - other.imag};
     }
 
     [[nodiscard]] constexpr Complex operator*(const Complex& other) const noexcept {
         return {
-            real * other.real - imag * other.imag,
-            real * other.imag + imag * other.real
+            .real = real * other.real - imag * other.imag,
+            .imag = real * other.imag + imag * other.real
         };
     }
 
     [[nodiscard]] constexpr Complex conjugate() const noexcept {
-        return {real, -imag};
+        return {.real = real, .imag = -imag};
     }
 
     // -------------------------------------------------------------------------
@@ -200,11 +200,11 @@ public:
         //   ours:  Complex[0]={DC,0}, Complex[k]={Re,Im}, Complex[N/2]={Nyq,0}
         const float* fftOut = buf2_.get();
 
-        output[0] = {fftOut[0], 0.0f};        // DC bin (real only)
-        output[N / 2] = {fftOut[1], 0.0f};    // Nyquist bin (real only)
+        output[0] = {.real = fftOut[0], .imag = 0.0f};        // DC bin (real only)
+        output[N / 2] = {.real = fftOut[1], .imag = 0.0f};    // Nyquist bin (real only)
 
         for (size_t k = 1; k < N / 2; ++k) {
-            output[k] = {fftOut[2 * k], fftOut[2 * k + 1]};
+            output[k] = {.real = fftOut[2 * k], .imag = fftOut[2 * k + 1]};
         }
     }
 
@@ -262,5 +262,5 @@ private:
     std::unique_ptr<float, detail::PffftAlignedDeleter> work_;  // pffft work buffer
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

@@ -49,8 +49,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Spectral Tilt Filter - Layer 2 Processor
 ///
@@ -407,5 +407,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

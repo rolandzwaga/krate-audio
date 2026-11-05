@@ -29,9 +29,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
+#include <numbers>
 
-namespace Krate {
-namespace DSP {
+
+namespace Krate::DSP {
 
 /// @brief Digital waveguide resonator for flute/pipe-like resonances.
 ///
@@ -510,7 +511,7 @@ private:
         // Phase delay of first-order lowpass at frequency f with cutoff fc:
         // phaseDelay_samples = arctan(f / fc) / (2 * pi * f) * sampleRate
         // Reference: research.md Section 7, "Loss Filter Phase Delay"
-        constexpr float kPi = 3.14159265358979323846f;
+        constexpr float kPi = std::numbers::pi_v<float>;
         float lossPhaseDelay = std::atan(smoothedFreq / lossCutoff) /
                                (2.0f * kPi * smoothedFreq) *
                                static_cast<float>(sampleRate_);
@@ -595,5 +596,5 @@ private:
     bool prepared_ = false;
 };
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP
+

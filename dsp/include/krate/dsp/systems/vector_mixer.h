@@ -337,7 +337,7 @@ inline void VectorMixer::advanceSmoothing() noexcept {
     // Sum-normalization (R-005): guarantees solo weights at cardinal points
     const float sum = rA + rB + rC + rD;
     if (sum <= 0.0f) {
-        return Weights{0.25f, 0.25f, 0.25f, 0.25f};
+        return Weights{.a = 0.25f, .b = 0.25f, .c = 0.25f, .d = 0.25f};
     }
     const float invSum = 1.0f / sum;
 
@@ -412,7 +412,7 @@ inline void VectorMixer::processBlock(const float* a, const float* b,
                                                         float bL, float bR,
                                                         float cL, float cR,
                                                         float dL, float dR) noexcept {
-    if (!prepared_) return StereoOutput{0.0f, 0.0f};
+    if (!prepared_) return StereoOutput{.left = 0.0f, .right = 0.0f};
 
     // Debug assertions for NaN/Inf inputs (FR-025)
     assert(!detail::isNaN(aL) && !detail::isInf(aL));
@@ -442,7 +442,7 @@ inline void VectorMixer::processBlock(const float* a, const float* b,
     const float right = currentWeights_.a * aR + currentWeights_.b * bR +
                         currentWeights_.c * cR + currentWeights_.d * dR;
 
-    return StereoOutput{left, right};
+    return StereoOutput{.left = left, .right = right};
 }
 
 inline void VectorMixer::processBlock(const float* aL, const float* aR,

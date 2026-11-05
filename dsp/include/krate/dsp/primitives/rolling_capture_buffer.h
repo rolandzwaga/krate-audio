@@ -313,7 +313,7 @@ public:
         [[nodiscard]] size_t index0(float ageSamples) const noexcept {
             float age = ageSamples;
             if (!(age >= 0.0f)) { age = 0.0f; }    // negatives, -Inf, NaN
-            if (age > maxAge_)  { age = maxAge_; }  // +Inf, over-range finite
+            age = std::min(age, maxAge_);  // +Inf, over-range finite
             const auto ageInt = static_cast<std::int64_t>(age);
             frac_ = age - static_cast<float>(ageInt);
             return (base_ - static_cast<size_t>(ageInt)) & mask_;

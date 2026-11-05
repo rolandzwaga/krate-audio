@@ -113,7 +113,7 @@ inline constexpr std::array<float, kMarkovMatrixSize> kMarkovClassical = {{
 /// Get the hardcoded preset matrix for a given MarkovPreset.
 /// Returns Uniform for Custom (sentinel) — callers should treat Custom as
 /// a UI-only signal and read matrix values from their own storage.
-[[nodiscard]] inline constexpr const std::array<float, kMarkovMatrixSize>&
+[[nodiscard]] constexpr const std::array<float, kMarkovMatrixSize>&
 getMarkovPresetMatrix(MarkovPreset preset) noexcept {
     switch (preset) {
         case MarkovPreset::Uniform:   return detail::kMarkovUniform;
