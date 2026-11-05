@@ -4,6 +4,8 @@
 // helpers (lfoRateFromNormalized / lfoFadeIn* / lfoQuantize* / kQuantizeStepCount)
 // are defined in lfo_params.h and remain visible to sibling param files that
 // include this header.
+#include <utility>
+
 #include "parameters/lfo_params.h"
 
 namespace Ruinae {
@@ -44,14 +46,14 @@ inline bool loadLFO1ExtendedParams(LFO1Params& params, Steinberg::IBStreamer& st
 
 template<typename SetParamFunc>
 inline void loadLFO1ParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadLFOParamsToController(kLFO1RateId, streamer, setParam);
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    loadLFOParamsToController(kLFO1RateId, streamer, std::move(setParam));
 }
 
 template<typename SetParamFunc>
 inline void loadLFO1ExtendedParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadLFOExtendedParamsToController(kLFO1RateId, streamer, setParam);
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    loadLFOExtendedParamsToController(kLFO1RateId, streamer, std::move(setParam));
 }
 
 } // namespace Ruinae

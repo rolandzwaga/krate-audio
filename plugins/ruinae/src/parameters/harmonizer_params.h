@@ -426,7 +426,7 @@ inline bool loadHarmonizerParams(RuinaeHarmonizerParams& params, Steinberg::IBSt
 
 template<typename SetParamFunc>
 inline void loadHarmonizerParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     // Global ints
     if (streamer.readInt32(iv)) setParam(kHarmonizerHarmonyModeId, static_cast<double>(iv) / (kHarmonyModeCount - 1));

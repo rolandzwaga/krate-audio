@@ -119,7 +119,7 @@ inline bool loadMixerParams(MixerParams& params, Steinberg::IBStreamer& streamer
 
 template<typename SetParamFunc>
 inline void loadMixerParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
     if (streamer.readInt32(intVal))
         setParam(kMixerModeId, static_cast<double>(intVal) / (kMixModeCount - 1));

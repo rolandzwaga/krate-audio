@@ -187,7 +187,7 @@ inline bool loadReverbParams(RuinaeReverbParams& params, Steinberg::IBStreamer& 
 
 template<typename SetParamFunc>
 inline void loadReverbParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
     if (streamer.readFloat(fv)) setParam(kReverbSizeId, static_cast<double>(fv));
     if (streamer.readFloat(fv)) setParam(kReverbDampingId, static_cast<double>(fv));

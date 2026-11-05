@@ -369,7 +369,7 @@ inline bool loadTranceGateParams(RuinaeTranceGateParams& params, Steinberg::IBSt
 
 template<typename SetParamFunc>
 inline void loadTranceGateParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
 
     if (streamer.readInt32(intVal))

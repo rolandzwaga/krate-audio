@@ -43,6 +43,7 @@
 #include <cstddef>
 #include <cstring>
 #include <vector>
+#include <cstdint>
 
 namespace Krate::DSP {
 
@@ -51,7 +52,7 @@ namespace Krate::DSP {
 /// Replaces the legacy `phaserEnabled_` boolean with a three-way selector
 /// supporting None, Phaser, and Flanger. Used by RuinaeEffectsChain for
 /// crossfade switching between modulation effects.
-enum class ModulationType {
+enum class ModulationType : std::uint8_t {
     None = 0,
     Phaser = 1,
     Flanger = 2,
@@ -1423,7 +1424,7 @@ private:
 
     // Delay / reverb enable-disable crossfade. Same four-state shape as the
     // harmonizer's, applied to the wet gain of each slot's external dry/wet mix.
-    enum class SlotFadeState { Off, FadingIn, On, FadingOut };
+    enum class SlotFadeState : std::uint8_t { Off, FadingIn, On, FadingOut };
     static constexpr float kSlotFadeMs = 20.0f;
     SlotFadeState delayFadeState_ = SlotFadeState::Off;
     SlotFadeState reverbFadeState_ = SlotFadeState::Off;
@@ -1433,7 +1434,7 @@ private:
 
     /// Advance a slot's fade by one sample and return the wet multiplier to use
     /// for it. Off contributes nothing; On contributes fully.
-    [[nodiscard]] float tickSlotFade(SlotFadeState& state, float& alpha) noexcept {
+    [[nodiscard]] float tickSlotFade(SlotFadeState& state, float& alpha) const noexcept {
         switch (state) {
             case SlotFadeState::Off:
                 return 0.0f;
@@ -1458,7 +1459,7 @@ private:
     }
 
     // Harmonizer enable/disable crossfade
-    enum class HarmonizerFadeState { Off, FadingIn, On, FadingOut };
+    enum class HarmonizerFadeState : std::uint8_t { Off, FadingIn, On, FadingOut };
     static constexpr float kHarmonizerCrossfadeMs = 10.0f;
     HarmonizerFadeState harmonizerFadeState_ = HarmonizerFadeState::Off;
     float harmonizerFadeAlpha_ = 0.0f;

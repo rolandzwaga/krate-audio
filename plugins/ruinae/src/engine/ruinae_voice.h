@@ -184,7 +184,7 @@ public:
         resetActiveFilter();
         resetActiveDistortion();
         dcBlocker_.reset();
-        if (spectralMorph_) spectralMorph_->reset();
+        if (spectralMorph_) (*spectralMorph_).reset();
         tranceGate_.reset();
 
         noteFrequency_ = 0.0f;
@@ -201,7 +201,7 @@ public:
         resetActiveFilter();
         resetActiveDistortion();
         dcBlocker_.reset();
-        if (spectralMorph_) spectralMorph_->reset();
+        if (spectralMorph_) (*spectralMorph_).reset();
         tranceGate_.reset();
         ampEnv_.reset();
         filterEnv_.reset();
@@ -1324,19 +1324,19 @@ private:
                 filterSvf2_.reset();
                 break;
             case RuinaeFilterType::Ladder:
-                if (filterLadder_) filterLadder_->reset();
+                if (filterLadder_) (*filterLadder_).reset();
                 break;
             case RuinaeFilterType::Formant:
-                if (filterFormant_) filterFormant_->reset();
+                if (filterFormant_) (*filterFormant_).reset();
                 break;
             case RuinaeFilterType::Comb:
-                if (filterComb_) filterComb_->reset();
+                if (filterComb_) (*filterComb_).reset();
                 break;
             case RuinaeFilterType::EnvelopeFilter:
-                if (filterEnvFilter_) filterEnvFilter_->reset();
+                if (filterEnvFilter_) (*filterEnvFilter_).reset();
                 break;
             case RuinaeFilterType::SelfOscillating:
-                if (filterSelfOsc_) filterSelfOsc_->reset();
+                if (filterSelfOsc_) (*filterSelfOsc_).reset();
                 break;
             default: break;
         }
@@ -1511,16 +1511,16 @@ private:
     void resetActiveDistortion() noexcept {
         switch (distortionType_) {
             case RuinaeDistortionType::ChaosWaveshaper:
-                if (distChaos_) distChaos_->reset();
+                if (distChaos_) (*distChaos_).reset();
                 break;
             case RuinaeDistortionType::SpectralDistortion:
-                if (distSpectral_) distSpectral_->reset();
+                if (distSpectral_) (*distSpectral_).reset();
                 break;
             case RuinaeDistortionType::GranularDistortion:
-                if (distGranular_) distGranular_->reset();
+                if (distGranular_) (*distGranular_).reset();
                 break;
             case RuinaeDistortionType::TapeSaturator:
-                if (distTape_) distTape_->reset();
+                if (distTape_) (*distTape_).reset();
                 break;
             case RuinaeDistortionType::RingModulator:
                 ringMod_.reset();

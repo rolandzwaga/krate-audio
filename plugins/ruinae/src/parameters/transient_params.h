@@ -158,7 +158,7 @@ inline bool loadTransientParams(TransientParams& params,
 
 template<typename SetParamFunc>
 inline void loadTransientParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f;
 
     // Sensitivity: already in [0,1] range

@@ -853,7 +853,7 @@ inline bool loadDelayParams(RuinaeDelayParams& params, Steinberg::IBStreamer& st
 
 template<typename SetParamFunc>
 inline void loadDelayParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
 
     // Common

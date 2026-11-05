@@ -19,7 +19,6 @@
 #include <krate/dsp/systems/poly_synth_engine.h>
 #include "engine/ruinae_engine.h"  // For RuinaeModDest
 
-#include "pluginterfaces/base/ustring.h"
 
 #include <algorithm>
 #include <array>

@@ -52,6 +52,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace Krate::DSP {
@@ -63,7 +64,7 @@ namespace Krate::DSP {
 /// @brief Internal enum for global modulation destinations within the
 ///        RuinaeEngine. Values start at 64 to avoid collision with
 ///        per-voice modulation destination IDs.
-enum class RuinaeModDest : uint32_t {
+enum class RuinaeModDest : std::uint8_t {
     GlobalFilterCutoff     = 64,  ///< Global filter cutoff frequency offset
     GlobalFilterResonance  = 65,  ///< Global filter resonance offset
     MasterVolume           = 66,  ///< Master volume offset
@@ -123,19 +124,6 @@ public:
     /// @brief Default constructor (FR-001).
     /// Pre-initializes all state variables. No heap allocation.
     RuinaeEngine() noexcept
-        : mode_(VoiceMode::Poly)
-        , polyphonyCount_(8)
-        , masterGain_(1.0f)
-        , softLimitEnabled_(true)
-        , globalFilterEnabled_(false)
-        , stereoSpread_(0.0f)
-        , stereoWidth_(1.0f)
-        , sampleRate_(0.0)
-        , prepared_(false)
-        , timestampCounter_(0)
-        , monoVoiceNote_(-1)
-        , globalFilterCutoffHz_(1000.0f)
-        , globalFilterResonance_(0.707f)
     {
         noteOnTimestamps_.fill(0);
         voicePanPositions_.fill(0.5f);
@@ -362,8 +350,8 @@ public:
     /// Recalculates gain compensation to 1/sqrt(count).
     /// @param count Number of voices to use
     void setPolyphony(size_t count) noexcept {
-        if (count < 1) count = 1;
-        if (count > kMaxPolyphony) count = kMaxPolyphony;
+        count = std::max<size_t>(count, 1);
+        count = std::min(count, kMaxPolyphony);
 
         polyphonyCount_ = count;
 
@@ -466,7 +454,7 @@ public:
                            float scaleMul = 1.0f,
                            bool bypass = false,
                            float smoothMs = 0.0f) noexcept {
-        if (slot < 0 || static_cast<size_t>(slot) >= kMaxModRoutings) return;
+        if (slot < 0 || std::cmp_greater_equal(slot, kMaxModRoutings)) return;
 
         ModRouting routing;
         routing.source = source;
@@ -480,7 +468,7 @@ public:
 
     /// @brief Clear a global modulation routing (FR-019).
     void clearGlobalModRoute(int slot) noexcept {
-        if (slot < 0 || static_cast<size_t>(slot) >= kMaxModRoutings) return;
+        if (slot < 0 || std::cmp_greater_equal(slot, kMaxModRoutings)) return;
         globalModEngine_.clearRouting(static_cast<size_t>(slot));
     }
 
@@ -1695,16 +1683,13 @@ private:
                     noteOnTimestamps_[event.voiceIndex] = ++timestampCounter_;
                     // Sync new voice's trance gate to existing active voice
                     if (syncSourceVoice >= 0 &&
-                        syncSourceVoice != static_cast<int>(event.voiceIndex)) {
+                        std::cmp_not_equal(syncSourceVoice, event.voiceIndex)) {
                         voices_[event.voiceIndex].syncTranceGateTo(
                             voices_[static_cast<size_t>(syncSourceVoice)]);
                     }
                     break;
                 }
-                case VoiceEvent::Type::Steal: {
-                    voices_[event.voiceIndex].noteOff();
-                    break;
-                }
+                case VoiceEvent::Type::Steal:  // a stolen voice releases like a note-off
                 case VoiceEvent::Type::NoteOff: {
                     voices_[event.voiceIndex].noteOff();
                     break;
@@ -2129,24 +2114,24 @@ private:
     // State
     // =========================================================================
 
-    VoiceMode mode_;
-    size_t polyphonyCount_;
-    float masterGain_;
-    bool softLimitEnabled_;
-    bool globalFilterEnabled_;
-    float stereoSpread_;
-    float stereoWidth_;
-    double sampleRate_;
-    bool prepared_;
-    uint64_t timestampCounter_;
-    std::array<uint64_t, kMaxPolyphony> noteOnTimestamps_;
-    std::array<float, kMaxPolyphony> voicePanPositions_;
-    int8_t monoVoiceNote_;
+    VoiceMode mode_{VoiceMode::Poly};
+    size_t polyphonyCount_{8};
+    float masterGain_{1.0f};
+    bool softLimitEnabled_{true};
+    bool globalFilterEnabled_{false};
+    float stereoSpread_{0.0f};
+    float stereoWidth_{1.0f};
+    double sampleRate_{0.0};
+    bool prepared_{false};
+    uint64_t timestampCounter_{0};
+    std::array<uint64_t, kMaxPolyphony> noteOnTimestamps_{};
+    std::array<float, kMaxPolyphony> voicePanPositions_{};
+    int8_t monoVoiceNote_{-1};
     bool userLegato_{false};    ///< Cached user legato setting for save/restore during arp slide
     bool tranceGateEnabled_{false}; ///< Cached trance gate enabled state for processBlock sync
     BlockContext blockContext_{};
-    float globalFilterCutoffHz_;
-    float globalFilterResonance_;
+    float globalFilterCutoffHz_{1000.0f};
+    float globalFilterResonance_{0.707f};
     float voiceFilterCutoffHz_ = 1000.0f;
     float voiceFilterResonance_ = 0.707f;
     float voiceFilterEnvAmount_ = 0.0f;

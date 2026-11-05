@@ -475,7 +475,7 @@ inline bool loadFilterParams(RuinaeFilterParams& params, Steinberg::IBStreamer& 
 
 template<typename SetParamFunc>
 inline void loadFilterParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
     if (streamer.readInt32(intVal))
         setParam(kFilterTypeId, static_cast<double>(intVal) / (kFilterTypeCount - 1));

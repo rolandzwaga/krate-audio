@@ -32,6 +32,8 @@ namespace Ruinae {
 // serves both banks. The static_asserts below make that assumption a build
 // error rather than a silent misroute if the two blocks ever diverge.
 
+// Unscoped and ParamID-based on purpose: the offsets are added to a block's base ParamID.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
 enum OscParamOffset : Steinberg::Vst::ParamID {
     kOscTypeOffset = 0,
     kOscTuneOffset = 1,
@@ -817,7 +819,7 @@ inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer) {
 template<typename SetParamFunc>
 inline void loadOscParamsToController(
     Steinberg::Vst::ParamID base, Steinberg::IBStreamer& streamer,
-    SetParamFunc setParam) {
+    const SetParamFunc& setParam) {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 

@@ -6,6 +6,8 @@
 // Binding of the shared modulation-effect parameter module to the chorus block.
 // The implementation lives in modulation_effect_params.h.
 
+#include <utility>
+
 #include "parameters/modulation_effect_params.h"
 
 namespace Ruinae {
@@ -40,8 +42,8 @@ inline bool loadChorusParams(RuinaeChorusParams& params,
 
 template<typename SetParamFunc>
 inline void loadChorusParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadModEffectParamsToController(kChorusConfig, streamer, setParam);
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    loadModEffectParamsToController(kChorusConfig, streamer, std::move(setParam));
 }
 
 } // namespace Ruinae

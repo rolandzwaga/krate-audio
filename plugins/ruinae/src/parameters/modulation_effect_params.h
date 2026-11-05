@@ -277,7 +277,7 @@ inline bool loadModEffectParams(const ModEffectConfig& cfg,
 
 template<typename SetParamFunc>
 inline void loadModEffectParamsToController(
-    const ModEffectConfig& cfg, Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    const ModEffectConfig& cfg, Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
     if (streamer.readFloat(fv))
         setParam(cfg.rateId(), static_cast<double>((fv - 0.05f) / cfg.rateSpan()));

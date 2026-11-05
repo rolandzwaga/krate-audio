@@ -202,7 +202,7 @@ inline bool loadPhaserParams(RuinaePhaserParams& params, Steinberg::IBStreamer& 
 
 template<typename SetParamFunc>
 inline void loadPhaserParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
     if (streamer.readFloat(fv)) setParam(kPhaserRateId, static_cast<double>((fv - 0.01f) / 19.99f));
     if (streamer.readFloat(fv)) setParam(kPhaserDepthId, static_cast<double>(fv));

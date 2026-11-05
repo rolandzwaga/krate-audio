@@ -99,7 +99,7 @@ inline bool loadGlobalFilterParams(GlobalFilterParams& params, Steinberg::IBStre
 
 template<typename SetParamFunc>
 inline void loadGlobalFilterParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     if (streamer.readInt32(iv)) setParam(kGlobalFilterEnabledId, iv != 0 ? 1.0 : 0.0);
     if (streamer.readInt32(iv)) setParam(kGlobalFilterTypeId, static_cast<double>(iv) / (kGlobalFilterTypeCount - 1));

@@ -1,6 +1,8 @@
 #pragma once
 // Thin shim preserving the historical LFO2 API. The implementation is the
 // base-ID-parameterized code in lfo_params.h, shared with LFO1.
+#include <utility>
+
 #include "parameters/lfo_params.h"
 
 namespace Ruinae {
@@ -41,14 +43,14 @@ inline bool loadLFO2ExtendedParams(LFO2Params& params, Steinberg::IBStreamer& st
 
 template<typename SetParamFunc>
 inline void loadLFO2ParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadLFOParamsToController(kLFO2RateId, streamer, setParam);
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    loadLFOParamsToController(kLFO2RateId, streamer, std::move(setParam));
 }
 
 template<typename SetParamFunc>
 inline void loadLFO2ExtendedParamsToController(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadLFOExtendedParamsToController(kLFO2RateId, streamer, setParam);
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    loadLFOExtendedParamsToController(kLFO2RateId, streamer, std::move(setParam));
 }
 
 } // namespace Ruinae
