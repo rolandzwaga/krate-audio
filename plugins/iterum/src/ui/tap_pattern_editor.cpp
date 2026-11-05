@@ -154,17 +154,17 @@ void TapPatternEditor::drawGrid(VSTGUI::CDrawContext* context, CustomLength leng
 
     // 1. snap lines, accent-dim at 60 % (design 5.3)
     context->setFrameColor(withAlpha(palette_.accentDim, 153));
-    for (const float ratio : culled(ratiosOf(lines, GridLine::Snap))) {
+    for (const float ratio : culled(ratiosOf(lines, GridLine::Kind::Snap))) {
         vLine(context, timeRatioToX(ratio), kPlotTop, kPlotBottom);
     }
     // 2. beat lines, text-dim at 25 %
     context->setFrameColor(withAlpha(palette_.textDim, 64));
-    for (const float ratio : ratiosOf(lines, GridLine::Beat)) {
+    for (const float ratio : ratiosOf(lines, GridLine::Kind::Beat)) {
         vLine(context, timeRatioToX(ratio), kPlotTop, kPlotBottom);
     }
     // 3. bar lines and the plot edges, text-dim at 45 %
     context->setFrameColor(withAlpha(palette_.textDim, 115));
-    for (const float ratio : ratiosOf(lines, GridLine::Bar)) {
+    for (const float ratio : ratiosOf(lines, GridLine::Kind::Bar)) {
         vLine(context, timeRatioToX(ratio), kPlotTop, kPlotBottom);
     }
     vLine(context, kPlotLeft, kPlotTop, kPlotBottom);
@@ -196,7 +196,7 @@ void TapPatternEditor::drawRuler(VSTGUI::CDrawContext* context, CustomLength len
         const auto lines = gridLines(length, SnapDivision::Off, tempoBpm_);
         for (const auto& line : lines) {
             vLine(context, timeRatioToX(line.ratio), kRulerBaseline,
-                  kRulerBaseline + (line.kind == GridLine::Bar ? 8.0f : 5.0f));
+                  kRulerBaseline + (line.kind == GridLine::Kind::Bar ? 8.0f : 5.0f));
         }
         vLine(context, kPlotRight, kRulerBaseline, kRulerTickBottom);  // the end of the length
     }

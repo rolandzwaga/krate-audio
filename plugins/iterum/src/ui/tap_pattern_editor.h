@@ -21,15 +21,16 @@
 #include <array>
 #include <functional>
 #include <string>
+#include <cstdint>
 
 namespace VSTGUI {
-class CTextLabel;
+class CTextLabel;  // NOLINT(cppcoreguidelines-virtual-class-destructor): VSTGUI's class, protected virtual dtor by design
 }
 
 namespace Iterum {
 
 /// The zone of a tap under a point (design 4.1).
-enum class HitZone {
+enum class HitZone : std::uint8_t {
     None,    ///< no tap
     Body,    ///< a tall tap's bar below its handle: time drag
     Handle,  ///< a tall tap's top: level drag
@@ -150,7 +151,7 @@ public:
 
 private:
     /// What a drag moves (design 4.2): a grip waits for its first move to pick Time or Level.
-    enum class DragMode { None, Time, Level, GripPending };
+    enum class DragMode : std::uint8_t { None, Time, Level, GripPending };
 
     // Drawing helpers (view-local coordinates)
     void drawBackground(VSTGUI::CDrawContext* context);

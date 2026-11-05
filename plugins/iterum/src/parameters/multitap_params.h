@@ -82,7 +82,7 @@ static constexpr double kMultiTapTempoDefaultBpm = 120.0;
                                            NoteValue::SixtyFourth, NoteValue::SixtyFourth, NoteValue::Half,
                                            NoteValue::Quarter};
     static constexpr NoteModifier kModifiers[] = {NoteModifier::None, NoteModifier::Triplet, NoteModifier::Dotted};
-    return {kNotes[std::clamp(noteIdx, 0, 9)], kModifiers[std::clamp(modifierIdx, 0, 2)]};
+    return {.note = kNotes[std::clamp(noteIdx, 0, 9)], .modifier = kModifiers[std::clamp(modifierIdx, 0, 2)]};
 }
 
 // ==============================================================================
@@ -494,6 +494,7 @@ inline Steinberg::tresult parseMultiTapParam(
     }
 
     char ascii[128] = {};
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): UString's ctor takes a non-const TChar* even to read it
     Steinberg::UString(const_cast<Steinberg::Vst::TChar*>(string), 128).toAscii(ascii, 128);
 
     if (isLevel) {

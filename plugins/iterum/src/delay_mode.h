@@ -7,9 +7,11 @@
 // This header has NO VST3 SDK dependencies to allow use in pure C++ tests.
 // ==============================================================================
 
+#include <cstdint>
+
 namespace Iterum {
 
-enum class DelayMode : int {
+enum class DelayMode : std::uint8_t {
     Granular = 0,   // spec 034 - Granular processing with pitch/time spray
     Spectral = 1,   // spec 033 - FFT-based per-band delays
     Shimmer = 2,    // spec 029 - Pitch-shifted feedback with diffusion

@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -88,7 +89,7 @@ inline float clampRatio(float value) noexcept {
 /// Snap division options for grid snapping (parameter 913)
 /// Matches note value dropdown order: Off, then 21 note values; index s is note-value dropdown index s - 1.
 /// Order: 1/64T, 1/64, 1/64D, 1/32T, 1/32, 1/32D, ... 1/1T, 1/1, 1/1D
-enum class SnapDivision {
+enum class SnapDivision : std::uint8_t {
     Off = 0,
     N64T = 1, N64 = 2, N64D = 3,
     N32T = 4, N32 = 5, N32D = 6,
@@ -234,7 +235,7 @@ inline constexpr float kSilentY = (kPlotBottom + kBandBottom) * 0.5f;
 /// A vertical line of the plot: a beat, a bar or a snap line, as a ratio of the length (design 2.2).
 struct GridLine {
     float ratio = 0.0f;
-    enum Kind { Beat, Bar, Snap } kind = Beat;
+    enum class Kind : std::uint8_t { Beat, Bar, Snap } kind = Kind::Beat;
 };
 
 namespace detail {
@@ -287,10 +288,10 @@ namespace detail {
     for (int k = 0;; ++k) {
         const double ratio = static_cast<double>(k) / span;
         if (ratio > 1.0 + 1e-6) break;
-        lines.push_back({static_cast<float>(std::min(ratio, 1.0)), (k % 4 == 0) ? GridLine::Bar : GridLine::Beat});
+        lines.push_back({.ratio = static_cast<float>(std::min(ratio, 1.0)), .kind = (k % 4 == 0) ? GridLine::Kind::Bar : GridLine::Kind::Beat});
     }
     for (const float r : snapLineRatios(length, snap, bpm)) {
-        lines.push_back({r, GridLine::Snap});
+        lines.push_back({.ratio = r, .kind = GridLine::Kind::Snap});
     }
     return lines;
 }
@@ -301,7 +302,7 @@ namespace detail {
     float best = -1.0f;
     float bestDistance = 0.0f;
     for (const auto& line : lines) {
-        if (line.kind != GridLine::Snap) continue;
+        if (line.kind != GridLine::Kind::Snap) continue;
         const float distance = std::abs(line.ratio - ratio);
         if (best < 0.0f || distance <= bestDistance + 1e-7f) {
             best = line.ratio;
@@ -411,25 +412,25 @@ struct RulerLabel {
     std::vector<Candidate> candidates;  // the end label first
     char buffer[32];
     if (length == CustomLength::Free) {
-        candidates.push_back({1.0f, "5.0 s"});
+        candidates.push_back({.ratio = 1.0f, .text = "5.0 s"});
         for (int k = 1; k <= 9; ++k) {
             std::snprintf(buffer, sizeof(buffer), "%.1f", 0.5 * static_cast<double>(k));
-            candidates.push_back({static_cast<float>(k) / 10.0f, buffer});
+            candidates.push_back({.ratio = static_cast<float>(k) / 10.0f, .text = buffer});
         }
     } else {
         const double span = spanBeats(length, bpm);
         if (span < 1.0 - 1e-6) {
             // Shorter than a beat (1/8): the labels sit at the sixteenth lines, in beats of delay
             const auto sixteenths = detail::snapRatios(0.25, span);
-            for (auto it = sixteenths.rbegin(); it != sixteenths.rend(); ++it) {
-                std::snprintf(buffer, sizeof(buffer), "%g", static_cast<double>(*it) * span);
-                candidates.push_back({*it, buffer});
+            for (float sixteenth : std::ranges::reverse_view(sixteenths)) {
+                std::snprintf(buffer, sizeof(buffer), "%g", static_cast<double>(sixteenth) * span);
+                candidates.push_back({.ratio = sixteenth, .text = buffer});
             }
         } else {
             const int beats = static_cast<int>(std::lround(span));
-            candidates.push_back({1.0f, std::to_string(beats)});
+            candidates.push_back({.ratio = 1.0f, .text = std::to_string(beats)});
             for (int k = 1; k < beats; ++k) {
-                candidates.push_back({static_cast<float>(static_cast<double>(k) / span), std::to_string(k)});
+                candidates.push_back({.ratio = static_cast<float>(static_cast<double>(k) / span), .text = std::to_string(k)});
             }
         }
     }
@@ -437,7 +438,7 @@ struct RulerLabel {
     const auto boxOf = [](float ratio, const std::string& text, bool alignRight) {
         const float x = timeRatioToX(ratio);
         const float width = estimateLabelWidth(text);
-        RulerLabel label{text, x + 2.0f, x + 2.0f + width, false};
+        RulerLabel label{.text = text, .left = x + 2.0f, .right = x + 2.0f + width, .rightAligned = false};
         if (alignRight || label.right > kPlotRight - 2.0f) {
             label.right = x - 2.0f;
             label.left = label.right - width;
@@ -550,7 +551,11 @@ struct RulerLabel {
                                 Krate::DSP::kCustomFreeLengthMs);
     std::string text = formatCoreTime(ms) + dot + formatLevelDb(level);
     const std::string grid = gridLabel(ratio, length, snap, bpm, shift);
-    return grid.empty() ? text : grid + dot + text;
+    if (grid.empty()) return text;
+    std::string out = grid;
+    out += dot;
+    out += text;
+    return out;
 }
 
 } // namespace Iterum

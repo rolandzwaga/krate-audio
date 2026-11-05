@@ -180,9 +180,9 @@ public:
     DEFINE_INTERFACES
         DEF_INTERFACE(Steinberg::Vst::IEditController)
         DEF_INTERFACE(Steinberg::Vst::IEditController2)
-    END_DEFINE_INTERFACES(EditController)
+    END_DEFINE_INTERFACES(EditController)  // NOLINT(bugprone-parent-virtual-call): SDK macro, forwards to the base on purpose
 
-    DELEGATE_REFCOUNT(EditController)
+    DELEGATE_REFCOUNT(EditController)  // NOLINT(bugprone-parent-virtual-call): SDK macro, forwards to the base on purpose
 
 private:
     // ==========================================================================

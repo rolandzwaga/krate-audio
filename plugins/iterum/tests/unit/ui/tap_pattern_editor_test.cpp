@@ -160,10 +160,10 @@ TEST_CASE("levelDragDb starts a silent tap at -48 dB", "[tap_pattern_editor][dra
 TEST_CASE("gridLines: 1/1 with Snap 1/8D has snap lines at 0.1875, 0.375, 0.5625, 0.75, 0.9375 and 1.0 and beat lines at quarters",
           "[tap_pattern_editor][grid]") {
     const auto lines = gridLines(CustomLength::N1, SnapDivision::N8D, 120.0);
-    requireLines(ratiosOfKind(lines, GridLine::Snap), {0.1875f, 0.375f, 0.5625f, 0.75f, 0.9375f, 1.0f});
+    requireLines(ratiosOfKind(lines, GridLine::Kind::Snap), {0.1875f, 0.375f, 0.5625f, 0.75f, 0.9375f, 1.0f});
 
     // Beats 1..3 inside the plot; the bar lines carry the whole notes (ratio 0 and 1 for a 1/1 length).
-    const auto beats = ratiosOfKind(lines, GridLine::Beat);
+    const auto beats = ratiosOfKind(lines, GridLine::Kind::Beat);
     for (float q : {0.25f, 0.5f, 0.75f}) {
         bool found = false;
         for (float b : beats) found = found || std::abs(b - q) < 1e-5f;
@@ -178,14 +178,14 @@ TEST_CASE("gridLines: 1/1 with Snap 1/8D has snap lines at 0.1875, 0.375, 0.5625
 
 TEST_CASE("gridLines: Length 1/8 with Snap 1/4 falls back to the 1/16 lines 0.5 and 1.0", "[tap_pattern_editor][grid]") {
     const auto lines = gridLines(CustomLength::N8, SnapDivision::N4, 120.0);
-    requireLines(ratiosOfKind(lines, GridLine::Snap), {0.5f, 1.0f});
+    requireLines(ratiosOfKind(lines, GridLine::Kind::Snap), {0.5f, 1.0f});
     REQUIRE(effectiveSnapUnit(CustomLength::N8, SnapDivision::N4, 120.0) == SnapDivision::N16);
 }
 
 TEST_CASE("gridLines: Snap 1/2 over Length 1/4 and Snap 1/1 over Length 1/2 fall back to 1/16", "[tap_pattern_editor][grid]") {
-    requireLines(ratiosOfKind(gridLines(CustomLength::N4, SnapDivision::N2, 120.0), GridLine::Snap),
+    requireLines(ratiosOfKind(gridLines(CustomLength::N4, SnapDivision::N2, 120.0), GridLine::Kind::Snap),
                  {0.25f, 0.5f, 0.75f, 1.0f});
-    requireLines(ratiosOfKind(gridLines(CustomLength::N2, SnapDivision::N1, 120.0), GridLine::Snap),
+    requireLines(ratiosOfKind(gridLines(CustomLength::N2, SnapDivision::N1, 120.0), GridLine::Kind::Snap),
                  {0.125f, 0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1.0f});
     REQUIRE(effectiveSnapUnit(CustomLength::N4, SnapDivision::N2, 120.0) == SnapDivision::N16);
     REQUIRE(effectiveSnapUnit(CustomLength::N2, SnapDivision::N1, 120.0) == SnapDivision::N16);
@@ -194,9 +194,9 @@ TEST_CASE("gridLines: Snap 1/2 over Length 1/4 and Snap 1/1 over Length 1/2 fall
 }
 
 TEST_CASE("gridLines: ratio 1 is a snap line for 1/8D and 1/4T over 1/2", "[tap_pattern_editor][grid]") {
-    requireLines(ratiosOfKind(gridLines(CustomLength::N2, SnapDivision::N8D, 120.0), GridLine::Snap),
+    requireLines(ratiosOfKind(gridLines(CustomLength::N2, SnapDivision::N8D, 120.0), GridLine::Kind::Snap),
                  {0.375f, 0.75f, 1.0f});
-    requireLines(ratiosOfKind(gridLines(CustomLength::N2, SnapDivision::N4T, 120.0), GridLine::Snap),
+    requireLines(ratiosOfKind(gridLines(CustomLength::N2, SnapDivision::N4T, 120.0), GridLine::Kind::Snap),
                  {1.0f / 3.0f, 2.0f / 3.0f, 1.0f});
 }
 
@@ -207,7 +207,7 @@ TEST_CASE("gridLines: no snap line at ratio 0 for any length and snap", "[tap_pa
         for (int s = 0; s <= 21; ++s) {
             for (double bpm : {20.0, 120.0, 300.0}) {
                 INFO("length " << static_cast<int>(length) << " snap " << s << " bpm " << bpm);
-                const auto snaps = ratiosOfKind(gridLines(length, static_cast<SnapDivision>(s), bpm), GridLine::Snap);
+                const auto snaps = ratiosOfKind(gridLines(length, static_cast<SnapDivision>(s), bpm), GridLine::Kind::Snap);
                 if (s == 0) {
                     REQUIRE(snaps.empty());  // Snap Off draws and quantises nothing
                     continue;
@@ -228,8 +228,8 @@ TEST_CASE("gridLines: no snap line at ratio 0 for any length and snap", "[tap_pa
 TEST_CASE("gridLines: Free at 120 BPM has beat lines every 0.1 and bar lines every 0.4", "[tap_pattern_editor][grid]") {
     // Free is 5000 ms wide; a beat at 120 BPM is 500 ms, a bar 2000 ms.
     const auto lines = gridLines(CustomLength::Free, SnapDivision::Off, 120.0);
-    const auto beats = ratiosOfKind(lines, GridLine::Beat);
-    const auto bars = ratiosOfKind(lines, GridLine::Bar);
+    const auto beats = ratiosOfKind(lines, GridLine::Kind::Beat);
+    const auto bars = ratiosOfKind(lines, GridLine::Kind::Bar);
 
     for (int k = 1; k <= 9; ++k) {
         const float r = 0.1f * static_cast<float>(k);
@@ -256,7 +256,7 @@ TEST_CASE("gridLines: Free at 120 BPM has beat lines every 0.1 and bar lines eve
 }
 
 TEST_CASE("gridLines: 1/4T over 1/1 has 6 snap lines, exact", "[tap_pattern_editor][grid]") {
-    requireLines(ratiosOfKind(gridLines(CustomLength::N1, SnapDivision::N4T, 120.0), GridLine::Snap),
+    requireLines(ratiosOfKind(gridLines(CustomLength::N1, SnapDivision::N4T, 120.0), GridLine::Kind::Snap),
                  {1.0f / 6.0f, 2.0f / 6.0f, 3.0f / 6.0f, 4.0f / 6.0f, 5.0f / 6.0f, 1.0f});
 }
 
@@ -267,7 +267,7 @@ TEST_CASE("gridLines: every Snap entry is its true note length over 2/1", "[tap_
         const float unitBeats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
         INFO("snap " << s << " unit " << unitBeats << " beats");
         const auto snaps = ratiosOfKind(gridLines(CustomLength::N2x1, static_cast<SnapDivision>(s), 120.0),
-                                        GridLine::Snap);
+                                        GridLine::Kind::Snap);
         REQUIRE(snaps.size() >= 2u);
         REQUIRE(snaps.front() == Approx(unitBeats / 8.0f).margin(1e-5));
         if (snaps.size() >= 3u) {

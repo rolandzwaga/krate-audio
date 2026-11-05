@@ -17,10 +17,10 @@ namespace Iterum {
 
 inline Krate::Plugins::PresetManagerConfig makeIterumPresetConfig() {
     return Krate::Plugins::PresetManagerConfig{
-        /*.processorUID =*/ kProcessorUID,
-        /*.pluginName =*/ "Iterum",
-        /*.pluginCategoryDesc =*/ "Delay",
-        /*.subcategoryNames =*/ {
+        .processorUID = kProcessorUID,
+        .pluginName = "Iterum",
+        .pluginCategoryDesc = "Delay",
+        .subcategoryNames = {
             "Granular", "Spectral", "Shimmer", "Tape", "BBD",
             "Digital", "PingPong", "Reverse", "MultiTap", "Freeze"
         }

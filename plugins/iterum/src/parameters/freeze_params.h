@@ -291,6 +291,8 @@ inline void handleFreezeParamChange(
         case kFreezeDryModeId:
             params.dryMode.store(normalizedValue >= 0.5 ? 1 : 0, std::memory_order_relaxed);
             break;
+        default:
+            break;
     }
 }
 

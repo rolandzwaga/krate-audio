@@ -111,6 +111,8 @@ inline void handlePingPongParamChange(
                 static_cast<float>(normalizedValue),
                 std::memory_order_relaxed);
             break;
+        default:
+            break;
     }
 }
 
@@ -260,6 +262,8 @@ inline Steinberg::tresult formatPingPongParam(
             float percent = static_cast<float>(normalizedValue * 100.0);
             return formatParamText(string, "%.0f%%", percent);
         }
+        default:
+            break;
     }
 
     return Steinberg::kResultFalse;
