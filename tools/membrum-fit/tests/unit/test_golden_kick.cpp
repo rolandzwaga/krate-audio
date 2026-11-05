@@ -3,7 +3,7 @@
 // is within -25 dB MSS spectral distance of the original (spec §8 Phase 1
 // exit gate, relaxed threshold since BOBYQA is already time-bounded).
 #include "src/body_classifier.h"
-#include "src/features.h"
+#include "src/attack_features.h"
 #include "src/mapper_inversion/membrane_inverse.h"
 #include "src/modal/matrix_pencil.h"
 #include "src/refinement/loss.h"

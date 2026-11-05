@@ -59,7 +59,7 @@ Keys are MIDI notes in [36, 67] (GM drum range); values are paths
 |---|---|---|
 | 1 Loader | `loader.cpp` | dr_wav + linear resample + -1 dBFS normalise |
 | 2 Segmentation | `segmentation.cpp` | Spectral flux peak + RMS gate |
-| 3 Attack features | `features.cpp` | LAT, flatness, centroid, AR, inharmonicity |
+| 3 Attack features | `attack_features.cpp` | LAT, flatness, centroid, AR, inharmonicity |
 | 4 Exciter classifier | `exciter_classifier.cpp` | Rule tree (Phase-1 3-way + 6-way) |
 | 5 Modal extraction | `modal/matrix_pencil.cpp`, `modal/esprit.cpp` | Eigen JacobiSVD + CES |
 | 5b Mode-order selection | `modal/mode_selection.cpp` | MDL-style 95% energy cutoff |

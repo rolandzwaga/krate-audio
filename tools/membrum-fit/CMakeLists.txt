@@ -9,7 +9,7 @@ set(MEMBRUM_FIT_SOURCES
     src/cli.cpp
     src/loader.cpp
     src/segmentation.cpp
-    src/features.cpp
+    src/attack_features.cpp
     src/exciter_classifier.cpp
     src/body_classifier.cpp
     src/tone_shaper_fit.cpp

@@ -2,7 +2,7 @@
 
 #include "body_classifier.h"
 #include "exciter_classifier.h"
-#include "features.h"
+#include "attack_features.h"
 #include "ingestion/sfz_ingest.h"
 #include "ingestion/wav_dir.h"
 #include "loader.h"

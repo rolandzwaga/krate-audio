@@ -12,7 +12,7 @@
 // Marked "[.corpus]" so it's hidden by default; run with:
 //   membrum_fit_tests "[corpus]"
 #include "src/body_classifier.h"
-#include "src/features.h"
+#include "src/attack_features.h"
 #include "src/mapper_inversion/bell_inverse.h"
 #include "src/mapper_inversion/membrane_inverse.h"
 #include "src/mapper_inversion/noise_body_inverse.h"

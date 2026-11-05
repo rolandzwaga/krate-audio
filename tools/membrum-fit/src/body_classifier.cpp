@@ -85,7 +85,11 @@ float scoreRatios(std::span<const float> measuredRatios,
         const float v = scoreShift(measuredRatios, measuredWeights, ref, s);
         if (v < best) best = v;
     }
-    return best;
+    // A perfect match scores exactly 0 under IEEE math (GCC) and ~1e-8 under /fp:fast (MSVC). Floor it at a value
+    // above that rounding noise so the NoiseBody multiplier below (x0.5 noisy, x2+ clean) still orders NoiseBody
+    // against Plate; at 0 both read 0 and Plate won the tie on index alone.
+    constexpr float kScoreFloor = 1e-6f;
+    return std::max(best, kScoreFloor);
 }
 
 }  // namespace
