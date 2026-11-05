@@ -44,6 +44,7 @@
 // ==============================================================================
 
 #include <cmath>
+#include <numbers>
 
 namespace Membrum::Bodies {
 
@@ -69,9 +70,9 @@ struct BellModeIndices
 // grouping of Perrin/Rossing (approximate above the principal five -- see
 // header note). m drives the meridional strike factor; n a mild taper.
 inline constexpr BellModeIndices kBellIndices[kBellModeCount] = {
-    {2, 0}, {2, 1}, {3, 1}, {3, 1}, {4, 1},
-    {4, 1}, {5, 1}, {5, 1}, {6, 1}, {6, 2},
-    {7, 2}, {7, 2}, {8, 2}, {8, 2}, {9, 2}, {9, 3}
+    {.m = 2, .n = 0}, {.m = 2, .n = 1}, {.m = 3, .n = 1}, {.m = 3, .n = 1}, {.m = 4, .n = 1},
+    {.m = 4, .n = 1}, {.m = 5, .n = 1}, {.m = 5, .n = 1}, {.m = 6, .n = 1}, {.m = 6, .n = 2},
+    {.m = 7, .n = 2}, {.m = 7, .n = 2}, {.m = 8, .n = 2}, {.m = 8, .n = 2}, {.m = 9, .n = 2}, {.m = 9, .n = 3}
 };
 
 /// Strike-position amplitude for bell mode (m,n).
@@ -91,7 +92,7 @@ inline constexpr BellModeIndices kBellIndices[kBellModeCount] = {
     if (modeIdx < 0 || modeIdx >= kBellModeCount)
         return 0.0f;
     const BellModeIndices idx = kBellIndices[modeIdx];
-    constexpr float kPi = 3.14159265358979f;
+    constexpr float kPi = std::numbers::pi_v<float>;
     const float theta = strikePos * (kPi * 0.5f);
     const float meridional = std::abs(std::cos(static_cast<float>(idx.m) * theta));
     // Mild through-thickness taper: higher circular modes couple slightly less

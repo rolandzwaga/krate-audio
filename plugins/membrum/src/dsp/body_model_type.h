@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstdint>
+
 // ==============================================================================
 // BodyModelType -- Phase 2 body backend tag (data-model.md §1)
 // ==============================================================================
 
 namespace Membrum {
 
-enum class BodyModelType : int
+enum class BodyModelType : std::uint8_t
 {
     Membrane  = 0,
     Plate     = 1,

@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstdint>
+
 // ==============================================================================
 // ExciterType -- Phase 2 exciter backend tag (data-model.md §1)
 // ==============================================================================
 
 namespace Membrum {
 
-enum class ExciterType : int
+enum class ExciterType : std::uint8_t
 {
     Impulse    = 0,
     Mallet     = 1,

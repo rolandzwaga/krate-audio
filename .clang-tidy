@@ -90,14 +90,16 @@ Checks: >
 
 CheckOptions:
   # --------------------------------------------------------------------------
-  # Exception escape: allocation failure is not handled, by design
+  # Exception escape: allocation failure and valueless variants are not handled, by design
   # --------------------------------------------------------------------------
   # prepare()/setup functions are noexcept and size their buffers once, off the audio thread
   # (setupProcessing / setActive). Running out of memory there terminates, and no exception could cross the
-  # VST3 ABI anyway. Every other exception type still counts. Unqualified names, comma-separated: a ';' list
-  # or std::-qualified names are silently ignored (LLVM 21).
+  # VST3 ABI anyway. bad_variant_access: std::visit throws it only on a valueless variant, and every variant on
+  # the audio path static_asserts that its alternatives are nothrow default-constructible (Membrum BodyBank /
+  # ExciterBank), so it cannot be valueless. Every other exception type still counts. Unqualified names,
+  # comma-separated: a ';' list or std::-qualified names are silently ignored (LLVM 21).
   - key: bugprone-exception-escape.IgnoredExceptions
-    value: 'bad_alloc,bad_array_new_length,length_error'
+    value: 'bad_alloc,bad_array_new_length,length_error,bad_variant_access'
   # --------------------------------------------------------------------------
   # Naming Conventions (align with CLAUDE.md style guide)
   # --------------------------------------------------------------------------

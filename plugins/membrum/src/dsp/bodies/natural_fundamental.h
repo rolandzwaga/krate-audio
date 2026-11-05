@@ -38,7 +38,7 @@ namespace Membrum::Bodies {
         case BodyModelType::Membrane:  return  500.0f * sizeDecay;
         case BodyModelType::Plate:     return  800.0f * sizeDecay;
         case BodyModelType::Shell:     return 1500.0f * sizeDecay;
-        case BodyModelType::String:    return  800.0f * sizeDecay;
+        case BodyModelType::String:
         case BodyModelType::Bell:      return  800.0f * sizeDecay;
         case BodyModelType::NoiseBody: return 1500.0f * sizeDecay;
         case BodyModelType::kCount:    break;

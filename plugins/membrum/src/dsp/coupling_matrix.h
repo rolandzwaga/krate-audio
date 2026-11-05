@@ -90,9 +90,9 @@ public:
     /// Reset every cell to zero (used during state load).
     void clearAll() noexcept
     {
-        for (int s = 0; s < kSize; ++s)
-            for (int d = 0; d < kSize; ++d)
-                effectiveGain_[s][d] = 0.0f;
+        for (auto& s : effectiveGain_)
+            for (float& d : s)
+                d = 0.0f;
     }
 
 private:

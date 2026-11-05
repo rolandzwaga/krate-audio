@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 
 namespace Krate::Plugins {
 class PresetManager;
@@ -31,13 +32,13 @@ class UpdateChecker;
 class UpdateBannerView;
 } // namespace Krate::Plugins
 
-namespace Steinberg { class IBStream; }
+namespace Steinberg { class IBStream; }  // NOLINT(cppcoreguidelines-virtual-class-destructor): SDK interface
 
 namespace Membrum::State { struct KitSnapshot; }
 namespace Membrum::UI { class PadGridView; class KitMetersView; class InlinePresetBrowserView; class ADSRExpandedOverlayView; }
 namespace Krate::Plugins { class PitchEnvelopeDisplay; class XYMorphPad; class ADSRDisplay; class OutlineActionButton; }
 
-namespace VSTGUI { class CTextLabel; class CControl; }
+namespace VSTGUI { class CTextLabel; class CControl; }  // NOLINT(cppcoreguidelines-virtual-class-destructor): VSTGUI classes
 
 namespace Membrum {
 
@@ -113,7 +114,7 @@ public:
     /// Query whether a specific output bus is currently active.
     [[nodiscard]] bool isBusActive(int busIndex) const noexcept
     {
-        if (busIndex < 0 || busIndex >= static_cast<int>(busActive_.size()))
+        if (busIndex < 0 || std::cmp_greater_equal(busIndex, busActive_.size()))
             return false;
         return busActive_[static_cast<std::size_t>(busIndex)];
     }
@@ -316,7 +317,8 @@ private:
     /// otherwise deferred to the UI-thread poll timer. This is defense-in-depth
     /// against non-compliant hosts that drive those callbacks from a worker
     /// thread; the cached views must only ever be mutated on the UI thread.
-    enum ViewRefreshFlags : std::uint32_t
+    // Unscoped on purpose: the flags are OR-ed together into one std::uint32_t mask.
+    enum ViewRefreshFlags : std::uint32_t  // NOLINT(cppcoreguidelines-use-enum-class,performance-enum-size)
     {
         kRefreshMorphControls    = 1u << 0,
         kRefreshPitchEnvControls = 1u << 1,

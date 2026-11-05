@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 
 namespace Membrum {
 
@@ -94,7 +95,7 @@ public:
         const float vScale = 1.0f - 0.3f * velocity_;
         const float burstMs = std::max(0.5f, contactMsCached_ * vScale);
         burstSamples_ = static_cast<int>(std::lround(burstMs * 1e-3 * sampleRate_));
-        if (burstSamples_ < 2) burstSamples_ = 2;
+        burstSamples_ = std::max(burstSamples_, 2);
         riseSamples_ = std::max(1, burstSamples_ / 5);  // 20% raised-cosine rise
         decaySamples_ = std::max(1, burstSamples_ - riseSamples_);
         // Decay constant so the envelope falls to ~ -60 dB across decaySamples_.
@@ -144,7 +145,7 @@ public:
     [[nodiscard]] float mix() const noexcept { return mix_; }
 
 private:
-    static constexpr float kPi = 3.14159265358979323846f;
+    static constexpr float kPi = std::numbers::pi_v<float>;
 
 public:
     // Amplitude calibration for the standalone path in DrumVoice. Gain-staging

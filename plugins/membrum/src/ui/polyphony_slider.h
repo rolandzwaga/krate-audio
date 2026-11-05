@@ -114,7 +114,7 @@ public:
     }
 
     VSTGUI::CMouseEventResult onMouseUp(
-        VSTGUI::CPoint& where, const VSTGUI::CButtonState& buttons) override
+        VSTGUI::CPoint& where, const VSTGUI::CButtonState& /*buttons*/) override
     {
         if (!isEditing())
             return VSTGUI::kMouseEventNotHandled;

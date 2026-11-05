@@ -178,8 +178,8 @@ struct FeedbackExciter
         // produced. tanhADAA already bounds its output to |1|, but we clamp
         // the envelope-scaled result to guarantee the SC-008 invariant even
         // across sample-rate changes and under extreme body feedback.
-        if (out > 1.0f)  out = 1.0f;
-        if (out < -1.0f) out = -1.0f;
+        out = std::min(out, 1.0f);
+        out = std::max(out, -1.0f);
 
         amplitudeEnv_ *= decayCoeff_;
         if (amplitudeEnv_ < 0.001f)

@@ -21,6 +21,8 @@
 #include <krate/dsp/processors/modal_resonator_bank.h>
 
 #include <cstdint>
+#include <utility>
+#include <type_traits>
 #include <variant>
 
 namespace Membrum {
@@ -110,7 +112,7 @@ public:
     void withActive(Fn&& fn) noexcept
     {
         std::visit(
-            [this, &fn](auto& b) noexcept { fn(b, sharedBank_); },
+            [this, &fn](auto& b) noexcept { std::forward<Fn>(fn)(b, sharedBank_); },
             active_);
     }
 
@@ -164,6 +166,13 @@ private:
         StringBody,
         BellBody,
         NoiseBody>;
+
+    // std::visit throws bad_variant_access only on a valueless variant, and a variant only becomes valueless when an
+    // emplace throws. Every alternative is nothrow default-constructible (applyPendingSwap only default-emplaces), so
+    // the visits on the audio path cannot throw (.clang-tidy ignores bad_variant_access for that reason).
+    static_assert([]<typename... T>(std::variant<T...>*) {
+        return (std::is_nothrow_default_constructible_v<T> && ...);
+    }(static_cast<Variant*>(nullptr)), "a throwing alternative constructor could leave the variant valueless");
 
     void applyPendingSwap() noexcept
     {

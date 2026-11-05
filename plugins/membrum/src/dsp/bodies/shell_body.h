@@ -20,12 +20,12 @@ struct ShellBody
 {
     void prepare(double /*sampleRate*/, std::uint32_t /*voiceId*/) noexcept {}
 
-    void reset(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
+    static void reset(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
     {
         sharedBank.reset();
     }
 
-    void configureForNoteOn(Krate::DSP::ModalResonatorBank& sharedBank,
+    static void configureForNoteOn(Krate::DSP::ModalResonatorBank& sharedBank,
                             const VoiceCommonParams& params,
                             float pitchHz) noexcept
     {
@@ -38,13 +38,13 @@ struct ShellBody
                             r.scatter);
     }
 
-    [[nodiscard]] float processSample(Krate::DSP::ModalResonatorBank& sharedBank,
+    [[nodiscard]] static float processSample(Krate::DSP::ModalResonatorBank& sharedBank,
                                       float excitation) noexcept
     {
         return sharedBank.processSample(excitation);
     }
 
-    [[nodiscard]] float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
+    [[nodiscard]] static float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
                                               float excitation) noexcept
     {
         return sharedBank.processSampleNoSmooth(excitation);
@@ -63,7 +63,7 @@ struct ShellBody
     // 3 FLOPs × numModes per block), which is a ~30% reduction in Shell's
     // per-sample cost. The variant dispatch is still only one std::visit
     // per block (from BodyBank::processBlock).
-    void processBlock(Krate::DSP::ModalResonatorBank& sharedBank,
+    static void processBlock(Krate::DSP::ModalResonatorBank& sharedBank,
                       const float* excitation,
                       float* out,
                       int numSamples) noexcept
