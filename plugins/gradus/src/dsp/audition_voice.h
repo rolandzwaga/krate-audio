@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace Gradus {
 
@@ -124,7 +125,7 @@ public:
     [[nodiscard]] bool isActive() const noexcept { return active_; }
 
 private:
-    enum class EnvPhase { Attack, Decay, Sustain, Release };
+    enum class EnvPhase : std::uint8_t { Attack, Decay, Sustain, Release };
 
     // Envelope timing constants
     static constexpr float kAttackMs = 2.0f;

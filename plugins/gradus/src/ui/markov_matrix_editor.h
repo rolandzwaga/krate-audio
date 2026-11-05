@@ -28,6 +28,7 @@
 
 #include "pluginterfaces/vst/vsttypes.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <functional>
@@ -38,6 +39,11 @@ class MarkovMatrixEditor : public VSTGUI::CViewContainer,
                            public VSTGUI::IControlListener {
 public:
     static constexpr int kDim = MarkovMatrixEditorLogic::kDim;
+    /// Row-major cell index, widened before the multiply (row, col already range-checked by the callers).
+    static constexpr size_t cellIndex(int row, int col) noexcept
+    {
+        return static_cast<size_t>(row) * static_cast<size_t>(kDim) + static_cast<size_t>(col);
+    }
     static constexpr int kNumCells = kDim * kDim;
     static constexpr int kNumPresets = 6;
 
@@ -129,7 +135,7 @@ public:
     [[nodiscard]] float getCellValue(int row, int col) const
     {
         if (row < 0 || row >= kDim || col < 0 || col >= kDim) return 0.0f;
-        return cellValues_[static_cast<size_t>(row * kDim + col)];
+        return cellValues_[cellIndex(row, col)];
     }
 
     /// Host-driven update (preset load, automation). Does NOT fire callbacks.
@@ -138,8 +144,8 @@ public:
     void setCellValue(int row, int col, float value)
     {
         if (row < 0 || row >= kDim || col < 0 || col >= kDim) return;
-        const size_t idx = static_cast<size_t>(row * kDim + col);
-        const float clamped = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value);
+        const size_t idx = cellIndex(row, col);
+        const float clamped = std::clamp(value, 0.0f, 1.0f);
         if (cellValues_[idx] != clamped) {
             cellValues_[idx] = clamped;
             setDirty(true);
@@ -286,7 +292,7 @@ public:
                 Gradus::kArpMarkovCell00Id + dragCell_.flatIndex());
             endEditCallback_(paramId);
         }
-        dragCell_ = {-1, -1};
+        dragCell_ = {.row = -1, .col = -1};
         dragEditStarted_ = false;
         return VSTGUI::kMouseEventHandled;
     }
@@ -362,7 +368,7 @@ private:
                     gridLeft + static_cast<VSTGUI::CCoord>(cr.right) - 1.0,
                     gridTop  + static_cast<VSTGUI::CCoord>(cr.bottom) - 1.0);
 
-                const float v = cellValues_[static_cast<size_t>(row * kDim + col)];
+                const float v = cellValues_[cellIndex(row, col)];
                 VSTGUI::CColor blended;
                 blended.red   = static_cast<uint8_t>(cellBgLow.red   + (cellBgHi.red   - cellBgLow.red)   * v);
                 blended.green = static_cast<uint8_t>(cellBgLow.green + (cellBgHi.green - cellBgLow.green) * v);
@@ -413,11 +419,11 @@ private:
     [[nodiscard]] VSTGUI::CRect minimizeButtonLocalRect() const
     {
         const VSTGUI::CCoord w = getWidth();
-        return VSTGUI::CRect(
+        return {
             w - kMinimizeBtn - 3.0,
             3.0,
             w - 3.0,
-            3.0 + kMinimizeBtn);
+            3.0 + kMinimizeBtn};
     }
 
     // Frame (parent-relative) coordinates — used by onMouseDown which
@@ -425,11 +431,11 @@ private:
     [[nodiscard]] VSTGUI::CRect minimizeButtonFrameRect() const
     {
         const VSTGUI::CRect bounds = getViewSize();
-        return VSTGUI::CRect(
+        return {
             bounds.right - kMinimizeBtn - 3.0,
             bounds.top + 3.0,
             bounds.right - 3.0,
-            bounds.top + 3.0 + kMinimizeBtn);
+            bounds.top + 3.0 + kMinimizeBtn};
     }
 
     void updateCellFromDrag(float localYInGrid)
@@ -460,7 +466,7 @@ private:
 
     std::array<float, kNumCells> cellValues_{};
 
-    MarkovMatrixEditorLogic::CellIndex dragCell_{-1, -1};
+    MarkovMatrixEditorLogic::CellIndex dragCell_{.row = -1, .col = -1};
     bool dragEditStarted_ = false;
 
     bool expanded_ = true;

@@ -67,14 +67,14 @@ struct Layout {
                                            float width, float height) noexcept
 {
     const Layout l = computeLayout(width, height);
-    if (l.cellW <= 0.0f || l.cellH <= 0.0f) return {-1, -1};
-    if (x < l.left || y < l.top) return {-1, -1};
+    if (l.cellW <= 0.0f || l.cellH <= 0.0f) return {.row = -1, .col = -1};
+    if (x < l.left || y < l.top) return {.row = -1, .col = -1};
     const float relX = x - l.left;
     const float relY = y - l.top;
     const int col = static_cast<int>(relX / l.cellW);
     const int row = static_cast<int>(relY / l.cellH);
-    if (col < 0 || col >= kDim || row < 0 || row >= kDim) return {-1, -1};
-    return {row, col};
+    if (col < 0 || col >= kDim || row < 0 || row >= kDim) return {.row = -1, .col = -1};
+    return {.row = row, .col = col};
 }
 
 /// Compute the rectangle (in local coords) for a specific cell. Returns
@@ -91,10 +91,10 @@ struct CellRect {
 {
     const Layout l = computeLayout(width, height);
     return CellRect{
-        l.left + static_cast<float>(col) * l.cellW,
-        l.top  + static_cast<float>(row) * l.cellH,
-        l.left + static_cast<float>(col + 1) * l.cellW,
-        l.top  + static_cast<float>(row + 1) * l.cellH
+        .left = l.left + static_cast<float>(col) * l.cellW,
+        .top = l.top  + static_cast<float>(row) * l.cellH,
+        .right = l.left + static_cast<float>(col + 1) * l.cellW,
+        .bottom = l.top  + static_cast<float>(row + 1) * l.cellH
     };
 }
 

@@ -35,6 +35,8 @@ constexpr Steinberg::int32 kCurrentStateVersion = 3;
 // Audition IDs (4000-4003): Gradus-specific built-in sound.
 // ==============================================================================
 
+// Unscoped and ParamID-based on purpose: hosts, IMessage and the parameter tables all use these IDs as plain ParamIDs.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
 enum ParameterIds : Steinberg::Vst::ParamID
 {
     // ==========================================================================

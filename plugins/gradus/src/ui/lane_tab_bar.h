@@ -126,7 +126,7 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override
     {
-        if (!(buttons & VSTGUI::kLButton)) return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+        if ((buttons & VSTGUI::kLButton) == 0) return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
 
         int tab = hitTestTab(where);
         if (tab >= 0 && tab != selectedTab_) {

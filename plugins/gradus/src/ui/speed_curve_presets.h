@@ -11,11 +11,12 @@
 
 #include <cmath>
 #include <vector>
+#include <cstdint>
 
 namespace Gradus {
 
 /// Shape preset identifiers (index into dropdown).
-enum class SpeedCurvePreset {
+enum class SpeedCurvePreset : std::uint8_t {
     Flat = 0,
     Sine,
     Triangle,

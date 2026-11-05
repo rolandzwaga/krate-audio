@@ -22,7 +22,7 @@ namespace Gradus {
 
 template<typename SetParamFn>
 void Controller::loadSpeedCurvesFromStream(
-    Steinberg::IBStreamer& streamer, SetParamFn setParam)
+    Steinberg::IBStreamer& streamer, SetParamFn /*setParam*/)
 {
     for (int lane = 0; lane < 8; ++lane) {
         Steinberg::int32 enabledInt = 0;

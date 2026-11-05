@@ -39,23 +39,23 @@ inline const std::array<LaneColors, kLaneCount>& getLaneColors()
 {
     static const std::array<LaneColors, kLaneCount> colors = {{
         // Velocity
-        {{0xD0, 0x84, 0x5C, 0xFF}, {0x00, 0xE0, 0xE0, 0xFF}},
+        {.accent = {0xD0, 0x84, 0x5C, 0xFF}, .highlight = {0x00, 0xE0, 0xE0, 0xFF}},
         // Gate
-        {{0xC8, 0xA4, 0x64, 0xFF}, {0xE0, 0xA0, 0x00, 0xFF}},
+        {.accent = {0xC8, 0xA4, 0x64, 0xFF}, .highlight = {0xE0, 0xA0, 0x00, 0xFF}},
         // Pitch
-        {{0x6C, 0xA8, 0xA0, 0xFF}, {0x00, 0xD0, 0x70, 0xFF}},
+        {.accent = {0x6C, 0xA8, 0xA0, 0xFF}, .highlight = {0x00, 0xD0, 0x70, 0xFF}},
         // Modifier
-        {{0xC0, 0x70, 0x7C, 0xFF}, {0xE0, 0x60, 0x60, 0xFF}},
+        {.accent = {0xC0, 0x70, 0x7C, 0xFF}, .highlight = {0xE0, 0x60, 0x60, 0xFF}},
         // Condition
-        {{0x7C, 0x90, 0xB0, 0xFF}, {0xB0, 0x70, 0xE0, 0xFF}},
+        {.accent = {0x7C, 0x90, 0xB0, 0xFF}, .highlight = {0xB0, 0x70, 0xE0, 0xFF}},
         // Ratchet
-        {{0x98, 0x80, 0xB0, 0xFF}, {0xE0, 0x80, 0x00, 0xFF}},
+        {.accent = {0x98, 0x80, 0xB0, 0xFF}, .highlight = {0xE0, 0x80, 0x00, 0xFF}},
         // Chord
-        {{0xA8, 0x8C, 0xC8, 0xFF}, {0x40, 0x80, 0xE0, 0xFF}},
+        {.accent = {0xA8, 0x8C, 0xC8, 0xFF}, .highlight = {0x40, 0x80, 0xE0, 0xFF}},
         // Inversion
-        {{0x88, 0xA8, 0xC8, 0xFF}, {0x40, 0xB0, 0xB0, 0xFF}},
+        {.accent = {0x88, 0xA8, 0xC8, 0xFF}, .highlight = {0x40, 0xB0, 0xB0, 0xFF}},
         // MIDI Delay
-        {{0xD4, 0xA8, 0x56, 0xFF}, {0xE0, 0xC0, 0x60, 0xFF}},
+        {.accent = {0xD4, 0xA8, 0x56, 0xFF}, .highlight = {0xE0, 0xC0, 0x60, 0xFF}},
     }};
     return colors;
 }
@@ -112,7 +112,7 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override
     {
-        if (!(buttons & VSTGUI::kLButton) || !dataSource_)
+        if (((buttons & VSTGUI::kLButton) == 0) || (dataSource_ == nullptr))
             return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
 
         float localX = static_cast<float>(where.x - getViewSize().left);
@@ -410,10 +410,10 @@ private:
             SubZone zone;
         };
         static constexpr LaneMapping mappings[8] = {
-            {0, SubZone::kVelocity},  {0, SubZone::kGate},
-            {1, SubZone::kPitch},     {2, SubZone::kModifier},
-            {2, SubZone::kCondition}, {3, SubZone::kRatchet},
-            {3, SubZone::kChord},     {3, SubZone::kInversion},
+            {.ringIndex = 0, .zone = SubZone::kVelocity},  {.ringIndex = 0, .zone = SubZone::kGate},
+            {.ringIndex = 1, .zone = SubZone::kPitch},     {.ringIndex = 2, .zone = SubZone::kModifier},
+            {.ringIndex = 2, .zone = SubZone::kCondition}, {.ringIndex = 3, .zone = SubZone::kRatchet},
+            {.ringIndex = 3, .zone = SubZone::kChord},     {.ringIndex = 3, .zone = SubZone::kInversion},
         };
 
         for (int lane = 0; lane < 8; ++lane) {
@@ -424,7 +424,8 @@ private:
             if (step >= totalSteps) continue;
 
             const auto& mapping = mappings[lane];
-            float innerR = 0.0f, outerR = 0.0f;
+            float innerR = 0.0f;
+            float outerR = 0.0f;
             geometry_.getSubZoneRadii(
                 mapping.ringIndex, mapping.zone, innerR, outerR);
 
@@ -487,7 +488,8 @@ private:
         const float cy = geometry_.centerY();
         const int laneIdx = subZoneToLaneIndex(zone);
 
-        float innerR = 0.0f, outerR = 0.0f;
+        float innerR = 0.0f;
+        float outerR = 0.0f;
         geometry_.getSubZoneRadii(ringIndex, zone, innerR, outerR);
 
         const float gap = 1.0f; // px gap between segments
@@ -508,7 +510,8 @@ private:
                 float deviation = value - 0.5f; // -0.5 to +0.5
                 if (std::abs(deviation) < 0.01f) continue;
 
-                float barInner, barOuter;
+                float barInner;
+                float barOuter;
                 if (deviation > 0.0f) {
                     barInner = midR;
                     barOuter = midR + deviation * (outerR - midR) * 2.0f;
@@ -541,11 +544,12 @@ private:
     /// Draw modifier flags as tiny dots per step.
     void drawModifierRing(VSTGUI::CDrawContext* context,
                           int totalSteps,
-                          const VSTGUI::CColor& color) const
+                          const VSTGUI::CColor& /*color*/) const
     {
         const float cx = geometry_.centerX();
         const float cy = geometry_.centerY();
-        float innerR = 0.0f, outerR = 0.0f;
+        float innerR = 0.0f;
+        float outerR = 0.0f;
         geometry_.getSubZoneRadii(2, SubZone::kModifier, innerR, outerR);
 
         // 4 flag dots stacked radially: Active, Tie, Slide, Accent
@@ -596,7 +600,8 @@ private:
     {
         const float cx = geometry_.centerX();
         const float cy = geometry_.centerY();
-        float innerR = 0.0f, outerR = 0.0f;
+        float innerR = 0.0f;
+        float outerR = 0.0f;
         geometry_.getSubZoneRadii(2, SubZone::kCondition, innerR, outerR);
 
         const float gap = 1.0f;
@@ -635,7 +640,8 @@ private:
     {
         const float cx = geometry_.centerX();
         const float cy = geometry_.centerY();
-        float innerR = 0.0f, outerR = 0.0f;
+        float innerR = 0.0f;
+        float outerR = 0.0f;
         geometry_.getSubZoneRadii(3, SubZone::kRatchet, innerR, outerR);
 
         const float gap = 1.0f;
@@ -666,7 +672,10 @@ private:
                 float subAngle = (a1 - a0) / static_cast<float>(ratchetCount);
                 for (int s = 1; s < ratchetCount; ++s) {
                     float lineAngle = a0 + static_cast<float>(s) * subAngle;
-                    float x0 = 0.0f, y0 = 0.0f, x1 = 0.0f, y1 = 0.0f;
+                    float x0 = 0.0f;
+                    float y0 = 0.0f;
+                    float x1 = 0.0f;
+                    float y1 = 0.0f;
                     geometry_.polarToCartesian(lineAngle, innerR, x0, y0);
                     geometry_.polarToCartesian(lineAngle, outerR, x1, y1);
                     context->drawLine(
@@ -686,7 +695,8 @@ private:
         const float cx = geometry_.centerX();
         const float cy = geometry_.centerY();
         const int laneIdx = subZoneToLaneIndex(zone);
-        float innerR = 0.0f, outerR = 0.0f;
+        float innerR = 0.0f;
+        float outerR = 0.0f;
         geometry_.getSubZoneRadii(ringIndex, zone, innerR, outerR);
 
         const float gap = 1.0f;
@@ -748,12 +758,12 @@ private:
     }
 
     /// Draw a filled arc segment (wedge between inner and outer radius).
-    void drawArcSegment(VSTGUI::CDrawContext* context,
+    static void drawArcSegment(VSTGUI::CDrawContext* context,
                         float cx, float cy,
                         float innerR, float outerR,
                         float startAngle, float endAngle,
                         const VSTGUI::CColor& color,
-                        bool isHighlight) const
+                        bool isHighlight)
     {
         auto* path = context->createGraphicsPath();
         if (!path) return;
@@ -810,17 +820,18 @@ private:
         // Map lane to ring/subzone
         struct LaneMapping { int ringIndex; SubZone zone; };
         static constexpr LaneMapping mappings[8] = {
-            {0, SubZone::kVelocity},  {0, SubZone::kGate},
-            {1, SubZone::kPitch},     {2, SubZone::kModifier},
-            {2, SubZone::kCondition}, {3, SubZone::kRatchet},
-            {3, SubZone::kChord},     {3, SubZone::kInversion},
+            {.ringIndex = 0, .zone = SubZone::kVelocity},  {.ringIndex = 0, .zone = SubZone::kGate},
+            {.ringIndex = 1, .zone = SubZone::kPitch},     {.ringIndex = 2, .zone = SubZone::kModifier},
+            {.ringIndex = 2, .zone = SubZone::kCondition}, {.ringIndex = 3, .zone = SubZone::kRatchet},
+            {.ringIndex = 3, .zone = SubZone::kChord},     {.ringIndex = 3, .zone = SubZone::kInversion},
         };
 
         if (selectedLane_ >= 8) return;
         const auto& mapping = mappings[selectedLane_];
         const auto& colors = getLaneColors();
 
-        float innerR = 0.0f, outerR = 0.0f;
+        float innerR = 0.0f;
+        float outerR = 0.0f;
         geometry_.getSubZoneRadii(mapping.ringIndex, mapping.zone,
                                   innerR, outerR);
 
@@ -852,7 +863,8 @@ private:
         const float cx = geometry_.centerX();
         const float cy = geometry_.centerY();
 
-        float innerR = 0.0f, outerR = 0.0f;
+        float innerR = 0.0f;
+        float outerR = 0.0f;
         geometry_.getSubZoneRadii(hoveredRingIndex_, hoveredSubZone_,
                                   innerR, outerR);
 

@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <cstdio>
 #include <mutex>
 
@@ -43,7 +44,8 @@ namespace Gradus {
 // applyParamsToEngine).
 
 // Arp operating mode: determines how arp interacts with MIDI and mod engine
-enum ArpOperatingMode {
+// Unscoped on purpose: the modes are compared with and stored as plain ints (parameter values).
+enum ArpOperatingMode : std::uint8_t {  // NOLINT(cppcoreguidelines-use-enum-class)
     kArpOff = 0,      // Arp disabled, MIDI goes direct to engine
     kArpMIDI = 1,     // Arp enabled, events dispatched to engine (classic behavior)
     kArpMod = 2,      // Arp runs as modulation source only, MIDI goes direct to engine
@@ -1428,14 +1430,14 @@ inline void registerArpParams(
         const Steinberg::char16* name;
         ParamID id;
     } kSpeedCurveDepthParams[] = {
-        {STR16("Velocity Speed Curve Depth"), kArpVelocityLaneSpeedCurveDepthId},
-        {STR16("Gate Speed Curve Depth"),     kArpGateLaneSpeedCurveDepthId},
-        {STR16("Pitch Speed Curve Depth"),    kArpPitchLaneSpeedCurveDepthId},
-        {STR16("Modifier Speed Curve Depth"), kArpModifierLaneSpeedCurveDepthId},
-        {STR16("Ratchet Speed Curve Depth"),  kArpRatchetLaneSpeedCurveDepthId},
-        {STR16("Condition Speed Curve Depth"),kArpConditionLaneSpeedCurveDepthId},
-        {STR16("Chord Speed Curve Depth"),    kArpChordLaneSpeedCurveDepthId},
-        {STR16("Inversion Speed Curve Depth"),kArpInversionLaneSpeedCurveDepthId},
+        {.name = STR16("Velocity Speed Curve Depth"), .id = kArpVelocityLaneSpeedCurveDepthId},
+        {.name = STR16("Gate Speed Curve Depth"),     .id = kArpGateLaneSpeedCurveDepthId},
+        {.name = STR16("Pitch Speed Curve Depth"),    .id = kArpPitchLaneSpeedCurveDepthId},
+        {.name = STR16("Modifier Speed Curve Depth"), .id = kArpModifierLaneSpeedCurveDepthId},
+        {.name = STR16("Ratchet Speed Curve Depth"),  .id = kArpRatchetLaneSpeedCurveDepthId},
+        {.name = STR16("Condition Speed Curve Depth"),.id = kArpConditionLaneSpeedCurveDepthId},
+        {.name = STR16("Chord Speed Curve Depth"),    .id = kArpChordLaneSpeedCurveDepthId},
+        {.name = STR16("Inversion Speed Curve Depth"),.id = kArpInversionLaneSpeedCurveDepthId},
     };
     for (const auto& p : kSpeedCurveDepthParams) {
         parameters.addParameter(
@@ -1812,8 +1814,6 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
         case kArpStrumDirectionId:
-            return kResultFalse; // StringListParameter handles
-
         // --- v1.5 Part 2 ---
         case kArpVelocityCurveTypeId:
             return kResultFalse; // StringListParameter handles
@@ -2097,7 +2097,7 @@ inline void saveArpParams(
 
     // Per-lane speed curve point data (free-form bezier curves)
     {
-        std::lock_guard<std::mutex> lock(params.speedCurveMutex_);
+        std::scoped_lock lock(params.speedCurveMutex_);
         for (int lane = 0; lane < 8; ++lane) {
             const auto& curve = params.speedCurves[static_cast<size_t>(lane)];
             streamer.writeInt32(curve.enabled ? 1 : 0);
@@ -2455,7 +2455,7 @@ inline bool loadArpParams(
 
     // Per-lane speed curve point data
     {
-        std::lock_guard<std::mutex> lock(params.speedCurveMutex_);
+        std::scoped_lock lock(params.speedCurveMutex_);
         for (int lane = 0; lane < 8; ++lane) {
             auto& curve = params.speedCurves[static_cast<size_t>(lane)];
             Steinberg::int32 enabledInt = 0;

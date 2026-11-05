@@ -22,6 +22,7 @@
 
 #include "pluginterfaces/vst/vsttypes.h"
 
+#include <algorithm>
 #include <functional>
 
 namespace Gradus {
@@ -51,7 +52,7 @@ public:
     // pitch bars underneath. Host-driven; called from the Controller.
     void setNumSteps(int n)
     {
-        const int clamped = (n < 1) ? 1 : (n > kNumSteps ? kNumSteps : n);
+        const int clamped = std::clamp(n, 1, kNumSteps);
         if (clamped != numSteps_) {
             numSteps_ = clamped;
             setDirty(true);

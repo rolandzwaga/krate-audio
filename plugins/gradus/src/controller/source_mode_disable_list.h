@@ -64,7 +64,7 @@ inline constexpr uint32_t kSourceSeqDisabledPinFlagLast     = kArpPinFlagStep31I
 inline constexpr uint32_t kSourceSeqDisabledRangeModeId     = kArpRangeModeId;
 
 // Helper: returns true if the param ID belongs in the FR-036 disabled set.
-inline constexpr bool isSourceSequencerDisabledParam(uint32_t id) noexcept {
+constexpr bool isSourceSequencerDisabledParam(uint32_t id) noexcept {
     for (auto v : kSourceSequencerDisabledParamIds) {
         if (v == id) return true;
     }
