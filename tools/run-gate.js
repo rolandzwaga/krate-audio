@@ -25,7 +25,7 @@
 //   <exe>    basename without extension (profundum_tests, dsp_systems_tests, ...)
 //   --share N  N gates run at the same time (parallel agents, lanes): this one takes (cpu count - 2) / N workers.
 //   --wallclock-workers W  width of the quiet [wallclock] pass (default 4).
-//   Defaults: workers = cpu count - 2, shards-per-exe = 4 x workers, out = f:/tmp/gate/<timestamp>,
+//   Defaults: workers = cpu count - 2, shards-per-exe = 4 x workers, out = f:/tmp/gate/<timestamp> (Windows) or <os tmpdir>/gate/<timestamp>,
 //             bin = build/windows-x64-release/bin/Release.
 // Writes <out>/<exe>-<k>.log per shard. Prints one line per executable, every failed assertion, and a last line
 //   GATE GREEN <exe> cases=<n> assertions=<m> | ... wall=<s>s workers=<w>
@@ -64,7 +64,10 @@ const PASS1 = TWO_PASS ? `${filter}~[wallclock]` : filter;
 const PASS2 = `${filter}[wallclock]`;
 const BIN = path.resolve(opts.bin || 'build/windows-x64-release/bin/Release');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '').replace('T', '-');
-const OUT = path.resolve(opts.out || path.join('f:/tmp/gate', stamp));
+// f:/tmp is the Windows dev box's scratch drive; elsewhere 'f:/tmp' is a relative path and made a folder named "f:"
+// inside the repo (WSL run, 2026-11-05), so other platforms use the OS temp dir.
+const OUT_ROOT = process.platform === 'win32' ? 'f:/tmp/gate' : path.join(os.tmpdir(), 'gate');
+const OUT = path.resolve(opts.out || path.join(OUT_ROOT, stamp));
 fs.mkdirSync(OUT, { recursive: true });
 
 const exePath = (n) => path.join(BIN, process.platform === 'win32' ? `${n}.exe` : n);

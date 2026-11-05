@@ -12,7 +12,7 @@
 //
 // Usage:
 //   node tools/run-close-lanes.js [--out <dir>] [--shards N] [--suite-shards K] [--parallel P] [--bin <dir>] [--skip-sweep] [--dry-run]
-// Defaults: out = f:/tmp/close-lanes/<timestamp>, shards = 8 (Vorago sweep), suite-shards = 8 (Catch2 shards per suite
+// Defaults: out = f:/tmp/close-lanes/<timestamp> (Windows) or <os tmpdir>/close-lanes/<timestamp>, shards = 8 (Vorago sweep), suite-shards = 8 (Catch2 shards per suite
 // and per [long] lane), parallel = cpu count - 2, bin = the Release bin dir.
 // Writes <out>/<lane>.log per lane and <out>/summary.txt (one line per lane: wall clock, Catch2 totals, FAILED lines).
 'use strict';
@@ -25,7 +25,9 @@ const args = process.argv.slice(2);
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 && args[i + 1] !== undefined ? args[i + 1] : dflt; };
 const flag = (name) => args.includes(name);
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '').replace('T', '-');
-const OUT = path.resolve(opt('--out', path.join('f:/tmp/close-lanes', stamp)));
+// f:/tmp is the Windows dev box's scratch drive; elsewhere 'f:/tmp' is a relative path (a folder named "f:" in the repo).
+const OUT_ROOT = process.platform === 'win32' ? 'f:/tmp/close-lanes' : path.join(os.tmpdir(), 'close-lanes');
+const OUT = path.resolve(opt('--out', path.join(OUT_ROOT, stamp)));
 const BIN = path.resolve(opt('--bin', 'build/windows-x64-release/bin/Release'));
 const SHARDS = Number(opt('--shards', 8));
 const PARALLEL = Number(opt('--parallel', Math.max(2, os.cpus().length - 2)));
