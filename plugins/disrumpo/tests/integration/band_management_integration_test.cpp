@@ -193,9 +193,9 @@ TEST_CASE("IT-004: Per-band gain affects signal level", "[integration][band-mana
         lastLeft = left;
     }
 
-    // +6dB gain with center pan should give:
-    // leftGain = cos(PI/4) * 10^(6/20) = 0.707 * 2.0 = 1.414
-    float expectedGain = std::cos(3.14159265f / 4.0f) * std::pow(10.0f, 6.0f / 20.0f);
+    // +6dB gain with center pan (balance law, unity at center, D-021) should give:
+    // leftGain = 1.0 * 10^(6/20) = 2.0
+    float expectedGain = std::pow(10.0f, 6.0f / 20.0f);
     INFO("Expected gain: " << expectedGain << ", Actual: " << lastLeft);
     REQUIRE_THAT(lastLeft, WithinAbs(expectedGain, 0.1f));
 }
@@ -230,7 +230,7 @@ TEST_CASE("IT-005: Mute suppresses band output", "[integration][band-management]
     }
 
     INFO("Unmuted level: " << unmutedLevel << ", Muted level: " << mutedLevel);
-    REQUIRE(unmutedLevel > 0.5f);       // Should have signal (center pan = 0.707)
+    REQUIRE(unmutedLevel > 0.5f);       // Should have signal (center pan = 1.0, D-021)
     REQUIRE(mutedLevel < 0.001f);       // Muted should be near zero
 }
 

@@ -276,7 +276,11 @@ TEST_CASE("AP-003: Sine sweep during morph automation - cross family", "[approva
 
     float maxDeriv = computeMaxDerivative(output);
     INFO("Cross-family max derivative: " << maxDeriv);
-    REQUIRE(maxDeriv < 1.0f);  // Digital types (Bitcrush) have intentionally sharp staircase edges
+    // Digital types (Bitcrush) have intentionally sharp staircase edges. The bound was 1.0
+    // while centre pan cost every band -3.01 dB (D-021); the balance law (T1.08) raises
+    // every output sample by exactly sqrt(2), so the bound moves by that factor and the
+    // verdict for a given shaper output is unchanged.
+    REQUIRE(maxDeriv < 1.0f * std::numbers::sqrt2_v<float>);
 }
 
 TEST_CASE("AP-003: Rapid morph automation (20Hz LFO)", "[approval][morph][SC-003][SC-007]") {

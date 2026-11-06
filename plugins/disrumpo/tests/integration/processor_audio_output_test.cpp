@@ -752,6 +752,67 @@ TEST_CASE("Processor tone filter cutoff matches the Tone parameter", "[disrumpo]
     SECTION("Oversample Max 4x (SoftClip runs at 2x)") { check(2.0 / 3.0, 2); }
 }
 
+namespace {
+
+struct ChannelLevels {
+    double leftDb = 0.0;   // output RMS re input RMS, last 0.25 s
+    double rightDb = 0.0;
+};
+
+/// Neutral settings: every node of every band at drive 0 (adapter passthrough), band gain
+/// 0 dB (default), global mix 1; `numBands` bands, every band at `panNorm`. 1 kHz at -12 dBFS
+/// on both inputs, 0.5 s.
+ChannelLevels neutralLevels(int numBands, double panNorm) {
+    ts::PList l{{Disrumpo::kBandCountId, static_cast<double>(numBands - 1) / 3.0},
+                {Disrumpo::kGlobalMixId, 1.0}};
+    for (uint8_t b = 0; b < 4; ++b) {
+        for (uint8_t n = 0; n < 4; ++n) l.emplace_back(makeNodeParamId(b, n, NodeParamType::kNodeDrive), 0.0);
+        l.emplace_back(makeBandParamId(b, BandParamType::kBandPan), panNorm);
+    }
+    ts::Rig rig(kBlockSr);
+    rig.apply(l);
+    rig.reactivate();
+    const auto in = sineAt(static_cast<size_t>(kBlockSr / 2.0), 1000.0, -12.0);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    const size_t half = in.size() / 2;
+    const double inRms = ts::rmsOf(in.data() + half, in.size() - half);
+    return {.leftDb = ts::toDb(ts::rmsOf(outL.data() + half, outL.size() - half) / inRms),
+            .rightDb = ts::toDb(ts::rmsOf(outR.data() + half, outR.size() - half) / inRms)};
+}
+
+} // anonymous namespace
+
+// Audit D-021 (fix plan T1.08): band pan is a stereo BALANCE control on an already-stereo
+// band signal: leftCoeff = min(1, 1 - pan), rightCoeff = min(1, 1 + pan). Centre leaves both
+// channels untouched (unity), panning attenuates only the opposite side, hard left/right
+// keep the near side at unity and silence the far side. The former mono equal-power law
+// (cos/sin of pan*pi/4 + pi/4) put every band at -3.01 dB at centre.
+TEST_CASE("Neutral settings are unity gain", "[disrumpo][unity][D-021]") {
+    for (int numBands = 1; numBands <= 4; ++numBands) {
+        const auto lv = neutralLevels(numBands, 0.5);
+        INFO(numBands << " band(s), centre pan: L " << lv.leftDb << " dB, R " << lv.rightDb << " dB re input");
+        CHECK(std::fabs(lv.leftDb) < 0.1);
+        CHECK(std::fabs(lv.rightDb) < 0.1);
+    }
+}
+
+TEST_CASE("Hard band pan keeps the near side at unity and silences the far side", "[disrumpo][unity][D-021]") {
+    SECTION("hard left") {
+        const auto lv = neutralLevels(4, 0.0);
+        INFO("4 bands, hard left: L " << lv.leftDb << " dB, R " << lv.rightDb << " dB re input");
+        REQUIRE(std::fabs(lv.leftDb) < 0.1);
+        REQUIRE(lv.rightDb < -120.0);
+    }
+    SECTION("hard right") {
+        const auto lv = neutralLevels(4, 1.0);
+        INFO("4 bands, hard right: L " << lv.leftDb << " dB, R " << lv.rightDb << " dB re input");
+        REQUIRE(lv.leftDb < -120.0);
+        REQUIRE(std::fabs(lv.rightDb) < 0.1);
+    }
+}
+
 // Measurement probe (hidden): impulse delay through the band oversampler vs getLatencySamples().
 TEST_CASE("Probe: oversampled band impulse delay vs reported latency", "[.][t107-probe]") {
     for (const double norm : {0.0, 1.0 / 3.0, 2.0 / 3.0}) {

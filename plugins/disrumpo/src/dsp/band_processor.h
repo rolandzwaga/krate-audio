@@ -32,7 +32,6 @@
 #include <functional>
 #include <initializer_list>
 #include <memory>
-#include <numbers>
 
 namespace Disrumpo {
 
@@ -44,7 +43,6 @@ public:
     // Constants
     // =========================================================================
 
-    static constexpr float kPi = std::numbers::pi_v<float>;
     /// @brief Highest factor (D-009, D-034: the factor rounding never selects 8x, so the
     /// 8x cascade is gone and "8x" Oversample Max maps to 4x).
     static constexpr int kMaxOversampleFactor = 4;
@@ -609,12 +607,10 @@ private:
         }
 
         // Step 3: Output stage (gain/pan/mute) AFTER distortion
-        // FR-022: Equal-power pan law
-        // leftGain = cos(pan * PI/4 + PI/4)
-        // rightGain = sin(pan * PI/4 + PI/4)
-        const float panAngle = pan * kPi / 4.0f + kPi / 4.0f;
-        const float leftCoeff = std::cos(panAngle);
-        const float rightCoeff = std::sin(panAngle);
+        // Stereo balance law (D-021): unity on both channels at centre, panning
+        // attenuates only the opposite side; the min() makes centre exactly 1.
+        const float leftCoeff = std::min(1.0f, 1.0f - pan);
+        const float rightCoeff = std::min(1.0f, 1.0f + pan);
 
         // Calculate mute multiplier (0 = muted, 1 = unmuted)
         const float muteMultiplier = 1.0f - mute;
@@ -855,10 +851,9 @@ private:
             const float pan = panSmoother_.process();
             const float mute = muteSmoother_.process();
 
-            // Equal-power pan law
-            const float panAngle = pan * kPi / 4.0f + kPi / 4.0f;
-            const float leftCoeff = std::cos(panAngle);
-            const float rightCoeff = std::sin(panAngle);
+            // Stereo balance law (D-021), unity at centre
+            const float leftCoeff = std::min(1.0f, 1.0f - pan);
+            const float rightCoeff = std::min(1.0f, 1.0f + pan);
 
             // Mute multiplier
             const float muteMultiplier = 1.0f - mute;
