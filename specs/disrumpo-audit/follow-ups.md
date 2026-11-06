@@ -33,8 +33,11 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 6. **Fades under modulation.** Each oversampling factor change now fades the band down and up over 5 + 5 ms.
    If morph modulation keeps crossing a factor boundary this could read as tremolo. Not measured yet.
 7. **Allpass compensation filters are still float32 Biquads** (Crossover3Way/4Way and Disrumpo's
-   CrossoverNetwork). Likely source of the remaining 0.00075 dB at 192 kHz after `68255845`; low-frequency
-   precision of those stages was not in the LR4 test grid.
+   CrossoverNetwork, now also the dry-path chain from T1.09 `a2f7fe51`). Measured: at 192 kHz the dry/wet
+   alignment residual is −59.55 dB (bar −60 dB; 44.1–96 kHz read −78 to −83 dB), flatness still 0.0128 dB; a
+   double-precision allpass chain of the same design reads −123 dB in the probe (`[.][t109-probe]`). Fix =
+   double-precision allpass stages for both chains. Also from T1.09: the LR4s glide on a frequency change while
+   every allpass jumps (brief mismatch, settles flat), and the dry term skips input gain (T2.09 territory).
 8. **`run-gate.js` comma-OR filter re-runs the whole set in the `[wallclock]` pass** (known pitfall, hit again
    on the evidence run: 127 cases ran twice, +22 min). Fix the runner or always use separate gates.
 
