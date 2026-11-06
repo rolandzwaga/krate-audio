@@ -15,8 +15,14 @@
 #include "dsp/oversampling_utils.h"
 #include "test_helpers/spectral_analysis.h"
 
+#include "../test_support/disrumpo_rig.h"
+#include "plugin_ids.h"
+
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <numbers>
+#include <string>
 #include <vector>
 
 using namespace Disrumpo;
@@ -193,7 +199,7 @@ TEST_CASE("BandProcessor: bypassed band output is bit-identical to input",
     std::array<float, kNumSamples> right{};
 
     for (size_t i = 0; i < kNumSamples; ++i) {
-        float val = 0.3f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+        float val = 0.3f * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * static_cast<float>(i) / 44100.0f);
         inputLeft[i] = val;
         inputRight[i] = val;
         left[i] = val;
@@ -280,7 +286,7 @@ TEST_CASE("BandProcessor: alias suppression with oversampling (SC-006)",
         std::vector<float> right(numSamples);
 
         for (size_t i = 0; i < numSamples; ++i) {
-            float phase = 2.0f * 3.14159265f * testFreqHz *
+            float phase = 2.0f * std::numbers::pi_v<float> * testFreqHz *
                           static_cast<float>(i) / sampleRate;
             left[i] = driveGain * std::sin(phase);
             right[i] = driveGain * std::sin(phase);
@@ -299,10 +305,10 @@ TEST_CASE("BandProcessor: alias suppression with oversampling (SC-006)",
 
     std::array<TypeTest, 4> representativeTypes = {{
         // Test a representative subset to keep test time reasonable
-        {DistortionType::HardClip, 4},    // 4x: strong harmonics
-        {DistortionType::SineFold, 4},     // 4x: wavefolder
-        {DistortionType::SoftClip, 2},     // 2x: moderate harmonics
-        {DistortionType::Tube, 2},         // 2x: tube saturation
+        {.type = DistortionType::HardClip, .recommendedFactor = 4},    // 4x: strong harmonics
+        {.type = DistortionType::SineFold, .recommendedFactor = 4},     // 4x: wavefolder
+        {.type = DistortionType::SoftClip, .recommendedFactor = 2},     // 2x: moderate harmonics
+        {.type = DistortionType::Tube, .recommendedFactor = 2},         // 2x: tube saturation
     }};
 
     for (const auto& tt : representativeTypes) {
@@ -381,6 +387,135 @@ TEST_CASE("BandProcessor: alias suppression with oversampling (SC-006)",
             if (tt.recommendedFactor == 4) {
                 CHECK(reductionDb > 6.0f);
             } else if (tt.recommendedFactor == 2) {
+                CHECK(reductionDb > 3.0f);
+            }
+        }
+    }
+}
+
+// =============================================================================
+// The same two properties through Processor::process (audit D-116, T1.07):
+// the BandProcessor cases above call processBlock directly, a path the
+// processor did not take until T1.07.
+// =============================================================================
+
+namespace {
+
+namespace ts = Disrumpo::TestSupport;
+
+double typeNormOf(DistortionType t) { return static_cast<double>(static_cast<int>(t)) / 25.0; }
+
+/// One band, node 0 of `type` at drive 10, tone 8 kHz, mix 1, cursor on node 0.
+ts::PList oneBandNode0(DistortionType type) {
+    return {{kBandCountId, 0.0},
+            {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNormOf(type)},
+            {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 1.0},
+            {makeNodeParamId(0, 0, NodeParamType::kNodeTone), 1.0},
+            {makeNodeParamId(0, 0, NodeParamType::kNodeMix), 1.0},
+            {makeBandParamId(0, BandParamType::kBandMorphX), 0.0},
+            {makeBandParamId(0, BandParamType::kBandMorphY), 0.0}};
+}
+
+std::vector<float> sine44k(size_t n, float freqHz, float amp) {
+    std::vector<float> x(n);
+    for (size_t i = 0; i < n; ++i) {
+        x[i] = amp * static_cast<float>(std::sin(2.0 * std::numbers::pi * static_cast<double>(freqHz) *
+                                                 static_cast<double>(i) / 44100.0));
+    }
+    return x;
+}
+
+} // namespace
+
+TEST_CASE("Processor: bypassed band output is bit-identical to input (SC-011)",
+          "[oversampling][bypass][SC-011]") {
+    const auto in = sine44k(8192, 440.0f, 0.3f);
+    std::vector<float> outL;
+    std::vector<float> outR;
+
+    ts::Rig rig(44100.0);
+    auto params = oneBandNode0(DistortionType::SoftClip);
+    params.emplace_back(makeBandParamId(0, BandParamType::kBandBypass), 1.0);
+    rig.apply(params);
+    rig.reactivate();
+    rig.render(in, in, outL, outR);
+
+    // One band: the crossover passes the input through, the bypassed band leaves it
+    // unchanged, and 0 dB input/output gain at mix 1 is the identity.
+    double maxDiff = 0.0;
+    for (size_t i = 0; i < in.size(); ++i) {
+        maxDiff = std::max({maxDiff, std::fabs(static_cast<double>(outL[i] - in[i])),
+                            std::fabs(static_cast<double>(outR[i] - in[i]))});
+    }
+    INFO("max |out - in| = " << maxDiff);
+    REQUIRE(maxDiff < 1e-6);
+}
+
+TEST_CASE("Processor: alias suppression with oversampling (SC-006)",
+          "[oversampling][single-type][alias-suppression][SC-006]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config;
+    config.testFrequencyHz = 5000.0f;
+    config.sampleRate = 44100.0f;
+    config.fftSize = 4096;
+    config.maxHarmonic = 10;
+    const auto aliasedBins = getAliasedBins(config);
+    REQUIRE_FALSE(aliasedBins.empty());
+
+    // Render 0.5 s through the processor, measure the aliased bins of the last fftSize samples
+    const auto aliasingDb = [&](DistortionType type, double oversampleMaxNorm, int& factor) {
+        const auto in = sine44k(22050, config.testFrequencyHz, 0.5f);
+        std::vector<float> outL;
+        std::vector<float> outR;
+        ts::Rig rig(44100.0);
+        auto params = oneBandNode0(type);
+        params.emplace_back(kOversampleMaxId, oversampleMaxNorm);
+        rig.apply(params);
+        rig.reactivate();
+        rig.render(in, in, outL, outR);
+        factor = rig.p->getBandProcessor(0).getOversampleFactor();
+
+        std::vector<float> window(config.fftSize);
+        Krate::DSP::Window::generateHann(window.data(), config.fftSize);
+        std::vector<float> frame(config.fftSize);
+        const size_t start = outL.size() - config.fftSize;
+        for (size_t i = 0; i < config.fftSize; ++i) frame[i] = outL[start + i] * window[i];
+        Krate::DSP::FFT fft;
+        fft.prepare(config.fftSize);
+        std::vector<Krate::DSP::Complex> spectrum(fft.numBins());
+        fft.forward(frame.data(), spectrum.data());
+        return detail::toDb(detail::sumBinPower(spectrum.data(), aliasedBins));
+    };
+
+    struct TypeTest {
+        DistortionType type;
+        int recommendedFactor;
+        double limitNorm;  // Oversample Max normalized value of the recommended factor
+    };
+    const std::array<TypeTest, 4> representativeTypes = {{
+        {.type = DistortionType::HardClip, .recommendedFactor = 4, .limitNorm = 2.0 / 3.0},
+        {.type = DistortionType::SineFold, .recommendedFactor = 4, .limitNorm = 2.0 / 3.0},
+        {.type = DistortionType::SoftClip, .recommendedFactor = 2, .limitNorm = 1.0 / 3.0},
+        {.type = DistortionType::Tube, .recommendedFactor = 2, .limitNorm = 1.0 / 3.0},
+    }};
+
+    for (const auto& tt : representativeTypes) {
+        SECTION(std::string("processor alias suppression for ") + getTypeName(tt.type)) {
+            int factor1x = 0;
+            int factorOS = 0;
+            const float db1x = aliasingDb(tt.type, 0.0, factor1x);
+            const float dbOS = aliasingDb(tt.type, tt.limitNorm, factorOS);
+            const float reductionDb = db1x - dbOS;
+            INFO("Type: " << getTypeName(tt.type) << ", factors " << factor1x << "x / " << factorOS << "x");
+            INFO("Aliasing at 1x: " << db1x << " dB, oversampled: " << dbOS << " dB, reduction "
+                 << reductionDb << " dB");
+            REQUIRE(factor1x == 1);
+            REQUIRE(factorOS == tt.recommendedFactor);
+            // Same thresholds as the BandProcessor case above
+            if (tt.recommendedFactor == 4) {
+                CHECK(reductionDb > 6.0f);
+            } else {
                 CHECK(reductionDb > 3.0f);
             }
         }

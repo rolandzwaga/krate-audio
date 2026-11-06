@@ -106,8 +106,8 @@ TEST_CASE("BandProcessor: global limit 4x (default) allows full range",
 
     BandProcessor bp;
     bp.prepare(44100.0, 512);
-    // Default limit is 8 (kMaxOversampleFactor), but setting to 4 explicitly
-    bp.setMaxOversampleFactor(4);
+    // Default limit is 4x, equal to the processor's Oversample Max default (D-134)
+    CHECK(bp.getMaxOversampleFactor() == 4);
 
     bp.setDistortionType(DistortionType::HardClip);
     CHECK(bp.getOversampleFactor() == 4);

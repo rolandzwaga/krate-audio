@@ -177,6 +177,13 @@ private:
     /// @brief Per-band processors for gain/pan/mute
     std::array<BandProcessor, kMaxBands> bandProcessors_{};
 
+    /// @brief Per-band block buffers: the crossover writes each band here, then each
+    /// BandProcessor processes its buffer as a block (oversampling, bypass). Host
+    /// blocks longer than BandProcessor::kMaxBlockSize are processed in chunks.
+    using BandBlock = std::array<float, BandProcessor::kMaxBlockSize>;
+    std::array<BandBlock, kMaxBands> bandBufL_{};
+    std::array<BandBlock, kMaxBands> bandBufR_{};
+
     /// @brief Crossover frequency targets (normalized, for smoothing)
     std::array<std::atomic<float>, kMaxBands - 1> crossoverFrequencies_{};
 

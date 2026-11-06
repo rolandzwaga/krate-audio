@@ -13,7 +13,6 @@
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include "processor/processor.h"
 #include "plugin_ids.h"
@@ -28,7 +27,15 @@
 #include <vector>
 #include "vst_param_changes.h"
 
-using Catch::Matchers::WithinAbs;
+#include "../test_support/disrumpo_rig.h"
+#include "dsp/crossover_network.h"
+#include "test_helpers/spectral_analysis.h"
+
+#include <allocation_detector.h>
+
+#include <algorithm>
+#include <chrono>
+#include <numbers>
 
 namespace {
 
@@ -90,12 +97,12 @@ struct ProcessorFixture {
         result = processor->setupProcessing(setup);
         REQUIRE(result == Steinberg::kResultTrue);
 
-        result = processor->setActive(true);
+        result = processor->setActive(static_cast<Steinberg::TBool>(true));
         REQUIRE(result == Steinberg::kResultTrue);
     }
 
     ~ProcessorFixture() {
-        processor->setActive(false);
+        processor->setActive(static_cast<Steinberg::TBool>(false));
         processor->terminate();
     }
 
@@ -106,7 +113,7 @@ struct ProcessorFixture {
     /// @param outputR Right output buffer (kBlockSize samples, written by processor)
     /// @param paramChanges Optional parameter changes to inject
     void processBlock(float* inputL, float* inputR, float* outputL, float* outputR,
-                      Steinberg::Vst::IParameterChanges* paramChanges = nullptr) {
+                      Steinberg::Vst::IParameterChanges* paramChanges = nullptr) const {
         // Set up audio bus buffers
         float* inChannels[2] = { inputL, inputR };
         float* outChannels[2] = { outputL, outputR };
@@ -397,4 +404,337 @@ TEST_CASE("BitwiseMangler Pattern slider changes audio through full processor",
 
     INFO("Different samples: " << differentSamples << " / " << kBlockSize);
     REQUIRE(differentSamples > kBlockSize / 4);
+}
+
+// =============================================================================
+// Block path: oversampling and band bypass run inside Processor::process
+// =============================================================================
+// Audit D-017 / D-027 / D-116 / D-095 / D-020 (fix plan T1.07): Processor::process
+// called only the per-sample BandProcessor::process, so the oversamplers, the
+// Oversample Max parameter and the band Bypass flag never reached the audio.
+// =============================================================================
+
+namespace {
+
+namespace ts = Disrumpo::TestSupport;
+using Disrumpo::BandParamType;
+using Disrumpo::DistortionType;
+using Disrumpo::NodeParamType;
+using Disrumpo::makeBandParamId;
+using Disrumpo::makeNodeParamId;
+
+constexpr double kBlockSr = 48000.0;
+constexpr float kAliasToneHz = 1031.25f;  // exactly bin 176 of an 8192-point FFT at 48 kHz
+constexpr size_t kAliasFft = 8192;
+constexpr size_t kAliasFrames = 4;        // the last 4 x 8192 = 32768 samples
+
+std::vector<float> sineAt(size_t n, double freqHz, double dbfs) {
+    const double amp = std::pow(10.0, dbfs / 20.0);
+    std::vector<float> x(n);
+    for (size_t i = 0; i < n; ++i) {
+        x[i] = static_cast<float>(amp * std::sin(2.0 * std::numbers::pi * freqHz *
+                                                 static_cast<double>(i) / kBlockSr));
+    }
+    return x;
+}
+
+double typeNorm(DistortionType t) { return static_cast<double>(static_cast<int>(t)) / 25.0; }
+
+struct AliasReading {
+    double aliasedDb = 0.0;      // power in the predicted fold-back bins (harmonics 2..200)
+    double nonHarmonicDb = 0.0;  // power in every bin outside the harmonic main lobes
+    double fundamentalDb = 0.0;
+};
+
+/// Power-averaged over the last kAliasFrames Hann-windowed 8192-sample frames.
+AliasReading readAliasing(const std::vector<float>& x) {
+    using namespace Krate::DSP::TestUtils;
+    AliasingTestConfig cfg;
+    cfg.testFrequencyHz = kAliasToneHz;
+    cfg.sampleRate = static_cast<float>(kBlockSr);
+    cfg.fftSize = kAliasFft;
+    cfg.maxHarmonic = 200;
+    auto aliased = getAliasedBins(cfg);
+    std::sort(aliased.begin(), aliased.end());
+    aliased.erase(std::unique(aliased.begin(), aliased.end()), aliased.end());
+    const size_t fundBin = frequencyToBin(kAliasToneHz, cfg.sampleRate, kAliasFft);
+
+    Krate::DSP::FFT fft;
+    fft.prepare(kAliasFft);
+    std::vector<float> window(kAliasFft);
+    Krate::DSP::Window::generateHann(window.data(), kAliasFft);
+    std::vector<float> frame(kAliasFft);
+    std::vector<Krate::DSP::Complex> spectrum(fft.numBins());
+
+    double aliasPower = 0.0;
+    double nonHarmonicPower = 0.0;
+    double fundamentalPower = 0.0;
+    const size_t start = x.size() - kAliasFrames * kAliasFft;
+    for (size_t f = 0; f < kAliasFrames; ++f) {
+        for (size_t i = 0; i < kAliasFft; ++i) {
+            frame[i] = x[start + f * kAliasFft + i] * window[i];
+        }
+        fft.forward(frame.data(), spectrum.data());
+        const double a = detail::sumBinPower(spectrum.data(), aliased);
+        aliasPower += a * a;
+        const double m = spectrum[fundBin].magnitude();
+        fundamentalPower += m * m;
+        for (size_t b = 3; b < spectrum.size(); ++b) {
+            const size_t r = b % fundBin;
+            if (r <= 2 || r >= fundBin - 2) continue;  // harmonic main lobe (Hann: +-1 bin)
+            const double mb = spectrum[b].magnitude();
+            nonHarmonicPower += mb * mb;
+        }
+    }
+    const auto db = [](double p) {
+        return 10.0 * std::log10(p / static_cast<double>(kAliasFrames) + 1e-30);
+    };
+    return {.aliasedDb = db(aliasPower), .nonHarmonicDb = db(nonHarmonicPower), .fundamentalDb = db(fundamentalPower)};
+}
+
+/// One band, node 0 HardClip drive 10, tone 8 kHz, mix 1, cursor on node 0.
+std::vector<float> renderHardClipBand(double oversampleMaxNorm, int& factor) {
+    ts::Rig rig(kBlockSr);
+    rig.apply({{Disrumpo::kBandCountId, 0.0},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::HardClip)},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 1.0},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeTone), 1.0},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeMix), 1.0},
+               {makeBandParamId(0, BandParamType::kBandMorphX), 0.0},
+               {makeBandParamId(0, BandParamType::kBandMorphY), 0.0},
+               {Disrumpo::kOversampleMaxId, oversampleMaxNorm}});
+    rig.reactivate();
+    const auto in = sineAt(static_cast<size_t>(kBlockSr), kAliasToneHz, -6.0);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    factor = rig.p->getBandProcessor(0).getOversampleFactor();
+    return outL;
+}
+
+/// Every node of every band HardClip at drive 10, mix 1; band bypass as given.
+ts::PList hardClipBands(double bandCountNorm, int numBands, bool bypass) {
+    ts::PList l{{Disrumpo::kBandCountId, bandCountNorm}, {Disrumpo::kGlobalMixId, 1.0}};
+    for (int b = 0; b < numBands; ++b) {
+        const auto band = static_cast<uint8_t>(b);
+        for (uint8_t n = 0; n < 4; ++n) {
+            l.emplace_back(makeNodeParamId(band, n, NodeParamType::kNodeType), typeNorm(DistortionType::HardClip));
+            l.emplace_back(makeNodeParamId(band, n, NodeParamType::kNodeDrive), 1.0);
+            l.emplace_back(makeNodeParamId(band, n, NodeParamType::kNodeMix), 1.0);
+        }
+        l.emplace_back(makeBandParamId(band, BandParamType::kBandBypass), bypass ? 1.0 : 0.0);
+    }
+    return l;
+}
+
+/// The sum of a fresh CrossoverNetwork's bands: what an all-bypassed processor must output.
+std::vector<float> crossoverSum(const std::vector<float>& in, int numBands) {
+    Disrumpo::CrossoverNetwork xo;
+    xo.prepare(kBlockSr, Disrumpo::kDefaultBands);
+    xo.setBandCount(numBands);
+    xo.reset();
+    std::array<float, Disrumpo::kMaxBands> bands{};
+    std::vector<float> out(in.size());
+    for (size_t i = 0; i < in.size(); ++i) {
+        xo.process(in[i], bands);
+        float s = 0.0f;
+        for (int b = 0; b < numBands; ++b) s += bands[static_cast<size_t>(b)];
+        out[i] = s;
+    }
+    return out;
+}
+
+double maxAbsDiff(const std::vector<float>& a, const std::vector<float>& b, size_t from = 0,
+                  size_t to = static_cast<size_t>(-1)) {
+    double m = 0.0;
+    to = std::min({to, a.size(), b.size()});
+    for (size_t i = from; i < to; ++i) {
+        m = std::max(m, std::fabs(static_cast<double>(a[i]) - static_cast<double>(b[i])));
+    }
+    return m;
+}
+
+double maxStep(const std::vector<float>& x, size_t from, size_t to) {
+    double m = 0.0;
+    for (size_t i = std::max<size_t>(from, 1); i < std::min(to, x.size()); ++i) {
+        m = std::max(m, std::fabs(static_cast<double>(x[i]) - static_cast<double>(x[i - 1])));
+    }
+    return m;
+}
+
+} // anonymous namespace
+
+TEST_CASE("Processor HardClip aliasing drops with Oversample Max 4x vs 1x",
+          "[disrumpo][oversampling][D-027]") {
+    int factor1x = 0;
+    int factor4x = 0;
+    const auto out1x = renderHardClipBand(0.0, factor1x);
+    const auto out4x = renderHardClipBand(2.0 / 3.0, factor4x);
+    const auto r1 = readAliasing(out1x);
+    const auto r4 = readAliasing(out4x);
+
+    INFO("factor at Oversample Max 1x: " << factor1x << ", at 4x: " << factor4x);
+    INFO("fundamental 1x " << r1.fundamentalDb << " dB, 4x " << r4.fundamentalDb << " dB");
+    INFO("aliased bins 1x " << r1.aliasedDb << " dB, 4x " << r4.aliasedDb << " dB, reduction "
+         << (r1.aliasedDb - r4.aliasedDb) << " dB");
+    INFO("non-harmonic 1x " << r1.nonHarmonicDb << " dB, 4x " << r4.nonHarmonicDb << " dB, reduction "
+         << (r1.nonHarmonicDb - r4.nonHarmonicDb) << " dB");
+    REQUIRE(factor1x == 1);
+    REQUIRE(factor4x == 4);
+    REQUIRE(r1.aliasedDb - r4.aliasedDb >= 12.0);
+}
+
+TEST_CASE("Band bypass passes the crossover band unchanged", "[disrumpo][bypass][D-095]") {
+    const auto in = sineAt(static_cast<size_t>(kBlockSr / 2.0), 220.0, -12.0);
+    std::vector<float> outL;
+    std::vector<float> outR;
+
+    SECTION("4 bands, every band bypassed") {
+        ts::Rig rig(kBlockSr);
+        rig.apply(hardClipBands(1.0, 4, true));
+        rig.reactivate();
+        rig.render(in, in, outL, outR);
+        const auto expected = crossoverSum(in, 4);
+        const double diffL = maxAbsDiff(outL, expected);
+        const double diffR = maxAbsDiff(outR, expected);
+        INFO("max |out - crossover sum|: L " << diffL << ", R " << diffR);
+        REQUIRE(diffL < 1e-5);
+        REQUIRE(diffR < 1e-5);
+    }
+
+    SECTION("1 band bypassed passes the input through") {
+        ts::Rig rig(kBlockSr);
+        rig.apply(hardClipBands(0.0, 1, true));
+        rig.reactivate();
+        rig.render(in, in, outL, outR);
+        const double diffL = maxAbsDiff(outL, in);
+        const double diffR = maxAbsDiff(outR, in);
+        INFO("max |out - in|: L " << diffL << ", R " << diffR);
+        REQUIRE(diffL < 1e-6);
+        REQUIRE(diffR < 1e-6);
+    }
+}
+
+TEST_CASE("Band bypass toggled mid-stream stays finite with bounded steps", "[disrumpo][bypass][D-020]") {
+    constexpr size_t kBlock = 512;
+    constexpr size_t kOnBlock = 24;   // bypass on at 0.256 s
+    constexpr size_t kOffBlock = 48;  // bypass off again at 0.512 s
+    const auto in = sineAt(kBlock * 72, 220.0, -12.0);
+
+    ts::Rig rig(kBlockSr);
+    rig.apply(hardClipBands(1.0, 4, false));
+    rig.reactivate();
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kBlock),
+               [&](size_t blk, size_t, ts::PChanges& pc) {
+                   if (blk != kOnBlock && blk != kOffBlock) return;
+                   for (uint8_t b = 0; b < 4; ++b) {
+                       pc.addChange(makeBandParamId(b, BandParamType::kBandBypass),
+                                    blk == kOnBlock ? 1.0 : 0.0);
+                   }
+               });
+
+    size_t nonFinite = 0;
+    for (size_t i = 0; i < outL.size(); ++i) {
+        if (!ts::fin(outL[i]) || !ts::fin(outR[i])) ++nonFinite;
+    }
+    REQUIRE(nonFinite == 0);
+
+    // While bypassed (one block after the toggle onward) the output is the clean crossover sum
+    const auto clean = crossoverSum(in, 4);
+    const size_t on = kOnBlock * kBlock;
+    const size_t off = kOffBlock * kBlock;
+    const double bypassedDiff = maxAbsDiff(outL, clean, on, off);
+    INFO("max |out - crossover sum| while bypassed: " << bypassedDiff);
+    REQUIRE(bypassedDiff < 1e-5);
+
+    // The hard switch steps between the distorted and the clean signal: no step may exceed
+    // the two signals' combined peak (no blow-up), and the steps are reported.
+    const double distortedPeak = ts::peakOf(outL.data() + 8 * kBlock, on - 8 * kBlock);
+    const double cleanPeak = ts::peakOf(clean.data() + on, off - on);
+    const double steadyStep = maxStep(outL, 8 * kBlock, on - 1);
+    const double stepOn = maxStep(outL, on - 2, on + 2);
+    const double stepOff = maxStep(outL, off - 2, off + 2);
+    INFO("distorted peak " << distortedPeak << ", clean peak " << cleanPeak << ", steady max step "
+         << steadyStep << ", step at bypass on " << stepOn << ", at bypass off " << stepOff);
+    REQUIRE(stepOn <= distortedPeak + cleanPeak);
+    REQUIRE(stepOff <= distortedPeak + cleanPeak);
+}
+
+TEST_CASE("Processor block path with oversampled bands allocates nothing",
+          "[disrumpo][oversampling][realtime][D-027]") {
+    constexpr Steinberg::int32 kBlock = 512;
+    ts::Rig rig(kBlockSr, kBlock);
+    rig.apply(hardClipBands(1.0, 4, false));  // 4 bands, 4x
+    rig.reactivate();
+    REQUIRE(rig.p->getBandProcessor(0).getOversampleFactor() == 4);
+
+    const auto in = sineAt(static_cast<size_t>(kBlock), 220.0, -12.0);
+    std::vector<float> inL(in);
+    std::vector<float> inR(in);
+    std::vector<float> outL(in.size());
+    std::vector<float> outR(in.size());
+    for (int b = 0; b < 8; ++b) {  // settle outside the scope
+        rig.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), kBlock, nullptr);
+    }
+    ts::PChanges toTwoX;  // filled before the scope: Oversample Max 2x starts a factor switch
+    toTwoX.addChange(Disrumpo::kOversampleMaxId, 1.0 / 3.0);
+
+    size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (int b = 0; b < 16; ++b) {
+            rig.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), kBlock,
+                             b == 4 ? &toTwoX : nullptr);
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    CHECK(rig.p->getBandProcessor(0).getActiveOversampleFactor() == 2);
+    REQUIRE(allocations == 0);
+}
+
+// Measurement probe (hidden): impulse delay through the band oversampler vs getLatencySamples().
+TEST_CASE("Probe: oversampled band impulse delay vs reported latency", "[.][t107-probe]") {
+    for (const double norm : {0.0, 1.0 / 3.0, 2.0 / 3.0}) {
+        ts::Rig rig(kBlockSr);
+        // HardClip drive 10 keeps the drive gate open; node mix 0 makes the band output the dry
+        // (pre-shaper) signal, so only the oversampler's up/down filters shape the impulse.
+        rig.apply({{Disrumpo::kBandCountId, 0.0},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::HardClip)},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 1.0},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeMix), 0.0},
+                   {makeBandParamId(0, BandParamType::kBandMorphX), 0.0},
+                   {makeBandParamId(0, BandParamType::kBandMorphY), 0.0},
+                   {Disrumpo::kOversampleMaxId, norm}});
+        rig.reactivate();
+        constexpr size_t kAt = 4800;
+        std::vector<float> in(9600, 0.0f);
+        in[kAt] = 0.25f;
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR);
+        size_t peakIdx = 0;
+        for (size_t i = 0; i < outL.size(); ++i) {
+            if (std::fabs(outL[i]) > std::fabs(outL[peakIdx])) peakIdx = i;
+        }
+        WARN("PROBE latency: factor " << rig.p->getBandProcessor(0).getOversampleFactor()
+             << " peak offset " << static_cast<long long>(peakIdx) - static_cast<long long>(kAt)
+             << " samples, peak " << outL[peakIdx] << ", getLatencySamples " << rig.p->getLatencySamples());
+    }
+}
+
+// Measurement probe (hidden): real-time ratio of Processor::process, 4 bands of HardClip.
+TEST_CASE("Probe: Processor render cost with 4 HardClip bands", "[.][t107-cpu-probe]") {
+    const auto in = sineAt(static_cast<size_t>(kBlockSr * 10.0), 220.0, -12.0);
+    ts::Rig rig(kBlockSr);
+    rig.apply(hardClipBands(1.0, 4, false));
+    rig.reactivate();
+    std::vector<float> outL;
+    std::vector<float> outR;
+    const auto t0 = std::chrono::steady_clock::now();
+    rig.render(in, in, outL, outR);
+    const auto t1 = std::chrono::steady_clock::now();
+    const double secs = std::chrono::duration<double>(t1 - t0).count();
+    WARN("PROBE cpu: " << secs << " s for 10 s of audio = " << (secs / 10.0 * 100.0) << " % of real time");
 }

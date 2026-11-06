@@ -93,6 +93,13 @@ void MorphEngine::reset() noexcept {
     biasModOffset_ = 0.0f;
 }
 
+void MorphEngine::resetState() noexcept {
+    for (auto& adapter : adapters_) {
+        adapter.reset();
+    }
+    blendedAdapter_.reset();
+}
+
 // =============================================================================
 // Configuration
 // =============================================================================

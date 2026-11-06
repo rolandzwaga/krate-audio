@@ -66,6 +66,12 @@ public:
     /// Call when starting new playback or after discontinuity.
     void reset() noexcept;
 
+    /// @brief Clear the distortion adapters' processing state only.
+    ///
+    /// Keeps parameters, weights, modulation offsets and the cursor smoothers.
+    /// Used at the silent point of an oversampling factor switch. Allocation-free.
+    void resetState() noexcept;
+
     // =========================================================================
     // Configuration
     // =========================================================================

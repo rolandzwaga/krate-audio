@@ -448,7 +448,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
-    // Band Processing (FR-001a: sample-by-sample processing)
+    // Band Processing: per-sample crossover, per-band blocks, per-sample sum
     // ==========================================================================
 
     // Denormalize global gain/mix parameters
@@ -463,56 +463,55 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     const float wetMix = modGlobalMix;
     const float dryMix = 1.0f - wetMix;
 
+    // Solo/mute logic (FR-025, FR-025a): band states only change in
+    // processParameterChanges, so this holds for the whole block
+    std::array<bool, kMaxBands> contributes{};
+    for (int b = 0; b < numBands; ++b) {
+        contributes[b] = shouldBandContribute(b);
+    }
+
     std::array<float, kMaxBands> bandsL{};
     std::array<float, kMaxBands> bandsR{};
 
-    // Apply block-rate drive/mix modulation to non-morph distortion adapters
-    for (int b = 0; b < numBands; ++b) {
-        bandProcessors_[b].beginBlockModulation();
-    }
+    const auto totalSamples = static_cast<size_t>(data.numSamples);
+    for (size_t chunkStart = 0; chunkStart < totalSamples; chunkStart += BandProcessor::kMaxBlockSize) {
+        const size_t chunkLen = std::min(totalSamples - chunkStart, BandProcessor::kMaxBlockSize);
+        const float* inL = inputL + chunkStart;
+        const float* inR = inputR + chunkStart;
 
-    for (Steinberg::int32 n = 0; n < data.numSamples; ++n) {
-        // Apply input gain before crossover
-        const float inL = inputL[n] * inputGainLinear;
-        const float inR = inputR[n] * inputGainLinear;
-
-        // Split input through crossover networks (FR-001b: independent L/R)
-        crossoverL_.process(inL, bandsL);
-        crossoverR_.process(inR, bandsR);
-
-        // Initialize output accumulators
-        float sumL = 0.0f;
-        float sumR = 0.0f;
-
-        // Process each band and sum (FR-013: sample-by-sample summation)
-        for (int b = 0; b < numBands; ++b) {
-            // Check solo/mute logic (FR-025, FR-025a)
-            if (!shouldBandContribute(b)) {
-                // Process to keep smoothers running, but don't add to output
-                float discardL = bandsL[b];
-                float discardR = bandsR[b];
-                bandProcessors_[b].process(discardL, discardR);
-                continue;
+        // Split input through crossover networks into per-band block buffers
+        // (FR-001b: independent L/R; input gain before the crossover)
+        for (size_t n = 0; n < chunkLen; ++n) {
+            crossoverL_.process(inL[n] * inputGainLinear, bandsL);
+            crossoverR_.process(inR[n] * inputGainLinear, bandsR);
+            for (int b = 0; b < numBands; ++b) {
+                bandBufL_[b][n] = bandsL[b];
+                bandBufR_[b][n] = bandsR[b];
             }
-
-            // Apply per-band processing (gain, pan, mute with smoothing)
-            float bandL = bandsL[b];
-            float bandR = bandsR[b];
-            bandProcessors_[b].process(bandL, bandR);
-
-            // Sum to output
-            sumL += bandL;
-            sumR += bandR;
         }
 
-        // Apply output gain and dry/wet mix
-        outputL[n] = inputL[n] * dryMix + sumL * outputGainLinear * wetMix;
-        outputR[n] = inputR[n] * dryMix + sumR * outputGainLinear * wetMix;
-    }
+        // Each band as a block: oversampling, bypass, block-rate modulation
+        // (processBlock brackets begin/endBlockModulation itself). Non-contributing
+        // bands are processed too, to keep their smoothers running.
+        for (int b = 0; b < numBands; ++b) {
+            bandProcessors_[b].processBlock(bandBufL_[b].data(), bandBufR_[b].data(), chunkLen);
+        }
 
-    // Restore base distortion params after per-sample processing
-    for (int b = 0; b < numBands; ++b) {
-        bandProcessors_[b].endBlockModulation();
+        // Sum contributing bands (FR-013), apply output gain and dry/wet mix
+        float* outL = outputL + chunkStart;
+        float* outR = outputR + chunkStart;
+        for (size_t n = 0; n < chunkLen; ++n) {
+            float sumL = 0.0f;
+            float sumR = 0.0f;
+            for (int b = 0; b < numBands; ++b) {
+                if (contributes[b]) {
+                    sumL += bandBufL_[b][n];
+                    sumR += bandBufR_[b][n];
+                }
+            }
+            outL[n] = inL[n] * dryMix + sumL * outputGainLinear * wetMix;
+            outR[n] = inR[n] * dryMix + sumR * outputGainLinear * wetMix;
+        }
     }
 
     // ==========================================================================
