@@ -13,7 +13,6 @@
 
 #include "distortion_types.h"
 
-#include <krate/dsp/processors/saturation_processor.h>
 #include <krate/dsp/processors/tube_stage.h>
 #include <krate/dsp/processors/tape_saturator.h>
 #include <krate/dsp/processors/fuzz_processor.h>
@@ -36,7 +35,6 @@
 #include <krate/dsp/primitives/one_pole.h>
 #include <krate/dsp/primitives/waveshaper.h>
 
-#include <array>
 #include <cmath>
 #include <algorithm>
 
@@ -371,7 +369,6 @@ private:
     // KrateDSP Processor Instances (all pre-allocated)
     // =========================================================================
 
-    Krate::DSP::SaturationProcessor saturation_;
     Krate::DSP::TubeStage tube_;
     Krate::DSP::TapeSaturator tape_;
     Krate::DSP::FuzzProcessor fuzz_;
@@ -395,12 +392,6 @@ private:
     // =========================================================================
     // These are used instead of the block-based processors when we need
     // sample-by-sample processing without the overhead of smoothing.
-
-    /// Waveshaper for Tube type (D03)
-    Krate::DSP::Waveshaper tubeShaper_;
-
-    /// Waveshaper for Tape type (D04) - uses Sigmoid::tanh with drive
-    Krate::DSP::Waveshaper tapeShaper_;
 
     /// Single-sample buffer for block processors that only have block processing
     float singleSampleBuffer_[1] = {0.0f};
@@ -440,14 +431,8 @@ private:
     // Block-Based Processing State
     // =========================================================================
 
-    /// Ring buffers for block-based processors (Spectral, Granular)
-    static constexpr size_t kMaxBlockBufferSize = 4096;
-    std::array<float, kMaxBlockBufferSize> inputRingBuffer_{};
-    std::array<float, kMaxBlockBufferSize> outputRingBuffer_{};
-    int ringWritePos_ = 0;
-    int ringReadPos_ = 0;
+    /// Fixed latency of block-based processors (Spectral, Granular)
     int blockLatency_ = 0;
-    bool isBlockBased_ = false;
 };
 
 } // namespace Disrumpo

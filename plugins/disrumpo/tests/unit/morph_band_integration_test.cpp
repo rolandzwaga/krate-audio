@@ -27,6 +27,7 @@
 #include <cmath>
 #include <array>
 #include <memory>
+#include <numbers>
 #include <vector>
 
 using Catch::Approx;
@@ -263,12 +264,17 @@ TEST_CASE("BandProcessor morph smoothing time configurable", "[band][morph][FR-0
 
         // After 5ms worth of samples (~221 at 44.1kHz), should be mostly done
         for (int i = 0; i < 300; ++i) {
-            float left = 0.1f, right = 0.1f;
+            float left = 0.1f;
+            float right = 0.1f;
             proc.process(left, right);
         }
 
-        // No crash or artifacts expected
-        REQUIRE(true);
+        // The cursor moved toward the new target (the 99 % timing is pinned by
+        // "BandProcessor morph smoothing reaches 99 % in the configured time")
+        const float x = proc.getMorphEngine()->getSmoothedX();
+        INFO("smoothed X after 300 samples = " << x);
+        REQUIRE(x > 0.0f);
+        REQUIRE(x <= 1.0f);
     }
 
     SECTION("Slow smoothing (200ms)") {
@@ -280,13 +286,92 @@ TEST_CASE("BandProcessor morph smoothing time configurable", "[band][morph][FR-0
 
         // After 50ms, still transitioning
         for (int i = 0; i < 2205; ++i) {  // ~50ms
-            float left = 0.1f, right = 0.1f;
+            float left = 0.1f;
+            float right = 0.1f;
             proc.process(left, right);
         }
 
-        // No crash or artifacts expected
-        REQUIRE(true);
+        const float x = proc.getMorphEngine()->getSmoothedX();
+        INFO("smoothed X after 50 ms of a 200 ms glide = " << x);
+        REQUIRE(x > 0.0f);
+        REQUIRE(x < 0.99f);
     }
+}
+
+// D-138 / D-099 (fix plan T1.05): the BandProcessor ran L and then R through one
+// MorphEngine, so the cursor smoothers advanced twice per stereo frame. With one
+// engine per channel each advances once per frame, exactly like a standalone
+// engine prepared the same way (BandProcessor::prepare prepares its engines at
+// 8x the host rate with 8x the block size) that is called once per sample.
+TEST_CASE("BandProcessor advances the morph cursor smoother once per stereo frame",
+          "[disrumpo][morph][D-138]") {
+    constexpr double kSr = 48000.0;
+    constexpr size_t kBlock = 512;
+    constexpr int kOversample = Disrumpo::BandProcessor::kMaxOversampleFactor;
+    const auto nodes = createTwoNodeSetup();
+
+    Disrumpo::BandProcessor proc;
+    proc.prepare(kSr, kBlock);
+    proc.setMorphNodes(nodes, 2);
+    proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
+    proc.setMorphSmoothingTime(10.0f);
+    proc.setMorphPosition(0.0f, 0.0f);
+
+    auto reference = std::make_unique<Disrumpo::MorphEngine>();
+    reference->prepare(kSr * kOversample, static_cast<int>(kBlock) * kOversample);
+    reference->setMode(Disrumpo::MorphMode::Linear1D);
+    reference->setSmoothingTime(10.0f);
+    reference->setNodes(nodes, 2);
+    reference->setMorphPosition(0.0f, 0.0f);
+
+    auto run = [&](int frames) {
+        for (int i = 0; i < frames; ++i) {
+            float left = 0.1f;
+            float right = -0.1f;
+            proc.process(left, right);
+            (void)reference->process(0.1f);
+        }
+    };
+
+    run(1000);
+    proc.setMorphPosition(1.0f, 0.0f);
+    reference->setMorphPosition(1.0f, 0.0f);
+    for (int checkpoint = 0; checkpoint < 4; ++checkpoint) {
+        run(240);
+        const float band = proc.getMorphEngine()->getSmoothedX();
+        const float ref = reference->getSmoothedX();
+        INFO("after " << (checkpoint + 1) * 240 << " frames: band X = " << band << ", reference X = " << ref);
+        REQUIRE(std::abs(band - ref) < 1e-6f);
+    }
+}
+
+// D-138 (fix plan T1.05 / T1.06): 10 ms of smoothing must reach 99 % of a step
+// in 10 ms of host time (480 samples at 48 kHz), and not in half of it.
+// [!shouldfail] until T1.06: the engines' smoothers are still configured at 8x
+// the host rate but advanced once per host sample (one engine per channel since
+// T1.05), so 10 ms reads 80 ms (X = 0.46 after 480 samples). T1.06 configures
+// them at the rate they run and must remove the tag (and tighten the lower bound
+// to 336 samples); a pass while the tag is present fails the gate.
+TEST_CASE("BandProcessor morph smoothing reaches 99 % in the configured time",
+          "[disrumpo][morph][D-138][!shouldfail]") {
+    constexpr double kSr = 48000.0;
+    Disrumpo::BandProcessor proc;
+    proc.prepare(kSr, kBlockSize);
+    proc.setMorphNodes(createTwoNodeSetup(), 2);
+    proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
+    proc.setMorphSmoothingTime(10.0f);
+    proc.setMorphPosition(0.0f, 0.0f);
+    settleBandProcessor(proc, 48000);
+    REQUIRE(proc.getMorphEngine()->getSmoothedX() < 1e-4f);
+
+    proc.setMorphPosition(1.0f, 0.0f);
+    settleBandProcessor(proc, 240);
+    const float atHalf = proc.getMorphEngine()->getSmoothedX();
+    settleBandProcessor(proc, 240);
+    const float atFull = proc.getMorphEngine()->getSmoothedX();
+    INFO("smoothed X after 240 samples = " << atHalf << ", after 480 samples = " << atFull);
+    CHECK(atHalf < 0.99f);
+    CHECK(atFull >= 0.99f);
 }
 
 TEST_CASE("BandProcessor processBlock uses morph engine", "[band][morph][FR-010]") {
@@ -307,7 +392,7 @@ TEST_CASE("BandProcessor processBlock uses morph engine", "[band][morph][FR-010]
 
     // Fill with test signal
     for (size_t i = 0; i < 256; ++i) {
-        left[i] = 0.5f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+        left[i] = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * static_cast<float>(i) / 44100.0f);
         right[i] = left[i];
     }
 
@@ -361,11 +446,11 @@ TEST_CASE("DIAG: DistortionAdapters produce different output for different types
 
     // Set up SoftClip
     adapterA.setType(Disrumpo::DistortionType::SoftClip);
-    adapterA.setCommonParams({1.5f, 1.0f, 8000.0f});
+    adapterA.setCommonParams({.drive = 1.5f, .mix = 1.0f, .toneHz = 8000.0f});
 
     // Set up Bitcrush — low bit depth to ensure visible quantization
     adapterB.setType(Disrumpo::DistortionType::Bitcrush);
-    adapterB.setCommonParams({1.5f, 1.0f, 8000.0f});
+    adapterB.setCommonParams({.drive = 1.5f, .mix = 1.0f, .toneHz = 8000.0f});
     Disrumpo::DistortionParams bParams;
     bParams.bitDepth = 2.0f;
     adapterB.setParams(bParams);

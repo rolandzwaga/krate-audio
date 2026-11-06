@@ -21,6 +21,7 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <numbers>
 #include <vector>
 
 using namespace Disrumpo;
@@ -29,10 +30,14 @@ using namespace Disrumpo;
 // T11.083: Latency reporting (SC-012)
 // =============================================================================
 
+// BandProcessor holds two DistortionAdapters (one per channel, ~340 KB in all) and MSVC gives
+// every SECTION's locals their own slot in the case's frame: cases with three or more of them
+// keep them on the heap so the frame stays under the 1 MB Windows thread stack.
 TEST_CASE("BandProcessor: getLatency returns 0 (IIR mode)",
           "[oversampling][performance][SC-012]") {
 
-    BandProcessor bp;
+    auto bpOwner = std::make_unique<BandProcessor>();
+    auto& bp = *bpOwner;
     bp.prepare(44100.0, 512);
 
     SECTION("latency is 0 for all factor values") {
@@ -47,12 +52,14 @@ TEST_CASE("BandProcessor: getLatency returns 0 (IIR mode)",
     }
 
     SECTION("latency is 0 at different sample rates") {
-        BandProcessor bp48;
+        auto bp48Owner = std::make_unique<BandProcessor>();
+        auto& bp48 = *bp48Owner;
         bp48.prepare(48000.0, 512);
         bp48.setDistortionType(DistortionType::HardClip);
         CHECK(bp48.getLatency() == 0);
 
-        BandProcessor bp96;
+        auto bp96Owner = std::make_unique<BandProcessor>();
+        auto& bp96 = *bp96Owner;
         bp96.prepare(96000.0, 512);
         bp96.setDistortionType(DistortionType::HardClip);
         CHECK(bp96.getLatency() == 0);
@@ -80,7 +87,7 @@ TEST_CASE("BandProcessor: uses ZeroLatency oversampling mode",
     std::array<float, kBlockSize> left{};
     std::array<float, kBlockSize> right{};
     for (size_t i = 0; i < kBlockSize; ++i) {
-        left[i] = 0.3f * std::sin(2.0f * 3.14159f * 440.0f *
+        left[i] = 0.3f * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f *
                   static_cast<float>(i) / 44100.0f);
         right[i] = left[i];
     }
@@ -109,13 +116,13 @@ TEST_CASE("BandProcessor: latency does not change when factors change",
 
     // Record latency with different types
     bp.setDistortionType(DistortionType::HardClip);
-    int latency4x = bp.getLatency();
+    int latency4x = BandProcessor::getLatency();
 
     bp.setDistortionType(DistortionType::SoftClip);
-    int latency2x = bp.getLatency();
+    int latency2x = BandProcessor::getLatency();
 
     bp.setDistortionType(DistortionType::Bitcrush);
-    int latency1x = bp.getLatency();
+    int latency1x = BandProcessor::getLatency();
 
     // All should be identical (0 for IIR mode)
     CHECK(latency4x == latency2x);
@@ -170,7 +177,7 @@ TEST_CASE("BandProcessor: CPU benchmarks",
     // Helper: Fill buffer with test signal
     auto fillBuffer = [](float* left, float* right, size_t n) {
         for (size_t i = 0; i < n; ++i) {
-            float val = 0.3f * std::sin(2.0f * 3.14159f * 440.0f *
+            float val = 0.3f * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f *
                         static_cast<float>(i) / 44100.0f);
             left[i] = val;
             right[i] = val;
@@ -178,7 +185,8 @@ TEST_CASE("BandProcessor: CPU benchmarks",
     };
 
     SECTION("SC-002: 1 band at 1x") {
-        BandProcessor bp;
+        auto bpOwner = std::make_unique<BandProcessor>();
+        auto& bp = *bpOwner;
         bp.prepare(kSampleRate, kBlockSize);
         bp.setDistortionType(DistortionType::Bitcrush);
 
@@ -199,7 +207,8 @@ TEST_CASE("BandProcessor: CPU benchmarks",
     }
 
     SECTION("SC-001: 1 band at 4x") {
-        BandProcessor bp;
+        auto bpOwner = std::make_unique<BandProcessor>();
+        auto& bp = *bpOwner;
         bp.prepare(kSampleRate, kBlockSize);
         bp.setDistortionType(DistortionType::HardClip);
 
@@ -220,7 +229,8 @@ TEST_CASE("BandProcessor: CPU benchmarks",
     }
 
     SECTION("SC-010: bypassed band") {
-        BandProcessor bp;
+        auto bpOwner = std::make_unique<BandProcessor>();
+        auto& bp = *bpOwner;
         bp.prepare(kSampleRate, kBlockSize);
         bp.setDistortionType(DistortionType::HardClip);
         bp.setBypassed(true);
@@ -236,7 +246,8 @@ TEST_CASE("BandProcessor: CPU benchmarks",
     }
 
     SECTION("SC-007: factor selection overhead") {
-        BandProcessor bp;
+        auto bpOwner = std::make_unique<BandProcessor>();
+        auto& bp = *bpOwner;
         bp.prepare(kSampleRate, kBlockSize);
 
         BENCHMARK("recalculateOversampleFactor (single type)") {
@@ -262,13 +273,13 @@ TEST_CASE("BandProcessor: end-to-end latency does not exceed 10ms",
     bp.setDistortionType(DistortionType::HardClip);
 
     // Latency = 0 samples = 0ms, well under 10ms
-    float latencyMs = static_cast<float>(bp.getLatency()) / 44100.0f * 1000.0f;
+    float latencyMs = static_cast<float>(BandProcessor::getLatency()) / 44100.0f * 1000.0f;
     CHECK(latencyMs < 10.0f);
 
     // Also check at 96kHz
     BandProcessor bp96;
     bp96.prepare(96000.0, 512);
     bp96.setDistortionType(DistortionType::HardClip);
-    float latencyMs96 = static_cast<float>(bp96.getLatency()) / 96000.0f * 1000.0f;
+    float latencyMs96 = static_cast<float>(BandProcessor::getLatency()) / 96000.0f * 1000.0f;
     CHECK(latencyMs96 < 10.0f);
 }

@@ -30,6 +30,7 @@
 #include <array>
 #include <cstring>
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <numbers>
 
@@ -106,27 +107,32 @@ public:
                                     Krate::DSP::OversamplingQuality::Economy,
                                     Krate::DSP::OversamplingMode::ZeroLatency);
 
-        // Prepare distortion adapter at oversampled rate
+        // Prepare distortion adapters at oversampled rate (one per channel: the
+        // adapters are mono and stateful, D-016)
         // We prepare at 8x rate to support all oversampling factors
-        distortion_.prepare(sampleRate * kMaxOversampleFactor,
-                           static_cast<int>(maxBlockSize_ * kMaxOversampleFactor));
-
         // Default to distortion bypassed (drive=0 is passthrough per spec)
         DistortionCommonParams defaultParams;
         defaultParams.drive = 0.0f;  // Bypass distortion by default
         defaultParams.mix = 1.0f;
         defaultParams.toneHz = 4000.0f;
-        distortion_.setCommonParams(defaultParams);
-
-        // Allocate and prepare morph engine at oversampled rate
-        // Allocated on heap to avoid stack overflow
-        morphEngine_ = std::make_unique<MorphEngine>();
-        morphEngine_->prepare(sampleRate * kMaxOversampleFactor,
+        for (DistortionAdapter* adapter : {&distortionL_, &distortionR_}) {
+            adapter->prepare(sampleRate * kMaxOversampleFactor,
                              static_cast<int>(maxBlockSize_ * kMaxOversampleFactor));
-        // The new engine starts at Linear1D / 10 ms: re-apply the configured
-        // mode and smoothing (D-132)
-        morphEngine_->setMode(cachedMorphMode_);
-        morphEngine_->setSmoothingTime(cachedSmoothingMs_);
+            adapter->setCommonParams(defaultParams);
+        }
+
+        // Allocate and prepare one morph engine per channel at oversampled rate
+        // Allocated on heap to avoid stack overflow
+        morphEngineL_ = std::make_unique<MorphEngine>();
+        morphEngineR_ = std::make_unique<MorphEngine>();
+        forEachMorphEngine([this](MorphEngine& engine) {
+            engine.prepare(sampleRate_ * kMaxOversampleFactor,
+                           static_cast<int>(maxBlockSize_ * kMaxOversampleFactor));
+            // The new engine starts at Linear1D / 10 ms: re-apply the configured
+            // mode and smoothing (D-132)
+            engine.setMode(cachedMorphMode_);
+            engine.setSmoothingTime(cachedSmoothingMs_);
+        });
 
         // Initialize crossfade state
         crossfadeActive_ = false;
@@ -152,10 +158,9 @@ public:
         oversampler2x_.reset();
         oversampler4x_.reset();
         oversampler8xInner_.reset();
-        distortion_.reset();
-        if (morphEngine_) {
-            (*morphEngine_).reset();
-        }
+        distortionL_.reset();
+        distortionR_.reset();
+        forEachMorphEngine([](MorphEngine& engine) { engine.reset(); });
 
         // Reset crossfade state
         crossfadeActive_ = false;
@@ -210,34 +215,37 @@ public:
     /// Modified for spec 009: triggers recalculateOversampleFactor()
     /// @param type The distortion type from DistortionType enum
     void setDistortionType(DistortionType type) noexcept {
-        distortion_.setType(type);
+        distortionL_.setType(type);
+        distortionR_.setType(type);
         // FR-017: Recalculate oversampling factor when type changes
         recalculateOversampleFactor();
     }
 
     /// @brief Get the current distortion type.
     [[nodiscard]] DistortionType getDistortionType() const noexcept {
-        return distortion_.getType();
+        return distortionL_.getType();
     }
 
     /// @brief Set common distortion parameters (drive, mix, tone).
     void setDistortionCommonParams(const DistortionCommonParams& params) noexcept {
-        distortion_.setCommonParams(params);
+        distortionL_.setCommonParams(params);
+        distortionR_.setCommonParams(params);
     }
 
     /// @brief Get common distortion parameters.
     [[nodiscard]] const DistortionCommonParams& getDistortionCommonParams() const noexcept {
-        return distortion_.getCommonParams();
+        return distortionL_.getCommonParams();
     }
 
     /// @brief Set type-specific distortion parameters.
     void setDistortionParams(const DistortionParams& params) noexcept {
-        distortion_.setParams(params);
+        distortionL_.setParams(params);
+        distortionR_.setParams(params);
     }
 
     /// @brief Get type-specific distortion parameters.
     [[nodiscard]] const DistortionParams& getDistortionParams() const noexcept {
-        return distortion_.getParams();
+        return distortionL_.getParams();
     }
 
     // =========================================================================
@@ -249,8 +257,8 @@ public:
     /// @param nodes Array of morph nodes (fixed size kMaxMorphNodes)
     /// @param activeCount Number of active nodes (2-4)
     void setMorphNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, int activeCount) noexcept {
-        if (morphEngine_) {
-            morphEngine_->setNodes(nodes, activeCount);
+        if (morphEngineL_) {
+            forEachMorphEngine([&](MorphEngine& engine) { engine.setNodes(nodes, activeCount); });
             morphEnabled_ = true;
             morphActiveNodeCount_ = activeCount;
             morphNodes_ = nodes;
@@ -263,9 +271,7 @@ public:
     /// @param mode The morph mode
     void setMorphMode(MorphMode mode) noexcept {
         cachedMorphMode_ = mode;
-        if (morphEngine_) {
-            morphEngine_->setMode(mode);
-        }
+        forEachMorphEngine([mode](MorphEngine& engine) { engine.setMode(mode); });
     }
 
     /// @brief Set morph cursor position.
@@ -273,8 +279,9 @@ public:
     /// @param x X position [0, 1]
     /// @param y Y position [0, 1]
     void setMorphPosition(float x, float y) noexcept {
-        if (morphEngine_) {
-            morphEngine_->setMorphPosition(x, y);
+        if (morphEngineL_) {
+            // Both engines get the same target, so their cursor smoothers stay in step
+            forEachMorphEngine([x, y](MorphEngine& engine) { engine.setMorphPosition(x, y); });
             // Cache target position for factor computation (not smoothed)
             morphTargetX_ = std::clamp(x, 0.0f, 1.0f);
             morphTargetY_ = std::clamp(y, 0.0f, 1.0f);
@@ -287,9 +294,7 @@ public:
     /// @param timeMs Smoothing time in milliseconds (0-500)
     void setMorphSmoothingTime(float timeMs) noexcept {
         cachedSmoothingMs_ = timeMs;
-        if (morphEngine_) {
-            morphEngine_->setSmoothingTime(timeMs);
-        }
+        forEachMorphEngine([timeMs](MorphEngine& engine) { engine.setSmoothingTime(timeMs); });
     }
 
     /// @brief Set drive/mix modulation offsets from the modulation engine.
@@ -302,9 +307,9 @@ public:
     void setDriveMixModOffset(float driveOffset, float mixOffset) noexcept {
         driveModOffset_ = driveOffset;
         mixModOffset_ = mixOffset;
-        if (morphEngine_) {
-            morphEngine_->setDriveMixModOffset(driveOffset, mixOffset);
-        }
+        forEachMorphEngine([driveOffset, mixOffset](MorphEngine& engine) {
+            engine.setDriveMixModOffset(driveOffset, mixOffset);
+        });
     }
 
     /// @brief Set tone and bias modulation offsets for this band.
@@ -316,9 +321,9 @@ public:
     void setToneBiasModOffset(float toneOffset, float biasOffset) noexcept {
         toneModOffset_ = toneOffset;
         biasModOffset_ = biasOffset;
-        if (morphEngine_) {
-            morphEngine_->setToneBiasModOffset(toneOffset, biasOffset);
-        }
+        forEachMorphEngine([toneOffset, biasOffset](MorphEngine& engine) {
+            engine.setToneBiasModOffset(toneOffset, biasOffset);
+        });
     }
 
     /// @brief Enable or disable morph engine.
@@ -350,14 +355,15 @@ public:
     /// @brief Get current morph weights (for UI/visualization).
     [[nodiscard]] const std::array<float, kMaxMorphNodes>& getMorphWeights() const noexcept {
         static const std::array<float, kMaxMorphNodes> kDefaultWeights = {0.5f, 0.5f, 0.0f, 0.0f};
-        if (morphEngine_) {
-            return morphEngine_->getWeights();
+        if (morphEngineL_) {
+            return morphEngineL_->getWeights();
         }
         return kDefaultWeights;
     }
 
-    /// @brief Get MorphEngine for testing.
-    [[nodiscard]] const MorphEngine* getMorphEngine() const noexcept { return morphEngine_.get(); }
+    /// @brief Get the left channel's MorphEngine for testing (both channels'
+    /// engines receive identical configuration).
+    [[nodiscard]] const MorphEngine* getMorphEngine() const noexcept { return morphEngineL_.get(); }
 
     // =========================================================================
     // Oversampling Configuration (spec 009-intelligent-oversampling)
@@ -399,7 +405,7 @@ public:
     void recalculateOversampleFactor() noexcept {
         int newFactor = 0;
 
-        if (morphEnabled_ && morphEngine_) {
+        if (morphEnabled_ && morphEngineL_) {
             // FR-003: Morph-weighted factor computation
             // Use raw weights computed from target position (not smoothed)
             // to ensure immediate factor selection when position changes.
@@ -409,7 +415,7 @@ public:
         } else {
             // FR-002: Single-type factor selection
             newFactor = getSingleTypeOversampleFactor(
-                distortion_.getType(), maxOversampleFactor_);
+                distortionL_.getType(), maxOversampleFactor_);
         }
 
         // FR-017: Only trigger crossfade if factor actually changed (hysteresis)
@@ -445,15 +451,15 @@ public:
         blockModActive_ = false;
         if (!morphEnabled_ && (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f
                              || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f)) {
-            savedCommonParams_ = distortion_.getCommonParams();
-            savedDistortionParams_ = distortion_.getParams();
-            distortion_.setCommonParams({
+            savedCommonParams_ = distortionL_.getCommonParams();
+            savedDistortionParams_ = distortionL_.getParams();
+            setDistortionCommonParams({
                 .drive = std::clamp(savedCommonParams_.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f),
                 .mix = std::clamp(savedCommonParams_.mix + mixModOffset_, 0.0f, 1.0f),
                 .toneHz = std::clamp(savedCommonParams_.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f)});
             auto modParams = savedDistortionParams_;
             modParams.bias = std::clamp(modParams.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
-            distortion_.setParams(modParams);
+            setDistortionParams(modParams);
             blockModActive_ = true;
         }
     }
@@ -462,8 +468,8 @@ public:
     /// Must be called after the per-sample loop if beginBlockModulation() was called.
     void endBlockModulation() noexcept {
         if (blockModActive_) {
-            distortion_.setCommonParams(savedCommonParams_);
-            distortion_.setParams(savedDistortionParams_);
+            setDistortionCommonParams(savedCommonParams_);
+            setDistortionParams(savedDistortionParams_);
             blockModActive_ = false;
         }
     }
@@ -488,16 +494,16 @@ public:
         right *= sweep;
 
         // Step 2: Distortion/Morph processing
-        if (morphEnabled_ && morphEngine_) {
-            // FR-010: Use MorphEngine for morphed distortion
-            left = morphEngine_->process(left);
-            right = morphEngine_->process(right);
+        if (morphEnabled_ && morphEngineL_) {
+            // FR-010: Use MorphEngine for morphed distortion (one per channel, D-016)
+            left = morphEngineL_->process(left);
+            right = morphEngineR_->process(right);
         } else {
             // Legacy single distortion path (drive/mix modulation already
             // applied by beginBlockModulation() at block rate)
-            if (distortion_.getCommonParams().drive >= 0.0001f) {
-                left = distortion_.process(left);
-                right = distortion_.process(right);
+            if (distortionL_.getCommonParams().drive >= 0.0001f) {
+                left = distortionL_.process(left);
+                right = distortionR_.process(right);
             }
         }
 
@@ -572,6 +578,17 @@ public:
     }
 
 private:
+    /// @brief Apply a configuration call to both channels' MorphEngines (no-op before prepare()).
+    template <typename Fn>
+    void forEachMorphEngine(const Fn& fn) noexcept {
+        if (morphEngineL_) {
+            fn(*morphEngineL_);
+        }
+        if (morphEngineR_) {
+            fn(*morphEngineR_);
+        }
+    }
+
     // =========================================================================
     // Oversampling Factor Computation Helpers
     // =========================================================================
@@ -632,7 +649,7 @@ private:
     /// @param factor Oversampling factor to use (1, 2, 4, or 8)
     void processWithFactor(float* left, float* right, size_t numSamples, int factor) noexcept {
         // Drive gate check
-        const float drive = distortion_.getCommonParams().drive;
+        const float drive = distortionL_.getCommonParams().drive;
         const bool bypassDistortion = (drive < 0.0001f);
 
         if (bypassDistortion || factor == 1) {
@@ -755,12 +772,12 @@ private:
             right[i] *= targetSweep_;
 
             // Distortion/Morph processing (FR-010)
-            if (morphEnabled_ && morphEngine_) {
-                left[i] = morphEngine_->process(left[i]);
-                right[i] = morphEngine_->process(right[i]);
+            if (morphEnabled_ && morphEngineL_) {
+                left[i] = morphEngineL_->process(left[i]);
+                right[i] = morphEngineR_->process(right[i]);
             } else {
-                left[i] = distortion_.process(left[i]);
-                right[i] = distortion_.process(right[i]);
+                left[i] = distortionL_.process(left[i]);
+                right[i] = distortionR_.process(right[i]);
             }
         }
     }
@@ -805,13 +822,15 @@ private:
     float targetMute_ = 0.0f;
     float targetSweep_ = 1.0f;
 
-    // Distortion (legacy single adapter, used when morphEnabled_ = false)
-    DistortionAdapter distortion_;
+    // Distortion (legacy single adapter per channel, used when morphEnabled_ = false)
+    DistortionAdapter distortionL_;
+    DistortionAdapter distortionR_;
 
-    // MorphEngine for morphed distortion (FR-010)
+    // MorphEngines for morphed distortion (FR-010), one per channel (D-016)
     // Using unique_ptr to avoid stack overflow - MorphEngine contains 5 DistortionAdapters
     // which would make BandProcessor too large for stack allocation.
-    std::unique_ptr<MorphEngine> morphEngine_;
+    std::unique_ptr<MorphEngine> morphEngineL_;
+    std::unique_ptr<MorphEngine> morphEngineR_;
     bool morphEnabled_ = false;  // Default to legacy mode for backward compatibility
     bool bypassed_ = false;       // FR-012: Band bypass flag
 

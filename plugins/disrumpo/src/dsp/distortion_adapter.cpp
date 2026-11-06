@@ -31,16 +31,9 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize) noexcept {
     dcBlocker_.prepare(sampleRate, 10.0f);
 
     // Prepare all saturation-category processors
-    saturation_.prepare(sampleRate, blockSize);
     tube_.prepare(sampleRate, blockSize);
     tape_.prepare(sampleRate, blockSize);
     fuzz_.prepare(sampleRate, blockSize);
-
-    // Prepare direct waveshapers for sample-by-sample processing
-    tubeShaper_.setType(Krate::DSP::WaveshapeType::Tube);
-    tubeShaper_.setDrive(1.0f);
-    tapeShaper_.setType(Krate::DSP::WaveshapeType::Tanh);
-    tapeShaper_.setDrive(1.5f);
 
     // Prepare tape-specific processing
     tapeHfFilter_.prepare(sampleRate);
@@ -88,12 +81,6 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize) noexcept {
     fractal_.prepare(sampleRate, blockSize);
     stochastic_.prepare(sampleRate);
 
-    // Reset ring buffer state
-    inputRingBuffer_.fill(0.0f);
-    outputRingBuffer_.fill(0.0f);
-    ringWritePos_ = 0;
-    ringReadPos_ = 0;
-
     // Update DC blocker and block-based state for current type
     updateDCBlockerState();
 }
@@ -106,7 +93,6 @@ void DistortionAdapter::reset() noexcept {
     dcBlocker_.reset();
 
     // Reset all processors
-    saturation_.reset();
     tube_.reset();
     tape_.reset();
     fuzz_.reset();
@@ -130,12 +116,6 @@ void DistortionAdapter::reset() noexcept {
     bodyFilter_.reset();
     wavefoldSmoothFilter_.reset();
     flutterPhase_ = 0.0f;
-
-    // Reset ring buffer state
-    inputRingBuffer_.fill(0.0f);
-    outputRingBuffer_.fill(0.0f);
-    ringWritePos_ = 0;
-    ringReadPos_ = 0;
 }
 
 // =============================================================================
@@ -146,19 +126,16 @@ void DistortionAdapter::setType(DistortionType type) noexcept {
     currentType_ = type;
     updateDCBlockerState();
 
-    // Update block-based state
+    // Update block-based latency
     switch (type) {
         case DistortionType::Spectral:
-            isBlockBased_ = true;
             blockLatency_ = typeParams_.fftSize;
             break;
         case DistortionType::Granular:
-            isBlockBased_ = true;
             // Grain size in samples = grainSizeMs * sampleRate / 1000
             blockLatency_ = static_cast<int>(typeParams_.grainSizeMs * sampleRate_ / 1000.0);
             break;
         default:
-            isBlockBased_ = false;
             blockLatency_ = 0;
             break;
     }
