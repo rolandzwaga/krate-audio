@@ -417,7 +417,17 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     Disrumpo::BandProcessor proc;
     proc.prepare(kSampleRate, 512);
 
-    auto nodes = createSameFamilySetup();
+    // Two cross-family nodes at drive 0.5 (both near-linear): SoftClip (Saturation) and
+    // SineFold (Wavefold), so the parallel cross-family blend is what is measured.
+    std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+    nodes[0] = Disrumpo::MorphNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip);
+    nodes[0].commonParams.drive = 0.5f;
+    nodes[0].commonParams.mix = 1.0f;
+    nodes[1] = Disrumpo::MorphNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::SineFold);
+    nodes[1].commonParams.drive = 0.5f;
+    nodes[1].commonParams.mix = 1.0f;
+    nodes[2] = Disrumpo::MorphNode(2, 0.0f, 1.0f, Disrumpo::DistortionType::Fuzz);
+    nodes[3] = Disrumpo::MorphNode(3, 1.0f, 1.0f, Disrumpo::DistortionType::SineFold);
     proc.setMorphNodes(nodes, 2);
     proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
     proc.setMorphSmoothingTime(0.1f);  // Very fast for level measurement
@@ -492,12 +502,9 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     INFO("Level at position 1: " << levelB_dB << " dB");
     INFO("Average reference: " << avgRef_dB << " dB");
 
-    // SC-002: Within 1dB of single-type output
-    // Given the spec says "within 1dB", we check the middle point
-    // Relaxed to 3dB for the same-family case which has different
-    // distortion characteristics between types
+    // SC-002: Within 1dB of single-type output at the middle point
     float diffMid = std::abs(levelMid_dB - avgRef_dB);
-    REQUIRE(diffMid < 3.0f);
+    REQUIRE(diffMid < 1.0f);
 }
 
 // Measurement probe (hidden, fix plan T1.06): where the same-family sweep's max
@@ -508,8 +515,8 @@ TEST_CASE("Probe: AP-003 same-family max derivative sources", "[.][t106-ap003-pr
     std::vector<float> input(kTestDuration);
     TestHelpers::generateSweep(input.data(), input.size(), kSweepStartFreq, kSweepEndFreq,
                                static_cast<float>(kSampleRate), kInputAmplitude);
-    const auto nodes = createSameFamilySetup();
-    const auto report = [&](const char* label, const std::vector<float>& out) {
+    auto nodes = createSameFamilySetup();
+    const auto report =[&](const char* label, const std::vector<float>& out) {
         float maxD = 0.0f;
         size_t at = 0;
         for (size_t i = 1; i < out.size(); ++i) {
@@ -575,4 +582,9 @@ TEST_CASE("Probe: AP-003 same-family max derivative sources", "[.][t106-ap003-pr
         out.resize(kTestDuration * 9 / 10);
         report("new static pos 1, first 90 % (to 7210 Hz)", out);
     }
+    // T1.13: the cross-family sibling's setup (SoftClip drive 3 -> Bitcrush drive 2)
+    nodes = createCrossFamilySetup();
+    report("cross-family auto, smoothing 10 ms", bandRender(true, 0.0f, 10.0f));
+    report("cross-family static pos 0", bandRender(false, 0.0f, 10.0f));
+    report("cross-family static pos 1", bandRender(false, 1.0f, 10.0f));
 }

@@ -4,7 +4,7 @@
 // Core engine for morphing between 2-4 distortion types within each frequency band.
 // Uses inverse distance weighting for weight computation, supports three morph modes,
 // and handles both same-family parameter interpolation and cross-family parallel
-// processing with equal-power crossfade.
+// processing with a constant-voltage (weight-sum) crossfade.
 //
 // Real-time safe: no allocations after prepare().
 //
@@ -20,7 +20,6 @@
 #include "distortion_types.h"
 
 #include <krate/dsp/primitives/smoother.h>
-#include <krate/dsp/core/crossfade_utils.h>
 
 #include <algorithm>
 #include <array>
@@ -34,7 +33,7 @@ namespace Disrumpo {
 /// 1. Computes weights for each node based on cursor position and morph mode
 /// 2. Detects if nodes belong to the same family (optimization path)
 /// 3. For same-family: interpolates parameters through a single processor
-/// 4. For cross-family: processes in parallel with equal-power crossfade
+/// 4. For cross-family: processes in parallel with a constant-voltage crossfade
 ///
 /// Thread Safety:
 /// - prepare()/reset(): Call from non-audio thread only
@@ -165,7 +164,7 @@ public:
     ///
     /// The signal flow depends on whether nodes share a family:
     /// - Same family: Parameter interpolation through single processor
-    /// - Cross-family: Parallel processing with equal-power crossfade
+    /// - Cross-family: Parallel processing with a constant-voltage crossfade
     ///
     /// @param input Input sample
     /// @return Processed output sample
@@ -199,6 +198,10 @@ public:
     /// @param posY Cursor Y position [0, 1]
     void calculateMorphWeights(float posX, float posY) noexcept;
 
+    /// @brief Cross-family output gain of a node with normalized weight @p weight.
+    /// Constant-voltage law: the weight itself (0 and 1 exact), so the gains sum to 1.
+    [[nodiscard]] static float transitionGainForWeight(float weight) noexcept;
+
 private:
     // =========================================================================
     // Internal Methods
@@ -229,10 +232,6 @@ private:
     /// @brief Process using cross-family parallel processing.
     [[nodiscard]] float processCrossFamily(float input) noexcept;
 
-    /// @brief Apply transition zone gain for cross-family processing.
-    /// Per spec FR-008: 40-60% transition zone with equal-power ramp.
-    [[nodiscard]] float calculateTransitionGain(float weight) const noexcept;
-
     // =========================================================================
     // State
     // =========================================================================
@@ -255,9 +254,6 @@ private:
 
     // Computed weights (normalized, sum to 1.0)
     std::array<float, kMaxMorphNodes> weights_ = {0.5f, 0.5f, 0.0f, 0.0f};
-
-    // Transition zone gains (for cross-family processing)
-    std::array<float, kMaxMorphNodes> transitionGains_ = {1.0f, 1.0f, 1.0f, 1.0f};
 
     // Distortion adapters (one per potential node for cross-family processing)
     std::array<DistortionAdapter, kMaxMorphNodes> adapters_;

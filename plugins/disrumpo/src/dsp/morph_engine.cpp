@@ -26,12 +26,6 @@ constexpr float kOnNodeThreshold = 0.001f;
 // Note: Not currently used directly but documents the algorithm
 // constexpr float kIDWExponent = 2.0f;
 
-/// @brief Transition zone lower bound (40% weight).
-constexpr float kTransitionZoneLow = 0.4f;
-
-/// @brief Transition zone upper bound (60% weight).
-constexpr float kTransitionZoneHigh = 0.6f;
-
 // =============================================================================
 // Lifecycle
 // =============================================================================
@@ -84,7 +78,6 @@ void MorphEngine::reset() noexcept {
 
     // Reset weights to default (50/50 for 2-node)
     weights_ = {0.5f, 0.5f, 0.0f, 0.0f};
-    transitionGains_ = {1.0f, 1.0f, 1.0f, 1.0f};
 
     // Reset modulation offsets
     driveModOffset_ = 0.0f;
@@ -284,11 +277,6 @@ void MorphEngine::calculateMorphWeights(float posX, float posY) noexcept {
             weights_[i] /= totalAfterThreshold;
         }
     }
-
-    // Calculate transition zone gains for cross-family processing (FR-008)
-    for (int i = 0; i < activeNodeCount_; ++i) {
-        transitionGains_[i] = calculateTransitionGain(weights_[i]);
-    }
 }
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
@@ -369,34 +357,19 @@ void MorphEngine::calculateRadialWeights(float cursorX, float cursorY) noexcept 
     }
 }
 
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-float MorphEngine::calculateTransitionGain(float weight) const noexcept {
-    // FR-008: Transition zone 40-60%
-    // Below 40%: May deactivate (gain ramps down)
-    // 40-60%: Equal-power ramp up
-    // Above 60%: Fully active (gain = 1.0)
-
-    if (weight >= kTransitionZoneHigh) {
-        return 1.0f;  // Fully active
+float MorphEngine::transitionGainForWeight(float weight) noexcept {
+    // Constant-voltage law (T1.13): the gain is the normalized weight itself, so the
+    // gains of the active nodes sum to 1. Cross-family node outputs of the same input are
+    // coherent (correlation 0.987-0.9987 measured), so this is level-exact for identical
+    // nodes; an equal-power sqrt(w) law adds up to +3 dB at the midpoint. The endpoints
+    // are exact by branch.
+    if (weight <= 0.0f) {
+        return 0.0f;
     }
-    if (weight <= kWeightThreshold) {
-        return 0.0f;  // Deactivated
+    if (weight >= 1.0f) {
+        return 1.0f;
     }
-    if (weight < kTransitionZoneLow) {
-        // Below transition zone: linear ramp from 0 to entry level
-        const float normalizedPos = weight / kTransitionZoneLow;
-        float fadeOut = 0.0f;
-        float fadeIn = 0.0f;
-        Krate::DSP::equalPowerGains(normalizedPos, fadeOut, fadeIn);
-        return fadeIn;  // Use equal-power fade-in
-    }
-
-    // In transition zone (40-60%): equal-power ramp
-    const float zonePos = (weight - kTransitionZoneLow) / (kTransitionZoneHigh - kTransitionZoneLow);
-    float fadeOut = 0.0f;
-    float fadeIn = 0.0f;
-    Krate::DSP::equalPowerGains(zonePos, fadeOut, fadeIn);
-    return fadeIn;
+    return weight;
 }
 
 // =============================================================================
@@ -737,8 +710,8 @@ float MorphEngine::processSameFamily(float input) noexcept {
 }
 
 float MorphEngine::processCrossFamily(float input) noexcept {
-    // Cross-family: parallel processing with equal-power crossfade
-    // Per spec FR-007, FR-008
+    // Cross-family: parallel processing, outputs summed with constant-voltage gains
+    // (transitionGainForWeight). Per spec FR-007, FR-008, SC-002
 
     // Apply modulation offsets and the sweep drive multiplier to per-node adapters (from
     // base node params). A sweep multiplier change alone re-applies once, so its return
@@ -761,21 +734,11 @@ float MorphEngine::processCrossFamily(float input) noexcept {
 
     float output = 0.0f;
 
-    // Process each active node
+    // Every active node runs every sample, also below kWeightThreshold (its gain is then
+    // 0), so its filter and delay state never goes stale before its weight rises again.
     for (int i = 0; i < activeNodeCount_; ++i) {
-        const float weight = weights_[i];
-        if (weight < kWeightThreshold) continue;
-
-        // Apply transition zone gain (FR-008)
-        const float gain = transitionGains_[i];
-        if (gain < kWeightThreshold) continue;
-
-        // Process through this node's adapter
         const float nodeOutput = adapters_[i].process(input);
-
-        // Equal-power weighted sum
-        // Weight already normalized, apply transition gain for smooth activation
-        output += nodeOutput * weight * gain;
+        output += nodeOutput * transitionGainForWeight(weights_[i]);
     }
 
     return output;

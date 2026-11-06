@@ -297,22 +297,17 @@ TEST_CASE("MorphEngine cross-family - output level consistent across blend posit
     }
     float levelAt100 = measureOutputLevel(engine, testInput, measureSamples);
 
-    // With equal-power crossfade, level at 50% should be comparable to endpoints
-    // SC-002: Output level within 1dB at all blend positions
-    // 1dB = factor of ~1.12
+    // SC-002: Output level within 1dB at all blend positions (the two end levels are
+    // within 0.06 dB of each other here, so the spread of all three is the check)
     float maxLevel = std::max({levelAt0, levelAt50, levelAt100});
     float minLevel = std::min({levelAt0, levelAt50, levelAt100});
-
-    // Avoid division by zero
-    if (minLevel > 0.001f) {
-        float ratio = maxLevel / minLevel;
-        // 3dB = factor of ~1.41 (being generous due to different distortion characteristics)
-        INFO("Level ratio: " << ratio);
-        INFO("Level at 0%: " << levelAt0);
-        INFO("Level at 50%: " << levelAt50);
-        INFO("Level at 100%: " << levelAt100);
-        REQUIRE(ratio < 3.0f);  // Generous margin for different distortion types
-    }
+    REQUIRE(minLevel > 0.0f);
+    const float spreadDb = 20.0f * std::log10(maxLevel / minLevel);
+    INFO("Level spread: " << spreadDb << " dB");
+    INFO("Level at 0%: " << levelAt0);
+    INFO("Level at 50%: " << levelAt50);
+    INFO("Level at 100%: " << levelAt100);
+    REQUIRE(spreadDb < 1.0f);
 }
 
 // =============================================================================
@@ -442,7 +437,7 @@ TEST_CASE("MorphEngine same-family Fractal - identical nodes produce clean outpu
     refAdapter->setType(Disrumpo::DistortionType::Fractal);
     refAdapter->setParams(fracParams);
     refAdapter->setCommonParams(commonParams);
-    refAdapter->reset();
+    (*refAdapter).reset();
 
     // MorphEngine: two identical Fractal nodes, 50/50 blend (heap-allocated)
     auto engine = std::make_unique<Disrumpo::MorphEngine>();
@@ -469,7 +464,8 @@ TEST_CASE("MorphEngine same-family Fractal - identical nodes produce clean outpu
     }
 
     // Compare RMS output over 1 second
-    double morphSumSq = 0.0, refSumSq = 0.0;
+    double morphSumSq = 0.0;
+    double refSumSq = 0.0;
     const int testSamples = static_cast<int>(sampleRate);
     int morphDiscontinuities = 0;
     float morphPrev = 0.0f;
@@ -690,7 +686,7 @@ TEST_CASE("MorphEngine same-family Fractal - all modes long duration",
                     // legitimate large deltas (e.g., Harmonic mode Chebyshev polynomials)
                     if (delta > 0.6f) {
                         ++discontinuityCount;
-                        if (delta > worstDelta) worstDelta = delta;
+                        worstDelta = std::max(worstDelta, delta);
                     }
                 }
                 prevSample = sample;
@@ -759,7 +755,7 @@ TEST_CASE("MorphEngine same-family - non-Fractal types also correct after zero-i
             hasNaN = true;
         }
         float absSample = std::abs(sample);
-        if (absSample > peakOutput) peakOutput = absSample;
+        peakOutput = std::max(peakOutput, absSample);
 
         windowSumSq += static_cast<double>(sample) * static_cast<double>(sample);
         if (++windowIdx >= kWindowSamples) {
@@ -845,13 +841,13 @@ TEST_CASE("MorphEngine same-family Fractal - low drive still stable over time",
         }
 
         float absSample = std::abs(sample);
-        if (absSample > peakOutput) peakOutput = absSample;
+        peakOutput = std::max(peakOutput, absSample);
 
         if (i > 0) {
             float delta = std::abs(sample - prevSample);
             if (delta > 0.3f) {  // Lower threshold for low drive
                 ++discontinuityCount;
-                if (delta > worstDelta) worstDelta = delta;
+                worstDelta = std::max(worstDelta, delta);
             }
         }
         prevSample = sample;

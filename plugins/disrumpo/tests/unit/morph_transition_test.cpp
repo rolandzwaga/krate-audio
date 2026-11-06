@@ -13,9 +13,16 @@
 
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
+#include "dsp/distortion_adapter.h"
 #include "dsp/distortion_types.h"
 
+#include <test_helpers/artifact_detection.h>
+
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <numbers>
+#include <string>
 #include <vector>
 
 using Catch::Approx;
@@ -64,6 +71,121 @@ bool hasClicks(const std::vector<float>& output, float threshold = 0.1f) {
         }
     }
     return false;
+}
+
+// -----------------------------------------------------------------------------
+// Cross-family blend helpers (fix plan T1.13)
+// -----------------------------------------------------------------------------
+
+constexpr double kXfRate = 48000.0;
+constexpr float kXfFreq = 200.0f;          // 240 samples per period: 10 ms windows hold whole periods
+constexpr float kXfAmp = 0.25118864f;      // -12 dBFS
+constexpr int kXfBlock = 512;
+
+Disrumpo::MorphNode xfNode(int id, float x, float y, Disrumpo::DistortionType type, float drive) {
+    Disrumpo::MorphNode n(id, x, y, type);
+    n.commonParams.drive = drive;
+    n.commonParams.mix = 1.0f;
+    return n;
+}
+
+/// Two cross-family nodes: SoftClip at x = 0, SineFold at x = 1 (drive 3 = normalized 0.3).
+std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> xfTwoNodes(float drive = 3.0f) {
+    return {xfNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip, drive),
+            xfNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::SineFold, drive),
+            xfNode(2, 0.0f, 1.0f, Disrumpo::DistortionType::FullRectify, drive),
+            xfNode(3, 1.0f, 1.0f, Disrumpo::DistortionType::RingSaturation, drive)};
+}
+
+/// Four cross-family nodes at the corners: SoftClip, SineFold, FullRectify, RingSaturation.
+std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> xfFourNodes() { return xfTwoNodes(3.0f); }
+
+float xfInput(size_t n) {
+    return kXfAmp * std::sin(2.0f * std::numbers::pi_v<float> * kXfFreq *
+                             static_cast<float>(static_cast<double>(n) / kXfRate));
+}
+
+double rmsDb(const std::vector<float>& y, size_t from, size_t count) {
+    double sum = 0.0;
+    for (size_t i = from; i < from + count; ++i) {
+        sum += static_cast<double>(y[i]) * static_cast<double>(y[i]);
+    }
+    return 10.0 * std::log10(std::max(sum / static_cast<double>(count), 1e-30));
+}
+
+size_t xfClickCount(const std::vector<float>& y, size_t from, size_t count) {
+    Krate::DSP::TestUtils::ClickDetectorConfig cfg;
+    cfg.sampleRate = static_cast<float>(kXfRate);
+    cfg.frameSize = 512;
+    cfg.hopSize = 256;
+    cfg.detectionThreshold = 5.0f;
+    cfg.energyThresholdDb = -60.0f;
+    Krate::DSP::TestUtils::ClickDetector det(cfg);
+    det.prepare();
+    return det.detect(y.data() + from, count).size();
+}
+
+std::unique_ptr<Disrumpo::MorphEngine> makeXfEngine(
+    const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes>& nodes, int count,
+    Disrumpo::MorphMode mode, float smoothingMs) {
+    auto engine = std::make_unique<Disrumpo::MorphEngine>();
+    engine->prepare(kXfRate, kXfBlock);
+    engine->setNodes(nodes, count);
+    engine->setMode(mode);
+    engine->setSmoothingTime(smoothingMs);
+    return engine;
+}
+
+/// Level of one node's adapter alone over the samples [from, from + count) of a render of
+/// @p total samples of the test sine.
+double adapterAloneDb(const Disrumpo::MorphNode& node, size_t total, size_t from, size_t count) {
+    auto adapter = std::make_unique<Disrumpo::DistortionAdapter>();
+    adapter->prepare(kXfRate, kXfBlock);
+    adapter->setType(node.type);
+    adapter->setParams(node.params);
+    adapter->setCommonParams(node.commonParams);
+    std::vector<float> y(total);
+    for (size_t n = 0; n < total; ++n) y[n] = adapter->process(xfInput(n));
+    return rmsDb(y, from, count);
+}
+
+struct SweepResult {
+    double startDb = 0.0;
+    double endDb = 0.0;
+    double maxDevDb = 0.0;   // signed, largest |deviation| from the straight dB line
+    size_t clicks = 0;
+};
+
+/// 0.5 s held at the start corner, 2 s cursor sweep at block rate, 0.5 s held at the end.
+SweepResult crossFamilySweep(const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes>& nodes,
+                             int count, Disrumpo::MorphMode mode, bool diagonal) {
+    auto engine = makeXfEngine(nodes, count, mode, 10.0f);
+    engine->setMorphPosition(0.0f, 0.0f);
+    (*engine).reset();
+    const auto S = [](double s) { return static_cast<size_t>(s * kXfRate); };
+    const size_t total = S(3.0);
+    std::vector<float> y(total);
+    for (size_t start = 0; start < total; start += kXfBlock) {
+        const double t = static_cast<double>(start) / kXfRate;
+        float x = 0.0f;
+        if (t >= 0.5 && t < 2.5) x = static_cast<float>((t - 0.5) / 2.0);
+        else if (t >= 2.5) x = 1.0f;
+        engine->setMorphPosition(x, diagonal ? x : 0.0f);
+        const size_t end = std::min(total, start + static_cast<size_t>(kXfBlock));
+        for (size_t n = start; n < end; ++n) y[n] = engine->process(xfInput(n));
+    }
+    SweepResult r;
+    r.startDb = rmsDb(y, S(0.1), S(0.4));
+    r.endDb = rmsDb(y, S(2.6), S(0.4));
+    const size_t win = S(0.01);
+    for (size_t s = S(0.5); s + win <= S(2.5); s += win) {
+        const double frac = (static_cast<double>(s) + static_cast<double>(win) * 0.5 - static_cast<double>(S(0.5))) /
+                            static_cast<double>(S(2.0));
+        const double dev = rmsDb(y, s, win) - (r.startDb + (r.endDb - r.startDb) * frac);
+        if (std::abs(dev) > std::abs(r.maxDevDb)) r.maxDevDb = dev;
+    }
+    r.clicks = xfClickCount(y, S(0.5), S(2.0));
+    return r;
 }
 
 } // anonymous namespace
@@ -155,7 +277,7 @@ TEST_CASE("MorphEngine smoothing - rapid automation produces limited sample-to-s
     constexpr int numCycles = 10;
 
     std::vector<float> output;
-    output.reserve(samplesPerHalfCycle * 2 * numCycles);
+    output.reserve(static_cast<size_t>(samplesPerHalfCycle) * 2 * numCycles);
 
     for (int cycle = 0; cycle < numCycles; ++cycle) {
         // First half: position 0
@@ -269,13 +391,13 @@ TEST_CASE("MorphEngine handles 20Hz LFO modulation without artifacts", "[morph][
     constexpr int numPeriods = 5;
 
     std::vector<float> output;
-    output.reserve(samplesPerPeriod * numPeriods);
+    output.reserve(static_cast<size_t>(samplesPerPeriod) * numPeriods);
 
     // Simulate sine wave LFO at 20Hz
     for (int i = 0; i < samplesPerPeriod * numPeriods; ++i) {
         // LFO position oscillates between 0 and 1
         float lfoPhase = static_cast<float>(i) / static_cast<float>(samplesPerPeriod);
-        float lfoValue = (std::sin(lfoPhase * 2.0f * 3.14159265f) + 1.0f) * 0.5f;
+        float lfoValue = (std::sin(lfoPhase * 2.0f * std::numbers::pi_v<float>) + 1.0f) * 0.5f;
 
         engine.setMorphPosition(lfoValue, 0.0f);
         float out = engine.process(0.5f);
@@ -369,4 +491,311 @@ TEST_CASE("MorphEngine smoothing - reset clears smoother state", "[morph][transi
 
     // Position should snap to target
     REQUIRE(engine.getSmoothedX() == Approx(1.0f).margin(0.01f));
+}
+
+// =============================================================================
+// Cross-family blend law (fix plan T1.13: D-139, D-097, D-008, D-155, D-012, D-120)
+// =============================================================================
+
+// The cross-family gains follow a constant-voltage law (g_i = w_i, sum 1), not the
+// spec's "equal-power crossfade to maintain perceived loudness": that wording presumes
+// incoherent sources, but cross-family node outputs of the same input are coherent
+// (SoftClip/SineFold correlation 0.987 at drive 3, 0.9987 at drive 0.5), so sqrt(w) adds
+// +3 dB at the midpoint and fails SC-002's 1 dB ("Probe: T1.13 cross-family blend law
+// candidates").
+TEST_CASE("Cross-family sweep is level-flat and click-free", "[disrumpo][morph][SC-002][D-139]") {
+    // SC-002: within 1 dB of the straight dB line between the two end levels at every
+    // 10 ms window of a 2 s cursor sweep; SC-003: no clicks.
+    SECTION("2 nodes SoftClip -> SineFold, Linear1D, x 0 -> 1") {
+        const auto r = crossFamilySweep(xfTwoNodes(), 2, Disrumpo::MorphMode::Linear1D, false);
+        WARN("2-node sweep: start " << r.startDb << " dB, end " << r.endDb << " dB, max deviation "
+             << r.maxDevDb << " dB, clicks " << r.clicks);
+        CHECK(std::abs(r.maxDevDb) <= 1.0);
+        CHECK(r.clicks == 0);
+    }
+    SECTION("4 nodes SoftClip/SineFold/FullRectify/RingSat, Planar2D, (0,0) -> (1,1): clicks") {
+        // The level of this sweep is asserted by the [!shouldfail] case below.
+        const auto r = crossFamilySweep(xfFourNodes(), 4, Disrumpo::MorphMode::Planar2D, true);
+        WARN("4-node sweep: start " << r.startDb << " dB, end " << r.endDb << " dB, max deviation "
+             << r.maxDevDb << " dB, clicks " << r.clicks);
+        CHECK(r.clicks == 0);
+    }
+}
+
+// The linear law reads -2.06 dB here because FullRectify's output is incoherent with the
+// others; SC-002 as written is not achievable with any fixed per-weight law - awaiting the
+// ruling in specs/disrumpo-audit/follow-ups.md item 12 (re-scope SC-002 for >=3-node mixes
+// vs an adaptive power-matched blend). [!shouldfail] turns red when this passes.
+TEST_CASE("Cross-family 4-node diagonal sweep is level-flat",
+          "[disrumpo][morph][SC-002][D-139][!shouldfail]") {
+    const auto r = crossFamilySweep(xfFourNodes(), 4, Disrumpo::MorphMode::Planar2D, true);
+    WARN("4-node sweep: start " << r.startDb << " dB, end " << r.endDb << " dB, max deviation "
+         << r.maxDevDb << " dB");
+    CHECK(std::abs(r.maxDevDb) <= 1.0);
+}
+
+TEST_CASE("Transition gain is continuous in weight", "[disrumpo][morph][D-008]") {
+    using Disrumpo::MorphEngine;
+    // Exact endpoints (by branch, not by arithmetic)
+    REQUIRE(MorphEngine::transitionGainForWeight(0.0f) == 0.0f);
+    REQUIRE(MorphEngine::transitionGainForWeight(1.0f) == 1.0f);
+
+    const float across04 = std::abs(MorphEngine::transitionGainForWeight(0.3999f) -
+                                    MorphEngine::transitionGainForWeight(0.4001f));
+    float maxStep = 0.0f;
+    float maxStepAt = 0.0f;
+    int decreases = 0;
+    float prev = MorphEngine::transitionGainForWeight(0.0f);
+    for (int k = 1; k <= 10000; ++k) {
+        const float w = static_cast<float>(k) * 1e-4f;
+        const float g = MorphEngine::transitionGainForWeight(w);
+        if (g < prev) ++decreases;
+        if (std::abs(g - prev) > maxStep) {
+            maxStep = std::abs(g - prev);
+            maxStepAt = w;
+        }
+        prev = g;
+    }
+    WARN("gain step across w = 0.4: " << across04 << "; largest step on the 1e-4 grid " << maxStep
+         << " at w = " << maxStepAt << "; decreasing steps " << decreases);
+    CHECK(across04 < 0.01f);
+    CHECK(decreases == 0);
+
+    SECTION("summed level of a cross-family pair is continuous in the cursor") {
+        // x 0.40 -> 0.60 in 0.001 steps crosses wB = 0.4 (x = 0.4495) and wA = 0.4 (x = 0.5505)
+        auto engine = makeXfEngine(xfTwoNodes(), 2, Disrumpo::MorphMode::Linear1D, 0.0f);
+        engine->setMorphPosition(0.4f, 0.0f);
+        (*engine).reset();
+        constexpr size_t kWin = 480;  // 2 periods of 200 Hz
+        std::vector<float> y(2 * kWin);
+        size_t n = 0;
+        double prevDb = 0.0;
+        double maxJumpDb = 0.0;
+        float maxJumpX = 0.0f;
+        for (int k = 0; k <= 200; ++k) {
+            const float x = 0.4f + static_cast<float>(k) * 0.001f;
+            engine->setMorphPosition(x, 0.0f);
+            for (size_t i = 0; i < y.size(); ++i, ++n) y[i] = engine->process(xfInput(n));
+            const double db = rmsDb(y, kWin, kWin);
+            if (k > 0 && std::abs(db - prevDb) > maxJumpDb) {
+                maxJumpDb = std::abs(db - prevDb);
+                maxJumpX = x;
+            }
+            prevDb = db;
+        }
+        WARN("largest level jump between adjacent cursor steps (0.001): " << maxJumpDb
+             << " dB at x = " << maxJumpX);
+        CHECK(maxJumpDb < 0.1);
+    }
+}
+
+TEST_CASE("Cursor parked on a node after a mode switch plays that node at unity",
+          "[disrumpo][morph][D-155][D-012]") {
+    constexpr size_t kWin = 960;  // 4 periods of 200 Hz
+    const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> d155 = {
+        xfNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip, 3.0f),
+        xfNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::FullRectify, 3.0f),
+        xfNode(2, 0.0f, 1.0f, Disrumpo::DistortionType::SineFold, 3.0f),
+        xfNode(3, 1.0f, 1.0f, Disrumpo::DistortionType::RingSaturation, 3.0f)};
+
+    SECTION("Planar2D (0, 0.9) then Linear1D") {
+        auto engine = makeXfEngine(d155, 4, Disrumpo::MorphMode::Planar2D, 10.0f);
+        engine->setMorphPosition(0.0f, 0.9f);
+        std::vector<float> y(4000);
+        for (size_t n = 0; n < 2000; ++n) y[n] = engine->process(xfInput(n));
+        engine->setMode(Disrumpo::MorphMode::Linear1D);
+        for (size_t n = 2000; n < 4000; ++n) y[n] = engine->process(xfInput(n));
+        const double level = rmsDb(y, 4000 - kWin, kWin);
+        const double ref = adapterAloneDb(d155[0], 4000, 4000 - kWin, kWin);
+        WARN("after Planar2D -> Linear1D on node A: " << level << " dB, SoftClip alone " << ref
+             << " dB, delta " << (level - ref) << " dB");
+        CHECK(std::abs(level - ref) <= 0.5);
+    }
+    SECTION("fresh Linear1D 4-node band arriving at x = 0") {
+        auto engine = makeXfEngine(d155, 4, Disrumpo::MorphMode::Linear1D, 10.0f);
+        engine->setMorphPosition(0.0f, 0.0f);
+        std::vector<float> y(4000);
+        for (size_t n = 0; n < y.size(); ++n) y[n] = engine->process(xfInput(n));
+        const double level = rmsDb(y, 4000 - kWin, kWin);
+        const double ref = adapterAloneDb(d155[0], 4000, 4000 - kWin, kWin);
+        WARN("fresh Linear1D at x = 0: " << level << " dB, SoftClip alone " << ref << " dB, delta "
+             << (level - ref) << " dB");
+        CHECK(std::abs(level - ref) <= 0.5);
+    }
+    SECTION("node re-activated under a parked cursor (D-012), then off and back on") {
+        const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes = {
+            xfNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip, 3.0f),
+            xfNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::SoftClip, 3.0f),
+            xfNode(2, 0.0f, 1.0f, Disrumpo::DistortionType::Bitcrush, 3.0f),
+            xfNode(3, 1.0f, 1.0f, Disrumpo::DistortionType::SineFold, 3.0f)};
+        auto engine = makeXfEngine(nodes, 3, Disrumpo::MorphMode::Planar2D, 0.0f);
+        std::vector<float> y(10000);
+        size_t n = 0;
+        const auto run = [&](size_t count) {
+            for (size_t i = 0; i < count; ++i, ++n) y[n] = engine->process(xfInput(n));
+        };
+        engine->setMorphPosition(1.0f, 0.0f);  // park on B
+        run(2000);
+        engine->setNodes(nodes, 2);             // C leaves
+        engine->setMorphPosition(0.0f, 1.0f);   // C's corner, not an active node now
+        run(2000);
+        engine->setNodes(nodes, 3);             // C returns under the cursor
+        run(2000);
+        const double onC = rmsDb(y, 6000 - kWin, kWin);
+        const double refOnC = adapterAloneDb(nodes[2], 6000, 6000 - kWin, kWin);
+        engine->setMorphPosition(0.5f, 0.5f);
+        run(2000);
+        engine->setMorphPosition(0.0f, 1.0f);
+        run(2000);
+        const double backOnC = rmsDb(y, 10000 - kWin, kWin);
+        const double refBack = adapterAloneDb(nodes[2], 10000, 10000 - kWin, kWin);
+        WARN("C re-activated under the cursor: " << onC << " dB vs Bitcrush alone " << refOnC
+             << " dB; off and back on: " << backOnC << " dB vs " << refBack << " dB");
+        CHECK(std::abs(onC - refOnC) <= 0.5);
+        CHECK(std::abs(backOnC - refBack) <= 0.5);
+    }
+    SECTION("parked node changes type and drive") {
+        auto nodes = xfTwoNodes();
+        auto engine = makeXfEngine(nodes, 2, Disrumpo::MorphMode::Linear1D, 10.0f);
+        engine->setMorphPosition(0.0f, 0.0f);
+        std::vector<float> y(6000);
+        size_t n = 0;
+        const auto run = [&](size_t count) {
+            for (size_t i = 0; i < count; ++i, ++n) y[n] = engine->process(xfInput(n));
+        };
+        run(2000);
+        const double before = rmsDb(y, 2000 - kWin, kWin);
+        const double refBefore = adapterAloneDb(nodes[0], 2000, 2000 - kWin, kWin);
+        nodes[0].type = Disrumpo::DistortionType::Bitcrush;
+        engine->setNodes(nodes, 2);
+        run(2000);
+        const double afterType = rmsDb(y, 4000 - kWin, kWin);
+        const double refType = adapterAloneDb(nodes[0], 4000, 4000 - kWin, kWin);
+        nodes[0].commonParams.drive = 6.0f;
+        engine->setNodes(nodes, 2);
+        run(2000);
+        const double afterDrive = rmsDb(y, 6000 - kWin, kWin);
+        const double refDrive = adapterAloneDb(nodes[0], 6000, 6000 - kWin, kWin);
+        WARN("parked on A: SoftClip " << before << " dB (alone " << refBefore << "), -> Bitcrush "
+             << afterType << " dB (alone " << refType << "), -> drive 6 " << afterDrive
+             << " dB (alone " << refDrive << ")");
+        CHECK(std::abs(before - refBefore) <= 0.5);
+        CHECK(std::abs(afterType - refType) <= 0.5);
+        CHECK(std::abs(afterDrive - refDrive) <= 0.5);
+    }
+}
+
+TEST_CASE("Cross-family morph automation is click-free at every smoothing time",
+          "[disrumpo][morph][SC-003][D-139]") {
+    for (const float ms : {0.0f, 5.0f, 10.0f, 50.0f}) {
+        auto engine = makeXfEngine(xfTwoNodes(), 2, Disrumpo::MorphMode::Linear1D, ms);
+        engine->setMorphPosition(0.0f, 0.0f);
+        (*engine).reset();
+        const size_t hold = static_cast<size_t>(kXfRate * 0.25);
+        const size_t ramp = static_cast<size_t>(kXfRate);
+        std::vector<float> y(hold + 2 * ramp + hold);
+        for (size_t n = 0; n < y.size(); ++n) {
+            float x = 0.0f;
+            if (n >= hold && n < hold + ramp) x = static_cast<float>(n - hold) / static_cast<float>(ramp);
+            else if (n >= hold + ramp && n < hold + 2 * ramp)
+                x = 1.0f - static_cast<float>(n - hold - ramp) / static_cast<float>(ramp);
+            engine->setMorphPosition(x, 0.0f);
+            y[n] = engine->process(xfInput(n));
+        }
+        const size_t clicks = xfClickCount(y, 0, y.size());
+        WARN("smoothing " << ms << " ms: clicks " << clicks);
+        CHECK(clicks == 0);
+    }
+}
+
+// Measurement probe (hidden, fix plan T1.13): the summed level of a cross-family sweep
+// under three blend laws, computed offline from each node's adapter output rendered
+// alone (every node runs continuously). "old" = w * transition gain (pre-T1.13),
+// "linear" = w (the T1.13 law), "sqrt" = sqrt(w) (equal power for uncorrelated outputs),
+// "power-matched (ideal)" = output power set to sum(w_i * P_i) (not implemented).
+TEST_CASE("Probe: T1.13 cross-family blend law candidates", "[.][t113-law-probe]") {
+    const auto oldGain = [](float w) {
+        constexpr float kHalfPi = std::numbers::pi_v<float> * 0.5f;
+        if (w >= 0.6f) return 1.0f;
+        if (w <= 0.001f) return 0.0f;
+        if (w < 0.4f) return std::sin(w / 0.4f * kHalfPi);
+        return std::sin((w - 0.4f) / 0.2f * kHalfPi);
+    };
+    struct Setup {
+        const char* name = "";
+        std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+        int count = 2;
+        Disrumpo::MorphMode mode = Disrumpo::MorphMode::Linear1D;
+        bool diagonal = false;
+    };
+    const Setup setups[] = {
+        {.name = "neutral drive 0 (identical outputs)", .nodes = xfTwoNodes(0.0f)},
+        {.name = "SoftClip/SineFold drive 0.5", .nodes = xfTwoNodes(0.5f)},
+        {.name = "SoftClip/SineFold drive 3", .nodes = xfTwoNodes(3.0f)},
+        {.name = "4-node diagonal drive 3", .nodes = xfFourNodes(), .count = 4,
+         .mode = Disrumpo::MorphMode::Planar2D, .diagonal = true},
+    };
+    constexpr size_t kLen = 48000;
+    constexpr size_t kSkip = 9600;  // settle
+    for (const auto& s : setups) {
+        std::vector<std::vector<float>> streams;
+        for (int i = 0; i < s.count; ++i) {
+            auto a = std::make_unique<Disrumpo::DistortionAdapter>();
+            a->prepare(kXfRate, kXfBlock);
+            a->setType(s.nodes[static_cast<size_t>(i)].type);
+            a->setParams(s.nodes[static_cast<size_t>(i)].params);
+            a->setCommonParams(s.nodes[static_cast<size_t>(i)].commonParams);
+            std::vector<float> y(kLen);
+            for (size_t n = 0; n < kLen; ++n) y[n] = a->process(xfInput(n));
+            streams.push_back(std::move(y));
+        }
+        if (s.count == 2) {
+            double sab = 0.0;
+            double saa = 0.0;
+            double sbb = 0.0;
+            for (size_t n = kSkip; n < kLen; ++n) {
+                sab += static_cast<double>(streams[0][n]) * streams[1][n];
+                saa += static_cast<double>(streams[0][n]) * streams[0][n];
+                sbb += static_cast<double>(streams[1][n]) * streams[1][n];
+            }
+            WARN("PROBE t113 " << s.name << ": correlation " << sab / std::sqrt(saa * sbb));
+        }
+        auto engine = makeXfEngine(s.nodes, s.count, s.mode, 0.0f);
+        for (int law = 0; law < 4; ++law) {
+            const auto levelAt = [&](float x) {
+                engine->calculateMorphWeights(x, s.diagonal ? x : 0.0f);
+                const auto w = engine->getWeights();
+                std::vector<float> mix(kLen - kSkip, 0.0f);
+                double targetPower = 0.0;  // law 3: sum of w_i * P_i (ideal power-matched blend)
+                for (int i = 0; i < s.count; ++i) {
+                    const float wi = w[static_cast<size_t>(i)];
+                    float g = wi;  // linear, and the mix of law 3 (unused there)
+                    if (law == 0) g = wi * oldGain(wi);
+                    if (law == 2) g = std::sqrt(wi);
+                    for (size_t n = kSkip; n < kLen; ++n) mix[n - kSkip] += g * streams[static_cast<size_t>(i)][n];
+                    targetPower += wi * std::pow(10.0, rmsDb(streams[static_cast<size_t>(i)], kSkip, kLen - kSkip) / 10.0);
+                }
+                if (law == 3) return 10.0 * std::log10(targetPower);
+                return rmsDb(mix, 0, mix.size());
+            };
+            const double l0 = levelAt(0.0f);
+            const double l1 = levelAt(1.0f);
+            double maxDev = 0.0;
+            float at = 0.0f;
+            for (int k = 1; k < 200; ++k) {
+                const float x = static_cast<float>(k) / 200.0f;
+                const double dev = levelAt(x) - (l0 + (l1 - l0) * x);
+                if (std::abs(dev) > std::abs(maxDev)) {
+                    maxDev = dev;
+                    at = x;
+                }
+            }
+            static constexpr const char* kLaw[] = {"old", "linear", "sqrt", "power-matched (ideal)"};
+            WARN("PROBE t113 " << s.name << " law " << kLaw[law] << ": ends " << l0 << " / " << l1
+                 << " dB, max deviation from the dB line " << maxDev << " dB at x = " << at);
+        }
+        const auto r = crossFamilySweep(s.nodes, s.count, s.mode, s.diagonal);
+        WARN("PROBE t113 " << s.name << " real engine sweep: ends " << r.startDb << " / " << r.endDb
+             << " dB, max deviation " << r.maxDevDb << " dB, clicks " << r.clicks);
+    }
 }
