@@ -9,14 +9,14 @@ macro,note,macro_value,axis_reading,running_max_before,valid,pass
 "Weight",E1,0.3,-7.01677,-7.32308,1,PASS
 "Weight",E1,0.35,-6.73491,-7.01677,1,PASS
 "Weight",E1,0.4,-6.47064,-6.73491,1,PASS
-"Weight",E1,0.45,-6.21765,-6.47064,1,PASS
-"Weight",E1,0.5,-5.9717,-6.21765,1,PASS
+"Weight",E1,0.45,-6.21764,-6.47064,1,PASS
+"Weight",E1,0.5,-5.9717,-6.21764,1,PASS
 "Weight",E1,0.55,-5.9717,-5.9717,1,PASS
 "Weight",E1,0.6,-5.97169,-5.9717,1,PASS
 "Weight",E1,0.65,-5.97168,-5.97169,1,PASS
 "Weight",E1,0.7,-5.97166,-5.97168,1,PASS
-"Weight",E1,0.75,-5.97163,-5.97166,1,PASS
-"Weight",E1,0.8,-5.97161,-5.97163,1,PASS
+"Weight",E1,0.75,-5.97164,-5.97166,1,PASS
+"Weight",E1,0.8,-5.97161,-5.97164,1,PASS
 "Weight",E1,0.85,-5.97157,-5.97161,1,PASS
 "Weight",E1,0.9,-5.97154,-5.97157,1,PASS
 "Weight",E1,0.95,-5.97149,-5.97154,1,PASS
@@ -29,15 +29,15 @@ macro,note,macro_value,axis_reading,running_max_before,valid,pass
 "Weight",C3,0.25,-7.34398,-7.67939,1,PASS
 "Weight",C3,0.3,-7.03784,-7.34398,1,PASS
 "Weight",C3,0.35,-6.75609,-7.03784,1,PASS
-"Weight",C3,0.4,-6.49189,-6.75609,1,PASS
-"Weight",C3,0.45,-6.2389,-6.49189,1,PASS
-"Weight",C3,0.5,-5.99293,-6.2389,1,PASS
-"Weight",C3,0.55,-5.99293,-5.99293,1,PASS
+"Weight",C3,0.4,-6.49188,-6.75609,1,PASS
+"Weight",C3,0.45,-6.2389,-6.49188,1,PASS
+"Weight",C3,0.5,-5.99294,-6.2389,1,PASS
+"Weight",C3,0.55,-5.99293,-5.99294,1,PASS
 "Weight",C3,0.6,-5.99293,-5.99293,1,PASS
 "Weight",C3,0.65,-5.99291,-5.99293,1,PASS
-"Weight",C3,0.7,-5.9929,-5.99291,1,PASS
-"Weight",C3,0.75,-5.99288,-5.9929,1,PASS
-"Weight",C3,0.8,-5.99284,-5.99288,1,PASS
+"Weight",C3,0.7,-5.99289,-5.99291,1,PASS
+"Weight",C3,0.75,-5.99287,-5.99289,1,PASS
+"Weight",C3,0.8,-5.99284,-5.99287,1,PASS
 "Weight",C3,0.85,-5.99281,-5.99284,1,PASS
 "Weight",C3,0.9,-5.99277,-5.99281,1,PASS
 "Weight",C3,0.95,-5.99273,-5.99277,1,PASS
@@ -85,8 +85,8 @@ macro,note,macro_value,axis_reading,running_max_before,valid,pass
 "Dark <-> Bright",C3,0.95,1.10721,1.10197,1,PASS
 "Dark <-> Bright",C3,1,1.10924,1.10721,1,PASS
 "Tight <-> Loose",E1,0,998.805,998.805,1,PASS
-"Tight <-> Loose",E1,0.05,999.7,998.805,1,PASS
-"Tight <-> Loose",E1,0.1,1000.93,999.7,1,PASS
+"Tight <-> Loose",E1,0.05,999.699,998.805,1,PASS
+"Tight <-> Loose",E1,0.1,1000.93,999.699,1,PASS
 "Tight <-> Loose",E1,0.15,1002.49,1000.93,1,PASS
 "Tight <-> Loose",E1,0.2,1004.1,1002.49,1,PASS
 "Tight <-> Loose",E1,0.25,1005.1,1004.1,1,PASS
@@ -105,11 +105,11 @@ macro,note,macro_value,axis_reading,running_max_before,valid,pass
 "Tight <-> Loose",E1,0.9,1566.45,1397.92,1,PASS
 "Tight <-> Loose",E1,0.95,1798.64,1566.45,1,PASS
 "Tight <-> Loose",E1,1,2132.48,1798.64,1,PASS
-"Tight <-> Loose",C3,0,997.401,997.401,1,PASS
-"Tight <-> Loose",C3,0.05,997.475,997.401,1,PASS
-"Tight <-> Loose",C3,0.1,997.782,997.475,1,PASS
-"Tight <-> Loose",C3,0.15,999.036,997.782,1,PASS
-"Tight <-> Loose",C3,0.2,1000.56,999.036,1,PASS
+"Tight <-> Loose",C3,0,997.402,997.402,1,PASS
+"Tight <-> Loose",C3,0.05,997.477,997.402,1,PASS
+"Tight <-> Loose",C3,0.1,997.784,997.477,1,PASS
+"Tight <-> Loose",C3,0.15,999.037,997.784,1,PASS
+"Tight <-> Loose",C3,0.2,1000.56,999.037,1,PASS
 "Tight <-> Loose",C3,0.25,1002.32,1000.56,1,PASS
 "Tight <-> Loose",C3,0.3,1004.94,1002.32,1,PASS
 "Tight <-> Loose",C3,0.35,1008.74,1004.94,1,PASS
@@ -120,8 +120,8 @@ macro,note,macro_value,axis_reading,running_max_before,valid,pass
 "Tight <-> Loose",C3,0.6,1067.55,1046.85,1,PASS
 "Tight <-> Loose",C3,0.65,1096.61,1067.55,1,PASS
 "Tight <-> Loose",C3,0.7,1138.32,1096.61,1,PASS
-"Tight <-> Loose",C3,0.75,1197.56,1138.32,1,PASS
-"Tight <-> Loose",C3,0.8,1279.84,1197.56,1,PASS
+"Tight <-> Loose",C3,0.75,1197.57,1138.32,1,PASS
+"Tight <-> Loose",C3,0.8,1279.84,1197.57,1,PASS
 "Tight <-> Loose",C3,0.85,1396.87,1279.84,1,PASS
 "Tight <-> Loose",C3,0.9,1562.58,1396.87,1,PASS
 "Tight <-> Loose",C3,0.95,1796.6,1562.58,1,PASS
@@ -145,8 +145,8 @@ macro,note,macro_value,axis_reading,running_max_before,valid,pass
 "Clean <-> Violent",E1,0.8,0,0,1,PASS
 "Clean <-> Violent",E1,0.85,0,0,1,PASS
 "Clean <-> Violent",E1,0.9,0,0,1,PASS
-"Clean <-> Violent",E1,0.95,5.20821,0,1,PASS
-"Clean <-> Violent",E1,1,11.0488,5.20821,1,PASS
+"Clean <-> Violent",E1,0.95,5.20788,0,1,PASS
+"Clean <-> Violent",E1,1,11.0487,5.20788,1,PASS
 "Clean <-> Violent",C3,0,0,0,1,PASS
 "Clean <-> Violent",C3,0.05,0,0,1,PASS
 "Clean <-> Violent",C3,0.1,0,0,1,PASS
@@ -165,6 +165,6 @@ macro,note,macro_value,axis_reading,running_max_before,valid,pass
 "Clean <-> Violent",C3,0.75,0,0,1,PASS
 "Clean <-> Violent",C3,0.8,0,0,1,PASS
 "Clean <-> Violent",C3,0.85,0,0,1,PASS
-"Clean <-> Violent",C3,0.9,0.439909,0,1,PASS
-"Clean <-> Violent",C3,0.95,6.12681,0.439909,1,PASS
-"Clean <-> Violent",C3,1,11.8209,6.12681,1,PASS
+"Clean <-> Violent",C3,0.9,0.442021,0,1,PASS
+"Clean <-> Violent",C3,0.95,6.12976,0.442021,1,PASS
+"Clean <-> Violent",C3,1,11.8214,6.12976,1,PASS
