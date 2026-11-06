@@ -12,6 +12,11 @@
 // log crossover distribution and recreated the MorphEngine (mode Linear1D,
 // smoothing 10 ms); getState wrote 0 for morph mode and smoothing; setState
 // applied crossovers before the band count, which dropped the upper ones.
+//
+// Audit findings D-049 / D-041 / D-042 (fix plan T1.04): setState restored
+// sweep width and intensity only into the SweepProcessor, so the first block
+// reset them from the stale base atomics; getState saved the LFO-modulated
+// sweep frequency/width/intensity instead of the user's base values.
 // =============================================================================
 
 #include "../test_support/disrumpo_rig.h"
@@ -403,4 +408,62 @@ TEST_CASE("setState with 4 bands into a 2-band instance restores all crossovers"
             CHECK(std::fabs(got.crossover[c] - saved.crossover[c]) < 0.1f);
         }
     }
+}
+
+TEST_CASE("Sweep width/intensity/frequency survive setState + one block and are saved unmodulated",
+          "[disrumpo][lifecycle][D-049][D-042]") {
+    // Sweep core: enable (int8), frequency, width, intensity (normalized floats).
+    constexpr size_t kSweepCoreOffset = kCrossoverOffset + (kBands - 1) * 4;
+    struct SweepView {
+        float freq;
+        float width;
+        float intensity;
+    };
+    const auto decodeSweep = [](const std::vector<uint8_t>& b) {
+        return SweepView{.freq = readAt<float>(b, kSweepCoreOffset + 1),
+                         .width = readAt<float>(b, kSweepCoreOffset + 5),
+                         .intensity = readAt<float>(b, kSweepCoreOffset + 9)};
+    };
+
+    constexpr double kSampleRate = 48000.0;
+    constexpr double kTwoPi = 6.283185307179586476925;
+    constexpr size_t kLen = 9600;  // 0.2 s
+    const double amp = std::pow(10.0, -12.0 / 20.0);
+    std::vector<float> in(kLen);
+    for (size_t i = 0; i < kLen; ++i)
+        in[i] = static_cast<float>(amp * std::sin(kTwoPi * 440.0 * static_cast<double>(i) / kSampleRate));
+    std::vector<float> outL;
+    std::vector<float> outR;
+
+    std::vector<uint8_t> a;
+    {
+        Rig rig(kSampleRate);
+        rig.apply({
+            {makeSweepParamId(SweepParamType::kSweepEnable), 1.0},
+            {makeSweepParamId(SweepParamType::kSweepWidth), 0.9},
+            {makeSweepParamId(SweepParamType::kSweepIntensity), 0.8},
+            {makeSweepParamId(SweepParamType::kSweepFrequency), 0.5},
+            {makeSweepParamId(SweepParamType::kSweepLFOEnable), 1.0},
+            {makeSweepParamId(SweepParamType::kSweepLFODepth), 1.0},
+        });
+        rig.render(in, in, outL, outR);
+        a = getStateBytes(*rig.p);
+    }
+    const SweepView sa = decodeSweep(a);
+    std::printf("D-042 saved after 0.2 s with LFO: freq=%.6f width=%.6f intensity=%.6f\n",
+                static_cast<double>(sa.freq), static_cast<double>(sa.width), static_cast<double>(sa.intensity));
+    CHECK(std::fabs(sa.freq - 0.5f) < 1e-5f);
+    CHECK(std::fabs(sa.width - 0.9f) < 1e-5f);
+    CHECK(std::fabs(sa.intensity - 0.8f) < 1e-5f);
+
+    Rig fresh(kSampleRate);
+    REQUIRE(setStateBytes(*fresh.p, a));
+    const std::vector<float> oneBlock(in.begin(), in.begin() + 512);
+    fresh.render(oneBlock, oneBlock, outL, outR);
+    const SweepView sb = decodeSweep(getStateBytes(*fresh.p));
+    std::printf("D-049 after setState + one block: freq=%.6f width=%.6f intensity=%.6f\n",
+                static_cast<double>(sb.freq), static_cast<double>(sb.width), static_cast<double>(sb.intensity));
+    CHECK(std::fabs(sb.freq - sa.freq) < 1e-5f);
+    CHECK(std::fabs(sb.width - sa.width) < 1e-5f);
+    CHECK(std::fabs(sb.intensity - sa.intensity) < 1e-5f);
 }

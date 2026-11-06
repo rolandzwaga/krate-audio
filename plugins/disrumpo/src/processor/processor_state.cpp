@@ -81,14 +81,15 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // Sweep System State (v4+) — SC-012
     // =========================================================================
 
-    // Sweep Core (6 values)
+    // Sweep Core (6 values). Frequency, width and intensity are the user's base
+    // values; the sweepProcessor_ getters return the per-block modulated ones.
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepProcessor_.isEnabled() ? 1 : 0)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(normalizeSweepFrequency(sweepProcessor_.getTargetFrequency())))
+    if (!streamer.writeFloat(normalizeSweepFrequency(baseSweepFrequency_.load(std::memory_order_relaxed))))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((sweepProcessor_.getWidth() - 0.5f) / 3.5f))
+    if (!streamer.writeFloat(baseSweepWidthNorm_.load(std::memory_order_relaxed)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(sweepProcessor_.getIntensity() / 2.0f))
+    if (!streamer.writeFloat(baseSweepIntensityNorm_.load(std::memory_order_relaxed)))
         return Steinberg::kResultFalse;
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepProcessor_.getFalloffMode())))
         return Steinberg::kResultFalse;
@@ -484,10 +485,15 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             baseSweepFrequency_.store(freqHz, std::memory_order_relaxed);
             sweepProcessor_.setCenterFrequency(freqHz);
         }
-        if (streamer.readFloat(sweepWidthNorm))
+        // process() re-applies width/intensity from the base atomics every block.
+        if (streamer.readFloat(sweepWidthNorm)) {
+            baseSweepWidthNorm_.store(sweepWidthNorm, std::memory_order_relaxed);
             sweepProcessor_.setWidth(0.5f + sweepWidthNorm * 3.5f);
-        if (streamer.readFloat(sweepIntensityNorm))
+        }
+        if (streamer.readFloat(sweepIntensityNorm)) {
+            baseSweepIntensityNorm_.store(sweepIntensityNorm, std::memory_order_relaxed);
             sweepProcessor_.setIntensity(sweepIntensityNorm * 2.0f);
+        }
         if (streamer.readInt8(sweepFalloff))
             sweepProcessor_.setFalloffMode(static_cast<SweepFalloff>(sweepFalloff));
         if (streamer.readInt8(sweepMorphLink))
