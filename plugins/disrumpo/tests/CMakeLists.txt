@@ -43,6 +43,9 @@ add_executable(disrumpo_tests
     # Stack footprint guard: types tests build as locals stay under half the Windows thread stack
     unit/stack_footprint_test.cpp
 
+    # Test support smoke: processor render rig (test_support/disrumpo_rig.h)
+    unit/test_support_smoke_test.cpp
+
     # Approval tests - Morph artifact detection (005-morph-system SC-003)
     approval/morph_artifact_test.cpp
 
@@ -201,6 +204,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/sweep_band_intensity_test.cpp
         integration/processor_audio_output_test.cpp
         unit/spectrum_analyzer_test.cpp
+        unit/test_support_smoke_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
