@@ -91,6 +91,8 @@ void MorphEngine::reset() noexcept {
     mixModOffset_ = 0.0f;
     toneModOffset_ = 0.0f;
     biasModOffset_ = 0.0f;
+    sweepDriveScale_ = 1.0f;
+    appliedSweepDriveScale_ = 1.0f;
 }
 
 void MorphEngine::resetState() noexcept {
@@ -155,6 +157,8 @@ void MorphEngine::setNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, i
         adapters_[i].setParams(nodes_[i].params);
         adapters_[i].setCommonParams(nodes_[i].commonParams);
     }
+    // The adapters now hold the unscaled drive: the next cross-family sample re-applies the sweep
+    appliedSweepDriveScale_ = 1.0f;
 
     // Update family check
     allSameFamily_ = isSameFamily();
@@ -724,7 +728,7 @@ float MorphEngine::processSameFamily(float input) noexcept {
     blendedAdapter_.setParams(bp);
 
     auto cp = interpolateCommonParams();
-    cp.drive = std::clamp(cp.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f);
+    cp.drive = modulatedDrive(cp.drive);
     cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
     cp.toneHz = std::clamp(cp.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f);
     blendedAdapter_.setCommonParams(cp);
@@ -736,12 +740,16 @@ float MorphEngine::processCrossFamily(float input) noexcept {
     // Cross-family: parallel processing with equal-power crossfade
     // Per spec FR-007, FR-008
 
-    // Apply modulation offsets to per-node adapters (from base node params)
+    // Apply modulation offsets and the sweep drive multiplier to per-node adapters (from
+    // base node params). A sweep multiplier change alone re-applies once, so its return
+    // to 1 restores the base drive.
     if (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f
-        || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f) {
+        || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f
+        || sweepDriveScale_ != appliedSweepDriveScale_) {
+        appliedSweepDriveScale_ = sweepDriveScale_;
         for (int i = 0; i < activeNodeCount_; ++i) {
             auto cp = nodes_[i].commonParams;
-            cp.drive = std::clamp(cp.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f);
+            cp.drive = modulatedDrive(cp.drive);
             cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
             cp.toneHz = std::clamp(cp.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f);
             adapters_[i].setCommonParams(cp);

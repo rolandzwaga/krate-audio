@@ -51,6 +51,9 @@ public:
     static constexpr int kDefaultMaxOversampleFactor = 4;
     static constexpr size_t kMaxBlockSize = 2048;
 
+    /// @brief Highest per-band sweep intensity (200 %, FR-SWEEP-002).
+    static constexpr float kMaxSweepIntensity = 2.0f;
+
     /// @brief Length of each half of the factor-switch dip in milliseconds: the band output
     /// ramps to 0 over this time, the factor switches, and it ramps back to 1 (D-034).
     static constexpr float kFactorSwitchMs = 5.0f;
@@ -92,7 +95,7 @@ public:
         targetGainLinear_ = 1.0f;
         targetPan_ = 0.0f;
         targetMute_ = 0.0f; // 0 = unmuted
-        targetSweep_ = 1.0f;
+        targetSweep_ = 0.0f; // 0 = drive as set
 
         gainSmoother_.snapTo(targetGainLinear_);
         panSmoother_.snapTo(targetPan_);
@@ -198,11 +201,24 @@ public:
         muteSmoother_.setTarget(targetMute_);
     }
 
-    /// @brief Set sweep intensity for per-band modulation.
-    /// @param intensity Sweep intensity [0, 1]
+    /// @brief Set this band's sweep intensity (FR-SWEEP-001/002, D-019).
+    /// The sweep scales the shaper's drive, never the band level: the drive is
+    /// multiplied by sweepDriveScale(intensity) = 1 + intensity / 2, so 0 leaves the
+    /// drive as set and 2 (200 % at the sweep centre) doubles it.
+    /// @param intensity Per-band sweep intensity, clamped to [0, 2]
     void setSweepIntensity(float intensity) noexcept {
-        targetSweep_ = std::clamp(intensity, 0.0f, 1.0f);
+        targetSweep_ = std::clamp(intensity, 0.0f, kMaxSweepIntensity);
         sweepSmoother_.setTarget(targetSweep_);
+    }
+
+    /// @brief Drive multiplier the sweep is heading for in this band (test accessor).
+    [[nodiscard]] float getSweepDriveMultiplier() const noexcept {
+        return sweepDriveScale(targetSweep_);
+    }
+
+    /// @brief Drive multiplier for a sweep intensity in [0, 2]: exactly 1 at 0 (by branch).
+    [[nodiscard]] static float sweepDriveScale(float intensity) noexcept {
+        return intensity > 0.0f ? 1.0f + 0.5f * intensity : 1.0f;
     }
 
     // =========================================================================
@@ -471,16 +487,20 @@ public:
 
     /// @brief Apply block-rate drive/mix modulation to the distortion adapter.
     /// Call once before the per-sample loop. For non-morph bands with active
-    /// modulation, this temporarily sets modulated params on the distortion
+    /// modulation or sweep, this temporarily sets modulated params on the distortion
     /// adapter. Must be paired with endBlockModulation() after the loop.
     void beginBlockModulation() noexcept {
         blockModActive_ = false;
+        const float sweepIntensity = sweepSmoother_.getCurrentValue();
         if (!morphEnabled_ && (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f
-                             || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f)) {
+                             || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f
+                             || sweepIntensity > 0.0f)) {
             savedCommonParams_ = distortionL_.getCommonParams();
             savedDistortionParams_ = distortionL_.getParams();
+            const float drive = savedCommonParams_.drive + driveModOffset_ * 10.0f;
             setDistortionCommonParams({
-                .drive = std::clamp(savedCommonParams_.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f),
+                .drive = std::clamp(sweepIntensity > 0.0f ? drive * sweepDriveScale(sweepIntensity) : drive,
+                                    0.0f, 10.0f),
                 .mix = std::clamp(savedCommonParams_.mix + mixModOffset_, 0.0f, 1.0f),
                 .toneHz = std::clamp(savedCommonParams_.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f)});
             auto modParams = savedDistortionParams_;
@@ -502,8 +522,8 @@ public:
 
     /// @brief Process stereo sample pair in-place.
     /// Applies sweep, distortion/morph with oversampling, gain, pan, and mute.
-    /// Per plan.md signal flow:
-    /// 1. Sweep intensity multiply BEFORE distortion/morph
+    /// Signal flow:
+    /// 1. Sweep intensity scales the shaper's drive (D-019), never the band level
     /// 2. MorphEngine (or single distortion) processing
     /// 3. Gain/Pan/Mute stage AFTER
     /// This is the 1x path: the shapers are clocked at the host rate (D-009).
@@ -586,20 +606,20 @@ private:
         const float gain = gainSmoother_.process();
         const float pan = panSmoother_.process();
         const float mute = muteSmoother_.process();
-        const float sweep = sweepSmoother_.process();
 
-        // Step 1: Apply sweep intensity BEFORE distortion/morph (per plan.md)
-        left *= sweep;
-        right *= sweep;
+        // Step 1: the sweep scales the shaper's drive, not the band level (D-019)
+        const float sweepScale = sweepDriveScale(sweepSmoother_.process());
 
         // Step 2: Distortion/Morph processing
         if (morphEnabled_ && morphEngineL_) {
             // FR-010: Use MorphEngine for morphed distortion (one per channel, D-016)
+            morphEngineL_->setSweepDriveScale(sweepScale);
+            morphEngineR_->setSweepDriveScale(sweepScale);
             left = morphEngineL_->process(left);
             right = morphEngineR_->process(right);
         } else {
-            // Legacy single distortion path (drive/mix modulation already
-            // applied by beginBlockModulation() at block rate)
+            // Legacy single distortion path (drive/mix modulation and sweep drive
+            // already applied by beginBlockModulation() at block rate)
             if (distortionL_.getCommonParams().drive >= 0.0001f) {
                 left = distortionL_.process(left);
                 right = distortionR_.process(right);
@@ -798,18 +818,7 @@ private:
         oversampler4x_.reset();
     }
 
-    /// @brief Sweep intensity at the base rate, before the oversampler (sweep is linear, so
-    /// this equals applying it per oversampled sample, and keeps the sweep smoother running).
-    void applySweep(float* left, float* right, size_t numSamples) noexcept {
-        for (size_t i = 0; i < numSamples; ++i) {
-            const float sweep = sweepSmoother_.process();
-            left[i] *= sweep;
-            right[i] *= sweep;
-        }
-    }
-
     void processWithOversampling2x(float* left, float* right, size_t numSamples) noexcept {
-        applySweep(left, right, numSamples);
         oversampler2x_.process(left, right, numSamples,
             [this](float* osLeft, float* osRight, size_t osN) {
                 processOversampledBlock(osLeft, osRight, osN);
@@ -820,7 +829,6 @@ private:
     }
 
     void processWithOversampling4x(float* left, float* right, size_t numSamples) noexcept {
-        applySweep(left, right, numSamples);
         oversampler4x_.process(left, right, numSamples,
             [this](float* osLeft, float* osRight, size_t osN) {
                 processOversampledBlock(osLeft, osRight, osN);
@@ -831,15 +839,26 @@ private:
     }
 
     void processOversampledBlock(float* left, float* right, size_t numSamples) noexcept {
-        // Distortion/morph at the oversampled rate (sweep was applied at the base rate)
-        for (size_t i = 0; i < numSamples; ++i) {
-            // Distortion/Morph processing (FR-010)
-            if (morphEnabled_ && morphEngineL_) {
-                left[i] = morphEngineL_->process(left[i]);
-                right[i] = morphEngineR_->process(right[i]);
-            } else {
-                left[i] = distortionL_.process(left[i]);
-                right[i] = distortionR_.process(right[i]);
+        // Distortion/morph at the oversampled rate. The sweep smoother advances once per
+        // host-rate sample (clockFactor_ oversampled samples) and scales the morph drive.
+        const auto factor = static_cast<size_t>(std::max(clockFactor_, 1));
+        const bool morph = morphEnabled_ && morphEngineL_;
+        for (size_t i = 0; i < numSamples; i += factor) {
+            const float sweepScale = sweepDriveScale(sweepSmoother_.process());
+            if (morph) {
+                morphEngineL_->setSweepDriveScale(sweepScale);
+                morphEngineR_->setSweepDriveScale(sweepScale);
+            }
+            const size_t end = std::min(i + factor, numSamples);
+            for (size_t k = i; k < end; ++k) {
+                // Distortion/Morph processing (FR-010)
+                if (morph) {
+                    left[k] = morphEngineL_->process(left[k]);
+                    right[k] = morphEngineR_->process(right[k]);
+                } else {
+                    left[k] = distortionL_.process(left[k]);
+                    right[k] = distortionR_.process(right[k]);
+                }
             }
         }
     }
@@ -881,7 +900,7 @@ private:
     float targetGainLinear_ = 1.0f;
     float targetPan_ = 0.0f;
     float targetMute_ = 0.0f;
-    float targetSweep_ = 1.0f;
+    float targetSweep_ = 0.0f;  // per-band sweep intensity [0, 2]; 0 = drive as set
 
     // Distortion (legacy single adapter per channel, used when morphEnabled_ = false)
     DistortionAdapter distortionL_;

@@ -6,7 +6,7 @@
 //
 // Signal flow per plan.md:
 // 1. BandProcessor owns MorphEngine instance
-// 2. BandProcessor applies sweep intensity multiply BEFORE calling MorphEngine
+// 2. BandProcessor passes the sweep drive multiplier to MorphEngine (D-019)
 // 3. BandProcessor calls morphEngine.process() at oversampled rate
 // 4. MorphEngine processes audio through weighted distortion blend
 // 5. Output fed to BandProcessor's gain/pan/mute stage AFTER downsampling
@@ -23,6 +23,8 @@
 #include "dsp/morph_node.h"
 #include "dsp/distortion_types.h"
 #include "dsp/distortion_adapter.h"
+
+#include "test_helpers/signal_metrics.h"
 
 #include <chrono>
 #include <cmath>
@@ -145,8 +147,9 @@ TEST_CASE("BandProcessor morph position affects distortion character", "[band][m
     REQUIRE(std::isfinite(leftB));
 }
 
-TEST_CASE("BandProcessor sweep intensity applies BEFORE morph", "[band][morph][FR-010]") {
-    // Per plan.md: Sweep intensity multiply happens BEFORE MorphEngine
+TEST_CASE("BandProcessor sweep intensity scales the morph drive and not the level", "[band][morph][FR-010]") {
+    // D-019: the sweep multiplies the morphed drive (1 + intensity / 2), it does not
+    // scale the band's input: 200 % adds harmonics, the level does not follow the drive
     Disrumpo::BandProcessor proc;
     proc.prepare(kSampleRate, kBlockSize);
 
@@ -155,26 +158,37 @@ TEST_CASE("BandProcessor sweep intensity applies BEFORE morph", "[band][morph][F
     proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
     proc.setMorphPosition(0.5f, 0.0f);
 
-    // Test with sweep intensity = 1.0 (full)
-    proc.setSweepIntensity(1.0f);
-    settleBandProcessor(proc);
+    // 1378.125 Hz = bin 256 of an 8192-point FFT at 44.1 kHz
+    constexpr float kHz = 1378.125f;
+    constexpr size_t kN = 8192;
+    auto measure = [&proc](float intensity, float& thd, float& rmsDb) {
+        proc.setSweepIntensity(intensity);
+        settleBandProcessor(proc);
+        std::vector<float> out(kN);
+        for (size_t i = 0; i < kN; ++i) {
+            // -6 dBFS: the nodes (drive 2 and 3) saturate
+            float left = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
+                                          static_cast<float>(kSampleRate));
+            float right = left;
+            proc.process(left, right);
+            out[i] = left;
+        }
+        thd = Krate::DSP::TestUtils::SignalMetrics::calculateTHD(out.data(), kN, kHz,
+                                                                 static_cast<float>(kSampleRate));
+        double s = 0.0;
+        for (float v : out) s += static_cast<double>(v) * v;
+        rmsDb = static_cast<float>(10.0 * std::log10(s / static_cast<double>(kN)));
+    };
 
-    float leftFull = 0.5f;
-    float rightFull = 0.5f;
-    proc.process(leftFull, rightFull);
-
-    // Test with sweep intensity = 0.0 (silence before distortion)
-    proc.setSweepIntensity(0.0f);
-    settleBandProcessor(proc);
-
-    float leftZero = 0.5f;
-    float rightZero = 0.5f;
-    proc.process(leftZero, rightZero);
-
-    // With sweep = 0, input to morph engine is zero, so distortion has no effect
-    // Output should be near zero (accounting for gain/pan stage)
-    // Actually with sweep=0, input*0=0, distortion(0)~=0, output~=0
-    REQUIRE(std::abs(leftZero) < std::abs(leftFull) + 0.1f);
+    float thd0 = 0.0f;
+    float db0 = 0.0f;
+    float thd2 = 0.0f;
+    float db2 = 0.0f;
+    measure(0.0f, thd0, db0);
+    measure(2.0f, thd2, db2);
+    INFO("THD at 0 %: " << thd0 << " %, at 200 %: " << thd2 << " %; level " << db0 << " / " << db2 << " dB");
+    REQUIRE(thd2 > thd0 * 1.1f);
+    REQUIRE(std::abs(db2 - db0) < 3.0f);
 }
 
 TEST_CASE("BandProcessor morph transition is artifact-free", "[band][morph][FR-010][SC-003]") {

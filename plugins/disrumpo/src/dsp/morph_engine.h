@@ -22,6 +22,7 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/crossfade_utils.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 
@@ -119,6 +120,10 @@ public:
     /// Tone offset [-1, +1] is scaled by 7800 Hz (tone range [200, 8000]).
     /// Bias offset [-1, +1] is scaled by 2.0 (bias range [-1, +1]).
     void setToneBiasModOffset(float toneOffset, float biasOffset) noexcept;
+
+    /// @brief Set the sweep's drive multiplier (D-019), applied per sample after the
+    /// drive modulation offset; the result is clamped to [0, 10]. 1 = drive as set.
+    void setSweepDriveScale(float scale) noexcept { sweepDriveScale_ = scale; }
 
     /// @brief Set nodes from BandState.
     ///
@@ -275,6 +280,20 @@ private:
     float mixModOffset_ = 0.0f;    // [-1, +1] normalized offset
     float toneModOffset_ = 0.0f;   // [-1, +1] normalized offset (scaled by 7800 Hz)
     float biasModOffset_ = 0.0f;   // [-1, +1] normalized offset (scaled by 2.0)
+
+    // Sweep drive multiplier (per sample, from BandProcessor) and the value the
+    // cross-family adapters were last configured with
+    float sweepDriveScale_ = 1.0f;
+    float appliedSweepDriveScale_ = 1.0f;
+
+    /// @brief Node drive with the modulation offset and the sweep multiplier applied.
+    [[nodiscard]] float modulatedDrive(float baseDrive) const noexcept {
+        float drive = baseDrive + driveModOffset_ * 10.0f;
+        if (sweepDriveScale_ != 1.0f) {
+            drive *= sweepDriveScale_;
+        }
+        return std::clamp(drive, 0.0f, 10.0f);
+    }
 };
 
 } // namespace Disrumpo

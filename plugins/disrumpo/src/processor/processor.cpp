@@ -429,29 +429,34 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
-    // Per-Band Sweep Intensity (spec 007-sweep-system FR-001, T067)
-    // Calculate and apply sweep intensities to band processors once per block
+    // Per-Band Sweep Intensity (FR-SWEEP-001, D-019, D-037)
+    // Once per block; each band smooths it and scales its shaper's drive with it.
+    // A band's distance from the sweep centre is measured from the geometric
+    // centre of its actual crossover edges (20 Hz / 20 kHz outside). The single
+    // full-range band of 1-band mode always holds the sweep centre.
     // ==========================================================================
 
-    // Band center frequencies (log-spaced for 4-band Bark scale)
-    static constexpr std::array<float, kMaxBands> kBandCenterFreqs = {
-        100.0f, 600.0f, 3000.0f, 12000.0f
-    };
-
     if (sweepProcessor_.isEnabled()) {
-        // Calculate intensities for all active bands
         std::array<float, kMaxBands> sweepIntensities{};
-        sweepProcessor_.calculateAllBandIntensities(
-            kBandCenterFreqs.data(), numBands, sweepIntensities.data());
-
-        // Apply sweep intensities to band processors
+        if (numBands <= 1) {
+            sweepIntensities[0] = sweepProcessor_.getIntensity();
+        } else {
+            std::array<float, kMaxBands> bandCentres{};
+            for (int b = 0; b < numBands; ++b) {
+                const float lo = (b == 0) ? kMinCrossoverHz : crossoverL_.getCrossoverFrequency(b - 1);
+                const float hi = (b == numBands - 1) ? kMaxCrossoverHz : crossoverL_.getCrossoverFrequency(b);
+                bandCentres[b] = std::sqrt(lo * hi);  // crossovers are clamped to >= 20 Hz
+            }
+            sweepProcessor_.calculateAllBandIntensities(
+                bandCentres.data(), numBands, sweepIntensities.data());
+        }
         for (int b = 0; b < numBands; ++b) {
             bandProcessors_[b].setSweepIntensity(sweepIntensities[b]);
         }
     } else {
-        // Sweep disabled: set all bands to full intensity (1.0)
+        // Sweep disabled: every band's drive as set
         for (int b = 0; b < numBands; ++b) {
-            bandProcessors_[b].setSweepIntensity(1.0f);
+            bandProcessors_[b].setSweepIntensity(0.0f);
         }
     }
 
