@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 
 
 namespace Krate::DSP {
@@ -311,15 +312,21 @@ public:
             }
         }
 
+        // A non-finite input resets every stage and outputs silence (the
+        // Biquad rule the float stages used to apply)
+        if (!detail::isFinite(input)) {
+            reset();
+            return CrossoverLR4Outputs{.low = 0.0f, .high = 0.0f};
+        }
+        const auto x = static_cast<double>(input);
+
         // LR4 lowpass: cascade two Butterworth LP stages
-        float low = lpStage1_.process(input);
-        low = lpStage2_.process(low);
+        const double low = lpStage2_.process(lpStage1_.process(x));
 
         // LR4 highpass: cascade two Butterworth HP stages
-        float high = hpStage1_.process(input);
-        high = hpStage2_.process(high);
+        const double high = hpStage2_.process(hpStage1_.process(x));
 
-        return CrossoverLR4Outputs{.low = low, .high = high};
+        return CrossoverLR4Outputs{.low = static_cast<float>(low), .high = static_cast<float>(high)};
     }
 
     /// @brief Process block of samples through crossover.
@@ -353,27 +360,78 @@ private:
     }
 
     /// @brief Update all filter coefficients for given frequency.
+    /// RBJ Butterworth low/high-pass (Biquad's FilterType::Lowpass/Highpass
+    /// design) computed in double. 1 - cos(w) and 1 + cos(w) are formed as
+    /// 2 sin^2(w/2) and 2 cos^2(w/2), so no step cancels at low fc/fs.
     void updateCoefficients(float freq) noexcept {
-        const float srFloat = static_cast<float>(sampleRate_);
+        constexpr double kButterworthQD = 0.70710678118654752440;
+        const double omega = 2.0 * std::numbers::pi * static_cast<double>(freq) / sampleRate_;
+        const double sinHalf = std::sin(0.5 * omega);
+        const double cosHalf = std::cos(0.5 * omega);
+        const double alpha = std::sin(omega) / (2.0 * kButterworthQD);
+        const double invA0 = 1.0 / (1.0 + alpha);
+        const double a1 = -2.0 * std::cos(omega) * invA0;
+        const double a2 = (1.0 - alpha) * invA0;
+        const double lpB0 = sinHalf * sinHalf * invA0;  // (1 - cos w) / (2 a0)
+        const double hpB0 = cosHalf * cosHalf * invA0;  // (1 + cos w) / (2 a0)
 
-        // Configure lowpass stages (2 cascaded Butterworth for LR4)
-        lpStage1_.configure(FilterType::Lowpass, freq, kButterworthQ, 0.0f, srFloat);
-        lpStage2_.configure(FilterType::Lowpass, freq, kButterworthQ, 0.0f, srFloat);
-
-        // Configure highpass stages (2 cascaded Butterworth for LR4)
-        hpStage1_.configure(FilterType::Highpass, freq, kButterworthQ, 0.0f, srFloat);
-        hpStage2_.configure(FilterType::Highpass, freq, kButterworthQ, 0.0f, srFloat);
+        const Section lp{.b0 = lpB0, .b1 = 2.0 * lpB0, .b2 = lpB0, .a1 = a1, .a2 = a2};
+        const Section hp{.b0 = hpB0, .b1 = -2.0 * hpB0, .b2 = hpB0, .a1 = a1, .a2 = a2};
+        lpStage1_.setCoefficients(lp);
+        lpStage2_.setCoefficients(lp);
+        hpStage1_.setCoefficients(hp);
+        hpStage2_.setCoefficients(hp);
     }
+
+    /// One second-order section in double precision: coefficients AND TDF2
+    /// state. A float32 TDF2 state at fc/fs ~6e-4 (112 Hz at 192 kHz) rounds
+    /// by up to ~1 % of the DC gain (1 + a1 + a2 ~ 1e-5 amplifies each state
+    /// rounding); measured +-0.15 dB at 112 Hz and +-1 dB at 20 Hz / 192 kHz
+    /// even with exact float coefficients.
+    struct Section {
+        double b0 = 1.0;
+        double b1 = 0.0;
+        double b2 = 0.0;
+        double a1 = 0.0;
+        double a2 = 0.0;
+        double z1 = 0.0;
+        double z2 = 0.0;
+
+        void setCoefficients(const Section& c) noexcept {
+            b0 = c.b0;
+            b1 = c.b1;
+            b2 = c.b2;
+            a1 = c.a1;
+            a2 = c.a2;
+        }
+
+        [[nodiscard]] double process(double x) noexcept {
+            const double y = b0 * x + z1;
+            z1 = b1 * x - a1 * y + z2;
+            z2 = b2 * x - a2 * y;
+            // Flush tiny states (the float stages' denormal rule)
+            if (z1 > -kStateFlush && z1 < kStateFlush) z1 = 0.0;
+            if (z2 > -kStateFlush && z2 < kStateFlush) z2 = 0.0;
+            return y;
+        }
+
+        void reset() noexcept {
+            z1 = 0.0;
+            z2 = 0.0;
+        }
+
+        static constexpr double kStateFlush = static_cast<double>(kDenormalThreshold);
+    };
 
     // =========================================================================
     // Members
     // =========================================================================
 
     // Filter stages (4 biquads: 2 LP + 2 HP cascaded for LR4)
-    Biquad lpStage1_;
-    Biquad lpStage2_;
-    Biquad hpStage1_;
-    Biquad hpStage2_;
+    Section lpStage1_;
+    Section lpStage2_;
+    Section hpStage1_;
+    Section hpStage2_;
 
     // Parameter smoothing
     OnePoleSmoother frequencySmoother_;

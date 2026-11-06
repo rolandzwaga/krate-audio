@@ -17,8 +17,10 @@
 #include <krate/dsp/primitives/fft.h>
 #include <krate/dsp/core/window_functions.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <vector>
 #include <random>
 #include <numeric>
@@ -616,6 +618,64 @@ TEST_CASE("CrossoverLR4 processBlock various sizes", "[crossover][US1][block]") 
             }
         }
     }
+}
+
+// -----------------------------------------------------------------------------
+// Low-frequency precision (Disrumpo audit T1.03): at fc/fs ~6e-4 (112 Hz at
+// 192 kHz) a float32 RBJ biquad held the LR4 low-pass DC gain only to about
+// +-0.12 dB, depending on where the coefficients happened to round.
+// -----------------------------------------------------------------------------
+TEST_CASE("CrossoverLR4 DC gain and band sum are exact at low fc/fs", "[crossover][precision]") {
+    constexpr double kSampleRates[] = {44100.0, 48000.0, 96000.0, 192000.0};
+    constexpr float kFrequencies[] = {20.0f, 50.0f, 112.47f, 632.0f, 3556.0f, 10000.0f};
+    constexpr double kBarDb = 0.01;
+    double worstDb = 0.0;
+
+    for (const double sr : kSampleRates) {
+        for (const float fc : kFrequencies) {
+            CrossoverLR4 crossover;
+            crossover.prepare(sr);
+            crossover.setCrossoverFrequency(fc);
+            crossover.prepare(sr);  // snap the smoother: coefficients at exactly fc
+
+            const auto settle = static_cast<size_t>(sr);  // 1 s: > 80 time constants at 20 Hz
+
+            // Steady-state response to a constant
+            CrossoverLR4Outputs out{};
+            for (size_t i = 0; i < settle; ++i) out = crossover.process(1.0f);
+            const double lowDcDb = 20.0 * std::log10(std::abs(static_cast<double>(out.low)));
+            const double sumDcDb =
+                20.0 * std::log10(std::abs(static_cast<double>(out.low) + static_cast<double>(out.high)));
+
+            // |low + high| at the crossover frequency, over whole periods after settling
+            crossover.reset();
+            const double w = 2.0 * 3.14159265358979323846 * static_cast<double>(fc) / sr;
+            const size_t periods = static_cast<size_t>(std::floor(static_cast<double>(fc)));  // ~1 s
+            const auto window = static_cast<size_t>(std::llround(static_cast<double>(periods) * sr / static_cast<double>(fc)));
+            double inPow = 0.0;
+            double sumPow = 0.0;
+            for (size_t i = 0; i < settle + window; ++i) {
+                const auto x = static_cast<float>(std::sin(w * static_cast<double>(i)));
+                const auto o = crossover.process(x);
+                if (i >= settle) {
+                    const double s = static_cast<double>(o.low) + static_cast<double>(o.high);
+                    inPow += static_cast<double>(x) * static_cast<double>(x);
+                    sumPow += s * s;
+                }
+            }
+            const double sumFcDb = 10.0 * std::log10(sumPow / inPow);
+
+            INFO("sr " << sr << " fc " << fc << ": low DC " << lowDcDb << " dB, sum DC " << sumDcDb
+                       << " dB, sum at fc " << sumFcDb << " dB");
+            std::printf("LR4 sr %6.0f fc %8.2f: low DC %+.5f dB, sum DC %+.5f dB, sum at fc %+.5f dB\n", sr,
+                        static_cast<double>(fc), lowDcDb, sumDcDb, sumFcDb);
+            CHECK(std::abs(lowDcDb) < kBarDb);
+            CHECK(std::abs(sumDcDb) < kBarDb);
+            CHECK(std::abs(sumFcDb) < kBarDb);
+            worstDb = std::max({worstDb, std::abs(lowDcDb), std::abs(sumDcDb), std::abs(sumFcDb)});
+        }
+    }
+    std::printf("LR4 precision grid: worst |error| %.5f dB\n", worstDb);
 }
 
 // -----------------------------------------------------------------------------
