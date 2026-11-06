@@ -1,0 +1,1652 @@
+// ==============================================================================
+// Disrumpo audit probes (hidden: [.][audit-probe])
+// ==============================================================================
+// Measurement-only TU written by the disrumpo-audit workflow. Every case renders
+// real audio through the real Processor (or BandProcessor / CrossoverNetwork /
+// DistortionAdapter / SweepProcessor directly) and PRINTS one line per
+// measurement:
+//   PROBE <name> | <setup> | <metric> = <value> | threshold <bar> | <ok|suspicious|bad>
+// Nothing is asserted except that the printed numbers are finite, so a probe
+// never fails a gate: the numbers are the result.
+// ==============================================================================
+
+#include <catch2/catch_test_macros.hpp>
+
+#include "processor/processor.h"
+#include "plugin_ids.h"
+#include "dsp/band_processor.h"
+#include "dsp/crossover_network.h"
+#include "dsp/distortion_adapter.h"
+#include "dsp/sweep_processor.h"
+
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "public.sdk/source/common/memorystream.h"
+
+#include "artifact_detection.h"
+#include "audio_features.h"
+#include "vst_param_changes.h"
+
+#include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/primitives/fft.h>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+using namespace Disrumpo;
+namespace fs = std::filesystem;
+
+namespace {
+
+using Steinberg::int32;
+using Steinberg::Vst::ParamID;
+using Steinberg::Vst::ParamValue;
+using PChanges = Krate::Test::ParameterChanges;
+using PList = std::vector<std::pair<ParamID, double>>;
+
+constexpr double kTwoPi = 6.283185307179586476925;
+
+// -----------------------------------------------------------------------------
+// Output
+// -----------------------------------------------------------------------------
+
+const char* verdictName(int level) {
+    if (level <= 0) return "ok";
+    if (level == 1) return "suspicious";
+    return "bad";
+}
+
+std::string num(double v, int prec = 4) {
+    char b[64];
+    std::snprintf(b, sizeof(b), "%.*g", prec, v);
+    return b;
+}
+
+std::string fix(double v, int dec = 2) {
+    char b[64];
+    std::snprintf(b, sizeof(b), "%.*f", dec, v);
+    return b;
+}
+
+void emit(const std::string& name, const std::string& setup, const std::string& metric,
+          const std::string& value, const std::string& threshold, int level) {
+    std::printf("PROBE %s | %s | %s = %s | threshold %s | %s\n", name.c_str(), setup.c_str(),
+                metric.c_str(), value.c_str(), threshold.c_str(), verdictName(level));
+    std::fflush(stdout);
+}
+
+// -----------------------------------------------------------------------------
+// Metrics
+// -----------------------------------------------------------------------------
+
+double toDb(double lin) { return lin > 1e-12 ? 20.0 * std::log10(lin) : -240.0; }
+
+bool fin(float v) { return Krate::DSP::detail::isFinite(v); }
+
+size_t nonFinite(const std::vector<float>& x) {
+    size_t c = 0;
+    for (float v : x) if (!fin(v)) ++c;
+    return c;
+}
+
+double rmsOf(const float* x, size_t n) {
+    if (n == 0) return 0.0;
+    double s = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        const double v = fin(x[i]) ? x[i] : 0.0;
+        s += v * v;
+    }
+    return std::sqrt(s / static_cast<double>(n));
+}
+
+double peakOf(const float* x, size_t n) {
+    double p = 0.0;
+    for (size_t i = 0; i < n; ++i) if (fin(x[i])) p = std::max(p, std::fabs(static_cast<double>(x[i])));
+    return p;
+}
+
+double meanOf(const float* x, size_t n) {
+    if (n == 0) return 0.0;
+    double s = 0.0;
+    for (size_t i = 0; i < n; ++i) s += fin(x[i]) ? x[i] : 0.0;
+    return s / static_cast<double>(n);
+}
+
+double maxJump(const float* x, size_t n) {
+    double m = 0.0;
+    for (size_t i = 1; i < n; ++i) {
+        if (!fin(x[i]) || !fin(x[i - 1])) continue;
+        m = std::max(m, std::fabs(static_cast<double>(x[i]) - static_cast<double>(x[i - 1])));
+    }
+    return m;
+}
+
+size_t clickCount(const float* x, size_t n, double sr) {
+    Krate::DSP::TestUtils::ClickDetectorConfig cfg;
+    cfg.sampleRate = static_cast<float>(sr);
+    cfg.frameSize = 512;
+    cfg.hopSize = 256;
+    cfg.detectionThreshold = 5.0f;
+    cfg.energyThresholdDb = -60.0f;
+    Krate::DSP::TestUtils::ClickDetector det(cfg);
+    det.prepare();
+    return det.detect(x, n).size();
+}
+
+double maxAbsDiff(const std::vector<float>& a, const std::vector<float>& b, size_t from = 0) {
+    double m = 0.0;
+    const size_t n = std::min(a.size(), b.size());
+    for (size_t i = from; i < n; ++i) {
+        if (!fin(a[i]) || !fin(b[i])) return 1e9;
+        m = std::max(m, std::fabs(static_cast<double>(a[i]) - static_cast<double>(b[i])));
+    }
+    return m;
+}
+
+/// Hann-windowed power spectrum (N must be a power of two <= 8192).
+std::vector<double> powerSpec(const float* x, size_t N) {
+    Krate::DSP::FFT fft;
+    fft.prepare(N);
+    std::vector<float> buf(N);
+    for (size_t i = 0; i < N; ++i) {
+        const double w = 0.5 - 0.5 * std::cos(kTwoPi * static_cast<double>(i) / static_cast<double>(N - 1));
+        buf[i] = fin(x[i]) ? static_cast<float>(x[i] * w) : 0.0f;
+    }
+    std::vector<Krate::DSP::Complex> sp(N / 2 + 1);
+    fft.forward(buf.data(), sp.data());
+    std::vector<double> p(N / 2 + 1);
+    for (size_t k = 0; k < p.size(); ++k)
+        p[k] = static_cast<double>(sp[k].real) * sp[k].real + static_cast<double>(sp[k].imag) * sp[k].imag;
+    return p;
+}
+
+/// Energy at non-harmonic bins relative to harmonic bins (dB). f0 must sit on bin f0Bin.
+double aliasDb(const std::vector<double>& P, size_t f0Bin) {
+    std::vector<bool> harm(P.size(), false);
+    for (size_t k = 1; k * f0Bin < P.size(); ++k) {
+        const size_t c = k * f0Bin;
+        for (size_t j = (c > 3 ? c - 3 : 0); j <= c + 3 && j < P.size(); ++j) harm[j] = true;
+    }
+    double h = 0.0, nh = 0.0;
+    for (size_t k = 4; k < P.size(); ++k) (harm[k] ? h : nh) += P[k];
+    if (h <= 0.0) return 0.0;
+    return 10.0 * std::log10(std::max(nh, 1e-30) / h);
+}
+
+double centroidHz(const std::vector<double>& P, double sr, size_t N) {
+    double num_ = 0.0, den = 0.0;
+    for (size_t k = 1; k < P.size(); ++k) {
+        num_ += P[k] * static_cast<double>(k) * sr / static_cast<double>(N);
+        den += P[k];
+    }
+    return den > 0.0 ? num_ / den : 0.0;
+}
+
+/// |H(f)| of an impulse response, direct DFT in double.
+double magAt(const std::vector<float>& h, double f, double sr) {
+    double re = 0.0, im = 0.0;
+    const double w = -kTwoPi * f / sr;
+    for (size_t n = 0; n < h.size(); ++n) {
+        const double a = w * static_cast<double>(n);
+        re += h[n] * std::cos(a);
+        im += h[n] * std::sin(a);
+    }
+    return std::sqrt(re * re + im * im);
+}
+
+std::vector<double> logFreqs(double lo, double hi, int count) {
+    std::vector<double> f(static_cast<size_t>(count));
+    for (int i = 0; i < count; ++i)
+        f[static_cast<size_t>(i)] = lo * std::pow(hi / lo, static_cast<double>(i) / (count - 1));
+    return f;
+}
+
+// -----------------------------------------------------------------------------
+// Signals
+// -----------------------------------------------------------------------------
+
+std::vector<float> sine(size_t n, double f, double sr, double dbfs) {
+    const double a = std::pow(10.0, dbfs / 20.0);
+    std::vector<float> x(n);
+    for (size_t i = 0; i < n; ++i) x[i] = static_cast<float>(a * std::sin(kTwoPi * f * static_cast<double>(i) / sr));
+    return x;
+}
+
+// -----------------------------------------------------------------------------
+// Output-parameter capture (for the modulated sweep frequency)
+// -----------------------------------------------------------------------------
+
+class CaptureQueue : public Steinberg::Vst::IParamValueQueue {
+public:
+    explicit CaptureQueue(ParamID id) : id_(id) {}
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID /*iid*/, void** /*obj*/) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    ParamID PLUGIN_API getParameterId() override { return id_; }
+    int32 PLUGIN_API getPointCount() override { return static_cast<int32>(pts_.size()); }
+    Steinberg::tresult PLUGIN_API getPoint(int32 index, int32& off, ParamValue& v) override {
+        if (index < 0 || index >= static_cast<int32>(pts_.size())) return Steinberg::kResultFalse;
+        off = pts_[static_cast<size_t>(index)].first;
+        v = pts_[static_cast<size_t>(index)].second;
+        return Steinberg::kResultTrue;
+    }
+    Steinberg::tresult PLUGIN_API addPoint(int32 off, ParamValue v, int32& index) override {
+        pts_.emplace_back(off, v);
+        index = static_cast<int32>(pts_.size()) - 1;
+        return Steinberg::kResultTrue;
+    }
+    ParamID id_;
+    std::vector<std::pair<int32, double>> pts_;
+};
+
+class CaptureChanges : public Steinberg::Vst::IParameterChanges {
+public:
+    CaptureChanges() { qs_.reserve(16); }
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID /*iid*/, void** /*obj*/) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    int32 PLUGIN_API getParameterCount() override { return static_cast<int32>(qs_.size()); }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(int32 index) override {
+        if (index < 0 || index >= static_cast<int32>(qs_.size())) return nullptr;
+        return &qs_[static_cast<size_t>(index)];
+    }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(const ParamID& id, int32& index) override {
+        for (size_t i = 0; i < qs_.size(); ++i) {
+            if (qs_[i].id_ == id) { index = static_cast<int32>(i); return &qs_[i]; }
+        }
+        if (qs_.size() >= 16) return nullptr;
+        qs_.emplace_back(id);
+        index = static_cast<int32>(qs_.size()) - 1;
+        return &qs_.back();
+    }
+    bool last(ParamID id, double& v) const {
+        for (const auto& q : qs_) {
+            if (q.id_ == id && !q.pts_.empty()) { v = q.pts_.back().second; return true; }
+        }
+        return false;
+    }
+    void clear() { qs_.clear(); }
+
+private:
+    std::vector<CaptureQueue> qs_;
+};
+
+// -----------------------------------------------------------------------------
+// Processor rig
+// -----------------------------------------------------------------------------
+
+using BlockHook = std::function<void(size_t blockIdx, size_t start, PChanges& pc)>;
+using OutHook = std::function<void(size_t blockIdx, CaptureChanges& out)>;
+
+struct Rig {
+    std::unique_ptr<Processor> p;
+    double sr;
+    int32 maxBlock;
+    bool active = false;
+
+    explicit Rig(double sampleRate = 48000.0, int32 mb = 512, bool doSetup = true)
+        : sr(sampleRate), maxBlock(mb) {
+        p = std::make_unique<Processor>();
+        p->initialize(nullptr);
+        if (doSetup) setup();
+    }
+    ~Rig() {
+        deactivate();
+        p->terminate();
+    }
+    Rig(const Rig&) = delete;
+    Rig& operator=(const Rig&) = delete;
+
+    void setup() {
+        Steinberg::Vst::ProcessSetup ps{};
+        ps.processMode = Steinberg::Vst::kRealtime;
+        ps.symbolicSampleSize = Steinberg::Vst::kSample32;
+        ps.sampleRate = sr;
+        ps.maxSamplesPerBlock = maxBlock;
+        p->setupProcessing(ps);
+        p->setActive(true);
+        active = true;
+    }
+    void deactivate() {
+        if (active) { p->setActive(false); active = false; }
+    }
+    void reactivate() {
+        p->setActive(false);
+        p->setActive(true);
+        active = true;
+    }
+
+    void processBlock(float* iL, float* iR, float* oL, float* oR, int32 n,
+                      Steinberg::Vst::IParameterChanges* in, Steinberg::Vst::IParameterChanges* out = nullptr) {
+        float* ic[2] = {iL, iR};
+        float* oc[2] = {oL, oR};
+        Steinberg::Vst::AudioBusBuffers ib{};
+        ib.numChannels = 2;
+        ib.channelBuffers32 = ic;
+        Steinberg::Vst::AudioBusBuffers ob{};
+        ob.numChannels = 2;
+        ob.channelBuffers32 = oc;
+        Steinberg::Vst::ProcessData d{};
+        d.processMode = Steinberg::Vst::kRealtime;
+        d.symbolicSampleSize = Steinberg::Vst::kSample32;
+        d.numSamples = n;
+        d.numInputs = 1;
+        d.numOutputs = 1;
+        d.inputs = &ib;
+        d.outputs = &ob;
+        d.inputParameterChanges = in;
+        d.outputParameterChanges = out;
+        d.processContext = nullptr;
+        p->process(d);
+    }
+
+    void apply(const PList& l) {
+        PChanges pc;
+        for (const auto& c : l) pc.addChange(c.first, c.second);
+        float z[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        processBlock(z, z + 1, z + 2, z + 3, 0, &pc);
+    }
+
+    void render(const std::vector<float>& inL, const std::vector<float>& inR,
+                std::vector<float>& outL, std::vector<float>& outR, int32 block = 512,
+                const BlockHook& hook = {}, const OutHook& outHook = {}) {
+        const size_t n = std::min(inL.size(), inR.size());
+        outL.assign(n, 0.0f);
+        outR.assign(n, 0.0f);
+        std::vector<float> bL(static_cast<size_t>(block)), bR(static_cast<size_t>(block));
+        std::vector<float> oL(static_cast<size_t>(block)), oR(static_cast<size_t>(block));
+        PChanges pc;
+        CaptureChanges cap;
+        size_t blk = 0;
+        for (size_t s = 0; s < n; s += static_cast<size_t>(block), ++blk) {
+            const auto len = static_cast<int32>(std::min(static_cast<size_t>(block), n - s));
+            std::copy(inL.begin() + static_cast<std::ptrdiff_t>(s), inL.begin() + static_cast<std::ptrdiff_t>(s) + len, bL.begin());
+            std::copy(inR.begin() + static_cast<std::ptrdiff_t>(s), inR.begin() + static_cast<std::ptrdiff_t>(s) + len, bR.begin());
+            pc.clear();
+            if (hook) hook(blk, s, pc);
+            cap.clear();
+            processBlock(bL.data(), bR.data(), oL.data(), oR.data(), len, &pc, outHook ? &cap : nullptr);
+            if (outHook) outHook(blk, cap);
+            std::copy(oL.begin(), oL.begin() + len, outL.begin() + static_cast<std::ptrdiff_t>(s));
+            std::copy(oR.begin(), oR.begin() + len, outR.begin() + static_cast<std::ptrdiff_t>(s));
+        }
+    }
+};
+
+ParamID nodeId(int b, int n, NodeParamType t) {
+    return makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n), t);
+}
+ParamID bandId(int b, BandParamType t) { return makeBandParamId(static_cast<uint8_t>(b), t); }
+ParamID sweepId(SweepParamType t) { return makeSweepParamId(t); }
+double typeNorm(DistortionType t) { return static_cast<double>(static_cast<int>(t)) / 25.0; }
+double bandCountNorm(int n) { return static_cast<double>(n - 1) / 3.0; }
+double sweepFreqNorm(double hz) {
+    return (std::log2(hz) - std::log2(20.0)) / (std::log2(20000.0) - std::log2(20.0));
+}
+
+const char* typeName(int t) {
+    static const char* kNames[26] = {
+        "SoftClip", "HardClip", "Tube", "Tape", "Fuzz", "AsymmetricFuzz", "SineFold",
+        "TriangleFold", "SergeFold", "FullRectify", "HalfRectify", "Bitcrush", "SampleReduce",
+        "Quantize", "Aliasing", "BitwiseMangler", "Temporal", "RingSaturation", "FeedbackDist",
+        "AllpassResonant", "Chaos", "Formant", "Granular", "Spectral", "Fractal", "Stochastic"};
+    return (t >= 0 && t < 26) ? kNames[t] : "?";
+}
+
+bool noiseByDesign(DistortionType t) {
+    return t == DistortionType::Stochastic || t == DistortionType::Granular ||
+           t == DistortionType::Chaos || t == DistortionType::Spectral;
+}
+
+// =============================================================================
+// Group 1: per-type aliasing / DC / NaN / peak / self-noise
+// =============================================================================
+
+void probeType(int ti) {
+    const auto t = static_cast<DistortionType>(ti);
+    const std::string tn = typeName(ti);
+    constexpr double sr = 48000.0;
+    constexpr double f0 = 1031.25;   // bin 176 of an 8192 FFT at 48 kHz: aliases do not fold onto harmonics
+    constexpr size_t N = 8192;
+    constexpr size_t f0Bin = 176;
+    constexpr size_t warm = 24000;
+    constexpr size_t len = warm + N;
+    const auto in = sine(len, f0, sr, -6.0);
+    const int osProfile = getRecommendedOversample(t);
+
+    Rig r(sr);
+    r.apply({{kBandCountId, bandCountNorm(1)},
+             {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(t)},
+             {nodeId(0, 0, NodeParamType::kNodeMix), 1.0},
+             {nodeId(0, 0, NodeParamType::kNodeBias), 0.5}});
+
+    std::vector<float> oL, oR, keep075;
+    for (double d : {0.25, 0.75, 1.0}) {
+        r.apply({{nodeId(0, 0, NodeParamType::kNodeDrive), d}});
+        r.reactivate();
+        r.render(in, in, oL, oR);
+        const size_t nf = nonFinite(oL) + nonFinite(oR);
+        const auto P = powerSpec(oL.data() + warm, N);
+        const double al = aliasDb(P, f0Bin);
+        const double dc = meanOf(oL.data() + warm, N);
+        const double pk = toDb(peakOf(oL.data() + warm, N));
+        int lv = 0;
+        if (nf > 0) lv = 2;
+        const double adc = std::fabs(dc);
+        if (adc >= 1e-2) lv = std::max(lv, 2); else if (adc >= 1e-3) lv = std::max(lv, 1);
+        if (pk > 6.0) lv = std::max(lv, 1);
+        std::string alBar;
+        if (osProfile == 1) {
+            alBar = "info (1x profile: aliasing intentional)";
+        } else if (noiseByDesign(t)) {
+            alBar = "info (noise by design)";
+        } else {
+            alBar = "<= -50 dB (OS profile " + std::to_string(osProfile) + "x)";
+            if (al > -30.0) lv = std::max(lv, 2); else if (al > -50.0) lv = std::max(lv, 1);
+        }
+        emit("type:" + tn + ":drive=" + fix(d, 2),
+             "1 band, node0 " + tn + ", 1031.25 Hz sine -6 dBFS, 48k, mix 1, bias 0, OSmax default, Processor path",
+             "nonharm_dB,dc,nonfinite,peak_dBFS",
+             fix(al, 1) + "," + num(dc, 3) + "," + std::to_string(nf) + "," + fix(pk, 2),
+             alBar + "; |dc|<1e-3; nonfinite 0; peak<=+6 dBFS", lv);
+        if (d == 0.75) keep075.assign(oL.begin() + static_cast<std::ptrdiff_t>(warm), oL.end());
+        if (d == 1.0) {
+            // tail after the input stops: 1.5 s of silence, measure the last 0.5 s
+            std::vector<float> z(static_cast<size_t>(sr * 1.5), 0.0f), tL, tR;
+            r.render(z, z, tL, tR);
+            const size_t st = static_cast<size_t>(sr * 1.0);
+            const double tailDb = toDb(std::max(rmsOf(tL.data() + st, tL.size() - st), rmsOf(tR.data() + st, tR.size() - st)));
+            const size_t nf2 = nonFinite(tL) + nonFinite(tR);
+            int lv2 = nf2 > 0 ? 2 : (tailDb > -60.0 ? 2 : (tailDb > -90.0 ? 1 : 0));
+            emit("tail:" + tn, "drive=1.0 sine for 0.68 s then silence; RMS 1.0-1.5 s after stop",
+                 "tail_rms_dBFS,nonfinite", fix(tailDb, 1) + "," + std::to_string(nf2),
+                 "<= -90 dBFS (ok), <= -60 (suspicious)", lv2);
+        }
+    }
+
+    // bias extremes at drive 0.75
+    for (double b : {0.0, 1.0}) {
+        r.apply({{nodeId(0, 0, NodeParamType::kNodeDrive), 0.75}, {nodeId(0, 0, NodeParamType::kNodeBias), b}});
+        r.reactivate();
+        r.render(in, in, oL, oR);
+        const size_t nf = nonFinite(oL) + nonFinite(oR);
+        const double dc = meanOf(oL.data() + warm, N);
+        const double pk = toDb(peakOf(oL.data() + warm, N));
+        const double adc = std::fabs(dc);
+        int lv = nf > 0 ? 2 : (adc >= 1e-2 ? 2 : (adc >= 1e-3 ? 1 : 0));
+        emit("bias:" + tn + ":bias=" + (b < 0.5 ? std::string("-1") : std::string("+1")),
+             "1 band, node0 " + tn + ", drive 0.75, 1031.25 Hz -6 dBFS, 48k",
+             "dc,nonfinite,peak_dBFS", num(dc, 3) + "," + std::to_string(nf) + "," + fix(pk, 2),
+             "|dc|<1e-3 (ok), <1e-2 (suspicious)", lv);
+    }
+    r.apply({{nodeId(0, 0, NodeParamType::kNodeBias), 0.5}});
+
+    // fresh silence
+    {
+        r.apply({{nodeId(0, 0, NodeParamType::kNodeDrive), 1.0}});
+        r.reactivate();
+        std::vector<float> z(static_cast<size_t>(sr), 0.0f);
+        r.render(z, z, oL, oR);
+        const size_t st = static_cast<size_t>(sr * 0.5);
+        const double sDb = toDb(std::max(rmsOf(oL.data() + st, oL.size() - st), rmsOf(oR.data() + st, oR.size() - st)));
+        const size_t nf = nonFinite(oL) + nonFinite(oR);
+        int lv = nf > 0 ? 2 : (sDb > -60.0 ? 2 : (sDb > -90.0 ? 1 : 0));
+        emit("selfnoise:" + tn, "fresh activate, silent input 1 s, drive 1.0, RMS of last 0.5 s",
+             "rms_dBFS,nonfinite", fix(sDb, 1) + "," + std::to_string(nf),
+             "<= -90 dBFS (ok), <= -60 (suspicious)", lv);
+    }
+
+    // Adapter direct at 48 kHz vs Processor path (same params) at drive 0.75
+    {
+        const MorphEngine* me = r.p->getBandProcessor(0).getMorphEngine();
+        const DistortionParams prm = me ? me->getNodeParams(0) : DistortionParams{};
+        auto ad = std::make_unique<DistortionAdapter>();
+        ad->prepare(sr, 512);
+        ad->setType(t);
+        ad->setParams(prm);
+        ad->setCommonParams(DistortionCommonParams{.drive = 7.5f, .mix = 1.0f, .toneHz = 4000.0f});
+        std::vector<float> ao(len);
+        for (size_t i = 0; i < len; ++i) ao[i] = ad->process(in[i]);
+        const auto Pa = powerSpec(ao.data() + warm, N);
+        const auto Pp = powerSpec(keep075.data(), N);
+        const double ca = centroidHz(Pa, sr, N);
+        const double cp = centroidHz(Pp, sr, N);
+        const double ra = toDb(rmsOf(ao.data() + warm, N));
+        const double rp = toDb(rmsOf(keep075.data(), N));
+        const double ratio = ca > 0.0 ? cp / ca : 0.0;
+        const double dDb = rp - ra;
+        int lv = 0;
+        if (std::fabs(dDb) > 3.0 || ratio < 0.5 || ratio > 2.0) lv = 2;
+        else if (std::fabs(dDb) > 1.0 || ratio < 0.85 || ratio > 1.15) lv = 1;
+        if (noiseByDesign(t)) lv = std::min(lv, 1);
+        emit("adapter-vs-processor:" + tn,
+             "drive 7.5 (0.75), mix 1, tone 4000, same DistortionParams; adapter prepared at 48k mono vs Processor 1 band L",
+             "rms_diff_dB(proc-adapter),centroid_ratio(proc/adapter),centroid_adapter_Hz,centroid_proc_Hz",
+             fix(dDb, 2) + "," + fix(ratio, 3) + "," + fix(ca, 0) + "," + fix(cp, 0),
+             "|rms diff|<=1 dB and centroid ratio 0.85-1.15", lv);
+    }
+    CHECK(true);
+}
+
+} // namespace
+
+TEST_CASE("audit probe: per-type A (types 0-6)", "[.][audit-probe]") { for (int t = 0; t <= 6; ++t) probeType(t); }
+TEST_CASE("audit probe: per-type B (types 7-12)", "[.][audit-probe]") { for (int t = 7; t <= 12; ++t) probeType(t); }
+TEST_CASE("audit probe: per-type C (types 13-19)", "[.][audit-probe]") { for (int t = 13; t <= 19; ++t) probeType(t); }
+TEST_CASE("audit probe: per-type D (types 20-25)", "[.][audit-probe]") { for (int t = 20; t <= 25; ++t) probeType(t); }
+
+// =============================================================================
+// Group 1b: stereo independence (shared L/R state) and tone-filter response
+// =============================================================================
+
+TEST_CASE("audit probe: stereo independence", "[.][audit-probe]") {
+    constexpr double sr = 48000.0;
+    const size_t len = static_cast<size_t>(sr * 0.5);
+    const auto inL = sine(len, 1031.25, sr, -6.0);
+    const std::vector<float> inR(len, 0.0f);
+    for (DistortionType t : {DistortionType::SoftClip, DistortionType::Tape, DistortionType::Tube,
+                             DistortionType::FeedbackDist, DistortionType::AllpassResonant,
+                             DistortionType::Temporal, DistortionType::Formant}) {
+        Rig r(sr);
+        r.apply({{kBandCountId, bandCountNorm(1)},
+                 {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(t)},
+                 {nodeId(0, 0, NodeParamType::kNodeDrive), 0.5}});
+        r.reactivate();
+        std::vector<float> oL, oR;
+        r.render(inL, inR, oL, oR);
+        const size_t st = len / 2;
+        const double rDb = toDb(rmsOf(oR.data() + st, len - st));
+        const double lDb = toDb(rmsOf(oL.data() + st, len - st));
+        int lv = rDb > -80.0 ? 2 : (rDb > -120.0 ? 1 : 0);
+        emit(std::string("stereo-leak:") + typeName(static_cast<int>(t)),
+             "1 band, drive 0.5, L = 1031 Hz -6 dBFS, R = digital silence, centre pan, 48k",
+             "R_out_rms_dBFS,L_out_rms_dBFS", fix(rDb, 1) + "," + fix(lDb, 1),
+             "R <= -120 dBFS (channels independent)", lv);
+    }
+    CHECK(true);
+}
+
+TEST_CASE("audit probe: tone filter effective cutoff", "[.][audit-probe]") {
+    constexpr double sr = 48000.0;
+    const size_t len = static_cast<size_t>(sr * 0.4);
+    const std::vector<double> freqs = {100.0, 1000.0, 2000.0, 4000.0, 8000.0};
+    std::vector<double> procDb, adDb;
+    for (double f : freqs) {
+        const auto in = sine(len, f, sr, -20.0);
+        {
+            Rig r(sr);
+            // drive 0.01 (normalized 0.001): SoftClip in its linear region; tone default 4000 Hz
+            r.apply({{kBandCountId, bandCountNorm(1)},
+                     {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip)},
+                     {nodeId(0, 0, NodeParamType::kNodeDrive), 0.001}});
+            r.reactivate();
+            std::vector<float> oL, oR;
+            r.render(in, in, oL, oR);
+            procDb.push_back(toDb(rmsOf(oL.data() + len / 2, len / 2)));
+        }
+        {
+            auto ad = std::make_unique<DistortionAdapter>();
+            ad->prepare(sr, 512);
+            ad->setType(DistortionType::SoftClip);
+            ad->setCommonParams(DistortionCommonParams{.drive = 0.01f, .mix = 1.0f, .toneHz = 4000.0f});
+            std::vector<float> o(len);
+            for (size_t i = 0; i < len; ++i) o[i] = ad->process(in[i]);
+            adDb.push_back(toDb(rmsOf(o.data() + len / 2, len / 2)));
+        }
+    }
+    auto fcFrom = [](double f, double relDb) {
+        const double g = std::pow(10.0, -relDb / 10.0) - 1.0;
+        return g > 1e-9 ? f / std::sqrt(g) : 1e9;
+    };
+    for (size_t i = 1; i < freqs.size(); ++i) {
+        const double relP = procDb[i] - procDb[0];
+        const double relA = adDb[i] - adDb[0];
+        const double fcP = fcFrom(freqs[i], relP);
+        const double fcA = fcFrom(freqs[i], relA);
+        int lv = 0;
+        if (std::fabs(relP - relA) > 3.0) lv = 2; else if (std::fabs(relP - relA) > 1.0) lv = 1;
+        emit("tone-response:" + fix(freqs[i], 0) + "Hz",
+             "1 band SoftClip drive 0.01, mix 1, tone 4000 Hz; level rel. 100 Hz; Processor vs adapter@48k",
+             "proc_rel_dB,adapter_rel_dB,proc_implied_fc_Hz,adapter_implied_fc_Hz",
+             fix(relP, 2) + "," + fix(relA, 2) + "," + fix(fcP, 0) + "," + fix(fcA, 0),
+             "proc within 1 dB of adapter@48k (one-pole LP at 4 kHz)", lv);
+    }
+    CHECK(true);
+}
+
+// =============================================================================
+// Group 2: crossover reconstruction (+ dry/wet coherence at mix 50 %)
+// =============================================================================
+
+TEST_CASE("audit probe: crossover reconstruction", "[.][audit-probe]") {
+    constexpr double sr = 48000.0;
+    constexpr size_t len = 32768;
+    const auto fr = logFreqs(20.0, 20000.0, 160);
+    // 0.3 s pre-roll: CrossoverLR4 frequency smoothers ramp from 1 kHz to the log distribution after prepare()
+    constexpr size_t pre = 14400;
+    std::vector<float> imp(pre + len, 0.0f);
+    imp[pre] = 1.0f;
+    auto slice = [&](const std::vector<float>& y) { return std::vector<float>(y.begin() + static_cast<std::ptrdiff_t>(pre), y.end()); };
+    double gMin = 0.0, gMax = 0.0, gAtMin = 0.0, gAtMax = 0.0;
+
+    auto analyse = [&](const std::vector<float>& h, double& maxDev, double& atHz, size_t& peakIdx, size_t& e99) {
+        maxDev = 0.0;
+        atHz = 0.0;
+        gMin = 1e9;
+        gMax = -1e9;
+        for (double f : fr) {
+            const double d = toDb(magAt(h, f, sr));
+            if (std::fabs(d) > std::fabs(maxDev)) { maxDev = d; atHz = f; }
+            if (d < gMin) { gMin = d; gAtMin = f; }
+            if (d > gMax) { gMax = d; gAtMax = f; }
+        }
+        double pk = 0.0, tot = 0.0;
+        peakIdx = 0;
+        for (size_t i = 0; i < h.size(); ++i) {
+            tot += static_cast<double>(h[i]) * h[i];
+            if (std::fabs(h[i]) > pk) { pk = std::fabs(h[i]); peakIdx = i; }
+        }
+        double acc = 0.0;
+        e99 = 0;
+        for (size_t i = 0; i < h.size(); ++i) {
+            acc += static_cast<double>(h[i]) * h[i];
+            if (acc >= 0.99 * tot) { e99 = i; break; }
+        }
+    };
+
+    Rig r(sr);
+    PList neutral;
+    for (int b = 0; b < 4; ++b) neutral.push_back({nodeId(b, 0, NodeParamType::kNodeDrive), 0.0});
+    r.apply(neutral);
+    for (int nb = 1; nb <= 4; ++nb) {
+        r.apply({{kBandCountId, bandCountNorm(nb)}});
+        r.reactivate();
+        std::vector<float> oL, oR;
+        r.render(imp, imp, oL, oR);
+        const auto h = slice(oL);
+        double dev = 0.0, at = 0.0;
+        size_t pk = 0, e99 = 0;
+        analyse(h, dev, at, pk, e99);
+        const double ripple = gMax - gMin;
+        const size_t nf = nonFinite(oL) + nonFinite(oR);
+        int lv = nf > 0 ? 2 : (ripple > 1.0 ? 2 : (ripple > 0.2 ? 1 : 0));
+        emit("crossover:processor:bands=" + std::to_string(nb),
+             "Processor, all node drives 0 (bypass), default crossovers, 0.3 s pre-roll then unit impulse, 48k, 160 log freqs 20-20k",
+             "ripple_dB(max-min),min_dB@Hz,max_dB@Hz,peak_idx,samples_to_99pct_energy,nonfinite",
+             fix(ripple, 3) + "," + fix(gMin, 3) + "@" + fix(gAtMin, 0) + "," + fix(gMax, 3) + "@" + fix(gAtMax, 0) + "," +
+                 std::to_string(pk) + "," + std::to_string(e99) + "," + std::to_string(nf),
+             "ripple <= 0.2 dB (+/-0.1 dB, SC-001)", lv);
+        const int lv2 = std::fabs(gMax) > 1.0 && std::fabs(gMin) > 1.0 ? 2 : (std::fabs(dev) > 0.1 ? 1 : 0);
+        emit("unity:processor:bands=" + std::to_string(nb),
+             "Processor, all node drives 0 (distortion bypassed), centre pan, gain 0 dB, mix 100 %",
+             "abs_level_max_dev_dB,at_Hz", fix(dev, 3) + "," + fix(at, 0),
+             "0 dB +/- 0.1 (neutral settings should be unity)", lv2);
+    }
+    // CrossoverNetwork alone
+    for (int nb = 2; nb <= 4; ++nb) {
+        CrossoverNetwork xo;
+        xo.prepare(sr, nb);
+        std::vector<float> hAll(imp.size());
+        std::array<float, 4> bands{};
+        for (size_t i = 0; i < imp.size(); ++i) {
+            xo.process(imp[i], bands);
+            float s = 0.0f;
+            for (int b = 0; b < nb; ++b) s += bands[static_cast<size_t>(b)];
+            hAll[i] = s;
+        }
+        const auto h = slice(hAll);
+        double dev = 0.0, at = 0.0;
+        size_t pk = 0, e99 = 0;
+        analyse(h, dev, at, pk, e99);
+        std::string fxs;
+        for (int c = 0; c < nb - 1; ++c) fxs += (c ? "/" : "") + fix(xo.getCrossoverFrequency(c), 0);
+        int lv = std::fabs(dev) > 0.5 ? 2 : (std::fabs(dev) > 0.1 ? 1 : 0);
+        emit("crossover:network:bands=" + std::to_string(nb),
+             "CrossoverNetwork direct, default log crossovers " + fxs + " Hz, 0.3 s pre-roll then unit impulse, sum of bands",
+             "max_mag_dev_dB,at_Hz,peak_idx,samples_to_99pct_energy",
+             fix(dev, 3) + "," + fix(at, 0) + "," + std::to_string(pk) + "," + std::to_string(e99),
+             "+/-0.1 dB (SC-001)", lv);
+        // the same network measured from t=0 (no pre-roll): the smoother ramp after prepare()
+        if (nb == 4) {
+            CrossoverNetwork x2;
+            x2.prepare(sr, nb);
+            std::vector<float> h0(len);
+            for (size_t i = 0; i < len; ++i) {
+                x2.process(i == 0 ? 1.0f : 0.0f, bands);
+                float s = 0.0f;
+                for (int b = 0; b < nb; ++b) s += bands[static_cast<size_t>(b)];
+                h0[i] = s;
+            }
+            double dev0 = 0.0, at0 = 0.0;
+            analyse(h0, dev0, at0, pk, e99);
+            const int lv0 = std::fabs(dev0) > 0.5 ? 1 : 0;
+            emit("crossover:network:startup-ramp:bands=4",
+                 "CrossoverNetwork direct, impulse at the first sample after prepare() (no pre-roll)",
+                 "max_mag_dev_dB,at_Hz", fix(dev0, 3) + "," + fix(at0, 0),
+                 "info: deviation = frequency smoothers ramping from 1 kHz after prepare()", lv0);
+        }
+    }
+    // dry/wet coherence at global mix 50 %
+    for (int nb : {2, 4}) {
+        r.apply({{kBandCountId, bandCountNorm(nb)}, {kGlobalMixId, 0.5}});
+        r.reactivate();
+        std::vector<float> oL, oR;
+        r.render(imp, imp, oL, oR);
+        const auto h = slice(oL);
+        double worst = 0.0, at = 0.0;
+        for (double f : fr) {
+            const double d = toDb(magAt(h, f, sr));
+            if (d < worst) { worst = d; at = f; }
+        }
+        int lv = worst < -6.0 ? 2 : (worst < -1.0 ? 1 : 0);
+        emit("drywet-mix50:bands=" + std::to_string(nb),
+             "Processor, all drives 0, global mix 0.5, unit impulse, 48k",
+             "deepest_notch_dB,at_Hz", fix(worst, 2) + "," + fix(at, 0),
+             ">= -1 dB (dry and wet paths phase-coherent)", lv);
+        r.apply({{kGlobalMixId, 1.0}});
+    }
+    CHECK(true);
+}
+
+// =============================================================================
+// Group 3: oversampling engagement + per-band latency alignment
+// =============================================================================
+
+TEST_CASE("audit probe: oversampling and latency", "[.][audit-probe]") {
+    constexpr double sr = 48000.0;
+    constexpr size_t N = 8192;
+    constexpr size_t warm = 24000;
+    const auto in = sine(warm + N, 1031.25, sr, -6.0);
+
+    // (a) Processor: does the global oversampling limit change aliasing at all?
+    {
+        double al[2] = {0.0, 0.0};
+        int fac[2] = {0, 0};
+        const double osNorm[2] = {0.0, 1.0};
+        for (int k = 0; k < 2; ++k) {
+            Rig r(sr);
+            r.apply({{kBandCountId, bandCountNorm(1)},
+                     {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::HardClip)},
+                     {nodeId(0, 0, NodeParamType::kNodeDrive), 1.0},
+                     {kOversampleMaxId, osNorm[k]}});
+            r.reactivate();
+            std::vector<float> oL, oR;
+            r.render(in, in, oL, oR);
+            al[k] = aliasDb(powerSpec(oL.data() + warm, N), 176);
+            fac[k] = r.p->getBandProcessor(0).getOversampleFactor();
+        }
+        const double gain = al[0] - al[1];
+        int lv = gain < 3.0 ? 2 : (gain < 12.0 ? 1 : 0);
+        emit("os-engaged:processor:HardClip",
+             "Processor 1 band HardClip drive 1.0, 1031.25 Hz -6 dBFS, OS max 1x vs 8x",
+             "nonharm_dB@1x,nonharm_dB@8x,reduction_dB,band_factor@1x,band_factor@8x",
+             fix(al[0], 1) + "," + fix(al[1], 1) + "," + fix(gain, 1) + "," + std::to_string(fac[0]) + "," + std::to_string(fac[1]),
+             ">= 12 dB aliasing reduction when the band reports factor 4", lv);
+    }
+    // (b) BandProcessor::processBlock (the oversampled path) factor 1 vs 4
+    {
+        double al[2] = {0.0, 0.0};
+        int fac[2] = {0, 0};
+        const int maxF[2] = {1, 8};
+        for (int k = 0; k < 2; ++k) {
+            auto bp = std::make_unique<BandProcessor>();
+            bp->prepare(sr, 512);
+            bp->setMaxOversampleFactor(maxF[k]);
+            bp->setDistortionType(DistortionType::HardClip);
+            bp->setDistortionCommonParams(DistortionCommonParams{.drive = 10.0f, .mix = 1.0f, .toneHz = 8000.0f});
+            std::vector<float> L(in), R(in);
+            for (size_t s = 0; s < L.size(); s += 512) {
+                const size_t n = std::min<size_t>(512, L.size() - s);
+                bp->processBlock(L.data() + s, R.data() + s, n);
+            }
+            al[k] = aliasDb(powerSpec(L.data() + warm, N), 176);
+            fac[k] = bp->getOversampleFactor();
+        }
+        const double gain = al[0] - al[1];
+        int lv = gain < 3.0 ? 2 : (gain < 12.0 ? 1 : 0);
+        emit("os-engaged:bandprocessor-block:HardClip",
+             "BandProcessor::processBlock (legacy adapter), HardClip drive 10, tone 8k, 1031.25 Hz -6 dBFS, max 1x vs 8x",
+             "nonharm_dB@1x,nonharm_dB@max8,reduction_dB,factor@1x,factor@max8",
+             fix(al[0], 1) + "," + fix(al[1], 1) + "," + fix(gain, 1) + "," + std::to_string(fac[0]) + "," + std::to_string(fac[1]),
+             ">= 12 dB aliasing reduction (oversampler works when used)", lv);
+    }
+    // (c) Processor: per-band arrival with a 4x-profile and a 1x-profile type
+    {
+        constexpr size_t pre = 14400;
+        constexpr size_t len = pre + 8192;
+        std::vector<float> imp(len, 0.0f);
+        imp[pre] = 0.5f;
+        DistortionType t1 = DistortionType::Bitcrush;
+        auto bandPeak = [&](bool processed, int band, int& factor) {
+            Rig r(sr);
+            r.apply({{kBandCountId, bandCountNorm(2)},
+                     {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::HardClip)},
+                     {nodeId(1, 0, NodeParamType::kNodeType), typeNorm(t1)},
+                     {nodeId(0, 0, NodeParamType::kNodeDrive), processed ? 0.01 : 0.0},
+                     {nodeId(1, 0, NodeParamType::kNodeDrive), processed ? 0.01 : 0.0},
+                     {nodeId(0, 0, NodeParamType::kNodeTone), 1.0},
+                     {nodeId(1, 0, NodeParamType::kNodeTone), 1.0},
+                     {bandId(band == 0 ? 1 : 0, BandParamType::kBandMute), 1.0}});
+            r.reactivate();
+            std::vector<float> oL, oR;
+            r.render(imp, imp, oL, oR);
+            factor = r.p->getBandProcessor(band).getOversampleFactor();
+            size_t pk = 0;
+            double m = 0.0;
+            for (size_t i = 0; i < oL.size(); ++i) if (std::fabs(oL[i]) > m) { m = std::fabs(oL[i]); pk = i; }
+            return pk;
+        };
+        int f0a = 0, f1a = 0, f0b = 0, f1b = 0;
+        const size_t p0 = bandPeak(true, 0, f0a);
+        const size_t p1 = bandPeak(true, 1, f1a);
+        const size_t q0 = bandPeak(false, 0, f0b);
+        const size_t q1 = bandPeak(false, 1, f1b);
+        const long extra0 = static_cast<long>(p0) - static_cast<long>(q0);
+        const long extra1 = static_cast<long>(p1) - static_cast<long>(q1);
+        const long rel = extra0 - extra1;
+        int lv = std::labs(rel) > 2 ? 2 : (std::labs(rel) > 0 ? 1 : 0);
+        emit("band-latency:processor:HardClip-vs-Bitcrush",
+             "Processor 2 bands: b0 HardClip (4x profile), b1 Bitcrush (1x, tone filter skipped), drive 0.1, tone 8k; 0.3 s pre-roll; impulse 0.5; other band muted; vs drive 0",
+             "b0_factor,b1_factor,b0_extra_delay_smp,b1_extra_delay_smp,relative_smp",
+             std::to_string(f0a) + "," + std::to_string(f1a) + "," + std::to_string(extra0) + "," + std::to_string(extra1) + "," + std::to_string(rel),
+             "relative 0 samples (bands aligned at summation)", lv);
+        // same with b1 = SoftClip (2x profile, tone filter applied): separates OS latency from the tone filter
+        t1 = DistortionType::SoftClip;
+        int g0 = 0, g1 = 0, h0 = 0, h1 = 0;
+        const long e0 = static_cast<long>(bandPeak(true, 0, g0)) - static_cast<long>(bandPeak(false, 0, h0));
+        const long e1 = static_cast<long>(bandPeak(true, 1, g1)) - static_cast<long>(bandPeak(false, 1, h1));
+        const long rel2 = e0 - e1;
+        int lv2 = std::labs(rel2) > 2 ? 2 : (std::labs(rel2) > 0 ? 1 : 0);
+        emit("band-latency:processor:HardClip-vs-SoftClip",
+             "as above, b1 SoftClip (2x profile, tone filter applied)",
+             "b0_factor,b1_factor,b0_extra_delay_smp,b1_extra_delay_smp,relative_smp",
+             std::to_string(g0) + "," + std::to_string(g1) + "," + std::to_string(e0) + "," + std::to_string(e1) + "," + std::to_string(rel2),
+             "relative 0 samples", lv2);
+    }
+    // (d) BandProcessor::processBlock group delay at factor 4 vs 1
+    {
+        constexpr size_t len = 4096;
+        double gd[2] = {0.0, 0.0};
+        size_t pk[2] = {0, 0};
+        int fac[2] = {0, 0};
+        const int maxF[2] = {1, 8};
+        for (int k = 0; k < 2; ++k) {
+            auto bp = std::make_unique<BandProcessor>();
+            bp->prepare(sr, 512);
+            bp->setMaxOversampleFactor(maxF[k]);
+            bp->setDistortionType(DistortionType::HardClip);
+            bp->setDistortionCommonParams(DistortionCommonParams{.drive = 0.1f, .mix = 1.0f, .toneHz = 8000.0f});
+            std::vector<float> z(2048, 0.0f), z2(2048, 0.0f);
+            for (size_t s = 0; s < z.size(); s += 512) bp->processBlock(z.data() + s, z2.data() + s, 512);
+            std::vector<float> L(len, 0.0f), R(len, 0.0f);
+            L[0] = 0.5f;
+            R[0] = 0.5f;
+            for (size_t s = 0; s < len; s += 512) bp->processBlock(L.data() + s, R.data() + s, 512);
+            double m = 0.0;
+            for (size_t i = 0; i < len; ++i) if (std::fabs(L[i]) > m) { m = std::fabs(L[i]); pk[k] = i; }
+            // group delay at 1 kHz from phase slope
+            auto phaseAt = [&](double f) {
+                double re = 0.0, im = 0.0;
+                for (size_t n = 0; n < len; ++n) {
+                    const double a = -kTwoPi * f * static_cast<double>(n) / sr;
+                    re += L[n] * std::cos(a);
+                    im += L[n] * std::sin(a);
+                }
+                return std::atan2(im, re);
+            };
+            double dphi = phaseAt(1010.0) - phaseAt(990.0);
+            while (dphi > kTwoPi / 2) dphi -= kTwoPi;
+            while (dphi < -kTwoPi / 2) dphi += kTwoPi;
+            gd[k] = -dphi / (kTwoPi * 20.0) * sr;
+            fac[k] = bp->getOversampleFactor();
+        }
+        const double rel = gd[1] - gd[0];
+        int lv = std::fabs(rel) > 2.0 ? 2 : (std::fabs(rel) > 0.5 ? 1 : 0);
+        emit("os-latency:bandprocessor-block",
+             "BandProcessor::processBlock HardClip drive 0.1 (linear), tone 8k, impulse 0.5; max 1x vs 8x; group delay at 1 kHz",
+             "factor@1x,factor@max8,peak_idx@1x,peak_idx@max8,gd1k_smp@1x,gd1k_smp@max8,relative_gd_smp",
+             std::to_string(fac[0]) + "," + std::to_string(fac[1]) + "," + std::to_string(pk[0]) + "," + std::to_string(pk[1]) +
+                 "," + fix(gd[0], 2) + "," + fix(gd[1], 2) + "," + fix(rel, 2),
+             "|relative group delay| <= 0.5 smp (getLatency() reports 0)", lv);
+    }
+    CHECK(true);
+}
+
+// =============================================================================
+// Group 4: morph continuity, on-node singularity, smoothing time
+// =============================================================================
+
+namespace {
+
+struct ContResult {
+    double ratio = 0.0;
+    size_t clicksEvent = 0;
+    size_t clicksBase = 0;
+    size_t nf = 0;
+};
+
+ContResult continuityAround(const std::vector<float>& y, size_t evBeg, size_t evEnd,
+                            size_t preBeg, size_t preEnd, size_t postBeg, size_t postEnd, double sr) {
+    ContResult c;
+    const double base = std::max(maxJump(y.data() + preBeg, preEnd - preBeg),
+                                 maxJump(y.data() + postBeg, postEnd - postBeg));
+    const double ev = maxJump(y.data() + evBeg, evEnd - evBeg);
+    c.ratio = base > 1e-12 ? ev / base : (ev > 1e-9 ? 1e9 : 1.0);
+    c.clicksEvent = clickCount(y.data() + evBeg, evEnd - evBeg, sr);
+    const size_t w = std::min(evEnd - evBeg, preEnd - preBeg);
+    c.clicksBase = clickCount(y.data() + preEnd - w, w, sr);
+    c.nf = nonFinite(y);
+    return c;
+}
+
+void morphSweep(const std::string& label, const PList& setup, bool diagonal) {
+    constexpr double sr = 48000.0;
+    const size_t len = static_cast<size_t>(sr * 3.0);
+    const auto in = sine(len, 220.0, sr, -12.0);
+    Rig r(sr);
+    r.apply(setup);
+    r.apply({{bandId(0, BandParamType::kBandMorphX), 0.0}, {bandId(0, BandParamType::kBandMorphY), 0.0}});
+    r.reactivate();
+    std::vector<float> oL, oR;
+    std::vector<std::array<float, 4>> wHist;
+    r.render(in, in, oL, oR, 512, [&](size_t, size_t start, PChanges& pc) {
+        wHist.push_back(r.p->getMorphWeightsForBand(0));
+        const double t = static_cast<double>(start) / sr;
+        double x = 0.0;
+        if (t >= 0.5 && t < 2.5) x = (t - 0.5) / 2.0;
+        else if (t >= 2.5) x = 1.0;
+        pc.addChange(bandId(0, BandParamType::kBandMorphX), x);
+        if (diagonal) pc.addChange(bandId(0, BandParamType::kBandMorphY), x);
+    });
+    const auto S = [&](double s) { return static_cast<size_t>(s * sr); };
+    const auto c = continuityAround(oL, S(0.5), S(2.5), S(0.1), S(0.5), S(2.6), S(3.0), sr);
+    // level trajectory
+    const double startDb = toDb(rmsOf(oL.data() + S(0.1), S(0.4)));
+    const double endDb = toDb(rmsOf(oL.data() + S(2.6), S(0.4)));
+    const size_t win = S(0.02);
+    double maxDev = 0.0, minDip = 0.0;
+    for (size_t s = S(0.5); s + win <= S(2.5); s += win) {
+        const double t = (static_cast<double>(s + win / 2) - static_cast<double>(S(0.5))) / static_cast<double>(S(2.0));
+        const double expect = startDb + (endDb - startDb) * t;
+        const double d = toDb(rmsOf(oL.data() + s, win)) - expect;
+        if (std::fabs(d) > std::fabs(maxDev)) maxDev = d;
+        minDip = std::min(minDip, d);
+    }
+    int lv = c.nf > 0 ? 2 : 0;
+    if (c.ratio > 2.0) lv = std::max(lv, 2); else if (c.ratio > 1.3) lv = std::max(lv, 1);
+    if (std::fabs(maxDev) > 6.0) lv = std::max(lv, 2); else if (std::fabs(maxDev) > 3.0) lv = std::max(lv, 1);
+    {
+        // where is the largest sample-to-sample jump, and what did the weights do there?
+        size_t at = S(0.5);
+        double m = 0.0;
+        for (size_t i = S(0.5) + 1; i < S(2.5); ++i) {
+            const double j = std::fabs(static_cast<double>(oL[i]) - oL[i - 1]);
+            if (j > m) { m = j; at = i; }
+        }
+        const size_t blk = at / 512;
+        const auto& w0 = wHist[blk > 0 ? blk - 1 : 0];
+        const auto& w1 = wHist[std::min(blk, wHist.size() - 1)];
+        const auto& w2 = wHist[std::min(blk + 1, wHist.size() - 1)];
+        auto ws = [](const std::array<float, 4>& w) { return fix(w[0], 3) + "/" + fix(w[1], 3) + "/" + fix(w[2], 3) + "/" + fix(w[3], 3); };
+        emit("morph-sweep-maxjump:" + label, "location of the largest jump during the sweep; weights read before blocks k-1, k, k+1",
+             "t_s,jump,offset_in_block,weights(k-1),weights(k),weights(k+1)",
+             fix(static_cast<double>(at) / sr, 4) + "," + num(m, 4) + "," + std::to_string(at % 512) + "," + ws(w0) + "," + ws(w1) + "," + ws(w2),
+             "info", 0);
+    }
+    emit("morph-sweep:" + label,
+         "1 band, 220 Hz -12 dBFS, 48k, cursor " + std::string(diagonal ? "(0,0)->(1,1)" : "x 0->1") + " over 2 s, block-rate automation",
+         "jump_ratio,clicks_sweep,clicks_static_samelen,nonfinite,start_dB,end_dB,max_level_dev_dB,min_dip_dB",
+         fix(c.ratio, 2) + "," + std::to_string(c.clicksEvent) + "," + std::to_string(c.clicksBase) + "," +
+             std::to_string(c.nf) + "," + fix(startDb, 2) + "," + fix(endDb, 2) + "," + fix(maxDev, 2) + "," + fix(minDip, 2),
+         "jump_ratio<=1.3, |level dev from dB-linear path|<=3 dB, nonfinite 0", lv);
+}
+
+PList twoNodeSetup() {
+    return {{kBandCountId, bandCountNorm(1)},
+            {bandId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0},
+            {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip)},
+            {nodeId(0, 1, NodeParamType::kNodeType), typeNorm(DistortionType::SineFold)},
+            {nodeId(0, 0, NodeParamType::kNodeDrive), 0.3},
+            {nodeId(0, 1, NodeParamType::kNodeDrive), 0.3}};
+}
+
+PList fourNodeSetup() {
+    return {{kBandCountId, bandCountNorm(1)},
+            {bandId(0, BandParamType::kBandActiveNodes), 1.0},
+            {bandId(0, BandParamType::kBandMorphMode), 0.5},
+            {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip)},
+            {nodeId(0, 1, NodeParamType::kNodeType), typeNorm(DistortionType::SineFold)},
+            {nodeId(0, 2, NodeParamType::kNodeType), typeNorm(DistortionType::FullRectify)},
+            {nodeId(0, 3, NodeParamType::kNodeType), typeNorm(DistortionType::RingSaturation)},
+            {nodeId(0, 0, NodeParamType::kNodeDrive), 0.3},
+            {nodeId(0, 1, NodeParamType::kNodeDrive), 0.3},
+            {nodeId(0, 2, NodeParamType::kNodeDrive), 0.3},
+            {nodeId(0, 3, NodeParamType::kNodeDrive), 0.3}};
+}
+
+} // namespace
+
+TEST_CASE("audit probe: morph continuity", "[.][audit-probe]") {
+    morphSweep("2node-crossfamily(SoftClip-SineFold)", twoNodeSetup(), false);
+    morphSweep("4node-crossfamily-planar(SoftClip,SineFold,FullRectify,RingSat)", fourNodeSetup(), true);
+    {
+        PList same = twoNodeSetup();
+        same[3] = {nodeId(0, 1, NodeParamType::kNodeType), typeNorm(DistortionType::Tube)};
+        morphSweep("2node-samefamily(SoftClip-Tube)", same, false);
+    }
+    CHECK(true);
+}
+
+TEST_CASE("audit probe: morph on-node and smoothing", "[.][audit-probe]") {
+    constexpr double sr = 48000.0;
+    const size_t len = static_cast<size_t>(sr * 0.5);
+    const auto in = sine(len, 220.0, sr, -12.0);
+    struct Pos { const char* name; double x; double y; };
+    const Pos pos[] = {{"exact-node1(1,0)", 1.0, 0.0}, {"near-node1(0.9995,0.0005)", 0.9995, 0.0005},
+                       {"close-node1(0.998,0.002)", 0.998, 0.002}, {"exact-node0(0,0)", 0.0, 0.0},
+                       {"centre(0.5,0.5)", 0.5, 0.5}};
+    double exactDb = 0.0;
+    for (const auto& p : pos) {
+        Rig r(sr);
+        r.apply(fourNodeSetup());
+        r.apply({{bandId(0, BandParamType::kBandMorphX), p.x}, {bandId(0, BandParamType::kBandMorphY), p.y}});
+        r.reactivate();
+        std::vector<float> oL, oR;
+        r.render(in, in, oL, oR);
+        const auto& w = r.p->getMorphWeightsForBand(0);
+        double sum = 0.0;
+        bool wfin = true;
+        for (float v : w) { sum += v; wfin = wfin && fin(v); }
+        const double lvlDb = toDb(rmsOf(oL.data() + len / 2, len / 2));
+        if (p.x == 1.0 && p.y == 0.0) exactDb = lvlDb;
+        const size_t nf = nonFinite(oL) + nonFinite(oR);
+        const bool nearNode1 = p.x > 0.99;
+        const double dLvl = nearNode1 ? lvlDb - exactDb : 0.0;
+        int lv = (nf > 0 || !wfin || std::fabs(sum - 1.0) > 1e-3) ? 2 : 0;
+        if (nearNode1 && std::fabs(dLvl) > 0.5) lv = std::max(lv, 1);
+        emit(std::string("morph-onnode:") + p.name,
+             "4 nodes planar (SoftClip,SineFold,FullRectify,RingSat) drive 3, 220 Hz -12 dBFS, cursor parked",
+             "w0,w1,w2,w3,weight_sum,nonfinite,level_dB,level_delta_vs_exact_node1_dB",
+             fix(w[0], 4) + "," + fix(w[1], 4) + "," + fix(w[2], 4) + "," + fix(w[3], 4) + "," + fix(sum, 5) + "," +
+                 std::to_string(nf) + "," + fix(lvlDb, 2) + "," + fix(dLvl, 3),
+             "weights finite and sum 1; no NaN; near-node level within 0.5 dB of on-node", lv);
+    }
+    // smoothing time: block 32, step x 0 -> 1, read MorphEngine smoothed X
+    {
+        Rig r(sr, 512);
+        r.apply(twoNodeSetup());
+        r.apply({{bandId(0, BandParamType::kBandMorphX), 0.0}});
+        r.reactivate();
+        const size_t total = static_cast<size_t>(sr * 0.3);
+        const auto s = sine(total, 220.0, sr, -12.0);
+        std::vector<float> oL, oR;
+        double t99 = -1.0;
+        const MorphEngine* me = r.p->getBandProcessor(0).getMorphEngine();
+        size_t stepAt = static_cast<size_t>(sr * 0.05);
+        r.render(s, s, oL, oR, 32, [&](size_t, size_t start, PChanges& pc) {
+            if (start == (stepAt / 32) * 32) pc.addChange(bandId(0, BandParamType::kBandMorphX), 1.0);
+            if (start > stepAt && t99 < 0.0 && me && me->getSmoothedX() >= 0.99f)
+                t99 = static_cast<double>(start - (stepAt / 32) * 32) / sr * 1000.0;
+        });
+        int lv = (t99 < 0.0) ? 2 : (t99 > 20.0 ? 2 : (t99 > 13.0 || t99 < 7.0 ? 1 : 0));
+        emit("morph-smoothing:default",
+             "1 band 2 nodes, default morph smoothing (10 ms to 99%), cursor x step 0->1, block 32, 48k",
+             "time_to_99pct_ms (block resolution 0.67 ms)", fix(t99, 2),
+             "10 ms +/- 30 %", lv);
+    }
+    CHECK(true);
+}
+
+// =============================================================================
+// Group 5: parameter automation steps
+// =============================================================================
+
+namespace {
+
+struct Step { size_t atSec10; PList changes; };  // atSec10 = time in 0.1 s units
+
+void automation(const std::string& name, const std::string& setupTxt, const PList& setup, const std::vector<Step>& steps,
+                double totalSec) {
+    constexpr double sr = 48000.0;
+    const size_t len = static_cast<size_t>(sr * totalSec);
+    const auto in = sine(len, 220.0, sr, -12.0);
+    Rig r(sr);
+    r.apply(setup);
+    r.reactivate();
+    std::vector<float> oL, oR;
+    r.render(in, in, oL, oR, 512, [&](size_t, size_t start, PChanges& pc) {
+        for (const auto& st : steps) {
+            const size_t at = (static_cast<size_t>(sr * 0.1 * static_cast<double>(st.atSec10)) / 512) * 512;
+            if (start == at) for (const auto& c : st.changes) pc.addChange(c.first, c.second);
+        }
+    });
+    for (size_t k = 0; k < steps.size(); ++k) {
+        const size_t at = (static_cast<size_t>(sr * 0.1 * static_cast<double>(steps[k].atSec10)) / 512) * 512;
+        const size_t prevAt = k == 0 ? 0 : (static_cast<size_t>(sr * 0.1 * static_cast<double>(steps[k - 1].atSec10)) / 512) * 512;
+        const size_t nextAt = k + 1 < steps.size() ? (static_cast<size_t>(sr * 0.1 * static_cast<double>(steps[k + 1].atSec10)) / 512) * 512 : len;
+        const size_t preBeg = prevAt + static_cast<size_t>(sr * 0.1);
+        const size_t evEnd = std::min(at + static_cast<size_t>(sr * 0.05), nextAt);
+        const size_t postBeg = std::min(at + static_cast<size_t>(sr * 0.2), nextAt - 1024);
+        const auto c = continuityAround(oL, at, evEnd, preBeg, at, postBeg, nextAt, sr);
+        const double preDb = toDb(rmsOf(oL.data() + preBeg, at - preBeg));
+        const double postDb = toDb(rmsOf(oL.data() + postBeg, nextAt - postBeg));
+        int lv = c.nf > 0 ? 2 : 0;
+        if (c.ratio > 2.0) lv = std::max(lv, 2); else if (c.ratio > 1.3) lv = std::max(lv, 1);
+        emit("automation:" + name + (steps.size() > 1 ? ":step" + std::to_string(k + 1) : std::string()),
+             setupTxt + "; 220 Hz -12 dBFS, 48k, block 512, step at " + fix(static_cast<double>(at) / sr, 3) + " s",
+             "jump_ratio(step50ms/max(pre,post)),clicks_step,clicks_pre_samelen,nonfinite,pre_dB,post_dB",
+             fix(c.ratio, 2) + "," + std::to_string(c.clicksEvent) + "," + std::to_string(c.clicksBase) + "," +
+                 std::to_string(c.nf) + "," + fix(preDb, 2) + "," + fix(postDb, 2),
+             "jump_ratio<=1.3 (ok), <=2 (suspicious); nonfinite 0", lv);
+    }
+}
+
+PList allBands(NodeParamType t, double v) {
+    PList l;
+    for (int b = 0; b < 4; ++b) l.push_back({nodeId(b, 0, t), v});
+    return l;
+}
+
+} // namespace
+
+TEST_CASE("audit probe: automation steps", "[.][audit-probe]") {
+    automation("drive0to1", "4 bands default SoftClip, node0 drive 0 -> 1.0 on all bands", allBands(NodeParamType::kNodeDrive, 0.0),
+               {{5, allBands(NodeParamType::kNodeDrive, 1.0)}}, 1.0);
+    {
+        PList s = allBands(NodeParamType::kNodeDrive, 0.5);
+        s.push_back({kGlobalMixId, 0.0});
+        automation("globalmix0to1", "4 bands SoftClip drive 5, global mix 0 -> 1", s, {{5, {{kGlobalMixId, 1.0}}}}, 1.0);
+    }
+    {
+        PList s = allBands(NodeParamType::kNodeDrive, 0.5);
+        PList m = allBands(NodeParamType::kNodeMix, 0.0);
+        s.insert(s.end(), m.begin(), m.end());
+        automation("nodemix0to1", "4 bands SoftClip drive 5, node mix 0 -> 1", s, {{5, allBands(NodeParamType::kNodeMix, 1.0)}}, 1.0);
+    }
+    {
+        PList s = {{kBandCountId, bandCountNorm(1)}, {bandId(0, BandParamType::kBandGain), 0.0}};
+        automation("bandgain-24to+24", "1 band SoftClip drive 1, band gain -24 -> +24 dB", s,
+                   {{5, {{bandId(0, BandParamType::kBandGain), 1.0}}}}, 1.0);
+    }
+    automation("mute-band0", "4 bands default, band 0 mute on then off", {},
+               {{5, {{bandId(0, BandParamType::kBandMute), 1.0}}}, {10, {{bandId(0, BandParamType::kBandMute), 0.0}}}}, 1.5);
+    automation("solo-band1", "4 bands default, band 1 solo on then off", {},
+               {{5, {{bandId(1, BandParamType::kBandSolo), 1.0}}}, {10, {{bandId(1, BandParamType::kBandSolo), 0.0}}}}, 1.5);
+    automation("bandcount2-4-1", "default nodes, band count 2 -> 4 -> 1", {{kBandCountId, bandCountNorm(2)}},
+               {{5, {{kBandCountId, bandCountNorm(4)}}}, {10, {{kBandCountId, bandCountNorm(1)}}}}, 1.5);
+    {
+        PList s = allBands(NodeParamType::kNodeType, typeNorm(DistortionType::HardClip));
+        PList d = allBands(NodeParamType::kNodeDrive, 0.5);
+        s.insert(s.end(), d.begin(), d.end());
+        s.push_back({kOversampleMaxId, 0.0});
+        automation("osmax1xto8x", "4 bands HardClip drive 5, OS max 1x -> 8x", s, {{5, {{kOversampleMaxId, 1.0}}}}, 1.0);
+    }
+    automation("type-switch", "1 band SoftClip drive 3 -> HardClip (node type step)",
+               {{kBandCountId, bandCountNorm(1)}, {nodeId(0, 0, NodeParamType::kNodeDrive), 0.3}},
+               {{5, {{nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SineFold)}}}}, 1.0);
+
+    // Band bypass: does it do anything on the Processor path?
+    {
+        constexpr double sr = 48000.0;
+        const size_t len = static_cast<size_t>(sr * 0.5);
+        const auto in = sine(len, 220.0, sr, -12.0);
+        std::vector<float> aL, aR, bL, bR;
+        PList s = allBands(NodeParamType::kNodeDrive, 1.0);
+        {
+            Rig r(sr);
+            r.apply(s);
+            r.reactivate();
+            r.render(in, in, aL, aR);
+        }
+        {
+            Rig r(sr);
+            r.apply(s);
+            PList by;
+            for (int b = 0; b < 4; ++b) by.push_back({bandId(b, BandParamType::kBandBypass), 1.0});
+            r.apply(by);
+            r.reactivate();
+            r.render(in, in, bL, bR);
+        }
+        const double diff = maxAbsDiff(aL, bL, len / 2);
+        // reference: what a clean (dry) path would give
+        const double dryDiff = maxAbsDiff(in, bL, len / 2);
+        int lv = diff < 1e-6 ? 2 : 0;
+        emit("bypass:all-bands",
+             "4 bands SoftClip drive 10; all band bypass on vs off; 220 Hz -12 dBFS",
+             "max_abs_diff(bypass_on vs off),max_abs_diff(bypass_on vs dry_input)", num(diff, 4) + "," + num(dryDiff, 4),
+             "bypass must change the output (FR-012 bit-transparent band)", lv);
+    }
+    CHECK(true);
+}
+
+// =============================================================================
+// Group 6: sweep system
+// =============================================================================
+
+TEST_CASE("audit probe: sweep system", "[.][audit-probe]") {
+    constexpr double sr = 48000.0;
+    const size_t len = static_cast<size_t>(sr * 2.0);
+    std::vector<float> in(len, 0.0f);
+    for (double f : {150.0, 700.0, 3200.0, 11000.0}) {
+        const auto s = sine(len, f, sr, -18.0);
+        for (size_t i = 0; i < len; ++i) in[i] += s[i];
+    }
+    const ParamID modId = kSweepModulatedFrequencyOutputId;
+    auto octRange = [](const std::vector<double>& hz) {
+        double lo = 1e9, hi = 0.0;
+        for (double h : hz) { lo = std::min(lo, h); hi = std::max(hi, h); }
+        return hi > 0.0 && lo > 0.0 ? std::log2(hi / lo) : 0.0;
+    };
+    auto denormFreq = [](double n) { return std::pow(2.0, std::log2(20.0) + n * (std::log2(20000.0) - std::log2(20.0))); };
+
+    // (a) full sweep: enable, 100 %, freq 100 Hz -> 10 kHz over 2 s, LFO 5 Hz, env on
+    std::vector<float> refL, refR, oL, oR;
+    PList base = allBands(NodeParamType::kNodeDrive, 0.3);
+    {
+        Rig r(sr);
+        r.apply(base);
+        r.reactivate();
+        r.render(in, in, refL, refR);
+    }
+    std::vector<double> modHz;
+    {
+        Rig r(sr);
+        PList s = base;
+        const double lfoRate5 = (std::log(5.0) - std::log(0.01)) / (std::log(20.0) - std::log(0.01));
+        s.insert(s.end(), {{sweepId(SweepParamType::kSweepEnable), 1.0},
+                           {sweepId(SweepParamType::kSweepIntensity), 0.5},
+                           {sweepId(SweepParamType::kSweepLFOEnable), 1.0},
+                           {sweepId(SweepParamType::kSweepLFORate), lfoRate5},
+                           {sweepId(SweepParamType::kSweepLFODepth), 1.0},
+                           {sweepId(SweepParamType::kSweepEnvEnable), 1.0},
+                           {sweepId(SweepParamType::kSweepEnvSensitivity), 1.0},
+                           {sweepId(SweepParamType::kSweepFrequency), sweepFreqNorm(100.0)}});
+        r.apply(s);
+        r.reactivate();
+        r.render(in, in, oL, oR, 512,
+                 [&](size_t, size_t start, PChanges& pc) {
+                     const double t = static_cast<double>(start) / sr;
+                     const double f = 100.0 * std::pow(100.0, std::min(t / 2.0, 1.0));
+                     pc.addChange(sweepId(SweepParamType::kSweepFrequency), sweepFreqNorm(f));
+                 },
+                 [&](size_t, CaptureChanges& cap) {
+                     double v = 0.0;
+                     if (cap.last(modId, v)) modHz.push_back(denormFreq(v));
+                 });
+    }
+    const size_t nf = nonFinite(oL) + nonFinite(oR);
+    const double jr = maxJump(oL.data(), len) / std::max(1e-12, maxJump(refL.data(), len));
+    const double rmsOn = toDb(rmsOf(oL.data(), len));
+    const double rmsOff = toDb(rmsOf(refL.data(), len));
+    {
+        int lv = nf > 0 ? 2 : (jr > 2.0 ? 2 : (jr > 1.3 ? 1 : 0));
+        emit("sweep:full-automation",
+             "4 bands SoftClip drive 3, 4-sine input (150/700/3200/11000 Hz, -18 dBFS each); sweep on 100 %, freq 100->10k Hz over 2 s, LFO 5 Hz depth 1, env on sens 1",
+             "nonfinite,max_jump_ratio_vs_sweep_off,rms_on_dB,rms_off_dB,mod_freq_range_oct,mod_freq_samples",
+             std::to_string(nf) + "," + fix(jr, 2) + "," + fix(rmsOn, 2) + "," + fix(rmsOff, 2) + "," + fix(octRange(modHz), 2) +
+                 "," + std::to_string(modHz.size()),
+             "nonfinite 0; jump ratio <= 1.3", lv);
+    }
+    // (b) LFO rate: base 1 kHz fixed, LFO 5 Hz depth 1, env off, 2 s
+    {
+        Rig r(sr);
+        const double lfoRate5 = (std::log(5.0) - std::log(0.01)) / (std::log(20.0) - std::log(0.01));
+        r.apply({{sweepId(SweepParamType::kSweepEnable), 1.0},
+                 {sweepId(SweepParamType::kSweepFrequency), sweepFreqNorm(1000.0)},
+                 {sweepId(SweepParamType::kSweepLFOEnable), 1.0},
+                 {sweepId(SweepParamType::kSweepLFORate), lfoRate5},
+                 {sweepId(SweepParamType::kSweepLFODepth), 1.0}});
+        r.reactivate();
+        std::vector<double> hz;
+        r.render(in, in, oL, oR, 512, {}, [&](size_t, CaptureChanges& cap) {
+            double v = 0.0;
+            if (cap.last(modId, v)) hz.push_back(denormFreq(v));
+        });
+        // count cycles: crossings of log2(1000) going upward
+        size_t up = 0;
+        for (size_t i = 1; i < hz.size(); ++i)
+            if (std::log2(hz[i - 1]) < std::log2(1000.0) && std::log2(hz[i]) >= std::log2(1000.0)) ++up;
+        const double range = octRange(hz);
+        int lv = (range < 1.0 || up < 7 || up > 13) ? 2 : 0;
+        emit("sweep:lfo-rate",
+             "sweep on, base 1 kHz, LFO sine 5 Hz depth 1 (+/-2 oct), env off, 2 s at 48k block 512; modulated-freq output param per block",
+             "mod_range_oct,upward_crossings_in_2s,blocks", fix(range, 3) + "," + std::to_string(up) + "," + std::to_string(hz.size()),
+             "range ~4 oct and ~10 cycles in 2 s", lv);
+    }
+    // (c) envelope follower response: silence 0.5 s then 0 dBFS-ish burst
+    {
+        Rig r(sr);
+        r.apply({{sweepId(SweepParamType::kSweepEnable), 1.0},
+                 {sweepId(SweepParamType::kSweepFrequency), sweepFreqNorm(200.0)},
+                 {sweepId(SweepParamType::kSweepEnvEnable), 1.0},
+                 {sweepId(SweepParamType::kSweepEnvSensitivity), 1.0},
+                 {sweepId(SweepParamType::kSweepEnvAttack), 0.0909}});  // ~10 ms
+        r.reactivate();
+        const size_t n2 = static_cast<size_t>(sr * 1.5);
+        std::vector<float> e(n2, 0.0f);
+        const auto b = sine(n2, 1000.0, sr, -3.0);
+        for (size_t i = static_cast<size_t>(sr * 0.5); i < n2; ++i) e[i] = b[i];
+        std::vector<double> hz;
+        r.render(e, e, oL, oR, 512, {}, [&](size_t, CaptureChanges& cap) {
+            double v = 0.0;
+            if (cap.last(modId, v)) hz.push_back(denormFreq(v));
+        });
+        const size_t onset = static_cast<size_t>(sr * 0.5) / 512;
+        double fin_ = hz.empty() ? 0.0 : std::log2(hz.back() / 200.0);
+        double t63 = -1.0;
+        for (size_t i = onset; i < hz.size(); ++i) {
+            if (std::log2(hz[i] / 200.0) >= 0.63 * fin_) { t63 = static_cast<double>(i - onset) * 512.0 / sr * 1000.0; break; }
+        }
+        int lv = (fin_ < 0.1 || t63 < 0.0) ? 2 : (t63 > 60.0 ? 2 : (t63 > 30.0 ? 1 : 0));
+        emit("sweep:env-attack",
+             "sweep on base 200 Hz, env on sens 1 attack ~10 ms, silence 0.5 s then 1 kHz -3 dBFS; modulated-freq per block",
+             "final_shift_oct,time_to_63pct_ms", fix(fin_, 3) + "," + fix(t63, 1),
+             "time to 63 % ~ attack (10 ms, block resolution 10.7 ms)", lv);
+    }
+    // (d) per-band intensity sanity (standalone SweepProcessor, same trajectory)
+    {
+        static constexpr std::array<float, 4> kCentres = {100.0f, 600.0f, 3000.0f, 12000.0f};
+        for (float inten : {1.0f, 2.0f}) {
+            SweepProcessor sp;
+            sp.prepare(sr, 512);
+            sp.setEnabled(true);
+            sp.setIntensity(inten);
+            sp.setWidth(0.5f + 0.286f * 3.5f);
+            double mx = 0.0;
+            size_t bad = 0;
+            for (size_t s = 0; s < len; s += 512) {
+                const double t = static_cast<double>(s) / sr;
+                sp.setCenterFrequency(static_cast<float>(100.0 * std::pow(100.0, std::min(t / 2.0, 1.0))));
+                sp.processBlock(512);
+                std::array<float, 4> out{};
+                sp.calculateAllBandIntensities(kCentres.data(), 4, out.data());
+                for (float v : out) {
+                    if (!fin(v)) ++bad;
+                    else mx = std::max(mx, static_cast<double>(v));
+                }
+            }
+            int lv = bad > 0 ? 2 : (mx > static_cast<double>(inten) + 1e-3 ? 2 : (inten > 1.0f && mx > 1.0 ? 1 : 0));
+            emit("sweep:band-intensity:intensity=" + fix(inten * 100.0, 0) + "%",
+                 "SweepProcessor direct, width default (1.5 oct), centre 100->10k Hz, band centres 100/600/3000/12000",
+                 "max_band_multiplier,nonfinite", fix(mx, 4) + "," + std::to_string(bad),
+                 "<= intensity; note BandProcessor::setSweepIntensity clamps to [0,1] (values >1 are inert)", lv);
+        }
+    }
+    // (e) band far from the sweep centre: is it silenced?
+    {
+        const auto hi = sine(static_cast<size_t>(sr * 0.5), 11000.0, sr, -12.0);
+        double lvl[2] = {0.0, 0.0};
+        for (int k = 0; k < 2; ++k) {
+            Rig r(sr);
+            r.apply({{sweepId(SweepParamType::kSweepEnable), k == 1 ? 1.0 : 0.0},
+                     {sweepId(SweepParamType::kSweepFrequency), sweepFreqNorm(100.0)},
+                     {sweepId(SweepParamType::kSweepIntensity), 0.5}});
+            r.reactivate();
+            r.render(hi, hi, oL, oR);
+            lvl[k] = toDb(rmsOf(oL.data() + oL.size() / 2, oL.size() / 2));
+        }
+        const double d = lvl[1] - lvl[0];
+        int lv = d < -20.0 ? 2 : (d < -6.0 ? 1 : 0);
+        emit("sweep:off-centre-band-level",
+             "4 bands default SoftClip drive 1, 11 kHz sine -12 dBFS; sweep off vs on (centre 100 Hz, 100 %)",
+             "level_off_dB,level_on_dB,delta_dB", fix(lvl[0], 2) + "," + fix(lvl[1], 2) + "," + fix(d, 2),
+             "sweep should focus distortion, not mute bands (delta > -6 dB)", lv);
+    }
+    CHECK(true);
+}
+
+// =============================================================================
+// Group 7: factory presets (load, render, round trip, host ordering)
+// =============================================================================
+
+namespace {
+
+std::vector<uint8_t> readPresetComponentState(const fs::path& presetPath) {
+    std::ifstream f(presetPath, std::ios::binary);
+    if (!f) return {};
+    char magic[4];
+    f.read(magic, 4);
+    if (std::string(magic, 4) != "VST3") return {};
+    uint32_t version = 0;
+    f.read(reinterpret_cast<char*>(&version), 4);
+    char classId[32];
+    f.read(classId, 32);
+    int64_t listOffset = 0;
+    f.read(reinterpret_cast<char*>(&listOffset), 8);
+    f.seekg(listOffset);
+    char listMagic[4];
+    f.read(listMagic, 4);
+    if (std::string(listMagic, 4) != "List") return {};
+    uint32_t entryCount = 0;
+    f.read(reinterpret_cast<char*>(&entryCount), 4);
+    for (uint32_t i = 0; i < entryCount; ++i) {
+        char chunkId[4];
+        f.read(chunkId, 4);
+        int64_t offset = 0;
+        int64_t size = 0;
+        f.read(reinterpret_cast<char*>(&offset), 8);
+        f.read(reinterpret_cast<char*>(&size), 8);
+        if (std::string(chunkId, 4) == "Comp") {
+            std::vector<uint8_t> data(static_cast<size_t>(size));
+            f.seekg(offset);
+            f.read(reinterpret_cast<char*>(data.data()), size);
+            return data;
+        }
+    }
+    return {};
+}
+
+std::vector<fs::path> presetFiles() {
+    std::vector<fs::path> out;
+    const fs::path root = fs::path(DISRUMPO_RESOURCES_DIR) / "presets";
+    if (!fs::exists(root)) return out;
+    for (const auto& e : fs::recursive_directory_iterator(root))
+        if (e.is_regular_file() && e.path().extension() == ".vstpreset") out.push_back(e.path());
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+bool setStateBytes(Processor& p, const std::vector<uint8_t>& bytes) {
+    auto* s = new Steinberg::MemoryStream(const_cast<uint8_t*>(bytes.data()), static_cast<Steinberg::TSize>(bytes.size()));
+    const auto res = p.setState(s);
+    s->release();
+    return res == Steinberg::kResultOk || res == Steinberg::kResultTrue;
+}
+
+std::vector<uint8_t> getStateBytes(Processor& p) {
+    auto* s = new Steinberg::MemoryStream();
+    p.getState(s);
+    Steinberg::int64 sz = 0;
+    s->seek(0, Steinberg::IBStream::kIBSeekEnd, &sz);
+    s->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::vector<uint8_t> out(static_cast<size_t>(sz));
+    Steinberg::int32 got = 0;
+    if (sz > 0) s->read(out.data(), static_cast<Steinberg::int32>(sz), &got);
+    s->release();
+    return out;
+}
+
+void presetShard(int shard, int shards) {
+    const auto files = presetFiles();
+    constexpr double sr = 44100.0;
+    const size_t len = static_cast<size_t>(sr * 0.5);
+    const auto in = sine(len, 440.0, sr, -12.0);
+    const size_t from = static_cast<size_t>(sr * 0.1);
+    for (size_t i = 0; i < files.size(); ++i) {
+        if (static_cast<int>(i % static_cast<size_t>(shards)) != shard) continue;
+        const auto bytes = readPresetComponentState(files[i]);
+        const std::string name = files[i].parent_path().filename().string() + "/" + files[i].stem().string();
+        if (bytes.empty()) {
+            emit("preset:" + name, "read .vstpreset Comp chunk", "bytes", "0", "> 0", 2);
+            continue;
+        }
+        std::vector<float> aL, aR, bL, bR, cL, cR, dL, dR;
+        bool okA = false, okB = false, okC = false, okD = false;
+        std::vector<uint8_t> saved;
+        {
+            Rig r(sr);
+            okA = setStateBytes(*r.p, bytes);
+            r.render(in, in, aL, aR);
+            saved = getStateBytes(*r.p);
+        }
+        {
+            Rig r(sr);
+            okB = setStateBytes(*r.p, saved);
+            r.render(in, in, bL, bR);
+        }
+        {
+            // determinism control: a second fresh processor loaded with the ORIGINAL bytes
+            Rig r(sr);
+            okD = setStateBytes(*r.p, bytes);
+            r.render(in, in, dL, dR);
+        }
+        {
+            // host ordering: setState BEFORE setupProcessing/setActive
+            Rig r(sr, 512, false);
+            okC = setStateBytes(*r.p, bytes);
+            r.setup();
+            r.render(in, in, cL, cR);
+        }
+        const size_t nf = nonFinite(aL) + nonFinite(aR);
+        const double pk = toDb(std::max(peakOf(aL.data() + from, len - from), peakOf(aR.data() + from, len - from)));
+        const double rms = toDb(std::max(rmsOf(aL.data() + from, len - from), rmsOf(aR.data() + from, len - from)));
+        const double dc = std::max(std::fabs(meanOf(aL.data() + from, len - from)), std::fabs(meanOf(aR.data() + from, len - from)));
+        const double det = std::max(maxAbsDiff(aL, dL), maxAbsDiff(aR, dR));
+        const double rt = std::max(maxAbsDiff(dL, bL), maxAbsDiff(dR, bR));
+        const double ho = std::max(maxAbsDiff(dL, cL), maxAbsDiff(dR, cR));
+        const double hoRmsDb = toDb(std::max(rmsOf(cL.data() + from, len - from), rmsOf(cR.data() + from, len - from))) - rms;
+        int lv = 0;
+        if (!okA || !okB || !okD || nf > 0) lv = 2;
+        if (rms < -60.0) lv = std::max(lv, 2);
+        if (pk > 3.0) lv = std::max(lv, 2); else if (pk > 0.0) lv = std::max(lv, 1);
+        if (dc > 1e-2) lv = std::max(lv, 2); else if (dc > 1e-3) lv = std::max(lv, 1);
+        if (det > 1e-5) lv = std::max(lv, 1);
+        if (rt > 1e-3 && det <= 1e-5) lv = std::max(lv, 2); else if (rt > 1e-5) lv = std::max(lv, 1);
+        emit("preset:" + name,
+             "setState on active proc, 440 Hz -12 dBFS 0.5 s 44.1k; det = two fresh loads of the file; rt = getState->fresh setState vs fresh load",
+             "peak_dBFS,rms_dBFS,|dc|,nonfinite,determinism_maxdiff,roundtrip_maxdiff",
+             fix(pk, 2) + "," + fix(rms, 2) + "," + num(dc, 3) + "," + std::to_string(nf) + "," + num(det, 3) + "," + num(rt, 3),
+             "rms>-60 dBFS; peak<=0 dBFS; |dc|<1e-3; determinism<=1e-5; roundtrip<=1e-5", lv);
+        if (rt > 1e-5) {
+            // where do the saved bytes first differ from the file, and is a second save idempotent?
+            std::vector<uint8_t> saved2;
+            {
+                Rig r(sr);
+                setStateBytes(*r.p, saved);
+                saved2 = getStateBytes(*r.p);
+            }
+            size_t firstDiff = std::min(bytes.size(), saved.size());
+            for (size_t k = 0; k < std::min(bytes.size(), saved.size()); ++k) if (bytes[k] != saved[k]) { firstDiff = k; break; }
+            size_t drift = std::min(saved.size(), saved2.size());
+            for (size_t k = 0; k < std::min(saved.size(), saved2.size()); ++k) if (saved[k] != saved2[k]) { drift = k; break; }
+            int32_t verFile = 0, verSaved = 0;
+            if (bytes.size() >= 4) std::memcpy(&verFile, bytes.data(), 4);
+            if (saved.size() >= 4) std::memcpy(&verSaved, saved.data(), 4);
+            emit("preset-rt-bytes:" + name, "file Comp chunk vs getState() after loading it; saved2 = load(saved)->getState",
+                 "file_bytes,saved_bytes,first_diff_offset,version_file,version_saved,saved2_equals_saved,first_saved_vs_saved2_diff_offset",
+                 std::to_string(bytes.size()) + "," + std::to_string(saved.size()) + "," + std::to_string(firstDiff) + "," +
+                     std::to_string(verFile) + "," + std::to_string(verSaved) + "," + (saved2 == saved ? "1" : "0") + "," + std::to_string(drift),
+                 "info (locates the field lost in the round trip)", 1);
+        }
+        int lv2 = !okC ? 2 : (ho > 1e-2 ? 2 : (ho > 1e-5 ? 1 : 0));
+        emit("preset-hostorder:" + name,
+             "setState BEFORE setupProcessing+setActive (host restore order) vs setState on an active processor",
+             "maxdiff,rms_delta_dB", num(ho, 3) + "," + fix(hoRmsDb, 2),
+             "maxdiff<=1e-5 (preset must survive setupProcessing)", lv2);
+    }
+}
+
+} // namespace
+
+TEST_CASE("audit probe: presets 0/8", "[.][audit-probe]") { presetShard(0, 8); CHECK(true); }
+TEST_CASE("audit probe: presets 1/8", "[.][audit-probe]") { presetShard(1, 8); CHECK(true); }
+TEST_CASE("audit probe: presets 2/8", "[.][audit-probe]") { presetShard(2, 8); CHECK(true); }
+TEST_CASE("audit probe: presets 3/8", "[.][audit-probe]") { presetShard(3, 8); CHECK(true); }
+TEST_CASE("audit probe: presets 4/8", "[.][audit-probe]") { presetShard(4, 8); CHECK(true); }
+TEST_CASE("audit probe: presets 5/8", "[.][audit-probe]") { presetShard(5, 8); CHECK(true); }
+TEST_CASE("audit probe: presets 6/8", "[.][audit-probe]") { presetShard(6, 8); CHECK(true); }
+TEST_CASE("audit probe: presets 7/8", "[.][audit-probe]") { presetShard(7, 8); CHECK(true); }
+
+// =============================================================================
+// Group 8: sample-rate consistency + state surviving setupProcessing
+// =============================================================================
+
+TEST_CASE("audit probe: sample-rate consistency", "[.][audit-probe]") {
+    const PList chain = {{kBandCountId, bandCountNorm(4)},
+                         {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::Tube)},
+                         {nodeId(1, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip)},
+                         {nodeId(2, 0, NodeParamType::kNodeType), typeNorm(DistortionType::Fuzz)},
+                         {nodeId(3, 0, NodeParamType::kNodeType), typeNorm(DistortionType::Tape)},
+                         {nodeId(0, 0, NodeParamType::kNodeDrive), 0.4},
+                         {nodeId(1, 0, NodeParamType::kNodeDrive), 0.4},
+                         {nodeId(2, 0, NodeParamType::kNodeDrive), 0.4},
+                         {nodeId(3, 0, NodeParamType::kNodeDrive), 0.4}};
+    struct Res { double rms; double cen; size_t nf; };
+    auto run = [&](double sr) {
+        Rig r(sr);
+        r.apply(chain);
+        r.reactivate();
+        const size_t len = static_cast<size_t>(sr);
+        const auto in = sine(len, 1000.0, sr, -12.0);
+        std::vector<float> oL, oR;
+        r.render(in, in, oL, oR);
+        std::vector<float> tail(oL.begin() + static_cast<std::ptrdiff_t>(len / 2), oL.end());
+        const auto f = Krate::Test::extractAudioFeatures(tail, sr);
+        return Res{f.rmsDbfs, f.centroidHz, nonFinite(oL) + nonFinite(oR)};
+    };
+    const Res ref = run(48000.0);
+    for (double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
+        const Res x = sr == 48000.0 ? ref : run(sr);
+        const double dDb = x.rms - ref.rms;
+        const double cRatio = ref.cen > 0.0 ? x.cen / ref.cen : 0.0;
+        int lv = x.nf > 0 ? 2 : 0;
+        if (std::fabs(dDb) > 3.0 || std::fabs(cRatio - 1.0) > 0.3) lv = std::max(lv, 2);
+        else if (std::fabs(dDb) > 1.0 || std::fabs(cRatio - 1.0) > 0.15) lv = std::max(lv, 1);
+        emit("samplerate:" + fix(sr / 1000.0, 1) + "k",
+             "4 bands Tube/SoftClip/Fuzz/Tape drive 4, 1 kHz -12 dBFS 1 s, last 0.5 s; ref 48k",
+             "rms_dBFS,centroid_Hz,rms_delta_vs48k_dB,centroid_ratio_vs48k,nonfinite",
+             fix(x.rms, 2) + "," + fix(x.cen, 0) + "," + fix(dDb, 2) + "," + fix(cRatio, 3) + "," + std::to_string(x.nf),
+             "|rms delta|<=1 dB, centroid within 15 %, nonfinite 0", lv);
+    }
+    // state surviving a second setupProcessing (sample-rate change / re-prepare)
+    {
+        constexpr double sr = 48000.0;
+        const size_t len = static_cast<size_t>(sr * 0.5);
+        const auto in = sine(len, 1000.0, sr, -12.0);
+        PList c2 = chain;
+        c2.push_back({makeCrossoverParamId(0), 0.2});
+        c2.push_back({bandId(0, BandParamType::kBandMorphX), 0.0});
+        Rig r(sr);
+        r.apply(c2);
+        r.reactivate();
+        std::vector<float> aL, aR, bL, bR;
+        r.render(in, in, aL, aR);
+        r.deactivate();
+        r.setup();  // setupProcessing again (same rate) + setActive(true)
+        r.render(in, in, bL, bR);
+        const double d = maxAbsDiff(aL, bL, len / 5);
+        const double dDb = toDb(rmsOf(bL.data() + len / 5, len - len / 5)) - toDb(rmsOf(aL.data() + len / 5, len - len / 5));
+        const int t0 = static_cast<int>(r.p->getBandProcessor(0).getMorphEngine()->getNodeType(0));
+        int lv = d > 1e-2 ? 2 : (d > 1e-5 ? 1 : 0);
+        emit("state:survives-setupProcessing",
+             "4-band chain (Tube/SoftClip/Fuzz/Tape, drive 4, xover0 moved) set via params; render; setActive(false)+setupProcessing+setActive(true); render again",
+             "max_abs_diff,rms_delta_dB,band0_node0_type_after", num(d, 4) + "," + fix(dDb, 2) + "," + typeName(t0),
+             "max diff <= 1e-5 (parameters must survive re-prepare)", lv);
+    }
+    CHECK(true);
+}
