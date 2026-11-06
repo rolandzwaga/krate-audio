@@ -154,15 +154,18 @@ public:
         fftSize = pow2;
 
         sampleRate_ = sampleRate;
+        allocatedFftSize_ = fftSize;
         fftSize_ = fftSize;
         hopSize_ = fftSize / 2;  // 50% overlap for COLA with Hann
         numBins_ = fftSize / 2 + 1;
 
-        // Prepare STFT analyzer
+        // Prepare STFT analyzer (plus every smaller size, for setActiveFftSize)
         stft_.prepare(fftSize, hopSize_, WindowType::Hann);
+        stft_.prepareActiveSizes(kMinFFTSize);
 
         // Prepare overlap-add synthesizer
         overlapAdd_.prepare(fftSize, hopSize_, WindowType::Hann);
+        overlapAdd_.prepareActiveSizes(kMinFFTSize);
 
         // Prepare spectral buffers
         inputSpectrum_.prepare(fftSize);
@@ -188,6 +191,38 @@ public:
         updateBandBins();
 
         prepared_ = true;
+    }
+
+    /// @brief Change the FFT size within the buffers prepare() allocated
+    /// @param fftSize Requested size: rounded up to a power of two and clamped
+    ///        to [kMinFFTSize, the size passed to prepare()]
+    /// @note Real-time safe (no allocation). A size change resets the frame
+    ///       state, like reset(); an unchanged size is a no-op.
+    void setActiveFftSize(std::size_t fftSize) noexcept {
+        if (!prepared_) return;
+
+        std::size_t pow2 = kMinFFTSize;
+        while (pow2 < fftSize && pow2 < allocatedFftSize_) pow2 <<= 1;
+        if (pow2 == fftSize_) return;
+
+        // Every power of two in [kMinFFTSize, allocatedFftSize_] was reserved
+        // by prepare(), so both selections succeed.
+        if (!stft_.setActiveSize(pow2, pow2 / 2)) return;
+        (void)overlapAdd_.setActiveSize(pow2, pow2 / 2);
+
+        fftSize_ = pow2;
+        hopSize_ = pow2 / 2;
+        numBins_ = pow2 / 2 + 1;
+        inputSpectrum_.setActiveSize(pow2);
+        outputSpectrum_.setActiveSize(pow2);
+
+        const float binWidth = static_cast<float>(sampleRate_) / static_cast<float>(fftSize_);
+        for (std::size_t i = 0; i < numBins_; ++i) {
+            binFrequencies_[i] = static_cast<float>(i) * binWidth;
+        }
+
+        updateBandBins();
+        reset();
     }
 
     /// @brief Reset all internal state buffers (FR-002)
@@ -1077,6 +1112,7 @@ private:
 
     // Cached values
     double sampleRate_ = 44100.0;
+    std::size_t allocatedFftSize_ = kDefaultFFTSize;  ///< prepare()'s size: the buffers' capacity
     std::size_t fftSize_ = kDefaultFFTSize;
     std::size_t hopSize_ = kDefaultFFTSize / 2;
     std::size_t numBins_ = kDefaultFFTSize / 2 + 1;

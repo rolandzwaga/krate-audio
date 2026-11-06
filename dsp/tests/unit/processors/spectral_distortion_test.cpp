@@ -12,6 +12,10 @@
 
 #include <krate/dsp/processors/spectral_distortion.h>
 
+// allocation_detector.h ONLY: the operator new/delete replacements have one owner
+// per binary (brownian_drift_test.cpp / dsp_ieee_alloc_overrides.cpp).
+#include <allocation_detector.h>
+
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
@@ -1540,4 +1544,113 @@ TEST_CASE("SpectralDistortion CPU performance < 0.5% at 44.1kHz with 2048 FFT (S
     // Note: This may need adjustment based on test environment
     INFO("CPU usage: " << cpuPercent << "%");
     REQUIRE(cpuPercent < 5.0);  // Allow 5% for CI variance, ideal is < 0.5%
+}
+
+// =============================================================================
+// RT-safe FFT size switching (Disrumpo audit D-001 / D-002)
+// =============================================================================
+
+namespace {
+
+void configureForSizeSwitchTest(SpectralDistortion& d) {
+    d.setMode(SpectralDistortionMode::PerBinSaturate);
+    d.setDrive(2.0f);
+    d.setSaturationCurve(WaveshapeType::Tanh);
+}
+
+/// Process @p input in 512-sample blocks; returns the number of heap
+/// allocations made by @p d while doing so.
+std::size_t renderCountingAllocations(SpectralDistortion& d, const std::vector<float>& input,
+                                      std::vector<float>& output) {
+    constexpr std::size_t kBlock = 512;
+    output.assign(input.size(), 0.0f);
+    TestHelpers::AllocationScope scope;
+    for (std::size_t pos = 0; pos < input.size(); pos += kBlock) {
+        const std::size_t n = std::min(kBlock, input.size() - pos);
+        d.processBlock(input.data() + pos, output.data() + pos, n);
+    }
+    return TestHelpers::AllocationDetector::instance().getAllocationCount();
+}
+
+} // namespace
+
+TEST_CASE("SpectralDistortion::setActiveFftSize does not allocate and produces output",
+          "[spectral_distortion][rt-safety]") {
+    constexpr double kSampleRate = 48000.0;
+    constexpr std::size_t kSamples = 16384;
+
+    std::vector<float> input(kSamples);
+    generateSine(input.data(), kSamples, 1000.0f, kSampleRate, 0.5f);
+
+    SpectralDistortion resizable;
+    resizable.prepare(kSampleRate, 4096);
+    configureForSizeSwitchTest(resizable);
+
+    SECTION("switching to each smaller size is allocation-free and matches a fresh prepare") {
+        for (const std::size_t size : {std::size_t{2048}, std::size_t{1024}, std::size_t{512}}) {
+            CAPTURE(size);
+            std::size_t switchAllocations = 0;
+            {
+                TestHelpers::AllocationScope scope;
+                resizable.setActiveFftSize(size);
+                switchAllocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+            }
+            REQUIRE(switchAllocations == 0);
+            REQUIRE(resizable.getFftSize() == size);
+            REQUIRE(resizable.latency() == size);
+            REQUIRE(resizable.getNumBins() == size / 2 + 1);
+
+            SpectralDistortion reference;
+            reference.prepare(kSampleRate, size);
+            configureForSizeSwitchTest(reference);
+
+            std::vector<float> outResizable;
+            std::vector<float> outReference;
+            const std::size_t renderAllocations =
+                renderCountingAllocations(resizable, input, outResizable);
+            (void)renderCountingAllocations(reference, input, outReference);
+            REQUIRE(renderAllocations == 0);
+
+            float maxDiff = 0.0f;
+            for (std::size_t i = 0; i < kSamples; ++i) {
+                maxDiff = std::max(maxDiff, std::abs(outResizable[i] - outReference[i]));
+            }
+            const float rms = calculateRMS(outResizable.data() + kSamples / 2, kSamples / 2);
+            CAPTURE(maxDiff, rms);
+            REQUIRE(rms > 0.01f);
+            REQUIRE(maxDiff < 1e-5f);
+        }
+    }
+
+    SECTION("switching back up to the prepared size matches a fresh prepare") {
+        resizable.setActiveFftSize(512);
+        resizable.setActiveFftSize(4096);
+        REQUIRE(resizable.getFftSize() == 4096);
+
+        SpectralDistortion reference;
+        reference.prepare(kSampleRate, 4096);
+        configureForSizeSwitchTest(reference);
+
+        std::vector<float> outResizable;
+        std::vector<float> outReference;
+        REQUIRE(renderCountingAllocations(resizable, input, outResizable) == 0);
+        (void)renderCountingAllocations(reference, input, outReference);
+
+        float maxDiff = 0.0f;
+        for (std::size_t i = 0; i < kSamples; ++i) {
+            maxDiff = std::max(maxDiff, std::abs(outResizable[i] - outReference[i]));
+        }
+        CAPTURE(maxDiff);
+        REQUIRE(calculateRMS(outResizable.data() + kSamples / 2, kSamples / 2) > 0.01f);
+        REQUIRE(maxDiff < 1e-5f);
+    }
+
+    SECTION("requests are rounded up to a power of two and clamped to the prepared range") {
+        resizable.setActiveFftSize(1500);
+        REQUIRE(resizable.getFftSize() == 2048);
+        resizable.setActiveFftSize(8192);
+        REQUIRE(resizable.getFftSize() == 4096);
+        resizable.setActiveFftSize(16);
+        REQUIRE(resizable.getFftSize() == SpectralDistortion::kMinFFTSize);
+    }
 }

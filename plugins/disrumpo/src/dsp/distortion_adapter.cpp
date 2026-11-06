@@ -81,7 +81,10 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize) noexcept {
     chaos_.prepare(sampleRate, blockSize);
     formant_.prepare(sampleRate, blockSize);
     granular_.prepare(sampleRate, blockSize);
-    spectral_.prepare(sampleRate, static_cast<size_t>(maxBlockSize));
+    // Allocate for the largest FFT size the plugin offers; the active size then
+    // changes without allocating (routeParamsToProcessor runs on the audio thread).
+    spectral_.prepare(sampleRate, kSpectralMaxFftSize);
+    spectral_.setActiveFftSize(static_cast<std::size_t>(typeParams_.fftSize));
     fractal_.prepare(sampleRate, blockSize);
     stochastic_.prepare(sampleRate);
 
@@ -890,10 +893,8 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             int mode = std::clamp(p.spectralMode, 0, 3);
             spectral_.setMode(static_cast<Krate::DSP::SpectralDistortionMode>(mode));
 
-            // Slot 1: FFT size — re-prepare if changed (allocates, but only on user param change)
-            if (static_cast<std::size_t>(p.fftSize) != spectral_.getFftSize()) {
-                spectral_.prepare(sampleRate_, static_cast<std::size_t>(p.fftSize));
-            }
+            // Slot 1: FFT size — RT-safe switch inside the buffers prepare() allocated
+            spectral_.setActiveFftSize(static_cast<std::size_t>(p.fftSize));
 
             // Slot 2: Curve — map continuous [0,1] to WaveshapeType enum (9 types: 0-8)
             int curveIdx = std::clamp(static_cast<int>(p.spectralCurve * 8.0f + 0.5f), 0, 8);

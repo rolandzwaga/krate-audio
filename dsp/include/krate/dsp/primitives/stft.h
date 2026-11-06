@@ -21,11 +21,64 @@
 #include "../core/window_functions.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <vector>
 
 
 namespace Krate::DSP {
+
+namespace detail {
+
+/// @brief The FFTs of one STFT / OverlapAdd: the prepared size, plus (opt-in)
+///        every power of two below it, so the active frame size can change
+///        without allocating.
+class FFTSizeSet {
+public:
+    /// Halvings below the prepared size that can be reserved (8192 -> 128).
+    static constexpr size_t kMaxReducedSizes = 6;
+
+    /// @brief Prepare the transform for @p fftSize and drop any reduced sizes
+    /// @note NOT real-time safe (allocates memory)
+    void prepare(size_t fftSize) noexcept {
+        ffts_[0].prepare(fftSize);
+        for (size_t k = 1; k < ffts_.size(); ++k) {
+            ffts_[k] = FFT{};
+        }
+        active_ = 0;
+    }
+
+    /// @brief Prepare every power of two in [minFftSize, prepared size)
+    /// @note NOT real-time safe (allocates memory)
+    void prepareReducedSizes(size_t minFftSize) noexcept {
+        for (size_t k = 1; k < ffts_.size(); ++k) {
+            const size_t n = ffts_[0].size() >> k;
+            if (n == 0 || n < minFftSize) break;
+            if (ffts_[k].size() != n) ffts_[k].prepare(n);
+        }
+    }
+
+    /// @brief Make the prepared transform of size @p fftSize the active one
+    /// @return false (active transform unchanged) if no such size is prepared
+    /// @note Real-time safe
+    [[nodiscard]] bool select(size_t fftSize) noexcept {
+        for (size_t k = 0; k < ffts_.size(); ++k) {
+            if (ffts_[k].isPrepared() && ffts_[k].size() == fftSize) {
+                active_ = k;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    [[nodiscard]] FFT& active() noexcept { return ffts_[active_]; }
+
+private:
+    std::array<FFT, kMaxReducedSizes + 1> ffts_;  ///< [k] has size (prepared >> k)
+    size_t active_ = 0;
+};
+
+} // namespace detail
 
 // =============================================================================
 // STFT Class
@@ -64,9 +117,10 @@ public:
         fftSize_ = fftSize;
         hopSize_ = hopSize;
         windowType_ = window;
+        kaiserBeta_ = kaiserBeta;
 
         // Prepare internal FFT
-        fft_.prepare(fftSize);
+        ffts_.prepare(fftSize);
 
         // Generate window
         window_ = Window::generate(window, fftSize, kaiserBeta);
@@ -83,6 +137,28 @@ public:
         // Reset state
         writeIndex_ = 0;
         samplesAvailable_ = 0;
+    }
+
+    /// @brief Reserve transforms so setActiveSize() can select any power of two
+    ///        in [minFftSize, prepared fftSize] without allocating
+    /// @note NOT real-time safe (allocates memory). Call after prepare().
+    void prepareActiveSizes(size_t minFftSize) noexcept {
+        ffts_.prepareReducedSizes(minFftSize);
+    }
+
+    /// @brief Switch the frame size inside the buffers prepare() allocated
+    /// @param fftSize prepare()'s size, or a smaller size reserved by prepareActiveSizes()
+    /// @param hopSize New frame advance (0 < hopSize <= fftSize)
+    /// @return false (nothing changed) if @p fftSize is not available
+    /// @note Real-time safe: no allocation. Regenerates the window in place and
+    ///       clears the accumulated input, like reset().
+    [[nodiscard]] bool setActiveSize(size_t fftSize, size_t hopSize) noexcept {
+        if (hopSize == 0 || hopSize > fftSize || !ffts_.select(fftSize)) return false;
+        fftSize_ = fftSize;
+        hopSize_ = hopSize;
+        Window::generateInto(window_.data(), windowType_, fftSize, kaiserBeta_);
+        reset();
+        return true;
     }
 
     /// @brief Reset internal buffers (clear accumulated samples)
@@ -154,7 +230,7 @@ public:
         // The per-sample `readIdx = (readIdx + 1) % bufSize` this replaces was a
         // hardware integer divide per FFT bin-time sample - fftSize_ of them per
         // analysis frame, and the loop could not vectorise around it. The read
-        // wraps at most once inside one frame (bufSize == 8 * fftSize_), so the
+        // wraps at most once inside one frame (bufSize >= 8 * fftSize_), so the
         // split is exact and assumes nothing about the buffer length.
         const size_t first = std::min(fftSize_, bufSize - readIdx);
         for (size_t i = 0; i < first; ++i) {
@@ -165,7 +241,7 @@ public:
         }
 
         // Perform FFT
-        fft_.forward(windowedFrame_.data(), output.data());
+        ffts_.active().forward(windowedFrame_.data(), output.data());
 
         // Consume hopSize samples (advance by hop)
         samplesAvailable_ -= hopSize_;
@@ -185,11 +261,12 @@ public:
     [[nodiscard]] bool isPrepared() const noexcept { return fftSize_ > 0; }
 
 private:
-    FFT fft_;
+    detail::FFTSizeSet ffts_;
     std::vector<float> window_;
     std::vector<float> inputBuffer_;
     std::vector<float> windowedFrame_;
     WindowType windowType_ = WindowType::Hann;
+    float kaiserBeta_ = kDefaultKaiserBeta;
     size_t fftSize_ = 0;
     size_t hopSize_ = 0;
     size_t writeIndex_ = 0;
@@ -236,30 +313,15 @@ public:
         fftSize_ = fftSize;
         hopSize_ = hopSize;
         applySynthesisWindow_ = applySynthesisWindow;
+        windowType_ = window;
+        kaiserBeta_ = kaiserBeta;
 
         // Prepare internal FFT
-        fft_.prepare(fftSize);
+        ffts_.prepare(fftSize);
 
         // Generate synthesis window and compute COLA normalization factor
         synthesisWindow_ = Window::generate(window, fftSize, kaiserBeta);
-
-        // Compute COLA sum based on whether synthesis window is applied
-        // Without synthesis window: COLA sum = sum of w[k] at hop positions
-        // With synthesis window: COLA sum = sum of w[k]² at hop positions (Hann²)
-        const size_t numOverlaps = (fftSize + hopSize - 1) / hopSize;
-        float colaSum = 0.0f;
-        for (size_t frame = 0; frame < numOverlaps; ++frame) {
-            const size_t idx = frame * hopSize;
-            if (idx < fftSize) {
-                if (applySynthesisWindow) {
-                    colaSum += synthesisWindow_[idx] * synthesisWindow_[idx];
-                } else {
-                    colaSum += synthesisWindow_[idx];
-                }
-            }
-        }
-        // Normalization: divide by COLA sum to get unity gain reconstruction
-        colaNormalization_ = (colaSum > 0.0f) ? (1.0f / colaSum) : 1.0f;
+        updateColaNormalization();
 
         // Output buffer needs to hold at least fftSize + hopSize for overlap-add
         // We use 2*fftSize for safe margin
@@ -270,6 +332,29 @@ public:
 
         // Reset state
         samplesReady_ = 0;
+    }
+
+    /// @brief Reserve transforms so setActiveSize() can select any power of two
+    ///        in [minFftSize, prepared fftSize] without allocating
+    /// @note NOT real-time safe (allocates memory). Call after prepare().
+    void prepareActiveSizes(size_t minFftSize) noexcept {
+        ffts_.prepareReducedSizes(minFftSize);
+    }
+
+    /// @brief Switch the frame size inside the buffers prepare() allocated
+    /// @param fftSize prepare()'s size, or a smaller size reserved by prepareActiveSizes()
+    /// @param hopSize New frame advance (must match the STFT)
+    /// @return false (nothing changed) if @p fftSize is not available
+    /// @note Real-time safe: no allocation. Regenerates the synthesis window in
+    ///       place, recomputes the COLA normalisation and clears the accumulator.
+    [[nodiscard]] bool setActiveSize(size_t fftSize, size_t hopSize) noexcept {
+        if (hopSize == 0 || hopSize > fftSize || !ffts_.select(fftSize)) return false;
+        fftSize_ = fftSize;
+        hopSize_ = hopSize;
+        Window::generateInto(synthesisWindow_.data(), windowType_, fftSize, kaiserBeta_);
+        updateColaNormalization();
+        reset();
+        return true;
     }
 
     /// @brief Reset output accumulator
@@ -290,7 +375,7 @@ public:
         if (!isPrepared() || !input.isPrepared()) return;
 
         // Perform inverse FFT
-        fft_.inverse(input.data(), ifftBuffer_.data());
+        ffts_.active().inverse(input.data(), ifftBuffer_.data());
 
         // Overlap-add: Add IFFT result to output buffer with COLA normalization
         // When applySynthesisWindow_ is true, we apply the window to the IFFT output
@@ -336,10 +421,16 @@ public:
         // heap. Pull one hop per synthesize (see the class docs) and this is
         // unreachable; the guard exists so that getting it wrong is inert rather
         // than undefined.
+        //
+        // Only the active region [0, 2 * fftSize_) is shifted: after
+        // setActiveSize() to a smaller size everything past it stays zero
+        // (reset() cleared it and synthesize() writes [0, fftSize_) only).
+        const size_t activeLength = std::min(outputBuffer_.size(), fftSize_ * 2);
         if (output == nullptr || numSamples > samplesReady_
-            || numSamples > outputBuffer_.size()) {
+            || numSamples > activeLength) {
             return;
         }
+        const auto activeEnd = outputBuffer_.begin() + static_cast<std::ptrdiff_t>(activeLength);
 
         // Copy samples to output
         std::copy(outputBuffer_.begin(),
@@ -348,12 +439,12 @@ public:
 
         // Shift remaining samples left
         std::copy(outputBuffer_.begin() + static_cast<std::ptrdiff_t>(numSamples),
-                  outputBuffer_.end(),
+                  activeEnd,
                   outputBuffer_.begin());
 
         // Zero the freed portion at the end
-        std::fill(outputBuffer_.end() - static_cast<std::ptrdiff_t>(numSamples),
-                  outputBuffer_.end(),
+        std::fill(activeEnd - static_cast<std::ptrdiff_t>(numSamples),
+                  activeEnd,
                   0.0f);
 
         samplesReady_ -= numSamples;
@@ -368,11 +459,33 @@ public:
     [[nodiscard]] bool isPrepared() const noexcept { return fftSize_ > 0; }
 
 private:
-    FFT fft_;
+    /// @brief COLA normalisation for the current window, size and hop
+    /// Without synthesis window: COLA sum = sum of w[k] at hop positions.
+    /// With synthesis window: COLA sum = sum of w[k]² at hop positions (Hann²).
+    void updateColaNormalization() noexcept {
+        const size_t numOverlaps = (fftSize_ + hopSize_ - 1) / hopSize_;
+        float colaSum = 0.0f;
+        for (size_t frame = 0; frame < numOverlaps; ++frame) {
+            const size_t idx = frame * hopSize_;
+            if (idx < fftSize_) {
+                if (applySynthesisWindow_) {
+                    colaSum += synthesisWindow_[idx] * synthesisWindow_[idx];
+                } else {
+                    colaSum += synthesisWindow_[idx];
+                }
+            }
+        }
+        // Normalization: divide by COLA sum to get unity gain reconstruction
+        colaNormalization_ = (colaSum > 0.0f) ? (1.0f / colaSum) : 1.0f;
+    }
+
+    detail::FFTSizeSet ffts_;
     std::vector<float> synthesisWindow_;
     std::vector<float> outputBuffer_;
     std::vector<float> ifftBuffer_;
     float colaNormalization_ = 1.0f;
+    float kaiserBeta_ = kDefaultKaiserBeta;
+    WindowType windowType_ = WindowType::Hann;
     bool applySynthesisWindow_ = false;
     size_t fftSize_ = 0;
     size_t hopSize_ = 0;

@@ -325,6 +325,10 @@ public:
     [[nodiscard]] int getProcessingLatency() const noexcept;
 
 private:
+    /// Largest Spectral FFT size the plugin offers (processor_params.cpp Spectral
+    /// slot 1: 512..4096). SpectralDistortion is allocated for it once in prepare().
+    static constexpr std::size_t kSpectralMaxFftSize = 4096;
+
     // =========================================================================
     // Internal Processing
     // =========================================================================

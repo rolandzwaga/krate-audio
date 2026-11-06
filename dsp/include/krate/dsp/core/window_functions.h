@@ -273,6 +273,37 @@ inline void generateBlackmanHarris(float* output, size_t size) noexcept {
 // Factory Function
 // -----------------------------------------------------------------------------
 
+/// @brief Generate window coefficients into a caller-owned buffer (in place)
+/// @param output Destination, at least @p size floats
+/// @param type Window type
+/// @param size Window size
+/// @param kaiserBeta Kaiser beta parameter (only used if type == Kaiser)
+/// @note Real-time safe (no allocation)
+inline void generateInto(
+    float* output,
+    WindowType type,
+    size_t size,
+    float kaiserBeta = kDefaultKaiserBeta
+) noexcept {
+    switch (type) {
+        case WindowType::Hann:
+            generateHann(output, size);
+            break;
+        case WindowType::Hamming:
+            generateHamming(output, size);
+            break;
+        case WindowType::Blackman:
+            generateBlackman(output, size);
+            break;
+        case WindowType::Kaiser:
+            generateKaiser(output, size, kaiserBeta);
+            break;
+        case WindowType::BlackmanHarris:
+            generateBlackmanHarris(output, size);
+            break;
+    }
+}
+
 /// @brief Generate window coefficients (allocates vector)
 /// @param type Window type
 /// @param size Window size
@@ -285,25 +316,7 @@ inline void generateBlackmanHarris(float* output, size_t size) noexcept {
     float kaiserBeta = kDefaultKaiserBeta
 ) {
     std::vector<float> window(size, 0.0f);
-
-    switch (type) {
-        case WindowType::Hann:
-            generateHann(window.data(), size);
-            break;
-        case WindowType::Hamming:
-            generateHamming(window.data(), size);
-            break;
-        case WindowType::Blackman:
-            generateBlackman(window.data(), size);
-            break;
-        case WindowType::Kaiser:
-            generateKaiser(window.data(), size, kaiserBeta);
-            break;
-        case WindowType::BlackmanHarris:
-            generateBlackmanHarris(window.data(), size);
-            break;
-    }
-
+    generateInto(window.data(), type, size, kaiserBeta);
     return window;
 }
 

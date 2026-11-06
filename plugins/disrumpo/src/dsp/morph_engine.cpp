@@ -420,6 +420,10 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
 
     // --- Zero all continuous fields that will be accumulated via += ---
     // Discrete fields (mode selects, toggles, bit patterns) are kept from dominant node.
+    // So are the integer/structural fields (stages, fftSize, magnitudeBits,
+    // iterations): a weighted sum of floored terms lands below the shared value
+    // (D-011/D-030), and an fftSize that is not the node's own value re-sized the
+    // spectral processor every sample (D-001).
 
     // Saturation continuous
     result.bias = 0.0f;
@@ -464,7 +468,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
     // Hybrid continuous
     result.feedback = 0.0f;
     result.delayMs = 0.0f;
-    result.stages = 0;
     result.modDepth = 0.0f;
     result.rsCurve = 0.0f;
     result.fbCurve = 0.0f;
@@ -494,15 +497,12 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
     result.grainCurve = 0.0f;
 
     // Spectral continuous
-    result.fftSize = 0;
-    result.magnitudeBits = 0;
     result.spectralCurve = 0.0f;
     result.spectralTilt = 0.0f;
     result.spectralThreshold = 0.0f;
     result.spectralFreq = 0.0f;
 
     // Fractal continuous
-    result.iterations = 0;
     result.scaleFactor = 0.0f;
     result.frequencyDecay = 0.0f;
     result.fractalCurve = 0.0f;
@@ -573,7 +573,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
         // Hybrid
         result.feedback += w * p.feedback;
         result.delayMs += w * p.delayMs;
-        result.stages += static_cast<int>(w * static_cast<float>(p.stages));
         result.modDepth += w * p.modDepth;
         result.rsCurve += w * p.rsCurve;
         result.fbCurve += w * p.fbCurve;
@@ -603,15 +602,12 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
         result.grainCurve += w * p.grainCurve;
 
         // Spectral
-        result.fftSize += static_cast<int>(w * static_cast<float>(p.fftSize));
-        result.magnitudeBits += static_cast<int>(w * static_cast<float>(p.magnitudeBits));
         result.spectralCurve += w * p.spectralCurve;
         result.spectralTilt += w * p.spectralTilt;
         result.spectralThreshold += w * p.spectralThreshold;
         result.spectralFreq += w * p.spectralFreq;
 
         // Fractal
-        result.iterations += static_cast<int>(w * static_cast<float>(p.iterations));
         result.scaleFactor += w * p.scaleFactor;
         result.frequencyDecay += w * p.frequencyDecay;
         result.fractalCurve += w * p.fractalCurve;
@@ -706,6 +702,7 @@ float MorphEngine::processSameFamily(float input) noexcept {
     blendedAdapter_.setType(nodes_[dominantNode].type);
 
     auto bp = interpolateParams();
+    lastBlendedParams_ = bp;
     bp.bias = std::clamp(bp.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
     blendedAdapter_.setParams(bp);
 

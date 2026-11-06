@@ -135,6 +135,8 @@ public:
     [[nodiscard]] const DistortionParams& getNodeParams(int idx) const noexcept { return nodes_[idx].params; }
     [[nodiscard]] const DistortionCommonParams& getNodeCommonParams(int idx) const noexcept { return nodes_[idx].commonParams; }
     [[nodiscard]] const DistortionAdapter& getAdapter(int idx) const noexcept { return adapters_[idx]; }
+    /// @brief Last same-family interpolateParams() result (set in processSameFamily).
+    [[nodiscard]] const DistortionParams& getBlendedParams() const noexcept { return lastBlendedParams_; }
 
     // =========================================================================
     // Processing
@@ -243,6 +245,9 @@ private:
 
     // Single adapter for same-family processing (optimization)
     DistortionAdapter blendedAdapter_;
+
+    // Last interpolateParams() result of the same-family path (test accessor)
+    DistortionParams lastBlendedParams_;
 
     // Cached family check result
     bool allSameFamily_ = true;

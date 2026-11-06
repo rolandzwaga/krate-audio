@@ -15,10 +15,19 @@
 #include "dsp/morph_node.h"
 #include "dsp/distortion_types.h"
 
+// The single owner of the global operator new/delete replacements in
+// disrumpo_tests (allocation_detector.h). A second include anywhere else in this
+// binary is a duplicate-symbol link error: other TUs include allocation_detector.h only.
+#include <allocation_detector.h>
+#include <allocation_operator_overrides.h>
+
 #include <cmath>
 #include <chrono>
+#include <array>
+#include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
 using Catch::Approx;
 
@@ -855,6 +864,125 @@ TEST_CASE("MorphEngine same-family Fractal - low drive still stable over time",
     CHECK(discontinuityCount == 0);
     // Low drive should not produce extreme output
     CHECK(peakOutput < 5.0f);
+}
+
+// =============================================================================
+// Integer / structural fields under same-family morphing (D-001, D-011, D-030)
+// =============================================================================
+
+namespace {
+
+/// Two active nodes of one type at x = 0 and x = 1 sharing @p params.
+std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> makeTwinNodes(
+        Disrumpo::DistortionType type, const Disrumpo::DistortionParams& params) {
+    std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+    for (int n = 0; n < 2; ++n) {
+        nodes[n] = Disrumpo::MorphNode(n, n == 0 ? 0.0f : 1.0f, 0.0f, type);
+        nodes[n].params = params;
+        nodes[n].commonParams.drive = 2.0f;
+        nodes[n].commonParams.mix = 1.0f;
+    }
+    nodes[2] = Disrumpo::MorphNode(2, 0.0f, 1.0f);
+    nodes[3] = Disrumpo::MorphNode(3, 1.0f, 1.0f);
+    return nodes;
+}
+
+} // namespace
+
+TEST_CASE("MorphEngine same-family Spectral morph allocates nothing and is not silent",
+          "[disrumpo][morph][rt-safety][D-001]") {
+    constexpr double kSampleRate = 48000.0;
+    constexpr float kTwoPi = 6.28318530718f;
+
+    auto engine = std::make_unique<Disrumpo::MorphEngine>();
+    engine->prepare(kSampleRate, 512);
+    engine->setSmoothingTime(0.0f);
+    engine->setMode(Disrumpo::MorphMode::Linear1D);
+
+    Disrumpo::DistortionParams params;
+    params.fftSize = 2048;
+    engine->setNodes(makeTwinNodes(Disrumpo::DistortionType::Spectral, params), 2);
+    engine->setMorphPosition(0.3f, 0.0f);
+
+    std::size_t sampleIndex = 0;
+    auto nextInput = [&]() {
+        const float x = 0.5f * std::sin(kTwoPi * 1000.0f * static_cast<float>(sampleIndex)
+                                        / static_cast<float>(kSampleRate));
+        ++sampleIndex;
+        return x;
+    };
+
+    // Settle pass (outside the allocation scope)
+    for (int i = 0; i < 4096; ++i) {
+        [[maybe_unused]] const float out = engine->process(nextInput());
+    }
+
+    constexpr std::size_t kMeasured = 8192;
+    std::vector<float> output(kMeasured, 0.0f);
+    std::size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (std::size_t i = 0; i < kMeasured; ++i) {
+            output[i] = engine->process(nextInput());
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+
+    double sumSq = 0.0;
+    for (std::size_t i = kMeasured - 4096; i < kMeasured; ++i) {
+        sumSq += static_cast<double>(output[i]) * static_cast<double>(output[i]);
+    }
+    const auto rms = static_cast<float>(std::sqrt(sumSq / 4096.0));
+
+    CAPTURE(allocations);
+    CAPTURE(rms);
+    CHECK(engine->getBlendedParams().fftSize == 2048);
+    REQUIRE(allocations == 0);
+    REQUIRE(rms > 0.001f);
+}
+
+TEST_CASE("MorphEngine interpolateParams keeps integer fields at the shared node value",
+          "[disrumpo][morph][D-011][D-030]") {
+    constexpr double kSampleRate = 48000.0;
+
+    auto engine = std::make_unique<Disrumpo::MorphEngine>();
+    engine->prepare(kSampleRate, 512);
+    engine->setSmoothingTime(0.0f);
+    engine->setMode(Disrumpo::MorphMode::Linear1D);
+
+    auto runAt = [&](float x) {
+        engine->setMorphPosition(x, 0.0f);
+        for (int i = 0; i < 64; ++i) {
+            [[maybe_unused]] const float out = engine->process(0.1f);
+        }
+    };
+
+    SECTION("Fractal iterations = 4 at x = 0.6") {
+        Disrumpo::DistortionParams params;
+        params.iterations = 4;
+        engine->setNodes(makeTwinNodes(Disrumpo::DistortionType::Fractal, params), 2);
+        runAt(0.6f);
+        CAPTURE(engine->getWeights()[0], engine->getWeights()[1]);
+        REQUIRE(engine->getBlendedParams().iterations == 4);
+    }
+
+    SECTION("RingSaturation stages = 2 at x = 0.3") {
+        Disrumpo::DistortionParams params;
+        params.stages = 2;
+        engine->setNodes(makeTwinNodes(Disrumpo::DistortionType::RingSaturation, params), 2);
+        runAt(0.3f);
+        CAPTURE(engine->getWeights()[0], engine->getWeights()[1]);
+        REQUIRE(engine->getBlendedParams().stages == 2);
+    }
+
+    SECTION("Spectral fftSize = 2048 at x = 0.3") {
+        Disrumpo::DistortionParams params;
+        params.fftSize = 2048;
+        engine->setNodes(makeTwinNodes(Disrumpo::DistortionType::Spectral, params), 2);
+        runAt(0.3f);
+        CAPTURE(engine->getWeights()[0], engine->getWeights()[1]);
+        REQUIRE(engine->getBlendedParams().fftSize == 2048);
+    }
 }
 
 // =============================================================================
