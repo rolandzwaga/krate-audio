@@ -38,6 +38,16 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 8. **`run-gate.js` comma-OR filter re-runs the whole set in the `[wallclock]` pass** (known pitfall, hit again
    on the evidence run: 127 cases ran twice, +22 min). Fix the runner or always use separate gates.
 
+9. **Tube node output level.** With drive 4 (a legal setting) the Tube node peaks at ≈2.0 before pan (1.41 after
+   the centre-pan loss), i.e. above 0 dBFS on a −6 dBFS sweep input. Found by the T1.06 AP-003 probe
+   (`[.][t106-ap003-probe]`). Whether the type needs output compensation is not established.
+10. **Re-rate spike.** Re-deriving coefficients when a band's clocked factor changes costs ≈145 µs per band at
+    48 kHz (≈580 µs if all four bands switch in one block; a 512-sample block is 10.7 ms). Re-rating only the
+    active type's processor would cut it. Probe: `[.][t106-cpu-probe]`.
+11. **Mixed-family morph can clock Spectral or Fractal at 4x.** Spectral stays prepared at the host rate (its
+    prepare allocates) and Fractal clamps its rate at 192 kHz, so both run with a rate mismatch in that case.
+    Also: the "8x" Oversample Max entry now maps to 4x (T1.06, `ee0f1e38`) — CHANGELOG entry pending (T4.08).
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
