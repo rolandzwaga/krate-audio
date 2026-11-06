@@ -142,6 +142,8 @@ struct Rig {
     double sr;
     int32 maxBlock;
     bool active = false;
+    /// Host transport context handed to every process() call (nullptr = the host sends none).
+    Steinberg::Vst::ProcessContext* ctx = nullptr;
 
     explicit Rig(double sampleRate = 48000.0, int32 mb = 512, bool doSetup = true)
         : sr(sampleRate), maxBlock(mb) {
@@ -195,7 +197,7 @@ struct Rig {
         d.outputs = &ob;
         d.inputParameterChanges = in;
         d.outputParameterChanges = out;
-        d.processContext = nullptr;
+        d.processContext = ctx;
         p->process(d);
     }
 

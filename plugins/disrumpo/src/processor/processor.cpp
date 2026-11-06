@@ -343,38 +343,46 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Sweep LFO/envelope modulate on top of the (possibly modulated) base freq.
     // ==========================================================================
 
-    // Process envelope follower with input signal (average of L+R)
-    if (sweepEnvelope_.isEnabled()) {
-        float inputMono = (inputL[0] + inputR[0]) * 0.5f;
-        (void)sweepEnvelope_.processSample(inputMono);
-    }
-
-    // Calculate modulated frequency: base (+ mod engine offset) + sweep LFO + envelope
-    float modulatedFreq = baseFreq;
-
-    // Get LFO modulation (bidirectional: +/- 2 octaves at full depth)
-    if (sweepLFO_.isEnabled()) {
-        float lfoValue = sweepLFO_.process();
-        constexpr float kMaxOctaveShift = 2.0f;
-        float octaveShift = lfoValue * kMaxOctaveShift;
-        float log2Freq = std::log2(modulatedFreq) + octaveShift;
-        modulatedFreq = std::pow(2.0f, log2Freq);
-    }
-
-    // Get envelope modulation (unidirectional: 0 to +2 octaves)
-    if (sweepEnvelope_.isEnabled()) {
-        modulatedFreq = sweepEnvelope_.getModulatedFrequency(modulatedFreq);
+    // Synced sweep LFO follows the host tempo (FR-024). A missing, non-finite or
+    // non-positive tempo keeps the last valid one (120 BPM before any).
+    if (data.processContext &&
+        (data.processContext->state & Steinberg::Vst::ProcessContext::kTempoValid) != 0) {
+        const auto hostTempo = static_cast<float>(data.processContext->tempo);
+        if (Krate::DSP::detail::isFinite(hostTempo) && hostTempo > 0.0f) {
+            sweepLFO_.setTempo(hostTempo);
+        }
     }
 
     // Clamp to sweep frequency range (20Hz - 20kHz)
     constexpr float kMinSweepFreq = 20.0f;
     constexpr float kMaxSweepFreq = 20000.0f;
-    modulatedFreq = std::clamp(modulatedFreq, kMinSweepFreq, kMaxSweepFreq);
+    float modulatedFreq = std::clamp(baseFreq, kMinSweepFreq, kMaxSweepFreq);
 
-    // Update sweep processor with modulated frequency
-    sweepProcessor_.setCenterFrequency(modulatedFreq);
-
-    sweepProcessor_.processBlock(data.numSamples);
+    if (sweepLFO_.isEnabled() || sweepEnvelope_.isEnabled()) {
+        // The sweep LFO and envelope follower advance once per sample, and the
+        // centre smoother follows their per-sample target. LFO: +/- 2 octaves at
+        // full depth; envelope: 0 to +2 octaves; summed in log2 space.
+        constexpr float kMaxOctaveShift = 2.0f;
+        const bool lfoOn = sweepLFO_.isEnabled();
+        const bool envOn = sweepEnvelope_.isEnabled();
+        const float log2Base = std::log2(modulatedFreq);
+        for (Steinberg::int32 n = 0; n < data.numSamples; ++n) {
+            float octaveShift = 0.0f;
+            if (lfoOn) {
+                octaveShift += sweepLFO_.process() * kMaxOctaveShift;
+            }
+            if (envOn) {
+                (void)sweepEnvelope_.processSample((inputL[n] + inputR[n]) * 0.5f);
+                octaveShift += sweepEnvelope_.getModulationAmount() * kMaxOctaveShift;
+            }
+            modulatedFreq = std::exp2(std::clamp(log2Base + octaveShift, kLog2MinFreq, kLog2MaxFreq));
+            sweepProcessor_.setCenterFrequency(modulatedFreq);
+            sweepProcessor_.process();
+        }
+    } else {
+        sweepProcessor_.setCenterFrequency(modulatedFreq);
+        sweepProcessor_.processBlock(data.numSamples);
+    }
 
     // Push sweep position data for UI synchronization (FR-046)
     if (sweepProcessor_.isEnabled()) {

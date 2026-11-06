@@ -113,6 +113,7 @@ public:
     [[nodiscard]] float getMorphCacheY(int band) const;
     [[nodiscard]] int getMorphCacheActiveNodes(int band) const;
     [[nodiscard]] const BandProcessor& getBandProcessor(int band) const { return bandProcessors_[band]; }
+    [[nodiscard]] const SweepProcessor& getSweepProcessor() const { return sweepProcessor_; }
 
 protected:
     // ==========================================================================
