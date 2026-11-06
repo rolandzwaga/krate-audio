@@ -316,11 +316,11 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         // Band morph position & config (3 floats + 2 int8)
         if (!streamer.writeFloat(cache.morphX)) return Steinberg::kResultFalse;
         if (!streamer.writeFloat(cache.morphY)) return Steinberg::kResultFalse;
-        if (!streamer.writeInt8(static_cast<Steinberg::int8>(0)))  // morphMode
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(cache.morphMode)))
             return Steinberg::kResultFalse;
         if (!streamer.writeInt8(static_cast<Steinberg::int8>(cache.activeNodeCount)))
             return Steinberg::kResultFalse;
-        if (!streamer.writeFloat(0.0f))  // morphSmoothing (ms)
+        if (!streamer.writeFloat(cache.morphSmoothingMs))
             return Steinberg::kResultFalse;
 
         // Per-node state (4 nodes × 7 values each)
@@ -440,9 +440,15 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 bandProcessors_[b].setGainDb(bs.gainDb);
                 bandProcessors_[b].setPan(bs.pan);
                 bandProcessors_[b].setMute(bs.mute);
+                bandProcessors_[b].setBypassed(bs.bypass);
             }
             // else: discard data from bands 4-7 (v7 migration)
         }
+
+        // Band count first: a later setBandCount would redistribute (and so
+        // overwrite) the crossovers restored below (D-048)
+        crossoverL_.setBandCount(bandCount);
+        crossoverR_.setBandCount(bandCount);
 
         // Read crossover frequencies
         // v7 and earlier wrote 7 crossovers; v8+ writes 3
@@ -457,10 +463,6 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             }
             // else: discard crossovers 3-6 (v7 migration)
         }
-
-        // Update band counts in crossover networks
-        crossoverL_.setBandCount(bandCount);
-        crossoverR_.setBandCount(bandCount);
     }
 
     // =========================================================================
@@ -824,11 +826,13 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 auto& cache = bandMorphCache_[b];
                 cache.morphX = morphX;
                 cache.morphY = morphY;
-                bandProcessors_[b].setMorphMode(
-                    static_cast<MorphMode>(std::clamp(static_cast<int>(morphMode), 0, 2)));
+                cache.morphMode =
+                    static_cast<MorphMode>(std::clamp(static_cast<int>(morphMode), 0, 2));
+                bandProcessors_[b].setMorphMode(cache.morphMode);
                 cache.activeNodeCount = std::clamp(
                     static_cast<int>(activeNodes), kMinActiveNodes, kMaxMorphNodes);
-                bandProcessors_[b].setMorphSmoothingTime(morphSmoothing);
+                cache.morphSmoothingMs = morphSmoothing;
+                bandProcessors_[b].setMorphSmoothingTime(cache.morphSmoothingMs);
             }
 
             // Per-node state (always read to advance stream)

@@ -97,8 +97,8 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
     // Crossover frequencies: 3 floats
     // Use non-default frequencies spanning the spectrum
     float crossovers[] = {250.0f, 1000.0f, 5000.0f};
-    for (int c = 0; c < kMaxBands - 1; ++c) {
-        s.writeFloat(crossovers[c]);
+    for (const float crossover : crossovers) {
+        s.writeFloat(crossover);
     }
 
     // =========================================================================
@@ -188,6 +188,12 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
     s.writeFloat(0.3f);  // attack normalized
     s.writeFloat(0.5f);  // decay normalized
 
+    // Rungler (v11+: rate, depth, bits, loop)
+    s.writeFloat(0.2f);  // rate normalized
+    s.writeFloat(0.6f);  // depth
+    s.writeInt8(12);     // bits
+    s.writeInt8(1);      // loop on
+
     // Macros (4 x 4 = 16 values)
     for (int m = 0; m < 4; ++m) {
         float base = static_cast<float>(m) / 3.0f;
@@ -225,7 +231,7 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
         s.writeFloat(morphY);     // morphY
         s.writeInt8(static_cast<Steinberg::int8>(b % 3)); // morphMode (0,1,2 cycling)
         s.writeInt8(static_cast<Steinberg::int8>(2 + (b % 3))); // activeNodeCount (2,3,4 cycling)
-        s.writeFloat(0.0f);       // morphSmoothing
+        s.writeFloat(50.0f);      // morphSmoothing (ms)
 
         // Per-node state (4 nodes x 7 values)
         for (int n = 0; n < kMaxMorphNodes; ++n) {
@@ -244,6 +250,13 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
             s.writeFloat(folds);  // folds
             float bits = 8.0f + static_cast<float>(n) * 2.0f;    // 8, 10, 12, 14
             s.writeFloat(bits);   // bitDepth
+
+            // v9+: shape slots, then per-type shadow slots (26 types x 10)
+            for (int slot = 0; slot < MorphNode::kShapeSlotCount; ++slot)
+                s.writeFloat(0.05f * static_cast<float>(slot + n));
+            for (int t = 0; t < kDistortionTypeCount; ++t)
+                for (int slot = 0; slot < MorphNode::kShapeSlotCount; ++slot)
+                    s.writeFloat(0.5f);
         }
     }
 }
@@ -292,19 +305,22 @@ static int compareStreams(MemoryStream& a, MemoryStream& b) {
 
 static bool readAndCompareFloat(Steinberg::IBStreamer& rA, Steinberg::IBStreamer& rB,
                                  float tolerance = 1e-6f) {
-    float fA = 0.0f, fB = 0.0f;
+    float fA = 0.0f;
+    float fB = 0.0f;
     if (!rA.readFloat(fA) || !rB.readFloat(fB)) return false;
     return std::abs(fA - fB) <= tolerance;
 }
 
 static bool readAndCompareInt32(Steinberg::IBStreamer& rA, Steinberg::IBStreamer& rB) {
-    int32_t iA = 0, iB = 0;
+    int32_t iA = 0;
+    int32_t iB = 0;
     if (!rA.readInt32(iA) || !rB.readInt32(iB)) return false;
     return iA == iB;
 }
 
 static bool readAndCompareInt8(Steinberg::IBStreamer& rA, Steinberg::IBStreamer& rB) {
-    Steinberg::int8 iA = 0, iB = 0;
+    Steinberg::int8 iA = 0;
+    Steinberg::int8 iB = 0;
     if (!rA.readInt8(iA) || !rB.readInt8(iB)) return false;
     return iA == iB;
 }
@@ -362,7 +378,8 @@ static bool compareV6PresetStreams(MemoryStream& a, MemoryStream& b) {
     if (!readAndCompareFloat(rA, rB)) return false;  // sensitivity
 
     // Custom Curve: int32 + variable points
-    int32_t pcA = 0, pcB = 0;
+    int32_t pcA = 0;
+    int32_t pcB = 0;
     rA.readInt32(pcA);
     rB.readInt32(pcB);
     if (pcA != pcB) return false;
@@ -896,6 +913,38 @@ TEST_CASE("Serialization round-trip: enum types preserved", "[preset][serializat
         REQUIRE(procB->getState(stream2) == Steinberg::kResultOk);
 
         REQUIRE(compareV6PresetStreams(*stream1, *stream2));
+
+        // D-099: compare against the INPUT, not stream1 vs stream2. Parse the
+        // per-band morph block of stream1 (current layout, processor_state.cpp).
+        const auto* bytes = reinterpret_cast<const uint8_t*>(stream1->getData());
+        const auto size = static_cast<size_t>(stream1->getSize());
+        auto readBytes = [&](size_t off, void* out, size_t n) {
+            REQUIRE(off + n <= size);
+            std::memcpy(out, bytes + off, n);
+        };
+        constexpr size_t kCurveCountOffset = 4 + 3 * 4 + 4 + 4 * 11 + 3 * 4 + 15 + 12 + 13;
+        int32_t points = 0;
+        readBytes(kCurveCountOffset, &points, 4);
+        REQUIRE(points == 2);
+        constexpr size_t kModSources = 104;  // LFO1/2, env, random, chaos, S&H, pitch, transient, rungler
+        constexpr size_t kMacros = size_t{4} * 13;
+        constexpr size_t kRoutings = size_t{32} * 10;
+        constexpr size_t kNodeSize = 1 + 6 * 4 + MorphNode::kShapeSlotCount * 4
+                                   + kDistortionTypeCount * MorphNode::kShapeSlotCount * 4;
+        constexpr size_t kBandSize = 4 + 4 + 1 + 1 + 4 + kMaxMorphNodes * kNodeSize;
+        const size_t morph0 = kCurveCountOffset + 4 + static_cast<size_t>(points) * 8 + kModSources
+                            + kMacros + kRoutings;
+        REQUIRE(morph0 + kMaxBands * kBandSize <= size);
+        for (int b = 0; b < kMaxBands; ++b) {
+            const size_t o = morph0 + static_cast<size_t>(b) * kBandSize;
+            Steinberg::int8 morphMode = -1;
+            float smoothing = -1.0f;
+            readBytes(o + 8, &morphMode, 1);
+            readBytes(o + 10, &smoothing, 4);
+            INFO("band " << b);
+            CHECK(morphMode == static_cast<Steinberg::int8>(b % 3));
+            CHECK(smoothing == 50.0f);
+        }
     }
 
     SECTION("ModSource values round-trip") {
@@ -1038,7 +1087,9 @@ TEST_CASE("Version migration: v2 preset loads bands with defaults for sweep/mod/
     reader.readInt32(version);
     REQUIRE(version == kPresetVersion);
 
-    float ig = 0.0f, og = 0.0f, gm = 0.0f;
+    float ig = 0.0f;
+    float og = 0.0f;
+    float gm = 0.0f;
     reader.readFloat(ig); reader.readFloat(og); reader.readFloat(gm);
     REQUIRE_THAT(ig, Catch::Matchers::WithinAbs(0.6f, 1e-6f));
 

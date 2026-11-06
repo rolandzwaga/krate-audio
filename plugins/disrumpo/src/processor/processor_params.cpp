@@ -958,14 +958,16 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             case BandParamType::kBandMorphSmoothing: {
                                 // RangeParameter [0, 500] ms
                                 float timeMs = static_cast<float>(value) * 500.0f;
+                                bandMorphCache_[band].morphSmoothingMs = timeMs;
                                 bandProcessors_[band].setMorphSmoothingTime(timeMs);
                                 break;
                             }
                             case BandParamType::kBandMorphMode: {
                                 // StringListParameter: 3 entries
                                 int idx = static_cast<int>(value * 2.0 + 0.5);
-                                bandProcessors_[band].setMorphMode(
-                                    static_cast<MorphMode>(std::clamp(idx, 0, 2)));
+                                const auto mode = static_cast<MorphMode>(std::clamp(idx, 0, 2));
+                                bandMorphCache_[band].morphMode = mode;
+                                bandProcessors_[band].setMorphMode(mode);
                                 break;
                             }
                             case BandParamType::kBandMorphXLink:

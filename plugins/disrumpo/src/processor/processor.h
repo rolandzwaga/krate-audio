@@ -167,6 +167,8 @@ private:
         int activeNodeCount = kDefaultActiveNodes;
         float morphX = 0.5f;
         float morphY = 0.5f;
+        MorphMode morphMode = MorphMode::Linear1D;
+        float morphSmoothingMs = 0.0f;
         /// Per-node per-type shadow storage for shape slot isolation
         std::array<ShapeShadowStorage, kMaxMorphNodes> shapeShadow;
     };

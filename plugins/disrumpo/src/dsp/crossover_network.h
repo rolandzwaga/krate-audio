@@ -81,13 +81,21 @@ public:
         numBands_ = clampBandCount(numBands);
         prepared_ = true;
 
-        // Prepare all crossovers
-        for (auto& crossover : crossovers_) {
-            crossover.prepare(sampleRate);
+        // Logarithmic defaults only on the first prepare, and only for
+        // crossovers nobody has set. A re-prepare (sample-rate or block-size
+        // change) keeps the stored frequencies (D-046)
+        if (!frequenciesInitialized_) {
+            initializeLogarithmicDistribution();
         }
 
-        // Initialize with logarithmic distribution
-        initializeLogarithmicDistribution();
+        // CrossoverLR4::prepare() snaps its frequency smoother to the stored
+        // frequency, so set the frequency (clamped at the NEW rate, hence the
+        // first prepare) and prepare again: no glide from the previous value
+        for (int i = 0; i < kMaxBands - 1; ++i) {
+            crossovers_[i].prepare(sampleRate);
+            crossovers_[i].setCrossoverFrequency(crossoverFrequencies_[i]);
+            crossovers_[i].prepare(sampleRate);
+        }
 
         // Initialize D'Appolito allpass compensation
         updateAllpassCoefficients();
@@ -122,15 +130,18 @@ public:
     }
 
     /// @brief Set crossover frequency for a specific split point.
-    /// @param index Crossover index (0 to numBands-2)
+    /// The value is stored for every index, including crossovers the current
+    /// band count does not use, so a later band-count increase finds it (D-022).
+    /// @param index Crossover index (0 to kMaxBands-2)
     /// @param hz Frequency in Hz
     void setCrossoverFrequency(int index, float hz) noexcept {
-        if (index < 0 || index >= numBands_ - 1) {
+        if (index < 0 || index >= kMaxBands - 1) {
             return;
         }
 
         const float clamped = clampFrequency(hz);
         crossoverFrequencies_[index] = clamped;
+        frequencyWasSet_[index] = true;
         crossovers_[index].setCrossoverFrequency(clamped);
 
         // Update allpass filters that use this crossover frequency
@@ -250,6 +261,7 @@ private:
 
     /// @brief Initialize crossover frequencies with logarithmic distribution.
     /// FR-009: Crossover frequencies redistribute logarithmically across 20Hz-20kHz
+    /// Crossovers already set through setCrossoverFrequency() keep their value.
     void initializeLogarithmicDistribution() noexcept {
         if (numBands_ <= 1) {
             return;
@@ -261,11 +273,15 @@ private:
         const float step = (logMax - logMin) / static_cast<float>(numBands_);
 
         for (int i = 0; i < numBands_ - 1; ++i) {
+            if (frequencyWasSet_[i]) {
+                continue;
+            }
             const float logFreq = logMin + step * static_cast<float>(i + 1);
             const float freq = std::pow(10.0f, logFreq);
             crossoverFrequencies_[i] = clampFrequency(freq);
             crossovers_[i].setCrossoverFrequency(crossoverFrequencies_[i]);
         }
+        frequenciesInitialized_ = true;
     }
 
     /// @brief Redistribute crossovers when band count changes.
@@ -278,8 +294,11 @@ private:
         }
 
         if (oldBandCount <= 1) {
-            // Was 1 band, now more - initialize fresh
-            initializeLogarithmicDistribution();
+            // Was 1 band, now more: logarithmic defaults only if no
+            // distribution exists yet; otherwise keep the stored values (FR-011a)
+            if (!frequenciesInitialized_) {
+                initializeLogarithmicDistribution();
+            }
             updateAllpassCoefficients();
             return;
         }
@@ -308,18 +327,21 @@ private:
         edges[oldBandCount] = kMaxCrossoverHz;
         // const int numOldEdges = oldBandCount + 1; // Unused after refactoring
 
-        // Number of new crossovers to add
-        const int toAdd = (newBandCount - 1) - (oldBandCount - 1);
-        if (toAdd <= 0) return;
-
         // Collect all crossover frequencies (old + new)
         std::array<float, kMaxBands - 1> allFreqs{};
         int writeIdx = 0;
 
-        // Copy existing crossovers
-        for (int i = 0; i < oldBandCount - 1; ++i) {
-            allFreqs[writeIdx++] = crossoverFrequencies_[i];
+        // Copy existing crossovers, plus newly used ones that were set
+        // explicitly (state restore or automation while they were inactive)
+        for (int i = 0; i < newBandCount - 1; ++i) {
+            if (i < oldBandCount - 1 || frequencyWasSet_[i]) {
+                allFreqs[writeIdx++] = crossoverFrequencies_[i];
+            }
         }
+
+        // Number of new crossovers to add
+        const int toAdd = (newBandCount - 1) - writeIdx;
+        if (toAdd <= 0) return;
 
         // Insert new crossovers at logarithmic midpoints of largest gaps
         for (int added = 0; added < toAdd; ++added) {
@@ -428,6 +450,13 @@ private:
     std::array<float, kMaxBands - 1> crossoverFrequencies_ = {
         200.0f, 1500.0f, 6000.0f
     };
+
+    // Crossovers given a value through setCrossoverFrequency()
+    std::array<bool, kMaxBands - 1> frequencyWasSet_{};
+
+    // True once a logarithmic distribution has been computed (first prepare
+    // with more than one band); later prepares keep the stored frequencies
+    bool frequenciesInitialized_ = false;
 };
 
 } // namespace Disrumpo

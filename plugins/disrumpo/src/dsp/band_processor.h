@@ -123,6 +123,10 @@ public:
         morphEngine_ = std::make_unique<MorphEngine>();
         morphEngine_->prepare(sampleRate * kMaxOversampleFactor,
                              static_cast<int>(maxBlockSize_ * kMaxOversampleFactor));
+        // The new engine starts at Linear1D / 10 ms: re-apply the configured
+        // mode and smoothing (D-132)
+        morphEngine_->setMode(cachedMorphMode_);
+        morphEngine_->setSmoothingTime(cachedSmoothingMs_);
 
         // Initialize crossfade state
         crossfadeActive_ = false;
@@ -258,6 +262,7 @@ public:
     /// @brief Set morph mode (Linear1D, Planar2D, Radial2D).
     /// @param mode The morph mode
     void setMorphMode(MorphMode mode) noexcept {
+        cachedMorphMode_ = mode;
         if (morphEngine_) {
             morphEngine_->setMode(mode);
         }
@@ -281,6 +286,7 @@ public:
     /// @brief Set morph smoothing time.
     /// @param timeMs Smoothing time in milliseconds (0-500)
     void setMorphSmoothingTime(float timeMs) noexcept {
+        cachedSmoothingMs_ = timeMs;
         if (morphEngine_) {
             morphEngine_->setSmoothingTime(timeMs);
         }
@@ -825,6 +831,9 @@ private:
     int morphActiveNodeCount_ = kDefaultActiveNodes;
     float morphTargetX_ = 0.5f;
     float morphTargetY_ = 0.5f;
+    // Morph mode / smoothing re-applied when prepare() recreates the engine
+    MorphMode cachedMorphMode_ = MorphMode::Linear1D;
+    float cachedSmoothingMs_ = 10.0f;  // MorphEngine's own default
 
     // Oversamplers
     Krate::DSP::Oversampler<2, 2> oversampler2x_;

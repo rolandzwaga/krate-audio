@@ -47,6 +47,21 @@ Processor::Processor() {
     sharedDisplay_.inputFIFO = &sharedInputFIFO_;
     sharedDisplay_.outputFIFO = &sharedOutputFIFO_;
     sharedDisplay_.sampleRate = &sharedSampleRate_;
+
+    // Morph cache defaults matching Controller defaults. Set once here, never
+    // in setupProcessing, so a restored patch survives re-preparation (D-046).
+    constexpr DistortionCommonParams kDefaultCommon{.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
+    for (auto& cache : bandMorphCache_) {
+        cache.nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
+        cache.nodes[0].commonParams = kDefaultCommon;
+        cache.nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
+        cache.nodes[1].commonParams = kDefaultCommon;
+        cache.nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
+        cache.nodes[2].commonParams = kDefaultCommon;
+        cache.nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
+        cache.nodes[3].commonParams = kDefaultCommon;
+        cache.activeNodeCount = kDefaultActiveNodes;
+    }
 }
 
 // ==============================================================================
@@ -108,23 +123,15 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         bandProcessors_[i].setPan(bandStates_[i].pan);
         bandProcessors_[i].setMute(bandStates_[i].mute);
 
-        // Initialize morph cache with defaults matching Controller defaults
-        auto& cache = bandMorphCache_[i];
-        constexpr DistortionCommonParams kDefaultCommon{.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
-        cache.nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
-        cache.nodes[0].commonParams = kDefaultCommon;
-        cache.nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
-        cache.nodes[1].commonParams = kDefaultCommon;
-        cache.nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
-        cache.nodes[2].commonParams = kDefaultCommon;
-        cache.nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
-        cache.nodes[3].commonParams = kDefaultCommon;
-        cache.activeNodeCount = kDefaultActiveNodes;
-
-        // Enable morph mode and push initial nodes
+        // Re-push the patch held in the morph cache: prepare() recreated the
+        // MorphEngine, and setState may have run before the first prepare
+        // (D-046). The cache is initialised once, in the constructor.
+        const auto& cache = bandMorphCache_[i];
         bandProcessors_[i].setMorphEnabled(true);
         bandProcessors_[i].setMorphNodes(cache.nodes, cache.activeNodeCount);
         bandProcessors_[i].setMorphPosition(cache.morphX, cache.morphY);
+        bandProcessors_[i].setMorphMode(cache.morphMode);
+        bandProcessors_[i].setMorphSmoothingTime(cache.morphSmoothingMs);
     }
 
     // Initialize sweep processor (spec 007-sweep-system)
