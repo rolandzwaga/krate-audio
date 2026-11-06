@@ -120,11 +120,28 @@ public:
             smoother.snapTo(0.0f);
         }
 
-        reset();
+        resetSources();
     }
 
-    /// @brief Reset all sources and routing state.
+    /// @brief Reset all sources and routing state (routings and macros cleared).
     void reset() noexcept {
+        resetSources();
+
+        // Reset routings
+        for (auto& r : routings_) {
+            r = ModRouting{};
+        }
+
+        // Reset macros
+        for (auto& m : macros_) {
+            m = MacroConfig{};
+        }
+    }
+
+    /// @brief Reset signal state only: sources, offsets, smoothers, transport.
+    /// Routings and macros (user parameters) are kept, so activation and
+    /// prepare() do not drop the mod matrix.
+    void resetSources() noexcept {
         lfo1_.reset();
         lfo2_.reset();
         envFollower_.reset();
@@ -147,16 +164,6 @@ public:
         }
         for (auto& smoother : signalSmoothers_) {
             smoother.reset();
-        }
-
-        // Reset routings
-        for (auto& r : routings_) {
-            r = ModRouting{};
-        }
-
-        // Reset macros
-        for (auto& m : macros_) {
-            m = MacroConfig{};
         }
     }
 

@@ -160,8 +160,8 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         sweepLFO_.reset();
         sweepEnvelope_.reset();
 
-        // Reset modulation engine
-        modulationEngine_.reset();
+        // Reset modulation sources only: routings and macros are user state (D-047)
+        modulationEngine_.resetSources();
 
         // DataExchange: open queue for spectrum data transfer
         if (dataExchange_)

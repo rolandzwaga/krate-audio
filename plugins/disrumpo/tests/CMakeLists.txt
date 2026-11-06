@@ -128,6 +128,7 @@ add_executable(disrumpo_tests
     integration/sweep_band_intensity_test.cpp
     integration/modulation_audio_path_test.cpp
     integration/processor_audio_output_test.cpp
+    integration/processor_lifecycle_state_test.cpp
     integration/chaos_distortion_wiring_test.cpp
     integration/multi_node_distortion_test.cpp
     integration/bitcrush_noise_repro_test.cpp
@@ -203,6 +204,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         dsp/sweep_envelope_tests.cpp
         integration/sweep_band_intensity_test.cpp
         integration/processor_audio_output_test.cpp
+        integration/processor_lifecycle_state_test.cpp
         unit/spectrum_analyzer_test.cpp
         unit/test_support_smoke_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
