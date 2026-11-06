@@ -18,8 +18,10 @@
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 
+#include <algorithm>
 #include <cmath>
 #include <array>
+#include <numbers>
 #include <set>
 
 using namespace Disrumpo;
@@ -516,7 +518,7 @@ TEST_CASE("SineFold smooth parameter changes output", "[distortion][wavefold]") 
     // Process alternating samples to generate high harmonics
     float sumNoSmooth = 0.0f;
     for (int i = 0; i < 200; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
         float out = adapter.process(sig);
         sumNoSmooth += out * out;  // Energy measure
     }
@@ -528,7 +530,7 @@ TEST_CASE("SineFold smooth parameter changes output", "[distortion][wavefold]") 
 
     float sumSmooth = 0.0f;
     for (int i = 0; i < 200; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
         float out = adapter.process(sig);
         sumSmooth += out * out;
     }
@@ -605,7 +607,7 @@ TEST_CASE("FullRectify smooth parameter changes output", "[distortion][rectify]"
 
     float sumNoSmooth = 0.0f;
     for (int i = 0; i < 200; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
         float out = adapter.process(sig);
         sumNoSmooth += out * out;
     }
@@ -617,7 +619,7 @@ TEST_CASE("FullRectify smooth parameter changes output", "[distortion][rectify]"
 
     float sumSmooth = 0.0f;
     for (int i = 0; i < 200; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
         float out = adapter.process(sig);
         sumSmooth += out * out;
     }
@@ -647,7 +649,7 @@ TEST_CASE("FullRectify dcBlock toggle affects output", "[distortion][rectify]") 
 
     float sumDCBlockOn = 0.0f;
     for (int i = 0; i < 500; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 200.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 200.0f * static_cast<float>(i) / 44100.0f);
         sumDCBlockOn += adapter.process(sig);
     }
 
@@ -658,7 +660,7 @@ TEST_CASE("FullRectify dcBlock toggle affects output", "[distortion][rectify]") 
 
     float sumDCBlockOff = 0.0f;
     for (int i = 0; i < 500; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 200.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 200.0f * static_cast<float>(i) / 44100.0f);
         sumDCBlockOff += adapter.process(sig);
     }
 
@@ -1022,7 +1024,7 @@ TEST_CASE("Bitcrush through MorphEngine responds to shape slot changes", "[disto
 
     std::array<MorphNode, kMaxMorphNodes> nodes;
     nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::Bitcrush);
-    nodes[0].commonParams = {1.0f, 1.0f, 4000.0f}; // drive=1, mix=1
+    nodes[0].commonParams = {.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f}; // drive=1, mix=1
 
     const float testSignal = 0.37f;
 
@@ -1085,7 +1087,7 @@ TEST_CASE("DIAG: Bitcrush sine wave produces staircase quantization", "[distorti
     // Process a few cycles to settle, then measure
     for (int i = 0; i < kSamplesPerCycle * 5; ++i) {
         float t = static_cast<float>(i) / static_cast<float>(kTestSampleRate);
-        float input = kAmplitude * std::sin(2.0f * 3.14159265f * kFreq * t);
+        float input = kAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * kFreq * t);
         float output = adapter.process(input);
 
         if (i >= kSamplesPerCycle * 2) {  // After settling
@@ -1136,7 +1138,7 @@ TEST_CASE("DIAG: Bitcrush at 8x prepared rate shows tone filter problem", "[dist
 
     for (int i = 0; i < kSamplesPerCycle * 10; ++i) {
         float t = static_cast<float>(i) / static_cast<float>(kTestSampleRate);
-        float input = kAmplitude * std::sin(2.0f * 3.14159265f * kFreq * t);
+        float input = kAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * kFreq * t);
         float output = adapter.process(input);
 
         if (i >= kSamplesPerCycle * 5) {
@@ -1163,7 +1165,7 @@ TEST_CASE("DIAG: MorphEngine Bitcrush path produces staircase quantization", "[d
 
     std::array<MorphNode, kMaxMorphNodes> nodes;
     nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::Bitcrush);
-    nodes[0].commonParams = {1.0f, 1.0f, 20000.0f};
+    nodes[0].commonParams = {.drive = 1.0f, .mix = 1.0f, .toneHz = 20000.0f};
     nodes[0].params.bitDepth = 4.0f;
 
     nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
@@ -1182,7 +1184,7 @@ TEST_CASE("DIAG: MorphEngine Bitcrush path produces staircase quantization", "[d
 
     for (int i = 0; i < kSamplesPerCycle * 5; ++i) {
         float t = static_cast<float>(i) / static_cast<float>(kTestSampleRate);
-        float input = kAmplitude * std::sin(2.0f * 3.14159265f * kFreq * t);
+        float input = kAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * kFreq * t);
         float output = engine.process(input);
 
         if (i >= kSamplesPerCycle * 2) {
@@ -1267,7 +1269,7 @@ TEST_CASE("BitwiseMangler: low intensity preserves signal structure", "[distorti
     constexpr int kSamples = 512;
     float output[kSamples];
     for (int i = 0; i < kSamples; ++i) {
-        float input = std::sin(2.0f * 3.14159265f * 440.0f * i / 44100.0f);
+        float input = std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * i / 44100.0f);
         output[i] = adapter.process(input);
     }
 
@@ -2306,9 +2308,7 @@ AdapterSustainedResult runAdapterSustainedTest(
 
         // Peak tracking
         float absSample = std::abs(sample);
-        if (absSample > result.peakOutput) {
-            result.peakOutput = absSample;
-        }
+        result.peakOutput = std::max(result.peakOutput, absSample);
 
         // Discontinuity check
         if (i > 0) {
@@ -2712,7 +2712,7 @@ TEST_CASE("Quantize smoothness reduces high-frequency energy", "[distortion][dig
         float totalDiff = 0.0f;
         float prevOut = 0.0f;
         for (int i = 0; i < kNumSamples; ++i) {
-            float in = std::sin(2.0f * 3.14159265f * kFreq * static_cast<float>(i)
+            float in = std::sin(2.0f * std::numbers::pi_v<float> * kFreq * static_cast<float>(i)
                                 / static_cast<float>(kTestSampleRate));
             float out = adapter.process(in);
             totalDiff += std::abs(out - prevOut);
@@ -2775,4 +2775,54 @@ TEST_CASE("Quantize all 4 params independently affect output", "[distortion][dig
     // Change only offset
     float changedOffset = getOutput(0.2f, 0.0f, 0.0f, 0.5f);
     CHECK(baseline != Approx(changedOffset).margin(0.001f));
+}
+
+// =============================================================================
+// D-009 (fix plan T1.06): re-rating on the audio thread
+// =============================================================================
+// BandProcessor re-rates its adapters on the audio thread when the factor they
+// are clocked at changes. setProcessingRate re-runs the prepare() of every member
+// except SpectralDistortion (which allocates and stays at the host rate); this
+// pins that none of those prepare() calls allocates once prepare() has sized the
+// buffers for the highest rate.
+
+#include <allocation_detector.h>
+
+TEST_CASE("DistortionAdapter::setProcessingRate re-run under AllocationScope allocates nothing",
+          "[disrumpo][distortion][realtime][D-009]") {
+    constexpr double kHostRate = 48000.0;
+    constexpr int kMaxFactor = 4;
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kHostRate, kTestBlockSize * kMaxFactor, kMaxFactor);
+    adapter->setCommonParams({.drive = 2.0f, .mix = 1.0f, .toneHz = 4000.0f});
+
+    std::size_t allocations = 0;
+    int latencyAtHost = 0;
+    int latencyAt4x = 0;
+    int latencyAboveMax = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+            adapter->setType(static_cast<DistortionType>(t));
+            for (const int factor : {2, 4, 1, 4, 2, 1}) {
+                adapter->setProcessingRate(kHostRate * factor);
+                for (int i = 0; i < 64; ++i) {
+                    (void)adapter->process(0.25f * static_cast<float>(i % 8) - 0.875f);
+                }
+            }
+        }
+        adapter->setType(DistortionType::Granular);
+        latencyAtHost = adapter->getProcessingLatency();
+        adapter->setProcessingRate(kHostRate * kMaxFactor);
+        latencyAt4x = adapter->getProcessingLatency();
+        adapter->setProcessingRate(kHostRate * 8);  // clamps to the prepared maximum
+        latencyAboveMax = adapter->getProcessingLatency();
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    INFO("Granular latency: host " << latencyAtHost << ", 4x " << latencyAt4x << ", 8x request "
+         << latencyAboveMax << " samples");
+    REQUIRE(allocations == 0);
+    // The rate reached the rate-derived state (grain size in samples)
+    REQUIRE(latencyAt4x == latencyAtHost * kMaxFactor);
+    REQUIRE(latencyAboveMax == latencyAt4x);
 }

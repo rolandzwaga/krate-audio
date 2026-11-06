@@ -25,10 +25,12 @@
 
 #include <cmath>
 #include <array>
+#include <memory>
+#include <numbers>
+#include <string>
 #include <vector>
 #include <algorithm>
 
-using Catch::Approx;
 using namespace Krate::DSP::TestUtils;
 
 // =============================================================================
@@ -141,7 +143,8 @@ TEST_CASE("AP-003: Sine sweep during morph automation - same family", "[approval
 
     // Let smoothers settle
     for (int i = 0; i < 1000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
@@ -174,19 +177,46 @@ TEST_CASE("AP-003: Sine sweep during morph automation - same family", "[approval
     auto detections = detector.detect(output.data(), output.size());
 
     // SC-003: Zero audible artifacts
-    // A small number of detections may be false positives from the sweep itself
-    // but significant clicks (>5) would indicate a problem
     INFO("Click detections: " << detections.size());
-    REQUIRE(detections.size() <= 5);
+    REQUIRE(detections.empty());
 
-    // Also verify using simple derivative threshold
-    // For a smooth morph, max derivative should be bounded
-    float maxDeriv = computeMaxDerivative(output);
-    INFO("Max derivative: " << maxDeriv);
-
-    // With input amplitude 0.5 and distortion, expect some harmonic content
-    // but clicks would cause derivatives > 0.5
-    REQUIRE(maxDeriv < 0.5f);
+    // Derivative check: the automation adds no step beyond what the stationary nodes
+    // produce. The same sweep is rendered with the cursor held on node 0 and on node 1
+    // (no automation); the automated render's largest sample-to-sample step may not
+    // exceed the larger held step by more than 5 %.
+    // A fixed bound of 0.5 held only while the adapters were rated for 8x the host
+    // rate and clocked at 1x (D-009, fixed in T1.06): the 4 kHz tone filter then acted
+    // as ~500 Hz and the step read 0.10. Correctly tuned, the Tube node (drive 4) at the
+    // 8 kHz end of the sweep steps 0.7202 with the cursor parked on it, and the
+    // automated render's 0.7202 is that same sample (44096), at every smoothing time
+    // from 0 to 50 ms (probe "Probe: AP-003 same-family max derivative sources").
+    const auto heldRender = [&](float pos) {
+        auto held = std::make_unique<Disrumpo::BandProcessor>();
+        held->prepare(kSampleRate, 512);
+        held->setMorphNodes(nodes, 2);
+        held->setMorphMode(Disrumpo::MorphMode::Linear1D);
+        held->setMorphSmoothingTime(10.0f);
+        held->setMorphPosition(pos, 0.0f);
+        for (int i = 0; i < 1000; ++i) {
+            float l = 0.0f;
+            float r = 0.0f;
+            held->process(l, r);
+        }
+        std::vector<float> out(kTestDuration);
+        for (size_t i = 0; i < kTestDuration; ++i) {
+            float l = input[i];
+            float r = input[i];
+            held->process(l, r);
+            out[i] = l;
+        }
+        return out;
+    };
+    const float heldDeriv0 = computeMaxDerivative(heldRender(0.0f));
+    const float heldDeriv1 = computeMaxDerivative(heldRender(1.0f));
+    const float maxDeriv = computeMaxDerivative(output);
+    INFO("Max derivative: automated " << maxDeriv << ", held on node 0 " << heldDeriv0
+         << ", held on node 1 " << heldDeriv1);
+    REQUIRE(maxDeriv <= 1.05f * std::max(heldDeriv0, heldDeriv1));
 }
 
 TEST_CASE("AP-003: Sine sweep during morph automation - cross family", "[approval][morph][SC-003][AP-003]") {
@@ -211,7 +241,8 @@ TEST_CASE("AP-003: Sine sweep during morph automation - cross family", "[approva
 
     // Let smoothers settle
     for (int i = 0; i < 1000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
@@ -269,7 +300,8 @@ TEST_CASE("AP-003: Rapid morph automation (20Hz LFO)", "[approval][morph][SC-003
 
     // Let settle
     for (int i = 0; i < 500; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
@@ -334,7 +366,8 @@ TEST_CASE("AP-003: Morph position step change", "[approval][morph][SC-003]") {
 
     // Let settle
     for (int i = 0; i < 1000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
@@ -388,14 +421,15 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     // Measure level at position 0
     proc.setMorphPosition(0.0f, 0.0f);
     for (int i = 0; i < 2000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
     float sumSqA = 0.0f;
     constexpr int kMeasureSamples = 4410;  // 100ms
     for (int i = 0; i < kMeasureSamples; ++i) {
-        float left = kInputAmplitude * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
+        float left = kInputAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
         float right = left;
         proc.process(left, right);
         sumSqA += left * left;
@@ -405,13 +439,14 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     // Measure level at position 0.5 (middle of morph)
     proc.setMorphPosition(0.5f, 0.0f);
     for (int i = 0; i < 2000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
     float sumSqMid = 0.0f;
     for (int i = 0; i < kMeasureSamples; ++i) {
-        float left = kInputAmplitude * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
+        float left = kInputAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
         float right = left;
         proc.process(left, right);
         sumSqMid += left * left;
@@ -421,13 +456,14 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     // Measure level at position 1
     proc.setMorphPosition(1.0f, 0.0f);
     for (int i = 0; i < 2000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
     float sumSqB = 0.0f;
     for (int i = 0; i < kMeasureSamples; ++i) {
-        float left = kInputAmplitude * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
+        float left = kInputAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
         float right = left;
         proc.process(left, right);
         sumSqB += left * left;
@@ -458,4 +494,81 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     // distortion characteristics between types
     float diffMid = std::abs(levelMid_dB - avgRef_dB);
     REQUIRE(diffMid < 3.0f);
+}
+
+// Measurement probe (hidden, fix plan T1.06): where the same-family sweep's max
+// derivative comes from. "old" replays the pre-T1.06 band path (engine prepared at
+// 8x the host rate, clocked at 1x, centre pan); "auto" is the AP-003 render; "static"
+// holds the cursor at 0 or 1 for the whole sweep (no morph automation at all).
+TEST_CASE("Probe: AP-003 same-family max derivative sources", "[.][t106-ap003-probe]") {
+    std::vector<float> input(kTestDuration);
+    TestHelpers::generateSweep(input.data(), input.size(), kSweepStartFreq, kSweepEndFreq,
+                               static_cast<float>(kSampleRate), kInputAmplitude);
+    const auto nodes = createSameFamilySetup();
+    const auto report = [&](const char* label, const std::vector<float>& out) {
+        float maxD = 0.0f;
+        size_t at = 0;
+        for (size_t i = 1; i < out.size(); ++i) {
+            const float d = std::abs(out[i] - out[i - 1]);
+            if (d > maxD) { maxD = d; at = i; }
+        }
+        const float freq = kSweepStartFreq + (kSweepEndFreq - kSweepStartFreq) *
+                                                 static_cast<float>(at) / static_cast<float>(kTestDuration);
+        float peak = 0.0f;
+        for (const float v : out) peak = std::max(peak, std::abs(v));
+        WARN("PROBE ap003 " << label << ": max derivative " << maxD << " at sample " << at
+             << " (sweep " << freq << " Hz), peak " << peak);
+    };
+    const auto bandRender = [&](bool automate, float pos, float smoothingMs) {
+        auto proc = std::make_unique<Disrumpo::BandProcessor>();
+        proc->prepare(kSampleRate, 512);
+        proc->setMorphNodes(nodes, 2);
+        proc->setMorphMode(Disrumpo::MorphMode::Linear1D);
+        proc->setMorphSmoothingTime(smoothingMs);
+        proc->setMorphPosition(pos, 0.0f);
+        for (int i = 0; i < 1000; ++i) {
+            float l = 0.0f;
+            float r = 0.0f;
+            proc->process(l, r);
+        }
+        std::vector<float> out(kTestDuration);
+        for (size_t i = 0; i < kTestDuration; ++i) {
+            if (automate) {
+                proc->setMorphPosition(static_cast<float>(i) / static_cast<float>(kTestDuration), 0.0f);
+            }
+            float l = input[i];
+            float r = input[i];
+            proc->process(l, r);
+            out[i] = l;
+        }
+        return out;
+    };
+    {
+        auto engine = std::make_unique<Disrumpo::MorphEngine>();
+        engine->prepare(kSampleRate * 8.0, 512 * 8);
+        engine->setMode(Disrumpo::MorphMode::Linear1D);
+        engine->setSmoothingTime(10.0f);
+        engine->setNodes(nodes, 2);
+        engine->setMorphPosition(0.0f, 0.0f);
+        for (int i = 0; i < 1000; ++i) (void)engine->process(0.0f);
+        const float pan = std::cos(std::numbers::pi_v<float> / 4.0f);
+        std::vector<float> out(kTestDuration);
+        for (size_t i = 0; i < kTestDuration; ++i) {
+            engine->setMorphPosition(static_cast<float>(i) / static_cast<float>(kTestDuration), 0.0f);
+            out[i] = engine->process(input[i]) * pan;
+        }
+        report("old (8x-rated engine) auto", out);
+    }
+    for (const float ms : {0.0f, 5.0f, 10.0f, 20.0f, 50.0f}) {
+        const std::string label = "new auto, smoothing " + std::to_string(ms) + " ms";
+        report(label.c_str(), bandRender(true, 0.0f, ms));
+    }
+    report("new static pos 0", bandRender(false, 0.0f, 10.0f));
+    report("new static pos 1", bandRender(false, 1.0f, 10.0f));
+    // The same static Tube render with the input stopped at 90 % of the sweep (7210 Hz)
+    {
+        auto out = bandRender(false, 1.0f, 10.0f);
+        out.resize(kTestDuration * 9 / 10);
+        report("new static pos 1, first 90 % (to 7210 Hz)", out);
+    }
 }

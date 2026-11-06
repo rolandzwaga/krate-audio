@@ -582,6 +582,10 @@ TEST_CASE("Processor HardClip aliasing drops with Oversample Max 4x vs 1x",
     REQUIRE(factor1x == 1);
     REQUIRE(factor4x == 4);
     REQUIRE(r1.aliasedDb - r4.aliasedDb >= 12.0);
+    // D-009 (fix plan T1.06): the tone filter runs at the rate it is clocked, so the
+    // 1 kHz fundamental reads the same at 1x and 4x (it read 56.97 vs 59.83 dB while
+    // the adapters were prepared for 8x the host rate).
+    REQUIRE(std::fabs(r1.fundamentalDb - r4.fundamentalDb) < 1.0);
 }
 
 TEST_CASE("Band bypass passes the crossover band unchanged", "[disrumpo][bypass][D-095]") {
@@ -692,6 +696,60 @@ TEST_CASE("Processor block path with oversampled bands allocates nothing",
     }
     CHECK(rig.p->getBandProcessor(0).getActiveOversampleFactor() == 2);
     REQUIRE(allocations == 0);
+}
+
+namespace {
+
+/// One band, node 0 SoftClip at drive 0.1 (linear region), mix 1, cursor on node 0.
+/// Returns the RMS of the last 0.25 s of a 0.5 s sine at -30 dBFS.
+double softClipToneRms(double toneNorm, double freqHz, double oversampleMaxNorm, int& factor) {
+    ts::Rig rig(kBlockSr);
+    rig.apply({{Disrumpo::kBandCountId, 0.0},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip)},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.01},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeTone), toneNorm},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeMix), 1.0},
+               {makeBandParamId(0, BandParamType::kBandMorphX), 0.0},
+               {makeBandParamId(0, BandParamType::kBandMorphY), 0.0},
+               {Disrumpo::kOversampleMaxId, oversampleMaxNorm}});
+    rig.reactivate();
+    const auto in = sineAt(static_cast<size_t>(kBlockSr / 2.0), freqHz, -30.0);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    factor = rig.p->getBandProcessor(0).getOversampleFactor();
+    const size_t half = outL.size() / 2;
+    return ts::rmsOf(outL.data() + half, outL.size() - half);
+}
+
+} // anonymous namespace
+
+// Audit D-009 (fix plan T1.06): the adapters' tone filter was prepared for 8x the host
+// rate and clocked at the band's running rate, so Tone 8 kHz acted as about 1 kHz.
+// Each tone level is read relative to a 250 Hz reference through the same chain, which
+// cancels the drive scaling (0.1), the shaper's small-signal gain and the centre-pan law
+// (D-021), and leaves the one-pole tone response. Expected (one-pole, a = exp(-2 pi fc/fs)):
+// 8 kHz tone at 4 kHz: -0.87 dB at 1x, -0.94 dB at 2x; 4 kHz tone at 1 kHz: -0.26 dB at both.
+TEST_CASE("Processor tone filter cutoff matches the Tone parameter", "[disrumpo][tone][D-009]") {
+    constexpr double kRefHz = 250.0;
+    constexpr double kTone8k = 1.0;
+    constexpr double kTone4k = (4000.0 - 200.0) / 7800.0;
+    const auto check = [&](double oversampleMaxNorm, int expectedFactor) {
+        int factor = 0;
+        const double ref8k = softClipToneRms(kTone8k, kRefHz, oversampleMaxNorm, factor);
+        const double at4k = softClipToneRms(kTone8k, 4000.0, oversampleMaxNorm, factor);
+        const double ref4k = softClipToneRms(kTone4k, kRefHz, oversampleMaxNorm, factor);
+        const double at1k = softClipToneRms(kTone4k, 1000.0, oversampleMaxNorm, factor);
+        const double db8k = ts::toDb(at4k / ref8k);
+        const double db4k = ts::toDb(at1k / ref4k);
+        INFO("running factor " << factor << ": tone 8 kHz at 4 kHz " << db8k
+             << " dB, tone 4 kHz at 1 kHz " << db4k << " dB (re 250 Hz)");
+        REQUIRE(factor == expectedFactor);
+        REQUIRE(std::fabs(db8k) <= 1.0);
+        REQUIRE(std::fabs(db4k - (-0.26)) <= 0.5);
+    };
+    SECTION("Oversample Max 1x") { check(0.0, 1); }
+    SECTION("Oversample Max 4x (SoftClip runs at 2x)") { check(2.0 / 3.0, 2); }
 }
 
 // Measurement probe (hidden): impulse delay through the band oversampler vs getLatencySamples().

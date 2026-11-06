@@ -347,10 +347,12 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             }
 
             case kOversampleMaxId: {
-                // FR-005, FR-006: Map normalized [0,1] to {1, 2, 4, 8}
+                // FR-005, FR-006: Map normalized [0,1] to {1, 2, 4, 4}
                 // StringListParameter with 4 items: index = round(value * 3)
-                // Index 0 = 1x, Index 1 = 2x, Index 2 = 4x, Index 3 = 8x
-                static constexpr int kOversampleFactors[] = {1, 2, 4, 8};
+                // Index 0 = 1x, Index 1 = 2x, Index 2 = 4x, Index 3 = "8x"
+                // The "8x" entry stays registered so list indices and saved values keep
+                // their meaning, but it maps to 4x: 4x is the highest factor (D-009, D-034)
+                static constexpr int kOversampleFactors[] = {1, 2, 4, 4};
                 const int index = std::clamp(
                     static_cast<int>(value * 3.0 + 0.5), 0, 3);
                 const int factor = kOversampleFactors[index];

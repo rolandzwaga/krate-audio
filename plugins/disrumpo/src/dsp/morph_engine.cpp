@@ -44,7 +44,7 @@ MorphEngine::MorphEngine() noexcept {
     nodes_[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SineFold);
 }
 
-void MorphEngine::prepare(double sampleRate, int maxBlockSize) noexcept {
+void MorphEngine::prepare(double sampleRate, int maxBlockSize, int maxOversampleFactor) noexcept {
     sampleRate_ = sampleRate;
 
     // Configure position smoothers
@@ -55,9 +55,9 @@ void MorphEngine::prepare(double sampleRate, int maxBlockSize) noexcept {
 
     // Prepare all distortion adapters
     for (auto& adapter : adapters_) {
-        adapter.prepare(sampleRate, maxBlockSize);
+        adapter.prepare(sampleRate, maxBlockSize, maxOversampleFactor);
     }
-    blendedAdapter_.prepare(sampleRate, maxBlockSize);
+    blendedAdapter_.prepare(sampleRate, maxBlockSize, maxOversampleFactor);
 
     // Initialize adapter types from nodes
     for (int i = 0; i < kMaxMorphNodes; ++i) {
@@ -98,6 +98,16 @@ void MorphEngine::resetState() noexcept {
         adapter.reset();
     }
     blendedAdapter_.reset();
+}
+
+void MorphEngine::setProcessingRate(double rate) noexcept {
+    sampleRate_ = rate;
+    smootherX_.configure(smoothingTimeMs_, static_cast<float>(rate));
+    smootherY_.configure(smoothingTimeMs_, static_cast<float>(rate));
+    for (auto& adapter : adapters_) {
+        adapter.setProcessingRate(rate);
+    }
+    blendedAdapter_.setProcessingRate(rate);
 }
 
 // =============================================================================

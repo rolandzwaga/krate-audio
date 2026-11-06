@@ -247,10 +247,23 @@ public:
     // Lifecycle
     // =========================================================================
 
-    /// @brief Prepare all processors for the given sample rate.
-    /// @param sampleRate Processing sample rate (after any oversampling)
+    /// @brief Prepare all processors for the given sample rate (allocates).
+    ///
+    /// Every member's buffers are sized for sampleRate * maxOversampleFactor, so
+    /// setProcessingRate() can later move the adapter to any rate up to that
+    /// without allocating. Processing starts at sampleRate. SpectralDistortion
+    /// allocates in its prepare(), so it is prepared once, at sampleRate, and is
+    /// not re-rated (Spectral recommends 1x, distortion_types.h).
+    /// @param sampleRate Processing sample rate (the host rate for an oversampling owner)
     /// @param maxBlockSize Maximum block size for block-based processors
-    void prepare(double sampleRate, int maxBlockSize = 512) noexcept;
+    /// @param maxOversampleFactor Highest factor setProcessingRate() may be given
+    void prepare(double sampleRate, int maxBlockSize = 512, int maxOversampleFactor = 1) noexcept;
+
+    /// @brief Re-derive every rate-dependent coefficient for the rate the adapter is
+    /// clocked at (D-009). Allocation-free; resets the processors' filter state, so call
+    /// it at the silent point of a factor switch. Clamped to the rate prepare() sized for.
+    /// @param rate Rate at which process() will be called, in Hz
+    void setProcessingRate(double rate) noexcept;
 
     /// @brief Reset all internal state.
     void reset() noexcept;
@@ -331,6 +344,9 @@ private:
     // Internal Processing
     // =========================================================================
 
+    /// @brief Prepare every member except SpectralDistortion for @p rate (sets sampleRate_).
+    void prepareRateDependent(double rate) noexcept;
+
     /// @brief Raw processing for the current type (no mix/tone/DC).
     [[nodiscard]] float processRaw(float input) noexcept;
 
@@ -347,7 +363,9 @@ private:
     // State
     // =========================================================================
 
-    double sampleRate_ = 44100.0;
+    double sampleRate_ = 44100.0;          ///< Rate process() is clocked at
+    double maxProcessingRate_ = 44100.0;   ///< Rate prepare() sized the buffers for
+    int maxBlockSize_ = 512;               ///< Block size prepare() was given
     DistortionType currentType_ = DistortionType::SoftClip;
     DistortionCommonParams commonParams_;
     DistortionParams typeParams_;

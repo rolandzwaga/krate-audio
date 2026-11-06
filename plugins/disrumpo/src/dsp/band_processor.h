@@ -45,7 +45,9 @@ public:
     // =========================================================================
 
     static constexpr float kPi = std::numbers::pi_v<float>;
-    static constexpr int kMaxOversampleFactor = 8;
+    /// @brief Highest factor (D-009, D-034: the factor rounding never selects 8x, so the
+    /// 8x cascade is gone and "8x" Oversample Max maps to 4x).
+    static constexpr int kMaxOversampleFactor = 4;
     static constexpr int kDefaultOversampleFactor = 2;
     /// @brief Default global limit, equal to the processor's Oversample Max default (D-134).
     static constexpr int kDefaultMaxOversampleFactor = 4;
@@ -106,31 +108,30 @@ public:
         oversampler4x_.prepare(sampleRate, maxBlockSize_,
                                Krate::DSP::OversamplingQuality::Economy,
                                Krate::DSP::OversamplingMode::ZeroLatency);
-        oversampler8xInner_.prepare(sampleRate * 4.0, maxBlockSize_ * 4,
-                                    Krate::DSP::OversamplingQuality::Economy,
-                                    Krate::DSP::OversamplingMode::ZeroLatency);
 
-        // Prepare distortion adapters at oversampled rate (one per channel: the
-        // adapters are mono and stateful, D-016)
-        // We prepare at 8x rate to support all oversampling factors
+        // Prepare distortion adapters (one per channel: the adapters are mono and
+        // stateful, D-016). Their buffers are sized for kMaxOversampleFactor x the
+        // host rate; they run at the host rate until processWithFactor() clocks them
+        // at a higher factor and re-rates them (setClockFactor, D-009).
         // Default to distortion bypassed (drive=0 is passthrough per spec)
         DistortionCommonParams defaultParams;
         defaultParams.drive = 0.0f;  // Bypass distortion by default
         defaultParams.mix = 1.0f;
         defaultParams.toneHz = 4000.0f;
         for (DistortionAdapter* adapter : {&distortionL_, &distortionR_}) {
-            adapter->prepare(sampleRate * kMaxOversampleFactor,
-                             static_cast<int>(maxBlockSize_ * kMaxOversampleFactor));
+            adapter->prepare(sampleRate, static_cast<int>(maxBlockSize_ * kMaxOversampleFactor),
+                             kMaxOversampleFactor);
             adapter->setCommonParams(defaultParams);
         }
 
-        // Allocate and prepare one morph engine per channel at oversampled rate
-        // Allocated on heap to avoid stack overflow
+        // Allocate and prepare one morph engine per channel, sized like the adapters
+        // and running at the host rate. Allocated on heap to avoid stack overflow
         morphEngineL_ = std::make_unique<MorphEngine>();
         morphEngineR_ = std::make_unique<MorphEngine>();
+        clockFactor_ = 1;
         forEachMorphEngine([this](MorphEngine& engine) {
-            engine.prepare(sampleRate_ * kMaxOversampleFactor,
-                           static_cast<int>(maxBlockSize_ * kMaxOversampleFactor));
+            engine.prepare(sampleRate_, static_cast<int>(maxBlockSize_ * kMaxOversampleFactor),
+                           kMaxOversampleFactor);
             // The new engine starts at Linear1D / 10 ms: re-apply the configured
             // mode and smoothing (D-132)
             engine.setMode(cachedMorphMode_);
@@ -158,7 +159,6 @@ public:
 
         oversampler2x_.reset();
         oversampler4x_.reset();
-        oversampler8xInner_.reset();
         distortionL_.reset();
         distortionR_.reset();
         forEachMorphEngine([](MorphEngine& engine) { engine.reset(); });
@@ -371,7 +371,7 @@ public:
 
     /// @brief Set the maximum oversampling factor (global limit).
     /// Modified for spec 009: triggers recalculation and a factor switch (FR-016)
-    /// @param factor Maximum factor (1, 2, 4, or 8)
+    /// @param factor Maximum factor (1, 2 or 4; larger values clamp to 4)
     void setMaxOversampleFactor(int factor) noexcept {
         maxOversampleFactor_ = std::clamp(factor, 1, kMaxOversampleFactor);
         // FR-016, FR-017: Recalculate and potentially switch
@@ -440,7 +440,7 @@ public:
     /// adapters' filter state is cleared, then the output ramps back to 1 at the
     /// new factor. Before any audio has been processed since prepare()/reset()
     /// the factor switches at once. FR-017: no switch if the factor is unchanged.
-    /// @param factor Target oversampling factor (1, 2, 4, or 8)
+    /// @param factor Target oversampling factor (1, 2 or 4)
     void requestOversampleFactor(int factor) noexcept {
         targetOversampleFactor_ = factor;
         if (!processedSinceReset_) {
@@ -508,47 +508,12 @@ public:
     /// 1. Sweep intensity multiply BEFORE distortion/morph
     /// 2. MorphEngine (or single distortion) processing
     /// 3. Gain/Pan/Mute stage AFTER
+    /// This is the 1x path: the shapers are clocked at the host rate (D-009).
     /// @param left Left channel sample (modified in-place)
     /// @param right Right channel sample (modified in-place)
     void process(float& left, float& right) noexcept {
-        // Get smoothed values
-        const float gain = gainSmoother_.process();
-        const float pan = panSmoother_.process();
-        const float mute = muteSmoother_.process();
-        const float sweep = sweepSmoother_.process();
-
-        // Step 1: Apply sweep intensity BEFORE distortion/morph (per plan.md)
-        left *= sweep;
-        right *= sweep;
-
-        // Step 2: Distortion/Morph processing
-        if (morphEnabled_ && morphEngineL_) {
-            // FR-010: Use MorphEngine for morphed distortion (one per channel, D-016)
-            left = morphEngineL_->process(left);
-            right = morphEngineR_->process(right);
-        } else {
-            // Legacy single distortion path (drive/mix modulation already
-            // applied by beginBlockModulation() at block rate)
-            if (distortionL_.getCommonParams().drive >= 0.0001f) {
-                left = distortionL_.process(left);
-                right = distortionR_.process(right);
-            }
-        }
-
-        // Step 3: Output stage (gain/pan/mute) AFTER distortion
-        // FR-022: Equal-power pan law
-        // leftGain = cos(pan * PI/4 + PI/4)
-        // rightGain = sin(pan * PI/4 + PI/4)
-        const float panAngle = pan * kPi / 4.0f + kPi / 4.0f;
-        const float leftCoeff = std::cos(panAngle);
-        const float rightCoeff = std::sin(panAngle);
-
-        // Calculate mute multiplier (0 = muted, 1 = unmuted)
-        const float muteMultiplier = 1.0f - mute;
-
-        // Apply all in one pass
-        left = left * gain * leftCoeff * muteMultiplier;
-        right = right * gain * rightCoeff * muteMultiplier;
+        setClockFactor(1);
+        processFrame(left, right);
     }
 
     /// @brief Process stereo buffer in-place with oversampling.
@@ -616,6 +581,49 @@ public:
     }
 
 private:
+    /// @brief One stereo frame at the host rate (sweep, shaper, gain/pan/mute).
+    /// The caller has clocked the shapers at 1x (setClockFactor(1)).
+    void processFrame(float& left, float& right) noexcept {
+        // Get smoothed values
+        const float gain = gainSmoother_.process();
+        const float pan = panSmoother_.process();
+        const float mute = muteSmoother_.process();
+        const float sweep = sweepSmoother_.process();
+
+        // Step 1: Apply sweep intensity BEFORE distortion/morph (per plan.md)
+        left *= sweep;
+        right *= sweep;
+
+        // Step 2: Distortion/Morph processing
+        if (morphEnabled_ && morphEngineL_) {
+            // FR-010: Use MorphEngine for morphed distortion (one per channel, D-016)
+            left = morphEngineL_->process(left);
+            right = morphEngineR_->process(right);
+        } else {
+            // Legacy single distortion path (drive/mix modulation already
+            // applied by beginBlockModulation() at block rate)
+            if (distortionL_.getCommonParams().drive >= 0.0001f) {
+                left = distortionL_.process(left);
+                right = distortionR_.process(right);
+            }
+        }
+
+        // Step 3: Output stage (gain/pan/mute) AFTER distortion
+        // FR-022: Equal-power pan law
+        // leftGain = cos(pan * PI/4 + PI/4)
+        // rightGain = sin(pan * PI/4 + PI/4)
+        const float panAngle = pan * kPi / 4.0f + kPi / 4.0f;
+        const float leftCoeff = std::cos(panAngle);
+        const float rightCoeff = std::sin(panAngle);
+
+        // Calculate mute multiplier (0 = muted, 1 = unmuted)
+        const float muteMultiplier = 1.0f - mute;
+
+        // Apply all in one pass
+        left = left * gain * leftCoeff * muteMultiplier;
+        right = right * gain * rightCoeff * muteMultiplier;
+    }
+
     /// @brief Apply a configuration call to both channels' MorphEngines (no-op before prepare()).
     template <typename Fn>
     void forEachMorphEngine(const Fn& fn) noexcept {
@@ -684,28 +692,42 @@ private:
     /// @param left Left channel input/output buffer
     /// @param right Right channel input/output buffer
     /// @param numSamples Number of samples
-    /// @param factor Oversampling factor to use (1, 2, 4, or 8)
+    /// @param factor Oversampling factor to use (1, 2 or 4; anything else runs at 1x)
     void processWithFactor(float* left, float* right, size_t numSamples, int factor) noexcept {
         // Drive gate: a band whose shaper is an exact passthrough runs at 1x
         const bool bypassDistortion = !isDistortionDriven();
+        const int clocked = (!bypassDistortion && (factor == 2 || factor == 4)) ? factor : 1;
 
-        if (bypassDistortion || factor == 1) {
+        // The shapers run at the rate they are clocked at (D-009)
+        setClockFactor(clocked);
+
+        if (clocked == 2) {
+            processWithOversampling2x(left, right, numSamples);
+        } else if (clocked == 4) {
+            processWithOversampling4x(left, right, numSamples);
+        } else {
             // FR-020: Direct processing without oversampling
             for (size_t i = 0; i < numSamples; ++i) {
-                process(left[i], right[i]);
-            }
-        } else if (factor == 2) {
-            processWithOversampling2x(left, right, numSamples);
-        } else if (factor == 4) {
-            processWithOversampling4x(left, right, numSamples);
-        } else if (factor == 8) {
-            processWithOversampling8x(left, right, numSamples);
-        } else {
-            // Fallback to sample-by-sample
-            for (size_t i = 0; i < numSamples; ++i) {
-                process(left[i], right[i]);
+                processFrame(left[i], right[i]);
             }
         }
+    }
+
+    /// @brief Re-rate the shapers when the factor they are clocked at changes (D-009,
+    /// D-138): the adapters' coefficients and the morph cursor smoothers are derived for
+    /// sampleRate_ * factor. Allocation-free; resets the shapers' filter state, so a factor
+    /// switch reaches it at the silent bottom of its dip (the first processWithFactor call
+    /// after advanceFactorSwitch). A drive-gate change reaches it while the shaper is a
+    /// passthrough on one side of the change.
+    void setClockFactor(int factor) noexcept {
+        if (factor == clockFactor_) {
+            return;
+        }
+        clockFactor_ = factor;
+        const double rate = sampleRate_ * static_cast<double>(factor);
+        distortionL_.setProcessingRate(rate);
+        distortionR_.setProcessingRate(rate);
+        forEachMorphEngine([rate](MorphEngine& engine) { engine.setProcessingRate(rate); });
     }
 
     /// @brief True when the shaper is not an exact passthrough: legacy adapter drive
@@ -778,7 +800,6 @@ private:
         forEachMorphEngine([](MorphEngine& engine) { engine.resetState(); });
         oversampler2x_.reset();
         oversampler4x_.reset();
-        oversampler8xInner_.reset();
     }
 
     /// @brief Sweep intensity at the base rate, before the oversampler (sweep is linear, so
@@ -807,22 +828,6 @@ private:
         oversampler4x_.process(left, right, numSamples,
             [this](float* osLeft, float* osRight, size_t osN) {
                 processOversampledBlock(osLeft, osRight, osN);
-            });
-
-        // Apply output stage (gain/pan/mute)
-        applyOutputStage(left, right, numSamples);
-    }
-
-    void processWithOversampling8x(float* left, float* right, size_t numSamples) noexcept {
-        // 8x = cascade of 4x outer and 2x inner
-        applySweep(left, right, numSamples);
-        oversampler4x_.process(left, right, numSamples,
-            [this](float* os4Left, float* os4Right, size_t os4N) {
-                // Inner 2x oversampling
-                oversampler8xInner_.process(os4Left, os4Right, os4N,
-                    [this](float* os8Left, float* os8Right, size_t os8N) {
-                        processOversampledBlock(os8Left, os8Right, os8N);
-                    });
             });
 
         // Apply output stage (gain/pan/mute)
@@ -918,10 +923,11 @@ private:
     // Oversamplers
     Krate::DSP::Oversampler<2, 2> oversampler2x_;
     Krate::DSP::Oversampler<4, 2> oversampler4x_;
-    Krate::DSP::Oversampler<2, 2> oversampler8xInner_;  // Inner 2x for 8x cascade
 
     // Oversampling factor (spec 009): current = running, target = selected
     int currentOversampleFactor_ = kDefaultOversampleFactor;
+    // Factor the shapers are clocked at, and prepared for (setClockFactor, D-009)
+    int clockFactor_ = 1;
     int maxOversampleFactor_ = kDefaultMaxOversampleFactor;
     int targetOversampleFactor_ = kDefaultOversampleFactor;
 

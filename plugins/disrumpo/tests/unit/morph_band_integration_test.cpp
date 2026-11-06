@@ -24,6 +24,7 @@
 #include "dsp/distortion_types.h"
 #include "dsp/distortion_adapter.h"
 
+#include <chrono>
 #include <cmath>
 #include <array>
 #include <memory>
@@ -301,8 +302,8 @@ TEST_CASE("BandProcessor morph smoothing time configurable", "[band][morph][FR-0
 // D-138 / D-099 (fix plan T1.05): the BandProcessor ran L and then R through one
 // MorphEngine, so the cursor smoothers advanced twice per stereo frame. With one
 // engine per channel each advances once per frame, exactly like a standalone
-// engine prepared the same way (BandProcessor::prepare prepares its engines at
-// 8x the host rate with 8x the block size) that is called once per sample.
+// engine at the host rate (the rate BandProcessor::process clocks its engines at
+// since T1.06) that is called once per sample.
 TEST_CASE("BandProcessor advances the morph cursor smoother once per stereo frame",
           "[disrumpo][morph][D-138]") {
     constexpr double kSr = 48000.0;
@@ -318,7 +319,7 @@ TEST_CASE("BandProcessor advances the morph cursor smoother once per stereo fram
     proc.setMorphPosition(0.0f, 0.0f);
 
     auto reference = std::make_unique<Disrumpo::MorphEngine>();
-    reference->prepare(kSr * kOversample, static_cast<int>(kBlock) * kOversample);
+    reference->prepare(kSr, static_cast<int>(kBlock) * kOversample, kOversample);
     reference->setMode(Disrumpo::MorphMode::Linear1D);
     reference->setSmoothingTime(10.0f);
     reference->setNodes(nodes, 2);
@@ -345,33 +346,68 @@ TEST_CASE("BandProcessor advances the morph cursor smoother once per stereo fram
     }
 }
 
-// D-138 (fix plan T1.05 / T1.06): 10 ms of smoothing must reach 99 % of a step
-// in 10 ms of host time (480 samples at 48 kHz), and not in half of it.
-// [!shouldfail] until T1.06: the engines' smoothers are still configured at 8x
-// the host rate but advanced once per host sample (one engine per channel since
-// T1.05), so 10 ms reads 80 ms (X = 0.46 after 480 samples). T1.06 configures
-// them at the rate they run and must remove the tag (and tighten the lower bound
-// to 336 samples); a pass while the tag is present fails the gate.
+// D-138 / D-099 (fix plan T1.05 / T1.06): a 10 ms smoothing time is 10 ms of host
+// time at every running factor. OnePoleSmoother::configure defines the time as
+// 5 tau (coefficient exp(-5000 / (ms * fs))), so at 48 kHz tau = 96 samples and
+// 1 - exp(-n / 96) crosses 0.99 at n = 96 ln(100) = 442.1 samples (9.2 ms); 480
+// samples (10 ms) read 0.9933. The bounds are the plan's 10 ms +/- 30 %: below
+// 0.99 after 336 samples (7 ms, reads 0.9698) and at least 0.99 after 480. The
+// oversampled path runs the engines at 2x with coefficients for 2x, so the same
+// host-sample counts hold. Before T1.06 the engines were configured for 8x the
+// host rate (X = 0.46 after 480 samples, i.e. 10 ms read about 80 ms).
 TEST_CASE("BandProcessor morph smoothing reaches 99 % in the configured time",
-          "[disrumpo][morph][D-138][!shouldfail]") {
+          "[disrumpo][morph][D-138]") {
     constexpr double kSr = 48000.0;
+    constexpr int kEarly = 336;  // 7 ms
+    constexpr int kFull = 480;   // 10 ms
     Disrumpo::BandProcessor proc;
     proc.prepare(kSr, kBlockSize);
     proc.setMorphNodes(createTwoNodeSetup(), 2);
     proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
     proc.setMorphSmoothingTime(10.0f);
     proc.setMorphPosition(0.0f, 0.0f);
-    settleBandProcessor(proc, 48000);
-    REQUIRE(proc.getMorphEngine()->getSmoothedX() < 1e-4f);
 
-    proc.setMorphPosition(1.0f, 0.0f);
-    settleBandProcessor(proc, 240);
-    const float atHalf = proc.getMorphEngine()->getSmoothedX();
-    settleBandProcessor(proc, 240);
-    const float atFull = proc.getMorphEngine()->getSmoothedX();
-    INFO("smoothed X after 240 samples = " << atHalf << ", after 480 samples = " << atFull);
-    CHECK(atHalf < 0.99f);
-    CHECK(atFull >= 0.99f);
+    SECTION("per-sample process (1x)") {
+        settleBandProcessor(proc, 48000);
+        REQUIRE(proc.getMorphEngine()->getSmoothedX() < 1e-4f);
+
+        proc.setMorphPosition(1.0f, 0.0f);
+        settleBandProcessor(proc, kEarly);
+        const float atEarly = proc.getMorphEngine()->getSmoothedX();
+        settleBandProcessor(proc, kFull - kEarly);
+        const float atFull = proc.getMorphEngine()->getSmoothedX();
+        INFO("smoothed X after " << kEarly << " samples = " << atEarly << ", after " << kFull
+             << " samples = " << atFull);
+        REQUIRE(atEarly < 0.99f);
+        REQUIRE(atFull >= 0.99f);
+    }
+
+    SECTION("processBlock at the running factor (2x)") {
+        constexpr size_t kChunk = 48;  // kEarly and kFull are multiples of it
+        std::array<float, kChunk> left{};
+        std::array<float, kChunk> right{};
+        const auto runBlocks = [&](int samples) {
+            for (int done = 0; done < samples; done += static_cast<int>(kChunk)) {
+                left.fill(0.0f);
+                right.fill(0.0f);
+                proc.processBlock(left.data(), right.data(), kChunk);
+            }
+        };
+        runBlocks(48000);
+        REQUIRE(proc.getActiveOversampleFactor() == 2);
+        REQUIRE(proc.getMorphEngine()->getSmoothedX() < 1e-4f);
+
+        proc.setMorphPosition(1.0f, 0.0f);
+        REQUIRE(proc.getActiveOversampleFactor() == 2);
+        runBlocks(kEarly);
+        const float atEarly = proc.getMorphEngine()->getSmoothedX();
+        runBlocks(kFull - kEarly);
+        const float atFull = proc.getMorphEngine()->getSmoothedX();
+        INFO("smoothed X after " << kEarly << " host samples = " << atEarly << ", after " << kFull
+             << " host samples = " << atFull);
+        REQUIRE(atEarly < 0.99f);
+        REQUIRE(atFull >= 0.99f);
+    }
 }
 
 TEST_CASE("BandProcessor processBlock uses morph engine", "[band][morph][FR-010]") {
@@ -561,4 +597,34 @@ TEST_CASE("DIAG: Same-family types (SoftClip vs Tube) produce different output",
     INFO("Difference: " << std::abs(softClipOut - tubeOut));
 
     REQUIRE(softClipOut != Approx(tubeOut).margin(0.001f));
+}
+
+// Measurement probe (hidden, fix plan T1.06): audio-thread cost of one band's
+// re-rate at a factor switch (two MorphEngines + two legacy adapters, i.e. what
+// BandProcessor::setClockFactor runs), at 48 kHz.
+TEST_CASE("Probe: BandProcessor shaper re-rate cost", "[.][t106-cpu-probe]") {
+    constexpr double kSr = 48000.0;
+    constexpr int kMax = Disrumpo::BandProcessor::kMaxOversampleFactor;
+    constexpr int kBlock = 512 * kMax;
+    auto engineL = std::make_unique<Disrumpo::MorphEngine>();
+    auto engineR = std::make_unique<Disrumpo::MorphEngine>();
+    auto adapterL = std::make_unique<Disrumpo::DistortionAdapter>();
+    auto adapterR = std::make_unique<Disrumpo::DistortionAdapter>();
+    engineL->prepare(kSr, kBlock, kMax);
+    engineR->prepare(kSr, kBlock, kMax);
+    adapterL->prepare(kSr, kBlock, kMax);
+    adapterR->prepare(kSr, kBlock, kMax);
+    constexpr int kRuns = 200;
+    const auto t0 = std::chrono::steady_clock::now();
+    for (int r = 0; r < kRuns; ++r) {
+        const double rate = kSr * ((r % 2 == 0) ? 4.0 : 2.0);
+        engineL->setProcessingRate(rate);
+        engineR->setProcessingRate(rate);
+        adapterL->setProcessingRate(rate);
+        adapterR->setProcessingRate(rate);
+    }
+    const auto t1 = std::chrono::steady_clock::now();
+    const double us = std::chrono::duration<double, std::micro>(t1 - t0).count() / kRuns;
+    WARN("PROBE re-rate: " << us << " us per band switch (a 512-sample block at 48 kHz is "
+         << 512.0 / kSr * 1e6 << " us)");
 }

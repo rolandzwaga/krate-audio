@@ -19,70 +19,94 @@ namespace Disrumpo {
 // Lifecycle
 // =============================================================================
 
-void DistortionAdapter::prepare(double sampleRate, int maxBlockSize) noexcept {
-    sampleRate_ = sampleRate;
-    const auto blockSize = static_cast<size_t>(maxBlockSize);
+void DistortionAdapter::prepare(double sampleRate, int maxBlockSize, int maxOversampleFactor) noexcept {
+    maxBlockSize_ = maxBlockSize;
+    maxProcessingRate_ = sampleRate * static_cast<double>(std::max(1, maxOversampleFactor));
 
-    // Prepare tone filter
-    toneFilter_.prepare(sampleRate);
+    // Size every rate-dependent member for the highest rate it can be clocked at: their
+    // buffers (DelayLine, Oversampler) are std::vectors, so a later prepare() at a lower
+    // or equal rate stays within capacity and allocates nothing (setProcessingRate).
+    prepareRateDependent(maxProcessingRate_);
+
+    // Initial cutoffs (OnePoleLP::prepare keeps the cutoff when the rate changes)
     toneFilter_.setCutoff(commonParams_.toneHz);
-
-    // Prepare DC blocker (10Hz cutoff)
-    dcBlocker_.prepare(sampleRate, 10.0f);
-
-    // Prepare all saturation-category processors
-    tube_.prepare(sampleRate, blockSize);
-    tape_.prepare(sampleRate, blockSize);
-    fuzz_.prepare(sampleRate, blockSize);
-
-    // Prepare tape-specific processing
-    tapeHfFilter_.prepare(sampleRate);
     tapeHfFilter_.setCutoff(8000.0f);
     flutterPhase_ = 0.0f;
-
-    // Prepare asymmetric fuzz body filter
-    bodyFilter_.prepare(sampleRate);
-    bodyFilter_.setCutoff(20000.0f);  // Start fully open
-
-    // Prepare wavefold smooth filter
-    wavefoldSmoothFilter_.prepare(sampleRate);
+    bodyFilter_.setCutoff(20000.0f);            // Start fully open
     wavefoldSmoothFilter_.setCutoff(20000.0f);  // Start fully open
 
     // Prepare triangle wavefolder for shape crossfade
     wavefoldTriangle_.setType(Krate::DSP::WavefoldType::Triangle);
 
-    // Prepare wavefolder
-    wavefolder_.prepare(sampleRate, blockSize);
-
-    // Prepare digital-category processors
-    rawBitCrusher_.prepare(sampleRate);
-    srReducer_.prepare(sampleRate);
-
-    // Prepare dynamic/temporal
-    temporal_.prepare(sampleRate, blockSize);
-
-    // Prepare hybrid-category processors
-    ringSaturation_.prepare(sampleRate);
-    feedbackDist_.prepare(sampleRate, blockSize);
-    allpassSaturator_.prepare(sampleRate, blockSize);
-
-    // Prepare digital continued
-    aliasing_.prepare(sampleRate, blockSize);
-    bitwiseMangler_.prepare(sampleRate);
-
-    // Prepare experimental-category processors
-    chaos_.prepare(sampleRate, blockSize);
-    formant_.prepare(sampleRate, blockSize);
-    granular_.prepare(sampleRate, blockSize);
-    // Allocate for the largest FFT size the plugin offers; the active size then
-    // changes without allocating (routeParamsToProcessor runs on the audio thread).
+    // SpectralDistortion allocates in prepare() (STFT / FFT setup), so it is prepared
+    // once, at the host rate, and never re-rated (Spectral recommends 1x). Allocate for
+    // the largest FFT size the plugin offers; the active size then changes without
+    // allocating (routeParamsToProcessor runs on the audio thread).
     spectral_.prepare(sampleRate, kSpectralMaxFftSize);
     spectral_.setActiveFftSize(static_cast<std::size_t>(typeParams_.fftSize));
-    fractal_.prepare(sampleRate, blockSize);
-    stochastic_.prepare(sampleRate);
 
     // Update DC blocker and block-based state for current type
     updateDCBlockerState();
+
+    // Processing starts at the host rate
+    setProcessingRate(sampleRate);
+}
+
+void DistortionAdapter::setProcessingRate(double rate) noexcept {
+    rate = std::min(rate, maxProcessingRate_);
+    if (rate == sampleRate_) {
+        return;
+    }
+    prepareRateDependent(rate);
+    // Re-apply what is derived from the rate: the tone cutoff (clamped to the new
+    // Nyquist), the active type's routed parameters and the Granular latency in samples.
+    setCommonParams(commonParams_);
+    setParams(typeParams_);
+}
+
+void DistortionAdapter::prepareRateDependent(double rate) noexcept {
+    sampleRate_ = rate;
+    const auto blockSize = static_cast<size_t>(maxBlockSize_);
+
+    // Tone filter and DC blocker (10Hz cutoff)
+    toneFilter_.prepare(rate);
+    dcBlocker_.prepare(rate, 10.0f);
+
+    // Saturation-category processors
+    tube_.prepare(rate, blockSize);
+    tape_.prepare(rate, blockSize);
+    fuzz_.prepare(rate, blockSize);
+
+    // Tape HF, asymmetric fuzz body and wavefold smooth filters
+    tapeHfFilter_.prepare(rate);
+    bodyFilter_.prepare(rate);
+    wavefoldSmoothFilter_.prepare(rate);
+
+    // Wavefolder
+    wavefolder_.prepare(rate, blockSize);
+
+    // Digital-category processors
+    rawBitCrusher_.prepare(rate);
+    srReducer_.prepare(rate);
+
+    // Dynamic/temporal
+    temporal_.prepare(rate, blockSize);
+
+    // Hybrid-category processors
+    ringSaturation_.prepare(rate);
+    feedbackDist_.prepare(rate, blockSize);
+    allpassSaturator_.prepare(rate, blockSize);
+
+    // Digital continued
+    aliasing_.prepare(rate, blockSize);
+    bitwiseMangler_.prepare(rate);
+
+    // Experimental-category processors (Spectral: see prepare())
+    chaos_.prepare(rate, blockSize);
+    formant_.prepare(rate, blockSize);
+    granular_.prepare(rate, blockSize);
+    fractal_.prepare(rate, blockSize);
+    stochastic_.prepare(rate);
 }
 
 void DistortionAdapter::reset() noexcept {

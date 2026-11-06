@@ -56,9 +56,17 @@ public:
     /// Allocates internal state, prepares distortion adapters, configures smoothers.
     /// Must be called before process().
     ///
-    /// @param sampleRate Sample rate in Hz
+    /// @param sampleRate Sample rate in Hz (processing starts at this rate)
     /// @param maxBlockSize Maximum block size (for block-based processors)
-    void prepare(double sampleRate, int maxBlockSize = 512) noexcept;
+    /// @param maxOversampleFactor Highest factor setProcessingRate() may be given:
+    ///        the adapters are sized for sampleRate * maxOversampleFactor
+    void prepare(double sampleRate, int maxBlockSize = 512, int maxOversampleFactor = 1) noexcept;
+
+    /// @brief Move the cursor smoothers and all adapters to the rate process() is
+    /// clocked at (D-009, D-138). Allocation-free. The smoothers keep their value and
+    /// target; the adapters' filter state is reset (DistortionAdapter::setProcessingRate).
+    /// @param rate Rate at which process() will be called, in Hz
+    void setProcessingRate(double rate) noexcept;
 
     /// @brief Reset all internal state.
     ///
