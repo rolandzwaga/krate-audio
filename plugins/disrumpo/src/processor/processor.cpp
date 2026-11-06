@@ -497,7 +497,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             bandProcessors_[b].processBlock(bandBufL_[b].data(), bandBufR_[b].data(), chunkLen);
         }
 
-        // Sum contributing bands (FR-013), apply output gain and dry/wet mix
+        // Sum contributing bands (FR-013), apply output gain and dry/wet mix.
+        // The dry term runs through the crossovers' allpass chain so it has the
+        // phase of the clean band sum: no notches at intermediate mix (D-018)
         float* outL = outputL + chunkStart;
         float* outR = outputR + chunkStart;
         for (size_t n = 0; n < chunkLen; ++n) {
@@ -509,8 +511,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     sumR += bandBufR_[b][n];
                 }
             }
-            outL[n] = inL[n] * dryMix + sumL * outputGainLinear * wetMix;
-            outR[n] = inR[n] * dryMix + sumR * outputGainLinear * wetMix;
+            outL[n] = crossoverL_.processDryCompensation(inL[n]) * dryMix + sumL * outputGainLinear * wetMix;
+            outR[n] = crossoverR_.processDryCompensation(inR[n]) * dryMix + sumR * outputGainLinear * wetMix;
         }
     }
 

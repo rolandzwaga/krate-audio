@@ -813,6 +813,226 @@ TEST_CASE("Hard band pan keeps the near side at unity and silences the far side"
     }
 }
 
+namespace {
+
+constexpr size_t kMixIrLength = 65536;
+
+/// The default crossovers (logarithmic 20 Hz - 20 kHz for 4 bands; fewer bands use the lowest).
+std::array<double, 3> defaultCrossoversHz() {
+    const double logMin = std::log10(20.0);
+    const double step = (std::log10(20000.0) - logMin) / 4.0;
+    return {std::pow(10.0, logMin + step), std::pow(10.0, logMin + 2.0 * step),
+            std::pow(10.0, logMin + 3.0 * step)};
+}
+
+/// Impulse response of the processor (left channel): `numBands` bands, every node at drive 0
+/// (adapter passthrough), centre pan, Oversample Max 1x, global mix `mix`. `afterActivation`
+/// is applied once the processor is running (crossover moves, band-count changes). 0.3 s
+/// pre-roll, then a unit impulse; returns the kMixIrLength samples from the impulse on.
+std::vector<float> mixImpulseResponse(double sr, int numBands, double mix, const ts::PList& afterActivation = {}) {
+    ts::PList l{{Disrumpo::kBandCountId, static_cast<double>(numBands - 1) / 3.0},
+                {Disrumpo::kGlobalMixId, mix},
+                {Disrumpo::kOversampleMaxId, 0.0}};
+    for (uint8_t b = 0; b < 4; ++b) {
+        for (uint8_t n = 0; n < 4; ++n) l.emplace_back(makeNodeParamId(b, n, NodeParamType::kNodeDrive), 0.0);
+        l.emplace_back(makeBandParamId(b, BandParamType::kBandPan), 0.5);
+    }
+    ts::Rig rig(sr);
+    rig.apply(l);
+    rig.reactivate();
+    if (!afterActivation.empty()) rig.apply(afterActivation);
+    const auto preRoll = static_cast<size_t>(sr * 0.3);
+    std::vector<float> in(preRoll + kMixIrLength, 0.0f);
+    in[preRoll] = 1.0f;
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    REQUIRE(rig.p->getBandProcessor(0).getOversampleFactor() == 1);
+    return {outL.begin() + static_cast<std::ptrdiff_t>(preRoll), outL.end()};
+}
+
+/// |H(f)| in dB of an impulse response, by a direct DFT at f (double precision).
+double responseDb(const std::vector<float>& h, double f, double sr) {
+    const double w = 2.0 * std::numbers::pi * f / sr;
+    const double cw = std::cos(w);
+    const double sw = std::sin(w);
+    double c = 1.0;
+    double s = 0.0;
+    double re = 0.0;
+    double im = 0.0;
+    for (const float v : h) {
+        re += static_cast<double>(v) * c;
+        im -= static_cast<double>(v) * s;
+        const double cNext = c * cw - s * sw;
+        s = s * cw + c * sw;
+        c = cNext;
+    }
+    return 10.0 * std::log10(re * re + im * im + 1e-30);
+}
+
+/// 480 log-spaced frequencies 30 Hz - 18 kHz plus 1 kHz, the default crossovers and `extraHz`.
+std::vector<double> mixGrid(std::initializer_list<double> extraHz = {}) {
+    std::vector<double> g;
+    constexpr int kPoints = 480;
+    g.reserve(kPoints + 4 + extraHz.size());
+    for (int i = 0; i < kPoints; ++i) {
+        g.push_back(30.0 * std::pow(18000.0 / 30.0, static_cast<double>(i) / (kPoints - 1)));
+    }
+    g.push_back(1000.0);
+    for (const double f : defaultCrossoversHz()) g.push_back(f);
+    for (const double f : extraHz) g.push_back(f);
+    return g;
+}
+
+struct ResponseExtremes {
+    double worstDb = 0.0;  // largest |level - reference|
+    double worstHz = 0.0;
+    double minDb = 0.0;    // deepest level re the reference
+    double minHz = 0.0;
+};
+
+/// Level across `grid` relative to `refDb`.
+ResponseExtremes responseExtremes(const std::vector<float>& h, double sr, const std::vector<double>& grid, double refDb) {
+    ResponseExtremes r;
+    r.minDb = 1e9;
+    for (const double f : grid) {
+        const double d = responseDb(h, f, sr) - refDb;
+        if (std::fabs(d) > std::fabs(r.worstDb)) { r.worstDb = d; r.worstHz = f; }
+        if (d < r.minDb) { r.minDb = d; r.minHz = f; }
+    }
+    return r;
+}
+
+size_t peakIndex(const std::vector<float>& x) {
+    size_t p = 0;
+    for (size_t i = 1; i < x.size(); ++i) {
+        if (std::fabs(x[i]) > std::fabs(x[p])) p = i;
+    }
+    return p;
+}
+
+double crossoverNorm(double hz) {
+    return (std::log10(hz) - std::log10(20.0)) / (std::log10(20000.0) - std::log10(20.0));
+}
+
+} // anonymous namespace
+
+// Audit D-018 (fix plan T1.09): the dry term of the global mix was the raw input, while the
+// clean wet sum of an N-band LR4 cascade with D'Appolito compensation is the allpass chain
+// AP(f0)...AP(fN-2) (-180 degrees at each crossover). Mixing the two notched every
+// crossover frequency (audit probe: -16.6 dB at 114 Hz and 2 kHz at mix 50 %).
+TEST_CASE("Global mix 50 % does not notch the crossover frequencies", "[disrumpo][mix][D-018]") {
+    constexpr double kSr = 48000.0;
+    const auto grid = mixGrid();
+    for (const int numBands : {4, 2}) {
+        const auto h = mixImpulseResponse(kSr, numBands, 0.5);
+        const auto r = responseExtremes(h, kSr, grid, responseDb(h, 1000.0, kSr));
+        INFO(numBands << " bands, mix 50 %: deepest " << r.minDb << " dB at " << r.minHz
+             << " Hz, worst |dev| " << r.worstDb << " dB at " << r.worstHz << " Hz (re 1 kHz, 30 Hz - 18 kHz)");
+        CHECK(std::fabs(r.worstDb) <= 0.5);
+    }
+}
+
+// With every band neutral, mix 50 % must reproduce the input within the crossover's own
+// reconstruction error (SC-001: +/-0.1 dB), at every band count and sample rate, and after
+// crossover moves and band-count changes made while running.
+TEST_CASE("Global mix 50 % with neutral bands reproduces the input within the crossover error",
+          "[disrumpo][mix][D-018]") {
+    const auto grid = mixGrid();
+    for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
+        for (int numBands = 1; numBands <= 4; ++numBands) {
+            const auto h = mixImpulseResponse(sr, numBands, 0.5);
+            const auto r = responseExtremes(h, sr, grid, 0.0);
+            INFO(sr << " Hz, " << numBands << " band(s), mix 50 %: worst |dev| " << r.worstDb << " dB at "
+                 << r.worstHz << " Hz (re input, 30 Hz - 18 kHz)");
+            CHECK(std::fabs(r.worstDb) <= 0.1);
+        }
+    }
+    {  // crossover 2 moved to 1.2 kHz and 3 bands, set while running
+        constexpr double kSr = 48000.0;
+        const auto h = mixImpulseResponse(kSr, 4, 0.5,
+                                          {{Disrumpo::makeCrossoverParamId(1), crossoverNorm(1200.0)},
+                                           {Disrumpo::kBandCountId, 2.0 / 3.0}});
+        const auto r = responseExtremes(h, kSr, mixGrid({1200.0}), 0.0);
+        INFO("48 kHz, 3 bands (112 Hz, 1.2 kHz), mix 50 %: worst |dev| " << r.worstDb << " dB at " << r.worstHz << " Hz");
+        CHECK(std::fabs(r.worstDb) <= 0.1);
+    }
+}
+
+// The dry path (mix 0) must carry the same phase and timing as the clean wet sum (mix 1):
+// same impulse peak sample, residual of the difference at least 60 dB below the wet energy.
+// 192 kHz is not asserted here: its residual reads -59.55 dB (2 and 4 bands), set by the
+// float32 Biquad dry allpass at the 112 Hz crossover (a double-precision RBJ chain reads
+// -123 dB against the same band sum; probe [t109-probe]). Mix 50 % stays within SC-001 there.
+TEST_CASE("Dry path is phase- and time-aligned with the clean wet path at 1x", "[disrumpo][mix][D-018]") {
+    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+        for (const int numBands : {2, 4}) {
+            const auto dry = mixImpulseResponse(sr, numBands, 0.0);
+            const auto wet = mixImpulseResponse(sr, numBands, 1.0);
+            double diffEnergy = 0.0;
+            double wetEnergy = 0.0;
+            for (size_t i = 0; i < wet.size(); ++i) {
+                const double d = static_cast<double>(dry[i]) - static_cast<double>(wet[i]);
+                diffEnergy += d * d;
+                wetEnergy += static_cast<double>(wet[i]) * static_cast<double>(wet[i]);
+            }
+            const double residualDb = 10.0 * std::log10(diffEnergy / wetEnergy + 1e-30);
+            INFO(sr << " Hz, " << numBands << " bands: impulse peak dry " << peakIndex(dry) << ", wet "
+                 << peakIndex(wet) << "; dry - wet residual " << residualDb << " dB re wet; max |dry - wet| "
+                 << maxAbsDiff(dry, wet));
+            CHECK(peakIndex(dry) == peakIndex(wet));
+            CHECK(residualDb <= -60.0);
+        }
+    }
+}
+
+// Measurement probe (hidden): residual of CrossoverNetwork's float32 dry allpass chain, and of
+// a double-precision RBJ allpass at the same frequencies, against the (double-precision LR4)
+// clean band sum. Separates the dry chain's float32 rounding from any structural mismatch.
+TEST_CASE("Probe: dry allpass precision vs band sum", "[.][t109-probe]") {
+    for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
+        for (const int numBands : {2, 4}) {
+            Disrumpo::CrossoverNetwork xo;
+            xo.prepare(sr, Disrumpo::kDefaultBands);
+            xo.setBandCount(numBands);
+            xo.reset();
+            struct ApD { double b0, b1, b2, a1, a2, z1 = 0.0, z2 = 0.0; };
+            std::vector<ApD> aps;
+            for (int i = 0; i < numBands - 1; ++i) {
+                const double w = 2.0 * std::numbers::pi * static_cast<double>(xo.getCrossoverFrequency(i)) / sr;
+                const double alpha = std::sin(w) / (2.0 * static_cast<double>(Disrumpo::CrossoverNetwork::kAllpassQ));
+                const double a0 = 1.0 + alpha;
+                aps.push_back({.b0 = (1.0 - alpha) / a0, .b1 = -2.0 * std::cos(w) / a0, .b2 = 1.0,
+                               .a1 = -2.0 * std::cos(w) / a0, .a2 = (1.0 - alpha) / a0});
+            }
+            std::array<float, Disrumpo::kMaxBands> bands{};
+            double eSum = 0.0;
+            double eFloat = 0.0;
+            double eDouble = 0.0;
+            for (size_t n = 0; n < kMixIrLength; ++n) {
+                const float x = n == 0 ? 1.0f : 0.0f;
+                xo.process(x, bands);
+                double sum = 0.0;
+                for (int b = 0; b < numBands; ++b) sum += static_cast<double>(bands[static_cast<size_t>(b)]);
+                const double dryF = static_cast<double>(xo.processDryCompensation(x));
+                double y = static_cast<double>(x);
+                for (auto& ap : aps) {
+                    const double out = ap.b0 * y + ap.z1;
+                    ap.z1 = ap.b1 * y - ap.a1 * out + ap.z2;
+                    ap.z2 = ap.b2 * y - ap.a2 * out;
+                    y = out;
+                }
+                eSum += sum * sum;
+                eFloat += (dryF - sum) * (dryF - sum);
+                eDouble += (y - sum) * (y - sum);
+            }
+            WARN("PROBE dry-ap: " << sr << " Hz, " << numBands << " bands: float32 Biquad chain residual "
+                 << 10.0 * std::log10(eFloat / eSum + 1e-30) << " dB, double RBJ chain residual "
+                 << 10.0 * std::log10(eDouble / eSum + 1e-30) << " dB (re band-sum energy)");
+        }
+    }
+}
+
 // Measurement probe (hidden): impulse delay through the band oversampler vs getLatencySamples().
 TEST_CASE("Probe: oversampled band impulse delay vs reported latency", "[.][t107-probe]") {
     for (const double norm : {0.0, 1.0 / 3.0, 2.0 / 3.0}) {

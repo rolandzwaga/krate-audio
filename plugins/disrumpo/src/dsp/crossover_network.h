@@ -145,9 +145,16 @@ public:
         crossovers_[index].setCrossoverFrequency(clamped);
 
         // Update allpass filters that use this crossover frequency
-        // Crossover index i is used as allpass for bands 0..(i-1)
-        if (prepared_ && index > 0) {
+        // Crossover index i is used as allpass for bands 0..(i-1) and for the dry path
+        if (prepared_) {
             const float srFloat = static_cast<float>(sampleRate_);
+            dryAllpasses_[index].configure(
+                Krate::DSP::FilterType::Allpass,
+                clamped,
+                kAllpassQ,
+                0.0f,
+                srFloat
+            );
             for (int band = 0; band < index; ++band) {
                 const int apIdx = index - band - 1;
                 allpasses_[band][apIdx].configure(
@@ -236,6 +243,23 @@ public:
                 bands[band] = allpasses_[band][apIdx - band - 1].process(bands[band]);
             }
         }
+    }
+
+    /// @brief Give a dry (unsplit) sample the phase of the summed bands (D-018).
+    /// The clean band sum is AP(f0) * AP(f1) * ... * AP(fN-2) * x (each LR4
+    /// LP + HP pair is a 2nd-order allpass at its crossover), so a dry signal
+    /// mixed with the wet sum must run through the same allpass chain or every
+    /// crossover notches. Call once per sample, alongside process().
+    /// @param x Dry input sample
+    /// @return x through the allpasses at every active crossover frequency
+    [[nodiscard]] float processDryCompensation(float x) noexcept {
+        if (!prepared_ || numBands_ == 1) {
+            return x;
+        }
+        for (int i = 0; i < numBands_ - 1; ++i) {
+            x = dryAllpasses_[i].process(x);
+        }
+        return x;
     }
 
 private:
@@ -416,6 +440,17 @@ private:
                 );
             }
         }
+
+        // Dry-path compensation: one allpass at every crossover frequency
+        for (int i = 0; i < kMaxBands - 1; ++i) {
+            dryAllpasses_[i].configure(
+                Krate::DSP::FilterType::Allpass,
+                clampFrequency(crossoverFrequencies_[i]),
+                kAllpassQ,
+                0.0f,
+                srFloat
+            );
+        }
     }
 
     /// @brief Reset all allpass filter states.
@@ -424,6 +459,9 @@ private:
             for (auto& ap : bandAllpasses) {
                 ap.reset();
             }
+        }
+        for (auto& ap : dryAllpasses_) {
+            ap.reset();
         }
     }
 
@@ -445,6 +483,9 @@ private:
     // Band 2 and 3 need no allpasses
     // Maximum allpasses per band = kMaxBands - 2 = 2
     std::array<std::array<Krate::DSP::Biquad, kMaxBands - 2>, kMaxBands - 2> allpasses_;
+
+    // Dry-path allpasses: dryAllpasses_[i] at crossover i (processDryCompensation)
+    std::array<Krate::DSP::Biquad, kMaxBands - 1> dryAllpasses_;
 
     // Target frequencies (for redistribution logic)
     std::array<float, kMaxBands - 1> crossoverFrequencies_ = {
