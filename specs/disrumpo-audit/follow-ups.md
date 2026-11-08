@@ -128,6 +128,19 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     on the host thread** while the audio thread may write them via parameter changes — a read-only race left after
     T1.24 (`a1c96514`); the two-thread TSan run is T5.08.
 
+33. **GranularDistortion sums up to 8 overlapping grains with no normalisation** (shared header): ≈ +13 dB of gain at
+    density slot 1.0 (T2.04 `7a720c87` measured −20 dBFS in → −6.9 dBFS out after neutralising drive). Decide a
+    per-grain scaling (1/√N or 1/N) in the shared processor; Ruinae consumes it too.
+34. **Two bit-depth controls for Bitcrush**: the shape slot (4–16 since T2.05 `1e1e3ce8`) and a separate per-node
+    `kNodeBitDepth` parameter (4–24, processor_params.cpp). Decide which one is the control and retire the other.
+35. **Factory presets with an active Feedback node now sound different** (T2.03 `8156e34c`): Thr direction flipped
+    (default slot 0.8 goes from −19.2 dB to −4.8 dB) and Curve is now live (default 0.5 = ReciprocalSqrt instead of
+    the fixed Tanh). Not scanned yet; belongs with T3.01 preset re-levelling — same for T2.05's Bitcrush shift (16
+    presets, +1.5–2 bits) and T1.08's +3 dB centre-pan correction.
+36. **`std::isnan` in `dsp/tests/unit/processors/feedback_distortion_test.cpp` lines 136–169** trigger
+    `-Wnan-infinity-disabled` under the macOS fast-math repro (pre-existing since e6680c93); move those cases to the
+    IEEE test executable or use `Krate::DSP::detail::isNaN`. Same class as item 31.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
