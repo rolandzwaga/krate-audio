@@ -98,6 +98,21 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     passes through `ShapeShadowStorage` decodes slot 2 as Buchla259, not Serge. Decide the per-type defaults once
     (T2.06 territory) and apply them in both places.
 
+24. **Activation burst on silent input** (T1.22 survey, 2 s of digital silence right after activation): Tube
+    −31 dBFS peak 0.88, Tape −27 dBFS peak 0.86, SineFold/SergeFold −31 dBFS peak 0.99, BitwiseMangler −30 dBFS,
+    Fuzz/AsymFuzz −38…−42 dBFS, TriangleFold −43 dBFS, Fractal −52 dBFS — all die out within the first second
+    and read exact 0 afterwards. Root cause not identified (uninitialised smoother/filter state at prepare?).
+    Relates to item 18 (`setActive` reset gap). Fractal keeps a −126.6 dBFS floor.
+25. **Tube runs `satStage + 1` passes through ONE `TubeStage`** (distortion_adapter.cpp), so its smoothers and
+    internal DC blocker see interleaved samples — the reason Tube read DC −0.047 even at bias 0. T1.22
+    (`abb5fd57`) masks it with the adapter's 10 Hz DC blocker; the cascade needs one `TubeStage` per pass.
+26. **`DynamicNodeSelector::rebuildSegments(1)` calls `setSelectedSegment(0)` which divides 0 by 0** (T1.20 left
+    it; the new sync code skips one-segment selectors).
+27. **`Controller::morphPads_` holds raw view pointers** like the selectors T1.21 fixed; they live in the expanded
+    strip (not a switching page) so no UAF today, but the same `viewWillDelete` guard belongs there.
+28. **High-contrast mode on first editor open**: a Shape page built before `didOpen` reads `accessibilityPrefs_`
+    before they are set (T1.21 note); previously only selectors alive at open got it and lost it on tab switch.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
