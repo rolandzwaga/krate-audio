@@ -920,6 +920,10 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             granular_.setCurve(p.grainCurve);
             granular_.setEnvelopeType(static_cast<Krate::DSP::GrainEnvelopeType>(
                 std::clamp(p.grainEnvType, 0, 3)));
+            // The adapter already applies commonParams_.drive to the input before
+            // processRaw(); neutralise the processor's internal drive (default 5.0) so
+            // the drive is not applied twice (D-079, as Fractal below).
+            granular_.setDrive(1.0f);
             break;
 
         case DistortionType::Spectral: {

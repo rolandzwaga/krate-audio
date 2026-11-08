@@ -3049,3 +3049,23 @@ TEST_CASE("Tube with 3 stages and bias 0.5 has no DC and matches four independen
     CHECK(std::fabs(dc) < 1e-3);
     CHECK(maxDiff < 1e-4f);
 }
+
+// D-079 (T2.04): GranularDistortion's internal drive (default 5) multiplied the adapter's
+// drive pre-scale inside every grain.
+TEST_CASE("Granular at drive 1 on -20 dBFS sine peaks below -12 dBFS",
+          "[disrumpo][distortion][granular][D-079]") {
+    DistortionParams p;
+    // Slot 0 = processor density 1 (one grain at a time). Denser settings sum up to 8
+    // overlapping grains without normalisation, which is the processor's overlap gain,
+    // not its drive.
+    p.grainDensity = 0.0f;
+    const auto out = renderAdapterWith(DistortionType::Granular, p,
+                                       {.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f},
+                                       sineAt48k(1000.0, 0.1f, 48000));  // 1 s
+    float peak = 0.0f;
+    for (const float v : out) peak = std::max(peak, std::fabs(v));
+    const double peakDb = 20.0 * std::log10(std::max(static_cast<double>(peak), 1e-12));
+    INFO("Granular drive 1, -20 dBFS 1 kHz sine: output peak " << peak << " (" << peakDb << " dBFS)");
+    CHECK(countNonFinite(out) == 0);
+    CHECK(peakDb < -12.0);
+}
