@@ -89,6 +89,15 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     108/166/175/194; on Dirty_Sub / Rectified_Drums / Radial_Blend the drift sits at bytes 136 and 149 (LFO 1/2 rate)
     before the codec and at byte 92 (sweep LFO rate) after. Probe: `[.][t117-ulp-probe]`.
 
+21. **Tube slot-2 labels name tube types ("12AX7, EL84, 6L6, 300B") but the DSP runs 1–4 cascaded `TubeStage`
+    passes** (`stages = satStage + 1`). Count matches, meaning does not (T1.19 survey). Relabel ("1 stage … 4
+    stages") or implement tube models.
+22. **HalfRectify DC-block ToggleButton on slot 2**: range is now 0..1 after T1.19 (`473a18d1`), but its registered
+    default is 0.5 — whether that draws as on or off (and which the DSP applies) was not measured.
+23. **`MorphNode::shapeSlots` and the Shape-slot registration defaults are still 0.5**: a SergeFold node that never
+    passes through `ShapeShadowStorage` decodes slot 2 as Buchla259, not Serge. Decide the per-type defaults once
+    (T2.06 territory) and apply them in both places.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
