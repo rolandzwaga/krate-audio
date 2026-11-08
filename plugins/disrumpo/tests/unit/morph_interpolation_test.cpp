@@ -26,6 +26,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <numbers>
 #include <string>
 #include <vector>
 
@@ -95,6 +96,24 @@ float measureOutputLevel(Disrumpo::MorphEngine& engine, float input, int numSamp
         sumSquares += static_cast<double>(out) * static_cast<double>(out);
     }
     return std::sqrt(static_cast<float>(sumSquares / numSamples));
+}
+
+/// @brief Feed a sine of `amplitude` at `freqHz` for `periods` whole periods and return the
+/// RMS of the last `measurePeriods` of them. (Measuring a level with a DC stimulus reads
+/// 0 through any type that blocks DC.)
+float measureSineLevel(Disrumpo::MorphEngine& engine, float amplitude, double freqHz,
+                       int periods, int measurePeriods, double sampleRate = 44100.0) {
+    const auto periodSamples = static_cast<int>(sampleRate / freqHz + 0.5);
+    const int total = periods * periodSamples;
+    const int from = (periods - measurePeriods) * periodSamples;
+    double sumSquares = 0.0;
+    for (int i = 0; i < total; ++i) {
+        const float in = amplitude * static_cast<float>(std::sin(
+            2.0 * std::numbers::pi * freqHz * static_cast<double>(i) / sampleRate));
+        const float out = engine.process(in);
+        if (i >= from) sumSquares += static_cast<double>(out) * static_cast<double>(out);
+    }
+    return std::sqrt(static_cast<float>(sumSquares / (total - from)));
 }
 
 /// @brief Measure processing time for N samples.
@@ -273,32 +292,36 @@ TEST_CASE("MorphEngine cross-family - output level consistent across blend posit
     engine.setMode(Disrumpo::MorphMode::Linear1D);
     engine.setSmoothingTime(0.0f);
 
-    constexpr float testInput = 0.3f;
-    constexpr int measureSamples = 500;
+    // A 100 Hz sine at amplitude 0.3: 20 periods per position, the RMS of the last 10.
+    // (This read a DC input of 0.3 until fix plan T1.22, which gives Tube a DC blocker.)
+    constexpr float testAmplitude = 0.3f;
+    constexpr double testFreqHz = 100.0;
+    constexpr int periods = 20;
+    constexpr int measurePeriods = 10;
 
     // Measure level at position 0 (100% node A)
     engine.setMorphPosition(0.0f, 0.0f);
     for (int i = 0; i < 100; ++i) {
         [[maybe_unused]] float out = engine.process(0.0f);
     }
-    float levelAt0 = measureOutputLevel(engine, testInput, measureSamples);
+    float levelAt0 = measureSineLevel(engine, testAmplitude, testFreqHz, periods, measurePeriods);
 
     // Measure level at position 0.5 (50/50)
     engine.setMorphPosition(0.5f, 0.0f);
     for (int i = 0; i < 100; ++i) {
         [[maybe_unused]] float out = engine.process(0.0f);
     }
-    float levelAt50 = measureOutputLevel(engine, testInput, measureSamples);
+    float levelAt50 = measureSineLevel(engine, testAmplitude, testFreqHz, periods, measurePeriods);
 
     // Measure level at position 1 (100% node B)
     engine.setMorphPosition(1.0f, 0.0f);
     for (int i = 0; i < 100; ++i) {
         [[maybe_unused]] float out = engine.process(0.0f);
     }
-    float levelAt100 = measureOutputLevel(engine, testInput, measureSamples);
+    float levelAt100 = measureSineLevel(engine, testAmplitude, testFreqHz, periods, measurePeriods);
 
-    // SC-002: Output level within 1dB at all blend positions (the two end levels are
-    // within 0.06 dB of each other here, so the spread of all three is the check)
+    // SC-002: Output level within 1dB at all blend positions (the spread of all three
+    // positions is the check)
     float maxLevel = std::max({levelAt0, levelAt50, levelAt100});
     float minLevel = std::min({levelAt0, levelAt50, levelAt100});
     REQUIRE(minLevel > 0.0f);

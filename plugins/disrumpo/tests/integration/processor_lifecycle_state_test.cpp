@@ -875,11 +875,13 @@ TEST_CASE("setState A -> B -> A leaves no type-specific params of B behind",
     REQUIRE(wantA.type == DistortionType::Tube);
     REQUIRE(savedNode(b, 0, 0).type == DistortionType::Tape);
 
-    // Each render starts from a re-activation. A render of B leaves ~410 samples
-    // of start-up difference that setActive does not clear (a separate reset
-    // issue, not a param leftover), so the comparison starts after 50 ms.
+    // Each render starts from a re-activation. The instance's FIRST render differs from
+    // every later render of the same patch in its first ~10 ms (start-up state that
+    // setActive does not clear, follow-ups item 18; measured in fix plan T1.22: a second
+    // render of A matches A2 bit for bit from sample 0, B leaves nothing behind). So A1 is
+    // the second render of A, and the comparison covers every sample.
     const auto in = sine440(kSampleRate, -12.0, static_cast<size_t>(kSampleRate / 2));
-    constexpr size_t kSkip = 2205;
+    constexpr size_t kSkip = 0;
     Rig rig(kSampleRate);
     const auto render = [&](std::vector<float>& l, std::vector<float>& r) {
         rig.reactivate();
@@ -892,6 +894,7 @@ TEST_CASE("setState A -> B -> A leaves no type-specific params of B behind",
     std::vector<float> a2L;
     std::vector<float> a2R;
     REQUIRE(setStateBytes(*rig.p, a));
+    render(a1L, a1R);  // the instance's first render (see above)
     render(a1L, a1R);
     const DistortionParams first = rig.p->getBandProcessor(0).getMorphEngine()->getNodeParams(0);
     // B through the host, then the user moves B's Sag knob (to the value B holds):
@@ -910,7 +913,7 @@ TEST_CASE("setState A -> B -> A leaves no type-specific params of B behind",
     }
     const auto firstVsSlots = paramMismatches(wantA.params, first);
     const auto secondVsSlots = paramMismatches(wantA.params, second);
-    std::printf("D-050 A->B->A: max |A1 - A2| after 50 ms = %.3e (A1 RMS %.2f dBFS); node 0 sag %.3f then %.3f, "
+    std::printf("D-050 A->B->A: max |A1 - A2| over all samples = %.3e (A1 RMS %.2f dBFS); node 0 sag %.3f then %.3f, "
                 "satStage %d then %d (slots say %.3f, %d); fields off the slots: A1 %zu, A2 %zu\n",
                 maxDiff, toDb(rmsOf(a1L.data() + kSkip, a1L.size() - kSkip)), static_cast<double>(first.sag),
                 static_cast<double>(second.sag), first.satStage, second.satStage,

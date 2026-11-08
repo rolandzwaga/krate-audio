@@ -15,6 +15,15 @@
 
 namespace Disrumpo {
 
+namespace {
+
+/// Temporal's Curve slot [0, 1] -> WaveshapeType index 0..8 (7 = Diode, 8 = Tube).
+int temporalShapeIndex(float dynamicCurve) noexcept {
+    return std::clamp(static_cast<int>(dynamicCurve * 8.0f + 0.5f), 0, 8);
+}
+
+}  // namespace
+
 // =============================================================================
 // Lifecycle
 // =============================================================================
@@ -44,6 +53,10 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize, int maxOver
     // allocating (routeParamsToProcessor runs on the audio thread).
     spectral_.prepare(sampleRate, kSpectralMaxFftSize);
     spectral_.setActiveFftSize(static_cast<std::size_t>(typeParams_.fftSize));
+
+    // Stochastic: silent input stays silent. Subtract the curve's value at the jitter
+    // offset (D-142); the residual DC is removed by dcBlocker_ (updateDCBlockerState).
+    stochastic_.setOffsetCompensation(true);
 
     // Update DC blocker and block-based state for current type
     updateDCBlockerState();
@@ -588,11 +601,19 @@ float DistortionAdapter::applyTone(float wet) noexcept {
 }
 
 void DistortionAdapter::updateDCBlockerState() noexcept {
-    // DC blocking required for asymmetric types that introduce DC offset
+    // DC blocking required for asymmetric types that introduce DC offset.
+    // Tube (asymmetric curve + bias), Stochastic (jitter/drift offset around the signal)
+    // and Temporal on its Diode / Tube curves (indices 7 and 8) leave DC on the band
+    // output (D-075, D-142).
+    const int temporalCurve = temporalShapeIndex(typeParams_.dynamicCurve);
     needsDCBlock_ = (currentType_ == DistortionType::AsymmetricFuzz ||
                      currentType_ == DistortionType::FullRectify ||
                      currentType_ == DistortionType::HalfRectify ||
-                     currentType_ == DistortionType::FeedbackDist);
+                     currentType_ == DistortionType::FeedbackDist ||
+                     currentType_ == DistortionType::Tube ||
+                     currentType_ == DistortionType::Stochastic ||
+                     (currentType_ == DistortionType::Temporal &&
+                      (temporalCurve == 7 || temporalCurve == 8)));
 }
 
 void DistortionAdapter::routeParamsToProcessor() noexcept {
@@ -762,10 +783,11 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             temporal_.setHysteresisDepth(p.dynamicDepth);
 
             // Curve (Slot 2) → waveshape type selection (9 types)
-            int shapeIndex = static_cast<int>(p.dynamicCurve * 8.0f + 0.5f);
-            shapeIndex = std::clamp(shapeIndex, 0, 8);
+            const int shapeIndex = temporalShapeIndex(p.dynamicCurve);
             temporal_.setWaveshapeType(
                 static_cast<Krate::DSP::WaveshapeType>(shapeIndex));
+            // The curve decides whether the output carries DC (Diode / Tube)
+            updateDCBlockerState();
 
             // Hold (Slot 7) → hysteresis decay time [1, 500] ms
             float decayMs = 1.0f + p.hold * 499.0f;

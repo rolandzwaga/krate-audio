@@ -11,11 +11,13 @@
 // ==============================================================================
 
 #include <krate/dsp/primitives/stochastic_shaper.h>
+#include <krate/dsp/core/db_utils.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -985,4 +987,37 @@ TEST_CASE("StochasticShaper processBlock equivalent to sequential process",
         INFO("Sample " << i);
         REQUIRE(buffer1[i] == Approx(buffer2[i]));
     }
+}
+
+// =============================================================================
+// D-142 (Disrumpo audit, fix plan T1.22): silent input stays silent
+// =============================================================================
+
+TEST_CASE("StochasticShaper outputs silence for silent input", "[primitives][stochastic][D-142]") {
+    // With offset compensation the jitter/drift offset moves the shaper's operating point
+    // around the signal but is not a signal of its own. Without it (the FR-022 default,
+    // unchanged) full jitter, full drift and drive 5 swing tanh(5 * 0.8) ~ full scale.
+    StochasticShaper shaper;
+    REQUIRE_FALSE(shaper.getOffsetCompensation());  // opt-in: the default output is FR-022's
+    shaper.setOffsetCompensation(true);
+    shaper.setSeed(12345);
+    shaper.prepare(48000.0);
+    shaper.setJitterAmount(1.0f);
+    shaper.setDrift(1.0f);
+    shaper.setDrive(5.0f);
+
+    constexpr size_t kSamples = 96000;  // 2 s at 48 kHz
+    float maxAbs = 0.0f;
+    size_t nonFinite = 0;
+    for (size_t i = 0; i < kSamples; ++i) {
+        const float y = shaper.process(0.0f);
+        if (!detail::isFinite(y)) {
+            ++nonFinite;
+            continue;
+        }
+        maxAbs = std::max(maxAbs, std::abs(y));
+    }
+    INFO("max |out| over 2 s of zeros: " << maxAbs << ", non-finite samples: " << nonFinite);
+    REQUIRE(nonFinite == 0);
+    REQUIRE(maxAbs < 1e-6f);
 }

@@ -2826,3 +2826,106 @@ TEST_CASE("DistortionAdapter::setProcessingRate re-run under AllocationScope all
     REQUIRE(latencyAt4x == latencyAtHost * kMaxFactor);
     REQUIRE(latencyAboveMax == latencyAt4x);
 }
+
+// =============================================================================
+// D-142 / D-075 (fix plan T1.22): silent input stays silent, no DC on the output
+// =============================================================================
+
+#include <krate/dsp/core/db_utils.h>
+
+#include <cstddef>
+
+namespace {
+
+constexpr double kSilenceTestRate = 48000.0;
+
+double adapterRmsDb(const std::vector<float>& x, std::size_t from) {
+    double s = 0.0;
+    for (std::size_t i = from; i < x.size(); ++i) s += static_cast<double>(x[i]) * x[i];
+    const double rms = std::sqrt(s / static_cast<double>(x.size() - from));
+    return rms > 1e-12 ? 20.0 * std::log10(rms) : -240.0;
+}
+
+double adapterMean(const std::vector<float>& x, std::size_t from) {
+    double s = 0.0;
+    for (std::size_t i = from; i < x.size(); ++i) s += x[i];
+    return s / static_cast<double>(x.size() - from);
+}
+
+/// Render `in` through a fresh adapter of `type` at 48 kHz, drive 10 (the Drive knob at 1.0).
+std::vector<float> renderAdapter(DistortionType type, const DistortionParams& params,
+                                 const std::vector<float>& in) {
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kSilenceTestRate, kTestBlockSize);
+    adapter->setCommonParams({.drive = 10.0f, .mix = 1.0f, .toneHz = 4000.0f});
+    adapter->setType(type);
+    adapter->setParams(params);
+    (*adapter).reset();
+    std::vector<float> out(in.size());
+    for (std::size_t i = 0; i < in.size(); ++i) out[i] = adapter->process(in[i]);
+    return out;
+}
+
+std::size_t countNonFinite(const std::vector<float>& x) {
+    return static_cast<std::size_t>(std::count_if(x.begin(), x.end(), [](float v) {
+        return !Krate::DSP::detail::isFinite(v);
+    }));
+}
+
+}  // namespace
+
+TEST_CASE("Adapter self-noise is below -90 dBFS for every type",
+          "[disrumpo][selfnoise][D-142][D-075]") {
+    const std::vector<float> silence(static_cast<std::size_t>(kSilenceTestRate), 0.0f);  // 1 s
+    const auto half = silence.size() / 2;
+
+    for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+        const auto type = static_cast<DistortionType>(t);
+        // Quantize maps silence to a DC step today (D-010 / D-143); fix plan T2.07 fixes it
+        // and adds it to this loop.
+        if (type == DistortionType::Quantize) continue;
+
+        const auto out = renderAdapter(type, DistortionParams{}, silence);
+        const double rmsDb = adapterRmsDb(out, half);
+        INFO("type " << t << " (" << getTypeName(type) << "): RMS of the last 0.5 s " << rmsDb
+             << " dBFS, non-finite " << countNonFinite(out));
+        CHECK(countNonFinite(out) == 0);
+        CHECK(rmsDb <= -90.0);
+    }
+}
+
+TEST_CASE("Tube and Temporal(Diode/Tube curve) output has no DC", "[disrumpo][dc][D-075]") {
+    // 2 s of a 100 Hz sine at -6 dBFS; the mean is read over the last 1 s (100 whole cycles).
+    std::vector<float> sine(static_cast<std::size_t>(2.0 * kSilenceTestRate));
+    for (std::size_t i = 0; i < sine.size(); ++i) {
+        sine[i] = 0.5f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 100.0 *
+                                                     static_cast<double>(i) / kSilenceTestRate));
+    }
+    const auto lastSecond = sine.size() / 2;
+
+    SECTION("Tube, bias -1 and +1") {
+        for (const float bias : {-1.0f, 1.0f}) {
+            DistortionParams p;
+            p.bias = bias;
+            p.sag = 0.5f;     // the processor's default slot values (0.5)
+            p.satStage = 2;
+            const auto out = renderAdapter(DistortionType::Tube, p, sine);
+            const double dc = adapterMean(out, lastSecond);
+            INFO("Tube bias " << bias << ": mean of the last 1 s " << dc);
+            CHECK(countNonFinite(out) == 0);
+            CHECK(std::fabs(dc) < 1e-3);
+        }
+    }
+
+    SECTION("Temporal, Diode (curve 7) and Tube (curve 8)") {
+        for (const float curve : {0.875f, 1.0f}) {
+            DistortionParams p;
+            p.dynamicCurve = curve;
+            const auto out = renderAdapter(DistortionType::Temporal, p, sine);
+            const double dc = adapterMean(out, lastSecond);
+            INFO("Temporal curve slot " << curve << ": mean of the last 1 s " << dc);
+            CHECK(countNonFinite(out) == 0);
+            CHECK(std::fabs(dc) < 1e-3);
+        }
+    }
+}
