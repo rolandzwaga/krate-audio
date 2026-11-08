@@ -3100,3 +3100,155 @@ TEST_CASE("Bitcrush slot 0.0 and 0.15 give different output",
          << rmsDiff);
     CHECK(rmsDiff > 1e-3);
 }
+
+// =============================================================================
+// D-078 (T2.03): Feedback type. The Curve slot was never routed to FeedbackDistortion,
+// the Thr slot was inverted (slot 1 = -24 dB) and Lim off still soft-limited at 0 dB.
+// =============================================================================
+
+namespace {
+
+struct FeedbackSlots {
+    float feedback = 0.8f;   // slot 0: 0.8 * 1.5 = feedback 1.2 (runaway)
+    float curve = 0.0f;      // slot 2
+    float filter = 0.0f;     // slot 3: 0 = Off, 1/3 = LP, 2/3 = BP, 1 = HP
+    float freq = 0.5f;       // slot 4
+    float stage = 0.0f;      // slot 5: one stage
+    float limiter = 1.0f;    // slot 6: on
+    float threshold = 1.0f;  // slot 7
+};
+
+DistortionParams feedbackParams(const FeedbackSlots& s) {
+    std::array<float, MorphNode::kShapeSlotCount> slots{};
+    slots[0] = s.feedback;
+    slots[1] = 9.0f / 99.0f;  // 10 ms delay (100 Hz resonance)
+    slots[2] = s.curve;
+    slots[3] = s.filter;
+    slots[4] = s.freq;
+    slots[5] = s.stage;
+    slots[6] = s.limiter;
+    slots[7] = s.threshold;
+    slots[8] = 0.0f;  // decay off
+    DistortionParams p;
+    Processor::mapShapeSlotsToParams(DistortionType::FeedbackDist, slots.data(), p);
+    return p;
+}
+
+std::vector<float> renderFeedback(const FeedbackSlots& s, const std::vector<float>& in) {
+    return renderAdapterWith(DistortionType::FeedbackDist, feedbackParams(s),
+                             {.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f}, in);
+}
+
+float peakFrom(const std::vector<float>& x, std::size_t from) {
+    float peak = 0.0f;
+    for (std::size_t i = from; i < x.size(); ++i) peak = std::max(peak, std::fabs(x[i]));
+    return peak;
+}
+
+double linToDb(double v) { return 20.0 * std::log10(std::max(v, 1e-12)); }
+
+}  // namespace
+
+TEST_CASE("FeedbackDist fbCurve changes output", "[disrumpo][distortion][feedback][D-078]") {
+    // Natural decay (feedback 0.75), limiter off, 200 Hz at -6 dBFS: the Curve slot picks the
+    // loop's waveshaper (slot 0 = Tanh, slot 1 = Tube).
+    const auto in = sineAt48k(200.0, 0.5f, 48000);  // 1 s, RMS over the last 0.5 s
+    FeedbackSlots s;
+    s.feedback = 0.5f;
+    s.limiter = 0.0f;
+    s.curve = 0.0f;
+    const auto atTanh = renderFeedback(s, in);
+    s.curve = 1.0f;
+    const auto atTube = renderFeedback(s, in);
+    const double rms0 = adapterRmsDb(atTanh, 24000);
+    const double rms1 = adapterRmsDb(atTube, 24000);
+    INFO("Curve slot 0: RMS " << rms0 << " dBFS; slot 1: RMS " << rms1 << " dBFS; difference "
+         << (rms1 - rms0) << " dB");
+    CHECK(countNonFinite(atTanh) == 0);
+    CHECK(countNonFinite(atTube) == 0);
+    CHECK(std::fabs(rms1 - rms0) > 1.0);
+}
+
+TEST_CASE("FeedbackDist higher Thr gives higher peak", "[disrumpo][distortion][feedback][D-078]") {
+    // Runaway (feedback 1.2), limiter on: the peak over the last 0.5 s tracks the threshold.
+    // Thr slot 0 / 0.5 / 1 = -24 / -12 / 0 dB.
+    const auto in = sineAt48k(200.0, 0.5f, 48000);
+    std::array<float, 3> peaks{};
+    const std::array<float, 3> thrSlots{0.0f, 0.5f, 1.0f};
+    for (std::size_t k = 0; k < thrSlots.size(); ++k) {
+        FeedbackSlots s;
+        s.threshold = thrSlots[k];
+        const auto out = renderFeedback(s, in);
+        CHECK(countNonFinite(out) == 0);
+        peaks[k] = peakFrom(out, 24000);
+    }
+    INFO("peak at Thr slot 0 / 0.5 / 1: " << linToDb(peaks[0]) << " / " << linToDb(peaks[1]) << " / "
+         << linToDb(peaks[2]) << " dBFS");
+    CHECK(peaks[0] < peaks[1]);
+    CHECK(peaks[1] < peaks[2]);
+}
+
+TEST_CASE("FeedbackDist limiter off does not limit", "[disrumpo][distortion][feedback][D-078]") {
+    // Feedback 1.2 (runaway). The primitive's limiter holds its output within threshold + 3 dB
+    // (x1.41); the adapter's own 10 Hz DC blocker after it lifts the peak to x1.50 (+3.5 dB,
+    // primitive probe: 0.3541 raw -> 0.3777 after the DC blocker at -12 dB), so "on" is checked
+    // against threshold + 4 dB. With the limiter off nothing caps the loop.
+    const auto in = sineAt48k(200.0, 0.5f, 48000);
+
+    SECTION("Thr -12 dB: off exceeds threshold + 4 dB, on stays within it") {
+        FeedbackSlots s;
+        s.threshold = 0.5f;  // -12 dB
+        const double boundDb = -12.0 + 4.0;
+        s.limiter = 1.0f;
+        const float peakOn = peakFrom(renderFeedback(s, in), 24000);
+        s.limiter = 0.0f;
+        const float peakOff = peakFrom(renderFeedback(s, in), 24000);
+        INFO("Thr -12 dB, Tanh, filter off: peak limiter on " << linToDb(peakOn) << " dBFS, limiter off "
+             << linToDb(peakOff) << " dBFS (bound " << boundDb << " dBFS)");
+        CHECK(linToDb(peakOn) <= boundDb);
+        CHECK(linToDb(peakOff) > boundDb);
+    }
+
+    SECTION("Thr 0 dB: off passes +4 dBFS where on is held within it") {
+        // Cubic curve (slot 0.25) into a 4-stage highpass at 1019 Hz rings past +3 dBFS
+        // unlimited (primitive probe: 2.34 off vs 1.41 on).
+        FeedbackSlots s;
+        s.curve = 0.25f;   // Cubic
+        s.filter = 1.0f;   // HP
+        s.freq = 0.05f;    // 20 + 0.05 * 19980 = 1019 Hz
+        s.stage = 1.0f;    // four stages
+        s.threshold = 1.0f;
+        s.limiter = 1.0f;
+        const float peakOn = peakFrom(renderFeedback(s, in), 24000);
+        s.limiter = 0.0f;
+        const float peakOff = peakFrom(renderFeedback(s, in), 24000);
+        INFO("Thr 0 dB, Cubic, 4-stage HP at 1019 Hz: peak limiter on " << linToDb(peakOn)
+             << " dBFS, limiter off " << linToDb(peakOff) << " dBFS");
+        CHECK(linToDb(peakOn) <= 4.0);
+        CHECK(linToDb(peakOff) > 4.0);
+    }
+
+    SECTION("limiter off stays finite and bounded at feedback 1.5 for 5 s, every curve and filter") {
+        const auto longIn = sineAt48k(200.0, 0.5f, 5 * std::size_t{48000});
+        float worst = 0.0f;
+        std::size_t nonFinite = 0;
+        for (int curve = 0; curve <= 8; ++curve) {
+            for (int filter = 0; filter <= 3; ++filter) {
+                FeedbackSlots w;
+                w.feedback = 1.0f;  // 1.5
+                w.curve = static_cast<float>(curve) / 8.0f;
+                w.filter = static_cast<float>(filter) / 3.0f;
+                w.freq = 0.05f;
+                w.stage = 1.0f;
+                w.limiter = 0.0f;
+                const auto out = renderFeedback(w, longIn);
+                nonFinite += countNonFinite(out);
+                worst = std::max(worst, peakFrom(out, 0));
+            }
+        }
+        INFO("limiter off, feedback 1.5, 9 curves x 4 filters x 5 s: max |out| " << worst << " ("
+             << linToDb(worst) << " dBFS), non-finite samples " << nonFinite);
+        CHECK(nonFinite == 0);
+        CHECK(worst < 16.0f);
+    }
+}

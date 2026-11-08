@@ -280,7 +280,7 @@ public:
         float processed = dcBlocked;
         float absLevel = std::abs(dcBlocked);
 
-        if (absLevel > smoothedThreshold && smoothedThreshold > 0.0f) {
+        if (limiterEnabled_ && absLevel > smoothedThreshold && smoothedThreshold > 0.0f) {
             // Calculate how much we're over the threshold
             float overAmount = absLevel - smoothedThreshold;
             float normalizedOver = overAmount / smoothedThreshold;
@@ -442,6 +442,19 @@ public:
         return limiterThresholdDb_;
     }
 
+    /// @brief Enable or bypass the soft limiter (default: enabled).
+    ///
+    /// When disabled the loop is bounded only by the saturation curve and the
+    /// tone filter; the threshold setting has no effect.
+    void setLimiterEnabled(bool enabled) noexcept {
+        limiterEnabled_ = enabled;
+    }
+
+    /// @brief Whether the soft limiter is enabled.
+    [[nodiscard]] bool isLimiterEnabled() const noexcept {
+        return limiterEnabled_;
+    }
+
     // =========================================================================
     // Tone Filter (FR-020, FR-021, FR-022, FR-023)
     // =========================================================================
@@ -587,6 +600,7 @@ private:
     int stages_ = 1;                   ///< Number of cascaded filter stages (1-4)
     float decayAmount_ = 0.0f;         ///< Decay amount [0,1] (0=off)
     float decayCoeff_ = 0.999f;        ///< One-pole release coefficient
+    bool limiterEnabled_ = true;       ///< Soft limiter on (default) or bypassed
 
     // =========================================================================
     // Cached / Derived Values

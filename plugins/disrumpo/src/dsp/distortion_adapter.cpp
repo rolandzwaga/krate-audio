@@ -846,15 +846,21 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             break;
         }
 
-        case DistortionType::FeedbackDist:
+        case DistortionType::FeedbackDist: {
             feedbackDist_.setFeedback(p.feedback);
             feedbackDist_.setDelayTime(p.delayMs);
-            feedbackDist_.setLimiterThreshold(p.limiter ? (p.limThreshold * -24.0f) : 0.0f);
+            // Curve → loop waveshape (9 discrete types), mapped like RingSaturation's curve (D-078)
+            const int curveIdx = std::clamp(static_cast<int>(p.fbCurve * 8.0f + 0.5f), 0, 8);
+            feedbackDist_.setSaturationCurve(static_cast<Krate::DSP::WaveshapeType>(curveIdx));
+            // Lim off bypasses the limiter; Thr [0, 1] → [-24, 0] dB, higher = looser (D-078)
+            feedbackDist_.setLimiterEnabled(p.limiter);
+            feedbackDist_.setLimiterThreshold(-24.0f + p.limThreshold * 24.0f);
             feedbackDist_.setToneFrequency(20.0f + p.filterFreq * 19980.0f);
             feedbackDist_.setFilterType(p.filterType);
             feedbackDist_.setStages(p.stages);
             feedbackDist_.setDecay(p.fbDecay);
             break;
+        }
 
         case DistortionType::AllpassResonant: {
             int topo = std::clamp(p.allpassTopo, 0, 3);
