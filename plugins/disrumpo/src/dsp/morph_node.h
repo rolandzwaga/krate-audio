@@ -111,6 +111,13 @@ struct ShapeShadowStorage {
         typeSlots[bmIdx][1] = 0.5f;  // Intensity: 50% (moderate)
         typeSlots[bmIdx][2] = 0.5f;  // Pattern: 0x7FFF (mid-range XOR mask)
         typeSlots[bmIdx][3] = 0.5f;  // (reserved)
+
+        // Folds start on their named algorithm (D-157, D-168), not a 50/50 blend.
+        typeSlots[static_cast<int>(DistortionType::SineFold)][2] = 0.0f;      // Shape: pure sine fold
+        typeSlots[static_cast<int>(DistortionType::TriangleFold)][2] = 0.0f;  // Angle: pure triangle fold
+        const int sergeIdx = static_cast<int>(DistortionType::SergeFold);
+        typeSlots[sergeIdx][2] = 0.0f;  // Model: int(0*3+0.5) = 0 → models[0] = Serge
+        typeSlots[sergeIdx][4] = 0.0f;  // Shape: pure fold, no triangle crossfade
     }
 
     /// Save current slot values for the given type index.

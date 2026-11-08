@@ -824,7 +824,10 @@ void Controller::registerBandParams() {
             for (int s = 0; s < 10; ++s) {
                 auto proxyType = static_cast<BandParamType>(
                     static_cast<uint8_t>(BandParamType::kBandDisplayedShape0) + s);
-                int32_t stepCount = (s == 2) ? 8 : 0;
+                // Continuous for every slot: a step count makes VSTGUI replace the
+                // TypeParams menu-items with numeric entries (D-135). Temporal/RingSat
+                // slot-2 curve selectors quantise in formatShapeSlot and the processor.
+                int32_t stepCount = 0;
                 parameters.addParameter(new Steinberg::Vst::RangeParameter(
                     STR16("Displayed Shape"), makeBandParamId(band, proxyType),
                     STR16(""), 0.0, 1.0, 0.5, stepCount, Steinberg::Vst::ParameterInfo::kNoFlags));
@@ -961,7 +964,7 @@ void Controller::registerNodeParams() {
                 shapeName.append(Steinberg::UString128(std::to_string(n + 1).c_str()));
                 shapeName.append(Steinberg::UString128(" Shape "));
                 shapeName.append(Steinberg::UString128(std::to_string(s).c_str()));
-                int32_t stepCount = (s == 2) ? 8 : 0;
+                int32_t stepCount = 0;  // continuous, like the band proxies above (D-135)
                 auto* shapeParam = new Steinberg::Vst::RangeParameter(
                     shapeName,
                     makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n), shapeType),

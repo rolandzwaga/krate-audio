@@ -82,6 +82,9 @@ add_executable(disrumpo_tests
     # Controller <-> processor state codec (audit T1.17)
     unit/controller/controller_state_codec_test.cpp
 
+    # Type-specific shape-slot menus in the live editor (audit T1.19)
+    unit/controller/menu_population_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp

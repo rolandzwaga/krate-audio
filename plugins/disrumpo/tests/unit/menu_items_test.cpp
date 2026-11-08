@@ -5,7 +5,7 @@
 // BandSubController::verifyView() to populate COptionMenu controls in
 // TypeParams templates.
 //
-// Root cause: Shape slot parameters are RangeParameter(0,1, stepCount=0).
+// Root cause: Shape slot parameters (all ten, slot 2 included) are RangeParameter(0,1, stepCount=0).
 // COptionMenu controls can't auto-populate from these. The sub-controller
 // reads a custom "menu-items" attribute and calls addEntry() manually.
 // ==============================================================================
@@ -18,8 +18,6 @@
 #include <cmath>
 #include <string>
 #include <vector>
-
-using Catch::Approx;
 
 // ==============================================================================
 // parseMenuItems() — comma-separated string parsing

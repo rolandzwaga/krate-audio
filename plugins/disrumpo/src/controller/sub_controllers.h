@@ -189,9 +189,11 @@ public:
         }
 
         // Populate COptionMenu controls from custom "menu-items" attribute.
-        // Shape slot parameters are RangeParameter(stepCount=0), so VSTGUI's
-        // auto-populate in ParameterChangeListener::updateControlValue() is
-        // skipped (it's gated by stepCount > 0). Our entries survive.
+        // All ten shape slot parameters, slot 2 included, are RangeParameter
+        // (stepCount=0), so VSTGUI's auto-populate in
+        // ParameterChangeListener::updateControlValue() is skipped (it's gated
+        // by stepCount > 0). Our entries survive. A step count on any slot would
+        // replace them with numeric entries (D-135).
         if (auto* menu = dynamic_cast<VSTGUI::COptionMenu*>(view)) {
             const auto* menuItemsAttr = attributes.getAttributeValue("menu-items");
             if (menuItemsAttr && !menuItemsAttr->empty()) {

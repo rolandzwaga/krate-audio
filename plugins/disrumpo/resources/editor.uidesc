@@ -971,7 +971,7 @@
     <view class="CTextLabel" origin="55, 28" size="40, 12" title="Symm" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape1" origin="57, 40" size="35, 35" default-value="0.5" min-value="0" max-value="1" arc-color="accent-secondary"/>
     <view class="CTextLabel" origin="105, 28" size="50, 12" title="Model" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Simple,Serge,Buchla,Lockhart"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Serge,Simple,Buchla,Lockhart"/>
     <view class="CTextLabel" origin="5, 82" size="38, 12" title="Bias" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape3" origin="7, 94" size="35, 35" default-value="0.5" min-value="0" max-value="1" arc-color="accent-secondary"/>
     <view class="CTextLabel" origin="55, 82" size="40, 12" title="Shape" font="small-font" font-color="text-secondary" text-alignment="center"/>
