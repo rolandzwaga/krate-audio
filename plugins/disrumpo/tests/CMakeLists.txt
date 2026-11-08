@@ -85,6 +85,9 @@ add_executable(disrumpo_tests
     # Type-specific shape-slot menus in the live editor (audit T1.19)
     unit/controller/menu_population_test.cpp
 
+    # Proxy / node / pad / selector parameter wiring (audit T1.20)
+    unit/controller/node_proxy_wiring_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp

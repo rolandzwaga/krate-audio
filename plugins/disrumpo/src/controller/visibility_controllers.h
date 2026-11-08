@@ -21,6 +21,7 @@
 
 #include "controller/views/spectrum_display.h"
 
+#include <array>
 #include <atomic>
 #include <functional>
 #include <initializer_list>
@@ -399,12 +400,18 @@ private:
 // NodeSelectionController: Bidirectional sync between DisplayedType and nodes
 // ==============================================================================
 
+struct ShapeShadowStorage;
+
 class NodeSelectionController : public Steinberg::FObject {
 public:
+    static constexpr int kNumNodes = 4;
+    /// Per-type shape memory of each node of one band (indexed by node).
+    using NodeShapeShadows = std::array<ShapeShadowStorage, kNumNodes>;
+
     NodeSelectionController(
         Steinberg::Vst::EditControllerEx1* controller,
         uint8_t band,
-        struct ShapeShadowStorage* shadowStorage = nullptr);
+        NodeShapeShadows* shapeShadows = nullptr);
 
     ~NodeSelectionController() override;
     void deactivate();
@@ -415,22 +422,26 @@ public:
 private:
     int getSelectedNode() const;
     bool isProxyParam(Steinberg::Vst::Parameter* param) const;
+    bool findNodeParam(Steinberg::Vst::Parameter* param, int& node, int& proxyIndex) const;
     void editParam(Steinberg::Vst::ParamID id, double normValue);
     void copySelectedNodeToDisplayedType();
     void copySelectedNodeToProxies();
     void copyProxyToSelectedNode(Steinberg::Vst::Parameter* changedProxy);
+    void copySelectedNodeParamToProxy(int proxyIndex);
     void copyDisplayedTypeToSelectedNode();
 
     Steinberg::Vst::EditControllerEx1* controller_;
     uint8_t band_;
     Steinberg::Vst::Parameter* selectedNodeParam_ = nullptr;
-    Steinberg::Vst::Parameter* nodeTypeParams_[4] = {nullptr, nullptr, nullptr, nullptr};
+    Steinberg::Vst::Parameter* nodeTypeParams_[kNumNodes] = {nullptr, nullptr, nullptr, nullptr};
     Steinberg::Vst::Parameter* displayedTypeParam_ = nullptr;
     static constexpr int kNumProxyParams = 14;  // Drive, Mix, Tone, Bias, Shape0-9
     Steinberg::Vst::Parameter* proxyParams_[kNumProxyParams] = {};
+    /// Real node params behind the proxies, [node][proxy index]; watched so automation moves the knobs.
+    Steinberg::Vst::Parameter* nodeParams_[kNumNodes][kNumProxyParams] = {};
     std::atomic<bool> isActive_{true};
     bool isUpdating_ = false;
-    struct ShapeShadowStorage* shapeShadowPtr_ = nullptr;
+    NodeShapeShadows* shapeShadows_ = nullptr;
 };
 
 // ==============================================================================

@@ -158,9 +158,11 @@ public:
                              const VSTGUI::CColor& borderColor = VSTGUI::CColor(255, 255, 255),
                              const VSTGUI::CColor& accentColor = VSTGUI::CColor(0x3A, 0x96, 0xDD));
 
-    /// @brief Set the parameter ID for MorphY (secondary parameter).
-    /// MorphX is transmitted via CControl tag; MorphY needs explicit edit calls.
-    void setMorphYParamId(Steinberg::Vst::ParamID id) { morphYParamId_ = id; }
+    /// @brief Bind the pad to its MorphX / MorphY parameters (call once).
+    /// MorphX is transmitted via the CControl tag; MorphY needs explicit edit calls.
+    /// The pad also watches both parameters so automation and preset loads move
+    /// the cursor (not while the user drags it).
+    void bindMorphParams(Steinberg::Vst::ParamID morphXId, Steinberg::Vst::ParamID morphYId);
 
     // =========================================================================
     // Coordinate Conversion
@@ -331,6 +333,10 @@ private:
 
     // Secondary parameter ID for MorphY (MorphX uses CControl tag)
     Steinberg::Vst::ParamID morphYParamId_ = 0;
+
+    // Watched MorphX / MorphY parameters (bindMorphParams)
+    Steinberg::Vst::Parameter* morphXParam_ = nullptr;
+    Steinberg::Vst::Parameter* morphYParam_ = nullptr;
 
     /// @brief Get the current active node count from the parameter.
     int getActiveNodeCountFromParam() const;

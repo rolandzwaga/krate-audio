@@ -120,12 +120,12 @@ void PLUGIN_API SpectrumModeController::update(
 NodeSelectionController::NodeSelectionController(
     Steinberg::Vst::EditControllerEx1* controller,
     uint8_t band,
-    ShapeShadowStorage* shadowStorage)
+    NodeShapeShadows* shapeShadows)
 : controller_(controller)
 , band_(band)
 , selectedNodeParam_(controller->getParameterObject(
       makeBandParamId(band, BandParamType::kBandSelectedNode)))
-, shapeShadowPtr_(shadowStorage)
+, shapeShadows_(shapeShadows)
 {
     for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
         proxyParams_[i] = controller_->getParameterObject(
@@ -161,6 +161,19 @@ NodeSelectionController::NodeSelectionController(
         }
     }
 
+    // All four nodes are watched; update() ignores the ones that are not selected.
+    for (int n = 0; n < kNumNodes; ++n) {
+        for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+            auto* nodeParam = controller_->getParameterObject(
+                makeNodeParamId(band, static_cast<uint8_t>(n), kProxyIndexToNodeParam[i]));
+            nodeParams_[n][i] = nodeParam;
+            if (nodeParam) {
+                nodeParam->addRef();
+                nodeParam->addDependent(this);
+            }
+        }
+    }
+
     if (selectedNodeParam_) {
         selectedNodeParam_->deferUpdate();
     }
@@ -188,6 +201,14 @@ NodeSelectionController::~NodeSelectionController() {
             param = nullptr;
         }
     }
+    for (auto& node : nodeParams_) {
+        for (auto*& param : node) {
+            if (param) {
+                param->release();
+                param = nullptr;
+            }
+        }
+    }
 }
 
 void NodeSelectionController::deactivate() {
@@ -208,6 +229,13 @@ void NodeSelectionController::deactivate() {
                 param->removeDependent(this);
             }
         }
+        for (auto& node : nodeParams_) {
+            for (auto* param : node) {
+                if (param) {
+                    param->removeDependent(this);
+                }
+            }
+        }
     }
 }
 
@@ -226,6 +254,8 @@ void PLUGIN_API NodeSelectionController::update(
     isUpdating_ = true;
 
     auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
+    int changedNode = 0;
+    int proxyIndex = 0;
 
     if (changedParam == displayedTypeParam_) {
         copyDisplayedTypeToSelectedNode();
@@ -234,6 +264,10 @@ void PLUGIN_API NodeSelectionController::update(
         copySelectedNodeToProxies();
     } else if (isProxyParam(changedParam)) {
         copyProxyToSelectedNode(changedParam);
+    } else if (findNodeParam(changedParam, changedNode, proxyIndex)) {
+        if (changedNode == getSelectedNode()) {
+            copySelectedNodeParamToProxy(proxyIndex);
+        }
     } else {
         copySelectedNodeToDisplayedType();
     }
@@ -249,6 +283,20 @@ int NodeSelectionController::getSelectedNode() const {
 
 bool NodeSelectionController::isProxyParam(Steinberg::Vst::Parameter* param) const {
     return std::ranges::any_of(proxyParams_, [param](const auto* p) { return p == param; });
+}
+
+bool NodeSelectionController::findNodeParam(Steinberg::Vst::Parameter* param, int& node, int& proxyIndex) const {
+    if (!param) return false;
+    for (int n = 0; n < kNumNodes; ++n) {
+        for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+            if (nodeParams_[n][i] == param) {
+                node = n;
+                proxyIndex = i;
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void NodeSelectionController::editParam(Steinberg::Vst::ParamID id, double normValue) {
@@ -314,6 +362,15 @@ void NodeSelectionController::copyProxyToSelectedNode(Steinberg::Vst::Parameter*
     }
 }
 
+void NodeSelectionController::copySelectedNodeParamToProxy(int proxyIndex) {
+    // The real param already changed (host automation, preset); only the
+    // controller-side proxy follows, so the knob moves without a host edit.
+    auto* nodeParam = nodeParams_[getSelectedNode()][proxyIndex];
+    if (!nodeParam || !proxyParams_[proxyIndex]) return;
+    controller_->setParamNormalized(makeBandParamId(band_, kProxyIndexToBandParam[proxyIndex]),
+                                    nodeParam->getNormalized());
+}
+
 void NodeSelectionController::copyDisplayedTypeToSelectedNode() {
     if (!selectedNodeParam_ || !displayedTypeParam_) return;
 
@@ -331,7 +388,9 @@ void NodeSelectionController::copyDisplayedTypeToSelectedNode() {
     oldTypeIdx = std::clamp(oldTypeIdx, 0, 25);
     newTypeIdx = std::clamp(newTypeIdx, 0, 25);
 
-    if (shapeShadowPtr_) {
+    const auto nodeIdx = static_cast<uint8_t>(selectedNode);
+
+    if (shapeShadows_) {
         float currentSlots[MorphNode::kShapeSlotCount];
         for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
             if (proxyParams_[4 + s])
@@ -339,21 +398,23 @@ void NodeSelectionController::copyDisplayedTypeToSelectedNode() {
             else
                 currentSlots[s] = 0.5f;
         }
-        shapeShadowPtr_->save(oldTypeIdx, currentSlots);
+        (*shapeShadows_)[nodeIdx].save(oldTypeIdx, currentSlots);
     }
 
-    auto nodeTypeId = makeNodeParamId(band_, static_cast<uint8_t>(selectedNode),
-                                       NodeParamType::kNodeType);
+    auto nodeTypeId = makeNodeParamId(band_, nodeIdx, NodeParamType::kNodeType);
     editParam(nodeTypeId, displayedTypeNorm);
 
-    if (shapeShadowPtr_) {
+    if (shapeShadows_) {
         float newSlots[MorphNode::kShapeSlotCount];
-        shapeShadowPtr_->load(newTypeIdx, newSlots);
+        (*shapeShadows_)[nodeIdx].load(newTypeIdx, newSlots);
         for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
             if (proxyParams_[4 + s]) {
                 editParam(makeBandParamId(band_, kProxyIndexToBandParam[4 + s]),
                           newSlots[s]);
             }
+            // The proxy edit re-enters update() behind isUpdating_, so the
+            // node's real slot is written here rather than by the mirror.
+            editParam(makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[4 + s]), newSlots[s]);
         }
     }
 }

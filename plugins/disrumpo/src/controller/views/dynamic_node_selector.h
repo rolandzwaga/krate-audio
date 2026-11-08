@@ -99,8 +99,12 @@ private:
     /// @brief Clamp the selected node to valid range after segment count decreases.
     void clampSelectedNode();
 
+    /// @brief Highlight the segment of the SelectedNode parameter (decoded over 4 nodes).
+    void syncSelectionFromParam();
+
     Steinberg::Vst::EditControllerEx1* controller_ = nullptr;
     Steinberg::Vst::Parameter* activeNodesParam_ = nullptr;
+    Steinberg::Vst::Parameter* selectedNodeParam_ = nullptr;
     Steinberg::Vst::ParamID selectedNodeParamId_ = 0;
 
     std::atomic<bool> isActive_{true};

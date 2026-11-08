@@ -10,8 +10,20 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <editor_lifecycle_harness.h>
+
+#include "controller/controller.h"
 #include "controller/views/morph_pad.h"
 #include "dsp/distortion_types.h"
+#include "plugin_ids.h"
+#include "state_codec.h"
+
+#include "vstgui/lib/events.h"
+#include "vstgui/uidescription/uiattributes.h"
+
+#include <cmath>
+#include <cstdio>
+#include <iterator>
 
 using Catch::Approx;
 using namespace Disrumpo;
@@ -445,8 +457,10 @@ TEST_CASE("MorphPad 1D Linear mode constrains cursor to horizontal center", "[mo
         // as positions along the X axis at the center line
         pad.setActiveNodeCount(2);
 
-        float ax = 0.0f, ay = 0.0f;
-        float bx = 0.0f, by = 0.0f;
+        float ax = 0.0f;
+        float ay = 0.0f;
+        float bx = 0.0f;
+        float by = 0.0f;
         pad.getNodePosition(0, ax, ay);
         pad.getNodePosition(1, bx, by);
 
@@ -558,7 +572,8 @@ TEST_CASE("MorphPad node repositioning via setNodePosition", "[morph_pad][nodes]
 
     SECTION("moving node updates its position") {
         // Default position of node B (index 1) is (1, 0)
-        float initX = 0.0f, initY = 0.0f;
+        float initX = 0.0f;
+        float initY = 0.0f;
         pad.getNodePosition(1, initX, initY);
         REQUIRE(initX == Approx(1.0f));
         REQUIRE(initY == Approx(0.0f));
@@ -566,7 +581,8 @@ TEST_CASE("MorphPad node repositioning via setNodePosition", "[morph_pad][nodes]
         // Simulate Alt+drag by calling setNodePosition directly
         pad.setNodePosition(1, 0.3f, 0.6f);
 
-        float newX = 0.0f, newY = 0.0f;
+        float newX = 0.0f;
+        float newY = 0.0f;
         pad.getNodePosition(1, newX, newY);
         REQUIRE(newX == Approx(0.3f));
         REQUIRE(newY == Approx(0.6f));
@@ -575,7 +591,8 @@ TEST_CASE("MorphPad node repositioning via setNodePosition", "[morph_pad][nodes]
     SECTION("node position is clamped to valid range") {
         pad.setNodePosition(0, -0.5f, 1.5f);
 
-        float x = 0.0f, y = 0.0f;
+        float x = 0.0f;
+        float y = 0.0f;
         pad.getNodePosition(0, x, y);
         REQUIRE(x == Approx(0.0f));
         REQUIRE(y == Approx(1.0f));
@@ -587,10 +604,14 @@ TEST_CASE("MorphPad node repositioning via setNodePosition", "[morph_pad][nodes]
         pad.setNodePosition(2, 0.1f, 0.9f);
         pad.setNodePosition(3, 0.9f, 0.9f);
 
-        float x0 = 0.0f, y0 = 0.0f;
-        float x1 = 0.0f, y1 = 0.0f;
-        float x2 = 0.0f, y2 = 0.0f;
-        float x3 = 0.0f, y3 = 0.0f;
+        float x0 = 0.0f;
+        float y0 = 0.0f;
+        float x1 = 0.0f;
+        float y1 = 0.0f;
+        float x2 = 0.0f;
+        float y2 = 0.0f;
+        float x3 = 0.0f;
+        float y3 = 0.0f;
 
         pad.getNodePosition(0, x0, y0);
         pad.getNodePosition(1, x1, y1);
@@ -612,7 +633,8 @@ TEST_CASE("MorphPad node repositioning via setNodePosition", "[morph_pad][nodes]
         pad.setNodePosition(0, 0.5f, 0.5f);
 
         // Convert center to pixels
-        float pixelX = 0.0f, pixelY = 0.0f;
+        float pixelX = 0.0f;
+        float pixelY = 0.0f;
         pad.positionToPixel(0.5f, 0.5f, pixelX, pixelY);
 
         // Hit test should find node 0 at center now
@@ -640,8 +662,10 @@ TEST_CASE("MorphPad node positions persist across state changes", "[morph_pad][n
         pad.setMorphPosition(0.5f, 0.5f);
 
         // Verify node positions are unchanged
-        float x0 = 0.0f, y0 = 0.0f;
-        float x1 = 0.0f, y1 = 0.0f;
+        float x0 = 0.0f;
+        float y0 = 0.0f;
+        float x1 = 0.0f;
+        float y1 = 0.0f;
         pad.getNodePosition(0, x0, y0);
         pad.getNodePosition(1, x1, y1);
 
@@ -661,7 +685,8 @@ TEST_CASE("MorphPad node positions persist across state changes", "[morph_pad][n
         pad.setMorphMode(MorphMode::Planar2D);
 
         // Verify position persists
-        float x = 0.0f, y = 0.0f;
+        float x = 0.0f;
+        float y = 0.0f;
         pad.getNodePosition(2, x, y);
         REQUIRE(x == Approx(0.3f));
         REQUIRE(y == Approx(0.7f));
@@ -678,8 +703,10 @@ TEST_CASE("MorphPad node positions persist across state changes", "[morph_pad][n
         pad.setActiveNodeCount(2);
 
         // Verify all positions still stored (even for inactive nodes)
-        float x2 = 0.0f, y2 = 0.0f;
-        float x3 = 0.0f, y3 = 0.0f;
+        float x2 = 0.0f;
+        float y2 = 0.0f;
+        float x3 = 0.0f;
+        float y3 = 0.0f;
         pad.getNodePosition(2, x2, y2);
         pad.getNodePosition(3, x3, y3);
 
@@ -713,7 +740,8 @@ TEST_CASE("MorphPad active nodes count affects visibility", "[morph_pad][nodes][
         REQUIRE(pad.getActiveNodeCount() == 2);
 
         // Hit test should not find nodes C (index 2) or D (index 3)
-        float pixelX = 0.0f, pixelY = 0.0f;
+        float pixelX = 0.0f;
+        float pixelY = 0.0f;
 
         // Node C is at (0, 1) by default
         pad.positionToPixel(0.0f, 1.0f, pixelX, pixelY);
@@ -729,7 +757,8 @@ TEST_CASE("MorphPad active nodes count affects visibility", "[morph_pad][nodes][
     SECTION("nodes A and B remain hittable with 2 active") {
         pad.setActiveNodeCount(2);
 
-        float pixelX = 0.0f, pixelY = 0.0f;
+        float pixelX = 0.0f;
+        float pixelY = 0.0f;
 
         // Node A is at (0, 0)
         pad.positionToPixel(0.0f, 0.0f, pixelX, pixelY);
@@ -745,7 +774,8 @@ TEST_CASE("MorphPad active nodes count affects visibility", "[morph_pad][nodes][
     SECTION("3 active nodes enables node C") {
         pad.setActiveNodeCount(3);
 
-        float pixelX = 0.0f, pixelY = 0.0f;
+        float pixelX = 0.0f;
+        float pixelY = 0.0f;
 
         // Node C is at (0, 1) by default
         pad.positionToPixel(0.0f, 1.0f, pixelX, pixelY);
@@ -761,7 +791,8 @@ TEST_CASE("MorphPad active nodes count affects visibility", "[morph_pad][nodes][
     SECTION("4 active nodes enables all nodes") {
         pad.setActiveNodeCount(4);
 
-        float pixelX = 0.0f, pixelY = 0.0f;
+        float pixelX = 0.0f;
+        float pixelY = 0.0f;
 
         pad.positionToPixel(1.0f, 1.0f, pixelX, pixelY);
         int hitD = pad.hitTestNode(pixelX, pixelY);
@@ -813,4 +844,110 @@ TEST_CASE("MorphPad weight storage with active nodes", "[morph_pad][nodes][US6]"
         REQUIRE(pad.getNodeWeight(2) == Approx(0.3f));
         REQUIRE(pad.getNodeWeight(3) == Approx(0.4f));
     }
+}
+
+// =============================================================================
+// Parameter wiring (fix plan T1.20, D-062)
+// =============================================================================
+// The pad is built by Controller::createCustomView exactly as in the editor,
+// against a frame-less controller that records setParamNormalized. A Y drag
+// must land in the controller's MorphY parameter (preset saves read it), and
+// the cursor must follow MorphX / MorphY when the host or a preset moves them.
+
+namespace {
+
+constexpr Steinberg::Vst::ParamID kPadMorphXId = makeBandParamId(0, BandParamType::kBandMorphX);
+constexpr Steinberg::Vst::ParamID kPadMorphYId = makeBandParamId(0, BandParamType::kBandMorphY);
+
+/// Disrumpo controller that counts setParamNormalized calls on band 0's MorphY.
+class MorphPadParamRecorder : public Controller {
+public:
+    Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
+                                                     Steinberg::Vst::ParamValue value) override {
+        if (tag == kPadMorphYId) ++morphYSets;
+        return Controller::setParamNormalized(tag, value);
+    }
+    int morphYSets = 0;
+};
+
+/// Band 0 MorphPad from createCustomView, 250x200 at the origin, four active nodes.
+MorphPad* createBand0Pad(Controller& c) {
+    c.setParamNormalized(makeBandParamId(0, BandParamType::kBandActiveNodes), listIndexToNorm(3, 4));
+    VSTGUI::UIAttributes attributes;
+    attributes.setAttribute("band", "0");
+    attributes.setAttribute("origin", "0, 0");
+    attributes.setAttribute("size", "250, 200");
+    return dynamic_cast<MorphPad*>(c.createCustomView("MorphPad", attributes, nullptr, nullptr));
+}
+
+/// Normalized Y of a pixel row on a 250x200 pad (kPadding 8, inner height 184).
+float padNormY(float pixelY) { return (192.0f - pixelY) / 184.0f; }
+
+}  // namespace
+
+TEST_CASE("MorphPad Y drag updates the controller parameter", "[disrumpo][morph_pad][ui][D-062]") {
+    MorphPadParamRecorder c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    Krate::TestSupport::ensureVstguiInitialized();  // mouse events read the platform factory's clock
+    MorphPad* pad = createBand0Pad(c);
+    REQUIRE(pad != nullptr);
+    REQUIRE(pad->getActiveNodeCount() == 4);
+
+    VSTGUI::MouseDownEvent down(VSTGUI::CPoint(125.0, 100.0), VSTGUI::MouseButton::Left);
+    down.clickCount = 1;
+    c.morphYSets = 0;
+    pad->onMouseDownEvent(down);
+    const int downSets = c.morphYSets;
+
+    constexpr float kMoveRows[] = {80.0f, 60.0f, 40.0f, 54.0f, 30.0f};
+    constexpr int kMoves = static_cast<int>(std::size(kMoveRows));
+    c.morphYSets = 0;
+    int cursorMismatches = 0;
+    for (const float row : kMoveRows) {
+        VSTGUI::MouseMoveEvent move(VSTGUI::CPoint(125.0, row), VSTGUI::MouseButton::Left);
+        pad->onMouseMoveEvent(move);
+        if (std::fabs(pad->getMorphY() - padNormY(row)) > 1e-6f) ++cursorMismatches;
+    }
+    const int moveSets = c.morphYSets;
+
+    VSTGUI::MouseUpEvent up(VSTGUI::CPoint(125.0, kMoveRows[kMoves - 1]), VSTGUI::MouseButton::Left);
+    pad->onMouseUpEvent(up);
+
+    const double paramY = c.getParamNormalized(kPadMorphYId);
+    const float wantY = padNormY(kMoveRows[kMoves - 1]);
+    std::printf("T1.20 D-062 drag: MorphY param %.6f, pad Y %.6f (want %.6f); Y sets on mouse-down %d, "
+                "during %d moves %d; cursor off the drag %d times\n",
+                paramY, static_cast<double>(pad->getMorphY()), static_cast<double>(wantY), downSets, kMoves,
+                moveSets, cursorMismatches);
+    CHECK(std::fabs(paramY - static_cast<double>(wantY)) < 1e-6);
+    CHECK(downSets == 1);
+    CHECK(moveSets == kMoves);
+    CHECK(cursorMismatches == 0);
+
+    pad->forget();
+    c.terminate();
+}
+
+TEST_CASE("MorphPad follows setParamNormalized on X and Y", "[disrumpo][morph_pad][ui][D-062]") {
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    MorphPad* pad = createBand0Pad(c);
+    REQUIRE(pad != nullptr);
+
+    c.setParamNormalized(kPadMorphXId, 0.2);
+    const float x = pad->getMorphX();
+    c.setParamNormalized(kPadMorphYId, 0.85);
+    const float y = pad->getMorphY();
+    const float xAfterY = pad->getMorphX();
+    std::printf("T1.20 D-062 follow: MorphX 0.2 -> pad X %.6f; MorphY 0.85 -> pad Y %.6f (X then %.6f)\n",
+                static_cast<double>(x), static_cast<double>(y), static_cast<double>(xAfterY));
+    CHECK(x == Approx(0.2f).margin(1e-6f));
+    CHECK(y == Approx(0.85f).margin(1e-6f));
+    CHECK(xAfterY == Approx(0.2f).margin(1e-6f));
+
+    pad->forget();
+    // The pad has gone: later parameter changes must not reach it.
+    c.setParamNormalized(kPadMorphXId, 0.4);
+    c.setParamNormalized(kPadMorphYId, 0.4);
+    c.terminate();
 }

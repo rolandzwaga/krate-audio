@@ -1016,7 +1016,7 @@ VSTGUI::CView* Controller::createCustomView(
 
         Steinberg::Vst::ParamID morphYParamId = makeBandParamId(
             static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphY);
-        morphPad->setMorphYParamId(morphYParamId);
+        morphPad->bindMorphParams(morphXParamId, morphYParamId);
 
         auto* morphXParam = getParameterObject(morphXParamId);
         auto* morphYParam = getParameterObject(makeBandParamId(
@@ -1078,12 +1078,6 @@ VSTGUI::CView* Controller::createCustomView(
         auto* nodeSelector = new DynamicNodeSelector(
             rect, this, activeNodesParamId, selectedNodeParamId);
         nodeSelector->setTag(static_cast<int32_t>(selectedNodeParamId));
-
-        auto* selectedNodeParam = getParameterObject(selectedNodeParamId);
-        if (selectedNodeParam) {
-            float normalized = static_cast<float>(selectedNodeParam->getNormalized());
-            nodeSelector->setValueNormalized(normalized);
-        }
 
         const std::string* autoHideStr = attributes.getAttributeValue("auto-hide-single");
         if (autoHideStr && *autoHideStr == "true") {
@@ -1455,7 +1449,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 
     for (int b = 0; b < kMaxBands; ++b) {
         nodeSelectionControllers_[b] = new NodeSelectionController(
-            this, static_cast<uint8_t>(b), shapeShadowStorage_[b].data());
+            this, static_cast<uint8_t>(b), &shapeShadowStorage_[b]);
     }
 
     sweepVisualizationController_ = new SweepVisualizationController(

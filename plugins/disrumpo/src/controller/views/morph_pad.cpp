@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
 #include <numbers>
 #include <sstream>
 #include <iomanip>
@@ -101,6 +102,28 @@ MorphPad::~MorphPad() {
         activeNodesParam_->release();
         activeNodesParam_ = nullptr;
     }
+    if (morphXParam_) {
+        morphXParam_->release();
+        morphXParam_ = nullptr;
+    }
+    if (morphYParam_) {
+        morphYParam_->release();
+        morphYParam_ = nullptr;
+    }
+}
+
+void MorphPad::bindMorphParams(Steinberg::Vst::ParamID morphXId, Steinberg::Vst::ParamID morphYId) {
+    morphYParamId_ = morphYId;
+    if (!controller_ || morphXParam_ || morphYParam_) return;
+
+    morphXParam_ = controller_->getParameterObject(morphXId);
+    morphYParam_ = controller_->getParameterObject(morphYId);
+    for (auto* param : {morphXParam_, morphYParam_}) {
+        if (param) {
+            param->addRef();
+            param->addDependent(this);
+        }
+    }
 }
 
 // =============================================================================
@@ -119,8 +142,10 @@ void MorphPad::setHighContrastMode(bool enabled,
 void MorphPad::deactivate() {
     // Use exchange to ensure we only do this once (idempotent)
     if (isActive_.exchange(false, std::memory_order_acq_rel)) {
-        if (activeNodesParam_) {
-            activeNodesParam_->removeDependent(this);
+        for (auto* param : {activeNodesParam_, morphXParam_, morphYParam_}) {
+            if (param) {
+                param->removeDependent(this);
+            }
         }
     }
 }
@@ -139,8 +164,26 @@ void PLUGIN_API MorphPad::update(Steinberg::FUnknown* changedUnknown,
         return;
     }
 
-    // Verify it's the ActiveNodes parameter that changed
     auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
+    if (!changedParam) {
+        return;
+    }
+
+    // MorphX / MorphY moved by automation, a preset or another view. While the
+    // user drags the cursor the drag owns it; its own edits land here too.
+    if (changedParam == morphXParam_ || changedParam == morphYParam_) {
+        if (isDragging_) {
+            return;
+        }
+        const auto value = static_cast<float>(changedParam->getNormalized());
+        if (changedParam == morphXParam_) {
+            setMorphPosition(value, morphY_);
+        } else {
+            setMorphPosition(morphX_, value);
+        }
+        return;
+    }
+
     if (changedParam != activeNodesParam_) {
         return;
     }
@@ -645,6 +688,7 @@ void MorphPad::onMouseDownEvent(VSTGUI::MouseDownEvent& event) {
             // Send Y parameter reset to host
             if (controller_ && morphYParamId_ != 0) {
                 controller_->beginEdit(morphYParamId_);
+                controller_->setParamNormalized(morphYParamId_, 0.5);
                 controller_->performEdit(morphYParamId_, 0.5);
                 controller_->endEdit(morphYParamId_);
             }
@@ -686,6 +730,7 @@ void MorphPad::onMouseDownEvent(VSTGUI::MouseDownEvent& event) {
         // Send Y parameter change to host
         if (controller_ && morphYParamId_ != 0) {
             controller_->beginEdit(morphYParamId_);
+            controller_->setParamNormalized(morphYParamId_, static_cast<double>(morphY_));
             controller_->performEdit(morphYParamId_, static_cast<double>(morphY_));
         }
 
@@ -744,6 +789,7 @@ void MorphPad::onMouseMoveEvent(VSTGUI::MouseMoveEvent& event) {
 
         // Send Y parameter change to host
         if (controller_ && morphYParamId_ != 0) {
+            controller_->setParamNormalized(morphYParamId_, static_cast<double>(morphY_));
             controller_->performEdit(morphYParamId_, static_cast<double>(morphY_));
         }
 
@@ -819,6 +865,7 @@ void MorphPad::onMouseWheelEvent(VSTGUI::MouseWheelEvent& event) {
     // Send Y parameter change to host
     if (controller_ && morphYParamId_ != 0) {
         controller_->beginEdit(morphYParamId_);
+        controller_->setParamNormalized(morphYParamId_, static_cast<double>(morphY_));
         controller_->performEdit(morphYParamId_, static_cast<double>(morphY_));
         controller_->endEdit(morphYParamId_);
     }

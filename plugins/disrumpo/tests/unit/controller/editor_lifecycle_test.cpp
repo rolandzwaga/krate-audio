@@ -11,16 +11,29 @@
 
 #include "controller/controller.h"
 
+#include "base/source/updatehandler.h"
+
+#include <cstdio>
+
 TEST_CASE("Disrumpo editor open/close cycle is UAF- and leak-free",
           "[disrumpo][controller][ui][lifecycle]")
 {
     Disrumpo::Controller controller;
     REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
 
+    // Every addDependent made while the editor is open (NodeSelectionController,
+    // MorphPad, DynamicNodeSelector, ...) must be undone when it closes.
+    const size_t dependentsBefore = Steinberg::UpdateHandler::instance()->countDependencies();
+
     Krate::TestSupport::exerciseEditorLifecycle(
         controller, "editor",
         std::string(DISRUMPO_RESOURCES_DIR) + "/editor.uidesc",
         /*cycles=*/3);
+
+    const size_t dependentsAfter = Steinberg::UpdateHandler::instance()->countDependencies();
+    std::printf("Disrumpo editor lifecycle: dependents before %zu, after 3 open/close cycles %zu\n",
+                dependentsBefore, dependentsAfter);
+    CHECK(dependentsAfter == dependentsBefore);
 
     controller.terminate();
 }
