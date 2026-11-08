@@ -9,13 +9,14 @@
 #include "controller.h"
 #include "plugin_ids.h"
 #include "controller/format_helpers.h"
+#include "controller/log_range_parameter.h"
+#include "state_codec.h"
 #include <krate/dsp/core/modulation_types.h>
 
 #include "base/source/fstring.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 
-#include <cmath>
 #include <string>
 #include <sstream>
 
@@ -142,20 +143,20 @@ void Controller::registerGlobalParams() {
     };
 
     for (int i = 0; i < kMaxBands - 1; ++i) {
-        const float logMin = std::log10(kMinCrossoverHz);
-        const float logMax = std::log10(kMaxCrossoverHz);
-        const float step = (logMax - logMin) / static_cast<float>(kMaxBands);
-        const float logDefault = logMin + step * static_cast<float>(i + 1);
-        const float defaultFreq = std::pow(10.0f, logDefault);
+        // Default: even log spacing, crossover i at norm (i + 1) / kMaxBands
+        const float defaultFreq =
+            crossoverNormToHz(static_cast<float>(i + 1) / static_cast<float>(kMaxBands));
 
-        auto* crossoverParam = new Steinberg::Vst::RangeParameter(
+        // Log10-mapped like the processor's decode (state_codec.h)
+        auto* crossoverParam = new LogRangeParameter(
             crossoverNames[i],
             makeCrossoverParamId(static_cast<uint8_t>(i)),
             STR16("Hz"),
             static_cast<double>(kMinCrossoverHz),
             static_cast<double>(kMaxCrossoverHz),
             static_cast<double>(defaultFreq),
-            0,
+            &crossoverNormToHz,
+            &crossoverHzToNorm,
             Steinberg::Vst::ParameterInfo::kCanAutomate
         );
         parameters.addParameter(crossoverParam);
@@ -179,13 +180,14 @@ void Controller::registerSweepParams() {
         makeSweepParamId(SweepParamType::kSweepEnable)
     );
 
-    // Sweep Frequency: RangeParameter [20, 20000] Hz, log scale
-    auto* sweepFreqParam = new Steinberg::Vst::RangeParameter(
+    // Sweep Frequency: [20, 20000] Hz, log2-mapped like the processor's decode (state_codec.h)
+    auto* sweepFreqParam = new LogRangeParameter(
         STR16("Sweep Frequency"),
         makeSweepParamId(SweepParamType::kSweepFrequency),
         STR16("Hz"),
-        20.0, 20000.0, 1000.0,
-        0,
+        static_cast<double>(kNormMinFreqHz), static_cast<double>(kNormMaxFreqHz), 1000.0,
+        &sweepFreqNormToHz,
+        &sweepFreqHzToNorm,
         Steinberg::Vst::ParameterInfo::kCanAutomate
     );
     parameters.addParameter(sweepFreqParam);

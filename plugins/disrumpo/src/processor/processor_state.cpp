@@ -4,6 +4,7 @@
 
 #include "processor.h"
 #include "plugin_ids.h"
+#include "state_codec.h"
 
 #include "dsp/sweep_morph_link.h"
 
@@ -100,13 +101,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepLFO_.isEnabled() ? 1 : 0)))
         return Steinberg::kResultFalse;
     // LFO Rate: denormalized Hz → normalized using inverse log formula
-    {
-        constexpr float kMinRateLog = -4.6052f;  // ln(0.01)
-        constexpr float kMaxRateLog = 2.9957f;   // ln(20)
-        float normalizedRate = (std::log(sweepLFO_.getRate()) - kMinRateLog) / (kMaxRateLog - kMinRateLog);
-        normalizedRate = std::clamp(normalizedRate, 0.0f, 1.0f);
-        if (!streamer.writeFloat(normalizedRate)) return Steinberg::kResultFalse;
-    }
+    if (!streamer.writeFloat(lfoRateHzToNorm(sweepLFO_.getRate()))) return Steinberg::kResultFalse;
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepLFO_.getWaveform())))
         return Steinberg::kResultFalse;
     if (!streamer.writeFloat(sweepLFO_.getDepth()))
@@ -160,15 +155,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
 
     // LFO 1 (7 values: rate[float], shape[int8], phase[float], sync[int8],
     //         noteValue[int8], unipolar[int8], retrigger[int8])
-    {
-        constexpr float kMinLog = -4.6052f;  // ln(0.01)
-        constexpr float kMaxLog = 2.9957f;   // ln(20)
-        float rateNorm = (std::log(modulationEngine_.getLFO1Rate()) - kMinLog) / (kMaxLog - kMinLog);
-        if (!streamer.writeFloat(std::clamp(rateNorm, 0.0f, 1.0f))) return Steinberg::kResultFalse;
-    }
+    if (!streamer.writeFloat(lfoRateHzToNorm(modulationEngine_.getLFO1Rate()))) return Steinberg::kResultFalse;
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1Waveform())))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(modulationEngine_.getLFO1PhaseOffset() / 360.0f))
+    if (!streamer.writeFloat(kLfoPhaseDegRange.toNorm(modulationEngine_.getLFO1PhaseOffset())))
         return Steinberg::kResultFalse;
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1TempoSync() ? 1 : 0)))
         return Steinberg::kResultFalse;
@@ -192,15 +182,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         return Steinberg::kResultFalse;
 
     // LFO 2 (7 values: same layout as LFO 1)
-    {
-        constexpr float kMinLog = -4.6052f;
-        constexpr float kMaxLog = 2.9957f;
-        float rateNorm = (std::log(modulationEngine_.getLFO2Rate()) - kMinLog) / (kMaxLog - kMinLog);
-        if (!streamer.writeFloat(std::clamp(rateNorm, 0.0f, 1.0f))) return Steinberg::kResultFalse;
-    }
+    if (!streamer.writeFloat(lfoRateHzToNorm(modulationEngine_.getLFO2Rate()))) return Steinberg::kResultFalse;
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2Waveform())))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(modulationEngine_.getLFO2PhaseOffset() / 360.0f))
+    if (!streamer.writeFloat(kLfoPhaseDegRange.toNorm(modulationEngine_.getLFO2PhaseOffset())))
         return Steinberg::kResultFalse;
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2TempoSync() ? 1 : 0)))
         return Steinberg::kResultFalse;
@@ -224,9 +209,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         return Steinberg::kResultFalse;
 
     // Envelope Follower (4 values: attack[float], release[float], sensitivity[float], source[int8])
-    if (!streamer.writeFloat((modulationEngine_.getEnvFollowerAttack() - 1.0f) / 99.0f))
+    if (!streamer.writeFloat(kEnvFollowerAttackMsRange.toNorm(modulationEngine_.getEnvFollowerAttack())))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((modulationEngine_.getEnvFollowerRelease() - 10.0f) / 490.0f))
+    if (!streamer.writeFloat(kEnvFollowerReleaseMsRange.toNorm(modulationEngine_.getEnvFollowerRelease())))
         return Steinberg::kResultFalse;
     if (!streamer.writeFloat(modulationEngine_.getEnvFollowerSensitivity()))
         return Steinberg::kResultFalse;
@@ -234,7 +219,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         return Steinberg::kResultFalse;
 
     // Random (3 values: rate[float], smoothness[float], sync[int8])
-    if (!streamer.writeFloat((modulationEngine_.getRandomRate() - 0.1f) / 49.9f))
+    if (!streamer.writeFloat(kRandomRateHzRange.toNorm(modulationEngine_.getRandomRate())))
         return Steinberg::kResultFalse;
     if (!streamer.writeFloat(modulationEngine_.getRandomSmoothness()))
         return Steinberg::kResultFalse;
@@ -244,7 +229,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // Chaos (3 values: model[int8], speed[float], coupling[float])
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getChaosModel())))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((modulationEngine_.getChaosSpeed() - 0.05f) / 19.95f))
+    if (!streamer.writeFloat(kChaosSpeedRange.toNorm(modulationEngine_.getChaosSpeed())))
         return Steinberg::kResultFalse;
     if (!streamer.writeFloat(modulationEngine_.getChaosCoupling()))
         return Steinberg::kResultFalse;
@@ -252,31 +237,31 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // Sample & Hold (3 values: source[int8], rate[float], slew[float])
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getSampleHoldSource())))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((modulationEngine_.getSampleHoldRate() - 0.1f) / 49.9f))
+    if (!streamer.writeFloat(kSampleHoldRateHzRange.toNorm(modulationEngine_.getSampleHoldRate())))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(modulationEngine_.getSampleHoldSlew() / 500.0f))
+    if (!streamer.writeFloat(kSampleHoldSlewMsRange.toNorm(modulationEngine_.getSampleHoldSlew())))
         return Steinberg::kResultFalse;
 
     // Pitch Follower (4 values: minHz[float], maxHz[float], confidence[float], trackingSpeed[float])
-    if (!streamer.writeFloat((modulationEngine_.getPitchFollowerMinHz() - 20.0f) / 480.0f))
+    if (!streamer.writeFloat(kPitchFollowerMinHzRange.toNorm(modulationEngine_.getPitchFollowerMinHz())))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((modulationEngine_.getPitchFollowerMaxHz() - 200.0f) / 4800.0f))
+    if (!streamer.writeFloat(kPitchFollowerMaxHzRange.toNorm(modulationEngine_.getPitchFollowerMaxHz())))
         return Steinberg::kResultFalse;
     if (!streamer.writeFloat(modulationEngine_.getPitchFollowerConfidence()))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((modulationEngine_.getPitchFollowerTrackingSpeed() - 10.0f) / 290.0f))
+    if (!streamer.writeFloat(kPitchFollowerTrackingMsRange.toNorm(modulationEngine_.getPitchFollowerTrackingSpeed())))
         return Steinberg::kResultFalse;
 
     // Transient (3 values: sensitivity[float], attack[float], decay[float])
     if (!streamer.writeFloat(modulationEngine_.getTransientSensitivity()))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((modulationEngine_.getTransientAttack() - 0.5f) / 9.5f))
+    if (!streamer.writeFloat(kTransientAttackMsRange.toNorm(modulationEngine_.getTransientAttack())))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((modulationEngine_.getTransientDecay() - 20.0f) / 180.0f))
+    if (!streamer.writeFloat(kTransientDecayMsRange.toNorm(modulationEngine_.getTransientDecay())))
         return Steinberg::kResultFalse;
 
     // Rungler (v11+: 4 values: rate[float], depth[float], bits[int8], loop[int8])
-    if (!streamer.writeFloat((modulationEngine_.getRunglerOsc1Freq() - 0.1f) / 49.9f))
+    if (!streamer.writeFloat(kRunglerRateHzRange.toNorm(modulationEngine_.getRunglerOsc1Freq())))
         return Steinberg::kResultFalse;
     if (!streamer.writeFloat(modulationEngine_.getRunglerDepth()))
         return Steinberg::kResultFalse;
@@ -517,10 +502,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (streamer.readInt8(lfoEnable))
             sweepLFO_.setEnabled(lfoEnable != 0);
         if (streamer.readFloat(lfoRateNorm)) {
-            constexpr float kMinRateLog = -4.6052f;
-            constexpr float kMaxRateLog = 2.9957f;
-            float rateHz = std::exp(kMinRateLog + lfoRateNorm * (kMaxRateLog - kMinRateLog));
-            sweepLFO_.setRate(rateHz);
+            sweepLFO_.setRate(lfoRateNormToHz(lfoRateNorm));
         }
         if (streamer.readInt8(lfoWaveform))
             sweepLFO_.setWaveform(static_cast<Krate::DSP::Waveform>(
@@ -594,10 +576,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         // LFO 1 (7 values)
         float lfo1RateNorm = 0.5f;
         if (streamer.readFloat(lfo1RateNorm)) {
-            constexpr float kMinLog = -4.6052f;
-            constexpr float kMaxLog = 2.9957f;
-            float rateHz = std::exp(kMinLog + lfo1RateNorm * (kMaxLog - kMinLog));
-            modulationEngine_.setLFO1Rate(rateHz);
+            modulationEngine_.setLFO1Rate(lfoRateNormToHz(lfo1RateNorm));
         }
         Steinberg::int8 lfo1Shape = 0;
         if (streamer.readInt8(lfo1Shape))
@@ -605,7 +584,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 std::clamp(static_cast<int>(lfo1Shape), 0, 5)));
         float lfo1Phase = 0.0f;
         if (streamer.readFloat(lfo1Phase))
-            modulationEngine_.setLFO1PhaseOffset(lfo1Phase * 360.0f);
+            modulationEngine_.setLFO1PhaseOffset(kLfoPhaseDegRange.toPlain(lfo1Phase));
         Steinberg::int8 lfo1Sync = 0;
         if (streamer.readInt8(lfo1Sync))
             modulationEngine_.setLFO1TempoSync(lfo1Sync != 0);
@@ -630,10 +609,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         // LFO 2 (7 values)
         float lfo2RateNorm = 0.5f;
         if (streamer.readFloat(lfo2RateNorm)) {
-            constexpr float kMinLog = -4.6052f;
-            constexpr float kMaxLog = 2.9957f;
-            float rateHz = std::exp(kMinLog + lfo2RateNorm * (kMaxLog - kMinLog));
-            modulationEngine_.setLFO2Rate(rateHz);
+            modulationEngine_.setLFO2Rate(lfoRateNormToHz(lfo2RateNorm));
         }
         Steinberg::int8 lfo2Shape = 0;
         if (streamer.readInt8(lfo2Shape))
@@ -641,7 +617,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 std::clamp(static_cast<int>(lfo2Shape), 0, 5)));
         float lfo2Phase = 0.0f;
         if (streamer.readFloat(lfo2Phase))
-            modulationEngine_.setLFO2PhaseOffset(lfo2Phase * 360.0f);
+            modulationEngine_.setLFO2PhaseOffset(kLfoPhaseDegRange.toPlain(lfo2Phase));
         Steinberg::int8 lfo2Sync = 0;
         if (streamer.readInt8(lfo2Sync))
             modulationEngine_.setLFO2TempoSync(lfo2Sync != 0);
@@ -666,10 +642,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         // Envelope Follower (4 values)
         float envAttackNorm = 0.0f;
         if (streamer.readFloat(envAttackNorm))
-            modulationEngine_.setEnvFollowerAttack(1.0f + envAttackNorm * 99.0f);
+            modulationEngine_.setEnvFollowerAttack(kEnvFollowerAttackMsRange.toPlain(envAttackNorm));
         float envReleaseNorm = 0.0f;
         if (streamer.readFloat(envReleaseNorm))
-            modulationEngine_.setEnvFollowerRelease(10.0f + envReleaseNorm * 490.0f);
+            modulationEngine_.setEnvFollowerRelease(kEnvFollowerReleaseMsRange.toPlain(envReleaseNorm));
         float envSensitivity = 0.5f;
         if (streamer.readFloat(envSensitivity))
             modulationEngine_.setEnvFollowerSensitivity(envSensitivity);
@@ -681,7 +657,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         // Random (3 values)
         float randomRateNorm = 0.0f;
         if (streamer.readFloat(randomRateNorm))
-            modulationEngine_.setRandomRate(0.1f + randomRateNorm * 49.9f);
+            modulationEngine_.setRandomRate(kRandomRateHzRange.toPlain(randomRateNorm));
         float randomSmoothness = 0.0f;
         if (streamer.readFloat(randomSmoothness))
             modulationEngine_.setRandomSmoothness(randomSmoothness);
@@ -696,7 +672,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 std::clamp(static_cast<int>(chaosModel), 0, 3)));
         float chaosSpeedNorm = 0.0f;
         if (streamer.readFloat(chaosSpeedNorm))
-            modulationEngine_.setChaosSpeed(0.05f + chaosSpeedNorm * 19.95f);
+            modulationEngine_.setChaosSpeed(kChaosSpeedRange.toPlain(chaosSpeedNorm));
         float chaosCoupling = 0.0f;
         if (streamer.readFloat(chaosCoupling))
             modulationEngine_.setChaosCoupling(chaosCoupling);
@@ -708,24 +684,24 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 std::clamp(static_cast<int>(shSource), 0, 3)));
         float shRateNorm = 0.0f;
         if (streamer.readFloat(shRateNorm))
-            modulationEngine_.setSampleHoldRate(0.1f + shRateNorm * 49.9f);
+            modulationEngine_.setSampleHoldRate(kSampleHoldRateHzRange.toPlain(shRateNorm));
         float shSlewNorm = 0.0f;
         if (streamer.readFloat(shSlewNorm))
-            modulationEngine_.setSampleHoldSlew(shSlewNorm * 500.0f);
+            modulationEngine_.setSampleHoldSlew(kSampleHoldSlewMsRange.toPlain(shSlewNorm));
 
         // Pitch Follower (4 values)
         float pitchMinNorm = 0.0f;
         if (streamer.readFloat(pitchMinNorm))
-            modulationEngine_.setPitchFollowerMinHz(20.0f + pitchMinNorm * 480.0f);
+            modulationEngine_.setPitchFollowerMinHz(kPitchFollowerMinHzRange.toPlain(pitchMinNorm));
         float pitchMaxNorm = 0.0f;
         if (streamer.readFloat(pitchMaxNorm))
-            modulationEngine_.setPitchFollowerMaxHz(200.0f + pitchMaxNorm * 4800.0f);
+            modulationEngine_.setPitchFollowerMaxHz(kPitchFollowerMaxHzRange.toPlain(pitchMaxNorm));
         float pitchConfidence = 0.5f;
         if (streamer.readFloat(pitchConfidence))
             modulationEngine_.setPitchFollowerConfidence(pitchConfidence);
         float pitchTrackNorm = 0.0f;
         if (streamer.readFloat(pitchTrackNorm))
-            modulationEngine_.setPitchFollowerTrackingSpeed(10.0f + pitchTrackNorm * 290.0f);
+            modulationEngine_.setPitchFollowerTrackingSpeed(kPitchFollowerTrackingMsRange.toPlain(pitchTrackNorm));
 
         // Transient (3 values)
         float transSensitivity = 0.5f;
@@ -733,16 +709,16 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             modulationEngine_.setTransientSensitivity(transSensitivity);
         float transAttackNorm = 0.0f;
         if (streamer.readFloat(transAttackNorm))
-            modulationEngine_.setTransientAttack(0.5f + transAttackNorm * 9.5f);
+            modulationEngine_.setTransientAttack(kTransientAttackMsRange.toPlain(transAttackNorm));
         float transDecayNorm = 0.0f;
         if (streamer.readFloat(transDecayNorm))
-            modulationEngine_.setTransientDecay(20.0f + transDecayNorm * 180.0f);
+            modulationEngine_.setTransientDecay(kTransientDecayMsRange.toPlain(transDecayNorm));
 
         // Rungler (v11+: 4 values: rate, depth, bits, loop)
         if (version >= 11) {
             float runglerRateNorm = 0.0f;
             if (streamer.readFloat(runglerRateNorm)) {
-                float hz = 0.1f + runglerRateNorm * 49.9f;
+                float hz = kRunglerRateHzRange.toPlain(runglerRateNorm);
                 modulationEngine_.setRunglerOsc1Freq(hz);
                 modulationEngine_.setRunglerOsc2Freq(hz * 1.5f);
             }

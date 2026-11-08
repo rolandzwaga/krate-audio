@@ -7,6 +7,7 @@
 #include "controller/views/sweep_indicator.h"
 #include "dsp/sweep_morph_link.h"
 #include "plugin_ids.h"
+#include "state_codec.h"
 #include "dsp/band_state.h"
 #include "dsp/morph_node.h"
 
@@ -543,12 +544,7 @@ void CrossoverDragBridge::onCrossoverChanged(int dividerIndex, float frequencyHz
 
     auto paramId = makeCrossoverParamId(static_cast<uint8_t>(dividerIndex));
 
-    const float logMin = std::log10(kMinCrossoverHz);
-    const float logMax = std::log10(kMaxCrossoverHz);
-    float clampedFreq = std::clamp(frequencyHz, kMinCrossoverHz, kMaxCrossoverHz);
-    float logFreq = std::log10(clampedFreq);
-    double normalized = static_cast<double>(logFreq - logMin) / static_cast<double>(logMax - logMin);
-    normalized = std::clamp(normalized, 0.0, 1.0);
+    const auto normalized = static_cast<double>(crossoverHzToNorm(frequencyHz));
 
     controller_->beginEdit(paramId);
     controller_->setParamNormalized(paramId, normalized);

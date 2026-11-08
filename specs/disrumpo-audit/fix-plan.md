@@ -113,7 +113,7 @@ Test helpers available in `tests/test_helpers/` (include with `#include "test_he
 | D-088 | Sweep freq/width denormalisation copied ~8× | medium | CONFIRMED | T4.01 | 4 |
 | D-089 | Morph IDW weights implemented 3× | medium | CONFIRMED | T4.02 | 4 |
 | D-090 | formatShapeSlot drifted from DSP mappings | low | CONFIRMED | T4.03 | 4 |
-| D-091 | Mod/sweep denormalisations duplicated params/state TU | low | CONFIRMED | T4.01 | 4 |
+| D-091 | Mod/sweep denormalisations duplicated params/state TU | low | CONFIRMED | T4.01 (done in T1.17) | 4 |
 | D-092 | Note-value table re-typed 3× | low | CONFIRMED | T4.04 | 4 |
 | D-093 | Distortion type names in 3 tables + self-asserting test | low | CONFIRMED | T4.05 | 4 |
 | D-094 | Legacy sweep-only MIDI learn system | low | CONFIRMED | T1.18 | 1 |

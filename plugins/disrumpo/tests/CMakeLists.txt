@@ -79,6 +79,9 @@ add_executable(disrumpo_tests
     # Editor open/close lifecycle regression (willClose UAF guard)
     unit/controller/editor_lifecycle_test.cpp
 
+    # Controller <-> processor state codec (audit T1.17)
+    unit/controller/controller_state_codec_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp

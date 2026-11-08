@@ -4,6 +4,7 @@
 
 #include "processor.h"
 #include "plugin_ids.h"
+#include "state_codec.h"
 
 #include "dsp/sweep_morph_link.h"
 
@@ -379,12 +380,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                         case SweepParamType::kSweepFrequency: {
                             // FR-002: Convert normalized [0,1] to Hz [20, 20000] logarithmically
-                            // Using log2 scale as per data-model.md
-                            constexpr float kSweepLog2Min = 4.321928f;   // log2(20)
-                            constexpr float kSweepLog2Max = 14.287712f;  // log2(20000)
-                            constexpr float kSweepLog2Range = kSweepLog2Max - kSweepLog2Min;
-                            const float log2Freq = kSweepLog2Min + static_cast<float>(value) * kSweepLog2Range;
-                            const float freqHz = std::pow(2.0f, log2Freq);
+                            // (log2 scale as per data-model.md; state_codec.h)
+                            const float freqHz = sweepFreqNormToHz(static_cast<float>(value));
                             // Store base frequency for modulation (FR-029a)
                             baseSweepFrequency_.store(freqHz, std::memory_order_relaxed);
                             sweepProcessor_.setCenterFrequency(freqHz);
@@ -393,10 +390,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                         case SweepParamType::kSweepWidth: {
                             // FR-003: Convert normalized [0,1] to octaves [0.5, 4.0]
-                            constexpr float kMinWidth = 0.5f;
-                            constexpr float kMaxWidth = 4.0f;
                             baseSweepWidthNorm_.store(static_cast<float>(value), std::memory_order_relaxed);
-                            const float widthOctaves = kMinWidth + static_cast<float>(value) * (kMaxWidth - kMinWidth);
+                            const float widthOctaves = kSweepWidthOctRange.toPlain(static_cast<float>(value));
                             sweepProcessor_.setWidth(widthOctaves);
                             break;
                         }
@@ -404,7 +399,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         case SweepParamType::kSweepIntensity: {
                             // FR-004: Convert normalized [0,1] to intensity [0, 2] (0-200%)
                             baseSweepIntensityNorm_.store(static_cast<float>(value), std::memory_order_relaxed);
-                            const float intensity = static_cast<float>(value) * 2.0f;
+                            const float intensity = kSweepIntensityRange.toPlain(static_cast<float>(value));
                             sweepProcessor_.setIntensity(intensity);
                             break;
                         }
@@ -429,11 +424,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                         case SweepParamType::kSweepLFORate: {
                             // Convert normalized [0,1] to Hz [0.01, 20] logarithmically
-                            constexpr float kMinRateLog = -4.6052f;  // ln(0.01)
-                            constexpr float kMaxRateLog = 2.9957f;   // ln(20)
-                            const float logRate = kMinRateLog + static_cast<float>(value) * (kMaxRateLog - kMinRateLog);
-                            const float rateHz = std::exp(logRate);
-                            sweepLFO_.setRate(rateHz);
+                            sweepLFO_.setRate(lfoRateNormToHz(static_cast<float>(value)));
                             break;
                         }
 
@@ -576,20 +567,16 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         const auto modType = static_cast<ModParamType>(paramId & 0xFF);
                         switch (modType) {
                             // LFO 1
-                            case ModParamType::kLFO1Rate: {
-                                constexpr float kMinLog = -4.6052f;
-                                constexpr float kMaxLog = 2.9957f;
-                                float rateHz = std::exp(kMinLog + static_cast<float>(value) * (kMaxLog - kMinLog));
-                                modulationEngine_.setLFO1Rate(rateHz);
+                            case ModParamType::kLFO1Rate:
+                                modulationEngine_.setLFO1Rate(lfoRateNormToHz(static_cast<float>(value)));
                                 break;
-                            }
                             case ModParamType::kLFO1Shape: {
                                 int idx = static_cast<int>(value * 5.0f + 0.5f);
                                 modulationEngine_.setLFO1Waveform(static_cast<Krate::DSP::Waveform>(idx));
                                 break;
                             }
                             case ModParamType::kLFO1Phase:
-                                modulationEngine_.setLFO1PhaseOffset(static_cast<float>(value) * 360.0f);
+                                modulationEngine_.setLFO1PhaseOffset(kLfoPhaseDegRange.toPlain(static_cast<float>(value)));
                                 break;
                             case ModParamType::kLFO1Sync:
                                 modulationEngine_.setLFO1TempoSync(value >= 0.5);
@@ -608,20 +595,16 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
 
                             // LFO 2
-                            case ModParamType::kLFO2Rate: {
-                                constexpr float kMinLog = -4.6052f;
-                                constexpr float kMaxLog = 2.9957f;
-                                float rateHz = std::exp(kMinLog + static_cast<float>(value) * (kMaxLog - kMinLog));
-                                modulationEngine_.setLFO2Rate(rateHz);
+                            case ModParamType::kLFO2Rate:
+                                modulationEngine_.setLFO2Rate(lfoRateNormToHz(static_cast<float>(value)));
                                 break;
-                            }
                             case ModParamType::kLFO2Shape: {
                                 int idx = static_cast<int>(value * 5.0f + 0.5f);
                                 modulationEngine_.setLFO2Waveform(static_cast<Krate::DSP::Waveform>(idx));
                                 break;
                             }
                             case ModParamType::kLFO2Phase:
-                                modulationEngine_.setLFO2PhaseOffset(static_cast<float>(value) * 360.0f);
+                                modulationEngine_.setLFO2PhaseOffset(kLfoPhaseDegRange.toPlain(static_cast<float>(value)));
                                 break;
                             case ModParamType::kLFO2Sync:
                                 modulationEngine_.setLFO2TempoSync(value >= 0.5);
@@ -641,12 +624,12 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                             // Envelope Follower
                             case ModParamType::kEnvFollowerAttack: {
-                                float ms = 1.0f + static_cast<float>(value) * 99.0f;
+                                float ms = kEnvFollowerAttackMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setEnvFollowerAttack(ms);
                                 break;
                             }
                             case ModParamType::kEnvFollowerRelease: {
-                                float ms = 10.0f + static_cast<float>(value) * 490.0f;
+                                float ms = kEnvFollowerReleaseMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setEnvFollowerRelease(ms);
                                 break;
                             }
@@ -662,7 +645,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                             // Random
                             case ModParamType::kRandomRate: {
-                                float hz = 0.1f + static_cast<float>(value) * 49.9f;
+                                float hz = kRandomRateHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setRandomRate(hz);
                                 break;
                             }
@@ -681,7 +664,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
                             }
                             case ModParamType::kChaosSpeed: {
-                                float speed = 0.05f + static_cast<float>(value) * 19.95f;
+                                float speed = kChaosSpeedRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setChaosSpeed(speed);
                                 break;
                             }
@@ -697,24 +680,24 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
                             }
                             case ModParamType::kSampleHoldRate: {
-                                float hz = 0.1f + static_cast<float>(value) * 49.9f;
+                                float hz = kSampleHoldRateHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setSampleHoldRate(hz);
                                 break;
                             }
                             case ModParamType::kSampleHoldSlew: {
-                                float ms = static_cast<float>(value) * 500.0f;
+                                float ms = kSampleHoldSlewMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setSampleHoldSlew(ms);
                                 break;
                             }
 
                             // Pitch Follower
                             case ModParamType::kPitchFollowerMinHz: {
-                                float hz = 20.0f + static_cast<float>(value) * 480.0f;
+                                float hz = kPitchFollowerMinHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setPitchFollowerMinHz(hz);
                                 break;
                             }
                             case ModParamType::kPitchFollowerMaxHz: {
-                                float hz = 200.0f + static_cast<float>(value) * 4800.0f;
+                                float hz = kPitchFollowerMaxHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setPitchFollowerMaxHz(hz);
                                 break;
                             }
@@ -722,7 +705,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setPitchFollowerConfidence(static_cast<float>(value));
                                 break;
                             case ModParamType::kPitchFollowerTrackingSpeed: {
-                                float ms = 10.0f + static_cast<float>(value) * 290.0f;
+                                float ms = kPitchFollowerTrackingMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setPitchFollowerTrackingSpeed(ms);
                                 break;
                             }
@@ -732,19 +715,19 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setTransientSensitivity(static_cast<float>(value));
                                 break;
                             case ModParamType::kTransientAttack: {
-                                float ms = 0.5f + static_cast<float>(value) * 9.5f;
+                                float ms = kTransientAttackMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setTransientAttack(ms);
                                 break;
                             }
                             case ModParamType::kTransientDecay: {
-                                float ms = 20.0f + static_cast<float>(value) * 180.0f;
+                                float ms = kTransientDecayMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setTransientDecay(ms);
                                 break;
                             }
 
                             // Rungler
                             case ModParamType::kRunglerRate: {
-                                float hz = 0.1f + static_cast<float>(value) * 49.9f;
+                                float hz = kRunglerRateHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setRunglerOsc1Freq(hz);
                                 modulationEngine_.setRunglerOsc2Freq(hz * 1.5f);
                                 break;
@@ -993,10 +976,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                     const uint8_t index = extractCrossoverIndex(paramId);
                     if (index < kMaxBands - 1) {
                         // Convert normalized [0,1] to Hz [20, 20000] logarithmically
-                        const float logMin = std::log10(kMinCrossoverHz);
-                        const float logMax = std::log10(kMaxCrossoverHz);
-                        const float logFreq = logMin + static_cast<float>(value) * (logMax - logMin);
-                        const float freqHz = std::pow(10.0f, logFreq);
+                        const float freqHz = crossoverNormToHz(static_cast<float>(value));
                         crossoverL_.setCrossoverFrequency(static_cast<int>(index), freqHz);
                         crossoverR_.setCrossoverFrequency(static_cast<int>(index), freqHz);
                     }

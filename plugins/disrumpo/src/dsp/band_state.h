@@ -17,6 +17,7 @@
 #include "distortion_types.h"
 #include "morph_node.h"
 #include "../plugin_ids.h"
+#include "../state_codec.h"
 
 namespace Disrumpo {
 
@@ -69,8 +70,8 @@ inline constexpr int kDefaultBands = 4;
 inline constexpr float kMinBandGainDb = -24.0f;
 inline constexpr float kMaxBandGainDb = +24.0f;
 
-inline constexpr float kMinCrossoverHz = 20.0f;
-inline constexpr float kMaxCrossoverHz = 20000.0f;
+// kMinCrossoverHz / kMaxCrossoverHz live in state_codec.h with the crossover
+// normalized <-> Hz mapping.
 inline constexpr float kMinCrossoverSpacingOctaves = 0.5f;
 
 /// @brief Default smoothing time for band parameter transitions (FR-027a)

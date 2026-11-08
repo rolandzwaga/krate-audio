@@ -43,8 +43,8 @@ constexpr double kBaseHz = 1000.0;
 
 // Processor mapping of kSweepLFORate (processor_params.cpp): ln-linear 0.01..20 Hz.
 double lfoRateNorm(double hz) {
-    constexpr double kMinRateLog = -4.6052;  // ln(0.01), as the processor rounds it
-    constexpr double kMaxRateLog = 2.9957;   // ln(20)
+    const double kMinRateLog = std::log(0.01);  // state_codec.h computes ln(0.01) and ln(20) (T1.17)
+    const double kMaxRateLog = std::log(20.0);
     return (std::log(hz) - kMinRateLog) / (kMaxRateLog - kMinRateLog);
 }
 
