@@ -29,7 +29,9 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 
 namespace Disrumpo {
 
@@ -46,6 +48,10 @@ public:
     static constexpr int kMaxBands = 4;
     static constexpr int kMinBands = 1;
     static constexpr int kDefaultBands = 4;
+
+    /// @brief Test probe (D-003): setBandCount() calls over all instances, so a test
+    /// can tell which thread or call reconfigured the live networks.
+    static inline std::atomic<std::uint64_t> debugSetBandCountCalls{0};
     static constexpr float kDefaultSmoothingMs = 10.0f;
 
     /// Q for 2nd-order allpass to match LR4 phase response
@@ -117,6 +123,7 @@ public:
     /// Preserves existing crossover positions per FR-011a/FR-011b.
     /// @param numBands New number of bands (1-8)
     void setBandCount(int numBands) noexcept {
+        debugSetBandCountCalls.fetch_add(1, std::memory_order_relaxed);
         const int newBandCount = clampBandCount(numBands);
         if (newBandCount == numBands_) {
             return;

@@ -141,6 +141,7 @@ void MorphEngine::setSmoothingTime(float timeMs) noexcept {
 }
 
 void MorphEngine::setNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, int activeCount) noexcept {
+    debugSetNodesCalls.fetch_add(1, std::memory_order_relaxed);
     nodes_ = nodes;
     activeNodeCount_ = std::clamp(activeCount, kMinActiveNodes, kMaxMorphNodes);
 

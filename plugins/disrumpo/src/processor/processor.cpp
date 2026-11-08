@@ -108,6 +108,9 @@ Steinberg::tresult PLUGIN_API Processor::terminate() {
 Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     Steinberg::Vst::ProcessSetup& setup) {
 
+    // Processing is stopped here: apply a load setState left pending (D-003)
+    consumePendingState();
+
     // Store processing parameters
     // FR-011: Store sample rate for DSP calculations
     sampleRate_ = setup.sampleRate;
@@ -155,6 +158,12 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     KRATE_BRIDGE_LOG("Disrumpo::Processor::setActive(%s)",
         state ? "true" : "false");
+    // Processing is stopped on both edges: setState applies at once from now on
+    // (until the end of an activation), and a load left pending is applied here (D-003)
+    if (!state) {
+        active_.store(false, std::memory_order_release);
+    }
+    consumePendingState();
     if (state) {
         // Activating: reset processing state
         crossoverL_.reset();
@@ -179,6 +188,9 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
             dataExchange_->onActivate(processSetup);
 
         sendModOffsetsMessage();
+
+        // process() may run from now on: setState hands its state over (D-003)
+        active_.store(true, std::memory_order_release);
     } else {
         // DataExchange: close queue before deactivation
         if (dataExchange_)
@@ -197,6 +209,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // - NO exceptions (throw/catch)
     // - This function MUST complete within the buffer duration
     // ==========================================================================
+
+    // A state setState handed over (D-003), then this block's parameter changes
+    consumePendingState();
 
     // Process parameter changes first
     if (data.inputParameterChanges) {

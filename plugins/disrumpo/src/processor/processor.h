@@ -31,8 +31,13 @@
 
 #include <array>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+
+namespace Steinberg {
+class IBStreamer;
+}  // namespace Steinberg
 
 namespace Disrumpo {
 
@@ -297,6 +302,130 @@ private:
 
     /// @brief Send modulation offset array pointer to controller via IMessage
     void sendModOffsetsMessage();
+
+    // ==========================================================================
+    // State hand-off (D-003): setState never writes live DSP objects while
+    // processing is active. It parses the stream into pendingState_ and the next
+    // process() applies it. Threading contract: processor_state.cpp, top.
+    // ==========================================================================
+
+    /// @brief One modulation-engine LFO, in its setters' units.
+    struct ModLfoState {
+        float rateHz = 1.0f;
+        Krate::DSP::Waveform waveform = Krate::DSP::Waveform::Sine;
+        float phaseDeg = 0.0f;
+        bool tempoSync = false;
+        Krate::DSP::NoteValue noteValue = Krate::DSP::NoteValue::Eighth;
+        Krate::DSP::NoteModifier noteModifier = Krate::DSP::NoteModifier::None;
+        bool unipolar = false;
+        bool retrigger = true;
+    };
+
+    /// @brief Everything getState saves and setState restores, in the setters'
+    /// units. setState seeds it from the current state, so fields an older or
+    /// truncated stream lacks keep their values, then overwrites what it reads.
+    struct PendingState {
+        // Stream sections the load carried; applyPendingState() runs only these
+        // sections' setters, as setState always did. A load that overwrites one
+        // not yet applied keeps the earlier one's flags (they are still owed).
+        bool hasBands = false;  ///< v2+: band count, band states, crossovers
+        std::array<bool, kMaxBands - 1> hasCrossover{};
+        bool hasSweep = false;       ///< v4+: sweep, sweep LFO/envelope, custom curve
+        bool hasModulation = false;  ///< v5+: mod sources, macros, routings
+        bool hasRungler = false;     ///< v11+
+        bool hasMorph = false;       ///< v6+: morph caches, link modes
+
+        float inputGain = 0.5f;
+        float outputGain = 0.5f;
+        float globalMix = 1.0f;
+        int bandCount = kDefaultBands;
+        std::array<BandState, kMaxBands> bandStates{};
+        std::array<float, kMaxBands - 1> crossoverHz{};
+
+        bool sweepEnabled = false;
+        float sweepFrequencyHz = 1000.0f;
+        float sweepWidthNorm = 0.286f;
+        float sweepIntensityNorm = 0.25f;
+        SweepFalloff sweepFalloff = SweepFalloff::Smooth;
+        MorphLinkMode sweepMorphLink = MorphLinkMode::None;
+        bool sweepLfoEnabled = false;
+        float sweepLfoRateHz = 1.0f;
+        Krate::DSP::Waveform sweepLfoWaveform = Krate::DSP::Waveform::Sine;
+        float sweepLfoDepth = 0.0f;
+        bool sweepLfoSync = false;
+        Krate::DSP::NoteValue sweepLfoNoteValue = Krate::DSP::NoteValue::Eighth;
+        Krate::DSP::NoteModifier sweepLfoNoteModifier = Krate::DSP::NoteModifier::None;
+        bool sweepEnvEnabled = false;
+        float sweepEnvAttackMs = 10.0f;
+        float sweepEnvReleaseMs = 100.0f;
+        float sweepEnvSensitivity = 0.5f;
+        CustomCurve customCurve;
+
+        ModLfoState lfo1;
+        ModLfoState lfo2;
+        float envFollowerAttackMs = 10.0f;
+        float envFollowerReleaseMs = 100.0f;
+        float envFollowerSensitivity = 0.5f;
+        Krate::DSP::EnvFollowerSourceType envFollowerSource{};
+        float randomRateHz = 1.0f;
+        float randomSmoothness = 0.0f;
+        bool randomTempoSync = false;
+        Krate::DSP::ChaosModel chaosModel{};
+        float chaosSpeed = 1.0f;
+        float chaosCoupling = 0.0f;
+        Krate::DSP::SampleHoldInputType sampleHoldSource{};
+        float sampleHoldRateHz = 1.0f;
+        float sampleHoldSlewMs = 0.0f;
+        float pitchFollowerMinHz = 80.0f;
+        float pitchFollowerMaxHz = 2000.0f;
+        float pitchFollowerConfidence = 0.5f;
+        float pitchFollowerTrackingMs = 50.0f;
+        float transientSensitivity = 0.5f;
+        float transientAttackMs = 2.0f;
+        float transientDecayMs = 50.0f;
+        float runglerRateHz = 2.0f;
+        float runglerDepth = 0.5f;
+        std::size_t runglerBits = 8;
+        bool runglerLoop = false;
+        std::array<Krate::DSP::MacroConfig, Krate::DSP::kMaxMacros> macros{};
+        std::array<Krate::DSP::ModRouting, Krate::DSP::kMaxModRoutings> routings{};
+
+        std::array<BandMorphCache, kMaxBands> morph{};
+    };
+
+    /// @brief Slot states of pendingState_ (values of pendingSlot_)
+    static constexpr int kSlotIdle = 0;      ///< nothing pending
+    static constexpr int kSlotWriting = 1;   ///< a host-thread call owns pendingState_
+    static constexpr int kSlotReady = 2;     ///< published, not yet applied
+    static constexpr int kSlotApplying = 3;  ///< being applied (audio thread, or processing stopped)
+
+    PendingState pendingState_{};
+    std::atomic<int> pendingSlot_{kSlotIdle};
+
+    /// @brief True between setActive(true) and setActive(false): process() may run,
+    /// so setState defers. Written and read on the host's UI thread.
+    std::atomic<bool> active_{false};
+
+    /// @brief Live state -> snapshot (host thread; the reads getState always made)
+    void captureState(PendingState& s) const noexcept;
+
+    /// @brief Snapshot -> stream, in the layout getState has always written
+    Steinberg::tresult writeState(const PendingState& s, Steinberg::IBStreamer& streamer) const;
+
+    /// @brief Stream sections after the globals -> snapshot. False when the stream
+    /// ended before the band count (setState then stops, as it always did).
+    static bool parseStateSections(Steinberg::IBStreamer& streamer, int32_t version, PendingState& s) noexcept;
+
+    /// @brief Take pendingSlot_ for a host-thread call (yields while it is being
+    /// applied). @return the state it held: kSlotIdle or kSlotReady.
+    int acquireStateSlot() noexcept;
+
+    /// @brief Apply a published pendingState_ if there is one. Audio thread at the
+    /// top of process(); setActive / setupProcessing while processing is stopped.
+    void consumePendingState() noexcept;
+
+    /// @brief pendingState_ -> live DSP objects. Allocation-free and lock-free.
+    void applyPendingState() noexcept;
 };
 
 } // namespace Disrumpo

@@ -21,14 +21,41 @@
 #include <algorithm>  // for std::max, std::min
 #include <cmath>      // for std::log10, std::pow
 #include <cstring>    // for memcpy
+#include <memory>     // for std::make_unique
 #include <random>     // for instance ID generation
+#include <thread>     // for std::this_thread::yield
 
 namespace Disrumpo {
 
 // ==============================================================================
 // Processor state persistence (getState / setState)
 // ==============================================================================
-
+//
+// State hand-off (D-003). VST3 lets the host call setState on its UI thread
+// while process() runs on the audio thread, so setState must not write the
+// crossovers, band processors, morph engines, sweep or mod engine.
+//
+// - pendingState_ (PendingState, a fixed-size member, no heap) holds a full
+//   snapshot of the saved state. Only the thread that moved pendingSlot_ to
+//   kSlotWriting (setState / getState: the host's UI thread) writes or reads it;
+//   only the thread that moved it to kSlotApplying (process() on the audio thread,
+//   or setActive / setupProcessing while processing is stopped) reads it.
+// - pendingSlot_ (std::atomic<int>) hands it over:
+//     Idle/Ready -> Writing   host thread, CAS, acquire (sees the last apply done)
+//     Writing    -> Ready     host thread, store, release (publishes the snapshot)
+//     Ready      -> Applying  consumer, CAS, acquire (sees the snapshot)
+//     Applying   -> Idle      consumer, store, release
+//   The audio thread never waits: a slot held for Writing is applied a block
+//   later. The host thread yields while a slot is Applying (one apply).
+// - A second setState before a block applied the first overwrites it (last load
+//   wins); the section flags of both stay set, because both are still owed.
+// - While processing is not active (active_ false) setState applies on its own
+//   thread at once, through the same applyPendingState().
+// - getState saves a pending snapshot when there is one (so it returns a load the
+//   audio thread has not applied yet), else the live state, read on the host
+//   thread as getState always did. setState seeds the snapshot from the same live
+//   reads, so fields an older or truncated stream lacks keep their values.
+// ==============================================================================
 
 // ==============================================================================
 // IComponent - State Management
@@ -40,31 +67,129 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
+    // A load the audio thread has not applied yet is the newest state (D-003)
+    for (;;) {
+        int slot = pendingSlot_.load(std::memory_order_acquire);
+        if (slot == kSlotReady) {
+            if (!pendingSlot_.compare_exchange_weak(slot, kSlotWriting, std::memory_order_acquire,
+                                                    std::memory_order_relaxed)) {
+                continue;
+            }
+            const auto result = writeState(pendingState_, streamer);
+            pendingSlot_.store(kSlotReady, std::memory_order_release);
+            return result;
+        }
+        if (slot == kSlotIdle) {
+            break;
+        }
+        std::this_thread::yield();  // being applied or written: wait for it
+    }
+
+    auto live = std::make_unique<PendingState>();
+    captureState(*live);
+    return writeState(*live, streamer);
+}
+
+void Processor::captureState(PendingState& s) const noexcept {
+    s.inputGain = inputGain_.load(std::memory_order_relaxed);
+    s.outputGain = outputGain_.load(std::memory_order_relaxed);
+    s.globalMix = globalMix_.load(std::memory_order_relaxed);
+    s.bandCount = bandCount_.load(std::memory_order_relaxed);
+    s.bandStates = bandStates_;
+    for (int c = 0; c < kMaxBands - 1; ++c) {
+        s.crossoverHz[static_cast<size_t>(c)] = crossoverL_.getCrossoverFrequency(c);
+    }
+
+    // Sweep: frequency, width and intensity are the user's base values; the
+    // sweepProcessor_ getters return the per-block modulated ones.
+    s.sweepEnabled = sweepProcessor_.isEnabled();
+    s.sweepFrequencyHz = baseSweepFrequency_.load(std::memory_order_relaxed);
+    s.sweepWidthNorm = baseSweepWidthNorm_.load(std::memory_order_relaxed);
+    s.sweepIntensityNorm = baseSweepIntensityNorm_.load(std::memory_order_relaxed);
+    s.sweepFalloff = sweepProcessor_.getFalloffMode();
+    s.sweepMorphLink = sweepProcessor_.getMorphLinkMode();
+    s.sweepLfoEnabled = sweepLFO_.isEnabled();
+    s.sweepLfoRateHz = sweepLFO_.getRate();
+    s.sweepLfoWaveform = sweepLFO_.getWaveform();
+    s.sweepLfoDepth = sweepLFO_.getDepth();
+    s.sweepLfoSync = sweepLFO_.isTempoSynced();
+    s.sweepLfoNoteValue = sweepLFO_.getNoteValue();
+    s.sweepLfoNoteModifier = sweepLFO_.getNoteModifier();
+    s.sweepEnvEnabled = sweepEnvelope_.isEnabled();
+    s.sweepEnvAttackMs = sweepEnvelope_.getAttackTime();
+    s.sweepEnvReleaseMs = sweepEnvelope_.getReleaseTime();
+    s.sweepEnvSensitivity = sweepEnvelope_.getSensitivity();
+    s.customCurve = customCurve_;
+
+    const auto& me = modulationEngine_;
+    s.lfo1 = ModLfoState{.rateHz = me.getLFO1Rate(), .waveform = me.getLFO1Waveform(),
+                         .phaseDeg = me.getLFO1PhaseOffset(), .tempoSync = me.getLFO1TempoSync(),
+                         .noteValue = me.getLFO1NoteValue(), .noteModifier = me.getLFO1NoteModifier(),
+                         .unipolar = me.getLFO1Unipolar(), .retrigger = me.getLFO1Retrigger()};
+    s.lfo2 = ModLfoState{.rateHz = me.getLFO2Rate(), .waveform = me.getLFO2Waveform(),
+                         .phaseDeg = me.getLFO2PhaseOffset(), .tempoSync = me.getLFO2TempoSync(),
+                         .noteValue = me.getLFO2NoteValue(), .noteModifier = me.getLFO2NoteModifier(),
+                         .unipolar = me.getLFO2Unipolar(), .retrigger = me.getLFO2Retrigger()};
+    s.envFollowerAttackMs = me.getEnvFollowerAttack();
+    s.envFollowerReleaseMs = me.getEnvFollowerRelease();
+    s.envFollowerSensitivity = me.getEnvFollowerSensitivity();
+    s.envFollowerSource = me.getEnvFollowerSource();
+    s.randomRateHz = me.getRandomRate();
+    s.randomSmoothness = me.getRandomSmoothness();
+    s.randomTempoSync = me.getRandomTempoSync();
+    s.chaosModel = me.getChaosModel();
+    s.chaosSpeed = me.getChaosSpeed();
+    s.chaosCoupling = me.getChaosCoupling();
+    s.sampleHoldSource = me.getSampleHoldSource();
+    s.sampleHoldRateHz = me.getSampleHoldRate();
+    s.sampleHoldSlewMs = me.getSampleHoldSlew();
+    s.pitchFollowerMinHz = me.getPitchFollowerMinHz();
+    s.pitchFollowerMaxHz = me.getPitchFollowerMaxHz();
+    s.pitchFollowerConfidence = me.getPitchFollowerConfidence();
+    s.pitchFollowerTrackingMs = me.getPitchFollowerTrackingSpeed();
+    s.transientSensitivity = me.getTransientSensitivity();
+    s.transientAttackMs = me.getTransientAttack();
+    s.transientDecayMs = me.getTransientDecay();
+    s.runglerRateHz = me.getRunglerOsc1Freq();
+    s.runglerDepth = me.getRunglerDepth();
+    s.runglerBits = me.getRunglerBits();
+    s.runglerLoop = me.getRunglerLoopMode();
+    for (size_t m = 0; m < Krate::DSP::kMaxMacros; ++m) {
+        s.macros[m] = me.getMacro(m);
+    }
+    for (size_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r) {
+        s.routings[r] = me.getRouting(r);
+    }
+
+    s.morph = bandMorphCache_;
+}
+
+Steinberg::tresult Processor::writeState(const PendingState& s, Steinberg::IBStreamer& streamer) const {
     // Write version first (MUST be first per FR-020)
     if (!streamer.writeInt32(kPresetVersion)) {
         return Steinberg::kResultFalse;
     }
 
     // Write global parameters in order (per data-model.md Section 3)
-    if (!streamer.writeFloat(inputGain_.load(std::memory_order_relaxed))) {
+    if (!streamer.writeFloat(s.inputGain)) {
         return Steinberg::kResultFalse;
     }
-    if (!streamer.writeFloat(outputGain_.load(std::memory_order_relaxed))) {
+    if (!streamer.writeFloat(s.outputGain)) {
         return Steinberg::kResultFalse;
     }
-    if (!streamer.writeFloat(globalMix_.load(std::memory_order_relaxed))) {
+    if (!streamer.writeFloat(s.globalMix)) {
         return Steinberg::kResultFalse;
     }
 
     // FR-037: Band management state (v2+)
     // Band count
-    if (!streamer.writeInt32(bandCount_.load(std::memory_order_relaxed))) {
+    if (!streamer.writeInt32(s.bandCount)) {
         return Steinberg::kResultFalse;
     }
 
     // Per-band state for all 8 bands (fixed for format stability)
     for (int b = 0; b < kMaxBands; ++b) {
-        const auto& bs = bandStates_[b];
+        const auto& bs = s.bandStates[static_cast<size_t>(b)];
         if (!streamer.writeFloat(bs.gainDb)) return Steinberg::kResultFalse;
         if (!streamer.writeFloat(bs.pan)) return Steinberg::kResultFalse;
         if (!streamer.writeInt8(static_cast<Steinberg::int8>(bs.solo ? 1 : 0))) return Steinberg::kResultFalse;
@@ -73,8 +198,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     }
 
     // Crossover frequencies (7 floats)
-    for (int c = 0; c < kMaxBands - 1; ++c) {
-        float freq = crossoverL_.getCrossoverFrequency(c);
+    for (float freq : s.crossoverHz) {
         if (!streamer.writeFloat(freq)) return Steinberg::kResultFalse;
     }
 
@@ -82,36 +206,35 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // Sweep System State (v4+) — SC-012
     // =========================================================================
 
-    // Sweep Core (6 values). Frequency, width and intensity are the user's base
-    // values; the sweepProcessor_ getters return the per-block modulated ones.
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepProcessor_.isEnabled() ? 1 : 0)))
+    // Sweep Core (6 values). Frequency, width and intensity are the user's base values.
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.sweepEnabled ? 1 : 0)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(normalizeSweepFrequency(baseSweepFrequency_.load(std::memory_order_relaxed))))
+    if (!streamer.writeFloat(normalizeSweepFrequency(s.sweepFrequencyHz)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(baseSweepWidthNorm_.load(std::memory_order_relaxed)))
+    if (!streamer.writeFloat(s.sweepWidthNorm))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(baseSweepIntensityNorm_.load(std::memory_order_relaxed)))
+    if (!streamer.writeFloat(s.sweepIntensityNorm))
         return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepProcessor_.getFalloffMode())))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.sweepFalloff)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepProcessor_.getMorphLinkMode())))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.sweepMorphLink)))
         return Steinberg::kResultFalse;
 
     // LFO (6 values)
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepLFO_.isEnabled() ? 1 : 0)))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.sweepLfoEnabled ? 1 : 0)))
         return Steinberg::kResultFalse;
     // LFO Rate: denormalized Hz → normalized using inverse log formula
-    if (!streamer.writeFloat(lfoRateHzToNorm(sweepLFO_.getRate()))) return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepLFO_.getWaveform())))
+    if (!streamer.writeFloat(lfoRateHzToNorm(s.sweepLfoRateHz))) return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.sweepLfoWaveform)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(sweepLFO_.getDepth()))
+    if (!streamer.writeFloat(s.sweepLfoDepth))
         return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepLFO_.isTempoSynced() ? 1 : 0)))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.sweepLfoSync ? 1 : 0)))
         return Steinberg::kResultFalse;
     {
         // Encode as standard dropdown index (0-20, matching kNoteValueDropdownMapping)
-        const auto nv = sweepLFO_.getNoteValue();
-        const auto nm = sweepLFO_.getNoteModifier();
+        const auto nv = s.sweepLfoNoteValue;
+        const auto nm = s.sweepLfoNoteModifier;
         int noteIndex = Krate::DSP::kNoteValueDefaultIndex; // default 1/8
         for (int i = 0; i < Krate::DSP::kNoteValueDropdownCount; ++i) {
             if (Krate::DSP::kNoteValueDropdownMapping[i].note == nv &&
@@ -125,23 +248,23 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     }
 
     // Envelope (4 values)
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepEnvelope_.isEnabled() ? 1 : 0)))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.sweepEnvEnabled ? 1 : 0)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((sweepEnvelope_.getAttackTime() - kMinSweepEnvAttackMs) /
+    if (!streamer.writeFloat((s.sweepEnvAttackMs - kMinSweepEnvAttackMs) /
                              (kMaxSweepEnvAttackMs - kMinSweepEnvAttackMs)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat((sweepEnvelope_.getReleaseTime() - kMinSweepEnvReleaseMs) /
+    if (!streamer.writeFloat((s.sweepEnvReleaseMs - kMinSweepEnvReleaseMs) /
                              (kMaxSweepEnvReleaseMs - kMinSweepEnvReleaseMs)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(sweepEnvelope_.getSensitivity()))
+    if (!streamer.writeFloat(s.sweepEnvSensitivity))
         return Steinberg::kResultFalse;
 
     // Custom Curve breakpoints
     {
-        int32_t pointCount = static_cast<int32_t>(customCurve_.getBreakpointCount());
+        int32_t pointCount = static_cast<int32_t>(s.customCurve.getBreakpointCount());
         if (!streamer.writeInt32(pointCount)) return Steinberg::kResultFalse;
         for (int32_t i = 0; i < pointCount; ++i) {
-            auto bp = customCurve_.getBreakpoint(i);
+            auto bp = s.customCurve.getBreakpoint(i);
             if (!streamer.writeFloat(bp.x)) return Steinberg::kResultFalse;
             if (!streamer.writeFloat(bp.y)) return Steinberg::kResultFalse;
         }
@@ -153,126 +276,100 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
 
     // --- Source Parameters ---
 
-    // LFO 1 (7 values: rate[float], shape[int8], phase[float], sync[int8],
-    //         noteValue[int8], unipolar[int8], retrigger[int8])
-    if (!streamer.writeFloat(lfoRateHzToNorm(modulationEngine_.getLFO1Rate()))) return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1Waveform())))
-        return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kLfoPhaseDegRange.toNorm(modulationEngine_.getLFO1PhaseOffset())))
-        return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1TempoSync() ? 1 : 0)))
-        return Steinberg::kResultFalse;
-    {
-        const auto nv = modulationEngine_.getLFO1NoteValue();
-        const auto nm = modulationEngine_.getLFO1NoteModifier();
-        int noteIdx = Krate::DSP::kNoteValueDefaultIndex;
-        for (int i = 0; i < Krate::DSP::kNoteValueDropdownCount; ++i) {
-            if (Krate::DSP::kNoteValueDropdownMapping[i].note == nv &&
-                Krate::DSP::kNoteValueDropdownMapping[i].modifier == nm) {
-                noteIdx = i;
-                break;
+    // LFO 1 and LFO 2 (7 values each: rate[float], shape[int8], phase[float],
+    //         sync[int8], noteValue[int8], unipolar[int8], retrigger[int8])
+    for (const ModLfoState* lfo : {&s.lfo1, &s.lfo2}) {
+        if (!streamer.writeFloat(lfoRateHzToNorm(lfo->rateHz))) return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(lfo->waveform)))
+            return Steinberg::kResultFalse;
+        if (!streamer.writeFloat(kLfoPhaseDegRange.toNorm(lfo->phaseDeg)))
+            return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(lfo->tempoSync ? 1 : 0)))
+            return Steinberg::kResultFalse;
+        {
+            const auto nv = lfo->noteValue;
+            const auto nm = lfo->noteModifier;
+            int noteIdx = Krate::DSP::kNoteValueDefaultIndex;
+            for (int i = 0; i < Krate::DSP::kNoteValueDropdownCount; ++i) {
+                if (Krate::DSP::kNoteValueDropdownMapping[i].note == nv &&
+                    Krate::DSP::kNoteValueDropdownMapping[i].modifier == nm) {
+                    noteIdx = i;
+                    break;
+                }
             }
+            if (!streamer.writeInt8(static_cast<Steinberg::int8>(noteIdx)))
+                return Steinberg::kResultFalse;
         }
-        if (!streamer.writeInt8(static_cast<Steinberg::int8>(noteIdx)))
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(lfo->unipolar ? 1 : 0)))
+            return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(lfo->retrigger ? 1 : 0)))
             return Steinberg::kResultFalse;
     }
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1Unipolar() ? 1 : 0)))
-        return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1Retrigger() ? 1 : 0)))
-        return Steinberg::kResultFalse;
-
-    // LFO 2 (7 values: same layout as LFO 1)
-    if (!streamer.writeFloat(lfoRateHzToNorm(modulationEngine_.getLFO2Rate()))) return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2Waveform())))
-        return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kLfoPhaseDegRange.toNorm(modulationEngine_.getLFO2PhaseOffset())))
-        return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2TempoSync() ? 1 : 0)))
-        return Steinberg::kResultFalse;
-    {
-        const auto nv = modulationEngine_.getLFO2NoteValue();
-        const auto nm = modulationEngine_.getLFO2NoteModifier();
-        int noteIdx = Krate::DSP::kNoteValueDefaultIndex;
-        for (int i = 0; i < Krate::DSP::kNoteValueDropdownCount; ++i) {
-            if (Krate::DSP::kNoteValueDropdownMapping[i].note == nv &&
-                Krate::DSP::kNoteValueDropdownMapping[i].modifier == nm) {
-                noteIdx = i;
-                break;
-            }
-        }
-        if (!streamer.writeInt8(static_cast<Steinberg::int8>(noteIdx)))
-            return Steinberg::kResultFalse;
-    }
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2Unipolar() ? 1 : 0)))
-        return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2Retrigger() ? 1 : 0)))
-        return Steinberg::kResultFalse;
 
     // Envelope Follower (4 values: attack[float], release[float], sensitivity[float], source[int8])
-    if (!streamer.writeFloat(kEnvFollowerAttackMsRange.toNorm(modulationEngine_.getEnvFollowerAttack())))
+    if (!streamer.writeFloat(kEnvFollowerAttackMsRange.toNorm(s.envFollowerAttackMs)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kEnvFollowerReleaseMsRange.toNorm(modulationEngine_.getEnvFollowerRelease())))
+    if (!streamer.writeFloat(kEnvFollowerReleaseMsRange.toNorm(s.envFollowerReleaseMs)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(modulationEngine_.getEnvFollowerSensitivity()))
+    if (!streamer.writeFloat(s.envFollowerSensitivity))
         return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getEnvFollowerSource())))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.envFollowerSource)))
         return Steinberg::kResultFalse;
 
     // Random (3 values: rate[float], smoothness[float], sync[int8])
-    if (!streamer.writeFloat(kRandomRateHzRange.toNorm(modulationEngine_.getRandomRate())))
+    if (!streamer.writeFloat(kRandomRateHzRange.toNorm(s.randomRateHz)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(modulationEngine_.getRandomSmoothness()))
+    if (!streamer.writeFloat(s.randomSmoothness))
         return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getRandomTempoSync() ? 1 : 0)))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.randomTempoSync ? 1 : 0)))
         return Steinberg::kResultFalse;
 
     // Chaos (3 values: model[int8], speed[float], coupling[float])
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getChaosModel())))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.chaosModel)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kChaosSpeedRange.toNorm(modulationEngine_.getChaosSpeed())))
+    if (!streamer.writeFloat(kChaosSpeedRange.toNorm(s.chaosSpeed)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(modulationEngine_.getChaosCoupling()))
+    if (!streamer.writeFloat(s.chaosCoupling))
         return Steinberg::kResultFalse;
 
     // Sample & Hold (3 values: source[int8], rate[float], slew[float])
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getSampleHoldSource())))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.sampleHoldSource)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kSampleHoldRateHzRange.toNorm(modulationEngine_.getSampleHoldRate())))
+    if (!streamer.writeFloat(kSampleHoldRateHzRange.toNorm(s.sampleHoldRateHz)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kSampleHoldSlewMsRange.toNorm(modulationEngine_.getSampleHoldSlew())))
+    if (!streamer.writeFloat(kSampleHoldSlewMsRange.toNorm(s.sampleHoldSlewMs)))
         return Steinberg::kResultFalse;
 
     // Pitch Follower (4 values: minHz[float], maxHz[float], confidence[float], trackingSpeed[float])
-    if (!streamer.writeFloat(kPitchFollowerMinHzRange.toNorm(modulationEngine_.getPitchFollowerMinHz())))
+    if (!streamer.writeFloat(kPitchFollowerMinHzRange.toNorm(s.pitchFollowerMinHz)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kPitchFollowerMaxHzRange.toNorm(modulationEngine_.getPitchFollowerMaxHz())))
+    if (!streamer.writeFloat(kPitchFollowerMaxHzRange.toNorm(s.pitchFollowerMaxHz)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(modulationEngine_.getPitchFollowerConfidence()))
+    if (!streamer.writeFloat(s.pitchFollowerConfidence))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kPitchFollowerTrackingMsRange.toNorm(modulationEngine_.getPitchFollowerTrackingSpeed())))
+    if (!streamer.writeFloat(kPitchFollowerTrackingMsRange.toNorm(s.pitchFollowerTrackingMs)))
         return Steinberg::kResultFalse;
 
     // Transient (3 values: sensitivity[float], attack[float], decay[float])
-    if (!streamer.writeFloat(modulationEngine_.getTransientSensitivity()))
+    if (!streamer.writeFloat(s.transientSensitivity))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kTransientAttackMsRange.toNorm(modulationEngine_.getTransientAttack())))
+    if (!streamer.writeFloat(kTransientAttackMsRange.toNorm(s.transientAttackMs)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(kTransientDecayMsRange.toNorm(modulationEngine_.getTransientDecay())))
+    if (!streamer.writeFloat(kTransientDecayMsRange.toNorm(s.transientDecayMs)))
         return Steinberg::kResultFalse;
 
     // Rungler (v11+: 4 values: rate[float], depth[float], bits[int8], loop[int8])
-    if (!streamer.writeFloat(kRunglerRateHzRange.toNorm(modulationEngine_.getRunglerOsc1Freq())))
+    if (!streamer.writeFloat(kRunglerRateHzRange.toNorm(s.runglerRateHz)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeFloat(modulationEngine_.getRunglerDepth()))
+    if (!streamer.writeFloat(s.runglerDepth))
         return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getRunglerBits())))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.runglerBits)))
         return Steinberg::kResultFalse;
-    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getRunglerLoopMode() ? 1 : 0)))
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.runglerLoop ? 1 : 0)))
         return Steinberg::kResultFalse;
 
     // Macros (4 × 4 = 16 values: value[float], min[float], max[float], curve[int8])
-    for (size_t m = 0; m < Krate::DSP::kMaxMacros; ++m) {
-        const auto& macro = modulationEngine_.getMacro(m);
+    for (const auto& macro : s.macros) {
         if (!streamer.writeFloat(macro.value)) return Steinberg::kResultFalse;
         if (!streamer.writeFloat(macro.minOutput)) return Steinberg::kResultFalse;
         if (!streamer.writeFloat(macro.maxOutput)) return Steinberg::kResultFalse;
@@ -281,8 +378,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     }
 
     // --- Routing Parameters (32 × 4 values: source[int8], dest[int32], amount[float], curve[int8]) ---
-    for (size_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r) {
-        const auto& routing = modulationEngine_.getRouting(r);
+    for (const auto& routing : s.routings) {
         if (!streamer.writeInt8(static_cast<Steinberg::int8>(routing.source)))
             return Steinberg::kResultFalse;
         if (!streamer.writeInt32(static_cast<int32_t>(routing.destParamId)))
@@ -297,7 +393,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // Morph Node State (v6+)
     // =========================================================================
     for (int b = 0; b < kMaxBands; ++b) {
-        const auto& cache = bandMorphCache_[b];
+        const auto& cache = s.morph[static_cast<size_t>(b)];
 
         // Band morph position & config (3 floats + 2 int8)
         if (!streamer.writeFloat(cache.morphX)) return Steinberg::kResultFalse;
@@ -310,9 +406,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
             return Steinberg::kResultFalse;
 
         // v13: sweep -> morph link modes (X, Y)
-        if (!streamer.writeInt8(static_cast<Steinberg::int8>(bandStates_[b].xLink)))
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.bandStates[static_cast<size_t>(b)].xLink)))
             return Steinberg::kResultFalse;
-        if (!streamer.writeInt8(static_cast<Steinberg::int8>(bandStates_[b].yLink)))
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(s.bandStates[static_cast<size_t>(b)].yLink)))
             return Steinberg::kResultFalse;
 
         // Per-node state (4 nodes × 7 values each)
@@ -333,7 +429,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
             }
 
             // v9: Per-type shadow storage (26 types × 10 slots)
-            const auto& shadow = bandMorphCache_[b].shapeShadow[static_cast<size_t>(n)];
+            const auto& shadow = cache.shapeShadow[static_cast<size_t>(n)];
             for (const auto& typeSlot : shadow.typeSlots) {
                 for (float slotValue : typeSlot) {
                     if (!streamer.writeFloat(slotValue))
@@ -388,21 +484,69 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         return Steinberg::kResultFalse;
     }
 
-    // Apply global parameters
-    inputGain_.store(inputGain, std::memory_order_relaxed);
-    outputGain_.store(outputGain, std::memory_order_relaxed);
-    globalMix_.store(globalMix, std::memory_order_relaxed);
+    // Parse into pendingState_, seeded from the newest state: an unapplied load
+    // (its section flags still owed) or the live one (D-003)
+    const bool deferred = active_.load(std::memory_order_acquire);
+    PendingState& s = pendingState_;
+    if (acquireStateSlot() != kSlotReady) {
+        captureState(s);
+        s.hasBands = false;
+        s.hasCrossover = {};
+        s.hasSweep = false;
+        s.hasModulation = false;
+        s.hasRungler = false;
+        s.hasMorph = false;
+    }
+    s.inputGain = inputGain;
+    s.outputGain = outputGain;
+    s.globalMix = globalMix;
+    const bool complete = parseStateSections(streamer, version, s);
 
+    if (deferred) {
+        // process() applies it at the top of its next call
+        pendingSlot_.store(kSlotReady, std::memory_order_release);
+    } else {
+        // Processing is stopped: nothing else reads the live objects
+        applyPendingState();
+        pendingSlot_.store(kSlotIdle, std::memory_order_release);
+    }
+
+    if (!complete) {
+        // Stream ended before the band count: globals only, as always
+        return Steinberg::kResultOk;
+    }
+
+    // SharedDisplayBridge: try to read instance ID from state trailer
+    {
+        Steinberg::int32 marker = 0;
+        Steinberg::int64 storedId = 0;
+        if (streamer.readInt32(marker) && marker == kInstanceIdMarker
+            && streamer.readInt64(storedId))
+        {
+            // Re-register with the stored ID (supports state restore)
+            Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_);
+            instanceId_ = static_cast<uint64_t>(storedId);
+            Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
+                instanceId_, &sharedDisplay_);
+        }
+        // If marker not found, keep the constructor-generated ID (old state format)
+    }
+
+    return Steinberg::kResultOk;
+}
+
+bool Processor::parseStateSections(Steinberg::IBStreamer& streamer, int32_t version,
+                                   PendingState& s) noexcept {
     // FR-038: Band management state (v2+)
     if (version >= 2) {
         // Read band count
         int32_t bandCount = kDefaultBands;
         if (!streamer.readInt32(bandCount)) {
             // Use defaults if read fails
-            return Steinberg::kResultOk;
+            return false;
         }
-        bandCount = std::clamp(bandCount, kMinBands, 4);
-        bandCount_.store(bandCount, std::memory_order_relaxed);
+        s.hasBands = true;
+        s.bandCount = std::clamp(bandCount, kMinBands, 4);
 
         // Read per-band state
         // v7 and earlier wrote 8 bands; v8+ writes 4 bands
@@ -422,25 +566,15 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             if (!streamer.readInt8(muteVal)) muteVal = 0;
 
             if (b < kMaxBands) {
-                auto& bs = bandStates_[b];
+                auto& bs = s.bandStates[static_cast<size_t>(b)];
                 bs.gainDb = std::clamp(gainDb, kMinBandGainDb, kMaxBandGainDb);
                 bs.pan = std::clamp(pan, -1.0f, 1.0f);
                 bs.solo = (soloVal != 0);
                 bs.bypass = (bypassVal != 0);
                 bs.mute = (muteVal != 0);
-
-                bandProcessors_[b].setGainDb(bs.gainDb);
-                bandProcessors_[b].setPan(bs.pan);
-                bandProcessors_[b].setMute(bs.mute);
-                bandProcessors_[b].setBypassed(bs.bypass);
             }
             // else: discard data from bands 4-7 (v7 migration)
         }
-
-        // Band count first: a later setBandCount would redistribute (and so
-        // overwrite) the crossovers restored below (D-048)
-        crossoverL_.setBandCount(bandCount);
-        crossoverR_.setBandCount(bandCount);
 
         // Read crossover frequencies
         // v7 and earlier wrote 7 crossovers; v8+ writes 3
@@ -450,8 +584,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             if (!streamer.readFloat(freq)) break;
 
             if (c < kMaxBands - 1) {
-                crossoverL_.setCrossoverFrequency(c, freq);
-                crossoverR_.setCrossoverFrequency(c, freq);
+                s.crossoverHz[static_cast<size_t>(c)] = freq;
+                s.hasCrossover[static_cast<size_t>(c)] = true;
             }
             // else: discard crossovers 3-6 (v7 migration)
         }
@@ -461,6 +595,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     // Sweep System State (v4+) — SC-012
     // =========================================================================
     if (version >= 4) {
+        s.hasSweep = true;
+
         // Sweep Core
         Steinberg::int8 sweepEnable = 0;
         float sweepFreqNorm = 0.566f;
@@ -470,26 +606,18 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         Steinberg::int8 sweepMorphLink = 0;
 
         if (streamer.readInt8(sweepEnable))
-            sweepProcessor_.setEnabled(sweepEnable != 0);
-        if (streamer.readFloat(sweepFreqNorm)) {
-            float freqHz = denormalizeSweepFrequency(sweepFreqNorm);
-            baseSweepFrequency_.store(freqHz, std::memory_order_relaxed);
-            sweepProcessor_.setCenterFrequency(freqHz);
-        }
-        // process() re-applies width/intensity from the base atomics every block.
-        if (streamer.readFloat(sweepWidthNorm)) {
-            baseSweepWidthNorm_.store(sweepWidthNorm, std::memory_order_relaxed);
-            sweepProcessor_.setWidth(0.5f + sweepWidthNorm * 3.5f);
-        }
-        if (streamer.readFloat(sweepIntensityNorm)) {
-            baseSweepIntensityNorm_.store(sweepIntensityNorm, std::memory_order_relaxed);
-            sweepProcessor_.setIntensity(sweepIntensityNorm * 2.0f);
-        }
+            s.sweepEnabled = (sweepEnable != 0);
+        if (streamer.readFloat(sweepFreqNorm))
+            s.sweepFrequencyHz = denormalizeSweepFrequency(sweepFreqNorm);
+        if (streamer.readFloat(sweepWidthNorm))
+            s.sweepWidthNorm = sweepWidthNorm;
+        if (streamer.readFloat(sweepIntensityNorm))
+            s.sweepIntensityNorm = sweepIntensityNorm;
         if (streamer.readInt8(sweepFalloff))
-            sweepProcessor_.setFalloffMode(static_cast<SweepFalloff>(sweepFalloff));
+            s.sweepFalloff = static_cast<SweepFalloff>(sweepFalloff);
         if (streamer.readInt8(sweepMorphLink))
-            sweepProcessor_.setMorphLinkMode(static_cast<MorphLinkMode>(
-                std::clamp(static_cast<int>(sweepMorphLink), 0, kMorphLinkModeCount - 1)));
+            s.sweepMorphLink = static_cast<MorphLinkMode>(
+                std::clamp(static_cast<int>(sweepMorphLink), 0, kMorphLinkModeCount - 1));
 
         // LFO
         Steinberg::int8 lfoEnable = 0;
@@ -500,17 +628,16 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         Steinberg::int8 lfoNoteIndex = 0;
 
         if (streamer.readInt8(lfoEnable))
-            sweepLFO_.setEnabled(lfoEnable != 0);
-        if (streamer.readFloat(lfoRateNorm)) {
-            sweepLFO_.setRate(lfoRateNormToHz(lfoRateNorm));
-        }
+            s.sweepLfoEnabled = (lfoEnable != 0);
+        if (streamer.readFloat(lfoRateNorm))
+            s.sweepLfoRateHz = lfoRateNormToHz(lfoRateNorm);
         if (streamer.readInt8(lfoWaveform))
-            sweepLFO_.setWaveform(static_cast<Krate::DSP::Waveform>(
-                std::clamp(static_cast<int>(lfoWaveform), 0, 5)));
+            s.sweepLfoWaveform = static_cast<Krate::DSP::Waveform>(
+                std::clamp(static_cast<int>(lfoWaveform), 0, 5));
         if (streamer.readFloat(lfoDepth))
-            sweepLFO_.setDepth(lfoDepth);
+            s.sweepLfoDepth = lfoDepth;
         if (streamer.readInt8(lfoSync))
-            sweepLFO_.setTempoSync(lfoSync != 0);
+            s.sweepLfoSync = (lfoSync != 0);
         if (streamer.readInt8(lfoNoteIndex)) {
             int idx;
             if (version <= 9) {
@@ -520,7 +647,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 idx = std::clamp(static_cast<int>(static_cast<unsigned char>(lfoNoteIndex)), 0, kNoteValueCount - 1);
             }
             const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
-            sweepLFO_.setNoteValue(mapping.note, mapping.modifier);
+            s.sweepLfoNoteValue = mapping.note;
+            s.sweepLfoNoteModifier = mapping.modifier;
         }
 
         // Envelope
@@ -530,39 +658,40 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         float envSensitivity = 0.5f;
 
         if (streamer.readInt8(envEnable))
-            sweepEnvelope_.setEnabled(envEnable != 0);
+            s.sweepEnvEnabled = (envEnable != 0);
         if (streamer.readFloat(envAttackNorm))
-            sweepEnvelope_.setAttackTime(kMinSweepEnvAttackMs +
-                envAttackNorm * (kMaxSweepEnvAttackMs - kMinSweepEnvAttackMs));
+            s.sweepEnvAttackMs = kMinSweepEnvAttackMs +
+                envAttackNorm * (kMaxSweepEnvAttackMs - kMinSweepEnvAttackMs);
         if (streamer.readFloat(envReleaseNorm))
-            sweepEnvelope_.setReleaseTime(kMinSweepEnvReleaseMs +
-                envReleaseNorm * (kMaxSweepEnvReleaseMs - kMinSweepEnvReleaseMs));
+            s.sweepEnvReleaseMs = kMinSweepEnvReleaseMs +
+                envReleaseNorm * (kMaxSweepEnvReleaseMs - kMinSweepEnvReleaseMs);
         if (streamer.readFloat(envSensitivity))
-            sweepEnvelope_.setSensitivity(envSensitivity);
+            s.sweepEnvSensitivity = envSensitivity;
 
         // Custom Curve
         int32_t pointCount = 2;
         if (streamer.readInt32(pointCount)) {
+            auto& curve = s.customCurve;
             pointCount = std::clamp(pointCount, 2, 8);
             // Clear and rebuild custom curve
-            while (customCurve_.getBreakpointCount() > 2) {
-                customCurve_.removeBreakpoint(1);
+            while (curve.getBreakpointCount() > 2) {
+                curve.removeBreakpoint(1);
             }
             // Read first point (endpoint x=0)
             float px = 0.0f;
             float py = 0.0f;
             if (pointCount >= 1 && streamer.readFloat(px) && streamer.readFloat(py)) {
-                customCurve_.setBreakpoint(0, 0.0f, py);
+                curve.setBreakpoint(0, 0.0f, py);
             }
             // Read intermediate points
             for (int32_t i = 1; i < pointCount - 1; ++i) {
                 if (streamer.readFloat(px) && streamer.readFloat(py)) {
-                    customCurve_.addBreakpoint(px, py);
+                    curve.addBreakpoint(px, py);
                 }
             }
             // Read last point (endpoint x=1)
             if (pointCount >= 2 && streamer.readFloat(px) && streamer.readFloat(py)) {
-                customCurve_.setBreakpoint(customCurve_.getBreakpointCount() - 1, 1.0f, py);
+                curve.setBreakpoint(curve.getBreakpointCount() - 1, 1.0f, py);
             }
         }
     }
@@ -571,188 +700,153 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     // Modulation System State (v5+) — SC-010
     // =========================================================================
     if (version >= 5) {
+        s.hasModulation = true;
+
         // --- Source Parameters ---
 
-        // LFO 1 (7 values)
-        float lfo1RateNorm = 0.5f;
-        if (streamer.readFloat(lfo1RateNorm)) {
-            modulationEngine_.setLFO1Rate(lfoRateNormToHz(lfo1RateNorm));
-        }
-        Steinberg::int8 lfo1Shape = 0;
-        if (streamer.readInt8(lfo1Shape))
-            modulationEngine_.setLFO1Waveform(static_cast<Krate::DSP::Waveform>(
-                std::clamp(static_cast<int>(lfo1Shape), 0, 5)));
-        float lfo1Phase = 0.0f;
-        if (streamer.readFloat(lfo1Phase))
-            modulationEngine_.setLFO1PhaseOffset(kLfoPhaseDegRange.toPlain(lfo1Phase));
-        Steinberg::int8 lfo1Sync = 0;
-        if (streamer.readInt8(lfo1Sync))
-            modulationEngine_.setLFO1TempoSync(lfo1Sync != 0);
-        Steinberg::int8 lfo1NoteIdx = 0;
-        if (streamer.readInt8(lfo1NoteIdx)) {
-            int idx;
-            if (version <= 9) {
-                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(static_cast<unsigned char>(lfo1NoteIdx)), 0, 14)];
-            } else {
-                idx = std::clamp(static_cast<int>(static_cast<unsigned char>(lfo1NoteIdx)), 0, kNoteValueCount - 1);
+        // LFO 1 and LFO 2 (7 values each)
+        for (ModLfoState* lfo : {&s.lfo1, &s.lfo2}) {
+            float rateNorm = 0.5f;
+            if (streamer.readFloat(rateNorm))
+                lfo->rateHz = lfoRateNormToHz(rateNorm);
+            Steinberg::int8 shape = 0;
+            if (streamer.readInt8(shape))
+                lfo->waveform = static_cast<Krate::DSP::Waveform>(std::clamp(static_cast<int>(shape), 0, 5));
+            float phase = 0.0f;
+            if (streamer.readFloat(phase))
+                lfo->phaseDeg = kLfoPhaseDegRange.toPlain(phase);
+            Steinberg::int8 sync = 0;
+            if (streamer.readInt8(sync))
+                lfo->tempoSync = (sync != 0);
+            Steinberg::int8 noteIdx = 0;
+            if (streamer.readInt8(noteIdx)) {
+                int idx;
+                if (version <= 9) {
+                    idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(static_cast<unsigned char>(noteIdx)), 0, 14)];
+                } else {
+                    idx = std::clamp(static_cast<int>(static_cast<unsigned char>(noteIdx)), 0, kNoteValueCount - 1);
+                }
+                const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
+                lfo->noteValue = mapping.note;
+                lfo->noteModifier = mapping.modifier;
             }
-            const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
-            modulationEngine_.setLFO1NoteValue(mapping.note, mapping.modifier);
+            Steinberg::int8 unipolar = 0;
+            if (streamer.readInt8(unipolar))
+                lfo->unipolar = (unipolar != 0);
+            Steinberg::int8 retrigger = 1;
+            if (streamer.readInt8(retrigger))
+                lfo->retrigger = (retrigger != 0);
         }
-        Steinberg::int8 lfo1Unipolar = 0;
-        if (streamer.readInt8(lfo1Unipolar))
-            modulationEngine_.setLFO1Unipolar(lfo1Unipolar != 0);
-        Steinberg::int8 lfo1Retrigger = 1;
-        if (streamer.readInt8(lfo1Retrigger))
-            modulationEngine_.setLFO1Retrigger(lfo1Retrigger != 0);
-
-        // LFO 2 (7 values)
-        float lfo2RateNorm = 0.5f;
-        if (streamer.readFloat(lfo2RateNorm)) {
-            modulationEngine_.setLFO2Rate(lfoRateNormToHz(lfo2RateNorm));
-        }
-        Steinberg::int8 lfo2Shape = 0;
-        if (streamer.readInt8(lfo2Shape))
-            modulationEngine_.setLFO2Waveform(static_cast<Krate::DSP::Waveform>(
-                std::clamp(static_cast<int>(lfo2Shape), 0, 5)));
-        float lfo2Phase = 0.0f;
-        if (streamer.readFloat(lfo2Phase))
-            modulationEngine_.setLFO2PhaseOffset(kLfoPhaseDegRange.toPlain(lfo2Phase));
-        Steinberg::int8 lfo2Sync = 0;
-        if (streamer.readInt8(lfo2Sync))
-            modulationEngine_.setLFO2TempoSync(lfo2Sync != 0);
-        Steinberg::int8 lfo2NoteIdx = 0;
-        if (streamer.readInt8(lfo2NoteIdx)) {
-            int idx;
-            if (version <= 9) {
-                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(static_cast<unsigned char>(lfo2NoteIdx)), 0, 14)];
-            } else {
-                idx = std::clamp(static_cast<int>(static_cast<unsigned char>(lfo2NoteIdx)), 0, kNoteValueCount - 1);
-            }
-            const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
-            modulationEngine_.setLFO2NoteValue(mapping.note, mapping.modifier);
-        }
-        Steinberg::int8 lfo2Unipolar = 0;
-        if (streamer.readInt8(lfo2Unipolar))
-            modulationEngine_.setLFO2Unipolar(lfo2Unipolar != 0);
-        Steinberg::int8 lfo2Retrigger = 1;
-        if (streamer.readInt8(lfo2Retrigger))
-            modulationEngine_.setLFO2Retrigger(lfo2Retrigger != 0);
 
         // Envelope Follower (4 values)
         float envAttackNorm = 0.0f;
         if (streamer.readFloat(envAttackNorm))
-            modulationEngine_.setEnvFollowerAttack(kEnvFollowerAttackMsRange.toPlain(envAttackNorm));
+            s.envFollowerAttackMs = kEnvFollowerAttackMsRange.toPlain(envAttackNorm);
         float envReleaseNorm = 0.0f;
         if (streamer.readFloat(envReleaseNorm))
-            modulationEngine_.setEnvFollowerRelease(kEnvFollowerReleaseMsRange.toPlain(envReleaseNorm));
+            s.envFollowerReleaseMs = kEnvFollowerReleaseMsRange.toPlain(envReleaseNorm);
         float envSensitivity = 0.5f;
         if (streamer.readFloat(envSensitivity))
-            modulationEngine_.setEnvFollowerSensitivity(envSensitivity);
+            s.envFollowerSensitivity = envSensitivity;
         Steinberg::int8 envSource = 0;
         if (streamer.readInt8(envSource))
-            modulationEngine_.setEnvFollowerSource(static_cast<Krate::DSP::EnvFollowerSourceType>(
-                std::clamp(static_cast<int>(envSource), 0, 4)));
+            s.envFollowerSource = static_cast<Krate::DSP::EnvFollowerSourceType>(
+                std::clamp(static_cast<int>(envSource), 0, 4));
 
         // Random (3 values)
         float randomRateNorm = 0.0f;
         if (streamer.readFloat(randomRateNorm))
-            modulationEngine_.setRandomRate(kRandomRateHzRange.toPlain(randomRateNorm));
+            s.randomRateHz = kRandomRateHzRange.toPlain(randomRateNorm);
         float randomSmoothness = 0.0f;
         if (streamer.readFloat(randomSmoothness))
-            modulationEngine_.setRandomSmoothness(randomSmoothness);
+            s.randomSmoothness = randomSmoothness;
         Steinberg::int8 randomSync = 0;
         if (streamer.readInt8(randomSync))
-            modulationEngine_.setRandomTempoSync(randomSync != 0);
+            s.randomTempoSync = (randomSync != 0);
 
         // Chaos (3 values)
         Steinberg::int8 chaosModel = 0;
         if (streamer.readInt8(chaosModel))
-            modulationEngine_.setChaosModel(static_cast<Krate::DSP::ChaosModel>(
-                std::clamp(static_cast<int>(chaosModel), 0, 3)));
+            s.chaosModel = static_cast<Krate::DSP::ChaosModel>(std::clamp(static_cast<int>(chaosModel), 0, 3));
         float chaosSpeedNorm = 0.0f;
         if (streamer.readFloat(chaosSpeedNorm))
-            modulationEngine_.setChaosSpeed(kChaosSpeedRange.toPlain(chaosSpeedNorm));
+            s.chaosSpeed = kChaosSpeedRange.toPlain(chaosSpeedNorm);
         float chaosCoupling = 0.0f;
         if (streamer.readFloat(chaosCoupling))
-            modulationEngine_.setChaosCoupling(chaosCoupling);
+            s.chaosCoupling = chaosCoupling;
 
         // Sample & Hold (3 values)
         Steinberg::int8 shSource = 0;
         if (streamer.readInt8(shSource))
-            modulationEngine_.setSampleHoldSource(static_cast<Krate::DSP::SampleHoldInputType>(
-                std::clamp(static_cast<int>(shSource), 0, 3)));
+            s.sampleHoldSource = static_cast<Krate::DSP::SampleHoldInputType>(
+                std::clamp(static_cast<int>(shSource), 0, 3));
         float shRateNorm = 0.0f;
         if (streamer.readFloat(shRateNorm))
-            modulationEngine_.setSampleHoldRate(kSampleHoldRateHzRange.toPlain(shRateNorm));
+            s.sampleHoldRateHz = kSampleHoldRateHzRange.toPlain(shRateNorm);
         float shSlewNorm = 0.0f;
         if (streamer.readFloat(shSlewNorm))
-            modulationEngine_.setSampleHoldSlew(kSampleHoldSlewMsRange.toPlain(shSlewNorm));
+            s.sampleHoldSlewMs = kSampleHoldSlewMsRange.toPlain(shSlewNorm);
 
         // Pitch Follower (4 values)
         float pitchMinNorm = 0.0f;
         if (streamer.readFloat(pitchMinNorm))
-            modulationEngine_.setPitchFollowerMinHz(kPitchFollowerMinHzRange.toPlain(pitchMinNorm));
+            s.pitchFollowerMinHz = kPitchFollowerMinHzRange.toPlain(pitchMinNorm);
         float pitchMaxNorm = 0.0f;
         if (streamer.readFloat(pitchMaxNorm))
-            modulationEngine_.setPitchFollowerMaxHz(kPitchFollowerMaxHzRange.toPlain(pitchMaxNorm));
+            s.pitchFollowerMaxHz = kPitchFollowerMaxHzRange.toPlain(pitchMaxNorm);
         float pitchConfidence = 0.5f;
         if (streamer.readFloat(pitchConfidence))
-            modulationEngine_.setPitchFollowerConfidence(pitchConfidence);
+            s.pitchFollowerConfidence = pitchConfidence;
         float pitchTrackNorm = 0.0f;
         if (streamer.readFloat(pitchTrackNorm))
-            modulationEngine_.setPitchFollowerTrackingSpeed(kPitchFollowerTrackingMsRange.toPlain(pitchTrackNorm));
+            s.pitchFollowerTrackingMs = kPitchFollowerTrackingMsRange.toPlain(pitchTrackNorm);
 
         // Transient (3 values)
         float transSensitivity = 0.5f;
         if (streamer.readFloat(transSensitivity))
-            modulationEngine_.setTransientSensitivity(transSensitivity);
+            s.transientSensitivity = transSensitivity;
         float transAttackNorm = 0.0f;
         if (streamer.readFloat(transAttackNorm))
-            modulationEngine_.setTransientAttack(kTransientAttackMsRange.toPlain(transAttackNorm));
+            s.transientAttackMs = kTransientAttackMsRange.toPlain(transAttackNorm);
         float transDecayNorm = 0.0f;
         if (streamer.readFloat(transDecayNorm))
-            modulationEngine_.setTransientDecay(kTransientDecayMsRange.toPlain(transDecayNorm));
+            s.transientDecayMs = kTransientDecayMsRange.toPlain(transDecayNorm);
 
         // Rungler (v11+: 4 values: rate, depth, bits, loop)
         if (version >= 11) {
+            s.hasRungler = true;
             float runglerRateNorm = 0.0f;
-            if (streamer.readFloat(runglerRateNorm)) {
-                float hz = kRunglerRateHzRange.toPlain(runglerRateNorm);
-                modulationEngine_.setRunglerOsc1Freq(hz);
-                modulationEngine_.setRunglerOsc2Freq(hz * 1.5f);
-            }
+            if (streamer.readFloat(runglerRateNorm))
+                s.runglerRateHz = kRunglerRateHzRange.toPlain(runglerRateNorm);
             float runglerDepth = 0.5f;
             if (streamer.readFloat(runglerDepth))
-                modulationEngine_.setRunglerDepth(runglerDepth);
+                s.runglerDepth = runglerDepth;
             Steinberg::int8 runglerBits = 8;
             if (streamer.readInt8(runglerBits))
-                modulationEngine_.setRunglerBits(
-                    static_cast<size_t>(std::clamp(static_cast<int>(runglerBits), 4, 16)));
+                s.runglerBits = static_cast<size_t>(std::clamp(static_cast<int>(runglerBits), 4, 16));
             Steinberg::int8 runglerLoop = 0;
             if (streamer.readInt8(runglerLoop))
-                modulationEngine_.setRunglerLoopMode(runglerLoop != 0);
+                s.runglerLoop = (runglerLoop != 0);
         }
 
         // Macros (4 × 4 = 16 values)
-        for (size_t m = 0; m < Krate::DSP::kMaxMacros; ++m) {
+        for (auto& macro : s.macros) {
             float macroValue = 0.0f;
             if (streamer.readFloat(macroValue))
-                modulationEngine_.setMacroValue(m, macroValue);
+                macro.value = macroValue;
             float macroMin = 0.0f;
             if (streamer.readFloat(macroMin))
-                modulationEngine_.setMacroMin(m, macroMin);
+                macro.minOutput = macroMin;
             float macroMax = 1.0f;
             if (streamer.readFloat(macroMax))
-                modulationEngine_.setMacroMax(m, macroMax);
+                macro.maxOutput = macroMax;
             Steinberg::int8 macroCurve = 0;
             if (streamer.readInt8(macroCurve))
-                modulationEngine_.setMacroCurve(m, static_cast<Krate::DSP::ModCurve>(
-                    std::clamp(static_cast<int>(macroCurve), 0, 3)));
+                macro.curve = static_cast<Krate::DSP::ModCurve>(std::clamp(static_cast<int>(macroCurve), 0, 3));
         }
 
         // --- Routing Parameters (32 × 4 values) ---
-        for (size_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r) {
+        for (auto& slot : s.routings) {
             Krate::DSP::ModRouting routing{};
             Steinberg::int8 source = 0;
             if (streamer.readInt8(source))
@@ -785,7 +879,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 routing.curve = static_cast<Krate::DSP::ModCurve>(
                     std::clamp(static_cast<int>(curve), 0, 3));
             routing.active = (routing.source != Krate::DSP::ModSource::None);
-            modulationEngine_.setRouting(r, routing);
+            slot = routing;
         }
     }
 
@@ -793,6 +887,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     // Morph Node State (v6+)
     // =========================================================================
     if (version >= 6) {
+        s.hasMorph = true;
+
         // v7 and earlier wrote 8 bands of morph state; v8+ writes 4
         constexpr int kV7MorphBands = 8;
         const int streamMorphBands = (version <= 7) ? kV7MorphBands : kMaxBands;
@@ -818,23 +914,22 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 streamer.readInt8(yLink);
             }
 
+            const auto band = static_cast<size_t>(b);
             if (b < kMaxBands) {
                 const auto toLinkMode = [](Steinberg::int8 v) {
                     return static_cast<MorphLinkMode>(
                         std::clamp(static_cast<int>(v), 0, kMorphLinkModeCount - 1));
                 };
-                bandStates_[b].xLink = toLinkMode(xLink);
-                bandStates_[b].yLink = toLinkMode(yLink);
-                auto& cache = bandMorphCache_[b];
+                s.bandStates[band].xLink = toLinkMode(xLink);
+                s.bandStates[band].yLink = toLinkMode(yLink);
+                auto& cache = s.morph[band];
                 cache.morphX = morphX;
                 cache.morphY = morphY;
                 cache.morphMode =
                     static_cast<MorphMode>(std::clamp(static_cast<int>(morphMode), 0, 2));
-                bandProcessors_[b].setMorphMode(cache.morphMode);
                 cache.activeNodeCount = std::clamp(
                     static_cast<int>(activeNodes), kMinActiveNodes, kMaxMorphNodes);
                 cache.morphSmoothingMs = morphSmoothing;
-                bandProcessors_[b].setMorphSmoothingTime(cache.morphSmoothingMs);
             }
 
             // Per-node state (always read to advance stream)
@@ -856,7 +951,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 streamer.readFloat(bitDepth);
 
                 if (b < kMaxBands) {
-                    auto& mn = bandMorphCache_[b].nodes[static_cast<size_t>(n)];
+                    auto& mn = s.morph[band].nodes[static_cast<size_t>(n)];
                     mn.type = static_cast<DistortionType>(
                         std::clamp(static_cast<int>(nodeType), 0, 25));
                     mn.commonParams.drive = drive;
@@ -870,11 +965,11 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 // v9: Shape parameter slots
                 if (version >= 9) {
                     // NOLINTNEXTLINE(modernize-loop-convert) index needed: array access conditional on b < kMaxBands
-                    for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
+                    for (int sl = 0; sl < MorphNode::kShapeSlotCount; ++sl) {
                         float slotValue;
                         if (streamer.readFloat(slotValue)) {
                             if (b < kMaxBands) {
-                                bandMorphCache_[b].nodes[static_cast<size_t>(n)].shapeSlots[s] = slotValue;
+                                s.morph[band].nodes[static_cast<size_t>(n)].shapeSlots[sl] = slotValue;
                             }
                         }
                     }
@@ -882,12 +977,12 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                     // v9: Per-type shadow storage (26 types × 10 slots)
                     // NOLINTNEXTLINE(modernize-loop-convert) index needed: array access conditional on b < kMaxBands
                     for (int t = 0; t < kDistortionTypeCount; ++t) {
-                        for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
+                        for (int sl = 0; sl < MorphNode::kShapeSlotCount; ++sl) {
                             float shadowValue;
                             if (streamer.readFloat(shadowValue)) {
                                 if (b < kMaxBands) {
-                                    bandMorphCache_[b].shapeShadow[static_cast<size_t>(n)]
-                                        .typeSlots[t][s] = shadowValue;
+                                    s.morph[band].shapeShadow[static_cast<size_t>(n)]
+                                        .typeSlots[t][sl] = shadowValue;
                                 }
                             }
                         }
@@ -897,7 +992,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                     // replaying the parameters does, so nothing of the previous patch
                     // (or of the defaults) survives the load (D-050, D-156).
                     if (b < kMaxBands) {
-                        auto& mn = bandMorphCache_[b].nodes[static_cast<size_t>(n)];
+                        auto& mn = s.morph[band].nodes[static_cast<size_t>(n)];
                         mn.params = DistortionParams{};
                         mn.params.bias = bias;
                         mn.params.folds = folds;
@@ -906,34 +1001,168 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                     }
                 }
             }
-
-            if (b < kMaxBands) {
-                bandProcessors_[b].setMorphEnabled(true);
-                bandProcessors_[b].setMorphNodes(
-                    bandMorphCache_[b].nodes, bandMorphCache_[b].activeNodeCount);
-                bandProcessors_[b].setMorphPosition(
-                    bandMorphCache_[b].morphX, bandMorphCache_[b].morphY);
-            }
-            // else: discard morph data from bands 4-7 (v7 migration)
+            // else (b >= kMaxBands): discard morph data from bands 4-7 (v7 migration)
         }
     }
 
-    // SharedDisplayBridge: try to read instance ID from state trailer
-    {
-        Steinberg::int32 marker = 0;
-        Steinberg::int64 storedId = 0;
-        if (streamer.readInt32(marker) && marker == kInstanceIdMarker
-            && streamer.readInt64(storedId))
-        {
-            // Re-register with the stored ID (supports state restore)
-            Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_);
-            instanceId_ = static_cast<uint64_t>(storedId);
-            Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
-                instanceId_, &sharedDisplay_);
-        }
-        // If marker not found, keep the constructor-generated ID (old state format)
-    }
-
-    return Steinberg::kResultOk;
+    return true;
 }
+
+// ==============================================================================
+// State hand-off (D-003): see the contract at the top of this file
+// ==============================================================================
+
+int Processor::acquireStateSlot() noexcept {
+    for (;;) {
+        int slot = pendingSlot_.load(std::memory_order_acquire);
+        if ((slot == kSlotIdle || slot == kSlotReady) &&
+            pendingSlot_.compare_exchange_weak(slot, kSlotWriting, std::memory_order_acquire,
+                                               std::memory_order_relaxed)) {
+            return slot;
+        }
+        std::this_thread::yield();  // the slot is being applied (or written): wait for it
+    }
+}
+
+void Processor::consumePendingState() noexcept {
+    int expected = kSlotReady;
+    if (!pendingSlot_.compare_exchange_strong(expected, kSlotApplying, std::memory_order_acquire,
+                                              std::memory_order_relaxed)) {
+        return;  // nothing published, or a host-thread call holds the slot: next block
+    }
+    applyPendingState();
+    pendingSlot_.store(kSlotIdle, std::memory_order_release);
+}
+
+void Processor::applyPendingState() noexcept {
+    const PendingState& s = pendingState_;
+
+    inputGain_.store(s.inputGain, std::memory_order_relaxed);
+    outputGain_.store(s.outputGain, std::memory_order_relaxed);
+    globalMix_.store(s.globalMix, std::memory_order_relaxed);
+
+    if (s.hasBands) {
+        bandCount_.store(s.bandCount, std::memory_order_relaxed);
+        for (size_t b = 0; b < static_cast<size_t>(kMaxBands); ++b) {
+            auto& bs = bandStates_[b];
+            const auto& from = s.bandStates[b];
+            bs.gainDb = from.gainDb;
+            bs.pan = from.pan;
+            bs.solo = from.solo;
+            bs.bypass = from.bypass;
+            bs.mute = from.mute;
+            bandProcessors_[b].setGainDb(bs.gainDb);
+            bandProcessors_[b].setPan(bs.pan);
+            bandProcessors_[b].setMute(bs.mute);
+            bandProcessors_[b].setBypassed(bs.bypass);
+        }
+
+        // Band count first: a later setBandCount would redistribute (and so
+        // overwrite) the crossovers restored below (D-048)
+        crossoverL_.setBandCount(s.bandCount);
+        crossoverR_.setBandCount(s.bandCount);
+        for (int c = 0; c < kMaxBands - 1; ++c) {
+            if (s.hasCrossover[static_cast<size_t>(c)]) {
+                crossoverL_.setCrossoverFrequency(c, s.crossoverHz[static_cast<size_t>(c)]);
+                crossoverR_.setCrossoverFrequency(c, s.crossoverHz[static_cast<size_t>(c)]);
+            }
+        }
+    }
+
+    if (s.hasSweep) {
+        sweepProcessor_.setEnabled(s.sweepEnabled);
+        baseSweepFrequency_.store(s.sweepFrequencyHz, std::memory_order_relaxed);
+        sweepProcessor_.setCenterFrequency(s.sweepFrequencyHz);
+        // process() re-applies width/intensity from the base atomics every block.
+        baseSweepWidthNorm_.store(s.sweepWidthNorm, std::memory_order_relaxed);
+        sweepProcessor_.setWidth(0.5f + s.sweepWidthNorm * 3.5f);
+        baseSweepIntensityNorm_.store(s.sweepIntensityNorm, std::memory_order_relaxed);
+        sweepProcessor_.setIntensity(s.sweepIntensityNorm * 2.0f);
+        sweepProcessor_.setFalloffMode(s.sweepFalloff);
+        sweepProcessor_.setMorphLinkMode(s.sweepMorphLink);
+
+        sweepLFO_.setEnabled(s.sweepLfoEnabled);
+        sweepLFO_.setRate(s.sweepLfoRateHz);
+        sweepLFO_.setWaveform(s.sweepLfoWaveform);
+        sweepLFO_.setDepth(s.sweepLfoDepth);
+        sweepLFO_.setTempoSync(s.sweepLfoSync);
+        sweepLFO_.setNoteValue(s.sweepLfoNoteValue, s.sweepLfoNoteModifier);
+
+        sweepEnvelope_.setEnabled(s.sweepEnvEnabled);
+        sweepEnvelope_.setAttackTime(s.sweepEnvAttackMs);
+        sweepEnvelope_.setReleaseTime(s.sweepEnvReleaseMs);
+        sweepEnvelope_.setSensitivity(s.sweepEnvSensitivity);
+
+        customCurve_ = s.customCurve;  // fixed-size value type; sweepProcessor_ keeps its pointer
+    }
+
+    if (s.hasModulation) {
+        auto& me = modulationEngine_;
+        me.setLFO1Rate(s.lfo1.rateHz);
+        me.setLFO1Waveform(s.lfo1.waveform);
+        me.setLFO1PhaseOffset(s.lfo1.phaseDeg);
+        me.setLFO1TempoSync(s.lfo1.tempoSync);
+        me.setLFO1NoteValue(s.lfo1.noteValue, s.lfo1.noteModifier);
+        me.setLFO1Unipolar(s.lfo1.unipolar);
+        me.setLFO1Retrigger(s.lfo1.retrigger);
+        me.setLFO2Rate(s.lfo2.rateHz);
+        me.setLFO2Waveform(s.lfo2.waveform);
+        me.setLFO2PhaseOffset(s.lfo2.phaseDeg);
+        me.setLFO2TempoSync(s.lfo2.tempoSync);
+        me.setLFO2NoteValue(s.lfo2.noteValue, s.lfo2.noteModifier);
+        me.setLFO2Unipolar(s.lfo2.unipolar);
+        me.setLFO2Retrigger(s.lfo2.retrigger);
+        me.setEnvFollowerAttack(s.envFollowerAttackMs);
+        me.setEnvFollowerRelease(s.envFollowerReleaseMs);
+        me.setEnvFollowerSensitivity(s.envFollowerSensitivity);
+        me.setEnvFollowerSource(s.envFollowerSource);
+        me.setRandomRate(s.randomRateHz);
+        me.setRandomSmoothness(s.randomSmoothness);
+        me.setRandomTempoSync(s.randomTempoSync);
+        me.setChaosModel(s.chaosModel);
+        me.setChaosSpeed(s.chaosSpeed);
+        me.setChaosCoupling(s.chaosCoupling);
+        me.setSampleHoldSource(s.sampleHoldSource);
+        me.setSampleHoldRate(s.sampleHoldRateHz);
+        me.setSampleHoldSlew(s.sampleHoldSlewMs);
+        me.setPitchFollowerMinHz(s.pitchFollowerMinHz);
+        me.setPitchFollowerMaxHz(s.pitchFollowerMaxHz);
+        me.setPitchFollowerConfidence(s.pitchFollowerConfidence);
+        me.setPitchFollowerTrackingSpeed(s.pitchFollowerTrackingMs);
+        me.setTransientSensitivity(s.transientSensitivity);
+        me.setTransientAttack(s.transientAttackMs);
+        me.setTransientDecay(s.transientDecayMs);
+        if (s.hasRungler) {
+            me.setRunglerOsc1Freq(s.runglerRateHz);
+            me.setRunglerOsc2Freq(s.runglerRateHz * 1.5f);
+            me.setRunglerDepth(s.runglerDepth);
+            me.setRunglerBits(s.runglerBits);
+            me.setRunglerLoopMode(s.runglerLoop);
+        }
+        for (size_t m = 0; m < Krate::DSP::kMaxMacros; ++m) {
+            me.setMacroValue(m, s.macros[m].value);
+            me.setMacroMin(m, s.macros[m].minOutput);
+            me.setMacroMax(m, s.macros[m].maxOutput);
+            me.setMacroCurve(m, s.macros[m].curve);
+        }
+        for (size_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r) {
+            me.setRouting(r, s.routings[r]);
+        }
+    }
+
+    if (s.hasMorph) {
+        for (size_t b = 0; b < static_cast<size_t>(kMaxBands); ++b) {
+            bandStates_[b].xLink = s.bandStates[b].xLink;
+            bandStates_[b].yLink = s.bandStates[b].yLink;
+            auto& cache = bandMorphCache_[b];
+            cache = s.morph[b];
+            bandProcessors_[b].setMorphMode(cache.morphMode);
+            bandProcessors_[b].setMorphSmoothingTime(cache.morphSmoothingMs);
+            bandProcessors_[b].setMorphEnabled(true);
+            bandProcessors_[b].setMorphNodes(cache.nodes, cache.activeNodeCount);
+            bandProcessors_[b].setMorphPosition(cache.morphX, cache.morphY);
+        }
+    }
+}
+
 } // namespace Disrumpo

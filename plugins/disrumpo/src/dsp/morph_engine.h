@@ -23,7 +23,9 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 
 namespace Disrumpo {
 
@@ -45,6 +47,10 @@ namespace Disrumpo {
 /// @note Per spec FR-001 through FR-019
 class MorphEngine {
 public:
+    /// @brief Test probe (D-003): setNodes() calls over all instances, so a test can
+    /// tell which thread or call reconfigured the live engines.
+    static inline std::atomic<std::uint64_t> debugSetNodesCalls{0};
+
     // =========================================================================
     // Lifecycle
     // =========================================================================

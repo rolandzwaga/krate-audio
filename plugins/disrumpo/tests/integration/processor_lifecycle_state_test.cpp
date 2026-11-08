@@ -23,17 +23,27 @@
 // a host restore kept the defaults (fresh instance) or the previous patch's
 // values (live instance). Rectified_Drums' HalfRectify band compared against
 // the default threshold 0.7 instead of 0.3 and fell silent.
+//
+// Audit finding D-003 (fix plan T1.24): setState wrote the live crossovers,
+// band processors, morph engines and mod matrix from the host thread while the
+// audio thread could be inside process(). While processing is active it now
+// parses into a pending state that the next process() applies; live DSP objects
+// (and so the engine-reading tests below) see a load from the next block on.
 // =============================================================================
 
 #include "../test_support/disrumpo_rig.h"
 
 #include "controller/controller.h"
+#include "dsp/crossover_network.h"
+#include "dsp/morph_engine.h"
 #include "plugin_ids.h"
 
+#include <allocation_detector.h>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -961,6 +971,7 @@ TEST_CASE("Every factory preset restores the slot-derived node params through se
     for (const auto& path : presets) {
         const auto comp = readPresetComponent(path.string());
         REQUIRE(setStateBytes(*rig.p, comp));
+        rig.apply({});  // the live engines take a load made while active at the next block (D-003)
         const std::string name = fs::relative(path, DISRUMPO_RESOURCES_DIR "/presets").generic_string();
         const auto version = readAt<int32_t>(comp, 0);
         if (version < 9) {
@@ -996,4 +1007,227 @@ TEST_CASE("Every factory preset restores the slot-derived node params through se
                 presets.size(), legacy, wrongPresets, wrongNodes, nodes, examples);
     REQUIRE(nodes > 0);
     REQUIRE(wrongNodes == 0);
+}
+
+// -----------------------------------------------------------------------------
+// D-003 (T1.24): setState on an active processor hands the state to the audio
+// thread. The live DSP objects change at the top of the next process() call,
+// never on the thread that called setState.
+// -----------------------------------------------------------------------------
+namespace {
+
+std::string presetPath(const char* name) { return std::string(DISRUMPO_RESOURCES_DIR "/presets/") + name; }
+
+// A zero-sample process() call: the host's parameter flush, the first thing a
+// pending state is applied in.
+void flushBlock(Rig& rig, PChanges& empty) {
+    float z[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    rig.processBlock(z, z + 1, z + 2, z + 3, 0, &empty);
+}
+
+}  // namespace
+
+TEST_CASE("setState during processing does not touch live DSP objects", "[disrumpo][rt-safety][D-003]") {
+    // Multi_Band_Morph: 4 bands; the instance runs 2, so the load changes the band count.
+    const auto preset = readPresetComponent(presetPath("Morph/Multi_Band_Morph.vstpreset"));
+    const PatchView want = decodePatch(preset);
+    REQUIRE(want.bandCount == 4);
+
+    Rig rig(48000.0);
+    rig.apply({{kBandCountId, 1.0 / 3.0}});  // 2 bands
+    const auto nodes0 = MorphEngine::debugSetNodesCalls.load();
+    const auto bands0 = CrossoverNetwork::debugSetBandCountCalls.load();
+    REQUIRE(setStateBytes(*rig.p, preset));
+    const auto nodesAfterSetState = MorphEngine::debugSetNodesCalls.load() - nodes0;
+    const auto bandsAfterSetState = CrossoverNetwork::debugSetBandCountCalls.load() - bands0;
+
+    // getState before any block returns the restored patch, not the 2-band one.
+    const PatchView got = decodePatch(getStateBytes(*rig.p));
+
+    PChanges empty;
+    flushBlock(rig, empty);
+    const auto nodesAfterBlock = MorphEngine::debugSetNodesCalls.load() - nodes0;
+    const auto bandsAfterBlock = CrossoverNetwork::debugSetBandCountCalls.load() - bands0;
+    std::printf("D-003 live DSP calls: right after setState setNodes=%llu setBandCount=%llu; after the next "
+                "block setNodes=%llu setBandCount=%llu; getState before the block: bands=%d crossover0=%.1f Hz\n",
+                static_cast<unsigned long long>(nodesAfterSetState),
+                static_cast<unsigned long long>(bandsAfterSetState),
+                static_cast<unsigned long long>(nodesAfterBlock), static_cast<unsigned long long>(bandsAfterBlock),
+                got.bandCount, static_cast<double>(got.crossover[0]));
+
+    CHECK(got.bandCount == want.bandCount);
+    for (size_t c = 0; c + 1 < kBands; ++c) {
+        INFO("crossover " << c);
+        CHECK(std::fabs(got.crossover[c] - want.crossover[c]) < 0.1f);
+    }
+    for (size_t band = 0; band < kBands; ++band) {
+        INFO("band " << band);
+        CHECK(got.bands[band].mode == want.bands[band].mode);
+        for (size_t n = 0; n < static_cast<size_t>(kMaxMorphNodes); ++n) CHECK(got.bands[band].types[n] == want.bands[band].types[n]);
+    }
+    CHECK(nodesAfterSetState == 0u);
+    CHECK(bandsAfterSetState == 0u);
+    REQUIRE(nodesAfterBlock > 0u);
+    REQUIRE(bandsAfterBlock > 0u);
+    REQUIRE(rig.p->getBandProcessor(0).getMorphEngine()->getNodeType(0) ==
+            static_cast<DistortionType>(want.bands[0].types[0]));
+}
+
+TEST_CASE("Two setState calls before a block: the last one wins", "[disrumpo][rt-safety][D-003]") {
+    const auto a = readPresetComponent(presetPath("Morph/Radial_Blend.vstpreset"));
+    std::vector<uint8_t> b;  // a current-version stream: every section present
+    {
+        Rig src(48000.0);
+        src.apply(linkPatch());
+        src.apply({{kBandCountId, 1.0 / 3.0}, {makeCrossoverParamId(0), 0.3}});
+        b = getStateBytes(*src.p);
+    }
+    REQUIRE(readAt<int32_t>(b, 0) == kPresetVersion);
+
+    PChanges empty;
+    Rig twice(48000.0);
+    REQUIRE(setStateBytes(*twice.p, a));
+    REQUIRE(setStateBytes(*twice.p, b));
+    const auto twiceBefore = getStateBytes(*twice.p);
+    flushBlock(twice, empty);
+    const auto twiceAfter = getStateBytes(*twice.p);
+
+    Rig once(48000.0);
+    REQUIRE(setStateBytes(*once.p, b));
+    const auto onceBefore = getStateBytes(*once.p);
+    flushBlock(once, empty);
+    const auto onceAfter = getStateBytes(*once.p);
+
+    std::printf("D-003 last wins: A then B vs B alone, first differing byte before the block %zu of %zu, "
+                "after it %zu of %zu; B alone before vs after the block %zu of %zu\n",
+                firstDifference(twiceBefore, onceBefore), onceBefore.size(), firstDifference(twiceAfter, onceAfter),
+                onceAfter.size(), firstDifference(onceBefore, onceAfter), onceAfter.size());
+    REQUIRE(twiceBefore.size() == onceBefore.size());
+    REQUIRE(firstDifference(twiceBefore, onceBefore) == onceBefore.size());
+    REQUIRE(twiceAfter.size() == onceAfter.size());
+    REQUIRE(firstDifference(twiceAfter, onceAfter) == onceAfter.size());
+    // The applied state saves back exactly what the pending one did.
+    REQUIRE(firstDifference(onceBefore, onceAfter) == onceAfter.size());
+}
+
+TEST_CASE("A deferred load renders like a load made while inactive; applying it allocates nothing",
+          "[disrumpo][rt-safety][D-003]") {
+    SECTION("render: deferred (active) vs immediate (inactive) load") {
+        constexpr double kSampleRate = 48000.0;
+        constexpr size_t kBlock = 512;
+        const auto preset = readPresetComponent(presetPath("Morph/Multi_Band_Morph.vstpreset"));
+        const auto in = sine440(kSampleRate, -12.0, static_cast<size_t>(kSampleRate / 2));
+        // Max |diff| over the first block and over every sample after it.
+        const auto compare = [&](const std::vector<float>& aL, const std::vector<float>& aR,
+                                 const std::vector<float>& bL, const std::vector<float>& bR) {
+            std::pair<double, double> m{0.0, 0.0};
+            for (size_t i = 0; i < in.size(); ++i) {
+                const double d = std::max(std::fabs(static_cast<double>(aL[i]) - static_cast<double>(bL[i])),
+                                          std::fabs(static_cast<double>(aR[i]) - static_cast<double>(bR[i])));
+                double& slot = (i < kBlock) ? m.first : m.second;
+                slot = std::max(slot, d);
+            }
+            return m;
+        };
+        // Both instances run the same lifecycle (setup, load, setupProcessing +
+        // setActive, render); only the thread that applies the load differs.
+        // Inactive: setState applies it at once.
+        std::vector<float> iL;
+        std::vector<float> iR;
+        {
+            Rig inactive(kSampleRate);
+            inactive.deactivate();
+            REQUIRE(setStateBytes(*inactive.p, preset));
+            inactive.setup();
+            inactive.render(in, in, iL, iR, static_cast<int32>(kBlock));
+        }
+        // Active: a process() call applies it.
+        std::vector<float> dL;
+        std::vector<float> dR;
+        {
+            Rig deferred(kSampleRate);
+            PChanges empty;
+            REQUIRE(setStateBytes(*deferred.p, preset));
+            flushBlock(deferred, empty);
+            deferred.deactivate();
+            deferred.setup();
+            deferred.render(in, in, dL, dR, static_cast<int32>(kBlock));
+        }
+        // Straight after a load while active, without re-preparation, the instance
+        // glides from its previous (default) patch: its smoothers start where they
+        // were. Recorded, not gated.
+        std::vector<float> gL;
+        std::vector<float> gR;
+        {
+            Rig deferred(kSampleRate);
+            REQUIRE(setStateBytes(*deferred.p, preset));
+            deferred.render(in, in, gL, gR, static_cast<int32>(kBlock));
+        }
+        const auto applied = compare(dL, dR, iL, iR);
+        const auto glide = compare(gL, gR, iL, iR);
+        std::printf("D-003 deferred vs inactive load (Multi_Band_Morph, 0.5 s, RMS %.2f dBFS): max |diff| first "
+                    "block %.3e, after it %.3e; straight after the load while active (glide from the previous "
+                    "patch): first block %.3e, after it %.3e\n",
+                    toDb(rmsOf(iL.data(), iL.size())), applied.first, applied.second, glide.first, glide.second);
+        REQUIRE(applied.second < 1e-6);
+    }
+
+    SECTION("allocations in the block that applies each factory preset") {
+        namespace fs = std::filesystem;
+        std::vector<fs::path> presets;
+        for (const auto& e : fs::recursive_directory_iterator(DISRUMPO_RESOURCES_DIR "/presets"))
+            if (e.is_regular_file() && e.path().extension() == ".vstpreset") presets.push_back(e.path());
+        std::sort(presets.begin(), presets.end());
+        REQUIRE(presets.size() > size_t{100});
+
+        {
+            // The detector counts in this binary (non-vacuity).
+            TestHelpers::ThreadScopedAllocationScope probe;
+            std::vector<int> v(16);
+            v[0] = 1;
+            REQUIRE(TestHelpers::AllocationDetector::instance().getAllocationCount() > 0u);
+        }
+
+        Rig rig(44100.0);
+        PChanges empty;
+        size_t allocations = 0;
+        size_t appliedPresets = 0;
+        for (const auto& path : presets) {
+            const auto comp = readPresetComponent(path.string());
+            REQUIRE(setStateBytes(*rig.p, comp));
+            const auto nodes0 = MorphEngine::debugSetNodesCalls.load();
+            {
+                TestHelpers::ThreadScopedAllocationScope scope;
+                flushBlock(rig, empty);
+                allocations += TestHelpers::AllocationDetector::instance().getAllocationCount();
+            }
+            if (MorphEngine::debugSetNodesCalls.load() - nodes0 >= static_cast<uint64_t>(kMaxBands)) ++appliedPresets;
+        }
+        std::printf("D-003 applying %zu factory presets in process(): %zu applied there, %zu allocations\n",
+                    presets.size(), appliedPresets, allocations);
+        CHECK(appliedPresets == presets.size());
+        REQUIRE(allocations == 0u);
+    }
+}
+
+// Measurement probe (hidden): cost of the process() call that applies a pending state.
+TEST_CASE("Probe: cost of the block that applies a pending state", "[.][t124-cpu-probe]") {
+    const auto a = readPresetComponent(presetPath("Morph/Multi_Band_Morph.vstpreset"));
+    const auto b = readPresetComponent(presetPath("Morph/Radial_Blend.vstpreset"));
+    Rig rig(48000.0);
+    PChanges empty;
+    constexpr int kRuns = 200;
+    double total = 0.0;
+    double worst = 0.0;
+    for (int i = 0; i < kRuns; ++i) {
+        REQUIRE(setStateBytes(*rig.p, (i % 2 == 0) ? a : b));
+        const auto t0 = std::chrono::steady_clock::now();
+        flushBlock(rig, empty);
+        const auto t1 = std::chrono::steady_clock::now();
+        const double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        total += us;
+        worst = std::max(worst, us);
+    }
+    WARN("PROBE apply block: mean " << (total / kRuns) << " us, max " << worst << " us over " << kRuns
+                                    << " loads (512-sample budget at 48 kHz: 10667 us)");
 }
