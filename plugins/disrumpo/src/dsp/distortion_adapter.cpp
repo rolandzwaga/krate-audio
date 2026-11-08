@@ -482,7 +482,7 @@ float DistortionAdapter::processRaw(float input) noexcept {
                 jitterRng_ ^= jitterRng_ << 5;
                 float rnd = static_cast<float>(jitterRng_ >> 8) / 16777215.0f;
                 float offset = (rnd * 2.0f - 1.0f) * bitcrushJitter_ * 2.0f;
-                bitDepth = std::clamp(bitDepth + offset, 1.0f, 16.0f);
+                bitDepth = std::clamp(bitDepth + offset, 4.0f, 16.0f);
             }
 
             // Set per-sample bit depth (handles jitter) and dither

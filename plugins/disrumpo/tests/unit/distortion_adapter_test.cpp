@@ -906,7 +906,7 @@ TEST_CASE("Bitcrush shape slot mapping produces audible changes", "[distortion][
     // Helper: replicate mapShapeSlotsToParams for Bitcrush, then set on adapter
     auto applyBitcrushSlots = [&](float slot0, float slot1, float slot2, float slot3) {
         DistortionParams p;
-        p.bitDepth = 1.0f + slot0 * 15.0f;       // [0,1] -> [1,16]
+        p.bitDepth = 4.0f + slot0 * 12.0f;       // [0,1] -> [4,16]
         p.dither = slot1;
         p.bitcrushMode = static_cast<int>(slot2 * 1.0f + 0.5f);
         p.jitter = slot3;
@@ -1029,9 +1029,9 @@ TEST_CASE("Bitcrush through MorphEngine responds to shape slot changes", "[disto
     const float testSignal = 0.37f;
 
     SECTION("Changing bitDepth via shape slots affects output") {
-        // Shape slot 0 = 0.0 → bitDepth = 1 (extreme lo-fi)
+        // Shape slot 0 = 0.0 → bitDepth = 4 (extreme lo-fi)
         DistortionParams loParams;
-        loParams.bitDepth = 1.0f + 0.0f * 15.0f;  // 1 bit
+        loParams.bitDepth = 4.0f + 0.0f * 12.0f;  // 4 bits
         nodes[0].params = loParams;
         engine.setNodes(nodes, 1);
         engine.setMorphPosition(0.0f, 0.0f);
@@ -1042,7 +1042,7 @@ TEST_CASE("Bitcrush through MorphEngine responds to shape slot changes", "[disto
 
         // Shape slot 0 = 1.0 → bitDepth = 16 (transparent)
         DistortionParams hiParams;
-        hiParams.bitDepth = 1.0f + 1.0f * 15.0f;  // 16 bits
+        hiParams.bitDepth = 4.0f + 1.0f * 12.0f;  // 16 bits
         nodes[0].params = hiParams;
         engine.setNodes(nodes, 1);
         engine.reset();
@@ -3068,4 +3068,35 @@ TEST_CASE("Granular at drive 1 on -20 dBFS sine peaks below -12 dBFS",
     INFO("Granular drive 1, -20 dBFS 1 kHz sine: output peak " << peak << " (" << peakDb << " dBFS)");
     CHECK(countNonFinite(out) == 0);
     CHECK(peakDb < -12.0);
+}
+
+// D-083 / D-102 (T2.05): the Bits slot mapped to [1, 16] while BitCrusher clamps to
+// [4, 16], so the bottom 20 % of the knob all sounded like 4 bits.
+#include "processor/processor.h"
+
+TEST_CASE("Bitcrush slot 0.0 and 0.15 give different output",
+          "[disrumpo][distortion][bitcrush][D-083][D-102]") {
+    const auto bitcrushParams = [](float bitsSlot) {
+        std::array<float, MorphNode::kShapeSlotCount> slots{};  // dither 0, Truncate, jitter 0
+        slots[0] = bitsSlot;
+        DistortionParams p;
+        Processor::mapShapeSlotsToParams(DistortionType::Bitcrush, slots.data(), p);
+        return p;
+    };
+    INFO("bitDepth at slot 0 / 0.5 / 1: " << bitcrushParams(0.0f).bitDepth << " / "
+         << bitcrushParams(0.5f).bitDepth << " / " << bitcrushParams(1.0f).bitDepth);
+
+    const DistortionCommonParams common{.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f};
+    const auto in = sineAt48k(440.0, 0.5f, 4800);  // 0.1 s
+    const auto at0 = renderAdapterWith(DistortionType::Bitcrush, bitcrushParams(0.0f), common, in);
+    const auto at015 = renderAdapterWith(DistortionType::Bitcrush, bitcrushParams(0.15f), common, in);
+    double sumSq = 0.0;
+    for (std::size_t i = 0; i < in.size(); ++i) {
+        const double d = static_cast<double>(at0[i]) - static_cast<double>(at015[i]);
+        sumSq += d * d;
+    }
+    const double rmsDiff = std::sqrt(sumSq / static_cast<double>(in.size()));
+    INFO("bitDepth at slot 0.15: " << bitcrushParams(0.15f).bitDepth << "; RMS of (slot 0 - slot 0.15) output "
+         << rmsDiff);
+    CHECK(rmsDiff > 1e-3);
 }

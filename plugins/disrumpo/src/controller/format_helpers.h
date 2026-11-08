@@ -121,7 +121,7 @@ static inline bool formatShapeSlot(DistortionType distType, int slot, float v,
 
     if (distType == DistortionType::Bitcrush) {
         if (slot == 0) {
-            floatToString128(1.0 + v * 15.0, 1, string);
+            floatToString128(4.0 + v * 12.0, 1, string);
             appendToString128(string, STR16(" bit"));
             return true;
         }

@@ -105,7 +105,7 @@ struct DistortionParams {
     bool dcBlock = true;            ///< DC blocking toggle
 
     // Digital (D12-D14)
-    float bitDepth = 16.0f;         ///< Bit depth [1, 16]
+    float bitDepth = 16.0f;         ///< Bit depth; Bitcrush maps its Bits slot to [4, 16] (BitCrusher's range)
     float sampleRateRatio = 1.0f;   ///< Downsample ratio [1, 32]
     float smoothness = 0.0f;        ///< Anti-alias smoothing [0, 1]
     float dither = 0.0f;            ///< Bitcrush/quantize dither [0, 1]
