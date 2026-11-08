@@ -2929,3 +2929,76 @@ TEST_CASE("Tube and Temporal(Diode/Tube curve) output has no DC", "[disrumpo][dc
         }
     }
 }
+
+// =============================================================================
+// Fix plan Phase 2: adapter routing of the shared processors (T2.01, T2.02, T2.04, T2.05)
+// =============================================================================
+
+namespace {
+
+/// Render `in` through a fresh adapter of `type` at 48 kHz with the given common params.
+std::vector<float> renderAdapterWith(DistortionType type, const DistortionParams& params,
+                                     const DistortionCommonParams& common,
+                                     const std::vector<float>& in) {
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kSilenceTestRate, kTestBlockSize);
+    adapter->setCommonParams(common);
+    adapter->setType(type);
+    adapter->setParams(params);
+    (*adapter).reset();
+    std::vector<float> out(in.size());
+    for (std::size_t i = 0; i < in.size(); ++i) out[i] = adapter->process(in[i]);
+    return out;
+}
+
+std::vector<float> sineAt48k(double freqHz, float amplitude, std::size_t length) {
+    std::vector<float> x(length);
+    for (std::size_t i = 0; i < length; ++i) {
+        x[i] = amplitude * static_cast<float>(std::sin(2.0 * std::numbers::pi * freqHz *
+                                                       static_cast<double>(i) / kSilenceTestRate));
+    }
+    return x;
+}
+
+/// Level in dB of the `freqHz` component of x[from, end) (single-bin DFT; the window holds
+/// a whole number of cycles of the frequencies used here).
+double toneLevelDb(const std::vector<float>& x, std::size_t from, double freqHz) {
+    double re = 0.0;
+    double im = 0.0;
+    for (std::size_t i = from; i < x.size(); ++i) {
+        const double ph = 2.0 * std::numbers::pi * freqHz * static_cast<double>(i) / kSilenceTestRate;
+        re += static_cast<double>(x[i]) * std::cos(ph);
+        im -= static_cast<double>(x[i]) * std::sin(ph);
+    }
+    const double amplitude = 2.0 * std::sqrt(re * re + im * im) / static_cast<double>(x.size() - from);
+    return 20.0 * std::log10(std::max(amplitude, 1e-12));
+}
+
+}  // namespace
+
+// D-076 (T2.01): FuzzProcessor's own tone biquad defaulted to tone 0.5 (~1789 Hz) under the
+// adapter's tone filter, so node Tone could not open Fuzz / AsymmetricFuzz. FuzzProcessor
+// blends (1 - sustain) of the dry input past that biquad, so sustain 1 (fully wet) is the
+// setting that exposes it; sustain 0.5 is the default slot value.
+TEST_CASE("Fuzz passes 4 kHz within 6 dB of 500 Hz at node tone 8000 Hz",
+          "[disrumpo][distortion][fuzz][D-076]") {
+    constexpr std::size_t kLength = 24000;  // 0.5 s
+    constexpr std::size_t kFrom = 12000;    // last 0.25 s: 125 / 1000 whole cycles
+    const DistortionCommonParams common{.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f};
+
+    for (const auto type : {DistortionType::Fuzz, DistortionType::AsymmetricFuzz}) {
+        for (const float sustain : {0.5f, 1.0f}) {
+            DistortionParams p;
+            p.sustain = sustain;
+            p.body = 0.0f;       // AsymmetricFuzz body filter fully open (20 kHz)
+            p.asymmetry = 0.0f;  // AsymmetricFuzz: its +0.15 offset pins sustain 1 in saturation
+            const double level500 = toneLevelDb(
+                renderAdapterWith(type, p, common, sineAt48k(500.0, 0.1f, kLength)), kFrom, 500.0);
+            const double level4k = toneLevelDb(
+                renderAdapterWith(type, p, common, sineAt48k(4000.0, 0.1f, kLength)), kFrom, 4000.0);
+            INFO(getTypeName(type) << ", sustain " << sustain << ": 500 Hz " << level500
+                 << " dB, 4 kHz " << level4k << " dB, difference " << (level4k - level500) << " dB");
+            CHECK(std::fabs(level4k - level500) <= 6.0);
+        }
+    }
+}

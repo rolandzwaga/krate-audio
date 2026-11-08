@@ -662,6 +662,9 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             fuzz_.setBias(p.bias);
             fuzz_.setFuzz(p.sustain);
             fuzz_.setOctaveUp(p.octave >= 0.5f);
+            // The node Tone (adapter tone filter) is the only tone control: open the
+            // processor's own tone biquad fully (8 kHz) instead of its 1.8 kHz default (D-076).
+            fuzz_.setTone(1.0f);
             break;
 
         case DistortionType::AsymmetricFuzz:
@@ -670,6 +673,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             // on first use, changing audio behavior. Leave type to processRaw().
             fuzz_.setBias(p.bias);
             fuzz_.setFuzz(p.sustain);
+            fuzz_.setTone(1.0f);  // tone biquad fully open, as Fuzz (D-076)
             // Body: map [0,1] to cutoff [20000, 400] Hz (exponential)
             // body=0 → 20kHz (fully open), body=1 → 400Hz (dark)
             bodyFilter_.setCutoff(20000.0f * std::pow(400.0f / 20000.0f, p.body));
