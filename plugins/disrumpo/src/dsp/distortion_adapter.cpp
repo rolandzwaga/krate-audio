@@ -499,16 +499,17 @@ float DistortionAdapter::processRaw(float input) noexcept {
 
         case DistortionType::Quantize: {
             // D14: N-level uniform quantization (linear level count, distinct from Bitcrush)
-            // Levels: [0,1] → [2, 64] linear (vs Bitcrush exponential 2^bits)
-            // N levels are uniformly spaced in [-1, +1] with step = 2/(N-1)
-            const float numLevels = 2.0f + typeParams_.quantLevels * 62.0f;
+            // Levels: [0,1] → N odd in [3, 63] linear (vs Bitcrush exponential 2^bits)
+            // Mid-tread grid (D-010, D-143): the N levels k * step, k = -(N-1)/2 .. (N-1)/2,
+            // step = 2/(N-1), are centred on 0, so 0 is a level and silence stays silent.
+            const float numLevels = std::max(3.0f, 2.0f * std::round(typeParams_.quantLevels * 31.0f) + 1.0f);
             const float stepSize = 2.0f / (numLevels - 1.0f);
+            const float halfSpan = (numLevels - 1.0f) * 0.5f;
 
-            // Map input from [-1,1] to index space [0, N-1]
-            float index = (input + 1.0f) / stepSize;
-
-            // Offset shifts the quantization grid for asymmetric harmonics
-            index += typeParams_.quantOffset;
+            // Offset [0,1] moves every decision threshold down by up to half a step (the
+            // levels stay put) for asymmetric harmonics; at most half a step keeps 0 on level 0.
+            const float thresholdShift = 0.5f * typeParams_.quantOffset;
+            float index = input / stepSize + thresholdShift;
 
             // Optional TPDF dither before rounding
             if (typeParams_.dither > 0.0f) {
@@ -523,12 +524,11 @@ float DistortionAdapter::processRaw(float input) noexcept {
                 index += (r1 + r2) * typeParams_.dither;
             }
 
-            // Round to nearest level, undo offset, clamp to valid range
-            index = std::round(index) - typeParams_.quantOffset;
-            index = std::clamp(index, 0.0f, numLevels - 1.0f);
+            // Round half down (thresholds at k + 0.5 - shift), clamp to the outer levels
+            index = std::ceil(index - 0.5f);
+            index = std::clamp(index, -halfSpan, halfSpan);
 
-            // Convert back to [-1, 1]
-            float quantized = index * stepSize - 1.0f;
+            float quantized = index * stepSize;
             quantized = std::clamp(quantized, -1.0f, 1.0f);
 
             // Optional smoothing lowpass
@@ -609,7 +609,7 @@ void DistortionAdapter::updateDCBlockerState() noexcept {
     // DC blocking required for asymmetric types that introduce DC offset.
     // Tube (asymmetric curve + bias), Stochastic (jitter/drift offset around the signal)
     // and Temporal on its Diode / Tube curves (indices 7 and 8) leave DC on the band
-    // output (D-075, D-142).
+    // output (D-075, D-142). Quantize's Offset moves its thresholds asymmetrically (D-010).
     const int temporalCurve = temporalShapeIndex(typeParams_.dynamicCurve);
     needsDCBlock_ = (currentType_ == DistortionType::AsymmetricFuzz ||
                      currentType_ == DistortionType::FullRectify ||
@@ -617,6 +617,7 @@ void DistortionAdapter::updateDCBlockerState() noexcept {
                      currentType_ == DistortionType::FeedbackDist ||
                      currentType_ == DistortionType::Tube ||
                      currentType_ == DistortionType::Stochastic ||
+                     currentType_ == DistortionType::Quantize ||
                      (currentType_ == DistortionType::Temporal &&
                       (temporalCurve == 7 || temporalCurve == 8)));
 }

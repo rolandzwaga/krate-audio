@@ -2542,7 +2542,7 @@ TEST_CASE("Fractal through adapter: high drive does not produce NaN",
 // Quantize (D14) — N-level uniform quantization tests
 // ==============================================================================
 
-TEST_CASE("Quantize 2-level produces only values near -1 and +1", "[distortion][digital][quantize]") {
+TEST_CASE("Quantize at Levels 0 produces only the three levels -1 0 +1", "[distortion][digital][quantize]") {
     DistortionAdapter adapter;
     adapter.prepare(kTestSampleRate, kTestBlockSize);
 
@@ -2555,21 +2555,20 @@ TEST_CASE("Quantize 2-level produces only values near -1 and +1", "[distortion][
     adapter.setType(DistortionType::Quantize);
 
     DistortionParams params;
-    params.quantLevels = 0.0f;  // [0,1] → [2,64], so 0 = 2 levels
+    params.quantLevels = 0.0f;  // [0,1] → odd N in [3,63], so 0 = 3 levels (mid-tread, D-010)
     params.dither = 0.0f;
     params.smoothness = 0.0f;
     params.quantOffset = 0.0f;
     adapter.setParams(params);
     adapter.reset();
 
-    // Feed a range of non-zero values — all should snap to -1 or +1
-    // (Zero is exactly on the midpoint between the two levels, so it may round either way)
+    // Feed a range of non-zero values — all should snap to -1, 0 or +1
     const float testValues[] = {0.1f, 0.5f, 0.9f, -0.3f, -0.7f};
     for (float val : testValues) {
         float out = adapter.process(val);
         CAPTURE(val);
         CAPTURE(out);
-        CHECK((std::abs(out - 1.0f) < 0.01f || std::abs(out + 1.0f) < 0.01f));
+        CHECK((std::abs(out - 1.0f) < 0.01f || std::abs(out) < 0.01f || std::abs(out + 1.0f) < 0.01f));
     }
 }
 
@@ -2613,7 +2612,7 @@ TEST_CASE("Quantize level count affects resolution", "[distortion][digital][quan
     CHECK(out64 == Approx(testSignal).margin(0.04f));
 }
 
-TEST_CASE("Quantize offset shifts quantization grid", "[distortion][digital][quantize]") {
+TEST_CASE("Quantize offset moves the decision thresholds", "[distortion][digital][quantize]") {
     DistortionAdapter adapter;
     adapter.prepare(kTestSampleRate, kTestBlockSize);
 
@@ -2625,11 +2624,13 @@ TEST_CASE("Quantize offset shifts quantization grid", "[distortion][digital][qua
 
     adapter.setType(DistortionType::Quantize);
 
-    const float testSignal = 0.3f;
+    // 7 levels, step 1/3: 0.42 is 1.26 steps, below the 1.5 threshold at offset 0 (-> 1/3)
+    // and above the 1.25 threshold that offset 0.5 moves it to (-> 2/3).
+    const float testSignal = 0.42f;
 
     // No offset
     DistortionParams params;
-    params.quantLevels = 0.1f;  // ~8 levels for visible quantization
+    params.quantLevels = 0.1f;  // 2 * round(3.1) + 1 = 7 levels for visible quantization
     params.dither = 0.0f;
     params.smoothness = 0.0f;
     params.quantOffset = 0.0f;
@@ -2742,7 +2743,9 @@ TEST_CASE("Quantize all 4 params independently affect output", "[distortion][dig
 
     adapter.setType(DistortionType::Quantize);
 
-    const float testSignal = 0.3f;
+    // Levels 0.2 = 13 levels, step 1/6: 0.2333 is 1.4 steps, so offset 0.5 (thresholds
+    // 0.25 step lower) moves it from level 1 to level 2.
+    const float testSignal = 0.2333f;
 
     // Baseline: mid levels, no dither, no smooth, no offset
     auto getOutput = [&](float levels, float dither, float smooth, float offset) {
@@ -2834,6 +2837,7 @@ TEST_CASE("DistortionAdapter::setProcessingRate re-run under AllocationScope all
 #include <krate/dsp/core/db_utils.h>
 
 #include <cstddef>
+#include <cstdio>
 
 namespace {
 
@@ -2881,16 +2885,39 @@ TEST_CASE("Adapter self-noise is below -90 dBFS for every type",
 
     for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
         const auto type = static_cast<DistortionType>(t);
-        // Quantize maps silence to a DC step today (D-010 / D-143); fix plan T2.07 fixes it
-        // and adds it to this loop.
-        if (type == DistortionType::Quantize) continue;
-
         const auto out = renderAdapter(type, DistortionParams{}, silence);
         const double rmsDb = adapterRmsDb(out, half);
         INFO("type " << t << " (" << getTypeName(type) << "): RMS of the last 0.5 s " << rmsDb
              << " dBFS, non-finite " << countNonFinite(out));
         CHECK(countNonFinite(out) == 0);
         CHECK(rmsDb <= -90.0);
+        // Quantize is mid-tread: 0 is a level, so silence maps to exact zero (D-010 / D-143).
+        if (type == DistortionType::Quantize)
+            CHECK(std::all_of(out.begin(), out.end(), [](float v) { return v == 0.0f; }));
+    }
+}
+
+// D-010 / D-143 (fix plan T2.07): the quantiser decoded index (x + 1) / step on a grid with
+// no level at 0 for an even or fractional level count, so silence became DC (Levels 0: +1.0).
+TEST_CASE("Quantize outputs 0 for 4096 zeros at levels 0 / 0.01 / 0.1 / 0.5 and offset 0 / 0.5",
+          "[disrumpo][quantize][D-010][D-143]") {
+    const std::vector<float> zeros(4096, 0.0f);
+    for (const float levels : {0.0f, 0.01f, 0.1f, 0.5f}) {
+        for (const float offset : {0.0f, 0.5f}) {
+            DistortionParams params;
+            params.quantLevels = levels;
+            params.dither = 0.0f;
+            params.quantOffset = offset;
+            const auto out = renderAdapter(DistortionType::Quantize, params, zeros);
+            const double mean = adapterMean(out, 0);
+            double maxAbs = 0.0;
+            for (const float v : out) maxAbs = std::max(maxAbs, std::fabs(static_cast<double>(v)));
+            std::printf("D-010 Quantize levels %.2f offset %.1f on zeros: mean %.6f, max|out| %.6f\n",
+                        static_cast<double>(levels), static_cast<double>(offset), mean, maxAbs);
+            INFO("levels " << levels << " offset " << offset << ": mean " << mean << ", max|out| " << maxAbs);
+            CHECK(std::fabs(mean) < 1e-4);
+            CHECK(maxAbs < 1e-4);
+        }
     }
 }
 
