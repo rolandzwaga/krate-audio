@@ -36,8 +36,8 @@ namespace Disrumpo {
 // assigned sequential slots (see plan mapping table).
 // ==============================================================================
 
-static void mapShapeSlotsToParams(DistortionType type, const float* slots,
-                                   DistortionParams& p) {
+void Processor::mapShapeSlotsToParams(DistortionType type, const float* slots,
+                                      DistortionParams& p) noexcept {
     switch (type) {
         case DistortionType::SoftClip:
             // Slot0=Curve, Slot1=Knee

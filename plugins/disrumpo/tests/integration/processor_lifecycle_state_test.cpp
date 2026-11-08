@@ -17,6 +17,12 @@
 // sweep width and intensity only into the SweepProcessor, so the first block
 // reset them from the stale base atomics; getState saved the LFO-modulated
 // sweep frequency/width/intensity instead of the user's base values.
+//
+// Audit findings D-050 / D-156 (fix plan T1.15): setState restored each node's
+// shape slots but never mapped them onto the type-specific DistortionParams, so
+// a host restore kept the defaults (fresh instance) or the previous patch's
+// values (live instance). Rectified_Drums' HalfRectify band compared against
+// the default threshold 0.7 instead of 0.3 and fell silent.
 // =============================================================================
 
 #include "../test_support/disrumpo_rig.h"
@@ -27,13 +33,16 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace Disrumpo;
@@ -680,4 +689,294 @@ TEST_CASE("Morph link modes survive the controller's preset parser and writer",
         CHECK(pd.bands[band].xLink == kWantXLink[band]);
         CHECK(pd.bands[band].yLink == kWantYLink[band]);
     }
+}
+
+// -----------------------------------------------------------------------------
+// D-050 / D-156 (T1.15): setState re-derives every node's type-specific
+// DistortionParams from the restored shape slots, as replaying the parameters
+// does (Processor::mapShapeSlotsToParams over DistortionParams{} plus the
+// stream's bias / folds / bitDepth).
+// -----------------------------------------------------------------------------
+namespace {
+
+// Per-node record of the morph section: type, drive, mix, tone, bias, folds,
+// bitDepth, then the 10 shape slots.
+constexpr size_t kNodeBiasOffset = 1 + 3 * 4;
+constexpr size_t kNodeFoldsOffset = kNodeBiasOffset + 4;
+constexpr size_t kNodeBitDepthOffset = kNodeFoldsOffset + 4;
+constexpr size_t kNodeSlotsOffset = kNodeBitDepthOffset + 4;
+
+struct SavedNode {
+    DistortionType type = DistortionType::SoftClip;
+    DistortionParams params;  // what replaying the node's parameters derives
+};
+
+SavedNode savedNode(const std::vector<uint8_t>& b, size_t band, size_t node) {
+    const auto version = readAt<int32_t>(b, 0);
+    const size_t o = morphOffset(b) + band * morphBandSize(version) + morphBandHeader(version)
+                   + node * kMorphNodeSize;
+    SavedNode s;
+    s.type = static_cast<DistortionType>(std::clamp(static_cast<int>(readAt<int8_t>(b, o)), 0, 25));
+    s.params.bias = readAt<float>(b, o + kNodeBiasOffset);
+    s.params.folds = readAt<float>(b, o + kNodeFoldsOffset);
+    s.params.bitDepth = readAt<float>(b, o + kNodeBitDepthOffset);
+    std::array<float, MorphNode::kShapeSlotCount> slots{};
+    for (size_t i = 0; i < slots.size(); ++i) slots[i] = readAt<float>(b, o + kNodeSlotsOffset + 4 * i);
+    Processor::mapShapeSlotsToParams(s.type, slots.data(), s.params);
+    return s;
+}
+
+const std::pair<const char*, float DistortionParams::*> kFloatFields[] = {
+    {"bias", &DistortionParams::bias}, {"sag", &DistortionParams::sag}, {"curve", &DistortionParams::curve},
+    {"knee", &DistortionParams::knee}, {"threshold", &DistortionParams::threshold},
+    {"ceiling", &DistortionParams::ceiling}, {"speed", &DistortionParams::speed},
+    {"hfRoll", &DistortionParams::hfRoll}, {"flutter", &DistortionParams::flutter},
+    {"octave", &DistortionParams::octave}, {"sustain", &DistortionParams::sustain},
+    {"asymmetry", &DistortionParams::asymmetry}, {"body", &DistortionParams::body},
+    {"folds", &DistortionParams::folds}, {"shape", &DistortionParams::shape},
+    {"symmetry", &DistortionParams::symmetry}, {"angle", &DistortionParams::angle},
+    {"bitDepth", &DistortionParams::bitDepth}, {"sampleRateRatio", &DistortionParams::sampleRateRatio},
+    {"smoothness", &DistortionParams::smoothness}, {"dither", &DistortionParams::dither},
+    {"jitter", &DistortionParams::jitter}, {"quantLevels", &DistortionParams::quantLevels},
+    {"quantOffset", &DistortionParams::quantOffset}, {"bitwiseIntensity", &DistortionParams::bitwiseIntensity},
+    {"bitwisePattern", &DistortionParams::bitwisePattern}, {"bitwiseBits", &DistortionParams::bitwiseBits},
+    {"sensitivity", &DistortionParams::sensitivity}, {"attackMs", &DistortionParams::attackMs},
+    {"releaseMs", &DistortionParams::releaseMs}, {"dynamicCurve", &DistortionParams::dynamicCurve},
+    {"dynamicDepth", &DistortionParams::dynamicDepth}, {"hold", &DistortionParams::hold},
+    {"feedback", &DistortionParams::feedback}, {"delayMs", &DistortionParams::delayMs},
+    {"modDepth", &DistortionParams::modDepth}, {"rsCurve", &DistortionParams::rsCurve},
+    {"rsCarrierFreq", &DistortionParams::rsCarrierFreq}, {"fbCurve", &DistortionParams::fbCurve},
+    {"filterFreq", &DistortionParams::filterFreq}, {"limThreshold", &DistortionParams::limThreshold},
+    {"fbDecay", &DistortionParams::fbDecay}, {"freqShift", &DistortionParams::freqShift},
+    {"chaosAmount", &DistortionParams::chaosAmount}, {"attractorSpeed", &DistortionParams::attractorSpeed},
+    {"chaosCoupling", &DistortionParams::chaosCoupling}, {"chaosXDrive", &DistortionParams::chaosXDrive},
+    {"chaosYDrive", &DistortionParams::chaosYDrive}, {"formantShift", &DistortionParams::formantShift},
+    {"formantCurve", &DistortionParams::formantCurve}, {"formantReso", &DistortionParams::formantReso},
+    {"formantBW", &DistortionParams::formantBW}, {"formantGender", &DistortionParams::formantGender},
+    {"formantBlend", &DistortionParams::formantBlend}, {"grainSizeMs", &DistortionParams::grainSizeMs},
+    {"grainDensity", &DistortionParams::grainDensity}, {"grainPVar", &DistortionParams::grainPVar},
+    {"grainDVar", &DistortionParams::grainDVar}, {"grainPos", &DistortionParams::grainPos},
+    {"grainCurve", &DistortionParams::grainCurve}, {"spectralCurve", &DistortionParams::spectralCurve},
+    {"spectralTilt", &DistortionParams::spectralTilt},
+    {"spectralThreshold", &DistortionParams::spectralThreshold},
+    {"spectralFreq", &DistortionParams::spectralFreq}, {"scaleFactor", &DistortionParams::scaleFactor},
+    {"frequencyDecay", &DistortionParams::frequencyDecay}, {"fractalCurve", &DistortionParams::fractalCurve},
+    {"fractalFB", &DistortionParams::fractalFB}, {"fractalDepth", &DistortionParams::fractalDepth},
+    {"jitterAmount", &DistortionParams::jitterAmount}, {"jitterRate", &DistortionParams::jitterRate},
+    {"coefficientNoise", &DistortionParams::coefficientNoise},
+    {"stochasticDrift", &DistortionParams::stochasticDrift},
+    {"stochasticSmooth", &DistortionParams::stochasticSmooth},
+    {"resonantFreq", &DistortionParams::resonantFreq}, {"allpassFeedback", &DistortionParams::allpassFeedback},
+    {"decayTimeS", &DistortionParams::decayTimeS}, {"allpassDrive", &DistortionParams::allpassDrive},
+    {"allpassDamp", &DistortionParams::allpassDamp},
+};
+const std::pair<const char*, int DistortionParams::*> kIntFields[] = {
+    {"satStage", &DistortionParams::satStage}, {"tapeModel", &DistortionParams::tapeModel},
+    {"transistor", &DistortionParams::transistor}, {"foldModel", &DistortionParams::foldModel},
+    {"bitcrushMode", &DistortionParams::bitcrushMode}, {"sampleMode", &DistortionParams::sampleMode},
+    {"bitwiseOp", &DistortionParams::bitwiseOp}, {"dynamicMode", &DistortionParams::dynamicMode},
+    {"stages", &DistortionParams::stages}, {"carrierType", &DistortionParams::carrierType},
+    {"rsFreqSelect", &DistortionParams::rsFreqSelect}, {"filterType", &DistortionParams::filterType},
+    {"chaosAttractor", &DistortionParams::chaosAttractor}, {"vowelSelect", &DistortionParams::vowelSelect},
+    {"formantCount", &DistortionParams::formantCount}, {"grainEnvType", &DistortionParams::grainEnvType},
+    {"spectralMode", &DistortionParams::spectralMode}, {"fftSize", &DistortionParams::fftSize},
+    {"magnitudeBits", &DistortionParams::magnitudeBits}, {"spectralMagMode", &DistortionParams::spectralMagMode},
+    {"spectralPhase", &DistortionParams::spectralPhase}, {"fractalMode", &DistortionParams::fractalMode},
+    {"iterations", &DistortionParams::iterations}, {"fractalBlend", &DistortionParams::fractalBlend},
+    {"stochasticCurve", &DistortionParams::stochasticCurve},
+    {"stochasticCorr", &DistortionParams::stochasticCorr},
+    {"stochasticNoiseColor", &DistortionParams::stochasticNoiseColor},
+    {"allpassTopo", &DistortionParams::allpassTopo}, {"allpassSatType", &DistortionParams::allpassSatType},
+};
+
+struct ParamMismatch {
+    const char* name;
+    double want;
+    double got;
+};
+
+// Every field of `got` that differs from `want` (floats beyond 1e-6).
+std::vector<ParamMismatch> paramMismatches(const DistortionParams& want, const DistortionParams& got) {
+    std::vector<ParamMismatch> out;
+    const auto add = [&out](const char* name, double w, double g) {
+        out.push_back(ParamMismatch{.name = name, .want = w, .got = g});
+    };
+    for (const auto& [name, m] : kFloatFields)
+        if (std::fabs(want.*m - got.*m) > 1e-6f) add(name, want.*m, got.*m);
+    for (const auto& [name, m] : kIntFields)
+        if (want.*m != got.*m) add(name, want.*m, got.*m);
+    if (want.dcBlock != got.dcBlock) add("dcBlock", want.dcBlock ? 1.0 : 0.0, got.dcBlock ? 1.0 : 0.0);
+    if (want.limiter != got.limiter) add("limiter", want.limiter ? 1.0 : 0.0, got.limiter ? 1.0 : 0.0);
+    if (want.xorPattern != got.xorPattern) add("xorPattern", want.xorPattern, got.xorPattern);
+    return out;
+}
+
+std::vector<float> sine440(double sampleRate, double dbfs, size_t len) {
+    constexpr double kTwoPi = 6.283185307179586476925;
+    const double amp = std::pow(10.0, dbfs / 20.0);
+    std::vector<float> x(len);
+    for (size_t i = 0; i < len; ++i)
+        x[i] = static_cast<float>(amp * std::sin(kTwoPi * 440.0 * static_cast<double>(i) / sampleRate));
+    return x;
+}
+
+}  // namespace
+
+TEST_CASE("Host setState restores HalfRectify threshold from shape slots (Rectified_Drums)",
+          "[disrumpo][state][D-050][D-156]") {
+    constexpr double kSampleRate = 44100.0;
+    const auto preset =
+        readPresetComponent(std::string(DISRUMPO_RESOURCES_DIR "/presets/") + "Drums/Rectified_Drums.vstpreset");
+    const SavedNode want = savedNode(preset, 1, 0);
+    REQUIRE(want.type == DistortionType::HalfRectify);
+
+    Rig rig(kSampleRate);
+    REQUIRE(setStateBytes(*rig.p, preset));
+    const DistortionParams& got = rig.p->getBandProcessor(1).getMorphEngine()->getNodeParams(0);
+
+    const auto len = static_cast<size_t>(kSampleRate);  // 1 s
+    const auto in = sine440(kSampleRate, -12.0, len);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    const size_t half = len / 2;
+    const double rmsL = toDb(rmsOf(outL.data() + half, len - half));
+    const double rmsR = toDb(rmsOf(outR.data() + half, len - half));
+    std::printf("D-156 Rectified_Drums (stream v%d): band 1 node 0 threshold restored %.6f (slots say %.6f), "
+                "smoothness %.6f (%.6f); RMS last 0.5 s L %.2f dBFS R %.2f dBFS\n",
+                readAt<int32_t>(preset, 0), static_cast<double>(got.threshold),
+                static_cast<double>(want.params.threshold), static_cast<double>(got.smoothness),
+                static_cast<double>(want.params.smoothness), rmsL, rmsR);
+
+    CHECK(std::fabs(got.threshold - 0.3f) < 1e-6f);
+    REQUIRE(rmsL > -30.0);
+    REQUIRE(rmsR > -30.0);
+}
+
+TEST_CASE("setState A -> B -> A leaves no type-specific params of B behind",
+          "[disrumpo][state][D-050]") {
+    constexpr double kSampleRate = 44100.0;
+    // A: one band, node 0 Tube, drive 5, shape slot 0 (bias) at 0.9; the other
+    // slots stay 0.5 (sag 0.5, stage 2). B: node 0 Tape with sag (slot 1) 1.0.
+    std::vector<uint8_t> a;
+    std::vector<uint8_t> b;
+    {
+        Rig rig(kSampleRate);
+        rig.apply({{kBandCountId, 0.0},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeType), 2.0 / 25.0},  // Tube
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.5},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeShape0), 0.9}});
+        a = getStateBytes(*rig.p);
+        rig.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeType), 3.0 / 25.0},  // Tape
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeShape1), 1.0}});
+        b = getStateBytes(*rig.p);
+    }
+    const SavedNode wantA = savedNode(a, 0, 0);
+    REQUIRE(wantA.type == DistortionType::Tube);
+    REQUIRE(savedNode(b, 0, 0).type == DistortionType::Tape);
+
+    // Each render starts from a re-activation. A render of B leaves ~410 samples
+    // of start-up difference that setActive does not clear (a separate reset
+    // issue, not a param leftover), so the comparison starts after 50 ms.
+    const auto in = sine440(kSampleRate, -12.0, static_cast<size_t>(kSampleRate / 2));
+    constexpr size_t kSkip = 2205;
+    Rig rig(kSampleRate);
+    const auto render = [&](std::vector<float>& l, std::vector<float>& r) {
+        rig.reactivate();
+        rig.render(in, in, l, r);
+    };
+    std::vector<float> a1L;
+    std::vector<float> a1R;
+    std::vector<float> bL;
+    std::vector<float> bR;
+    std::vector<float> a2L;
+    std::vector<float> a2R;
+    REQUIRE(setStateBytes(*rig.p, a));
+    render(a1L, a1R);
+    const DistortionParams first = rig.p->getBandProcessor(0).getMorphEngine()->getNodeParams(0);
+    // B through the host, then the user moves B's Sag knob (to the value B holds):
+    // the live instance now runs B's Tape params.
+    REQUIRE(setStateBytes(*rig.p, b));
+    rig.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeShape1), 1.0}});
+    render(bL, bR);
+    REQUIRE(setStateBytes(*rig.p, a));
+    render(a2L, a2R);
+    const DistortionParams& second = rig.p->getBandProcessor(0).getMorphEngine()->getNodeParams(0);
+
+    double maxDiff = 0.0;
+    for (size_t i = kSkip; i < in.size(); ++i) {
+        maxDiff = std::max(maxDiff, std::fabs(static_cast<double>(a1L[i]) - static_cast<double>(a2L[i])));
+        maxDiff = std::max(maxDiff, std::fabs(static_cast<double>(a1R[i]) - static_cast<double>(a2R[i])));
+    }
+    const auto firstVsSlots = paramMismatches(wantA.params, first);
+    const auto secondVsSlots = paramMismatches(wantA.params, second);
+    std::printf("D-050 A->B->A: max |A1 - A2| after 50 ms = %.3e (A1 RMS %.2f dBFS); node 0 sag %.3f then %.3f, "
+                "satStage %d then %d (slots say %.3f, %d); fields off the slots: A1 %zu, A2 %zu\n",
+                maxDiff, toDb(rmsOf(a1L.data() + kSkip, a1L.size() - kSkip)), static_cast<double>(first.sag),
+                static_cast<double>(second.sag), first.satStage, second.satStage,
+                static_cast<double>(wantA.params.sag), wantA.params.satStage, firstVsSlots.size(),
+                secondVsSlots.size());
+    for (const auto& m : secondVsSlots) std::printf("  A2 %s: slots %.6f restored %.6f\n", m.name, m.want, m.got);
+
+    CHECK(firstVsSlots.empty());
+    CHECK(secondVsSlots.empty());
+    REQUIRE(maxDiff < 1e-5);
+}
+
+TEST_CASE("Every factory preset restores the slot-derived node params through setState",
+          "[disrumpo][state][D-050][D-156]") {
+    namespace fs = std::filesystem;
+    std::vector<fs::path> presets;
+    for (const auto& e : fs::recursive_directory_iterator(DISRUMPO_RESOURCES_DIR "/presets"))
+        if (e.is_regular_file() && e.path().extension() == ".vstpreset") presets.push_back(e.path());
+    std::sort(presets.begin(), presets.end());
+    REQUIRE(presets.size() > size_t{100});
+
+    // One live instance loads every preset in turn, as a host's preset menu does.
+    // Streams before v9 carry no shape slots (Init_5_Bands v6, Formant_Shift v8):
+    // they are loaded but have nothing to compare against.
+    Rig rig(44100.0);
+    int wrongPresets = 0;
+    int wrongNodes = 0;
+    int nodes = 0;
+    int examples = 0;
+    int legacy = 0;
+    for (const auto& path : presets) {
+        const auto comp = readPresetComponent(path.string());
+        REQUIRE(setStateBytes(*rig.p, comp));
+        const std::string name = fs::relative(path, DISRUMPO_RESOURCES_DIR "/presets").generic_string();
+        const auto version = readAt<int32_t>(comp, 0);
+        if (version < 9) {
+            ++legacy;
+            std::printf("  %s: stream v%d, no shape slots\n", name.c_str(), version);
+            continue;
+        }
+        REQUIRE(version >= 10);  // the morph-section offsets assume the v10+ layout
+        bool presetWrong = false;
+        for (size_t band = 0; band < kBands; ++band) {
+            const MorphEngine* engine = rig.p->getBandProcessor(static_cast<int>(band)).getMorphEngine();
+            REQUIRE(engine != nullptr);
+            for (size_t n = 0; n < static_cast<size_t>(kMaxMorphNodes); ++n) {
+                ++nodes;
+                const SavedNode want = savedNode(comp, band, n);
+                REQUIRE(engine->getNodeType(static_cast<int>(n)) == want.type);
+                const auto diffs = paramMismatches(want.params, engine->getNodeParams(static_cast<int>(n)));
+                if (diffs.empty()) continue;
+                ++wrongNodes;
+                // One example line per preset (its first wrong field), at most 15.
+                if (!presetWrong && wrongPresets < 15)
+                    std::printf("  %s band %zu node %zu type %d %s: slots %.6f restored %.6f (%zu fields)\n",
+                                name.c_str(), band, n, static_cast<int>(want.type), diffs[0].name, diffs[0].want,
+                                diffs[0].got, diffs.size());
+                presetWrong = true;
+                examples += static_cast<int>(diffs.size());
+            }
+        }
+        if (presetWrong) ++wrongPresets;
+    }
+    std::printf("D-050 factory presets: %zu presets (%d legacy without slots), %d with a wrong node; %d of %d "
+                "nodes wrong (%d field mismatches)\n",
+                presets.size(), legacy, wrongPresets, wrongNodes, nodes, examples);
+    REQUIRE(nodes > 0);
+    REQUIRE(wrongNodes == 0);
 }

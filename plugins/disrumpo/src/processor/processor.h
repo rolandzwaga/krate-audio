@@ -107,6 +107,12 @@ public:
         return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }
 
+    /// Maps a node's normalized shape slots onto the type-specific DistortionParams
+    /// fields of `type` (processor_params.cpp). Used by processParameterChanges and,
+    /// so a host restore yields the same params as replaying the parameters, by setState.
+    static void mapShapeSlotsToParams(DistortionType type, const float* slots,
+                                      DistortionParams& p) noexcept;
+
     // Test accessors
     [[nodiscard]] const std::array<float, kMaxMorphNodes>& getMorphWeightsForBand(int band) const;
     [[nodiscard]] float getMorphCacheX(int band) const;

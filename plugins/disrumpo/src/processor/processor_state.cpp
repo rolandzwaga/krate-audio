@@ -916,6 +916,18 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                             }
                         }
                     }
+
+                    // Re-derive the type-specific params from the restored slots, as
+                    // replaying the parameters does, so nothing of the previous patch
+                    // (or of the defaults) survives the load (D-050, D-156).
+                    if (b < kMaxBands) {
+                        auto& mn = bandMorphCache_[b].nodes[static_cast<size_t>(n)];
+                        mn.params = DistortionParams{};
+                        mn.params.bias = bias;
+                        mn.params.folds = folds;
+                        mn.params.bitDepth = bitDepth;
+                        mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
+                    }
                 }
             }
 
