@@ -86,7 +86,9 @@ void DistortionAdapter::prepareRateDependent(double rate) noexcept {
     dcBlocker_.prepare(rate, 10.0f);
 
     // Saturation-category processors
-    tube_.prepare(rate, blockSize);
+    for (auto& stage : tube_) {
+        stage.prepare(rate, blockSize);
+    }
     tape_.prepare(rate, blockSize);
     fuzz_.prepare(rate, blockSize);
 
@@ -130,7 +132,9 @@ void DistortionAdapter::reset() noexcept {
     dcBlocker_.reset();
 
     // Reset all processors
-    tube_.reset();
+    for (auto& stage : tube_) {
+        stage.reset();
+    }
     tape_.reset();
     fuzz_.reset();
     wavefolder_.reset();
@@ -325,11 +329,12 @@ float DistortionAdapter::processRaw(float input) noexcept {
 
         case DistortionType::Tube: {
             // D03: Tube stage emulation via TubeStage processor
-            // Supports bias, sag (saturation amount), and multi-stage cascading
+            // Supports bias, sag (saturation amount), and multi-stage cascading:
+            // stage s runs through its own TubeStage (DC blocker and smoothers per stage)
             singleSampleBuffer_[0] = input;
-            const int stages = std::clamp(typeParams_.satStage + 1, 1, 4);
-            for (int s = 0; s < stages; ++s) {
-                tube_.process(singleSampleBuffer_, 1);
+            const auto stages = static_cast<std::size_t>(std::clamp(typeParams_.satStage + 1, 1, 4));
+            for (std::size_t s = 0; s < stages; ++s) {
+                tube_[s].process(singleSampleBuffer_, 1);
             }
             return singleSampleBuffer_[0];
         }
@@ -636,8 +641,10 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             break;
 
         case DistortionType::Tube:
-            tube_.setBias(p.bias);
-            tube_.setSaturationAmount(p.sag);
+            for (auto& stage : tube_) {
+                stage.setBias(p.bias);
+                stage.setSaturationAmount(p.sag);
+            }
             break;
 
         case DistortionType::Tape:

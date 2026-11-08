@@ -3002,3 +3002,50 @@ TEST_CASE("Fuzz passes 4 kHz within 6 dB of 500 Hz at node tone 8000 Hz",
         }
     }
 }
+
+// D-077 (T2.02): a multi-stage Tube ran every stage through ONE TubeStage, so its DC
+// blocker and smoothers saw the stages interleaved as if they were successive samples.
+TEST_CASE("Tube with 3 stages and bias 0.5 has no DC and matches four independent stages",
+          "[disrumpo][distortion][tube][D-077]") {
+    constexpr std::size_t kLength = 96000;      // 2 s
+    constexpr std::size_t kLastSecond = 48000;  // mean over the last 1 s (100 whole cycles)
+    const DistortionCommonParams common{.drive = 2.0f, .mix = 1.0f, .toneHz = 8000.0f};
+    DistortionParams p;
+    p.bias = 0.5f;
+    p.sag = 0.5f;     // the default slot value
+    p.satStage = 3;   // four stages
+    const auto in = sineAt48k(100.0, 0.5f, kLength);
+    const auto out = renderAdapterWith(DistortionType::Tube, p, common, in);
+
+    // Reference: four separately prepared TubeStages in series, then the adapter's own
+    // post chain (10 Hz DC blocker, one-pole tone filter at the node tone).
+    std::array<Krate::DSP::TubeStage, 4> stages;
+    for (auto& stage : stages) {
+        stage.prepare(kSilenceTestRate, static_cast<std::size_t>(kTestBlockSize));
+        stage.setBias(p.bias);
+        stage.setSaturationAmount(p.sag);
+        stage.reset();
+    }
+    Krate::DSP::DCBlocker dcBlocker;
+    dcBlocker.prepare(kSilenceTestRate, 10.0f);
+    Krate::DSP::OnePoleLP tone;
+    tone.prepare(kSilenceTestRate);
+    tone.setCutoff(common.toneHz);
+    std::vector<float> cascade(kLength);
+    std::vector<float> reference(kLength);
+    for (std::size_t i = 0; i < kLength; ++i) {
+        float x = in[i] * common.drive;
+        for (auto& stage : stages) stage.process(&x, 1);
+        cascade[i] = x;
+        reference[i] = tone.process(dcBlocker.process(x));
+    }
+
+    float maxDiff = 0.0f;
+    for (std::size_t i = 0; i < kLength; ++i) maxDiff = std::max(maxDiff, std::fabs(out[i] - reference[i]));
+    const double dc = adapterMean(out, kLastSecond);
+    INFO("adapter mean of the last 1 s " << dc << ", four-stage cascade (before the adapter's DC blocker) mean "
+         << adapterMean(cascade, kLastSecond) << ", max |adapter - reference| " << maxDiff);
+    CHECK(countNonFinite(out) == 0);
+    CHECK(std::fabs(dc) < 1e-3);
+    CHECK(maxDiff < 1e-4f);
+}

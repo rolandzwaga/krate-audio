@@ -35,6 +35,7 @@
 #include <krate/dsp/primitives/one_pole.h>
 #include <krate/dsp/primitives/waveshaper.h>
 
+#include <array>
 #include <cmath>
 #include <algorithm>
 
@@ -387,7 +388,8 @@ private:
     // KrateDSP Processor Instances (all pre-allocated)
     // =========================================================================
 
-    Krate::DSP::TubeStage tube_;
+    /// One TubeStage per cascade stage (satStage 0-3 runs 1-4 of them in series, D-077)
+    std::array<Krate::DSP::TubeStage, 4> tube_;
     Krate::DSP::TapeSaturator tape_;
     Krate::DSP::FuzzProcessor fuzz_;
     Krate::DSP::WavefolderProcessor wavefolder_;

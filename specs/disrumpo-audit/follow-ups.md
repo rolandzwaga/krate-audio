@@ -106,6 +106,8 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 25. **Tube runs `satStage + 1` passes through ONE `TubeStage`** (distortion_adapter.cpp), so its smoothers and
     internal DC blocker see interleaved samples — the reason Tube read DC −0.047 even at bias 0. T1.22
     (`abb5fd57`) masks it with the adapter's 10 Hz DC blocker; the cascade needs one `TubeStage` per pass.
+    — done in T2.02 (commit "fix(disrumpo): Tube cascade runs one TubeStage per stage"; a commit cannot name its
+    own hash).
 26. **`DynamicNodeSelector::rebuildSegments(1)` calls `setSelectedSegment(0)` which divides 0 by 0** (T1.20 left
     it; the new sync code skips one-segment selectors).
 27. **`Controller::morphPads_` holds raw view pointers** like the selectors T1.21 fixed; they live in the expanded
