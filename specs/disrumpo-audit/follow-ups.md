@@ -77,6 +77,18 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     it drive Y too, or reset those presets' global link to None in T3.01.
 17. **Tube node acts as a pure gain stage at −6 dBFS** (T1.14 probe: +6.02 dB output for 2x drive) — extends item 9.
 
+18. **`setActive(true)` does not clear DSP state from the previous render** (T1.15 probe): after rendering patch B,
+    the first ≈410 samples of a fresh render of patch A differ by up to 0.556 from a clean A render; loading A
+    without rendering B in between is bit-identical. A reset gap in BandProcessor/MorphEngine/adapters on
+    activation (reset() should run on setActive(true) or setupProcessing).
+19. **Custom sweep curve parameters never reach the audio live** (T1.17): the processor applies the custom curve only
+    from `setState`; a curve edited in the UI or loaded through the preset browser is not applied until the next
+    state load. Also, a controller that never received a component state writes the registered defaults as a
+    2-point curve (0,0)→(1/7,1/7). Relates to D-069 / T2.22 (custom-curve editor view unregistered).
+20. **Follow-up 15 measured again after the codec (T1.17 `a1bfa30d`)**: fresh processor still drifts at bytes
+    108/166/175/194; on Dirty_Sub / Rectified_Drums / Radial_Blend the drift sits at bytes 136 and 149 (LFO 1/2 rate)
+    before the codec and at byte 92 (sweep LFO rate) after. Probe: `[.][t117-ulp-probe]`.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
