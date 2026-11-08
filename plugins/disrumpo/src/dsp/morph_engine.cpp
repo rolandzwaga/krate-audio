@@ -153,8 +153,8 @@ void MorphEngine::setNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, i
     // The adapters now hold the unscaled drive: the next cross-family sample re-applies the sweep
     appliedSweepDriveScale_ = 1.0f;
 
-    // Update family check
-    allSameFamily_ = isSameFamily();
+    // Update path check
+    allSameType_ = isSameType();
     if (activeNodeCount_ > 0) {
         dominantFamily_ = getFamily(nodes_[0].type);
     }
@@ -373,17 +373,20 @@ float MorphEngine::transitionGainForWeight(float weight) noexcept {
 }
 
 // =============================================================================
-// Family Detection
+// Path Detection (D-028)
 // =============================================================================
 
-bool MorphEngine::isSameFamily() const noexcept {
+bool MorphEngine::isSameType() const noexcept {
+    // Only identical types share one processor with interpolated parameters; two
+    // different types, of one family or not, run in parallel and are blended (FR-MORPH-003:
+    // a single processor would switch its transfer function at the dominance boundary).
     if (activeNodeCount_ <= 1) {
         return true;
     }
 
-    const DistortionFamily firstFamily = getFamily(nodes_[0].type);
+    const DistortionType firstType = nodes_[0].type;
     for (int i = 1; i < activeNodeCount_; ++i) {
-        if (getFamily(nodes_[i].type) != firstFamily) {
+        if (nodes_[i].type != firstType) {
             return false;
         }
     }
@@ -391,7 +394,7 @@ bool MorphEngine::isSameFamily() const noexcept {
 }
 
 // =============================================================================
-// Parameter Interpolation (Same-Family)
+// Parameter Interpolation (Same Type)
 // =============================================================================
 
 DistortionParams MorphEngine::interpolateParams() const noexcept {
@@ -661,11 +664,11 @@ float MorphEngine::process(float input) noexcept {
     // Recalculate weights if position changed
     calculateMorphWeights(smoothedX, smoothedY);
 
-    // Update family check
-    allSameFamily_ = isSameFamily();
+    // Update path check
+    allSameType_ = isSameType();
 
-    // Choose processing path based on family
-    if (allSameFamily_) {
+    // One interpolated processor for identical types, parallel blend otherwise
+    if (allSameType_) {
         return processSameFamily(input);
     } else {
         return processCrossFamily(input);
@@ -679,21 +682,11 @@ void MorphEngine::processBlock(const float* input, float* output, int numSamples
 }
 
 float MorphEngine::processSameFamily(float input) noexcept {
-    // Same-family optimization: interpolate parameters, use single processor
+    // Identical types (isSameType): interpolate parameters, use single processor
     // Per spec FR-006, FR-018
 
-    // Get the dominant type (use highest-weight node's type)
-    int dominantNode = 0;
-    float maxWeight = 0.0f;
-    for (int i = 0; i < activeNodeCount_; ++i) {
-        if (weights_[i] > maxWeight) {
-            maxWeight = weights_[i];
-            dominantNode = i;
-        }
-    }
-
-    // Set blended adapter to dominant type with interpolated params + modulation
-    blendedAdapter_.setType(nodes_[dominantNode].type);
+    // Every active node has this type, so the processor never switches
+    blendedAdapter_.setType(nodes_[0].type);
 
     auto bp = interpolateParams();
     lastBlendedParams_ = bp;
@@ -710,8 +703,8 @@ float MorphEngine::processSameFamily(float input) noexcept {
 }
 
 float MorphEngine::processCrossFamily(float input) noexcept {
-    // Cross-family: parallel processing, outputs summed with constant-voltage gains
-    // (transitionGainForWeight). Per spec FR-007, FR-008, SC-002
+    // Different types (of one family or not): parallel processing, outputs summed with
+    // constant-voltage gains (transitionGainForWeight). Per spec FR-007, FR-008, SC-002
 
     // Apply modulation offsets and the sweep drive multiplier to per-node adapters (from
     // base node params). A sweep multiplier change alone re-applies once, so its return

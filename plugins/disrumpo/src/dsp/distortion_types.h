@@ -263,21 +263,20 @@ constexpr const char* getCategoryName(DistortionCategory category) noexcept {
 // DistortionFamily Enumeration (FR-016)
 // =============================================================================
 
-/// @brief Family groupings for morph interpolation strategy.
+/// @brief Family groupings of the distortion types (FR-016).
 ///
-/// Different families use different interpolation methods during morphing:
-/// - Same-family morphs: Use family-specific interpolation (single processor)
-/// - Cross-family morphs: Use parallel processing with equal-power crossfade
-///
-/// Per spec FR-016: Seven families with specific interpolation methods.
+/// The morph path does not depend on the family (D-028): nodes that all have the
+/// same type share one processor with interpolated parameters; any two different
+/// types, of one family or not, run in parallel and are summed with a linear
+/// constant-voltage crossfade (gain = weight, MorphEngine::transitionGainForWeight).
 enum class DistortionFamily : uint8_t {
-    Saturation = 0,     ///< D01-D06: Transfer function interpolation
-    Wavefold,           ///< D07-D09: Parameter interpolation
-    Digital,            ///< D12-D14, D18-D19: Parameter interpolation
-    Rectify,            ///< D10-D11: Parameter interpolation
-    Dynamic,            ///< D15, D17: Parameter interpolation + envelope coupling
-    Hybrid,             ///< D16, D26: Parallel blend with output crossfade
-    Experimental        ///< D20-D25: Parallel blend with output crossfade
+    Saturation = 0,     ///< D01-D06
+    Wavefold,           ///< D07-D09
+    Digital,            ///< D12-D14, D18-D19
+    Rectify,            ///< D10-D11
+    Dynamic,            ///< D15, D17
+    Hybrid,             ///< D16, D26
+    Experimental        ///< D20-D25
 };
 
 /// @brief Total number of distortion families.
@@ -289,14 +288,14 @@ constexpr int kDistortionFamilyCount = 7;
 
 /// @brief Get the family for a distortion type.
 ///
-/// Maps DistortionType to DistortionFamily for morph interpolation strategy.
+/// Maps DistortionType to DistortionFamily.
 /// Per spec FR-016 family-type mapping table.
 ///
 /// @param type The distortion type
 /// @return Family enum value
 constexpr DistortionFamily getFamily(DistortionType type) noexcept {
     switch (type) {
-        // Saturation (D01-D06) - Transfer function interpolation
+        // Saturation (D01-D06)
         case DistortionType::SoftClip:
         case DistortionType::HardClip:
         case DistortionType::Tube:
@@ -305,18 +304,18 @@ constexpr DistortionFamily getFamily(DistortionType type) noexcept {
         case DistortionType::AsymmetricFuzz:
             return DistortionFamily::Saturation;
 
-        // Wavefold (D07-D09) - Parameter interpolation
+        // Wavefold (D07-D09)
         case DistortionType::SineFold:
         case DistortionType::TriangleFold:
         case DistortionType::SergeFold:
             return DistortionFamily::Wavefold;
 
-        // Rectify (D10-D11) - Parameter interpolation
+        // Rectify (D10-D11)
         case DistortionType::FullRectify:
         case DistortionType::HalfRectify:
             return DistortionFamily::Rectify;
 
-        // Digital (D12-D14, D18-D19) - Parameter interpolation
+        // Digital (D12-D14, D18-D19)
         case DistortionType::Bitcrush:
         case DistortionType::SampleReduce:
         case DistortionType::Quantize:
@@ -324,17 +323,17 @@ constexpr DistortionFamily getFamily(DistortionType type) noexcept {
         case DistortionType::BitwiseMangler:
             return DistortionFamily::Digital;
 
-        // Dynamic (D15, D17) - Parameter interpolation + envelope coupling
+        // Dynamic (D15, D17)
         case DistortionType::Temporal:
         case DistortionType::FeedbackDist:
             return DistortionFamily::Dynamic;
 
-        // Hybrid (D16, D26) - Parallel blend with output crossfade
+        // Hybrid (D16, D26)
         case DistortionType::RingSaturation:
         case DistortionType::AllpassResonant:
             return DistortionFamily::Hybrid;
 
-        // Experimental (D20-D25) - Parallel blend with output crossfade
+        // Experimental (D20-D25)
         case DistortionType::Chaos:
         case DistortionType::Formant:
         case DistortionType::Granular:

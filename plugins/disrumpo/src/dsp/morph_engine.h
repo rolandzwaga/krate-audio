@@ -3,8 +3,8 @@
 // ==============================================================================
 // Core engine for morphing between 2-4 distortion types within each frequency band.
 // Uses inverse distance weighting for weight computation, supports three morph modes,
-// and handles both same-family parameter interpolation and cross-family parallel
-// processing with a constant-voltage (weight-sum) crossfade.
+// and handles both identical-type parameter interpolation and parallel processing of
+// different types (of one family or not) with a constant-voltage (weight-sum) crossfade.
 //
 // Real-time safe: no allocations after prepare().
 //
@@ -31,9 +31,10 @@ namespace Disrumpo {
 ///
 /// Each frequency band owns a MorphEngine instance. The engine:
 /// 1. Computes weights for each node based on cursor position and morph mode
-/// 2. Detects if nodes belong to the same family (optimization path)
-/// 3. For same-family: interpolates parameters through a single processor
-/// 4. For cross-family: processes in parallel with a constant-voltage crossfade
+/// 2. Detects if all active nodes have the same type (optimization path)
+/// 3. For identical types: interpolates parameters through a single processor
+/// 4. For different types (also within one family, D-028): processes in parallel
+///    with a constant-voltage crossfade
 ///
 /// Thread Safety:
 /// - prepare()/reset(): Call from non-audio thread only
@@ -106,8 +107,8 @@ public:
 
     /// @brief Set drive/mix modulation offsets from the modulation engine.
     ///
-    /// Offsets are applied per-sample after morph interpolation (same-family)
-    /// or to each adapter (cross-family). Offset range is [-1, +1] normalized.
+    /// Offsets are applied per-sample after morph interpolation (identical types)
+    /// or to each adapter (different types). Offset range is [-1, +1] normalized.
     /// Drive offset is scaled by 10.0 (drive range [0, 10]).
     /// Mix offset is applied directly (mix range [0, 1]).
     ///
@@ -147,13 +148,13 @@ public:
 
     // Test accessors
     [[nodiscard]] int getActiveNodeCount() const noexcept { return activeNodeCount_; }
-    [[nodiscard]] bool getAllSameFamily() const noexcept { return allSameFamily_; }
+    [[nodiscard]] bool getAllSameType() const noexcept { return allSameType_; }
     [[nodiscard]] DistortionType getAdapterType(int idx) const noexcept { return adapters_[idx].getType(); }
     [[nodiscard]] DistortionType getNodeType(int idx) const noexcept { return nodes_[idx].type; }
     [[nodiscard]] const DistortionParams& getNodeParams(int idx) const noexcept { return nodes_[idx].params; }
     [[nodiscard]] const DistortionCommonParams& getNodeCommonParams(int idx) const noexcept { return nodes_[idx].commonParams; }
     [[nodiscard]] const DistortionAdapter& getAdapter(int idx) const noexcept { return adapters_[idx]; }
-    /// @brief Last same-family interpolateParams() result (set in processSameFamily).
+    /// @brief Last identical-type interpolateParams() result (set in processSameFamily).
     [[nodiscard]] const DistortionParams& getBlendedParams() const noexcept { return lastBlendedParams_; }
 
     // =========================================================================
@@ -162,9 +163,9 @@ public:
 
     /// @brief Process a single sample through the morph engine.
     ///
-    /// The signal flow depends on whether nodes share a family:
-    /// - Same family: Parameter interpolation through single processor
-    /// - Cross-family: Parallel processing with a constant-voltage crossfade
+    /// The signal flow depends on whether the active nodes share one type:
+    /// - Same type: Parameter interpolation through single processor
+    /// - Different types: Parallel processing with a constant-voltage crossfade
     ///
     /// @param input Input sample
     /// @return Processed output sample
@@ -217,19 +218,19 @@ private:
     /// @brief Calculate radial weights for Radial mode.
     void calculateRadialWeights(float cursorX, float cursorY) noexcept;
 
-    /// @brief Check if all active nodes belong to the same family.
-    [[nodiscard]] bool isSameFamily() const noexcept;
+    /// @brief Check if all active nodes have the same DistortionType.
+    [[nodiscard]] bool isSameType() const noexcept;
 
-    /// @brief Interpolate parameters for same-family morphing.
+    /// @brief Interpolate parameters for identical-type morphing.
     [[nodiscard]] DistortionParams interpolateParams() const noexcept;
 
-    /// @brief Interpolate common parameters for same-family morphing.
+    /// @brief Interpolate common parameters for identical-type morphing.
     [[nodiscard]] DistortionCommonParams interpolateCommonParams() const noexcept;
 
-    /// @brief Process using same-family parameter interpolation.
+    /// @brief Process identical types through one processor with interpolated parameters.
     [[nodiscard]] float processSameFamily(float input) noexcept;
 
-    /// @brief Process using cross-family parallel processing.
+    /// @brief Process different types (of one family or not) in parallel.
     [[nodiscard]] float processCrossFamily(float input) noexcept;
 
     // =========================================================================
@@ -255,17 +256,17 @@ private:
     // Computed weights (normalized, sum to 1.0)
     std::array<float, kMaxMorphNodes> weights_ = {0.5f, 0.5f, 0.0f, 0.0f};
 
-    // Distortion adapters (one per potential node for cross-family processing)
+    // Distortion adapters (one per potential node for parallel processing of different types)
     std::array<DistortionAdapter, kMaxMorphNodes> adapters_;
 
-    // Single adapter for same-family processing (optimization)
+    // Single adapter for identical-type processing (optimization)
     DistortionAdapter blendedAdapter_;
 
-    // Last interpolateParams() result of the same-family path (test accessor)
+    // Last interpolateParams() result of the identical-type path (test accessor)
     DistortionParams lastBlendedParams_;
 
-    // Cached family check result
-    bool allSameFamily_ = true;
+    // Cached path check result (isSameType)
+    bool allSameType_ = true;
     DistortionFamily dominantFamily_ = DistortionFamily::Saturation;
 
     // Prepared flag

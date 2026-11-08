@@ -26,6 +26,7 @@
 
 #include "test_helpers/signal_metrics.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <array>
@@ -149,46 +150,57 @@ TEST_CASE("BandProcessor morph position affects distortion character", "[band][m
 
 TEST_CASE("BandProcessor sweep intensity scales the morph drive and not the level", "[band][morph][FR-010]") {
     // D-019: the sweep multiplies the morphed drive (1 + intensity / 2), it does not
-    // scale the band's input: 200 % adds harmonics, the level does not follow the drive
-    Disrumpo::BandProcessor proc;
-    proc.prepare(kSampleRate, kBlockSize);
-
-    auto nodes = createTwoNodeSetup();
-    proc.setMorphNodes(nodes, 2);
-    proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
-    proc.setMorphPosition(0.5f, 0.0f);
+    // scale the band's input. Proof: the 200 % render equals, sample for sample, a
+    // sweep-off render whose node drives are doubled; and 200 % adds harmonics.
+    // (A level bound is no proof: SoftClip / Tube at x = 0.5 blend in parallel (T1.14,
+    // D-028) and Tube's level follows its drive, +6.02 dB at 2x vs SoftClip's +1.05 dB,
+    // so the blend rises 4.20 dB - "Probe: T1.14 sweep level per morph position".)
+    const auto nodes = createTwoNodeSetup();
 
     // 1378.125 Hz = bin 256 of an 8192-point FFT at 44.1 kHz
     constexpr float kHz = 1378.125f;
     constexpr size_t kN = 8192;
-    auto measure = [&proc](float intensity, float& thd, float& rmsDb) {
-        proc.setSweepIntensity(intensity);
-        settleBandProcessor(proc);
+    const auto render = [](const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes>& n,
+                           float intensity) {
+        auto proc = std::make_unique<Disrumpo::BandProcessor>();
+        proc->prepare(kSampleRate, kBlockSize);
+        proc->setMorphNodes(n, 2);
+        proc->setMorphMode(Disrumpo::MorphMode::Linear1D);
+        proc->setMorphPosition(0.5f, 0.0f);
+        proc->setSweepIntensity(intensity);
+        (*proc).reset();  // snaps the cursor and the sweep smoother to their targets
+        settleBandProcessor(*proc);
         std::vector<float> out(kN);
         for (size_t i = 0; i < kN; ++i) {
             // -6 dBFS: the nodes (drive 2 and 3) saturate
             float left = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
                                           static_cast<float>(kSampleRate));
             float right = left;
-            proc.process(left, right);
+            proc->process(left, right);
             out[i] = left;
         }
-        thd = Krate::DSP::TestUtils::SignalMetrics::calculateTHD(out.data(), kN, kHz,
-                                                                 static_cast<float>(kSampleRate));
-        double s = 0.0;
-        for (float v : out) s += static_cast<double>(v) * v;
-        rmsDb = static_cast<float>(10.0 * std::log10(s / static_cast<double>(kN)));
+        return out;
+    };
+    const auto thdOf = [](const std::vector<float>& y) {
+        return Krate::DSP::TestUtils::SignalMetrics::calculateTHD(y.data(), kN, kHz,
+                                                                  static_cast<float>(kSampleRate));
     };
 
-    float thd0 = 0.0f;
-    float db0 = 0.0f;
-    float thd2 = 0.0f;
-    float db2 = 0.0f;
-    measure(0.0f, thd0, db0);
-    measure(2.0f, thd2, db2);
-    INFO("THD at 0 %: " << thd0 << " %, at 200 %: " << thd2 << " %; level " << db0 << " / " << db2 << " dB");
+    const auto off = render(nodes, 0.0f);
+    const auto on = render(nodes, 2.0f);
+    auto doubled = nodes;
+    const float scale = Disrumpo::BandProcessor::sweepDriveScale(2.0f);
+    for (auto& node : doubled) node.commonParams.drive *= scale;
+    const auto ref = render(doubled, 0.0f);
+
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < kN; ++i) maxDiff = std::max(maxDiff, std::abs(on[i] - ref[i]));
+    const float thd0 = thdOf(off);
+    const float thd2 = thdOf(on);
+    INFO("THD at 0 %: " << thd0 << " %, at 200 %: " << thd2 << " %; max |200 % - drive x" << scale
+         << " sweep off| " << maxDiff);
     REQUIRE(thd2 > thd0 * 1.1f);
-    REQUIRE(std::abs(db2 - db0) < 3.0f);
+    REQUIRE(maxDiff <= 1e-6f);
 }
 
 TEST_CASE("BandProcessor morph transition is artifact-free", "[band][morph][FR-010][SC-003]") {
@@ -641,4 +653,34 @@ TEST_CASE("Probe: BandProcessor shaper re-rate cost", "[.][t106-cpu-probe]") {
     const double us = std::chrono::duration<double, std::micro>(t1 - t0).count() / kRuns;
     WARN("PROBE re-rate: " << us << " us per band switch (a 512-sample block at 48 kHz is "
          << 512.0 / kSr * 1e6 << " us)");
+}
+
+// Measurement probe (hidden, fix plan T1.14): band level at sweep intensity 0 and 200 %
+// (drive x1 and x2) for SoftClip (drive 2) / Tube (drive 3) at x = 0, 0.5 and 1.
+TEST_CASE("Probe: T1.14 sweep level per morph position", "[.][t114-sweep-level-probe]") {
+    constexpr float kHz = 1378.125f;
+    constexpr size_t kN = 8192;
+    for (const float x : {0.0f, 0.5f, 1.0f}) {
+        float db[2] = {0.0f, 0.0f};
+        for (int k = 0; k < 2; ++k) {
+            auto proc = std::make_unique<Disrumpo::BandProcessor>();
+            proc->prepare(kSampleRate, kBlockSize);
+            proc->setMorphNodes(createTwoNodeSetup(), 2);
+            proc->setMorphMode(Disrumpo::MorphMode::Linear1D);
+            proc->setMorphPosition(x, 0.0f);
+            proc->setSweepIntensity(k == 0 ? 0.0f : 2.0f);
+            settleBandProcessor(*proc);
+            double s = 0.0;
+            for (size_t i = 0; i < kN; ++i) {
+                float left = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
+                                              static_cast<float>(kSampleRate));
+                float right = left;
+                proc->process(left, right);
+                s += static_cast<double>(left) * left;
+            }
+            db[k] = static_cast<float>(10.0 * std::log10(s / static_cast<double>(kN)));
+        }
+        WARN("PROBE t114 sweep level x = " << x << ": intensity 0 " << db[0] << " dB, 200 % " << db[1]
+             << " dB, delta " << db[1] - db[0] << " dB");
+    }
 }

@@ -364,6 +364,8 @@ TEST_CASE("MorphEngine family detection - same family detected correctly", "[mor
         // Both should be same family (Saturation)
         REQUIRE(Disrumpo::getFamily(Disrumpo::DistortionType::SoftClip) ==
                 Disrumpo::getFamily(Disrumpo::DistortionType::Tube));
+        // ...but different types: not the single-processor path (D-028)
+        REQUIRE_FALSE(engine.getAllSameType());
     }
 
     SECTION("Wavefold family") {
@@ -374,6 +376,7 @@ TEST_CASE("MorphEngine family detection - same family detected correctly", "[mor
 
         REQUIRE(Disrumpo::getFamily(Disrumpo::DistortionType::SineFold) ==
                 Disrumpo::getFamily(Disrumpo::DistortionType::TriangleFold));
+        REQUIRE_FALSE(engine.getAllSameType());
     }
 
     SECTION("Digital family") {
@@ -384,6 +387,15 @@ TEST_CASE("MorphEngine family detection - same family detected correctly", "[mor
 
         REQUIRE(Disrumpo::getFamily(Disrumpo::DistortionType::Bitcrush) ==
                 Disrumpo::getFamily(Disrumpo::DistortionType::SampleReduce));
+        REQUIRE_FALSE(engine.getAllSameType());
+    }
+
+    SECTION("Identical types take the single-processor path") {
+        std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+        nodes[0] = Disrumpo::MorphNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip);
+        nodes[1] = Disrumpo::MorphNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::SoftClip);
+        engine.setNodes(nodes, 2);
+        REQUIRE(engine.getAllSameType());
     }
 }
 
@@ -979,6 +991,136 @@ TEST_CASE("MorphEngine interpolateParams keeps integer fields at the shared node
         CAPTURE(engine->getWeights()[0], engine->getWeights()[1]);
         REQUIRE(engine->getBlendedParams().fftSize == 2048);
     }
+}
+
+// =============================================================================
+// Path selection: one interpolated processor only for identical types (D-028)
+// =============================================================================
+
+namespace {
+
+constexpr double kPathRate = 48000.0;
+constexpr size_t kPathSamples = 4800;
+
+float pathInput(size_t n) {
+    return 0.5f * std::sin(6.28318530718f * 440.0f * static_cast<float>(n) /
+                           static_cast<float>(kPathRate));
+}
+
+/// Node A (x = 0, drive 2) and node B (x = 1, drive 6), mix 1, of the given types.
+std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> makePathNodes(Disrumpo::DistortionType a,
+                                                                        Disrumpo::DistortionType b) {
+    std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+    nodes[0] = Disrumpo::MorphNode(0, 0.0f, 0.0f, a);
+    nodes[0].commonParams.drive = 2.0f;
+    nodes[0].commonParams.mix = 1.0f;
+    nodes[1] = Disrumpo::MorphNode(1, 1.0f, 0.0f, b);
+    nodes[1].commonParams.drive = 6.0f;
+    nodes[1].commonParams.mix = 1.0f;
+    nodes[2] = Disrumpo::MorphNode(2, 0.0f, 1.0f);
+    nodes[3] = Disrumpo::MorphNode(3, 1.0f, 1.0f);
+    return nodes;
+}
+
+std::unique_ptr<Disrumpo::MorphEngine> makePathEngine(
+        const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes>& nodes) {
+    auto engine = std::make_unique<Disrumpo::MorphEngine>();
+    engine->prepare(kPathRate, 512);
+    engine->setSmoothingTime(0.0f);
+    engine->setMode(Disrumpo::MorphMode::Linear1D);
+    engine->setNodes(nodes, 2);
+    engine->setMorphPosition(0.3f, 0.0f);
+    return engine;
+}
+
+std::unique_ptr<Disrumpo::DistortionAdapter> makePathAdapter(Disrumpo::DistortionType type,
+                                                             const Disrumpo::DistortionParams& params,
+                                                             const Disrumpo::DistortionCommonParams& common) {
+    auto adapter = std::make_unique<Disrumpo::DistortionAdapter>();
+    adapter->prepare(kPathRate, 512);
+    adapter->setType(type);
+    adapter->setParams(params);
+    adapter->setCommonParams(common);
+    return adapter;
+}
+
+} // namespace
+
+TEST_CASE("MorphEngine identical-type nodes interpolate through one processor",
+          "[disrumpo][morph][D-028]") {
+    const auto nodes = makePathNodes(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::SoftClip);
+    auto engine = makePathEngine(nodes);
+
+    // Settle the cursor smoother (its 0 ms floor still takes a few samples) on silence,
+    // which leaves the stateless SoftClip and the zero-input tone filter at rest
+    for (int i = 0; i < 480; ++i) {
+        [[maybe_unused]] const float settle = engine->process(0.0f);
+    }
+    std::vector<float> out(kPathSamples, 0.0f);
+    std::size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (size_t n = 0; n < kPathSamples; ++n) out[n] = engine->process(pathInput(n));
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+
+    // One SoftClip at the weighted drive / mix / tone, summed as interpolateCommonParams does
+    const auto& w = engine->getWeights();
+    Disrumpo::DistortionCommonParams common;
+    common.drive = 0.0f;
+    common.mix = 0.0f;
+    common.toneHz = 0.0f;
+    for (size_t i = 0; i < 2; ++i) {
+        common.drive += w[i] * nodes[i].commonParams.drive;
+        common.mix += w[i] * nodes[i].commonParams.mix;
+        common.toneHz += w[i] * nodes[i].commonParams.toneHz;
+    }
+    auto ref = makePathAdapter(Disrumpo::DistortionType::SoftClip, engine->getBlendedParams(), common);
+    float maxDiff = 0.0f;
+    size_t maxDiffAt = 0;
+    for (size_t n = 0; n < kPathSamples; ++n) {
+        const float d = std::abs(out[n] - ref->process(pathInput(n)));
+        if (d > maxDiff) {
+            maxDiff = d;
+            maxDiffAt = n;
+        }
+    }
+    WARN("SoftClip drive 2 / SoftClip drive 6 at x = 0.3 (w " << w[0] << " / " << w[1]
+         << "): interpolated drive " << common.drive << ", max |engine - one SoftClip| " << maxDiff
+         << " at sample " << maxDiffAt << ", allocations " << allocations);
+    CHECK(engine->getAllSameType());
+    CHECK(maxDiff <= 1e-6f);
+    REQUIRE(allocations == 0);
+}
+
+TEST_CASE("MorphEngine same-family different types run in parallel",
+          "[disrumpo][morph][D-028]") {
+    const auto nodes = makePathNodes(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::Tube);
+    auto engine = makePathEngine(nodes);
+    auto refA = makePathAdapter(nodes[0].type, nodes[0].params, nodes[0].commonParams);
+    auto refB = makePathAdapter(nodes[1].type, nodes[1].params, nodes[1].commonParams);
+
+    float maxDiff = 0.0f;
+    float peak = 0.0f;
+    std::size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (size_t n = 0; n < kPathSamples; ++n) {
+            const float y = engine->process(pathInput(n));
+            const auto& w = engine->getWeights();
+            float expected = 0.0f;
+            expected += refA->process(pathInput(n)) * w[0];
+            expected += refB->process(pathInput(n)) * w[1];
+            maxDiff = std::max(maxDiff, std::abs(y - expected));
+            peak = std::max(peak, std::abs(expected));
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    WARN("SoftClip drive 2 / Tube drive 6 at x = 0.3: max |engine - (wA * SoftClip + wB * Tube)| "
+         << maxDiff << " (peak " << peak << "), allocations " << allocations);
+    CHECK_FALSE(engine->getAllSameType());
+    CHECK(maxDiff <= 1e-5f);
+    REQUIRE(allocations == 0);
 }
 
 // =============================================================================

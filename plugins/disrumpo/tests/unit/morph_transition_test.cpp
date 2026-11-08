@@ -20,9 +20,11 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <numbers>
 #include <string>
+#include <utility>
 #include <vector>
 
 using Catch::Approx;
@@ -798,4 +800,184 @@ TEST_CASE("Probe: T1.13 cross-family blend law candidates", "[.][t113-law-probe]
         WARN("PROBE t113 " << s.name << " real engine sweep: ends " << r.startDb << " / " << r.endDb
              << " dB, max deviation " << r.maxDevDb << " dB, clicks " << r.clicks);
     }
+}
+
+// =============================================================================
+// Same-family, different-type morph (fix plan T1.14: D-028)
+// =============================================================================
+
+namespace {
+
+constexpr float kSfAmp = 0.5f;  // -6 dBFS
+
+float sfInput(size_t n, float freq) {
+    return kSfAmp * std::sin(2.0f * std::numbers::pi_v<float> * freq *
+                             static_cast<float>(static_cast<double>(n) / kXfRate));
+}
+
+/// Two nodes of one family: @p a at x = 0, @p b at x = 1, drive 4, mix 1.
+std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> sfPair(Disrumpo::DistortionType a,
+                                                                  Disrumpo::DistortionType b) {
+    return {xfNode(0, 0.0f, 0.0f, a, 4.0f), xfNode(1, 1.0f, 0.0f, b, 4.0f),
+            xfNode(2, 0.0f, 1.0f, a, 4.0f), xfNode(3, 1.0f, 1.0f, b, 4.0f)};
+}
+
+float maxStep(const std::vector<float>& y, size_t from, size_t count) {
+    float m = 0.0f;
+    for (size_t i = from + 1; i < from + count; ++i) m = std::max(m, std::abs(y[i] - y[i - 1]));
+    return m;
+}
+
+/// THD (%) of y[from, from + count) at @p f0, harmonics 2..10, by direct DFT at each
+/// harmonic; @p count must hold whole periods of @p f0.
+double harmonicThdPct(const std::vector<float>& y, size_t from, size_t count, double f0) {
+    const auto mag = [&](int h) {
+        double re = 0.0;
+        double im = 0.0;
+        const double w = 2.0 * std::numbers::pi * f0 * static_cast<double>(h) / kXfRate;
+        for (size_t i = 0; i < count; ++i) {
+            const double ph = w * static_cast<double>(i);
+            re += static_cast<double>(y[from + i]) * std::cos(ph);
+            im -= static_cast<double>(y[from + i]) * std::sin(ph);
+        }
+        return std::sqrt(re * re + im * im);
+    };
+    const double h1 = mag(1);
+    double hs = 0.0;
+    for (int h = 2; h <= 10; ++h) {
+        const double m = mag(h);
+        hs += m * m;
+    }
+    return h1 > 0.0 ? 100.0 * std::sqrt(hs) / h1 : 0.0;
+}
+
+} // anonymous namespace
+
+// FR-MORPH-003 (artifact-free transitions) and FR-MORPH-004/006: two different types of
+// one family are blended, not switched at the dominance boundary.
+TEST_CASE("Same-family different-type morph has no step at the midpoint", "[disrumpo][morph][D-028]") {
+    const auto run = [](Disrumpo::DistortionType a, Disrumpo::DistortionType b, const char* label) {
+        // 0.5 s held at x = 0.4, 1 s cursor sweep 0.4 -> 0.6 at block rate, 0.5 s held at 0.6
+        auto engine = makeXfEngine(sfPair(a, b), 2, Disrumpo::MorphMode::Linear1D, 10.0f);
+        engine->setMorphPosition(0.4f, 0.0f);
+        (*engine).reset();
+        const auto S = [](double s) { return static_cast<size_t>(s * kXfRate); };
+        const size_t total = S(2.0);
+        std::vector<float> y(total);
+        for (size_t start = 0; start < total; start += kXfBlock) {
+            const double t = static_cast<double>(start) / kXfRate;
+            float x = 0.4f;
+            if (t >= 0.5 && t < 1.5) x = 0.4f + 0.2f * static_cast<float>(t - 0.5);
+            else if (t >= 1.5) x = 0.6f;
+            engine->setMorphPosition(x, 0.0f);
+            const size_t end = std::min(total, start + static_cast<size_t>(kXfBlock));
+            for (size_t n = start; n < end; ++n) y[n] = engine->process(sfInput(n, 220.0f));
+        }
+        const float steadyA = maxStep(y, S(0.1), S(0.4));
+        const float steadyB = maxStep(y, S(1.6), S(0.4));
+        const float sweep = maxStep(y, S(0.5), S(1.0));
+        const size_t clicks = xfClickCount(y, S(0.5), S(1.0));
+        WARN(label << ": max |y[n]-y[n-1]| sweep " << sweep << ", held at 0.4 " << steadyA
+             << ", held at 0.6 " << steadyB << " (ratio " << sweep / std::max(steadyA, steadyB)
+             << "), clicks " << clicks);
+        CHECK(clicks == 0);
+        CHECK(sweep <= 2.0f * std::max(steadyA, steadyB));
+    };
+    SECTION("Saturation: SoftClip -> HardClip") {
+        run(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::HardClip, "SoftClip/HardClip");
+    }
+    SECTION("Experimental: Chaos -> Formant") {
+        run(Disrumpo::DistortionType::Chaos, Disrumpo::DistortionType::Formant, "Chaos/Formant");
+    }
+}
+
+TEST_CASE("Same-family different-type morph level and THD are continuous in the cursor",
+          "[disrumpo][morph][D-028]") {
+    // x 0.40 -> 0.60 in 0.001 steps, 200 Hz -6 dBFS (240 samples per period): level and THD
+    // of the last 4 periods of each step.
+    auto engine = makeXfEngine(sfPair(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::HardClip),
+                               2, Disrumpo::MorphMode::Linear1D, 0.0f);
+    engine->setMorphPosition(0.4f, 0.0f);
+    (*engine).reset();
+    constexpr size_t kWin = 960;
+    std::vector<float> y(2 * kWin);
+    size_t n = 0;
+    double prevDb = 0.0;
+    double prevThd = 0.0;
+    double maxJumpDb = 0.0;
+    double maxJumpThd = 0.0;
+    float maxJumpDbX = 0.0f;
+    float maxJumpThdX = 0.0f;
+    double thdStart = 0.0;
+    double thdEnd = 0.0;
+    for (int k = 0; k <= 200; ++k) {
+        const float x = 0.4f + static_cast<float>(k) * 0.001f;
+        engine->setMorphPosition(x, 0.0f);
+        for (size_t i = 0; i < y.size(); ++i, ++n) y[i] = engine->process(sfInput(n, 200.0f));
+        const double db = rmsDb(y, kWin, kWin);
+        const double thd = harmonicThdPct(y, kWin, kWin, 200.0);
+        if (k == 0) thdStart = thd;
+        thdEnd = thd;
+        if (k > 0 && std::abs(db - prevDb) > maxJumpDb) {
+            maxJumpDb = std::abs(db - prevDb);
+            maxJumpDbX = x;
+        }
+        if (k > 0 && std::abs(thd - prevThd) > maxJumpThd) {
+            maxJumpThd = std::abs(thd - prevThd);
+            maxJumpThdX = x;
+        }
+        prevDb = db;
+        prevThd = thd;
+    }
+    WARN("SoftClip/HardClip, 0.001 cursor steps: largest level jump " << maxJumpDb << " dB at x = "
+         << maxJumpDbX << "; largest THD jump " << maxJumpThd << " % at x = " << maxJumpThdX
+         << " (THD " << thdStart << " % at x = 0.4, " << thdEnd << " % at x = 0.6)");
+    CHECK(maxJumpDb < 0.1);
+    CHECK(maxJumpThd < 0.5);
+}
+
+TEST_CASE("Same-family different-type morph automation is click-free at every smoothing time",
+          "[disrumpo][morph][SC-003][D-028]") {
+    for (const float ms : {0.0f, 5.0f, 10.0f, 50.0f}) {
+        auto engine = makeXfEngine(sfPair(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::HardClip),
+                                   2, Disrumpo::MorphMode::Linear1D, ms);
+        engine->setMorphPosition(0.0f, 0.0f);
+        (*engine).reset();
+        const size_t hold = static_cast<size_t>(kXfRate * 0.25);
+        const size_t ramp = static_cast<size_t>(kXfRate);
+        std::vector<float> y(hold + 2 * ramp + hold);
+        for (size_t n = 0; n < y.size(); ++n) {
+            float x = 0.0f;
+            if (n >= hold && n < hold + ramp) x = static_cast<float>(n - hold) / static_cast<float>(ramp);
+            else if (n >= hold + ramp && n < hold + 2 * ramp)
+                x = 1.0f - static_cast<float>(n - hold - ramp) / static_cast<float>(ramp);
+            engine->setMorphPosition(x, 0.0f);
+            y[n] = engine->process(sfInput(n, 220.0f));
+        }
+        const size_t clicks = xfClickCount(y, 0, y.size());
+        WARN("SoftClip/HardClip, smoothing " << ms << " ms: clicks " << clicks);
+        CHECK(clicks == 0);
+    }
+}
+
+// Measurement probe (hidden, fix plan T1.14): MorphEngine cost of a two-node morph,
+// identical types (one interpolated processor) vs different types of one family.
+TEST_CASE("Probe: T1.14 same-family morph cost", "[.][t114-cpu-probe]") {
+    const auto cost = [](Disrumpo::DistortionType a, Disrumpo::DistortionType b) {
+        auto engine = makeXfEngine(sfPair(a, b), 2, Disrumpo::MorphMode::Linear1D, 10.0f);
+        engine->setMorphPosition(0.5f, 0.0f);
+        (*engine).reset();
+        const size_t total = static_cast<size_t>(kXfRate * 10.0);
+        float sink = 0.0f;
+        const auto t0 = std::chrono::steady_clock::now();
+        for (size_t n = 0; n < total; ++n) sink += engine->process(sfInput(n, 220.0f));
+        const auto t1 = std::chrono::steady_clock::now();
+        const double secs = std::chrono::duration<double>(t1 - t0).count();
+        return std::pair<double, float>(secs / 10.0 * 100.0, sink);
+    };
+    const auto same = cost(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::SoftClip);
+    const auto diff = cost(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::HardClip);
+    WARN("PROBE t114 cpu (one channel, 48 kHz, x = 0.5): SoftClip/SoftClip " << same.first
+         << " % of real time, SoftClip/HardClip " << diff.first << " % (sinks " << same.second
+         << ", " << diff.second << ")");
 }
