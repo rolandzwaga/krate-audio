@@ -64,6 +64,19 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     31.8 ms to 37 %). Consistent across 44.1/48/96 kHz since T1.10 (`98c17930`), but the UI/spec should state the
     convention, or the mapping should be changed to the usual 63 % time.
 
+14. **`specs/Disrumpo/dsp-details.md` §7.3 is out of date** since T1.14 (`553a24ff`): it still says same-family
+    morphs run one algorithm instance with interpolated parameters; the code now does that only for IDENTICAL
+    types and blends different types in parallel (linear law). Update the doc (and §… equal-power wording).
+15. **Save → load → save is not byte-stable** (found by T1.12's round-trip test): a few floats ahead of the morph
+    section move by one ULP per cycle — first at byte 108 (sweep envelope release), also bytes 166/175/194 (mod-source
+    block). Looks like a normalise/denormalise round trip in setState/getState; no audit finding covers it. Add a
+    whole-stream equality test and fix the offending encode/decode pair.
+16. **Global "Sweep Morph Link" now has an effect** (T1.12, `3e8f6b18`): it drives morph X for bands whose own X
+    link is None. Eight factory presets have sweep on and a non-None global link (values 1, 2, 3, 4, 6) and will
+    now morph with the sweep where before the setting did nothing. Decide: keep (and audition those presets), make
+    it drive Y too, or reset those presets' global link to None in T3.01.
+17. **Tube node acts as a pure gain stage at −6 dBFS** (T1.14 probe: +6.02 dB output for 2x drive) — extends item 9.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
