@@ -1081,10 +1081,13 @@ VSTGUI::CView* Controller::createCustomView(
 
         const std::string* autoHideStr = attributes.getAttributeValue("auto-hide-single");
         if (autoHideStr && *autoHideStr == "true") {
+            // Lives on a Shape page that the UIViewSwitchContainer frees on every
+            // switch back to Main: never cached (D-061). Its destructor deactivates it.
             nodeSelector->setAutoHideForSingleNode(true);
-            compactNodeSelectors_[bandIndex] = nodeSelector;
+            if (accessibilityPrefs_.highContrastEnabled) nodeSelector->setHighContrastMode(true);
         } else {
             dynamicNodeSelectors_[bandIndex] = nodeSelector;
+            nodeSelector->registerViewListener(this);  // viewWillDelete clears the slot
         }
 
         return nodeSelector;
@@ -1444,7 +1447,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
         for (auto* mp : morphPads_) { if (mp) mp->setHighContrastMode(true, borderColor, accentColor); }
         if (sweepIndicator_) sweepIndicator_->setHighContrastMode(true, accentColor);
         for (auto* dns : dynamicNodeSelectors_) { if (dns) dns->setHighContrastMode(true); }
-        for (auto* dns : compactNodeSelectors_) { if (dns) dns->setHighContrastMode(true); }
     }
 
     for (int b = 0; b < kMaxBands; ++b) {
@@ -1530,8 +1532,13 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
             nsc = nullptr;
         }
     }
-    for (auto& dns : dynamicNodeSelectors_) { if (dns) { dns->deactivate(); dns = nullptr; } }
-    for (auto& dns : compactNodeSelectors_) { if (dns) { dns->deactivate(); dns = nullptr; } }
+    for (auto& dns : dynamicNodeSelectors_) {
+        if (dns) {
+            dns->unregisterViewListener(this);
+            dns->deactivate();
+            dns = nullptr;
+        }
+    }
     for (auto& mp : morphPads_) { if (mp) { mp->deactivate(); mp = nullptr; } }
     if (sweepVisualizationController_) {
         if (auto* svc = dynamic_cast<SweepVisualizationController*>(sweepVisualizationController_.get())) svc->deactivate();
@@ -1663,6 +1670,19 @@ void Controller::openSavePresetDialog() {
 
 void Controller::closePresetBrowser() {
     if (presetBrowserView_ && presetBrowserView_->isOpen()) presetBrowserView_->close();
+}
+
+std::vector<const VSTGUI::CView*> Controller::cachedNodeSelectorsForTest() const {
+    std::vector<const VSTGUI::CView*> views;
+    for (const auto* dns : dynamicNodeSelectors_) { if (dns) views.push_back(dns); }
+    return views;
+}
+
+void Controller::viewWillDelete(VSTGUI::CView* view) {
+    for (auto& dns : dynamicNodeSelectors_) {
+        if (dns == view) dns = nullptr;
+    }
+    view->unregisterViewListener(this);
 }
 
 // ==============================================================================

@@ -22,6 +22,7 @@
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
+#include "vstgui/lib/iviewlistener.h"
 #include "preset/preset_manager.h"
 #include "update/update_checker.h"
 #include "platform/accessibility_helper.h"
@@ -38,6 +39,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <vector>
 
 namespace Krate::Plugins {
 class PresetBrowserView;
@@ -60,7 +62,8 @@ class SweepIndicator;
 class Controller : public Steinberg::Vst::EditControllerEx1,
                    public VSTGUI::VST3EditorDelegate,
                    public Steinberg::Vst::IMidiMapping,
-                   public Steinberg::Vst::IDataExchangeReceiver {
+                   public Steinberg::Vst::IDataExchangeReceiver,
+                   private VSTGUI::ViewListenerAdapter {
 public:
     Controller() = default;
     ~Controller() override;  // Defined in cpp to allow unique_ptr with forward declaration
@@ -163,6 +166,9 @@ public:
     /// Get the preset manager instance
     Krate::Plugins::PresetManager* getPresetManager() const { return presetManager_.get(); }
 
+    /// Test seam: every DynamicNodeSelector view the controller holds a raw pointer to (D-061).
+    [[nodiscard]] std::vector<const VSTGUI::CView*> cachedNodeSelectorsForTest() const;
+
     /// Create a memory stream containing the current component state
     /// Used for preset saving - serializes controller's parameter values
     /// in the same format as Processor::getState()
@@ -240,6 +246,9 @@ public:
     [[nodiscard]] Krate::DSP::SpectrumFIFO<8192>& getLocalOutputFIFO() { return localOutputFIFO_; }
 
 private:
+    /// IViewListener: clears the dynamicNodeSelectors_ slot of a selector being deleted (D-061)
+    void viewWillDelete(VSTGUI::CView* view) override;
+
     // ==========================================================================
     // Parameter Registration Helpers
     // ==========================================================================
@@ -351,11 +360,11 @@ private:
     // ==========================================================================
     // Dynamic Node Selectors (US6)
     // ==========================================================================
-    // Custom CSegmentButton controls that show/hide A/B/C/D based on ActiveNodes
+    // Custom CSegmentButton controls that show/hide A/B/C/D based on ActiveNodes.
+    // Cleared by viewWillDelete when a selector dies. The compact (auto-hide)
+    // selectors on the Shape pages are never cached: a UIViewSwitchContainer
+    // frees them on every Main/Shape switch (D-061).
     std::array<DynamicNodeSelector*, kMaxBands> dynamicNodeSelectors_{};
-
-    // Compact view node selectors (auto-hide when single node)
-    std::array<DynamicNodeSelector*, kMaxBands> compactNodeSelectors_{};
 
     // ==========================================================================
     // MorphPads (US6)
