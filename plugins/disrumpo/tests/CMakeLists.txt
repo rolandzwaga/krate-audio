@@ -88,6 +88,9 @@ add_executable(disrumpo_tests
     # Proxy / node / pad / selector parameter wiring (audit T1.20)
     unit/controller/node_proxy_wiring_test.cpp
 
+    # MIDI learn: event bus, IMidiLearn completion, persisted scope (audit T1.18)
+    unit/controller/midi_learn_wiring_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp

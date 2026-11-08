@@ -313,7 +313,8 @@ TEST_CASE("Controller getState/setState round-trips the MIDI CC blob", "[disrump
     REQUIRE(c.getState(out) == Steinberg::kResultOk);
     const auto saved = drain(out);
     out->release();
-    REQUIRE(saved.size() == 4 + 8 + 8 + 4 + blob.size());
+    // Version 3 (T1.18): the global blob, then an empty per-preset blob (size 4, count 0).
+    REQUIRE(saved.size() == 4 + 8 + 8 + 4 + blob.size() + 4 + 4);
     CHECK(std::memcmp(saved.data() + 24, blob.data(), blob.size()) == 0);
 
     Controller c2;

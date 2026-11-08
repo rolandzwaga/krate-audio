@@ -80,6 +80,10 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     addAudioInput(STR16("Audio Input"), Steinberg::Vst::SpeakerArr::kStereo);
     addAudioOutput(STR16("Audio Output"), Steinberg::Vst::SpeakerArr::kStereo);
 
+    // MIDI CC reaches the plugin only through an event input: the host maps it to
+    // a parameter with the controller's IMidiMapping and reports it to IMidiLearn (D-096)
+    addEventInput(STR16("MIDI In"), 16);
+
     // Register in SharedDisplayBridge (Tier 3 fallback)
     Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
         instanceId_, &sharedDisplay_);
@@ -422,33 +426,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             const float modMorphY = modulationEngine_.getModulatedValue(
                 ModDest::bandParam(bandIdx, ModDest::kBandMorphY), baseY);
             bandProcessors_[b].setMorphPosition(modMorphX, modMorphY);
-        }
-    }
-
-    // ==========================================================================
-    // MIDI Learn: Scan for CC events (FR-028, FR-029)
-    // ==========================================================================
-    if (midiLearnActive_ && data.inputEvents) {
-        Steinberg::int32 eventCount = data.inputEvents->getEventCount();
-        for (Steinberg::int32 ei = 0; ei < eventCount; ++ei) {
-            Steinberg::Vst::Event e{};
-            if (data.inputEvents->getEvent(ei, e) == Steinberg::kResultOk) {
-                if (e.type == Steinberg::Vst::Event::kLegacyMIDICCOutEvent) {
-                    uint8_t cc = e.midiCCOut.controlNumber;
-                    // Write detected CC to output parameter
-                    if (data.outputParameterChanges) {
-                        Steinberg::int32 idx = 0;
-                        auto* q = data.outputParameterChanges->addParameterData(
-                            kSweepDetectedCCOutputId, idx);
-                        if (q) {
-                            q->addPoint(0, static_cast<double>(cc) / 127.0, idx);
-                        }
-                    }
-                    midiLearnActive_ = false;
-                    assignedMidiCC_ = cc;
-                    break;  // Only capture first CC
-                }
-            }
         }
     }
 

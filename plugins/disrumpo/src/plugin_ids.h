@@ -131,9 +131,10 @@ enum class SweepParamType : uint8_t {
     kSweepCustomCurveP7X = 0x3F,  ///< Point 7 X (always 1.0)
     kSweepCustomCurveP7Y = 0x40,  ///< Point 7 Y [0, 1]
 
-    // MIDI parameters (FR-028, FR-029)
-    kSweepMidiLearnActive = 0x50,  ///< MIDI Learn toggle [on/off]
-    kSweepMidiCCNumber    = 0x51,  ///< Assigned MIDI CC number [0-128], 128 = none
+    // Legacy sweep-only MIDI learn (FR-028, FR-029): registered hidden, no action (D-094).
+    // MIDI learn is the controller's MidiCCManager + IMidiLearn. IDs kept, never reused.
+    kSweepMidiLearnActive = 0x50,  ///< (legacy, hidden) MIDI Learn toggle [on/off]
+    kSweepMidiCCNumber    = 0x51,  ///< (legacy, hidden) Assigned MIDI CC number [0-128], 128 = none
 };
 
 /// @brief Create parameter ID for sweep parameters.
@@ -163,8 +164,8 @@ constexpr bool isSweepParamId(Steinberg::Vst::ParamID paramId) {
 /// Observed by Controller to update SweepIndicator and SpectrumDisplay.
 constexpr Steinberg::Vst::ParamID kSweepModulatedFrequencyOutputId = 0x0F80;
 
-/// @brief Output parameter: detected MIDI CC number during MIDI Learn (normalized)
-/// Written by Processor when a CC event is detected while MIDI Learn is active.
+/// @brief (legacy, hidden) Output parameter of the removed processor-side MIDI learn.
+/// Never written; registered hidden so the ID is never reused (D-094).
 constexpr Steinberg::Vst::ParamID kSweepDetectedCCOutputId = 0x0F81;
 
 // =============================================================================

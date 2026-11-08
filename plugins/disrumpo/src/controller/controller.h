@@ -20,6 +20,7 @@
 #include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/vst/ivstdataexchange.h"
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
+#include "pluginterfaces/vst/ivstmidilearn.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include "vstgui/lib/iviewlistener.h"
@@ -62,6 +63,7 @@ class SweepIndicator;
 class Controller : public Steinberg::Vst::EditControllerEx1,
                    public VSTGUI::VST3EditorDelegate,
                    public Steinberg::Vst::IMidiMapping,
+                   public Steinberg::Vst::IMidiLearn,
                    public Steinberg::Vst::IDataExchangeReceiver,
                    private VSTGUI::ViewListenerAdapter {
 public:
@@ -150,6 +152,15 @@ public:
         Steinberg::Vst::ParamID& paramID,
         VSTGUI::VST3Editor* editor) override;
 
+    /// Context-menu "MIDI Learn": arm a learn for paramId
+    void startMidiLearn(Steinberg::Vst::ParamID paramId);
+
+    /// Context-menu "Clear MIDI Learn": remove every mapping of paramId
+    void clearMidiLearn(Steinberg::Vst::ParamID paramId);
+
+    /// Context-menu "Save Mapping with Preset": move paramId's mapping between global and per-preset
+    void toggleMidiMappingScope(Steinberg::Vst::ParamID paramId);
+
     // ===========================================================================
     // Preset Browser (Spec 010)
     // ===========================================================================
@@ -184,6 +195,15 @@ public:
         Steinberg::int32 busIndex, Steinberg::int16 channel,
         Steinberg::Vst::CtrlNumber midiControllerNumber,
         Steinberg::Vst::ParamID& id) override;
+
+    // ===========================================================================
+    // IMidiLearn
+    // ===========================================================================
+
+    /// Live CC from the host (UI thread): completes an armed context-menu MIDI Learn
+    Steinberg::tresult PLUGIN_API onLiveMIDIControllerInput(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::Vst::CtrlNumber midiCC) override;
 
     // ===========================================================================
     // IConnectionPoint (IMessage handling)
@@ -226,6 +246,7 @@ public:
         DEF_INTERFACE(Steinberg::Vst::IEditController)
         DEF_INTERFACE(Steinberg::Vst::IEditController2)
         DEF_INTERFACE(Steinberg::Vst::IMidiMapping)
+        DEF_INTERFACE(Steinberg::Vst::IMidiLearn)
         DEF_INTERFACE(Steinberg::Vst::IDataExchangeReceiver)
     // The SDK macros forward queryInterface / addRef / release to the base on purpose.
     END_DEFINE_INTERFACES(EditController)  // NOLINT(bugprone-parent-virtual-call)
@@ -421,6 +442,9 @@ private:
     // ==========================================================================
     std::unique_ptr<Krate::Plugins::MidiCCManager> midiCCManager_;
 
+    /// Tell the host to re-query IMidiMapping (restartComponent(kMidiCCAssignmentChanged))
+    void notifyMidiMappingChanged();
+
     // ==========================================================================
     // Modulation Panel Visibility Controller (Spec 012 US3)
     // ==========================================================================
@@ -430,12 +454,6 @@ private:
     // Accessibility Preferences Cache (Spec 012 US7)
     // ==========================================================================
     Krate::Plugins::AccessibilityPreferences accessibilityPrefs_;
-
-    // ==========================================================================
-    // MIDI CC Mapping (FR-028, FR-029) - Legacy
-    // ==========================================================================
-    // Stored MIDI CC number (0-127, or 128 for none)
-    int assignedMidiCC_ = 128;
 
     // ==========================================================================
     // Preset Browser (Spec 010)

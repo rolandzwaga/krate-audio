@@ -216,6 +216,20 @@ double blockRmsSpreadDb(const std::vector<float>& x, size_t block, size_t skipBl
 
 }  // namespace
 
+// D-096 (T1.18): MIDI CC reaches a plugin (and its IMidiMapping is queried) only
+// through an event input bus.
+TEST_CASE("Processor declares one event input bus", "[disrumpo][midi][D-096]") {
+    Rig rig(48000.0, 512, false);
+    const auto count = rig.p->getBusCount(Steinberg::Vst::kEvent, Steinberg::Vst::kInput);
+    std::printf("D-096 event input buses: %d, event output buses: %d\n", static_cast<int>(count),
+                static_cast<int>(rig.p->getBusCount(Steinberg::Vst::kEvent, Steinberg::Vst::kOutput)));
+    REQUIRE(count == 1);
+    Steinberg::Vst::BusInfo info{};
+    REQUIRE(rig.p->getBusInfo(Steinberg::Vst::kEvent, Steinberg::Vst::kInput, 0, info) == Steinberg::kResultOk);
+    CHECK(info.channelCount == 16);
+    CHECK(info.busType == Steinberg::Vst::kMain);
+}
+
 TEST_CASE("Mod routings and macros survive setActive(false)/setActive(true)",
           "[disrumpo][lifecycle][D-047]") {
     constexpr double kSampleRate = 48000.0;

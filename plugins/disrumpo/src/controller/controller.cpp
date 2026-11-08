@@ -666,23 +666,39 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
     return Steinberg::kResultOk;
 }
 
+// Controller state: int32 version, two unused doubles (old window size), then
+// int32 size + global MIDI CC mapping blob; version 3 adds int32 size + the
+// per-preset mapping blob ("Save Mapping with Preset", D-058).
+namespace {
+constexpr Steinberg::int32 kControllerStateVersion = 3;
+
+bool writeMidiBlob(Steinberg::IBStream* state, Steinberg::IBStreamer& streamer, std::vector<uint8_t> blob) {
+    const auto size = static_cast<Steinberg::int32>(blob.size());
+    if (!streamer.writeInt32(size)) return false;
+    return size == 0 || state->write(blob.data(), size, nullptr) == Steinberg::kResultOk;
+}
+
+/// Reads one size-prefixed blob; empty on a missing or short blob.
+std::vector<uint8_t> readMidiBlob(Steinberg::IBStream* state, Steinberg::IBStreamer& streamer) {
+    Steinberg::int32 size = 0;
+    if (!streamer.readInt32(size) || size <= 0) return {};
+    std::vector<uint8_t> blob(static_cast<size_t>(size));
+    Steinberg::int32 got = 0;
+    if (state->read(blob.data(), size, &got) != Steinberg::kResultOk || got != size) return {};
+    return blob;
+}
+}  // namespace
+
 Steinberg::tresult PLUGIN_API Controller::getState(Steinberg::IBStream* state) {
     Steinberg::IBStreamer streamer(state, kLittleEndian);
-    if (!streamer.writeInt32(2)) return Steinberg::kResultFalse;
+    if (!streamer.writeInt32(kControllerStateVersion)) return Steinberg::kResultFalse;
     if (!streamer.writeDouble(0.0)) return Steinberg::kResultFalse;
     if (!streamer.writeDouble(0.0)) return Steinberg::kResultFalse;
 
-    if (midiCCManager_) {
-        auto midiData = midiCCManager_->serializeGlobalMappings();
-        auto midiDataSize = static_cast<Steinberg::int32>(midiData.size());
-        if (!streamer.writeInt32(midiDataSize)) return Steinberg::kResultFalse;
-        if (midiDataSize > 0) {
-            if (state->write(midiData.data(), midiDataSize, nullptr) != Steinberg::kResultOk)
-                return Steinberg::kResultFalse;
-        }
-    } else {
-        if (!streamer.writeInt32(0)) return Steinberg::kResultFalse;
-    }
+    if (!writeMidiBlob(state, streamer, midiCCManager_ ? midiCCManager_->serializeGlobalMappings() : std::vector<uint8_t>{}))
+        return Steinberg::kResultFalse;
+    if (!writeMidiBlob(state, streamer, midiCCManager_ ? midiCCManager_->serializePresetMappings() : std::vector<uint8_t>{}))
+        return Steinberg::kResultFalse;
 
     return Steinberg::kResultOk;
 }
@@ -698,13 +714,15 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
         streamer.readDouble(unusedWidth);
         streamer.readDouble(unusedHeight);
 
-        Steinberg::int32 midiDataSize = 0;
-        if (streamer.readInt32(midiDataSize) && midiDataSize > 0) {
-            std::vector<uint8_t> midiData(static_cast<size_t>(midiDataSize));
-            if (state->read(midiData.data(), midiDataSize, nullptr) == Steinberg::kResultOk) {
-                if (midiCCManager_)
-                    midiCCManager_->deserializeGlobalMappings(midiData.data(), midiData.size());
-            }
+        const auto globalBlob = readMidiBlob(state, streamer);
+        const auto presetBlob = version >= 3 ? readMidiBlob(state, streamer) : std::vector<uint8_t>{};
+        if (midiCCManager_) {
+            if (!globalBlob.empty())
+                midiCCManager_->deserializeGlobalMappings(globalBlob.data(), globalBlob.size());
+            // Per-preset mappings are replaced by the state's (none before version 3)
+            if (presetBlob.empty() || !midiCCManager_->deserializePresetMappings(presetBlob.data(), presetBlob.size()))
+                midiCCManager_->clearPresetMappings();
+            notifyMidiMappingChanged();
         }
     }
 
@@ -728,12 +746,30 @@ Steinberg::tresult PLUGIN_API Controller::getMidiControllerAssignment(
             return Steinberg::kResultTrue;
     }
 
-    if (assignedMidiCC_ < 128 && midiControllerNumber == assignedMidiCC_) {
-        id = makeSweepParamId(SweepParamType::kSweepFrequency);
-        return Steinberg::kResultTrue;
-    }
-
     return Steinberg::kResultFalse;
+}
+
+// ==============================================================================
+// IMidiLearn: the host reports live CCs here; an armed context-menu learn completes
+// ==============================================================================
+
+Steinberg::tresult PLUGIN_API Controller::onLiveMIDIControllerInput(
+    Steinberg::int32 busIndex, Steinberg::int16 /*channel*/,
+    Steinberg::Vst::CtrlNumber midiCC) {
+    if (busIndex != 0 || midiCC < 0 || midiCC >= 128) return Steinberg::kResultFalse;
+    if (!midiCCManager_ || !midiCCManager_->isLearning()) return Steinberg::kResultOk;
+
+    // processCCMessage completes the learn (an LSB CC 32-63 keeps it armed); no
+    // value is reported here, so no parameter callback.
+    if (midiCCManager_->processCCMessage(static_cast<uint8_t>(midiCC), 0, nullptr)) {
+        setParamNormalized(makeGlobalParamId(GlobalParamType::kGlobalMidiLearnActive), 0.0);
+        notifyMidiMappingChanged();
+    }
+    return Steinberg::kResultOk;
+}
+
+void Controller::notifyMidiMappingChanged() {
+    if (componentHandler) componentHandler->restartComponent(Steinberg::Vst::kMidiCCAssignmentChanged);
 }
 
 Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString name) {
@@ -1615,12 +1651,7 @@ VSTGUI::COptionMenu* Controller::createContextMenu(
     {
         VSTGUI::CCommandMenuItem::Desc desc("MIDI Learn");
         auto* learnItem = new VSTGUI::CCommandMenuItem(std::move(desc));
-        learnItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) {
-            if (midiCCManager_) {
-                midiCCManager_->startLearn(paramId);
-                setParamNormalized(makeGlobalParamId(GlobalParamType::kGlobalMidiLearnActive), 1.0);
-            }
-        });
+        learnItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) { startMidiLearn(paramId); });
         menu->addEntry(learnItem);
     }
 
@@ -1629,31 +1660,46 @@ VSTGUI::COptionMenu* Controller::createContextMenu(
         {
             VSTGUI::CCommandMenuItem::Desc clearDesc("Clear MIDI Learn");
             auto* clearItem = new VSTGUI::CCommandMenuItem(std::move(clearDesc));
-            clearItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) {
-                if (midiCCManager_) midiCCManager_->removeMappingsForParam(paramId);
-            });
+            clearItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) { clearMidiLearn(paramId); });
             menu->addEntry(clearItem);
         }
         Krate::Plugins::MidiCCMapping mapping;
         if (midiCCManager_->getMapping(existingCC, mapping)) {
             VSTGUI::CCommandMenuItem::Desc presetDesc("Save Mapping with Preset");
             auto* presetItem = new VSTGUI::CCommandMenuItem(std::move(presetDesc));
-            presetItem->setActions([this, existingCC, paramId, mapping](VSTGUI::CCommandMenuItem*) {
-                if (midiCCManager_) {
-                    if (!mapping.isPerPreset) {
-                        midiCCManager_->removeGlobalMapping(existingCC);
-                        midiCCManager_->addPresetMapping(existingCC, paramId, mapping.is14Bit);
-                    } else {
-                        midiCCManager_->removePresetMapping(existingCC);
-                        midiCCManager_->addGlobalMapping(existingCC, paramId, mapping.is14Bit);
-                    }
-                }
-            });
+            presetItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) { toggleMidiMappingScope(paramId); });
             menu->addEntry(presetItem);
         }
     }
 
     return menu;
+}
+
+void Controller::startMidiLearn(Steinberg::Vst::ParamID paramId) {
+    if (!midiCCManager_) return;
+    midiCCManager_->startLearn(paramId);
+    setParamNormalized(makeGlobalParamId(GlobalParamType::kGlobalMidiLearnActive), 1.0);
+}
+
+void Controller::clearMidiLearn(Steinberg::Vst::ParamID paramId) {
+    if (!midiCCManager_) return;
+    midiCCManager_->removeMappingsForParam(paramId);
+    notifyMidiMappingChanged();
+}
+
+void Controller::toggleMidiMappingScope(Steinberg::Vst::ParamID paramId) {
+    if (!midiCCManager_) return;
+    uint8_t cc = 0;
+    Krate::Plugins::MidiCCMapping mapping;
+    if (!midiCCManager_->getCCForParam(paramId, cc) || !midiCCManager_->getMapping(cc, mapping)) return;
+    if (!mapping.isPerPreset) {
+        midiCCManager_->removeGlobalMapping(cc);
+        midiCCManager_->addPresetMapping(cc, paramId, mapping.is14Bit);
+    } else {
+        midiCCManager_->removePresetMapping(cc);
+        midiCCManager_->addGlobalMapping(cc, paramId, mapping.is14Bit);
+    }
+    notifyMidiMappingChanged();
 }
 
 // ==============================================================================

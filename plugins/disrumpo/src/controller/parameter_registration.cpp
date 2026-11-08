@@ -308,8 +308,10 @@ void Controller::registerSweepParams() {
     parameters.addParameter(STR16("Sweep Mod Freq"), nullptr, 0, 0.5,
         Steinberg::Vst::ParameterInfo::kIsReadOnly, kSweepModulatedFrequencyOutputId);
 
+    // Legacy sweep-only MIDI learn (D-094): hidden, no processor action; kept so the ID is never reused
     parameters.addParameter(STR16("Sweep Detected CC"), nullptr, 0, 0.0,
-        Steinberg::Vst::ParameterInfo::kIsReadOnly, kSweepDetectedCCOutputId);
+        Steinberg::Vst::ParameterInfo::kIsReadOnly | Steinberg::Vst::ParameterInfo::kIsHidden,
+        kSweepDetectedCCOutputId);
 
     // Custom Curve Parameters (FR-039a, FR-039b, FR-039c)
     auto* curvePointCountParam = new Steinberg::Vst::RangeParameter(
@@ -346,14 +348,16 @@ void Controller::registerSweepParams() {
             Steinberg::Vst::ParameterInfo::kCanAutomate, makeSweepParamId(yType));
     }
 
-    // MIDI Parameters (FR-028, FR-029)
+    // Legacy sweep-only MIDI learn (FR-028, FR-029; D-094): MIDI learn is the context menu's
+    // (MidiCCManager + IMidiLearn). Hidden, no processor action; kept so the IDs are never reused.
     parameters.addParameter(STR16("Sweep MIDI Learn"), nullptr, 1, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        Steinberg::Vst::ParameterInfo::kIsReadOnly | Steinberg::Vst::ParameterInfo::kIsHidden,
         makeSweepParamId(SweepParamType::kSweepMidiLearnActive));
 
     auto* midiCCParam = new Steinberg::Vst::RangeParameter(
         STR16("Sweep MIDI CC"), makeSweepParamId(SweepParamType::kSweepMidiCCNumber),
-        nullptr, 0.0, 128.0, 128.0, 128, Steinberg::Vst::ParameterInfo::kCanAutomate);
+        nullptr, 0.0, 128.0, 128.0, 128,
+        Steinberg::Vst::ParameterInfo::kIsReadOnly | Steinberg::Vst::ParameterInfo::kIsHidden);
     parameters.addParameter(midiCCParam);
 }
 

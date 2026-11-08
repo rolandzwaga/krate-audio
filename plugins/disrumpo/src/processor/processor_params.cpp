@@ -511,21 +511,6 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         case SweepParamType::kSweepCustomCurveP7Y:
                             // Curve point changed - defer rebuild to process loop
                             // (handled below after all params processed)
-                            break;
-
-                        // ========================================================
-                        // MIDI Parameters (FR-028, FR-029)
-                        // ========================================================
-                        case SweepParamType::kSweepMidiLearnActive:
-                            midiLearnActive_ = (value >= 0.5);
-                            break;
-
-                        case SweepParamType::kSweepMidiCCNumber: {
-                            assignedMidiCC_ = static_cast<int>(value * 128.0 + 0.5);
-                            assignedMidiCC_ = std::clamp(assignedMidiCC_, 0, 128);
-                            break;
-                        }
-
                         default:
                             break;
                     }
