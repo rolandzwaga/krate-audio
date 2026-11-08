@@ -38,6 +38,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 
 namespace Krate::DSP {
@@ -181,6 +182,8 @@ public:
         lastTriggeredGrainDrive_ = 0.0f;
         lastTriggeredGrainAlgorithm_ = WaveshapeType::Tanh;
         grainsTriggeredCount_ = 0;
+        debugLastProcessedGrainCount_ = 0;
+        debugLastActiveGrainCount_ = 0;
     }
 
     // =========================================================================
@@ -368,8 +371,13 @@ public:
                 triggerGrain();
             }
             // Process grains to keep state consistent (but discard output)
-            for (Grain* grain : grainPool_.activeGrains()) {
-                (void)processGrain(grain);  // Intentionally discard [[nodiscard]] result
+            debugLastProcessedGrainCount_ = 0;
+            debugLastActiveGrainCount_ = grainPool_.activeCount();
+            // Iterate a snapshot: a grain released inside processGrain must not shift the list
+            const auto active = grainPool_.activeGrains();
+            std::copy(active.begin(), active.end(), grainSnapshot_.begin());
+            for (size_t i = 0; i < active.size(); ++i) {
+                (void)processGrain(grainSnapshot_[i]);  // Intentionally discard [[nodiscard]] result
             }
             ++currentSample_;
             // Snap smoother to 0 so it's ready when mix changes
@@ -392,8 +400,13 @@ public:
 
         // Process all active grains
         float wet = 0.0f;
-        for (Grain* grain : grainPool_.activeGrains()) {
-            wet += processGrain(grain);
+        debugLastProcessedGrainCount_ = 0;
+        debugLastActiveGrainCount_ = grainPool_.activeCount();
+        // Iterate a snapshot: a grain released inside processGrain must not shift the list
+        const auto active = grainPool_.activeGrains();
+        std::copy(active.begin(), active.end(), grainSnapshot_.begin());
+        for (size_t i = 0; i < active.size(); ++i) {
+            wet += processGrain(grainSnapshot_[i]);
         }
 
         // Advance sample counter
@@ -464,6 +477,30 @@ public:
         return grainsTriggeredCount_;
     }
 
+    /// One processGrain call of the most recent process(float) call (testing only).
+    struct GrainReadRecord {
+        size_t slot = 0;             ///< Grain's stable pool slot
+        size_t startBufferPos = 0;   ///< Start position read from the grain's state
+        size_t readPos = 0;          ///< Buffer position read this sample
+        float envelopePhase = 0.0f;  ///< Phase before this sample's advance (0 = first sample)
+    };
+
+    /// @brief Grains processed by the most recent process(float) call, in call order.
+    /// @note For testing D-074: each grain's read position must advance by 1 per sample
+    [[nodiscard]] std::span<const GrainReadRecord> debugGrainReadPositions() const noexcept {
+        return {debugGrainReads_.data(), debugLastProcessedGrainCount_};
+    }
+
+    /// @brief Number of processGrain calls in the most recent process(float) call.
+    [[nodiscard]] size_t debugLastProcessedGrainCount() const noexcept {
+        return debugLastProcessedGrainCount_;
+    }
+
+    /// @brief Active grains when the most recent process(float) call entered its grain loop.
+    [[nodiscard]] size_t debugLastActiveGrainCount() const noexcept {
+        return debugLastActiveGrainCount_;
+    }
+
 private:
     // =========================================================================
     // Internal Struct
@@ -474,6 +511,7 @@ private:
         float drive = 1.0f;             ///< Per-grain drive (after variation)
         size_t startBufferPos = 0;      ///< Frozen start position in buffer
         size_t grainSizeSamples = 0;    ///< Duration in samples
+        size_t progressSamples = 0;     ///< Samples read so far (exact, no float drift)
     };
 
     // =========================================================================
@@ -483,20 +521,6 @@ private:
     /// Convert milliseconds to sample count
     [[nodiscard]] size_t msToSamples(float ms) const noexcept {
         return static_cast<size_t>(ms * static_cast<float>(sampleRate_) / 1000.0f);
-    }
-
-    /// Get grain index from pointer (for indexing parallel arrays)
-    /// Note: This method is not const because activeGrains() is non-const
-    [[nodiscard]] size_t getGrainIndex(const Grain* grain) noexcept {
-        // grainPool_ exposes grains via activeGrains(), need to find index
-        // The grains are stored in grainPool_'s internal array
-        // We can calculate the index by processing order
-        size_t index = 0;
-        for (const Grain* g : grainPool_.activeGrains()) {
-            if (g == grain) return index;
-            ++index;
-        }
-        return 0;  // Fallback
     }
 
     /// Update scheduler density based on grain size and density parameter
@@ -544,24 +568,8 @@ private:
         Grain* grain = grainPool_.acquireGrain(currentSample_);
         if (grain == nullptr) return;
 
-        // Find available grain state slot using grain's index in the pool
-        // Since GrainPool uses a fixed array, we can find the index
-        size_t grainIndex = 0;
-        {
-            // Find this grain's position in the pool by checking active grains
-            // This is a bit awkward, but necessary since GrainPool doesn't expose indices
-            size_t idx = 0;
-            for (const Grain* g : grainPool_.activeGrains()) {
-                if (g == grain) {
-                    grainIndex = idx;
-                    break;
-                }
-                ++idx;
-            }
-        }
-
-        // Ensure we use a consistent index (mod 64 to stay in bounds)
-        grainIndex = grainIndex % GrainPool::kMaxGrains;
+        // Per-grain state is indexed by the grain's pool slot, stable for its whole life
+        const size_t grainIndex = grainPool_.indexOf(grain);
 
         // Calculate per-grain drive
         const float smoothedDrive = driveSmoother_.process();
@@ -605,6 +613,7 @@ private:
         const size_t basePos = (writePos_ + kBufferSize - 1 - positionLookback) & kBufferMask;
         state.startBufferPos = (basePos + kBufferSize - jitterOffset) & kBufferMask;
         state.grainSizeSamples = msToSamples(grainSizeMs_);
+        state.progressSamples = 0;
 
         // Initialize envelope
         grain->envelopePhase = 0.0f;
@@ -615,31 +624,26 @@ private:
 
     /// Process a single grain and return its contribution
     [[nodiscard]] float processGrain(Grain* grain) noexcept {
-        // Find grain index
-        size_t grainIndex = 0;
-        {
-            size_t idx = 0;
-            for (const Grain* g : grainPool_.activeGrains()) {
-                if (g == grain) {
-                    grainIndex = idx;
-                    break;
-                }
-                ++idx;
-            }
-        }
-        grainIndex = grainIndex % GrainPool::kMaxGrains;
-
-        const GrainState& state = grainStates_[grainIndex];
+        const size_t grainIndex = grainPool_.indexOf(grain);
+        GrainState& state = grainStates_[grainIndex];
         const Waveshaper& ws = waveshapers_[grainIndex];
 
         // Get envelope value
         const float envelope = GrainEnvelope::lookup(
             envelopeTable_.data(), kEnvelopeTableSize, grain->envelopePhase);
 
-        // Calculate read position (frozen start + progress)
-        const size_t progressSamples = static_cast<size_t>(
-            grain->envelopePhase * static_cast<float>(state.grainSizeSamples));
-        const size_t readPos = (state.startBufferPos + progressSamples) & kBufferMask;
+        // Calculate read position (frozen start + progress). An integer count, not
+        // envelopePhase * size: the float product floors to k-1 on some samples.
+        const size_t readPos = (state.startBufferPos + state.progressSamples) & kBufferMask;
+        ++state.progressSamples;
+
+        if (debugLastProcessedGrainCount_ < GrainPool::kMaxGrains) {
+            debugGrainReads_[debugLastProcessedGrainCount_++] = GrainReadRecord{
+                .slot = grainIndex,
+                .startBufferPos = state.startBufferPos,
+                .readPos = readPos,
+                .envelopePhase = grain->envelopePhase};
+        }
 
         // Read from buffer
         const float bufferSample = buffer_[readPos];
@@ -681,6 +685,7 @@ private:
     GrainScheduler scheduler_;
     std::array<Waveshaper, GrainPool::kMaxGrains> waveshapers_;
     std::array<GrainState, GrainPool::kMaxGrains> grainStates_{};
+    std::array<Grain*, GrainPool::kMaxGrains> grainSnapshot_{};  ///< Active list copy per sample
 
     // Circular buffer
     std::array<float, kBufferSize> buffer_{};
@@ -706,6 +711,9 @@ private:
     float lastTriggeredGrainDrive_ = 0.0f;
     WaveshapeType lastTriggeredGrainAlgorithm_ = WaveshapeType::Tanh;
     size_t grainsTriggeredCount_ = 0;
+    std::array<GrainReadRecord, GrainPool::kMaxGrains> debugGrainReads_{};
+    size_t debugLastProcessedGrainCount_ = 0;
+    size_t debugLastActiveGrainCount_ = 0;
 
     // Parameters
     float grainSizeMs_ = 50.0f;
