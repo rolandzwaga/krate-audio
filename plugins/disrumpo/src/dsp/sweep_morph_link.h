@@ -125,6 +125,14 @@ constexpr float kLog2FreqRange = kLog2MaxFreq - kLog2MinFreq;  // ~9.966
     }
 }
 
+/// @brief Decode a normalized 8-entry link-mode list parameter value.
+/// @param normalized Parameter value [0, 1] (entry index / 7)
+/// @return Link mode, clamped to the valid range
+[[nodiscard]] inline MorphLinkMode decodeMorphLinkMode(double normalized) noexcept {
+    const long index = std::lround(normalized * static_cast<double>(kMorphLinkModeCount - 1));
+    return static_cast<MorphLinkMode>(std::clamp(index, 0L, static_cast<long>(kMorphLinkModeCount - 1)));
+}
+
 // =============================================================================
 // Intensity Calculation Functions
 // =============================================================================

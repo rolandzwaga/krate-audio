@@ -21,6 +21,7 @@
 
 #include "../test_support/disrumpo_rig.h"
 
+#include "controller/controller.h"
 #include "plugin_ids.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -97,16 +98,25 @@ constexpr size_t kRoutingsSize = size_t{32} * 10;     // source, dest, amount, c
 constexpr size_t kMorphNodeSize = 1 + 6 * 4   // type + 6 floats
                                 + 10 * 4      // shape slots (v9+)
                                 + 26 * 10 * 4;  // per-type shadow (v9+)
-constexpr size_t kMorphBandSize = 4 + 4 + 1 + 1 + 4 + 4 * kMorphNodeSize;
+// Band morph header: X, Y, mode, active nodes, smoothing; v13+ adds the X and Y
+// sweep-link modes (int8 each, D-137 / T1.12).
+constexpr size_t kMorphBandHeaderV12 = 4 + 4 + 1 + 1 + 4;
+constexpr size_t kLinkBytes = 2;
+size_t morphBandHeader(int32_t version) { return kMorphBandHeaderV12 + (version >= 13 ? kLinkBytes : 0); }
+size_t morphBandSize(int32_t version) { return morphBandHeader(version) + 4 * kMorphNodeSize; }
 
 struct PatchView {
     int32_t version = 0;
     int32_t bandCount = 0;
     float crossover[kBands - 1] = {};
     struct Band {
+        float x = 0.0f;
+        float y = 0.0f;
         int8_t mode = 0;
         int8_t activeNodes = 0;
         float smoothingMs = 0.0f;
+        int8_t xLink = 0;  // v13+, 0 (None) for older streams
+        int8_t yLink = 0;
         int8_t types[kMaxMorphNodes] = {};
     } bands[kBands];
 };
@@ -128,13 +138,19 @@ PatchView decodePatch(const std::vector<uint8_t>& b) {
     for (size_t c = 0; c + 1 < kBands; ++c) v.crossover[c] = readAt<float>(b, kCrossoverOffset + 4 * c);
     const size_t m0 = morphOffset(b);
     for (size_t band = 0; band < kBands; ++band) {
-        const size_t o = m0 + band * kMorphBandSize;
+        const size_t o = m0 + band * morphBandSize(v.version);
         auto& pb = v.bands[band];
+        pb.x = readAt<float>(b, o);
+        pb.y = readAt<float>(b, o + 4);
         pb.mode = readAt<int8_t>(b, o + 8);
         pb.activeNodes = readAt<int8_t>(b, o + 9);
         pb.smoothingMs = readAt<float>(b, o + 10);
+        if (v.version >= 13) {
+            pb.xLink = readAt<int8_t>(b, o + kMorphBandHeaderV12);
+            pb.yLink = readAt<int8_t>(b, o + kMorphBandHeaderV12 + 1);
+        }
         for (size_t n = 0; n < static_cast<size_t>(kMaxMorphNodes); ++n)
-            pb.types[n] = readAt<int8_t>(b, o + 14 + n * kMorphNodeSize);
+            pb.types[n] = readAt<int8_t>(b, o + morphBandHeader(v.version) + n * kMorphNodeSize);
     }
     return v;
 }
@@ -144,7 +160,7 @@ std::vector<uint8_t> readPresetComponent(const std::string& path) {
     std::ifstream f(path, std::ios::binary);
     REQUIRE(f.good());
     const std::vector<uint8_t> file((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    REQUIRE(file.size() > 48);
+    REQUIRE(file.size() > size_t{48});
     REQUIRE(std::memcmp(file.data(), "VST3", 4) == 0);
     const auto listOffset = static_cast<size_t>(readAt<int64_t>(file, 40));
     REQUIRE(std::memcmp(file.data() + listOffset, "List", 4) == 0);
@@ -466,4 +482,202 @@ TEST_CASE("Sweep width/intensity/frequency survive setState + one block and are 
     CHECK(std::fabs(sb.freq - sa.freq) < 1e-5f);
     CHECK(std::fabs(sb.width - sa.width) < 1e-5f);
     CHECK(std::fabs(sb.intensity - sa.intensity) < 1e-5f);
+}
+
+// -----------------------------------------------------------------------------
+// D-137 (T1.12, STATE-COMPAT v12 -> v13): the per-band Morph X/Y Link modes are
+// saved after each band's morph smoothing (int8 each). A v12 stream, captured
+// from Processor::getState before the change (tests/fixtures/
+// disrumpo_state_v12.bin), loads with both links None and every other field as
+// it was.
+// -----------------------------------------------------------------------------
+namespace {
+
+std::vector<uint8_t> readFileBytes(const std::string& path) {
+    std::ifstream f(path, std::ios::binary);
+    REQUIRE(f.good());
+    return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+}
+
+// Band 1: X Stepped, Y Hold-Rise. Band 0: X Custom. Band 3: Y Sweep Freq.
+PList linkPatch() {
+    return {
+        {makeBandParamId(1, BandParamType::kBandMorphXLink), 6.0 / 7.0},
+        {makeBandParamId(1, BandParamType::kBandMorphYLink), 5.0 / 7.0},
+        {makeBandParamId(0, BandParamType::kBandMorphXLink), 1.0},
+        {makeBandParamId(3, BandParamType::kBandMorphYLink), 1.0 / 7.0},
+    };
+}
+constexpr int8_t kWantXLink[kBands] = {7, 6, 0, 0};
+constexpr int8_t kWantYLink[kBands] = {0, 5, 0, 1};
+
+// The same v12 content in the v13 layout: version 13, both links None per band.
+std::vector<uint8_t> asV13WithNoLinks(const std::vector<uint8_t>& v12) {
+    REQUIRE(readAt<int32_t>(v12, 0) == 12);
+    std::vector<uint8_t> out = v12;
+    const int32_t v13 = 13;
+    std::memcpy(out.data(), &v13, sizeof(v13));
+    const size_t m0 = morphOffset(v12);
+    for (size_t band = kBands; band-- > 0;) {  // back to front keeps earlier offsets valid
+        const size_t at = m0 + band * morphBandSize(12) + kMorphBandHeaderV12;
+        out.insert(out.begin() + static_cast<std::ptrdiff_t>(at), kLinkBytes, uint8_t{0});
+    }
+    return out;
+}
+
+std::vector<uint8_t> streamBytes(Steinberg::IBStream* s) {
+    Steinberg::int64 sz = 0;
+    s->seek(0, Steinberg::IBStream::kIBSeekEnd, &sz);
+    s->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::vector<uint8_t> out(static_cast<size_t>(sz));
+    Steinberg::int32 got = 0;
+    if (sz > 0) s->read(out.data(), static_cast<Steinberg::int32>(sz), &got);
+    return out;
+}
+
+constexpr size_t kSweepMorphLinkOffset = kCrossoverOffset + (kBands - 1) * 4 + 14;
+
+}  // namespace
+
+TEST_CASE("Morph link modes round-trip through processor state",
+          "[disrumpo][state][STATE-COMPAT][D-137]") {
+    SECTION("getState -> setState into a fresh instance -> getState") {
+        std::vector<uint8_t> a;
+        {
+            Rig rig(48000.0);
+            rig.apply(linkPatch());
+            a = getStateBytes(*rig.p);
+        }
+        const PatchView pa = decodePatch(a);
+        std::printf("D-137 saved: version=%d band1 xLink=%d yLink=%d band0 xLink=%d band3 yLink=%d\n",
+                    pa.version, pa.bands[1].xLink, pa.bands[1].yLink, pa.bands[0].xLink, pa.bands[3].yLink);
+        REQUIRE(pa.version == 13);
+        for (size_t band = 0; band < kBands; ++band) {
+            INFO("band " << band);
+            CHECK(pa.bands[band].xLink == kWantXLink[band]);
+            CHECK(pa.bands[band].yLink == kWantYLink[band]);
+        }
+
+        std::vector<uint8_t> b;
+        {
+            Rig fresh(48000.0);
+            REQUIRE(setStateBytes(*fresh.p, a));
+            b = getStateBytes(*fresh.p);
+        }
+        const PatchView pb = decodePatch(b);
+        for (size_t band = 0; band < kBands; ++band) {
+            INFO("band " << band);
+            CHECK(pb.bands[band].xLink == kWantXLink[band]);
+            CHECK(pb.bands[band].yLink == kWantYLink[band]);
+        }
+        // The whole morph section (every band header with its links, every node)
+        // saves back byte for byte. The sweep-envelope and mod-source float codecs
+        // ahead of it move by 1 ulp per round trip (first difference printed).
+        REQUIRE(a.size() == b.size());
+        const size_t m0 = morphOffset(a);
+        const std::vector<uint8_t> morphA(a.begin() + static_cast<std::ptrdiff_t>(m0), a.end());
+        const std::vector<uint8_t> morphB(b.begin() + static_cast<std::ptrdiff_t>(m0), b.end());
+        std::printf("D-137 round trip: first differing byte %zu of %zu, morph section from %zu: first difference %zu of %zu\n",
+                    firstDifference(a, b), a.size(), m0, firstDifference(morphA, morphB), morphA.size());
+        REQUIRE(firstDifference(morphA, morphB) == morphA.size());
+    }
+
+    SECTION("v12 fixture loads with both link modes None and every other field unchanged") {
+        const auto fixture = readFileBytes(DISRUMPO_FIXTURES_DIR "/disrumpo_state_v12.bin");
+        REQUIRE(readAt<int32_t>(fixture, 0) == 12);
+        std::vector<uint8_t> s13;
+        {
+            Rig rig(48000.0);
+            rig.apply(linkPatch());  // a v12 load must reset links set before it
+            REQUIRE(setStateBytes(*rig.p, fixture));
+            s13 = getStateBytes(*rig.p);
+        }
+        std::vector<uint8_t> t13;
+        {
+            Rig rig(48000.0);
+            REQUIRE(setStateBytes(*rig.p, asV13WithNoLinks(fixture)));
+            t13 = getStateBytes(*rig.p);
+        }
+        const PatchView want = decodePatch(fixture);
+        const PatchView got = decodePatch(s13);
+        std::printf("D-137 v12 fixture (%zu bytes) re-saved: version=%d size=%zu links b0..b3 x=%d,%d,%d,%d "
+                    "y=%d,%d,%d,%d; first difference vs the same content in v13 layout: %zu of %zu\n",
+                    fixture.size(), got.version, s13.size(), got.bands[0].xLink, got.bands[1].xLink,
+                    got.bands[2].xLink, got.bands[3].xLink, got.bands[0].yLink, got.bands[1].yLink,
+                    got.bands[2].yLink, got.bands[3].yLink, firstDifference(s13, t13), s13.size());
+        REQUIRE(got.version == 13);
+        CHECK(s13.size() == fixture.size() + kBands * kLinkBytes);
+        CHECK(got.bandCount == want.bandCount);
+        CHECK(readAt<int8_t>(s13, kSweepMorphLinkOffset) == readAt<int8_t>(fixture, kSweepMorphLinkOffset));
+        for (size_t c = 0; c + 1 < kBands; ++c) CHECK(got.crossover[c] == want.crossover[c]);
+        for (size_t band = 0; band < kBands; ++band) {
+            INFO("band " << band);
+            CHECK(got.bands[band].xLink == 0);
+            CHECK(got.bands[band].yLink == 0);
+            CHECK(got.bands[band].x == want.bands[band].x);
+            CHECK(got.bands[band].y == want.bands[band].y);
+            CHECK(got.bands[band].mode == want.bands[band].mode);
+            CHECK(got.bands[band].activeNodes == want.bands[band].activeNodes);
+            CHECK(got.bands[band].smoothingMs == want.bands[band].smoothingMs);
+            for (size_t n = 0; n < static_cast<size_t>(kMaxMorphNodes); ++n) {
+                INFO("node " << n);
+                CHECK(got.bands[band].types[n] == want.bands[band].types[n]);
+            }
+        }
+        // Every other byte: the v12 load equals a load of the same content in the v13 layout.
+        REQUIRE(s13.size() == t13.size());
+        REQUIRE(firstDifference(s13, t13) == s13.size());
+    }
+}
+
+TEST_CASE("Morph link modes survive the controller's preset parser and writer",
+          "[disrumpo][state][STATE-COMPAT][D-137]") {
+    std::vector<uint8_t> a;
+    {
+        Rig rig(48000.0);
+        rig.apply(linkPatch());
+        a = getStateBytes(*rig.p);
+    }
+
+    Controller ctrl;
+    REQUIRE(ctrl.initialize(nullptr) == Steinberg::kResultOk);
+    {
+        auto* in = new Steinberg::MemoryStream(a.data(), static_cast<Steinberg::TSize>(a.size()));
+        CHECK(ctrl.setComponentState(in) == Steinberg::kResultOk);
+        in->release();
+    }
+    const double xLinkNorm = ctrl.getParamNormalized(makeBandParamId(1, BandParamType::kBandMorphXLink));
+    const double yLinkNorm = ctrl.getParamNormalized(makeBandParamId(1, BandParamType::kBandMorphYLink));
+    std::vector<uint8_t> written;
+    {
+        auto* out = ctrl.createComponentStateStream();
+        REQUIRE(out != nullptr);
+        written = streamBytes(out);
+        out->release();
+    }
+    ctrl.terminate();
+
+    const PatchView pw = decodePatch(written);
+    std::printf("D-137 controller: band1 X link norm %.6f Y link norm %.6f; preset stream version=%d "
+                "links b0..b3 x=%d,%d,%d,%d y=%d,%d,%d,%d\n",
+                xLinkNorm, yLinkNorm, pw.version, pw.bands[0].xLink, pw.bands[1].xLink, pw.bands[2].xLink,
+                pw.bands[3].xLink, pw.bands[0].yLink, pw.bands[1].yLink, pw.bands[2].yLink, pw.bands[3].yLink);
+    CHECK(std::fabs(xLinkNorm - 6.0 / 7.0) < 1e-9);
+    CHECK(std::fabs(yLinkNorm - 5.0 / 7.0) < 1e-9);
+    REQUIRE(pw.version == 13);
+
+    std::vector<uint8_t> d;
+    {
+        Rig fresh(48000.0);
+        REQUIRE(setStateBytes(*fresh.p, written));
+        d = getStateBytes(*fresh.p);
+    }
+    const PatchView pd = decodePatch(d);
+    for (size_t band = 0; band < kBands; ++band) {
+        INFO("band " << band);
+        CHECK(pw.bands[band].xLink == kWantXLink[band]);
+        CHECK(pw.bands[band].yLink == kWantYLink[band]);
+        CHECK(pd.bands[band].xLink == kWantXLink[band]);
+        CHECK(pd.bands[band].yLink == kWantYLink[band]);
+    }
 }

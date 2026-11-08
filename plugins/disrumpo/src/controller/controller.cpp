@@ -19,7 +19,6 @@
 #include "controller/views/sweep_indicator.h"
 #include "controller/views/custom_curve_editor.h"
 #include "controller/views/mod_slider.h"
-#include "controller/morph_link.h"
 #include "controller/animated_expand_controller.h"
 #include "controller/keyboard_shortcut_handler.h"
 #include "controller/visibility_controllers.h"
@@ -514,7 +513,21 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             bool readActiveNodes = streamer.readInt8(activeNodes);
             bool readMorphSmoothing = streamer.readFloat(morphSmoothing);
 
+            // v13: sweep -> morph link modes; older streams have none (None)
+            Steinberg::int8 xLink = 0;
+            Steinberg::int8 yLink = 0;
+            if (version >= 13) {
+                streamer.readInt8(xLink);
+                streamer.readInt8(yLink);
+            }
+
             if (b < kMaxBands) {
+                const auto linkNorm = [](Steinberg::int8 v) {
+                    return static_cast<double>(std::clamp(static_cast<int>(v), 0, kMorphLinkModeCount - 1)) /
+                           static_cast<double>(kMorphLinkModeCount - 1);
+                };
+                setter(makeBandParamId(band, BandParamType::kBandMorphXLink), linkNorm(xLink));
+                setter(makeBandParamId(band, BandParamType::kBandMorphYLink), linkNorm(yLink));
                 if (readMorphX)
                     setter(makeBandParamId(band, BandParamType::kBandMorphX), static_cast<double>(morphX));
                 if (readMorphY)
@@ -1451,10 +1464,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
         for (auto* dns : compactNodeSelectors_) { if (dns) dns->setHighContrastMode(true); }
     }
 
-    auto* sweepFreqParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepFrequency));
-    if (sweepFreqParam)
-        morphSweepLinkController_ = new MorphSweepLinkController(this, sweepFreqParam);
-
     for (int b = 0; b < kMaxBands; ++b) {
         nodeSelectionControllers_[b] = new NodeSelectionController(
             this, static_cast<uint8_t>(b), shapeShadowStorage_[b].data());
@@ -1531,10 +1540,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
             if (auto* aec = dynamic_cast<AnimatedExpandController*>(vc.get())) aec->deactivate();
             vc = nullptr;
         }
-    }
-    if (morphSweepLinkController_) {
-        if (auto* mslc = dynamic_cast<MorphSweepLinkController*>(morphSweepLinkController_.get())) mslc->deactivate();
-        morphSweepLinkController_ = nullptr;
     }
     for (auto& nsc : nodeSelectionControllers_) {
         if (nsc) {
@@ -1832,6 +1837,8 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
         streamer.writeInt8(static_cast<Steinberg::int8>(activeNodes));
         float smoothingNorm = getParamNorm(makeBandParamId(band, BandParamType::kBandMorphSmoothing));
         streamer.writeFloat(smoothingNorm * 500.0f);
+        streamer.writeInt8(getInt8FromList(makeBandParamId(band, BandParamType::kBandMorphXLink), kMorphLinkModeCount - 1));
+        streamer.writeInt8(getInt8FromList(makeBandParamId(band, BandParamType::kBandMorphYLink), kMorphLinkModeCount - 1));
 
         for (int n = 0; n < kMaxMorphNodes; ++n) {
             auto node = static_cast<uint8_t>(n);

@@ -219,12 +219,15 @@ void Controller::registerSweepParams() {
         nullptr,
         Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
     );
+    // The 8 MorphLinkMode entries in enum order (D-066)
     morphLinkParam->appendString(STR16("None"));
-    morphLinkParam->appendString(STR16("Linear"));
-    morphLinkParam->appendString(STR16("Inverse"));
+    morphLinkParam->appendString(STR16("Sweep Freq"));
+    morphLinkParam->appendString(STR16("Inverse Sweep"));
     morphLinkParam->appendString(STR16("Ease In"));
     morphLinkParam->appendString(STR16("Ease Out"));
-    morphLinkParam->appendString(STR16("Ease In-Out"));
+    morphLinkParam->appendString(STR16("Hold-Rise"));
+    morphLinkParam->appendString(STR16("Stepped"));
+    morphLinkParam->appendString(STR16("Custom"));
     parameters.addParameter(morphLinkParam);
 
     // Sweep Falloff: StringListParameter
@@ -733,6 +736,7 @@ void Controller::registerBandParams() {
         morphXLinkParam->appendString(STR16("Ease Out"));
         morphXLinkParam->appendString(STR16("Hold-Rise"));
         morphXLinkParam->appendString(STR16("Stepped"));
+        morphXLinkParam->appendString(STR16("Custom"));
         parameters.addParameter(morphXLinkParam);
 
         static const Steinberg::Vst::TChar* morphYLinkNames[] = {
@@ -749,6 +753,7 @@ void Controller::registerBandParams() {
         morphYLinkParam->appendString(STR16("Ease Out"));
         morphYLinkParam->appendString(STR16("Hold-Rise"));
         morphYLinkParam->appendString(STR16("Stepped"));
+        morphYLinkParam->appendString(STR16("Custom"));
         parameters.addParameter(morphYLinkParam);
 
         static const Steinberg::Vst::TChar* selectedNodeNames[] = {

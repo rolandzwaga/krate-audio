@@ -114,6 +114,8 @@ public:
     [[nodiscard]] int getMorphCacheActiveNodes(int band) const;
     [[nodiscard]] const BandProcessor& getBandProcessor(int band) const { return bandProcessors_[band]; }
     [[nodiscard]] const SweepProcessor& getSweepProcessor() const { return sweepProcessor_; }
+    /// Morph X the band was last handed (sweep link and mod offsets applied)
+    [[nodiscard]] float debugMorphPositionX(int band) const { return bandProcessors_[band].getMorphTargetX(); }
 
 protected:
     // ==========================================================================
@@ -211,7 +213,9 @@ private:
     /// @brief Sweep processor for per-band intensity calculation
     SweepProcessor sweepProcessor_;
 
-    /// @brief Custom curve for Custom morph link mode
+    /// @brief Custom curve for Custom morph link mode, evaluated by the sweep -> morph
+    /// link in process(). Restored from state; the custom-curve editor view is still
+    /// unregistered (D-069, T2.22), so it keeps its saved or default breakpoints.
     CustomCurve customCurve_;
 
     /// @brief Lock-free buffer for audio-UI sweep position synchronization (FR-046)

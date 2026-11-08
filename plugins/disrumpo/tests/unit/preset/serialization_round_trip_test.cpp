@@ -232,6 +232,8 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
         s.writeInt8(static_cast<Steinberg::int8>(b % 3)); // morphMode (0,1,2 cycling)
         s.writeInt8(static_cast<Steinberg::int8>(2 + (b % 3))); // activeNodeCount (2,3,4 cycling)
         s.writeFloat(50.0f);      // morphSmoothing (ms)
+        s.writeInt8(static_cast<Steinberg::int8>(b + 1));  // v13: morph X link (SweepFreq..HoldRise)
+        s.writeInt8(static_cast<Steinberg::int8>(7 - b));  // v13: morph Y link (Custom..EaseOut)
 
         // Per-node state (4 nodes x 7 values)
         for (int n = 0; n < kMaxMorphNodes; ++n) {
@@ -458,6 +460,8 @@ static bool compareV6PresetStreams(MemoryStream& a, MemoryStream& b) {
         if (!readAndCompareInt8(rA, rB)) return false;   // morphMode
         if (!readAndCompareInt8(rA, rB)) return false;   // activeNodeCount
         if (!readAndCompareFloat(rA, rB)) return false;  // morphSmoothing
+        if (!readAndCompareInt8(rA, rB)) return false;   // morph X link (v13)
+        if (!readAndCompareInt8(rA, rB)) return false;   // morph Y link (v13)
 
         for (int n = 0; n < kMaxMorphNodes; ++n) {
             if (!readAndCompareInt8(rA, rB)) return false;   // type
@@ -931,7 +935,7 @@ TEST_CASE("Serialization round-trip: enum types preserved", "[preset][serializat
         constexpr size_t kRoutings = size_t{32} * 10;
         constexpr size_t kNodeSize = 1 + 6 * 4 + MorphNode::kShapeSlotCount * 4
                                    + kDistortionTypeCount * MorphNode::kShapeSlotCount * 4;
-        constexpr size_t kBandSize = 4 + 4 + 1 + 1 + 4 + kMaxMorphNodes * kNodeSize;
+        constexpr size_t kBandSize = 4 + 4 + 1 + 1 + 4 + 2 + kMaxMorphNodes * kNodeSize;  // v13: + X/Y link
         const size_t morph0 = kCurveCountOffset + 4 + static_cast<size_t>(points) * 8 + kModSources
                             + kMacros + kRoutings;
         REQUIRE(morph0 + kMaxBands * kBandSize <= size);
@@ -941,9 +945,15 @@ TEST_CASE("Serialization round-trip: enum types preserved", "[preset][serializat
             float smoothing = -1.0f;
             readBytes(o + 8, &morphMode, 1);
             readBytes(o + 10, &smoothing, 4);
+            Steinberg::int8 xLink = -1;
+            Steinberg::int8 yLink = -1;
+            readBytes(o + 14, &xLink, 1);
+            readBytes(o + 15, &yLink, 1);
             INFO("band " << b);
             CHECK(morphMode == static_cast<Steinberg::int8>(b % 3));
             CHECK(smoothing == 50.0f);
+            CHECK(xLink == static_cast<Steinberg::int8>(b + 1));
+            CHECK(yLink == static_cast<Steinberg::int8>(7 - b));
         }
     }
 

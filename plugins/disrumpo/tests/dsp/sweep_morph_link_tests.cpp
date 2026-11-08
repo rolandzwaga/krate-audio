@@ -105,7 +105,8 @@ TEST_CASE("applyMorphLinkCurve: EaseIn (quadratic)", "[sweep][morph][link]") {
     }
 
     SECTION("characteristic: slow start, fast end") {
-        float x1 = 0.2f, x2 = 0.4f;
+        float x1 = 0.2f;
+        float x2 = 0.4f;
         float y1 = applyMorphLinkCurve(MorphLinkMode::EaseIn, x1);
         float y2 = applyMorphLinkCurve(MorphLinkMode::EaseIn, x2);
         float rate1 = y1 / x1;  // Average slope to x1
@@ -126,7 +127,8 @@ TEST_CASE("applyMorphLinkCurve: EaseOut (inverse quadratic)", "[sweep][morph][li
     }
 
     SECTION("characteristic: fast start, slow end") {
-        float x1 = 0.2f, x2 = 0.4f;
+        float x1 = 0.2f;
+        float x2 = 0.4f;
         float y1 = applyMorphLinkCurve(MorphLinkMode::EaseOut, x1);
         float y2 = applyMorphLinkCurve(MorphLinkMode::EaseOut, x2);
         float rate1 = y1 / x1;  // Average slope to x1
@@ -207,6 +209,59 @@ TEST_CASE("applyMorphLinkCurve: Custom fallback", "[sweep][morph][link]") {
         REQUIRE(applyMorphLinkCurve(MorphLinkMode::Custom, 0.5f) == Approx(0.5f));
         REQUIRE(applyMorphLinkCurve(MorphLinkMode::Custom, 1.0f) == Approx(1.0f));
     }
+}
+
+// ==============================================================================
+// D-040 / D-087 / D-107 (T1.12): one curve table, pinned to dsp-details.md 8.1
+// ==============================================================================
+
+namespace {
+
+// specs/Disrumpo/dsp-details.md section 8.1 / 8.2, evaluated in double.
+double specLinkCurve(MorphLinkMode mode, double x) {
+    switch (mode) {
+        case MorphLinkMode::None:         return 0.5;
+        case MorphLinkMode::SweepFreq:    return x;
+        case MorphLinkMode::InverseSweep: return 1.0 - x;
+        case MorphLinkMode::EaseIn:       return x * x;
+        case MorphLinkMode::EaseOut:      return 1.0 - (1.0 - x) * (1.0 - x);
+        case MorphLinkMode::HoldRise:     return x < 0.6 ? 0.0 : (x - 0.6) / 0.4;
+        case MorphLinkMode::Stepped:      return std::floor(x * 4.0) / 3.0;
+        default:                          return x;
+    }
+}
+
+template <typename Curve>
+int countSpecMismatches(const char* label, const Curve& curve) {
+    constexpr float kXs[] = {0.25f, 0.55f, 0.75f};
+    int bad = 0;
+    for (int m = 0; m <= static_cast<int>(MorphLinkMode::Stepped); ++m) {
+        const auto mode = static_cast<MorphLinkMode>(m);
+        for (const float x : kXs) {
+            const double got = curve(mode, x);
+            const double want = specLinkCurve(mode, static_cast<double>(x));
+            if (std::fabs(got - want) > 1e-6) {
+                ++bad;
+                WARN(label << " " << getMorphLinkModeName(mode) << " at x=" << x << ": " << got
+                           << ", dsp-details.md " << want);
+            }
+        }
+    }
+    return bad;
+}
+
+}  // namespace
+
+// The controller's second copy of the curves (applyMorphLinkMode, sqrt EaseIn,
+// 0.5 HoldRise, 5-step Stepped) is gone with its header.
+#if __has_include("controller/morph_link.h")
+#error "MorphLinkMode curves have exactly one definition: applyMorphLinkCurve"
+#endif
+
+TEST_CASE("MorphLinkMode curves have one definition matching dsp-details.md", "[disrumpo][sweep-link][D-040]") {
+    CHECK(countSpecMismatches("applyMorphLinkCurve", [](MorphLinkMode m, float x) {
+              return static_cast<double>(applyMorphLinkCurve(m, x));
+          }) == 0);
 }
 
 // ==============================================================================

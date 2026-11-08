@@ -324,6 +324,12 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         if (!streamer.writeFloat(cache.morphSmoothingMs))
             return Steinberg::kResultFalse;
 
+        // v13: sweep -> morph link modes (X, Y)
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(bandStates_[b].xLink)))
+            return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(bandStates_[b].yLink)))
+            return Steinberg::kResultFalse;
+
         // Per-node state (4 nodes × 7 values each)
         for (int n = 0; n < kMaxMorphNodes; ++n) {
             const auto& mn = cache.nodes[static_cast<size_t>(n)];
@@ -828,7 +834,21 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             streamer.readInt8(activeNodes);
             streamer.readFloat(morphSmoothing);
 
+            // v13: sweep -> morph link modes; older streams have none (None)
+            Steinberg::int8 xLink = 0;
+            Steinberg::int8 yLink = 0;
+            if (version >= 13) {
+                streamer.readInt8(xLink);
+                streamer.readInt8(yLink);
+            }
+
             if (b < kMaxBands) {
+                const auto toLinkMode = [](Steinberg::int8 v) {
+                    return static_cast<MorphLinkMode>(
+                        std::clamp(static_cast<int>(v), 0, kMorphLinkModeCount - 1));
+                };
+                bandStates_[b].xLink = toLinkMode(xLink);
+                bandStates_[b].yLink = toLinkMode(yLink);
                 auto& cache = bandMorphCache_[b];
                 cache.morphX = morphX;
                 cache.morphY = morphY;

@@ -379,6 +379,9 @@ public:
     /// engines receive identical configuration).
     [[nodiscard]] const MorphEngine* getMorphEngine() const noexcept { return morphEngineL_.get(); }
 
+    /// @brief Morph cursor X target last set by setMorphPosition (unsmoothed, clamped)
+    [[nodiscard]] float getMorphTargetX() const noexcept { return morphTargetX_; }
+
     // =========================================================================
     // Oversampling Configuration (spec 009-intelligent-oversampling)
     // =========================================================================

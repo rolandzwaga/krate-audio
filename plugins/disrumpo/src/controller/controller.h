@@ -335,12 +335,6 @@ private:
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> expandedVisibilityControllers_;
 
     // ==========================================================================
-    // Morph-Sweep Link Controller (T159-T161, US8)
-    // ==========================================================================
-    // Updates morph position based on sweep frequency and link mode settings
-    Steinberg::IPtr<Steinberg::FObject> morphSweepLinkController_;
-
-    // ==========================================================================
     // Node Selection Controllers (US7 FR-024/FR-025)
     // ==========================================================================
     // Updates DisplayedType proxy when SelectedNode changes

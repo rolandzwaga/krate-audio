@@ -637,14 +637,19 @@ constexpr uint32_t bandParam(uint8_t band, uint32_t paramOffset) {
 // Used by Band*MorphXLink and Band*MorphYLink parameters.
 // ==============================================================================
 
+// The curves have one definition, applyMorphLinkCurve (dsp/sweep_morph_link.h,
+// dsp-details.md 8.1). The processor evaluates them once per block from the
+// smoothed sweep centre and uses the result as the band's morph X/Y base, before
+// the mod-matrix offsets. The global kSweepMorphLink is a plain alias: it drives
+// the morph X of every band whose own X link is None.
 enum class MorphLinkMode : uint8_t {
     None = 0,       ///< Manual control only, no link to sweep
     SweepFreq,      ///< Linear mapping: low freq = 0, high freq = 1
     InverseSweep,   ///< Inverted: high freq = 0, low freq = 1
-    EaseIn,         ///< Exponential curve emphasizing low frequencies
-    EaseOut,        ///< Exponential curve emphasizing high frequencies
-    HoldRise,       ///< Hold at 0 until mid-point, then rise to 1
-    Stepped,        ///< Quantize to discrete steps (0, 0.25, 0.5, 0.75, 1.0)
+    EaseIn,         ///< y = x^2 (slow start, fast end)
+    EaseOut,        ///< y = 1 - (1 - x)^2 (fast start, slow end)
+    HoldRise,       ///< Hold at 0 until 60 %, then rise linearly to 1
+    Stepped,        ///< Quantize to 4 levels (0, 1/3, 2/3, 1)
     Custom,         ///< User-defined breakpoint curve (007-sweep-system)
     COUNT           ///< Sentinel for iteration (8 modes)
 };
@@ -686,8 +691,10 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v8: Reduced max bands from 8 to 4 (stream format: 4 bands, 3 crossovers, 4 morph)
 // - v9: Shape parameter slots (10 generic slots per node for type-specific UI controls)
 // - v12: Band Tone/Bias modulation targets (kParamsPerBand 6→8, dest index migration)
+// - v13: Per-band Morph X/Y Link modes (2 int8 per band after morph smoothing;
+//        older streams load with both links None)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 12;
+constexpr int32_t kPresetVersion = 13;
 
 /// Migration table: old note index (v9, 15 entries) -> new dropdown index (v10, 21 entries).
 /// Old encoding: NoteValue * 3 + NoteModifier (Whole→Sixteenth, None/Dotted/Triplet).

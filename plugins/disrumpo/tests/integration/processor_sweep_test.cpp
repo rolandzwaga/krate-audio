@@ -635,6 +635,95 @@ TEST_CASE("Sweep crossing band edges is click-free", "[disrumpo][sweep][D-019]")
     CHECK(step <= std::max(stepLow, stepHigh) * 1.05);
 }
 
+// -----------------------------------------------------------------------------
+// D-137 / D-039 (T1.12): the per-band sweep -> morph link runs in the processor,
+// so it works with no controller (offline render, editor closed) and follows the
+// sweep LFO, not only the base Sweep Frequency parameter.
+// -----------------------------------------------------------------------------
+TEST_CASE("Band morph X link follows the processor sweep without a controller",
+          "[disrumpo][sweep-link][D-137]") {
+    using Disrumpo::BandParamType;
+    using Disrumpo::NodeParamType;
+    constexpr double kSr = 48000.0;
+    constexpr int32 kBlock = 512;
+    const auto sine = [](size_t n) {
+        std::vector<float> v(n);
+        for (size_t i = 0; i < n; ++i)
+            v[i] = static_cast<float>(0.5 * std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(i) / kSr));
+        return v;
+    };
+    // 1 band, cross-family nodes SoftClip + Bitcrush, X linked to the sweep (Sweep Freq = 1/7)
+    const ts::PList setup = {
+        {Disrumpo::makeGlobalParamId(Disrumpo::GlobalParamType::kGlobalBandCount), 0.0},
+        {Disrumpo::makeBandParamId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0},  // 2 nodes
+        {Disrumpo::makeNodeParamId(0, 0, NodeParamType::kNodeType), 0.0 / 25.0},   // SoftClip
+        {Disrumpo::makeNodeParamId(0, 1, NodeParamType::kNodeType), 11.0 / 25.0},  // Bitcrush
+        {Disrumpo::makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.4},
+        {Disrumpo::makeNodeParamId(0, 1, NodeParamType::kNodeDrive), 0.4},
+        {Disrumpo::makeBandParamId(0, BandParamType::kBandMorphXLink), 1.0 / 7.0},
+        {makeSweepParamId(SPT::kSweepEnable), 1.0},
+    };
+    ts::Rig rig(kSr, kBlock);
+    rig.apply(setup);
+
+    SECTION("base sweep frequency 20 Hz then 20 kHz moves morph X from 0 to 1") {
+        const auto in = sine(static_cast<size_t>(kSr * 0.5));
+        std::vector<float> lowL;
+        std::vector<float> highL;
+        std::vector<float> oR;
+        rig.apply({{makeSweepParamId(SPT::kSweepFrequency), 0.0}});
+        rig.render(in, in, lowL, oR, kBlock);
+        const float xLow = rig.p->debugMorphPositionX(0);
+        rig.apply({{makeSweepParamId(SPT::kSweepFrequency), 1.0}});
+        rig.render(in, in, highL, oR, kBlock);
+        const float xHigh = rig.p->debugMorphPositionX(0);
+        const size_t from = in.size() / 2;
+        double diff = 0.0;
+        for (size_t i = from; i < in.size(); ++i) {
+            const double d = static_cast<double>(highL[i]) - lowL[i];
+            diff += d * d;
+        }
+        const double diffDb = ts::toDb(std::sqrt(diff / static_cast<double>(in.size() - from)));
+        const double lowDb = ts::toDb(ts::rmsOf(lowL.data() + from, in.size() - from));
+        WARN("D-137 morph X after 0.5 s at sweep 20 Hz: " << xLow << ", at 20 kHz: " << xHigh
+             << "; RMS of (20 kHz render - 20 Hz render) " << diffDb << " dB vs 20 Hz render " << lowDb << " dB");
+        CHECK(xLow < 0.02f);
+        CHECK(xHigh > 0.98f);
+        // The X move is audible: the residual between the renders is within 30 dB
+        // of the signal (without the link the two renders are identical).
+        CHECK(diffDb > lowDb - 30.0);
+    }
+
+    SECTION("sweep LFO at 2 Hz moves morph X; the link is evaluated once per block") {
+        rig.apply({{makeSweepParamId(SPT::kSweepFrequency), 0.5},
+                   {makeSweepParamId(SPT::kSweepLFOEnable), 1.0},
+                   {makeSweepParamId(SPT::kSweepLFODepth), 1.0},
+                   {makeSweepParamId(SPT::kSweepLFOWaveform), 0.0},
+                   {makeSweepParamId(SPT::kSweepLFORate), lfoRateNorm(2.0)}});
+        const auto in = sine(static_cast<size_t>(kSr * 2.0));
+        std::vector<float> xs;
+        std::vector<float> oL;
+        std::vector<float> oR;
+        rig.render(in, in, oL, oR, kBlock, {},
+                   [&](size_t, ts::CaptureChanges&) { xs.push_back(rig.p->debugMorphPositionX(0)); });
+        double mean = 0.0;
+        for (float x : xs) mean += x;
+        mean /= static_cast<double>(xs.size());
+        double var = 0.0;
+        double maxJump = 0.0;
+        for (size_t i = 0; i < xs.size(); ++i) {
+            var += (xs[i] - mean) * (xs[i] - mean);
+            if (i > 0) maxJump = std::max(maxJump, static_cast<double>(std::fabs(xs[i] - xs[i - 1])));
+        }
+        var /= static_cast<double>(xs.size());
+        const auto [mn, mx] = std::minmax_element(xs.begin(), xs.end());
+        WARN("D-137 2 Hz sweep LFO, depth 1: morph X over " << xs.size() << " blocks of " << kBlock
+             << ": min " << *mn << " max " << *mx << " variance " << var << ", max per-block jump " << maxJump);
+        CHECK(var > 0.01);
+        CHECK(maxJump < 0.05);  // 2 Hz, +/-0.2 of X: 2*pi*2*0.2*512/48000 = 0.027 per block
+    }
+}
+
 // Measurement probe (hidden): real-time ratio of Processor::process with the
 // sweep, its LFO and its envelope follower all on (default bands).
 TEST_CASE("Probe: Processor render cost with sweep LFO and envelope on", "[.][t110-sweep-cpu-probe]") {

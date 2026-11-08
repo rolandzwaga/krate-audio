@@ -410,9 +410,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         }
 
                         case SweepParamType::kSweepMorphLink: {
-                            // FR-014: Sweep-morph link mode
-                            const int modeIndex = static_cast<int>(value * static_cast<float>(kMorphLinkModeCount - 1) + 0.5f);
-                            sweepProcessor_.setMorphLinkMode(static_cast<MorphLinkMode>(modeIndex));
+                            // FR-014: Sweep-morph link mode (alias for bands whose X link is None)
+                            sweepProcessor_.setMorphLinkMode(decodeMorphLinkMode(value));
                             break;
                         }
 
@@ -973,13 +972,18 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
                             }
                             case BandParamType::kBandMorphXLink:
+                                // Applied in process() from the smoothed sweep centre (D-137)
+                                bandStates_[band].xLink = decodeMorphLinkMode(value);
+                                break;
                             case BandParamType::kBandMorphYLink:
+                                bandStates_[band].yLink = decodeMorphLinkMode(value);
+                                break;
                             case BandParamType::kBandExpanded:
                             case BandParamType::kBandSelectedNode:
                             case BandParamType::kBandDisplayedType:
                             default:
-                                // UI-only params (sweep-morph link, expanded,
-                                // selectedNode, displayedType): no processor action
+                                // UI-only params (expanded, selectedNode,
+                                // displayedType): no processor action
                                 break;
                         }
                     }

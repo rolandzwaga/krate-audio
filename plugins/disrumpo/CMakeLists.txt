@@ -62,10 +62,6 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/keyboard_shortcut_handler.h
     src/controller/keyboard_shortcut_handler.cpp
 
-    # Morph Link Functions (US8)
-    src/controller/morph_link.h
-    src/controller/morph_link.cpp
-
     # DSP Components
     src/dsp/distortion_types.h
     src/dsp/distortion_adapter.h

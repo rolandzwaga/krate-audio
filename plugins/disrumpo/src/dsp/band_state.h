@@ -16,6 +16,7 @@
 #include <cstdint>
 #include "distortion_types.h"
 #include "morph_node.h"
+#include "../plugin_ids.h"
 
 namespace Disrumpo {
 
@@ -41,6 +42,10 @@ struct BandState {
     float morphY = 0.5f;         ///< Morph Y position [0, 1]
     MorphMode morphMode = MorphMode::Linear1D;  ///< Current morph mode (FR-003, FR-004, FR-005)
     int activeNodeCount = 2;     ///< Number of active nodes (2-4) (FR-002)
+
+    // Sweep -> morph link (FR-032, FR-033): None keeps the manual position
+    MorphLinkMode xLink = MorphLinkMode::None;  ///< Morph X link mode
+    MorphLinkMode yLink = MorphLinkMode::None;  ///< Morph Y link mode
 
     /// @brief Array of morph nodes for this band.
     /// Per spec FR-002: Support 2 to 4 active morph nodes per band.

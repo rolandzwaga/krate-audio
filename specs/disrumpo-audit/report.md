@@ -3616,6 +3616,8 @@ Findings are grouped critical -> high -> medium -> low by **final** severity (th
 - Context (REFUTE): the two functions belong to two separately specified features that share one enum: the per-band X/Y link (006-morph-ui FR-034b-e, specs/_archive2_/006-morph-ui/spec.md:265-268, plan.md:364-367 `std::pow(sweepNorm, 0.5f)`, specs/_architecture_/plugin-architecture.md:913-920) is what morph_link.cpp implements and matches, while dsp-details.md section 8 and 007-sweep-system/spec.md:250-252/:425-427 specify the global kSweepMorphLink curve that sweep_morph_link.h implements; so users get the curve the per-band spec defines.
 - Impact (two lowered): at x = 0.25 the live EaseIn gives 0.5 where the reference doc gives 0.0625, HoldRise rises at 50 % instead of 60 % and Stepped has 5 levels instead of 4, but all live curves are monotone and bounded with the same endpoints, so no click, NaN or level jump; a usability/spec-conformance difference; low.
 
+**Fix-plan verification (T1.12):** not refuted. The x = 0.25 / 0.55 / 0.75 table against dsp-details.md passes for `applyMorphLinkCurve` but failed 11 of 21 points for the live controller `applyMorphLinkMode` (Ease In 0.5 vs 0.0625 at 0.25, Hold-Rise 0.1 vs 0 at 0.55, Stepped 0.25 vs 0.333 at 0.25); T1.12 deletes the controller copy and the processor applies `applyMorphLinkCurve`.
+
 ### D-068 — Global keyboard hook swallows arrow, Tab, Escape and (after one Tab) Space keys for every focused view, which breaks text entry on Linux and acts on hidden controls behind the preset browser
 
 **Severity:** low (reported: medium; lowered by two verifiers) | **Verdict:** PLAUSIBLE (one refute on the Linux text-entry mechanism) | **Category:** ui-wiring | **Dimension:** ui-wiring | **Corroborated by measurement:** no

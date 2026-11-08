@@ -396,30 +396,6 @@ private:
 };
 
 // ==============================================================================
-// MorphSweepLinkController: Update morph position based on sweep frequency
-// ==============================================================================
-
-class MorphSweepLinkController : public Steinberg::FObject {
-public:
-    MorphSweepLinkController(
-        Steinberg::Vst::EditControllerEx1* controller,
-        Steinberg::Vst::Parameter* sweepFreqParam);
-
-    ~MorphSweepLinkController() override;
-    void deactivate();
-    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override;
-
-    OBJ_METHODS(MorphSweepLinkController, FObject)
-
-private:
-    void updateBandMorphFromSweep(uint8_t band, float sweepNorm);
-
-    Steinberg::Vst::EditControllerEx1* controller_;
-    Steinberg::Vst::Parameter* sweepFreqParam_;
-    std::atomic<bool> isActive_{true};
-};
-
-// ==============================================================================
 // NodeSelectionController: Bidirectional sync between DisplayedType and nodes
 // ==============================================================================
 

@@ -96,9 +96,6 @@ add_executable(disrumpo_tests
     # UI sources (needed for MorphPad tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/morph_pad.cpp
 
-    # Morph link sources (needed for morph link tests)
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/morph_link.cpp
-
     # Integration tests - Preset Browser (010-preset-system)
     integration/preset/preset_browser_e2e_test.cpp
     integration/preset/preset_save_test.cpp
@@ -177,6 +174,7 @@ target_include_directories(disrumpo_tests
 target_compile_definitions(disrumpo_tests
     PRIVATE
         DISRUMPO_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources"
+        DISRUMPO_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
 )
 
 target_compile_features(disrumpo_tests PRIVATE cxx_std_20)

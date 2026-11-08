@@ -5,7 +5,6 @@
 #include "controller/visibility_controllers.h"
 #include "controller/views/spectrum_display.h"
 #include "controller/views/sweep_indicator.h"
-#include "controller/morph_link.h"
 #include "dsp/sweep_morph_link.h"
 #include "plugin_ids.h"
 #include "dsp/band_state.h"
@@ -110,102 +109,6 @@ void PLUGIN_API SpectrumModeController::update(
     if (message == IDependent::kChanged && modeParam_
         && displayPtr_ && *displayPtr_) {
         applyMode();
-    }
-}
-
-// ==============================================================================
-// MorphSweepLinkController
-// ==============================================================================
-
-MorphSweepLinkController::MorphSweepLinkController(
-    Steinberg::Vst::EditControllerEx1* controller,
-    Steinberg::Vst::Parameter* sweepFreqParam)
-: controller_(controller)
-, sweepFreqParam_(sweepFreqParam)
-{
-    if (sweepFreqParam_) {
-        sweepFreqParam_->addRef();
-        sweepFreqParam_->addDependent(this);
-    }
-}
-
-MorphSweepLinkController::~MorphSweepLinkController() {
-    deactivate();
-    if (sweepFreqParam_) {
-        sweepFreqParam_->release();
-        sweepFreqParam_ = nullptr;
-    }
-}
-
-void MorphSweepLinkController::deactivate() {
-    if (isActive_.exchange(false, std::memory_order_acq_rel)) {
-        if (sweepFreqParam_) {
-            sweepFreqParam_->removeDependent(this);
-        }
-    }
-}
-
-void PLUGIN_API MorphSweepLinkController::update(
-    Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) {
-    if (!isActive_.load(std::memory_order_acquire)) {
-        return;
-    }
-
-    if (message == IDependent::kChanged && sweepFreqParam_ && controller_) {
-        float sweepNorm = static_cast<float>(sweepFreqParam_->getNormalized());
-        for (int band = 0; band < 8; ++band) {
-            updateBandMorphFromSweep(static_cast<uint8_t>(band), sweepNorm);
-        }
-    }
-}
-
-void MorphSweepLinkController::updateBandMorphFromSweep(uint8_t band, float sweepNorm) {
-    auto* morphXLinkParam = controller_->getParameterObject(
-        makeBandParamId(band, BandParamType::kBandMorphXLink));
-    auto* morphYLinkParam = controller_->getParameterObject(
-        makeBandParamId(band, BandParamType::kBandMorphYLink));
-
-    if (!morphXLinkParam || !morphYLinkParam) {
-        return;
-    }
-
-    int xLinkIndex = static_cast<int>(std::round(morphXLinkParam->getNormalized() * 6.0));
-    int yLinkIndex = static_cast<int>(std::round(morphYLinkParam->getNormalized() * 6.0));
-
-    MorphLinkMode xLinkMode = static_cast<MorphLinkMode>(std::clamp(xLinkIndex, 0, 6));
-    MorphLinkMode yLinkMode = static_cast<MorphLinkMode>(std::clamp(yLinkIndex, 0, 6));
-
-    if (xLinkMode == MorphLinkMode::None && yLinkMode == MorphLinkMode::None) {
-        return;
-    }
-
-    auto* morphXParam = controller_->getParameterObject(
-        makeBandParamId(band, BandParamType::kBandMorphX));
-    auto* morphYParam = controller_->getParameterObject(
-        makeBandParamId(band, BandParamType::kBandMorphY));
-
-    if (!morphXParam || !morphYParam) {
-        return;
-    }
-
-    float currentX = static_cast<float>(morphXParam->getNormalized());
-    float currentY = static_cast<float>(morphYParam->getNormalized());
-
-    float newX = applyMorphLinkMode(xLinkMode, sweepNorm, currentX);
-    float newY = applyMorphLinkMode(yLinkMode, sweepNorm, currentY);
-
-    if (xLinkMode != MorphLinkMode::None && std::abs(newX - currentX) > 0.001f) {
-        controller_->setParamNormalized(
-            makeBandParamId(band, BandParamType::kBandMorphX), newX);
-        controller_->performEdit(
-            makeBandParamId(band, BandParamType::kBandMorphX), newX);
-    }
-
-    if (yLinkMode != MorphLinkMode::None && std::abs(newY - currentY) > 0.001f) {
-        controller_->setParamNormalized(
-            makeBandParamId(band, BandParamType::kBandMorphY), newY);
-        controller_->performEdit(
-            makeBandParamId(band, BandParamType::kBandMorphY), newY);
     }
 }
 

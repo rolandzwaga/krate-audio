@@ -313,14 +313,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             ModDest::bandParam(bandIdx, ModDest::kBandPan), basePanNorm);
         bandProcessors_[b].setPan(modPanNorm * 2.0f - 1.0f);
 
-        // Band MorphX/Y: already [0,1] normalized, apply offset
-        const float modMorphX = modulationEngine_.getModulatedValue(
-            ModDest::bandParam(bandIdx, ModDest::kBandMorphX),
-            bandMorphCache_[b].morphX);
-        const float modMorphY = modulationEngine_.getModulatedValue(
-            ModDest::bandParam(bandIdx, ModDest::kBandMorphY),
-            bandMorphCache_[b].morphY);
-        bandProcessors_[b].setMorphPosition(modMorphX, modMorphY);
+        // Band MorphX/Y: set after the sweep below (the sweep link sets their base)
 
         // Band Drive/Mix/Tone/Bias: pass raw offsets to BandProcessor/MorphEngine
         // For morph path: MorphEngine applies per-sample after interpolation
@@ -398,6 +391,37 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (queue) {
             float normalizedFreq = normalizeSweepFrequency(modulatedFreq);
             queue->addPoint(0, static_cast<Steinberg::Vst::ParamValue>(normalizedFreq), index);
+        }
+    }
+
+    // ==========================================================================
+    // Sweep -> Morph Link (FR-032, FR-033, D-137) and Band MorphX/Y modulation
+    // Once per block from the smoothed sweep centre (base, mod matrix, sweep LFO
+    // and envelope): a linked axis takes the link curve as its base, None keeps
+    // the manual position. The global Sweep Morph Link drives X of every band
+    // whose own X link is None. Mod-matrix offsets go on top.
+    // ==========================================================================
+    {
+        const float sweepNorm = normalizeSweepFrequency(sweepProcessor_.getSmoothedFrequency());
+        const bool sweepNormValid = Krate::DSP::detail::isFinite(sweepNorm);
+        const MorphLinkMode globalLink = sweepProcessor_.getMorphLinkMode();
+        const auto linked = [&](MorphLinkMode mode, float manual) noexcept {
+            if (mode == MorphLinkMode::None || !sweepNormValid) return manual;
+            const float y = (mode == MorphLinkMode::Custom) ? customCurve_.evaluate(sweepNorm)
+                                                            : applyMorphLinkCurve(mode, sweepNorm);
+            return std::clamp(y, 0.0f, 1.0f);
+        };
+        for (int b = 0; b < numBands; ++b) {
+            const auto bandIdx = static_cast<uint8_t>(b);
+            const MorphLinkMode xLink =
+                (bandStates_[b].xLink != MorphLinkMode::None) ? bandStates_[b].xLink : globalLink;
+            const float baseX = linked(xLink, bandMorphCache_[b].morphX);
+            const float baseY = linked(bandStates_[b].yLink, bandMorphCache_[b].morphY);
+            const float modMorphX = modulationEngine_.getModulatedValue(
+                ModDest::bandParam(bandIdx, ModDest::kBandMorphX), baseX);
+            const float modMorphY = modulationEngine_.getModulatedValue(
+                ModDest::bandParam(bandIdx, ModDest::kBandMorphY), baseY);
+            bandProcessors_[b].setMorphPosition(modMorphX, modMorphY);
         }
     }
 
