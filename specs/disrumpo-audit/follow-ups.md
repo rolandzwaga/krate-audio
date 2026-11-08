@@ -113,6 +113,19 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 28. **High-contrast mode on first editor open**: a Shape page built before `didOpen` reads `accessibilityPrefs_`
     before they are set (T1.21 note); previously only selectors alive at open got it and lost it on tab switch.
 
+29. **AU: `aufx` effect with a MIDI event input is untested** (T1.18 `abbae8a3` added `addEventInput("MIDI In", 16)`
+    to the processor). The AU v2/v3 wrappers may need `audiounitconfig.h` / plist changes (or the type to become
+    `aumf`) for auval to pass; the macOS CI leg is the first check. Also untested: a real host's
+    `IMidiLearn::onLiveMIDIControllerInput` calls.
+30. **`granular_filter.h:398` derives a grain's slot from its address / sizeof(Grain) mod 64** — should use the new
+    `GrainPool::indexOf` (T1.23 `39691539`).
+31. **Fast-math hazards in `dsp/tests/unit/processors/granular_distortion_test.cpp`** lines 81 (`std::isnan/isinf`)
+    and 1039/1044 (infinity constants) — flagged by `macos-fastmath-repro.sh` (`-Wnan-infinity-disabled`); existing
+    lines, outside T1.23's scope; belongs to the IEEE-test split (`dsp_ieee_tests`).
+32. **`getState` (nothing pending) and `setState` (filling fields a short stream lacks) still read live DSP objects
+    on the host thread** while the audio thread may write them via parameter changes — a read-only race left after
+    T1.24 (`a1c96514`); the two-thread TSan run is T5.08.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
