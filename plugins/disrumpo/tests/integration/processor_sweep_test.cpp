@@ -141,6 +141,23 @@ TEST_CASE("Sweep LFO rate is independent of block size", "[disrumpo][sweep][D-03
         CHECK(c.size() == 4);
         CHECK(std::abs(period - 0.5) <= 0.5 * 0.02);
     }
+
+    // Audit probe sweep:lfo-rate (T6.07): 5 Hz, depth 1 (+/-2 octaves), 2 s at 512-sample
+    // blocks spans about 4 octaves in about 10 cycles (baseline 0.244 oct, 0 cycles).
+    {
+        ts::Rig rig(kSr, 512);
+        rig.apply(lfoParams(5.0));
+        const std::vector<float> twoSeconds(static_cast<size_t>(kSr * 2.0), 0.0f);
+        const Track tr = renderTrack(rig, twoSeconds, 512);
+        const auto [lo, hi] = std::minmax_element(tr.shift.begin(), tr.shift.end());
+        const double rangeOct = *hi - *lo;
+        const size_t cycles = upCrossings(tr).size();
+        WARN("T6.07 LFO 5 Hz over 2 s: range " << rangeOct << " oct, " << cycles << " upward crossings");
+        CHECK(tr.allFinite);
+        CHECK(std::abs(rangeOct - 4.0) <= 0.2);
+        CHECK(cycles >= 9);
+        CHECK(cycles <= 11);
+    }
 }
 
 // -----------------------------------------------------------------------------

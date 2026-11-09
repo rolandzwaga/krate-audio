@@ -608,6 +608,18 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     smoothing (10 ms: 319 clicks), not the weight law. 0 clicks with Oversample Max 1x or 2x, with RingSat's Harmonic
     carrier, or with RingSat replaced by SoftClip; still 331 with the Fixed carrier, 292 / 316 with FullRectify / SineFold
     replaced. Held with the level bar in `f:/tmp/disrumpo-fix/p6b/t606-held-bars.patch`; probe `[.][p6b-morph]`.
+85. **T6.07 full sweep automation: the plan's jump-ratio bar compares against the sweep off** (2026-11-09, needs a
+    ruling). 4 bands SoftClip drive 3, four sines at -18 dBFS (150 / 700 / 3200 / 11000 Hz), sweep on at 100 %, its
+    frequency automated 100 Hz -> 10 kHz over 2 s, LFO 5 Hz depth 1, envelope on: the largest sample step with the
+    sweep on is 1.63 x the largest with the sweep off (bar 1.3; audit baseline 0.48, when the sweep still muted the
+    bands away from its centre). Since T1.11 (D-019) the sweep raises the drive of the bands near its centre (x 1.5 at
+    100 %, x 2 at 200 %), so a steeper waveform is the intended result: the sweep-on step (0.514, at 1.232 s, mid-block)
+    is below the same bands' step at drive 4.5 with the sweep off (0.614; drive 6: 0.790), and the shared ClickDetector
+    finds 0 clicks. Finite (0 non-finite) and RMS within 3 dB (+1.26 dB) are asserted. Options: (a) compare against the
+    static render at the highest drive the sweep reaches, as "Sweep crossing band edges is click-free" does (step <=
+    max(static drive, drive x the sweep's peak multiplier) x 1.05, plus 0 clicks); (b) keep the sweep-off reference and
+    rule the bar not applicable since D-019. Held patch `f:/tmp/disrumpo-fix/p6b/t607-held-jump.patch`; probe
+    `[.][p6b-auto]` in `integration/processor_automation_test.cpp`.
 
 ## Done outside the plan
 
