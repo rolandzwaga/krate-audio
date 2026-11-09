@@ -697,6 +697,7 @@ TEST_CASE("Registered plain value matches processor denormalization", "[disrumpo
         {"Env Sensitivity (%)", mod(ModParamType::kEnvFollowerSensitivity), percent},
         {"Random Rate (Hz)", mod(ModParamType::kRandomRate), linear(kRandomRateHzRange)},
         {"Random Smoothness (%)", mod(ModParamType::kRandomSmoothness), percent},
+        {"Chaos Speed (x)", mod(ModParamType::kChaosSpeed), linear(kChaosSpeedRange)},
         {"S&H Rate (Hz)", mod(ModParamType::kSampleHoldRate), linear(kSampleHoldRateHzRange)},
         {"S&H Slew (ms)", mod(ModParamType::kSampleHoldSlew), linear(kSampleHoldSlewMsRange)},
         {"Pitch Min (Hz)", mod(ModParamType::kPitchFollowerMinHz), linear(kPitchFollowerMinHzRange)},

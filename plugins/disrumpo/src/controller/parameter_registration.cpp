@@ -506,8 +506,9 @@ void Controller::registerModulationParams() {
     chaosModel->appendString(STR16("Henon"));
     parameters.addParameter(chaosModel);
 
-    parameters.addParameter(STR16("Chaos Speed"), nullptr, 0, 0.048,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kChaosSpeed));
+    // Chaos Speed: the attractor's time-step multiplier; default ChaosModSource::kDefaultSpeed (1x)
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Chaos Speed"), makeModParamId(ModParamType::kChaosSpeed), STR16("x"), kChaosSpeedRange, 1.0));
     parameters.addParameter(STR16("Chaos Coupling"), nullptr, 0, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kChaosCoupling));
 

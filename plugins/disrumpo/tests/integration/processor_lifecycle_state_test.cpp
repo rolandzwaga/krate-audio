@@ -1264,6 +1264,7 @@ TEST_CASE("Registered plain value matches the processor's applied value", "[disr
     add(makeModParamId(MP::kEnvFollowerSensitivity), "state env sensitivity x 100", modF32(34, 100.0));
     add(makeModParamId(MP::kRandomRate), "state random rate", modRange(39, kRandomRateHzRange));
     add(makeModParamId(MP::kRandomSmoothness), "state random smoothness x 100", modF32(43, 100.0));
+    add(makeModParamId(MP::kChaosSpeed), "state chaos speed", modRange(49, kChaosSpeedRange));
     add(makeModParamId(MP::kChaosCoupling), "state chaos coupling", modF32(53));
     add(makeModParamId(MP::kSampleHoldRate), "state S&H rate", modRange(58, kSampleHoldRateHzRange));
     add(makeModParamId(MP::kSampleHoldSlew), "state S&H slew", modRange(62, kSampleHoldSlewMsRange));
@@ -1329,14 +1330,6 @@ TEST_CASE("Registered plain value matches the processor's applied value", "[disr
     for (int p = 0; p < 16; ++p)
         notApplied.insert(makeSweepParamId(static_cast<SP>(static_cast<int>(SP::kSweepCustomCurveP0X) + p)));
 
-    // Known mismatch, follow-ups 56 / 75: Chaos Speed is registered as a plain 0..1
-    // Parameter while the processor runs kChaosSpeedRange (0.05..20). Pinned: it must
-    // still disagree at every norm, so fixing the registration turns this red and
-    // moves the parameter into `reads`.
-    const Steinberg::Vst::ParamID chaosSpeedId = makeModParamId(MP::kChaosSpeed);
-    const StateRead chaosSpeedRead = modRange(49, kChaosSpeedRange);
-    const std::set<Steinberg::Vst::ParamID> knownMismatch{chaosSpeedId};
-
     // Plain values that are angles: the processor wraps 360 degrees to 0.
     const std::set<Steinberg::Vst::ParamID> degrees{makeModParamId(MP::kLFO1Phase), makeModParamId(MP::kLFO2Phase)};
 
@@ -1355,7 +1348,6 @@ TEST_CASE("Registered plain value matches the processor's applied value", "[disr
             continue;
         continuous.push_back(info.id);
         const bool known = reads.contains(info.id) || slotReads.contains(info.id) || notApplied.contains(info.id) ||
-                           knownMismatch.contains(info.id) ||
                            std::find(measured.begin(), measured.end(), info.id) != measured.end();
         if (known) continue;
         ++unclassified;
@@ -1387,7 +1379,6 @@ TEST_CASE("Registered plain value matches the processor's applied value", "[disr
         if (agrees(id, n, got)) return;
         if (++wrong <= 40) report(id, how, n, got);
     };
-    int chaosSpeedAgreeing = 0;
 
     for (const double n : {0.0, 0.25, 0.5, 1.0}) {
         // Pass 1: everything with a state or live read-back, one band (no crossover active).
@@ -1399,13 +1390,6 @@ TEST_CASE("Registered plain value matches the processor's applied value", "[disr
             const auto state = getStateBytes(*rig.p);
             REQUIRE(readAt<int32_t>(state, 0) == kPresetVersion);
             for (const auto& [id, r] : reads) compare(id, r.first, n, r.second(rig, state));
-        }
-        {
-            Rig rig(kSampleRate);
-            rig.apply({{chaosSpeedId, n}});
-            const double got = chaosSpeedRead(rig, getStateBytes(*rig.p));
-            report(chaosSpeedId, "known mismatch, state chaos speed", n, got);
-            if (agrees(chaosSpeedId, n, got)) ++chaosSpeedAgreeing;
         }
         // Pass 2: shape slots (a slot can remap a node's bias, so not in pass 1).
         {
@@ -1435,13 +1419,26 @@ TEST_CASE("Registered plain value matches the processor's applied value", "[disr
         }
     }
     std::printf("D-122 registered vs processor: %zu continuous parameters (%zu by state/live read, %zu shape slots, "
-                "3 measured, %zu custom-curve points not applied live, %zu known mismatch), %d of %d comparisons "
-                "wrong\n",
-                continuous.size(), reads.size(), slotReads.size(), notApplied.size(), knownMismatch.size(), wrong,
-                checked);
+                "3 measured, %zu custom-curve points not applied live), %d of %d comparisons wrong\n",
+                continuous.size(), reads.size(), slotReads.size(), notApplied.size(), wrong, checked);
     REQUIRE(checked == 4 * static_cast<int>(reads.size() + slotReads.size() + measured.size()));
     CHECK(wrong == 0);
-    CHECK(chaosSpeedAgreeing == 0);  // fixed? move Chaos Speed into `reads`, close follow-up 75
+    c.terminate();
+}
+
+// Follow-up 75: the host's default for Chaos Speed is the speed a fresh processor runs.
+TEST_CASE("Chaos Speed's registered default is what a fresh processor runs", "[disrumpo][controller][state][D-122]") {
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    const Steinberg::Vst::ParamID id = makeModParamId(ModParamType::kChaosSpeed);
+    Steinberg::Vst::Parameter* param = c.getParameterObject(id);
+    REQUIRE(param != nullptr);
+    const double registered = param->toPlain(param->getInfo().defaultNormalizedValue);
+
+    Rig rig(48000.0);
+    const double fresh = modRange(49, kChaosSpeedRange)(rig, getStateBytes(*rig.p));
+    std::printf("Chaos Speed default: registered plain %.5g, fresh processor %.5g\n", registered, fresh);
+    CHECK(std::fabs(registered - fresh) <= 1e-4);
     c.terminate();
 }
 

@@ -213,6 +213,7 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     LFO 1-2 Note Value (the editor shows "1/64T"), LFO 1-2 Retrigger, Env Source, Chaos Speed (also not converted
     to a range parameter), Rungler Rate (fresh processor reports 1.0 vs registered 0.08) / Depth / Bits, Curve P1
     X/Y, all 16 node Folds. Make the processor's initial values and the registration agree, one table.
+    Chaos Speed's default and range are done (item 75); the rest stays open.
 57. **Review the T2.22 sweep-row layout** (`acd45a32`): the row grew 20 px taller instead of wider (no mockup detail;
     the 1000×600 editor is specified) and now sits directly under the band panels; screenshots under
     `f:/tmp/disrumpo-fix/t222-shots/` (also sent to the user). The hidden `[.][screenshots]` case now exists for
@@ -283,6 +284,12 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     test-only scope. The case pins it (CHECK that it still disagrees): the fix turns it red and moves Chaos Speed into
     the checked set. Part of item 56's table. The same case leaves the 16 custom-curve point parameters unchecked
     (item 19: not applied live).
+    — closed by commit "fix(disrumpo): Chaos Speed registered over the range the processor runs" (user ruled
+    2026-11-09: fix it): a linear range parameter over `kChaosSpeedRange`, unit "x", default 1x
+    (`ChaosModSource::kDefaultSpeed`), same ID, stepCount 0. The T5.02 pin is gone and Chaos Speed is in the checked
+    set (RED 4 of 1296 comparisons wrong, GREEN 0 of 1296); "Registered plain value matches processor
+    denormalization" has a Chaos Speed row (RED 3 of 72, GREEN 0 of 72); new case "Chaos Speed's registered default
+    is what a fresh processor runs" (RED 0.048 vs 1, GREEN 1 vs 1).
 
 ## Done outside the plan
 
@@ -325,3 +332,6 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   shows in the time domain (band sum vs the ideal chain, 50 ms after the step): crossover 1 2 kHz → 500 Hz −42.9 dB
   new vs −26.0 dB old; crossover 0 400 Hz, crossover 1 500 Hz → 2 kHz −45.6 dB vs −32.9 dB. The unused
   `CrossoverNetwork::kDefaultSmoothingMs` is deleted (the LR4 smoothing is `CrossoverLR4`'s 5 ms).
+- Follow-up 75 closed (commit "fix(disrumpo): Chaos Speed registered over the range the processor runs", user ruling
+  2026-11-09): Chaos Speed is a linear range parameter over `kChaosSpeedRange` (0.05–20 x, default 1x) at the same
+  ID; T5.02's pin is replaced by a checked read-back. Details under item 75.
