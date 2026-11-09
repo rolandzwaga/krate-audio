@@ -470,8 +470,9 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         // Routing
         for (uint8_t r = 0; r < 32; ++r) {
             Steinberg::int8 source = 0;
-            if (streamer.readInt8(source))
-                setter(makeRoutingParamId(r, 0), listIndexToNorm(source, kUIModSourceCount));
+            if (streamer.readInt8(source))  // v8 and older: pre-Rungler numbering (D-055)
+                setter(makeRoutingParamId(r, 0),
+                       listIndexToNorm(migrateModSourceIndex(source, version), kUIModSourceCount));
             int32_t dest = 0;
             if (streamer.readInt32(dest)) {
                 // v12: migrate dest indices from old 6-per-band to new 8-per-band layout

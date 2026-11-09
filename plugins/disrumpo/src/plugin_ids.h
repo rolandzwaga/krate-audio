@@ -701,6 +701,12 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v7: Progressive disclosure (window size, MIDI CC mappings, mod panel visibility)
 // - v8: Reduced max bands from 8 to 4 (stream format: 4 bands, 3 crossovers, 4 morph)
 // - v9: Shape parameter slots (10 generic slots per node for type-specific UI controls)
+//       Routing sources are ambiguous in v9 (D-055): 05a3ddb7 (2026-02-16) inserted
+//       ModSource::Rungler = 10 and moved SampleHold/PitchFollower/Transient 10/11/12 ->
+//       11/12/13 without a bump. v0.9.0/v0.9.1 wrote v9 with the old numbering,
+//       v0.9.4-v0.9.6 wrote v9 with the new one, in the same layout. setState reads v9
+//       with the new numbering; v8 and older (all pre-Rungler) are moved up by one
+//       (migrateModSourceIndex, state_codec.h). v10 and later always had the new numbering.
 // - v12: Band Tone/Bias modulation targets (kParamsPerBand 6→8, dest index migration)
 // - v13: Per-band Morph X/Y Link modes (2 int8 per band after morph smoothing;
 //        older streams load with both links None)

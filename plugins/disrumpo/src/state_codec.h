@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace Disrumpo {
 
@@ -116,6 +117,20 @@ inline constexpr int kEnvFollowerSourceCount = 5;  ///< Input L/R/Sum/Mid/Side
 inline constexpr int kChaosModelCount = 4;         ///< Lorenz, Rossler, Chua, Henon
 inline constexpr int kSampleHoldSourceCount = 4;   ///< Random, LFO1, LFO2, External
 inline constexpr int kRunglerBitsCount = 13;       ///< 4..16 bits (stored as the bit count)
+
+// ==============================================================================
+// Routing source (D-055): 05a3ddb7 inserted ModSource::Rungler = 10 and moved
+// SampleHold / PitchFollower / Transient from 10 / 11 / 12 up by one, without a
+// version bump. v8 and older streams all predate it. v9 is ambiguous (v0.9.0 /
+// v0.9.1 old numbering, v0.9.4 to v0.9.6 new, same layout) and is read with the
+// new numbering; see the version history in plugin_ids.h.
+// ==============================================================================
+
+inline constexpr int kFirstRenumberedModSource = 10;  ///< old SampleHold, now Rungler
+
+[[nodiscard]] constexpr int migrateModSourceIndex(int stored, int32_t version) noexcept {
+    return (version <= 8 && stored >= kFirstRenumberedModSource) ? stored + 1 : stored;
+}
 
 // ==============================================================================
 // Linear ranges: plain = min + norm * span

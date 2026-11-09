@@ -32,9 +32,18 @@
 #include "pluginterfaces/base/ibstream.h"
 #include "public.sdk/source/common/memorystream.h"
 
+#include "controller/controller.h"
+#include "state_codec.h"
+
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <iterator>
+#include <string>
 #include <vector>
 
 using namespace Disrumpo;
@@ -1362,4 +1371,155 @@ TEST_CASE("Version migration: future version v99 loads known params", "[preset][
     // Output writes current version, not future version
     REQUIRE(version == kPresetVersion);
     REQUIRE_THAT(ig, Catch::Matchers::WithinAbs(0.6f, 1e-6f));
+}
+
+// =============================================================================
+// D-055 (fix plan T2.15, STATE-COMPAT): 05a3ddb7 (2026-02-16) inserted
+// ModSource::Rungler = 10 and moved SampleHold / PitchFollower / Transient from
+// 10 / 11 / 12 to 11 / 12 / 13 with no Disrumpo version bump.
+//
+// - v8 and older streams all predate the insertion: their sources 10-12 move
+//   up by one.
+// - v9 is ambiguous. The released v0.9.0 / v0.9.1 wrote v9 with the old
+//   numbering; v0.9.4 to v0.9.6 wrote v9 with the new one. The layouts are
+//   byte-identical, so no field tells them apart. Ruling: v9 keeps the new
+//   numbering, the one of the later and longer-lived releases (plugin_ids.h
+//   version history, report.md D-055).
+// - v10 and newer always had the new numbering.
+//
+// Fixtures: tests/fixtures/disrumpo_state_v{8,9}_pre_rungler.bin, hand-written
+// by tests/fixtures/make_pre_rungler_fixtures.js. That script follows the
+// writers in `git show disrumpo/v0.9.1:plugins/disrumpo/src/processor/processor.cpp`
+// (v9) and `git show 044e5fff:...` (v8, the last v8 writer). No historical
+// build was run. Routings 0-3 hold old-numbering sources 10 (S&H), 11 (Pitch),
+// 12 (Transient) and 9 (Chaos). Routing 1 targets old band 1 Drive (dest 14).
+// =============================================================================
+
+namespace {
+
+std::vector<uint8_t> readFixture(const char* name) {
+    std::ifstream f(std::string(DISRUMPO_FIXTURES_DIR "/") + name, std::ios::binary);
+    REQUIRE(f.good());
+    return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+}
+
+struct SavedRouting {
+    int source = 0;
+    int32_t dest = 0;
+    float amount = 0.0f;
+};
+
+// Routing r of a current-layout (v13) stream written by Processor::getState.
+SavedRouting savedRouting(const std::vector<uint8_t>& b, size_t r) {
+    constexpr size_t kCurveCountOffset = 4 + 3 * 4 + 4      // version, globals, band count
+                                       + 4 * (4 + 4 + 3)    // 4 bands: gain, pan, solo/bypass/mute
+                                       + 3 * 4              // crossovers
+                                       + 15 + 12 + 13;      // sweep core, LFO, envelope
+    constexpr size_t kSourcesSize = 13 + 13 + 13 + 9 + 9 + 9 + 16 + 12 + 10;  // ... + Rungler (v11+)
+    constexpr size_t kMacrosSize = size_t{4} * 13;
+    int32_t points = 0;
+    REQUIRE(b.size() > kCurveCountOffset + 4);
+    std::memcpy(&points, b.data() + kCurveCountOffset, 4);
+    const size_t at = kCurveCountOffset + 4 + static_cast<size_t>(points) * 8 + kSourcesSize + kMacrosSize + r * 10;
+    REQUIRE(at + 10 <= b.size());
+    SavedRouting s;
+    s.source = static_cast<int>(b[at]);  // 0..13: the byte is a list index
+    std::memcpy(&s.dest, b.data() + at + 1, 4);
+    std::memcpy(&s.amount, b.data() + at + 5, 4);
+    return s;
+}
+
+// Load `fixture` into a processor and save it again (current layout).
+std::vector<uint8_t> processorResave(std::vector<uint8_t> fixture) {  // a copy: MemoryStream takes void*
+    auto proc = createTestProcessor();
+    auto in = Steinberg::owned(new MemoryStream(fixture.data(),
+                                                static_cast<Steinberg::TSize>(fixture.size())));
+    REQUIRE(proc->setState(in) == Steinberg::kResultOk);
+    auto out = Steinberg::owned(new MemoryStream());
+    REQUIRE(proc->getState(out) == Steinberg::kResultOk);
+    Steinberg::int64 size = 0;
+    out->seek(0, IBStream::kIBSeekEnd, &size);
+    out->seek(0, IBStream::kIBSeekSet, nullptr);
+    std::vector<uint8_t> bytes(static_cast<size_t>(size));
+    Steinberg::int32 got = 0;
+    out->read(bytes.data(), static_cast<Steinberg::int32>(size), &got);
+    proc->terminate();
+    return bytes;
+}
+
+// The controller's routing-source list index after setComponentState(fixture).
+std::array<int, 4> controllerSources(std::vector<uint8_t> fixture) {  // a copy: MemoryStream takes void*
+    Controller ctrl;
+    REQUIRE(ctrl.initialize(nullptr) == Steinberg::kResultOk);
+    auto in = Steinberg::owned(new MemoryStream(fixture.data(),
+                                                static_cast<Steinberg::TSize>(fixture.size())));
+    REQUIRE(ctrl.setComponentState(in) == Steinberg::kResultOk);
+    std::array<int, 4> out{};
+    for (size_t r = 0; r < out.size(); ++r)
+        out[r] = normToListIndex(ctrl.getParamNormalized(makeRoutingParamId(static_cast<uint8_t>(r), 0)),
+                                 kUIModSourceCount);
+    ctrl.terminate();
+    return out;
+}
+
+constexpr auto idx(Krate::DSP::ModSource s) { return static_cast<int>(s); }
+
+}  // namespace
+
+TEST_CASE("Pre-Rungler v8 stream loads S&H Pitch and Transient routings at their current sources",
+          "[disrumpo][preset][serialization][migration][STATE-COMPAT][D-055]") {
+    using Krate::DSP::ModSource;
+    const auto fixture = readFixture("disrumpo_state_v8_pre_rungler.bin");
+    int32_t version = 0;
+    std::memcpy(&version, fixture.data(), 4);
+    REQUIRE(version == 8);
+
+    const auto saved = processorResave(fixture);
+    const std::array<SavedRouting, 4> r{savedRouting(saved, 0), savedRouting(saved, 1), savedRouting(saved, 2),
+                                        savedRouting(saved, 3)};
+    const auto ctrl = controllerSources(fixture);
+    std::printf("D-055 v8 fixture: stored sources 10, 11, 12, 9 -> processor %d, %d, %d, %d "
+                "(dest r1 %d), controller %d, %d, %d, %d\n",
+                r[0].source, r[1].source, r[2].source, r[3].source, r[1].dest, ctrl[0], ctrl[1], ctrl[2], ctrl[3]);
+
+    CHECK(r[0].source == idx(ModSource::SampleHold));
+    CHECK(r[1].source == idx(ModSource::PitchFollower));
+    CHECK(r[2].source == idx(ModSource::Transient));
+    CHECK(r[3].source == idx(ModSource::Chaos));
+    constexpr int32_t kOldBand1DriveNow = 16;  // ModDest::bandParam(1, kBandDrive), v12 remap of 14
+    static_assert(ModDest::bandParam(1, ModDest::kBandDrive) == 16u);
+    CHECK(r[1].dest == kOldBand1DriveNow);
+    CHECK(r[1].amount == -0.25f);
+    CHECK(ctrl[0] == idx(ModSource::SampleHold));
+    CHECK(ctrl[1] == idx(ModSource::PitchFollower));
+    CHECK(ctrl[2] == idx(ModSource::Transient));
+    CHECK(ctrl[3] == idx(ModSource::Chaos));
+}
+
+TEST_CASE("v9 stream keeps the post-Rungler source numbering (v0.9.0/0.9.1 ambiguity ruling)",
+          "[disrumpo][preset][serialization][migration][STATE-COMPAT][D-055]") {
+    using Krate::DSP::ModSource;
+    const auto fixture = readFixture("disrumpo_state_v9_pre_rungler.bin");
+    int32_t version = 0;
+    std::memcpy(&version, fixture.data(), 4);
+    REQUIRE(version == 9);
+
+    const auto saved = processorResave(fixture);
+    const std::array<SavedRouting, 4> r{savedRouting(saved, 0), savedRouting(saved, 1), savedRouting(saved, 2),
+                                        savedRouting(saved, 3)};
+    const auto ctrl = controllerSources(fixture);
+    std::printf("D-055 v9 fixture (v0.9.1 layout): stored sources 10, 11, 12, 9 -> processor %d, %d, %d, %d, "
+                "controller %d, %d, %d, %d\n",
+                r[0].source, r[1].source, r[2].source, r[3].source, ctrl[0], ctrl[1], ctrl[2], ctrl[3]);
+
+    // Read as written: indistinguishable from a v0.9.4-v0.9.6 stream, which
+    // means Rungler, S&H and Pitch Follower by these bytes.
+    CHECK(r[0].source == idx(ModSource::Rungler));
+    CHECK(r[1].source == idx(ModSource::SampleHold));
+    CHECK(r[2].source == idx(ModSource::PitchFollower));
+    CHECK(r[3].source == idx(ModSource::Chaos));
+    CHECK(ctrl[0] == idx(ModSource::Rungler));
+    CHECK(ctrl[1] == idx(ModSource::SampleHold));
+    CHECK(ctrl[2] == idx(ModSource::PitchFollower));
+    CHECK(ctrl[3] == idx(ModSource::Chaos));
 }

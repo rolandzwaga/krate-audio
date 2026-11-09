@@ -2213,6 +2213,17 @@ Findings are grouped critical -> high -> medium -> low by **final** severity (th
 - Context: 05a3ddb7's message says it added a "ModSource enum migration for v<13 presets" for Ruinae only; the plugin_ids.h version history (v9 -> v12) and CHANGELOG.md mention only the destination remap; grep of plugins/disrumpo/tests for SampleHold/Rungler finds only an unrelated LFO waveform test.
 - Impact: a v0.9.0/0.9.1 project with an S&H routing loads as Rungler (a different chaotic shape), Pitch as S&H, Transient as Pitch Follower, with no warning; scope is user projects from the two early pre-1.0 releases using those three sources; medium.
 
+**Fix-plan ruling (T2.15): v9 is read with the new numbering.**
+- The v9 streams cannot be told apart. The getState of disrumpo/v0.9.1 and disrumpo/v0.9.4 / v0.9.6 differs only in loop syntax (diffed with `git show`), so the byte layout is identical. Neither writes a Rungler block or a trailer.
+- v0.9.4, v0.9.5 and v0.9.6 wrote v9 with the new numbering; only v0.9.0 and v0.9.1 used the old one. setState and the controller parser therefore read v9 as new numbering.
+- Streams of v8 and older are all older than 05a3ddb7: the last v8 writer is 044e5fff, 2026-02-01. Their sources 10, 11 and 12 move up by one (`migrateModSourceIndex`, state_codec.h), in the processor and in the controller.
+- A v0.9.0/0.9.1 project that routes S&H, Pitch or Transient still loads one source down. This is the accepted cost of the ruling, recorded in the plugin_ids.h version history.
+- Measured with the hand-written fixtures `tests/fixtures/disrumpo_state_v{8,9}_pre_rungler.bin`, routings 0-3 = stored sources 10, 11, 12, 9:
+  - v8 before the fix: 10, 11, 12, 9 in the processor and the controller.
+  - v8 after the fix: 11, 12, 13, 9 (SampleHold, PitchFollower, Transient, Chaos).
+  - v9 after the fix: 10, 11, 12, 9, unchanged.
+- v10+ streams are untouched. All 121 factory presets render and re-save bit-identically before and after the fix, and so does the v12 fixture. The presets are 119 at v10 plus Init_5_Bands v6 and Formant_Shift v8, which route no source at or above 10.
+
 ### D-054 — setState applies crossover frequencies before setBandCount, so the live band count drops or overwrites the saved values
 
 **Severity:** medium | **Verdict:** CONFIRMED | **Category:** lifecycle-state | **Dimension:** lifecycle-state | **Also flagged by:** D-022 (signal-path), D-124 (test gap) report the same ordering | **Corroborated by measurement:** no

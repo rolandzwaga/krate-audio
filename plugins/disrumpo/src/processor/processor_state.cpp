@@ -849,9 +849,10 @@ bool Processor::parseStateSections(Steinberg::IBStreamer& streamer, int32_t vers
         for (auto& slot : s.routings) {
             Krate::DSP::ModRouting routing{};
             Steinberg::int8 source = 0;
-            if (streamer.readInt8(source))
+            if (streamer.readInt8(source))  // v8 and older: pre-Rungler numbering (D-055)
                 routing.source = static_cast<Krate::DSP::ModSource>(
-                    std::clamp(static_cast<int>(source), 0, static_cast<int>(Krate::DSP::kModSourceCount - 1)));
+                    std::clamp(migrateModSourceIndex(static_cast<int>(source), version), 0,
+                               static_cast<int>(Krate::DSP::kModSourceCount - 1)));
             int32_t dest = 0;
             if (streamer.readInt32(dest)) {
                 // v12: kParamsPerBand changed from 6 to 8 (added Tone, Bias).
