@@ -245,6 +245,14 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 67. **Shape-slot values the adapter maps further show as a percent of the stored value** (e.g. Feedback Threshold,
     which runs in dB, and filter frequency) — the descriptor table from T4.03 (`db3a5e7a`) can carry units/curves.
 
+68. **AllpassChain under full fast-math is not bit-identical to the pre-T4.16 code** (max 1.0e-3 in the macOS repro;
+    the test TU is IEEE on macOS CI and passes there). A macOS shipping build of Disrumpo's AllpassResonant /
+    AllpassChain may not reproduce its previous output bit for bit. Listen-check only; no correctness defect.
+69. **`AllpassSaturator::updateChainFrequencies()` / `updateMatrixFrequencies()` are declared but never defined**
+    (pre-existing dead declarations, `allpass_saturator.h`).
+70. **The [long] lane was not run for T4.13–T4.17** (nightly CI covers it); the Profundum evidence writers were, and
+    rewrote 123 CSVs with content identical to HEAD (no evidence commit needed after T4.13/T4.17).
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
