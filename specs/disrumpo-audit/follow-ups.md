@@ -157,6 +157,16 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     goes from +2.1 dBFS (old 2-level square) to −21.6 dBFS. Intended by the mid-tread design, but it changes that
     setting's character; audition.
 
+41. **Global mix 50 % with an oversampling band: −4.35 dB at 18 kHz** (T2.10 `94141096`). The dry path is delayed
+    to the reported latency, but a pure delay cannot match the oversampler's IIR phase near the top of the band
+    (−0.09 dB at 5 and 10 kHz). Matching it means running the dry path through the same oversampler filters, which
+    only works when every band runs at one factor. Decide whether that matters.
+42. **Delay jumps without a dip** (T2.10): crossing drive 0 changes a band's factor without the fade, so its delay
+    jumps by up to 7 samples; a node-type or Spectral FFT-size change moves the band's own delay at once (other
+    bands change at the bottom of the global dip). Route both through the existing 5 ms dip.
+43. **Reported latency is 0 before `setupProcessing`** (oversamplers measured in prepare); pluginval's info line
+    shows 0. Harmless if hosts re-query after setup; check a real host's PDC.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
