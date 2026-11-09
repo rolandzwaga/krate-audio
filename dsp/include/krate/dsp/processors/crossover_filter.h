@@ -54,6 +54,62 @@ struct CrossoverLR4Outputs {
     float high = 0.0f;  ///< Highpass output (content above crossover frequency)
 };
 
+namespace detail {
+
+/// One second-order section in double precision: coefficients AND TDF2
+/// state. A float32 TDF2 state at fc/fs ~6e-4 (112 Hz at 192 kHz) rounds
+/// by up to ~1 % of the DC gain (1 + a1 + a2 ~ 1e-5 amplifies each state
+/// rounding); measured +-0.15 dB at 112 Hz and +-1 dB at 20 Hz / 192 kHz
+/// even with exact float coefficients. Used for the LR4 stages and the
+/// compensation allpasses of the crossovers in this header.
+struct BiquadSectionD {
+    double b0 = 1.0;
+    double b1 = 0.0;
+    double b2 = 0.0;
+    double a1 = 0.0;
+    double a2 = 0.0;
+    double z1 = 0.0;
+    double z2 = 0.0;
+
+    void setCoefficients(const BiquadSectionD& c) noexcept {
+        b0 = c.b0;
+        b1 = c.b1;
+        b2 = c.b2;
+        a1 = c.a1;
+        a2 = c.a2;
+    }
+
+    [[nodiscard]] double process(double x) noexcept {
+        const double y = b0 * x + z1;
+        z1 = b1 * x - a1 * y + z2;
+        z2 = b2 * x - a2 * y;
+        // Flush tiny states (the float stages' denormal rule)
+        if (z1 > -kStateFlush && z1 < kStateFlush) z1 = 0.0;
+        if (z2 > -kStateFlush && z2 < kStateFlush) z2 = 0.0;
+        return y;
+    }
+
+    void reset() noexcept {
+        z1 = 0.0;
+        z2 = 0.0;
+    }
+
+    static constexpr double kStateFlush = static_cast<double>(kDenormalThreshold);
+};
+
+/// RBJ 2nd-order allpass coefficients in double. The numerator mirrors the
+/// denominator, so |H| = 1 holds for any rounding of the coefficients.
+[[nodiscard]] inline BiquadSectionD allpassSectionD(double hz, double q, double sampleRate) noexcept {
+    const double omega = 2.0 * std::numbers::pi * hz / sampleRate;
+    const double alpha = std::sin(omega) / (2.0 * q);
+    const double invA0 = 1.0 / (1.0 + alpha);
+    const double a1 = -2.0 * std::cos(omega) * invA0;
+    const double a2 = (1.0 - alpha) * invA0;
+    return BiquadSectionD{.b0 = a2, .b1 = a1, .b2 = 1.0, .a1 = a1, .a2 = a2};
+}
+
+} // namespace detail
+
 // =============================================================================
 // CrossoverLR4 Class
 // =============================================================================
@@ -260,6 +316,14 @@ public:
         return prepared_;
     }
 
+    /// @brief Frequency the filter coefficients currently use: the smoothed
+    /// frequency as of the last process() (or prepare()), clamped. Lags the
+    /// target while a frequency change glides.
+    /// @return Frequency in Hz
+    [[nodiscard]] float getCurrentFrequency() const noexcept {
+        return lastCoefficientFreq_;
+    }
+
     // =========================================================================
     // Processing
     // =========================================================================
@@ -368,45 +432,8 @@ private:
         hpStage2_.setCoefficients(hp);
     }
 
-    /// One second-order section in double precision: coefficients AND TDF2
-    /// state. A float32 TDF2 state at fc/fs ~6e-4 (112 Hz at 192 kHz) rounds
-    /// by up to ~1 % of the DC gain (1 + a1 + a2 ~ 1e-5 amplifies each state
-    /// rounding); measured +-0.15 dB at 112 Hz and +-1 dB at 20 Hz / 192 kHz
-    /// even with exact float coefficients.
-    struct Section {
-        double b0 = 1.0;
-        double b1 = 0.0;
-        double b2 = 0.0;
-        double a1 = 0.0;
-        double a2 = 0.0;
-        double z1 = 0.0;
-        double z2 = 0.0;
-
-        void setCoefficients(const Section& c) noexcept {
-            b0 = c.b0;
-            b1 = c.b1;
-            b2 = c.b2;
-            a1 = c.a1;
-            a2 = c.a2;
-        }
-
-        [[nodiscard]] double process(double x) noexcept {
-            const double y = b0 * x + z1;
-            z1 = b1 * x - a1 * y + z2;
-            z2 = b2 * x - a2 * y;
-            // Flush tiny states (the float stages' denormal rule)
-            if (z1 > -kStateFlush && z1 < kStateFlush) z1 = 0.0;
-            if (z2 > -kStateFlush && z2 < kStateFlush) z2 = 0.0;
-            return y;
-        }
-
-        void reset() noexcept {
-            z1 = 0.0;
-            z2 = 0.0;
-        }
-
-        static constexpr double kStateFlush = static_cast<double>(kDenormalThreshold);
-    };
+    /// One second-order section in double precision (see detail::BiquadSectionD).
+    using Section = detail::BiquadSectionD;
 
     // =========================================================================
     // Members
@@ -449,7 +476,9 @@ private:
 /// AP(f_{k+1}) ... AP(f_{n-2}) in ascending order, so every band carries the
 /// same phase and the band sum is the allpass chain AP(f0) ... AP(f_{n-2}):
 /// flat magnitude. The 2nd-order allpass Q is exactly 1/sqrt(2), because the
-/// LR4 LP + HP sum is (s^2 - sqrt2*s + 1)/(s^2 + sqrt2*s + 1).
+/// LR4 LP + HP sum is (s^2 - sqrt2*s + 1)/(s^2 + sqrt2*s + 1). The allpasses
+/// run in double precision and follow the frequency each LR4's coefficients
+/// use, also while it glides to a new value.
 /// Reference: D'Appolito, "Active Realization of Multiway All-Pass Crossover
 /// Systems", JAES Vol. 35, No. 4, April 1987.
 ///
@@ -486,7 +515,8 @@ public:
 
     static constexpr int kMaxBands = MaxBands;
     static constexpr int kNumCrossovers = MaxBands - 1;
-    /// Q of the 2nd-order compensation allpasses: 1/sqrt(2)
+    /// Q of the 2nd-order compensation allpasses: 1/sqrt(2) (as float; the
+    /// allpasses are designed with the exact double value)
     static constexpr float kAllpassQ = std::numbers::sqrt2_v<float> / 2.0f;
 
     // =========================================================================
@@ -514,7 +544,7 @@ public:
             xo.prepare(sampleRate);
             xo.setCrossoverFrequency(frequencies_[idx(i)]);
             xo.prepare(sampleRate);
-            configureAllpasses(i);
+            designAllpasses(i);
         }
         resetAllpasses();
         prepared_ = true;
@@ -550,6 +580,7 @@ public:
         const int firstNew = oldBands - 1;
         for (int i = firstNew; i < newBands - 1; ++i) {
             crossovers_[idx(i)].prepare(sampleRate_);
+            designAllpasses(i);
         }
         // Every allpass at a joining crossover: the dry chain and the bands below it
         for (int i = firstNew; i < kNumCrossovers; ++i) {
@@ -562,7 +593,7 @@ public:
 
     /// @brief Set the frequency of crossover `index`, active or not.
     /// The crossover glides there over the smoothing time; the allpasses at
-    /// this frequency follow at once.
+    /// this crossover follow the glide sample by sample in process().
     /// @param index Crossover index (0 .. MaxBands-2); others are ignored
     /// @param hz Frequency in Hz (clamped to [20 Hz, 0.45 * sampleRate] where applied)
     void setCrossoverFrequency(int index, float hz) noexcept {
@@ -571,9 +602,6 @@ public:
         }
         frequencies_[idx(index)] = hz;
         crossovers_[idx(index)].setCrossoverFrequency(hz);
-        if (prepared_) {
-            configureAllpasses(index);
-        }
     }
 
     /// @brief Enable or disable D'Appolito allpass compensation of the bands.
@@ -635,34 +663,51 @@ public:
 
         float rest = input;
         for (int i = 0; i < activeBands_ - 1; ++i) {
-            const auto out = crossovers_[idx(i)].process(rest);
+            auto& xo = crossovers_[idx(i)];
+            const auto out = xo.process(rest);
             bands[idx(i)] = out.low;
             rest = out.high;
+            // The allpasses at this crossover follow the frequency its
+            // coefficients use this sample (it moves while gliding)
+            if (xo.getCurrentFrequency() != allpassFrequencies_[idx(i)]) {
+                designAllpasses(i);
+            }
         }
         bands[idx(activeBands_ - 1)] = rest;
 
         if (compensation_) {
             // Band k: AP(f_{k+1}) ... AP(f_{n-2}), ascending
             for (int band = 0; band < activeBands_ - 2; ++band) {
+                auto y = static_cast<double>(bands[idx(band)]);
                 for (int ap = band + 1; ap < activeBands_ - 1; ++ap) {
-                    bands[idx(band)] = bandAllpass(band, ap).process(bands[idx(band)]);
+                    y = bandAllpass(band, ap).process(y);
                 }
+                bands[idx(band)] = static_cast<float>(y);
             }
         }
     }
 
     /// @brief Give a dry (unsplit) sample the phase of the compensated band sum:
-    /// AP(f0) ... AP(f_{n-2}). Call once per sample alongside process().
+    /// AP(f0) ... AP(f_{n-2}). Call once per sample, after process() (whose
+    /// crossovers the allpasses follow while a frequency glides). A non-finite
+    /// input clears the dry allpasses and returns silence.
     /// @param x Dry input sample
     /// @return x through the allpasses at every active crossover
     [[nodiscard]] float processDryCompensation(float x) noexcept {
         if (!prepared_ || activeBands_ == 1) {
             return x;
         }
-        for (int i = 0; i < activeBands_ - 1; ++i) {
-            x = dryAllpasses_[idx(i)].process(x);
+        if (!detail::isFinite(x)) {
+            for (auto& ap : dryAllpasses_) {
+                ap.reset();
+            }
+            return 0.0f;
         }
-        return x;
+        auto y = static_cast<double>(x);
+        for (int i = 0; i < activeBands_ - 1; ++i) {
+            y = dryAllpasses_[idx(i)].process(y);
+        }
+        return static_cast<float>(y);
     }
 
 private:
@@ -672,24 +717,23 @@ private:
         return static_cast<std::size_t>(i);
     }
 
+    /// Exact 1/sqrt(2) for the double-precision allpass design
+    static constexpr double kAllpassQD = std::numbers::sqrt2 / 2.0;
+
     /// The allpass of band `band` at crossover `crossover` (crossover > band).
-    [[nodiscard]] Biquad& bandAllpass(int band, int crossover) noexcept {
+    [[nodiscard]] detail::BiquadSectionD& bandAllpass(int band, int crossover) noexcept {
         return bandAllpasses_[idx(band)][idx(crossover - band - 1)];
     }
 
-    [[nodiscard]] float clampFrequency(float hz) const noexcept {
-        const float maxHz = static_cast<float>(sampleRate_) * CrossoverLR4::kMaxFrequencyRatio;
-        return std::clamp(hz, CrossoverLR4::kMinFrequency, maxHz);
-    }
-
-    /// Configure every allpass at crossover `crossover`: the dry chain and the
-    /// bands below it.
-    void configureAllpasses(int crossover) noexcept {
-        const float hz = clampFrequency(frequencies_[idx(crossover)]);
-        const auto sr = static_cast<float>(sampleRate_);
-        dryAllpasses_[idx(crossover)].configure(FilterType::Allpass, hz, kAllpassQ, 0.0f, sr);
+    /// Design every allpass at crossover `crossover` (the dry chain and the
+    /// bands below it) for the frequency that crossover's coefficients use.
+    void designAllpasses(int crossover) noexcept {
+        const float hz = crossovers_[idx(crossover)].getCurrentFrequency();
+        allpassFrequencies_[idx(crossover)] = hz;
+        const auto coeffs = detail::allpassSectionD(static_cast<double>(hz), kAllpassQD, sampleRate_);
+        dryAllpasses_[idx(crossover)].setCoefficients(coeffs);
         for (int band = 0; band < crossover; ++band) {
-            bandAllpass(band, crossover).configure(FilterType::Allpass, hz, kAllpassQ, 0.0f, sr);
+            bandAllpass(band, crossover).setCoefficients(coeffs);
         }
     }
 
@@ -710,10 +754,12 @@ private:
 
     std::array<CrossoverLR4, kNumCrossovers> crossovers_;
     /// bandAllpasses_[band][j]: band `band` at crossover band + j + 1
-    std::array<std::array<Biquad, kBandAllpassSlots>, kBandAllpassSlots> bandAllpasses_;
+    std::array<std::array<detail::BiquadSectionD, kBandAllpassSlots>, kBandAllpassSlots> bandAllpasses_;
     /// dryAllpasses_[i]: the dry chain at crossover i
-    std::array<Biquad, kNumCrossovers> dryAllpasses_;
+    std::array<detail::BiquadSectionD, kNumCrossovers> dryAllpasses_;
     std::array<float, kNumCrossovers> frequencies_{};
+    /// allpassFrequencies_[i]: the frequency the allpasses at crossover i are designed for
+    std::array<float, kNumCrossovers> allpassFrequencies_{};
 
     double sampleRate_ = 44100.0;
     int activeBands_ = MaxBands;

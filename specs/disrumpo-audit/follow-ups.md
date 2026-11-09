@@ -44,6 +44,9 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
    double-precision allpass chain of the same design reads −123 dB in the probe (`[.][t109-probe]`). Fix =
    double-precision allpass stages for both chains. Also from T1.09: the LR4s glide on a frequency change while
    every allpass jumps (brief mismatch, settles flat), and the dry term skips input gain (T2.09 territory).
+   — closed by crossover dedup step 4 (commit "fix(dsp): MultibandCrossover allpasses in double precision, tracking
+   the gliding crossovers"): double-precision allpasses that follow each LR4's current frequency; dry/wet residual
+   −141 to −167 dB at 44.1–192 kHz, 192 kHz back in the D-018 test. (The dry-term input gain remark is T2.09's.)
 8. **`run-gate.js` comma-OR filter re-runs the whole set in the `[wallclock]` pass** (known pitfall, hit again
    on the evidence run: 127 cases ran twice, +22 min). Fix the runner or always use separate gates.
 
@@ -285,3 +288,8 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   Disrumpo's band policy over one `MultibandCrossover<4>`; allpass Q 0.7071f → 1/√2 (ruling 1). A/B vs a frozen copy
   of the old network: identical with the old copy at Q 1/√2; with 0.7071f the band sum differs by −123 to −138 dB and
   the dry path by −66 dB (192 kHz, 4 bands) to −107 dB. A re-prepare now also clears the allpass state.
+- Crossover dedup step 4 (commit "fix(dsp): MultibandCrossover allpasses in double precision, tracking the gliding
+  crossovers"): closes follow-up 7. `CrossoverLR4::Section` lifted to `detail::BiquadSectionD`, read-only
+  `CrossoverLR4::getCurrentFrequency()`. Steady dry-vs-band-sum residual −86.7 → −146.0 dB (48 kHz), −65.2 →
+  −146.1 dB (192 kHz); during a 632 Hz → 1.2 kHz glide −26.2 → −52.8 dB (48 kHz). A glide cannot reach the static
+  floor: in lockstep the time-varying LR4 pair and allpass still differ (−81 dB for 632 → 650 Hz, −50 dB to 2 kHz).

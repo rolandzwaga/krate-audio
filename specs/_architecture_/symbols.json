@@ -276,6 +276,14 @@
       "line": 243
     },
     {
+      "name": "BiquadSectionD",
+      "kind": "struct",
+      "scope": "Krate::DSP::detail",
+      "layer": "processors",
+      "header": "dsp/include/krate/dsp/processors/crossover_filter.h",
+      "line": 65
+    },
+    {
       "name": "BitCrusher",
       "kind": "class",
       "scope": "Krate::DSP",
@@ -633,7 +641,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/crossover_filter.h",
-      "line": 82
+      "line": 138
     },
     {
       "name": "CrossoverLR4Outputs",
@@ -1913,7 +1921,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/crossover_filter.h",
-      "line": 479
+      "line": 508
     },
     {
       "name": "MultiF0Result",
@@ -3026,14 +3034,6 @@
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/polyphase_halfband_oversampler.h",
       "line": 110
-    },
-    {
-      "name": "Section",
-      "kind": "struct",
-      "scope": "Krate::DSP::CrossoverLR4",
-      "layer": "processors",
-      "header": "dsp/include/krate/dsp/processors/crossover_filter.h",
-      "line": 376
     },
     {
       "name": "Segment",

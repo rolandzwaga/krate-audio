@@ -982,11 +982,10 @@ TEST_CASE("Global mix 50 % with neutral bands reproduces the input within the cr
 
 // The dry path (mix 0) must carry the same phase and timing as the clean wet sum (mix 1):
 // same impulse peak sample, residual of the difference at least 60 dB below the wet energy.
-// 192 kHz is not asserted here: its residual reads -59.55 dB (2 and 4 bands), set by the
-// float32 Biquad dry allpass at the 112 Hz crossover (a double-precision RBJ chain reads
-// -123 dB against the same band sum; probe [t109-probe]). Mix 50 % stays within SC-001 there.
+// 192 kHz is asserted since the crossover's allpasses run in double precision (follow-up 7;
+// float32 Biquad allpasses read -59.55 dB there at the 112 Hz crossover).
 TEST_CASE("Dry path is phase- and time-aligned with the clean wet path at 1x", "[disrumpo][mix][D-018]") {
-    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+    for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
         for (const int numBands : {2, 4}) {
             const auto dry = mixImpulseResponse(sr, numBands, 0.0);
             const auto wet = mixImpulseResponse(sr, numBands, 1.0);

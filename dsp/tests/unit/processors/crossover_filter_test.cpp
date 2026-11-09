@@ -21,6 +21,8 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <fstream>
 #include <vector>
 #include <random>
 #include <numeric>
@@ -1509,9 +1511,11 @@ TEST_CASE("MultibandCrossover compensation is flat at one-octave spacing",
 
 // The dry chain carries the phase and timing of the compensated band sum (Disrumpo D-018):
 // same impulse peak, residual of the difference at least 60 dB below the band sum energy.
+// 192 kHz needs double-precision allpasses: float32 ones read -59.6 dB at the 112 Hz
+// crossover there (follow-up 7).
 TEST_CASE("MultibandCrossover dry compensation is aligned with the compensated band sum",
           "[crossover][multiband][allpass][dry][D-018]") {
-    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+    for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
         for (int n = 2; n <= 4; ++n) {
             MultibandCrossover<4> xo;
             setupMultiband(xo, sr, n, kLogDefaultCrossovers, true);
@@ -1542,6 +1546,105 @@ TEST_CASE("MultibandCrossover dry compensation is aligned with the compensated b
             CHECK(residualDb <= -60.0);
         }
     }
+}
+
+// Follow-up 7: the allpasses follow the crossover while it glides to a new frequency, so the
+// dry chain and the compensated band sum stay aligned during the glide (allpasses that jump
+// to the target at once leave the two apart until the LR4 arrives: -20.4 dB here). Even in
+// lockstep a time-varying LR4 LP + HP cascade and a time-varying allpass hold different
+// states, so the residual grows with the move ([xover-glide-probe]: 632 -> 650 Hz -81 dB,
+// -> 1 kHz -58 dB, -> 2 kHz -50 dB); the bar sits 5 dB above the 2 kHz reading.
+TEST_CASE("MultibandCrossover allpasses track a gliding crossover", "[crossover][multiband][allpass][dry]") {
+    constexpr double kSr = 48000.0;
+    MultibandCrossover<4> xo;
+    setupMultiband(xo, kSr, 4, kLogDefaultCrossovers, true);
+    std::vector<float> noise(static_cast<size_t>(kSr));
+    generateWhiteNoise(noise.data(), noise.size(), 11);
+    std::array<float, 4> bands{};
+    const size_t moveAt = 12000;
+    const size_t glideEnd = moveAt + static_cast<size_t>(0.05 * kSr);
+    double errPow = 0.0;
+    double sumPow = 0.0;
+    double steadyErrPow = 0.0;
+    double steadySumPow = 0.0;
+    for (size_t i = 0; i < noise.size(); ++i) {
+        if (i == moveAt) {
+            xo.setCrossoverFrequency(1, 2000.0f);  // 632 Hz -> 2 kHz, glides over the smoothing time
+        }
+        xo.process(noise[i], bands);
+        const double sum = static_cast<double>(multibandSum<4>(bands, 4));
+        const double dry = static_cast<double>(xo.processDryCompensation(noise[i]));
+        if (i >= moveAt && i < glideEnd) {
+            errPow += (dry - sum) * (dry - sum);
+            sumPow += sum * sum;
+        } else if (i >= 6000 && i < moveAt) {
+            steadyErrPow += (dry - sum) * (dry - sum);
+            steadySumPow += sum * sum;
+        }
+    }
+    const double glideDb = 10.0 * std::log10(errPow / sumPow + 1e-30);
+    const double steadyDb = 10.0 * std::log10(steadyErrPow / steadySumPow + 1e-30);
+    INFO("dry - band sum: during the 50 ms after the move " << glideDb << " dB, steady before it " << steadyDb
+         << " dB (re band sum)");
+    CHECK(glideDb <= -45.0);
+}
+
+// Hidden A/B dump (crossover dedup step 4): MultibandCrossover<4>, compensation on, Disrumpo's
+// log-default crossovers, 1 s white noise at 48 and 192 kHz, crossover 1 moved to 1.2 kHz at
+// 0.5 s. Writes per sample the 4 bands and the dry chain (float32) to MULTIBAND_AB_DUMP
+// (skips without it); run on two builds and compare offline.
+TEST_CASE("MultibandCrossover output dump (A/B probe)", "[.][multiband-ab-dump]") {
+    const char* path = std::getenv("MULTIBAND_AB_DUMP");
+    if (path == nullptr) {
+        SKIP("MULTIBAND_AB_DUMP not set");
+    }
+    std::vector<float> out;
+    for (const double sr : {48000.0, 192000.0}) {
+        MultibandCrossover<4> xo;
+        setupMultiband(xo, sr, 4, kLogDefaultCrossovers, true);
+        std::vector<float> noise(static_cast<size_t>(sr));
+        generateWhiteNoise(noise.data(), noise.size(), 5);
+        std::array<float, 4> bands{};
+        for (size_t i = 0; i < noise.size(); ++i) {
+            if (i == noise.size() / 2) xo.setCrossoverFrequency(1, 1200.0f);
+            xo.process(noise[i], bands);
+            out.insert(out.end(), bands.begin(), bands.end());
+            out.push_back(xo.processDryCompensation(noise[i]));
+        }
+    }
+    std::ofstream file(path, std::ios::binary);
+    REQUIRE(file.good());
+    file.write(reinterpret_cast<const char*>(out.data()), static_cast<std::streamsize>(out.size() * sizeof(float)));
+    REQUIRE(file.good());
+}
+
+// Hidden diagnostic (crossover dedup step 4): dry - band sum residual during a glide of
+// crossover 1 from 632 Hz to several targets, 48 kHz, 4 bands, white noise.
+TEST_CASE("MultibandCrossover glide residual vs move size (probe)", "[.][xover-glide-probe]") {
+    constexpr double kSr = 48000.0;
+    for (const float target : {650.0f, 700.0f, 800.0f, 1000.0f, 1265.0f, 2000.0f}) {
+        MultibandCrossover<4> xo;
+        setupMultiband(xo, kSr, 4, kLogDefaultCrossovers, true);
+        std::vector<float> noise(24000);
+        generateWhiteNoise(noise.data(), noise.size(), 11);
+        std::array<float, 4> bands{};
+        double errPow = 0.0;
+        double sumPow = 0.0;
+        for (size_t i = 0; i < noise.size(); ++i) {
+            if (i == 12000) xo.setCrossoverFrequency(1, target);
+            xo.process(noise[i], bands);
+            const double sum = static_cast<double>(multibandSum<4>(bands, 4));
+            const double dry = static_cast<double>(xo.processDryCompensation(noise[i]));
+            if (i >= 12000 && i < 14400) {
+                errPow += (dry - sum) * (dry - sum);
+                sumPow += sum * sum;
+            }
+        }
+        std::printf("glide 632 -> %.0f Hz: dry - band sum %.1f dB re band sum (50 ms after the move)\n",
+                    static_cast<double>(target), 10.0 * std::log10(errPow / sumPow + 1e-30));
+    }
+    std::fflush(stdout);
+    SUCCEED();
 }
 
 // Ported from Disrumpo D-023: crossovers and allpasses joining on a band-count increase start
