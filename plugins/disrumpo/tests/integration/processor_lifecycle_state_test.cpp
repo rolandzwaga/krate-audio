@@ -964,8 +964,9 @@ TEST_CASE("Every factory preset restores the slot-derived node params through se
     REQUIRE(presets.size() > size_t{100});
 
     // One live instance loads every preset in turn, as a host's preset menu does.
-    // Streams before v9 carry no shape slots (Init_5_Bands v6, Formant_Shift v8):
-    // they are loaded but have nothing to compare against.
+    // Streams before v9 carry no shape slots (none ship since T3.01 regenerated
+    // Formant_Shift and removed Init_5_Bands): they are loaded but have nothing to
+    // compare against.
     Rig rig(44100.0);
     int wrongPresets = 0;
     int wrongNodes = 0;

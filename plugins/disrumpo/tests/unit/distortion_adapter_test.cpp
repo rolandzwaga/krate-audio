@@ -3519,3 +3519,68 @@ TEST_CASE("Type changes through all 26 types allocate nothing", "[disrumpo][dist
     std::printf("D-032 52 type changes with 512 samples each: %zu allocations\n", allocations);
     REQUIRE(allocations == 0);
 }
+
+#include <krate/dsp/core/random.h>
+#include <krate/dsp/primitives/pink_noise_filter.h>
+
+// D-144 (T3.01): the fold, Chaos and Granular types ran without the DC blocker; with
+// the shape slots of the factory presets that measured |DC| >= 0.01 on pink noise they
+// leave DC on the output (Serge_Bass low band alone: 0.056).
+TEST_CASE("Fold, Chaos and Granular outputs carry no DC", "[disrumpo][dc][D-144]") {
+    struct Case {
+        const char* label;
+        DistortionType type;
+        float drive;
+        double sineHz;  ///< a whole number of cycles in 1 s at 48 kHz
+        std::array<float, MorphNode::kShapeSlotCount> slots;
+    };
+    // Slot values as tools/disrumpo_preset_generator.cpp writes them for those presets
+    const Case cases[] = {
+        {.label = "Serge_Bass low band", .type = DistortionType::SergeFold, .drive = 2.5f, .sineHz = 100.0,
+         .slots = {1.0f / 11.0f, 0.5f, 0.0f, 0.55f, 0.3f, 0.15f, 0.5f, 0.5f, 0.5f, 0.5f}},
+        {.label = "Serge_Madness mid band", .type = DistortionType::SineFold, .drive = 3.5f, .sineHz = 100.0,
+         .slots = {4.0f / 11.0f, 0.7f, 0.6f, 0.55f, 0.05f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}},
+        {.label = "Serge_Madness high band slots with bias 0.1", .type = DistortionType::TriangleFold,
+         .drive = 3.0f, .sineHz = 100.0,
+         .slots = {3.0f / 11.0f, 0.4f, 0.8f, 0.55f, 0.1f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}},
+        {.label = "Chaos_Engine low band node A", .type = DistortionType::Chaos, .drive = 2.5f, .sineHz = 100.0,
+         .slots = {0.0f, 4.99f / 99.99f, 0.7f, 0.6f, 0.6f, 0.5f, 0.0f, 0.5f, 0.5f, 0.5f}},
+        // Granular's DC shows on noise, not on a sine (0.00075 at 25 Hz): 0 Hz = pink noise
+        {.label = "Formant_Pad low band, pink noise", .type = DistortionType::Granular, .drive = 1.0f, .sineHz = 0.0,
+         .slots = {55.0f / 95.0f, 0.3f, 0.1f, 0.1f, 0.4f, 0.6f, 2.0f / 3.0f, 1.0f / 3.0f, 0.0f, 0.5f}},
+    };
+    const auto length = static_cast<std::size_t>(2.0 * kSilenceTestRate);
+    // Pink noise with its 2 s mean removed, peak -6 dBFS; its mean is read over all 2 s
+    std::vector<float> pink(length);
+    {
+        Krate::DSP::Xorshift32 rng(0x7301u);
+        Krate::DSP::PinkNoiseFilter filter;
+        double sum = 0.0;
+        for (auto& v : pink) {
+            v = filter.process(rng.nextFloat());
+            sum += v;
+        }
+        const auto mean = static_cast<float>(sum / static_cast<double>(length));
+        float peak = 0.0f;
+        for (auto& v : pink) {
+            v -= mean;
+            peak = std::max(peak, std::fabs(v));
+        }
+        for (auto& v : pink) v *= 0.5f / peak;
+    }
+    for (const auto& c : cases) {
+        // 2 s of sine at -6 dBFS, the mean read over the last 1 s (whole cycles)
+        const bool noise = c.sineHz <= 0.0;
+        const auto in = noise ? pink : sineAt48k(c.sineHz, 0.5f, length);
+        const std::size_t from = noise ? 0 : length / 2;
+        DistortionParams p;
+        Processor::mapShapeSlotsToParams(c.type, c.slots.data(), p);
+        const auto out = renderAdapterWith(c.type, p, {.drive = c.drive, .mix = 1.0f, .toneHz = 4000.0f}, in);
+        const double dc = adapterMean(out, from);
+        std::printf("D-144 %s (%s, drive %.1f): output mean %.5f, RMS %.2f dBFS\n", c.label, getTypeName(c.type),
+                    static_cast<double>(c.drive), dc, adapterRmsDb(out, from));
+        INFO(c.label << " (" << getTypeName(c.type) << "): output mean " << dc);
+        CHECK(countNonFinite(out) == 0);
+        CHECK(std::fabs(dc) < 1e-3);
+    }
+}

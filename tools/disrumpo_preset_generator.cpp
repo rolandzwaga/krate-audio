@@ -18,6 +18,11 @@
 #include <cmath>
 #include <algorithm>
 #include <array>
+#include <exception>
+#include <iterator>
+#include <utility>
+
+namespace {
 
 // ==============================================================================
 // Binary Writer (matches IBStreamer little-endian format)
@@ -28,12 +33,12 @@ public:
     std::vector<uint8_t> data;
 
     void writeInt32(int32_t val) {
-        auto bytes = reinterpret_cast<const uint8_t*>(&val);
+        const auto* bytes = reinterpret_cast<const uint8_t*>(&val);
         data.insert(data.end(), bytes, bytes + 4);
     }
 
     void writeFloat(float val) {
-        auto bytes = reinterpret_cast<const uint8_t*>(&val);
+        const auto* bytes = reinterpret_cast<const uint8_t*>(&val);
         data.insert(data.end(), bytes, bytes + 4);
     }
 
@@ -46,13 +51,13 @@ public:
 // Constants (must match plugin_ids.h and DSP headers)
 // ==============================================================================
 
-static constexpr int32_t kPresetVersion = 10;
-static constexpr int kMaxBands = 4;
-static constexpr int kMaxMorphNodes = 4;
-static constexpr size_t kMaxMacros = 4;
-static constexpr size_t kMaxModRoutings = 32;
-static constexpr int kShapeSlotCount = 10;
-static constexpr int kDistortionTypeCount = 26;
+constexpr int32_t kPresetVersion = 10;
+constexpr int kMaxBands = 4;
+constexpr int kMaxMorphNodes = 4;
+constexpr size_t kMaxMacros = 4;
+constexpr size_t kMaxModRoutings = 32;
+constexpr int kShapeSlotCount = 10;
+constexpr int kDistortionTypeCount = 26;
 
 // Distortion types (from distortion_types.h)
 enum class DistortionType : uint8_t {
@@ -405,8 +410,8 @@ struct DisrumpoPresetState {
                 w.writeFloat(mn.bitDepth);
 
                 // v9: Shape parameter slots (10 floats)
-                for (int s = 0; s < kShapeSlotCount; ++s) {
-                    w.writeFloat(mn.shapeSlots[s]);
+                for (float slot : mn.shapeSlots) {
+                    w.writeFloat(slot);
                 }
 
                 // v9: Per-type shadow storage (26 types × 10 slots)
@@ -414,8 +419,8 @@ struct DisrumpoPresetState {
                 // gets the current shapeSlots values (so they're preserved on load)
                 int activeType = static_cast<int>(mn.type);
                 for (int t = 0; t < kDistortionTypeCount; ++t) {
-                    for (int s = 0; s < kShapeSlotCount; ++s) {
-                        w.writeFloat(t == activeType ? mn.shapeSlots[s] : 0.5f);
+                    for (float slot : mn.shapeSlots) {
+                        w.writeFloat(t == activeType ? slot : 0.5f);
                     }
                 }
             }
@@ -445,7 +450,7 @@ bool writeVstPreset(const std::filesystem::path& path,
                     const std::vector<uint8_t>& componentState) {
     std::ofstream f(path, std::ios::binary);
     if (!f) {
-        std::cerr << "Failed to create: " << path << std::endl;
+        std::cerr << "Failed to create: " << path << '\n';
         return false;
     }
 
@@ -816,7 +821,7 @@ namespace ModDest {
 }
 
 // ==============================================================================
-// Preset Definitions - 119 total across 11 categories
+// Preset Definitions - 120 total across 11 categories
 // ==============================================================================
 
 std::vector<PresetDef> createAllPresets() {
@@ -2659,7 +2664,7 @@ std::vector<PresetDef> createAllPresets() {
     }
 
     // =========================================================================
-    // EXPERIMENTAL (15 presets) - Creative, unusual
+    // EXPERIMENTAL (16 presets) - Creative, unusual
     // =========================================================================
     { // Spectral Scatter: spectral mids, granular lows, S&H sweep
         PresetDef p; p.name = "Spectral Scatter"; p.category = "Experimental";
@@ -3037,6 +3042,15 @@ std::vector<PresetDef> createAllPresets() {
         p.state.modSources.shSlewNorm = 0.1f;
         p.state.bands[0].pan = -0.2f;
         p.state.bands[2].pan = 0.2f;
+        presets.push_back(p);
+    }
+    { // Formant Shift: a Formant node on every band, the sweep driving morph X
+        // (the recipe of the v8 Experimental/Formant_Shift file the v9 overhaul dropped)
+        PresetDef p; p.name = "Formant Shift"; p.category = "Experimental";
+        p.state = makeInitState(4);
+        for (auto& bm : p.state.bandMorph)
+            setBandType(bm, DistortionType::Formant, 2.5f);
+        enableSweep(p.state, 0.4f, 0.3f, 0.6f, MorphLinkMode::SweepFreq);
         presets.push_back(p);
     }
 
@@ -3680,10 +3694,97 @@ std::vector<PresetDef> createAllPresets() {
 }
 
 // ==============================================================================
+// Output trims (D-144, fix plan T3.01)
+// ==============================================================================
+// Each trim lowers the preset's Output Gain just enough that its peak stays at or
+// below -0.3 dBFS on 2 s of pink noise peaking at -12 dBFS, 44.1 kHz, rounded down
+// to 0.1 dB (plugins/disrumpo/tests/integration/preset/factory_preset_validation_test.cpp,
+// [D-144]). A preset that already peaks below that keeps 0 dB; no trim is positive.
+
+struct OutputTrim {
+    const char* preset;  // "Category/File_Stem"
+    float db;
+};
+
+constexpr OutputTrim kOutputTrims[] = {
+    {.preset = "Bass/Dirty_Sub", .db = -0.4f},
+    {.preset = "Bass/Multi_Band_Bass", .db = -1.0f},
+    {.preset = "Bass/Punchy_Low_End", .db = -1.4f},
+    {.preset = "Bass/Serge_Bass", .db = -5.2f},
+    {.preset = "Bass/Soft_Bass_Drive", .db = -1.8f},
+    {.preset = "Bass/Subharmonic_Growl", .db = -0.7f},
+    {.preset = "Bass/Tape_Warmth", .db = -1.7f},
+    {.preset = "Bass/Warm_Bass", .db = -0.8f},
+    {.preset = "Bass/Wavefold_Bass", .db = -7.1f},
+    {.preset = "Chaos/Attractor_Pan", .db = -2.4f},
+    {.preset = "Chaos/Chaotic_Sweep", .db = -3.6f},
+    {.preset = "Chaos/Coupled_Chaos", .db = -5.6f},
+    {.preset = "Chaos/Lorenz_Drive", .db = -3.3f},
+    {.preset = "Chaos/Rossler_Morph", .db = -3.5f},
+    {.preset = "Chaos/Slow_Chaos", .db = -0.6f},
+    {.preset = "Drums/Kick_Saturate", .db = -3.5f},
+    {.preset = "Drums/Punchy_Clip", .db = -2.7f},
+    {.preset = "Drums/Snare_Crack", .db = -4.0f},
+    {.preset = "Dynamic/Envelope_Morph", .db = -1.2f},
+    {.preset = "Dynamic/Multi_Dynamic", .db = -3.1f},
+    {.preset = "Dynamic/Pitch_Drive", .db = -5.4f},
+    {.preset = "Dynamic/Pitch_Tracker", .db = -6.4f},
+    {.preset = "Dynamic/Sidechain_Pump", .db = -0.1f},
+    {.preset = "Dynamic/Velocity_Response", .db = -0.5f},
+    {.preset = "Experimental/Alien_Voice", .db = -1.5f},
+    {.preset = "Experimental/Chaos_Engine", .db = -0.5f},
+    {.preset = "Experimental/Formant_Shift", .db = -5.2f},
+    {.preset = "Experimental/Formant_Vowels", .db = -6.4f},
+    {.preset = "Experimental/Fractal_Noise", .db = -1.7f},
+    {.preset = "Experimental/Granular_Crush", .db = -2.4f},
+    {.preset = "Experimental/Serge_Madness", .db = -7.3f},
+    {.preset = "Experimental/Spectral_Scatter", .db = -5.8f},
+    {.preset = "Experimental/Stochastic_Burst", .db = -9.0f},
+    {.preset = "Experimental/Temporal_Flux", .db = -1.4f},
+    {.preset = "Leads/Asymmetric_Bite", .db = -2.6f},
+    {.preset = "Leads/Feedback_Scream", .db = -3.3f},
+    {.preset = "Leads/Fractal_Lead", .db = -0.1f},
+    {.preset = "Leads/Fuzz_Face", .db = -4.1f},
+    {.preset = "Leads/Modulated_Edge", .db = -4.3f},
+    {.preset = "Leads/Ring_Mod_Lead", .db = -0.1f},
+    {.preset = "Leads/Screaming_Lead", .db = -4.7f},
+    {.preset = "Leads/Wavefold_Lead", .db = -5.8f},
+    {.preset = "Morph/Digital_Organic", .db = -9.8f},
+    {.preset = "Morph/Feedback_Explorer", .db = -7.2f},
+    {.preset = "Morph/Formant_Shift", .db = -5.1f},
+    {.preset = "Morph/Multi_Band_Morph", .db = -0.7f},
+    {.preset = "Morph/Soft_to_Hard", .db = -2.9f},
+    {.preset = "Morph/Tape_Fold_Morph", .db = -5.2f},
+    {.preset = "Morph/Tube_to_Fuzz", .db = -2.2f},
+    {.preset = "Pads/Allpass_Shimmer", .db = -0.3f},
+    {.preset = "Pads/Formant_Pad", .db = -5.7f},
+    {.preset = "Pads/Granular_Wash", .db = -4.8f},
+    {.preset = "Pads/Slow_Morph_Pad", .db = -2.4f},
+    {.preset = "Pads/Tape_Haze", .db = -2.9f},
+    {.preset = "Sweep/Envelope_Follower", .db = -2.3f},
+    {.preset = "Sweep/Frequency_Hunter", .db = -3.8f},
+    {.preset = "Sweep/Inverse_Link", .db = -1.1f},
+    {.preset = "Sweep/Low_Rumble", .db = -3.2f},
+    {.preset = "Sweep/Resonant_Sweep", .db = -4.6f},
+    {.preset = "Sweep/Sharp_Focus", .db = -2.5f},
+    {.preset = "Sweep/Slow_Scan", .db = -4.9f},
+    {.preset = "Sweep/Step_Scanner", .db = -8.4f},
+    {.preset = "Sweep/Synced_Pulse", .db = -2.1f},
+    {.preset = "Sweep/Triangle_Wobble", .db = -4.6f},
+    {.preset = "Sweep/Wah_Wah_Drive", .db = -1.5f},
+    {.preset = "Sweep/Wide_Sweep", .db = -1.7f},
+};
+
+/// Output Gain dB [-24, +24] -> normalized [0, 1] (the processor's kGainMinDb / kGainRangeDb)
+float outputGainNorm(float db) {
+    return (db + 24.0f) / 48.0f;
+}
+
+// ==============================================================================
 // Main
 // ==============================================================================
 
-int main(int argc, char* argv[]) {
+int run(int argc, char* argv[]) {
     std::filesystem::path outputDir = "plugins/disrumpo/resources/presets";
 
     if (argc > 1) {
@@ -3695,37 +3796,66 @@ int main(int argc, char* argv[]) {
     auto presets = createAllPresets();
     int successCount = 0;
 
-    std::cout << "Generating " << presets.size() << " Disrumpo factory presets..." << std::endl;
+    std::cout << "Generating " << presets.size() << " Disrumpo factory presets..." << '\n';
 
     // Verify expected count
-    if (presets.size() != 119) {
-        std::cerr << "WARNING: Expected 119 presets, got " << presets.size() << std::endl;
+    if (presets.size() != 120) {
+        std::cerr << "WARNING: Expected 120 presets, got " << presets.size() << '\n';
     }
 
+    size_t trimsApplied = 0;
     for (const auto& preset : presets) {
-        auto state = preset.state.serialize();
-
         auto categoryDir = outputDir / preset.category;
         std::filesystem::create_directories(categoryDir);
 
         // Create filename: PresetName.vstpreset
-        std::string filename;
+        std::string stem;
         for (char c : preset.name) {
-            if (c == ' ') filename += '_';
-            else if (std::isalnum(static_cast<unsigned char>(c)) || c == '-') filename += c;
+            if (c == ' ') stem += '_';
+            else if (std::isalnum(static_cast<unsigned char>(c)) || c == '-') stem += c;
         }
-        filename += ".vstpreset";
+        const std::string filename = stem + ".vstpreset";
+
+        DisrumpoPresetState state = preset.state;
+        const std::string key = preset.category + "/" + stem;
+        for (const auto& trim : kOutputTrims) {
+            if (key == trim.preset) {
+                state.outputGain = outputGainNorm(trim.db);
+                ++trimsApplied;
+            }
+        }
+        auto stateBytes = state.serialize();
 
         auto path = categoryDir / filename;
 
-        if (writeVstPreset(path, state)) {
-            std::cout << "  Created: " << preset.category << "/" << filename << std::endl;
+        if (writeVstPreset(path, stateBytes)) {
+            std::cout << "  Created: " << preset.category << "/" << filename << '\n';
             successCount++;
         }
     }
 
-    std::cout << "\nGenerated " << successCount << " of " << presets.size() << " presets." << std::endl;
-    std::cout << "Output directory: " << std::filesystem::absolute(outputDir) << std::endl;
+    std::cout << "\nGenerated " << successCount << " of " << presets.size() << " presets." << '\n';
+    std::cout << "Output directory: " << std::filesystem::absolute(outputDir) << '\n';
 
-    return (successCount == static_cast<int>(presets.size())) ? 0 : 1;
+    if (trimsApplied != std::size(kOutputTrims)) {
+        std::cerr << "ERROR: " << std::size(kOutputTrims) - trimsApplied << " output trims name no preset" << '\n';
+        return 1;
+    }
+    return std::cmp_equal(successCount, presets.size()) ? 0 : 1;
+}
+
+}  // namespace
+
+// Every statement is inside try / catch (...); bugprone-exception-escape still reports the
+// stream writes in the handlers as escaping (as tools/profundum_preset_generator.cpp).
+// NOLINTNEXTLINE(bugprone-exception-escape)
+int main(int argc, char* argv[]) {
+    try {
+        return run(argc, argv);
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: " << e.what() << '\n';
+    } catch (...) {
+        std::cerr << "ERROR: unknown exception" << '\n';
+    }
+    return 1;
 }

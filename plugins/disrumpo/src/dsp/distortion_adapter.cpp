@@ -39,6 +39,14 @@ float foldMakeup(Krate::DSP::WavefolderModel model, float foldAmount) noexcept {
     return 1.0f;
 }
 
+/// The digital / experimental types whose output follows their driven input level, so the
+/// input drive acted as a plain output gain on them (D-144).
+bool normalisesDrive(DistortionType type) noexcept {
+    return type == DistortionType::Aliasing || type == DistortionType::SampleReduce ||
+           type == DistortionType::BitwiseMangler || type == DistortionType::Granular ||
+           type == DistortionType::Chaos || type == DistortionType::Spectral;
+}
+
 }  // namespace
 
 // =============================================================================
@@ -425,6 +433,12 @@ float DistortionAdapter::processWithDry(float input, float dry) noexcept {
     // Process through current type
     wet = processRaw(wet);
 
+    // Drive sets how hard a digital type bites, not its output level: divide by
+    // max(1, drive) (D-144). The branch keeps drive <= 1 bit-identical.
+    if (drive > 1.0f && normalisesDrive(currentType_)) {
+        wet /= drive;
+    }
+
     // Apply DC blocker if needed
     if (needsDCBlock_) {
         wet = dcBlocker_.process(wet);
@@ -801,8 +815,15 @@ void DistortionAdapter::updateDCBlockerState() noexcept {
     // Tube (asymmetric curve + bias), Stochastic (jitter/drift offset around the signal)
     // and Temporal on its Diode / Tube curves (indices 7 and 8) leave DC on the band
     // output (D-075, D-142). Quantize's Offset moves its thresholds asymmetrically (D-010).
+    // The folds (bias / symmetry), Chaos and Granular left up to 0.16 DC on factory
+    // presets (D-144).
     const int temporalCurve = temporalShapeIndex(typeParams_.dynamicCurve);
     needsDCBlock_ = (currentType_ == DistortionType::AsymmetricFuzz ||
+                     currentType_ == DistortionType::SineFold ||
+                     currentType_ == DistortionType::TriangleFold ||
+                     currentType_ == DistortionType::SergeFold ||
+                     currentType_ == DistortionType::Chaos ||
+                     currentType_ == DistortionType::Granular ||
                      currentType_ == DistortionType::FullRectify ||
                      currentType_ == DistortionType::HalfRectify ||
                      currentType_ == DistortionType::FeedbackDist ||

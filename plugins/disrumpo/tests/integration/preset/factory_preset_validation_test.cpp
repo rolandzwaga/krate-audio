@@ -13,6 +13,10 @@
 
 #include "processor/processor.h"
 #include "plugin_ids.h"
+#include "../../test_support/disrumpo_rig.h"
+
+#include <krate/dsp/core/random.h>
+#include <krate/dsp/primitives/pink_noise_filter.h>
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
@@ -27,8 +31,11 @@
 #include <memory>
 #include <cstring>
 #include <chrono>
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <utility>
 
-using Catch::Approx;
 using namespace Disrumpo;
 namespace fs = std::filesystem;
 
@@ -133,6 +140,29 @@ fs::path getPresetsDir() {
     return "plugins/disrumpo/resources/presets"; // Return default even if missing
 }
 
+// Deterministic pink noise (Kellet filter over Xorshift32), mean removed, then
+// scaled so its peak is `peak` (linear). The raw 2 s pink sequence has a sample
+// mean of 1.4 % of its peak, which an amplifying preset would carry into the
+// output DC reading; the DC bar is meant for DC the plugin produces.
+std::vector<float> pinkNoise(size_t n, float peak) {
+    Krate::DSP::Xorshift32 rng(0x7301u);
+    Krate::DSP::PinkNoiseFilter pink;
+    std::vector<float> x(n);
+    double sum = 0.0;
+    for (auto& v : x) {
+        v = pink.process(rng.nextFloat());
+        sum += v;
+    }
+    const auto mean = static_cast<float>(sum / static_cast<double>(n));
+    float p = 0.0f;
+    for (auto& v : x) {
+        v -= mean;
+        p = std::max(p, std::fabs(v));
+    }
+    for (auto& v : x) v *= peak / p;
+    return x;
+}
+
 } // anonymous namespace
 
 TEST_CASE("Factory preset files exist", "[preset][factory][validation]") {
@@ -141,7 +171,7 @@ TEST_CASE("Factory preset files exist", "[preset][factory][validation]") {
 
     REQUIRE_FALSE(presetFiles.empty());
     INFO("Found " << presetFiles.size() << " preset files in " << presetsDir.string());
-    CHECK(presetFiles.size() == 121);
+    CHECK(presetFiles.size() == 120);
 }
 
 TEST_CASE("Factory presets load without error", "[preset][factory][validation]") {
@@ -254,7 +284,7 @@ TEST_CASE("Factory preset category distribution matches spec", "[preset][factory
 
     // Expected categories and counts (FR-027, T173)
     std::map<std::string, int> expectedCounts = {
-        {"Init", 5}, {"Sweep", 15}, {"Morph", 15},
+        {"Init", 4}, {"Sweep", 15}, {"Morph", 15},
         {"Bass", 10}, {"Leads", 10}, {"Pads", 10},
         {"Drums", 10}, {"Experimental", 16}, {"Chaos", 10},
         {"Dynamic", 10}, {"Lo-Fi", 10}
@@ -264,7 +294,7 @@ TEST_CASE("Factory preset category distribution matches spec", "[preset][factory
         auto categoryDir = presetsDir / category;
         auto presets = findPresetFiles(categoryDir);
         INFO("Category: " << category);
-        CHECK(static_cast<int>(presets.size()) == expectedCount);
+        CHECK(std::cmp_equal(presets.size(), expectedCount));
     }
 }
 
@@ -282,7 +312,7 @@ TEST_CASE("Factory preset names are unique within categories", "[preset][factory
             if (preset.is_regular_file() && preset.path().extension() == ".vstpreset") {
                 auto name = preset.path().stem().string();
                 INFO("Category: " << categoryName << ", Preset: " << name);
-                CHECK(names.find(name) == names.end());
+                CHECK(!names.contains(name));
                 names.insert(name);
             }
         }
@@ -335,7 +365,7 @@ TEST_CASE("Factory preset load completes within 50ms", "[preset][factory][perfor
 
         double ms = std::chrono::duration<double, std::milli>(end - start).count();
         totalMs += ms;
-        if (ms > worstMs) worstMs = ms;
+        worstMs = std::max(worstMs, ms);
     }
 
     double avgMs = totalMs / kRuns;
@@ -344,4 +374,54 @@ TEST_CASE("Factory preset load completes within 50ms", "[preset][factory][perfor
          << ", Avg: " << avgMs << " ms"
          << ", Worst: " << worstMs << " ms");
     CHECK(worstMs < 50.0);
+}
+
+// D-144 (T3.01): every factory preset, loaded into a fresh 44.1 kHz instance,
+// renders 2 s of pink noise whose peak is -12 dBFS (the same signal on L and R)
+// to finite audio with peak <= 0 dBFS, |DC| < 0.01 per channel and RMS above
+// -60 dBFS. One line per preset is printed for the level table.
+TEST_CASE("Every factory preset renders finite, bounded, non-silent audio", "[disrumpo][preset][long][D-144]") {
+    using namespace Disrumpo::TestSupport;
+    constexpr double kSampleRate = 44100.0;
+    const auto presetFiles = findPresetFiles(getPresetsDir());
+    REQUIRE_FALSE(presetFiles.empty());
+    const auto noise = pinkNoise(static_cast<size_t>(2.0 * kSampleRate), 0.25118864f);  // -12 dBFS peak
+
+    int failing = 0;
+    for (const auto& presetPath : presetFiles) {
+        const std::string name =
+            presetPath.parent_path().filename().string() + "/" + presetPath.stem().string();
+        INFO("Preset: " << name);
+        const auto comp = readPresetComponentState(presetPath);
+        REQUIRE_FALSE(comp.empty());
+
+        Rig rig(kSampleRate, 512);
+        REQUIRE(setStateBytes(*rig.p, comp));
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(noise, noise, outL, outR, 512);
+
+        size_t nonFinite = 0;
+        for (size_t i = 0; i < outL.size(); ++i) {
+            if (!fin(outL[i])) ++nonFinite;
+            if (!fin(outR[i])) ++nonFinite;
+        }
+        const double peak = std::max(peakOf(outL.data(), outL.size()), peakOf(outR.data(), outR.size()));
+        const double rmsL = rmsOf(outL.data(), outL.size());
+        const double rmsR = rmsOf(outR.data(), outR.size());
+        const double rms = std::sqrt(0.5 * (rmsL * rmsL + rmsR * rmsR));
+        const double dcL = meanOf(outL.data(), outL.size());
+        const double dcR = meanOf(outR.data(), outR.size());
+        const double dc = std::max(std::fabs(dcL), std::fabs(dcR));
+
+        const bool ok = nonFinite == 0 && peak <= 1.0 && dc < 0.01 && rms > 0.001;
+        if (!ok) ++failing;
+        std::printf("D-144 %s peak_dBFS %.2f rms_dBFS %.2f dc %.5f nonfinite %zu %s\n", name.c_str(), toDb(peak),
+                    toDb(rms), dc, nonFinite, ok ? "ok" : "FAIL");
+        CHECK(nonFinite == 0);
+        CHECK(peak <= 1.0);
+        CHECK(dc < 0.01);
+        CHECK(rms > 0.001);
+    }
+    std::printf("D-144 %zu presets, %d failing\n", presetFiles.size(), failing);
 }
