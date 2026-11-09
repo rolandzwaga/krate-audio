@@ -395,11 +395,18 @@ float DistortionAdapter::process(float input) noexcept {
 }
 
 float DistortionAdapter::processWithDry(float input, float dry) noexcept {
-    // Drive Gate: bypass entire distortion path if drive is essentially 0
-    if (commonParams_.drive < 0.0001f) {
-        // Passthrough: the dry image (the input, delayed by a latent type's latency)
+    // Drive Gate: drive exactly 0 is an exact passthrough of the dry image (the
+    // input, delayed by a latent type's latency)
+    if (commonParams_.drive <= 0.0f) {
         return dry;
     }
+
+    // Below kDriveBlendFull the wet path runs at that drive and is blended in by
+    // drive / kDriveBlendFull, so the transfer is continuous from the passthrough
+    // at 0 into the driven curve (D-014: the old hard gate at 1e-4 stepped a
+    // linear-region shaper from unity to -80 dB)
+    const float wetWeight = std::min(commonParams_.drive / kDriveBlendFull, 1.0f);
+    const float drive = std::max(commonParams_.drive, kDriveBlendFull);
 
     // Apply drive scaling
     // Temporal handles drive internally via setBaseDrive() — skip external scaling
@@ -412,7 +419,7 @@ float DistortionAdapter::processWithDry(float input, float dry) noexcept {
         currentType_ == DistortionType::Stochastic) {
         wet = input;
     } else {
-        wet = input * commonParams_.drive;
+        wet = input * drive;
     }
 
     // Process through current type
@@ -430,9 +437,14 @@ float DistortionAdapter::processWithDry(float input, float dry) noexcept {
         wet = applyTone(wet);
     }
 
-    // Mix dry/wet
+    // Mix dry/wet (the drive blend scales the wet share; exactly the old mix at
+    // drive >= kDriveBlendFull, where wetWeight is 1 by the min above)
     const float mix = std::clamp(commonParams_.mix, 0.0f, 1.0f);
-    return dry * (1.0f - mix) + wet * mix;
+    if (wetWeight >= 1.0f) {
+        return dry * (1.0f - mix) + wet * mix;
+    }
+    const float wetMix = mix * wetWeight;
+    return dry * (1.0f - wetMix) + wet * wetMix;
 }
 
 void DistortionAdapter::processBlock(const float* input, float* output, int numSamples) noexcept {

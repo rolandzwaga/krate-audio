@@ -682,7 +682,7 @@ private:
         } else {
             // Legacy single distortion path (drive/mix modulation and sweep drive
             // already applied by beginBlockModulation() at block rate)
-            if (distortionL_.getCommonParams().drive >= 0.0001f) {
+            if (distortionL_.getCommonParams().drive > 0.0f) {
                 left = distortionL_.process(left);
                 right = distortionR_.process(right);
             }
@@ -897,20 +897,19 @@ private:
     }
 
     /// @brief True when the shaper is not an exact passthrough: legacy adapter drive
-    /// above the gate, or (morph path) any active node's drive above the gate or a
-    /// positive drive modulation offset. DistortionAdapter returns its input
-    /// unchanged below the gate, so such a band skips the oversampler.
+    /// above 0, or (morph path) any active node's drive above 0 or a positive drive
+    /// modulation offset. DistortionAdapter returns its input unchanged only at
+    /// drive 0 (D-014), so only such a band skips the oversampler.
     [[nodiscard]] bool isDistortionDriven() const noexcept {
-        constexpr float kDriveGate = 0.0001f;
         if (!(morphEnabled_ && morphEngineL_)) {
-            return distortionL_.getCommonParams().drive >= kDriveGate;
+            return distortionL_.getCommonParams().drive > 0.0f;
         }
         if (driveModOffset_ > 0.0f) {
             return true;
         }
         const int count = std::clamp(morphActiveNodeCount_, 0, kMaxMorphNodes);
         for (int i = 0; i < count; ++i) {
-            if (morphNodes_[static_cast<size_t>(i)].commonParams.drive >= kDriveGate) {
+            if (morphNodes_[static_cast<size_t>(i)].commonParams.drive > 0.0f) {
                 return true;
             }
         }

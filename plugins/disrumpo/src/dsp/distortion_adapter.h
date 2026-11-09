@@ -236,8 +236,10 @@ struct DistortionParams {
 /// [Tone Filter] -> [Mix Blend] -> Output
 ///
 /// @par Drive Gate
-/// When drive == 0.0, the entire distortion path is bypassed and the input
-/// is returned directly to the mix stage (passthrough).
+/// When drive == 0.0, the entire distortion path is bypassed and the dry
+/// image is returned unchanged (passthrough). For 0 < drive < kDriveBlendFull
+/// the wet path runs at kDriveBlendFull and its mix share is scaled by
+/// drive / kDriveBlendFull, so the output is continuous across drive 0 (D-014).
 ///
 /// @par Latency
 /// Spectral (D23) delays its output by its FFT size - 1; its dry image is delayed
@@ -359,6 +361,10 @@ public:
 
     /// Largest latency an adapter can have or be aligned to: Spectral at the largest FFT size.
     static constexpr int kMaxLatencySamples = static_cast<int>(kSpectralMaxFftSize) - 1;
+
+    /// Drive below which the wet path is blended in by drive / kDriveBlendFull
+    /// (D-014); at and above it the drive gate is fully open.
+    static constexpr float kDriveBlendFull = 0.01f;
 
 private:
     // =========================================================================

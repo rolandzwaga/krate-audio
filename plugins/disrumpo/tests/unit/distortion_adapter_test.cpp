@@ -13,6 +13,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include "dsp/band_processor.h"
 #include "dsp/distortion_adapter.h"
 #include "dsp/distortion_types.h"
 #include "dsp/morph_engine.h"
@@ -21,8 +22,11 @@
 #include <algorithm>
 #include <cmath>
 #include <array>
+#include <cstdio>
+#include <memory>
 #include <numbers>
 #include <set>
+#include <vector>
 
 using namespace Disrumpo;
 using Catch::Approx;
@@ -1505,6 +1509,109 @@ TEST_CASE("UT-DI-009: Drive=0 returns input unmodified (passthrough)", "[distort
     }
 }
 
+// D-014 (fix plan T2.18): drive 0 was a raw passthrough and drive 1e-4 already
+// the full wet path (SoftClip's linear region: wet = 1e-4 * input, -80 dB at
+// mix 1), so crossing the 1e-4 gate stepped the band level by ~80 dB.
+TEST_CASE("Drive 0 -> 1e-4 -> 1e-3 produces bounded level steps", "[distortion][common][D-014]") {
+    constexpr size_t kSegment = 4410;  // 100 ms per drive value
+    const std::array<float, 5> drives{0.0f, 1e-4f, 1e-3f, 1e-2f, 0.1f};
+
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+    adapter.setType(DistortionType::SoftClip);
+    DistortionCommonParams params;
+    params.mix = 1.0f;
+    params.toneHz = 8000.0f;
+    params.drive = drives[0];
+    adapter.setCommonParams(params);
+    adapter.reset();
+
+    std::vector<float> in(kSegment * drives.size());
+    std::vector<float> out(in.size());
+    for (size_t i = 0; i < in.size(); ++i) {
+        in[i] = static_cast<float>(0.1 * std::sin(2.0 * std::numbers::pi * 1000.0 * static_cast<double>(i) /
+                                                 kTestSampleRate));  // 1 kHz, -20 dBFS
+    }
+    std::array<double, 5> levelDb{};
+    bool drive0BitExact = true;
+    for (size_t d = 0; d < drives.size(); ++d) {
+        params.drive = drives[d];
+        adapter.setCommonParams(params);
+        for (size_t i = d * kSegment; i < (d + 1) * kSegment; ++i) {
+            out[i] = adapter.process(in[i]);
+            if (d == 0 && out[i] != in[i]) drive0BitExact = false;
+        }
+        double sum = 0.0;
+        for (size_t i = d * kSegment + kSegment / 2; i < (d + 1) * kSegment; ++i) {
+            sum += static_cast<double>(out[i]) * static_cast<double>(out[i]);
+        }
+        levelDb[d] = 10.0 * std::log10(std::max(sum / (static_cast<double>(kSegment) / 2.0), 1e-30));
+    }
+    double maxJump = 0.0;
+    for (size_t i = 1; i < out.size(); ++i) {
+        maxJump = std::max(maxJump, std::abs(static_cast<double>(out[i]) - static_cast<double>(out[i - 1])));
+    }
+    std::printf("D-014 SoftClip mix 1, 1 kHz -20 dBFS: level dBFS at drive 0 / 1e-4 / 1e-3 / 1e-2 / 0.1 = "
+                "%.2f / %.2f / %.2f / %.2f / %.2f; steps %.2f / %.2f / %.2f / %.2f dB; max sample jump %.4f; "
+                "drive 0 bit-exact passthrough: %s\n",
+                levelDb[0], levelDb[1], levelDb[2], levelDb[3], levelDb[4], levelDb[1] - levelDb[0],
+                levelDb[2] - levelDb[1], levelDb[3] - levelDb[2], levelDb[4] - levelDb[3], maxJump,
+                drive0BitExact ? "yes" : "no");
+
+    CHECK(drive0BitExact);
+    CHECK(std::abs(levelDb[1] - levelDb[0]) < 3.0);
+    CHECK(std::abs(levelDb[2] - levelDb[1]) < 3.0);
+    REQUIRE(maxJump <= 0.1);
+}
+
+// D-014 / follow-up 42: the band's factor-1 shortcut fires only at drive == 0;
+// any drive above 0 runs at the band's oversampling factor.
+TEST_CASE("Band oversampling shortcut fires only at drive 0", "[distortion][oversampling][D-014]") {
+    auto band = std::make_unique<Disrumpo::BandProcessor>();
+    band->prepare(kTestSampleRate, kTestBlockSize);
+    band->setMorphEnabled(false);
+    band->setDistortionType(DistortionType::SoftClip);
+    std::array<float, kTestBlockSize> l{};
+    std::array<float, kTestBlockSize> r{};
+    const std::array<float, 5> drives{0.0f, 1e-5f, 1e-4f, 1e-3f, 1.0f};
+    std::array<int, 5> latency{};
+    std::array<double, 5> firstBlockJump{};  // largest sample step in the block after the change
+    size_t n = 0;
+    float prev = 0.0f;
+    for (size_t d = 0; d < drives.size(); ++d) {
+        DistortionCommonParams params;
+        params.drive = drives[d];
+        params.mix = 1.0f;
+        band->setDistortionCommonParams(params);
+        for (int b = 0; b < 8; ++b) {  // past any factor-switch dip
+            for (size_t i = 0; i < l.size(); ++i, ++n) {  // 1 kHz, -20 dBFS
+                l[i] = static_cast<float>(0.1 * std::sin(2.0 * std::numbers::pi * 1000.0 *
+                                                         static_cast<double>(n) / kTestSampleRate));
+            }
+            r = l;
+            band->processBlock(l.data(), r.data(), l.size());
+            if (b == 0) {
+                for (const float v : l) {
+                    firstBlockJump[d] = std::max(firstBlockJump[d], static_cast<double>(std::abs(v - prev)));
+                    prev = v;
+                }
+            }
+            prev = l.back();
+        }
+        latency[d] = band->getLatency();
+    }
+    std::printf("D-014 band latency (0 = 1x shortcut) at drive 0 / 1e-5 / 1e-4 / 1e-3 / 1 = %d / %d / %d / %d / %d "
+                "(selected factor %d); largest sample step in the block after each change %.4f / %.4f / %.4f / "
+                "%.4f / %.4f (steady 1 kHz -20 dBFS: 0.0142)\n",
+                latency[0], latency[1], latency[2], latency[3], latency[4], band->getOversampleFactor(),
+                firstBlockJump[0], firstBlockJump[1], firstBlockJump[2], firstBlockJump[3], firstBlockJump[4]);
+    REQUIRE(latency[4] > 0);  // anti-vacuity: drive 1 runs oversampled
+    CHECK(latency[0] == 0);
+    CHECK(latency[1] == latency[4]);
+    CHECK(latency[2] == latency[4]);
+    CHECK(latency[3] == latency[4]);
+}
+
 TEST_CASE("UT-DI-Tone: Tone filter affects high frequencies", "[distortion][common]") {
     DistortionAdapter adapter;
     adapter.prepare(kTestSampleRate, kTestBlockSize);
@@ -1554,10 +1661,7 @@ TEST_CASE("UT-DI-Tone: Tone filter affects high frequencies", "[distortion][comm
 // Integration Tests: IT-DI-001, IT-DI-002, IT-DI-003
 // =============================================================================
 
-#include "dsp/band_processor.h"
 #include "dsp/crossover_network.h"
-#include <memory>
-#include <vector>
 #include <chrono>
 
 TEST_CASE("IT-DI-001: Audio flows through 4-band chain with distortion", "[distortion][integration]") {
@@ -2842,7 +2946,6 @@ TEST_CASE("DistortionAdapter::setProcessingRate re-run under AllocationScope all
 #include <krate/dsp/core/db_utils.h>
 
 #include <cstddef>
-#include <cstdio>
 
 namespace {
 
