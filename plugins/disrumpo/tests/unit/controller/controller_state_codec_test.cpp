@@ -333,6 +333,75 @@ TEST_CASE("Controller getState/setState round-trips the MIDI CC blob", "[disrump
     c.terminate();
 }
 
+// T4.01 (D-088, D-091): every modulation, routing and sweep parameter, plus the
+// band Morph Smoothing, set through processParameterChanges, saved by getState
+// and read back by the controller lands on the normalized value it was set to
+// (list parameters on the index the processor rounds to). A range copy in the
+// decode that drifts from the one in the state codec breaks this.
+// Left out: the custom-curve parameters (the processor does not apply them
+// live, follow-up 19) and Sweep MIDI Learn / MIDI CC (controller-only, not in
+// the processor state). LFO phase is circular: 360 deg is saved as 0 deg.
+TEST_CASE("Mod and sweep params round-trip processParameterChanges -> getState -> controller",
+          "[disrumpo][state][D-088][D-091]") {
+    Controller ref;
+    REQUIRE(ref.initialize(nullptr) == Steinberg::kResultOk);
+    std::vector<Steinberg::Vst::ParameterInfo> infos;
+    for (Steinberg::int32 i = 0; i < ref.getParameterCount(); ++i) {
+        Steinberg::Vst::ParameterInfo info{};
+        REQUIRE(ref.getParameterInfo(i, info) == Steinberg::kResultTrue);
+        const auto id = info.id;
+        const bool smoothing = id == makeBandParamId(0, BandParamType::kBandMorphSmoothing) ||
+                               id == makeBandParamId(1, BandParamType::kBandMorphSmoothing) ||
+                               id == makeBandParamId(2, BandParamType::kBandMorphSmoothing) ||
+                               id == makeBandParamId(3, BandParamType::kBandMorphSmoothing);
+        const bool curveParam = id >= makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount) &&
+                                id <= makeSweepParamId(SweepParamType::kSweepCustomCurveP7Y);
+        const bool controllerOnly = id == makeSweepParamId(SweepParamType::kSweepMidiLearnActive) ||
+                                    id == makeSweepParamId(SweepParamType::kSweepMidiCCNumber);
+        if ((isModulationParamId(id) || isSweepParamId(id) || smoothing) && !curveParam && !controllerOnly)
+            infos.push_back(info);
+    }
+    ref.terminate();
+    REQUIRE(infos.size() > size_t{60});
+
+    int checked = 0;
+    int mismatches = 0;
+    for (const double v : {0.0, 0.5, 1.0}) {
+        Rig rig(48000.0);
+        PList changes;
+        for (const auto& info : infos) changes.emplace_back(info.id, v);
+        rig.apply(changes);
+        const auto session = getStateBytes(*rig.p);
+
+        Controller c;
+        REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+        auto* s = streamOf(session);
+        REQUIRE(c.setComponentState(s) == Steinberg::kResultOk);
+        s->release();
+
+        for (const auto& info : infos) {
+            const double want = info.stepCount > 0
+                ? static_cast<double>(std::lround(v * info.stepCount)) / static_cast<double>(info.stepCount)
+                : v;
+            const double got = c.getParamNormalized(info.id);
+            const bool phase = info.id == makeModParamId(ModParamType::kLFO1Phase) ||
+                               info.id == makeModParamId(ModParamType::kLFO2Phase);
+            const double err = phase ? std::fabs(std::remainder(got - want, 1.0)) : std::fabs(got - want);
+            ++checked;
+            if (err >= 1e-5) {
+                ++mismatches;
+                std::string title;
+                for (int k = 0; k < 128 && info.title[k] != 0; ++k) title.push_back(static_cast<char>(info.title[k]));
+                std::printf("T4.01 0x%04X %s at %.1f: controller reads %.6f, want %.6f\n",
+                            static_cast<unsigned>(info.id), title.c_str(), v, got, want);
+            }
+        }
+        c.terminate();
+    }
+    std::printf("T4.01 round trip: %d of %d (param, norm) pairs off by >= 1e-5\n", mismatches, checked);
+    CHECK(mismatches == 0);
+}
+
 // Diagnostic for follow-up 15 (not a gate): save -> load -> save byte equality on
 // a fresh processor and three factory presets. Prints the differing offsets.
 TEST_CASE("Probe: whole-stream save-load-save byte equality", "[.][t117-ulp-probe]") {

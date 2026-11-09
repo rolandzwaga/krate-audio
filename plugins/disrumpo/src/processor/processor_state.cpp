@@ -1079,9 +1079,9 @@ void Processor::applyPendingState() noexcept {
         sweepProcessor_.setCenterFrequency(s.sweepFrequencyHz);
         // process() re-applies width/intensity from the base atomics every block.
         baseSweepWidthNorm_.store(s.sweepWidthNorm, std::memory_order_relaxed);
-        sweepProcessor_.setWidth(0.5f + s.sweepWidthNorm * 3.5f);
+        sweepProcessor_.setWidth(kSweepWidthOctRange.toPlain(s.sweepWidthNorm));
         baseSweepIntensityNorm_.store(s.sweepIntensityNorm, std::memory_order_relaxed);
-        sweepProcessor_.setIntensity(s.sweepIntensityNorm * 2.0f);
+        sweepProcessor_.setIntensity(kSweepIntensityRange.toPlain(s.sweepIntensityNorm));
         sweepProcessor_.setFalloffMode(s.sweepFalloff);
         sweepProcessor_.setMorphLinkMode(s.sweepMorphLink);
 

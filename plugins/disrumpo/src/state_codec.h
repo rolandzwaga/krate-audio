@@ -158,5 +158,6 @@ inline constexpr LinearRange kPitchFollowerTrackingMsRange{.min = 10.0f, .span =
 inline constexpr LinearRange kTransientAttackMsRange{.min = 0.5f, .span = 9.5f};
 inline constexpr LinearRange kTransientDecayMsRange{.min = 20.0f, .span = 180.0f};
 inline constexpr LinearRange kRunglerRateHzRange{.min = 0.1f, .span = 49.9f};
+inline constexpr LinearRange kMorphSmoothingMsRange{.min = 0.0f, .span = 500.0f};  ///< band Morph Smoothing
 
 }  // namespace Disrumpo

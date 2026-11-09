@@ -537,8 +537,11 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
                     setter(makeBandParamId(band, BandParamType::kBandMorphMode), listIndexToNorm(morphMode, kMorphModeCount));
                 if (readActiveNodes)
                     setter(makeBandParamId(band, BandParamType::kBandActiveNodes), listIndexToNorm(activeNodes - 1, kMaxMorphNodes));
+                // kMorphSmoothingMsRange.toNorm in double precision (the range starts at 0 ms)
+                static_assert(kMorphSmoothingMsRange.min == 0.0f);
                 if (readMorphSmoothing)
-                    setter(makeBandParamId(band, BandParamType::kBandMorphSmoothing), static_cast<double>(morphSmoothing) / 500.0);
+                    setter(makeBandParamId(band, BandParamType::kBandMorphSmoothing),
+                           static_cast<double>(morphSmoothing) / static_cast<double>(kMorphSmoothingMsRange.span));
             }
 
             for (int n = 0; n < kMaxMorphNodes; ++n) {
@@ -1796,7 +1799,7 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
         streamer.writeInt8(static_cast<Steinberg::int8>(
             getInt8FromList(makeBandParamId(band, BandParamType::kBandActiveNodes), kMaxMorphNodes) + 1));
         float smoothingNorm = getParamNorm(makeBandParamId(band, BandParamType::kBandMorphSmoothing));
-        streamer.writeFloat(smoothingNorm * 500.0f);
+        streamer.writeFloat(kMorphSmoothingMsRange.toPlain(smoothingNorm));
         streamer.writeInt8(getInt8FromList(makeBandParamId(band, BandParamType::kBandMorphXLink), kMorphLinkModeCount));
         streamer.writeInt8(getInt8FromList(makeBandParamId(band, BandParamType::kBandMorphYLink), kMorphLinkModeCount));
 

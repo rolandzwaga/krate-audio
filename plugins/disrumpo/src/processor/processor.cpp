@@ -4,6 +4,7 @@
 
 #include "processor.h"
 #include "plugin_ids.h"
+#include "state_codec.h"
 
 #include "dsp/sweep_morph_link.h"
 
@@ -385,16 +386,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         const float baseWidthNorm = baseSweepWidthNorm_.load(std::memory_order_relaxed);
         const float modWidthNorm = modulationEngine_.getModulatedValue(
             ModDest::kSweepWidth, baseWidthNorm);
-        constexpr float kMinWidth = 0.5f;
-        constexpr float kMaxWidth = 4.0f;
-        sweepProcessor_.setWidth(kMinWidth + modWidthNorm * (kMaxWidth - kMinWidth));
+        sweepProcessor_.setWidth(kSweepWidthOctRange.toPlain(modWidthNorm));
     }
 
     {
         const float baseIntNorm = baseSweepIntensityNorm_.load(std::memory_order_relaxed);
         const float modIntNorm = modulationEngine_.getModulatedValue(
             ModDest::kSweepIntensity, baseIntNorm);
-        sweepProcessor_.setIntensity(modIntNorm * 2.0f);
+        sweepProcessor_.setIntensity(kSweepIntensityRange.toPlain(modIntNorm));
     }
 
     // --- Per-band parameters (gain, pan, morphX/Y, drive/mix) ---

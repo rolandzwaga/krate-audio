@@ -566,16 +566,13 @@ void PLUGIN_API SweepVisualizationController::update(
     }
 
     if (sweepWidthParam_) {
-        constexpr float kMinWidth = 0.5f;
-        constexpr float kMaxWidth = 4.0f;
         float widthNorm = static_cast<float>(sweepWidthParam_->getNormalized());
-        float widthOct = kMinWidth + widthNorm * (kMaxWidth - kMinWidth);
-        indicator->setWidth(widthOct);
+        indicator->setWidth(kSweepWidthOctRange.toPlain(widthNorm));
     }
 
     if (sweepIntensityParam_) {
         float intensityNorm = static_cast<float>(sweepIntensityParam_->getNormalized());
-        indicator->setIntensity(intensityNorm * 2.0f);
+        indicator->setIntensity(kSweepIntensityRange.toPlain(intensityNorm));
     }
 
     if (sweepFalloffParam_) {
@@ -605,13 +602,11 @@ void SweepVisualizationController::updateSpectrumBandIntensities() {
     float normFreq = static_cast<float>(modFreqParam_->getNormalized());
     float sweepCenterHz = denormalizeSweepFrequency(normFreq);
 
-    constexpr float kMinWidth = 0.5f;
-    constexpr float kMaxWidth = 4.0f;
     float widthNorm = static_cast<float>(sweepWidthParam_->getNormalized());
-    float widthOctaves = kMinWidth + widthNorm * (kMaxWidth - kMinWidth);
+    float widthOctaves = kSweepWidthOctRange.toPlain(widthNorm);
 
     float intensityNorm = static_cast<float>(sweepIntensityParam_->getNormalized());
-    float intensity = intensityNorm * 2.0f;
+    float intensity = kSweepIntensityRange.toPlain(intensityNorm);
 
     bool smoothFalloff = (sweepFalloffParam_ != nullptr) && sweepFalloffParam_->getNormalized() >= 0.5;
 

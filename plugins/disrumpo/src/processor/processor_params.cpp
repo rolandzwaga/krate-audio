@@ -429,7 +429,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                         case SweepParamType::kSweepLFOWaveform: {
                             // Convert normalized [0,1] to waveform index [0,5]
-                            const int waveformIndex = static_cast<int>(value * 5.0f + 0.5f);
+                            const int waveformIndex = normToListIndex(value, kLfoShapeCount);
                             sweepLFO_.setWaveform(static_cast<Krate::DSP::Waveform>(waveformIndex));
                             break;
                         }
@@ -446,7 +446,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         case SweepParamType::kSweepLFONoteValue: {
                             // Convert normalized [0,1] to note value index [0,15]
                             // Standard note values: Whole, Half, Quarter, Eighth, Sixteenth (x3 for normal, dotted, triplet)
-                            const int noteIndex = static_cast<int>(value * (kNoteValueCount - 1) + 0.5f);
+                            const int noteIndex = normToListIndex(value, kNoteValueCount);
                             const auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIndex);
                             sweepLFO_.setNoteValue(mapping.note, mapping.modifier);
                             break;
@@ -528,7 +528,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             switch (routOff) {
                                 case 0:  // Source
                                     routing.source = static_cast<Krate::DSP::ModSource>(
-                                        static_cast<int>(value * (kUIModSourceCount - 1) + 0.5));
+                                        normToListIndex(value, kUIModSourceCount));
                                     routing.active = (routing.source != Krate::DSP::ModSource::None);
                                     break;
                                 case 1:  // Destination
@@ -555,7 +555,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setLFO1Rate(lfoRateNormToHz(static_cast<float>(value)));
                                 break;
                             case ModParamType::kLFO1Shape: {
-                                int idx = static_cast<int>(value * 5.0f + 0.5f);
+                                int idx = normToListIndex(value, kLfoShapeCount);
                                 modulationEngine_.setLFO1Waveform(static_cast<Krate::DSP::Waveform>(idx));
                                 break;
                             }
@@ -566,7 +566,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setLFO1TempoSync(value >= 0.5);
                                 break;
                             case ModParamType::kLFO1NoteValue: {
-                                const int idx = static_cast<int>(value * (kNoteValueCount - 1) + 0.5f);
+                                const int idx = normToListIndex(value, kNoteValueCount);
                                 const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
                                 modulationEngine_.setLFO1NoteValue(mapping.note, mapping.modifier);
                                 break;
@@ -583,7 +583,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setLFO2Rate(lfoRateNormToHz(static_cast<float>(value)));
                                 break;
                             case ModParamType::kLFO2Shape: {
-                                int idx = static_cast<int>(value * 5.0f + 0.5f);
+                                int idx = normToListIndex(value, kLfoShapeCount);
                                 modulationEngine_.setLFO2Waveform(static_cast<Krate::DSP::Waveform>(idx));
                                 break;
                             }
@@ -594,7 +594,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setLFO2TempoSync(value >= 0.5);
                                 break;
                             case ModParamType::kLFO2NoteValue: {
-                                const int idx = static_cast<int>(value * (kNoteValueCount - 1) + 0.5f);
+                                const int idx = normToListIndex(value, kNoteValueCount);
                                 const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
                                 modulationEngine_.setLFO2NoteValue(mapping.note, mapping.modifier);
                                 break;
@@ -621,7 +621,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setEnvFollowerSensitivity(static_cast<float>(value));
                                 break;
                             case ModParamType::kEnvFollowerSource: {
-                                int idx = static_cast<int>(value * 4.0f + 0.5f);
+                                int idx = normToListIndex(value, kEnvFollowerSourceCount);
                                 modulationEngine_.setEnvFollowerSource(
                                     static_cast<Krate::DSP::EnvFollowerSourceType>(idx));
                                 break;
@@ -642,7 +642,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                             // Chaos
                             case ModParamType::kChaosModel: {
-                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                int idx = normToListIndex(value, kChaosModelCount);
                                 modulationEngine_.setChaosModel(
                                     static_cast<Krate::DSP::ChaosModel>(idx));
                                 break;
@@ -658,7 +658,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                             // Sample & Hold
                             case ModParamType::kSampleHoldSource: {
-                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                int idx = normToListIndex(value, kSampleHoldSourceCount);
                                 modulationEngine_.setSampleHoldSource(
                                     static_cast<Krate::DSP::SampleHoldInputType>(idx));
                                 break;
@@ -720,7 +720,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setRunglerDepth(static_cast<float>(value));
                                 break;
                             case ModParamType::kRunglerBits: {
-                                size_t bits = 4 + static_cast<size_t>(value * 12.0 + 0.5);
+                                const size_t bits = 4 + static_cast<size_t>(normToListIndex(value, kRunglerBitsCount));
                                 modulationEngine_.setRunglerBits(bits);
                                 break;
                             }
@@ -916,7 +916,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             }
                             case BandParamType::kBandActiveNodes: {
                                 // StringListParameter: 4 entries ["1","2","3","4"]
-                                int idx = static_cast<int>(value * 3.0 + 0.5);
+                                int idx = normToListIndex(value, kMaxMorphNodes);
                                 int count = std::clamp(idx + 1, kMinActiveNodes, kMaxMorphNodes);
                                 bandMorphCache_[band].activeNodeCount = count;
                                 bandProcessors_[band].setMorphNodes(
@@ -925,14 +925,14 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             }
                             case BandParamType::kBandMorphSmoothing: {
                                 // RangeParameter [0, 500] ms
-                                float timeMs = static_cast<float>(value) * 500.0f;
+                                float timeMs = kMorphSmoothingMsRange.toPlain(static_cast<float>(value));
                                 bandMorphCache_[band].morphSmoothingMs = timeMs;
                                 bandProcessors_[band].setMorphSmoothingTime(timeMs);
                                 break;
                             }
                             case BandParamType::kBandMorphMode: {
                                 // StringListParameter: 3 entries
-                                int idx = static_cast<int>(value * 2.0 + 0.5);
+                                int idx = normToListIndex(value, kMorphModeCount);
                                 const auto mode = static_cast<MorphMode>(std::clamp(idx, 0, 2));
                                 bandMorphCache_[band].morphMode = mode;
                                 bandProcessors_[band].setMorphMode(mode);
