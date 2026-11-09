@@ -229,6 +229,13 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     adapter's 10 Hz blocker, which T3.01 extended to SineFold/TriangleFold/SergeFold/Chaos/Granular — kept by my
     ruling: a distortion stage should not emit DC). Root cause not investigated.
 
+62. **Vendored-code warnings in a full Release build** (T3.04 `9d436a46` measured; first-party code is at 0): 4 × C4244
+    in pffft `pf_cic.cpp`, 2 × C4267 in vstgui `ctexteditor.cpp`, 1 × C4388 in vstgui `cshadowviewcontainer.cpp`.
+    Decide: patch the SDK/pffft, or mark their includes SYSTEM the way T3.04 did for Highway.
+63. **`disrumpo_uidesc_inventory` ctest does not gate in CI** (T3.03 `67c5d787`): CI does not run ctest. Add a lint
+    step to `ci.yml` (needs `fast-xml-parser` installed) to make the uidesc check (with the 19-entry allow list
+    `plugins/disrumpo/tests/uidesc_overlaps_allowed.json`) gate pushes.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
