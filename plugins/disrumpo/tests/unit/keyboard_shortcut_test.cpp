@@ -180,6 +180,9 @@ TEST_CASE("Keyboard hook stands down while a preset overlay is open",
 
 TEST_CASE("Band Count drives the keyboard handler's Tab cycle",
           "[disrumpo][keyboard][D-068]") {
+    // sendKey builds a VSTGUI::KeyboardEvent, whose constructor reads the
+    // platform factory: without this the case crashes when it runs first
+    const VstguiReady vstgui;
     Steinberg::Vst::ParameterInfo info{};
     info.id = makeGlobalParamId(GlobalParamType::kGlobalBandCount);
     info.stepCount = 3;
