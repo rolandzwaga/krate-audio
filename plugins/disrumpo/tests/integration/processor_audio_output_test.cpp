@@ -85,7 +85,7 @@ using SimpleParameterChanges = Krate::Test::ParameterChanges;
 struct ProcessorFixture {
     std::unique_ptr<Disrumpo::Processor> processor;
 
-    ProcessorFixture() {
+    explicit ProcessorFixture(double sampleRate = kSampleRate) {
         processor = std::make_unique<Disrumpo::Processor>();
         auto result = processor->initialize(nullptr);
         REQUIRE(result == Steinberg::kResultTrue);
@@ -93,7 +93,7 @@ struct ProcessorFixture {
         Steinberg::Vst::ProcessSetup setup{};
         setup.processMode = Steinberg::Vst::kRealtime;
         setup.symbolicSampleSize = Steinberg::Vst::kSample32;
-        setup.sampleRate = kSampleRate;
+        setup.sampleRate = sampleRate;
         setup.maxSamplesPerBlock = kBlockSize;
 
         result = processor->setupProcessing(setup);
@@ -152,7 +152,13 @@ struct ProcessorFixture {
 // =============================================================================
 
 TEST_CASE("Processor produces audio output with default parameters", "[integration][processor][audio]") {
-    ProcessorFixture fixture;
+    // D-129 (T5.08): at the common host rates and at 192 kHz, where the adapters run
+    // up to 4x (768 kHz); every output sample finite.
+    double sampleRate = kSampleRate;
+    SECTION("44.1 kHz") { sampleRate = 44100.0; }
+    SECTION("96 kHz") { sampleRate = 96000.0; }
+    SECTION("192 kHz") { sampleRate = 192000.0; }
+    ProcessorFixture fixture(sampleRate);
 
     std::array<float, kBlockSize> inputL{};
     std::array<float, kBlockSize> inputR{};
@@ -161,12 +167,13 @@ TEST_CASE("Processor produces audio output with default parameters", "[integrati
 
     float lastOutputRmsL = 0.0f;
     float lastOutputRmsR = 0.0f;
+    int nonFinite = 0;
 
     // Process multiple blocks to let filters settle
     for (Steinberg::int32 block = 0; block < kNumBlocks; ++block) {
         // Generate 1kHz sine on both channels
-        generateSine(inputL.data(), kBlockSize, 1000.0f, kSampleRate, block * kBlockSize);
-        generateSine(inputR.data(), kBlockSize, 1000.0f, kSampleRate, block * kBlockSize);
+        generateSine(inputL.data(), kBlockSize, 1000.0f, sampleRate, block * kBlockSize);
+        generateSine(inputR.data(), kBlockSize, 1000.0f, sampleRate, block * kBlockSize);
 
         // Clear output
         std::memset(outputL.data(), 0, sizeof(float) * kBlockSize);
@@ -174,14 +181,21 @@ TEST_CASE("Processor produces audio output with default parameters", "[integrati
 
         fixture.processBlock(inputL.data(), inputR.data(), outputL.data(), outputR.data());
 
+        for (Steinberg::int32 i = 0; i < kBlockSize; ++i)
+            if (!Krate::DSP::detail::isFinite(outputL[static_cast<size_t>(i)]) ||
+                !Krate::DSP::detail::isFinite(outputR[static_cast<size_t>(i)]))
+                ++nonFinite;
         lastOutputRmsL = calculateRMS(outputL.data(), kBlockSize);
         lastOutputRmsR = calculateRMS(outputR.data(), kBlockSize);
     }
 
+    std::printf("D-129 default patch at %.0f Hz: last block RMS L %.4f R %.4f, %d non-finite samples\n", sampleRate,
+                static_cast<double>(lastOutputRmsL), static_cast<double>(lastOutputRmsR), nonFinite);
     INFO("Final block output L RMS: " << lastOutputRmsL);
     INFO("Final block output R RMS: " << lastOutputRmsR);
 
     // After settling, output MUST be non-zero
+    CHECK(nonFinite == 0);
     REQUIRE(lastOutputRmsL > 0.01f);
     REQUIRE(lastOutputRmsR > 0.01f);
 }

@@ -302,6 +302,16 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     context): `plugins/innexus/tests/integration/test_data_exchange_pipeline.cpp:213, :234`. Disrumpo's case now
     asserts delivery under `#ifdef _WIN32` and the Tier-3 FIFOs everywhere; Innexus would need the same split
     (outside this audit's plugin).
+78. **The two-thread setState case cannot fail** (T5.08, "setState from a second thread during processing keeps
+    the output finite", `[long]`): with setState applying on the calling thread again (the pre-T1.24 race, local
+    break `deferred = false`) it stayed green in 8 runs: 3 paced (200 loads, each applied between blocks) and 5
+    back to back (200 loads during ~18 blocks), 0 non-finite samples, no crash. The DSP objects are preallocated,
+    so the race mixes parameters without producing a non-finite sample or a fault. No `build-asan` exists, so it
+    has no ASan run either. It is kept as the plan's smoke test and is not counted as coverage; the
+    deterministic D-003 guard is still "setState during processing does not touch live DSP objects". A detector
+    that can fail would record the thread of every live-DSP write (e.g. the `debugSetNodesCalls` /
+    `debugSetBandCountCalls` hooks noting `std::this_thread::get_id()`) and require the audio thread. It also runs
+    in under 1 s, so CLAUDE.md's `[long]` rule (> ~15 s) does not call for the tag the plan gave it.
 
 ## Done outside the plan
 

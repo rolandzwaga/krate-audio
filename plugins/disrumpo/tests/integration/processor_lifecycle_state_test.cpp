@@ -43,6 +43,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bit>
 #include <chrono>
 #include <climits>
@@ -59,6 +60,7 @@
 #include <numbers>
 #include <set>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -2343,4 +2345,196 @@ TEST_CASE("A batch of node parameter changes pushes each band's nodes once", "[d
                 static_cast<unsigned long long>(bothBands));
     CHECK(oneBand == perPush);
     CHECK(bothBands == 2 * perPush);
+}
+
+// -----------------------------------------------------------------------------
+// D-129 (T5.08): host-facing edge cases at processor level. This TU is IEEE
+// (-fno-fast-math -fno-finite-math-only -ffp-contract=off); non-finite samples are
+// built from bit patterns through a volatile and classified with detail::isFinite.
+// -----------------------------------------------------------------------------
+
+// One band (the crossover passes the input straight to the node), node 0 alone,
+// Oversample Max 4x: one NaN, then (a fresh instance) one +Inf sample on both
+// channels between finite sine samples. Every output from 1024 samples after the
+// bad sample has left the processor (its reported latency) on must be finite.
+TEST_CASE("Every distortion type recovers from one NaN and one +Inf input sample", "[disrumpo][numerics][D-129]") {
+    constexpr double kSr = 48000.0;
+    constexpr int32 kBlock = 256;
+    constexpr size_t kWarm = 1024;
+    constexpr size_t kSettle = 1024;
+    constexpr size_t kChecked = 4096;
+    const std::array<std::pair<std::uint32_t, const char*>, 2> bads{{{0x7FC00000u, "NaN"}, {0x7F800000u, "+Inf"}}};
+
+    int runs = 0;
+    int latchedRuns = 0;
+    int reachedOutput = 0;
+    for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+        const auto type = static_cast<DistortionType>(t);
+        for (const auto& [bits, name] : bads) {
+            volatile std::uint32_t bitsSink = bits;
+            const float bad = std::bit_cast<float>(static_cast<std::uint32_t>(bitsSink));
+            REQUIRE_FALSE(fin(bad));
+
+            Rig rig(kSr, kBlock);
+            auto l = latBase(1, 4);
+            setNode(l, 0, 0, type, 0.3, 1.0);
+            rig.apply(l);
+            const auto latency = static_cast<size_t>(rig.p->getLatencySamples());
+            const size_t checkFrom = kWarm + latency + kSettle;
+            auto x = sine440(kSr, -12.0, checkFrom + kChecked);
+            x[kWarm] = bad;
+            std::vector<float> outL;
+            std::vector<float> outR;
+            rig.render(x, x, outL, outR, kBlock);
+
+            size_t nonFinite = 0;
+            size_t lastNonFinite = 0;
+            for (size_t i = checkFrom; i < outL.size(); ++i) {
+                if (fin(outL[i]) && fin(outR[i])) continue;
+                ++nonFinite;
+                lastNonFinite = i;
+            }
+            ++runs;
+            for (size_t i = kWarm; i < checkFrom; ++i) {
+                if (fin(outL[i]) && fin(outR[i])) continue;
+                ++reachedOutput;  // the bad sample got through: the window below is not vacuous
+                break;
+            }
+            if (nonFinite == 0) continue;
+            ++latchedRuns;
+            std::printf("D-129 %s type %d: %zu non-finite samples from %zu samples after the bad one (latency %zu), "
+                        "the last %zu samples after it\n",
+                        name, t, nonFinite, checkFrom - kWarm, latency, lastNonFinite - kWarm);
+        }
+    }
+    std::printf("D-129 non-finite input: %d of %d type/sample runs put a non-finite sample out inside the settle "
+                "window, %d still non-finite after it\n",
+                reachedOutput, runs, latchedRuns);
+    REQUIRE(runs == 2 * static_cast<int>(DistortionType::COUNT));
+    CHECK(latchedRuns == 0);
+}
+
+TEST_CASE("Processor rejects every non-stereo bus arrangement", "[disrumpo][lifecycle][D-129]") {
+    using Steinberg::Vst::SpeakerArrangement;
+    namespace Arr = Steinberg::Vst::SpeakerArr;
+    auto p = std::make_unique<Processor>();
+    REQUIRE(p->initialize(nullptr) == Steinberg::kResultOk);
+    SpeakerArrangement mono = Arr::kMono;
+    SpeakerArrangement stereo = Arr::kStereo;
+    SpeakerArrangement surround = Arr::k51;
+    CHECK(p->setBusArrangements(&mono, 1, &mono, 1) == Steinberg::kResultFalse);
+    CHECK(p->setBusArrangements(&mono, 1, &stereo, 1) == Steinberg::kResultFalse);
+    CHECK(p->setBusArrangements(&stereo, 1, &mono, 1) == Steinberg::kResultFalse);
+    CHECK(p->setBusArrangements(&surround, 1, &surround, 1) == Steinberg::kResultFalse);
+    CHECK(p->setBusArrangements(&stereo, 1, &stereo, 1) == Steinberg::kResultTrue);
+    SpeakerArrangement in = 0;
+    SpeakerArrangement out = 0;
+    REQUIRE(p->getBusArrangement(Steinberg::Vst::kInput, 0, in) == Steinberg::kResultTrue);
+    REQUIRE(p->getBusArrangement(Steinberg::Vst::kOutput, 0, out) == Steinberg::kResultTrue);
+    CHECK(in == Arr::kStereo);
+    CHECK(out == Arr::kStereo);
+    p->terminate();
+}
+
+// numSamples 0 is the host's parameter flush; a mono bus is a layout the processor
+// rejects (above) but a host may still send. Neither may read or write a sample.
+TEST_CASE("process() with no samples or a mono bus leaves every buffer untouched", "[disrumpo][lifecycle][D-129]") {
+    constexpr int32 kBlock = 512;
+    constexpr float kInSentinel = 0.25f;
+    constexpr float kOutSentinel = -0.75f;
+    Rig rig(48000.0, kBlock);
+    std::vector<float> iL(kBlock, kInSentinel);
+    std::vector<float> iR(kBlock, kInSentinel);
+    std::vector<float> oL(kBlock, kOutSentinel);
+    std::vector<float> oR(kBlock, kOutSentinel);
+    float* ic[2] = {iL.data(), iR.data()};
+    float* oc[2] = {oL.data(), oR.data()};
+    Steinberg::Vst::AudioBusBuffers ib{};
+    Steinberg::Vst::AudioBusBuffers ob{};
+    ib.channelBuffers32 = ic;
+    ob.channelBuffers32 = oc;
+    Steinberg::Vst::ProcessData d{};
+    d.processMode = Steinberg::Vst::kRealtime;
+    d.symbolicSampleSize = Steinberg::Vst::kSample32;
+    d.numInputs = 1;
+    d.numOutputs = 1;
+    d.inputs = &ib;
+    d.outputs = &ob;
+
+    const char* what = "";
+    SECTION("numSamples 0, stereo") {
+        what = "numSamples 0";
+        ib.numChannels = 2;
+        ob.numChannels = 2;
+        d.numSamples = 0;
+    }
+    SECTION("numSamples 512, mono in and out") {
+        what = "mono bus";
+        ib.numChannels = 1;
+        ob.numChannels = 1;
+        d.numSamples = kBlock;
+    }
+    REQUIRE(rig.p->process(d) == Steinberg::kResultTrue);
+
+    size_t changed = 0;
+    for (size_t i = 0; i < static_cast<size_t>(kBlock); ++i) {
+        if (iL[i] != kInSentinel || iR[i] != kInSentinel) ++changed;
+        if (oL[i] != kOutSentinel || oR[i] != kOutSentinel) ++changed;
+    }
+    std::printf("D-129 process() with %s: %zu buffer samples changed\n", what, changed);
+    CHECK(changed == 0u);
+}
+
+// D-003 follow-up (T5.08): the host's thread loads states while the audio thread
+// runs. 200 loads alternating two factory presets with different band counts and
+// types; every block is rendered while they land, and every sample must be finite.
+TEST_CASE("setState from a second thread during processing keeps the output finite",
+          "[disrumpo][rt-safety][D-003][D-129][long]") {
+    constexpr int32 kBlock = 256;
+    constexpr int kLoads = 200;
+    const auto a = readPresetComponent(presetPath("Morph/Multi_Band_Morph.vstpreset"));
+    const auto b = readPresetComponent(presetPath("Morph/Radial_Blend.vstpreset"));
+    REQUIRE(decodePatch(a).bandCount != decodePatch(b).bandCount);
+
+    Rig rig(48000.0, kBlock);
+    const auto in = sine440(48000.0, -12.0, static_cast<size_t>(kBlock) * 64);
+    std::atomic<bool> stop{false};
+    std::atomic<size_t> blocks{0};
+    size_t nonFinite = 0;  // audio thread only, read after join
+    std::thread audio([&] {
+        std::vector<float> bL(kBlock);
+        std::vector<float> bR(kBlock);
+        std::vector<float> oL(kBlock);
+        std::vector<float> oR(kBlock);
+        size_t pos = 0;
+        while (!stop.load(std::memory_order_acquire)) {
+            std::copy_n(in.begin() + static_cast<std::ptrdiff_t>(pos), kBlock, bL.begin());
+            std::copy_n(in.begin() + static_cast<std::ptrdiff_t>(pos), kBlock, bR.begin());
+            pos = (pos + static_cast<size_t>(kBlock)) % in.size();
+            rig.processBlock(bL.data(), bR.data(), oL.data(), oR.data(), kBlock, nullptr);
+            for (int32 i = 0; i < kBlock; ++i)
+                if (!fin(oL[static_cast<size_t>(i)]) || !fin(oR[static_cast<size_t>(i)])) ++nonFinite;
+            blocks.fetch_add(1, std::memory_order_release);
+        }
+    });
+    // Each load waits for one more rendered block, so every load lands while the
+    // audio thread is running and is applied before the next one.
+    const auto waitForBlock = [&blocks] {
+        const size_t seen = blocks.load(std::memory_order_acquire);
+        while (blocks.load(std::memory_order_acquire) == seen) std::this_thread::yield();
+    };
+    int failedLoads = 0;
+    for (int i = 0; i < kLoads; ++i) {
+        waitForBlock();
+        if (!setStateBytes(*rig.p, (i % 2 == 0) ? a : b)) ++failedLoads;
+    }
+    waitForBlock();
+    waitForBlock();  // the last load applied and rendered
+    stop.store(true, std::memory_order_release);
+    audio.join();
+    std::printf("D-003 concurrent setState: %d loads (%d failed), %zu blocks rendered, %zu non-finite samples\n",
+                kLoads, failedLoads, blocks.load(), nonFinite);
+    CHECK(failedLoads == 0);
+    CHECK(blocks.load() > static_cast<size_t>(kLoads));
+    CHECK(nonFinite == 0u);
 }
