@@ -236,6 +236,15 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     step to `ci.yml` (needs `fast-xml-parser` installed) to make the uidesc check (with the 19-entry allow list
     `plugins/disrumpo/tests/uidesc_overlaps_allowed.json`) gate pushes.
 
+64. **Follow-up 46, pad half still open after T4.02** (`1ecbb6d6` fixed the oversampling half): the morph pad still
+    draws nodes at the corners in Linear1D, and nothing in the controller calls `MorphPad::setMorphMode`, so the
+    pad always shows Planar2D weights whatever the band's mode.
+65. **LFO note-value default disagrees**: the registration default is 1/8 (T4.04 `a60137c9`), the processor's LFOs
+    start on 1/4 — a host reset and a fresh instance differ (part of item 56).
+66. **Spec says Symmetry 0–1, the code maps it −1..1** (T4.06 `6feb4498` left it). Rule which is right.
+67. **Shape-slot values the adapter maps further show as a percent of the stored value** (e.g. Feedback Threshold,
+    which runs in dB, and filter frequency) — the descriptor table from T4.03 (`db3a5e7a`) can carry units/curves.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
