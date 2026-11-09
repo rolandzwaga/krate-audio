@@ -290,6 +290,14 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     set (RED 4 of 1296 comparisons wrong, GREEN 0 of 1296); "Registered plain value matches processor
     denormalization" has a Chaos Speed row (RED 3 of 72, GREEN 0 of 72); new case "Chaos Speed's registered default
     is what a fresh processor runs" (RED 0.048 vs 1, GREEN 1 vs 1).
+76. **Test-support headers are outside clang-tidy's header filter** (found while de-duplicating the headless
+    editor, 2026-11-09): `.clang-tidy`'s `HeaderFilterRegex` covers `plugins/*/src` only, so
+    `plugins/disrumpo/tests/test_support/*.h` is never reported. Tidying editor_lifecycle_test.cpp with
+    `--header-filter=".*test_support.*"` shows 14 hits in `disrumpo_rig.h` (implicit bool → TBool ×4, isolate-declaration
+    ×2, signed/unsigned comparison ×2, non-virtual public destructor ×2, nested conditional, make-member-const,
+    const_cast, and `res == kResultOk || res == kResultTrue` at :294, harmless since both are 0); the new
+    `headless_editor.h` reads 0. Decide with item 73's policy whether test-support headers are tidied, then fix
+    `disrumpo_rig.h`.
 
 ## Done outside the plan
 

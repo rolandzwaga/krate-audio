@@ -11,6 +11,7 @@
 #include <shared_editor_views_probe.h>
 
 #include "../../test_support/disrumpo_rig.h"
+#include "../../test_support/headless_editor.h"
 
 #include "controller/controller.h"
 #include "controller/spectrum_block.h"
@@ -92,23 +93,11 @@ public:
     std::vector<VSTGUI::CView*> expandedCreated;
 };
 
-constexpr VSTGUI::CCoord kTabSwitchHeight = 243.0;  // Band<N>MainTab / Band<N>ShapeTab switch
+using Disrumpo::TestSupport::findContainerHoldingTag;
+using Disrumpo::TestSupport::findSwitch;
+using Disrumpo::TestSupport::HeadlessEditor;
 
-/// First UIViewSwitchContainer of the given height below `container`, in document order.
-VSTGUI::UIViewSwitchContainer* findSwitch(VSTGUI::CViewContainer* container, VSTGUI::CCoord height) {
-    VSTGUI::UIViewSwitchContainer* found = nullptr;
-    container->forEachChild([&found, height](VSTGUI::CView* child) {
-        if (found) return;
-        if (auto* sw = dynamic_cast<VSTGUI::UIViewSwitchContainer*>(child)) {
-            if (sw->getViewSize().getHeight() == height) {
-                found = sw;
-                return;
-            }
-        }
-        if (auto* sub = child->asViewContainer()) found = findSwitch(sub, height);
-    });
-    return found;
-}
+constexpr VSTGUI::CCoord kTabSwitchHeight = 243.0;  // Band<N>MainTab / Band<N>ShapeTab switch
 
 /// Container holding `view` below `container` (the headless frame is unattached, so getParentView() is null).
 VSTGUI::CViewContainer* findParentOf(VSTGUI::CViewContainer* container, const VSTGUI::CView* view) {
@@ -123,39 +112,6 @@ VSTGUI::CViewContainer* findParentOf(VSTGUI::CViewContainer* container, const VS
     });
     return found;
 }
-
-/// Editor opened headlessly, closed (willClose) by close() or on destruction.
-class HeadlessEditor {
-public:
-    explicit HeadlessEditor(Disrumpo::Controller& c) {
-        Krate::TestSupport::ensureVstguiInitialized();
-        editor_ = new VSTGUI::VST3Editor(&c, "editor",
-                                         (std::string(DISRUMPO_RESOURCES_DIR) + "/editor.uidesc").c_str());
-        Steinberg::IPlugView* view = editor_;
-        opened_ = view->attached(nullptr, Krate::TestSupport::nativePlatformType()) == Steinberg::kResultTrue &&
-                  editor_->getFrame() != nullptr;
-    }
-    ~HeadlessEditor() { close(); }
-    HeadlessEditor(const HeadlessEditor&) = delete;
-    HeadlessEditor& operator=(const HeadlessEditor&) = delete;
-    HeadlessEditor(HeadlessEditor&&) = delete;
-    HeadlessEditor& operator=(HeadlessEditor&&) = delete;
-
-    void close() {
-        if (editor_ == nullptr) return;
-        Steinberg::IPlugView* view = editor_;
-        view->removed();  // -> willClose
-        view->release();
-        editor_ = nullptr;
-    }
-
-    [[nodiscard]] bool ready() const { return opened_; }
-    [[nodiscard]] VSTGUI::CFrame* frame() const { return editor_ != nullptr ? editor_->getFrame() : nullptr; }
-
-private:
-    VSTGUI::VST3Editor* editor_ = nullptr;
-    bool opened_ = false;
-};
 
 /// Every ModSlider below `container`, in document order.
 void collectModSliders(VSTGUI::CViewContainer* container, std::vector<const Disrumpo::ModSlider*>& out) {
@@ -568,24 +524,6 @@ TEST_CASE("setParamNormalized on a crossover moves the spectrum divider",
     }
     c.terminate();
 }
-
-namespace {
-
-/// Container holding the control tagged `tag` (the lookup AnimatedExpandController uses).
-VSTGUI::CViewContainer* findContainerHoldingTag(VSTGUI::CViewContainer* container, int32_t tag) {
-    VSTGUI::CViewContainer* found = nullptr;
-    container->forEachChild([&found, container, tag](VSTGUI::CView* child) {
-        if (found) return;
-        if (const auto* ctrl = dynamic_cast<const VSTGUI::CControl*>(child); ctrl != nullptr && ctrl->getTag() == tag) {
-            found = container;
-            return;
-        }
-        if (auto* sub = child->asViewContainer()) found = findContainerHoldingTag(sub, tag);
-    });
-    return found;
-}
-
-}  // namespace
 
 // D-170: band 3's expanded panel (container 9102) is shown only while band 3 is
 // expanded AND Band Count makes band 3 visible, whichever of the two changes.

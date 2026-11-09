@@ -16,6 +16,8 @@
 
 #include <editor_lifecycle_harness.h>
 
+#include "../../test_support/headless_editor.h"
+
 #include "controller/controller.h"
 #include "controller/views/dynamic_node_selector.h"
 #include "dsp/distortion_types.h"
@@ -29,7 +31,6 @@
 
 #include <cmath>
 #include <cstdio>
-#include <string>
 #include <vector>
 
 using namespace Disrumpo;
@@ -64,33 +65,7 @@ public:
     std::vector<Call> editCalls;
 };
 
-/// Editor opened headlessly (didOpen builds the NodeSelectionControllers), closed on destruction.
-class HeadlessEditor {
-public:
-    explicit HeadlessEditor(Controller& c) {
-        Krate::TestSupport::ensureVstguiInitialized();
-        editor_ = new VSTGUI::VST3Editor(&c, "editor",
-                                         (std::string(DISRUMPO_RESOURCES_DIR) + "/editor.uidesc").c_str());
-        Steinberg::IPlugView* view = editor_;
-        opened_ = view->attached(nullptr, Krate::TestSupport::nativePlatformType()) == Steinberg::kResultTrue &&
-                  editor_->getFrame() != nullptr;
-    }
-    ~HeadlessEditor() {
-        Steinberg::IPlugView* view = editor_;
-        view->removed();
-        view->release();
-    }
-    HeadlessEditor(const HeadlessEditor&) = delete;
-    HeadlessEditor& operator=(const HeadlessEditor&) = delete;
-    HeadlessEditor(HeadlessEditor&&) = delete;
-    HeadlessEditor& operator=(HeadlessEditor&&) = delete;
-
-    [[nodiscard]] bool ready() const { return opened_; }
-
-private:
-    VSTGUI::VST3Editor* editor_ = nullptr;
-    bool opened_ = false;
-};
+using Disrumpo::TestSupport::HeadlessEditor;
 
 constexpr ParamID kSelectedNodeId = makeBandParamId(0, BandParamType::kBandSelectedNode);
 constexpr ParamID kDisplayedTypeId = makeBandParamId(0, BandParamType::kBandDisplayedType);

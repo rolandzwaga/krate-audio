@@ -8,7 +8,7 @@
 //
 // By hand: disrumpo_tests.exe "Disrumpo_EditorScreenshots"  with DISRUMPO_SHOTS_DIR set (default <temp>/disrumpo-shots)
 
-#include <editor_lifecycle_harness.h>
+#include "../../test_support/headless_editor.h"
 
 #include "controller/controller.h"
 #include "controller/spectrum_block.h"
@@ -25,7 +25,6 @@
 #include <vstgui/lib/coffscreencontext.h>
 #include <vstgui/lib/controls/ccontrol.h>
 #include <vstgui/lib/platform/platformfactory.h>
-#include <vstgui/plugin-bindings/vst3editor.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -115,14 +114,9 @@ TEST_CASE("Disrumpo_EditorScreenshots", "[.][screenshots]") {
     REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
     controller->setParamNormalized(sweepEnableId, 1.0);
     {
-        Krate::TestSupport::ensureVstguiInitialized();
-        const std::string uidescPath = std::string(DISRUMPO_RESOURCES_DIR) + "/editor.uidesc";
-        auto* editor = new VSTGUI::VST3Editor(controller.get(), "editor", uidescPath.c_str());
-        Steinberg::IPlugView* view = editor;
-        REQUIRE(view->attached(nullptr, Krate::TestSupport::nativePlatformType()) == Steinberg::kResultTrue);
-
-        VSTGUI::CFrame* frame = editor->getFrame();
-        REQUIRE(frame != nullptr);
+        Disrumpo::TestSupport::HeadlessEditor editor(*controller);
+        REQUIRE(editor.ready());
+        VSTGUI::CFrame* frame = editor.frame();
         // The template root: the frame's first child (the preset overlays come after it).
         VSTGUI::CViewContainer* root = frame->getView(0) != nullptr ? frame->getView(0)->asViewContainer() : nullptr;
         REQUIRE(root != nullptr);
@@ -186,8 +180,7 @@ TEST_CASE("Disrumpo_EditorScreenshots", "[.][screenshots]") {
         REQUIRE(marker->getParentView()->isVisible());
         shoot(root, rectInRoot(marker->getParentView(), root), dir / "band1-expanded-strip.png");
 
-        view->removed();
-        view->release();
+        editor.close();
     }
     REQUIRE(controller->terminate() == Steinberg::kResultOk);
     std::cout << "disrumpo shots written to " << dir.string() << '\n';

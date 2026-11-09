@@ -10,68 +10,21 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <editor_lifecycle_harness.h>
+#include "../test_support/headless_editor.h"
 
 #include "controller/controller.h"
 #include "dsp/band_state.h"
 #include "plugin_ids.h"
 
 #include "vstgui/lib/cframe.h"
-#include "vstgui/lib/controls/ccontrol.h"
 
 #include <array>
-#include <cstdint>
 #include <cstdio>
-#include <string>
 
 using namespace Disrumpo;
 
-namespace {
-
-/// Editor opened headlessly (didOpen builds the visibility controllers), closed on destruction.
-class HeadlessEditor {
-public:
-    explicit HeadlessEditor(Controller& c) {
-        Krate::TestSupport::ensureVstguiInitialized();
-        editor_ = new VSTGUI::VST3Editor(&c, "editor",
-                                         (std::string(DISRUMPO_RESOURCES_DIR) + "/editor.uidesc").c_str());
-        Steinberg::IPlugView* view = editor_;
-        opened_ = view->attached(nullptr, Krate::TestSupport::nativePlatformType()) == Steinberg::kResultTrue &&
-                  editor_->getFrame() != nullptr;
-    }
-    ~HeadlessEditor() {
-        Steinberg::IPlugView* view = editor_;
-        view->removed();
-        view->release();
-    }
-    HeadlessEditor(const HeadlessEditor&) = delete;
-    HeadlessEditor& operator=(const HeadlessEditor&) = delete;
-    HeadlessEditor(HeadlessEditor&&) = delete;
-    HeadlessEditor& operator=(HeadlessEditor&&) = delete;
-
-    [[nodiscard]] bool ready() const { return opened_; }
-    [[nodiscard]] VSTGUI::CFrame* frame() const { return editor_->getFrame(); }
-
-private:
-    VSTGUI::VST3Editor* editor_ = nullptr;
-    bool opened_ = false;
-};
-
-/// Container holding the control tagged `tag` (the lookup ContainerVisibilityController uses).
-VSTGUI::CViewContainer* findContainerHoldingTag(VSTGUI::CViewContainer* container, int32_t tag) {
-    VSTGUI::CViewContainer* found = nullptr;
-    container->forEachChild([&found, container, tag](VSTGUI::CView* child) {
-        if (found) return;
-        if (const auto* ctrl = dynamic_cast<const VSTGUI::CControl*>(child); ctrl != nullptr && ctrl->getTag() == tag) {
-            found = container;
-            return;
-        }
-        if (auto* sub = child->asViewContainer()) found = findContainerHoldingTag(sub, tag);
-    });
-    return found;
-}
-
-}  // namespace
+using Disrumpo::TestSupport::findContainerHoldingTag;
+using Disrumpo::TestSupport::HeadlessEditor;
 
 TEST_CASE("Band strip b is visible iff Band Count is greater than b", "[disrumpo][visibility][ui][D-123]") {
     Controller c;

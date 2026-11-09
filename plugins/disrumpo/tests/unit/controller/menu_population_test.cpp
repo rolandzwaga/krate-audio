@@ -18,7 +18,7 @@
 // pure algorithm (slot 2 = 0).
 // =============================================================================
 
-#include <editor_lifecycle_harness.h>
+#include "../../test_support/headless_editor.h"
 
 #include "controller/controller.h"
 #include "dsp/distortion_adapter.h"
@@ -30,7 +30,6 @@
 
 #include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/lib/cviewcontainer.h"
-#include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/uidescription/uiviewswitchcontainer.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -49,21 +48,8 @@ constexpr VSTGUI::CCoord kTabSwitchHeight = 243.0;       // Band<N>MainTab / Ban
 constexpr VSTGUI::CCoord kTypeParamsSwitchHeight = 200.0; // TypeParams_* switch inside BandShapeTab
 constexpr int kShapeTabIndex = 1;                         // template-names="Band1MainTab,Band1ShapeTab"
 
-/// First UIViewSwitchContainer of the given height below `container`, in document order.
-VSTGUI::UIViewSwitchContainer* findSwitch(VSTGUI::CViewContainer* container, VSTGUI::CCoord height) {
-    VSTGUI::UIViewSwitchContainer* found = nullptr;
-    container->forEachChild([&found, height](VSTGUI::CView* child) {
-        if (found) return;
-        if (auto* sw = dynamic_cast<VSTGUI::UIViewSwitchContainer*>(child)) {
-            if (sw->getViewSize().getHeight() == height) {
-                found = sw;
-                return;
-            }
-        }
-        if (auto* sub = child->asViewContainer()) found = findSwitch(sub, height);
-    });
-    return found;
-}
+using Disrumpo::TestSupport::findSwitch;
+using Disrumpo::TestSupport::HeadlessEditor;
 
 void collectShape2Menus(VSTGUI::CViewContainer* container, std::vector<VSTGUI::COptionMenu*>& out) {
     container->forEachChild([&out](VSTGUI::CView* child) {
@@ -91,38 +77,17 @@ std::string joined(const std::vector<std::string>& v) {
 /// Editor open headlessly with band 0's Shape tab showing `type`, closed on destruction.
 class ShapeTabEditor {
 public:
-    ShapeTabEditor(Controller& c, DistortionType type) {
-        // Node 0 (the selected node) gets the type; the displayed-type proxy mirrors it.
-        const double typeNorm = listIndexToNorm(static_cast<int>(type), kDistortionTypeCount);
-        c.setParamNormalized(makeBandParamId(0, BandParamType::kBandTabView), 1.0);
-        c.setParamNormalized(makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm);
-        c.setParamNormalized(makeBandParamId(0, BandParamType::kBandDisplayedType), typeNorm);
+    ShapeTabEditor(Controller& c, DistortionType type) : editor_(selectType(c, type)) {
+        if (!editor_.ready()) return;
 
-        Krate::TestSupport::ensureVstguiInitialized();
-        editor_ = new VSTGUI::VST3Editor(&c, "editor",
-                                         (std::string(DISRUMPO_RESOURCES_DIR) + "/editor.uidesc").c_str());
-        Steinberg::IPlugView* view = editor_;
-        opened_ = view->attached(nullptr, Krate::TestSupport::nativePlatformType()) == Steinberg::kResultTrue &&
-                  editor_->getFrame() != nullptr;
-        if (!opened_) return;
-
-        auto* tabSwitch = findSwitch(editor_->getFrame(), kTabSwitchHeight);  // band 1 strip comes first
+        auto* tabSwitch = findSwitch(editor_.frame(), kTabSwitchHeight);  // band 1 strip comes first
         if (tabSwitch == nullptr) return;
         tabSwitch->setCurrentViewIndex(kShapeTabIndex);
         typeSwitch_ = findSwitch(tabSwitch, kTypeParamsSwitchHeight);
         if (typeSwitch_ != nullptr) typeSwitch_->setCurrentViewIndex(static_cast<int32_t>(type));
     }
-    ~ShapeTabEditor() {
-        Steinberg::IPlugView* view = editor_;
-        view->removed();
-        view->release();
-    }
-    ShapeTabEditor(const ShapeTabEditor&) = delete;
-    ShapeTabEditor& operator=(const ShapeTabEditor&) = delete;
-    ShapeTabEditor(ShapeTabEditor&&) = delete;
-    ShapeTabEditor& operator=(ShapeTabEditor&&) = delete;
 
-    [[nodiscard]] bool ready() const { return opened_ && typeSwitch_ != nullptr; }
+    [[nodiscard]] bool ready() const { return editor_.ready() && typeSwitch_ != nullptr; }
 
     /// Slot-2 menus of the TypeParams template on screen, bound to band 0's proxy.
     [[nodiscard]] std::vector<VSTGUI::COptionMenu*> shape2Menus() const {
@@ -132,9 +97,17 @@ public:
     }
 
 private:
-    VSTGUI::VST3Editor* editor_ = nullptr;
+    /// Before the editor opens: node 0 (the selected node) gets the type, the displayed-type proxy mirrors it.
+    static Controller& selectType(Controller& c, DistortionType type) {
+        const double typeNorm = listIndexToNorm(static_cast<int>(type), kDistortionTypeCount);
+        c.setParamNormalized(makeBandParamId(0, BandParamType::kBandTabView), 1.0);
+        c.setParamNormalized(makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm);
+        c.setParamNormalized(makeBandParamId(0, BandParamType::kBandDisplayedType), typeNorm);
+        return c;
+    }
+
+    HeadlessEditor editor_;
     VSTGUI::UIViewSwitchContainer* typeSwitch_ = nullptr;
-    bool opened_ = false;
 };
 
 struct MenuExpectation {
