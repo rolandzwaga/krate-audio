@@ -439,3 +439,68 @@ TEST_CASE("setParamNormalized on a crossover moves the spectrum divider",
     }
     c.terminate();
 }
+
+namespace {
+
+/// Container holding the control tagged `tag` (the lookup AnimatedExpandController uses).
+VSTGUI::CViewContainer* findContainerHoldingTag(VSTGUI::CViewContainer* container, int32_t tag) {
+    VSTGUI::CViewContainer* found = nullptr;
+    container->forEachChild([&found, container, tag](VSTGUI::CView* child) {
+        if (found) return;
+        if (const auto* ctrl = dynamic_cast<const VSTGUI::CControl*>(child); ctrl != nullptr && ctrl->getTag() == tag) {
+            found = container;
+            return;
+        }
+        if (auto* sub = child->asViewContainer()) found = findContainerHoldingTag(sub, tag);
+    });
+    return found;
+}
+
+}  // namespace
+
+// D-170: band 3's expanded panel (container 9102) is shown only while band 3 is
+// expanded AND Band Count makes band 3 visible, whichever of the two changes.
+TEST_CASE("Expanded band panel follows Band Count", "[disrumpo][controller][ui][D-170]")
+{
+    Disrumpo::Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    const auto bandCountId = Disrumpo::makeGlobalParamId(Disrumpo::GlobalParamType::kGlobalBandCount);
+    const auto expanded3Id = Disrumpo::makeBandParamId(2, Disrumpo::BandParamType::kBandExpanded);
+    constexpr int32_t kBand3ExpandedTag = 9102;
+
+    // Band Count 4, Band3Expanded 1, Band Count 2, Band Count 4
+    c.setParamNormalized(bandCountId, 1.0);
+    {
+        HeadlessEditor ed(c);
+        REQUIRE(ed.ready());
+        auto* strip = findContainerHoldingTag(ed.frame(), kBand3ExpandedTag);
+        REQUIRE(strip != nullptr);
+        c.setParamNormalized(expanded3Id, 1.0);
+        const bool atFour = strip->isVisible();
+        c.setParamNormalized(bandCountId, 1.0 / 3.0);
+        const bool atTwo = strip->isVisible();
+        c.setParamNormalized(bandCountId, 1.0);
+        const bool backAtFour = strip->isVisible();
+        std::printf("D-170 expanded then Band Count 4 -> 2 -> 4: container 9102 visible %d -> %d -> %d (want 1 -> 0 -> 1),"
+                    " height %.0f\n",
+                    atFour ? 1 : 0, atTwo ? 1 : 0, backAtFour ? 1 : 0, strip->getViewSize().getHeight());
+        CHECK(atFour);
+        CHECK_FALSE(atTwo);
+        CHECK(backAtFour);
+
+        // Expanded set again while band 3 is hidden, then Band Count raised
+        c.setParamNormalized(bandCountId, 1.0 / 3.0);
+        c.setParamNormalized(expanded3Id, 0.0);
+        c.setParamNormalized(expanded3Id, 1.0);
+        const bool expandedWhileHidden = strip->isVisible();
+        c.setParamNormalized(bandCountId, 1.0);
+        const bool shownWithBand = strip->isVisible();
+        std::printf("D-170 expanded while hidden, Band Count 2 -> 4: container 9102 visible %d -> %d (want 0 -> 1),"
+                    " height %.0f (want 290)\n",
+                    expandedWhileHidden ? 1 : 0, shownWithBand ? 1 : 0, strip->getViewSize().getHeight());
+        CHECK_FALSE(expandedWhileHidden);
+        CHECK(shownWithBand);
+        CHECK(strip->getViewSize().getHeight() == Catch::Approx(290.0));
+    }
+    c.terminate();
+}

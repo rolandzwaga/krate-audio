@@ -1444,7 +1444,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             Steinberg::int32 parentBandTag = 9000 + b;
             expandedVisibilityControllers_[b] = new AnimatedExpandController(
                 &activeEditor_, expandedParam, expandedContainerTag,
-                290.0f, 250, parentBandTag, b, 690.0f);
+                290.0f, 250, parentBandTag, b, 690.0f, bandCountParam);
         }
     }
 
