@@ -48,6 +48,17 @@ bool normalisesDrive(DistortionType type) noexcept {
            type == DistortionType::Chaos || type == DistortionType::Spectral;
 }
 
+/// Drive above which the scaling types' output level stops following the drive.
+constexpr float kDriveGainKnee = 5.0f;
+
+/// Fuzz, AsymmetricFuzz and the rectifiers scale with their driven input (the rectifiers
+/// exactly, the fuzzes nearly: +7.5 / +9.4 dBFS peak at drive 7.5 / 10 from a -6 dBFS
+/// sine), so above kDriveGainKnee the drive acted as an output gain on them (follow-up 50).
+bool capsDriveGain(DistortionType type) noexcept {
+    return type == DistortionType::Fuzz || type == DistortionType::AsymmetricFuzz ||
+           type == DistortionType::FullRectify || type == DistortionType::HalfRectify;
+}
+
 }  // namespace
 
 // =============================================================================
@@ -447,6 +458,11 @@ float DistortionAdapter::processWithDry(float input, float dry) noexcept {
     if (drive > 1.0f && normalisesDrive(currentType_)) {
         wet /= drive;
     }
+    // Fuzz, AsymmetricFuzz and the rectifiers: unchanged up to kDriveGainKnee, scaled by
+    // kDriveGainKnee / drive above it (follow-up 50). The branch keeps drive <= 5 bit-identical.
+    if (drive > kDriveGainKnee && capsDriveGain(currentType_)) {
+        wet *= kDriveGainKnee / drive;
+    }
 
     // Apply DC blocker if needed
     if (needsDCBlock_) {
@@ -495,6 +511,8 @@ void DistortionAdapter::processBlock(const float* input, float* output, int numS
         const bool scaleInput = currentType_ != DistortionType::Temporal &&
                                 currentType_ != DistortionType::Stochastic;
         const bool normalise = drive > 1.0f && normalisesDrive(currentType_);
+        const bool capGain = drive > kDriveGainKnee && capsDriveGain(currentType_);
+        const float capScale = capGain ? kDriveGainKnee / drive : 1.0f;
         const bool dcBlock = needsDCBlock_;
         const bool tone = usesToneFilter(currentType_);
         const float mix = std::clamp(commonParams_.mix, 0.0f, 1.0f);
@@ -505,6 +523,7 @@ void DistortionAdapter::processBlock(const float* input, float* output, int numS
             float wet = scaleInput ? x * drive : x;
             wet = processRaw(wet);
             if (normalise) wet /= drive;
+            if (capGain) wet *= capScale;
             if (dcBlock) wet = dcBlocker_.process(wet);
             if (tone) wet = applyTone(wet);
             out[k] = fullWet ? x * (1.0f - mix) + wet * mix : x * (1.0f - wetMix) + wet * wetMix;

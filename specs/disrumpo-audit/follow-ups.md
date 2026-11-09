@@ -226,6 +226,16 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     −63 dBFS at drive 0.01 and −43 dBFS at 0.1, so the level fall now sits inside drive 1e-3 → 1e-2 (−39 dB) instead of
     at the gate. Whether low drive should keep unity level (drive-dependent makeup) is a design question; ties to
     items 9/17 (Tube) and 37 (fold normalisation).
+    — High-drive half, USER RULED 2026-11-09 (follow-up 79): Fuzz, AsymmetricFuzz, FullRectify and HalfRectify kept
+    rising with drive (T6.01, -6 dBFS 1031.25 Hz sine, peak at drive 7.5 / 10: Fuzz +7.48 / +9.42, AsymmetricFuzz
+    +7.02 / +8.94, FullRectify +4.98 / +7.48, HalfRectify +7.78 / +10.26 dBFS against the +6 dBFS bar). Commit
+    "fix(disrumpo): Fuzz, AsymmetricFuzz and the rectifiers stop following drive above 5": the adapter scales
+    their output by 5 / drive above drive 5 (T3.01's digital-type normalisation with the knee at 5 instead of 1).
+    Drive 1 / 2.5 / 5 unchanged (bit-identical branch), 7.5 -3.52 dB, 10 -6.02 dB. After: Fuzz +3.96 / +3.40,
+    AsymmetricFuzz +3.49 / +2.92, FullRectify +1.46 / +1.46, HalfRectify +4.26 / +4.24 dBFS. Full Rectify is
+    scale-invariant, so its Drive now has no audible effect above 5. Presets: 9 of 120 change, all quieter by
+    0.01 to 0.40 dB RMS (list in the commit message); none was more than 3 dB quieter, so no Output Gain was
+    restored. The low-drive half (unity level below the knee) is still open.
 
 51. **Innexus still adopts a stored SharedDisplayBridge instance ID the old way** (duplicate-ID collision when two
     instances restore the same stream). T2.19 (`7dd33372`) added `registerInstanceIfFree` /
