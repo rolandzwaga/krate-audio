@@ -705,28 +705,62 @@ TEST_CASE("Serialization edge case: empty stream uses defaults", "[preset][seria
 TEST_CASE("Serialization edge case: truncated stream loads partial data", "[preset][serialization][edge]") {
     auto proc = createTestProcessor();
 
-    // Create a stream with only version + partial globals (truncated after inputGain)
+    // D-127 (T5.06): globals and the band count, then the stream ends where the
+    // per-band states start. What it holds is applied; the bands keep their defaults.
+    constexpr float kInputGain = 0.8f;
+    constexpr float kOutputGain = 0.3f;
+    constexpr float kGlobalMix = 0.6f;
+    constexpr int32_t kBandCount = 3;
     auto truncatedStream = Steinberg::owned(new MemoryStream());
     {
         Steinberg::IBStreamer writer(truncatedStream, kLittleEndian);
-        writer.writeInt32(kPresetVersion); // version
-        writer.writeFloat(0.8f);            // inputGain only
-        // Missing: outputGain, globalMix, bands, etc.
+        writer.writeInt32(kPresetVersion);
+        writer.writeFloat(kInputGain);
+        writer.writeFloat(kOutputGain);
+        writer.writeFloat(kGlobalMix);
+        writer.writeInt32(kBandCount);
     }
-
     truncatedStream->seek(0, IBStream::kIBSeekSet, nullptr);
-    auto result = proc->setState(truncatedStream);
+    REQUIRE(proc->setState(truncatedStream) == Steinberg::kResultOk);
 
-    // setState reads version successfully but fails partway through globals
-    // The implementation returns kResultFalse when read fails mid-stream
-    // But it shouldn't crash
-    // Note: exact return value depends on where truncation occurs
-    // The important thing is NO CRASH
-    (void)result;
-
-    // Processor should still be usable
     auto outputStream = Steinberg::owned(new MemoryStream());
     REQUIRE(proc->getState(outputStream) == Steinberg::kResultOk);
+    outputStream->seek(0, IBStream::kIBSeekSet, nullptr);
+    Steinberg::IBStreamer reader(outputStream, kLittleEndian);
+    int32_t version = 0;
+    float inputGain = 0.0f;
+    float outputGain = 0.0f;
+    float globalMix = 0.0f;
+    int32_t bandCount = 0;
+    REQUIRE(reader.readInt32(version));
+    REQUIRE(reader.readFloat(inputGain));
+    REQUIRE(reader.readFloat(outputGain));
+    REQUIRE(reader.readFloat(globalMix));
+    REQUIRE(reader.readInt32(bandCount));
+    std::printf("D-127 truncated after the band count: input %.3f, output %.3f, mix %.3f, bands %d\n", inputGain,
+                outputGain, globalMix, bandCount);
+    CHECK_THAT(inputGain, Catch::Matchers::WithinAbs(kInputGain, 1e-6));
+    CHECK_THAT(outputGain, Catch::Matchers::WithinAbs(kOutputGain, 1e-6));
+    CHECK_THAT(globalMix, Catch::Matchers::WithinAbs(kGlobalMix, 1e-6));
+    CHECK(bandCount == kBandCount);
+
+    int nonDefaultBands = 0;
+    for (int b = 0; b < kMaxBands; ++b) {
+        float gainDb = -1.0f;
+        float pan = -1.0f;
+        Steinberg::int8 solo = -1;
+        Steinberg::int8 bypass = -1;
+        Steinberg::int8 mute = -1;
+        REQUIRE(reader.readFloat(gainDb));
+        REQUIRE(reader.readFloat(pan));
+        REQUIRE(reader.readInt8(solo));
+        REQUIRE(reader.readInt8(bypass));
+        REQUIRE(reader.readInt8(mute));
+        std::printf("  band %d: gain %.3f dB, pan %.3f, solo %d, bypass %d, mute %d\n", b, gainDb, pan, solo, bypass,
+                    mute);
+        if (gainDb != 0.0f || pan != 0.0f || solo != 0 || bypass != 0 || mute != 0) ++nonDefaultBands;
+    }
+    CHECK(nonDefaultBands == 0);
 }
 
 // =============================================================================

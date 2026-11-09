@@ -2011,67 +2011,59 @@ TEST_CASE("UT-DI-007: Oversampling reduces aliasing", "[distortion][oversampling
 }
 
 // =============================================================================
-// UT-DI-008: Real-time safety (design verification)
+// UT-DI-008: Real-time safety (D-127, fix plan T5.06)
 // =============================================================================
+// After prepare(), what the audio thread calls on a node change (setType,
+// setParams) and process() allocate nothing, for every type; Spectral at each
+// FFT size its slot offers (a size other than the prepared one re-prepared
+// SpectralDistortion on the audio thread until T1.01).
 
-TEST_CASE("UT-DI-008: Real-time safety design verification", "[distortion][realtime]") {
-    // This test verifies the design intent for real-time safety.
-    // Full allocation tracking would require custom allocators which is complex.
-    // Instead, we verify:
-    // 1. After prepare(), process() can be called without errors
-    // 2. The adapter uses pre-allocated structures
-    // 3. No exceptions are thrown during processing
+#include <allocation_detector.h>
+#include <krate/dsp/core/db_utils.h>
 
-    DistortionAdapter adapter;
+#include <cstddef>
 
-    SECTION("prepare() initializes all internal state") {
-        // prepare() is the only place allocations should happen
-        adapter.prepare(kTestSampleRate, kTestBlockSize);
+TEST_CASE("UT-DI-008: setType + setParams + process allocate nothing for every type",
+          "[distortion][realtime][D-127]") {
+    constexpr int kSamples = 4096;
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kTestSampleRate, kTestBlockSize);
+    DistortionCommonParams common;
+    common.drive = 2.0f;
+    common.mix = 1.0f;
+    common.toneHz = 4000.0f;
+    adapter->setCommonParams(common);
 
-        // After prepare, we should be able to process without issues
-        DistortionCommonParams params;
-        params.drive = 2.0f;
-        params.mix = 1.0f;
-        params.toneHz = 4000.0f;
-        adapter.setCommonParams(params);
+    std::array<float, kSamples> input{};
+    for (int i = 0; i < kSamples; ++i)
+        input[static_cast<size_t>(i)] =
+            0.5f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 440.0 * i / kTestSampleRate));
 
-        // Process many samples - should not throw or crash
-        for (int type = 0; type < static_cast<int>(DistortionType::COUNT); ++type) {
-            adapter.setType(static_cast<DistortionType>(type));
-            for (int i = 0; i < 1000; ++i) {
-                float sample = adapter.process(0.5f);
-                REQUIRE(!std::isnan(sample));
-                REQUIRE(!std::isinf(sample));
+    std::size_t allocations = 0;
+    int runs = 0;
+    int nonFinite = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+            const auto type = static_cast<DistortionType>(t);
+            for (const int fftSize : {1024, 2048, 4096}) {
+                if (type != DistortionType::Spectral && fftSize != 2048) continue;
+                adapter->setType(type);
+                DistortionParams params;
+                params.fftSize = fftSize;
+                adapter->setParams(params);
+                for (const float x : input)
+                    if (!Krate::DSP::detail::isFinite(adapter->process(x))) ++nonFinite;
+                ++runs;
             }
         }
-        CHECK(true);  // If we got here, no crashes occurred
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
     }
-
-    SECTION("reset() does not allocate") {
-        adapter.prepare(kTestSampleRate, kTestBlockSize);
-        // reset() should just clear state, not allocate
-        adapter.reset();
-
-        // Should still work after reset
-        float sample = adapter.process(0.5f);
-        CHECK(!std::isnan(sample));
-    }
-
-    SECTION("setType() does not allocate") {
-        adapter.prepare(kTestSampleRate, kTestBlockSize);
-
-        // Rapid type switching should not cause issues
-        for (int i = 0; i < 100; ++i) {
-            adapter.setType(static_cast<DistortionType>(i % static_cast<int>(DistortionType::COUNT)));
-            float sample = adapter.process(0.3f);
-            CHECK(!std::isnan(sample));
-        }
-    }
-
-    // Note: True allocation-free verification would require:
-    // - Custom global new/delete operators with counters
-    // - Or running under Valgrind/ASan with allocation tracking
-    // This is documented as a design constraint in the adapter comments.
+    std::printf("UT-DI-008: %d type/FFT-size runs of %d samples, %zu allocations, %d non-finite samples\n", runs,
+                kSamples, allocations, nonFinite);
+    REQUIRE(runs == static_cast<int>(DistortionType::COUNT) + 2);
+    CHECK(nonFinite == 0);
+    REQUIRE(allocations == 0);
 }
 
 // =============================================================================
@@ -2897,8 +2889,6 @@ TEST_CASE("Quantize all 4 params independently affect output", "[distortion][dig
 // pins that none of those prepare() calls allocates once prepare() has sized the
 // buffers for the highest rate.
 
-#include <allocation_detector.h>
-
 TEST_CASE("DistortionAdapter::setProcessingRate re-run under AllocationScope allocates nothing",
           "[disrumpo][distortion][realtime][D-009]") {
     constexpr double kHostRate = 48000.0;
@@ -2942,10 +2932,6 @@ TEST_CASE("DistortionAdapter::setProcessingRate re-run under AllocationScope all
 // =============================================================================
 // D-142 / D-075 (fix plan T1.22): silent input stays silent, no DC on the output
 // =============================================================================
-
-#include <krate/dsp/core/db_utils.h>
-
-#include <cstddef>
 
 namespace {
 

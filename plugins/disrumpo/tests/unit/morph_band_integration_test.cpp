@@ -30,6 +30,7 @@
 #include <chrono>
 #include <cmath>
 #include <array>
+#include <cstdio>
 #include <memory>
 #include <numbers>
 #include <vector>
@@ -281,48 +282,30 @@ TEST_CASE("BandProcessor morph smoothing time configurable", "[band][morph][FR-0
     proc.setMorphNodes(nodes, 2);
     proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
 
-    // Test different smoothing times
-    SECTION("Fast smoothing (5ms)") {
-        proc.setMorphSmoothingTime(5.0f);
+    // D-127 (T5.06): a one-pole cursor that reaches 99 % (5 time constants) in the
+    // configured time T crosses its midpoint after T ln2 / 5, counted at the host rate.
+    const auto midpointCrossing = [&proc](float smoothingMs) {
+        proc.setMorphSmoothingTime(smoothingMs);
         proc.setMorphPosition(0.0f, 0.0f);
-        settleBandProcessor(proc, 500);
-
+        settleBandProcessor(proc, static_cast<int>(kSampleRate));
+        REQUIRE(proc.getMorphEngine()->getSmoothedX() < 1e-4f);
         proc.setMorphPosition(1.0f, 0.0f);
-
-        // After 5ms worth of samples (~221 at 44.1kHz), should be mostly done
-        for (int i = 0; i < 300; ++i) {
+        int samples = 0;
+        while (proc.getMorphEngine()->getSmoothedX() < 0.5f && samples < static_cast<int>(kSampleRate)) {
             float left = 0.1f;
             float right = 0.1f;
             proc.process(left, right);
+            ++samples;
         }
+        const double want = smoothingMs * 1e-3 * kSampleRate * std::numbers::ln2 / 5.0;
+        std::printf("D-127 %.0f ms morph smoothing: cursor midpoint after %d samples, one-pole %.1f\n",
+                    static_cast<double>(smoothingMs), samples, want);
+        CHECK(samples >= 0.9 * want);
+        CHECK(samples <= 1.1 * want);
+    };
 
-        // The cursor moved toward the new target (the 99 % timing is pinned by
-        // "BandProcessor morph smoothing reaches 99 % in the configured time")
-        const float x = proc.getMorphEngine()->getSmoothedX();
-        INFO("smoothed X after 300 samples = " << x);
-        REQUIRE(x > 0.0f);
-        REQUIRE(x <= 1.0f);
-    }
-
-    SECTION("Slow smoothing (200ms)") {
-        proc.setMorphSmoothingTime(200.0f);
-        proc.setMorphPosition(0.0f, 0.0f);
-        settleBandProcessor(proc, 1000);
-
-        proc.setMorphPosition(1.0f, 0.0f);
-
-        // After 50ms, still transitioning
-        for (int i = 0; i < 2205; ++i) {  // ~50ms
-            float left = 0.1f;
-            float right = 0.1f;
-            proc.process(left, right);
-        }
-
-        const float x = proc.getMorphEngine()->getSmoothedX();
-        INFO("smoothed X after 50 ms of a 200 ms glide = " << x);
-        REQUIRE(x > 0.0f);
-        REQUIRE(x < 0.99f);
-    }
+    SECTION("Fast smoothing (5ms)") { midpointCrossing(5.0f); }
+    SECTION("Slow smoothing (200ms)") { midpointCrossing(200.0f); }
 }
 
 // D-138 / D-099 (fix plan T1.05): the BandProcessor ran L and then R through one
