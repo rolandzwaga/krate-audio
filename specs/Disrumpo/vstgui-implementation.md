@@ -881,10 +881,10 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     // Create visibility controllers for progressive disclosure
 
     // Band visibility based on band count
-    for (int b = 0; b < 8; ++b) {
+    for (int b = 0; b < kMaxBands; ++b) {
         // Show band b only if bandCount > b
-        // Threshold: (b) / 7.0 means band b is visible when normalized >= b/7
-        float threshold = static_cast<float>(b) / 7.0f;
+        // Band Count is a 4-entry list (1-4 bands): band b is visible when normalized >= b/3
+        float threshold = static_cast<float>(b) / 3.0f;
 
         auto* controller = new ContainerVisibilityController(
             &activeEditor_,
@@ -897,7 +897,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     }
 
     // Band expanded state visibility
-    for (int b = 0; b < 8; ++b) {
+    for (int b = 0; b < kMaxBands; ++b) {
         // Each band has an expand toggle parameter
         // When expanded, show the expanded container
         auto* controller = new ContainerVisibilityController(
