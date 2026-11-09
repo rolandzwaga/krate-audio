@@ -275,6 +275,14 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     slot and the segment below x = 1 heads for 1.0, not 0.5. Load terminates and the curve is well formed; the
     values of such a degenerate curve are implementation-defined. Rule whether interior x is kept strictly inside
     (0, 1) or ties break by role.
+75. **Chaos Speed's registered plain value is not what the processor runs** (T5.02, measured by "Registered plain
+    value matches the processor's applied value"): it is registered as a plain 0..1 `Parameter` (no range, no unit)
+    while the processor decodes `kChaosSpeedRange` (0.05..20); at norm 0 / 0.25 / 0.5 / 1 the host shows 0 / 0.25 /
+    0.5 / 1 and the processor runs 0.05 / 5.04 / 10.03 / 20. The fix is one registration line in the D-169 pattern
+    (`makeLinearRangeParameter` over `kChaosSpeedRange`, plus a unit), plugin source and so outside Phase 5's
+    test-only scope. The case pins it (CHECK that it still disagrees): the fix turns it red and moves Chaos Speed into
+    the checked set. Part of item 56's table. The same case leaves the 16 custom-curve point parameters unchecked
+    (item 19: not applied live).
 
 ## Done outside the plan
 

@@ -53,8 +53,11 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
+#include <map>
 #include <numbers>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -1082,6 +1085,334 @@ TEST_CASE("v10 factory preset routing destinations migrate to the 8-per-band lay
     REQUIRE(v10Presets > 100);
     REQUIRE(moved > 0);
     REQUIRE(wrong == 0);
+}
+
+// -----------------------------------------------------------------------------
+// D-122 (T5.02): every continuous, automatable parameter the host sees must
+// show the value the processor runs. The registered Parameter's plain value
+// (what the host prints and automates) is compared with the processor's own
+// value after the change went through process(): a live getter where one is
+// public (sweep, morph nodes), else the processor's saved state decoded with
+// the inverse of the writer's encoding, else (input gain, output gain, mix,
+// which the processor keeps normalized) a level measurement of its output.
+// -----------------------------------------------------------------------------
+namespace {
+
+using StateRead = std::function<double(const Rig&, const std::vector<uint8_t>&)>;
+
+std::string asciiOf(const Steinberg::Vst::TChar* s) {
+    std::string out;
+    for (int i = 0; i < 128 && s[i] != 0; ++i) out += s[i] < 128 ? static_cast<char>(s[i]) : '?';
+    return out;
+}
+
+// Byte offset of `field` in a v13 stream: the mod sources start after the
+// custom-curve breakpoints, whose count the stream holds.
+size_t modSourcesOffset(const std::vector<uint8_t>& b) {
+    const auto points = readAt<int32_t>(b, kCurveCountOffset);
+    REQUIRE(points >= 0);
+    return kCurveCountOffset + 4 + static_cast<size_t>(points) * 8;
+}
+
+StateRead f32At(size_t off, double scale = 1.0) {
+    return [off, scale](const Rig&, const std::vector<uint8_t>& b) { return scale * readAt<float>(b, off); };
+}
+
+StateRead modF32(size_t rel, double scale = 1.0) {
+    return [rel, scale](const Rig&, const std::vector<uint8_t>& b) {
+        return scale * readAt<float>(b, modSourcesOffset(b) + rel);
+    };
+}
+
+StateRead modRange(size_t rel, LinearRange r) {
+    return [rel, r](const Rig&, const std::vector<uint8_t>& b) {
+        return static_cast<double>(r.toPlain(readAt<float>(b, modSourcesOffset(b) + rel)));
+    };
+}
+
+StateRead modLfoRate(size_t rel) {
+    return [rel](const Rig&, const std::vector<uint8_t>& b) {
+        return static_cast<double>(lfoRateNormToHz(readAt<float>(b, modSourcesOffset(b) + rel)));
+    };
+}
+
+StateRead morphBandF32(size_t band, size_t rel) {
+    return [band, rel](const Rig&, const std::vector<uint8_t>& b) {
+        return static_cast<double>(readAt<float>(b, morphOffset(b) + band * morphBandSize(kPresetVersion) + rel));
+    };
+}
+
+StateRead nodeSlot(size_t band, size_t node, size_t slot) {
+    return [band, node, slot](const Rig&, const std::vector<uint8_t>& b) {
+        const size_t o = morphOffset(b) + band * morphBandSize(kPresetVersion) + morphBandHeader(kPresetVersion) +
+                         node * kMorphNodeSize + size_t{1 + 6 * 4} + slot * 4;  // type, 6 floats, slots
+        return static_cast<double>(readAt<float>(b, o));
+    };
+}
+
+const MorphEngine& liveEngine(const Rig& rig, size_t band) {
+    const MorphEngine* e = rig.p->getBandProcessor(static_cast<int>(band)).getMorphEngine();
+    REQUIRE(e != nullptr);
+    return *e;
+}
+
+// Output / input level ratio in dB over the last 100 ms of a 250 ms 1 kHz sine render.
+double renderGainDb(Rig& rig) {
+    const auto n = static_cast<size_t>(0.25 * rig.sr);
+    std::vector<float> in(n);
+    for (size_t i = 0; i < n; ++i)
+        in[i] = 0.25f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 1000.0 * static_cast<double>(i) / rig.sr));
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR, 256);
+    const auto tail = static_cast<size_t>(0.1 * rig.sr);
+    const double ratio = rmsOf(outL.data() + (n - tail), tail) / rmsOf(in.data() + (n - tail), tail);
+    return 20.0 * std::log10(std::max(ratio, 1e-9));
+}
+
+double outputRatio(Rig& rig) { return std::pow(10.0, renderGainDb(rig) / 20.0); }
+
+}  // namespace
+
+TEST_CASE("Registered plain value matches the processor's applied value", "[disrumpo][controller][state][D-122]") {
+    using SP = SweepParamType;
+    using MP = ModParamType;
+    using BP = BandParamType;
+    constexpr double kSampleRate = 48000.0;  // the 0.45 fs crossover cap (21.6 kHz) stays above 20 kHz
+
+    // Read-back for each processor-backed parameter, in the registered unit.
+    std::map<Steinberg::Vst::ParamID, std::pair<std::string, StateRead>> reads;
+    std::map<Steinberg::Vst::ParamID, std::pair<std::string, StateRead>> slotReads;  // pushed in their own pass
+    const auto add = [&reads](Steinberg::Vst::ParamID id, const char* how, StateRead r) {
+        reads.emplace(id, std::make_pair(std::string(how), std::move(r)));
+    };
+
+    for (uint8_t c = 0; c + 1 < kMaxBands; ++c)
+        add(makeCrossoverParamId(c), "state crossover Hz", f32At(kCrossoverOffset + 4 * size_t{c}));
+
+    add(makeSweepParamId(SP::kSweepFrequency), "live SweepProcessor::getTargetFrequency",
+        [](const Rig& r, const std::vector<uint8_t>&) {
+            return static_cast<double>(r.p->getSweepProcessor().getTargetFrequency());
+        });
+    add(makeSweepParamId(SP::kSweepWidth), "live SweepProcessor::getWidth",
+        [](const Rig& r, const std::vector<uint8_t>&) {
+            return static_cast<double>(r.p->getSweepProcessor().getWidth());
+        });
+    add(makeSweepParamId(SP::kSweepIntensity), "live SweepProcessor::getIntensity x 100",
+        [](const Rig& r, const std::vector<uint8_t>&) {
+            return 100.0 * static_cast<double>(r.p->getSweepProcessor().getIntensity());
+        });
+    // Sweep LFO and envelope (state: core 15 bytes from 76, LFO 12, envelope 13)
+    add(makeSweepParamId(SP::kSweepLFORate), "state sweep LFO rate",
+        [](const Rig&, const std::vector<uint8_t>& b) {
+            return static_cast<double>(lfoRateNormToHz(readAt<float>(b, kCrossoverOffset + 12 + 15 + 1)));
+        });
+    add(makeSweepParamId(SP::kSweepLFODepth), "state sweep LFO depth x 100", f32At(kCrossoverOffset + 12 + 15 + 6, 100.0));
+    add(makeSweepParamId(SP::kSweepEnvAttack), "state sweep env attack ms",
+        [](const Rig&, const std::vector<uint8_t>& b) {
+            return static_cast<double>(kMinSweepEnvAttackMs +
+                                       readAt<float>(b, kCrossoverOffset + 12 + 27 + 1) *
+                                           (kMaxSweepEnvAttackMs - kMinSweepEnvAttackMs));
+        });
+    add(makeSweepParamId(SP::kSweepEnvRelease), "state sweep env release ms",
+        [](const Rig&, const std::vector<uint8_t>& b) {
+            return static_cast<double>(kMinSweepEnvReleaseMs +
+                                       readAt<float>(b, kCrossoverOffset + 12 + 27 + 5) *
+                                           (kMaxSweepEnvReleaseMs - kMinSweepEnvReleaseMs));
+        });
+    add(makeSweepParamId(SP::kSweepEnvSensitivity), "state sweep env sensitivity x 100",
+        f32At(kCrossoverOffset + 12 + 27 + 9, 100.0));
+
+    // Mod sources (13 + 13 LFOs, 13 envelope, 9 random, 9 chaos, 9 S&H, 16 pitch,
+    // 12 transient, 10 Rungler), then 4 x 13 macros and 32 x 10 routings.
+    add(makeModParamId(MP::kLFO1Rate), "state LFO 1 rate", modLfoRate(0));
+    add(makeModParamId(MP::kLFO1Phase), "state LFO 1 phase", modRange(5, kLfoPhaseDegRange));
+    add(makeModParamId(MP::kLFO2Rate), "state LFO 2 rate", modLfoRate(13));
+    add(makeModParamId(MP::kLFO2Phase), "state LFO 2 phase", modRange(18, kLfoPhaseDegRange));
+    add(makeModParamId(MP::kEnvFollowerAttack), "state env attack", modRange(26, kEnvFollowerAttackMsRange));
+    add(makeModParamId(MP::kEnvFollowerRelease), "state env release", modRange(30, kEnvFollowerReleaseMsRange));
+    add(makeModParamId(MP::kEnvFollowerSensitivity), "state env sensitivity x 100", modF32(34, 100.0));
+    add(makeModParamId(MP::kRandomRate), "state random rate", modRange(39, kRandomRateHzRange));
+    add(makeModParamId(MP::kRandomSmoothness), "state random smoothness x 100", modF32(43, 100.0));
+    add(makeModParamId(MP::kChaosCoupling), "state chaos coupling", modF32(53));
+    add(makeModParamId(MP::kSampleHoldRate), "state S&H rate", modRange(58, kSampleHoldRateHzRange));
+    add(makeModParamId(MP::kSampleHoldSlew), "state S&H slew", modRange(62, kSampleHoldSlewMsRange));
+    add(makeModParamId(MP::kPitchFollowerMinHz), "state pitch min", modRange(66, kPitchFollowerMinHzRange));
+    add(makeModParamId(MP::kPitchFollowerMaxHz), "state pitch max", modRange(70, kPitchFollowerMaxHzRange));
+    add(makeModParamId(MP::kPitchFollowerConfidence), "state pitch confidence", modF32(74));
+    add(makeModParamId(MP::kPitchFollowerTrackingSpeed), "state pitch tracking",
+        modRange(78, kPitchFollowerTrackingMsRange));
+    add(makeModParamId(MP::kTransientSensitivity), "state transient sensitivity", modF32(82));
+    add(makeModParamId(MP::kTransientAttack), "state transient attack", modRange(86, kTransientAttackMsRange));
+    add(makeModParamId(MP::kTransientDecay), "state transient decay", modRange(90, kTransientDecayMsRange));
+    add(makeModParamId(MP::kRunglerRate), "state Rungler rate", modRange(94, kRunglerRateHzRange));
+    add(makeModParamId(MP::kRunglerDepth), "state Rungler depth", modF32(98));
+    const std::array<std::array<MP, 3>, 4> macroIds{{{MP::kMacro1Value, MP::kMacro1Min, MP::kMacro1Max},
+                                                     {MP::kMacro2Value, MP::kMacro2Min, MP::kMacro2Max},
+                                                     {MP::kMacro3Value, MP::kMacro3Min, MP::kMacro3Max},
+                                                     {MP::kMacro4Value, MP::kMacro4Min, MP::kMacro4Max}}};
+    for (size_t m = 0; m < macroIds.size(); ++m)
+        for (size_t f = 0; f < 3; ++f)
+            add(makeModParamId(macroIds[m][f]), "state macro value/min/max", modF32(kModSourcesSize + m * kMacroSize + 4 * f));
+    for (uint8_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r)
+        add(makeRoutingParamId(r, 2), "state routing amount x 100",
+            modF32(kModSourcesSize + Krate::DSP::kMaxMacros * kMacroSize + size_t{r} * 10 + 5, 100.0));
+
+    for (uint8_t band = 0; band < kMaxBands; ++band) {
+        const size_t b = band;
+        add(makeBandParamId(band, BP::kBandGain), "state band gain dB", f32At(20 + 11 * b));
+        add(makeBandParamId(band, BP::kBandPan), "state band pan", f32At(24 + 11 * b));
+        add(makeBandParamId(band, BP::kBandMorphX), "state morph X", morphBandF32(b, 0));
+        add(makeBandParamId(band, BP::kBandMorphY), "state morph Y", morphBandF32(b, 4));
+        add(makeBandParamId(band, BP::kBandMorphSmoothing), "state morph smoothing ms", morphBandF32(b, 10));
+        for (uint8_t node = 0; node < kMaxMorphNodes; ++node) {
+            const auto n = static_cast<int>(node);
+            add(makeNodeParamId(band, node, NodeParamType::kNodeDrive), "live node drive",
+                [b, n](const Rig& r, const std::vector<uint8_t>&) {
+                    return static_cast<double>(liveEngine(r, b).getNodeCommonParams(n).drive);
+                });
+            add(makeNodeParamId(band, node, NodeParamType::kNodeMix), "live node mix x 100",
+                [b, n](const Rig& r, const std::vector<uint8_t>&) {
+                    return 100.0 * static_cast<double>(liveEngine(r, b).getNodeCommonParams(n).mix);
+                });
+            add(makeNodeParamId(band, node, NodeParamType::kNodeTone), "live node tone Hz",
+                [b, n](const Rig& r, const std::vector<uint8_t>&) {
+                    return static_cast<double>(liveEngine(r, b).getNodeCommonParams(n).toneHz);
+                });
+            add(makeNodeParamId(band, node, NodeParamType::kNodeBias), "live node bias",
+                [b, n](const Rig& r, const std::vector<uint8_t>&) {
+                    return static_cast<double>(liveEngine(r, b).getNodeParams(n).bias);
+                });
+            for (size_t s = 0; s < static_cast<size_t>(MorphNode::kShapeSlotCount); ++s) {
+                const auto t = static_cast<NodeParamType>(static_cast<size_t>(NodeParamType::kNodeShape0) + s);
+                slotReads.emplace(makeNodeParamId(band, node, t),
+                                  std::make_pair(std::string("state shape slot"), nodeSlot(b, node, s)));
+            }
+        }
+    }
+
+    // Kept normalized by the processor; read back as output levels below.
+    const std::array<Steinberg::Vst::ParamID, 3> measured{kInputGainId, kOutputGainId, kGlobalMixId};
+
+    // Not applied live (follow-up 19): the processor takes the custom curve from setState only.
+    std::set<Steinberg::Vst::ParamID> notApplied;
+    for (int p = 0; p < 16; ++p)
+        notApplied.insert(makeSweepParamId(static_cast<SP>(static_cast<int>(SP::kSweepCustomCurveP0X) + p)));
+
+    // Known mismatch, follow-ups 56 / 75: Chaos Speed is registered as a plain 0..1
+    // Parameter while the processor runs kChaosSpeedRange (0.05..20). Pinned: it must
+    // still disagree at every norm, so fixing the registration turns this red and
+    // moves the parameter into `reads`.
+    const Steinberg::Vst::ParamID chaosSpeedId = makeModParamId(MP::kChaosSpeed);
+    const StateRead chaosSpeedRead = modRange(49, kChaosSpeedRange);
+    const std::set<Steinberg::Vst::ParamID> knownMismatch{chaosSpeedId};
+
+    // Plain values that are angles: the processor wraps 360 degrees to 0.
+    const std::set<Steinberg::Vst::ParamID> degrees{makeModParamId(MP::kLFO1Phase), makeModParamId(MP::kLFO2Phase)};
+
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+
+    // Every continuous, automatable, host-visible parameter has a read-back.
+    std::vector<Steinberg::Vst::ParamID> continuous;
+    int unclassified = 0;
+    for (int32 i = 0; i < c.getParameterCount(); ++i) {
+        Steinberg::Vst::ParameterInfo info{};
+        REQUIRE(c.getParameterInfo(i, info) == Steinberg::kResultOk);
+        constexpr auto kSkip = Steinberg::Vst::ParameterInfo::kIsReadOnly | Steinberg::Vst::ParameterInfo::kIsHidden;
+        if (info.stepCount != 0 || (info.flags & Steinberg::Vst::ParameterInfo::kCanAutomate) == 0 ||
+            (info.flags & kSkip) != 0)
+            continue;
+        continuous.push_back(info.id);
+        const bool known = reads.contains(info.id) || slotReads.contains(info.id) || notApplied.contains(info.id) ||
+                           knownMismatch.contains(info.id) ||
+                           std::find(measured.begin(), measured.end(), info.id) != measured.end();
+        if (known) continue;
+        ++unclassified;
+        std::printf("  no read-back for parameter %u\n", static_cast<unsigned>(info.id));
+    }
+    REQUIRE(unclassified == 0);
+
+    // |registered - processor| within 1 % of the value, plus 0.01 % of the range
+    // (for values at or near 0: pan, bias, 0 dB).
+    int checked = 0;
+    int wrong = 0;
+    const auto agrees = [&](Steinberg::Vst::ParamID id, double n, double got) {
+        Steinberg::Vst::Parameter* param = c.getParameterObject(id);
+        REQUIRE(param != nullptr);
+        const double want = param->toPlain(n);
+        const double span = std::fabs(param->toPlain(1.0) - param->toPlain(0.0));
+        const double diff = degrees.contains(id) ? std::remainder(want - got, 360.0) : want - got;
+        return std::fabs(diff) <= 0.01 * std::fabs(want) + 1e-4 * span;
+    };
+    const auto report = [&](Steinberg::Vst::ParamID id, const std::string& how, double n, double got) {
+        Steinberg::Vst::ParameterInfo info{};
+        REQUIRE(c.getParameterInfoByTag(id, info) == Steinberg::kResultTrue);
+        std::printf("  %s (id %u, %s) at norm %.2f: registered plain %.5g, processor %.5g\n",
+                    asciiOf(info.title).c_str(), static_cast<unsigned>(id), how.c_str(), n,
+                    c.getParameterObject(id)->toPlain(n), got);
+    };
+    const auto compare = [&](Steinberg::Vst::ParamID id, const std::string& how, double n, double got) {
+        ++checked;
+        if (agrees(id, n, got)) return;
+        if (++wrong <= 40) report(id, how, n, got);
+    };
+    int chaosSpeedAgreeing = 0;
+
+    for (const double n : {0.0, 0.25, 0.5, 1.0}) {
+        // Pass 1: everything with a state or live read-back, one band (no crossover active).
+        {
+            Rig rig(kSampleRate);
+            PList l{{kBandCountId, 0.0}};
+            for (const auto& [id, r] : reads) l.emplace_back(id, n);
+            rig.apply(l);
+            const auto state = getStateBytes(*rig.p);
+            REQUIRE(readAt<int32_t>(state, 0) == kPresetVersion);
+            for (const auto& [id, r] : reads) compare(id, r.first, n, r.second(rig, state));
+        }
+        {
+            Rig rig(kSampleRate);
+            rig.apply({{chaosSpeedId, n}});
+            const double got = chaosSpeedRead(rig, getStateBytes(*rig.p));
+            report(chaosSpeedId, "known mismatch, state chaos speed", n, got);
+            if (agrees(chaosSpeedId, n, got)) ++chaosSpeedAgreeing;
+        }
+        // Pass 2: shape slots (a slot can remap a node's bias, so not in pass 1).
+        {
+            Rig rig(kSampleRate);
+            PList l;
+            for (const auto& [id, r] : slotReads) l.emplace_back(id, n);
+            rig.apply(l);
+            const auto state = getStateBytes(*rig.p);
+            for (const auto& [id, r] : slotReads) compare(id, r.first, n, r.second(rig, state));
+        }
+        // Pass 3: levels. Output gain on the dry path (mix 0); mix with every band
+        // muted (out = dry * (1 - mix)); input gain with the band bypassed at mix 1.
+        {
+            Rig rig(kSampleRate);
+            rig.apply({{kBandCountId, 0.0}, {kInputGainId, 0.5}, {kOutputGainId, n}, {kGlobalMixId, 0.0}});
+            const double outDb = renderGainDb(rig);
+            rig.apply({{kOutputGainId, 0.5}, {kGlobalMixId, n}, {makeBandParamId(0, BP::kBandMute), 1.0}});
+            const double mixPct = 100.0 * (1.0 - outputRatio(rig));
+            rig.apply({{kGlobalMixId, 1.0}, {makeBandParamId(0, BP::kBandMute), 0.0},
+                       {makeBandParamId(0, BP::kBandBypass), 1.0}, {kInputGainId, n}});
+            const double inDb = renderGainDb(rig);
+            std::printf("D-122 norm %.2f measured: output gain %.3f dB, mix %.3f %%, input gain %.3f dB\n", n, outDb,
+                        mixPct, inDb);
+            compare(kOutputGainId, "measured output level dB", n, outDb);
+            compare(kGlobalMixId, "measured dry level -> mix %", n, mixPct);
+            compare(kInputGainId, "measured wet level dB", n, inDb);
+        }
+    }
+    std::printf("D-122 registered vs processor: %zu continuous parameters (%zu by state/live read, %zu shape slots, "
+                "3 measured, %zu custom-curve points not applied live, %zu known mismatch), %d of %d comparisons "
+                "wrong\n",
+                continuous.size(), reads.size(), slotReads.size(), notApplied.size(), knownMismatch.size(), wrong,
+                checked);
+    REQUIRE(checked == 4 * static_cast<int>(reads.size() + slotReads.size() + measured.size()));
+    CHECK(wrong == 0);
+    CHECK(chaosSpeedAgreeing == 0);  // fixed? move Chaos Speed into `reads`, close follow-up 75
+    c.terminate();
 }
 
 // -----------------------------------------------------------------------------
