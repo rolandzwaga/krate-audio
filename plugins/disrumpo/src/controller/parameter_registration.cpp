@@ -22,6 +22,32 @@
 
 namespace Disrumpo {
 
+namespace {
+
+/// RangeParameter over a state_codec.h LinearRange, so the host's plain value and text
+/// are the processor's own decode (D-169). `unitScale` shows the range in another unit
+/// (100: a 0..2 range as 0..200 %).
+Steinberg::Vst::RangeParameter* makeLinearRangeParameter(const Steinberg::Vst::TChar* title,
+                                                         Steinberg::Vst::ParamID id,
+                                                         const Steinberg::Vst::TChar* units,
+                                                         const LinearRange& range, double defaultPlain,
+                                                         double unitScale = 1.0) {
+    const double minPlain = unitScale * static_cast<double>(range.min);
+    const double maxPlain = unitScale * static_cast<double>(range.min + range.span);
+    return new Steinberg::Vst::RangeParameter(title, id, units, minPlain, maxPlain, defaultPlain, 0,
+                                              Steinberg::Vst::ParameterInfo::kCanAutomate);
+}
+
+/// LFO rate [0.01, 20] Hz on the processor's ln curve (lfoRateNormToHz).
+LogRangeParameter* makeLfoRateParameter(const Steinberg::Vst::TChar* title, Steinberg::Vst::ParamID id,
+                                        double defaultHz) {
+    return new LogRangeParameter(title, id, STR16("Hz"), static_cast<double>(kMinLfoRateHz),
+                                 static_cast<double>(kMaxLfoRateHz), defaultHz, &lfoRateNormToHz,
+                                 &lfoRateHzToNorm, Steinberg::Vst::ParameterInfo::kCanAutomate);
+}
+
+}  // namespace
+
 // ==============================================================================
 // Global Parameters
 // ==============================================================================
@@ -74,7 +100,9 @@ void Controller::registerGlobalParams() {
         intToString128(i, str);
         bandCountParam->appendString(str);
     }
-    bandCountParam->setNormalized(1.0);  // Default to index 3 = "4" (3/3 steps)
+    // Default index 3 = "4": the registered default too, or a host reset gives 1 band (D-072)
+    bandCountParam->setNormalized(1.0);
+    bandCountParam->getInfo().defaultNormalizedValue = 1.0;
     parameters.addParameter(bandCountParam);
 
     // Oversample Max: StringListParameter ["1x","2x","4x","8x"], default "4x"
@@ -88,7 +116,9 @@ void Controller::registerGlobalParams() {
     oversampleParam->appendString(STR16("2x"));
     oversampleParam->appendString(STR16("4x"));
     oversampleParam->appendString(STR16("8x"));
-    oversampleParam->setNormalized(2.0 / 3.0);  // Default to index 2 = "4x"
+    // Default index 2 = "4x": the registered default too, or a host reset gives 1x (D-072)
+    oversampleParam->setNormalized(2.0 / 3.0);
+    oversampleParam->getInfo().defaultNormalizedValue = 2.0 / 3.0;
     parameters.addParameter(oversampleParam);
 
     // Spectrum View Mode: StringListParameter ["Wet","Dry","Both"], default "Wet"
@@ -192,27 +222,15 @@ void Controller::registerSweepParams() {
     );
     parameters.addParameter(sweepFreqParam);
 
-    // Sweep Width: RangeParameter [0.5, 4.0] octaves
-    auto* sweepWidthParam = new Steinberg::Vst::RangeParameter(
-        STR16("Sweep Width"),
-        makeSweepParamId(SweepParamType::kSweepWidth),
-        STR16("oct"),
-        0.5, 4.0, 1.0,
-        0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate
-    );
-    parameters.addParameter(sweepWidthParam);
+    // Sweep Width: [0.5, 4.0] octaves, default 1.5 oct as the processor starts (D-101)
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Sweep Width"), makeSweepParamId(SweepParamType::kSweepWidth), STR16("oct"),
+        kSweepWidthOctRange, 1.5));
 
-    // Sweep Intensity: RangeParameter [0, 100] %
-    auto* sweepIntensityParam = new Steinberg::Vst::RangeParameter(
-        STR16("Sweep Intensity"),
-        makeSweepParamId(SweepParamType::kSweepIntensity),
-        STR16("%"),
-        0.0, 100.0, 50.0,
-        0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate
-    );
-    parameters.addParameter(sweepIntensityParam);
+    // Sweep Intensity: [0, 200] %, the processor's norm * 2 (FR-SWEEP-002); default 50 % (D-101)
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Sweep Intensity"), makeSweepParamId(SweepParamType::kSweepIntensity), STR16("%"),
+        kSweepIntensityRange, 50.0, 100.0));
 
     // Sweep Morph Link: StringListParameter
     auto* morphLinkParam = new Steinberg::Vst::StringListParameter(
@@ -248,10 +266,8 @@ void Controller::registerSweepParams() {
         Steinberg::Vst::ParameterInfo::kCanAutomate,
         makeSweepParamId(SweepParamType::kSweepLFOEnable));
 
-    auto* lfoRateParam = new Steinberg::Vst::RangeParameter(
-        STR16("Sweep LFO Rate"), makeSweepParamId(SweepParamType::kSweepLFORate),
-        STR16("Hz"), 0.01, 20.0, 1.0, 0, Steinberg::Vst::ParameterInfo::kCanAutomate);
-    parameters.addParameter(lfoRateParam);
+    parameters.addParameter(
+        makeLfoRateParameter(STR16("Sweep LFO Rate"), makeSweepParamId(SweepParamType::kSweepLFORate), 1.0));
 
     auto* lfoWaveformParam = new Steinberg::Vst::StringListParameter(
         STR16("Sweep LFO Waveform"), makeSweepParamId(SweepParamType::kSweepLFOWaveform),
@@ -375,10 +391,7 @@ void Controller::registerModulationParams() {
     // spec 008-modulation-system: Register all modulation parameters
 
     // LFO 1 Parameters
-    auto* lfo1Rate = new Steinberg::Vst::RangeParameter(
-        STR16("LFO 1 Rate"), makeModParamId(ModParamType::kLFO1Rate),
-        STR16("Hz"), 0.01, 20.0, 1.0, 0, Steinberg::Vst::ParameterInfo::kCanAutomate);
-    parameters.addParameter(lfo1Rate);
+    parameters.addParameter(makeLfoRateParameter(STR16("LFO 1 Rate"), makeModParamId(ModParamType::kLFO1Rate), 1.0));
 
     auto* lfo1Shape = new Steinberg::Vst::StringListParameter(
         STR16("LFO 1 Shape"), makeModParamId(ModParamType::kLFO1Shape));
@@ -390,8 +403,8 @@ void Controller::registerModulationParams() {
     lfo1Shape->appendString(STR16("Smooth Random"));
     parameters.addParameter(lfo1Shape);
 
-    parameters.addParameter(STR16("LFO 1 Phase"), STR16("deg"), 0, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO1Phase));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("LFO 1 Phase"), makeModParamId(ModParamType::kLFO1Phase), STR16("deg"), kLfoPhaseDegRange, 0.0));
     parameters.addParameter(STR16("LFO 1 Sync"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO1Sync));
 
@@ -411,10 +424,8 @@ void Controller::registerModulationParams() {
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO1Retrigger));
 
     // LFO 2 Parameters
-    auto* lfo2Rate = new Steinberg::Vst::RangeParameter(
-        STR16("LFO 2 Rate"), makeModParamId(ModParamType::kLFO2Rate),
-        STR16("Hz"), 0.01, 20.0, 0.5, 0, Steinberg::Vst::ParameterInfo::kCanAutomate);
-    parameters.addParameter(lfo2Rate);
+    // 1 Hz as the processor's LFO 2 starts (the old 0.5 Hz default, linear, decoded as 0.012 Hz)
+    parameters.addParameter(makeLfoRateParameter(STR16("LFO 2 Rate"), makeModParamId(ModParamType::kLFO2Rate), 1.0));
 
     auto* lfo2Shape = new Steinberg::Vst::StringListParameter(
         STR16("LFO 2 Shape"), makeModParamId(ModParamType::kLFO2Shape));
@@ -426,8 +437,8 @@ void Controller::registerModulationParams() {
     lfo2Shape->appendString(STR16("Smooth Random"));
     parameters.addParameter(lfo2Shape);
 
-    parameters.addParameter(STR16("LFO 2 Phase"), STR16("deg"), 0, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO2Phase));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("LFO 2 Phase"), makeModParamId(ModParamType::kLFO2Phase), STR16("deg"), kLfoPhaseDegRange, 0.0));
     parameters.addParameter(STR16("LFO 2 Sync"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO2Sync));
 
@@ -446,13 +457,16 @@ void Controller::registerModulationParams() {
     parameters.addParameter(STR16("LFO 2 Retrigger"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO2Retrigger));
 
-    // Envelope Follower Parameters
-    parameters.addParameter(STR16("Env Attack"), STR16("ms"), 0, 0.091,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kEnvFollowerAttack));
-    parameters.addParameter(STR16("Env Release"), STR16("ms"), 0, 0.184,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kEnvFollowerRelease));
-    parameters.addParameter(STR16("Env Sensitivity"), STR16("%"), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kEnvFollowerSensitivity));
+    // Envelope Follower Parameters: plain ranges are the processor's decode (D-169), defaults its own
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Env Attack"), makeModParamId(ModParamType::kEnvFollowerAttack), STR16("ms"),
+        kEnvFollowerAttackMsRange, 10.0));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Env Release"), makeModParamId(ModParamType::kEnvFollowerRelease), STR16("ms"),
+        kEnvFollowerReleaseMsRange, 100.0));
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Env Sensitivity"), makeModParamId(ModParamType::kEnvFollowerSensitivity), STR16("%"),
+        0.0, 100.0, 50.0, 0, Steinberg::Vst::ParameterInfo::kCanAutomate));
 
     auto* envSource = new Steinberg::Vst::StringListParameter(
         STR16("Env Source"), makeModParamId(ModParamType::kEnvFollowerSource));
@@ -464,10 +478,11 @@ void Controller::registerModulationParams() {
     parameters.addParameter(envSource);
 
     // Random Source Parameters
-    parameters.addParameter(STR16("Random Rate"), STR16("Hz"), 0, 0.078,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRandomRate));
-    parameters.addParameter(STR16("Random Smoothness"), STR16("%"), 0, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRandomSmoothness));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Random Rate"), makeModParamId(ModParamType::kRandomRate), STR16("Hz"), kRandomRateHzRange, 4.0));
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Random Smoothness"), makeModParamId(ModParamType::kRandomSmoothness), STR16("%"),
+        0.0, 100.0, 0.0, 0, Steinberg::Vst::ParameterInfo::kCanAutomate));
     parameters.addParameter(STR16("Random Sync"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRandomSync));
 
@@ -494,32 +509,38 @@ void Controller::registerModulationParams() {
     shSource->appendString(STR16("External"));
     parameters.addParameter(shSource);
 
-    parameters.addParameter(STR16("S&H Rate"), STR16("Hz"), 0, 0.078,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kSampleHoldRate));
-    parameters.addParameter(STR16("S&H Slew"), STR16("ms"), 0, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kSampleHoldSlew));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("S&H Rate"), makeModParamId(ModParamType::kSampleHoldRate), STR16("Hz"), kSampleHoldRateHzRange, 4.0));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("S&H Slew"), makeModParamId(ModParamType::kSampleHoldSlew), STR16("ms"), kSampleHoldSlewMsRange, 0.0));
 
     // Pitch Follower Parameters
-    parameters.addParameter(STR16("Pitch Min Hz"), STR16("Hz"), 0, 0.125,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kPitchFollowerMinHz));
-    parameters.addParameter(STR16("Pitch Max Hz"), STR16("Hz"), 0, 0.375,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kPitchFollowerMaxHz));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Pitch Min Hz"), makeModParamId(ModParamType::kPitchFollowerMinHz), STR16("Hz"),
+        kPitchFollowerMinHzRange, 80.0));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Pitch Max Hz"), makeModParamId(ModParamType::kPitchFollowerMaxHz), STR16("Hz"),
+        kPitchFollowerMaxHzRange, 2000.0));
     parameters.addParameter(STR16("Pitch Confidence"), nullptr, 0, 0.5,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kPitchFollowerConfidence));
-    parameters.addParameter(STR16("Pitch Tracking"), STR16("ms"), 0, 0.138,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kPitchFollowerTrackingSpeed));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Pitch Tracking"), makeModParamId(ModParamType::kPitchFollowerTrackingSpeed), STR16("ms"),
+        kPitchFollowerTrackingMsRange, 50.0));
 
     // Transient Detector Parameters
     parameters.addParameter(STR16("Transient Sensitivity"), nullptr, 0, 0.5,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kTransientSensitivity));
-    parameters.addParameter(STR16("Transient Attack"), STR16("ms"), 0, 0.158,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kTransientAttack));
-    parameters.addParameter(STR16("Transient Decay"), STR16("ms"), 0, 0.167,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kTransientDecay));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Transient Attack"), makeModParamId(ModParamType::kTransientAttack), STR16("ms"),
+        kTransientAttackMsRange, 2.0));
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Transient Decay"), makeModParamId(ModParamType::kTransientDecay), STR16("ms"),
+        kTransientDecayMsRange, 50.0));
 
-    // Rungler Parameters
-    parameters.addParameter(STR16("Rungler Rate"), STR16("Hz"), 0, 0.08,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRunglerRate));
+    // Rungler Parameters (default kept at its registered normalized 0.08)
+    parameters.addParameter(makeLinearRangeParameter(
+        STR16("Rungler Rate"), makeModParamId(ModParamType::kRunglerRate), STR16("Hz"), kRunglerRateHzRange,
+        static_cast<double>(kRunglerRateHzRange.toPlain(0.08f))));
     parameters.addParameter(STR16("Rungler Depth"), nullptr, 0, 0.5,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRunglerDepth));
     parameters.addParameter(STR16("Rungler Bits"), nullptr, 12, 0.333,
@@ -613,9 +634,10 @@ void Controller::registerModulationParams() {
         }
         parameters.addParameter(routeDest);
 
+        // -100..100 %: the processor's amount = norm * 2 - 1 (D-169)
         auto* routeAmount = new Steinberg::Vst::RangeParameter(
             STR16("Route Amount"), makeRoutingParamId(r, 2),
-            STR16("%"), -1.0, 1.0, 0.0, 0, Steinberg::Vst::ParameterInfo::kCanAutomate);
+            STR16("%"), -100.0, 100.0, 0.0, 0, Steinberg::Vst::ParameterInfo::kCanAutomate);
         parameters.addParameter(routeAmount);
 
         auto* routeCurve = new Steinberg::Vst::StringListParameter(

@@ -7,6 +7,7 @@
 // AddressSanitizer or valgrind to catch UAF regressions as hard failures.
 
 #include <editor_lifecycle_harness.h>
+#include <registered_defaults_probe.h>
 #include <shared_editor_views_probe.h>
 
 #include "../../test_support/disrumpo_rig.h"
@@ -17,6 +18,7 @@
 #include "controller/views/mod_slider.h"
 #include "controller/views/spectrum_display.h"
 #include "display/shared_display_bridge.h"
+#include "dsp/sweep_envelope.h"
 #include "plugin_ids.h"
 #include "state_codec.h"
 
@@ -31,12 +33,15 @@
 #include <catch2/catch_approx.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -502,5 +507,105 @@ TEST_CASE("Expanded band panel follows Band Count", "[disrumpo][controller][ui][
         CHECK(shownWithBand);
         CHECK(strip->getViewSize().getHeight() == Catch::Approx(290.0));
     }
+    c.terminate();
+}
+
+// D-072 / D-122: a parameter's registered default is where a host's reset puts it;
+// it must be the value a fresh controller starts on (Band Count started on "4"
+// but reset to "1", Oversample Max started on "4x" but reset to "1x").
+TEST_CASE("Disrumpo parameters start on their registered default", "[disrumpo][controller][D-072][D-122]")
+{
+    Disrumpo::Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    const auto mismatches = Krate::TestSupport::parametersStartingOffTheirDefault(c);
+    for (const auto& m : mismatches) std::printf("  off its default: %s\n", m.c_str());
+    CHECK(mismatches.empty());
+    c.terminate();
+}
+
+namespace {
+
+std::string asciiOf(const Steinberg::Vst::TChar* s) {
+    std::string out;
+    for (int i = 0; i < 128 && s[i] != 0; ++i) out += s[i] < 128 ? static_cast<char>(s[i]) : '?';
+    return out;
+}
+
+struct PlainMapping {
+    PlainMapping(const char* mappingName, Steinberg::Vst::ParamID paramId, std::function<double(double)> plain)
+        : name(mappingName), id(paramId), processorPlain(std::move(plain)) {}
+    const char* name;
+    Steinberg::Vst::ParamID id;
+    std::function<double(double)> processorPlain;  ///< the processor's denormalization, in the registered unit
+};
+
+}  // namespace
+
+// D-101 / D-169: the host shows ParameterInfo.units next to Parameter::toString(norm).
+// The registered parameter's plain value must be the processor's own decode
+// (state_codec.h ranges, lfoRateNormToHz) in that unit, or automation lanes and
+// readouts show a number the DSP does not run (Env Attack 10 ms read "0.091 ms").
+TEST_CASE("Registered plain value matches processor denormalization", "[disrumpo][controller][D-101][D-169]")
+{
+    using namespace Disrumpo;
+    const auto sweep = [](SweepParamType t) { return makeSweepParamId(t); };
+    const auto mod = [](ModParamType t) { return makeModParamId(t); };
+    const auto linear = [](const LinearRange& r, double scale = 1.0) {
+        return [r, scale](double n) { return scale * static_cast<double>(r.toPlain(static_cast<float>(n))); };
+    };
+    const auto percent = [](double n) { return 100.0 * n; };
+    const auto lfoHz = [](double n) { return static_cast<double>(lfoRateNormToHz(static_cast<float>(n))); };
+
+    const std::vector<PlainMapping> mappings = {
+        {"Sweep Width (oct)", sweep(SweepParamType::kSweepWidth), linear(kSweepWidthOctRange)},
+        {"Sweep Intensity (%)", sweep(SweepParamType::kSweepIntensity), linear(kSweepIntensityRange, 100.0)},
+        {"Sweep LFO Rate (Hz)", sweep(SweepParamType::kSweepLFORate), lfoHz},
+        {"Sweep Env Attack (ms)", sweep(SweepParamType::kSweepEnvAttack),
+         linear(LinearRange{.min = kMinSweepEnvAttackMs, .span = kMaxSweepEnvAttackMs - kMinSweepEnvAttackMs})},
+        {"Sweep Env Release (ms)", sweep(SweepParamType::kSweepEnvRelease),
+         linear(LinearRange{.min = kMinSweepEnvReleaseMs, .span = kMaxSweepEnvReleaseMs - kMinSweepEnvReleaseMs})},
+        {"LFO 1 Rate (Hz)", mod(ModParamType::kLFO1Rate), lfoHz},
+        {"LFO 2 Rate (Hz)", mod(ModParamType::kLFO2Rate), lfoHz},
+        {"LFO 1 Phase (deg)", mod(ModParamType::kLFO1Phase), linear(kLfoPhaseDegRange)},
+        {"LFO 2 Phase (deg)", mod(ModParamType::kLFO2Phase), linear(kLfoPhaseDegRange)},
+        {"Env Attack (ms)", mod(ModParamType::kEnvFollowerAttack), linear(kEnvFollowerAttackMsRange)},
+        {"Env Release (ms)", mod(ModParamType::kEnvFollowerRelease), linear(kEnvFollowerReleaseMsRange)},
+        {"Env Sensitivity (%)", mod(ModParamType::kEnvFollowerSensitivity), percent},
+        {"Random Rate (Hz)", mod(ModParamType::kRandomRate), linear(kRandomRateHzRange)},
+        {"Random Smoothness (%)", mod(ModParamType::kRandomSmoothness), percent},
+        {"S&H Rate (Hz)", mod(ModParamType::kSampleHoldRate), linear(kSampleHoldRateHzRange)},
+        {"S&H Slew (ms)", mod(ModParamType::kSampleHoldSlew), linear(kSampleHoldSlewMsRange)},
+        {"Pitch Min (Hz)", mod(ModParamType::kPitchFollowerMinHz), linear(kPitchFollowerMinHzRange)},
+        {"Pitch Max (Hz)", mod(ModParamType::kPitchFollowerMaxHz), linear(kPitchFollowerMaxHzRange)},
+        {"Pitch Tracking (ms)", mod(ModParamType::kPitchFollowerTrackingSpeed), linear(kPitchFollowerTrackingMsRange)},
+        {"Transient Attack (ms)", mod(ModParamType::kTransientAttack), linear(kTransientAttackMsRange)},
+        {"Transient Decay (ms)", mod(ModParamType::kTransientDecay), linear(kTransientDecayMsRange)},
+        {"Rungler Rate (Hz)", mod(ModParamType::kRunglerRate), linear(kRunglerRateHzRange)},
+        {"Route 1 Amount (%)", makeRoutingParamId(0, 2), [](double n) { return 100.0 * (2.0 * n - 1.0); }},
+    };
+
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    int wrong = 0;
+    for (const auto& m : mappings) {
+        Steinberg::Vst::Parameter* param = c.getParameterObject(m.id);
+        REQUIRE(param != nullptr);
+        for (const double n : {0.0, 0.5, 1.0}) {
+            const double want = m.processorPlain(n);
+            const double plain = param->toPlain(n);
+            Steinberg::Vst::String128 text{};
+            REQUIRE(c.getParamStringByValue(m.id, n, text) == Steinberg::kResultOk);
+            const std::string shown = asciiOf(text);
+            const double tol = 1e-4 + 1e-5 * std::fabs(want);
+            const bool plainOk = std::fabs(plain - want) <= tol;
+            const bool textOk = !shown.empty() && std::fabs(std::strtod(shown.c_str(), nullptr) - want) <= tol;
+            if (plainOk && textOk) continue;
+            ++wrong;
+            std::printf("  %s at norm %.1f: registered plain %.4f, host text \"%s\", processor %.4f\n", m.name, n,
+                        plain, shown.c_str(), want);
+        }
+    }
+    std::printf("Registered vs processor plain values: %d of %zu mismatched\n", wrong, mappings.size() * 3);
+    CHECK(wrong == 0);
     c.terminate();
 }

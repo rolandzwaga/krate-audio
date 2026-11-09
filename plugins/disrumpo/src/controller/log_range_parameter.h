@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // LogRangeParameter: a RangeParameter whose normalized <-> plain mapping is a
-// log curve from state_codec.h (crossover log10, sweep frequency log2).
+// log curve from state_codec.h (crossover log10, sweep frequency log2, LFO rate ln).
 // ==============================================================================
 // The processor decodes these parameters on a log scale. A plain linear
 // RangeParameter made the host's text, its reset-to-default and every
