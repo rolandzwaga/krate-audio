@@ -281,3 +281,7 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   for a sporadic click instead: the worst step of each 100 ms window against the median of those (steady edge 3.058),
   bar 1.25; real output 1.053, a one-sample 2×-peak click 1.43 (red). Other four modes keep the 1.2× bar. Limit: a
   click must exceed the steady edge; a 1.5×-peak spike reads 1.06–1.43 depending on its position.
+- Crossover dedup step 3 (commit "refactor(disrumpo): CrossoverNetwork wraps MultibandCrossover"): the network is
+  Disrumpo's band policy over one `MultibandCrossover<4>`; allpass Q 0.7071f → 1/√2 (ruling 1). A/B vs a frozen copy
+  of the old network: identical with the old copy at Q 1/√2; with 0.7071f the band sum differs by −123 to −138 dB and
+  the dry path by −66 dB (192 kHz, 4 bands) to −107 dB. A re-prepare now also clears the allpass state.

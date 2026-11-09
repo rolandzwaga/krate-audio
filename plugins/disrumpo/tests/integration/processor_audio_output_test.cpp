@@ -1073,7 +1073,8 @@ TEST_CASE("Probe: dry allpass precision vs band sum", "[.][t109-probe]") {
             std::vector<ApD> aps;
             for (int i = 0; i < numBands - 1; ++i) {
                 const double w = 2.0 * std::numbers::pi * static_cast<double>(xo.getCrossoverFrequency(i)) / sr;
-                const double alpha = std::sin(w) / (2.0 * static_cast<double>(Disrumpo::CrossoverNetwork::kAllpassQ));
+                const double alpha = std::sin(w) / (2.0 * static_cast<double>(
+                                                        Krate::DSP::MultibandCrossover<Disrumpo::kMaxBands>::kAllpassQ));
                 const double a0 = 1.0 + alpha;
                 aps.push_back({.b0 = (1.0 - alpha) / a0, .b1 = -2.0 * std::cos(w) / a0, .b2 = 1.0,
                                .a1 = -2.0 * std::cos(w) / a0, .a2 = (1.0 - alpha) / a0});
