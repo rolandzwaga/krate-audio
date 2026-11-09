@@ -933,16 +933,20 @@ TEST_CASE("Global mix 50 % does not notch the crossover frequencies", "[disrumpo
 // With every band neutral, mix 50 % must reproduce the input within the crossover's own
 // reconstruction error (SC-001: +/-0.1 dB), at every band count and sample rate, and after
 // crossover moves and band-count changes made while running.
-TEST_CASE("Global mix 50 % with neutral bands reproduces the input within the crossover error",
-          "[disrumpo][mix][D-018]") {
+// Mix 100 % (the clean wet sum alone) is the audit probe "crossover:processor" / "unity:processor"
+// (fix plan T6.04; baseline ripple 0.007 dB, level -3.010 dB at every band count).
+TEST_CASE("Global mix 50 % and 100 % with neutral bands reproduce the input within the crossover error",
+          "[disrumpo][mix][unity][D-018][D-021]") {
     const auto grid = mixGrid();
     for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
         for (int numBands = 1; numBands <= 4; ++numBands) {
-            const auto h = mixImpulseResponse(sr, numBands, 0.5);
-            const auto r = responseExtremes(h, sr, grid, 0.0);
-            INFO(sr << " Hz, " << numBands << " band(s), mix 50 %: worst |dev| " << r.worstDb << " dB at "
-                 << r.worstHz << " Hz (re input, 30 Hz - 18 kHz)");
-            CHECK(std::fabs(r.worstDb) <= 0.1);
+            for (const double mix : {0.5, 1.0}) {
+                const auto h = mixImpulseResponse(sr, numBands, mix);
+                const auto r = responseExtremes(h, sr, grid, 0.0);
+                INFO(sr << " Hz, " << numBands << " band(s), mix " << mix * 100.0 << " %: worst |dev| " << r.worstDb
+                     << " dB at " << r.worstHz << " Hz (re input, 30 Hz - 18 kHz)");
+                CHECK(std::fabs(r.worstDb) <= 0.1);
+            }
         }
     }
     {  // crossover 2 moved to 1.2 kHz and 3 bands, set while running

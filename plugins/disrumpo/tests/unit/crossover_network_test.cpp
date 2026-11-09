@@ -14,6 +14,8 @@
 #include "dsp/crossover_network.h"
 #include "dsp/band_state.h"
 
+#include "../test_support/audit_metrics.h"
+
 // FFT and noise generation for FR-033 pink noise test
 #include <krate/dsp/primitives/fft.h>
 #include <krate/dsp/processors/noise_generator.h>
@@ -830,6 +832,58 @@ TEST_CASE("CrossoverNetwork pink noise FFT at multiple sample rates", "[crossove
         // SC-001: +/-0.1 dB flat response with correct allpass Q
         REQUIRE(maxErrorDb < 0.1f);
     }
+}
+
+// The audit probe "crossover:network" (fix plan T6.04): the band sum's impulse response at
+// the default logarithmic crossovers, read at 160 log-spaced frequencies 20 Hz - 20 kHz.
+// After a 0.3 s pre-roll every band count is within SC-001 (+/-0.1 dB; baseline 0.000 /
+// 0.002 / -0.004 dB). From the first sample after prepare() 4 bands stay within 0.5 dB
+// (baseline 12.3 dB at 80 Hz while the crossover smoothers glided from 1 kHz, D-024).
+TEST_CASE("CrossoverNetwork impulse response sums flat at the default crossovers, from the first sample",
+          "[disrumpo][audit][crossover][SC-001][D-024]") {
+    constexpr double kSr = 48000.0;
+    constexpr size_t kPreRoll = 14400;
+    constexpr size_t kIrLength = 32768;
+    std::vector<double> freqs(160);
+    for (size_t i = 0; i < freqs.size(); ++i) {
+        freqs[i] = 20.0 * std::pow(1000.0, static_cast<double>(i) / static_cast<double>(freqs.size() - 1));
+    }
+    const auto worstDeviationDb = [&](int numBands, size_t impulseAt, double& atHz) {
+        Disrumpo::CrossoverNetwork network;
+        network.prepare(kSr, numBands);
+        std::array<float, Disrumpo::kMaxBands> bands{};
+        std::vector<float> h(kIrLength);
+        for (size_t i = 0; i < impulseAt + kIrLength; ++i) {
+            network.process(i == impulseAt ? 1.0f : 0.0f, bands);
+            if (i < impulseAt) continue;
+            float sum = 0.0f;
+            for (int b = 0; b < numBands; ++b) sum += bands[static_cast<size_t>(b)];
+            h[i - impulseAt] = sum;
+        }
+        double worst = 0.0;
+        for (const double f : freqs) {
+            const double d = Disrumpo::TestSupport::responseDb(h, f, kSr);
+            if (std::fabs(d) > std::fabs(worst)) {
+                worst = d;
+                atHz = f;
+            }
+        }
+        return worst;
+    };
+    for (int numBands = 2; numBands <= 4; ++numBands) {
+        double atHz = 0.0;
+        const double dev = worstDeviationDb(numBands, kPreRoll, atHz);
+        std::printf("T6.04 CrossoverNetwork %d bands after 0.3 s: worst deviation %.4f dB at %.0f Hz\n", numBands, dev,
+                    atHz);
+        INFO(numBands << " bands after a 0.3 s pre-roll: worst deviation " << dev << " dB at " << atHz << " Hz");
+        CHECK(std::fabs(dev) <= 0.1);
+    }
+    double atHz = 0.0;
+    const double dev0 = worstDeviationDb(4, 0, atHz);
+    std::printf("T6.04 CrossoverNetwork 4 bands from the first sample after prepare: worst deviation %.4f dB at %.0f Hz\n",
+                dev0, atHz);
+    INFO("4 bands, impulse at the first sample after prepare(): worst deviation " << dev0 << " dB at " << atHz << " Hz");
+    CHECK(std::fabs(dev0) <= 0.5);
 }
 
 // =============================================================================
