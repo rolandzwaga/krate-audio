@@ -199,6 +199,24 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 53. **Tier-3-only hosts (no DataExchange) never deliver mod offsets to the slider overlay** — same as before T2.19
     (the old pointer message also needed a connection). Feed the overlay from the Tier-3 shared memory too.
 
+54. **uidesc `visible="false"` on the expanded band containers does nothing** (VSTGUI has no such attribute): all four
+    expanded panels start visible headlessly; a real host hides them through a delayed update with a collapse
+    animation, so they may flash on editor open (T2.26 note). Not verified in a host.
+55. **Older visibility controllers are stored with `IPtr = new …` and never released** (small controller leak; new
+    observers use `owned()`). Found in T2.26.
+56. **33 registered defaults still differ from what a fresh processor reports** (T2.24 `a59f2da4` diagnostic; the
+    defaults probe cannot see them because each starts on its own registered default): Crossover 1–3, Sweep Falloff
+    (registered Hard, processor Smooth — the new segment control shows Hard until state arrives), Sweep LFO Note /
+    LFO 1-2 Note Value (the editor shows "1/64T"), LFO 1-2 Retrigger, Env Source, Chaos Speed (also not converted
+    to a range parameter), Rungler Rate (fresh processor reports 1.0 vs registered 0.08) / Depth / Bits, Curve P1
+    X/Y, all 16 node Folds. Make the processor's initial values and the registration agree, one table.
+57. **Review the T2.22 sweep-row layout** (`acd45a32`): the row grew 20 px taller instead of wider (no mockup detail;
+    the 1000×600 editor is specified) and now sits directly under the band panels; screenshots under
+    `f:/tmp/disrumpo-fix/t222-shots/` (also sent to the user). The hidden `[.][screenshots]` case now exists for
+    Disrumpo; `tools/gen-screenshots.js` does not list Disrumpo yet.
+58. **`controller/views/custom_curve_editor.{h,cpp}` is no longer referenced but still built** (T2.22 deleted its
+    creation). Delete the files or re-enable the editor when follow-up 19 (custom curve applied live) is done.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
