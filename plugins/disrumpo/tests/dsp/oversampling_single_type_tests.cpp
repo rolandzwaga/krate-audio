@@ -441,13 +441,16 @@ TEST_CASE("Processor: bypassed band output is bit-identical to input (SC-011)",
     rig.render(in, in, outL, outR);
 
     // One band: the crossover passes the input through, the bypassed band leaves it
-    // unchanged, and 0 dB input/output gain at mix 1 is the identity.
+    // unchanged, and 0 dB input/output gain at mix 1 is the identity. Every band and the
+    // dry path are delayed by the latency the processor reports (T2.10).
+    const auto latency = static_cast<size_t>(rig.p->getLatencySamples());
     double maxDiff = 0.0;
     for (size_t i = 0; i < in.size(); ++i) {
-        maxDiff = std::max({maxDiff, std::fabs(static_cast<double>(outL[i] - in[i])),
-                            std::fabs(static_cast<double>(outR[i] - in[i]))});
+        const float want = i >= latency ? in[i - latency] : 0.0f;
+        maxDiff = std::max({maxDiff, std::fabs(static_cast<double>(outL[i] - want)),
+                            std::fabs(static_cast<double>(outR[i] - want))});
     }
-    INFO("max |out - in| = " << maxDiff);
+    INFO("latency " << latency << ", max |out - in delayed by it| = " << maxDiff);
     REQUIRE(maxDiff < 1e-6);
 }
 

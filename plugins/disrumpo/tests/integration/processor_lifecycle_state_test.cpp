@@ -44,13 +44,16 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <numbers>
 #include <string>
 #include <utility>
 #include <vector>
@@ -1230,4 +1233,535 @@ TEST_CASE("Probe: cost of the block that applies a pending state", "[.][t124-cpu
     }
     WARN("PROBE apply block: mean " << (total / kRuns) << " us, max " << worst << " us over " << kRuns
                                     << " loads (512-sample budget at 48 kHz: 10667 us)");
+}
+
+// -----------------------------------------------------------------------------
+// D-026 / D-081 / D-098 / D-108 and follow-up 5 (T2.10): latency and tail.
+// The per-band oversampler (4 samples at 2x, 7 at 4x), Spectral (its FFT) and the
+// rest delayed some bands and not others or the dry path, and getLatencySamples()
+// said 0. The processor now reports the worst case its discrete settings allow and
+// delays every band and the dry path to it; the reported value never moves with
+// morph, sweep or automation. getTailSamples() covers the ringing types.
+// -----------------------------------------------------------------------------
+namespace {
+
+constexpr double kLatSr = 48000.0;
+constexpr size_t kLatAt = 9600;             // impulse position (0.2 s of settling first)
+constexpr size_t kLatLen = kLatAt + 12288;  // room for a 4096-sample latency and the response
+constexpr float kLatImpulse = 0.25f;
+
+double latTypeNorm(DistortionType t) { return static_cast<double>(static_cast<int>(t)) / 25.0; }
+
+double osMaxNorm(int factor) {
+    if (factor <= 1) return 0.0;
+    return factor == 2 ? 1.0 / 3.0 : 2.0 / 3.0;
+}
+
+/// Spectral shape slot 1: 512 * 2^round(slot * 3)
+double fftSlotNorm(int fftSize) {
+    if (fftSize <= 512) return 0.0;
+    if (fftSize == 1024) return 1.0 / 3.0;
+    return fftSize == 2048 ? 2.0 / 3.0 : 1.0;
+}
+
+/// Node `node` of `band` as `type`, drive `driveNorm` (x 10) and node mix `mixNorm`.
+void setNode(PList& l, uint8_t band, uint8_t node, DistortionType type, double driveNorm, double mixNorm) {
+    l.emplace_back(makeNodeParamId(band, node, NodeParamType::kNodeType), latTypeNorm(type));
+    l.emplace_back(makeNodeParamId(band, node, NodeParamType::kNodeDrive), driveNorm);
+    l.emplace_back(makeNodeParamId(band, node, NodeParamType::kNodeMix), mixNorm);
+}
+
+/// `numBands` bands at morph (0, 0) (node 0 alone), Oversample Max `osMax`.
+PList latBase(int numBands, int osMax) {
+    PList l{{kBandCountId, static_cast<double>(numBands - 1) / 3.0}, {kOversampleMaxId, osMaxNorm(osMax)}};
+    for (uint8_t b = 0; b < static_cast<uint8_t>(numBands); ++b) {
+        l.emplace_back(makeBandParamId(b, BandParamType::kBandMorphX), 0.0);
+        l.emplace_back(makeBandParamId(b, BandParamType::kBandMorphY), 0.0);
+    }
+    return l;
+}
+
+/// Left channel of a kLatImpulse impulse at kLatAt (the whole render).
+std::vector<float> latImpulseRender(Rig& rig) {
+    std::vector<float> in(kLatLen, 0.0f);
+    in[kLatAt] = kLatImpulse;
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    return outL;
+}
+
+/// Offset of the largest |sample| from the impulse position.
+long latPeakOffset(const std::vector<float>& y) {
+    size_t p = 0;
+    for (size_t i = 1; i < y.size(); ++i) {
+        if (std::fabs(y[i]) > std::fabs(y[p])) p = i;
+    }
+    return static_cast<long>(p) - static_cast<long>(kLatAt);
+}
+
+/// Impulse-peak offset of a rig configured with `l` (applied, then reactivated).
+struct LatReading {
+    long measured = 0;
+    long reported = 0;
+};
+LatReading latMeasure(const PList& l) {
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+    const auto y = latImpulseRender(rig);
+    return {.measured = latPeakOffset(y), .reported = static_cast<long>(rig.p->getLatencySamples())};
+}
+
+/// Lag (0..maxLag) at which `out` best matches `in` (largest |cross-correlation|).
+long bestLag(const std::vector<float>& in, const std::vector<float>& out, size_t from, long maxLag) {
+    long best = 0;
+    double bestV = -1.0;
+    for (long lag = 0; lag <= maxLag; ++lag) {
+        double acc = 0.0;
+        for (size_t n = from; n + static_cast<size_t>(lag) < out.size(); ++n) {
+            acc += static_cast<double>(in[n]) * static_cast<double>(out[n + static_cast<size_t>(lag)]);
+        }
+        if (std::fabs(acc) > bestV) {
+            bestV = std::fabs(acc);
+            best = lag;
+        }
+    }
+    return best;
+}
+
+}  // namespace
+
+TEST_CASE("getLatencySamples equals the measured impulse delay at every Oversample Max",
+          "[disrumpo][latency][D-026][D-098]") {
+    for (const auto type : {DistortionType::SoftClip, DistortionType::HardClip}) {
+        for (const int osMax : {1, 2, 4}) {
+            // Drive 10 keeps the drive gate open; node mix 0 makes the node output its
+            // (pre-shaper) input, so only the oversampler's filters shape the impulse.
+            auto l = latBase(1, osMax);
+            setNode(l, 0, 0, type, 1.0, 0.0);
+            const auto r = latMeasure(l);
+            std::printf("T2.10 latency %s Oversample Max %dx: impulse peak offset %ld, getLatencySamples %ld\n",
+                        type == DistortionType::SoftClip ? "SoftClip" : "HardClip", osMax, r.measured, r.reported);
+            INFO("type " << static_cast<int>(type) << ", Oversample Max " << osMax << "x");
+            CHECK(std::labs(r.measured - r.reported) <= 1);
+        }
+    }
+}
+
+TEST_CASE("getLatencySamples equals the measured impulse delay with a Spectral node",
+          "[disrumpo][latency][D-026][D-081][D-098]") {
+    for (const int fft : {512, 2048, 4096}) {
+        auto l = latBase(1, 4);
+        setNode(l, 0, 0, DistortionType::Spectral, 0.1, 1.0);
+        l.emplace_back(makeNodeParamId(0, 0, NodeParamType::kNodeShape1), fftSlotNorm(fft));
+        const auto r = latMeasure(l);
+        std::printf("T2.10 latency Spectral fftSize %d: impulse peak offset %ld, getLatencySamples %ld\n", fft,
+                    r.measured, r.reported);
+        INFO("fftSize " << fft);
+        CHECK(std::labs(r.measured - r.reported) <= 1);
+    }
+}
+
+TEST_CASE("A fresh processor reports its default patch's latency once set up", "[disrumpo][latency][D-026]") {
+    // Before setupProcessing the oversamplers are not prepared, so there is nothing to
+    // measure yet; the default patch (SoftClip nodes, Oversample Max 4x) reaches 2x.
+    Rig unprepared(kLatSr, 512, false);
+    const auto before = unprepared.p->getLatencySamples();
+    Rig rig(kLatSr);
+    const auto after = rig.p->getLatencySamples();
+    const auto oversampler2x = rig.p->getBandProcessor(0).getOversamplerLatency(2);
+    std::printf("T2.10 default patch: getLatencySamples before setupProcessing %u, after %u (2x oversampler %d)\n",
+                static_cast<unsigned>(before), static_cast<unsigned>(after), oversampler2x);
+    CHECK(before == 0u);
+    CHECK(std::cmp_equal(after, oversampler2x));
+    CHECK(after > 0u);
+}
+
+TEST_CASE("getLatencySamples equals the measured delay with a Granular node", "[disrumpo][latency][D-026]") {
+    // Grain position 0 and pitch (position) variance 0: every grain reads the newest input.
+    // Position and its random jitter are a lookback into the grain buffer, an effect delay
+    // like FeedbackDist's delay time, not a latency.
+    auto l = latBase(1, 4);
+    setNode(l, 0, 0, DistortionType::Granular, 0.1, 1.0);
+    l.emplace_back(makeNodeParamId(0, 0, NodeParamType::kNodeShape2), 0.0);
+    l.emplace_back(makeNodeParamId(0, 0, NodeParamType::kNodeShape4), 0.0);
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+    const auto y = latImpulseRender(rig);
+    const long peak = latPeakOffset(y);
+    // White noise: the lag of the best input/output match
+    std::vector<float> noise(static_cast<size_t>(kLatSr));
+    uint32_t s = 0x12345u;
+    for (auto& v : noise) {
+        s = s * 1664525u + 1013904223u;
+        v = 0.25f * (static_cast<float>(s >> 8) / 8388608.0f - 1.0f);
+    }
+    Rig rig2(kLatSr);
+    rig2.apply(l);
+    rig2.reactivate();
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig2.render(noise, noise, outL, outR);
+    const long lag = bestLag(noise, outL, 4800, 3000);
+    const auto reported = static_cast<long>(rig.p->getLatencySamples());
+    std::printf("T2.10 latency Granular: impulse peak offset %ld, noise best lag %ld, getLatencySamples %ld\n",
+                peak, lag, reported);
+    CHECK(std::labs(lag - reported) <= 1);
+    CHECK(std::labs(peak - reported) <= 1);
+}
+
+TEST_CASE("A Spectral node at mix 50 % gives one impulse image, not two", "[disrumpo][latency][D-081]") {
+    auto l = latBase(1, 4);
+    setNode(l, 0, 0, DistortionType::Spectral, 0.1, 0.5);
+    l.emplace_back(makeNodeParamId(0, 0, NodeParamType::kNodeShape1), fftSlotNorm(2048));
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+    const auto y = latImpulseRender(rig);
+    const auto reported = static_cast<size_t>(rig.p->getLatencySamples());
+    double atZero = 0.0;
+    double atLatency = 0.0;
+    for (size_t i = kLatAt - 2; i <= kLatAt + 2; ++i) atZero = std::max(atZero, std::fabs(static_cast<double>(y[i])));
+    for (size_t i = kLatAt + reported - 2; i <= kLatAt + reported + 2 && i < y.size(); ++i) {
+        atLatency = std::max(atLatency, std::fabs(static_cast<double>(y[i])));
+    }
+    std::printf("T2.10 Spectral node mix 50 %%: |y| at the input instant %.6f, at the reported latency %zu: %.6f\n",
+                atZero, reported, atLatency);
+    CHECK(reported > 0u);
+    CHECK(atZero < 1e-4);
+    CHECK(atLatency > 0.05);
+}
+
+namespace {
+
+/// Impulse-peak offset of band `band` alone (soloed) under `l`.
+long soloPeakOffset(PList l, uint8_t band) {
+    l.emplace_back(makeBandParamId(band, BandParamType::kBandSolo), 1.0);
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+    return latPeakOffset(latImpulseRender(rig));
+}
+
+/// Each band's arrival delay under `cfg` against `ref` (same bands, nothing latent), and
+/// the latency `cfg` reports.
+struct Arrival {
+    std::array<long, 2> delay{};
+    long reported = 0;
+};
+Arrival bandArrival(const PList& cfg, const PList& ref) {
+    Arrival a;
+    for (uint8_t b = 0; b < 2; ++b) a.delay[b] = soloPeakOffset(cfg, b) - soloPeakOffset(ref, b);
+    a.reported = latMeasure(cfg).reported;
+    return a;
+}
+
+}  // namespace
+
+TEST_CASE("Bands at different oversampling factors arrive on the same sample", "[disrumpo][latency][D-026]") {
+    // Band 0 SoftClip at drive 0 (a passthrough, clocked at 1x); band 1 HardClip at drive 10
+    // and node mix 0 (4x, only the oversampler's filters). Reference: Oversample Max 1x.
+    const auto nodes = [](PList l) {
+        setNode(l, 0, 0, DistortionType::SoftClip, 0.0, 1.0);
+        setNode(l, 1, 0, DistortionType::HardClip, 1.0, 0.0);
+        return l;
+    };
+    const auto a = bandArrival(nodes(latBase(2, 4)), nodes(latBase(2, 1)));
+    std::printf("T2.10 arrival 1x band + 4x band: band 0 delayed %ld, band 1 delayed %ld (inter-band offset %ld), "
+                "getLatencySamples %ld\n", a.delay[0], a.delay[1], a.delay[1] - a.delay[0], a.reported);
+    CHECK(a.delay[1] - a.delay[0] == 0);
+    CHECK(std::labs(a.delay[1] - a.reported) <= 1);
+}
+
+TEST_CASE("Band with Spectral is time-aligned with a SoftClip band", "[disrumpo][latency][D-026][D-098]") {
+    // Band 0 SoftClip at drive 0 (passthrough); band 1 Spectral fftSize 2048 at mix 1.
+    // Reference: band 1 SoftClip at drive 0, Oversample Max 1x.
+    auto cfg = latBase(2, 4);
+    setNode(cfg, 0, 0, DistortionType::SoftClip, 0.0, 1.0);
+    setNode(cfg, 1, 0, DistortionType::Spectral, 0.1, 1.0);
+    cfg.emplace_back(makeNodeParamId(1, 0, NodeParamType::kNodeShape1), fftSlotNorm(2048));
+    auto ref = latBase(2, 1);
+    setNode(ref, 0, 0, DistortionType::SoftClip, 0.0, 1.0);
+    setNode(ref, 1, 0, DistortionType::SoftClip, 0.0, 1.0);
+    const auto a = bandArrival(cfg, ref);
+    std::printf("T2.10 arrival SoftClip band + Spectral band: band 0 delayed %ld, band 1 delayed %ld "
+                "(inter-band offset %ld), getLatencySamples %ld\n",
+                a.delay[0], a.delay[1], a.delay[1] - a.delay[0], a.reported);
+    CHECK(std::labs(a.delay[1] - a.delay[0]) <= 1);
+    CHECK(std::labs(a.delay[0] - a.reported) <= 1);
+}
+
+TEST_CASE("Global mix: dry and wet impulse peaks coincide with an oversampled band",
+          "[disrumpo][latency][mix][D-026]") {
+    std::array<long, 2> peak{};
+    long reported = 0;
+    for (const int wet : {0, 1}) {
+        auto l = latBase(1, 4);
+        setNode(l, 0, 0, DistortionType::HardClip, 1.0, 0.0);
+        l.emplace_back(kGlobalMixId, static_cast<double>(wet));
+        const auto r = latMeasure(l);
+        peak[static_cast<size_t>(wet)] = r.measured;
+        reported = r.reported;
+    }
+    std::printf("T2.10 global mix: dry impulse peak %ld, wet impulse peak %ld (HardClip at 4x), "
+                "getLatencySamples %ld\n", peak[0], peak[1], reported);
+    CHECK(peak[0] == peak[1]);
+}
+
+TEST_CASE("Reported latency holds through a morph sweep; Oversample Max and node type changes report it once",
+          "[disrumpo][latency][D-026]") {
+    auto l = latBase(1, 4);
+    l.emplace_back(makeBandParamId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0);  // 2 nodes
+    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);  // recommends 2x
+    setNode(l, 0, 1, DistortionType::HardClip, 0.1, 1.0);  // recommends 4x
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+
+    // Morph X over 2 s: max(0, |sin(2 pi t)| - 0.1) / 0.9, so it rests on node 0 (2x) for
+    // ~32 ms around each zero of the sine and moves toward node 1 (4x) in between: four
+    // crossings of the 2x / 4x boundary
+    constexpr size_t kBlock = 512;
+    constexpr auto kSweepEnd = static_cast<size_t>(2.0 * kLatSr);
+    constexpr size_t kOsChangeAt = kSweepEnd + 24000;               // Oversample Max 4x -> 2x
+    constexpr size_t kTypeChangeAt = kOsChangeAt + 24000;           // node 1 HardClip -> Spectral
+    constexpr size_t kTotal = kTypeChangeAt + 24000;
+    std::vector<float> in(kTotal);
+    for (size_t i = 0; i < kTotal; ++i) {
+        in[i] = static_cast<float>(0.25 * std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(i) / kLatSr));
+    }
+    // Phase 2 starts with the block that carries the Oversample Max change, phase 3 with
+    // the block that carries the type change
+    const auto phaseOf = [&](size_t start) {
+        if (start == 0) return 0;
+        if (start + kBlock <= kOsChangeAt) return 1;
+        return start + kBlock <= kTypeChangeAt ? 2 : 3;
+    };
+    const auto hits = [](size_t start, size_t at) { return start <= at && at < start + kBlock; };
+    std::array<int, 4> signals{};
+    std::array<long, 4> reportedMin{LONG_MAX, LONG_MAX, LONG_MAX, LONG_MAX};
+    std::array<long, 4> reportedMax{-1, -1, -1, -1};
+    bool saw2x = false;
+    bool saw4x = false;
+    int lastFactor = 0;
+    int factorChanges = 0;
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(
+        in, in, outL, outR, static_cast<Steinberg::int32>(kBlock),
+        [&](size_t /*blk*/, size_t start, PChanges& pc) {
+            if (start < kSweepEnd) {
+                const double t = static_cast<double>(start) / kLatSr;
+                const double s = std::fabs(std::sin(2.0 * std::numbers::pi * t));
+                pc.addChange(makeBandParamId(0, BandParamType::kBandMorphX), std::max(0.0, s - 0.1) / 0.9);
+            }
+            if (hits(start, kOsChangeAt)) pc.addChange(kOversampleMaxId, osMaxNorm(2));
+            if (hits(start, kTypeChangeAt)) {
+                pc.addChange(makeNodeParamId(0, 1, NodeParamType::kNodeType), latTypeNorm(DistortionType::Spectral));
+            }
+        },
+        [&](size_t blk, CaptureChanges& out) {
+            const int ph = phaseOf(blk * kBlock);
+            double v = 0.0;
+            if (out.last(kLatencyOutputId, v)) ++signals[static_cast<size_t>(ph)];
+            const auto rep = static_cast<long>(rig.p->getLatencySamples());
+            reportedMin[static_cast<size_t>(ph)] = std::min(reportedMin[static_cast<size_t>(ph)], rep);
+            reportedMax[static_cast<size_t>(ph)] = std::max(reportedMax[static_cast<size_t>(ph)], rep);
+            if (ph == 1) {
+                const int f = rig.p->getBandProcessor(0).getActiveOversampleFactor();
+                saw2x = saw2x || f == 2;
+                saw4x = saw4x || f == 4;
+                if (lastFactor != 0 && f != lastFactor) ++factorChanges;
+                lastFactor = f;
+            }
+        });
+    std::printf("T2.10 latency signals: first block %d; 2 s morph sweep %d (reported %ld..%ld, factors seen 2x %s "
+                "4x %s, %d factor changes at block ends); Oversample Max 4x->2x %d (reported %ld..%ld); node type "
+                "-> Spectral %d (reported %ld..%ld)\n",
+                signals[0], signals[1], reportedMin[1], reportedMax[1], saw2x ? "yes" : "no", saw4x ? "yes" : "no",
+                factorChanges,
+                signals[2], reportedMin[2], reportedMax[2], signals[3], reportedMin[3], reportedMax[3]);
+    const size_t sweepClicks = clickCount(outL.data() + kBlock, kSweepEnd - kBlock, kLatSr);
+    std::printf("T2.10 morph sweep across the 2x / 4x boundary: %zu clicks (ClickDetector)\n", sweepClicks);
+    CHECK(sweepClicks == 0u);
+    CHECK(saw2x);
+    CHECK(saw4x);
+    CHECK(signals[1] == 0);
+    CHECK(reportedMin[1] == reportedMax[1]);
+    CHECK(signals[2] == 1);
+    CHECK(reportedMin[2] != reportedMax[1]);
+    CHECK(signals[3] == 1);
+    CHECK(reportedMax[3] != reportedMax[2]);
+}
+
+TEST_CASE("A factor switch with its compensation-delay change does not click", "[disrumpo][latency][D-026]") {
+    // SoftClip (2x) and HardClip (4x) nodes, both near-linear at -12 dBFS; morph X jumps
+    // 0 -> 1 at 1 s, so the band switches 2x -> 4x and its compensation delay changes.
+    auto l = latBase(1, 4);
+    l.emplace_back(makeBandParamId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0);
+    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);
+    setNode(l, 0, 1, DistortionType::HardClip, 0.1, 1.0);
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+    const auto kAt = static_cast<size_t>(kLatSr);
+    const size_t kLen = 2 * kAt;
+    std::vector<float> in(kLen);
+    for (size_t i = 0; i < kLen; ++i) {
+        in[i] = static_cast<float>(0.25 * std::sin(2.0 * std::numbers::pi * 1000.0 * static_cast<double>(i) / kLatSr));
+    }
+    int factorBefore = 0;
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR, 512, [&](size_t /*blk*/, size_t start, PChanges& pc) {
+        if (start <= kAt && kAt < start + 512) {
+            factorBefore = rig.p->getBandProcessor(0).getActiveOversampleFactor();
+            pc.addChange(makeBandParamId(0, BandParamType::kBandMorphX), 1.0);
+        }
+    });
+    const int factorAfter = rig.p->getBandProcessor(0).getActiveOversampleFactor();
+    const auto c = continuityAround(outL, kAt - 512, kAt + 1440, kAt / 2, kAt - 1024, kAt + 9600, kLen - 512, kLatSr);
+    std::printf("T2.10 factor switch %dx -> %dx with compensation: max step ratio %.3f vs steady, clicks %zu "
+                "(steady window %zu), non-finite %zu, getLatencySamples %d\n",
+                factorBefore, factorAfter, c.ratio, c.clicksEvent, c.clicksBase, c.nonFinite,
+                static_cast<int>(rig.p->getLatencySamples()));
+    REQUIRE(factorBefore == 2);
+    REQUIRE(factorAfter == 4);
+    CHECK(c.clicksEvent == 0u);
+    CHECK(c.ratio <= 3.0);
+    CHECK(c.nonFinite == 0u);
+}
+
+TEST_CASE("getTailSamples reports a tail while a ringing type is active", "[disrumpo][latency][tail][D-108]") {
+    const auto tailOf = [](DistortionType type) {
+        auto l = latBase(1, 4);
+        setNode(l, 0, 0, type, 0.1, 1.0);
+        Rig rig(kLatSr);
+        rig.apply(l);
+        return rig.p->getTailSamples();
+    };
+    const auto none = tailOf(DistortionType::SoftClip);
+    std::printf("T2.10 getTailSamples SoftClip %u\n", static_cast<unsigned>(none));
+    CHECK(none == Steinberg::Vst::kNoTail);
+    for (const auto type : {DistortionType::FeedbackDist, DistortionType::AllpassResonant, DistortionType::Granular,
+                            DistortionType::Spectral}) {
+        const auto tail = tailOf(type);
+        std::printf("T2.10 getTailSamples type %d: %u\n", static_cast<int>(type), static_cast<unsigned>(tail));
+        INFO("type " << static_cast<int>(type));
+        CHECK(tail == Steinberg::Vst::kInfiniteTail);
+    }
+}
+
+TEST_CASE("A latency change allocates nothing in process()", "[disrumpo][latency][rt-safety][D-026]") {
+    auto l = latBase(2, 4);
+    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);
+    setNode(l, 1, 0, DistortionType::HardClip, 0.1, 1.0);
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+
+    constexpr Steinberg::int32 kBlock = 512;
+    std::vector<float> iL(kBlock, 0.1f);
+    std::vector<float> iR(kBlock, 0.1f);
+    std::vector<float> oL(kBlock, 0.0f);
+    std::vector<float> oR(kBlock, 0.0f);
+    PChanges empty;
+    PChanges toOs2;
+    toOs2.addChange(kOversampleMaxId, osMaxNorm(2));
+    PChanges toSpectral;
+    toSpectral.addChange(makeNodeParamId(1, 0, NodeParamType::kNodeType), latTypeNorm(DistortionType::Spectral));
+    // Output queues created and reserved up front, never cleared: addPoint() stays within capacity
+    CaptureChanges out;
+    Steinberg::int32 idx = 0;
+    for (const auto id : {kSweepModulatedFrequencyOutputId, kLatencyOutputId}) {
+        auto* q = dynamic_cast<CaptureQueue*>(out.addParameterData(id, idx));
+        REQUIRE(q != nullptr);
+        q->pts_.reserve(4096);
+    }
+    rig.processBlock(iL.data(), iR.data(), oL.data(), oR.data(), kBlock, &empty, &out);
+    const auto before = static_cast<long>(rig.p->getLatencySamples());
+
+    size_t allocations = 0;
+    {
+        TestHelpers::ThreadScopedAllocationScope scope;
+        for (int blk = 0; blk < 60; ++blk) {
+            PChanges* in = &empty;
+            if (blk == 10) in = &toOs2;
+            if (blk == 30) in = &toSpectral;
+            rig.processBlock(iL.data(), iR.data(), oL.data(), oR.data(), kBlock, in, &out);
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    const auto after = static_cast<long>(rig.p->getLatencySamples());
+    double last = 0.0;
+    const bool signalled = out.last(kLatencyOutputId, last);
+    std::printf("T2.10 latency change in process(): reported %ld -> %ld, last signalled %.0f samples, %zu allocations\n",
+                before, after, signalled ? last * kMaxReportedLatencySamples : -1.0, allocations);
+    CHECK(after != before);
+    CHECK(signalled);
+    REQUIRE(allocations == 0u);
+}
+
+namespace {
+
+/// Host component handler stub: counts restartComponent(kLatencyChanged).
+class LatencyRestartHandler final : public Steinberg::Vst::IComponentHandler {
+public:
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID iid, void** obj) override {
+        if (Steinberg::FUnknownPrivate::iidEqual(iid, Steinberg::FUnknown::iid) ||
+            Steinberg::FUnknownPrivate::iidEqual(iid, Steinberg::Vst::IComponentHandler::iid)) {
+            *obj = this;
+            return Steinberg::kResultOk;
+        }
+        *obj = nullptr;
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    Steinberg::tresult PLUGIN_API beginEdit(Steinberg::Vst::ParamID /*id*/) override { return Steinberg::kResultOk; }
+    Steinberg::tresult PLUGIN_API performEdit(Steinberg::Vst::ParamID /*id*/,
+                                              Steinberg::Vst::ParamValue /*value*/) override {
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API endEdit(Steinberg::Vst::ParamID /*id*/) override { return Steinberg::kResultOk; }
+    Steinberg::tresult PLUGIN_API restartComponent(Steinberg::int32 flags) override {
+        if ((flags & Steinberg::Vst::kLatencyChanged) != 0) ++latencyRestarts;
+        return Steinberg::kResultOk;
+    }
+    int latencyRestarts = 0;
+};
+
+}  // namespace
+
+TEST_CASE("The controller turns a latency report into restartComponent(kLatencyChanged)",
+          "[disrumpo][latency][D-026]") {
+    LatencyRestartHandler handler;
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    c.setComponentHandler(&handler);
+    auto* param = c.getParameterObject(kLatencyOutputId);
+    std::printf("T2.10 controller latency output parameter registered: %s\n", param ? "yes" : "no");
+    REQUIRE(param != nullptr);
+    const auto& info = param->getInfo();
+    CHECK((info.flags & Steinberg::Vst::ParameterInfo::kIsReadOnly) != 0);
+    CHECK((info.flags & Steinberg::Vst::ParameterInfo::kIsHidden) != 0);
+    CHECK((info.flags & Steinberg::Vst::ParameterInfo::kCanAutomate) == 0);
+
+    const double seven = 7.0 / kMaxReportedLatencySamples;
+    c.setParamNormalized(kLatencyOutputId, seven);
+    const int afterFirst = handler.latencyRestarts;
+    c.setParamNormalized(kLatencyOutputId, seven);  // unchanged: no restart
+    const int afterSame = handler.latencyRestarts;
+    c.setParamNormalized(kLatencyOutputId, 4.0 / kMaxReportedLatencySamples);
+    const int afterChange = handler.latencyRestarts;
+    c.setParamNormalized(kGlobalMixId, 0.5);  // any other parameter: no restart
+    std::printf("T2.10 controller restartComponent(kLatencyChanged): first report %d, same value %d, new value %d, "
+                "other parameter %d\n", afterFirst, afterSame, afterChange, handler.latencyRestarts);
+    CHECK(afterFirst == 1);
+    CHECK(afterSame == 1);
+    CHECK(afterChange == 2);
+    CHECK(handler.latencyRestarts == 2);
+    c.terminate();
 }

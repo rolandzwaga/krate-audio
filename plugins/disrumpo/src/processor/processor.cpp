@@ -160,6 +160,14 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         bandProcessors_[i].setMorphSmoothingTime(cache.morphSmoothingMs);
     }
 
+    // Dry-path latency compensation (D-026): sized for the largest latency. DelayLine sizes
+    // in seconds x rate; a rate of 1 makes the seconds samples. No audio yet: apply at once.
+    static_assert(kMaxReportedLatencySamples == BandProcessor::kMaxLatencySamples);
+    dryDelayL_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
+    dryDelayR_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
+    updateLatencyAndTail();
+    applyLatency(targetLatency_);
+
     // Initialize sweep processor (spec 007-sweep-system)
     sweepProcessor_.prepare(sampleRate_, setup.maxSamplesPerBlock);
     sweepProcessor_.setCustomCurve(&customCurve_);
@@ -196,6 +204,13 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         for (auto& proc : bandProcessors_) {
             proc.reset();
         }
+        // The latency the current settings need applies at once (no audio to dip, D-026);
+        // the first block tells the controller again
+        updateLatencyAndTail();
+        applyLatency(targetLatency_);
+        dryDelayL_.reset();
+        dryDelayR_.reset();
+        lastSignalledLatency_ = -1;
         // Reset sweep processor
         sweepProcessor_.reset();
         sweepPositionBuffer_.clear();
@@ -243,12 +258,28 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         processParameterChanges(data.inputParameterChanges);
     }
 
-    // A band-count change (parameter or load) before any audio since activation
-    // switches at once; later ones go through the output dip below (D-023)
+    // Latency and tail of the settings this block runs with (D-026, D-108). A new
+    // latency goes to the controller through the output parameter; the controller
+    // calls restartComponent(kLatencyChanged) on its own thread.
+    updateLatencyAndTail();
+    if (data.outputParameterChanges && targetLatency_ != lastSignalledLatency_) {
+        Steinberg::int32 index = 0;
+        if (auto* queue = data.outputParameterChanges->addParameterData(kLatencyOutputId, index)) {
+            queue->addPoint(0, static_cast<Steinberg::Vst::ParamValue>(targetLatency_) / kMaxReportedLatencySamples,
+                            index);
+            lastSignalledLatency_ = targetLatency_;
+        }
+    }
+
+    // A band-count or latency change (parameter or load) before any audio since
+    // activation applies at once; later ones go through the output dip below (D-023)
     if (!processedSinceActivate_) {
         const int requested = bandCount_.load(std::memory_order_relaxed);
         if (requested != crossoverL_.getBandCount()) {
             switchBandCount(requested);
+        }
+        if (targetLatency_ != appliedLatency_) {
+            applyLatency(targetLatency_);
         }
     }
 
@@ -319,12 +350,12 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // The running topology; a requested change starts (or reverses) the dip (D-023)
     int numBands = crossoverL_.getBandCount();
     {
-        const int requested = bandCount_.load(std::memory_order_relaxed);
-        if (bandCountFade_ == BandCountFade::Idle && requested != numBands) {
+        const bool pending = topologyChangePending();
+        if (bandCountFade_ == BandCountFade::Idle && pending) {
             bandCountFade_ = BandCountFade::FadeOut;
             bandCountFadePos_ = 0;
-        } else if (bandCountFade_ == BandCountFade::FadeOut && requested == numBands) {
-            // Back to the running count: ramp up again from the current gain
+        } else if (bandCountFade_ == BandCountFade::FadeOut && !pending) {
+            // Back to the running count and latency: ramp up again from the current gain
             bandCountFade_ = BandCountFade::FadeIn;
             bandCountFadePos_ = bandCountFadeSamples_ - bandCountFadePos_;
         }
@@ -598,9 +629,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // Sum contributing bands (FR-013), dry/wet mix, then output gain on the
         // mix (D-025: post-mix, so it trims the dry path too).
         // The dry term runs through the crossovers' allpass chain so it has the
-        // phase of the clean band sum: no notches at intermediate mix (D-018)
+        // phase of the clean band sum: no notches at intermediate mix (D-018), then the
+        // delay every band is compensated to (D-026)
         float* outL = outputL + chunkStart;
         float* outR = outputR + chunkStart;
+        const auto dryDelay = static_cast<size_t>(appliedLatency_);
         for (size_t n = 0; n < chunkLen; ++n) {
             float sumL = 0.0f;
             float sumR = 0.0f;
@@ -613,8 +646,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             const float wetMix = wetMixSmoother_.process();
             const float dryMix = 1.0f - wetMix;
             const float outputGain = outputGainSmoother_.process();
-            outL[n] = (crossoverL_.processDryCompensation(inL[n]) * dryMix + sumL * wetMix) * outputGain;
-            outR[n] = (crossoverR_.processDryCompensation(inR[n]) * dryMix + sumR * wetMix) * outputGain;
+            dryDelayL_.write(crossoverL_.processDryCompensation(inL[n]));
+            dryDelayR_.write(crossoverR_.processDryCompensation(inR[n]));
+            outL[n] = (dryDelayL_.read(dryDelay) * dryMix + sumL * wetMix) * outputGain;
+            outR[n] = (dryDelayR_.read(dryDelay) * dryMix + sumR * wetMix) * outputGain;
             if (fading) {
                 ++bandCountFadePos_;
                 const float ramp = static_cast<float>(bandCountFadePos_) * fadeInv;
@@ -720,12 +755,77 @@ void Processor::advanceBandCountFade() noexcept {
     const int requested = bandCount_.load(std::memory_order_relaxed);
     if (bandCountFade_ == BandCountFade::FadeOut) {
         if (requested != crossoverL_.getBandCount()) {
+            const int previous = crossoverL_.getBandCount();
             switchBandCount(requested);
+            // Joining bands start behind an empty compensation delay: their input fades
+            // in when it emerges, after the dip's own fade-in for a long delay (D-026)
+            for (int b = previous; b < crossoverL_.getBandCount(); ++b) {
+                bandProcessors_[b].armCompensationFadeIn();
+            }
+        }
+        // The compensation delays change on the silent sample (D-026)
+        if (targetLatency_ != appliedLatency_) {
+            applyLatency(targetLatency_);
         }
         bandCountFade_ = BandCountFade::FadeIn;
     } else {
-        bandCountFade_ = (requested != crossoverL_.getBandCount()) ? BandCountFade::FadeOut
-                                                                   : BandCountFade::Idle;
+        bandCountFade_ = topologyChangePending() ? BandCountFade::FadeOut : BandCountFade::Idle;
     }
+}
+
+bool Processor::topologyChangePending() const noexcept {
+    return bandCount_.load(std::memory_order_relaxed) != crossoverL_.getBandCount() ||
+           targetLatency_ != appliedLatency_;
+}
+
+// ==============================================================================
+// Latency and tail (D-026, D-081, D-098, D-108, follow-up 5)
+// ==============================================================================
+
+void Processor::updateLatencyAndTail() noexcept {
+    const int bands = std::clamp(bandCount_.load(std::memory_order_relaxed), 1, kMaxBands);
+    int latency = 0;
+    bool ringing = false;
+    for (int b = 0; b < bands; ++b) {
+        latency = std::max(latency, bandProcessors_[b].getWorstCaseLatency());
+        const auto& cache = bandMorphCache_[b];
+        const int nodes = std::clamp(cache.activeNodeCount, 0, kMaxMorphNodes);
+        for (int n = 0; n < nodes; ++n) {
+            const auto& node = cache.nodes[static_cast<size_t>(n)];
+            switch (node.type) {
+                case DistortionType::FeedbackDist:
+                    ringing = ringing || node.params.feedback > 0.0f;
+                    break;
+                case DistortionType::AllpassResonant:
+                    ringing = ringing || node.params.allpassFeedback > 0.0f;
+                    break;
+                case DistortionType::Granular:
+                case DistortionType::Spectral:
+                    ringing = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    targetLatency_ = latency;
+    reportedLatency_.store(latency, std::memory_order_relaxed);
+    tailSamples_.store(ringing ? Steinberg::Vst::kInfiniteTail : Steinberg::Vst::kNoTail,
+                       std::memory_order_relaxed);
+}
+
+void Processor::applyLatency(int samples) noexcept {
+    appliedLatency_ = samples;
+    for (auto& band : bandProcessors_) {
+        band.setLatencyTarget(samples);
+    }
+}
+
+Steinberg::uint32 PLUGIN_API Processor::getLatencySamples() {
+    return static_cast<Steinberg::uint32>(reportedLatency_.load(std::memory_order_relaxed));
+}
+
+Steinberg::uint32 PLUGIN_API Processor::getTailSamples() {
+    return tailSamples_.load(std::memory_order_relaxed);
 }
 } // namespace Disrumpo

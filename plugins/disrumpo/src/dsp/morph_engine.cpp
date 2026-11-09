@@ -59,8 +59,21 @@ void MorphEngine::prepare(double sampleRate, int maxBlockSize, int maxOversample
         adapters_[i].setParams(nodes_[i].params);
         adapters_[i].setCommonParams(nodes_[i].commonParams);
     }
+    updateLatencyAlignment();
 
     prepared_ = true;
+}
+
+void MorphEngine::updateLatencyAlignment() noexcept {
+    int latency = 0;
+    for (int i = 0; i < activeNodeCount_; ++i) {
+        latency = std::max(latency, adapters_[i].getProcessingLatency());
+    }
+    latency_ = latency;
+    for (auto& adapter : adapters_) {
+        adapter.setLatencyAlignment(latency);
+    }
+    blendedAdapter_.setLatencyAlignment(latency);
 }
 
 void MorphEngine::reset() noexcept {
@@ -153,6 +166,8 @@ void MorphEngine::setNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, i
     }
     // The adapters now hold the unscaled drive: the next cross-family sample re-applies the sweep
     appliedSweepDriveScale_ = 1.0f;
+    // Every node is padded to the slowest active node's latency (D-081)
+    updateLatencyAlignment();
 
     // Update path check
     allSameType_ = isSameType();

@@ -168,6 +168,16 @@ constexpr Steinberg::Vst::ParamID kSweepModulatedFrequencyOutputId = 0x0F80;
 /// Never written; registered hidden so the ID is never reused (D-094).
 constexpr Steinberg::Vst::ParamID kSweepDetectedCCOutputId = 0x0F81;
 
+/// @brief Output parameter: the latency the processor reports, normalized over
+/// kMaxReportedLatencySamples (D-026, T2.10). Written by process() when the reported
+/// latency changes; the controller answers with restartComponent(kLatencyChanged),
+/// so the host re-queries getLatencySamples() off the audio thread. Hidden, read-only.
+constexpr Steinberg::Vst::ParamID kLatencyOutputId = 0x0F82;
+
+/// @brief Largest latency the processor can report, in samples: a Spectral node at the
+/// largest FFT size clocked at 1x (FFT size - 1 = 4095). Every compensation delay is sized for it.
+constexpr int kMaxReportedLatencySamples = 4095;
+
 // =============================================================================
 // Band Parameter Type Enum (FR-002)
 // =============================================================================

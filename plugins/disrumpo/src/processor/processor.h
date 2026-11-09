@@ -25,6 +25,7 @@
 #include "dsp/sweep_envelope.h"
 #include "controller/spectrum_block.h"
 
+#include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/spectrum_fifo.h>
 #include <krate/dsp/primitives/sweep_position_buffer.h>
@@ -83,6 +84,13 @@ public:
     Steinberg::tresult PLUGIN_API setBusArrangements(
         Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
         Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
+
+    /// Latency the processor delays its output by (D-026, T2.10): the worst case the
+    /// current discrete settings allow (see the latency section below). Any thread.
+    Steinberg::uint32 PLUGIN_API getLatencySamples() override;
+
+    /// kInfiniteTail while a ringing type is active, else kNoTail (D-108). Any thread.
+    Steinberg::uint32 PLUGIN_API getTailSamples() override;
 
     // ===========================================================================
     // IConnectionPoint (DataExchange lifecycle)
@@ -215,7 +223,8 @@ private:
     // crossovers run the current one. A change ramps the output (dry and wet) to
     // 0 over kBandCountFadeMs at the running topology, switches crossovers and
     // bands at the silent point, then ramps back to 1. Before any audio since
-    // activation the switch happens at once. Audio thread only.
+    // activation the switch happens at once. A latency change (T2.10) takes the
+    // same dip: the compensation delays change at the silent point. Audio thread only.
     // ==========================================================================
 
     static constexpr float kBandCountFadeMs = 5.0f;
@@ -230,6 +239,34 @@ private:
 
     /// @brief A ramp completed: at the bottom switch, at the top finish or dip again.
     void advanceBandCountFade() noexcept;
+
+    /// @brief A band-count or latency change is owed (the dip's reason to run).
+    [[nodiscard]] bool topologyChangePending() const noexcept;
+
+    // ==========================================================================
+    // Latency and tail (D-026, D-081, D-098, D-108, follow-up 5; fix plan T2.10)
+    // The reported latency is the largest BandProcessor::getWorstCaseLatency() of
+    // the requested bands: it depends on node types, Spectral FFT sizes, Oversample
+    // Max and the band count, never on morph, sweep, modulation or drive. Every band
+    // and the dry path are delayed to the applied latency. A change of the target
+    // is applied at the silent bottom of the band-count dip (or at once before any
+    // audio since activation), and process() writes it to kLatencyOutputId; the
+    // controller answers with restartComponent(kLatencyChanged) on its thread.
+    // ==========================================================================
+
+    int targetLatency_ = 0;           ///< worst case of the current settings (audio thread)
+    int appliedLatency_ = 0;          ///< what bands and dry path are delayed to (audio thread)
+    int lastSignalledLatency_ = -1;   ///< last value written to kLatencyOutputId (audio thread)
+    std::atomic<int> reportedLatency_{0};  ///< getLatencySamples()
+    std::atomic<Steinberg::uint32> tailSamples_{Steinberg::Vst::kNoTail};  ///< getTailSamples()
+    Krate::DSP::DelayLine dryDelayL_;  ///< dry path, read at appliedLatency_
+    Krate::DSP::DelayLine dryDelayR_;
+
+    /// @brief Recompute targetLatency_, reportedLatency_ and tailSamples_ from the settings.
+    void updateLatencyAndTail() noexcept;
+
+    /// @brief Delay every band and the dry path to @p samples from now on.
+    void applyLatency(int samples) noexcept;
 
     // ==========================================================================
     // Solo State Tracking

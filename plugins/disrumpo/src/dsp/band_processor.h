@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/oversampler.h>
 #include "band_state.h"
@@ -57,6 +58,10 @@ public:
     /// @brief Length of each half of the factor-switch dip in milliseconds: the band output
     /// ramps to 0 over this time, the factor switches, and it ramps back to 1 (D-034).
     static constexpr float kFactorSwitchMs = 5.0f;
+
+    /// @brief Largest latency a band can have or be compensated to, in host samples: a
+    /// Spectral node at the largest FFT size clocked at 1x (D-026, T2.10).
+    static constexpr int kMaxLatencySamples = DistortionAdapter::kMaxLatencySamples;
 
     // =========================================================================
     // Lifecycle
@@ -110,6 +115,15 @@ public:
                                Krate::DSP::OversamplingQuality::Economy,
                                Krate::DSP::OversamplingMode::ZeroLatency);
 
+        // The IIR up/down filters delay the band by their impulse-peak delay (T1.07
+        // measured 4 samples at 2x and 7 at 4x at 48 kHz); measure it at this rate
+        oversamplerLatency_ = {0, measureImpulseDelay(oversampler2x_), measureImpulseDelay(oversampler4x_)};
+
+        // Latency compensation delay of the band input (D-026): sized for the largest
+        // latency; DelayLine sizes in seconds x rate, so a rate of 1 makes them samples
+        compDelayL_.prepare(1.0, static_cast<float>(kMaxLatencySamples));
+        compDelayR_.prepare(1.0, static_cast<float>(kMaxLatencySamples));
+
         // Prepare distortion adapters (one per channel: the adapters are mono and
         // stateful, D-016). Their buffers are sized for kMaxOversampleFactor x the
         // host rate; they run at the host rate until processWithFactor() clocks them
@@ -142,6 +156,7 @@ public:
         // Factor-switch dip length; a pending switch completes at once (no audio yet)
         factorSwitchSamples_ = std::max<size_t>(
             1, static_cast<size_t>(std::lround(kFactorSwitchMs * 0.001 * sampleRate)));
+        compWarmup_ = compWarmupCap();
         completeFactorSwitch();
     }
 
@@ -163,6 +178,11 @@ public:
         distortionL_.reset();
         distortionR_.reset();
         forEachMorphEngine([](MorphEngine& engine) { engine.reset(); });
+
+        // The compensation delay starts empty (armCompensationFadeIn: fade in what emerges)
+        compDelayL_.reset();
+        compDelayR_.reset();
+        compWarmup_ = compWarmupCap();
 
         // A pending factor switch completes at once: there is no audio to dip
         completeFactorSwitch();
@@ -412,12 +432,49 @@ public:
         return currentOversampleFactor_;
     }
 
-    /// @brief Get latency introduced by oversampling.
-    /// FR-018, FR-019: IIR mode = 0 latency always
-    [[nodiscard]] static int getLatency() noexcept {
-        // Economy/ZeroLatency mode = 0 latency
-        return 0;
+    // =========================================================================
+    // Latency (D-026, D-081, D-098, follow-up 5; fix plan T2.10)
+    // =========================================================================
+    // A band delays its signal by its oversampler's IIR filters (impulse-peak delay,
+    // 0 / 4 / 7 samples at 1x / 2x / 4x) plus its type latency (Spectral: FFT size - 1
+    // clocked samples). The factor moves with morph, sweep and the drive gate, so the
+    // processor reports the worst case the band's discrete settings allow
+    // (getWorstCaseLatency) and sets it as the target (setLatencyTarget). The band then
+    // delays its input by target - its latency at the factor it runs at. That delay
+    // changes with the factor exactly where the factor switches, at the silent bottom
+    // of the switch dip, together with the shapers' state reset.
+
+    /// @brief Latency the band adds at its running factor, before compensation (host samples).
+    [[nodiscard]] int getLatency() const noexcept { return latencyAtClock(clockFactor_); }
+
+    /// @brief Largest latency the band can reach at its current discrete settings: node
+    /// types, Spectral FFT sizes and the Oversample Max cap (host samples). Morph position,
+    /// sweep, modulation and drive never change it.
+    [[nodiscard]] int getWorstCaseLatency() const noexcept {
+        const int reach = maxReachableFactor();
+        int worst = latencyAtClock(1);  // the drive gate can always clock the band at 1x
+        if (reach >= 2) worst = std::max(worst, latencyAtClock(2));
+        if (reach >= 4) worst = std::max(worst, latencyAtClock(4));
+        return std::min(worst, kMaxLatencySamples);
     }
+
+    /// @brief Total latency the band (and a bypassed band) is delayed to, in host samples.
+    void setLatencyTarget(int samples) noexcept {
+        latencyTarget_ = std::clamp(samples, 0, kMaxLatencySamples);
+    }
+
+    /// @brief The target set by setLatencyTarget().
+    [[nodiscard]] int getLatencyTarget() const noexcept { return latencyTarget_; }
+
+    /// @brief Impulse-peak delay of the oversampler at @p factor (1, 2, 4), measured in prepare().
+    [[nodiscard]] int getOversamplerLatency(int factor) const noexcept {
+        return oversamplerLatency_[factorIndex(factor)];
+    }
+
+    /// @brief After reset(), fade the band input in over kFactorSwitchMs once it emerges
+    /// from the (empty) compensation delay, instead of a step: a band that joins mid-stream
+    /// (band-count change) behind a long compensation delay.
+    void armCompensationFadeIn() noexcept { compWarmup_ = 0; }
 
     /// @brief Check if an oversampling factor switch (output dip) is in progress.
     [[nodiscard]] bool isOversampleTransitioning() const noexcept {
@@ -543,9 +600,11 @@ public:
     /// @param right Right channel buffer
     /// @param numSamples Number of samples per channel
     void processBlock(float* left, float* right, size_t numSamples) noexcept {
-        // FR-012: Bypass optimization - bit-transparent pass-through
+        // FR-012: Bypass optimization - bit-transparent pass-through, delayed by the
+        // latency target so the band stays aligned with the others (D-026)
         if (bypassed_) {
-            return; // Leave input buffers unchanged
+            applyCompensation(left, right, numSamples, latencyTarget_);
+            return;
         }
 
         beginBlockModulation();
@@ -720,6 +779,11 @@ private:
         // The shapers run at the rate they are clocked at (D-009)
         setClockFactor(clocked);
 
+        // Latency compensation (D-026): the input waits target - latency at this factor.
+        // processBlockInner splits a span at the factor switch, so the delay changes on
+        // the switch's silent sample.
+        applyCompensation(left, right, numSamples, std::max(0, latencyTarget_ - latencyAtClock(clocked)));
+
         if (clocked == 2) {
             processWithOversampling2x(left, right, numSamples);
         } else if (clocked == 4) {
@@ -747,6 +811,89 @@ private:
         distortionL_.setProcessingRate(rate);
         distortionR_.setProcessingRate(rate);
         forEachMorphEngine([rate](MorphEngine& engine) { engine.setProcessingRate(rate); });
+    }
+
+    // =========================================================================
+    // Latency helpers (D-026, T2.10)
+    // =========================================================================
+
+    /// @brief Index of a factor in oversamplerLatency_ (1 -> 0, 2 -> 1, 4 -> 2).
+    [[nodiscard]] static size_t factorIndex(int factor) noexcept {
+        if (factor >= 4) return 2;
+        return factor == 2 ? 1 : 0;
+    }
+
+    /// @brief Band latency when clocked at @p factor, in host samples: the oversampler's
+    /// impulse-peak delay plus the shaper's type latency (clocked samples / factor, rounded).
+    [[nodiscard]] int latencyAtClock(int factor) const noexcept {
+        const int f = std::max(factor, 1);
+        const int typeClocked = (morphEnabled_ && morphEngineL_) ? morphEngineL_->getLatency()
+                                                                 : distortionL_.getAlignedLatency();
+        return oversamplerLatency_[factorIndex(f)] + (typeClocked + f / 2) / f;
+    }
+
+    /// @brief Highest factor the band can select at its current discrete settings: the
+    /// largest recommended factor among the active node types, capped by Oversample Max
+    /// (calculateMorphOversampleFactor rounds a weighted mean of those factors up).
+    [[nodiscard]] int maxReachableFactor() const noexcept {
+        if (!(morphEnabled_ && morphEngineL_)) {
+            return getSingleTypeOversampleFactor(distortionL_.getType(), maxOversampleFactor_);
+        }
+        int reach = 1;
+        const int count = std::clamp(morphActiveNodeCount_, 0, kMaxMorphNodes);
+        for (int i = 0; i < count; ++i) {
+            reach = std::max(reach, getRecommendedOversample(morphNodes_[static_cast<size_t>(i)].type));
+        }
+        return std::min(reach, maxOversampleFactor_);
+    }
+
+    /// @brief Saturation value of compWarmup_: no fade-in in progress.
+    [[nodiscard]] size_t compWarmupCap() const noexcept {
+        return static_cast<size_t>(kMaxLatencySamples) + factorSwitchSamples_ + 1;
+    }
+
+    /// @brief Delay a span of the band input by @p delay samples (0 = as is). Both lines are
+    /// written every sample, so a later delay change reads valid history. After reset() the
+    /// first @p delay outputs are the empty line's zeros; once armed, the input that then
+    /// emerges fades in over kFactorSwitchMs instead of starting with a step.
+    void applyCompensation(float* left, float* right, size_t numSamples, int delay) noexcept {
+        const auto d = static_cast<size_t>(std::clamp(delay, 0, kMaxLatencySamples));
+        const size_t warmupCap = compWarmupCap();
+        for (size_t i = 0; i < numSamples; ++i) {
+            compDelayL_.write(left[i]);
+            compDelayR_.write(right[i]);
+            left[i] = compDelayL_.read(d);
+            right[i] = compDelayR_.read(d);
+            if (compWarmup_ < warmupCap) {
+                ++compWarmup_;  // samples written since armCompensationFadeIn()
+                if (d > 0 && compWarmup_ <= d + factorSwitchSamples_) {
+                    const float gain = compWarmup_ > d ? static_cast<float>(compWarmup_ - d) /
+                                                             static_cast<float>(factorSwitchSamples_)
+                                                       : 0.0f;
+                    left[i] *= gain;
+                    right[i] *= gain;
+                }
+            }
+        }
+    }
+
+    /// @brief Impulse-peak delay of an oversampler's up/down filter pair, in host samples.
+    /// Runs a unit impulse through it with a passthrough callback, then resets it.
+    template <typename OversamplerT>
+    [[nodiscard]] int measureImpulseDelay(OversamplerT& oversampler) const noexcept {
+        std::array<float, 64> left{};
+        std::array<float, 64> right{};
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+        const size_t n = std::min(left.size(), maxBlockSize_);
+        oversampler.reset();
+        oversampler.process(left.data(), right.data(), n, [](float* /*l*/, float* /*r*/, size_t /*n*/) {});
+        oversampler.reset();
+        size_t peak = 0;
+        for (size_t i = 1; i < n; ++i) {
+            if (std::fabs(left[i]) > std::fabs(left[peak])) peak = i;
+        }
+        return static_cast<int>(peak);
     }
 
     /// @brief True when the shaper is not an exact passthrough: legacy adapter drive
@@ -954,6 +1101,13 @@ private:
     size_t switchPos_ = 0;              // samples into the current ramp
     size_t factorSwitchSamples_ = 1;    // ramp length (kFactorSwitchMs at the host rate)
     bool processedSinceReset_ = false;  // no audio yet: switch at once
+
+    // Latency compensation (D-026, T2.10)
+    std::array<int, 3> oversamplerLatency_{};  // impulse-peak delay at 1x / 2x / 4x (prepare)
+    int latencyTarget_ = 0;                    // total latency the band is delayed to
+    Krate::DSP::DelayLine compDelayL_;         // band input history, read at the compensation
+    Krate::DSP::DelayLine compDelayR_;
+    size_t compWarmup_ = 0;                    // samples written since reset() (saturating)
 };
 
 } // namespace Disrumpo

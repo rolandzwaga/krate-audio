@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <chrono>
 #include <numbers>
+#include <utility>
 
 namespace {
 
@@ -555,6 +556,14 @@ double maxAbsDiff(const std::vector<float>& a, const std::vector<float>& b, size
     return m;
 }
 
+/// `x` delayed by `d` samples (zeros first): the processor delays every band and the dry
+/// path by the latency it reports (T2.10).
+std::vector<float> delayedBy(const std::vector<float>& x, size_t d) {
+    std::vector<float> y(x.size(), 0.0f);
+    for (size_t i = d; i < x.size(); ++i) y[i] = x[i - d];
+    return y;
+}
+
 double maxStep(const std::vector<float>& x, size_t from, size_t to) {
     double m = 0.0;
     for (size_t i = std::max<size_t>(from, 1); i < std::min(to, x.size()); ++i) {
@@ -590,6 +599,8 @@ TEST_CASE("Processor HardClip aliasing drops with Oversample Max 4x vs 1x",
 }
 
 TEST_CASE("Band bypass passes the crossover band unchanged", "[disrumpo][bypass][D-095]") {
+    // Unchanged, delayed by the latency the processor reports: a bypassed band is delayed
+    // like every other band and the dry path (T2.10)
     const auto in = sineAt(static_cast<size_t>(kBlockSr / 2.0), 220.0, -12.0);
     std::vector<float> outL;
     std::vector<float> outR;
@@ -599,10 +610,11 @@ TEST_CASE("Band bypass passes the crossover band unchanged", "[disrumpo][bypass]
         rig.apply(hardClipBands(1.0, 4, true));
         rig.reactivate();
         rig.render(in, in, outL, outR);
-        const auto expected = crossoverSum(in, 4);
+        const auto latency = static_cast<size_t>(rig.p->getLatencySamples());
+        const auto expected = delayedBy(crossoverSum(in, 4), latency);
         const double diffL = maxAbsDiff(outL, expected);
         const double diffR = maxAbsDiff(outR, expected);
-        INFO("max |out - crossover sum|: L " << diffL << ", R " << diffR);
+        INFO("latency " << latency << "; max |out - crossover sum|: L " << diffL << ", R " << diffR);
         REQUIRE(diffL < 1e-5);
         REQUIRE(diffR < 1e-5);
     }
@@ -612,9 +624,11 @@ TEST_CASE("Band bypass passes the crossover band unchanged", "[disrumpo][bypass]
         rig.apply(hardClipBands(0.0, 1, true));
         rig.reactivate();
         rig.render(in, in, outL, outR);
-        const double diffL = maxAbsDiff(outL, in);
-        const double diffR = maxAbsDiff(outR, in);
-        INFO("max |out - in|: L " << diffL << ", R " << diffR);
+        const auto latency = static_cast<size_t>(rig.p->getLatencySamples());
+        const auto expected = delayedBy(in, latency);
+        const double diffL = maxAbsDiff(outL, expected);
+        const double diffR = maxAbsDiff(outR, expected);
+        INFO("latency " << latency << "; max |out - in|: L " << diffL << ", R " << diffR);
         REQUIRE(diffL < 1e-6);
         REQUIRE(diffR < 1e-6);
     }
@@ -646,12 +660,14 @@ TEST_CASE("Band bypass toggled mid-stream stays finite with bounded steps", "[di
     }
     REQUIRE(nonFinite == 0);
 
-    // While bypassed (one block after the toggle onward) the output is the clean crossover sum
-    const auto clean = crossoverSum(in, 4);
+    // While bypassed (one block after the toggle onward) the output is the clean crossover
+    // sum, delayed by the reported latency (T2.10)
+    const auto latency = static_cast<size_t>(rig.p->getLatencySamples());
+    const auto clean = delayedBy(crossoverSum(in, 4), latency);
     const size_t on = kOnBlock * kBlock;
     const size_t off = kOffBlock * kBlock;
     const double bypassedDiff = maxAbsDiff(outL, clean, on, off);
-    INFO("max |out - crossover sum| while bypassed: " << bypassedDiff);
+    INFO("latency " << latency << "; max |out - crossover sum| while bypassed: " << bypassedDiff);
     REQUIRE(bypassedDiff < 1e-5);
 
     // The hard switch steps between the distorted and the clean signal: no step may exceed
@@ -830,10 +846,12 @@ std::array<double, 3> defaultCrossoversHz() {
 /// (adapter passthrough), centre pan, Oversample Max 1x, global mix `mix`. `afterActivation`
 /// is applied once the processor is running (crossover moves, band-count changes). 0.3 s
 /// pre-roll, then a unit impulse; returns the kMixIrLength samples from the impulse on.
-std::vector<float> mixImpulseResponse(double sr, int numBands, double mix, const ts::PList& afterActivation = {}) {
+/// `oversampleMaxNorm` other than 0 sets a higher Oversample Max (T2.10).
+std::vector<float> mixImpulseResponse(double sr, int numBands, double mix, const ts::PList& afterActivation = {},
+                                      double oversampleMaxNorm = 0.0) {
     ts::PList l{{Disrumpo::kBandCountId, static_cast<double>(numBands - 1) / 3.0},
                 {Disrumpo::kGlobalMixId, mix},
-                {Disrumpo::kOversampleMaxId, 0.0}};
+                {Disrumpo::kOversampleMaxId, oversampleMaxNorm}};
     for (uint8_t b = 0; b < 4; ++b) {
         for (uint8_t n = 0; n < 4; ++n) l.emplace_back(makeNodeParamId(b, n, NodeParamType::kNodeDrive), 0.0);
         l.emplace_back(makeBandParamId(b, BandParamType::kBandPan), 0.5);
@@ -848,7 +866,9 @@ std::vector<float> mixImpulseResponse(double sr, int numBands, double mix, const
     std::vector<float> outL;
     std::vector<float> outR;
     rig.render(in, in, outL, outR);
-    REQUIRE(rig.p->getBandProcessor(0).getOversampleFactor() == 1);
+    if (oversampleMaxNorm == 0.0) {
+        REQUIRE(rig.p->getBandProcessor(0).getOversampleFactor() == 1);
+    }
     return {outL.begin() + static_cast<std::ptrdiff_t>(preRoll), outL.end()};
 }
 
@@ -984,6 +1004,58 @@ TEST_CASE("Dry path is phase- and time-aligned with the clean wet path at 1x", "
             CHECK(peakIndex(dry) == peakIndex(wet));
             CHECK(residualDb <= -60.0);
         }
+    }
+}
+
+// T2.10 (D-026, follow-up 5): at Oversample Max 4x the processor reports the bands' worst-case
+// latency and delays the dry path and every band to it. Neutral bands (drive 0, clocked at 1x)
+// carry the same delay as the dry path, so mix 50 % stays within SC-001. With the oversampler
+// running (HardClip at 4x, node mix 0: only its IIR filters), the dry path is delayed by the
+// oversampler's impulse-peak delay; the residual is the IIR's phase against a pure delay.
+TEST_CASE("Global mix 50 % stays flat with Oversample Max 4x", "[disrumpo][mix][latency][D-026]") {
+    const auto grid = mixGrid();
+    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+        for (const int numBands : {1, 2, 4}) {
+            const auto h = mixImpulseResponse(sr, numBands, 0.5, {}, 2.0 / 3.0);
+            const auto r = responseExtremes(h, sr, grid, 0.0);
+            INFO(sr << " Hz, " << numBands << " band(s), Oversample Max 4x, neutral bands, mix 50 %: worst |dev| "
+                 << r.worstDb << " dB at " << r.worstHz << " Hz");
+            CHECK(std::fabs(r.worstDb) <= 0.1);
+        }
+    }
+    for (const int numBands : {1, 4}) {
+        ts::PList oversampled;
+        for (uint8_t b = 0; b < static_cast<uint8_t>(numBands); ++b) {
+            oversampled.emplace_back(makeNodeParamId(b, 0, NodeParamType::kNodeType), typeNorm(DistortionType::HardClip));
+            oversampled.emplace_back(makeNodeParamId(b, 0, NodeParamType::kNodeDrive), 1.0);
+            oversampled.emplace_back(makeNodeParamId(b, 0, NodeParamType::kNodeMix), 0.0);
+        }
+        const auto h = mixImpulseResponse(kBlockSr, numBands, 0.5, oversampled, 2.0 / 3.0);
+        const auto r = responseExtremes(h, kBlockSr, grid, responseDb(h, 1000.0, kBlockSr));
+        const auto dry = mixImpulseResponse(kBlockSr, numBands, 0.0, oversampled, 2.0 / 3.0);
+        const auto wet = mixImpulseResponse(kBlockSr, numBands, 1.0, oversampled, 2.0 / 3.0);
+        // Alignment: the lag (-16..16) at which the dry response best matches the wet one
+        long bestLag = 0;
+        double bestCorr = -1e300;
+        for (long lag = -16; lag <= 16; ++lag) {
+            double acc = 0.0;
+            for (size_t i = 0; i < wet.size(); ++i) {
+                const long j = static_cast<long>(i) - lag;
+                if (j < 0 || std::cmp_greater_equal(j, dry.size())) continue;
+                acc += static_cast<double>(wet[i]) * static_cast<double>(dry[static_cast<size_t>(j)]);
+            }
+            if (acc > bestCorr) {
+                bestCorr = acc;
+                bestLag = lag;
+            }
+        }
+        const double ref = responseDb(h, 1000.0, kBlockSr);
+        std::printf("T2.10 mix 50 %% with %d HardClip band(s) at 4x (node mix 0): worst |dev| %.3f dB at %.0f Hz "
+                    "(re 1 kHz, 30 Hz - 18 kHz), at 5 kHz %.3f dB, at 10 kHz %.3f dB; impulse peak dry %zu wet %zu, "
+                    "dry/wet best-match lag %ld\n",
+                    numBands, r.worstDb, r.worstHz, responseDb(h, 5000.0, kBlockSr) - ref,
+                    responseDb(h, 10000.0, kBlockSr) - ref, peakIndex(dry), peakIndex(wet), bestLag);
+        CHECK(bestLag == 0);
     }
 }
 

@@ -71,6 +71,14 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize, int maxOver
     spectral_.prepare(sampleRate, kSpectralMaxFftSize);
     spectral_.setActiveFftSize(static_cast<std::size_t>(typeParams_.fftSize));
 
+    // Latency delay lines (D-081): the largest latency is in clocked samples at any rate.
+    // DelayLine sizes in seconds x rate; a rate of 1 makes the seconds samples, exactly.
+    dryDelay_.prepare(1.0, static_cast<float>(kMaxLatencySamples));
+    padDelay_.prepare(1.0, static_cast<float>(kMaxLatencySamples));
+    updateBlockLatency();
+    latent_ = false;
+    refreshLatencyMode();
+
     // Stochastic: silent input stays silent. Subtract the curve's value at the jitter
     // offset (D-142); the residual DC is removed by dcBlocker_ (updateDCBlockerState).
     stochastic_.setOffsetCompensation(true);
@@ -174,6 +182,10 @@ void DistortionAdapter::reset() noexcept {
     bodyFilter_.reset();
     wavefoldSmoothFilter_.reset();
     flutterPhase_ = 0.0f;
+
+    // Latency delay lines (D-081)
+    dryDelay_.reset();
+    padDelay_.reset();
 }
 
 // =============================================================================
@@ -183,20 +195,38 @@ void DistortionAdapter::reset() noexcept {
 void DistortionAdapter::setType(DistortionType type) noexcept {
     currentType_ = type;
     updateDCBlockerState();
+    updateBlockLatency();
+}
 
-    // Update block-based latency
-    switch (type) {
-        case DistortionType::Spectral:
-            blockLatency_ = typeParams_.fftSize;
-            break;
-        case DistortionType::Granular:
-            // Grain size in samples = grainSizeMs * sampleRate / 1000
-            blockLatency_ = static_cast<int>(typeParams_.grainSizeMs * sampleRate_ / 1000.0);
-            break;
-        default:
+void DistortionAdapter::updateBlockLatency() noexcept {
+    if (currentType_ != DistortionType::Spectral) {
+        // setParams runs per sample on the morph path: nothing to do in the common case
+        if (blockLatency_ != 0) {
             blockLatency_ = 0;
-            break;
+            refreshLatencyMode();
+        }
+        return;
     }
+    // The active FFT size follows typeParams_ (a no-op when unchanged), so the latency is
+    // the processor's own: FFT size - 1 (getProcessingLatency)
+    spectral_.setActiveFftSize(static_cast<std::size_t>(typeParams_.fftSize));
+    blockLatency_ = std::clamp(static_cast<int>(spectral_.latency()) - 1, 0, kMaxLatencySamples);
+    refreshLatencyMode();
+}
+
+void DistortionAdapter::setLatencyAlignment(int samples) noexcept {
+    alignLatency_ = std::clamp(samples, 0, kMaxLatencySamples);
+    refreshLatencyMode();
+}
+
+void DistortionAdapter::refreshLatencyMode() noexcept {
+    const bool latent = blockLatency_ != 0 || alignLatency_ != 0;
+    if (latent && !latent_) {
+        // The delay lines were not written while the adapter was not latent
+        dryDelay_.reset();
+        padDelay_.reset();
+    }
+    latent_ = latent;
 }
 
 // =============================================================================
@@ -211,13 +241,7 @@ void DistortionAdapter::setCommonParams(const DistortionCommonParams& params) no
 void DistortionAdapter::setParams(const DistortionParams& params) noexcept {
     typeParams_ = params;
     routeParamsToProcessor();
-
-    // Update block-based latency if applicable
-    if (currentType_ == DistortionType::Spectral) {
-        blockLatency_ = params.fftSize;
-    } else if (currentType_ == DistortionType::Granular) {
-        blockLatency_ = static_cast<int>(params.grainSizeMs * sampleRate_ / 1000.0);
-    }
+    updateBlockLatency();
 }
 
 // =============================================================================
@@ -225,15 +249,23 @@ void DistortionAdapter::setParams(const DistortionParams& params) noexcept {
 // =============================================================================
 
 float DistortionAdapter::process(float input) noexcept {
+    if (!latent_) {
+        return processWithDry(input, input);
+    }
+    // A latent type mixes (and passes through) its dry image delayed by its own latency, and
+    // the owner's alignment pads the output up to its slowest member's latency (D-081)
+    dryDelay_.write(input);
+    const float out = processWithDry(input, dryDelay_.read(static_cast<size_t>(blockLatency_)));
+    padDelay_.write(out);
+    return padDelay_.read(static_cast<size_t>(std::max(0, alignLatency_ - blockLatency_)));
+}
+
+float DistortionAdapter::processWithDry(float input, float dry) noexcept {
     // Drive Gate: bypass entire distortion path if drive is essentially 0
     if (commonParams_.drive < 0.0001f) {
-        // Passthrough: return input blended with mix (though mix of dry with dry = dry)
-        // For true passthrough: output = input
-        return input;
+        // Passthrough: the dry image (the input, delayed by a latent type's latency)
+        return dry;
     }
-
-    // Store dry signal for mix blend
-    const float dry = input;
 
     // Apply drive scaling
     // Temporal handles drive internally via setBaseDrive() — skip external scaling

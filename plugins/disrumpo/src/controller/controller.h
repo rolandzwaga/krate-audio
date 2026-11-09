@@ -114,6 +114,13 @@ public:
         Steinberg::Vst::TChar* string,
         Steinberg::Vst::ParamValue& valueNormalized) override;
 
+    /// A new value of the processor's latency output parameter (kLatencyOutputId) calls
+    /// restartComponent(kLatencyChanged): the host re-queries getLatencySamples() from
+    /// this thread, never from the audio thread (D-026, T2.10).
+    Steinberg::tresult PLUGIN_API setParamNormalized(
+        Steinberg::Vst::ParamID tag,
+        Steinberg::Vst::ParamValue value) override;
+
     // ===========================================================================
     // VST3EditorDelegate (VSTGUI)
     // ===========================================================================

@@ -30,6 +30,8 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
    no longer time-aligned at summation (phase smear), and the dry path is not delayed either. T2.10 only covers
    Spectral latency — widen it: delay every band and the dry path to the maximum factor's latency and report
    that to the host. Hidden probe: `[.][t107-probe]`.
+   — done in T2.10 (commit "fix(disrumpo): report and compensate oversampling and Spectral latency"; a commit
+   cannot name its own hash).
 6. **Fades under modulation.** Each oversampling factor change now fades the band down and up over 5 + 5 ms.
    If morph modulation keeps crossing a factor boundary this could read as tremolo. Not measured yet.
 7. **Allpass compensation filters are still float32 Biquads** (Crossover3Way/4Way and Disrumpo's

@@ -27,107 +27,106 @@
 using namespace Disrumpo;
 
 // =============================================================================
-// T11.083: Latency reporting (SC-012)
+// T11.083 / T11.084 / T11.089: latency, measured (audit D-125, fix plan T2.10)
 // =============================================================================
+// These cases asserted a static getLatency() that returned 0 and carried the
+// [performance] tag, so per-push lanes skipped them. The IIR oversampler delays a
+// band by its impulse-peak delay; the cases now measure that delay through
+// processBlock and compare it with what the band reports.
+//
+// BandProcessor holds two DistortionAdapters (one per channel, ~340 KB in all): every
+// case keeps them on the heap, one at a time, so the frame stays under the 1 MB
+// Windows thread stack.
 
-// BandProcessor holds two DistortionAdapters (one per channel, ~340 KB in all) and MSVC gives
-// every SECTION's locals their own slot in the case's frame: cases with three or more of them
-// keep them on the heap so the frame stays under the 1 MB Windows thread stack.
-TEST_CASE("BandProcessor: getLatency returns 0 (IIR mode)",
-          "[oversampling][performance][SC-012]") {
+namespace {
 
-    auto bpOwner = std::make_unique<BandProcessor>();
-    auto& bp = *bpOwner;
-    bp.prepare(44100.0, 512);
-
-    SECTION("latency is 0 for all factor values") {
-        bp.setDistortionType(DistortionType::HardClip);
-        CHECK(bp.getLatency() == 0);
-
-        bp.setDistortionType(DistortionType::SoftClip);
-        CHECK(bp.getLatency() == 0);
-
-        bp.setDistortionType(DistortionType::Bitcrush);
-        CHECK(bp.getLatency() == 0);
-    }
-
-    SECTION("latency is 0 at different sample rates") {
-        auto bp48Owner = std::make_unique<BandProcessor>();
-        auto& bp48 = *bp48Owner;
-        bp48.prepare(48000.0, 512);
-        bp48.setDistortionType(DistortionType::HardClip);
-        CHECK(bp48.getLatency() == 0);
-
-        auto bp96Owner = std::make_unique<BandProcessor>();
-        auto& bp96 = *bp96Owner;
-        bp96.prepare(96000.0, 512);
-        bp96.setDistortionType(DistortionType::HardClip);
-        CHECK(bp96.getLatency() == 0);
-    }
+/// Legacy single-type band at @p sr: @p type at drive 2 and mix 0, so the adapter outputs
+/// its input and only the oversampler's filters shape an impulse.
+std::unique_ptr<BandProcessor> makeLatencyBand(double sr, DistortionType type) {
+    auto bp = std::make_unique<BandProcessor>();
+    bp->prepare(sr, 512);
+    bp->setDistortionType(type);
+    bp->setDistortionCommonParams({.drive = 2.0f, .mix = 0.0f, .toneHz = 4000.0f});
+    return bp;
 }
 
-// =============================================================================
-// T11.083b: Verify ZeroLatency mode is used (FR-018)
-// =============================================================================
-
-TEST_CASE("BandProcessor: uses ZeroLatency oversampling mode",
-          "[oversampling][performance][FR-018]") {
-
-    // The prepare() method calls oversampler.prepare() with ZeroLatency mode.
-    // We verify this indirectly through the latency report.
-    BandProcessor bp;
-    bp.prepare(44100.0, 512);
-    bp.setDistortionType(DistortionType::HardClip);
-
-    // If ZeroLatency mode is used, latency must be 0
-    CHECK(bp.getLatency() == 0);
-
-    // Process a block to make sure it works
-    constexpr size_t kBlockSize = 512;
-    std::array<float, kBlockSize> left{};
-    std::array<float, kBlockSize> right{};
-    for (size_t i = 0; i < kBlockSize; ++i) {
-        left[i] = 0.3f * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f *
-                  static_cast<float>(i) / 44100.0f);
-        right[i] = left[i];
+/// Impulse-peak delay of one 512-sample block through @p bp, in samples.
+long measuredBandDelay(BandProcessor& bp) {
+    constexpr size_t kBlock = 512;
+    constexpr size_t kAt = 64;
+    std::array<float, kBlock> left{};
+    std::array<float, kBlock> right{};
+    left[kAt] = 0.25f;
+    right[kAt] = 0.25f;
+    bp.processBlock(left.data(), right.data(), kBlock);
+    size_t peak = 0;
+    for (size_t i = 1; i < kBlock; ++i) {
+        if (std::fabs(left[i]) > std::fabs(left[peak])) peak = i;
     }
-    bp.processBlock(left.data(), right.data(), kBlockSize);
+    return static_cast<long>(peak) - static_cast<long>(kAt);
+}
 
-    // Output should not be all zeros (processing occurred)
-    bool hasNonZero = false;
-    for (float s : left) {
-        if (std::abs(s) > 1e-10f) {
-            hasNonZero = true;
-            break;
+}  // namespace
+
+TEST_CASE("BandProcessor: getLatency equals the measured impulse delay at each factor",
+          "[oversampling][latency][SC-012][D-125]") {
+    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+        for (const auto type : {DistortionType::Bitcrush, DistortionType::SoftClip, DistortionType::HardClip}) {
+            auto bp = makeLatencyBand(sr, type);
+            const long measured = measuredBandDelay(*bp);
+            INFO(sr << " Hz, factor " << bp->getOversampleFactor() << ": measured " << measured
+                 << ", getLatency " << bp->getLatency());
+            CHECK(measured == bp->getLatency());
+            CHECK(bp->getLatency() == bp->getOversamplerLatency(bp->getOversampleFactor()));
         }
     }
-    CHECK(hasNonZero);
 }
 
-// =============================================================================
-// T11.084: Latency stability during factor changes
-// =============================================================================
+TEST_CASE("BandProcessor: IIR (ZeroLatency) oversampling delays a band by a few samples",
+          "[oversampling][latency][FR-018][D-125]") {
+    // FR-018: Economy / ZeroLatency mode uses minimum-phase IIR filters; a linear-phase FIR
+    // pair would delay a 2x band by 15 samples per stage (Oversampler Standard quality).
+    auto bp = makeLatencyBand(44100.0, DistortionType::HardClip);
+    REQUIRE(bp->getOversampleFactor() == 4);
+    const long measured = measuredBandDelay(*bp);
+    INFO("4x HardClip band: measured impulse delay " << measured << " samples");
+    CHECK(measured > 0);
+    CHECK(measured < 15);
+    CHECK(bp->getOversamplerLatency(2) > 0);
+    CHECK(bp->getOversamplerLatency(2) < bp->getOversamplerLatency(4));
+}
 
-TEST_CASE("BandProcessor: latency does not change when factors change",
-          "[oversampling][performance][latency-stability]") {
+TEST_CASE("BandProcessor: compensated latency holds across a factor switch",
+          "[oversampling][latency][latency-stability][D-125]") {
+    // SoftClip node (2x) and HardClip node (4x), both at drive 2 and node mix 0. The worst
+    // case is the 4x delay; at morph (0, 0) the band runs 2x and waits the difference.
+    auto bp = std::make_unique<BandProcessor>();
+    bp->prepare(48000.0, 512);
+    std::array<MorphNode, kMaxMorphNodes> nodes = {{MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip),
+                                                     MorphNode(1, 1.0f, 0.0f, DistortionType::HardClip),
+                                                     MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip),
+                                                     MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip)}};
+    for (auto& n : nodes) n.commonParams = {.drive = 2.0f, .mix = 0.0f, .toneHz = 4000.0f};
+    bp->setMorphEnabled(true);
+    bp->setMorphSmoothingTime(0.0f);
+    bp->setMorphNodes(nodes, 2);
+    bp->setMorphPosition(0.0f, 0.0f);
+    const int worst = bp->getWorstCaseLatency();
+    bp->setLatencyTarget(worst);
+    REQUIRE(bp->getOversampleFactor() == 2);
+    const long at2x = measuredBandDelay(*bp);
 
-    BandProcessor bp;
-    bp.prepare(44100.0, 512);
-
-    // Record latency with different types
-    bp.setDistortionType(DistortionType::HardClip);
-    int latency4x = BandProcessor::getLatency();
-
-    bp.setDistortionType(DistortionType::SoftClip);
-    int latency2x = BandProcessor::getLatency();
-
-    bp.setDistortionType(DistortionType::Bitcrush);
-    int latency1x = BandProcessor::getLatency();
-
-    // All should be identical (0 for IIR mode)
-    CHECK(latency4x == latency2x);
-    CHECK(latency2x == latency1x);
-    CHECK(latency1x == 0);
+    bp->setMorphPosition(1.0f, 0.0f);  // HardClip only: 4x after the switch dip
+    std::array<float, 512> left{};
+    std::array<float, 512> right{};
+    for (int i = 0; i < 4; ++i) bp->processBlock(left.data(), right.data(), left.size());
+    REQUIRE(bp->getActiveOversampleFactor() == 4);
+    REQUIRE_FALSE(bp->isOversampleTransitioning());
+    const long at4x = measuredBandDelay(*bp);
+    INFO("worst case " << worst << ", measured at 2x " << at2x << ", at 4x " << at4x);
+    CHECK(worst == bp->getOversamplerLatency(4));
+    CHECK(at2x == worst);
+    CHECK(at4x == worst);
 }
 
 // =============================================================================
@@ -261,25 +260,17 @@ TEST_CASE("BandProcessor: CPU benchmarks",
 // T11.089: End-to-end latency check (SC-004)
 // =============================================================================
 
-TEST_CASE("BandProcessor: end-to-end latency does not exceed 10ms",
-          "[oversampling][performance][SC-004]") {
-
-    // With IIR (ZeroLatency) oversampling, there is NO added latency.
-    // The only "latency" would be the 8ms crossfade window during transitions,
-    // but this is not true latency - it's a blending period.
-
-    BandProcessor bp;
-    bp.prepare(44100.0, 512);
-    bp.setDistortionType(DistortionType::HardClip);
-
-    // Latency = 0 samples = 0ms, well under 10ms
-    float latencyMs = static_cast<float>(BandProcessor::getLatency()) / 44100.0f * 1000.0f;
-    CHECK(latencyMs < 10.0f);
-
-    // Also check at 96kHz
-    BandProcessor bp96;
-    bp96.prepare(96000.0, 512);
-    bp96.setDistortionType(DistortionType::HardClip);
-    float latencyMs96 = static_cast<float>(BandProcessor::getLatency()) / 96000.0f * 1000.0f;
-    CHECK(latencyMs96 < 10.0f);
+TEST_CASE("BandProcessor: oversampling latency stays under 10 ms",
+          "[oversampling][latency][SC-004][D-125]") {
+    // SC-004 bounds what oversampling adds. A Spectral node adds its FFT size - 1 on top
+    // (up to 4095 samples); that latency is reported to the host and compensated (D-098,
+    // T2.10), not bounded.
+    for (const double sr : {44100.0, 96000.0}) {
+        auto bp = makeLatencyBand(sr, DistortionType::HardClip);
+        const long measured = measuredBandDelay(*bp);
+        const double ms = static_cast<double>(measured) / sr * 1000.0;
+        INFO(sr << " Hz, 4x: measured " << measured << " samples = " << ms << " ms");
+        CHECK(measured == bp->getWorstCaseLatency());
+        CHECK(ms < 10.0);
+    }
 }

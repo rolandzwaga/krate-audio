@@ -141,14 +141,18 @@ TEST_CASE("UT-DI-010: Block-based types report latency > 0", "[distortion][unit]
         REQUIRE(adapter.getProcessingLatency() == 0);
     }
 
-    SECTION("Spectral type reports latency > 0") {
+    SECTION("Spectral type reports its FFT size - 1") {
+        // T2.10: SpectralDistortion returns a frame's first output on the call that
+        // completes the frame (measured impulse delay 511 / 2047 / 4095)
         adapter.setType(DistortionType::Spectral);
-        REQUIRE(adapter.getProcessingLatency() > 0);
+        REQUIRE(adapter.getProcessingLatency() == adapter.getParams().fftSize - 1);
     }
 
-    SECTION("Granular type reports latency > 0") {
+    SECTION("Granular type reports 0: grains read the newest input") {
+        // T2.10: measured impulse delay 0 at grain position 0 and position variance 0;
+        // position and its jitter are effect delays, not a latency
         adapter.setType(DistortionType::Granular);
-        REQUIRE(adapter.getProcessingLatency() > 0);
+        REQUIRE(adapter.getProcessingLatency() == 0);
     }
 }
 
@@ -2800,9 +2804,9 @@ TEST_CASE("DistortionAdapter::setProcessingRate re-run under AllocationScope all
     adapter->setCommonParams({.drive = 2.0f, .mix = 1.0f, .toneHz = 4000.0f});
 
     std::size_t allocations = 0;
-    int latencyAtHost = 0;
-    int latencyAt4x = 0;
-    int latencyAboveMax = 0;
+    double rateAtHost = 0.0;
+    double rateAt4x = 0.0;
+    double rateAboveMax = 0.0;
     {
         TestHelpers::AllocationScope scope;
         for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
@@ -2814,20 +2818,21 @@ TEST_CASE("DistortionAdapter::setProcessingRate re-run under AllocationScope all
                 }
             }
         }
-        adapter->setType(DistortionType::Granular);
-        latencyAtHost = adapter->getProcessingLatency();
+        adapter->setProcessingRate(kHostRate);
+        rateAtHost = adapter->getProcessingRate();
         adapter->setProcessingRate(kHostRate * kMaxFactor);
-        latencyAt4x = adapter->getProcessingLatency();
+        rateAt4x = adapter->getProcessingRate();
         adapter->setProcessingRate(kHostRate * 8);  // clamps to the prepared maximum
-        latencyAboveMax = adapter->getProcessingLatency();
+        rateAboveMax = adapter->getProcessingRate();
         allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
     }
-    INFO("Granular latency: host " << latencyAtHost << ", 4x " << latencyAt4x << ", 8x request "
-         << latencyAboveMax << " samples");
+    // (Until T2.10 the Granular latency, grain size in samples, showed the rate; Granular
+    // has no latency since T2.10, so the adapter's processing rate is read directly.)
+    INFO("Processing rate: host " << rateAtHost << ", 4x " << rateAt4x << ", 8x request " << rateAboveMax << " Hz");
     REQUIRE(allocations == 0);
-    // The rate reached the rate-derived state (grain size in samples)
-    REQUIRE(latencyAt4x == latencyAtHost * kMaxFactor);
-    REQUIRE(latencyAboveMax == latencyAt4x);
+    REQUIRE(rateAtHost == kHostRate);
+    REQUIRE(rateAt4x == kHostRate * kMaxFactor);
+    REQUIRE(rateAboveMax == rateAt4x);
 }
 
 // =============================================================================

@@ -308,6 +308,12 @@ void Controller::registerSweepParams() {
     parameters.addParameter(STR16("Sweep Mod Freq"), nullptr, 0, 0.5,
         Steinberg::Vst::ParameterInfo::kIsReadOnly, kSweepModulatedFrequencyOutputId);
 
+    // Reported latency (D-026, T2.10): written by the processor when it changes; the
+    // controller's setParamNormalized turns it into restartComponent(kLatencyChanged)
+    parameters.addParameter(STR16("Latency"), STR16("samples"), 0, 0.0,
+        Steinberg::Vst::ParameterInfo::kIsReadOnly | Steinberg::Vst::ParameterInfo::kIsHidden,
+        kLatencyOutputId);
+
     // Legacy sweep-only MIDI learn (D-094): hidden, no processor action; kept so the ID is never reused
     parameters.addParameter(STR16("Sweep Detected CC"), nullptr, 0, 0.0,
         Steinberg::Vst::ParameterInfo::kIsReadOnly | Steinberg::Vst::ParameterInfo::kIsHidden,

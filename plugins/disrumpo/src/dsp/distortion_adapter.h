@@ -32,6 +32,7 @@
 #include <krate/dsp/primitives/chaos_waveshaper.h>
 #include <krate/dsp/primitives/stochastic_shaper.h>
 #include <krate/dsp/primitives/dc_blocker.h>
+#include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/one_pole.h>
 #include <krate/dsp/primitives/waveshaper.h>
 
@@ -226,7 +227,7 @@ struct DistortionParams {
 /// - Common parameter handling (drive, mix, tone)
 /// - Type-specific parameter routing via setParams()
 /// - DC blocking for asymmetric types
-/// - Block-based latency reporting for Spectral/Granular types
+/// - Latency reporting and alignment for the Spectral type
 ///
 /// Real-time safe: no allocations after prepare().
 ///
@@ -238,10 +239,10 @@ struct DistortionParams {
 /// When drive == 0.0, the entire distortion path is bypassed and the input
 /// is returned directly to the mix stage (passthrough).
 ///
-/// @par Block-Based Types
-/// Spectral (D23) and Granular (D22) use internal ring buffers and introduce
-/// fixed latency. Query via getProcessingLatency(). Sample-accurate types
-/// return 0 latency.
+/// @par Latency
+/// Spectral (D23) delays its output by its FFT size - 1; its dry image is delayed
+/// by the same amount, so mix < 1 gives one image (D-081). Query via
+/// getProcessingLatency(). Every other type returns 0 latency.
 class DistortionAdapter {
 public:
     // =========================================================================
@@ -326,21 +327,36 @@ public:
     // Latency Query
     // =========================================================================
 
-    /// @brief Query fixed processing latency introduced by block-based types.
+    /// @brief Query the fixed processing latency of the active type (D-081, T2.10).
     ///
-    /// Returns 0 for sample-accurate types (Saturation, Wavefold, Rectify, etc.).
-    /// Returns the internal ring-buffer size for block-based types:
-    /// - Spectral: FFT size (default 2048 samples)
-    /// - Granular: grain buffer size (derived from grainSizeMs)
+    /// Spectral: FFT size - 1 (SpectralDistortion returns a frame's first output on the
+    /// call that completes the frame; measured 511 / 2047 / 4095 at 512 / 2048 / 4096).
+    /// Every other type: 0. Granular grains read the newest input (measured 0 with grain
+    /// position and position variance at 0); its position and jitter are effect delays,
+    /// like FeedbackDist's delay time, not a latency.
     ///
-    /// @return Latency in samples at the current (potentially oversampled) rate
+    /// @return Latency in samples at the rate process() is clocked at
     [[nodiscard]] int getProcessingLatency() const noexcept;
 
-private:
+    /// @brief Pad the output to a total latency of @p samples (clocked samples, clamped
+    /// to [0, kMaxLatencySamples]). An owner that sums adapters of different types
+    /// (MorphEngine) aligns every one to the slowest. Below the own latency it has no effect.
+    void setLatencyAlignment(int samples) noexcept;
+
+    /// @brief Latency of process() output: max(own latency, alignment), in clocked samples.
+    [[nodiscard]] int getAlignedLatency() const noexcept { return std::max(blockLatency_, alignLatency_); }
+
+    /// @brief Rate process() is clocked at (the host rate x the owner's factor).
+    [[nodiscard]] double getProcessingRate() const noexcept { return sampleRate_; }
+
     /// Largest Spectral FFT size the plugin offers (processor_params.cpp Spectral
     /// slot 1: 512..4096). SpectralDistortion is allocated for it once in prepare().
     static constexpr std::size_t kSpectralMaxFftSize = 4096;
 
+    /// Largest latency an adapter can have or be aligned to: Spectral at the largest FFT size.
+    static constexpr int kMaxLatencySamples = static_cast<int>(kSpectralMaxFftSize) - 1;
+
+private:
     // =========================================================================
     // Internal Processing
     // =========================================================================
@@ -350,6 +366,16 @@ private:
 
     /// @brief Raw processing for the current type (no mix/tone/DC).
     [[nodiscard]] float processRaw(float input) noexcept;
+
+    /// @brief Drive, type, DC block, tone and mix of @p input; @p dry is the dry image the
+    /// mix and the drive gate use (the input itself, or delayed by a latent type's latency).
+    [[nodiscard]] float processWithDry(float input, float dry) noexcept;
+
+    /// @brief Re-derive blockLatency_ for the active type (Spectral: its active FFT size).
+    void updateBlockLatency() noexcept;
+
+    /// @brief Clear the latency delay lines when the adapter becomes latent (D-081).
+    void refreshLatencyMode() noexcept;
 
     /// @brief Apply tone filter to wet signal.
     [[nodiscard]] float applyTone(float wet) noexcept;
@@ -451,8 +477,20 @@ private:
     // Block-Based Processing State
     // =========================================================================
 
-    /// Fixed latency of block-based processors (Spectral, Granular)
+    /// Fixed latency of the active type in clocked samples (Spectral; 0 otherwise)
     int blockLatency_ = 0;
+
+    /// Total latency the owner aligns the output to (setLatencyAlignment)
+    int alignLatency_ = 0;
+
+    /// True while blockLatency_ or alignLatency_ is non-zero: process() runs the delays
+    bool latent_ = false;
+
+    /// Input history: the dry image of a latent type, read at blockLatency_ (D-081)
+    Krate::DSP::DelayLine dryDelay_;
+
+    /// Output history: the pad up to alignLatency_, read at alignLatency_ - blockLatency_
+    Krate::DSP::DelayLine padDelay_;
 };
 
 } // namespace Disrumpo

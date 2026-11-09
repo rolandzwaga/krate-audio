@@ -947,6 +947,21 @@ Steinberg::tresult PLUGIN_API Controller::getParamValueByString(
     return EditControllerEx1::getParamValueByString(id, string, valueNormalized);
 }
 
+Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
+    Steinberg::Vst::ParamID tag,
+    Steinberg::Vst::ParamValue value) {
+    if (tag != kLatencyOutputId) {
+        return EditControllerEx1::setParamNormalized(tag, value);
+    }
+    // The processor wrote a new reported latency (D-026): tell the host on this thread
+    const bool changed = getParamNormalized(tag) != value;
+    const auto result = EditControllerEx1::setParamNormalized(tag, value);
+    if (changed && componentHandler) {
+        componentHandler->restartComponent(Steinberg::Vst::kLatencyChanged);
+    }
+    return result;
+}
+
 // ==============================================================================
 // VST3EditorDelegate - Custom Views, Sub-Controllers, didOpen, willClose
 // ==============================================================================

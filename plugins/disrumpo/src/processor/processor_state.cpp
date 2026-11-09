@@ -1162,6 +1162,9 @@ void Processor::applyPendingState() noexcept {
             bandProcessors_[b].setMorphPosition(cache.morphX, cache.morphY);
         }
     }
+
+    // The loaded patch's latency and tail are reported at once, also while inactive (D-026)
+    updateLatencyAndTail();
 }
 
 } // namespace Disrumpo

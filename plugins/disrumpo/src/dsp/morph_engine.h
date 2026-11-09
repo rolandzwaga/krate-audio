@@ -163,6 +163,12 @@ public:
     /// @brief Last identical-type interpolateParams() result (set in processSameFamily).
     [[nodiscard]] const DistortionParams& getBlendedParams() const noexcept { return lastBlendedParams_; }
 
+    /// @brief Latency of process() output in clocked samples (D-081, T2.10): the largest
+    /// latency among the active nodes' types. Every node adapter and the blended adapter
+    /// is padded to it, so morphing between a latent and a non-latent node never
+    /// crossfades two time offsets.
+    [[nodiscard]] int getLatency() const noexcept { return latency_; }
+
     // =========================================================================
     // Processing
     // =========================================================================
@@ -239,6 +245,9 @@ private:
     /// @brief Process different types (of one family or not) in parallel.
     [[nodiscard]] float processCrossFamily(float input) noexcept;
 
+    /// @brief Recompute latency_ from the active nodes and align every adapter to it.
+    void updateLatencyAlignment() noexcept;
+
     // =========================================================================
     // State
     // =========================================================================
@@ -270,6 +279,9 @@ private:
 
     // Last interpolateParams() result of the identical-type path (test accessor)
     DistortionParams lastBlendedParams_;
+
+    // Output latency in clocked samples (updateLatencyAlignment)
+    int latency_ = 0;
 
     // Cached path check result (isSameType)
     bool allSameType_ = true;
