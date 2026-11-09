@@ -176,6 +176,17 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 47. **Spectral switch still clicks twice** (T2.13 `866c042e` measured): at the switch and where the first frame
     leaves the 2047-sample latency gap (47.65 ms) — the type-change half of item 42.
 
+48. **FeedbackEcology CPU budget is red in the CPU lane, before and after T2.17** (Vorago/bloom/ecosystem engines):
+    reference arm ≈113.5k ns vs the 106,667 ns line in alternating old/new pairs run alone; the wander-off arm got
+    ≈11 % slower with T2.17 (87.7k → 98.4k ns) but stays inside its limits. Not a Disrumpo task — needs the CPU
+    lane owner's look (never relax the budget).
+49. **EnvelopeFollower RMS mode still latches NaN from a FINITE input whose square overflows** (|x| > 1.8e19): T2.17's
+    input check (`879dfef3`) does not cover it. Clamp before squaring or check the squared value.
+50. **Drive is a plain input gain below the shaper's knee** (T2.18 `37a64ede` measurements): SoftClip at −20 dBFS reads
+    −63 dBFS at drive 0.01 and −43 dBFS at 0.1, so the level fall now sits inside drive 1e-3 → 1e-2 (−39 dB) instead of
+    at the gate. Whether low drive should keep unity level (drive-dependent makeup) is a design question; ties to
+    items 9/17 (Tube) and 37 (fold normalisation).
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
