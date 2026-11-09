@@ -110,7 +110,6 @@ struct ShapeShadowStorage {
         typeSlots[bmIdx][0] = 0.0f;  // Op: int(0.0*3+0.5) = 0 → XorPattern
         typeSlots[bmIdx][1] = 0.5f;  // Intensity: 50% (moderate)
         typeSlots[bmIdx][2] = 0.5f;  // Pattern: 0x7FFF (mid-range XOR mask)
-        typeSlots[bmIdx][3] = 0.5f;  // (reserved)
 
         // Folds start on their named algorithm (D-157, D-168), not a 50/50 blend.
         typeSlots[static_cast<int>(DistortionType::SineFold)][2] = 0.0f;      // Shape: pure sine fold

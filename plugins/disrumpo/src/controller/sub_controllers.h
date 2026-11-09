@@ -298,21 +298,19 @@ public:
             }
         }
 
-        // Detect Pattern and Bits wrapper containers by custom attribute
+        // Detect the Pattern wrapper container by custom attribute
         const auto* visGroup = attributes.getAttributeValue("bitwise-group");
         if (visGroup) {
             if (auto* container = view->asViewContainer()) {
                 if (*visGroup == "pattern")
                     patternContainer_ = container;
-                else if (*visGroup == "bits")
-                    bitsContainer_ = container;
             }
         }
 
         auto* result = DelegationController::verifyView(view, attributes, description);
 
         // Set initial visibility once all pieces are found
-        if (opControl_ && patternContainer_ && bitsContainer_ && !initialVisibilitySet_) {
+        if (opControl_ && patternContainer_ && !initialVisibilitySet_) {
             initialVisibilitySet_ = true;
             updateVisibility();
         }
@@ -337,18 +335,13 @@ private:
 
         // Pattern visible for XorPattern(0) only
         bool showPattern = (op == 0);
-        // Bits control is no longer used (BitRotate/BitShuffle removed)
-        bool showBits = false;
 
         if (patternContainer_)
             patternContainer_->setVisible(showPattern);
-        if (bitsContainer_)
-            bitsContainer_->setVisible(showBits);
     }
 
     VSTGUI::CControl* opControl_ = nullptr;
     VSTGUI::CViewContainer* patternContainer_ = nullptr;
-    VSTGUI::CViewContainer* bitsContainer_ = nullptr;
     bool initialVisibilitySet_ = false;
 };
 

@@ -767,7 +767,7 @@ const std::pair<const char*, float DistortionParams::*> kFloatFields[] = {
     {"smoothness", &DistortionParams::smoothness}, {"dither", &DistortionParams::dither},
     {"jitter", &DistortionParams::jitter}, {"quantLevels", &DistortionParams::quantLevels},
     {"quantOffset", &DistortionParams::quantOffset}, {"bitwiseIntensity", &DistortionParams::bitwiseIntensity},
-    {"bitwisePattern", &DistortionParams::bitwisePattern}, {"bitwiseBits", &DistortionParams::bitwiseBits},
+    {"bitwisePattern", &DistortionParams::bitwisePattern},
     {"sensitivity", &DistortionParams::sensitivity}, {"attackMs", &DistortionParams::attackMs},
     {"releaseMs", &DistortionParams::releaseMs}, {"dynamicCurve", &DistortionParams::dynamicCurve},
     {"dynamicDepth", &DistortionParams::dynamicDepth}, {"hold", &DistortionParams::hold},

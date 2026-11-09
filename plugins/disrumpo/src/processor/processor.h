@@ -171,10 +171,6 @@ private:
     Krate::DSP::OnePoleSmoother outputGainSmoother_;
     Krate::DSP::OnePoleSmoother wetMixSmoother_;
 
-    // Oversampling limit (spec 009-intelligent-oversampling)
-    // FR-005, FR-006: Global oversampling limit parameter (default 4x)
-    std::atomic<int> maxOversampleFactor_{4};
-
     // ==========================================================================
     // Band Management (spec 002-band-management)
     // FR-001b: Independent L/R channel processing
@@ -214,9 +210,6 @@ private:
     using BandBlock = std::array<float, BandProcessor::kMaxBlockSize>;
     std::array<BandBlock, kMaxBands> bandBufL_{};
     std::array<BandBlock, kMaxBands> bandBufR_{};
-
-    /// @brief Crossover frequency targets (normalized, for smoothing)
-    std::array<std::atomic<float>, kMaxBands - 1> crossoverFrequencies_{};
 
     // ==========================================================================
     // Band-count change dip (D-023): bandCount_ is the requested count, the

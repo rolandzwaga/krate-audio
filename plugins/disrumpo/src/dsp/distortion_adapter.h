@@ -118,7 +118,6 @@ struct DistortionParams {
     int bitwiseOp = 0;              ///< Bitwise operation select
     float bitwiseIntensity = 0.5f;  ///< Bitwise intensity [0, 1]
     float bitwisePattern = 0.0f;    ///< Bitwise pattern [0, 1]
-    float bitwiseBits = 0.5f;       ///< Bitwise bits slider [0, 1] (reserved, unused)
 
     // Dynamic (D15)
     float sensitivity = 0.5f;       ///< Envelope sensitivity [0, 1]

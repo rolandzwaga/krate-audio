@@ -116,7 +116,6 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                 const int index = std::clamp(
                     static_cast<int>(value * 3.0 + 0.5), 0, 3);
                 const int factor = kOversampleFactors[index];
-                maxOversampleFactor_.store(factor, std::memory_order_relaxed);
                 // FR-016: Apply to all band processors
                 for (auto& bp : bandProcessors_) {
                     bp.setMaxOversampleFactor(factor);
