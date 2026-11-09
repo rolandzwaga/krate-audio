@@ -1170,6 +1170,188 @@ TEST_CASE("SineFold and TriangleFold differ at defaults", "[disrumpo][wavefold][
     REQUIRE((rmsDiffDb > 1.0 || ratio < 0.85 || ratio > 1.15));
 }
 
+// =============================================================================
+// Band-count changes during playback (audit D-023, D-140; fix plan T2.08)
+// =============================================================================
+// The crossover topology switched on the sample the parameter arrived: a different
+// allpass chain and stale filter/band state stepped the output (probe
+// automation:bandcount2-4-1 read jump ratio 3.78 / 3.90 with one click each).
+// =============================================================================
+
+namespace {
+
+constexpr size_t kStepBlock = 512;
+
+double bandCountNorm(int bands) { return static_cast<double>(bands - 1) / 3.0; }
+
+/// The audit probe's step time: `tenths` x 0.1 s, down to its block boundary.
+size_t stepAt(size_t tenths) { return (static_cast<size_t>(kBlockSr * 0.1 * static_cast<double>(tenths)) / kStepBlock) * kStepBlock; }
+
+/// Continuity around each step, with the audit probe's windows (event: 50 ms from the
+/// step; steady: from 0.1 s after the previous step, and from 0.2 s after this one).
+std::vector<ts::ContResult> stepContinuity(const std::vector<float>& y, const std::vector<size_t>& steps) {
+    std::vector<ts::ContResult> out;
+    for (size_t k = 0; k < steps.size(); ++k) {
+        const size_t at = steps[k];
+        const size_t prevAt = k == 0 ? 0 : steps[k - 1];
+        const size_t nextAt = k + 1 < steps.size() ? steps[k + 1] : y.size();
+        const size_t preBeg = prevAt + static_cast<size_t>(kBlockSr * 0.1);
+        const size_t evEnd = std::min(at + static_cast<size_t>(kBlockSr * 0.05), nextAt);
+        const size_t postBeg = std::min(at + static_cast<size_t>(kBlockSr * 0.2), nextAt - 1024);
+        out.push_back(ts::continuityAround(y, at, evEnd, preBeg, at, postBeg, nextAt, kBlockSr));
+    }
+    return out;
+}
+
+/// Output gain around a band-count step from `from` to `to` bands on a steady DC input at
+/// global mix 0 (the dry path), relative to the steady output just before the step. The
+/// float allpasses' DC gain is off 1 by about 1e-4, so the gain is read against that level.
+struct DipReading {
+    double minGain = 1.0;
+    double reducedMs = 0.0;  ///< first to last sample whose gain is off 1 by more than 1e-3
+};
+
+DipReading bandCountDip(int from, int to) {
+    constexpr float kDc = 0.5f;
+    const size_t at = 24 * kStepBlock;
+    ts::Rig rig(kBlockSr);
+    rig.apply({{Disrumpo::kGlobalMixId, 0.0}, {Disrumpo::kBandCountId, bandCountNorm(from)}});
+    rig.reactivate();
+    const std::vector<float> in(static_cast<size_t>(kBlockSr / 2.0), kDc);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kStepBlock), [&](size_t, size_t start, ts::PChanges& pc) {
+        if (start == at) pc.addChange(Disrumpo::kBandCountId, bandCountNorm(to));
+    });
+    const double steady = ts::meanOf(outL.data() + at - 480, 480);
+    DipReading r;
+    size_t first = 0;
+    size_t last = 0;
+    bool any = false;
+    for (size_t i = at; i < outL.size(); ++i) {
+        const double g = static_cast<double>(outL[i]) / steady;
+        r.minGain = std::min(r.minGain, g);
+        if (std::fabs(g - 1.0) > 1e-3) {
+            if (!any) first = i;
+            last = i;
+            any = true;
+        }
+    }
+    r.reducedMs = any ? static_cast<double>(last - first + 1) * 1000.0 / kBlockSr : 0.0;
+    return r;
+}
+
+} // anonymous namespace
+
+TEST_CASE("Band count 2->4->1 during playback has jump ratio <= 1.3", "[disrumpo][bandcount][D-023][D-140]") {
+    const auto in = sineAt(static_cast<size_t>(kBlockSr * 1.5), 220.0, -12.0);
+    const std::vector<size_t> steps{stepAt(5), stepAt(10)};
+    ts::Rig rig(kBlockSr);
+    rig.apply({{Disrumpo::kBandCountId, bandCountNorm(2)}});
+    rig.reactivate();
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kStepBlock), [&](size_t, size_t start, ts::PChanges& pc) {
+        if (start == steps[0]) pc.addChange(Disrumpo::kBandCountId, bandCountNorm(4));
+        if (start == steps[1]) pc.addChange(Disrumpo::kBandCountId, bandCountNorm(1));
+    });
+    const auto c = stepContinuity(outL, steps);
+    std::printf("D-140 band count 2->4 at %.3f s: jump ratio %.2f, clicks %zu (steady %zu); 4->1 at %.3f s: jump "
+                "ratio %.2f, clicks %zu (steady %zu); non-finite %zu\n",
+                static_cast<double>(steps[0]) / kBlockSr, c[0].ratio, c[0].clicksEvent, c[0].clicksBase,
+                static_cast<double>(steps[1]) / kBlockSr, c[1].ratio, c[1].clicksEvent, c[1].clicksBase, c[0].nonFinite);
+    REQUIRE(c[0].nonFinite == 0);
+    for (const auto& s : c) {
+        CHECK(s.ratio <= 1.3);
+        CHECK(s.clicksEvent == 0);
+    }
+}
+
+TEST_CASE("Band count change loaded by setState during playback is click-free",
+          "[disrumpo][bandcount][D-023][D-003]") {
+    // Two current-version streams that differ from a fresh instance in the band count only.
+    const auto streamWith = [](int bands) {
+        ts::Rig src(kBlockSr);
+        src.apply({{Disrumpo::kBandCountId, bandCountNorm(bands)}});
+        return ts::getStateBytes(*src.p);
+    };
+    const auto fourBands = streamWith(4);
+    const auto oneBand = streamWith(1);
+
+    const auto in = sineAt(static_cast<size_t>(kBlockSr * 1.5), 220.0, -12.0);
+    const std::vector<size_t> steps{stepAt(5), stepAt(10)};
+    ts::Rig rig(kBlockSr);
+    rig.apply({{Disrumpo::kBandCountId, bandCountNorm(2)}});
+    rig.reactivate();
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kStepBlock), [&](size_t, size_t start, ts::PChanges&) {
+        // The host's setState between two blocks: the next process() applies it
+        if (start == steps[0]) REQUIRE(ts::setStateBytes(*rig.p, fourBands));
+        if (start == steps[1]) REQUIRE(ts::setStateBytes(*rig.p, oneBand));
+    });
+    const auto c = stepContinuity(outL, steps);
+    std::printf("D-023 setState band count 2->4: jump ratio %.2f, clicks %zu (steady %zu); 4->1: jump ratio %.2f, "
+                "clicks %zu (steady %zu); non-finite %zu\n",
+                c[0].ratio, c[0].clicksEvent, c[0].clicksBase, c[1].ratio, c[1].clicksEvent, c[1].clicksBase,
+                c[0].nonFinite);
+    REQUIRE(c[0].nonFinite == 0);
+    for (const auto& s : c) {
+        CHECK(s.ratio <= 1.3);
+        CHECK(s.clicksEvent == 0);
+    }
+}
+
+TEST_CASE("Band count change dips the output for 10 ms", "[disrumpo][bandcount][D-023]") {
+    const auto down = bandCountDip(4, 2);
+    const auto up = bandCountDip(2, 4);
+    std::printf("D-023 band-count dip (DC, mix 0): 4->2 min gain %.6f over %.3f ms; 2->4 min gain %.6f over %.3f ms\n",
+                down.minGain, down.reducedMs, up.minGain, up.reducedMs);
+    // 5 ms down to 0 at the old topology, switch, 5 ms up at the new one
+    REQUIRE(down.minGain < 0.01);
+    REQUIRE(down.minGain >= 0.0);
+    REQUIRE(down.reducedMs >= 9.9);
+    REQUIRE(down.reducedMs <= 10.1);
+}
+
+TEST_CASE("Band count changes during playback allocate nothing", "[disrumpo][bandcount][realtime][D-023]") {
+    std::vector<uint8_t> oneBand;
+    {
+        ts::Rig src(kBlockSr);
+        src.apply({{Disrumpo::kBandCountId, bandCountNorm(1)}});
+        oneBand = ts::getStateBytes(*src.p);
+    }
+    constexpr auto kBlock = static_cast<Steinberg::int32>(kStepBlock);
+    ts::Rig rig(kBlockSr, kBlock);
+    const auto in = sineAt(kStepBlock, 220.0, -12.0);
+    std::vector<float> inL(in);
+    std::vector<float> inR(in);
+    std::vector<float> outL(in.size());
+    std::vector<float> outR(in.size());
+    for (int b = 0; b < 8; ++b) rig.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), kBlock, nullptr);
+    std::array<ts::PChanges, 3> to{};  // filled before the scope
+    to[0].addChange(Disrumpo::kBandCountId, bandCountNorm(2));
+    to[1].addChange(Disrumpo::kBandCountId, bandCountNorm(4));
+    to[2].addChange(Disrumpo::kBandCountId, bandCountNorm(1));
+
+    size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (int b = 0; b < 16; ++b) {
+            rig.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), kBlock,
+                             (b % 4 == 0) ? &to[static_cast<size_t>(b / 4) % 3] : nullptr);
+        }
+        allocations += TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    REQUIRE(ts::setStateBytes(*rig.p, oneBand));  // host thread, outside the scope
+    {
+        TestHelpers::AllocationScope scope;
+        for (int b = 0; b < 4; ++b) rig.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), kBlock, nullptr);
+        allocations += TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    REQUIRE(allocations == 0);
+}
+
 // Measurement probe (hidden): real-time ratio of Processor::process, 4 bands of HardClip.
 TEST_CASE("Probe: Processor render cost with 4 HardClip bands", "[.][t107-cpu-probe]") {
     const auto in = sineAt(static_cast<size_t>(kBlockSr * 10.0), 220.0, -12.0);

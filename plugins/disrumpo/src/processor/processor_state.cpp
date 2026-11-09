@@ -1057,10 +1057,9 @@ void Processor::applyPendingState() noexcept {
             bandProcessors_[b].setBypassed(bs.bypass);
         }
 
-        // Band count first: a later setBandCount would redistribute (and so
-        // overwrite) the crossovers restored below (D-048)
-        crossoverL_.setBandCount(s.bandCount);
-        crossoverR_.setBandCount(s.bandCount);
+        // The crossovers take the band count in process() (through the output dip
+        // when audio is running, D-023), setActive or setupProcessing. The
+        // frequencies restored here are marked set, so that switch keeps them (D-048)
         for (int c = 0; c < kMaxBands - 1; ++c) {
             if (s.hasCrossover[static_cast<size_t>(c)]) {
                 crossoverL_.setCrossoverFrequency(c, s.crossoverHz[static_cast<size_t>(c)]);

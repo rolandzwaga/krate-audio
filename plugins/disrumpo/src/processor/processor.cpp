@@ -120,8 +120,21 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 
     // Initialize crossover networks for both channels (FR-001b)
     const int numBands = bandCount_.load(std::memory_order_relaxed);
+    if (crossoverL_.isPrepared()) {
+        // A band-count change still owed (its dip did not finish) redistributes
+        // first; prepare() alone sets the count without redistributing (D-023)
+        crossoverL_.setBandCount(numBands);
+        crossoverR_.setBandCount(numBands);
+    }
     crossoverL_.prepare(sampleRate_, numBands);
     crossoverR_.prepare(sampleRate_, numBands);
+
+    // Band-count dip length; the crossovers now run the requested count (D-023)
+    bandCountFadeSamples_ = std::max<size_t>(
+        1, static_cast<size_t>(std::lround(kBandCountFadeMs * 0.001 * sampleRate_)));
+    bandCountFade_ = BandCountFade::Idle;
+    bandCountFadePos_ = 0;
+    processedSinceActivate_ = false;
 
     // Initialize band processors
     for (int i = 0; i < kMaxBands; ++i) {
@@ -165,7 +178,13 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     }
     consumePendingState();
     if (state) {
-        // Activating: reset processing state
+        // Activating: the crossovers take the requested band count at once (no
+        // audio to dip, D-023), then reset processing state
+        crossoverL_.setBandCount(bandCount_.load(std::memory_order_relaxed));
+        crossoverR_.setBandCount(bandCount_.load(std::memory_order_relaxed));
+        bandCountFade_ = BandCountFade::Idle;
+        bandCountFadePos_ = 0;
+        processedSinceActivate_ = false;
         crossoverL_.reset();
         crossoverR_.reset();
         for (auto& proc : bandProcessors_) {
@@ -218,6 +237,15 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         processParameterChanges(data.inputParameterChanges);
     }
 
+    // A band-count change (parameter or load) before any audio since activation
+    // switches at once; later ones go through the output dip below (D-023)
+    if (!processedSinceActivate_) {
+        const int requested = bandCount_.load(std::memory_order_relaxed);
+        if (requested != crossoverL_.getBandCount()) {
+            switchBandCount(requested);
+        }
+    }
+
     // Check if we have audio to process
     if (data.numSamples == 0) {
         return Steinberg::kResultTrue;
@@ -240,6 +268,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     if (!inputL || !inputR || !outputL || !outputR) {
         return Steinberg::kResultTrue;
     }
+    processedSinceActivate_ = true;
 
     // ==========================================================================
     // Spectrum Analyzer: Prepare pre-distortion mono mixdown for DataExchange
@@ -280,7 +309,20 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // When no routing targets a destination, offset is 0 (base value unchanged).
     // ==========================================================================
 
-    const int numBands = bandCount_.load(std::memory_order_relaxed);
+    // The running topology; a requested change starts (or reverses) the dip (D-023)
+    int numBands = crossoverL_.getBandCount();
+    {
+        const int requested = bandCount_.load(std::memory_order_relaxed);
+        if (bandCountFade_ == BandCountFade::Idle && requested != numBands) {
+            bandCountFade_ = BandCountFade::FadeOut;
+            bandCountFadePos_ = 0;
+        } else if (bandCountFade_ == BandCountFade::FadeOut && requested == numBands) {
+            // Back to the running count: ramp up again from the current gain
+            bandCountFade_ = BandCountFade::FadeIn;
+            bandCountFadePos_ = bandCountFadeSamples_ - bandCountFadePos_;
+        }
+        // During FadeIn a new request is picked up when the ramp completes
+    }
 
     // --- Global parameters ---
     const float modInputGain = modulationEngine_.getModulatedValue(
@@ -503,8 +545,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     std::array<float, kMaxBands> bandsR{};
 
     const auto totalSamples = static_cast<size_t>(data.numSamples);
-    for (size_t chunkStart = 0; chunkStart < totalSamples; chunkStart += BandProcessor::kMaxBlockSize) {
-        const size_t chunkLen = std::min(totalSamples - chunkStart, BandProcessor::kMaxBlockSize);
+    const float fadeInv = 1.0f / static_cast<float>(bandCountFadeSamples_);
+    size_t chunkStart = 0;
+    while (chunkStart < totalSamples) {
+        size_t chunkLen = std::min(totalSamples - chunkStart, BandProcessor::kMaxBlockSize);
+        // A band-count dip ramp ends on a chunk boundary, so the topology switches
+        // exactly where the output gain reaches 0 (D-023)
+        const bool fading = bandCountFade_ != BandCountFade::Idle;
+        if (fading) {
+            chunkLen = std::min(chunkLen, bandCountFadeSamples_ - bandCountFadePos_);
+        }
+        const bool fadeOut = bandCountFade_ == BandCountFade::FadeOut;
         const float* inL = inputL + chunkStart;
         const float* inR = inputR + chunkStart;
 
@@ -542,6 +593,22 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             }
             outL[n] = crossoverL_.processDryCompensation(inL[n]) * dryMix + sumL * outputGainLinear * wetMix;
             outR[n] = crossoverR_.processDryCompensation(inR[n]) * dryMix + sumR * outputGainLinear * wetMix;
+            if (fading) {
+                ++bandCountFadePos_;
+                const float ramp = static_cast<float>(bandCountFadePos_) * fadeInv;
+                const float fadeGain = fadeOut ? 1.0f - ramp : ramp;
+                outL[n] *= fadeGain;
+                outR[n] *= fadeGain;
+            }
+        }
+
+        chunkStart += chunkLen;
+        if (fading && bandCountFadePos_ >= bandCountFadeSamples_) {
+            advanceBandCountFade();
+            numBands = crossoverL_.getBandCount();
+            for (int b = 0; b < numBands; ++b) {
+                contributes[b] = shouldBandContribute(b);
+            }
         }
     }
 
@@ -588,7 +655,7 @@ int Processor::getMorphCacheActiveNodes(int band) const { return bandMorphCache_
 // ==============================================================================
 
 bool Processor::isAnySoloed() const noexcept {
-    const int numBands = bandCount_.load(std::memory_order_relaxed);
+    const int numBands = crossoverL_.getBandCount();  // the running topology (D-023)
     for (int b = 0; b < numBands; ++b) {
         if (bandStates_[b].solo) {
             return true;
@@ -610,5 +677,33 @@ bool Processor::shouldBandContribute(int bandIndex) const noexcept {
 
     // No solo active - all non-muted bands contribute
     return true;
+}
+
+// ==============================================================================
+// Band-count change (D-023)
+// ==============================================================================
+
+void Processor::switchBandCount(int bands) noexcept {
+    const int previous = crossoverL_.getBandCount();
+    crossoverL_.setBandCount(bands);
+    crossoverR_.setBandCount(bands);
+    const int running = crossoverL_.getBandCount();
+    for (int b = previous; b < running; ++b) {
+        bandProcessors_[b].reset();
+    }
+}
+
+void Processor::advanceBandCountFade() noexcept {
+    bandCountFadePos_ = 0;
+    const int requested = bandCount_.load(std::memory_order_relaxed);
+    if (bandCountFade_ == BandCountFade::FadeOut) {
+        if (requested != crossoverL_.getBandCount()) {
+            switchBandCount(requested);
+        }
+        bandCountFade_ = BandCountFade::FadeIn;
+    } else {
+        bandCountFade_ = (requested != crossoverL_.getBandCount()) ? BandCountFade::FadeOut
+                                                                   : BandCountFade::Idle;
+    }
 }
 } // namespace Disrumpo

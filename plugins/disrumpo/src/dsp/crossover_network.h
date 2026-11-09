@@ -134,6 +134,25 @@ public:
 
         // Redistribute crossovers per FR-011a/FR-011b
         redistributeCrossovers(oldBandCount, newBandCount);
+
+        // Crossovers and allpasses joining the chain start clean at their frequency:
+        // never the state they froze with when last used, nor a glide from a stale
+        // frequency (D-023). CrossoverLR4::prepare only snaps the smoother, sets the
+        // coefficients and clears the state: no allocation.
+        if (newBandCount > oldBandCount && prepared_) {
+            const int firstNew = std::max(oldBandCount - 1, 0);
+            for (int i = firstNew; i < newBandCount - 1; ++i) {
+                crossovers_[i].prepare(sampleRate_);
+            }
+            for (int band = 0; band < kMaxBands - 2; ++band) {
+                for (int apIdx = std::max(band + 1, firstNew); apIdx < kMaxBands - 1; ++apIdx) {
+                    allpasses_[band][apIdx - band - 1].reset();
+                }
+            }
+            for (int i = firstNew; i < kMaxBands - 1; ++i) {
+                dryAllpasses_[i].reset();
+            }
+        }
     }
 
     /// @brief Set crossover frequency for a specific split point.
@@ -335,7 +354,7 @@ private:
         }
 
         if (newBandCount > oldBandCount) {
-            // FR-011a: Increasing - preserve existing, insert new at logarithmic midpoints
+            // FR-011a: Increasing - preserve existing, fill the free indices
             redistributeIncreasing(oldBandCount, newBandCount);
             updateAllpassCoefficients();
         } else {
@@ -346,82 +365,34 @@ private:
         }
     }
 
-    /// @brief Insert new crossovers at logarithmic midpoints when increasing band count.
-    /// FR-011a: Preserve existing crossovers and add new ones
+    /// @brief Fill the crossovers a band-count increase adds (FR-011a, D-023).
+    /// Running crossovers keep their index and frequency, so crossover i stays the
+    /// split the crossover parameter i sets and a later decrease returns to the same
+    /// split. A joining crossover set explicitly while it was idle (state restore or
+    /// automation) keeps that value. Each run of new ones splits the gap between the
+    /// crossover below and the next set one above (else 20 kHz) at even log spacing.
     void redistributeIncreasing(int oldBandCount, int newBandCount) noexcept {
-        // Build list of band edges (20Hz, crossover1, crossover2, ..., 20kHz)
-        std::array<float, kMaxBands + 1> edges{};
-        edges[0] = kMinCrossoverHz;
-        for (int i = 0; i < oldBandCount - 1; ++i) {
-            edges[i + 1] = crossoverFrequencies_[i];
-        }
-        edges[oldBandCount] = kMaxCrossoverHz;
-        // const int numOldEdges = oldBandCount + 1; // Unused after refactoring
-
-        // Collect all crossover frequencies (old + new)
-        std::array<float, kMaxBands - 1> allFreqs{};
-        int writeIdx = 0;
-
-        // Copy existing crossovers, plus newly used ones that were set
-        // explicitly (state restore or automation while they were inactive)
-        for (int i = 0; i < newBandCount - 1; ++i) {
-            if (i < oldBandCount - 1 || frequencyWasSet_[i]) {
-                allFreqs[writeIdx++] = crossoverFrequencies_[i];
+        const int used = newBandCount - 1;
+        int i = std::max(oldBandCount - 1, 0);
+        while (i < used) {
+            if (frequencyWasSet_[i]) {
+                ++i;
+                continue;
             }
-        }
-
-        // Number of new crossovers to add
-        const int toAdd = (newBandCount - 1) - writeIdx;
-        if (toAdd <= 0) return;
-
-        // Insert new crossovers at logarithmic midpoints of largest gaps
-        for (int added = 0; added < toAdd; ++added) {
-            // Find the largest logarithmic gap
-            float maxLogGap = 0.0f;
-            int bestGapIdx = 0;
-
-            // Edges include: 20Hz, existing crossovers, new crossovers, 20kHz
-            // We need to track all current edges
-            std::array<float, kMaxBands + 1> currentEdges{};
-            currentEdges[0] = kMinCrossoverHz;
-            for (int i = 0; i < writeIdx; ++i) {
-                currentEdges[i + 1] = allFreqs[i];
+            int end = i;
+            while (end < used && !frequencyWasSet_[end]) {
+                ++end;
             }
-            currentEdges[writeIdx + 1] = kMaxCrossoverHz;
-            const int numCurrentEdges = writeIdx + 2;
-
-            // Sort current edges
-            std::sort(currentEdges.begin(), currentEdges.begin() + numCurrentEdges);
-
-            // Find largest gap
-            for (int i = 0; i < numCurrentEdges - 1; ++i) {
-                float logGap = std::log10(currentEdges[i + 1]) - std::log10(currentEdges[i]);
-                if (logGap > maxLogGap) {
-                    maxLogGap = logGap;
-                    bestGapIdx = i;
-                }
+            const float lower = (i == 0) ? kMinCrossoverHz : crossoverFrequencies_[i - 1];
+            const float upper = (end < used) ? crossoverFrequencies_[end] : kMaxCrossoverHz;
+            const auto parts = static_cast<float>(end - i + 1);
+            for (int k = i; k < end; ++k) {
+                const float frac = static_cast<float>(k - i + 1) / parts;
+                crossoverFrequencies_[k] = clampFrequency(lower * std::pow(upper / lower, frac));
+                crossovers_[k].setCrossoverFrequency(crossoverFrequencies_[k]);
             }
-
-            // Insert at logarithmic midpoint
-            const float newFreq = logMidpoint(currentEdges[bestGapIdx], currentEdges[bestGapIdx + 1]);
-            allFreqs[writeIdx++] = clampFrequency(newFreq);
+            i = end;
         }
-
-        // Sort all frequencies in ascending order
-        std::sort(allFreqs.begin(), allFreqs.begin() + writeIdx);
-
-        // Store and apply to crossovers
-        for (int i = 0; i < newBandCount - 1; ++i) {
-            crossoverFrequencies_[i] = allFreqs[i];
-            crossovers_[i].setCrossoverFrequency(crossoverFrequencies_[i]);
-        }
-    }
-
-    /// @brief Calculate logarithmic midpoint between two frequencies.
-    [[nodiscard]] static float logMidpoint(float f1, float f2) noexcept {
-        const float logF1 = std::log10(f1);
-        const float logF2 = std::log10(f2);
-        return std::pow(10.0f, (logF1 + logF2) * 0.5f);
     }
 
     // =========================================================================

@@ -202,6 +202,27 @@ private:
     std::array<std::atomic<float>, kMaxBands - 1> crossoverFrequencies_{};
 
     // ==========================================================================
+    // Band-count change dip (D-023): bandCount_ is the requested count, the
+    // crossovers run the current one. A change ramps the output (dry and wet) to
+    // 0 over kBandCountFadeMs at the running topology, switches crossovers and
+    // bands at the silent point, then ramps back to 1. Before any audio since
+    // activation the switch happens at once. Audio thread only.
+    // ==========================================================================
+
+    static constexpr float kBandCountFadeMs = 5.0f;
+    enum class BandCountFade : uint8_t { Idle, FadeOut, FadeIn };
+    BandCountFade bandCountFade_ = BandCountFade::Idle;
+    size_t bandCountFadePos_ = 0;      ///< samples into the current ramp
+    size_t bandCountFadeSamples_ = 1;  ///< ramp length at the host rate
+    bool processedSinceActivate_ = false;
+
+    /// @brief Switch crossovers and bands to `bands`; bands that join start reset.
+    void switchBandCount(int bands) noexcept;
+
+    /// @brief A ramp completed: at the bottom switch, at the top finish or dip again.
+    void advanceBandCountFade() noexcept;
+
+    // ==========================================================================
     // Solo State Tracking
     // ==========================================================================
 

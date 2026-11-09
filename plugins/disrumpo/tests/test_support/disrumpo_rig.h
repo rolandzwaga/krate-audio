@@ -11,6 +11,7 @@
 
 #include "processor/processor.h"
 
+#include "artifact_detection.h"
 #include "vst_param_changes.h"
 
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
@@ -65,6 +66,54 @@ inline double meanOf(const float* x, size_t n) {
     double s = 0.0;
     for (size_t i = 0; i < n; ++i) s += fin(x[i]) ? x[i] : 0.0;
     return s / static_cast<double>(n);
+}
+
+/// Largest sample-to-sample step.
+inline double maxJump(const float* x, size_t n) {
+    double m = 0.0;
+    for (size_t i = 1; i < n; ++i) {
+        if (!fin(x[i]) || !fin(x[i - 1])) continue;
+        m = std::max(m, std::fabs(static_cast<double>(x[i]) - static_cast<double>(x[i - 1])));
+    }
+    return m;
+}
+
+/// Clicks the shared ClickDetector finds (512/256 frames, 5 sigma, -60 dB energy floor).
+inline size_t clickCount(const float* x, size_t n, double sr) {
+    Krate::DSP::TestUtils::ClickDetectorConfig cfg;
+    cfg.sampleRate = static_cast<float>(sr);
+    cfg.frameSize = 512;
+    cfg.hopSize = 256;
+    cfg.detectionThreshold = 5.0f;
+    cfg.energyThresholdDb = -60.0f;
+    Krate::DSP::TestUtils::ClickDetector det(cfg);
+    det.prepare();
+    return det.detect(x, n).size();
+}
+
+struct ContResult {
+    double ratio = 0.0;      ///< max step in the event window / max step in the steady windows
+    size_t clicksEvent = 0;  ///< clicks in the event window
+    size_t clicksBase = 0;   ///< clicks in a steady window of the same length before it
+    size_t nonFinite = 0;
+};
+
+/// Continuity of `y` around an event (moved from the audit probe TU): the largest
+/// step in [evBeg, evEnd) against the larger of the steady pre and post windows.
+inline ContResult continuityAround(const std::vector<float>& y, size_t evBeg, size_t evEnd, size_t preBeg,
+                                   size_t preEnd, size_t postBeg, size_t postEnd, double sr) {
+    ContResult c;
+    const double base = std::max(maxJump(y.data() + preBeg, preEnd - preBeg),
+                                 maxJump(y.data() + postBeg, postEnd - postBeg));
+    const double ev = maxJump(y.data() + evBeg, evEnd - evBeg);
+    c.ratio = base > 1e-12 ? ev / base : (ev > 1e-9 ? 1e9 : 1.0);
+    c.clicksEvent = clickCount(y.data() + evBeg, evEnd - evBeg, sr);
+    const size_t w = std::min(evEnd - evBeg, preEnd - preBeg);
+    c.clicksBase = clickCount(y.data() + preEnd - w, w, sr);
+    for (float v : y) {
+        if (!fin(v)) ++c.nonFinite;
+    }
+    return c;
 }
 
 // -----------------------------------------------------------------------------

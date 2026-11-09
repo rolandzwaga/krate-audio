@@ -20,8 +20,11 @@
 #include <krate/dsp/core/window_functions.h>
 #include <krate/dsp/core/random.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
+#include <numbers>
 #include <numeric>
 #include <vector>
 
@@ -199,6 +202,75 @@ TEST_CASE("CrossoverNetwork band count increase preserves existing crossovers", 
         }
     }
     REQUIRE(found);
+}
+
+// Audit D-023 (fix plan T2.08): an increase kept the running crossovers but let the ones
+// joining the chain resume the filter state they froze with when they were last used, and
+// glide from a stale frequency. Inputs are silent while the network runs 2 bands, so a
+// crossover that starts clean matches a freshly prepared reference network.
+TEST_CASE("CrossoverNetwork crossovers joining on a band-count increase start clean at their frequency",
+          "[crossover][D-023]") {
+    constexpr double kSr = 48000.0;
+    const auto sine = [](size_t n) {
+        std::vector<float> x(n);
+        for (size_t i = 0; i < n; ++i) {
+            x[i] = 0.5f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 1000.0 * static_cast<double>(i) / kSr));
+        }
+        return x;
+    };
+    const auto in = sine(4800);
+    std::array<float, Disrumpo::kMaxBands> bands{};
+
+    Disrumpo::CrossoverNetwork network;
+    network.prepare(kSr, 4);
+    for (float x : in) network.process(x, bands);   // every crossover builds up state
+    network.setBandCount(2);
+    network.setCrossoverFrequency(2, 8000.0f);         // stored while crossover 2 is idle
+    for (size_t i = 0; i < 48000; ++i) network.process(0.0f, bands);
+    network.setBandCount(4);
+
+    Disrumpo::CrossoverNetwork reference;
+    reference.prepare(kSr, 4);
+    for (int c = 0; c < 3; ++c) reference.setCrossoverFrequency(c, network.getCrossoverFrequency(c));
+    reference.prepare(kSr, 4);  // snap the reference to those frequencies, clean state
+
+    std::array<float, Disrumpo::kMaxBands> refBands{};
+    double maxDiff = 0.0;
+    for (float x : in) {
+        network.process(x, bands);
+        reference.process(x, refBands);
+        for (size_t b = 0; b < 4; ++b) {
+            maxDiff = std::max(maxDiff, static_cast<double>(std::fabs(bands[b] - refBands[b])));
+        }
+    }
+    INFO("crossovers after 2 -> 4: " << network.getCrossoverFrequency(0) << " / " << network.getCrossoverFrequency(1)
+         << " / " << network.getCrossoverFrequency(2) << " Hz; max band difference vs a clean network " << maxDiff);
+    REQUIRE(maxDiff < 1e-5);
+}
+
+// Audit D-023 (fix plan T2.08): repeated band-count changes keep every crossover at its
+// index with its frequency (new ones land above the running ones here).
+TEST_CASE("CrossoverNetwork band count 2->4->2->4 keeps each crossover at its index", "[crossover][D-023]") {
+    Disrumpo::CrossoverNetwork network;
+    network.prepare(48000.0, 2);
+    const float f0 = network.getCrossoverFrequency(0);
+    network.setBandCount(4);
+    const std::array<float, 3> first{network.getCrossoverFrequency(0), network.getCrossoverFrequency(1),
+                                     network.getCrossoverFrequency(2)};
+    network.setBandCount(2);
+    const float f0AtTwo = network.getCrossoverFrequency(0);
+    network.setBandCount(4);
+    const std::array<float, 3> second{network.getCrossoverFrequency(0), network.getCrossoverFrequency(1),
+                                      network.getCrossoverFrequency(2)};
+    std::printf("D-023 crossovers per index: 2 bands %.2f; 2->4 %.2f / %.2f / %.2f; 4->2 %.2f; 2->4 %.2f / %.2f / %.2f Hz\n",
+                static_cast<double>(f0), static_cast<double>(first[0]), static_cast<double>(first[1]),
+                static_cast<double>(first[2]), static_cast<double>(f0AtTwo), static_cast<double>(second[0]),
+                static_cast<double>(second[1]), static_cast<double>(second[2]));
+    REQUIRE(first[0] == f0);
+    REQUIRE(f0AtTwo == f0);
+    REQUIRE(second == first);
+    REQUIRE(first[0] < first[1]);
+    REQUIRE(first[1] < first[2]);
 }
 
 TEST_CASE("CrossoverNetwork band count decrease preserves lowest crossovers", "[crossover][US1]") {
@@ -537,8 +609,8 @@ TEST_CASE("CrossoverNetwork pink noise FFT flat response", "[crossover][US1][fla
             if (centerFreq > kSampleRate / 4.0f) continue;
 
             // Calculate bin range for this octave (centerFreq / sqrt(2) to centerFreq * sqrt(2))
-            float lowFreq = centerFreq / 1.414f;
-            float highFreq = centerFreq * 1.414f;
+            float lowFreq = centerFreq / std::numbers::sqrt2_v<float>;
+            float highFreq = centerFreq * std::numbers::sqrt2_v<float>;
 
             size_t lowBin = static_cast<size_t>(lowFreq * kFFTSize / kSampleRate);
             size_t highBin = static_cast<size_t>(highFreq * kFFTSize / kSampleRate);
@@ -668,8 +740,8 @@ TEST_CASE("CrossoverNetwork pink noise FFT at multiple sample rates", "[crossove
             // Skip bands above Nyquist/4
             if (centerFreq > sampleRate / 4.0) continue;
 
-            float lowFreq = centerFreq / 1.414f;
-            float highFreq = centerFreq * 1.414f;
+            float lowFreq = centerFreq / std::numbers::sqrt2_v<float>;
+            float highFreq = centerFreq * std::numbers::sqrt2_v<float>;
 
             size_t lowBin = static_cast<size_t>(lowFreq * kFFTSize / sampleRate);
             size_t highBin = static_cast<size_t>(highFreq * kFFTSize / sampleRate);

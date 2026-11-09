@@ -341,9 +341,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                 // Convert normalized [0,1] to band count [1,4]
                 const int newBandCount = 1 + static_cast<int>(value * 3.0 + 0.5);
                 const int clamped = std::clamp(newBandCount, kMinBands, 4);
+                // process() switches the crossovers through the output dip (D-023)
                 bandCount_.store(clamped, std::memory_order_relaxed);
-                crossoverL_.setBandCount(clamped);
-                crossoverR_.setBandCount(clamped);
                 break;
             }
 
