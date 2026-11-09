@@ -298,6 +298,10 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     const_cast, and `res == kResultOk || res == kResultTrue` at :294, harmless since both are 0); the new
     `headless_editor.h` reads 0. Decide with item 73's policy whether test-support headers are tidied, then fix
     `disrumpo_rig.h`.
+77. **Innexus has the same unconditional `[!mayfail]` on its DataExchange delivery cases** (T5.07, report D-128
+    context): `plugins/innexus/tests/integration/test_data_exchange_pipeline.cpp:213, :234`. Disrumpo's case now
+    asserts delivery under `#ifdef _WIN32` and the Tier-3 FIFOs everywhere; Innexus would need the same split
+    (outside this audit's plugin).
 
 ## Done outside the plan
 

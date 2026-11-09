@@ -84,6 +84,15 @@ static void generateSine(float* buffer, int numSamples, float freq,
 static constexpr int32 kBlockSize = 512;
 static constexpr double kSampleRate = 44100.0;
 
+/// The SharedDisplayBridge instance ID a processor state stream ends with.
+static uint64_t stateTrailerInstanceId(const std::vector<uint8_t>& stream)
+{
+    REQUIRE(stream.size() >= 12);
+    uint64_t id = 0;
+    std::memcpy(&id, stream.data() + stream.size() - 8, sizeof(id));
+    return id;
+}
+
 /// Host context implementing IDataExchangeHandler (Tier 1, no timer or message
 /// pump): one block of storage, every block sent to the controller is copied out.
 class MockDataExchangeHost : public IDataExchangeHandler
@@ -296,11 +305,15 @@ TEST_CASE("SpectrumBlock is trivially copyable",
     STATIC_REQUIRE(std::is_trivially_copyable_v<Disrumpo::SpectrumBlock>);
 }
 
-// DataExchange relies on platform message pumping. macOS CI has no
-// CFRunLoop pump, so spectrum data is never delivered. [!mayfail]
+// D-128 (T5.07): the delivery to the controller needs the SDK's DataExchange
+// fallback timer, which fires in a bare harness only on Windows (pumpMessages
+// dispatches its messages). macOS and Linux test harnesses have no run loop, so
+// there the case checks only that sendSpectrumBlock wrote the Tier-3 shared FIFOs,
+// which need no timer.
 TEST_CASE("DataExchange delivers audio samples to controller local FIFOs",
-          "[disrumpo][data-exchange][integration][!mayfail]")
+          "[disrumpo][data-exchange][integration][D-128]")
 {
+    constexpr int kBlocks = 10;
     PipelineFixture fix;
 
     // Verify no data before processing
@@ -309,8 +322,22 @@ TEST_CASE("DataExchange delivers audio samples to controller local FIFOs",
     REQUIRE(fix.ctrl->getLocalOutputFIFO().totalWritten() == 0);
 
     // Process several blocks of sine wave audio and pump messages
-    fix.processAndDeliver(10, 1000.0f);
+    fix.processAndDeliver(kBlocks, 1000.0f);
 
+    // Tier 3: every block reaches the shared FIFOs, on every platform
+    const auto id = stateTrailerInstanceId(Disrumpo::TestSupport::getStateBytes(*fix.proc));
+    const auto* shared =
+        static_cast<const Disrumpo::SharedDisplay*>(Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(id));
+    REQUIRE(shared != nullptr);
+    const size_t tier3Input = shared->inputFIFO->totalWritten();
+    const size_t tier3Output = shared->outputFIFO->totalWritten();
+    std::printf("D-128 after %d blocks: Tier-3 FIFOs %zu / %zu samples, controller FIFOs %zu / %zu\n", kBlocks,
+                tier3Input, tier3Output, fix.ctrl->getLocalInputFIFO().totalWritten(),
+                fix.ctrl->getLocalOutputFIFO().totalWritten());
+    CHECK(tier3Input == static_cast<size_t>(kBlocks * kBlockSize));
+    CHECK(tier3Output == static_cast<size_t>(kBlocks * kBlockSize));
+
+#ifdef _WIN32
     // Verify controller received spectrum data
     INFO("spectrumDataAvailable = " << fix.ctrl->isSpectrumDataAvailable());
     INFO("inputFIFO totalWritten = " << fix.ctrl->getLocalInputFIFO().totalWritten());
@@ -342,6 +369,7 @@ TEST_CASE("DataExchange delivers audio samples to controller local FIFOs",
         maxVal = std::max(maxVal, std::abs(readBuf[i]));
     INFO("maxVal in input FIFO = " << maxVal);
     REQUIRE(maxVal > 0.01f);
+#endif
 }
 
 TEST_CASE("Processor lifecycle without connect - sendSpectrumBlock is no-op",
@@ -644,13 +672,6 @@ Continuity measureSineContinuity(const std::vector<float>& x, double w) {
         c.maxResidual = std::max(c.maxResidual, std::fabs(r));
     }
     return c;
-}
-
-uint64_t stateTrailerInstanceId(const std::vector<uint8_t>& stream) {
-    REQUIRE(stream.size() >= 12);
-    uint64_t id = 0;
-    std::memcpy(&id, stream.data() + stream.size() - 8, sizeof(id));
-    return id;
 }
 
 }  // namespace
