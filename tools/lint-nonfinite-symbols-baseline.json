@@ -18,7 +18,6 @@
   "dsp/tests/unit/systems/profundum_motion_test.cpp": 2,
   "dsp/tests/unit/systems/profundum_note_behaviour_spectral_test.cpp": 1,
   "dsp/tests/unit/systems/vorago_engine_test.cpp": 1,
-  "plugins/disrumpo/tests/integration/multi_node_distortion_test.cpp": 2,
   "plugins/gradus/src/dsp/audition_voice.h": 1,
   "plugins/gradus/src/processor/processor.cpp": 1,
   "plugins/innexus/tests/unit/vst/waveguide_param_test.cpp": 6,
