@@ -308,3 +308,12 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 - Crossover dedup step 5 (commit "docs: crossover dedup — MultibandCrossover in the architecture docs; same-layer
   includes"): layer-2-processors.md, plugin-architecture.md, processors/README.md describe `MultibandCrossover`
   and the `CrossoverNetwork` wrapper; dsp/CLAUDE.md records ruling 7 (a layer may include its own layer, no cycles).
+- T4.18 / D-024 closed by `9ced9310` (user ruling 2026-11-09): its test "MultibandCrossover allpasses track a
+  gliding crossover" is the regression guard (dry − band sum over 50 ms after a 632 Hz → 2 kHz move: RED −20.4 dB
+  on the jumping float allpasses, GREEN −49.7 dB, bar −45 dB). The plan's STFT test is dropped: 3 bands, crossovers
+  200 / 500 Hz, crossover 1 → 2 kHz in one block, tones on the odd bins of a 256-sample frame, max per-bin deviation
+  from the input in the first frame after the step: new network 1.26 dB, frozen pre-dedup copy 1.25 dB, an ideal
+  gliding allpass chain 1.34 dB (the glide's phase motion, not a defect, and no old/new separation). The defect
+  shows in the time domain (band sum vs the ideal chain, 50 ms after the step): crossover 1 2 kHz → 500 Hz −42.9 dB
+  new vs −26.0 dB old; crossover 0 400 Hz, crossover 1 500 Hz → 2 kHz −45.6 dB vs −32.9 dB. The unused
+  `CrossoverNetwork::kDefaultSmoothingMs` is deleted (the LR4 smoothing is `CrossoverLR4`'s 5 ms).

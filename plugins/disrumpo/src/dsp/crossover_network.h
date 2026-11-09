@@ -57,7 +57,6 @@ public:
     /// @brief Test probe (D-003): setBandCount() calls over all instances, so a test
     /// can tell which thread or call reconfigured the live networks.
     static inline std::atomic<std::uint64_t> debugSetBandCountCalls{0};
-    static constexpr float kDefaultSmoothingMs = 10.0f;
 
     // =========================================================================
     // Lifecycle
