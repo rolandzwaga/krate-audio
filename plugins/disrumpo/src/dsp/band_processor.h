@@ -963,6 +963,18 @@ private:
         // host-rate sample (clockFactor_ oversampled samples) and scales the morph drive.
         const auto factor = static_cast<size_t>(std::max(clockFactor_, 1));
         const bool morph = morphEnabled_ && morphEngineL_;
+        if (morph && numSamples > 0 && sweepSmoother_.getCurrentValue() == sweepSmoother_.getTarget()) {
+            // The sweep smoother sits on its target, so every per-host-sample step below
+            // returns the same value and the drive scale is constant: one block call per
+            // engine (the engines process the same samples in the same order)
+            const float sweepScale = sweepDriveScale(sweepSmoother_.process());
+            morphEngineL_->setSweepDriveScale(sweepScale);
+            morphEngineR_->setSweepDriveScale(sweepScale);
+            const auto n = static_cast<int>(numSamples);
+            morphEngineL_->processBlock(left, left, n);
+            morphEngineR_->processBlock(right, right, n);
+            return;
+        }
         for (size_t i = 0; i < numSamples; i += factor) {
             const float sweepScale = sweepDriveScale(sweepSmoother_.process());
             if (morph) {

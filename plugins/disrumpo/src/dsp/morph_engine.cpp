@@ -758,9 +758,75 @@ float MorphEngine::process(float input) noexcept {
 }
 
 void MorphEngine::processBlock(const float* input, float* output, int numSamples) noexcept {
-    for (int i = 0; i < numSamples; ++i) {
+    // Per sample until the engine is steady; from there every sample takes the same path
+    // with nothing to update, so the rest runs as a block with the same arithmetic
+    int i = 0;
+    while (i < numSamples && !isSteady()) {
         output[i] = process(input[i]);
+        ++i;
     }
+    if (i < numSamples) {
+        processSteadySpan(input + i, output + i, numSamples - i);
+    }
+}
+
+bool MorphEngine::isSteady() const noexcept {
+    // process() would advance the cursor smoothers (a settled smoother returns its target
+    // unchanged only when it already sits on it) and recompute the weights
+    if (!prepared_ || !weightsValid_) return false;
+    if (smootherX_.getCurrentValue() != smootherX_.getTarget() ||
+        smootherY_.getCurrentValue() != smootherY_.getTarget()) {
+        return false;
+    }
+    if (smootherX_.getCurrentValue() != weightsX_ || smootherY_.getCurrentValue() != weightsY_) {
+        return false;
+    }
+    // ... or start or continue a path switch / node activation fade
+    if (allSameType_ != processedSameType_ || activeNodeCount_ != processedNodeCount_ ||
+        switchFadeRemaining_ > 0) {
+        return false;
+    }
+    if (allSameType_) {
+        // ... or route the identical-type parameters (processSameFamily)
+        float weightDelta = 0.0f;
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            weightDelta = std::max(weightDelta, std::abs(weights_[n] - blendedWeights_[n]));
+        }
+        return !blendedParamsDirty_ && !(weightDelta > kBlendedWeightEpsilon) &&
+               sweepDriveScale_ == blendedSweepDriveScale_;
+    }
+    // ... or re-apply the cross-family offsets / sweep multiplier (processCrossFamily)
+    const bool offsetsActive = driveModOffset_ != 0.0f || mixModOffset_ != 0.0f ||
+                               toneModOffset_ != 0.0f || biasModOffset_ != 0.0f;
+    return !offsetsActive && !offsetsWereActive_ && sweepDriveScale_ == appliedSweepDriveScale_;
+}
+
+void MorphEngine::processSteadySpan(const float* input, float* output, int numSamples) noexcept {
+    if (numSamples <= 0) return;
+    if (allSameType_) {
+        blendedAdapter_.processBlock(input, output, numSamples);
+    } else {
+        // processCrossFamily: output = 0, then += node output * gain, node by node in order
+        std::array<float, kMaxMorphNodes> gains{};
+        for (int n = 0; n < activeNodeCount_; ++n) {
+            gains[static_cast<size_t>(n)] = transitionGainForWeight(weights_[n]);
+        }
+        for (int start = 0; start < numSamples; start += kSpanChunk) {
+            const int len = std::min(kSpanChunk, numSamples - start);
+            std::copy_n(input + start, len, spanInput_.begin());
+            float* out = output + start;
+            std::fill_n(out, len, 0.0f);
+            for (int n = 0; n < activeNodeCount_; ++n) {
+                adapters_[n].processBlock(spanInput_.data(), spanNode_.data(), len);
+                const float gain = gains[static_cast<size_t>(n)];
+                for (int k = 0; k < len; ++k) {
+                    out[k] += spanNode_[static_cast<size_t>(k)] * gain;
+                }
+            }
+        }
+    }
+    lastOutput_ = output[numSamples - 1];
+    hasOutput_ = true;
 }
 
 float MorphEngine::processSameFamily(float input) noexcept {

@@ -251,6 +251,16 @@ private:
     /// @brief Process different types (of one family or not) in parallel.
     [[nodiscard]] float processCrossFamily(float input) noexcept;
 
+    /// @brief True when the next process() call would change nothing but the adapters'
+    /// state and the last output: cursor settled at the weights' position, no path
+    /// switch or fade pending, nothing to route. Every later sample of the block then
+    /// takes the same path, so processBlock() runs it as a block (processSteadySpan).
+    [[nodiscard]] bool isSteady() const noexcept;
+
+    /// @brief process() for every sample of a span that starts steady (isSteady()):
+    /// the same adapter calls and the same per-sample sum, one block call per adapter.
+    void processSteadySpan(const float* input, float* output, int numSamples) noexcept;
+
     /// @brief Recompute latency_ from the active nodes and align every adapter to it.
     void updateLatencyAlignment() noexcept;
 
@@ -286,6 +296,12 @@ private:
     float weightsX_ = 0.0f;
     float weightsY_ = 0.0f;
     bool weightsValid_ = false;
+
+    // processSteadySpan scratch: the span's input (the caller may process in place)
+    // and one node's output, in chunks of kSpanChunk samples
+    static constexpr int kSpanChunk = 256;
+    std::array<float, kSpanChunk> spanInput_{};
+    std::array<float, kSpanChunk> spanNode_{};
 
     // Distortion adapters (one per potential node for parallel processing of different types)
     std::array<DistortionAdapter, kMaxMorphNodes> adapters_;
