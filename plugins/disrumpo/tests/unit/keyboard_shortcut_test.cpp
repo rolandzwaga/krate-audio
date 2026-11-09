@@ -7,8 +7,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
-#include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include <editor_lifecycle_harness.h>
@@ -89,9 +89,11 @@ struct KeyboardRig : VstguiReady {
     }
 };
 
-bool sendKey(KeyboardShortcutHandler& handler, VSTGUI::CFrame* frame, VSTGUI::VirtualKey key) {
+bool sendKey(KeyboardShortcutHandler& handler, VSTGUI::CFrame* frame, VSTGUI::VirtualKey key,
+             std::optional<VSTGUI::ModifierKey> modifier = std::nullopt) {
     VSTGUI::KeyboardEvent event;
     event.virt = key;
+    if (modifier) event.modifiers.add(*modifier);
     handler.onKeyboardEvent(event, frame);
     return event.consumed;
 }
@@ -211,131 +213,95 @@ TEST_CASE("Band Count drives the keyboard handler's Tab cycle",
 }
 
 // =============================================================================
-// Tab Cycling Logic Tests
+// Tab, Space and arrow keys through the real handler (D-123, fix plan T5.03)
 // =============================================================================
 
-TEST_CASE("Tab cycling wraps forward through bands", "[keyboard][tab]") {
-    int activeBandCount = 4;
-    int focusedBandIndex = -1;
+TEST_CASE("Tab advances the focused band and wraps; Shift+Tab goes back",
+          "[disrumpo][keyboard][tab][D-123]") {
+    const VstguiReady vstgui;  // KeyboardEvent reads the platform factory
+    KeyboardShortcutHandler handler(nullptr, nullptr, 4);
+    REQUIRE(handler.getFocusedBandIndex() == -1);
 
-    // First tab: -1 -> 0
-    focusedBandIndex++;
-    if (focusedBandIndex >= activeBandCount) focusedBandIndex = 0;
-    REQUIRE(focusedBandIndex == 0);
-
-    // Tab: 0 -> 1
-    focusedBandIndex++;
-    if (focusedBandIndex >= activeBandCount) focusedBandIndex = 0;
-    REQUIRE(focusedBandIndex == 1);
-
-    // Tab: 1 -> 2
-    focusedBandIndex++;
-    if (focusedBandIndex >= activeBandCount) focusedBandIndex = 0;
-    REQUIRE(focusedBandIndex == 2);
-
-    // Tab: 2 -> 3
-    focusedBandIndex++;
-    if (focusedBandIndex >= activeBandCount) focusedBandIndex = 0;
-    REQUIRE(focusedBandIndex == 3);
-
-    // Tab: 3 -> 0 (wrap)
-    focusedBandIndex++;
-    if (focusedBandIndex >= activeBandCount) focusedBandIndex = 0;
-    REQUIRE(focusedBandIndex == 0);
-}
-
-TEST_CASE("Shift+Tab cycling wraps backward through bands", "[keyboard][tab]") {
-    int activeBandCount = 4;
-    int focusedBandIndex = 0;
-
-    // Shift+Tab: 0 -> 3 (wrap backward)
-    focusedBandIndex--;
-    if (focusedBandIndex < 0) focusedBandIndex = activeBandCount - 1;
-    REQUIRE(focusedBandIndex == 3);
-
-    // Shift+Tab: 3 -> 2
-    focusedBandIndex--;
-    if (focusedBandIndex < 0) focusedBandIndex = activeBandCount - 1;
-    REQUIRE(focusedBandIndex == 2);
-}
-
-// =============================================================================
-// Space Toggle Logic Tests
-// =============================================================================
-
-TEST_CASE("Space toggles band bypass parameter", "[keyboard][space]") {
-    // Simulate bypass toggle logic
-    double currentBypass = 0.0;  // Not bypassed
-    double newBypass = (currentBypass >= 0.5) ? 0.0 : 1.0;
-    REQUIRE(newBypass == 1.0);
-
-    // Toggle back
-    currentBypass = newBypass;
-    newBypass = (currentBypass >= 0.5) ? 0.0 : 1.0;
-    REQUIRE(newBypass == 0.0);
-}
-
-TEST_CASE("Space does nothing when no band is focused", "[keyboard][space]") {
-    int focusedBandIndex = -1;
-    bool handled = (focusedBandIndex >= 0);
-    REQUIRE_FALSE(handled);
-}
-
-// =============================================================================
-// Arrow Key Step Calculation Tests
-// =============================================================================
-
-TEST_CASE("Fine adjustment step is 1/100th of range", "[keyboard][arrow]") {
-    float fineStep = 0.01f;
-    REQUIRE(fineStep == 0.01f);
-}
-
-TEST_CASE("Coarse adjustment step is 1/10th of range", "[keyboard][arrow]") {
-    float coarseStep = 0.1f;
-    REQUIRE(coarseStep == 0.1f);
-}
-
-TEST_CASE("Arrow key adjusts parameter within bounds", "[keyboard][arrow]") {
-    double currentValue = 0.5;
-    float stepFraction = 0.01f;
-
-    SECTION("Up/Right increases value") {
-        double newValue = currentValue + stepFraction;
-        newValue = std::clamp(newValue, 0.0, 1.0);
-        REQUIRE_THAT(newValue, Catch::Matchers::WithinAbs(0.51, 0.001));
+    int forward[5] = {};
+    for (int& v : forward) {
+        REQUIRE(sendKey(handler, nullptr, VSTGUI::VirtualKey::Tab));
+        v = handler.getFocusedBandIndex();
     }
+    INFO("Tab x5: " << forward[0] << "," << forward[1] << "," << forward[2] << "," << forward[3] << ","
+                    << forward[4]);
+    CHECK(forward[0] == 0);
+    CHECK(forward[1] == 1);
+    CHECK(forward[2] == 2);
+    CHECK(forward[3] == 3);
+    CHECK(forward[4] == 0);
 
-    SECTION("Down/Left decreases value") {
-        double newValue = currentValue - stepFraction;
-        newValue = std::clamp(newValue, 0.0, 1.0);
-        REQUIRE_THAT(newValue, Catch::Matchers::WithinAbs(0.49, 0.001));
+    int backward[2] = {};
+    for (int& v : backward) {
+        REQUIRE(sendKey(handler, nullptr, VSTGUI::VirtualKey::Tab, VSTGUI::ModifierKey::Shift));
+        v = handler.getFocusedBandIndex();
     }
-
-    SECTION("Value clamps at maximum") {
-        currentValue = 0.995;
-        double newValue = currentValue + stepFraction;
-        newValue = std::clamp(newValue, 0.0, 1.0);
-        REQUIRE(newValue <= 1.0);
-    }
-
-    SECTION("Value clamps at minimum") {
-        currentValue = 0.005;
-        double newValue = currentValue - stepFraction;
-        newValue = std::clamp(newValue, 0.0, 1.0);
-        REQUIRE(newValue >= 0.0);
-    }
+    INFO("Shift+Tab x2 from band 0: " << backward[0] << "," << backward[1]);
+    CHECK(backward[0] == 3);
+    CHECK(backward[1] == 2);
 }
 
-TEST_CASE("Discrete parameter uses single step", "[keyboard][arrow]") {
-    int stepCount = 7;  // e.g., Band Count has 8 values (0-7)
-    double step = 1.0 / static_cast<double>(stepCount);
+TEST_CASE("Space toggles the focused band's bypass and does nothing before a band is focused",
+          "[disrumpo][keyboard][space][D-123]") {
+    KeyboardRig rig;
+    KeyboardShortcutHandler handler(rig.controller, rig.frame, 4);
+    // A parameter control holds the focus (from nothing, Tab would move it into the text field)
+    rig.frame->setFocusView(rig.knob);
 
-    REQUIRE_THAT(step, Catch::Matchers::WithinAbs(1.0 / 7.0, 0.001));
+    CHECK_FALSE(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Space));
+    CHECK(rig.value(rig.bypassId) == 0.0);
 
-    // Stepping from 0.0 should give first step
-    double currentValue = 0.0;
-    double newValue = currentValue + step;
-    REQUIRE_THAT(newValue, Catch::Matchers::WithinAbs(1.0 / 7.0, 0.001));
+    REQUIRE(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Tab));
+    REQUIRE(handler.getFocusedBandIndex() == 0);
+    REQUIRE(rig.frame->getFocusView() != rig.textEdit);
+    CHECK(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Space));
+    CHECK(rig.value(rig.bypassId) == 1.0);
+    CHECK(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Space));
+    CHECK(rig.value(rig.bypassId) == 0.0);
+}
+
+TEST_CASE("Arrow keys step by 1/100 or by 1/10 with Shift and clamp to the range",
+          "[disrumpo][keyboard][arrow][D-123]") {
+    KeyboardRig rig;
+    KeyboardShortcutHandler handler(rig.controller, rig.frame, 4);
+
+    rig.frame->setFocusView(rig.knob);
+    REQUIRE(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Up, VSTGUI::ModifierKey::Shift));
+    CHECK_THAT(rig.value(kKnobParamId), Catch::Matchers::WithinAbs(0.6, 1e-6));
+    rig.frame->setFocusView(rig.knob);
+    REQUIRE(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Left, VSTGUI::ModifierKey::Shift));
+    CHECK_THAT(rig.value(kKnobParamId), Catch::Matchers::WithinAbs(0.5, 1e-6));
+
+    rig.controller->setParamNormalized(kKnobParamId, 0.995);
+    rig.frame->setFocusView(rig.knob);
+    REQUIRE(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Up));
+    CHECK(rig.value(kKnobParamId) == 1.0);
+
+    rig.controller->setParamNormalized(kKnobParamId, 0.005);
+    rig.frame->setFocusView(rig.knob);
+    REQUIRE(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Down));
+    CHECK(rig.value(kKnobParamId) == 0.0);
+}
+
+TEST_CASE("Arrow keys move a discrete parameter one list step", "[disrumpo][keyboard][arrow][D-123]") {
+    KeyboardRig rig;
+    constexpr Steinberg::Vst::ParamID kListParamId = 4243;
+    rig.controller->addParam(u"List", 3, 0.0, kListParamId);  // 4 entries, like Band Count
+    auto* listKnob = new VSTGUI::CKnob(VSTGUI::CRect(10, 110, 60, 160), nullptr, static_cast<int32_t>(kListParamId),
+                                       nullptr, nullptr);
+    rig.frame->addView(listKnob);
+    KeyboardShortcutHandler handler(rig.controller, rig.frame, 4);
+
+    rig.frame->setFocusView(listKnob);
+    REQUIRE(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Up));
+    CHECK_THAT(rig.value(kListParamId), Catch::Matchers::WithinAbs(1.0 / 3.0, 1e-9));
+    rig.frame->setFocusView(listKnob);
+    REQUIRE(sendKey(handler, rig.frame, VSTGUI::VirtualKey::Up, VSTGUI::ModifierKey::Shift));
+    CHECK_THAT(rig.value(kListParamId), Catch::Matchers::WithinAbs(2.0 / 3.0, 1e-9));
 }
 
 // =============================================================================
