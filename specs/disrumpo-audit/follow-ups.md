@@ -374,6 +374,61 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
       noise-by-design type: rule the bar or the window.
     Each needs a sound/DSP decision (shared TapeSaturator or Fractal/fold oversampling, level design, dither gating) or a
     ruling to exempt the type from that bar; none has an obvious Disrumpo-only fix.
+    — USER RULED 2026-11-09 and applied: RingSaturation (non-harmonic), Stochastic (DC) and Quantize (the -90 dBFS bars
+    on silence) exempt as intended behaviour (`500ed9bd`); Fuzz, AsymmetricFuzz, FullRectify and HalfRectify normalised
+    above drive 5 (`61512a54`, follow-up 50) and the first three cases committed (`9eebcbfa`). Still held back RED,
+    on the non-harmonic bar only: Tape, TriangleFold, HalfRectify, Fractal. Investigated (no fix), hidden probes
+    `tests/dsp/phase6_ruling_probes_test.cpp` ([p6r-split], [p6r-tape], [p6r-tape-sag], [p6r-adaa]): the node as a
+    DistortionAdapter clocked at 48 kHz x N with the Processor's node params, its non-harmonic power read below
+    23.9 kHz (an ideal decimator), a lower test tone, and a periodicity check (y[n + 8192 N] - y[n], the sampled tone
+    repeats every 8192 N samples). For every type the Processor's IIR-oversampled reading equals the ideal reading at
+    the same factor (HardClip control at 4x: -79.3 vs -79.8 dB), so the oversampler filters do not leak.
+    - HalfRectify (re-measured after the normalisation: -42.3 / -51.7 / -54.1 dB, unchanged): aliasing of a step.
+      The default threshold 0.5 makes the output jump 0 -> 0.5 at every crossing (and a -6 dBFS sine at drive <= 1
+      never reaches it: the fresh node is silent there). Periodic to -343 dB; drive 2.5 falls 6 dB per doubling (1x
+      -29.5, 2x -36.0, 4x -42.2, 8x -48.2, 16x -54.3) and with a lower tone (4x: 515.6 Hz -45.6, 257.8 Hz -48.7).
+      Options: (a) first-order ADAA on the shaper (antiderivative (x^2 - t^2)/2 above t): bare shaper at 4x, drive
+      2.5 -36.4 -> -60.8 dB, drive 10 -48.4 -> -73.1; Disrumpo-only, one antiderivative and one division per clocked
+      sample, half a clocked sample of delay and about -0.5 dB at 20 kHz at 4x, otherwise the same sound. (b) A
+      continuous transfer (x - t above t): -71.1 dB plain at 4x, but no step and 0.5 less output: a sound change.
+      (c) 16x: bands stop at 4x, and 4x the cost. (d) Exempt drive 2.5 (ruling).
+    - TriangleFold (-65.6 / -51.2 / -43.3 dB at 4x): aliasing of the fold corners (folds 2, threshold 0.5, x2 makeup;
+      more corners per cycle as drive rises). Periodic to -337 dB; drive 10 falls about 12 dB per doubling (1x -16.6,
+      2x -32.8, 4x -43.4, 8x -58.1, 16x -68.4) and with a lower tone (4x: 515.6 Hz -56.8, 257.8 Hz -67.1). Options:
+      (a) ADAA1 on the triangle fold (closed-form periodic antiderivative): bare shaper at 4x, drive 10 -43.7 -> -65.5
+      dB, drive 7.5 -48.1 -> -70.1; same cost as above; the fold lives in the shared WavefolderProcessor, so either
+      Disrumpo wraps its Simple-model path in the adapter or the shared primitive gains an ADAA mode (CROSS-PLUGIN).
+      (b) 8x for the fold types (-58.1 dB): needs an 8x band oversampler (bands stop at 4x), about twice the 4x band
+      cost (estimated, not measured) and a longer latency. (c) Drive normalisation into the fold (follow-up 37) caps the fold
+      count: a sound change. (d) Exempt drive 10 (ruling).
+    - Fractal (-40.6 / -32.5 / -30.0 dB at 2x): aliasing of the default Harmonic mode (mode 2, 5 iterations, scale
+      0.6, blend 2: an iterated high-order polynomial). Falls 7-9 dB per doubling (drive 10: 1x -24.7, 2x -30.5, 4x
+      -35.8, 8x -48.4, 16x -55.5; drive 2.5: 4x -48.2, 8x -56.0) and with a lower tone (2x, drive 10: 515.6 Hz -39.3,
+      257.8 Hz -43.7). A non-periodic part (periodicity residual -61 to -121 dB) is far below the bar. 4x passes no
+      drive, 8x misses drive 7.5 / 10 by 1.6-1.8 dB, only 16x passes. Options: (a) band-limit inside the iteration
+      (oversample or low-pass each level of the shared FractalDistortion): shared DSP, and CPU on top of follow-up 1's
+      red Fractal case (Harmonic is already 35 % of it); (b) fewer default iterations or a lower scale (cost is linear
+      in iterations; a sound change); (c) 4x for Fractal: not enough and twice its cost; (d) exempt Fractal (ruling).
+    - Tape (-26.7 / -26.3 / -26.9 dB at 2x): aliasing caused by a defect in the shared TapeSaturator's Hysteresis model;
+      not memory, intermodulation or DC asymmetry. The earlier "not aliasing (1x -24.0)" read was wrong: the model
+      changes with the rate (below), so 1x vs 2x does not isolate aliasing. The bare saturator is periodic to -340 dB
+      (no noise, limit cycles or sub-harmonics; the node's flutter adds 5.5 Hz sidebands inside the harmonic lobes);
+      bias 0 reads the same as the node (its bias is 0). Its output sits on the +/-Sag x Ms clamp of the magnetisation
+      for 48-65 % of every cycle (peak 0.509 at Sag 0.5): a hard-clipped, square-ish wave whose aliases fall about
+      6 dB per doubling (bare, as the node: 1x -17.7, 2x -19.6, 4x -25.6, 8x -35.9, 16x -42.3 dB; 2x at 257.8 Hz -27.6).
+      Cause: H = 1000 x against the Langevin a = 22 makes the anhysteretic curve a near step (linear only for |x| below
+      about 0.07), and the explicit RK4 Jiles-Atherton step (reversible term c (Man - M) with c = 1.7, no delta-M gating)
+      overshoots; the clamp is what keeps it bounded. At Sag 1 (clamp at Ms) it is not bounded: follow-up 82. Also:
+      TScale (dH x 44100 / rate) makes the model rate-dependent (H1 -3.9 -> -8.4 dBFS and H3 -9.5 -> +0.7 dB re H1
+      from 1x to 16x; with TScale held at 1 they stay -3.9..-4.3 dBFS / -8.6..-9.6 dB), and the NR4 / NR8 solvers
+      return near-noise (H1 -48 to -54 dBFS, all odd harmonics equal). Options: (a) node default model Simple (bare
+      -111 dB at 2x, -87.5 dB through the node): Disrumpo-only, one default, a different character for fresh Tape
+      nodes (presets keep their stored model). (b) Repair the shared Hysteresis model (input scaled into the
+      Langevin's linear region, the standard reversible term c dMan/dH with c <= 1 and delta-M gating, an implicit or
+      sub-stepped solver, no TScale on dH, a soft limit instead of the clamp): CROSS-PLUGIN (DistortionRack,
+      TapeMachine, Seraphis, Vorago, Ruinae use TapeSaturator), a sound change in every consumer, the largest job.
+      (c) More oversampling: not enough (16x -42.3 dB bare). (d) Exempt Tape (ruling); follow-up 82 needs a fix
+      either way.
 80. **SergeFold reads identical to SineFold at its defaults** (T6.01 matrix: non-harmonic, DC and peak equal to every
     printed digit at all three drives). Same class as D-157 (SineFold == TriangleFold, fixed in T2.06); relates to
     follow-up 23 (the per-type slot defaults). Not asserted by the matrix; decide whether a fresh SergeFold node should
@@ -393,6 +448,50 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
       sub-sample delays of the node path (tone filter, oversampler), and a peak index cannot resolve them. The T2.10
       pair (1x passthrough vs 4x HardClip at node mix 0) reads 0 and stays asserted. Patch extending "Bands at different
       oversampling factors arrive on the same sample" with the two pairs: `f:/tmp/disrumpo-fix/p6a/t605-band-arrival.patch`.
+    — Investigated 2026-11-09 (probes [p6r-latency], [p6r-arrival], [p6r-xsum]; nothing changed, needs a ruling):
+    - (a) getLatencySamples is not a group delay: it is the impulse-peak index of the oversampler's up/down IIR pair
+      alone (BandProcessor::measureImpulseDelay in prepare()) plus the type latency (Spectral). The crossover and its
+      allpass compensation are not part of it (the dry path runs through the same compensation, so they are not latency
+      against the dry signal). Bare oversamplers at 48 kHz: 2x impulse 0, .0066, .1175, .5442, .5923 (peak at index 4,
+      0.05 above index 3), group delay 3.001 (20 Hz), 3.006 (1 kHz), 3.12 (5 kHz), 3.56 (10 kHz), 4.61 (15 kHz), 6.16
+      (18 kHz); 4x peak 7, group delay 6.474 (20 Hz), 6.482 (1 kHz), 6.68 (5 kHz), 7.42 (10 kHz), 9.22 (15 kHz). The 2x
+      figure is one whole sample above its low and mid-frequency group delay; the 4x group delay sits on the half sample,
+      where no integer is within 0.5. A 0.5-sample bar on |gd(1 kHz) - L| means "report round(gd(1 kHz))": meaningful
+      only as that definition, and at 4x a coin flip on 0.02 samples. What the figures do: dry + wet at Mix 50 %
+      (dry delayed by L), 2x: L = 4 (now) -0.44 dB at 5 kHz, -1.34 at 10 and 15 kHz, -0.46 at 18 kHz; L = 3 -0.001 /
+      -0.06 / -0.88 / -4.08. 4x: L = 7 (now) -0.10 / -0.10 / -0.25 / -4.35; L = 6 -0.14 / -1.15 / -9.17 / -6.57.
+      Crossover sum of a 1x band and a 2x band (oversampler only) against all-1x: -0.07 dB at a 2 kHz crossover, -0.44
+      at 5 kHz, -1.34 at 10 kHz; with a 4x band -0.02 / -0.10 / -0.10. Options: (1) keep the impulse peak and assert
+      |gd(1 kHz) - L| < 1 (0.994 / 0.52 today; the 2x row passes by 0.006); (2) report the integer nearest the group
+      delay at a mid-band reference, e.g. 5 kHz (2x 3.12 -> 3, 4x 6.68 -> 7 unchanged): 2x bands and the 2x dry path
+      then line up to 0.01 sample below 5 kHz and the 2x Mix 50 % sum is flat to -0.06 dB at 10 kHz, for -4.1 dB at
+      18 kHz; bars |gd(5 kHz) - L| <= 0.5 plus Mix 50 % and crossover-sum flatness; (3) a fractional (allpass or Thiran)
+      delay on the faster bands and the dry path to remove the sub-sample residue.
+    - (b) The probe pairs' 1-sample reading is an impulse-peak index of fractional offsets. As group delays (150 Hz in
+      band 0, 1.5-6 kHz in band 1) against the probe's drive-0 reference: band 0 (HardClip, 4x, Tone 8 kHz) 7.31
+      samples = the 4x oversampler 6.47 + its node's 8 kHz Tone 0.84; the Bitcrush band 7.00 (digital types skip the
+      tone filter by design; compensated by 7); the SoftClip band (2x) 6.56-6.71 = 3 + the 2x oversampler 3.0-3.1 + its
+      Tone. So the Bitcrush pair is +0.31 apart (-0.53 from the 4x rounding plus 0.84 of the node's own Tone, an effect,
+      not latency) and the SoftClip pair about +0.6 (+0.46 from the 4x-vs-2x rounding, the rest the tone filter clocked
+      at 4x vs 2x). With both nodes at mix 0 (oversampler only), against the compensation target: 4x band -0.53, 2x band
+      -0.99 (one sample early: (a)), 1x band 0. Against a reference that keeps each node's path (same drive and Tone at
+      Oversample Max 1x) both pairs read 0 by peak index (7 / 7), but the fractional offsets are -0.23 and +0.4 to
+      +0.57, so a bar of 0 by peak index passes or fails on sub-sample rounding. Not a rounding of the type latency per
+      factor, not the allpass and not the dry delay line: the residue is the integer compensation of the oversamplers'
+      fractional group delays, plus the 2x one-sample error of (a), which neither probe pair exercises. The arrival case
+      stays held; its bar needs a ruling together with (a), e.g. fractional inter-band group delay <= 0.5 sample with
+      the node path kept in the reference.
+
+82. **Tape Hysteresis at Sag 1 is silent or noise** (found 2026-11-09 by the follow-up 79 probes, [p6r-tape],
+    [p6r-tape-sag]). Shared `TapeSaturator` Hysteresis model, CROSS-PLUGIN. Its explicit RK4 Jiles-Atherton step
+    overshoots at audio rates and only the magnetisation clamp at +/-Saturation x Ms keeps it bounded; at Saturation 1
+    the clamp no longer holds it: the bare saturator at 48 kHz breaks down (non-harmonic +35 dB re the harmonics,
+    then exact zeros: its last 8192 samples are 0), at 96 kHz it is noise (H1 -51 dBFS, non-harmonic +10 dB). Through the Processor (Tape node, Sag slot 1, drive 2.5
+    / 7.5 / 10): Oversample Max 1x silent (-240 dBFS), band at 2x fundamental 21.7 / 14.9 / 14.3 dB against 62 dB at Sag
+    0.5, non-harmonic +5.2 / +10.5 / +10.5 dB; Sag 0.9 is still normal (peak -0.9 dBFS, non-harmonic -28 dB). The
+    Sag knob reaches 1. Needs a task: a stable solver / the model repair of follow-up 79 (Tape option b) in the shared
+    processor, or as a stopgap a Disrumpo-side Sag range below 1 (check the other TapeSaturator consumers' saturation
+    ranges). Same probes: TScale rate dependence and the broken NR4 / NR8 solvers (follow-up 79, Tape).
 
 ## Done outside the plan
 

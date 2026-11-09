@@ -72,6 +72,7 @@ add_executable(disrumpo_tests
 
     # Per-type render matrix through the Processor (audit T6.01)
     dsp/type_render_matrix_test.cpp
+    dsp/phase6_ruling_probes_test.cpp
 
     # Unit tests - Preset Serialization (010-preset-system)
     unit/preset/serialization_round_trip_test.cpp
