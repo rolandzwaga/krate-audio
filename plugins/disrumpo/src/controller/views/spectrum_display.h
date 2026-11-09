@@ -58,7 +58,7 @@ public:
     // ==========================================================================
 
     /// @brief Set the number of active frequency bands
-    /// @param numBands Number of bands (1-8)
+    /// @param numBands Number of bands (1-4)
     void setNumBands(int numBands);
 
     /// @brief Get the number of active frequency bands

@@ -195,7 +195,7 @@ enum class BandParamType : uint8_t {
     kBandBypass      = 0x03,  ///< Band bypass flag
     kBandMute        = 0x04,  ///< Band mute flag
     kBandExpanded    = 0x05,  ///< Band expanded state (UI only) [0=collapsed, 1=expanded]
-    kBandActiveNodes = 0x06,  ///< Active nodes count [2, 3, 4] (US6)
+    kBandActiveNodes = 0x06,  ///< Active nodes count [1-4] (US6)
     kBandMorphSmoothing = 0x07,  ///< Morph smoothing time [0, 500] ms (FR-031)
     kBandMorphX      = 0x08,  ///< Morph X position [0, 1]
     kBandMorphY      = 0x09,  ///< Morph Y position [0, 1]
@@ -393,7 +393,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kInputGainId     = 0x0F00,  // 3840 - Input gain control
     kOutputGainId    = 0x0F01,  // 3841 - Output gain control
     kGlobalMixId     = 0x0F02,  // 3842 - Global dry/wet mix
-    kBandCountId     = 0x0F03,  // 3843 - Band count (1-8)
+    kBandCountId     = 0x0F03,  // 3843 - Band count (1-4)
     kOversampleMaxId = 0x0F04,  // 3844 - Max oversample factor
 };
 

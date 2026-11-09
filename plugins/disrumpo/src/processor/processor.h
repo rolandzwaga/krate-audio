@@ -180,7 +180,7 @@ private:
     // FR-001b: Independent L/R channel processing
     // ==========================================================================
 
-    /// @brief Current band count (1-8)
+    /// @brief Current band count (1-4)
     std::atomic<int> bandCount_{kDefaultBands};
 
     /// @brief Crossover networks for L/R channels (FR-001b)
@@ -279,7 +279,7 @@ private:
     /// @brief Check if a band should contribute to output
     /// FR-025: Solo silences non-soloed bands
     /// FR-025a: Mute overrides solo
-    /// @param bandIndex Band to check (0-7)
+    /// @param bandIndex Band to check (0-3)
     /// @return true if band should contribute to output
     [[nodiscard]] bool shouldBandContribute(int bandIndex) const noexcept;
 

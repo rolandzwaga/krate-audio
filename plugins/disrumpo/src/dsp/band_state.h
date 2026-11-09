@@ -67,6 +67,12 @@ inline constexpr int kMinBands = 1;
 inline constexpr int kMaxBands = 4;
 inline constexpr int kDefaultBands = 4;
 
+// FR-019: at most 16 active distortion processors across all bands. Disrumpo
+// meets the cap by construction (no dynamic weight threshold exists): every
+// band runs at most kMaxMorphNodes node processors.
+static_assert(kMaxBands * kMaxMorphNodes <= 16,
+              "FR-019: bands x morph nodes must stay within the 16-processor cap");
+
 inline constexpr float kMinBandGainDb = -24.0f;
 inline constexpr float kMaxBandGainDb = +24.0f;
 

@@ -81,7 +81,7 @@ public:
 
     /// @brief Initialize for given sample rate and band count.
     /// @param sampleRate Sample rate in Hz
-    /// @param numBands Number of bands (1-8)
+    /// @param numBands Number of bands (1-4)
     void prepare(double sampleRate, int numBands) noexcept {
         sampleRate_ = sampleRate;
         numBands_ = clampBandCount(numBands);
@@ -121,7 +121,7 @@ public:
 
     /// @brief Change band count dynamically.
     /// Preserves existing crossover positions per FR-011a/FR-011b.
-    /// @param numBands New number of bands (1-8)
+    /// @param numBands New number of bands (1-4)
     void setBandCount(int numBands) noexcept {
         debugSetBandCountCalls.fetch_add(1, std::memory_order_relaxed);
         const int newBandCount = clampBandCount(numBands);

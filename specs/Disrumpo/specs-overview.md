@@ -142,7 +142,7 @@ No current solution provides fluid morphing across multiple distortion types per
 
 ### Solution
 Disrumpo provides a unified environment where:
-1. Users split audio into configurable frequency bands (1-8)
+1. Users split audio into configurable frequency bands (1-4)
 2. Each band has a 2D morph space with up to 4 distortion nodes
 3. A sweepable distortion focus traverses the spectrum
 4. Morph position can be linked to sweep frequency
@@ -155,7 +155,7 @@ Disrumpo provides a unified environment where:
 ### 3.1 Band Management
 
 **FR-BAND-001: Configurable Band Count**
-- Range: 1 to 8 bands
+- Range: 1 to 4 bands
 - Default: 4 bands
 - Adding/removing bands redistributes crossover frequencies evenly unless manually configured
 
@@ -230,9 +230,9 @@ clamps at 10.
 ### 3.3 Morph System
 
 **FR-MORPH-001: Multi-Node Morph Space**
-- 2 to 4 morph nodes per band
+- 1 to 4 morph nodes per band
 - Each node contains distortion type and parameters
-- Default: 2 nodes (A and B)
+- Default: 1 node (A)
 
 **FR-MORPH-002: Morph Modes**
 | Mode | Description | Control |
@@ -402,7 +402,7 @@ Per-Band: Morph X/Y, Drive, Mix, Band Gain, Band Pan
 |-----------|-----|-----|---------|
 | Input/Output Gain | -24 dB | +24 dB | 0 dB |
 | Global Mix | 0% | 100% | 100% |
-| Band Count | 1 | 8 | 4 |
+| Band Count | 1 | 4 | 4 |
 | Crossover Freq | 20 Hz | 20 kHz | varies |
 | Band Gain | -24 dB | +24 dB | 0 dB |
 | Band Pan | -100% | +100% | 0% |

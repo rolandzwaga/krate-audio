@@ -161,13 +161,4 @@ inline constexpr int kDefaultActiveNodes = 1;
 /// Nodes with weight below this threshold are not processed to save CPU.
 inline constexpr float kWeightThreshold = 0.001f;
 
-/// @brief Maximum allowed weight threshold when enforcing global processor cap (FR-019).
-inline constexpr float kMaxWeightThreshold = 0.25f;
-
-/// @brief Weight threshold increment when enforcing global processor cap (FR-019).
-inline constexpr float kWeightThresholdIncrement = 0.005f;
-
-/// @brief Maximum total active distortion processors across all bands (FR-019).
-inline constexpr int kMaxGlobalProcessors = 16;
-
 } // namespace Disrumpo
