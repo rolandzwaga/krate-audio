@@ -69,6 +69,17 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
    cannot name its own hash).
 6. **Fades under modulation.** Each oversampling factor change now fades the band down and up over 5 + 5 ms.
    If morph modulation keeps crossing a factor boundary this could read as tremolo. Not measured yet.
+   — Measured by T6.06 (2026-11-09), needs a ruling: the plan's level bar on a cross-family morph sweep through the
+   Processor (every 20 ms window within 1 dB of the straight dB line) is RED on the dip alone. 2-node SoftClip ->
+   SineFold, Linear1D, 220 Hz -12 dBFS, cursor 0 -> 1 over 2 s: the band switches 2x -> 4x at 0.576 s (x = 0.04, as
+   soon as SineFold's weight passes the 0.001 threshold) and the 20 ms window holding the 5 + 5 ms dip reads
+   -1.77 dB (a full dip to 0: (10 + 10/3) / 20 of the energy); with Oversample Max 1x or 2x the sweep reads -0.32 dB.
+   Jump ratio 1.01 and 0 clicks (asserted). Options: (a) crossfade the two factors' outputs instead of dipping (both
+   paths run for 5-10 ms: a CPU spike, and the old factor's state must keep running); (b) hysteresis on the
+   morph-weighted factor so a sweep switches once and late (does not remove the dip); (c) accept the dip by ruling and
+   re-scope the level bar to the windows away from a factor switch. Held case: `f:/tmp/disrumpo-fix/p6b/
+   t606-held-bars.patch`; probe `[.][p6b-morph]` in `tests/dsp/morph_continuity_test.cpp`. (A same-factor morph that
+   flipped factors 12 times in 2 s was a rounding defect, fixed: "Done outside the plan".)
 7. **Allpass compensation filters are still float32 Biquads** (Crossover3Way/4Way and Disrumpo's
    CrossoverNetwork, now also the dry-path chain from T1.09 `a2f7fe51`). Measured: at 192 kHz the dry/wet
    alignment residual is −59.55 dB (bar −60 dB; 44.1–96 kHz read −78 to −83 dB), flatness still 0.0128 dB; a
@@ -99,6 +110,10 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     law passes that case; only a signal-adaptive power-matched blend (Σ wᵢ·Pᵢ tracking, pumping risk) does. The
     4-node level case is committed `[!shouldfail]` in unit/morph_transition_test.cpp. Decide: re-scope SC-002 to
     pairs / coherent sets, or design the adaptive blend. Probe: `[.][t113-law-probe]`.
+    — T6.06 (2026-11-09): through the Processor the same 4-node diagonal sweep (drive 3, 220 Hz -12 dBFS) reads max
+    level deviation +2.77 dB (start -3.40, end -17.83 dB): +1.31 / +1.33 dB with the band held at 2x / 1x (the law),
+    the rest the 2x -> 4x switch dip at 0.555 s (item 6). Held with the plan's 1 dB bar in
+    `f:/tmp/disrumpo-fix/p6b/t606-held-bars.patch`; the jump ratio (1.00) is asserted.
 13. **Envelope follower time convention.** The sweep envelope's "attack ms" / "release ms" reach ≈99 % (coefficient
     `exp(−2π/(t·sr))`) at the set time; the 63 % point sits at ≈t/7.5 (10 ms attack → 1.3 ms; 100 ms release →
     31.8 ms to 37 %). Consistent across 44.1/48/96 kHz since T1.10 (`98c17930`), but the UI/spec should state the
@@ -557,6 +572,13 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     a 1x band (the joint optimum trades it for 2x + 4x, -9.0 dB).
     CPU lane not verified for this change: two runs alone read uniformly high under 11-19 % background load (HardClip x4
     4x 5.54 %, 4 Formant 15.39 %, mixed 4x 19.44 %, experimental 37.52 %); re-run on an idle machine.
+    — Re-run 2026-11-09 on the idle machine (background ~3 %, WSL shut down; `node tools/run-cpu-tests.js disrumpo_tests`
+    alone, at 374f8096): HardClip x4 4x 4.51 % (best 10-block run 4.01 %, budget 5) GREEN; 4 Formant 13.15 % (10.71 %,
+    budget 15) GREEN; HardClip/SineFold/FullRectify/RingSaturation 4x 16.82 % (12.89 %, budget 15) **RED** (14.34 %
+    after ffd51f47, 13.89 % before it); Formant/Chaos/Granular/Fractal 28.26 % (23.18 %) RED by ruling (item 1). The
+    mixed 4x red is not changed in this batch (cause not investigated; one run, not repeated). Log `f:/tmp/disrumpo-fix/p6b/cpu-lane-1-full.log`. The same run's
+    `[long]` preset-level case "Every factory preset renders finite, bounded, non-silent audio" read Dynamic/Pitch_Tracker
+    peak +0.03 dBFS (bar 0 dBFS; 119 of 120 ok): see T6.08.
 82. **Tape Hysteresis at Sag 1 is silent or noise** (found 2026-11-09 by the follow-up 79 probes, [p6r-tape],
     [p6r-tape-sag]). Shared `TapeSaturator` Hysteresis model, CROSS-PLUGIN. Its explicit RK4 Jiles-Atherton step
     overshoots at audio rates and only the magnetisation clamp at +/-Saturation x Ms keeps it bounded; at Saturation 1
@@ -576,6 +598,16 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     (Disrumpo AllpassResonant), diffusion_network.h, karplus_strong.h, waveguide_resonator.h, waveguide_string.h,
     whose tunings then round their fractional delays down. Not fixed (a sound change in every consumer: needs a
     task). Follow-up 81 uses `OnePoleAllpass` instead.
+84. **Clicks in a 4-node cross-family morph sweep with RingSaturation at 4x** (T6.06, 2026-11-09, needs investigation and
+    a ruling). Through the Processor, 4 nodes SoftClip / SineFold / FullRectify / RingSaturation at drive 3, Planar2D,
+    cursor (0, 0) -> (1, 1) over 2 s, 220 Hz -12 dBFS: the shared ClickDetector (5 sigma, 512 / 256 frames) finds 321
+    clicks (plan bar 0; audit baseline 54); jump ratio 1.00 (asserted). From about 1.70 s (cursor 0.60) the output has
+    2-sample falls of 0.03-0.04 once per half period (every 109 samples) where a parked render at the same cursor steps
+    at most 0.020 once it has run 0.25 s; parked renders show the same 0.037-0.047 steps (0-23 clicks) only in their first
+    0.25 s, so something in the RingSaturation node at 4x starts a settling transient again during the sweep. Not the
+    smoothing (10 ms: 319 clicks), not the weight law. 0 clicks with Oversample Max 1x or 2x, with RingSat's Harmonic
+    carrier, or with RingSat replaced by SoftClip; still 331 with the Fixed carrier, 292 / 316 with FullRectify / SineFold
+    replaced. Held with the level bar in `f:/tmp/disrumpo-fix/p6b/t606-held-bars.patch`; probe `[.][p6b-morph]`.
 
 ## Done outside the plan
 

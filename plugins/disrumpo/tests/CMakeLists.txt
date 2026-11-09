@@ -74,6 +74,9 @@ add_executable(disrumpo_tests
     dsp/type_render_matrix_test.cpp
     dsp/phase6_ruling_probes_test.cpp
 
+    # Morph continuity and on-node behaviour through the Processor (audit T6.06)
+    dsp/morph_continuity_test.cpp
+
     # Unit tests - Preset Serialization (010-preset-system)
     unit/preset/serialization_round_trip_test.cpp
 
@@ -239,6 +242,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/processor_stereo_test.cpp
         integration/processor_sweep_test.cpp
         dsp/type_render_matrix_test.cpp
+        dsp/morph_continuity_test.cpp
         integration/processor_rate_parity_test.cpp
         unit/spectrum_analyzer_test.cpp
         unit/test_support_smoke_test.cpp
