@@ -19,6 +19,11 @@
 // formula reduces to the original self-modulation:
 //   output = input + (input * saturate(input * drive) - input) * depth
 //
+// Every depth, 0 included, ends in the output stage
+//   final = DCBlock(2 * tanh(output / 2))
+// so depth 0 is NOT a raw bypass: it returns DCBlock(softLimit(input)), the
+// limit of depth -> 0+ (D-163; SC-002 changed from "returns input unchanged").
+//
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations in process)
 // - Principle III: Modern C++ (C++20, constexpr where possible)
@@ -267,13 +272,15 @@ public:
             return input > 0.0f ? kSoftLimitScale : -kSoftLimitScale;
         }
 
-        if (depth_ == 0.0f) {
-            return input;
-        }
-
+        // Depth 0 skips only the ring-mod stages: the output stage (soft limiter
+        // + DC blocker) runs at every depth, so depth 0 is continuous with depth
+        // 0+ (D-163). Depth 0 therefore returns DCBlock(softLimit(input)), not
+        // the raw input.
         float signal = input;
-        for (int stage = 0; stage < stages_; ++stage) {
-            signal = processStage(signal);
+        if (depth_ != 0.0f) {
+            for (int stage = 0; stage < stages_; ++stage) {
+                signal = processStage(signal);
+            }
         }
 
         signal = softLimit(signal);

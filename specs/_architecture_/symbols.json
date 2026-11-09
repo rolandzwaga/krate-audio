@@ -617,7 +617,7 @@
       "scope": "Krate::DSP::RingSaturation",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/ring_saturation.h",
-      "line": 300
+      "line": 307
     },
     {
       "name": "CrossfadingDelayLine",
@@ -2929,7 +2929,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/ring_saturation.h",
-      "line": 74
+      "line": 79
     },
     {
       "name": "RollingCaptureBuffer",

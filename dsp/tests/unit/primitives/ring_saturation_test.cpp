@@ -235,6 +235,19 @@ void generateSineWave(
     return inharmonicRatio > 0.05f;
 }
 
+/// @brief Depth-0 reference (D-163): the output stage alone,
+/// DCBlock(kSoftLimitScale * tanh(x / 2)), fed sample by sample.
+struct Depth0Reference {
+    Krate::DSP::DCBlocker dc;
+    explicit Depth0Reference(double sampleRate) {
+        dc.prepare(sampleRate, Krate::DSP::RingSaturation::kDCBlockerCutoffHz);
+    }
+    float operator()(float x) {
+        return dc.process(Krate::DSP::RingSaturation::kSoftLimitScale *
+                          Krate::DSP::Sigmoid::tanh(x * 0.5f));
+    }
+};
+
 } // anonymous namespace
 
 // =============================================================================
@@ -299,33 +312,66 @@ TEST_CASE("RingSaturation default constructor initializes with correct defaults"
     }
 }
 
-// T010: Depth=0 returns input unchanged (SC-002)
-TEST_CASE("RingSaturation with depth=0 returns input unchanged (SC-002)",
+// T010: Depth=0 applies only the output stage (SC-002, changed by D-163)
+// Depth 0 skips the ring-mod stages but keeps softLimit + DC blocker, so it
+// returns DCBlock(softLimit(x)) for every x (softLimit(x) = 2*tanh(x/2) is
+// not the identity: -0.18 dB at 0.5, -0.68 dB at 1.0).
+TEST_CASE("RingSaturation with depth=0 applies only the output stage (SC-002)",
           "[ring_saturation][US1][bypass]") {
     RingSaturation ringSat;
     ringSat.prepare(44100.0);
     ringSat.setModulationDepth(0.0f);
     ringSat.setDrive(2.0f);
+    Depth0Reference reference(44100.0);
 
     SECTION("single sample processing") {
-        for (float input : {-1.0f, -0.5f, 0.0f, 0.5f, 1.0f}) {
+        for (float input : {-2.5f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 2.5f}) {
             float output = ringSat.process(input);
-            REQUIRE(output == Approx(input).margin(1e-6f));
+            REQUIRE(output == Approx(reference(input)).margin(1e-6f));
         }
     }
 
     SECTION("block processing") {
         constexpr size_t kNumSamples = 512;
         std::vector<float> buffer(kNumSamples);
-        generateSineWave(buffer.data(), kNumSamples, 440.0f, 44100.0f);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, 44100.0f, 2.5f);
 
         std::vector<float> original = buffer; // Copy before processing
         ringSat.processBlock(buffer.data(), kNumSamples);
 
         for (size_t i = 0; i < kNumSamples; ++i) {
-            REQUIRE(buffer[i] == Approx(original[i]).margin(1e-6f));
+            REQUIRE(buffer[i] == Approx(reference(original[i])).margin(1e-6f));
+            REQUIRE(std::abs(buffer[i]) <= RingSaturation::kSoftLimitScale);
         }
     }
+}
+
+// D-163: depth 0 must be continuous with small depths. The output stage
+// (softLimit + DC blocker) runs at every depth, so depth 0 cannot jump to the
+// raw, unlimited input.
+TEST_CASE("depth 0 and depth 1e-4 differ by less than 0.1 dB at input amplitude 2.5",
+          "[ring_saturation][US1][bypass]") {
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kSampleRate = 44100.0f;
+
+    auto renderRms = [&](float depth) {
+        RingSaturation ringSat;
+        ringSat.prepare(kSampleRate);
+        ringSat.setDrive(2.0f);
+        ringSat.setModulationDepth(depth);
+        std::vector<float> buffer(kNumSamples);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate, 2.5f);
+        ringSat.processBlock(buffer.data(), kNumSamples);
+        // Skip the DC blocker's settling time.
+        return calculateRMS(buffer.data() + kNumSamples / 2, kNumSamples / 2);
+    };
+
+    const float rms0 = renderRms(0.0f);
+    const float rmsSmall = renderRms(1e-4f);
+    const float diffDb = 20.0f * std::log10(rms0 / rmsSmall);
+    INFO("rms depth 0 = " << rms0 << ", rms depth 1e-4 = " << rmsSmall
+         << ", diff = " << diffDb << " dB");
+    REQUIRE(std::abs(diffDb) < 0.1f);
 }
 
 // T011: Depth=1.0 and drive=2.0 produces inharmonic sidebands (SC-001)
@@ -366,7 +412,7 @@ TEST_CASE("RingSaturation modulation depth parameter controls effect scaling",
     const float testInput = 0.7f;
 
     SECTION("depth=0.5 produces intermediate effect between depth=0 and depth=1") {
-        // With depth=0, output = input (no effect)
+        // With depth=0, output = output stage only (no ring mod, D-163)
         ringSat.setModulationDepth(0.0f);
         float outputDepth0 = ringSat.process(testInput);
 
@@ -1599,11 +1645,12 @@ TEST_CASE("RingSaturation known input/output pairs (golden values)",
         REQUIRE(output == Approx(0.0f).margin(0.001f));
     }
 
-    SECTION("depth=0 is pure bypass") {
+    SECTION("depth=0 applies only the output stage (D-163)") {
         ringSat.setModulationDepth(0.0f);
+        Depth0Reference reference(kSampleRate);
         for (float input : {-0.5f, 0.0f, 0.5f}) {
             float output = ringSat.process(input);
-            REQUIRE(output == Approx(input));
+            REQUIRE(output == Approx(reference(input)).margin(1e-6f));
         }
     }
 }
@@ -1634,11 +1681,12 @@ TEST_CASE("RingSaturation meets all success criteria (final validation)",
         REQUIRE(hasInharmonic);
     }
 
-    SECTION("SC-002: depth=0 produces dry signal") {
+    SECTION("SC-002: depth=0 applies only the output stage (D-163)") {
         ringSat.setModulationDepth(0.0f);
+        Depth0Reference reference(kSampleRate);
         float input = 0.7f;
         float output = ringSat.process(input);
-        REQUIRE(output == Approx(input));
+        REQUIRE(output == Approx(reference(input)).margin(1e-6f));
     }
 
     SECTION("SC-003: stages=4 > stages=1 entropy") {
