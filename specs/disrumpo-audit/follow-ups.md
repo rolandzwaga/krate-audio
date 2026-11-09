@@ -141,6 +141,20 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     `-Wnan-infinity-disabled` under the macOS fast-math repro (pre-existing since e6680c93); move those cases to the
     IEEE test executable or use `Krate::DSP::detail::isNaN`. Same class as item 31.
 
+37. **Wavefold drive normalisation (D-159 "consider normalising the drive into the fold")** was not done in T2.06
+    (`b7ff8881`). With the plan's fix, fresh fold nodes are no longer near-silent (TriangleFold −26.3 → −3.9 dBFS at
+    drive 2.5) but peak still falls with drive (SineFold −0.7 → −5.1 dBFS from drive 2.5 to 10) because the tone
+    filter removes the upward-moving fold energy. Decide whether to normalise.
+38. **T2.06 makeup gain made 20 factory presets louder**: Wide_Sweep +13.4, Chaos_Engine +12.1, Wavefold_Bass +9.5,
+    Serge_Madness +4.5, Wavefold_Lead +3.75, Wavefolder_Quad +3.4 dB, … (full list in the `b7ff8881` commit
+    message). Must be re-levelled in T3.01 together with item 35.
+39. **Quantize dither on silence**: a fresh Quantize node (dither 0.5, offset 0.5) outputs −40.5 dBFS of dither
+    noise on digital silence; offset 0 is silent. D-143's own probe (default slots) still fails. Gate the dither
+    on input energy or apply it only around non-zero samples.
+40. **Quantize at Levels 0 is now a 3-level grid with a dead zone** (T2.07 `c24c8cfd`): a −6 dBFS sine's fundamental
+    goes from +2.1 dBFS (old 2-level square) to −21.6 dBFS. Intended by the mid-tread design, but it changes that
+    setting's character; audition.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
