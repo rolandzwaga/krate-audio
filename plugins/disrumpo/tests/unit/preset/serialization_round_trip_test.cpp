@@ -23,7 +23,9 @@
 #include "dsp/sweep_processor.h"
 #include "dsp/sweep_envelope.h"
 #include "dsp/distortion_types.h"
+#include "dsp/custom_curve.h"
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/modulation_types.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/primitives/lfo.h>
@@ -37,13 +39,17 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace Disrumpo;
@@ -74,7 +80,8 @@ static std::unique_ptr<Processor> createTestProcessor() {
 // Helper: Write a complete v8 preset with non-default values to a stream
 // =============================================================================
 
-static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
+// curve: custom-curve breakpoints to write; nullptr writes the 2-point default
+static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s, const std::vector<Breakpoint>* curve = nullptr) {
     // Version
     s.writeInt32(kPresetVersion);  // v8
 
@@ -137,11 +144,19 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
     s.writeFloat(0.8f); // sensitivity
 
     // Custom Curve breakpoints
-    s.writeInt32(2);      // 2 breakpoints (default)
-    s.writeFloat(0.0f);   // point 0 X
-    s.writeFloat(0.2f);   // point 0 Y (non-default)
-    s.writeFloat(1.0f);   // point 1 X
-    s.writeFloat(0.9f);   // point 1 Y (non-default)
+    if (curve != nullptr) {
+        s.writeInt32(static_cast<Steinberg::int32>(curve->size()));
+        for (const Breakpoint& bp : *curve) {
+            s.writeFloat(bp.x);
+            s.writeFloat(bp.y);
+        }
+    } else {
+        s.writeInt32(2);      // 2 breakpoints (default)
+        s.writeFloat(0.0f);   // point 0 X
+        s.writeFloat(0.2f);   // point 0 Y (non-default)
+        s.writeFloat(1.0f);   // point 1 X
+        s.writeFloat(0.9f);   // point 1 Y (non-default)
+    }
 
     // =========================================================================
     // Modulation System State (v5+)
@@ -1522,4 +1537,145 @@ TEST_CASE("v9 stream keeps the post-Rungler source numbering (v0.9.0/0.9.1 ambig
     CHECK(ctrl[1] == idx(ModSource::SampleHold));
     CHECK(ctrl[2] == idx(ModSource::PitchFollower));
     CHECK(ctrl[3] == idx(ModSource::Chaos));
+}
+
+// =============================================================================
+// D-044 (fix plan T4.20): a custom curve with an interior breakpoint at x = 1
+// must not hang the next setState
+// =============================================================================
+// setState emptied the curve with `while (count > 2) removeBreakpoint(1);`, and
+// removeBreakpoint refused any point with x <= 0.001 or >= 0.999 as an
+// "endpoint". A stream whose curve holds an interior point at x = 1.0 loads (the
+// curve becomes {0, 1, 1}); the next setState on that instance then spins in the
+// loop on the host thread. The sequence runs on a worker thread and the test
+// fails after 5 s instead of hanging the run.
+
+/// The custom curve a processor saves: getState, then the breakpoints at their
+/// fixed v13 offset (version, 3 globals, band count, 4 x (gain, pan, 3 flags),
+/// 3 crossovers, sweep core 1+4+4+4+1+1, sweep LFO 1+4+1+4+1+1, sweep envelope
+/// 1+4+4+4). Empty if the stream cannot be read.
+static std::vector<Breakpoint> savedCurve(Processor& proc) {
+    std::vector<Breakpoint> curve;
+    auto out = Steinberg::owned(new MemoryStream());
+    if (proc.getState(out) != Steinberg::kResultOk) return curve;
+    constexpr Steinberg::int64 kCurveOffset = 4 + 12 + 4 + 4 * 11 + 12 + 15 + 12 + 13;
+    if (out->seek(kCurveOffset, IBStream::kIBSeekSet, nullptr) != Steinberg::kResultOk) return curve;
+    Steinberg::IBStreamer r(out, kLittleEndian);
+    Steinberg::int32 count = 0;
+    if (!r.readInt32(count) || count < 0 || count > 64) return curve;
+    for (Steinberg::int32 i = 0; i < count; ++i) {
+        Breakpoint bp;
+        if (!r.readFloat(bp.x) || !r.readFloat(bp.y)) return {};
+        curve.push_back(bp);
+    }
+    return curve;
+}
+
+/// Every point finite and in [0, 1], x sorted, endpoints at x = 0 and 1.
+static void requireWellFormedCurve(const std::vector<Breakpoint>& curve, const char* label) {
+    std::printf("%s: %zu points:", label, curve.size());
+    for (const Breakpoint& bp : curve) {
+        std::printf(" (%.3f, %.3f)", static_cast<double>(bp.x), static_cast<double>(bp.y));
+    }
+    std::printf("\n");
+    REQUIRE(curve.size() >= 2);
+    REQUIRE(curve.size() <= static_cast<size_t>(kMaxBreakpoints));
+    REQUIRE(curve.front().x == 0.0f);
+    REQUIRE(curve.back().x == 1.0f);
+    float prevX = 0.0f;
+    for (const Breakpoint& bp : curve) {
+        REQUIRE(Krate::DSP::detail::isFinite(bp.x));
+        REQUIRE(Krate::DSP::detail::isFinite(bp.y));
+        REQUIRE(bp.x >= prevX);
+        REQUIRE(bp.x <= 1.0f);
+        REQUIRE(bp.y >= 0.0f);
+        REQUIRE(bp.y <= 1.0f);
+        prevX = bp.x;
+    }
+}
+
+TEST_CASE("setState with an interior curve point at x = 1 terminates", "[preset][serialization][edge][D-044]") {
+    auto inputStream = Steinberg::owned(new MemoryStream());
+    {
+        Steinberg::IBStreamer writer(inputStream, kLittleEndian);
+        const std::vector<Breakpoint> curve{{.x = 0.0f, .y = 0.1f}, {.x = 1.0f, .y = 0.5f}, {.x = 1.0f, .y = 0.9f}};
+        writeNonDefaultV6Preset(writer, &curve);
+    }
+
+    auto proc = createTestProcessor();
+    auto saved = Steinberg::owned(new MemoryStream());
+
+    // The worker owns nothing on this stack frame, so a stuck worker can be left behind.
+    struct Outcome {
+        std::atomic<bool> done{false};
+        bool firstOk = false;
+        bool getOk = false;
+        bool secondOk = false;
+    };
+    const auto outcome = std::make_shared<Outcome>();
+    std::thread worker([outcome, p = proc.get(), in = inputStream.get(), sv = saved.get()] {
+        in->seek(0, IBStream::kIBSeekSet, nullptr);
+        outcome->firstOk = p->setState(in) == Steinberg::kResultOk;
+        outcome->getOk = p->getState(sv) == Steinberg::kResultOk;
+        sv->seek(0, IBStream::kIBSeekSet, nullptr);
+        outcome->secondOk = p->setState(sv) == Steinberg::kResultOk;
+        outcome->done.store(true, std::memory_order_release);
+    });
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!outcome->done.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    if (!outcome->done.load(std::memory_order_acquire)) {
+        // The worker is stuck inside setState: leave it and the objects it uses
+        // alive (leaked), and fail.
+        worker.detach();
+        [[maybe_unused]] Processor* const leakedProc = proc.release();
+        [[maybe_unused]] MemoryStream* const leakedIn = inputStream.take();
+        [[maybe_unused]] MemoryStream* const leakedOut = saved.take();
+        std::printf("D-044 setState -> getState -> setState: still running after 5 s\n");
+        FAIL("setState did not return within 5 s");
+    }
+    worker.join();
+    REQUIRE(outcome->firstOk);
+    REQUIRE(outcome->getOk);
+    REQUIRE(outcome->secondOk);
+
+    const std::vector<Breakpoint> curve = savedCurve(*proc);
+    requireWellFormedCurve(curve, "D-044 curve after setState -> getState -> setState");
+    REQUIRE(curve.size() <= 3);
+}
+
+// D-044 (T4.20): a non-finite breakpoint in a stream is dropped, not loaded.
+// std::clamp passes NaN through, and a NaN x broke the curve's sort order.
+TEST_CASE("setState drops non-finite custom-curve values", "[preset][serialization][edge][D-044]") {
+    const auto fromBits = [](std::uint32_t bits) {
+        volatile std::uint32_t sink = bits;
+        float f = 0.0f;
+        const std::uint32_t b = sink;
+        std::memcpy(&f, &b, sizeof(f));
+        return f;
+    };
+    const float nan = fromBits(0x7FC00000u);
+    const float inf = fromBits(0x7F800000u);
+    auto inputStream = Steinberg::owned(new MemoryStream());
+    {
+        Steinberg::IBStreamer writer(inputStream, kLittleEndian);
+        const std::vector<Breakpoint> curve{{.x = 0.0f, .y = nan},
+                                            {.x = 0.3f, .y = 0.2f},
+                                            {.x = nan, .y = 0.5f},
+                                            {.x = 0.6f, .y = inf},
+                                            {.x = 1.0f, .y = 0.9f}};
+        writeNonDefaultV6Preset(writer, &curve);
+    }
+    auto proc = createTestProcessor();
+    inputStream->seek(0, IBStream::kIBSeekSet, nullptr);
+    REQUIRE(proc->setState(inputStream) == Steinberg::kResultOk);
+    const std::vector<Breakpoint> curve = savedCurve(*proc);
+    requireWellFormedCurve(curve, "D-044 curve after a stream with NaN/Inf points");
+    // The finite interior point survives; the non-finite ones are dropped.
+    REQUIRE(curve.size() == 3);
+    REQUIRE(curve[1].x == 0.3f);
+    REQUIRE(curve[1].y == 0.2f);
+    REQUIRE(curve.back().y == 0.9f);
 }

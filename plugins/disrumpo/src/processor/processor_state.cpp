@@ -677,10 +677,9 @@ bool Processor::parseStateSections(Steinberg::IBStreamer& streamer, int32_t vers
         if (streamer.readInt32(pointCount)) {
             auto& curve = s.customCurve;
             pointCount = std::clamp(pointCount, 2, 8);
-            // Clear and rebuild custom curve
-            while (curve.getBreakpointCount() > 2) {
-                curve.removeBreakpoint(1);
-            }
+            // Clear and rebuild custom curve (reset: a removal loop could stall
+            // on an interior point that sits at x = 0 or 1, D-044)
+            curve.reset();
             // Read first point (endpoint x=0)
             float px = 0.0f;
             float py = 0.0f;

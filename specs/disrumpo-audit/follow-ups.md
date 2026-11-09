@@ -269,6 +269,12 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     (seen on Disrumpo's crossover_network_test.cpp / processor_audio_output_test.cpp in dedup step 3). User ruled
     2026-11-09: log it, decide the repo-wide lint policy later (options: one shared override under `plugins/`, or
     per-site fixes).
+74. **A custom-curve point at exactly x = 0 or 1 has no defined order against the endpoint** (T4.20): `CustomCurve`
+    sorts by x alone (`std::sort`, not stable), so a stream holding an interior point at x = 1.0, e.g. (0, 0.1),
+    (1, 0.5), (1, 0.9), loads as (0, 0.1), (1, 1.0), (1, 0.9) on MSVC: the default endpoint y lands in the interior
+    slot and the segment below x = 1 heads for 1.0, not 0.5. Load terminates and the curve is well formed; the
+    values of such a degenerate curve are implementation-defined. Rule whether interior x is kept strictly inside
+    (0, 1) or ties break by role.
 
 ## Done outside the plan
 
