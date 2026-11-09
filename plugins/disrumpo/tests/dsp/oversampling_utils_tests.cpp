@@ -13,6 +13,7 @@
 
 #include "dsp/oversampling_utils.h"
 #include "dsp/distortion_types.h"
+#include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 
 using namespace Disrumpo;
@@ -310,5 +311,60 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
         std::array<float, kMaxMorphNodes> weights = {0.25f, 0.25f, 0.25f, 0.25f};
         // activeNodeCount = 10 but should be clamped to 4
         CHECK(calculateMorphOversampleFactor(nodes, weights, 10, 8) == 4);
+    }
+}
+
+// Found by the T6.06 morph sweep through the Processor: a SoftClip -> Tube cursor sweep
+// (both 2x) switched the band to 4x and back 12 times in 2 s, one 10 ms output dip (D-034)
+// each. The float weights of computeWeights() sum to 1 within a few ULPs, so 2 x sum read
+// 2.0000002 at some cursor positions and rounded up to 4. A weighted mean of the nodes'
+// factors never exceeds the largest of them.
+TEST_CASE("calculateMorphOversampleFactor: a morph between types of one factor keeps that factor",
+          "[disrumpo][oversampling][utils][FR-004]") {
+    struct Group {
+        const char* name;
+        std::array<DistortionType, kMaxMorphNodes> types;
+        int factor;
+    };
+    const Group groups[] = {
+        {.name = "1x",
+         .types = {DistortionType::Bitcrush, DistortionType::Quantize, DistortionType::Aliasing,
+                   DistortionType::SampleReduce},
+         .factor = 1},
+        {.name = "2x",
+         .types = {DistortionType::SoftClip, DistortionType::Tube, DistortionType::Tape, DistortionType::Formant},
+         .factor = 2}};
+    for (const auto& g : groups) {
+        std::array<MorphNode, kMaxMorphNodes> nodes = {MorphNode(0, 0.0f, 0.0f, g.types[0]),
+                                                       MorphNode(1, 1.0f, 0.0f, g.types[1]),
+                                                       MorphNode(2, 0.0f, 1.0f, g.types[2]),
+                                                       MorphNode(3, 1.0f, 1.0f, g.types[3])};
+        int wrongLinear = 0;
+        int positionsLinear = 0;
+        for (int count = 2; count <= kMaxMorphNodes; ++count) {
+            for (int k = 0; k <= 1000; ++k) {
+                const float x = static_cast<float>(k) * 0.001f;
+                const auto w = MorphEngine::computeWeights(MorphMode::Linear1D, nodes, count, x, 0.0f);
+                wrongLinear += calculateMorphOversampleFactor(nodes, w, count, 4) != g.factor ? 1 : 0;
+                ++positionsLinear;
+            }
+        }
+        int wrongPlanar = 0;
+        int positionsPlanar = 0;
+        for (int i = 0; i <= 100; ++i) {
+            for (int j = 0; j <= 100; ++j) {
+                const float x = static_cast<float>(i) * 0.01f;
+                const float y = static_cast<float>(j) * 0.01f;
+                for (const auto mode : {MorphMode::Planar2D, MorphMode::Radial2D}) {
+                    const auto w = MorphEngine::computeWeights(mode, nodes, kMaxMorphNodes, x, y);
+                    wrongPlanar += calculateMorphOversampleFactor(nodes, w, kMaxMorphNodes, 4) != g.factor ? 1 : 0;
+                    ++positionsPlanar;
+                }
+            }
+        }
+        INFO(g.name << " types: wrong factor at " << wrongLinear << " of " << positionsLinear
+             << " Linear1D positions and " << wrongPlanar << " of " << positionsPlanar << " Planar2D / Radial2D positions");
+        CHECK(wrongLinear == 0);
+        CHECK(wrongPlanar == 0);
     }
 }

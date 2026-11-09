@@ -89,13 +89,21 @@ namespace Disrumpo {
 
     // Compute weighted average of recommended factors
     float weightedSum = 0.0f;
+    int largestWeighted = 1;
     for (int i = 0; i < count; ++i) {
-        weightedSum += weights[static_cast<size_t>(i)]
-                     * static_cast<float>(getRecommendedOversample(nodes[static_cast<size_t>(i)].type));
+        const float w = weights[static_cast<size_t>(i)];
+        const int factor = getRecommendedOversample(nodes[static_cast<size_t>(i)].type);
+        weightedSum += w * static_cast<float>(factor);
+        if (w > 0.0f) {
+            largestWeighted = std::max(largestWeighted, factor);
+        }
     }
 
-    // Round up to nearest power of 2 and clamp to global limit
-    const int rounded = roundUpToPowerOf2Factor(weightedSum);
+    // Round up to nearest power of 2 and clamp to global limit. A weighted mean never
+    // exceeds the largest weighted factor; the float weights sum to 1 only within a few
+    // ULPs, so without the cap 2 x (w0 + w1) can read 2.0000002 and round up to 4
+    // (a SoftClip -> Tube sweep switched factors 12 times in 2 s).
+    const int rounded = std::min(roundUpToPowerOf2Factor(weightedSum), largestWeighted);
     return std::min(rounded, globalLimit);
 }
 

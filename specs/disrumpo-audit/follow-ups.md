@@ -627,3 +627,11 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   node update. `setCommonParams` now re-routes them when the Drive changes. Test "One Drive change reaches a Temporal
   and a Stochastic node": Temporal with a SoftClip node B RED 3.51 dB low (-6.96 vs -3.45 dBFS), Stochastic 0.52 dB
   (-18.33 vs -17.81); GREEN 0.00 dB for all four rows.
+- Found by the T6.06 morph sweep through the Processor (commit "fix(disrumpo): a morph between types of one factor
+  keeps that factor"): `calculateMorphOversampleFactor` rounded the float weighted mean up, and the weights of
+  `MorphEngine::computeWeights` sum to 1 only within a few ULPs, so two 2x nodes read 2.0000002 and ran at 4x. A
+  SoftClip -> Tube sweep switched 2x -> 4x -> 2x 12 times in 2 s (each a 10 ms D-034 dip; level -4.72 dB off the
+  straight line). The factor is now capped at the largest factor among the weighted nodes. Test "a morph between types
+  of one factor keeps that factor": RED wrong factor at 288 of 3003 Linear1D and 1924 of 20402 Planar2D / Radial2D
+  positions (1x and 2x groups alike), GREEN 0 / 0; the sweep: 0 factor switches, level within +0.81 dB. No factory
+  preset band changes factor at its stored cursor (all 120 checked).
