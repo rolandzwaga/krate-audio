@@ -293,3 +293,6 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   `CrossoverLR4::getCurrentFrequency()`. Steady dry-vs-band-sum residual −86.7 → −146.0 dB (48 kHz), −65.2 →
   −146.1 dB (192 kHz); during a 632 Hz → 1.2 kHz glide −26.2 → −52.8 dB (48 kHz). A glide cannot reach the static
   floor: in lockstep the time-varying LR4 pair and allpass still differ (−81 dB for 632 → 650 Hz, −50 dB to 2 kHz).
+- Crossover dedup step 5 (commit "docs: crossover dedup — MultibandCrossover in the architecture docs; same-layer
+  includes"): layer-2-processors.md, plugin-architecture.md, processors/README.md describe `MultibandCrossover`
+  and the `CrossoverNetwork` wrapper; dsp/CLAUDE.md records ruling 7 (a layer may include its own layer, no cycles).

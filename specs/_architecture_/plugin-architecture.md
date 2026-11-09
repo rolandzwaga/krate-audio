@@ -735,7 +735,7 @@ Each arp factory preset contains both a synth patch and an arp pattern. The "Arp
 
 | Component | Path | Purpose |
 |-----------|------|---------|
-| CrossoverNetwork | `plugins/disrumpo/src/dsp/crossover_network.h` | N-band phase-coherent crossover (1-8 bands) |
+| CrossoverNetwork | `plugins/disrumpo/src/dsp/crossover_network.h` | 1-4 band phase-coherent crossover (policy over `Krate::DSP::MultibandCrossover<4>`) |
 | BandProcessor | `plugins/disrumpo/src/dsp/band_processor.h` | Per-band distortion, oversampling, gain/pan/mute |
 | BandState | `plugins/disrumpo/src/dsp/band_state.h` | Per-band configuration structure |
 | OversamplingUtils | `plugins/disrumpo/src/dsp/oversampling_utils.h` | Morph-weighted oversampling factor computation |
@@ -743,16 +743,20 @@ Each arp factory preset contains both a synth patch and an arp pattern. The "Arp
 ### CrossoverNetwork
 **Path:** [crossover_network.h](../../plugins/disrumpo/src/dsp/crossover_network.h) | **Since:** 0.1.0
 
-Phase-coherent multiband crossover using cascaded LR4 filters with D'Appolito allpass compensation.
+Phase-coherent multiband crossover: Disrumpo's band policy over one `Krate::DSP::MultibandCrossover<4>`
+(cascaded LR4, D'Appolito allpass compensation on, dry-path compensation; see layer-2-processors.md
+"CrossoverFilter"). The wrapper keeps the 1-4 band clamp, the 20 Hz - 20 kHz range (`state_codec.h`) and
+0.45 * sampleRate cap, the logarithmic defaults on the first prepare and the redistribution on a band-count change.
 
 ```cpp
 class CrossoverNetwork {
-    void prepare(double sampleRate, int numBands);   // Initialize (1-8 bands)
+    void prepare(double sampleRate, int numBands);   // Initialize (1-4 bands); keeps stored frequencies
     void reset();                                     // Clear filter states
-    void setBandCount(int numBands);                  // Dynamic band change
-    void setCrossoverFrequency(int index, float hz); // Set crossover point
+    void setBandCount(int numBands);                  // Dynamic band change; joining crossovers start clean
+    void setCrossoverFrequency(int index, float hz); // Stored for every index, active or not
     float getCrossoverFrequency(int index) const;    // Get crossover point
-    void process(float input, std::array<float, 8>& bands); // Split to bands
+    void process(float input, std::array<float, 4>& bands); // Split to bands
+    float processDryCompensation(float x);           // Dry path with the band sum's phase (D-018)
     int getBandCount() const;
     bool isPrepared() const;
 };
@@ -760,7 +764,7 @@ class CrossoverNetwork {
 
 **Features:**
 - SC-001 compliant: +/-0.1dB flat frequency response when bands summed
-- D'Appolito allpass compensation for phase coherence
+- D'Appolito allpass compensation (Q exactly 1/sqrt(2), double precision, tracking gliding crossovers)
 - Logarithmic default frequency distribution (FR-009)
 - Band count change preserves existing crossovers (FR-011a/b)
 - Real-time safe: fixed-size arrays, no allocations

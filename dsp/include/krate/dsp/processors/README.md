@@ -11,7 +11,7 @@ Processors handle specific audio processing tasks like filtering, saturation, pi
 | File | Purpose |
 |------|---------|
 | `multimode_filter.h` | Complete filter module with 8 types (LP/HP/BP/Notch/Allpass/Shelf/Peak), selectable slopes (12-48 dB/oct), smoothing, and optional pre-filter drive with oversampling. |
-| `crossover_filter.h` | Multi-band crossover filter for splitting audio into frequency bands (used in multiband processing). |
+| `crossover_filter.h` | Linkwitz-Riley crossovers: `CrossoverLR4` (2-way) and `MultibandCrossover<N>` (1..N bands at runtime, D'Appolito allpass compensation, dry-path compensation; used by FractalDistortion and Disrumpo). |
 | `formant_filter.h` | Formant filter bank for vocal-like resonances and vowel sounds. |
 | `envelope_filter.h` | Auto-wah/envelope filter that modulates cutoff based on input amplitude. |
 | `phaser.h` | Classic phaser effect using cascaded allpass stages with LFO modulation. |

@@ -3,17 +3,21 @@
 Area-specific guidance for the shared DSP library. Auto-loads when working under `dsp/`.
 Root `CLAUDE.md` still applies — this adds detail, it does not override.
 
-## Layer Architecture (STRICT — enforced by convention, not yet by CI)
+## Layer Architecture (STRICT — gated in CI by `tools/lint-layers.js`)
 
-5 layers, each may only include from layers **below** it:
+5 layers, each may include from layers **below** it and from its **own** layer, never from above:
 
 | Layer | Folder | May include |
 |-------|--------|-------------|
-| 0 core | `include/krate/dsp/core/` | stdlib only |
-| 1 primitives | `include/krate/dsp/primitives/` | core |
-| 2 processors | `include/krate/dsp/processors/` | core, primitives |
-| 3 systems | `include/krate/dsp/systems/` | core, primitives, processors |
-| 4 effects | `include/krate/dsp/effects/` | all below |
+| 0 core | `include/krate/dsp/core/` | stdlib, core |
+| 1 primitives | `include/krate/dsp/primitives/` | core, primitives |
+| 2 processors | `include/krate/dsp/processors/` | core, primitives, processors |
+| 3 systems | `include/krate/dsp/systems/` | core, primitives, processors, systems |
+| 4 effects | `include/krate/dsp/effects/` | all below, effects |
+
+Same-layer includes are accepted (user ruling 2026-11-09, crossover dedup): a header may include a header of
+its own layer, e.g. `processors/fractal_distortion.h` includes `processors/crossover_filter.h`, as about a quarter
+of the processors headers already do. The includes must not form a cycle.
 
 Include with angle brackets: `#include <krate/dsp/primitives/delay_line.h>`.
 Unit tests mirror the layer tree under `dsp/tests/unit/{core,primitives,processors,systems,effects}/`.
