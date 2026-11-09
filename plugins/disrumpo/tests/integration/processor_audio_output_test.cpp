@@ -1292,20 +1292,9 @@ double bandCountNorm(int bands) { return static_cast<double>(bands - 1) / 3.0; }
 /// The audit probe's step time: `tenths` x 0.1 s, down to its block boundary.
 size_t stepAt(size_t tenths) { return (static_cast<size_t>(kBlockSr * 0.1 * static_cast<double>(tenths)) / kStepBlock) * kStepBlock; }
 
-/// Continuity around each step, with the audit probe's windows (event: 50 ms from the
-/// step; steady: from 0.1 s after the previous step, and from 0.2 s after this one).
+/// Continuity around each step (test_support/disrumpo_rig.h, the audit probe's windows).
 std::vector<ts::ContResult> stepContinuity(const std::vector<float>& y, const std::vector<size_t>& steps) {
-    std::vector<ts::ContResult> out;
-    for (size_t k = 0; k < steps.size(); ++k) {
-        const size_t at = steps[k];
-        const size_t prevAt = k == 0 ? 0 : steps[k - 1];
-        const size_t nextAt = k + 1 < steps.size() ? steps[k + 1] : y.size();
-        const size_t preBeg = prevAt + static_cast<size_t>(kBlockSr * 0.1);
-        const size_t evEnd = std::min(at + static_cast<size_t>(kBlockSr * 0.05), nextAt);
-        const size_t postBeg = std::min(at + static_cast<size_t>(kBlockSr * 0.2), nextAt - 1024);
-        out.push_back(ts::continuityAround(y, at, evEnd, preBeg, at, postBeg, nextAt, kBlockSr));
-    }
-    return out;
+    return ts::stepContinuity(y, steps, kBlockSr);
 }
 
 /// Output gain around a band-count step from `from` to `to` bands on a steady DC input at

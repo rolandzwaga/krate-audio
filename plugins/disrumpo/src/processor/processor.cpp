@@ -143,6 +143,7 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     inputGainSmoother_.configure(kGlobalSmoothingMs, srFloat);
     outputGainSmoother_.configure(kGlobalSmoothingMs, srFloat);
     wetMixSmoother_.configure(kGlobalSmoothingMs, srFloat);
+    for (auto& s : contributionSmoothers_) s.configure(kGlobalSmoothingMs, srFloat);
 
     // Initialize band processors
     for (int i = 0; i < kMaxBands; ++i) {
@@ -589,10 +590,19 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // Solo/mute logic (FR-025, FR-025a): band states only change in
     // processParameterChanges, so this holds for the whole block
-    std::array<bool, kMaxBands> contributes{};
-    for (int b = 0; b < numBands; ++b) {
-        contributes[b] = shouldBandContribute(b);
-    }
+    // A change glides through contributionSmoothers_ (T6.07); the first block after
+    // activation starts on the targets
+    const auto setContributionTargets = [this](int bands, bool snap) {
+        for (int b = 0; b < bands; ++b) {
+            const float target = shouldBandContribute(b) ? 1.0f : 0.0f;
+            if (snap) {
+                contributionSmoothers_[b].snapTo(target);
+            } else {
+                contributionSmoothers_[b].setTarget(target);
+            }
+        }
+    };
+    setContributionTargets(numBands, firstAudioBlock);
 
     std::array<float, kMaxBands> bandsL{};
     std::array<float, kMaxBands> bandsR{};
@@ -662,9 +672,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             float sumL = 0.0f;
             float sumR = 0.0f;
             for (int b = 0; b < numBands; ++b) {
-                if (contributes[b]) {
+                const float contribution = contributionSmoothers_[b].process();
+                if (contribution == 1.0f) {
                     sumL += bandBufL_[b][n];
                     sumR += bandBufR_[b][n];
+                } else if (contribution > 0.0f) {
+                    sumL += bandBufL_[b][n] * contribution;
+                    sumR += bandBufR_[b][n] * contribution;
                 }
             }
             const float wetMix = wetMixSmoother_.process();
@@ -693,9 +707,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (fading && bandCountFadePos_ >= bandCountFadeSamples_) {
             advanceBandCountFade();
             numBands = crossoverL_.getBandCount();
-            for (int b = 0; b < numBands; ++b) {
-                contributes[b] = shouldBandContribute(b);
-            }
+            // The topology switches where the dip holds the output at 0: start on the targets
+            setContributionTargets(numBands, true);
         }
     }
 

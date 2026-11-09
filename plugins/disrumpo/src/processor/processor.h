@@ -172,6 +172,11 @@ private:
     Krate::DSP::OnePoleSmoother inputGainSmoother_;
     Krate::DSP::OnePoleSmoother outputGainSmoother_;
     Krate::DSP::OnePoleSmoother wetMixSmoother_;
+    /// Per-band gain into the band sum, 1 while the band contributes (solo / mute,
+    /// shouldBandContribute) and 0 while not: a solo or mute change glides over
+    /// kGlobalSmoothingMs instead of stepping on one sample (T6.07). Exactly 1 or 0 once
+    /// settled, so a steady patch sums its bands bit for bit as before.
+    std::array<Krate::DSP::OnePoleSmoother, kMaxBands> contributionSmoothers_{};
 
     // ==========================================================================
     // Band Management (spec 002-band-management)

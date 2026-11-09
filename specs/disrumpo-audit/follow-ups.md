@@ -667,3 +667,10 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   of one factor keeps that factor": RED wrong factor at 288 of 3003 Linear1D and 1924 of 20402 Planar2D / Radial2D
   positions (1x and 2x groups alike), GREEN 0 / 0; the sweep: 0 factor switches, level within +0.81 dB. No factory
   preset band changes factor at its stored cursor (all 120 checked).
+- Found by T6.07 (commit "fix(disrumpo): solo and mute fade a band in and out of the sum"): `Processor::process` added a
+  band to the sum or left it out per block (`shouldBandContribute`), so a solo or mute change stepped the output on the
+  block's first sample. The audit probe's "automation steps" read them ok (0.92-1.00) because its event window started
+  on that first sample and so left out the step into it; with the step included (`stepContinuity(..., lead = 1)`) band 1
+  solo on / off read 1.31 / 2.53 (1 click) and band 0 mute on 1.25. Each band's share of the sum now runs through a
+  15 ms one-pole (`contributionSmoothers_`), exactly 1 or 0 once settled; at 1 the sum is the old arithmetic.
+  GREEN 1.00 for every mute / solo step.

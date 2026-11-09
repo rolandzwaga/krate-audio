@@ -116,6 +116,26 @@ inline ContResult continuityAround(const std::vector<float>& y, size_t evBeg, si
     return c;
 }
 
+/// Continuity around each parameter step at the sample indices `steps` (ascending), with
+/// the audit probe's windows: event 50 ms from the step; steady from 0.1 s after the
+/// previous step up to this one, and from 0.2 s after this one up to the next. `lead` starts
+/// the event window that many samples before the step: with 1 it holds the step from the
+/// last sample of the previous block to the first of the step's block (the probe used 0).
+inline std::vector<ContResult> stepContinuity(const std::vector<float>& y, const std::vector<size_t>& steps,
+                                              double sr, size_t lead = 0) {
+    std::vector<ContResult> out;
+    for (size_t k = 0; k < steps.size(); ++k) {
+        const size_t at = steps[k];
+        const size_t prevAt = k == 0 ? 0 : steps[k - 1];
+        const size_t nextAt = k + 1 < steps.size() ? steps[k + 1] : y.size();
+        const size_t preBeg = prevAt + static_cast<size_t>(sr * 0.1);
+        const size_t evEnd = std::min(at + static_cast<size_t>(sr * 0.05), nextAt);
+        const size_t postBeg = std::min(at + static_cast<size_t>(sr * 0.2), nextAt - 1024);
+        out.push_back(continuityAround(y, at - lead, evEnd, preBeg, at, postBeg, nextAt, sr));
+    }
+    return out;
+}
+
 // -----------------------------------------------------------------------------
 // Output-parameter capture (records the processor's addPoint() writes)
 // -----------------------------------------------------------------------------
