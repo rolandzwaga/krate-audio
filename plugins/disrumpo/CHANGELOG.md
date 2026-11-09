@@ -5,6 +5,68 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Centre pan was 3 dB below unity** — Each band applied a mono pan law to its stereo signal, so with every pan centred the output sat 3 dB below the input. Pan is now a stereo balance: centre is exact unity, and hard left or right keeps the near side at full level and silences the far side.
+- **Oversampling, Oversample Max and band Bypass did nothing** — The audio path never reached the bands' oversamplers or their bypass switch, so every band ran at the host rate and a bypassed band stayed distorted. Bands now oversample at 2x or 4x as their distortion types ask, capped by Oversample Max, and a bypassed band passes its crossover signal through unchanged.
+- **Tone, DC blocking and morph smoothing ran at the wrong rate** — Inside each band these were set up for 8x the rate they ran at, so a Tone of 8 kHz acted near 1 kHz and 10 ms of morph smoothing took about 80 ms. Each now runs at the rate it is clocked.
+- **No latency was reported to the host** — Oversampling and the Spectral type delay a band, but the host was told 0 samples and the bands and the dry signal arrived at different times. Disrumpo now reports its latency, delays the faster bands and the dry path so everything lines up, and reports an endless tail while a Granular or Spectral node, or a Feedback or Allpass Resonant node with feedback above 0, is active.
+- **Left and right channels leaked into each other** — Both channels ran through one shared distortion and morph engine, so its filters and delay lines saw the two channels interleaved; a signal on the left alone came out of the right at up to -7 dBFS. Each channel now has its own engine.
+- **Global Mix between 0 and 100 % notched frequencies** — The dry signal did not have the phase response of the band sum, so in-between mix settings cancelled around the crossover frequencies (down to a complete null with 2 bands). The dry path now carries the same phase response, and the mix stays flat within 0.02 dB.
+- **Sweep changed the band's level instead of its drive** — Sweep Intensity multiplied the band's input, so it acted as a volume control, and it measured distance to fixed band centres. It now scales the drive of the bands near the sweep (up to double at 200 % on the centre), using the centres of the actual crossover bands.
+- **Sweep LFO and envelope moved once per block** — The sweep LFO stepped once per audio block, the envelope follower heard only the first sample of each block, and a synced sweep LFO ignored the host tempo. Both now run every sample, and the synced LFO follows the host tempo.
+- **Morph X/Y Link to the sweep worked only with the editor open** — The link was driven by the editor, followed only the base sweep frequency and was not saved. It now runs in the audio engine, follows the moving sweep and is saved with the preset; projects from earlier versions load with the links off.
+- **One bad sample froze the sweep** — A single non-finite input sample stuck in the sweep's envelope follower until the plugin was reset, pinning the sweep centre at 20 Hz. The follower now recovers on the next sample.
+- **MIDI learn did not work** — The plugin had no MIDI input, so a learned CC never reached its parameter, and mappings saved with a preset were lost. MIDI learn from a control's context menu now works end to end, and both global and per-preset mappings are saved with the project.
+- **Hosts restored presets with the wrong type settings** — Loading a preset or project restored each node's shape knobs but not the distortion settings derived from them (threshold, curve, sag, tape model, feedback, vowel and so on), so a node kept the defaults or the previous preset's values. 115 of the 121 factory presets loaded wrong in a running instance; every preset now loads as saved.
+- **A sample-rate or block-size change reset the patch** — Each change, and the usual host load order, rebuilt every band's morph nodes as a single SoftClip node and reset the crossover frequencies while the editor kept showing the loaded values. The patch now survives, and each band's morph mode and smoothing are saved.
+- **Modulation routings and macros were cleared on activation** — Every time the host activated the plugin, including right after loading a project, the modulation matrix was emptied, and the next save stored it empty. Routings and macros now survive activation.
+- **Sweep Width and Intensity reverted after loading a project** — The loaded values were overwritten by the defaults on the first audio block, and the next save made the loss permanent. Both now load as saved.
+- **Presets saved from the plugin were stored wrong** — The preset writer saved the later modulation sources one entry too low, 1 or 2 active nodes as one more, the crossover frequencies on the wrong scale and a fixed custom sweep curve. Saved presets now hold what is set.
+- **Old projects moved Sample & Hold, Pitch and Transient routings** — Projects saved before the Rungler source was added loaded these three routings onto the neighbouring source. They now load onto the right one.
+- **Loading a preset during playback wrote into the running audio** — Preset and project loads changed the audio engine from the host's thread while it was processing. The new state is now handed to the audio thread and applied at the start of a block.
+- **Morphing between distortion types jumped** — Morphing between different families stepped in level at 40 % and 60 %, two different types of one family switched abruptly at the midpoint, and in Linear 1D mode nodes C and D could never be reached on their own. Cross-type morphs now blend continuously, and Linear 1D visits A, B, C and D in turn.
+- **Spectral morphs went silent, and shared counts drifted** — Morphing between Spectral nodes reallocated memory on every sample and silenced the effect, and two nodes that shared an FFT size, stage count or iteration count morphed to one below it (2048 became 2047). The FFT size now switches without allocating, and shared values stay put.
+- **Granular drove grains five times harder than its Drive knob** — Every grain was driven 5x on top of the node Drive, and when a grain ended a neighbouring grain could be skipped or processed twice. Drive now matches the knob, and every grain plays through in order.
+- **Stochastic made sound from silence** — Silent input came out as a DC offset, up to full scale with Jitter and Drift at maximum. Silence now stays silent, and Tube, Stochastic and the Temporal Diode and Tube curves now block DC.
+- **Quantize turned silence into DC** — The level grid had no step at zero for many Levels settings, and Offset shifted the whole grid. The grid is now centred on zero, Offset skews only the decision points, and silence stays silent.
+- **Fuzz could not be opened up with Tone** — Fuzz and Asymmetric Fuzz kept an extra low-pass near 1.8 kHz under the node's own Tone. The node Tone is now the only tone control.
+- **Fuzz Bias below centre all sounded the same** — Every Bias setting at or below the centre clamped to the most gated sound. Bias now covers Fuzz's whole range.
+- **Tube cascade stages shared one filter state** — With more than one stage, every stage ran through the same tube stage, so its filters saw the stages interleaved. Each stage now has its own.
+- **The bottom fifth of Bitcrush Bits did nothing** — The knob ran from 1 to 16 bits while the crusher stops at 4. Bits now spans 4 to 16.
+- **Feedback type: Curve did nothing, Lim off still limited, Threshold was reversed** — All three now work as labelled.
+- **Ring Saturation jumped at Mod Depth 0** — At exactly 0 the output stage was skipped, so the level jumped at the end stop. Depth 0 now joins the rest of the range smoothly.
+- **Fresh fold nodes were quiet and dark** — New Sine, Triangle and Serge Fold nodes started darkened by their Smooth setting, and Triangle Fold came out more than 20 dB quieter than the other types. Fresh fold nodes now start open, and the folders get makeup gain.
+- **Clicks on common moves** — Changing Band Count, changing a node's type, moving Drive away from 0 and automating Input Gain, Output Gain or Mix stepped the output on one sample. Band Count changes now dip for 10 ms, type changes fade over 5 ms with the new type's processor cleared, Drive blends in from 0, and the gains and Mix glide.
+- **Modulation left a band stuck at its last value** — When every modulation offset on a cross-type morph band returned to 0, the band kept its last modulated drive until the next edit. It now returns to its base settings.
+- **Low crossovers drifted at high sample rates** — The crossover filters lost precision at low frequencies (the default 112 Hz split was 0.11 dB off at 192 kHz). They now compute in double precision.
+- **Seven sweep controls and the node Bias had no knob in the editor** — Sweep Intensity, Falloff, Morph Link, LFO Waveform, LFO Sync, LFO Note Value and Envelope Sensitivity, and the selected node's Bias, were reachable only from the host's parameter list. The sweep row has a second line for them, and Bias sits next to Drive and Mix in the expanded band panel.
+- **Node edits landed on the wrong node** — Switching a node's type kept the old type's shape values on the node, every node shared node A's per-type memory, and node, MorphPad and node-selector displays did not follow automation or preset loads. Each node now keeps its own values, and the displays follow the parameters.
+- **Host parameter reset and display were wrong** — Resetting Band Count or Oversample Max in the host set 1 band and 1x, Sweep Intensity showed 0-100 % for a 0-200 % range, and many modulation parameters showed raw numbers (Env Attack 10 ms read 0.091 ms). Defaults and displays now match what the plugin plays.
+- **Fresh Temporal nodes started in Derivative mode** — A new Temporal node now starts in Envelope Follow.
+- **Type menus listed numbers before their names** — Several shape-slot menus showed nine numeric entries before the type's own options, and picking an entry chose the wrong one. The menus now show only their options.
+- **The expanded band panel ignored Band Count** — An expanded panel stayed visible after its band was removed, or never appeared when the band came back. It now follows Band Count.
+- **The spectrum analyzer showed spliced audio** — Its analysis window was pieced together from fragments of about half a second of audio. It now receives the audio contiguously at every block size.
+- **Crossover dividers got out of order when dragged** — Dragging a divider between close neighbours could place it past one of them. Dividers now stay in order.
+- **The editor took keys from text fields** — Arrow keys, Tab and Space were caught by the editor even while a text field or preset overlay had focus, so Space could toggle a band's bypass while typing. Those keys now go to the focused field.
+- **The editor could crash on close** — Closing the editor after switching a band from its Shape page back to Main could touch freed memory. Fixed.
+- **Modulation rings and the spectrum stopped after reopening the editor** — After the editor was closed and reopened, the modulation range rings on the sliders and the shared-memory spectrum stayed empty, and a host that connected the editor after activation got no spectrum. Both now work after any reopen or late connect.
+- **The Morph Smooth knob sat under the Nodes buttons** — The knob is moved down so it is fully visible and clickable.
+
+### Changed
+
+- **Oversampling tops out at 4x** — Oversample Max "8x" now runs 4x. The entry stays so saved projects keep their setting.
+- **Output Gain applies after the Mix** — Output Gain now scales the whole output, dry and wet, so it also works at Mix 0.
+- **Digital types no longer use Drive as a volume knob** — Aliasing, Sample Reduce, Bitwise Mangler, Granular, Chaos and Spectral divide their output by the drive above 1, so Drive changes the character without raising the level.
+- **Fresh instances start with no morph smoothing** — A new instance runs morph smoothing at its displayed default of 0 ms instead of 10 ms.
+- **Factory presets re-levelled; 120 presets** — With centre pan at unity and the other level fixes, many presets got louder; 66 presets have a lower Output Gain (by 0.1 to 9.8 dB) so none peaks above 0 dBFS on a -12 dBFS test signal, and none was raised. Init/Init_5_Bands, a 5-band preset the 4-band plugin cannot play, is removed, and Experimental/Formant_Shift is back.
+
+### Known limitations
+
+- **No level meters** — Disrumpo has no input, output or per-band level meters; use the host's meters for gain staging.
+
 ## [0.9.11] - 2026-11-02
 
 ### Added
