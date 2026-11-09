@@ -208,11 +208,15 @@ void MorphEngine::calculateMorphWeights(float posX, float posY) noexcept {
     // Mode-specific weight calculation
     switch (mode_) {
         case MorphMode::Linear1D: {
-            // 1D Linear: Use only X position along the node axis
+            // 1D Linear: Use only X position along the node axis. The active nodes sit
+            // evenly on the axis in order A, B, C, D (i / (N - 1)), not at their 2-D posX:
+            // the corner layout gives C the X of A and D the X of B (D-029, D-100).
             std::array<float, kMaxMorphNodes> distances{};
+            const float lastIndex = static_cast<float>(activeNodeCount_ - 1);
 
             for (int i = 0; i < activeNodeCount_; ++i) {
-                distances[i] = calculate1DDistance(posX, nodes_[i].posX);
+                const float nodeX = activeNodeCount_ > 1 ? static_cast<float>(i) / lastIndex : 0.0f;
+                distances[i] = calculate1DDistance(posX, nodeX);
 
                 // Check for "cursor on node" special case (100% weight)
                 if (distances[i] < kOnNodeThreshold) {

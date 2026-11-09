@@ -374,7 +374,8 @@ constexpr const char* getFamilyName(DistortionFamily family) noexcept {
 /// - FR-004: 2D Planar mode - nodes occupy XY positions
 /// - FR-005: 2D Radial mode - position defined by angle and distance
 enum class MorphMode : uint8_t {
-    Linear1D = 0,   ///< Single axis A-B-C-D interpolation using morphX only
+    Linear1D = 0,   ///< Single axis A-B-C-D interpolation using morphX only; the active
+                    ///< nodes sit evenly on the axis at i / (N - 1), whatever their 2-D posX
     Planar2D,       ///< XY position in node space (2D inverse distance)
     Radial2D        ///< Angle + distance from center (polar coordinates)
 };
