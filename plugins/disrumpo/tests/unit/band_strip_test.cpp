@@ -6,7 +6,7 @@
 //
 // Verifies:
 // - makeNodeParamId returns correct tag values for type parameters
-// - StringListParameter contains exactly 26 distortion types in canonical order
+// - the registered type lists are getTypeName() in DistortionType order (D-093)
 // - Control-tag values match parameter registration
 // ==============================================================================
 
@@ -15,45 +15,17 @@
 #include <cmath>
 
 #include "plugin_ids.h"
+#include "controller/controller.h"
+#include "dsp/band_state.h"
+#include "dsp/distortion_types.h"
+#include "dsp/morph_node.h"
 
-#include <array>
+#include <cstdio>
 #include <string>
 #include <vector>
 
 using namespace Disrumpo;
 using Catch::Approx;
-
-// ==============================================================================
-// Canonical distortion type names from dsp-details.md (Appendix B)
-// ==============================================================================
-static const std::array<std::string, 26> kCanonicalDistortionTypes = {{
-    "Soft Clip",
-    "Hard Clip",
-    "Tube",
-    "Tape",
-    "Fuzz",
-    "Asymmetric Fuzz",
-    "Sine Fold",
-    "Triangle Fold",
-    "Serge Fold",
-    "Full Rectify",
-    "Half Rectify",
-    "Bitcrush",
-    "Sample Reduce",
-    "Quantize",
-    "Temporal",
-    "Ring Saturation",
-    "Feedback",
-    "Aliasing",
-    "Bitwise Mangler",
-    "Chaos",
-    "Formant",
-    "Granular",
-    "Spectral",
-    "Fractal",
-    "Stochastic",
-    "Allpass Resonant"
-}};
 
 // ==============================================================================
 // Test: Node Type Parameter ID Encoding (T053)
@@ -125,43 +97,43 @@ TEST_CASE("Each band's Node 0 Type has unique parameter ID", "[bandstrip][type]"
 }
 
 // ==============================================================================
-// Test: Distortion Type Count (T053b)
+// Test: Registered distortion type lists (T053b, D-093)
 // ==============================================================================
-TEST_CASE("Distortion type list contains exactly 26 types", "[bandstrip][type]") {
-    REQUIRE(kCanonicalDistortionTypes.size() == 26);
-}
-
-// ==============================================================================
-// Test: Distortion Type Canonical Order (T053b)
-// ==============================================================================
-TEST_CASE("Distortion types are in canonical order from spec", "[bandstrip][type]") {
-    // Verify specific positions per roadmap Appendix B
-
-    SECTION("Basic saturation types at start") {
-        REQUIRE(kCanonicalDistortionTypes[0] == "Soft Clip");
-        REQUIRE(kCanonicalDistortionTypes[1] == "Hard Clip");
-        REQUIRE(kCanonicalDistortionTypes[2] == "Tube");
-        REQUIRE(kCanonicalDistortionTypes[3] == "Tape");
-        REQUIRE(kCanonicalDistortionTypes[4] == "Fuzz");
+// The menu index is decoded as a DistortionType (round(v * 25)), so the Displayed
+// Type proxy and every node Type parameter must list getTypeName() in enum order.
+TEST_CASE("Registered distortion type lists are getTypeName in enum order", "[bandstrip][type][D-093]") {
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    int checked = 0;
+    int wrong = 0;
+    for (int b = 0; b < kMaxBands; ++b) {
+        std::vector<Steinberg::Vst::ParamID> ids{makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandDisplayedType)};
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            ids.push_back(makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n), NodeParamType::kNodeType));
+        }
+        for (const auto id : ids) {
+            Steinberg::Vst::ParameterInfo info{};
+            REQUIRE(c.getParameterInfoByTag(id, info) == Steinberg::kResultTrue);
+            REQUIRE(info.stepCount == kDistortionTypeCount - 1);
+            for (int i = 0; i < kDistortionTypeCount; ++i) {
+                Steinberg::Vst::String128 text{};
+                REQUIRE(c.getParamStringByValue(id, static_cast<double>(i) / info.stepCount, text) ==
+                        Steinberg::kResultOk);
+                std::string shown;
+                for (int k = 0; k < 128 && text[k] != 0; ++k) shown.push_back(static_cast<char>(text[k]));
+                const std::string want = getTypeName(static_cast<DistortionType>(i));
+                ++checked;
+                if (shown != want) {
+                    ++wrong;
+                    std::printf("  0x%04X entry %d: '%s', getTypeName '%s'\n", static_cast<unsigned>(id), i,
+                                shown.c_str(), want.c_str());
+                }
+            }
+        }
     }
-
-    SECTION("Wavefolder types in middle") {
-        REQUIRE(kCanonicalDistortionTypes[6] == "Sine Fold");
-        REQUIRE(kCanonicalDistortionTypes[7] == "Triangle Fold");
-        REQUIRE(kCanonicalDistortionTypes[8] == "Serge Fold");
-    }
-
-    SECTION("Digital types") {
-        REQUIRE(kCanonicalDistortionTypes[11] == "Bitcrush");
-        REQUIRE(kCanonicalDistortionTypes[12] == "Sample Reduce");
-        REQUIRE(kCanonicalDistortionTypes[13] == "Quantize");
-    }
-
-    SECTION("Exotic types at end") {
-        REQUIRE(kCanonicalDistortionTypes[23] == "Fractal");
-        REQUIRE(kCanonicalDistortionTypes[24] == "Stochastic");
-        REQUIRE(kCanonicalDistortionTypes[25] == "Allpass Resonant");
-    }
+    std::printf("Registered type names vs getTypeName: %d of %d entries differ\n", wrong, checked);
+    CHECK(wrong == 0);
+    c.terminate();
 }
 
 // ==============================================================================

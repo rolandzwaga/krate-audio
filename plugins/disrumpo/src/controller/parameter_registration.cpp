@@ -10,6 +10,7 @@
 #include "plugin_ids.h"
 #include "controller/format_helpers.h"
 #include "controller/log_range_parameter.h"
+#include "dsp/distortion_types.h"
 #include "state_codec.h"
 #include "ui/note_value_ui.h"
 #include <krate/dsp/core/modulation_types.h>
@@ -63,6 +64,16 @@ Steinberg::Vst::StringListParameter* makeNoteValueParameter(const Steinberg::Vst
     param->setNormalized(defaultNorm);
     param->getInfo().defaultNormalizedValue = defaultNorm;
     return param;
+}
+
+/// The 26 distortion type names in DistortionType order, from getTypeName: the
+/// processor decodes the list index as the enum value (D-093).
+void appendDistortionTypeNames(Steinberg::Vst::StringListParameter& param) {
+    for (int i = 0; i < kDistortionTypeCount; ++i) {
+        Steinberg::Vst::String128 name{};
+        asciiToString128(getTypeName(static_cast<DistortionType>(i)), name);
+        param.appendString(name);
+    }
 }
 
 }  // namespace
@@ -810,32 +821,7 @@ void Controller::registerBandParams() {
         auto* displayedTypeParam = new Steinberg::Vst::StringListParameter(
             displayedTypeNames[b], makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandDisplayedType),
             nullptr, Steinberg::Vst::ParameterInfo::kIsList);
-        displayedTypeParam->appendString(STR16("Soft Clip"));
-        displayedTypeParam->appendString(STR16("Hard Clip"));
-        displayedTypeParam->appendString(STR16("Tube"));
-        displayedTypeParam->appendString(STR16("Tape"));
-        displayedTypeParam->appendString(STR16("Fuzz"));
-        displayedTypeParam->appendString(STR16("Asymmetric Fuzz"));
-        displayedTypeParam->appendString(STR16("Sine Fold"));
-        displayedTypeParam->appendString(STR16("Triangle Fold"));
-        displayedTypeParam->appendString(STR16("Serge Fold"));
-        displayedTypeParam->appendString(STR16("Full Rectify"));
-        displayedTypeParam->appendString(STR16("Half Rectify"));
-        displayedTypeParam->appendString(STR16("Bitcrush"));
-        displayedTypeParam->appendString(STR16("Sample Reduce"));
-        displayedTypeParam->appendString(STR16("Quantize"));
-        displayedTypeParam->appendString(STR16("Aliasing"));
-        displayedTypeParam->appendString(STR16("Bitwise Mangler"));
-        displayedTypeParam->appendString(STR16("Temporal"));
-        displayedTypeParam->appendString(STR16("Ring Saturation"));
-        displayedTypeParam->appendString(STR16("Feedback"));
-        displayedTypeParam->appendString(STR16("Allpass Resonant"));
-        displayedTypeParam->appendString(STR16("Chaos"));
-        displayedTypeParam->appendString(STR16("Formant"));
-        displayedTypeParam->appendString(STR16("Granular"));
-        displayedTypeParam->appendString(STR16("Spectral"));
-        displayedTypeParam->appendString(STR16("Fractal"));
-        displayedTypeParam->appendString(STR16("Stochastic"));
+        appendDistortionTypeNames(*displayedTypeParam);
         parameters.addParameter(displayedTypeParam);
 
         {
@@ -886,17 +872,6 @@ void Controller::registerBandParams() {
 void Controller::registerNodeParams() {
     // FR-006: Register per-node parameters for 4 nodes x 4 bands
 
-    static const Steinberg::Vst::TChar* kDistortionTypeNames[] = {
-        STR16("Soft Clip"), STR16("Hard Clip"), STR16("Tube"), STR16("Tape"),
-        STR16("Fuzz"), STR16("Asymmetric Fuzz"), STR16("Sine Fold"),
-        STR16("Triangle Fold"), STR16("Serge Fold"), STR16("Full Rectify"),
-        STR16("Half Rectify"), STR16("Bitcrush"), STR16("Sample Reduce"),
-        STR16("Quantize"), STR16("Aliasing"), STR16("Bitwise Mangler"),
-        STR16("Temporal"), STR16("Ring Saturation"), STR16("Feedback"),
-        STR16("Allpass Resonant"), STR16("Chaos"), STR16("Formant"),
-        STR16("Granular"), STR16("Spectral"), STR16("Fractal"), STR16("Stochastic")
-    };
-
     static const Steinberg::Vst::TChar* nodeTypeNames[4][4] = {
         { STR16("B1 N1 Type"), STR16("B1 N2 Type"), STR16("B1 N3 Type"), STR16("B1 N4 Type") },
         { STR16("B2 N1 Type"), STR16("B2 N2 Type"), STR16("B2 N3 Type"), STR16("B2 N4 Type") },
@@ -946,9 +921,7 @@ void Controller::registerNodeParams() {
                 nodeTypeNames[b][n],
                 makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n), NodeParamType::kNodeType),
                 nullptr, Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
-            for (auto & kDistortionTypeName : kDistortionTypeNames) {
-                typeParam->appendString(kDistortionTypeName);
-            }
+            appendDistortionTypeNames(*typeParam);
             parameters.addParameter(typeParam);
 
             auto* driveParam = new Steinberg::Vst::RangeParameter(
