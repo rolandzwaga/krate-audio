@@ -531,7 +531,7 @@
     <view class="CView" custom-view-name="SpectrumDisplay" origin="20, 60" size="960, 120"/>
     <view class="CView" custom-view-name="SweepIndicator" origin="20, 60" size="960, 120"/>
     <view class="CSegmentButton" origin="860, 62" size="115, 20" control-tag="SpectrumMode" default-value="0" style="horizontal" segment-names="Wet, Dry, Both" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
-    <view class="CViewContainer" origin="20, 190" size="960, 350" background-color="background-primary">
+    <view class="CViewContainer" origin="20, 190" size="960, 340" background-color="background-primary">
       <view class="CViewContainer" origin="0, 0" size="235, 340" background-color="panel" control-tag="Band1Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="center"/>
@@ -611,28 +611,42 @@
         </view>
       </view>
     </view>
-    <view class="CViewContainer" origin="0, 550" size="1000, 50" background-color="background-secondary">
-      <view class="CTextLabel" origin="20, 15" size="50, 20" title="Sweep" font="label-font" font-color="text-primary"/>
-      <view class="ToggleButton" origin="70, 12" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepEnable" default-value="0" tooltip="Enable sweep"/>
-      <view class="CTextLabel" origin="110, 15" size="40, 20" title="Freq" font="small-font" font-color="text-secondary"/>
-      <view class="CSlider" origin="150, 15" size="100, 20" orientation="horizontal" control-tag="SweepFrequency" default-value="0.049" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
-      <view class="CTextLabel" origin="260, 15" size="40, 20" title="Width" font="small-font" font-color="text-secondary"/>
-      <view class="CSlider" origin="300, 15" size="80, 20" orientation="horizontal" control-tag="SweepWidth" default-value="0.143" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
-      <view class="CTextLabel" origin="400, 15" size="30, 20" title="LFO" font="small-font" font-color="text-secondary"/>
-      <view class="ToggleButton" origin="430, 12" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepLFOEnable" default-value="0" tooltip="Enable sweep LFO"/>
-      <view class="CTextLabel" origin="460, 15" size="30, 20" title="Rate" font="small-font" font-color="text-secondary"/>
-      <view class="CSlider" origin="490, 15" size="60, 20" orientation="horizontal" control-tag="SweepLFORate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
-      <view class="CTextLabel" origin="555, 15" size="35, 20" title="Depth" font="small-font" font-color="text-secondary"/>
-      <view class="CSlider" origin="590, 15" size="50, 20" orientation="horizontal" control-tag="SweepLFODepth" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
-      <view class="CTextLabel" origin="650, 15" size="30, 20" title="Env" font="small-font" font-color="text-secondary"/>
-      <view class="ToggleButton" origin="680, 12" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepEnvEnable" default-value="0" tooltip="Enable sweep envelope follower"/>
-      <view class="CTextLabel" origin="710, 15" size="25, 20" title="Atk" font="small-font" font-color="text-secondary"/>
-      <view class="CSlider" origin="735, 15" size="40, 20" orientation="horizontal" control-tag="SweepEnvAttack" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
-      <view class="CTextLabel" origin="780, 15" size="25, 20" title="Rel" font="small-font" font-color="text-secondary"/>
-      <view class="CSlider" origin="805, 15" size="40, 20" orientation="horizontal" control-tag="SweepEnvRelease" default-value="0.2" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
-      <view class="CTextLabel" origin="855, 15" size="30, 20" title="Mod" font="small-font" font-color="accent-secondary"/>
-      <view class="ToggleButton" origin="885, 12" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="ModPanelVisible" default-value="0" tooltip="Show modulation panel" icon-style="chevron" on-orientation="down" off-orientation="right"/>
-      <view class="CTextLabel" origin="920, 15" size="60, 20" title="Disrumpo" font="small-font" font-color="text-secondary" text-alignment="right"/>
+    <view class="CViewContainer" origin="0, 530" size="1000, 70" background-color="background-secondary">
+      <view class="CTextLabel" origin="20, 11" size="50, 20" title="Sweep" font="label-font" font-color="text-primary"/>
+      <view class="ToggleButton" origin="70, 8" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepEnable" default-value="0" tooltip="Enable sweep"/>
+      <view class="CTextLabel" origin="110, 11" size="40, 20" title="Freq" font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="150, 11" size="100, 20" orientation="horizontal" control-tag="SweepFrequency" default-value="0.049" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+      <view class="CTextLabel" origin="260, 11" size="40, 20" title="Width" font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="300, 11" size="80, 20" orientation="horizontal" control-tag="SweepWidth" default-value="0.143" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+      <view class="CTextLabel" origin="400, 11" size="30, 20" title="LFO" font="small-font" font-color="text-secondary"/>
+      <view class="ToggleButton" origin="430, 8" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepLFOEnable" default-value="0" tooltip="Enable sweep LFO"/>
+      <view class="CTextLabel" origin="460, 11" size="30, 20" title="Rate" font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="490, 11" size="60, 20" orientation="horizontal" control-tag="SweepLFORate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+      <view class="CTextLabel" origin="555, 11" size="35, 20" title="Depth" font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="590, 11" size="50, 20" orientation="horizontal" control-tag="SweepLFODepth" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+      <view class="CTextLabel" origin="650, 11" size="30, 20" title="Env" font="small-font" font-color="text-secondary"/>
+      <view class="ToggleButton" origin="680, 8" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepEnvEnable" default-value="0" tooltip="Enable sweep envelope follower"/>
+      <view class="CTextLabel" origin="710, 11" size="25, 20" title="Atk" font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="735, 11" size="40, 20" orientation="horizontal" control-tag="SweepEnvAttack" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+      <view class="CTextLabel" origin="780, 11" size="25, 20" title="Rel" font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="805, 11" size="40, 20" orientation="horizontal" control-tag="SweepEnvRelease" default-value="0.2" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+      <view class="CTextLabel" origin="855, 11" size="30, 20" title="Mod" font="small-font" font-color="accent-secondary"/>
+      <view class="ToggleButton" origin="885, 8" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="ModPanelVisible" default-value="0" tooltip="Show modulation panel" icon-style="chevron" on-orientation="down" off-orientation="right"/>
+      <view class="CTextLabel" origin="920, 11" size="60, 20" title="Disrumpo" font="small-font" font-color="text-secondary" text-alignment="right"/>
+      <view class="CTextLabel" origin="20, 41" size="50, 20" title="Intensity" font="small-font" font-color="text-secondary"/>
+      <view class="ArcKnob" origin="70, 39" size="30, 25" control-tag="SweepIntensity" default-value="0.25" min-value="0" max-value="1" arc-color="accent-secondary" tooltip="Sweep intensity (0-200 %)"/>
+      <view class="CTextLabel" origin="110, 41" size="40, 20" title="Falloff" font="small-font" font-color="text-secondary"/>
+      <view class="CSegmentButton" origin="150, 41" size="100, 20" control-tag="SweepFalloff" default-value="1" style="horizontal" segment-names="Hard, Soft" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+      <view class="CTextLabel" origin="260, 41" size="40, 20" title="Link" font="small-font" font-color="text-secondary"/>
+      <view class="COptionMenu" origin="300, 41" size="80, 20" control-tag="SweepMorphLink" default-value="0" font="value-font" font-color="text-primary" back-color="panel" frame-color="border" tooltip="Sweep-to-morph link curve"/>
+      <view class="CTextLabel" origin="400, 41" size="30, 20" title="Wave" font="small-font" font-color="text-secondary"/>
+      <view class="COptionMenu" origin="430, 41" size="65, 20" control-tag="SweepLFOWaveform" default-value="0" font="value-font" font-color="text-primary" back-color="panel" frame-color="border" tooltip="Sweep LFO waveform"/>
+      <view class="CTextLabel" origin="500, 41" size="25, 20" title="Sync" font="small-font" font-color="text-secondary"/>
+      <view class="ToggleButton" origin="525, 39" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepLFOSync" default-value="0" tooltip="Sync sweep LFO to tempo"/>
+      <view class="CTextLabel" origin="555, 41" size="30, 20" title="Note" font="small-font" font-color="text-secondary"/>
+      <view class="COptionMenu" origin="585, 41" size="55, 20" control-tag="SweepLFONoteValue" default-value="0" font="value-font" font-color="text-primary" back-color="panel" frame-color="border" tooltip="Sweep LFO note value (Sync on)"/>
+      <view class="CTextLabel" origin="650, 41" size="30, 20" title="Sens" font="small-font" font-color="text-secondary"/>
+      <view class="ArcKnob" origin="680, 39" size="30, 25" control-tag="SweepEnvSensitivity" default-value="0.5" min-value="0" max-value="1" arc-color="accent-secondary" tooltip="Sweep envelope sensitivity"/>
     </view>
     <view class="CViewContainer" origin="0, 600" size="1000, 230" background-color="background-primary" visible="false">
       <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="ModPanelContainer" back-color="transparent"/>
@@ -1318,6 +1332,8 @@
       <view class="ArcKnob" origin="235, 14" size="30, 24" control-tag="Band.NodeDrive" default-value="0.1" min-value="0" max-value="1" arc-color="accent-primary"/>
       <view class="CTextLabel" origin="280, 2" size="40, 12" title="Mix" font="small-font" font-color="text-secondary" text-alignment="center"/>
       <view class="ArcKnob" origin="285, 14" size="30, 24" control-tag="Band.NodeMix" default-value="1.0" min-value="0" max-value="1" arc-color="accent-primary"/>
+      <view class="CTextLabel" origin="330, 2" size="40, 12" title="Bias" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="ArcKnob" origin="335, 14" size="30, 24" control-tag="Band.NodeBias" default-value="0.5" min-value="0" max-value="1" arc-color="accent-primary"/>
     </view>
     <view class="CViewContainer" origin="0, 45" size="200, 230" background-color="panel">
       <view class="CTextLabel" origin="0, 0" size="200, 16" title="Morph" font="section-font" font-color="text-primary" text-alignment="center"/>

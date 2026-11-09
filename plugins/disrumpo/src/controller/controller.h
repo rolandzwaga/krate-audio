@@ -418,11 +418,6 @@ private:
     Steinberg::IPtr<Steinberg::FObject> sweepVisualizationController_;
 
     // ==========================================================================
-    // Custom Curve Visibility (FR-039a)
-    // ==========================================================================
-    Steinberg::IPtr<Steinberg::FObject> customCurveVisController_;
-
-    // ==========================================================================
     // Band Count Display Controller
     // ==========================================================================
     // Updates SpectrumDisplay band count when Bands dropdown changes

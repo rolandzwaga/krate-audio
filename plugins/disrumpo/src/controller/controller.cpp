@@ -18,7 +18,6 @@
 #include "controller/views/dynamic_node_selector.h"
 #include "controller/views/node_editor_border.h"
 #include "controller/views/sweep_indicator.h"
-#include "controller/views/custom_curve_editor.h"
 #include "controller/views/mod_slider.h"
 #include "controller/animated_expand_controller.h"
 #include "controller/keyboard_shortcut_handler.h"
@@ -1180,131 +1179,6 @@ VSTGUI::CView* Controller::createCustomView(
         return new NodeEditorBorder(rect, this, selectedNodeParamId);
     }
 
-    if (std::strcmp(name, "CustomCurveEditor") == 0) {
-        VSTGUI::CPoint origin;
-        VSTGUI::CPoint size;
-        const std::string* originStr = attributes.getAttributeValue("origin");
-        const std::string* sizeStr = attributes.getAttributeValue("size");
-        if (originStr) {
-            double x = 0.0;
-            double y = 0.0;
-            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2)
-                origin = VSTGUI::CPoint(x, y);
-        }
-        if (sizeStr) {
-            double w = 200.0;
-            double h = 150.0;
-            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2)
-                size = VSTGUI::CPoint(w, h);
-        } else {
-            size = VSTGUI::CPoint(200.0, 150.0);
-        }
-
-        VSTGUI::CRect rect(origin, size);
-        auto* curveEditor = new CustomCurveEditor(rect, nullptr, 9200);
-
-        std::array<std::pair<float, float>, 8> points{};
-        auto* pointCountParam = getParameterObject(
-            makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount));
-        int pointCount = 2;
-        if (pointCountParam) {
-            pointCount = static_cast<int>(std::round(pointCountParam->toPlain(
-                pointCountParam->getNormalized())));
-            pointCount = std::clamp(pointCount, 2, 8);
-        }
-
-        for (int p = 0; p < pointCount; ++p) {
-            auto xType = static_cast<SweepParamType>(
-                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + p * 2);
-            auto yType = static_cast<SweepParamType>(
-                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + p * 2);
-            auto* xParam = getParameterObject(makeSweepParamId(xType));
-            auto* yParam = getParameterObject(makeSweepParamId(yType));
-            float px = 0.0f;
-            float py = 0.0f;
-            if (p == 0) px = 0.0f;
-            else if (p == 7) px = 1.0f;
-            if (xParam) px = static_cast<float>(xParam->getNormalized());
-            if (yParam) py = static_cast<float>(yParam->getNormalized());
-            points[static_cast<size_t>(p)] = {px, py};
-        }
-        curveEditor->setBreakpoints(points, pointCount);
-
-        curveEditor->setOnChange([this](int pointIndex, float x, float y) {
-            auto xType = static_cast<SweepParamType>(
-                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + pointIndex * 2);
-            auto yType = static_cast<SweepParamType>(
-                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + pointIndex * 2);
-            auto xId = makeSweepParamId(xType);
-            auto yId = makeSweepParamId(yType);
-            beginEdit(xId); setParamNormalized(xId, x); performEdit(xId, x); endEdit(xId);
-            beginEdit(yId); setParamNormalized(yId, y); performEdit(yId, y); endEdit(yId);
-        });
-
-        curveEditor->setOnAdd([this](float x, float y) {
-            auto pointCountId = makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount);
-            auto* pcParam = getParameterObject(pointCountId);
-            if (pcParam) {
-                int count = static_cast<int>(std::round(pcParam->toPlain(pcParam->getNormalized())));
-                if (count < 8) {
-                    count++;
-                    double norm = pcParam->toNormalized(static_cast<double>(count));
-                    beginEdit(pointCountId); setParamNormalized(pointCountId, norm);
-                    performEdit(pointCountId, norm); endEdit(pointCountId);
-                    int newIdx = count - 1;
-                    auto xType = static_cast<SweepParamType>(
-                        static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + newIdx * 2);
-                    auto yType = static_cast<SweepParamType>(
-                        static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + newIdx * 2);
-                    auto xId = makeSweepParamId(xType);
-                    auto yId = makeSweepParamId(yType);
-                    beginEdit(xId); setParamNormalized(xId, x); performEdit(xId, x); endEdit(xId);
-                    beginEdit(yId); setParamNormalized(yId, y); performEdit(yId, y); endEdit(yId);
-                }
-            }
-        });
-
-        curveEditor->setOnRemove([this](int pointIndex) {
-            auto pointCountId = makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount);
-            auto* pcParam = getParameterObject(pointCountId);
-            if (pcParam) {
-                int count = static_cast<int>(std::round(pcParam->toPlain(pcParam->getNormalized())));
-                if (count > 2 && pointIndex > 0 && pointIndex < count - 1) {
-                    for (int i = pointIndex; i < count - 1; ++i) {
-                        auto srcXType = static_cast<SweepParamType>(
-                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + (i + 1) * 2);
-                        auto srcYType = static_cast<SweepParamType>(
-                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + (i + 1) * 2);
-                        auto dstXType = static_cast<SweepParamType>(
-                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + i * 2);
-                        auto dstYType = static_cast<SweepParamType>(
-                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + i * 2);
-                        auto* srcXParam = getParameterObject(makeSweepParamId(srcXType));
-                        auto* srcYParam = getParameterObject(makeSweepParamId(srcYType));
-                        auto dstXId = makeSweepParamId(dstXType);
-                        auto dstYId = makeSweepParamId(dstYType);
-                        if (srcXParam) {
-                            double val = srcXParam->getNormalized();
-                            beginEdit(dstXId); setParamNormalized(dstXId, val);
-                            performEdit(dstXId, val); endEdit(dstXId);
-                        }
-                        if (srcYParam) {
-                            double val = srcYParam->getNormalized();
-                            beginEdit(dstYId); setParamNormalized(dstYId, val);
-                            performEdit(dstYId, val); endEdit(dstYId);
-                        }
-                    }
-                    count--;
-                    double norm = pcParam->toNormalized(static_cast<double>(count));
-                    beginEdit(pointCountId); setParamNormalized(pointCountId, norm);
-                    performEdit(pointCountId, norm); endEdit(pointCountId);
-                }
-            }
-        });
-
-        return curveEditor;
-    }
-
     if (std::strcmp(name, "SweepIndicator") == 0) {
         VSTGUI::CPoint origin;
         VSTGUI::CPoint size;
@@ -1533,11 +1407,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     sweepVisualizationTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
         [this](VSTGUI::CVSTGUITimer* /*timer*/) { onEditorTimer(); }, 33);
 
-    auto* morphLinkParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepMorphLink));
-    if (morphLinkParam)
-        customCurveVisController_ = new ContainerVisibilityController(
-            &activeEditor_, morphLinkParam, 9200, 0.93f, false);
-
     if (presetManager_) {
         auto* frame = editor->getFrame();
         if (frame) {
@@ -1617,10 +1486,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (sweepVisualizationController_) {
         if (auto* svc = dynamic_cast<SweepVisualizationController*>(sweepVisualizationController_.get())) svc->deactivate();
         sweepVisualizationController_ = nullptr;
-    }
-    if (customCurveVisController_) {
-        if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(customCurveVisController_.get())) cvc->deactivate();
-        customCurveVisController_ = nullptr;
     }
     if (bandCountDisplayController_) {
         if (auto* bcdc = dynamic_cast<BandCountDisplayController*>(bandCountDisplayController_.get())) bcdc->deactivate();

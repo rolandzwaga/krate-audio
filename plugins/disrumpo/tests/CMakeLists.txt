@@ -91,6 +91,12 @@ add_executable(disrumpo_tests
     # MIDI learn: event bus, IMidiLearn completion, persisted scope (audit T1.18)
     unit/controller/midi_learn_wiring_test.cpp
 
+    # editor.uidesc control inventory (audit T2.22)
+    unit/controller/uidesc_inventory_test.cpp
+
+    # Editor screenshots for layout review (hidden [.][screenshots])
+    unit/controller/editor_screenshot_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp
