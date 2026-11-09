@@ -674,3 +674,16 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   solo on / off read 1.31 / 2.53 (1 click) and band 0 mute on 1.25. Each band's share of the sum now runs through a
   15 ms one-pole (`contributionSmoothers_`), exactly 1 or 0 once settled; at 1 the sum is the old arithmetic.
   GREEN 1.00 for every mute / solo step.
+- Found by the CPU lane's `[long]` cases (2026-11-09, commit "fix(disrumpo): seven factory presets re-trimmed under
+  -0.3 dBFS after the band alignment"): "Every factory preset renders finite, bounded, non-silent audio" (T3.01) was RED
+  on Dynamic/Pitch_Tracker, peak +0.03 dBFS (bar 0 dBFS). Gates exclude `[long]`, so no commit gate saw it. Cause:
+  374f8096 (minimax band alignment): the same tree with 374f8096 reverted reads -0.77 dBFS (RMS -7.90 vs -7.97 dBFS:
+  the sub-sample alignment changes how the bands' peaks coincide, not the level). Under T3.01's rule (peak <= -0.3
+  dBFS on its pink-noise signal, Output Gain only lowered, 0.1 dB steps) seven presets above -0.3 dBFS at HEAD 45d5863d
+  got lower trims: Pitch_Tracker +0.03 -> -0.37 (trim -6.4 -> -6.8 dB), Coupled_Chaos -0.21 -> -0.31 (-5.6 -> -5.7;
+  -1.96 without 374f8096, a chaotic preset), Soft_to_Hard -0.14 -> -0.34 (-2.9 -> -3.1; -0.30 without 374f8096),
+  Chaos_Engine -0.08 -> -0.38 (-0.5 -> -0.8), Temporal_Edge -0.05 -> -0.35 (0 -> -0.3), Slow_Morph_Pad -0.09 -> -0.39
+  (-2.4 -> -2.7), Slow_Scan -0.19 -> -0.39 (-4.9 -> -5.1). Chaos_Engine, Temporal_Edge, Slow_Morph_Pad and Slow_Scan were
+  already above -0.3 dBFS before 374f8096 (-0.06 / -0.05 / -0.12 / -0.08; drift since T3.01's -0.31 maximum, not
+  bisected further). After: 120 / 120 GREEN, highest peak -0.3018 dBFS (Drums/Punchy_Clip). Every other preset file
+  is byte-identical. Rule for later batches: run that `[long]` case by name after any change to the summed output.
