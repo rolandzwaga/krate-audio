@@ -478,7 +478,9 @@ public:
 
     static constexpr float kDefaultLowMidFrequency = 300.0f;
     static constexpr float kDefaultMidHighFrequency = 3000.0f;
-    static constexpr float kAllpassQ = 0.5f;  ///< Q for 2nd-order allpass (matches LR4 phase)
+    /// Q of the 2nd-order compensation allpass: 1/sqrt(2), because the LR4
+    /// LP + HP sum is (s^2 - sqrt2*s + 1)/(s^2 + sqrt2*s + 1).
+    static constexpr float kAllpassQ = 0.70710678f;
 
     // =========================================================================
     // Lifecycle
@@ -698,7 +700,9 @@ public:
     static constexpr float kDefaultSubLowFrequency = 80.0f;
     static constexpr float kDefaultLowMidFrequency = 300.0f;
     static constexpr float kDefaultMidHighFrequency = 3000.0f;
-    static constexpr float kAllpassQ = 0.5f;  ///< Q for 2nd-order allpass (matches LR4 phase)
+    /// Q of the 2nd-order compensation allpasses: 1/sqrt(2), because the LR4
+    /// LP + HP sum is (s^2 - sqrt2*s + 1)/(s^2 + sqrt2*s + 1).
+    static constexpr float kAllpassQ = 0.70710678f;
 
     // =========================================================================
     // Lifecycle

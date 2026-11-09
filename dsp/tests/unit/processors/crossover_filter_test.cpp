@@ -1887,6 +1887,100 @@ TEST_CASE("Crossover4Way with allpass compensation sums to 0.1dB flat", "[crosso
 }
 
 // -----------------------------------------------------------------------------
+// Test: allpass compensation stays within 0.1 dB at ONE-OCTAVE crossover spacing
+// (D-164). The LR4 LP+HP sum is a 2nd-order allpass with Q = 1/sqrt(2); a
+// compensation allpass with any other Q leaves a dip next to the lower crossover
+// that the decade-spaced SC-004/SC-005 cases above cannot see (about -0.13 dB at
+// 300/600 Hz with Q = 0.5).
+// -----------------------------------------------------------------------------
+namespace {
+
+/// Worst |sum - input| in dB over a dense log grid of steady-state sines.
+/// `splitSum` maps one input sample to the summed band outputs.
+template <typename Crossover, typename SplitSum>
+float worstCompensatedSumDeviationDb(Crossover& crossover, SplitSum splitSum,
+                                     float loHz, float hiHz) {
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kSettle = 32768;
+    constexpr size_t kMeasureTarget = 32768;
+    constexpr int kPoints = 48;
+    float worst = 0.0f;
+    for (int p = 0; p < kPoints; ++p) {
+        const double f = static_cast<double>(loHz) *
+            std::pow(static_cast<double>(hiHz) / static_cast<double>(loHz),
+                     static_cast<double>(p) / static_cast<double>(kPoints - 1));
+        // Integer number of cycles in the measured window.
+        const double cycles = std::floor(static_cast<double>(kMeasureTarget) * f / kSampleRate);
+        const auto measureLen = static_cast<size_t>(std::lround(cycles * kSampleRate / f));
+        crossover.reset();
+        double inPow = 0.0;
+        double sumPow = 0.0;
+        for (size_t i = 0; i < kSettle + measureLen; ++i) {
+            const auto x = static_cast<float>(
+                std::sin(2.0 * 3.14159265358979323846 * f * static_cast<double>(i) / kSampleRate));
+            const float s = splitSum(crossover, x);
+            if (i >= kSettle) {
+                inPow += static_cast<double>(x) * static_cast<double>(x);
+                sumPow += static_cast<double>(s) * static_cast<double>(s);
+            }
+        }
+        const auto devDb = static_cast<float>(10.0 * std::log10(sumPow / inPow));
+        if (std::abs(devDb) > std::abs(worst)) {
+            worst = devDb;
+        }
+    }
+    return worst;
+}
+
+} // namespace
+
+TEST_CASE("Crossover3Way allpass compensation is flat at one-octave spacing",
+          "[crossover][allpass][flatsum][SC-004][D-164]") {
+    Crossover3Way crossover;
+    crossover.prepare(44100.0);
+    crossover.setLowMidFrequency(300.0f);
+    crossover.setMidHighFrequency(600.0f);
+    crossover.setAllpassCompensation(true);
+
+    const float worstDb = worstCompensatedSumDeviationDb(
+        crossover,
+        [](Crossover3Way& c, float x) {
+            const auto o = c.process(x);
+            return o.low + o.mid + o.high;
+        },
+        75.0f, 2400.0f);
+    INFO("Crossover3Way 300/600 Hz compensated worst deviation = " << worstDb << " dB");
+    std::printf("D-164 Crossover3Way 300/600 Hz worst deviation: %.4f dB\n",
+                static_cast<double>(worstDb));
+    REQUIRE(std::abs(worstDb) < 0.1f);
+}
+
+TEST_CASE("Crossover4Way allpass compensation is flat at one-octave spacing",
+          "[crossover][allpass][flatsum][SC-005][D-164]") {
+    Crossover4Way crossover;
+    crossover.prepare(44100.0);
+    crossover.setMidHighFrequency(320.0f);
+    crossover.setLowMidFrequency(160.0f);
+    crossover.setSubLowFrequency(80.0f);
+    crossover.setAllpassCompensation(true);
+    REQUIRE(crossover.getSubLowFrequency() == 80.0f);
+    REQUIRE(crossover.getLowMidFrequency() == 160.0f);
+    REQUIRE(crossover.getMidHighFrequency() == 320.0f);
+
+    const float worstDb = worstCompensatedSumDeviationDb(
+        crossover,
+        [](Crossover4Way& c, float x) {
+            const auto o = c.process(x);
+            return o.sub + o.low + o.mid + o.high;
+        },
+        20.0f, 1280.0f);
+    INFO("Crossover4Way 80/160/320 Hz compensated worst deviation = " << worstDb << " dB");
+    std::printf("D-164 Crossover4Way 80/160/320 Hz worst deviation: %.4f dB\n",
+                static_cast<double>(worstDb));
+    REQUIRE(std::abs(worstDb) < 0.1f);
+}
+
+// -----------------------------------------------------------------------------
 // Test: Allpass compensation does not affect frequency sweep smoothness
 // -----------------------------------------------------------------------------
 TEST_CASE("Crossover4Way allpass compensation frequency sweep is click-free", "[crossover][allpass][SC-006]") {
