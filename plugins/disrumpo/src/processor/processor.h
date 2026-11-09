@@ -342,6 +342,15 @@ private:
     int spectrumSendIntervalSamples_ = 0;
     int spectrumSendAccumulatorSamples_ = 0;
 
+    /// @brief Latest kSpectrumBlockMaxSamples mono samples, written every block, so
+    /// a throttled send carries contiguous audio (D-133)
+    static_assert((kSpectrumBlockMaxSamples & (kSpectrumBlockMaxSamples - 1u)) == 0u);
+    static constexpr uint32_t kSpectrumRingMask = kSpectrumBlockMaxSamples - 1u;
+    std::array<float, kSpectrumBlockMaxSamples> spectrumInputRing_{};
+    std::array<float, kSpectrumBlockMaxSamples> spectrumOutputRing_{};
+    uint32_t spectrumRingWritePos_ = 0;
+    uint32_t spectrumRingFilled_ = 0;
+
     // ==========================================================================
     // SharedDisplayBridge (Tier 3 fallback for hosts without DataExchange)
     // ==========================================================================

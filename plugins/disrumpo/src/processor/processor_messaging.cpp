@@ -19,7 +19,6 @@
 
 #include <algorithm>  // for std::max, std::min, std::copy_n, std::fill
 #include <cmath>      // for std::log10, std::pow
-#include <cstring>    // for memcpy
 #include <random>     // for instance ID generation
 
 namespace Disrumpo {
@@ -99,6 +98,30 @@ void Processor::sendSpectrumBlock(
     if (numSamples <= 0)
         return;
 
+    // The block's last `count` samples (process() captured the input mono of the same span)
+    const auto totalSamples = static_cast<uint32_t>(numSamples);
+    const auto count = std::min(totalSamples, kSpectrumBlockMaxSamples);
+    const uint32_t offset = totalSamples - count;
+    float* const inputMono = spectrumBlockBuffer_.inputSamples;
+    float* const outputMono = spectrumBlockBuffer_.outputSamples;
+    for (uint32_t i = 0; i < count; ++i)
+        outputMono[i] = (outputL[offset + i] + outputR[offset + i]) * 0.5f;
+
+    // Tier 3 fallback (works even without connect()): every block, unthrottled,
+    // since the FIFOs are lock-free; the analyser reads contiguous audio (D-133)
+    sharedInputFIFO_.push(inputMono, count);
+    sharedOutputFIFO_.push(outputMono, count);
+    sharedSampleRate_.store(static_cast<float>(sampleRate_), std::memory_order_release);
+
+    // History rings, written every block so a throttled send is contiguous (D-133)
+    for (uint32_t i = 0; i < count; ++i) {
+        const uint32_t w = (spectrumRingWritePos_ + i) & kSpectrumRingMask;
+        spectrumInputRing_[w] = inputMono[i];
+        spectrumOutputRing_[w] = outputMono[i];
+    }
+    spectrumRingWritePos_ = (spectrumRingWritePos_ + count) & kSpectrumRingMask;
+    spectrumRingFilled_ = std::min(spectrumRingFilled_ + count, kSpectrumBlockMaxSamples);
+
     // Throttle spectrum sends to ~30Hz (matching UI update cadence) to avoid
     // overflowing the queue in hosts that drain the IMessage fallback slowly.
     if (spectrumSendIntervalSamples_ <= 0)
@@ -109,20 +132,6 @@ void Processor::sendSpectrumBlock(
         return;
 
     spectrumSendAccumulatorSamples_ %= spectrumSendIntervalSamples_;
-
-    const auto count = std::min(
-        static_cast<uint32_t>(numSamples), kSpectrumBlockMaxSamples);
-
-    // Always push to shared FIFOs (Tier 3 fallback — works even without connect())
-    sharedInputFIFO_.push(spectrumBlockBuffer_.inputSamples, count);
-    // Compute output mono mixdown into the shared FIFO
-    {
-        float outputMono[kSpectrumBlockMaxSamples];
-        for (uint32_t i = 0; i < count; ++i)
-            outputMono[i] = (outputL[i] + outputR[i]) * 0.5f;
-        sharedOutputFIFO_.push(outputMono, count);
-    }
-    sharedSampleRate_.store(static_cast<float>(sampleRate_), std::memory_order_release);
 
     // Tier 1/2: Send via DataExchange (if host called connect())
     if (!dataExchange_)
@@ -135,16 +144,17 @@ void Processor::sendSpectrumBlock(
 
     auto* specBlock = static_cast<SpectrumBlock*>(block.data);
 
-    // Copy pre-computed input mono mixdown from buffer
-    std::memcpy(specBlock->inputSamples, spectrumBlockBuffer_.inputSamples,
-        count * sizeof(float));
+    // The latest spectrumRingFilled_ samples, oldest first, in two spans of the ring
+    const uint32_t sendCount = spectrumRingFilled_;
+    const uint32_t start = (spectrumRingWritePos_ - sendCount) & kSpectrumRingMask;
+    const uint32_t firstSpan = std::min(sendCount, kSpectrumBlockMaxSamples - start);
+    const uint32_t secondSpan = sendCount - firstSpan;
+    std::copy_n(spectrumInputRing_.data() + start, firstSpan, specBlock->inputSamples);
+    std::copy_n(spectrumInputRing_.data(), secondSpan, specBlock->inputSamples + firstSpan);
+    std::copy_n(spectrumOutputRing_.data() + start, firstSpan, specBlock->outputSamples);
+    std::copy_n(spectrumOutputRing_.data(), secondSpan, specBlock->outputSamples + firstSpan);
 
-    // Compute output mono mixdown directly into the block
-    for (uint32_t i = 0; i < count; ++i) {
-        specBlock->outputSamples[i] = (outputL[i] + outputR[i]) * 0.5f;
-    }
-
-    specBlock->numSamples = count;
+    specBlock->numSamples = sendCount;
     specBlock->sampleRate = static_cast<float>(sampleRate_);
 
     // Mod-slider overlay: the offset values travel in the block (D-045)

@@ -23,9 +23,14 @@
 #include "pluginterfaces/vst/ivstdataexchange.h"
 
 #include "vst_param_changes.h"
+#include "allocation_detector.h"
+#include "display/shared_display_bridge.h"
+#include "../test_support/disrumpo_rig.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <chrono>
 #include <memory>
@@ -598,5 +603,164 @@ TEST_CASE("SpectrumBlock carries mod offsets and the unchanged spectrum samples"
     REQUIRE(proc->disconnect(ctrlConn) == kResultOk);
     REQUIRE(ctrl->terminate() == kResultOk);
     REQUIRE(proc->terminate() == kResultOk);
+}
+
+// ==============================================================================
+// D-133: the spectrum feed is contiguous audio at every host block size
+// ==============================================================================
+
+namespace {
+
+/// Layout of Processor::SharedDisplay, the pointer the SharedDisplayBridge holds
+/// (the controller casts it the same way).
+struct SharedDisplayLayout {
+    Krate::DSP::SpectrumFIFO<8192>* inputFIFO;
+    Krate::DSP::SpectrumFIFO<8192>* outputFIFO;
+    std::atomic<float>* sampleRate;
+};
+
+/// Largest sample-to-sample step and largest sine-recurrence residual
+/// |x[n+1] - 2cos(w) x[n] + x[n-1]| of a window that should be one unit sine.
+struct Continuity {
+    double maxStep = 0.0;
+    double maxResidual = 0.0;
+};
+
+Continuity measureSineContinuity(const std::vector<float>& x, double w) {
+    Continuity c;
+    const double c2 = 2.0 * std::cos(w);
+    for (size_t i = 1; i < x.size(); ++i)
+        c.maxStep = std::max(c.maxStep, std::fabs(static_cast<double>(x[i]) - static_cast<double>(x[i - 1])));
+    for (size_t i = 1; i + 1 < x.size(); ++i) {
+        const double r = static_cast<double>(x[i + 1]) - (c2 * static_cast<double>(x[i])) + static_cast<double>(x[i - 1]);
+        c.maxResidual = std::max(c.maxResidual, std::fabs(r));
+    }
+    return c;
+}
+
+uint64_t stateTrailerInstanceId(const std::vector<uint8_t>& stream) {
+    REQUIRE(stream.size() >= 12);
+    uint64_t id = 0;
+    std::memcpy(&id, stream.data() + stream.size() - 8, sizeof(id));
+    return id;
+}
+
+}  // namespace
+
+TEST_CASE("Spectrum FIFO receives a contiguous 1 kHz sine at 64-sample blocks",
+          "[disrumpo][data-exchange][D-133]")
+{
+    constexpr double kRate = 48000.0;
+    constexpr double kFreq = 1000.0;
+    constexpr double kW = 6.283185307179586 * kFreq / kRate;
+    constexpr double kMaxStepBar = kW * 1.1;  // a unit 1 kHz sine never steps further
+    constexpr double kResidualBar = 1e-3;     // float rounding of a clean sine is ~1e-6
+    constexpr size_t kWindow = 2048;          // SpectrumAnalyzer fftSize
+
+    for (const int32 blockSize : {64, 512, 2048}) {
+        MockDataExchangeHost host;
+        auto proc = std::make_unique<Disrumpo::Processor>();
+        REQUIRE(proc->initialize(&host) == kResultOk);
+        auto ctrl = std::make_unique<Disrumpo::Controller>();
+        REQUIRE(ctrl->initialize(nullptr) == kResultOk);
+        auto* ctrlConn = static_cast<IConnectionPoint*>(static_cast<EditControllerEx1*>(ctrl.get()));
+        REQUIRE(proc->connect(ctrlConn) == kResultOk);
+        ProcessSetup setup{};
+        setup.sampleRate = kRate;
+        setup.maxSamplesPerBlock = blockSize;
+        setup.symbolicSampleSize = kSample32;
+        setup.processMode = kRealtime;
+        REQUIRE(proc->setupProcessing(setup) == kResultOk);
+        REQUIRE(proc->setActive(true) == kResultOk);
+
+        const auto bs = static_cast<size_t>(blockSize);
+        std::vector<float> inL(bs);
+        std::vector<float> inR(bs);
+        std::vector<float> outL(bs);
+        std::vector<float> outR(bs);
+        const int numBlocks = static_cast<int>(96000 / blockSize);  // 2 s
+        std::vector<float> inHistory;
+        std::vector<float> outHistory;
+        inHistory.reserve(static_cast<size_t>(numBlocks + 64) * bs);
+        outHistory.reserve(static_cast<size_t>(numBlocks + 64) * bs);
+        size_t lastSendEnd = 0;  // history length when the last block was sent
+
+        auto runBlock = [&](int b) {
+            generateSine(inL.data(), blockSize, static_cast<float>(kFreq), kRate, b * blockSize);
+            std::copy(inL.begin(), inL.end(), inR.begin());
+            const int sentBefore = host.sent;
+            processStereo(*proc, inL, inR, outL, outR);
+            for (size_t i = 0; i < bs; ++i) {
+                inHistory.push_back((inL[i] + inR[i]) * 0.5f);
+                outHistory.push_back((outL[i] + outR[i]) * 0.5f);
+            }
+            if (host.sent != sentBefore) {
+                lastSendEnd = inHistory.size();
+                DataExchangeBlock deb{.data = host.lastSent.data(), .size = host.blockSize, .blockID = 1};
+                ctrl->onDataExchangeBlocksReceived(0, 1, &deb, static_cast<TBool>(false));
+            }
+        };
+        for (int b = 0; b < numBlocks; ++b) runBlock(b);
+
+        // Display path (DataExchange -> controller FIFO) and Tier-3 path (shared FIFO)
+        std::vector<float> local(kWindow);
+        REQUIRE(ctrl->getLocalInputFIFO().readLatest(local.data(), kWindow) == kWindow);
+        const auto id = stateTrailerInstanceId(Disrumpo::TestSupport::getStateBytes(*proc));
+        const auto* shared = static_cast<const SharedDisplayLayout*>(
+            Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(id));
+        REQUIRE(shared != nullptr);
+        std::vector<float> tier3(kWindow);
+        REQUIRE(shared->inputFIFO->readLatest(tier3.data(), kWindow) == kWindow);
+        std::vector<float> tier3Out(kWindow);
+        REQUIRE(shared->outputFIFO->readLatest(tier3Out.data(), kWindow) == kWindow);
+
+        const auto localC = measureSineContinuity(local, kW);
+        const auto tier3C = measureSineContinuity(tier3, kW);
+
+        // The last block sent holds the audio just before it was sent, sample for sample
+        const auto& blk = host.lastBlock();
+        const size_t n = blk.numSamples;
+        REQUIRE(n <= lastSendEnd);
+        size_t blockInMismatch = 0;
+        size_t blockOutMismatch = 0;
+        for (size_t i = 0; i < n; ++i) {
+            if (blk.inputSamples[i] != inHistory[lastSendEnd - n + i]) ++blockInMismatch;
+            if (blk.outputSamples[i] != outHistory[lastSendEnd - n + i]) ++blockOutMismatch;
+        }
+        size_t tier3OutMismatch = 0;
+        for (size_t i = 0; i < kWindow; ++i)
+            if (tier3Out[i] != outHistory[outHistory.size() - kWindow + i]) ++tier3OutMismatch;
+
+        std::printf("D-133 block %4d: sends %3d, last block %4zu samples; controller FIFO max step %.4f residual %.2e;"
+                    " Tier-3 FIFO max step %.4f residual %.2e (bars %.4f / %.0e); last block in/out mismatches"
+                    " %zu/%zu; Tier-3 output mismatches %zu\n",
+                    blockSize, host.sent, n, localC.maxStep, localC.maxResidual, tier3C.maxStep,
+                    tier3C.maxResidual, kMaxStepBar, kResidualBar, blockInMismatch, blockOutMismatch,
+                    tier3OutMismatch);
+        INFO("block size " << blockSize);
+        CHECK(localC.maxStep < kMaxStepBar);
+        CHECK(localC.maxResidual < kResidualBar);
+        CHECK(tier3C.maxStep < kMaxStepBar);
+        CHECK(tier3C.maxResidual < kResidualBar);
+        CHECK(n == kWindow);
+        CHECK(blockInMismatch == 0);
+        CHECK(blockOutMismatch == 0);
+        CHECK(tier3OutMismatch == 0);
+
+        // The feed allocates nothing on the audio thread once running
+        size_t allocations = 0;
+        {
+            TestHelpers::AllocationScope scope;
+            for (int b = numBlocks; b < numBlocks + 64; ++b) runBlock(b);
+            allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+        }
+        std::printf("D-133 block %4d: allocations over 64 more blocks %zu\n", blockSize, allocations);
+        CHECK(allocations == 0);
+
+        REQUIRE(proc->setActive(false) == kResultOk);
+        REQUIRE(proc->disconnect(ctrlConn) == kResultOk);
+        REQUIRE(ctrl->terminate() == kResultOk);
+        REQUIRE(proc->terminate() == kResultOk);
+    }
 }
 

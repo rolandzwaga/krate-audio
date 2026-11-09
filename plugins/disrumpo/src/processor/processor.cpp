@@ -199,6 +199,8 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         bandCountFade_ = BandCountFade::Idle;
         bandCountFadePos_ = 0;
         processedSinceActivate_ = false;
+        spectrumRingWritePos_ = 0;  // no stale audio joins the new activation's (D-133)
+        spectrumRingFilled_ = 0;
         crossoverL_.reset();
         crossoverR_.reset();
         for (auto& proc : bandProcessors_) {
@@ -310,11 +312,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Spectrum Analyzer: Prepare pre-distortion mono mixdown for DataExchange
     // ==========================================================================
     {
-        const auto blockSamples = std::min(
-            static_cast<uint32_t>(data.numSamples), kSpectrumBlockMaxSamples);
+        // The block's LAST samples: they join the next block's without a gap (D-133)
+        const auto totalSamples = static_cast<uint32_t>(std::max(data.numSamples, 0));
+        const auto blockSamples = std::min(totalSamples, kSpectrumBlockMaxSamples);
+        const uint32_t offset = totalSamples - blockSamples;
         for (uint32_t i = 0; i < blockSamples; ++i) {
             spectrumBlockBuffer_.inputSamples[i] =
-                (inputL[i] + inputR[i]) * 0.5f;
+                (inputL[offset + i] + inputR[offset + i]) * 0.5f;
         }
     }
 
