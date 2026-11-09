@@ -43,6 +43,9 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
    above (about -3 points); a lower default grain density (about -2 to -3 points). The mixed 4x case stays at 14.88 %
    (budget 15 %): its time is the 4x oversampler (10 %), RingSaturation (15 %), the adapter dispatch (11 %) and the
    per-node tone / DC filters (10 %), none with a near-identical lever above the noise.
+   — USER RULED 2026-11-09: log it and move on. The Formant/Chaos/Granular/Fractal budget case stays RED in the CPU
+   lane (not per-push CI); choosing among the sound-changing options above waits for a sound-design session where the
+   user can audition renders. Budget and workload stay as they are.
 2. **Band bypass is a hard switch** (as the plan specified). Toggling bypass off steps the output by 0.743 against
    a steady sample step of 0.050 (≈15x); on by 0.335. Smoothing it (short crossfade) is a design choice.
 3. **Fresh-instance morph smoothing default.** T1.03 (`9c427498`) made a fresh instance follow the registered
