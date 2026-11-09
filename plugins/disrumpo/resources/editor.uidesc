@@ -1343,7 +1343,7 @@
       <view class="CTextLabel" origin="10, 183" size="60, 12" title="Nodes" font="small-font" font-color="text-secondary"/>
       <view class="CSegmentButton" origin="70, 182" size="120, 20" control-tag="Band.ActiveNodes" default-value="0.0" style="horizontal" segment-names="1, 2, 3, 4" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
       <view class="CTextLabel" origin="10, 205" size="60, 12" title="Smooth" font="small-font" font-color="text-secondary"/>
-      <view class="ArcKnob" origin="75, 200" size="30, 25" control-tag="Band.MorphSmoothing" default-value="0" min-value="0" max-value="1" arc-color="accent-secondary"/>
+      <view class="ArcKnob" origin="75, 204" size="30, 25" control-tag="Band.MorphSmoothing" default-value="0" min-value="0" max-value="1" arc-color="accent-secondary"/>
       <view class="CTextLabel" origin="108, 210" size="30, 12" title="ms" font="small-font" font-color="text-secondary"/>
     </view>
     <view class="CViewContainer" origin="205, 45" size="280, 230" background-color="panel">

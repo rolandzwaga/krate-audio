@@ -17,9 +17,12 @@
 //   - lost control: a control-tag that had an interactive view in the baseline (any class but CParamDisplay and
 //     CTextLabel) and has none now; a readout alone does not keep a parameter controllable.
 //   - changed tag: a control-tag name whose numeric tag differs from the baseline (parameter IDs are frozen).
+//   With --allow <allow.json> ({"overlaps": [{template, detail, count, reason}]}): the listed overlaps are deliberate
+//   and not defects; an entry whose count no longer matches the file is an allow-mismatch defect.
 //
 // Usage:  node tools/uidesc-inventory.js plugins/iterum/resources/editor.uidesc --out f:/tmp/inv.json
 //         node tools/uidesc-inventory.js plugins/iterum/resources/editor.uidesc --check --baseline f:/tmp/inv.json
+//         node tools/uidesc-inventory.js plugins/disrumpo/resources/editor.uidesc --check --allow plugins/disrumpo/tests/uidesc_overlaps_allowed.json
 //         node tools/uidesc-inventory.js --self-test
 'use strict';
 const fs = require('fs');
@@ -173,6 +176,24 @@ function compareToBaseline(inv, base) {
   }
 }
 
+/// Moves the overlaps an allow list accepts from inv.defects to inv.allowed. An entry names the template, the exact
+/// overlap detail (so moving either view re-flags it), how many times it occurs, and why it is deliberate. An entry
+/// whose count does not match what the file has is itself a defect, so the list cannot go stale.
+function applyAllowList(inv, entries) {
+  inv.allowed = [];
+  for (const e of entries) {
+    if (!e.template || !e.detail || !e.reason) fail(`allow-list entry needs template, detail and reason: ${JSON.stringify(e)}`);
+    const want = e.count || 1;
+    const hits = inv.defects.filter((d) => d.kind === 'overlap' && d.template === e.template && d.detail === e.detail);
+    if (hits.length !== want) {
+      inv.defects.push({ kind: 'allow-mismatch', template: e.template, detail: `${e.detail}: allowed ${want}, found ${hits.length}` });
+      continue;
+    }
+    inv.allowed.push(...hits.map((d) => ({ ...d, reason: e.reason })));
+    inv.defects = inv.defects.filter((d) => !hits.includes(d));
+  }
+}
+
 function selfTest() {
   const doc = (body) => `<?xml version="1.0" encoding="UTF-8"?>
 <vstgui-ui-description version="1">
@@ -219,6 +240,19 @@ function selfTest() {
   expect('a scroll-view child past container-size still is', kinds(scroll('container-size="388, 160"')), 'out-of-bounds');
   expect('a scroll view without container-size is bounded by its size', kinds(scroll('')), 'out-of-bounds');
 
+  // An allow list accepts a deliberate overlap by exact detail and count; a count that no longer matches is a defect.
+  const allowed = (count) => {
+    const inv = buildInventory(doc(`<template name="A" size="400, 300">
+      <view class="CView" custom-view-name="Display" origin="0, 0" size="200, 100"/>
+      <view class="CView" custom-view-name="Overlay" origin="0, 0" size="200, 100"/>
+    </template>`), 'allow');
+    applyAllowList(inv, [{ template: 'A', detail: 'CView Display at 0,0,200,100 / CView Overlay at 0,0,200,100', count,
+      reason: 'overlay drawn on the display' }]);
+    return kinds(inv);
+  };
+  expect('an allowed overlap is not a defect', allowed(1), '');
+  expect('an allow entry whose count does not match is', allowed(2), 'allow-mismatch,overlap');
+
   // Lost control: the slider is gone and only the readout keeps the tag bound.
   const base = buildInventory(doc(`<template name="P" size="400, 300">
     <view class="CSlider" origin="0, 0" size="100, 20" control-tag="Mix"/>
@@ -247,11 +281,12 @@ function selfTest() {
 const args = process.argv.slice(2);
 if (args.includes('--self-test')) selfTest();
 
-const file = args.find((a, i) => !a.startsWith('--') && !['--out', '--baseline'].includes(args[i - 1]));
-if (!file) fail('usage: node tools/uidesc-inventory.js <editor.uidesc> [--out <json>] [--check] [--baseline <json>] | --self-test');
+const file = args.find((a, i) => !a.startsWith('--') && !['--out', '--baseline', '--allow'].includes(args[i - 1]));
+if (!file) fail('usage: node tools/uidesc-inventory.js <editor.uidesc> [--out <json>] [--check] [--baseline <json>] [--allow <json>] | --self-test');
 const optValue = (name) => (args.indexOf(name) >= 0 ? args[args.indexOf(name) + 1] : null);
 const outPath = optValue('--out');
 const baselinePath = optValue('--baseline');
+const allowPath = optValue('--allow');
 const check = args.includes('--check');
 
 let inventory;
@@ -261,6 +296,7 @@ try {
   fail(e.message);
 }
 if (baselinePath) compareToBaseline(inventory, JSON.parse(fs.readFileSync(baselinePath, 'utf8')));
+if (allowPath) applyAllowList(inventory, JSON.parse(fs.readFileSync(allowPath, 'utf8')).overlaps || []);
 
 if (outPath) {
   fs.mkdirSync(path.dirname(path.resolve(outPath)), { recursive: true });
@@ -271,6 +307,7 @@ for (const d of inventory.defects) byKind[d.kind] = (byKind[d.kind] || 0) + 1;
 for (const [name, t] of Object.entries(inventory.templates)) {
   console.log(`${name}: ${t.metrics.viewCount} views, ${t.metrics.boundControls} bound, ${t.stacked.length} stacked pairs`);
 }
+for (const d of inventory.allowed || []) console.log(`  allowed ${d.kind} [${d.template}]: ${d.detail}`);
 for (const d of inventory.defects) console.log(`  ${d.kind}${d.template ? ` [${d.template}]` : ''}: ${d.detail}`);
 console.log(`UIDESC ${inventory.defects.length ? 'DEFECTS' : 'CLEAN'} ${JSON.stringify(byKind)}`);
 if (check && inventory.defects.length) process.exit(1);

@@ -234,5 +234,14 @@ endif()
 # CTest Integration
 catch_discover_tests(disrumpo_tests REPORTER console)
 
+# editor.uidesc geometry lint (audit T3.03, D-152): no overlap outside the audited allow list, nothing out of bounds.
+find_program(KRATE_NODE_EXECUTABLE node)
+if(KRATE_NODE_EXECUTABLE)
+    add_test(NAME disrumpo_uidesc_inventory
+        COMMAND ${KRATE_NODE_EXECUTABLE} tools/uidesc-inventory.js plugins/disrumpo/resources/editor.uidesc --check
+                --allow plugins/disrumpo/tests/uidesc_overlaps_allowed.json
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
+
 # Precompiled Catch2 + STL when KRATE_TEST_PCH is ON (cmake/KrateTestPch.cmake); after the per-source flag blocks above.
 krate_test_pch(disrumpo_tests)

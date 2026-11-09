@@ -1,0 +1,65 @@
+{
+  "note": "Deliberate overlaps in resources/editor.uidesc, accepted by tools/uidesc-inventory.js --allow (ctest disrumpo_uidesc_inventory). Each was ruled intentional by the audit (specs/disrumpo-audit/report.md). Detail strings are exact: moving either view re-flags the overlap; a count that no longer matches is an allow-mismatch defect.",
+  "overlaps": [
+    {
+      "template": "editor",
+      "detail": "CViewContainer at 6,6,684,284 / CViewContainer at 0,0,684,284",
+      "count": 4,
+      "reason": "D-150 refuted: each expanded band strip's drop shadow, offset 6 px under its band-coloured border panel."
+    },
+    {
+      "template": "editor",
+      "detail": "CViewContainer Band2Container at 240,0,235,340 / CViewContainer at 0,0,690,290",
+      "count": 4,
+      "reason": "D-150 refuted: the expanded band strips (hidden until a band is expanded) float over the band panels."
+    },
+    {
+      "template": "editor",
+      "detail": "CViewContainer Band3Container at 480,0,235,340 / CViewContainer at 0,0,690,290",
+      "count": 4,
+      "reason": "D-150 refuted: the expanded band strips (hidden until a band is expanded) float over the band panels."
+    },
+    {
+      "template": "editor",
+      "detail": "CView SpectrumDisplay at 20,60,960,120 / CView SweepIndicator at 20,60,960,120",
+      "count": 1,
+      "reason": "D-151 refuted: the sweep indicator is drawn as an overlay on the spectrum display."
+    },
+    {
+      "template": "editor",
+      "detail": "CView SpectrumDisplay at 20,60,960,120 / CSegmentButton SpectrumMode at 860,62,115,20",
+      "count": 1,
+      "reason": "D-151 refuted: the Wet / Dry / Both mode button sits in the spectrum display's top-right corner by design (2fc92e94)."
+    },
+    {
+      "template": "editor",
+      "detail": "CView SweepIndicator at 20,60,960,120 / CSegmentButton SpectrumMode at 860,62,115,20",
+      "count": 1,
+      "reason": "D-151 refuted: the Wet / Dry / Both mode button sits in the spectrum display's top-right corner by design (2fc92e94)."
+    },
+    {
+      "template": "BandShapeTab",
+      "detail": "CSlider Band.DisplayedType at 0,0,1,1 / UIViewSwitchContainer at 0,0,215,200",
+      "count": 1,
+      "reason": "D-153 refuted: a transparent 1x1 slider that carries Band.DisplayedType as the switch container's template-switch-control."
+    },
+    {
+      "template": "BandExpandedStrip",
+      "detail": "CView NodeEditorBorder at 0,0,280,230 / CViewContainer at 0,0,280,20",
+      "count": 1,
+      "reason": "D-153 refuted: NodeEditorBorder is the node editor's backdrop, drawn first under the whole column."
+    },
+    {
+      "template": "BandExpandedStrip",
+      "detail": "CView NodeEditorBorder at 0,0,280,230 / CSlider Band.DisplayedType at 0,22,1,1",
+      "count": 1,
+      "reason": "D-153 refuted: NodeEditorBorder is the node editor's backdrop, drawn first under the whole column."
+    },
+    {
+      "template": "BandExpandedStrip",
+      "detail": "CView NodeEditorBorder at 0,0,280,230 / UIViewSwitchContainer at 32,22,215,200",
+      "count": 1,
+      "reason": "D-153 refuted: NodeEditorBorder is the node editor's backdrop, drawn first under the whole column."
+    }
+  ]
+}
