@@ -11,6 +11,10 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
    budget test goes through `Processor::process` (they only cover `BandProcessor`), so nothing went red. Needed:
    a processor-level CPU test with the spec budget, then an optimisation pass (candidates: block-rate crossover
    path, per-band engine cost, oversampler filter order). Hidden probe to re-measure: `[.][t107-cpu-probe]`.
+   Also (T2.20 `e720284c`): 4 bands × 4 Formant nodes at the morph centre measure 14.27 % and 4 bands × mixed
+   cross-family types 21.66 % even after control-rate routing cut the per-engine cost 3.64× (0.669 % vs 2.437 %).
+   The fix plan's 5 % band-level budget for that case was not adopted (unmeasured, not a spec number); probe
+   `[.][t220-cpu-probe]`.
 2. **Band bypass is a hard switch** (as the plan specified). Toggling bypass off steps the output by 0.743 against
    a steady sample step of 0.050 (≈15x); on by 0.335. Smoothing it (short crossfade) is a design choice.
 3. **Fresh-instance morph smoothing default.** T1.03 (`9c427498`) made a fresh instance follow the registered
@@ -186,6 +190,14 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     −63 dBFS at drive 0.01 and −43 dBFS at 0.1, so the level fall now sits inside drive 1e-3 → 1e-2 (−39 dB) instead of
     at the gate. Whether low drive should keep unity level (drive-dependent makeup) is a design question; ties to
     items 9/17 (Tube) and 37 (fold normalisation).
+
+51. **Innexus still adopts a stored SharedDisplayBridge instance ID the old way** (duplicate-ID collision when two
+    instances restore the same stream). T2.19 (`7dd33372`) added `registerInstanceIfFree` /
+    `unregisterInstance(id, data)` to the shared bridge; Innexus should use them too.
+52. **A duplicated Disrumpo instance's controller still reads the other processor's instance ID** from the shared
+    stream; only the processor side was fixed in T2.19. Send the live ID processor → controller by message.
+53. **Tier-3-only hosts (no DataExchange) never deliver mod offsets to the slider overlay** — same as before T2.19
+    (the old pointer message also needed a connection). Feed the overlay from the Tier-3 shared memory too.
 
 ## Done outside the plan
 
