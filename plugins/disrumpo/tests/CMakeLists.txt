@@ -155,6 +155,7 @@ add_executable(disrumpo_tests
     integration/chaos_distortion_wiring_test.cpp
     integration/multi_node_distortion_test.cpp
     integration/bitcrush_noise_repro_test.cpp
+    integration/processor_cpu_test.cpp
 
     # Integration tests - DataExchange spectrum pipeline
     integration/data_exchange_spectrum_test.cpp

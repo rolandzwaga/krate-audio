@@ -1908,14 +1908,9 @@ TEST_CASE("PT-DI-002: 4 bands with distortion under 5% CPU", "[distortion][perfo
     INFO("Processing time: " << processingTimeSeconds << "s for " << testDurationSeconds << "s of audio");
     INFO("CPU usage: " << cpuPercent << "%");
 
-    // Should be under 5% CPU
-    // Note: This test may vary based on machine performance, so we use a generous margin
-    REQUIRE(cpuPercent < 20.0);  // Allow up to 20% for CI variability
-
-    // Warn if above 5% target but below hard limit
-    if (cpuPercent > 5.0) {
-        WARN("CPU usage (" << cpuPercent << "%) exceeds 5% target but within acceptable range");
-    }
+    // PT-DI-002 budget (specs/_archive2_/003-distortion-integration/spec.md). [performance]
+    // runs only in the CPU lane, alone, so no margin for load (D-130)
+    REQUIRE(cpuPercent < 5.0);
 }
 
 // =============================================================================
@@ -2273,12 +2268,8 @@ TEST_CASE("PT-DI-001: 1 band 1x OS single type under 2% CPU", "[distortion][perf
     INFO("Processing time: " << processingTimeSeconds << "s for " << testDurationSeconds << "s of audio");
     INFO("CPU usage: " << cpuPercent << "%");
 
-    // Target: < 2% CPU, allow margin for CI
-    REQUIRE(cpuPercent < 10.0);  // Allow up to 10% for CI variability
-
-    if (cpuPercent > 2.0) {
-        WARN("CPU usage (" << cpuPercent << "%) exceeds 2% target but within acceptable range");
-    }
+    // PT-DI-001 budget; [performance] runs only in the CPU lane, alone (D-130)
+    REQUIRE(cpuPercent < 2.0);
 }
 
 // =============================================================================
@@ -2346,12 +2337,8 @@ TEST_CASE("PT-DI-003: 4 bands 4x OS single type under 10% CPU", "[distortion][pe
     INFO("Processing time: " << processingTimeSeconds << "s for " << testDurationSeconds << "s of audio");
     INFO("CPU usage: " << cpuPercent << "%");
 
-    // Target: < 10% CPU, allow margin for CI
-    REQUIRE(cpuPercent < 40.0);  // Allow up to 40% for CI variability
-
-    if (cpuPercent > 10.0) {
-        WARN("CPU usage (" << cpuPercent << "%) exceeds 10% target but within acceptable range");
-    }
+    // PT-DI-003 budget; [performance] runs only in the CPU lane, alone (D-130)
+    REQUIRE(cpuPercent < 10.0);
 }
 
 // =============================================================================
