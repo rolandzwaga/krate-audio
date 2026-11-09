@@ -47,18 +47,28 @@ void MorphEngine::prepare(double sampleRate, int maxBlockSize, int maxOversample
     smootherX_.snapTo(targetX_);
     smootherY_.snapTo(targetY_);
 
-    // Prepare all distortion adapters
-    for (auto& adapter : adapters_) {
-        adapter.prepare(sampleRate, maxBlockSize, maxOversampleFactor);
+    // Prepare all distortion adapters (an owner that attaches them prepares them itself)
+    if (!attached_) {
+        if (!ownedAdapters_) {
+            ownedAdapters_ = std::make_unique<std::array<DistortionAdapter, kMaxMorphNodes + 1>>();
+        }
+        for (int i = 0; i < kMaxMorphNodes; ++i) {
+            adapters_[i] = &(*ownedAdapters_)[static_cast<size_t>(i)];
+        }
+        blendedAdapter_ = &(*ownedAdapters_)[kMaxMorphNodes];
+        for (DistortionAdapter* adapter : adapters_) {
+            adapter->prepare(sampleRate, maxBlockSize, maxOversampleFactor);
+        }
+        blendedAdapter_->prepare(sampleRate, maxBlockSize, maxOversampleFactor);
     }
-    blendedAdapter_.prepare(sampleRate, maxBlockSize, maxOversampleFactor);
     blendedParamsDirty_ = true;
 
     // Initialize adapter types from nodes
     for (int i = 0; i < kMaxMorphNodes; ++i) {
-        adapters_[i].setType(nodes_[i].type);
-        adapters_[i].setParams(nodes_[i].params);
-        adapters_[i].setCommonParams(nodes_[i].commonParams);
+        if (adapters_[i] == nullptr) continue;
+        adapters_[i]->setType(nodes_[i].type);
+        adapters_[i]->setParams(nodes_[i].params);
+        adapters_[i]->setCommonParams(nodes_[i].commonParams);
     }
     updateLatencyAlignment();
     clearSwitchFade();
@@ -67,15 +77,33 @@ void MorphEngine::prepare(double sampleRate, int maxBlockSize, int maxOversample
 }
 
 void MorphEngine::updateLatencyAlignment() noexcept {
+    // From the node types, not the adapters: a node's adapter holds the node's type and
+    // FFT size (setNodes), and an engine may run without the adapters of idle slots
     int latency = 0;
     for (int i = 0; i < activeNodeCount_; ++i) {
-        latency = std::max(latency, adapters_[i].getProcessingLatency());
+        latency = std::max(latency, DistortionAdapter::latencyFor(nodes_[i].type, nodes_[i].params.fftSize));
     }
     latency_ = latency;
-    for (auto& adapter : adapters_) {
-        adapter.setLatencyAlignment(latency);
+    for (DistortionAdapter* adapter : adapters_) {
+        if (adapter != nullptr) adapter->setLatencyAlignment(latency);
     }
-    blendedAdapter_.setLatencyAlignment(latency);
+    if (blendedAdapter_ != nullptr) blendedAdapter_->setLatencyAlignment(latency);
+}
+
+void MorphEngine::attachNodeAdapter(int idx, DistortionAdapter* adapter) noexcept {
+    adapters_[idx] = adapter;
+    if (adapter == nullptr) return;
+    adapter->setType(nodes_[idx].type);
+    adapter->setParams(nodes_[idx].params);
+    adapter->setCommonParams(nodes_[idx].commonParams);
+    adapter->setLatencyAlignment(latency_);
+}
+
+void MorphEngine::attachBlendedAdapter(DistortionAdapter* adapter) noexcept {
+    blendedAdapter_ = adapter;
+    if (adapter == nullptr) return;
+    adapter->setLatencyAlignment(latency_);
+    blendedParamsDirty_ = true;
 }
 
 void MorphEngine::reset() noexcept {
@@ -86,10 +114,7 @@ void MorphEngine::reset() noexcept {
     smootherY_.snapTo(targetY_);
 
     // Reset all adapters
-    for (auto& adapter : adapters_) {
-        adapter.reset();
-    }
-    blendedAdapter_.reset();
+    resetAttachedAdapters();
     blendedParamsDirty_ = true;
 
     // Reset weights to default (50/50 for 2-node)
@@ -107,11 +132,15 @@ void MorphEngine::reset() noexcept {
     clearSwitchFade();
 }
 
-void MorphEngine::resetState() noexcept {
-    for (auto& adapter : adapters_) {
-        adapter.reset();
+void MorphEngine::resetAttachedAdapters() noexcept {
+    for (DistortionAdapter* adapter : adapters_) {
+        if (adapter != nullptr) adapter->reset();
     }
-    blendedAdapter_.reset();
+    if (blendedAdapter_ != nullptr) blendedAdapter_->reset();
+}
+
+void MorphEngine::resetState() noexcept {
+    resetAttachedAdapters();
     blendedParamsDirty_ = true;
     clearSwitchFade();
 }
@@ -143,10 +172,10 @@ void MorphEngine::setProcessingRate(double rate) noexcept {
     sampleRate_ = rate;
     smootherX_.configure(smoothingTimeMs_, static_cast<float>(rate));
     smootherY_.configure(smoothingTimeMs_, static_cast<float>(rate));
-    for (auto& adapter : adapters_) {
-        adapter.setProcessingRate(rate);
+    for (DistortionAdapter* adapter : adapters_) {
+        if (adapter != nullptr) adapter->setProcessingRate(rate);
     }
-    blendedAdapter_.setProcessingRate(rate);
+    if (blendedAdapter_ != nullptr) blendedAdapter_->setProcessingRate(rate);
     blendedParamsDirty_ = true;
 }
 
@@ -194,9 +223,10 @@ void MorphEngine::setNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, i
 
     // Update adapter configurations
     for (int i = 0; i < kMaxMorphNodes; ++i) {
-        adapters_[i].setType(nodes_[i].type);
-        adapters_[i].setParams(nodes_[i].params);
-        adapters_[i].setCommonParams(nodes_[i].commonParams);
+        if (adapters_[i] == nullptr) continue;
+        adapters_[i]->setType(nodes_[i].type);
+        adapters_[i]->setParams(nodes_[i].params);
+        adapters_[i]->setCommonParams(nodes_[i].commonParams);
     }
     // The adapters now hold the unscaled drive: the next cross-family sample re-applies the sweep
     appliedSweepDriveScale_ = 1.0f;
@@ -740,12 +770,12 @@ float MorphEngine::process(float input) noexcept {
     const bool nodesAdded = !allSameType_ && activeNodeCount_ > processedNodeCount_;
     if ((pathSwitch || nodesAdded) && hasOutput_) {
         if (allSameType_) {
-            blendedAdapter_.reset();
+            blendedAdapter_->reset();
             blendedParamsDirty_ = true;
         } else {
             const int first = pathSwitch ? 0 : processedNodeCount_;
             for (int i = first; i < activeNodeCount_; ++i) {
-                adapters_[i].reset();
+                adapters_[i]->reset();
             }
         }
         switchFadeOrigin_ = lastOutput_;
@@ -818,7 +848,7 @@ bool MorphEngine::isSteady() const noexcept {
 void MorphEngine::processSteadySpan(const float* input, float* output, int numSamples) noexcept {
     if (numSamples <= 0) return;
     if (allSameType_) {
-        blendedAdapter_.processBlock(input, output, numSamples);
+        blendedAdapter_->processBlock(input, output, numSamples);
     } else {
         // processCrossFamily: output = 0, then += node output * gain, node by node in order
         std::array<float, kMaxMorphNodes> gains{};
@@ -831,7 +861,7 @@ void MorphEngine::processSteadySpan(const float* input, float* output, int numSa
             float* out = output + start;
             std::fill_n(out, len, 0.0f);
             for (int n = 0; n < activeNodeCount_; ++n) {
-                adapters_[n].processBlock(spanInput_.data(), spanNode_.data(), len);
+                adapters_[n]->processBlock(spanInput_.data(), spanNode_.data(), len);
                 const float gain = gains[static_cast<size_t>(n)];
                 for (int k = 0; k < len; ++k) {
                     out[k] += spanNode_[static_cast<size_t>(k)] * gain;
@@ -861,21 +891,21 @@ float MorphEngine::processSameFamily(float input) noexcept {
         ++blendedRouteCount_;
 
         // Every active node has this type, so the processor never switches
-        blendedAdapter_.setType(nodes_[0].type);
+        blendedAdapter_->setType(nodes_[0].type);
 
         auto bp = interpolateParams();
         lastBlendedParams_ = bp;
         bp.bias = std::clamp(bp.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
-        blendedAdapter_.setParams(bp);
+        blendedAdapter_->setParams(bp);
 
         auto cp = interpolateCommonParams();
         cp.drive = modulatedDrive(cp.drive);
         cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
         cp.toneHz = std::clamp(cp.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f);
-        blendedAdapter_.setCommonParams(cp);
+        blendedAdapter_->setCommonParams(cp);
     }
 
-    return blendedAdapter_.process(input);
+    return blendedAdapter_->process(input);
 }
 
 float MorphEngine::processCrossFamily(float input) noexcept {
@@ -895,10 +925,10 @@ float MorphEngine::processCrossFamily(float input) noexcept {
             cp.drive = modulatedDrive(cp.drive);
             cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
             cp.toneHz = std::clamp(cp.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f);
-            adapters_[i].setCommonParams(cp);
+            adapters_[i]->setCommonParams(cp);
             auto p = nodes_[i].params;
             p.bias = std::clamp(p.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
-            adapters_[i].setParams(p);
+            adapters_[i]->setParams(p);
         }
     }
 
@@ -907,7 +937,7 @@ float MorphEngine::processCrossFamily(float input) noexcept {
     // Every active node runs every sample, also below kWeightThreshold (its gain is then
     // 0), so its filter and delay state never goes stale before its weight rises again.
     for (int i = 0; i < activeNodeCount_; ++i) {
-        const float nodeOutput = adapters_[i].process(input);
+        const float nodeOutput = adapters_[i]->process(input);
         output += nodeOutput * transitionGainForWeight(weights_[i]);
     }
 

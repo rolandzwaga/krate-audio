@@ -19,6 +19,8 @@
 #include "dsp/morph_node.h"
 #include "test_helpers/artifact_detection.h"
 
+#include <krate/dsp/core/db_utils.h>
+
 #include <allocation_detector.h>
 
 #include <algorithm>
@@ -339,4 +341,71 @@ TEST_CASE("BandProcessor: hysteresis prevents unnecessary transitions",
         CHECK(bp->getOversampleFactor() == 4);
         CHECK(bp->isOversampleTransitioning());
     }
+}
+
+// =============================================================================
+// The crossfade's second lane holds only the shapers its path runs (user ruling
+// 2026-11-10, slim spare lane). A DistortionAdapter holds every type's processor
+// (about 1 MB prepared at 48 kHz, 630 KB of it Spectral's). The lane the band runs
+// keeps one per slot: single-type, identical-type and four nodes per channel (12);
+// the other lane, which runs only as a crossfade's incoming lane, at most four per
+// channel (the active nodes, or the one identical-type / single-type adapter): 8.
+// Before the ruling the second lane was a full copy: 24 adapters per band.
+// =============================================================================
+
+TEST_CASE("BandProcessor: the crossfade's second lane holds only the shapers its path runs",
+          "[disrumpo][oversampling][crossfade][memory]") {
+    constexpr size_t kBlock = 256;
+    const int before = DistortionAdapter::debugLiveInstances.load();
+    auto bp = std::make_unique<BandProcessor>();
+    bp->prepare(48000.0, kBlock);
+    const int held = DistortionAdapter::debugLiveInstances.load() - before;
+    INFO("adapters held by a prepared band: " << held);
+    CHECK(held == 2 * (6 + kMaxMorphNodes));
+
+    // Four cross-family nodes: the incoming lane runs four node adapters per channel
+    std::array<MorphNode, kMaxMorphNodes> nodes{};
+    const DistortionType types[kMaxMorphNodes] = {DistortionType::SoftClip, DistortionType::SineFold,
+                                                  DistortionType::FullRectify, DistortionType::HardClip};
+    for (int i = 0; i < kMaxMorphNodes; ++i) {
+        auto& n = nodes[static_cast<size_t>(i)];
+        n.id = i;
+        n.type = types[i];
+        n.commonParams = {.drive = 3.0f, .mix = 1.0f, .toneHz = 4000.0f};
+        n.posX = (i == 1 || i == 3) ? 1.0f : 0.0f;
+        n.posY = i >= 2 ? 1.0f : 0.0f;
+    }
+    bp->setMorphMode(MorphMode::Planar2D);
+    bp->setMorphNodes(nodes, kMaxMorphNodes);
+    bp->setMorphPosition(0.4f, 0.4f);
+    std::vector<float> left(kBlock);
+    std::vector<float> right(kBlock);
+    size_t offset = 0;
+    size_t nonFinite = 0;
+    const auto run = [&](int blocks) {
+        for (int b = 0; b < blocks; ++b, offset += kBlock) {
+            fillSine(left.data(), right.data(), kBlock, offset);
+            bp->processBlock(left.data(), right.data(), kBlock);
+            for (size_t i = 0; i < kBlock; ++i) {
+                if (!Krate::DSP::detail::isFinite(left[i]) || !Krate::DSP::detail::isFinite(right[i])) ++nonFinite;
+            }
+        }
+    };
+    run(8);
+    // 4x -> 2x -> 4x, a reversal, and the path changing to identical types during a crossfade
+    bp->setMaxOversampleFactor(2);
+    run(4);
+    bp->setMaxOversampleFactor(4);
+    run(1);
+    bp->setMaxOversampleFactor(2);
+    run(4);
+    for (auto& n : nodes) n.type = DistortionType::HardClip;
+    bp->setMaxOversampleFactor(4);
+    run(1);
+    bp->setMorphNodes(nodes, kMaxMorphNodes);
+    run(8);
+    CHECK(DistortionAdapter::debugLiveInstances.load() - before == held);
+    CHECK(nonFinite == 0);
+    bp = nullptr;
+    CHECK(DistortionAdapter::debugLiveInstances.load() == before);
 }

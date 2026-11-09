@@ -3632,3 +3632,20 @@ TEST_CASE("Shape slot ends equal the spec's parameter ranges", "[disrumpo][adapt
     std::printf("T4.06 slot ends vs spec ranges: %d of %zu differ\n", wrong, ranges.size());
     CHECK(wrong == 0);
 }
+
+// DistortionAdapter::latencyFor (the latency a prepared adapter reports, from the type and
+// the FFT size alone; MorphEngine aligns its nodes with it) against getProcessingLatency.
+TEST_CASE("DistortionAdapter::latencyFor equals the latency a prepared adapter reports", "[disrumpo][adapter][latency]") {
+    DistortionAdapter adapter;
+    adapter.prepare(48000.0, 512, 4);
+    for (const DistortionType type : {DistortionType::Spectral, DistortionType::SoftClip, DistortionType::Granular}) {
+        adapter.setType(type);
+        for (const int fft : {0, 100, 256, 300, 512, 1000, 1024, 2048, 3000, 4096, 8192}) {
+            DistortionParams p;
+            p.fftSize = fft;
+            adapter.setParams(p);
+            INFO("type " << static_cast<int>(type) << " fft " << fft);
+            CHECK(DistortionAdapter::latencyFor(type, fft) == adapter.getProcessingLatency());
+        }
+    }
+}

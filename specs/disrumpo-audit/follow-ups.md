@@ -754,6 +754,16 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     exist (fresh Tape nodes on the Simple model) but each is a sound change; the repair of the shared model is
     CROSS-PLUGIN. Held patch `f:/tmp/disrumpo-fix/p6b/t609-held-192k.patch`.
 
+89. **A DistortionAdapter is 1.04 MB prepared, whatever type it runs** (found 2026-11-10 by the slim-spare-lane ruling's
+    breakdown, 48 kHz, buffers for 4x): each adapter holds every type's processor, heap per adapter Spectral 630 KB (FFT
+    4096 plus every smaller size), Granular 145 KB (in the object), FeedbackDist 129 KB, AllpassResonant 65 KB, Chaos
+    34 KB, the latency delays 32 KB, the rest < 2 KB each. A band's running lane holds 12 (2 single-type adapters the
+    Processor never runs, morph is always on there; 4 nodes and the identical-type one per channel), so a 4-band
+    instance is 84.2 MB (heap, 48 kHz / 512) of which about 50 MB are the running lanes' adapters. The slim spare lane
+    (8 adapters per band) is at the floor for adapters that can run any type without allocating; going lower needs
+    per-type processor storage (a node slot holding only its type's processor, provisioned without audio-thread
+    allocation) or dropping the single-type adapters from the Processor's bands. Not started (scope cap).
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
@@ -839,3 +849,16 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   control 0.91-1.09x. `Processor::process` now opens with the guard. New case "process() flushes denormals whatever the
   caller's floating-point mode": a denormal input on a clean band, test thread FTZ / DAZ cleared: RED 8192 of 8192
   output samples denormal, GREEN 0, the caller's mode restored. The timing case after the fix: Tube 1.08x.
+- Slim spare lane (user ruling 2026-11-10, commit "perf(disrumpo): the crossfade's second lane holds only the shapers
+  it runs"): the 12.4 MB the crossfade added per band were 12 DistortionAdapters (2 single-type, 2 x 5 morph) at
+  1.04 MB each; oversamplers 58 KB, fractional delays < 1 KB. The adapters are now the band's: the running lane keeps
+  one per slot (12), the other lane only the spares its path runs (the active nodes, or the one identical-type /
+  single-type adapter): 4 per channel, 8 per band, attached when a crossfade starts and swapped into the home set when
+  it ends. BandProcessor 25.14 -> 20.98 MB (heap, 48 kHz, prepared), the spare 12.4 -> 8.3 MB; a 4-band instance
+  about 100.8 -> 84.2 MB. Renders: 253 of 254 dumps bit-identical (120 factory presets plain and with Oversample Max
+  cycling 4x / 2x / 1x / 4x, the morph sweeps, Oversample Max cycling over six type mixes, reversals, mid-crossfade
+  node-count changes, a 4-band moving patch, the single-type band); the one difference (9.3e-3, decaying with the
+  DC blocker over ~20 ms) is a node-type change to identical types during a crossfade: the identical-type adapter is
+  now the slot-0 spare, whose Fuzz processor already held node 0's settings, so its bias / drive smoothers start on
+  them instead of gliding from the processor's previous targets. Switch block (4 cross-family nodes, 4x <-> 2x, 512):
+  median 561-576 us against 592-631 us before (steady 200-218 us). Remaining floor: follow-up 89.

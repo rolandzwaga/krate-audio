@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <memory>
 
 namespace Disrumpo {
 
@@ -99,6 +100,34 @@ public:
     void syncCursorFrom(const MorphEngine& other) noexcept;
 
     // =========================================================================
+    // Attached adapters (BandProcessor's oversampling crossfade, follow-up 6)
+    // =========================================================================
+    // By default the engine owns its five adapters (four nodes and the identical-type
+    // one), allocated in its first prepare(). An owner that keeps the adapters itself calls
+    // useAttachedAdapters() before prepare() and attaches them: an engine runs only the
+    // adapters its path needs (the identical-type one, or the active nodes), so a second
+    // engine that runs beside the first for a crossfade needs only those (user ruling
+    // 2026-11-10, slim spare lane). A slot without an adapter is skipped by every setter.
+
+    /// @brief Take adapters from attach*() instead of owning them. Call before prepare().
+    void useAttachedAdapters() noexcept { attached_ = true; }
+
+    /// @brief Attach @p adapter (prepared by the owner) as node @p idx's adapter, or detach
+    /// it with nullptr. An attached adapter takes the node's type, parameters and the
+    /// engine's latency alignment; its processing state and rate are the owner's.
+    void attachNodeAdapter(int idx, DistortionAdapter* adapter) noexcept;
+
+    /// @brief Attach @p adapter as the identical-type adapter (nullptr detaches it). It is
+    /// routed again at the next identical-type sample.
+    void attachBlendedAdapter(DistortionAdapter* adapter) noexcept;
+
+    /// @brief Node @p idx's adapter, nullptr when none is attached.
+    [[nodiscard]] DistortionAdapter* nodeAdapterSlot(int idx) const noexcept { return adapters_[idx]; }
+
+    /// @brief The identical-type adapter, nullptr when none is attached.
+    [[nodiscard]] DistortionAdapter* blendedAdapterSlot() const noexcept { return blendedAdapter_; }
+
+    // =========================================================================
     // Configuration
     // =========================================================================
 
@@ -166,11 +195,13 @@ public:
     // Test accessors
     [[nodiscard]] int getActiveNodeCount() const noexcept { return activeNodeCount_; }
     [[nodiscard]] bool getAllSameType() const noexcept { return allSameType_; }
-    [[nodiscard]] DistortionType getAdapterType(int idx) const noexcept { return adapters_[idx].getType(); }
+    [[nodiscard]] DistortionType getAdapterType(int idx) const noexcept {
+        return adapters_[idx] != nullptr ? adapters_[idx]->getType() : nodes_[idx].type;
+    }
     [[nodiscard]] DistortionType getNodeType(int idx) const noexcept { return nodes_[idx].type; }
     [[nodiscard]] const DistortionParams& getNodeParams(int idx) const noexcept { return nodes_[idx].params; }
     [[nodiscard]] const DistortionCommonParams& getNodeCommonParams(int idx) const noexcept { return nodes_[idx].commonParams; }
-    [[nodiscard]] const DistortionAdapter& getAdapter(int idx) const noexcept { return adapters_[idx]; }
+    [[nodiscard]] const DistortionAdapter& getAdapter(int idx) const noexcept { return *adapters_[idx]; }
     /// @brief Last identical-type interpolateParams() result (set in processSameFamily).
     [[nodiscard]] const DistortionParams& getBlendedParams() const noexcept { return lastBlendedParams_; }
     /// @brief How often the identical-type path has routed params to its processor.
@@ -275,6 +306,9 @@ private:
     /// @brief Forget the processed path and the last output (all adapters were just cleared).
     void clearSwitchFade() noexcept;
 
+    /// @brief reset() every attached adapter.
+    void resetAttachedAdapters() noexcept;
+
     // =========================================================================
     // State
     // =========================================================================
@@ -311,11 +345,13 @@ private:
     std::array<float, kSpanChunk> spanInput_{};
     std::array<float, kSpanChunk> spanNode_{};
 
-    // Distortion adapters (one per potential node for parallel processing of different types)
-    std::array<DistortionAdapter, kMaxMorphNodes> adapters_;
-
-    // Single adapter for identical-type processing (optimization)
-    DistortionAdapter blendedAdapter_;
+    // Distortion adapters (one per potential node for parallel processing of different
+    // types) and the single adapter for identical-type processing: owned (ownedAdapters_,
+    // the last entry the identical-type one) or attached by the owner (useAttachedAdapters)
+    std::array<DistortionAdapter*, kMaxMorphNodes> adapters_{};
+    DistortionAdapter* blendedAdapter_ = nullptr;
+    std::unique_ptr<std::array<DistortionAdapter, kMaxMorphNodes + 1>> ownedAdapters_;
+    bool attached_ = false;
 
     // Last interpolateParams() result of the identical-type path (test accessor)
     DistortionParams lastBlendedParams_;

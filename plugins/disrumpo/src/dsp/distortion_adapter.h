@@ -37,6 +37,7 @@
 #include <krate/dsp/primitives/waveshaper.h>
 
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <algorithm>
 
@@ -246,6 +247,10 @@ struct DistortionParams {
 /// getProcessingLatency(). Every other type returns 0 latency.
 class DistortionAdapter {
 public:
+    /// @brief Test probe: DistortionAdapter instances alive (each holds every type's
+    /// processor, about 1 MB prepared), so a test can count what an owner keeps.
+    static inline std::atomic<int> debugLiveInstances{0};
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -343,6 +348,18 @@ public:
     ///
     /// @return Latency in samples at the rate process() is clocked at
     [[nodiscard]] int getProcessingLatency() const noexcept;
+
+    /// @brief The latency a prepared adapter of @p type with FFT size @p fftSize reports
+    /// (getProcessingLatency), without an adapter: Spectral's active FFT size (the next power
+    /// of two from SpectralDistortion's 256, at most kSpectralMaxFftSize) - 1, else 0.
+    [[nodiscard]] static int latencyFor(DistortionType type, int fftSize) noexcept {
+        if (type != DistortionType::Spectral) return 0;
+        constexpr std::size_t kSpectralMinFftSize = Krate::DSP::SpectralDistortion::kMinFFTSize;
+        std::size_t pow2 = kSpectralMinFftSize;
+        const auto requested = static_cast<std::size_t>(fftSize);  // as updateBlockLatency passes it
+        while (pow2 < requested && pow2 < kSpectralMaxFftSize) pow2 <<= 1;
+        return std::clamp(static_cast<int>(pow2) - 1, 0, kMaxLatencySamples);
+    }
 
     /// @brief Pad the output to a total latency of @p samples (clocked samples, clamped
     /// to [0, kMaxLatencySamples]). An owner that sums adapters of different types
@@ -549,6 +566,17 @@ private:
     /// Fade length in clocked samples, and the samples of it still to run
     int typeFadeLength_ = 1;
     int typeFadeRemaining_ = 0;
+
+    /// Counts this instance in debugLiveInstances
+    struct LiveCount {
+        LiveCount() noexcept { debugLiveInstances.fetch_add(1, std::memory_order_relaxed); }
+        LiveCount(const LiveCount& /*other*/) noexcept { debugLiveInstances.fetch_add(1, std::memory_order_relaxed); }
+        LiveCount(LiveCount&& /*other*/) noexcept { debugLiveInstances.fetch_add(1, std::memory_order_relaxed); }
+        LiveCount& operator=(const LiveCount& /*other*/) noexcept = default;
+        LiveCount& operator=(LiveCount&& /*other*/) noexcept = default;
+        ~LiveCount() { debugLiveInstances.fetch_sub(1, std::memory_order_relaxed); }
+    };
+    LiveCount liveCount_;
 };
 
 } // namespace Disrumpo

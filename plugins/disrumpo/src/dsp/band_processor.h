@@ -115,16 +115,12 @@ public:
         muteSmoother_.snapTo(targetMute_);
         sweepSmoother_.snapTo(targetSweep_);
 
-        // The second lane (oversampling crossfade, follow-up 6) lives on the heap: it holds as
-        // much as the first. It mirrors the first lane's single-type adapter settings, which
-        // setters may have given before the first prepare()
+        // The second lane (oversampling crossfade, follow-up 6) lives on the heap. The shapers
+        // are the band's (user ruling 2026-11-10, slim spare lane): the running lane holds
+        // the home set, the other lane only the spare adapters its path needs (attachSpare)
         if (!lane1_) {
             lane1_ = std::make_unique<Lane>();
         }
-        lane1_->distortionL.setType(lane0_.distortionL.getType());
-        lane1_->distortionR.setType(lane0_.distortionL.getType());
-        lane1_->distortionL.setParams(lane0_.distortionL.getParams());
-        lane1_->distortionR.setParams(lane0_.distortionL.getParams());
         activeLane_ = 0;
         crossfading_ = false;
         xfadePos_ = 0;
@@ -135,6 +131,31 @@ public:
         defaultParams.drive = 0.0f;  // Bypass distortion by default
         defaultParams.mix = 1.0f;
         defaultParams.toneHz = 4000.0f;
+
+        // The shapers, fresh at every prepare() like the morph engines before them. Their
+        // buffers are sized for kMaxOversampleFactor x the host rate; they run at the host
+        // rate until beginLaneSpan() clocks them at a higher factor and re-rates them
+        // (setClockFactor, D-009). The single-type adapters keep the settings setters gave
+        // (also before the first prepare()), with the bypassed common parameters
+        shaperStore_ = std::make_unique<ShaperStore>();
+        for (size_t c = 0; c < 2; ++c) {
+            for (size_t k = 0; k < kHomeSlots; ++k) {
+                home_[c][k] = &(*shaperStore_)[c * kHomeSlots + k];
+            }
+            for (size_t j = 0; j < kSpareAdapters; ++j) {
+                spare_[c][j] = &(*shaperStore_)[2 * kHomeSlots + c * kSpareAdapters + j];
+            }
+            home_[c][kLegacySlot]->setType(legacyType_);
+            home_[c][kLegacySlot]->setParams(legacyParams_);
+        }
+        for (DistortionAdapter& adapter : *shaperStore_) {
+            adapter.prepare(sampleRate, static_cast<int>(maxBlockSize_ * kMaxOversampleFactor), kMaxOversampleFactor);
+        }
+        legacyCommon_ = defaultParams;
+        for (size_t c = 0; c < 2; ++c) {
+            home_[c][kLegacySlot]->setCommonParams(defaultParams);
+        }
+
         forEachLane([&](Lane& lane) {
             // Prepare oversamplers (FR-009: pre-allocate all regardless of current factor)
             lane.os2x.prepare(sampleRate, maxBlockSize_, Krate::DSP::OversamplingQuality::Economy,
@@ -148,20 +169,14 @@ public:
             lane.fracDelayClocked = -1.0;
             lane.hostFracDelay = -1.0;
 
-            // Prepare distortion adapters (one per channel: the adapters are mono and
-            // stateful, D-016). Their buffers are sized for kMaxOversampleFactor x the
-            // host rate; they run at the host rate until beginLaneSpan() clocks them
-            // at a higher factor and re-rates them (setClockFactor, D-009).
-            for (DistortionAdapter* adapter : {&lane.distortionL, &lane.distortionR}) {
-                adapter->prepare(sampleRate, static_cast<int>(maxBlockSize_ * kMaxOversampleFactor),
-                                 kMaxOversampleFactor);
-                adapter->setCommonParams(defaultParams);
-            }
-
-            // Allocate and prepare one morph engine per channel, sized like the adapters
-            // and running at the host rate. Allocated on heap to avoid stack overflow
+            // One morph engine per channel (the adapters are mono and stateful, D-016),
+            // running the adapters the band attaches, at the host rate
+            lane.distortionL = nullptr;
+            lane.distortionR = nullptr;
             lane.morphL = std::make_unique<MorphEngine>();
             lane.morphR = std::make_unique<MorphEngine>();
+            lane.morphL->useAttachedAdapters();
+            lane.morphR->useAttachedAdapters();
             lane.clockFactor = 1;
         });
         forEachMorphEngine([this](MorphEngine& engine) {
@@ -172,6 +187,12 @@ public:
             engine.setMode(cachedMorphMode_);
             engine.setSmoothingTime(cachedSmoothingMs_);
         });
+        // The first lane runs the home set
+        for (size_t c = 0; c < 2; ++c) {
+            for (size_t k = 0; k < kHomeSlots; ++k) {
+                setSlot(lane0_, c, k, home_[c][k]);
+            }
+        }
 
         // The IIR up/down filters delay the band by their impulse-peak delay (T1.07
         // measured 4 samples at 2x and 7 at 4x at 48 kHz); measure it at this rate. The
@@ -213,11 +234,11 @@ public:
         muteSmoother_.snapTo(targetMute_);
         sweepSmoother_.snapTo(targetSweep_);
 
-        forEachLane([this](Lane& lane) {
+        forEachLane([](Lane& lane) {
             lane.os2x.reset();
             lane.os4x.reset();
-            lane.distortionL.reset();
-            lane.distortionR.reset();
+            if (lane.distortionL) lane.distortionL->reset();
+            if (lane.distortionR) lane.distortionR->reset();
             resetFractionalDelay(lane);
         });
         forEachMorphEngine([](MorphEngine& engine) { engine.reset(); });
@@ -293,9 +314,10 @@ public:
     /// Modified for spec 009: triggers recalculateOversampleFactor()
     /// @param type The distortion type from DistortionType enum
     void setDistortionType(DistortionType type) noexcept {
+        legacyType_ = type;
         forEachLane([type](Lane& lane) {
-            lane.distortionL.setType(type);
-            lane.distortionR.setType(type);
+            if (lane.distortionL) lane.distortionL->setType(type);
+            if (lane.distortionR) lane.distortionR->setType(type);
         });
         // FR-017: Recalculate oversampling factor when type changes
         recalculateOversampleFactor();
@@ -303,33 +325,35 @@ public:
 
     /// @brief Get the current distortion type.
     [[nodiscard]] DistortionType getDistortionType() const noexcept {
-        return lane0_.distortionL.getType();
+        return legacyType_;
     }
 
     /// @brief Set common distortion parameters (drive, mix, tone).
     void setDistortionCommonParams(const DistortionCommonParams& params) noexcept {
+        legacyCommon_ = params;
         forEachLane([&params](Lane& lane) {
-            lane.distortionL.setCommonParams(params);
-            lane.distortionR.setCommonParams(params);
+            if (lane.distortionL) lane.distortionL->setCommonParams(params);
+            if (lane.distortionR) lane.distortionR->setCommonParams(params);
         });
     }
 
     /// @brief Get common distortion parameters.
     [[nodiscard]] const DistortionCommonParams& getDistortionCommonParams() const noexcept {
-        return lane0_.distortionL.getCommonParams();
+        return home_[0][kLegacySlot] != nullptr ? home_[0][kLegacySlot]->getCommonParams() : legacyCommon_;
     }
 
     /// @brief Set type-specific distortion parameters.
     void setDistortionParams(const DistortionParams& params) noexcept {
+        legacyParams_ = params;
         forEachLane([&params](Lane& lane) {
-            lane.distortionL.setParams(params);
-            lane.distortionR.setParams(params);
+            if (lane.distortionL) lane.distortionL->setParams(params);
+            if (lane.distortionR) lane.distortionR->setParams(params);
         });
     }
 
     /// @brief Get type-specific distortion parameters.
     [[nodiscard]] const DistortionParams& getDistortionParams() const noexcept {
-        return lane0_.distortionL.getParams();
+        return home_[0][kLegacySlot] != nullptr ? home_[0][kLegacySlot]->getParams() : legacyParams_;
     }
 
     // =========================================================================
@@ -645,7 +669,7 @@ public:
         } else {
             // FR-002: Single-type factor selection
             newFactor = getSingleTypeOversampleFactor(
-                lane0_.distortionL.getType(), maxOversampleFactor_);
+                legacyType_, maxOversampleFactor_);
         }
 
         // FR-017: Only switch if the factor actually changed (hysteresis)
@@ -692,8 +716,8 @@ public:
         if (!morphEnabled_ && (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f
                              || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f
                              || sweepIntensity > 0.0f)) {
-            savedCommonParams_ = lane0_.distortionL.getCommonParams();
-            savedDistortionParams_ = lane0_.distortionL.getParams();
+            savedCommonParams_ = getDistortionCommonParams();
+            savedDistortionParams_ = getDistortionParams();
             const float drive = savedCommonParams_.drive + driveModOffset_ * 10.0f;
             setDistortionCommonParams({
                 .drive = std::clamp(sweepIntensity > 0.0f ? drive * sweepDriveScale(sweepIntensity) : drive,
@@ -795,7 +819,7 @@ public:
             runCrossfadeSpan(left + offset, right + offset, len, offset);
             offset += len;
             if (xfadePos_ >= xfadeHold_ + xfadeSamples_) {
-                activeLane_ = 1 - activeLane_;
+                flipLanes();
                 crossfading_ = false;
                 xfadePos_ = 0;
                 xfadeHold_ = 0;
@@ -821,18 +845,20 @@ private:
     // Lanes (oversampling crossfade, D-034, follow-up 6, user ruling 2026-11-09)
     // =========================================================================
 
-    /// @brief One complete processing path of the band: shapers, oversamplers and the clocked
-    /// and host-rate fractions of the compensation delay, with the factor and the alignment it
-    /// runs at. The band runs one lane; a change of factor or alignment runs the other lane at
-    /// the new settings beside it for kFactorCrossfadeMs and crossfades (linear: the lanes carry
-    /// the same signal, so their outputs are coherent). Both lanes get every parameter setter;
-    /// only a running lane processes audio. The whole-sample compensation delay is shared.
+    /// @brief One processing path of the band: the shapers attached to it (see "Shapers"
+    /// below), oversamplers and the clocked and host-rate fractions of the compensation delay,
+    /// with the factor and the alignment it runs at. The band runs one lane; a change of factor
+    /// or alignment runs the other lane at the new settings beside it for kFactorCrossfadeMs
+    /// and crossfades (linear: the lanes carry the same signal, so their outputs are coherent).
+    /// Both lanes' engines get every parameter setter; only a running lane processes audio.
+    /// The whole-sample compensation delay is shared.
     struct Lane {
-        // Distortion (legacy single adapter per channel, used when morphEnabled_ = false)
-        DistortionAdapter distortionL;
-        DistortionAdapter distortionR;
-        // MorphEngines for morphed distortion (FR-010), one per channel (D-016). On the heap:
-        // MorphEngine contains 5 DistortionAdapters
+        // Distortion (legacy single adapter per channel, used when morphEnabled_ = false),
+        // attached from the band's shapers (nullptr: none attached)
+        DistortionAdapter* distortionL = nullptr;
+        DistortionAdapter* distortionR = nullptr;
+        // MorphEngines for morphed distortion (FR-010), one per channel (D-016), running the
+        // adapters the band attaches to them
         std::unique_ptr<MorphEngine> morphL;
         std::unique_ptr<MorphEngine> morphR;
         Krate::DSP::Oversampler<2, 2> os2x;
@@ -898,6 +924,129 @@ private:
         });
     }
 
+    // =========================================================================
+    // Shapers (user ruling 2026-11-10, slim spare lane)
+    // =========================================================================
+    // A lane runs adapters attached to six slots per channel: the single-type adapter
+    // (kLegacySlot), the identical-type morph adapter (kBlendedSlot) and the four node
+    // adapters. The lane the band runs (activeLaneRef) holds the home set, one adapter per
+    // slot. The other lane, which runs only as a crossfade's incoming lane, holds spare
+    // adapters for the slots its path processes: the single-type adapter, the identical-type
+    // one or the active nodes, never more than kMaxMorphNodes per channel, mapped single-type /
+    // identical-type / node 0 -> spare 0 and node i -> spare i (the paths exclude each other).
+    // An attached spare is configured, at the lane's clocked rate, and cleared. When the lanes
+    // swap roles (flipLanes) the adapters stay with the lane that runs them and swap labels:
+    // the new running lane's spares become home adapters, the slots it held none for take
+    // the old running lane's idle home adapters (cleared, at its rate).
+
+    static constexpr size_t kLegacySlot = 0;
+    static constexpr size_t kBlendedSlot = 1;
+    static constexpr size_t kFirstNodeSlot = 2;
+    static constexpr size_t kHomeSlots = kFirstNodeSlot + kMaxMorphNodes;
+    static constexpr size_t kSpareAdapters = kMaxMorphNodes;
+    using ShaperStore = std::array<DistortionAdapter, 2 * (kHomeSlots + kSpareAdapters)>;
+
+    /// @brief The spare adapter index of slot @p k.
+    [[nodiscard]] static size_t spareIndexOf(size_t k) noexcept {
+        return k <= kFirstNodeSlot ? 0 : k - kFirstNodeSlot;
+    }
+
+    /// @brief The adapter attached to slot @p k of channel @p c of @p lane (nullptr: none).
+    [[nodiscard]] static DistortionAdapter* slotOf(const Lane& lane, size_t c, size_t k) noexcept {
+        if (k == kLegacySlot) return c == 0 ? lane.distortionL : lane.distortionR;
+        const MorphEngine& engine = c == 0 ? *lane.morphL : *lane.morphR;
+        if (k == kBlendedSlot) return engine.blendedAdapterSlot();
+        return engine.nodeAdapterSlot(static_cast<int>(k - kFirstNodeSlot));
+    }
+
+    /// @brief Attach @p adapter to slot @p k of channel @p c of @p lane (nullptr detaches). A
+    /// morph slot takes the engine's node or identical-type settings; a single-type slot takes
+    /// the band's single-type settings when @p configureLegacy.
+    void setSlot(Lane& lane, size_t c, size_t k, DistortionAdapter* adapter, bool configureLegacy = false) const noexcept {
+        if (k == kLegacySlot) {
+            (c == 0 ? lane.distortionL : lane.distortionR) = adapter;
+            if (adapter != nullptr && configureLegacy) {
+                adapter->setType(legacyType_);
+                adapter->setParams(legacyParams_);
+                adapter->setCommonParams(legacyCommon_);
+            }
+            return;
+        }
+        MorphEngine& engine = c == 0 ? *lane.morphL : *lane.morphR;
+        if (k == kBlendedSlot) {
+            engine.attachBlendedAdapter(adapter);
+        } else {
+            engine.attachNodeAdapter(static_cast<int>(k - kFirstNodeSlot), adapter);
+        }
+    }
+
+    /// @brief The slots @p lane's path processes on channel @p c: the single-type adapter, the
+    /// identical-type one, or the active nodes.
+    [[nodiscard]] bool slotProcessed(const Lane& lane, size_t c, size_t k) const noexcept {
+        if (!morphEnabled_) return k == kLegacySlot;
+        const MorphEngine& engine = c == 0 ? *lane.morphL : *lane.morphR;
+        if (engine.getAllSameType()) return k == kBlendedSlot;
+        return k >= kFirstNodeSlot && k < kFirstNodeSlot + static_cast<size_t>(engine.getActiveNodeCount());
+    }
+
+    /// @brief Give the lane that is not running the spares its path processes (and only those).
+    void attachSpare(Lane& lane) const noexcept {
+        if (!lane.morphL || !shaperStore_) return;
+        const double rate = sampleRate_ * static_cast<double>(lane.clockFactor);
+        for (size_t c = 0; c < 2; ++c) {
+            for (size_t k = 0; k < kHomeSlots; ++k) {
+                if (slotOf(lane, c, k) != nullptr && !slotProcessed(lane, c, k)) setSlot(lane, c, k, nullptr);
+            }
+            for (size_t k = 0; k < kHomeSlots; ++k) {
+                if (!slotProcessed(lane, c, k)) continue;
+                DistortionAdapter* spare = spare_[c][spareIndexOf(k)];
+                if (slotOf(lane, c, k) == spare) continue;
+                setSlot(lane, c, k, spare, true);
+                spare->setProcessingRate(rate);
+                spare->reset();
+            }
+        }
+    }
+
+    /// @brief Swap the lanes' roles: the incoming lane becomes the running one and takes the
+    /// home set (the adapters it runs keep running in it). Allocation-free.
+    void flipLanes() noexcept {
+        Lane& oldHome = activeLaneRef();
+        activeLane_ = 1 - activeLane_;
+        Lane& newHome = activeLaneRef();
+        if (!newHome.morphL || !shaperStore_) return;
+        const double rate = sampleRate_ * static_cast<double>(newHome.clockFactor);
+        for (size_t c = 0; c < 2; ++c) {
+            for (size_t k = 0; k < kHomeSlots; ++k) {
+                DistortionAdapter* held = slotOf(newHome, c, k);
+                DistortionAdapter* homeAdapter = home_[c][k];
+                if (held != nullptr) {
+                    // Relabel: the new running lane's spare is home, the old home adapter of
+                    // this slot (which the old running lane keeps) is spare
+                    for (DistortionAdapter*& spare : spare_[c]) {
+                        if (spare == held) {
+                            spare = homeAdapter;
+                            break;
+                        }
+                    }
+                    home_[c][k] = held;
+                    continue;
+                }
+                // An idle home slot of the old running lane moves to the new one, cleared
+                setSlot(oldHome, c, k, nullptr);
+                homeAdapter->setProcessingRate(rate);
+                homeAdapter->reset();
+                setSlot(newHome, c, k, homeAdapter, true);
+            }
+        }
+    }
+
+    /// @brief Aligned latency of the single-type adapter, in clocked samples.
+    [[nodiscard]] int legacyAlignedLatency() const noexcept {
+        return home_[0][kLegacySlot] != nullptr ? home_[0][kLegacySlot]->getAlignedLatency()
+                                                : DistortionAdapter::latencyFor(legacyType_, legacyParams_.fftSize);
+    }
+
     /// @brief The lane runs the requested factor and alignment.
     [[nodiscard]] bool matchesRequest(const Lane& lane) const noexcept {
         return lane.factor == targetOversampleFactor_ && lane.latencyTarget == latencyTarget_ &&
@@ -918,7 +1067,7 @@ private:
     /// processing state, as the old switch dip's bottom did.
     void settleTransition(bool clearState) noexcept {
         if (crossfading_) {
-            activeLane_ = 1 - activeLane_;
+            flipLanes();
             crossfading_ = false;
             xfadePos_ = 0;
             xfadeHold_ = 0;
@@ -940,7 +1089,7 @@ private:
             if (matchesRequest(activeLaneRef())) {
                 // Back to the outgoing lane, which is warm: no hold, its gain rises from where it is
                 const size_t ramped = xfadePos_ > xfadeHold_ ? xfadePos_ - xfadeHold_ : 0;
-                activeLane_ = 1 - activeLane_;
+                flipLanes();
                 xfadeHold_ = 0;
                 xfadePos_ = xfadeSamples_ - ramped;
             }
@@ -961,6 +1110,7 @@ private:
         // did) and its morph cursor continuing the running lane's glide
         Lane& in = incomingLaneRef();
         assignRequest(in);
+        attachSpare(in);
         if (in.morphL && lane.morphL) {
             in.morphL->syncCursorFrom(*lane.morphL);
             in.morphR->syncCursorFrom(*lane.morphR);
@@ -978,7 +1128,7 @@ private:
     [[nodiscard]] size_t laneTypeLatencyHost(int clocked) const noexcept {
         if (clocked <= 0) return 0;
         const int typeClocked = (morphEnabled_ && lane0_.morphL) ? lane0_.morphL->getLatency()
-                                                                 : lane0_.distortionL.getAlignedLatency();
+                                                                 : legacyAlignedLatency();
         const int hold = (std::max(typeClocked, 0) + clocked - 1) / clocked;
         return static_cast<size_t>(std::min(hold, kMaxLatencySamples));
     }
@@ -1003,8 +1153,8 @@ private:
     /// @brief Clear a lane's processing state: shapers, oversamplers, fractional delays.
     /// Parameters are kept. Allocation-free.
     static void resetLaneState(Lane& lane) noexcept {
-        lane.distortionL.reset();
-        lane.distortionR.reset();
+        if (lane.distortionL) lane.distortionL->reset();
+        if (lane.distortionR) lane.distortionR->reset();
         if (lane.morphL) {
             lane.morphL->resetState();
         }
@@ -1072,6 +1222,7 @@ private:
     void runCrossfadeSpan(float* left, float* right, size_t numSamples, size_t hostOffset) noexcept {
         Lane& out = activeLaneRef();
         Lane& in = incomingLaneRef();
+        attachSpare(in);  // a setter since the last span may need other slots
         const int waitOut = beginLaneSpan(out);
         const int waitIn = beginLaneSpan(in);
         float* inLeft = xfadeL_.data();
@@ -1116,11 +1267,11 @@ private:
             lane.morphR->setSweepDriveScale(sweepScale);
             left = lane.morphL->process(left);
             right = lane.morphR->process(right);
-        } else if (lane.distortionL.getCommonParams().drive > 0.0f) {
+        } else if (lane.distortionL->getCommonParams().drive > 0.0f) {
             // Legacy single distortion path (drive/mix modulation and sweep drive
             // already applied by beginBlockModulation() at block rate)
-            left = lane.distortionL.process(left);
-            right = lane.distortionR.process(right);
+            left = lane.distortionL->process(left);
+            right = lane.distortionR->process(right);
         }
     }
 
@@ -1139,8 +1290,8 @@ private:
         }
         lane.clockFactor = factor;
         const double rate = sampleRate_ * static_cast<double>(factor);
-        lane.distortionL.setProcessingRate(rate);
-        lane.distortionR.setProcessingRate(rate);
+        if (lane.distortionL) lane.distortionL->setProcessingRate(rate);
+        if (lane.distortionR) lane.distortionR->setProcessingRate(rate);
         if (lane.morphL) {
             lane.morphL->setProcessingRate(rate);
         }
@@ -1164,7 +1315,7 @@ private:
     [[nodiscard]] int latencyAtClock(int factor) const noexcept {
         const int f = std::max(factor, 1);
         const int typeClocked = (morphEnabled_ && lane0_.morphL) ? lane0_.morphL->getLatency()
-                                                                 : lane0_.distortionL.getAlignedLatency();
+                                                                 : legacyAlignedLatency();
         return oversamplerLatency_[factorIndex(f)] + (typeClocked + f / 2) / f;
     }
 
@@ -1175,7 +1326,7 @@ private:
     [[nodiscard]] double groupDelayAtClock(int factor) const noexcept {
         const int f = std::max(factor, 1);
         const int typeClocked = (morphEnabled_ && lane0_.morphL) ? lane0_.morphL->getLatency()
-                                                                 : lane0_.distortionL.getAlignedLatency();
+                                                                 : legacyAlignedLatency();
         const double adaa = (f > 1 && adaaInPath()) ? DistortionAdapter::kAdaaDelayClockedSamples : 0.0;
         return oversamplerGroupDelay_[factorIndex(f)] + (static_cast<double>(typeClocked) + adaa) / f;
     }
@@ -1183,7 +1334,7 @@ private:
     /// @brief True when the shaper (legacy type, or any active morph node) runs ADAA1.
     [[nodiscard]] bool adaaInPath() const noexcept {
         if (!(morphEnabled_ && lane0_.morphL)) {
-            return DistortionAdapter::usesAdaa(lane0_.distortionL.getType());
+            return DistortionAdapter::usesAdaa(legacyType_);
         }
         const int count = std::clamp(morphActiveNodeCount_, 0, kMaxMorphNodes);
         for (int i = 0; i < count; ++i) {
@@ -1274,7 +1425,7 @@ private:
     /// (calculateMorphOversampleFactor rounds a weighted mean of those factors up).
     [[nodiscard]] int maxReachableFactor() const noexcept {
         if (!(morphEnabled_ && lane0_.morphL)) {
-            return getSingleTypeOversampleFactor(lane0_.distortionL.getType(), maxOversampleFactor_);
+            return getSingleTypeOversampleFactor(legacyType_, maxOversampleFactor_);
         }
         int reach = 1;
         const int count = std::clamp(morphActiveNodeCount_, 0, kMaxMorphNodes);
@@ -1400,7 +1551,7 @@ private:
     /// drive 0 (D-014), so only such a band skips the oversampler.
     [[nodiscard]] bool isDistortionDriven() const noexcept {
         if (!(morphEnabled_ && lane0_.morphL)) {
-            return lane0_.distortionL.getCommonParams().drive > 0.0f;
+            return getDistortionCommonParams().drive > 0.0f;
         }
         if (driveModOffset_ > 0.0f) {
             return true;
@@ -1443,8 +1594,8 @@ private:
                     left[k] = lane.morphL->process(left[k]);
                     right[k] = lane.morphR->process(right[k]);
                 } else {
-                    left[k] = lane.distortionL.process(left[k]);
-                    right[k] = lane.distortionR.process(right[k]);
+                    left[k] = lane.distortionL->process(left[k]);
+                    right[k] = lane.distortionR->process(right[k]);
                 }
             }
         }
@@ -1522,6 +1673,14 @@ private:
     // prepare(); activeLane_ runs, the other is idle or, while crossfading_, incoming
     Lane lane0_;
     std::unique_ptr<Lane> lane1_;
+    // The shapers (prepare()): per channel kHomeSlots home adapters and kSpareAdapters spares
+    std::unique_ptr<ShaperStore> shaperStore_;
+    std::array<std::array<DistortionAdapter*, kHomeSlots>, 2> home_{};
+    std::array<std::array<DistortionAdapter*, kSpareAdapters>, 2> spare_{};
+    // Single-type settings (setDistortion*), also before the first prepare()
+    DistortionType legacyType_ = DistortionType::SoftClip;
+    DistortionParams legacyParams_{};
+    DistortionCommonParams legacyCommon_{};
     int activeLane_ = 0;
     bool crossfading_ = false;
     size_t xfadePos_ = 0;      // samples into the crossfade, its hold included
