@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <chrono>
@@ -588,6 +589,13 @@ TEST_CASE("SpectrumBlock carries mod offsets and the unchanged spectrum samples"
     CHECK(outMismatch == 0);
     CHECK(mixOffset > 0.1f);
     CHECK(strayOffsets == 0);
+    // The level-meter window rides after the mod offsets (it covers this whole block)
+    STATIC_REQUIRE(offsetof(Disrumpo::SpectrumBlock, meters) >=
+                   offsetof(Disrumpo::SpectrumBlock, modOffsets) + sizeof(float) * Disrumpo::kSpectrumBlockModOffsets);
+    std::printf("Meters: window samples %u (want %d), input L peak %.6f\n", blk.meters.numSamples, kBlock,
+                static_cast<double>(blk.meters.inPeak[0]));
+    CHECK(blk.meters.numSamples == static_cast<uint32_t>(kBlock));
+    CHECK(blk.meters.inPeak[0] > 0.99f);
 
     // The controller's FIFOs receive exactly the block's samples
     DataExchangeBlock deb{.data = host.lastSent.data(), .size = host.blockSize, .blockID = 1};
@@ -762,5 +770,278 @@ TEST_CASE("Spectrum FIFO receives a contiguous 1 kHz sine at 64-sample blocks",
         REQUIRE(ctrl->terminate() == kResultOk);
         REQUIRE(proc->terminate() == kResultOk);
     }
+}
+
+// ==============================================================================
+// Level meters: the window the processor accumulates between two sends
+// ==============================================================================
+
+namespace {
+
+double linDb(double lin) { return 20.0 * std::log10(std::max(lin, 1e-12)); }
+double meanSqDb(double meanSq) { return 10.0 * std::log10(std::max(meanSq, 1e-24)); }
+
+/// Processor on a Tier-1 mock host at 48 kHz, 256-sample blocks, one band with every
+/// node at drive 0 and Oversample Max 1x: the band and the output are the input.
+struct MeterHarness {
+    static constexpr double kRate = 48000.0;
+    static constexpr int32 kBlock = 256;
+
+    MockDataExchangeHost host;
+    std::unique_ptr<Disrumpo::Processor> proc = std::make_unique<Disrumpo::Processor>();
+    std::unique_ptr<Disrumpo::Controller> ctrl = std::make_unique<Disrumpo::Controller>();
+    IConnectionPoint* ctrlConn = nullptr;
+    std::vector<float> inL = std::vector<float>(kBlock);
+    std::vector<float> inR = std::vector<float>(kBlock);
+    std::vector<float> outL = std::vector<float>(kBlock);
+    std::vector<float> outR = std::vector<float>(kBlock);
+
+    explicit MeterHarness(double outputGainNorm = 0.5) {
+        REQUIRE(proc->initialize(&host) == kResultOk);
+        REQUIRE(ctrl->initialize(nullptr) == kResultOk);
+        ctrlConn = static_cast<IConnectionPoint*>(static_cast<EditControllerEx1*>(ctrl.get()));
+        REQUIRE(proc->connect(ctrlConn) == kResultOk);
+        ProcessSetup setup{};
+        setup.sampleRate = kRate;
+        setup.maxSamplesPerBlock = kBlock;
+        setup.symbolicSampleSize = kSample32;
+        setup.processMode = kRealtime;
+        REQUIRE(proc->setupProcessing(setup) == kResultOk);
+        REQUIRE(proc->setActive(true) == kResultOk);
+        Krate::Test::ParameterChanges pc;
+        pc.addChange(Disrumpo::kBandCountId, 0.0);
+        pc.addChange(Disrumpo::kOversampleMaxId, 0.0);
+        pc.addChange(Disrumpo::kOutputGainId, outputGainNorm);
+        for (uint8_t n = 0; n < 4; ++n)
+            pc.addChange(Disrumpo::makeNodeParamId(0, n, Disrumpo::NodeParamType::kNodeDrive), 0.0);
+        std::vector<float> none;
+        processStereo(*proc, none, none, none, none, &pc);
+        // Reactivate: every smoother starts at its target
+        REQUIRE(proc->setActive(false) == kResultOk);
+        REQUIRE(proc->setActive(true) == kResultOk);
+    }
+    ~MeterHarness() {
+        proc->setActive(static_cast<TBool>(false));
+        proc->disconnect(ctrlConn);
+        ctrl->terminate();
+        proc->terminate();
+    }
+    MeterHarness(const MeterHarness&) = delete;
+    MeterHarness& operator=(const MeterHarness&) = delete;
+    MeterHarness(MeterHarness&&) = delete;
+    MeterHarness& operator=(MeterHarness&&) = delete;
+
+    /// One block; true when it sent a SpectrumBlock
+    bool run() {
+        const int before = host.sent;
+        processStereo(*proc, inL, inR, outL, outR);
+        return host.sent != before;
+    }
+    [[nodiscard]] const Disrumpo::MeterWindow& meters() const { return host.lastBlock().meters; }
+};
+
+}  // namespace
+
+TEST_CASE("Level meters read a -6 dBFS sine at the input, the output and band 0",
+          "[disrumpo][data-exchange][meters]")
+{
+    MeterHarness h;
+    // 0.5 amplitude = -6.02 dBFS peak, -9.03 dBFS RMS; 1 kHz at 48 kHz has a sample on every crest
+    int block = 0;
+    auto runSine = [&] {
+        generateSine(h.inL.data(), MeterHarness::kBlock, 1000.0f, MeterHarness::kRate, block * MeterHarness::kBlock);
+        for (auto& s : h.inL) s *= 0.5f;
+        h.inR = h.inL;
+        ++block;
+        return h.run();
+    };
+    int sends = 0;
+    while (sends < 2) sends += runSine() ? 1 : 0;  // the second window: no start-up in it
+    const auto& m = h.meters();
+    std::printf("Meters -6 dBFS sine: window %u samples; in peak %.3f/%.3f dB, in RMS %.3f/%.3f dB; out peak "
+                "%.3f/%.3f dB, out RMS %.3f/%.3f dB; band peaks %.3f %.4f %.4f %.4f dB; clip 0x%x\n",
+                m.numSamples, linDb(m.inPeak[0]), linDb(m.inPeak[1]), meanSqDb(m.inMeanSq[0]),
+                meanSqDb(m.inMeanSq[1]), linDb(m.outPeak[0]), linDb(m.outPeak[1]), meanSqDb(m.outMeanSq[0]),
+                meanSqDb(m.outMeanSq[1]), linDb(m.bandPeak[0]), static_cast<double>(m.bandPeak[1]),
+                static_cast<double>(m.bandPeak[2]), static_cast<double>(m.bandPeak[3]), m.clipFlags);
+    CHECK(m.numSamples == 1536u);  // six blocks: the first past the 30 ms (1440-sample) throttle
+    for (int c = 0; c < 2; ++c) {
+        INFO("channel " << c);
+        CHECK(std::fabs(linDb(m.inPeak[c]) - -6.02) < 0.05);
+        CHECK(std::fabs(meanSqDb(m.inMeanSq[c]) - -9.03) < 0.05);
+        CHECK(std::fabs(linDb(m.outPeak[c]) - -6.02) < 0.05);
+        CHECK(std::fabs(meanSqDb(m.outMeanSq[c]) - -9.03) < 0.05);
+    }
+    CHECK(std::fabs(linDb(m.bandPeak[0]) - linDb(m.inPeak[0])) < 0.05);
+    CHECK(m.bandPeak[1] == 0.0f);  // inactive bands report nothing
+    CHECK(m.bandPeak[2] == 0.0f);
+    CHECK(m.bandPeak[3] == 0.0f);
+    CHECK(m.clipFlags == 0u);
+
+    // Metering allocates nothing on the audio thread
+    size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (int i = 0; i < 64; ++i) (void)runSine();
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    std::printf("Meters: allocations over 64 metered blocks %zu\n", allocations);
+    CHECK(allocations == 0);
+}
+
+TEST_CASE("Level meters accumulate every block between two sends",
+          "[disrumpo][data-exchange][meters]")
+{
+    MeterHarness h;
+    // A different level in every block; L and R differ
+    double peak[2] = {0.0, 0.0};
+    double sumSq[2] = {0.0, 0.0};
+    uint32_t count = 0;
+    int checkedWindows = 0;
+    for (int block = 0; block < 60; ++block) {
+        const auto ampL = static_cast<float>(0.05 + 0.9 * std::fabs(std::sin(0.7 * block)));
+        const float ampR = ampL * 0.5f;
+        generateSine(h.inL.data(), MeterHarness::kBlock, 997.0f, MeterHarness::kRate, block * MeterHarness::kBlock);
+        for (int32 i = 0; i < MeterHarness::kBlock; ++i) {
+            const auto k = static_cast<size_t>(i);
+            h.inR[k] = h.inL[k] * ampR;
+            h.inL[k] *= ampL;
+            for (int c = 0; c < 2; ++c) {
+                const double x = (c == 0) ? h.inL[k] : h.inR[k];
+                peak[c] = std::max(peak[c], std::fabs(x));
+                sumSq[c] += x * x;
+            }
+        }
+        count += static_cast<uint32_t>(MeterHarness::kBlock);
+        if (!h.run()) continue;
+        const auto& m = h.meters();
+        INFO("window " << checkedWindows << " ending at block " << block << ": " << count << " samples");
+        CHECK(m.numSamples == count);
+        for (int c = 0; c < 2; ++c) {
+            CHECK(std::fabs(linDb(m.inPeak[c]) - linDb(peak[c])) < 0.01);
+            CHECK(std::fabs(meanSqDb(m.inMeanSq[c]) - meanSqDb(sumSq[c] / count)) < 0.01);
+        }
+        if (checkedWindows == 0)
+            std::printf("Meters accumulation: first window %u samples (%u blocks), in L peak %.4f (want %.4f), "
+                        "in L RMS %.4f dB (want %.4f dB)\n",
+                        m.numSamples, m.numSamples / MeterHarness::kBlock, static_cast<double>(m.inPeak[0]),
+                        peak[0], meanSqDb(m.inMeanSq[0]), meanSqDb(sumSq[0] / count));
+        ++checkedWindows;
+        peak[0] = peak[1] = sumSq[0] = sumSq[1] = 0.0;
+        count = 0;
+    }
+    std::printf("Meters accumulation: %d windows checked\n", checkedWindows);
+    CHECK(checkedWindows >= 9);
+}
+
+TEST_CASE("A single sample above 0 dBFS sets the clip bit of its channel only",
+          "[disrumpo][data-exchange][meters]")
+{
+    // Unity output: the sample reaches input L, band 0 and output L. Output Gain -6 dB:
+    // it no longer clips at the output.
+    for (const double outputGainNorm : {0.5, (-6.0 + 24.0) / 48.0}) {
+        MeterHarness h(outputGainNorm);
+        std::fill(h.inL.begin(), h.inL.end(), 0.0f);
+        std::fill(h.inR.begin(), h.inR.end(), 0.0f);
+        while (!h.run()) {}
+        const uint32_t silentFlags = h.meters().clipFlags;
+        const float silentPeak = h.meters().inPeak[0];
+        h.inL[100] = 1.2f;
+        bool sent = h.run();
+        h.inL[100] = 0.0f;
+        while (!sent) sent = h.run();
+        const uint32_t clipFlags = h.meters().clipFlags;
+        while (!h.run()) {}
+        const uint32_t nextFlags = h.meters().clipFlags;
+        const uint32_t want = (outputGainNorm == 0.5)
+            ? (Disrumpo::kMeterClipInL | Disrumpo::kMeterClipOutL | Disrumpo::kMeterClipBand0)
+            : (Disrumpo::kMeterClipInL | Disrumpo::kMeterClipBand0);
+        std::printf("Meters clip (output gain norm %.3f): silent window flags 0x%x peak %.3g; window with the 1.2 "
+                    "sample 0x%x (want 0x%x); next window 0x%x\n",
+                    outputGainNorm, silentFlags, static_cast<double>(silentPeak), clipFlags, want, nextFlags);
+        CHECK(silentFlags == 0u);
+        CHECK(silentPeak == 0.0f);
+        CHECK(clipFlags == want);
+        CHECK(nextFlags == 0u);
+    }
+}
+
+TEST_CASE("Silence reads zero on every meter", "[disrumpo][data-exchange][meters]")
+{
+    MeterHarness h;
+    std::fill(h.inL.begin(), h.inL.end(), 0.0f);
+    std::fill(h.inR.begin(), h.inR.end(), 0.0f);
+    int sends = 0;
+    while (sends < 3) sends += h.run() ? 1 : 0;
+    const auto& m = h.meters();
+    float largest = 0.0f;
+    for (int c = 0; c < 2; ++c)
+        largest = std::max({largest, m.inPeak[c], m.inMeanSq[c], m.outPeak[c], m.outMeanSq[c]});
+    for (const float b : m.bandPeak) largest = std::max(largest, b);
+    std::printf("Meters silence: largest value %.3g, clip 0x%x, window %u samples\n", static_cast<double>(largest),
+                m.clipFlags, m.numSamples);
+    CHECK(largest == 0.0f);
+    CHECK(m.clipFlags == 0u);
+    CHECK(m.numSamples > 0u);
+}
+
+TEST_CASE("Tier 3 SharedMeters delivers the DataExchange meter windows",
+          "[disrumpo][data-exchange][meters][tier3]")
+{
+    MeterHarness h;
+    const auto id = stateTrailerInstanceId(Disrumpo::TestSupport::getStateBytes(*h.proc));
+    auto* shared = static_cast<Disrumpo::SharedDisplay*>(Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(id));
+    REQUIRE(shared != nullptr);
+    REQUIRE(shared->meters != nullptr);
+
+    int block = 0;
+    bool clipNext = false;
+    auto runBlock = [&] {
+        generateSine(h.inL.data(), MeterHarness::kBlock, 440.0f, MeterHarness::kRate, block * MeterHarness::kBlock);
+        const auto amp = static_cast<float>(0.2 + 0.1 * (block % 5));
+        for (auto& s : h.inL) s *= amp;
+        h.inR = h.inL;
+        if (clipNext) h.inL[7] = 1.5f;
+        clipNext = false;
+        ++block;
+        return h.run();
+    };
+
+    // Read after every send: Tier 3 holds exactly the window DataExchange carried
+    Disrumpo::MeterWindow tier3;
+    int same = 0;
+    int sends = 0;
+    while (sends < 5) {
+        if (!runBlock()) continue;
+        ++sends;
+        REQUIRE(shared->meters->consume(tier3));
+        if (tier3 == h.meters()) ++same;
+        CHECK_FALSE(shared->meters->consume(tier3));  // nothing new until the next send
+    }
+    std::printf("Meters Tier 3: %d of %d windows identical to the DataExchange block\n", same, sends);
+    CHECK(same == sends);
+
+    // Two sends without a read: the read gets both windows merged (the clip in the first kept)
+    Disrumpo::MeterWindow first;
+    Disrumpo::MeterWindow second;
+    clipNext = true;
+    while (!runBlock()) {}
+    first = h.meters();
+    while (!runBlock()) {}
+    second = h.meters();
+    REQUIRE(shared->meters->consume(tier3));
+    Disrumpo::MeterWindow merged = first;
+    Disrumpo::mergeMeterWindow(merged, second);
+    std::printf("Meters Tier 3 merge: read %u samples (want %u + %u), in L peak %.4f (want max %.4f, %.4f), "
+                "clip 0x%x (want 0x%x)\n",
+                tier3.numSamples, first.numSamples, second.numSamples, static_cast<double>(tier3.inPeak[0]),
+                static_cast<double>(first.inPeak[0]), static_cast<double>(second.inPeak[0]), tier3.clipFlags,
+                first.clipFlags | second.clipFlags);
+    CHECK((first.clipFlags & Disrumpo::kMeterClipInL) != 0u);
+    CHECK((second.clipFlags & Disrumpo::kMeterClipInL) == 0u);
+    CHECK(tier3.numSamples == first.numSamples + second.numSamples);
+    CHECK(tier3.inPeak[0] == std::max(first.inPeak[0], second.inPeak[0]));
+    CHECK(tier3.clipFlags == (first.clipFlags | second.clipFlags));
+    CHECK(std::fabs(meanSqDb(tier3.inMeanSq[0]) - meanSqDb(merged.inMeanSq[0])) < 1e-3);
 }
 

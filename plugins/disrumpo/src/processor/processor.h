@@ -345,6 +345,10 @@ private:
     uint32_t spectrumRingWritePos_ = 0;
     uint32_t spectrumRingFilled_ = 0;
 
+    /// @brief Level meters accumulated since the last send (meter_window.h)
+    MeterAccumulator meterAccum_{};
+    static_assert(kMeterBands == kMaxBands);
+
     // ==========================================================================
     // SharedDisplayBridge (Tier 3 fallback for hosts without DataExchange)
     // ==========================================================================
@@ -353,6 +357,8 @@ private:
     Krate::DSP::SpectrumFIFO<8192> sharedInputFIFO_;
     Krate::DSP::SpectrumFIFO<8192> sharedOutputFIFO_;
     std::atomic<float> sharedSampleRate_{0.0f};
+    /// @brief Level-meter windows for Tier 3 (published at each send point)
+    SharedMeters sharedMeters_;
     /// @brief Shared display data exposed to controller via SharedDisplayBridge
     SharedDisplay sharedDisplay_{};
 

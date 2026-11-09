@@ -48,6 +48,7 @@ Processor::Processor() {
     sharedDisplay_.inputFIFO = &sharedInputFIFO_;
     sharedDisplay_.outputFIFO = &sharedOutputFIFO_;
     sharedDisplay_.sampleRate = &sharedSampleRate_;
+    sharedDisplay_.meters = &sharedMeters_;
 
     // Morph cache defaults matching Controller defaults. Set once here, never
     // in setupProcessing, so a restored patch survives re-preparation (D-046).
@@ -202,6 +203,7 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         processedSinceActivate_ = false;
         spectrumRingWritePos_ = 0;  // no stale audio joins the new activation's (D-133)
         spectrumRingFilled_ = 0;
+        meterAccum_.reset();
         crossoverL_.reset();
         crossoverR_.reset();
         for (auto& proc : bandProcessors_) {
@@ -595,6 +597,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     const auto totalSamples = static_cast<size_t>(data.numSamples);
     const float fadeInv = 1.0f / static_cast<float>(bandCountFadeSamples_);
+    // Level meters (meter_window.h): input after Input Gain, accumulated per sample
+    float inPeakL = meterAccum_.inPeak[0];
+    float inPeakR = meterAccum_.inPeak[1];
+    float inSumSqL = 0.0f;
+    float inSumSqR = 0.0f;
     size_t chunkStart = 0;
     while (chunkStart < totalSamples) {
         size_t chunkLen = std::min(totalSamples - chunkStart, BandProcessor::kMaxBlockSize);
@@ -612,8 +619,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // (FR-001b: independent L/R; input gain before the crossover)
         for (size_t n = 0; n < chunkLen; ++n) {
             const float inputGain = inputGainSmoother_.process();
-            crossoverL_.process(inL[n] * inputGain, bandsL);
-            crossoverR_.process(inR[n] * inputGain, bandsR);
+            const float gainedL = inL[n] * inputGain;
+            const float gainedR = inR[n] * inputGain;
+            inPeakL = std::max(inPeakL, std::abs(gainedL));
+            inPeakR = std::max(inPeakR, std::abs(gainedR));
+            inSumSqL += gainedL * gainedL;
+            inSumSqR += gainedR * gainedR;
+            crossoverL_.process(gainedL, bandsL);
+            crossoverR_.process(gainedR, bandsR);
             for (int b = 0; b < numBands; ++b) {
                 bandBufL_[b][n] = bandsL[b];
                 bandBufR_[b][n] = bandsR[b];
@@ -622,9 +635,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         // Each band as a block: oversampling, bypass, block-rate modulation
         // (processBlock brackets begin/endBlockModulation itself). Non-contributing
-        // bands are processed too, to keep their smoothers running.
+        // bands are processed too, to keep their smoothers running. The band meter
+        // reads the result: after the band's gain/pan/mute, before summation.
         for (int b = 0; b < numBands; ++b) {
             bandProcessors_[b].processBlock(bandBufL_[b].data(), bandBufR_[b].data(), chunkLen);
+            float bandPeak = meterAccum_.bandPeak[b];
+            for (size_t n = 0; n < chunkLen; ++n)
+                bandPeak = std::max({bandPeak, std::abs(bandBufL_[b][n]), std::abs(bandBufR_[b][n])});
+            meterAccum_.bandPeak[b] = bandPeak;
         }
 
         // Sum contributing bands (FR-013), dry/wet mix, then output gain on the
@@ -668,6 +686,32 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 contributes[b] = shouldBandContribute(b);
             }
         }
+    }
+
+    // Level meters: output as the host receives it (after Mix, Output Gain, the
+    // dry-path latency compensation and the band-count dip)
+    {
+        float outPeakL = meterAccum_.outPeak[0];
+        float outPeakR = meterAccum_.outPeak[1];
+        float outSumSqL = 0.0f;
+        float outSumSqR = 0.0f;
+        for (size_t n = 0; n < totalSamples; ++n) {
+            const float l = outputL[n];
+            const float r = outputR[n];
+            outPeakL = std::max(outPeakL, std::abs(l));
+            outPeakR = std::max(outPeakR, std::abs(r));
+            outSumSqL += l * l;
+            outSumSqR += r * r;
+        }
+        meterAccum_.inPeak[0] = inPeakL;
+        meterAccum_.inPeak[1] = inPeakR;
+        meterAccum_.inSumSq[0] += inSumSqL;
+        meterAccum_.inSumSq[1] += inSumSqR;
+        meterAccum_.outPeak[0] = outPeakL;
+        meterAccum_.outPeak[1] = outPeakR;
+        meterAccum_.outSumSq[0] += outSumSqL;
+        meterAccum_.outSumSq[1] += outSumSqR;
+        meterAccum_.numSamples += static_cast<uint32_t>(totalSamples);
     }
 
     // ==========================================================================

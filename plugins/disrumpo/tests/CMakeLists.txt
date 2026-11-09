@@ -123,6 +123,9 @@ add_executable(disrumpo_tests
     # Unit tests - MIDI CC Manager (012-progressive-disclosure)
     unit/midi_cc_manager_test.cpp
 
+    # Level-meter windows: accumulation, merge, NaN input, Tier 3 (IEEE TU)
+    unit/meter_window_test.cpp
+
     # Unit tests - Accessibility (012-progressive-disclosure)
     unit/accessibility_test.cpp
 
@@ -227,6 +230,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/processor_sweep_test.cpp
         unit/spectrum_analyzer_test.cpp
         unit/test_support_smoke_test.cpp
+        unit/meter_window_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()

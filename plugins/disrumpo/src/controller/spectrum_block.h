@@ -11,6 +11,8 @@
 // host buffer size. Actual sample count per block is stored in numSamples.
 // ==============================================================================
 
+#include "meter_window.h"
+
 #include <cstdint>
 #include <type_traits>
 
@@ -46,6 +48,9 @@ struct SpectrumBlock {
     /// Modulation offsets at the end of the block, by ModDest index, for the
     /// mod-slider overlay (values, never a processor address: D-045)
     float modOffsets[kSpectrumBlockModOffsets]{};
+
+    /// Level meters: the window accumulated since the previous send (meter_window.h)
+    MeterWindow meters{};
 };
 
 static_assert(std::is_trivially_copyable_v<SpectrumBlock>,

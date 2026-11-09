@@ -133,6 +133,11 @@ void Processor::sendSpectrumBlock(
 
     spectrumSendAccumulatorSamples_ %= spectrumSendIntervalSamples_;
 
+    // Level meters: the window accumulated since the last send; Tier 3 gets it
+    // whether or not DataExchange is connected
+    const MeterWindow meters = meterAccum_.take();
+    sharedMeters_.publish(meters);
+
     // Tier 1/2: Send via DataExchange (if host called connect())
     if (!dataExchange_)
         return;
@@ -163,6 +168,8 @@ void Processor::sendSpectrumBlock(
         specBlock->modOffsets);
     std::fill(specBlock->modOffsets + ModDest::kTotalDestinations,
         specBlock->modOffsets + kSpectrumBlockModOffsets, 0.0f);
+
+    specBlock->meters = meters;
 
     dataExchange_->sendCurrentBlock();
 }
