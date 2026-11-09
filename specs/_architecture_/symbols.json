@@ -3961,7 +3961,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/wavefolder_processor.h",
-      "line": 115
+      "line": 116
     },
     {
       "name": "WaveguideResonator",
