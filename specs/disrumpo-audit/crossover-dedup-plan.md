@@ -68,7 +68,10 @@ hidden A/B probe (old vs new) whose numbers go in the commit message.
 
 1. Allpass Q: exact 1/√2 everywhere; Disrumpo is not bit-identical (A/B difference measured and reported).
 2. Fractal start-up: snap on prepare like every caller; the first-prepare glide from 1000 Hz goes away.
-3. Fractal Multiband compensation: decide after the queued Fractal measurement (band-sum deviation off vs on).
+3. Fractal Multiband compensation: ON (ruled after the measurement, commit 608a88e2 probe `[.][fractal-comp-probe]`):
+   OFF the band sum dips −0.77 dB at 320 Hz at 44.1/48/96 kHz, ON it is flat (≤ 0.0001 dB); at Disrumpo's Fractal
+   defaults switching it on raises the output +0.2 dB (+0.44/+0.55 dB in the 250–1000 / 62.5–250 Hz bands), mostly
+   a phase rotation (difference signal −11.6 dB). Step 2 enables it; Fractal Multiband presets change slightly.
 4. `AliasingEffect` stays as it is (different filter, not a duplicate).
 5. The order-dependent frequency clamp is dropped; callers keep their frequencies ordered; the FR-016 clamp tests
    are removed with a note.
