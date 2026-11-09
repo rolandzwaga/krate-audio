@@ -823,7 +823,15 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                 int typeIdx = static_cast<int>(dtParam->getNormalized() * 25.0 + 0.5);
                 auto distType = static_cast<DistortionType>(std::clamp(typeIdx, 0, 25));
                 int slot = paramByte - static_cast<uint8_t>(NodeParamType::kNodeShape0);
-                if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), string))
+                const uint8_t node = extractNode(id);
+                std::array<float, kShapeSlotDescriptorCount> slots{};
+                for (int k = 0; k < kShapeSlotDescriptorCount; ++k) {
+                    slots[static_cast<size_t>(k)] = static_cast<float>(getParamNormalized(makeNodeParamId(
+                        band, node,
+                        static_cast<NodeParamType>(static_cast<uint8_t>(NodeParamType::kNodeShape0) + k))));
+                }
+                slots[static_cast<size_t>(slot)] = static_cast<float>(valueNormalized);
+                if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), slots.data(), string))
                     return Steinberg::kResultTrue;
             }
         }
@@ -886,7 +894,13 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                     int typeIdx = static_cast<int>(dtParam->getNormalized() * 25.0 + 0.5);
                     auto distType = static_cast<DistortionType>(std::clamp(typeIdx, 0, 25));
                     int slot = paramByte - shape0Byte;
-                    if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), string))
+                    std::array<float, kShapeSlotDescriptorCount> slots{};
+                    for (int k = 0; k < kShapeSlotDescriptorCount; ++k) {
+                        slots[static_cast<size_t>(k)] = static_cast<float>(getParamNormalized(makeBandParamId(
+                            band, static_cast<BandParamType>(shape0Byte + k))));
+                    }
+                    slots[static_cast<size_t>(slot)] = static_cast<float>(valueNormalized);
+                    if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), slots.data(), string))
                         return Steinberg::kResultTrue;
                 }
             }

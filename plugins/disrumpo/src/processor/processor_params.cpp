@@ -6,6 +6,7 @@
 #include "plugin_ids.h"
 #include "state_codec.h"
 
+#include "dsp/shape_slot_descriptors.h"
 #include "dsp/sweep_morph_link.h"
 
 #include "base/source/fstreamer.h"
@@ -32,265 +33,24 @@ namespace Disrumpo {
 // ==============================================================================
 // Shape Slot → DistortionParams Mapping
 // ==============================================================================
-// Maps normalized [0,1] shape slot values to denormalized DistortionParams
-// fields based on the active distortion type. Each type's UI controls are
-// assigned sequential slots (see plan mapping table).
+// Maps normalized [0,1] shape slot values to DistortionParams fields through the
+// per-type descriptor table in dsp/shape_slot_descriptors.h, which the
+// controller's slot formatter reads as well (D-090).
 // ==============================================================================
+
+static_assert(MorphNode::kShapeSlotCount == kShapeSlotDescriptorCount);
 
 void Processor::mapShapeSlotsToParams(DistortionType type, const float* slots,
                                       DistortionParams& p) noexcept {
-    switch (type) {
-        case DistortionType::SoftClip:
-            // Slot0=Curve, Slot1=Knee
-            p.curve = slots[0];
-            p.knee = slots[1];
-            break;
-
-        case DistortionType::HardClip:
-            // Slot0=Threshold, Slot1=Ceiling
-            p.threshold = slots[0];
-            p.ceiling = slots[1];
-            break;
-
-        case DistortionType::Tube:
-            // Slot0=Bias, Slot1=Sag, Slot2=Stage
-            p.bias = slots[0] * 2.0f - 1.0f;        // [0,1] → [-1,1]
-            p.sag = slots[1];
-            p.satStage = static_cast<int>(slots[2] * 3.0f + 0.5f);
-            break;
-
-        case DistortionType::Tape:
-            // Slot0=Bias, Slot1=Sag, Slot2=Speed, Slot3=Model, Slot4=HFRoll, Slot5=Flutter
-            p.bias = slots[0] * 2.0f - 1.0f;
-            p.sag = slots[1];
-            p.speed = slots[2];
-            p.tapeModel = static_cast<int>(slots[3] * 1.0f + 0.5f); // 0-1 (Simple/Hysteresis)
-            p.hfRoll = slots[4];
-            p.flutter = slots[5];
-            break;
-
-        case DistortionType::Fuzz:
-            // Slot0=Bias, Slot1=Transistor, Slot2=Octave, Slot3=Sustain
-            p.bias = slots[0] * 2.0f - 1.0f;  // bipolar as every type; the adapter maps it to Fuzz's [0,1] (D-082)
-            p.transistor = static_cast<int>(slots[1] * 1.0f + 0.5f); // 0-1
-            p.octave = slots[2];
-            p.sustain = slots[3];
-            break;
-
-        case DistortionType::AsymmetricFuzz:
-            // Slot0=Bias, Slot1=Asym, Slot2=Trans, Slot3=Sustain, Slot4=Body
-            p.bias = slots[0] * 2.0f - 1.0f;  // bipolar, as Fuzz (D-082)
-            p.asymmetry = slots[1];
-            p.transistor = static_cast<int>(slots[2] * 1.0f + 0.5f);
-            p.sustain = slots[3];
-            p.body = slots[4];
-            break;
-
-        case DistortionType::SineFold:
-            // Slot0=Folds, Slot1=Symmetry, Slot2=Shape, Slot3=Bias, Slot4=Smooth
-            p.folds = 1.0f + slots[0] * 11.0f;       // [0,1] → [1,12]
-            p.symmetry = slots[1] * 2.0f - 1.0f;     // [0,1] → [-1,1]
-            p.shape = slots[2];
-            p.bias = slots[3] * 2.0f - 1.0f;
-            p.smoothness = slots[4];
-            break;
-
-        case DistortionType::TriangleFold:
-            // Slot0=Folds, Slot1=Symmetry, Slot2=Angle, Slot3=Bias, Slot4=Smooth
-            p.folds = 1.0f + slots[0] * 11.0f;
-            p.symmetry = slots[1] * 2.0f - 1.0f;
-            p.angle = slots[2];
-            p.bias = slots[3] * 2.0f - 1.0f;
-            p.smoothness = slots[4];
-            break;
-
-        case DistortionType::SergeFold:
-            // Slot0=Folds, Slot1=Symm, Slot2=Model, Slot3=Bias, Slot4=Shape, Slot5=Smooth
-            p.folds = 1.0f + slots[0] * 11.0f;
-            p.symmetry = slots[1] * 2.0f - 1.0f;
-            p.foldModel = static_cast<int>(slots[2] * 3.0f + 0.5f); // 0-3 models
-            p.bias = slots[3] * 2.0f - 1.0f;
-            p.shape = slots[4];
-            p.smoothness = slots[5];
-            break;
-
-        case DistortionType::FullRectify:
-            // Slot0=Smooth, Slot1=DCBlock
-            p.smoothness = slots[0];
-            p.dcBlock = slots[1] >= 0.5f;
-            break;
-
-        case DistortionType::HalfRectify:
-            // Slot0=Threshold, Slot1=Smooth, Slot2=DCBlock
-            p.threshold = slots[0];
-            p.smoothness = slots[1];
-            p.dcBlock = slots[2] >= 0.5f;
-            break;
-
-        case DistortionType::Bitcrush:
-            // Slot0=Bits, Slot1=Dither, Slot2=Mode, Slot3=Jitter
-            p.bitDepth = 4.0f + slots[0] * 12.0f;     // [0,1] → [4,16], BitCrusher's range
-            p.dither = slots[1];
-            p.bitcrushMode = static_cast<int>(slots[2] * 1.0f + 0.5f);
-            p.jitter = slots[3];
-            break;
-
-        case DistortionType::SampleReduce:
-            // Slot0=Rate, Slot1=Jitter, Slot2=Mode, Slot3=Smooth
-            p.sampleRateRatio = 1.0f + slots[0] * 31.0f; // [0,1] → [1,32]
-            p.jitter = slots[1];
-            p.sampleMode = static_cast<int>(slots[2] * 1.0f + 0.5f);
-            p.smoothness = slots[3];
-            break;
-
-        case DistortionType::Quantize:
-            // Slot0=Levels, Slot1=Dither, Slot2=Smooth, Slot3=Offset
-            p.quantLevels = slots[0];
-            p.dither = slots[1];
-            p.smoothness = slots[2];
-            p.quantOffset = slots[3];
-            break;
-
-        case DistortionType::Temporal:
-            // Slot0=Mode, Slot1=Sens, Slot2=Curve, Slot3=Atk, Slot4=Rel, Slot5=Depth,
-            // Slot6=(unused), Slot7=Hold
-            p.dynamicMode = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 modes
-            p.sensitivity = slots[1];
-            p.dynamicCurve = slots[2];
-            p.attackMs = 1.0f + slots[3] * 499.0f;    // [0,1] → [1,500]
-            p.releaseMs = 10.0f + slots[4] * 4990.0f; // [0,1] → [10,5000]
-            p.dynamicDepth = slots[5];
-            p.hold = slots[7];
-            break;
-
-        case DistortionType::RingSaturation:
-            // Slot0=Mod, Slot1=Stages, Slot2=Curve, Slot3=Carrier, Slot4=Bias,
-            // Slot5=Freq mode, Slot6=Hz/Ratio
-            p.modDepth = slots[0];
-            p.stages = 1 + static_cast<int>(slots[1] * 3.0f + 0.5f); // [0,1] → 1-4
-            p.rsCurve = slots[2];
-            p.carrierType = static_cast<int>(slots[3] * 3.0f + 0.5f);
-            p.bias = slots[4] * 2.0f - 1.0f;
-            p.rsFreqSelect = static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.rsCarrierFreq = slots[6];
-            break;
-
-        case DistortionType::FeedbackDist:
-            // Slot0=FB, Slot1=Delay, Slot2=Curve, Slot3=Filter, Slot4=Freq,
-            // Slot5=Stage, Slot6=Lim, Slot7=Thr, Slot8=Decay
-            p.feedback = slots[0] * 1.5f;              // [0,1] → [0,1.5]
-            p.delayMs = 1.0f + slots[1] * 99.0f;      // [0,1] → [1,100]
-            p.fbCurve = slots[2];
-            p.filterType = static_cast<int>(slots[3] * 3.0f + 0.5f);
-            p.filterFreq = slots[4];
-            p.stages = 1 + static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.limiter = slots[6] >= 0.5f;
-            p.limThreshold = slots[7];
-            p.fbDecay = slots[8];                      // [0,1] direct
-            break;
-
-        case DistortionType::Aliasing:
-            // Slot0=Down, Slot1=Shift
-            p.sampleRateRatio = 2.0f + slots[0] * 30.0f; // [0,1] → [2,32]
-            p.freqShift = (slots[1] * 2.0f - 1.0f) * 5000.0f; // [0,1] → [-5000,5000]
-            break;
-
-        case DistortionType::BitwiseMangler:
-            // Slot0=Op, Slot1=Intensity, Slot2=Pattern
-            p.bitwiseOp = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 operations
-            p.bitwiseIntensity = slots[1];
-            p.bitwisePattern = slots[2];
-            break;
-
-        case DistortionType::Chaos:
-            // Slot0=Attr, Slot1=Spd, Slot2=Amt, Slot3=Coup, Slot4=XDr, Slot5=YDr, Slot6=Smth
-            p.chaosAttractor = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3
-            p.attractorSpeed = 0.01f + slots[1] * 99.99f; // [0,1] → [0.01,100]
-            p.chaosAmount = slots[2];
-            p.chaosCoupling = slots[3];
-            p.chaosXDrive = slots[4];
-            p.chaosYDrive = slots[5];
-            p.smoothness = slots[6];
-            break;
-
-        case DistortionType::Formant:
-            // Slot0=Vowel, Slot1=Shift, Slot2=Curve, Slot3=Reso, Slot4=BW,
-            // Slot5=Fmts, Slot6=Gendr, Slot7=Blend
-            p.vowelSelect = static_cast<int>(slots[0] * 4.0f + 0.5f); // 0-4 vowels
-            p.formantShift = (slots[1] * 2.0f - 1.0f) * 24.0f; // [0,1] → [-24,24]
-            p.formantCurve = slots[2];
-            p.formantReso = slots[3];
-            p.formantBW = slots[4];
-            p.formantCount = static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.formantGender = slots[6];
-            p.formantBlend = slots[7];
-            break;
-
-        case DistortionType::Granular:
-            // Slot0=Size, Slot1=Dens, Slot2=PVar, Slot3=DVar, Slot4=Pos,
-            // Slot5=Curve, Slot6=Env
-            p.grainSizeMs = 5.0f + slots[0] * 95.0f;  // [0,1] → [5,100]
-            p.grainDensity = slots[1];
-            p.grainPVar = slots[2];
-            p.grainDVar = slots[3];
-            p.grainPos = slots[4];
-            p.grainCurve = slots[5];
-            p.grainEnvType = static_cast<int>(slots[6] * 3.0f + 0.5f);
-            break;
-
-        case DistortionType::Spectral:
-            // Slot0=Mode, Slot1=FFT, Slot2=Curve, Slot3=Tilt, Slot4=Thr,
-            // Slot5=Mag, Slot6=Freq, Slot7=Phase
-            p.spectralMode = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 modes
-            p.fftSize = 512 * (1 << static_cast<int>(slots[1] * 3.0f + 0.5f)); // 512-4096
-            p.spectralCurve = slots[2];
-            p.spectralTilt = slots[3];
-            p.spectralThreshold = slots[4];
-            p.spectralMagMode = static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.spectralFreq = slots[6];
-            p.spectralPhase = static_cast<int>(slots[7] * 3.0f + 0.5f);
-            break;
-
-        case DistortionType::Fractal:
-            // Slot0=Mode, Slot1=Iter, Slot2=Scale, Slot3=Curve, Slot4=FDecay,
-            // Slot5=FB, Slot6=Blend, Slot7=Depth
-            p.fractalMode = static_cast<int>(slots[0] * 4.0f + 0.5f); // 0-4 modes
-            p.iterations = 1 + static_cast<int>(slots[1] * 7.0f + 0.5f); // [0,1] → 1-8
-            p.scaleFactor = 0.3f + slots[2] * 0.6f;    // [0,1] → [0.3,0.9]
-            p.fractalCurve = slots[3];
-            p.frequencyDecay = slots[4];
-            p.fractalFB = slots[5] * 0.5f;              // [0,1] → [0,0.5]
-            p.fractalBlend = static_cast<int>(slots[6] * 3.0f + 0.5f);
-            p.fractalDepth = slots[7];
-            break;
-
-        case DistortionType::Stochastic:
-            // Slot0=Curve, Slot1=Jit, Slot2=Rate, Slot3=Coef, Slot4=Drift,
-            // Slot5=Corr, Slot6=Smth, Slot7=Dist (noise color)
-            p.stochasticCurve = static_cast<int>(slots[0] * 5.0f + 0.5f);
-            p.jitterAmount = slots[1];
-            p.jitterRate = 0.1f + slots[2] * 99.9f;   // [0,1] → [0.1,100]
-            p.coefficientNoise = slots[3];
-            p.stochasticDrift = slots[4];
-            p.stochasticCorr = static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.stochasticSmooth = slots[6];
-            p.stochasticNoiseColor = static_cast<int>(slots[7] * 4.0f + 0.5f);
-            break;
-
-        case DistortionType::AllpassResonant:
-            // Slot0=Topo, Slot1=Freq, Slot2=FB, Slot3=Decay, Slot4=Drive,
-            // Slot5=Curve, Slot7=Damp (Slot6 unused)
-            p.allpassTopo = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 topologies
-            p.resonantFreq = 20.0f + slots[1] * 1980.0f; // [0,1] → [20,2000]
-            p.allpassFeedback = slots[2] * 0.99f;       // [0,1] → [0,0.99]
-            p.decayTimeS = 0.01f + slots[3] * 9.99f;    // [0,1] → [0.01,10]
-            p.allpassDrive = slots[4];                   // [0,1] → drive amount
-            p.allpassSatType = static_cast<int>(slots[5] * 3.0f + 0.5f); // 0-3 curve types
-            p.allpassDamp = slots[7];                    // [0,1] → damping amount
-            break;
-
-        default:
-            break;
+    const int t = static_cast<int>(type);
+    if (t < 0 || t >= kDistortionTypeCount) {
+        return;
+    }
+    for (int s = 0; s < kShapeSlotDescriptorCount; ++s) {
+        const ShapeSlotDescriptor& d = shapeSlotDescriptor(type, s);
+        if (d.map != SlotMap::Unused) {
+            applyShapeSlot(d, slots[s], p);
+        }
     }
 }
 

@@ -7,6 +7,7 @@
 // ==============================================================================
 
 #include "distortion_adapter.h"
+#include "shape_slot_descriptors.h"
 
 #include <krate/dsp/core/fast_math.h>
 
@@ -19,7 +20,7 @@ namespace {
 
 /// Temporal's Curve slot [0, 1] -> WaveshapeType index 0..8 (7 = Diode, 8 = Tube).
 int temporalShapeIndex(float dynamicCurve) noexcept {
-    return std::clamp(static_cast<int>(dynamicCurve * 8.0f + 0.5f), 0, 8);
+    return waveshapeCurveIndex(dynamicCurve);
 }
 
 /// Makeup gain for the fold models whose output peak the fold amount caps below 1 (D-158).
@@ -1016,7 +1017,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             updateDCBlockerState();
 
             // Hold (Slot 7) → hysteresis decay time [1, 500] ms
-            float decayMs = 1.0f + p.hold * 499.0f;
+            float decayMs = temporalHoldMs(p.hold);
             temporal_.setHysteresisDecay(decayMs);
             break;
         }
@@ -1029,8 +1030,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             ringSaturation_.setStages(std::clamp(p.stages, 1, 4));
 
             // Curve → waveshape type (9 discrete types)
-            int curveIdx = static_cast<int>(p.rsCurve * 8.0f + 0.5f);
-            curveIdx = std::clamp(curveIdx, 0, 8);
+            const int curveIdx = waveshapeCurveIndex(p.rsCurve);
             ringSaturation_.setSaturationCurve(
                 static_cast<Krate::DSP::WaveshapeType>(curveIdx));
 
@@ -1050,11 +1050,11 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             // Carrier frequency param — interpretation depends on mode
             if (freqMode == 0) {
                 // Fixed: [0,1] → [20, 5000] Hz exponential
-                float freqHz = 20.0f * std::pow(250.0f, p.rsCarrierFreq);
+                float freqHz = ringSatCarrierHz(p.rsCarrierFreq);
                 ringSaturation_.setCarrierFrequency(freqHz);
             } else if (freqMode == 1) {
                 // Harmonic: [0,1] → ratio 1-16
-                float ratio = 1.0f + std::round(p.rsCarrierFreq * 15.0f);
+                float ratio = ringSatHarmonicRatio(p.rsCarrierFreq);
                 ringSaturation_.setHarmonicRatio(ratio);
             }
             // Track/Random: frequency is auto-determined, no param needed
@@ -1065,7 +1065,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             feedbackDist_.setFeedback(p.feedback);
             feedbackDist_.setDelayTime(p.delayMs);
             // Curve → loop waveshape (9 discrete types), mapped like RingSaturation's curve (D-078)
-            const int curveIdx = std::clamp(static_cast<int>(p.fbCurve * 8.0f + 0.5f), 0, 8);
+            const int curveIdx = waveshapeCurveIndex(p.fbCurve);
             feedbackDist_.setSaturationCurve(static_cast<Krate::DSP::WaveshapeType>(curveIdx));
             // Lim off bypasses the limiter; Thr [0, 1] → [-24, 0] dB, higher = looser (D-078)
             feedbackDist_.setLimiterEnabled(p.limiter);
@@ -1156,7 +1156,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             spectral_.setActiveFftSize(static_cast<std::size_t>(p.fftSize));
 
             // Slot 2: Curve — map continuous [0,1] to WaveshapeType enum (9 types: 0-8)
-            int curveIdx = std::clamp(static_cast<int>(p.spectralCurve * 8.0f + 0.5f), 0, 8);
+            const int curveIdx = waveshapeCurveIndex(p.spectralCurve);
             spectral_.setSaturationCurve(static_cast<Krate::DSP::WaveshapeType>(curveIdx));
 
             // Slot 3: Tilt — spectral tilt [0,1] (0=dark, 0.5=neutral, 1=bright)
@@ -1192,7 +1192,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             fractal_.setFeedbackAmount(p.fractalFB);
             // Curve controls saturation waveshaper type across all modes
             auto curveType = static_cast<Krate::DSP::WaveshapeType>(
-                std::clamp(static_cast<int>(p.fractalCurve * 8.0f + 0.5f), 0, 8));
+                waveshapeCurveIndex(p.fractalCurve));
             fractal_.setCurveType(curveType);
             // Blend mode controls how iteration levels are combined
             int blendIdx = std::clamp(p.fractalBlend, 0, 3);
