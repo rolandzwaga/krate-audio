@@ -60,6 +60,7 @@ void MorphEngine::prepare(double sampleRate, int maxBlockSize, int maxOversample
         adapters_[i].setCommonParams(nodes_[i].commonParams);
     }
     updateLatencyAlignment();
+    clearSwitchFade();
 
     prepared_ = true;
 }
@@ -99,6 +100,8 @@ void MorphEngine::reset() noexcept {
     biasModOffset_ = 0.0f;
     sweepDriveScale_ = 1.0f;
     appliedSweepDriveScale_ = 1.0f;
+
+    clearSwitchFade();
 }
 
 void MorphEngine::resetState() noexcept {
@@ -106,6 +109,16 @@ void MorphEngine::resetState() noexcept {
         adapter.reset();
     }
     blendedAdapter_.reset();
+    clearSwitchFade();
+}
+
+void MorphEngine::clearSwitchFade() noexcept {
+    // Every adapter is clear: no path is stale, nothing to fade from
+    processedSameType_ = isSameType();
+    processedNodeCount_ = activeNodeCount_;
+    switchFadeRemaining_ = 0;
+    lastOutput_ = 0.0f;
+    hasOutput_ = false;
 }
 
 void MorphEngine::setProcessingRate(double rate) noexcept {
@@ -689,12 +702,42 @@ float MorphEngine::process(float input) noexcept {
     // Update path check
     allSameType_ = isSameType();
 
-    // One interpolated processor for identical types, parallel blend otherwise
-    if (allSameType_) {
-        return processSameFamily(input);
-    } else {
-        return processCrossFamily(input);
+    // A node type change can switch between the interpolated processor and the parallel
+    // adapters, and a node count increase adds parallel adapters: the incoming ones were
+    // idle, so clear them and fade from the last output over 5 ms (D-032). Before the first
+    // processed sample (after prepare() / reset()) every adapter is clear already.
+    const bool pathSwitch = allSameType_ != processedSameType_;
+    const bool nodesAdded = !allSameType_ && activeNodeCount_ > processedNodeCount_;
+    if ((pathSwitch || nodesAdded) && hasOutput_) {
+        if (allSameType_) {
+            blendedAdapter_.reset();
+        } else {
+            const int first = pathSwitch ? 0 : processedNodeCount_;
+            for (int i = first; i < activeNodeCount_; ++i) {
+                adapters_[i].reset();
+            }
+        }
+        switchFadeOrigin_ = lastOutput_;
+        switchFadeLength_ = std::max(1, static_cast<int>(kSwitchFadeSeconds * sampleRate_));
+        switchFadeRemaining_ = switchFadeLength_;
     }
+    processedSameType_ = allSameType_;
+    processedNodeCount_ = activeNodeCount_;
+
+    // One interpolated processor for identical types, parallel blend otherwise
+    float out = allSameType_ ? processSameFamily(input) : processCrossFamily(input);
+    if (switchFadeRemaining_ > 0) {
+        // Linear crossfade; its last sample is the new path's output exactly (branch)
+        --switchFadeRemaining_;
+        if (switchFadeRemaining_ > 0) {
+            const float g =
+                1.0f - static_cast<float>(switchFadeRemaining_) / static_cast<float>(switchFadeLength_);
+            out = switchFadeOrigin_ + g * (out - switchFadeOrigin_);
+        }
+    }
+    lastOutput_ = out;
+    hasOutput_ = true;
+    return out;
 }
 
 void MorphEngine::processBlock(const float* input, float* output, int numSamples) noexcept {

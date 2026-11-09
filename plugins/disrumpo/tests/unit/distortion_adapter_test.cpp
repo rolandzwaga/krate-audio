@@ -3284,3 +3284,135 @@ TEST_CASE("FeedbackDist limiter off does not limit", "[disrumpo][distortion][fee
         CHECK(worst < 16.0f);
     }
 }
+
+// =============================================================================
+// Type changes reset the new processor and fade (audit D-032, D-080; fix plan T2.13)
+// =============================================================================
+// setType only switched processRaw to the new type's processor, which resumed with
+// whatever it held from its last use: a FeedbackDist delay line, a Granular buffer,
+// Spectral frames. Switching back to such a type replayed old audio.
+// =============================================================================
+
+TEST_CASE("Switching FeedbackDist -> SoftClip -> FeedbackDist does not replay old audio",
+          "[disrumpo][distortion][type-switch][D-080][D-032]") {
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kTestSampleRate, kTestBlockSize);
+    DistortionParams p;
+    p.feedback = 0.9f;
+    adapter->setType(DistortionType::FeedbackDist);
+    adapter->setParams(p);
+    adapter->setCommonParams({.drive = 2.0f, .mix = 1.0f, .toneHz = 8000.0f});
+
+    // 0.5 s of a loud 220 Hz sine fills the feedback delay line
+    const auto half = static_cast<std::size_t>(kTestSampleRate / 2.0);
+    float loudPeak = 0.0f;
+    for (std::size_t n = 0; n < half; ++n) {
+        const float x = 0.8f * std::sin(2.0f * std::numbers::pi_v<float> * 220.0f *
+                                        static_cast<float>(n) / static_cast<float>(kTestSampleRate));
+        loudPeak = std::max(loudPeak, std::abs(adapter->process(x)));
+    }
+
+    // SoftClip for 1 s of silence, then back to FeedbackDist (setNodes order: type, params)
+    adapter->setType(DistortionType::SoftClip);
+    adapter->setParams(p);
+    for (std::size_t n = 0; n < 2 * half; ++n) (void)adapter->process(0.0f);
+    adapter->setType(DistortionType::FeedbackDist);
+    adapter->setParams(p);
+    float replayPeak = 0.0f;
+    for (std::size_t n = 0; n < static_cast<std::size_t>(kTestSampleRate / 10.0); ++n)
+        replayPeak = std::max(replayPeak, std::abs(adapter->process(0.0f)));
+
+    std::printf("D-080 FeedbackDist (feedback 0.9) -> SoftClip -> FeedbackDist: peak while loud %.4f, max |out| "
+                "in 100 ms of silence after switching back %.3g\n",
+                static_cast<double>(loudPeak), static_cast<double>(replayPeak));
+    REQUIRE(loudPeak > 0.1f);
+    REQUIRE(replayPeak < 1e-4f);
+}
+
+TEST_CASE("Re-activating a FeedbackDist morph node does not replay old audio",
+          "[disrumpo][morph][type-switch][D-032]") {
+    // Nodes SoftClip / SineFold / FeedbackDist (feedback 0.9) at x = 0.75: node C runs while
+    // a loud sine plays, the node count drops to 2 for 1 s of silence (C stops being
+    // processed), then returns to 3 with silence still at the input.
+    auto engine = std::make_unique<MorphEngine>();
+    engine->prepare(kTestSampleRate, kTestBlockSize);
+    std::array<MorphNode, kMaxMorphNodes> nodes{
+        MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip), MorphNode(1, 1.0f, 0.0f, DistortionType::SineFold),
+        MorphNode(2, 0.0f, 1.0f, DistortionType::FeedbackDist), MorphNode(3, 1.0f, 1.0f, DistortionType::Tube)};
+    nodes[2].params.feedback = 0.9f;
+    engine->setNodes(nodes, 3);
+    engine->setMode(MorphMode::Linear1D);
+    engine->setMorphPosition(0.75f, 0.0f);
+    (*engine).reset();
+
+    const auto half = static_cast<std::size_t>(kTestSampleRate / 2.0);
+    for (std::size_t n = 0; n < half; ++n) {
+        (void)engine->process(0.8f * std::sin(2.0f * std::numbers::pi_v<float> * 220.0f * static_cast<float>(n) /
+                                              static_cast<float>(kTestSampleRate)));
+    }
+    engine->setNodes(nodes, 2);
+    for (std::size_t n = 0; n < 2 * half; ++n) (void)engine->process(0.0f);
+    engine->setNodes(nodes, 3);
+    float replayPeak = 0.0f;
+    for (std::size_t n = 0; n < static_cast<std::size_t>(kTestSampleRate / 10.0); ++n)
+        replayPeak = std::max(replayPeak, std::abs(engine->process(0.0f)));
+    std::printf("D-032 FeedbackDist node C re-activated after 1 s at 2 nodes: max |out| in 100 ms of silence %.3g\n",
+                static_cast<double>(replayPeak));
+    REQUIRE(replayPeak < 1e-4f);
+}
+
+TEST_CASE("A type change fades the output over 5 ms instead of stepping",
+          "[disrumpo][distortion][type-switch][D-141]") {
+    // HardClip at threshold 0 and ceiling 0 holds a DC input of 0.5 at 0.1; SoftClip (knee
+    // 0.5: linear up to 0.5) passes it at 0.5. Without the fade that is a 0.4 step, smoothed
+    // only by the 8 kHz tone filter.
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kTestSampleRate, kTestBlockSize);
+    DistortionParams p;
+    p.threshold = 0.0f;
+    p.ceiling = 0.0f;
+    adapter->setType(DistortionType::HardClip);
+    adapter->setParams(p);
+    adapter->setCommonParams({.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f});
+    for (int n = 0; n < 4410; ++n) (void)adapter->process(0.5f);
+    const float before = adapter->process(0.5f);
+
+    adapter->setType(DistortionType::SoftClip);
+    adapter->setParams(p);
+    const auto fadeLen = static_cast<int>(0.005 * kTestSampleRate);
+    std::vector<float> y(static_cast<std::size_t>(2 * fadeLen));
+    for (auto& v : y) v = adapter->process(0.5f);
+    float maxStep = std::abs(y[0] - before);
+    for (std::size_t n = 1; n < y.size(); ++n) maxStep = std::max(maxStep, std::abs(y[n] - y[n - 1]));
+    const float settled = y.back();
+    std::printf("D-141 HardClip -> SoftClip on DC 0.5: before %.4f, after %.4f, largest step %.5f (total change "
+                "%.4f over %d samples)\n",
+                static_cast<double>(before), static_cast<double>(settled), static_cast<double>(maxStep),
+                static_cast<double>(settled - before), fadeLen);
+    REQUIRE(std::abs(settled - before) > 0.2f);
+    // A linear 5 ms ramp moves by total / fadeLen per sample (plus the tone filter's settling)
+    REQUIRE(maxStep <= 1.5f * std::abs(settled - before) / static_cast<float>(fadeLen));
+}
+
+TEST_CASE("Type changes through all 26 types allocate nothing", "[disrumpo][distortion][type-switch][realtime][D-032]") {
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kTestSampleRate, kTestBlockSize);
+    adapter->setCommonParams({.drive = 2.0f, .mix = 1.0f, .toneHz = 4000.0f});
+    const DistortionParams p;
+    for (int i = 0; i < 512; ++i) (void)adapter->process(0.25f * static_cast<float>(i % 8) - 0.875f);
+
+    std::size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (int round = 0; round < 2; ++round) {
+            for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+                adapter->setType(static_cast<DistortionType>(t));
+                adapter->setParams(p);
+                for (int i = 0; i < 512; ++i) (void)adapter->process(0.25f * static_cast<float>(i % 8) - 0.875f);
+            }
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    std::printf("D-032 52 type changes with 512 samples each: %zu allocations\n", allocations);
+    REQUIRE(allocations == 0);
+}

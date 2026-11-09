@@ -275,6 +275,10 @@ public:
     // =========================================================================
 
     /// @brief Set the active distortion type.
+    ///
+    /// A change of type clears the new type's processor at the next process() (after the
+    /// caller's setParams) and crossfades the output from the last sample over 5 ms
+    /// (D-032, D-080, D-141). Setting the current type again changes nothing.
     /// @param type The distortion type to use
     void setType(DistortionType type) noexcept;
 
@@ -382,6 +386,12 @@ private:
 
     /// @brief Update DC blocker state based on current type.
     void updateDCBlockerState() noexcept;
+
+    /// @brief True for the types whose wet signal runs through the tone filter.
+    [[nodiscard]] static bool usesToneFilter(DistortionType type) noexcept;
+
+    /// @brief Clear the state of the processor(s) @p type runs (allocation-free).
+    void resetProcessorFor(DistortionType type) noexcept;
 
     /// @brief Route type-specific parameters to the active processor.
     void routeParamsToProcessor() noexcept;
@@ -491,6 +501,29 @@ private:
 
     /// Output history: the pad up to alignLatency_, read at alignLatency_ - blockLatency_
     Krate::DSP::DelayLine padDelay_;
+
+    // =========================================================================
+    // Type-Change Reset and Fade (D-032, D-080, D-141)
+    // =========================================================================
+
+    /// Length of the output crossfade after a type change
+    static constexpr double kTypeFadeSeconds = 0.005;
+
+    /// The new type's processor is cleared at the next process()
+    bool resetPending_ = false;
+
+    /// process() has produced a sample since prepare()/reset()
+    bool hasOutput_ = false;
+
+    /// Last process() output: the origin of the next type-change fade
+    float lastOutput_ = 0.0f;
+
+    /// Output the running fade starts from
+    float typeFadeOrigin_ = 0.0f;
+
+    /// Fade length in clocked samples, and the samples of it still to run
+    int typeFadeLength_ = 1;
+    int typeFadeRemaining_ = 0;
 };
 
 } // namespace Disrumpo

@@ -186,6 +186,12 @@ void DistortionAdapter::reset() noexcept {
     // Latency delay lines (D-081)
     dryDelay_.reset();
     padDelay_.reset();
+
+    // Type-change fade (D-141): every processor is clear, nothing to fade from
+    resetPending_ = false;
+    typeFadeRemaining_ = 0;
+    lastOutput_ = 0.0f;
+    hasOutput_ = false;
 }
 
 // =============================================================================
@@ -193,9 +199,119 @@ void DistortionAdapter::reset() noexcept {
 // =============================================================================
 
 void DistortionAdapter::setType(DistortionType type) noexcept {
+    const bool changed = type != currentType_;
+    const bool hadDCBlock = needsDCBlock_;
+    const bool hadTone = usesToneFilter(currentType_);
     currentType_ = type;
     updateDCBlockerState();
     updateBlockLatency();
+    if (!changed || !hasOutput_) {
+        // processSameFamily re-asserts the type every sample: no switch. Before the first
+        // processed sample (after prepare() / reset()) every processor is clear already.
+        return;
+    }
+
+    // The new type's processor resumes with what it held at its last use (D-032, D-080):
+    // clear it at the next process(), after the caller's setParams has routed its targets
+    resetPending_ = true;
+    // The shared DC blocker and tone filter hold stale state if the old type bypassed them
+    if (needsDCBlock_ && !hadDCBlock) {
+        dcBlocker_.reset();
+    }
+    if (usesToneFilter(currentType_) && !hadTone) {
+        toneFilter_.reset();
+    }
+    // Fade from the last output to the new type over 5 ms (D-141)
+    typeFadeOrigin_ = lastOutput_;
+    typeFadeLength_ = std::max(1, static_cast<int>(kTypeFadeSeconds * sampleRate_));
+    typeFadeRemaining_ = typeFadeLength_;
+}
+
+bool DistortionAdapter::usesToneFilter(DistortionType type) noexcept {
+    // The digital types skip the tone filter: their staircase / aliasing is the effect
+    return type != DistortionType::Bitcrush && type != DistortionType::SampleReduce &&
+           type != DistortionType::Quantize && type != DistortionType::Aliasing &&
+           type != DistortionType::BitwiseMangler;
+}
+
+void DistortionAdapter::resetProcessorFor(DistortionType type) noexcept {
+    switch (type) {
+        case DistortionType::SoftClip:
+        case DistortionType::HardClip:
+            break;  // memoryless
+        case DistortionType::Tube:
+            for (auto& stage : tube_) {
+                stage.reset();
+            }
+            break;
+        case DistortionType::Tape:
+            tape_.reset();
+            tapeHfFilter_.reset();
+            flutterPhase_ = 0.0f;
+            break;
+        case DistortionType::Fuzz:
+            fuzz_.reset();
+            break;
+        case DistortionType::AsymmetricFuzz:
+            fuzz_.reset();
+            bodyFilter_.reset();
+            break;
+        case DistortionType::SineFold:
+        case DistortionType::TriangleFold:
+        case DistortionType::SergeFold:
+            wavefolder_.reset();
+            wavefoldSmoothFilter_.reset();
+            break;
+        case DistortionType::FullRectify:
+        case DistortionType::HalfRectify:
+        case DistortionType::Quantize:
+            wavefoldSmoothFilter_.reset();
+            break;
+        case DistortionType::Bitcrush:
+            rawBitCrusher_.reset();
+            break;
+        case DistortionType::SampleReduce:
+            srReducer_.reset();
+            break;
+        case DistortionType::Aliasing:
+            aliasing_.reset();
+            break;
+        case DistortionType::BitwiseMangler:
+            bitwiseMangler_.reset();
+            break;
+        case DistortionType::Temporal:
+            temporal_.reset();
+            break;
+        case DistortionType::RingSaturation:
+            ringSaturation_.reset();
+            break;
+        case DistortionType::FeedbackDist:
+            feedbackDist_.reset();
+            break;
+        case DistortionType::AllpassResonant:
+            allpassSaturator_.reset();
+            break;
+        case DistortionType::Chaos:
+            chaos_.reset();
+            break;
+        case DistortionType::Formant:
+            formant_.reset();
+            break;
+        case DistortionType::Granular:
+            granular_.reset();
+            break;
+        case DistortionType::Spectral:
+            spectral_.reset();
+            break;
+        case DistortionType::Fractal:
+            fractal_.reset();
+            break;
+        case DistortionType::Stochastic:
+            stochastic_.reset();
+            break;
+        default:
+            break;
+    }
 }
 
 void DistortionAdapter::updateBlockLatency() noexcept {
@@ -249,15 +365,33 @@ void DistortionAdapter::setParams(const DistortionParams& params) noexcept {
 // =============================================================================
 
 float DistortionAdapter::process(float input) noexcept {
-    if (!latent_) {
-        return processWithDry(input, input);
+    if (resetPending_) {
+        resetProcessorFor(currentType_);
+        resetPending_ = false;
     }
-    // A latent type mixes (and passes through) its dry image delayed by its own latency, and
-    // the owner's alignment pads the output up to its slowest member's latency (D-081)
-    dryDelay_.write(input);
-    const float out = processWithDry(input, dryDelay_.read(static_cast<size_t>(blockLatency_)));
-    padDelay_.write(out);
-    return padDelay_.read(static_cast<size_t>(std::max(0, alignLatency_ - blockLatency_)));
+    float out = 0.0f;
+    if (!latent_) {
+        out = processWithDry(input, input);
+    } else {
+        // A latent type mixes (and passes through) its dry image delayed by its own latency,
+        // and the owner's alignment pads the output up to its slowest member's latency (D-081)
+        dryDelay_.write(input);
+        padDelay_.write(processWithDry(input, dryDelay_.read(static_cast<size_t>(blockLatency_))));
+        out = padDelay_.read(static_cast<size_t>(std::max(0, alignLatency_ - blockLatency_)));
+    }
+    if (typeFadeRemaining_ > 0) {
+        // Linear crossfade from the last output before the type change; its last sample is
+        // the new type's output exactly (branch, not g == 1 arithmetic)
+        --typeFadeRemaining_;
+        if (typeFadeRemaining_ > 0) {
+            const float g =
+                1.0f - static_cast<float>(typeFadeRemaining_) / static_cast<float>(typeFadeLength_);
+            out = typeFadeOrigin_ + g * (out - typeFadeOrigin_);
+        }
+    }
+    lastOutput_ = out;
+    hasOutput_ = true;
+    return out;
 }
 
 float DistortionAdapter::processWithDry(float input, float dry) noexcept {
@@ -292,11 +426,7 @@ float DistortionAdapter::processWithDry(float input, float dry) noexcept {
     // Apply tone filter to wet signal
     // Skip for digital types where harsh quantization/aliasing IS the effect
     // The tone filter (prepared at oversampled rate) would destroy the staircase
-    if (currentType_ != DistortionType::Bitcrush &&
-        currentType_ != DistortionType::SampleReduce &&
-        currentType_ != DistortionType::Quantize &&
-        currentType_ != DistortionType::Aliasing &&
-        currentType_ != DistortionType::BitwiseMangler) {
+    if (usesToneFilter(currentType_)) {
         wet = applyTone(wet);
     }
 

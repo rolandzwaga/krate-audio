@@ -248,6 +248,9 @@ private:
     /// @brief Recompute latency_ from the active nodes and align every adapter to it.
     void updateLatencyAlignment() noexcept;
 
+    /// @brief Forget the processed path and the last output (all adapters were just cleared).
+    void clearSwitchFade() noexcept;
+
     // =========================================================================
     // State
     // =========================================================================
@@ -304,6 +307,17 @@ private:
     // True while the cross-family adapters hold offset-modulated params, so the offsets'
     // return to all 0 re-applies the base node params once (D-031)
     bool offsetsWereActive_ = false;
+
+    // Path switch / node activation fade (D-032): the path and node count process() last
+    // ran, its last output, and a linear 5 ms crossfade from that output
+    static constexpr double kSwitchFadeSeconds = 0.005;
+    bool processedSameType_ = true;
+    int processedNodeCount_ = kDefaultActiveNodes;
+    bool hasOutput_ = false;
+    float lastOutput_ = 0.0f;
+    float switchFadeOrigin_ = 0.0f;
+    int switchFadeLength_ = 1;
+    int switchFadeRemaining_ = 0;
 
     /// @brief Node drive with the modulation offset and the sweep multiplier applied.
     [[nodiscard]] float modulatedDrive(float baseDrive) const noexcept {

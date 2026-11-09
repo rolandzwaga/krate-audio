@@ -1425,6 +1425,150 @@ TEST_CASE("Band count changes during playback allocate nothing", "[disrumpo][ban
 }
 
 // =============================================================================
+// Node type changes during playback (audit D-032, D-080, D-141; fix plan T2.13)
+// =============================================================================
+// A node type change switched the adapter's processor on the next sample, with the new
+// processor's state left from its last use (probe automation:type-switch, SoftClip
+// drive 3 -> SineFold: jump ratio 1.37). A change that made the node types identical or
+// different switched the morph engine between its interpolated processor and its
+// parallel adapters, idle until then, on one sample. SoftClip -> SineFold also changes
+// the band's oversampling factor (2x -> 4x), which dips the band (D-034); the 2x-only
+// pairs below isolate the type switch.
+// =============================================================================
+
+namespace {
+
+struct TypeSwitchCase {
+    const char* name;
+    int nodes;                   ///< active nodes of band 0 (morph X 0.5)
+    DistortionType node0;
+    DistortionType node1;
+    uint8_t changedNode;
+    DistortionType to;
+};
+
+struct TypeSwitchReading {
+    ts::ContResult probe;        ///< the audit probe's windows (event from the step sample)
+    double ratioWithStep = 0.0;  ///< the event window widened by one sample: the step itself
+};
+
+/// 1 band, nodes at drive 3 (normalized 0.3), 220 Hz at -12 dBFS, block 512: one node's
+/// type steps at stepAt(5).
+TypeSwitchReading nodeTypeSwitch(const TypeSwitchCase& c) {
+    const auto in = sineAt(static_cast<size_t>(kBlockSr), 220.0, -12.0);
+    const size_t at = stepAt(5);
+    ts::Rig rig(kBlockSr);
+    rig.apply({{Disrumpo::kBandCountId, bandCountNorm(1)},
+               {makeBandParamId(0, BandParamType::kBandActiveNodes), static_cast<double>(c.nodes - 1) / 3.0},
+               {makeBandParamId(0, BandParamType::kBandMorphX), 0.5},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.3},
+               {makeNodeParamId(0, 1, NodeParamType::kNodeDrive), 0.3},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(c.node0)},
+               {makeNodeParamId(0, 1, NodeParamType::kNodeType), typeNorm(c.node1)}});
+    rig.reactivate();
+    std::vector<float> outL;
+    std::vector<float> outR;
+    const auto typeId = makeNodeParamId(0, c.changedNode, NodeParamType::kNodeType);
+    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kStepBlock), [&](size_t, size_t start, ts::PChanges& pc) {
+        if (start == at) pc.addChange(typeId, typeNorm(c.to));
+    });
+    TypeSwitchReading r;
+    r.probe = stepContinuity(outL, {at})[0];
+    const size_t evEnd = at + static_cast<size_t>(kBlockSr * 0.05);
+    const size_t preBeg = static_cast<size_t>(kBlockSr * 0.1);
+    const size_t postBeg = at + static_cast<size_t>(kBlockSr * 0.2);
+    r.ratioWithStep = ts::continuityAround(outL, at - 1, evEnd, preBeg, at, postBeg, outL.size(), kBlockSr).ratio;
+    return r;
+}
+
+} // anonymous namespace
+
+TEST_CASE("Node type switch SoftClip->SineFold jump ratio <= 1.3", "[disrumpo][type-switch][D-141][D-032]") {
+    using DT = DistortionType;
+    const std::array<TypeSwitchCase, 5> cases{{
+        {.name = "1 node SoftClip -> SineFold (audit probe)",
+         .nodes = 1,
+         .node0 = DT::SoftClip,
+         .node1 = DT::SoftClip,
+         .changedNode = 0,
+         .to = DT::SineFold},
+        {.name = "1 node SoftClip -> Tube",
+         .nodes = 1,
+         .node0 = DT::SoftClip,
+         .node1 = DT::SoftClip,
+         .changedNode = 0,
+         .to = DT::Tube},
+        {.name = "2 nodes SoftClip/SoftClip, node 1 -> Tube (interpolated -> parallel)",
+         .nodes = 2,
+         .node0 = DT::SoftClip,
+         .node1 = DT::SoftClip,
+         .changedNode = 1,
+         .to = DT::Tube},
+        {.name = "2 nodes SoftClip/Tube, node 1 -> SoftClip (parallel -> interpolated)",
+         .nodes = 2,
+         .node0 = DT::SoftClip,
+         .node1 = DT::Tube,
+         .changedNode = 1,
+         .to = DT::SoftClip},
+        {.name = "2 nodes SoftClip/Tube, node 1 -> Temporal (parallel)",
+         .nodes = 2,
+         .node0 = DT::SoftClip,
+         .node1 = DT::Tube,
+         .changedNode = 1,
+         .to = DT::Temporal},
+    }};
+    for (const auto& c : cases) {
+        const auto r = nodeTypeSwitch(c);
+        std::printf("D-141 %s: jump ratio %.2f (with the step sample %.2f), clicks %zu (steady %zu), non-finite %zu\n",
+                    c.name, r.probe.ratio, r.ratioWithStep, r.probe.clicksEvent, r.probe.clicksBase,
+                    r.probe.nonFinite);
+        INFO(c.name);
+        REQUIRE(r.probe.nonFinite == 0);
+        CHECK(r.ratioWithStep <= 1.3);
+        CHECK(r.probe.clicksEvent == 0);
+    }
+
+    // Measured, not gated: Spectral raises the band's latency from 0 to 2047 samples, so
+    // its output emerges after a gap (follow-up 42)
+    const auto spectral = nodeTypeSwitch(
+        {.name = "", .nodes = 1, .node0 = DT::SoftClip, .node1 = DT::SoftClip, .changedNode = 0, .to = DT::Spectral});
+    std::printf("D-141 1 node SoftClip -> Spectral: jump ratio %.2f (with the step sample %.2f), clicks %zu "
+                "(steady %zu)\n",
+                spectral.probe.ratio, spectral.ratioWithStep, spectral.probe.clicksEvent, spectral.probe.clicksBase);
+    CHECK(spectral.probe.nonFinite == 0);
+}
+
+TEST_CASE("Node type switches during playback allocate nothing", "[disrumpo][type-switch][realtime][D-032]") {
+    constexpr auto kBlock = static_cast<Steinberg::int32>(kStepBlock);
+    ts::Rig rig(kBlockSr, kBlock);
+    const auto in = sineAt(kStepBlock, 220.0, -12.0);
+    std::vector<float> inL(in);
+    std::vector<float> inR(in);
+    std::vector<float> outL(in.size());
+    std::vector<float> outR(in.size());
+    for (int b = 0; b < 8; ++b) rig.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), kBlock, nullptr);
+    // Every type in turn on node 0 of band 0, then back to SoftClip (filled before the scope)
+    constexpr int kTypes = static_cast<int>(DistortionType::COUNT);
+    std::vector<ts::PChanges> to(static_cast<size_t>(kTypes) + 1);
+    for (int t = 0; t <= kTypes; ++t) {
+        to[static_cast<size_t>(t)].addChange(makeNodeParamId(0, 0, NodeParamType::kNodeType),
+                                             typeNorm(static_cast<DistortionType>(t % kTypes)));
+    }
+
+    size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (auto& changes : to) {
+            rig.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), kBlock, &changes);
+            rig.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), kBlock, nullptr);
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    std::printf("D-032 %d node type switches in process(): %zu allocations\n", kTypes + 1, allocations);
+    REQUIRE(allocations == 0);
+}
+
+// =============================================================================
 // Global gain and mix (audit D-025; fix plan T2.09)
 // =============================================================================
 // Input gain, output gain and global mix were block constants (a 48 dB step landed
