@@ -167,6 +167,15 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 43. **Reported latency is 0 before `setupProcessing`** (oversamplers measured in prepare); pluginval's info line
     shows 0. Harmless if hosts re-query after setup; check a real host's PDC.
 
+44. **Tape spikes on the parallel morph path**: 2 nodes SoftClip/Tape in steady state spike from ≈0.24 to 0.68 within
+    5 samples, twice per cycle (same on the original code; 1-node Tape does not). Found by T2.13's measurements.
+45. **Click at the end of the oversampling dip**: a parallel→shared switch that also changes the factor
+    (SoftClip/SineFold → SoftClip) leaves 1 click at 9.98 ms, where the band's fade-in ends (T2.13).
+46. **Linear1D: UI and oversampling still use the corner positions** (T2.11 `6f9790cb` moved the DSP to i/(N−1)):
+    the morph pad draws nodes at the corners, and the band's oversampling choice weights nodes by 2-D distance.
+47. **Spectral switch still clicks twice** (T2.13 `866c042e` measured): at the switch and where the first frame
+    leaves the 2047-sample latency gap (47.65 ms) — the type-change half of item 42.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
