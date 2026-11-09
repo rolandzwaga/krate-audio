@@ -191,6 +191,8 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 39. **Quantize dither on silence**: a fresh Quantize node (dither 0.5, offset 0.5) outputs −40.5 dBFS of dither
     noise on digital silence; offset 0 is silent. D-143's own probe (default slots) still fails. Gate the dither
     on input energy or apply it only around non-zero samples.
+    — USER RULED 2026-11-09: intended behaviour (the dither keeps running on silence). "Type render matrix: Quantize"
+    exempts Quantize from the -90 dBFS bars on silence (self-noise -40.5 dBFS, tail -40.7 dBFS) and asserts the rest.
 40. **Quantize at Levels 0 is now a 3-level grid with a dead zone** (T2.07 `c24c8cfd`): a −6 dBFS sine's fundamental
     goes from +2.1 dBFS (old 2-level square) to −21.6 dBFS. Intended by the mid-tread design, but it changes that
     setting's character; audition.

@@ -16,6 +16,9 @@
 // - tail 1.0-1.5 s after the input stops <= -90 dBFS, except the types that ring by
 //   design (FeedbackDist, AllpassResonant: feedback > 0 at their defaults), which must
 //   fall below -60 dBFS within 5 s.
+// Ruled exemptions (2026-11-09, one bar each, see inharmonicByDesign() and below):
+// RingSaturation from the non-harmonic bar, Stochastic from the DC bars, Quantize from the
+// -90 dBFS bars on silence.
 // Audit baseline (2026-11-05): HardClip -43.3, SineFold -3.1, Tape -23.6, Fractal -24.2 dB
 // non-harmonic; Aliasing +11.1 dBFS peak; Tube DC -0.041; Stochastic -10.4 and Quantize
 // -49.0 dBFS self-noise; FeedbackDist tail -47.9 dBFS.
@@ -93,6 +96,21 @@ bool ringsByDesign(DistortionType t) {
     return t == DistortionType::FeedbackDist || t == DistortionType::AllpassResonant;
 }
 
+// User ruling 2026-11-09 (follow-up 79): three types are exempt from one bar each as
+// intended behaviour; every other bar still applies to them.
+
+/// Ring modulation is inharmonic by design: non-harmonic -33.6 / -29.4 / -30.2 dB at drive
+/// 2.5 / 7.5 / 10 (Fixed carrier -0.7 dB, ring depth 0 -129.6 dB). No -50 dB bar.
+bool inharmonicByDesign(DistortionType t) { return t == DistortionType::RingSaturation; }
+
+/// Stochastic's slow random drift sits below the adapter's 10 Hz DC blocker: |DC| 0.00253
+/// over 1.02 s at drive 7.5 / 10 and at bias -1 / +1 (0.00042 at drive 2.5). No DC bar.
+bool driftsBelowDcBlocker(DistortionType t) { return t == DistortionType::Stochastic; }
+
+/// Quantize's dither keeps running on silence (follow-up 39): self-noise -40.5 dBFS, tail
+/// -40.7 dBFS (both read the dither on digital silence). No -90 dBFS bar on silence.
+bool dithersOnSilence(DistortionType t) { return t == DistortionType::Quantize; }
+
 size_t countNonFinite(const std::vector<float>& a, const std::vector<float>& b) {
     size_t c = 0;
     for (const float v : a) c += fin(v) ? 0 : 1;
@@ -130,9 +148,9 @@ void checkType(DistortionType type) {
         INFO(name << " drive " << drive * 10.0 << ": non-harmonic " << nonHarmonicDb << " dB, DC " << dc << ", peak "
              << peakDb << " dBFS");
         CHECK(nonFinite == 0);
-        if (osProfile >= 2 && !noiseByDesign(type)) CHECK(nonHarmonicDb <= -50.0);
+        if (osProfile >= 2 && !noiseByDesign(type) && !inharmonicByDesign(type)) CHECK(nonHarmonicDb <= -50.0);
         CHECK(peakDb <= 6.0);
-        CHECK(std::fabs(dc) < 1e-3);
+        if (!driftsBelowDcBlocker(type)) CHECK(std::fabs(dc) < 1e-3);
 
         if (drive == 1.0) {
             // The input stops: 1.5 s of silence (5 s for the ringing types)
@@ -153,7 +171,7 @@ void checkType(DistortionType type) {
             CHECK(countNonFinite(tL, tR) == 0);
             if (ringsByDesign(type)) {
                 CHECK(endDb <= -60.0);
-            } else {
+            } else if (!dithersOnSilence(type)) {
                 CHECK(tailDb <= -90.0);
             }
         }
@@ -169,7 +187,7 @@ void checkType(DistortionType type) {
                     dcBlocked(type) ? "DC-blocked" : "not DC-blocked");
         INFO(name << " bias " << bias * 2.0 - 1.0 << ": DC " << dc);
         CHECK(countNonFinite(outL, outR) == 0);
-        if (dcBlocked(type)) CHECK(std::fabs(dc) < 1e-3);
+        if (dcBlocked(type) && !driftsBelowDcBlocker(type)) CHECK(std::fabs(dc) < 1e-3);
     }
 
     // Self-noise: a fresh instance at drive 10 on 1 s of silence, RMS of the last 0.5 s
@@ -185,7 +203,7 @@ void checkType(DistortionType type) {
     std::printf("T6.01 %s self-noise: %.1f dBFS\n", name, noiseDb);
     INFO(name << " self-noise " << noiseDb << " dBFS");
     CHECK(countNonFinite(outL, outR) == 0);
-    CHECK(noiseDb <= -90.0);
+    if (!dithersOnSilence(type)) CHECK(noiseDb <= -90.0);
 }
 
 }  // namespace
@@ -200,11 +218,15 @@ TEST_CASE("Type render matrix: Bitcrush", "[disrumpo][audit][type-matrix]") { ch
 TEST_CASE("Type render matrix: SampleReduce", "[disrumpo][audit][type-matrix]") {
     checkType(DistortionType::SampleReduce);
 }
+TEST_CASE("Type render matrix: Quantize", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Quantize); }
 TEST_CASE("Type render matrix: Aliasing", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Aliasing); }
 TEST_CASE("Type render matrix: BitwiseMangler", "[disrumpo][audit][type-matrix]") {
     checkType(DistortionType::BitwiseMangler);
 }
 TEST_CASE("Type render matrix: Temporal", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Temporal); }
+TEST_CASE("Type render matrix: RingSaturation", "[disrumpo][audit][type-matrix]") {
+    checkType(DistortionType::RingSaturation);
+}
 TEST_CASE("Type render matrix: FeedbackDist", "[disrumpo][audit][type-matrix]") {
     checkType(DistortionType::FeedbackDist);
 }
@@ -215,3 +237,6 @@ TEST_CASE("Type render matrix: Chaos", "[disrumpo][audit][type-matrix]") { check
 TEST_CASE("Type render matrix: Formant", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Formant); }
 TEST_CASE("Type render matrix: Granular", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Granular); }
 TEST_CASE("Type render matrix: Spectral", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Spectral); }
+TEST_CASE("Type render matrix: Stochastic", "[disrumpo][audit][type-matrix]") {
+    checkType(DistortionType::Stochastic);
+}
