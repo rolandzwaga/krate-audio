@@ -10,6 +10,7 @@
 #include "state_codec.h"
 #include "dsp/band_state.h"
 #include "dsp/morph_node.h"
+#include "dsp/shape_slot_descriptors.h"
 
 #include <cmath>
 #include <algorithm>
@@ -326,6 +327,7 @@ void PLUGIN_API NodeSelectionController::update(
         }
     } else {
         copySelectedNodeToDisplayedType();
+        syncBiasProxy();
     }
 
     isUpdating_ = false;
@@ -384,8 +386,10 @@ void NodeSelectionController::copySelectedNodeToProxies() {
     for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
         if (!proxyParams_[i]) continue;
 
+        // The Bias knob shows the type's Bias slot where it has one (user ruling 2026-11-10)
+        const int source = i == kBiasProxy && selectedBiasSlot() >= 0 ? kFirstShapeProxy + selectedBiasSlot() : i;
         auto* actualParam = controller_->getParameterObject(
-            makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[i]));
+            makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[source]));
         if (!actualParam) continue;
 
         float actualNorm = static_cast<float>(actualParam->getNormalized());
@@ -401,8 +405,16 @@ void NodeSelectionController::copyProxyToSelectedNode(Steinberg::Vst::Parameter*
     int selectedNode = getSelectedNode();
     auto nodeIdx = static_cast<uint8_t>(selectedNode);
 
+    const int biasSlot = selectedBiasSlot();
     for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
         if (proxyParams_[i] != changedProxy) continue;
+
+        if (biasSlot >= 0 && (i == kBiasProxy || i == kFirstShapeProxy + biasSlot)) {
+            // The header Bias knob and the type's Bias slot are one control (user ruling
+            // 2026-11-10): either edits the slot, the other knob follows, and kNodeBias mirrors it
+            editBiasSlot(changedProxy->getNormalized(), i == kBiasProxy ? kFirstShapeProxy + biasSlot : kBiasProxy);
+            return;
+        }
 
         float proxyNorm = static_cast<float>(changedProxy->getNormalized());
         auto actualId = makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[i]);
@@ -421,10 +433,53 @@ void NodeSelectionController::copyProxyToSelectedNode(Steinberg::Vst::Parameter*
 void NodeSelectionController::copySelectedNodeParamToProxy(int proxyIndex) {
     // The real param already changed (host automation, preset); only the
     // controller-side proxy follows, so the knob moves without a host edit.
+    const int biasSlot = selectedBiasSlot();
+    if (biasSlot >= 0 && (proxyIndex == kBiasProxy || proxyIndex == kFirstShapeProxy + biasSlot)) {
+        // kNodeBias does not move a type with a Bias slot; the slot moves both knobs
+        if (proxyIndex == kFirstShapeProxy + biasSlot) {
+            auto* slotParam = nodeParams_[getSelectedNode()][proxyIndex];
+            if (slotParam && proxyParams_[proxyIndex]) {
+                controller_->setParamNormalized(makeBandParamId(band_, kProxyIndexToBandParam[proxyIndex]),
+                                                slotParam->getNormalized());
+            }
+        }
+        syncBiasProxy();
+        return;
+    }
     auto* nodeParam = nodeParams_[getSelectedNode()][proxyIndex];
     if (!nodeParam || !proxyParams_[proxyIndex]) return;
     controller_->setParamNormalized(makeBandParamId(band_, kProxyIndexToBandParam[proxyIndex]),
                                     nodeParam->getNormalized());
+}
+
+int NodeSelectionController::selectedBiasSlot() const {
+    const auto* typeParam = nodeTypeParams_[getSelectedNode()];
+    if (!typeParam) return -1;
+    const int typeIdx = std::clamp(static_cast<int>(typeParam->getNormalized() * 25.0 + 0.5), 0, 25);
+    return biasShapeSlot(static_cast<DistortionType>(typeIdx));
+}
+
+void NodeSelectionController::syncBiasProxy() {
+    auto* proxy = proxyParams_[kBiasProxy];
+    if (!proxy) return;
+    const int biasSlot = selectedBiasSlot();
+    const int source = biasSlot >= 0 ? kFirstShapeProxy + biasSlot : kBiasProxy;
+    auto* nodeParam = nodeParams_[getSelectedNode()][source];
+    if (!nodeParam || std::abs(proxy->getNormalized() - nodeParam->getNormalized()) < 1e-9) return;
+    controller_->setParamNormalized(makeBandParamId(band_, kProxyIndexToBandParam[kBiasProxy]),
+                                    nodeParam->getNormalized());
+}
+
+void NodeSelectionController::editBiasSlot(double value, int otherProxy) {
+    const auto nodeIdx = static_cast<uint8_t>(getSelectedNode());
+    const int biasSlot = selectedBiasSlot();
+    const auto slotId = makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[kFirstShapeProxy + biasSlot]);
+    const auto biasId = makeNodeParamId(band_, nodeIdx, NodeParamType::kNodeBias);
+    if (std::abs(controller_->getParamNormalized(slotId) - value) >= 1e-9) editParam(slotId, value);
+    if (std::abs(controller_->getParamNormalized(biasId) - value) >= 1e-9) editParam(biasId, value);
+    if (proxyParams_[otherProxy] && std::abs(proxyParams_[otherProxy]->getNormalized() - value) >= 1e-9) {
+        controller_->setParamNormalized(makeBandParamId(band_, kProxyIndexToBandParam[otherProxy]), value);
+    }
 }
 
 void NodeSelectionController::copyDisplayedTypeToSelectedNode() {
@@ -473,6 +528,7 @@ void NodeSelectionController::copyDisplayedTypeToSelectedNode() {
             editParam(makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[4 + s]), newSlots[s]);
         }
     }
+    syncBiasProxy();
 }
 
 // ==============================================================================

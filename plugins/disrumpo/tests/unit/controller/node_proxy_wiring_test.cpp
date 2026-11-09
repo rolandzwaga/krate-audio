@@ -16,11 +16,13 @@
 
 #include <editor_lifecycle_harness.h>
 
+#include "../../test_support/disrumpo_rig.h"
 #include "../../test_support/headless_editor.h"
 
 #include "controller/controller.h"
 #include "controller/views/dynamic_node_selector.h"
 #include "dsp/distortion_types.h"
+#include "dsp/shape_slot_descriptors.h"
 #include "plugin_ids.h"
 #include "state_codec.h"
 
@@ -29,8 +31,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <numbers>
 #include <vector>
 
 using namespace Disrumpo;
@@ -256,4 +260,112 @@ TEST_CASE("Editor open adds and close removes every dependent registration", "[d
                 whileOpen - baseline, afterClose);
     CHECK(afterClose == baseline);
     c.terminate();
+}
+
+// =============================================================================
+// The band header's Bias knob (Band.NodeBias, proxy kBandDisplayedBias) and a type's own
+// Bias slot are one control (user ruling 2026-11-10, follow-up 87): since the slot wins
+// over kNodeBias in the processor, the knob edits the selected node's Bias slot for Tube,
+// Tape, Fuzz, Asymmetric Fuzz, the three wavefolders and Ring Saturation (kNodeBias mirrors
+// it), the slot's own knob moves the header knob, and the edits change the sound. A type
+// without a Bias slot keeps the node parameter.
+// =============================================================================
+
+namespace {
+
+constexpr ParamID kDisplayedBiasId = makeBandParamId(0, BandParamType::kBandDisplayedBias);
+
+/// One band, node 0 alone at drive 5, the controller's node-parameter edits applied, 220 Hz
+/// at -12 dBFS for 0.25 s at 48 kHz: the left channel.
+std::vector<float> renderWithEdits(DistortionType type, const std::vector<NodeWiringRecordingController::Call>& edits) {
+    using namespace Disrumpo::TestSupport;
+    constexpr double kSr = 48000.0;
+    Rig rig(kSr);
+    rig.apply({{kBandCountId, 0.0},
+               {makeBandParamId(0, BandParamType::kBandActiveNodes), 0.0},
+               {nodeParam(0, NodeParamType::kNodeType), typeNorm(type)},
+               {nodeParam(0, NodeParamType::kNodeDrive), 0.5}});
+    PList list;
+    for (const auto& e : edits) {
+        if (isNodeParamId(e.id)) list.emplace_back(e.id, e.value);
+    }
+    rig.apply(list);
+    rig.reactivate();
+    const auto n = static_cast<size_t>(kSr * 0.25);
+    std::vector<float> in(n);
+    for (size_t i = 0; i < n; ++i) {
+        in[i] = static_cast<float>(0.25118864315095801 *
+                                   std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(i) / kSr));
+    }
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    return outL;
+}
+
+}  // namespace
+
+TEST_CASE("The band header's Bias knob edits the Bias slot of the types that have one",
+          "[disrumpo][ui][bias][D-160]") {
+    int typesWithSlot = 0;
+    for (int t = 0; t < kDistortionTypeCount; ++t) {
+        const auto type = static_cast<DistortionType>(t);
+        const int slot = biasShapeSlot(type);
+        if (slot < 0 && type != DistortionType::SoftClip) continue;  // SoftClip: the no-slot control
+        INFO("type " << t << ", Bias slot " << slot);
+        NodeWiringRecordingController c;
+        REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+        {
+            HeadlessEditor ed(c);
+            REQUIRE(ed.ready());
+            c.setParamNormalized(kSelectedNodeId, nodeNorm(0));
+            c.setParamNormalized(nodeParam(0, NodeParamType::kNodeType), typeNorm(type));
+
+            c.clearCalls();
+            c.setParamNormalized(kDisplayedBiasId, 0.2);
+            const auto editsLow = c.editCalls;
+            const double biasNode = c.getParamNormalized(nodeParam(0, NodeParamType::kNodeBias));
+            if (slot < 0) {
+                std::printf("bias header: type %d (no Bias slot): kNodeBias %.4f\n", t, biasNode);
+                CHECK(std::fabs(biasNode - 0.2) < 1e-6);  // the proxy copy runs in float
+            } else {
+                ++typesWithSlot;
+                const auto slotNodeId = makeNodeParamId(0, 0, kProxyIndexToNodeParam[4 + slot]);
+                const auto slotProxyId = makeBandParamId(0, kProxyIndexToBandParam[4 + slot]);
+                const double slotNode = c.getParamNormalized(slotNodeId);
+                const double slotProxy = c.getParamNormalized(slotProxyId);
+
+                c.clearCalls();
+                c.setParamNormalized(kDisplayedBiasId, 0.8);
+                const auto editsHigh = c.editCalls;
+                const auto low = renderWithEdits(type, editsLow);
+                const auto high = renderWithEdits(type, editsHigh);
+                double diff = 0.0;
+                for (size_t i = 0; i < low.size(); ++i) {
+                    diff = std::max(diff, std::fabs(static_cast<double>(low[i]) - static_cast<double>(high[i])));
+                }
+
+                // The other direction: the slot's knob moves the header knob
+                c.setParamNormalized(slotProxyId, 0.65);
+                const double header = c.getParamNormalized(kDisplayedBiasId);
+                const double slotAfter = c.getParamNormalized(slotNodeId);
+                // ... and host automation of the slot too
+                c.setParamNormalized(slotNodeId, 0.35);
+                const double headerAuto = c.getParamNormalized(kDisplayedBiasId);
+                std::printf("bias header: type %d slot %d: header 0.2 -> slot %.4f (proxy %.4f), kNodeBias %.4f; "
+                            "render header 0.2 vs 0.8 max diff %.4g; slot knob 0.65 -> header %.4f (slot %.4f); "
+                            "slot automated 0.35 -> header %.4f\n",
+                            t, slot, slotNode, slotProxy, biasNode, diff, header, slotAfter, headerAuto);
+                CHECK(std::fabs(slotNode - 0.2) < 1e-9);
+                CHECK(std::fabs(slotProxy - 0.2) < 1e-9);
+                CHECK(std::fabs(biasNode - 0.2) < 1e-9);
+                CHECK(diff > 1e-3);
+                CHECK(std::fabs(header - 0.65) < 1e-9);
+                CHECK(std::fabs(slotAfter - 0.65) < 1e-9);
+                CHECK(std::fabs(headerAuto - 0.35) < 1e-9);
+            }
+        }
+        c.terminate();
+    }
+    CHECK(typesWithSlot == 8);
 }

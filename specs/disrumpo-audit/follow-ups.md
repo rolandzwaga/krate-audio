@@ -744,6 +744,12 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     the sound for types with their own Bias slot (Tube, Tape, Fuzz, Asymmetric Fuzz, the three wavefolders, Ring
     Saturation): the slot wins on the live parameter path too, which is the load-replay path. Options: route that
     knob to the type's Bias slot in the controller (and show the slot's value), or hide it for those types.
+    — Header Bias knob CLOSED 2026-11-10 (user ruling: the knob edits the type's Bias slot; commit "fix(disrumpo):
+    the band header's Bias knob edits the type's Bias slot"). NodeSelectionController links the Bias proxy and the
+    type's Bias slot proxy (biasShapeSlot): either knob edits the node's slot, kNodeBias mirrors it, the other knob
+    follows, slot automation moves both, kNodeBias automation no longer moves the knob for these types. Case "The band
+    header's Bias knob edits the Bias slot of the types that have one": RED on c9278472 for all 8 types (slot stays
+    0.5, header 0.2 vs 0.8 renders identical, max diff 0), GREEN: slot 0.2, render diff 0.59-2.36, knobs in sync.
 88. **T6.09: the 4-band chain is 1.40 dB quieter at 192 kHz, all of it the Tape band** (2026-11-09, needs a ruling with
     follow-up 79's Tape item). The probe's chain (bands 0-3 node 0 Tube / SoftClip / Fuzz / Tape, drive 4, 1 kHz at
     -12 dBFS, last 0.5 s of 1 s) against 48 kHz: 44.1 kHz +0.02 dB / centroid 1.006, 96 kHz -0.77 dB / 1.019 (asserted);

@@ -459,6 +459,16 @@ private:
     void copyProxyToSelectedNode(Steinberg::Vst::Parameter* changedProxy);
     void copySelectedNodeParamToProxy(int proxyIndex);
     void copyDisplayedTypeToSelectedNode();
+    /// The selected node's type's Bias slot (biasShapeSlot), or -1.
+    int selectedBiasSlot() const;
+    /// Show on the Bias knob what sets the selected node's bias: its type's Bias slot, else kNodeBias.
+    void syncBiasProxy();
+    /// Edit the selected node's Bias slot to @p value (and kNodeBias, which mirrors it), and move
+    /// the knob of proxy @p otherProxy (the Bias knob or the slot's) to it (user ruling 2026-11-10).
+    void editBiasSlot(double value, int otherProxy);
+
+    static constexpr int kBiasProxy = 3;        // index of the Bias proxy (kProxyIndexToNodeParam)
+    static constexpr int kFirstShapeProxy = 4;  // index of the Shape0 proxy
 
     Steinberg::Vst::EditControllerEx1* controller_;
     uint8_t band_;

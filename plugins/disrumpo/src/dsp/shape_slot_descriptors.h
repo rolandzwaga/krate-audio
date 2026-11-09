@@ -273,6 +273,24 @@ inline void applyShapeSlots(DistortionType type, const float* slots, DistortionP
     }
 }
 
+/// The shape slot that sets @p type's Bias (Tube, Tape, Fuzz, Asymmetric Fuzz, the three
+/// wavefolders, Ring Saturation), or -1. Its normalized value equals kNodeBias's for the same
+/// bias (both map [0, 1] to [-1, 1]); the slot wins in the processor (follow-up 87), so the
+/// band header's Bias knob edits it for these types (user ruling 2026-11-10).
+[[nodiscard]] inline int biasShapeSlot(DistortionType type) noexcept {
+    const int t = static_cast<int>(type);
+    if (t < 0 || t >= kDistortionTypeCount) {
+        return -1;
+    }
+    for (int s = 0; s < kShapeSlotDescriptorCount; ++s) {
+        const ShapeSlotDescriptor& d = shapeSlotDescriptor(type, s);
+        if (d.map == SlotMap::Bipolar && d.floatField == &DistortionParams::bias) {
+            return s;
+        }
+    }
+    return -1;
+}
+
 /// Waveshape curve selector [0, 1] -> WaveshapeType index 0..8 (adapter, CurveName display).
 [[nodiscard]] inline int waveshapeCurveIndex(float v) noexcept {
     return std::clamp(static_cast<int>(v * 8.0f + 0.5f), 0, 8);
