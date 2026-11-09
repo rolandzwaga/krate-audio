@@ -11,12 +11,15 @@
 #include "controller/format_helpers.h"
 #include "controller/log_range_parameter.h"
 #include "state_codec.h"
+#include "ui/note_value_ui.h"
 #include <krate/dsp/core/modulation_types.h>
 
 #include "base/source/fstring.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 
+#include <cstddef>
+#include <iterator>
 #include <string>
 #include <sstream>
 
@@ -44,6 +47,22 @@ LogRangeParameter* makeLfoRateParameter(const Steinberg::Vst::TChar* title, Stei
     return new LogRangeParameter(title, id, STR16("Hz"), static_cast<double>(kMinLfoRateHz),
                                  static_cast<double>(kMaxLfoRateHz), defaultHz, &lfoRateNormToHz,
                                  &lfoRateHzToNorm, Steinberg::Vst::ParameterInfo::kCanAutomate);
+}
+
+/// Note value list: the shared dropdown getNoteValueFromDropdown decodes, starting on
+/// its default entry (1/8) (D-092).
+Steinberg::Vst::StringListParameter* makeNoteValueParameter(const Steinberg::Vst::TChar* title,
+                                                            Steinberg::Vst::ParamID id,
+                                                            Steinberg::int32 flags) {
+    namespace Shared = Krate::Plugins::Parameters;
+    static_assert(std::size(Shared::kNoteValueDropdownStrings) == static_cast<size_t>(kNoteValueCount),
+                  "the shared note-value strings must cover the DSP dropdown the processor decodes");
+    auto* param = new Steinberg::Vst::StringListParameter(title, id, nullptr, flags);
+    for (const auto* entry : Shared::kNoteValueDropdownStrings) param->appendString(entry);
+    const double defaultNorm = listIndexToNorm(Shared::kNoteValueDefaultIndex, Shared::kNoteValueDropdownCount);
+    param->setNormalized(defaultNorm);
+    param->getInfo().defaultNormalizedValue = defaultNorm;
+    return param;
 }
 
 }  // namespace
@@ -289,16 +308,9 @@ void Controller::registerSweepParams() {
         Steinberg::Vst::ParameterInfo::kCanAutomate,
         makeSweepParamId(SweepParamType::kSweepLFOSync));
 
-    auto* lfoNoteParam = new Steinberg::Vst::StringListParameter(
+    parameters.addParameter(makeNoteValueParameter(
         STR16("Sweep LFO Note"), makeSweepParamId(SweepParamType::kSweepLFONoteValue),
-        nullptr, Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
-    for (const auto* n : {"1/64T","1/64","1/64D","1/32T","1/32","1/32D",
-                           "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
-                           "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
-                           "1/1T","1/1","1/1D","2/1T","2/1","2/1D",
-                           "3/1T","3/1","3/1D","4/1T","4/1","4/1D"})
-        lfoNoteParam->appendString(Steinberg::String(n));
-    parameters.addParameter(lfoNoteParam);
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList));
 
     // Sweep Envelope Follower Parameters (FR-026, FR-027)
     parameters.addParameter(STR16("Sweep Env Enable"), nullptr, 1, 0.0,
@@ -408,15 +420,9 @@ void Controller::registerModulationParams() {
     parameters.addParameter(STR16("LFO 1 Sync"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO1Sync));
 
-    auto* lfo1Note = new Steinberg::Vst::StringListParameter(
-        STR16("LFO 1 Note Value"), makeModParamId(ModParamType::kLFO1NoteValue));
-    for (const auto* n : {"1/64T","1/64","1/64D","1/32T","1/32","1/32D",
-                           "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
-                           "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
-                           "1/1T","1/1","1/1D","2/1T","2/1","2/1D",
-                           "3/1T","3/1","3/1D","4/1T","4/1","4/1D"})
-        lfo1Note->appendString(Steinberg::String(n));
-    parameters.addParameter(lfo1Note);
+    parameters.addParameter(makeNoteValueParameter(
+        STR16("LFO 1 Note Value"), makeModParamId(ModParamType::kLFO1NoteValue),
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList));
 
     parameters.addParameter(STR16("LFO 1 Unipolar"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO1Unipolar));
@@ -442,15 +448,9 @@ void Controller::registerModulationParams() {
     parameters.addParameter(STR16("LFO 2 Sync"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO2Sync));
 
-    auto* lfo2Note = new Steinberg::Vst::StringListParameter(
-        STR16("LFO 2 Note Value"), makeModParamId(ModParamType::kLFO2NoteValue));
-    for (const auto* n : {"1/64T","1/64","1/64D","1/32T","1/32","1/32D",
-                           "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
-                           "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
-                           "1/1T","1/1","1/1D","2/1T","2/1","2/1D",
-                           "3/1T","3/1","3/1D","4/1T","4/1","4/1D"})
-        lfo2Note->appendString(Steinberg::String(n));
-    parameters.addParameter(lfo2Note);
+    parameters.addParameter(makeNoteValueParameter(
+        STR16("LFO 2 Note Value"), makeModParamId(ModParamType::kLFO2NoteValue),
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList));
 
     parameters.addParameter(STR16("LFO 2 Unipolar"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO2Unipolar));

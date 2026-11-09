@@ -21,6 +21,7 @@
 #include "dsp/sweep_envelope.h"
 #include "plugin_ids.h"
 #include "state_codec.h"
+#include "ui/note_value_ui.h"
 
 #include "base/source/updatehandler.h"
 #include "pluginterfaces/vst/ivstdataexchange.h"
@@ -606,6 +607,50 @@ TEST_CASE("Registered plain value matches processor denormalization", "[disrumpo
         }
     }
     std::printf("Registered vs processor plain values: %d of %zu mismatched\n", wrong, mappings.size() * 3);
+    CHECK(wrong == 0);
+    c.terminate();
+}
+
+// D-092 (fix plan T4.04): the three note-value lists are the shared dropdown
+// (plugins/shared/src/ui/note_value_ui.h), which getNoteValueFromDropdown decodes,
+// and start on its default entry.
+TEST_CASE("Note value lists are the shared dropdown with its default", "[disrumpo][controller][D-092]")
+{
+    using namespace Disrumpo;
+    namespace Shared = Krate::Plugins::Parameters;
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    const double wantDefault = static_cast<double>(Shared::kNoteValueDefaultIndex) /
+                               static_cast<double>(Shared::kNoteValueDropdownCount - 1);
+    int wrong = 0;
+    for (const auto id : {makeSweepParamId(SweepParamType::kSweepLFONoteValue),
+                          makeModParamId(ModParamType::kLFO1NoteValue), makeModParamId(ModParamType::kLFO2NoteValue)}) {
+        Steinberg::Vst::ParameterInfo info{};
+        REQUIRE(c.getParameterInfoByTag(id, info) == Steinberg::kResultTrue);
+        const std::string title = asciiOf(info.title);
+        if (info.stepCount != Shared::kNoteValueDropdownCount - 1) {
+            ++wrong;
+            std::printf("  %s: %d entries, shared dropdown %d\n", title.c_str(), info.stepCount + 1,
+                        Shared::kNoteValueDropdownCount);
+        }
+        for (int i = 0; i < Shared::kNoteValueDropdownCount && i <= info.stepCount; ++i) {
+            Steinberg::Vst::String128 text{};
+            REQUIRE(c.getParamStringByValue(id, static_cast<double>(i) / info.stepCount, text) == Steinberg::kResultOk);
+            const std::string shown = asciiOf(text);
+            const std::string shared = asciiOf(Shared::kNoteValueDropdownStrings[i]);
+            if (shown != shared) {
+                ++wrong;
+                std::printf("  %s entry %d: \"%s\", shared \"%s\"\n", title.c_str(), i, shown.c_str(), shared.c_str());
+            }
+        }
+        if (std::fabs(info.defaultNormalizedValue - wantDefault) > 1e-9) {
+            ++wrong;
+            std::printf("  %s: default %.4f (entry %ld), shared default %.4f (entry %d)\n", title.c_str(),
+                        info.defaultNormalizedValue, std::lround(info.defaultNormalizedValue * info.stepCount),
+                        wantDefault, Shared::kNoteValueDefaultIndex);
+        }
+    }
+    std::printf("Note value lists vs the shared dropdown: %d mismatches\n", wrong);
     CHECK(wrong == 0);
     c.terminate();
 }

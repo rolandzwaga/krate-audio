@@ -18,6 +18,8 @@
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/vst/vsttypes.h"
 
+#include <krate/dsp/core/note_value.h>
+
 namespace Disrumpo {
 
 // Processor Component ID (FR-001)
@@ -724,8 +726,9 @@ constexpr int kOldNoteIdxToNewDropdown[15] = {
      7,  8,  6,  // 1/16, 1/16D, 1/16T
 };
 
-/// Number of entries in the standard note value dropdown (from DSP layer).
-constexpr int kNoteValueCount = 30;
+/// Number of entries in the standard note value dropdown: the DSP layer's count, which
+/// getNoteValueFromDropdown and the shared kNoteValueDropdownStrings use (D-092).
+constexpr int kNoteValueCount = Krate::DSP::kNoteValueDropdownCount;
 
 // ==============================================================================
 // Plugin Metadata
