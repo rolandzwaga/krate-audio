@@ -46,7 +46,7 @@
 
 - [ ] **T2.1** Integrate `CrossoverLR4` from KrateDSP
   - Create `CrossoverNetwork` wrapper class
-  - Support dynamic band count (1-8)
+  - Support dynamic band count (1-4)
   - Implement cascaded band splitting
 
 - [ ] **T2.2** Implement per-band routing

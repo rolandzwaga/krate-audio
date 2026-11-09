@@ -55,10 +55,10 @@ constexpr const char* kSubCategories = "Fx|Distortion";
 //   200-299:    Modulation sources (LFO1, LFO2, Env, etc.)
 //   300-399:    Modulation routing matrix
 //   400-499:    Macro parameters
-//   1000-1799:  Band 0 parameters (100 per band × 8 bands)
-//   1800-2599:  Band 1 parameters
+//   1000-1399:  Band parameters (100 per band × 4 bands)
+//   1000-1099:  Band 0 parameters
 //   ...         (continue pattern)
-//   8200-8999:  Band 7 parameters
+//   1300-1399:  Band 3 parameters
 //   9000-9999:  UI-only tags (visibility controllers, labels)
 
 enum GlobalParameterIDs : Steinberg::Vst::ParamID {
@@ -186,7 +186,7 @@ constexpr Steinberg::Vst::ParamID getNodeParamId(int band, int node, int nodeOff
     <color name="accent-primary" rgba="#89ddffff"/>
     <color name="accent-secondary" rgba="#c792eaff"/>
 
-    <!-- Band colors (8 bands) -->
+    <!-- Band colors (8 defined; bands 1-4 in use) -->
     <color name="band-1" rgba="#ff6b35ff"/>
     <color name="band-2" rgba="#4ecdc4ff"/>
     <color name="band-3" rgba="#95e86bff"/>
@@ -624,8 +624,8 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     // Modulation parameters
     registerModulationParams(parameters);
 
-    // Per-band parameters (8 bands)
-    for (int b = 0; b < 8; ++b) {
+    // Per-band parameters (kMaxBands = 4 bands)
+    for (int b = 0; b < kMaxBands; ++b) {
         registerBandParams(parameters, b);
     }
 
@@ -1069,8 +1069,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
     setParamNormalized(kSweepEnableId, sweepEnabled ? 1.0 : 0.0);
     // ... continue for all parameters
 
-    // Read per-band state (fixed 8 bands for format stability)
-    for (int b = 0; b < 8; ++b) {
+    // Read per-band state (fixed kMaxBands = 4 bands for format stability)
+    for (int b = 0; b < kMaxBands; ++b) {
         syncBandStateToController(streamer, b);
     }
 

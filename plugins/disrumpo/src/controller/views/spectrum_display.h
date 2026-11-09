@@ -78,7 +78,7 @@ public:
     void setListener(SpectrumDisplayListener* listener) { listener_ = listener; }
 
     /// @brief Set per-band sweep intensity values for overlay rendering (FR-050)
-    /// @param intensities Array of intensity values [0, 2] per band (up to 8)
+    /// @param intensities Array of intensity values [0, 2] per band (up to 4)
     /// @param numBands Number of bands with valid intensity data
     void setSweepBandIntensities(const std::array<float, 4>& intensities, int numBands);
 
