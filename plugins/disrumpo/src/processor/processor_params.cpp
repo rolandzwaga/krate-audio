@@ -71,7 +71,7 @@ void Processor::mapShapeSlotsToParams(DistortionType type, const float* slots,
 
         case DistortionType::Fuzz:
             // Slot0=Bias, Slot1=Transistor, Slot2=Octave, Slot3=Sustain
-            p.bias = slots[0];  // Fuzz bias is unipolar [0,1]
+            p.bias = slots[0] * 2.0f - 1.0f;  // bipolar as every type; the adapter maps it to Fuzz's [0,1] (D-082)
             p.transistor = static_cast<int>(slots[1] * 1.0f + 0.5f); // 0-1
             p.octave = slots[2];
             p.sustain = slots[3];
@@ -79,7 +79,7 @@ void Processor::mapShapeSlotsToParams(DistortionType type, const float* slots,
 
         case DistortionType::AsymmetricFuzz:
             // Slot0=Bias, Slot1=Asym, Slot2=Trans, Slot3=Sustain, Slot4=Body
-            p.bias = slots[0];  // Fuzz bias is unipolar [0,1]
+            p.bias = slots[0] * 2.0f - 1.0f;  // bipolar, as Fuzz (D-082)
             p.asymmetry = slots[1];
             p.transistor = static_cast<int>(slots[2] * 1.0f + 0.5f);
             p.sustain = slots[3];

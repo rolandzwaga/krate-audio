@@ -846,7 +846,9 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             // Note: FuzzType is set per-sample in processRaw() (hardcoded Germanium).
             // Setting it here would pre-empt the crossfade that processRaw() triggers
             // on first use, changing audio behavior. Leave type to processRaw().
-            fuzz_.setBias(p.bias);
+            // DistortionParams::bias is bipolar [-1, 1] for every type (node Bias, bias
+            // modulation); FuzzProcessor's is unipolar [0, 1], 1 = centred (D-082).
+            fuzz_.setBias((p.bias + 1.0f) * 0.5f);
             fuzz_.setFuzz(p.sustain);
             fuzz_.setOctaveUp(p.octave >= 0.5f);
             // The node Tone (adapter tone filter) is the only tone control: open the
@@ -858,7 +860,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             // Note: FuzzType is set per-sample in processRaw() (hardcoded Silicon).
             // Setting it here would pre-empt the crossfade that processRaw() triggers
             // on first use, changing audio behavior. Leave type to processRaw().
-            fuzz_.setBias(p.bias);
+            fuzz_.setBias((p.bias + 1.0f) * 0.5f);  // bipolar -> unipolar, as Fuzz (D-082)
             fuzz_.setFuzz(p.sustain);
             fuzz_.setTone(1.0f);  // tone biquad fully open, as Fuzz (D-076)
             // Body: map [0,1] to cutoff [20000, 400] Hz (exponential)

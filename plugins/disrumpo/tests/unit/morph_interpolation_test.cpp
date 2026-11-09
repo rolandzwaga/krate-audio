@@ -14,6 +14,7 @@
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 #include "dsp/distortion_types.h"
+#include "../test_support/disrumpo_rig.h"
 
 // The single owner of the global operator new/delete replacements in
 // disrumpo_tests (allocation_detector.h). A second include anywhere else in this
@@ -1144,6 +1145,85 @@ TEST_CASE("MorphEngine same-family different types run in parallel",
     CHECK_FALSE(engine->getAllSameType());
     CHECK(maxDiff <= 1e-5f);
     REQUIRE(allocations == 0);
+}
+
+// =============================================================================
+// Bias semantics per type (D-033, D-082): DistortionParams::bias is bipolar
+// [-1, 1] with 0 neutral for every type; the adapter converts it to Fuzz's
+// unipolar [0, 1] (1 = centred) when it hands it to FuzzProcessor.
+// =============================================================================
+
+TEST_CASE("SoftClip+Fuzz same-family blend keeps a centred Fuzz centred",
+          "[disrumpo][morph][D-033]") {
+    // Node A SoftClip (bias 0), node B Fuzz with its Bias knob (shape slot 0) at 1.0,
+    // FuzzProcessor's centred bias. At wA 0.4 / wB 0.6 the Fuzz must run at its own
+    // bias, not at a blend of the SoftClip's 0 and its own value.
+    auto nodes = makePathNodes(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::Fuzz);
+    const std::array<float, Disrumpo::MorphNode::kShapeSlotCount> fuzzSlots{1.0f, 0.0f, 0.0f, 0.5f};
+    nodes[1].params = Disrumpo::DistortionParams{};
+    Disrumpo::Processor::mapShapeSlotsToParams(Disrumpo::DistortionType::Fuzz, fuzzSlots.data(), nodes[1].params);
+    auto engine = makePathEngine(nodes);
+    engine->setMorphPosition(0.5505f, 0.0f);  // inverse-distance weights 0.4 / 0.6
+    auto refSoft = makePathAdapter(nodes[0].type, nodes[0].params, nodes[0].commonParams);
+    auto refFuzz = makePathAdapter(nodes[1].type, nodes[1].params, nodes[1].commonParams);
+
+    float maxDiff = 0.0f;
+    float peak = 0.0f;
+    for (size_t n = 0; n < kPathSamples; ++n) {
+        const float y = engine->process(pathInput(n));
+        const auto& w = engine->getWeights();
+        const float expected = refSoft->process(pathInput(n)) * w[0] + refFuzz->process(pathInput(n)) * w[1];
+        if (n >= 480) {  // after the cursor smoother has settled
+            maxDiff = std::max(maxDiff, std::abs(y - expected));
+            peak = std::max(peak, std::abs(expected));
+        }
+    }
+    const auto& w = engine->getWeights();
+    WARN("D-033 SoftClip + Fuzz (slot0 1.0, params.bias " << nodes[1].params.bias << ") at w " << w[0] << " / "
+         << w[1] << ": max |engine - (wA * SoftClip + wB * Fuzz alone)| " << maxDiff << " (peak " << peak << ")");
+    CHECK(std::abs(w[1] - 0.6f) < 0.01f);
+    REQUIRE(maxDiff <= 1e-4f);
+}
+
+TEST_CASE("kNodeBias 0.0 and 0.25 give different Fuzz output", "[disrumpo][morph][D-082]") {
+    using namespace Disrumpo;
+    using namespace Disrumpo::TestSupport;
+    constexpr double kSampleRate = 48000.0;
+    constexpr size_t kLen = 12000;  // 0.25 s
+    std::vector<float> in(kLen);
+    for (size_t i = 0; i < kLen; ++i)
+        in[i] = 0.25f * std::sin(6.28318530718f * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
+
+    // One band, node 0 Fuzz (the only active node), then the host automates Bias.
+    const auto render = [&](double biasNorm, std::vector<float>& outL) {
+        Rig rig(kSampleRate);
+        rig.apply({{kBandCountId, 0.0},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeType),
+                    static_cast<double>(static_cast<int>(DistortionType::Fuzz)) / 25.0},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.5}});
+        rig.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeBias), biasNorm}});
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR);
+    };
+    std::vector<float> a;
+    std::vector<float> b;
+    render(0.0, a);
+    render(0.25, b);
+
+    const size_t from = kLen / 2;
+    double maxDiff = 0.0;
+    std::vector<float> diff(kLen - from);
+    for (size_t i = from; i < kLen; ++i) {
+        diff[i - from] = a[i] - b[i];
+        maxDiff = std::max(maxDiff, std::fabs(static_cast<double>(diff[i - from])));
+    }
+    const double rmsA = rmsOf(a.data() + from, kLen - from);
+    const double rmsB = rmsOf(b.data() + from, kLen - from);
+    const double rmsDiff = rmsOf(diff.data(), diff.size());
+    WARN("D-082 Fuzz kNodeBias norm 0.0: RMS " << toDb(rmsA) << " dBFS; 0.25: RMS " << toDb(rmsB)
+         << " dBFS; max |difference| " << maxDiff << ", RMS of the difference " << toDb(rmsDiff) << " dBFS");
+    REQUIRE(rmsA > 1e-3);
+    REQUIRE(rmsDiff > 1e-3);
 }
 
 // =============================================================================
