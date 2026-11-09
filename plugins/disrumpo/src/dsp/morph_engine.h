@@ -162,6 +162,8 @@ public:
     [[nodiscard]] const DistortionAdapter& getAdapter(int idx) const noexcept { return adapters_[idx]; }
     /// @brief Last identical-type interpolateParams() result (set in processSameFamily).
     [[nodiscard]] const DistortionParams& getBlendedParams() const noexcept { return lastBlendedParams_; }
+    /// @brief How often the identical-type path has routed params to its processor.
+    [[nodiscard]] std::uint64_t getBlendedRouteCount() const noexcept { return blendedRouteCount_; }
 
     /// @brief Latency of process() output in clocked samples (D-081, T2.10): the largest
     /// latency among the active nodes' types. Every node adapter and the blended adapter
@@ -282,6 +284,16 @@ private:
 
     // Last interpolateParams() result of the identical-type path (test accessor)
     DistortionParams lastBlendedParams_;
+    // setType/setParams/setCommonParams rounds of the identical-type path (test accessor)
+    std::uint64_t blendedRouteCount_ = 0;
+
+    // Control-rate routing of the identical-type path (D-005): the weights and sweep
+    // drive multiplier it last routed, and a flag every node / offset setter and reset
+    // sets so the next sample routes again
+    static constexpr float kBlendedWeightEpsilon = 1e-6f;
+    std::array<float, kMaxMorphNodes> blendedWeights_{};
+    float blendedSweepDriveScale_ = 1.0f;
+    bool blendedParamsDirty_ = true;
 
     // Output latency in clocked samples (updateLatencyAlignment)
     int latency_ = 0;

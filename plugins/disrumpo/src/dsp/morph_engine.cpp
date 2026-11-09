@@ -52,6 +52,7 @@ void MorphEngine::prepare(double sampleRate, int maxBlockSize, int maxOversample
         adapter.prepare(sampleRate, maxBlockSize, maxOversampleFactor);
     }
     blendedAdapter_.prepare(sampleRate, maxBlockSize, maxOversampleFactor);
+    blendedParamsDirty_ = true;
 
     // Initialize adapter types from nodes
     for (int i = 0; i < kMaxMorphNodes; ++i) {
@@ -89,6 +90,7 @@ void MorphEngine::reset() noexcept {
         adapter.reset();
     }
     blendedAdapter_.reset();
+    blendedParamsDirty_ = true;
 
     // Reset weights to default (50/50 for 2-node)
     weights_ = {0.5f, 0.5f, 0.0f, 0.0f};
@@ -109,6 +111,7 @@ void MorphEngine::resetState() noexcept {
         adapter.reset();
     }
     blendedAdapter_.reset();
+    blendedParamsDirty_ = true;
     clearSwitchFade();
 }
 
@@ -129,6 +132,7 @@ void MorphEngine::setProcessingRate(double rate) noexcept {
         adapter.setProcessingRate(rate);
     }
     blendedAdapter_.setProcessingRate(rate);
+    blendedParamsDirty_ = true;
 }
 
 // =============================================================================
@@ -153,11 +157,13 @@ void MorphEngine::setMode(MorphMode mode) noexcept {
 void MorphEngine::setDriveMixModOffset(float driveOffset, float mixOffset) noexcept {
     driveModOffset_ = driveOffset;
     mixModOffset_ = mixOffset;
+    blendedParamsDirty_ = true;
 }
 
 void MorphEngine::setToneBiasModOffset(float toneOffset, float biasOffset) noexcept {
     toneModOffset_ = toneOffset;
     biasModOffset_ = biasOffset;
+    blendedParamsDirty_ = true;
 }
 
 void MorphEngine::setSmoothingTime(float timeMs) noexcept {
@@ -181,6 +187,8 @@ void MorphEngine::setNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, i
     appliedSweepDriveScale_ = 1.0f;
     // ... and the unmodulated base params: the next sample re-applies any active offsets
     offsetsWereActive_ = false;
+    // ... and the identical-type path routes the new nodes at the next sample (D-005)
+    blendedParamsDirty_ = true;
     // Every node is padded to the slowest active node's latency (D-081)
     updateLatencyAlignment();
 
@@ -711,6 +719,7 @@ float MorphEngine::process(float input) noexcept {
     if ((pathSwitch || nodesAdded) && hasOutput_) {
         if (allSameType_) {
             blendedAdapter_.reset();
+            blendedParamsDirty_ = true;
         } else {
             const int first = pathSwitch ? 0 : processedNodeCount_;
             for (int i = first; i < activeNodeCount_; ++i) {
@@ -750,19 +759,33 @@ float MorphEngine::processSameFamily(float input) noexcept {
     // Identical types (isSameType): interpolate parameters, use single processor
     // Per spec FR-006, FR-018
 
-    // Every active node has this type, so the processor never switches
-    blendedAdapter_.setType(nodes_[0].type);
+    // Control rate (D-005): route only when the weights moved, a node / offset setter
+    // ran, the adapter was reset, or the sweep drive multiplier changed
+    float weightDelta = 0.0f;
+    for (int i = 0; i < kMaxMorphNodes; ++i) {
+        weightDelta = std::max(weightDelta, std::abs(weights_[i] - blendedWeights_[i]));
+    }
+    if (blendedParamsDirty_ || weightDelta > kBlendedWeightEpsilon
+        || sweepDriveScale_ != blendedSweepDriveScale_) {
+        blendedParamsDirty_ = false;
+        blendedWeights_ = weights_;
+        blendedSweepDriveScale_ = sweepDriveScale_;
+        ++blendedRouteCount_;
 
-    auto bp = interpolateParams();
-    lastBlendedParams_ = bp;
-    bp.bias = std::clamp(bp.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
-    blendedAdapter_.setParams(bp);
+        // Every active node has this type, so the processor never switches
+        blendedAdapter_.setType(nodes_[0].type);
 
-    auto cp = interpolateCommonParams();
-    cp.drive = modulatedDrive(cp.drive);
-    cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
-    cp.toneHz = std::clamp(cp.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f);
-    blendedAdapter_.setCommonParams(cp);
+        auto bp = interpolateParams();
+        lastBlendedParams_ = bp;
+        bp.bias = std::clamp(bp.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
+        blendedAdapter_.setParams(bp);
+
+        auto cp = interpolateCommonParams();
+        cp.drive = modulatedDrive(cp.drive);
+        cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
+        cp.toneHz = std::clamp(cp.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f);
+        blendedAdapter_.setCommonParams(cp);
+    }
 
     return blendedAdapter_.process(input);
 }

@@ -15,11 +15,17 @@
 #include "dsp/band_processor.h"
 #include "dsp/distortion_types.h"
 #include "dsp/oversampling_utils.h"
+#include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 
+#include <krate/dsp/core/db_utils.h>
+
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <numbers>
 #include <vector>
@@ -273,4 +279,250 @@ TEST_CASE("BandProcessor: oversampling latency stays under 10 ms",
         CHECK(measured == bp->getWorstCaseLatency());
         CHECK(ms < 10.0);
     }
+}
+
+// =============================================================================
+// D-005 (fix plan T2.20): identical-type morph routes its params at control rate
+// =============================================================================
+// processSameFamily used to run setType + interpolateParams + setParams +
+// setCommonParams on every sample (Formant: two std::pow and the vowel filter
+// updates each time). It now routes only when the weights move, a node / offset
+// setter runs, or the sweep drive scale changes. The reference render is the
+// pre-change behaviour, reproduced through the public API: a mod-offset setter
+// before every sample forces the full routing on every sample.
+// MorphEngine holds five DistortionAdapters: every engine lives on the heap.
+
+namespace {
+
+constexpr double kMorphRate = 48000.0;
+
+/// Four nodes of one type at the corners of the XY pad, with distinct params.
+std::array<MorphNode, kMaxMorphNodes> cornerNodes(const std::array<DistortionType, 4>& types) {
+    constexpr std::array<std::array<float, 2>, 4> kCorners{{{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}}};
+    std::array<MorphNode, kMaxMorphNodes> nodes{};
+    for (size_t i = 0; i < 4; ++i) {
+        const auto f = static_cast<float>(i);
+        nodes[i] = MorphNode(static_cast<int>(i), kCorners[i][0], kCorners[i][1], types[i]);
+        nodes[i].commonParams = {.drive = 2.0f + f, .mix = 1.0f - 0.1f * f, .toneHz = 2500.0f + 1500.0f * f};
+        nodes[i].params.vowelSelect = static_cast<int>(i);
+        nodes[i].params.formantShift = -6.0f + 4.0f * f;
+        nodes[i].params.formantReso = 0.2f + 0.2f * f;
+        nodes[i].params.formantBW = 0.8f - 0.2f * f;
+        nodes[i].params.formantBlend = 0.25f * f;
+        nodes[i].params.bias = -0.2f + 0.1f * f;
+    }
+    return nodes;
+}
+
+constexpr std::array<DistortionType, 4> kFourFormants{DistortionType::Formant, DistortionType::Formant,
+                                                       DistortionType::Formant, DistortionType::Formant};
+// Four different Experimental-family types (Spectral left out: it adds FFT latency)
+constexpr std::array<DistortionType, 4> kFourExperimental{DistortionType::Formant, DistortionType::Chaos,
+                                                           DistortionType::Granular, DistortionType::Fractal};
+
+std::unique_ptr<MorphEngine> makeMorphEngine(const std::array<DistortionType, 4>& types, float smoothingMs) {
+    auto e = std::make_unique<MorphEngine>();
+    e->prepare(kMorphRate, 512);
+    e->setMode(MorphMode::Planar2D);
+    e->setSmoothingTime(smoothingMs);
+    e->setNodes(cornerNodes(types), 4);
+    e->setMorphPosition(0.5f, 0.5f);
+    return e;
+}
+
+float morphTestInput(size_t n) {
+    const double t = static_cast<double>(n) / kMorphRate;
+    return static_cast<float>(0.4 * std::sin(2.0 * std::numbers::pi * 220.0 * t) +
+                              0.2 * std::sin(2.0 * std::numbers::pi * 1370.0 * t));
+}
+
+/// Block-rate modulation of a scenario: drive/mix and tone/bias offsets for one block.
+struct BlockMod {
+    float drive = 0.0f;
+    float mix = 0.0f;
+    float tone = 0.0f;
+    float bias = 0.0f;
+};
+
+BlockMod modForBlock(size_t block) {
+    // Offsets step every 8 blocks, and are 0 for a stretch (the base-param return)
+    const size_t step = block / 8;
+    if (step % 5 == 4) return {};
+    const auto s = static_cast<float>(step % 5);
+    return {.drive = 0.05f * s, .mix = -0.04f * s, .tone = 0.03f * s - 0.05f, .bias = 0.02f * s};
+}
+
+/// Renders the scenario through @p e: 1 s at 48 kHz in 64-sample blocks, offsets per
+/// block, a sweep drive ramp per sample in the third quarter, two cursor moves. With
+/// @p forcePerSample the offset setter also runs before every sample (the pre-change
+/// per-sample routing).
+std::vector<float> renderMorphScenario(MorphEngine& e, bool forcePerSample) {
+    constexpr size_t kTotal = 48000;
+    constexpr size_t kBlock = 64;
+    std::vector<float> out(kTotal);
+    for (size_t start = 0; start < kTotal; start += kBlock) {
+        const size_t block = start / kBlock;
+        if (start == 12000) e.setMorphPosition(0.1f, 0.9f);
+        if (start == 28800) e.setMorphPosition(0.5f, 0.5f);
+        if (start == 40000) {  // a node edit while the cursor is still
+            auto nodes = cornerNodes(kFourFormants);
+            nodes[0].params.formantShift = 5.0f;
+            nodes[3].commonParams.drive = 8.0f;
+            e.setNodes(nodes, 4);
+        }
+        const BlockMod m = modForBlock(block);
+        e.setDriveMixModOffset(m.drive, m.mix);
+        e.setToneBiasModOffset(m.tone, m.bias);
+        for (size_t n = start; n < start + kBlock; ++n) {
+            const bool sweeping = n >= 24000 && n < 36000;
+            e.setSweepDriveScale(sweeping ? 1.0f + static_cast<float>(n - 24000) / 12000.0f : 1.0f);
+            if (forcePerSample) e.setDriveMixModOffset(m.drive, m.mix);
+            out[n] = e.process(morphTestInput(n));
+        }
+    }
+    return out;
+}
+
+/// Wall-clock seconds for @p seconds of audio at 48 kHz through four bands of @p types
+/// at the centre of the pad (512-sample blocks, after a 0.5 s warm-up).
+double fourBandSeconds(const std::array<DistortionType, 4>& types, double seconds) {
+    constexpr size_t kBlock = 512;
+    std::array<std::unique_ptr<BandProcessor>, 4> bands;
+    for (auto& b : bands) {
+        b = std::make_unique<BandProcessor>();
+        b->prepare(kMorphRate, kBlock);
+        b->setMorphEnabled(true);
+        b->setMorphMode(MorphMode::Planar2D);
+        b->setMorphNodes(cornerNodes(types), 4);
+        b->setMorphPosition(0.5f, 0.5f);
+    }
+    std::array<float, kBlock> left{};
+    std::array<float, kBlock> right{};
+    const auto blocksFor = [](double s) { return static_cast<size_t>(s * kMorphRate) / kBlock; };
+    size_t n = 0;
+    const auto run = [&](size_t blocks) {
+        for (size_t blk = 0; blk < blocks; ++blk) {
+            for (auto& b : bands) {
+                for (size_t i = 0; i < kBlock; ++i) {
+                    left[i] = morphTestInput(n + i);
+                    right[i] = left[i];
+                }
+                b->processBlock(left.data(), right.data(), kBlock);
+            }
+            n += kBlock;
+        }
+    };
+    run(blocksFor(0.5));
+    const auto t0 = std::chrono::steady_clock::now();
+    run(blocksFor(seconds));
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+}
+
+/// Wall-clock seconds for @p seconds of audio through one engine, optionally forcing
+/// the per-sample routing (the pre-change cost).
+double engineSeconds(const std::array<DistortionType, 4>& types, double seconds, bool forcePerSample) {
+    auto e = makeMorphEngine(types, 0.0f);
+    const auto total = static_cast<size_t>(seconds * kMorphRate);
+    float sink = 0.0f;
+    const auto t0 = std::chrono::steady_clock::now();
+    for (size_t n = 0; n < total; ++n) {
+        if (forcePerSample) e->setDriveMixModOffset(0.0f, 0.0f);
+        sink += e->process(morphTestInput(n));
+    }
+    const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    CHECK(Krate::DSP::detail::isFinite(sink));
+    return s;
+}
+
+}  // namespace
+
+TEST_CASE("Same-type morph routes its params only when they change", "[disrumpo][morph][D-005]") {
+    auto e = makeMorphEngine(kFourFormants, 0.0f);
+    const auto routesAfter = [&e](size_t samples, size_t& n) {
+        const auto before = e->getBlendedRouteCount();
+        for (size_t i = 0; i < samples; ++i, ++n) (void)e->process(morphTestInput(n));
+        return e->getBlendedRouteCount() - before;
+    };
+    size_t n = 0;
+    const auto staticRoutes = routesAfter(4800, n);  // 0.1 s, cursor still, no setter
+    e->setDriveMixModOffset(0.2f, 0.0f);
+    const auto offsetRoutes = routesAfter(4800, n);
+    e->setSweepDriveScale(1.5f);
+    const auto sweepRoutes = routesAfter(4800, n);
+    e->setMorphPosition(0.2f, 0.7f);  // the shortest smoothing still settles over a few samples
+    const auto moveRoutes = routesAfter(4800, n);
+    const auto settledRoutes = routesAfter(4800, n);
+    std::printf("T2.20 D-005 routes per 4800 samples: still %llu, after an offset change %llu, after a sweep "
+                "scale change %llu, after a cursor jump %llu, settled again %llu (want <= 1, 1, 1, 1..48, 0)\n",
+                static_cast<unsigned long long>(staticRoutes), static_cast<unsigned long long>(offsetRoutes),
+                static_cast<unsigned long long>(sweepRoutes), static_cast<unsigned long long>(moveRoutes),
+                static_cast<unsigned long long>(settledRoutes));
+    CHECK(staticRoutes <= 1u);
+    CHECK(offsetRoutes == 1u);
+    CHECK(sweepRoutes == 1u);
+    CHECK(moveRoutes >= 1u);
+    CHECK(moveRoutes <= 48u);  // routes only while the weights move (1 ms here)
+    CHECK(settledRoutes == 0u);
+}
+
+TEST_CASE("Same-type morph render is unchanged by control-rate routing", "[disrumpo][morph][D-005]") {
+    auto fast = makeMorphEngine(kFourFormants, 20.0f);
+    auto reference = makeMorphEngine(kFourFormants, 20.0f);
+    const auto out = renderMorphScenario(*fast, false);
+    const auto ref = renderMorphScenario(*reference, true);
+    double maxDiff = 0.0;
+    double peak = 0.0;
+    size_t worst = 0;
+    for (size_t i = 0; i < out.size(); ++i) {
+        const double d = std::fabs(static_cast<double>(out[i]) - static_cast<double>(ref[i]));
+        if (d > maxDiff) {
+            maxDiff = d;
+            worst = i;
+        }
+        peak = std::max(peak, std::fabs(static_cast<double>(ref[i])));
+    }
+    std::printf("T2.20 D-005 render vs per-sample routing: max |diff| %.3g at sample %zu (want <= 1e-6), "
+                "reference peak %.3f, routes %llu vs %llu\n",
+                maxDiff, worst, peak, static_cast<unsigned long long>(fast->getBlendedRouteCount()),
+                static_cast<unsigned long long>(reference->getBlendedRouteCount()));
+    REQUIRE(peak > 0.01);
+    CHECK(maxDiff <= 1e-6);
+}
+
+TEST_CASE("Same-type morph applies a new mod offset within the block it arrives", "[disrumpo][morph][D-005]") {
+    // Two engines run the same input; at sample 512 one gets a drive offset (as
+    // BandProcessor hands it over at a block start). Its output must change at once.
+    auto moved = makeMorphEngine(kFourFormants, 0.0f);
+    auto still = makeMorphEngine(kFourFormants, 0.0f);
+    constexpr size_t kChange = 512;
+    size_t firstDiff = SIZE_MAX;
+    for (size_t n = 0; n < 1024; ++n) {
+        if (n == kChange) moved->setDriveMixModOffset(0.3f, 0.0f);
+        const float a = moved->process(morphTestInput(n));
+        const float b = still->process(morphTestInput(n));
+        if (firstDiff == SIZE_MAX && a != b) firstDiff = n;
+    }
+    std::printf("T2.20 D-005 drive offset set at sample %zu: output first differs at sample %zu (want %zu)\n",
+                kChange, firstDiff, kChange);
+    CHECK(firstDiff == kChange);
+}
+
+// Hidden cost probe (prints, asserts no budget): run alone, nothing else executing,
+// disrumpo_tests.exe "[t220-cpu-probe]". Measured 2026-11-09 at 48 kHz: 4 bands x
+// 4 Formant 14.27 %, 4 bands x 4 mixed types 21.66 %; one engine 0.669 % with
+// control-rate routing vs 2.437 % with per-sample routing.
+TEST_CASE("Probe: T2.20 same-type morph routing cost", "[.][t220-cpu-probe]") {
+    constexpr double kSeconds = 10.0;
+    const double formantBands = fourBandSeconds(kFourFormants, kSeconds);
+    const double mixedBands = fourBandSeconds(kFourExperimental, kSeconds);
+    const double engineFast = engineSeconds(kFourFormants, kSeconds, false);
+    const double enginePerSample = engineSeconds(kFourFormants, kSeconds, true);
+    const double engineMixed = engineSeconds(kFourExperimental, kSeconds, false);
+    const auto pct = [kSeconds](double s) { return 100.0 * s / kSeconds; };
+    std::printf("T2.20 D-005 CPU, 10 s at 48 kHz: 4 bands x 4 Formant %.2f %%; 4 bands x "
+                "Formant/Chaos/Granular/Fractal (parallel path) %.2f %%\n",
+                pct(formantBands), pct(mixedBands));
+    std::printf("T2.20 D-005 CPU, one engine, 4 Formant: control-rate routing %.3f %%, per-sample routing "
+                "(pre-change) %.3f %% (x%.2f); 4 mixed types (parallel path) %.3f %%\n",
+                pct(engineFast), pct(enginePerSample), enginePerSample / engineFast, pct(engineMixed));
 }
