@@ -263,6 +263,12 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     `tools/ci-test-shard.js` (CI, spans machines). run-gate.js does not export its dealing logic. The `*-phase.js`
     workflow prompts still describe `--shard-count/--shard-index` (left unedited: changing a prompt breaks resume
     of an in-flight phase run).
+73. **clang-tidy coverage of plugin tests is inconsistent (all plugins)**: `tools/run-clang-tidy.sh` tidies every
+    plugin's `tests/` folder, `tools/run-clang-tidy.ps1` tidies only `src/`, and only `dsp/tests/.clang-tidy`
+    disables the Catch2-macro checks (`avoid-do-while`), so the `.sh` reports Catch2 do-whiles across plugin test TUs
+    (seen on Disrumpo's crossover_network_test.cpp / processor_audio_output_test.cpp in dedup step 3). User ruled
+    2026-11-09: log it, decide the repo-wide lint policy later (options: one shared override under `plugins/`, or
+    per-site fixes).
 
 ## Done outside the plan
 
