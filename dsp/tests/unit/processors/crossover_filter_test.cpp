@@ -1027,543 +1027,6 @@ TEST_CASE("CrossoverLR4 handles denormals", "[crossover][US2][denormal][FR-018][
 }
 
 // ==============================================================================
-// Phase 4.1: User Story 3 Tests - 3-Way Band Splitting
-// ==============================================================================
-
-// -----------------------------------------------------------------------------
-// T060: Crossover3WayOutputs struct
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3WayOutputs struct", "[crossover][US3][struct]") {
-    Crossover3WayOutputs outputs;
-
-    SECTION("has low, mid, high members defaulted to 0") {
-        REQUIRE(outputs.low == 0.0f);
-        REQUIRE(outputs.mid == 0.0f);
-        REQUIRE(outputs.high == 0.0f);
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T061: Crossover3Way default constructor
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way default constructor", "[crossover][US3][lifecycle]") {
-    Crossover3Way crossover;
-
-    SECTION("kDefaultLowMidFrequency is 300Hz") {
-        REQUIRE(Crossover3Way::kDefaultLowMidFrequency == 300.0f);
-    }
-
-    SECTION("kDefaultMidHighFrequency is 3000Hz") {
-        REQUIRE(Crossover3Way::kDefaultMidHighFrequency == 3000.0f);
-    }
-
-    SECTION("not prepared after construction") {
-        REQUIRE_FALSE(crossover.isPrepared());
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T062: Crossover3Way prepare (FR-008)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way prepare", "[crossover][US3][lifecycle][FR-008]") {
-    Crossover3Way crossover;
-
-    SECTION("prepare sets prepared flag") {
-        crossover.prepare(44100.0);
-        REQUIRE(crossover.isPrepared());
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T063: Crossover3Way frequency setters (FR-008)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way frequency setters", "[crossover][US3][params][FR-008]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-
-    SECTION("setLowMidFrequency sets value") {
-        crossover.setLowMidFrequency(400.0f);
-        REQUIRE(crossover.getLowMidFrequency() == Approx(400.0f));
-    }
-
-    SECTION("setMidHighFrequency sets value") {
-        crossover.setMidHighFrequency(4000.0f);
-        REQUIRE(crossover.getMidHighFrequency() == Approx(4000.0f));
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T064: Crossover3Way flat sum (FR-008, SC-004)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way low + mid + high sum to flat", "[crossover][US3][flatsum][FR-008][SC-004]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-
-    // Test at various frequencies
-    std::vector<float> testFreqs = {100.0f, 300.0f, 1000.0f, 3000.0f, 8000.0f};
-
-    for (float freq : testFreqs) {
-        SECTION("flat sum at " + std::to_string(static_cast<int>(freq)) + "Hz") {
-            crossover.reset();
-
-            constexpr size_t numSamples = 16384;
-            std::vector<float> input(numSamples);
-            std::vector<float> low(numSamples);
-            std::vector<float> mid(numSamples);
-            std::vector<float> high(numSamples);
-
-            generateSine(input.data(), numSamples, freq, 44100.0f);
-            crossover.processBlock(input.data(), low.data(), mid.data(), high.data(), numSamples);
-
-            // Sum bands
-            std::vector<float> sum(numSamples);
-            for (size_t i = 0; i < numSamples; ++i) {
-                sum[i] = low[i] + mid[i] + high[i];
-            }
-
-            // Measure
-            const size_t startSample = numSamples / 2;
-            const float inputRms = calculateRMS(input.data() + startSample, numSamples - startSample);
-            const float sumRms = calculateRMS(sum.data() + startSample, numSamples - startSample);
-            const float responseDb = linearToDb(sumRms / inputRms);
-
-            REQUIRE(responseDb == Approx(0.0f).margin(0.15f));
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T065: Crossover3Way band isolation (SC-004)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way band isolation", "[crossover][US3][isolation][SC-004]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-
-    SECTION("low band contains only content below 300Hz") {
-        crossover.reset();
-        // Test with 100Hz tone (should be mostly in low band)
-        constexpr size_t numSamples = 8192;
-        std::vector<float> input(numSamples);
-        std::vector<float> low(numSamples);
-        std::vector<float> mid(numSamples);
-        std::vector<float> high(numSamples);
-
-        generateSine(input.data(), numSamples, 100.0f, 44100.0f);
-        crossover.processBlock(input.data(), low.data(), mid.data(), high.data(), numSamples);
-
-        const size_t startSample = numSamples / 2;
-        const float lowRms = calculateRMS(low.data() + startSample, numSamples - startSample);
-        const float midRms = calculateRMS(mid.data() + startSample, numSamples - startSample);
-        const float highRms = calculateRMS(high.data() + startSample, numSamples - startSample);
-
-        // Low should dominate
-        REQUIRE(lowRms > midRms * 10.0f);
-        REQUIRE(lowRms > highRms * 10.0f);
-    }
-
-    SECTION("high band contains only content above 3000Hz") {
-        crossover.reset();
-        // Test with 8000Hz tone (should be mostly in high band)
-        constexpr size_t numSamples = 8192;
-        std::vector<float> input(numSamples);
-        std::vector<float> low(numSamples);
-        std::vector<float> mid(numSamples);
-        std::vector<float> high(numSamples);
-
-        generateSine(input.data(), numSamples, 8000.0f, 44100.0f);
-        crossover.processBlock(input.data(), low.data(), mid.data(), high.data(), numSamples);
-
-        const size_t startSample = numSamples / 2;
-        const float lowRms = calculateRMS(low.data() + startSample, numSamples - startSample);
-        const float midRms = calculateRMS(mid.data() + startSample, numSamples - startSample);
-        const float highRms = calculateRMS(high.data() + startSample, numSamples - startSample);
-
-        // High should dominate
-        REQUIRE(highRms > lowRms * 10.0f);
-        REQUIRE(highRms > midRms * 10.0f);
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T066: Crossover3Way equal frequencies handled (FR-016, SC-004)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way handles equal frequencies", "[crossover][US3][edge][FR-016][SC-004]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-
-    SECTION("both frequencies at 1kHz is handled gracefully") {
-        crossover.setLowMidFrequency(1000.0f);
-        crossover.setMidHighFrequency(1000.0f);
-
-        // Process should not crash or produce invalid output
-        auto outputs = crossover.process(0.5f);
-        REQUIRE(isValidSample(outputs.low));
-        REQUIRE(isValidSample(outputs.mid));
-        REQUIRE(isValidSample(outputs.high));
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T067: Crossover3Way midHigh auto-clamps (FR-016)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way midHigh frequency auto-clamps", "[crossover][US3][clamp][FR-016]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-
-    SECTION("midHigh is clamped to >= lowMid") {
-        crossover.setLowMidFrequency(1000.0f);
-        crossover.setMidHighFrequency(500.0f);  // Try to set below lowMid
-
-        // Should be clamped to lowMid
-        REQUIRE(crossover.getMidHighFrequency() >= crossover.getLowMidFrequency());
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T068: Crossover3Way smoothing time propagation (FR-010)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way smoothing time propagates", "[crossover][US3][smoothing][FR-010]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-
-    SECTION("setSmoothingTime affects both internal crossovers") {
-        crossover.setSmoothingTime(10.0f);
-        // No direct getter, but should not crash and processing should work
-        auto outputs = crossover.process(0.5f);
-        REQUIRE(isValidSample(outputs.low));
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T069: Crossover3Way processBlock (FR-010)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way processBlock", "[crossover][US3][block][FR-010]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-
-    SECTION("processBlock works for 512 samples") {
-        constexpr size_t blockSize = 512;
-        std::vector<float> input(blockSize);
-        std::vector<float> low(blockSize);
-        std::vector<float> mid(blockSize);
-        std::vector<float> high(blockSize);
-
-        generateSine(input.data(), blockSize, 1000.0f, 44100.0f);
-        crossover.processBlock(input.data(), low.data(), mid.data(), high.data(), blockSize);
-
-        for (size_t i = 0; i < blockSize; ++i) {
-            REQUIRE(isValidSample(low[i]));
-            REQUIRE(isValidSample(mid[i]));
-            REQUIRE(isValidSample(high[i]));
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T070: Crossover3Way cross-platform (SC-009)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way cross-platform consistency", "[crossover][US3][platform][SC-009]") {
-    std::vector<double> sampleRates = {44100.0, 48000.0, 96000.0, 192000.0};
-
-    for (double sr : sampleRates) {
-        SECTION("works at " + std::to_string(static_cast<int>(sr)) + "Hz") {
-            Crossover3Way crossover;
-            crossover.prepare(sr);
-
-            auto outputs = crossover.process(0.5f);
-            REQUIRE(isValidSample(outputs.low));
-            REQUIRE(isValidSample(outputs.mid));
-            REQUIRE(isValidSample(outputs.high));
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T071: Crossover3Way reset
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way reset", "[crossover][US3][reset]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-
-    // Process some samples
-    for (int i = 0; i < 100; ++i) {
-        (void)crossover.process(0.5f);
-    }
-
-    // Reset
-    crossover.reset();
-
-    // Should work after reset
-    auto outputs = crossover.process(1.0f);
-    REQUIRE(isValidSample(outputs.low));
-    REQUIRE(isValidSample(outputs.mid));
-    REQUIRE(isValidSample(outputs.high));
-}
-
-// ==============================================================================
-// Phase 5.1: User Story 4 Tests - 4-Way Band Splitting
-// ==============================================================================
-
-// -----------------------------------------------------------------------------
-// T087: Crossover4WayOutputs struct
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4WayOutputs struct", "[crossover][US4][struct]") {
-    Crossover4WayOutputs outputs;
-
-    SECTION("has sub, low, mid, high members defaulted to 0") {
-        REQUIRE(outputs.sub == 0.0f);
-        REQUIRE(outputs.low == 0.0f);
-        REQUIRE(outputs.mid == 0.0f);
-        REQUIRE(outputs.high == 0.0f);
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T088: Crossover4Way default constructor
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way default constructor", "[crossover][US4][lifecycle]") {
-    Crossover4Way crossover;
-
-    SECTION("kDefaultSubLowFrequency is 80Hz") {
-        REQUIRE(Crossover4Way::kDefaultSubLowFrequency == 80.0f);
-    }
-
-    SECTION("kDefaultLowMidFrequency is 300Hz") {
-        REQUIRE(Crossover4Way::kDefaultLowMidFrequency == 300.0f);
-    }
-
-    SECTION("kDefaultMidHighFrequency is 3000Hz") {
-        REQUIRE(Crossover4Way::kDefaultMidHighFrequency == 3000.0f);
-    }
-
-    SECTION("not prepared after construction") {
-        REQUIRE_FALSE(crossover.isPrepared());
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T089: Crossover4Way prepare (FR-009)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way prepare", "[crossover][US4][lifecycle][FR-009]") {
-    Crossover4Way crossover;
-
-    SECTION("prepare sets prepared flag") {
-        crossover.prepare(44100.0);
-        REQUIRE(crossover.isPrepared());
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T090: Crossover4Way frequency setters (FR-009)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way frequency setters", "[crossover][US4][params][FR-009]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-
-    SECTION("setSubLowFrequency sets value") {
-        crossover.setSubLowFrequency(60.0f);
-        REQUIRE(crossover.getSubLowFrequency() == Approx(60.0f));
-    }
-
-    SECTION("setLowMidFrequency sets value") {
-        crossover.setLowMidFrequency(400.0f);
-        REQUIRE(crossover.getLowMidFrequency() == Approx(400.0f));
-    }
-
-    SECTION("setMidHighFrequency sets value") {
-        crossover.setMidHighFrequency(4000.0f);
-        REQUIRE(crossover.getMidHighFrequency() == Approx(4000.0f));
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T091: Crossover4Way flat sum (FR-009, SC-005)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way sub + low + mid + high sum to flat", "[crossover][US4][flatsum][FR-009][SC-005]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setSubLowFrequency(80.0f);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-
-    // Test at various frequencies
-    std::vector<float> testFreqs = {50.0f, 80.0f, 200.0f, 300.0f, 1000.0f, 3000.0f, 8000.0f};
-
-    for (float freq : testFreqs) {
-        SECTION("flat sum at " + std::to_string(static_cast<int>(freq)) + "Hz") {
-            crossover.reset();
-
-            constexpr size_t numSamples = 16384;
-            std::vector<float> input(numSamples);
-            std::vector<float> sub(numSamples);
-            std::vector<float> low(numSamples);
-            std::vector<float> mid(numSamples);
-            std::vector<float> high(numSamples);
-
-            generateSine(input.data(), numSamples, freq, 44100.0f);
-            crossover.processBlock(input.data(), sub.data(), low.data(), mid.data(), high.data(), numSamples);
-
-            // Sum bands
-            std::vector<float> sum(numSamples);
-            for (size_t i = 0; i < numSamples; ++i) {
-                sum[i] = sub[i] + low[i] + mid[i] + high[i];
-            }
-
-            // Measure
-            const size_t startSample = numSamples / 2;
-            const float inputRms = calculateRMS(input.data() + startSample, numSamples - startSample);
-            const float sumRms = calculateRMS(sum.data() + startSample, numSamples - startSample);
-            const float responseDb = linearToDb(sumRms / inputRms);
-
-            // 4-way crossover allows +/- 1dB tolerance per SC-005
-            // (3 cascaded crossovers introduce small cumulative effects)
-            REQUIRE(responseDb == Approx(0.0f).margin(1.0f));
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T092: Crossover4Way band isolation (SC-005)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way band isolation", "[crossover][US4][isolation][SC-005]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setSubLowFrequency(80.0f);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-
-    SECTION("sub band contains content below 80Hz") {
-        crossover.reset();
-        constexpr size_t numSamples = 16384;  // Need more samples for low freq
-        std::vector<float> input(numSamples);
-        std::vector<float> sub(numSamples);
-        std::vector<float> low(numSamples);
-        std::vector<float> mid(numSamples);
-        std::vector<float> high(numSamples);
-
-        generateSine(input.data(), numSamples, 40.0f, 44100.0f);
-        crossover.processBlock(input.data(), sub.data(), low.data(), mid.data(), high.data(), numSamples);
-
-        const size_t startSample = numSamples / 2;
-        const float subRms = calculateRMS(sub.data() + startSample, numSamples - startSample);
-        const float lowRms = calculateRMS(low.data() + startSample, numSamples - startSample);
-        const float midRms = calculateRMS(mid.data() + startSample, numSamples - startSample);
-        const float highRms = calculateRMS(high.data() + startSample, numSamples - startSample);
-
-        // Sub should dominate
-        REQUIRE(subRms > lowRms);
-        REQUIRE(subRms > midRms);
-        REQUIRE(subRms > highRms);
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T093: Crossover4Way frequency ordering (FR-016)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way frequency ordering violations auto-clamp", "[crossover][US4][clamp][FR-016]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-
-    SECTION("lowMid is clamped to [subLow, midHigh]") {
-        crossover.setSubLowFrequency(100.0f);
-        crossover.setMidHighFrequency(3000.0f);
-        crossover.setLowMidFrequency(50.0f);  // Below subLow
-
-        REQUIRE(crossover.getLowMidFrequency() >= crossover.getSubLowFrequency());
-    }
-
-    SECTION("midHigh is clamped to >= lowMid") {
-        crossover.setLowMidFrequency(500.0f);
-        crossover.setMidHighFrequency(200.0f);  // Below lowMid
-
-        REQUIRE(crossover.getMidHighFrequency() >= crossover.getLowMidFrequency());
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T094: Crossover4Way smoothing time (FR-010)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way smoothing time propagates", "[crossover][US4][smoothing][FR-010]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-
-    crossover.setSmoothingTime(10.0f);
-    auto outputs = crossover.process(0.5f);
-    REQUIRE(isValidSample(outputs.sub));
-}
-
-// -----------------------------------------------------------------------------
-// T095: Crossover4Way processBlock (FR-010)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way processBlock", "[crossover][US4][block][FR-010]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-
-    constexpr size_t blockSize = 512;
-    std::vector<float> input(blockSize);
-    std::vector<float> sub(blockSize);
-    std::vector<float> low(blockSize);
-    std::vector<float> mid(blockSize);
-    std::vector<float> high(blockSize);
-
-    generateSine(input.data(), blockSize, 1000.0f, 44100.0f);
-    crossover.processBlock(input.data(), sub.data(), low.data(), mid.data(), high.data(), blockSize);
-
-    for (size_t i = 0; i < blockSize; ++i) {
-        REQUIRE(isValidSample(sub[i]));
-        REQUIRE(isValidSample(low[i]));
-        REQUIRE(isValidSample(mid[i]));
-        REQUIRE(isValidSample(high[i]));
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T096: Crossover4Way cross-platform (SC-009)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way cross-platform consistency", "[crossover][US4][platform][SC-009]") {
-    std::vector<double> sampleRates = {44100.0, 48000.0, 96000.0, 192000.0};
-
-    for (double sr : sampleRates) {
-        SECTION("works at " + std::to_string(static_cast<int>(sr)) + "Hz") {
-            Crossover4Way crossover;
-            crossover.prepare(sr);
-
-            auto outputs = crossover.process(0.5f);
-            REQUIRE(isValidSample(outputs.sub));
-            REQUIRE(isValidSample(outputs.low));
-            REQUIRE(isValidSample(outputs.mid));
-            REQUIRE(isValidSample(outputs.high));
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// T097: Crossover4Way reset
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way reset", "[crossover][US4][reset]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-
-    for (int i = 0; i < 100; ++i) {
-        (void)crossover.process(0.5f);
-    }
-
-    crossover.reset();
-
-    auto outputs = crossover.process(1.0f);
-    REQUIRE(isValidSample(outputs.sub));
-    REQUIRE(isValidSample(outputs.low));
-    REQUIRE(isValidSample(outputs.mid));
-    REQUIRE(isValidSample(outputs.high));
-}
-
-// ==============================================================================
 // Phase 6: Thread Safety Tests (FR-019, SC-013)
 // ==============================================================================
 
@@ -1740,158 +1203,20 @@ TEST_CASE("CrossoverLR4 getters return correct values", "[crossover][edge]") {
 // ==============================================================================
 // Allpass Compensation Tests (SC-005 improvement)
 // ==============================================================================
-// These tests verify that allpass compensation achieves tighter flat sum tolerance
-// for 3-way and 4-way crossovers (0.1dB instead of 1dB).
+// The MultibandCrossover cases below verify that allpass compensation achieves
+// tighter flat sum tolerance at 3 and 4 bands (0.1dB instead of 1dB).
+// (Crossover3Way / Crossover4Way were replaced by MultibandCrossover; their cases
+// are ported there. The FR-016 frequency-ordering clamp cases were removed with
+// the clamp: callers keep the crossover frequencies ascending.)
 //
 // Reference: D'Appolito, J.A. "Active Realization of Multiway All-Pass Crossover
 // Systems" - Journal of the Audio Engineering Society, Vol. 35, No. 4, April 1987
 
 // -----------------------------------------------------------------------------
-// Test: setAllpassCompensation API exists on Crossover3Way
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way setAllpassCompensation API", "[crossover][allpass][API]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-
-    SECTION("Default is disabled") {
-        REQUIRE(crossover.isAllpassCompensationEnabled() == false);
-    }
-
-    SECTION("Can enable allpass compensation") {
-        crossover.setAllpassCompensation(true);
-        REQUIRE(crossover.isAllpassCompensationEnabled() == true);
-    }
-
-    SECTION("Can disable allpass compensation") {
-        crossover.setAllpassCompensation(true);
-        crossover.setAllpassCompensation(false);
-        REQUIRE(crossover.isAllpassCompensationEnabled() == false);
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Test: setAllpassCompensation API exists on Crossover4Way
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way setAllpassCompensation API", "[crossover][allpass][API]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-
-    SECTION("Default is disabled") {
-        REQUIRE(crossover.isAllpassCompensationEnabled() == false);
-    }
-
-    SECTION("Can enable allpass compensation") {
-        crossover.setAllpassCompensation(true);
-        REQUIRE(crossover.isAllpassCompensationEnabled() == true);
-    }
-
-    SECTION("Can disable allpass compensation") {
-        crossover.setAllpassCompensation(true);
-        crossover.setAllpassCompensation(false);
-        REQUIRE(crossover.isAllpassCompensationEnabled() == false);
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Test: Crossover3Way with allpass compensation sums to 0.1dB flat (SC-004 strict)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way with allpass compensation sums to 0.1dB flat", "[crossover][allpass][flatsum][SC-004]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-    crossover.setAllpassCompensation(true);  // Enable allpass compensation
-
-    const float sampleRate = 44100.0f;
-    const size_t numSamples = 16384;
-
-    // Test at various frequencies across the spectrum
-    std::vector<float> testFreqs = {50.0f, 100.0f, 200.0f, 500.0f, 1000.0f,
-                                    2000.0f, 5000.0f, 8000.0f, 12000.0f};
-
-    for (float testFreq : testFreqs) {
-        DYNAMIC_SECTION("Sum is flat at " << testFreq << "Hz") {
-            crossover.reset();
-
-            std::vector<float> input(numSamples);
-            std::vector<float> low(numSamples);
-            std::vector<float> mid(numSamples);
-            std::vector<float> high(numSamples);
-            std::vector<float> sum(numSamples);
-
-            generateSine(input.data(), numSamples, testFreq, sampleRate);
-            crossover.processBlock(input.data(), low.data(), mid.data(), high.data(), numSamples);
-
-            for (size_t i = 0; i < numSamples; ++i) {
-                sum[i] = low[i] + mid[i] + high[i];
-            }
-
-            // Measure RMS of second half (after transient settles)
-            const size_t startSample = numSamples / 2;
-            const float inputRms = calculateRMS(input.data() + startSample, numSamples - startSample);
-            const float sumRms = calculateRMS(sum.data() + startSample, numSamples - startSample);
-            const float responseDb = linearToDb(sumRms / inputRms);
-
-            // With allpass compensation: 0.1dB tolerance (strict SC-004)
-            REQUIRE(responseDb == Approx(0.0f).margin(0.1f));
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Test: Crossover4Way with allpass compensation sums to 0.1dB flat (SC-005 strict)
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way with allpass compensation sums to 0.1dB flat", "[crossover][allpass][flatsum][SC-005]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setSubLowFrequency(80.0f);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-    crossover.setAllpassCompensation(true);  // Enable allpass compensation
-
-    const float sampleRate = 44100.0f;
-    const size_t numSamples = 16384;
-
-    // Test at various frequencies across the spectrum
-    std::vector<float> testFreqs = {30.0f, 60.0f, 100.0f, 200.0f, 500.0f,
-                                    1000.0f, 2000.0f, 5000.0f, 10000.0f};
-
-    for (float testFreq : testFreqs) {
-        DYNAMIC_SECTION("Sum is flat at " << testFreq << "Hz") {
-            crossover.reset();
-
-            std::vector<float> input(numSamples);
-            std::vector<float> sub(numSamples);
-            std::vector<float> low(numSamples);
-            std::vector<float> mid(numSamples);
-            std::vector<float> high(numSamples);
-            std::vector<float> sum(numSamples);
-
-            generateSine(input.data(), numSamples, testFreq, sampleRate);
-            crossover.processBlock(input.data(), sub.data(), low.data(), mid.data(), high.data(), numSamples);
-
-            for (size_t i = 0; i < numSamples; ++i) {
-                sum[i] = sub[i] + low[i] + mid[i] + high[i];
-            }
-
-            // Measure RMS of second half (after transient settles)
-            const size_t startSample = numSamples / 2;
-            const float inputRms = calculateRMS(input.data() + startSample, numSamples - startSample);
-            const float sumRms = calculateRMS(sum.data() + startSample, numSamples - startSample);
-            const float responseDb = linearToDb(sumRms / inputRms);
-
-            // With allpass compensation: 0.1dB tolerance (strict SC-005)
-            REQUIRE(responseDb == Approx(0.0f).margin(0.1f));
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Test: allpass compensation stays within 0.1 dB at ONE-OCTAVE crossover spacing
-// (D-164). The LR4 LP+HP sum is a 2nd-order allpass with Q = 1/sqrt(2); a
-// compensation allpass with any other Q leaves a dip next to the lower crossover
-// that the decade-spaced SC-004/SC-005 cases above cannot see (about -0.13 dB at
-// 300/600 Hz with Q = 0.5).
+// Helper for D-164: allpass compensation stays within 0.1 dB at ONE-OCTAVE
+// crossover spacing. The LR4 LP+HP sum is a 2nd-order allpass with Q = 1/sqrt(2);
+// a compensation allpass with any other Q leaves a dip next to the lower crossover
+// that decade-spaced cases cannot see (about -0.13 dB at 300/600 Hz with Q = 0.5).
 // -----------------------------------------------------------------------------
 namespace {
 
@@ -1934,98 +1259,6 @@ float worstCompensatedSumDeviationDb(Crossover& crossover, SplitSum splitSum,
 
 } // namespace
 
-TEST_CASE("Crossover3Way allpass compensation is flat at one-octave spacing",
-          "[crossover][allpass][flatsum][SC-004][D-164]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(600.0f);
-    crossover.setAllpassCompensation(true);
-
-    const float worstDb = worstCompensatedSumDeviationDb(
-        crossover,
-        [](Crossover3Way& c, float x) {
-            const auto o = c.process(x);
-            return o.low + o.mid + o.high;
-        },
-        75.0f, 2400.0f);
-    INFO("Crossover3Way 300/600 Hz compensated worst deviation = " << worstDb << " dB");
-    std::printf("D-164 Crossover3Way 300/600 Hz worst deviation: %.4f dB\n",
-                static_cast<double>(worstDb));
-    REQUIRE(std::abs(worstDb) < 0.1f);
-}
-
-TEST_CASE("Crossover4Way allpass compensation is flat at one-octave spacing",
-          "[crossover][allpass][flatsum][SC-005][D-164]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setMidHighFrequency(320.0f);
-    crossover.setLowMidFrequency(160.0f);
-    crossover.setSubLowFrequency(80.0f);
-    crossover.setAllpassCompensation(true);
-    REQUIRE(crossover.getSubLowFrequency() == 80.0f);
-    REQUIRE(crossover.getLowMidFrequency() == 160.0f);
-    REQUIRE(crossover.getMidHighFrequency() == 320.0f);
-
-    const float worstDb = worstCompensatedSumDeviationDb(
-        crossover,
-        [](Crossover4Way& c, float x) {
-            const auto o = c.process(x);
-            return o.sub + o.low + o.mid + o.high;
-        },
-        20.0f, 1280.0f);
-    INFO("Crossover4Way 80/160/320 Hz compensated worst deviation = " << worstDb << " dB");
-    std::printf("D-164 Crossover4Way 80/160/320 Hz worst deviation: %.4f dB\n",
-                static_cast<double>(worstDb));
-    REQUIRE(std::abs(worstDb) < 0.1f);
-}
-
-// -----------------------------------------------------------------------------
-// Test: Allpass compensation does not affect frequency sweep smoothness
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way allpass compensation frequency sweep is click-free", "[crossover][allpass][SC-006]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setSubLowFrequency(80.0f);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-    crossover.setAllpassCompensation(true);
-
-    const size_t numSamples = 4410;  // 100ms
-    std::vector<float> input(numSamples, 0.5f);  // Constant input to detect clicks
-    std::vector<float> sub(numSamples);
-    std::vector<float> low(numSamples);
-    std::vector<float> mid(numSamples);
-    std::vector<float> high(numSamples);
-
-    // Sweep mid-high frequency during processing
-    float freqStart = 1000.0f;
-    float freqEnd = 5000.0f;
-
-    for (size_t i = 0; i < numSamples; ++i) {
-        float t = static_cast<float>(i) / static_cast<float>(numSamples);
-        float freq = freqStart + (freqEnd - freqStart) * t;
-        crossover.setMidHighFrequency(freq);
-
-        auto outputs = crossover.process(input[i]);
-        sub[i] = outputs.sub;
-        low[i] = outputs.low;
-        mid[i] = outputs.mid;
-        high[i] = outputs.high;
-    }
-
-    // Check for clicks (large sample-to-sample jumps)
-    float maxJump = 0.0f;
-    for (size_t i = 1; i < numSamples; ++i) {
-        float jump = std::abs((sub[i] + low[i] + mid[i] + high[i]) -
-                              (sub[i-1] + low[i-1] + mid[i-1] + high[i-1]));
-        maxJump = std::max(maxJump, jump);
-    }
-
-    // Max jump should be small (no clicks)
-    REQUIRE(maxJump < 1.0f);
-}
-
 // ==============================================================================
 // FFT-Based Frequency Response Verification Tests
 // ==============================================================================
@@ -2055,108 +1288,6 @@ TEST_CASE("CrossoverLR4 FFT flat sum across full spectrum", "[crossover][fft][fl
     // FFT measures max error across entire spectrum - expect higher than spot-frequency tests
     // Time-domain tests verify 0.1dB at specific frequencies; FFT captures worst-case across all
     REQUIRE(maxError < 1.5f);
-}
-
-// -----------------------------------------------------------------------------
-// Crossover3Way: FFT flat sum verification across full spectrum
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover3Way FFT flat sum across full spectrum", "[crossover][fft][flatsum][SC-004]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-
-    // Let filter settle
-    for (int i = 0; i < 1000; ++i) {
-        (void)crossover.process(0.0f);
-    }
-
-    auto processAndSum = [](Crossover3Way& xo, float input) {
-        auto outputs = xo.process(input);
-        return outputs.low + outputs.mid + outputs.high;
-    };
-
-    float maxError = measureFlatSumErrorDb(crossover, processAndSum, 44100.0f, 8192);
-
-    INFO("Max 3-way flat sum error across spectrum: " << maxError << " dB");
-    // 3-way serial topology has phase errors near crossover frequencies
-    REQUIRE(maxError < 5.0f);
-}
-
-TEST_CASE("Crossover3Way with allpass FFT flat sum across full spectrum", "[crossover][fft][flatsum][allpass][SC-004]") {
-    Crossover3Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-    crossover.setAllpassCompensation(true);
-
-    // Let filter settle
-    for (int i = 0; i < 1000; ++i) {
-        (void)crossover.process(0.0f);
-    }
-
-    auto processAndSum = [](Crossover3Way& xo, float input) {
-        auto outputs = xo.process(input);
-        return outputs.low + outputs.mid + outputs.high;
-    };
-
-    float maxError = measureFlatSumErrorDb(crossover, processAndSum, 44100.0f, 8192);
-
-    INFO("Max 3-way (allpass) flat sum error across spectrum: " << maxError << " dB");
-    // Allpass compensation improves phase alignment
-    REQUIRE(maxError < 5.0f);
-}
-
-// -----------------------------------------------------------------------------
-// Crossover4Way: FFT flat sum verification across full spectrum
-// -----------------------------------------------------------------------------
-TEST_CASE("Crossover4Way FFT flat sum across full spectrum", "[crossover][fft][flatsum][SC-005]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setSubLowFrequency(80.0f);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-
-    // Let filter settle
-    for (int i = 0; i < 1000; ++i) {
-        (void)crossover.process(0.0f);
-    }
-
-    auto processAndSum = [](Crossover4Way& xo, float input) {
-        auto outputs = xo.process(input);
-        return outputs.sub + outputs.low + outputs.mid + outputs.high;
-    };
-
-    float maxError = measureFlatSumErrorDb(crossover, processAndSum, 44100.0f, 8192);
-
-    INFO("Max 4-way flat sum error across spectrum: " << maxError << " dB");
-    // 4-way has cumulative phase errors from serial topology
-    REQUIRE(maxError < 7.0f);
-}
-
-TEST_CASE("Crossover4Way with allpass FFT flat sum across full spectrum", "[crossover][fft][flatsum][allpass][SC-005]") {
-    Crossover4Way crossover;
-    crossover.prepare(44100.0);
-    crossover.setSubLowFrequency(80.0f);
-    crossover.setLowMidFrequency(300.0f);
-    crossover.setMidHighFrequency(3000.0f);
-    crossover.setAllpassCompensation(true);
-
-    // Let filter settle
-    for (int i = 0; i < 1000; ++i) {
-        (void)crossover.process(0.0f);
-    }
-
-    auto processAndSum = [](Crossover4Way& xo, float input) {
-        auto outputs = xo.process(input);
-        return outputs.sub + outputs.low + outputs.mid + outputs.high;
-    };
-
-    float maxError = measureFlatSumErrorDb(crossover, processAndSum, 44100.0f, 8192);
-
-    INFO("Max 4-way (allpass) flat sum error across spectrum: " << maxError << " dB");
-    // Allpass compensation should reduce max error
-    REQUIRE(maxError < 7.0f);
 }
 
 // ==============================================================================
@@ -2520,71 +1651,202 @@ TEST_CASE("MultibandCrossover prepare snaps to the stored frequencies and keeps 
     }
 }
 
-// Hidden A/B probe (crossover dedup step 1): Crossover3Way / Crossover4Way against
-// MultibandCrossover<3> / <4> on 1 s of white noise, compensation off and on. "set first":
-// the old class configured before prepare (no glide); "prepare first": prepared, then set
-// (FractalDistortion's order, which glides from 1000 Hz). Prints, asserts nothing.
-TEST_CASE("MultibandCrossover vs Crossover3Way / Crossover4Way (A/B probe)", "[.][xover-dedup-ab-probe]") {
-    for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
-        const auto len = static_cast<size_t>(sr);
-        const auto early = static_cast<size_t>(0.05 * sr);
-        std::vector<float> noise(len);
-        generateWhiteNoise(noise.data(), len, 7);
-        for (const bool comp : {false, true}) {
-            for (const bool setFirst : {true, false}) {
-                MultibandCrossover<3> new3;
-                setupMultiband(new3, sr, 3, {300.0f, 3000.0f, 0.0f}, comp);
-                Crossover3Way old3;
-                if (setFirst) {
-                    old3.setLowMidFrequency(300.0f);
-                    old3.setMidHighFrequency(3000.0f);
-                    old3.prepare(sr);
-                } else {
-                    old3.prepare(sr);
-                    old3.setLowMidFrequency(300.0f);
-                    old3.setMidHighFrequency(3000.0f);
-                }
-                old3.setAllpassCompensation(comp);
-                MultibandCrossover<4> new4;
-                setupMultiband(new4, sr, 4, {80.0f, 300.0f, 3000.0f}, comp);
-                Crossover4Way old4;
-                if (setFirst) {
-                    old4.setSubLowFrequency(80.0f);
-                    old4.setLowMidFrequency(300.0f);
-                    old4.setMidHighFrequency(3000.0f);
-                    old4.prepare(sr);
-                } else {
-                    old4.prepare(sr);
-                    old4.setSubLowFrequency(80.0f);
-                    old4.setLowMidFrequency(300.0f);
-                    old4.setMidHighFrequency(3000.0f);
-                }
-                old4.setAllpassCompensation(comp);
-                std::array<double, 2> d3{};  // [first 50 ms, rest]
-                std::array<double, 2> d4{};
-                std::array<float, 3> b3{};
-                std::array<float, 4> b4{};
-                for (size_t i = 0; i < len; ++i) {
-                    const size_t slot = (i < early) ? 0 : 1;
-                    new3.process(noise[i], b3);
-                    const auto o3 = old3.process(noise[i]);
-                    d3[slot] = std::max({d3[slot], static_cast<double>(std::fabs(b3[0] - o3.low)),
-                                         static_cast<double>(std::fabs(b3[1] - o3.mid)),
-                                         static_cast<double>(std::fabs(b3[2] - o3.high))});
-                    new4.process(noise[i], b4);
-                    const auto o4 = old4.process(noise[i]);
-                    d4[slot] = std::max({d4[slot], static_cast<double>(std::fabs(b4[0] - o4.sub)),
-                                         static_cast<double>(std::fabs(b4[1] - o4.low)),
-                                         static_cast<double>(std::fabs(b4[2] - o4.mid)),
-                                         static_cast<double>(std::fabs(b4[3] - o4.high))});
-                }
-                std::printf("A/B %6.0f Hz comp %s old %-13s | 3-way max|diff| first 50 ms %.3e, rest %.3e | "
-                            "4-way first 50 ms %.3e, rest %.3e\n",
-                            sr, comp ? "ON " : "OFF", setFirst ? "set first" : "prepare first", d3[0], d3[1],
-                            d4[0], d4[1]);
+// ------------------------------------------------------------------------------
+// Ported from the Crossover3Way / Crossover4Way cases (US3, US4, allpass, fft).
+// Not ported: the Crossover3WayOutputs / Crossover4WayOutputs struct cases (the
+// bands are a std::array now), the fixed default-frequency constants (the class
+// has none; "not prepared after construction" is in "MultibandCrossover basics",
+// as is the setAllpassCompensation API), and the FR-016 ordering-clamp cases
+// ("midHigh frequency auto-clamps", "frequency ordering violations auto-clamp"):
+// the clamp is gone, callers keep the frequencies ascending. The flat-sum,
+// compensated flat-sum and D-164 cases are ported above.
+// ------------------------------------------------------------------------------
+
+namespace {
+
+/// Steady-state RMS of each band for a sine at `freq` (second half of `numSamples`).
+template <int N>
+std::array<float, static_cast<std::size_t>(N)> multibandBandRms(MultibandCrossover<N>& xo, float freq, float sr,
+                                                                 size_t numSamples) {
+    std::vector<float> input(numSamples);
+    generateSine(input.data(), numSamples, freq, sr);
+    std::array<double, static_cast<std::size_t>(N)> pow{};
+    std::array<float, static_cast<std::size_t>(N)> bands{};
+    const size_t start = numSamples / 2;
+    for (size_t i = 0; i < numSamples; ++i) {
+        xo.process(input[i], bands);
+        if (i >= start) {
+            for (size_t b = 0; b < bands.size(); ++b) {
+                pow[b] += static_cast<double>(bands[b]) * static_cast<double>(bands[b]);
             }
         }
     }
-    std::fflush(stdout);
-    SUCCEED();
+    std::array<float, static_cast<std::size_t>(N)> rms{};
+    for (size_t b = 0; b < rms.size(); ++b) {
+        rms[b] = static_cast<float>(std::sqrt(pow[b] / static_cast<double>(numSamples - start)));
+    }
+    return rms;
+}
+
+template <int N>
+bool multibandOutputsFinite(MultibandCrossover<N>& xo, float input) {
+    std::array<float, static_cast<std::size_t>(N)> bands{};
+    xo.process(input, bands);
+    return std::all_of(bands.begin(), bands.end(), [](float v) { return isValidSample(v); });
+}
+
+} // namespace
+
+TEST_CASE("MultibandCrossover prepare sets the prepared flag", "[crossover][multiband][lifecycle][FR-008][FR-009]") {
+    MultibandCrossover<3> xo3;
+    MultibandCrossover<4> xo4;
+    xo3.prepare(44100.0);
+    xo4.prepare(44100.0);
+    REQUIRE(xo3.isPrepared());
+    REQUIRE(xo4.isPrepared());
+}
+
+TEST_CASE("MultibandCrossover frequency setters", "[crossover][multiband][params][FR-008][FR-009]") {
+    MultibandCrossover<4> xo;
+    xo.prepare(44100.0);
+    xo.setCrossoverFrequency(0, 60.0f);
+    xo.setCrossoverFrequency(1, 400.0f);
+    xo.setCrossoverFrequency(2, 4000.0f);
+    REQUIRE(xo.getCrossoverFrequency(0) == Approx(60.0f));
+    REQUIRE(xo.getCrossoverFrequency(1) == Approx(400.0f));
+    REQUIRE(xo.getCrossoverFrequency(2) == Approx(4000.0f));
+}
+
+TEST_CASE("MultibandCrossover band isolation", "[crossover][multiband][isolation][SC-004][SC-005]") {
+    SECTION("3 bands: 100 Hz lands in the low band, 8 kHz in the high band") {
+        MultibandCrossover<3> xo;
+        setupMultiband(xo, 44100.0, 3, {300.0f, 3000.0f, 0.0f}, false);
+        const auto lowTone = multibandBandRms(xo, 100.0f, 44100.0f, 8192);
+        REQUIRE(lowTone[0] > lowTone[1] * 10.0f);
+        REQUIRE(lowTone[0] > lowTone[2] * 10.0f);
+        xo.reset();
+        const auto highTone = multibandBandRms(xo, 8000.0f, 44100.0f, 8192);
+        REQUIRE(highTone[2] > highTone[0] * 10.0f);
+        REQUIRE(highTone[2] > highTone[1] * 10.0f);
+    }
+    SECTION("4 bands: 40 Hz lands in the sub band") {
+        MultibandCrossover<4> xo;
+        setupMultiband(xo, 44100.0, 4, {80.0f, 300.0f, 3000.0f}, false);
+        const auto sub = multibandBandRms(xo, 40.0f, 44100.0f, 16384);
+        REQUIRE(sub[0] > sub[1]);
+        REQUIRE(sub[0] > sub[2]);
+        REQUIRE(sub[0] > sub[3]);
+    }
+}
+
+TEST_CASE("MultibandCrossover handles equal frequencies", "[crossover][multiband][edge][SC-004]") {
+    MultibandCrossover<3> xo;
+    setupMultiband(xo, 44100.0, 3, {1000.0f, 1000.0f, 0.0f}, true);
+    REQUIRE(multibandOutputsFinite(xo, 0.5f));
+}
+
+TEST_CASE("MultibandCrossover smoothing time propagates", "[crossover][multiband][smoothing][FR-010]") {
+    MultibandCrossover<3> xo3;
+    MultibandCrossover<4> xo4;
+    xo3.prepare(44100.0);
+    xo4.prepare(44100.0);
+    xo3.setSmoothingTime(10.0f);
+    xo4.setSmoothingTime(10.0f);
+    REQUIRE(multibandOutputsFinite(xo3, 0.5f));
+    REQUIRE(multibandOutputsFinite(xo4, 0.5f));
+}
+
+TEST_CASE("MultibandCrossover 512-sample block stays finite", "[crossover][multiband][block][FR-010]") {
+    MultibandCrossover<3> xo3;
+    setupMultiband(xo3, 44100.0, 3, {300.0f, 3000.0f, 0.0f}, false);
+    MultibandCrossover<4> xo4;
+    setupMultiband(xo4, 44100.0, 4, {80.0f, 300.0f, 3000.0f}, true);
+    std::vector<float> input(512);
+    generateSine(input.data(), input.size(), 1000.0f, 44100.0f);
+    bool finite = true;
+    for (const float x : input) {
+        finite = finite && multibandOutputsFinite(xo3, x) && multibandOutputsFinite(xo4, x);
+    }
+    REQUIRE(finite);
+}
+
+TEST_CASE("MultibandCrossover cross-platform consistency", "[crossover][multiband][platform][SC-009]") {
+    for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
+        MultibandCrossover<3> xo3;
+        MultibandCrossover<4> xo4;
+        xo3.prepare(sr);
+        xo4.prepare(sr);
+        INFO(sr << " Hz");
+        CHECK(multibandOutputsFinite(xo3, 0.5f));
+        CHECK(multibandOutputsFinite(xo4, 0.5f));
+    }
+}
+
+TEST_CASE("MultibandCrossover reset", "[crossover][multiband][reset]") {
+    MultibandCrossover<3> xo3;
+    MultibandCrossover<4> xo4;
+    xo3.prepare(44100.0);
+    xo4.prepare(44100.0);
+    for (int i = 0; i < 100; ++i) {
+        (void)multibandOutputsFinite(xo3, 0.5f);
+        (void)multibandOutputsFinite(xo4, 0.5f);
+    }
+    xo3.reset();
+    xo4.reset();
+    REQUIRE(multibandOutputsFinite(xo3, 1.0f));
+    REQUIRE(multibandOutputsFinite(xo4, 1.0f));
+}
+
+TEST_CASE("MultibandCrossover compensated frequency sweep is click-free", "[crossover][multiband][allpass][SC-006]") {
+    MultibandCrossover<4> xo;
+    setupMultiband(xo, 44100.0, 4, {80.0f, 300.0f, 3000.0f}, true);
+    constexpr size_t kNumSamples = 4410;  // 100 ms of constant input, crossover 2 swept 1 -> 5 kHz
+    std::array<float, 4> bands{};
+    float prev = 0.0f;
+    float maxJump = 0.0f;
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(kNumSamples);
+        xo.setCrossoverFrequency(2, 1000.0f + 4000.0f * t);
+        xo.process(0.5f, bands);
+        const float sum = bands[0] + bands[1] + bands[2] + bands[3];
+        if (i > 0) {
+            maxJump = std::max(maxJump, std::abs(sum - prev));
+        }
+        prev = sum;
+    }
+    REQUIRE(maxJump < 1.0f);
+}
+
+TEST_CASE("MultibandCrossover FFT flat sum across full spectrum", "[crossover][multiband][fft][flatsum][SC-004][SC-005]") {
+    // Bars of the ported cases: 3-way serial topology 5 dB, 4-way 7 dB (with or without compensation)
+    for (const bool comp : {false, true}) {
+        MultibandCrossover<3> xo3;
+        setupMultiband(xo3, 44100.0, 3, {300.0f, 3000.0f, 0.0f}, comp);
+        MultibandCrossover<4> xo4;
+        setupMultiband(xo4, 44100.0, 4, {80.0f, 300.0f, 3000.0f}, comp);
+        std::array<float, 4> settle{};
+        for (int i = 0; i < 1000; ++i) {
+            xo4.process(0.0f, settle);
+        }
+        const float err3 = measureFlatSumErrorDb(
+            xo3,
+            [](MultibandCrossover<3>& c, float x) {
+                std::array<float, 3> b{};
+                c.process(x, b);
+                return b[0] + b[1] + b[2];
+            },
+            44100.0f, 8192);
+        const float err4 = measureFlatSumErrorDb(
+            xo4,
+            [](MultibandCrossover<4>& c, float x) {
+                std::array<float, 4> b{};
+                c.process(x, b);
+                return b[0] + b[1] + b[2] + b[3];
+            },
+            44100.0f, 8192);
+        INFO("compensation " << (comp ? "on" : "off") << ": max flat sum error 3 bands " << err3 << " dB, 4 bands "
+                             << err4 << " dB");
+        CHECK(err3 < 5.0f);
+        CHECK(err4 < 7.0f);
+    }
 }

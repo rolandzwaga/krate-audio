@@ -163,9 +163,7 @@ public:
     /// @brief Destructor.
     ~FractalDistortion() = default;
 
-    // Non-copyable due to internal state. Crossover4Way holds std::atomic<float>
-    // members that make move ops implicitly deleted -- state this explicitly so
-    // clang doesn't warn at every including TU.
+    // Non-copyable and non-movable due to internal state.
     FractalDistortion(const FractalDistortion&) = delete;
     FractalDistortion& operator=(const FractalDistortion&) = delete;
     FractalDistortion(FractalDistortion&&) = delete;
@@ -198,9 +196,11 @@ public:
         // Configure frequency decay filters (FR-025)
         updateDecayFilters();
 
-        // Configure crossover for Multiband mode (FR-030)
-        crossover_.prepare(sampleRate_);
+        // Configure crossover for Multiband mode (FR-030): frequencies first,
+        // then prepare, which snaps to them (no glide)
         updateCrossoverFrequencies();
+        crossover_.setAllpassCompensation(true);
+        crossover_.prepare(sampleRate_);
 
         // Configure ChebyshevShapers for Harmonic mode (FR-034, FR-035)
         // Odd harmonics: T1, T3, T5, T7 (levels 0.5, 0.3, 0.2, 0.1)
@@ -346,9 +346,13 @@ public:
     // =========================================================================
 
     /// @brief Set base crossover frequency for multiband mode (FR-031).
+    /// After prepare() the crossovers glide to the new split over 5 ms.
     /// @param hz Crossover frequency in Hz
     void setCrossoverFrequency(float hz) noexcept {
         crossoverFrequency_ = std::max(20.0f, hz);
+        if (prepared_) {
+            updateCrossoverFrequencies();
+        }
     }
 
     /// @brief Get current crossover frequency.
@@ -669,7 +673,8 @@ private:
 
     /// @brief Process using Multiband mode algorithm (FR-030 to FR-033).
     ///
-    /// Splits signal into 4 bands with pseudo-octave spacing using Crossover4Way.
+    /// Splits signal into 4 bands with pseudo-octave spacing using MultibandCrossover
+    /// with D'Appolito allpass compensation (the bands sum flat).
     /// Each band is processed with a different iteration count based on
     /// bandIterationScale: high bands get more iterations than low bands.
     ///
@@ -679,8 +684,9 @@ private:
     /// - Process each band with its iteration count
     /// - Sum all bands for output
     [[nodiscard]] float processMultiband(float input, float smoothedDrive) noexcept {
-        // Split input into 4 bands using Crossover4Way
-        auto bands = crossover_.process(input);
+        // Split input into 4 bands (sub, low, mid, high)
+        std::array<float, kNumBands> bands{};
+        crossover_.process(input, bands);
 
         // Calculate iterations per band (FR-033)
         // Band 0 = sub (fewest iterations), Band 3 = high (most iterations)
@@ -692,17 +698,9 @@ private:
         // Process each band with its iteration count
         std::array<float, kNumBands> bandOutputs{};
 
-        // Sub band (Band 0)
-        bandOutputs[0] = processBandResidual(bands.sub, smoothedDrive, bandIterations[0]);
-
-        // Low band (Band 1)
-        bandOutputs[1] = processBandResidual(bands.low, smoothedDrive, bandIterations[1]);
-
-        // Mid band (Band 2)
-        bandOutputs[2] = processBandResidual(bands.mid, smoothedDrive, bandIterations[2]);
-
-        // High band (Band 3)
-        bandOutputs[3] = processBandResidual(bands.high, smoothedDrive, bandIterations[3]);
+        for (std::size_t b = 0; b < static_cast<std::size_t>(kNumBands); ++b) {
+            bandOutputs[b] = processBandResidual(bands[b], smoothedDrive, bandIterations[b]);
+        }
 
         // Combine bands using blend mode (FR-030)
         std::array<float, kMaxIterations> padded{};
@@ -960,11 +958,11 @@ private:
         const float lowMid = crossoverFrequency_;
         const float midHigh = crossoverFrequency_ * 4.0f;
 
-        // Clamp to valid range
+        // Clamp to valid range (monotone, so the three stay ascending)
         const float maxFreq = static_cast<float>(sampleRate_) * 0.45f;
-        crossover_.setSubLowFrequency(std::max(20.0f, subLow));
-        crossover_.setLowMidFrequency(std::clamp(lowMid, 20.0f, maxFreq));
-        crossover_.setMidHighFrequency(std::clamp(midHigh, 20.0f, maxFreq));
+        crossover_.setCrossoverFrequency(0, std::clamp(subLow, 20.0f, maxFreq));
+        crossover_.setCrossoverFrequency(1, std::clamp(lowMid, 20.0f, maxFreq));
+        crossover_.setCrossoverFrequency(2, std::clamp(midHigh, 20.0f, maxFreq));
     }
 
     /// @brief Process a single band using Residual algorithm with custom iteration count.
@@ -1010,7 +1008,7 @@ private:
     Waveshaper curveShaper_;                                    ///< General saturation curve for Residual/Feedback/Multiband
 
     // Multiband mode components (FR-030)
-    Crossover4Way crossover_;                                  ///< 4-way band splitter
+    MultibandCrossover<kNumBands> crossover_;                  ///< 4-band splitter, allpass-compensated
 
     // Harmonic mode components (FR-034, FR-035)
     ChebyshevShaper oddHarmonicShaper_;                        ///< Odd harmonic extraction (T1, T3, T5, T7)

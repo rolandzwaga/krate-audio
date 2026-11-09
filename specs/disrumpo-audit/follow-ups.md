@@ -271,3 +271,13 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 - Crossover dedup step 1 (`crossover-dedup-plan.md`; commit "refactor(dsp): add MultibandCrossover, the shared
   N-band LR4 splitter"): `MultibandCrossover<MaxBands>` in `crossover_filter.h` next to the old classes; no caller
   moved yet. A/B vs `Crossover3Way` / `Crossover4Way` configured before prepare: bit-identical (0 difference).
+- Crossover dedup step 2 (commit "refactor(dsp): FractalDistortion Multiband on MultibandCrossover; drop
+  Crossover3Way/4Way"): Fractal Multiband compensated (ruling 3; band sum −0.772 → ±0.0004 dB), snaps on prepare
+  (ruling 2), `setCrossoverFrequency` works after prepare (ruling 6); the old classes and their FR-016 clamp cases
+  are gone (ruling 5). Old vs new Fractal at Disrumpo's defaults, 48 kHz pink noise: +0.19 dB, difference −11.4 dB.
+  User ruling (2026-11-09, step 2): "FractalDistortion sustained 3s: max stress parameters" Multiband no longer uses
+  `worstDelta < 1.2 × peak` (the steady square-edge step is 1.41× the peak once compensation aligns the saturated
+  bands; the old pass rested on a 2.71 start-up-glide peak, 1.25× without the glide even uncompensated). It checks
+  for a sporadic click instead: the worst step of each 100 ms window against the median of those (steady edge 3.058),
+  bar 1.25; real output 1.053, a one-sample 2×-peak click 1.43 (red). Other four modes keep the 1.2× bar. Limit: a
+  click must exceed the steady edge; a 1.5×-peak spike reads 1.06–1.43 depending on its position.

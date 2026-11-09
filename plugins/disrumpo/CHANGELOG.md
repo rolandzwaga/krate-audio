@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Output Gain applies after the Mix** — Output Gain now scales the whole output, dry and wet, so it also works at Mix 0.
 - **Digital types no longer use Drive as a volume knob** — Aliasing, Sample Reduce, Bitwise Mangler, Granular, Chaos and Spectral divide their output by the drive above 1, so Drive changes the character without raising the level.
 - **Fresh instances start with no morph smoothing** — A new instance runs morph smoothing at its displayed default of 0 ms instead of 10 ms.
+- **Fractal Multiband bands sum flat** — Fractal's Multiband mode now phase-aligns its four internal bands, so they add back without the -0.8 dB dip around 320 Hz they had; its crossovers also start at their frequencies instead of sweeping in from 1 kHz over the first few milliseconds. Fractal Multiband sounds come out about 0.2 dB louder, mostly a phase change between 60 Hz and 1 kHz.
 - **Factory presets re-levelled; 120 presets** — With centre pan at unity and the other level fixes, many presets got louder; 66 presets have a lower Output Gain (by 0.1 to 9.8 dB) so none peaks above 0 dBFS on a -12 dBFS test signal, and none was raised. Init/Init_5_Bands, a 5-band preset the 4-band plugin cannot play, is removed, and Experimental/Formant_Shift is back.
 
 ## [0.9.11] - 2026-11-02

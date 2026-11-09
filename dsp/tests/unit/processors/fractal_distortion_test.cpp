@@ -19,6 +19,8 @@
 #include <cmath>
 #include <complex>
 #include <cstdio>
+#include <cstdlib>
+#include <fstream>
 #include <limits>
 #include <numbers>
 #include <numeric>
@@ -1479,7 +1481,8 @@ SustainedTestResult runSustainedTest(FractalDistortion& fractal,
                                       float clickThreshold,
                                       float frequency = 440.0f,
                                       float amplitude = 0.5f,
-                                      double sampleRate = 44100.0) {
+                                      double sampleRate = 44100.0,
+                                      std::vector<float>* capture = nullptr) {
     SustainedTestResult result;
     constexpr size_t kBlockSize = 512;
     const size_t totalSamples = static_cast<size_t>(durationSeconds * sampleRate);
@@ -1511,6 +1514,9 @@ SustainedTestResult runSustainedTest(FractalDistortion& fractal,
         // Analyze output
         for (size_t i = 0; i < thisBlock; ++i) {
             float sample = block[i];
+            if (capture != nullptr) {
+                capture->push_back(sample);
+            }
 
             // NaN/Inf check
             if (!result.hasNaN && (std::isnan(sample) || std::isinf(sample))) {
@@ -1556,6 +1562,41 @@ SustainedTestResult runSustainedTest(FractalDistortion& fractal,
         result.rmsLastSecond = static_cast<float>(std::sqrt(rmsAccLast / rmsCountLast));
 
     return result;
+}
+
+/// Sporadic-click check for a steady periodic signal with steep edges (Multiband at max
+/// stress: hard-saturated bands flip sign within one sample twice per cycle, so the worst
+/// sample-to-sample step is the waveform's own edge, larger than the peak). The worst step
+/// of each window is compared with the steady edge, the median of those per-window worsts:
+/// a click shows as a window whose worst step stands out from the edge every window has.
+struct SporadicStepReport {
+    float steadyEdge = 0.0f;        ///< median over windows of the window's worst step
+    float worstWindowRatio = 0.0f;  ///< largest window worst step / steadyEdge
+    std::size_t worstWindow = 0;
+};
+
+SporadicStepReport sporadicStepReport(const std::vector<float>& y, std::size_t window) {
+    std::vector<float> windowWorst;
+    for (std::size_t start = 0; start + window <= y.size(); start += window) {
+        float worst = 0.0f;
+        for (std::size_t i = std::max<std::size_t>(start, 1); i < start + window; ++i)
+            worst = std::max(worst, std::abs(y[i] - y[i - 1]));
+        windowWorst.push_back(worst);
+    }
+    SporadicStepReport r;
+    if (windowWorst.empty())
+        return r;
+    std::vector<float> sorted = windowWorst;
+    std::nth_element(sorted.begin(), sorted.begin() + static_cast<std::ptrdiff_t>(sorted.size() / 2), sorted.end());
+    r.steadyEdge = sorted[sorted.size() / 2];
+    for (std::size_t w = 0; w < windowWorst.size(); ++w) {
+        const float ratio = windowWorst[w] / r.steadyEdge;
+        if (ratio > r.worstWindowRatio) {
+            r.worstWindowRatio = ratio;
+            r.worstWindow = w;
+        }
+    }
+    return r;
 }
 
 /// Name helper for FractalMode
@@ -1784,7 +1825,9 @@ TEST_CASE("FractalDistortion sustained 3s: max stress parameters",
             // at frequency f with amplitude A is: 2*pi*f*A/sampleRate.
             // With A=2.7 and f=6000Hz: delta ~ 2.3. Use peak*1.0 as threshold
             // to only catch true discontinuities (clicks), not harmonic content.
-            auto result = runSustainedTest(fractal, 3.0f, 2.0f);
+            std::vector<float> output;
+            auto result = runSustainedTest(fractal, 3.0f, 2.0f, 440.0f, 0.5f, 44100.0,
+                                           mode == FractalMode::Multiband ? &output : nullptr);
 
             CAPTURE(modeName(mode));
             CAPTURE(result.discontinuities.count);
@@ -1794,10 +1837,33 @@ TEST_CASE("FractalDistortion sustained 3s: max stress parameters",
 
             REQUIRE_FALSE(result.hasNaN);
             REQUIRE(result.peakOutput < 100.0f);
-            // At max stress, high-frequency harmonics produce legitimate
-            // large deltas proportional to peak output. Only flag if worst
-            // delta exceeds peak (indicating a true discontinuity vs. harmonics).
-            REQUIRE(result.discontinuities.worstDelta < result.peakOutput * 1.2f);
+            if (mode == FractalMode::Multiband) {
+                // Multiband (crossover dedup step 2, user ruling): the four bands are
+                // hard-saturated and, phase-aligned by the allpass compensation, flip sign
+                // within one sample twice per cycle, so the steady edge step (~3.06) is
+                // ~1.4x the peak; the old 1.2x-peak bar held only while the start-up glide
+                // (removed) inflated the peak. A click is a 100 ms window whose worst step
+                // stands out from the steady edge: real output 1.053, bar 1.25.
+                constexpr std::size_t kWindow = 4410;
+                constexpr float kMaxWindowRatio = 1.25f;
+                const auto steady = sporadicStepReport(output, kWindow);
+                CAPTURE(steady.steadyEdge);
+                CAPTURE(steady.worstWindowRatio);
+                CAPTURE(steady.worstWindow);
+                REQUIRE(steady.worstWindowRatio < kMaxWindowRatio);
+                // Teeth: the same detector flags a one-sample click of 2x peak at 1.5 s
+                auto clicked = output;
+                const std::size_t at = 66150;
+                clicked[at] += (clicked[at] >= 0.0f ? -2.0f : 2.0f) * result.peakOutput;
+                const auto withClick = sporadicStepReport(clicked, kWindow);
+                CAPTURE(withClick.worstWindowRatio);
+                REQUIRE(withClick.worstWindowRatio > kMaxWindowRatio);
+            } else {
+                // At max stress, high-frequency harmonics produce legitimate
+                // large deltas proportional to peak output. Only flag if worst
+                // delta exceeds peak (indicating a true discontinuity vs. harmonics).
+                REQUIRE(result.discontinuities.worstDelta < result.peakOutput * 1.2f);
+            }
         }
     }
 }
@@ -1929,21 +1995,30 @@ TEST_CASE("FractalDistortion Feedback mode: 3s with periodic parameter changes",
 // =============================================================================
 // Measurement only (disrumpo-audit): prints, asserts nothing. Run by name:
 //   dsp_processors_tests "[fractal-comp-probe]"
-// FractalDistortion gives no access to its Crossover4Way, so the compensated
-// variant runs a copy of the Multiband path (FractalMultibandProbeReplica); the
-// probe prints how far the uncompensated copy is from the real class.
+// FractalDistortion gives no access to its crossover, so both variants run a copy
+// of the Multiband path (FractalMultibandProbeReplica); the probe prints how far
+// each copy is from the real class (compensation ON since crossover dedup step 2;
+// OFF is the behaviour before it, without the old start-up glide).
 
 namespace {
 
 constexpr float kProbeBaseHz = FractalDistortion::kDefaultCrossoverFrequency;
 constexpr std::size_t kProbeBands = static_cast<std::size_t>(FractalDistortion::kNumBands);
+using ProbeCrossover = MultibandCrossover<FractalDistortion::kNumBands>;
 
 /// Sets the crossover frequencies exactly as FractalDistortion::updateCrossoverFrequencies() does.
-void probeSetFractalFrequencies(Crossover4Way& xo, double sampleRate) {
+void probeSetFractalFrequencies(ProbeCrossover& xo, double sampleRate) {
     const float maxFreq = static_cast<float>(sampleRate) * 0.45f;
-    xo.setSubLowFrequency(std::max(20.0f, kProbeBaseHz / 4.0f));
-    xo.setLowMidFrequency(std::clamp(kProbeBaseHz, 20.0f, maxFreq));
-    xo.setMidHighFrequency(std::clamp(kProbeBaseHz * 4.0f, 20.0f, maxFreq));
+    xo.setCrossoverFrequency(0, std::clamp(kProbeBaseHz / 4.0f, 20.0f, maxFreq));
+    xo.setCrossoverFrequency(1, std::clamp(kProbeBaseHz, 20.0f, maxFreq));
+    xo.setCrossoverFrequency(2, std::clamp(kProbeBaseHz * 4.0f, 20.0f, maxFreq));
+}
+
+/// Band sum of one split.
+float probeBandSum(ProbeCrossover& xo, float x) {
+    std::array<float, kProbeBands> b{};
+    xo.process(x, b);
+    return b[0] + b[1] + b[2] + b[3];
 }
 
 /// Copy of FractalDistortion's Multiband path (processMultiband, processBandResidual,
@@ -1953,9 +2028,9 @@ class FractalMultibandProbeReplica {
 public:
     void prepare(double sampleRate, bool compensation, WaveshapeType curve, int iterations,
                  float scaleFactor, float bandIterationScale, float drive) {
-        xo_.prepare(sampleRate);
         probeSetFractalFrequencies(xo_, sampleRate);
         xo_.setAllpassCompensation(compensation);
+        xo_.prepare(sampleRate);
         shaper_.setType(curve);
         dc_.prepare(sampleRate, 10.0f);
         scaleFactor_ = scaleFactor;
@@ -1969,8 +2044,8 @@ public:
     }
 
     float process(float input) {
-        const auto bands = xo_.process(input);
-        const std::array<float, kProbeBands> in{bands.sub, bands.low, bands.mid, bands.high};
+        std::array<float, kProbeBands> in{};
+        xo_.process(input, in);
         float wet = 0.0f;
         for (std::size_t b = 0; b < kProbeBands; ++b) {
             bandOut_[b] = processBand(in[b], bandIterations_[b]);
@@ -2002,7 +2077,7 @@ private:
         return out;
     }
 
-    Crossover4Way xo_;
+    ProbeCrossover xo_;
     Waveshaper shaper_;
     DCBlocker dc_;
     std::array<int, kProbeBands> bandIterations_{};
@@ -2074,21 +2149,22 @@ void probePrintSummary(const char* label, const ProbeSweepSummary& s) {
                 s.maxDevDb, s.maxDevHz, s.gdMinMs, s.gdMaxMs, s.gdMaxMs - s.gdMinMs);
 }
 
-/// Impulse response of the four-band sum of a Crossover4Way at Fractal's frequencies,
+/// Impulse response of the four-band sum of a MultibandCrossover<4> at Fractal's frequencies,
 /// configured the way FractalDistortion::prepare() does, after 1 s of settling.
 std::vector<double> probeCrossoverIr(double sampleRate, bool compensation) {
-    Crossover4Way xo;
-    xo.prepare(sampleRate);
+    ProbeCrossover xo;
     probeSetFractalFrequencies(xo, sampleRate);
     xo.setAllpassCompensation(compensation);
+    xo.prepare(sampleRate);
     const auto len = static_cast<std::size_t>(sampleRate);
     for (std::size_t n = 0; n < len; ++n)
-        (void)xo.process(0.0f);
+        (void)probeBandSum(xo, 0.0f);
     std::vector<double> ir(len);
+    std::array<float, kProbeBands> b{};
     for (std::size_t n = 0; n < len; ++n) {
-        const auto b = xo.process(n == 0 ? 1.0f : 0.0f);
-        ir[n] = static_cast<double>(b.sub) + static_cast<double>(b.low) + static_cast<double>(b.mid) +
-                static_cast<double>(b.high);
+        xo.process(n == 0 ? 1.0f : 0.0f, b);
+        ir[n] = static_cast<double>(b[0]) + static_cast<double>(b[1]) + static_cast<double>(b[2]) +
+                static_cast<double>(b[3]);
     }
     return ir;
 }
@@ -2118,7 +2194,7 @@ double probeDb(double ratio) { return 20.0 * std::log10(ratio); }
 
 TEST_CASE("FractalDistortion Multiband band sum with and without allpass compensation (probe)",
           "[.][fractal-comp-probe]") {
-    std::printf("\n=== Item 1: Crossover4Way alone, %.1f / %.1f / %.1f Hz, band sum vs input, 20 Hz - 20 kHz ===\n",
+    std::printf("\n=== Item 1: MultibandCrossover<4> alone, %.1f / %.1f / %.1f Hz, band sum vs input, 20 Hz - 20 kHz ===\n",
                 static_cast<double>(kProbeBaseHz / 4.0f), static_cast<double>(kProbeBaseHz),
                 static_cast<double>(kProbeBaseHz * 4.0f));
     for (const double sr : {44100.0, 48000.0, 96000.0}) {
@@ -2148,10 +2224,13 @@ TEST_CASE("FractalDistortion Multiband band sum with and without allpass compens
         rep.prepare(kSr, c == 1, WaveshapeType::Tanh, 1, 0.5f, FractalDistortion::kDefaultBandIterationScale, 1.0f);
         irReplica[c] = probeIr(kSr, kImpulse, [&](float x) { return rep.process(x); });
     }
-    double maxIrDiff = 0.0;
-    for (std::size_t n = 0; n < irReal.size(); ++n)
-        maxIrDiff = std::max(maxIrDiff, std::abs(irReal[n] - irReplica[0][n]));
-    std::printf("  replica OFF vs real class: max |IR difference| %.3e (unit impulse)\n", maxIrDiff);
+    for (std::size_t c = 0; c < 2; ++c) {
+        double maxIrDiff = 0.0;
+        for (std::size_t n = 0; n < irReal.size(); ++n)
+            maxIrDiff = std::max(maxIrDiff, std::abs(irReal[n] - irReplica[c][n]));
+        std::printf("  replica %s vs real class: max |IR difference| %.3e (unit impulse)\n", c == 1 ? "ON " : "OFF",
+                    maxIrDiff);
+    }
 
     DCBlocker dcAlone;
     dcAlone.prepare(kSr, 10.0f);
@@ -2160,8 +2239,8 @@ TEST_CASE("FractalDistortion Multiband band sum with and without allpass compens
     const auto sOff = probeSpectrum(irReplica[0], kSr);
     const auto sOn = probeSpectrum(irReplica[1], kSr);
     probePrintSummary("10 Hz DC blocker alone", probeSummarise(sDc, kSr));
-    probePrintSummary("real class (OFF), raw", probeSummarise(sReal, kSr));
-    probePrintSummary("real class (OFF), DC blocker divided out", probeSummarise(sReal, kSr, &sDc));
+    probePrintSummary("real class, raw", probeSummarise(sReal, kSr));
+    probePrintSummary("real class, DC blocker divided out", probeSummarise(sReal, kSr, &sDc));
     probePrintSummary("replica OFF, raw", probeSummarise(sOff, kSr));
     probePrintSummary("replica ON,  raw", probeSummarise(sOn, kSr));
     probePrintSummary("replica OFF, DC blocker divided out", probeSummarise(sOff, kSr, &sDc));
@@ -2201,7 +2280,7 @@ TEST_CASE("FractalDistortion Multiband band sum with and without allpass compens
         realN.setMix(1.0f);
         realN.prepare(kSr, 512);
         std::array<FractalMultibandProbeReplica, 2> reps;
-        std::array<Crossover4Way, 2> split;
+        std::array<ProbeCrossover, 2> split;
         std::array<std::vector<double>, 2> out;
         std::array<std::array<double, kProbeBands>, 2> bandOutPow{};
         std::array<std::array<double, kProbeBands>, 2> splitPow{};
@@ -2220,7 +2299,7 @@ TEST_CASE("FractalDistortion Multiband band sum with and without allpass compens
             (void)reps[0].process(0.0f);
             (void)reps[1].process(0.0f);
         }
-        double maxRealDiff = 0.0;
+        std::array<double, 2> maxRealDiff{};
         for (std::size_t n = 0; n < len; ++n) {
             const float x = pink[n] * adapterDrive;
             const float yReal = realN.process(x);
@@ -2229,37 +2308,37 @@ TEST_CASE("FractalDistortion Multiband band sum with and without allpass compens
                 const float y = reps[c].process(x);
                 out[c][n] = static_cast<double>(y);
                 bo[c] = reps[c].bandOutputs();
-                const auto sb = split[c].process(y);
-                const std::array<float, kProbeBands> sbArr{sb.sub, sb.low, sb.mid, sb.high};
+                std::array<float, kProbeBands> sbArr{};
+                split[c].process(y, sbArr);
                 for (std::size_t b = 0; b < kProbeBands; ++b) {
                     splitPow[c][b] += static_cast<double>(sbArr[b]) * static_cast<double>(sbArr[b]);
                     bandOutPow[c][b] += static_cast<double>(bo[c][b]) * static_cast<double>(bo[c][b]);
                 }
+                maxRealDiff[c] = std::max(maxRealDiff[c], std::abs(static_cast<double>(yReal) - out[c][n]));
             }
-            maxRealDiff = std::max(maxRealDiff, std::abs(static_cast<double>(yReal) - out[0][n]));
             for (std::size_t b = 0; b < kProbeBands; ++b) {
                 const double d = static_cast<double>(bo[0][b]) - static_cast<double>(bo[1][b]);
                 bandOutDiffPow[b] += d * d;
             }
         }
         // Split of the difference signal: the analysis splitter is linear, so run it once more on OFF - ON.
-        Crossover4Way splitDiff;
+        ProbeCrossover splitDiff;
         probeSetFractalFrequencies(splitDiff, kSr);
         splitDiff.setAllpassCompensation(true);
         splitDiff.prepare(kSr);
         std::vector<double> diff(len);
         for (std::size_t n = 0; n < len; ++n) {
             diff[n] = out[0][n] - out[1][n];
-            const auto sb = splitDiff.process(static_cast<float>(diff[n]));
-            const std::array<float, kProbeBands> sbArr{sb.sub, sb.low, sb.mid, sb.high};
+            std::array<float, kProbeBands> sbArr{};
+            splitDiff.process(static_cast<float>(diff[n]), sbArr);
             for (std::size_t b = 0; b < kProbeBands; ++b)
                 splitDiffPow[b] += static_cast<double>(sbArr[b]) * static_cast<double>(sbArr[b]);
         }
         const double rmsOff = probeRms(out[0]);
         const double rmsOn = probeRms(out[1]);
         const double rmsDiff = probeRms(diff);
-        std::printf("  adapter drive %.1f: replica OFF vs real class max |diff| %.3e\n", static_cast<double>(adapterDrive),
-                    maxRealDiff);
+        std::printf("  adapter drive %.1f: real class vs replica OFF max |diff| %.3e, vs replica ON %.3e\n",
+                    static_cast<double>(adapterDrive), maxRealDiff[0], maxRealDiff[1]);
         std::printf("    output RMS OFF %.2f dBFS, ON %.2f dBFS, ON-OFF %+.4f dB; RMS(OFF-ON) %.2f dBFS = %.2f dB re OFF\n",
                     probeDb(rmsOff), probeDb(rmsOn), probeDb(rmsOn / rmsOff), probeDb(rmsDiff),
                     probeDb(rmsDiff / rmsOff));
@@ -2274,4 +2353,190 @@ TEST_CASE("FractalDistortion Multiband band sum with and without allpass compens
     }
     std::fflush(stdout);
     SUCCEED();
+}
+
+// =============================================================================
+// Multiband crossover (crossover dedup step 2: MultibandCrossover<4>, rulings 2, 3, 6)
+// =============================================================================
+
+namespace {
+
+/// Impulse response (unit scale) of FractalDistortion Multiband in its linear regime
+/// (drive 1, iterations 1, Tanh, 1e-3 impulse, mix 1). `hzBeforePrepare` / `hzAfterPrepare`
+/// (0 = not set) go through setCrossoverFrequency(); `settle` silent samples run first.
+std::vector<double> fractalLinearMultibandIr(double sr, float hzBeforePrepare, float hzAfterPrepare,
+                                             std::size_t settle, std::size_t len) {
+    FractalDistortion fx;
+    fx.setMode(FractalMode::Multiband);
+    fx.setIterations(1);
+    fx.setDrive(1.0f);
+    fx.setMix(1.0f);
+    fx.setCurveType(WaveshapeType::Tanh);
+    if (hzBeforePrepare > 0.0f)
+        fx.setCrossoverFrequency(hzBeforePrepare);
+    fx.prepare(sr, 512);
+    if (hzAfterPrepare > 0.0f)
+        fx.setCrossoverFrequency(hzAfterPrepare);
+    constexpr float kImpulse = 1.0e-3f;
+    for (std::size_t n = 0; n < settle; ++n)
+        (void)fx.process(0.0f);
+    std::vector<double> ir(len);
+    for (std::size_t n = 0; n < len; ++n)
+        ir[n] = static_cast<double>(fx.process(n == 0 ? kImpulse : 0.0f)) / static_cast<double>(kImpulse);
+    return ir;
+}
+
+double maxAbsIrDiff(const std::vector<double>& a, const std::vector<double>& b) {
+    double d = 0.0;
+    for (std::size_t n = 0; n < a.size(); ++n)
+        d = std::max(d, std::abs(a[n] - b[n]));
+    return d;
+}
+
+} // namespace
+
+// Ruling 3: Multiband runs with D'Appolito allpass compensation, so in the linear regime the
+// four processed bands sum flat (uncompensated: -0.77 dB at 320 Hz, probe [fractal-comp-probe]).
+TEST_CASE("FractalDistortion Multiband band sum is flat (allpass compensation)",
+          "[FractalDistortion][layer2][multiband][crossover-dedup]") {
+    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+        const auto len = static_cast<std::size_t>(sr);
+        const auto ir = fractalLinearMultibandIr(sr, 0.0f, 0.0f, len, len);
+        DCBlocker dc;
+        dc.prepare(sr, 10.0f);
+        const auto dcSpectrum = probeSpectrum(probeIr(sr, 1.0f, [&](float x) { return dc.process(x); }), sr);
+        const auto s = probeSummarise(probeSpectrum(ir, sr), sr, &dcSpectrum);
+        INFO(sr << " Hz: band sum (10 Hz DC blocker divided out) max deviation " << s.maxDevDb << " dB at "
+             << s.maxDevHz << " Hz, 20 Hz - 20 kHz");
+        CHECK(std::abs(s.maxDevDb) < 0.1);
+    }
+}
+
+// Ruling 2: prepare() snaps the crossovers to their frequencies; no glide from 1000 Hz.
+TEST_CASE("FractalDistortion Multiband starts at its crossover frequencies after prepare",
+          "[FractalDistortion][layer2][multiband][crossover-dedup]") {
+    constexpr double kSr = 48000.0;
+    const auto len = static_cast<std::size_t>(0.25 * kSr);
+    const auto atOnce = fractalLinearMultibandIr(kSr, 0.0f, 0.0f, 0, len);
+    const auto settled = fractalLinearMultibandIr(kSr, 0.0f, 0.0f, static_cast<std::size_t>(kSr), len);
+    const double d = maxAbsIrDiff(atOnce, settled);
+    INFO("impulse response right after prepare vs after 1 s: max |difference| " << d << " (unit impulse)");
+    CHECK(d < 1e-4);
+}
+
+// Ruling 6: setCrossoverFrequency() after prepare() moves the split (it only took effect
+// at the next prepare).
+TEST_CASE("FractalDistortion setCrossoverFrequency after prepare moves the Multiband split",
+          "[FractalDistortion][layer2][multiband][crossover-dedup][FR-031]") {
+    constexpr double kSr = 48000.0;
+    const auto settle = static_cast<std::size_t>(kSr);
+    const auto len = static_cast<std::size_t>(0.25 * kSr);
+    const auto setLive = fractalLinearMultibandIr(kSr, 0.0f, 1000.0f, settle, len);
+    const auto setBefore = fractalLinearMultibandIr(kSr, 1000.0f, 0.0f, settle, len);
+    const auto atDefault = fractalLinearMultibandIr(kSr, 0.0f, 0.0f, settle, len);
+    const double dLive = maxAbsIrDiff(setLive, setBefore);
+    const double dDefault = maxAbsIrDiff(atDefault, setBefore);
+    INFO("1 kHz set after prepare vs before prepare: " << dLive << "; default 250 Hz vs 1 kHz: " << dDefault);
+    CHECK(dLive < 1e-3);    // Efficient tracking may stop up to 0.1 Hz short of the target
+    CHECK(dDefault > 1e-2);  // the comparison can tell 250 Hz from 1 kHz
+}
+
+// Hidden diagnostic (crossover dedup step 2): the sporadic-click check of the "max stress
+// parameters" Multiband case on the real output, at three window lengths, and its response
+// to a one-sample spike of a * peak (sign opposite to the sample) injected at 1.5 s and at
+// every sample of one 2205-sample period (22 cycles of 440 Hz) from 1.5 s.
+TEST_CASE("FractalDistortion max-stress Multiband sporadic-click diagnostic (probe)",
+          "[.][fractal-stress-delta-probe]") {
+    FractalDistortion fractal;
+    fractal.prepare(44100.0, 512);
+    fractal.setMode(FractalMode::Multiband);
+    fractal.setIterations(8);
+    fractal.setScaleFactor(0.9f);
+    fractal.setDrive(20.0f);
+    fractal.setMix(1.0f);
+    fractal.setFrequencyDecay(1.0f);
+    std::vector<float> y;
+    const auto result = runSustainedTest(fractal, 3.0f, 2.0f, 440.0f, 0.5f, 44100.0, &y);
+    std::printf("max-stress Multiband: peak %.4f, worst step %.4f (%.2f x peak)\n",
+                static_cast<double>(result.peakOutput), static_cast<double>(result.discontinuities.worstDelta),
+                static_cast<double>(result.discontinuities.worstDelta / result.peakOutput));
+    for (const std::size_t window : {std::size_t{100}, std::size_t{2205}, std::size_t{4410}}) {
+        const auto r = sporadicStepReport(y, window);
+        std::printf("  window %4zu: steady edge %.4f, worst window ratio %.4f (window %zu)\n", window,
+                    static_cast<double>(r.steadyEdge), static_cast<double>(r.worstWindowRatio), r.worstWindow);
+    }
+    constexpr std::size_t kWindow = 4410;
+    const std::size_t at = 66150;
+    for (const float a : {0.25f, 0.5f, 0.75f, 1.0f, 1.5f, 2.0f}) {
+        auto z = y;
+        z[at] += (z[at] >= 0.0f ? -1.0f : 1.0f) * a * result.peakOutput;
+        const float atOne = sporadicStepReport(z, kWindow).worstWindowRatio;
+        float minRatio = 1e9f;
+        float maxRatio = 0.0f;
+        for (std::size_t k = 0; k < 2205; ++k) {
+            auto w = y;
+            const std::size_t n = at + k;
+            w[n] += (w[n] >= 0.0f ? -1.0f : 1.0f) * a * result.peakOutput;
+            const float ratio = sporadicStepReport(w, kWindow).worstWindowRatio;
+            minRatio = std::min(minRatio, ratio);
+            maxRatio = std::max(maxRatio, ratio);
+        }
+        std::printf("  spike %.2f x peak: ratio at 1.5 s %.4f; over one period min %.4f max %.4f\n",
+                    static_cast<double>(a), static_cast<double>(atOne), static_cast<double>(minRatio),
+                    static_cast<double>(maxRatio));
+    }
+    std::fflush(stdout);
+    SUCCEED();
+}
+
+// =============================================================================
+// Hidden A/B dump: FractalDistortion Multiband at Disrumpo's Fractal defaults
+// =============================================================================
+// Writes the output of 2 s of pink noise (-12 dBFS RMS x adapter drive 1 and 4, 48 kHz,
+// processed from the first sample after prepare) as raw float32 to the file named by
+// FRACTAL_AB_DUMP (skips without it). Run on two builds and compare the files offline.
+TEST_CASE("FractalDistortion Multiband output dump (A/B probe)", "[.][fractal-ab-dump]") {
+    const char* path = std::getenv("FRACTAL_AB_DUMP");
+    if (path == nullptr) {
+        SKIP("FRACTAL_AB_DUMP not set");
+    }
+    constexpr double kSr = 48000.0;
+    const auto len = static_cast<std::size_t>(2.0 * kSr);
+    std::vector<float> pink(len);
+    {
+        Xorshift32 rng(0x5EED1234u);
+        PinkNoiseFilter pinkFilter;
+        pinkFilter.prepare(static_cast<float>(kSr));
+        double acc = 0.0;
+        for (auto& v : pink) {
+            v = pinkFilter.process(rng.nextFloat());
+            acc += static_cast<double>(v) * static_cast<double>(v);
+        }
+        const double gain = 0.25 / std::sqrt(acc / static_cast<double>(len));
+        for (auto& v : pink)
+            v = static_cast<float>(static_cast<double>(v) * gain);
+    }
+    std::vector<float> out;
+    out.reserve(2 * len);
+    for (const float adapterDrive : {1.0f, 4.0f}) {
+        FractalDistortion fx;
+        fx.setMode(FractalMode::Multiband);
+        fx.setIterations(4);
+        fx.setScaleFactor(0.5f);
+        fx.setFrequencyDecay(0.5f);
+        fx.setFeedbackAmount(0.0f);
+        fx.setCurveType(WaveshapeType::ReciprocalSqrt);
+        fx.setBlendMode(FractalBlendMode::Add);
+        fx.setBandIterationScale(0.5f);
+        fx.setDrive(1.0f);
+        fx.setMix(1.0f);
+        fx.prepare(kSr, 512);
+        for (std::size_t n = 0; n < len; ++n)
+            out.push_back(fx.process(pink[n] * adapterDrive));
+    }
+    std::ofstream file(path, std::ios::binary);
+    REQUIRE(file.good());
+    file.write(reinterpret_cast<const char*>(out.data()), static_cast<std::streamsize>(out.size() * sizeof(float)));
+    REQUIRE(file.good());
+    std::printf("fractal-ab-dump: %zu samples (2 x %zu) written to %s\n", out.size(), len, path);
 }
