@@ -366,6 +366,21 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     printed digit at all three drives). Same class as D-157 (SineFold == TriangleFold, fixed in T2.06); relates to
     follow-up 23 (the per-type slot defaults). Not asserted by the matrix; decide whether a fresh SergeFold node should
     differ.
+81. **T6.05: two latency assertions held back RED, need a ruling** (2026-11-09).
+    - Group delay vs reported latency: HardClip / SoftClip at node mix 0 (only the oversampler's IIR filters) read a
+      1 kHz group delay of 3.01 samples at 2x and 6.48 at 4x, against getLatencySamples 4 / 7 (= the impulse-peak
+      delay T2.10 reports and "getLatencySamples equals the measured impulse delay at every Oversample Max" asserts,
+      +/-1). Off by 0.99 / 0.52 samples: outside the probe's 0.5-sample bar, inside 1 sample. An IIR's delay depends on
+      frequency, so no integer report equals it everywhere (same root as follow-up 41). Rule: keep the impulse-peak
+      definition (and the bar for the group-delay check), or report the group delay. Patch adding the check (with
+      `groupDelaySamples()` in `test_support/audit_metrics.h`): `f:/tmp/disrumpo-fix/p6a/t605-latency-group-delay.patch`.
+    - Per-band arrival of the probe's pairs: band 0 HardClip (4x) against a Bitcrush band (1x) and against a SoftClip
+      band (2x), both nodes at drive 0.1 and Tone 8 kHz, reference the same nodes at drive 0 / Oversample Max 1x: band
+      0 arrives at 8 samples, band 1 at 7 (getLatencySamples 7), so the relative arrival is 1 sample in both pairs
+      (baseline 4 and 3; bar 0). Not isolated: the impulse-peak index of the broad low-band response moves with the
+      sub-sample delays of the node path (tone filter, oversampler), and a peak index cannot resolve them. The T2.10
+      pair (1x passthrough vs 4x HardClip at node mix 0) reads 0 and stays asserted. Patch extending "Bands at different
+      oversampling factors arrive on the same sample" with the two pairs: `f:/tmp/disrumpo-fix/p6a/t605-band-arrival.patch`.
 
 ## Done outside the plan
 

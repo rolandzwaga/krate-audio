@@ -555,6 +555,9 @@ TEST_CASE("Processor HardClip aliasing drops with Oversample Max 4x vs 1x",
     REQUIRE(factor1x == 1);
     REQUIRE(factor4x == 4);
     REQUIRE(r1.aliasedDb - r4.aliasedDb >= 12.0);
+    // The audit probe "os-engaged" read the non-harmonic energy (fix plan T6.05; baseline
+    // -43.3 dB at both settings, reduction 0.0 dB)
+    REQUIRE(r1.nonHarmonicDb - r4.nonHarmonicDb >= 12.0);
     // D-009 (fix plan T1.06): the tone filter runs at the rate it is clocked, so the
     // 1 kHz fundamental reads the same at 1x and 4x (it read 56.97 vs 59.83 dB while
     // the adapters were prepared for 8x the host rate).
