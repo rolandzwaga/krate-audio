@@ -17,7 +17,7 @@
 #include "display/shared_display_bridge.h"
 #include "display/display_bridge_log.h"
 
-#include <algorithm>  // for std::max, std::min
+#include <algorithm>  // for std::max, std::min, std::copy_n, std::fill
 #include <cmath>      // for std::log10, std::pow
 #include <cstring>    // for memcpy
 #include <random>     // for instance ID generation
@@ -61,6 +61,10 @@ Steinberg::tresult PLUGIN_API Processor::connect(
         dataExchange_ = std::make_unique<Steinberg::Vst::DataExchangeHandler>(
             this, configCallback);
         dataExchange_->onConnect(other, getHostContext());
+        // Connected after (or reconnected during) an activation: setActive(true)
+        // has already run, so the queue is opened here (D-172)
+        if (active_.load(std::memory_order_acquire))
+            dataExchange_->onActivate(processSetup);
         KRATE_BRIDGE_LOG("Disrumpo::Processor::connect() — DataExchange created");
     }
     else
@@ -143,24 +147,13 @@ void Processor::sendSpectrumBlock(
     specBlock->numSamples = count;
     specBlock->sampleRate = static_cast<float>(sampleRate_);
 
+    // Mod-slider overlay: the offset values travel in the block (D-045)
+    static_assert(ModDest::kTotalDestinations <= kSpectrumBlockModOffsets);
+    std::copy_n(modulationEngine_.getModOffsetsArray(), ModDest::kTotalDestinations,
+        specBlock->modOffsets);
+    std::fill(specBlock->modOffsets + ModDest::kTotalDestinations,
+        specBlock->modOffsets + kSpectrumBlockModOffsets, 0.0f);
+
     dataExchange_->sendCurrentBlock();
-}
-
-void Processor::sendModOffsetsMessage() {
-    auto msg = Steinberg::owned(allocateMessage());
-    if (!msg)
-        return;
-
-    msg->setMessageID("ModOffsets");
-    auto* attrs = msg->getAttributes();
-    if (!attrs)
-        return;
-
-    // Send pointer to modulation offset array (safe: both components in-process)
-    attrs->setInt("ptr",
-        static_cast<Steinberg::int64>(
-            reinterpret_cast<intptr_t>(modulationEngine_.getModOffsetsArray())));
-
-    sendMessage(msg);
 }
 } // namespace Disrumpo

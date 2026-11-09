@@ -49,6 +49,7 @@
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/iuidescription.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <atomic>
@@ -132,7 +133,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
     editorClosing_.store(true, std::memory_order_release);
-    cachedModOffsets_ = nullptr;
+    sharedDisplay_ = nullptr;
     updateChecker_.reset();
     return EditControllerEx1::terminate();
 }
@@ -1406,6 +1407,11 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     editorClosing_.store(false, std::memory_order_release);
     spectrumDataAvailable_ = false;
     activeEditor_ = editor;
+    // Tier 3: look the processor's display up again in every editor session; the
+    // processor may have been replaced or re-registered since the last one (D-057/D-070)
+    if (instanceId_ != 0)
+        sharedDisplay_ = static_cast<SharedDisplay*>(
+            Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(instanceId_));
 
     auto* bandCountParam = getParameterObject(makeGlobalParamId(GlobalParamType::kGlobalBandCount));
     if (bandCountParam) {
@@ -1510,30 +1516,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
         this, &sweepIndicator_, &spectrumDisplay_);
 
     sweepVisualizationTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
-        [this](VSTGUI::CVSTGUITimer* /*timer*/) {
-            if (sweepIndicator_ && sweepIndicator_->isEnabled())
-                sweepIndicator_->setDirty();
-            if (cachedModOffsets_ && activeEditor_) {
-                if (auto* frame = activeEditor_->getFrame())
-                    updateModSliders(frame);
-            }
-            // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
-            // wire the spectrum display directly to the processor's shared FIFOs
-            if (!dataExchangeActive_ && sharedDisplay_ && !spectrumDataAvailable_) {
-                ++fallbackTickCounter_;
-                if (fallbackTickCounter_ > 10) { // ~330ms at 33ms timer
-                    KRATE_BRIDGE_LOG("Disrumpo::Controller — Tier 3 fallback ACTIVATED (no DataExchange after ~330ms)");
-                    spectrumDataAvailable_ = true;
-                    if (spectrumDisplay_) {
-                        spectrumDisplay_->setSpectrumFIFOs(
-                            sharedDisplay_->inputFIFO, sharedDisplay_->outputFIFO);
-                        float sr = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
-                        if (sr > 0.0f)
-                            spectrumDisplay_->startAnalysis(sr);
-                    }
-                }
-            }
-        }, 33);
+        [this](VSTGUI::CVSTGUITimer* /*timer*/) { onEditorTimer(); }, 33);
 
     auto* morphLinkParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepMorphLink));
     if (morphLinkParam)
@@ -1557,11 +1540,35 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     if (updateBannerView_) updateBannerView_->startPolling();
 }
 
+void Controller::onEditorTimer() {
+    if (sweepIndicator_ && sweepIndicator_->isEnabled())
+        sweepIndicator_->setDirty();
+    if (activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame())
+            updateModSliders(frame);
+    }
+    // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
+    // wire the spectrum display directly to the processor's shared FIFOs
+    if (!dataExchangeActive_ && sharedDisplay_ && !spectrumDataAvailable_) {
+        ++fallbackTickCounter_;
+        if (fallbackTickCounter_ > 10) { // ~330ms at 33ms timer
+            KRATE_BRIDGE_LOG("Disrumpo::Controller — Tier 3 fallback ACTIVATED (no DataExchange after ~330ms)");
+            spectrumDataAvailable_ = true;
+            if (spectrumDisplay_) {
+                spectrumDisplay_->setSpectrumFIFOs(
+                    sharedDisplay_->inputFIFO, sharedDisplay_->outputFIFO);
+                float sr = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
+                if (sr > 0.0f)
+                    spectrumDisplay_->startAnalysis(sr);
+            }
+        }
+    }
+}
+
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // FIRST: set guard flag and kill all timers/async callbacks to prevent
     // races with DataExchange or timer callbacks during teardown
     editorClosing_.store(true, std::memory_order_release);
-    cachedModOffsets_ = nullptr;
     if (sweepVisualizationTimer_) { sweepVisualizationTimer_->stop(); sweepVisualizationTimer_ = nullptr; }
     if (spectrumDisplay_) spectrumDisplay_->stopAnalysis();
 
@@ -1625,7 +1632,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     }
     sweepIndicator_ = nullptr;
     spectrumDisplay_ = nullptr;
-    sharedDisplay_ = nullptr;
     dataExchangeActive_ = false;
     fallbackTickCounter_ = 0;
     activeEditor_ = nullptr;
@@ -2014,6 +2020,7 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
                 localInputFIFO_.push(specBlock->inputSamples, specBlock->numSamples);
                 localOutputFIFO_.push(specBlock->outputSamples, specBlock->numSamples);
                 cachedSpectrumSampleRate_ = specBlock->sampleRate;
+                std::copy_n(specBlock->modOffsets, kSpectrumBlockModOffsets, cachedModOffsets_.begin());
                 if (!dataExchangeActive_)
                     KRATE_BRIDGE_LOG("Disrumpo::Controller — DataExchange data received (Tier 1/2 active)");
                 dataExchangeActive_ = true;
@@ -2040,16 +2047,6 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
         return Steinberg::Vst::EditControllerEx1::notify(message);
     if (dataExchangeReceiver_.onMessage(message)) return Steinberg::kResultOk;
 
-    if (strcmp(message->getMessageID(), "ModOffsets") == 0) {
-        auto* attrs = message->getAttributes();
-        if (!attrs) return Steinberg::kResultFalse;
-        Steinberg::int64 ptr = 0;
-        attrs->getInt("ptr", ptr);
-        cachedModOffsets_ = reinterpret_cast<const float*>(  // NOLINT(performance-no-int-to-ptr)
-            static_cast<intptr_t>(ptr));
-        return Steinberg::kResultOk;
-    }
-
     return Steinberg::Vst::EditControllerEx1::notify(message);
 }
 
@@ -2057,8 +2054,8 @@ void Controller::updateModSliders(VSTGUI::CViewContainer* container) {
     if (!container) return;
     container->forEachChild([this](VSTGUI::CView* child) {
         if (auto* ms = dynamic_cast<ModSlider*>(child)) {
-            float offset = cachedModOffsets_[ms->getModDestId()];
-            ms->setModulationOffset(offset);
+            if (ms->getModDestId() < cachedModOffsets_.size())
+                ms->setModulationOffset(cachedModOffsets_[ms->getModDestId()]);
         }
         if (auto* vc = dynamic_cast<VSTGUI::CViewContainer*>(child))
             updateModSliders(vc);

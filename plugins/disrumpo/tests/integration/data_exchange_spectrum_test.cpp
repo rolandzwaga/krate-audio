@@ -13,7 +13,6 @@
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
-#include <catch2/catch_approx.hpp>
 
 #include "controller/controller.h"
 #include "controller/spectrum_block.h"
@@ -21,6 +20,9 @@
 #include "plugin_ids.h"
 
 #include "public.sdk/source/vst/hosting/hostclasses.h"
+#include "pluginterfaces/vst/ivstdataexchange.h"
+
+#include "vst_param_changes.h"
 
 #include <algorithm>
 #include <cmath>
@@ -36,7 +38,6 @@
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
-using Catch::Approx;
 
 // ==============================================================================
 // Helpers
@@ -77,6 +78,99 @@ static void generateSine(float* buffer, int numSamples, float freq,
 static constexpr int32 kBlockSize = 512;
 static constexpr double kSampleRate = 44100.0;
 
+/// Host context implementing IDataExchangeHandler (Tier 1, no timer or message
+/// pump): one block of storage, every block sent to the controller is copied out.
+class MockDataExchangeHost : public IDataExchangeHandler
+{
+public:
+    MockDataExchangeHost() = default;
+    virtual ~MockDataExchangeHost() = default;
+    MockDataExchangeHost(const MockDataExchangeHost&) = delete;
+    MockDataExchangeHost& operator=(const MockDataExchangeHost&) = delete;
+    MockDataExchangeHost(MockDataExchangeHost&&) = delete;
+    MockDataExchangeHost& operator=(MockDataExchangeHost&&) = delete;
+
+    tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
+    {
+        if (FUnknownPrivate::iidEqual(iid, IDataExchangeHandler::iid) ||
+            FUnknownPrivate::iidEqual(iid, FUnknown::iid)) {
+            *obj = static_cast<IDataExchangeHandler*>(this);
+            return kResultOk;
+        }
+        *obj = nullptr;
+        return kNoInterface;
+    }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+
+    tresult PLUGIN_API openQueue(IAudioProcessor* /*processor*/, uint32 size, uint32 /*numBlocks*/,
+                                 uint32 align, DataExchangeUserContextID /*userContextID*/,
+                                 DataExchangeQueueID* outID) override
+    {
+        ++opened;
+        blockSize = size;
+        alignment = align;
+        storage.assign(size / sizeof(float) + 1, 0.0f);
+        *outID = 1;
+        return kResultTrue;
+    }
+    tresult PLUGIN_API closeQueue(DataExchangeQueueID /*queueID*/) override { return kResultTrue; }
+    tresult PLUGIN_API lockBlock(DataExchangeQueueID /*queueId*/, DataExchangeBlock* block) override
+    {
+        if (storage.empty()) return kResultFalse;
+        block->data = storage.data();
+        block->size = blockSize;
+        block->blockID = 1;
+        return kResultTrue;
+    }
+    tresult PLUGIN_API freeBlock(DataExchangeQueueID /*queueId*/, DataExchangeBlockID /*blockID*/,
+                                 TBool sendToController) override
+    {
+        if (sendToController) {
+            ++sent;
+            lastSent = storage;
+        }
+        return kResultTrue;
+    }
+
+    [[nodiscard]] const Disrumpo::SpectrumBlock& lastBlock() const
+    {
+        return *reinterpret_cast<const Disrumpo::SpectrumBlock*>(lastSent.data());
+    }
+
+    int opened = 0;
+    int sent = 0;
+    uint32 blockSize = 0;
+    uint32 alignment = 0;
+    std::vector<float> storage;  // float storage: SpectrumBlock is all 4-byte fields
+    std::vector<float> lastSent;
+};
+
+/// One stereo process() call on `proc` with the given buffers and parameter changes.
+static void processStereo(Disrumpo::Processor& proc, std::vector<float>& inL, std::vector<float>& inR,
+                          std::vector<float>& outL, std::vector<float>& outR,
+                          IParameterChanges* changes = nullptr)
+{
+    float* inCh[2] = {inL.data(), inR.data()};
+    float* outCh[2] = {outL.data(), outR.data()};
+    AudioBusBuffers inputBus{};
+    inputBus.numChannels = 2;
+    inputBus.channelBuffers32 = inCh;
+    AudioBusBuffers outputBus{};
+    outputBus.numChannels = 2;
+    outputBus.channelBuffers32 = outCh;
+    ProcessData data{};
+    data.processMode = kRealtime;
+    data.symbolicSampleSize = kSample32;
+    data.numSamples = static_cast<int32>(inL.size());
+    data.numInputs = 1;
+    data.numOutputs = 1;
+    data.inputs = &inputBus;
+    data.outputs = &outputBus;
+    data.inputParameterChanges = changes;
+    proc.process(data);
+}
+
 // ==============================================================================
 // PipelineFixture: Processor + Controller wired via IConnectionPoint
 // ==============================================================================
@@ -90,8 +184,8 @@ struct PipelineFixture
     HostApplication host;
 
     std::vector<float> inL, inR, outL, outR;
-    float* inChannels[2];
-    float* outChannels[2];
+    float* inChannels[2]{};
+    float* outChannels[2]{};
     AudioBusBuffers inputBus{};
     AudioBusBuffers outputBus{};
     ProcessData data{};
@@ -148,12 +242,12 @@ struct PipelineFixture
         setup.symbolicSampleSize = kSample32;
         setup.processMode = kRealtime;
         proc->setupProcessing(setup);
-        proc->setActive(true);
+        proc->setActive(static_cast<TBool>(true));
     }
 
     ~PipelineFixture()
     {
-        proc->setActive(false);
+        proc->setActive(static_cast<TBool>(false));
 
         auto* procConn = static_cast<IConnectionPoint*>(
             static_cast<AudioEffect*>(proc.get()));
@@ -260,8 +354,10 @@ TEST_CASE("Processor lifecycle without connect - sendSpectrumBlock is no-op",
     REQUIRE(proc->setActive(true) == kResultOk);
 
     // Process a block without connect — sendSpectrumBlock should be a no-op
-    std::vector<float> inL(512, 0.5f), inR(512, 0.5f);
-    std::vector<float> outL(512, 0.0f), outR(512, 0.0f);
+    std::vector<float> inL(512, 0.5f);
+    std::vector<float> inR(512, 0.5f);
+    std::vector<float> outL(512, 0.0f);
+    std::vector<float> outR(512, 0.0f);
     float* inCh[2] = { inL.data(), inR.data() };
     float* outCh[2] = { outL.data(), outR.data() };
 
@@ -372,3 +468,135 @@ TEST_CASE("Full bidirectional connect + setup + activate",
     REQUIRE(ctrl->terminate() == kResultOk);
     REQUIRE(proc->terminate() == kResultOk);
 }
+
+// D-172: a host that connects the components after activating the processor
+// (or reconnects while active) still gets an open DataExchange queue.
+TEST_CASE("Connect after activation opens the DataExchange queue",
+          "[disrumpo][data-exchange][lifecycle][D-172]")
+{
+    constexpr int32 kBlock = 2048;  // one block is past the ~30 ms send throttle
+    MockDataExchangeHost host;
+    auto proc = std::make_unique<Disrumpo::Processor>();
+    REQUIRE(proc->initialize(&host) == kResultOk);
+    auto ctrl = std::make_unique<Disrumpo::Controller>();
+    REQUIRE(ctrl->initialize(nullptr) == kResultOk);
+
+    ProcessSetup setup{};
+    setup.sampleRate = 48000.0;
+    setup.maxSamplesPerBlock = kBlock;
+    setup.symbolicSampleSize = kSample32;
+    setup.processMode = kRealtime;
+    REQUIRE(proc->setupProcessing(setup) == kResultOk);
+    REQUIRE(proc->setActive(true) == kResultOk);
+
+    auto* ctrlConn = static_cast<IConnectionPoint*>(static_cast<EditControllerEx1*>(ctrl.get()));
+    REQUIRE(proc->connect(ctrlConn) == kResultOk);
+
+    std::vector<float> inL(kBlock, 0.25f);
+    std::vector<float> inR(kBlock, 0.25f);
+    std::vector<float> outL(kBlock, 0.0f);
+    std::vector<float> outR(kBlock, 0.0f);
+    processStereo(*proc, inL, inR, outL, outR);
+
+    std::printf("T2.19 D-172 connect after activation: queues opened %d, blocks sent %d (want 1, >= 1)\n",
+                host.opened, host.sent);
+    CHECK(host.opened == 1);
+    CHECK(host.sent >= 1);
+
+    REQUIRE(proc->setActive(false) == kResultOk);
+    REQUIRE(proc->disconnect(ctrlConn) == kResultOk);
+    REQUIRE(ctrl->terminate() == kResultOk);
+    REQUIRE(proc->terminate() == kResultOk);
+}
+
+// D-045: the mod offsets now ride in the SpectrumBlock. The block size stays a
+// multiple of the 32-byte alignment (macOS aligned_alloc), the spectrum samples
+// are the same mono mixdowns as before, and the controller FIFOs receive them unchanged.
+TEST_CASE("SpectrumBlock carries mod offsets and the unchanged spectrum samples",
+          "[disrumpo][data-exchange][D-045]")
+{
+    constexpr int32 kBlock = 2048;
+    constexpr double kRate = 48000.0;
+    MockDataExchangeHost host;
+    auto proc = std::make_unique<Disrumpo::Processor>();
+    REQUIRE(proc->initialize(&host) == kResultOk);
+    auto ctrl = std::make_unique<Disrumpo::Controller>();
+    REQUIRE(ctrl->initialize(nullptr) == kResultOk);
+    auto* ctrlConn = static_cast<IConnectionPoint*>(static_cast<EditControllerEx1*>(ctrl.get()));
+    REQUIRE(proc->connect(ctrlConn) == kResultOk);
+
+    ProcessSetup setup{};
+    setup.sampleRate = kRate;
+    setup.maxSamplesPerBlock = kBlock;
+    setup.symbolicSampleSize = kSample32;
+    setup.processMode = kRealtime;
+    REQUIRE(proc->setupProcessing(setup) == kResultOk);
+    REQUIRE(proc->setActive(true) == kResultOk);
+
+    std::printf("T2.19 D-045 block: sizeof(SpectrumBlock) %zu, queue block size %u, alignment %u, "
+                "size %% alignment = %u\n",
+                sizeof(Disrumpo::SpectrumBlock), host.blockSize, host.alignment,
+                host.alignment != 0 ? host.blockSize % host.alignment : 0u);
+    REQUIRE(host.opened == 1);
+    CHECK(host.alignment == 32);
+    CHECK(host.blockSize % host.alignment == 0);
+    CHECK(host.blockSize >= sizeof(Disrumpo::SpectrumBlock));
+
+    // Macro 1 at 0.8 routed to Global Mix at amount +1: one known non-zero offset
+    Krate::Test::ParameterChanges changes;
+    changes.addChange(Disrumpo::makeRoutingParamId(0, 0), 5.0 / static_cast<double>(Disrumpo::kUIModSourceCount - 1));
+    changes.addChange(Disrumpo::makeRoutingParamId(0, 1),
+                      static_cast<double>(Disrumpo::ModDest::kGlobalMix) /
+                          static_cast<double>(Disrumpo::ModDest::kTotalDestinations - 1));
+    changes.addChange(Disrumpo::makeRoutingParamId(0, 2), 1.0);
+    changes.addChange(Disrumpo::makeModParamId(Disrumpo::ModParamType::kMacro1Value), 0.8);
+
+    std::vector<float> inL(kBlock);
+    std::vector<float> inR(kBlock);
+    generateSine(inL.data(), kBlock, 1000.0f, kRate);
+    generateSine(inR.data(), kBlock, 700.0f, kRate);
+    std::vector<float> outL(kBlock, 0.0f);
+    std::vector<float> outR(kBlock, 0.0f);
+    processStereo(*proc, inL, inR, outL, outR, &changes);
+    REQUIRE(host.sent == 1);
+
+    const auto& blk = host.lastBlock();
+    size_t inMismatch = 0;
+    size_t outMismatch = 0;
+    for (int32 i = 0; i < kBlock; ++i) {
+        const auto k = static_cast<size_t>(i);
+        if (blk.inputSamples[k] != (inL[k] + inR[k]) * 0.5f) ++inMismatch;
+        if (blk.outputSamples[k] != (outL[k] + outR[k]) * 0.5f) ++outMismatch;
+    }
+    size_t strayOffsets = 0;
+    for (uint32_t d = 0; d < Disrumpo::kSpectrumBlockModOffsets; ++d) {
+        if (d != Disrumpo::ModDest::kGlobalMix && blk.modOffsets[d] != 0.0f) ++strayOffsets;
+    }
+    const float mixOffset = blk.modOffsets[Disrumpo::ModDest::kGlobalMix];
+    std::printf("T2.19 D-045 block content: numSamples %u, rate %.0f, input mismatches %zu, output mismatches %zu, "
+                "Global Mix offset %.6f (want > 0), stray offsets %zu\n",
+                blk.numSamples, static_cast<double>(blk.sampleRate), inMismatch, outMismatch,
+                static_cast<double>(mixOffset), strayOffsets);
+    CHECK(blk.numSamples == static_cast<uint32_t>(kBlock));
+    CHECK(blk.sampleRate == static_cast<float>(kRate));
+    CHECK(inMismatch == 0);
+    CHECK(outMismatch == 0);
+    CHECK(mixOffset > 0.1f);
+    CHECK(strayOffsets == 0);
+
+    // The controller's FIFOs receive exactly the block's samples
+    DataExchangeBlock deb{.data = host.lastSent.data(), .size = host.blockSize, .blockID = 1};
+    ctrl->onDataExchangeBlocksReceived(0, 1, &deb, static_cast<TBool>(false));
+    std::vector<float> readIn(static_cast<size_t>(kBlock));
+    std::vector<float> readOut(static_cast<size_t>(kBlock));
+    REQUIRE(ctrl->getLocalInputFIFO().readLatest(readIn.data(), readIn.size()) == readIn.size());
+    REQUIRE(ctrl->getLocalOutputFIFO().readLatest(readOut.data(), readOut.size()) == readOut.size());
+    CHECK(std::memcmp(readIn.data(), blk.inputSamples, readIn.size() * sizeof(float)) == 0);
+    CHECK(std::memcmp(readOut.data(), blk.outputSamples, readOut.size() * sizeof(float)) == 0);
+
+    REQUIRE(proc->setActive(false) == kResultOk);
+    REQUIRE(proc->disconnect(ctrlConn) == kResultOk);
+    REQUIRE(ctrl->terminate() == kResultOk);
+    REQUIRE(proc->terminate() == kResultOk);
+}
+

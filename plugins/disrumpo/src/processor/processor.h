@@ -367,9 +367,6 @@ private:
                            const float* outputL, const float* outputR,
                            Steinberg::int32 numSamples);
 
-    /// @brief Send modulation offset array pointer to controller via IMessage
-    void sendModOffsetsMessage();
-
     // ==========================================================================
     // State hand-off (D-003): setState never writes live DSP objects while
     // processing is active. It parses the stream into pendingState_ and the next

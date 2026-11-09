@@ -523,11 +523,15 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (streamer.readInt32(marker) && marker == kInstanceIdMarker
             && streamer.readInt64(storedId))
         {
-            // Re-register with the stored ID (supports state restore)
-            Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_);
-            instanceId_ = static_cast<uint64_t>(storedId);
-            Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
-                instanceId_, &sharedDisplay_);
+            // Re-register with the stored ID (supports state restore), unless another
+            // live processor holds it (duplicated track, copied settings): then keep
+            // this processor's own ID so the two never share an entry (D-056)
+            auto& bridge = Krate::Plugins::SharedDisplayBridge::instance();
+            const auto stored = static_cast<uint64_t>(storedId);
+            if (stored != instanceId_ && bridge.registerInstanceIfFree(stored, &sharedDisplay_)) {
+                bridge.unregisterInstance(instanceId_, &sharedDisplay_);
+                instanceId_ = stored;
+            }
         }
         // If marker not found, keep the constructor-generated ID (old state format)
     }

@@ -20,6 +20,10 @@ namespace Disrumpo {
 /// Covers all typical host buffer sizes (32 to 2048).
 static constexpr uint32_t kSpectrumBlockMaxSamples = 2048;
 
+/// @brief Modulation-offset slots carried in each block (ModDest indices; the
+/// processor fills the first ModDest::kTotalDestinations, the rest stay 0).
+static constexpr uint32_t kSpectrumBlockModOffsets = 64;
+
 /// @brief Audio sample block for spectrum display DataExchange transport.
 ///
 /// Sent from Processor (audio thread) to Controller (UI thread) each process()
@@ -38,6 +42,10 @@ struct SpectrumBlock {
 
     /// Audio sample rate (Hz) for FFT bin frequency calculation
     float sampleRate = 44100.0f;
+
+    /// Modulation offsets at the end of the block, by ModDest index, for the
+    /// mod-slider overlay (values, never a processor address: D-045)
+    float modOffsets[kSpectrumBlockModOffsets]{};
 };
 
 static_assert(std::is_trivially_copyable_v<SpectrumBlock>,

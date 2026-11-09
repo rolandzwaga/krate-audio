@@ -97,7 +97,7 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
 Steinberg::tresult PLUGIN_API Processor::terminate() {
     KRATE_BRIDGE_LOG("Disrumpo::Processor::terminate() — id=0x%llx",
         static_cast<unsigned long long>(instanceId_));
-    Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_);
+    Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_, &sharedDisplay_);
     return AudioEffect::terminate();
 }
 
@@ -226,8 +226,6 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         // DataExchange: open queue for spectrum data transfer
         if (dataExchange_)
             dataExchange_->onActivate(processSetup);
-
-        sendModOffsetsMessage();
 
         // process() may run from now on: setState hands its state over (D-003)
         active_.store(true, std::memory_order_release);

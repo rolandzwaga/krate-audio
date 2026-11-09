@@ -1088,19 +1088,27 @@ TEST_CASE("Two setState calls before a block: the last one wins", "[disrumpo][rt
     }
     REQUIRE(readAt<int32_t>(b, 0) == kPresetVersion);
 
+    // The trailing 8 bytes are the SharedDisplayBridge instance ID: two live
+    // processors restoring b never share it (D-056), so it is left out here.
+    const auto withoutInstanceId = [](std::vector<uint8_t> s) {
+        REQUIRE(s.size() >= size_t{8});
+        s.resize(s.size() - 8);
+        return s;
+    };
+
     PChanges empty;
     Rig twice(48000.0);
     REQUIRE(setStateBytes(*twice.p, a));
     REQUIRE(setStateBytes(*twice.p, b));
-    const auto twiceBefore = getStateBytes(*twice.p);
+    const auto twiceBefore = withoutInstanceId(getStateBytes(*twice.p));
     flushBlock(twice, empty);
-    const auto twiceAfter = getStateBytes(*twice.p);
+    const auto twiceAfter = withoutInstanceId(getStateBytes(*twice.p));
 
     Rig once(48000.0);
     REQUIRE(setStateBytes(*once.p, b));
-    const auto onceBefore = getStateBytes(*once.p);
+    const auto onceBefore = withoutInstanceId(getStateBytes(*once.p));
     flushBlock(once, empty);
-    const auto onceAfter = getStateBytes(*once.p);
+    const auto onceAfter = withoutInstanceId(getStateBytes(*once.p));
 
     std::printf("D-003 last wins: A then B vs B alone, first differing byte before the block %zu of %zu, "
                 "after it %zu of %zu; B alone before vs after the block %zu of %zu\n",

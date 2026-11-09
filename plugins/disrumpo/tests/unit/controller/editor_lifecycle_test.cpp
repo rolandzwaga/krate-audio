@@ -9,17 +9,30 @@
 #include <editor_lifecycle_harness.h>
 #include <shared_editor_views_probe.h>
 
+#include "../../test_support/disrumpo_rig.h"
+
 #include "controller/controller.h"
+#include "controller/spectrum_block.h"
 #include "controller/views/dynamic_node_selector.h"
+#include "controller/views/mod_slider.h"
+#include "controller/views/spectrum_display.h"
+#include "display/shared_display_bridge.h"
 
 #include "base/source/updatehandler.h"
+#include "pluginterfaces/vst/ivstdataexchange.h"
+#include "public.sdk/source/common/memorystream.h"
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/iviewlistener.h"
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/uiviewswitchcontainer.h"
 
+#include <catch2/catch_approx.hpp>
+
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -135,6 +148,25 @@ private:
     bool opened_ = false;
 };
 
+/// Every ModSlider below `container`, in document order.
+void collectModSliders(VSTGUI::CViewContainer* container, std::vector<const Disrumpo::ModSlider*>& out) {
+    container->forEachChild([&out](VSTGUI::CView* child) {
+        if (const auto* ms = dynamic_cast<const Disrumpo::ModSlider*>(child)) out.push_back(ms);
+        if (auto* sub = child->asViewContainer()) collectModSliders(sub, out);
+    });
+}
+
+/// The instance ID a processor state stream ends with (int32 "KRAT" marker, int64 ID).
+uint64_t trailerInstanceId(const std::vector<uint8_t>& stream) {
+    REQUIRE(stream.size() >= 12);
+    int32_t marker = 0;
+    std::memcpy(&marker, stream.data() + stream.size() - 12, sizeof(marker));
+    REQUIRE(marker == 0x4B524154);
+    uint64_t id = 0;
+    std::memcpy(&id, stream.data() + stream.size() - 8, sizeof(id));
+    return id;
+}
+
 }  // namespace
 
 TEST_CASE("Disrumpo editor open/close cycle is UAF- and leak-free",
@@ -243,4 +275,123 @@ TEST_CASE("Deleting an expanded-strip node selector clears the controller's slot
     }
     CHECK(c.cachedNodeSelectorsForTest().empty());
     c.terminate();
+}
+
+// D-045 / D-057 / D-070: the mod-slider overlay and the Tier-3 spectrum fallback
+// must work in every editor session, not only the first. Mod offsets arrive as
+// values inside a SpectrumBlock; the SharedDisplayBridge lookup is redone on open.
+TEST_CASE("Mod overlay and Tier-3 spectrum survive close/reopen",
+          "[disrumpo][controller][lifecycle][D-045][D-057][D-070]")
+{
+    // A live processor registered in the bridge, its shared FIFOs and rate written
+    Disrumpo::TestSupport::Rig rig(48000.0, 512);
+    const std::vector<float> in(4096, 0.25f);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    auto state = Disrumpo::TestSupport::getStateBytes(*rig.p);
+
+    Disrumpo::Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    {
+        auto* s = new Steinberg::MemoryStream(state.data(), static_cast<Steinberg::TSize>(state.size()));
+        REQUIRE(c.setComponentState(s) == Steinberg::kResultOk);
+        s->release();
+    }
+
+    // One block from the processor, once: offset of ModDest d = 0.01 * (d + 1)
+    auto block = std::make_unique<Disrumpo::SpectrumBlock>();
+    block->numSamples = 64;
+    block->sampleRate = 48000.0f;
+    for (uint32_t d = 0; d < Disrumpo::kSpectrumBlockModOffsets; ++d)
+        block->modOffsets[d] = 0.01f * static_cast<float>(d + 1);
+    Steinberg::Vst::DataExchangeBlock deb{
+        .data = block.get(), .size = static_cast<Steinberg::uint32>(sizeof(Disrumpo::SpectrumBlock)), .blockID = 0};
+    c.onDataExchangeBlocksReceived(0, 1, &deb, static_cast<Steinberg::TBool>(false));
+
+    {
+        HeadlessEditor first(c);
+        REQUIRE(first.ready());
+    }  // willClose
+    {
+        HeadlessEditor ed(c);  // didOpen again
+        REQUIRE(ed.ready());
+        // The unattached frame builds no switch page by itself: step band 1 to Shape
+        // and back so its Main page (five ModSliders) exists
+        auto* tabSwitch = findSwitch(ed.frame(), kTabSwitchHeight);
+        REQUIRE(tabSwitch != nullptr);
+        tabSwitch->setCurrentViewIndex(1);
+        tabSwitch->setCurrentViewIndex(0);
+        for (int t = 0; t < 12; ++t) c.tickEditorTimerForTest();
+
+        std::vector<const Disrumpo::ModSlider*> sliders;
+        collectModSliders(ed.frame(), sliders);
+        size_t withOffset = 0;
+        for (const auto* ms : sliders) {
+            const float want = 0.01f * static_cast<float>(ms->getModDestId() + 1);
+            if (ms->getModulationOffset() == Catch::Approx(want).margin(1e-6)) ++withOffset;
+        }
+        const auto* display = c.spectrumDisplayForTest();
+        const bool analysing = display != nullptr && display->isAnalysisActive();
+        std::printf("T2.19 reopen: %zu of %zu ModSliders show their offset (want all); "
+                    "spectrum display %s, Tier-3 analysis active: %s (want yes)\n",
+                    withOffset, sliders.size(), display != nullptr ? "present" : "absent",
+                    analysing ? "yes" : "no");
+        REQUIRE_FALSE(sliders.empty());
+        CHECK(withOffset == sliders.size());
+        CHECK(analysing);
+    }
+    c.terminate();
+}
+
+// D-056: a processor restoring a stream whose instance ID another live processor
+// holds keeps its own ID, and terminating it never removes the other's entry.
+TEST_CASE("Two processors restoring the same stream keep distinct bridge registrations",
+          "[disrumpo][lifecycle][D-056]")
+{
+    auto& bridge = Krate::Plugins::SharedDisplayBridge::instance();
+
+    auto a = std::make_unique<Disrumpo::Processor>();
+    REQUIRE(a->initialize(nullptr) == Steinberg::kResultOk);
+    const auto stream = Disrumpo::TestSupport::getStateBytes(*a);
+    const uint64_t idA = trailerInstanceId(stream);
+    void* const displayA = bridge.lookupInstance(idA);
+    REQUIRE(displayA != nullptr);
+
+    // Restoring its own stream changes nothing
+    REQUIRE(Disrumpo::TestSupport::setStateBytes(*a, stream));
+    CHECK(trailerInstanceId(Disrumpo::TestSupport::getStateBytes(*a)) == idA);
+    CHECK(bridge.lookupInstance(idA) == displayA);
+
+    // A second live processor restores the same stream (duplicated track)
+    auto b = std::make_unique<Disrumpo::Processor>();
+    REQUIRE(b->initialize(nullptr) == Steinberg::kResultOk);
+    REQUIRE(Disrumpo::TestSupport::setStateBytes(*b, stream));
+    const uint64_t idB = trailerInstanceId(Disrumpo::TestSupport::getStateBytes(*b));
+    void* const displayB = bridge.lookupInstance(idB);
+    const bool aKeptAfterRestore = bridge.lookupInstance(idA) == displayA;
+    b->terminate();
+    b.reset();
+    const bool aKeptAfterTerminate = bridge.lookupInstance(idA) == displayA;
+    std::printf("T2.19 D-056: id B %s id A; A's entry %s after B's restore, %s after B's terminate (want: differs, "
+                "kept, kept)\n",
+                idB == idA ? "EQUALS" : "differs from", aKeptAfterRestore ? "kept" : "LOST",
+                aKeptAfterTerminate ? "kept" : "LOST");
+    CHECK(idB != idA);
+    CHECK(displayB != nullptr);
+    CHECK(displayB != displayA);
+    CHECK(aKeptAfterRestore);
+    CHECK(aKeptAfterTerminate);
+
+    // A stream whose ID no live processor holds is adopted (project reload)
+    REQUIRE(a->terminate() == Steinberg::kResultOk);
+    a.reset();
+    CHECK(bridge.lookupInstance(idA) == nullptr);
+    auto reloaded = std::make_unique<Disrumpo::Processor>();
+    REQUIRE(reloaded->initialize(nullptr) == Steinberg::kResultOk);
+    REQUIRE(Disrumpo::TestSupport::setStateBytes(*reloaded, stream));
+    CHECK(trailerInstanceId(Disrumpo::TestSupport::getStateBytes(*reloaded)) == idA);
+    CHECK(bridge.lookupInstance(idA) != nullptr);
+    reloaded->terminate();
+    CHECK(bridge.lookupInstance(idA) == nullptr);
 }

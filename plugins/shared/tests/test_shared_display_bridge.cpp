@@ -127,3 +127,48 @@ TEST_CASE("SharedDisplayBridge lookup unknown ID returns nullptr",
     auto& bridge = SharedDisplayBridge::instance();
     REQUIRE(bridge.lookupInstance(0x1234'5678'9ABC'DEF0) == nullptr);
 }
+
+// ==============================================================================
+// registerInstanceIfFree never takes an id another instance holds
+// ==============================================================================
+
+TEST_CASE("SharedDisplayBridge registerInstanceIfFree keeps the existing owner",
+          "[shared_display_bridge]")
+{
+    auto& bridge = SharedDisplayBridge::instance();
+
+    int owner = 1;
+    int other = 2;
+    uint64_t id = 0xDEAD'BEEF'0004;
+
+    REQUIRE(bridge.registerInstanceIfFree(id, &owner));   // free: taken
+    REQUIRE(bridge.lookupInstance(id) == &owner);
+    REQUIRE(bridge.registerInstanceIfFree(id, &owner));   // same owner again: still true
+    REQUIRE_FALSE(bridge.registerInstanceIfFree(id, &other));
+    REQUIRE(bridge.lookupInstance(id) == &owner);
+
+    bridge.unregisterInstance(id);
+}
+
+// ==============================================================================
+// unregisterInstance(id, data) only removes the caller's own entry
+// ==============================================================================
+
+TEST_CASE("SharedDisplayBridge unregister with data removes only a matching entry",
+          "[shared_display_bridge]")
+{
+    auto& bridge = SharedDisplayBridge::instance();
+
+    int owner = 1;
+    int other = 2;
+    uint64_t id = 0xDEAD'BEEF'0005;
+
+    bridge.registerInstance(id, &owner);
+    bridge.unregisterInstance(id, &other);  // not other's entry: kept
+    REQUIRE(bridge.lookupInstance(id) == &owner);
+    bridge.unregisterInstance(id, &owner);
+    REQUIRE(bridge.lookupInstance(id) == nullptr);
+
+    bridge.unregisterInstance(0xFFFF'FFFF'FFFF'FFFE, &owner);  // unknown id: harmless
+    REQUIRE(bridge.lookupInstance(0xFFFF'FFFF'FFFF'FFFE) == nullptr);
+}

@@ -187,6 +187,12 @@ public:
     /// Test seam: every DynamicNodeSelector view the controller holds a raw pointer to (D-061).
     [[nodiscard]] std::vector<const VSTGUI::CView*> cachedNodeSelectorsForTest() const;
 
+    /// Test seam: one tick of the open editor's 33 ms timer (the headless frame runs no timers).
+    void tickEditorTimerForTest() { onEditorTimer(); }
+
+    /// Test seam: the spectrum display of the open editor (nullptr when closed).
+    [[nodiscard]] const SpectrumDisplay* spectrumDisplayForTest() const { return spectrumDisplay_; }
+
     /// Create a memory stream containing the current component state
     /// Used for preset saving - serializes controller's parameter values
     /// in the same format as Processor::getState()
@@ -216,7 +222,7 @@ public:
     // IConnectionPoint (IMessage handling)
     // ===========================================================================
 
-    /// Handle messages from Processor (e.g., mod offsets)
+    /// Handle messages from Processor (the DataExchange IMessage fallback)
     Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
 
     // ===========================================================================
@@ -351,10 +357,12 @@ private:
     // ==========================================================================
     // Modulation Offset Visualization
     // ==========================================================================
-    // Pointer to processor's modulation offset array (received via IMessage)
-    const float* cachedModOffsets_ = nullptr;
+    // Latest modulation offsets by ModDest index, copied from each SpectrumBlock (D-045)
+    std::array<float, kSpectrumBlockModOffsets> cachedModOffsets_{};
     // Recursively walk view tree and update ModSlider offsets from cached array
     void updateModSliders(VSTGUI::CViewContainer* container);
+    // Body of the open editor's 33 ms timer (sweep indicator, mod sliders, Tier 3 fallback)
+    void onEditorTimer();
 
     // ==========================================================================
     // Visibility Controllers (FR-021, FR-022, FR-025)
