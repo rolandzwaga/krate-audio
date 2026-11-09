@@ -11,7 +11,7 @@
 //     "stacked" (visibility-switched variants) and are not a defect, and neither is any pair that includes the
 //     UpdateBanner custom view (it overlays the header by design: the shared-editor-views rule makes it the last view),
 //     nor a bipolar slider's centre tick (a childless 1-pt CViewContainer inside a draw-value-from-center CSlider).
-//   - out-of-bounds: a view that extends past its parent container.
+//   - out-of-bounds: a view that extends past its parent container (a CScrollView's container-size, when it has one).
 //   With --baseline <inventory.json> also:
 //   - lost binding: a control-tag or custom-view-name bound in the baseline and bound nowhere now.
 //   - lost control: a control-tag that had an interactive view in the baseline (any class but CParamDisplay and
@@ -90,7 +90,9 @@ function buildInventory(xmlText, fileLabel) {
           defects.push({ kind: 'out-of-bounds', template: t.name, view: index,
             detail: `${v.class} ${v['control-tag'] || v.title || v['fieldset-title'] || ''} at ${origin} size ${size} in parent ${parentSize}` });
         }
-        if (isContainer(v)) walk(v, index, [abs[0], abs[1]], size, depth + 1);
+        // A CScrollView lays its children out in its scrollable area: container-size bounds them, not size.
+        const childBounds = (v.class === 'CScrollView' && pair(v['container-size'])) || size;
+        if (isContainer(v)) walk(v, index, [abs[0], abs[1]], childBounds, depth + 1);
       }
       // A bipolar slider's centre tick: a childless CViewContainer 1 pt wide, wholly inside a CSlider that fills from
       // its centre (design-system.md 4.4). Nothing else is exempt.
@@ -205,6 +207,17 @@ function selfTest() {
     kinds(tick('draw-value-from-center="true"', 'origin="142, 22" size="2, 20"')), 'overlap');
   expect('a tick poking out of its slider still is',
     kinds(tick('draw-value-from-center="true"', 'origin="142, 20" size="1, 24"')), 'overlap');
+
+  // A CScrollView's children are laid out in its scrollable area (container-size), not its visible size (D-149).
+  const scroll = (containerSize) => buildInventory(doc(`<template name="S" size="400, 300">
+    <view class="CScrollView" origin="0, 0" size="400, 100" ${containerSize}>
+      <view class="CTextLabel" origin="0, 150" size="100, 20"/>
+    </view>
+  </template>`), 'scroll');
+  expect('a scroll-view child past size but inside container-size is not a defect',
+    kinds(scroll('container-size="388, 300"')), '');
+  expect('a scroll-view child past container-size still is', kinds(scroll('container-size="388, 160"')), 'out-of-bounds');
+  expect('a scroll view without container-size is bounded by its size', kinds(scroll('')), 'out-of-bounds');
 
   // Lost control: the slider is gone and only the readout keeps the tag bound.
   const base = buildInventory(doc(`<template name="P" size="400, 300">
