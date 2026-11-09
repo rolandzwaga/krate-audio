@@ -14,6 +14,7 @@
 
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/scoped_denormal_mode.h>
 
 #include "display/shared_display_bridge.h"
 #include "display/display_bridge_log.h"
@@ -255,6 +256,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // - NO exceptions (throw/catch)
     // - This function MUST complete within the buffer duration
     // ==========================================================================
+
+    // FTZ / DAZ for this block on this thread, the caller's mode restored on return:
+    // silence tails (Tube's DC blocker, feedback and allpass loops) decay through the
+    // denormal range, which ran 1.4x slower when the host leaves FTZ / DAZ off (T6.09)
+    const Krate::DSP::ScopedDenormalMode denormalGuard;
 
     // A state setState handed over (D-003), then this block's parameter changes
     consumePendingState();

@@ -58,6 +58,7 @@
 #include <fstream>
 #include <functional>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <numbers>
 #include <set>
@@ -2858,3 +2859,50 @@ TEST_CASE("setState from a second thread during processing keeps the output fini
     CHECK(blocks.load() > static_cast<size_t>(kLoads));
     CHECK(nonFinite == 0u);
 }
+
+// process() runs with FTZ / DAZ set whatever the calling thread's floating-point mode
+// (Krate::DSP::ScopedDenormalMode, as the other plugins do): found by T6.09's denormal
+// tail case, where a Tube node's silence tail ran 1.41-1.45x slower with the host's
+// FTZ / DAZ cleared. Deterministic check: with the test thread's FTZ / DAZ cleared, a
+// denormal input sample on a clean 1-band path (drive 0) must come out as 0 (DAZ reads
+// it as 0), and the caller's mode is restored after process(). x86 only (MXCSR).
+#if defined(_M_X64) || defined(_M_IX86) || defined(__x86_64__) || defined(__i386__)
+#include <xmmintrin.h>
+
+TEST_CASE("process() flushes denormals whatever the caller's floating-point mode", "[disrumpo][numerics][denormal]") {
+    constexpr unsigned int kFtzDaz = 0x8000u | 0x0040u;
+    const unsigned int saved = _mm_getcsr();
+    _mm_setcsr(saved & ~kFtzDaz);
+
+    volatile std::uint32_t bits = 0x00000100u;  // a subnormal float (about 3.6e-43)
+    const float denormal = std::bit_cast<float>(static_cast<std::uint32_t>(bits));
+    size_t denormalOut = 0;
+    size_t nonZeroOut = 0;
+    unsigned int modeAfter = 0;
+    {
+        Rig rig(48000.0, 64);
+        PList l = latBase(1, 1);
+        setNode(l, 0, 0, DistortionType::SoftClip, 0.0, 1.0);
+        rig.apply(l);
+        rig.reactivate();
+        const std::vector<float> in(4096, denormal);
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR, 64);
+        modeAfter = _mm_getcsr() & kFtzDaz;
+        for (size_t i = 0; i < outL.size(); ++i) {
+            for (const float v : {outL[i], outR[i]}) {
+                if (v != 0.0f) ++nonZeroOut;
+                if (v != 0.0f && std::fabs(v) < std::numeric_limits<float>::min()) ++denormalOut;
+            }
+        }
+    }
+    _mm_setcsr(saved);
+    std::printf("FTZ/DAZ: denormal input -> %zu non-zero, %zu denormal output samples of %d; caller's FTZ/DAZ bits "
+                "after process() 0x%x\n",
+                nonZeroOut, denormalOut, 2 * 4096, modeAfter);
+    CHECK(modeAfter == 0u);  // the caller's mode is restored
+    CHECK(denormalOut == 0u);
+    CHECK(nonZeroOut == 0u);
+}
+#endif

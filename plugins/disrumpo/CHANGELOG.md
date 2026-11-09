@@ -66,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Chaos Speed showed 0 to 1 while the chaos source ran 0.05x to 20x** — The host's parameter list and automation lanes showed Chaos Speed as a bare 0 to 1 number, and its default read 0.048. It now shows the speed the chaos source runs, 0.05x to 20x, with its default at 1x. Saved projects keep their sound.
 - **Morphing between two types of one oversampling factor dipped the band** — A rounding error in the morph weights pushed the band to the next oversampling factor at some cursor positions, so a morph between two 2x types (Soft Clip to Tube) switched to 4x and back 12 times in a 2 s sweep, each switch a 10 ms dip in the band's level. A morph between types of one factor now stays at that factor.
 - **Solo and Mute clicked** — Soloing, unsoloing or muting a band added it to or removed it from the band sum on one sample, so the output stepped (unsoloing a band stepped up to 2.5 times the largest step of the steady signal). Bands now fade in and out of the sum over 15 ms.
+- **Silence after loud material cost extra CPU in some hosts** — Decaying tails (a Tube node's DC filter, feedback and allpass loops) pass through the tiny "denormal" number range, which the processor computes slowly unless the host has switched that off; a Tube node's tail after a burst ran about 1.5 times slower. Disrumpo now switches it off itself while it processes, and restores the host's setting afterwards.
 
 ### Changed
 

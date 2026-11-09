@@ -726,3 +726,10 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   already above -0.3 dBFS before 374f8096 (-0.06 / -0.05 / -0.12 / -0.08; drift since T3.01's -0.31 maximum, not
   bisected further). After: 120 / 120 GREEN, highest peak -0.3018 dBFS (Drums/Punchy_Clip). Every other preset file
   is byte-identical. Rule for later batches: run that `[long]` case by name after any change to the summed output.
+- Found by T6.09's denormal tail case (commit "fix(disrumpo): process() runs with FTZ / DAZ whatever the host sets"):
+  Disrumpo set no FTZ / DAZ (Innexus, Membrum, Profundum and Seraphis use `Krate::DSP::ScopedDenormalMode`). A Tube
+  node's 1 s silence tail after 0.25 s of full-scale noise ran 1.41 / 1.45 / 1.53x slower with the caller's FTZ / DAZ
+  cleared (three runs alone, idle machine; bar 1.3; audit baseline 1.12); FeedbackDist, AllpassResonant and the SoftClip
+  control 0.91-1.09x. `Processor::process` now opens with the guard. New case "process() flushes denormals whatever the
+  caller's floating-point mode": a denormal input on a clean band, test thread FTZ / DAZ cleared: RED 8192 of 8192
+  output samples denormal, GREEN 0, the caller's mode restored. The timing case after the fix: Tube 1.08x.
