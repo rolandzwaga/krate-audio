@@ -463,9 +463,47 @@ float DistortionAdapter::processWithDry(float input, float dry) noexcept {
 }
 
 void DistortionAdapter::processBlock(const float* input, float* output, int numSamples) noexcept {
-    for (int i = 0; i < numSamples; ++i) {
+    // process() per sample while a reset or a type fade is pending, and always for a latent
+    // type (its dry image and padding run through delay lines)
+    int i = 0;
+    while (i < numSamples && (resetPending_ || latent_ || typeFadeRemaining_ > 0)) {
         output[i] = process(input[i]);
+        ++i;
     }
+    if (i >= numSamples) {
+        return;
+    }
+
+    // From here every sample is processWithDry(x, x) with parameters no sample changes:
+    // the same arithmetic per sample, its branches decided once for the span
+    const float* in = input + i;
+    float* out = output + i;
+    const int n = numSamples - i;
+    if (commonParams_.drive <= 0.0f) {
+        std::copy_n(in, n, out);  // Drive Gate: exact passthrough
+    } else {
+        const float wetWeight = std::min(commonParams_.drive / kDriveBlendFull, 1.0f);
+        const float drive = std::max(commonParams_.drive, kDriveBlendFull);
+        const bool scaleInput = currentType_ != DistortionType::Temporal &&
+                                currentType_ != DistortionType::Stochastic;
+        const bool normalise = drive > 1.0f && normalisesDrive(currentType_);
+        const bool dcBlock = needsDCBlock_;
+        const bool tone = usesToneFilter(currentType_);
+        const float mix = std::clamp(commonParams_.mix, 0.0f, 1.0f);
+        const bool fullWet = wetWeight >= 1.0f;
+        const float wetMix = mix * wetWeight;
+        for (int k = 0; k < n; ++k) {
+            const float x = in[k];
+            float wet = scaleInput ? x * drive : x;
+            wet = processRaw(wet);
+            if (normalise) wet /= drive;
+            if (dcBlock) wet = dcBlocker_.process(wet);
+            if (tone) wet = applyTone(wet);
+            out[k] = fullWet ? x * (1.0f - mix) + wet * mix : x * (1.0f - wetMix) + wet * wetMix;
+        }
+    }
+    lastOutput_ = output[numSamples - 1];
+    hasOutput_ = true;
 }
 
 // =============================================================================
