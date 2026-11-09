@@ -118,27 +118,8 @@ std::unique_ptr<Processor> createTestProcessor() {
     return proc;
 }
 
-// Get the preset resources directory
-fs::path getPresetsDir() {
-    // Try multiple paths relative to working directory
-    std::vector<fs::path> candidates = {
-        "plugins/disrumpo/resources/presets",
-        "../plugins/disrumpo/resources/presets",
-        "../../plugins/disrumpo/resources/presets",
-        "../../../plugins/disrumpo/resources/presets",
-    };
-
-    // Also try from the test executable location
-    for (const auto& candidate : candidates) {
-        if (fs::exists(candidate)) return candidate;
-    }
-
-    // Fallback: absolute path
-    fs::path absolute = "F:/projects/iterum/plugins/disrumpo/resources/presets";
-    if (fs::exists(absolute)) return absolute;
-
-    return "plugins/disrumpo/resources/presets"; // Return default even if missing
-}
+// The factory presets of this checkout, whatever the working directory (D-131)
+fs::path getPresetsDir() { return fs::path(DISRUMPO_RESOURCES_DIR) / "presets"; }
 
 // Deterministic pink noise (Kellet filter over Xorshift32), mean removed, then
 // scaled so its peak is `peak` (linear). The raw 2 s pink sequence has a sample
