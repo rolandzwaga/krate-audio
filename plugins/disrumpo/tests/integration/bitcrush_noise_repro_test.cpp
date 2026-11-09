@@ -17,6 +17,7 @@
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -50,7 +51,8 @@ float calculateAutocorrelation(const float* buf, int n) {
     double mean = 0.0;
     for (int i = 0; i < n; ++i) mean += buf[i];
     mean /= n;
-    double r0 = 0.0, r1 = 0.0;
+    double r0 = 0.0;
+    double r1 = 0.0;
     for (int i = 0; i < n; ++i) {
         double x = buf[i] - mean;
         r0 += x * x;
@@ -98,17 +100,17 @@ struct ProcessorFixture {
         result = processor->setupProcessing(setup);
         REQUIRE(result == Steinberg::kResultTrue);
 
-        result = processor->setActive(true);
+        result = processor->setActive(static_cast<Steinberg::TBool>(true));
         REQUIRE(result == Steinberg::kResultTrue);
     }
 
     ~ProcessorFixture() {
-        processor->setActive(false);
+        processor->setActive(static_cast<Steinberg::TBool>(false));
         processor->terminate();
     }
 
     void processBlock(float* inputL, float* inputR, float* outputL, float* outputR,
-                      Steinberg::Vst::IParameterChanges* paramChanges = nullptr) {
+                      Steinberg::Vst::IParameterChanges* paramChanges = nullptr) const {
         float* inChannels[2] = { inputL, inputR };
         float* outChannels[2] = { outputL, outputR };
 
@@ -149,7 +151,10 @@ TEST_CASE("Full Processor: Bitcrush knob turn does not produce white noise",
     auto processBlocks = [&](int numBlocks,
                              Steinberg::Vst::IParameterChanges* params = nullptr,
                              float* captureL = nullptr) {
-        std::array<float, kBlockSize> inL{}, inR{}, outL{}, outR{};
+        std::array<float, kBlockSize> inL{};
+        std::array<float, kBlockSize> inR{};
+        std::array<float, kBlockSize> outL{};
+        std::array<float, kBlockSize> outR{};
         for (int block = 0; block < numBlocks; ++block) {
             generateSine(inL.data(), kBlockSize, kFreq, kSampleRate, sampleOffset);
             generateSine(inR.data(), kBlockSize, kFreq, kSampleRate, sampleOffset);
@@ -227,96 +232,66 @@ TEST_CASE("Full Processor: Bitcrush knob turn does not produce white noise",
 }
 
 TEST_CASE("Full Processor: Bitcrush actually modifies the signal",
-          "[integration][bitcrush][processor][diag]") {
+          "[integration][bitcrush][processor]") {
     using namespace Disrumpo;
 
-    ProcessorFixture fixture;
-    Steinberg::int32 sampleOffset = 0;
-
-    auto processBlocks = [&](int numBlocks,
-                             Steinberg::Vst::IParameterChanges* params = nullptr,
-                             float* captureL = nullptr) {
-        std::array<float, kBlockSize> inL{}, inR{}, outL{}, outR{};
-        for (int block = 0; block < numBlocks; ++block) {
+    // One full-range band, so the processor output is the band's node output
+    // (wet 100 %, output gain 0 dB) and its quantisation grid stays visible.
+    // Both renders get the same input samples; only the node settings differ.
+    constexpr int kRenderBlocks = 33;
+    auto render = [](Steinberg::Vst::IParameterChanges* params) {
+        ProcessorFixture fixture;
+        std::array<float, kBlockSize> inL{};
+        std::array<float, kBlockSize> inR{};
+        std::array<float, kBlockSize> outL{};
+        std::array<float, kBlockSize> outR{};
+        Steinberg::int32 sampleOffset = 0;
+        for (int block = 0; block < kRenderBlocks; ++block) {
             generateSine(inL.data(), kBlockSize, kFreq, kSampleRate, sampleOffset);
             generateSine(inR.data(), kBlockSize, kFreq, kSampleRate, sampleOffset);
-            std::memset(outL.data(), 0, sizeof(float) * kBlockSize);
-            std::memset(outR.data(), 0, sizeof(float) * kBlockSize);
-            auto* p = (block == 0) ? params : nullptr;
-            fixture.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), p);
-            if (block == numBlocks - 1 && captureL)
-                std::memcpy(captureL, outL.data(), sizeof(float) * kBlockSize);
+            outL.fill(0.0f);
+            outR.fill(0.0f);
+            fixture.processBlock(inL.data(), inR.data(), outL.data(), outR.data(),
+                                 (block == 0) ? params : nullptr);
             sampleOffset += kBlockSize;
         }
+        return outL;  // the last block
     };
 
-    // Capture with NO params (default SoftClip)
-    std::array<float, kBlockSize> defaultL{};
-    processBlocks(32, nullptr, defaultL.data());
-    float rmsDefault = calculateRMS(defaultL.data(), kBlockSize);
-    float acDefault = calculateAutocorrelation(defaultL.data(), kBlockSize);
-    WARN("Default (SoftClip): RMS=" << rmsDefault << " autocorr=" << acDefault);
+    SimpleParameterChanges defaultParams;
+    defaultParams.addChange(kBandCountId, 0.0);  // 1 band, default SoftClip node
+    const auto defaultL = render(&defaultParams);
 
-    // Now set Bitcrush with extreme settings: 1 bit (slot0=0)
-    sampleOffset = 0;  // restart
-    ProcessorFixture fixture2;
-    Steinberg::int32 sampleOffset2 = 0;
+    // Bitcrush at its lowest bit depth: slot 0 at 0 = 4 bits (the slot spans
+    // 4-12 bits since T2.05, so the old "1 bit" setting no longer exists). The
+    // crusher's grid is then 2^4 - 1 = 15 steps over [-1, 1], at most 17 values
+    // once the +/-7.5 clamp is counted. Jitter (slot 3) is off: it moves the bit
+    // depth per sample, off the 4-bit grid.
+    SimpleParameterChanges crushParams;
+    crushParams.addChange(kBandCountId, 0.0);
+    crushParams.addChange(makeNodeParamId(0, 0, NodeParamType::kNodeType), 11.0 / 25.0);  // Bitcrush
+    crushParams.addChange(makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.5);  // Drive = 5.0
+    crushParams.addChange(makeNodeParamId(0, 0, NodeParamType::kNodeMix), 1.0);
+    crushParams.addChange(makeNodeParamId(0, 0, NodeParamType::kNodeShape0), 0.0);  // 4 bits
+    crushParams.addChange(makeNodeParamId(0, 0, NodeParamType::kNodeShape3), 0.0);  // no jitter
+    const auto bitcrushL = render(&crushParams);
 
-    auto processBlocks2 = [&](int numBlocks,
-                              Steinberg::Vst::IParameterChanges* params = nullptr,
-                              float* captureL = nullptr) {
-        std::array<float, kBlockSize> inL{}, inR{}, outL{}, outR{};
-        for (int block = 0; block < numBlocks; ++block) {
-            generateSine(inL.data(), kBlockSize, kFreq, kSampleRate, sampleOffset2);
-            generateSine(inR.data(), kBlockSize, kFreq, kSampleRate, sampleOffset2);
-            std::memset(outL.data(), 0, sizeof(float) * kBlockSize);
-            std::memset(outR.data(), 0, sizeof(float) * kBlockSize);
-            auto* p = (block == 0) ? params : nullptr;
-            fixture2.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), p);
-            if (block == numBlocks - 1 && captureL)
-                std::memcpy(captureL, outL.data(), sizeof(float) * kBlockSize);
-            sampleOffset2 += kBlockSize;
-        }
-    };
+    std::array<float, kBlockSize> diff{};
+    for (int i = 0; i < kBlockSize; ++i) diff[i] = bitcrushL[i] - defaultL[i];
+    const float rmsDiff = calculateRMS(diff.data(), kBlockSize);
 
-    {
-        SimpleParameterChanges params;
-        // Set Bitcrush AND set Slot0 (Bits) to 0 = minimum
-        params.addChange(
-            makeNodeParamId(0, 0, NodeParamType::kNodeType),
-            11.0 / 25.0);  // Bitcrush
-        params.addChange(
-            makeNodeParamId(0, 0, NodeParamType::kNodeDrive),
-            0.5);  // Drive = 5.0
-        params.addChange(
-            makeNodeParamId(0, 0, NodeParamType::kNodeMix),
-            1.0);
-        params.addChange(
-            makeNodeParamId(0, 0, NodeParamType::kNodeShape0),
-            0.0);  // Bits = 1 (minimum)
-        processBlocks2(32, &params);
-    }
+    std::vector<float> levels(bitcrushL.begin(), bitcrushL.end());
+    std::sort(levels.begin(), levels.end());
+    levels.erase(std::unique(levels.begin(), levels.end()), levels.end());
 
-    std::array<float, kBlockSize> bitcrushL{};
-    processBlocks2(1, nullptr, bitcrushL.data());
-    float rmsBitcrush = calculateRMS(bitcrushL.data(), kBlockSize);
-    float acBitcrush = calculateAutocorrelation(bitcrushL.data(), kBlockSize);
-    float zcrBitcrush = calculateZCR(bitcrushL.data(), kBlockSize);
-
-    WARN("Bitcrush (1-bit, drive=5): RMS=" << rmsBitcrush
-         << " autocorr=" << acBitcrush << " ZCR=" << zcrBitcrush);
-
-    // Print first 20 output samples for inspection
-    std::string samples = "First 20 samples: ";
-    for (int i = 0; i < 20; ++i) {
-        samples += std::to_string(bitcrushL[i]) + " ";
-    }
-    WARN(samples);
-
-    // At 1-bit depth with drive=5, signal should be heavily quantized
-    // Verify output is not silence and has periodic structure (not white noise)
-    INFO("If autocorrelation is same as default, bitcrush is not taking effect");
-    REQUIRE(rmsBitcrush > 0.001f);
+    INFO("RMS(default) = " << calculateRMS(defaultL.data(), kBlockSize)
+         << ", RMS(bitcrush) = " << calculateRMS(bitcrushL.data(), kBlockSize)
+         << ", RMS(bitcrush - default) = " << rmsDiff
+         << ", distinct bitcrush output values = " << levels.size());
+    REQUIRE(calculateRMS(bitcrushL.data(), kBlockSize) > 0.5f);  // not silenced
+    REQUIRE(rmsDiff > 0.05f);
+    constexpr size_t kMaxLevelsAt4Bits = 17;  // 2^4 + 1
+    REQUIRE(levels.size() <= kMaxLevelsAt4Bits);
     REQUIRE_FALSE(looksLikeWhiteNoise(bitcrushL.data(), kBlockSize));
 }
 
@@ -330,7 +305,10 @@ TEST_CASE("Full Processor: Quantize knob turn does not produce white noise",
     auto processBlocks = [&](int numBlocks,
                              Steinberg::Vst::IParameterChanges* params = nullptr,
                              float* captureL = nullptr) {
-        std::array<float, kBlockSize> inL{}, inR{}, outL{}, outR{};
+        std::array<float, kBlockSize> inL{};
+        std::array<float, kBlockSize> inR{};
+        std::array<float, kBlockSize> outL{};
+        std::array<float, kBlockSize> outR{};
         for (int block = 0; block < numBlocks; ++block) {
             generateSine(inL.data(), kBlockSize, kFreq, kSampleRate, sampleOffset);
             generateSine(inR.data(), kBlockSize, kFreq, kSampleRate, sampleOffset);
