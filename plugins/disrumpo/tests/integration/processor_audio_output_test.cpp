@@ -1576,6 +1576,11 @@ TEST_CASE("Node type switches during playback allocate nothing", "[disrumpo][typ
         to[static_cast<size_t>(t)].addChange(makeNodeParamId(0, 0, NodeParamType::kNodeType),
                                              typeNorm(static_cast<DistortionType>(t % kTypes)));
     }
+    // Audit probe "audio-thread allocations" (T6.09, D-002): node 0 to Spectral, then its
+    // FFT-size slot (shape slot 1: 512 / 1024 / 2048 / 4096) through every size and back
+    const ts::ParamID fftSlot = makeNodeParamId(0, 0, NodeParamType::kNodeShape1);
+    to.emplace_back().addChange(makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::Spectral));
+    for (const double slot : {1.0, 0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0}) to.emplace_back().addChange(fftSlot, slot);
 
     size_t allocations = 0;
     {
@@ -1586,7 +1591,8 @@ TEST_CASE("Node type switches during playback allocate nothing", "[disrumpo][typ
         }
         allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
     }
-    std::printf("D-032 %d node type switches in process(): %zu allocations\n", kTypes + 1, allocations);
+    std::printf("D-032 / D-002 %d node type switches and 5 Spectral FFT-size changes in process(): %zu allocations\n",
+                kTypes + 2, allocations);
     REQUIRE(allocations == 0);
 }
 

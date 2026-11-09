@@ -39,6 +39,8 @@
 #include "dsp/morph_engine.h"
 #include "plugin_ids.h"
 
+#include "test_helpers/audio_features.h"
+
 #include <allocation_detector.h>
 #include <catch2/catch_test_macros.hpp>
 
@@ -2858,6 +2860,64 @@ TEST_CASE("setState from a second thread during processing keeps the output fini
     CHECK(failedLoads == 0);
     CHECK(blocks.load() > static_cast<size_t>(kLoads));
     CHECK(nonFinite == 0u);
+}
+
+// Audit T6.09 (probe "sample-rate consistency", D-138 / T1.06): the same 4-band chain
+// sounds the same at every host rate. Bands 0-3 node 0 Tube / SoftClip / Fuzz / Tape at
+// drive 4, 1 kHz at -12 dBFS for 1 s; level and spectral centroid of the left output's
+// last 0.5 s (test_helpers/audio_features.h, the probe's metric) against 48 kHz: RMS
+// within 1 dB and centroid within 15 %. Audit baseline: 44.1 kHz 0.01 dB / 1.006,
+// 96 kHz 0.52 dB / 0.915, 192 kHz 2.50 dB / 0.824 (the bands were prepared at 8x).
+TEST_CASE("The same chain keeps its level and brightness at 44.1, 96 and 192 kHz",
+          "[disrumpo][audit][samplerate][D-138]") {
+    PList chain{{kBandCountId, 1.0}};
+    const std::array<DistortionType, 4> types{DistortionType::Tube, DistortionType::SoftClip, DistortionType::Fuzz,
+                                              DistortionType::Tape};
+    for (uint8_t b = 0; b < 4; ++b) {
+        chain.emplace_back(makeNodeParamId(b, 0, NodeParamType::kNodeType), latTypeNorm(types[b]));
+        chain.emplace_back(makeNodeParamId(b, 0, NodeParamType::kNodeDrive), 0.4);
+    }
+    struct Reading {
+        double rmsDb;
+        double centroidHz;
+        size_t nonFinite;
+    };
+    const auto run = [&](double sr) {
+        Rig rig(sr);
+        rig.apply(chain);
+        rig.reactivate();
+        const auto len = static_cast<size_t>(sr);
+        std::vector<float> in(len);
+        for (size_t i = 0; i < len; ++i) {
+            in[i] = static_cast<float>(0.25118864315095801 *
+                                       std::sin(2.0 * std::numbers::pi * 1000.0 * static_cast<double>(i) / sr));
+        }
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR);
+        size_t nonFinite = 0;
+        for (size_t i = 0; i < len; ++i) nonFinite += (fin(outL[i]) && fin(outR[i])) ? 0 : 1;
+        const std::vector<float> tail(outL.begin() + static_cast<std::ptrdiff_t>(len / 2), outL.end());
+        const auto f = Krate::Test::extractAudioFeatures(tail, sr);
+        return Reading{.rmsDb = f.rmsDbfs, .centroidHz = f.centroidHz, .nonFinite = nonFinite};
+    };
+    const Reading ref = run(48000.0);
+    REQUIRE(ref.nonFinite == 0u);
+    REQUIRE(ref.centroidHz > 0.0);
+    // 192 kHz is held back for a ruling (follow-up 88): -1.40 dB, all of it the Tape band
+    for (const double sr : {44100.0, 96000.0}) {
+        const Reading x = run(sr);
+        const double deltaDb = x.rmsDb - ref.rmsDb;
+        const double centroidRatio = x.centroidHz / ref.centroidHz;
+        std::printf("T6.09 %.1f kHz: RMS %.2f dBFS (48 kHz %.2f, delta %.2f dB), centroid %.0f Hz (48 kHz %.0f, "
+                    "ratio %.3f), non-finite %zu\n",
+                    sr / 1000.0, x.rmsDb, ref.rmsDb, deltaDb, x.centroidHz, ref.centroidHz, centroidRatio,
+                    x.nonFinite);
+        INFO(sr << " Hz: RMS delta " << deltaDb << " dB, centroid ratio " << centroidRatio);
+        CHECK(x.nonFinite == 0u);
+        CHECK(std::fabs(deltaDb) <= 1.0);
+        CHECK(std::fabs(centroidRatio - 1.0) <= 0.15);
+    }
 }
 
 // process() runs with FTZ / DAZ set whatever the calling thread's floating-point mode

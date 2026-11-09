@@ -34,9 +34,12 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
+#include <limits>
 #include <numbers>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace Disrumpo;
@@ -249,3 +252,141 @@ TEST_CASE("Processor CPU: 4 bands x 4 cross-family nodes at 4x at the morph cent
     INFO("CPU " << r.percent << " % (best 10-block run " << r.bestTrialPercent << " %)");
     REQUIRE(r.percent < kBudget);
 }
+
+// =============================================================================
+// Audit T6.09 (probe "denormals in silence tail"): after 0.25 s of full-scale
+// noise, 1 s of digital silence through one node costs no more without FTZ/DAZ
+// than with them (slowdown <= 1.3x, the fastest of 5 runs each) and writes no
+// denormal output sample. The test main sets FTZ/DAZ and the plugin sets none, so
+// the case clears and sets them itself (x86 MXCSR; other targets skip it).
+// Audit baseline (2026-11-05): slowdown 0.98 / 1.14 / 1.12 / 0.95 (FeedbackDist,
+// AllpassResonant, Tube, SoftClip), 0 denormal samples.
+// =============================================================================
+
+#if defined(_M_X64) || defined(_M_IX86) || defined(__x86_64__) || defined(__i386__)
+#include <xmmintrin.h>
+
+namespace {
+
+/// Sets or clears FTZ (bit 15) and DAZ (bit 6) for its lifetime.
+class MxcsrFlushGuard {
+public:
+    explicit MxcsrFlushGuard(bool flush) : saved_(_mm_getcsr()) {
+        constexpr unsigned int kFtzDaz = 0x8000u | 0x0040u;
+        _mm_setcsr(flush ? (saved_ | kFtzDaz) : (saved_ & ~kFtzDaz));
+    }
+    ~MxcsrFlushGuard() { _mm_setcsr(saved_); }
+    MxcsrFlushGuard(const MxcsrFlushGuard&) = delete;
+    MxcsrFlushGuard& operator=(const MxcsrFlushGuard&) = delete;
+    MxcsrFlushGuard(MxcsrFlushGuard&&) = delete;
+    MxcsrFlushGuard& operator=(MxcsrFlushGuard&&) = delete;
+
+private:
+    unsigned int saved_;
+};
+
+struct TailReading {
+    double tailMs = 0.0;
+    size_t denormalSamples = 0;
+    size_t nonZeroSamples = 0;
+};
+
+TailReading silenceTail(const ts::PList& setup, bool flush) {
+    const MxcsrFlushGuard guard(flush);
+    constexpr double kSr = 48000.0;
+    constexpr Steinberg::int32 kBlock = 512;
+    ts::Rig rig(kSr, kBlock);
+    rig.apply(setup);
+    const auto burst = static_cast<size_t>(kSr * 0.25);
+    const auto tail = static_cast<size_t>(kSr * 1.0);
+    std::vector<float> noise(burst);
+    uint32_t state = 12345u;
+    for (auto& v : noise) {
+        state = state * 1664525u + 1013904223u;
+        v = static_cast<float>(static_cast<double>(state >> 8) / 8388608.0 - 1.0) * 0.9f;
+    }
+    std::vector<float> bL(static_cast<size_t>(kBlock));
+    std::vector<float> bR(static_cast<size_t>(kBlock));
+    std::vector<float> oL(static_cast<size_t>(kBlock));
+    std::vector<float> oR(static_cast<size_t>(kBlock));
+    for (size_t p = 0; p < burst; p += static_cast<size_t>(kBlock)) {
+        const auto len = static_cast<Steinberg::int32>(std::min(static_cast<size_t>(kBlock), burst - p));
+        std::copy_n(noise.begin() + static_cast<std::ptrdiff_t>(p), len, bL.begin());
+        std::copy_n(noise.begin() + static_cast<std::ptrdiff_t>(p), len, bR.begin());
+        rig.processBlock(bL.data(), bR.data(), oL.data(), oR.data(), len, nullptr);
+    }
+    std::fill(bL.begin(), bL.end(), 0.0f);
+    std::fill(bR.begin(), bR.end(), 0.0f);
+    TailReading r;
+    constexpr float kSmallestNormal = std::numeric_limits<float>::min();
+    for (size_t p = 0; p < tail; p += static_cast<size_t>(kBlock)) {
+        const auto len = static_cast<Steinberg::int32>(std::min(static_cast<size_t>(kBlock), tail - p));
+        const auto t0 = std::chrono::steady_clock::now();
+        rig.processBlock(bL.data(), bR.data(), oL.data(), oR.data(), len, nullptr);
+        const auto t1 = std::chrono::steady_clock::now();
+        r.tailMs += std::chrono::duration<double, std::milli>(t1 - t0).count();
+        for (Steinberg::int32 i = 0; i < len; ++i) {
+            for (const float v : {oL[static_cast<size_t>(i)], oR[static_cast<size_t>(i)]}) {
+                const float a = std::fabs(v);
+                if (a != 0.0f) ++r.nonZeroSamples;
+                if (a != 0.0f && a < kSmallestNormal) ++r.denormalSamples;
+            }
+        }
+    }
+    return r;
+}
+
+}  // namespace
+
+TEST_CASE("Silence tails cost no more without FTZ/DAZ and hold no denormal sample",
+          "[disrumpo][audit][denormal][performance]") {
+    const auto shape = [](uint8_t slot, double v) {
+        return std::pair<Steinberg::Vst::ParamID, double>{
+            makeNodeParamId(0, 0, static_cast<NodeParamType>(static_cast<uint8_t>(NodeParamType::kNodeShape0) + slot)),
+            v};
+    };
+    struct Case {
+        const char* name;
+        DistortionType type;
+        ts::PList extra;
+    };
+    const Case cases[] = {
+        {.name = "FeedbackDist (feedback 0.9, delay 10.9 ms, decay 0.5)",
+         .type = DistortionType::FeedbackDist,
+         .extra = {shape(0, 0.6), shape(1, 0.1), shape(8, 0.5)}},
+        {.name = "AllpassResonant (topology 1, feedback 0.89, decay 5 s)",
+         .type = DistortionType::AllpassResonant,
+         .extra = {shape(0, 1.0 / 3.0), shape(2, 0.9), shape(3, 0.5)}},
+        {.name = "Tube (defaults)", .type = DistortionType::Tube, .extra = {}},
+        {.name = "SoftClip (defaults, control)", .type = DistortionType::SoftClip, .extra = {}},
+    };
+    for (const auto& c : cases) {
+        ts::PList setup{{kBandCountId, 0.0},
+                        {makeBandParamId(0, BandParamType::kBandActiveNodes), 0.0},
+                        {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(c.type)},
+                        {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.5}};
+        setup.insert(setup.end(), c.extra.begin(), c.extra.end());
+        double offMs = 1e30;
+        double onMs = 1e30;
+        TailReading off;
+        // Fastest of 5 runs each, the order alternating so neither mode always runs first
+        for (int rep = 0; rep < 5; ++rep) {
+            const bool offFirst = rep % 2 == 0;
+            const auto first = silenceTail(setup, !offFirst);
+            const auto second = silenceTail(setup, offFirst);
+            const auto& a = offFirst ? first : second;
+            const auto& b = offFirst ? second : first;
+            if (rep == 0) off = a;
+            offMs = std::min(offMs, a.tailMs);
+            onMs = std::min(onMs, b.tailMs);
+        }
+        const double slowdown = offMs / onMs;
+        std::printf("T6.09 denormal tail %s: %.2f ms without FTZ/DAZ, %.2f ms with (slowdown %.2fx), denormal output "
+                    "samples %zu, non-zero tail samples %zu\n",
+                    c.name, offMs, onMs, slowdown, off.denormalSamples, off.nonZeroSamples);
+        INFO(c.name << ": slowdown " << slowdown << "x, denormal output samples " << off.denormalSamples);
+        CHECK(off.denormalSamples == 0u);
+        CHECK(slowdown <= 1.3);
+    }
+}
+#endif

@@ -647,6 +647,15 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     Bias, wavefold Folds, Bitcrush Bits; follow-up 34 for the bit depth), and setState and the parameter path end up
     with different values for the pair (the precedence in each path not traced further). Rule which control owns each setting (then the other is derived, or retired), and the
     parity bar can be asserted. Held in `f:/tmp/disrumpo-fix/p6b/t608-held-bars.patch`.
+88. **T6.09: the 4-band chain is 1.40 dB quieter at 192 kHz, all of it the Tape band** (2026-11-09, needs a ruling with
+    follow-up 79's Tape item). The probe's chain (bands 0-3 node 0 Tube / SoftClip / Fuzz / Tape, drive 4, 1 kHz at
+    -12 dBFS, last 0.5 s of 1 s) against 48 kHz: 44.1 kHz +0.02 dB / centroid 1.006, 96 kHz -0.77 dB / 1.019 (asserted);
+    192 kHz -1.40 dB (bar 1 dB) / 0.920 (audit baseline 2.50 dB / 0.824). Each band soloed, 48 / 96 / 192 kHz: Tube
+    -79.19 / -79.16 / -79.15, SoftClip -20.46 / -20.45 / -20.44, Fuzz -4.40 / -4.40 / -4.41, Tape -13.85 / -14.60 /
+    -16.11 dBFS. The shared TapeSaturator's Hysteresis model scales dH by 44100 / rate (TScale), so its level moves
+    with the rate it is clocked at (follow-up 79, Tape: H1 -3.9 -> -8.4 dBFS from 1x to 16x). Disrumpo-only options
+    exist (fresh Tape nodes on the Simple model) but each is a sound change; the repair of the shared model is
+    CROSS-PLUGIN. Held patch `f:/tmp/disrumpo-fix/p6b/t609-held-192k.patch`.
 
 ## Done outside the plan
 
