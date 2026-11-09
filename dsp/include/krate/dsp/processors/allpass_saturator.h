@@ -374,6 +374,10 @@ private:
     /// @brief Process FeedbackMatrix topology.
     [[nodiscard]] float processFeedbackMatrix(float input) noexcept;
 
+    /// @brief Push the smoothed frequency and/or drive into the active topology only.
+    void configureActiveTopology(float frequency, float drive,
+                                 bool frequencyChanged, bool driveChanged) noexcept;
+
     /// @brief Update allpass chain frequencies based on base frequency.
     void updateChainFrequencies() noexcept;
 
@@ -401,6 +405,13 @@ private:
     OnePoleSmoother frequencySmoother_;
     OnePoleSmoother feedbackSmoother_;
     OnePoleSmoother driveSmoother_;
+
+    // Smoothed frequency / drive last pushed into the active topology (D-084).
+    // kNotApplied (below every legal value) forces the next process() to
+    // configure; prepare() and a topology change set it.
+    static constexpr float kNotApplied = -1.0f;
+    float appliedFrequency_ = kNotApplied;
+    float appliedDrive_ = kNotApplied;
 
     // =========================================================================
     // Shared Components
@@ -554,6 +565,9 @@ inline void AllpassSaturator::prepare(double sampleRate, [[maybe_unused]] size_t
         matrixStages_[i].setSaturationCurve(saturationCurve_);
     }
 
+    appliedFrequency_ = kNotApplied;
+    appliedDrive_ = kNotApplied;
+
     prepared_ = true;
 }
 
@@ -597,6 +611,10 @@ inline void AllpassSaturator::setTopology(NetworkTopology topology) noexcept {
         topology_ = topology;
         // FR-009: Reset state on topology change
         reset();
+        // process() configures only the active topology: bring the new one
+        // up to the current smoothed values before its first sample.
+        appliedFrequency_ = kNotApplied;
+        appliedDrive_ = kNotApplied;
     }
 }
 
@@ -729,26 +747,16 @@ inline float AllpassSaturator::process(float input) noexcept {
     (void)feedbackSmoother_.process();  // Advance smoother (read via getCurrentValue() in topology processing)
     const float smoothedDrive = driveSmoother_.process();
 
-    // Update components with smoothed parameters
-    const float sampleRateF = static_cast<float>(sampleRate_);
-    singleStage_.setFrequency(smoothedFreq, sampleRateF);
-    singleStage_.setDrive(smoothedDrive);
-
-    // Update AllpassChain frequencies
-    for (size_t i = 0; i < 4; ++i) {
-        chainAllpasses_[i].configure(FilterType::Allpass,
-                                      smoothedFreq * kChainFrequencyRatios[i],
-                                      10.0f, 0.0f, sampleRateF);
-    }
-    chainWaveshaper_.setDrive(smoothedDrive);
-
-    // Update KarplusStrong
-    ksWaveshaper_.setDrive(smoothedDrive);
-
-    // Update FeedbackMatrix
-    for (size_t i = 0; i < 4; ++i) {
-        matrixStages_[i].setFrequency(smoothedFreq * kMatrixDetuneRatios[i], sampleRateF);
-        matrixStages_[i].setDrive(smoothedDrive);
+    // Update the active topology's components, and only when the smoothed
+    // values moved (D-084): each allpass design costs a sin/cos pair, and the
+    // inactive topologies are brought up to date by the invalidation in
+    // setTopology() / prepare() before their first sample.
+    const bool frequencyChanged = smoothedFreq != appliedFrequency_;
+    const bool driveChanged = smoothedDrive != appliedDrive_;
+    if (frequencyChanged || driveChanged) {
+        configureActiveTopology(smoothedFreq, smoothedDrive, frequencyChanged, driveChanged);
+        appliedFrequency_ = smoothedFreq;
+        appliedDrive_ = smoothedDrive;
     }
 
     // Process based on topology
@@ -775,6 +783,51 @@ inline float AllpassSaturator::process(float input) noexcept {
     output = detail::flushDenormal(output);
 
     return output;
+}
+
+inline void AllpassSaturator::configureActiveTopology(float frequency, float drive,
+                                                      bool frequencyChanged,
+                                                      bool driveChanged) noexcept {
+    const float sampleRateF = static_cast<float>(sampleRate_);
+    switch (topology_) {
+        case NetworkTopology::SingleAllpass:
+            if (frequencyChanged) {
+                singleStage_.setFrequency(frequency, sampleRateF);
+            }
+            if (driveChanged) {
+                singleStage_.setDrive(drive);
+            }
+            break;
+        case NetworkTopology::AllpassChain:
+            if (frequencyChanged) {
+                for (size_t i = 0; i < 4; ++i) {
+                    chainAllpasses_[i].configure(FilterType::Allpass,
+                                                  frequency * kChainFrequencyRatios[i],
+                                                  10.0f, 0.0f, sampleRateF);
+                }
+            }
+            if (driveChanged) {
+                chainWaveshaper_.setDrive(drive);
+            }
+            break;
+        case NetworkTopology::KarplusStrong:
+            // The delay length and loop filter follow the smoothed frequency in
+            // processKarplusStrong(); only the drive is stored here.
+            if (driveChanged) {
+                ksWaveshaper_.setDrive(drive);
+            }
+            break;
+        case NetworkTopology::FeedbackMatrix:
+            for (size_t i = 0; i < 4; ++i) {
+                if (frequencyChanged) {
+                    matrixStages_[i].setFrequency(frequency * kMatrixDetuneRatios[i], sampleRateF);
+                }
+                if (driveChanged) {
+                    matrixStages_[i].setDrive(drive);
+                }
+            }
+            break;
+    }
 }
 
 inline void AllpassSaturator::processBlock(float* buffer, size_t numSamples) noexcept {

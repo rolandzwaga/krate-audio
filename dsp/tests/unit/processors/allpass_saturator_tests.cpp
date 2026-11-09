@@ -18,7 +18,15 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include "allpass_saturator_pre_t416_reference.h"
+
+#include <algorithm>
 #include <array>
+#include <bit>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <random>
 #include <cmath>
 #include <limits>
 #include <numeric>
@@ -1092,4 +1100,222 @@ TEST_CASE("AllpassSaturator edge cases (T095)", "[allpass_saturator][edge]") {
         const float output = unprepared.process(input);
         REQUIRE(output == Approx(input));
     }
+}
+
+// =============================================================================
+// D-084 (Disrumpo audit T4.16): reconfigure only on change, bit-identical
+// =============================================================================
+// process() used to rebuild all nine allpass sections (single stage, 4 chain
+// biquads, 4 matrix stages: nine sin/cos designs) and every drive on every
+// sample, whatever the topology. It now reconfigures only the active
+// topology, and only when the smoothed frequency or drive changed. The
+// reference is the pre-T4.16 class, snapshotted verbatim into
+// allpass_saturator_pre_t416_reference.h (namespace t416_reference); this TU is
+// IEEE on clang/GCC (-fno-fast-math -ffp-contract=off), and it is the only TU
+// in dsp_processors_tests that includes either header.
+
+namespace {
+
+namespace t416ref = Krate::DSP::t416_reference;
+
+t416ref::NetworkTopology toReference(NetworkTopology t) {
+    return static_cast<t416ref::NetworkTopology>(static_cast<std::uint8_t>(t));
+}
+
+/// One scripted parameter move applied to both processors at `sample`.
+struct T416Move {
+    size_t sample;
+    int what;      // 0 freq, 1 drive, 2 feedback, 3 damping, 4 decay, 5 topology, 6 curve
+    float value;
+};
+
+/// Render `input` through the shipping and the reference class with the same
+/// script; returns the number of samples whose bits differ (and the max |diff|).
+template <typename Script>
+size_t t416Mismatches(double sampleRate, NetworkTopology startTopology, const std::vector<float>& input,
+                      const Script& script, float& maxAbsDiff) {
+    AllpassSaturator fixedSat;
+    t416ref::AllpassSaturator refSat;
+    fixedSat.setTopology(startTopology);
+    refSat.setTopology(toReference(startTopology));
+    fixedSat.prepare(sampleRate, 512);
+    refSat.prepare(sampleRate, 512);
+
+    size_t next = 0;
+    size_t mismatches = 0;
+    maxAbsDiff = 0.0f;
+    for (size_t i = 0; i < input.size(); ++i) {
+        while (next < script.size() && script[next].sample == i) {
+            const T416Move& m = script[next++];
+            switch (m.what) {
+                case 0: fixedSat.setFrequency(m.value); refSat.setFrequency(m.value); break;
+                case 1: fixedSat.setDrive(m.value); refSat.setDrive(m.value); break;
+                case 2: fixedSat.setFeedback(m.value); refSat.setFeedback(m.value); break;
+                case 3: fixedSat.setDamping(m.value); refSat.setDamping(m.value); break;
+                case 4: fixedSat.setDecay(m.value); refSat.setDecay(m.value); break;
+                case 5: {
+                    const auto t = static_cast<NetworkTopology>(static_cast<std::uint8_t>(m.value));
+                    fixedSat.setTopology(t);
+                    refSat.setTopology(toReference(t));
+                    break;
+                }
+                case 6: {
+                    const auto c = static_cast<WaveshapeType>(static_cast<std::uint8_t>(m.value));
+                    fixedSat.setSaturationCurve(c);
+                    refSat.setSaturationCurve(c);
+                    break;
+                }
+                default: break;
+            }
+        }
+        const float a = fixedSat.process(input[i]);
+        const float b = refSat.process(input[i]);
+        if (std::bit_cast<std::uint32_t>(a) != std::bit_cast<std::uint32_t>(b)) {
+            ++mismatches;
+        }
+        maxAbsDiff = std::max(maxAbsDiff, std::abs(a - b));
+    }
+    return mismatches;
+}
+
+std::vector<float> t416Input(size_t length, double sampleRate) {
+    std::mt19937 gen(416u);
+    std::uniform_real_distribution<float> noise(-0.3f, 0.3f);
+    std::vector<float> x(length, 0.0f);
+    for (size_t i = 0; i < length; ++i) {
+        const double t = static_cast<double>(i) / sampleRate;
+        float v = 0.4f * static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * 110.0 * t));
+        if ((i / 2400) % 4 == 0) {
+            v += noise(gen);  // noise bursts excite the resonances
+        }
+        x[i] = v;
+    }
+    return x;
+}
+
+/// Block-rate jumps of every parameter, plus per-sample-ish glides (a move every
+/// 16 samples) so the smoothers are in motion most of the time, and one
+/// topology / curve change per second.
+std::vector<T416Move> t416Script(size_t length, bool withTopologySwitches) {
+    std::mt19937 gen(4160u);
+    std::uniform_real_distribution<float> freq(30.0f, 3000.0f);
+    std::uniform_real_distribution<float> drive(0.1f, 10.0f);
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+    std::vector<T416Move> s;
+    for (size_t i = 0; i < length; i += 512) {
+        s.push_back({i, 0, freq(gen)});
+        s.push_back({i, 1, drive(gen)});
+        s.push_back({i, 2, 0.999f * unit(gen)});
+        if ((i / 512) % 3 == 0) {
+            s.push_back({i, 3, unit(gen)});
+            s.push_back({i, 4, 0.05f + 3.0f * unit(gen)});
+        }
+        // Long stretches with no move at all after some blocks: the smoothers settle.
+        if ((i / 512) % 8 == 7) {
+            continue;
+        }
+        for (size_t k = 16; k < 512 && i + k < length; k += 16) {
+            if ((i / 512) % 2 == 0) {
+                s.push_back({i + k, 0, 200.0f + 1800.0f * static_cast<float>(k) / 512.0f});
+            } else {
+                s.push_back({i + k, 1, 0.5f + 4.0f * static_cast<float>(k) / 512.0f});
+            }
+        }
+    }
+    if (withTopologySwitches) {
+        const std::array<float, 6> order{1.0f, 3.0f, 2.0f, 0.0f, 3.0f, 1.0f};
+        for (size_t n = 0; n < order.size(); ++n) {
+            const size_t at = (n + 1) * length / (order.size() + 1) + 3;
+            s.push_back({at, 5, order[n]});
+            s.push_back({at + 100, 6, static_cast<float>((n * 3) % 9)});
+        }
+    }
+    std::stable_sort(s.begin(), s.end(), [](const T416Move& a, const T416Move& b) { return a.sample < b.sample; });
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("AllpassSaturator reconfigures on change only, bit-identical to per-sample reconfiguration",
+          "[allpass_saturator][D-084]") {
+    const std::array<NetworkTopology, 4> topologies{NetworkTopology::SingleAllpass, NetworkTopology::AllpassChain,
+                                                    NetworkTopology::KarplusStrong, NetworkTopology::FeedbackMatrix};
+    for (const double sampleRate : {44100.0, 96000.0}) {
+        const auto length = static_cast<size_t>(sampleRate * 2.0);
+        const auto input = t416Input(length, sampleRate);
+        for (const NetworkTopology topology : topologies) {
+            float maxDiff = 0.0f;
+            const size_t mismatches = t416Mismatches(sampleRate, topology, input, t416Script(length, false), maxDiff);
+            std::printf("D-084 %.0f Hz topology %d fixed: %zu / %zu samples differ, max |diff| %g\n", sampleRate,
+                        static_cast<int>(topology), mismatches, length, static_cast<double>(maxDiff));
+            INFO("rate " << sampleRate << ", topology " << static_cast<int>(topology));
+            REQUIRE(mismatches == 0);
+        }
+        // Topology and curve switches mid-run: the newly active topology must be
+        // configured for the current smoothed values before its first sample.
+        float maxDiff = 0.0f;
+        const size_t mismatches =
+            t416Mismatches(sampleRate, NetworkTopology::SingleAllpass, input, t416Script(length, true), maxDiff);
+        std::printf("D-084 %.0f Hz topology switches: %zu / %zu samples differ, max |diff| %g\n", sampleRate,
+                    mismatches, length, static_cast<double>(maxDiff));
+        INFO("rate " << sampleRate << ", topology switches");
+        REQUIRE(mismatches == 0);
+
+        // Topology switches with SETTLED parameters: the smoothers are at their
+        // targets, so nothing but the switch itself can bring the newly active
+        // topology (last configured in prepare(), at 440 Hz / drive 1) up to date.
+        std::vector<T416Move> settled{{0, 0, 1234.0f}, {0, 1, 3.5f}, {0, 2, 0.8f}};
+        const std::array<float, 6> order{1.0f, 3.0f, 2.0f, 0.0f, 3.0f, 1.0f};
+        for (size_t n = 0; n < order.size(); ++n) {
+            settled.push_back({(n + 1) * length / (order.size() + 1), 5, order[n]});
+        }
+        float settledDiff = 0.0f;
+        const size_t settledMismatches =
+            t416Mismatches(sampleRate, NetworkTopology::SingleAllpass, input, settled, settledDiff);
+        std::printf("D-084 %.0f Hz topology switches, settled params: %zu / %zu samples differ, max |diff| %g\n",
+                    sampleRate, settledMismatches, length, static_cast<double>(settledDiff));
+        INFO("rate " << sampleRate << ", topology switches with settled parameters");
+        REQUIRE(settledMismatches == 0);
+    }
+}
+
+// Hidden printing probe (the plan names no CPU budget, so nothing is asserted):
+// ns per sample of the shipping class against the per-sample-reconfiguring
+// reference, steady parameters, per topology.
+TEST_CASE("AllpassSaturator T4.16 CPU probe", "[.][t416-cpu-probe]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kLength = 48000 * 10;
+    const auto input = t416Input(kLength, kRate);
+    const std::array<NetworkTopology, 4> topologies{NetworkTopology::SingleAllpass, NetworkTopology::AllpassChain,
+                                                    NetworkTopology::KarplusStrong, NetworkTopology::FeedbackMatrix};
+    for (const NetworkTopology topology : topologies) {
+        AllpassSaturator fixedSat;
+        t416ref::AllpassSaturator refSat;
+        fixedSat.setTopology(topology);
+        refSat.setTopology(toReference(topology));
+        fixedSat.prepare(kRate, 512);
+        refSat.prepare(kRate, 512);
+        fixedSat.setFeedback(0.7f);
+        refSat.setFeedback(0.7f);
+
+        double best[2] = {1e30, 1e30};
+        float sink = 0.0f;
+        for (int rep = 0; rep < 5; ++rep) {
+            for (int which = 0; which < 2; ++which) {
+                const auto t0 = std::chrono::steady_clock::now();
+                for (size_t i = 0; i < kLength; ++i) {
+                    sink += (which == 0) ? fixedSat.process(input[i]) : refSat.process(input[i]);
+                }
+                const auto t1 = std::chrono::steady_clock::now();
+                const double ns = std::chrono::duration<double, std::nano>(t1 - t0).count() / kLength;
+                best[which] = std::min(best[which], ns);
+            }
+        }
+        const double cpuFixed = best[0] * kRate * 1e-7;   // % of one core at 48 kHz
+        const double cpuRef = best[1] * kRate * 1e-7;
+        std::printf("T4.16 CPU topology %d: %.2f ns/sample (%.3f %%) vs reference %.2f ns/sample (%.3f %%), %.2fx [sink %g]\n",
+                    static_cast<int>(topology), best[0], cpuFixed, best[1], cpuRef, best[1] / best[0],
+                    static_cast<double>(sink));
+    }
+    SUCCEED();
 }
