@@ -6,6 +6,7 @@
 //
 // Classes:
 // - CrossoverLR4: 2-way band split (Low/High)
+// - MultibandCrossover<MaxBands>: 1..MaxBands band split (cascaded CrossoverLR4)
 // - Crossover3Way: 3-way band split (Low/Mid/High)
 // - Crossover4Way: 4-way band split (Sub/Low/Mid/High)
 //
@@ -25,6 +26,7 @@
 #include <krate/dsp/primitives/smoother.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <cstddef>
@@ -445,6 +447,295 @@ private:
     std::atomic<float> crossoverFrequency_{kDefaultFrequency};
     std::atomic<float> smoothingTimeMs_{kDefaultSmoothingMs};
     std::atomic<int> trackingMode_{static_cast<int>(TrackingMode::Efficient)};
+};
+
+// =============================================================================
+// MultibandCrossover Class
+// =============================================================================
+
+/// @brief Multiband Linkwitz-Riley crossover: 1..MaxBands bands from cascaded
+/// CrossoverLR4 splits, with optional D'Appolito allpass compensation.
+///
+/// @par Topology
+/// Input -> LR4(f0) -> band 0 + rest; rest -> LR4(f1) -> band 1 + rest; ...
+/// The last active band takes the final high output. With one active band the
+/// input passes through unchanged.
+///
+/// @par Allpass Compensation
+/// When enabled, band k of n active bands (k < n - 2) runs through
+/// AP(f_{k+1}) ... AP(f_{n-2}) in ascending order, so every band carries the
+/// same phase and the band sum is the allpass chain AP(f0) ... AP(f_{n-2}):
+/// flat magnitude. The 2nd-order allpass Q is exactly 1/sqrt(2), because the
+/// LR4 LP + HP sum is (s^2 - sqrt2*s + 1)/(s^2 + sqrt2*s + 1).
+/// Reference: D'Appolito, "Active Realization of Multiway All-Pass Crossover
+/// Systems", JAES Vol. 35, No. 4, April 1987.
+///
+/// @par Dry Compensation
+/// processDryCompensation() runs a dry (unsplit) signal through
+/// AP(f0) ... AP(f_{n-2}), the phase of the compensated band sum, so a dry/wet
+/// mix does not notch at the crossovers.
+///
+/// @par Frequencies
+/// setCrossoverFrequency() stores the value for every index, active or not, so
+/// a later band-count increase finds it. Values are not ordered or clamped
+/// against their neighbours: callers keep them ascending. Each crossover is
+/// clamped to [20 Hz, 0.45 * sampleRate] where it is applied.
+///
+/// @par Lifecycle
+/// prepare() sets every crossover to its stored frequency and snaps there (no
+/// glide), clears every filter state and keeps the stored frequencies. A
+/// crossover or allpass that joins on a band-count increase starts with clean
+/// state at its frequency.
+///
+/// @par Thread Safety
+/// Plain members: call every method from the audio thread, or while
+/// processing is stopped.
+///
+/// @tparam MaxBands Maximum number of bands (>= 2)
+template <int MaxBands>
+class MultibandCrossover {
+    static_assert(MaxBands >= 2, "MultibandCrossover needs at least 2 bands");
+
+public:
+    // =========================================================================
+    // Constants
+    // =========================================================================
+
+    static constexpr int kMaxBands = MaxBands;
+    static constexpr int kNumCrossovers = MaxBands - 1;
+    /// Q of the 2nd-order compensation allpasses: 1/sqrt(2)
+    static constexpr float kAllpassQ = std::numbers::sqrt2_v<float> / 2.0f;
+
+    // =========================================================================
+    // Lifecycle
+    // =========================================================================
+
+    MultibandCrossover() noexcept { frequencies_.fill(CrossoverLR4::kDefaultFrequency); }
+    ~MultibandCrossover() noexcept = default;
+
+    MultibandCrossover(const MultibandCrossover&) = delete;
+    MultibandCrossover& operator=(const MultibandCrossover&) = delete;
+    MultibandCrossover(MultibandCrossover&&) noexcept = default;
+    MultibandCrossover& operator=(MultibandCrossover&&) noexcept = default;
+
+    /// @brief Initialize for a sample rate. Keeps the stored frequencies, snaps
+    /// every crossover to its frequency (no glide) and clears all filter state.
+    /// @param sampleRate Sample rate in Hz
+    void prepare(double sampleRate) noexcept {
+        sampleRate_ = sampleRate;
+        for (int i = 0; i < kNumCrossovers; ++i) {
+            // CrossoverLR4::prepare() snaps its smoother to its stored frequency,
+            // which it clamps at its own rate: set the frequency at the new rate
+            // and prepare again
+            auto& xo = crossovers_[idx(i)];
+            xo.prepare(sampleRate);
+            xo.setCrossoverFrequency(frequencies_[idx(i)]);
+            xo.prepare(sampleRate);
+            configureAllpasses(i);
+        }
+        resetAllpasses();
+        prepared_ = true;
+    }
+
+    /// @brief Clear every filter state; frequencies and band count unchanged.
+    void reset() noexcept {
+        for (auto& xo : crossovers_) {
+            xo.reset();
+        }
+        resetAllpasses();
+    }
+
+    // =========================================================================
+    // Configuration
+    // =========================================================================
+
+    /// @brief Set the number of active bands.
+    /// Crossovers and allpasses that join the chain start clean at their
+    /// frequency: never the state they froze with when last used, nor a glide.
+    /// @param numBands Number of bands, clamped to [1, MaxBands]
+    void setActiveBands(int numBands) noexcept {
+        const int newBands = std::clamp(numBands, 1, MaxBands);
+        if (newBands == activeBands_) {
+            return;
+        }
+        const int oldBands = activeBands_;
+        activeBands_ = newBands;
+        if (newBands < oldBands || !prepared_) {
+            return;
+        }
+        // Crossovers oldBands-1 .. newBands-2 join the chain
+        const int firstNew = oldBands - 1;
+        for (int i = firstNew; i < newBands - 1; ++i) {
+            crossovers_[idx(i)].prepare(sampleRate_);
+        }
+        // Every allpass at a joining crossover: the dry chain and the bands below it
+        for (int i = firstNew; i < kNumCrossovers; ++i) {
+            dryAllpasses_[idx(i)].reset();
+            for (int band = 0; band < i; ++band) {
+                bandAllpass(band, i).reset();
+            }
+        }
+    }
+
+    /// @brief Set the frequency of crossover `index`, active or not.
+    /// The crossover glides there over the smoothing time; the allpasses at
+    /// this frequency follow at once.
+    /// @param index Crossover index (0 .. MaxBands-2); others are ignored
+    /// @param hz Frequency in Hz (clamped to [20 Hz, 0.45 * sampleRate] where applied)
+    void setCrossoverFrequency(int index, float hz) noexcept {
+        if (index < 0 || index >= kNumCrossovers) {
+            return;
+        }
+        frequencies_[idx(index)] = hz;
+        crossovers_[idx(index)].setCrossoverFrequency(hz);
+        if (prepared_) {
+            configureAllpasses(index);
+        }
+    }
+
+    /// @brief Enable or disable D'Appolito allpass compensation of the bands.
+    /// Switching it on starts the band allpasses from clean state.
+    void setAllpassCompensation(bool enabled) noexcept {
+        if (enabled && !compensation_) {
+            for (auto& row : bandAllpasses_) {
+                for (auto& ap : row) {
+                    ap.reset();
+                }
+            }
+        }
+        compensation_ = enabled;
+    }
+
+    /// @brief Set the frequency smoothing time of every crossover.
+    /// @param ms Smoothing time in milliseconds
+    void setSmoothingTime(float ms) noexcept {
+        for (auto& xo : crossovers_) {
+            xo.setSmoothingTime(ms);
+        }
+    }
+
+    // =========================================================================
+    // Queries
+    // =========================================================================
+
+    /// @brief Stored frequency of crossover `index` (CrossoverLR4::kDefaultFrequency
+    /// for an invalid index).
+    [[nodiscard]] float getCrossoverFrequency(int index) const noexcept {
+        if (index < 0 || index >= kNumCrossovers) {
+            return CrossoverLR4::kDefaultFrequency;
+        }
+        return frequencies_[idx(index)];
+    }
+
+    [[nodiscard]] int getActiveBands() const noexcept { return activeBands_; }
+
+    [[nodiscard]] bool isAllpassCompensationEnabled() const noexcept { return compensation_; }
+
+    [[nodiscard]] bool isPrepared() const noexcept { return prepared_; }
+
+    // =========================================================================
+    // Processing
+    // =========================================================================
+
+    /// @brief Split one sample into the active bands.
+    /// Writes bands[0 .. activeBands-1]; the rest are left untouched (all
+    /// zeros before prepare()).
+    void process(float input, std::array<float, MaxBands>& bands) noexcept {
+        if (!prepared_) {
+            bands.fill(0.0f);
+            return;
+        }
+        if (activeBands_ == 1) {
+            bands[0] = input;
+            return;
+        }
+
+        float rest = input;
+        for (int i = 0; i < activeBands_ - 1; ++i) {
+            const auto out = crossovers_[idx(i)].process(rest);
+            bands[idx(i)] = out.low;
+            rest = out.high;
+        }
+        bands[idx(activeBands_ - 1)] = rest;
+
+        if (compensation_) {
+            // Band k: AP(f_{k+1}) ... AP(f_{n-2}), ascending
+            for (int band = 0; band < activeBands_ - 2; ++band) {
+                for (int ap = band + 1; ap < activeBands_ - 1; ++ap) {
+                    bands[idx(band)] = bandAllpass(band, ap).process(bands[idx(band)]);
+                }
+            }
+        }
+    }
+
+    /// @brief Give a dry (unsplit) sample the phase of the compensated band sum:
+    /// AP(f0) ... AP(f_{n-2}). Call once per sample alongside process().
+    /// @param x Dry input sample
+    /// @return x through the allpasses at every active crossover
+    [[nodiscard]] float processDryCompensation(float x) noexcept {
+        if (!prepared_ || activeBands_ == 1) {
+            return x;
+        }
+        for (int i = 0; i < activeBands_ - 1; ++i) {
+            x = dryAllpasses_[idx(i)].process(x);
+        }
+        return x;
+    }
+
+private:
+    static constexpr int kBandAllpassSlots = MaxBands - 2;
+
+    [[nodiscard]] static constexpr std::size_t idx(int i) noexcept {
+        return static_cast<std::size_t>(i);
+    }
+
+    /// The allpass of band `band` at crossover `crossover` (crossover > band).
+    [[nodiscard]] Biquad& bandAllpass(int band, int crossover) noexcept {
+        return bandAllpasses_[idx(band)][idx(crossover - band - 1)];
+    }
+
+    [[nodiscard]] float clampFrequency(float hz) const noexcept {
+        const float maxHz = static_cast<float>(sampleRate_) * CrossoverLR4::kMaxFrequencyRatio;
+        return std::clamp(hz, CrossoverLR4::kMinFrequency, maxHz);
+    }
+
+    /// Configure every allpass at crossover `crossover`: the dry chain and the
+    /// bands below it.
+    void configureAllpasses(int crossover) noexcept {
+        const float hz = clampFrequency(frequencies_[idx(crossover)]);
+        const auto sr = static_cast<float>(sampleRate_);
+        dryAllpasses_[idx(crossover)].configure(FilterType::Allpass, hz, kAllpassQ, 0.0f, sr);
+        for (int band = 0; band < crossover; ++band) {
+            bandAllpass(band, crossover).configure(FilterType::Allpass, hz, kAllpassQ, 0.0f, sr);
+        }
+    }
+
+    void resetAllpasses() noexcept {
+        for (auto& row : bandAllpasses_) {
+            for (auto& ap : row) {
+                ap.reset();
+            }
+        }
+        for (auto& ap : dryAllpasses_) {
+            ap.reset();
+        }
+    }
+
+    // =========================================================================
+    // Members
+    // =========================================================================
+
+    std::array<CrossoverLR4, kNumCrossovers> crossovers_;
+    /// bandAllpasses_[band][j]: band `band` at crossover band + j + 1
+    std::array<std::array<Biquad, kBandAllpassSlots>, kBandAllpassSlots> bandAllpasses_;
+    /// dryAllpasses_[i]: the dry chain at crossover i
+    std::array<Biquad, kNumCrossovers> dryAllpasses_;
+    std::array<float, kNumCrossovers> frequencies_{};
+
+    double sampleRate_ = 44100.0;
+    int activeBands_ = MaxBands;
+    bool compensation_ = false;
+    bool prepared_ = false;
 };
 
 // =============================================================================

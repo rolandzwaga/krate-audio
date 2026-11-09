@@ -268,3 +268,6 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   had masked it. CROSS-PLUGIN (every crossover consumer).
 - `e498752d` test(profundum): regenerated evidence after that fix (109 CSVs; residual floors dropped 20–45 dB,
   e.g. sc017 aliased_L_dbfs −88.96 → −132.54; nine pass cells flipped 0 → 1, none 1 → 0).
+- Crossover dedup step 1 (`crossover-dedup-plan.md`; commit "refactor(dsp): add MultibandCrossover, the shared
+  N-band LR4 splitter"): `MultibandCrossover<MaxBands>` in `crossover_filter.h` next to the old classes; no caller
+  moved yet. A/B vs `Crossover3Way` / `Crossover4Way` configured before prepare: bit-identical (0 difference).

@@ -2158,3 +2158,433 @@ TEST_CASE("Crossover4Way with allpass FFT flat sum across full spectrum", "[cros
     // Allpass compensation should reduce max error
     REQUIRE(maxError < 7.0f);
 }
+
+// ==============================================================================
+// MultibandCrossover<MaxBands>: runtime band count, D'Appolito compensation,
+// dry-path compensation (the shared splitter behind Disrumpo and FractalDistortion)
+// ==============================================================================
+
+namespace {
+
+template <int N>
+float multibandSum(const std::array<float, static_cast<std::size_t>(N)>& bands, int active) {
+    float s = 0.0f;
+    for (int b = 0; b < active; ++b) {
+        s += bands[static_cast<std::size_t>(b)];
+    }
+    return s;
+}
+
+/// Configure `xo` with the first `active - 1` of `freqs`, compensation as given, prepared at `sr`.
+template <int N>
+void setupMultiband(MultibandCrossover<N>& xo, double sr, int active, const std::array<float, 3>& freqs,
+                    bool compensation) {
+    for (int i = 0; i < active - 1; ++i) {
+        xo.setCrossoverFrequency(i, freqs[static_cast<std::size_t>(i)]);
+    }
+    xo.setActiveBands(active);
+    xo.setAllpassCompensation(compensation);
+    xo.prepare(sr);
+}
+
+/// Worst |band sum - input| in dB over a log grid of steady-state sines at `sr`.
+template <int N>
+double worstMultibandSumDeviationDb(MultibandCrossover<N>& xo, double sr, double loHz, double hiHz,
+                                    double* worstHz = nullptr) {
+    constexpr int kPoints = 40;
+    const auto settle = static_cast<size_t>(0.25 * sr);
+    const auto measureTarget = static_cast<size_t>(0.25 * sr);
+    double worst = 0.0;
+    std::array<float, static_cast<std::size_t>(N)> bands{};
+    for (int p = 0; p < kPoints; ++p) {
+        const double f = loHz * std::pow(hiHz / loHz, static_cast<double>(p) / static_cast<double>(kPoints - 1));
+        const double cycles = std::floor(static_cast<double>(measureTarget) * f / sr);
+        const auto measureLen = static_cast<size_t>(std::lround(cycles * sr / f));
+        xo.reset();
+        double inPow = 0.0;
+        double sumPow = 0.0;
+        for (size_t i = 0; i < settle + measureLen; ++i) {
+            const auto x = static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * f * static_cast<double>(i) / sr));
+            xo.process(x, bands);
+            const float s = multibandSum<N>(bands, xo.getActiveBands());
+            if (i >= settle) {
+                inPow += static_cast<double>(x) * static_cast<double>(x);
+                sumPow += static_cast<double>(s) * static_cast<double>(s);
+            }
+        }
+        const double devDb = 10.0 * std::log10(sumPow / inPow);
+        if (std::abs(devDb) > std::abs(worst)) {
+            worst = devDb;
+            if (worstHz != nullptr) {
+                *worstHz = f;
+            }
+        }
+    }
+    return worst;
+}
+
+/// Level of the band sum re the input for one steady-state sine (second half of `numSamples`).
+template <int N>
+float multibandSineSumDb(MultibandCrossover<N>& xo, float freq, float sr, size_t numSamples = 16384) {
+    std::vector<float> input(numSamples);
+    std::vector<float> sum(numSamples);
+    generateSine(input.data(), numSamples, freq, sr);
+    std::array<float, static_cast<std::size_t>(N)> bands{};
+    for (size_t i = 0; i < numSamples; ++i) {
+        xo.process(input[i], bands);
+        sum[i] = multibandSum<N>(bands, xo.getActiveBands());
+    }
+    const size_t start = numSamples / 2;
+    return linearToDb(calculateRMS(sum.data() + start, numSamples - start) /
+                      calculateRMS(input.data() + start, numSamples - start));
+}
+
+/// Disrumpo's logarithmic default crossovers for 4 bands (20 Hz - 20 kHz, 3 decades / 4).
+constexpr std::array<float, 3> kLogDefaultCrossovers{112.468265f, 632.455532f, 3556.558820f};
+
+} // namespace
+
+TEST_CASE("MultibandCrossover basics", "[crossover][multiband]") {
+    MultibandCrossover<4> xo;
+    std::array<float, 4> bands{1.0f, 1.0f, 1.0f, 1.0f};
+
+    SECTION("not prepared after construction; process outputs zeros") {
+        REQUIRE_FALSE(xo.isPrepared());
+        xo.process(0.5f, bands);
+        REQUIRE(bands == std::array<float, 4>{});
+        REQUIRE(xo.processDryCompensation(0.5f) == 0.5f);
+    }
+
+    SECTION("defaults: all bands active, compensation off") {
+        REQUIRE(xo.getActiveBands() == 4);
+        REQUIRE_FALSE(xo.isAllpassCompensationEnabled());
+        REQUIRE(static_cast<double>(MultibandCrossover<4>::kAllpassQ) ==
+                Approx(0.70710678118654752).margin(1e-7));
+    }
+
+    SECTION("one active band passes the input through") {
+        xo.setActiveBands(1);
+        xo.prepare(48000.0);
+        xo.process(-0.25f, bands);
+        REQUIRE(bands[0] == -0.25f);
+        REQUIRE(xo.processDryCompensation(0.3f) == 0.3f);
+    }
+
+    SECTION("active band count clamps to [1, MaxBands]") {
+        xo.setActiveBands(0);
+        REQUIRE(xo.getActiveBands() == 1);
+        xo.setActiveBands(9);
+        REQUIRE(xo.getActiveBands() == 4);
+    }
+
+    SECTION("frequencies are stored for every index, active or not; invalid indices are ignored") {
+        xo.prepare(48000.0);
+        xo.setActiveBands(2);
+        xo.setCrossoverFrequency(2, 8000.0f);
+        xo.setCrossoverFrequency(-1, 50.0f);
+        xo.setCrossoverFrequency(3, 50.0f);
+        REQUIRE(xo.getCrossoverFrequency(2) == 8000.0f);
+        REQUIRE(xo.getCrossoverFrequency(0) == CrossoverLR4::kDefaultFrequency);
+        xo.setActiveBands(4);
+        REQUIRE(xo.getCrossoverFrequency(2) == 8000.0f);
+    }
+
+    SECTION("compensation toggles") {
+        xo.setAllpassCompensation(true);
+        REQUIRE(xo.isAllpassCompensationEnabled());
+        xo.setAllpassCompensation(false);
+        REQUIRE_FALSE(xo.isAllpassCompensationEnabled());
+    }
+}
+
+// Ported from the Crossover3Way / Crossover4Way flat-sum cases (SC-004, SC-005): with
+// compensation every band count sums flat within 0.1 dB, 30 Hz - 15 kHz, at every rate.
+TEST_CASE("MultibandCrossover band sum is flat at 2-4 bands with allpass compensation",
+          "[crossover][multiband][allpass][flatsum][SC-004][SC-005]") {
+    const std::array<std::array<float, 3>, 3> freqsPerBands{{{300.0f, 0.0f, 0.0f},
+                                                             {300.0f, 3000.0f, 0.0f},
+                                                             {80.0f, 300.0f, 3000.0f}}};
+    for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
+        for (int n = 2; n <= 4; ++n) {
+            MultibandCrossover<4> xo;
+            setupMultiband(xo, sr, n, freqsPerBands[static_cast<std::size_t>(n - 2)], true);
+            double worstHz = 0.0;
+            const double worst = worstMultibandSumDeviationDb(xo, sr, 30.0, 15000.0, &worstHz);
+            INFO(sr << " Hz, " << n << " bands, compensated: worst deviation " << worst << " dB at " << worstHz << " Hz");
+            CHECK(std::abs(worst) < 0.1);
+        }
+    }
+}
+
+// Ported from "Crossover3Way low + mid + high sum to flat" and "Crossover4Way sub + low +
+// mid + high sum to flat": without compensation the decade-spaced sums stay within the old bars.
+TEST_CASE("MultibandCrossover band sum without compensation", "[crossover][multiband][flatsum][SC-004][SC-005]") {
+    SECTION("3 bands at 300 / 3000 Hz within 0.15 dB") {
+        MultibandCrossover<3> xo;
+        setupMultiband(xo, 44100.0, 3, {300.0f, 3000.0f, 0.0f}, false);
+        for (const float f : {100.0f, 300.0f, 1000.0f, 3000.0f, 8000.0f}) {
+            xo.reset();
+            const float db = multibandSineSumDb(xo, f, 44100.0f);
+            INFO(f << " Hz: " << db << " dB");
+            CHECK(std::abs(db) < 0.15f);
+        }
+    }
+    SECTION("4 bands at 80 / 300 / 3000 Hz within 1 dB") {
+        MultibandCrossover<4> xo;
+        setupMultiband(xo, 44100.0, 4, {80.0f, 300.0f, 3000.0f}, false);
+        for (const float f : {50.0f, 80.0f, 200.0f, 300.0f, 1000.0f, 3000.0f, 8000.0f}) {
+            xo.reset();
+            const float db = multibandSineSumDb(xo, f, 44100.0f);
+            INFO(f << " Hz: " << db << " dB");
+            CHECK(std::abs(db) < 1.0f);
+        }
+    }
+}
+
+// Ported from the Crossover3Way / Crossover4Way D-164 cases: compensation stays within 0.1 dB
+// at one-octave crossover spacing, where an allpass Q other than 1/sqrt(2) leaves a dip.
+TEST_CASE("MultibandCrossover compensation is flat at one-octave spacing",
+          "[crossover][multiband][allpass][flatsum][D-164]") {
+    SECTION("3 bands at 300 / 600 Hz") {
+        MultibandCrossover<3> xo;
+        setupMultiband(xo, 44100.0, 3, {300.0f, 600.0f, 0.0f}, true);
+        const float worstDb = worstCompensatedSumDeviationDb(
+            xo,
+            [](MultibandCrossover<3>& c, float x) {
+                std::array<float, 3> b{};
+                c.process(x, b);
+                return b[0] + b[1] + b[2];
+            },
+            75.0f, 2400.0f);
+        std::printf("D-164 MultibandCrossover<3> 300/600 Hz worst deviation: %.4f dB\n", static_cast<double>(worstDb));
+        REQUIRE(std::abs(worstDb) < 0.1f);
+    }
+    SECTION("4 bands at 80 / 160 / 320 Hz") {
+        MultibandCrossover<4> xo;
+        setupMultiband(xo, 44100.0, 4, {80.0f, 160.0f, 320.0f}, true);
+        const float worstDb = worstCompensatedSumDeviationDb(
+            xo,
+            [](MultibandCrossover<4>& c, float x) {
+                std::array<float, 4> b{};
+                c.process(x, b);
+                return b[0] + b[1] + b[2] + b[3];
+            },
+            20.0f, 1280.0f);
+        std::printf("D-164 MultibandCrossover<4> 80/160/320 Hz worst deviation: %.4f dB\n",
+                    static_cast<double>(worstDb));
+        REQUIRE(std::abs(worstDb) < 0.1f);
+    }
+}
+
+// The dry chain carries the phase and timing of the compensated band sum (Disrumpo D-018):
+// same impulse peak, residual of the difference at least 60 dB below the band sum energy.
+TEST_CASE("MultibandCrossover dry compensation is aligned with the compensated band sum",
+          "[crossover][multiband][allpass][dry][D-018]") {
+    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+        for (int n = 2; n <= 4; ++n) {
+            MultibandCrossover<4> xo;
+            setupMultiband(xo, sr, n, kLogDefaultCrossovers, true);
+            const auto len = static_cast<size_t>(sr / 2.0);
+            std::vector<double> dry(len);
+            std::vector<double> wet(len);
+            std::array<float, 4> bands{};
+            for (size_t i = 0; i < len; ++i) {
+                const float x = (i == 0) ? 1.0f : 0.0f;
+                xo.process(x, bands);
+                wet[i] = static_cast<double>(multibandSum<4>(bands, n));
+                dry[i] = static_cast<double>(xo.processDryCompensation(x));
+            }
+            double diffEnergy = 0.0;
+            double wetEnergy = 0.0;
+            size_t dryPeak = 0;
+            size_t wetPeak = 0;
+            for (size_t i = 0; i < len; ++i) {
+                diffEnergy += (dry[i] - wet[i]) * (dry[i] - wet[i]);
+                wetEnergy += wet[i] * wet[i];
+                if (std::abs(dry[i]) > std::abs(dry[dryPeak])) dryPeak = i;
+                if (std::abs(wet[i]) > std::abs(wet[wetPeak])) wetPeak = i;
+            }
+            const double residualDb = 10.0 * std::log10(diffEnergy / wetEnergy + 1e-30);
+            INFO(sr << " Hz, " << n << " bands: peak dry " << dryPeak << " wet " << wetPeak << ", residual "
+                 << residualDb << " dB re band sum");
+            CHECK(dryPeak == wetPeak);
+            CHECK(residualDb <= -60.0);
+        }
+    }
+}
+
+// Ported from Disrumpo D-023: crossovers and allpasses joining on a band-count increase start
+// clean at their frequency, set while they were idle. Silent input while 2 bands run, so a
+// clean join matches a freshly prepared reference.
+TEST_CASE("MultibandCrossover crossovers joining on a band-count increase start clean",
+          "[crossover][multiband][D-023]") {
+    constexpr double kSr = 48000.0;
+    std::vector<float> in(4800);
+    for (size_t i = 0; i < in.size(); ++i) {
+        in[i] = 0.5f * static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * 1000.0 * static_cast<double>(i) / kSr));
+    }
+    std::array<float, 4> bands{};
+
+    MultibandCrossover<4> xo;
+    setupMultiband(xo, kSr, 4, {200.0f, 1500.0f, 6000.0f}, true);
+    for (const float x : in) {
+        xo.process(x, bands);
+        (void)xo.processDryCompensation(x);
+    }
+    xo.setActiveBands(2);
+    xo.setCrossoverFrequency(2, 8000.0f);  // stored while crossover 2 is idle
+    for (size_t i = 0; i < 48000; ++i) {
+        xo.process(0.0f, bands);
+        (void)xo.processDryCompensation(0.0f);
+    }
+    xo.setActiveBands(4);
+
+    MultibandCrossover<4> reference;
+    setupMultiband(reference, kSr, 4, {200.0f, 1500.0f, 8000.0f}, true);
+
+    std::array<float, 4> refBands{};
+    double maxDiff = 0.0;
+    for (const float x : in) {
+        xo.process(x, bands);
+        reference.process(x, refBands);
+        for (size_t b = 0; b < 4; ++b) {
+            maxDiff = std::max(maxDiff, static_cast<double>(std::fabs(bands[b] - refBands[b])));
+        }
+        maxDiff = std::max(maxDiff, static_cast<double>(std::fabs(xo.processDryCompensation(x) -
+                                                                   reference.processDryCompensation(x))));
+    }
+    INFO("max band / dry difference vs a clean instance after 4 -> 2 -> 4: " << maxDiff);
+    REQUIRE(maxDiff < 1e-5);
+}
+
+// Set-then-snap (Disrumpo D-046, T1.03): prepare() snaps every crossover to its stored
+// frequency, on the first prepare and on a re-prepare at another rate, which keeps them.
+TEST_CASE("MultibandCrossover prepare snaps to the stored frequencies and keeps them",
+          "[crossover][multiband][D-046]") {
+    constexpr std::array<float, 3> kFreqs{200.0f, 1500.0f, 6000.0f};
+    std::vector<float> noise(9600);
+    generateWhiteNoise(noise.data(), noise.size());
+    const auto maxBandDiff = [&](MultibandCrossover<4>& a, MultibandCrossover<4>& b, size_t count) {
+        std::array<float, 4> ba{};
+        std::array<float, 4> bb{};
+        double d = 0.0;
+        for (size_t i = 0; i < count; ++i) {
+            a.process(noise[i], ba);
+            b.process(noise[i], bb);
+            for (size_t k = 0; k < 4; ++k) {
+                d = std::max(d, static_cast<double>(std::fabs(ba[k] - bb[k])));
+            }
+        }
+        return d;
+    };
+
+    SECTION("first prepare: no glide from the default frequency") {
+        MultibandCrossover<4> snapped;
+        setupMultiband(snapped, 48000.0, 4, kFreqs, true);
+        MultibandCrossover<4> settled;  // prepared first, set, glide completed in silence
+        settled.setAllpassCompensation(true);
+        settled.prepare(48000.0);
+        for (int i = 0; i < 3; ++i) settled.setCrossoverFrequency(i, kFreqs[static_cast<std::size_t>(i)]);
+        std::array<float, 4> b{};
+        for (int i = 0; i < 48000; ++i) settled.process(0.0f, b);
+        settled.reset();
+        MultibandCrossover<4> gliding;  // prepared first, set, processed at once
+        gliding.setAllpassCompensation(true);
+        gliding.prepare(48000.0);
+        for (int i = 0; i < 3; ++i) gliding.setCrossoverFrequency(i, kFreqs[static_cast<std::size_t>(i)]);
+
+        MultibandCrossover<4> snapped2;
+        setupMultiband(snapped2, 48000.0, 4, kFreqs, true);
+        const double dSettled = maxBandDiff(snapped, settled, 960);
+        const double dGliding = maxBandDiff(snapped2, gliding, 960);
+        INFO("first 20 ms, max band difference: vs settled " << dSettled << ", vs gliding " << dGliding);
+        // Settled: Efficient tracking leaves the coefficients up to 0.1 Hz short of the target
+        CHECK(dSettled < 1e-3);
+        CHECK(dGliding > 1e-2);  // the comparison can see a glide
+    }
+
+    SECTION("re-prepare at another rate keeps the frequencies and snaps") {
+        MultibandCrossover<4> xo;
+        setupMultiband(xo, 48000.0, 4, kFreqs, true);
+        std::array<float, 4> b{};
+        for (const float x : noise) xo.process(x, b);
+        xo.prepare(96000.0);
+        for (int i = 0; i < 3; ++i) {
+            CHECK(xo.getCrossoverFrequency(i) == kFreqs[static_cast<std::size_t>(i)]);
+        }
+        MultibandCrossover<4> fresh;
+        setupMultiband(fresh, 96000.0, 4, kFreqs, true);
+        const double d = maxBandDiff(xo, fresh, noise.size());
+        INFO("re-prepared vs fresh at 96 kHz: max band difference " << d);
+        CHECK(d < 1e-6);
+    }
+}
+
+// Hidden A/B probe (crossover dedup step 1): Crossover3Way / Crossover4Way against
+// MultibandCrossover<3> / <4> on 1 s of white noise, compensation off and on. "set first":
+// the old class configured before prepare (no glide); "prepare first": prepared, then set
+// (FractalDistortion's order, which glides from 1000 Hz). Prints, asserts nothing.
+TEST_CASE("MultibandCrossover vs Crossover3Way / Crossover4Way (A/B probe)", "[.][xover-dedup-ab-probe]") {
+    for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
+        const auto len = static_cast<size_t>(sr);
+        const auto early = static_cast<size_t>(0.05 * sr);
+        std::vector<float> noise(len);
+        generateWhiteNoise(noise.data(), len, 7);
+        for (const bool comp : {false, true}) {
+            for (const bool setFirst : {true, false}) {
+                MultibandCrossover<3> new3;
+                setupMultiband(new3, sr, 3, {300.0f, 3000.0f, 0.0f}, comp);
+                Crossover3Way old3;
+                if (setFirst) {
+                    old3.setLowMidFrequency(300.0f);
+                    old3.setMidHighFrequency(3000.0f);
+                    old3.prepare(sr);
+                } else {
+                    old3.prepare(sr);
+                    old3.setLowMidFrequency(300.0f);
+                    old3.setMidHighFrequency(3000.0f);
+                }
+                old3.setAllpassCompensation(comp);
+                MultibandCrossover<4> new4;
+                setupMultiband(new4, sr, 4, {80.0f, 300.0f, 3000.0f}, comp);
+                Crossover4Way old4;
+                if (setFirst) {
+                    old4.setSubLowFrequency(80.0f);
+                    old4.setLowMidFrequency(300.0f);
+                    old4.setMidHighFrequency(3000.0f);
+                    old4.prepare(sr);
+                } else {
+                    old4.prepare(sr);
+                    old4.setSubLowFrequency(80.0f);
+                    old4.setLowMidFrequency(300.0f);
+                    old4.setMidHighFrequency(3000.0f);
+                }
+                old4.setAllpassCompensation(comp);
+                std::array<double, 2> d3{};  // [first 50 ms, rest]
+                std::array<double, 2> d4{};
+                std::array<float, 3> b3{};
+                std::array<float, 4> b4{};
+                for (size_t i = 0; i < len; ++i) {
+                    const size_t slot = (i < early) ? 0 : 1;
+                    new3.process(noise[i], b3);
+                    const auto o3 = old3.process(noise[i]);
+                    d3[slot] = std::max({d3[slot], static_cast<double>(std::fabs(b3[0] - o3.low)),
+                                         static_cast<double>(std::fabs(b3[1] - o3.mid)),
+                                         static_cast<double>(std::fabs(b3[2] - o3.high))});
+                    new4.process(noise[i], b4);
+                    const auto o4 = old4.process(noise[i]);
+                    d4[slot] = std::max({d4[slot], static_cast<double>(std::fabs(b4[0] - o4.sub)),
+                                         static_cast<double>(std::fabs(b4[1] - o4.low)),
+                                         static_cast<double>(std::fabs(b4[2] - o4.mid)),
+                                         static_cast<double>(std::fabs(b4[3] - o4.high))});
+                }
+                std::printf("A/B %6.0f Hz comp %s old %-13s | 3-way max|diff| first 50 ms %.3e, rest %.3e | "
+                            "4-way first 50 ms %.3e, rest %.3e\n",
+                            sr, comp ? "ON " : "OFF", setFirst ? "set first" : "prepare first", d3[0], d3[1],
+                            d4[0], d4[1]);
+            }
+        }
+    }
+    std::fflush(stdout);
+    SUCCEED();
+}
