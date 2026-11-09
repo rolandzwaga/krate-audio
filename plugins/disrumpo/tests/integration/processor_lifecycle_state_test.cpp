@@ -1014,6 +1014,76 @@ TEST_CASE("Every factory preset restores the slot-derived node params through se
     REQUIRE(wrongNodes == 0);
 }
 
+// D-118 (T5.01): the factory presets are v10 streams, written with 6 mod
+// destinations per band (6 + band * 6 + param). Since v12 a band has 8
+// (Tone, Bias added), so setState must move every band destination to
+// 6 + band * 8 + param; a global or sweep destination (< 6) keeps its index.
+// Read each preset's raw routing bytes, load it, save it, and compare.
+TEST_CASE("v10 factory preset routing destinations migrate to the 8-per-band layout",
+          "[disrumpo][preset][state][migration][D-118]") {
+    namespace fs = std::filesystem;
+    std::vector<fs::path> presets;
+    for (const auto& e : fs::recursive_directory_iterator(DISRUMPO_RESOURCES_DIR "/presets"))
+        if (e.is_regular_file() && e.path().extension() == ".vstpreset") presets.push_back(e.path());
+    std::sort(presets.begin(), presets.end());
+    REQUIRE(presets.size() > size_t{100});
+
+    constexpr int32_t kOldParamsPerBand = 6;
+    constexpr auto kBase = static_cast<int32_t>(ModDest::kBandBase);
+    constexpr auto kPerBand = static_cast<int32_t>(ModDest::kParamsPerBand);
+    constexpr size_t kRoutingSize = 10;  // source int8, dest int32, amount float, curve int8
+
+    Rig rig(44100.0);
+    int v10Presets = 0;
+    int bandRoutings = 0;  // active routings to a band destination
+    int moved = 0;         // of those, the ones whose index changes (band 1-3)
+    int wrong = 0;
+    for (const auto& path : presets) {
+        const auto comp = readPresetComponent(path.string());
+        const auto version = readAt<int32_t>(comp, 0);
+        if (version < 10 || version > 11) continue;  // the 6-per-band layout with the v10+ offsets
+        ++v10Presets;
+        REQUIRE(setStateBytes(*rig.p, comp));
+        rig.apply({});  // a load made while active lands at the next block (D-003)
+        const auto saved = getStateBytes(*rig.p);
+        REQUIRE(readAt<int32_t>(saved, 0) == kPresetVersion);
+
+        const std::string name = fs::relative(path, DISRUMPO_RESOURCES_DIR "/presets").generic_string();
+        const size_t raw0 = morphOffset(comp) - kRoutingsSize;
+        const size_t saved0 = morphOffset(saved) - kRoutingsSize;
+        for (size_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r) {
+            const size_t a = raw0 + r * kRoutingSize;
+            const size_t b = saved0 + r * kRoutingSize;
+            const auto source = readAt<int8_t>(comp, a);
+            const auto rawDest = readAt<int32_t>(comp, a + 1);
+            const auto amount = readAt<float>(comp, a + 5);
+            // The raw read sits on the routing block: same source and amount after the load.
+            REQUIRE(readAt<int8_t>(saved, b) == source);
+            REQUIRE(readAt<float>(saved, b + 5) == amount);
+            REQUIRE(rawDest >= 0);
+            REQUIRE(rawDest < kBase + 4 * kOldParamsPerBand);
+            const int32_t want = rawDest < kBase ? rawDest
+                                                 : kBase + ((rawDest - kBase) / kOldParamsPerBand) * kPerBand +
+                                                       (rawDest - kBase) % kOldParamsPerBand;
+            const auto got = readAt<int32_t>(saved, b + 1);
+            if (source != 0 && rawDest >= kBase) {
+                ++bandRoutings;
+                if (want != rawDest) ++moved;
+            }
+            if (got == want) continue;
+            if (++wrong <= 10)
+                std::printf("  %s routing %zu: stored dest %d, saved %d, want %d\n", name.c_str(), r, rawDest, got,
+                            want);
+        }
+    }
+    std::printf("D-118 routing migration: %d v10 presets, %d active band routings (%d on bands 1-3), %d of %d "
+                "routings wrong\n",
+                v10Presets, bandRoutings, moved, wrong, v10Presets * static_cast<int>(Krate::DSP::kMaxModRoutings));
+    REQUIRE(v10Presets > 100);
+    REQUIRE(moved > 0);
+    REQUIRE(wrong == 0);
+}
+
 // -----------------------------------------------------------------------------
 // D-003 (T1.24): setState on an active processor hands the state to the audio
 // thread. The live DSP objects change at the top of the next process() call,
