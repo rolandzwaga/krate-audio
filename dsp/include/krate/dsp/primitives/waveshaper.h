@@ -41,8 +41,8 @@ namespace Krate::DSP {
 /// Each type has distinct harmonic characteristics:
 /// - Bounded types (Tanh, Atan, Cubic, Quintic, ReciprocalSqrt, Erf, HardClip, Tube):
 ///   Output is bounded to [-1, 1] for all inputs
-/// - Unbounded types (Diode only): Output can exceed [-1, 1];
-///   users responsible for post-shaping limiting if needed
+/// - Diode: bounded to (-2, 1), asymmetric; the negative half reaches -2
+///   (+6 dB over full scale), so leave that headroom or limit after shaping
 ///
 /// @note Diode/Tube produce even harmonics (warmth) via asymmetric transfer.
 ///       Bounded types produce only odd harmonics (except HardClip which
@@ -55,7 +55,7 @@ enum class WaveshapeType : uint8_t {
     ReciprocalSqrt = 4, ///< x/sqrt(x^2+1) - fast tanh alternative
     Erf = 5,            ///< Error function - tape-like with spectral nulls
     HardClip = 6,       ///< Hard clipping - harsh, all harmonics
-    Diode = 7,          ///< Diode asymmetric - subtle even harmonics (UNBOUNDED - can exceed [-1,1])
+    Diode = 7,          ///< Diode asymmetric - subtle even harmonics (bounded to (-2, 1))
     Tube = 8            ///< Tube asymmetric - warm even harmonics (bounded via internal tanh)
 };
 

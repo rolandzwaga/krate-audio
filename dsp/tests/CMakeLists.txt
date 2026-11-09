@@ -931,6 +931,8 @@ add_executable(dsp_ieee_tests
     unit/processors/envelope_follower_nonfinite_test.cpp
     # Disrumpo audit T4.14 (D-166): fastTanh returns the incoming NaN, not a NaN constant
     unit/core/fast_math_nonfinite_test.cpp
+    # Disrumpo audit T4.15 (D-167): Asymmetric::diode maps -Inf to its -2 limit, not NaN
+    unit/core/sigmoid_nonfinite_test.cpp
     # bit-exactness TUs (moved from dsp_processors_tests)
     unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/drop_phase_lock_test.cpp
@@ -1394,6 +1396,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/envelope_follower_nonfinite_test.cpp
         # Disrumpo audit T4.14: injects NaN/Inf bit patterns (D-166).
         unit/core/fast_math_nonfinite_test.cpp
+        # Disrumpo audit T4.15: injects -Inf/NaN bit patterns (D-167).
+        unit/core/sigmoid_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 
