@@ -138,6 +138,9 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     bandCountFade_ = BandCountFade::Idle;
     bandCountFadePos_ = 0;
     processedSinceActivate_ = false;
+    // Dry path's alignment crossfade: the bands' crossfade length (follow-up 6)
+    dryXfadeSamples_ = std::max<size_t>(
+        1, static_cast<size_t>(std::lround(BandProcessor::kFactorCrossfadeMs * 0.001 * sampleRate_)));
 
     // Global gain/mix smoothing (D-025)
     const auto srFloat = static_cast<float>(sampleRate_);
@@ -217,8 +220,8 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         applyLatency(targetLatency_);
         dryDelayL_.reset();
         dryDelayR_.reset();
-        dryAllpassL_.reset();
-        dryAllpassR_.reset();
+        for (auto& allpass : dryAllpassL_) allpass.reset();
+        for (auto& allpass : dryAllpassR_) allpass.reset();
         lastSignalledLatency_ = -1;
         // Reset sweep processor
         sweepProcessor_.reset();
@@ -290,7 +293,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (requested != crossoverL_.getBandCount()) {
             switchBandCount(requested);
         }
-        if (latencyChangePending()) {
+        if (latencyChangePending() || contextChangePending()) {
             applyLatency(targetLatency_);
         }
     }
@@ -374,6 +377,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             bandCountFadePos_ = bandCountFadeSamples_ - bandCountFadePos_;
         }
         // During FadeIn a new request is picked up when the ramp completes
+    }
+    // An alignment context change at an unchanged latency crossfades instead of dipping
+    // (follow-up 6); with a latency change, or while the dip fades out, the dip's bottom
+    // applies it. One dry crossfade at a time: a later change waits for the running one.
+    if (contextChangePending() && !latencyChangePending() && bandCountFade_ != BandCountFade::FadeOut &&
+        !dryXfading_) {
+        applyAlignmentContext();
     }
 
     // --- Global parameters ---
@@ -671,9 +681,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         float* outL = outputL + chunkStart;
         float* outR = outputR + chunkStart;
         // The dry path waits the applied latency plus the reference shift (an allpass fraction
-        // with its delay in [1, 1.5) when the shift is above 0, follow-up 81)
+        // with its delay in [1, 1.5) when the shift is above 0, follow-up 81); during a context
+        // crossfade it also reads the previous shift's path and moves to the new one linearly
         const bool dryFraction = appliedShift_ > 0.0 && appliedLatency_ >= 1;
         const auto dryDelay = static_cast<size_t>(dryFraction ? appliedLatency_ - 1 : appliedLatency_);
+        const bool fromFraction = dryFromShift_ > 0.0 && appliedLatency_ >= 1;
+        const auto fromDelay = static_cast<size_t>(fromFraction ? appliedLatency_ - 1 : appliedLatency_);
+        const float dryXfadeInv = 1.0f / static_cast<float>(dryXfadeSamples_);
         for (size_t n = 0; n < chunkLen; ++n) {
             float sumL = 0.0f;
             float sumR = 0.0f;
@@ -692,11 +706,28 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             const float outputGain = outputGainSmoother_.process();
             dryDelayL_.write(crossoverL_.processDryCompensation(inL[n]));
             dryDelayR_.write(crossoverR_.processDryCompensation(inR[n]));
+            const auto newAllpass = static_cast<size_t>(dryXfading_ ? 1 - dryActive_ : dryActive_);
             float dryL = dryDelayL_.read(dryDelay);
             float dryR = dryDelayR_.read(dryDelay);
             if (dryFraction) {
-                dryL = dryAllpassL_.process(dryL);
-                dryR = dryAllpassR_.process(dryR);
+                dryL = dryAllpassL_[newAllpass].process(dryL);
+                dryR = dryAllpassR_[newAllpass].process(dryR);
+            }
+            if (dryXfading_) {
+                float fromL = dryDelayL_.read(fromDelay);
+                float fromR = dryDelayR_.read(fromDelay);
+                if (fromFraction) {
+                    fromL = dryAllpassL_[static_cast<size_t>(dryActive_)].process(fromL);
+                    fromR = dryAllpassR_[static_cast<size_t>(dryActive_)].process(fromR);
+                }
+                ++dryXfadePos_;
+                const float g = static_cast<float>(dryXfadePos_) * dryXfadeInv;
+                dryL = fromL + g * (dryL - fromL);
+                dryR = fromR + g * (dryR - fromR);
+                if (dryXfadePos_ >= dryXfadeSamples_) {
+                    dryActive_ = static_cast<int>(newAllpass);
+                    dryXfading_ = false;
+                }
             }
             outL[n] = (dryL * dryMix + sumL * wetMix) * outputGain;
             outR[n] = (dryR * dryMix + sumR * wetMix) * outputGain;
@@ -839,7 +870,7 @@ void Processor::advanceBandCountFade() noexcept {
             }
         }
         // The compensation delays change on the silent sample (D-026)
-        if (latencyChangePending()) {
+        if (latencyChangePending() || contextChangePending()) {
             applyLatency(targetLatency_);
         }
         bandCountFade_ = BandCountFade::FadeIn;
@@ -899,19 +930,52 @@ void Processor::updateLatencyAndTail() noexcept {
 
 void Processor::applyLatency(int samples) noexcept {
     appliedLatency_ = samples;
+    // A running dry crossfade ends on its new path (the output is silent here)
+    if (dryXfading_) {
+        dryActive_ = 1 - dryActive_;
+        dryXfading_ = false;
+    }
     if (targetShift_ != appliedShift_ && targetShift_ > 0.0) {
         // the dry fraction 1 + shift (dryFraction in process())
         const double d = 1.0 + targetShift_;
         const auto a = static_cast<float>((1.0 - d) / (1.0 + d));
-        dryAllpassL_.setCoefficient(a);
-        dryAllpassR_.setCoefficient(a);
+        dryAllpassL_[static_cast<size_t>(dryActive_)].setCoefficient(a);
+        dryAllpassR_[static_cast<size_t>(dryActive_)].setCoefficient(a);
     }
     appliedFourX_ = targetFourX_;
     appliedShift_ = targetShift_;
+    dryFromShift_ = appliedShift_;
     for (auto& band : bandProcessors_) {
         band.setLatencyTarget(samples);
         band.setAlignmentContext(appliedFourX_, appliedShift_);
+        // Silent point: the running lane takes the new target and factor at once
+        band.settleTransitionAtSilence();
     }
+}
+
+void Processor::applyAlignmentContext() noexcept {
+    const double fromShift = appliedShift_;
+    appliedFourX_ = targetFourX_;
+    appliedShift_ = targetShift_;
+    for (auto& band : bandProcessors_) {
+        band.setAlignmentContext(appliedFourX_, appliedShift_);
+    }
+    if (fromShift == appliedShift_) {
+        return;
+    }
+    // The dry path crossfades from the old fraction to the new one, its allpass cleared
+    const auto incoming = static_cast<size_t>(1 - dryActive_);
+    if (appliedShift_ > 0.0) {
+        const double d = 1.0 + appliedShift_;
+        const auto a = static_cast<float>((1.0 - d) / (1.0 + d));
+        dryAllpassL_[incoming].setCoefficient(a);
+        dryAllpassR_[incoming].setCoefficient(a);
+    }
+    dryAllpassL_[incoming].reset();
+    dryAllpassR_[incoming].reset();
+    dryFromShift_ = fromShift;
+    dryXfading_ = true;
+    dryXfadePos_ = 0;
 }
 
 Steinberg::uint32 PLUGIN_API Processor::getLatencySamples() {

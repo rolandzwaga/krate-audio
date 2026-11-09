@@ -1,11 +1,12 @@
 // ==============================================================================
 // Oversampling Factor Switch Tests (User Story 4)
 // ==============================================================================
-// A factor change is a click-free output dip (audit D-034, fix plan T1.07): the
-// band output ramps 1 -> 0 over kFactorSwitchMs at the old factor, the factor
-// switches and the shapers' filter state is cleared, then the output ramps
-// 0 -> 1 at the new factor. The old 8 ms crossfade ran the same engines twice
-// per sample and was replaced.
+// A factor change is a crossfade between two lanes (audit D-034, follow-up 6, user
+// ruling 2026-11-09): the lane at the old factor keeps running while a second lane,
+// its own shapers and oversamplers cleared, runs at the new factor, and the band
+// output moves linearly from the first to the second over kFactorCrossfadeMs.
+// (T1.07's 5 + 5 ms output dip replaced the original crossfade, which ran the same
+// engines twice per sample; the dip read as a 1.8 dB level hole in a morph sweep.)
 //
 // Reference: specs/009-intelligent-oversampling/spec.md
 // Tasks: T11.058, T11.059, T11.061, T11.062
@@ -77,10 +78,10 @@ TEST_CASE("BandProcessor: factor selected before any audio applies without a swi
 }
 
 // =============================================================================
-// T11.058: switch duration = two kFactorSwitchMs ramps
+// T11.058: switch duration = one kFactorCrossfadeMs crossfade
 // =============================================================================
 
-TEST_CASE("BandProcessor: factor switch completes in two 5 ms ramps",
+TEST_CASE("BandProcessor: factor switch completes in one 10 ms crossfade",
           "[oversampling][crossfade][SC-005]") {
     constexpr size_t kBlockSize = 64;
     auto bp = makeLegacyBand(DistortionType::SoftClip, 0.5f, kBlockSize);
@@ -92,34 +93,36 @@ TEST_CASE("BandProcessor: factor switch completes in two 5 ms ramps",
     CHECK(bp->getOversampleFactor() == 2);
     CHECK_FALSE(bp->isOversampleTransitioning());
 
-    // 2x -> 4x: selected at once, running factor switches at the bottom of the dip
+    // 2x -> 4x: selected at once, the crossfade to the 4x lane starts with the next block
     bp->setDistortionType(DistortionType::HardClip);
     CHECK(bp->getOversampleFactor() == 4);
     CHECK(bp->getActiveOversampleFactor() == 2);
     CHECK(bp->isOversampleTransitioning());
 
     const auto rampSamples = static_cast<size_t>(std::lround(
-        static_cast<double>(BandProcessor::kFactorSwitchMs) * 0.001 * kSampleRate));
+        static_cast<double>(BandProcessor::kFactorCrossfadeMs) * 0.001 * kSampleRate));
     size_t totalProcessed = 0;
-    while (bp->isOversampleTransitioning() && totalProcessed < rampSamples * 6) {
+    while (bp->isOversampleTransitioning() && totalProcessed < rampSamples * 3) {
         fillSine(left.data(), right.data(), kBlockSize, kBlockSize + totalProcessed);
         bp->processBlock(left.data(), right.data(), kBlockSize);
         totalProcessed += kBlockSize;
     }
 
-    INFO("ramp samples " << rampSamples << ", processed " << totalProcessed);
+    INFO("crossfade samples " << rampSamples << ", processed " << totalProcessed);
     CHECK_FALSE(bp->isOversampleTransitioning());
     CHECK(bp->getActiveOversampleFactor() == 4);
-    // Block granularity: the switch ends inside the last block
-    CHECK(totalProcessed >= 2 * rampSamples);
-    CHECK(totalProcessed < 2 * rampSamples + kBlockSize);
+    // Block granularity: the crossfade ends inside the last block
+    CHECK(totalProcessed >= rampSamples);
+    CHECK(totalProcessed < rampSamples + kBlockSize);
 }
 
 // =============================================================================
-// T11.059: the dip has no step larger than 3x the steady-state step
+// T11.059: the switch has no step larger than 3x the steady-state step, and it
+// crossfades the two factors instead of dipping the band (D-034, follow-up 6,
+// user ruling 2026-11-09): every 4-period window within 1 dB of the steady level
 // =============================================================================
 
-TEST_CASE("BandProcessor: factor switch dips the output without a step",
+TEST_CASE("BandProcessor: factor switch crossfades the two factors without a dip or a step",
           "[oversampling][crossfade][click-free]") {
     constexpr size_t kSettle = 4096;
     constexpr size_t kSwitchSpan = 4096;
@@ -137,14 +140,29 @@ TEST_CASE("BandProcessor: factor switch dips the output without a step",
 
     const double steadyStep = maxStep(left, kSettle / 2, kSettle);
     const double switchStep = maxStep(left, kSettle, kSettle + kSwitchSpan);
-    // The dip reaches 0 where the factor switches (one ramp after the request)
-    const auto rampSamples = static_cast<size_t>(std::lround(
-        static_cast<double>(BandProcessor::kFactorSwitchMs) * 0.001 * kSampleRate));
-    const double atBottom = std::fabs(static_cast<double>(left[kSettle + rampSamples - 1]));
-    INFO("steady max step " << steadyStep << ", max step during switch " << switchStep
-         << ", |sample| at the dip bottom " << atBottom);
+    // Level: RMS of 401-sample windows (4.0 periods of 440 Hz) hopped by 20 samples across
+    // the switch; each must lie within 1 dB of the range spanned by the steady window before
+    // the switch (2x SoftClip) and the settled one after it (4x HardClip, a different level)
+    constexpr size_t kWin = 401;
+    const auto rms = [&](size_t from) {
+        double acc = 0.0;
+        for (size_t i = from; i < from + kWin; ++i) acc += static_cast<double>(left[i]) * left[i];
+        return 10.0 * std::log10(acc / static_cast<double>(kWin));
+    };
+    const double before = rms(kSettle - kWin);
+    const double after = rms(left.size() - kWin);
+    const double lo = std::min(before, after);
+    const double hi = std::max(before, after);
+    double worst = 0.0;  // signed distance outside [lo, hi]
+    for (size_t from = kSettle - kWin / 2; from + kWin <= kSettle + 2048; from += 20) {
+        const double level = rms(from);
+        const double dev = std::min(level - lo, 0.0) + std::max(level - hi, 0.0);
+        if (std::fabs(dev) > std::fabs(worst)) worst = dev;
+    }
+    INFO("steady max step " << steadyStep << ", max step during switch " << switchStep << ", level before "
+         << before << " dB, after " << after << " dB, worst window deviation " << worst << " dB");
     CHECK(switchStep <= 3.0 * steadyStep);
-    CHECK(atBottom < 1e-6);
+    CHECK(std::fabs(worst) <= 1.0);
 
     Krate::DSP::TestUtils::ClickDetectorConfig clickConfig;
     clickConfig.sampleRate = static_cast<float>(kSampleRate);
@@ -215,9 +233,9 @@ TEST_CASE("BandProcessor: factor request during an active switch",
     right.fill(0.3f);
     bp->processBlock(left.data(), right.data(), kBlockSize);
 
-    SECTION("a third factor during the fade-out ends at that factor") {
+    SECTION("a third factor during the crossfade ends at that factor") {
         bp->setDistortionType(DistortionType::HardClip);  // 2x -> 4x
-        bp->processBlock(left.data(), right.data(), kBlockSize);  // part of the fade-out
+        bp->processBlock(left.data(), right.data(), kBlockSize);  // part of the crossfade
         bp->setDistortionType(DistortionType::Bitcrush);  // -> 1x
         CHECK(bp->getOversampleFactor() == 1);
         CHECK(bp->isOversampleTransitioning());
@@ -226,20 +244,22 @@ TEST_CASE("BandProcessor: factor request during an active switch",
         CHECK(bp->getActiveOversampleFactor() == 1);
     }
 
-    SECTION("returning to the running factor during the fade-out ramps back up without switching") {
+    SECTION("returning to the running factor during the crossfade reverses it without switching") {
         bp->setDistortionType(DistortionType::HardClip);  // 2x -> 4x
         bp->processBlock(left.data(), right.data(), kBlockSize);
+        REQUIRE(bp->getActiveOversampleFactor() == 4);  // crossfading into the 4x lane
         bp->setDistortionType(DistortionType::SoftClip);  // back to 2x
         CHECK(bp->isOversampleTransitioning());
+        bp->processBlock(left.data(), right.data(), kBlockSize);  // reverses toward the 2x lane
         CHECK(bp->getActiveOversampleFactor() == 2);
         processUntilIdle();
         CHECK_FALSE(bp->isOversampleTransitioning());
         CHECK(bp->getActiveOversampleFactor() == 2);
     }
 
-    SECTION("a request during the fade-in starts a new switch after it") {
+    SECTION("a request during the crossfade starts a new one after it") {
         bp->setDistortionType(DistortionType::HardClip);  // 2x -> 4x
-        // Through the fade-out (221 samples at 44.1 kHz) into the fade-in
+        // 256 samples into the 441-sample crossfade (44.1 kHz)
         for (int i = 0; i < 4; ++i) {
             bp->processBlock(left.data(), right.data(), kBlockSize);
         }

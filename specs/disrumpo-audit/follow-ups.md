@@ -80,6 +80,27 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
    re-scope the level bar to the windows away from a factor switch. Held case: `f:/tmp/disrumpo-fix/p6b/
    t606-held-bars.patch`; probe `[.][p6b-morph]` in `tests/dsp/morph_continuity_test.cpp`. (A same-factor morph that
    flipped factors 12 times in 2 s was a rounding defect, fixed: "Done outside the plan".)
+   — CLOSED 2026-11-09 (user ruling: option (a), crossfade; commit "fix(disrumpo): oversampling factor and
+   alignment changes crossfade instead of dipping"). Each BandProcessor holds two lanes (shapers, morph engines,
+   2x / 4x oversamplers, fractional delays; the second on the heap, prepared with the first); a change of factor or
+   of alignment (latency target, 4x context, reference shift) runs the idle lane at the new settings beside the
+   running one, its processing state cleared and its morph cursor taken over, for 10 ms, and crossfades LINEARLY
+   (the lanes carry the same signal: equal-power measured +1.18 dB on the 2-node sweep, +1.65 dB on the band case,
+   +2.29 dB on the context case, jump ratio 1.39-1.40; linear -0.31 / +0.001 / -0.31 dB). Output stage and sweep
+   smoother advance once per host sample. The processor's dip remains only where the REPORTED latency changes (and
+   on a band-count change, D-023); an alignment-context change at an unchanged latency crossfades the bands and the
+   dry path (two dry allpasses). Before audio and at the dip's bottom the running lane takes the change at once.
+   A latent node in the cleared incoming lane (Spectral, Granular) outputs nothing for its type latency, so the
+   incoming gain holds at 0 until it has passed (case "A factor crossfade into a lane with a Spectral node waits
+   for its latency", fft 512: HEAD's dip left a fully silent 10 ms window at 4x -> 1x and -1.71 dB at 1x -> 4x; a
+   crossfade without the hold fell 15 dB 7-13 ms after the jump; now -0.41 / -0.33 dB).
+   2-node sweep -1.77 -> -0.31 dB (asserted <= 1 dB); new cases "BandProcessor: factor switch crossfades the two
+   factors without a dip or a step" (-4.15 -> +0.001 dB outside the before/after range) and "An alignment-context
+   change at an unchanged latency crossfades without a dip" (-8.54 -> -0.31 dB). Cost: steady state unchanged (one
+   lane runs); a block that starts a 4x <-> 2x crossfade 569 us against 132 us steady (4.3x, 5.3 % of a 512-sample
+   block at 48 kHz, once per switch); memory: a prepared BandProcessor 24.85 MB at 48 kHz with two lanes, so about
+   +12.4 MB per band (+50 MB per 4-band instance; a prepared MorphEngine is 5.22 MB). Still held: the 4-node
+   sweep's level and clicks (items 12 and 84).
 7. **Allpass compensation filters are still float32 Biquads** (Crossover3Way/4Way and Disrumpo's
    CrossoverNetwork, now also the dry-path chain from T1.09 `a2f7fe51`). Measured: at 192 kHz the dry/wet
    alignment residual is −59.55 dB (bar −60 dB; 44.1–96 kHz read −78 to −83 dB), flatness still 0.0128 dB; a
@@ -114,6 +135,11 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     level deviation +2.77 dB (start -3.40, end -17.83 dB): +1.31 / +1.33 dB with the band held at 2x / 1x (the law),
     the rest the 2x -> 4x switch dip at 0.555 s (item 6). Held with the plan's 1 dB bar in
     `f:/tmp/disrumpo-fix/p6b/t606-held-bars.patch`; the jump ratio (1.00) is asserted.
+    — After item 6's crossfade (2026-11-09, probe `[.][p6b-morph]`): +2.47 dB (start -3.40, end -17.15 dB); the switch
+    no longer dips. What remains: this blend law (+1.31 / +1.33 dB with the band held at 2x / 1x, where the end reads
+    -14.01 / -14.00 dB) and the RingSaturation end node being 3.15 dB quieter at 4x than at 1x / 2x (-17.15 against
+    -14.0 dB), which tilts the straight dB line the windows are measured against. Still held (blend law unchanged by
+    ruling); the RingSat 4x level belongs with item 84.
 13. **Envelope follower time convention.** The sweep envelope's "attack ms" / "release ms" reach ≈99 % (coefficient
     `exp(−2π/(t·sr))`) at the set time; the 63 % point sits at ≈t/7.5 (10 ms attack → 1.3 ms; 100 ms release →
     31.8 ms to 37 %). Consistent across 44.1/48/96 kHz since T1.10 (`98c17930`), but the UI/spec should state the

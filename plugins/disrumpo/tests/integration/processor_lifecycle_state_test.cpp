@@ -2231,13 +2231,17 @@ TEST_CASE("Minimax alignment of Mix 50 % and the crossover sums with arrival per
     }
 }
 
-TEST_CASE("A 2x band's minimax offset switches inside the latency dip", "[disrumpo][latency][D-026]") {
+TEST_CASE("A 2x band's minimax offset crossfades when only the alignment context changes",
+          "[disrumpo][latency][D-026]") {
     // Minimax ruling (2026-11-09): a 2x band's offset depends on whether any band can run at
     // 4x (48 kHz: -0.759 without, -0.409 with). Band 1's node switches SoftClip -> HardClip
     // (4x-capable) while a 220 Hz sine runs through band 0 (SoftClip, 2x, drive 1); band 2's
     // Spectral node (fft 512 at 1x) holds the reported latency at 511 either way, so only the
-    // alignment context changes. The processor applies it at the silent bottom of its latency
-    // dip: no step and no click around the change (jump ratio <= 1.3, as the D-023 dip cases).
+    // alignment context changes. The reported latency does not change, so there is no output
+    // dip (user ruling 2026-11-09, follow-up 6): the bands and the dry path crossfade from the
+    // old alignment to the new one. No step and no click around the change (jump ratio <= 1.3,
+    // as the D-023 dip cases). The level through the change is the next case's: here the node
+    // type change's own 5 ms fade (D-141) moves it as well.
     constexpr size_t kBlock = 512;
     constexpr size_t kEv = 48 * kBlock;
     constexpr size_t kLen = kEv + 40 * kBlock;
@@ -2271,6 +2275,126 @@ TEST_CASE("A 2x band's minimax offset switches inside the latency dip", "[disrum
     CHECK(c.ratio <= 1.3);
     CHECK(c.clicksEvent == 0u);
     CHECK(c.nonFinite == 0u);
+}
+
+TEST_CASE("An alignment-context change at an unchanged latency crossfades without a dip",
+          "[disrumpo][latency][D-034][D-026]") {
+    // User ruling 2026-11-09 (follow-up 6): the processor dips its output only where the
+    // reported latency changes. Band 0 SoftClip (2x), band 1 HardClip (4x), band 2 Spectral (fft
+    // 512 at 1x, holding the latency at 511), drive 1, a 220 Hz sine at -12 dBFS. Oversample Max
+    // 4x -> 2x: band 1 switches 4x -> 2x and no band can reach 4x any more, so band 0's minimax
+    // offset moves (48 kHz: -0.409 -> -0.759) while the latency stays 511. Both bands crossfade
+    // their lanes: every 10 ms window (2.2 periods) hopped by 1 ms from 20 ms before the change to
+    // 40 ms after it lies within 1 dB of the range spanned by the 100 ms before the change and the
+    // last 100 ms. The old latency dip held the whole output at 0 for a moment.
+    constexpr size_t kBlock = 512;
+    constexpr size_t kEv = 48 * kBlock;
+    constexpr size_t kLen = kEv + 40 * kBlock;
+    auto l = latBase(3, 4);
+    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);
+    setNode(l, 1, 0, DistortionType::HardClip, 0.1, 1.0);
+    setNode(l, 2, 0, DistortionType::Spectral, 0.1, 1.0);
+    l.emplace_back(makeNodeParamId(2, 0, NodeParamType::kNodeShape1), fftSlotNorm(512));
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+    std::vector<float> in(kLen);
+    for (size_t n = 0; n < kLen; ++n) {
+        in[n] = static_cast<float>(0.25 * std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(n) / kLatSr));
+    }
+    std::vector<float> outL;
+    std::vector<float> outR;
+    std::array<long, 2> reported{};
+    std::array<int, 2> band1Factor{};
+    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kBlock), [&](size_t /*blk*/, size_t start, PChanges& pc) {
+        if (start == kEv) {
+            reported[0] = static_cast<long>(rig.p->getLatencySamples());
+            band1Factor[0] = rig.p->getBandProcessor(1).getActiveOversampleFactor();
+            pc.addChange(kOversampleMaxId, osMaxNorm(2));
+        }
+    });
+    reported[1] = static_cast<long>(rig.p->getLatencySamples());
+    band1Factor[1] = rig.p->getBandProcessor(1).getActiveOversampleFactor();
+    const auto c = continuityAround(outL, kEv, kEv + 4800, kEv - 16 * kBlock, kEv - 2 * kBlock, kEv + 16 * kBlock,
+                                    kLen - kBlock, kLatSr);
+    const auto win = static_cast<size_t>(0.01 * kLatSr);
+    const double before = toDb(rmsOf(outL.data() + kEv - 10 * win, 10 * win));
+    const double after = toDb(rmsOf(outL.data() + kLen - 10 * win, 10 * win));
+    const double lo = std::min(before, after);
+    const double hi = std::max(before, after);
+    double worst = 0.0;  // signed distance outside [lo, hi]
+    for (size_t from = kEv - 2 * win; from + win <= kEv + 4 * win; from += win / 10) {
+        const double level = toDb(rmsOf(outL.data() + from, win));
+        const double dev = std::min(level - lo, 0.0) + std::max(level - hi, 0.0);
+        if (std::fabs(dev) > std::fabs(worst)) worst = dev;
+    }
+    std::printf("T6.06 context-only change (Oversample Max 4x -> 2x, latency %ld -> %ld, band 1 %dx -> %dx): level "
+                "before %.2f dB, after %.2f dB, worst 10 ms window %.2f dB outside, jump ratio %.3f, clicks %zu, "
+                "non-finite %zu\n",
+                reported[0], reported[1], band1Factor[0], band1Factor[1], before, after, worst, c.ratio, c.clicksEvent,
+                c.nonFinite);
+    REQUIRE(reported[0] == reported[1]);
+    REQUIRE(band1Factor[0] == 4);
+    REQUIRE(band1Factor[1] == 2);
+    CHECK(std::fabs(worst) <= 1.0);
+    CHECK(c.ratio <= 1.3);
+    CHECK(c.clicksEvent == 0u);
+    CHECK(c.nonFinite == 0u);
+}
+
+TEST_CASE("A factor crossfade into a lane with a Spectral node waits for its latency", "[disrumpo][latency][D-034]") {
+    // Follow-up 6 (user ruling 2026-11-09): the incoming lane of a factor crossfade starts with
+    // cleared state, so a Spectral node in it (fft 512: 511 samples at 1x) outputs nothing until
+    // its latency has passed; the incoming gain holds at 0 until then. One band, Spectral and
+    // HardClip nodes, drive 1, a 220 Hz sine at -12 dBFS, the cursor jumps from HardClip (4x) to
+    // Spectral (1x) at 0.512 s, and back in the second run. Every 10 ms window hopped by 1 ms from
+    // 20 ms before the jump to 40 ms after it lies within 1 dB of the range spanned by the
+    // 100 ms before and the last 100 ms. (Without the hold the 4x -> 1x run fell 15 dB below the
+    // Spectral level 7-13 ms after the jump; the old switch dip left the same hole.)
+    constexpr size_t kBlock = 512;
+    constexpr size_t kEv = 48 * kBlock;
+    constexpr size_t kLen = kEv + 40 * kBlock;
+    for (const double toX : {0.0, 1.0}) {
+        auto l = latBase(1, 4);
+        l.emplace_back(makeBandParamId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0);  // 2 nodes
+        setNode(l, 0, 0, DistortionType::Spectral, 0.1, 1.0);
+        l.emplace_back(makeNodeParamId(0, 0, NodeParamType::kNodeShape1), fftSlotNorm(512));
+        setNode(l, 0, 1, DistortionType::HardClip, 0.1, 1.0);
+        Rig rig(kLatSr);
+        rig.apply(l);
+        rig.apply({{makeBandParamId(0, BandParamType::kBandMorphX), 1.0 - toX}});
+        rig.reactivate();
+        std::vector<float> in(kLen);
+        for (size_t n = 0; n < kLen; ++n) {
+            in[n] = static_cast<float>(0.25 * std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(n) / kLatSr));
+        }
+        std::vector<float> outL;
+        std::vector<float> outR;
+        std::array<int, 2> factor{};
+        rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kBlock), [&](size_t /*blk*/, size_t start, PChanges& pc) {
+            if (start == kEv) {
+                factor[0] = rig.p->getBandProcessor(0).getActiveOversampleFactor();
+                pc.addChange(makeBandParamId(0, BandParamType::kBandMorphX), toX);
+            }
+        });
+        factor[1] = rig.p->getBandProcessor(0).getActiveOversampleFactor();
+        const auto win = static_cast<size_t>(0.01 * kLatSr);
+        const double before = toDb(rmsOf(outL.data() + kEv - 10 * win, 10 * win));
+        const double after = toDb(rmsOf(outL.data() + kLen - 10 * win, 10 * win));
+        const double lo = std::min(before, after);
+        const double hi = std::max(before, after);
+        double worst = 0.0;  // signed distance outside [lo, hi]
+        for (size_t from = kEv - 2 * win; from + win <= kEv + 4 * win; from += win / 10) {
+            const double level = toDb(rmsOf(outL.data() + from, win));
+            const double dev = std::min(level - lo, 0.0) + std::max(level - hi, 0.0);
+            if (std::fabs(dev) > std::fabs(worst)) worst = dev;
+        }
+        std::printf("T6.06 factor crossfade with a Spectral node, %dx -> %dx: level before %.2f dB, after %.2f dB, worst "
+                    "10 ms window %.2f dB outside\n", factor[0], factor[1], before, after, worst);
+        INFO(factor[0] << "x -> " << factor[1] << "x: worst window " << worst << " dB outside [" << lo << ", " << hi << "]");
+        REQUIRE(factor[0] != factor[1]);
+        CHECK(std::fabs(worst) <= 1.0);
+    }
 }
 
 TEST_CASE("Reported latency holds through a morph sweep; Oversample Max and node type changes report it once",
@@ -2966,3 +3090,4 @@ TEST_CASE("process() flushes denormals whatever the caller's floating-point mode
     CHECK(nonZeroOut == 0u);
 }
 #endif
+

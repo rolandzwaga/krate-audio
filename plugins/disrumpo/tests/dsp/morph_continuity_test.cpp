@@ -11,9 +11,10 @@
 //   within 0.5 dB of that node alone.
 // Audit baseline (2026-11-05): 2-node SoftClip-SineFold jump ratio 1.83 / 1 click;
 // 4-node planar 9.90 / 54 clicks; same-family SoftClip-Tube 1.00.
-// Held back for a ruling (follow-ups 6, 12 and 84, patch f:/tmp/disrumpo-fix/p6b/
-// t606-held-bars.patch): the plan's level bar (every 20 ms window within 1 dB of the
-// straight dB line) on both cross-family sweeps and the 4-node sweep's click bar.
+// The plan's level bar (every 20 ms window within 1 dB of the straight dB line) holds on
+// the 2-node cross-family sweep since its 2x -> 4x switch crossfades instead of dipping
+// (follow-up 6, user ruling 2026-11-09). Held back (follow-ups 12 and 84, patch
+// f:/tmp/disrumpo-fix/p6b/t606-held-bars.patch): the 4-node sweep's level and click bars.
 // The engine-level counterparts (MorphEngine without the band, oversampling and
 // crossover around it) are in unit/morph_transition_test.cpp; the smoothing time and
 // the stale-transition-gain cases of the same probes are asserted there and in
@@ -135,10 +136,13 @@ void report(const char* label, const SweepReading& s) {
 TEST_CASE("Morph sweep through the Processor: 2 cross-family nodes", "[disrumpo][audit][morph][D-139]") {
     const auto s = sweep(morphSetup({DistortionType::SoftClip, DistortionType::SineFold}, kLinear1D), false);
     report("2-node SoftClip-SineFold", s);
-    INFO("jump ratio " << s.ratio << ", clicks " << s.clicks);
+    INFO("jump ratio " << s.ratio << ", clicks " << s.clicks << ", max level deviation " << s.maxDevDb << " dB");
     CHECK(s.nonFinite == 0);
     CHECK(s.ratio <= 1.3);
     CHECK(s.clicks == 0);
+    // The plan's level bar: the 2x -> 4x switch at x = 0.04 crossfades the two factors
+    // instead of dipping the band (follow-up 6, user ruling 2026-11-09)
+    CHECK(std::fabs(s.maxDevDb) <= 1.0);
 }
 
 TEST_CASE("Morph sweep through the Processor: 2 same-family nodes", "[disrumpo][audit][morph]") {

@@ -223,8 +223,10 @@ private:
     // crossovers run the current one. A change ramps the output (dry and wet) to
     // 0 over kBandCountFadeMs at the running topology, switches crossovers and
     // bands at the silent point, then ramps back to 1. Before any audio since
-    // activation the switch happens at once. A latency change (T2.10) takes the
-    // same dip: the compensation delays change at the silent point. Audio thread only.
+    // activation the switch happens at once. A change of the reported latency (T2.10)
+    // takes the same dip: the compensation delays change at the silent point (a host
+    // latency change cannot be crossfaded). Nothing else dips: oversampling factor and
+    // alignment changes crossfade (follow-up 6). Audio thread only.
     // ==========================================================================
 
     static constexpr float kBandCountFadeMs = 5.0f;
@@ -265,23 +267,41 @@ private:
     // Minimax alignment context (follow-up 81, user rulings 2026-11-09): whether any requested
     // band can run at 4x (it selects the 2x bands' offset), and the reference shift every path
     // takes when a band's minimax target would need a negative wait (ADAA1 at 44.1 / 48 kHz).
-    // Applied with the latency, at the silent bottom of the dip.
+    // Applied with the latency at the silent bottom of the dip when the latency changes too;
+    // a context change alone is crossfaded (follow-up 6, user ruling 2026-11-09): the bands
+    // crossfade their lanes and the dry path crossfades from its old fraction to the new one
+    // over BandProcessor::kFactorCrossfadeMs.
     bool targetFourX_ = false;
     bool appliedFourX_ = false;
     double targetShift_ = 0.0;
     double appliedShift_ = 0.0;
-    Krate::DSP::OnePoleAllpass dryAllpassL_;  ///< dry path's fraction when appliedShift_ > 0
-    Krate::DSP::OnePoleAllpass dryAllpassR_;
+    /// Dry path's fraction when the shift is above 0: dryActive_ runs; during a context
+    /// crossfade the other one runs the new shift beside it
+    std::array<Krate::DSP::OnePoleAllpass, 2> dryAllpassL_{};
+    std::array<Krate::DSP::OnePoleAllpass, 2> dryAllpassR_{};
+    int dryActive_ = 0;
+    bool dryXfading_ = false;     ///< dry path crossfading from dryFromShift_ to appliedShift_
+    double dryFromShift_ = 0.0;
+    size_t dryXfadePos_ = 0;
+    size_t dryXfadeSamples_ = 1;  ///< BandProcessor::kFactorCrossfadeMs at the host rate
 
     /// @brief Recompute targetLatency_, reportedLatency_ and tailSamples_ from the settings.
     void updateLatencyAndTail() noexcept;
 
-    /// @brief Delay every band and the dry path to @p samples (and the alignment target) from now on.
+    /// @brief Delay every band and the dry path to @p samples (and the alignment target) from
+    /// now on, at once: for silent points (no audio yet, the bottom of the dip).
     void applyLatency(int samples) noexcept;
 
-    /// @brief The latency or the alignment context differs from what is applied.
-    [[nodiscard]] bool latencyChangePending() const noexcept {
-        return targetLatency_ != appliedLatency_ || targetFourX_ != appliedFourX_ || targetShift_ != appliedShift_;
+    /// @brief Apply a new alignment context at an unchanged latency through a crossfade: the
+    /// bands crossfade their lanes from their next block, the dry path from this sample.
+    void applyAlignmentContext() noexcept;
+
+    /// @brief The reported latency differs from what is applied (the dip's reason to run).
+    [[nodiscard]] bool latencyChangePending() const noexcept { return targetLatency_ != appliedLatency_; }
+
+    /// @brief The alignment context differs from what is applied.
+    [[nodiscard]] bool contextChangePending() const noexcept {
+        return targetFourX_ != appliedFourX_ || targetShift_ != appliedShift_;
     }
 
     // ==========================================================================

@@ -90,6 +90,14 @@ public:
     /// Used at the silent point of an oversampling factor switch. Allocation-free.
     void resetState() noexcept;
 
+    /// @brief Take over @p other's cursor: target and smoothed position (its smoother's
+    /// value and target), so this engine continues the other's glide. The weights are
+    /// recomputed and the node parameters re-applied with the offsets at the next sample.
+    /// Used when a band starts its second processing lane for an oversampling crossfade
+    /// (D-034, follow-up 6): both lanes' engines get every setter, but only the running
+    /// lane's smoothers advance. Allocation-free.
+    void syncCursorFrom(const MorphEngine& other) noexcept;
+
     // =========================================================================
     // Configuration
     // =========================================================================

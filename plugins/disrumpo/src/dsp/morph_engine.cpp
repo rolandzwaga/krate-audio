@@ -116,6 +116,20 @@ void MorphEngine::resetState() noexcept {
     clearSwitchFade();
 }
 
+void MorphEngine::syncCursorFrom(const MorphEngine& other) noexcept {
+    targetX_ = other.targetX_;
+    targetY_ = other.targetY_;
+    smootherX_.snapTo(other.smootherX_.getCurrentValue());
+    smootherX_.setTarget(other.smootherX_.getTarget());
+    smootherY_.snapTo(other.smootherY_.getCurrentValue());
+    smootherY_.setTarget(other.smootherY_.getTarget());
+    weightsValid_ = false;
+    // The cross-family adapters re-apply the node params with the offsets and the sweep
+    // multiplier once (processCrossFamily), the identical-type path routes again
+    offsetsWereActive_ = true;
+    blendedParamsDirty_ = true;
+}
+
 void MorphEngine::clearSwitchFade() noexcept {
     // Every adapter is clear: no path is stale, nothing to fade from
     processedSameType_ = isSameType();
