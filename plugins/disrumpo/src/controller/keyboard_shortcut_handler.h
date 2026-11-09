@@ -19,6 +19,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 
 namespace Disrumpo {
 
@@ -47,14 +48,22 @@ public:
     using EscapeCallback = std::function<void()>;
     void setEscapeCallback(EscapeCallback callback);
 
+    /// Set the query that reports an open preset overlay; while it returns true the
+    /// overlay owns the keyboard and no shortcut fires (D-068)
+    using OverlayOpenQuery = std::function<bool()>;
+    void setOverlayOpenQuery(OverlayOpenQuery query);
+
 private:
+    /// True when a focused text field or an open overlay owns the keys (D-068)
+    [[nodiscard]] bool keysBelongElsewhere() const;
     bool handleTab(VSTGUI::KeyboardEvent& event);
     bool handleSpace(VSTGUI::KeyboardEvent& event);
     bool handleArrowKey(VSTGUI::KeyboardEvent& event);
     bool handleEscape(VSTGUI::KeyboardEvent& event);
     void cycleBandFocus(bool reverse);
     void toggleBandBypass(int bandIndex);
-    void adjustFocusedParameter(float stepFraction);
+    /// @return true only when a parameter was edited
+    bool adjustFocusedParameter(float stepFraction);
 
     Steinberg::Vst::EditControllerEx1* controller_;
     VSTGUI::CFrame* frame_;
@@ -62,6 +71,7 @@ private:
     int focusedBandIndex_ = -1;
 
     EscapeCallback escapeCallback_;
+    OverlayOpenQuery overlayOpenQuery_;
 
     // Band strip view references (populated on construction)
     static constexpr int kMaxBands = 4;

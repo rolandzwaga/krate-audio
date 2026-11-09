@@ -1421,7 +1421,8 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             bandVisibilityControllers_[b] = new ContainerVisibilityController(
                 &activeEditor_, bandCountParam, containerTag, threshold, false);
         }
-        bandCountDisplayController_ = new BandCountDisplayController(&spectrumDisplay_, bandCountParam);
+        bandCountDisplayController_ = new BandCountDisplayController(
+            &spectrumDisplay_, bandCountParam, &keyboardHandler_);
     }
 
     if (auto* spectrumModeParam = getParameterObject(makeGlobalParamId(GlobalParamType::kGlobalSpectrumMode)))
@@ -1470,6 +1471,12 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     }
                 });
             }
+
+            // The preset overlays own the keyboard while open (D-068)
+            keyboardHandler_->setOverlayOpenQuery([this]() {
+                return (presetBrowserView_ && presetBrowserView_->isOpen())
+                    || (savePresetDialogView_ && savePresetDialogView_->isOpen());
+            });
 
             frame->registerKeyboardHook(keyboardHandler_.get());
             frame->setFocusDrawingEnabled(true);

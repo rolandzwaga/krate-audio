@@ -8,6 +8,7 @@
 #include "plugin_ids.h"
 
 #include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/controls/ctextedit.h"
 
 namespace Disrumpo {
 
@@ -25,6 +26,11 @@ void KeyboardShortcutHandler::onKeyboardEvent(
     VSTGUI::KeyboardEvent& event, [[maybe_unused]] VSTGUI::CFrame* frame) {
     // FR-016: Only active when editor has keyboard focus from the host
     if (event.type != VSTGUI::EventType::KeyDown) {
+        return;
+    }
+    // CFrame calls hooks before the focus view; a text field or an open overlay
+    // must get its own keys (D-068)
+    if (keysBelongElsewhere()) {
         return;
     }
 
@@ -67,6 +73,16 @@ void KeyboardShortcutHandler::setEscapeCallback(EscapeCallback callback) {
     escapeCallback_ = std::move(callback);
 }
 
+void KeyboardShortcutHandler::setOverlayOpenQuery(OverlayOpenQuery query) {
+    overlayOpenQuery_ = std::move(query);
+}
+
+bool KeyboardShortcutHandler::keysBelongElsewhere() const {
+    if (overlayOpenQuery_ && overlayOpenQuery_()) return true;
+    return frame_ != nullptr
+        && dynamic_cast<VSTGUI::CTextEdit*>(frame_->getFocusView()) != nullptr;
+}
+
 bool KeyboardShortcutHandler::handleTab(VSTGUI::KeyboardEvent& event) {
     bool reverse = event.modifiers.has(VSTGUI::ModifierKey::Shift);
     cycleBandFocus(reverse);
@@ -91,8 +107,7 @@ bool KeyboardShortcutHandler::handleArrowKey(VSTGUI::KeyboardEvent& event) {
         stepFraction = -stepFraction;
     }
 
-    adjustFocusedParameter(stepFraction);
-    return true;
+    return adjustFocusedParameter(stepFraction);
 }
 
 bool KeyboardShortcutHandler::handleEscape(VSTGUI::KeyboardEvent& /*event*/) {
@@ -143,22 +158,22 @@ void KeyboardShortcutHandler::toggleBandBypass(int bandIndex) {
     controller_->endEdit(paramId);
 }
 
-void KeyboardShortcutHandler::adjustFocusedParameter(float stepFraction) {
-    if (!controller_ || !frame_) return;
+bool KeyboardShortcutHandler::adjustFocusedParameter(float stepFraction) {
+    if (!controller_ || !frame_) return false;
 
     // Get the currently focused view
     auto* focusView = frame_->getFocusView();
-    if (!focusView) return;
+    if (!focusView) return false;
 
     auto* control = dynamic_cast<VSTGUI::CControl*>(focusView);
-    if (!control) return;
+    if (!control) return false;
 
     auto tag = control->getTag();
-    if (tag < 0) return;
+    if (tag < 0) return false;
 
     auto paramId = static_cast<Steinberg::Vst::ParamID>(tag);
     auto* param = controller_->getParameterObject(paramId);
-    if (!param) return;
+    if (!param) return false;
 
     // FR-013/FR-014: Fine adjustment (1/100th range)
     // FR-015: Coarse adjustment (1/10th range)
@@ -184,6 +199,7 @@ void KeyboardShortcutHandler::adjustFocusedParameter(float stepFraction) {
         controller_->performEdit(paramId, newValue);
         controller_->endEdit(paramId);
     }
+    return true;
 }
 
 } // namespace Disrumpo

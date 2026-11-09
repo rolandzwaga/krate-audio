@@ -19,12 +19,14 @@
 #include "vstgui/lib/cframe.h"
 #include "vstgui/lib/controls/ccontrol.h"
 
+#include "controller/keyboard_shortcut_handler.h"
 #include "controller/views/spectrum_display.h"
 
 #include <array>
 #include <atomic>
 #include <functional>
 #include <initializer_list>
+#include <memory>
 #include <vector>
 
 namespace Disrumpo {
@@ -357,9 +359,12 @@ private:
 
 class BandCountDisplayController : public Steinberg::FObject {
 public:
+    /// @param keyboardHandlerPtr optional owner slot of the keyboard handler, which
+    ///        cycles Tab focus over the active bands (D-068)
     BandCountDisplayController(
         SpectrumDisplay** displayPtr,
-        Steinberg::Vst::Parameter* bandCountParam);
+        Steinberg::Vst::Parameter* bandCountParam,
+        std::unique_ptr<KeyboardShortcutHandler>* keyboardHandlerPtr = nullptr);
 
     ~BandCountDisplayController() override;
     void deactivate();
@@ -370,6 +375,7 @@ public:
 private:
     SpectrumDisplay** displayPtr_;
     Steinberg::Vst::Parameter* bandCountParam_;
+    std::unique_ptr<KeyboardShortcutHandler>* keyboardHandlerPtr_;
     std::atomic<bool> isActive_{true};
 };
 

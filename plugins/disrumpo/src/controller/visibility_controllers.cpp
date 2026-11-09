@@ -22,9 +22,11 @@ namespace Disrumpo {
 
 BandCountDisplayController::BandCountDisplayController(
     SpectrumDisplay** displayPtr,
-    Steinberg::Vst::Parameter* bandCountParam)
+    Steinberg::Vst::Parameter* bandCountParam,
+    std::unique_ptr<KeyboardShortcutHandler>* keyboardHandlerPtr)
 : displayPtr_(displayPtr)
 , bandCountParam_(bandCountParam)
+, keyboardHandlerPtr_(keyboardHandlerPtr)
 {
     if (bandCountParam_) {
         bandCountParam_->addRef();
@@ -52,11 +54,13 @@ void PLUGIN_API BandCountDisplayController::update(
     Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) {
     if (!isActive_.load(std::memory_order_acquire)) return;
 
-    if (message == IDependent::kChanged && bandCountParam_
-        && displayPtr_ && *displayPtr_) {
+    if (message == IDependent::kChanged && bandCountParam_) {
         float normalized = static_cast<float>(bandCountParam_->getNormalized());
         int bandCount = static_cast<int>(std::round(normalized * 3.0f)) + 1;
-        (*displayPtr_)->setNumBands(bandCount);
+        if (displayPtr_ && *displayPtr_)
+            (*displayPtr_)->setNumBands(bandCount);
+        if (keyboardHandlerPtr_ && *keyboardHandlerPtr_)
+            (*keyboardHandlerPtr_)->setActiveBandCount(bandCount);
     }
 }
 
