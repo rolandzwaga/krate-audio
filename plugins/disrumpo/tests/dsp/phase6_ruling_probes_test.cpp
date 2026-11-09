@@ -782,7 +782,7 @@ std::vector<float> flatResponse(const PList& l, double sr) {
 
 TEST_CASE("p6s probe: flatness of Mix 50 % and the crossover sum per frequency", "[.][p6s-flatness]") {
     const double freqs[] = {1000.0, 2000.0, 5000.0, 8000.0, 10000.0, 12000.0, 14000.0, 16000.0, 18000.0, 20000.0};
-    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+    for (const double sr : {44100.0, 48000.0, 96000.0, 192000.0}) {
         for (const int os : {2, 4}) {
             const DistortionType t = os == 4 ? DistortionType::HardClip : DistortionType::SoftClip;
             for (const double mix : {1.0, 0.5}) {
@@ -794,7 +794,8 @@ TEST_CASE("p6s probe: flatness of Mix 50 % and the crossover sum per frequency",
                 };
                 const auto h = flatResponse(make(os), sr);
                 const auto r = flatResponse(make(1), sr);
-                std::printf("P6S flat %.0f Hz, band at %dx, Mix %.0f %%:", sr, os, mix * 100.0);
+                std::printf("P6S flat %.0f Hz, band at %dx, Mix %.0f %% (arrival at 1 kHz %.3f):", sr, os, mix * 100.0,
+                            groupDelaySamples(h, 1000.0, sr) - groupDelaySamples(r, 1000.0, sr));
                 for (const double f : freqs) std::printf(" %.0fk %+.3f", f / 1000.0, responseDb(h, f, sr) - responseDb(r, f, sr));
                 std::printf("\n");
             }
@@ -810,6 +811,211 @@ TEST_CASE("p6s probe: flatness of Mix 50 % and the crossover sum per frequency",
             std::printf("P6S flat %.0f Hz, 1x + %dx bands at 5 kHz:", sr, os);
             for (const double f : freqs) std::printf(" %.0fk %+.3f", f / 1000.0, responseDb(h, f, sr) - responseDb(r, f, sr));
             std::printf("\n");
+        }
+    }
+}
+
+// =============================================================================
+// [p6s-minimax]: the minimax alignment ruling (2026-11-09). Model: the dry path and a 1x
+// band arrive at L exactly; a 2x / 4x band is its oversampler H_f (measured impulse
+// response) delayed to arrive at L + d_f (d_f = 0: the low-frequency group delay match,
+// ffd51f47; d_f = gd_f - impulse peak: the old integer alignment). Relative to the dry path a
+// band is T_f = H_f e^{j w (gd_f - d_f)}. Over 20 Hz - 20 kHz (1/24 octave):
+// - Mix 50 %: 0.5 + 0.5 T_f (raw, against flat; "excess" divides out 0.5 + 0.5 |T_f|, the
+//   part no delay changes);
+// - crossover sum of bands a / b: an LR4 split weights them by in-phase alpha / 1 - alpha;
+//   raw = alpha T_a + (1 - alpha) T_b over crossovers 50 Hz - 16 kHz (1/3 octave);
+//   "cancel" = its worst over every alpha re alpha |T_a| + (1 - alpha) |T_b|: 20 log cos(phi/2).
+// Objective per pair: 0.5 max|Mix excess| + 0.5 max|cancel| (2x + 4x: max|cancel|), and the
+// minimax d_2, d_4 (0.01-sample grid, d_f >= gd_f - impulse peak so the wait stays >= 0)
+// minimise the largest of the three pairs. Raw figures include the oversamplers' own
+// passband roll-off, which no delay changes.
+// =============================================================================
+
+namespace {
+
+struct MmPath {
+    double gd = 0.0;   ///< first-moment group delay (samples)
+    int peak = 0;      ///< impulse-peak index (the reported latency's part)
+    std::vector<std::complex<double>> h;  ///< H at the frequency grid
+};
+
+template <typename Os>
+MmPath mmPath(double sr, const std::vector<double>& freqs) {
+    Os os;
+    os.prepare(sr, 512, Krate::DSP::OversamplingQuality::Economy, Krate::DSP::OversamplingMode::ZeroLatency);
+    std::vector<float> ir;
+    for (int blk = 0; blk < 4; ++blk) {
+        std::vector<float> l(512, 0.0f);
+        std::vector<float> r(512, 0.0f);
+        if (blk == 0) {
+            l[0] = 1.0f;
+            r[0] = 1.0f;
+        }
+        os.process(l.data(), r.data(), 512, [](float*, float*, size_t) {});
+        ir.insert(ir.end(), l.begin(), l.end());
+    }
+    MmPath p;
+    double m = 0.0;
+    double s = 0.0;
+    for (size_t n = 0; n < ir.size(); ++n) {
+        m += static_cast<double>(n) * ir[n];
+        s += ir[n];
+        if (std::fabs(ir[n]) > std::fabs(ir[static_cast<size_t>(p.peak)])) p.peak = static_cast<int>(n);
+    }
+    p.gd = m / s;
+    for (const double f : freqs) {
+        std::complex<double> acc(0.0, 0.0);
+        for (size_t n = 0; n < ir.size(); ++n) {
+            acc += static_cast<double>(ir[n]) * std::polar(1.0, -2.0 * std::numbers::pi * f * static_cast<double>(n) / sr);
+        }
+        p.h.push_back(acc);
+    }
+    return p;
+}
+
+struct MmWorst {
+    double db = 0.0;
+    double hz = 0.0;
+    double fc = 0.0;
+    void take(double v, double f, double c = 0.0) {
+        if (std::fabs(v) > std::fabs(db)) {
+            db = v;
+            hz = f;
+            fc = c;
+        }
+    }
+};
+
+struct MmPair {
+    MmWorst mixRaw, mixExcess, xRaw, xCancel;
+};
+
+/// Metrics of bands a / b (1 = the dry path or a 1x band) with T_a, T_b.
+MmPair mmMetrics(const std::vector<double>& freqs, double sr, const std::vector<std::complex<double>>& ta,
+                 const std::vector<std::complex<double>>& tb, bool withMix, bool withRaw) {
+    MmPair r;
+    for (size_t i = 0; i < freqs.size(); ++i) {
+        const double f = freqs[i];
+        const auto a = ta[i];
+        const auto b = tb[i];
+        const double phi = std::arg(b / a);
+        r.xCancel.take(20.0 * std::log10(std::max(std::fabs(std::cos(0.5 * phi)), 1e-10)), f);
+        if (withMix) {
+            const double raw = 20.0 * std::log10(std::abs(0.5 * a + 0.5 * b));
+            r.mixRaw.take(raw, f);
+            r.mixExcess.take(raw - 20.0 * std::log10(0.5 * std::abs(a) + 0.5 * std::abs(b)), f);
+        }
+        if (withRaw) {
+            for (double fc = 50.0; fc <= 16000.0; fc *= std::pow(2.0, 1.0 / 3.0)) {
+                const double q = std::pow(f / fc, 4.0);
+                const double alpha = 1.0 / (1.0 + q);
+                r.xRaw.take(20.0 * std::log10(std::abs(alpha * a + (1.0 - alpha) * b)), f, fc);
+            }
+        }
+    }
+    (void)sr;
+    return r;
+}
+
+std::vector<std::complex<double>> mmShift(const MmPath& p, const std::vector<double>& freqs, double sr, double d) {
+    std::vector<std::complex<double>> t(freqs.size());
+    for (size_t i = 0; i < freqs.size(); ++i) {
+        t[i] = p.h[i] * std::polar(1.0, 2.0 * std::numbers::pi * freqs[i] / sr * (p.gd - d));
+    }
+    return t;
+}
+
+double mmCost(const MmPair& m, bool withMix) {
+    return withMix ? 0.5 * std::fabs(m.mixExcess.db) + 0.5 * std::fabs(m.xCancel.db) : std::fabs(m.xCancel.db);
+}
+
+}  // namespace
+
+TEST_CASE("p6s probe: minimax alignment delays per factor and rate", "[.][p6s-minimax]") {
+    std::vector<double> freqs;
+    for (double f = 20.0; f <= 20000.0 * 1.0001; f *= std::pow(2.0, 1.0 / 24.0)) freqs.push_back(f);
+    for (const double sr : {44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0}) {
+        const auto p2 = mmPath<Krate::DSP::Oversampler<2, 2>>(sr, freqs);
+        const auto p4 = mmPath<Krate::DSP::Oversampler<4, 2>>(sr, freqs);
+        const std::vector<std::complex<double>> one(freqs.size(), {1.0, 0.0});
+        const double lo2 = p2.gd - p2.peak;
+        const double lo4 = p4.gd - p4.peak;
+        // 1-D costs of the pairs with the dry path, and of 2x + 4x by d4 - d2
+        constexpr double kStep = 0.01;
+        const auto grid = [&](double lo) {
+            std::vector<double> g;
+            for (double d = lo; d <= 2.0 + 1e-9; d += kStep) g.push_back(d);
+            return g;
+        };
+        const auto g2 = grid(lo2);
+        const auto g4 = grid(lo4);
+        std::vector<double> c12;
+        std::vector<double> c14;
+        c12.reserve(g2.size());
+        c14.reserve(g4.size());
+        for (const double d : g2) c12.push_back(mmCost(mmMetrics(freqs, sr, one, mmShift(p2, freqs, sr, d), true, false), true));
+        for (const double d : g4) c14.push_back(mmCost(mmMetrics(freqs, sr, one, mmShift(p4, freqs, sr, d), true, false), true));
+        const auto t2zero = mmShift(p2, freqs, sr, 0.0);
+        // Full 0.01-sample grid: the smallest max of the three pair costs, then among the grid
+        // points within 0.001 dB of it the smallest sum (the max alone leaves d2 free where the
+        // 1x + 4x pair pins it)
+        std::vector<std::vector<std::complex<double>>> t2s;
+        std::vector<std::vector<std::complex<double>>> t4s;
+        t2s.reserve(g2.size());
+        t4s.reserve(g4.size());
+        for (const double d : g2) t2s.push_back(mmShift(p2, freqs, sr, d));
+        for (const double d : g4) t4s.push_back(mmShift(p4, freqs, sr, d));
+        std::vector<double> cAll(g2.size() * g4.size());
+        std::vector<double> sAll(g2.size() * g4.size());
+        double best = 1e300;
+        for (size_t i = 0; i < g2.size(); ++i) {
+            for (size_t k = 0; k < g4.size(); ++k) {
+                const double c24 = mmCost(mmMetrics(freqs, sr, t2s[i], t4s[k], false, false), false);
+                cAll[i * g4.size() + k] = std::max({c12[i], c14[k], c24});
+                sAll[i * g4.size() + k] = c12[i] + c14[k] + c24;
+                best = std::min(best, cAll[i * g4.size() + k]);
+            }
+        }
+        double bestSum = 1e300;
+        double bd2 = 0.0;
+        double bd4 = 0.0;
+        for (size_t i = 0; i < g2.size(); ++i) {
+            for (size_t k = 0; k < g4.size(); ++k) {
+                const size_t j = i * g4.size() + k;
+                if (cAll[j] <= best + 1e-3 && sAll[j] < bestSum) {
+                    bestSum = sAll[j];
+                    bd2 = g2[i];
+                    bd4 = g4[k];
+                }
+            }
+        }
+        (void)t2zero;
+        const auto i12 = static_cast<size_t>(std::min_element(c12.begin(), c12.end()) - c12.begin());
+        const auto i14 = static_cast<size_t>(std::min_element(c14.begin(), c14.end()) - c14.begin());
+        std::printf("MM %.0f Hz: pair-alone optima: 1x+2x d2 %+.3f (cost %.3f), 1x+4x d4 %+.3f (cost %.3f)\n", sr, g2[i12],
+                    c12[i12], g4[i14], c14[i14]);
+        std::printf("MM %.0f Hz: oversampler gd 2x %.4f (peak %d), 4x %.4f (peak %d); minimax d2 %+.3f d4 %+.3f "
+                    "(cost %.3f dB)\n", sr, p2.gd, p2.peak, p4.gd, p4.peak, bd2, bd4, best);
+        struct Align {
+            const char* name;
+            double d2;
+            double d4;
+        };
+        for (const Align& al : {Align{.name = "old-integer", .d2 = lo2, .d4 = lo4}, Align{.name = "lf-match", .d2 = 0.0, .d4 = 0.0},
+                                Align{.name = "minimax", .d2 = bd2, .d4 = bd4}}) {
+            const auto t2 = mmShift(p2, freqs, sr, al.d2);
+            const auto t4 = mmShift(p4, freqs, sr, al.d4);
+            const auto m12 = mmMetrics(freqs, sr, one, t2, true, true);
+            const auto m14 = mmMetrics(freqs, sr, one, t4, true, true);
+            const auto m24 = mmMetrics(freqs, sr, t2, t4, false, true);
+            std::printf("MM %.0f %-11s d2 %+.3f d4 %+.3f | Mix50 2x %+.2f@%.0f (ex %+.2f) 4x %+.2f@%.0f (ex %+.2f) | "
+                        "xsum raw 1+2 %+.2f@%.0f/%.0f 1+4 %+.2f@%.0f/%.0f 2+4 %+.2f@%.0f/%.0f | cancel 1+2 %+.2f@%.0f "
+                        "1+4 %+.2f@%.0f 2+4 %+.2f@%.0f\n",
+                        sr, al.name, al.d2, al.d4, m12.mixRaw.db, m12.mixRaw.hz, m12.mixExcess.db, m14.mixRaw.db,
+                        m14.mixRaw.hz, m14.mixExcess.db, m12.xRaw.db, m12.xRaw.hz, m12.xRaw.fc, m14.xRaw.db, m14.xRaw.hz,
+                        m14.xRaw.fc, m24.xRaw.db, m24.xRaw.hz, m24.xRaw.fc, m12.xCancel.db, m12.xCancel.hz,
+                        m14.xCancel.db, m14.xCancel.hz, m24.xCancel.db, m24.xCancel.hz);
         }
     }
 }

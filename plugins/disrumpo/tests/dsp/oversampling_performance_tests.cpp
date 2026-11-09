@@ -144,12 +144,13 @@ TEST_CASE("BandProcessor: compensated latency holds across a factor switch",
     REQUIRE(bp->getActiveOversampleFactor() == 4);
     REQUIRE_FALSE(bp->isOversampleTransitioning());
     const double at4x = bandGroupDelay(*bp);
-    // Follow-up 81 ruling (2026-11-09): the band arrives at the target as a group delay, 0 +/-
-    // 0.1 sample (at 1 kHz) at either factor; baseline 6.01 / 6.48 against 7
+    // Follow-up 81, minimax ruling (2026-11-09): the band arrives at the target plus its 48 kHz
+    // minimax offset, +/- 0.1 sample (at 1 kHz): 2x in a 4x-capable band -0.409, 4x -0.506
+    // (ffd51f47: 7.00 / 7.01; the integer alignment before it 6.01 / 6.48)
     INFO("worst case " << worst << ", group delay at 1 kHz at 2x " << at2x << ", at 4x " << at4x);
     CHECK(worst == bp->getOversamplerLatency(4));
-    CHECK(std::fabs(at2x - worst) <= 0.1);
-    CHECK(std::fabs(at4x - worst) <= 0.1);
+    CHECK(std::fabs(at2x - (worst - 0.409)) <= 0.1);
+    CHECK(std::fabs(at4x - (worst - 0.506)) <= 0.1);
 }
 
 // =============================================================================

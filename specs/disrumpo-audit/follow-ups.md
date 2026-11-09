@@ -528,6 +528,35 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     10.60 % (15), HardClip/SineFold/FullRectify/RingSaturation at 4x 13.89 -> 14.34 % (15), the ruled-red
     Formant/Chaos/Granular/Fractal case 24.93 -> 25.70 % (15, follow-up 1).
 
+    — USER RULED 2026-11-09 (second ruling), MINIMAX, applied: each oversampled band arrives at L + its minimax
+    offset (probe [p6s-minimax]: the delay minimising the worst Mix 50 % / crossover-sum deviation over 20 Hz - 20 kHz,
+    each band's own roll-off divided out); a 2x band takes the 1x + 2x optimum when no band of the patch can reach 4x,
+    the joint 1x / 2x / 4x optimum when one can. Offsets (samples, 2x alone / 2x with 4x / 4x): 44.1 kHz -0.999 / -0.269
+    / -0.496; 48 -0.759 / -0.409 / -0.506; 88.2 -0.159 / -0.159 / -0.266; 96 -0.129 / -0.129 / -0.216; 176.4 -0.039 /
+    -0.039 / -0.066; 192 -0.029 / -0.029 / -0.056 (linear in the rate between). The processor sets the context (4x
+    reachable anywhere; reference shift) with the latency, at the silent bottom of its latency dip; a context change
+    alone (L held by a Spectral band) also takes the dip: jump ratio 1.007, 0 clicks. ADAA1 clamp: when a band's
+    minimax target needs a negative wait (ADAA1 at 4x at 44.1 / 48 kHz: 7 - 6.474 - 0.125 - 0.506 = -0.105; a 2x ADAA1
+    band without 4x at 44.1 kHz: -0.25), every path takes that much extra delay (dry and 1x bands through a host-rate
+    allpass, d in [1, 1.5)); the reported latency stays L, so the output is that fraction (at most 0.25 sample) later
+    than reported. Measured through the Processor (worst dB @ Hz; arrival at 1 kHz vs the offset):
+    | rate | Mix 2x alone | Mix 2x w/4x | Mix 4x | xsum 1x+2x alone | 1x+2x w/4x | 1x+4x | 2x+4x | arrival 2x a / w / 4x |
+    | 44.1 | -1.714 @19.9k | -9.592 @19.3k | -15.111 @17.7k | -2.014 @19.9k | -29.819 @19.9k | -17.659 @18.2k | -9.038 @19.9k | -0.993 / -0.264 / -0.486 |
+    | 48 | -0.863 @19.9k | -3.298 @19.9k | -15.140 @19.3k | -0.868 | -3.326 | -17.276 @19.9k | -3.996 | -0.754 / -0.404 / -0.498 |
+    | 88.2 | -0.007 | -0.007 | -0.019 @10.2k | -0.007 | -0.007 | -0.019 | -0.003 | -0.158 / -0.158 / -0.264 |
+    | 96 | -0.004 | -0.004 | -0.010 | -0.004 | -0.004 | -0.010 | -0.002 | -0.128 / -0.128 / -0.214 |
+    | 176.4 / 192 | < 0.001 | < 0.001 | < 0.001 | < 0.001 | < 0.001 | < 0.001 | < 0.001 | -0.039 / -0.039 / -0.065; -0.029 / -0.029 / -0.055 |
+    ffd51f47 (low-frequency match) in the same case: 44.1 kHz -17.85 / -17.85 / -27.29 | -39.21 / -39.21 / -33.95 /
+    -14.25; 48 kHz -14.23 / -14.23 / -25.76 | -14.90 / -14.90 / -29.62 / -5.00; 88.2 kHz 4x -0.271, 96 kHz 4x -0.157
+    (over the 0.1 bar). The old integer alignment (model, probe): 44.1 kHz Mix 2x -4.31, Mix 4x -15.52, 1x+2x -2.01,
+    1x+4x -20.80, 2x+4x -37.81; 48 kHz -1.57, -15.09, -1.57, -19.13, -33.07; 96 kHz -1.33, -0.14, -1.33, -0.14, -0.66;
+    192 kHz -0.43, -0.10, -0.43, -0.10, -0.12. Bars as ruled: 0.1 dB at 88.2 kHz and up; at 44.1 / 48 kHz the measured
+    worst cases above (identical on a repeat run, no margin); arrival = offset +/- 0.1. The two held flatness cases
+    (raw deviation against flat) are replaced by "Minimax alignment of Mix 50 % and the crossover sums with arrival per
+    rate and factor". Open point for the user: at 44.1 kHz a 2x band next to a 4x band reads -29.8 dB against the dry /
+    a 1x band (the joint optimum trades it for 2x + 4x, -9.0 dB).
+    CPU lane not verified for this change: two runs alone read uniformly high under 11-19 % background load (HardClip x4
+    4x 5.54 %, 4 Formant 15.39 %, mixed 4x 19.44 %, experimental 37.52 %); re-run on an idle machine.
 82. **Tape Hysteresis at Sag 1 is silent or noise** (found 2026-11-09 by the follow-up 79 probes, [p6r-tape],
     [p6r-tape-sag]). Shared `TapeSaturator` Hysteresis model, CROSS-PLUGIN. Its explicit RK4 Jiles-Atherton step
     overshoots at audio rates and only the magnetisation clamp at +/-Saturation x Ms keeps it bounded; at Saturation 1

@@ -215,6 +215,8 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         applyLatency(targetLatency_);
         dryDelayL_.reset();
         dryDelayR_.reset();
+        dryAllpassL_.reset();
+        dryAllpassR_.reset();
         lastSignalledLatency_ = -1;
         // Reset sweep processor
         sweepProcessor_.reset();
@@ -281,7 +283,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (requested != crossoverL_.getBandCount()) {
             switchBandCount(requested);
         }
-        if (targetLatency_ != appliedLatency_) {
+        if (latencyChangePending()) {
             applyLatency(targetLatency_);
         }
     }
@@ -652,7 +654,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // delay every band is compensated to (D-026)
         float* outL = outputL + chunkStart;
         float* outR = outputR + chunkStart;
-        const auto dryDelay = static_cast<size_t>(appliedLatency_);
+        // The dry path waits the applied latency plus the reference shift (an allpass fraction
+        // with its delay in [1, 1.5) when the shift is above 0, follow-up 81)
+        const bool dryFraction = appliedShift_ > 0.0 && appliedLatency_ >= 1;
+        const auto dryDelay = static_cast<size_t>(dryFraction ? appliedLatency_ - 1 : appliedLatency_);
         for (size_t n = 0; n < chunkLen; ++n) {
             float sumL = 0.0f;
             float sumR = 0.0f;
@@ -667,8 +672,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             const float outputGain = outputGainSmoother_.process();
             dryDelayL_.write(crossoverL_.processDryCompensation(inL[n]));
             dryDelayR_.write(crossoverR_.processDryCompensation(inR[n]));
-            outL[n] = (dryDelayL_.read(dryDelay) * dryMix + sumL * wetMix) * outputGain;
-            outR[n] = (dryDelayR_.read(dryDelay) * dryMix + sumR * wetMix) * outputGain;
+            float dryL = dryDelayL_.read(dryDelay);
+            float dryR = dryDelayR_.read(dryDelay);
+            if (dryFraction) {
+                dryL = dryAllpassL_.process(dryL);
+                dryR = dryAllpassR_.process(dryR);
+            }
+            outL[n] = (dryL * dryMix + sumL * wetMix) * outputGain;
+            outR[n] = (dryR * dryMix + sumR * wetMix) * outputGain;
             if (fading) {
                 ++bandCountFadePos_;
                 const float ramp = static_cast<float>(bandCountFadePos_) * fadeInv;
@@ -809,7 +820,7 @@ void Processor::advanceBandCountFade() noexcept {
             }
         }
         // The compensation delays change on the silent sample (D-026)
-        if (targetLatency_ != appliedLatency_) {
+        if (latencyChangePending()) {
             applyLatency(targetLatency_);
         }
         bandCountFade_ = BandCountFade::FadeIn;
@@ -820,7 +831,7 @@ void Processor::advanceBandCountFade() noexcept {
 
 bool Processor::topologyChangePending() const noexcept {
     return bandCount_.load(std::memory_order_relaxed) != crossoverL_.getBandCount() ||
-           targetLatency_ != appliedLatency_;
+           latencyChangePending();
 }
 
 // ==============================================================================
@@ -855,14 +866,32 @@ void Processor::updateLatencyAndTail() noexcept {
     }
     targetLatency_ = latency;
     reportedLatency_.store(latency, std::memory_order_relaxed);
+    // Minimax alignment context (follow-up 81): 4x reachable anywhere, then the shift that keeps
+    // every band's wait at or above 0
+    bool fourX = false;
+    for (int b = 0; b < bands; ++b) fourX = fourX || bandProcessors_[b].canReach4x();
+    double shift = 0.0;
+    for (int b = 0; b < bands; ++b) shift = std::max(shift, bandProcessors_[b].requiredReferenceShift(latency, fourX));
+    targetFourX_ = fourX;
+    targetShift_ = shift;
     tailSamples_.store(ringing ? Steinberg::Vst::kInfiniteTail : Steinberg::Vst::kNoTail,
                        std::memory_order_relaxed);
 }
 
 void Processor::applyLatency(int samples) noexcept {
     appliedLatency_ = samples;
+    if (targetShift_ != appliedShift_ && targetShift_ > 0.0) {
+        // the dry fraction 1 + shift (dryFraction in process())
+        const double d = 1.0 + targetShift_;
+        const auto a = static_cast<float>((1.0 - d) / (1.0 + d));
+        dryAllpassL_.setCoefficient(a);
+        dryAllpassR_.setCoefficient(a);
+    }
+    appliedFourX_ = targetFourX_;
+    appliedShift_ = targetShift_;
     for (auto& band : bandProcessors_) {
         band.setLatencyTarget(samples);
+        band.setAlignmentContext(appliedFourX_, appliedShift_);
     }
 }
 

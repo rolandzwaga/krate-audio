@@ -107,28 +107,30 @@ inline double responseDb(const std::vector<float>& h, double f, double sr) {
     return 10.0 * std::log10(re * re + im * im + 1e-30);
 }
 
+/// H(f) of an impulse response, by a direct DFT at f (double precision).
+inline std::complex<double> responseAt(const std::vector<float>& h, double f, double sr) {
+    const double w = 2.0 * std::numbers::pi * f / sr;
+    const double cw = std::cos(w);
+    const double sw = std::sin(w);
+    double c = 1.0;
+    double s = 0.0;
+    double re = 0.0;
+    double im = 0.0;
+    for (const float v : h) {
+        re += static_cast<double>(v) * c;
+        im -= static_cast<double>(v) * s;
+        const double cNext = c * cw - s * sw;
+        s = s * cw + c * sw;
+        c = cNext;
+    }
+    return {re, im};
+}
+
 /// Group delay (samples) of an impulse response at f: the phase slope over f +/- 2 Hz
 /// (direct DFT in double precision; follow-up 81).
 inline double groupDelaySamples(const std::vector<float>& h, double f, double sr) {
-    const auto at = [&h, sr](double fq) {
-        const double w = 2.0 * std::numbers::pi * fq / sr;
-        const double cw = std::cos(w);
-        const double sw = std::sin(w);
-        double c = 1.0;
-        double s = 0.0;
-        double re = 0.0;
-        double im = 0.0;
-        for (const float v : h) {
-            re += static_cast<double>(v) * c;
-            im -= static_cast<double>(v) * s;
-            const double cNext = c * cw - s * sw;
-            s = s * cw + c * sw;
-            c = cNext;
-        }
-        return std::complex<double>(re, im);
-    };
     constexpr double kHalfSpan = 2.0;
-    const double dphi = std::arg(at(f + kHalfSpan) / at(f - kHalfSpan));
+    const double dphi = std::arg(responseAt(h, f + kHalfSpan, sr) / responseAt(h, f - kHalfSpan, sr));
     return -dphi / (2.0 * std::numbers::pi * 2.0 * kHalfSpan) * sr;
 }
 

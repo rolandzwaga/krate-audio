@@ -49,6 +49,7 @@
 #include <chrono>
 #include <climits>
 #include <cmath>
+#include <complex>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -1775,6 +1776,35 @@ long bestLag(const std::vector<float>& in, const std::vector<float>& out, size_t
     return best;
 }
 
+/// Minimax arrival offsets re the reported latency, in samples (user rulings 2026-11-09,
+/// follow-up 81, probe [p6s-minimax]; BandProcessor::minimaxAlignmentOffset): a 2x band
+/// without a 4x-capable band in the patch, a 2x band with one, a 4x band.
+struct MinimaxRow {
+    double sr;
+    double o2Alone;
+    double o2With4x;
+    double o4;
+};
+constexpr MinimaxRow kMinimax[] = {
+    {.sr = 44100.0, .o2Alone = -0.999, .o2With4x = -0.269, .o4 = -0.496},
+    {.sr = 48000.0, .o2Alone = -0.759, .o2With4x = -0.409, .o4 = -0.506},
+    {.sr = 88200.0, .o2Alone = -0.159, .o2With4x = -0.159, .o4 = -0.266},
+    {.sr = 96000.0, .o2Alone = -0.129, .o2With4x = -0.129, .o4 = -0.216},
+    {.sr = 176400.0, .o2Alone = -0.039, .o2With4x = -0.039, .o4 = -0.066},
+    {.sr = 192000.0, .o2Alone = -0.029, .o2With4x = -0.029, .o4 = -0.056},
+};
+
+double minimaxOffset(double sr, int factor, bool fourXPresent) {
+    if (factor <= 1) return 0.0;
+    const MinimaxRow* row = nullptr;
+    for (const auto& r : kMinimax) {
+        if (r.sr == sr) row = &r;
+    }
+    REQUIRE(row != nullptr);
+    if (factor >= 4) return row->o4;
+    return fourXPresent ? row->o2With4x : row->o2Alone;
+}
+
 }  // namespace
 
 TEST_CASE("getLatencySamples equals the measured impulse delay at every Oversample Max",
@@ -1793,9 +1823,14 @@ TEST_CASE("getLatencySamples equals the measured impulse delay at every Oversamp
             INFO("type " << static_cast<int>(type) << ", Oversample Max " << osMax << "x, group delay at 1 kHz "
                  << r.groupDelay1k);
             CHECK(std::labs(r.measured - r.reported) <= 1);
-            // Follow-up 81 ruling (2026-11-09): the band arrives at the reported latency as a
-            // group delay (baseline 3.01 / 6.48 samples against 4 / 7 at 2x / 4x)
-            CHECK(std::fabs(r.groupDelay1k - static_cast<double>(r.reported)) <= 0.1);
+            // Follow-up 81, minimax ruling (2026-11-09): the band arrives at the reported latency
+            // plus its minimax offset, +/- 0.1 sample, as a group delay (SoftClip runs 2x, HardClip
+            // min(4x, Oversample Max); a 4x-capable band selects the 2x 'with 4x' offset).
+            // ffd51f47 (low-frequency match): 4.005 / 7.008 against 4 / 7.
+            int factor = 1;
+            if (osMax > 1) factor = type == DistortionType::SoftClip ? 2 : osMax;
+            const double expected = static_cast<double>(r.reported) + minimaxOffset(kLatSr, factor, factor >= 4);
+            CHECK(std::fabs(r.groupDelay1k - expected) <= 0.1);
         }
     }
 }
@@ -1948,18 +1983,20 @@ PList factorPair(int factor0, int factor1, double crossoverHz, int osMax) {
 
 }  // namespace
 
-TEST_CASE("Bands at different oversampling factors arrive at the same group delay", "[disrumpo][latency][D-026]") {
-    // Follow-up 81, user ruling 2026-11-09: every band and the dry path arrive at the reported
-    // latency L as a group delay (oversampler + ADAA1; a node's own tone and DC filters are its
-    // sound and stay as they are). Two bands split at 300 Hz, each node at drive 10 and node mix
-    // 0: Bitcrush runs 1x, SoftClip 2x, HardClip 4x. A band's arrival is its group delay soloed
-    // (band 0 at 100 Hz, band 1 at 1 kHz) minus the same band's at Oversample Max 1x (nothing
-    // latent). Bars: 0 +/- 0.1 sample between the bands and from L. Baseline (integer
-    // compensation by the oversamplers' impulse peaks): a 2x band 1.00 and a 4x band 0.53
-    // samples early.
+TEST_CASE("Bands at different oversampling factors arrive at their minimax offsets", "[disrumpo][latency][D-026]") {
+    // Follow-up 81, minimax ruling (2026-11-09): a band at 2x / 4x arrives at the reported
+    // latency L plus its minimax offset (kMinimax: a 2x band takes the 'with 4x' offset when a
+    // 4x band is in the patch), +/- 0.1 sample; a 1x band at L. Two bands split at 300 Hz, each
+    // node at drive 10 and node mix 0: Bitcrush runs 1x, SoftClip 2x, HardClip 4x. A band's
+    // arrival is its group delay soloed (band 0 at 100 Hz, band 1 at 1 kHz) minus the same
+    // band's at Oversample Max 1x (nothing latent). ffd51f47 (low-frequency match) put every
+    // band at L +/- 0.010, the integer alignment before it a 2x band 1.00 and a 4x band 0.53 early.
     constexpr double kAt[2] = {100.0, 1000.0};
-    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+    for (const auto& row : kMinimax) {
+        const double sr = row.sr;
         for (const auto& [f0, f1] : {std::pair{1, 2}, std::pair{1, 4}, std::pair{2, 4}, std::pair{4, 1}}) {
+            const bool fourX = f0 == 4 || f1 == 4;
+            const std::array<int, 2> factors{f0, f1};
             std::array<double, 2> arrival{};
             long reported = 0;
             for (int b = 0; b < 2; ++b) {
@@ -1967,13 +2004,17 @@ TEST_CASE("Bands at different oversampling factors arrive at the same group dela
                 const auto ref = latResponse(factorPair(f0, f1, 300.0, 1), sr, b);
                 arrival[static_cast<size_t>(b)] = groupDelaySamples(h, kAt[b], sr) - groupDelaySamples(ref, kAt[b], sr);
             }
-            std::printf("T6.05 arrival %.0f Hz, band 0 at %dx + band 1 at %dx: %.3f / %.3f samples (inter-band %+.3f), "
-                        "getLatencySamples %ld\n", sr, f0, f1, arrival[0], arrival[1], arrival[1] - arrival[0], reported);
+            std::array<double, 2> expected{};
+            for (size_t b = 0; b < 2; ++b) {
+                expected[b] = static_cast<double>(reported) + minimaxOffset(sr, factors[b], fourX);
+            }
+            std::printf("T6.05 arrival %.0f Hz, band 0 at %dx + band 1 at %dx: %.3f / %.3f samples (minimax %.3f / "
+                        "%.3f), getLatencySamples %ld\n", sr, f0, f1, arrival[0], arrival[1], expected[0], expected[1],
+                        reported);
             INFO(sr << " Hz, " << f0 << "x + " << f1 << "x: arrival " << arrival[0] << " / " << arrival[1]
-                 << ", reported " << reported);
-            CHECK(std::fabs(arrival[1] - arrival[0]) <= 0.1);
-            CHECK(std::fabs(arrival[0] - static_cast<double>(reported)) <= 0.1);
-            CHECK(std::fabs(arrival[1] - static_cast<double>(reported)) <= 0.1);
+                 << ", minimax " << expected[0] << " / " << expected[1]);
+            CHECK(std::fabs(arrival[0] - expected[0]) <= 0.1);
+            CHECK(std::fabs(arrival[1] - expected[1]) <= 0.1);
         }
     }
 }
@@ -1981,17 +2022,34 @@ TEST_CASE("Bands at different oversampling factors arrive at the same group dela
 TEST_CASE("A band running ADAA1 arrives with a plain band at the same factor", "[disrumpo][latency][adaa]") {
     // TriangleFold runs ADAA1 at 4x (half a clocked sample, 0.125 host samples); SineFold runs
     // the same tone, smooth and DC filters at 4x without it. At drive 0.1 the impulse stays in
-    // both folds' linear segment. One band each; group delay at 1 kHz; bar 0 +/- 0.1 sample.
-    // Baseline: the TriangleFold band 0.125 samples late.
-    std::array<double, 2> gd{};
+    // both folds' linear segment. One band each, 48 kHz; each band's group delay at 1 kHz re its
+    // own dry path (Mix 1 minus Mix 0); bar 0 +/- 0.1 sample between them.
+    // Minimax ruling (2026-11-09): at 48 kHz the 4x offset -0.506 plus ADAA1's 0.125 asks the
+    // TriangleFold band for a wait of 7 - 6.474 - 0.125 - 0.506 = -0.105. Instead of arriving
+    // that late, every path (dry, 1x, the band) takes a 0.105-sample reference shift: the dry
+    // path's group delay is L + 0.105 +/- 0.02, the reported latency stays L (7).
+    // ffd51f47: no shift (dry at 7.000); before it the TriangleFold band was 0.125 late.
+    std::array<double, 2> rel{};
+    double dryTri = 0.0;
+    long reported = 0;
     for (const auto type : {DistortionType::TriangleFold, DistortionType::SineFold}) {
-        auto l = latBase(1, 4);
-        setNode(l, 0, 0, type, 0.01, 1.0);
-        gd[type == DistortionType::SineFold ? 1 : 0] = groupDelaySamples(latResponse(l, kLatSr), 1000.0, kLatSr);
+        std::array<double, 2> gd{};
+        for (const int wet : {0, 1}) {
+            auto l = latBase(1, 4);
+            setNode(l, 0, 0, type, 0.01, 1.0);
+            l.emplace_back(kGlobalMixId, static_cast<double>(wet));
+            gd[static_cast<size_t>(wet)] = groupDelaySamples(latResponse(l, kLatSr, -1, &reported), 1000.0, kLatSr);
+        }
+        rel[type == DistortionType::SineFold ? 1 : 0] = gd[1] - gd[0];
+        if (type == DistortionType::TriangleFold) dryTri = gd[0];
     }
-    std::printf("T6.05 ADAA1 arrival: TriangleFold band %.3f, SineFold band %.3f samples at 1 kHz (%+.3f)\n", gd[0],
-                gd[1], gd[0] - gd[1]);
-    CHECK(std::fabs(gd[0] - gd[1]) <= 0.1);
+    const double shift = 6.4743 + 0.125 + 0.506 - 7.0;
+    std::printf("T6.05 ADAA1 arrival re dry: TriangleFold band %.3f, SineFold band %.3f samples at 1 kHz (%+.3f); "
+                "TriangleFold patch dry %.3f (L %ld + shift %.3f)\n", rel[0], rel[1], rel[0] - rel[1], dryTri, reported,
+                shift);
+    CHECK(std::fabs(rel[0] - rel[1]) <= 0.1);
+    CHECK(reported == 7L);
+    CHECK(std::fabs(dryTri - (static_cast<double>(reported) + shift)) <= 0.02);
 }
 
 TEST_CASE("Band with Spectral is time-aligned with a SoftClip band", "[disrumpo][latency][D-026][D-098]") {
@@ -2014,8 +2072,10 @@ TEST_CASE("Band with Spectral is time-aligned with a SoftClip band", "[disrumpo]
 
 TEST_CASE("Global mix: dry and wet arrive at the same group delay with an oversampled band",
           "[disrumpo][latency][mix][D-026]") {
-    // Follow-up 81 ruling (2026-11-09): group delay at 1 kHz, bar 0 +/- 0.1 sample (the
-    // impulse peaks of T2.10 coincided while the 4x wet path was 0.52 samples early)
+    // Follow-up 81, minimax ruling (2026-11-09): group delay at 1 kHz, wet = dry + the minimax
+    // offset (48 kHz: 2x without a 4x band -0.759, 4x -0.506), +/- 0.1 sample. ffd51f47: wet =
+    // dry +0.005 / +0.008; the impulse peaks of T2.10 coincided while the 4x wet path was 0.52
+    // samples early.
     for (const int factor : {2, 4}) {
         std::array<double, 2> gd{};
         long reported = 0;
@@ -2030,8 +2090,184 @@ TEST_CASE("Global mix: dry and wet arrive at the same group delay with an oversa
         std::printf("T2.10 global mix, band at %dx: dry group delay %.3f, wet %.3f samples at 1 kHz, "
                     "getLatencySamples %ld\n", factor, gd[0], gd[1], reported);
         INFO("band at " << factor << "x: dry " << gd[0] << ", wet " << gd[1]);
-        CHECK(std::fabs(gd[0] - gd[1]) <= 0.1);
+        CHECK(std::fabs(gd[1] - gd[0] - minimaxOffset(kLatSr, factor, factor >= 4)) <= 0.1);
     }
+}
+
+namespace {
+
+/// One band's path re the dry path, H_wet / H_dry (both at Mix 1 / 0 of the same patch: one
+/// band, so no crossover), at `freqs`. The band's nodes are at drive 10 and node mix 0 (its
+/// oversampler only); `nodes` lists node types (2 nodes: morph at node 0, the second only
+/// widens the band's reach).
+std::vector<std::complex<double>> bandPath(double sr, const std::vector<DistortionType>& nodes,
+                                           const std::vector<double>& freqs, long* reported = nullptr) {
+    std::array<std::vector<float>, 2> h;
+    for (const int wet : {0, 1}) {
+        auto l = latBase(1, 4);
+        l.emplace_back(makeBandParamId(0, BandParamType::kBandActiveNodes),
+                       static_cast<double>(nodes.size() - 1) / 3.0);
+        for (size_t n = 0; n < nodes.size(); ++n) setNode(l, 0, static_cast<uint8_t>(n), nodes[n], 1.0, 0.0);
+        l.emplace_back(kGlobalMixId, static_cast<double>(wet));
+        h[static_cast<size_t>(wet)] = latResponse(l, sr, -1, reported);
+    }
+    std::vector<std::complex<double>> t;
+    t.reserve(freqs.size());
+    for (const double f : freqs) t.push_back(responseAt(h[1], f, sr) / responseAt(h[0], f, sr));
+    return t;
+}
+
+struct WorstDb {
+    double db = 0.0;
+    double hz = 0.0;
+};
+
+/// Mix 50 % with the dry path, the band's own roll-off divided out (probe [p6s-minimax]
+/// "excess"): 20 log |0.5 + 0.5 T| - 20 log (0.5 + 0.5 |T|), worst over freqs.
+WorstDb mixExcess(const std::vector<std::complex<double>>& t, const std::vector<double>& freqs) {
+    WorstDb w;
+    for (size_t i = 0; i < freqs.size(); ++i) {
+        const double v = 20.0 * std::log10(std::abs(0.5 + 0.5 * t[i])) - 20.0 * std::log10(0.5 + 0.5 * std::abs(t[i]));
+        if (std::fabs(v) > std::fabs(w.db)) w = {.db = v, .hz = freqs[i]};
+    }
+    return w;
+}
+
+/// Crossover sum of two bands, worst over every crossover position with their own roll-offs
+/// divided out (probe "cancel"): an LR4 split weights them in phase, so the sum re
+/// alpha |Ta| + (1 - alpha) |Tb| is at worst |cos(phi / 2)|, phi = arg(Tb / Ta).
+WorstDb crossoverCancel(const std::vector<std::complex<double>>& ta, const std::vector<std::complex<double>>& tb,
+                        const std::vector<double>& freqs) {
+    WorstDb w;
+    for (size_t i = 0; i < freqs.size(); ++i) {
+        const double v = 20.0 * std::log10(std::max(std::fabs(std::cos(0.5 * std::arg(tb[i] / ta[i]))), 1e-10));
+        if (std::fabs(v) > std::fabs(w.db)) w = {.db = v, .hz = freqs[i]};
+    }
+    return w;
+}
+
+/// Group delay of a path at 1 kHz from its values at 998 / 1002 Hz.
+double pathArrival1k(const std::vector<std::complex<double>>& t2, double sr) {
+    return -std::arg(t2[1] / t2[0]) / (2.0 * std::numbers::pi * 4.0) * sr;
+}
+
+}  // namespace
+
+TEST_CASE("Minimax alignment of Mix 50 % and the crossover sums with arrival per rate and factor", "[disrumpo][latency][D-026]") {
+    // Follow-up 81, minimax ruling (2026-11-09). Paths re the dry path, from one-band patches
+    // (node mix 0: the oversampler and the compensation only): a 2x band alone (SoftClip), a
+    // 2x band in a patch with a 4x-capable band (SoftClip node + HardClip node, morph on the
+    // SoftClip one), a 4x band (HardClip). A 1x band is the dry path (1). Over 20 Hz - 20 kHz
+    // (1/24 octave), each band's own roll-off divided out as in probe [p6s-minimax]:
+    // - Mix 50 % "excess" for each of the three;
+    // - crossover-sum "cancel" (worst over every crossover position) for 1x + 2x (alone and
+    //   with 4x), 1x + 4x and 2x + 4x;
+    // - arrival at 1 kHz = the kMinimax offset +/- 0.1 sample.
+    // Bars as ruled: 0.1 dB at 88.2 kHz and above; at 44.1 / 48 kHz the measured minimax worst
+    // case per combination (kBars below, measured 2026-11-09 through this case and identical
+    // on a repeat run, so no margin; the 4x combinations cancel by ~16-18 dB near
+    // 18-20 kHz at any delay: the IIR's group delay rises toward Nyquist).
+    // ffd51f47 (low-frequency match) at 44.1 kHz, for comparison (model): Mix 2x alone -18.9,
+    // Mix 4x -27.1, 1x + 2x -39.4, 1x + 4x -33.1 dB; at 48 kHz -14.2, -25.5, -14.9, -29.1 dB.
+    struct Bars {
+        double sr;
+        double mix2Alone, mix2With, mix4, x12Alone, x12With, x14, x24;
+    };
+    // Measured minimax worst cases (dB, magnitude; 2026-11-09, this case), the 44.1 / 48 kHz
+    // bars as ruled, rounded up to 0.001 dB: Mix 2x alone / 2x with 4x / 4x | crossover 1x+2x
+    // alone, 1x+2x with 4x, 1x+4x, 2x+4x. 44.1 kHz: -1.714 @19.9k, -9.592 @19.3k, -15.111
+    // @17.7k | -2.014 @19.9k, -29.819 @19.9k, -17.659 @18.2k, -9.038 @19.9k. 48 kHz: -0.863,
+    // -3.298, -15.140 @19.3k | -0.868, -3.326, -17.276, -3.996 (all others @19.9k).
+    constexpr Bars kBars[] = {
+        {.sr = 44100.0, .mix2Alone = 1.715, .mix2With = 9.593, .mix4 = 15.112, .x12Alone = 2.015, .x12With = 29.820,
+         .x14 = 17.660, .x24 = 9.039},
+        {.sr = 48000.0, .mix2Alone = 0.864, .mix2With = 3.299, .mix4 = 15.141, .x12Alone = 0.869, .x12With = 3.327,
+         .x14 = 17.277, .x24 = 3.997},
+    };
+    std::vector<double> freqs;
+    for (double f = 20.0; f <= 20000.0 * 1.0001; f *= std::pow(2.0, 1.0 / 24.0)) freqs.push_back(f);
+    const std::vector<double> at1k{998.0, 1002.0};
+    using DT = DistortionType;
+    for (const auto& row : kMinimax) {
+        const double sr = row.sr;
+        Bars bar{.sr = sr, .mix2Alone = 0.1, .mix2With = 0.1, .mix4 = 0.1, .x12Alone = 0.1, .x12With = 0.1, .x14 = 0.1,
+                 .x24 = 0.1};
+        for (const auto& b : kBars) {
+            if (b.sr == sr) bar = b;
+        }
+        const auto t2a = bandPath(sr, {DT::SoftClip}, freqs);
+        const auto t2w = bandPath(sr, {DT::SoftClip, DT::HardClip}, freqs);
+        const auto t4 = bandPath(sr, {DT::HardClip}, freqs);
+        const std::vector<std::complex<double>> one(freqs.size(), {1.0, 0.0});
+        const WorstDb m2a = mixExcess(t2a, freqs);
+        const WorstDb m2w = mixExcess(t2w, freqs);
+        const WorstDb m4 = mixExcess(t4, freqs);
+        const WorstDb x12a = crossoverCancel(one, t2a, freqs);
+        const WorstDb x12w = crossoverCancel(one, t2w, freqs);
+        const WorstDb x14 = crossoverCancel(one, t4, freqs);
+        const WorstDb x24 = crossoverCancel(t2w, t4, freqs);
+        const double a2a = pathArrival1k(bandPath(sr, {DT::SoftClip}, at1k), sr);
+        const double a2w = pathArrival1k(bandPath(sr, {DT::SoftClip, DT::HardClip}, at1k), sr);
+        const double a4 = pathArrival1k(bandPath(sr, {DT::HardClip}, at1k), sr);
+        std::printf("T6.05 minimax %.0f Hz: Mix 50 %% 2x alone %+.3f @%.0f, 2x with 4x %+.3f @%.0f, 4x %+.3f @%.0f | "
+                    "crossover 1x+2x alone %+.3f @%.0f, 1x+2x with 4x %+.3f @%.0f, 1x+4x %+.3f @%.0f, 2x+4x %+.3f "
+                    "@%.0f | arrival 2x alone %+.3f (%+.3f), 2x with 4x %+.3f (%+.3f), 4x %+.3f (%+.3f)\n",
+                    sr, m2a.db, m2a.hz, m2w.db, m2w.hz, m4.db, m4.hz, x12a.db, x12a.hz, x12w.db, x12w.hz, x14.db,
+                    x14.hz, x24.db, x24.hz, a2a, row.o2Alone, a2w, row.o2With4x, a4, row.o4);
+        INFO(sr << " Hz");
+        CHECK(std::fabs(m2a.db) <= bar.mix2Alone);
+        CHECK(std::fabs(m2w.db) <= bar.mix2With);
+        CHECK(std::fabs(m4.db) <= bar.mix4);
+        CHECK(std::fabs(x12a.db) <= bar.x12Alone);
+        CHECK(std::fabs(x12w.db) <= bar.x12With);
+        CHECK(std::fabs(x14.db) <= bar.x14);
+        CHECK(std::fabs(x24.db) <= bar.x24);
+        CHECK(std::fabs(a2a - row.o2Alone) <= 0.1);
+        CHECK(std::fabs(a2w - row.o2With4x) <= 0.1);
+        CHECK(std::fabs(a4 - row.o4) <= 0.1);
+    }
+}
+
+TEST_CASE("A 2x band's minimax offset switches inside the latency dip", "[disrumpo][latency][D-026]") {
+    // Minimax ruling (2026-11-09): a 2x band's offset depends on whether any band can run at
+    // 4x (48 kHz: -0.759 without, -0.409 with). Band 1's node switches SoftClip -> HardClip
+    // (4x-capable) while a 220 Hz sine runs through band 0 (SoftClip, 2x, drive 1); band 2's
+    // Spectral node (fft 512 at 1x) holds the reported latency at 511 either way, so only the
+    // alignment context changes. The processor applies it at the silent bottom of its latency
+    // dip: no step and no click around the change (jump ratio <= 1.3, as the D-023 dip cases).
+    constexpr size_t kBlock = 512;
+    constexpr size_t kEv = 48 * kBlock;
+    constexpr size_t kLen = kEv + 40 * kBlock;
+    auto l = latBase(3, 4);
+    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);
+    setNode(l, 1, 0, DistortionType::SoftClip, 0.1, 1.0);
+    setNode(l, 2, 0, DistortionType::Spectral, 0.1, 1.0);
+    l.emplace_back(makeNodeParamId(2, 0, NodeParamType::kNodeShape1), fftSlotNorm(512));
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+    std::vector<float> in(kLen);
+    for (size_t n = 0; n < kLen; ++n) {
+        in[n] = static_cast<float>(0.25 * std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(n) / kLatSr));
+    }
+    std::vector<float> outL;
+    std::vector<float> outR;
+    std::array<long, 2> reported{};
+    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kBlock), [&](size_t /*blk*/, size_t start, PChanges& pc) {
+        if (start == kEv) {
+            reported[0] = static_cast<long>(rig.p->getLatencySamples());
+            pc.addChange(makeNodeParamId(1, 0, NodeParamType::kNodeType), latTypeNorm(DistortionType::HardClip));
+        }
+    });
+    reported[1] = static_cast<long>(rig.p->getLatencySamples());
+    const auto c = continuityAround(outL, kEv, kEv + 4800, kEv - 16 * kBlock, kEv - 2 * kBlock, kEv + 16 * kBlock,
+                                    kLen - kBlock, kLatSr);
+    std::printf("T6.05 minimax context switch: getLatencySamples %ld -> %ld, jump ratio %.3f, clicks %zu (base %zu), "
+                "non-finite %zu\n", reported[0], reported[1], c.ratio, c.clicksEvent, c.clicksBase, c.nonFinite);
+    CHECK(reported[0] == reported[1]);
+    CHECK(c.ratio <= 1.3);
+    CHECK(c.clicksEvent == 0u);
+    CHECK(c.nonFinite == 0u);
 }
 
 TEST_CASE("Reported latency holds through a morph sweep; Oversample Max and node type changes report it once",

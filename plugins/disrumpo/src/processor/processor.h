@@ -27,6 +27,7 @@
 #include "shared_display.h"
 
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/primitives/one_pole_allpass.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/spectrum_fifo.h>
 #include <krate/dsp/primitives/sweep_position_buffer.h>
@@ -256,11 +257,27 @@ private:
     Krate::DSP::DelayLine dryDelayL_;  ///< dry path, read at appliedLatency_
     Krate::DSP::DelayLine dryDelayR_;
 
+    // Minimax alignment context (follow-up 81, user rulings 2026-11-09): whether any requested
+    // band can run at 4x (it selects the 2x bands' offset), and the reference shift every path
+    // takes when a band's minimax target would need a negative wait (ADAA1 at 44.1 / 48 kHz).
+    // Applied with the latency, at the silent bottom of the dip.
+    bool targetFourX_ = false;
+    bool appliedFourX_ = false;
+    double targetShift_ = 0.0;
+    double appliedShift_ = 0.0;
+    Krate::DSP::OnePoleAllpass dryAllpassL_;  ///< dry path's fraction when appliedShift_ > 0
+    Krate::DSP::OnePoleAllpass dryAllpassR_;
+
     /// @brief Recompute targetLatency_, reportedLatency_ and tailSamples_ from the settings.
     void updateLatencyAndTail() noexcept;
 
-    /// @brief Delay every band and the dry path to @p samples from now on.
+    /// @brief Delay every band and the dry path to @p samples (and the alignment target) from now on.
     void applyLatency(int samples) noexcept;
+
+    /// @brief The latency or the alignment context differs from what is applied.
+    [[nodiscard]] bool latencyChangePending() const noexcept {
+        return targetLatency_ != appliedLatency_ || targetFourX_ != appliedFourX_ || targetShift_ != appliedShift_;
+    }
 
     // ==========================================================================
     // Solo State Tracking

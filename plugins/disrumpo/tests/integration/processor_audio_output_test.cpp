@@ -1039,10 +1039,10 @@ TEST_CASE("Global mix 50 % stays flat with Oversample Max 4x", "[disrumpo][mix][
                     "dry/wet best-match lag %ld, group delay at 1 kHz dry %.3f wet %.3f\n",
                     numBands, r.worstDb, r.worstHz, ts::responseDb(h, 5000.0, kBlockSr) - ref,
                     ts::responseDb(h, 10000.0, kBlockSr) - ref, peakIndex(dry), peakIndex(wet), bestLag, gdDry, gdWet);
-        // Follow-up 81 ruling (2026-11-09): dry and wet are aligned by group delay, 0 +/- 0.1
-        // sample (was the integer best-match lag 0 while the wet path was 0.52 samples early;
-        // the wet response's energy now centres a sample later, lag 1, as the IIR disperses)
-        CHECK(std::fabs(gdWet - gdDry) <= 0.1);
+        // Follow-up 81, minimax ruling (2026-11-09): the 4x wet path arrives at the dry path's
+        // group delay plus the 48 kHz 4x minimax offset, -0.506 sample, +/- 0.1 (ffd51f47: +0.008;
+        // before it the integer best-match lag was 0 while the wet path was 0.52 samples early)
+        CHECK(std::fabs(gdWet - gdDry - (-0.506)) <= 0.1);
     }
 }
 

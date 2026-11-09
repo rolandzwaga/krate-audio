@@ -121,6 +121,8 @@ public:
         // reported latency is built from it; the band is aligned by its group delay
         oversamplerLatency_ = {0, measureImpulseDelay(oversampler2x_), measureImpulseDelay(oversampler4x_)};
         oversamplerGroupDelay_ = {0.0, measureGroupDelay(oversampler2x_), measureGroupDelay(oversampler4x_)};
+        alignmentOffset_ = {minimaxAlignmentOffset(2, sampleRate, false), minimaxAlignmentOffset(2, sampleRate, true),
+                            minimaxAlignmentOffset(4, sampleRate, true)};
 
         // Latency compensation delay of the band input (D-026): sized for the largest
         // latency; DelayLine sizes in seconds x rate, so a rate of 1 makes them samples
@@ -495,6 +497,73 @@ public:
         return oversamplerGroupDelay_[factorIndex(factor)];
     }
 
+    /// @brief Minimax arrival offset of a band at @p factor (2, 4) re the target, in host
+    /// samples, at @p sampleRate (user rulings 2026-11-09, probe [p6s-minimax]): the delay that
+    /// minimises the worst deviation over 20 Hz - 20 kHz of Mix 50 % and of the crossover sums
+    /// (each oversampler's own roll-off divided out), from the oversamplers' measured responses.
+    /// A 2x band takes the 1x + 2x optimum when no band can run at 4x, and the joint 1x / 2x /
+    /// 4x optimum when one can. Tabulated at 44.1 / 48 / 88.2 / 96 / 176.4 / 192 kHz, linear
+    /// in the rate between, clamped outside. 1x: 0.
+    [[nodiscard]] static double minimaxAlignmentOffset(int factor, double sampleRate, bool fourXPresent) noexcept {
+        struct Row {
+            double rate;
+            double offset2Alone;
+            double offset2With4x;
+            double offset4;
+        };
+        static constexpr std::array<Row, 6> kTable = {{
+            {.rate = 44100.0, .offset2Alone = -0.999, .offset2With4x = -0.269, .offset4 = -0.496},
+            {.rate = 48000.0, .offset2Alone = -0.759, .offset2With4x = -0.409, .offset4 = -0.506},
+            {.rate = 88200.0, .offset2Alone = -0.159, .offset2With4x = -0.159, .offset4 = -0.266},
+            {.rate = 96000.0, .offset2Alone = -0.129, .offset2With4x = -0.129, .offset4 = -0.216},
+            {.rate = 176400.0, .offset2Alone = -0.039, .offset2With4x = -0.039, .offset4 = -0.066},
+            {.rate = 192000.0, .offset2Alone = -0.029, .offset2With4x = -0.029, .offset4 = -0.056},
+        }};
+        if (factor <= 1) return 0.0;
+        const auto pick = [factor, fourXPresent](const Row& r) {
+            if (factor >= 4) return r.offset4;
+            return fourXPresent ? r.offset2With4x : r.offset2Alone;
+        };
+        if (sampleRate <= kTable.front().rate) return pick(kTable.front());
+        for (size_t i = 1; i < kTable.size(); ++i) {
+            if (sampleRate <= kTable[i].rate) {
+                const double t = (sampleRate - kTable[i - 1].rate) / (kTable[i].rate - kTable[i - 1].rate);
+                return pick(kTable[i - 1]) + t * (pick(kTable[i]) - pick(kTable[i - 1]));
+            }
+        }
+        return pick(kTable.back());
+    }
+
+    /// @brief Alignment context from the processor: whether any of its bands can run at 4x
+    /// (selects the 2x offset) and the extra delay every path takes so that no band needs a
+    /// negative wait (requiredReferenceShift). Takes effect at the next block; the processor
+    /// applies it at the silent bottom of its latency dip. Without a call the band uses its
+    /// own reach and no shift.
+    void setAlignmentContext(bool fourXPresent, double referenceShift) noexcept {
+        contextSet_ = true;
+        fourXPresent_ = fourXPresent;
+        referenceShift_ = std::clamp(referenceShift, 0.0, 1.0);
+    }
+
+    /// @brief True when the band's discrete settings let it run at 4x.
+    [[nodiscard]] bool canReach4x() const noexcept { return maxReachableFactor() >= 4; }
+
+    /// @brief Extra delay the common reference needs so this band, at any factor it can reach,
+    /// arrives at target + its minimax offset with a wait >= 0 (ADAA1's half clocked sample
+    /// can push a 4x band past it at 44.1 / 48 kHz, and a 2x band without a 4x one), in host
+    /// samples.
+    [[nodiscard]] double requiredReferenceShift(int target, bool fourXPresent) const noexcept {
+        double need = 0.0;
+        const int reach = maxReachableFactor();
+        for (const int f : {2, 4}) {
+            if (f > reach) continue;
+            const double wait = static_cast<double>(target) - groupDelayAtClock(f) +
+                                minimaxAlignmentOffset(f, sampleRate_, fourXPresent);
+            need = std::max(need, -wait);
+        }
+        return need;
+    }
+
     /// @brief After reset(), fade the band input in over kFactorSwitchMs once it emerges
     /// from the (empty) compensation delay, instead of a step: a band that joins mid-stream
     /// (band-count change) behind a long compensation delay.
@@ -638,7 +707,7 @@ public:
         // FR-012: Bypass optimization - bit-transparent pass-through, delayed by the
         // latency target so the band stays aligned with the others (D-026)
         if (bypassed_) {
-            applyCompensation(left, right, numSamples, latencyTarget_);
+            applyHostCompensation(left, right, numSamples, static_cast<double>(latencyTarget_) + referenceShift_);
             return;
         }
 
@@ -775,9 +844,13 @@ private:
         // processBlockInner splits a span at the factor switch, so the delay changes on
         // the switch's silent sample.
         if (clocked == 1) {
-            applyCompensation(left, right, numSamples, std::max(0, latencyTarget_ - latencyAtClock(1)));
+            applyHostCompensation(left, right, numSamples,
+                                  static_cast<double>(std::max(0, latencyTarget_ - latencyAtClock(1))) +
+                                      referenceShift_);
         } else {
-            const double wait = std::max(0.0, static_cast<double>(latencyTarget_) - groupDelayAtClock(clocked));
+            // Minimax target (user ruling 2026-11-09): arrive at target + offset + shift
+            const double wait = std::max(0.0, static_cast<double>(latencyTarget_) - groupDelayAtClock(clocked) +
+                                                  alignmentOffsetAt(clocked) + referenceShift_);
             const auto whole = static_cast<int>(wait);
             applyCompensation(left, right, numSamples, whole);
             setFractionalDelay((wait - static_cast<double>(whole)) * static_cast<double>(clocked));
@@ -882,6 +955,40 @@ private:
         fracDelayR_.reset();
         fracAllpassL_.reset();
         fracAllpassR_.reset();
+        hostAllpassL_.reset();
+        hostAllpassR_.reset();
+    }
+
+    /// @brief The minimax offset at @p clocked (2 / 4) in the current context.
+    [[nodiscard]] double alignmentOffsetAt(int clocked) const noexcept {
+        if (clocked >= 4) return alignmentOffset_[2];
+        const bool fourX = contextSet_ ? fourXPresent_ : canReach4x();
+        return fourX ? alignmentOffset_[1] : alignmentOffset_[0];
+    }
+
+    /// @brief Host-rate compensation of @p wait host samples (1x and bypassed paths): whole
+    /// samples through compDelay*, a fraction (the reference shift) through a first-order
+    /// allpass with its delay kept in [0.5, 1.5). Without a fraction it is the integer delay.
+    void applyHostCompensation(float* left, float* right, size_t numSamples, double wait) noexcept {
+        auto whole = static_cast<int>(wait);
+        double d = wait - static_cast<double>(whole);
+        if (d <= kFracDelayEpsilon) {
+            applyCompensation(left, right, numSamples, whole);
+            return;
+        }
+        if (d < 0.5 && whole >= 1) {
+            --whole;
+            d += 1.0;
+        }
+        if (d != hostFracDelay_) {
+            hostFracDelay_ = d;
+            const auto a = static_cast<float>((1.0 - d) / (1.0 + d));
+            hostAllpassL_.setCoefficient(a);
+            hostAllpassR_.setCoefficient(a);
+        }
+        applyCompensation(left, right, numSamples, whole);
+        hostAllpassL_.processBlock(left, numSamples);
+        hostAllpassR_.processBlock(right, numSamples);
     }
 
     /// @brief The clocked-rate part of the compensation, on the oversampled band input.
@@ -1215,6 +1322,13 @@ private:
     // Latency compensation (D-026, T2.10)
     std::array<int, 3> oversamplerLatency_{};  // impulse-peak delay at 1x / 2x / 4x (prepare)
     std::array<double, 3> oversamplerGroupDelay_{};  // low-frequency group delay at 1x / 2x / 4x (prepare)
+    std::array<double, 3> alignmentOffset_{};  // minimax offsets: 2x alone, 2x with 4x, 4x (prepare)
+    bool contextSet_ = false;                  // setAlignmentContext() called (else: own reach)
+    bool fourXPresent_ = false;                // a band of the processor can run at 4x
+    double referenceShift_ = 0.0;              // every path's extra delay (ADAA1 clamp), host samples
+    double hostFracDelay_ = -1.0;              // host-rate fraction the allpasses are set for
+    Krate::DSP::OnePoleAllpass hostAllpassL_;
+    Krate::DSP::OnePoleAllpass hostAllpassR_;
     int latencyTarget_ = 0;                    // total latency the band is delayed to
     Krate::DSP::DelayLine compDelayL_;         // band input history, read at the compensation
     Krate::DSP::DelayLine compDelayR_;
