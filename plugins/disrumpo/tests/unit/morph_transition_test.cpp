@@ -22,6 +22,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <numbers>
 #include <string>
 #include <utility>
@@ -708,6 +709,59 @@ TEST_CASE("Cross-family morph automation is click-free at every smoothing time",
         WARN("smoothing " << ms << " ms: clicks " << clicks);
         CHECK(clicks == 0);
     }
+}
+
+// D-031 (fix plan T2.12): processCrossFamily re-applied node params plus the modulation
+// offsets only while an offset was non-zero, so offsets returning to exactly 0 left the
+// last modulated drive in the node adapters until the next setNodes.
+TEST_CASE("Cross-family adapters return to the base params when the mod offsets return to 0",
+          "[disrumpo][morph][modulation][D-031]") {
+    const auto nodes = xfTwoNodes();
+    auto modulated = makeXfEngine(nodes, 2, Disrumpo::MorphMode::Linear1D, 10.0f);
+    auto reference = makeXfEngine(nodes, 2, Disrumpo::MorphMode::Linear1D, 10.0f);
+    for (auto* e : {modulated.get(), reference.get()}) {
+        e->setMorphPosition(0.5f, 0.0f);
+        e->reset();
+    }
+    REQUIRE_FALSE(modulated->getAllSameType());
+
+    const size_t total = static_cast<size_t>(kXfRate);  // 1 s
+    std::vector<float> yMod(total);
+    std::vector<float> yRef(total);
+    for (size_t start = 0; start < total; start += kXfBlock) {
+        // One block with every offset non-zero, then all four exactly 0
+        const bool first = start == 0;
+        modulated->setDriveMixModOffset(first ? 0.5f : 0.0f, first ? -0.25f : 0.0f);
+        modulated->setToneBiasModOffset(first ? 0.25f : 0.0f, first ? 0.25f : 0.0f);
+        const size_t end = std::min(total, start + static_cast<size_t>(kXfBlock));
+        for (size_t n = start; n < end; ++n) {
+            yMod[n] = modulated->process(xfInput(n));
+            yRef[n] = reference->process(xfInput(n));
+        }
+    }
+
+    // The second half: the filters have long forgotten the modulated block
+    double maxDiff = 0.0;
+    for (size_t n = total / 2; n < total; ++n)
+        maxDiff = std::max(maxDiff, static_cast<double>(std::abs(yMod[n] - yRef[n])));
+    std::printf("T2.12 offsets back to 0: adapter drive A %.4f B %.4f (base %.4f), mix A %.4f, tone A %.1f Hz, "
+                "bias A %.4f; max |modulated - never modulated| over 0.5-1 s %.3g\n",
+                static_cast<double>(modulated->getAdapter(0).getCommonParams().drive),
+                static_cast<double>(modulated->getAdapter(1).getCommonParams().drive),
+                static_cast<double>(nodes[0].commonParams.drive),
+                static_cast<double>(modulated->getAdapter(0).getCommonParams().mix),
+                static_cast<double>(modulated->getAdapter(0).getCommonParams().toneHz),
+                static_cast<double>(modulated->getAdapter(0).getParams().bias), maxDiff);
+
+    for (int i = 0; i < 2; ++i) {
+        INFO("node " << i);
+        const auto& cp = modulated->getAdapter(i).getCommonParams();
+        REQUIRE(cp.drive == nodes[static_cast<size_t>(i)].commonParams.drive);
+        REQUIRE(cp.mix == nodes[static_cast<size_t>(i)].commonParams.mix);
+        REQUIRE(cp.toneHz == nodes[static_cast<size_t>(i)].commonParams.toneHz);
+        REQUIRE(modulated->getAdapter(i).getParams().bias == nodes[static_cast<size_t>(i)].params.bias);
+    }
+    REQUIRE(maxDiff < 1e-5);
 }
 
 // Measurement probe (hidden, fix plan T1.13): the summed level of a cross-family sweep

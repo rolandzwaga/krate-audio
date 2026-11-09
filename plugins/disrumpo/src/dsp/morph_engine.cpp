@@ -166,6 +166,8 @@ void MorphEngine::setNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, i
     }
     // The adapters now hold the unscaled drive: the next cross-family sample re-applies the sweep
     appliedSweepDriveScale_ = 1.0f;
+    // ... and the unmodulated base params: the next sample re-applies any active offsets
+    offsetsWereActive_ = false;
     // Every node is padded to the slowest active node's latency (D-081)
     updateLatencyAlignment();
 
@@ -728,11 +730,12 @@ float MorphEngine::processCrossFamily(float input) noexcept {
 
     // Apply modulation offsets and the sweep drive multiplier to per-node adapters (from
     // base node params). A sweep multiplier change alone re-applies once, so its return
-    // to 1 restores the base drive.
-    if (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f
-        || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f
-        || sweepDriveScale_ != appliedSweepDriveScale_) {
+    // to 1 restores the base drive; so does the offsets' return to all 0 (D-031).
+    const bool offsetsActive = driveModOffset_ != 0.0f || mixModOffset_ != 0.0f
+                               || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f;
+    if (offsetsActive || offsetsWereActive_ || sweepDriveScale_ != appliedSweepDriveScale_) {
         appliedSweepDriveScale_ = sweepDriveScale_;
+        offsetsWereActive_ = offsetsActive;
         for (int i = 0; i < activeNodeCount_; ++i) {
             auto cp = nodes_[i].commonParams;
             cp.drive = modulatedDrive(cp.drive);

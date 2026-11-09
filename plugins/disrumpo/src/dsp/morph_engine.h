@@ -301,6 +301,10 @@ private:
     float sweepDriveScale_ = 1.0f;
     float appliedSweepDriveScale_ = 1.0f;
 
+    // True while the cross-family adapters hold offset-modulated params, so the offsets'
+    // return to all 0 re-applies the base node params once (D-031)
+    bool offsetsWereActive_ = false;
+
     /// @brief Node drive with the modulation offset and the sweep multiplier applied.
     [[nodiscard]] float modulatedDrive(float baseDrive) const noexcept {
         float drive = baseDrive + driveModOffset_ * 10.0f;
