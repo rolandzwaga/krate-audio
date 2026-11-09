@@ -28,6 +28,7 @@
 #include <vector>
 #include "vst_param_changes.h"
 
+#include "../test_support/audit_metrics.h"
 #include "../test_support/disrumpo_rig.h"
 #include "dsp/crossover_network.h"
 #include "test_helpers/spectral_analysis.h"
@@ -456,58 +457,6 @@ std::vector<float> sineAt(size_t n, double freqHz, double dbfs) {
 
 double typeNorm(DistortionType t) { return static_cast<double>(static_cast<int>(t)) / 25.0; }
 
-struct AliasReading {
-    double aliasedDb = 0.0;      // power in the predicted fold-back bins (harmonics 2..200)
-    double nonHarmonicDb = 0.0;  // power in every bin outside the harmonic main lobes
-    double fundamentalDb = 0.0;
-};
-
-/// Power-averaged over the last kAliasFrames Hann-windowed 8192-sample frames.
-AliasReading readAliasing(const std::vector<float>& x) {
-    using namespace Krate::DSP::TestUtils;
-    AliasingTestConfig cfg;
-    cfg.testFrequencyHz = kAliasToneHz;
-    cfg.sampleRate = static_cast<float>(kBlockSr);
-    cfg.fftSize = kAliasFft;
-    cfg.maxHarmonic = 200;
-    auto aliased = getAliasedBins(cfg);
-    std::sort(aliased.begin(), aliased.end());
-    aliased.erase(std::unique(aliased.begin(), aliased.end()), aliased.end());
-    const size_t fundBin = frequencyToBin(kAliasToneHz, cfg.sampleRate, kAliasFft);
-
-    Krate::DSP::FFT fft;
-    fft.prepare(kAliasFft);
-    std::vector<float> window(kAliasFft);
-    Krate::DSP::Window::generateHann(window.data(), kAliasFft);
-    std::vector<float> frame(kAliasFft);
-    std::vector<Krate::DSP::Complex> spectrum(fft.numBins());
-
-    double aliasPower = 0.0;
-    double nonHarmonicPower = 0.0;
-    double fundamentalPower = 0.0;
-    const size_t start = x.size() - kAliasFrames * kAliasFft;
-    for (size_t f = 0; f < kAliasFrames; ++f) {
-        for (size_t i = 0; i < kAliasFft; ++i) {
-            frame[i] = x[start + f * kAliasFft + i] * window[i];
-        }
-        fft.forward(frame.data(), spectrum.data());
-        const double a = detail::sumBinPower(spectrum.data(), aliased);
-        aliasPower += a * a;
-        const double m = spectrum[fundBin].magnitude();
-        fundamentalPower += m * m;
-        for (size_t b = 3; b < spectrum.size(); ++b) {
-            const size_t r = b % fundBin;
-            if (r <= 2 || r >= fundBin - 2) continue;  // harmonic main lobe (Hann: +-1 bin)
-            const double mb = spectrum[b].magnitude();
-            nonHarmonicPower += mb * mb;
-        }
-    }
-    const auto db = [](double p) {
-        return 10.0 * std::log10(p / static_cast<double>(kAliasFrames) + 1e-30);
-    };
-    return {.aliasedDb = db(aliasPower), .nonHarmonicDb = db(nonHarmonicPower), .fundamentalDb = db(fundamentalPower)};
-}
-
 /// One band, node 0 HardClip drive 10, tone 8 kHz, mix 1, cursor on node 0.
 std::vector<float> renderHardClipBand(double oversampleMaxNorm, int& factor) {
     ts::Rig rig(kBlockSr);
@@ -594,8 +543,8 @@ TEST_CASE("Processor HardClip aliasing drops with Oversample Max 4x vs 1x",
     int factor4x = 0;
     const auto out1x = renderHardClipBand(0.0, factor1x);
     const auto out4x = renderHardClipBand(2.0 / 3.0, factor4x);
-    const auto r1 = readAliasing(out1x);
-    const auto r4 = readAliasing(out4x);
+    const auto r1 = ts::readAliasing(out1x, kBlockSr, kAliasToneHz, kAliasFft, kAliasFrames);
+    const auto r4 = ts::readAliasing(out4x, kBlockSr, kAliasToneHz, kAliasFft, kAliasFrames);
 
     INFO("factor at Oversample Max 1x: " << factor1x << ", at 4x: " << factor4x);
     INFO("fundamental 1x " << r1.fundamentalDb << " dB, 4x " << r4.fundamentalDb << " dB");
@@ -886,25 +835,6 @@ std::vector<float> mixImpulseResponse(double sr, int numBands, double mix, const
     return {outL.begin() + static_cast<std::ptrdiff_t>(preRoll), outL.end()};
 }
 
-/// |H(f)| in dB of an impulse response, by a direct DFT at f (double precision).
-double responseDb(const std::vector<float>& h, double f, double sr) {
-    const double w = 2.0 * std::numbers::pi * f / sr;
-    const double cw = std::cos(w);
-    const double sw = std::sin(w);
-    double c = 1.0;
-    double s = 0.0;
-    double re = 0.0;
-    double im = 0.0;
-    for (const float v : h) {
-        re += static_cast<double>(v) * c;
-        im -= static_cast<double>(v) * s;
-        const double cNext = c * cw - s * sw;
-        s = s * cw + c * sw;
-        c = cNext;
-    }
-    return 10.0 * std::log10(re * re + im * im + 1e-30);
-}
-
 /// 480 log-spaced frequencies 30 Hz - 18 kHz plus 1 kHz, the default crossovers and `extraHz`.
 std::vector<double> mixGrid(std::initializer_list<double> extraHz = {}) {
     std::vector<double> g;
@@ -931,7 +861,7 @@ ResponseExtremes responseExtremes(const std::vector<float>& h, double sr, const 
     ResponseExtremes r;
     r.minDb = 1e9;
     for (const double f : grid) {
-        const double d = responseDb(h, f, sr) - refDb;
+        const double d = ts::responseDb(h, f, sr) - refDb;
         if (std::fabs(d) > std::fabs(r.worstDb)) { r.worstDb = d; r.worstHz = f; }
         if (d < r.minDb) { r.minDb = d; r.minHz = f; }
     }
@@ -961,7 +891,7 @@ TEST_CASE("Global mix 50 % does not notch the crossover frequencies", "[disrumpo
     const auto grid = mixGrid();
     for (const int numBands : {4, 2}) {
         const auto h = mixImpulseResponse(kSr, numBands, 0.5);
-        const auto r = responseExtremes(h, kSr, grid, responseDb(h, 1000.0, kSr));
+        const auto r = responseExtremes(h, kSr, grid, ts::responseDb(h, 1000.0, kSr));
         INFO(numBands << " bands, mix 50 %: deepest " << r.minDb << " dB at " << r.minHz
              << " Hz, worst |dev| " << r.worstDb << " dB at " << r.worstHz << " Hz (re 1 kHz, 30 Hz - 18 kHz)");
         CHECK(std::fabs(r.worstDb) <= 0.5);
@@ -1044,7 +974,7 @@ TEST_CASE("Global mix 50 % stays flat with Oversample Max 4x", "[disrumpo][mix][
             oversampled.emplace_back(makeNodeParamId(b, 0, NodeParamType::kNodeMix), 0.0);
         }
         const auto h = mixImpulseResponse(kBlockSr, numBands, 0.5, oversampled, 2.0 / 3.0);
-        const auto r = responseExtremes(h, kBlockSr, grid, responseDb(h, 1000.0, kBlockSr));
+        const auto r = responseExtremes(h, kBlockSr, grid, ts::responseDb(h, 1000.0, kBlockSr));
         const auto dry = mixImpulseResponse(kBlockSr, numBands, 0.0, oversampled, 2.0 / 3.0);
         const auto wet = mixImpulseResponse(kBlockSr, numBands, 1.0, oversampled, 2.0 / 3.0);
         // Alignment: the lag (-16..16) at which the dry response best matches the wet one
@@ -1062,12 +992,12 @@ TEST_CASE("Global mix 50 % stays flat with Oversample Max 4x", "[disrumpo][mix][
                 bestLag = lag;
             }
         }
-        const double ref = responseDb(h, 1000.0, kBlockSr);
+        const double ref = ts::responseDb(h, 1000.0, kBlockSr);
         std::printf("T2.10 mix 50 %% with %d HardClip band(s) at 4x (node mix 0): worst |dev| %.3f dB at %.0f Hz "
                     "(re 1 kHz, 30 Hz - 18 kHz), at 5 kHz %.3f dB, at 10 kHz %.3f dB; impulse peak dry %zu wet %zu, "
                     "dry/wet best-match lag %ld\n",
-                    numBands, r.worstDb, r.worstHz, responseDb(h, 5000.0, kBlockSr) - ref,
-                    responseDb(h, 10000.0, kBlockSr) - ref, peakIndex(dry), peakIndex(wet), bestLag);
+                    numBands, r.worstDb, r.worstHz, ts::responseDb(h, 5000.0, kBlockSr) - ref,
+                    ts::responseDb(h, 10000.0, kBlockSr) - ref, peakIndex(dry), peakIndex(wet), bestLag);
         CHECK(bestLag == 0);
     }
 }

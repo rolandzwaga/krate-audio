@@ -343,6 +343,29 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     that can fail would record the thread of every live-DSP write (e.g. the `debugSetNodesCalls` /
     `debugSetBandCountCalls` hooks noting `std::this_thread::get_id()`) and require the audio thread. It also runs
     in under 1 s, so CLAUDE.md's `[long]` rule (> ~15 s) does not call for the tag the plan gave it.
+79. **T6.01 type render matrix: 10 type cases held back RED, need a ruling** (2026-11-09). `tests/dsp/
+    type_render_matrix_test.cpp` asserts every plan bar for the 16 green types; the cases of these 10 types are in
+    `f:/tmp/disrumpo-fix/p6a/t601-held-types.patch` (adds the 10 `TEST_CASE` lines, nothing else). Values at drive
+    2.5 / 7.5 / 10, 48 kHz, 1031.25 Hz at -6 dBFS:
+    - Non-harmonic > -50 dB: Tape -26.7 / -26.2 / -27.1 dB (the default Hysteresis tape model in the shared
+      TapeSaturator; Simple model -87.5 dB, flutter 0 -26.0, 1x -24.0, so neither flutter nor aliasing); Fractal
+      -40.9 / -32.4 / -32.2 at 2x (1x -24.6; 4x would grow follow-up 1's red Fractal CPU case); TriangleFold -43.6 at
+      drive 10 (1x -16.3); HalfRectify -42.3 at drive 2.5 (1x -29.5); RingSaturation -33.6 / -29.4 / -30.2 (ring
+      modulation is inharmonic by design: Fixed carrier -0.7 dB, depth 0 -129.6 dB; propose listing it with the
+      noise-by-design types).
+    - Peak > +6 dBFS: Fuzz +7.50 / +9.44, AsymmetricFuzz +7.03 / +8.96, FullRectify +7.50 (drive 10), HalfRectify
+      +7.80 / +10.28 dBFS. Drive is input gain into stages that do not saturate (follow-up 50, D-144); the audit read
+      them 3 dB lower through the centre-pan loss and the mis-rated tone filter, both since fixed.
+    - Quantize self-noise -40.5 dBFS, tail -40.7 dBFS: the dither on silence of follow-up 39.
+    - Stochastic |DC| 0.00253 at drive 7.5 / 10 and bias -1 / +1 over 1.02 s (0.00042 at drive 2.5): slow random
+      drift below the adapter's 10 Hz blocker; over the probe's 0.17 s window it read -0.0016 to +0.0007. A
+      noise-by-design type: rule the bar or the window.
+    Each needs a sound/DSP decision (shared TapeSaturator or Fractal/fold oversampling, level design, dither gating) or a
+    ruling to exempt the type from that bar; none has an obvious Disrumpo-only fix.
+80. **SergeFold reads identical to SineFold at its defaults** (T6.01 matrix: non-harmonic, DC and peak equal to every
+    printed digit at all three drives). Same class as D-157 (SineFold == TriangleFold, fixed in T2.06); relates to
+    follow-up 23 (the per-type slot defaults). Not asserted by the matrix; decide whether a fresh SergeFold node should
+    differ.
 
 ## Done outside the plan
 

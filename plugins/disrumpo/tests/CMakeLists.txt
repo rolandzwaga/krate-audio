@@ -70,6 +70,9 @@ add_executable(disrumpo_tests
     dsp/oversampling_integration_tests.cpp
     dsp/oversampling_performance_tests.cpp
 
+    # Per-type render matrix through the Processor (audit T6.01)
+    dsp/type_render_matrix_test.cpp
+
     # Unit tests - Preset Serialization (010-preset-system)
     unit/preset/serialization_round_trip_test.cpp
 
@@ -233,6 +236,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/processor_lifecycle_state_test.cpp
         integration/processor_stereo_test.cpp
         integration/processor_sweep_test.cpp
+        dsp/type_render_matrix_test.cpp
         unit/spectrum_analyzer_test.cpp
         unit/test_support_smoke_test.cpp
         unit/meter_window_test.cpp
