@@ -380,6 +380,30 @@ private:
 };
 
 // ==============================================================================
+// CrossoverParamObserver: SpectrumDisplay dividers follow the crossover params
+// ==============================================================================
+
+class CrossoverParamObserver : public Steinberg::FObject {
+public:
+    static constexpr int kNumCrossovers = 3;
+
+    CrossoverParamObserver(
+        SpectrumDisplay** displayPtr,
+        const std::array<Steinberg::Vst::Parameter*, kNumCrossovers>& crossoverParams);
+
+    ~CrossoverParamObserver() override;
+    void deactivate();
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override;
+
+    OBJ_METHODS(CrossoverParamObserver, FObject)
+
+private:
+    SpectrumDisplay** displayPtr_;
+    std::array<Steinberg::Vst::Parameter*, kNumCrossovers> params_;
+    std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
 // SpectrumModeController: Update SpectrumDisplay view mode when param changes
 // ==============================================================================
 

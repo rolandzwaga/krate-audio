@@ -1425,6 +1425,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             &spectrumDisplay_, bandCountParam, &keyboardHandler_);
     }
 
+    {
+        std::array<Steinberg::Vst::Parameter*, CrossoverParamObserver::kNumCrossovers> crossoverParams{};
+        for (int i = 0; i < CrossoverParamObserver::kNumCrossovers; ++i)
+            crossoverParams[static_cast<size_t>(i)] =
+                getParameterObject(makeCrossoverParamId(static_cast<uint8_t>(i)));
+        crossoverParamObserver_ = Steinberg::owned(new CrossoverParamObserver(&spectrumDisplay_, crossoverParams));
+    }
+
     if (auto* spectrumModeParam = getParameterObject(makeGlobalParamId(GlobalParamType::kGlobalSpectrumMode)))
         spectrumModeController_ = new SpectrumModeController(&spectrumDisplay_, spectrumModeParam);
 
@@ -1617,6 +1625,10 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (bandCountDisplayController_) {
         if (auto* bcdc = dynamic_cast<BandCountDisplayController*>(bandCountDisplayController_.get())) bcdc->deactivate();
         bandCountDisplayController_ = nullptr;
+    }
+    if (crossoverParamObserver_) {
+        if (auto* cpo = dynamic_cast<CrossoverParamObserver*>(crossoverParamObserver_.get())) cpo->deactivate();
+        crossoverParamObserver_ = nullptr;
     }
     if (spectrumModeController_) {
         if (auto* smc = dynamic_cast<SpectrumModeController*>(spectrumModeController_.get())) smc->deactivate();

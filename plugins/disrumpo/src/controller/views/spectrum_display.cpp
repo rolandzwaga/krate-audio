@@ -51,23 +51,15 @@ SpectrumDisplay::~SpectrumDisplay() {
 void SpectrumDisplay::setNumBands(int numBands) {
     numBands_ = std::clamp(numBands, 1, kMaxBands);
 
-    // Recalculate crossover frequencies for even logarithmic spacing
-    if (numBands_ > 1) {
-        float logMin = std::log2(kMinFreqHz);
-        float logMax = std::log2(kMaxFreqHz);
-        float step = (logMax - logMin) / static_cast<float>(numBands_);
-
-        for (int i = 0; i < numBands_ - 1; ++i) {
-            float logFreq = logMin + step * static_cast<float>(i + 1);
-            crossoverFreqs_[static_cast<size_t>(i)] = std::pow(2.0f, logFreq);
-        }
-    }
+    // The dividers keep the crossover parameter values (D-071): the controller
+    // pushes every parameter change through setCrossoverFrequency.
 
     invalid();  // Request redraw
 }
 
 void SpectrumDisplay::setCrossoverFrequency(int index, float freqHz) {
-    if (index >= 0 && index < numBands_ - 1) {
+    // Hidden dividers store their value too, so raising the band count shows them
+    if (index >= 0 && index < kMaxBands - 1) {
         crossoverFreqs_[static_cast<size_t>(index)] = std::clamp(freqHz, kMinFreqHz, kMaxFreqHz);
         invalid();  // Request redraw
     }
@@ -390,6 +382,14 @@ VSTGUI::CMouseEventResult SpectrumDisplay::onMouseMoved(
         // Right neighbor: must be at least kMinOctaveSpacing octaves lower
         rightBound = crossoverFreqs_[static_cast<size_t>(draggingDivider_) + 1]
                      * std::pow(2.0f, -kMinOctaveSpacing);
+    }
+
+    // Neighbours under 2 * kMinOctaveSpacing apart invert the bounds (D-109):
+    // collapse both to their geometric mean, which lies between the neighbours
+    if (leftBound > rightBound) {
+        const float mid = std::sqrt(leftBound * rightBound);
+        leftBound = mid;
+        rightBound = mid;
     }
 
     // Apply constraints

@@ -65,6 +65,58 @@ void PLUGIN_API BandCountDisplayController::update(
 }
 
 // ==============================================================================
+// CrossoverParamObserver
+// ==============================================================================
+
+CrossoverParamObserver::CrossoverParamObserver(
+    SpectrumDisplay** displayPtr,
+    const std::array<Steinberg::Vst::Parameter*, kNumCrossovers>& crossoverParams)
+: displayPtr_(displayPtr)
+, params_(crossoverParams)
+{
+    for (auto* p : params_) {
+        if (p) {
+            p->addRef();
+            p->addDependent(this);
+        }
+    }
+}
+
+CrossoverParamObserver::~CrossoverParamObserver() {
+    deactivate();
+    for (auto*& p : params_) {
+        if (p) {
+            p->release();
+            p = nullptr;
+        }
+    }
+}
+
+void CrossoverParamObserver::deactivate() {
+    if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+        for (auto* p : params_) {
+            if (p) p->removeDependent(this);
+        }
+    }
+}
+
+void PLUGIN_API CrossoverParamObserver::update(
+    Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) {
+    if (!isActive_.load(std::memory_order_acquire)) return;
+    if (message != IDependent::kChanged || !displayPtr_ || !*displayPtr_) return;
+
+    // Same Hz mapping the processor applies (state_codec.h, T1.17)
+    auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
+    for (int i = 0; i < kNumCrossovers; ++i) {
+        auto* p = params_[static_cast<size_t>(i)];
+        if (p != nullptr && p == changedParam) {
+            (*displayPtr_)->setCrossoverFrequency(
+                i, crossoverNormToHz(static_cast<float>(p->getNormalized())));
+        }
+    }
+}
+
+// ==============================================================================
 // SpectrumModeController
 // ==============================================================================
 

@@ -428,6 +428,9 @@ private:
     // Updates SpectrumDisplay band count when Bands dropdown changes
     Steinberg::IPtr<Steinberg::FObject> bandCountDisplayController_;
 
+    // Moves the SpectrumDisplay dividers when a crossover parameter changes (D-071)
+    Steinberg::IPtr<Steinberg::FObject> crossoverParamObserver_;
+
     // ==========================================================================
     // Spectrum Mode Controller
     // ==========================================================================

@@ -17,6 +17,8 @@
 #include "controller/views/mod_slider.h"
 #include "controller/views/spectrum_display.h"
 #include "display/shared_display_bridge.h"
+#include "plugin_ids.h"
+#include "state_codec.h"
 
 #include "base/source/updatehandler.h"
 #include "pluginterfaces/vst/ivstdataexchange.h"
@@ -394,4 +396,46 @@ TEST_CASE("Two processors restoring the same stream keep distinct bridge registr
     CHECK(bridge.lookupInstance(idA) != nullptr);
     reloaded->terminate();
     CHECK(bridge.lookupInstance(idA) == nullptr);
+}
+
+// D-071: the spectrum dividers follow the crossover parameters while the editor
+// is open, and a Band Count change does not replace them with a view-local spread.
+TEST_CASE("setParamNormalized on a crossover moves the spectrum divider",
+          "[disrumpo][controller][ui][D-071]")
+{
+    Disrumpo::Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    const auto bandCountId = Disrumpo::makeGlobalParamId(Disrumpo::GlobalParamType::kGlobalBandCount);
+    c.setParamNormalized(bandCountId, 1.0);  // 4 bands
+    {
+        HeadlessEditor ed(c);
+        REQUIRE(ed.ready());
+        const auto* display = c.spectrumDisplayForTest();
+        REQUIRE(display != nullptr);
+
+        const float before = display->getCrossoverFrequency(0);
+        c.setParamNormalized(Disrumpo::makeCrossoverParamId(0), Disrumpo::crossoverHzToNorm(1000.0f));
+        const float after = display->getCrossoverFrequency(0);
+        std::printf("D-071 crossover 0 param -> 1000 Hz: divider %.1f Hz before, %.1f Hz after\n",
+                    static_cast<double>(before), static_cast<double>(after));
+        CHECK(after == Catch::Approx(1000.0f).margin(1.0f));
+
+        const float wantHz[3] = {300.0f, 1500.0f, 6000.0f};
+        for (uint8_t i = 0; i < 3; ++i)
+            c.setParamNormalized(Disrumpo::makeCrossoverParamId(i), Disrumpo::crossoverHzToNorm(wantHz[i]));
+        c.setParamNormalized(bandCountId, 1.0 / 3.0);  // 2 bands
+        const float atTwo = display->getCrossoverFrequency(0);
+        c.setParamNormalized(bandCountId, 1.0);        // 4 bands again
+        float shown[3] = {};
+        for (int i = 0; i < 3; ++i) shown[i] = display->getCrossoverFrequency(i);
+        std::printf("D-071 params 300/1500/6000 Hz: divider 0 at 2 bands %.1f Hz; at 4 bands %.1f / %.1f / %.1f Hz\n",
+                    static_cast<double>(atTwo), static_cast<double>(shown[0]), static_cast<double>(shown[1]),
+                    static_cast<double>(shown[2]));
+        CHECK(atTwo == Catch::Approx(300.0f).margin(1.0f));
+        for (int i = 0; i < 3; ++i) {
+            INFO("divider " << i);
+            CHECK(shown[i] == Catch::Approx(wantHz[i]).margin(1.0f));
+        }
+    }
+    c.terminate();
 }

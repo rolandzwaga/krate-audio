@@ -13,7 +13,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include "controller/views/spectrum_display.h"
+
 #include <cmath>
+#include <cstdio>
 
 using Catch::Approx;
 
@@ -251,4 +254,40 @@ TEST_CASE("Coordinate conversion works with different display widths", "[spectru
         float recovered = xToFreq(freqToX(1000.0f, width), width);
         REQUIRE(recovered == Approx(1000.0f).margin(5.0f));
     }
+}
+
+// ==============================================================================
+// D-109: divider drag bounds when the neighbours are under one octave apart
+// ==============================================================================
+// Divider 1 between 500 and 700 Hz: left bound 500*2^0.5 = 707 Hz, right bound
+// 700*2^-0.5 = 495 Hz, so std::clamp got lo > hi.
+
+TEST_CASE("Divider drag with neighbours under one octave apart keeps order",
+          "[disrumpo][spectrum][D-109]") {
+    auto* display = new Disrumpo::SpectrumDisplay(VSTGUI::CRect(0, 0, 800, 200));
+    display->setNumBands(4);
+    display->setCrossoverFrequency(0, 500.0f);
+    display->setCrossoverFrequency(1, 600.0f);
+    display->setCrossoverFrequency(2, 700.0f);
+
+    VSTGUI::CPoint down(static_cast<double>(display->freqToX(600.0f)), 100.0);
+    const VSTGUI::CButtonState left(VSTGUI::kLButton);
+    REQUIRE(display->onMouseDown(down, left) == VSTGUI::kMouseEventHandled);
+
+    for (const float targetHz : {400.0f, 550.0f, 650.0f, 800.0f}) {
+        VSTGUI::CPoint move(static_cast<double>(display->freqToX(targetHz)), 100.0);
+        display->onMouseMoved(move, left);
+        const float f0 = display->getCrossoverFrequency(0);
+        const float f1 = display->getCrossoverFrequency(1);
+        const float f2 = display->getCrossoverFrequency(2);
+        std::printf("D-109 drag divider 1 to %.0f Hz: dividers %.1f / %.1f / %.1f Hz\n",
+                    static_cast<double>(targetHz), static_cast<double>(f0),
+                    static_cast<double>(f1), static_cast<double>(f2));
+        INFO("target " << targetHz << " Hz -> " << f0 << " / " << f1 << " / " << f2);
+        CHECK(f0 < f1);
+        CHECK(f1 < f2);
+    }
+    VSTGUI::CPoint up = down;
+    display->onMouseUp(up, left);
+    display->forget();
 }
