@@ -213,6 +213,17 @@ public:
     /// @param posY Cursor Y position [0, 1]
     void calculateMorphWeights(float posX, float posY) noexcept;
 
+    /// @brief The one morph weight function (D-089): weights of the first @p count
+    /// nodes at cursor (@p x, @p y) in @p mode. Holds the mode switch (Linear1D on
+    /// the i / (N - 1) axis, Planar2D Euclidean, Radial2D angular), the distance
+    /// epsilon, the one-hot on-node snap and the kWeightThreshold step (FR-001,
+    /// FR-014, FR-015). MorphEngine, BandProcessor's oversampling choice and the
+    /// MorphPad display all call it. Defined out of line: one copy, one set of
+    /// floating-point flags.
+    [[nodiscard]] static std::array<float, kMaxMorphNodes> computeWeights(
+        MorphMode mode, const std::array<MorphNode, kMaxMorphNodes>& nodes, int count, float x,
+        float y) noexcept;
+
     /// @brief Cross-family output gain of a node with normalized weight @p weight.
     /// Constant-voltage law: the weight itself (0 and 1 exact), so the gains sum to 1.
     [[nodiscard]] static float transitionGainForWeight(float weight) noexcept;
@@ -221,16 +232,6 @@ private:
     // =========================================================================
     // Internal Methods
     // =========================================================================
-
-    /// @brief Calculate 1D distance for Linear mode.
-    [[nodiscard]] float calculate1DDistance(float cursorX, float nodeX) const noexcept;
-
-    /// @brief Calculate 2D Euclidean distance for Planar mode.
-    [[nodiscard]] float calculate2DDistance(float cursorX, float cursorY,
-                                            float nodeX, float nodeY) const noexcept;
-
-    /// @brief Calculate radial weights for Radial mode.
-    void calculateRadialWeights(float cursorX, float cursorY) noexcept;
 
     /// @brief Check if all active nodes have the same DistortionType.
     [[nodiscard]] bool isSameType() const noexcept;

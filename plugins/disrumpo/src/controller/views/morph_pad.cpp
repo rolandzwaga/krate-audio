@@ -5,6 +5,7 @@
 // ==============================================================================
 
 #include "morph_pad.h"
+#include "dsp/morph_engine.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 #include "vstgui/lib/cdrawcontext.h"
@@ -234,6 +235,7 @@ void MorphPad::setActiveNodeCount(int count) {
 
 void MorphPad::setMorphMode(MorphMode mode) {
     morphMode_ = mode;
+    recalculateWeights();
     invalid();
 }
 
@@ -878,40 +880,17 @@ void MorphPad::onMouseWheelEvent(VSTGUI::MouseWheelEvent& event) {
 // =============================================================================
 
 void MorphPad::recalculateWeights() {
-    // Calculate inverse distance weights from cursor to each active node
-    // Uses inverse square distance for sharper falloff near nodes
-
-    constexpr float kMinDistance = 0.001f;  // Avoid division by zero
-    constexpr float kDistanceExponent = 2.0f;  // Squared distance for sharper falloff
-
-    float totalWeight = 0.0f;
-    std::array<float, kMaxNodes> rawWeights{};
-
-    for (int i = 0; i < activeNodeCount_; ++i) {
-        float dx = morphX_ - nodes_[i].posX;
-        float dy = morphY_ - nodes_[i].posY;
-        float distance = std::sqrt(dx * dx + dy * dy);
-
-        // Inverse distance weighting (with minimum to avoid infinity)
-        if (distance < kMinDistance) {
-            // Cursor is essentially on this node - give it maximum weight
-            rawWeights[i] = 1000.0f;  // Very high weight
-        } else {
-            rawWeights[i] = 1.0f / std::pow(distance, kDistanceExponent);
-        }
-        totalWeight += rawWeights[i];
+    // The weights the engine applies, from the same function and mode (D-089);
+    // inactive nodes get 0.
+    static_assert(kMaxNodes == kMaxMorphNodes);
+    std::array<MorphNode, kMaxMorphNodes> positions{};
+    for (int i = 0; i < kMaxNodes; ++i) {
+        positions[static_cast<size_t>(i)].posX = nodes_[static_cast<size_t>(i)].posX;
+        positions[static_cast<size_t>(i)].posY = nodes_[static_cast<size_t>(i)].posY;
     }
-
-    // Normalize weights to sum to 1.0
-    if (totalWeight > 0.0f) {
-        for (int i = 0; i < activeNodeCount_; ++i) {
-            nodes_[i].weight = rawWeights[i] / totalWeight;
-        }
-    }
-
-    // Set weights for inactive nodes to 0
-    for (int i = activeNodeCount_; i < kMaxNodes; ++i) {
-        nodes_[i].weight = 0.0f;
+    const auto weights = MorphEngine::computeWeights(morphMode_, positions, activeNodeCount_, morphX_, morphY_);
+    for (int i = 0; i < kMaxNodes; ++i) {
+        nodes_[static_cast<size_t>(i)].weight = weights[static_cast<size_t>(i)];
     }
 }
 

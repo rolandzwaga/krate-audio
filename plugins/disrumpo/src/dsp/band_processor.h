@@ -306,6 +306,10 @@ public:
     void setMorphMode(MorphMode mode) noexcept {
         cachedMorphMode_ = mode;
         forEachMorphEngine([mode](MorphEngine& engine) { engine.setMode(mode); });
+        // The factor is chosen from the weights of the mode (D-089)
+        if (morphEngineL_) {
+            recalculateOversampleFactor();
+        }
     }
 
     /// @brief Set morph cursor position.
@@ -506,6 +510,15 @@ public:
 
         // FR-017: Only switch if the factor actually changed (hysteresis)
         requestOversampleFactor(newFactor);
+    }
+
+    /// @brief Compute raw (unsmoothed) inverse-distance morph weights from target position.
+    /// Used for immediate oversampling factor selection, bypassing MorphEngine's
+    /// audio-rate smoothing which would cause stale weight reads. Same function and
+    /// mode as the engine (D-089). Public for tests.
+    [[nodiscard]] std::array<float, kMaxMorphNodes> computeRawMorphWeights() const noexcept {
+        return MorphEngine::computeWeights(cachedMorphMode_, morphNodes_, morphActiveNodeCount_, morphTargetX_,
+                                           morphTargetY_);
     }
 
     /// @brief Request a new oversampling factor.
@@ -716,50 +729,6 @@ private:
     // =========================================================================
     // Oversampling Factor Computation Helpers
     // =========================================================================
-
-    /// @brief Compute raw (unsmoothed) inverse-distance morph weights from target position.
-    /// Used for immediate oversampling factor selection, bypassing MorphEngine's
-    /// audio-rate smoothing which would cause stale weight reads.
-    [[nodiscard]] std::array<float, kMaxMorphNodes> computeRawMorphWeights() const noexcept {
-        std::array<float, kMaxMorphNodes> weights{};
-        const int count = std::clamp(morphActiveNodeCount_, 0, kMaxMorphNodes);
-
-        if (count == 0) {
-            return weights;
-        }
-
-        static constexpr float kOnNodeThreshold = 0.001f;
-        static constexpr float kDistanceEpsilon = 1e-8f;
-
-        // Compute inverse-distance weights (IDW, p=2)
-        float totalWeight = 0.0f;
-        for (int i = 0; i < count; ++i) {
-            // Compute distance from target position to node position
-            const float dx = morphTargetX_ - morphNodes_[static_cast<size_t>(i)].posX;
-            const float dy = morphTargetY_ - morphNodes_[static_cast<size_t>(i)].posY;
-            const float dist = std::sqrt(dx * dx + dy * dy);
-
-            // Special case: cursor is on the node
-            if (dist < kOnNodeThreshold) {
-                weights.fill(0.0f);
-                weights[static_cast<size_t>(i)] = 1.0f;
-                return weights;
-            }
-
-            const float invDist = 1.0f / (dist * dist + kDistanceEpsilon);
-            weights[static_cast<size_t>(i)] = invDist;
-            totalWeight += invDist;
-        }
-
-        // Normalize
-        if (totalWeight > 0.0f) {
-            for (int i = 0; i < count; ++i) {
-                weights[static_cast<size_t>(i)] /= totalWeight;
-            }
-        }
-
-        return weights;
-    }
 
     // =========================================================================
     // Oversampling Processing Helpers

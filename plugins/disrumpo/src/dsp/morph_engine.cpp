@@ -221,121 +221,16 @@ float MorphEngine::getSmoothedY() const noexcept {
 // =============================================================================
 
 void MorphEngine::calculateMorphWeights(float posX, float posY) noexcept {
-    // Initialize all weights to zero
-    weights_.fill(0.0f);
-
-    if (activeNodeCount_ <= 0) {
-        return;
-    }
-
-    // Mode-specific weight calculation
-    switch (mode_) {
-        case MorphMode::Linear1D: {
-            // 1D Linear: Use only X position along the node axis. The active nodes sit
-            // evenly on the axis in order A, B, C, D (i / (N - 1)), not at their 2-D posX:
-            // the corner layout gives C the X of A and D the X of B (D-029, D-100).
-            std::array<float, kMaxMorphNodes> distances{};
-            const float lastIndex = static_cast<float>(activeNodeCount_ - 1);
-
-            for (int i = 0; i < activeNodeCount_; ++i) {
-                const float nodeX = activeNodeCount_ > 1 ? static_cast<float>(i) / lastIndex : 0.0f;
-                distances[i] = calculate1DDistance(posX, nodeX);
-
-                // Check for "cursor on node" special case (100% weight)
-                if (distances[i] < kOnNodeThreshold) {
-                    weights_.fill(0.0f);
-                    weights_[i] = 1.0f;
-                    return;
-                }
-            }
-
-            // Calculate inverse distance weights (p=2)
-            float totalWeight = 0.0f;
-            for (int i = 0; i < activeNodeCount_; ++i) {
-                const float invDist = 1.0f / (distances[i] * distances[i] + kDistanceEpsilon);
-                weights_[i] = invDist;
-                totalWeight += invDist;
-            }
-
-            // Normalize weights
-            if (totalWeight > 0.0f) {
-                for (int i = 0; i < activeNodeCount_; ++i) {
-                    weights_[i] /= totalWeight;
-                }
-            }
-            break;
-        }
-
-        case MorphMode::Planar2D: {
-            // 2D Planar: Use Euclidean distance in XY space
-            std::array<float, kMaxMorphNodes> distances{};
-
-            for (int i = 0; i < activeNodeCount_; ++i) {
-                distances[i] = calculate2DDistance(posX, posY, nodes_[i].posX, nodes_[i].posY);
-
-                // Check for "cursor on node" special case (100% weight)
-                if (distances[i] < kOnNodeThreshold) {
-                    weights_.fill(0.0f);
-                    weights_[i] = 1.0f;
-                    return;
-                }
-            }
-
-            // Calculate inverse distance weights (p=2)
-            float totalWeight = 0.0f;
-            for (int i = 0; i < activeNodeCount_; ++i) {
-                const float invDist = 1.0f / (distances[i] * distances[i] + kDistanceEpsilon);
-                weights_[i] = invDist;
-                totalWeight += invDist;
-            }
-
-            // Normalize weights
-            if (totalWeight > 0.0f) {
-                for (int i = 0; i < activeNodeCount_; ++i) {
-                    weights_[i] /= totalWeight;
-                }
-            }
-            break;
-        }
-
-        case MorphMode::Radial2D: {
-            calculateRadialWeights(posX, posY);
-            break;
-        }
-    }
-
-    // Apply weight threshold (FR-015): skip nodes below kWeightThreshold
-    float totalAfterThreshold = 0.0f;
-    for (int i = 0; i < activeNodeCount_; ++i) {
-        if (weights_[i] < kWeightThreshold) {
-            weights_[i] = 0.0f;
-        } else {
-            totalAfterThreshold += weights_[i];
-        }
-    }
-
-    // Renormalize remaining weights to sum to 1.0
-    if (totalAfterThreshold > 0.0f && totalAfterThreshold < 1.0f - kDistanceEpsilon) {
-        for (int i = 0; i < activeNodeCount_; ++i) {
-            weights_[i] /= totalAfterThreshold;
-        }
-    }
+    weights_ = computeWeights(mode_, nodes_, activeNodeCount_, posX, posY);
 }
 
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-float MorphEngine::calculate1DDistance(float cursorX, float nodeX) const noexcept {
-    return std::abs(cursorX - nodeX);
-}
+namespace {
 
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-float MorphEngine::calculate2DDistance(float cursorX, float cursorY,
-                                        float nodeX, float nodeY) const noexcept {
-    const float dx = cursorX - nodeX;
-    const float dy = cursorY - nodeY;
-    return std::sqrt(dx * dx + dy * dy);
-}
-
-void MorphEngine::calculateRadialWeights(float cursorX, float cursorY) noexcept {
+/// @brief Radial2D weights (no threshold step): angular IDW around the pad centre,
+/// blended towards equal weights as the cursor nears the centre.
+void calculateRadialWeights(std::array<float, kMaxMorphNodes>& weights,
+                            const std::array<MorphNode, kMaxMorphNodes>& nodes, int count, float cursorX,
+                            float cursorY) noexcept {
     // Convert XY to polar coordinates (center at 0.5, 0.5)
     const float centerX = 0.5f;
     const float centerY = 0.5f;
@@ -348,9 +243,9 @@ void MorphEngine::calculateRadialWeights(float cursorX, float cursorY) noexcept 
 
     // At center (distance = 0), all nodes get equal weight
     if (clampedDistance < kOnNodeThreshold) {
-        const float equalWeight = 1.0f / static_cast<float>(activeNodeCount_);
-        for (int i = 0; i < activeNodeCount_; ++i) {
-            weights_[i] = equalWeight;
+        const float equalWeight = 1.0f / static_cast<float>(count);
+        for (int i = 0; i < count; ++i) {
+            weights[i] = equalWeight;
         }
         return;
     }
@@ -365,15 +260,15 @@ void MorphEngine::calculateRadialWeights(float cursorX, float cursorY) noexcept 
     constexpr float kPi = 3.141592654f;     // NOLINT(modernize-use-std-numbers)
 
     std::array<float, kMaxMorphNodes> nodeAngles{};
-    for (int i = 0; i < activeNodeCount_; ++i) {
-        const float nodeDx = nodes_[i].posX - centerX;
-        const float nodeDy = nodes_[i].posY - centerY;
+    for (int i = 0; i < count; ++i) {
+        const float nodeDx = nodes[i].posX - centerX;
+        const float nodeDy = nodes[i].posY - centerY;
         nodeAngles[i] = std::atan2(nodeDy, nodeDx);
     }
 
     // Calculate angular distances (wrap-around aware)
     float totalWeight = 0.0f;
-    for (int i = 0; i < activeNodeCount_; ++i) {
+    for (int i = 0; i < count; ++i) {
         float angularDist = std::abs(angle - nodeAngles[i]);
         if (angularDist > kPi) {
             angularDist = kTwoPi - angularDist;  // Wrap around
@@ -381,23 +276,131 @@ void MorphEngine::calculateRadialWeights(float cursorX, float cursorY) noexcept 
 
         // Inverse angular distance weighting
         const float invAngDist = 1.0f / (angularDist * angularDist + kDistanceEpsilon);
-        weights_[i] = invAngDist;
+        weights[i] = invAngDist;
         totalWeight += invAngDist;
     }
 
     // Normalize by angle
     if (totalWeight > 0.0f) {
-        for (int i = 0; i < activeNodeCount_; ++i) {
-            weights_[i] /= totalWeight;
+        for (int i = 0; i < count; ++i) {
+            weights[i] /= totalWeight;
         }
     }
 
     // Scale by distance: at center (dist=0) weights are equal,
     // at edge (dist=1) weights are fully determined by angle
-    const float equalWeight = 1.0f / static_cast<float>(activeNodeCount_);
-    for (int i = 0; i < activeNodeCount_; ++i) {
-        weights_[i] = equalWeight * (1.0f - clampedDistance) + weights_[i] * clampedDistance;
+    const float equalWeight = 1.0f / static_cast<float>(count);
+    for (int i = 0; i < count; ++i) {
+        weights[i] = equalWeight * (1.0f - clampedDistance) + weights[i] * clampedDistance;
     }
+}
+
+}  // namespace
+
+std::array<float, kMaxMorphNodes> MorphEngine::computeWeights(
+    MorphMode mode, const std::array<MorphNode, kMaxMorphNodes>& nodes, int count, float x,
+    float y) noexcept {
+    std::array<float, kMaxMorphNodes> weights{};
+    count = std::min(count, kMaxMorphNodes);
+    if (count <= 0) {
+        return weights;
+    }
+
+    // Mode-specific weight calculation
+    switch (mode) {
+        case MorphMode::Linear1D: {
+            // 1D Linear: Use only X position along the node axis. The active nodes sit
+            // evenly on the axis in order A, B, C, D (i / (N - 1)), not at their 2-D posX:
+            // the corner layout gives C the X of A and D the X of B (D-029, D-100).
+            std::array<float, kMaxMorphNodes> distances{};
+            const float lastIndex = static_cast<float>(count - 1);
+
+            for (int i = 0; i < count; ++i) {
+                const float nodeX = count > 1 ? static_cast<float>(i) / lastIndex : 0.0f;
+                distances[i] = std::abs(x - nodeX);
+
+                // Check for "cursor on node" special case (100% weight)
+                if (distances[i] < kOnNodeThreshold) {
+                    weights.fill(0.0f);
+                    weights[i] = 1.0f;
+                    return weights;
+                }
+            }
+
+            // Calculate inverse distance weights (p=2)
+            float totalWeight = 0.0f;
+            for (int i = 0; i < count; ++i) {
+                const float invDist = 1.0f / (distances[i] * distances[i] + kDistanceEpsilon);
+                weights[i] = invDist;
+                totalWeight += invDist;
+            }
+
+            // Normalize weights
+            if (totalWeight > 0.0f) {
+                for (int i = 0; i < count; ++i) {
+                    weights[i] /= totalWeight;
+                }
+            }
+            break;
+        }
+
+        case MorphMode::Planar2D: {
+            // 2D Planar: Use Euclidean distance in XY space
+            std::array<float, kMaxMorphNodes> distances{};
+
+            for (int i = 0; i < count; ++i) {
+                const float dx = x - nodes[i].posX;
+                const float dy = y - nodes[i].posY;
+                distances[i] = std::sqrt(dx * dx + dy * dy);
+
+                // Check for "cursor on node" special case (100% weight)
+                if (distances[i] < kOnNodeThreshold) {
+                    weights.fill(0.0f);
+                    weights[i] = 1.0f;
+                    return weights;
+                }
+            }
+
+            // Calculate inverse distance weights (p=2)
+            float totalWeight = 0.0f;
+            for (int i = 0; i < count; ++i) {
+                const float invDist = 1.0f / (distances[i] * distances[i] + kDistanceEpsilon);
+                weights[i] = invDist;
+                totalWeight += invDist;
+            }
+
+            // Normalize weights
+            if (totalWeight > 0.0f) {
+                for (int i = 0; i < count; ++i) {
+                    weights[i] /= totalWeight;
+                }
+            }
+            break;
+        }
+
+        case MorphMode::Radial2D: {
+            calculateRadialWeights(weights, nodes, count, x, y);
+            break;
+        }
+    }
+
+    // Apply weight threshold (FR-015): skip nodes below kWeightThreshold
+    float totalAfterThreshold = 0.0f;
+    for (int i = 0; i < count; ++i) {
+        if (weights[i] < kWeightThreshold) {
+            weights[i] = 0.0f;
+        } else {
+            totalAfterThreshold += weights[i];
+        }
+    }
+
+    // Renormalize remaining weights to sum to 1.0
+    if (totalAfterThreshold > 0.0f && totalAfterThreshold < 1.0f - kDistanceEpsilon) {
+        for (int i = 0; i < count; ++i) {
+            weights[i] /= totalAfterThreshold;
+        }
+    }
+    return weights;
 }
 
 float MorphEngine::transitionGainForWeight(float weight) noexcept {

@@ -15,6 +15,12 @@
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 #include "dsp/distortion_types.h"
+#include "dsp/band_processor.h"
+#include "controller/views/morph_pad.h"
+
+#include <cmath>
+#include <cstdio>
+#include <utility>
 
 using Catch::Approx;
 
@@ -290,4 +296,88 @@ TEST_CASE("MorphEngine weight computation - nodes at same position", "[morph][we
     // Should handle gracefully (first node gets 100% weight since cursor is "on" it)
     float sum = weights[0] + weights[1] + weights[2] + weights[3];
     REQUIRE(sum == Approx(1.0f).margin(0.001f));
+}
+
+// =============================================================================
+// D-089 (fix plan T4.02): one IDW weight function
+// =============================================================================
+// The weights the MorphEngine applies are the ground truth. The band's
+// oversampling choice (BandProcessor::computeRawMorphWeights) and the morph pad's
+// node brightness (MorphPad::getNodeWeight) must show the same weights for every
+// mode, node count and cursor position. Separately compiled call sites: compared
+// within 1e-6, not bit for bit.
+
+TEST_CASE("Morph engine weights match the band oversampling and morph pad weights", "[disrumpo][morph][weight][D-089]") {
+    using namespace Disrumpo;
+    using Layout = std::array<std::pair<float, float>, kMaxMorphNodes>;
+    const std::array<Layout, 2> layouts{{
+        {{{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}}},     // the default corners
+        {{{0.1f, 0.2f}, {0.8f, 0.15f}, {0.3f, 0.9f}, {0.65f, 0.6f}}},  // moved nodes
+    }};
+    const std::array<MorphMode, 3> modes{MorphMode::Linear1D, MorphMode::Planar2D, MorphMode::Radial2D};
+    const std::array<const char*, 3> modeNames{"Linear1D", "Planar2D", "Radial2D"};
+
+    auto engine = std::make_unique<MorphEngine>();
+    engine->prepare(48000.0, 512);
+    auto band = std::make_unique<BandProcessor>();
+    band->prepare(48000.0, 512);
+    MorphPad pad(VSTGUI::CRect(0, 0, 250, 200));
+
+    int compared = 0;
+    int bandOff = 0;
+    int padOff = 0;
+    for (size_t l = 0; l < layouts.size(); ++l) {
+        std::array<MorphNode, kMaxMorphNodes> nodes{};
+        for (int i = 0; i < kMaxMorphNodes; ++i) {
+            const auto& pos = layouts[l][static_cast<size_t>(i)];
+            nodes[static_cast<size_t>(i)] = MorphNode(i, pos.first, pos.second, DistortionType::SoftClip);
+        }
+        for (int count = 2; count <= kMaxMorphNodes; ++count) {
+            for (size_t m = 0; m < modes.size(); ++m) {
+                engine->setNodes(nodes, count);
+                engine->setMode(modes[m]);
+                band->setMorphNodes(nodes, count);
+                band->setMorphMode(modes[m]);
+                pad.setActiveNodeCount(count);
+                for (int i = 0; i < kMaxMorphNodes; ++i) {
+                    pad.setNodePosition(i, nodes[static_cast<size_t>(i)].posX, nodes[static_cast<size_t>(i)].posY);
+                }
+                pad.setMorphMode(modes[m]);
+                for (int xi = 0; xi < 5; ++xi) {
+                    for (int yi = 0; yi < 5; ++yi) {
+                        const float x = static_cast<float>(xi) / 4.0f;
+                        const float y = static_cast<float>(yi) / 4.0f;
+                        engine->calculateMorphWeights(x, y);
+                        const auto eng = engine->getWeights();
+                        band->setMorphPosition(x, y);
+                        const auto bw = band->computeRawMorphWeights();
+                        pad.setMorphPosition(x, y);
+                        const auto ref = MorphEngine::computeWeights(modes[m], nodes, count, x, y);
+                        bool bandBad = false;
+                        bool padBad = false;
+                        for (int i = 0; i < kMaxMorphNodes; ++i) {
+                            const auto k = static_cast<size_t>(i);
+                            CHECK(eng[k] == ref[k]);
+                            bandBad = bandBad || std::fabs(bw[k] - eng[k]) >= 1e-6f;
+                            padBad = padBad || std::fabs(pad.getNodeWeight(i) - eng[k]) >= 1e-6f;
+                        }
+                        ++compared;
+                        bandOff += bandBad ? 1 : 0;
+                        padOff += padBad ? 1 : 0;
+                        if ((bandBad || padBad) && (bandOff + padOff) <= 12) {
+                            std::printf("T4.02 layout %zu, %d nodes, %s, cursor (%.2f, %.2f): engine %.4f %.4f %.4f %.4f"
+                                        " | band %.4f %.4f %.4f %.4f | pad %.4f %.4f %.4f %.4f\n",
+                                        l, count, modeNames[m], x, y, eng[0], eng[1], eng[2], eng[3], bw[0], bw[1],
+                                        bw[2], bw[3], pad.getNodeWeight(0), pad.getNodeWeight(1),
+                                        pad.getNodeWeight(2), pad.getNodeWeight(3));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::printf("T4.02 %d (layout, count, mode, cursor) cases: band differs in %d, pad differs in %d\n", compared,
+                bandOff, padOff);
+    CHECK(bandOff == 0);
+    CHECK(padOff == 0);
 }
