@@ -22,6 +22,23 @@ int temporalShapeIndex(float dynamicCurve) noexcept {
     return std::clamp(static_cast<int>(dynamicCurve * 8.0f + 0.5f), 0, 8);
 }
 
+/// Makeup gain for the fold models whose output peak the fold amount caps below 1 (D-158).
+/// A triangle fold has threshold 1/folds, so it peaks at 1/folds; the classic Buchla259 sums
+/// triangle folds at T_i/folds weighted by G_i and divides by sum(G_i), peaking at
+/// sum(G_i T_i) / sum(G_i) / folds = 1.4 / (3 folds). The sine models already reach 1.
+float foldMakeup(Krate::DSP::WavefolderModel model, float foldAmount) noexcept {
+    switch (model) {
+        case Krate::DSP::WavefolderModel::Simple:
+            return foldAmount;
+        case Krate::DSP::WavefolderModel::Buchla259:
+            return foldAmount * 3.0f / 1.4f;
+        case Krate::DSP::WavefolderModel::Serge:
+        case Krate::DSP::WavefolderModel::Lockhart:
+            break;
+    }
+    return 1.0f;
+}
+
 }  // namespace
 
 // =============================================================================
@@ -404,7 +421,7 @@ float DistortionAdapter::processRaw(float input) noexcept {
             float result = singleSampleBuffer_[0];
             // Shape: crossfade between sine fold (0) and triangle fold (1)
             if (typeParams_.shape > 0.001f) {
-                float triFolded = wavefoldTriangle_.process(biased);
+                float triFolded = wavefoldTriangle_.process(biased) * wavefoldTriangle_.getFoldAmount();
                 result = result * (1.0f - typeParams_.shape) + triFolded * typeParams_.shape;
             }
             // Smooth: lowpass filter to tame harsh harmonics
@@ -417,7 +434,7 @@ float DistortionAdapter::processRaw(float input) noexcept {
             float biased = input + typeParams_.bias;
             singleSampleBuffer_[0] = biased;
             wavefolder_.process(singleSampleBuffer_, 1);
-            float result = singleSampleBuffer_[0];
+            float result = singleSampleBuffer_[0] * foldMakeup(wavefolder_.getModel(), wavefolder_.getFoldAmount());
             // Angle: crossfade between triangle fold (0) and sine fold (1)
             if (typeParams_.angle > 0.001f) {
                 wavefoldTriangle_.setType(Krate::DSP::WavefoldType::Sine);
@@ -435,10 +452,10 @@ float DistortionAdapter::processRaw(float input) noexcept {
             float biased = input + typeParams_.bias;
             singleSampleBuffer_[0] = biased;
             wavefolder_.process(singleSampleBuffer_, 1);
-            float result = singleSampleBuffer_[0];
+            float result = singleSampleBuffer_[0] * foldMakeup(wavefolder_.getModel(), wavefolder_.getFoldAmount());
             // Shape: crossfade with triangle fold
             if (typeParams_.shape > 0.001f) {
-                float triFolded = wavefoldTriangle_.process(biased);
+                float triFolded = wavefoldTriangle_.process(biased) * wavefoldTriangle_.getFoldAmount();
                 result = result * (1.0f - typeParams_.shape) + triFolded * typeParams_.shape;
             }
             result = wavefoldSmoothFilter_.process(result);

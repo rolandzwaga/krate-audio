@@ -118,6 +118,18 @@ struct ShapeShadowStorage {
         const int sergeIdx = static_cast<int>(DistortionType::SergeFold);
         typeSlots[sergeIdx][2] = 0.0f;  // Model: int(0*3+0.5) = 0 → models[0] = Serge
         typeSlots[sergeIdx][4] = 0.0f;  // Shape: pure fold, no triangle crossfade
+
+        // Folds start at 2 (slot 0: 1 + x * 11) with Smooth off, so a fresh fold node keeps
+        // its level and its spectrum fits under Nyquist; Smooth 0.5 was a 3.16 kHz low-pass
+        // (D-159).
+        typeSlots[static_cast<int>(DistortionType::SineFold)][0] = 1.0f / 11.0f;      // Folds 2
+        typeSlots[static_cast<int>(DistortionType::TriangleFold)][0] = 1.0f / 11.0f;  // Folds 2
+        typeSlots[sergeIdx][0] = 1.0f / 11.0f;                                         // Folds 2
+        typeSlots[static_cast<int>(DistortionType::SineFold)][4] = 0.0f;      // Smooth
+        typeSlots[static_cast<int>(DistortionType::TriangleFold)][4] = 0.0f;  // Smooth
+        typeSlots[sergeIdx][5] = 0.0f;                                         // Smooth
+        typeSlots[static_cast<int>(DistortionType::FullRectify)][0] = 0.0f;   // Smooth
+        typeSlots[static_cast<int>(DistortionType::HalfRectify)][1] = 0.0f;   // Smooth
     }
 
     /// Save current slot values for the given type index.

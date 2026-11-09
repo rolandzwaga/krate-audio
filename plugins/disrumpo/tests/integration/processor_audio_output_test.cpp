@@ -22,6 +22,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <vector>
@@ -1061,6 +1062,112 @@ TEST_CASE("Probe: oversampled band impulse delay vs reported latency", "[.][t107
              << " peak offset " << static_cast<long long>(peakIdx) - static_cast<long long>(kAt)
              << " samples, peak " << outL[peakIdx] << ", getLatencySamples " << rig.p->getLatencySamples());
     }
+}
+
+namespace {
+
+/// One band, node 0 of `type` with the shape slots a fresh node of that type starts
+/// with, drive `driveNorm`, every other parameter at its default (tone 4 kHz, mix 1);
+/// 1031.25 Hz at -6 dBFS, 1 s. Returns the left channel.
+std::vector<float> renderFreshNode(DistortionType type, double driveNorm) {
+    ts::Rig rig(kBlockSr);
+    rig.apply({{Disrumpo::kBandCountId, 0.0},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(type)},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), driveNorm},
+               {makeBandParamId(0, BandParamType::kBandMorphX), 0.0},
+               {makeBandParamId(0, BandParamType::kBandMorphY), 0.0}});
+    rig.reactivate();
+    const auto in = sineAt(static_cast<size_t>(kBlockSr), kAliasToneHz, -6.0);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    return outL;
+}
+
+/// Peak (dBFS) of the last 0.5 s.
+double tailPeakDb(const std::vector<float>& x) {
+    const size_t half = x.size() / 2;
+    return ts::toDb(ts::peakOf(x.data() + half, x.size() - half));
+}
+
+/// Magnitude-weighted spectral centroid (Hz) over the last kAliasFrames Hann frames.
+double centroidHz(const std::vector<float>& x) {
+    Krate::DSP::FFT fft;
+    fft.prepare(kAliasFft);
+    std::vector<float> window(kAliasFft);
+    Krate::DSP::Window::generateHann(window.data(), kAliasFft);
+    std::vector<float> frame(kAliasFft);
+    std::vector<Krate::DSP::Complex> spectrum(fft.numBins());
+    double weighted = 0.0;
+    double total = 0.0;
+    const size_t start = x.size() - kAliasFrames * kAliasFft;
+    for (size_t f = 0; f < kAliasFrames; ++f) {
+        for (size_t i = 0; i < kAliasFft; ++i) frame[i] = x[start + f * kAliasFft + i] * window[i];
+        fft.forward(frame.data(), spectrum.data());
+        for (size_t b = 1; b < spectrum.size(); ++b) {
+            const double m = spectrum[b].magnitude();
+            weighted += m * static_cast<double>(b) * kBlockSr / static_cast<double>(kAliasFft);
+            total += m;
+        }
+    }
+    return total > 0.0 ? weighted / total : 0.0;
+}
+
+} // anonymous namespace
+
+// Audit D-145 / D-159 (fix plan T2.06): the three wavefolders at their fresh-node defaults
+// read 20-45 dB below the other types and got quieter as Drive rose (audit probe: SineFold
+// -23.2 / -26.6 / -31.0 dBFS, SergeFold -47.2 / -47.5 / -35.9 dBFS peak at drive 2.5 / 7.5 / 10).
+//
+// What is pinned: a fresh fold node is not near-silent. Peak >= -12 dBFS at every drive,
+// within 6 dB of SoftClip at drive 2.5 and 7.5, and at most 6 dB lower at drive 10 than at
+// drive 2.5. "Peak never falls as drive rises" is not a property of a folder behind a tone
+// filter: more drive raises the fold index (sin(folds * drive * x)), moves the fold energy
+// upward, and the node's one-pole Tone (4 kHz fresh) and the downsampler remove it. Measured
+// with Tone 8 kHz at 1x, SineFold still reads -0.24 / -0.10 / -0.78 / -1.73 dBFS peak at
+// drive 2.5 / 5 / 7.5 / 10. So drive 10 is held to a bounded drop, not to SoftClip's 0 dBFS.
+//
+// Measured, peak dBFS at drive 2.5 / 7.5 / 10 (SoftClip -0.01 / -0.00 / -0.00), 48 kHz:
+// - after T1.06/T1.08, before T2.06: SineFold and SergeFold -1.59 / -4.44 / -9.75,
+//   TriangleFold -26.31 / -35.87 / -36.35 (Smooth 0.5 = 3.16 kHz low-pass, folds 6.5,
+//   triangle output capped at 1/folds).
+// - after T2.06 (folds 2, Smooth 0, makeup x folds): SineFold and SergeFold
+//   -0.68 / -1.76 / -5.07, TriangleFold -3.94 / -3.06 / -6.22.
+TEST_CASE("Wavefold types at default settings are not near-silent and stay near SoftClip",
+          "[disrumpo][wavefold][D-145][D-159]") {
+    constexpr std::array<double, 3> kDrives{0.25, 0.75, 1.0};
+    std::array<double, 3> softClip{};
+    for (size_t d = 0; d < kDrives.size(); ++d) softClip[d] = tailPeakDb(renderFreshNode(DistortionType::SoftClip, kDrives[d]));
+    std::printf("D-145 SoftClip fresh node peak: %.2f / %.2f / %.2f dBFS at drive 2.5 / 7.5 / 10\n", softClip[0],
+                softClip[1], softClip[2]);
+    for (const auto type : {DistortionType::SineFold, DistortionType::TriangleFold, DistortionType::SergeFold}) {
+        std::array<double, 3> peak{};
+        for (size_t d = 0; d < kDrives.size(); ++d) peak[d] = tailPeakDb(renderFreshNode(type, kDrives[d]));
+        std::printf("D-145 type %d fresh node peak: %.2f / %.2f / %.2f dBFS at drive 2.5 / 7.5 / 10\n",
+                    static_cast<int>(type), peak[0], peak[1], peak[2]);
+        INFO("type " << static_cast<int>(type) << " peak " << peak[0] << " / " << peak[1] << " / " << peak[2]
+             << " dBFS, SoftClip " << softClip[0] << " / " << softClip[1] << " / " << softClip[2] << " dBFS");
+        for (size_t d = 0; d < kDrives.size(); ++d) CHECK(peak[d] >= -12.0);
+        CHECK(std::fabs(peak[0] - softClip[0]) <= 6.0);  // drive 2.5
+        CHECK(std::fabs(peak[1] - softClip[1]) <= 6.0);  // drive 7.5
+        CHECK(peak[0] - peak[2] <= 6.0);                 // drive 2.5 -> 10
+    }
+}
+
+// Audit D-157 (fix plan T2.06): both crossfades defaulted to a 50/50 blend of the same sine
+// and triangle folds, so a fresh SineFold and a fresh TriangleFold node were identical.
+TEST_CASE("SineFold and TriangleFold differ at defaults", "[disrumpo][wavefold][D-157]") {
+    const auto sine = renderFreshNode(DistortionType::SineFold, 0.5);
+    const auto tri = renderFreshNode(DistortionType::TriangleFold, 0.5);
+    const size_t half = sine.size() / 2;
+    const double rmsDiffDb = std::fabs(ts::toDb(ts::rmsOf(sine.data() + half, sine.size() - half)) -
+                                       ts::toDb(ts::rmsOf(tri.data() + half, tri.size() - half)));
+    const double sineCentroid = centroidHz(sine);
+    const double triCentroid = centroidHz(tri);
+    const double ratio = sineCentroid / triCentroid;
+    std::printf("D-157 fresh SineFold vs TriangleFold at drive 5: RMS difference %.2f dB, centroid %.0f vs %.0f Hz "
+                "(ratio %.3f)\n", rmsDiffDb, sineCentroid, triCentroid, ratio);
+    REQUIRE((rmsDiffDb > 1.0 || ratio < 0.85 || ratio > 1.15));
 }
 
 // Measurement probe (hidden): real-time ratio of Processor::process, 4 bands of HardClip.
