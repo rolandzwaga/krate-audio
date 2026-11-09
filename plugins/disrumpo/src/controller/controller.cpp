@@ -682,10 +682,19 @@ bool writeMidiBlob(Steinberg::IBStream* state, Steinberg::IBStreamer& streamer, 
     return size == 0 || state->write(blob.data(), size, nullptr) == Steinberg::kResultOk;
 }
 
-/// Reads one size-prefixed blob; empty on a missing or short blob.
-std::vector<uint8_t> readMidiBlob(Steinberg::IBStream* state, Steinberg::IBStreamer& streamer) {
+/// Largest MIDI blob accepted (D-059): a uint32 count plus at most 128 CC mappings.
+/// MidiCCManager writes 6 bytes per mapping; the bound allows 8 (fix plan T4.21).
+constexpr Steinberg::int32 kMaxMidiBlobSize = 4 + 128 * 8;
+
+/// Reads one size-prefixed blob; empty on a missing or short blob. A size above
+/// kMaxMidiBlobSize (corrupt or hostile state) sets `rejected` and allocates nothing.
+std::vector<uint8_t> readMidiBlob(Steinberg::IBStream* state, Steinberg::IBStreamer& streamer, bool& rejected) {
     Steinberg::int32 size = 0;
     if (!streamer.readInt32(size) || size <= 0) return {};
+    if (size > kMaxMidiBlobSize) {
+        rejected = true;
+        return {};
+    }
     std::vector<uint8_t> blob(static_cast<size_t>(size));
     Steinberg::int32 got = 0;
     if (state->read(blob.data(), size, &got) != Steinberg::kResultOk || got != size) return {};
@@ -718,8 +727,11 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
         streamer.readDouble(unusedWidth);
         streamer.readDouble(unusedHeight);
 
-        const auto globalBlob = readMidiBlob(state, streamer);
-        const auto presetBlob = version >= 3 ? readMidiBlob(state, streamer) : std::vector<uint8_t>{};
+        bool rejected = false;
+        const auto globalBlob = readMidiBlob(state, streamer, rejected);
+        const auto presetBlob =
+            (version >= 3 && !rejected) ? readMidiBlob(state, streamer, rejected) : std::vector<uint8_t>{};
+        if (rejected) return Steinberg::kResultOk;  // corrupt MIDI section: keep the current mappings
         if (midiCCManager_) {
             if (!globalBlob.empty())
                 midiCCManager_->deserializeGlobalMappings(globalBlob.data(), globalBlob.size());

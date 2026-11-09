@@ -21,6 +21,8 @@
 
 #include "midi/midi_cc_manager.h"
 
+#include "allocation_detector.h"
+
 #include "base/source/fstreamer.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "vstgui/uidescription/uiattributes.h"
@@ -330,6 +332,57 @@ TEST_CASE("Controller getState/setState round-trips the MIDI CC blob", "[disrump
     CHECK(id == kCrossover0Id);
 
     c2.terminate();
+    c.terminate();
+}
+
+// T4.21 (D-059): the MIDI blob size comes from the stream. A corrupt or hostile
+// size must not size an allocation (0x7FFFFFFF asked for 2 GiB, or threw
+// std::bad_alloc out of setState); the chunk is rejected and the mappings stay.
+TEST_CASE("Controller setState rejects an oversized MIDI blob without allocating", "[disrumpo][state][D-059]") {
+    Krate::Plugins::MidiCCManager source;
+    source.addGlobalMapping(74, kSweepFreqId);
+    const auto blob = source.serializeGlobalMappings();
+
+    const auto controllerState = [](Steinberg::int32 globalSize, std::vector<uint8_t> globalBytes) {
+        auto* s = new Steinberg::MemoryStream();
+        Steinberg::IBStreamer w(s, kLittleEndian);
+        REQUIRE(w.writeInt32(3));
+        REQUIRE(w.writeDouble(0.0));
+        REQUIRE(w.writeDouble(0.0));
+        REQUIRE(w.writeInt32(globalSize));
+        if (!globalBytes.empty()) {
+            Steinberg::int32 written = 0;
+            s->write(globalBytes.data(), static_cast<Steinberg::int32>(globalBytes.size()), &written);
+            REQUIRE(w.writeInt32(0));
+        }
+        s->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+        return s;
+    };
+
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    auto* valid = controllerState(static_cast<Steinberg::int32>(blob.size()), blob);
+    REQUIRE(c.setState(valid) == Steinberg::kResultOk);
+    valid->release();
+    Steinberg::Vst::ParamID id = 0;
+    REQUIRE(c.getMidiControllerAssignment(0, 0, 74, id) == Steinberg::kResultTrue);
+
+    auto* hostile = controllerState(0x7FFFFFFF, {});
+    Steinberg::tresult result = Steinberg::kResultFalse;
+    size_t allocations = 0;
+    {
+        TestHelpers::ThreadScopedAllocationScope scope;
+        result = c.setState(hostile);
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    hostile->release();
+    INFO("allocations during setState: " << allocations);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(allocations == size_t{0});
+
+    id = 0;
+    REQUIRE(c.getMidiControllerAssignment(0, 0, 74, id) == Steinberg::kResultTrue);
+    CHECK(id == kSweepFreqId);
     c.terminate();
 }
 
