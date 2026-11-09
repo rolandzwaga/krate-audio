@@ -394,6 +394,9 @@ public:
     [[nodiscard]] float getZ2() const noexcept { return z2_; }
 
 private:
+    // The cascade's block loop keeps every stage's state in locals (BiquadCascade::processBlock)
+    template<size_t> friend class BiquadCascade;
+
     BiquadCoefficients coeffs_;
     float z1_ = 0.0f;
     float z2_ = 0.0f;
@@ -467,10 +470,40 @@ public:
         return x;
     }
 
-    /// Process buffer through all stages
+    /// Process buffer through all stages.
+    /// Sample-major: each sample runs through every stage before the next one, with the
+    /// coefficients and state in locals, so the stages' recursions overlap instead of
+    /// each stage making its own serial pass over the buffer. Per stage the arithmetic is
+    /// Biquad::process's, in the same order, so the output is the stage-by-stage output.
     void processBlock(float* buffer, size_t numSamples) noexcept {
-        for (auto& stage : stages_) {
-            stage.processBlock(buffer, numSamples);
+        std::array<BiquadCoefficients, NumStages> c;
+        std::array<float, NumStages> z1{};
+        std::array<float, NumStages> z2{};
+        for (size_t s = 0; s < NumStages; ++s) {
+            c[s] = stages_[s].coeffs_;
+            z1[s] = stages_[s].z1_;
+            z2[s] = stages_[s].z2_;
+        }
+        for (size_t i = 0; i < numSamples; ++i) {
+            float x = buffer[i];
+            for (size_t s = 0; s < NumStages; ++s) {
+                // Biquad::process: a non-finite input resets the stage and yields 0
+                if (!detail::isFiniteBits(x)) {
+                    z1[s] = 0.0f;
+                    z2[s] = 0.0f;
+                    x = 0.0f;
+                    continue;
+                }
+                const float output = c[s].b0 * x + z1[s];
+                z1[s] = detail::flushDenormal(c[s].b1 * x - c[s].a1 * output + z2[s]);
+                z2[s] = detail::flushDenormal(c[s].b2 * x - c[s].a2 * output);
+                x = output;
+            }
+            buffer[i] = x;
+        }
+        for (size_t s = 0; s < NumStages; ++s) {
+            stages_[s].z1_ = z1[s];
+            stages_[s].z2_ = z2[s];
         }
     }
 
