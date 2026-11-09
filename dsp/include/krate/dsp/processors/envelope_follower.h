@@ -160,8 +160,14 @@ public:
     /// @param input Input sample
     /// @return Current envelope value
     /// @pre prepare() has been called
-    /// @note Does NOT validate input - caller must ensure no NaN/Inf for maximum speed
+    /// @note NaN/Inf input resets the state and returns 0: one bad sample must
+    ///       not latch envelope_/squaredEnvelope_ for good (D-013)
     [[nodiscard]] float processSample(float input) noexcept {
+        if (!detail::isFinite(input)) {
+            reset();
+            return 0.0f;
+        }
+
         // Apply sidechain filter if enabled
         float sample = sidechainEnabled_ ? sidechainFilter_.process(input) : input;
 

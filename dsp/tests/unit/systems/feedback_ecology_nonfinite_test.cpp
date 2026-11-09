@@ -101,6 +101,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <span>
 #include <string>
@@ -121,29 +122,61 @@ using Krate::DSP::detail::isFinite;
 //   grep -rn "FeedbackEcologyNonFiniteProbe" dsp/ plugins/
 // must return the header's declaration + friend line and this TU only.
 //
-// The two members poison the two stages FR-047 names and NOTHING else. Neither
-// reaches into private state directly: DCBlocker's y1_ and EnvelopeFollower's
-// squaredEnvelope_ are private, so each is poisoned by PROCESSING a non-finite
-// sample through that one object - the documented propagation
-// (dc_blocker.h:188 "NaN inputs are propagated"; envelope_follower.h:163 "Does
-// NOT validate input") that makes the trap necessary in the first place.
+// poisonDcBlocker and poisonFollower poison the two stages FR-047 names. Since
+// D-013 / D-162 (Disrumpo audit T2.17) both primitives reset on a non-finite
+// INPUT, so processing a NaN no longer poisons them: DCBlocker is poisoned
+// through its public setState() (the exact x1_ = y1_ = NaN state processing a
+// NaN used to leave), and the RMS-mode EnvelopeFollower through a FINITE sample
+// whose square overflows, which still turns squaredEnvelope_ into inf - inf =
+// NaN. The remaining members serve the D-162 absorption case at the end.
 // ==============================================================================
 namespace Krate::DSP::detail {
 
 struct FeedbackEcologyNonFiniteProbe {
-    /// Sticks the poison in that loop's DCBlocker y1_ (dc_blocker.h:190-205:
-    /// y = x - x1_ + R_ * y1_, then y1_ = flushDenormal(y), and flushDenormal
-    /// returns a NaN unchanged because both of its ordered comparisons are
-    /// false - db_utils.h:245-247).
+    /// Sticks the poison in that loop's DCBlocker x1_ / y1_ (dc_blocker.h:
+    /// y = x - x1_ + R_ * y1_ is then non-finite on the next sample).
     static void poisonDcBlocker(FeedbackEcology& fe, std::size_t loop, float nonFinite) noexcept {
+        fe.loops_[loop].dcBlocker.setState(nonFinite, nonFinite);
+    }
+
+    /// Sticks a NaN in the governor tracker's squaredEnvelope_ (RMS mode):
+    /// 1e20^2 overflows to +inf and the attack branch computes
+    /// inf + attackCoeff_ * (prev - inf) = NaN; the release branch then keeps it.
+    static void poisonFollower(FeedbackEcology& fe) noexcept {
+        static_cast<void>(fe.follower_.processSample(1.0e20f));
+    }
+
+    /// Feeds a non-finite sample INTO that loop's DCBlocker (the pre-T2.17
+    /// poison): since D-162 the blocker absorbs it, so nothing latches.
+    static void feedDcBlocker(FeedbackEcology& fe, std::size_t loop, float nonFinite) noexcept {
         static_cast<void>(fe.loops_[loop].dcBlocker.process(nonFinite));
     }
 
-    /// Sticks the poison in the governor tracker's squaredEnvelope_
-    /// (envelope_follower.h:164-188, RMS mode: the release branch recomputes
-    /// squared + releaseCoeff_ * (NaN - squared) = NaN forever).
-    static void poisonFollower(FeedbackEcology& fe, float nonFinite) noexcept {
-        static_cast<void>(fe.follower_.processSample(nonFinite));
+    /// Puts +inf in that loop's resonator Biquad z1_ from FINITE values: one
+    /// sample with b1 = 3e38 makes z1_ = b1 * x overflow, then the real
+    /// coefficients come back. A state no primitive input guard covers (Biquad
+    /// checks only its input), so its next output is non-finite for good until
+    /// something resets it. Returns whether the poison took.
+    static bool poisonResonator(FeedbackEcology& fe, std::size_t loop) noexcept {
+        Biquad& res = fe.loops_[loop].resonator;
+        const BiquadCoefficients saved = res.coefficients();
+        BiquadCoefficients overflow = saved;
+        overflow.b1 = 3.0e38f;
+        res.setCoefficients(overflow);
+        static_cast<void>(res.process(3.0e38f));
+        res.setCoefficients(saved);
+        return !resonatorStateFinite(fe, loop);
+    }
+
+    /// Whether the loop's resonator / DCBlocker state is finite, read through a
+    /// COPY (one zero sample), so the object under test is untouched.
+    [[nodiscard]] static bool resonatorStateFinite(const FeedbackEcology& fe, std::size_t loop) noexcept {
+        auto copy = fe.loops_[loop].resonator;
+        return isFinite(copy.process(0.0f)) && isFinite(copy.process(0.0f));
+    }
+    [[nodiscard]] static bool dcBlockerStateFinite(const FeedbackEcology& fe, std::size_t loop) noexcept {
+        auto copy = fe.loops_[loop].dcBlocker;
+        return isFinite(copy.process(0.0f));
     }
 };
 
@@ -836,7 +869,7 @@ TEST_CASE("FeedbackEcology_NonFinite", "[feedback_ecology]") {
         REQUIRE(fe.getNonFiniteResetCount() == 0u);
 
         // *** THE INJECTION ***
-        Probe::poisonFollower(fe, bitNaN());
+        Probe::poisonFollower(fe);
         REQUIRE(fe.getNonFiniteResetCount() == 0u);  // the probe itself counts nothing
         // The poison really is in the tracker's state - otherwise the guard
         // below would have nothing to catch.
@@ -946,5 +979,75 @@ TEST_CASE("FeedbackEcology_NonFinite", "[feedback_ecology]") {
         REQUIRE(reference.rms > 1.0e-4);
         REQUIRE(comparison.withinTolerance());
         REQUIRE(fe.getNonFiniteResetCount() == 0u);
+    }
+}
+
+// ==============================================================================
+// D-162 (Disrumpo audit T2.17): DCBlocker no longer latches a non-finite input.
+// Two claims, against a never-poisoned twin over 5 s:
+//   (d1) RUNG 5 STAYS REACHABLE: a non-finite state the primitives' input guards
+//        do not cover (the resonator Biquad's z1_) still reaches the trap exactly
+//        once, and the loop comes back. The DCBlocker passes the bad sample on
+//        instead of returning 0; a blocker that swallowed it would leave the
+//        resonator poisoned and the loop silent with every counter clean.
+//   (d2) ABSORPTION: a non-finite sample fed INTO the loop's DCBlocker leaves no
+//        non-finite state anywhere; the output stays finite and on the twin.
+// ==============================================================================
+TEST_CASE("FeedbackEcology_NonFinite_PrimitiveAbsorption", "[feedback_ecology][D-162]") {
+    constexpr std::size_t kSettle = static_cast<std::size_t>(2.0 * kFs);
+    static_assert(kSettle % kBlock == 0, "the probe must land on a control boundary");
+    const std::size_t post = static_cast<std::size_t>(5.0 * kFs);
+    const std::size_t lastSecond = static_cast<std::size_t>(kFs);
+    const std::size_t total = kSettle + post;
+
+    const StereoBuffer drive = makeDrive(total, kDriveSeed, kDriveScaleMinus12dBFS);
+    FeedbackEcology ref;
+    makeIsolated(ref, FeedbackEcology::kDefaultGovernorRatio);
+    Render refRender(total);
+    renderSpan(ref, drive, refRender, 0, total);
+    REQUIRE(ref.getNonFiniteResetCount() == 0u);
+    const double refTapDb =
+        toDb(rmsOf(refRender.taps[kProbeLoop].data() + total - lastSecond, lastSecond));
+    REQUIRE(refTapDb > -120.0);  // ANTI-VACUITY: the probe loop is audible
+
+    for (const bool resonatorArm : {true, false}) {
+        INFO((resonatorArm ? "(d1) resonator z1_ overflow" : "(d2) NaN fed into the DCBlocker"));
+        FeedbackEcology fe;
+        makeIsolated(fe, FeedbackEcology::kDefaultGovernorRatio);
+        Render r(total);
+        renderSpan(fe, drive, r, 0, kSettle);
+        if (resonatorArm) {
+            REQUIRE(Probe::poisonResonator(fe, kProbeLoop));  // the poison took
+        } else {
+            Probe::feedDcBlocker(fe, kProbeLoop, bitNaN());
+            REQUIRE(Probe::dcBlockerStateFinite(fe, kProbeLoop));  // nothing latched
+        }
+        renderSpan(fe, drive, r, kSettle, post);
+
+        const BoundedResult bounded = checkBounded(r, kSettle, total);
+        const double tapDb = toDb(rmsOf(r.taps[kProbeLoop].data() + total - lastSecond, lastSecond));
+        double worst = 0.0;
+        for (std::size_t s = kSettle; s < total; ++s) {
+            worst = std::max(worst, std::abs(static_cast<double>(r.outL[s]) -
+                                             static_cast<double>(refRender.outL[s])));
+        }
+        std::printf("D-162 FeedbackEcology %s: rung-5 resets %u, output finite over 5 s %s, worst |out - twin| "
+                    "%.3e, probe-loop tap last second %.2f dB (twin %.2f dB), resonator / DC blocker state finite "
+                    "%s / %s\n",
+                    resonatorArm ? "resonator overflow" : "NaN into DCBlocker", fe.getNonFiniteResetCount(),
+                    bounded.allFinite ? "yes" : "no", worst, tapDb, refTapDb,
+                    Probe::resonatorStateFinite(fe, kProbeLoop) ? "yes" : "no",
+                    Probe::dcBlockerStateFinite(fe, kProbeLoop) ? "yes" : "no");
+
+        REQUIRE(bounded.allFinite);
+        REQUIRE(Probe::resonatorStateFinite(fe, kProbeLoop));
+        REQUIRE(Probe::dcBlockerStateFinite(fe, kProbeLoop));
+        REQUIRE(std::abs(tapDb - refTapDb) < 0.5);  // the loop is alive again
+        if (resonatorArm) {
+            REQUIRE(fe.getNonFiniteResetCount() == 1u);  // the trap caught it, once
+        } else {
+            REQUIRE(fe.getNonFiniteResetCount() == 0u);  // nothing for the trap to catch
+            REQUIRE(worst < 1.0e-4);                     // and the render stayed on the twin
+        }
     }
 }

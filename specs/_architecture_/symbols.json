@@ -713,7 +713,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/dc_blocker.h",
-      "line": 276
+      "line": 285
     },
     {
       "name": "DecayCloud",

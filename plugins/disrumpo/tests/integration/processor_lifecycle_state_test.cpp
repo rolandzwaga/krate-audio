@@ -43,6 +43,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <chrono>
 #include <climits>
 #include <cmath>
@@ -1764,4 +1765,95 @@ TEST_CASE("The controller turns a latency report into restartComponent(kLatencyC
     CHECK(afterChange == 2);
     CHECK(handler.latencyRestarts == 2);
     c.terminate();
+}
+
+// D-013 / D-162 (fix plan T2.17): one non-finite input sample latched the
+// EnvelopeFollower state (and the DC blockers) for good. With the sweep envelope
+// on, the sweep centre collapsed to 20 Hz for the rest of the session. This TU is
+// IEEE (-fno-fast-math), and the bad samples are built from bit patterns through
+// a volatile, so the injection survives every toolchain.
+TEST_CASE("Processor output stays finite after one NaN sample with env->mix routing and sweep env on",
+          "[disrumpo][numerics][D-013][D-162]") {
+    constexpr double kSampleRate = 48000.0;
+    constexpr Steinberg::int32 kBlock = 512;
+    constexpr size_t kInjectBlock = 20;
+    const auto in = sine440(kSampleRate, -12.0, static_cast<size_t>(kSampleRate * 2.0));
+    const auto blocksPerSecond = static_cast<size_t>(kSampleRate) / static_cast<size_t>(kBlock);
+    const auto norm = [](double v, double count) { return v / (count - 1.0); };
+
+    double controlLastSecondDb = 0.0;
+    // A control run without injection (bits 0), then NaN, then +Inf.
+    const std::array<std::pair<std::uint32_t, const char*>, 3> runs{
+        {{0u, "control"}, {0x7FC00000u, "NaN"}, {0x7F800000u, "+Inf"}}};
+    for (const auto& [badBits, name] : runs) {
+        volatile std::uint32_t bitsSink = badBits;
+        const float bad = std::bit_cast<float>(static_cast<std::uint32_t>(bitsSink));
+
+        Rig rig(kSampleRate, kBlock);
+        rig.apply({{kBandCountId, 0.0},  // 1 band: the crossover passes the input straight through
+                   {makeSweepParamId(SweepParamType::kSweepEnable), 1.0},
+                   {makeSweepParamId(SweepParamType::kSweepEnvEnable), 1.0},
+                   {makeSweepParamId(SweepParamType::kSweepEnvSensitivity), 1.0},
+                   {makeRoutingParamId(0, 0), norm(static_cast<double>(Krate::DSP::ModSource::EnvFollower),
+                                                   static_cast<double>(kUIModSourceCount))},
+                   {makeRoutingParamId(0, 1), norm(static_cast<double>(ModDest::kGlobalMix),
+                                                   static_cast<double>(ModDest::kTotalDestinations))},
+                   {makeRoutingParamId(0, 2), 0.25}});  // amount -0.5
+
+        size_t injectBlockNonFinite = 0;
+        size_t laterBlocksNonFinite = 0;
+        size_t recoveredAfterBlocks = SIZE_MAX;
+        double lastSweepHz = 0.0;
+        std::vector<float> bL(kBlock);
+        std::vector<float> bR(kBlock);
+        std::vector<float> oL(kBlock);
+        std::vector<float> oR(kBlock);
+        std::vector<float> outL(in.size(), 0.0f);
+        CaptureChanges cap;
+        size_t blk = 0;
+        for (size_t s = 0; s + static_cast<size_t>(kBlock) <= in.size(); s += kBlock, ++blk) {
+            std::copy_n(in.begin() + static_cast<std::ptrdiff_t>(s), kBlock, bL.begin());
+            std::copy_n(in.begin() + static_cast<std::ptrdiff_t>(s), kBlock, bR.begin());
+            if (blk == kInjectBlock && badBits != 0u) {
+                bL[0] = bad;
+                bR[0] = bad;
+            }
+            cap.clear();
+            rig.processBlock(bL.data(), bR.data(), oL.data(), oR.data(), kBlock, nullptr, &cap);
+            std::copy_n(oL.begin(), kBlock, outL.begin() + static_cast<std::ptrdiff_t>(s));
+            size_t nonFinite = 0;
+            for (Steinberg::int32 i = 0; i < kBlock; ++i)
+                if (!fin(oL[static_cast<size_t>(i)]) || !fin(oR[static_cast<size_t>(i)])) ++nonFinite;
+            double sweepNorm = 0.0;
+            const bool haveSweep = cap.last(kSweepModulatedFrequencyOutputId, sweepNorm);
+            const double sweepHz = 20.0 * std::pow(1000.0, sweepNorm);
+            if (blk == kInjectBlock) injectBlockNonFinite = nonFinite;
+            if (blk > kInjectBlock) {
+                if (nonFinite > 0) ++laterBlocksNonFinite;
+                lastSweepHz = sweepHz;
+                if (recoveredAfterBlocks == SIZE_MAX && haveSweep && fin(static_cast<float>(sweepNorm)) &&
+                    sweepHz > 20.5)
+                    recoveredAfterBlocks = blk - kInjectBlock;
+            }
+        }
+        const double recoveredMs = recoveredAfterBlocks == SIZE_MAX
+                                       ? -1.0
+                                       : 1000.0 * static_cast<double>(recoveredAfterBlocks * kBlock) / kSampleRate;
+        // Level of the last second (the env -> mix routing is live there).
+        const size_t lastSecond = static_cast<size_t>(kSampleRate);
+        const double lastSecondDb = toDb(rmsOf(outL.data() + outL.size() - lastSecond, lastSecond));
+        std::printf("T2.17 one %s sample: non-finite samples in the inject block %zu, later blocks with non-finite "
+                    "output %zu of %zu, sweep centre back above 20 Hz after %.1f ms (-1 = never), last sweep %.1f Hz, "
+                    "last-second level %.2f dBFS\n",
+                    name, injectBlockNonFinite, laterBlocksNonFinite, blk - kInjectBlock - 1, recoveredMs,
+                    lastSweepHz, lastSecondDb);
+        INFO(name);
+        CHECK(laterBlocksNonFinite == size_t{0});
+        REQUIRE(recoveredAfterBlocks <= blocksPerSecond);
+        if (badBits == 0u) {
+            controlLastSecondDb = lastSecondDb;
+        } else {
+            CHECK(std::abs(lastSecondDb - controlLastSecondDb) < 1.0);
+        }
+    }
 }

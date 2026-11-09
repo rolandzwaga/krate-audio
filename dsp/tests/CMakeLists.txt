@@ -917,6 +917,9 @@ add_executable(dsp_ieee_tests
     unit/systems/profundum_engine_nonfinite_test.cpp
     # Profundum Phase 14: the morph-modulation NaN-injection arms (FR-006, FR-001 sanitising)
     unit/systems/profundum_morph_mod_nonfinite_test.cpp
+    # Disrumpo audit T2.17 (D-013, D-162): one NaN/Inf sample must not latch the state
+    unit/primitives/dc_blocker_nonfinite_test.cpp
+    unit/processors/envelope_follower_nonfinite_test.cpp
     # bit-exactness TUs (moved from dsp_processors_tests)
     unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/drop_phase_lock_test.cpp
@@ -1375,6 +1378,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/profundum_engine_nonfinite_test.cpp
         # Profundum Phase 14: injects NaN bit patterns (FR-006, FR-001 sanitising). The morphmod / modulator TUs stay out.
         unit/systems/profundum_morph_mod_nonfinite_test.cpp
+        # Disrumpo audit T2.17: injects NaN/Inf bit patterns (D-013, D-162).
+        unit/primitives/dc_blocker_nonfinite_test.cpp
+        unit/processors/envelope_follower_nonfinite_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 

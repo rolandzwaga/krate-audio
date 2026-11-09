@@ -189,11 +189,20 @@ public:
     /// @return DC-blocked output sample
     ///
     /// @note If prepare() has not been called, returns input unchanged (FR-018)
-    /// @note NaN inputs are propagated (FR-016)
-    /// @note Infinity inputs are handled without crashing (FR-017)
+    /// @note NaN/Inf input is propagated for that sample (FR-016, FR-017) but
+    ///       never latched: the state resets, so the next finite input gives
+    ///       finite output (D-162). Passing the bad sample on (rather than
+    ///       returning 0) keeps an upstream fault visible to a downstream
+    ///       finiteness trap, e.g. FeedbackEcology's per-loop rung 5.
     [[nodiscard]] float process(float x) noexcept {
         // FR-018: Return input unchanged if not prepared
         if (!prepared_) {
+            return x;
+        }
+
+        // FR-016, FR-017: a non-finite input passes through, the state resets
+        if (!detail::isFinite(x)) {
+            reset();
             return x;
         }
 

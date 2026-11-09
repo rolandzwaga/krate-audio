@@ -730,10 +730,8 @@ TEST_CASE("getLatency returns appropriate value (SC-005)", "[envelope][US5]") {
 // Phase 8: Edge Cases
 // =============================================================================
 
-// NOTE: NaN/Inf input handling tests removed for performance optimization.
-// The EnvelopeFollower no longer validates input - caller is responsible
-// for ensuring valid float input. This removes branch overhead per sample.
-// If you need NaN/Inf handling, validate at a higher level (plugin input).
+// NOTE: NaN/Inf input handling (reset and return 0, D-013) is tested in
+// envelope_follower_nonfinite_test.cpp, which builds into dsp_ieee_tests.
 
 TEST_CASE("Denormalized numbers flushed to zero (SC-007)", "[envelope][edge]") {
     EnvelopeFollower env;
