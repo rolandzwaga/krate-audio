@@ -89,12 +89,18 @@ TEST_CASE("Processor keeps L and R independent through a morph band", "[disrumpo
     const auto len = static_cast<size_t>(kSr);
     const auto tone = sine(len, kToneHz, kSr, -6.0);
 
-    SECTION("Tape: L only, R stays silent") {
-        double leftDb = 0.0;
-        const double rightDb = leakIntoRightDb(DistortionType::Tape, leftDb);
-        INFO("Tape L = " << leftDb << " dBFS, R = " << rightDb << " dBFS");
-        CHECK(leftDb > -40.0);
-        CHECK(rightDb < -90.0);
+    // The seven stateful types of the audit probe "stereo independence" (fix plan T6.03;
+    // audit baseline R -24.0 to -7.1 dBFS). -90 dBFS stays above float noise.
+    for (const auto type : {DistortionType::SoftClip, DistortionType::Tape, DistortionType::Tube,
+                            DistortionType::FeedbackDist, DistortionType::AllpassResonant,
+                            DistortionType::Temporal, DistortionType::Formant}) {
+        DYNAMIC_SECTION(getTypeName(type) << ": L only, R stays silent") {
+            double leftDb = 0.0;
+            const double rightDb = leakIntoRightDb(type, leftDb);
+            INFO(getTypeName(type) << " L = " << leftDb << " dBFS, R = " << rightDb << " dBFS");
+            CHECK(leftDb > -40.0);
+            CHECK(rightDb < -90.0);
+        }
     }
 
     // The default Tape model (shape slot 3 = 0.5 -> Hysteresis) is not an odd
@@ -120,21 +126,5 @@ TEST_CASE("Processor keeps L and R independent through a morph band", "[disrumpo
         INFO("Tape max|L - R| = " << maxDiff << ", L rms = " << toDb(rmsOf(outL.data(), len)) << " dBFS");
         CHECK(rmsOf(outL.data(), len) > 0.01);
         CHECK(maxDiff < 1e-4);
-    }
-
-    SECTION("FeedbackDist: L only, R stays silent") {
-        double leftDb = 0.0;
-        const double rightDb = leakIntoRightDb(DistortionType::FeedbackDist, leftDb);
-        INFO("FeedbackDist L = " << leftDb << " dBFS, R = " << rightDb << " dBFS");
-        CHECK(leftDb > -40.0);
-        CHECK(rightDb < -90.0);
-    }
-
-    SECTION("Formant: L only, R stays silent") {
-        double leftDb = 0.0;
-        const double rightDb = leakIntoRightDb(DistortionType::Formant, leftDb);
-        INFO("Formant L = " << leftDb << " dBFS, R = " << rightDb << " dBFS");
-        CHECK(leftDb > -40.0);
-        CHECK(rightDb < -90.0);
     }
 }
