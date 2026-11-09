@@ -126,6 +126,9 @@ add_executable(disrumpo_tests
     # Level-meter windows: accumulation, merge, NaN input, Tier 3 (IEEE TU)
     unit/meter_window_test.cpp
 
+    # Level-meter ballistics: attack, hold, release, RMS window, clip latch
+    unit/meter_ballistics_test.cpp
+
     # Unit tests - Accessibility (012-progressive-disclosure)
     unit/accessibility_test.cpp
 
@@ -167,6 +170,7 @@ add_executable(disrumpo_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/custom_curve_editor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/dynamic_node_selector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/node_editor_border.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/level_meter_view.cpp
 
     # Stubs for GetPluginFactory/moduleHandle + SDK symbols (needed by vstgui_support on Linux)
     vstgui_test_stubs.cpp

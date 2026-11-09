@@ -38,6 +38,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -356,8 +357,20 @@ private:
     std::array<float, kSpectrumBlockModOffsets> cachedModOffsets_{};
     // Recursively walk view tree and update ModSlider offsets from cached array
     void updateModSliders(VSTGUI::CViewContainer* container);
-    // Body of the open editor's 33 ms timer (sweep indicator, mod sliders, Tier 3 fallback)
+    // Body of the open editor's 33 ms timer (sweep indicator, mod sliders, level meters, Tier 3 fallback)
     void onEditorTimer();
+
+    // ==========================================================================
+    // Level Meters
+    // ==========================================================================
+    // The meter windows received since the last editor tick (DataExchange blocks,
+    // or SharedMeters in Tier 3), merged; handed to every LevelMeterView each tick.
+    // The views own their ballistics, so the controller keeps no view pointer.
+    MeterWindow pendingMeters_{};
+    double pendingMeterSampleRate_ = 0.0;
+    std::chrono::steady_clock::time_point lastMeterTick_{};
+    // Recursively walk view tree: feed and advance every LevelMeterView
+    void updateLevelMeters(VSTGUI::CViewContainer* container, double dtSeconds);
 
     // ==========================================================================
     // Visibility Controllers (FR-021, FR-022, FR-025)

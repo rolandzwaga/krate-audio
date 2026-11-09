@@ -15,6 +15,7 @@
 #include "controller/controller.h"
 #include "controller/spectrum_block.h"
 #include "controller/views/dynamic_node_selector.h"
+#include "controller/views/level_meter_view.h"
 #include "controller/views/mod_slider.h"
 #include "controller/views/spectrum_display.h"
 #include "display/shared_display_bridge.h"
@@ -162,6 +163,21 @@ void collectModSliders(VSTGUI::CViewContainer* container, std::vector<const Disr
         if (const auto* ms = dynamic_cast<const Disrumpo::ModSlider*>(child)) out.push_back(ms);
         if (auto* sub = child->asViewContainer()) collectModSliders(sub, out);
     });
+}
+
+/// Every LevelMeterView below `container`, by source.
+void collectLevelMeters(VSTGUI::CViewContainer* container, std::vector<Disrumpo::LevelMeterView*>& out) {
+    container->forEachChild([&out](VSTGUI::CView* child) {
+        if (auto* m = dynamic_cast<Disrumpo::LevelMeterView*>(child)) out.push_back(m);
+        if (auto* sub = child->asViewContainer()) collectLevelMeters(sub, out);
+    });
+}
+
+Disrumpo::LevelMeterView* meterFor(const std::vector<Disrumpo::LevelMeterView*>& meters,
+                                   Disrumpo::LevelMeterView::Source source) {
+    for (auto* m : meters)
+        if (m->source() == source) return m;
+    return nullptr;
 }
 
 /// The instance ID a processor state stream ends with (int32 "KRAT" marker, int64 ID).
@@ -348,6 +364,113 @@ TEST_CASE("Mod overlay and Tier-3 spectrum survive close/reopen",
         REQUIRE_FALSE(sliders.empty());
         CHECK(withOffset == sliders.size());
         CHECK(analysing);
+    }
+    c.terminate();
+}
+
+// Level meters: the editor holds one meter per source; a SpectrumBlock's window reaches
+// them through the editor timer, and a latched clip clears on a click.
+TEST_CASE("Level meters show the processor's window through the editor timer",
+          "[disrumpo][controller][lifecycle][meters]")
+{
+    using Source = Disrumpo::LevelMeterView::Source;
+    Disrumpo::Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    {
+        HeadlessEditor ed(c);
+        REQUIRE(ed.ready());
+        std::vector<Disrumpo::LevelMeterView*> meters;
+        collectLevelMeters(ed.frame(), meters);
+        std::printf("Meters in the editor: %zu (want 6: IN, OUT, 4 bands)\n", meters.size());
+        REQUIRE(meters.size() == 6);
+        for (const auto source : {Source::Input, Source::Output, Source::Band0, Source::Band1, Source::Band2,
+                                  Source::Band3})
+            REQUIRE(meterFor(meters, source) != nullptr);
+
+        auto block = std::make_unique<Disrumpo::SpectrumBlock>();
+        block->numSamples = 64;
+        block->sampleRate = 48000.0f;
+        auto& w = block->meters;
+        w.inPeak[0] = 0.5f;
+        w.inPeak[1] = 0.25f;
+        w.inMeanSq[0] = 0.125f;
+        w.outPeak[1] = 1.25f;
+        w.bandPeak[0] = 0.7f;
+        w.bandPeak[3] = 0.1f;
+        w.clipFlags = Disrumpo::kMeterClipOutR;
+        w.numSamples = 14400;  // the whole 300 ms RMS window at 48 kHz
+        Steinberg::Vst::DataExchangeBlock deb{
+            .data = block.get(), .size = static_cast<Steinberg::uint32>(sizeof(Disrumpo::SpectrumBlock)), .blockID = 0};
+        c.onDataExchangeBlocksReceived(0, 1, &deb, static_cast<Steinberg::TBool>(false));
+        c.tickEditorTimerForTest();
+
+        const auto* in = meterFor(meters, Source::Input);
+        auto* out = meterFor(meters, Source::Output);
+        const auto* band0 = meterFor(meters, Source::Band0);
+        const auto* band3 = meterFor(meters, Source::Band3);
+        std::printf("Meters after one tick: IN L peak %.2f dB RMS %.2f dB, IN R peak %.2f dB; OUT R peak %.2f dB, "
+                    "OUT clip %d, IN clip %d; band 1 %.2f dB, band 4 %.2f dB, band 2 %.1f dB\n",
+                    static_cast<double>(in->channel(0).peakDb()), static_cast<double>(in->channel(0).rmsDb()),
+                    static_cast<double>(in->channel(1).peakDb()), static_cast<double>(out->channel(1).peakDb()),
+                    out->clipLatched() ? 1 : 0, in->clipLatched() ? 1 : 0,
+                    static_cast<double>(band0->channel(0).peakDb()), static_cast<double>(band3->channel(0).peakDb()),
+                    static_cast<double>(meterFor(meters, Source::Band1)->channel(0).peakDb()));
+        CHECK(in->channel(0).peakDb() == Catch::Approx(-6.0206).margin(0.01));
+        CHECK(in->channel(0).rmsDb() == Catch::Approx(-9.0309).margin(0.01));
+        CHECK(in->channel(1).peakDb() == Catch::Approx(-12.0412).margin(0.01));
+        CHECK(out->channel(1).peakDb() == Catch::Approx(1.9382).margin(0.01));
+        CHECK(out->clipLatched());
+        CHECK_FALSE(in->clipLatched());
+        CHECK(band0->channel(0).peakDb() == Catch::Approx(-3.098).margin(0.01));
+        CHECK(band3->channel(0).peakDb() == Catch::Approx(-20.0).margin(0.01));
+        CHECK(meterFor(meters, Source::Band1)->channel(0).peakDb() == Disrumpo::MeterBallistics::kFloorDb);
+
+        // The clip stays latched through clean windows until the meter is clicked
+        block->meters = Disrumpo::MeterWindow{};
+        block->meters.numSamples = 1440;
+        for (int t = 0; t < 30; ++t) {
+            c.onDataExchangeBlocksReceived(0, 1, &deb, static_cast<Steinberg::TBool>(false));
+            c.tickEditorTimerForTest();
+        }
+        CHECK(out->clipLatched());
+        VSTGUI::MouseDownEvent click(out->getViewSize().getCenter(), VSTGUI::MouseButton::Left);
+        out->onMouseDownEvent(click);
+        CHECK(static_cast<bool>(click.consumed));
+        CHECK_FALSE(out->clipLatched());
+    }
+    c.terminate();
+}
+
+TEST_CASE("Level meters read the Tier-3 SharedMeters without DataExchange",
+          "[disrumpo][controller][lifecycle][meters][tier3]")
+{
+    using Source = Disrumpo::LevelMeterView::Source;
+    Disrumpo::TestSupport::Rig rig(48000.0, 512);
+    auto state = Disrumpo::TestSupport::getStateBytes(*rig.p);
+    Disrumpo::Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    {
+        auto* s = new Steinberg::MemoryStream(state.data(), static_cast<Steinberg::TSize>(state.size()));
+        REQUIRE(c.setComponentState(s) == Steinberg::kResultOk);
+        s->release();
+    }
+    {
+        HeadlessEditor ed(c);
+        REQUIRE(ed.ready());
+        for (int t = 0; t < 12; ++t) c.tickEditorTimerForTest();  // no DataExchange: the Tier-3 fallback starts
+        const std::vector<float> in(4096, 0.25f);                 // -12.04 dBFS at the input
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR);
+        c.tickEditorTimerForTest();
+        std::vector<Disrumpo::LevelMeterView*> meters;
+        collectLevelMeters(ed.frame(), meters);
+        const auto* input = meterFor(meters, Source::Input);
+        REQUIRE(input != nullptr);
+        std::printf("Meters Tier 3: IN L peak %.2f dB, IN R peak %.2f dB (want -12.04)\n",
+                    static_cast<double>(input->channel(0).peakDb()), static_cast<double>(input->channel(1).peakDb()));
+        CHECK(input->channel(0).peakDb() == Catch::Approx(-12.0412).margin(0.01));
+        CHECK(input->channel(1).peakDb() == Catch::Approx(-12.0412).margin(0.01));
     }
     c.terminate();
 }

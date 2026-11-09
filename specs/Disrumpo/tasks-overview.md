@@ -304,6 +304,11 @@
   - Per-band coloring
   - Input/output overlay
 
+- [x] **T13.3** Implement metering
+  - Input/Output peak+RMS (header IN / OUT stereo meters)
+  - Per-band level indicators (a bar under each band title)
+  - Clipping detection (latching clip lights, cleared by a click)
+
 ### Week 14: Progressive Disclosure
 
 - [ ] **T14.1** Implement expand/collapse panels

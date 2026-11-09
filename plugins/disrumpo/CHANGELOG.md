@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Level meters** — The top bar shows input and output level meters (peak and RMS for left and right), each band's title shows that band's level, and a red light marks any sample above 0 dBFS until you click it.
+
 ### Fixed
 
 - **Centre pan was 3 dB below unity** — Each band applied a mono pan law to its stereo signal, so with every pan centred the output sat 3 dB below the input. Pan is now a stereo balance: centre is exact unity, and hard left or right keeps the near side at full level and silences the far side.
@@ -62,10 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Digital types no longer use Drive as a volume knob** — Aliasing, Sample Reduce, Bitwise Mangler, Granular, Chaos and Spectral divide their output by the drive above 1, so Drive changes the character without raising the level.
 - **Fresh instances start with no morph smoothing** — A new instance runs morph smoothing at its displayed default of 0 ms instead of 10 ms.
 - **Factory presets re-levelled; 120 presets** — With centre pan at unity and the other level fixes, many presets got louder; 66 presets have a lower Output Gain (by 0.1 to 9.8 dB) so none peaks above 0 dBFS on a -12 dBFS test signal, and none was raised. Init/Init_5_Bands, a 5-band preset the 4-band plugin cannot play, is removed, and Experimental/Formant_Shift is back.
-
-### Known limitations
-
-- **No level meters** — Disrumpo has no input, output or per-band level meters; use the host's meters for gain staging.
 
 ## [0.9.11] - 2026-11-02
 

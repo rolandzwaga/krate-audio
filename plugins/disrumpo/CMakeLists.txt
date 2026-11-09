@@ -50,6 +50,9 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/views/custom_curve_editor.h
     src/controller/views/custom_curve_editor.cpp
     src/controller/views/mod_slider.h
+    src/controller/views/level_meter_view.h
+    src/controller/views/level_meter_view.cpp
+    src/controller/meter_ballistics.h
 
     # Sub-Controllers for Band Parameter Remapping
     src/controller/sub_controllers.h

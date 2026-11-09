@@ -25,6 +25,9 @@
     <color name="panel" rgba="#202024ff"/>
     <color name="panel-expanded" rgba="#2A2A30ff"/>
     <color name="shadow" rgba="#00000080"/>
+    <color name="meter-low" rgba="#4ECDC4ff"/>
+    <color name="meter-mid" rgba="#FFCB6Bff"/>
+    <color name="meter-clip" rgba="#FF5370ff"/>
   </colors>
   <fonts>
     <font name="title-font" font-name="Arial" size="18" bold="true"/>
@@ -515,6 +518,10 @@
       <view custom-view-name="SavePresetButton" origin="340, 12" size="60, 25"/>
       <view custom-view-name="CheckForUpdatesButton" origin="420, 14" size="130, 22"/>
       <view custom-view-name="VersionLabel" origin="560, 17" size="66, 16" mouse-enabled="false"/>
+      <view custom-view-name="InputLevelMeter" origin="636, 2" size="14, 36" tooltip="Input level after Input Gain (click to clear the clip light)"/>
+      <view class="CTextLabel" origin="630, 38" size="26, 12" title="IN" font="small-font" font-color="text-secondary" text-alignment="center" transparent="true" mouse-enabled="false"/>
+      <view custom-view-name="OutputLevelMeter" origin="670, 2" size="14, 36" tooltip="Output level (click to clear the clip light)"/>
+      <view class="CTextLabel" origin="664, 38" size="26, 12" title="OUT" font="small-font" font-color="text-secondary" text-alignment="center" transparent="true" mouse-enabled="false"/>
       <view class="CViewContainer" origin="700, 5" size="290, 40" transparent="true">
         <view class="CTextLabel" origin="0, 0" size="50, 15" title="Input" font="small-font" font-color="text-secondary" text-alignment="center"/>
         <view class="ArcKnob" origin="5, 15" size="40, 25" control-tag="InputGain" default-value="0.5" min-value="0" max-value="1" arc-color="accent-primary"/>
@@ -535,6 +542,7 @@
       <view class="CViewContainer" origin="0, 0" size="235, 340" background-color="panel" control-tag="Band1Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="center"/>
+        <view custom-view-name="Band1LevelMeter" origin="0, 25" size="200, 4" tooltip="Band 1 level (click to clear the clip light)"/>
         <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band1Expanded" default-value="0" tooltip="Expand Band 1" icon-style="chevron" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band1DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
@@ -545,6 +553,7 @@
       <view class="CViewContainer" origin="240, 0" size="235, 340" background-color="panel" control-tag="Band2Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band2Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 2" font="section-font" font-color="band-2" text-alignment="center"/>
+        <view custom-view-name="Band2LevelMeter" origin="0, 25" size="200, 4" tooltip="Band 2 level (click to clear the clip light)"/>
         <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band2Expanded" default-value="0" tooltip="Expand Band 2" icon-style="chevron" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band2DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
@@ -555,6 +564,7 @@
       <view class="CViewContainer" origin="480, 0" size="235, 340" background-color="panel" control-tag="Band3Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band3Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 3" font="section-font" font-color="band-3" text-alignment="center"/>
+        <view custom-view-name="Band3LevelMeter" origin="0, 25" size="200, 4" tooltip="Band 3 level (click to clear the clip light)"/>
         <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band3Expanded" default-value="0" tooltip="Expand Band 3" icon-style="chevron" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band3DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
@@ -565,6 +575,7 @@
       <view class="CViewContainer" origin="720, 0" size="235, 340" background-color="panel" control-tag="Band4Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band4Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 4" font="section-font" font-color="band-4" text-alignment="center"/>
+        <view custom-view-name="Band4LevelMeter" origin="0, 25" size="200, 4" tooltip="Band 4 level (click to clear the clip light)"/>
         <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band4Expanded" default-value="0" tooltip="Expand Band 4" icon-style="chevron" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band4DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>

@@ -19,6 +19,7 @@
 #include "controller/views/node_editor_border.h"
 #include "controller/views/sweep_indicator.h"
 #include "controller/views/mod_slider.h"
+#include "controller/views/level_meter_view.h"
 #include "controller/animated_expand_controller.h"
 #include "controller/keyboard_shortcut_handler.h"
 #include "controller/visibility_controllers.h"
@@ -1003,8 +1004,42 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
 VSTGUI::CView* Controller::createCustomView(
     VSTGUI::UTF8StringPtr name,
     const VSTGUI::UIAttributes& attributes,
-    const VSTGUI::IUIDescription* /*description*/,
+    const VSTGUI::IUIDescription* description,
     VSTGUI::VST3Editor* editor) {
+
+    // Level meters: InputLevelMeter, OutputLevelMeter, Band1LevelMeter ... Band4LevelMeter
+    {
+        using Source = LevelMeterView::Source;
+        static constexpr std::array<std::pair<std::string_view, Source>, 6> kMeters{{
+            {"InputLevelMeter", Source::Input},
+            {"OutputLevelMeter", Source::Output},
+            {"Band1LevelMeter", Source::Band0},
+            {"Band2LevelMeter", Source::Band1},
+            {"Band3LevelMeter", Source::Band2},
+            {"Band4LevelMeter", Source::Band3},
+        }};
+        for (const auto& [meterName, source] : kMeters) {
+            if (meterName != name) continue;
+            VSTGUI::CPoint origin(0, 0);
+            VSTGUI::CPoint size(14, 36);
+            attributes.getPointAttribute("origin", origin);
+            attributes.getPointAttribute("size", size);
+            const auto color = [description](const char* colorName) {
+                VSTGUI::CColor c{128, 128, 128, 255};
+                if (description != nullptr) description->getColor(colorName, c);
+                return c;
+            };
+            static constexpr std::array<const char*, 4> kBandColors{"band-1", "band-2", "band-3", "band-4"};
+            const auto bandIndex = static_cast<size_t>(
+                source >= Source::Band0 ? static_cast<int>(source) - static_cast<int>(Source::Band0) : 0);
+            const LevelMeterView::Colors colors{.track = color("slider-track"),
+                                                .low = color("meter-low"),
+                                                .mid = color("meter-mid"),
+                                                .clip = color("meter-clip"),
+                                                .band = color(kBandColors[bandIndex])};
+            return new LevelMeterView(VSTGUI::CRect(origin, size), source, colors);
+        }
+    }
 
     if (std::strcmp(name, "SpectrumDisplay") == 0) {
         VSTGUI::CPoint origin;
@@ -1310,6 +1345,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     editorClosing_.store(false, std::memory_order_release);
     spectrumDataAvailable_ = false;
     activeEditor_ = editor;
+    // Level meters start from this session's audio
+    pendingMeters_ = MeterWindow{};
+    lastMeterTick_ = {};
     // Tier 3: look the processor's display up again in every editor session; the
     // processor may have been replaced or re-registered since the last one (D-057/D-070)
     if (instanceId_ != 0)
@@ -1476,6 +1514,38 @@ void Controller::onEditorTimer() {
             }
         }
     }
+
+    // Level meters: Tier 3 reads the processor's SharedMeters once the fallback is on
+    if (!dataExchangeActive_ && fallbackTickCounter_ > 10 && sharedDisplay_ && sharedDisplay_->meters) {
+        MeterWindow window;
+        if (sharedDisplay_->meters->consume(window)) {
+            mergeMeterWindow(pendingMeters_, window);
+            pendingMeterSampleRate_ = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
+        }
+    }
+    const auto now = std::chrono::steady_clock::now();
+    const double dt = lastMeterTick_ == std::chrono::steady_clock::time_point{}
+        ? 0.0
+        : std::clamp(std::chrono::duration<double>(now - lastMeterTick_).count(), 0.0, 0.25);
+    lastMeterTick_ = now;
+    if (activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame())
+            updateLevelMeters(frame, dt);
+    }
+    pendingMeters_ = MeterWindow{};
+}
+
+void Controller::updateLevelMeters(VSTGUI::CViewContainer* container, double dtSeconds) {
+    if (!container) return;
+    container->forEachChild([this, dtSeconds](VSTGUI::CView* child) {
+        if (auto* meter = dynamic_cast<LevelMeterView*>(child)) {
+            if (pendingMeters_.numSamples > 0)
+                meter->pushWindow(pendingMeters_, pendingMeterSampleRate_);
+            meter->advance(dtSeconds);
+        }
+        if (auto* vc = dynamic_cast<VSTGUI::CViewContainer*>(child))
+            updateLevelMeters(vc, dtSeconds);
+    });
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -1934,6 +2004,8 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
                 localOutputFIFO_.push(specBlock->outputSamples, specBlock->numSamples);
                 cachedSpectrumSampleRate_ = specBlock->sampleRate;
                 std::copy_n(specBlock->modOffsets, kSpectrumBlockModOffsets, cachedModOffsets_.begin());
+                mergeMeterWindow(pendingMeters_, specBlock->meters);
+                pendingMeterSampleRate_ = specBlock->sampleRate;
                 if (!dataExchangeActive_)
                     KRATE_BRIDGE_LOG("Disrumpo::Controller — DataExchange data received (Tier 1/2 active)");
                 dataExchangeActive_ = true;

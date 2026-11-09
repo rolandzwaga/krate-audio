@@ -2,7 +2,8 @@
 // Editor screenshots for layout review (hidden: [.][screenshots]; never a gate)
 // ==============================================================================
 // Opens the editor headlessly with Sweep enabled and renders it offscreen at 2x into PNG files: the whole editor
-// (default height, mod panel closed), the sweep row, and the same with Band 1's expanded strip open. Not goldens:
+// (default height, mod panel closed), the sweep row, the header bar, the band panels' title rows, and the editor
+// with Band 1's expanded strip open. The level meters are fed one fixed window first (Output L clipped). Not goldens:
 // nothing asserts on pixels. Every parameter is at its registered default except Sweep Enable and Band 1 Expanded.
 //
 // By hand: disrumpo_tests.exe "Disrumpo_EditorScreenshots"  with DISRUMPO_SHOTS_DIR set (default <temp>/disrumpo-shots)
@@ -10,6 +11,7 @@
 #include <editor_lifecycle_harness.h>
 
 #include "controller/controller.h"
+#include "controller/spectrum_block.h"
 #include "controller/visibility_controllers.h"
 #include "plugin_ids.h"
 // The shared controls the uidesc names register their ViewCreators when their header is included; the plugin does
@@ -31,6 +33,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 
 #if SMTG_OS_WINDOWS
@@ -138,8 +141,38 @@ TEST_CASE("Disrumpo_EditorScreenshots", "[.][screenshots]") {
         REQUIRE(sweepEnable->getParentView() != nullptr);
         const VSTGUI::CRect sweepRowRect = rectInRoot(sweepEnable->getParentView(), root);
 
+        // Level meters lit: one processor window (300 ms at 48 kHz) through the editor timer, Output L clipped
+        {
+            auto block = std::make_unique<Disrumpo::SpectrumBlock>();
+            block->numSamples = 64;
+            block->sampleRate = 48000.0f;
+            auto& m = block->meters;
+            m.inPeak[0] = 0.5f;
+            m.inPeak[1] = 0.4f;
+            m.inMeanSq[0] = 0.125f;
+            m.inMeanSq[1] = 0.08f;
+            m.outPeak[0] = 1.1f;
+            m.outPeak[1] = 0.8f;
+            m.outMeanSq[0] = 0.35f;
+            m.outMeanSq[1] = 0.2f;
+            m.bandPeak[0] = 0.7f;
+            m.bandPeak[1] = 0.35f;
+            m.bandPeak[2] = 0.2f;
+            m.bandPeak[3] = 0.1f;
+            m.clipFlags = Disrumpo::kMeterClipOutL;
+            m.numSamples = 14400;
+            Steinberg::Vst::DataExchangeBlock deb{
+                .data = block.get(), .size = static_cast<Steinberg::uint32>(sizeof(Disrumpo::SpectrumBlock)),
+                .blockID = 0};
+            controller->onDataExchangeBlocksReceived(0, 1, &deb, static_cast<Steinberg::TBool>(false));
+            controller->tickEditorTimerForTest();
+        }
+
         shoot(root, editorRect, dir / "editor-main.png");
         shoot(root, sweepRowRect, dir / "sweep-row.png");
+        // The header bar (IN/OUT meters) and the band panels' title rows (band meters)
+        shoot(root, VSTGUI::CRect(0.0, 0.0, root->getViewSize().getWidth(), 50.0), dir / "header.png");
+        shoot(root, VSTGUI::CRect(20.0, 190.0, 980.0, 222.0), dir / "band-titles.png");
 
         // Band 1's expanded strip: the param drives AnimatedExpandController (shown at once headlessly).
         controller->setParamNormalized(band1ExpandedId, 1.0);
