@@ -620,6 +620,33 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     max(static drive, drive x the sweep's peak multiplier) x 1.05, plus 0 clicks); (b) keep the sweep-off reference and
     rule the bar not applicable since D-019. Held patch `f:/tmp/disrumpo-fix/p6b/t607-held-jump.patch`; probe
     `[.][p6b-auto]` in `integration/processor_automation_test.cpp`.
+86. **T6.08: an active load does not render like the host-order load** (2026-11-09, needs a ruling). Reference: each
+    factory preset loaded by setState before setupProcessing / setActive (44.1 kHz, 440 Hz -12 dBFS, 0.5 s). (a) The
+    plan's literal bar (setState on an active processor, rendered at once, within 1e-5 of the reference): 119 of 120
+    differ, max 1.87 (Morph/Radial_Blend), still 1.48 after the first 0.1 s (Pads/Spectral_Pad). An active load glides
+    from the previous patch by design (T1.24: "straight after a load while active ... recorded, not gated"); LFO /
+    chaos / feedback state keeps the difference long after the glide. Rule: keep the T1.24 design (and drop the literal
+    bar), or make a load into a processor that has rendered nothing yet start on its targets. (b) With setupProcessing
+    + setActive after the active load (what a host's rate or block-size change does), 103 of 120 match within 1e-5 and
+    17 differ: Morph/Digital_Organic 0.89, Experimental/Stochastic_Burst 0.68, Pads/Granular_Wash 0.47,
+    Experimental/Broken_Radio 0.43, Pads/Stochastic_Drift 0.22, Pads/Spectral_Pad 0.20, Lo-Fi/Bit_Mangler 0.15,
+    Pads/Formant_Pad 0.058, Pads/Tape_Haze 0.044, Experimental/Granular_Crush 0.020, Morph/Spectral_Morph 0.0045,
+    Pads/Evolving_Texture 0.0018, Experimental/All_Types_Morph 3.7e-4, Lo-Fi/Digital_Decay 5.4e-5, Experimental/
+    Fractal_Noise 2.2e-5, Lo-Fi/Warm_Lo-Fi 1.5e-5, Pads/Slow_Morph_Pad 1.1e-5. The only difference between the two
+    paths is one extra prepare / activation and a 0-sample process() before the render, so some state survives
+    setupProcessing (relates to item 18, `setActive(true)` does not clear DSP state); cause not isolated. Held with (a)
+    in `f:/tmp/disrumpo-fix/p6b/t608-held-bars.patch`; the readings print in the committed case.
+87. **T6.08 / D-160: replaying a preset's parameters does not render like its setState** (2026-11-09, needs a ruling).
+    Every parameter `Controller::setComponentState` sets from the file (586), replayed through processParameterChanges
+    then setupProcessing, against the host-order load: 72 of 120 within 1e-4, 48 differ (31 of them only here), up to
+    0.62 (Morph/Formant_Shift; Sweep/Slow_Scan 0.048, Bass/Tape_Warmth 0.016, Morph/Four_Corners 0.013). Diagnosed
+    (temporary probe: getState of the replayed processor, read back by the controller, against the recorded values): in
+    76 presets kNodeBias (0x?004), kNodeFolds (0x?005) or kNodeBitDepth (0x?006) and their band display proxies come back
+    different, e.g. Formant_Shift band 0 node 0 bias 0.5 -> 0.55, Serge_Bass folds 0 -> 0.0909, Dirty_Sub bias 0.5 ->
+    0.75. Each of those settings has two controls: the node parameter and the type's own shape slot (RingSaturation
+    Bias, wavefold Folds, Bitcrush Bits; follow-up 34 for the bit depth), and setState and the parameter path end up
+    with different values for the pair (the precedence in each path not traced further). Rule which control owns each setting (then the other is derived, or retired), and the
+    parity bar can be asserted. Held in `f:/tmp/disrumpo-fix/p6b/t608-held-bars.patch`.
 
 ## Done outside the plan
 

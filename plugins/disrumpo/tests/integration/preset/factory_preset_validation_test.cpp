@@ -11,6 +11,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include "controller/controller.h"
 #include "processor/processor.h"
 #include "plugin_ids.h"
 #include "../../test_support/disrumpo_rig.h"
@@ -23,11 +24,13 @@
 #include "public.sdk/source/common/memorystream.h"
 
 #include <filesystem>
+#include <functional>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <set>
 #include <map>
+#include <numbers>
 #include <memory>
 #include <cstring>
 #include <chrono>
@@ -405,4 +408,145 @@ TEST_CASE("Every factory preset renders finite, bounded, non-silent audio", "[di
         CHECK(rms > 0.001);
     }
     std::printf("D-144 %zu presets, %d failing\n", presetFiles.size(), failing);
+}
+
+// =============================================================================
+// Audit T6.08 (probe "presets 0/8..7/8", D-046, D-160, D-161): every factory preset
+// must sound the same whichever way a host loads it. 440 Hz at -12 dBFS, 0.5 s,
+// 44.1 kHz, 512-sample blocks. Reference c: the file loaded by setState BEFORE
+// setupProcessing / setActive (the host's restore order). Against c:
+// - the file loaded by setState into an active processor, applied by a process()
+//   call, then setupProcessing again: within 1e-5 (audit baseline: 120 of 121 differed,
+//   the state did not survive setupProcessing);
+// - getState of c, loaded into a fresh processor: within 1e-5 (baseline: 35 presets up to
+//   1.25), and its render is not silent and keeps c's level (D-161: RMS > -60 dBFS,
+//   |RMS b - RMS c| < 0.1 dB);
+// - every parameter the controller sets from the file (Controller::setComponentState,
+//   recorded) replayed through processParameterChanges, then setupProcessing: within 1e-4
+//   (D-160: the setState path skipped the slot mapping the parameter path does).
+// Each load into an active processor is followed by setupProcessing, as a host's
+// sample-rate or block-size change would: straight after a load while active the
+// instance glides from its previous patch by design (T1.24, "A deferred load renders
+// like a load made while inactive"), which the plan's literal comparison of an active
+// load against c measures instead.
+// Asserted: the round trip and D-161. Printed, bars held back for a ruling (patch
+// f:/tmp/disrumpo-fix/p6b/t608-held-bars.patch): the active load (17 of 120 presets
+// differ even after setupProcessing, cause not isolated, and every preset glides
+// without it: follow-up 86) and the parameter replay (48 of 120: kNodeBias /
+// kNodeFolds / kNodeBitDepth and the type's own slot for the same setting disagree:
+// follow-up 87).
+// The level bars (peak, DC, RMS) are the [D-144] case above.
+// =============================================================================
+
+namespace {
+
+/// Disrumpo controller that records every parameter setComponentState sets.
+class PresetParamRecorder : public Controller {
+public:
+    Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
+                                                     Steinberg::Vst::ParamValue value) override {
+        calls.emplace_back(tag, static_cast<double>(value));
+        return Controller::setParamNormalized(tag, value);
+    }
+    Disrumpo::TestSupport::PList calls;
+};
+
+double maxAbsDiffOf(const std::vector<float>& a, const std::vector<float>& b) {
+    double m = 0.0;
+    for (size_t i = 0; i < std::min(a.size(), b.size()); ++i) {
+        m = std::max(m, std::fabs(static_cast<double>(a[i]) - static_cast<double>(b[i])));
+    }
+    return m;
+}
+
+}  // namespace
+
+TEST_CASE("Every factory preset renders the same after host-order load, round trip and parameter replay",
+          "[disrumpo][audit][preset][long][D-046][D-160][D-161]") {
+    using namespace Disrumpo::TestSupport;
+    constexpr double kSr = 44100.0;
+    const size_t len = static_cast<size_t>(kSr * 0.5);
+    const size_t from = static_cast<size_t>(kSr * 0.1);
+    std::vector<float> in(len);
+    for (size_t i = 0; i < len; ++i) {
+        in[i] = static_cast<float>(0.25118864315095801 *
+                                   std::sin(2.0 * std::numbers::pi * 440.0 * static_cast<double>(i) / kSr));
+    }
+    const auto files = findPresetFiles(getPresetsDir());
+    REQUIRE(files.size() == 120);
+
+    struct Renders {
+        std::vector<float> l;
+        std::vector<float> r;
+    };
+    const auto diff = [](const Renders& x, const Renders& y) {
+        return std::max(maxAbsDiffOf(x.l, y.l), maxAbsDiffOf(x.r, y.r));
+    };
+    const auto rmsDbOf = [&](const Renders& x) {
+        return toDb(std::max(rmsOf(x.l.data() + from, len - from), rmsOf(x.r.data() + from, len - from)));
+    };
+    // Load into an active processor through `load`, apply it with a 0-sample process()
+    // call, then setupProcessing + setActive again, and render.
+    const auto renderAfterActiveLoad = [&](const std::function<void(Rig&)>& load) {
+        Renders out;
+        Rig rig(kSr);
+        load(rig);
+        rig.apply({});
+        rig.deactivate();
+        rig.setup();
+        rig.render(in, in, out.l, out.r);
+        return out;
+    };
+    const auto renderHostOrder = [&](const std::vector<uint8_t>& state, std::vector<uint8_t>* saved) {
+        Renders out;
+        Rig rig(kSr, 512, /*doSetup*/ false);
+        REQUIRE(setStateBytes(*rig.p, state));
+        rig.setup();
+        rig.render(in, in, out.l, out.r);
+        if (saved) *saved = getStateBytes(*rig.p);
+        return out;
+    };
+
+    int failing = 0;
+    for (const auto& path : files) {
+        const std::string name = path.parent_path().filename().string() + "/" + path.stem().string();
+        INFO("Preset: " << name);
+        const auto bytes = readPresetComponentState(path);
+        REQUIRE_FALSE(bytes.empty());
+
+        std::vector<uint8_t> saved;
+        const Renders c = renderHostOrder(bytes, &saved);
+        const Renders active = renderAfterActiveLoad([&](Rig& rig) { REQUIRE(setStateBytes(*rig.p, bytes)); });
+        const Renders roundTrip = renderHostOrder(saved, nullptr);
+        PList recorded;
+        {
+            PresetParamRecorder ctl;
+            REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+            ctl.calls.clear();
+            std::vector<uint8_t> stream = bytes;
+            auto* s = new Steinberg::MemoryStream(stream.data(), static_cast<Steinberg::TSize>(stream.size()));
+            REQUIRE(ctl.setComponentState(s) == Steinberg::kResultOk);
+            s->release();
+            recorded = ctl.calls;
+            ctl.terminate();
+        }
+        const Renders replay = renderAfterActiveLoad([&](Rig& rig) { rig.apply(recorded); });
+
+        const double activeDiff = diff(c, active);
+        const double roundTripDiff = diff(c, roundTrip);
+        const double replayDiff = diff(c, replay);
+        const double rmsC = rmsDbOf(c);
+        const double rmsB = rmsDbOf(roundTrip);
+        // Asserted: the round trip and its level (D-161). The active-load and replay readings are
+        // printed; their bars are held back for a ruling (follow-ups 86 and 87).
+        const bool ok = roundTripDiff <= 1e-5 && rmsB > -60.0 && std::fabs(rmsB - rmsC) < 0.1;
+        if (!ok) ++failing;
+        std::printf("T6.08 %s active-load %.3g round-trip %.3g rms c %.2f b %.2f dBFS replay %.3g (%zu params) %s\n",
+                    name.c_str(), activeDiff, roundTripDiff, rmsC, rmsB, replayDiff, recorded.size(),
+                    ok ? "ok" : "FAIL");
+        CHECK(roundTripDiff <= 1e-5);
+        CHECK(rmsB > -60.0);
+        CHECK(std::fabs(rmsB - rmsC) < 0.1);
+    }
+    std::printf("T6.08 %zu presets, %d failing\n", files.size(), failing);
 }
