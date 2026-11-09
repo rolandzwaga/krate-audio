@@ -649,7 +649,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/crossover_filter.h",
-      "line": 692
+      "line": 694
     },
     {
       "name": "Crossover4WayOutputs",

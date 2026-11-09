@@ -20,7 +20,6 @@
 #pragma once
 
 #include <krate/dsp/core/db_utils.h>  // detail::isNaN, detail::isInf
-#include <limits>
 
 
 
@@ -63,9 +62,10 @@ using Krate::DSP::detail::isInf;
 /// constexpr float w = fastTanh(0.0f);  // = 0.0 (compile-time)
 /// @endcode
 [[nodiscard]] constexpr float fastTanh(float x) noexcept {
-    // Handle special cases
+    // Handle special cases. A NaN input is returned as-is: no NaN constant,
+    // which is undefined under -ffinite-math-only (the macOS leg).
     if (detail::isNaN(x)) {
-        return std::numeric_limits<float>::quiet_NaN();
+        return x;
     }
     if (detail::isInf(x)) {
         return x > 0.0f ? 1.0f : -1.0f;

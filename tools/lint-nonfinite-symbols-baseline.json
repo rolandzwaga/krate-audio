@@ -1,6 +1,5 @@
 {
   "dsp/include/krate/dsp/core/db_utils.h": 5,
-  "dsp/include/krate/dsp/core/fast_math.h": 1,
   "dsp/include/krate/dsp/core/wavefold_math.h": 4,
   "dsp/include/krate/dsp/primitives/wavefolder.h": 1,
   "dsp/include/krate/dsp/processors/sample_hold_filter.h": 2,
