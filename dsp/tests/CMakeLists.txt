@@ -371,6 +371,9 @@ add_executable(dsp_systems_tests
     unit/systems/character_processor_test.cpp
     unit/systems/character_processor_digital_ramping_test.cpp
     unit/systems/character_processor_bbd_stereo_test.cpp
+    # Vorago lever bounds sentinels, shard-balance slot 1 of 5: the part TUs sit at spread
+    # positions on purpose (see unit/systems/vorago_lever_bounded_arms.h); keep them apart.
+    unit/systems/vorago_lever_bounded_part1_test.cpp
     unit/systems/stereo_field_test.cpp
     unit/systems/tap_manager_test.cpp
     unit/systems/flexible_feedback_network_test.cpp
@@ -378,6 +381,7 @@ add_executable(dsp_systems_tests
     unit/systems/amp_channel_test.cpp
     unit/systems/tape_machine_test.cpp
     unit/systems/fuzz_pedal_test.cpp
+    unit/systems/vorago_lever_bounded_part2_test.cpp   # shard-balance slot (vorago_lever_bounded_arms.h)
     unit/systems/distortion_rack_tests.cpp
     unit/systems/filter_feedback_matrix_tests.cpp
     unit/systems/filter_step_sequencer_tests.cpp
@@ -388,6 +392,7 @@ add_executable(dsp_systems_tests
     unit/systems/modulation_engine_perf_test.cpp
     unit/systems/unison_engine_test.cpp
     unit/systems/fm_voice_test.cpp
+    unit/systems/vorago_lever_bounded_part3_test.cpp   # shard-balance slot (vorago_lever_bounded_arms.h)
     unit/systems/vector_mixer_tests.cpp
     unit/systems/voice_allocator_test.cpp
     unit/systems/synth_voice_test.cpp
@@ -395,6 +400,7 @@ add_executable(dsp_systems_tests
     unit/systems/selectable_oscillator_test.cpp
     unit/systems/voice_mod_router_test.cpp
     unit/systems/ext_modulation_test.cpp
+    unit/systems/vorago_lever_bounded_part4_test.cpp   # shard-balance slot (vorago_lever_bounded_arms.h)
     unit/systems/harmonizer_engine_test.cpp
     unit/systems/harmonic_model_builder_tests.cpp
     unit/systems/sympathetic_resonance_test.cpp
@@ -407,6 +413,7 @@ add_executable(dsp_systems_tests
     # Seraphis Phase 4 (specs/seraphis-phase4-continuous-body): ContinuousBody
     unit/systems/continuous_body_test.cpp
     unit/systems/continuous_body_spectral_test.cpp
+    unit/systems/vorago_lever_bounded_part5_test.cpp   # shard-balance slot (vorago_lever_bounded_arms.h)
     unit/systems/continuous_body_perf_test.cpp
     # Seraphis Phase 5 (specs/seraphis-phase5-atmosphere): AtmosphereEngine
     unit/systems/atmosphere_engine_test.cpp
@@ -587,6 +594,8 @@ add_executable(dsp_systems_tests
     #                                            LaneSurvey [.probe]; + the ONE definition of
     #                                            detail::VoragoEcosystemLeverProbe
     #   vorago_ecosystem_lever_longrun_test.cpp  SC-010 (b)            (the [long] set)
+    #   vorago_lever_bounded_part1..5_test.cpp   the per-(arm, rate) LeverBounded cases, listed
+    #                                            at spread positions above (shard balance)
     unit/systems/vorago_ecosystem_lever_test.cpp
     unit/systems/vorago_ecosystem_lever_longrun_test.cpp
     # Profundum Phase 1 (specs/profundum-phase1-harmonic-core): ProfundumCore.

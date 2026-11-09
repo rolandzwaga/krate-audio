@@ -48,6 +48,7 @@
 
 #include "artifact_detection.h"  // tests/test_helpers (T022 ClickFree: ClickDetector)
 #include "render_fingerprint.h"  // tests/test_helpers (SC-012 post-clear render)
+#include "vorago_lever_bounded_arms.h"  // the per-(arm, rate) bounds sentinels defined below
 
 // T055: the detector only - never allocation_operator_overrides.h (the overrides
 // are linked once per test executable).
@@ -1918,7 +1919,9 @@ TEST_CASE("VoragoVoice_EcosystemLeverClickFree", "[systems][vorago]") {
 // ceiling raised to +60 dB PRINTS the maximum gain reduction (plan S4.4
 // formula; informative). NOT [long]: a bounds sentinel. The case's wall clock
 // is printed (ruling R-2: > 4 min measured alone -> stop and surface).
-TEST_CASE("VoragoEngine_EcosystemLeverBounded", "[systems][vorago]") {
+// One call per (arm, rate): six TEST_CASEs VoragoEngine_EcosystemLeverBounded_<arm>_<rate>,
+// spread for shard balance (vorago_lever_bounded_arms.h).
+void VoragoLeverBounded::runEcosystemLeverBounded(EcoArm which, double fs) {
     using Krate::DSP::VoragoEngineConfig;
     using Krate::DSP::VoragoMacro;
     using Krate::DSP::VoragoMacroMatrix;
@@ -1932,10 +1935,10 @@ TEST_CASE("VoragoEngine_EcosystemLeverBounded", "[systems][vorago]") {
     constexpr std::size_t kBlock = 512;
     constexpr float kTwinCeilingDb = 60.0f;
 
-    auto makeArmEngine = [&](double fs, bool inject) {
+    auto makeArmEngine = [&](double rate, bool inject) {
         auto e = std::make_unique<VoragoEngine>();
         e->setSeed(1u);
-        e->prepare(fs, VoragoEngineConfig{});
+        e->prepare(rate, VoragoEngineConfig{});
         e->setPolyphony(VoragoEngine::kMaxVoices);
         for (const std::uint8_t note : kNotes) {
             e->noteOn(note, kVelocity);
@@ -1952,108 +1955,105 @@ TEST_CASE("VoragoEngine_EcosystemLeverBounded", "[systems][vorago]") {
     };
     constexpr std::array<Arm, 2> kArms{{{"(a) injected L=1", true}, {"(b) natural colony", false}}};
 
-    for (const Arm& arm : kArms) {
-        CAPTURE(arm.name);
-        for (const double fs : {44100.0, 48000.0, 96000.0}) {
-            CAPTURE(fs);
-            auto engine = makeArmEngine(fs, arm.inject);
-            REQUIRE(engine->isPrepared());
-            for (std::size_t v = 0; v < VoragoEngine::kMaxVoices; ++v) {
-                CAPTURE(v);
-                REQUIRE(Probe::isRendering(*engine, v));
-            }
+    const Arm& arm = kArms[which == VoragoLeverBounded::EcoArm::Injected ? 0 : 1];
+    CAPTURE(arm.name);
+    CAPTURE(fs);
+    auto engine = makeArmEngine(fs, arm.inject);
+    REQUIRE(engine->isPrepared());
+    for (std::size_t v = 0; v < VoragoEngine::kMaxVoices; ++v) {
+        CAPTURE(v);
+        REQUIRE(Probe::isRendering(*engine, v));
+    }
 
-            const bool withTwin = (fs == 48000.0);
-            std::unique_ptr<VoragoEngine> twin;
+    const bool withTwin = (fs == 48000.0);
+    std::unique_ptr<VoragoEngine> twin;
+    if (withTwin) {
+        twin = makeArmEngine(fs, arm.inject);
+        REQUIRE(twin->isPrepared());
+        Probe::setLimiterCeilingDb(*twin, kTwinCeilingDb);
+    }
+
+    VoragoMacroMatrix matrix;
+    matrix.setMacro(VoragoMacro::Life, 1.0f);
+
+    const std::size_t bytesBefore = engine->getAllocatedBytes();
+    const auto total = static_cast<std::size_t>(fs * 60.0);
+
+    std::vector<float> l(kBlock, 0.0f);
+    std::vector<float> r(kBlock, 0.0f);
+    std::vector<float> ul(kBlock, 0.0f);
+    std::vector<float> ur(kBlock, 0.0f);
+
+    std::size_t nonFinite = 0;
+    std::size_t overCeiling = 0;
+    float peak = 0.0f;
+    double grMaxDb = 0.0;
+    std::size_t grAt = 0;
+    std::size_t grNonFinite = 0;
+
+    for (std::size_t done = 0; done < total; done += kBlock) {
+        const std::size_t n = std::min(kBlock, total - done);
+        matrix.apply(*engine);
+        engine->processStereoBlock(l.data(), r.data(), n);
+        engine->processOutputStage(l.data(), r.data(), n);
+        if (withTwin) {
+            matrix.apply(*twin);
+            twin->processStereoBlock(ul.data(), ur.data(), n);
+            twin->processOutputStage(ul.data(), ur.data(), n);
+        }
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!Krate::DSP::detail::isFinite(l[i]) ||
+                !Krate::DSP::detail::isFinite(r[i])) {
+                ++nonFinite;
+                continue;
+            }
+            const float y = std::max(std::abs(l[i]), std::abs(r[i]));
+            peak = std::max(peak, y);
+            overCeiling += (y <= kCeiling) ? 0u : 1u;
             if (withTwin) {
-                twin = makeArmEngine(fs, arm.inject);
-                REQUIRE(twin->isPrepared());
-                Probe::setLimiterCeilingDb(*twin, kTwinCeilingDb);
-            }
-
-            VoragoMacroMatrix matrix;
-            matrix.setMacro(VoragoMacro::Life, 1.0f);
-
-            const std::size_t bytesBefore = engine->getAllocatedBytes();
-            const auto total = static_cast<std::size_t>(fs * 60.0);
-
-            std::vector<float> l(kBlock, 0.0f);
-            std::vector<float> r(kBlock, 0.0f);
-            std::vector<float> ul(kBlock, 0.0f);
-            std::vector<float> ur(kBlock, 0.0f);
-
-            std::size_t nonFinite = 0;
-            std::size_t overCeiling = 0;
-            float peak = 0.0f;
-            double grMaxDb = 0.0;
-            std::size_t grAt = 0;
-            std::size_t grNonFinite = 0;
-
-            for (std::size_t done = 0; done < total; done += kBlock) {
-                const std::size_t n = std::min(kBlock, total - done);
-                matrix.apply(*engine);
-                engine->processStereoBlock(l.data(), r.data(), n);
-                engine->processOutputStage(l.data(), r.data(), n);
-                if (withTwin) {
-                    matrix.apply(*twin);
-                    twin->processStereoBlock(ul.data(), ur.data(), n);
-                    twin->processOutputStage(ul.data(), ur.data(), n);
+                if (!Krate::DSP::detail::isFinite(ul[i]) ||
+                    !Krate::DSP::detail::isFinite(ur[i])) {
+                    ++grNonFinite;
+                    continue;
                 }
-                for (std::size_t i = 0; i < n; ++i) {
-                    if (!Krate::DSP::detail::isFinite(l[i]) ||
-                        !Krate::DSP::detail::isFinite(r[i])) {
-                        ++nonFinite;
-                        continue;
-                    }
-                    const float y = std::max(std::abs(l[i]), std::abs(r[i]));
-                    peak = std::max(peak, y);
-                    overCeiling += (y <= kCeiling) ? 0u : 1u;
-                    if (withTwin) {
-                        if (!Krate::DSP::detail::isFinite(ul[i]) ||
-                            !Krate::DSP::detail::isFinite(ur[i])) {
-                            ++grNonFinite;
-                            continue;
-                        }
-                        const float u = std::max(std::abs(ul[i]), std::abs(ur[i]));
-                        if (y > 1e-6f) {
-                            const double gr = 20.0 * std::log10(static_cast<double>(u) /
-                                                                static_cast<double>(y));
-                            if (gr > grMaxDb) {
-                                grMaxDb = gr;
-                                grAt = done + i;
-                            }
-                        }
+                const float u = std::max(std::abs(ul[i]), std::abs(ur[i]));
+                if (y > 1e-6f) {
+                    const double gr = 20.0 * std::log10(static_cast<double>(u) /
+                                                        static_cast<double>(y));
+                    if (gr > grMaxDb) {
+                        grMaxDb = gr;
+                        grAt = done + i;
                     }
                 }
             }
-
-            const std::size_t bytesAfter = engine->getAllocatedBytes();
-            const std::uint32_t recoveries = engine->getNonFiniteRecoveryCount();
-            std::printf("[LeverBounded] %-20s fs=%.0f voices=%zu 60 s: peak=%.6f over-ceiling=%zu "
-                        "non-finite=%zu recoveries=%u bytes before=%zu after=%zu\n",
-                        arm.name, fs, VoragoEngine::kMaxVoices, static_cast<double>(peak),
-                        overCeiling, nonFinite, static_cast<unsigned>(recoveries), bytesBefore,
-                        bytesAfter);
-            if (withTwin) {
-                std::printf("[LeverBounded] %-20s fs=%.0f GR twin (ceiling +%.0f dB): max "
-                            "reduction=%.3f dB at t=%.3f s (twin non-finite=%zu) [informative]\n",
-                            arm.name, fs, static_cast<double>(kTwinCeilingDb), grMaxDb,
-                            static_cast<double>(grAt) / fs, grNonFinite);
-            }
-
-            REQUIRE(nonFinite == 0u);
-            REQUIRE(overCeiling == 0u);
-            REQUIRE(peak > 0.0f);  // non-vacuity: six voices really sounded
-            REQUIRE(recoveries == 0u);
-            REQUIRE(bytesAfter == bytesBefore);
         }
     }
 
+    const std::size_t bytesAfter = engine->getAllocatedBytes();
+    const std::uint32_t recoveries = engine->getNonFiniteRecoveryCount();
+    std::printf("[LeverBounded] %-20s fs=%.0f voices=%zu 60 s: peak=%.6f over-ceiling=%zu "
+                "non-finite=%zu recoveries=%u bytes before=%zu after=%zu\n",
+                arm.name, fs, VoragoEngine::kMaxVoices, static_cast<double>(peak),
+                overCeiling, nonFinite, static_cast<unsigned>(recoveries), bytesBefore,
+                bytesAfter);
+    if (withTwin) {
+        std::printf("[LeverBounded] %-20s fs=%.0f GR twin (ceiling +%.0f dB): max "
+                    "reduction=%.3f dB at t=%.3f s (twin non-finite=%zu) [informative]\n",
+                    arm.name, fs, static_cast<double>(kTwinCeilingDb), grMaxDb,
+                    static_cast<double>(grAt) / fs, grNonFinite);
+    }
+
+    REQUIRE(nonFinite == 0u);
+    REQUIRE(overCeiling == 0u);
+    REQUIRE(peak > 0.0f);  // non-vacuity: six voices really sounded
+    REQUIRE(recoveries == 0u);
+    REQUIRE(bytesAfter == bytesBefore);
+
     const double wallSeconds =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - caseStart).count();
-    std::printf("[LeverBounded] case wall clock = %.1f s (ruling R-2: > 240 s measured alone -> "
+    std::printf("[LeverBounded] %-20s fs=%.0f case wall clock = %.1f s (ruling R-2: > 240 s measured alone -> "
                 "stop and surface)\n",
-                wallSeconds);
+                arm.name, fs, wallSeconds);
 }
 
 // -----------------------------------------------------------------------------
@@ -2078,7 +2078,9 @@ TEST_CASE("VoragoEngine_EcosystemLeverBounded", "[systems][vorago]") {
 // value, every sample finite by bit pattern, |out| <= 0.9661. A guard on the
 // ruled tree, expected green; a red is a defect in a ruled lever. NOT [long].
 // The case's wall clock is printed (> 4 min measured alone -> stop and surface).
-TEST_CASE("VoragoEngine_CapabilityLeverBounded", "[systems][vorago]") {
+// One call per (gravity, rate): six TEST_CASEs VoragoEngine_CapabilityLeverBounded_<gravity>_<rate>,
+// spread for shard balance (vorago_lever_bounded_arms.h).
+void VoragoLeverBounded::runCapabilityLeverBounded(float gravity, double fs) {
     using Krate::DSP::BloomEngine;
     using Krate::DSP::VoragoEngineConfig;
     using Krate::DSP::VoragoMacro;
@@ -2093,96 +2095,102 @@ TEST_CASE("VoragoEngine_CapabilityLeverBounded", "[systems][vorago]") {
     constexpr std::size_t kBlock = 512;
     const Probe::Lanes kEcoAtOne = uniformLanes(1.0f);
 
-    for (const float gravity : {0.0f, 1.0f}) {
-        CAPTURE(gravity);
-        for (const double fs : {44100.0, 48000.0, 96000.0}) {
-            CAPTURE(fs);
+    CAPTURE(gravity);
+    CAPTURE(fs);
 
-            auto engine = std::make_unique<VoragoEngine>();
-            engine->setSeed(1u);
-            engine->prepare(fs, VoragoEngineConfig{});
-            REQUIRE(engine->isPrepared());
-            const std::size_t bytesAfterPrepare = engine->getAllocatedBytes();
-            engine->setPolyphony(VoragoEngine::kMaxVoices);
-            for (const std::uint8_t note : kNotes) {
-                engine->noteOn(note, kVelocity);
-            }
-            for (std::size_t v = 0; v < VoragoEngine::kMaxVoices; ++v) {
-                CAPTURE(v);
-                REQUIRE(Probe::isRendering(*engine, v));
-            }
-
-            VoragoMacroMatrix matrix;
-            for (std::size_t m = 0; m < VoragoMacroMatrix::kNumMacros; ++m) {
-                matrix.setMacro(static_cast<VoragoMacro>(m), 1.0f);
-            }
-            matrix.setMacro(VoragoMacro::Gravity, gravity);
-
-            const auto total = static_cast<std::size_t>(fs * 60.0);
-            std::vector<float> l(kBlock, 0.0f);
-            std::vector<float> r(kBlock, 0.0f);
-
-            std::size_t allocations = 0;
-            std::size_t nonFinite = 0;
-            std::size_t overCeiling = 0;
-            float peak = 0.0f;
-
-            {
-                [[maybe_unused]] const TestHelpers::AllocationScope scope;
-
-                for (std::size_t done = 0; done < total; done += kBlock) {
-                    const std::size_t n = std::min(kBlock, total - done);
-                    matrix.apply(*engine);
-                    // The extremes the rows do not reach (or may not hold).
-                    engine->setGhostPeakLevel(1.0f);
-                    Probe::setEcosystemDepthAll(*engine, 1.0f);
-                    for (std::size_t v = 0; v < VoragoEngine::kMaxVoices; ++v) {
-                        VoragoVoice& voice = Probe::voice(*engine, v);
-                        voice.setBloomDepth(1.0f);
-                        voice.setBloomSpawnRateHz(BloomEngine::kMaxSpawnRateHz);
-                    }
-                    Probe::injectEcoAll(*engine, kEcoAtOne);
-
-                    engine->processStereoBlock(l.data(), r.data(), n);
-                    engine->processOutputStage(l.data(), r.data(), n);
-                    for (std::size_t i = 0; i < n; ++i) {
-                        if (!Krate::DSP::detail::isFinite(l[i]) ||
-                            !Krate::DSP::detail::isFinite(r[i])) {
-                            ++nonFinite;
-                            continue;
-                        }
-                        const float y = std::max(std::abs(l[i]), std::abs(r[i]));
-                        peak = std::max(peak, y);
-                        overCeiling += (y <= kCeiling) ? 0u : 1u;
-                    }
-                }
-
-                allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
-            }
-
-            const std::size_t bytesAfter = engine->getAllocatedBytes();
-            const std::uint32_t recoveries = engine->getNonFiniteRecoveryCount();
-            std::printf("[CapabilityBounded] gravity=%.0f fs=%.0f voices=%zu 60 s: peak=%.6f "
-                        "over-ceiling=%zu non-finite=%zu recoveries=%u allocations=%zu "
-                        "bytes after-prepare=%zu after=%zu\n",
-                        static_cast<double>(gravity), fs, VoragoEngine::kMaxVoices,
-                        static_cast<double>(peak), overCeiling, nonFinite,
-                        static_cast<unsigned>(recoveries), allocations, bytesAfterPrepare,
-                        bytesAfter);
-
-            REQUIRE(allocations == 0u);
-            REQUIRE(bytesAfter == bytesAfterPrepare);
-            REQUIRE(nonFinite == 0u);
-            REQUIRE(overCeiling == 0u);
-            REQUIRE(peak > 0.0f);  // non-vacuity: six voices really sounded
-        }
+    auto engine = std::make_unique<VoragoEngine>();
+    engine->setSeed(1u);
+    engine->prepare(fs, VoragoEngineConfig{});
+    REQUIRE(engine->isPrepared());
+    const std::size_t bytesAfterPrepare = engine->getAllocatedBytes();
+    engine->setPolyphony(VoragoEngine::kMaxVoices);
+    for (const std::uint8_t note : kNotes) {
+        engine->noteOn(note, kVelocity);
     }
+    for (std::size_t v = 0; v < VoragoEngine::kMaxVoices; ++v) {
+        CAPTURE(v);
+        REQUIRE(Probe::isRendering(*engine, v));
+    }
+
+    VoragoMacroMatrix matrix;
+    for (std::size_t m = 0; m < VoragoMacroMatrix::kNumMacros; ++m) {
+        matrix.setMacro(static_cast<VoragoMacro>(m), 1.0f);
+    }
+    matrix.setMacro(VoragoMacro::Gravity, gravity);
+
+    const auto total = static_cast<std::size_t>(fs * 60.0);
+    std::vector<float> l(kBlock, 0.0f);
+    std::vector<float> r(kBlock, 0.0f);
+
+    std::size_t allocations = 0;
+    std::size_t nonFinite = 0;
+    std::size_t overCeiling = 0;
+    float peak = 0.0f;
+
+    {
+        [[maybe_unused]] const TestHelpers::AllocationScope scope;
+
+        for (std::size_t done = 0; done < total; done += kBlock) {
+            const std::size_t n = std::min(kBlock, total - done);
+            matrix.apply(*engine);
+            // The extremes the rows do not reach (or may not hold).
+            engine->setGhostPeakLevel(1.0f);
+            Probe::setEcosystemDepthAll(*engine, 1.0f);
+            for (std::size_t v = 0; v < VoragoEngine::kMaxVoices; ++v) {
+                VoragoVoice& voice = Probe::voice(*engine, v);
+                voice.setBloomDepth(1.0f);
+                voice.setBloomSpawnRateHz(BloomEngine::kMaxSpawnRateHz);
+            }
+            Probe::injectEcoAll(*engine, kEcoAtOne);
+
+            engine->processStereoBlock(l.data(), r.data(), n);
+            engine->processOutputStage(l.data(), r.data(), n);
+            for (std::size_t i = 0; i < n; ++i) {
+                if (!Krate::DSP::detail::isFinite(l[i]) ||
+                    !Krate::DSP::detail::isFinite(r[i])) {
+                    ++nonFinite;
+                    continue;
+                }
+                const float y = std::max(std::abs(l[i]), std::abs(r[i]));
+                peak = std::max(peak, y);
+                overCeiling += (y <= kCeiling) ? 0u : 1u;
+            }
+        }
+
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+
+    const std::size_t bytesAfter = engine->getAllocatedBytes();
+    const std::uint32_t recoveries = engine->getNonFiniteRecoveryCount();
+    std::printf("[CapabilityBounded] gravity=%.0f fs=%.0f voices=%zu 60 s: peak=%.6f "
+                "over-ceiling=%zu non-finite=%zu recoveries=%u allocations=%zu "
+                "bytes after-prepare=%zu after=%zu\n",
+                static_cast<double>(gravity), fs, VoragoEngine::kMaxVoices,
+                static_cast<double>(peak), overCeiling, nonFinite,
+                static_cast<unsigned>(recoveries), allocations, bytesAfterPrepare,
+                bytesAfter);
+
+    REQUIRE(allocations == 0u);
+    REQUIRE(bytesAfter == bytesAfterPrepare);
+    REQUIRE(nonFinite == 0u);
+    REQUIRE(overCeiling == 0u);
+    REQUIRE(peak > 0.0f);  // non-vacuity: six voices really sounded
 
     const double wallSeconds =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - caseStart).count();
-    std::printf("[CapabilityBounded] case wall clock = %.1f s (> 240 s measured alone -> stop "
-                "and surface)\n",
-                wallSeconds);
+    std::printf("[CapabilityBounded] gravity=%.0f fs=%.0f case wall clock = %.1f s (> 240 s measured alone -> "
+                "stop and surface)\n",
+                static_cast<double>(gravity), fs, wallSeconds);
+}
+
+// The first shard-balance slot of the twelve per-(arm, rate) bounds cases; the other five slots are
+// vorago_lever_bounded_part{1..5}_test.cpp (vorago_lever_bounded_arms.h says why).
+TEST_CASE("VoragoEngine_EcosystemLeverBounded_InjectedL1_48k", "[systems][vorago]") {
+    VoragoLeverBounded::runEcosystemLeverBounded(VoragoLeverBounded::EcoArm::Injected, 48000.0);
+}
+
+TEST_CASE("VoragoEngine_CapabilityLeverBounded_Gravity0_44k1", "[systems][vorago]") {
+    VoragoLeverBounded::runCapabilityLeverBounded(0.0f, 44100.0);
 }
 
 // -----------------------------------------------------------------------------
