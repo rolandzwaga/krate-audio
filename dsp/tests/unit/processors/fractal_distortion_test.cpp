@@ -10,12 +10,17 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <krate/dsp/core/random.h>
+#include <krate/dsp/primitives/pink_noise_filter.h>
 #include <krate/dsp/processors/fractal_distortion.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <complex>
+#include <cstdio>
 #include <limits>
+#include <numbers>
 #include <numeric>
 #include <vector>
 
@@ -1917,4 +1922,356 @@ TEST_CASE("FractalDistortion Feedback mode: 3s with periodic parameter changes",
     REQUIRE_FALSE(foundNaN);
     // With smoothed parameter changes, should have very few discontinuities
     REQUIRE(clickCount < 30); // < 10/sec
+}
+
+// =============================================================================
+// Hidden probe: Multiband band sum with and without allpass compensation
+// =============================================================================
+// Measurement only (disrumpo-audit): prints, asserts nothing. Run by name:
+//   dsp_processors_tests "[fractal-comp-probe]"
+// FractalDistortion gives no access to its Crossover4Way, so the compensated
+// variant runs a copy of the Multiband path (FractalMultibandProbeReplica); the
+// probe prints how far the uncompensated copy is from the real class.
+
+namespace {
+
+constexpr float kProbeBaseHz = FractalDistortion::kDefaultCrossoverFrequency;
+constexpr std::size_t kProbeBands = static_cast<std::size_t>(FractalDistortion::kNumBands);
+
+/// Sets the crossover frequencies exactly as FractalDistortion::updateCrossoverFrequencies() does.
+void probeSetFractalFrequencies(Crossover4Way& xo, double sampleRate) {
+    const float maxFreq = static_cast<float>(sampleRate) * 0.45f;
+    xo.setSubLowFrequency(std::max(20.0f, kProbeBaseHz / 4.0f));
+    xo.setLowMidFrequency(std::clamp(kProbeBaseHz, 20.0f, maxFreq));
+    xo.setMidHighFrequency(std::clamp(kProbeBaseHz * 4.0f, 20.0f, maxFreq));
+}
+
+/// Copy of FractalDistortion's Multiband path (processMultiband, processBandResidual,
+/// Add blend, 10 Hz DC blocker, mix 1) with the crossover's compensation switch exposed.
+/// The drive is constant, as the snapped smoother in the real class is.
+class FractalMultibandProbeReplica {
+public:
+    void prepare(double sampleRate, bool compensation, WaveshapeType curve, int iterations,
+                 float scaleFactor, float bandIterationScale, float drive) {
+        xo_.prepare(sampleRate);
+        probeSetFractalFrequencies(xo_, sampleRate);
+        xo_.setAllpassCompensation(compensation);
+        shaper_.setType(curve);
+        dc_.prepare(sampleRate, 10.0f);
+        scaleFactor_ = scaleFactor;
+        drive_ = drive;
+        for (std::size_t b = 0; b < kProbeBands; ++b) {
+            const float scalePower = std::pow(
+                bandIterationScale, static_cast<float>(FractalDistortion::kNumBands - 1 - static_cast<int>(b)));
+            bandIterations_[b] =
+                std::max(1, static_cast<int>(std::round(static_cast<float>(iterations) * scalePower)));
+        }
+    }
+
+    float process(float input) {
+        const auto bands = xo_.process(input);
+        const std::array<float, kProbeBands> in{bands.sub, bands.low, bands.mid, bands.high};
+        float wet = 0.0f;
+        for (std::size_t b = 0; b < kProbeBands; ++b) {
+            bandOut_[b] = processBand(in[b], bandIterations_[b]);
+            wet += bandOut_[b];
+        }
+        return detail::flushDenormal(dc_.process(wet));
+    }
+
+    [[nodiscard]] const std::array<float, kProbeBands>& bandOutputs() const { return bandOut_; }
+
+private:
+    float processBand(float input, int numIterations) {
+        std::array<float, FractalDistortion::kMaxIterations> levels{};
+        shaper_.setDrive(drive_);
+        levels[0] = detail::flushDenormal(shaper_.process(input));
+        float sum = levels[0];
+        float scalePower = scaleFactor_;
+        for (int i = 1; i < numIterations && i < FractalDistortion::kMaxIterations; ++i) {
+            const float residual = input - sum;
+            shaper_.setDrive(scalePower * drive_);
+            const auto idx = static_cast<std::size_t>(i);
+            levels[idx] = detail::flushDenormal(shaper_.process(residual));
+            sum += levels[idx];
+            scalePower *= scaleFactor_;
+        }
+        float out = 0.0f;
+        for (int i = 0; i < numIterations; ++i)
+            out += levels[static_cast<std::size_t>(i)];
+        return out;
+    }
+
+    Crossover4Way xo_;
+    Waveshaper shaper_;
+    DCBlocker dc_;
+    std::array<int, kProbeBands> bandIterations_{};
+    std::array<float, kProbeBands> bandOut_{};
+    float scaleFactor_ = 0.5f;
+    float drive_ = 1.0f;
+};
+
+/// H(f) and the DFT of n*h[n] at 1/24-octave points from 20 Hz to 20 kHz.
+struct ProbeSpectrum {
+    std::vector<double> freqs;
+    std::vector<std::complex<double>> h;
+    std::vector<std::complex<double>> nh;
+};
+
+ProbeSpectrum probeSpectrum(const std::vector<double>& ir, double sampleRate) {
+    ProbeSpectrum s;
+    for (int k = 0;; ++k) {
+        const double f = 20.0 * std::pow(2.0, static_cast<double>(k) / 24.0);
+        if (f > 20000.0 * 1.0001)
+            break;
+        const double w = 2.0 * std::numbers::pi * f / sampleRate;
+        std::complex<double> acc{0.0, 0.0};
+        std::complex<double> accN{0.0, 0.0};
+        for (std::size_t n = 0; n < ir.size(); ++n) {
+            const std::complex<double> e = std::polar(1.0, -w * static_cast<double>(n));
+            acc += ir[n] * e;
+            accN += static_cast<double>(n) * ir[n] * e;
+        }
+        s.freqs.push_back(f);
+        s.h.push_back(acc);
+        s.nh.push_back(accN);
+    }
+    return s;
+}
+
+struct ProbeSweepSummary {
+    double maxDevDb = 0.0;
+    double maxDevHz = 0.0;
+    double gdMinMs = 0.0;
+    double gdMaxMs = 0.0;
+};
+
+/// Magnitude deviation from 0 dB and group-delay range; divides out `ref` when given.
+ProbeSweepSummary probeSummarise(const ProbeSpectrum& s, double sampleRate, const ProbeSpectrum* ref = nullptr) {
+    ProbeSweepSummary out;
+    out.gdMinMs = std::numeric_limits<double>::max();
+    out.gdMaxMs = std::numeric_limits<double>::lowest();
+    for (std::size_t i = 0; i < s.freqs.size(); ++i) {
+        double magDb = 20.0 * std::log10(std::abs(s.h[i]));
+        double gdSamples = (s.nh[i] / s.h[i]).real();
+        if (ref != nullptr) {
+            magDb -= 20.0 * std::log10(std::abs(ref->h[i]));
+            gdSamples -= (ref->nh[i] / ref->h[i]).real();
+        }
+        if (std::abs(magDb) > std::abs(out.maxDevDb)) {
+            out.maxDevDb = magDb;
+            out.maxDevHz = s.freqs[i];
+        }
+        const double gdMs = gdSamples * 1000.0 / sampleRate;
+        out.gdMinMs = std::min(out.gdMinMs, gdMs);
+        out.gdMaxMs = std::max(out.gdMaxMs, gdMs);
+    }
+    return out;
+}
+
+void probePrintSummary(const char* label, const ProbeSweepSummary& s) {
+    std::printf("  %-44s max dev %+8.4f dB at %8.1f Hz | group delay %7.3f .. %7.3f ms (spread %7.3f ms)\n", label,
+                s.maxDevDb, s.maxDevHz, s.gdMinMs, s.gdMaxMs, s.gdMaxMs - s.gdMinMs);
+}
+
+/// Impulse response of the four-band sum of a Crossover4Way at Fractal's frequencies,
+/// configured the way FractalDistortion::prepare() does, after 1 s of settling.
+std::vector<double> probeCrossoverIr(double sampleRate, bool compensation) {
+    Crossover4Way xo;
+    xo.prepare(sampleRate);
+    probeSetFractalFrequencies(xo, sampleRate);
+    xo.setAllpassCompensation(compensation);
+    const auto len = static_cast<std::size_t>(sampleRate);
+    for (std::size_t n = 0; n < len; ++n)
+        (void)xo.process(0.0f);
+    std::vector<double> ir(len);
+    for (std::size_t n = 0; n < len; ++n) {
+        const auto b = xo.process(n == 0 ? 1.0f : 0.0f);
+        ir[n] = static_cast<double>(b.sub) + static_cast<double>(b.low) + static_cast<double>(b.mid) +
+                static_cast<double>(b.high);
+    }
+    return ir;
+}
+
+/// Impulse response (scaled back to unit amplitude) of any per-sample processor after 1 s of settling.
+template <typename Process>
+std::vector<double> probeIr(double sampleRate, float amplitude, const Process& process) {
+    const auto len = static_cast<std::size_t>(sampleRate);
+    for (std::size_t n = 0; n < len; ++n)
+        (void)process(0.0f);
+    std::vector<double> ir(len);
+    for (std::size_t n = 0; n < len; ++n)
+        ir[n] = static_cast<double>(process(n == 0 ? amplitude : 0.0f)) / static_cast<double>(amplitude);
+    return ir;
+}
+
+double probeRms(const std::vector<double>& x) {
+    double acc = 0.0;
+    for (const double v : x)
+        acc += v * v;
+    return std::sqrt(acc / static_cast<double>(x.size()));
+}
+
+double probeDb(double ratio) { return 20.0 * std::log10(ratio); }
+
+} // namespace
+
+TEST_CASE("FractalDistortion Multiband band sum with and without allpass compensation (probe)",
+          "[.][fractal-comp-probe]") {
+    std::printf("\n=== Item 1: Crossover4Way alone, %.1f / %.1f / %.1f Hz, band sum vs input, 20 Hz - 20 kHz ===\n",
+                static_cast<double>(kProbeBaseHz / 4.0f), static_cast<double>(kProbeBaseHz),
+                static_cast<double>(kProbeBaseHz * 4.0f));
+    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+        for (const bool comp : {false, true}) {
+            const auto s = probeSpectrum(probeCrossoverIr(sr, comp), sr);
+            std::array<char, 64> label{};
+            std::snprintf(label.data(), label.size(), "%.1f kHz compensation %s", sr / 1000.0, comp ? "ON " : "OFF");
+            probePrintSummary(label.data(), probeSummarise(s, sr));
+        }
+    }
+
+    constexpr double kSr = 48000.0;
+    std::printf("\n=== Item 2: FractalDistortion Multiband, drive 1 (min), iterations 1 (min), Tanh, mix 1, 48 kHz ===\n");
+    constexpr float kImpulse = 1.0e-3f;  // tanh(1e-3) deviates from linear by ~3e-7 relative
+    FractalDistortion real;
+    real.setMode(FractalMode::Multiband);
+    real.setIterations(1);
+    real.setDrive(1.0f);
+    real.setMix(1.0f);
+    real.setCurveType(WaveshapeType::Tanh);
+    real.prepare(kSr, 512);
+    const auto irReal = probeIr(kSr, kImpulse, [&](float x) { return real.process(x); });
+
+    std::array<std::vector<double>, 2> irReplica;
+    for (std::size_t c = 0; c < 2; ++c) {
+        FractalMultibandProbeReplica rep;
+        rep.prepare(kSr, c == 1, WaveshapeType::Tanh, 1, 0.5f, FractalDistortion::kDefaultBandIterationScale, 1.0f);
+        irReplica[c] = probeIr(kSr, kImpulse, [&](float x) { return rep.process(x); });
+    }
+    double maxIrDiff = 0.0;
+    for (std::size_t n = 0; n < irReal.size(); ++n)
+        maxIrDiff = std::max(maxIrDiff, std::abs(irReal[n] - irReplica[0][n]));
+    std::printf("  replica OFF vs real class: max |IR difference| %.3e (unit impulse)\n", maxIrDiff);
+
+    DCBlocker dcAlone;
+    dcAlone.prepare(kSr, 10.0f);
+    const auto sDc = probeSpectrum(probeIr(kSr, 1.0f, [&](float x) { return dcAlone.process(x); }), kSr);
+    const auto sReal = probeSpectrum(irReal, kSr);
+    const auto sOff = probeSpectrum(irReplica[0], kSr);
+    const auto sOn = probeSpectrum(irReplica[1], kSr);
+    probePrintSummary("10 Hz DC blocker alone", probeSummarise(sDc, kSr));
+    probePrintSummary("real class (OFF), raw", probeSummarise(sReal, kSr));
+    probePrintSummary("real class (OFF), DC blocker divided out", probeSummarise(sReal, kSr, &sDc));
+    probePrintSummary("replica OFF, raw", probeSummarise(sOff, kSr));
+    probePrintSummary("replica ON,  raw", probeSummarise(sOn, kSr));
+    probePrintSummary("replica OFF, DC blocker divided out", probeSummarise(sOff, kSr, &sDc));
+    probePrintSummary("replica ON,  DC blocker divided out", probeSummarise(sOn, kSr, &sDc));
+
+    std::printf("\n=== Item 3: Disrumpo Fractal defaults (Multiband, iterations 4, scale 0.5, curve ReciprocalSqrt,"
+                " blend Add, depth 0.5, internal drive 1), 2 s pink noise at -12 dBFS RMS x adapter drive, 48 kHz ===\n");
+    const auto len = static_cast<std::size_t>(2.0 * kSr);
+    std::vector<float> pink(len);
+    {
+        Xorshift32 rng(0x5EED1234u);
+        PinkNoiseFilter pinkFilter;
+        pinkFilter.prepare(static_cast<float>(kSr));
+        double acc = 0.0;
+        for (auto& v : pink) {
+            v = pinkFilter.process(rng.nextFloat());
+            acc += static_cast<double>(v) * static_cast<double>(v);
+        }
+        const double gain = 0.25 / std::sqrt(acc / static_cast<double>(len));
+        for (auto& v : pink)
+            v = static_cast<float>(static_cast<double>(v) * gain);
+    }
+    const std::array<const char*, kProbeBands> bandNames{"sub  (< 62.5 Hz)", "low  (62.5-250 Hz)",
+                                                          "mid  (250-1000 Hz)", "high (> 1 kHz)"};
+    for (const float adapterDrive : {1.0f, 4.0f}) {
+        // Fractal at the adapter's settings; the adapter scales the input by its drive (default 1).
+        FractalDistortion realN;
+        realN.setMode(FractalMode::Multiband);
+        realN.setIterations(4);
+        realN.setScaleFactor(0.5f);
+        realN.setFrequencyDecay(0.5f);
+        realN.setFeedbackAmount(0.0f);
+        realN.setCurveType(WaveshapeType::ReciprocalSqrt);
+        realN.setBlendMode(FractalBlendMode::Add);
+        realN.setBandIterationScale(0.5f);
+        realN.setDrive(1.0f);
+        realN.setMix(1.0f);
+        realN.prepare(kSr, 512);
+        std::array<FractalMultibandProbeReplica, 2> reps;
+        std::array<Crossover4Way, 2> split;
+        std::array<std::vector<double>, 2> out;
+        std::array<std::array<double, kProbeBands>, 2> bandOutPow{};
+        std::array<std::array<double, kProbeBands>, 2> splitPow{};
+        std::array<double, kProbeBands> splitDiffPow{};
+        std::array<double, kProbeBands> bandOutDiffPow{};
+        for (std::size_t c = 0; c < 2; ++c) {
+            reps[c].prepare(kSr, c == 1, WaveshapeType::ReciprocalSqrt, 4, 0.5f, 0.5f, 1.0f);
+            probeSetFractalFrequencies(split[c], kSr);
+            split[c].setAllpassCompensation(true);
+            split[c].prepare(kSr);
+            out[c].resize(len);
+        }
+        const auto settle = static_cast<std::size_t>(0.5 * kSr);
+        for (std::size_t n = 0; n < settle; ++n) {
+            (void)realN.process(0.0f);
+            (void)reps[0].process(0.0f);
+            (void)reps[1].process(0.0f);
+        }
+        double maxRealDiff = 0.0;
+        for (std::size_t n = 0; n < len; ++n) {
+            const float x = pink[n] * adapterDrive;
+            const float yReal = realN.process(x);
+            std::array<std::array<float, kProbeBands>, 2> bo{};
+            for (std::size_t c = 0; c < 2; ++c) {
+                const float y = reps[c].process(x);
+                out[c][n] = static_cast<double>(y);
+                bo[c] = reps[c].bandOutputs();
+                const auto sb = split[c].process(y);
+                const std::array<float, kProbeBands> sbArr{sb.sub, sb.low, sb.mid, sb.high};
+                for (std::size_t b = 0; b < kProbeBands; ++b) {
+                    splitPow[c][b] += static_cast<double>(sbArr[b]) * static_cast<double>(sbArr[b]);
+                    bandOutPow[c][b] += static_cast<double>(bo[c][b]) * static_cast<double>(bo[c][b]);
+                }
+            }
+            maxRealDiff = std::max(maxRealDiff, std::abs(static_cast<double>(yReal) - out[0][n]));
+            for (std::size_t b = 0; b < kProbeBands; ++b) {
+                const double d = static_cast<double>(bo[0][b]) - static_cast<double>(bo[1][b]);
+                bandOutDiffPow[b] += d * d;
+            }
+        }
+        // Split of the difference signal: the analysis splitter is linear, so run it once more on OFF - ON.
+        Crossover4Way splitDiff;
+        probeSetFractalFrequencies(splitDiff, kSr);
+        splitDiff.setAllpassCompensation(true);
+        splitDiff.prepare(kSr);
+        std::vector<double> diff(len);
+        for (std::size_t n = 0; n < len; ++n) {
+            diff[n] = out[0][n] - out[1][n];
+            const auto sb = splitDiff.process(static_cast<float>(diff[n]));
+            const std::array<float, kProbeBands> sbArr{sb.sub, sb.low, sb.mid, sb.high};
+            for (std::size_t b = 0; b < kProbeBands; ++b)
+                splitDiffPow[b] += static_cast<double>(sbArr[b]) * static_cast<double>(sbArr[b]);
+        }
+        const double rmsOff = probeRms(out[0]);
+        const double rmsOn = probeRms(out[1]);
+        const double rmsDiff = probeRms(diff);
+        std::printf("  adapter drive %.1f: replica OFF vs real class max |diff| %.3e\n", static_cast<double>(adapterDrive),
+                    maxRealDiff);
+        std::printf("    output RMS OFF %.2f dBFS, ON %.2f dBFS, ON-OFF %+.4f dB; RMS(OFF-ON) %.2f dBFS = %.2f dB re OFF\n",
+                    probeDb(rmsOff), probeDb(rmsOn), probeDb(rmsOn / rmsOff), probeDb(rmsDiff),
+                    probeDb(rmsDiff / rmsOff));
+        for (std::size_t b = 0; b < kProbeBands; ++b) {
+            std::printf("    %-20s output-split level ON-OFF %+.4f dB, diff %.2f dB re band | processed band output"
+                        " ON-OFF %+.4f dB, diff %.2f dB re band\n",
+                        bandNames[b], 10.0 * std::log10(splitPow[1][b] / splitPow[0][b]),
+                        10.0 * std::log10(splitDiffPow[b] / splitPow[0][b]),
+                        10.0 * std::log10(bandOutPow[1][b] / bandOutPow[0][b]),
+                        10.0 * std::log10(bandOutDiffPow[b] / bandOutPow[0][b]));
+        }
+    }
+    std::fflush(stdout);
+    SUCCEED();
 }
