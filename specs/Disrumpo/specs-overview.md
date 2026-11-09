@@ -370,7 +370,6 @@ Per-Band: Morph X/Y, Drive, Mix, Band Gain, Band Pan
 - Input Gain: -24 to +24 dB
 - Output Gain: -24 to +24 dB
 - Global Mix: 0% to 100%
-- Metering: Input/Output stereo peak+RMS, per-band indicators
 
 ---
 
