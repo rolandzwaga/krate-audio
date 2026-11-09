@@ -25,6 +25,7 @@
 #include "dsp/sweep_envelope.h"
 #include "controller/spectrum_block.h"
 
+#include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/spectrum_fifo.h>
 #include <krate/dsp/primitives/sweep_position_buffer.h>
 #include <krate/dsp/systems/modulation_engine.h>
@@ -153,6 +154,14 @@ private:
     std::atomic<float> inputGain_{0.5f};   // Default: 0 dB (normalized 0.5)
     std::atomic<float> outputGain_{0.5f};  // Default: 0 dB (normalized 0.5)
     std::atomic<float> globalMix_{1.0f};   // Default: 100% wet
+
+    /// @brief Per-sample smoothing of the block-rate global targets (D-025): linear
+    /// input gain, linear output gain, wet mix. Configured in setupProcessing; the
+    /// first audio block after activation snaps them to their targets.
+    static constexpr float kGlobalSmoothingMs = 15.0f;
+    Krate::DSP::OnePoleSmoother inputGainSmoother_;
+    Krate::DSP::OnePoleSmoother outputGainSmoother_;
+    Krate::DSP::OnePoleSmoother wetMixSmoother_;
 
     // Oversampling limit (spec 009-intelligent-oversampling)
     // FR-005, FR-006: Global oversampling limit parameter (default 4x)

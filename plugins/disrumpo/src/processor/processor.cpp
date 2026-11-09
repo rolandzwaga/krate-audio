@@ -136,6 +136,12 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     bandCountFadePos_ = 0;
     processedSinceActivate_ = false;
 
+    // Global gain/mix smoothing (D-025)
+    const auto srFloat = static_cast<float>(sampleRate_);
+    inputGainSmoother_.configure(kGlobalSmoothingMs, srFloat);
+    outputGainSmoother_.configure(kGlobalSmoothingMs, srFloat);
+    wetMixSmoother_.configure(kGlobalSmoothingMs, srFloat);
+
     // Initialize band processors
     for (int i = 0; i < kMaxBands; ++i) {
         bandProcessors_[i].prepare(sampleRate_);
@@ -268,6 +274,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     if (!inputL || !inputR || !outputL || !outputR) {
         return Steinberg::kResultTrue;
     }
+    const bool firstAudioBlock = !processedSinceActivate_;
     processedSinceActivate_ = true;
 
     // ==========================================================================
@@ -528,11 +535,21 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     constexpr float kGainRangeDb = 48.0f; // 24 - (-24)
     const float inputGainDb = kGainMinDb + modInputGain * kGainRangeDb;
     const float outputGainDb = kGainMinDb + modOutputGain * kGainRangeDb;
-    const float inputGainLinear = Krate::DSP::dbToGain(inputGainDb);
-    const float outputGainLinear = Krate::DSP::dbToGain(outputGainDb);
-    // Mix: normalized [0,1] maps directly to dry/wet fraction
-    const float wetMix = modGlobalMix;
-    const float dryMix = 1.0f - wetMix;
+    // Block-rate targets, smoothed per sample below (D-025); the first audio block
+    // after activation starts at them (no ramp from a stale value)
+    const float inputGainTarget = Krate::DSP::dbToGain(inputGainDb);
+    const float outputGainTarget = Krate::DSP::dbToGain(outputGainDb);
+    // Mix: normalized [0,1] maps directly to the wet fraction
+    const float wetMixTarget = modGlobalMix;
+    if (firstAudioBlock) {
+        inputGainSmoother_.snapTo(inputGainTarget);
+        outputGainSmoother_.snapTo(outputGainTarget);
+        wetMixSmoother_.snapTo(wetMixTarget);
+    } else {
+        inputGainSmoother_.setTarget(inputGainTarget);
+        outputGainSmoother_.setTarget(outputGainTarget);
+        wetMixSmoother_.setTarget(wetMixTarget);
+    }
 
     // Solo/mute logic (FR-025, FR-025a): band states only change in
     // processParameterChanges, so this holds for the whole block
@@ -562,8 +579,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // Split input through crossover networks into per-band block buffers
         // (FR-001b: independent L/R; input gain before the crossover)
         for (size_t n = 0; n < chunkLen; ++n) {
-            crossoverL_.process(inL[n] * inputGainLinear, bandsL);
-            crossoverR_.process(inR[n] * inputGainLinear, bandsR);
+            const float inputGain = inputGainSmoother_.process();
+            crossoverL_.process(inL[n] * inputGain, bandsL);
+            crossoverR_.process(inR[n] * inputGain, bandsR);
             for (int b = 0; b < numBands; ++b) {
                 bandBufL_[b][n] = bandsL[b];
                 bandBufR_[b][n] = bandsR[b];
@@ -577,7 +595,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             bandProcessors_[b].processBlock(bandBufL_[b].data(), bandBufR_[b].data(), chunkLen);
         }
 
-        // Sum contributing bands (FR-013), apply output gain and dry/wet mix.
+        // Sum contributing bands (FR-013), dry/wet mix, then output gain on the
+        // mix (D-025: post-mix, so it trims the dry path too).
         // The dry term runs through the crossovers' allpass chain so it has the
         // phase of the clean band sum: no notches at intermediate mix (D-018)
         float* outL = outputL + chunkStart;
@@ -591,8 +610,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     sumR += bandBufR_[b][n];
                 }
             }
-            outL[n] = crossoverL_.processDryCompensation(inL[n]) * dryMix + sumL * outputGainLinear * wetMix;
-            outR[n] = crossoverR_.processDryCompensation(inR[n]) * dryMix + sumR * outputGainLinear * wetMix;
+            const float wetMix = wetMixSmoother_.process();
+            const float dryMix = 1.0f - wetMix;
+            const float outputGain = outputGainSmoother_.process();
+            outL[n] = (crossoverL_.processDryCompensation(inL[n]) * dryMix + sumL * wetMix) * outputGain;
+            outR[n] = (crossoverR_.processDryCompensation(inR[n]) * dryMix + sumR * wetMix) * outputGain;
             if (fading) {
                 ++bandCountFadePos_;
                 const float ramp = static_cast<float>(bandCountFadePos_) * fadeInv;

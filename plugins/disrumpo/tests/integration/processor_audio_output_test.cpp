@@ -1352,6 +1352,133 @@ TEST_CASE("Band count changes during playback allocate nothing", "[disrumpo][ban
     REQUIRE(allocations == 0);
 }
 
+// =============================================================================
+// Global gain and mix (audit D-025; fix plan T2.09)
+// =============================================================================
+// Input gain, output gain and global mix were block constants (a 48 dB step landed
+// on one sample), and output gain scaled only the wet sum (no effect at mix 0).
+// =============================================================================
+
+namespace {
+
+constexpr double kGainNormPerDb = 1.0 / 48.0;  // -24..+24 dB over [0, 1]
+
+double gainNorm(double db) { return (db + 24.0) * kGainNormPerDb; }
+
+/// One band, every node at drive 0 (adapter passthrough), Oversample Max 1x: the wet
+/// sum is the input times the input gain, so the output is plain gain and mix.
+ts::PList neutralOneBand() {
+    ts::PList l{{Disrumpo::kBandCountId, 0.0}, {Disrumpo::kOversampleMaxId, 0.0}};
+    for (uint8_t n = 0; n < 4; ++n) l.emplace_back(makeNodeParamId(0, n, NodeParamType::kNodeDrive), 0.0);
+    return l;
+}
+
+/// Time for a step of Output Gain from 0 dB to +6 dB to cover 99 % of its change
+/// (DC at mix 0: the 1-band dry path is the input itself).
+double outputGainSettleMs(double sr) {
+    constexpr float kDc = 0.25f;
+    constexpr Steinberg::int32 kBlock = 256;
+    ts::Rig rig(sr, kBlock);
+    auto l = neutralOneBand();
+    l.emplace_back(Disrumpo::kGlobalMixId, 0.0);
+    l.emplace_back(Disrumpo::kOutputGainId, gainNorm(0.0));
+    rig.apply(l);
+    rig.reactivate();
+    const size_t at = size_t{8} * static_cast<size_t>(kBlock);
+    const std::vector<float> in(static_cast<size_t>(sr / 5.0), kDc);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR, kBlock, [&](size_t, size_t start, ts::PChanges& pc) {
+        if (start == at) pc.addChange(Disrumpo::kOutputGainId, gainNorm(6.0));
+    });
+    const double before = static_cast<double>(outL[at - 1]);
+    const double after = before * std::pow(10.0, 6.0 / 20.0);
+    for (size_t i = at; i < outL.size(); ++i) {
+        if (static_cast<double>(outL[i]) >= before + 0.99 * (after - before)) {
+            return static_cast<double>(i - at + 1) * 1000.0 / sr;
+        }
+    }
+    return 1e9;
+}
+
+} // anonymous namespace
+
+TEST_CASE("Output gain step of 48 dB in one block produces no sample jump above the sine slope bound",
+          "[disrumpo][gain][D-025]") {
+    constexpr double kFreq = 1000.0;
+    constexpr double kInDb = -12.0;
+    constexpr size_t kStepAt = size_t{10} * 512;  // the 1 kHz sine is at -0.87 of its peak there
+    ts::Rig rig(kBlockSr);
+    auto l = neutralOneBand();
+    l.emplace_back(Disrumpo::kGlobalMixId, 1.0);
+    l.emplace_back(Disrumpo::kOutputGainId, 0.0);  // -24 dB
+    rig.apply(l);
+    rig.reactivate();
+    const auto in = sineAt(static_cast<size_t>(kBlockSr / 4.0), kFreq, kInDb);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR, 512, [&](size_t, size_t start, ts::PChanges& pc) {
+        if (start == kStepAt) pc.addChange(Disrumpo::kOutputGainId, 1.0);  // +24 dB
+    });
+    // The steepest a sine at the final (+24 dB) level ever moves in one sample
+    const double bound = std::pow(10.0, (kInDb + 24.0) / 20.0) * 2.0 * std::numbers::pi * kFreq / kBlockSr;
+    const double jump = ts::maxJump(outL.data() + kStepAt - 1, outL.size() - kStepAt + 1);
+    std::printf("D-025 output gain -24 -> +24 dB in one block: max step %.4f, sine slope bound %.4f (ratio %.2f)\n",
+                jump, bound, jump / bound);
+    REQUIRE(jump <= bound);
+}
+
+TEST_CASE("Output gain +6 dB raises output 6 dB at mix 0", "[disrumpo][gain][D-025]") {
+    const auto in = sineAt(static_cast<size_t>(kBlockSr / 2.0), 1000.0, -12.0);
+    const auto levelDb = [&](double outputGainDb) {
+        ts::Rig rig(kBlockSr);
+        rig.apply({{Disrumpo::kGlobalMixId, 0.0}, {Disrumpo::kOutputGainId, gainNorm(outputGainDb)}});
+        rig.reactivate();
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR);
+        const size_t half = outL.size() / 2;
+        return ts::toDb(ts::rmsOf(outL.data() + half, outL.size() - half));
+    };
+    const double at0 = levelDb(0.0);
+    const double at6 = levelDb(6.0);
+    std::printf("D-025 mix 0: output gain 0 dB -> %.3f dBFS, +6 dB -> %.3f dBFS (difference %.3f dB)\n", at0, at6,
+                at6 - at0);
+    REQUIRE(std::fabs((at6 - at0) - 6.0) < 0.05);
+}
+
+TEST_CASE("Global gain and mix smoothing settles in 15 ms and starts at its target",
+          "[disrumpo][gain][D-025]") {
+    SECTION("time to 99 % of an output gain step") {
+        const double ms44 = outputGainSettleMs(44100.0);
+        const double ms96 = outputGainSettleMs(96000.0);
+        std::printf("D-025 output gain 0 -> +6 dB, time to 99 %%: %.3f ms at 44.1 kHz, %.3f ms at 96 kHz\n", ms44, ms96);
+        REQUIRE(ms44 > 5.0);
+        REQUIRE(ms44 <= 15.0);
+        REQUIRE(ms96 > 5.0);
+        REQUIRE(ms96 <= 15.0);
+    }
+    SECTION("first block after activation is at the steady level") {
+        constexpr Steinberg::int32 kBlock = 480;  // 10 cycles of 1 kHz at 48 kHz
+        ts::Rig rig(kBlockSr, kBlock);
+        auto l = neutralOneBand();
+        l.emplace_back(Disrumpo::kInputGainId, gainNorm(-6.0));
+        l.emplace_back(Disrumpo::kOutputGainId, gainNorm(6.0));
+        l.emplace_back(Disrumpo::kGlobalMixId, 0.3);
+        rig.apply(l);
+        rig.reactivate();
+        const auto in = sineAt(static_cast<size_t>(kBlock) * 20, 1000.0, -12.0);
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR, kBlock);
+        const double firstDb = ts::toDb(ts::rmsOf(outL.data(), static_cast<size_t>(kBlock)));
+        const double steadyDb = ts::toDb(ts::rmsOf(outL.data() + size_t{19} * static_cast<size_t>(kBlock), static_cast<size_t>(kBlock)));
+        std::printf("D-025 first block after setActive %.3f dBFS, steady %.3f dBFS (difference %.3f dB)\n", firstDb,
+                    steadyDb, firstDb - steadyDb);
+        REQUIRE(std::fabs(firstDb - steadyDb) < 0.1);
+    }
+}
+
 // Measurement probe (hidden): real-time ratio of Processor::process, 4 bands of HardClip.
 TEST_CASE("Probe: Processor render cost with 4 HardClip bands", "[.][t107-cpu-probe]") {
     const auto in = sineAt(static_cast<size_t>(kBlockSr * 10.0), 220.0, -12.0);
