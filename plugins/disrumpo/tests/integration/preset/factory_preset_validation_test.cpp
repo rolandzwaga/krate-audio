@@ -535,18 +535,87 @@ TEST_CASE("Every factory preset renders the same after host-order load, round tr
         const double activeDiff = diff(c, active);
         const double roundTripDiff = diff(c, roundTrip);
         const double replayDiff = diff(c, replay);
+        // The replay against setState through the same load sequence (both into an active
+        // processor, then setupProcessing): what is left without follow-up 86's RandomSource
+        const double replayVsSetState = diff(active, replay);
         const double rmsC = rmsDbOf(c);
         const double rmsB = rmsDbOf(roundTrip);
         // Asserted: the round trip and its level (D-161). The active-load and replay readings are
         // printed; their bars are held back for a ruling (follow-ups 86 and 87).
         const bool ok = roundTripDiff <= 1e-5 && rmsB > -60.0 && std::fabs(rmsB - rmsC) < 0.1;
         if (!ok) ++failing;
-        std::printf("T6.08 %s active-load %.3g round-trip %.3g rms c %.2f b %.2f dBFS replay %.3g (%zu params) %s\n",
-                    name.c_str(), activeDiff, roundTripDiff, rmsC, rmsB, replayDiff, recorded.size(),
+        std::printf("T6.08 %s active-load %.3g round-trip %.3g rms c %.2f b %.2f dBFS replay %.3g, vs setState %.3g "
+                    "(%zu params) %s\n",
+                    name.c_str(), activeDiff, roundTripDiff, rmsC, rmsB, replayDiff, replayVsSetState, recorded.size(),
                     ok ? "ok" : "FAIL");
         CHECK(roundTripDiff <= 1e-5);
         CHECK(rmsB > -60.0);
         CHECK(std::fabs(rmsB - rmsC) < 0.1);
     }
     std::printf("T6.08 %zu presets, %d failing\n", files.size(), failing);
+}
+
+TEST_CASE("Loading a factory preset sets Bias, Folds and Bit Depth to what the processor runs",
+          "[disrumpo][preset][D-160]") {
+    // Follow-ups 34 and 87, user ruling 2026-11-09: the type's shape slot wins over the node
+    // parameter, and the node parameter mirrors it. The controller's state load (the host's
+    // setComponentState and the plugin's own preset browser, which sends every value to the
+    // processor) sets kNodeBias / kNodeFolds / kNodeBitDepth to the value the processor derives
+    // from the slots on setState, not to the stored node value a slot overrides. Every node of
+    // every band of every factory preset, within 1e-6 (normalized).
+    using namespace Disrumpo::TestSupport;
+    const auto files = findPresetFiles(getPresetsDir());
+    REQUIRE(files.size() == 120);
+    int wrongPresets = 0;
+    int wrongValues = 0;
+    int checked = 0;
+    for (const auto& path : files) {
+        const std::string name = path.parent_path().filename().string() + "/" + path.stem().string();
+        const auto bytes = readPresetComponentState(path);
+        REQUIRE_FALSE(bytes.empty());
+        Rig rig(44100.0, 512, false);
+        REQUIRE(setStateBytes(*rig.p, bytes));
+        rig.setup();
+        std::map<Steinberg::Vst::ParamID, double> loaded;
+        {
+            PresetParamRecorder ctl;
+            REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+            ctl.calls.clear();
+            std::vector<uint8_t> stream = bytes;
+            auto* s = new Steinberg::MemoryStream(stream.data(), static_cast<Steinberg::TSize>(stream.size()));
+            REQUIRE(ctl.setComponentState(s) == Steinberg::kResultOk);
+            s->release();
+            for (const auto& [id, v] : ctl.calls) loaded[id] = v;
+            ctl.terminate();
+        }
+        int wrongHere = 0;
+        for (uint8_t band = 0; band < kMaxBands; ++band) {
+            const MorphEngine* engine = rig.p->getBandProcessor(band).getMorphEngine();
+            REQUIRE(engine != nullptr);
+            for (uint8_t node = 0; node < kMaxMorphNodes; ++node) {
+                const auto& p = engine->getNodeParams(node);
+                const std::pair<NodeParamType, double> want[] = {
+                    {NodeParamType::kNodeBias, (static_cast<double>(p.bias) + 1.0) / 2.0},
+                    {NodeParamType::kNodeFolds, (static_cast<double>(p.folds) - 1.0) / 11.0},
+                    {NodeParamType::kNodeBitDepth, (static_cast<double>(p.bitDepth) - 4.0) / 20.0}};
+                for (const auto& [type, value] : want) {
+                    const auto it = loaded.find(makeNodeParamId(band, node, type));
+                    REQUIRE(it != loaded.end());
+                    ++checked;
+                    if (std::fabs(it->second - value) > 1e-6) {
+                        if (wrongHere == 0 && wrongPresets < 10) {
+                            std::printf("D-160 %s band %d node %d param 0x%02x: controller %.6f, processor %.6f\n",
+                                        name.c_str(), band, node, static_cast<unsigned>(type), it->second, value);
+                        }
+                        ++wrongHere;
+                    }
+                }
+            }
+        }
+        wrongValues += wrongHere;
+        if (wrongHere > 0) ++wrongPresets;
+    }
+    std::printf("D-160 dual controls: %d of %zu presets with a node parameter the processor overrides (%d of %d values)\n",
+                wrongPresets, files.size(), wrongValues, checked);
+    CHECK(wrongPresets == 0);
 }

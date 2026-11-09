@@ -257,6 +257,22 @@ inline void applyShapeSlot(const ShapeSlotDescriptor& d, float v, DistortionPara
     }
 }
 
+/// Write every used shape slot of @p type (kShapeSlotDescriptorCount values) to @p p. The
+/// processor maps a node's slots with it, and the controller derives the node parameters that
+/// mirror a slot (Bias, Folds, Bit Depth: the slot wins, follow-ups 34 and 87).
+inline void applyShapeSlots(DistortionType type, const float* slots, DistortionParams& p) noexcept {
+    const int t = static_cast<int>(type);
+    if (t < 0 || t >= kDistortionTypeCount) {
+        return;
+    }
+    for (int s = 0; s < kShapeSlotDescriptorCount; ++s) {
+        const ShapeSlotDescriptor& d = shapeSlotDescriptor(type, s);
+        if (d.map != SlotMap::Unused) {
+            applyShapeSlot(d, slots[s], p);
+        }
+    }
+}
+
 /// Waveshape curve selector [0, 1] -> WaveshapeType index 0..8 (adapter, CurveName display).
 [[nodiscard]] inline int waveshapeCurveIndex(float v) noexcept {
     return std::clamp(static_cast<int>(v * 8.0f + 0.5f), 0, 8);

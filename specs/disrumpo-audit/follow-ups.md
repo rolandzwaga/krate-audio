@@ -214,6 +214,7 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     per-grain scaling (1/√N or 1/N) in the shared processor; Ruinae consumes it too.
 34. **Two bit-depth controls for Bitcrush**: the shape slot (4–16 since T2.05 `1e1e3ce8`) and a separate per-node
     `kNodeBitDepth` parameter (4–24, processor_params.cpp). Decide which one is the control and retire the other.
+    — CLOSED 2026-11-09 with item 87 (user ruling: one precedence, the slot wins; no state-format change).
 35. **Factory presets with an active Feedback node now sound different** (T2.03 `8156e34c`): Thr direction flipped
     (default slot 0.8 goes from −19.2 dB to −4.8 dB) and Curve is now live (default 0.5 = ReciprocalSqrt instead of
     the fixed Tanh). Not scanned yet; belongs with T3.01 preset re-levelling — same for T2.05's Bitcrush shift (16
@@ -668,6 +669,20 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     paths is one extra prepare / activation and a 0-sample process() before the render, so some state survives
     setupProcessing (relates to item 18, `setActive(true)` does not clear DSP state); cause not isolated. Held with (a)
     in `f:/tmp/disrumpo-fix/p6b/t608-held-bars.patch`; the readings print in the committed case.
+    — (b) INVESTIGATED 2026-11-09, cause found, fix proposed (cross-plugin, not applied). Load-order probe over all 120
+    presets against the host-order load: host order plus one more setupProcessing + setActive differs for exactly the
+    same 17 presets and values; host order plus a second setupProcessing alone (no audio, no state change) as well;
+    host order plus setActive(false) / setActive(true) alone differs for none. So prepare() is not idempotent. The
+    shared KrateDSP `RandomSource` (dsp/include/krate/dsp/processors/random_source.h, the modulation engine's Random
+    source) draws `currentTarget_ = rng_.nextFloat()` in prepare() and restarts its generator in neither prepare() nor
+    reset(): each setupProcessing moves its sequence one value on (and any audio before a reset moves it further).
+    With `rng_.seed(98765)` added to its prepare() and reset() (temporary probe build, reverted) all 120 presets match
+    in every load order (0 of 120 differ, from 17). LFO already restarts its sequence on reset (D-165); `Rungler`
+    draws in prepare() and reset() the same way (not routed by these presets; re-activation would move it), and
+    `SampleHoldSource` / `GranularDistortion` do not reseed on reset either. Proposed: reseed these generators in
+    prepare() and reset() (CROSS-PLUGIN: `ModulationEngine` serves Disrumpo and Ruinae; renders after a reset change
+    to a fixed sequence), then assert (b) at 1e-5. (a), the active load rendered at once, glides from the previous
+    patch by design (T1.24): proposed to drop that literal bar and keep (b).
 87. **T6.08 / D-160: replaying a preset's parameters does not render like its setState** (2026-11-09, needs a ruling).
     Every parameter `Controller::setComponentState` sets from the file (586), replayed through processParameterChanges
     then setupProcessing, against the host-order load: 72 of 120 within 1e-4, 48 differ (31 of them only here), up to
@@ -679,6 +694,33 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     Bias, wavefold Folds, Bitcrush Bits; follow-up 34 for the bit depth), and setState and the parameter path end up
     with different values for the pair (the precedence in each path not traced further). Rule which control owns each setting (then the other is derived, or retired), and the
     parity bar can be asserted. Held in `f:/tmp/disrumpo-fix/p6b/t608-held-bars.patch`.
+    — Precedence CLOSED 2026-11-09 (user ruling: one precedence, the slot wins; commit "fix(disrumpo): Bias, Folds
+    and Bit Depth: the type's shape slot wins over the node parameter"). setState already mapped the slots last;
+    processParameterChanges now re-applies the type's slots after kNodeBias / kNodeFolds / kNodeBitDepth, and the
+    controller's state load emits those three from the slots (v9+), so the node parameters mirror the slot. Cases:
+    "Bias, Folds and Bit Depth: the type's shape slot wins over the node parameter in any order" (RED: a node
+    parameter after the slot won, Tube bias -0.8 / Sine Fold folds 1 / Bitcrush bits 24 instead of 0.6 / 6.5 / 10)
+    and "Loading a factory preset sets Bias, Folds and Bit Depth to what the processor runs" (RED 76 of 120 presets,
+    225 of 5760 values; GREEN 0). Factory preset renders unchanged: setState and parameter replay (the plugin's own
+    preset browser) both bit-identical before / after for all 120.
+    — The D-160 RENDER bar stays HELD; the diagnosis above was wrong about the renders. The precedence fix changed no
+    replay render: the controller already sent Bias before the slots, so the slot already won in the replay. The
+    replay against setState through the same load sequence (both into an active processor, then setupProcessing;
+    printed as "vs setState" in the T6.08 case) still differs for 39 presets (Morph/Formant_Shift 0.62, Pads/
+    Spectral_Pad 0.236, Sweep/Slow_Scan 0.048, Bass/Tape_Warmth 0.016, ...); against the host-order load 48, the 17
+    extra being item 86. Cause (temporary probes): the two processors' states decode to the same parameters within
+    1e-6 (normalized); the byte differences are last-bit rounding of floats that go through a normalized double on
+    the parameter path (band pans, crossover frequencies, sweep frequency) plus the per-type shadow slots (not
+    rendered); reloading each processor's own getState into a fresh host-order instance reproduces the same
+    differences. Self-oscillating and chaotic types (AllpassResonant in Formant_Shift, Spectral_Pad, Slow_Scan,
+    Tape_Warmth; the Chaos presets) and quantizers grow that rounding into audible divergence (Formant_Shift: 0.046 in
+    the first 25 ms, 0.53-0.62 in every 25 ms window after). Options: (a) make the parameter path round-trip floats exactly (normalize
+    and denormalize in double on both sides), then re-measure; (b) assert parameter parity (decoded values within
+    1e-6) instead of render parity for presets with such types.
+    — New (2026-11-09): the band header's Bias knob (Band.NodeBias, the selected node's kNodeBias) no longer changes
+    the sound for types with their own Bias slot (Tube, Tape, Fuzz, Asymmetric Fuzz, the three wavefolders, Ring
+    Saturation): the slot wins on the live parameter path too, which is the load-replay path. Options: route that
+    knob to the type's Bias slot in the controller (and show the slot's value), or hide it for those types.
 88. **T6.09: the 4-band chain is 1.40 dB quieter at 192 kHz, all of it the Tape band** (2026-11-09, needs a ruling with
     follow-up 79's Tape item). The probe's chain (bands 0-3 node 0 Tube / SoftClip / Fuzz / Tape, drive 4, 1 kHz at
     -12 dBFS, last 0.5 s of 1 s) against 48 kHz: 44.1 kHz +0.02 dB / centroid 1.006, 96 kHz -0.77 dB / 1.019 (asserted);

@@ -1054,6 +1054,64 @@ TEST_CASE("Every factory preset restores the slot-derived node params through se
     REQUIRE(wrongNodes == 0);
 }
 
+TEST_CASE("Bias, Folds and Bit Depth: the type's shape slot wins over the node parameter in any order",
+          "[disrumpo][state][D-160]") {
+    // Follow-ups 34 and 87, user ruling 2026-11-09: Bias, Folds and Bit Depth exist as node
+    // parameters and as the type's own shape slots (Tube Bias slot 0, Sine Fold Folds slot 0,
+    // Bitcrush Bits slot 0). One precedence, the slot wins: setState maps the slots last, and the
+    // parameter path re-applies the type's slots after a node parameter, so a node parameter that
+    // arrives after the slot (in the same batch or a later block) no longer overrides it.
+    struct Case {
+        const char* name;
+        DistortionType type;
+        NodeParamType nodeParam;
+        double slotNorm;
+        double nodeNorm;
+        float slotValue;  ///< the field the slot sets
+        float DistortionParams::* field;
+    };
+    const Case cases[] = {
+        {.name = "Tube Bias", .type = DistortionType::Tube, .nodeParam = NodeParamType::kNodeBias, .slotNorm = 0.8,
+         .nodeNorm = 0.1, .slotValue = 0.6f, .field = &DistortionParams::bias},
+        {.name = "Sine Fold Folds", .type = DistortionType::SineFold, .nodeParam = NodeParamType::kNodeFolds,
+         .slotNorm = 0.5, .nodeNorm = 0.0, .slotValue = 6.5f, .field = &DistortionParams::folds},
+        {.name = "Bitcrush Bits", .type = DistortionType::Bitcrush, .nodeParam = NodeParamType::kNodeBitDepth,
+         .slotNorm = 0.5, .nodeNorm = 1.0, .slotValue = 10.0f, .field = &DistortionParams::bitDepth},
+    };
+    const auto typeNorm = [](DistortionType t) { return static_cast<double>(static_cast<int>(t)) / 25.0; };
+    const auto slot0 = makeNodeParamId(0, 0, NodeParamType::kNodeShape0);
+    for (const auto& c : cases) {
+        const auto nodeId = makeNodeParamId(0, 0, c.nodeParam);
+        const auto valueOf = [&](Rig& rig) {
+            return rig.p->getBandProcessor(0).getMorphEngine()->getNodeParams(0).*c.field;
+        };
+        // The slot, then the node parameter, in one batch
+        Rig oneBatch(44100.0);
+        oneBatch.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(c.type)}});
+        oneBatch.apply({{slot0, c.slotNorm}, {nodeId, c.nodeNorm}});
+        // The slot, then the node parameter in a later block
+        Rig twoBlocks(44100.0);
+        twoBlocks.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(c.type)}});
+        twoBlocks.apply({{slot0, c.slotNorm}});
+        twoBlocks.apply({{nodeId, c.nodeNorm}});
+        // The node parameter, then the slot
+        Rig slotLast(44100.0);
+        slotLast.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(c.type)}});
+        slotLast.apply({{nodeId, c.nodeNorm}, {slot0, c.slotNorm}});
+        const float a = valueOf(oneBatch);
+        const float b = valueOf(twoBlocks);
+        const float s = valueOf(slotLast);
+        std::printf("D-160 %s: slot %.4f; node parameter after the slot in one batch %.4f, in a later block %.4f; "
+                    "slot last %.4f\n",
+                    c.name, static_cast<double>(c.slotValue), static_cast<double>(a), static_cast<double>(b),
+                    static_cast<double>(s));
+        INFO(c.name);
+        CHECK(std::fabs(a - c.slotValue) <= 1e-5f);
+        CHECK(std::fabs(b - c.slotValue) <= 1e-5f);
+        CHECK(std::fabs(s - c.slotValue) <= 1e-5f);
+    }
+}
+
 // D-118 (T5.01): the factory presets are v10 streams, written with 6 mod
 // destinations per band (6 + band * 6 + param). Since v12 a band has 8
 // (Tone, Bias added), so setState must move every band destination to

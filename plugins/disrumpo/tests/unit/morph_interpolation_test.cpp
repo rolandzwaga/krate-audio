@@ -1185,7 +1185,7 @@ TEST_CASE("SoftClip+Fuzz same-family blend keeps a centred Fuzz centred",
     REQUIRE(maxDiff <= 1e-4f);
 }
 
-TEST_CASE("kNodeBias 0.0 and 0.25 give different Fuzz output", "[disrumpo][morph][D-082]") {
+TEST_CASE("Fuzz Bias 0.0 and 0.25 give different Fuzz output", "[disrumpo][morph][D-082]") {
     using namespace Disrumpo;
     using namespace Disrumpo::TestSupport;
     constexpr double kSampleRate = 48000.0;
@@ -1194,14 +1194,16 @@ TEST_CASE("kNodeBias 0.0 and 0.25 give different Fuzz output", "[disrumpo][morph
     for (size_t i = 0; i < kLen; ++i)
         in[i] = 0.25f * std::sin(6.28318530718f * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
 
-    // One band, node 0 Fuzz (the only active node), then the host automates Bias.
+    // One band, node 0 Fuzz (the only active node), then the host automates its Bias. Fuzz's Bias
+    // is its shape slot 0, which wins over the node's kNodeBias (follow-ups 34 and 87, user ruling
+    // 2026-11-09); the slot maps 0.0 / 0.25 to bias -1 / -0.5, as kNodeBias did.
     const auto render = [&](double biasNorm, std::vector<float>& outL) {
         Rig rig(kSampleRate);
         rig.apply({{kBandCountId, 0.0},
                    {makeNodeParamId(0, 0, NodeParamType::kNodeType),
                     static_cast<double>(static_cast<int>(DistortionType::Fuzz)) / 25.0},
                    {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.5}});
-        rig.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeBias), biasNorm}});
+        rig.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeShape0), biasNorm}});
         std::vector<float> outR;
         rig.render(in, in, outL, outR);
     };
@@ -1220,7 +1222,7 @@ TEST_CASE("kNodeBias 0.0 and 0.25 give different Fuzz output", "[disrumpo][morph
     const double rmsA = rmsOf(a.data() + from, kLen - from);
     const double rmsB = rmsOf(b.data() + from, kLen - from);
     const double rmsDiff = rmsOf(diff.data(), diff.size());
-    WARN("D-082 Fuzz kNodeBias norm 0.0: RMS " << toDb(rmsA) << " dBFS; 0.25: RMS " << toDb(rmsB)
+    WARN("D-082 Fuzz Bias (slot 0) norm 0.0: RMS " << toDb(rmsA) << " dBFS; 0.25: RMS " << toDb(rmsB)
          << " dBFS; max |difference| " << maxDiff << ", RMS of the difference " << toDb(rmsDiff) << " dBFS");
     REQUIRE(rmsA > 1e-3);
     REQUIRE(rmsDiff > 1e-3);

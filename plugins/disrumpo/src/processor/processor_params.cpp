@@ -44,16 +44,7 @@ static_assert(MorphNode::kShapeSlotCount == kShapeSlotDescriptorCount);
 
 void Processor::mapShapeSlotsToParams(DistortionType type, const float* slots,
                                       DistortionParams& p) noexcept {
-    const int t = static_cast<int>(type);
-    if (t < 0 || t >= kDistortionTypeCount) {
-        return;
-    }
-    for (int s = 0; s < kShapeSlotDescriptorCount; ++s) {
-        const ShapeSlotDescriptor& d = shapeSlotDescriptor(type, s);
-        if (d.map != SlotMap::Unused) {
-            applyShapeSlot(d, slots[s], p);
-        }
-    }
+    applyShapeSlots(type, slots, p);
 }
 
 void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* changes) {
@@ -598,17 +589,26 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 // RangeParameter [200, 8000] Hz
                                 mn.commonParams.toneHz = 200.0f + static_cast<float>(value) * 7800.0f;
                                 break;
+                            // Bias, Folds and Bit Depth are also shape slots of the types that
+                            // use them (RingSaturation / saturators Bias, the wavefolders' Folds,
+                            // Bitcrush Bits). One precedence, the slot wins (follow-ups 34 and 87,
+                            // user ruling 2026-11-09): the node parameter is applied, then the
+                            // type's slots again, whatever order the parameters arrive in. setState
+                            // maps the slots last as well.
                             case NodeParamType::kNodeBias:
                                 // RangeParameter [-1, +1]
                                 mn.params.bias = static_cast<float>(value) * 2.0f - 1.0f;
+                                mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
                                 break;
                             case NodeParamType::kNodeFolds:
                                 // RangeParameter [1, 12] (integer steps)
                                 mn.params.folds = 1.0f + std::round(static_cast<float>(value) * 11.0f);
+                                mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
                                 break;
                             case NodeParamType::kNodeBitDepth:
                                 // RangeParameter [4, 24] (integer steps)
                                 mn.params.bitDepth = 4.0f + std::round(static_cast<float>(value) * 20.0f);
+                                mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
                                 break;
                             default: {
                                 // Generic shape slots (kNodeShape0 through kNodeShape9)
