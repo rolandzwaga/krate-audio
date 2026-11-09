@@ -70,13 +70,13 @@ jobs:
       infra: ${{ steps.set-outputs.outputs.infra }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Detect file changes
         # Skipped for release.yml (specific plugin) and for the nightly long-tests
         # call (runs everything; paths-filter has no diff base on a schedule event).
         if: inputs.plugin == '' && !inputs.long-tests
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -157,11 +157,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: false
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
       - name: Check repo-map.json
@@ -297,14 +297,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
       # Cache CMake FetchContent downloads
       # Key includes repo name to prevent cache pollution after repo rename
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vs-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -567,7 +567,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -577,7 +577,7 @@ jobs:
 
       # Setup ccache with GitHub Actions cache backend
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@v1.2.24
         with:
           key: macos-xcode-${{ env.BUILD_TYPE }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
@@ -585,7 +585,7 @@ jobs:
       # Cache CMake FetchContent downloads
       # Key includes repo name to prevent cache pollution after repo rename
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -1083,7 +1083,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -1104,7 +1104,7 @@ jobs:
 
       # Cache ccache data
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@v1.2.24
         with:
           key: linux-gcc-${{ env.BUILD_TYPE }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
@@ -1112,7 +1112,7 @@ jobs:
       # Cache CMake FetchContent downloads
       # Key includes repo name to prevent cache pollution after repo rename
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -1396,7 +1396,7 @@ jobs:
       # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
       # their golden files from the tree. No submodules: nothing is compiled here.
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download test binaries
         uses: actions/download-artifact@v8
         with:
@@ -1433,7 +1433,7 @@ jobs:
       # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
       # their golden files from the tree. No submodules: nothing is compiled here.
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download test binaries
         uses: actions/download-artifact@v8
         with:
@@ -1470,7 +1470,7 @@ jobs:
       # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
       # their golden files from the tree. No submodules: nothing is compiled here.
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       # The test binaries link VSTGUI, so the X11 / cairo / gtkmm runtime libraries must be present to load
       # them; the -dev packages carry those runtime libraries (same list as the build job).
       # Capped and retried: one shard of run 37924744923 sat in this step for hours while the other seven

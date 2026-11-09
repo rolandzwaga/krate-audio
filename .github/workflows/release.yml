@@ -69,7 +69,7 @@ jobs:
       has_landing_page: ${{ steps.version.outputs.has_landing_page }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Read Version
         id: version
@@ -114,7 +114,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -135,14 +135,14 @@ jobs:
 
       # Cache ccache data
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@v1.2.24
         with:
           key: linux-gcc-preset-generator
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       # Cache CMake FetchContent downloads
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -199,7 +199,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download Windows Artifact
         uses: actions/download-artifact@v8
@@ -241,7 +241,7 @@ jobs:
             | Set-Content "plugins\${env:PLUGIN}\installers\windows\CHANGELOG.txt"
 
       - name: Build Installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: plugins/${{ needs.version.outputs.plugin }}/installers/windows/setup.iss
           options: /DVersion=${{ needs.version.outputs.version }}
@@ -263,7 +263,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download macOS Artifact
         uses: actions/download-artifact@v8
@@ -341,7 +341,7 @@ jobs:
             "${PLUGIN_NAME}-${VERSION}-macOS.pkg"
 
       - name: Setup Node (facts)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -385,7 +385,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download Linux Artifact
         uses: actions/download-artifact@v8
@@ -435,7 +435,7 @@ jobs:
           tar -czvf ../${PLUGIN_NAME}-${VERSION}-Linux-x64.tar.gz *
 
       - name: Setup Node (facts)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -486,7 +486,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Full history needed for per-plugin changelog generation
 
@@ -600,7 +600,7 @@ jobs:
           path: facts
 
       - name: Setup Node (signing)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -741,7 +741,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -787,7 +787,7 @@ jobs:
           fi
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 

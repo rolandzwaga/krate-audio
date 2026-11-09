@@ -40,9 +40,9 @@ jobs:
         shell: bash
         working-directory: apps/krate-manager
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -557,7 +557,7 @@ jobs:
     outputs:
       elevated: ${{ steps.paths.outputs.elevated }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -626,9 +626,9 @@ jobs:
         shell: bash
         working-directory: apps/krate-manager
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -714,7 +714,7 @@ jobs:
       # output under RUNNER_TEMP instead of the script's OutputDir.
       - name: compile the setup 1.0.0
         if: runner.os == 'Windows'
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: apps/krate-manager/tests/fixtures/inno/fixture.iss
           options: |
@@ -982,7 +982,7 @@ jobs:
         shell: pwsh
         working-directory: apps/krate-manager
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Rust toolchain
         run: |
@@ -1008,7 +1008,7 @@ jobs:
           Write-Output "::notice title=inno-locked-file::locked-dll 1.0.0 and 1.0.1 payloads staged under $env:RUNNER_TEMP"
 
       - name: compile the setup 1.0.0
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: apps/krate-manager/tests/fixtures/inno/fixture.iss
           options: |
@@ -1018,7 +1018,7 @@ jobs:
             /O${{ runner.temp }}\setups
 
       - name: compile the setup 1.0.1
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: apps/krate-manager/tests/fixtures/inno/fixture.iss
           options: |
