@@ -122,9 +122,9 @@ struct DistortionParams {
 
     // Dynamic (D15)
     float sensitivity = 0.5f;       ///< Envelope sensitivity [0, 1]
-    float attackMs = 10.0f;         ///< Attack time [1, 100] ms
-    float releaseMs = 100.0f;       ///< Release time [10, 500] ms
-    int dynamicMode = 0;            ///< Mode: 0=Envelope, 1=Inverse, 2=Derivative
+    float attackMs = 10.0f;         ///< Attack time [1, 500] ms
+    float releaseMs = 100.0f;       ///< Release time [10, 5000] ms
+    int dynamicMode = 0;            ///< Mode: 0=EnvelopeFollow, 1=InverseEnvelope, 2=Derivative, 3=Hysteresis (menu: Follow, Inverse, Transient, Hyst)
     float dynamicCurve = 0.5f;      ///< Temporal waveshape curve [0, 1]
     float dynamicDepth = 0.5f;      ///< Temporal depth [0, 1]
     float hold = 0.0f;              ///< Temporal hold [0, 1]
@@ -146,20 +146,20 @@ struct DistortionParams {
     float fbDecay = 0.0f;           ///< Feedback decay amount [0, 1] (0=off)
 
     // Aliasing (D18)
-    float freqShift = 0.0f;         ///< Frequency shift [-1000, 1000] Hz
+    float freqShift = 0.0f;         ///< Frequency shift [-5000, 5000] Hz
 
     // Bitwise (D19)
     uint16_t xorPattern = 0xAAAA;   ///< XOR mask [0x0000, 0xFFFF]
 
     // Experimental (D20-D25)
     float chaosAmount = 0.5f;       ///< Attractor influence [0, 1]
-    float attractorSpeed = 1.0f;    ///< Attractor evolution rate [0.1, 10]
+    float attractorSpeed = 1.0f;    ///< Attractor evolution rate [0.01, 100]
     int chaosAttractor = 0;         ///< Chaos attractor model [0-3]
     float chaosCoupling = 0.5f;     ///< Chaos input coupling [0, 1]
     float chaosXDrive = 0.5f;       ///< Chaos X drive [0, 1]
     float chaosYDrive = 0.5f;       ///< Chaos Y drive [0, 1]
     int vowelSelect = 0;            ///< Formant vowel select [0-4]
-    float formantShift = 0.0f;      ///< Formant shift [-12, 12] semitones
+    float formantShift = 0.0f;      ///< Formant shift [-24, 24] semitones
     float formantCurve = 0.5f;      ///< Formant curve [0, 1]
     float formantReso = 0.5f;       ///< Formant resonance [0, 1]
     float formantBW = 0.5f;         ///< Formant bandwidth [0, 1]

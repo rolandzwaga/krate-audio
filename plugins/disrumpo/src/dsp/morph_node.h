@@ -130,6 +130,10 @@ struct ShapeShadowStorage {
         typeSlots[sergeIdx][5] = 0.0f;                                         // Smooth
         typeSlots[static_cast<int>(DistortionType::FullRectify)][0] = 0.0f;   // Smooth
         typeSlots[static_cast<int>(DistortionType::HalfRectify)][1] = 0.0f;   // Smooth
+
+        // Temporal starts in its first mode, Envelope Follow (D-171): 0.5 decoded as
+        // int(0.5 * 3 + 0.5) = 2, Derivative ("Transient").
+        typeSlots[static_cast<int>(DistortionType::Temporal)][0] = 0.0f;  // Mode: Follow
     }
 
     /// Save current slot values for the given type index.

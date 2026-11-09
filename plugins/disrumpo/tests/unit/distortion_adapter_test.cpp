@@ -3584,3 +3584,78 @@ TEST_CASE("Fold, Chaos and Granular outputs carry no DC", "[disrumpo][dc][D-144]
         CHECK(std::fabs(dc) < 1e-3);
     }
 }
+
+// =============================================================================
+// D-102 (fix plan T4.06): each shape slot's ends are the specs-overview.md ranges
+// =============================================================================
+// FR-DIST-003 and Appendix A as ruled in T4.06 (the DSP limits win for Temporal
+// attack/release, Aliasing shift, Chaos speed and Formant shift; Bitcrush bits is
+// BitCrusher's 4-16 from T2.05). Slot value 0 must map to the spec minimum and 1
+// to the maximum. Folds is left out: its range awaits a ruling (spec 1-8, code
+// 1-12, the wavefolder clamps at 10).
+
+TEST_CASE("Shape slot ends equal the spec's parameter ranges", "[disrumpo][adapter][D-102]") {
+    struct SpecRange {
+        SpecRange(const char* n, DistortionType t, int s, double (*f)(const DistortionParams&), double lo, double hi)
+            : name(n), type(t), slot(s), field(f), min(lo), max(hi) {}
+        const char* name;
+        DistortionType type;
+        int slot;
+        double (*field)(const DistortionParams&);
+        double min;
+        double max;
+    };
+    const std::array<SpecRange, 25> ranges{{
+        {"Bias", DistortionType::Tube, 0, [](const DistortionParams& p) { return double(p.bias); }, -1.0, 1.0},
+        {"Sag", DistortionType::Tube, 1, [](const DistortionParams& p) { return double(p.sag); }, 0.0, 1.0},
+        {"Bit Depth", DistortionType::Bitcrush, 0, [](const DistortionParams& p) { return double(p.bitDepth); }, 4.0, 16.0},
+        {"Sample Rate Ratio", DistortionType::SampleReduce, 0,
+         [](const DistortionParams& p) { return double(p.sampleRateRatio); }, 1.0, 32.0},
+        {"Sensitivity", DistortionType::Temporal, 1, [](const DistortionParams& p) { return double(p.sensitivity); }, 0.0, 1.0},
+        {"Attack Time", DistortionType::Temporal, 3, [](const DistortionParams& p) { return double(p.attackMs); }, 1.0, 500.0},
+        {"Release Time", DistortionType::Temporal, 4, [](const DistortionParams& p) { return double(p.releaseMs); }, 10.0, 5000.0},
+        {"Modulation Depth", DistortionType::RingSaturation, 0,
+         [](const DistortionParams& p) { return double(p.modDepth); }, 0.0, 1.0},
+        {"Stages (Ring Sat)", DistortionType::RingSaturation, 1, [](const DistortionParams& p) { return double(p.stages); }, 1.0, 4.0},
+        {"Stages (Feedback)", DistortionType::FeedbackDist, 5, [](const DistortionParams& p) { return double(p.stages); }, 1.0, 4.0},
+        {"Feedback", DistortionType::FeedbackDist, 0, [](const DistortionParams& p) { return double(p.feedback); }, 0.0, 1.5},
+        {"Delay Time", DistortionType::FeedbackDist, 1, [](const DistortionParams& p) { return double(p.delayMs); }, 1.0, 100.0},
+        {"Downsample Factor", DistortionType::Aliasing, 0,
+         [](const DistortionParams& p) { return double(p.sampleRateRatio); }, 2.0, 32.0},
+        {"Frequency Shift", DistortionType::Aliasing, 1, [](const DistortionParams& p) { return double(p.freqShift); }, -5000.0, 5000.0},
+        {"Chaos Amount", DistortionType::Chaos, 2, [](const DistortionParams& p) { return double(p.chaosAmount); }, 0.0, 1.0},
+        {"Attractor Speed", DistortionType::Chaos, 1, [](const DistortionParams& p) { return double(p.attractorSpeed); }, 0.01, 100.0},
+        {"Grain Size", DistortionType::Granular, 0, [](const DistortionParams& p) { return double(p.grainSizeMs); }, 5.0, 100.0},
+        {"Formant Shift", DistortionType::Formant, 1, [](const DistortionParams& p) { return double(p.formantShift); }, -24.0, 24.0},
+        {"FFT Size", DistortionType::Spectral, 1, [](const DistortionParams& p) { return double(p.fftSize); }, 512.0, 4096.0},
+        {"Iterations", DistortionType::Fractal, 1, [](const DistortionParams& p) { return double(p.iterations); }, 1.0, 8.0},
+        {"Scale Factor", DistortionType::Fractal, 2, [](const DistortionParams& p) { return double(p.scaleFactor); }, 0.3, 0.9},
+        {"Jitter Rate", DistortionType::Stochastic, 2, [](const DistortionParams& p) { return double(p.jitterRate); }, 0.1, 100.0},
+        {"Resonant Frequency", DistortionType::AllpassResonant, 1,
+         [](const DistortionParams& p) { return double(p.resonantFreq); }, 20.0, 2000.0},
+        {"Allpass Feedback", DistortionType::AllpassResonant, 2,
+         [](const DistortionParams& p) { return double(p.allpassFeedback); }, 0.0, 0.99},
+        {"Decay Time", DistortionType::AllpassResonant, 3, [](const DistortionParams& p) { return double(p.decayTimeS); }, 0.01, 10.0},
+    }};
+    int wrong = 0;
+    for (const auto& r : ranges) {
+        double ends[2] = {0.0, 0.0};
+        for (int e = 0; e < 2; ++e) {
+            std::array<float, MorphNode::kShapeSlotCount> slots{};
+            slots.fill(0.5f);
+            slots[static_cast<size_t>(r.slot)] = static_cast<float>(e);
+            DistortionParams p;
+            Processor::mapShapeSlotsToParams(r.type, slots.data(), p);
+            ends[e] = r.field(p);
+        }
+        const bool ok = std::fabs(ends[0] - r.min) <= 1e-5 * std::max(1.0, std::fabs(r.min)) &&
+                        std::fabs(ends[1] - r.max) <= 1e-5 * std::max(1.0, std::fabs(r.max));
+        if (!ok) {
+            ++wrong;
+            std::printf("  %s (%s slot %d): maps to [%g, %g], spec [%g, %g]\n", r.name, getTypeName(r.type), r.slot,
+                        ends[0], ends[1], r.min, r.max);
+        }
+    }
+    std::printf("T4.06 slot ends vs spec ranges: %d of %zu differ\n", wrong, ranges.size());
+    CHECK(wrong == 0);
+}

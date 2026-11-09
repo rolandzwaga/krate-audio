@@ -231,3 +231,16 @@ TEST_CASE("Fresh fold nodes start on their named algorithm", "[disrumpo][ui][D-1
     CHECK(sine.shape == 0.0f);    // pure sine fold
     CHECK(tri.angle == 0.0f);     // pure triangle fold
 }
+
+// D-171 (fix plan T4.06): a freshly chosen Temporal node runs its first mode,
+// Envelope Follow ("Follow" in the editor's menu), not Derivative ("Transient").
+TEST_CASE("Fresh Temporal nodes start in Envelope Follow mode", "[disrumpo][ui][D-171]") {
+    const ShapeShadowStorage shadow;
+    DistortionParams temporal;
+    Processor::mapShapeSlotsToParams(DistortionType::Temporal,
+                                     shadow.typeSlots[static_cast<int>(DistortionType::Temporal)], temporal);
+    std::printf("T4.06 Temporal default: slot 0 %.3f -> dynamicMode %d (0 = EnvelopeFollow)\n",
+                static_cast<double>(shadow.typeSlots[static_cast<int>(DistortionType::Temporal)][0]),
+                temporal.dynamicMode);
+    CHECK(temporal.dynamicMode == 0);
+}
