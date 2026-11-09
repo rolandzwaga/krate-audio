@@ -252,6 +252,14 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     (pre-existing dead declarations, `allpass_saturator.h`).
 70. **The [long] lane was not run for T4.13–T4.17** (nightly CI covers it); the Profundum evidence writers were, and
     rewrote 123 CSVs with content identical to HEAD (no evidence commit needed after T4.13/T4.17).
+71. **`mass_dynamics_oversampling_test.cpp` assertion count depends on run order** (found by the run-gate interleave
+    fix, `b1768fed`): `MassDynamics_Oversampling{NoAllocation,Partition,Transfer,StateFinite}` each record 6 fewer
+    assertions when run after the earlier cases of the old contiguous shard 27 (dsp_systems_tests 16040734 vs
+    16040758 assertions, same case set). Cause not found; some state outlives a case.
+72. **Other sharders still cut contiguous chunks**: `tools/run-close-lanes.js` (`--suite-shards`) and
+    `tools/ci-test-shard.js` (CI, spans machines). run-gate.js does not export its dealing logic. The `*-phase.js`
+    workflow prompts still describe `--shard-count/--shard-index` (left unedited: changing a prompt breaks resume
+    of an in-flight phase run).
 
 ## Done outside the plan
 

@@ -986,7 +986,7 @@ Running a whole test executable (or a tag across it, or a `for t in ...` list) a
 32-core machine. Phase workflows did this for every gate: ~14 min per gate, ~16 gates per phase, hours per phase.
 
 - **Always:** `node tools/run-gate.js --filter '<filter>~[performance]~[perf]~[benchmark]~[!benchmark]' <exe> [<exe> ...]`
-  (Catch2 `--shard-count` / `--shard-index` over a worker pool; measured 14 min → 2 min 15 s). Several executables
+  (cases dealt round-robin into Catch2 shards over a worker pool; measured 14 min → 2 min 15 s). Several executables
   go in ONE command; concurrent gates take `--share <N>`.
 - **Lanes and new workflows** shard the same way (`tools/run-gate.js`, `tools/run-close-lanes.js`); a new
   `*-phase.js` workflow is cloned from one that already uses `BUILD_CMDS_SHARDED`.

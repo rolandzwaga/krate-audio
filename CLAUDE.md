@@ -187,7 +187,8 @@ every run for anything that can be optimised for time, memory or any other resou
   untouched test cannot change its verdict. Timing-budget cases of untouched code that go red under a concurrent lane
   are recorded as load, not re-run.
 - **Every non-timing test run is sharded** (user, 2026-10-26): `node tools/run-gate.js --filter '<filter>' <exe> [<exe> ...]`
-  splits each executable into Catch2 shards (`--shard-count` / `--shard-index`) fed to a cpu-count worker pool and
+  deals each executable's cases round-robin into Catch2 shards (one `-f` case file per shard; contiguous
+  `--shard-index` only as a logged fallback) fed to a cpu-count worker pool, writes `shard-times.tsv`, and
   prints `GATE GREEN|RED`. Never run a test executable as one serial process for a gate, lane, fixer loop or check;
   that applies to workflow scripts and to every new workflow too. Measured: a Profundum gate (419 + 107 cases) went from
   ~14 min serial to 2 min 15 s. Only the CPU/perf lane (`tools/run-cpu-tests.js`) runs alone. A single case by name is

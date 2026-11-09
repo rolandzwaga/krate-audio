@@ -47,7 +47,7 @@ node tools/run-cpu-tests.js dsp_primitives_tests
 ### DO NOT DO THIS
 
 - **DO NOT run a whole executable, a tag, or a list of executables as serial processes** (`$t.exe | tail`, <!-- lint-serial-ok: names the anti-pattern -->
-  `for t in ...`). Use `node tools/run-gate.js` — Catch2 `--shard-count`/`--shard-index` over a worker pool. A
+  `for t in ...`). Use `node tools/run-gate.js` — cases dealt round-robin into Catch2 shards over a worker pool. A
   Profundum gate went from ~14 min serial to 2 min 15 s. This applies to gates, lanes, fixer loops, workflow
   scripts, new plugins and every new workflow. Several concurrent gates: `--share <N>` each.
 - **DO NOT run Python scripts** - This is a C++ project. Tests are C++ executables.
