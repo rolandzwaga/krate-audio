@@ -438,7 +438,8 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     printed digit at all three drives). Same class as D-157 (SineFold == TriangleFold, fixed in T2.06); relates to
     follow-up 23 (the per-type slot defaults). Not asserted by the matrix; decide whether a fresh SergeFold node should
     differ.
-81. **T6.05: two latency assertions held back RED, need a ruling** (2026-11-09).
+81. **T6.05: two latency assertions held back RED, need a ruling** (2026-11-09). CLOSED 2026-11-09 (ruling below); flatness bar
+    still needs a ruling.
     - Group delay vs reported latency: HardClip / SoftClip at node mix 0 (only the oversampler's IIR filters) read a
       1 kHz group delay of 3.01 samples at 2x and 6.48 at 4x, against getLatencySamples 4 / 7 (= the impulse-peak
       delay T2.10 reports and "getLatencySamples equals the measured impulse delay at every Oversample Max" asserts,
@@ -486,6 +487,46 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
       fractional group delays, plus the 2x one-sample error of (a), which neither probe pair exercises. The arrival case
       stays held; its bar needs a ruling together with (a), e.g. fractional inter-band group delay <= 0.5 sample with
       the node path kept in the reference.
+    — USER RULED 2026-11-09 and applied (CLOSED): align every path to the group delay with fractional delays. The
+    reported latency L keeps its T2.10 definition (impulse peak + type latency; unchanged: 4 at 2x, 7 at 4x). Each band
+    waits L - its group delay at the factor it runs at: the oversampler's first-moment group delay (3.00 / 6.47 samples,
+    measured in prepare()), the type latency and ADAA1's half clocked sample (HalfRectify / TriangleFold, follow-up
+    79). Whole host samples run through the existing compensation line, the rest through a first-order allpass
+    (`OnePoleAllpass`, Thiran: a = (1 - d) / (1 + d), d kept in [0.5, 1.5)) after a short integer line at the
+    clocked rate, on the upsampled input before the shaper. Flat magnitude by construction; phase-delay error
+    0.07 clocked samples at 0.23 of the clocked rate for d = 0.5, 0.22 at d = 1.5 (20 kHz at 2x 44.1 kHz; 0.11 of
+    the rate at 4x). The 1x bands and the dry path need whole samples only (L is an integer). Linear interpolation
+    (cos(pi f / fs) droop) and `DelayLine::readAllpass` (an integer delay: follow-up 83) were not used. Node tone /
+    DC / smooth filters are part of each type's sound and stay unaligned; in a morph that mixes ADAA1 and plain nodes
+    the plain ones arrive half a clocked sample early (0.125 host samples at 4x); node Mix mixes the undelayed node
+    dry with ADAA1 (the same 0.125). Results (RED before, GREEN after; held cases rewritten to group-delay bars):
+    arrival of differently oversampled bands (1x/2x, 1x/4x, 2x/4x, 4x/1x at 44.1 / 48 / 96 kHz) -0.99 / -0.52 /
+    +0.48 / +0.53 -> within 0.010 sample of each other and of L; T2.10 latency group delay at 1 kHz 3.006 / 6.482 ->
+    4.005 / 7.008 (bar |gd - L| <= 0.1); Mix 0 vs 1 group delay 4.000 / 3.006 and 7.000 / 6.482 -> 4.000 / 4.005 and
+    7.000 / 7.008; a TriangleFold band vs a SineFold band at 4x +0.125 -> 0.000; the BandProcessor factor-switch case
+    6.01 / 6.48 -> 7.00 / 7.01 against 7. "Global mix 50 % stays flat with Oversample Max 4x" asserted an integer
+    best-match lag 0; now a group delay bar (the wet energy centres a sample later, lag 1).
+    STILL OPEN, needs a ruling: the ruled flatness bar (band sum and Mix 50 % within 0.1 dB from 20 Hz to 20 kHz at
+    44.1 / 48 / 96 kHz) is not reachable by any delay at 44.1 / 48 kHz. Held patch
+    `f:/tmp/disrumpo-fix/p6s/t605-flatness-held.patch` (two cases), probe [p6s-flatness]. Crossover sum (1x + 2x / 4x
+    at 5 kHz): within 0.06 dB to 14 kHz at 44.1 / 48, within 0.001 dB to 20 kHz at 96; above 14 kHz it equals the
+    oversampled band's own |H| (2x: -0.96 / -6.85 dB at 18 / 20 kHz at 44.1, -0.17 / -1.45 at 48; 4x: -2.43 / -13.46
+    and -0.54 / -3.47), which no delay changes. Mix 50 % against the same at Oversample Max 1x, before (L at 48 kHz,
+    from [p6r-latency]) -> after: 2x 5 kHz -0.44 -> -0.001, 10 kHz -1.34 -> -0.056, 18 kHz
+    -0.46 -> -4.07, 20 kHz -0.75 -> -16.2; 4x 5 kHz -0.10 -> -0.002, 10 kHz -0.10 -> -0.16, 18 kHz -4.35 -> -24.1, 20 kHz
+    -13.5 -> -3.9 dB. 44.1 kHz after: 2x within 0.1 dB to 10 kHz (-0.10), 4x to 8 kHz (-0.07; 10 kHz -0.28); 96 kHz:
+    2x -0.056 at 20 kHz (passes), 4x -0.16 at 20 kHz. The IIR half-band filters' group delay rises toward Nyquist
+    (4x at 48 kHz: 6.47 at DC, 7.42 at 10 kHz, 11.9 at 18 kHz), so a delay that matches it at low frequencies leaves
+    a phase difference that reaches 180 degrees in the top octave; integer L happened to sit nearer the 4x path's
+    10 kHz group delay, which is why its notch was higher. Options: (a) bars up to the oversamplers' passband edge
+    (e.g. 10 kHz at 44.1 / 48, 20 kHz at 96), which the two held cases then pass except 4x Mix 50 % at 10 kHz (-0.16
+    / -0.28); (b) give the dry path and the 1x bands the oversampler's phase (run them through a passthrough
+    oversampler of the worst factor, or an allpass fitted to it): exact match, the dry path then has the oversampler's
+    |H| too (-1.45 dB at 20 kHz at 2x 48 kHz) and costs a stereo oversampler; (c) linear-phase (FIR) oversampling:
+    constant group delay, larger latency and CPU; (d) align at a mid-band frequency instead of DC.
+    CPU (run-cpu-tests.js disrumpo_tests, alone): HardClip x4 at 4x 3.76 -> 4.47 % (budget 5), 4 Formant 10.46 ->
+    10.60 % (15), HardClip/SineFold/FullRectify/RingSaturation at 4x 13.89 -> 14.34 % (15), the ruled-red
+    Formant/Chaos/Granular/Fractal case 24.93 -> 25.70 % (15, follow-up 1).
 
 82. **Tape Hysteresis at Sag 1 is silent or noise** (found 2026-11-09 by the follow-up 79 probes, [p6r-tape],
     [p6r-tape-sag]). Shared `TapeSaturator` Hysteresis model, CROSS-PLUGIN. Its explicit RK4 Jiles-Atherton step
@@ -497,6 +538,15 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     Sag knob reaches 1. Needs a task: a stable solver / the model repair of follow-up 79 (Tape option b) in the shared
     processor, or as a stopgap a Disrumpo-side Sag range below 1 (check the other TapeSaturator consumers' saturation
     ranges). Same probes: TScale rate dependence and the broken NR4 / NR8 solvers (follow-up 79, Tape).
+83. **`DelayLine::readAllpass` is an integer delay** (found 2026-11-09 while choosing the follow-up 81 interpolator).
+    `delay_line.h` computes `y = x0 + a * (state - x1)` with x0 / x1 the samples at floor(d) and floor(d) + 1 and
+    state the previous output: y[n] = x[n-k] - a x[n-k-1] + a y[n-1], so Y = z^-k X, a pole-zero cancellation; the
+    fraction of d only sets how a transient decays. A first-order allpass interpolator is y = a x[n-k] + x[n-k-1] -
+    a y[n-1]. The tests (`delay_line_test.cpp` "readAllpass ...") check unity gain and settling, which an integer
+    delay passes. CROSS-PLUGIN: `makeAllpassTap` / `processFixedTap` share it; consumers allpass_saturator.h
+    (Disrumpo AllpassResonant), diffusion_network.h, karplus_strong.h, waveguide_resonator.h, waveguide_string.h,
+    whose tunings then round their fractional delays down. Not fixed (a sound change in every consumer: needs a
+    task). Follow-up 81 uses `OnePoleAllpass` instead.
 
 ## Done outside the plan
 

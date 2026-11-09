@@ -1032,12 +1032,17 @@ TEST_CASE("Global mix 50 % stays flat with Oversample Max 4x", "[disrumpo][mix][
             }
         }
         const double ref = ts::responseDb(h, 1000.0, kBlockSr);
+        const double gdDry = ts::groupDelaySamples(dry, 1000.0, kBlockSr);
+        const double gdWet = ts::groupDelaySamples(wet, 1000.0, kBlockSr);
         std::printf("T2.10 mix 50 %% with %d HardClip band(s) at 4x (node mix 0): worst |dev| %.3f dB at %.0f Hz "
                     "(re 1 kHz, 30 Hz - 18 kHz), at 5 kHz %.3f dB, at 10 kHz %.3f dB; impulse peak dry %zu wet %zu, "
-                    "dry/wet best-match lag %ld\n",
+                    "dry/wet best-match lag %ld, group delay at 1 kHz dry %.3f wet %.3f\n",
                     numBands, r.worstDb, r.worstHz, ts::responseDb(h, 5000.0, kBlockSr) - ref,
-                    ts::responseDb(h, 10000.0, kBlockSr) - ref, peakIndex(dry), peakIndex(wet), bestLag);
-        CHECK(bestLag == 0);
+                    ts::responseDb(h, 10000.0, kBlockSr) - ref, peakIndex(dry), peakIndex(wet), bestLag, gdDry, gdWet);
+        // Follow-up 81 ruling (2026-11-09): dry and wet are aligned by group delay, 0 +/- 0.1
+        // sample (was the integer best-match lag 0 while the wet path was 0.52 samples early;
+        // the wet response's energy now centres a sample later, lag 1, as the IIR disperses)
+        CHECK(std::fabs(gdWet - gdDry) <= 0.1);
     }
 }
 

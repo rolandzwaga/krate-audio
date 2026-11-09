@@ -12,6 +12,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 
+#include "../test_support/audit_metrics.h"
 #include "dsp/band_processor.h"
 #include "dsp/distortion_types.h"
 #include "dsp/oversampling_utils.h"
@@ -72,6 +73,20 @@ long measuredBandDelay(BandProcessor& bp) {
     return static_cast<long>(peak) - static_cast<long>(kAt);
 }
 
+/// Group delay at 1 kHz (48 kHz) of two 512-sample blocks through @p bp, impulse at 64.
+double bandGroupDelay(BandProcessor& bp) {
+    constexpr size_t kBlock = 512;
+    constexpr size_t kAt = 64;
+    std::vector<float> left(2 * kBlock, 0.0f);
+    std::vector<float> right(2 * kBlock, 0.0f);
+    left[kAt] = 0.25f;
+    right[kAt] = 0.25f;
+    bp.processBlock(left.data(), right.data(), kBlock);
+    bp.processBlock(left.data() + kBlock, right.data() + kBlock, kBlock);
+    const std::vector<float> h(left.begin() + static_cast<std::ptrdiff_t>(kAt), left.end());
+    return Disrumpo::TestSupport::groupDelaySamples(h, 1000.0, 48000.0);
+}
+
 }  // namespace
 
 TEST_CASE("BandProcessor: getLatency equals the measured impulse delay at each factor",
@@ -120,7 +135,7 @@ TEST_CASE("BandProcessor: compensated latency holds across a factor switch",
     const int worst = bp->getWorstCaseLatency();
     bp->setLatencyTarget(worst);
     REQUIRE(bp->getOversampleFactor() == 2);
-    const long at2x = measuredBandDelay(*bp);
+    const double at2x = bandGroupDelay(*bp);
 
     bp->setMorphPosition(1.0f, 0.0f);  // HardClip only: 4x after the switch dip
     std::array<float, 512> left{};
@@ -128,11 +143,13 @@ TEST_CASE("BandProcessor: compensated latency holds across a factor switch",
     for (int i = 0; i < 4; ++i) bp->processBlock(left.data(), right.data(), left.size());
     REQUIRE(bp->getActiveOversampleFactor() == 4);
     REQUIRE_FALSE(bp->isOversampleTransitioning());
-    const long at4x = measuredBandDelay(*bp);
-    INFO("worst case " << worst << ", measured at 2x " << at2x << ", at 4x " << at4x);
+    const double at4x = bandGroupDelay(*bp);
+    // Follow-up 81 ruling (2026-11-09): the band arrives at the target as a group delay, 0 +/-
+    // 0.1 sample (at 1 kHz) at either factor; baseline 6.01 / 6.48 against 7
+    INFO("worst case " << worst << ", group delay at 1 kHz at 2x " << at2x << ", at 4x " << at4x);
     CHECK(worst == bp->getOversamplerLatency(4));
-    CHECK(at2x == worst);
-    CHECK(at4x == worst);
+    CHECK(std::fabs(at2x - worst) <= 0.1);
+    CHECK(std::fabs(at4x - worst) <= 0.1);
 }
 
 // =============================================================================

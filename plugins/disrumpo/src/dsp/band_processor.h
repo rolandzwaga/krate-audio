@@ -16,6 +16,7 @@
 #pragma once
 
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/primitives/one_pole_allpass.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/oversampler.h>
 #include "band_state.h"
@@ -116,13 +117,19 @@ public:
                                Krate::DSP::OversamplingMode::ZeroLatency);
 
         // The IIR up/down filters delay the band by their impulse-peak delay (T1.07
-        // measured 4 samples at 2x and 7 at 4x at 48 kHz); measure it at this rate
+        // measured 4 samples at 2x and 7 at 4x at 48 kHz); measure it at this rate. The
+        // reported latency is built from it; the band is aligned by its group delay
         oversamplerLatency_ = {0, measureImpulseDelay(oversampler2x_), measureImpulseDelay(oversampler4x_)};
+        oversamplerGroupDelay_ = {0.0, measureGroupDelay(oversampler2x_), measureGroupDelay(oversampler4x_)};
 
         // Latency compensation delay of the band input (D-026): sized for the largest
         // latency; DelayLine sizes in seconds x rate, so a rate of 1 makes them samples
         compDelayL_.prepare(1.0, static_cast<float>(kMaxLatencySamples));
         compDelayR_.prepare(1.0, static_cast<float>(kMaxLatencySamples));
+        // ... and its sub-sample remainder at the clocked rate (below one host sample)
+        fracDelayL_.prepare(1.0, static_cast<float>(kMaxOversampleFactor + 1));
+        fracDelayR_.prepare(1.0, static_cast<float>(kMaxOversampleFactor + 1));
+        fracDelayClocked_ = -1.0;
 
         // Prepare distortion adapters (one per channel: the adapters are mono and
         // stateful, D-016). Their buffers are sized for kMaxOversampleFactor x the
@@ -182,6 +189,7 @@ public:
         // The compensation delay starts empty (armCompensationFadeIn: fade in what emerges)
         compDelayL_.reset();
         compDelayR_.reset();
+        resetFractionalDelay();
         compWarmup_ = compWarmupCap();
 
         // A pending factor switch completes at once: there is no audio to dip
@@ -444,9 +452,15 @@ public:
     // clocked samples). The factor moves with morph, sweep and the drive gate, so the
     // processor reports the worst case the band's discrete settings allow
     // (getWorstCaseLatency) and sets it as the target (setLatencyTarget). The band then
-    // delays its input by target - its latency at the factor it runs at. That delay
-    // changes with the factor exactly where the factor switches, at the silent bottom
-    // of the switch dip, together with the shapers' state reset.
+    // delays its input by target - its group delay at the factor it runs at (follow-up 81,
+    // user ruling 2026-11-09): the oversampler's low-frequency group delay (3.00 / 6.47
+    // samples at 2x / 4x), the type latency and ADAA1's half clocked sample, so every band
+    // and the dry path arrive at the target's group delay. The whole host samples of that
+    // delay run through compDelay*, the rest through a first-order allpass (Thiran) at the
+    // clocked rate, where 20 kHz is at most 0.23 of its rate. The node's own tone and DC
+    // filters are part of its type's sound and are not aligned. That delay changes with the
+    // factor exactly where the factor switches, at the silent bottom of the switch dip,
+    // together with the shapers' state reset.
 
     /// @brief Latency the band adds at its running factor, before compensation (host samples).
     [[nodiscard]] int getLatency() const noexcept { return latencyAtClock(clockFactor_); }
@@ -473,6 +487,12 @@ public:
     /// @brief Impulse-peak delay of the oversampler at @p factor (1, 2, 4), measured in prepare().
     [[nodiscard]] int getOversamplerLatency(int factor) const noexcept {
         return oversamplerLatency_[factorIndex(factor)];
+    }
+
+    /// @brief Low-frequency group delay of the oversampler at @p factor (1, 2, 4) in host
+    /// samples, measured in prepare() (the impulse response's first moment).
+    [[nodiscard]] double getOversamplerGroupDelay(int factor) const noexcept {
+        return oversamplerGroupDelay_[factorIndex(factor)];
     }
 
     /// @brief After reset(), fade the band input in over kFactorSwitchMs once it emerges
@@ -750,10 +770,18 @@ private:
         // The shapers run at the rate they are clocked at (D-009)
         setClockFactor(clocked);
 
-        // Latency compensation (D-026): the input waits target - latency at this factor.
+        // Latency compensation (D-026, follow-up 81): the input waits target - group delay at
+        // this factor, whole host samples here and the rest at the clocked rate.
         // processBlockInner splits a span at the factor switch, so the delay changes on
         // the switch's silent sample.
-        applyCompensation(left, right, numSamples, std::max(0, latencyTarget_ - latencyAtClock(clocked)));
+        if (clocked == 1) {
+            applyCompensation(left, right, numSamples, std::max(0, latencyTarget_ - latencyAtClock(1)));
+        } else {
+            const double wait = std::max(0.0, static_cast<double>(latencyTarget_) - groupDelayAtClock(clocked));
+            const auto whole = static_cast<int>(wait);
+            applyCompensation(left, right, numSamples, whole);
+            setFractionalDelay((wait - static_cast<double>(whole)) * static_cast<double>(clocked));
+        }
 
         if (clocked == 2) {
             processWithOversampling2x(left, right, numSamples);
@@ -801,6 +829,73 @@ private:
         const int typeClocked = (morphEnabled_ && morphEngineL_) ? morphEngineL_->getLatency()
                                                                  : distortionL_.getAlignedLatency();
         return oversamplerLatency_[factorIndex(f)] + (typeClocked + f / 2) / f;
+    }
+
+    /// @brief Band group delay when clocked at @p factor, in host samples: the oversampler's
+    /// low-frequency group delay plus the type latency and, when an active node uses ADAA1
+    /// (DistortionAdapter::usesAdaa, oversampled only), its half clocked sample. In a morph
+    /// that mixes ADAA1 and plain nodes the plain ones arrive that half clocked sample early.
+    [[nodiscard]] double groupDelayAtClock(int factor) const noexcept {
+        const int f = std::max(factor, 1);
+        const int typeClocked = (morphEnabled_ && morphEngineL_) ? morphEngineL_->getLatency()
+                                                                 : distortionL_.getAlignedLatency();
+        const double adaa = (f > 1 && adaaInPath()) ? DistortionAdapter::kAdaaDelayClockedSamples : 0.0;
+        return oversamplerGroupDelay_[factorIndex(f)] + (static_cast<double>(typeClocked) + adaa) / f;
+    }
+
+    /// @brief True when the shaper (legacy type, or any active morph node) runs ADAA1.
+    [[nodiscard]] bool adaaInPath() const noexcept {
+        if (!(morphEnabled_ && morphEngineL_)) {
+            return DistortionAdapter::usesAdaa(distortionL_.getType());
+        }
+        const int count = std::clamp(morphActiveNodeCount_, 0, kMaxMorphNodes);
+        for (int i = 0; i < count; ++i) {
+            if (DistortionAdapter::usesAdaa(morphNodes_[static_cast<size_t>(i)].type)) return true;
+        }
+        return false;
+    }
+
+    /// @brief Set the clocked-rate part of the compensation (@p clockedSamples in [0, factor)):
+    /// whole clocked samples from fracDelay*, the rest from a first-order allpass with
+    /// a = (1 - d) / (1 + d), whose delay d is kept in [0.5, 1.5) where the whole part allows
+    /// (flat magnitude; phase-delay error at most 0.22 clocked samples at 0.23 of the clocked
+    /// rate, 20 kHz at 2x 44.1 kHz, and 0.07 at 0.11 of it, 20 kHz at 4x).
+    void setFractionalDelay(double clockedSamples) noexcept {
+        if (clockedSamples == fracDelayClocked_) return;
+        fracDelayClocked_ = clockedSamples;
+        auto whole = static_cast<size_t>(clockedSamples);
+        double d = clockedSamples - static_cast<double>(whole);
+        if (d < 0.5 && whole >= 1) {
+            --whole;
+            d += 1.0;
+        }
+        fracWholeClocked_ = whole;
+        fracAllpassActive_ = d > kFracDelayEpsilon;
+        const auto a = static_cast<float>((1.0 - d) / (1.0 + d));
+        fracAllpassL_.setCoefficient(a);
+        fracAllpassR_.setCoefficient(a);
+    }
+
+    /// @brief Clear the clocked-rate delay's history (allocation-free).
+    void resetFractionalDelay() noexcept {
+        fracDelayL_.reset();
+        fracDelayR_.reset();
+        fracAllpassL_.reset();
+        fracAllpassR_.reset();
+    }
+
+    /// @brief The clocked-rate part of the compensation, on the oversampled band input.
+    void applyFractionalDelay(float* left, float* right, size_t numSamples) noexcept {
+        for (size_t i = 0; i < numSamples; ++i) {
+            fracDelayL_.write(left[i]);
+            fracDelayR_.write(right[i]);
+            left[i] = fracDelayL_.read(fracWholeClocked_);
+            right[i] = fracDelayR_.read(fracWholeClocked_);
+            if (fracAllpassActive_) {
+                left[i] = fracAllpassL_.process(left[i]);
+                right[i] = fracAllpassR_.process(right[i]);
+            }
+        }
     }
 
     /// @brief Highest factor the band can select at its current discrete settings: the
@@ -865,6 +960,36 @@ private:
             if (std::fabs(left[i]) > std::fabs(left[peak])) peak = i;
         }
         return static_cast<int>(peak);
+    }
+
+    /// @brief Low-frequency group delay of an oversampler's up/down filter pair, in host
+    /// samples: the first moment sum(n h[n]) / sum(h[n]) of its impulse response (the group
+    /// delay at DC; 3.00 at 2x and 6.47 at 4x, rate-independent). Runs a unit impulse
+    /// through it with a passthrough callback, then resets it.
+    template <typename OversamplerT>
+    [[nodiscard]] double measureGroupDelay(OversamplerT& oversampler) const noexcept {
+        constexpr size_t kLength = 1024;  // impulse response samples summed
+        std::array<float, 256> left{};
+        std::array<float, 256> right{};
+        const size_t chunk = std::min(left.size(), maxBlockSize_);
+        oversampler.reset();
+        double moment = 0.0;
+        double sum = 0.0;
+        for (size_t start = 0; start < kLength; start += chunk) {
+            left.fill(0.0f);
+            right.fill(0.0f);
+            if (start == 0) {
+                left[0] = 1.0f;
+                right[0] = 1.0f;
+            }
+            oversampler.process(left.data(), right.data(), chunk, [](float* /*l*/, float* /*r*/, size_t /*n*/) {});
+            for (size_t i = 0; i < chunk; ++i) {
+                moment += static_cast<double>(start + i) * static_cast<double>(left[i]);
+                sum += static_cast<double>(left[i]);
+            }
+        }
+        oversampler.reset();
+        return sum != 0.0 ? moment / sum : 0.0;
     }
 
     /// @brief True when the shaper is not an exact passthrough: legacy adapter drive
@@ -936,11 +1061,13 @@ private:
         forEachMorphEngine([](MorphEngine& engine) { engine.resetState(); });
         oversampler2x_.reset();
         oversampler4x_.reset();
+        resetFractionalDelay();
     }
 
     void processWithOversampling2x(float* left, float* right, size_t numSamples) noexcept {
         oversampler2x_.process(left, right, numSamples,
             [this](float* osLeft, float* osRight, size_t osN) {
+                applyFractionalDelay(osLeft, osRight, osN);
                 processOversampledBlock(osLeft, osRight, osN);
             });
 
@@ -951,6 +1078,7 @@ private:
     void processWithOversampling4x(float* left, float* right, size_t numSamples) noexcept {
         oversampler4x_.process(left, right, numSamples,
             [this](float* osLeft, float* osRight, size_t osN) {
+                applyFractionalDelay(osLeft, osRight, osN);
                 processOversampledBlock(osLeft, osRight, osN);
             });
 
@@ -1086,10 +1214,22 @@ private:
 
     // Latency compensation (D-026, T2.10)
     std::array<int, 3> oversamplerLatency_{};  // impulse-peak delay at 1x / 2x / 4x (prepare)
+    std::array<double, 3> oversamplerGroupDelay_{};  // low-frequency group delay at 1x / 2x / 4x (prepare)
     int latencyTarget_ = 0;                    // total latency the band is delayed to
     Krate::DSP::DelayLine compDelayL_;         // band input history, read at the compensation
     Krate::DSP::DelayLine compDelayR_;
     size_t compWarmup_ = 0;                    // samples written since reset() (saturating)
+
+    // Sub-sample compensation at the clocked rate (follow-up 81): whole clocked samples from
+    // the delay lines, the remainder from first-order allpasses (setFractionalDelay)
+    static constexpr double kFracDelayEpsilon = 1.0e-6;  // below this the allpass is skipped
+    Krate::DSP::DelayLine fracDelayL_;
+    Krate::DSP::DelayLine fracDelayR_;
+    Krate::DSP::OnePoleAllpass fracAllpassL_;
+    Krate::DSP::OnePoleAllpass fracAllpassR_;
+    size_t fracWholeClocked_ = 0;
+    bool fracAllpassActive_ = false;
+    double fracDelayClocked_ = -1.0;  // clocked delay the taps are set for (-1: none yet)
 };
 
 } // namespace Disrumpo

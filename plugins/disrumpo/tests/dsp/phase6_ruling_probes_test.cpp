@@ -755,3 +755,61 @@ TEST_CASE("p6s probe: ADAA A/B, compare with the dumped renders", "[.][p6s-ab-co
         }
     }
 }
+
+// =============================================================================
+// [p6s-flatness]: the follow-up 81 flatness bars per frequency. One band at 2x / 4x (node mix
+// 0: the oversampler only) at Mix 100 % (its own |H|) and Mix 50 %, and a 1x + 2x / 4x band
+// pair split at 5 kHz, each against the same at Oversample Max 1x, at 44.1 / 48 / 96 kHz.
+// =============================================================================
+
+namespace {
+
+std::vector<float> flatResponse(const PList& l, double sr) {
+    Rig rig(sr);
+    rig.apply(l);
+    rig.reactivate();
+    std::vector<float> in(kAt + 8192, 0.0f);
+    in[kAt] = 0.25f;
+    std::vector<float> oL;
+    std::vector<float> oR;
+    rig.render(in, in, oL, oR);
+    std::vector<float> h(oL.begin() + static_cast<std::ptrdiff_t>(kAt), oL.end());
+    for (auto& v : h) v *= 4.0f;
+    return h;
+}
+
+}  // namespace
+
+TEST_CASE("p6s probe: flatness of Mix 50 % and the crossover sum per frequency", "[.][p6s-flatness]") {
+    const double freqs[] = {1000.0, 2000.0, 5000.0, 8000.0, 10000.0, 12000.0, 14000.0, 16000.0, 18000.0, 20000.0};
+    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+        for (const int os : {2, 4}) {
+            const DistortionType t = os == 4 ? DistortionType::HardClip : DistortionType::SoftClip;
+            for (const double mix : {1.0, 0.5}) {
+                const auto make = [&](int osMax) {
+                    auto l = base(1, osMax);
+                    setNode(l, 0, t, 1.0, 0.0);
+                    l.emplace_back(kGlobalMixId, mix);
+                    return l;
+                };
+                const auto h = flatResponse(make(os), sr);
+                const auto r = flatResponse(make(1), sr);
+                std::printf("P6S flat %.0f Hz, band at %dx, Mix %.0f %%:", sr, os, mix * 100.0);
+                for (const double f : freqs) std::printf(" %.0fk %+.3f", f / 1000.0, responseDb(h, f, sr) - responseDb(r, f, sr));
+                std::printf("\n");
+            }
+            const auto pair = [&](int osMax) {
+                auto l = base(2, osMax);
+                l.emplace_back(makeCrossoverParamId(0), std::log10(5000.0 / 20.0) / 3.0);
+                setNode(l, 0, DistortionType::Bitcrush, 1.0, 0.0);
+                setNode(l, 1, t, 1.0, 0.0);
+                return l;
+            };
+            const auto h = flatResponse(pair(os), sr);
+            const auto r = flatResponse(pair(1), sr);
+            std::printf("P6S flat %.0f Hz, 1x + %dx bands at 5 kHz:", sr, os);
+            for (const double f : freqs) std::printf(" %.0fk %+.3f", f / 1000.0, responseDb(h, f, sr) - responseDb(r, f, sr));
+            std::printf("\n");
+        }
+    }
+}

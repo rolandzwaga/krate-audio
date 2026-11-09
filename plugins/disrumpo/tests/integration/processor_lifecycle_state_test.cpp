@@ -31,6 +31,7 @@
 // (and so the engine-reading tests below) see a load from the next block on.
 // =============================================================================
 
+#include "../test_support/audit_metrics.h"
 #include "../test_support/disrumpo_rig.h"
 
 #include "controller/controller.h"
@@ -1744,13 +1745,17 @@ long latPeakOffset(const std::vector<float>& y) {
 struct LatReading {
     long measured = 0;
     long reported = 0;
+    double groupDelay1k = 0.0;  ///< group delay at 1 kHz of the response from the impulse on
 };
 LatReading latMeasure(const PList& l) {
     Rig rig(kLatSr);
     rig.apply(l);
     rig.reactivate();
     const auto y = latImpulseRender(rig);
-    return {.measured = latPeakOffset(y), .reported = static_cast<long>(rig.p->getLatencySamples())};
+    const std::vector<float> h(y.begin() + static_cast<std::ptrdiff_t>(kLatAt), y.end());
+    return {.measured = latPeakOffset(y),
+            .reported = static_cast<long>(rig.p->getLatencySamples()),
+            .groupDelay1k = groupDelaySamples(h, 1000.0, kLatSr)};
 }
 
 /// Lag (0..maxLag) at which `out` best matches `in` (largest |cross-correlation|).
@@ -1781,10 +1786,16 @@ TEST_CASE("getLatencySamples equals the measured impulse delay at every Oversamp
             auto l = latBase(1, osMax);
             setNode(l, 0, 0, type, 1.0, 0.0);
             const auto r = latMeasure(l);
-            std::printf("T2.10 latency %s Oversample Max %dx: impulse peak offset %ld, getLatencySamples %ld\n",
-                        type == DistortionType::SoftClip ? "SoftClip" : "HardClip", osMax, r.measured, r.reported);
-            INFO("type " << static_cast<int>(type) << ", Oversample Max " << osMax << "x");
+            std::printf("T2.10 latency %s Oversample Max %dx: impulse peak offset %ld, group delay at 1 kHz %.3f, "
+                        "getLatencySamples %ld\n",
+                        type == DistortionType::SoftClip ? "SoftClip" : "HardClip", osMax, r.measured,
+                        r.groupDelay1k, r.reported);
+            INFO("type " << static_cast<int>(type) << ", Oversample Max " << osMax << "x, group delay at 1 kHz "
+                 << r.groupDelay1k);
             CHECK(std::labs(r.measured - r.reported) <= 1);
+            // Follow-up 81 ruling (2026-11-09): the band arrives at the reported latency as a
+            // group delay (baseline 3.01 / 6.48 samples against 4 / 7 at 2x / 4x)
+            CHECK(std::fabs(r.groupDelay1k - static_cast<double>(r.reported)) <= 0.1);
         }
     }
 }
@@ -1900,19 +1911,87 @@ Arrival bandArrival(const PList& cfg, const PList& ref) {
 
 }  // namespace
 
-TEST_CASE("Bands at different oversampling factors arrive on the same sample", "[disrumpo][latency][D-026]") {
-    // Band 0 SoftClip at drive 0 (a passthrough, clocked at 1x); band 1 HardClip at drive 10
-    // and node mix 0 (4x, only the oversampler's filters). Reference: Oversample Max 1x.
-    const auto nodes = [](PList l) {
-        setNode(l, 0, 0, DistortionType::SoftClip, 0.0, 1.0);
-        setNode(l, 1, 0, DistortionType::HardClip, 1.0, 0.0);
-        return l;
-    };
-    const auto a = bandArrival(nodes(latBase(2, 4)), nodes(latBase(2, 1)));
-    std::printf("T2.10 arrival 1x band + 4x band: band 0 delayed %ld, band 1 delayed %ld (inter-band offset %ld), "
-                "getLatencySamples %ld\n", a.delay[0], a.delay[1], a.delay[1] - a.delay[0], a.reported);
-    CHECK(a.delay[1] - a.delay[0] == 0);
-    CHECK(std::labs(a.delay[1] - a.reported) <= 1);
+namespace {
+
+/// Left-channel response per unit input of `l` at `sr` (band `solo` soloed, -1 none), from
+/// the impulse on; `reported` receives the rig's getLatencySamples().
+std::vector<float> latResponse(PList l, double sr, int solo = -1, long* reported = nullptr) {
+    if (solo >= 0) l.emplace_back(makeBandParamId(static_cast<uint8_t>(solo), BandParamType::kBandSolo), 1.0);
+    Rig rig(sr);
+    rig.apply(l);
+    rig.reactivate();
+    const auto y = latImpulseRender(rig);
+    if (reported != nullptr) *reported = static_cast<long>(rig.p->getLatencySamples());
+    std::vector<float> h(y.begin() + static_cast<std::ptrdiff_t>(kLatAt), y.end());
+    for (auto& v : h) v /= kLatImpulse;
+    return h;
+}
+
+/// Crossover parameter (log10 over 20 Hz - 20 kHz) for `hz`.
+double crossoverNorm(double hz) { return std::log10(hz / 20.0) / 3.0; }
+
+/// Node types that run a band at 1x / 2x / 4x at drive 10 (Oversample Max 4x).
+DistortionType typeAtFactor(int factor) {
+    if (factor >= 4) return DistortionType::HardClip;
+    return factor == 2 ? DistortionType::SoftClip : DistortionType::Bitcrush;
+}
+
+/// Two bands split at `crossoverHz`, band 0's node at `factor0`, band 1's at `factor1`, both at
+/// drive 10 and node mix 0 (each band is its oversampler's filters only), Oversample Max `osMax`.
+PList factorPair(int factor0, int factor1, double crossoverHz, int osMax) {
+    auto l = latBase(2, osMax);
+    l.emplace_back(makeCrossoverParamId(0), crossoverNorm(crossoverHz));
+    setNode(l, 0, 0, typeAtFactor(factor0), 1.0, 0.0);
+    setNode(l, 1, 0, typeAtFactor(factor1), 1.0, 0.0);
+    return l;
+}
+
+}  // namespace
+
+TEST_CASE("Bands at different oversampling factors arrive at the same group delay", "[disrumpo][latency][D-026]") {
+    // Follow-up 81, user ruling 2026-11-09: every band and the dry path arrive at the reported
+    // latency L as a group delay (oversampler + ADAA1; a node's own tone and DC filters are its
+    // sound and stay as they are). Two bands split at 300 Hz, each node at drive 10 and node mix
+    // 0: Bitcrush runs 1x, SoftClip 2x, HardClip 4x. A band's arrival is its group delay soloed
+    // (band 0 at 100 Hz, band 1 at 1 kHz) minus the same band's at Oversample Max 1x (nothing
+    // latent). Bars: 0 +/- 0.1 sample between the bands and from L. Baseline (integer
+    // compensation by the oversamplers' impulse peaks): a 2x band 1.00 and a 4x band 0.53
+    // samples early.
+    constexpr double kAt[2] = {100.0, 1000.0};
+    for (const double sr : {44100.0, 48000.0, 96000.0}) {
+        for (const auto& [f0, f1] : {std::pair{1, 2}, std::pair{1, 4}, std::pair{2, 4}, std::pair{4, 1}}) {
+            std::array<double, 2> arrival{};
+            long reported = 0;
+            for (int b = 0; b < 2; ++b) {
+                const auto h = latResponse(factorPair(f0, f1, 300.0, 4), sr, b, &reported);
+                const auto ref = latResponse(factorPair(f0, f1, 300.0, 1), sr, b);
+                arrival[static_cast<size_t>(b)] = groupDelaySamples(h, kAt[b], sr) - groupDelaySamples(ref, kAt[b], sr);
+            }
+            std::printf("T6.05 arrival %.0f Hz, band 0 at %dx + band 1 at %dx: %.3f / %.3f samples (inter-band %+.3f), "
+                        "getLatencySamples %ld\n", sr, f0, f1, arrival[0], arrival[1], arrival[1] - arrival[0], reported);
+            INFO(sr << " Hz, " << f0 << "x + " << f1 << "x: arrival " << arrival[0] << " / " << arrival[1]
+                 << ", reported " << reported);
+            CHECK(std::fabs(arrival[1] - arrival[0]) <= 0.1);
+            CHECK(std::fabs(arrival[0] - static_cast<double>(reported)) <= 0.1);
+            CHECK(std::fabs(arrival[1] - static_cast<double>(reported)) <= 0.1);
+        }
+    }
+}
+
+TEST_CASE("A band running ADAA1 arrives with a plain band at the same factor", "[disrumpo][latency][adaa]") {
+    // TriangleFold runs ADAA1 at 4x (half a clocked sample, 0.125 host samples); SineFold runs
+    // the same tone, smooth and DC filters at 4x without it. At drive 0.1 the impulse stays in
+    // both folds' linear segment. One band each; group delay at 1 kHz; bar 0 +/- 0.1 sample.
+    // Baseline: the TriangleFold band 0.125 samples late.
+    std::array<double, 2> gd{};
+    for (const auto type : {DistortionType::TriangleFold, DistortionType::SineFold}) {
+        auto l = latBase(1, 4);
+        setNode(l, 0, 0, type, 0.01, 1.0);
+        gd[type == DistortionType::SineFold ? 1 : 0] = groupDelaySamples(latResponse(l, kLatSr), 1000.0, kLatSr);
+    }
+    std::printf("T6.05 ADAA1 arrival: TriangleFold band %.3f, SineFold band %.3f samples at 1 kHz (%+.3f)\n", gd[0],
+                gd[1], gd[0] - gd[1]);
+    CHECK(std::fabs(gd[0] - gd[1]) <= 0.1);
 }
 
 TEST_CASE("Band with Spectral is time-aligned with a SoftClip band", "[disrumpo][latency][D-026][D-098]") {
@@ -1933,21 +2012,26 @@ TEST_CASE("Band with Spectral is time-aligned with a SoftClip band", "[disrumpo]
     CHECK(std::labs(a.delay[0] - a.reported) <= 1);
 }
 
-TEST_CASE("Global mix: dry and wet impulse peaks coincide with an oversampled band",
+TEST_CASE("Global mix: dry and wet arrive at the same group delay with an oversampled band",
           "[disrumpo][latency][mix][D-026]") {
-    std::array<long, 2> peak{};
-    long reported = 0;
-    for (const int wet : {0, 1}) {
-        auto l = latBase(1, 4);
-        setNode(l, 0, 0, DistortionType::HardClip, 1.0, 0.0);
-        l.emplace_back(kGlobalMixId, static_cast<double>(wet));
-        const auto r = latMeasure(l);
-        peak[static_cast<size_t>(wet)] = r.measured;
-        reported = r.reported;
+    // Follow-up 81 ruling (2026-11-09): group delay at 1 kHz, bar 0 +/- 0.1 sample (the
+    // impulse peaks of T2.10 coincided while the 4x wet path was 0.52 samples early)
+    for (const int factor : {2, 4}) {
+        std::array<double, 2> gd{};
+        long reported = 0;
+        for (const int wet : {0, 1}) {
+            auto l = latBase(1, 4);
+            setNode(l, 0, 0, typeAtFactor(factor), 1.0, 0.0);
+            l.emplace_back(kGlobalMixId, static_cast<double>(wet));
+            const auto r = latMeasure(l);
+            gd[static_cast<size_t>(wet)] = r.groupDelay1k;
+            reported = r.reported;
+        }
+        std::printf("T2.10 global mix, band at %dx: dry group delay %.3f, wet %.3f samples at 1 kHz, "
+                    "getLatencySamples %ld\n", factor, gd[0], gd[1], reported);
+        INFO("band at " << factor << "x: dry " << gd[0] << ", wet " << gd[1]);
+        CHECK(std::fabs(gd[0] - gd[1]) <= 0.1);
     }
-    std::printf("T2.10 global mix: dry impulse peak %ld, wet impulse peak %ld (HardClip at 4x), "
-                "getLatencySamples %ld\n", peak[0], peak[1], reported);
-    CHECK(peak[0] == peak[1]);
 }
 
 TEST_CASE("Reported latency holds through a morph sweep; Oversample Max and node type changes report it once",
