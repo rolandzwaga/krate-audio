@@ -217,9 +217,15 @@ TEST_CASE("Type render matrix: AsymmetricFuzz", "[disrumpo][audit][type-matrix]"
     checkType(DistortionType::AsymmetricFuzz);
 }
 TEST_CASE("Type render matrix: SineFold", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::SineFold); }
+TEST_CASE("Type render matrix: TriangleFold", "[disrumpo][audit][type-matrix]") {
+    checkType(DistortionType::TriangleFold);
+}
 TEST_CASE("Type render matrix: SergeFold", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::SergeFold); }
 TEST_CASE("Type render matrix: FullRectify", "[disrumpo][audit][type-matrix]") {
     checkType(DistortionType::FullRectify);
+}
+TEST_CASE("Type render matrix: HalfRectify", "[disrumpo][audit][type-matrix]") {
+    checkType(DistortionType::HalfRectify);
 }
 TEST_CASE("Type render matrix: Bitcrush", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Bitcrush); }
 TEST_CASE("Type render matrix: SampleReduce", "[disrumpo][audit][type-matrix]") {

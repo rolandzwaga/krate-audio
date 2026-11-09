@@ -355,6 +355,17 @@ public:
     /// @brief Rate process() is clocked at (the host rate x the owner's factor).
     [[nodiscard]] double getProcessingRate() const noexcept { return sampleRate_; }
 
+    /// @brief True for the types whose shaper runs through first-order antiderivative
+    /// anti-aliasing (ADAA1) when the adapter is clocked above the host rate: HalfRectify
+    /// (the step at the threshold) and TriangleFold (the fold corners). Ruling 2026-11-09.
+    [[nodiscard]] static bool usesAdaa(DistortionType type) noexcept {
+        return type == DistortionType::HalfRectify || type == DistortionType::TriangleFold;
+    }
+
+    /// ADAA1 delays the shaper by half a clocked sample (its linear segments read the mean of
+    /// the last two inputs); owners align the band to it (BandProcessor latency).
+    static constexpr double kAdaaDelayClockedSamples = 0.5;
+
     /// Largest Spectral FFT size the plugin offers (processor_params.cpp Spectral
     /// slot 1: 512..4096). SpectralDistortion is allocated for it once in prepare().
     static constexpr std::size_t kSpectralMaxFftSize = 4096;
@@ -408,6 +419,14 @@ private:
 
     double sampleRate_ = 44100.0;          ///< Rate process() is clocked at
     double maxProcessingRate_ = 44100.0;   ///< Rate prepare() sized the buffers for
+    double hostRate_ = 44100.0;            ///< Rate prepare() was called with (the host rate)
+
+    /// @brief ADAA1 runs only when oversampled: at the host rate its cos(pi f / fs) on the
+    /// linear segments would dull the type (-2.4 dB at 10 kHz, 44.1 kHz).
+    [[nodiscard]] bool adaaActive() const noexcept { return sampleRate_ > hostRate_; }
+
+    /// HalfRectify ADAA1: the previous shaper input
+    double halfRectAdaaPrev_ = 0.0;
     int maxBlockSize_ = 512;               ///< Block size prepare() was given
     DistortionType currentType_ = DistortionType::SoftClip;
     DistortionCommonParams commonParams_;

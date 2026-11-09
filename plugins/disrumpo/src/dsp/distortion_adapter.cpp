@@ -67,6 +67,7 @@ bool capsDriveGain(DistortionType type) noexcept {
 
 void DistortionAdapter::prepare(double sampleRate, int maxBlockSize, int maxOversampleFactor) noexcept {
     maxBlockSize_ = maxBlockSize;
+    hostRate_ = sampleRate;
     maxProcessingRate_ = sampleRate * static_cast<double>(std::max(1, maxOversampleFactor));
 
     // Size every rate-dependent member for the highest rate it can be clocked at: their
@@ -202,6 +203,7 @@ void DistortionAdapter::reset() noexcept {
     bodyFilter_.reset();
     wavefoldSmoothFilter_.reset();
     flutterPhase_ = 0.0f;
+    halfRectAdaaPrev_ = 0.0;
 
     // Latency delay lines (D-081)
     dryDelay_.reset();
@@ -282,8 +284,11 @@ void DistortionAdapter::resetProcessorFor(DistortionType type) noexcept {
             wavefolder_.reset();
             wavefoldSmoothFilter_.reset();
             break;
-        case DistortionType::FullRectify:
         case DistortionType::HalfRectify:
+            halfRectAdaaPrev_ = 0.0;
+            wavefoldSmoothFilter_.reset();
+            break;
+        case DistortionType::FullRectify:
         case DistortionType::Quantize:
             wavefoldSmoothFilter_.reset();
             break;
@@ -732,7 +737,28 @@ float DistortionAdapter::processRaw(float input) noexcept {
             // D11: Half-wave rectification with threshold and smooth
             // Threshold [0,1] → clip point [0, 1]
             const float thresh = typeParams_.threshold;
-            float result = (input >= thresh) ? input : 0.0f;
+            float result = 0.0f;
+            if (adaaActive() && Krate::DSP::detail::isFinite(input)) {
+                // ADAA1 (ruling 2026-11-09): f(x) = x at and above the threshold t, else 0 (a
+                // step of t); its antiderivative F(x) = (x^2 - t^2) / 2 above t, else 0, is
+                // continuous. The rectified midpoint replaces an ill-conditioned quotient.
+                const double t = thresh;
+                const double x = input;
+                const double prev = halfRectAdaaPrev_;
+                const double dx = x - prev;
+                const auto antiderivative = [t](double v) { return v >= t ? 0.5 * (v * v - t * t) : 0.0; };
+                if (std::abs(dx) > Krate::DSP::WavefolderProcessor::kAdaaEpsilon) {
+                    result = static_cast<float>((antiderivative(x) - antiderivative(prev)) / dx);
+                } else {
+                    const double mid = 0.5 * (x + prev);
+                    result = mid >= t ? static_cast<float>(mid) : 0.0f;
+                }
+                halfRectAdaaPrev_ = x;
+            } else {
+                // Host rate, or NaN / Inf (passed on as before, with no history kept)
+                halfRectAdaaPrev_ = 0.0;
+                result = (input >= thresh) ? input : 0.0f;
+            }
             if (typeParams_.smoothness > 0.001f) {
                 result = wavefoldSmoothFilter_.process(result);
             }
@@ -972,6 +998,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
         // =================================================================
         case DistortionType::SineFold:
             wavefolder_.setModel(Krate::DSP::WavefolderModel::Serge);
+            wavefolder_.setAntiderivativeAntialiasing(false);
             wavefolder_.setFoldAmount(p.folds);
             wavefolder_.setSymmetry(p.symmetry);
             // Shape: crossfade target (triangle wavefolder)
@@ -983,6 +1010,8 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
 
         case DistortionType::TriangleFold:
             wavefolder_.setModel(Krate::DSP::WavefolderModel::Simple);
+            // ADAA1 on the fold corners when oversampled (ruling 2026-11-09, usesAdaa)
+            wavefolder_.setAntiderivativeAntialiasing(adaaActive());
             wavefolder_.setFoldAmount(p.folds);
             wavefolder_.setSymmetry(p.symmetry);
             // Shape: crossfade target (sine wavefolder)
@@ -1000,6 +1029,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             };
             int mi = std::clamp(p.foldModel, 0, 3);
             wavefolder_.setModel(models[mi]);
+            wavefolder_.setAntiderivativeAntialiasing(false);
             wavefolder_.setFoldAmount(p.folds);
             wavefolder_.setSymmetry(p.symmetry);
             wavefoldTriangle_.setFoldAmount(p.folds);

@@ -15,6 +15,7 @@
 // [p6r-latency] oversampler group delay vs its impulse-peak delay; dry/wet sum per latency.
 // [p6r-arrival] per-band arrival as fractional group delays.
 // [p6r-xsum]    crossover sum of a 1x band with a 2x or 4x band against all-1x.
+// [p6s-ab-dump] / [p6s-ab-compare] the ADAA ruling's A/B of HalfRectify / TriangleFold.
 // Run one case by name; results of 2026-11-09 are in follow-ups 79 and 81.
 // =============================================================================
 
@@ -36,8 +37,10 @@
 #include <complex>
 #include <cstddef>
 #include <cstdio>
+#include <cstdint>
 #include <memory>
 #include <numbers>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -622,6 +625,133 @@ TEST_CASE("p6r probe: ADAA1 on the bare fold and rectifier", "[.][p6r-adaa]") {
                         readBand(shape(x, true, half, halfF), rate, 176, fftSize, 4).nonHarmRelDb,
                         readBand(shape(x, false, halfCont, halfContF), rate, 176, fftSize, 4).nonHarmRelDb,
                         readBand(shape(x, true, halfCont, halfContF), rate, 176, fftSize, 4).nonHarmRelDb);
+        }
+    }
+}
+
+// =============================================================================
+// [p6s-ab-dump] / [p6s-ab-compare]: the ADAA ruling (2026-11-09) A/B. HalfRectify and
+// TriangleFold through the Processor (one band, node 0, mix 1, bias 0) at drive 2.5 / 7.5 /
+// 10 on three signals: a 99.6 Hz sine at -6 dBFS (H1..H9; bin 17 of 8192, so no alias of the
+// 4x clocked rate lands on a harmonic), the T6.01 tone (non-harmonic)
+// and a music-like mix (four decaying notes and a little noise). Run the dump case with the
+// binary before the change and the compare case with the one after, both from the same
+// working directory (the renders are p6s_ab_*.bin there).
+// =============================================================================
+
+namespace {
+
+constexpr size_t kAbWarm = 24000;
+constexpr size_t kAbLen = kAbWarm + 6 * kBaseFft;
+constexpr double kAbF0 = 17.0 * kSr / static_cast<double>(kBaseFft);  // 99.609375 Hz
+
+std::vector<float> abSignal(int which) {
+    std::vector<float> x(kAbLen, 0.0f);
+    if (which == 0) return sine(kAbLen, kAbF0, kSr, 0.5);
+    if (which == 1) return sine(kAbLen, 1031.25, kSr, 0.5);
+    const double notes[] = {110.0, 164.81, 277.18, 440.0};
+    uint32_t s = 0x2468u;
+    for (size_t i = 0; i < kAbLen; ++i) {
+        const double t = static_cast<double>(i) / kSr;
+        double v = 0.0;
+        for (size_t k = 0; k < 4; ++k) {
+            const double since = std::fmod(t + 0.11 * static_cast<double>(k), 0.5);
+            v += 0.12 * std::exp(-since / 0.3) * std::sin(2.0 * std::numbers::pi * notes[k] * t);
+        }
+        s = s * 1664525u + 1013904223u;
+        v += 0.01 * (static_cast<double>(s >> 8) / 8388608.0 - 1.0);
+        x[i] = static_cast<float>(v);
+    }
+    return x;
+}
+
+const char* const kAbSignalNames[] = {"sine99", "tone1k", "music"};
+
+std::vector<float> abRender(DistortionType type, double driveNorm, int which) {
+    Rig r(kSr);
+    r.apply({{kBandCountId, 0.0},
+             {node0(NodeParamType::kNodeType), typeNorm(type)},
+             {node0(NodeParamType::kNodeMix), 1.0},
+             {node0(NodeParamType::kNodeBias), 0.5},
+             {node0(NodeParamType::kNodeDrive), driveNorm}});
+    r.reactivate();
+    const auto in = abSignal(which);
+    std::vector<float> oL;
+    std::vector<float> oR;
+    r.render(in, in, oL, oR);
+    return oL;
+}
+
+std::string abPath(DistortionType type, double driveNorm, int which) {
+    return std::string("p6s_ab_") + getTypeName(type) + "_" + std::to_string(static_cast<int>(driveNorm * 100.0)) +
+           "_" + kAbSignalNames[which] + ".bin";
+}
+
+/// |X| in dB of y[from, from + n) at hz (n whole cycles).
+double abToneDb(const std::vector<float>& y, size_t from, size_t n, double hz) {
+    std::complex<double> acc(0.0, 0.0);
+    for (size_t i = 0; i < n; ++i) {
+        acc += static_cast<double>(y[from + i]) *
+               std::polar(1.0, -2.0 * std::numbers::pi * hz * static_cast<double>(i) / kSr);
+    }
+    return 20.0 * std::log10(2.0 * std::abs(acc) / static_cast<double>(n) + 1e-30);
+}
+
+constexpr DistortionType kAbTypes[] = {DistortionType::HalfRectify, DistortionType::TriangleFold};
+constexpr double kAbDrives[] = {0.25, 0.75, 1.0};
+
+}  // namespace
+
+TEST_CASE("p6s probe: ADAA A/B, dump the renders", "[.][p6s-ab-dump]") {
+    for (const auto type : kAbTypes) {
+        for (const double d : kAbDrives) {
+            for (int which = 0; which < 3; ++which) {
+                const auto y = abRender(type, d, which);
+                FILE* f = std::fopen(abPath(type, d, which).c_str(), "wb");
+                REQUIRE(f != nullptr);
+                std::fwrite(y.data(), sizeof(float), y.size(), f);
+                std::fclose(f);
+            }
+        }
+    }
+}
+
+TEST_CASE("p6s probe: ADAA A/B, compare with the dumped renders", "[.][p6s-ab-compare]") {
+    for (const auto type : kAbTypes) {
+        for (const double d : kAbDrives) {
+            for (int which = 0; which < 3; ++which) {
+                const auto after = abRender(type, d, which);
+                std::vector<float> before(after.size(), 0.0f);
+                FILE* f = std::fopen(abPath(type, d, which).c_str(), "rb");
+                REQUIRE(f != nullptr);
+                const size_t got = std::fread(before.data(), sizeof(float), before.size(), f);
+                std::fclose(f);
+                REQUIRE(got == before.size());
+                const size_t n = after.size() - kAbWarm;
+                const double levelDb = toDb(rmsOf(after.data() + kAbWarm, n)) - toDb(rmsOf(before.data() + kAbWarm, n));
+                std::printf("P6S A/B %s drive %.1f %s: level %+.3f dB", getTypeName(type), d * 10.0,
+                            kAbSignalNames[which], levelDb);
+                if (which == 0) {
+                    // 102 whole cycles; harmonics more than 80 dB below H1 are not compared
+                    const double h1 = abToneDb(before, kAbWarm, n, kAbF0);
+                    double worst = 0.0;
+                    std::printf("; H1..H9 before/after (dB):");
+                    for (int k = 1; k <= 9; ++k) {
+                        const double b = abToneDb(before, kAbWarm, n, kAbF0 * k);
+                        const double a = abToneDb(after, kAbWarm, n, kAbF0 * k);
+                        std::printf(" H%d %.2f/%.2f", k, b, a);
+                        if (b > h1 - 80.0) worst = std::max(worst, std::fabs(a - b));
+                    }
+                    std::printf("; largest |diff| %.4f dB", worst);
+                    INFO(getTypeName(type) << " drive " << d * 10.0 << ": largest harmonic diff " << worst << " dB");
+                    CHECK(worst <= 0.1);
+                } else if (which == 1) {
+                    std::printf("; non-harmonic %.1f -> %.1f dB",
+                                readAliasing(before, kSr, 1031.25f, kBaseFft, 4).nonHarmonicRelDb(),
+                                readAliasing(after, kSr, 1031.25f, kBaseFft, 4).nonHarmonicRelDb());
+                }
+                std::printf("\n");
+            }
         }
     }
 }

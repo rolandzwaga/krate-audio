@@ -429,6 +429,11 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
       TapeMachine, Seraphis, Vorago, Ruinae use TapeSaturator), a sound change in every consumer, the largest job.
       (c) More oversampling: not enough (16x -42.3 dB bare). (d) Exempt Tape (ruling); follow-up 82 needs a fix
       either way.
+    — USER RULED 2026-11-09 and applied: ADAA1 on HalfRectify (Disrumpo adapter) and TriangleFold (opt-in
+    ADAA1 on WavefolderProcessor's Simple model), active when the band is oversampled. Through the Processor at
+    drive 2.5 / 7.5 / 10: HalfRectify -42.3 / -51.7 / -54.1 -> -72.4 / -81.7 / -84.2 dB, TriangleFold -65.6 / -51.2 /
+    -43.6 -> -89.7 / -79.5 / -72.9 dB; both cases committed GREEN. A/B ([p6s-ab-*]): level within 0.014 dB, H1..H9
+    of a 99.6 Hz tone within 0.011 dB. Tape and Fractal stay held (Tape: separate task; Fractal: follow-up 1).
 80. **SergeFold reads identical to SineFold at its defaults** (T6.01 matrix: non-harmonic, DC and peak equal to every
     printed digit at all three drives). Same class as D-157 (SineFold == TriangleFold, fixed in T2.06); relates to
     follow-up 23 (the per-type slot defaults). Not asserted by the matrix; decide whether a fresh SergeFold node should
