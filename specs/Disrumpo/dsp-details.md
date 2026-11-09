@@ -174,7 +174,7 @@ inline constexpr float kMinBandGainDb = -24.0f;
 inline constexpr float kMaxBandGainDb = +24.0f;
 
 inline constexpr int kMinBands = 1;
-inline constexpr int kMaxBands = 8;
+inline constexpr int kMaxBands = 4;
 inline constexpr int kDefaultBands = 4;
 
 inline constexpr float kMinCrossoverHz = 20.0f;
@@ -353,7 +353,7 @@ tresult PLUGIN_API Processor::getState(IBStream* state) {
     streamer.writeFloat(sweepIntensity_);
     streamer.writeInt32(static_cast<int32>(sweepMorphLink_));
 
-    // Per-band state (fixed 8 bands for format stability)
+    // Per-band state (fixed kMaxBands = 4 bands for format stability; v7 and earlier wrote 8)
     for (int b = 0; b < kMaxBands; ++b) {
         const auto& band = bands_[b];
         streamer.writeFloat(band.lowFreqHz);
@@ -923,7 +923,7 @@ private:
 
 namespace Disrumpo {
 
-/// @brief Multi-band crossover network for 1-8 bands.
+/// @brief Multi-band crossover network for 1-4 bands.
 /// Uses existing CrossoverLR4 from KrateDSP (FLT-ROADMAP spec 079).
 class CrossoverNetwork {
 public:
