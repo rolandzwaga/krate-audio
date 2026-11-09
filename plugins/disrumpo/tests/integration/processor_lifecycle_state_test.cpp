@@ -419,7 +419,9 @@ TEST_CASE("Sample-rate change keeps nodes, crossovers, morph mode and smoothing"
 
 TEST_CASE("setState with 4 bands into a 2-band instance restores all crossovers",
           "[disrumpo][lifecycle][D-022][D-054]") {
-    const double norms[3] = {0.4, 0.6, 0.8};
+    // Off the even log grid a band-count increase fills idle crossovers with (0.4 / 0.6 / 0.8
+    // is on it, so a dropped crossover came back at its own value and the case could not fail)
+    const double norms[3] = {0.4, 0.5, 0.9};
     std::vector<uint8_t> source;
     {
         Rig four(48000.0);
@@ -438,6 +440,7 @@ TEST_CASE("setState with 4 bands into a 2-band instance restores all crossovers"
         rig.apply({{kBandCountId, 1.0 / 3.0}});  // 2 bands
         REQUIRE(decodePatch(getStateBytes(*rig.p)).bandCount == 2);
         REQUIRE(setStateBytes(*rig.p, source));
+        rig.apply({});  // apply the load (D-003); getState of a pending load reads the stream back
         const PatchView got = decodePatch(getStateBytes(*rig.p));
         std::printf("D-022 setState 4 bands into 2: %.1f / %.1f / %.1f Hz (saved %.1f / %.1f / %.1f)\n",
                     static_cast<double>(got.crossover[0]), static_cast<double>(got.crossover[1]),
@@ -464,6 +467,33 @@ TEST_CASE("setState with 4 bands into a 2-band instance restores all crossovers"
             CHECK(std::fabs(got.crossover[c] - saved.crossover[c]) < 0.1f);
         }
     }
+}
+
+// D-124 (T5.04): a stream whose crossovers sit closer than half an octave
+// (another host's automation, an old project) loads with each running crossover
+// held at 2^0.5 times the one below, as the spectrum display's drag keeps them.
+TEST_CASE("setState holds loaded crossovers half an octave apart", "[disrumpo][lifecycle][crossover][D-124]") {
+    std::vector<uint8_t> stream;
+    {
+        Rig source(48000.0);
+        stream = getStateBytes(*source.p);
+    }
+    REQUIRE(decodePatch(stream).bandCount == 4);
+    const float written[3] = {1000.0f, 1200.0f, 1300.0f};
+    for (size_t c = 0; c < 3; ++c) std::memcpy(stream.data() + kCrossoverOffset + 4 * c, &written[c], 4);
+
+    Rig rig(48000.0);
+    REQUIRE(setStateBytes(*rig.p, stream));
+    rig.apply({});  // a load made while active lands at the next block (D-003)
+    const PatchView got = decodePatch(getStateBytes(*rig.p));
+    const float ratio = std::pow(2.0f, kMinCrossoverSpacingOctaves);
+    std::printf("D-124 state crossovers 1000 / 1200 / 1300 Hz load as %.2f / %.2f / %.2f Hz\n",
+                static_cast<double>(got.crossover[0]), static_cast<double>(got.crossover[1]),
+                static_cast<double>(got.crossover[2]));
+    REQUIRE(got.bandCount == 4);
+    CHECK(got.crossover[0] == 1000.0f);
+    CHECK(got.crossover[1] >= got.crossover[0] * ratio);
+    CHECK(got.crossover[2] >= got.crossover[1] * ratio);
 }
 
 TEST_CASE("Sweep width/intensity/frequency survive setState + one block and are saved unmodulated",

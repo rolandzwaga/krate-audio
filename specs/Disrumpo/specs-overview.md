@@ -162,6 +162,11 @@ Disrumpo provides a unified environment where:
 **FR-BAND-002: Adjustable Crossover Frequencies**
 - Range: 20 Hz to 20,000 Hz
 - Constraint: Minimum 0.5 octave between adjacent crossovers
+  - Enforced in the DSP as well (D-124, user ruling 2026-11-09), in Disrumpo's `CrossoverNetwork`, not the shared
+    `MultibandCrossover`: each running crossover i > 0 runs at >= f[i-1] * 2^0.5. Each crossover keeps the value it
+    was given; the running ones are derived from those (order-independent, a pushed crossover returns when the one
+    below moves away). Where the spacing meets the cap (20 kHz or 0.45 * sample rate), the top running crossover
+    takes the cap and each one below is lowered to half an octave under the next. Idle crossovers are not spaced.
 - UI: Draggable dividers on spectrum display
 
 **FR-BAND-003: Crossover Filter Type**

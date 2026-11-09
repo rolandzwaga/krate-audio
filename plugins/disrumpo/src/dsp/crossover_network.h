@@ -18,7 +18,20 @@
 //
 // Policy kept here: band count 1-4, crossover range 20 Hz - 20 kHz
 // (state_codec.h) and 0.45 * sampleRate, logarithmic defaults on the first
-// prepare, redistribution on a band-count change (FR-011a/FR-011b, D-023).
+// prepare, redistribution on a band-count change (FR-011a/FR-011b, D-023),
+// and half-octave spacing of the running crossovers (FR-BAND-002, D-124).
+//
+// Spacing (kMinCrossoverSpacingOctaves, the rule the spectrum display's
+// divider drag applies): each running crossover i > 0 runs at least 2^0.5
+// times crossover i-1. The network keeps the frequency each crossover was
+// given and derives the running ones from those, so the result does not
+// depend on the order the values arrive in (a state load, automation), and a
+// crossover pushed up returns to its own value when the one below moves away.
+// Where the spacing meets the cap (crossovers set within half an octave of
+// each other near the top), the top running crossover takes the cap and each
+// one below it is lowered to half an octave under the next. Crossovers the
+// band count leaves idle run at their own (range-clamped) value and move
+// nothing. The shared MultibandCrossover keeps no ordering rule.
 //
 // References:
 // - specs/002-band-management/contracts/crossover_network_api.md
@@ -64,9 +77,7 @@ public:
 
     CrossoverNetwork() noexcept {
         network_.setAllpassCompensation(true);
-        for (int i = 0; i < kMaxBands - 1; ++i) {
-            network_.setCrossoverFrequency(i, kInitialFrequencies[idx(i)]);
-        }
+        applyFrequencies();
     }
     ~CrossoverNetwork() noexcept = default;
 
@@ -96,6 +107,7 @@ public:
         if (!frequenciesInitialized_) {
             initializeLogarithmicDistribution();
         }
+        applyFrequencies();  // the cap follows the sample rate
 
         // MultibandCrossover::prepare() snaps every crossover to its stored
         // frequency at the new rate: no glide from the previous value
@@ -127,15 +139,18 @@ public:
         const int oldBandCount = numBands_;
         numBands_ = newBandCount;
 
-        // Redistribute crossovers per FR-011a/FR-011b, then let the joining
-        // ones start clean at those frequencies
+        // Redistribute crossovers per FR-011a/FR-011b, space the running ones,
+        // then let the joining ones start clean at those frequencies
         redistributeCrossovers(oldBandCount, newBandCount);
+        applyFrequencies();
         network_.setActiveBands(newBandCount);
     }
 
     /// @brief Set crossover frequency for a specific split point.
     /// The value is stored for every index, including crossovers the current
     /// band count does not use, so a later band-count increase finds it (D-022).
+    /// A running crossover runs at least half an octave above the one below it
+    /// (FR-BAND-002; see the header comment for the cap).
     /// @param index Crossover index (0 to kMaxBands-2)
     /// @param hz Frequency in Hz
     void setCrossoverFrequency(int index, float hz) noexcept {
@@ -143,7 +158,8 @@ public:
             return;
         }
         frequencyWasSet_[idx(index)] = true;
-        network_.setCrossoverFrequency(index, clampFrequency(hz));
+        requested_[idx(index)] = hz;
+        applyFrequencies();
     }
 
     // =========================================================================
@@ -155,7 +171,8 @@ public:
         return numBands_;
     }
 
-    /// @brief Get crossover frequency at index (1000 Hz for an invalid index).
+    /// @brief Running frequency of the crossover at index, spacing applied
+    /// (1000 Hz for an invalid index).
     [[nodiscard]] float getCrossoverFrequency(int index) const noexcept {
         return network_.getCrossoverFrequency(index);
     }
@@ -206,6 +223,11 @@ private:
         return numBands;
     }
 
+    /// @brief Highest crossover frequency: 20 kHz or 0.45 * sampleRate, whichever is lower.
+    [[nodiscard]] float maxFrequency() const noexcept {
+        return std::min(static_cast<float>(sampleRate_) * 0.45f, kMaxCrossoverHz);
+    }
+
     /// @brief Clamp frequency to valid range.
     [[nodiscard]] float clampFrequency(float freq) const noexcept {
         const float maxFreq = static_cast<float>(sampleRate_) * 0.45f;
@@ -233,9 +255,40 @@ private:
                 continue;
             }
             const float logFreq = logMin + step * static_cast<float>(i + 1);
-            network_.setCrossoverFrequency(i, clampFrequency(std::pow(10.0f, logFreq)));
+            requested_[idx(i)] = std::pow(10.0f, logFreq);
         }
         frequenciesInitialized_ = true;
+    }
+
+    /// @brief Hand the running frequencies to the network: each stored value
+    /// clamped to the range; over the running crossovers, each one at least
+    /// 2^kMinCrossoverSpacingOctaves times the one below (pushed up), then the
+    /// top one capped and each one below lowered to stay that far under the
+    /// next (FR-BAND-002, D-124).
+    void applyFrequencies() noexcept {
+        const float spacingRatio = std::pow(2.0f, kMinCrossoverSpacingOctaves);
+        std::array<float, kMaxBands - 1> f{};
+        for (std::size_t i = 0; i < f.size(); ++i) {
+            f[i] = clampFrequency(requested_[i]);
+        }
+        const auto running = static_cast<std::size_t>(numBands_ - 1);
+        for (std::size_t i = 1; i < running; ++i) {
+            f[i] = std::max(f[i], f[i - 1] * spacingRatio);
+        }
+        if (running > 0) {
+            f[running - 1] = std::min(f[running - 1], maxFrequency());
+            for (std::size_t i = running - 1; i-- > 0;) {
+                if (f[i] * spacingRatio > f[i + 1]) {  // a pair the forward pass spaced stays exact
+                    f[i] = f[i + 1] / spacingRatio;
+                }
+            }
+        }
+        for (std::size_t i = 0; i < f.size(); ++i) {
+            const auto index = static_cast<int>(i);
+            if (network_.getCrossoverFrequency(index) != f[i]) {
+                network_.setCrossoverFrequency(index, f[i]);
+            }
+        }
     }
 
     /// @brief Redistribute crossovers when band count changes.
@@ -286,7 +339,7 @@ private:
             const auto parts = static_cast<float>(end - i + 1);
             for (int k = i; k < end; ++k) {
                 const float frac = static_cast<float>(k - i + 1) / parts;
-                network_.setCrossoverFrequency(k, clampFrequency(lower * std::pow(upper / lower, frac)));
+                requested_[idx(k)] = lower * std::pow(upper / lower, frac);
             }
             i = end;
         }
@@ -306,6 +359,10 @@ private:
 
     // The split: N-1 LR4 crossovers, band and dry-path allpass compensation
     Krate::DSP::MultibandCrossover<kMaxBands> network_;
+
+    // The frequency each crossover was given (or its default); the running
+    // ones are derived from these by applyFrequencies()
+    std::array<float, kMaxBands - 1> requested_ = kInitialFrequencies;
 
     // Crossovers given a value through setCrossoverFrequency()
     std::array<bool, kMaxBands - 1> frequencyWasSet_{};

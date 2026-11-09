@@ -60,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The Morph Smooth knob sat under the Nodes buttons** — The knob is moved down so it is fully visible and clickable.
 - **Preset loads re-applied each band's nodes once per setting** — A preset chosen in the preset browser sends 272 node settings in one audio block, and each one re-applied all four nodes of its band and re-routed their distortion settings: 272 times in that block. A band's nodes are now applied once per block, however many of its settings changed.
 - **A project could hang on its second load** — A saved custom sweep curve with a middle point at the very start or end of the curve loaded once, but loading that state again into the same instance looped forever on the host's thread. Loading now always finishes, and curve points that are not finite numbers are skipped.
+- **Crossovers could run closer than half an octave** — Only a divider drag kept adjacent crossovers half an octave apart; automation, the host's parameter list or a loaded project could set them closer, or out of order. The audio engine now runs each crossover at least half an octave above the one below it and returns it to its own setting when the one below moves away. Near the top of the range, where the upper limit (20 kHz, or 45 % of the sample rate if lower) leaves no room, the highest crossover takes the limit and the ones below it step down by half an octave each. The factory presets are not affected.
 
 ### Changed
 

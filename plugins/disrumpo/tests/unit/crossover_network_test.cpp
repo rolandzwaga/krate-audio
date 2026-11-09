@@ -471,21 +471,79 @@ TEST_CASE("CrossoverNetwork manual crossover frequency adjustment", "[crossover]
     }
 }
 
-TEST_CASE("CrossoverNetwork minimum spacing constraint", "[crossover][US5]") {
-    // Minimum spacing of 0.5 octaves between adjacent crossovers
+// D-124 (fix plan T5.04): FR-BAND-002 keeps adjacent running crossovers at least
+// kMinCrossoverSpacingOctaves (0.5 octave) apart, the rule the spectrum display's
+// divider drag applies. The network holds crossover i >= f[i-1] * 2^0.5 and keeps
+// the frequency it was given, so it returns there when the one below moves away.
+TEST_CASE("CrossoverNetwork holds each crossover half an octave above the one below", "[crossover][US5][D-124]") {
+    const float ratio = std::pow(2.0f, Disrumpo::kMinCrossoverSpacingOctaves);
     Disrumpo::CrossoverNetwork network;
     network.prepare(44100.0, 4);
 
-    // Set crossover 0 to 1000Hz
     network.setCrossoverFrequency(0, 1000.0f);
+    network.setCrossoverFrequency(1, 1200.0f);  // 0.26 octave above crossover 0
+    const float f0 = network.getCrossoverFrequency(0);
+    const float f1 = network.getCrossoverFrequency(1);
+    const float f2 = network.getCrossoverFrequency(2);
+    std::printf("D-124 crossovers set 1000 / 1200 Hz: running %.2f / %.2f / %.2f Hz (f0 * 2^0.5 = %.2f)\n",
+                static_cast<double>(f0), static_cast<double>(f1), static_cast<double>(f2),
+                static_cast<double>(f0 * ratio));
+    REQUIRE(f0 == 1000.0f);
+    REQUIRE(f1 >= f0 * ratio);
+    REQUIRE_THAT(f1, WithinRel(1000.0f * ratio, 1e-6f));
+    REQUIRE(f2 >= f1 * ratio);
 
-    // Set crossover 1 - should maintain minimum spacing
-    // 0.5 octaves above 1000Hz = 1000 * 2^0.5 = ~1414Hz
-    // Setting it lower should be allowed (no automatic clamping to spacing constraint)
-    // Note: The spec mentions spacing constraint but doesn't require automatic enforcement
-    // This test verifies the behavior - manual frequencies are accepted as-is
-    network.setCrossoverFrequency(1, 1200.0f);
-    REQUIRE_THAT(network.getCrossoverFrequency(1), WithinAbs(1200.0f, 0.01f));
+    // The order the two values arrive in does not matter (a state load sets them one by one)
+    Disrumpo::CrossoverNetwork reversed;
+    reversed.prepare(44100.0, 4);
+    reversed.setCrossoverFrequency(1, 1200.0f);
+    reversed.setCrossoverFrequency(0, 1000.0f);
+    REQUIRE(reversed.getCrossoverFrequency(1) == f1);
+
+    // Crossover 0 moves away again: crossover 1 is back at the 1200 Hz it was given
+    network.setCrossoverFrequency(0, 500.0f);
+    REQUIRE(network.getCrossoverFrequency(1) == 1200.0f);
+}
+
+// Where the spacing meets the 20 kHz / 0.45 fs cap, the top running crossover
+// takes the cap and each one below it is lowered to half an octave under the next.
+TEST_CASE("CrossoverNetwork spacing below the frequency cap", "[crossover][US5][D-124]") {
+    const float ratio = std::pow(2.0f, Disrumpo::kMinCrossoverSpacingOctaves);
+    const float cap = 44100.0f * 0.45f;
+
+    SECTION("four bands, every crossover set to 20 kHz") {
+        Disrumpo::CrossoverNetwork network;
+        network.prepare(44100.0, 4);
+        for (int i = 0; i < 3; ++i) network.setCrossoverFrequency(i, 20000.0f);
+        const float f[3] = {network.getCrossoverFrequency(0), network.getCrossoverFrequency(1),
+                            network.getCrossoverFrequency(2)};
+        std::printf("D-124 4 bands, all set to 20 kHz: running %.1f / %.1f / %.1f Hz (cap %.1f)\n",
+                    static_cast<double>(f[0]), static_cast<double>(f[1]), static_cast<double>(f[2]),
+                    static_cast<double>(cap));
+        REQUIRE_THAT(f[2], WithinRel(cap, 1e-6f));
+        REQUIRE_THAT(f[1], WithinRel(cap / ratio, 1e-6f));
+        REQUIRE_THAT(f[0], WithinRel(cap / (ratio * ratio), 1e-6f));
+        REQUIRE(f[1] >= f[0] * ratio * (1.0f - 1e-6f));
+        REQUIRE(f[2] >= f[1] * ratio * (1.0f - 1e-6f));
+    }
+
+    SECTION("a band-count increase above a high crossover") {
+        Disrumpo::CrossoverNetwork network;
+        network.prepare(44100.0, 2);
+        network.setCrossoverFrequency(0, 15000.0f);
+        network.setCrossoverFrequency(1, 100.0f);  // idle at 2 bands: does not move crossover 0
+        REQUIRE(network.getCrossoverFrequency(0) == 15000.0f);
+        network.setBandCount(4);
+        const float f[3] = {network.getCrossoverFrequency(0), network.getCrossoverFrequency(1),
+                            network.getCrossoverFrequency(2)};
+        std::printf("D-124 15 kHz at 2 bands, then 4 bands: running %.1f / %.1f / %.1f Hz\n",
+                    static_cast<double>(f[0]), static_cast<double>(f[1]), static_cast<double>(f[2]));
+        REQUIRE(f[2] <= cap);
+        REQUIRE(f[1] >= f[0] * ratio * (1.0f - 1e-6f));
+        REQUIRE(f[2] >= f[1] * ratio * (1.0f - 1e-6f));
+        network.setBandCount(2);
+        REQUIRE(network.getCrossoverFrequency(0) == 15000.0f);  // back where it was set
+    }
 }
 
 // =============================================================================

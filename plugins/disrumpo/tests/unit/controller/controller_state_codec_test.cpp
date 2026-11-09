@@ -205,6 +205,9 @@ TEST_CASE("Crossover normalized<->Hz mapping is log10 everywhere", "[disrumpo][s
         auto* sParam = c.getParameterObject(kSweepFreqId);
         REQUIRE(xParam != nullptr);
         REQUIRE(sParam != nullptr);
+        // Two bands: crossover 0 is the only running one, so the half-octave spacing
+        // (D-124) cannot move it at 20 kHz
+        rig.apply({{kBandCountId, 1.0 / 3.0}});
         for (const double hz : {20.0, 100.0, 1000.0, 10000.0, 20000.0}) {
             const double xNorm = refCrossoverHzToNorm(hz);
             const double sNorm = refSweepHzToNorm(hz);
