@@ -15,6 +15,18 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
    cross-family types 21.66 % even after control-rate routing cut the per-engine cost 3.64× (0.669 % vs 2.437 %).
    The fix plan's 5 % band-level budget for that case was not adopted (unmeasured, not a spec number); probe
    `[.][t220-cpu-probe]`.
+   — T5.09 (2026-11-09): `integration/processor_cpu_test.cpp` now times `Processor::process` (44.1 kHz, 512,
+   [performance]). Budgets: 5 % for 4 bands at 4x one node per band (003 PT-DI-002; PT-DI-003 is 8 bands, so the
+   "10 %" above misread it), 15 % for 4 bands x 4 nodes (specs-overview / 009 SC-001 / PT-DI-004). Four
+   bit-identical optimisations (morph weights cached, engine and adapter block paths, BiquadCascade sample-major
+   then SSE2-skewed with a stereo pair in the IIR Oversampler). CPU lane, baseline -> final: HardClip x4 at 4x
+   17.70 -> 4.02 % GREEN; 4 Formant 21.72 -> 11.35 % GREEN; HardClip/SineFold/FullRectify/RingSaturation at 4x
+   38.53 -> 14.88 % GREEN (2 % margin); Formant/Chaos/Granular/Fractal 47.36 -> 26.98 % **RED, needs a ruling**.
+   Profile of the red case: FractalDistortion's Harmonic mode (the default node: mode slot 0.5 = Harmonic, about 5
+   iterations, two 8-term Chebyshev Clenshaw sums plus two waveshapers per iteration per sample) 35 %, Granular 21 %,
+   Waveshaper / tanh 15 %, the oversampler about 3 %. Fractal alone at zero cost would leave about 18 %; no
+   bit-identical refactor closes it. Options: cheaper Fractal Harmonic / Granular algorithms (a sound change beyond
+   float noise, needs a ruling), or lighter defaults for those nodes (also a sound change).
 2. **Band bypass is a hard switch** (as the plan specified). Toggling bypass off steps the output by 0.743 against
    a steady sample step of 0.050 (≈15x); on by 0.335. Smoothing it (short crossfade) is a design choice.
 3. **Fresh-instance morph smoothing default.** T1.03 (`9c427498`) made a fresh instance follow the registered

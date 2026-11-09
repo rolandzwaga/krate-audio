@@ -394,6 +394,13 @@ private:
     // IIR processing paths
     void upsampleIir(const float* input, float* output, size_t numSamples, size_t channel) noexcept;
     void downsampleIir(const float* input, float* output, size_t numSamples, size_t channel) noexcept;
+    // Both channels of a stereo IIR path at once: the same output as the per-channel
+    // functions for channels 0 and 1, the two channels' filters run as one loop
+    // (BiquadCascade::processBlockPair)
+    void upsampleIirStereo(const float* inL, const float* inR, float* outL, float* outR,
+                           size_t numSamples) noexcept;
+    void downsampleIirStereo(const float* inL, const float* inR, float* outL, float* outR,
+                             size_t numSamples) noexcept;
 
     // FIR processing paths
     void upsampleFir(const float* input, float* output, size_t numSamples, size_t channel) noexcept;
@@ -671,6 +678,78 @@ void Oversampler<Factor, NumChannels>::downsampleIir(
     }
 }
 
+template<size_t Factor, size_t NumChannels>
+void Oversampler<Factor, NumChannels>::upsampleIirStereo(
+    const float* inL,
+    const float* inR,
+    float* outL,
+    float* outR,
+    size_t numSamples
+) noexcept {
+    // upsampleIir for channels 0 and 1, each filter stage as one pair call
+    using Cascade = BiquadCascade<4>;
+    const std::array<const float*, 2> in{inL, inR};
+    const std::array<float*, 2> out{outL, outR};
+    for (size_t ch = 0; ch < 2; ++ch) {
+        for (size_t i = 0; i < numSamples; ++i) {
+            out[ch][i * 2] = in[ch][i] * 2.0f;  // zero-stuffing with gain compensation
+            out[ch][i * 2 + 1] = 0.0f;
+        }
+    }
+    Cascade::processBlockPair(iirUpsampleFilters_[getFilterIndex(0, 0)], outL,
+                              iirUpsampleFilters_[getFilterIndex(1, 0)], outR, numSamples * 2);
+    if constexpr (Factor != 2) {
+        // Stage 2: 2x -> 4x (in-place expansion, backwards)
+        for (size_t ch = 0; ch < 2; ++ch) {
+            float* o = out[ch];
+            for (size_t i = numSamples * 2; i > 0; --i) {
+                const size_t srcIdx = i - 1;
+                const size_t dstIdx = (i - 1) * 2;
+                o[dstIdx + 1] = 0.0f;
+                o[dstIdx] = o[srcIdx] * 2.0f;
+            }
+        }
+        Cascade::processBlockPair(iirUpsampleFilters_[getFilterIndex(0, 1)], outL,
+                                  iirUpsampleFilters_[getFilterIndex(1, 1)], outR, numSamples * 4);
+    }
+}
+
+template<size_t Factor, size_t NumChannels>
+void Oversampler<Factor, NumChannels>::downsampleIirStereo(
+    const float* inL,
+    const float* inR,
+    float* outL,
+    float* outR,
+    size_t numSamples
+) noexcept {
+    // downsampleIir for channels 0 and 1, each filter stage as one pair call
+    using Cascade = BiquadCascade<4>;
+    float* tempL = tempBuffer_.data();
+    float* tempR = tempBuffer_.data() + maxBlockSize_ * Factor;
+    std::copy(inL, inL + numSamples * Factor, tempL);
+    std::copy(inR, inR + numSamples * Factor, tempR);
+    if constexpr (Factor == 2) {
+        Cascade::processBlockPair(iirDownsampleFilters_[getFilterIndex(0, 0)], tempL,
+                                  iirDownsampleFilters_[getFilterIndex(1, 0)], tempR, numSamples * 2);
+    } else {
+        // Stage 1: 4x -> 2x, decimate
+        Cascade::processBlockPair(iirDownsampleFilters_[getFilterIndex(0, 1)], tempL,
+                                  iirDownsampleFilters_[getFilterIndex(1, 1)], tempR, numSamples * 4);
+        for (size_t i = 0; i < numSamples * 2; ++i) {
+            tempL[i] = tempL[i * 2];
+            tempR[i] = tempR[i * 2];
+        }
+        // Stage 2: 2x -> 1x
+        Cascade::processBlockPair(iirDownsampleFilters_[getFilterIndex(0, 0)], tempL,
+                                  iirDownsampleFilters_[getFilterIndex(1, 0)], tempR, numSamples * 2);
+    }
+    // Final decimation
+    for (size_t i = 0; i < numSamples; ++i) {
+        outL[i] = tempL[i * 2];
+        outR[i] = tempR[i * 2];
+    }
+}
+
 // =============================================================================
 // FIR Processing Paths
 // =============================================================================
@@ -848,9 +927,13 @@ void Oversampler<Factor, NumChannels>::process(
     float* osLeft = oversampledBuffer_.data();
     float* osRight = oversampledBuffer_.data() + maxBlockSize_ * Factor;
 
-    // Upsample
-    upsample(left, osLeft, numSamples, 0);
-    upsample(right, osRight, numSamples, 1);
+    // Upsample (the IIR path runs both channels' filters as one loop: same output)
+    if (useFir_) {
+        upsample(left, osLeft, numSamples, 0);
+        upsample(right, osRight, numSamples, 1);
+    } else {
+        upsampleIirStereo(left, right, osLeft, osRight, numSamples);
+    }
 
     // Apply user callback at oversampled rate
     if (callback) {
@@ -858,8 +941,12 @@ void Oversampler<Factor, NumChannels>::process(
     }
 
     // Downsample
-    downsample(osLeft, left, numSamples, 0);
-    downsample(osRight, right, numSamples, 1);
+    if (useFir_) {
+        downsample(osLeft, left, numSamples, 0);
+        downsample(osRight, right, numSamples, 1);
+    } else {
+        downsampleIirStereo(osLeft, osRight, left, right, numSamples);
+    }
 }
 
 template<size_t Factor, size_t NumChannels>

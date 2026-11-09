@@ -933,6 +933,8 @@ add_executable(dsp_ieee_tests
     unit/core/fast_math_nonfinite_test.cpp
     # Disrumpo audit T4.15 (D-167): Asymmetric::diode maps -Inf to its -2 limit, not NaN
     unit/core/sigmoid_nonfinite_test.cpp
+    # Disrumpo audit T5.09: BiquadCascade block / pair paths and the stereo IIR oversampler, bit for bit
+    unit/primitives/biquad_cascade_block_test.cpp
     # bit-exactness TUs (moved from dsp_processors_tests)
     unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/drop_phase_lock_test.cpp
@@ -1398,6 +1400,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/fast_math_nonfinite_test.cpp
         # Disrumpo audit T4.15: injects -Inf/NaN bit patterns (D-167).
         unit/core/sigmoid_nonfinite_test.cpp
+        # Disrumpo audit T5.09: bit-exactness against Biquad::process, NaN/Inf bit patterns.
+        unit/primitives/biquad_cascade_block_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 
