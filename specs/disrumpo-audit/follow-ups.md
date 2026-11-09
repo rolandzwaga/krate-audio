@@ -217,6 +217,18 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 58. **`controller/views/custom_curve_editor.{h,cpp}` is no longer referenced but still built** (T2.22 deleted its
     creation). Delete the files or re-enable the editor when follow-up 19 (custom curve applied live) is done.
 
+59. **Factory preset loudness spread is 22 dB** after T3.01 (`d91c4b7e`, 2 s pink noise peak −12 dBFS): min −27.2
+    dBFS (Morph/Rectify_Blend), median −12.4, max −5.65 (Experimental/Alien_Voice). T3.01 only lowered gains to meet
+    peak ≤ −0.3 dBFS (66 presets, −0.1 to −9.8 dB); evening out loudness is a voicing decision. Per-preset table:
+    `f:/tmp/disrumpo-fix/t301-preset-table.md`.
+60. **Follow-up 16 measured on the final presets** (T3.01): with the global Sweep Morph Link active, Formant_Vowels'
+    link contribution is as loud as the preset itself (difference −10.15 dBFS), Ease_In_Morph +3.3 dB louder,
+    Wide_Sweep −15 dBFS difference; Step_Scanner / Wah_Wah_Drive / Wide_Sweep would peak +0.5 / +1.3 / +1.5 dBFS
+    if the link were set to None (their trims assume the link). Decide with item 16.
+61. **Granular outputs DC on noise but not on a sine** (T3.01 found it while tracing preset DC; now masked by the
+    adapter's 10 Hz blocker, which T3.01 extended to SineFold/TriangleFold/SergeFold/Chaos/Granular — kept by my
+    ruling: a distortion stage should not emit DC). Root cause not investigated.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
