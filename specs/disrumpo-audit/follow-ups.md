@@ -27,6 +27,22 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
    Waveshaper / tanh 15 %, the oversampler about 3 %. Fractal alone at zero cost would leave about 18 %; no
    bit-identical refactor closes it. Options: cheaper Fractal Harmonic / Granular algorithms (a sound change beyond
    float noise, needs a ruling), or lighter defaults for those nodes (also a sound change).
+   — T5.09 near-identical pass (user ruling 2026-11-09: float-noise changes allowed at <= -100 dB residual; also bring
+   the mixed 4x case to <= 13.5 %): STOPPED, nothing committed but the probe. `[t509-render-dump]` now also renders
+   each node type of both cases alone at 44.1 and 96 kHz. (1) Fractal Harmonic's two Chebyshev mixes as a Horner
+   polynomial in double (mathematically the same mix, closer to exact): residual -52.8 dB (Fractal alone, 44.1 kHz),
+   -48.6 dB (96 kHz), -80.8 dB in the budget mix, max |diff| 4.9e-3. The Harmonic recursion (residual x drive x
+   scale, about 5 levels) amplifies a 1e-7 change to -50 dB, so no float-level rewrite of anything feeding a Fractal
+   node meets -100 dB; only bit-identical changes qualify there. CPU of that rejected change: budget mix 40.0 ->
+   35.7 % on a loaded machine (-11 %). (2) processRaw forced inline into the adapter span loop: bit-identical, no
+   gain (cross 15.19 -> 15.45 %, noise). Remaining near-identical candidates (RingSaturation phase reciprocal, one
+   finiteness test in OnePoleLP, GrainPool active list) are 1-2 % each, inside the A/B noise. Sound-changing options
+   for the red case, estimated from the profile (Fractal Harmonic 35 %, Granular 21 %, waveshapers 12 %, nodes about
+   85 % of the case): Experimental-family types at 1x instead of 2x (oversampling choice; about -11 points, lands near
+   15 %); fewer default Fractal iterations (cost is linear in iterations: 5 -> 3 about -4 points); the Horner rewrite
+   above (about -3 points); a lower default grain density (about -2 to -3 points). The mixed 4x case stays at 14.88 %
+   (budget 15 %): its time is the 4x oversampler (10 %), RingSaturation (15 %), the adapter dispatch (11 %) and the
+   per-node tone / DC filters (10 %), none with a near-identical lever above the noise.
 2. **Band bypass is a hard switch** (as the plan specified). Toggling bypass off steps the output by 0.743 against
    a steady sample step of 0.050 (≈15x); on by 0.335. Smoothing it (short crossfade) is a design choice.
 3. **Fresh-instance morph smoothing default.** T1.03 (`9c427498`) made a fresh instance follow the registered

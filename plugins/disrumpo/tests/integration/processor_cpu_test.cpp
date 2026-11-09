@@ -75,14 +75,14 @@ ts::PList fourBands(const std::array<DistortionType, 4>& types, int nodeCount) {
 
 /// Broadband input that reaches every band: 80 Hz, 440 Hz, 2.5 kHz and 9 kHz,
 /// each at -18 dBFS (about -12 dBFS together).
-std::vector<float> fourTones(size_t n, double phaseOffset) {
+std::vector<float> fourTones(size_t n, double phaseOffset, double sampleRate = kCpuSampleRate) {
     std::vector<float> x(n);
     constexpr std::array<double, 4> kHz{80.0, 440.0, 2500.0, 9000.0};
     const double amp = std::pow(10.0, -18.0 / 20.0);
     for (size_t i = 0; i < n; ++i) {
         double s = 0.0;
         for (double f : kHz) {
-            s += std::sin(2.0 * std::numbers::pi * f * static_cast<double>(i) / kCpuSampleRate + phaseOffset);
+            s += std::sin(2.0 * std::numbers::pi * f * static_cast<double>(i) / sampleRate + phaseOffset);
         }
         x[i] = static_cast<float>(amp * s);
     }
@@ -157,12 +157,13 @@ void report(const char* label, const CpuReading& r, double budget) {
 // and writes the raw float32 L/R output to t509_<name>.bin in the working directory.
 // Two builds' files are compared sample by sample.
 TEST_CASE("Probe: T5.09 render dump for A/B output equivalence", "[.][t509-render-dump]") {
-    const auto dump = [](const char* name, const ts::PList& params, bool moveCursor) {
-        ts::Rig rig(kCpuSampleRate, kCpuBlock);
+    const auto dump = [](const char* name, const ts::PList& params, bool moveCursor,
+                         double sampleRate = kCpuSampleRate) {
+        ts::Rig rig(sampleRate, kCpuBlock);
         rig.apply(params);
-        const size_t n = static_cast<size_t>(3.0 * kCpuSampleRate);
-        const auto inL = fourTones(n, 0.0);
-        const auto inR = fourTones(n, 0.3);
+        const size_t n = static_cast<size_t>(3.0 * sampleRate);
+        const auto inL = fourTones(n, 0.0, sampleRate);
+        const auto inR = fourTones(n, 0.3, sampleRate);
         std::vector<float> outL;
         std::vector<float> outR;
         rig.render(inL, inR, outL, outR, kCpuBlock, [moveCursor](size_t blk, size_t, ts::PChanges& pc) {
@@ -189,6 +190,14 @@ TEST_CASE("Probe: T5.09 render dump for A/B output equivalence", "[.][t509-rende
     dump("cross4x_moving", fourBands({DT::HardClip, DT::SineFold, DT::FullRectify, DT::RingSaturation}, 4), true);
     dump("formant4_moving", fourBands({DT::Formant, DT::Formant, DT::Formant, DT::Formant}, 4), true);
     dump("mixed_moving", fourBands({DT::Tube, DT::SergeFold, DT::Bitcrush, DT::Fractal}, 4), true);
+    // Each node type of the two morph budget cases alone (one node per band) at 44.1 and 96 kHz
+    for (const auto t : {DT::Formant, DT::Chaos, DT::Granular, DT::Fractal, DT::HardClip, DT::SineFold,
+                         DT::FullRectify, DT::RingSaturation}) {
+        for (const double sr : {44100.0, 96000.0}) {
+            const std::string name = std::string(getTypeName(t)) + "_" + std::to_string(static_cast<int>(sr));
+            dump(name.c_str(), fourBands({t, t, t, t}, 1), false, sr);
+        }
+    }
 }
 
 TEST_CASE("Processor CPU: 4 bands at 4x, one HardClip node per band, under 5 %",
