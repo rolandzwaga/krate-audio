@@ -280,6 +280,13 @@ private:
     // Computed weights (normalized, sum to 1.0)
     std::array<float, kMaxMorphNodes> weights_ = {0.5f, 0.5f, 0.0f, 0.0f};
 
+    // The cursor position weights_ was computed at (calculateMorphWeights). process()
+    // recomputes only when the smoothed cursor moves; setMode/setNodes recompute
+    // directly and reset() invalidates.
+    float weightsX_ = 0.0f;
+    float weightsY_ = 0.0f;
+    bool weightsValid_ = false;
+
     // Distortion adapters (one per potential node for parallel processing of different types)
     std::array<DistortionAdapter, kMaxMorphNodes> adapters_;
 

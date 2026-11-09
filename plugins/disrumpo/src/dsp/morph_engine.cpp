@@ -94,6 +94,7 @@ void MorphEngine::reset() noexcept {
 
     // Reset weights to default (50/50 for 2-node)
     weights_ = {0.5f, 0.5f, 0.0f, 0.0f};
+    weightsValid_ = false;
 
     // Reset modulation offsets
     driveModOffset_ = 0.0f;
@@ -222,6 +223,9 @@ float MorphEngine::getSmoothedY() const noexcept {
 
 void MorphEngine::calculateMorphWeights(float posX, float posY) noexcept {
     weights_ = computeWeights(mode_, nodes_, activeNodeCount_, posX, posY);
+    weightsX_ = posX;
+    weightsY_ = posY;
+    weightsValid_ = true;
 }
 
 namespace {
@@ -707,11 +711,12 @@ float MorphEngine::process(float input) noexcept {
     const float smoothedX = smootherX_.process();
     const float smoothedY = smootherY_.process();
 
-    // Recalculate weights if position changed
-    calculateMorphWeights(smoothedX, smoothedY);
-
-    // Update path check
-    allSameType_ = isSameType();
+    // Recalculate weights if position changed (they are a function of the mode, the
+    // nodes and the cursor; setMode/setNodes recompute them themselves). allSameType_
+    // only changes in setNodes, which updates it.
+    if (!weightsValid_ || smoothedX != weightsX_ || smoothedY != weightsY_) {
+        calculateMorphWeights(smoothedX, smoothedY);
+    }
 
     // A node type change can switch between the interpolated processor and the parallel
     // adapters, and a node count increase adds parallel adapters: the incoming ones were

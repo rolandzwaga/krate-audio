@@ -36,6 +36,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <numbers>
+#include <string>
 #include <vector>
 
 using namespace Disrumpo;
@@ -150,6 +151,45 @@ void report(const char* label, const CpuReading& r, double budget) {
 }
 
 }  // namespace
+
+// Output-equivalence probe for the T5.09 optimisations (hidden, asserts nothing):
+// renders each budget configuration, plus one whose morph cursor moves every block,
+// and writes the raw float32 L/R output to t509_<name>.bin in the working directory.
+// Two builds' files are compared sample by sample.
+TEST_CASE("Probe: T5.09 render dump for A/B output equivalence", "[.][t509-render-dump]") {
+    const auto dump = [](const char* name, const ts::PList& params, bool moveCursor) {
+        ts::Rig rig(kCpuSampleRate, kCpuBlock);
+        rig.apply(params);
+        const size_t n = static_cast<size_t>(3.0 * kCpuSampleRate);
+        const auto inL = fourTones(n, 0.0);
+        const auto inR = fourTones(n, 0.3);
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(inL, inR, outL, outR, kCpuBlock, [moveCursor](size_t blk, size_t, ts::PChanges& pc) {
+            if (!moveCursor) return;
+            const double x = 0.5 + 0.45 * std::sin(0.05 * static_cast<double>(blk));
+            const double y = 0.5 + 0.45 * std::cos(0.07 * static_cast<double>(blk));
+            for (uint8_t b = 0; b < kBands; ++b) {
+                pc.addChange(makeBandParamId(b, BandParamType::kBandMorphX), x);
+                pc.addChange(makeBandParamId(b, BandParamType::kBandMorphY), y);
+            }
+        });
+        const std::string path = std::string("t509_") + name + ".bin";
+        FILE* f = std::fopen(path.c_str(), "wb");
+        REQUIRE(f != nullptr);
+        std::fwrite(outL.data(), sizeof(float), outL.size(), f);
+        std::fwrite(outR.data(), sizeof(float), outR.size(), f);
+        std::fclose(f);
+    };
+    using DT = DistortionType;
+    dump("hardclip4x", fourBands({DT::HardClip, DT::HardClip, DT::HardClip, DT::HardClip}, 1), false);
+    dump("formant4", fourBands({DT::Formant, DT::Formant, DT::Formant, DT::Formant}, 4), false);
+    dump("expmix", fourBands({DT::Formant, DT::Chaos, DT::Granular, DT::Fractal}, 4), false);
+    dump("cross4x", fourBands({DT::HardClip, DT::SineFold, DT::FullRectify, DT::RingSaturation}, 4), false);
+    dump("cross4x_moving", fourBands({DT::HardClip, DT::SineFold, DT::FullRectify, DT::RingSaturation}, 4), true);
+    dump("formant4_moving", fourBands({DT::Formant, DT::Formant, DT::Formant, DT::Formant}, 4), true);
+    dump("mixed_moving", fourBands({DT::Tube, DT::SergeFold, DT::Bitcrush, DT::Fractal}, 4), true);
+}
 
 TEST_CASE("Processor CPU: 4 bands at 4x, one HardClip node per band, under 5 %",
           "[disrumpo][processor][performance]") {
