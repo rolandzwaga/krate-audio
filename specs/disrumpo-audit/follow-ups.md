@@ -635,6 +635,29 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     smoothing (10 ms: 319 clicks), not the weight law. 0 clicks with Oversample Max 1x or 2x, with RingSat's Harmonic
     carrier, or with RingSat replaced by SoftClip; still 331 with the Fixed carrier, 292 / 316 with FullRectify / SineFold
     replaced. Held with the level bar in `f:/tmp/disrumpo-fix/p6b/t606-held-bars.patch`; probe `[.][p6b-morph]`.
+    — INVESTIGATED 2026-11-09 (temporary probes, not committed); not a crossfade or morph defect; ruling needed.
+    The default Ring Saturation node runs carrier type Square (slot 3 = 0.5) in freq mode Track (slot 5 = 0.5, the
+    carrier follows the input frequency), 3 stages. (1) The clicks are the square carrier's edges: Fixed + Square
+    alone clicks at every factor in a steady render (834 / 828 / 794 clicks in 1.5 s at 1x / 2x / 4x, step 0.11,
+    -17.2 dB); a Sine carrier never clicks. With Track the carrier runs at 220 Hz, so its edges fall once per input
+    half period (the 109-sample period of the 2-sample falls) at a fixed input phase; at a quiet phase the shared
+    ClickDetector finds nothing (RingSat alone from a clean start: 0 clicks, step 0.009, -14.0 dB at every factor),
+    at a loud one it finds ~500 per 1.5 s. (2) That relative phase is set by the moment the carrier was last reset:
+    a factor switch (the old dip's bottom and now the crossfade's incoming lane alike) clears the adapter, so the
+    carrier restarts at phase 0 wherever the input is. RingSat alone at 4x, Oversample Max 4x -> 2x -> 4x at four
+    moments 64 samples apart: 1 stage -8.27 / -14.43 / -17.97 / -17.95 dB with 528 / 525 / 0 / 0 clicks after the
+    return (-7.98 dB, 0 clicks before); 3 stages -22.45 / -15.89 / -24.55 / -17.40 dB, 515-526 clicks (and already
+    50 clicks at -14.73 dB before the switch, rendered in 64-sample blocks: that sensitive). In the
+    4-node sweep the 2x -> 4x switch at 0.555 s lands on a loud phase: the end node reads -17.15 dB (1x / 2x, no
+    switch: -14.0 dB) and clicks to the end; with Oversample Max 1x / 2x there is no switch, hence 0 clicks. (3) In
+    the shared primitive (dsp/include/krate/dsp/primitives/ring_saturation.h, Disrumpo its only consumer)
+    processStage() runs the zero-crossing tracker and advances the carrier phase once per STAGE, so with 2-4 stages
+    the tracker compares different stages' signals and the carrier advances `stages` times per sample. Options: (a)
+    carry the oscillator state (carrier phase, tracked frequency) into the incoming lane at a factor crossfade (an
+    accessor on RingSaturation, copied by the adapter / MorphEngine), so a factor switch does not re-phase the
+    carrier; (b) update the tracker and the phase once per sample in RingSaturation; (c) measure the T6.06 4-node
+    click bar with a Sine carrier (a square carrier's edges are its sound), or default fresh RingSat nodes to Sine
+    (a sound change). The level bar's remainder is item 12 plus this re-phase (see item 12).
 85. **T6.07 full sweep automation: the plan's jump-ratio bar compares against the sweep off** (2026-11-09, needs a
     ruling). 4 bands SoftClip drive 3, four sines at -18 dBFS (150 / 700 / 3200 / 11000 Hz), sweep on at 100 %, its
     frequency automated 100 Hz -> 10 kHz over 2 s, LFO 5 Hz depth 1, envelope on: the largest sample step with the
