@@ -646,6 +646,12 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     max(static drive, drive x the sweep's peak multiplier) x 1.05, plus 0 clicks); (b) keep the sweep-off reference and
     rule the bar not applicable since D-019. Held patch `f:/tmp/disrumpo-fix/p6b/t607-held-jump.patch`; probe
     `[.][p6b-auto]` in `integration/processor_automation_test.cpp`.
+    — CLOSED 2026-11-09 (user ruling: option (a) with the static render at the equivalent drive, 4.5, as the
+    reference; bar unchanged, jump ratio <= 1.3 and 0 clicks). "Full sweep automation stays finite and keeps the
+    level" asserts it: largest step 0.5135 against 0.6141 at drive 4.5, ratio 0.84, 0 clicks (shared ClickDetector).
+    RED under a temporary break (each sweep intensity change above 0.05 reset the morph engines' state): 5 clicks,
+    ratio 1.15. The RMS bar keeps the sweep-off reference (+1.26 dB). Commit "test(disrumpo): T6.07 full sweep
+    automation against the static render at the sweep's drive".
 86. **T6.08: an active load does not render like the host-order load** (2026-11-09, needs a ruling). Reference: each
     factory preset loaded by setState before setupProcessing / setActive (44.1 kHz, 440 Hz -12 dBFS, 0.5 s). (a) The
     plan's literal bar (setState on an active processor, rendered at once, within 1e-5 of the reference): 119 of 120

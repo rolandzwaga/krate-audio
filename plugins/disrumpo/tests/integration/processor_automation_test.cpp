@@ -135,6 +135,7 @@ TEST_CASE("Parameter steps during playback keep the jump ratio at most 1.3", "[d
         r.apply(c.setup);
         r.reactivate();
         std::vector<size_t> at;
+        at.reserve(c.steps.size());
         for (const auto& s : c.steps) at.push_back(stepAt(s.tenths));
         std::vector<float> outL;
         std::vector<float> outR;
@@ -210,23 +211,34 @@ std::vector<float> renderFourSines(const PList& params, bool automate, size_t le
 
 TEST_CASE("Full sweep automation stays finite and keeps the level", "[disrumpo][audit][automation][sweep]") {
     // 4 bands SoftClip drive 3, sweep on at 100 % automated 100 Hz -> 10 kHz over 2 s,
-    // LFO 5 Hz depth 1, envelope on; reference: the same bands with the sweep off.
+    // LFO 5 Hz depth 1, envelope on. Level reference: the same bands with the sweep off.
+    // Jump reference (user ruling 2026-11-09, follow-up 85): since D-019 the sweep raises the
+    // drive of the bands near its centre (x 1.5 at 100 %), so the largest sample step is
+    // compared against the static render at the drive the sweep reaches, drive 4.5 with the
+    // sweep off: ratio <= 1.3, and the shared ClickDetector finds no click.
     const size_t len = static_cast<size_t>(kSr * 2.0);
     size_t nonFinite = 0;
     const auto on = renderFourSines(withFullSweep(fourBands(0.3)), true, len, &nonFinite);
     const auto off = renderFourSines(fourBands(0.3), false, len);
+    const auto atSweepDrive = renderFourSines(fourBands(0.45), false, len);
     const double rmsOnDb = toDb(rmsOf(on.data(), len));
     const double rmsOffDb = toDb(rmsOf(off.data(), len));
-    const double ratio = maxJump(on.data(), len) / std::max(1e-12, maxJump(off.data(), len));
-    std::printf("T6.07 full sweep automation: non-finite %zu, jump ratio vs sweep off %.2f, RMS on %.2f dB, off %.2f dB, "
-                "delta %.2f dB\n",
-                nonFinite, ratio, rmsOnDb, rmsOffDb, rmsOnDb - rmsOffDb);
-    INFO("RMS on " << rmsOnDb << " dB, off " << rmsOffDb << " dB");
+    const double stepOn = maxJump(on.data(), len);
+    const double stepStatic = maxJump(atSweepDrive.data(), len);
+    const double ratio = stepOn / std::max(1e-12, stepStatic);
+    const size_t clicks = clickCount(on.data(), len, kSr);
+    std::printf("T6.07 full sweep automation: non-finite %zu, largest step %.4f, static drive 4.5 %.4f, jump ratio %.2f, "
+                "clicks %zu, RMS on %.2f dB, off %.2f dB, delta %.2f dB\n",
+                nonFinite, stepOn, stepStatic, ratio, clicks, rmsOnDb, rmsOffDb, rmsOnDb - rmsOffDb);
+    INFO("RMS on " << rmsOnDb << " dB, off " << rmsOffDb << " dB; jump ratio vs drive 4.5 " << ratio << ", clicks "
+                   << clicks);
     CHECK(nonFinite == 0);
     CHECK(std::fabs(rmsOnDb - rmsOffDb) <= 3.0);
+    CHECK(ratio <= 1.3);
+    CHECK(clicks == 0);
 }
 
-// Measurement probe (hidden) for the held jump-ratio bar of the full automation: the
+// Measurement probe (hidden) behind the full automation's jump reference (follow-up 85): the
 // largest sample step with the sweep on against static renders with every band's drive
 // raised by hand to what the sweep reaches (x 1.5 at 100 % on the centre, x 2 at 200 %),
 // and the clicks the shared detector finds.
