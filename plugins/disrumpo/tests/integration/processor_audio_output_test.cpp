@@ -1256,6 +1256,51 @@ TEST_CASE("SineFold and TriangleFold differ at defaults", "[disrumpo][wavefold][
     REQUIRE((rmsDiffDb > 1.0 || ratio < 0.85 || ratio > 1.15));
 }
 
+// Found by the T6.02 parity probe: Temporal and Stochastic read the Drive inside the adapter's
+// parameter routing, and the morph engine routes a node's type parameters before it stores
+// the node's new Drive, so on a 2-node band one Drive change reached those two types only
+// with the next node update. Node A carries the type, the cursor sits on it; node B is the
+// same type (identical-type path) or SoftClip (parallel path).
+TEST_CASE("One Drive change reaches a Temporal and a Stochastic node", "[disrumpo][drive]") {
+    const auto in = sineAt(static_cast<size_t>(kBlockSr), 1031.25, -6.0);
+    const auto levelDb = [&](DistortionType type, DistortionType partner, bool changeOnce) {
+        const double startDrive = changeOnce ? 0.25 : 0.75;
+        ts::Rig rig(kBlockSr);
+        rig.apply({{Disrumpo::kBandCountId, 0.0},
+                   {makeBandParamId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0},
+                   {makeBandParamId(0, BandParamType::kBandMorphX), 0.0},
+                   {makeBandParamId(0, BandParamType::kBandMorphY), 0.0},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(type)},
+                   {makeNodeParamId(0, 1, NodeParamType::kNodeType), typeNorm(partner)},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeMix), 1.0},
+                   {makeNodeParamId(0, 1, NodeParamType::kNodeMix), 1.0},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), startDrive},
+                   {makeNodeParamId(0, 1, NodeParamType::kNodeDrive), startDrive}});
+        rig.reactivate();
+        std::vector<float> outL;
+        std::vector<float> outR;
+        // Drive 2.5 -> 7.5 at 0.5 s: one parameter change per node, nothing after it
+        rig.render(in, in, outL, outR, 512, [&](size_t blk, size_t, ts::PChanges& pc) {
+            if (!changeOnce || blk != 47) return;
+            pc.addChange(makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.75);
+            pc.addChange(makeNodeParamId(0, 1, NodeParamType::kNodeDrive), 0.75);
+        });
+        const size_t from = outL.size() * 3 / 4;
+        return ts::toDb(ts::rmsOf(outL.data() + from, outL.size() - from));
+    };
+    for (const auto type : {DistortionType::Temporal, DistortionType::Stochastic}) {
+        for (const auto partner : {type, DistortionType::SoftClip}) {
+            const double changed = levelDb(type, partner, true);
+            const double direct = levelDb(type, partner, false);
+            std::printf("Drive change on %s (node B %s): %.2f dBFS after one change 2.5 -> 7.5, %.2f dBFS at 7.5 "
+                        "from the start\n", getTypeName(type), getTypeName(partner), changed, direct);
+            INFO(getTypeName(type) << " with node B " << getTypeName(partner) << ": " << changed
+                 << " dBFS after the change, " << direct << " dBFS at 7.5");
+            CHECK(std::fabs(changed - direct) <= 0.1);
+        }
+    }
+}
+
 // =============================================================================
 // Band-count changes during playback (audit D-023, D-140; fix plan T2.08)
 // =============================================================================

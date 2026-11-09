@@ -359,8 +359,16 @@ void DistortionAdapter::refreshLatencyMode() noexcept {
 // =============================================================================
 
 void DistortionAdapter::setCommonParams(const DistortionCommonParams& params) noexcept {
+    const bool driveChanged = params.drive != commonParams_.drive;
     commonParams_ = params;
     toneFilter_.setCutoff(std::clamp(params.toneHz, 200.0f, 8000.0f));
+    // Temporal and Stochastic take the Drive inside routeParamsToProcessor() (they are not
+    // pre-scaled), so a Drive change must re-route them: callers set the type parameters
+    // before the common ones (MorphEngine::setNodes)
+    if (driveChanged &&
+        (currentType_ == DistortionType::Temporal || currentType_ == DistortionType::Stochastic)) {
+        routeParamsToProcessor();
+    }
 }
 
 void DistortionAdapter::setParams(const DistortionParams& params) noexcept {

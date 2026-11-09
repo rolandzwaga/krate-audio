@@ -388,3 +388,9 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
 - Follow-up 75 closed (commit "fix(disrumpo): Chaos Speed registered over the range the processor runs", user ruling
   2026-11-09): Chaos Speed is a linear range parameter over `kChaosSpeedRange` (0.05–20 x, default 1x) at the same
   ID; T5.02's pin is replaced by a checked read-back. Details under item 75.
+- Found by the T6.02 parity probe (commit "fix(disrumpo): a Drive change re-routes Temporal and Stochastic"): those
+  two types read the Drive inside `DistortionAdapter::routeParamsToProcessor()`, and `MorphEngine::setNodes` sets a
+  node's type params before its common params, so on a 2+-node band one Drive change reached them only with the next
+  node update. `setCommonParams` now re-routes them when the Drive changes. Test "One Drive change reaches a Temporal
+  and a Stochastic node": Temporal with a SoftClip node B RED 3.51 dB low (-6.96 vs -3.45 dBFS), Stochastic 0.52 dB
+  (-18.33 vs -17.81); GREEN 0.00 dB for all four rows.

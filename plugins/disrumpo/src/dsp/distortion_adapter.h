@@ -290,7 +290,8 @@ public:
     // Parameter Control
     // =========================================================================
 
-    /// @brief Set common parameters.
+    /// @brief Set common parameters. A Drive change re-routes the types that read it in
+    /// their parameter routing (Temporal, Stochastic), whatever order setParams() came in.
     void setCommonParams(const DistortionCommonParams& params) noexcept;
 
     /// @brief Get current common parameters.
