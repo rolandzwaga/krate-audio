@@ -1866,3 +1866,53 @@ TEST_CASE("Processor output stays finite after one NaN sample with env->mix rout
         }
     }
 }
+
+// D-006 (T4.19): every node parameter in a ParameterChanges batch pushed all 4
+// nodes of its band to the BandProcessor (MorphEngine::setNodes on each engine,
+// all 4 adapters re-routed), so a preset load through the controller (272 node
+// IDs) did that 272 times in one process() call. A batch now pushes each band
+// it touched once, after the queue loop.
+TEST_CASE("A batch of node parameter changes pushes each band's nodes once", "[disrumpo][rt-safety][D-006]") {
+    Rig rig(48000.0);
+
+    // The engines one push reaches (setNodes per BandProcessor::setMorphNodes).
+    auto before = MorphEngine::debugSetNodesCalls.load();
+    rig.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.3}});
+    const auto perPush = MorphEngine::debugSetNodesCalls.load() - before;
+    REQUIRE(perPush > 0u);
+
+    // All 17 node parameters of band 0, node 1.
+    const auto nodeParams = [](uint8_t band) {
+        PList l;
+        for (const NodeParamType t : {NodeParamType::kNodeType, NodeParamType::kNodeDrive, NodeParamType::kNodeMix,
+                                      NodeParamType::kNodeTone, NodeParamType::kNodeBias, NodeParamType::kNodeFolds,
+                                      NodeParamType::kNodeBitDepth}) {
+            l.emplace_back(makeNodeParamId(band, 1, t), 0.4);
+        }
+        for (int s = 0; s < 10; ++s) {
+            l.emplace_back(makeNodeParamId(band, 1,
+                                           static_cast<NodeParamType>(static_cast<int>(NodeParamType::kNodeShape0) + s)),
+                           0.25);
+        }
+        return l;
+    };
+    const PList band0 = nodeParams(0);
+    REQUIRE(band0.size() == size_t{17});
+
+    before = MorphEngine::debugSetNodesCalls.load();
+    rig.apply(band0);
+    const auto oneBand = MorphEngine::debugSetNodesCalls.load() - before;
+
+    PList twoBands = band0;
+    const PList band1 = nodeParams(1);
+    twoBands.insert(twoBands.end(), band1.begin(), band1.end());
+    before = MorphEngine::debugSetNodesCalls.load();
+    rig.apply(twoBands);
+    const auto bothBands = MorphEngine::debugSetNodesCalls.load() - before;
+
+    std::printf("D-006 setNodes calls: one node param %llu, 17 node params of one band %llu, 34 of two bands %llu\n",
+                static_cast<unsigned long long>(perPush), static_cast<unsigned long long>(oneBand),
+                static_cast<unsigned long long>(bothBands));
+    CHECK(oneBand == perPush);
+    CHECK(bothBands == 2 * perPush);
+}

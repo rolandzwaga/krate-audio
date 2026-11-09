@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The editor could crash on close** — Closing the editor after switching a band from its Shape page back to Main could touch freed memory. Fixed.
 - **Modulation rings and the spectrum stopped after reopening the editor** — After the editor was closed and reopened, the modulation range rings on the sliders and the shared-memory spectrum stayed empty, and a host that connected the editor after activation got no spectrum. Both now work after any reopen or late connect.
 - **The Morph Smooth knob sat under the Nodes buttons** — The knob is moved down so it is fully visible and clickable.
+- **Preset loads re-applied each band's nodes once per setting** — A preset chosen in the preset browser sends 272 node settings in one audio block, and each one re-applied all four nodes of its band and re-routed their distortion settings: 272 times in that block. A band's nodes are now applied once per block, however many of its settings changed.
 
 ### Changed
 

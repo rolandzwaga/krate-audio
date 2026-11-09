@@ -20,7 +20,9 @@
 #include "display/display_bridge_log.h"
 
 #include <algorithm>  // for std::max, std::min
+#include <array>
 #include <cmath>      // for std::log10, std::pow
+#include <cstddef>
 #include <cstring>    // for memcpy
 #include <random>     // for instance ID generation
 
@@ -60,6 +62,10 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
     }
 
     const Steinberg::int32 numParamsChanged = changes->getParameterCount();
+
+    // Bands whose morph nodes changed in this batch: pushed once each after the
+    // loop, not once per parameter (D-006)
+    std::array<bool, kMaxBands> morphNodesDirty{};
 
     for (Steinberg::int32 i = 0; i < numParamsChanged; ++i) {
         Steinberg::Vst::IParamValueQueue* paramQueue = changes->getParameterData(i);
@@ -622,8 +628,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             }
                         }
 
-                        // Push updated nodes to BandProcessor
-                        bandProcessors_[band].setMorphNodes(cache.nodes, cache.activeNodeCount);
+                        // Pushed to the BandProcessor after the loop
+                        morphNodesDirty[band] = true;
                     }
                     break;
                 }
@@ -678,8 +684,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 int idx = normToListIndex(value, kMaxMorphNodes);
                                 int count = std::clamp(idx + 1, kMinActiveNodes, kMaxMorphNodes);
                                 bandMorphCache_[band].activeNodeCount = count;
-                                bandProcessors_[band].setMorphNodes(
-                                    bandMorphCache_[band].nodes, count);
+                                morphNodesDirty[band] = true;
                                 break;
                             }
                             case BandParamType::kBandMorphSmoothing: {
@@ -725,6 +730,13 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                     }
                 }
                 break;
+        }
+    }
+
+    for (std::size_t band = 0; band < morphNodesDirty.size(); ++band) {
+        if (morphNodesDirty[band]) {
+            const auto& cache = bandMorphCache_[band];
+            bandProcessors_[band].setMorphNodes(cache.nodes, cache.activeNodeCount);
         }
     }
 }
