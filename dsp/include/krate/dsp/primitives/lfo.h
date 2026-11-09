@@ -94,11 +94,8 @@ public:
     /// @brief Reset the LFO to initial state.
     void reset() noexcept {
         phaseAcc_.reset();
-        // Initialize random state with a deterministic seed
-        randomState_ = 12345u;
-        currentRandom_ = nextRandomValue();
-        previousRandom_ = currentRandom_;
-        targetRandom_ = nextRandomValue();
+        // Restart the random sequence from this instance's seed (see setSeed)
+        reseedRandom();
         // Reset crossfade state
         crossfadeProgress_ = 1.0f;  // Not crossfading
         hasProcessed_ = false;      // Allow immediate waveform changes after reset
@@ -118,12 +115,12 @@ public:
         double effectivePhase = wrapPhase(phaseAcc_.phase + phaseOffsetNorm_);
 
         // Apply symmetry/skew to wavetable-based waveforms
+        // In double: a float cast rounds phases in [1 - 2^-25, 1) up to 1.0.
         double lookupPhase = effectivePhase;
         if (symmetry_ != 0.5f &&
             waveform_ != Waveform::SampleHold &&
             waveform_ != Waveform::SmoothRandom) {
-            lookupPhase = static_cast<double>(
-                applySymmetry(static_cast<float>(effectivePhase), symmetry_));
+            lookupPhase = applySymmetry(effectivePhase, static_cast<double>(symmetry_));
         }
 
         float output = 0.0f;
@@ -307,6 +304,18 @@ public:
         quantizeSteps_ = (steps < 2) ? 0 : std::min(steps, 16);
     }
 
+    /// @brief Seed the SampleHold / SmoothRandom generator (MINSTD).
+    /// @param seed Any value; it is reduced mod 2^31 - 1, and 0 (the generator's
+    ///             fixed point) becomes 1. Restarts the random sequence now and
+    ///             at every reset(). Default 12345.
+    void setSeed(uint32_t seed) noexcept {
+        seed_ = seed % kMinstdModulus;
+        if (seed_ == 0u) {
+            seed_ = 1u;
+        }
+        reseedRandom();
+    }
+
     // =========================================================================
     // Query Methods
     // =========================================================================
@@ -435,11 +444,14 @@ private:
     [[nodiscard]] float readWavetable(size_t tableIndex, double phase) const noexcept {
         const auto& table = (*wavetables_)[tableIndex];
 
-        // Scale phase to table index
+        // Scale phase to table index. Both indices are masked: a phase that
+        // reaches 1.0 reads the table's start (the same point of the cycle),
+        // never table[kTableSize].
         double scaledPhase = phase * static_cast<double>(kTableSize);
-        size_t index0 = static_cast<size_t>(scaledPhase);
+        const auto rawIndex = static_cast<size_t>(scaledPhase);
+        size_t index0 = rawIndex & kTableMask;
         size_t index1 = (index0 + 1) & kTableMask;  // Wrap using bitmask
-        float frac = static_cast<float>(scaledPhase - static_cast<double>(index0));
+        float frac = static_cast<float>(scaledPhase - static_cast<double>(rawIndex));
 
         // Linear interpolation
         return table[index0] + frac * (table[index1] - table[index0]);
@@ -473,10 +485,19 @@ private:
     // =========================================================================
 
     [[nodiscard]] float nextRandomValue() noexcept {
-        // LCG parameters (same as MINSTD)
-        randomState_ = randomState_ * 48271u % 2147483647u;
+        // MINSTD: x <- 48271 x mod (2^31 - 1). The product needs 64 bits; a
+        // uint32 multiply wraps before the modulus (D-165).
+        randomState_ = static_cast<uint32_t>((uint64_t{randomState_} * 48271u) % kMinstdModulus);
         // Convert to [-1, 1] range
         return static_cast<float>(randomState_) / 1073741823.5f - 1.0f;
+    }
+
+    /// @brief Restart the random sequence from seed_ and draw the S&H / SmoothRandom values.
+    void reseedRandom() noexcept {
+        randomState_ = seed_;
+        currentRandom_ = nextRandomValue();
+        previousRandom_ = currentRandom_;
+        targetRandom_ = nextRandomValue();
     }
 
     // =========================================================================
@@ -520,11 +541,11 @@ private:
     /// @brief Apply symmetry/skew warping to phase.
     /// @param phase Raw phase in [0, 1)
     /// @return Warped phase in [0, 1)
-    [[nodiscard]] static float applySymmetry(float phase, float symmetry) noexcept {
+    [[nodiscard]] static double applySymmetry(double phase, double symmetry) noexcept {
         if (phase < symmetry) {
-            return 0.5f * (phase / symmetry);
+            return 0.5 * (phase / symmetry);
         } else {
-            return 0.5f + 0.5f * ((phase - symmetry) / (1.0f - symmetry));
+            return 0.5 + 0.5 * ((phase - symmetry) / (1.0 - symmetry));
         }
     }
 
@@ -557,6 +578,8 @@ private:
     bool retriggerEnabled_ = true;
 
     // Random state (for S&H and SmoothRandom)
+    static constexpr uint32_t kMinstdModulus = 2147483647u;  // 2^31 - 1
+    uint32_t seed_ = 12345u;       // setSeed(); reset() restarts from it
     uint32_t randomState_ = 12345u;
     float currentRandom_ = 0.0f;   // Current S&H value
     float previousRandom_ = 0.0f;  // SmoothRandom: previous target

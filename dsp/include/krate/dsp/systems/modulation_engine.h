@@ -98,6 +98,9 @@ public:
         maxBlockSize_ = maxBlockSize;
 
         lfo1_.prepare(sampleRate);
+        // Its own random sequence (D-165): with one shared seed, two Random /
+        // S&H LFOs at the same rate moved in lockstep.
+        lfo2_.setSeed(kLFO2Seed);
         lfo2_.prepare(sampleRate);
         envFollower_.prepare(sampleRate, maxBlockSize);
         random_.prepare(sampleRate);
@@ -813,6 +816,9 @@ private:
     // =========================================================================
     // Sources
     // =========================================================================
+
+    /// LFO2's random seed; LFO1 keeps the LFO default (12345).
+    static constexpr uint32_t kLFO2Seed = 54321u;
 
     LFO lfo1_;
     LFO lfo2_;
