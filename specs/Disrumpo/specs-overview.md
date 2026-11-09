@@ -214,7 +214,7 @@ Disrumpo provides a unified environment where:
 **FR-DIST-003: Type-Specific Parameters**
 
 Saturation: Bias (-1.0 to +1.0), Sag (0.0 to 1.0)
-Wavefold: Folds (1-8), Shape (0.0-1.0), Symmetry (0.0-1.0)
+Wavefold: Folds (1-12, folders clamp at 10), Shape (0.0-1.0), Symmetry (0.0-1.0)
 Digital: Bit Depth (4.0-16.0), Sample Rate Ratio (1.0-32.0), Smoothness (0.0-1.0)
 Dynamic: Sensitivity (0.0-1.0), Attack (1-500ms), Release (10-5000ms), Mode (Envelope Follow/Inverse Envelope/Derivative/Hysteresis; menu Follow/Inverse/Transient/Hyst; default Envelope Follow)
 Hybrid: Feedback (0.0-1.5), Delay (1-100ms), Stages (1-4), Modulation Depth (0.0-1.0)
@@ -224,8 +224,10 @@ Range rulings (Disrumpo audit D-102 / D-171, fix plan T4.06, 2026-11-09): the co
 are the DSP limits: Temporal Attack 1-500 ms and Release 10-5000 ms (TemporalDistortion kMaxAttackMs /
 kMaxReleaseMs), Aliasing Frequency Shift +/-5000 Hz (kMaxFrequencyShiftHz), Chaos Attractor Speed 0.01-100
 (ChaosWaveshaper kMin/kMaxAttractorSpeed), Formant Shift +/-24 st (FormantDistortion kMaxShift). Bit Depth is
-BitCrusher's 4-16 (T2.05). Folds is not ruled yet: this line says 1-8, the code maps 1-12 and the wavefolder
-clamps at 10.
+BitCrusher's 4-16 (T2.05). Folds (ruled 2026-11-09, fix plan T4.11): the code stands. The Folds shape slot maps
+1-12 (1 + 11 x slot; the node Folds parameter 1 + round(11 x value)), and the folders clamp the amount at 10
+(Wavefolder / WavefolderProcessor kMaxFoldAmount), so 10-12 sound the same. The factory presets depend on this
+mapping, so it is not rescaled to 1-10.
 
 ### 3.3 Morph System
 

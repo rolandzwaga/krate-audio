@@ -594,7 +594,9 @@ public:
     }
 
     /// @brief Process stereo sample pair in-place.
-    /// Applies sweep, distortion/morph with oversampling, gain, pan, and mute.
+    /// Applies sweep, distortion/morph, gain, pan, and mute, without oversampling:
+    /// the oversamplers, Oversample Max and band bypass run only in processBlock(),
+    /// which is the path Processor::process uses.
     /// Signal flow:
     /// 1. Sweep intensity scales the shaper's drive (D-019), never the band level
     /// 2. MorphEngine (or single distortion) processing

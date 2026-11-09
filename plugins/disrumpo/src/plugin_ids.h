@@ -156,7 +156,8 @@ constexpr bool isSweepParamId(Steinberg::Vst::ParamID paramId) {
 // =============================================================================
 // Output Parameter IDs (Processor -> Controller)
 // =============================================================================
-// Output parameters use standalone IDs outside the encoding scheme.
+// Output parameters use IDs from 0x0F80 up, inside the global 0x0Fxx range:
+// isGlobalParamId() returns true for them (no GlobalParamType names them).
 // These are read-only parameters written by the Processor and observed
 // by the Controller for real-time UI updates.
 // =============================================================================
@@ -328,7 +329,7 @@ constexpr NodeParamType extractNodeParamType(Steinberg::Vst::ParamID paramId) {
 
 /// @brief Check if a parameter ID is a node-level parameter.
 /// @param paramId Parameter ID to check
-/// @return true if this is a node-level parameter (node nibble = 0-3, band nibble = 0-7)
+/// @return true if this is a node-level parameter (node nibble = 0-3, band nibble = 0-3)
 constexpr bool isNodeParamId(Steinberg::Vst::ParamID paramId) {
     // Exclude global (0x0Fxx), sweep (0x0Exx), and modulation (0x0Dxx) ranges
     // These are in the format 0x0Xpp where X is D, E, or F

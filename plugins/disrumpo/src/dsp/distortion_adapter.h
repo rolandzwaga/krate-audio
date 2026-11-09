@@ -96,7 +96,7 @@ struct DistortionParams {
     float body = 0.5f;              ///< Asym fuzz body [0, 1]
 
     // Wavefold (D07-D09)
-    float folds = 1.0f;             ///< Fold count [1, 8]
+    float folds = 1.0f;             ///< Fold count [1, 12] (the folders clamp at 10)
     float shape = 0.0f;             ///< Fold curve shape [0, 1]
     float symmetry = 0.5f;          ///< Fold symmetry [0, 1]
     float angle = 0.5f;             ///< TriFold angle [0, 1]

@@ -30,6 +30,7 @@
 #include "midi/midi_cc_manager.h"
 #include "controller/keyboard_shortcut_handler.h"
 #include "controller/spectrum_block.h"
+#include "shared_display.h"
 
 #include "dsp/morph_node.h"
 
@@ -339,14 +340,8 @@ private:
     // SharedDisplayBridge (Tier 3 fallback)
     // ==========================================================================
 
-    /// Forward declaration of processor's shared display struct
-    struct SharedDisplay {
-        Krate::DSP::SpectrumFIFO<8192>* inputFIFO;
-        Krate::DSP::SpectrumFIFO<8192>* outputFIFO;
-        std::atomic<float>* sampleRate;
-    };
-
     uint64_t instanceId_{0};
+    /// The processor's SharedDisplay (shared_display.h), looked up by instanceId_
     SharedDisplay* sharedDisplay_{nullptr};
     bool dataExchangeActive_{false};
     int fallbackTickCounter_{0};

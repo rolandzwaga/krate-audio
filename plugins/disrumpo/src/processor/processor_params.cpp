@@ -203,8 +203,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             break;
 
                         case SweepParamType::kSweepLFONoteValue: {
-                            // Convert normalized [0,1] to note value index [0,15]
-                            // Standard note values: Whole, Half, Quarter, Eighth, Sixteenth (x3 for normal, dotted, triplet)
+                            // Convert normalized [0,1] to note value index [0, kNoteValueCount - 1] = [0, 29]
+                            // (the shared note-value dropdown, Krate::DSP::getNoteValueFromDropdown)
                             const int noteIndex = normToListIndex(value, kNoteValueCount);
                             const auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIndex);
                             sweepLFO_.setNoteValue(mapping.note, mapping.modifier);

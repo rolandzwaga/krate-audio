@@ -24,6 +24,7 @@
 #include "dsp/sweep_lfo.h"
 #include "dsp/sweep_envelope.h"
 #include "controller/spectrum_block.h"
+#include "shared_display.h"
 
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
@@ -348,17 +349,11 @@ private:
     // SharedDisplayBridge (Tier 3 fallback for hosts without DataExchange)
     // ==========================================================================
 
-    /// @brief Shared display data exposed to controller via SharedDisplayBridge
-    struct SharedDisplay {
-        Krate::DSP::SpectrumFIFO<8192>* inputFIFO;
-        Krate::DSP::SpectrumFIFO<8192>* outputFIFO;
-        std::atomic<float>* sampleRate;
-    };
-
     uint64_t instanceId_ = 0;
     Krate::DSP::SpectrumFIFO<8192> sharedInputFIFO_;
     Krate::DSP::SpectrumFIFO<8192> sharedOutputFIFO_;
     std::atomic<float> sharedSampleRate_{0.0f};
+    /// @brief Shared display data exposed to controller via SharedDisplayBridge
     SharedDisplay sharedDisplay_{};
 
     /// @brief Magic marker for instanceId in state stream

@@ -40,7 +40,10 @@ namespace Disrumpo {
 ///
 /// Thread Safety:
 /// - prepare()/reset(): Call from non-audio thread only
-/// - setMorphPosition/setMode/setNodes: Thread-safe parameter updates
+/// - setMorphPosition/setMode/setNodes and the other setters: NOT thread-safe
+///   (plain member writes). Call them on the audio thread: from parameter
+///   changes in process(), or through Processor::setState's pending state,
+///   which process() applies (consumePendingState)
 /// - process(): Real-time audio thread only
 ///
 /// @note Real-time safe: no allocations in process()
