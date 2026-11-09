@@ -15,6 +15,7 @@
 #include "../../test_support/disrumpo_rig.h"
 
 #include "controller/controller.h"
+#include "controller/format_helpers.h"
 #include "controller/views/spectrum_display.h"
 #include "plugin_ids.h"
 #include "state_codec.h"
@@ -29,6 +30,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -383,6 +385,49 @@ TEST_CASE("Controller setState rejects an oversized MIDI blob without allocating
     id = 0;
     REQUIRE(c.getMidiControllerAssignment(0, 0, 74, id) == Steinberg::kResultTrue);
     CHECK(id == kSweepFreqId);
+    c.terminate();
+}
+
+// T4.22 (D-073): a node shape slot's host text uses the type of the node that owns
+// the slot, never the band's displayed (selected-node) type.
+TEST_CASE("Node shape-slot host text follows the owning node's type", "[disrumpo][state][D-073]") {
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    constexpr uint8_t kBand = 0;
+    const auto typeNorm = [](DistortionType t) {
+        return listIndexToNorm(static_cast<int>(t), kDistortionTypeCount);
+    };
+    // Node A Bitcrush (selected, so the band displays Bitcrush), node B Tube
+    c.setParamNormalized(makeNodeParamId(kBand, 0, NodeParamType::kNodeType), typeNorm(DistortionType::Bitcrush));
+    c.setParamNormalized(makeNodeParamId(kBand, 1, NodeParamType::kNodeType), typeNorm(DistortionType::Tube));
+    c.setParamNormalized(makeBandParamId(kBand, BandParamType::kBandSelectedNode), 0.0);
+    c.setParamNormalized(makeBandParamId(kBand, BandParamType::kBandDisplayedType), typeNorm(DistortionType::Bitcrush));
+
+    const Steinberg::Vst::ParamID nodeBShape0 = makeNodeParamId(kBand, 1, NodeParamType::kNodeShape0);
+    constexpr float kValue = 0.3f;
+    std::array<float, kShapeSlotDescriptorCount> slots{};
+    for (int k = 0; k < kShapeSlotDescriptorCount; ++k) {
+        slots[static_cast<size_t>(k)] = static_cast<float>(c.getParamNormalized(makeNodeParamId(
+            kBand, 1, static_cast<NodeParamType>(static_cast<uint8_t>(NodeParamType::kNodeShape0) + k))));
+    }
+    slots[0] = kValue;
+
+    Steinberg::Vst::String128 asTube{};
+    Steinberg::Vst::String128 asBitcrush{};
+    REQUIRE(formatShapeSlot(DistortionType::Tube, 0, kValue, slots.data(), asTube));
+    REQUIRE(formatShapeSlot(DistortionType::Bitcrush, 0, kValue, slots.data(), asBitcrush));
+    const auto narrow = [](const Steinberg::Vst::String128 s) {
+        std::string out;
+        for (int i = 0; i < 128 && s[i] != 0; ++i) out.push_back(static_cast<char>(s[i]));
+        return out;
+    };
+    REQUIRE(narrow(asTube) != narrow(asBitcrush));
+
+    Steinberg::Vst::String128 host{};
+    REQUIRE(c.getParamStringByValue(nodeBShape0, kValue, host) == Steinberg::kResultTrue);
+    INFO("node B (Tube) Shape 0 host text: " << narrow(host) << ", Tube: " << narrow(asTube)
+                                              << ", Bitcrush: " << narrow(asBitcrush));
+    CHECK(narrow(host) == narrow(asTube));
     c.terminate();
 }
 

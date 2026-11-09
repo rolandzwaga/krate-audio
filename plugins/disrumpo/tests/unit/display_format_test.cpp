@@ -358,6 +358,10 @@ TEST_CASE("Ring Saturation carrier slot text follows the Freq mode slot", "[disr
     REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
     c.setParamNormalized(makeBandParamId(0, BandParamType::kBandDisplayedType),
                          static_cast<double>(static_cast<int>(DistortionType::RingSaturation)) / 25.0);
+    // Node A (the selected node the band displays) is the Ring Saturation node: a node
+    // slot's text reads its own node's type (D-073)
+    c.setParamNormalized(makeNodeParamId(0, 0, NodeParamType::kNodeType),
+                         static_cast<double>(static_cast<int>(DistortionType::RingSaturation)) / 25.0);
 
     const auto textOf = [&](Steinberg::Vst::ParamID id, double v) {
         Steinberg::Vst::String128 s{};

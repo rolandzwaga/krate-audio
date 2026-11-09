@@ -829,13 +829,13 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         if (paramByte >= static_cast<uint8_t>(NodeParamType::kNodeShape0) &&
             paramByte <= static_cast<uint8_t>(NodeParamType::kNodeShape9)) {
             uint8_t band = extractBandFromNodeParam(id);
-            auto displayedTypeId = makeBandParamId(band, BandParamType::kBandDisplayedType);
-            auto* dtParam = getParameterObject(displayedTypeId);
-            if (dtParam) {
-                int typeIdx = static_cast<int>(dtParam->getNormalized() * 25.0 + 0.5);
+            const uint8_t node = extractNode(id);
+            // The slot's meaning is the owning node's type, not the selected node's (D-073)
+            auto* typeParam = getParameterObject(makeNodeParamId(band, node, NodeParamType::kNodeType));
+            if (typeParam) {
+                int typeIdx = static_cast<int>(typeParam->getNormalized() * 25.0 + 0.5);
                 auto distType = static_cast<DistortionType>(std::clamp(typeIdx, 0, 25));
                 int slot = paramByte - static_cast<uint8_t>(NodeParamType::kNodeShape0);
-                const uint8_t node = extractNode(id);
                 std::array<float, kShapeSlotDescriptorCount> slots{};
                 for (int k = 0; k < kShapeSlotDescriptorCount; ++k) {
                     slots[static_cast<size_t>(k)] = static_cast<float>(getParamNormalized(makeNodeParamId(
