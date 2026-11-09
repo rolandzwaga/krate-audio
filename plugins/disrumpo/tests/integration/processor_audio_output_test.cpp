@@ -730,6 +730,38 @@ TEST_CASE("Processor tone filter cutoff matches the Tone parameter", "[disrumpo]
     };
     SECTION("Oversample Max 1x") { check(0.0, 1); }
     SECTION("Oversample Max 4x (SoftClip runs at 2x)") { check(2.0 / 3.0, 2); }
+
+    // The audit probe "tone-response" (fix plan T6.02): with Tone 4 kHz the processor's level
+    // at 1 / 2 / 4 / 8 kHz (re 250 Hz) is within 1 dB of a DistortionAdapter prepared at the
+    // host rate. Baseline: processor -2.98 / -7.00 / -12.46 / -18.93 dB against the adapter's
+    // -0.25 / -0.94 / -2.91 / -6.59 dB (re 100 Hz).
+    SECTION("Tone 4 kHz matches a DistortionAdapter prepared at the host rate") {
+        const auto adapterRms = [](double freqHz) {
+            auto adapter = std::make_unique<Disrumpo::DistortionAdapter>();
+            adapter->prepare(kBlockSr, 512);
+            adapter->setType(DistortionType::SoftClip);
+            adapter->setCommonParams({.drive = 0.1f, .mix = 1.0f, .toneHz = 4000.0f});
+            const auto in = sineAt(static_cast<size_t>(kBlockSr / 2.0), freqHz, -30.0);
+            std::vector<float> out(in.size());
+            for (size_t i = 0; i < in.size(); ++i) out[i] = adapter->process(in[i]);
+            const size_t half = out.size() / 2;
+            return ts::rmsOf(out.data() + half, out.size() - half);
+        };
+        for (const double osMax : {0.0, 2.0 / 3.0}) {
+            int factor = 0;
+            const double procRef = softClipToneRms(kTone4k, kRefHz, osMax, factor);
+            const double adapterRef = adapterRms(kRefHz);
+            for (const double f : {1000.0, 2000.0, 4000.0, 8000.0}) {
+                const double procDb = ts::toDb(softClipToneRms(kTone4k, f, osMax, factor) / procRef);
+                const double adapterDb = ts::toDb(adapterRms(f) / adapterRef);
+                std::printf("T6.02 tone 4 kHz at %.0f Hz (running factor %d): processor %.2f dB, adapter %.2f dB "
+                            "(re 250 Hz)\n", f, factor, procDb, adapterDb);
+                INFO("running factor " << factor << ", " << f << " Hz: processor " << procDb << " dB, adapter "
+                     << adapterDb << " dB (re 250 Hz)");
+                CHECK(std::fabs(procDb - adapterDb) <= 1.0);
+            }
+        }
+    }
 }
 
 namespace {

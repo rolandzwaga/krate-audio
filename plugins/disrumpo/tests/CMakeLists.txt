@@ -159,6 +159,7 @@ add_executable(disrumpo_tests
     integration/multi_node_distortion_test.cpp
     integration/bitcrush_noise_repro_test.cpp
     integration/processor_cpu_test.cpp
+    integration/processor_rate_parity_test.cpp
 
     # Integration tests - DataExchange spectrum pipeline
     integration/data_exchange_spectrum_test.cpp
@@ -237,6 +238,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/processor_stereo_test.cpp
         integration/processor_sweep_test.cpp
         dsp/type_render_matrix_test.cpp
+        integration/processor_rate_parity_test.cpp
         unit/spectrum_analyzer_test.cpp
         unit/test_support_smoke_test.cpp
         unit/meter_window_test.cpp
