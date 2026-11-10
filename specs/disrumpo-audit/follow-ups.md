@@ -930,3 +930,9 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   for the Ring Saturation carrier fix"): with the per-sample carrier (next commit) Experimental/Alien_Voice peaks +0.09
   dBFS on the [D-144] signal (was -0.37; the case's 0 dBFS bar RED). T3.01 rule: trim -1.5 -> -1.9 dB, peak -0.31
   dBFS; 120 / 120 ok, highest -0.30 (Punchy_Clip, Modulated_Edge, Wide_Sweep). Committed first so the fix lands green.
+- Header Bias knob visibility (user item 6, 2026-11-10, commit "feat(disrumpo): the band header's Bias knob shows only for
+  types that use bias"): editor.uidesc groups the header's Bias label and knob in one transparent container
+  (specs/disrumpo-audit/xslt/header-bias-group.xsl, same screen positions); a ContainerVisibilityController per band
+  (new predicate constructor) watches kBandDisplayedType and shows the group iff biasShapeSlot(type) >= 0. Case "The
+  band header's Bias knob shows only for the types that use bias" (headless editor): RED 18 of 26 types shown wrongly,
+  GREEN 0, follows the selected node and a type change from the header menu.

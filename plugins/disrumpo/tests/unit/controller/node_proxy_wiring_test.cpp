@@ -369,3 +369,53 @@ TEST_CASE("The band header's Bias knob edits the Bias slot of the types that hav
     }
     CHECK(typesWithSlot == 8);
 }
+
+// The band header's Bias knob (and its label) shows only while the selected node's type has a
+// Bias slot (user ruling 2026-11-10): the other 18 types do not use bias. It follows a type
+// change on the selected node and a change of the selected node.
+TEST_CASE("The band header's Bias knob shows only for the types that use bias", "[disrumpo][ui][bias]") {
+    NodeWiringRecordingController c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    {
+        HeadlessEditor ed(c);
+        REQUIRE(ed.ready());
+        auto* handler = Steinberg::UpdateHandler::instance();
+        const auto biasTag = static_cast<int32_t>(kDisplayedBiasId);
+        const auto shown = [&]() {
+            handler->triggerDeferedUpdates();
+            auto* group = Disrumpo::TestSupport::findContainerHoldingTag(ed.frame(), biasTag);
+            REQUIRE(group != nullptr);
+            return group->isVisible();
+        };
+        c.setParamNormalized(kActiveNodesId, listIndexToNorm(1, 4));  // 2 nodes
+        c.setParamNormalized(kSelectedNodeId, nodeNorm(0));
+        int wrong = 0;
+        for (int t = 0; t < kDistortionTypeCount; ++t) {
+            const auto type = static_cast<DistortionType>(t);
+            c.setParamNormalized(nodeParam(0, NodeParamType::kNodeType), typeNorm(type));
+            const bool want = biasShapeSlot(type) >= 0;
+            const bool got = shown();
+            if (got != want) {
+                std::printf("header Bias knob: type %d shown %d, want %d\n", t, got ? 1 : 0, want ? 1 : 0);
+                ++wrong;
+            }
+        }
+        std::printf("header Bias knob: %d of %d types shown wrongly\n", wrong, kDistortionTypeCount);
+        CHECK(wrong == 0);
+
+        // Follows the selected node: node 0 Tube (Bias slot), node 1 SoftClip (none)
+        c.setParamNormalized(nodeParam(0, NodeParamType::kNodeType), typeNorm(DistortionType::Tube));
+        c.setParamNormalized(nodeParam(1, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip));
+        CHECK(shown());
+        c.setParamNormalized(kSelectedNodeId, nodeNorm(1));
+        CHECK_FALSE(shown());
+        c.setParamNormalized(kSelectedNodeId, nodeNorm(0));
+        CHECK(shown());
+        // ... and a type change on it from the header's type menu
+        c.setParamNormalized(kDisplayedTypeId, typeNorm(DistortionType::HardClip));
+        CHECK_FALSE(shown());
+        c.setParamNormalized(kDisplayedTypeId, typeNorm(DistortionType::Fuzz));
+        CHECK(shown());
+    }
+    c.terminate();
+}

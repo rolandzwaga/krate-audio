@@ -27,6 +27,7 @@
 #include <functional>
 #include <initializer_list>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace Disrumpo {
@@ -159,6 +160,25 @@ public:
         }
     }
 
+    /// @brief Show the container while @p visibleFor(the watched parameter's normalized value) holds.
+    ContainerVisibilityController(
+        VSTGUI::VST3Editor** editorPtr,
+        Steinberg::Vst::Parameter* watchedParam,
+        Steinberg::int32 containerTag,
+        std::function<bool(double)> visibleFor)
+    : editorPtr_(editorPtr)
+    , watchedParam_(watchedParam)
+    , containerTag_(containerTag)
+    , threshold_(0.5f)
+    , visibleFor_(std::move(visibleFor))
+    {
+        if (watchedParam_) {
+            watchedParam_->addRef();
+            watchedParam_->addDependent(this);
+            watchedParam_->deferUpdate();
+        }
+    }
+
     ~ContainerVisibilityController() override {
         deactivate();
         if (watchedParam_) {
@@ -186,6 +206,9 @@ public:
             bool shouldBeVisible = showWhenBelow_ ?
                 (normalizedValue < threshold_) :
                 (normalizedValue >= threshold_);
+            if (visibleFor_) {
+                shouldBeVisible = visibleFor_(watchedParam_->getNormalized());
+            }
 
             auto* container = findContainerByTag(containerTag_);
             if (container) {
@@ -232,7 +255,8 @@ private:
     Steinberg::Vst::Parameter* watchedParam_;
     Steinberg::int32 containerTag_;
     float threshold_;
-    bool showWhenBelow_;
+    bool showWhenBelow_ = true;
+    std::function<bool(double)> visibleFor_;  // replaces the threshold when set
     std::atomic<bool> isActive_{true};
 };
 

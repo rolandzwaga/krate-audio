@@ -12,6 +12,7 @@
 #include <krate/dsp/core/modulation_types.h>
 #include "version.h"
 #include "dsp/band_state.h"
+#include "dsp/shape_slot_descriptors.h"
 #include "preset/disrumpo_preset_config.h"
 #include "controller/views/spectrum_display.h"
 #include "controller/views/morph_pad.h"
@@ -81,6 +82,11 @@ void SavePresetButton::onClick() {
 
 Controller::~Controller() {
     // Ensure visibility controllers are cleaned up
+    for (auto& vc : biasKnobVisibilityControllers_) {
+        if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) {
+            cvc->deactivate();
+        }
+    }
     for (auto& vc : bandVisibilityControllers_) {
         if (vc) {
             if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) {
@@ -1490,6 +1496,21 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             this, static_cast<uint8_t>(b), &shapeShadowStorage_[b]);
     }
 
+    // The header Bias knob and its label (one group, holding the Bias proxy) show only while the
+    // selected node's type has its own Bias slot: the other types do not use bias (user ruling
+    // 2026-11-10). The displayed type follows the selected node and its type changes.
+    for (int b = 0; b < kMaxBands; ++b) {
+        const auto band = static_cast<uint8_t>(b);
+        if (auto* typeParam = getParameterObject(makeBandParamId(band, BandParamType::kBandDisplayedType))) {
+            biasKnobVisibilityControllers_[b] = new ContainerVisibilityController(
+                &activeEditor_, typeParam,
+                static_cast<Steinberg::int32>(makeBandParamId(band, BandParamType::kBandDisplayedBias)),
+                [](double norm) {
+                    return biasShapeSlot(static_cast<DistortionType>(normToListIndex(norm, kDistortionTypeCount))) >= 0;
+                });
+        }
+    }
+
     sweepVisualizationController_ = new SweepVisualizationController(
         this, &sweepIndicator_, &spectrumDisplay_);
 
@@ -1594,6 +1615,12 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         if (nsc) {
             if (auto* c = dynamic_cast<NodeSelectionController*>(nsc.get())) c->deactivate();
             nsc = nullptr;
+        }
+    }
+    for (auto& vc : biasKnobVisibilityControllers_) {
+        if (vc) {
+            if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) cvc->deactivate();
+            vc = nullptr;
         }
     }
     for (auto& dns : dynamicNodeSelectors_) {

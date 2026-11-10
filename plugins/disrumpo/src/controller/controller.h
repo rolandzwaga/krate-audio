@@ -392,6 +392,8 @@ private:
     // ==========================================================================
     // Updates DisplayedType proxy when SelectedNode changes
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> nodeSelectionControllers_;
+    /// Per band: the header Bias knob's group shows only for types with a Bias slot (user ruling 2026-11-10)
+    std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> biasKnobVisibilityControllers_;
 
     // ==========================================================================
     // Shape Shadow Storage (Phase 2: per-type slot isolation)
