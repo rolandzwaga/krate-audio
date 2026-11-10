@@ -432,8 +432,11 @@ TEST_CASE("Every factory preset renders finite, bounded, non-silent audio", "[di
 // Asserted: the round trip, D-161 and the active load followed by setupProcessing (follow-up
 // 86, user ruling 2026-11-10: 17 of 120 presets differed because the random modulation sources
 // did not restart on prepare / reset; the active load rendered at once glides from the previous
-// patch by design, T1.24, and is not compared). Printed, bar held back for a ruling (patch
-// f:/tmp/disrumpo-fix/p6b/t608-held-bars.patch): the parameter replay (follow-up 87).
+// patch by design, T1.24, and is not compared). Printed, bar held back (follow-up 87): the
+// parameter replay within 1e-4. Since the exact round trip of the plain-stored values (case
+// "Replaying a factory preset's parameters stores exactly what setState stores") both paths
+// hold bit-identical parameters; 9 presets with chaotic or self-oscillating types still render
+// apart (up to 0.065, Sweep/Slow_Scan), from the order the values arrive in, not their values.
 // The level bars (peak, DC, RMS) are the [D-144] case above.
 // =============================================================================
 
@@ -620,4 +623,61 @@ TEST_CASE("Loading a factory preset sets Bias, Folds and Bit Depth to what the p
     std::printf("D-160 dual controls: %d of %zu presets with a node parameter the processor overrides (%d of %d values)\n",
                 wrongPresets, files.size(), wrongValues, checked);
     CHECK(wrongPresets == 0);
+}
+
+TEST_CASE("Replaying a factory preset's parameters stores exactly what setState stores", "[disrumpo][preset][D-160]") {
+    // D-160 (follow-up 87, user ruling 2026-11-10): the state stores some values plain (band gain
+    // and pan, crossover Hz, node drive / tone / bias, morph smoothing, routing amounts). A load
+    // through the parameters (the controller's state load, the plugin's preset browser, a host
+    // replaying automation) takes them plain -> normalized -> plain; computed in double both ways
+    // they come back bit-exact. Every factory preset: the processor's getState after setState
+    // and after the controller's parameters replayed, each decoded by the controller, must hold
+    // the same value for every parameter (exact equality).
+    using namespace Disrumpo::TestSupport;
+    constexpr double kSr = 44100.0;
+    const auto files = findPresetFiles(getPresetsDir());
+    REQUIRE(files.size() == 120);
+    const auto decode = [](const std::vector<uint8_t>& bytes) {
+        PresetParamRecorder ctl;
+        REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+        ctl.calls.clear();
+        std::vector<uint8_t> stream = bytes;
+        auto* s = new Steinberg::MemoryStream(stream.data(), static_cast<Steinberg::TSize>(stream.size()));
+        REQUIRE(ctl.setComponentState(s) == Steinberg::kResultOk);
+        s->release();
+        PList calls = ctl.calls;
+        ctl.terminate();
+        return calls;
+    };
+    Rig loaded(kSr);
+    int presetsDiffering = 0;
+    int valuesDiffering = 0;
+    for (const auto& path : files) {
+        const std::string name = path.parent_path().filename().string() + "/" + path.stem().string();
+        const auto bytes = readPresetComponentState(path);
+        REQUIRE_FALSE(bytes.empty());
+        REQUIRE(setStateBytes(*loaded.p, bytes));
+        loaded.apply({});
+        const auto viaState = decode(getStateBytes(*loaded.p));
+        Rig replayed(kSr);
+        replayed.apply(decode(bytes));
+        const auto viaReplay = decode(getStateBytes(*replayed.p));
+        REQUIRE(viaState.size() == viaReplay.size());
+        int here = 0;
+        for (size_t i = 0; i < viaState.size(); ++i) {
+            REQUIRE(viaState[i].first == viaReplay[i].first);
+            if (viaState[i].second != viaReplay[i].second) {
+                if (here == 0 && presetsDiffering < 8) {
+                    std::printf("D-160 %s param 0x%04x: setState %.10g, replay %.10g\n", name.c_str(),
+                                static_cast<unsigned>(viaState[i].first), viaState[i].second, viaReplay[i].second);
+                }
+                ++here;
+            }
+        }
+        valuesDiffering += here;
+        if (here > 0) ++presetsDiffering;
+    }
+    std::printf("D-160 exact parameters: %d of %zu presets differ (%d values)\n", presetsDiffering, files.size(),
+                valuesDiffering);
+    CHECK(presetsDiffering == 0);
 }

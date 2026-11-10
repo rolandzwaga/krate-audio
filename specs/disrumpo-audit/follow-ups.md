@@ -773,6 +773,13 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     follows, slot automation moves both, kNodeBias automation no longer moves the knob for these types. Case "The band
     header's Bias knob edits the Bias slot of the types that have one": RED on c9278472 for all 8 types (slot stays
     0.5, header 0.2 vs 0.8 renders identical, max diff 0), GREEN: slot 0.2, render diff 0.59-2.36, knobs in sync.
+    — Exact round trip DONE 2026-11-10 (user ruling: option (a); commit "fix(disrumpo): plain-stored values round-trip
+    exactly through the parameter path"). The values the state stores plain go plain -> normalized -> plain in double on
+    both sides (controller: crossover Hz, node tone and bias, routing amount; processor: band gain and pan, crossover
+    Hz, node drive / tone / bias, morph smoothing). Case "Replaying a factory preset's parameters stores exactly what
+    setState stores": RED 53 of 120 presets, 130 values (e.g. crossover 0.3656366467 vs 0.3656367064, a band pan
+    0.424999997 vs 0.4250000119); GREEN 0. setState renders unchanged (its path did not change). The D-160 RENDER
+    bar (replay vs setState within 1e-4) stays HELD: 39 -> 9 presets above it, max 0.62 -> 0.065 (new item 91).
 88. **T6.09: the 4-band chain is 1.40 dB quieter at 192 kHz, all of it the Tape band** (2026-11-09, needs a ruling with
     follow-up 79's Tape item). The probe's chain (bands 0-3 node 0 Tube / SoftClip / Fuzz / Tape, drive 4, 1 kHz at
     -12 dBFS, last 0.5 s of 1 s) against 48 kHz: 44.1 kHz +0.02 dB / centroid 1.006, 96 kHz -0.77 dB / 1.019 (asserted);
@@ -803,6 +810,18 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     with a Sine carrier (follow-up 84 option (c)), or default fresh Ring Saturation nodes to Sine (a sound change).
     Also found (not fixed, scope cap): RingSaturation's curve crossfade ramp (setSaturationCurve) still advances once
     per stage, so its 10 ms crossfade lasts 10 / stages ms.
+
+91. **D-160 render bar: 9 presets still render apart after an exact parameter replay** (2026-11-10, needs investigation
+    and a ruling). After the exact round trip (item 87) the processor holds bit-identical parameters after setState and
+    after the controller's parameters are replayed (every one of 120 presets, every parameter, exact), yet replay vs
+    setState through the same load sequence (both into an active processor, then setupProcessing; T6.08 "vs setState")
+    reads Sweep/Slow_Scan 0.065, Morph/Formant_Shift 0.0066, Leads/Chaos_Lead 0.0026, Pads/Allpass_Shimmer 8.5e-4,
+    Chaos/Rossler_Morph 5.4e-4, Dynamic/Pitch_Tracker 4.8e-4, Lo-Fi/Aliasing_Harsh 1.9e-4, Pads/Gentle_Warmth 1.3e-4,
+    Experimental/Alien_Voice 1.1e-4 (bar 1e-4; the other 111 at or below it). So the difference is in the order the
+    values arrive (586 parameter changes one by one: intermediate node types, morph and sweep states, smoother
+    targets) and in DSP state that survives setupProcessing (follow-up 18), not in the values. Not traced (scope cap).
+    Options: find the state a parameter-by-parameter load leaves that setupProcessing does not clear; or assert parameter
+    parity (the new exact case) and drop the render bar for these types.
 
 ## Done outside the plan
 

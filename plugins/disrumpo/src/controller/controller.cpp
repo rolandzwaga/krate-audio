@@ -215,7 +215,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             float freq = 1000.0f;
             if (streamer.readFloat(freq)) {
                 if (i < kMaxBands - 1)
-                    setter(makeCrossoverParamId(static_cast<uint8_t>(i)), crossoverHzToNorm(freq));
+                    setter(makeCrossoverParamId(static_cast<uint8_t>(i)), crossoverHzToNormExact(freq));
             }
         }
     }
@@ -493,7 +493,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             }
             float amount = 0.0f;
             if (streamer.readFloat(amount))
-                setter(makeRoutingParamId(r, 2), static_cast<double>(amount + 1.0f) / 2.0);
+                setter(makeRoutingParamId(r, 2), (static_cast<double>(amount) + 1.0) / 2.0);
             Steinberg::int8 curve = 0;
             if (streamer.readInt8(curve))
                 setter(makeRoutingParamId(r, 3), listIndexToNorm(curve, Krate::DSP::kModCurveCount));
@@ -572,7 +572,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
                     if (rMix)
                         setter(makeNodeParamId(band, node, NodeParamType::kNodeMix), static_cast<double>(mix));
                     if (rTone)
-                        setter(makeNodeParamId(band, node, NodeParamType::kNodeTone), static_cast<double>(tone - 200.0f) / 7800.0);
+                        setter(makeNodeParamId(band, node, NodeParamType::kNodeTone), (static_cast<double>(tone) - 200.0) / 7800.0);
                 }
                 // Bias, Folds and Bit Depth: before v9 as stored; from v9 after the shape slots,
                 // as the node's type maps them from its slots, so the node parameters mirror the
@@ -581,7 +581,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
                     if (b >= kMaxBands) return;
                     if (rBias)
                         setter(makeNodeParamId(band, node, NodeParamType::kNodeBias),
-                               static_cast<double>(biasValue + 1.0f) / 2.0);
+                               (static_cast<double>(biasValue) + 1.0) / 2.0);
                     if (rFolds)
                         setter(makeNodeParamId(band, node, NodeParamType::kNodeFolds),
                                static_cast<double>(foldsValue - 1.0f) / 11.0);

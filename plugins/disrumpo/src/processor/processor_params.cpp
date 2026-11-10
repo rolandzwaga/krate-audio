@@ -579,7 +579,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             }
                             case NodeParamType::kNodeDrive:
                                 // RangeParameter [0, 10]
-                                mn.commonParams.drive = static_cast<float>(value) * 10.0f;
+                                mn.commonParams.drive = static_cast<float>(value * 10.0);  // exact (D-160)
                                 break;
                             case NodeParamType::kNodeMix:
                                 // RangeParameter [0, 100]% -> [0, 1]
@@ -587,7 +587,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
                             case NodeParamType::kNodeTone:
                                 // RangeParameter [200, 8000] Hz
-                                mn.commonParams.toneHz = 200.0f + static_cast<float>(value) * 7800.0f;
+                                mn.commonParams.toneHz = static_cast<float>(200.0 + value * 7800.0);  // exact (D-160)
                                 break;
                             // Bias, Folds and Bit Depth are also shape slots of the types that
                             // use them (RingSaturation / saturators Bias, the wavefolders' Folds,
@@ -597,7 +597,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             // maps the slots last as well.
                             case NodeParamType::kNodeBias:
                                 // RangeParameter [-1, +1]
-                                mn.params.bias = static_cast<float>(value) * 2.0f - 1.0f;
+                                mn.params.bias = static_cast<float>(value * 2.0 - 1.0);  // exact (D-160)
                                 mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
                                 break;
                             case NodeParamType::kNodeFolds:
@@ -642,14 +642,18 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         switch (paramType) {
                             case BandParamType::kBandGain: {
                                 // Convert normalized [0,1] to dB [-24, +24]
-                                const float gainDb = kMinBandGainDb + static_cast<float>(value) * (kMaxBandGainDb - kMinBandGainDb);
+                                // in double: the state stores dB, so a load through the parameters
+                                // comes back bit-exact (D-160)
+                                const auto gainDb = static_cast<float>(
+                                    static_cast<double>(kMinBandGainDb) +
+                                    value * static_cast<double>(kMaxBandGainDb - kMinBandGainDb));
                                 bandStates_[band].gainDb = gainDb;
                                 bandProcessors_[band].setGainDb(gainDb);
                                 break;
                             }
                             case BandParamType::kBandPan: {
                                 // Convert normalized [0,1] to pan [-1, +1]
-                                const float pan = static_cast<float>(value) * 2.0f - 1.0f;
+                                const auto pan = static_cast<float>(value * 2.0 - 1.0);  // exact (D-160)
                                 bandStates_[band].pan = pan;
                                 bandProcessors_[band].setPan(pan);
                                 break;
@@ -689,7 +693,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             }
                             case BandParamType::kBandMorphSmoothing: {
                                 // RangeParameter [0, 500] ms
-                                float timeMs = kMorphSmoothingMsRange.toPlain(static_cast<float>(value));
+                                float timeMs = kMorphSmoothingMsRange.toPlainExact(value);  // stored in ms (D-160)
                                 bandMorphCache_[band].morphSmoothingMs = timeMs;
                                 bandProcessors_[band].setMorphSmoothingTime(timeMs);
                                 break;
@@ -724,7 +728,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                     const uint8_t index = extractCrossoverIndex(paramId);
                     if (index < kMaxBands - 1) {
                         // Convert normalized [0,1] to Hz [20, 20000] logarithmically
-                        const float freqHz = crossoverNormToHz(static_cast<float>(value));
+                        const float freqHz = crossoverNormToHzExact(value);  // the state stores Hz (D-160)
                         crossoverL_.setCrossoverFrequency(static_cast<int>(index), freqHz);
                         crossoverR_.setCrossoverFrequency(static_cast<int>(index), freqHz);
                     }

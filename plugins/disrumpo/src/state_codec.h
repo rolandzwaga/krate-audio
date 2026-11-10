@@ -52,6 +52,27 @@ inline constexpr float kMaxCrossoverHz = 20000.0f;
     return std::clamp((std::log10(hz) - logMin) / (logMax - logMin), 0.0f, 1.0f);
 }
 
+// The state stores crossover frequencies in Hz. A load through the parameters (the
+// controller's state load, a preset replayed parameter by parameter) goes Hz -> normalized ->
+// Hz; computed in double both ways, the float Hz comes back bit-exact, as setState reads it
+// (D-160, follow-up 87). The float pair above is for display and the parameter's text.
+
+[[nodiscard]] inline double crossoverHzToNormExact(float hz) noexcept {
+    if (!Krate::DSP::detail::isFinite(hz) || hz <= kMinCrossoverHz) return 0.0;
+    if (hz >= kMaxCrossoverHz) return 1.0;
+    const double logMin = std::log10(static_cast<double>(kMinCrossoverHz));
+    const double logMax = std::log10(static_cast<double>(kMaxCrossoverHz));
+    return std::clamp((std::log10(static_cast<double>(hz)) - logMin) / (logMax - logMin), 0.0, 1.0);
+}
+
+[[nodiscard]] inline float crossoverNormToHzExact(double norm) noexcept {
+    if (!Krate::DSP::detail::isFinite(norm) || norm <= 0.0) return kMinCrossoverHz;
+    if (norm >= 1.0) return kMaxCrossoverHz;
+    const double logMin = std::log10(static_cast<double>(kMinCrossoverHz));
+    const double logMax = std::log10(static_cast<double>(kMaxCrossoverHz));
+    return static_cast<float>(std::pow(10.0, logMin + norm * (logMax - logMin)));
+}
+
 // ==============================================================================
 // Sweep center frequency: log2 over [20, 20000] Hz
 // ==============================================================================
@@ -141,6 +162,11 @@ struct LinearRange {
     float span;
     [[nodiscard]] constexpr float toPlain(float norm) const noexcept { return min + norm * span; }
     [[nodiscard]] constexpr float toNorm(float plain) const noexcept { return (plain - min) / span; }
+    /// For a value the state stores plain: the parameter path's normalized value back to the
+    /// plain float in double, so plain -> normalized (double) -> plain is bit-exact (D-160).
+    [[nodiscard]] constexpr float toPlainExact(double norm) const noexcept {
+        return static_cast<float>(static_cast<double>(min) + norm * static_cast<double>(span));
+    }
 };
 
 inline constexpr LinearRange kSweepWidthOctRange{.min = 0.5f, .span = 3.5f};       ///< 0.5..4 octaves
