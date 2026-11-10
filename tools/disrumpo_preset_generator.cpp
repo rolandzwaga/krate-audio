@@ -3731,7 +3731,7 @@ constexpr OutputTrim kOutputTrims[] = {
     {.preset = "Dynamic/Pitch_Tracker", .db = -6.8f},
     {.preset = "Dynamic/Sidechain_Pump", .db = -0.1f},
     {.preset = "Dynamic/Velocity_Response", .db = -0.5f},
-    {.preset = "Experimental/Alien_Voice", .db = -1.5f},
+    {.preset = "Experimental/Alien_Voice", .db = -1.9f},
     {.preset = "Experimental/Chaos_Engine", .db = -0.8f},
     {.preset = "Experimental/Formant_Shift", .db = -5.2f},
     {.preset = "Experimental/Formant_Vowels", .db = -6.4f},

@@ -883,3 +883,7 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   the [D-144] signal (its Random source now restarts on reset). T3.01 rule (lower Output Gain only, 0.1 dB steps):
   trim -9.0 -> -9.1 dB, peak -0.34 dBFS; 120 / 120 ok, highest peaks -0.30 (Punchy_Clip, Modulated_Edge, Wide_Sweep,
   unchanged).
+- Re-level for the Ring Saturation carrier fix (2026-11-10, commit "fix(disrumpo): Alien_Voice re-trimmed under -0.3 dBFS
+  for the Ring Saturation carrier fix"): with the per-sample carrier (next commit) Experimental/Alien_Voice peaks +0.09
+  dBFS on the [D-144] signal (was -0.37; the case's 0 dBFS bar RED). T3.01 rule: trim -1.5 -> -1.9 dB, peak -0.31
+  dBFS; 120 / 120 ok, highest -0.30 (Punchy_Clip, Modulated_Edge, Wide_Sweep). Committed first so the fix lands green.
