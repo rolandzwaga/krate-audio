@@ -5,6 +5,17 @@ All notable changes to Seraphis will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-11-10
+
+### Fixed
+
+- **The Aether reverb and the body's decay cloud ignored the fraction of their delay times** — Their diffusers' allpass interpolation worked out to a whole-sample delay. It is now a true fractional allpass. The reverb and decay textures change subtly: of the presets measured, Warm Static is about 0.5 dB louder, and Vast and Cathedral Moss moved by less than 0.1 dB.
+
+### Changed
+
+- **Stone Circle is brighter** — Its decay cloud is tilted 0.5 dB per octave brighter, so it no longer sounds almost the same as Deep Well.
+- **Built with VST3 SDK 3.8.1.**
+
 ## [1.0.4] - 2026-11-02
 
 ### Fixed
