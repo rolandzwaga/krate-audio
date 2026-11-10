@@ -20,6 +20,7 @@
 
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/scoped_denormal_mode.h>
 #include <krate/dsp/systems/voice_mod_types.h>
 #include <krate/dsp/core/modulation_types.h>
 
@@ -221,6 +222,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Constitution Principle II: REAL-TIME SAFETY CRITICAL
     // - NO memory allocation, NO locks, NO exceptions
     // ==========================================================================
+
+    // FTZ / DAZ for this block on this thread, the caller's mode restored on return:
+    // release tails and the effects' feedback loops decay through the denormal range,
+    // which the CPU computes slowly when the host leaves FTZ / DAZ off
+    const Krate::DSP::ScopedDenormalMode denormalGuard;
 
     // Drain any pending preset snapshot from the UI thread (lock-free).
     // This applies the full preset atomically in one block, preventing

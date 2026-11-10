@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LFO Sample & Hold and Smooth Random repeated too soon, and LFO 1 and 2 moved in lockstep** — The random generator overflowed and cycled after about 79,000 values instead of running its full sequence, and both LFOs started from the same seed, so two random LFOs at the same rate produced the same values. The generator now runs its full sequence and LFO 2 has its own seed. Patches using these waveforms play a different random pattern than before.
 - **An LFO with Symmetry away from the centre could glitch at the end of its cycle** — In the last moment of a cycle the LFO could read one value past the end of its waveform table. It now stays inside the table.
 - **Granular distortion could skip or double-process a grain** — When a grain ended, a neighbouring grain could be skipped or processed twice in that sample. Every grain now plays through in order.
+- **Silence after loud material could cost extra CPU in some hosts** — Release tails and the effects' feedback tails fade through the tiny "denormal" number range, which the processor computes slowly unless the host has switched that off. Ruinae now switches it off itself while it processes, and restores the host's setting afterwards.
 
 ### Changed
 
