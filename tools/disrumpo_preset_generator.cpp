@@ -3739,7 +3739,7 @@ constexpr OutputTrim kOutputTrims[] = {
     {.preset = "Experimental/Granular_Crush", .db = -2.4f},
     {.preset = "Experimental/Serge_Madness", .db = -7.3f},
     {.preset = "Experimental/Spectral_Scatter", .db = -5.8f},
-    {.preset = "Experimental/Stochastic_Burst", .db = -9.0f},
+    {.preset = "Experimental/Stochastic_Burst", .db = -9.1f},
     {.preset = "Experimental/Temporal_Flux", .db = -1.4f},
     {.preset = "Leads/Asymmetric_Bite", .db = -2.6f},
     {.preset = "Leads/Feedback_Scream", .db = -3.3f},

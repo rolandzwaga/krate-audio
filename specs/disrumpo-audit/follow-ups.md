@@ -878,3 +878,8 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   now the slot-0 spare, whose Fuzz processor already held node 0's settings, so its bias / drive smoothers start on
   them instead of gliding from the processor's previous targets. Switch block (4 cross-family nodes, 4x <-> 2x, 512):
   median 561-576 us against 592-631 us before (steady 200-218 us). Remaining floor: follow-up 89.
+- Re-level after the random-source reseed (2026-11-10, commit "fix(disrumpo): Stochastic_Burst re-trimmed under -0.3
+  dBFS after the random-source reseed"): 54a9c925 moved Experimental/Stochastic_Burst from -0.41 to -0.24 dBFS peak on
+  the [D-144] signal (its Random source now restarts on reset). T3.01 rule (lower Output Gain only, 0.1 dB steps):
+  trim -9.0 -> -9.1 dB, peak -0.34 dBFS; 120 / 120 ok, highest peaks -0.30 (Punchy_Clip, Modulated_Edge, Wide_Sweep,
+  unchanged).
