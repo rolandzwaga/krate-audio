@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <random>
@@ -30,40 +31,42 @@ void addNoiseToSNR(std::vector<float>& x, float snrDb, unsigned seed) {
     std::normal_distribution<double> dist(0.0, nSigma);
     for (float& v : x) v += static_cast<float>(dist(rng));
 }
+
+// One damped sinusoid; each SNR level is its own case so the run-gate shards can run them in parallel
+// (as one case with three SECTIONs it ran ~588 s serially and set every full gate's wall clock).
+constexpr double kSr = 44100.0;
+constexpr int    kN  = 4096;
+constexpr float  kF  = 440.0f;
+constexpr float  kG  = 8.0f;
+
+float closestFreqError(const MembrumFit::ModalDecomposition& md, float target) {
+    float best = 1e9f;
+    for (const auto& m : md.modes) {
+        best = std::min(best, std::abs(m.freqHz - target) / target);
+    }
+    return best;
+}
 }
 
-TEST_CASE("Matrix Pencil SNR sweep: single damped sinusoid") {
-    constexpr double sr = 44100.0;
-    constexpr int    N  = 4096;
-    const float f = 440.0f;
-    const float g = 8.0f;
+TEST_CASE("Matrix Pencil SNR sweep: single damped sinusoid, infinite SNR within 1%") {
+    auto x = synthesise(kF, kG, kSr, kN);
+    auto md = MembrumFit::Modal::extractModesMatrixPencil(x, kSr, 8);
+    REQUIRE(!md.modes.empty());
+    REQUIRE(closestFreqError(md, kF) < 0.01f);
+}
 
-    auto closestFreqError = [&](const MembrumFit::ModalDecomposition& md, float target) {
-        float best = 1e9f;
-        for (const auto& m : md.modes) {
-            best = std::min(best, std::abs(m.freqHz - target) / target);
-        }
-        return best;
-    };
+TEST_CASE("Matrix Pencil SNR sweep: single damped sinusoid, 40 dB SNR within 5%") {
+    auto x = synthesise(kF, kG, kSr, kN);
+    addNoiseToSNR(x, 40.0f, 0xC0FFEE);
+    auto md = MembrumFit::Modal::extractModesMatrixPencil(x, kSr, 16);
+    REQUIRE(!md.modes.empty());
+    REQUIRE(closestFreqError(md, kF) < 0.05f);
+}
 
-    SECTION("infinite SNR: within 1%") {
-        auto x = synthesise(f, g, sr, N);
-        auto md = MembrumFit::Modal::extractModesMatrixPencil(x, sr, 8);
-        REQUIRE(!md.modes.empty());
-        REQUIRE(closestFreqError(md, f) < 0.01f);
-    }
-    SECTION("40 dB SNR: within 5%") {
-        auto x = synthesise(f, g, sr, N);
-        addNoiseToSNR(x, 40.0f, 0xC0FFEE);
-        auto md = MembrumFit::Modal::extractModesMatrixPencil(x, sr, 16);
-        REQUIRE(!md.modes.empty());
-        REQUIRE(closestFreqError(md, f) < 0.05f);
-    }
-    SECTION("20 dB SNR: within 10%") {
-        auto x = synthesise(f, g, sr, N);
-        addNoiseToSNR(x, 20.0f, 0xBADF00D);
-        auto md = MembrumFit::Modal::extractModesMatrixPencil(x, sr, 32);
-        REQUIRE(!md.modes.empty());
-        REQUIRE(closestFreqError(md, f) < 0.10f);
-    }
+TEST_CASE("Matrix Pencil SNR sweep: single damped sinusoid, 20 dB SNR within 10%") {
+    auto x = synthesise(kF, kG, kSr, kN);
+    addNoiseToSNR(x, 20.0f, 0xBADF00D);
+    auto md = MembrumFit::Modal::extractModesMatrixPencil(x, kSr, 32);
+    REQUIRE(!md.modes.empty());
+    REQUIRE(closestFreqError(md, kF) < 0.10f);
 }
