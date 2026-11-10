@@ -6,6 +6,11 @@
 // sample), moved into namespace Krate::DSP::t416_reference so it cannot collide
 // with the shipping class. allpass_saturator_tests.cpp ([D-084]) renders it next
 // to the shipping class and requires bit-identical output. Do not edit.
+//
+// ONE DELIBERATE EXCEPTION (follow-up 92): processKarplusStrong's delay is the
+// shipping AllpassSaturator::karplusLoopDelaySamples(), the loop-tuning fix
+// made after the snapshot. The snapshot still recomputes it on every sample,
+// which is what [D-084] compares the shipping class's cached path against.
 // ==============================================================================
 
 #pragma once
@@ -19,6 +24,7 @@
 #include <krate/dsp/primitives/one_pole.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/waveshaper.h>
+#include <krate/dsp/processors/allpass_saturator.h>  // karplusLoopDelaySamples (follow-up 92)
 
 #include <algorithm>
 #include <array>
@@ -803,9 +809,6 @@ inline float AllpassSaturator::processAllpassChain(float input) noexcept {
 inline float AllpassSaturator::processKarplusStrong(float input) noexcept {
     const float smoothedFreq = frequencySmoother_.getCurrentValue();
 
-    // Calculate delay time in samples from frequency
-    const float delaySamples = static_cast<float>(sampleRate_) / smoothedFreq;
-
     // Calculate feedback and lowpass cutoff from decay time
     float ksFeedback;
     float ksCutoff;
@@ -818,6 +821,10 @@ inline float AllpassSaturator::processKarplusStrong(float input) noexcept {
         ksCutoff = std::max(ksCutoff * dampScale, 20.0f);
     }
     ksLowpass_.setCutoff(ksCutoff);
+
+    // The header banner's one exception (follow-up 92), per sample.
+    const float delaySamples = ::Krate::DSP::AllpassSaturator::karplusLoopDelaySamples(
+        sampleRate_, smoothedFreq, ksLowpass_.getCutoff(), ksFeedback * ksWaveshaper_.getDrive());
 
     // Read from delay with allpass interpolation
     const float delayed = ksDelay_.readAllpass(delaySamples);

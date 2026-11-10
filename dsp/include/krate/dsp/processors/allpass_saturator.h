@@ -238,6 +238,56 @@ public:
     /// @return Target decay time in seconds
     [[nodiscard]] float getDecay() const noexcept;
 
+    /// @brief The KarplusStrong delay that tunes the loop to @p frequency.
+    ///
+    /// The loop is readAllpass(d) - read BEFORE the write, so the sample written
+    /// d + 1 steps earlier - then the memoryless waveshaper, the loop lowpass and
+    /// the memoryless soft clip. Its phase comes round at the frequency where
+    /// d + 1 + the lowpass's phase delay equals one period, so d is fs / f minus
+    /// both (follow-up 92: without them the node was -2 to -273 cents flat).
+    /// OnePoleLP is y = (1 - a) x + a y[n-1], a = exp(-2 pi fc / fs)
+    /// (one_pole.h), so its phase delay at w is atan2(a sin w, 1 - a cos w) / w.
+    ///
+    /// A LOSSY loop rings below that phase crossing: its pole sits at
+    /// dw = -A A' / (T^2 + A'^2) from it, with A = ln of the loop's small-signal
+    /// gain per period (feedback x drive x |lowpass|), A' = dA/dw and T = 2 pi / w
+    /// (first-order expansion of the loop equation about the crossing). MEASURED:
+    /// A6 at damping 0.3 rang -12.7 cents at 44.1 kHz with the crossing exactly
+    /// on A6. The crossing is therefore aimed dw above the note. A >= 0 (the
+    /// waveshaper sustains the loop into saturation) has no shift, so A is
+    /// clamped to <= 0.
+    ///
+    /// Clamped to kMinKarplusDelaySamples, the allpass interpolator's minimum.
+    /// Out of line so every caller - the cached shipping path and the
+    /// per-sample t416 reference - computes the identical value.
+    [[nodiscard]] ITERUM_NOINLINE static float karplusLoopDelaySamples(
+        double sampleRate, float frequency, float lowpassCutoffHz, float loopGain) noexcept {
+        const auto fs = static_cast<float>(sampleRate);
+        const float w = kTwoPi * frequency / fs;
+        const float a = std::exp(-kTwoPi * lowpassCutoffHz / fs);
+        const float den = 1.0f - (2.0f * a * std::cos(w)) + (a * a);
+        const float lowpassGain = (1.0f - a) / std::sqrt(den);
+        const float lossPerPeriod =
+            std::min(std::log(std::max(loopGain * lowpassGain, kMinKarplusLoopGain)), 0.0f);
+        const float lossSlope = -a * std::sin(w) / den;
+        const float period = kTwoPi / w;
+        const float poleShift =
+            -lossPerPeriod * lossSlope / ((period * period) + (lossSlope * lossSlope));
+        const float wc = w - poleShift;
+        const float lowpassPhaseDelay =
+            std::atan2(a * std::sin(wc), 1.0f - (a * std::cos(wc))) / wc;
+        constexpr float kReadBeforeWriteDelay = 1.0f;
+        return std::max((kTwoPi / wc) - kReadBeforeWriteDelay - lowpassPhaseDelay,
+                        kMinKarplusDelaySamples);
+    }
+
+    /// Floor for karplusLoopDelaySamples' log: below it the tone dies within a
+    /// period and its pitch is moot.
+    static constexpr float kMinKarplusLoopGain = 1.0e-4f;
+
+    /// DelayLine::readAllpass's minimum fractional delay (delay_line.h).
+    static constexpr float kMinKarplusDelaySamples = 0.5f;
+
     // =========================================================================
     // Damping Control
     // =========================================================================
@@ -443,6 +493,12 @@ private:
     OnePoleLP ksLowpass_;
     Waveshaper ksWaveshaper_;
     float ksLastOutput_ = 0.0f;
+    /// karplusLoopDelaySamples() for the (frequency, cutoff, loop gain) it was
+    /// computed at; recomputed only when one moves. 0 Hz invalidates (prepare()).
+    float ksDelayFrequency_ = 0.0f;
+    float ksDelayCutoff_ = 0.0f;
+    float ksDelayLoopGain_ = 0.0f;
+    float ksDelaySamples_ = 0.0f;
 
     // =========================================================================
     // FeedbackMatrix Components (4x4 Householder)
@@ -553,6 +609,7 @@ inline void AllpassSaturator::prepare(double sampleRate, [[maybe_unused]] size_t
     ksDelay_.prepare(sampleRate, maxDelaySeconds);
     ksLowpass_.prepare(sampleRate);
     ksLowpass_.setCutoff(5000.0f);  // Default cutoff
+    ksDelayFrequency_ = 0.0f;       // the cached loop delay belongs to the old rate
     ksWaveshaper_.setType(saturationCurve_);
     ksWaveshaper_.setDrive(drive_);
 
@@ -869,9 +926,6 @@ inline float AllpassSaturator::processAllpassChain(float input) noexcept {
 inline float AllpassSaturator::processKarplusStrong(float input) noexcept {
     const float smoothedFreq = frequencySmoother_.getCurrentValue();
 
-    // Calculate delay time in samples from frequency
-    const float delaySamples = static_cast<float>(sampleRate_) / smoothedFreq;
-
     // Calculate feedback and lowpass cutoff from decay time
     float ksFeedback;
     float ksCutoff;
@@ -885,8 +939,20 @@ inline float AllpassSaturator::processKarplusStrong(float input) noexcept {
     }
     ksLowpass_.setCutoff(ksCutoff);
 
+    // Delay that tunes the whole loop, not just the line (follow-up 92).
+    const float lowpassCutoff = ksLowpass_.getCutoff();
+    const float loopGain = ksFeedback * ksWaveshaper_.getDrive();
+    if (smoothedFreq != ksDelayFrequency_ || lowpassCutoff != ksDelayCutoff_ ||
+        loopGain != ksDelayLoopGain_) {
+        ksDelaySamples_ =
+            karplusLoopDelaySamples(sampleRate_, smoothedFreq, lowpassCutoff, loopGain);
+        ksDelayFrequency_ = smoothedFreq;
+        ksDelayCutoff_ = lowpassCutoff;
+        ksDelayLoopGain_ = loopGain;
+    }
+
     // Read from delay with allpass interpolation
-    const float delayed = ksDelay_.readAllpass(delaySamples);
+    const float delayed = ksDelay_.readAllpass(ksDelaySamples_);
 
     // Apply saturation
     const float saturated = ksWaveshaper_.process(delayed);

@@ -664,6 +664,166 @@ TEST_CASE("AllpassSaturator KarplusStrong bright-attack-dark-decay (T043)",
     }
 }
 
+namespace {
+
+/// @brief The fundamental of a Karplus render, and how many periods it rests on.
+struct KarplusPitch {
+    double hz = 0.0;
+    size_t periods = 0;
+};
+
+/// @brief Measure the fundamental of a Karplus impulse response (follow-up 92).
+///
+/// 1. Isolate it: an RBJ bandpass (Q 4) at the expected note. The render also
+///    carries DC and a slow sub-loop mode from the excitation burst, which
+///    outlast a lossy high note and would otherwise own the tail.
+/// 2. Pick the steady part: from 4 periods after the bandpassed envelope's peak
+///    until it is 40 dB below that peak.
+/// 3. Estimate: demodulate at the expected note over 4-period Blackman-Harris
+///    windows hopped one period, take the least-squares slope of the unwrapped
+///    phase, and repeat once at that estimate. An exponential decay biases
+///    every window's phase equally, so it leaves the slope alone.
+/// Checked offline against the loop's analytic pole (Newton on
+/// fb * G_lp(z) * z^-(k+1) * Thiran(z) = 1) on the same renders: within 0.06
+/// cents for every tone of 38 periods or more, 0.7 cents at 8 periods.
+KarplusPitch measureKarplusPitch(const std::vector<float>& y, double fs, double note) {
+    constexpr double kTwoPi = 6.283185307179586;
+    const double w0 = kTwoPi * note / fs;
+    const double alpha = std::sin(w0) / (2.0 * 4.0);
+    const double a0 = 1.0 + alpha;
+    const double a1 = -2.0 * std::cos(w0);
+    const double a2 = 1.0 - alpha;
+    std::vector<double> bp(y.size(), 0.0);
+    double x1 = 0.0;
+    double x2 = 0.0;
+    double y1 = 0.0;
+    double y2 = 0.0;
+    for (size_t i = 0; i < y.size(); ++i) {
+        const double x0 = y[i];
+        const double v = ((alpha * x0) - (alpha * x2) - (a1 * y1) - (a2 * y2)) / a0;
+        x2 = x1;
+        x1 = x0;
+        y2 = y1;
+        y1 = v;
+        bp[i] = v;
+    }
+
+    const auto period = static_cast<size_t>(std::ceil(fs / note));
+    const auto envelope = [&](size_t at) {
+        double p = 0.0;
+        for (size_t i = at; i < std::min(bp.size(), at + period); ++i) {
+            p = std::max(p, std::abs(bp[i]));
+        }
+        return p;
+    };
+    double peak = 0.0;
+    size_t peakAt = 0;
+    for (size_t k = 0; (k < 60) && ((k + 1) * period < bp.size()); ++k) {
+        const double e = envelope(k * period);
+        if (e > peak) {
+            peak = e;
+            peakAt = k * period;
+        }
+    }
+    const size_t begin = peakAt + (4 * period);
+    size_t end = begin;
+    while (((end + period) < bp.size()) && (envelope(end) > peak * 0.01)) {
+        end += period;
+    }
+
+    const auto slopeEstimate = [&](double demodHz) {
+        const auto window = static_cast<size_t>(std::llround(4.0 * fs / demodHz));
+        const auto hop = static_cast<size_t>(std::llround(fs / demodHz));
+        std::vector<double> phases;
+        for (size_t start = begin; start + window <= end; start += hop) {
+            double re = 0.0;
+            double im = 0.0;
+            for (size_t i = 0; i < window; ++i) {
+                const double t = kTwoPi * static_cast<double>(i) / static_cast<double>(window);
+                const double w = 0.35875 - (0.48829 * std::cos(t)) + (0.14128 * std::cos(2.0 * t)) -
+                                 (0.01168 * std::cos(3.0 * t));
+                const double arg = kTwoPi * demodHz * static_cast<double>(start + i) / fs;
+                re += w * bp[start + i] * std::cos(arg);
+                im -= w * bp[start + i] * std::sin(arg);
+            }
+            double p = std::atan2(im, re);
+            if (!phases.empty()) {
+                while ((p - phases.back()) > 3.141592653589793) {
+                    p -= kTwoPi;
+                }
+                while ((p - phases.back()) < -3.141592653589793) {
+                    p += kTwoPi;
+                }
+            }
+            phases.push_back(p);
+        }
+        if (phases.size() < 3) {
+            return 0.0;
+        }
+        const auto n = static_cast<double>(phases.size());
+        double sx = 0.0;
+        double sy = 0.0;
+        double sxx = 0.0;
+        double sxy = 0.0;
+        for (size_t k = 0; k < phases.size(); ++k) {
+            const auto kx = static_cast<double>(k);
+            sx += kx;
+            sy += phases[k];
+            sxx += kx * kx;
+            sxy += kx * phases[k];
+        }
+        const double slope = ((n * sxy) - (sx * sy)) / ((n * sxx) - (sx * sx));  // rad per hop
+        return demodHz + (slope * fs / (kTwoPi * static_cast<double>(hop)));
+    };
+    const double first = slopeEstimate(note);
+    return {first > 0.0 ? slopeEstimate(first) : 0.0, (end - begin) / period};
+}
+
+} // namespace
+
+// Follow-up 92: the loop is readAllpass(d) (read BEFORE the write, so d + 1
+// samples) plus the loop lowpass's phase delay at the fundamental, and a lossy
+// loop rings below that (karplusLoopDelaySamples). Before the fix the node was
+// -2 to -258 cents flat here. Disrumpo runs the node at its oversampled rate,
+// so 176.4 kHz and 384 kHz are measured beside the base rates. Decay 1 s (the
+// node default), damping 0 and 0.3 (the node default; the lowpass is the
+// larger term there), drive 1 so the free decay is near-linear.
+TEST_CASE("AllpassSaturator KarplusStrong is in tune (follow-up 92)",
+          "[allpass_saturator][karplusstrong][pitch]") {
+    constexpr double kToleranceCents = 5.0;
+    for (const double sampleRate : {44100.0, 48000.0, 96000.0, 176400.0, 384000.0}) {
+        for (const double note : {110.0, 440.0, 1760.0}) {
+            for (const float damping : {0.0f, 0.3f}) {
+                AllpassSaturator processor;
+                processor.prepare(sampleRate, kTestBlockSize);
+                processor.setTopology(NetworkTopology::KarplusStrong);
+                processor.setFrequency(static_cast<float>(note));
+                processor.setDecay(1.0f);
+                processor.setDamping(damping);
+                processor.setDrive(1.0f);
+                processor.reset();
+
+                const auto length = static_cast<size_t>(0.75 * sampleRate);
+                std::vector<float> y(length, 0.0f);
+                for (size_t i = 0; i < length; ++i) {
+                    y[i] = processor.process(i < 8 ? 0.5f : 0.0f);
+                }
+                const KarplusPitch pitch = measureKarplusPitch(y, sampleRate, note);
+                const double cents = 1200.0 * std::log2(std::max(pitch.hz, 1e-9) / note);
+                std::printf("KS-PITCH sr=%6.0f note=%7.2f damping=%.1f periods=%4zu measured=%9.4f "
+                            "cents=%+8.3f\n",
+                            sampleRate, note, static_cast<double>(damping), pitch.periods, pitch.hz,
+                            cents);
+                INFO("rate " << sampleRate << ", note " << note << " Hz, damping " << damping << ": "
+                             << pitch.periods << " periods, " << pitch.hz << " Hz, " << cents
+                             << " cents");
+                REQUIRE(pitch.periods >= 8);
+                CHECK(std::abs(cents) <= kToleranceCents);
+            }
+        }
+    }
+}
+
 // =============================================================================
 // Phase 5: User Story 3 - AllpassChain Tests (T057-T060)
 // =============================================================================

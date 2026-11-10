@@ -1529,7 +1529,7 @@
       "scope": "Krate::DSP::AllpassSaturator",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/allpass_saturator.h",
-      "line": 305
+      "line": 355
     },
     {
       "name": "HungarianAlgorithm",
@@ -2985,7 +2985,7 @@
       "scope": "Krate::DSP::AllpassSaturator",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/allpass_saturator.h",
-      "line": 328
+      "line": 378
     },
     {
       "name": "SaturationProcessor",

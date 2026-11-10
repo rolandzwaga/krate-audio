@@ -3766,7 +3766,7 @@ constexpr OutputTrim kOutputTrims[] = {
     {.preset = "Sweep/Frequency_Hunter", .db = -3.8f},
     {.preset = "Sweep/Inverse_Link", .db = -1.1f},
     {.preset = "Sweep/Low_Rumble", .db = -3.2f},
-    {.preset = "Sweep/Resonant_Sweep", .db = -4.6f},
+    {.preset = "Sweep/Resonant_Sweep", .db = -4.9f},
     {.preset = "Sweep/Sharp_Focus", .db = -2.5f},
     {.preset = "Sweep/Slow_Scan", .db = -5.1f},
     {.preset = "Sweep/Step_Scanner", .db = -8.4f},
