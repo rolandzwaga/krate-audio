@@ -5,6 +5,17 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-11-10
+
+### Fixed
+
+- **Shimmer's diffusion ignored the fraction of its delay times** — The allpass interpolation in Shimmer's diffusion stage worked out to a whole-sample delay, so every diffuser landed on the nearest sample below the time it was set to. It is now a true fractional allpass. The diffusion texture changes subtly; levels stay within 0.02 dB.
+- **Digital's Sample & Hold and Smooth Random modulation repeated too soon** — The random generator behind these two Mod Waveform settings overflowed and cycled after about 79,000 values instead of running its full sequence. It now runs the full sequence, so these waveforms play a different random pattern than before.
+
+### Changed
+
+- **Built with VST3 SDK 3.8.1.**
+
 ## [1.0.1] - 2026-11-02
 
 ### Fixed
