@@ -823,6 +823,60 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     Options: find the state a parameter-by-parameter load leaves that setupProcessing does not clear; or assert parameter
     parity (the new exact case) and drop the render bar for these types.
 
+92. **Disrumpo AllpassSaturator Karplus pitch was uncompensated** (found 2026-11-10 by the follow-up 83 A/B,
+    c71fa245's pitch tables). FIXED `bcb0a5b8` (user ruling: fix it). `processKarplusStrong` read the line at fs / f,
+    ignoring the sample readAllpass adds by reading before the write and the loop lowpass's phase delay: -2.2 (A2,
+    384 kHz) to -273 cents (A6, 44.1 kHz, the node's default damping 0.3), measured on the phase slope of the
+    bandpass-isolated fundamental. `AllpassSaturator::karplusLoopDelaySamples` subtracts both, and aims the phase
+    crossing above the note by the first-order pole shift of a lossy loop (A6 at damping 0.3 rang -12.7 cents with the
+    crossing exactly on A6; no shift once the loop saturates). Test "AllpassSaturator KarplusStrong is in tune
+    (follow-up 92)": A2 / A4 / A6 x 44.1 / 48 / 96 / 176.4 / 384 kHz x damping 0 / 0.3, bar +-5 cents: RED 28 of 30,
+    GREEN 30 of 30 (damping 0 within 0.16 cents; worst A6 damping 0.3 at 44.1 kHz -3.9). Five factory presets
+    retuned; Resonant_Sweep re-trimmed -4.6 -> -4.9 dB (peak -0.01 -> -0.31 dBFS). A/B WAVs `f:/tmp/karplus-ab/`.
+93. **KarplusStrong is ~+25 cents sharp at A2** (found 2026-11-10 by the follow-up 83 A/B; logged only).
+    `karplus_strong.h` runs DelayLine -> OnePoleLP -> OnePoleAllpass -> DCBlocker2 (10 Hz, :104) in its loop and
+    compensates only the read-before-write sample (`period - 1`, :167), so the DC blocker's phase lead, largest at the
+    lowest note, goes uncorrected: A2 +25.2 / +25.0 / +24.1 cents at 44.1 / 48 / 96 kHz (A4 -1.0 to -4.6, A6 -1.0 to
+    -4.8) on the new interpolator, +29.0 at 44.1 kHz on the old one.
+    Consumers to check before a fix: every `KarplusStrong` user (a sound change). Not started (scope cap).
+94. **Aether `silence()` resumption transient** (found 2026-11-10: AetherReverb_NoTransitionClicks red after
+    c71fa245, 4 detections at t = 105.0441 / 105.0486 s at the calibrated 6.25 sigma). FIXED `a75aaea3`. The output
+    there was exactly gate x the steady mix (mix 0 render: same detections; mix 1: none): the 20 ms smoothstep fade-in
+    from digital silence put the input's first loud edge in a still-silent detector frame (6.6 sigma for every
+    polynomial fade-in shape and length tried, steady signal 5.55). The fade-in is now -60 dB -> 0 dB linear in dB
+    over 150 ms (offline replay 5.47 sigma); a `silence()` during it re-maps the ramp so the fade-out starts from the current gain
+    (new case "AetherReverb_SilenceDuringFadeInIsContinuous": RED step 0.32, GREEN 7.8e-4). The test passes at its
+    existing 6.25 sigma, 0 detections; CavernVerb (Vorago) and Seraphis inherit the slower fade-in.
+95. **DiffusionNetwork's "static path bit-identical to the per-sample path" claim does not hold under fast-math**
+    (found by c71fa245; logged only). `diffusion_network.h:525` argues bit identity; since readAllpass is a real
+    fractional allpass the output depends on the last bits of each delay, and under fast-math the block and per-sample
+    paths round the delay apart: 2.9e-5 measured in diffusion_network_zeromod clause 1, up to 2.2e-4 for one ULP
+    across the cascade (about -73 to -90 dB, inaudible). The clause's bound is 1e-3 (user approved in c71fa245); the
+    banner comment still says bit-identical.
+96. **Stale readAllpass comment in `waveguide_string.h`** (found by c71fa245). `WaveguideString` reads its bridge delay
+    with `readLinear` (:191), but the member comments said readAllpass. FIXED in the commit that logs it (two comment
+    lines, :843 and :873; no code change).
+97. **`tools/macos-fastmath-repro.sh` lacks a `catch_all.hpp` shim** (found by c71fa245; logged only). Its Catch2 shim
+    list (:62-64) maps catch_test_macros, catch_message, catch_approx, catch_template_test_macros, the matchers and
+    generators headers to the amalgamated header, but not `<catch2/catch_all.hpp>`, which `aether_reverb_test.cpp`
+    includes.
+98. **`tools/macos-fastmath-repro.sh` cannot link a TU that owns the operator new overrides** (found 2026-11-10 while
+    running it on `effects/aether_reverb_test.cpp` for item 94; logged only). The script always links its own
+    `alloc_owner.o` (`<allocation_operator_overrides.h>`, :93-94, :125), and `aether_reverb_test.cpp` is the single
+    owner of those overrides in dsp_effects_tests, so the link fails with duplicate `operator new` / `delete`. Item 94
+    was checked through `cavern_verb_freeze_test.cpp` instead (silence() through CavernVerb, 3 / 3 green).
+99. **The Karplus node at Disrumpo's default Drive barely rings after an impulse** (found 2026-11-10 while measuring
+    item 92; logged only, not investigated). At allpassDrive 0.5 (waveshaper drive 0.1 + 0.5 x 9.9 = 5.05), decay 1 s,
+    the bandpassed fundamental of an 8-sample impulse response falls 40 dB within 3-56 periods in 29 of 30
+    rate / note / damping cases (288 at A4, 384 kHz, damping 0), against 8-509 at drive 1 (8 only for A6 at damping 0.3, 44.1 / 48 kHz). Suspected (not verified):
+    the small-signal loop gain at DC, feedback x 5.05 x the lowpass's unity DC gain, exceeds 1, so the loop latches to
+    a DC fixed point. Its pitch could not be measured there; item 92's test runs at drive 1.
+100. **The other ContinuousBody count clauses still use the 5-sigma form** (found 2026-11-10 by `a50dc27d`; logged
+    only). Retarget and glide now calibrate the detector on their no-event controls with a click positive control; the
+    transition, bypass round trip, poisoned-input and parameter-sweep clauses still compare 5-sigma counts against the
+    worst control plus 4. On retarget(b) and glide Chamber that form passed six / nine injected single-sample clicks of
+    1.0 x the controls' max|dx| (34 vs 36 + 4, 38 vs 36 + 4); it was not measured on the other clauses.
+
 ## Done outside the plan
 
 - `68255845` fix(dsp): CrossoverLR4 stages in double precision — latent float32 defect (DC gain error up to
@@ -936,3 +990,15 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
   (new predicate constructor) watches kBandDisplayedType and shows the group iff biasShapeSlot(type) >= 0. Case "The
   band header's Bias knob shows only for the types that use bias" (headless editor): RED 18 of 26 types shown wrongly,
   GREEN 0, follows the selected node and a type change from the header menu.
+- ContinuousBody retarget / glide click counts after c71fa245 (commit `a50dc27d`, user ruling 2026-11-10): the two reds
+  (retarget Glass -> Ice -> MetalPlate L 11 vs 6, limit 10; glide Glass R 8 vs 3, limit 7) were detector false positives
+  from the new decay-cloud texture, not clicks: every detection 0.0074-0.037 against the controls' own max|dx| of
+  0.020-0.066, the test renders' worst outlier (5.31-5.95 / 4.87-5.64 sigma) inside the no-event controls' range (up
+  to 6.09 / 5.67), none on a setMaterial instant. The count clause is now calibrated on the no-event controls (SC-015's
+  procedure: from 5.0 sigma in 0.25 steps to the 8.0 cap until they score 0; retarget 6.25 / 6.5, glide 5.75-7.25)
+  with the allowance of 4 unchanged, plus a positive control (one single-sample click of 1.0 x max|dx| per event: 6 / 6
+  and 8-9 / 9 found, the clause goes red). The waveguide's 1.6x glide factor is gone. See item 100.
+- Seraphis distinctness after c71fa245 (commit `b5d28a9b`): Deep Well vs Stone Circle 0.0196 against the 0.02 floor,
+  on totalVariation (25067.8 vs 25569.5). Stone Circle gets Cloud Tilt +0.5 dB/oct (0.52083333, was the 0 dB/oct
+  default) through `tools/seraphis_preset_defs.h`; only that preset file changed. The pair now reads 0.152; the
+  library's closest pair is Temple Rim vs Aeolian Voices at 0.0269; Seraphis [preset][long] green.
