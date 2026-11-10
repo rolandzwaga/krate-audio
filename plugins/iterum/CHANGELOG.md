@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Shimmer's diffusion ignored the fraction of its delay times** — The allpass interpolation in Shimmer's diffusion stage worked out to a whole-sample delay, so every diffuser landed on the nearest sample below the time it was set to. It is now a true fractional allpass. The diffusion texture changes subtly; levels stay within 0.02 dB.
 - **Digital's Sample & Hold and Smooth Random modulation repeated too soon** — The random generator behind these two Mod Waveform settings overflowed and cycled after about 79,000 values instead of running its full sequence. It now runs the full sequence, so these waveforms play a different random pattern than before.
+- **Silence after loud material could cost extra CPU in some hosts** — A delay's feedback tail fades through the tiny "denormal" number range, which the processor computes slowly unless the host has switched that off. Iterum now switches it off itself while it processes, and restores the host's setting afterwards.
 
 ### Changed
 
