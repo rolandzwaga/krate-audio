@@ -104,7 +104,7 @@ public:
     /// @brief Default constructor.
     /// @post Object in unprepared state. Must call prepare() before processing.
     GranularDistortion() noexcept
-        : rng_(12345) {
+        : rng_(kDefaultSeed) {
         // Initialize envelope table
         GrainEnvelope::generate(envelopeTable_.data(), kEnvelopeTableSize,
                                 GrainEnvelopeType::Hann);
@@ -130,6 +130,11 @@ public:
     /// @note NOT real-time safe (initializes arrays)
     void prepare(double sampleRate, [[maybe_unused]] size_t maxBlockSize) noexcept {
         sampleRate_ = sampleRate;
+
+        // Restart the random sequences (seed(), default kDefaultSeed): the output does not
+        // depend on how often prepare() or reset() ran before
+        rng_.seed(seedValue_);
+        scheduler_.seed(seedValue_);
 
         // Prepare components
         grainPool_.prepare(sampleRate);
@@ -157,6 +162,10 @@ public:
     /// Resets circular buffer, all active grains, and smoothers.
     /// Does not change parameter values or sample rate.
     void reset() noexcept {
+        // Restart the random sequences (seed(), default kDefaultSeed)
+        rng_.seed(seedValue_);
+        scheduler_.seed(seedValue_);
+
         // Clear buffer
         buffer_.fill(0.0f);
         writePos_ = 0;
@@ -452,6 +461,7 @@ public:
 
     /// @brief Seed RNG for reproducible behavior (testing only).
     void seed(uint32_t seedValue) noexcept {
+        seedValue_ = seedValue;
         rng_.seed(seedValue);
         scheduler_.seed(seedValue);
     }
@@ -693,7 +703,9 @@ private:
     // Envelope table
     std::array<float, kEnvelopeTableSize> envelopeTable_{};
 
-    // RNG
+    // RNG (and the scheduler's), restarted at seedValue_ by prepare() and reset()
+    static constexpr uint32_t kDefaultSeed = 12345;
+    uint32_t seedValue_ = kDefaultSeed;
     Xorshift32 rng_;
 
     // Smoothers

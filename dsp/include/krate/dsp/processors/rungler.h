@@ -99,9 +99,9 @@ public:
 
     /// @brief Prepare the Rungler for processing.
     ///
-    /// Stores sample rate, seeds the shift register with a random non-zero
-    /// value, and prepares the CV smoothing filter. Must be called before
-    /// any processing.
+    /// Stores sample rate, restarts the PRNG at its seed (seed(), default 1),
+    /// seeds the shift register with its first non-zero value, and prepares
+    /// the CV smoothing filter. Must be called before any processing.
     ///
     /// @param sampleRate Sample rate in Hz (FR-013)
     void prepare(double sampleRate) noexcept {
@@ -111,7 +111,8 @@ public:
         cvFilter_.prepare(sampleRate);
         updateFilterCutoff();
 
-        // Seed shift register with random non-zero value (FR-023)
+        // Seed shift register with random non-zero value (FR-023), from the restarted PRNG
+        rng_.seed(seedValue_);
         registerState_ = rng_.next() & registerMask_;
         if (registerState_ == 0) {
             registerState_ = 1;
@@ -135,10 +136,10 @@ public:
     /// @brief Reset processing state while preserving parameters.
     ///
     /// Resets oscillator phases to zero with direction +1,
-    /// re-seeds the shift register using the current PRNG, and resets the
-    /// CV filter. Preserves sample rate and parameter settings. (FR-014)
-    ///
-    /// To achieve fully deterministic output: call seed(value) then reset().
+    /// restarts the PRNG at its seed (seed(), default 1) and re-seeds the shift
+    /// register from it, and resets the CV filter. Preserves sample rate and
+    /// parameter settings. (FR-014) The output after prepare() or reset() does
+    /// not depend on how often either ran before.
     void reset() noexcept {
         // Reset oscillator phases (direction +1, ramping upward)
         osc1Phase_ = 0.0f;
@@ -147,7 +148,8 @@ public:
         osc2Direction_ = 1;
         osc2PrevTriangle_ = 0.0f;
 
-        // Re-seed shift register from PRNG
+        // Re-seed shift register from the restarted PRNG
+        rng_.seed(seedValue_);
         registerState_ = rng_.next() & registerMask_;
         if (registerState_ == 0) {
             registerState_ = 1;
@@ -227,6 +229,7 @@ public:
     /// @brief Set the PRNG seed for deterministic initialization.
     /// @param seedValue Seed value (0 is replaced with default by Xorshift32) (FR-020)
     void seed(uint32_t seedValue) noexcept {
+        seedValue_ = seedValue;
         rng_.seed(seedValue);
     }
 
@@ -477,6 +480,7 @@ private:
     // =========================================================================
 
     OnePoleLP cvFilter_;                         ///< CV smoothing filter (Layer 1)
+    uint32_t seedValue_ = 1;                     ///< PRNG seed prepare() and reset() restart at
     Xorshift32 rng_{1};                          ///< PRNG for shift register seeding (Layer 0)
 };
 

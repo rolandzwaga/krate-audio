@@ -1321,7 +1321,7 @@
       "scope": "Krate::DSP::GranularDistortion",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/granular_distortion.h",
-      "line": 481
+      "line": 491
     },
     {
       "name": "GrainScheduler",
@@ -1337,7 +1337,7 @@
       "scope": "Krate::DSP::GranularDistortion",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/granular_distortion.h",
-      "line": 510
+      "line": 520
     },
     {
       "name": "GranularDelay",

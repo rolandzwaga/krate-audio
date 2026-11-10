@@ -5,6 +5,12 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Random, Sample & Hold and Rungler start the same way every time** — These modulation sources now restart their random sequence when the plugin is prepared or reset (playback start, a sample-rate or block-size change). Before, each restart continued the sequence where the last one left off, so the same project could sound slightly different depending on how often the host had prepared the plugin. Patches that modulate from these sources play a different (but now repeatable) random sequence: 16 of the factory presets, for example Arp Chaos Matrix, Fission Cloud, Particle Storm and Benjolin Drift.
+
 ## [0.12.4] - 2026-11-02
 
 ### Fixed

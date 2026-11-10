@@ -429,12 +429,11 @@ TEST_CASE("Every factory preset renders finite, bounded, non-silent audio", "[di
 // instance glides from its previous patch by design (T1.24, "A deferred load renders
 // like a load made while inactive"), which the plan's literal comparison of an active
 // load against c measures instead.
-// Asserted: the round trip and D-161. Printed, bars held back for a ruling (patch
-// f:/tmp/disrumpo-fix/p6b/t608-held-bars.patch): the active load (17 of 120 presets
-// differ even after setupProcessing, cause not isolated, and every preset glides
-// without it: follow-up 86) and the parameter replay (48 of 120: kNodeBias /
-// kNodeFolds / kNodeBitDepth and the type's own slot for the same setting disagree:
-// follow-up 87).
+// Asserted: the round trip, D-161 and the active load followed by setupProcessing (follow-up
+// 86, user ruling 2026-11-10: 17 of 120 presets differed because the random modulation sources
+// did not restart on prepare / reset; the active load rendered at once glides from the previous
+// patch by design, T1.24, and is not compared). Printed, bar held back for a ruling (patch
+// f:/tmp/disrumpo-fix/p6b/t608-held-bars.patch): the parameter replay (follow-up 87).
 // The level bars (peak, DC, RMS) are the [D-144] case above.
 // =============================================================================
 
@@ -542,7 +541,7 @@ TEST_CASE("Every factory preset renders the same after host-order load, round tr
         const double rmsB = rmsDbOf(roundTrip);
         // Asserted: the round trip and its level (D-161). The active-load and replay readings are
         // printed; their bars are held back for a ruling (follow-ups 86 and 87).
-        const bool ok = roundTripDiff <= 1e-5 && rmsB > -60.0 && std::fabs(rmsB - rmsC) < 0.1;
+        const bool ok = roundTripDiff <= 1e-5 && rmsB > -60.0 && std::fabs(rmsB - rmsC) < 0.1 && activeDiff <= 1e-5;
         if (!ok) ++failing;
         std::printf("T6.08 %s active-load %.3g round-trip %.3g rms c %.2f b %.2f dBFS replay %.3g, vs setState %.3g "
                     "(%zu params) %s\n",
@@ -551,6 +550,9 @@ TEST_CASE("Every factory preset renders the same after host-order load, round tr
         CHECK(roundTripDiff <= 1e-5);
         CHECK(rmsB > -60.0);
         CHECK(std::fabs(rmsB - rmsC) < 0.1);
+        // Follow-up 86 (user ruling 2026-11-10): an active load followed by setupProcessing renders
+        // like the host-order load (the random modulation sources restart on prepare and reset)
+        CHECK(activeDiff <= 1e-5);
     }
     std::printf("T6.08 %zu presets, %d failing\n", files.size(), failing);
 }

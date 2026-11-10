@@ -706,6 +706,16 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     prepare() and reset() (CROSS-PLUGIN: `ModulationEngine` serves Disrumpo and Ruinae; renders after a reset change
     to a fixed sequence), then assert (b) at 1e-5. (a), the active load rendered at once, glides from the previous
     patch by design (T1.24): proposed to drop that literal bar and keep (b).
+    — CLOSED 2026-11-10 (user ruling: reseed deterministically on prepare() and reset(); drop (a), assert (b); commit
+    "fix(dsp): random modulation sources and Granular restart their sequence on prepare and reset"). RandomSource
+    (98765), SampleHoldSource (54321), Rungler (seed(), default 1) and GranularDistortion (seed(), default 12345, its
+    scheduler too) reseed at the top of prepare() and reset(). (b) asserted at 1e-5 in the T6.08 case: RED on
+    45fdfc23 17 of 120 presets (the same 17, max 0.89 Morph/Digital_Organic), GREEN 0 of 120 (active-load diff 0 for
+    all). Output changes once for renders that use these sources: Disrumpo 19 of 120 factory presets (host-order load,
+    0.5 s; up to 0.52 Experimental/Stochastic_Burst), 22 with Oversample Max cycling (a Granular crossfade lane now
+    restarts its grains); Ruinae 16 of 168 factory presets (held C4, 2 s; up to 1.89 Arp_Euclidean/Granular_Samba).
+    Experimental/Stochastic_Burst peaks -0.24 dBFS on the [D-144] signal after it (was -0.41): re-levelled in its own
+    commit.
 87. **T6.08 / D-160: replaying a preset's parameters does not render like its setState** (2026-11-09, needs a ruling).
     Every parameter `Controller::setComponentState` sets from the file (586), replayed through processParameterChanges
     then setupProcessing, against the host-order load: 72 of 120 within 1e-4, 48 differ (31 of them only here), up to
