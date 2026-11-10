@@ -589,6 +589,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kAetherSizeId, 0.90},
                 {kAetherMixId, 0.60},
                 {kCloudRichnessId, 0.75},
+                {kCloudTiltId, 0.52083333},    // 202 lin [-12, +12] -> +0.5 dB/oct
                 {kCloudAttackId, 0.68502029},  // 208 log [0.05, 30] s -> 4 s
                 {kMacroGravityId, 0.70},
                 {kSeedId, 13.0 / 15.0},
