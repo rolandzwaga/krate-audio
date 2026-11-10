@@ -5,9 +5,17 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.12.5] - 2026-11-10
+
+### Fixed
+
+- **LFO Sample & Hold and Smooth Random repeated too soon, and LFO 1 and 2 moved in lockstep** — The random generator overflowed and cycled after about 79,000 values instead of running its full sequence, and both LFOs started from the same seed, so two random LFOs at the same rate produced the same values. The generator now runs its full sequence and LFO 2 has its own seed. Patches using these waveforms play a different random pattern than before.
+- **An LFO with Symmetry away from the centre could glitch at the end of its cycle** — In the last moment of a cycle the LFO could read one value past the end of its waveform table. It now stays inside the table.
+- **Granular distortion could skip or double-process a grain** — When a grain ended, a neighbouring grain could be skipped or processed twice in that sample. Every grain now plays through in order.
 
 ### Changed
+
+- **Built with VST3 SDK 3.8.1.**
 
 - **Random, Sample & Hold and Rungler start the same way every time** — These modulation sources now restart their random sequence when the plugin is prepared or reset (playback start, a sample-rate or block-size change). Before, each restart continued the sequence where the last one left off, so the same project could sound slightly different depending on how often the host had prepared the plugin. Patches that modulate from these sources play a different (but now repeatable) random sequence: 16 of the factory presets, for example Arp Chaos Matrix, Fission Cloud, Particle Storm and Benjolin Drift.
 
