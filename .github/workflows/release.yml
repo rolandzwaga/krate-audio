@@ -69,7 +69,7 @@ jobs:
       has_landing_page: ${{ steps.version.outputs.has_landing_page }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Read Version
         id: version
@@ -114,7 +114,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -135,14 +135,14 @@ jobs:
 
       # Cache ccache data
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: linux-gcc-preset-generator
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       # Cache CMake FetchContent downloads
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -183,7 +183,7 @@ jobs:
           ./build/bin/${{ steps.gen.outputs.binary }} generated-presets
 
       - name: Upload Presets
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: factory-presets
           path: generated-presets/
@@ -199,17 +199,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download Windows Artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.version.outputs.plugin_name }}-Windows-x64
           path: artifact
           github-token: ${{ github.token }}
 
       - name: Download Factory Presets
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: factory-presets
           path: presets
@@ -241,13 +241,13 @@ jobs:
             | Set-Content "plugins\${env:PLUGIN}\installers\windows\CHANGELOG.txt"
 
       - name: Build Installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        uses: Minionguyjpro/Inno-Setup-Action@36e43b836ce2c78d21787b1f7183caf85c60ba05 # v1.3.0
         with:
           path: plugins/${{ needs.version.outputs.plugin }}/installers/windows/setup.iss
           options: /DVersion=${{ needs.version.outputs.version }}
 
       - name: Upload Installer
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-installer
           path: plugins/${{ needs.version.outputs.plugin }}/installers/windows/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
@@ -263,17 +263,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download macOS Artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.version.outputs.plugin_name }}-macOS
           path: artifact
           github-token: ${{ github.token }}
 
       - name: Download Factory Presets
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: factory-presets
           path: presets
@@ -341,7 +341,7 @@ jobs:
             "${PLUGIN_NAME}-${VERSION}-macOS.pkg"
 
       - name: Setup Node (facts)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -362,14 +362,14 @@ jobs:
           jq -r '"platform_key=\(.platform_key) min_os=\(.min_os)"' darwin-facts.json
 
       - name: Upload macOS facts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-facts
           path: darwin-facts.json
           if-no-files-found: error
 
       - name: Upload Installer
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-installer
           path: ${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
@@ -385,17 +385,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download Linux Artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.version.outputs.plugin_name }}-Linux-x64
           path: artifact
           github-token: ${{ github.token }}
 
       - name: Download Factory Presets
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: factory-presets
           path: presets
@@ -435,7 +435,7 @@ jobs:
           tar -czvf ../${PLUGIN_NAME}-${VERSION}-Linux-x64.tar.gz *
 
       - name: Setup Node (facts)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -458,14 +458,14 @@ jobs:
           jq -r '"glibc_floor=\(.min_os) payload_files=\(.payload.files)"' linux-facts.json
 
       - name: Upload Linux facts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux-facts
           path: linux-facts.json
           if-no-files-found: error
 
       - name: Upload Archive
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux-archive
           path: ${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
@@ -486,24 +486,24 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # Full history needed for per-plugin changelog generation
 
       - name: Download Windows Installer
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: windows-installer
           path: installers
 
       - name: Download macOS Installer
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: macos-installer
           path: installers
 
       - name: Download Linux Archive
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: linux-archive
           path: installers
@@ -588,19 +588,19 @@ jobs:
           if grep -Fxq -- "$TAG" "$RUNNER_TEMP/release-tags.txt"; then echo "::error::release $TAG already exists"; exit 1; fi
 
       - name: Download macOS facts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: macos-facts
           path: facts
 
       - name: Download Linux facts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: linux-facts
           path: facts
 
       - name: Setup Node (signing)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -672,7 +672,7 @@ jobs:
       - name: Create Release
         id: release
         if: ${{ !inputs.dry_run }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ needs.version.outputs.tag }}
           name: ${{ needs.version.outputs.plugin_name }} v${{ needs.version.outputs.version }}
@@ -695,7 +695,7 @@ jobs:
 
       - name: Attest build provenance              # PD-12: after the release exists
         if: ${{ !inputs.dry_run }}
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
@@ -711,7 +711,7 @@ jobs:
 
       - name: Upload dry-run artifact
         if: ${{ inputs.dry_run }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-dry-run
           path: ${{ runner.temp }}/release-dry-run
@@ -741,7 +741,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -787,7 +787,7 @@ jobs:
           fi
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -803,7 +803,7 @@ jobs:
           node tools/gen-root-index.js --out _site/index.html
 
       - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
         with:
           github_token: ${{ github.token }}
           publish_dir: ./_site

@@ -40,9 +40,9 @@ jobs:
         shell: bash
         working-directory: apps/krate-manager
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -60,7 +60,7 @@ jobs:
           rustc --version
           cargo clippy --version
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: apps/krate-manager -> target
 
@@ -557,7 +557,7 @@ jobs:
     outputs:
       elevated: ${{ steps.paths.outputs.elevated }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -626,9 +626,9 @@ jobs:
         shell: bash
         working-directory: apps/krate-manager
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -652,7 +652,7 @@ jobs:
           rustup toolchain install
           rustc --version
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: apps/krate-manager -> target
 
@@ -714,7 +714,7 @@ jobs:
       # output under RUNNER_TEMP instead of the script's OutputDir.
       - name: compile the setup 1.0.0
         if: runner.os == 'Windows'
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        uses: Minionguyjpro/Inno-Setup-Action@36e43b836ce2c78d21787b1f7183caf85c60ba05 # v1.3.0
         with:
           path: apps/krate-manager/tests/fixtures/inno/fixture.iss
           options: |
@@ -982,7 +982,7 @@ jobs:
         shell: pwsh
         working-directory: apps/krate-manager
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Rust toolchain
         run: |
@@ -1008,7 +1008,7 @@ jobs:
           Write-Output "::notice title=inno-locked-file::locked-dll 1.0.0 and 1.0.1 payloads staged under $env:RUNNER_TEMP"
 
       - name: compile the setup 1.0.0
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        uses: Minionguyjpro/Inno-Setup-Action@36e43b836ce2c78d21787b1f7183caf85c60ba05 # v1.3.0
         with:
           path: apps/krate-manager/tests/fixtures/inno/fixture.iss
           options: |
@@ -1018,7 +1018,7 @@ jobs:
             /O${{ runner.temp }}\setups
 
       - name: compile the setup 1.0.1
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+        uses: Minionguyjpro/Inno-Setup-Action@36e43b836ce2c78d21787b1f7183caf85c60ba05 # v1.3.0
         with:
           path: apps/krate-manager/tests/fixtures/inno/fixture.iss
           options: |

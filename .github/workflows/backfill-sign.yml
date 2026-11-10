@@ -38,12 +38,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -57,7 +57,7 @@ jobs:
           node tools/backfill-sign.js plan --plugins-dir plugins --repo "${{ github.repository }}" --out "$RUNNER_TEMP/plan/plan.json"
 
       - name: Upload plan
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backfill-plan
           path: ${{ runner.temp }}/plan
@@ -69,10 +69,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -80,7 +80,7 @@ jobs:
         run: npm ci --prefix tools/feed-contract
 
       - name: Download plan
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: backfill-plan
           path: ${{ runner.temp }}/plan
@@ -92,7 +92,7 @@ jobs:
         run: node tools/backfill-sign.js facts --plan "$RUNNER_TEMP/plan/plan.json" --os darwin --dir "$RUNNER_TEMP/dl" --work "$RUNNER_TEMP/work" --out "$RUNNER_TEMP/facts"
 
       - name: Upload macOS facts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backfill-facts-darwin
           path: ${{ runner.temp }}/facts
@@ -104,10 +104,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -115,7 +115,7 @@ jobs:
         run: npm ci --prefix tools/feed-contract
 
       - name: Download plan
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: backfill-plan
           path: ${{ runner.temp }}/plan
@@ -130,7 +130,7 @@ jobs:
           node tools/backfill-sign.js facts --plan "$RUNNER_TEMP/plan/plan.json" --os linux --dir "$RUNNER_TEMP/dl" --work "$RUNNER_TEMP/work" --out "$RUNNER_TEMP/facts"
 
       - name: Upload Linux facts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backfill-facts-linux
           path: ${{ runner.temp }}/facts
@@ -146,12 +146,12 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # PD-14: git show <tag>:... needs the tags
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -165,13 +165,13 @@ jobs:
         run: test "$(rsign --version)" = "rsign2 0.6.7"
 
       - name: Download plan
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: backfill-plan
           path: ${{ runner.temp }}/plan
 
       - name: Download facts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: backfill-facts-*
           merge-multiple: true
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload backfill output
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backfill-sign-output
           path: ${{ runner.temp }}/out
@@ -218,12 +218,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # PD-14: git show <tag>:... needs the tags
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
@@ -237,13 +237,13 @@ jobs:
         run: test "$(rsign --version)" = "rsign2 0.6.7"
 
       - name: Download plan
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: backfill-plan
           path: ${{ runner.temp }}/plan
 
       - name: Download facts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: backfill-facts-*
           merge-multiple: true
@@ -271,7 +271,7 @@ jobs:
 
       - name: Upload backfill output
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backfill-sign-output
           path: ${{ runner.temp }}/out
