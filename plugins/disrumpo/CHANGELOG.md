@@ -5,7 +5,7 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-11-10
 
 ### Added
 
@@ -88,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Crossover phase compensation in double precision** — The band crossovers' phase-compensation filters now run in double precision with an exact Butterworth Q and follow the crossover frequency while it glides. The dry signal at Mix below 100 % lines up with the bands to -140 dB or better at every sample rate (was -65 dB at 192 kHz), and moving a crossover no longer leaves a brief phase mismatch. The change to the sound is far below audibility.
 - **Lower CPU use** — The oversampling filters, the morph engines and the distortion nodes do the same work with less overhead, and the sound is unchanged sample for sample. Measured on one core at 44.1 kHz with 512-sample blocks: four bands of HardClip at 4x went from 17.7 % to 4.0 %, four bands of four morphing nodes from 21.7 % to 11.4 % (four Formant nodes), from 38.5 % to 14.9 % (HardClip, Sine Fold, Full Rectify, Ring Saturation at 4x) and from 47.4 % to 27.0 % (Formant, Chaos, Granular, Fractal).
 - **Factory presets re-levelled; 120 presets** — With centre pan at unity and the other level fixes, many presets got louder; 67 presets have a lower Output Gain (by 0.1 to 9.8 dB) so none peaks above 0 dBFS on a -12 dBFS test signal, and none was raised. The sub-sample band alignment moved some peaks again, so seven of them sit lower still: Pitch Tracker by 0.4 dB, Chaos Engine and Slow Morph Pad by 0.3 dB, Temporal Edge by 0.3 dB (its first trim), Soft to Hard and Slow Scan by 0.2 dB, Coupled Chaos by 0.1 dB. Stochastic Burst, whose random modulation now starts the same way every time, is 0.1 dB lower. Alien Voice, louder with Ring Saturation's corrected carrier, is 0.4 dB lower. Init/Init_5_Bands, a 5-band preset the 4-band plugin cannot play, is removed, and Experimental/Formant_Shift is back.
+- **Built with VST3 SDK 3.8.1.**
 
 ## [0.9.11] - 2026-11-02
 
