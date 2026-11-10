@@ -579,6 +579,7 @@ inline constexpr std::string_view kInitCategory = "Init";
                 {kBloomDepthId, 1.0},                  // 1300
                 {kBloomSpawnRateId, 0.918043},         // 1301 -> 0.03 Hz (a bloom every ~33 s: several per minute-window)
                 {kCloudRichnessId, 0.70},              // 200 (sweep 2 probe: S6 1.74 at 0.7 - the buds need SOUNDING parents; 0.0000 at 0.35, 0.47 at 0.9; best reading, under F)
+                {kCloudSpectralGravityId, 0.75},       // 206 -> +0.50, stretched partials (1.0.4 retune: the fractional-allpass Cavern left S6 at 3.80 with the 0.10 default; 4.56 here, takes 4.56 / 4.66 / 0.74 / 4.42)
                 {kLifeBreathingDepthId, 0.85},         // 1500 (D14.1 >= 0.7)
                 {kLifeBreathingIrregularityId, 0.10},  // 1501
                 {kLifeTidalDepthId, 0.15},             // 1502
@@ -683,6 +684,7 @@ inline constexpr std::string_view kInitCategory = "Init";
                 {kSpaceMixId, 0.50},                 // 1105
                 {kSpaceFogId, 0.50},                 // 1103
                 {kLifeBreathingDepthId, 0.50},       // 1500
+                {kMasterGainId, 0.27795213},         // 0 -> -5.1 dB (1.0.4, B-18 re-level in 0.1 dB steps: take 3 seed 13 arm 1 hi -5.58 dB at unity, -6.0018 at -5.0 dB, -6.02 here; user ruled -5.1 for margin)
                 {kSeedId, 10.0 / 15.0},              // 2 index 10 -> "Seed 11"
             }},
         // ---- 7 row 10: S10 + D2, D1.6, D1.7 (T044) -----------------------------
@@ -1444,6 +1446,7 @@ inline constexpr std::string_view kInitCategory = "Init";
                 {kCloudInharmonicityId, 0.30},  // 203 -> 0.03
                 {kCloudDriftDepthId, 0.40},     // 204 -> 20 cents
                 {kCloudStereoSpreadId, 0.95},   // 205
+                {kCloudSpectralGravityId, 0.75},  // 206 -> +0.50, stretched partials (1.0.4 retune: the fractional-allpass body cloud left D1.5 at 2.58 with the 0.10 default; 8.65 here)
                 {kResonanceMixId, 0.20},        // 401
                 {kNoiseLevelId, 52.0 / 108.0},  // 300 -> -44 dB
                 {kSpaceMixId, 0.15},            // 1105
@@ -1705,7 +1708,7 @@ inline constexpr std::string_view kInitCategory = "Init";
                 {kNoiseSlot1ModelId, 2.0 / 3.0},       // 311 index 2 -> GranularDust (its default)
                 {kNoiseSlot2ModelId, 2.0 / 3.0},       // 312 index 2 -> GranularDust
                 {kNoiseSlot3ModelId, 2.0 / 3.0},       // 313 index 2 -> GranularDust
-                {kNoiseWakeId, 0.75},                  // 301
+                {kNoiseWakeId, 0.40},                  // 301 (1.0.4 retune 0.75 -> 0.40: D3.3 3.56 -> 4.19 after the fractional-allpass Cavern fix; 0.35-0.50 all read >= 4.11)
                 {kGhostPeakLevelId, 0.90},             // 1400 (S9, the D11 conjunct)
                 {kGhostReverseProbabilityId, 0.60},    // 1402 (D11 >= 0.5)
                 {kEventsRateScaleId, 0.650515},        // 800 -> 2.0x, more ghost requests (the schedulers)
