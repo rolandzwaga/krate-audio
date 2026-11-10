@@ -1715,3 +1715,77 @@ TEST_CASE("RingSaturation meets all success criteria (final validation)",
         REQUIRE(peak < 2.0f);
     }
 }
+
+// =============================================================================
+// The carrier and the zero-crossing tracker run once per sample, not once per stage
+// (Disrumpo audit follow-up 84, user ruling 2026-11-10). With 2-4 stages the carrier
+// phase advanced `stages` times per sample (a 1 kHz carrier ran at stages x 1 kHz) and
+// the tracker compared different stages' signals.
+// =============================================================================
+
+TEST_CASE("RingSaturation advances its carrier once per sample at every stage count",
+          "[ring_saturation][carrier][stages]") {
+    constexpr double kSr = 48000.0;
+    for (int stages = 1; stages <= RingSaturation::kMaxStages; ++stages) {
+        RingSaturation rs;
+        rs.prepare(kSr);
+        rs.setFreqMode(RSFreqMode::Fixed);
+        rs.setCarrierWaveform(RSCarrierWaveform::Sine);
+        rs.setCarrierFrequency(1000.0f);
+        rs.setStages(stages);
+        // A DC input: every stage's output has the carrier's sign, so the output crosses
+        // its mean twice per carrier period
+        std::vector<float> out(static_cast<size_t>(kSr));
+        for (auto& v : out) v = rs.process(0.5f);
+        const size_t from = out.size() / 2;
+        const double mean = std::accumulate(out.begin() + static_cast<std::ptrdiff_t>(from), out.end(), 0.0) /
+                            static_cast<double>(out.size() - from);
+        int crossings = 0;
+        for (size_t i = from + 1; i < out.size(); ++i) {
+            if ((out[i - 1] - mean < 0.0) != (out[i] - mean < 0.0)) ++crossings;
+        }
+        INFO("stages " << stages << ": " << crossings << " mean crossings in 0.5 s (1 kHz carrier: 1000)");
+        CHECK(crossings >= 990);
+        CHECK(crossings <= 1010);
+    }
+}
+
+TEST_CASE("RingSaturation tracks the input frequency at every stage count", "[ring_saturation][carrier][stages]") {
+    constexpr double kSr = 48000.0;
+    for (int stages = 1; stages <= RingSaturation::kMaxStages; ++stages) {
+        RingSaturation rs;
+        rs.prepare(kSr);
+        rs.setFreqMode(RSFreqMode::Track);
+        rs.setCarrierWaveform(RSCarrierWaveform::Sine);
+        rs.setStages(stages);
+        for (size_t i = 0; i < static_cast<size_t>(kSr); ++i) {
+            (void)rs.process(0.5f * static_cast<float>(std::sin(2.0 * 3.141592653589793 * 440.0 *
+                                                                static_cast<double>(i) / kSr)));
+        }
+        const float tracked = rs.getCarrierState().trackedFreq;
+        INFO("stages " << stages << ": tracked " << tracked << " Hz (input 440 Hz)");
+        CHECK(std::abs(tracked - 440.0f) <= 440.0f * 0.02f);
+    }
+}
+
+TEST_CASE("RingSaturation carrier state carries over to an instance at another rate", "[ring_saturation][carrier]") {
+    RingSaturation a;
+    a.prepare(96000.0);
+    a.setFreqMode(RSFreqMode::Track);
+    a.setCarrierWaveform(RSCarrierWaveform::Square);
+    for (size_t i = 0; i < 9000; ++i) {
+        (void)a.process(0.5f * static_cast<float>(std::sin(2.0 * 3.141592653589793 * 330.0 * static_cast<double>(i) /
+                                                           96000.0)));
+    }
+    RingSaturation b;
+    b.prepare(192000.0);
+    b.setCarrierState(a.getCarrierState(), 96000.0);
+    const auto sa = a.getCarrierState();
+    const auto sb = b.getCarrierState();
+    CHECK(sb.phase == sa.phase);
+    CHECK(sb.trackedFreq == sa.trackedFreq);
+    CHECK(sb.lastSample == sa.lastSample);
+    CHECK(sb.samplesSinceCrossing == 0);  // the tracker re-syncs on its own input
+    CHECK(sb.randomCounter == 2 * sa.randomCounter);
+    CHECK(b.getSampleRate() == 192000.0);
+}

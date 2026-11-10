@@ -16,6 +16,7 @@
 // [p6r-arrival] per-band arrival as fractional group delays.
 // [p6r-xsum]    crossover sum of a 1x band with a 2x or 4x band against all-1x.
 // [p6s-ab-dump] / [p6s-ab-compare] the ADAA ruling's A/B of HalfRectify / TriangleFold.
+// [p6d-ringsat] Ring Saturation per-sample carrier / tracker A/B (follow-up 84, 2026-11-10).
 // Run one case by name; results of 2026-11-09 are in follow-ups 79 and 81.
 // =============================================================================
 
@@ -1017,5 +1018,109 @@ TEST_CASE("p6s probe: minimax alignment delays per factor and rate", "[.][p6s-mi
                         m14.xRaw.fc, m24.xRaw.db, m24.xRaw.hz, m24.xRaw.fc, m12.xCancel.db, m12.xCancel.hz,
                         m14.xCancel.db, m14.xCancel.hz, m24.xCancel.db, m24.xCancel.hz);
         }
+    }
+}
+
+// =============================================================================
+// [p6d-ringsat] Ring Saturation A/B for the 2026-11-10 ruling (follow-up 84): the carrier
+// phase and the zero-crossing tracker advance once per sample (they advanced once per
+// stage), and a factor crossfade carries them into the incoming lane. One band, the node
+// alone at drive 3, 222.65625 Hz (bin 38 of 8192 at 48 kHz) at -12 dBFS, 1.5 s; read over
+// the last 4 x 8192 samples: RMS, harmonic and non-harmonic power, spectral centroid,
+// clicks. Then Oversample Max 4x -> 2x -> 4x at 0.5 / 0.75 s: RMS and clicks of the last
+// 0.5 s against the 0.25 s before the first switch.
+// =============================================================================
+
+namespace {
+
+struct RingSatConfig {
+    const char* name;
+    double carrier;   // slot 3: Sine 0, Triangle 1/3, Square 2/3 (default 0.5), Saw 1
+    double freqMode;  // slot 5: Fixed 0, Harmonic 1/3, Track 2/3 (default 0.5), Random 1
+    double stages;    // slot 1: (stages - 1) / 3 (default 0.5 = 3 stages)
+};
+
+double spectralCentroidHz(const std::vector<float>& x, size_t from, double sr) {
+    constexpr size_t kN = 8192;
+    Krate::DSP::FFT fft;
+    fft.prepare(kN);
+    std::vector<float> window(kN);
+    Krate::DSP::Window::generateHann(window.data(), kN);
+    std::vector<float> frame(kN);
+    std::vector<Krate::DSP::Complex> spectrum(fft.numBins());
+    double num = 0.0;
+    double den = 0.0;
+    for (size_t start = from; start + kN <= x.size(); start += kN) {
+        for (size_t i = 0; i < kN; ++i) frame[i] = x[start + i] * window[i];
+        fft.forward(frame.data(), spectrum.data());
+        for (size_t k = 1; k < spectrum.size(); ++k) {
+            const double p = static_cast<double>(spectrum[k].real) * spectrum[k].real +
+                             static_cast<double>(spectrum[k].imag) * spectrum[k].imag;
+            num += p * static_cast<double>(k) * sr / static_cast<double>(kN);
+            den += p;
+        }
+    }
+    return den > 0.0 ? num / den : 0.0;
+}
+
+}  // namespace
+
+TEST_CASE("p6d probe: Ring Saturation A/B", "[.][p6d-ringsat]") {
+    constexpr double kTone = 222.65625;
+    const auto in = sine(static_cast<size_t>(1.5 * kSr), kTone, kSr, 0.25118864315095801);
+    const RingSatConfig configs[] = {
+        {.name = "default (Square, Track, 3 stages)", .carrier = 0.5, .freqMode = 0.5, .stages = 0.5},
+        {.name = "Square, Track, 1 stage", .carrier = 0.5, .freqMode = 0.5, .stages = 0.0},
+        {.name = "Sine, Track, 3 stages", .carrier = 0.0, .freqMode = 0.5, .stages = 0.5},
+        {.name = "Sine, Harmonic, 3 stages", .carrier = 0.0, .freqMode = 1.0 / 3.0, .stages = 0.5},
+        {.name = "Square, Fixed, 3 stages", .carrier = 0.5, .freqMode = 0.0, .stages = 0.5},
+        {.name = "Sine, Fixed, 1 stage", .carrier = 0.0, .freqMode = 0.0, .stages = 0.0},
+        {.name = "Saw, Random, 2 stages", .carrier = 1.0, .freqMode = 1.0, .stages = 1.0 / 3.0},
+    };
+    const auto node = [](NodeParamType t) { return makeNodeParamId(0, 0, t); };
+    for (const auto& c : configs) {
+        for (const double os : {0.0, 1.0 / 3.0, 2.0 / 3.0}) {
+            Rig r(kSr);
+            r.apply({{kBandCountId, 0.0},
+                     {makeBandParamId(0, BandParamType::kBandActiveNodes), 0.0},
+                     {kOversampleMaxId, os},
+                     {node(NodeParamType::kNodeType), static_cast<double>(static_cast<int>(DistortionType::RingSaturation)) / 25.0},
+                     {node(NodeParamType::kNodeDrive), 0.3},
+                     {node(NodeParamType::kNodeShape1), c.stages},
+                     {node(NodeParamType::kNodeShape3), c.carrier},
+                     {node(NodeParamType::kNodeShape5), c.freqMode}});
+            r.reactivate();
+            std::vector<float> oL;
+            std::vector<float> oR;
+            r.render(in, in, oL, oR);
+            const size_t from = oL.size() - size_t{4} * 8192;
+            const std::vector<float> tail(oL.begin() + static_cast<std::ptrdiff_t>(from), oL.end());
+            const auto a = readAliasing(tail, kSr, static_cast<float>(kTone), 8192, 4);
+            std::printf("RINGSAT %-34s %dx: rms %.2f dB, harmonic %.2f dB, non-harmonic %+.2f dB re harmonic, "
+                        "centroid %.0f Hz, clicks %zu\n",
+                        c.name, static_cast<int>(std::lround(std::pow(2.0, std::round(os * 3.0)))),
+                        toDb(rmsOf(tail.data(), tail.size())), a.harmonicDb, a.nonHarmonicRelDb(),
+                        spectralCentroidHz(oL, from, kSr), clickCount(tail.data(), tail.size(), kSr));
+        }
+        // Oversample Max 4x -> 2x -> 4x
+        Rig r(kSr);
+        r.apply({{kBandCountId, 0.0},
+                 {makeBandParamId(0, BandParamType::kBandActiveNodes), 0.0},
+                 {node(NodeParamType::kNodeType), static_cast<double>(static_cast<int>(DistortionType::RingSaturation)) / 25.0},
+                 {node(NodeParamType::kNodeDrive), 0.3},
+                 {node(NodeParamType::kNodeShape1), c.stages},
+                 {node(NodeParamType::kNodeShape3), c.carrier},
+                 {node(NodeParamType::kNodeShape5), c.freqMode}});
+        r.reactivate();
+        std::vector<float> oL;
+        std::vector<float> oR;
+        r.render(in, in, oL, oR, 512, [&](size_t, size_t start, PChanges& pc) {
+            const double t = static_cast<double>(start) / kSr;
+            pc.addChange(kOversampleMaxId, (t >= 0.5 && t < 0.75) ? 1.0 / 3.0 : 2.0 / 3.0);
+        });
+        const auto S = [](double s) { return static_cast<size_t>(s * kSr); };
+        std::printf("RINGSAT %-34s 4x->2x->4x: before %.2f dB (clicks %zu), after return %.2f dB (clicks %zu)\n", c.name,
+                    toDb(rmsOf(oL.data() + S(0.25), S(0.25))), clickCount(oL.data() + S(0.25), S(0.25), kSr),
+                    toDb(rmsOf(oL.data() + S(1.0), S(0.5))), clickCount(oL.data() + S(1.0), S(0.5), kSr));
     }
 }

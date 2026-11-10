@@ -1041,6 +1041,29 @@ private:
         }
     }
 
+    /// @brief Every adapter @p to runs takes the carrier state of the adapter @p from runs in the
+    /// same slot (both at their clocked rates: after beginLaneSpan), its phase moved by how much
+    /// later @p to's shapers see the input (shaperInputDelay).
+    void carryCarrierState(Lane& to, const Lane& from) const noexcept {
+        const double lagSeconds = (shaperInputDelay(to) - shaperInputDelay(from)) / sampleRate_;
+        for (size_t c = 0; c < 2; ++c) {
+            for (size_t k = 0; k < kHomeSlots; ++k) {
+                DistortionAdapter* target = slotOf(to, c, k);
+                const DistortionAdapter* source = slotOf(from, c, k);
+                if (target != nullptr && source != nullptr) target->copyCarrierStateFrom(*source, lagSeconds);
+            }
+        }
+    }
+
+    /// @brief Host samples from the band input to @p lane's shapers: its compensation wait plus,
+    /// oversampled, the upsampler's half of the oversampler's group delay (the up and down
+    /// filters are the same IIR, so each carries half).
+    [[nodiscard]] double shaperInputDelay(const Lane& lane) const noexcept {
+        const PathPlan plan = planFor(lane.factor, lane.latencyTarget, lane.contextSet, lane.fourX, lane.shift);
+        const double up = plan.clocked > 1 ? 0.5 * oversamplerGroupDelay_[factorIndex(plan.clocked)] : 0.0;
+        return plan.wait + up;
+    }
+
     /// @brief Aligned latency of the single-type adapter, in clocked samples.
     [[nodiscard]] int legacyAlignedLatency() const noexcept {
         return home_[0][kLegacySlot] != nullptr ? home_[0][kLegacySlot]->getAlignedLatency()
@@ -1116,6 +1139,9 @@ private:
             in.morphR->syncCursorFrom(*lane.morphR);
         }
         resetLaneState(in);
+        // ... and its Ring Saturation carriers continue the running lane's, once it runs at its
+        // new rate (follow-up 84, user ruling 2026-11-10)
+        carryCarrier_ = true;
         crossfading_ = true;
         xfadePos_ = 0;
         // A latent type in the cleared lane (Spectral, Granular) outputs nothing until its latency
@@ -1225,6 +1251,10 @@ private:
         attachSpare(in);  // a setter since the last span may need other slots
         const int waitOut = beginLaneSpan(out);
         const int waitIn = beginLaneSpan(in);
+        if (carryCarrier_) {
+            carryCarrierState(in, out);
+            carryCarrier_ = false;
+        }
         float* inLeft = xfadeL_.data();
         float* inRight = xfadeR_.data();
         applyCompensationPair(left, right, inLeft, inRight, numSamples, waitOut, waitIn);
@@ -1686,6 +1716,7 @@ private:
     size_t xfadePos_ = 0;      // samples into the crossfade, its hold included
     size_t xfadeHold_ = 0;     // samples the incoming gain first stays at 0 (its type latency)
     size_t xfadeSamples_ = 1;  // crossfade length (kFactorCrossfadeMs at the host rate)
+    bool carryCarrier_ = false;  // the incoming lane takes the carriers at its first span
     std::vector<float> xfadeL_;  // the incoming lane's span
     std::vector<float> xfadeR_;
     Lane* spanLane_ = nullptr;     // the lane an oversampler callback runs (runLaneSpan)

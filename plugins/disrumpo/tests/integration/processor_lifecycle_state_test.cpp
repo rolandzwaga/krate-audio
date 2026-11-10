@@ -3149,3 +3149,50 @@ TEST_CASE("process() flushes denormals whatever the caller's floating-point mode
 }
 #endif
 
+
+// Follow-up 84 (user ruling 2026-11-10): an oversampling crossfade's incoming lane continues
+// the Ring Saturation carrier of the running lane (phase, tracked frequency) instead of
+// restarting it at phase 0. In Track mode the carrier runs at the input's frequency, so the
+// restart re-phased it against the input and moved the level (the default node, Square /
+// Track / 3 stages: -14.17 dB before a 4x -> 2x -> 4x switch, -29.83 dB after it). One band,
+// the node alone at drive 3, 222.66 Hz at -12 dBFS, 48 kHz; Oversample Max 2x at 0.5 s, 4x
+// at 0.75 s: the last 0.5 s within 1 dB of the 0.25 s before the first switch.
+TEST_CASE("A factor crossfade keeps Ring Saturation's carrier phase", "[disrumpo][oversampling][crossfade][follow-up-84]") {
+    constexpr double kSr = 48000.0;
+    const auto S = [](double s) { return static_cast<size_t>(s * kSr); };
+    std::vector<float> in(S(1.5));
+    for (size_t i = 0; i < in.size(); ++i) {
+        in[i] = static_cast<float>(0.25118864315095801 *
+                                   std::sin(2.0 * std::numbers::pi * 222.65625 * static_cast<double>(i) / kSr));
+    }
+    const auto node = [](NodeParamType t) { return makeNodeParamId(0, 0, t); };
+    struct Carrier {
+        const char* name;
+        double waveform;  // slot 3
+        double mode;      // slot 5
+    };
+    for (const Carrier c : {Carrier{.name = "Square / Track (default)", .waveform = 0.5, .mode = 0.5},
+                            Carrier{.name = "Sine / Track", .waveform = 0.0, .mode = 0.5},
+                            Carrier{.name = "Square / Harmonic", .waveform = 0.5, .mode = 1.0 / 3.0}}) {
+        Rig r(kSr);
+        r.apply({{kBandCountId, 0.0},
+                 {makeBandParamId(0, BandParamType::kBandActiveNodes), 0.0},
+                 {node(NodeParamType::kNodeType),
+                  static_cast<double>(static_cast<int>(DistortionType::RingSaturation)) / 25.0},
+                 {node(NodeParamType::kNodeDrive), 0.3},
+                 {node(NodeParamType::kNodeShape3), c.waveform},
+                 {node(NodeParamType::kNodeShape5), c.mode}});
+        r.reactivate();
+        std::vector<float> oL;
+        std::vector<float> oR;
+        r.render(in, in, oL, oR, 512, [&](size_t, size_t start, PChanges& pc) {
+            const double t = static_cast<double>(start) / kSr;
+            pc.addChange(kOversampleMaxId, (t >= 0.5 && t < 0.75) ? 1.0 / 3.0 : 2.0 / 3.0);
+        });
+        const double before = toDb(rmsOf(oL.data() + S(0.25), S(0.25)));
+        const double after = toDb(rmsOf(oL.data() + S(1.0), S(0.5)));
+        std::printf("follow-up 84 %s: before %.2f dB, after 4x -> 2x -> 4x %.2f dB\n", c.name, before, after);
+        INFO(c.name << ": before " << before << " dB, after " << after << " dB");
+        CHECK(std::fabs(after - before) <= 1.0);
+    }
+}

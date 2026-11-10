@@ -372,6 +372,15 @@ public:
     /// @brief Rate process() is clocked at (the host rate x the owner's factor).
     [[nodiscard]] double getProcessingRate() const noexcept { return sampleRate_; }
 
+    /// @brief Take over @p other's Ring Saturation carrier state (phase, tracked frequency),
+    /// rescaled to this adapter's rate: an oversampling crossfade's incoming lane continues the
+    /// running lane's carrier instead of restarting it (follow-up 84, user ruling 2026-11-10).
+    /// @p inputLagSeconds: how much later this adapter's input is than @p other's.
+    void copyCarrierStateFrom(const DistortionAdapter& other, double inputLagSeconds) noexcept {
+        ringSaturation_.setCarrierState(other.ringSaturation_.getCarrierState(), other.ringSaturation_.getSampleRate(),
+                                        inputLagSeconds);
+    }
+
     /// @brief True for the types whose shaper runs through first-order antiderivative
     /// anti-aliasing (ADAA1) when the adapter is clocked above the host rate: HalfRectify
     /// (the step at the threshold) and TriangleFold (the fold corners). Ruling 2026-11-09.

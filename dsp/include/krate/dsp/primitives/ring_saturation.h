@@ -91,6 +91,8 @@ public:
     static constexpr float kMinCarrierFreqHz = 0.5f;  ///< Below this, carrier is bypassed
     static constexpr float kMinTrackedFreqHz = 20.0f;
     static constexpr float kMaxTrackedFreqHz = 5000.0f;
+    /// After setCarrierState the zero-crossing tracker ignores its input for this long
+    static constexpr double kCarrierResyncHoldSeconds = 0.002;
 
     // =========================================================================
     // Construction / Destruction
@@ -128,6 +130,8 @@ public:
         phase_ = 0.0;
         lastSample_ = 0.0f;
         samplesSinceCrossing_ = 0;
+        trackerSynced_ = true;
+        trackerHold_ = 0;
         trackedFreq_ = 220.0f;
         randomCurrent_ = 220.0f;
         randomTarget_ = 220.0f;
@@ -149,6 +153,8 @@ public:
         phase_ = 0.0;
         lastSample_ = 0.0f;
         samplesSinceCrossing_ = 0;
+        trackerSynced_ = true;
+        trackerHold_ = 0;
         trackedFreq_ = 220.0f;
         randomCurrent_ = 220.0f;
         randomTarget_ = 220.0f;
@@ -255,6 +261,66 @@ public:
         return bias_;
     }
 
+    /// @brief The carrier oscillator's running state: phase, zero-crossing tracker and the
+    /// Random mode's wander. An owner that switches between two instances at different rates
+    /// (an oversampling crossfade) carries it over, so the carrier keeps its phase.
+    struct CarrierState {
+        double phase = 0.0;
+        float lastSample = 0.0f;
+        int samplesSinceCrossing = 0;
+        float trackedFreq = 220.0f;
+        uint32_t rngState = 12345u;
+        float randomTarget = 220.0f;
+        float randomCurrent = 220.0f;
+        int randomCounter = 0;
+    };
+
+    [[nodiscard]] CarrierState getCarrierState() const noexcept {
+        return {.phase = phase_,
+                .lastSample = lastSample_,
+                .samplesSinceCrossing = samplesSinceCrossing_,
+                .trackedFreq = trackedFreq_,
+                .rngState = rngState_,
+                .randomTarget = randomTarget_,
+                .randomCurrent = randomCurrent_,
+                .randomCounter = randomCounter_};
+    }
+
+    /// @brief Take over @p state from an instance running at @p fromSampleRate: phase and
+    /// frequencies are kept, the Random mode's counter is rescaled to this instance's rate. The
+    /// zero-crossing tracker keeps the tracked frequency and re-syncs on this instance's own
+    /// input: it ignores the first kCarrierResyncHoldSeconds (an owner that has just cleared
+    /// this instance's input path feeds it a few samples of zeros and filter settling), then its
+    /// first crossing only starts the count (the other instance's count does not apply here). @p inputLagSeconds is how
+    /// much later this instance's input is than the other's: the phase moves back by the carrier
+    /// frequency times it, so the carrier keeps its phase against the signal it multiplies.
+    void setCarrierState(const CarrierState& state, double fromSampleRate, double inputLagSeconds = 0.0) noexcept {
+        const double scale = fromSampleRate > 0.0 ? sampleRate_ / fromSampleRate : 1.0;
+        double freq = 0.0;
+        switch (freqMode_) {
+            case RSFreqMode::Fixed: freq = carrierFreqHz_; break;
+            case RSFreqMode::Harmonic: freq = static_cast<double>(state.trackedFreq) * harmonicRatio_; break;
+            case RSFreqMode::Track: freq = state.trackedFreq; break;
+            case RSFreqMode::Random: freq = state.randomCurrent; break;
+        }
+        const double shifted = state.phase - freq * inputLagSeconds;
+        phase_ = shifted - std::floor(shifted);
+        lastSample_ = state.lastSample;
+        samplesSinceCrossing_ = 0;
+        trackerSynced_ = false;
+        trackerHold_ = static_cast<int>(std::lround(kCarrierResyncHoldSeconds * sampleRate_));
+        trackedFreq_ = state.trackedFreq;
+        rngState_ = state.rngState;
+        randomTarget_ = state.randomTarget;
+        randomCurrent_ = state.randomCurrent;
+        randomCounter_ = static_cast<int>(std::lround(static_cast<double>(state.randomCounter) * scale));
+    }
+
+    /// @brief Rate prepare() was given (at least 1000 Hz).
+    [[nodiscard]] double getSampleRate() const noexcept {
+        return sampleRate_;
+    }
+
     // =========================================================================
     // Processing Methods
     // =========================================================================
@@ -278,8 +344,12 @@ public:
         // the raw input.
         float signal = input;
         if (depth_ != 0.0f) {
+            // The tracker reads the input and the carrier advances once per sample; every stage
+            // multiplies by the same carrier sample (Disrumpo audit follow-up 84)
+            updateFrequencyTracker(input);
+            const float carrier = nextCarrierSample();
             for (int stage = 0; stage < stages_; ++stage) {
-                signal = processStage(signal);
+                signal = processStage(signal, carrier);
             }
         }
 
@@ -310,10 +380,19 @@ private:
         bool active = false;
     };
 
-    [[nodiscard]] float processStage(float input) noexcept {
-        // Update zero-crossing tracker (only for Track/Harmonic modes)
-        updateFrequencyTracker(input);
+    /// @brief This sample's carrier (1.0 when the carrier is inactive); advances the phase.
+    [[nodiscard]] float nextCarrierSample() noexcept {
+        const float effectiveFreq = getEffectiveFrequency();
+        if (effectiveFreq < kMinCarrierFreqHz) {
+            return 1.0f;
+        }
+        const float carrier = getCarrierSample();
+        phase_ += static_cast<double>(effectiveFreq) / sampleRate_;
+        if (phase_ >= 1.0) phase_ -= 1.0;
+        return carrier;
+    }
 
+    [[nodiscard]] float processStage(float input, float carrier) noexcept {
         // Apply saturation (with crossfade handling)
         float saturated;
         if (crossfade_.active) {
@@ -326,15 +405,6 @@ private:
             }
         } else {
             saturated = shaper_.process(input);
-        }
-
-        // Generate carrier signal (1.0 when carrier inactive)
-        float effectiveFreq = getEffectiveFrequency();
-        float carrier = 1.0f;
-        if (effectiveFreq >= kMinCarrierFreqHz) {
-            carrier = getCarrierSample();
-            phase_ += static_cast<double>(effectiveFreq) / sampleRate_;
-            if (phase_ >= 1.0) phase_ -= 1.0;
         }
 
         // Ring modulation formula:
@@ -388,7 +458,15 @@ private:
         bool currentPositive = input >= 0.0f;
         bool lastPositive = lastSample_ >= 0.0f;
 
-        if (currentPositive != lastPositive && samplesSinceCrossing_ > 1) {
+        if (trackerHold_ > 0) {
+            --trackerHold_;  // setCarrierState: the input path is still settling
+            lastSample_ = input;
+            return;
+        }
+        if (currentPositive != lastPositive && !trackerSynced_) {
+            trackerSynced_ = true;  // setCarrierState: count from this crossing
+            samplesSinceCrossing_ = 0;
+        } else if (currentPositive != lastPositive && samplesSinceCrossing_ > 1) {
             float halfPeriod = static_cast<float>(samplesSinceCrossing_);
             float freq = static_cast<float>(sampleRate_) / (halfPeriod * 2.0f);
             freq = std::clamp(freq, kMinTrackedFreqHz, kMaxTrackedFreqHz);
@@ -449,6 +527,8 @@ private:
     float lastSample_ = 0.0f;
     int samplesSinceCrossing_ = 0;
     float trackedFreq_ = 220.0f;
+    bool trackerSynced_ = true;  ///< false after setCarrierState until the first crossing
+    int trackerHold_ = 0;        ///< samples the tracker still ignores after setCarrierState
 
     // Random frequency state (for Random mode)
     uint32_t rngState_ = 12345u;

@@ -140,6 +140,8 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     -14.01 / -14.00 dB) and the RingSaturation end node being 3.15 dB quieter at 4x than at 1x / 2x (-17.15 against
     -14.0 dB), which tilts the straight dB line the windows are measured against. Still held (blend law unchanged by
     ruling); the RingSat 4x level belongs with item 84.
+    — After item 84's fix (2026-11-10): +1.33 dB (start -3.40, end -14.14 dB): the switch no longer moves the RingSat
+    end node; what remains is this blend law (+1.31 / +1.33 dB with the band held at 2x / 1x). Still held.
 13. **Envelope follower time convention.** The sweep envelope's "attack ms" / "release ms" reach ≈99 % (coefficient
     `exp(−2π/(t·sr))`) at the set time; the 63 % point sits at ≈t/7.5 (10 ms attack → 1.3 ms; 100 ms release →
     31.8 ms to 37 %). Consistent across 44.1/48/96 kHz since T1.10 (`98c17930`), but the UI/spec should state the
@@ -658,6 +660,17 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     carrier; (b) update the tracker and the phase once per sample in RingSaturation; (c) measure the T6.06 4-node
     click bar with a Sine carrier (a square carrier's edges are its sound), or default fresh RingSat nodes to Sine
     (a sound change). The level bar's remainder is item 12 plus this re-phase (see item 12).
+    — CLOSED 2026-11-10 (user ruling: options (a) and (b); commit "fix(dsp): Ring Saturation's carrier and tracker run once
+    per sample and survive a factor crossfade"). (b) RingSaturation tracks the input and advances the carrier once per
+    sample; every stage multiplies by that sample's carrier (RED: 1 kHz Fixed carrier at 2 / 3 / 4 stages crossed its
+    mean 1999 / 3000 / 4000 times in 0.5 s instead of 1000; Track read 4407 / 4795 / 4826 Hz for 440 Hz; GREEN 1000 and
+    440.0 at every stage count). (a) a factor crossfade's incoming lane takes the running lane's carrier state
+    (RingSaturation::getCarrierState / setCarrierState): phase, moved back by the carrier frequency times the lanes'
+    shaper-input lag; tracked frequency; the tracker holds 2 ms (the cleared input path) and re-syncs on its first
+    crossing (RED: default node 4x -> 2x -> 4x -14.17 -> -29.83 dB, Sine / Track -16.69 -> -28.81; GREEN -14.13 / -16.42).
+    T6.06 4-node sweep: clicks 326 -> 222, level +2.47 -> +1.33 dB, end node -17.15 -> -14.14 dB (no switch: -14.00).
+    Both 4-node bars stay held: the level bar is item 12's blend law (+1.31 / +1.33 dB at a fixed 2x / 1x); the click
+    bar: new item 90.
 85. **T6.07 full sweep automation: the plan's jump-ratio bar compares against the sweep off** (2026-11-09, needs a
     ruling). 4 bands SoftClip drive 3, four sines at -18 dBFS (150 / 700 / 3200 / 11000 Hz), sweep on at 100 %, its
     frequency automated 100 Hz -> 10 kHz over 2 s, LFO 5 Hz depth 1, envelope on: the largest sample step with the
@@ -779,6 +792,17 @@ none blocks the remaining plan tasks. Dated 2026-11-06 unless noted.
     (8 adapters per band) is at the floor for adapters that can run any type without allocating; going lower needs
     per-type processor storage (a node slot holding only its type's processor, provisioned without audio-thread
     allocation) or dropping the single-type adapters from the Processor's bands. Not started (scope cap).
+
+90. **T6.06 4-node click bar after item 84: the Square carrier's edges** (2026-11-10, needs a ruling). After the per-sample
+    carrier and the crossfade carry, the 4-node planar sweep (SoftClip / SineFold / FullRectify / RingSaturation, drive
+    3, 220 Hz -12 dBFS) still reads 222 clicks (was 326; 0 with Oversample Max 1x / 2x, no switch). The default Ring
+    Saturation node (Square carrier, Track, 3 stages) alone, 222.66 Hz -12 dBFS, clicks at its square edges at every
+    factor in a steady render with no switch: 304 in 0.68 s at 1x / 2x / 4x (was the same before the fix). Whether the
+    edges land on a quiet or a loud input phase depends on the carrier's phase against the input, which the reset at
+    activation sets; the carry keeps it within 0.3-0.5 dB of level but not edge-exact. Options: measure the click bar
+    with a Sine carrier (follow-up 84 option (c)), or default fresh Ring Saturation nodes to Sine (a sound change).
+    Also found (not fixed, scope cap): RingSaturation's curve crossfade ramp (setSaturationCurve) still advances once
+    per stage, so its 10 ms crossfade lasts 10 / stages ms.
 
 ## Done outside the plan
 
