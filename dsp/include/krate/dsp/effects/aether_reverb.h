@@ -579,6 +579,24 @@
 // (11b) are unchanged.
 //
 // ------------------------------------------------------------------------------
+// (11d) THE FADE-IN IS EXPONENTIAL AND SLOWER THAN THE FADE-OUT. MEASURED, FIXED.
+// ------------------------------------------------------------------------------
+// The resumption after the clear rises from digital silence, and any POLYNOMIAL
+// fade-in (linear, smoothstep, raised cosine; 20 ms or 100 ms alike) leaves the
+// first loud edge of the input inside a 512-sample ClickDetector frame that is
+// still mostly silent. MEASURED on SC-015's transition render: the output there
+// was exactly gate x the steady mix (a mix = 0 render scored the same
+// detections, a mix = 1 render none). Replaying the ungated resumption through
+// each envelope offline, every polynomial shape scored 6.6 sigma at
+// t = 105.0441 s, against 5.55 sigma for the steady signal. A fade-in that is
+// LINEAR IN dB rises by the same ratio in every frame, so no frame mixes
+// silence with a loud edge: kResumeFloorDb to 0 dB over kResumeRampMs scored
+// 5.46 / 5.47 sigma (L / R), the steady figure (-60 dB over 50 ms: 6.08). The
+// cost is one pow per sample during the fade-in only. The fade-out keeps
+// FR-007's 20 ms smoothstep. silence() during a fade-in re-maps the ramp so the
+// fade-out starts from the CURRENT gain (resumeGateShape / smoothstep inverse).
+//
+// ------------------------------------------------------------------------------
 // (12) FREEZE IS INERT IN EVERY DIMENSION EXCEPT THE MATRIX MORPH (RA-5, FR-033)
 // ------------------------------------------------------------------------------
 // setFreeze(true) is a 50 ms (kFreezeLatchMs) PER-SAMPLE crossfade on
@@ -1384,7 +1402,9 @@ public:
     /// Control-rate chunk in samples. Matches continuous_body.h:97,
     /// harmonic_cloud.h:144 and atmosphere_engine.h:269.
     static constexpr std::size_t kControlChunkSamples = 64;
-    static constexpr float kSilenceRampMs = 20.0f;  ///< FR-007 fade-out/in window
+    static constexpr float kSilenceRampMs = 20.0f;  ///< FR-007 fade-out window
+    static constexpr float kResumeRampMs = 150.0f;  ///< FR-007 fade-in window, banner (11d)
+    static constexpr float kResumeFloorDb = -60.0f;  ///< fade-in start gain, banner (11d)
     static constexpr float kFreezeLatchMs = 50.0f;  ///< FR-033 freeze crossfade
 
     // --- geometry ---
@@ -2163,7 +2183,8 @@ public:
     ///     can never land inside a single 64-sample callback. Every one of
     ///     those state changes is multiplied by a gate of 0, so NONE of them
     ///     can be audible - that is the whole point of the ordering.
-    ///  3. When `clearPending_` clears, the gate ramps back to 1 and rendering
+    ///  3. When `clearPending_` clears, the gate ramps back to 1 over
+    ///     kResumeRampMs, linear in dB (banner item (11d)), and rendering
     ///     resumes. NO reset() is required.
     ///
     /// While `clearPending_` the render loop writes LITERAL 0.0f into the delay
@@ -2193,10 +2214,22 @@ public:
             return;
         }
 
+        // Banner item (11d): a fade-in is shaped differently from a fade-out,
+        // so an interrupted fade-in re-maps the ramp to the position whose
+        // smoothstep equals the gain being output NOW - otherwise the shape
+        // switch would be a gain step. Inverse smoothstep:
+        // x = 1/2 - sin(asin(1 - 2g) / 3).
+        if (gate_ == GateState::FadingIn) {
+            const float g = resumeGateShape(outputGate_.getCurrentValue());
+            const float s = std::clamp(1.0f - (2.0f * g), -1.0f, 1.0f);
+            outputGate_.snapTo(0.5f - std::sin(std::asin(s) / 3.0f));
+        }
+
         // Phase 1 ONLY. Everything the old form did here now happens in
         // beginDeferredClear(), which runGateMachine() calls at gate 0.
         clearArmed_ = true;
         gate_ = GateState::FadingOut;
+        outputGate_.configure(kSilenceRampMs, static_cast<float>(sampleRate_));
         outputGate_.setTarget(0.0f);
     }
 
@@ -4028,6 +4061,19 @@ private:
         }
     }
 
+    /// @brief The fade-in gain at ramp position @p x (banner item (11d)):
+    ///        0 at x = 0, then linear in dB from kResumeFloorDb to exactly 1 at
+    ///        x = 1. Both ends are branches, so they are exact.
+    [[nodiscard]] static float resumeGateShape(float x) noexcept {
+        if (x <= 0.0f) {
+            return 0.0f;
+        }
+        if (x >= 1.0f) {
+            return 1.0f;
+        }
+        return std::pow(10.0f, (kResumeFloorDb * (1.0f - x)) / 20.0f);
+    }
+
     /// @brief Plan S6.2 step 3 - the silence()/emergencyClear() gate machine.
     ///
     /// THE RAMPS ARE NOT ADVANCED HERE. LinearRamp has no advanceSamples, and a
@@ -4058,6 +4104,7 @@ private:
             // clearPending_, not by a fixed 40 ms.
             if (outputGate_.isComplete() && !clearPending_ && !clearArmed_) {
                 gate_ = GateState::FadingIn;
+                outputGate_.configure(kResumeRampMs, static_cast<float>(sampleRate_));
                 outputGate_.setTarget(1.0f);
             }
         } else if (gate_ == GateState::FadingIn) {
@@ -4400,6 +4447,8 @@ private:
         // changes only at a control step, so hoisting it out of the sample loop
         // is exact, not an approximation.
         const bool clearing = clearPending_;
+        // gate_ also changes only at a control step.
+        const bool fadingIn = (gate_ == GateState::FadingIn);
 
         // Position of slice sample 0 inside the current control chunk. Plan S6.1
         // guarantees a slice never crosses a chunk boundary, so chunkBase + k is
@@ -4437,8 +4486,10 @@ private:
             // 105.0486 s (0.009 / 0.0238, the fade-in leaving 0). smoothstep has
             // zero derivative at both endpoints, which removes all three, and it
             // is 2 multiplies and an add - no transcendental on the audio path.
+            // The fade-IN is shaped linear in dB instead (banner item (11d)).
             const float gateLinear = outputGate_.process();
-            gateScratch[k] = gateLinear * gateLinear * (3.0f - (2.0f * gateLinear));
+            gateScratch[k] = fadingIn ? resumeGateShape(gateLinear)
+                                      : gateLinear * gateLinear * (3.0f - (2.0f * gateLinear));
             const float unfreeze = 1.0f - freezeRamp;
             // FR-036: the tickle is an energy SOURCE, so it is switched off once
             // the loop reaches unity gain - leaving it on breaks SC-002.

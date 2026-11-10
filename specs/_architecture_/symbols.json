@@ -41,7 +41,7 @@
       "scope": "Krate::DSP",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/aether_reverb.h",
-      "line": 1377
+      "line": 1395
     },
     {
       "name": "AlgorithmTopology",
@@ -1737,7 +1737,7 @@
       "scope": "Krate::DSP::AetherReverb",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/aether_reverb.h",
-      "line": 2951
+      "line": 2984
     },
     {
       "name": "MemorySlot",
@@ -2521,7 +2521,7 @@
       "scope": "Krate::DSP::AetherReverb",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/aether_reverb.h",
-      "line": 1587
+      "line": 1607
     },
     {
       "name": "PrepareConfig",
