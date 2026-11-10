@@ -3367,6 +3367,8 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Stutter Bass";
         p.category = "Rhythmic";
         auto& s = p.state;
+        // Re-levelled for the TapeSaturator Hysteresis repair (2026-11-10): -3.7 dB keeps its loudness
+        s.global.masterGain = 0.653f;
         // --- Octave-down saw + detuned square, mono, through a driven ladder
         s.oscA.type = 0;
         s.oscA.waveform = 1;       // Saw
@@ -6385,6 +6387,9 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Degauss Drift";
         p.category = "Textures";
         auto& s = p.state;
+        // Re-levelled for the TapeSaturator Hysteresis repair (2026-11-10): +6.0 dB, the top of the range
+        // (+8.3 dB would match its loudness before the repair)
+        s.global.masterGain = 2.0f;
         // OSC A: brown noise = dark tape rumble
         s.oscA.type = 9; s.oscA.noiseColor = 2; s.oscA.level = 0.5f;   // brown
         // OSC B: sub-octave saw for pitched weight under the hiss

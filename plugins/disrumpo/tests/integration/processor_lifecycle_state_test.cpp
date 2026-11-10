@@ -3086,8 +3086,9 @@ TEST_CASE("The same chain keeps its level and brightness at 44.1, 96 and 192 kHz
     const Reading ref = run(48000.0);
     REQUIRE(ref.nonFinite == 0u);
     REQUIRE(ref.centroidHz > 0.0);
-    // 192 kHz is held back for a ruling (follow-up 88): -1.40 dB, all of it the Tape band
-    for (const double sr : {44100.0, 96000.0}) {
+    // 192 kHz was held back (follow-up 88: -1.40 dB, all of it the Tape band) until the TapeSaturator
+    // Hysteresis repair made the Tape node rate-independent
+    for (const double sr : {44100.0, 96000.0, 192000.0}) {
         const Reading x = run(sr);
         const double deltaDb = x.rmsDb - ref.rmsDb;
         const double centroidRatio = x.centroidHz / ref.centroidHz;

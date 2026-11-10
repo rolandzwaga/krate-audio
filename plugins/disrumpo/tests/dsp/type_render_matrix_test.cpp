@@ -212,6 +212,7 @@ void checkType(DistortionType type) {
 TEST_CASE("Type render matrix: SoftClip", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::SoftClip); }
 TEST_CASE("Type render matrix: HardClip", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::HardClip); }
 TEST_CASE("Type render matrix: Tube", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Tube); }
+TEST_CASE("Type render matrix: Tape", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Tape); }
 TEST_CASE("Type render matrix: Fuzz", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::Fuzz); }
 TEST_CASE("Type render matrix: AsymmetricFuzz", "[disrumpo][audit][type-matrix]") {
     checkType(DistortionType::AsymmetricFuzz);
