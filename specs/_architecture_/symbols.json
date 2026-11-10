@@ -81,7 +81,7 @@
       "scope": "Krate::DSP::DelayLine",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/delay_line.h",
-      "line": 157
+      "line": 162
     },
     {
       "name": "AmountRow",
@@ -1665,7 +1665,7 @@
       "scope": "Krate::DSP::DelayLine",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/delay_line.h",
-      "line": 165
+      "line": 170
     },
     {
       "name": "Loop",

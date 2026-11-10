@@ -135,10 +135,15 @@ public:
 
     /// @brief Read a sample at a fractional delay with allpass interpolation.
     ///
+    /// First-order allpass (Thiran): unity gain at every frequency, and a delay
+    /// of exactly @p delaySamples at DC (phase delay within a few thousandths
+    /// of a sample up to ~1 kHz at 44.1 kHz). See makeAllpassTap.
+    ///
     /// @param delaySamples Number of samples to delay (fractional allowed).
     /// @return The interpolated sample value.
     ///
-    /// @note Delay is clamped to [0, maxDelaySamples].
+    /// @note Delay is clamped to [0, maxDelaySamples]; below 0.5 it reads the
+    ///       newest sample (delay 0), see makeAllpassTap.
     /// @note Use ONLY for fixed delays in feedback loops.
     /// @note Do NOT use for modulated delays (causes artifacts).
     /// @note O(1) time complexity.
@@ -155,9 +160,9 @@ public:
     /// so a tap stays valid for the life of the delay setting, across any
     /// number of `write()` calls.
     struct AllpassTap {
-        std::size_t index0 = 0;  ///< integer part of the delay, in samples
-        std::size_t index1 = 0;  ///< index0 + 1, clamped to the maximum delay
-        float coeff = 1.0f;      ///< (1 - frac) / (1 + frac)
+        std::size_t index0 = 0;  ///< the younger sample of the pair, floor(delay) or floor(delay) - 1
+        std::size_t index1 = 0;  ///< index0 + 1, clamped to the maximum delay (0 below a delay of 0.5)
+        float coeff = 1.0f;      ///< (1 - D) / (1 + D), D = delay - index0 in [0.5, 1.5) (0 below 0.5)
     };
 
     /// @brief Precomputed tap for `readLinear` at a FIXED fractional delay.
@@ -215,7 +220,7 @@ public:
         for (std::size_t i = 0; i < numSamples; ++i) {
             const float x0 = buf[(w - 1 - tap.index0) & m];
             const float x1 = buf[(w - 1 - tap.index1) & m];
-            const float y = x0 + (tap.coeff * (state - x1));
+            const float y = x1 + (tap.coeff * (x0 - state));
             state = y;
 
             buf[w] = fn(i, y);
@@ -364,34 +369,9 @@ inline float DelayLine::readCubic(float delaySamples) const noexcept {
 }
 
 inline float DelayLine::readAllpass(float delaySamples) noexcept {
-    // Clamp delay to valid range [0, maxDelaySamples_]
-    const float clampedDelay = std::clamp(delaySamples, 0.0f, static_cast<float>(maxDelaySamples_));
-
-    // Split into integer and fractional parts
-    const float intPart = std::floor(clampedDelay);
-    const float frac = clampedDelay - intPart;
-
-    // Read two adjacent samples
-    const size_t index0 = static_cast<size_t>(intPart);
-    const size_t index1 = std::min(index0 + 1, maxDelaySamples_);
-
-    const float x0 = read(index0);
-    const float x1 = read(index1);
-
-    // Allpass coefficient: a = (1 - frac) / (1 + frac)
-    // When frac = 0, a = 1 (integer delay)
-    // When frac = 0.5, a = 1/3
-    // When frac -> 1, a -> 0
-    const float a = (1.0f - frac) / (1.0f + frac);
-
-    // First-order allpass interpolation formula:
-    // y[n] = x0 + a * (allpassState_ - x1)
-    const float y = x0 + a * (allpassState_ - x1);
-
-    // Update state for next call
-    allpassState_ = y;
-
-    return y;
+    // The tap arithmetic and the read of the two other allpass paths, so all
+    // three are bit-identical by construction.
+    return readAllpass(makeAllpassTap(delaySamples));
 }
 
 inline DelayLine::LinearTap DelayLine::makeLinearTap(float delaySamples) const noexcept {
@@ -414,16 +394,38 @@ inline float DelayLine::readLinear(const LinearTap& tap) const noexcept {
 }
 
 inline DelayLine::AllpassTap DelayLine::makeAllpassTap(float delaySamples) const noexcept {
-    // Identical arithmetic to readAllpass(float) - see that function.
+    // First-order allpass (Thiran) fractional delay, Jaffe & Smith 1983,
+    // Laakso, Valimaki, Karjalainen & Laine 1996:
+    //   y[n] = a x[n-k] + x[n-k-1] - a y[n-1],   a = (1 - D) / (1 + D),
+    //   H(z) = z^-k (a + z^-1) / (1 + a z^-1):   delay k + D at DC.
+    // D is kept in [0.5, 1.5): a fraction below 0.5 reads the pair one sample
+    // younger (k = floor(d) - 1, D = frac + 1). Then |a| <= 1/3 and the pole -a
+    // stays far inside the unit circle; with D = frac in [0, 1) it reaches
+    // z = -1 as frac -> 0, and a change of delay leaves a Nyquist ring that
+    // barely decays. Below 0.5 there is no younger pair, so such a delay reads
+    // the newest sample (delay 0, a = 0) as the integer read always did.
     const float clampedDelay = std::clamp(delaySamples, 0.0f, static_cast<float>(maxDelaySamples_));
 
     const float intPart = std::floor(clampedDelay);
     const float frac = clampedDelay - intPart;
+    const auto k = static_cast<size_t>(intPart);
 
     AllpassTap tap;
-    tap.index0 = static_cast<size_t>(intPart);
-    tap.index1 = std::min(tap.index0 + 1, maxDelaySamples_);
-    tap.coeff = (1.0f - frac) / (1.0f + frac);
+    if (frac >= 0.5f) {
+        tap.index0 = k;
+        tap.index1 = std::min(k + 1, maxDelaySamples_);
+        tap.coeff = (1.0f - frac) / (1.0f + frac);
+    } else if (k >= 1) {
+        // D = frac + 1: (1 - D) / (1 + D) = -frac / (2 + frac), written without
+        // the cancellation so frac keeps all its bits (and a = 0 exactly at 0).
+        tap.index0 = k - 1;
+        tap.index1 = k;
+        tap.coeff = -frac / (2.0f + frac);
+    } else {
+        tap.index0 = 0;
+        tap.index1 = 0;
+        tap.coeff = 0.0f;
+    }
     return tap;
 }
 
@@ -431,7 +433,8 @@ inline float DelayLine::readAllpass(const AllpassTap& tap) noexcept {
     const float x0 = read(tap.index0);
     const float x1 = read(tap.index1);
 
-    const float y = x0 + tap.coeff * (allpassState_ - x1);
+    // y = a x0 + x1 - a y[n-1], one multiply.
+    const float y = x1 + tap.coeff * (x0 - allpassState_);
     allpassState_ = y;
     return y;
 }

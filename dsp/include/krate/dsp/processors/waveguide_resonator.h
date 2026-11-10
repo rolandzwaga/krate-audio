@@ -497,10 +497,11 @@ private:
     /// The loss filter introduces frequency-dependent phase delay that must be
     /// compensated to achieve accurate pitch.
     ///
-    /// Note: First-order allpass interpolation in feedback loops has inherent
-    /// tuning limitations due to the interaction between allpass state and
-    /// resonant signal. Literature recommends accepting ~3 cent accuracy or
-    /// using higher-order interpolation (Thiran, Lagrange).
+    /// The allpass interpolator (DelayLine::readAllpass) delays by exactly
+    /// delaySamples_ at the fundamental (to within a few thousandths of a
+    /// sample), so the loop is 2 x (delaySamples_ + 1 + loss phase delay).
+    /// (A 0.5-sample allowance used to stand in for the interpolator, which
+    /// truncated the delay until follow-up 83.)
     void updateDelayLengthFromSmoothed(float smoothedFreq) noexcept {
         float totalDelay = static_cast<float>(sampleRate_) / smoothedFreq;
         float delayPerDirection = totalDelay * 0.5f;
@@ -508,19 +509,20 @@ private:
         // Calculate loss filter cutoff (same formula as updateLossFilterFromSmoothed)
         float lossCutoff = calculateLossCutoff(loss_);
 
-        // Phase delay of first-order lowpass at frequency f with cutoff fc:
-        // phaseDelay_samples = arctan(f / fc) / (2 * pi * f) * sampleRate
-        // Reference: research.md Section 7, "Loss Filter Phase Delay"
+        // Phase delay of the loss filter at the fundamental: OnePoleLP is
+        // y = (1 - b) x + b y[n-1] with b = exp(-2 pi fc / fs) (one_pole.h), so
+        // H = (1 - b) / (1 - b e^-jw) and phase delay = atan2(b sin w, 1 - b cos w) / w.
+        // (The analog arctan(f / fc) form over-states it by ~0.3 sample near Nyquist.)
         constexpr float kPi = std::numbers::pi_v<float>;
-        float lossPhaseDelay = std::atan(smoothedFreq / lossCutoff) /
-                               (2.0f * kPi * smoothedFreq) *
-                               static_cast<float>(sampleRate_);
+        const float w = 2.0f * kPi * smoothedFreq / static_cast<float>(sampleRate_);
+        const float b = std::exp(-2.0f * kPi * lossCutoff / static_cast<float>(sampleRate_));
+        float lossPhaseDelay = std::atan2(b * std::sin(w), 1.0f - b * std::cos(w)) / w;
 
-        // Allpass interpolator contributes approximately 0.5 samples at fundamental
-        // (This is an inherent property of first-order allpass in feedback)
-        constexpr float kAllpassBaseDelay = 0.5f;
+        // process() reads each direction BEFORE writing it, so readAllpass(d)
+        // returns the sample written d + 1 steps earlier.
+        constexpr float kReadBeforeWriteDelay = 1.0f;
 
-        float compensation = lossPhaseDelay + kAllpassBaseDelay;
+        float compensation = lossPhaseDelay + kReadBeforeWriteDelay;
 
         delaySamples_ = delayPerDirection - compensation;
         delaySamples_ = std::max(delaySamples_, static_cast<float>(kMinDelaySamples));
