@@ -7,6 +7,7 @@
 
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/scoped_denormal_mode.h>
 
 #include "midi/midi_event_dispatcher.h"
 
@@ -162,6 +163,11 @@ tresult PLUGIN_API Processor::setBusArrangements(
 
 tresult PLUGIN_API Processor::process(ProcessData& data)
 {
+    // FTZ / DAZ for this block on this thread, the caller's mode restored on return,
+    // as every other Krate plugin does. The audition monitor (linear ADSR, no filter or
+    // feedback) has no tail that decays through the denormal range by itself.
+    const Krate::DSP::ScopedDenormalMode denormalGuard;
+
     // --- 1. Process parameter changes ---
     if (data.inputParameterChanges)
         processParameterChanges(data.inputParameterChanges);

@@ -68,6 +68,9 @@ add_executable(gradus_tests
     # Audition monitor must be polyphonic
     unit/processor/audition_polyphony_test.cpp
 
+    # process() runs with FTZ / DAZ whatever the caller's floating-point mode ([gradus][numerics][denormal])
+    unit/processor/denormal_mode_test.cpp
+
     # Piano-roll view tests (spec 142, Phase 6, US3)
     unit/ui/piano_roll_view_test.cpp
     unit/ui/piano_roll_playhead_test.cpp
