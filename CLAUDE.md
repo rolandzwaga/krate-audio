@@ -469,6 +469,7 @@ node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]'
 # EVERY multi-case run goes through tools/run-gate.js (Catch2 shards over a cpu-count worker pool, last line
 # GATE GREEN|RED, per-shard logs under f:/tmp/gate/). Never `for t in ...; do $t.exe; done` or one serial exe:
 # that is one core of 32. Narrow with the filter (e.g. '[profundum]~[performance]~...'), not by going serial.
+# On Windows a crashing shard leaves a minidump in f:/tmp/crashdumps, named on the red line (tools/test-crash-dumps.js).
 
 # Run plugin-specific tests
 "$CMAKE" --build build/windows-x64-release --config Release --target plugin_tests    # Iterum

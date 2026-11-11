@@ -7,6 +7,9 @@
 // share the box. The Vorago sweep already partitions preset indices by VORAGO_SWEEP_SHARD=i/N and writes one record
 // per preset to VORAGO_SWEEP_OUT, which the [vorago-aggregate] cases read back from VORAGO_SWEEP_IN.
 //
+// CRASH DUMPS (Windows): a lane that crashes writes a minidump to f:/tmp/crashdumps and its summary line names it
+// (tools/test-crash-dumps.js; off in CI and with KRATE_CRASH_DUMPS=0).
+//
 // WHAT IT DOES NOT RUN: anything tagged [performance] [perf] [benchmark] [!benchmark]. Those stay with
 // tools/run-cpu-tests.js, alone, pinned, after the box has idled.
 //
@@ -20,6 +23,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crashDumps = require('./test-crash-dumps.js');
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 && args[i + 1] !== undefined ? args[i + 1] : dflt; };
@@ -74,7 +78,9 @@ function runLane(lane) {
     if (DRY) { fs.writeFileSync(log, header + 'DRY RUN\n'); return resolve({ lane, rc: 0, wall: 0, log }); }
     const fd = fs.openSync(log, 'w');
     fs.writeSync(fd, header);
-    const child = spawn(lane.exe, lane.argv, { env: { ...process.env, ...lane.env }, stdio: ['ignore', fd, fd] });
+    // A crashing lane writes a minidump (Windows; tools/test-crash-dumps.js) and its log names it
+    const run = crashDumps.wrap(lane.exe, lane.argv, { ...process.env, ...lane.env });
+    const child = spawn(run.cmd, run.args, { env: run.env, stdio: ['ignore', fd, fd] });
     child.on('exit', (rc) => {
       const wall = Math.round((Date.now() - t0) / 1000);
       fs.writeSync(fd, `exit=${rc} END ${new Date().toISOString()} wall=${wall}s\n`);
@@ -90,6 +96,7 @@ function summarise(r) {
     const lines = fs.readFileSync(r.log, 'utf8').split(/\r?\n/);
     totals = lines.filter((l) => /^(All tests passed|test cases:)/.test(l)).pop() || '(no Catch2 summary)';
     failed = lines.filter((l) => /FAILED:/.test(l)).slice(0, 3).map((l) => l.trim().slice(0, 110)).join(' ; ');
+    for (const d of crashDumps.dumpsIn(lines.join('\n'))) failed += `${failed ? ' ; ' : ''}CRASH ${d.code} minidump ${d.path}`;
   } catch (e) { totals = `(unreadable: ${e.message})`; }
   return `${r.lane.name}: rc=${r.rc} wall=${r.wall}s | ${totals}${failed ? ' | ' + failed : ''}`;
 }

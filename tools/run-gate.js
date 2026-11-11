@@ -25,6 +25,12 @@
 // [wallclock] tag (tools/lint-wallclock-tags.js keeps it that way). Pass 1 runs the filter minus [wallclock] on the
 // full pool; pass 2 runs the filter's [wallclock] cases after pass 1 drains, on --wallclock-workers (default 4).
 //
+// CRASH DUMPS (Windows): a shard that crashes (0xC0000005 and the like) leaves a minidump. Every shard runs under
+// tools/test-crash-dumps.cs, a minimal debugger that passes exceptions to the test untouched and dumps only one
+// nothing handled, to f:/tmp/crashdumps/<exe>.<pid>.dmp; the red line names the dump. Read it with
+// tools/analyze-crashdump.js, then tools/resolve_pdb_addrs.js for file:line (tools/test-crash-dumps.js has the
+// details). No admin rights or registry change; off on Linux / macOS, in CI, and with KRATE_CRASH_DUMPS=0.
+//
 // NOT FOR TIMING TESTS: everything here runs concurrently. Filters must exclude [performance] [perf] [benchmark]
 // [!benchmark] (tools/run-cpu-tests.js runs those alone). The runner refuses a filter that does not.
 //
@@ -47,6 +53,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { parseCatch2Failures } = require('./ci-test-shard.js');
+const crashDumps = require('./test-crash-dumps.js');
 
 const args = process.argv.slice(2);
 const exes = [];
@@ -182,7 +189,8 @@ function runOne(job) {
         // --order decl: Catch2 >= 3.9 defaults to random order, which re-seeds every shard and breaks disjoint coverage.
         const argv = [...job.argv, '--allow-running-no-tests', '--order', 'decl'];
         const s0 = Date.now();
-        const child = spawn(exePath(job.exe), argv, { cwd: process.cwd(), windowsHide: true });
+        const run = crashDumps.wrap(exePath(job.exe), argv);
+        const child = spawn(run.cmd, run.args, { cwd: process.cwd(), env: run.env, windowsHide: true });
         const chunks = [];
         child.stdout.on('data', (d) => chunks.push(d));
         child.stderr.on('data', (d) => chunks.push(d));
@@ -201,6 +209,7 @@ async function runPool(jobs, width) {
 }
 
 (async () => {
+    if (crashDumps.wrapper()) console.log(`crash dumps: a crashing shard writes a minidump to ${crashDumps.DUMP_DIR}`);
     const plans = await Promise.all([
         ...exes.map((exe) => planShards(exe, 1, PASS1, SHARDS)),
         ...(TWO_PASS ? exes.map((exe) => planShards(exe, 2, PASS2, WALL_SHARDS)) : []),
@@ -223,6 +232,7 @@ async function runPool(jobs, width) {
             slowest = Math.max(slowest, r.wall);
             const t = totals(r.text);
             timeRows.push([exe, r.pass, r.k, t ? t.cases : '', t ? t.assertions : '', r.wall.toFixed(1), r.rc].join('\t'));
+            for (const d of crashDumps.dumpsIn(r.text)) problems.push(`${exe} shard ${r.k}: CRASH ${d.code}, minidump ${d.path} (node tools/analyze-crashdump.js "${d.path}")`);
             if (!t) { problems.push(`${exe} shard ${r.k}: no Catch2 summary (exit ${r.rc}, crash or abort) -> ${r.log}`); continue; }
             cases += t.cases; assertions += t.assertions; failedCases += t.failedCases;
             if (r.rc !== 0) {

@@ -21,7 +21,7 @@ const keepProf = process.argv.includes('--keep-prof');
 /** Bounded candidate list. */
 function candidates() {
   const out = [];
-  // 1. F:\tmp scratch (every entry).
+  // 1. F:\tmp scratch (every entry: gate logs, close lanes, f:\tmp\crashdumps from tools/test-crash-dumps.js).
   const tmp = 'F:\\tmp';
   if (fs.existsSync(tmp)) for (const e of fs.readdirSync(tmp)) out.push(path.join(tmp, e));
   // 2. build/: everything but the four working configurations.
