@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Sample & Hold and Smooth Random morph cycles repeated too soon** — The random generator behind these two cycle shapes overflowed and cycled after about 79,000 values instead of running its full sequence. It now runs the full sequence, so these shapes play a different random pattern than before.
 - **The stereo field's band split lost precision at low frequencies** — Its crossover filters now run in double precision, which removes a small level error at low split frequencies, largest at high sample rates.
+- **A possible crash when a host shut Profundum down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone.
+- **A possible crash when opening the preset browser after a host shut Profundum down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.
 
 ### Changed
 

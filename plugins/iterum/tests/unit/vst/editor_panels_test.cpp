@@ -38,6 +38,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -195,7 +197,7 @@ void syncOffEverywhere(Iterum::Controller& c) {
 
 /// Widget kinds of design-system.md section 7 (K knob, S slider, B bipolar, SEG segment, M menu / core select,
 /// T toggle, L the Digital Age label, and the three MultiTap custom views).
-enum class W { K, S, B, SEG, M, T, L, TapEditor, CopyButton, ResetButton };
+enum class W : std::uint8_t { K, S, B, SEG, M, T, L, TapEditor, CopyButton, ResetButton };
 
 struct Row {
     std::int32_t tag;
@@ -325,107 +327,173 @@ TEST_CASE("Iterum editor chrome: Mode strip, Gain knob and Gain readout", "[iter
 // ==============================================================================
 
 TEST_CASE("Iterum editor panel Granular: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"GranularPanel", 0,
-                {{kGranularDelayTimeId, W::K}, {kGranularTimeModeId, W::T}, {kGranularFeedbackId, W::K},
-                 {kGranularMixId, W::K}, {kGranularFreezeId, W::T}, {kGranularGrainSizeId, W::S},
-                 {kGranularDensityId, W::S}, {kGranularEnvelopeTypeId, W::SEG}, {kGranularPitchId, W::B},
-                 {kGranularPitchQuantId, W::M}, {kGranularPitchSprayId, W::S}, {kGranularPositionSprayId, W::S},
-                 {kGranularPanSprayId, W::S}, {kGranularReverseProbId, W::S}, {kGranularTextureId, W::S},
-                 {kGranularJitterId, W::S}, {kGranularStereoWidthId, W::S}},
-                {kGranularNoteValueId}, 5, 4});
+    checkPanel({.name = "GranularPanel",
+                .mode = 0,
+                .rows = {{.tag = kGranularDelayTimeId, .kind = W::K}, {.tag = kGranularTimeModeId, .kind = W::T},
+                         {.tag = kGranularFeedbackId, .kind = W::K}, {.tag = kGranularMixId, .kind = W::K},
+                         {.tag = kGranularFreezeId, .kind = W::T}, {.tag = kGranularGrainSizeId, .kind = W::S},
+                         {.tag = kGranularDensityId, .kind = W::S}, {.tag = kGranularEnvelopeTypeId, .kind = W::SEG},
+                         {.tag = kGranularPitchId, .kind = W::B}, {.tag = kGranularPitchQuantId, .kind = W::M},
+                         {.tag = kGranularPitchSprayId, .kind = W::S},
+                         {.tag = kGranularPositionSprayId, .kind = W::S},
+                         {.tag = kGranularPanSprayId, .kind = W::S}, {.tag = kGranularReverseProbId, .kind = W::S},
+                         {.tag = kGranularTextureId, .kind = W::S}, {.tag = kGranularJitterId, .kind = W::S},
+                         {.tag = kGranularStereoWidthId, .kind = W::S}},
+                .absentTags = {kGranularNoteValueId},
+                .fieldsets = 5,
+                .plainContainers = 4});
 }
 
 TEST_CASE("Iterum editor panel Spectral: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"SpectralPanel", 1,
-                {{kSpectralBaseDelayId, W::K}, {kSpectralTimeModeId, W::T}, {kSpectralFeedbackId, W::K},
-                 {kSpectralMixId, W::K}, {kSpectralFreezeId, W::T}, {kSpectralSpreadId, W::S},
-                 {kSpectralSpreadDirectionId, W::SEG}, {kSpectralSpreadCurveId, W::SEG},
-                 {kSpectralFeedbackTiltId, W::B}, {kSpectralDiffusionId, W::S}, {kSpectralFFTSizeId, W::SEG},
-                 {kSpectralStereoWidthId, W::S}},
-                {kSpectralNoteValueId}, 3, 4});
+    checkPanel({.name = "SpectralPanel",
+                .mode = 1,
+                .rows = {{.tag = kSpectralBaseDelayId, .kind = W::K}, {.tag = kSpectralTimeModeId, .kind = W::T},
+                         {.tag = kSpectralFeedbackId, .kind = W::K}, {.tag = kSpectralMixId, .kind = W::K},
+                         {.tag = kSpectralFreezeId, .kind = W::T}, {.tag = kSpectralSpreadId, .kind = W::S},
+                         {.tag = kSpectralSpreadDirectionId, .kind = W::SEG},
+                         {.tag = kSpectralSpreadCurveId, .kind = W::SEG},
+                         {.tag = kSpectralFeedbackTiltId, .kind = W::B}, {.tag = kSpectralDiffusionId, .kind = W::S},
+                         {.tag = kSpectralFFTSizeId, .kind = W::SEG}, {.tag = kSpectralStereoWidthId, .kind = W::S}},
+                .absentTags = {kSpectralNoteValueId},
+                .fieldsets = 3,
+                .plainContainers = 4});
 }
 
 TEST_CASE("Iterum editor panel Shimmer: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"ShimmerPanel", 2,
-                {{kShimmerDelayTimeId, W::K}, {kShimmerTimeModeId, W::T}, {kShimmerFeedbackId, W::K},
-                 {kShimmerMixId, W::K}, {kShimmerPitchSemitonesId, W::B}, {kShimmerPitchCentsId, W::B},
-                 {kShimmerPitchBlendId, W::S}, {kShimmerDiffusionSizeId, W::S}, {kShimmerFilterEnabledId, W::T},
-                 {kShimmerFilterCutoffId, W::S}},
-                {kShimmerNoteValueId}, 3, 5});
+    checkPanel({.name = "ShimmerPanel",
+                .mode = 2,
+                .rows = {{.tag = kShimmerDelayTimeId, .kind = W::K}, {.tag = kShimmerTimeModeId, .kind = W::T},
+                         {.tag = kShimmerFeedbackId, .kind = W::K}, {.tag = kShimmerMixId, .kind = W::K},
+                         {.tag = kShimmerPitchSemitonesId, .kind = W::B}, {.tag = kShimmerPitchCentsId, .kind = W::B},
+                         {.tag = kShimmerPitchBlendId, .kind = W::S}, {.tag = kShimmerDiffusionSizeId, .kind = W::S},
+                         {.tag = kShimmerFilterEnabledId, .kind = W::T},
+                         {.tag = kShimmerFilterCutoffId, .kind = W::S}},
+                .absentTags = {kShimmerNoteValueId},
+                .fieldsets = 3,
+                .plainContainers = 5});
 }
 
 TEST_CASE("Iterum editor panel Tape: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"TapePanel", 3,
-                {{kTapeMotorSpeedId, W::K}, {kTapeTimeModeId, W::T}, {kTapeFeedbackId, W::K}, {kTapeMixId, W::K},
-                 {kTapeMotorInertiaId, W::S}, {kTapeWearId, W::S}, {kTapeSaturationId, W::S}, {kTapeAgeId, W::S},
-                 {kTapeSpliceEnabledId, W::T}, {kTapeSpliceIntensityId, W::S}, {kTapeHead1EnabledId, W::T},
-                 {kTapeHead1LevelId, W::S}, {kTapeHead1PanId, W::B}, {kTapeHead2EnabledId, W::T},
-                 {kTapeHead2LevelId, W::S}, {kTapeHead2PanId, W::B}, {kTapeHead3EnabledId, W::T},
-                 {kTapeHead3LevelId, W::S}, {kTapeHead3PanId, W::B}},
-                {kTapeNoteValueId}, 4, 6});
+    checkPanel({.name = "TapePanel",
+                .mode = 3,
+                .rows = {{.tag = kTapeMotorSpeedId, .kind = W::K}, {.tag = kTapeTimeModeId, .kind = W::T},
+                         {.tag = kTapeFeedbackId, .kind = W::K}, {.tag = kTapeMixId, .kind = W::K},
+                         {.tag = kTapeMotorInertiaId, .kind = W::S}, {.tag = kTapeWearId, .kind = W::S},
+                         {.tag = kTapeSaturationId, .kind = W::S}, {.tag = kTapeAgeId, .kind = W::S},
+                         {.tag = kTapeSpliceEnabledId, .kind = W::T}, {.tag = kTapeSpliceIntensityId, .kind = W::S},
+                         {.tag = kTapeHead1EnabledId, .kind = W::T}, {.tag = kTapeHead1LevelId, .kind = W::S},
+                         {.tag = kTapeHead1PanId, .kind = W::B}, {.tag = kTapeHead2EnabledId, .kind = W::T},
+                         {.tag = kTapeHead2LevelId, .kind = W::S}, {.tag = kTapeHead2PanId, .kind = W::B},
+                         {.tag = kTapeHead3EnabledId, .kind = W::T}, {.tag = kTapeHead3LevelId, .kind = W::S},
+                         {.tag = kTapeHead3PanId, .kind = W::B}},
+                .absentTags = {kTapeNoteValueId},
+                .fieldsets = 4,
+                .plainContainers = 6});
 }
 
 TEST_CASE("Iterum editor panel BBD: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"BBDPanel", 4,
-                {{kBBDDelayTimeId, W::K}, {kBBDTimeModeId, W::T}, {kBBDFeedbackId, W::K}, {kBBDMixId, W::K},
-                 {kBBDEraId, W::SEG}, {kBBDAgeId, W::S}, {kBBDModDepthId, W::S}, {kBBDModRateId, W::S}},
-                {kBBDNoteValueId}, 2, 3});
+    checkPanel({.name = "BBDPanel",
+                .mode = 4,
+                .rows = {{.tag = kBBDDelayTimeId, .kind = W::K}, {.tag = kBBDTimeModeId, .kind = W::T},
+                         {.tag = kBBDFeedbackId, .kind = W::K}, {.tag = kBBDMixId, .kind = W::K},
+                         {.tag = kBBDEraId, .kind = W::SEG}, {.tag = kBBDAgeId, .kind = W::S},
+                         {.tag = kBBDModDepthId, .kind = W::S}, {.tag = kBBDModRateId, .kind = W::S}},
+                .absentTags = {kBBDNoteValueId},
+                .fieldsets = 2,
+                .plainContainers = 3});
 }
 
 TEST_CASE("Iterum editor panel Digital: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"DigitalPanel", 5,
-                {{kDigitalDelayTimeId, W::K}, {kDigitalTimeModeId, W::T}, {kDigitalFeedbackId, W::K},
-                 {kDigitalMixId, W::K}, {kDigitalEraId, W::SEG}, {kDigitalAgeId, W::S},
-                 {kDigitalAgeLabelTag, W::L}, {kDigitalLimiterCharacterId, W::SEG},
-                 {kDigitalWavefoldAmountId, W::S}, {kDigitalWavefoldSymmetryId, W::B},
-                 {kDigitalWavefoldTypeId, W::SEG}, {kDigitalModDepthId, W::S}, {kDigitalModRateId, W::S},
-                 {kDigitalModWaveformId, W::M}, {kDigitalWidthId, W::S}},
-                {kDigitalNoteValueId}, 4, 4});
+    checkPanel({.name = "DigitalPanel",
+                .mode = 5,
+                .rows = {{.tag = kDigitalDelayTimeId, .kind = W::K}, {.tag = kDigitalTimeModeId, .kind = W::T},
+                         {.tag = kDigitalFeedbackId, .kind = W::K}, {.tag = kDigitalMixId, .kind = W::K},
+                         {.tag = kDigitalEraId, .kind = W::SEG}, {.tag = kDigitalAgeId, .kind = W::S},
+                         {.tag = kDigitalAgeLabelTag, .kind = W::L},
+                         {.tag = kDigitalLimiterCharacterId, .kind = W::SEG},
+                         {.tag = kDigitalWavefoldAmountId, .kind = W::S},
+                         {.tag = kDigitalWavefoldSymmetryId, .kind = W::B},
+                         {.tag = kDigitalWavefoldTypeId, .kind = W::SEG}, {.tag = kDigitalModDepthId, .kind = W::S},
+                         {.tag = kDigitalModRateId, .kind = W::S}, {.tag = kDigitalModWaveformId, .kind = W::M},
+                         {.tag = kDigitalWidthId, .kind = W::S}},
+                .absentTags = {kDigitalNoteValueId},
+                .fieldsets = 4,
+                .plainContainers = 4});
 }
 
 TEST_CASE("Iterum editor panel PingPong: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"PingPongPanel", 6,
-                {{kPingPongDelayTimeId, W::K}, {kPingPongTimeModeId, W::T}, {kPingPongFeedbackId, W::K},
-                 {kPingPongMixId, W::K}, {kPingPongLRRatioId, W::M}, {kPingPongCrossFeedbackId, W::S},
-                 {kPingPongModDepthId, W::S}, {kPingPongModRateId, W::S}, {kPingPongWidthId, W::S}},
-                {kPingPongNoteValueId}, 3, 3});
+    checkPanel({.name = "PingPongPanel",
+                .mode = 6,
+                .rows = {{.tag = kPingPongDelayTimeId, .kind = W::K}, {.tag = kPingPongTimeModeId, .kind = W::T},
+                         {.tag = kPingPongFeedbackId, .kind = W::K}, {.tag = kPingPongMixId, .kind = W::K},
+                         {.tag = kPingPongLRRatioId, .kind = W::M}, {.tag = kPingPongCrossFeedbackId, .kind = W::S},
+                         {.tag = kPingPongModDepthId, .kind = W::S}, {.tag = kPingPongModRateId, .kind = W::S},
+                         {.tag = kPingPongWidthId, .kind = W::S}},
+                .absentTags = {kPingPongNoteValueId},
+                .fieldsets = 3,
+                .plainContainers = 3});
 }
 
 TEST_CASE("Iterum editor panel Reverse: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"ReversePanel", 7,
-                {{kReverseChunkSizeId, W::K}, {kReverseTimeModeId, W::T}, {kReverseFeedbackId, W::K},
-                 {kReverseMixId, W::K}, {kReversePlaybackModeId, W::SEG}, {kReverseCrossfadeId, W::S},
-                 {kReverseFilterEnabledId, W::T}, {kReverseFilterCutoffId, W::S}, {kReverseFilterTypeId, W::SEG}},
-                {kReverseNoteValueId}, 2, 3});
+    checkPanel({.name = "ReversePanel",
+                .mode = 7,
+                .rows = {{.tag = kReverseChunkSizeId, .kind = W::K}, {.tag = kReverseTimeModeId, .kind = W::T},
+                         {.tag = kReverseFeedbackId, .kind = W::K}, {.tag = kReverseMixId, .kind = W::K},
+                         {.tag = kReversePlaybackModeId, .kind = W::SEG}, {.tag = kReverseCrossfadeId, .kind = W::S},
+                         {.tag = kReverseFilterEnabledId, .kind = W::T}, {.tag = kReverseFilterCutoffId, .kind = W::S},
+                         {.tag = kReverseFilterTypeId, .kind = W::SEG}},
+                .absentTags = {kReverseNoteValueId},
+                .fieldsets = 2,
+                .plainContainers = 3});
 }
 
 TEST_CASE("Iterum editor panel MultiTap: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"MultiTapPanel", 8,
-                {{kMultiTapTimingPatternId, W::M}, {kMultiTapFeedbackId, W::K}, {kMultiTapMixId, W::K},
-                 {kMultiTapSpatialPatternId, W::M}, {kMultiTapTapCountId, W::S}, {kMultiTapMorphTimeId, W::S},
-                 {kMultiTapNoteValueId, W::M}, {kMultiTapNoteModifierId, W::SEG},
-                 {kMultiTapFeedbackLPCutoffId, W::S}, {kMultiTapFeedbackHPCutoffId, W::S},
-                 {kMultiTapSnapDivisionId, W::M}, {kMultiTapCustomLengthId, W::M},
-                 {kMultiTapPatternEditorTagId, W::TapEditor},
-                 {kMultiTapCopyPatternButtonTagId, W::CopyButton},
-                 {kMultiTapResetPatternButtonTagId, W::ResetButton}},
-                {}, 4, 4});
+    checkPanel({.name = "MultiTapPanel",
+                .mode = 8,
+                .rows = {{.tag = kMultiTapTimingPatternId, .kind = W::M}, {.tag = kMultiTapFeedbackId, .kind = W::K},
+                         {.tag = kMultiTapMixId, .kind = W::K}, {.tag = kMultiTapSpatialPatternId, .kind = W::M},
+                         {.tag = kMultiTapTapCountId, .kind = W::S}, {.tag = kMultiTapMorphTimeId, .kind = W::S},
+                         {.tag = kMultiTapNoteValueId, .kind = W::M},
+                         {.tag = kMultiTapNoteModifierId, .kind = W::SEG},
+                         {.tag = kMultiTapFeedbackLPCutoffId, .kind = W::S},
+                         {.tag = kMultiTapFeedbackHPCutoffId, .kind = W::S},
+                         {.tag = kMultiTapSnapDivisionId, .kind = W::M},
+                         {.tag = kMultiTapCustomLengthId, .kind = W::M},
+                         {.tag = kMultiTapPatternEditorTagId, .kind = W::TapEditor},
+                         {.tag = kMultiTapCopyPatternButtonTagId, .kind = W::CopyButton},
+                         {.tag = kMultiTapResetPatternButtonTagId, .kind = W::ResetButton}},
+                .absentTags = {},
+                .fieldsets = 4,
+                .plainContainers = 4});
 }
 
 TEST_CASE("Iterum editor panel Freeze: every control live and of the designed class", "[iterum][ui]") {
-    checkPanel({"FreezePanel", 9,
-                {{kFreezeSliceLengthId, W::K}, {kFreezePatternTypeId, W::M}, {kFreezeMixId, W::K},
-                 {kFreezeSliceModeId, W::SEG}, {kFreezeEnvelopeAttackId, W::S}, {kFreezeEnvelopeReleaseId, W::S},
-                 {kFreezeEnvelopeShapeId, W::SEG}, {kFreezeEuclideanStepsId, W::S},
-                 {kFreezeEuclideanHitsId, W::S}, {kFreezeEuclideanRotationId, W::S},
-                 {kFreezePatternRateId, W::M}, {kFreezeGranularDensityId, W::S},
-                 {kFreezeGranularGrainSizeId, W::S}, {kFreezeGranularPositionJitterId, W::S},
-                 {kFreezeGranularSizeJitterId, W::S}, {kFreezeDroneVoiceCountId, W::S},
-                 {kFreezeDroneIntervalId, W::M}, {kFreezeDroneDriftId, W::S}, {kFreezeDroneDriftRateId, W::S},
-                 {kFreezeNoiseColorId, W::M}, {kFreezeNoiseBurstRateId, W::M}, {kFreezeNoiseFilterTypeId, W::SEG},
-                 {kFreezeNoiseFilterCutoffId, W::S}, {kFreezeNoiseFilterSweepId, W::S},
-                 {kFreezeHoldId, W::T}, {kFreezeCaptureLengthId, W::M}, {kFreezeDryModeId, W::SEG}},
-                {}, 6, 3});
+    checkPanel({.name = "FreezePanel",
+                .mode = 9,
+                .rows = {{.tag = kFreezeSliceLengthId, .kind = W::K}, {.tag = kFreezePatternTypeId, .kind = W::M},
+                         {.tag = kFreezeMixId, .kind = W::K}, {.tag = kFreezeSliceModeId, .kind = W::SEG},
+                         {.tag = kFreezeEnvelopeAttackId, .kind = W::S},
+                         {.tag = kFreezeEnvelopeReleaseId, .kind = W::S},
+                         {.tag = kFreezeEnvelopeShapeId, .kind = W::SEG},
+                         {.tag = kFreezeEuclideanStepsId, .kind = W::S},
+                         {.tag = kFreezeEuclideanHitsId, .kind = W::S},
+                         {.tag = kFreezeEuclideanRotationId, .kind = W::S},
+                         {.tag = kFreezePatternRateId, .kind = W::M},
+                         {.tag = kFreezeGranularDensityId, .kind = W::S},
+                         {.tag = kFreezeGranularGrainSizeId, .kind = W::S},
+                         {.tag = kFreezeGranularPositionJitterId, .kind = W::S},
+                         {.tag = kFreezeGranularSizeJitterId, .kind = W::S},
+                         {.tag = kFreezeDroneVoiceCountId, .kind = W::S},
+                         {.tag = kFreezeDroneIntervalId, .kind = W::M}, {.tag = kFreezeDroneDriftId, .kind = W::S},
+                         {.tag = kFreezeDroneDriftRateId, .kind = W::S}, {.tag = kFreezeNoiseColorId, .kind = W::M},
+                         {.tag = kFreezeNoiseBurstRateId, .kind = W::M},
+                         {.tag = kFreezeNoiseFilterTypeId, .kind = W::SEG},
+                         {.tag = kFreezeNoiseFilterCutoffId, .kind = W::S},
+                         {.tag = kFreezeNoiseFilterSweepId, .kind = W::S}, {.tag = kFreezeHoldId, .kind = W::T},
+                         {.tag = kFreezeCaptureLengthId, .kind = W::M}, {.tag = kFreezeDryModeId, .kind = W::SEG}},
+                .absentTags = {},
+                .fieldsets = 6,
+                .plainContainers = 3});
 }
 
 // ==============================================================================
@@ -474,8 +542,10 @@ TEST_CASE("Iterum editor MultiTap: note value, custom pattern and copy button fo
         bool custom;
         bool copy;
     };
-    for (const Step s : {Step{2.0 / 19.0, false, false, true}, Step{15.0 / 19.0, true, false, true},
-                         Step{19.0 / 19.0, false, true, false}}) {
+    for (const Step s :
+         {Step{.pattern = 2.0 / 19.0, .noteValue = false, .custom = false, .copy = true},
+          Step{.pattern = 15.0 / 19.0, .noteValue = true, .custom = false, .copy = true},
+          Step{.pattern = 1.0, .noteValue = false, .custom = true, .copy = false}}) {  // 1.0: pattern 19 of 19, Custom
         ed.setParam(kMultiTapTimingPatternId, s.pattern);
         INFO("timing pattern " << s.pattern * 19.0);
 
@@ -670,4 +740,52 @@ TEST_CASE("Iterum DelayTimeSyncController retags a free-time control built befor
     }
     static_cast<Steinberg::IPlugView*>(editor)->release();
     REQUIRE(controller->terminate() == Steinberg::kResultOk);
+}
+
+// Eight mode panels carry a DelayTimeSyncController that listens to the panel's Sync toggle. When a panel's view tree
+// is not attached to an open frame (a headless editor, CFrame::open(nullptr)), VST3Editor::onViewRemoved never runs,
+// so VSTGUI frees the panel's children before its sub-controller (CViewContainer::beforeDelete, then
+// CView::beforeDelete): the sub-controller must not touch the toggle when it is destroyed. A panel switch rebuilds the
+// panel this way; closing the editor too. The switch is driven on the container: a detached UIViewSwitchContainer
+// never hooks the Mode control (UIDescriptionViewSwitchController::switchContainerAttached).
+// Teeth under AddressSanitizer: a touch of the freed toggle is a heap-use-after-free.
+TEST_CASE("Iterum mode panels with a Sync sub-controller rebuild and close without touching a freed control",
+          "[iterum][ui][lifecycle][editor-uaf]") {
+    constexpr int kMultiTap = 8;  // no Sync sub-controller
+    // Mode index -> the Sync toggle's tag, in the order of the panel switch's template-names (editor.uidesc)
+    constexpr std::array<std::int32_t, 8> kSyncTag{kGranularTimeModeId, kSpectralTimeModeId, kShimmerTimeModeId,
+                                                   kTapeTimeModeId,     kBBDTimeModeId,      kDigitalTimeModeId,
+                                                   kPingPongTimeModeId, kReverseTimeModeId};
+    const std::string uidescPath = std::string(ITERUM_RESOURCES_DIR) + "/editor.uidesc";
+    Krate::TestSupport::ensureVstguiInitialized();
+    for (const int closeOn : {0, 7}) {
+        auto controller = Steinberg::owned(new Iterum::Controller());
+        REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
+        auto* editor = new VSTGUI::VST3Editor(controller.get(), "Editor", uidescPath.c_str());
+        Steinberg::IPlugView* view = editor;
+        REQUIRE(view->attached(nullptr, Krate::TestSupport::nativePlatformType()) == Steinberg::kResultTrue);
+        REQUIRE(editor->getFrame() != nullptr);
+        CView* rootView = editor->getFrame()->getView(0);
+        REQUIRE(rootView != nullptr);
+        REQUIRE(rootView->asViewContainer() != nullptr);
+        REQUIRE_FALSE(rootView->isAttached());
+        VSTGUI::UIViewSwitchContainer* panels = findSwitchContainer(rootView->asViewContainer());
+        REQUIRE(panels != nullptr);
+        const auto shownPanel = [panels]() -> CViewContainer* {
+            CView* first = panels->getView(0);
+            return first != nullptr ? first->asViewContainer() : nullptr;
+        };
+        for (std::size_t mode = 0; mode < kSyncTag.size(); ++mode) {
+            INFO("mode " << mode);
+            panels->setCurrentViewIndex(static_cast<std::int32_t>(mode));
+            REQUIRE(shownPanel() != nullptr);
+            REQUIRE(firstWithTag(shownPanel(), kSyncTag[mode]) != nullptr);
+            panels->setCurrentViewIndex(kMultiTap);  // away: frees the panel, then its sub-controller
+        }
+        panels->setCurrentViewIndex(closeOn);
+        REQUIRE(firstWithTag(shownPanel(), kSyncTag[static_cast<std::size_t>(closeOn)]) != nullptr);
+        view->removed();  // the editor frees the panel, then its sub-controller
+        view->release();
+        REQUIRE(controller->terminate() == Steinberg::kResultOk);
+    }
 }

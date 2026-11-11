@@ -12,6 +12,7 @@
 
 #include "vstgui/uidescription/delegationcontroller.h"
 #include "vstgui/lib/controls/ccontrol.h"
+#include "ui/watched_control.h"
 
 #include <vector>
 
@@ -37,12 +38,6 @@ public:
     {
     }
 
-    ~DelayTimeSyncController() override
-    {
-        if (syncToggle_)
-            syncToggle_->unregisterControlListener(this);
-    }
-
     VSTGUI::CView* verifyView(VSTGUI::CView* view,
                                const VSTGUI::UIAttributes& attrs,
                                const VSTGUI::IUIDescription* desc) override;
@@ -64,8 +59,8 @@ private:
     /// Their tags are swapped together when sync toggles.
     std::vector<VSTGUI::CControl*> timeControls_;
 
-    /// Pointer to sync toggle control (for unregistering sub-listener).
-    VSTGUI::CControl* syncToggle_ = nullptr;
+    /// The sync toggle this listens to; drops the listener when the toggle is deleted.
+    Krate::Plugins::WatchedControl syncToggle_{this};
 };
 
 } // namespace Iterum

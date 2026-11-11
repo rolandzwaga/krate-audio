@@ -31,6 +31,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace Steinberg {
 class MemoryStream;
@@ -169,6 +170,13 @@ public:
     /// Get the preset manager instance (for custom view buttons)
     Krate::Plugins::PresetManager* getPresetManager() { return presetManager_.get(); }
 
+    /// Rebuilds presetManager_ exactly as initialize() does, but over the given user and factory preset
+    /// directories, so a test that opens the browser never touches the machine's real preset trees.
+    /// Call it before the editor opens: the preset browser it builds holds the manager it was given.
+    void replacePresetManagerForTest(std::filesystem::path userDir, std::filesystem::path factoryDir) {
+        createPresetManager(std::move(userDir), std::move(factoryDir));
+    }
+
     /// Create a MemoryStream containing the current component state
     Steinberg::MemoryStream* createComponentStateStream();
 
@@ -258,6 +266,9 @@ private:
     std::string loadedSampleFullPath_;
 
     // Preset manager
+    /// Builds presetManager_ with its state/load providers. Empty paths keep the platform preset
+    /// directories; replacePresetManagerForTest() passes temp ones.
+    void createPresetManager(std::filesystem::path userDirOverride, std::filesystem::path factoryDirOverride);
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
 
     // Preset browser overlay view (VSTGUI-owned, raw pointer)

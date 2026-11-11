@@ -74,8 +74,7 @@ VSTGUI::CView* DelayTimeSyncController::verifyView(
         // Register as sub-listener on the sync toggle
         if (control->getTag() == syncTag_)
         {
-            control->registerControlListener(this);
-            syncToggle_ = control;
+            syncToggle_.watch(control);
         }
     }
 

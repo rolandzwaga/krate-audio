@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **The audition monitor depended on the host's denormal setting** — Every other Krate plugin switches off the processor's slow handling of tiny "denormal" numbers while it processes; Gradus left it to the host. Gradus now switches it off itself too, and restores the host's setting afterwards. The audition monitor's sound does not change.
+- **A possible crash when a host shut Gradus down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone.
+- **A possible crash when opening the preset browser after a host shut Gradus down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.
+- **On macOS, a note-on with a broken velocity slipped past the check** — A host can send a note-on whose velocity is not a real number (NaN or infinite). Gradus is meant to treat that as a note-off, but on macOS the check that catches it could be optimised away, letting it through as a note-on with a meaningless velocity. It is now treated as a note-off on every platform.
 
 ### Changed
 

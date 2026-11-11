@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **The Aether reverb and the body's decay cloud ignored the fraction of their delay times** — Their diffusers' allpass interpolation worked out to a whole-sample delay. It is now a true fractional allpass. The reverb and decay textures change subtly: of the presets measured, Warm Static is about 0.5 dB louder, and Vast and Cathedral Moss moved by less than 0.1 dB.
+- **A possible crash when a host shut Seraphis down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone.
+- **A possible crash when loading a preset after a host shut Seraphis down with its window still open** — In the same situation, double-clicking a preset in an open preset browser loaded it through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.
 
 ### Changed
 

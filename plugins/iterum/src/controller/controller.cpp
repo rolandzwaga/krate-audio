@@ -242,7 +242,9 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
 }
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
-    updateChecker_.reset();
+    // updateChecker_ stays until the destructor: an editor a host has not closed yet still
+    // polls it (update banner, Check for Updates button), and that editor holds a reference
+    // to this controller, so the destructor runs only after its views are gone
     return EditControllerEx1::terminate();
 }
 

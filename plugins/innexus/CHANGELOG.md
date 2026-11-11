@@ -5,6 +5,13 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **A possible crash when a host shut Innexus down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone. The Sync switch on the two modulator panels also no longer touches freed memory when the panels are taken down without an open window (as in automated tests).
+- **A possible crash when opening the preset browser after a host shut Innexus down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.
+
 ## [1.0.5] - 2026-11-02
 
 ### Fixed

@@ -37,7 +37,9 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 
+#include <filesystem>
 #include <memory>
+#include <utility>
 
 namespace Krate::Plugins {
 class PresetBrowserView;
@@ -130,6 +132,12 @@ public:
     [[nodiscard]] Krate::Plugins::PresetManager* presetManagerForTest() const noexcept {
         return presetManager_.get();  // model plugins/seraphis/src/controller/controller.h:196
     }
+    /// Rebuilds presetManager_ exactly as initialize() does, but over the given user and factory preset
+    /// directories, so a test that opens the browser never touches the machine's real preset trees.
+    /// Call it before the editor opens: the preset browser it builds holds the manager it was given.
+    void replacePresetManagerForTest(std::filesystem::path userDir, std::filesystem::path factoryDir) {
+        createPresetManager(std::move(userDir), std::move(factoryDir));
+    }
     [[nodiscard]] const EcosystemFrame& cachedEcosystemFrame() const noexcept { return cachedFrame_; }
     [[nodiscard]] const UI::EcosystemView* ecosystemViewForTest() const noexcept {
         return ecosystemView_;
@@ -142,6 +150,10 @@ public:
 private:
     template <typename SetParam>
     Steinberg::tresult applyStateStream(Steinberg::IBStream* state, const SetParam& setParam);
+
+    /// Builds presetManager_ with its state/load providers. Empty paths keep the platform preset
+    /// directories; replacePresetManagerForTest() passes temp ones.
+    void createPresetManager(std::filesystem::path userDirOverride, std::filesystem::path factoryDirOverride);
 
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
     std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;

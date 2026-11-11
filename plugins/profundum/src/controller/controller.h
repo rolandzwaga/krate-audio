@@ -58,9 +58,11 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace Krate::Plugins {
@@ -294,6 +296,12 @@ public:
     [[nodiscard]] Krate::Plugins::PresetManager* presetManagerForTest() const noexcept {
         return presetManager_.get();
     }
+    /// Rebuilds presetManager_ exactly as initialize() does, but over the given user and factory preset
+    /// directories, so a test that opens the browser never touches the machine's real preset trees.
+    /// Call it before the editor opens: the preset browser it builds holds the manager it was given.
+    void replacePresetManagerForTest(std::filesystem::path userDir, std::filesystem::path factoryDir) {
+        createPresetManager(std::move(userDir), std::move(factoryDir));
+    }
     [[nodiscard]] const Krate::DSP::MorphState& mirrorForTest(
         Krate::DSP::BassMorphEngine::Endpoint e) const noexcept {
         return mirror_[static_cast<std::size_t>(e)];
@@ -343,6 +351,9 @@ private:
     /// Phase 13 FR-031 (Vorago controller.cpp:152-168): the processor's own getState bytes, through the host's
     /// IComponent (the component handler); nullptr when the handler offers none. The caller releases the stream.
     [[nodiscard]] Steinberg::IBStream* createComponentStateStream();
+    /// Builds presetManager_ with its state/load providers. Empty paths keep the platform preset
+    /// directories; replacePresetManagerForTest() passes temp ones.
+    void createPresetManager(std::filesystem::path userDirOverride, std::filesystem::path factoryDirOverride);
 
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
     std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;  // the live update check (2026-10-26)
