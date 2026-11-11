@@ -1041,7 +1041,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/feedback_network.h",
-      "line": 57
+      "line": 58
     },
     {
       "name": "FeedforwardComb",
@@ -2969,7 +2969,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/sample_hold_filter.h",
-      "line": 105
+      "line": 107
     },
     {
       "name": "SampleHoldSource",
@@ -3393,7 +3393,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/spectral_morph_filter.h",
-      "line": 67
+      "line": 68
     },
     {
       "name": "SpectralShapeRecipe",
@@ -3513,7 +3513,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/stochastic_filter.h",
-      "line": 95
+      "line": 97
     },
     {
       "name": "StochasticShaper",
@@ -3977,7 +3977,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/wavefolder.h",
-      "line": 101
+      "line": 100
     },
     {
       "name": "WavefolderProcessor",

@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <numbers>
 
 #include <krate/dsp/core/db_utils.h>
@@ -38,8 +37,13 @@ namespace Krate::DSP::WavefoldMath {
 constexpr float kMinThreshold = 0.01f;
 
 /// Domain boundary for Lambert W function: -1/e
-/// lambertW(x) returns NaN for x < kLambertWDomainMin
+/// lambertW(x) returns -1 (the branch point, W(-1/e)) for x < kLambertWDomainMin and for -Inf
 constexpr float kLambertWDomainMin = -0.36787944117144233f;  // -1/e
+
+/// W(FLT_MAX) = 84.2885925, what lambertW() returns for +Inf. W has no finite limit at +Inf, so
+/// +Inf saturates at the value of the largest finite input and the function stays monotone
+/// (never a non-finite constant: undefined under -ffinite-math-only, the macOS leg).
+constexpr float kLambertWAtFloatMax = 84.2885925f;
 
 /// Small gain threshold for sineFold linear approximation.
 /// When gain < this value, return x directly for smooth transition at gain=0.
@@ -58,7 +62,8 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
 /// and Halley initial estimate w0 = x / (1 + x).
 ///
 /// @param x Input value. Valid range: x >= -1/e (approximately -0.3679)
-/// @return W(x) for valid inputs; NaN for x < -1/e or x = NaN
+/// @return W(x) for valid inputs; -1 for x < -1/e or -Inf; kLambertWAtFloatMax for +Inf;
+///         a NaN input is returned as-is
 ///
 /// @note Performance: ~4 exp() calls, ~200-400 cycles
 /// @note Accuracy: < 0.001 absolute tolerance vs reference (SC-002)
@@ -89,10 +94,11 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
         return x;  // Propagate NaN
     }
     if (detail::isInf(x)) {
-        return x > 0.0f ? x : std::numeric_limits<float>::quiet_NaN();
+        // Sign from the sign bit: an ordered compare on Inf is poison under -ffinite-math-only
+        return std::signbit(x) ? -1.0f : kLambertWAtFloatMax;
     }
     if (x < kLambertWDomainMin) {
-        return std::numeric_limits<float>::quiet_NaN();  // Below domain
+        return -1.0f;  // Below domain: clamped to the branch point, W(-1/e) = -1
     }
     if (x == 0.0f) {
         return 0.0f;  // W(0) = 0
@@ -165,7 +171,8 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
 /// for ~3x speedup over exact lambertW() with < 0.01 relative error.
 ///
 /// @param x Input value. Valid range: x >= -1/e (approximately -0.3679)
-/// @return Approximate W(x) for valid inputs; NaN for x < -1/e or x = NaN
+/// @return Approximate W(x) for valid inputs; -1 for x < -1/e or -Inf; kLambertWAtFloatMax for
+///         +Inf; a NaN input is returned as-is
 ///
 /// @note Performance: ~1 exp() call, ~50-100 cycles (3x+ faster than lambertW)
 /// @note Accuracy: < 0.01 relative error for x in [-0.36, 1.0] (SC-003)
@@ -184,15 +191,15 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
 /// float wApprox = WavefoldMath::lambertWApprox(0.1f);  // ~0.095 (within 1%)
 /// @endcode
 [[nodiscard]] inline float lambertWApprox(float x) noexcept {
-    // Handle special values
+    // Handle special values (as lambertW)
     if (detail::isNaN(x)) {
         return x;  // Propagate NaN
     }
     if (detail::isInf(x)) {
-        return x > 0.0f ? x : std::numeric_limits<float>::quiet_NaN();
+        return std::signbit(x) ? -1.0f : kLambertWAtFloatMax;
     }
     if (x < kLambertWDomainMin) {
-        return std::numeric_limits<float>::quiet_NaN();  // Below domain
+        return -1.0f;  // Below domain: clamped to the branch point, W(-1/e) = -1
     }
     if (x == 0.0f) {
         return 0.0f;  // W(0) = 0

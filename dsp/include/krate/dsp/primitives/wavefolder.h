@@ -32,7 +32,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 
 
 namespace Krate::DSP {
@@ -177,7 +176,8 @@ public:
     ///
     /// @note Real-time safe: O(1) complexity (FR-032), no allocations (FR-030)
     /// @note NaN inputs are propagated (FR-026)
-    /// @note Infinity inputs: Triangle/Sine saturate, Lockhart returns NaN
+    /// @note Infinity inputs return the type's finite saturation value (Triangle: +/- threshold,
+    ///       Sine: +/- 1, Lockhart: its limits 1 - tanh(W(1)) and -tanh(W(1)))
     /// @note Stateless: marked const (FR-024), noexcept (FR-025)
     [[nodiscard]] float process(float x) const noexcept {
         // FR-026: NaN propagation
@@ -226,9 +226,14 @@ private:
     // Internal Implementation
     // =========================================================================
 
+    /// DC offset correction for Lockhart: tanh(W(1)), W(1) ~ 0.5671432904 (omega constant).
+    static constexpr float kLockhartDcOffset = 0.5138683936f;
+
     /// @brief Handle infinity input based on fold type.
     [[nodiscard]] float handleInfinity(float x) const noexcept {
-        const float sign = x > 0.0f ? 1.0f : -1.0f;
+        // Sign from the sign bit: an ordered compare on Inf is poison under -ffinite-math-only
+        const bool negative = std::signbit(x);
+        const float sign = negative ? -1.0f : 1.0f;
 
         switch (type_) {
             case WavefoldType::Triangle: {
@@ -240,8 +245,9 @@ private:
                 // Return +/- 1.0 (saturate)
                 return sign;
             case WavefoldType::Lockhart:
-                // Return NaN per spec
-                return std::numeric_limits<float>::quiet_NaN();
+                // Its limits: tanh(W(exp(x * fold))) -> 1 as x -> +inf and -> tanh(W(0)) = 0 as
+                // x -> -inf, less the DC offset (what a loud finite input already returns)
+                return negative ? -kLockhartDcOffset : 1.0f - kLockhartDcOffset;
             default:
                 return sign;
         }
@@ -276,7 +282,6 @@ private:
         // W(1) ≈ 0.5671432904 (omega constant), tanh(W(1)) ≈ 0.5138683936
         // Without this, Lockhart produces ~0.514 for zero input, causing clicks
         // when crossfading with other models that produce 0 for zero input.
-        constexpr float kLockhartDcOffset = 0.5138683936f;
         return FastMath::fastTanh(w) - kLockhartDcOffset;
     }
 

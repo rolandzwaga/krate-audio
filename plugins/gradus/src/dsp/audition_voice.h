@@ -12,6 +12,7 @@
 // buffers, so a pool sums simply by rendering each voice in turn.
 // ==============================================================================
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/primitives/polyblep_oscillator.h>
 
 #include <algorithm>
@@ -104,7 +105,7 @@ public:
 
             float sample = osc_.process() * envLevel_ * velocity_ * volume_;
             // Sanitize NaN/Inf from oscillator or arithmetic edge cases
-            if (!std::isfinite(sample)) sample = 0.0f;
+            if (!Krate::DSP::detail::isFinite(sample)) sample = 0.0f;
             outL[i] += sample;
             outR[i] += sample;
         }

@@ -22,11 +22,27 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <limits>
 #include <vector>
 
 using Catch::Approx;
 using namespace Krate::DSP;
+
+namespace {
+
+/// A float from its IEEE-754 bit pattern, read through a volatile so it exists at run time in
+/// every FP mode (a numeric_limits NaN / Inf constant is undefined under -ffinite-math-only).
+float floatFromBits(std::uint32_t bits) noexcept {
+    volatile std::uint32_t sink = bits;
+    const std::uint32_t read = sink;
+    float f = 0.0f;
+    std::memcpy(&f, &read, sizeof(f));
+    return f;
+}
+
+} // namespace
 
 // =============================================================================
 // Test Tags Reference
@@ -554,20 +570,29 @@ TEST_CASE("Sine fold returns plus or minus 1.0 for plus or minus infinity input"
     REQUIRE(negOutput == Approx(-1.0f).margin(1e-6f));
 }
 
-TEST_CASE("Lockhart fold returns NaN for infinity input", "[wavefolder][edge]") {
-    // FR-020: Lockhart returns NaN for infinity
+TEST_CASE("Lockhart fold returns its saturation limits for infinity input", "[wavefolder][edge]") {
+    // FR-020: Lockhart(x) = tanh(W(exp(x * fold))) - tanh(W(1)) tends to 1 - tanh(W(1)) as
+    // x -> +inf and to -tanh(W(1)) as x -> -inf. An infinite input returns those finite limits,
+    // the values a loud finite input already reaches (exp overflows past x * fold ~ 88.7).
+    constexpr float kLockhartDcOffset = 0.5138683936f;  // tanh(W(1))
     Wavefolder folder;
     folder.setType(WavefoldType::Lockhart);
     folder.setFoldAmount(1.0f);
 
-    const float posInf = std::numeric_limits<float>::infinity();
-    const float negInf = -std::numeric_limits<float>::infinity();
+    const float posInf = floatFromBits(0x7F800000u);
+    const float negInf = floatFromBits(0xFF800000u);
 
-    float posOutput = folder.process(posInf);
-    float negOutput = folder.process(negInf);
+    const float posOutput = folder.process(posInf);
+    const float negOutput = folder.process(negInf);
 
-    REQUIRE(std::isnan(posOutput));
-    REQUIRE(std::isnan(negOutput));
+    REQUIRE(detail::isFinite(posOutput));
+    REQUIRE(detail::isFinite(negOutput));
+    REQUIRE(posOutput == Approx(1.0f - kLockhartDcOffset).margin(1e-6f));
+    REQUIRE(negOutput == Approx(-kLockhartDcOffset).margin(1e-6f));
+
+    // Continuous with loud finite input
+    REQUIRE(folder.process(1000.0f) == Approx(posOutput).margin(1e-6f));
+    REQUIRE(folder.process(-1000.0f) == Approx(negOutput).margin(1e-6f));
 }
 
 TEST_CASE("Triangle fold with foldAmount 0 returns 0", "[wavefolder][edge]") {

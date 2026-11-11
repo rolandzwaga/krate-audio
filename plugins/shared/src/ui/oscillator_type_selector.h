@@ -48,6 +48,7 @@
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/detail/uiviewcreatorattributes.h"
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/systems/oscillator_types.h>
 
 #include <algorithm>
@@ -65,7 +66,7 @@ namespace Krate::Plugins {
 /// index (0-9). Handles NaN, infinity, and out-of-range values defensively.
 /// FR-042: NaN/inf values are treated as 0.5 (midpoint).
 [[nodiscard]] inline int oscTypeIndexFromNormalized(float value) {
-    if (std::isnan(value) || std::isinf(value))
+    if (Krate::DSP::detail::isNaN(value) || Krate::DSP::detail::isInf(value))
         value = 0.5f;
     value = std::clamp(value, 0.0f, 1.0f);
     return static_cast<int>(std::round(value * 9.0f));

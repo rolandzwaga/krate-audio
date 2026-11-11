@@ -25,6 +25,7 @@
 #pragma once
 
 // Layer 0: Core
+#include <krate/dsp/core/db_utils.h>  // detail::isFinite, fast-math-immune
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/window_functions.h>
 
@@ -265,7 +266,7 @@ public:
             // Check for NaN/Inf in inputs (FR-015)
             bool hasInvalidInput = false;
             for (std::size_t i = 0; i < chunkSize; ++i) {
-                if (!std::isfinite(chunkA[i]) || !std::isfinite(chunkB[i])) {
+                if (!detail::isFinite(chunkA[i]) || !detail::isFinite(chunkB[i])) {
                     hasInvalidInput = true;
                     break;
                 }
@@ -335,7 +336,7 @@ public:
         }
 
         // Check for NaN/Inf
-        if (!std::isfinite(input)) {
+        if (!detail::isFinite(input)) {
             reset();
             return 0.0f;
         }

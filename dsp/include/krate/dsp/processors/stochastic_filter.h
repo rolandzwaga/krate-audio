@@ -11,6 +11,7 @@
 // - Principle X: DSP Constraints (control-rate updates, smoothed transitions)
 //
 // Dependencies:
+// - Layer 0: core/db_utils.h (detail::isFinite, fast-math-immune)
 // - Layer 0: core/random.h (Xorshift32 PRNG)
 // - Layer 1: primitives/svf.h (TPT State Variable Filter)
 // - Layer 1: primitives/smoother.h (OnePoleSmoother)
@@ -18,6 +19,7 @@
 
 #pragma once
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/random.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/svf.h>
@@ -683,8 +685,8 @@ private:
         lorenzZ_ += dz;
 
         // Check for NaN/Inf and reset if needed
-        if (!std::isfinite(lorenzX_) || !std::isfinite(lorenzY_) ||
-            !std::isfinite(lorenzZ_)) {
+        if (!detail::isFinite(lorenzX_) || !detail::isFinite(lorenzY_) ||
+            !detail::isFinite(lorenzZ_)) {
             initializeLorenzState();
         }
 

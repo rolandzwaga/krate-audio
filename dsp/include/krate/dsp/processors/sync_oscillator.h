@@ -400,9 +400,7 @@ private:
 
     /// @brief Branchless output sanitization (FR-036).
     [[nodiscard]] static float sanitize(float x) noexcept {
-        const auto bits = detail::opaqueFloatBits(x);  // fast-math-immune read
-        const bool isNan = ((bits & 0x7F800000u) == 0x7F800000u) &&
-                           ((bits & 0x007FFFFFu) != 0);
+        const bool isNan = detail::isNaN(x);  // fast-math-immune read
         x = isNan ? 0.0f : x;
         x = (x < -2.0f) ? -2.0f : x;
         x = (x > 2.0f) ? 2.0f : x;

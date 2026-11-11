@@ -18,11 +18,34 @@
 #include <catch2/catch_approx.hpp>
 
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <limits>
 #include <chrono>
 
 using Catch::Approx;
 using namespace Krate::DSP;
+
+namespace {
+
+/// A float from its IEEE-754 bit pattern, read through a volatile so it exists at run time in
+/// every FP mode (a numeric_limits NaN / Inf constant is undefined under -ffinite-math-only).
+float floatFromBits(std::uint32_t bits) noexcept {
+    volatile std::uint32_t sink = bits;
+    const std::uint32_t read = sink;
+    float f = 0.0f;
+    std::memcpy(&f, &read, sizeof(f));
+    return f;
+}
+
+constexpr std::uint32_t kQuietNaNBits = 0x7FC00000u;
+constexpr std::uint32_t kPosInfBits = 0x7F800000u;
+constexpr std::uint32_t kNegInfBits = 0xFF800000u;
+
+/// W(FLT_MAX) = 84.2885925 (double-precision Newton on w * e^w = 3.4028235e38).
+constexpr float kExpectedLambertWAtFloatMax = 84.2885925f;
+
+} // namespace
 
 // =============================================================================
 // US1: Serge-Style Sine Fold (FR-006, FR-007, FR-008)
@@ -221,7 +244,7 @@ TEST_CASE("lambertW: known values W(0.1)~0.0913, W(1.0)~0.567", "[wavefold_math]
     REQUIRE(WavefoldMath::lambertW(2.0f) == Approx(0.85261f).margin(0.001f));
 }
 
-TEST_CASE("lambertW: domain boundary W(-1/e)=-1, NaN below", "[wavefold_math][US3][lambertW]") {
+TEST_CASE("lambertW: domain boundary W(-1/e)=-1, clamped to -1 below", "[wavefold_math][US3][lambertW]") {
     // FR-001: Valid range x >= -1/e
     const float negOneOverE = -1.0f / std::exp(1.0f);  // -0.3679
 
@@ -230,21 +253,34 @@ TEST_CASE("lambertW: domain boundary W(-1/e)=-1, NaN below", "[wavefold_math][US
     // so we allow 0.02 margin for numerical precision near the singularity
     REQUIRE(WavefoldMath::lambertW(negOneOverE) == Approx(-1.0f).margin(0.02f));
 
-    // Below domain: return NaN
-    REQUIRE(std::isnan(WavefoldMath::lambertW(-0.5f)));
-    REQUIRE(std::isnan(WavefoldMath::lambertW(-1.0f)));
-    REQUIRE(std::isnan(WavefoldMath::lambertW(-10.0f)));
+    // Below domain: clamped to the branch point, W(-1/e) = -1 (finite, continuous at the edge).
+    // isFinite first: under MSVC /fp:fast a NaN compares equal to anything.
+    for (const float x : {-0.5f, -1.0f, -10.0f}) {
+        const float w = WavefoldMath::lambertW(x);
+        REQUIRE(detail::isFinite(w));
+        REQUIRE(w == -1.0f);
+    }
 }
 
-TEST_CASE("lambertW: special values NaN->NaN, Inf->Inf", "[wavefold_math][US3][lambertW]") {
-    // FR-011: Special value handling
-    const float nan = std::numeric_limits<float>::quiet_NaN();
-    const float posInf = std::numeric_limits<float>::infinity();
-    const float negInf = -std::numeric_limits<float>::infinity();
+TEST_CASE("lambertW: special values NaN->NaN, +Inf saturates at W(FLT_MAX), -Inf clamps to -1",
+          "[wavefold_math][US3][lambertW]") {
+    // FR-011: Special value handling. NaN is passed through as-is (no NaN constant); an infinite
+    // input returns a finite value: W has no finite limit at +Inf, so +Inf saturates at the
+    // value of the largest finite input, and -Inf is below the domain like any x < -1/e.
+    const float nan = floatFromBits(kQuietNaNBits);
+    const float posInf = floatFromBits(kPosInfBits);
+    const float negInf = floatFromBits(kNegInfBits);
 
-    REQUIRE(std::isnan(WavefoldMath::lambertW(nan)));
-    REQUIRE(WavefoldMath::lambertW(posInf) == posInf);
-    REQUIRE(std::isnan(WavefoldMath::lambertW(negInf)));  // Below domain
+    REQUIRE(detail::isNaN(WavefoldMath::lambertW(nan)));
+
+    const float wPosInf = WavefoldMath::lambertW(posInf);
+    REQUIRE(detail::isFinite(wPosInf));
+    REQUIRE(wPosInf == Approx(kExpectedLambertWAtFloatMax).margin(1e-3f));
+    REQUIRE(wPosInf >= WavefoldMath::lambertW(1e38f));  // stays monotone
+
+    const float wNegInf = WavefoldMath::lambertW(negInf);
+    REQUIRE(detail::isFinite(wNegInf));
+    REQUIRE(wNegInf == -1.0f);
 }
 
 TEST_CASE("lambertW: large inputs x>100", "[wavefold_math][US3][lambertW]") {
@@ -309,10 +345,13 @@ TEST_CASE("lambertWApprox: accuracy vs exact within 0.01 relative error", "[wave
     }
 }
 
-TEST_CASE("lambertWApprox: domain boundary returns NaN below -1/e", "[wavefold_math][US4][lambertWApprox]") {
-    // FR-002: Same domain handling as lambertW
-    REQUIRE(std::isnan(WavefoldMath::lambertWApprox(-0.5f)));
-    REQUIRE(std::isnan(WavefoldMath::lambertWApprox(-1.0f)));
+TEST_CASE("lambertWApprox: domain boundary clamps to -1 below -1/e", "[wavefold_math][US4][lambertWApprox]") {
+    // FR-002: Same domain handling as lambertW (isFinite first: see the lambertW case)
+    for (const float x : {-0.5f, -1.0f}) {
+        const float w = WavefoldMath::lambertWApprox(x);
+        REQUIRE(detail::isFinite(w));
+        REQUIRE(w == -1.0f);
+    }
 
     // At boundary should be valid
     const float negOneOverE = -1.0f / std::exp(1.0f);
@@ -321,12 +360,20 @@ TEST_CASE("lambertWApprox: domain boundary returns NaN below -1/e", "[wavefold_m
 
 TEST_CASE("lambertWApprox: special value handling", "[wavefold_math][US4][lambertWApprox]") {
     // FR-011: Same special value handling as lambertW
-    const float nan = std::numeric_limits<float>::quiet_NaN();
-    const float posInf = std::numeric_limits<float>::infinity();
+    const float nan = floatFromBits(kQuietNaNBits);
+    const float posInf = floatFromBits(kPosInfBits);
+    const float negInf = floatFromBits(kNegInfBits);
 
-    REQUIRE(std::isnan(WavefoldMath::lambertWApprox(nan)));
+    REQUIRE(detail::isNaN(WavefoldMath::lambertWApprox(nan)));
     REQUIRE(WavefoldMath::lambertWApprox(0.0f) == 0.0f);
-    REQUIRE(WavefoldMath::lambertWApprox(posInf) == posInf);
+
+    const float wPosInf = WavefoldMath::lambertWApprox(posInf);
+    REQUIRE(detail::isFinite(wPosInf));
+    REQUIRE(wPosInf == Approx(kExpectedLambertWAtFloatMax).margin(1e-3f));
+
+    const float wNegInf = WavefoldMath::lambertWApprox(negInf);
+    REQUIRE(detail::isFinite(wNegInf));
+    REQUIRE(wNegInf == -1.0f);
 }
 
 TEST_CASE("lambertWApprox: speedup at least 3x vs lambertW (SC-003)", "[wavefold_math][US4][lambertWApprox][benchmark][!mayfail]") {

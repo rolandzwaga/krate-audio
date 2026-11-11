@@ -6,6 +6,7 @@
 #include "../plugin_ids.h"
 
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/scoped_denormal_mode.h>
 
@@ -186,7 +187,7 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
                     // kNoteOffEvent) and permanently over-count
                     // physicalKeysHeld_. Note this convention is MIDI-1.0 only:
                     // a MIDI-2.0 UMP velocity-0 note-on is a genuine note-on.
-                    if (!std::isfinite(e.noteOn.velocity) || e.noteOn.velocity <= 0.0f) {
+                    if (!Krate::DSP::detail::isFinite(e.noteOn.velocity) || e.noteOn.velocity <= 0.0f) {
                         arpCore_.noteOff(static_cast<uint8_t>(e.noteOn.pitch));
                     } else {
                         // Round, do not truncate. The output path divides by

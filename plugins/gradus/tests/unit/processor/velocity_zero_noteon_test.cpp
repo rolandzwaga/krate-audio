@@ -22,6 +22,9 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
+#include <cstdint>
+#include <ios>
 #include <memory>
 #include <vector>
 
@@ -62,7 +65,7 @@ struct Driver {
         setup.sampleRate = kSampleRate;
         setup.maxSamplesPerBlock = kBlockSize;
         proc->setupProcessing(setup);
-        proc->setActive(true);
+        proc->setActive(static_cast<TBool>(true));
 
         outputBus.numChannels = 2;
         outputBus.channelBuffers32 = channels;
@@ -86,7 +89,7 @@ struct Driver {
 
     ~Driver()
     {
-        proc->setActive(false);
+        proc->setActive(static_cast<TBool>(false));
         proc->terminate();
     }
 
@@ -155,5 +158,44 @@ TEST_CASE("GMF-004: velocity-0 NoteOn is treated as a NoteOff and does not stran
         INFO("pitch " << p << ": on=" << d.onCount[static_cast<size_t>(p)]
                       << " off=" << d.offCount[static_cast<size_t>(p)]);
         CHECK(d.offCount[static_cast<size_t>(p)] >= d.onCount[static_cast<size_t>(p)]);
+    }
+}
+
+// The same input drain treats a non-finite NoteOn velocity as a release. On the
+// macOS -ffast-math leg a std::isfinite guard there folds to "finite", so a NaN
+// velocity fell through to noteOn (NaN <= 0 is false). The non-finite values are
+// built from bit patterns through a volatile so this TU's own fast-math build
+// cannot fold them; no FP classification happens on the test side.
+TEST_CASE("Non-finite NoteOn velocity is treated as a NoteOff on the live input path",
+          "[gradus][processor][velocity]")
+{
+    using namespace Gradus;
+
+    for (const std::uint32_t pattern : {0x7FC00000u, 0x7F800000u}) {  // quiet NaN, +Inf
+        volatile std::uint32_t bits = pattern;
+        const float velocity = std::bit_cast<float>(static_cast<std::uint32_t>(bits));
+        INFO("velocity bit pattern 0x" << std::hex << pattern);
+
+        Driver d;
+        Krate::Test::ParameterChanges setupParams;
+        setupParams.add(kArpSourceModeId, 0.0);
+        setupParams.add(kArpTempoSyncId, 1.0);
+        setupParams.add(kArpNoteValueId, 7.0 / 29.0);
+
+        d.inEvents.addNoteOn(60, 100.0f / 127.0f);
+        d.runBlock(&setupParams, 60);
+
+        int onsWhileHeld = 0;
+        for (int b = 0; b < 30; ++b) onsWhileHeld += d.runBlock(nullptr, 60);
+        REQUIRE(onsWhileHeld > 0);
+
+        d.inEvents.addNoteOn(60, velocity);
+        d.runBlock(nullptr, 60);
+        for (int b = 0; b < 4; ++b) d.runBlock(nullptr, 60);
+
+        int onsAfterRelease = 0;
+        for (int b = 0; b < 40; ++b) onsAfterRelease += d.runBlock(nullptr, 60);
+        INFO("pitch-60 note-ons after the non-finite-velocity NoteOn: " << onsAfterRelease);
+        CHECK(onsAfterRelease == 0);
     }
 }

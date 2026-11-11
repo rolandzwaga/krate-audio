@@ -12,6 +12,7 @@
 // - Principle XII: Test-First Development
 //
 // Dependencies:
+// - Layer 0: core/db_utils.h (detail::isFinite, fast-math-immune)
 // - Layer 0: core/random.h (Xorshift32 PRNG)
 // - Layer 1: primitives/svf.h (TPT State Variable Filter)
 // - Layer 1: primitives/lfo.h (Internal LFO modulation source)
@@ -21,6 +22,7 @@
 
 #pragma once
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/random.h>
 #include <krate/dsp/primitives/lfo.h>
 #include <krate/dsp/primitives/smoother.h>
@@ -242,7 +244,7 @@ public:
         }
 
         // Handle NaN/Inf input
-        if (!std::isfinite(input)) {
+        if (!detail::isFinite(input)) {
             filterL_.reset();
             return 0.0f;
         }
@@ -282,7 +284,7 @@ public:
         }
 
         // Handle NaN/Inf input
-        if (!std::isfinite(left) || !std::isfinite(right)) {
+        if (!detail::isFinite(left) || !detail::isFinite(right)) {
             filterL_.reset();
             filterR_.reset();
             left = 0.0f;
