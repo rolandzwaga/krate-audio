@@ -552,8 +552,17 @@ public:
     void process(float* buffer, size_t numSamples) noexcept {
         if (buffer == nullptr) return;
 
-        for (size_t i = 0; i < numSamples; ++i) {
-            buffer[i] = process(buffer[i]);
+        size_t i = 0;
+        while (i < numSamples) {
+            const size_t len = std::min(kBlockChunk, numSamples - i);
+            if (mode_ == FractalMode::Harmonic && mix_ != 0.0f && allFinite(buffer + i, len)) {
+                processHarmonicChunk(buffer + i, len);
+            } else {
+                for (size_t k = 0; k < len; ++k) {
+                    buffer[i + k] = process(buffer[i + k]);
+                }
+            }
+            i += len;
         }
     }
 
@@ -782,6 +791,109 @@ private:
         }
 
         return combineLevels(levels, iterations_);
+    }
+
+    /// Samples per level-major chunk of the block path (processHarmonicChunk).
+    static constexpr size_t kBlockChunk = 64;
+
+    /// @brief processHarmonic()'s level for each of @p n <= kBlockChunk clamped inputs: both
+    /// Clenshaw recurrences step through the chunk together (the samples are independent, so the
+    /// compiler vectorises the steps). Per sample: the operations of ChebyshevShaper::process,
+    /// Waveshaper::process and flushDenormal, in their order. The curves stay per sample: a
+    /// vectorised x / sqrt(x^2 + 1) under MSVC /fp:fast is not the scalar result (1-3 ulp apart,
+    /// which the Max blend's level selection carried to -50 dB of difference, round 5).
+    void harmonicLevelChunk(const float* clamped, float* out, size_t n) const noexcept {
+        std::array<float, kBlockChunk> odd{};
+        std::array<float, kBlockChunk> even{};
+        chebyshevChunk(oddHarmonicShaper_.getHarmonicLevels(), clamped, odd.data(), n);
+        chebyshevChunk(evenHarmonicShaper_.getHarmonicLevels(), clamped, even.data(), n);
+        for (size_t k = 0; k < n; ++k) {
+            const float o = detail::flushDenormal(oddWaveshaper_.process(odd[k]));
+            const float e = detail::flushDenormal(evenWaveshaper_.process(even[k]));
+            out[k] = (o + e) * 0.5f;
+        }
+    }
+
+    /// @brief Chebyshev::harmonicMix(x[k], weights, 8) for k in [0, n): the Clenshaw recurrence
+    /// with each step taken for the whole chunk.
+    static void chebyshevChunk(const std::array<float, ChebyshevShaper::kMaxHarmonics>& weights, const float* x,
+                               float* out, size_t n) noexcept {
+        std::array<float, kBlockChunk> b1{};
+        std::array<float, kBlockChunk> b2{};
+        for (int h = ChebyshevShaper::kMaxHarmonics; h >= 1; --h) {
+            const float c = weights[static_cast<size_t>(h - 1)];
+            for (size_t k = 0; k < n; ++k) {
+                const float b0 = c + 2.0f * x[k] * b1[k] - b2[k];
+                b2[k] = b1[k];
+                b1[k] = b0;
+            }
+        }
+        for (size_t k = 0; k < n; ++k) {
+            out[k] = x[k] * b1[k] - b2[k];
+        }
+    }
+
+    /// @brief True when every sample of @p x[0, n) is finite (process() resets on any other).
+    [[nodiscard]] static bool allFinite(const float* x, size_t n) noexcept {
+        for (size_t k = 0; k < n; ++k) {
+            if (!detail::isFinite(x[k])) return false;
+        }
+        return true;
+    }
+
+    /// @brief process() over @p n <= kBlockChunk finite samples in Harmonic mode at a non-zero Mix,
+    /// in level-major order: every sample's level 0, then every sample's level 1, ... A sample's
+    /// levels form one dependent chain (two Chebyshev Clenshaw recurrences and the residual per
+    /// level), so per sample the processor waits on that chain; across samples the chains are
+    /// independent apart from the frequency-decay filters, which still run each level's samples in
+    /// order. Every sample takes the same operations in the same order as processHarmonic():
+    /// the result is the per-sample one.
+    void processHarmonicChunk(float* buffer, size_t n) noexcept {
+        std::array<float, kBlockChunk> drive{};
+        std::array<float, kBlockChunk> mix{};
+        for (size_t k = 0; k < n; ++k) {
+            drive[k] = driveSmoother_.process();
+            mix[k] = mixSmoother_.process();
+        }
+        oddWaveshaper_.setType(oddHarmonicCurve_);
+        oddWaveshaper_.setDrive(1.0f);
+        evenWaveshaper_.setType(evenHarmonicCurve_);
+        evenWaveshaper_.setDrive(1.0f);
+        std::array<std::array<float, kBlockChunk>, kMaxIterations> levels{};
+        std::array<float, kBlockChunk> sum{};
+        std::array<float, kBlockChunk> clamped{};
+        for (size_t k = 0; k < n; ++k) {
+            clamped[k] = std::clamp(buffer[k] * drive[k], -1.0f, 1.0f);
+        }
+        harmonicLevelChunk(clamped.data(), levels[0].data(), n);
+        if (frequencyDecay_ > 0.0f) {
+            for (size_t k = 0; k < n; ++k) levels[0][k] = decayFilters_[0].process(levels[0][k]);
+        }
+        for (size_t k = 0; k < n; ++k) sum[k] = levels[0][k];
+        float scalePower = scaleFactor_;
+        for (int i = 1; i < iterations_; ++i) {
+            auto& level = levels[static_cast<size_t>(i)];
+            for (size_t k = 0; k < n; ++k) {
+                const float residual = buffer[k] - sum[k];
+                clamped[k] = std::clamp(residual * scalePower * drive[k], -1.0f, 1.0f);
+            }
+            harmonicLevelChunk(clamped.data(), level.data(), n);
+            if (frequencyDecay_ > 0.0f) {
+                for (size_t k = 0; k < n; ++k) level[k] = decayFilters_[static_cast<size_t>(i)].process(level[k]);
+            }
+            for (size_t k = 0; k < n; ++k) sum[k] += level[k];
+            scalePower *= scaleFactor_;
+        }
+        for (size_t k = 0; k < n; ++k) {
+            std::array<float, kMaxIterations> sampleLevels{};
+            for (int i = 0; i < iterations_; ++i) {
+                sampleLevels[static_cast<size_t>(i)] = levels[static_cast<size_t>(i)][k];
+            }
+            float wet = combineLevels(sampleLevels, iterations_);
+            wet = dcBlocker_.process(wet);
+            const float output = (1.0f - mix[k]) * buffer[k] + mix[k] * wet;
+            buffer[k] = detail::flushDenormal(output);
+        }
     }
 
     /// @brief Process using Cascade mode algorithm (FR-039 to FR-041).

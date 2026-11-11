@@ -35,6 +35,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -138,6 +139,7 @@ public:
 
         // Prepare components
         grainPool_.prepare(sampleRate);
+        activeSlots_ = 0;
         scheduler_.prepare(sampleRate);
 
         // Configure smoothers
@@ -174,6 +176,7 @@ public:
 
         // Reset grain pool
         grainPool_.reset();
+        activeSlots_ = 0;
 
         // Reset scheduler
         scheduler_.reset();
@@ -383,10 +386,9 @@ public:
             debugLastProcessedGrainCount_ = 0;
             debugLastActiveGrainCount_ = grainPool_.activeCount();
             // Iterate a snapshot: a grain released inside processGrain must not shift the list
-            const auto active = grainPool_.activeGrains();
-            std::copy(active.begin(), active.end(), grainSnapshot_.begin());
-            for (size_t i = 0; i < active.size(); ++i) {
-                (void)processGrain(grainSnapshot_[i]);  // Intentionally discard [[nodiscard]] result
+            for (uint64_t pending = activeSlots_; pending != 0; pending &= pending - 1) {
+                // Intentionally discard [[nodiscard]] result
+                (void)processGrain(grainPool_.grainAt(static_cast<size_t>(std::countr_zero(pending))));
             }
             ++currentSample_;
             // Snap smoother to 0 so it's ready when mix changes
@@ -411,11 +413,10 @@ public:
         float wet = 0.0f;
         debugLastProcessedGrainCount_ = 0;
         debugLastActiveGrainCount_ = grainPool_.activeCount();
-        // Iterate a snapshot: a grain released inside processGrain must not shift the list
-        const auto active = grainPool_.activeGrains();
-        std::copy(active.begin(), active.end(), grainSnapshot_.begin());
-        for (size_t i = 0; i < active.size(); ++i) {
-            wet += processGrain(grainSnapshot_[i]);
+        // The active grains in slot order (GrainPool::activeGrains' order), from a snapshot of the
+        // slot mask: a grain released inside processGrain does not change which grains this sample runs
+        for (uint64_t pending = activeSlots_; pending != 0; pending &= pending - 1) {
+            wet += processGrain(grainPool_.grainAt(static_cast<size_t>(std::countr_zero(pending))));
         }
 
         // Advance sample counter
@@ -580,6 +581,7 @@ private:
 
         // Per-grain state is indexed by the grain's pool slot, stable for its whole life
         const size_t grainIndex = grainPool_.indexOf(grain);
+        activeSlots_ |= uint64_t{1} << grainIndex;  // a stolen grain's slot is set already
 
         // Calculate per-grain drive
         const float smoothedDrive = driveSmoother_.process();
@@ -681,6 +683,7 @@ private:
         // Release if complete
         if (grain->envelopePhase >= 1.0f) {
             grainPool_.releaseGrain(grain);
+            activeSlots_ &= ~(uint64_t{1} << grainIndex);
         }
 
         return output;
@@ -695,7 +698,10 @@ private:
     GrainScheduler scheduler_;
     std::array<Waveshaper, GrainPool::kMaxGrains> waveshapers_;
     std::array<GrainState, GrainPool::kMaxGrains> grainStates_{};
-    std::array<Grain*, GrainPool::kMaxGrains> grainSnapshot_{};  ///< Active list copy per sample
+    /// Bit i set while pool slot i holds an active grain (GrainPool::kMaxGrains == 64): the
+    /// per-sample grain loop walks it instead of rebuilding GrainPool::activeGrains() from 64 slots
+    uint64_t activeSlots_ = 0;
+    static_assert(GrainPool::kMaxGrains == 64, "activeSlots_ holds one bit per pool slot");
 
     // Circular buffer
     std::array<float, kBufferSize> buffer_{};

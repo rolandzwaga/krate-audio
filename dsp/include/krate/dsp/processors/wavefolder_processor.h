@@ -203,6 +203,18 @@ public:
         adaaPrev_ = 0.0;
     }
 
+    /// @brief Start the DC blocker settled on the mean @p other's blocker removes (warm start).
+    ///
+    /// For an owner that starts a cleared copy of a running wavefolder, possibly at another
+    /// sample rate (an oversampling switch): from a cleared state the 10 Hz blocker passes the
+    /// fold's DC as a step that decays over ~150 ms. Changes nothing else; never called, nothing
+    /// changes.
+    void seedDcBlockerFrom(const WavefolderProcessor& other) noexcept {
+        DCBlocker probe = other.dcBlocker_;
+        // The next output of a blocker is x - (x[n-1] - R y[n-1]): at x = 0, minus the mean it removes
+        dcBlocker_.setState(-probe.process(0.0f), 0.0f);
+    }
+
     // =========================================================================
     // Model Selection (FR-007, FR-014, FR-023, FR-023a)
     // =========================================================================

@@ -1329,7 +1329,7 @@
       "scope": "Krate::DSP::GranularDistortion",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/granular_distortion.h",
-      "line": 491
+      "line": 492
     },
     {
       "name": "GrainScheduler",
@@ -1345,7 +1345,7 @@
       "scope": "Krate::DSP::GranularDistortion",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/granular_distortion.h",
-      "line": 520
+      "line": 521
     },
     {
       "name": "GranularDelay",
@@ -1361,7 +1361,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/granular_distortion.h",
-      "line": 80
+      "line": 81
     },
     {
       "name": "GranularEngine",
@@ -1401,7 +1401,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/oversampler.h",
-      "line": 135
+      "line": 136
     },
     {
       "name": "HardClipADAA",
@@ -1529,7 +1529,7 @@
       "scope": "Krate::DSP::AllpassSaturator",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/allpass_saturator.h",
-      "line": 355
+      "line": 368
     },
     {
       "name": "HungarianAlgorithm",
@@ -2241,7 +2241,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/oversampler.h",
-      "line": 226
+      "line": 227
     },
     {
       "name": "Partial",
@@ -3001,7 +3001,7 @@
       "scope": "Krate::DSP::AllpassSaturator",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/allpass_saturator.h",
-      "line": 378
+      "line": 391
     },
     {
       "name": "SaturationProcessor",

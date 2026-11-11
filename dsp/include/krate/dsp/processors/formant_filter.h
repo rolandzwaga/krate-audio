@@ -322,6 +322,11 @@ private:
     std::array<OnePoleSmoother, kMaxFormants> freqSmoothers_{};
     std::array<OnePoleSmoother, kMaxFormants> bwSmoothers_{};
 
+    // Inputs the biquads were last designed for (updateFilterCoefficients)
+    std::array<float, kMaxFormants> designedFreq_{};
+    std::array<float, kMaxFormants> designedBw_{};
+    float designedRate_ = -1.0f;
+
     // Parameters
     Vowel currentVowel_ = Vowel::A;
     float vowelMorphPosition_ = 0.0f;
@@ -487,10 +492,22 @@ inline void FormantFilter::calculateTargetFormants() noexcept {
 
 inline void FormantFilter::updateFilterCoefficients() noexcept {
     const float sr = static_cast<float>(sampleRate_);
+    const bool rateChanged = sr != designedRate_;
+    designedRate_ = sr;
 
     for (int i = 0; i < kMaxFormants; ++i) {
         const float freq = freqSmoothers_[i].process();
         const float bw = bwSmoothers_[i].process();
+        // The design is a pure function of (frequency, bandwidth, rate): skip it when they are
+        // the ones it was last made for. A smoother can stall one float step short of its target
+        // (above ~1 kHz a step exceeds kCompletionThreshold and a coefficient > 0.5 rounds back),
+        // so smoothersSettled() never holds and every sample re-derived all five sin / cos pairs
+        // with the same inputs (Disrumpo round 3 profile: 77 % of a Formant band at 4x).
+        if (!rateChanged && freq == designedFreq_[i] && bw == designedBw_[i]) {
+            continue;
+        }
+        designedFreq_[i] = freq;
+        designedBw_[i] = bw;
         const float q = calculateQ(freq, bw);
 
         // Store Q as gain to convert "constant 0 dB peak" BPF to

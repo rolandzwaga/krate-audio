@@ -2540,3 +2540,69 @@ TEST_CASE("FractalDistortion Multiband output dump (A/B probe)", "[.][fractal-ab
     REQUIRE(file.good());
     std::printf("fractal-ab-dump: %zu samples (2 x %zu) written to %s\n", out.size(), len, path);
 }
+
+// The block path (process(float*, size_t)) runs Harmonic mode in level-major order (Disrumpo round 4
+// CPU); it must give what process(float) gives sample by sample: every iteration count and blend
+// mode, frequency decay on and off, the drive and mix smoothers gliding, a Mix of 0 (the per-sample
+// fallback), odd block lengths. Measured equal to the bit on MSVC; under the macOS leg's -ffast-math
+// -ffp-contract=fast (tools/macos-fastmath-repro.sh) the low-cutoff float decay biquads compile differently
+// in the two loop orders and the residual chain carries the difference on: max |diff| 7.2e-5 at 1 level,
+// 1.35e-3 at 4 and 8 levels with decay on, 0 with it off (round 4): compared at 2e-3.
+TEST_CASE("FractalDistortion block path equals per-sample processing", "[fractal][processors][block]") {
+    for (const int iterations : {1, 4, 8}) {
+        for (const auto blend : {FractalBlendMode::Add, FractalBlendMode::Multiply, FractalBlendMode::Max,
+                                 FractalBlendMode::Screen}) {
+            for (const float decay : {0.0f, 0.5f}) {
+                FractalDistortion perSample;
+                FractalDistortion block;
+                for (FractalDistortion* f : {&perSample, &block}) {
+                    f->prepare(176400.0, 512);
+                    f->setMode(FractalMode::Harmonic);
+                    f->setIterations(iterations);
+                    f->setBlendMode(blend);
+                    f->setFrequencyDecay(decay);
+                    f->setDrive(1.0f);
+                }
+                constexpr size_t kN = 4096;
+                std::vector<float> x(kN);
+                for (size_t i = 0; i < kN; ++i) {
+                    x[i] = 0.6f * std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 176400.0f) +
+                           0.3f * std::sin(2.0f * 3.14159265f * 3100.0f * static_cast<float>(i) / 176400.0f);
+                }
+                std::vector<float> a(x);
+                std::vector<float> b(x);
+                size_t pos = 0;
+                size_t len = 1;
+                float maxDiff = 0.0f;
+                while (pos < kN) {
+                    const size_t n = std::min(len, kN - pos);
+                    if (pos >= 2000 && pos < 2100) {
+                        perSample.setMix(0.0f);
+                        block.setMix(0.0f);
+                    } else if (pos >= 2100) {
+                        perSample.setMix(0.7f);
+                        block.setMix(0.7f);
+                    }
+                    if (pos >= 300) {
+                        perSample.setDrive(3.0f);  // the drive smoother glides from here
+                        block.setDrive(3.0f);
+                    }
+                    for (size_t k = pos; k < pos + n; ++k) a[k] = perSample.process(a[k]);
+                    block.process(b.data() + pos, n);
+                    pos += n;
+                    len = len * 3 % 257 + 1;
+                }
+                size_t mismatched = 0;
+                for (size_t i = 0; i < kN; ++i) {
+                    if (a[i] != b[i]) {
+                        ++mismatched;
+                        maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+                    }
+                }
+                INFO("iterations " << iterations << ", blend " << static_cast<int>(blend) << ", decay " << decay
+                                   << ": " << mismatched << " samples differ, max |diff| " << maxDiff);
+                CHECK(maxDiff <= 2.0e-3f);
+            }
+        }
+    }
+}

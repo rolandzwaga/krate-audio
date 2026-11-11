@@ -127,6 +127,19 @@ public:
     /// @note FR-002: Resets all delay buffers, filter states, and feedback values
     void reset() noexcept;
 
+    /// @brief Take over @p other's loop and DC-blocker state (warm start), keeping this
+    /// instance's sample rate and parameters.
+    ///
+    /// For an owner that starts a cleared copy of a running saturator at another sample rate (an
+    /// oversampling switch): from a cleared state a loop can settle on a different state than the
+    /// running one, and the 10 Hz DC blocker passes the loop's DC as a step that decays over
+    /// ~150 ms. The DC blocker starts on the mean @p other's removes (the loop output's DC); the
+    /// SingleAllpass, AllpassChain and FeedbackMatrix loops take the damping lowpasses' state and
+    /// the last outputs, and their allpass filters, configured for this rate, start settled on the
+    /// DC their input then carries. KarplusStrong (its delay line is not carried) starts cleared.
+    /// Does nothing unless both are prepared and run the same topology; never called, nothing changes.
+    void warmStartFrom(const AllpassSaturator& other) noexcept;
+
     // =========================================================================
     // Topology Selection (FR-004 to FR-009)
     // =========================================================================
@@ -379,6 +392,9 @@ private:
     public:
         void prepare(double sampleRate) noexcept;
         void reset() noexcept;
+        /// Take over @p other's damping and last-output state at @p sampleRate; the allpass (configured
+        /// for this rate) starts settled on the constant input @p allpassInput.
+        void warmStartFrom(const SaturatedAllpassStage& other, double sampleRate, float allpassInput) noexcept;
         void setFrequency(float hz, float sampleRate) noexcept;
         void setDrive(float drive) noexcept;
         void setSaturationCurve(WaveshapeType type) noexcept;
@@ -411,6 +427,10 @@ private:
     /// @brief Calculate lowpass cutoff and feedback for KarplusStrong decay.
     void decayToFeedbackAndCutoff(float decaySeconds, float frequency,
                                    float& outFeedback, float& outCutoff) const noexcept;
+
+    /// @brief Set @p filter's state to the one a constant input @p input settles it to, at its own
+    /// coefficients (warmStartFrom).
+    static void primeAtDc(Biquad& filter, float input) noexcept;
 
     /// @brief Process SingleAllpass topology.
     [[nodiscard]] float processSingleAllpass(float input) noexcept;
@@ -531,6 +551,18 @@ inline void AllpassSaturator::SaturatedAllpassStage::reset() noexcept {
     allpass_.reset();
     dampingLP_.reset();
     lastOutput_ = 0.0f;
+}
+
+inline void AllpassSaturator::SaturatedAllpassStage::warmStartFrom(const SaturatedAllpassStage& other,
+                                                                   double sampleRate, float allpassInput) noexcept {
+    // The damping lowpass takes other's state at this rate and cutoff (prepare keeps the state)
+    const float cutoff = dampingLP_.getCutoff();
+    dampingLP_ = other.dampingLP_;
+    dampingLP_.prepare(sampleRate);
+    dampingLP_.setCutoff(cutoff);
+    lastOutput_ = other.lastOutput_;
+    // The allpass (configured for this rate) starts settled on its input's DC
+    primeAtDc(allpass_, allpassInput);
 }
 
 inline void AllpassSaturator::SaturatedAllpassStage::setFrequency(float hz, float sampleRate) noexcept {
@@ -657,6 +689,71 @@ inline void AllpassSaturator::reset() noexcept {
         stage.reset();
     }
     matrixLastOutputs_.fill(0.0f);
+}
+
+inline void AllpassSaturator::primeAtDc(Biquad& filter, float input) noexcept {
+    // Transposed direct form II at a constant input u: y = H(1) u, z1 = y - b0 u, z2 = b2 u - a2 y.
+    // Biquad takes no state directly: a filter with b = (0, z1, z2) and a = 0 holds (z1, z2) after
+    // one unit sample, then takes the real coefficients
+    const BiquadCoefficients c = filter.coefficients();
+    const float den = 1.0f + c.a1 + c.a2;
+    const float y = den != 0.0f ? (c.b0 + c.b1 + c.b2) / den * input : 0.0f;
+    Biquad seeded;
+    seeded.setCoefficients(BiquadCoefficients{.b0 = 0.0f, .b1 = y - c.b0 * input, .b2 = c.b2 * input - c.a2 * y,
+                                              .a1 = 0.0f, .a2 = 0.0f});
+    (void)seeded.process(1.0f);
+    seeded.setCoefficients(c);
+    filter = seeded;
+}
+
+inline void AllpassSaturator::warmStartFrom(const AllpassSaturator& other) noexcept {
+    // KarplusStrong's delay line is not carried: its loop starts cleared, with its blocker
+    if (!prepared_ || !other.prepared_ || topology_ != other.topology_ ||
+        topology_ == NetworkTopology::KarplusStrong) {
+        return;
+    }
+    // The next output of a blocker is x - (x[n-1] - R y[n-1]): at x = 0, minus the mean it removes,
+    // here the loop output's DC
+    DCBlocker probe = other.dcBlocker_;
+    const float loopDc = -probe.process(0.0f);
+    dcBlocker_.setState(loopDc, 0.0f);
+    // This rate's coefficients now, at the smoothed values the next sample reads
+    appliedFrequency_ = frequencySmoother_.getCurrentValue();
+    appliedDrive_ = driveSmoother_.getCurrentValue();
+    configureActiveTopology(appliedFrequency_, appliedDrive_, true, true);
+    // The loop takes other's damping state and last outputs; its allpass filters, whose state
+    // belongs to other's coefficients, start settled on the DC their input carries (allpass DC gain
+    // 1): a raw copy knocked a latched loop off its state (0.92 -> 0.44 in one sample, round 4)
+    const float feedback = feedbackSmoother_.getCurrentValue();
+    switch (topology_) {
+        case NetworkTopology::SingleAllpass:
+            singleStage_.warmStartFrom(other.singleStage_, sampleRate_, loopDc * feedback);
+            break;
+        case NetworkTopology::AllpassChain: {
+            const float cutoff = chainDampingLP_.getCutoff();
+            chainDampingLP_ = other.chainDampingLP_;
+            chainDampingLP_.prepare(sampleRate_);  // keeps the state
+            chainDampingLP_.setCutoff(cutoff);
+            chainLastOutput_ = other.chainLastOutput_;
+            for (auto& ap : chainAllpasses_) {
+                primeAtDc(ap, loopDc * feedback);
+            }
+            break;
+        }
+        case NetworkTopology::FeedbackMatrix: {
+            matrixLastOutputs_ = other.matrixLastOutputs_;
+            std::array<float, 4> crossFeedback{};
+            HouseholderMatrix::multiply(matrixLastOutputs_.data(), crossFeedback.data());
+            for (size_t i = 0; i < matrixStages_.size(); ++i) {
+                const float allpassInput =
+                    crossFeedback[i] * feedback + matrixLastOutputs_[i] * feedback * 0.7f;
+                matrixStages_[i].warmStartFrom(other.matrixStages_[i], sampleRate_, allpassInput);
+            }
+            break;
+        }
+        case NetworkTopology::KarplusStrong:
+            break;
+    }
 }
 
 // -----------------------------------------------------------------------------

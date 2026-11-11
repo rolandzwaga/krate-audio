@@ -16,10 +16,13 @@
 #include <test_signals.h>
 #include <buffer_comparison.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <utility>
+#include <vector>
 
 using Catch::Approx;
 using namespace Krate::DSP;
@@ -1276,6 +1279,140 @@ TEST_CASE("Oversampler 4x reduces aliasing more than 2x",
 
     // 4x should have less aliasing than 2x
     REQUIRE(aliasing4x < aliasing2x);
+}
+
+// =============================================================================
+// 8x (a third cascaded 2x stage, Disrumpo drive re-stage ruling 2026-11-10)
+// =============================================================================
+
+TEST_CASE("Oversampler 8x runs the callback at 8x and keeps the block size", "[oversampler][8x]") {
+    constexpr size_t blockSize = 64;
+    SECTION("stereo") {
+        Oversampler<8, 2> os;
+        os.prepare(48000.0, 256);
+        REQUIRE(os.getFactor() == 8);
+        REQUIRE(Oversampler<8, 2>::numStages() == 3);
+        std::array<float, blockSize> left{};
+        std::array<float, blockSize> right{};
+        generateSine(left.data(), blockSize, 1000.0f, 48000.0f);
+        generateSine(right.data(), blockSize, 1000.0f, 48000.0f);
+        size_t callbackSamples = 0;
+        os.process(left.data(), right.data(), blockSize,
+                   [&callbackSamples](float*, float*, size_t n) { callbackSamples = n; });
+        REQUIRE(callbackSamples == blockSize * 8);
+        REQUIRE(calculateRMS(left.data(), blockSize) > 0.0f);
+    }
+    SECTION("mono") {
+        Oversampler<8, 1> os;
+        os.prepare(44100.0, 512);
+        std::array<float, blockSize> buffer{};
+        generateSine(buffer.data(), blockSize, 1000.0f, 44100.0f);
+        size_t callbackSamples = 0;
+        os.process(buffer.data(), blockSize, [&callbackSamples](float*, size_t n) { callbackSamples = n; });
+        REQUIRE(callbackSamples == blockSize * 8);
+    }
+}
+
+TEST_CASE("Oversampler 8x latency values follow the per-stage accounting", "[oversampler][8x][latency]") {
+    Oversampler<8, 2> os;
+    os.prepare(44100.0, 512, OversamplingQuality::Economy, OversamplingMode::ZeroLatency);
+    CHECK(os.getLatency() == 0);
+    os.prepare(44100.0, 512, OversamplingQuality::Standard, OversamplingMode::LinearPhase);
+    CHECK(os.getLatency() == 45);
+    os.prepare(44100.0, 512, OversamplingQuality::High, OversamplingMode::LinearPhase);
+    CHECK(os.getLatency() == 93);
+}
+
+TEST_CASE("Oversampler 8x passes a passband sine at unity, IIR and FIR, mono and stereo",
+          "[oversampler][8x][passband]") {
+    // 1 kHz and 10 kHz at 44.1 kHz, 4096 samples in 256-sample blocks; the level of the last
+    // 2048 samples (past the filters' settling) against the input's, within 0.05 dB of the
+    // filters' own passband gain: 0 dB for the Butterworth IIR, and for the FIR halfbands their
+    // DC gain 0.5 + 2 sum(h) per filter (Standard 1.00446, +0.039 dB) times the six filters of
+    // three stages up and down. The stereo path equals the mono path within float rounding.
+    const auto firDb = [](const auto& coeffs) {
+        double sum = 0.5;
+        for (const float c : coeffs) sum += 2.0 * static_cast<double>(c);
+        return static_cast<float>(6.0 * 20.0 * std::log10(sum));
+    };
+    constexpr float sr = 44100.0f;
+    constexpr size_t n = 4096;
+    constexpr size_t block = 256;
+    for (const float hz : {1000.0f, 10000.0f}) {
+        for (const auto [q, m] : {std::pair{OversamplingQuality::Economy, OversamplingMode::ZeroLatency},
+                                  std::pair{OversamplingQuality::Standard, OversamplingMode::LinearPhase},
+                                  std::pair{OversamplingQuality::High, OversamplingMode::LinearPhase}}) {
+            float expectedDb = 0.0f;  // Economy: the Butterworth IIR passes DC at unity
+            if (q == OversamplingQuality::Standard) {
+                expectedDb = firDb(detail::kStandardFirCoeffs);
+            } else if (q == OversamplingQuality::High) {
+                expectedDb = firDb(detail::kHighFirCoeffs);
+            }
+            std::vector<float> in(n);
+            generateSine(in.data(), n, hz, sr);
+            std::vector<float> mono = in;
+            std::vector<float> left = in;
+            std::vector<float> right = in;
+            Oversampler<8, 1> osMono;
+            Oversampler<8, 2> osStereo;
+            osMono.prepare(sr, block, q, m);
+            osStereo.prepare(sr, block, q, m);
+            for (size_t off = 0; off < n; off += block) {
+                osMono.process(mono.data() + off, block, [](float*, size_t) {});
+                osStereo.process(left.data() + off, right.data() + off, block, [](float*, float*, size_t) {});
+            }
+            const float inRms = calculateRMS(in.data() + n / 2, n / 2);
+            const float outRms = calculateRMS(mono.data() + n / 2, n / 2);
+            const float db = 20.0f * std::log10(outRms / inRms);
+            INFO(hz << " Hz, quality " << static_cast<int>(q) << ": " << db << " dB, filters' gain " << expectedDb
+                    << " dB");
+            CHECK(std::fabs(db - expectedDb) < 0.05f);
+            float maxDiff = 0.0f;
+            for (size_t i = 0; i < n; ++i) maxDiff = std::max(maxDiff, std::fabs(left[i] - mono[i]));
+            CHECK(maxDiff < 1e-5f);
+        }
+    }
+}
+
+TEST_CASE("Oversampler 8x reduces aliasing more than 4x", "[oversampler][aliasing][8x]") {
+    // tanh at drive 8 on a 5 kHz sine at 44.1 kHz: the energy of the folded harmonics 2..40
+    // (the bins of their aliases below Nyquist) after the round trip, Hann window
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 5000.0f;
+    constexpr float drive = 8.0f;
+    const auto aliasedPowerDb = [&](auto& oversampler) {
+        std::vector<float> buffer(blockSize);
+        for (size_t i = 0; i < blockSize; ++i) {
+            buffer[i] = drive * std::sin(Krate::DSP::kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+        }
+        oversampler.process(buffer.data(), blockSize, [](float* x, size_t k) {
+            for (size_t i = 0; i < k; ++i) x[i] = std::tanh(x[i]);
+        });
+        std::vector<float> window(blockSize);
+        Window::generateHann(window.data(), blockSize);
+        for (size_t i = 0; i < blockSize; ++i) buffer[i] *= window[i];
+        FFT fft;
+        fft.prepare(blockSize);
+        std::vector<Complex> spectrum(fft.numBins());
+        fft.forward(buffer.data(), spectrum.data());
+        const auto aliasedBins = Krate::DSP::TestUtils::getAliasedBins(
+            {.testFrequencyHz = testFreq, .sampleRate = sampleRate, .driveGain = drive, .fftSize = blockSize,
+             .maxHarmonic = 40});
+        float power = 0.0f;
+        for (const size_t bin : aliasedBins) {
+            if (bin < spectrum.size()) power += spectrum[bin].magnitude() * spectrum[bin].magnitude();
+        }
+        return 10.0f * std::log10(power + 1e-10f);
+    };
+    Oversampler<4, 1> os4x;
+    os4x.prepare(sampleRate, blockSize);
+    Oversampler<8, 1> os8x;
+    os8x.prepare(sampleRate, blockSize);
+    const float aliasing4x = aliasedPowerDb(os4x);
+    const float aliasing8x = aliasedPowerDb(os8x);
+    INFO("aliased power 4x " << aliasing4x << " dB, 8x " << aliasing8x << " dB");
+    CHECK(aliasing8x < aliasing4x - 6.0f);
 }
 
 // =============================================================================

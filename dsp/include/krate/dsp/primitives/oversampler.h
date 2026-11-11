@@ -2,7 +2,8 @@
 // Layer 1: DSP Primitive - Oversampler
 // ==============================================================================
 // Upsampling/downsampling primitive for anti-aliased nonlinear processing.
-// Supports 2x and 4x oversampling with configurable filter quality and latency modes.
+// Supports 2x, 4x and 8x oversampling with configurable filter quality and latency modes.
+// 8x is a third cascaded 2x stage; the 2x and 4x paths are unchanged by it.
 //
 // NOTE: This is a "meta-primitive" / processor wrapper. Unlike other primitives that
 // process samples directly, Oversampler wraps other processors to run them at higher
@@ -220,12 +221,12 @@ using HalfbandFilterHigh = HalfbandFilter<detail::kHighFirLength>;
 /// downsamples the result. Use it to wrap nonlinear processors (saturation, waveshaping)
 /// that would otherwise alias.
 ///
-/// @tparam Factor Oversampling factor (2 or 4)
+/// @tparam Factor Oversampling factor (2, 4 or 8)
 /// @tparam NumChannels Number of audio channels (1 = mono, 2 = stereo)
 template<size_t Factor = 2, size_t NumChannels = 2>
 class Oversampler {
 public:
-    static_assert(Factor == 2 || Factor == 4, "Oversampler only supports 2x or 4x");
+    static_assert(Factor == 2 || Factor == 4 || Factor == 8, "Oversampler only supports 2x, 4x or 8x");
     static_assert(NumChannels >= 1 && NumChannels <= 2, "Oversampler supports 1-2 channels");
 
     // =========================================================================
@@ -247,9 +248,15 @@ public:
         return Factor;
     }
 
-    /// Number of cascaded 2x stages (1 for 2x, 2 for 4x)
+    /// Number of cascaded 2x stages (1 for 2x, 2 for 4x, 3 for 8x)
     static constexpr size_t numStages() noexcept {
-        return (Factor == 2) ? 1 : 2;
+        if constexpr (Factor == 2) {
+            return 1;
+        } else if constexpr (Factor == 4) {
+            return 2;
+        } else {
+            return 3;
+        }
     }
 
     /// Number of channels
@@ -295,7 +302,7 @@ public:
     /// Check if oversampler has been prepared
     [[nodiscard]] bool isPrepared() const noexcept { return prepared_; }
 
-    /// Get oversampling factor (2 or 4)
+    /// Get oversampling factor (2, 4 or 8)
     [[nodiscard]] constexpr size_t getFactor() const noexcept { return Factor; }
 
     /// Get latency introduced by oversampling (in base-rate samples)
@@ -470,9 +477,12 @@ void Oversampler<Factor, NumChannels>::prepare(
         // For 4x: 2 stages, latency = 2 * (latencyPerStage/2 + latencyPerStage/4)
         if constexpr (Factor == 2) {
             latencySamples_ = latencyPerStage;  // 15 or 31
-        } else {
+        } else if constexpr (Factor == 4) {
             // 4x: latencies accumulate across stages
             latencySamples_ = latencyPerStage * 2;  // 30 or 62
+        } else {
+            // 8x: one more stage, accounted as the 4x one is
+            latencySamples_ = latencyPerStage * 3;  // 45 or 93
         }
     }
 
@@ -610,7 +620,7 @@ void Oversampler<Factor, NumChannels>::upsampleIir(
 
         // Apply lowpass filter
         iirUpsampleFilters_[idx].processBlock(output, numSamples * 2);
-    } else {
+    } else if constexpr (Factor == 4) {
         // 4x: Two cascaded 2x stages
         // Stage 1: 1x -> 2x
         const size_t idx0 = getFilterIndex(channel, 0);
@@ -631,6 +641,21 @@ void Oversampler<Factor, NumChannels>::upsampleIir(
             output[dstIdx] = intermediate[srcIdx] * 2.0f;
         }
         iirUpsampleFilters_[idx1].processBlock(output, numSamples * 4);
+    } else {
+        // 8x: three cascaded 2x stages, each zero-stuffed in place (backwards) and filtered
+        for (size_t i = 0; i < numSamples; ++i) {
+            output[i * 2] = input[i] * 2.0f;
+            output[i * 2 + 1] = 0.0f;
+        }
+        iirUpsampleFilters_[getFilterIndex(channel, 0)].processBlock(output, numSamples * 2);
+        for (size_t stage = 1; stage < kNumStages; ++stage) {
+            const size_t len = numSamples << stage;  // samples at this stage's input rate
+            for (size_t i = len; i > 0; --i) {
+                output[(i - 1) * 2 + 1] = 0.0f;
+                output[(i - 1) * 2] = output[i - 1] * 2.0f;
+            }
+            iirUpsampleFilters_[getFilterIndex(channel, stage)].processBlock(output, len * 2);
+        }
     }
 }
 
@@ -656,6 +681,16 @@ void Oversampler<Factor, NumChannels>::downsampleIir(
         for (size_t i = 0; i < numSamples; ++i) {
             output[i] = temp[i * 2];
         }
+    } else if constexpr (Factor == 8) {
+        // 8x: three cascaded 2x stages (reverse order), each filtered then decimated
+        for (size_t stage = kNumStages; stage > 0; --stage) {
+            const size_t len = numSamples << stage;  // samples at this stage's rate
+            iirDownsampleFilters_[getFilterIndex(channel, stage - 1)].processBlock(temp, len);
+            for (size_t i = 0; i < len / 2; ++i) {
+                temp[i] = temp[i * 2];
+            }
+        }
+        std::copy(temp, temp + numSamples, output);
     } else {
         // 4x: Two cascaded 2x stages (reverse order)
         // Stage 1: 4x -> 2x
@@ -712,6 +747,18 @@ void Oversampler<Factor, NumChannels>::upsampleIirStereo(
         Cascade::processBlockPair(iirUpsampleFilters_[getFilterIndex(0, 1)], outL,
                                   iirUpsampleFilters_[getFilterIndex(1, 1)], outR, numSamples * 4);
     }
+    if constexpr (Factor == 8) {
+        // Stage 3: 4x -> 8x (in-place expansion, backwards)
+        for (size_t ch = 0; ch < 2; ++ch) {
+            float* o = out[ch];
+            for (size_t i = numSamples * 4; i > 0; --i) {
+                o[(i - 1) * 2 + 1] = 0.0f;
+                o[(i - 1) * 2] = o[i - 1] * 2.0f;
+            }
+        }
+        Cascade::processBlockPair(iirUpsampleFilters_[getFilterIndex(0, 2)], outL,
+                                  iirUpsampleFilters_[getFilterIndex(1, 2)], outR, numSamples * 8);
+    }
 }
 
 template<size_t Factor, size_t NumChannels>
@@ -728,6 +775,15 @@ void Oversampler<Factor, NumChannels>::downsampleIirStereo(
     float* tempR = tempBuffer_.data() + maxBlockSize_ * Factor;
     std::copy(inL, inL + numSamples * Factor, tempL);
     std::copy(inR, inR + numSamples * Factor, tempR);
+    if constexpr (Factor == 8) {
+        // Stage 0: 8x -> 4x, decimate; then the 4x path below
+        Cascade::processBlockPair(iirDownsampleFilters_[getFilterIndex(0, 2)], tempL,
+                                  iirDownsampleFilters_[getFilterIndex(1, 2)], tempR, numSamples * 8);
+        for (size_t i = 0; i < numSamples * 4; ++i) {
+            tempL[i] = tempL[i * 2];
+            tempR[i] = tempR[i * 2];
+        }
+    }
     if constexpr (Factor == 2) {
         Cascade::processBlockPair(iirDownsampleFilters_[getFilterIndex(0, 0)], tempL,
                                   iirDownsampleFilters_[getFilterIndex(1, 0)], tempR, numSamples * 2);
@@ -776,6 +832,27 @@ void Oversampler<Factor, NumChannels>::upsampleFir(
             firStandardUpsample_[idx].processBlock(output, numSamples * 2);
         } else {
             firHighUpsample_[idx].processBlock(output, numSamples * 2);
+        }
+    } else if constexpr (Factor == 8) {
+        // 8x: three cascaded 2x stages, each zero-stuffed in place (backwards) and filtered
+        for (size_t i = 0; i < numSamples; ++i) {
+            output[i * 2] = input[i] * 2.0f;
+            output[i * 2 + 1] = 0.0f;
+        }
+        for (size_t stage = 0; stage < kNumStages; ++stage) {
+            const size_t len = numSamples << (stage + 1);  // samples at this stage's output rate
+            if (stage > 0) {
+                for (size_t i = len / 2; i > 0; --i) {
+                    output[(i - 1) * 2 + 1] = 0.0f;
+                    output[(i - 1) * 2] = output[i - 1] * 2.0f;
+                }
+            }
+            const size_t idx = getFilterIndex(channel, stage);
+            if (quality_ == OversamplingQuality::Standard) {
+                firStandardUpsample_[idx].processBlock(output, len);
+            } else {
+                firHighUpsample_[idx].processBlock(output, len);
+            }
         }
     } else {
         // 4x: Two cascaded 2x stages
@@ -836,6 +913,21 @@ void Oversampler<Factor, NumChannels>::downsampleFir(
         for (size_t i = 0; i < numSamples; ++i) {
             output[i] = temp[i * 2];
         }
+    } else if constexpr (Factor == 8) {
+        // 8x: three cascaded 2x stages (reverse order), each filtered then decimated
+        for (size_t stage = kNumStages; stage > 0; --stage) {
+            const size_t len = numSamples << stage;  // samples at this stage's rate
+            const size_t idx = getFilterIndex(channel, stage - 1);
+            if (quality_ == OversamplingQuality::Standard) {
+                firStandardDownsample_[idx].processBlock(temp, len);
+            } else {
+                firHighDownsample_[idx].processBlock(temp, len);
+            }
+            for (size_t i = 0; i < len / 2; ++i) {
+                temp[i] = temp[i * 2];
+            }
+        }
+        std::copy(temp, temp + numSamples, output);
     } else {
         // 4x: Two cascaded 2x stages (reverse order)
         const size_t idx0 = getFilterIndex(channel, 0);

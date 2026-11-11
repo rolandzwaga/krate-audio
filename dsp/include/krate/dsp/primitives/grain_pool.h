@@ -127,6 +127,13 @@ public:
         return std::min(index, kMaxGrains - 1);
     }
 
+    /// The grain in pool slot @p index (the inverse of indexOf), active or not.
+    /// @param index Slot in [0, kMaxGrains)
+    [[nodiscard]] Grain* grainAt(size_t index) noexcept {
+        assert(index < kMaxGrains);
+        return &grains_[index];
+    }
+
     /// Get count of active grains
     [[nodiscard]] size_t activeCount() const noexcept { return activeCount_; }
 
