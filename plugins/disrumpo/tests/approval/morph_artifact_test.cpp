@@ -22,8 +22,10 @@
 
 #include <test_helpers/test_signals.h>
 #include <test_helpers/artifact_detection.h>
+#include "../test_support/calibrated_clicks.h"
 
 #include <cmath>
+#include <cstdio>
 #include <array>
 #include <memory>
 #include <numbers>
@@ -163,23 +165,6 @@ TEST_CASE("AP-003: Sine sweep during morph automation - same family", "[approval
         output[i] = left;
     }
 
-    // Analyze output for artifacts using click detector
-    ClickDetectorConfig config;
-    config.sampleRate = static_cast<float>(kSampleRate);
-    config.frameSize = 512;
-    config.hopSize = 256;
-    config.detectionThreshold = 6.0f;  // 6 sigma for strict detection
-    config.energyThresholdDb = -50.0f;
-
-    ClickDetector detector(config);
-    detector.prepare();
-
-    auto detections = detector.detect(output.data(), output.size());
-
-    // SC-003: Zero audible artifacts
-    INFO("Click detections: " << detections.size());
-    REQUIRE(detections.empty());
-
     // Derivative check: the automation adds no step beyond what the stationary nodes
     // produce. The same sweep is rendered with the cursor held on node 0 and on node 1
     // (no automation); the automated render's largest sample-to-sample step may not
@@ -217,6 +202,53 @@ TEST_CASE("AP-003: Sine sweep during morph automation - same family", "[approval
     INFO("Max derivative: automated " << maxDeriv << ", held on node 0 " << heldDeriv0
          << ", held on node 1 " << heldDeriv1);
     REQUIRE(maxDeriv <= 1.05f * std::max(heldDeriv0, heldDeriv1));
+
+    // SC-003: Zero audible artifacts. Re-baselined for the drive re-stage (user ruling
+    // 2026-11-10): at this input level the re-staged nodes square the sweep off and the 6-sigma
+    // detector read one of the square's own edges. Asserted: the same automation with the
+    // input 18.06 dB lower (the shapers at the drive this case was written for) reads no click
+    // at 6 sigma; at full level no click at the threshold calibrated on the cursor held at 0 /
+    // 0.5 / 1, where a step 1.5 x the held renders' largest edge is still caught
+    // (calibrated_clicks.h).
+    std::vector<float> quiet(kTestDuration);
+    {
+        auto q = std::make_unique<Disrumpo::BandProcessor>();
+        q->prepare(kSampleRate, 512);
+        q->setMorphNodes(nodes, 2);
+        q->setMorphMode(Disrumpo::MorphMode::Linear1D);
+        q->setMorphSmoothingTime(10.0f);
+        q->setMorphPosition(0.0f, 0.0f);
+        for (int i = 0; i < 1000; ++i) {
+            float l = 0.0f;
+            float r = 0.0f;
+            q->process(l, r);
+        }
+        for (size_t i = 0; i < kTestDuration; ++i) {
+            q->setMorphPosition(static_cast<float>(i) / static_cast<float>(kTestDuration), 0.0f);
+            float l = 0.125f * input[i];
+            float r = l;
+            q->process(l, r);
+            quiet[i] = l;
+        }
+    }
+    const size_t quietClicks = Disrumpo::TestSupport::clicksAtSigma(quiet.data(), quiet.size(), kSampleRate, 6.0f, -50.0f);
+    const std::vector<std::vector<float>> controls{heldRender(0.0f), heldRender(0.5f), heldRender(1.0f)};
+    const auto cal = Disrumpo::TestSupport::calibratedClicks(output, controls, 0, output.size(), output.size() / 2,
+                                                             kSampleRate, -50.0f);
+    INFO("Clicks: input -18.06 dB at 6 sigma " << quietClicks << "; full level: 5 sigma automated " << cal.eventAt5
+         << ", held controls " << cal.controlsAt5 << "; calibrated " << cal.sigma << " sigma automated "
+         << cal.eventAtSigma << ", positive control (step " << cal.step << ") " << cal.positiveAtSigma
+         << ", on the held controls " << cal.positiveOnControls);
+    std::printf("AP-003 same family: clicks at -18.06 dB (6 sigma) %zu; full level 5 sigma automated %zu, held %zu; "
+                "calibrated %.1f sigma automated %zu, positive control (step %.4f) %zu\n",
+                quietClicks, cal.eventAt5, cal.controlsAt5, static_cast<double>(cal.sigma), cal.eventAtSigma, cal.step,
+                cal.positiveAtSigma);
+    std::printf("AP-003 positive control on the held controls: %zu\n", cal.positiveOnControls);
+    REQUIRE(quietClicks == 0u);
+    REQUIRE(cal.sigma > 0.0f);
+    REQUIRE(cal.eventAtSigma == 0u);
+    REQUIRE(cal.positiveAtSigma > 0u);
+    REQUIRE(cal.positiveOnControls > 0u);
 }
 
 TEST_CASE("AP-003: Sine sweep during morph automation - cross family", "[approval][morph][SC-003][AP-003]") {

@@ -26,12 +26,13 @@ namespace Disrumpo {
 /// Maps a continuous weighted average to a discrete power-of-2 factor:
 /// - (-inf, 1.0] -> 1
 /// - (1.0, 2.0] -> 2
-/// - (2.0, +inf) -> 4
+/// - (2.0, 4.0] -> 4
+/// - (4.0, +inf) -> 8 (the 8x types, user ruling 2026-11-10)
 ///
 /// Per spec FR-004: rounds UP to ensure quality is never compromised.
 ///
 /// @param weightedAverage The weighted average of recommended factors
-/// @return Rounded-up factor: 1, 2, or 4
+/// @return Rounded-up factor: 1, 2, 4 or 8
 [[nodiscard]] constexpr int roundUpToPowerOf2Factor(float weightedAverage) noexcept {
     if (weightedAverage <= 1.0f) {
         return 1;
@@ -39,7 +40,10 @@ namespace Disrumpo {
     if (weightedAverage <= 2.0f) {
         return 2;
     }
-    return 4;
+    if (weightedAverage <= 4.0f) {
+        return 4;
+    }
+    return 8;
 }
 
 /// @brief Get oversampling factor for a single distortion type with global limit.
@@ -49,7 +53,7 @@ namespace Disrumpo {
 ///
 /// @param type The distortion type
 /// @param globalLimit Global oversampling limit (1, 2, 4, or 8)
-/// @return Effective oversampling factor: 1, 2, or 4 (never exceeds globalLimit)
+/// @return Effective oversampling factor: 1, 2, 4 or 8 (never exceeds globalLimit)
 [[nodiscard]] constexpr int getSingleTypeOversampleFactor(
     DistortionType type,
     int globalLimit
@@ -62,7 +66,7 @@ namespace Disrumpo {
 ///
 /// For a band in morph mode, computes the weighted average of all active nodes'
 /// recommended oversampling factors using morph blend weights, then rounds up
-/// to the nearest valid power of 2 (1, 2, or 4), and clamps to the global limit.
+/// to the nearest valid power of 2 (1, 2, 4 or 8), and clamps to the global limit.
 ///
 /// Per spec FR-003: uses morph weights as weighting
 /// Per spec FR-004: rounds up to nearest power of 2
@@ -73,7 +77,7 @@ namespace Disrumpo {
 /// @param weights Array of morph weights (normalized, sum to ~1.0 for active nodes)
 /// @param activeNodeCount Number of active nodes (2-4), clamped internally
 /// @param globalLimit Global oversampling limit (1, 2, 4, or 8)
-/// @return Effective oversampling factor: 1, 2, or 4 (never exceeds globalLimit)
+/// @return Effective oversampling factor: 1, 2, 4 or 8 (never exceeds globalLimit)
 [[nodiscard]] constexpr int calculateMorphOversampleFactor(
     const std::array<MorphNode, kMaxMorphNodes>& nodes,
     const std::array<float, kMaxMorphNodes>& weights,

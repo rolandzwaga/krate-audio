@@ -50,6 +50,7 @@ Processor::Processor() {
     sharedDisplay_.outputFIFO = &sharedOutputFIFO_;
     sharedDisplay_.sampleRate = &sharedSampleRate_;
     sharedDisplay_.meters = &sharedMeters_;
+    sharedDisplay_.modOffsets = &sharedModOffsets_;
 
     // Morph cache defaults matching Controller defaults. Set once here, never
     // in setupProcessing, so a restored patch survives re-preparation (D-046).
@@ -110,6 +111,8 @@ Steinberg::tresult PLUGIN_API Processor::terminate() {
 
 Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     Steinberg::Vst::ProcessSetup& setup) {
+    // A setState or setActive on another thread finishes first (lifecycleMutex_); process() never waits
+    const std::scoped_lock lifecycle(lifecycleMutex_);
 
     // Processing is stopped here: apply a load setState left pending (D-003)
     consumePendingState();
@@ -175,6 +178,10 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     updateLatencyAndTail();
     applyLatency(targetLatency_);
 
+    // Output safety clipper (user ruling 2026-11-10): its DC servo's corner at this rate
+    outClipL_.prepare(sampleRate_);
+    outClipR_.prepare(sampleRate_);
+
     // Initialize sweep processor (spec 007-sweep-system)
     sweepProcessor_.prepare(sampleRate_, setup.maxSamplesPerBlock);
     sweepProcessor_.setCustomCurve(&customCurve_);
@@ -192,6 +199,8 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     KRATE_BRIDGE_LOG("Disrumpo::Processor::setActive(%s)",
         state ? "true" : "false");
+    // A setState on another thread finishes first (lifecycleMutex_); process() never waits
+    const std::scoped_lock lifecycle(lifecycleMutex_);
     // Processing is stopped on both edges: setState applies at once from now on
     // (until the end of an activation), and a load left pending is applied here (D-003)
     if (!state) {
@@ -220,6 +229,8 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         applyLatency(targetLatency_);
         dryDelayL_.reset();
         dryDelayR_.reset();
+        outClipL_.reset();
+        outClipR_.reset();
         for (auto& allpass : dryAllpassL_) allpass.reset();
         for (auto& allpass : dryAllpassR_) allpass.reset();
         lastSignalledLatency_ = -1;
@@ -235,15 +246,17 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         // Reset modulation sources only: routings and macros are user state (D-047)
         modulationEngine_.resetSources();
 
-        // DataExchange: open queue for spectrum data transfer
-        if (dataExchange_)
+        // DataExchange: open queue for spectrum data transfer, on the main thread only:
+        // activated on another thread, the queue stays as it is (dataExchangeThread_)
+        if (dataExchange_ && std::this_thread::get_id() == dataExchangeThread_)
             dataExchange_->onActivate(processSetup);
 
         // process() may run from now on: setState hands its state over (D-003)
         active_.store(true, std::memory_order_release);
     } else {
-        // DataExchange: close queue before deactivation
-        if (dataExchange_)
+        // DataExchange: close queue before deactivation, on the main thread only: a host that
+        // toggles activation on another thread keeps the queue the main thread drains
+        if (dataExchange_ && std::this_thread::get_id() == dataExchangeThread_)
             dataExchange_->onDeactivate();
     }
 
@@ -630,6 +643,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     float inPeakR = meterAccum_.inPeak[1];
     float inSumSqL = 0.0f;
     float inSumSqR = 0.0f;
+    // Output before the safety clipper: the output clip bits read it
+    float preClipPeakL = meterAccum_.outPreClipPeak[0];
+    float preClipPeakR = meterAccum_.outPreClipPeak[1];
     size_t chunkStart = 0;
     while (chunkStart < totalSamples) {
         size_t chunkLen = std::min(totalSamples - chunkStart, BandProcessor::kMaxBlockSize);
@@ -738,6 +754,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 outL[n] *= fadeGain;
                 outR[n] *= fadeGain;
             }
+            // Output safety clipper (user ruling 2026-11-10): exact below -6 dBFS. The clip
+            // light reads the signal before it (user ruling 2026-11-10), so it shows when the
+            // clipper is catching overs
+            preClipPeakL = std::max(preClipPeakL, std::abs(outL[n]));
+            preClipPeakR = std::max(preClipPeakR, std::abs(outR[n]));
+            outL[n] = outClipL_.process(outL[n]);
+            outR[n] = outClipR_.process(outR[n]);
         }
 
         chunkStart += chunkLen;
@@ -770,6 +793,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         meterAccum_.inSumSq[1] += inSumSqR;
         meterAccum_.outPeak[0] = outPeakL;
         meterAccum_.outPeak[1] = outPeakR;
+        meterAccum_.outPreClipPeak[0] = preClipPeakL;
+        meterAccum_.outPreClipPeak[1] = preClipPeakR;
         meterAccum_.outSumSq[0] += outSumSqL;
         meterAccum_.outSumSq[1] += outSumSqR;
         meterAccum_.numSamples += static_cast<uint32_t>(totalSamples);

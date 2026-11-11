@@ -10,13 +10,49 @@
 #include "shape_slot_descriptors.h"
 
 #include <krate/dsp/core/fast_math.h>
+#include <krate/dsp/core/wavefold_math.h>
 
 #include <cmath>
 #include <algorithm>
+#include <numbers>
 
 namespace Disrumpo {
 
 namespace {
+
+/// First antiderivative of WavefoldMath::triangleFold(x, t) (odd, period 4t, peak t): even,
+/// zero at 0 (as WavefolderProcessor's ADAA1 integral).
+double triangleFoldF1(double x, double t) noexcept {
+    const double p = std::fmod(std::abs(x) + t, 4.0 * t);
+    const double g = p < 2.0 * t ? 0.5 * p * p - t * p : 3.0 * t * (p - 2.0 * t) - 0.5 * (p * p - 4.0 * t * t);
+    return g + 0.5 * t * t;
+}
+
+/// Second antiderivative (F2' = triangleFoldF1): odd, zero at 0. F1 is periodic in |x| + t with
+/// period 4t and mean t^2 / 2; K integrates one period's profile from its start (2 t^3 per period).
+double triangleFoldF2(double x, double t) noexcept {
+    const double period = 4.0 * t;
+    const double q = std::abs(x) + t;
+    const double cycles = std::floor(q / period);
+    const double p = q - cycles * period;
+    double k = 0.0;
+    if (p < 2.0 * t) {
+        k = p * p * p / 6.0 - 0.5 * t * p * p + 0.5 * t * t * p;
+    } else {
+        const double r = p - 2.0 * t;
+        k = t * t * t / 3.0 + 0.5 * t * r * r - r * r * r / 6.0 + 0.5 * t * t * r;
+    }
+    const double h = cycles * 2.0 * t * t * t + k - t * t * t / 6.0;  // K(t) = t^3 / 6 at x = 0
+    return x < 0.0 ? -h : h;
+}
+
+/// The factor AllpassResonant's presets were voiced at (4x until round 3, user ruling 2026-11-11):
+/// above it the adapter keeps the damping cutoff in Hz it had there (routeParamsToProcessor).
+constexpr double kAllpassVoicedFactor = 4.0;
+
+/// ADAA2 input step at or below which a difference quotient takes its limit (argument units,
+/// as ClosedFormAdaa2::kEpsilon and WavefolderProcessor::kAdaaEpsilon)
+constexpr double kTriangleAdaa2Epsilon = 1.0e-5;
 
 /// Temporal's Curve slot [0, 1] -> WaveshapeType index 0..8 (7 = Diode, 8 = Tube).
 int temporalShapeIndex(float dynamicCurve) noexcept {
@@ -57,6 +93,64 @@ constexpr float kDriveGainKnee = 5.0f;
 bool capsDriveGain(DistortionType type) noexcept {
     return type == DistortionType::Fuzz || type == DistortionType::AsymmetricFuzz ||
            type == DistortionType::FullRectify || type == DistortionType::HalfRectify;
+}
+
+/// SoftClip's curve, in double: x up to the threshold t, then t + h tanh(c (|x| - t) / h), odd.
+double softClipCurve(double x, double t, double h, double c) noexcept {
+    const double a = std::abs(x);
+    if (a <= t) return x;
+    const double y = t + h * std::tanh(c * (a - t) / h);
+    return x >= 0.0 ? y : -y;
+}
+
+/// Antiderivative of softClipCurve, zero at 0 and even: x^2 / 2 up to t, then
+/// t^2 / 2 + t (|x| - t) + (h^2 / c) ln cosh(c (|x| - t) / h), ln cosh(z) = z + ln(1 + e^-2z) - ln 2.
+double softClipIntegral(double x, double t, double h, double c) noexcept {
+    const double a = std::abs(x);
+    if (a <= t) return 0.5 * x * x;
+    const double z = c * (a - t) / h;
+    const double logCosh = z + std::log1p(std::exp(-2.0 * z)) - std::numbers::ln2;
+    return 0.5 * t * t + t * (a - t) + (h * h / c) * logCosh;
+}
+
+/// Fuzz / AsymmetricFuzz makeup slope: 0.95 dB per unit of drive, in nepers (0.95 / 20 * ln 10).
+constexpr float kFuzzMakeupNepersPerDrive = 0.10939f;
+
+/// Drive re-stage (user ruling 2026-11-10): +18 dB, exact as a power of two.
+constexpr float kDriveReference = 8.0f;
+
+/// The level-dependent types: their knee, clip threshold, fold point, rectifier threshold or
+/// loop saturation sits at a fixed sample value, which a -18 dBFS input at drive 1 never
+/// reached. They are driven kDriveReference harder into the shaper and brought back down by
+/// the same factor after it, so drive 1 bites at -18 dBFS and a signal in their linear region
+/// keeps its level. The other types are left as they were: FullRectify is the same at any
+/// gain; SampleReduce, Aliasing, Spectral and Granular distort the same at any level;
+/// Quantize, BitwiseMangler and Fractal already distort past 5 % at drive 1 and -18 dBFS
+/// (more input makes Quantize and BitwiseMangler cleaner); Bitcrush coarsens its grid
+/// instead (processRaw).
+bool restagesDrive(DistortionType type) noexcept {
+    switch (type) {
+        case DistortionType::SoftClip:
+        case DistortionType::HardClip:
+        case DistortionType::Tube:
+        case DistortionType::Tape:
+        case DistortionType::Fuzz:
+        case DistortionType::AsymmetricFuzz:
+        case DistortionType::SineFold:
+        case DistortionType::TriangleFold:
+        case DistortionType::SergeFold:
+        case DistortionType::HalfRectify:
+        case DistortionType::Temporal:
+        case DistortionType::RingSaturation:
+        case DistortionType::FeedbackDist:
+        case DistortionType::AllpassResonant:
+        case DistortionType::Chaos:
+        case DistortionType::Formant:
+        case DistortionType::Stochastic:
+            return true;
+        default:
+            return false;
+    }
 }
 
 }  // namespace
@@ -109,6 +203,11 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize, int maxOver
 
     // Processing starts at the host rate
     setProcessingRate(sampleRate);
+
+    // Mix starts on its value (setProcessingRate returns early when the rate is unchanged)
+    mixSmoother_.setTarget(std::clamp(commonParams_.mix, 0.0f, 1.0f));
+    mixSmoother_.snapToTarget();
+    currentMix_ = mixSmoother_.getTarget();
 }
 
 void DistortionAdapter::setProcessingRate(double rate) noexcept {
@@ -117,6 +216,11 @@ void DistortionAdapter::setProcessingRate(double rate) noexcept {
         return;
     }
     prepareRateDependent(rate);
+    if (fadeFromRunning_) {
+        // The outgoing type's filters are derived for the old rate: fade from the last output
+        fadeFromRunning_ = false;
+        typeFadeOrigin_ = lastOutput_;
+    }
     // Re-apply what is derived from the rate: the tone cutoff (clamped to the new
     // Nyquist), the active type's routed parameters and the Granular latency in samples.
     setCommonParams(commonParams_);
@@ -126,6 +230,9 @@ void DistortionAdapter::setProcessingRate(double rate) noexcept {
 void DistortionAdapter::prepareRateDependent(double rate) noexcept {
     sampleRate_ = rate;
     const auto blockSize = static_cast<size_t>(maxBlockSize_);
+
+    // Mix smoothing (kMixSmoothingMs at the clocked rate)
+    mixSmoother_.configure(kMixSmoothingMs, static_cast<float>(rate));
 
     // Tone filter and DC blocker (10Hz cutoff)
     toneFilter_.prepare(rate);
@@ -145,6 +252,11 @@ void DistortionAdapter::prepareRateDependent(double rate) noexcept {
 
     // Wavefolder
     wavefolder_.prepare(rate, blockSize);
+    // TriangleFold ADAA2 path: WavefolderProcessor's 5 ms smoothing and 10 Hz DC blocker
+    triFoldAmountSmoother_.configure(Krate::DSP::WavefolderProcessor::kDefaultSmoothingMs, static_cast<float>(rate));
+    triFoldSymmetrySmoother_.configure(Krate::DSP::WavefolderProcessor::kDefaultSmoothingMs, static_cast<float>(rate));
+    triFoldDcBlocker_.prepare(rate, Krate::DSP::WavefolderProcessor::kDCBlockerCutoffHz);
+    resetTriangleFoldAdaa2();
 
     // Digital-category processors
     rawBitCrusher_.prepare(rate);
@@ -202,18 +314,39 @@ void DistortionAdapter::reset() noexcept {
     tapeHfFilter_.reset();
     bodyFilter_.reset();
     wavefoldSmoothFilter_.reset();
+    resetTriangleFoldAdaa2();
     flutterPhase_ = 0.0f;
     halfRectAdaaPrev_ = 0.0;
+    softClipAdaaPrev_ = 0.0;
+    adaaDryPrev_ = 0.0f;
 
     // Latency delay lines (D-081)
     dryDelay_.reset();
     padDelay_.reset();
+
+    // Mix: no glide to finish after a reset
+    mixSmoother_.setTarget(std::clamp(commonParams_.mix, 0.0f, 1.0f));
+    mixSmoother_.snapToTarget();
+    currentMix_ = mixSmoother_.getTarget();
 
     // Type-change fade (D-141): every processor is clear, nothing to fade from
     resetPending_ = false;
     typeFadeRemaining_ = 0;
     lastOutput_ = 0.0f;
     hasOutput_ = false;
+}
+
+void DistortionAdapter::warmStartFrom(const DistortionAdapter& other) noexcept {
+    // The next output of a blocker is x - (x[n-1] - R y[n-1]): at x = 0, minus the mean it removes
+    const auto seed = [](Krate::DSP::DCBlocker& to, const Krate::DSP::DCBlocker& from) {
+        Krate::DSP::DCBlocker probe = from;
+        to.setState(-probe.process(0.0f), 0.0f);
+    };
+    seed(dcBlocker_, other.dcBlocker_);
+    seed(triFoldDcBlocker_, other.triFoldDcBlocker_);
+    wavefolder_.seedDcBlockerFrom(other.wavefolder_);
+    fuzz_.seedDcBlockerFrom(other.fuzz_);
+    allpassSaturator_.warmStartFrom(other.allpassSaturator_);
 }
 
 // =============================================================================
@@ -224,6 +357,8 @@ void DistortionAdapter::setType(DistortionType type) noexcept {
     const bool changed = type != currentType_;
     const bool hadDCBlock = needsDCBlock_;
     const bool hadTone = usesToneFilter(currentType_);
+    const DistortionType previousType = currentType_;
+    const bool wasLatent = latent_;
     currentType_ = type;
     updateDCBlockerState();
     updateBlockLatency();
@@ -231,6 +366,19 @@ void DistortionAdapter::setType(DistortionType type) noexcept {
         // processSameFamily re-asserts the type every sample: no switch. Before the first
         // processed sample (after prepare() / reset()) every processor is clear already.
         return;
+    }
+
+    // The outgoing type keeps running beside the new one for the fade when they share no
+    // processor state and neither is latent; a change during a fade fades from the last output.
+    // Its DC blocker and tone filter continue from the shared ones (round 3, see fadeFromRunning_)
+    fadeFromRunning_ = typeFadeRemaining_ == 0 && !wasLatent && !latent_ &&
+                       !sharesProcessorState(previousType, currentType_);
+    if (fadeFromRunning_) {
+        fadeFromType_ = previousType;
+        fadeFromDCBlock_ = hadDCBlock;
+        fadeAdaaDryPrev_ = adaaDryPrev_;
+        fadeDcBlocker_ = dcBlocker_;
+        fadeToneFilter_ = toneFilter_;
     }
 
     // The new type's processor resumes with what it held at its last use (D-032, D-080):
@@ -259,6 +407,8 @@ bool DistortionAdapter::usesToneFilter(DistortionType type) noexcept {
 void DistortionAdapter::resetProcessorFor(DistortionType type) noexcept {
     switch (type) {
         case DistortionType::SoftClip:
+            softClipAdaaPrev_ = 0.0;
+            break;
         case DistortionType::HardClip:
             break;  // memoryless
         case DistortionType::Tube:
@@ -279,10 +429,14 @@ void DistortionAdapter::resetProcessorFor(DistortionType type) noexcept {
             bodyFilter_.reset();
             break;
         case DistortionType::SineFold:
-        case DistortionType::TriangleFold:
         case DistortionType::SergeFold:
             wavefolder_.reset();
             wavefoldSmoothFilter_.reset();
+            break;
+        case DistortionType::TriangleFold:
+            wavefolder_.reset();
+            wavefoldSmoothFilter_.reset();
+            resetTriangleFoldAdaa2();
             break;
         case DistortionType::HalfRectify:
             halfRectAdaaPrev_ = 0.0;
@@ -360,8 +514,43 @@ void DistortionAdapter::setLatencyAlignment(int samples) noexcept {
     refreshLatencyMode();
 }
 
+bool DistortionAdapter::sharesProcessorState(DistortionType a, DistortionType b) noexcept {
+    // Fuzz / AsymmetricFuzz share fuzz_; the folds, the rectifiers and Quantize share the wavefold
+    // smoothing filter (the folds also wavefolder_); Bitcrush and Quantize share the dither RNG
+    const auto group = [](DistortionType t) {
+        switch (t) {
+            case DistortionType::Fuzz:
+            case DistortionType::AsymmetricFuzz:
+                return 1;
+            case DistortionType::SineFold:
+            case DistortionType::TriangleFold:
+            case DistortionType::SergeFold:
+            case DistortionType::FullRectify:
+            case DistortionType::HalfRectify:
+                return 2;
+            case DistortionType::Quantize:
+                return 3;  // shares with group 2 (smoothing filter) and Bitcrush (RNG)
+            case DistortionType::Bitcrush:
+                return 4;
+            default:
+                return 0;
+        }
+    };
+    const int ga = group(a);
+    const int gb = group(b);
+    if (ga == 0 || gb == 0) return false;
+    if (ga == gb) return true;
+    const auto quantizeWith = [](int g) { return g == 2 || g == 4; };
+    return (ga == 3 && quantizeWith(gb)) || (gb == 3 && quantizeWith(ga));
+}
+
 void DistortionAdapter::refreshLatencyMode() noexcept {
     const bool latent = blockLatency_ != 0 || alignLatency_ != 0;
+    if (latent && fadeFromRunning_) {
+        // The outgoing type ran unpadded: the rest of the fade starts from the last output
+        fadeFromRunning_ = false;
+        typeFadeOrigin_ = lastOutput_;
+    }
     if (latent && !latent_) {
         // The delay lines were not written while the adapter was not latent
         dryDelay_.reset();
@@ -377,6 +566,16 @@ void DistortionAdapter::refreshLatencyMode() noexcept {
 void DistortionAdapter::setCommonParams(const DistortionCommonParams& params) noexcept {
     const bool driveChanged = params.drive != commonParams_.drive;
     commonParams_ = params;
+    // Mix glides to the new value; before the first output it starts there (kMixSmoothingMs)
+    mixSmoother_.setTarget(std::clamp(params.mix, 0.0f, 1.0f));
+    if (!hasOutput_) {
+        mixSmoother_.snapToTarget();
+        currentMix_ = mixSmoother_.getTarget();
+    }
+    // Fuzz / AsymmetricFuzz level makeup above drive 1 (user ruling 2026-11-10): 0.95 dB per unit of
+    // drive, fitted to the level the 1 / drive^2 clean blend loses at -18 dBFS (Init: 1.9 / 4.3 /
+    // 9.0 dB at drive 3 / 6 / 10), so their output stays level from drive 1 to 10
+    fuzzMakeup_ = params.drive > 1.0f ? std::exp(kFuzzMakeupNepersPerDrive * (params.drive - 1.0f)) : 1.0f;
     toneFilter_.setCutoff(std::clamp(params.toneHz, 200.0f, 8000.0f));
     // Temporal and Stochastic take the Drive inside routeParamsToProcessor() (they are not
     // pre-scaled), so a Drive change must re-route them: callers set the type parameters
@@ -402,6 +601,7 @@ float DistortionAdapter::process(float input) noexcept {
         resetProcessorFor(currentType_);
         resetPending_ = false;
     }
+    currentMix_ = mixSmoother_.process();
     float out = 0.0f;
     if (!latent_) {
         out = processWithDry(input, input);
@@ -413,13 +613,18 @@ float DistortionAdapter::process(float input) noexcept {
         out = padDelay_.read(static_cast<size_t>(std::max(0, alignLatency_ - blockLatency_)));
     }
     if (typeFadeRemaining_ > 0) {
-        // Linear crossfade from the last output before the type change; its last sample is
-        // the new type's output exactly (branch, not g == 1 arithmetic)
+        // Linear crossfade from the outgoing type, running beside the new one (fadeFromRunning_),
+        // or else from the last output before the type change; its last sample is the new
+        // type's output exactly (branch, not g == 1 arithmetic)
         --typeFadeRemaining_;
         if (typeFadeRemaining_ > 0) {
             const float g =
                 1.0f - static_cast<float>(typeFadeRemaining_) / static_cast<float>(typeFadeLength_);
-            out = typeFadeOrigin_ + g * (out - typeFadeOrigin_);
+            const float origin = fadeFromRunning_
+                                     ? processWithDryFor(fadeFromType_, input, input, fadeAdaaDryPrev_,
+                                                         fadeDcBlocker_, fadeToneFilter_, fadeFromDCBlock_)
+                                     : typeFadeOrigin_;
+            out = origin + g * (out - origin);
         }
     }
     lastOutput_ = out;
@@ -427,7 +632,18 @@ float DistortionAdapter::process(float input) noexcept {
     return out;
 }
 
-float DistortionAdapter::processWithDry(float input, float dry) noexcept {
+float DistortionAdapter::processWithDryFor(DistortionType type, float input, float dry, float& dryPrev,
+                                             Krate::DSP::DCBlocker& dcBlocker, Krate::DSP::OnePoleLP& toneFilter,
+                                             bool dcBlock) noexcept {
+    // ADAA1 delays the wet path by half a clocked sample (its linear segments read the mean of the
+    // last two inputs) and the owner aligns the band to it (usesAdaa): the dry image, which the
+    // drive gate and the mix pass on, takes the same mean so both arrive together
+    const float prevDry = dryPrev;
+    dryPrev = dry;
+    if (usesAdaa(type) && adaaActive()) {
+        dry = usesAdaa2(type) ? prevDry : 0.5f * (dry + prevDry);  // ADAA2: one clocked sample
+    }
+
     // Drive Gate: drive exactly 0 is an exact passthrough of the dry image (the
     // input, delayed by a latent type's latency)
     if (commonParams_.drive <= 0.0f) {
@@ -448,42 +664,47 @@ float DistortionAdapter::processWithDry(float input, float dry) noexcept {
     // signal BEFORE drive amplification — otherwise drive pushes the signal deep into the
     // waveshaper's saturation plateau where ±0.5 of jitter is compressed to nothing.
     float wet;
-    if (currentType_ == DistortionType::Temporal ||
-        currentType_ == DistortionType::Stochastic) {
+    if (type == DistortionType::Temporal ||
+        type == DistortionType::Stochastic) {
         wet = input;
     } else {
         wet = input * drive;
     }
 
-    // Process through current type
-    wet = processRaw(wet);
+    // Process through current type, re-staged by kDriveReference (exact: a power of two)
+    if (restagesDrive(type)) {
+        wet = processRawFor(type, wet * kDriveReference) * (1.0f / kDriveReference);
+    } else {
+        wet = processRawFor(type, wet);
+    }
 
     // Drive sets how hard a digital type bites, not its output level: divide by
     // max(1, drive) (D-144). The branch keeps drive <= 1 bit-identical.
-    if (drive > 1.0f && normalisesDrive(currentType_)) {
+    if (drive > 1.0f && normalisesDrive(type)) {
         wet /= drive;
     }
     // Fuzz, AsymmetricFuzz and the rectifiers: unchanged up to kDriveGainKnee, scaled by
     // kDriveGainKnee / drive above it (follow-up 50). The branch keeps drive <= 5 bit-identical.
-    if (drive > kDriveGainKnee && capsDriveGain(currentType_)) {
+    if (drive > kDriveGainKnee && capsDriveGain(type)) {
         wet *= kDriveGainKnee / drive;
     }
 
     // Apply DC blocker if needed
-    if (needsDCBlock_) {
-        wet = dcBlocker_.process(wet);
+    if (dcBlock) {
+        wet = dcBlocker.process(wet);
     }
 
     // Apply tone filter to wet signal
     // Skip for digital types where harsh quantization/aliasing IS the effect
     // The tone filter (prepared at oversampled rate) would destroy the staircase
-    if (usesToneFilter(currentType_)) {
-        wet = applyTone(wet);
+    if (usesToneFilter(type)) {
+        wet = toneFilter.process(wet);
     }
 
     // Mix dry/wet (the drive blend scales the wet share; exactly the old mix at
-    // drive >= kDriveBlendFull, where wetWeight is 1 by the min above)
-    const float mix = std::clamp(commonParams_.mix, 0.0f, 1.0f);
+    // drive >= kDriveBlendFull, where wetWeight is 1 by the min above); the smoothed Mix of this
+    // sample (process())
+    const float mix = currentMix_;
     if (wetWeight >= 1.0f) {
         return dry * (1.0f - mix) + wet * mix;
     }
@@ -495,7 +716,7 @@ void DistortionAdapter::processBlock(const float* input, float* output, int numS
     // process() per sample while a reset or a type fade is pending, and always for a latent
     // type (its dry image and padding run through delay lines)
     int i = 0;
-    while (i < numSamples && (resetPending_ || latent_ || typeFadeRemaining_ > 0)) {
+    while (i < numSamples && (resetPending_ || latent_ || typeFadeRemaining_ > 0 || !mixSmoother_.isComplete())) {
         output[i] = process(input[i]);
         ++i;
     }
@@ -508,13 +729,24 @@ void DistortionAdapter::processBlock(const float* input, float* output, int numS
     const float* in = input + i;
     float* out = output + i;
     const int n = numSamples - i;
-    if (commonParams_.drive <= 0.0f) {
+    const bool adaaDry = usesAdaa(currentType_) && adaaActive();
+    const bool adaa2Dry = adaaDry && usesAdaa2(currentType_);  // one clocked sample, not half
+    if (commonParams_.drive <= 0.0f && !adaaDry) {
         std::copy_n(in, n, out);  // Drive Gate: exact passthrough
+        adaaDryPrev_ = in[n - 1];
+    } else if (commonParams_.drive <= 0.0f) {
+        for (int k = 0; k < n; ++k) {  // Drive Gate: the dry image, ADAA-aligned (processWithDry)
+            out[k] = adaa2Dry ? adaaDryPrev_ : 0.5f * (in[k] + adaaDryPrev_);
+            adaaDryPrev_ = in[k];
+        }
     } else {
         const float wetWeight = std::min(commonParams_.drive / kDriveBlendFull, 1.0f);
         const float drive = std::max(commonParams_.drive, kDriveBlendFull);
         const bool scaleInput = currentType_ != DistortionType::Temporal &&
                                 currentType_ != DistortionType::Stochastic;
+        const bool restage = restagesDrive(currentType_);
+        const float preGain = (scaleInput ? drive : 1.0f) * (restage ? kDriveReference : 1.0f);
+        const float makeup = restage ? 1.0f / kDriveReference : 1.0f;
         const bool normalise = drive > 1.0f && normalisesDrive(currentType_);
         const bool capGain = drive > kDriveGainKnee && capsDriveGain(currentType_);
         const float capScale = capGain ? kDriveGainKnee / drive : 1.0f;
@@ -523,15 +755,33 @@ void DistortionAdapter::processBlock(const float* input, float* output, int numS
         const float mix = std::clamp(commonParams_.mix, 0.0f, 1.0f);
         const bool fullWet = wetWeight >= 1.0f;
         const float wetMix = mix * wetWeight;
-        for (int k = 0; k < n; ++k) {
-            const float x = in[k];
-            float wet = scaleInput ? x * drive : x;
-            wet = processRaw(wet);
-            if (normalise) wet /= drive;
-            if (capGain) wet *= capScale;
-            if (dcBlock) wet = dcBlocker_.process(wet);
-            if (tone) wet = applyTone(wet);
-            out[k] = fullWet ? x * (1.0f - mix) + wet * mix : x * (1.0f - wetMix) + wet * wetMix;
+        // Fractal runs its span as a block (FractalDistortion::process(float*, size_t): the same
+        // per-sample result, its Harmonic mode in level-major order, round 4 CPU); its processRaw is
+        // fractal_.process alone and it keeps no state shared with the steps after it
+        const bool blockShaper = currentType_ == DistortionType::Fractal;
+        std::array<float, kShaperChunk> shaped{};
+        for (int start = 0; start < n; start += kShaperChunk) {
+            const int len = std::min(kShaperChunk, n - start);
+            if (blockShaper) {
+                for (int k = 0; k < len; ++k) shaped[static_cast<size_t>(k)] = in[start + k] * preGain;
+                fractal_.process(shaped.data(), static_cast<size_t>(len));
+            }
+            for (int k = start; k < start + len; ++k) {
+                const float raw = in[k];
+                float x = raw;  // the dry image (processWithDry)
+                if (adaa2Dry) {
+                    x = adaaDryPrev_;
+                } else if (adaaDry) {
+                    x = 0.5f * (raw + adaaDryPrev_);
+                }
+                adaaDryPrev_ = raw;
+                float wet = (blockShaper ? shaped[static_cast<size_t>(k - start)] : processRaw(raw * preGain)) * makeup;
+                if (normalise) wet /= drive;
+                if (capGain) wet *= capScale;
+                if (dcBlock) wet = dcBlocker_.process(wet);
+                if (tone) wet = applyTone(wet);
+                out[k] = fullWet ? x * (1.0f - mix) + wet * mix : x * (1.0f - wetMix) + wet * wetMix;
+            }
         }
     }
     lastOutput_ = output[numSamples - 1];
@@ -550,8 +800,8 @@ int DistortionAdapter::getProcessingLatency() const noexcept {
 // Internal Processing
 // =============================================================================
 
-float DistortionAdapter::processRaw(float input) noexcept {
-    switch (currentType_) {
+float DistortionAdapter::processRawFor(DistortionType type, float input) noexcept {
+    switch (type) {
         // =====================================================================
         // Saturation (D01-D06) - Phase 3
         // =====================================================================
@@ -564,6 +814,25 @@ float DistortionAdapter::processRaw(float input) noexcept {
             // knee=0: low threshold, heavy saturation (more color)
             // knee=1: high threshold, only peaks saturate (transparent)
             const float threshold = 0.1f + typeParams_.knee * 0.8f;
+
+            if (adaaActive() && Krate::DSP::detail::isFinite(input)) {
+                // ADAA1 at 4x (user ruling 2026-11-10: the re-staged drive aliased past T6.01's
+                // -50 dB): the difference quotient of the closed-form antiderivative, the curve
+                // at the midpoint for a step below the epsilon
+                const double t = threshold;
+                const double h = 1.0 - t;
+                const double c = 1.0 + static_cast<double>(typeParams_.curve) * 5.0;
+                const double x = input;
+                const double prev = softClipAdaaPrev_;
+                const double dx = x - prev;
+                softClipAdaaPrev_ = x;
+                if (std::abs(dx) > Krate::DSP::WavefolderProcessor::kAdaaEpsilon) {
+                    return static_cast<float>((softClipIntegral(x, t, h, c) - softClipIntegral(prev, t, h, c)) / dx);
+                }
+                return static_cast<float>(softClipCurve(0.5 * (x + prev), t, h, c));
+            }
+            // Host rate, or NaN / Inf (passed on as before, with no history kept)
+            softClipAdaaPrev_ = 0.0;
 
             if (absX <= threshold) {
                 return input;
@@ -646,7 +915,7 @@ float DistortionAdapter::processRaw(float input) noexcept {
                 ? Krate::DSP::FuzzType::Germanium
                 : Krate::DSP::FuzzType::Silicon);
             fuzz_.process(singleSampleBuffer_, 1);
-            return singleSampleBuffer_[0];
+            return (singleSampleBuffer_[0] - fuzzCleanExcess(input)) * fuzzMakeup_;
         }
 
         case DistortionType::AsymmetricFuzz: {
@@ -663,7 +932,7 @@ float DistortionAdapter::processRaw(float input) noexcept {
 
             // Body: one-pole lowpass filter for tone darkening
             // body=0 → fully open (bright/harsh), body=1 → dark/thick
-            float result = singleSampleBuffer_[0] - asymBias;
+            float result = (singleSampleBuffer_[0] - fuzzCleanExcess(biased) - asymBias) * fuzzMakeup_;
             result = bodyFilter_.process(result);
             return result;
         }
@@ -691,14 +960,28 @@ float DistortionAdapter::processRaw(float input) noexcept {
         case DistortionType::TriangleFold: {
             // D08: Triangle wavefolder (Simple model) with bias, angle, smooth
             float biased = input + typeParams_.bias;
-            singleSampleBuffer_[0] = biased;
-            wavefolder_.process(singleSampleBuffer_, 1);
-            float result = singleSampleBuffer_[0] * foldMakeup(wavefolder_.getModel(), wavefolder_.getFoldAmount());
+            // Oversampled: the fold through ADAA2, one clocked sample late (usesAdaa2)
+            const bool adaa2 = adaaActive();
+            float result = 0.0f;
+            if (adaa2) {
+                result = triangleFoldAdaa2(biased) *
+                         foldMakeup(Krate::DSP::WavefolderModel::Simple, wavefolder_.getFoldAmount());
+            } else {
+                singleSampleBuffer_[0] = biased;
+                wavefolder_.process(singleSampleBuffer_, 1);
+                result = singleSampleBuffer_[0] * foldMakeup(wavefolder_.getModel(), wavefolder_.getFoldAmount());
+            }
             // Angle: crossfade between triangle fold (0) and sine fold (1)
             if (typeParams_.angle > 0.001f) {
                 wavefoldTriangle_.setType(Krate::DSP::WavefoldType::Sine);
                 float sinFolded = wavefoldTriangle_.process(biased);
                 wavefoldTriangle_.setType(Krate::DSP::WavefoldType::Triangle);
+                if (adaa2) {
+                    // ... the sine fold delayed the same clocked sample
+                    const float delayed = triAngleDelay_;
+                    triAngleDelay_ = sinFolded;
+                    sinFolded = delayed;
+                }
                 result = result * (1.0f - typeParams_.angle) + sinFolded * typeParams_.angle;
             }
             result = wavefoldSmoothFilter_.process(result);
@@ -787,7 +1070,11 @@ float DistortionAdapter::processRaw(float input) noexcept {
             rawBitCrusher_.setDither(
                 (bitcrushDitherMode_ != 0) ? typeParams_.dither : 0.0f);
 
-            return rawBitCrusher_.process(input);
+            // Drive re-stage (user ruling 2026-11-10): more input makes a fixed grid cleaner, so
+            // the grid is kDriveReference coarser against the input instead (3 bits; 10 bits read
+            // -41 dB THD+N at -18 dBFS, -23 dB now). The output keeps its full scale of 1.
+            const float crushed = rawBitCrusher_.process(input * (1.0f / kDriveReference)) * kDriveReference;
+            return std::clamp(crushed, -1.0f, 1.0f);
         }
 
         case DistortionType::SampleReduce:
@@ -896,6 +1183,85 @@ float DistortionAdapter::processRaw(float input) noexcept {
         default:
             return input;
     }
+}
+
+float DistortionAdapter::fuzzCleanExcess(float fuzzInput) const noexcept {
+    // FuzzProcessor blends its own input back in at (1 - fuzz amount) (its volume is never set
+    // here: 0 dB). Above drive 1 that clean share is scaled by 1 / drive^2, so it falls as the drive
+    // rises and more drive means a dirtier output, not a cleaner one (user ruling 2026-11-10;
+    // 1 / drive held it level and the THD+N flat); this is the part removed.
+    const float drive = commonParams_.drive;
+    if (drive <= 1.0f) return 0.0f;
+    return (1.0f - 1.0f / (drive * drive)) * (1.0f - fuzz_.getFuzz()) * fuzzInput;
+}
+
+void DistortionAdapter::resetTriangleFoldAdaa2() noexcept {
+    triFoldAmountSmoother_.snapToTarget();
+    triFoldSymmetrySmoother_.snapToTarget();
+    triFoldDcBlocker_.reset();
+    triAdaaX1_ = 0.0;
+    triAdaaX2_ = 0.0;
+    triAdaaF2x1_ = 0.0;
+    triAdaaD1_ = 0.0;
+    triAdaaT_ = -1.0;
+    triAngleDelay_ = 0.0f;
+}
+
+float DistortionAdapter::triangleFoldAdaa2(float input) noexcept {
+    // WavefolderProcessor's Simple model: symmetry as an offset scaled by 1 / fold amount, the
+    // fold at threshold 1 / fold amount, its 10 Hz DC blocker (mix 1)
+    const float foldAmount = triFoldAmountSmoother_.process();
+    const float symmetry = triFoldSymmetrySmoother_.process();
+    const float u = input + symmetry * (1.0f / foldAmount);
+    const double t = std::max(static_cast<double>(Krate::DSP::WavefoldMath::kMinThreshold),
+                              1.0 / static_cast<double>(foldAmount));
+    double y = 0.0;
+    if (!Krate::DSP::detail::isFinite(u)) {
+        // NaN / Inf: the plain fold's answer, and no history to carry it forward
+        triAdaaX1_ = 0.0;
+        triAdaaX2_ = 0.0;
+        triAdaaF2x1_ = 0.0;
+        triAdaaD1_ = 0.0;
+        triAdaaT_ = -1.0;
+        y = Krate::DSP::WavefoldMath::triangleFold(u, static_cast<float>(t));
+    } else {
+        if (t != triAdaaT_) {
+            // The threshold moved (fold amount smoothing): the cached F2(x[n-1]) and the last
+            // difference quotient are re-derived at it, so every quotient reads one function
+            triAdaaT_ = t;
+            triAdaaF2x1_ = triangleFoldF2(triAdaaX1_, t);
+            const double d12 = triAdaaX1_ - triAdaaX2_;
+            triAdaaD1_ = std::abs(d12) > kTriangleAdaa2Epsilon
+                             ? (triAdaaF2x1_ - triangleFoldF2(triAdaaX2_, t)) / d12
+                             : triangleFoldF1(0.5 * (triAdaaX1_ + triAdaaX2_), t);
+        }
+        // Second-order ADAA (Bilbao, Esqueda, Parker, Valimaki 2017; core/closed_form_adaa2.h):
+        // the band-limited fold of x[n-1]
+        const double x = u;
+        const double f2x = triangleFoldF2(x, t);
+        const double dx1 = x - triAdaaX1_;
+        const double d0 = std::abs(dx1) > kTriangleAdaa2Epsilon ? (f2x - triAdaaF2x1_) / dx1
+                                                                : triangleFoldF1(0.5 * (x + triAdaaX1_), t);
+        const double dx2 = x - triAdaaX2_;
+        if (std::abs(dx2) > kTriangleAdaa2Epsilon) {
+            y = 2.0 * (d0 - triAdaaD1_) / dx2;
+        } else {
+            // x[n] ~ x[n-2]: the limit around their mean (ill-conditioned quotient)
+            const double xBar = 0.5 * (x + triAdaaX2_);
+            const double delta = xBar - triAdaaX1_;
+            if (std::abs(delta) > kTriangleAdaa2Epsilon) {
+                y = (2.0 / delta) * (triangleFoldF1(xBar, t) + (triAdaaF2x1_ - triangleFoldF2(xBar, t)) / delta);
+            } else {
+                y = Krate::DSP::WavefoldMath::triangleFold(static_cast<float>(0.5 * (xBar + triAdaaX1_)),
+                                                           static_cast<float>(t));
+            }
+        }
+        triAdaaX2_ = triAdaaX1_;
+        triAdaaX1_ = x;
+        triAdaaD1_ = d0;
+        triAdaaF2x1_ = f2x;
+    }
+    return triFoldDcBlocker_.process(static_cast<float>(y));
 }
 
 float DistortionAdapter::applyTone(float wet) noexcept {
@@ -1010,10 +1376,13 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
 
         case DistortionType::TriangleFold:
             wavefolder_.setModel(Krate::DSP::WavefolderModel::Simple);
-            // ADAA1 on the fold corners when oversampled (ruling 2026-11-09, usesAdaa)
-            wavefolder_.setAntiderivativeAntialiasing(adaaActive());
+            // Oversampled, the fold runs through the adapter's ADAA2 (triangleFoldAdaa2, user ruling
+            // 2026-11-11, round 3; ADAA1 here before); the processor folds at the host rate
+            wavefolder_.setAntiderivativeAntialiasing(false);
             wavefolder_.setFoldAmount(p.folds);
             wavefolder_.setSymmetry(p.symmetry);
+            triFoldAmountSmoother_.setTarget(wavefolder_.getFoldAmount());
+            triFoldSymmetrySmoother_.setTarget(wavefolder_.getSymmetry());
             // Shape: crossfade target (sine wavefolder)
             wavefoldTriangle_.setFoldAmount(p.folds);
             wavefoldSmoothFilter_.setCutoff(20000.0f * std::pow(500.0f / 20000.0f, p.smoothness));
@@ -1192,8 +1561,24 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             int satIdx = std::clamp(p.allpassSatType, 0, 3);
             allpassSaturator_.setSaturationCurve(kSatTypes[satIdx]);
 
-            // Damping
-            allpassSaturator_.setDamping(p.allpassDamp);
+            // Damping. AllpassSaturator maps it to a loop lowpass cutoff from 0.45 x its rate down
+            // to 100 Hz, so the cutoff follows the clocked rate: at 8x Allpass Shimmer's loop
+            // (damping 0.25: 15.9 kHz at 4x, 26.8 kHz at 8x) sustained itself, its -58 dBFS input
+            // coming out at -12.6 dBFS (round 3). Above 4x the host rate, the rate the type was
+            // voiced at, the damping is remapped to give the cutoff it gives there, in Hz. Karplus
+            // Strong scales its own cutoff with it, rate-independent: unchanged.
+            {
+                float damping = p.allpassDamp;
+                const double voicedRate = hostRate_ * kAllpassVoicedFactor;
+                if (sampleRate_ > voicedRate && topo != static_cast<int>(Krate::DSP::NetworkTopology::KarplusStrong)) {
+                    constexpr double kMinCutoff = 100.0;  // AllpassSaturator::setDamping's floor
+                    const double maxNow = 0.45 * sampleRate_;
+                    const double maxVoiced = 0.45 * voicedRate;
+                    const double cutoff = maxVoiced * std::pow(kMinCutoff / maxVoiced, static_cast<double>(damping));
+                    damping = static_cast<float>(std::log(cutoff / maxNow) / std::log(kMinCutoff / maxNow));
+                }
+                allpassSaturator_.setDamping(damping);
+            }
             break;
         }
 

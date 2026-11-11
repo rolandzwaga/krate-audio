@@ -99,6 +99,12 @@ public:
     /// lane's smoothers advance. Allocation-free.
     void syncCursorFrom(const MorphEngine& other) noexcept;
 
+    /// @brief Warm-start the adapters of this engine's path from @p other's (DistortionAdapter::
+    /// warmStartFrom), adapter for adapter where both run the same type: an oversampling
+    /// crossfade's incoming lane, after it is clocked at its rate (user ruling 2026-11-11, round 4).
+    /// The identical-type adapter is configured first, as the next sample would. Allocation-free.
+    void warmStartFrom(const MorphEngine& other) noexcept;
+
     // =========================================================================
     // Attached adapters (BandProcessor's oversampling crossfade, follow-up 6)
     // =========================================================================
@@ -194,6 +200,7 @@ public:
 
     // Test accessors
     [[nodiscard]] int getActiveNodeCount() const noexcept { return activeNodeCount_; }
+    [[nodiscard]] const std::array<MorphNode, kMaxMorphNodes>& getNodes() const noexcept { return nodes_; }
     [[nodiscard]] bool getAllSameType() const noexcept { return allSameType_; }
     [[nodiscard]] DistortionType getAdapterType(int idx) const noexcept {
         return adapters_[idx] != nullptr ? adapters_[idx]->getType() : nodes_[idx].type;
@@ -286,6 +293,10 @@ private:
 
     /// @brief Process identical types through one processor with interpolated parameters.
     [[nodiscard]] float processSameFamily(float input) noexcept;
+
+    /// @brief Route the interpolated parameters to the identical-type adapter when the weights
+    /// moved, a setter ran or the sweep multiplier changed (processSameFamily's control rate).
+    void routeBlendedParams() noexcept;
 
     /// @brief Process different types (of one family or not) in parallel.
     [[nodiscard]] float processCrossFamily(float input) noexcept;
@@ -401,6 +412,14 @@ private:
     float switchFadeOrigin_ = 0.0f;
     int switchFadeLength_ = 1;
     int switchFadeRemaining_ = 0;
+    // A path switch (identical-type <-> parallel) crossfades from the outgoing path, which keeps
+    // running warm beside the incoming one for the fade, instead of from its frozen last output
+    // (user ruling 2026-11-11, round 3: the frozen origin dipped SoftClip/Tube -> SoftClip/SoftClip
+    // -4 dB in the first 2 ms). A node activation still fades from the last output.
+    bool switchFadeFromPath_ = false;
+    /// True when the path (identical-type: true, parallel: false) has every adapter it runs attached.
+    [[nodiscard]] bool pathAttached(bool sameType) const noexcept;
+    bool switchFadeFromSameType_ = true;  // the outgoing path: identical-type (true) or parallel
 
     /// @brief Node drive with the modulation offset and the sweep multiplier applied.
     [[nodiscard]] float modulatedDrive(float baseDrive) const noexcept {

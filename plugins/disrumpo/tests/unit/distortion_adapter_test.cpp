@@ -38,6 +38,11 @@ using Catch::Approx;
 constexpr double kTestSampleRate = 44100.0;
 constexpr int kTestBlockSize = 512;
 
+/// Drive re-stage (user ruling 2026-11-10): the level-dependent types run 8x (18.06 dB) hotter
+/// into their shapers and 8x lower after them. An input scaled by this runs every re-staged
+/// shaper exactly as before the re-stage, its output 18.06 dB lower.
+constexpr float kOldStagingScale = 0.125f;
+
 // =============================================================================
 // UT-DI-001: All 26 types produce non-zero output
 // =============================================================================
@@ -53,8 +58,10 @@ TEST_CASE("UT-DI-001: All distortion types produce non-zero output", "[distortio
     commonParams.toneHz = 8000.0f;
     adapter.setCommonParams(commonParams);
 
-    // Test with a sine sample (non-DC, non-zero)
-    const float testSignal = 0.5f;
+    // Test with a sine sample (non-DC, non-zero). Re-baselined (drive re-stage, user ruling
+    // 2026-11-10): 0.5 x kOldStagingScale, so every shaper sees the input it saw before; at 0.5
+    // the re-staged SineFold met a fold null and output exactly 0 for all 20 samples
+    const float testSignal = 0.5f * kOldStagingScale;
 
     for (int i = 0; i < static_cast<int>(DistortionType::COUNT); ++i) {
         auto type = static_cast<DistortionType>(i);
@@ -104,7 +111,9 @@ TEST_CASE("UT-DI-002: Type switching activates correct processor", "[distortion]
     commonParams.toneHz = 8000.0f;
     adapter.setCommonParams(commonParams);
 
-    const float testSignal = 0.3f;
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): 0.3 x kOldStagingScale; at 0.3 the
+    // re-staged SoftClip and HardClip both sat at their ceiling (0.124999 each)
+    const float testSignal = 0.3f * kOldStagingScale;
 
     // SoftClip vs HardClip should produce different outputs
     adapter.setType(DistortionType::SoftClip);
@@ -1112,7 +1121,9 @@ TEST_CASE("DIAG: Bitcrush sine wave produces staircase quantization", "[distorti
     // At 4-bit with 0.8 amplitude, we expect ~12 unique levels (±6 steps)
     // NOT hundreds or thousands (which would mean no quantization is happening)
     REQUIRE(uniqueOutputs.size() <= 20);  // Must be staircase, not smooth
-    REQUIRE(uniqueOutputs.size() >= 4);   // Must have enough steps to be audible
+    // Re-baselined 4 -> 3 (drive re-stage, user ruling 2026-11-10): Bitcrush's grid is 3 bits
+    // coarser against the input, so 4 bits crush like 1 bit: -1 / 0 / +1 after the clamp
+    REQUIRE(uniqueOutputs.size() >= 3);   // Must have enough steps to be audible
     REQUIRE(maxAbsDiff > 0.05f);          // Must deviate significantly from input
 }
 
@@ -1206,7 +1217,8 @@ TEST_CASE("DIAG: MorphEngine Bitcrush path produces staircase quantization", "[d
     INFO("MorphEngine: Max absolute difference from input: " << maxAbsDiff);
 
     REQUIRE(uniqueOutputs.size() <= 20);
-    REQUIRE(uniqueOutputs.size() >= 4);
+    // Re-baselined 4 -> 3 as the adapter case above: the grid is 3 bits coarser (ruling 2026-11-10)
+    REQUIRE(uniqueOutputs.size() >= 3);
     REQUIRE(maxAbsDiff > 0.05f);
 }
 
@@ -1350,7 +1362,7 @@ TEST_CASE("getRecommendedOversample returns valid factors", "[distortion][types]
         auto type = static_cast<DistortionType>(i);
         int factor = getRecommendedOversample(type);
         CAPTURE(getTypeName(type));
-        REQUIRE((factor == 1 || factor == 2 || factor == 4));
+        REQUIRE((factor == 1 || factor == 2 || factor == 4 || factor == 8));  // 8: ruling 2026-11-10
     }
 }
 
@@ -1373,7 +1385,9 @@ TEST_CASE("UT-DI-003: Drive parameter affects output magnitude", "[distortion][c
 
     adapter.setType(DistortionType::SoftClip);
 
-    const float testSignal = 0.3f;
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): 0.3 x kOldStagingScale; at 0.3 the
+    // re-staged SoftClip sat at its ceiling at drive 1 and 5 alike (0.125 both)
+    const float testSignal = 0.3f * kOldStagingScale;
 
     // Drive = 1.0 (unity)
     DistortionCommonParams params1;
@@ -3141,9 +3155,12 @@ TEST_CASE("Tube with 3 stages and bias 0.5 has no DC and matches four independen
     tone.setCutoff(common.toneHz);
     std::vector<float> cascade(kLength);
     std::vector<float> reference(kLength);
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): the stages see the input x drive x 8
+    // and their output is brought back down by 8 before the adapter's DC blocker and tone filter
     for (std::size_t i = 0; i < kLength; ++i) {
-        float x = in[i] * common.drive;
+        float x = in[i] * common.drive * 8.0f;
         for (auto& stage : stages) stage.process(&x, 1);
+        x *= 1.0f / 8.0f;
         cascade[i] = x;
         reference[i] = tone.process(dcBlocker.process(x));
     }
@@ -3301,12 +3318,17 @@ TEST_CASE("FeedbackDist limiter off does not limit", "[disrumpo][distortion][fee
     // (x1.41); the adapter's own 10 Hz DC blocker after it lifts the peak to x1.50 (+3.5 dB,
     // primitive probe: 0.3541 raw -> 0.3777 after the DC blocker at -12 dB), so "on" is checked
     // against threshold + 4 dB. With the limiter off nothing caps the loop.
-    const auto in = sineAt48k(200.0, 0.5f, 48000);
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): the input is 0.5 x kOldStagingScale,
+    // so the loop runs as it did before the re-stage, and the adapter's output is the old one
+    // 18.06 dB lower: every bound below moves by kOutDb. At 0.5 the loop ran 18 dB hotter, its
+    // Cubic curve held the 4-stage highpass below the threshold and the limiter never engaged.
+    const auto in = sineAt48k(200.0, 0.5f * kOldStagingScale, 48000);
+    const double kOutDb = 20.0 * std::log10(static_cast<double>(kOldStagingScale));  // -18.06
 
     SECTION("Thr -12 dB: off exceeds threshold + 4 dB, on stays within it") {
         FeedbackSlots s;
         s.threshold = 0.5f;  // -12 dB
-        const double boundDb = -12.0 + 4.0;
+        const double boundDb = -12.0 + 4.0 + kOutDb;
         s.limiter = 1.0f;
         const float peakOn = peakFrom(renderFeedback(s, in), 24000);
         s.limiter = 0.0f;
@@ -3332,8 +3354,8 @@ TEST_CASE("FeedbackDist limiter off does not limit", "[disrumpo][distortion][fee
         const float peakOff = peakFrom(renderFeedback(s, in), 24000);
         INFO("Thr 0 dB, Cubic, 4-stage HP at 1019 Hz: peak limiter on " << linToDb(peakOn)
              << " dBFS, limiter off " << linToDb(peakOff) << " dBFS");
-        CHECK(linToDb(peakOn) <= 4.0);
-        CHECK(linToDb(peakOff) > 4.0);
+        CHECK(linToDb(peakOn) <= 4.0 + kOutDb);
+        CHECK(linToDb(peakOff) > 4.0 + kOutDb);
     }
 
     SECTION("limiter off stays finite and bounded at feedback 1.5 for 5 s, every curve and filter") {
@@ -3450,14 +3472,18 @@ TEST_CASE("A type change fades the output over 5 ms instead of stepping",
     adapter->setType(DistortionType::HardClip);
     adapter->setParams(p);
     adapter->setCommonParams({.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f});
-    for (int n = 0; n < 4410; ++n) (void)adapter->process(0.5f);
-    const float before = adapter->process(0.5f);
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): DC 0.5 x kOldStagingScale, so both
+    // shapers see the DC they saw before and every output is the old one / 8: the 0.2 bar on
+    // the total change is 0.2 / 8 (at 0.5 both types sat near their ceilings, 0.1125 apart)
+    const float dcIn = 0.5f * kOldStagingScale;
+    for (int n = 0; n < 4410; ++n) (void)adapter->process(dcIn);
+    const float before = adapter->process(dcIn);
 
     adapter->setType(DistortionType::SoftClip);
     adapter->setParams(p);
     const auto fadeLen = static_cast<int>(0.005 * kTestSampleRate);
     std::vector<float> y(static_cast<std::size_t>(2 * fadeLen));
-    for (auto& v : y) v = adapter->process(0.5f);
+    for (auto& v : y) v = adapter->process(dcIn);
     float maxStep = std::abs(y[0] - before);
     for (std::size_t n = 1; n < y.size(); ++n) maxStep = std::max(maxStep, std::abs(y[n] - y[n - 1]));
     const float settled = y.back();
@@ -3465,7 +3491,7 @@ TEST_CASE("A type change fades the output over 5 ms instead of stepping",
                 "%.4f over %d samples)\n",
                 static_cast<double>(before), static_cast<double>(settled), static_cast<double>(maxStep),
                 static_cast<double>(settled - before), fadeLen);
-    REQUIRE(std::abs(settled - before) > 0.2f);
+    REQUIRE(std::abs(settled - before) > 0.2f * kOldStagingScale);
     // A linear 5 ms ramp moves by total / fadeLen per sample (plus the tone filter's settling)
     REQUIRE(maxStep <= 1.5f * std::abs(settled - before) / static_cast<float>(fadeLen));
 }

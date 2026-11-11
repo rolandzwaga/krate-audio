@@ -79,6 +79,7 @@ struct StepCase {
     PList setup;
     std::vector<Step> steps;
     double seconds;
+    double inDb = -12.0;  ///< the 220 Hz input level
 };
 
 double typeNorm(DistortionType t) { return static_cast<double>(static_cast<int>(t)) / 25.0; }
@@ -105,10 +106,15 @@ TEST_CASE("Parameter steps during playback keep the jump ratio at most 1.3", "[d
          .setup = concat(allBands(NodeParamType::kNodeDrive, 0.5), {{kGlobalMixId, 0.0}}),
          .steps = {{.tenths = 5, .changes = {{kGlobalMixId, 1.0}}}},
          .seconds = 1.0},
+        // Re-baselined (drive re-stage, user ruling 2026-11-10): at -30.06 dBFS, where the re-staged
+        // shapers see the drive this case was written for. At -12 dBFS the wet output (a squared
+        // sine 18 dB down) is smaller than the dry one, and the unsmoothed node-mix step (dry ->
+        // wet within one sample) reads 1.70 against the wet render's own edges.
         {.name = "Node Mix 0 -> 100 % (drive 5)",
          .setup = concat(allBands(NodeParamType::kNodeDrive, 0.5), allBands(NodeParamType::kNodeMix, 0.0)),
          .steps = {{.tenths = 5, .changes = allBands(NodeParamType::kNodeMix, 1.0)}},
-         .seconds = 1.0},
+         .seconds = 1.0,
+         .inDb = -12.0 - 18.06},
         {.name = "Band Gain -24 -> +24 dB (1 band)",
          .setup = {{kBandCountId, 0.0}, {band0Gain, 0.0}},
          .steps = {{.tenths = 5, .changes = {{band0Gain, 1.0}}}},
@@ -130,7 +136,7 @@ TEST_CASE("Parameter steps during playback keep the jump ratio at most 1.3", "[d
     };
 
     for (const auto& c : cases) {
-        const auto in = sineAt(static_cast<size_t>(kSr * c.seconds), 220.0, -12.0);
+        const auto in = sineAt(static_cast<size_t>(kSr * c.seconds), 220.0, c.inDb);
         Rig r(kSr);
         r.apply(c.setup);
         r.reactivate();
@@ -208,6 +214,37 @@ std::vector<float> renderFourSines(const PList& params, bool automate, size_t le
 }
 
 }  // namespace
+
+// Probe (hidden, round 3): band 0's lane state and the output around the Node Mix 0 -> 100 % step.
+TEST_CASE("Probe: Node Mix step lane state", "[.][nodemix-probe]") {
+    const auto in = sineAt(static_cast<size_t>(kSr), 220.0, -12.0 - 18.06);
+    Rig r(kSr);
+    r.apply(concat(allBands(NodeParamType::kNodeDrive, 0.5), allBands(NodeParamType::kNodeMix, 0.0)));
+    r.reactivate();
+    const size_t at = stepAt(5);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    r.render(in, in, outL, outR, static_cast<int32>(kBlock), [&](size_t, size_t start, PChanges& pc) {
+        const auto& bp = r.p->getBandProcessor(0);
+        if (start + 2 * kBlock >= at && start <= at + 4 * kBlock) {
+            std::printf("NMP block %zu: factor %d active %d transitioning %d target %d latency %u\n", start / kBlock,
+                        bp.getOversampleFactor(), bp.getActiveOversampleFactor(),
+                        static_cast<int>(bp.isOversampleTransitioning()), bp.getLatencyTarget(),
+                        static_cast<unsigned>(r.p->getLatencySamples()));
+        }
+        if (start == at) {
+            for (const auto& [id, v] : allBands(NodeParamType::kNodeMix, 1.0)) pc.addChange(id, v);
+        }
+    });
+    size_t worst = 0;
+    for (size_t i = at; i < at + 2400; ++i) {
+        if (std::fabs(outL[i] - outL[i - 1]) > std::fabs(outL[worst] - outL[worst - 1])) worst = i;
+    }
+    std::printf("NMP largest step after the change at +%zu samples: %.5f (values %.5f -> %.5f)\n", worst - at,
+                static_cast<double>(outL[worst] - outL[worst - 1]), static_cast<double>(outL[worst - 1]),
+                static_cast<double>(outL[worst]));
+    for (size_t i = worst - 6; i < worst + 6; ++i) std::printf("NMP   %zu: %.5f\n", i - at, static_cast<double>(outL[i]));
+}
 
 TEST_CASE("Full sweep automation stays finite and keeps the level", "[disrumpo][audit][automation][sweep]") {
     // 4 bands SoftClip drive 3, sweep on at 100 % automated 100 Hz -> 10 kHz over 2 s,

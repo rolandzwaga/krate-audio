@@ -39,6 +39,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -281,6 +282,9 @@ public:
     /// @brief Get controller-local output FIFO (for test verification).
     [[nodiscard]] Krate::DSP::SpectrumFIFO<8192>& getLocalOutputFIFO() { return localOutputFIFO_; }
 
+    /// @brief Test seam: the displays are fed by DataExchange blocks (not the Tier-3 fallback).
+    [[nodiscard]] bool isDataExchangeDeliveringForTest() const { return dataExchangeActive_; }
+
 private:
     /// IViewListener: clears the dynamicNodeSelectors_ slot of a selector being deleted (D-061)
     void viewWillDelete(VSTGUI::CView* view) override;
@@ -343,9 +347,27 @@ private:
 
     uint64_t instanceId_{0};
     /// The processor's SharedDisplay (shared_display.h), looked up by instanceId_
+    /// again on every editor tick (the processor may have terminated since)
     SharedDisplay* sharedDisplay_{nullptr};
+    /// A DataExchange block arrived within the last kDataExchangeStallTicks editor ticks
     bool dataExchangeActive_{false};
+    /// Editor ticks since the last DataExchange block (stops counting at the stall)
     int fallbackTickCounter_{0};
+    /// DataExchange stalled: every editor tick copies the processor's new shared-FIFO
+    /// samples into the local FIFOs (which the spectrum display always reads) and reads
+    /// its SharedMeters, until DataExchange blocks arrive again
+    bool tier3Active_{false};
+    /// The SharedDisplay tier3InputRead_ / tier3OutputRead_ count in
+    const SharedDisplay* tier3Source_{nullptr};
+    size_t tier3InputRead_{0};
+    size_t tier3OutputRead_{0};
+    /// Scratch for one tick's Tier-3 copy, at most a FIFO-full
+    static constexpr size_t kTier3CopyMax = 8192;
+    std::array<float, kTier3CopyMax> tier3Scratch_{};
+    /// ~330 ms of the 33 ms editor timer without a DataExchange block: the 10th tick reads Tier 3
+    static constexpr int kDataExchangeStallTicks = 10;
+    /// Tier 3: copies the samples `from` received since `readPos` into `to`
+    void copyTier3Samples(Krate::DSP::SpectrumFIFO<8192>& from, Krate::DSP::SpectrumFIFO<8192>& to, size_t& readPos);
 
     /// Magic marker for instanceId in state stream (must match processor)
     static constexpr Steinberg::int32 kInstanceIdMarker = 0x4B524154;
@@ -353,7 +375,8 @@ private:
     // ==========================================================================
     // Modulation Offset Visualization
     // ==========================================================================
-    // Latest modulation offsets by ModDest index, copied from each SpectrumBlock (D-045)
+    // Latest modulation offsets by ModDest index, copied from each SpectrumBlock (D-045),
+    // or in Tier 3 from the processor's SharedDisplay every editor tick
     std::array<float, kSpectrumBlockModOffsets> cachedModOffsets_{};
     // Recursively walk view tree and update ModSlider offsets from cached array
     void updateModSliders(VSTGUI::CViewContainer* container);

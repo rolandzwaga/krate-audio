@@ -1186,7 +1186,7 @@ std::vector<PresetDef> createAllPresets() {
         enableSweepLFO(p.state, 0.5f, 0.7f, Waveform::SampleAndHold);
         // Low: bitcrush 10-bit with dither
         setBandType(p.state.bandMorph[0], DistortionType::Bitcrush, 1.5f, 2500.0f);
-        shapeBitcrush(p.state.bandMorph[0].nodes[0], 10.0f, 0.3f, 0, 0.1f);
+        shapeBitcrush(p.state.bandMorph[0].nodes[0], 7.0f, 0.3f, 0, 0.1f);
         // Lo-mid: sample reduce
         setBandType(p.state.bandMorph[1], DistortionType::SampleReduce, 1.5f, 4000.0f);
         shapeSampleReduce(p.state.bandMorph[1].nodes[0], 8.0f, 0.2f, 1, 0.15f);
@@ -1426,7 +1426,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.crossoverFreqs[1] = 3500.0f;
         // Low: chaos→tube morph
         setMorphAB(p.state.bandMorph[0], DistortionType::Chaos, DistortionType::Tube,
-                   2.5f, 2.0f, 2000.0f, 1800.0f);
+                   2.5f, 6.0f, 2000.0f, 1800.0f);
         shapeChaos(p.state.bandMorph[0].nodes[0], 0, 3.0f, 0.6f, 0.5f, 0.5f, 0.4f, 0.15f);
         shapeTube(p.state.bandMorph[0].nodes[1], 0.0f, 0.4f, 1);
         // Mid: fractal→soft clip
@@ -1782,7 +1782,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeAsymFuzz(p.state.bandMorph[0].nodes[0], 0.5f, 0.7f, 0, 0.05f, 0.8f, 0.7f);
         // Low: bitcrush for grit
         setBandType(p.state.bandMorph[1], DistortionType::Bitcrush, 2.0f, 2000.0f);
-        shapeBitcrush(p.state.bandMorph[1].nodes[0], 10.0f, 0.1f, 1, 0.05f);
+        shapeBitcrush(p.state.bandMorph[1].nodes[0], 7.0f, 0.1f, 1, 0.05f);
         // Mid: tape to glue
         setBandType(p.state.bandMorph[2], DistortionType::Tape, 1.5f, 4000.0f);
         shapeTape(p.state.bandMorph[2].nodes[0], 0.0f, 0.3f, 0.5f, 0, 0.6f, 0.1f);
@@ -2039,7 +2039,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.crossoverFreqs[1] = 4500.0f;
         // Low: asym fuzz, heavy body
         setBandType(p.state.bandMorph[0], DistortionType::AsymmetricFuzz, 5.0f, 3000.0f);
-        shapeAsymFuzz(p.state.bandMorph[0].nodes[0], 0.4f, 0.8f, 1, 0.05f, 0.8f, 0.8f);
+        shapeAsymFuzz(p.state.bandMorph[0].nodes[0], 0.4f, 0.8f, 1, 0.8f, 0.8f, 0.8f);
         // Mid: bitwise mangler for digital aggression
         setBandType(p.state.bandMorph[1], DistortionType::BitwiseMangler, 3.0f, 5500.0f);
         shapeBitwise(p.state.bandMorph[1].nodes[0], 2, 0.7f, 0.4f, 0.6f, 0.1f);
@@ -3444,7 +3444,7 @@ std::vector<PresetDef> createAllPresets() {
         setBandType(p.state.bandMorph[0], DistortionType::Tube, 2.0f, 1500.0f);
         shapeTube(p.state.bandMorph[0].nodes[0], 0.1f, 0.5f, 1);
         setBandType(p.state.bandMorph[1], DistortionType::Fuzz, 3.0f, 3500.0f);
-        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0.1f, 0, 0.2f, 0.6f);
+        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0.1f, 0, 0.9f, 0.6f);
         setBandType(p.state.bandMorph[2], DistortionType::SineFold, 2.5f, 5500.0f);
         shapeSineFold(p.state.bandMorph[2].nodes[0], 3.0f, 0.1f, 0.3f);
         setBandType(p.state.bandMorph[3], DistortionType::Formant, 1.5f, 7000.0f);
@@ -3606,7 +3606,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeTube(p.state.bandMorph[0].nodes[0], 0.0f, 0.3f, 0);
         setMorphAB(p.state.bandMorph[1], DistortionType::Bitcrush, DistortionType::SampleReduce,
                    1.5f, 1.5f, 4000.0f, 4500.0f);
-        shapeBitcrush(p.state.bandMorph[1].nodes[0], 10.0f, 0.15f, 0, 0.1f);
+        shapeBitcrush(p.state.bandMorph[1].nodes[0], 7.0f, 0.15f, 0, 0.1f);
         shapeSampleReduce(p.state.bandMorph[1].nodes[1], 10.0f, 0.2f, 1, 0.15f);
         setBandType(p.state.bandMorph[2], DistortionType::Stochastic, 1.0f, 6500.0f);
         shapeStochastic(p.state.bandMorph[2].nodes[0], 1, 0.1f, 5.0f, 0.05f, 0.1f, 1, 0.7f);
@@ -3696,14 +3696,13 @@ std::vector<PresetDef> createAllPresets() {
 // ==============================================================================
 // Output trims (D-144, fix plan T3.01)
 // ==============================================================================
-// Each trim lowers the preset's Output Gain just enough that its peak stays at or
-// below -0.3 dBFS on 2 s of pink noise peaking at -12 dBFS, 44.1 kHz, rounded down
-// to 0.1 dB (plugins/disrumpo/tests/integration/preset/factory_preset_validation_test.cpp,
-// [D-144]). A preset that already peaks below that keeps 0 dB.
-// Exception (user ruling 2026-11-10, TapeSaturator Hysteresis repair): the 42 presets with a
-// Tape node on the Hysteresis model were raised so their RMS on a 6 s saw riff (48 kHz)
-// matches the render before the repair within +-0.5 dB, as far as the -0.3 dBFS D-144 peak
-// allows; those trims may be positive.
+// Re-derived for the drive re-stage (user ruling 2026-11-10: the level-dependent types run
+// 18 dB hotter into their shapers, so drive 1 distorts a -18 dBFS input). On 2 s of pink noise
+// peaking at -12 dBFS, 44.1 kHz (plugins/disrumpo/tests/integration/preset/
+// factory_preset_validation_test.cpp, [D-144]), each trim brings the preset's RMS back to its
+// RMS before the re-stage (18c5b0d2) as far as a peak of -0.3 dBFS (after the output safety
+// clipper) and a DC of at most 0.009 allow, rounded down to 0.1 dB; trims may raise or lower.
+// The Init presets keep 0 dB.
 
 struct OutputTrim {
     const char* preset;  // "Category/File_Stem"
@@ -3711,84 +3710,120 @@ struct OutputTrim {
 };
 
 constexpr OutputTrim kOutputTrims[] = {
-    {.preset = "Bass/Dirty_Sub", .db = -0.4f},
-    {.preset = "Bass/Multi_Band_Bass", .db = 3.3f},
-    {.preset = "Bass/Punchy_Low_End", .db = -1.4f},
-    {.preset = "Bass/Serge_Bass", .db = -5.2f},
-    {.preset = "Bass/Subharmonic_Growl", .db = -0.7f},
-    {.preset = "Bass/Tape_Warmth", .db = 2.8f},
-    {.preset = "Bass/Warm_Bass", .db = 2.8f},
-    {.preset = "Bass/Wavefold_Bass", .db = -7.1f},
-    {.preset = "Chaos/Attractor_Pan", .db = 0.8f},
-    {.preset = "Chaos/Chaotic_Sweep", .db = -1.6f},
-    {.preset = "Chaos/Coupled_Chaos", .db = -5.7f},
-    {.preset = "Chaos/Lorenz_Drive", .db = -3.3f},
-    {.preset = "Chaos/Rossler_Morph", .db = -3.5f},
-    {.preset = "Chaos/Slow_Chaos", .db = 4.3f},
-    {.preset = "Drums/Kick_Saturate", .db = 0.3f},
-    {.preset = "Drums/Punchy_Clip", .db = -0.4f},
-    {.preset = "Drums/Snare_Crack", .db = -1.5f},
-    {.preset = "Dynamic/Envelope_Morph", .db = -1.2f},
-    {.preset = "Dynamic/Multi_Dynamic", .db = -3.1f},
-    {.preset = "Dynamic/Pitch_Drive", .db = -5.4f},
-    {.preset = "Dynamic/Pitch_Tracker", .db = -6.8f},
-    {.preset = "Dynamic/Sidechain_Pump", .db = 2.0f},
-    {.preset = "Dynamic/Touch_Sensitive", .db = 3.0f},
-    {.preset = "Dynamic/Velocity_Response", .db = 2.7f},
-    {.preset = "Experimental/Alien_Voice", .db = -1.9f},
-    {.preset = "Experimental/All_Types_Morph", .db = 2.0f},
-    {.preset = "Experimental/Chaos_Engine", .db = -0.8f},
-    {.preset = "Experimental/Formant_Shift", .db = -5.2f},
-    {.preset = "Experimental/Formant_Vowels", .db = -6.4f},
-    {.preset = "Experimental/Fractal_Noise", .db = -1.7f},
+    {.preset = "Bass/Dirty_Sub", .db = 6.9f},
+    {.preset = "Bass/Multi_Band_Bass", .db = 6.9f},
+    {.preset = "Bass/Punchy_Low_End", .db = 7.4f},
+    {.preset = "Bass/Ring_Bass", .db = -2.1f},
+    {.preset = "Bass/Serge_Bass", .db = 9.6f},
+    {.preset = "Bass/Soft_Bass_Drive", .db = 6.0f},
+    {.preset = "Bass/Subharmonic_Growl", .db = 10.0f},
+    {.preset = "Bass/Tape_Warmth", .db = 8.7f},
+    {.preset = "Bass/Warm_Bass", .db = 7.6f},
+    {.preset = "Bass/Wavefold_Bass", .db = 7.2f},
+    {.preset = "Chaos/Attractor_Pan", .db = 8.5f},
+    {.preset = "Chaos/Chaos_Morph_4", .db = 4.7f},
+    {.preset = "Chaos/Chaotic_Sweep", .db = 9.7f},
+    {.preset = "Chaos/Chua_Circuit", .db = 6.8f},
+    {.preset = "Chaos/Coupled_Chaos", .db = 2.8f},
+    {.preset = "Chaos/Fast_Chaos", .db = 8.0f},
+    {.preset = "Chaos/Henon_Map", .db = 10.3f},
+    {.preset = "Chaos/Lorenz_Drive", .db = 5.9f},
+    {.preset = "Chaos/Rossler_Morph", .db = 4.0f},
+    {.preset = "Chaos/Slow_Chaos", .db = 4.6f},
+    {.preset = "Drums/Aliased_Drums", .db = 6.3f},
+    {.preset = "Drums/Crushed_Beats", .db = -0.1f},
+    {.preset = "Drums/Dirty_Groove", .db = 8.5f},
+    {.preset = "Drums/Glitch_Drum", .db = 6.8f},
+    {.preset = "Drums/Kick_Saturate", .db = 7.0f},
+    {.preset = "Drums/Punchy_Clip", .db = 9.5f},
+    {.preset = "Drums/Rectified_Drums", .db = -3.6f},
+    {.preset = "Drums/Snare_Crack", .db = 8.5f},
+    {.preset = "Drums/Temporal_Snap", .db = 7.7f},
+    {.preset = "Drums/Transient_Shape", .db = 0.6f},
+    {.preset = "Dynamic/Dynamic_Mix", .db = 8.5f},
+    {.preset = "Dynamic/Envelope_Morph", .db = 8.8f},
+    {.preset = "Dynamic/Multi_Dynamic", .db = 12.2f},
+    {.preset = "Dynamic/Pitch_Drive", .db = 0.5f},
+    {.preset = "Dynamic/Pitch_Tracker", .db = 8.2f},
+    {.preset = "Dynamic/Sidechain_Pump", .db = 11.7f},
+    {.preset = "Dynamic/Touch_Sensitive", .db = 7.7f},
+    {.preset = "Dynamic/Transient_Gate", .db = 3.6f},
+    {.preset = "Dynamic/Transient_Punch", .db = 8.6f},
+    {.preset = "Dynamic/Velocity_Response", .db = 8.5f},
+    {.preset = "Experimental/Alien_Voice", .db = 10.2f},
+    {.preset = "Experimental/All_Types_Morph", .db = 9.9f},
+    {.preset = "Experimental/Broken_Radio", .db = 0.1f},
+    {.preset = "Experimental/Chaos_Engine", .db = 9.5f},
+    {.preset = "Experimental/Feedback_Loop", .db = 14.0f},
+    {.preset = "Experimental/Formant_Shift", .db = 3.8f},
+    {.preset = "Experimental/Formant_Vowels", .db = 6.8f},
+    {.preset = "Experimental/Fractal_Noise", .db = 1.6f},
     {.preset = "Experimental/Granular_Crush", .db = -2.4f},
-    {.preset = "Experimental/Serge_Madness", .db = -7.3f},
+    {.preset = "Experimental/Quantize_Glitch", .db = -0.1f},
+    {.preset = "Experimental/Ring_Chaos", .db = -4.1f},
+    {.preset = "Experimental/Serge_Madness", .db = 13.1f},
     {.preset = "Experimental/Spectral_Scatter", .db = -5.8f},
     {.preset = "Experimental/Stochastic_Burst", .db = -9.1f},
-    {.preset = "Experimental/Temporal_Flux", .db = -1.4f},
-    {.preset = "Leads/Asymmetric_Bite", .db = -2.6f},
-    {.preset = "Leads/Feedback_Scream", .db = -3.3f},
-    {.preset = "Leads/Fractal_Lead", .db = 6.0f},
-    {.preset = "Leads/Modulated_Edge", .db = -4.3f},
-    {.preset = "Leads/Ring_Mod_Lead", .db = -0.1f},
-    {.preset = "Leads/Screaming_Lead", .db = -4.7f},
-    {.preset = "Leads/Temporal_Edge", .db = -0.3f},
-    {.preset = "Leads/Wavefold_Lead", .db = -5.8f},
-    {.preset = "Lo-Fi/4-Bit_Retro", .db = 5.4f},
-    {.preset = "Lo-Fi/Bit_Mangler", .db = 7.6f},
-    {.preset = "Lo-Fi/Sample_Rate_Crush", .db = 7.7f},
-    {.preset = "Lo-Fi/Warm_Lo-Fi", .db = 4.5f},
+    {.preset = "Experimental/Temporal_Flux", .db = 10.4f},
+    {.preset = "Leads/Asymmetric_Bite", .db = 4.3f},
+    {.preset = "Leads/Chaos_Lead", .db = 0.3f},
+    {.preset = "Leads/Feedback_Scream", .db = 9.3f},
+    {.preset = "Leads/Fractal_Lead", .db = 14.9f},
+    {.preset = "Leads/Fuzz_Face", .db = 0.6f},
+    {.preset = "Leads/Modulated_Edge", .db = 7.8f},
+    {.preset = "Leads/Ring_Mod_Lead", .db = -3.8f},
+    {.preset = "Leads/Screaming_Lead", .db = -0.1f},
+    {.preset = "Leads/Temporal_Edge", .db = 8.8f},
+    {.preset = "Leads/Wavefold_Lead", .db = 12.0f},
+    {.preset = "Lo-Fi/4-Bit_Retro", .db = 7.5f},
+    {.preset = "Lo-Fi/8-Bit_Crunch", .db = -0.1f},
+    {.preset = "Lo-Fi/Aliasing_Harsh", .db = 1.1f},
+    {.preset = "Lo-Fi/Bit_Mangler", .db = 10.4f},
+    {.preset = "Lo-Fi/Digital_Decay", .db = 0.3f},
+    {.preset = "Lo-Fi/Glitch_Box", .db = 6.1f},
+    {.preset = "Lo-Fi/Multi_Band_Lo-Fi", .db = -0.1f},
+    {.preset = "Lo-Fi/Quantize_Dirt", .db = 0.8f},
+    {.preset = "Lo-Fi/Sample_Rate_Crush", .db = 12.6f},
+    {.preset = "Lo-Fi/Warm_Lo-Fi", .db = 6.0f},
+    {.preset = "Morph/Chaos_to_Order", .db = -2.5f},
     {.preset = "Morph/Digital_Organic", .db = -9.8f},
-    {.preset = "Morph/Feedback_Explorer", .db = -7.2f},
-    {.preset = "Morph/Formant_Shift", .db = -5.1f},
-    {.preset = "Morph/Four_Corners", .db = 7.9f},
-    {.preset = "Morph/Multi_Band_Morph", .db = -0.7f},
-    {.preset = "Morph/Radial_Blend", .db = 0.3f},
-    {.preset = "Morph/Smooth_Crossfade", .db = 3.8f},
-    {.preset = "Morph/Soft_to_Hard", .db = -3.1f},
-    {.preset = "Morph/Tape_Fold_Morph", .db = -5.2f},
-    {.preset = "Morph/Three_Node_Blend", .db = 0.9f},
-    {.preset = "Morph/Tube_to_Fuzz", .db = -2.2f},
-    {.preset = "Pads/Allpass_Shimmer", .db = -0.3f},
-    {.preset = "Pads/Evolving_Texture", .db = 5.6f},
-    {.preset = "Pads/Formant_Pad", .db = -5.7f},
-    {.preset = "Pads/Gentle_Warmth", .db = 7.9f},
+    {.preset = "Morph/Feedback_Explorer", .db = 4.0f},
+    {.preset = "Morph/Formant_Shift", .db = 6.5f},
+    {.preset = "Morph/Four_Corners", .db = 10.3f},
+    {.preset = "Morph/Multi_Band_Morph", .db = 8.3f},
+    {.preset = "Morph/Radial_Blend", .db = -1.0f},
+    {.preset = "Morph/Rectify_Blend", .db = -4.8f},
+    {.preset = "Morph/Smooth_Crossfade", .db = 11.0f},
+    {.preset = "Morph/Soft_to_Hard", .db = 4.6f},
+    {.preset = "Morph/Tape_Fold_Morph", .db = 9.0f},
+    {.preset = "Morph/Three_Node_Blend", .db = 9.4f},
+    {.preset = "Morph/Tube_to_Fuzz", .db = 8.0f},
+    {.preset = "Morph/Wavefolder_Quad", .db = 13.2f},
+    {.preset = "Pads/Allpass_Shimmer", .db = 12.5f},
+    {.preset = "Pads/Evolving_Texture", .db = 7.1f},
+    {.preset = "Pads/Formant_Pad", .db = -2.5f},
+    {.preset = "Pads/Gentle_Warmth", .db = 8.3f},
     {.preset = "Pads/Granular_Wash", .db = -2.5f},
-    {.preset = "Pads/Slow_Morph_Pad", .db = -2.7f},
-    {.preset = "Pads/Tape_Haze", .db = 7.0f},
-    {.preset = "Sweep/Ease_In_Morph", .db = 3.4f},
-    {.preset = "Sweep/Envelope_Follower", .db = 0.4f},
-    {.preset = "Sweep/Frequency_Hunter", .db = -3.8f},
-    {.preset = "Sweep/Inverse_Link", .db = -1.1f},
-    {.preset = "Sweep/Low_Rumble", .db = -3.2f},
-    {.preset = "Sweep/Resonant_Sweep", .db = -4.9f},
-    {.preset = "Sweep/Sharp_Focus", .db = -2.5f},
-    {.preset = "Sweep/Slow_Scan", .db = -4.3f},
-    {.preset = "Sweep/Step_Scanner", .db = -8.4f},
-    {.preset = "Sweep/Synced_Pulse", .db = -2.1f},
-    {.preset = "Sweep/Triangle_Wobble", .db = -4.6f},
-    {.preset = "Sweep/Wah_Wah_Drive", .db = -1.5f},
-    {.preset = "Sweep/Wide_Sweep", .db = -1.7f},
+    {.preset = "Pads/Slow_Morph_Pad", .db = 7.9f},
+    {.preset = "Pads/Soft_Sweep", .db = -0.8f},
+    {.preset = "Pads/Spectral_Pad", .db = -3.6f},
+    {.preset = "Pads/Stochastic_Drift", .db = 2.4f},
+    {.preset = "Pads/Tape_Haze", .db = 13.5f},
+    {.preset = "Sweep/Ease_In_Morph", .db = 7.5f},
+    {.preset = "Sweep/Envelope_Follower", .db = 8.1f},
+    {.preset = "Sweep/Frequency_Hunter", .db = 8.8f},
+    {.preset = "Sweep/High_Sweep", .db = 2.8f},
+    {.preset = "Sweep/Inverse_Link", .db = 6.1f},
+    {.preset = "Sweep/Low_Rumble", .db = 7.7f},
+    {.preset = "Sweep/Random_Scan", .db = -0.1f},
+    {.preset = "Sweep/Resonant_Sweep", .db = -2.3f},
+    {.preset = "Sweep/Sharp_Focus", .db = 9.6f},
+    {.preset = "Sweep/Slow_Scan", .db = 8.0f},
+    {.preset = "Sweep/Step_Scanner", .db = 8.6f},
+    {.preset = "Sweep/Synced_Pulse", .db = 9.4f},
+    {.preset = "Sweep/Triangle_Wobble", .db = 10.0f},
+    {.preset = "Sweep/Wah_Wah_Drive", .db = 8.1f},
+    {.preset = "Sweep/Wide_Sweep", .db = 9.6f},
 };
 
 /// Output Gain dB [-24, +24] -> normalized [0, 1] (the processor's kGainMinDb / kGainRangeDb)

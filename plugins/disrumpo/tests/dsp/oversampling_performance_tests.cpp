@@ -92,7 +92,8 @@ double bandGroupDelay(BandProcessor& bp) {
 TEST_CASE("BandProcessor: getLatency equals the measured impulse delay at each factor",
           "[oversampling][latency][SC-012][D-125]") {
     for (const double sr : {44100.0, 48000.0, 96000.0}) {
-        for (const auto type : {DistortionType::Bitcrush, DistortionType::SoftClip, DistortionType::HardClip}) {
+        for (const auto type : {DistortionType::Bitcrush, DistortionType::Tube, DistortionType::HardClip,
+                                DistortionType::Tape}) {
             auto bp = makeLatencyBand(sr, type);
             const long measured = measuredBandDelay(*bp);
             INFO(sr << " Hz, factor " << bp->getOversampleFactor() << ": measured " << measured
@@ -119,14 +120,14 @@ TEST_CASE("BandProcessor: IIR (ZeroLatency) oversampling delays a band by a few 
 
 TEST_CASE("BandProcessor: compensated latency holds across a factor switch",
           "[oversampling][latency][latency-stability][D-125]") {
-    // SoftClip node (2x) and HardClip node (4x), both at drive 2 and node mix 0. The worst
-    // case is the 4x delay; at morph (0, 0) the band runs 2x and waits the difference.
+    // Tube node (2x) and HardClip node (4x), both at drive 2 and node mix 0. The worst
+    // case is the Oversample Max (8x) delay; the band waits the difference at 2x and at 4x.
     auto bp = std::make_unique<BandProcessor>();
     bp->prepare(48000.0, 512);
-    std::array<MorphNode, kMaxMorphNodes> nodes = {{MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip),
+    std::array<MorphNode, kMaxMorphNodes> nodes = {{MorphNode(0, 0.0f, 0.0f, DistortionType::Tube),
                                                      MorphNode(1, 1.0f, 0.0f, DistortionType::HardClip),
-                                                     MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip),
-                                                     MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip)}};
+                                                     MorphNode(2, 0.0f, 1.0f, DistortionType::Tube),
+                                                     MorphNode(3, 1.0f, 1.0f, DistortionType::Tube)}};
     for (auto& n : nodes) n.commonParams = {.drive = 2.0f, .mix = 0.0f, .toneHz = 4000.0f};
     bp->setMorphEnabled(true);
     bp->setMorphSmoothingTime(0.0f);
@@ -148,7 +149,9 @@ TEST_CASE("BandProcessor: compensated latency holds across a factor switch",
     // minimax offset, +/- 0.1 sample (at 1 kHz): 2x in a 4x-capable band -0.409, 4x -0.506
     // (ffd51f47: 7.00 / 7.01; the integer alignment before it 6.01 / 6.48)
     INFO("worst case " << worst << ", group delay at 1 kHz at 2x " << at2x << ", at 4x " << at4x);
-    CHECK(worst == bp->getOversamplerLatency(4));
+    // The worst case is the Oversample Max factor's delay (8x by default), not the nodes' highest
+    // factor (user ruling 2026-11-11, round 3: a type switch must not change the latency)
+    CHECK(worst == bp->getOversamplerLatency(bp->getMaxOversampleFactor()));
     CHECK(std::fabs(at2x - (worst - 0.409)) <= 0.1);
     CHECK(std::fabs(at4x - (worst - 0.506)) <= 0.1);
 }
@@ -293,9 +296,15 @@ TEST_CASE("BandProcessor: oversampling latency stays under 10 ms",
         auto bp = makeLatencyBand(sr, DistortionType::HardClip);
         const long measured = measuredBandDelay(*bp);
         const double ms = static_cast<double>(measured) / sr * 1000.0;
-        INFO(sr << " Hz, 4x: measured " << measured << " samples = " << ms << " ms");
-        CHECK(measured == bp->getWorstCaseLatency());
+        // The band reports the latency of its Oversample Max (8x by default) whatever its type runs
+        // at (user ruling 2026-11-11, round 3): the uncompensated band delays by its own factor's
+        // latency, and both stay under the bound
+        const double worstMs = static_cast<double>(bp->getWorstCaseLatency()) / sr * 1000.0;
+        INFO(sr << " Hz, 4x: measured " << measured << " samples = " << ms << " ms, reported worst case "
+                << bp->getWorstCaseLatency() << " = " << worstMs << " ms");
+        CHECK(measured == bp->getLatency());
         CHECK(ms < 10.0);
+        CHECK(worstMs < 10.0);
     }
 }
 
@@ -348,10 +357,10 @@ std::unique_ptr<MorphEngine> makeMorphEngine(const std::array<DistortionType, 4>
     return e;
 }
 
-float morphTestInput(size_t n) {
+float morphTestInput(size_t n, double scale = 1.0) {
     const double t = static_cast<double>(n) / kMorphRate;
-    return static_cast<float>(0.4 * std::sin(2.0 * std::numbers::pi * 220.0 * t) +
-                              0.2 * std::sin(2.0 * std::numbers::pi * 1370.0 * t));
+    return static_cast<float>(scale * (0.4 * std::sin(2.0 * std::numbers::pi * 220.0 * t) +
+                                       0.2 * std::sin(2.0 * std::numbers::pi * 1370.0 * t)));
 }
 
 /// Block-rate modulation of a scenario: drive/mix and tone/bias offsets for one block.
@@ -510,14 +519,19 @@ TEST_CASE("Same-type morph render is unchanged by control-rate routing", "[disru
 TEST_CASE("Same-type morph applies a new mod offset within the block it arrives", "[disrumpo][morph][D-005]") {
     // Two engines run the same input; at sample 512 one gets a drive offset (as
     // BandProcessor hands it over at a block start). Its output must change at once.
+    // The input is 18.06 dB lower than the other cases': the drive re-stage (user ruling
+    // 2026-11-10) runs Formant 18.06 dB hotter, and at full level its saturated output stayed
+    // identical for 7 samples after the change (first differing sample 519); at this level the
+    // shaper sees the drive this case was written for.
     auto moved = makeMorphEngine(kFourFormants, 0.0f);
     auto still = makeMorphEngine(kFourFormants, 0.0f);
     constexpr size_t kChange = 512;
+    constexpr double kOldStaging = 0.125;
     size_t firstDiff = SIZE_MAX;
     for (size_t n = 0; n < 1024; ++n) {
         if (n == kChange) moved->setDriveMixModOffset(0.3f, 0.0f);
-        const float a = moved->process(morphTestInput(n));
-        const float b = still->process(morphTestInput(n));
+        const float a = moved->process(morphTestInput(n, kOldStaging));
+        const float b = still->process(morphTestInput(n, kOldStaging));
         if (firstDiff == SIZE_MAX && a != b) firstDiff = n;
     }
     std::printf("T2.20 D-005 drive offset set at sample %zu: output first differs at sample %zu (want %zu)\n",

@@ -98,7 +98,10 @@ TEST_CASE("Processor keeps L and R independent through a morph band", "[disrumpo
             double leftDb = 0.0;
             const double rightDb = leakIntoRightDb(type, leftDb);
             INFO(getTypeName(type) << " L = " << leftDb << " dBFS, R = " << rightDb << " dBFS");
-            CHECK(leftDb > -40.0);
+            // L carries the node's output: the floor was -40 dBFS; the drive re-stage (user ruling
+            // 2026-11-10) brings a re-staged node's output down by up to its 18.06 dB (FeedbackDist
+            // read -42.5), so -58.06 dBFS
+            CHECK(leftDb > -40.0 - 18.06);
             CHECK(rightDb < -90.0);
         }
     }

@@ -8,7 +8,9 @@
 // through SharedMeters (Tier 3). Measured points:
 //   input   L/R: after Input Gain, before the crossover
 //   output  L/R: what the host receives (after Mix, Output Gain, latency
-//                compensation and the band-count dip)
+//                compensation, the band-count dip and the output safety clipper);
+//                its clip bits read the signal before the safety clipper (user
+//                ruling 2026-11-10), so the light shows when the clipper catches an over
 //   band 0..3  : each band's output after its gain/pan/mute, before summation
 // Plain data only: no processor or controller types.
 // ==============================================================================
@@ -75,6 +77,7 @@ struct MeterAccumulator {
     float inSumSq[2]{};
     float outPeak[2]{};
     float outSumSq[2]{};
+    float outPreClipPeak[2]{};  // the output before the safety clipper: its clip bits only
     float bandPeak[kMeterBands]{};
     uint32_t numSamples = 0;
 
@@ -88,7 +91,7 @@ struct MeterAccumulator {
         const float invCount = numSamples > 0 ? 1.0f / static_cast<float>(numSamples) : 0.0f;
         for (int c = 0; c < 2; ++c) {
             if (clips(inPeak[c])) w.clipFlags |= kMeterClipInL << c;
-            if (clips(outPeak[c])) w.clipFlags |= kMeterClipOutL << c;
+            if (clips(outPreClipPeak[c])) w.clipFlags |= kMeterClipOutL << c;
             w.inPeak[c] = finite(inPeak[c]);
             w.outPeak[c] = finite(outPeak[c]);
             w.inMeanSq[c] = finite(inSumSq[c] * invCount);

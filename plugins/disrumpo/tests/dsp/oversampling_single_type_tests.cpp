@@ -43,27 +43,34 @@ TEST_CASE("BandProcessor: automatic oversampling factor for all 26 types",
         CHECK(bp.getOversampleFactor() == expectedFactor);
     };
 
+    SECTION("8x types - aliasing past -50 dB at 4x with the re-staged drive") {
+        // User ruling 2026-11-10: Tape and Temporal were 2x, the folders and fuzzes 4x
+        testType(DistortionType::Tape, 8);
+        testType(DistortionType::Temporal, 8);
+        testType(DistortionType::Fuzz, 8);
+        testType(DistortionType::AsymmetricFuzz, 8);
+        testType(DistortionType::SineFold, 8);
+        testType(DistortionType::TriangleFold, 8);
+        testType(DistortionType::SergeFold, 8);
+        // 4x until round 3 (user ruling 2026-11-11: its T6.01 reading at 4x was aliasing)
+        testType(DistortionType::AllpassResonant, 8);
+    }
+
     SECTION("4x types - strong harmonics") {
         testType(DistortionType::HardClip, 4);
-        testType(DistortionType::Fuzz, 4);
-        testType(DistortionType::AsymmetricFuzz, 4);
-        testType(DistortionType::SineFold, 4);
-        testType(DistortionType::TriangleFold, 4);
-        testType(DistortionType::SergeFold, 4);
         testType(DistortionType::FullRectify, 4);
         testType(DistortionType::HalfRectify, 4);
         testType(DistortionType::RingSaturation, 4);
-        testType(DistortionType::AllpassResonant, 4);
+        // 2x until the drive re-stage (user ruling 2026-11-10: aliasing past -50 dB at 2x)
+        testType(DistortionType::FeedbackDist, 4);
+        testType(DistortionType::Formant, 4);
+        // 2x until the drive re-stage, with ADAA1 at 4x (user ruling 2026-11-10)
+        testType(DistortionType::SoftClip, 4);
     }
 
     SECTION("2x types - moderate harmonics") {
-        testType(DistortionType::SoftClip, 2);
         testType(DistortionType::Tube, 2);
-        testType(DistortionType::Tape, 2);
-        testType(DistortionType::Temporal, 2);
-        testType(DistortionType::FeedbackDist, 2);
         testType(DistortionType::Chaos, 2);
-        testType(DistortionType::Formant, 2);
         testType(DistortionType::Granular, 2);
         testType(DistortionType::Fractal, 2);
         testType(DistortionType::Stochastic, 2);
@@ -103,18 +110,29 @@ TEST_CASE("BandProcessor: global limit clamps oversampling factor",
         bp.setDistortionType(DistortionType::HardClip);
         CHECK(bp.getOversampleFactor() == 1);
 
-        bp.setDistortionType(DistortionType::SoftClip);
+        bp.setDistortionType(DistortionType::Tube);
         CHECK(bp.getOversampleFactor() == 1);
 
         bp.setDistortionType(DistortionType::Bitcrush);
         CHECK(bp.getOversampleFactor() == 1);
     }
 
-    SECTION("limit 4x (default) does not affect types <= 4x") {
+    SECTION("limit 4x does not affect types <= 4x and clamps the 8x types") {
         bp.setMaxOversampleFactor(4);
-        bp.setDistortionType(DistortionType::SoftClip);
+        bp.setDistortionType(DistortionType::Tube);
         CHECK(bp.getOversampleFactor() == 2);
 
+        bp.setDistortionType(DistortionType::HardClip);
+        CHECK(bp.getOversampleFactor() == 4);
+
+        bp.setDistortionType(DistortionType::Tape);
+        CHECK(bp.getOversampleFactor() == 4);
+    }
+
+    SECTION("limit 8x (default) runs the 8x types at 8x") {
+        CHECK(bp.getMaxOversampleFactor() == 8);
+        bp.setDistortionType(DistortionType::Tape);
+        CHECK(bp.getOversampleFactor() == 8);
         bp.setDistortionType(DistortionType::HardClip);
         CHECK(bp.getOversampleFactor() == 4);
     }
@@ -179,7 +197,7 @@ TEST_CASE("BandProcessor: bypassed band output is bit-identical to input",
 
     BandProcessor bp;
     bp.prepare(44100.0, 512);
-    bp.setDistortionType(DistortionType::SoftClip);
+    bp.setDistortionType(DistortionType::Tube);
 
     // Set non-zero drive so that bypass is the ONLY reason output matches input
     DistortionCommonParams params;
@@ -306,8 +324,8 @@ TEST_CASE("BandProcessor: alias suppression with oversampling (SC-006)",
     std::array<TypeTest, 4> representativeTypes = {{
         // Test a representative subset to keep test time reasonable
         {.type = DistortionType::HardClip, .recommendedFactor = 4},    // 4x: strong harmonics
-        {.type = DistortionType::SineFold, .recommendedFactor = 4},     // 4x: wavefolder
-        {.type = DistortionType::SoftClip, .recommendedFactor = 2},     // 2x: moderate harmonics
+        {.type = DistortionType::SineFold, .recommendedFactor = 8},     // 8x: wavefolder (ruling 2026-11-10)
+        {.type = DistortionType::Fractal, .recommendedFactor = 2},      // 2x: moderate harmonics
         {.type = DistortionType::Tube, .recommendedFactor = 2},         // 2x: tube saturation
     }};
 
@@ -383,8 +401,8 @@ TEST_CASE("BandProcessor: alias suppression with oversampling (SC-006)",
             // varies by type. Wavefolders (SineFold etc.) generate extremely dense
             // harmonics requiring more aggressive filtering. We verify meaningful
             // improvement that confirms oversampling is functioning correctly.
-            // Threshold: >3dB for 2x, >6dB for 4x (conservative for IIR mode).
-            if (tt.recommendedFactor == 4) {
+            // Threshold: >3dB for 2x, >6dB for 4x and 8x (conservative for IIR mode).
+            if (tt.recommendedFactor >= 4) {
                 CHECK(reductionDb > 6.0f);
             } else if (tt.recommendedFactor == 2) {
                 CHECK(reductionDb > 3.0f);
@@ -434,7 +452,9 @@ TEST_CASE("Processor: bypassed band output is bit-identical to input (SC-011)",
     std::vector<float> outR;
 
     ts::Rig rig(44100.0);
-    auto params = oneBandNode0(DistortionType::SoftClip);
+    // A 2x type without ADAA1: an ADAA1 type (SoftClip since 2026-11-10) moves every path by a
+    // fractional reference shift (BandProcessor::requiredReferenceShift), a bypassed band too
+    auto params = oneBandNode0(DistortionType::Tube);
     params.emplace_back(makeBandParamId(0, BandParamType::kBandBypass), 1.0);
     rig.apply(params);
     rig.reactivate();
@@ -498,8 +518,8 @@ TEST_CASE("Processor: alias suppression with oversampling (SC-006)",
     };
     const std::array<TypeTest, 4> representativeTypes = {{
         {.type = DistortionType::HardClip, .recommendedFactor = 4, .limitNorm = 2.0 / 3.0},
-        {.type = DistortionType::SineFold, .recommendedFactor = 4, .limitNorm = 2.0 / 3.0},
-        {.type = DistortionType::SoftClip, .recommendedFactor = 2, .limitNorm = 1.0 / 3.0},
+        {.type = DistortionType::SineFold, .recommendedFactor = 8, .limitNorm = 1.0},
+        {.type = DistortionType::Fractal, .recommendedFactor = 2, .limitNorm = 1.0 / 3.0},
         {.type = DistortionType::Tube, .recommendedFactor = 2, .limitNorm = 1.0 / 3.0},
     }};
 
@@ -516,7 +536,7 @@ TEST_CASE("Processor: alias suppression with oversampling (SC-006)",
             REQUIRE(factor1x == 1);
             REQUIRE(factorOS == tt.recommendedFactor);
             // Same thresholds as the BandProcessor case above
-            if (tt.recommendedFactor == 4) {
+            if (tt.recommendedFactor >= 4) {
                 CHECK(reductionDb > 6.0f);
             } else {
                 CHECK(reductionDb > 3.0f);

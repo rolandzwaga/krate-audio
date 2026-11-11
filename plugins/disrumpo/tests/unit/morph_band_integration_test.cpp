@@ -173,9 +173,12 @@ TEST_CASE("BandProcessor sweep intensity scales the morph drive and not the leve
         settleBandProcessor(*proc);
         std::vector<float> out(kN);
         for (size_t i = 0; i < kN; ++i) {
-            // -6 dBFS: the nodes (drive 2 and 3) saturate
-            float left = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
-                                          static_cast<float>(kSampleRate));
+            // -24.06 dBFS: the nodes (drive 2 and 3) saturate. The drive re-stage (user ruling
+            // 2026-11-10) runs them 18.06 dB hotter; at the -6 dBFS this case was written for they
+            // sat at their ceiling and doubling the drive took THD from 2.57 % to 1.35 %. 18.06 dB
+            // lower the shapers see the drive they saw before
+            float left = 0.5f * 0.125f * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
+                                                  static_cast<float>(kSampleRate));
             float right = left;
             proc->process(left, right);
             out[i] = left;
@@ -371,7 +374,11 @@ TEST_CASE("BandProcessor morph smoothing reaches 99 % in the configured time",
     constexpr int kFull = 480;   // 10 ms
     Disrumpo::BandProcessor proc;
     proc.prepare(kSr, kBlockSize);
-    proc.setMorphNodes(createTwoNodeSetup(), 2);
+    // Two 2x nodes, so the band runs one factor across the glide (SoftClip, the old node A, is
+    // 4x since the drive re-stage ruling 2026-11-10)
+    auto nodes = createTwoNodeSetup();
+    nodes[0].type = Disrumpo::DistortionType::Fractal;
+    proc.setMorphNodes(nodes, 2);
     proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
     proc.setMorphSmoothingTime(10.0f);
     proc.setMorphPosition(0.0f, 0.0f);
@@ -665,5 +672,76 @@ TEST_CASE("Probe: T1.14 sweep level per morph position", "[.][t114-sweep-level-p
         }
         WARN("PROBE t114 sweep level x = " << x << ": intensity 0 " << db[0] << " dB, 200 % " << db[1]
              << " dB, delta " << db[1] - db[0] << " dB");
+    }
+}
+
+// Probe (hidden, round 3): a 1-node morph band (drive 2) on a quiet sine (-58 dBFS, 220 Hz) through
+// lane crossfades: Oversample Max toggled between two factors every 0.3 s, against the render held
+// at each. Peak and RMS after the first 0.5 s. Measured 2026-11-11: Allpass Resonant (every
+// topology) and Sine Fold burst at each switch (-24 / -35 dBFS peak against -75 / -53 held), at
+// 2x <-> 4x as at 4x <-> 8x; Feedback, Ring Saturation and Hard Clip do not. The cleared incoming
+// lane's internal 10 Hz DC blockers start at zero state and pass the shaper's DC as a step (decay
+// ~545 dB/s, the 10 Hz pole); open question in the round-3 report.
+TEST_CASE("Probe: AllpassResonant through factor crossfades", "[.][allpass-lane-probe]") {
+    using namespace Disrumpo;
+    struct Variant {
+        DistortionType type;
+        int topo;
+    };
+    for (const Variant v : {Variant{.type = DistortionType::AllpassResonant, .topo = 1},
+                            Variant{.type = DistortionType::AllpassResonant, .topo = 3},
+                            Variant{.type = DistortionType::FeedbackDist, .topo = 0},
+                            Variant{.type = DistortionType::RingSaturation, .topo = 0},
+                            Variant{.type = DistortionType::SineFold, .topo = 0},
+                            Variant{.type = DistortionType::HardClip, .topo = 0}}) {
+        for (const auto& [lo, hi] : {std::pair{4, 8}, std::pair{2, 4}}) {
+            for (const int mode : {0, 1, 2}) {  // 0: held lo, 1: held hi, 2: toggled
+                auto bpOwner = std::make_unique<BandProcessor>();
+                BandProcessor& bp = *bpOwner;
+                bp.prepare(48000.0, 512);
+                DistortionParams params;
+                params.allpassTopo = v.topo;
+                params.resonantFreq = 500.0f;
+                params.allpassFeedback = 0.6f;
+                params.decayTimeS = 1.5f;
+                std::array<MorphNode, kMaxMorphNodes> nodes{};
+                nodes[0] = MorphNode(0, 0.0f, 0.0f, v.type);
+                nodes[0].commonParams.drive = 2.0f;
+                nodes[0].commonParams.mix = 1.0f;
+                nodes[0].params = params;
+                bp.setMorphEnabled(true);
+                bp.setMorphNodes(nodes, 1);
+                bp.setMaxOversampleFactor(mode == 0 ? lo : hi);
+                constexpr size_t kBlock = 512;
+                const size_t total = kBlock * 282;  // whole blocks, ~3 s
+                std::vector<float> out(total);
+                std::vector<float> l(kBlock);
+                std::vector<float> r(kBlock);
+                const auto step = static_cast<size_t>(0.3 * 48000.0);
+                for (size_t s = 0; s < total; s += kBlock) {
+                    if (mode == 2 && s > 0 && (s / step) != ((s - kBlock) / step)) {
+                        bp.setMaxOversampleFactor((s / step) % 2 == 1 ? lo : hi);
+                    }
+                    for (size_t i = 0; i < kBlock; ++i) {
+                        const double t = static_cast<double>(s + i) / 48000.0;
+                        l[i] = static_cast<float>(0.00126 * std::sin(2.0 * std::numbers::pi * 220.0 * t));
+                        r[i] = l[i];
+                    }
+                    bp.processBlock(l.data(), r.data(), kBlock);
+                    std::copy(l.begin(), l.end(), out.begin() + static_cast<std::ptrdiff_t>(s));
+                }
+                double pk = 0.0;
+                double sq = 0.0;
+                for (size_t i = 24000; i < total; ++i) {
+                    pk = std::max(pk, std::fabs(static_cast<double>(out[i])));
+                    sq += static_cast<double>(out[i]) * out[i];
+                }
+                static constexpr std::array<const char*, 3> kModeName{"held lo", "held hi", "toggled"};
+                std::printf("APL %s topo %d %dx/%dx %s: peak %.1f dBFS, RMS %.1f dBFS\n", getTypeName(v.type), v.topo,
+                            lo, hi, kModeName[static_cast<size_t>(mode)],
+                            20.0 * std::log10(pk + 1e-15),
+                            10.0 * std::log10(sq / static_cast<double>(total - 24000) + 1e-30));
+            }
+        }
     }
 }

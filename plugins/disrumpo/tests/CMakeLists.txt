@@ -74,6 +74,9 @@ add_executable(disrumpo_tests
     dsp/type_render_matrix_test.cpp
     dsp/phase6_ruling_probes_test.cpp
 
+    # Output safety clipper (drive re-stage ruling 2026-11-10)
+    dsp/output_safety_clipper_tests.cpp
+
     # Morph continuity and on-node behaviour through the Processor (audit T6.06)
     dsp/morph_continuity_test.cpp
 
@@ -168,6 +171,8 @@ add_executable(disrumpo_tests
 
     # Integration tests - DataExchange spectrum pipeline
     integration/data_exchange_spectrum_test.cpp
+    # Displays keep receiving audio across reactivations; teardown in any order is safe
+    integration/display_delivery_test.cpp
 
     # Controller sources (needed for DataExchange integration tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp

@@ -43,8 +43,8 @@ namespace {
 
 constexpr double kSr = 48000.0;
 
-std::vector<float> sine220AtMinus12(size_t n) {
-    const double a = std::pow(10.0, -12.0 / 20.0);
+std::vector<float> sine220AtMinus12(size_t n, double scale = 1.0) {
+    const double a = scale * std::pow(10.0, -12.0 / 20.0);
     std::vector<float> x(n);
     for (size_t i = 0; i < n; ++i) {
         x[i] = static_cast<float>(a * std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(i) / kSr));
@@ -87,10 +87,10 @@ struct SweepReading {
 };
 
 /// The probe's sweep: 0.5 s at (0, 0), the cursor from 0 to 1 over 2 s (x, or x and y
-/// when `diagonal`), 0.5 s at the end.
-SweepReading sweep(const PList& setup, bool diagonal) {
+/// when `diagonal`), 0.5 s at the end. The input sine is scaled by `inScale`.
+SweepReading sweep(const PList& setup, bool diagonal, double inScale = 1.0) {
     const auto S = [](double s) { return static_cast<size_t>(s * kSr); };
-    const auto in = sine220AtMinus12(S(3.0));
+    const auto in = sine220AtMinus12(S(3.0), inScale);
     Rig r(kSr);
     r.apply(setup);
     r.apply({{bandId(BandParamType::kBandMorphX), 0.0}, {bandId(BandParamType::kBandMorphY), 0.0}});
@@ -141,8 +141,14 @@ TEST_CASE("Morph sweep through the Processor: 2 cross-family nodes", "[disrumpo]
     CHECK(s.ratio <= 1.3);
     CHECK(s.clicks == 0);
     // The plan's level bar: the 2x -> 4x switch at x = 0.04 crossfades the two factors
-    // instead of dipping the band (follow-up 6, user ruling 2026-11-09)
-    CHECK(std::fabs(s.maxDevDb) <= 1.0);
+    // instead of dipping the band (follow-up 6, user ruling 2026-11-09). Re-baselined for the
+    // drive re-stage (user ruling 2026-11-10): read with the input 18.06 dB lower, so the
+    // re-staged shapers run at the drive this bar was set for; at -12 dBFS they run 18 dB hotter,
+    // SoftClip squares off, SineFold folds further, their outputs decorrelate and the blend dips
+    // (-4.71 dB at the first run, printed above as max level deviation)
+    const auto quiet = sweep(morphSetup({DistortionType::SoftClip, DistortionType::SineFold}, kLinear1D), false, 0.125);
+    report("2-node SoftClip-SineFold, input -18.06 dB (the old staging)", quiet);
+    CHECK(std::fabs(quiet.maxDevDb) <= 1.0);
 }
 
 TEST_CASE("Morph sweep through the Processor: 2 same-family nodes", "[disrumpo][audit][morph]") {

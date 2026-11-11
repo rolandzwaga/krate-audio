@@ -34,6 +34,7 @@ LevelMeterView::LevelMeterView(const VSTGUI::CRect& size, Source source, Colors 
     : CView(size), source_(source), colors_(std::move(colors)) {}
 
 void LevelMeterView::pushWindow(const MeterWindow& window, double sampleRate) noexcept {
+    ++windowsReceived_;
     const uint32_t n = window.numSamples;
     const uint32_t clip = window.clipFlags;
     switch (source_) {

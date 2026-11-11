@@ -959,7 +959,8 @@ TEST_CASE("A single sample above 0 dBFS sets the clip bit of its channel only",
           "[disrumpo][data-exchange][meters]")
 {
     // Unity output: the sample reaches input L, band 0 and output L. Output Gain -6 dB:
-    // it no longer clips at the output.
+    // it no longer clips at the output. The output bit reads the output before the safety
+    // clipper (user ruling 2026-11-10): the host receives at most 0.999 while the light shows.
     for (const double outputGainNorm : {0.5, (-6.0 + 24.0) / 48.0}) {
         MeterHarness h(outputGainNorm);
         std::fill(h.inL.begin(), h.inL.end(), 0.0f);
@@ -972,6 +973,7 @@ TEST_CASE("A single sample above 0 dBFS sets the clip bit of its channel only",
         h.inL[100] = 0.0f;
         while (!sent) sent = h.run();
         const uint32_t clipFlags = h.meters().clipFlags;
+        const float clipWindowOutPeak = h.meters().outPeak[0];
         while (!h.run()) {}
         const uint32_t nextFlags = h.meters().clipFlags;
         const uint32_t want = (outputGainNorm == 0.5)
@@ -980,10 +982,13 @@ TEST_CASE("A single sample above 0 dBFS sets the clip bit of its channel only",
         std::printf("Meters clip (output gain norm %.3f): silent window flags 0x%x peak %.3g; window with the 1.2 "
                     "sample 0x%x (want 0x%x); next window 0x%x\n",
                     outputGainNorm, silentFlags, static_cast<double>(silentPeak), clipFlags, want, nextFlags);
+        std::printf("Meters clip (output gain norm %.3f): output peak delivered in that window %.4f\n", outputGainNorm,
+                    static_cast<double>(clipWindowOutPeak));
         CHECK(silentFlags == 0u);
         CHECK(silentPeak == 0.0f);
         CHECK(clipFlags == want);
         CHECK(nextFlags == 0u);
+        CHECK(clipWindowOutPeak <= 0.999f);
     }
 }
 

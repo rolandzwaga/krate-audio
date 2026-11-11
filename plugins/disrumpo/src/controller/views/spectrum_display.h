@@ -121,6 +121,9 @@ public:
     /// @brief Check if spectrum analysis is active
     [[nodiscard]] bool isAnalysisActive() const { return analysisActive_; }
 
+    /// @brief Test seam: the output FIFO the analysis reads (nullptr when none)
+    [[nodiscard]] const Krate::DSP::SpectrumFIFO<8192>* outputFIFOForTest() const { return outputFIFO_; }
+
     // ==========================================================================
     // Coordinate Conversion
     // ==========================================================================

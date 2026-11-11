@@ -163,20 +163,35 @@ constexpr DistortionCategory getCategory(DistortionType type) noexcept {
 /// return 1 because aliasing is intentional.
 ///
 /// @param type The distortion type
-/// @return Recommended oversampling factor (1, 2, or 4)
+/// @return Recommended oversampling factor (1, 2, 4 or 8)
 constexpr int getRecommendedOversample(DistortionType type) noexcept {
     switch (type) {
-        // 4x types - strong harmonics or frequency doubling
-        case DistortionType::HardClip:
-        case DistortionType::Fuzz:
-        case DistortionType::AsymmetricFuzz:
+        // 8x types (user ruling 2026-11-10, drive re-stage): at 4x the re-staged drive still
+        // aliased past T6.01's -50 dB; Tape and Temporal moved from 2x, the folders and fuzzes
+        // from 4x
+        case DistortionType::Tape:
+        case DistortionType::Temporal:
         case DistortionType::SineFold:
         case DistortionType::TriangleFold:
         case DistortionType::SergeFold:
+        case DistortionType::Fuzz:
+        case DistortionType::AsymmetricFuzz:
+        // AllpassResonant from 4x (user ruling 2026-11-11, round 3): its T6.01 reading at 4x was
+        // aliasing (-48.1 dB at drive 10; -59.8 at 8x, -72.5 at 16x)
+        case DistortionType::AllpassResonant:
+            return 8;
+
+        // 4x types - strong harmonics or frequency doubling
+        case DistortionType::HardClip:
         case DistortionType::FullRectify:
         case DistortionType::HalfRectify:
         case DistortionType::RingSaturation:
-        case DistortionType::AllpassResonant:
+        // Moved from 2x (user ruling 2026-11-10): the re-staged drive aliased past -50 dB at
+        // 2x, and their shapers sit inside shared processors, out of the adapter's ADAA's reach
+        case DistortionType::FeedbackDist:
+        case DistortionType::Formant:
+        // SoftClip from 2x with ADAA1 (user ruling 2026-11-10): ADAA1 at 2x dulled 20 kHz by 2.5 dB
+        case DistortionType::SoftClip:
             return 4;
 
         // 1x types - aliasing is intentional or FFT-domain
@@ -189,13 +204,8 @@ constexpr int getRecommendedOversample(DistortionType type) noexcept {
             return 1;
 
         // 2x types - moderate harmonics (default)
-        case DistortionType::SoftClip:
         case DistortionType::Tube:
-        case DistortionType::Tape:
-        case DistortionType::Temporal:
-        case DistortionType::FeedbackDist:
         case DistortionType::Chaos:
-        case DistortionType::Formant:
         case DistortionType::Granular:
         case DistortionType::Fractal:
         case DistortionType::Stochastic:

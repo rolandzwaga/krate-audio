@@ -50,7 +50,10 @@ namespace Disrumpo {
 // - A second setState before a block applied the first overwrites it (last load
 //   wins); the section flags of both stay set, because both are still owed.
 // - While processing is not active (active_ false) setState applies on its own
-//   thread at once, through the same applyPendingState().
+//   thread at once, through the same applyPendingState(). setState, setActive,
+//   setupProcessing and getState hold lifecycleMutex_ (process() never does), so a
+//   setActive or setupProcessing on another thread (some hosts: their audio thread)
+//   cannot run while that apply runs, and getState never saves a half-applied load.
 // - getState saves a pending snapshot when there is one (so it returns a load the
 //   audio thread has not applied yet), else the live state, read on the host
 //   thread as getState always did. setState seeds the snapshot from the same live
@@ -66,6 +69,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // FR-020: Version field MUST be first for future migration
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
+
+    // A setState, setActive or setupProcessing on another thread finishes first, so the
+    // live state is never saved half-applied (lifecycleMutex_); process() never waits
+    const std::scoped_lock lifecycle(lifecycleMutex_);
 
     // A load the audio thread has not applied yet is the newest state (D-003)
     for (;;) {
@@ -484,31 +491,39 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         return Steinberg::kResultFalse;
     }
 
+    // setActive / setupProcessing on another thread (some hosts call them on their audio
+    // thread) wait until this load is applied or handed over, so "inactive" holds until
+    // then; a getState waits for the whole load, instance ID included
+    const std::scoped_lock lifecycle(lifecycleMutex_);
+
     // Parse into pendingState_, seeded from the newest state: an unapplied load
     // (its section flags still owed) or the live one (D-003)
-    const bool deferred = active_.load(std::memory_order_acquire);
-    PendingState& s = pendingState_;
-    if (acquireStateSlot() != kSlotReady) {
-        captureState(s);
-        s.hasBands = false;
-        s.hasCrossover = {};
-        s.hasSweep = false;
-        s.hasModulation = false;
-        s.hasRungler = false;
-        s.hasMorph = false;
-    }
-    s.inputGain = inputGain;
-    s.outputGain = outputGain;
-    s.globalMix = globalMix;
-    const bool complete = parseStateSections(streamer, version, s);
+    bool complete = false;
+    {
+        const bool deferred = active_.load(std::memory_order_acquire);
+        PendingState& s = pendingState_;
+        if (acquireStateSlot() != kSlotReady) {
+            captureState(s);
+            s.hasBands = false;
+            s.hasCrossover = {};
+            s.hasSweep = false;
+            s.hasModulation = false;
+            s.hasRungler = false;
+            s.hasMorph = false;
+        }
+        s.inputGain = inputGain;
+        s.outputGain = outputGain;
+        s.globalMix = globalMix;
+        complete = parseStateSections(streamer, version, s);
 
-    if (deferred) {
-        // process() applies it at the top of its next call
-        pendingSlot_.store(kSlotReady, std::memory_order_release);
-    } else {
-        // Processing is stopped: nothing else reads the live objects
-        applyPendingState();
-        pendingSlot_.store(kSlotIdle, std::memory_order_release);
+        if (deferred) {
+            // process() applies it at the top of its next call
+            pendingSlot_.store(kSlotReady, std::memory_order_release);
+        } else {
+            // Processing is stopped: nothing else reads the live objects
+            applyPendingState();
+            pendingSlot_.store(kSlotIdle, std::memory_order_release);
+        }
     }
 
     if (!complete) {

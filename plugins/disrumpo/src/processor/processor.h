@@ -16,6 +16,7 @@
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
 #include "public.sdk/source/vst/utility/dataexchange.h"
+#include "dsp/output_safety_clipper.h"
 #include "dsp/crossover_network.h"
 #include "dsp/band_processor.h"
 #include "dsp/band_state.h"
@@ -38,6 +39,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
+#include <thread>
 
 namespace Steinberg {
 class IBStreamer;
@@ -261,6 +264,8 @@ private:
     int lastSignalledLatency_ = -1;   ///< last value written to kLatencyOutputId (audio thread)
     std::atomic<int> reportedLatency_{0};  ///< getLatencySamples()
     std::atomic<Steinberg::uint32> tailSamples_{Steinberg::Vst::kNoTail};  ///< getTailSamples()
+    OutputSafetyClipper outClipL_;  ///< output safety clipper, left (user ruling 2026-11-10)
+    OutputSafetyClipper outClipR_;  ///< output safety clipper, right
     Krate::DSP::DelayLine dryDelayL_;  ///< dry path, read at appliedLatency_
     Krate::DSP::DelayLine dryDelayR_;
 
@@ -371,6 +376,13 @@ private:
     /// @brief DataExchange handler for sending audio samples to controller
     std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchange_;
 
+    /// @brief The thread that connected the components: the host's main thread. The
+    /// DataExchange queue is opened and closed only there (IDataExchangeHandler allows
+    /// no other thread, and the SDK fallback drains the queue from a timer bound to the
+    /// opening thread, which never fires on a thread without a message loop). A
+    /// setActive on any other thread leaves the queue as it is.
+    std::thread::id dataExchangeThread_{};
+
     /// @brief Pre-allocated buffer for building SpectrumBlock on audio thread
     SpectrumBlock spectrumBlockBuffer_{};
 
@@ -401,6 +413,8 @@ private:
     std::atomic<float> sharedSampleRate_{0.0f};
     /// @brief Level-meter windows for Tier 3 (published at each send point)
     SharedMeters sharedMeters_;
+    /// @brief Modulation offsets for Tier 3's mod rings (published at each send point)
+    std::array<std::atomic<float>, kSpectrumBlockModOffsets> sharedModOffsets_{};
     /// @brief Shared display data exposed to controller via SharedDisplayBridge
     SharedDisplay sharedDisplay_{};
 
@@ -514,6 +528,14 @@ private:
     /// @brief True between setActive(true) and setActive(false): process() may run,
     /// so setState defers. Written and read on the host's UI thread.
     std::atomic<bool> active_{false};
+
+    /// @brief Serialises setActive, setupProcessing, setState and getState (all
+    /// non-realtime; never taken by process()). Some hosts call setActive or
+    /// setupProcessing on their audio thread while setState runs on the main thread:
+    /// without it setState could read "inactive", then go on writing the live DSP
+    /// objects after setActive(true) returned and process() began, or write them while
+    /// setupProcessing rebuilt them; getState could save a load half-applied.
+    std::mutex lifecycleMutex_;
 
     /// @brief Live state -> snapshot (host thread; the reads getState always made)
     void captureState(PendingState& s) const noexcept;

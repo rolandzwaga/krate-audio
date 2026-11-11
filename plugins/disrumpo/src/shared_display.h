@@ -10,6 +10,7 @@
 // Holds only pointers: no processor or controller types.
 // ==============================================================================
 
+#include "controller/spectrum_block.h"
 #include "meter_window.h"
 
 #include <krate/dsp/primitives/spectrum_fifo.h>
@@ -95,6 +96,9 @@ struct SharedDisplay {
     Krate::DSP::SpectrumFIFO<8192>* outputFIFO;
     std::atomic<float>* sampleRate;
     SharedMeters* meters;
+    /// Modulation offsets by ModDest index, the values a SpectrumBlock carries (D-045):
+    /// written at every send window by the audio thread, read by the UI thread in Tier 3
+    std::array<std::atomic<float>, kSpectrumBlockModOffsets>* modOffsets;
 };
 
 } // namespace Disrumpo

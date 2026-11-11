@@ -63,6 +63,7 @@
 #include <limits>
 #include <map>
 #include <numbers>
+#include <random>
 #include <set>
 #include <string>
 #include <thread>
@@ -1251,12 +1252,14 @@ const MorphEngine& liveEngine(const Rig& rig, size_t band) {
     return *e;
 }
 
-// Output / input level ratio in dB over the last 100 ms of a 250 ms 1 kHz sine render.
+// Output / input level ratio in dB over the last 100 ms of a 250 ms 1 kHz sine render. The sine
+// is at -40 dBFS so +24 dB of gain stays below the output safety clipper's knee (-6 dBFS, user
+// ruling 2026-11-10), where it is an exact passthrough: at -12 dBFS +24 dB read +13.9 dB.
 double renderGainDb(Rig& rig) {
     const auto n = static_cast<size_t>(0.25 * rig.sr);
     std::vector<float> in(n);
     for (size_t i = 0; i < n; ++i)
-        in[i] = 0.25f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 1000.0 * static_cast<double>(i) / rig.sr));
+        in[i] = 0.01f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 1000.0 * static_cast<double>(i) / rig.sr));
     std::vector<float> outL;
     std::vector<float> outR;
     rig.render(in, in, outL, outR, 256);
@@ -1757,6 +1760,7 @@ double latTypeNorm(DistortionType t) { return static_cast<double>(static_cast<in
 
 double osMaxNorm(int factor) {
     if (factor <= 1) return 0.0;
+    if (factor >= 8) return 1.0;
     return factor == 2 ? 1.0 / 3.0 : 2.0 / 3.0;
 }
 
@@ -1839,20 +1843,22 @@ long bestLag(const std::vector<float>& in, const std::vector<float>& out, size_t
 
 /// Minimax arrival offsets re the reported latency, in samples (user rulings 2026-11-09,
 /// follow-up 81, probe [p6s-minimax]; BandProcessor::minimaxAlignmentOffset): a 2x band
-/// without a 4x-capable band in the patch, a 2x band with one, a 4x band.
+/// without a 4x-capable band in the patch, a 2x band with one, a 4x band, an 8x band (probe
+/// [p6s-minimax8], drive re-stage ruling 2026-11-10; an 8x-capable band counts as 4x-capable).
 struct MinimaxRow {
     double sr;
     double o2Alone;
     double o2With4x;
     double o4;
+    double o8;
 };
 constexpr MinimaxRow kMinimax[] = {
-    {.sr = 44100.0, .o2Alone = -0.999, .o2With4x = -0.269, .o4 = -0.496},
-    {.sr = 48000.0, .o2Alone = -0.759, .o2With4x = -0.409, .o4 = -0.506},
-    {.sr = 88200.0, .o2Alone = -0.159, .o2With4x = -0.159, .o4 = -0.266},
-    {.sr = 96000.0, .o2Alone = -0.129, .o2With4x = -0.129, .o4 = -0.216},
-    {.sr = 176400.0, .o2Alone = -0.039, .o2With4x = -0.039, .o4 = -0.066},
-    {.sr = 192000.0, .o2Alone = -0.029, .o2With4x = -0.029, .o4 = -0.056},
+    {.sr = 44100.0, .o2Alone = -0.999, .o2With4x = -0.269, .o4 = -0.496, .o8 = -0.908},
+    {.sr = 48000.0, .o2Alone = -0.759, .o2With4x = -0.409, .o4 = -0.506, .o8 = -0.878},
+    {.sr = 88200.0, .o2Alone = -0.159, .o2With4x = -0.159, .o4 = -0.266, .o8 = -0.358},
+    {.sr = 96000.0, .o2Alone = -0.129, .o2With4x = -0.129, .o4 = -0.216, .o8 = -0.298},
+    {.sr = 176400.0, .o2Alone = -0.039, .o2With4x = -0.039, .o4 = -0.066, .o8 = -0.088},
+    {.sr = 192000.0, .o2Alone = -0.029, .o2With4x = -0.029, .o4 = -0.056, .o8 = -0.068},
 };
 
 double minimaxOffset(double sr, int factor, bool fourXPresent) {
@@ -1862,6 +1868,7 @@ double minimaxOffset(double sr, int factor, bool fourXPresent) {
         if (r.sr == sr) row = &r;
     }
     REQUIRE(row != nullptr);
+    if (factor >= 8) return row->o8;
     if (factor >= 4) return row->o4;
     return fourXPresent ? row->o2With4x : row->o2Alone;
 }
@@ -1870,8 +1877,8 @@ double minimaxOffset(double sr, int factor, bool fourXPresent) {
 
 TEST_CASE("getLatencySamples equals the measured impulse delay at every Oversample Max",
           "[disrumpo][latency][D-026][D-098]") {
-    for (const auto type : {DistortionType::SoftClip, DistortionType::HardClip}) {
-        for (const int osMax : {1, 2, 4}) {
+    for (const auto type : {DistortionType::Tube, DistortionType::HardClip, DistortionType::Tape}) {
+        for (const int osMax : {1, 2, 4, 8}) {
             // Drive 10 keeps the drive gate open; node mix 0 makes the node output its
             // (pre-shaper) input, so only the oversampler's filters shape the impulse.
             auto l = latBase(1, osMax);
@@ -1879,17 +1886,16 @@ TEST_CASE("getLatencySamples equals the measured impulse delay at every Oversamp
             const auto r = latMeasure(l);
             std::printf("T2.10 latency %s Oversample Max %dx: impulse peak offset %ld, group delay at 1 kHz %.3f, "
                         "getLatencySamples %ld\n",
-                        type == DistortionType::SoftClip ? "SoftClip" : "HardClip", osMax, r.measured,
+                        getTypeName(type), osMax, r.measured,
                         r.groupDelay1k, r.reported);
             INFO("type " << static_cast<int>(type) << ", Oversample Max " << osMax << "x, group delay at 1 kHz "
                  << r.groupDelay1k);
             CHECK(std::labs(r.measured - r.reported) <= 1);
             // Follow-up 81, minimax ruling (2026-11-09): the band arrives at the reported latency
-            // plus its minimax offset, +/- 0.1 sample, as a group delay (SoftClip runs 2x, HardClip
-            // min(4x, Oversample Max); a 4x-capable band selects the 2x 'with 4x' offset).
-            // ffd51f47 (low-frequency match): 4.005 / 7.008 against 4 / 7.
-            int factor = 1;
-            if (osMax > 1) factor = type == DistortionType::SoftClip ? 2 : osMax;
+            // plus its minimax offset, +/- 0.1 sample, as a group delay (Tube runs 2x, HardClip
+            // min(4x, Oversample Max), Tape min(8x, Oversample Max); a 4x-capable band selects the
+            // 2x 'with 4x' offset). ffd51f47 (low-frequency match): 4.005 / 7.008 against 4 / 7.
+            const int factor = std::min(getRecommendedOversample(type), osMax);
             const double expected = static_cast<double>(r.reported) + minimaxOffset(kLatSr, factor, factor >= 4);
             CHECK(std::fabs(r.groupDelay1k - expected) <= 0.1);
         }
@@ -1912,16 +1918,18 @@ TEST_CASE("getLatencySamples equals the measured impulse delay with a Spectral n
 
 TEST_CASE("A fresh processor reports its default patch's latency once set up", "[disrumpo][latency][D-026]") {
     // Before setupProcessing the oversamplers are not prepared, so there is nothing to
-    // measure yet; the default patch (SoftClip nodes, Oversample Max 4x) reaches 2x.
+    // measure yet; the default patch (SoftClip nodes, Oversample Max 8x) reports the 8x oversampler's
+    // delay: the latency follows Oversample Max, not the node types' factors, so a type switch never
+    // changes it (user ruling 2026-11-11, round 3; it was the 4x delay, SoftClip's factor, before).
     Rig unprepared(kLatSr, 512, false);
     const auto before = unprepared.p->getLatencySamples();
     Rig rig(kLatSr);
     const auto after = rig.p->getLatencySamples();
-    const auto oversampler2x = rig.p->getBandProcessor(0).getOversamplerLatency(2);
-    std::printf("T2.10 default patch: getLatencySamples before setupProcessing %u, after %u (2x oversampler %d)\n",
-                static_cast<unsigned>(before), static_cast<unsigned>(after), oversampler2x);
+    const auto oversampler8x = rig.p->getBandProcessor(0).getOversamplerLatency(8);
+    std::printf("T2.10 default patch: getLatencySamples before setupProcessing %u, after %u (8x oversampler %d)\n",
+                static_cast<unsigned>(before), static_cast<unsigned>(after), oversampler8x);
     CHECK(before == 0u);
-    CHECK(std::cmp_equal(after, oversampler2x));
+    CHECK(std::cmp_equal(after, oversampler8x));
     CHECK(after > 0u);
 }
 
@@ -2026,10 +2034,11 @@ std::vector<float> latResponse(PList l, double sr, int solo = -1, long* reported
 /// Crossover parameter (log10 over 20 Hz - 20 kHz) for `hz`.
 double crossoverNorm(double hz) { return std::log10(hz / 20.0) / 3.0; }
 
-/// Node types that run a band at 1x / 2x / 4x at drive 10 (Oversample Max 4x).
+/// Node types that run a band at 1x / 2x / 4x / 8x at drive 10 (8x: at Oversample Max 8x).
 DistortionType typeAtFactor(int factor) {
+    if (factor >= 8) return DistortionType::Tape;
     if (factor >= 4) return DistortionType::HardClip;
-    return factor == 2 ? DistortionType::SoftClip : DistortionType::Bitcrush;
+    return factor == 2 ? DistortionType::Tube : DistortionType::Bitcrush;
 }
 
 /// Two bands split at `crossoverHz`, band 0's node at `factor0`, band 1's at `factor1`, both at
@@ -2048,20 +2057,24 @@ TEST_CASE("Bands at different oversampling factors arrive at their minimax offse
     // Follow-up 81, minimax ruling (2026-11-09): a band at 2x / 4x arrives at the reported
     // latency L plus its minimax offset (kMinimax: a 2x band takes the 'with 4x' offset when a
     // 4x band is in the patch), +/- 0.1 sample; a 1x band at L. Two bands split at 300 Hz, each
-    // node at drive 10 and node mix 0: Bitcrush runs 1x, SoftClip 2x, HardClip 4x. A band's
+    // node at drive 10 and node mix 0: Bitcrush runs 1x, Tube 2x, HardClip 4x. A band's
     // arrival is its group delay soloed (band 0 at 100 Hz, band 1 at 1 kHz) minus the same
     // band's at Oversample Max 1x (nothing latent). ffd51f47 (low-frequency match) put every
     // band at L +/- 0.010, the integer alignment before it a 2x band 1.00 and a 4x band 0.53 early.
     constexpr double kAt[2] = {100.0, 1000.0};
     for (const auto& row : kMinimax) {
         const double sr = row.sr;
-        for (const auto& [f0, f1] : {std::pair{1, 2}, std::pair{1, 4}, std::pair{2, 4}, std::pair{4, 1}}) {
-            const bool fourX = f0 == 4 || f1 == 4;
+        // 8x pairs (drive re-stage ruling 2026-11-10) at Oversample Max 8x; an 8x band counts as
+        // 4x-capable for a 2x band's offset
+        for (const auto& [f0, f1] : {std::pair{1, 2}, std::pair{1, 4}, std::pair{2, 4}, std::pair{4, 1},
+                                     std::pair{1, 8}, std::pair{2, 8}, std::pair{4, 8}, std::pair{8, 1}}) {
+            const bool fourX = f0 >= 4 || f1 >= 4;
+            const int osMax = std::max(f0, f1) >= 8 ? 8 : 4;
             const std::array<int, 2> factors{f0, f1};
             std::array<double, 2> arrival{};
             long reported = 0;
             for (int b = 0; b < 2; ++b) {
-                const auto h = latResponse(factorPair(f0, f1, 300.0, 4), sr, b, &reported);
+                const auto h = latResponse(factorPair(f0, f1, 300.0, osMax), sr, b, &reported);
                 const auto ref = latResponse(factorPair(f0, f1, 300.0, 1), sr, b);
                 arrival[static_cast<size_t>(b)] = groupDelaySamples(h, kAt[b], sr) - groupDelaySamples(ref, kAt[b], sr);
             }
@@ -2104,7 +2117,9 @@ TEST_CASE("A band running ADAA1 arrives with a plain band at the same factor", "
         rel[type == DistortionType::SineFold ? 1 : 0] = gd[1] - gd[0];
         if (type == DistortionType::TriangleFold) dryTri = gd[0];
     }
-    const double shift = 6.4743 + 0.125 + 0.506 - 7.0;
+    // TriangleFold runs ADAA2 since round 3 (user ruling 2026-11-11): one clocked sample, 0.25 host
+    // samples at 4x (was ADAA1's 0.125), so the reference shift is 0.230 (was 0.105)
+    const double shift = 6.4743 + 0.25 + 0.506 - 7.0;
     std::printf("T6.05 ADAA1 arrival re dry: TriangleFold band %.3f, SineFold band %.3f samples at 1 kHz (%+.3f); "
                 "TriangleFold patch dry %.3f (L %ld + shift %.3f)\n", rel[0], rel[1], rel[0] - rel[1], dryTri, reported,
                 shift);
@@ -2137,11 +2152,11 @@ TEST_CASE("Global mix: dry and wet arrive at the same group delay with an oversa
     // offset (48 kHz: 2x without a 4x band -0.759, 4x -0.506), +/- 0.1 sample. ffd51f47: wet =
     // dry +0.005 / +0.008; the impulse peaks of T2.10 coincided while the 4x wet path was 0.52
     // samples early.
-    for (const int factor : {2, 4}) {
+    for (const int factor : {2, 4, 8}) {
         std::array<double, 2> gd{};
         long reported = 0;
         for (const int wet : {0, 1}) {
-            auto l = latBase(1, 4);
+            auto l = latBase(1, factor >= 8 ? 8 : 4);
             setNode(l, 0, 0, typeAtFactor(factor), 1.0, 0.0);
             l.emplace_back(kGlobalMixId, static_cast<double>(wet));
             const auto r = latMeasure(l);
@@ -2216,9 +2231,9 @@ double pathArrival1k(const std::vector<std::complex<double>>& t2, double sr) {
 
 TEST_CASE("Minimax alignment of Mix 50 % and the crossover sums with arrival per rate and factor", "[disrumpo][latency][D-026]") {
     // Follow-up 81, minimax ruling (2026-11-09). Paths re the dry path, from one-band patches
-    // (node mix 0: the oversampler and the compensation only): a 2x band alone (SoftClip), a
-    // 2x band in a patch with a 4x-capable band (SoftClip node + HardClip node, morph on the
-    // SoftClip one), a 4x band (HardClip). A 1x band is the dry path (1). Over 20 Hz - 20 kHz
+    // (node mix 0: the oversampler and the compensation only): a 2x band alone (Tube), a
+    // 2x band in a patch with a 4x-capable band (Tube node + HardClip node, morph on the
+    // Tube one), a 4x band (HardClip). A 1x band is the dry path (1). Over 20 Hz - 20 kHz
     // (1/24 octave), each band's own roll-off divided out as in probe [p6s-minimax]:
     // - Mix 50 % "excess" for each of the three;
     // - crossover-sum "cancel" (worst over every crossover position) for 1x + 2x (alone and
@@ -2256,8 +2271,8 @@ TEST_CASE("Minimax alignment of Mix 50 % and the crossover sums with arrival per
         for (const auto& b : kBars) {
             if (b.sr == sr) bar = b;
         }
-        const auto t2a = bandPath(sr, {DT::SoftClip}, freqs);
-        const auto t2w = bandPath(sr, {DT::SoftClip, DT::HardClip}, freqs);
+        const auto t2a = bandPath(sr, {DT::Tube}, freqs);
+        const auto t2w = bandPath(sr, {DT::Tube, DT::HardClip}, freqs);
         const auto t4 = bandPath(sr, {DT::HardClip}, freqs);
         const std::vector<std::complex<double>> one(freqs.size(), {1.0, 0.0});
         const WorstDb m2a = mixExcess(t2a, freqs);
@@ -2267,8 +2282,8 @@ TEST_CASE("Minimax alignment of Mix 50 % and the crossover sums with arrival per
         const WorstDb x12w = crossoverCancel(one, t2w, freqs);
         const WorstDb x14 = crossoverCancel(one, t4, freqs);
         const WorstDb x24 = crossoverCancel(t2w, t4, freqs);
-        const double a2a = pathArrival1k(bandPath(sr, {DT::SoftClip}, at1k), sr);
-        const double a2w = pathArrival1k(bandPath(sr, {DT::SoftClip, DT::HardClip}, at1k), sr);
+        const double a2a = pathArrival1k(bandPath(sr, {DT::Tube}, at1k), sr);
+        const double a2w = pathArrival1k(bandPath(sr, {DT::Tube, DT::HardClip}, at1k), sr);
         const double a4 = pathArrival1k(bandPath(sr, {DT::HardClip}, at1k), sr);
         std::printf("T6.05 minimax %.0f Hz: Mix 50 %% 2x alone %+.3f @%.0f, 2x with 4x %+.3f @%.0f, 4x %+.3f @%.0f | "
                     "crossover 1x+2x alone %+.3f @%.0f, 1x+2x with 4x %+.3f @%.0f, 1x+4x %+.3f @%.0f, 2x+4x %+.3f "
@@ -2292,8 +2307,8 @@ TEST_CASE("Minimax alignment of Mix 50 % and the crossover sums with arrival per
 TEST_CASE("A 2x band's minimax offset crossfades when only the alignment context changes",
           "[disrumpo][latency][D-026]") {
     // Minimax ruling (2026-11-09): a 2x band's offset depends on whether any band can run at
-    // 4x (48 kHz: -0.759 without, -0.409 with). Band 1's node switches SoftClip -> HardClip
-    // (4x-capable) while a 220 Hz sine runs through band 0 (SoftClip, 2x, drive 1); band 2's
+    // 4x (48 kHz: -0.759 without, -0.409 with). Band 1's node switches Tube -> HardClip
+    // (4x-capable) while a 220 Hz sine runs through band 0 (Tube, 2x, drive 1); band 2's
     // Spectral node (fft 512 at 1x) holds the reported latency at 511 either way, so only the
     // alignment context changes. The reported latency does not change, so there is no output
     // dip (user ruling 2026-11-09, follow-up 6): the bands and the dry path crossfade from the
@@ -2304,8 +2319,8 @@ TEST_CASE("A 2x band's minimax offset crossfades when only the alignment context
     constexpr size_t kEv = 48 * kBlock;
     constexpr size_t kLen = kEv + 40 * kBlock;
     auto l = latBase(3, 4);
-    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);
-    setNode(l, 1, 0, DistortionType::SoftClip, 0.1, 1.0);
+    setNode(l, 0, 0, DistortionType::Tube, 0.1, 1.0);
+    setNode(l, 1, 0, DistortionType::Tube, 0.1, 1.0);
     setNode(l, 2, 0, DistortionType::Spectral, 0.1, 1.0);
     l.emplace_back(makeNodeParamId(2, 0, NodeParamType::kNodeShape1), fftSlotNorm(512));
     Rig rig(kLatSr);
@@ -2338,7 +2353,7 @@ TEST_CASE("A 2x band's minimax offset crossfades when only the alignment context
 TEST_CASE("An alignment-context change at an unchanged latency crossfades without a dip",
           "[disrumpo][latency][D-034][D-026]") {
     // User ruling 2026-11-09 (follow-up 6): the processor dips its output only where the
-    // reported latency changes. Band 0 SoftClip (2x), band 1 HardClip (4x), band 2 Spectral (fft
+    // reported latency changes. Band 0 Tube (2x), band 1 HardClip (4x), band 2 Spectral (fft
     // 512 at 1x, holding the latency at 511), drive 1, a 220 Hz sine at -12 dBFS. Oversample Max
     // 4x -> 2x: band 1 switches 4x -> 2x and no band can reach 4x any more, so band 0's minimax
     // offset moves (48 kHz: -0.409 -> -0.759) while the latency stays 511. Both bands crossfade
@@ -2349,7 +2364,7 @@ TEST_CASE("An alignment-context change at an unchanged latency crossfades withou
     constexpr size_t kEv = 48 * kBlock;
     constexpr size_t kLen = kEv + 40 * kBlock;
     auto l = latBase(3, 4);
-    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);
+    setNode(l, 0, 0, DistortionType::Tube, 0.1, 1.0);
     setNode(l, 1, 0, DistortionType::HardClip, 0.1, 1.0);
     setNode(l, 2, 0, DistortionType::Spectral, 0.1, 1.0);
     l.emplace_back(makeNodeParamId(2, 0, NodeParamType::kNodeShape1), fftSlotNorm(512));
@@ -2422,9 +2437,14 @@ TEST_CASE("A factor crossfade into a lane with a Spectral node waits for its lat
         rig.apply(l);
         rig.apply({{makeBandParamId(0, BandParamType::kBandMorphX), 1.0 - toX}});
         rig.reactivate();
+        // Re-baselined (drive re-stage, user ruling 2026-11-10): -30.06 dBFS, where the re-staged
+        // HardClip sees the drive this case was written for. At -12 dBFS it runs 18 dB hotter, its
+        // squared output and Spectral's decorrelate and the 10 ms linear crossfade between the
+        // lanes dips 1.13 dB below the range (4x -> 1x)
         std::vector<float> in(kLen);
         for (size_t n = 0; n < kLen; ++n) {
-            in[n] = static_cast<float>(0.25 * std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(n) / kLatSr));
+            in[n] = static_cast<float>(0.25 * 0.125 *
+                                       std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(n) / kLatSr));
         }
         std::vector<float> outL;
         std::vector<float> outR;
@@ -2459,7 +2479,7 @@ TEST_CASE("Reported latency holds through a morph sweep; Oversample Max and node
           "[disrumpo][latency][D-026]") {
     auto l = latBase(1, 4);
     l.emplace_back(makeBandParamId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0);  // 2 nodes
-    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);  // recommends 2x
+    setNode(l, 0, 0, DistortionType::Tube, 0.1, 1.0);  // recommends 2x
     setNode(l, 0, 1, DistortionType::HardClip, 0.1, 1.0);  // recommends 4x
     Rig rig(kLatSr);
     rig.apply(l);
@@ -2542,11 +2562,11 @@ TEST_CASE("Reported latency holds through a morph sweep; Oversample Max and node
 }
 
 TEST_CASE("A factor switch with its compensation-delay change does not click", "[disrumpo][latency][D-026]") {
-    // SoftClip (2x) and HardClip (4x) nodes, both near-linear at -12 dBFS; morph X jumps
+    // Tube (2x) and HardClip (4x) nodes, both near-linear at -12 dBFS; morph X jumps
     // 0 -> 1 at 1 s, so the band switches 2x -> 4x and its compensation delay changes.
     auto l = latBase(1, 4);
     l.emplace_back(makeBandParamId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0);
-    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);
+    setNode(l, 0, 0, DistortionType::Tube, 0.1, 1.0);
     setNode(l, 0, 1, DistortionType::HardClip, 0.1, 1.0);
     Rig rig(kLatSr);
     rig.apply(l);
@@ -2601,7 +2621,7 @@ TEST_CASE("getTailSamples reports a tail while a ringing type is active", "[disr
 
 TEST_CASE("A latency change allocates nothing in process()", "[disrumpo][latency][rt-safety][D-026]") {
     auto l = latBase(2, 4);
-    setNode(l, 0, 0, DistortionType::SoftClip, 0.1, 1.0);
+    setNode(l, 0, 0, DistortionType::Tube, 0.1, 1.0);
     setNode(l, 1, 0, DistortionType::HardClip, 0.1, 1.0);
     Rig rig(kLatSr);
     rig.apply(l);
@@ -3042,6 +3062,229 @@ TEST_CASE("setState from a second thread during processing keeps the output fini
     CHECK(failedLoads == 0);
     CHECK(blocks.load() > static_cast<size_t>(kLoads));
     CHECK(nonFinite == 0u);
+}
+
+// Some hosts (possibly Plugin Buddy) call setActive on their audio thread while
+// setState runs on the main thread. setState applies at once when processing is
+// stopped (D-003); if it read "inactive" while the audio thread was reactivating,
+// it went on writing the live DSP objects after setActive(true) had returned,
+// so the audio thread's next process() ran on objects another thread was writing.
+// Measured as a live write after activation: band 1 node 1's type read on the
+// audio thread right after setActive(true) and again after setState returned,
+// with no process() in between (a deferred load applies only in process()).
+TEST_CASE("setActive on the audio thread racing setState on the main thread: no live write after activation",
+          "[disrumpo][rt-safety][D-003][lifecycle]") {
+    constexpr int32 kBlock = 256;
+    constexpr int kIterations = 1000;
+    const auto a = readPresetComponent(presetPath("Morph/Multi_Band_Morph.vstpreset"));
+    const auto b = readPresetComponent(presetPath("Morph/Radial_Blend.vstpreset"));
+    REQUIRE(decodePatch(a).bands[0].types[0] != decodePatch(b).bands[0].types[0]);
+
+    Rig rig(48000.0, kBlock);
+    REQUIRE(setStateBytes(*rig.p, b));
+    const auto in = sine440(48000.0, -12.0, static_cast<size_t>(kBlock));
+    const auto liveType = [&rig] { return rig.p->getBandProcessor(0).getMorphEngine()->getNodeType(0); };
+
+    std::atomic<int> go{-1};        // iteration the main thread released
+    std::atomic<int> loaded{-1};    // iteration whose setState returned
+    std::atomic<int> finished{-1};  // iteration the audio thread completed
+    int lateWrites = 0;             // audio thread only, read after join
+    size_t nonFinite = 0;
+    std::atomic<long long> reactivateNs{0};  // longest setActive(false) + setActive(true) so far
+    std::thread audio{[&] {
+        std::vector<float> bL(kBlock);
+        std::vector<float> bR(kBlock);
+        std::vector<float> oL(kBlock);
+        std::vector<float> oR(kBlock);
+        for (int i = 0; i < kIterations; ++i) {
+            while (go.load(std::memory_order_acquire) < i) std::this_thread::yield();
+            const auto t0 = std::chrono::steady_clock::now();
+            rig.p->setActive(static_cast<Steinberg::TBool>(false));
+            rig.p->setActive(static_cast<Steinberg::TBool>(true));
+            const auto afterActivate = liveType();
+            const long long ns =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count();
+            if (ns > reactivateNs.load(std::memory_order_relaxed)) reactivateNs.store(ns, std::memory_order_relaxed);
+            while (loaded.load(std::memory_order_acquire) < i) std::this_thread::yield();
+            if (liveType() != afterActivate) ++lateWrites;
+            std::copy(in.begin(), in.end(), bL.begin());
+            std::copy(in.begin(), in.end(), bR.begin());
+            rig.processBlock(bL.data(), bR.data(), oL.data(), oR.data(), kBlock, nullptr);
+            for (int32 k = 0; k < kBlock; ++k)
+                if (!fin(oL[static_cast<size_t>(k)]) || !fin(oR[static_cast<size_t>(k)])) ++nonFinite;
+            finished.store(i, std::memory_order_release);
+        }
+    }};
+    std::mt19937 rng(20261111u);
+    int failedLoads = 0;
+    for (int i = 0; i < kIterations; ++i) {
+        go.store(i, std::memory_order_release);
+        // Sweep the start of setState across the audio thread's setActive(false) / setActive(true):
+        // a uniform delay over 1.25 x the longest reactivation measured so far
+        const auto start = std::chrono::steady_clock::now();
+        const auto span = static_cast<unsigned long long>(reactivateNs.load(std::memory_order_relaxed)) * 5u / 4u + 1u;
+        const auto jitter = std::chrono::nanoseconds(static_cast<long long>(rng() % span));
+        while (std::chrono::steady_clock::now() - start < jitter) {
+        }
+        if (!setStateBytes(*rig.p, (i % 2 == 0) ? a : b)) ++failedLoads;
+        loaded.store(i, std::memory_order_release);
+        while (finished.load(std::memory_order_acquire) < i) std::this_thread::yield();
+    }
+    audio.join();
+    std::printf("D-003 setActive (audio thread) vs setState (main thread): %d iterations, %d live writes after "
+                "setActive(true) returned (want 0), %d failed loads, %zu non-finite samples; longest "
+                "reactivation %.1f us\n",
+                kIterations, lateWrites, failedLoads, nonFinite, static_cast<double>(reactivateNs.load()) / 1000.0);
+    CHECK(lateWrites == 0);
+    CHECK(failedLoads == 0);
+    CHECK(nonFinite == 0u);
+}
+
+// The same hosts may call setupProcessing on their audio thread while setState runs on
+// the main thread, both while processing is stopped. setupProcessing rebuilds the band
+// processors (fresh morph engines and shapers) and re-pushes the morph cache; setState
+// applies at once and writes the same objects. Measured after both returned (nothing
+// else running): the processor's saved state and band 1-4 morph engines' node types must
+// be the loaded patch's, as when the two calls run one after the other.
+TEST_CASE("setupProcessing on the audio thread racing setState on the main thread: the loaded patch is what runs",
+          "[disrumpo][rt-safety][D-003][lifecycle]") {
+    constexpr int32 kBlock = 256;
+    constexpr int kIterations = 300;
+    const auto a = readPresetComponent(presetPath("Morph/Multi_Band_Morph.vstpreset"));
+    const auto b = readPresetComponent(presetPath("Morph/Radial_Blend.vstpreset"));
+    REQUIRE(decodePatch(a).bands[0].types[0] != decodePatch(b).bands[0].types[0]);
+
+    Rig rig(48000.0, kBlock);
+    rig.deactivate();
+    Steinberg::Vst::ProcessSetup ps{};
+    ps.processMode = Steinberg::Vst::kRealtime;
+    ps.symbolicSampleSize = Steinberg::Vst::kSample32;
+    ps.sampleRate = 48000.0;
+    ps.maxSamplesPerBlock = kBlock;
+
+    // What the instance saves with each patch loaded, the calls one after the other
+    REQUIRE(setStateBytes(*rig.p, b));
+    REQUIRE(setStateBytes(*rig.p, a));
+    const auto refA = getStateBytes(*rig.p);
+    REQUIRE(setStateBytes(*rig.p, b));
+    const auto refB = getStateBytes(*rig.p);
+    REQUIRE(rig.p->setupProcessing(ps) == Steinberg::kResultOk);
+    REQUIRE(getStateBytes(*rig.p) == refB);
+    REQUIRE(refA != refB);
+    const PatchView patchA = decodePatch(refA);
+    const PatchView patchB = decodePatch(refB);
+    const auto engineMismatches = [&rig](const PatchView& want) {
+        int n = 0;
+        for (size_t band = 0; band < kBands; ++band) {
+            const auto* engine = rig.p->getBandProcessor(static_cast<int>(band)).getMorphEngine();
+            for (int node = 0; node < want.bands[band].activeNodes; ++node)
+                if (static_cast<int8_t>(engine->getNodeType(node)) != want.bands[band].types[static_cast<size_t>(node)])
+                    ++n;
+        }
+        return n;
+    };
+    REQUIRE(engineMismatches(patchB) == 0);
+
+    std::atomic<int> go{-1};        // iteration the main thread released
+    std::atomic<int> finished{-1};  // iteration whose setupProcessing returned
+    std::atomic<long long> setupNs{0};  // longest setupProcessing so far
+    std::thread audio{[&] {
+        for (int i = 0; i < kIterations; ++i) {
+            while (go.load(std::memory_order_acquire) < i) std::this_thread::yield();
+            const auto t0 = std::chrono::steady_clock::now();
+            rig.p->setupProcessing(ps);
+            const long long ns =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count();
+            if (ns > setupNs.load(std::memory_order_relaxed)) setupNs.store(ns, std::memory_order_relaxed);
+            finished.store(i, std::memory_order_release);
+        }
+    }};
+    std::mt19937 rng(20261111u);
+    int failedLoads = 0;
+    int staleStates = 0;   // saved state is not the loaded patch's
+    int staleEngines = 0;  // iterations whose engines run a node type the patch does not have
+    for (int i = 0; i < kIterations; ++i) {
+        go.store(i, std::memory_order_release);
+        // Sweep the start of setState across the audio thread's setupProcessing:
+        // a uniform delay over 1.25 x the longest one measured so far
+        const auto start = std::chrono::steady_clock::now();
+        const auto span = static_cast<unsigned long long>(setupNs.load(std::memory_order_relaxed)) * 5u / 4u + 1u;
+        const auto jitter = std::chrono::nanoseconds(static_cast<long long>(rng() % span));
+        while (std::chrono::steady_clock::now() - start < jitter) {
+        }
+        const bool loadA = i % 2 == 0;
+        if (!setStateBytes(*rig.p, loadA ? a : b)) ++failedLoads;
+        while (finished.load(std::memory_order_acquire) < i) std::this_thread::yield();
+        if (getStateBytes(*rig.p) != (loadA ? refA : refB)) ++staleStates;
+        if (engineMismatches(loadA ? patchA : patchB) != 0) ++staleEngines;
+    }
+    audio.join();
+    std::printf("D-003 setupProcessing (audio thread) vs setState (main thread): %d iterations, %d saved states "
+                "not the loaded patch (want 0), %d with a morph engine off the patch (want 0), %d failed loads; "
+                "longest setupProcessing %.1f us\n",
+                kIterations, staleStates, staleEngines, failedLoads, static_cast<double>(setupNs.load()) / 1000.0);
+    CHECK(staleStates == 0);
+    CHECK(staleEngines == 0);
+    CHECK(failedLoads == 0);
+}
+
+// getState on one thread while setState runs on another (a host saving its project while
+// a preset loads, processing stopped): every saved stream must be one of the two states,
+// never part of one and part of the other. The two states are host states with their
+// instance-ID trailers (saved by two other instances, then closed), so the trailer a
+// load re-registers is part of the comparison.
+TEST_CASE("getState racing setState on another thread saves one whole state, never a mix",
+          "[disrumpo][rt-safety][D-003][lifecycle]") {
+    constexpr int kLoads = 2000;
+    const auto savedBy = [](const char* preset) {
+        Rig other(48000.0, 256);
+        REQUIRE(setStateBytes(*other.p, readPresetComponent(presetPath(preset))));
+        return getStateBytes(*other.p);
+    };
+    const auto a = savedBy("Morph/Multi_Band_Morph.vstpreset");
+    const auto b = savedBy("Morph/Radial_Blend.vstpreset");
+
+    Rig rig(48000.0, 256);
+    rig.deactivate();
+    REQUIRE(setStateBytes(*rig.p, a));
+    const auto refA = getStateBytes(*rig.p);
+    REQUIRE(setStateBytes(*rig.p, b));
+    const auto refB = getStateBytes(*rig.p);
+    REQUIRE(refA != refB);
+    REQUIRE(setStateBytes(*rig.p, a));
+    REQUIRE(getStateBytes(*rig.p) == refA);
+    const size_t trailerAt = refA.size() - 12;  // marker + 64-bit instance ID
+    REQUIRE(refB.size() == refA.size());
+
+    std::atomic<bool> stop{false};
+    size_t saves = 0;          // saver thread only, read after join
+    size_t tornBody = 0;       // first difference before the instance-ID trailer
+    size_t tornTrailer = 0;    // body whole, trailer of the other state
+    size_t firstTornAt = SIZE_MAX;  // byte offset of the first torn save's mix point
+    std::thread saver{[&] {
+        while (!stop.load(std::memory_order_acquire)) {
+            const auto s = getStateBytes(*rig.p);
+            ++saves;
+            if (s == refA || s == refB) continue;
+            const size_t at = std::max(firstDifference(s, refA), firstDifference(s, refB));
+            if (firstTornAt == SIZE_MAX) firstTornAt = at;
+            if (at < trailerAt) ++tornBody; else ++tornTrailer;
+        }
+    }};
+    int failedLoads = 0;
+    for (int i = 0; i < kLoads; ++i)
+        if (!setStateBytes(*rig.p, (i % 2 == 0) ? b : a)) ++failedLoads;
+    stop.store(true, std::memory_order_release);
+    saver.join();
+    std::printf("D-003 getState vs setState (processing stopped): %d loads, %zu saves, %zu torn in the body, "
+                "%zu with the other state's instance ID (want 0 and 0; first mix at byte %zu of %zu, trailer at "
+                "%zu), %d failed loads\n",
+                kLoads, saves, tornBody, tornTrailer, firstTornAt == SIZE_MAX ? size_t{0} : firstTornAt, refA.size(),
+                trailerAt, failedLoads);
+    CHECK(saves > 0u);
+    CHECK(tornBody == 0u);
+    CHECK(tornTrailer == 0u);
+    CHECK(failedLoads == 0);
 }
 
 // Audit T6.09 (probe "sample-rate consistency", D-138 / T1.06): the same 4-band chain

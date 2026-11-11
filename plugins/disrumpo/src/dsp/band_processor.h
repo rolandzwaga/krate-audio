@@ -46,12 +46,13 @@ public:
     // Constants
     // =========================================================================
 
-    /// @brief Highest factor (D-009, D-034: the factor rounding never selects 8x, so the
-    /// 8x cascade is gone and "8x" Oversample Max maps to 4x).
-    static constexpr int kMaxOversampleFactor = 4;
+    /// @brief Highest factor: 8x, for the types that alias past -50 dB at 4x with the re-staged
+    /// drive (user ruling 2026-11-10; D-009 / D-034 had capped the "8x" Oversample Max at 4x).
+    static constexpr int kMaxOversampleFactor = 8;
     static constexpr int kDefaultOversampleFactor = 2;
-    /// @brief Default global limit, equal to the processor's Oversample Max default (D-134).
-    static constexpr int kDefaultMaxOversampleFactor = 4;
+    /// @brief Default global limit, equal to the processor's Oversample Max default (D-134):
+    /// "8x" (user ruling 2026-11-10).
+    static constexpr int kDefaultMaxOversampleFactor = 8;
     static constexpr size_t kMaxBlockSize = 2048;
 
     /// @brief Highest per-band sweep intensity (200 %, FR-SWEEP-002).
@@ -66,7 +67,6 @@ public:
     /// @brief Fade-in of a band input that emerges from an empty compensation delay
     /// (armCompensationFadeIn), in milliseconds.
     static constexpr float kCompensationFadeMs = 5.0f;
-
     /// @brief Largest latency a band can have or be compensated to, in host samples: a
     /// Spectral node at the largest FFT size clocked at 1x (D-026, T2.10).
     static constexpr int kMaxLatencySamples = DistortionAdapter::kMaxLatencySamples;
@@ -162,6 +162,8 @@ public:
                               Krate::DSP::OversamplingMode::ZeroLatency);
             lane.os4x.prepare(sampleRate, maxBlockSize_, Krate::DSP::OversamplingQuality::Economy,
                               Krate::DSP::OversamplingMode::ZeroLatency);
+            lane.os8x.prepare(sampleRate, maxBlockSize_, Krate::DSP::OversamplingQuality::Economy,
+                              Krate::DSP::OversamplingMode::ZeroLatency);
 
             // Sub-sample remainder of the compensation at the clocked rate (below one host sample)
             lane.fracDelayL.prepare(1.0, static_cast<float>(kMaxOversampleFactor + 1));
@@ -178,6 +180,7 @@ public:
             lane.morphL->useAttachedAdapters();
             lane.morphR->useAttachedAdapters();
             lane.clockFactor = 1;
+            lane.heldNodes = false;
         });
         forEachMorphEngine([this](MorphEngine& engine) {
             engine.prepare(sampleRate_, static_cast<int>(maxBlockSize_ * kMaxOversampleFactor),
@@ -195,12 +198,14 @@ public:
         }
 
         // The IIR up/down filters delay the band by their impulse-peak delay (T1.07
-        // measured 4 samples at 2x and 7 at 4x at 48 kHz); measure it at this rate. The
+        // measured 4 samples at 2x and 7 at 4x at 48 kHz, 11 at 8x); measure it at this rate. The
         // reported latency is built from it; the band is aligned by its group delay
-        oversamplerLatency_ = {0, measureImpulseDelay(lane0_.os2x), measureImpulseDelay(lane0_.os4x)};
-        oversamplerGroupDelay_ = {0.0, measureGroupDelay(lane0_.os2x), measureGroupDelay(lane0_.os4x)};
+        oversamplerLatency_ = {0, measureImpulseDelay(lane0_.os2x), measureImpulseDelay(lane0_.os4x),
+                               measureImpulseDelay(lane0_.os8x)};
+        oversamplerGroupDelay_ = {0.0, measureGroupDelay(lane0_.os2x), measureGroupDelay(lane0_.os4x),
+                                  measureGroupDelay(lane0_.os8x)};
         alignmentOffset_ = {minimaxAlignmentOffset(2, sampleRate, false), minimaxAlignmentOffset(2, sampleRate, true),
-                            minimaxAlignmentOffset(4, sampleRate, true)};
+                            minimaxAlignmentOffset(4, sampleRate, true), minimaxAlignmentOffset(8, sampleRate, true)};
 
         // Latency compensation delay of the band input (D-026), one for both lanes: sized for
         // the largest latency; DelayLine sizes in seconds x rate, so a rate of 1 makes them samples
@@ -237,6 +242,7 @@ public:
         forEachLane([](Lane& lane) {
             lane.os2x.reset();
             lane.os4x.reset();
+            lane.os8x.reset();
             if (lane.distortionL) lane.distortionL->reset();
             if (lane.distortionR) lane.distortionR->reset();
             resetFractionalDelay(lane);
@@ -366,12 +372,25 @@ public:
     /// @param activeCount Number of active nodes (2-4)
     void setMorphNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, int activeCount) noexcept {
         if (lane0_.morphL) {
-            forEachMorphEngine([&](MorphEngine& engine) { engine.setNodes(nodes, activeCount); });
             morphEnabled_ = true;
             morphActiveNodeCount_ = activeCount;
             morphNodes_ = nodes;
             // FR-017: Recalculate oversampling factor when morph nodes change
             recalculateOversampleFactor();
+            // A node type change that moves the band to another lane plan (its factor) crossfades
+            // from the running lane at its old node types: that lane keeps them until the crossfade
+            // ends, so the switch is the 10 ms lane crossfade from the old types to the new ones
+            // (user ruling 2026-11-11, round 3; its adapters' own 5 ms type fade read as a faster,
+            // different transition)
+            if (processedSinceReset_ && !crossfading_) {
+                Lane& run = activeLaneRef();
+                run.heldNodes = (run.heldNodes || nodeSetDiffers(*run.morphL)) && crossfadeNeeded(run);
+            }
+            forEachLane([&](Lane& lane) {
+                if (lane.heldNodes) return;
+                lane.morphL->setNodes(nodes, activeCount);
+                lane.morphR->setNodes(nodes, activeCount);
+            });
         }
     }
 
@@ -487,7 +506,7 @@ public:
 
     /// @brief Set the maximum oversampling factor (global limit).
     /// Modified for spec 009: triggers recalculation and a factor switch (FR-016)
-    /// @param factor Maximum factor (1, 2 or 4; larger values clamp to 4)
+    /// @param factor Maximum factor (1, 2, 4 or 8; larger values clamp to 8)
     void setMaxOversampleFactor(int factor) noexcept {
         maxOversampleFactor_ = std::clamp(factor, 1, kMaxOversampleFactor);
         // FR-016, FR-017: Recalculate and potentially switch
@@ -516,13 +535,13 @@ public:
     // Latency (D-026, D-081, D-098, follow-up 5; fix plan T2.10)
     // =========================================================================
     // A band delays its signal by its oversampler's IIR filters (impulse-peak delay,
-    // 0 / 4 / 7 samples at 1x / 2x / 4x) plus its type latency (Spectral: FFT size - 1
+    // 0 / 4 / 7 / 11 samples at 1x / 2x / 4x / 8x) plus its type latency (Spectral: FFT size - 1
     // clocked samples). The factor moves with morph, sweep and the drive gate, so the
     // processor reports the worst case the band's discrete settings allow
     // (getWorstCaseLatency) and sets it as the target (setLatencyTarget). The band then
     // delays its input by target - its group delay at the factor it runs at (follow-up 81,
-    // user ruling 2026-11-09): the oversampler's low-frequency group delay (3.00 / 6.47
-    // samples at 2x / 4x), the type latency and ADAA1's half clocked sample, so every band
+    // user ruling 2026-11-09): the oversampler's low-frequency group delay (3.00 / 6.47 /
+    // 10.06 samples at 2x / 4x / 8x), the type latency and ADAA1's half clocked sample, so every band
     // and the dry path arrive at the target's group delay. The whole host samples of that
     // delay run through compDelay*, the rest through a first-order allpass (Thiran) at the
     // clocked rate, where 20 kHz is at most 0.23 of its rate. The node's own tone and DC
@@ -534,14 +553,20 @@ public:
     /// @brief Latency the band adds at its running factor, before compensation (host samples).
     [[nodiscard]] int getLatency() const noexcept { return latencyAtClock(runningLane().clockFactor); }
 
-    /// @brief Largest latency the band can reach at its current discrete settings: node
-    /// types, Spectral FFT sizes and the Oversample Max cap (host samples). Morph position,
-    /// sweep, modulation and drive never change it.
+    /// @brief Largest latency the band can reach at its current discrete settings: every factor
+    /// up to the Oversample Max cap and the latent types' own latency (Spectral FFT sizes,
+    /// Granular) (host samples). Morph position, sweep, modulation, drive and a switch between
+    /// non-latent node types never change it.
     [[nodiscard]] int getWorstCaseLatency() const noexcept {
-        const int reach = maxReachableFactor();
+        // Every factor up to Oversample Max, whatever the node types recommend: a switch between
+        // non-latent types never changes the latency, so its factor change crossfades the lanes
+        // instead of going through the processor's latency dip (user ruling 2026-11-11, round 3:
+        // SoftClip -> Tube dipped -17 dB at 4 ms)
+        const int reach = maxOversampleFactor_;
         int worst = latencyAtClock(1);  // the drive gate can always clock the band at 1x
         if (reach >= 2) worst = std::max(worst, latencyAtClock(2));
         if (reach >= 4) worst = std::max(worst, latencyAtClock(4));
+        if (reach >= 8) worst = std::max(worst, latencyAtClock(8));
         return std::min(worst, kMaxLatencySamples);
     }
 
@@ -553,12 +578,12 @@ public:
     /// @brief The target set by setLatencyTarget().
     [[nodiscard]] int getLatencyTarget() const noexcept { return latencyTarget_; }
 
-    /// @brief Impulse-peak delay of the oversampler at @p factor (1, 2, 4), measured in prepare().
+    /// @brief Impulse-peak delay of the oversampler at @p factor (1, 2, 4, 8), measured in prepare().
     [[nodiscard]] int getOversamplerLatency(int factor) const noexcept {
         return oversamplerLatency_[factorIndex(factor)];
     }
 
-    /// @brief Low-frequency group delay of the oversampler at @p factor (1, 2, 4) in host
+    /// @brief Low-frequency group delay of the oversampler at @p factor (1, 2, 4, 8) in host
     /// samples, measured in prepare() (the impulse response's first moment).
     [[nodiscard]] double getOversamplerGroupDelay(int factor) const noexcept {
         return oversamplerGroupDelay_[factorIndex(factor)];
@@ -568,8 +593,10 @@ public:
     /// samples, at @p sampleRate (user rulings 2026-11-09, probe [p6s-minimax]): the delay that
     /// minimises the worst deviation over 20 Hz - 20 kHz of Mix 50 % and of the crossover sums
     /// (each oversampler's own roll-off divided out), from the oversamplers' measured responses.
-    /// A 2x band takes the 1x + 2x optimum when no band can run at 4x, and the joint 1x / 2x /
-    /// 4x optimum when one can. Tabulated at 44.1 / 48 / 88.2 / 96 / 176.4 / 192 kHz, linear
+    /// A 2x band takes the 1x + 2x optimum when no band can run at 4x or 8x, and the joint 1x /
+    /// 2x / 4x optimum when one can. An 8x band (user ruling 2026-11-10) takes the offset that
+    /// minimises the worst of its pairs with the dry path, a 2x and a 4x band at those offsets
+    /// (probe [p6s-minimax8]). Tabulated at 44.1 / 48 / 88.2 / 96 / 176.4 / 192 kHz, linear
     /// in the rate between, clamped outside. 1x: 0.
     [[nodiscard]] static double minimaxAlignmentOffset(int factor, double sampleRate, bool fourXPresent) noexcept {
         struct Row {
@@ -577,17 +604,19 @@ public:
             double offset2Alone;
             double offset2With4x;
             double offset4;
+            double offset8;
         };
         static constexpr std::array<Row, 6> kTable = {{
-            {.rate = 44100.0, .offset2Alone = -0.999, .offset2With4x = -0.269, .offset4 = -0.496},
-            {.rate = 48000.0, .offset2Alone = -0.759, .offset2With4x = -0.409, .offset4 = -0.506},
-            {.rate = 88200.0, .offset2Alone = -0.159, .offset2With4x = -0.159, .offset4 = -0.266},
-            {.rate = 96000.0, .offset2Alone = -0.129, .offset2With4x = -0.129, .offset4 = -0.216},
-            {.rate = 176400.0, .offset2Alone = -0.039, .offset2With4x = -0.039, .offset4 = -0.066},
-            {.rate = 192000.0, .offset2Alone = -0.029, .offset2With4x = -0.029, .offset4 = -0.056},
+            {.rate = 44100.0, .offset2Alone = -0.999, .offset2With4x = -0.269, .offset4 = -0.496, .offset8 = -0.908},
+            {.rate = 48000.0, .offset2Alone = -0.759, .offset2With4x = -0.409, .offset4 = -0.506, .offset8 = -0.878},
+            {.rate = 88200.0, .offset2Alone = -0.159, .offset2With4x = -0.159, .offset4 = -0.266, .offset8 = -0.358},
+            {.rate = 96000.0, .offset2Alone = -0.129, .offset2With4x = -0.129, .offset4 = -0.216, .offset8 = -0.298},
+            {.rate = 176400.0, .offset2Alone = -0.039, .offset2With4x = -0.039, .offset4 = -0.066, .offset8 = -0.088},
+            {.rate = 192000.0, .offset2Alone = -0.029, .offset2With4x = -0.029, .offset4 = -0.056, .offset8 = -0.068},
         }};
         if (factor <= 1) return 0.0;
         const auto pick = [factor, fourXPresent](const Row& r) {
+            if (factor >= 8) return r.offset8;
             if (factor >= 4) return r.offset4;
             return fourXPresent ? r.offset2With4x : r.offset2Alone;
         };
@@ -601,7 +630,7 @@ public:
         return pick(kTable.back());
     }
 
-    /// @brief Alignment context from the processor: whether any of its bands can run at 4x
+    /// @brief Alignment context from the processor: whether any of its bands can run at 4x or 8x
     /// (selects the 2x offset) and the extra delay every path takes so that no band needs a
     /// negative wait (requiredReferenceShift). Takes effect at the next block, through a
     /// crossfade when it moves the band's arrival (follow-up 6), or at once when the processor
@@ -613,7 +642,7 @@ public:
         referenceShift_ = std::clamp(referenceShift, 0.0, 1.0);
     }
 
-    /// @brief True when the band's discrete settings let it run at 4x.
+    /// @brief True when the band's discrete settings let it run at 4x or 8x.
     [[nodiscard]] bool canReach4x() const noexcept { return maxReachableFactor() >= 4; }
 
     /// @brief Extra delay the common reference needs so this band, at any factor it can reach,
@@ -623,7 +652,7 @@ public:
     [[nodiscard]] double requiredReferenceShift(int target, bool fourXPresent) const noexcept {
         double need = 0.0;
         const int reach = maxReachableFactor();
-        for (const int f : {2, 4}) {
+        for (const int f : {2, 4, 8}) {
             if (f > reach) continue;
             const double wait = static_cast<double>(target) - groupDelayAtClock(f) +
                                 minimaxAlignmentOffset(f, sampleRate_, fourXPresent);
@@ -694,7 +723,7 @@ public:
     /// to the outgoing lane's factor reverses the crossfade; any other request during it starts
     /// a new crossfade when it ends. Before any audio has been processed since prepare()/reset()
     /// the factor switches at once. FR-017: no switch if the factor is unchanged.
-    /// @param factor Target oversampling factor (1, 2 or 4)
+    /// @param factor Target oversampling factor (1, 2, 4 or 8)
     void requestOversampleFactor(int factor) noexcept {
         targetOversampleFactor_ = factor;
         if (!processedSinceReset_) {
@@ -823,6 +852,7 @@ public:
                 crossfading_ = false;
                 xfadePos_ = 0;
                 xfadeHold_ = 0;
+                releaseHeldNodes(incomingLaneRef());  // the lane that ran out is idle now
             }
         }
         // Output stage (gain/pan/mute) once, after the lanes: a bypassed band has none
@@ -863,9 +893,13 @@ private:
         std::unique_ptr<MorphEngine> morphR;
         Krate::DSP::Oversampler<2, 2> os2x;
         Krate::DSP::Oversampler<4, 2> os4x;
-        int factor = kDefaultOversampleFactor;  // selected factor the lane runs (1, 2, 4)
+        Krate::DSP::Oversampler<8, 2> os8x;
+        int factor = kDefaultOversampleFactor;  // selected factor the lane runs (1, 2, 4, 8)
         int clockFactor = 1;                    // factor the shapers are clocked at, and prepared for
         int mode = 1;                           // this span: 0 bypassed, else the clocked factor
+        // The morph engines keep the node set they had when a node type change started this lane's
+        // outgoing crossfade (setMorphNodes skips them); released when the lane stops running out
+        bool heldNodes = false;
         // Alignment the lane is delayed for (setLatencyTarget / setAlignmentContext)
         int latencyTarget = 0;
         bool contextSet = false;
@@ -1043,14 +1077,32 @@ private:
 
     /// @brief Every adapter @p to runs takes the carrier state of the adapter @p from runs in the
     /// same slot (both at their clocked rates: after beginLaneSpan), its phase moved by how much
-    /// later @p to's shapers see the input (shaperInputDelay).
-    void carryCarrierState(Lane& to, const Lane& from) const noexcept {
+    /// later @p to's shapers see the input (shaperInputDelay), and its DC blockers and Allpass
+    /// Resonant loop start warm from it (DistortionAdapter::warmStartFrom; user ruling 2026-11-11,
+    /// round 4: the cleared blockers passed the shapers' DC as a burst of up to -24 dBFS from a
+    /// -58 dBFS input at every lane switch).
+    void carryRunningState(Lane& to, const Lane& from) const noexcept {
         const double lagSeconds = (shaperInputDelay(to) - shaperInputDelay(from)) / sampleRate_;
         for (size_t c = 0; c < 2; ++c) {
             for (size_t k = 0; k < kHomeSlots; ++k) {
                 DistortionAdapter* target = slotOf(to, c, k);
                 const DistortionAdapter* source = slotOf(from, c, k);
-                if (target != nullptr && source != nullptr) target->copyCarrierStateFrom(*source, lagSeconds);
+                // Same type only: a lane holding its old node set may run another type in the slot
+                if (target != nullptr && source != nullptr && target->getType() == source->getType()) {
+                    target->copyCarrierStateFrom(*source, lagSeconds);
+                }
+            }
+        }
+        if (morphEnabled_ && to.morphL && from.morphL) {
+            to.morphL->warmStartFrom(*from.morphL);
+            to.morphR->warmStartFrom(*from.morphR);
+            return;
+        }
+        for (size_t c = 0; c < 2; ++c) {
+            DistortionAdapter* target = slotOf(to, c, kLegacySlot);
+            const DistortionAdapter* source = slotOf(from, c, kLegacySlot);
+            if (target != nullptr && source != nullptr && target->getType() == source->getType()) {
+                target->warmStartFrom(*source);
             }
         }
     }
@@ -1095,6 +1147,7 @@ private:
             xfadePos_ = 0;
             xfadeHold_ = 0;
         }
+        forEachLane([this](Lane& l) { releaseHeldNodes(l); });
         Lane& lane = activeLaneRef();
         if (clearState && lane.factor != targetOversampleFactor_) {
             resetLaneState(lane);
@@ -1115,17 +1168,15 @@ private:
                 flipLanes();
                 xfadeHold_ = 0;
                 xfadePos_ = xfadeSamples_ - ramped;
+                // ... and takes the current node set if it kept the old one for the crossfade
+                releaseHeldNodes(incomingLaneRef());
             }
             return;
         }
         Lane& lane = activeLaneRef();
-        if (matchesRequest(lane)) {
-            return;
-        }
-        const PathPlan now = planFor(lane.factor, lane.latencyTarget, lane.contextSet, lane.fourX, lane.shift);
-        const PathPlan wanted =
-            planFor(targetOversampleFactor_, latencyTarget_, contextSet_, fourXPresent_, referenceShift_);
-        if (now.clocked == wanted.clocked && now.wait == wanted.wait) {
+        if (!crossfadeNeeded(lane)) {
+            // Nothing audible moves: the request applies in place
+            releaseHeldNodes(lane);
             assignRequest(lane);
             return;
         }
@@ -1141,19 +1192,66 @@ private:
         resetLaneState(in);
         // ... and its Ring Saturation carriers continue the running lane's, once it runs at its
         // new rate (follow-up 84, user ruling 2026-11-10)
-        carryCarrier_ = true;
+        carryState_ = true;
         crossfading_ = true;
         xfadePos_ = 0;
         // A latent type in the cleared lane (Spectral, Granular) outputs nothing until its latency
         // has passed: the incoming gain holds at 0 until then, so the fade starts on its signal
-        xfadeHold_ = laneTypeLatencyHost(wanted.clocked);
+        xfadeHold_ = laneTypeLatencyHost(
+            planFor(targetOversampleFactor_, latencyTarget_, contextSet_, fourXPresent_, referenceShift_).clocked);
+    }
+
+    /// @brief True when @p lane no longer runs the request and the change moves something
+    /// audible (clocked factor or wait): the change crossfades to the other lane.
+    [[nodiscard]] bool crossfadeNeeded(const Lane& lane) const noexcept {
+        if (matchesRequest(lane)) return false;
+        const PathPlan now = planFor(lane.factor, lane.latencyTarget, lane.contextSet, lane.fourX, lane.shift);
+        const PathPlan wanted =
+            planFor(targetOversampleFactor_, latencyTarget_, contextSet_, fourXPresent_, referenceShift_);
+        return now.clocked != wanted.clocked || now.wait != wanted.wait;
+    }
+
+    /// @brief True when @p engine's active node count or any active node type differs from the
+    /// band's node set.
+    [[nodiscard]] bool nodeSetDiffers(const MorphEngine& engine) const noexcept {
+        if (engine.getActiveNodeCount() != std::clamp(morphActiveNodeCount_, kMinActiveNodes, kMaxMorphNodes)) {
+            return true;
+        }
+        const auto& held = engine.getNodes();
+        for (int i = 0; i < engine.getActiveNodeCount(); ++i) {
+            if (held[static_cast<size_t>(i)].type != morphNodes_[static_cast<size_t>(i)].type) return true;
+        }
+        return false;
+    }
+
+    /// @brief Give a lane that kept its node set for an outgoing crossfade the band's node set.
+    void releaseHeldNodes(Lane& lane) noexcept {
+        if (!lane.heldNodes) return;
+        lane.heldNodes = false;
+        if (lane.morphL) {
+            lane.morphL->setNodes(morphNodes_, morphActiveNodeCount_);
+            lane.morphR->setNodes(morphNodes_, morphActiveNodeCount_);
+        }
+    }
+
+    /// @brief Output latency of the band's node set in clocked samples, as its morph engines
+    /// derive it (MorphEngine::updateLatencyAlignment): a lane that holds its old node set for an
+    /// outgoing crossfade does not report the set the band is moving to.
+    [[nodiscard]] int morphTypeLatencyClocked() const noexcept {
+        int latency = 0;
+        const int count = std::clamp(morphActiveNodeCount_, kMinActiveNodes, kMaxMorphNodes);
+        for (int i = 0; i < count; ++i) {
+            const MorphNode& node = morphNodes_[static_cast<size_t>(i)];
+            latency = std::max(latency, DistortionAdapter::latencyFor(node.type, node.params.fftSize));
+        }
+        return latency;
     }
 
     /// @brief Host samples a cleared lane clocked at @p clocked (0: bypassed) takes until its
     /// shapers' type latency has passed (rounded up).
     [[nodiscard]] size_t laneTypeLatencyHost(int clocked) const noexcept {
         if (clocked <= 0) return 0;
-        const int typeClocked = (morphEnabled_ && lane0_.morphL) ? lane0_.morphL->getLatency()
+        const int typeClocked = (morphEnabled_ && lane0_.morphL) ? morphTypeLatencyClocked()
                                                                  : legacyAlignedLatency();
         const int hold = (std::max(typeClocked, 0) + clocked - 1) / clocked;
         return static_cast<size_t>(std::min(hold, kMaxLatencySamples));
@@ -1167,7 +1265,7 @@ private:
             return {.clocked = 0, .wait = static_cast<double>(target) + shift};
         }
         // Drive gate: a band whose shaper is an exact passthrough runs at 1x
-        const int clocked = (isDistortionDriven() && (factor == 2 || factor == 4)) ? factor : 1;
+        const int clocked = (isDistortionDriven() && (factor == 2 || factor == 4 || factor == 8)) ? factor : 1;
         if (clocked == 1) {
             return {.clocked = 1, .wait = static_cast<double>(std::max(0, target - latencyAtClock(1))) + shift};
         }
@@ -1189,6 +1287,7 @@ private:
         }
         lane.os2x.reset();
         lane.os4x.reset();
+        lane.os8x.reset();
         resetFractionalDelay(lane);
     }
 
@@ -1237,8 +1336,10 @@ private:
         };
         if (lane.mode == 2) {
             lane.os2x.process(left, right, numSamples, callback);
-        } else {
+        } else if (lane.mode == 4) {
             lane.os4x.process(left, right, numSamples, callback);
+        } else {
+            lane.os8x.process(left, right, numSamples, callback);
         }
     }
 
@@ -1251,9 +1352,9 @@ private:
         attachSpare(in);  // a setter since the last span may need other slots
         const int waitOut = beginLaneSpan(out);
         const int waitIn = beginLaneSpan(in);
-        if (carryCarrier_) {
-            carryCarrierState(in, out);
-            carryCarrier_ = false;
+        if (carryState_) {
+            carryRunningState(in, out);
+            carryState_ = false;
         }
         float* inLeft = xfadeL_.data();
         float* inRight = xfadeR_.data();
@@ -1334,8 +1435,9 @@ private:
     // Latency helpers (D-026, T2.10)
     // =========================================================================
 
-    /// @brief Index of a factor in oversamplerLatency_ (1 -> 0, 2 -> 1, 4 -> 2).
+    /// @brief Index of a factor in oversamplerLatency_ (1 -> 0, 2 -> 1, 4 -> 2, 8 -> 3).
     [[nodiscard]] static size_t factorIndex(int factor) noexcept {
+        if (factor >= 8) return 3;
         if (factor >= 4) return 2;
         return factor == 2 ? 1 : 0;
     }
@@ -1344,33 +1446,36 @@ private:
     /// impulse-peak delay plus the shaper's type latency (clocked samples / factor, rounded).
     [[nodiscard]] int latencyAtClock(int factor) const noexcept {
         const int f = std::max(factor, 1);
-        const int typeClocked = (morphEnabled_ && lane0_.morphL) ? lane0_.morphL->getLatency()
+        const int typeClocked = (morphEnabled_ && lane0_.morphL) ? morphTypeLatencyClocked()
                                                                  : legacyAlignedLatency();
         return oversamplerLatency_[factorIndex(f)] + (typeClocked + f / 2) / f;
     }
 
     /// @brief Band group delay when clocked at @p factor, in host samples: the oversampler's
-    /// low-frequency group delay plus the type latency and, when an active node uses ADAA1
-    /// (DistortionAdapter::usesAdaa, oversampled only), its half clocked sample. In a morph
-    /// that mixes ADAA1 and plain nodes the plain ones arrive that half clocked sample early.
+    /// low-frequency group delay plus the type latency and, when an active node uses ADAA
+    /// (oversampled only), its delay: half a clocked sample for ADAA1, one for ADAA2
+    /// (adaaDelayInPath). In a morph that mixes them the nodes with less arrive that much early.
     [[nodiscard]] double groupDelayAtClock(int factor) const noexcept {
         const int f = std::max(factor, 1);
-        const int typeClocked = (morphEnabled_ && lane0_.morphL) ? lane0_.morphL->getLatency()
+        const int typeClocked = (morphEnabled_ && lane0_.morphL) ? morphTypeLatencyClocked()
                                                                  : legacyAlignedLatency();
-        const double adaa = (f > 1 && adaaInPath()) ? DistortionAdapter::kAdaaDelayClockedSamples : 0.0;
+        const double adaa = f > 1 ? adaaDelayInPath() : 0.0;
         return oversamplerGroupDelay_[factorIndex(f)] + (static_cast<double>(typeClocked) + adaa) / f;
     }
 
-    /// @brief True when the shaper (legacy type, or any active morph node) runs ADAA1.
-    [[nodiscard]] bool adaaInPath() const noexcept {
+    /// @brief The largest anti-aliasing delay among the shapers (legacy type, or the active morph
+    /// nodes) when oversampled, in clocked samples: ADAA1 half a sample, ADAA2 (TriangleFold) one
+    /// (DistortionAdapter::adaaDelayClockedSamples).
+    [[nodiscard]] double adaaDelayInPath() const noexcept {
         if (!(morphEnabled_ && lane0_.morphL)) {
-            return DistortionAdapter::usesAdaa(legacyType_);
+            return DistortionAdapter::adaaDelayClockedSamples(legacyType_);
         }
+        double delay = 0.0;
         const int count = std::clamp(morphActiveNodeCount_, 0, kMaxMorphNodes);
         for (int i = 0; i < count; ++i) {
-            if (DistortionAdapter::usesAdaa(morphNodes_[static_cast<size_t>(i)].type)) return true;
+            delay = std::max(delay, DistortionAdapter::adaaDelayClockedSamples(morphNodes_[static_cast<size_t>(i)].type));
         }
-        return false;
+        return delay;
     }
 
     /// @brief Set a lane's clocked-rate part of the compensation (@p clockedSamples in
@@ -1404,8 +1509,9 @@ private:
         lane.hostAllpassR.reset();
     }
 
-    /// @brief The minimax offset at @p clocked (2 / 4) in an alignment context.
+    /// @brief The minimax offset at @p clocked (2 / 4 / 8) in an alignment context.
     [[nodiscard]] double alignmentOffsetFor(int clocked, bool contextSet, bool fourX) const noexcept {
+        if (clocked >= 8) return alignmentOffset_[3];
         if (clocked >= 4) return alignmentOffset_[2];
         const bool fourXPresent = contextSet ? fourX : canReach4x();
         return fourXPresent ? alignmentOffset_[1] : alignmentOffset_[0];
@@ -1547,7 +1653,7 @@ private:
 
     /// @brief Low-frequency group delay of an oversampler's up/down filter pair, in host
     /// samples: the first moment sum(n h[n]) / sum(h[n]) of its impulse response (the group
-    /// delay at DC; 3.00 at 2x and 6.47 at 4x, rate-independent). Runs a unit impulse
+    /// delay at DC; 3.00 at 2x, 6.47 at 4x and 10.06 at 8x, rate-independent). Runs a unit impulse
     /// through it with a passthrough callback, then resets it.
     template <typename OversamplerT>
     [[nodiscard]] double measureGroupDelay(OversamplerT& oversampler) const noexcept {
@@ -1716,7 +1822,7 @@ private:
     size_t xfadePos_ = 0;      // samples into the crossfade, its hold included
     size_t xfadeHold_ = 0;     // samples the incoming gain first stays at 0 (its type latency)
     size_t xfadeSamples_ = 1;  // crossfade length (kFactorCrossfadeMs at the host rate)
-    bool carryCarrier_ = false;  // the incoming lane takes the carriers at its first span
+    bool carryState_ = false;  // the incoming lane takes the carriers and warm state at its first span
     std::vector<float> xfadeL_;  // the incoming lane's span
     std::vector<float> xfadeR_;
     Lane* spanLane_ = nullptr;     // the lane an oversampler callback runs (runLaneSpan)
@@ -1729,11 +1835,11 @@ private:
 
     // Latency compensation (D-026, T2.10): the requested alignment; each lane holds the one
     // it is delayed for
-    std::array<int, 3> oversamplerLatency_{};  // impulse-peak delay at 1x / 2x / 4x (prepare)
-    std::array<double, 3> oversamplerGroupDelay_{};  // low-frequency group delay at 1x / 2x / 4x (prepare)
-    std::array<double, 3> alignmentOffset_{};  // minimax offsets: 2x alone, 2x with 4x, 4x (prepare)
+    std::array<int, 4> oversamplerLatency_{};  // impulse-peak delay at 1x / 2x / 4x / 8x (prepare)
+    std::array<double, 4> oversamplerGroupDelay_{};  // low-frequency group delay at 1x / 2x / 4x / 8x (prepare)
+    std::array<double, 4> alignmentOffset_{};  // minimax offsets: 2x alone, 2x with 4x, 4x, 8x (prepare)
     bool contextSet_ = false;                  // setAlignmentContext() called (else: own reach)
-    bool fourXPresent_ = false;                // a band of the processor can run at 4x
+    bool fourXPresent_ = false;                // a band of the processor can run at 4x or 8x
     double referenceShift_ = 0.0;              // every path's extra delay (ADAA1 clamp), host samples
     int latencyTarget_ = 0;                    // total latency the band is delayed to
     Krate::DSP::DelayLine compDelayL_;         // band input history, read at each lane's compensation

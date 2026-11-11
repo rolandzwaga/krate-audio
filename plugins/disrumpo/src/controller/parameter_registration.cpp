@@ -135,7 +135,7 @@ void Controller::registerGlobalParams() {
     bandCountParam->getInfo().defaultNormalizedValue = 1.0;
     parameters.addParameter(bandCountParam);
 
-    // Oversample Max: StringListParameter ["1x","2x","4x","8x"], default "4x"
+    // Oversample Max: StringListParameter ["1x","2x","4x","8x"], default "8x"
     auto* oversampleParam = new Steinberg::Vst::StringListParameter(
         STR16("Oversample Max"),
         makeGlobalParamId(GlobalParamType::kGlobalOversample),
@@ -146,9 +146,10 @@ void Controller::registerGlobalParams() {
     oversampleParam->appendString(STR16("2x"));
     oversampleParam->appendString(STR16("4x"));
     oversampleParam->appendString(STR16("8x"));
-    // Default index 2 = "4x": the registered default too, or a host reset gives 1x (D-072)
-    oversampleParam->setNormalized(2.0 / 3.0);
-    oversampleParam->getInfo().defaultNormalizedValue = 2.0 / 3.0;
+    // Default index 3 = "8x" (user ruling 2026-11-10): the registered default too, or a host
+    // reset gives 1x (D-072)
+    oversampleParam->setNormalized(1.0);
+    oversampleParam->getInfo().defaultNormalizedValue = 1.0;
     parameters.addParameter(oversampleParam);
 
     // Spectrum View Mode: StringListParameter ["Wet","Dry","Both"], default "Wet"

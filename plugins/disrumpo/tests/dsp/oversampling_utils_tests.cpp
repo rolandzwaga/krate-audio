@@ -51,9 +51,12 @@ TEST_CASE("roundUpToPowerOf2Factor: maps weighted average to power-of-2 factor",
         CHECK(roundUpToPowerOf2Factor(-1.0f) == 1);
     }
 
-    SECTION("values above 4 return 4") {
-        CHECK(roundUpToPowerOf2Factor(5.0f) == 4);
-        CHECK(roundUpToPowerOf2Factor(8.0f) == 4);
+    SECTION("values above 4 round up to 8") {
+        // 8x types (user ruling 2026-11-10); 4 was the ceiling before
+        CHECK(roundUpToPowerOf2Factor(4.1f) == 8);
+        CHECK(roundUpToPowerOf2Factor(5.0f) == 8);
+        CHECK(roundUpToPowerOf2Factor(8.0f) == 8);
+        CHECK(roundUpToPowerOf2Factor(9.0f) == 8);
     }
 }
 
@@ -65,8 +68,8 @@ TEST_CASE("getSingleTypeOversampleFactor: returns recommended factor clamped to 
           "[oversampling][utils][FR-007][FR-008]") {
 
     SECTION("no clamping when limit >= recommended") {
-        // SoftClip is 2x, limit is 4 -> returns 2
-        CHECK(getSingleTypeOversampleFactor(DistortionType::SoftClip, 4) == 2);
+        // Tube is 2x, limit is 4 -> returns 2
+        CHECK(getSingleTypeOversampleFactor(DistortionType::Tube, 4) == 2);
         // HardClip is 4x, limit is 4 -> returns 4
         CHECK(getSingleTypeOversampleFactor(DistortionType::HardClip, 4) == 4);
         // Bitcrush is 1x, limit is 4 -> returns 1
@@ -78,15 +81,21 @@ TEST_CASE("getSingleTypeOversampleFactor: returns recommended factor clamped to 
         CHECK(getSingleTypeOversampleFactor(DistortionType::HardClip, 2) == 2);
         // HardClip is 4x, limit is 1 -> returns 1
         CHECK(getSingleTypeOversampleFactor(DistortionType::HardClip, 1) == 1);
-        // SoftClip is 2x, limit is 1 -> returns 1
-        CHECK(getSingleTypeOversampleFactor(DistortionType::SoftClip, 1) == 1);
+        // Tube is 2x, limit is 1 -> returns 1
+        CHECK(getSingleTypeOversampleFactor(DistortionType::Tube, 1) == 1);
+    }
+
+    SECTION("an 8x type takes 8x only when the limit allows it") {
+        // Fuzz is 8x (user ruling 2026-11-10): limit 8 -> 8, limit 4 -> 4
+        CHECK(getSingleTypeOversampleFactor(DistortionType::Fuzz, 8) == 8);
+        CHECK(getSingleTypeOversampleFactor(DistortionType::Fuzz, 4) == 4);
     }
 
     SECTION("limit of 8 does not force higher factors") {
         // HardClip is 4x, limit is 8 -> returns 4 (not 8)
         CHECK(getSingleTypeOversampleFactor(DistortionType::HardClip, 8) == 4);
-        // SoftClip is 2x, limit is 8 -> returns 2 (not 8)
-        CHECK(getSingleTypeOversampleFactor(DistortionType::SoftClip, 8) == 2);
+        // Tube is 2x, limit is 8 -> returns 2 (not 8)
+        CHECK(getSingleTypeOversampleFactor(DistortionType::Tube, 8) == 2);
     }
 }
 
@@ -109,17 +118,30 @@ TEST_CASE("calculateMorphOversampleFactor: single node (all 26 types individuall
         CHECK(result == expectedFactor);
     };
 
+    SECTION("8x types") {
+        // User ruling 2026-11-10 (drive re-stage): aliasing past -50 dB at 4x; Tape and Temporal
+        // were 2x, the folders and fuzzes 4x
+        testSingleNode(DistortionType::Tape, 8);
+        testSingleNode(DistortionType::Temporal, 8);
+        testSingleNode(DistortionType::Fuzz, 8);
+        testSingleNode(DistortionType::AsymmetricFuzz, 8);
+        testSingleNode(DistortionType::SineFold, 8);
+        testSingleNode(DistortionType::TriangleFold, 8);
+        testSingleNode(DistortionType::SergeFold, 8);
+        // 4x until round 3 (user ruling 2026-11-11: its T6.01 reading at 4x was aliasing)
+        testSingleNode(DistortionType::AllpassResonant, 8);
+    }
+
     SECTION("4x types") {
         testSingleNode(DistortionType::HardClip, 4);
-        testSingleNode(DistortionType::Fuzz, 4);
-        testSingleNode(DistortionType::AsymmetricFuzz, 4);
-        testSingleNode(DistortionType::SineFold, 4);
-        testSingleNode(DistortionType::TriangleFold, 4);
-        testSingleNode(DistortionType::SergeFold, 4);
         testSingleNode(DistortionType::FullRectify, 4);
         testSingleNode(DistortionType::HalfRectify, 4);
         testSingleNode(DistortionType::RingSaturation, 4);
-        testSingleNode(DistortionType::AllpassResonant, 4);
+        // 2x until the drive re-stage (user ruling 2026-11-10: aliasing past -50 dB at 2x)
+        testSingleNode(DistortionType::FeedbackDist, 4);
+        testSingleNode(DistortionType::Formant, 4);
+        // 2x until the drive re-stage, with ADAA1 at 4x (user ruling 2026-11-10)
+        testSingleNode(DistortionType::SoftClip, 4);
     }
 
     SECTION("1x types") {
@@ -132,13 +154,8 @@ TEST_CASE("calculateMorphOversampleFactor: single node (all 26 types individuall
     }
 
     SECTION("2x types") {
-        testSingleNode(DistortionType::SoftClip, 2);
         testSingleNode(DistortionType::Tube, 2);
-        testSingleNode(DistortionType::Tape, 2);
-        testSingleNode(DistortionType::Temporal, 2);
-        testSingleNode(DistortionType::FeedbackDist, 2);
         testSingleNode(DistortionType::Chaos, 2);
-        testSingleNode(DistortionType::Formant, 2);
         testSingleNode(DistortionType::Granular, 2);
         testSingleNode(DistortionType::Fractal, 2);
         testSingleNode(DistortionType::Stochastic, 2);
@@ -164,8 +181,8 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
     };
 
     SECTION("all nodes same type") {
-        // SoftClip (2x) + SoftClip (2x) = avg 2.0 -> 2
-        CHECK(twoNodeResult(DistortionType::SoftClip, DistortionType::SoftClip,
+        // Tube (2x) + Tube (2x) = avg 2.0 -> 2
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::Tube,
                             0.5f, 0.5f) == 2);
         // HardClip (4x) + HardClip (4x) = avg 4.0 -> 4
         CHECK(twoNodeResult(DistortionType::HardClip, DistortionType::HardClip,
@@ -176,11 +193,11 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
     }
 
     SECTION("equidistant weights between different factor types") {
-        // SoftClip (2x) + HardClip (4x) at 0.5/0.5 = avg 3.0 -> 4
-        CHECK(twoNodeResult(DistortionType::SoftClip, DistortionType::HardClip,
+        // Tube (2x) + HardClip (4x) at 0.5/0.5 = avg 3.0 -> 4
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
                             0.5f, 0.5f) == 4);
-        // Bitcrush (1x) + SoftClip (2x) at 0.5/0.5 = avg 1.5 -> 2
-        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::SoftClip,
+        // Bitcrush (1x) + Tube (2x) at 0.5/0.5 = avg 1.5 -> 2
+        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
                             0.5f, 0.5f) == 2);
         // Bitcrush (1x) + HardClip (4x) at 0.5/0.5 = avg 2.5 -> 4
         CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::HardClip,
@@ -188,39 +205,39 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
     }
 
     SECTION("single dominant node (0.9/0.1 split)") {
-        // SoftClip (2x) dominant + HardClip (4x) = 0.9*2 + 0.1*4 = 2.2 -> 4
-        CHECK(twoNodeResult(DistortionType::SoftClip, DistortionType::HardClip,
+        // Tube (2x) dominant + HardClip (4x) = 0.9*2 + 0.1*4 = 2.2 -> 4
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
                             0.9f, 0.1f) == 4);
-        // HardClip (4x) dominant + SoftClip (2x) = 0.9*4 + 0.1*2 = 3.8 -> 4
-        CHECK(twoNodeResult(DistortionType::HardClip, DistortionType::SoftClip,
+        // HardClip (4x) dominant + Tube (2x) = 0.9*4 + 0.1*2 = 3.8 -> 4
+        CHECK(twoNodeResult(DistortionType::HardClip, DistortionType::Tube,
                             0.9f, 0.1f) == 4);
         // HardClip (4x) dominant + Bitcrush (1x) = 0.9*4 + 0.1*1 = 3.7 -> 4
         CHECK(twoNodeResult(DistortionType::HardClip, DistortionType::Bitcrush,
                             0.9f, 0.1f) == 4);
-        // Bitcrush (1x) dominant + SoftClip (2x) = 0.9*1 + 0.1*2 = 1.1 -> 2
-        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::SoftClip,
+        // Bitcrush (1x) dominant + Tube (2x) = 0.9*1 + 0.1*2 = 1.1 -> 2
+        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
                             0.9f, 0.1f) == 2);
     }
 
     SECTION("gradual transitions (0.7/0.3, 0.6/0.4)") {
-        // SoftClip (2x) 0.7 + HardClip (4x) 0.3 = 0.7*2 + 0.3*4 = 2.6 -> 4
-        CHECK(twoNodeResult(DistortionType::SoftClip, DistortionType::HardClip,
+        // Tube (2x) 0.7 + HardClip (4x) 0.3 = 0.7*2 + 0.3*4 = 2.6 -> 4
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
                             0.7f, 0.3f) == 4);
-        // SoftClip (2x) 0.6 + HardClip (4x) 0.4 = 0.6*2 + 0.4*4 = 2.8 -> 4
-        CHECK(twoNodeResult(DistortionType::SoftClip, DistortionType::HardClip,
+        // Tube (2x) 0.6 + HardClip (4x) 0.4 = 0.6*2 + 0.4*4 = 2.8 -> 4
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
                             0.6f, 0.4f) == 4);
-        // Bitcrush (1x) 0.7 + SoftClip (2x) 0.3 = 0.7*1 + 0.3*2 = 1.3 -> 2
-        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::SoftClip,
+        // Bitcrush (1x) 0.7 + Tube (2x) 0.3 = 0.7*1 + 0.3*2 = 1.3 -> 2
+        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
                             0.7f, 0.3f) == 2);
-        // Bitcrush (1x) 0.6 + SoftClip (2x) 0.4 = 0.6*1 + 0.4*2 = 1.4 -> 2
-        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::SoftClip,
+        // Bitcrush (1x) 0.6 + Tube (2x) 0.4 = 0.6*1 + 0.4*2 = 1.4 -> 2
+        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
                             0.6f, 0.4f) == 2);
     }
 
     SECTION("3-node morph with varied distributions") {
         std::array<MorphNode, kMaxMorphNodes> nodes{};
         nodes[0].type = DistortionType::Bitcrush;    // 1x
-        nodes[1].type = DistortionType::SoftClip;    // 2x
+        nodes[1].type = DistortionType::Tube;    // 2x
         nodes[2].type = DistortionType::HardClip;    // 4x
 
         // Equal weights: (1+2+4)/3 = 2.33 -> 4
@@ -239,7 +256,7 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
     SECTION("4-node morph with varied distributions") {
         std::array<MorphNode, kMaxMorphNodes> nodes{};
         nodes[0].type = DistortionType::Bitcrush;     // 1x
-        nodes[1].type = DistortionType::SoftClip;     // 2x
+        nodes[1].type = DistortionType::Fractal;   // 2x
         nodes[2].type = DistortionType::Tube;          // 2x
         nodes[3].type = DistortionType::HardClip;     // 4x
 
@@ -272,15 +289,15 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
         CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Bitcrush,
                             0.5f, 0.5f) == 1);
         // avg = 2.0 exactly -> 2
-        CHECK(twoNodeResult(DistortionType::SoftClip, DistortionType::SoftClip,
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::Tube,
                             0.5f, 0.5f) == 2);
-        // avg just above 1.0 -> 2 (Bitcrush 1x weight=0.99, SoftClip 2x weight=0.01)
+        // avg just above 1.0 -> 2 (Bitcrush 1x weight=0.99, Tube 2x weight=0.01)
         // 0.99*1 + 0.01*2 = 1.01 -> 2
-        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::SoftClip,
+        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
                             0.99f, 0.01f) == 2);
-        // avg just above 2.0 -> 4 (SoftClip 2x weight=0.99, HardClip 4x weight=0.01)
+        // avg just above 2.0 -> 4 (Tube 2x weight=0.99, HardClip 4x weight=0.01)
         // 0.99*2 + 0.01*4 = 2.02 -> 4
-        CHECK(twoNodeResult(DistortionType::SoftClip, DistortionType::HardClip,
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
                             0.99f, 0.01f) == 4);
     }
 
@@ -291,8 +308,8 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
         // HardClip (4x) + HardClip (4x), limit 1 -> clamped to 1
         CHECK(twoNodeResult(DistortionType::HardClip, DistortionType::HardClip,
                             0.5f, 0.5f, 1) == 1);
-        // SoftClip (2x) + HardClip (4x), limit 2 -> clamped to 2
-        CHECK(twoNodeResult(DistortionType::SoftClip, DistortionType::HardClip,
+        // Tube (2x) + HardClip (4x), limit 2 -> clamped to 2
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
                             0.5f, 0.5f, 2) == 2);
     }
 
@@ -315,7 +332,7 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
 }
 
 // Found by the T6.06 morph sweep through the Processor: a SoftClip -> Tube cursor sweep
-// (both 2x) switched the band to 4x and back 12 times in 2 s, one 10 ms output dip (D-034)
+// (both 2x then) switched the band to 4x and back 12 times in 2 s, one 10 ms output dip (D-034)
 // each. The float weights of computeWeights() sum to 1 within a few ULPs, so 2 x sum read
 // 2.0000002 at some cursor positions and rounded up to 4. A weighted mean of the nodes'
 // factors never exceeds the largest of them.
@@ -332,8 +349,15 @@ TEST_CASE("calculateMorphOversampleFactor: a morph between types of one factor k
                    DistortionType::SampleReduce},
          .factor = 1},
         {.name = "2x",
-         .types = {DistortionType::SoftClip, DistortionType::Tube, DistortionType::Tape, DistortionType::Formant},
-         .factor = 2}};
+         .types = {DistortionType::Fractal, DistortionType::Tube, DistortionType::Chaos, DistortionType::Granular},
+         .factor = 2},
+        {.name = "4x",
+         .types = {DistortionType::SoftClip, DistortionType::HardClip, DistortionType::HalfRectify,
+                   DistortionType::RingSaturation},
+         .factor = 4},
+        {.name = "8x",
+         .types = {DistortionType::Tape, DistortionType::Fuzz, DistortionType::SineFold, DistortionType::SergeFold},
+         .factor = 8}};
     for (const auto& g : groups) {
         std::array<MorphNode, kMaxMorphNodes> nodes = {MorphNode(0, 0.0f, 0.0f, g.types[0]),
                                                        MorphNode(1, 1.0f, 0.0f, g.types[1]),
@@ -345,7 +369,7 @@ TEST_CASE("calculateMorphOversampleFactor: a morph between types of one factor k
             for (int k = 0; k <= 1000; ++k) {
                 const float x = static_cast<float>(k) * 0.001f;
                 const auto w = MorphEngine::computeWeights(MorphMode::Linear1D, nodes, count, x, 0.0f);
-                wrongLinear += calculateMorphOversampleFactor(nodes, w, count, 4) != g.factor ? 1 : 0;
+                wrongLinear += calculateMorphOversampleFactor(nodes, w, count, 8) != g.factor ? 1 : 0;
                 ++positionsLinear;
             }
         }
@@ -357,7 +381,7 @@ TEST_CASE("calculateMorphOversampleFactor: a morph between types of one factor k
                 const float y = static_cast<float>(j) * 0.01f;
                 for (const auto mode : {MorphMode::Planar2D, MorphMode::Radial2D}) {
                     const auto w = MorphEngine::computeWeights(mode, nodes, kMaxMorphNodes, x, y);
-                    wrongPlanar += calculateMorphOversampleFactor(nodes, w, kMaxMorphNodes, 4) != g.factor ? 1 : 0;
+                    wrongPlanar += calculateMorphOversampleFactor(nodes, w, kMaxMorphNodes, 8) != g.factor ? 1 : 0;
                     ++positionsPlanar;
                 }
             }

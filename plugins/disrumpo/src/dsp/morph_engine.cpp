@@ -159,11 +159,20 @@ void MorphEngine::syncCursorFrom(const MorphEngine& other) noexcept {
     blendedParamsDirty_ = true;
 }
 
+bool MorphEngine::pathAttached(bool sameType) const noexcept {
+    if (sameType) return blendedAdapter_ != nullptr;
+    for (int i = 0; i < activeNodeCount_; ++i) {
+        if (adapters_[static_cast<size_t>(i)] == nullptr) return false;
+    }
+    return true;
+}
+
 void MorphEngine::clearSwitchFade() noexcept {
     // Every adapter is clear: no path is stale, nothing to fade from
     processedSameType_ = isSameType();
     processedNodeCount_ = activeNodeCount_;
     switchFadeRemaining_ = 0;
+    switchFadeFromPath_ = false;
     lastOutput_ = 0.0f;
     hasOutput_ = false;
 }
@@ -764,11 +773,22 @@ float MorphEngine::process(float input) noexcept {
 
     // A node type change can switch between the interpolated processor and the parallel
     // adapters, and a node count increase adds parallel adapters: the incoming ones were
-    // idle, so clear them and fade from the last output over 5 ms (D-032). Before the first
+    // idle, so clear them and fade over 5 ms (D-032): from the outgoing path, which keeps running
+    // for the fade, on a path switch; from the last output on a node activation. Before the first
     // processed sample (after prepare() / reset()) every adapter is clear already.
     const bool pathSwitch = allSameType_ != processedSameType_;
     const bool nodesAdded = !allSameType_ && activeNodeCount_ > processedNodeCount_;
-    if ((pathSwitch || nodesAdded) && hasOutput_) {
+    if (pathSwitch && hasOutput_ && switchFadeRemaining_ > 0 && switchFadeFromPath_ &&
+        switchFadeFromSameType_ == allSameType_) {
+        // Back to the path a running path fade comes from, which is still running warm: reverse
+        // the fade (no reset), so the output continues from where the crossfade stands
+        switchFadeFromSameType_ = processedSameType_;
+        switchFadeRemaining_ = switchFadeLength_ - switchFadeRemaining_;
+    } else if ((pathSwitch || nodesAdded) && hasOutput_) {
+        // A path switch crossfades from the outgoing path, run warm beside the incoming one (when
+        // its adapters are attached); a node activation fades from the last output
+        switchFadeFromPath_ = pathSwitch && pathAttached(processedSameType_);
+        switchFadeFromSameType_ = processedSameType_;
         if (allSameType_) {
             blendedAdapter_->reset();
             blendedParamsDirty_ = true;
@@ -793,7 +813,17 @@ float MorphEngine::process(float input) noexcept {
         if (switchFadeRemaining_ > 0) {
             const float g =
                 1.0f - static_cast<float>(switchFadeRemaining_) / static_cast<float>(switchFadeLength_);
-            out = switchFadeOrigin_ + g * (out - switchFadeOrigin_);
+            if (switchFadeFromPath_ && !pathAttached(switchFadeFromSameType_)) {
+                // An owner detached the outgoing path's adapters (a band's spare lane holds only the
+                // slots its current path runs): the rest of the fade starts from the last output
+                switchFadeFromPath_ = false;
+                switchFadeOrigin_ = lastOutput_;
+            }
+            float origin = switchFadeOrigin_;
+            if (switchFadeFromPath_) {
+                origin = switchFadeFromSameType_ ? processSameFamily(input) : processCrossFamily(input);
+            }
+            out = origin + g * (out - origin);
         }
     }
     lastOutput_ = out;
@@ -876,7 +906,11 @@ void MorphEngine::processSteadySpan(const float* input, float* output, int numSa
 float MorphEngine::processSameFamily(float input) noexcept {
     // Identical types (isSameType): interpolate parameters, use single processor
     // Per spec FR-006, FR-018
+    routeBlendedParams();
+    return blendedAdapter_->process(input);
+}
 
+void MorphEngine::routeBlendedParams() noexcept {
     // Control rate (D-005): route only when the weights moved, a node / offset setter
     // ran, the adapter was reset, or the sweep drive multiplier changed
     float weightDelta = 0.0f;
@@ -904,8 +938,30 @@ float MorphEngine::processSameFamily(float input) noexcept {
         cp.toneHz = std::clamp(cp.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f);
         blendedAdapter_->setCommonParams(cp);
     }
+}
 
-    return blendedAdapter_->process(input);
+void MorphEngine::warmStartFrom(const MorphEngine& other) noexcept {
+    if (!prepared_ || !other.prepared_ || allSameType_ != other.allSameType_) return;
+    if (allSameType_) {
+        if (blendedAdapter_ == nullptr || other.blendedAdapter_ == nullptr) return;
+        // The identical-type adapter takes its type and parameters at its first sample: give them
+        // now, at the weights of the cursor it continues (process() recomputes them if it moves)
+        if (!weightsValid_) {
+            calculateMorphWeights(smootherX_.getCurrentValue(), smootherY_.getCurrentValue());
+        }
+        routeBlendedParams();
+        if (blendedAdapter_->getType() == other.blendedAdapter_->getType()) {
+            blendedAdapter_->warmStartFrom(*other.blendedAdapter_);
+        }
+        return;
+    }
+    for (int i = 0; i < std::min(activeNodeCount_, other.activeNodeCount_); ++i) {
+        DistortionAdapter* to = adapters_[static_cast<size_t>(i)];
+        const DistortionAdapter* from = other.adapters_[static_cast<size_t>(i)];
+        if (to != nullptr && from != nullptr && to->getType() == from->getType()) {
+            to->warmStartFrom(*from);
+        }
+    }
 }
 
 float MorphEngine::processCrossFamily(float input) noexcept {

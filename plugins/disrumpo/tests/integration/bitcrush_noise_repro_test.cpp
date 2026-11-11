@@ -274,7 +274,14 @@ TEST_CASE("Full Processor: Bitcrush actually modifies the signal",
     crushParams.addChange(makeNodeParamId(0, 0, NodeParamType::kNodeMix), 1.0);
     crushParams.addChange(makeNodeParamId(0, 0, NodeParamType::kNodeShape0), 0.0);  // 4 bits
     crushParams.addChange(makeNodeParamId(0, 0, NodeParamType::kNodeShape3), 0.0);  // no jitter
+    // Output Gain -6.03 dB (x 0.4994): the crushed full-scale sine is a +-1 staircase, and the
+    // output safety clipper (user ruling 2026-11-10) reshapes anything above its -6 dBFS knee, so at
+    // 0 dB the processor output would show the clipper's knee, not the crusher's grid. Below the
+    // knee the clipper is an exact passthrough; the levels are the grid times one gain.
+    constexpr double kOutputGainDb = -6.03;
+    crushParams.addChange(kOutputGainId, (kOutputGainDb + 24.0) / 48.0);
     const auto bitcrushL = render(&crushParams);
+    const auto outputGain = static_cast<float>(std::pow(10.0, kOutputGainDb / 20.0));
 
     std::array<float, kBlockSize> diff{};
     for (int i = 0; i < kBlockSize; ++i) diff[i] = bitcrushL[i] - defaultL[i];
@@ -288,7 +295,7 @@ TEST_CASE("Full Processor: Bitcrush actually modifies the signal",
          << ", RMS(bitcrush) = " << calculateRMS(bitcrushL.data(), kBlockSize)
          << ", RMS(bitcrush - default) = " << rmsDiff
          << ", distinct bitcrush output values = " << levels.size());
-    REQUIRE(calculateRMS(bitcrushL.data(), kBlockSize) > 0.5f);  // not silenced
+    REQUIRE(calculateRMS(bitcrushL.data(), kBlockSize) / outputGain > 0.5f);  // the node output: not silenced
     REQUIRE(rmsDiff > 0.05f);
     constexpr size_t kMaxLevelsAt4Bits = 17;  // 2^4 + 1
     REQUIRE(levels.size() <= kMaxLevelsAt4Bits);

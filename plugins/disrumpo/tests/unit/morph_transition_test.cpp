@@ -17,6 +17,7 @@
 #include "dsp/distortion_types.h"
 
 #include <test_helpers/artifact_detection.h>
+#include "../test_support/calibrated_clicks.h"
 
 #include <algorithm>
 #include <array>
@@ -159,11 +160,21 @@ struct SweepResult {
     size_t clicks = 0;
 };
 
-/// 0.5 s held at the start corner, 2 s cursor sweep at block rate, 0.5 s held at the end.
-SweepResult crossFamilySweep(const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes>& nodes,
-                             int count, Disrumpo::MorphMode mode, bool diagonal) {
+/// Drive re-stage (user ruling 2026-11-10): the level-dependent types run 8x (18.06 dB) hotter
+/// into their shapers and 8x lower after them. An input scaled by this runs every re-staged
+/// shaper exactly as before the re-stage, its output 18.06 dB lower.
+constexpr float kOldStagingScale = 0.125f;
+
+/// The cross-family sweep render: 0.5 s held at the start corner, 2 s cursor sweep at block
+/// rate, 0.5 s held at the end; or, with @p heldX >= 0, the cursor held at that position (on the
+/// diagonal for @p diagonal) for the whole 3 s (a no-event control). The input sine is scaled
+/// by @p inScale.
+std::vector<float> crossFamilyRender(const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes>& nodes, int count,
+                                     Disrumpo::MorphMode mode, bool diagonal, float inScale = 1.0f,
+                                     float heldX = -1.0f) {
     auto engine = makeXfEngine(nodes, count, mode, 10.0f);
-    engine->setMorphPosition(0.0f, 0.0f);
+    const float x0 = heldX >= 0.0f ? heldX : 0.0f;
+    engine->setMorphPosition(x0, diagonal ? x0 : 0.0f);
     (*engine).reset();
     const auto S = [](double s) { return static_cast<size_t>(s * kXfRate); };
     const size_t total = S(3.0);
@@ -173,10 +184,19 @@ SweepResult crossFamilySweep(const std::array<Disrumpo::MorphNode, Disrumpo::kMa
         float x = 0.0f;
         if (t >= 0.5 && t < 2.5) x = static_cast<float>((t - 0.5) / 2.0);
         else if (t >= 2.5) x = 1.0f;
+        if (heldX >= 0.0f) x = heldX;
         engine->setMorphPosition(x, diagonal ? x : 0.0f);
         const size_t end = std::min(total, start + static_cast<size_t>(kXfBlock));
-        for (size_t n = start; n < end; ++n) y[n] = engine->process(xfInput(n));
+        for (size_t n = start; n < end; ++n) y[n] = engine->process(inScale * xfInput(n));
     }
+    return y;
+}
+
+/// 0.5 s held at the start corner, 2 s cursor sweep at block rate, 0.5 s held at the end.
+SweepResult crossFamilySweep(const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes>& nodes,
+                             int count, Disrumpo::MorphMode mode, bool diagonal, float inScale = 1.0f) {
+    const auto S = [](double s) { return static_cast<size_t>(s * kXfRate); };
+    const auto y = crossFamilyRender(nodes, count, mode, diagonal, inScale);
     SweepResult r;
     r.startDb = rmsDb(y, S(0.1), S(0.4));
     r.endDb = rmsDb(y, S(2.6), S(0.4));
@@ -509,19 +529,59 @@ TEST_CASE("MorphEngine smoothing - reset clears smoother state", "[morph][transi
 TEST_CASE("Cross-family sweep is level-flat and click-free", "[disrumpo][morph][SC-002][D-139]") {
     // SC-002: within 1 dB of the straight dB line between the two end levels at every
     // 10 ms window of a 2 s cursor sweep; SC-003: no clicks.
+    // Re-baselined for the drive re-stage (user ruling 2026-11-10): the -12 dBFS sine is scaled
+    // by kOldStagingScale, so the nodes' shapers run at the drive this case was written for (at
+    // -12 dBFS they now run 18 dB hotter: SoftClip squares off, SineFold folds further, their
+    // outputs decorrelate and the linear blend dips, -4.35 dB at the first run). The clicks are
+    // also read at -12 dBFS, calibrated on the cursor held at x = 0 / 0.5 / 1 and on the held
+    // outputs interpolated along the sweep's path (the designed transition with no automation in
+    // it, which the detector flags as it flags the sweep; calibrated_clicks.h).
+    const auto S = [](double s) { return static_cast<size_t>(s * kXfRate); };
+    const auto clicksAtFullLevel = [&](const auto& nodes, int count, Disrumpo::MorphMode mode, bool diagonal,
+                                       const char* label) {
+        const auto event = crossFamilyRender(nodes, count, mode, diagonal);
+        std::vector<std::vector<float>> controls;
+        for (const float held : {0.0f, 0.5f, 1.0f}) controls.push_back(crossFamilyRender(nodes, count, mode, diagonal, 1.0f, held));
+        // The designed transition without the engine's automation: the cursor held at x = k / 8
+        // (k = 0..8), and the outputs interpolated linearly along the sweep's path in time
+        std::vector<std::vector<float>> held;
+        for (int k = 0; k <= 8; ++k) {
+            held.push_back(crossFamilyRender(nodes, count, mode, diagonal, 1.0f, static_cast<float>(k) / 8.0f));
+        }
+        std::vector<float> designed(event.size());
+        for (size_t n = 0; n < designed.size(); ++n) {
+            const double t = static_cast<double>(n) / kXfRate;
+            const double x = std::clamp((t - 0.5) / 2.0, 0.0, 1.0) * 8.0;
+            const auto k = std::min(static_cast<size_t>(x), size_t{7});
+            const double g = x - static_cast<double>(k);
+            designed[n] = static_cast<float>((1.0 - g) * held[k][n] + g * held[k + 1][n]);
+        }
+        controls.push_back(std::move(designed));
+        const auto c = Disrumpo::TestSupport::calibratedClicks(event, controls, S(0.5), S(2.0), S(1.5), kXfRate);
+        std::printf("D-139 %s at -12 dBFS: clicks at 5 sigma: sweep %zu, held controls %zu; calibrated %.1f sigma: "
+                    "sweep %zu, positive control (step %.4f) %zu\n", label, c.eventAt5, c.controlsAt5,
+                    static_cast<double>(c.sigma), c.eventAtSigma, c.step, c.positiveAtSigma);
+        std::printf("D-139 %s positive control on the held controls: %zu\n", label, c.positiveOnControls);
+        CHECK(c.sigma > 0.0f);
+        CHECK(c.eventAtSigma == 0u);
+        CHECK(c.positiveAtSigma > 0u);
+        CHECK(c.positiveOnControls > 0u);
+    };
     SECTION("2 nodes SoftClip -> SineFold, Linear1D, x 0 -> 1") {
-        const auto r = crossFamilySweep(xfTwoNodes(), 2, Disrumpo::MorphMode::Linear1D, false);
+        const auto r = crossFamilySweep(xfTwoNodes(), 2, Disrumpo::MorphMode::Linear1D, false, kOldStagingScale);
         WARN("2-node sweep: start " << r.startDb << " dB, end " << r.endDb << " dB, max deviation "
              << r.maxDevDb << " dB, clicks " << r.clicks);
         CHECK(std::abs(r.maxDevDb) <= 1.0);
         CHECK(r.clicks == 0);
+        clicksAtFullLevel(xfTwoNodes(), 2, Disrumpo::MorphMode::Linear1D, false, "2-node sweep");
     }
     SECTION("4 nodes SoftClip/SineFold/FullRectify/RingSat, Planar2D, (0,0) -> (1,1): clicks") {
         // The level of this sweep is asserted by the [!shouldfail] case below.
-        const auto r = crossFamilySweep(xfFourNodes(), 4, Disrumpo::MorphMode::Planar2D, true);
+        const auto r = crossFamilySweep(xfFourNodes(), 4, Disrumpo::MorphMode::Planar2D, true, kOldStagingScale);
         WARN("4-node sweep: start " << r.startDb << " dB, end " << r.endDb << " dB, max deviation "
              << r.maxDevDb << " dB, clicks " << r.clicks);
         CHECK(r.clicks == 0);
+        clicksAtFullLevel(xfFourNodes(), 4, Disrumpo::MorphMode::Planar2D, true, "4-node sweep");
     }
 }
 
@@ -910,12 +970,19 @@ double harmonicThdPct(const std::vector<float>& y, size_t from, size_t count, do
 // FR-MORPH-003 (artifact-free transitions) and FR-MORPH-004/006: two different types of
 // one family are blended, not switched at the dominance boundary.
 TEST_CASE("Same-family different-type morph has no step at the midpoint", "[disrumpo][morph][D-028]") {
-    const auto run = [](Disrumpo::DistortionType a, Disrumpo::DistortionType b, const char* label) {
-        // 0.5 s held at x = 0.4, 1 s cursor sweep 0.4 -> 0.6 at block rate, 0.5 s held at 0.6
+    // Re-baselined for the drive re-stage (user ruling 2026-11-10): at -6 dBFS and drive 4 the
+    // re-staged SoftClip and HardClip square the sine off, and the pinned 5-sigma detector read
+    // the square's own edges (439 detections in the sweep). Asserted: the sweep at the drive this
+    // case was written for (input x kOldStagingScale) has no click at 5 sigma; at -6 dBFS no click
+    // at the threshold calibrated on the cursor held at x = 0.4 / 0.5 / 0.6, where a step 1.5 x
+    // the held renders' largest edge is still caught (calibrated_clicks.h); and the max-step ratio.
+    const auto S = [](double s) { return static_cast<size_t>(s * kXfRate); };
+    // 0.5 s held at x = 0.4, 1 s cursor sweep 0.4 -> 0.6 at block rate, 0.5 s held at 0.6 (or the
+    // cursor held at `held` throughout, a no-event control)
+    const auto render = [&](Disrumpo::DistortionType a, Disrumpo::DistortionType b, float inScale, float held) {
         auto engine = makeXfEngine(sfPair(a, b), 2, Disrumpo::MorphMode::Linear1D, 10.0f);
-        engine->setMorphPosition(0.4f, 0.0f);
+        engine->setMorphPosition(held >= 0.0f ? held : 0.4f, 0.0f);
         (*engine).reset();
-        const auto S = [](double s) { return static_cast<size_t>(s * kXfRate); };
         const size_t total = S(2.0);
         std::vector<float> y(total);
         for (size_t start = 0; start < total; start += kXfBlock) {
@@ -923,18 +990,34 @@ TEST_CASE("Same-family different-type morph has no step at the midpoint", "[disr
             float x = 0.4f;
             if (t >= 0.5 && t < 1.5) x = 0.4f + 0.2f * static_cast<float>(t - 0.5);
             else if (t >= 1.5) x = 0.6f;
+            if (held >= 0.0f) x = held;
             engine->setMorphPosition(x, 0.0f);
             const size_t end = std::min(total, start + static_cast<size_t>(kXfBlock));
-            for (size_t n = start; n < end; ++n) y[n] = engine->process(sfInput(n, 220.0f));
+            for (size_t n = start; n < end; ++n) y[n] = engine->process(inScale * sfInput(n, 220.0f));
         }
+        return y;
+    };
+    const auto run = [&](Disrumpo::DistortionType a, Disrumpo::DistortionType b, const char* label) {
+        const auto y = render(a, b, 1.0f, -1.0f);
         const float steadyA = maxStep(y, S(0.1), S(0.4));
         const float steadyB = maxStep(y, S(1.6), S(0.4));
         const float sweep = maxStep(y, S(0.5), S(1.0));
-        const size_t clicks = xfClickCount(y, S(0.5), S(1.0));
+        const auto quiet = render(a, b, kOldStagingScale, -1.0f);
+        const size_t quietClicks = xfClickCount(quiet, S(0.5), S(1.0));
+        std::vector<std::vector<float>> controls;
+        for (const float held : {0.4f, 0.5f, 0.6f}) controls.push_back(render(a, b, 1.0f, held));
+        const auto c = Disrumpo::TestSupport::calibratedClicks(y, controls, S(0.5), S(1.0), S(1.0), kXfRate);
         WARN(label << ": max |y[n]-y[n-1]| sweep " << sweep << ", held at 0.4 " << steadyA
              << ", held at 0.6 " << steadyB << " (ratio " << sweep / std::max(steadyA, steadyB)
-             << "), clicks " << clicks);
-        CHECK(clicks == 0);
+             << "); clicks at the old staging " << quietClicks << "; at -6 dBFS, 5 sigma: sweep " << c.eventAt5
+             << ", held controls " << c.controlsAt5 << "; calibrated " << c.sigma << " sigma: sweep " << c.eventAtSigma
+             << ", positive control (step " << c.step << ") " << c.positiveAtSigma << ", on the held controls "
+             << c.positiveOnControls);
+        CHECK(quietClicks == 0);
+        CHECK(c.sigma > 0.0f);
+        CHECK(c.eventAtSigma == 0u);
+        CHECK(c.positiveAtSigma > 0u);
+        CHECK(c.positiveOnControls > 0u);
         CHECK(sweep <= 2.0f * std::max(steadyA, steadyB));
     };
     SECTION("Saturation: SoftClip -> HardClip") {
@@ -992,25 +1075,46 @@ TEST_CASE("Same-family different-type morph level and THD are continuous in the 
 
 TEST_CASE("Same-family different-type morph automation is click-free at every smoothing time",
           "[disrumpo][morph][SC-003][D-028]") {
-    for (const float ms : {0.0f, 5.0f, 10.0f, 50.0f}) {
+    // Re-baselined for the drive re-stage (user ruling 2026-11-10) as the midpoint case above:
+    // at -6 dBFS the pinned 5-sigma detector read the squared-off wave's own edges (1098
+    // detections). Asserted: no click at 5 sigma at the old staging (input x kOldStagingScale), and
+    // none at -6 dBFS at the threshold calibrated on the cursor held at x = 0 / 0.5 / 1, where the
+    // positive-control step is still caught (calibrated_clicks.h).
+    const size_t hold = static_cast<size_t>(kXfRate * 0.25);
+    const size_t ramp = static_cast<size_t>(kXfRate);
+    const auto render = [&](float ms, float inScale, float held) {
         auto engine = makeXfEngine(sfPair(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::HardClip),
                                    2, Disrumpo::MorphMode::Linear1D, ms);
-        engine->setMorphPosition(0.0f, 0.0f);
+        engine->setMorphPosition(held >= 0.0f ? held : 0.0f, 0.0f);
         (*engine).reset();
-        const size_t hold = static_cast<size_t>(kXfRate * 0.25);
-        const size_t ramp = static_cast<size_t>(kXfRate);
         std::vector<float> y(hold + 2 * ramp + hold);
         for (size_t n = 0; n < y.size(); ++n) {
             float x = 0.0f;
             if (n >= hold && n < hold + ramp) x = static_cast<float>(n - hold) / static_cast<float>(ramp);
             else if (n >= hold + ramp && n < hold + 2 * ramp)
                 x = 1.0f - static_cast<float>(n - hold - ramp) / static_cast<float>(ramp);
+            if (held >= 0.0f) x = held;
             engine->setMorphPosition(x, 0.0f);
-            y[n] = engine->process(sfInput(n, 220.0f));
+            y[n] = engine->process(inScale * sfInput(n, 220.0f));
         }
-        const size_t clicks = xfClickCount(y, 0, y.size());
-        WARN("SoftClip/HardClip, smoothing " << ms << " ms: clicks " << clicks);
+        return y;
+    };
+    std::vector<std::vector<float>> controls;
+    for (const float held : {0.0f, 0.5f, 1.0f}) controls.push_back(render(0.0f, 1.0f, held));
+    for (const float ms : {0.0f, 5.0f, 10.0f, 50.0f}) {
+        const auto quiet = render(ms, kOldStagingScale, -1.0f);
+        const size_t clicks = xfClickCount(quiet, 0, quiet.size());
+        const auto y = render(ms, 1.0f, -1.0f);
+        const auto c = Disrumpo::TestSupport::calibratedClicks(y, controls, 0, y.size(), hold + ramp, kXfRate);
+        WARN("SoftClip/HardClip, smoothing " << ms << " ms: clicks at the old staging " << clicks << "; at -6 dBFS, "
+             "5 sigma: ramp " << c.eventAt5 << ", held controls " << c.controlsAt5 << "; calibrated " << c.sigma
+             << " sigma: ramp " << c.eventAtSigma << ", positive control (step " << c.step << ") " << c.positiveAtSigma
+             << ", on the held controls " << c.positiveOnControls);
         CHECK(clicks == 0);
+        CHECK(c.sigma > 0.0f);
+        CHECK(c.eventAtSigma == 0u);
+        CHECK(c.positiveAtSigma > 0u);
+        CHECK(c.positiveOnControls > 0u);
     }
 }
 

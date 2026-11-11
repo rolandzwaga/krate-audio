@@ -36,6 +36,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -257,6 +258,43 @@ TEST_CASE("Deleting an expanded-strip node selector clears the controller's slot
     c.terminate();
 }
 
+// The Bitwise, Temporal and RingSat type panels each carry a sub-controller that
+// listens to the panel's mode menu. VSTGUI frees a panel's children before its
+// sub-controller (CViewContainer::beforeDelete, then CView::beforeDelete), so a
+// sub-controller must not touch the menu when it is destroyed. A preset load that
+// changes the displayed type rebuilds the panel this way; closing the editor too.
+// Teeth under AddressSanitizer: a touch of the freed menu is a heap-use-after-free.
+TEST_CASE("Type panels with a mode sub-controller rebuild and close without touching a freed control",
+          "[disrumpo][lifecycle][editor-uaf]")
+{
+    constexpr VSTGUI::CCoord kTypePanelHeight = 200.0;
+    // Indices in the type panel switch's template-names (editor.uidesc)
+    constexpr int32_t kBitwise = 15;
+    constexpr int32_t kTemporal = 16;
+    constexpr int32_t kRingSat = 17;
+    Disrumpo::Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    for (const int32_t closeOn : {kBitwise, kTemporal, kRingSat}) {
+        HeadlessEditor ed(c);
+        REQUIRE(ed.ready());
+        auto* tabSwitch = findSwitch(ed.frame(), kTabSwitchHeight);  // band 1 strip comes first
+        REQUIRE(tabSwitch != nullptr);
+        tabSwitch->setCurrentViewIndex(1);  // Shape page: builds band 1's type panel
+        auto* typeSwitch = findSwitch(tabSwitch, kTypePanelHeight);
+        REQUIRE(typeSwitch != nullptr);
+        for (const int32_t type : {kBitwise, kTemporal, kRingSat}) {
+            typeSwitch->setCurrentViewIndex(type);
+            REQUIRE(typeSwitch->getCurrentViewIndex() == type);
+            REQUIRE(typeSwitch->getNbViews() == 1);
+            typeSwitch->setCurrentViewIndex(0);  // away: frees the panel, then its sub-controller
+        }
+        typeSwitch->setCurrentViewIndex(closeOn);
+        REQUIRE(typeSwitch->getNbViews() == 1);
+        ed.close();  // the editor frees the panel, then its sub-controller
+    }
+    c.terminate();
+}
+
 // D-045 / D-057 / D-070: the mod-slider overlay and the Tier-3 spectrum fallback
 // must work in every editor session, not only the first. Mod offsets arrive as
 // values inside a SpectrumBlock; the SharedDisplayBridge lookup is redone on open.
@@ -302,8 +340,9 @@ TEST_CASE("Mod overlay and Tier-3 spectrum survive close/reopen",
         REQUIRE(tabSwitch != nullptr);
         tabSwitch->setCurrentViewIndex(1);
         tabSwitch->setCurrentViewIndex(0);
-        for (int t = 0; t < 12; ++t) c.tickEditorTimerForTest();
 
+        // Before the stall (fewer than 10 ticks without a block): the last block's offsets
+        for (int t = 0; t < 3; ++t) c.tickEditorTimerForTest();
         std::vector<const Disrumpo::ModSlider*> sliders;
         collectModSliders(ed.frame(), sliders);
         size_t withOffset = 0;
@@ -311,15 +350,95 @@ TEST_CASE("Mod overlay and Tier-3 spectrum survive close/reopen",
             const float want = 0.01f * static_cast<float>(ms->getModDestId() + 1);
             if (ms->getModulationOffset() == Catch::Approx(want).margin(1e-6)) ++withOffset;
         }
+
+        // In the stall (Tier 3): the processor's own offsets, read from its shared display.
+        // The rig's patch routes nothing, so every ring reads 0 (user ruling: mod rings in fallback)
+        for (int t = 3; t < 12; ++t) c.tickEditorTimerForTest();
+        size_t atProcessor = 0;
+        for (const auto* ms : sliders)
+            if (ms->getModulationOffset() == Catch::Approx(0.0f).margin(1e-6)) ++atProcessor;
         const auto* display = c.spectrumDisplayForTest();
         const bool analysing = display != nullptr && display->isAnalysisActive();
-        std::printf("T2.19 reopen: %zu of %zu ModSliders show their offset (want all); "
+        std::printf("T2.19 reopen: %zu of %zu ModSliders show the last block's offset (want all); in the Tier-3 "
+                    "stall %zu show the processor's offset 0 (want all); "
                     "spectrum display %s, Tier-3 analysis active: %s (want yes)\n",
-                    withOffset, sliders.size(), display != nullptr ? "present" : "absent",
+                    withOffset, sliders.size(), atProcessor, display != nullptr ? "present" : "absent",
                     analysing ? "yes" : "no");
         REQUIRE_FALSE(sliders.empty());
         CHECK(withOffset == sliders.size());
+        CHECK(atProcessor == sliders.size());
         CHECK(analysing);
+    }
+    c.terminate();
+}
+
+// User ruling (2026-11-11): the knobs' mod rings keep moving during a DataExchange
+// stall. In Tier 3 the controller reads the processor's modulation offsets from its
+// shared display, as it reads the spectrum and meters, instead of holding the last
+// block's offsets. Macro 1 routed at +1 to one ModSlider's destination; each step
+// sets a new macro value, renders 4096 samples (the processor publishes every
+// ~30 ms send) and ticks the editor once: the ring shows the processor's offset.
+TEST_CASE("Mod rings follow the processor during a DataExchange stall",
+          "[disrumpo][controller][lifecycle][D-045]")
+{
+    Disrumpo::TestSupport::Rig rig(48000.0, 512);
+    const std::vector<float> in(4096, 0.25f);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    rig.render(in, in, outL, outR);
+    auto state = Disrumpo::TestSupport::getStateBytes(*rig.p);
+
+    Disrumpo::Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    {
+        auto* s = new Steinberg::MemoryStream(state.data(), static_cast<Steinberg::TSize>(state.size()));
+        REQUIRE(c.setComponentState(s) == Steinberg::kResultOk);
+        s->release();
+    }
+    {
+        HeadlessEditor ed(c);
+        REQUIRE(ed.ready());
+        auto* tabSwitch = findSwitch(ed.frame(), kTabSwitchHeight);
+        REQUIRE(tabSwitch != nullptr);
+        tabSwitch->setCurrentViewIndex(1);
+        tabSwitch->setCurrentViewIndex(0);
+        std::vector<const Disrumpo::ModSlider*> sliders;
+        collectModSliders(ed.frame(), sliders);
+        REQUIRE_FALSE(sliders.empty());
+        const auto* ring = sliders.front();
+        const auto dest = static_cast<double>(ring->getModDestId());
+        REQUIRE(ring->getModDestId() < Disrumpo::ModDest::kTotalDestinations);
+
+        rig.apply({{Disrumpo::makeRoutingParamId(0, 0), 5.0 / static_cast<double>(Disrumpo::kUIModSourceCount - 1)},
+                   {Disrumpo::makeRoutingParamId(0, 1),
+                    dest / static_cast<double>(Disrumpo::ModDest::kTotalDestinations - 1)},
+                   {Disrumpo::makeRoutingParamId(0, 2), 1.0},
+                   {Disrumpo::makeModParamId(Disrumpo::ModParamType::kMacro1Value), 0.0}});
+        // No DataExchange block ever arrives: Tier 3 from the 10th tick
+        for (int t = 0; t < 12; ++t) {
+            rig.render(in, in, outL, outR);
+            c.tickEditorTimerForTest();
+        }
+        const auto* display = c.spectrumDisplayForTest();
+        REQUIRE(display != nullptr);
+        REQUIRE(display->isAnalysisActive());
+
+        constexpr std::array<double, 5> kMacro{0.2, 0.5, 0.8, 0.35, 0.65};
+        std::array<float, kMacro.size()> shown{};
+        for (size_t i = 0; i < kMacro.size(); ++i) {
+            rig.apply({{Disrumpo::makeModParamId(Disrumpo::ModParamType::kMacro1Value), kMacro[i]}});
+            rig.render(in, in, outL, outR);
+            c.tickEditorTimerForTest();
+            shown[i] = ring->getModulationOffset();
+        }
+        std::printf("Mod ring (dest %u) during a DataExchange stall, Macro 1 = 0.20/0.50/0.80/0.35/0.65: "
+                    "%.4f %.4f %.4f %.4f %.4f (want each within 0.02 of the macro)\n",
+                    ring->getModDestId(), static_cast<double>(shown[0]), static_cast<double>(shown[1]),
+                    static_cast<double>(shown[2]), static_cast<double>(shown[3]), static_cast<double>(shown[4]));
+        for (size_t i = 0; i < kMacro.size(); ++i) {
+            INFO("step " << i);
+            CHECK(static_cast<double>(shown[i]) == Catch::Approx(kMacro[i]).margin(0.02));
+        }
     }
     c.terminate();
 }

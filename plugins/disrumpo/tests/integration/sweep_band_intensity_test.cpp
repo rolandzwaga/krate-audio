@@ -217,8 +217,12 @@ TEST_CASE("BandProcessor receives sweep intensity", "[sweep][integration]") {
         cp.toneHz = 8000.0f;
         band.setDistortionCommonParams(cp);
 
-        // 1378.125 Hz = bin 256 of an 8192-point FFT at 44.1 kHz
+        // 1378.125 Hz = bin 256 of an 8192-point FFT at 44.1 kHz. At -30 dBFS: the drive re-stage
+        // (user ruling 2026-11-10) runs SoftClip 18.06 dB hotter, and at the -12 dBFS this case
+        // was written for drive 3 already saturated it (THD 33.9 % at 0 %, 35.0 % at 200 %); 18.06
+        // dB lower its shaper sees the drive it saw before
         constexpr float kHz = 1378.125f;
+        constexpr float kAmp = 0.25f * 0.125f;
         constexpr size_t kN = 8192;
         auto measure = [&band](float intensity, float& thd, float& rmsDb) {
             band.setSweepIntensity(intensity);
@@ -226,8 +230,8 @@ TEST_CASE("BandProcessor receives sweep intensity", "[sweep][integration]") {
             std::vector<float> r(kN);
             for (int pass = 0; pass < 2; ++pass) {  // pass 0 lets the sweep smoother settle
                 for (size_t i = 0; i < kN; ++i) {
-                    l[i] = 0.25f * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
-                                            static_cast<float>(kTestSampleRate));
+                    l[i] = kAmp * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
+                                           static_cast<float>(kTestSampleRate));
                     r[i] = l[i];
                 }
                 for (size_t off = 0; off < kN; off += static_cast<size_t>(kTestBlockSize)) {

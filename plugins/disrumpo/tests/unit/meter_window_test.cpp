@@ -46,6 +46,7 @@ TEST_CASE("MeterAccumulator reports a non-finite value as 0 and Inf as a clip", 
     acc.inSumSq[0] = std::numeric_limits<float>::quiet_NaN();
     acc.outPeak[1] = std::numeric_limits<float>::infinity();
     acc.outSumSq[1] = std::numeric_limits<float>::infinity();
+    acc.outPreClipPeak[1] = std::numeric_limits<float>::infinity();  // the output clip bit reads it
     acc.bandPeak[2] = 0.5f;
     acc.inSumSq[1] = 0.25f * 100.0f;
     acc.numSamples = 100;
@@ -68,6 +69,20 @@ TEST_CASE("MeterAccumulator reports a non-finite value as 0 and Inf as a clip", 
     CHECK(next.numSamples == 0u);
     CHECK(next.clipFlags == 0u);
     CHECK(next.bandPeak[2] == 0.0f);
+}
+
+TEST_CASE("The output clip bit reads the output before the safety clipper", "[disrumpo][meters]") {
+    // User ruling 2026-11-10: the light shows when the clipper catches an over, so the bit
+    // follows outPreClipPeak; the delivered output peak (after the clipper) never sets it
+    Disrumpo::MeterAccumulator acc;
+    acc.outPeak[0] = 0.999f;
+    acc.outPreClipPeak[0] = 1.5f;
+    acc.outPeak[1] = 1.2f;  // not reachable through the clipper; the bit ignores it
+    acc.outPreClipPeak[1] = 0.9f;
+    acc.numSamples = 10;
+    const Disrumpo::MeterWindow w = acc.take();
+    CHECK(w.clipFlags == Disrumpo::kMeterClipOutL);
+    CHECK(w.outPeak[0] == 0.999f);
 }
 
 TEST_CASE("mergeMeterWindow keeps the peaks, weights the mean squares and joins the clips", "[disrumpo][meters]") {

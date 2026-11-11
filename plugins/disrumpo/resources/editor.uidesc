@@ -532,7 +532,7 @@
         <view class="CTextLabel" origin="155, 0" size="60, 15" title="Bands" font="small-font" font-color="text-secondary" text-alignment="center"/>
         <view class="COptionMenu" origin="155, 18" size="60, 20" control-tag="BandCount" default-value="0.428" font="value-font" font-color="text-primary" back-color="panel" frame-color="border"/>
         <view class="CTextLabel" origin="220, 0" size="60, 15" title="OS Max" font="small-font" font-color="text-secondary" text-alignment="center"/>
-        <view class="COptionMenu" origin="220, 18" size="60, 20" control-tag="OversampleMax" default-value="0.66" font="value-font" font-color="text-primary" back-color="panel" frame-color="border"/>
+        <view class="COptionMenu" origin="220, 18" size="60, 20" control-tag="OversampleMax" default-value="1" font="value-font" font-color="text-primary" back-color="panel" frame-color="border"/>
       </view>
     </view>
     <view class="CView" custom-view-name="SpectrumDisplay" origin="20, 60" size="960, 120"/>

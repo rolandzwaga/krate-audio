@@ -33,6 +33,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -207,6 +209,38 @@ void checkType(DistortionType type) {
 }
 
 }  // namespace
+
+// Probe (hidden): CPU of one band with one node of each type at drive 2.5, 48 kHz, 512-sample
+// blocks: the best of three 5 s renders of the T6.01 tone, as % of real time, at Oversample Max
+// 4x and 8x (the band runs min(its type's factor, Oversample Max)). Run alone (timing):
+// disrumpo_tests "Probe: per-type CPU".
+TEST_CASE("Probe: per-type CPU", "[.][type-cpu-probe]") {
+    const auto in = toneAtMinus6(static_cast<size_t>(kSr * 5.0));
+    std::vector<float> outL;
+    std::vector<float> outR;
+    for (int t = 0; t < kDistortionTypeCount; ++t) {
+        const auto type = static_cast<DistortionType>(t);
+        std::array<double, 2> pct{};
+        std::array<int, 2> factor{};
+        for (size_t k = 0; k < 2; ++k) {
+            Rig r(kSr);
+            setUpType(r, type);
+            r.apply({{node0(NodeParamType::kNodeDrive), 0.25}, {kOversampleMaxId, k == 0 ? 2.0 / 3.0 : 1.0}});
+            r.reactivate();
+            double best = 1e9;
+            for (int run = 0; run < 3; ++run) {
+                const auto t0 = std::chrono::steady_clock::now();
+                r.render(in, in, outL, outR);
+                const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+                best = std::min(best, s);
+            }
+            pct[k] = 100.0 * best / 5.0;
+            factor[k] = r.p->getBandProcessor(0).getOversampleFactor();
+        }
+        std::printf("CPU %-18s Oversample Max 4x: runs %dx, %.3f %%; Oversample Max 8x: runs %dx, %.3f %% of real time\n",
+                    getTypeName(type), factor[0], pct[0], factor[1], pct[1]);
+    }
+}
 
 // One case per type (in DistortionType order), so a red names its type and the gate shards them.
 TEST_CASE("Type render matrix: SoftClip", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::SoftClip); }

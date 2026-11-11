@@ -16,6 +16,7 @@
 
 #include "plugin_ids.h"
 #include "controller/views/mod_slider.h"
+#include "ui/watched_control.h"
 #include "vstgui/uidescription/delegationcontroller.h"
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/iuidescription.h"
@@ -282,19 +283,13 @@ public:
     BitwiseOpController(VSTGUI::IController* parentController)
         : DelegationController(parentController) {}
 
-    ~BitwiseOpController() override {
-        if (opControl_)
-            opControl_->unregisterControlListener(this);
-    }
-
     VSTGUI::CView* verifyView(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
                                const VSTGUI::IUIDescription* description) override {
         // Detect the Op COptionMenu by its control-tag
         const auto* tagName = attributes.getAttributeValue("control-tag");
         if (tagName && *tagName == "Band.NodeShape0") {
             if (auto* control = dynamic_cast<VSTGUI::CControl*>(view)) {
-                opControl_ = control;
-                opControl_->registerControlListener(this);
+                opControl_.watch(control);
             }
         }
 
@@ -310,7 +305,7 @@ public:
         auto* result = DelegationController::verifyView(view, attributes, description);
 
         // Set initial visibility once all pieces are found
-        if (opControl_ && patternContainer_ && !initialVisibilitySet_) {
+        if (opControl_.get() && patternContainer_ && !initialVisibilitySet_) {
             initialVisibilitySet_ = true;
             updateVisibility();
         }
@@ -319,7 +314,7 @@ public:
     }
 
     void valueChanged(VSTGUI::CControl* control) override {
-        if (control == opControl_) {
+        if (control == opControl_.get()) {
             updateVisibility();
         }
         DelegationController::valueChanged(control);
@@ -327,10 +322,11 @@ public:
 
 private:
     void updateVisibility() {
-        if (!opControl_) return;
+        const auto* opControl = opControl_.get();
+        if (!opControl) return;
 
         // Op dropdown: 4 items → normalized 0/3, 1/3, 2/3, 3/3
-        float norm = opControl_->getValueNormalized();
+        float norm = opControl->getValueNormalized();
         int op = static_cast<int>(norm * 3.0f + 0.5f);
 
         // Pattern visible for XorPattern(0) only
@@ -340,7 +336,7 @@ private:
             patternContainer_->setVisible(showPattern);
     }
 
-    VSTGUI::CControl* opControl_ = nullptr;
+    Krate::Plugins::WatchedControl opControl_{this};
     VSTGUI::CViewContainer* patternContainer_ = nullptr;
     bool initialVisibilitySet_ = false;
 };
@@ -360,19 +356,13 @@ public:
     TemporalModeController(VSTGUI::IController* parentController)
         : DelegationController(parentController) {}
 
-    ~TemporalModeController() override {
-        if (modeControl_)
-            modeControl_->unregisterControlListener(this);
-    }
-
     VSTGUI::CView* verifyView(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
                                const VSTGUI::IUIDescription* description) override {
         // Detect the Mode COptionMenu by its control-tag
         const auto* tagName = attributes.getAttributeValue("control-tag");
         if (tagName && *tagName == "Band.NodeShape0") {
             if (auto* control = dynamic_cast<VSTGUI::CControl*>(view)) {
-                modeControl_ = control;
-                modeControl_->registerControlListener(this);
+                modeControl_.watch(control);
             }
         }
 
@@ -387,7 +377,7 @@ public:
         auto* result = DelegationController::verifyView(view, attributes, description);
 
         // Set initial visibility once all pieces are found
-        if (modeControl_ && hystContainer_ && !initialVisibilitySet_) {
+        if (modeControl_.get() && hystContainer_ && !initialVisibilitySet_) {
             initialVisibilitySet_ = true;
             updateVisibility();
         }
@@ -396,7 +386,7 @@ public:
     }
 
     void valueChanged(VSTGUI::CControl* control) override {
-        if (control == modeControl_) {
+        if (control == modeControl_.get()) {
             updateVisibility();
         }
         DelegationController::valueChanged(control);
@@ -404,10 +394,11 @@ public:
 
 private:
     void updateVisibility() {
-        if (!modeControl_) return;
+        const auto* modeControl = modeControl_.get();
+        if (!modeControl) return;
 
         // Mode dropdown: 4 items → normalized 0/3, 1/3, 2/3, 3/3
-        float norm = modeControl_->getValueNormalized();
+        float norm = modeControl->getValueNormalized();
         int mode = static_cast<int>(norm * 3.0f + 0.5f);
 
         // Hysteresis is mode 3
@@ -417,7 +408,7 @@ private:
             hystContainer_->setVisible(showHyst);
     }
 
-    VSTGUI::CControl* modeControl_ = nullptr;
+    Krate::Plugins::WatchedControl modeControl_{this};
     VSTGUI::CViewContainer* hystContainer_ = nullptr;
     bool initialVisibilitySet_ = false;
 };
@@ -436,19 +427,13 @@ public:
     RingSatFreqModeController(VSTGUI::IController* parentController)
         : DelegationController(parentController) {}
 
-    ~RingSatFreqModeController() override {
-        if (freqModeControl_)
-            freqModeControl_->unregisterControlListener(this);
-    }
-
     VSTGUI::CView* verifyView(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
                                const VSTGUI::IUIDescription* description) override {
         // Detect the Freq mode COptionMenu by its control-tag
         const auto* tagName = attributes.getAttributeValue("control-tag");
         if (tagName && *tagName == "Band.NodeShape5") {
             if (auto* control = dynamic_cast<VSTGUI::CControl*>(view)) {
-                freqModeControl_ = control;
-                freqModeControl_->registerControlListener(this);
+                freqModeControl_.watch(control);
             }
         }
 
@@ -463,7 +448,7 @@ public:
         auto* result = DelegationController::verifyView(view, attributes, description);
 
         // Set initial visibility once all pieces are found
-        if (freqModeControl_ && hzRatioContainer_ && !initialVisibilitySet_) {
+        if (freqModeControl_.get() && hzRatioContainer_ && !initialVisibilitySet_) {
             initialVisibilitySet_ = true;
             updateVisibility();
         }
@@ -472,7 +457,7 @@ public:
     }
 
     void valueChanged(VSTGUI::CControl* control) override {
-        if (control == freqModeControl_) {
+        if (control == freqModeControl_.get()) {
             updateVisibility();
         }
         DelegationController::valueChanged(control);
@@ -480,10 +465,11 @@ public:
 
 private:
     void updateVisibility() {
-        if (!freqModeControl_) return;
+        const auto* freqModeControl = freqModeControl_.get();
+        if (!freqModeControl) return;
 
         // Freq mode dropdown: 4 items → normalized 0/3, 1/3, 2/3, 3/3
-        float norm = freqModeControl_->getValueNormalized();
+        float norm = freqModeControl->getValueNormalized();
         int mode = static_cast<int>(norm * 3.0f + 0.5f);
 
         // Show Hz/Ratio knob for Fixed (0) and Harmonic (1); hide for Track (2) and Random (3)
@@ -493,7 +479,7 @@ private:
             hzRatioContainer_->setVisible(showKnob);
     }
 
-    VSTGUI::CControl* freqModeControl_ = nullptr;
+    Krate::Plugins::WatchedControl freqModeControl_{this};
     VSTGUI::CViewContainer* hzRatioContainer_ = nullptr;
     bool initialVisibilitySet_ = false;
 };

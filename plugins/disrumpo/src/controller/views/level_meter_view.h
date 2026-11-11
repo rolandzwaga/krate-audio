@@ -17,6 +17,7 @@
 #include "vstgui/lib/cview.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace Disrumpo {
@@ -53,6 +54,8 @@ public:
 
     [[nodiscard]] const MeterBallistics& channel(int c) const noexcept { return meters_[static_cast<size_t>(c)]; }
     [[nodiscard]] bool clipLatched() const noexcept;
+    /// Test seam: windows pushed since construction
+    [[nodiscard]] size_t windowsReceivedForTest() const noexcept { return windowsReceived_; }
 
     void draw(VSTGUI::CDrawContext* context) override;
     void onMouseDownEvent(VSTGUI::MouseDownEvent& event) override;
@@ -67,6 +70,7 @@ private:
     std::array<float, 2> drawnPeakDb_{MeterBallistics::kFloorDb, MeterBallistics::kFloorDb};
     std::array<float, 2> drawnRmsDb_{MeterBallistics::kFloorDb, MeterBallistics::kFloorDb};
     bool drawnClip_ = false;
+    size_t windowsReceived_ = 0;
 };
 
 }  // namespace Disrumpo

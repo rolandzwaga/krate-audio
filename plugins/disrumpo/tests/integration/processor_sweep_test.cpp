@@ -448,7 +448,10 @@ TEST_CASE("Sweep leaves out-of-focus bands passing clean", "[disrumpo][sweep][D-
 
     SECTION("band 2 under the sweep centre at 200 % is driven harder") {
         // Crossovers 150 / 750 / 3000 Hz: band 2 spans 750-3000 Hz, geometric centre 1500 Hz.
-        const auto in = sineOf(1500.0, 0.25, n);
+        // At -30 dBFS: the drive re-stage (user ruling 2026-11-10) runs the shapers 18.06 dB
+        // hotter, and at the -12 dBFS this case was written for drive 3 already saturated band 2
+        // (THD 18.1 % off, 17.1 % on); 18.06 dB lower the shapers see the drive they saw before
+        const auto in = sineOf(1500.0, 0.25 * 0.125, n);
         const ts::PList base = layoutParams(4, {150.0, 750.0, 3000.0}, 0.3);
         const auto offOut = renderWith(base, in);
         const auto onOut = renderWith(withSweep(base, 1500.0, 1.0), in);
@@ -558,6 +561,10 @@ TEST_CASE("Sweep intensity scales drive and not level", "[disrumpo][sweep][D-019
     }
 
     SECTION("saturating band: intensity I equals drive x (1 + I / 2); THD rises, level does not follow") {
+        // At -30 dBFS: the drive re-stage (user ruling 2026-11-10) runs the shapers 18.06 dB
+        // hotter, and at -12 dBFS drive 3 already saturated the band (THD 28.0 % off, 26.2 % at
+        // 200 %); 18.06 dB lower the shaper sees the drive this case was written for
+        const auto in = sineOf(1500.0, 0.25 * 0.125, n);
         constexpr double kDriveNorm = 0.3;  // drive 3
         const ts::PList base = layoutParams(1, {}, kDriveNorm);
         const auto offOut = renderWith(base, in);

@@ -59,6 +59,7 @@ Steinberg::tresult PLUGIN_API Processor::connect(
 
         dataExchange_ = std::make_unique<Steinberg::Vst::DataExchangeHandler>(
             this, configCallback);
+        dataExchangeThread_ = std::this_thread::get_id();
         dataExchange_->onConnect(other, getHostContext());
         // Connected after (or reconnected during) an activation: setActive(true)
         // has already run, so the queue is opened here (D-172)
@@ -137,6 +138,12 @@ void Processor::sendSpectrumBlock(
     // whether or not DataExchange is connected
     const MeterWindow meters = meterAccum_.take();
     sharedMeters_.publish(meters);
+
+    // Mod-slider overlay for Tier 3: the offsets a DataExchange block carries (D-045),
+    // so the mod rings keep moving while DataExchange stalls (sized by the static_assert below)
+    const float* const modOffsets = modulationEngine_.getModOffsetsArray();
+    for (uint32_t d = 0; d < ModDest::kTotalDestinations; ++d)
+        sharedModOffsets_[d].store(modOffsets[d], std::memory_order_relaxed);
 
     // Tier 1/2: Send via DataExchange (if host called connect())
     if (!dataExchange_)

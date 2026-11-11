@@ -27,6 +27,8 @@
 
 #include "../test_support/disrumpo_rig.h"
 
+#include <krate/dsp/primitives/oversampler.h>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -37,6 +39,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <limits>
+#include <memory>
 #include <numbers>
 #include <string>
 #include <utility>
@@ -203,6 +206,120 @@ TEST_CASE("Probe: T5.09 render dump for A/B output equivalence", "[.][t509-rende
     }
 }
 
+// CPU breakdown probe for the two morph budget cases (hidden, asserts nothing, run alone): the
+// whole processor; the same at drive 0 (the bands clocked at 1x and their shapers passthrough:
+// crossover, meters, output stage); each node adapter of each band timed alone on a tone at its
+// clocked rate (x 2 channels); the band's oversampler pair with a passthrough callback (x 4 bands).
+TEST_CASE("Probe: T5.09 CPU breakdown", "[.][t509-profile]") {
+    using DT = DistortionType;
+    using Clock = std::chrono::steady_clock;
+    constexpr std::array<double, 4> kBandHz{80.0, 440.0, 2500.0, 9000.0};
+    const auto profile = [&](const char* label, const std::array<DT, 4>& types) {
+        auto params = fourBands(types, 4);
+        const auto whole = measure(params);
+        for (int b = 0; b < kBands; ++b) {
+            for (uint8_t n = 0; n < 4; ++n) {
+                params.emplace_back(makeNodeParamId(static_cast<uint8_t>(b), n, NodeParamType::kNodeDrive), 0.0);
+            }
+        }
+        const auto idle = measure(params);
+        std::printf("T5.09 profile %s: whole %.2f %%, drive 0 (1x, no shaping) %.2f %%\n", label, whole.percent,
+                    idle.percent);
+
+        ts::Rig rig(kCpuSampleRate, kCpuBlock);
+        rig.apply(fourBands(types, 4));
+        const auto warm = fourTones(static_cast<size_t>(kCpuSampleRate), 0.0);
+        std::vector<float> oL(static_cast<size_t>(kCpuBlock));
+        std::vector<float> oR(static_cast<size_t>(kCpuBlock));
+        std::vector<float> wL(static_cast<size_t>(kCpuBlock));
+        std::vector<float> wR(static_cast<size_t>(kCpuBlock));
+        for (size_t k = 0; k + static_cast<size_t>(kCpuBlock) <= warm.size(); k += static_cast<size_t>(kCpuBlock)) {
+            std::copy_n(warm.begin() + static_cast<std::ptrdiff_t>(k), kCpuBlock, wL.begin());
+            std::copy_n(warm.begin() + static_cast<std::ptrdiff_t>(k), kCpuBlock, wR.begin());
+            rig.processBlock(wL.data(), wR.data(), oL.data(), oR.data(), kCpuBlock, nullptr);
+        }
+        for (int n = 0; n < 4; ++n) {
+            const auto& q = rig.p->getBandProcessor(0).getMorphEngine()->nodeAdapterSlot(n)->getParams();
+            std::printf("  node %d params: fractal mode %d it %d scale %.3f curve %.3f decay %.3f fb %.3f blend %d | "
+                        "grain size %.1f dens %.3f pvar %.3f dvar %.3f pos %.3f curve %.3f env %d | chaos model %d "
+                        "amt %.3f speed %.3f | ring curve %.3f depth %.3f stages %d carrier %d freqsel %d | folds %.3f "
+                        "shape %.3f smooth %.3f\n",
+                        n, q.fractalMode, q.iterations, q.scaleFactor, q.fractalCurve, q.frequencyDecay, q.fractalFB,
+                        q.fractalBlend, q.grainSizeMs, q.grainDensity, q.grainPVar, q.grainDVar, q.grainPos,
+                        q.grainCurve, q.grainEnvType, q.chaosAttractor, q.chaosAmount, q.attractorSpeed, q.rsCurve,
+                        q.modDepth, q.stages, q.carrierType, q.rsFreqSelect, q.folds, q.shape, q.smoothness);
+        }
+        double adaptersTotal = 0.0;
+        std::array<double, 4> perType{};
+        for (int b = 0; b < kBands; ++b) {
+            const auto& band = rig.p->getBandProcessor(b);
+            const int factor = band.getActiveOversampleFactor();
+            const double rate = kCpuSampleRate * factor;
+            const size_t chunk = static_cast<size_t>(kCpuBlock) * static_cast<size_t>(factor);
+            std::vector<float> in(chunk);
+            std::vector<float> out(chunk);
+            const double amp = std::pow(10.0, -18.0 / 20.0);
+            const size_t total = static_cast<size_t>(5.0 * rate);
+            for (int n = 0; n < 4; ++n) {
+                DistortionAdapter* a = band.getMorphEngine()->nodeAdapterSlot(n);
+                double ns = 0.0;
+                for (size_t done = 0; done < total; done += chunk) {
+                    for (size_t i = 0; i < chunk; ++i) {
+                        in[i] = static_cast<float>(
+                            amp * std::sin(2.0 * std::numbers::pi * kBandHz[static_cast<size_t>(b)] *
+                                           static_cast<double>(done + i) / rate));
+                    }
+                    const auto t0 = Clock::now();
+                    a->processBlock(in.data(), out.data(), static_cast<int>(chunk));
+                    const auto t1 = Clock::now();
+                    ns += std::chrono::duration<double, std::nano>(t1 - t0).count();
+                }
+                // 2 channels, per second of host audio (5 s timed)
+                const double pct = 100.0 * 2.0 * ns / 5.0e9;
+                perType[static_cast<size_t>(n)] += pct;
+                adaptersTotal += pct;
+                std::printf("  band %d (%g Hz, %dx) node %d %s: %.2f %% (2 ch)\n", b, kBandHz[static_cast<size_t>(b)],
+                            factor, n, getTypeName(types[static_cast<size_t>(n)]), pct);
+            }
+        }
+        for (size_t n = 0; n < 4; ++n) {
+            std::printf("  type %s, 4 bands x 2 ch: %.2f %%\n", getTypeName(types[n]), perType[n]);
+        }
+        // The oversampler pair at the band factor, passthrough callback, 4 bands
+        const int factor = rig.p->getBandProcessor(0).getActiveOversampleFactor();
+        const auto timeOs = [&](auto& os) {
+            os.prepare(kCpuSampleRate, static_cast<size_t>(kCpuBlock), Krate::DSP::OversamplingQuality::Economy,
+                       Krate::DSP::OversamplingMode::ZeroLatency);
+            double ns = 0.0;
+            const size_t blocks = static_cast<size_t>(10.0 * kCpuSampleRate) / static_cast<size_t>(kCpuBlock);
+            for (size_t k = 0; k < blocks; ++k) {
+                std::copy_n(warm.begin() + static_cast<std::ptrdiff_t>((k % 80) * static_cast<size_t>(kCpuBlock)),
+                            kCpuBlock, wL.begin());
+                std::copy_n(wL.begin(), kCpuBlock, wR.begin());
+                const auto t0 = Clock::now();
+                os.process(wL.data(), wR.data(), static_cast<size_t>(kCpuBlock), [](float*, float*, size_t) {});
+                const auto t1 = Clock::now();
+                ns += std::chrono::duration<double, std::nano>(t1 - t0).count();
+            }
+            return 4.0 * 100.0 * ns / 10.0e9;
+        };
+        double osPct = 0.0;
+        if (factor == 8) {
+            auto os = std::make_unique<Krate::DSP::Oversampler<8, 2>>();
+            osPct = timeOs(*os);
+        } else {
+            auto os = std::make_unique<Krate::DSP::Oversampler<4, 2>>();
+            osPct = timeOs(*os);
+        }
+        std::printf("  node adapters (16 x 2 ch, alone): %.2f %%\n  oversampler pair %dx, 4 bands: %.2f %%\n"
+                    "  rest (whole - drive 0 - adapters - oversamplers; morph, compensation, frac delay): %.2f %%\n",
+                    adaptersTotal, factor, osPct, whole.percent - idle.percent - adaptersTotal - osPct);
+    };
+    profile("Formant/Chaos/Granular/Fractal", {DT::Formant, DT::Chaos, DT::Granular, DT::Fractal});
+    profile("HardClip/SineFold/FullRectify/RingSaturation", {DT::HardClip, DT::SineFold, DT::FullRectify,
+                                                              DT::RingSaturation});
+}
+
 TEST_CASE("Processor CPU: 4 bands at 4x, one HardClip node per band, under 5 %",
           "[disrumpo][processor][performance]") {
     constexpr double kBudget = 5.0;  // PT-DI-002
@@ -241,12 +358,14 @@ TEST_CASE("Processor CPU: 4 bands x 4 Experimental nodes at the morph centre, un
 TEST_CASE("Processor CPU: 4 bands x 4 cross-family nodes at 4x at the morph centre, under 15 %",
           "[disrumpo][processor][morph][performance]") {
     constexpr double kBudget = 15.0;  // specs-overview.md NFR "4 bands, 4x OS", 003 PT-DI-004
-    // One node from each of four families, every one a 4x type, so the band runs at 4x
+    // One node from each of four families (4x types and SineFold, 8x since 2026-11-10)
     const auto r = measure(fourBands({DistortionType::HardClip, DistortionType::SineFold,
                                       DistortionType::FullRectify, DistortionType::RingSaturation}, 4));
     report("4 bands x HardClip/SineFold/FullRectify/RingSaturation, 4x", r, kBudget);
+    // SineFold is an 8x type since the drive re-stage (user ruling 2026-11-10): the band's weighted
+    // factor (4 + 8 + 4 + 4) / 4 = 5 rounds up to 8 (round-3 ruling 4: expectation 4 -> 8, budget kept)
     for (int b = 0; b < kBands; ++b) {
-        REQUIRE(r.factor[static_cast<size_t>(b)] == 4);
+        REQUIRE(r.factor[static_cast<size_t>(b)] == 8);
         REQUIRE(r.nodes[static_cast<size_t>(b)] == 4);
     }
     INFO("CPU " << r.percent << " % (best 10-block run " << r.bestTrialPercent << " %)");

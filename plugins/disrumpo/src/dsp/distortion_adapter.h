@@ -34,6 +34,7 @@
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/one_pole.h>
+#include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/waveshaper.h>
 
 #include <array>
@@ -234,6 +235,8 @@ struct DistortionParams {
 /// @par Signal Flow
 /// Input -> [Drive Scale] -> [processRaw] -> [DC Block (if needed)] ->
 /// [Tone Filter] -> [Mix Blend] -> Output
+/// The level-dependent types run processRaw 18 dB hotter and are brought back down after
+/// it, so drive 1 distorts a -18 dBFS input (drive re-stage, user ruling 2026-11-10).
 ///
 /// @par Drive Gate
 /// When drive == 0.0, the entire distortion path is bypassed and the dry
@@ -381,16 +384,37 @@ public:
                                         inputLagSeconds);
     }
 
+    /// @brief Start the 10 Hz DC blockers settled on the means @p other's remove, and Allpass
+    /// Resonant's loop in @p other's state (at this adapter's rate): an oversampling crossfade's
+    /// incoming lane, cleared, otherwise passed each blocker's DC as a step that decayed over ~150 ms
+    /// (-24 dBFS from a -58 dBFS input, user ruling 2026-11-11, round 4). Call after this adapter
+    /// is clocked at its rate and configured, before its first sample; @p other runs the same type.
+    void warmStartFrom(const DistortionAdapter& other) noexcept;
+
     /// @brief True for the types whose shaper runs through first-order antiderivative
     /// anti-aliasing (ADAA1) when the adapter is clocked above the host rate: HalfRectify
-    /// (the step at the threshold) and TriangleFold (the fold corners). Ruling 2026-11-09.
+    /// (the step at the threshold) and TriangleFold (the fold corners), ruling 2026-11-09;
+    /// SoftClip (its knee and tanh, at 4x), ruling 2026-11-10.
     [[nodiscard]] static bool usesAdaa(DistortionType type) noexcept {
-        return type == DistortionType::HalfRectify || type == DistortionType::TriangleFold;
+        return type == DistortionType::HalfRectify || type == DistortionType::TriangleFold ||
+               type == DistortionType::SoftClip;
     }
 
     /// ADAA1 delays the shaper by half a clocked sample (its linear segments read the mean of
     /// the last two inputs); owners align the band to it (BandProcessor latency).
     static constexpr double kAdaaDelayClockedSamples = 0.5;
+
+    /// True for the type whose shaper runs through second-order ADAA (ADAA2) when oversampled:
+    /// TriangleFold (user ruling 2026-11-11, round 3: ADAA1 at 8x left -47.9 dB of aliasing at
+    /// drive 10 against T6.01's -50 dB). ADAA2 delays the shaper by one clocked sample.
+    [[nodiscard]] static bool usesAdaa2(DistortionType type) noexcept { return type == DistortionType::TriangleFold; }
+
+    /// The delay @p type's anti-aliasing adds when oversampled, in clocked samples: one for ADAA2,
+    /// half for ADAA1, else 0. Owners align the band to the largest among its shapers.
+    [[nodiscard]] static double adaaDelayClockedSamples(DistortionType type) noexcept {
+        if (usesAdaa2(type)) return 1.0;
+        return usesAdaa(type) ? kAdaaDelayClockedSamples : 0.0;
+    }
 
     /// Largest Spectral FFT size the plugin offers (processor_params.cpp Spectral
     /// slot 1: 512..4096). SpectralDistortion is allocated for it once in prepare().
@@ -412,17 +436,36 @@ private:
     void prepareRateDependent(double rate) noexcept;
 
     /// @brief Raw processing for the current type (no mix/tone/DC).
-    [[nodiscard]] float processRaw(float input) noexcept;
+    [[nodiscard]] float processRaw(float input) noexcept { return processRawFor(currentType_, input); }
+
+    /// @brief Raw processing for @p type (no mix/tone/DC).
+    [[nodiscard]] float processRawFor(DistortionType type, float input) noexcept;
 
     /// @brief Drive, type, DC block, tone and mix of @p input; @p dry is the dry image the
     /// mix and the drive gate use (the input itself, or delayed by a latent type's latency).
-    [[nodiscard]] float processWithDry(float input, float dry) noexcept;
+    [[nodiscard]] float processWithDry(float input, float dry) noexcept {
+        return processWithDryFor(currentType_, input, dry, adaaDryPrev_, dcBlocker_, toneFilter_, needsDCBlock_);
+    }
+
+    /// @brief processWithDry() for @p type with its own ADAA1 dry history, DC blocker and tone
+    /// filter: the current type's, or a type-change fade's outgoing type's (fadeFromRunning_).
+    [[nodiscard]] float processWithDryFor(DistortionType type, float input, float dry, float& dryPrev,
+                                          Krate::DSP::DCBlocker& dcBlocker, Krate::DSP::OnePoleLP& toneFilter,
+                                          bool dcBlock) noexcept;
+
+    /// @brief True when @p a and @p b run through a shared processor or filter (the fuzz
+    /// processor, the wavefold smoothing filter, the dither generator): they cannot both run.
+    [[nodiscard]] static bool sharesProcessorState(DistortionType a, DistortionType b) noexcept;
 
     /// @brief Re-derive blockLatency_ for the active type (Spectral: its active FFT size).
     void updateBlockLatency() noexcept;
 
     /// @brief Clear the latency delay lines when the adapter becomes latent (D-081).
     void refreshLatencyMode() noexcept;
+
+    /// @brief The part of FuzzProcessor's clean blend that Fuzz / AsymmetricFuzz remove above
+    /// drive 1 (the blend scaled by 1 / drive^2), for the fuzz input @p fuzzInput.
+    [[nodiscard]] float fuzzCleanExcess(float fuzzInput) const noexcept;
 
     /// @brief Apply tone filter to wet signal.
     [[nodiscard]] float applyTone(float wet) noexcept;
@@ -453,6 +496,12 @@ private:
 
     /// HalfRectify ADAA1: the previous shaper input
     double halfRectAdaaPrev_ = 0.0;
+    /// SoftClip ADAA1: the previous shaper input
+    double softClipAdaaPrev_ = 0.0;
+    /// Fuzz / AsymmetricFuzz output makeup for the drive (setCommonParams)
+    float fuzzMakeup_ = 1.0f;
+    /// The previous dry image: an ADAA1 type's dry takes the mean of the last two (processWithDry)
+    float adaaDryPrev_ = 0.0f;
     int maxBlockSize_ = 512;               ///< Block size prepare() was given
     DistortionType currentType_ = DistortionType::SoftClip;
     DistortionCommonParams commonParams_;
@@ -531,6 +580,26 @@ private:
     /// Secondary wavefolder for shape crossfade (triangle model for sine/triangle blend)
     Krate::DSP::Wavefolder wavefoldTriangle_;
 
+    /// TriangleFold oversampled (usesAdaa2): WavefolderProcessor's Simple model (fold amount and
+    /// symmetry smoothed over its 5 ms, its 10 Hz DC blocker, mix 1) with the fold through
+    /// second-order ADAA in double (Bilbao et al. 2017, as core/closed_form_adaa2.h, with the
+    /// threshold as a per-sample argument), and the Angle sine fold delayed one clocked sample
+    /// to meet it (user ruling 2026-11-11, round 3)
+    Krate::DSP::OnePoleSmoother triFoldAmountSmoother_;
+    Krate::DSP::OnePoleSmoother triFoldSymmetrySmoother_;
+    Krate::DSP::DCBlocker triFoldDcBlocker_;
+    double triAdaaX1_ = 0.0;
+    double triAdaaX2_ = 0.0;
+    double triAdaaF2x1_ = 0.0;
+    double triAdaaD1_ = 0.0;
+    double triAdaaT_ = -1.0;  ///< threshold triAdaaF2x1_ / triAdaaD1_ were computed at
+    float triAngleDelay_ = 0.0f;
+
+    /// The ADAA2 triangle fold of @p input (bias applied) at the smoothed fold amount and
+    /// symmetry, DC-blocked: one clocked sample late.
+    [[nodiscard]] float triangleFoldAdaa2(float input) noexcept;
+    void resetTriangleFoldAdaa2() noexcept;
+
     /// Phase accumulator for tape flutter LFO (D04)
     float flutterPhase_ = 0.0f;
 
@@ -575,6 +644,29 @@ private:
     /// Fade length in clocked samples, and the samples of it still to run
     int typeFadeLength_ = 1;
     int typeFadeRemaining_ = 0;
+
+    /// A type-change fade from a type that shares no state with the new one, neither latent, runs
+    /// the outgoing type beside the new one and crossfades from its output instead of from the
+    /// frozen last output (user ruling 2026-11-11, round 3: the frozen origin dipped a
+    /// SoftClip -> Tube switch -4.4 dB in its first 2 ms). Its DC blocker, tone filter and ADAA1
+    /// dry history continue from the shared ones' state at the switch.
+    bool fadeFromRunning_ = false;
+    DistortionType fadeFromType_ = DistortionType::SoftClip;
+    bool fadeFromDCBlock_ = false;
+    float fadeAdaaDryPrev_ = 0.0f;
+    Krate::DSP::DCBlocker fadeDcBlocker_;
+    Krate::DSP::OnePoleLP fadeToneFilter_;
+
+    /// Mix smoothed over kMixSmoothingMs (user ruling 2026-11-11, round 3): a Mix change stepped the
+    /// output from the dry image to the wet one within a sample (Node Mix 0 -> 100 % at drive 5: jump
+    /// ratio 1.82). Snapped before the first output; once on its target the value is the target
+    /// exactly, so a steady Mix is bit-identical. currentMix_ is this sample's value (process()).
+    static constexpr float kMixSmoothingMs = 5.0f;
+
+    /// Samples per chunk of a steady span a block-capable shaper (Fractal) runs as a block (processBlock)
+    static constexpr int kShaperChunk = 64;
+    Krate::DSP::OnePoleSmoother mixSmoother_;
+    float currentMix_ = 1.0f;
 
     /// Counts this instance in debugLiveInstances
     struct LiveCount {

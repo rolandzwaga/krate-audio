@@ -49,6 +49,7 @@ constexpr size_t kWarm = 24000;
 constexpr size_t kMeasure = 8192;
 constexpr size_t kLen = kWarm + kMeasure;
 constexpr double kMaxHz = 18000.0;
+constexpr double kOutputGainDb = -12.0;  ///< the processor's Output Gain (measureParity)
 
 std::vector<float> toneAtMinus6(size_t n, double sr) {
     const double a = std::pow(10.0, -6.0 / 20.0);
@@ -108,11 +109,15 @@ struct Parity {
 
 Parity measureParity(DistortionType type) {
     Rig r(kSr);
+    // Output Gain -12 dB, added back below: the node's output (up to +6 dBFS, T6.01) then stays
+    // below the output safety clipper's -6 dBFS knee (user ruling 2026-11-10), where it is an
+    // exact passthrough; at 0 dB Half Rectify and Bitcrush read the clipper (-2.4 / -1.1 dB)
     PList params{{kBandCountId, 0.0},
                  {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(type)},
                  {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.75},
                  {makeNodeParamId(0, 0, NodeParamType::kNodeMix), 1.0},
-                 {makeNodeParamId(0, 0, NodeParamType::kNodeBias), 0.5}};
+                 {makeNodeParamId(0, 0, NodeParamType::kNodeBias), 0.5},
+                 {kOutputGainId, (kOutputGainDb + 24.0) / 48.0}};
     // RingSaturation's default carrier (Track) locks to the input with a phase set by when
     // its tracker first locks, so its level depends on that phase (2.3 dB here at 4x), not
     // on the rate. The Fixed carrier (frequency mode slot 0) has no such dependence.
@@ -149,7 +154,7 @@ Parity measureParity(DistortionType type) {
     const auto sp = bandLimited(proc, kSr);
     const auto sa = bandLimited(ref, rate);
     return {.factor = factor,
-            .rmsDiffDb = 10.0 * std::log10((sp.meanSquare + 1e-30) / (sa.meanSquare + 1e-30)),
+            .rmsDiffDb = 10.0 * std::log10((sp.meanSquare + 1e-30) / (sa.meanSquare + 1e-30)) - kOutputGainDb,
             .centroidRatio = sa.centroidHz > 0.0 ? sp.centroidHz / sa.centroidHz : 0.0,
             .adapterCentroidHz = sa.centroidHz,
             .processorCentroidHz = sp.centroidHz};

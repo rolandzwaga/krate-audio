@@ -139,8 +139,11 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
     editorClosing_.store(true, std::memory_order_release);
+    instanceId_ = 0;  // an editor still open reads no processor display from here on
     sharedDisplay_ = nullptr;
-    updateChecker_.reset();
+    // updateChecker_ stays until the destructor: an editor a host has not closed yet still
+    // polls it (update banner, Check for Updates button), and that editor holds a reference
+    // to this controller, so the destructor runs only after its views are gone
     return EditControllerEx1::terminate();
 }
 
@@ -1537,34 +1540,64 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 void Controller::onEditorTimer() {
     if (sweepIndicator_ && sweepIndicator_->isEnabled())
         sweepIndicator_->setDirty();
-    if (activeEditor_) {
-        if (auto* frame = activeEditor_->getFrame())
-            updateModSliders(frame);
-    }
-    // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
-    // wire the spectrum display directly to the processor's shared FIFOs
-    if (!dataExchangeActive_ && sharedDisplay_ && !spectrumDataAvailable_) {
+    // Tier 3 fallback: no DataExchange block for ~330 ms (no queue, or one the host
+    // stopped draining, e.g. reopened on a thread without a message loop): the
+    // displays read the processor's SharedDisplay until DataExchange blocks return.
+    // The processor may have terminated since the last tick, so it is looked up again.
+    if (fallbackTickCounter_ < kDataExchangeStallTicks)
         ++fallbackTickCounter_;
-        if (fallbackTickCounter_ > 10) { // ~330ms at 33ms timer
-            KRATE_BRIDGE_LOG("Disrumpo::Controller — Tier 3 fallback ACTIVATED (no DataExchange after ~330ms)");
+    sharedDisplay_ = instanceId_ != 0
+        ? static_cast<SharedDisplay*>(Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(instanceId_))
+        : nullptr;
+    if (fallbackTickCounter_ < kDataExchangeStallTicks || sharedDisplay_ == nullptr) {
+        tier3Active_ = false;
+    } else {
+        if (!tier3Active_) {
+            if (dataExchangeActive_)
+                KRATE_BRIDGE_LOG("Disrumpo::Controller — DataExchange stalled, Tier 3 fallback ACTIVATED");
+            else
+                KRATE_BRIDGE_LOG("Disrumpo::Controller — Tier 3 fallback ACTIVATED (no DataExchange after ~330ms)");
+            if (dataExchangeActive_ && sharedDisplay_->meters) {
+                // The windows SharedMeters holds unread were shown through DataExchange
+                MeterWindow shown;
+                (void)sharedDisplay_->meters->consume(shown);
+            }
+            tier3Active_ = true;
+            dataExchangeActive_ = false;
             spectrumDataAvailable_ = true;
             if (spectrumDisplay_) {
-                spectrumDisplay_->setSpectrumFIFOs(
-                    sharedDisplay_->inputFIFO, sharedDisplay_->outputFIFO);
-                float sr = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
+                spectrumDisplay_->setSpectrumFIFOs(&localInputFIFO_, &localOutputFIFO_);
+                const float sr = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
                 if (sr > 0.0f)
                     spectrumDisplay_->startAnalysis(sr);
             }
         }
-    }
+        if (tier3Source_ != sharedDisplay_) {
+            // A new source: start from its latest FIFO-full
+            tier3Source_ = sharedDisplay_;
+            const auto start = [](size_t total) { return total > kTier3CopyMax ? total - kTier3CopyMax : 0; };
+            tier3InputRead_ = start(sharedDisplay_->inputFIFO->totalWritten());
+            tier3OutputRead_ = start(sharedDisplay_->outputFIFO->totalWritten());
+        }
+        copyTier3Samples(*sharedDisplay_->inputFIFO, localInputFIFO_, tier3InputRead_);
+        copyTier3Samples(*sharedDisplay_->outputFIFO, localOutputFIFO_, tier3OutputRead_);
 
-    // Level meters: Tier 3 reads the processor's SharedMeters once the fallback is on
-    if (!dataExchangeActive_ && fallbackTickCounter_ > 10 && sharedDisplay_ && sharedDisplay_->meters) {
+        // Level meters: the processor's SharedMeters
         MeterWindow window;
-        if (sharedDisplay_->meters->consume(window)) {
+        if (sharedDisplay_->meters && sharedDisplay_->meters->consume(window)) {
             mergeMeterWindow(pendingMeters_, window);
             pendingMeterSampleRate_ = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
         }
+
+        // Mod rings: the processor's latest offsets (user ruling: mod rings in fallback)
+        if (sharedDisplay_->modOffsets) {
+            for (size_t d = 0; d < cachedModOffsets_.size(); ++d)
+                cachedModOffsets_[d] = (*sharedDisplay_->modOffsets)[d].load(std::memory_order_relaxed);
+        }
+    }
+    if (activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame())
+            updateModSliders(frame);
     }
     const auto now = std::chrono::steady_clock::now();
     const double dt = lastMeterTick_ == std::chrono::steady_clock::time_point{}
@@ -1576,6 +1609,16 @@ void Controller::onEditorTimer() {
             updateLevelMeters(frame, dt);
     }
     pendingMeters_ = MeterWindow{};
+}
+
+void Controller::copyTier3Samples(Krate::DSP::SpectrumFIFO<8192>& from, Krate::DSP::SpectrumFIFO<8192>& to,
+                                  size_t& readPos) {
+    const size_t total = from.totalWritten();
+    readPos = std::min(readPos, total);  // another processor's FIFO behind the same address
+    const size_t count = std::min(total - readPos, tier3Scratch_.size());
+    if (count > 0 && from.readLatest(tier3Scratch_.data(), count) == count)
+        to.push(tier3Scratch_.data(), count);
+    readPos = total;
 }
 
 void Controller::updateLevelMeters(VSTGUI::CViewContainer* container, double dtSeconds) {
@@ -1666,6 +1709,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     spectrumDisplay_ = nullptr;
     dataExchangeActive_ = false;
     fallbackTickCounter_ = 0;
+    tier3Active_ = false;
+    tier3Source_ = nullptr;
     activeEditor_ = nullptr;
     if (updateBannerView_) { updateBannerView_->stopPolling(); updateBannerView_ = nullptr; }
     (void)editor;

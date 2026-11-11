@@ -15,6 +15,7 @@
 // [p6r-latency] oversampler group delay vs its impulse-peak delay; dry/wet sum per latency.
 // [p6r-arrival] per-band arrival as fractional group delays.
 // [p6r-xsum]    crossover sum of a 1x band with a 2x or 4x band against all-1x.
+// [p6s-minimax8] the 8x band's minimax alignment offset beside the tabulated 2x / 4x ones.
 // [p6s-ab-dump] / [p6s-ab-compare] the ADAA ruling's A/B of HalfRectify / TriangleFold.
 // [p6d-ringsat] Ring Saturation per-sample carrier / tracker A/B (follow-up 84, 2026-11-10).
 // Run one case by name; results of 2026-11-09 are in follow-ups 79 and 81.
@@ -23,6 +24,7 @@
 #include "../test_support/audit_metrics.h"
 #include "../test_support/disrumpo_rig.h"
 
+#include "dsp/band_processor.h"
 #include "dsp/distortion_adapter.h"
 #include "dsp/distortion_types.h"
 #include "plugin_ids.h"
@@ -279,6 +281,11 @@ TEST_CASE("p6r probe: non-harmonic split TriangleFold", "[.][p6r-split][p6r-spli
 }
 TEST_CASE("p6r probe: non-harmonic split HalfRectify", "[.][p6r-split][p6r-split-half]") {
     splitType(DistortionType::HalfRectify);
+}
+// Drive re-stage (2026-11-10): T6.01 reads AllpassResonant at -48 / -49.9 dB, unmoved by the
+// factor; this splits it into aliasing (falls with the clocked rate) and the rest.
+TEST_CASE("p6r probe: non-harmonic split AllpassResonant", "[.][p6r-split][p6r-split-ap]") {
+    splitType(DistortionType::AllpassResonant);
 }
 TEST_CASE("p6r probe: non-harmonic split HardClip control", "[.][p6r-split][p6r-split-hard]") {
     splitType(DistortionType::HardClip);
@@ -1018,6 +1025,57 @@ TEST_CASE("p6s probe: minimax alignment delays per factor and rate", "[.][p6s-mi
                         m14.xRaw.fc, m24.xRaw.db, m24.xRaw.hz, m24.xRaw.fc, m12.xCancel.db, m12.xCancel.hz,
                         m14.xCancel.db, m14.xCancel.hz, m24.xCancel.db, m24.xCancel.hz);
         }
+    }
+}
+
+// [p6s-minimax8]: the 8x offset (drive re-stage ruling 2026-11-10, 8x added beside 2x / 4x).
+// The 2x and 4x offsets stay as tabulated (BandProcessor::minimaxAlignmentOffset; with 8x
+// reachable the 2x one is its "with 4x" value); d8 (0.01-sample grid, wait >= 0) minimises the
+// largest of the 1x + 8x cost (as 1x + 4x above), the 2x + 8x and the 4x + 8x cancellation.
+TEST_CASE("p6s probe: minimax alignment delay of 8x per rate", "[.][p6s-minimax8]") {
+    std::vector<double> freqs;
+    for (double f = 20.0; f <= 20000.0 * 1.0001; f *= std::pow(2.0, 1.0 / 24.0)) freqs.push_back(f);
+    for (const double sr : {44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0}) {
+        const auto p2 = mmPath<Krate::DSP::Oversampler<2, 2>>(sr, freqs);
+        const auto p4 = mmPath<Krate::DSP::Oversampler<4, 2>>(sr, freqs);
+        const auto p8 = mmPath<Krate::DSP::Oversampler<8, 2>>(sr, freqs);
+        const std::vector<std::complex<double>> one(freqs.size(), {1.0, 0.0});
+        const double d2 = BandProcessor::minimaxAlignmentOffset(2, sr, true);
+        const double d4 = BandProcessor::minimaxAlignmentOffset(4, sr, true);
+        const auto t2 = mmShift(p2, freqs, sr, d2);
+        const auto t4 = mmShift(p4, freqs, sr, d4);
+        const double lo8 = p8.gd - p8.peak;
+        double best = 1e300;
+        double bestSum = 1e300;
+        double bd8 = lo8;
+        std::vector<std::array<double, 4>> rows;  // d8, c18, c28, c48
+        for (double d = lo8; d <= 2.0 + 1e-9; d += 0.01) {
+            const auto t8 = mmShift(p8, freqs, sr, d);
+            const double c18 = mmCost(mmMetrics(freqs, sr, one, t8, true, false), true);
+            const double c28 = mmCost(mmMetrics(freqs, sr, t2, t8, false, false), false);
+            const double c48 = mmCost(mmMetrics(freqs, sr, t4, t8, false, false), false);
+            rows.push_back({d, c18, c28, c48});
+            best = std::min(best, std::max({c18, c28, c48}));
+        }
+        for (const auto& r : rows) {
+            const double m = std::max({r[1], r[2], r[3]});
+            if (m <= best + 1e-3 && r[1] + r[2] + r[3] < bestSum) {
+                bestSum = r[1] + r[2] + r[3];
+                bd8 = r[0];
+            }
+        }
+        const auto t8 = mmShift(p8, freqs, sr, bd8);
+        const auto m18 = mmMetrics(freqs, sr, one, t8, true, true);
+        const auto m28 = mmMetrics(freqs, sr, t2, t8, false, true);
+        const auto m48 = mmMetrics(freqs, sr, t4, t8, false, true);
+        const auto t2alone = mmShift(p2, freqs, sr, BandProcessor::minimaxAlignmentOffset(2, sr, false));
+        const auto m28alone = mmMetrics(freqs, sr, t2alone, t8, false, true);
+        std::printf("MM8 %.0f Hz: gd 8x %.4f (peak %d); d2 %+.3f d4 %+.3f -> minimax d8 %+.3f (cost %.3f dB) | "
+                    "Mix50 8x %+.2f@%.0f (ex %+.2f) | cancel 1+8 %+.2f@%.0f 2+8 %+.2f@%.0f (2x alone offset %+.2f) "
+                    "4+8 %+.2f@%.0f | xsum raw 1+8 %+.2f 2+8 %+.2f 4+8 %+.2f\n",
+                    sr, p8.gd, p8.peak, d2, d4, bd8, best, m18.mixRaw.db, m18.mixRaw.hz, m18.mixExcess.db,
+                    m18.xCancel.db, m18.xCancel.hz, m28.xCancel.db, m28.xCancel.hz, m28alone.xCancel.db,
+                    m48.xCancel.db, m48.xCancel.hz, m18.xRaw.db, m28.xRaw.db, m48.xRaw.db);
     }
 }
 

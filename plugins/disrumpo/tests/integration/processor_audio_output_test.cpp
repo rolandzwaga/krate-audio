@@ -23,12 +23,14 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <vector>
 #include "vst_param_changes.h"
 
 #include "../test_support/audit_metrics.h"
+#include "../test_support/calibrated_clicks.h"
 #include "../test_support/disrumpo_rig.h"
 #include "dsp/crossover_network.h"
 #include "test_helpers/spectral_analysis.h"
@@ -37,6 +39,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <functional>
 #include <numbers>
 #include <utility>
 
@@ -683,12 +686,13 @@ TEST_CASE("Processor block path with oversampled bands allocates nothing",
 
 namespace {
 
-/// One band, node 0 SoftClip at drive 0.1 (linear region), mix 1, cursor on node 0.
+/// One band, node 0 Tube at drive 0.1 (linear region; a 2x type: SoftClip, which this read
+/// before, is 4x since the drive re-stage ruling 2026-11-10), mix 1, cursor on node 0.
 /// Returns the RMS of the last 0.25 s of a 0.5 s sine at -30 dBFS.
-double softClipToneRms(double toneNorm, double freqHz, double oversampleMaxNorm, int& factor) {
+double tubeToneRms(double toneNorm, double freqHz, double oversampleMaxNorm, int& factor) {
     ts::Rig rig(kBlockSr);
     rig.apply({{Disrumpo::kBandCountId, 0.0},
-               {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip)},
+               {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::Tube)},
                {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.01},
                {makeNodeParamId(0, 0, NodeParamType::kNodeTone), toneNorm},
                {makeNodeParamId(0, 0, NodeParamType::kNodeMix), 1.0},
@@ -719,10 +723,10 @@ TEST_CASE("Processor tone filter cutoff matches the Tone parameter", "[disrumpo]
     constexpr double kTone4k = (4000.0 - 200.0) / 7800.0;
     const auto check = [&](double oversampleMaxNorm, int expectedFactor) {
         int factor = 0;
-        const double ref8k = softClipToneRms(kTone8k, kRefHz, oversampleMaxNorm, factor);
-        const double at4k = softClipToneRms(kTone8k, 4000.0, oversampleMaxNorm, factor);
-        const double ref4k = softClipToneRms(kTone4k, kRefHz, oversampleMaxNorm, factor);
-        const double at1k = softClipToneRms(kTone4k, 1000.0, oversampleMaxNorm, factor);
+        const double ref8k = tubeToneRms(kTone8k, kRefHz, oversampleMaxNorm, factor);
+        const double at4k = tubeToneRms(kTone8k, 4000.0, oversampleMaxNorm, factor);
+        const double ref4k = tubeToneRms(kTone4k, kRefHz, oversampleMaxNorm, factor);
+        const double at1k = tubeToneRms(kTone4k, 1000.0, oversampleMaxNorm, factor);
         const double db8k = ts::toDb(at4k / ref8k);
         const double db4k = ts::toDb(at1k / ref4k);
         INFO("running factor " << factor << ": tone 8 kHz at 4 kHz " << db8k
@@ -732,7 +736,7 @@ TEST_CASE("Processor tone filter cutoff matches the Tone parameter", "[disrumpo]
         REQUIRE(std::fabs(db4k - (-0.26)) <= 0.5);
     };
     SECTION("Oversample Max 1x") { check(0.0, 1); }
-    SECTION("Oversample Max 4x (SoftClip runs at 2x)") { check(2.0 / 3.0, 2); }
+    SECTION("Oversample Max 4x (Tube runs at 2x)") { check(2.0 / 3.0, 2); }
 
     // The audit probe "tone-response" (fix plan T6.02): with Tone 4 kHz the processor's level
     // at 1 / 2 / 4 / 8 kHz (re 250 Hz) is within 1 dB of a DistortionAdapter prepared at the
@@ -742,7 +746,7 @@ TEST_CASE("Processor tone filter cutoff matches the Tone parameter", "[disrumpo]
         const auto adapterRms = [](double freqHz) {
             auto adapter = std::make_unique<Disrumpo::DistortionAdapter>();
             adapter->prepare(kBlockSr, 512);
-            adapter->setType(DistortionType::SoftClip);
+            adapter->setType(DistortionType::Tube);
             adapter->setCommonParams({.drive = 0.1f, .mix = 1.0f, .toneHz = 4000.0f});
             const auto in = sineAt(static_cast<size_t>(kBlockSr / 2.0), freqHz, -30.0);
             std::vector<float> out(in.size());
@@ -752,10 +756,10 @@ TEST_CASE("Processor tone filter cutoff matches the Tone parameter", "[disrumpo]
         };
         for (const double osMax : {0.0, 2.0 / 3.0}) {
             int factor = 0;
-            const double procRef = softClipToneRms(kTone4k, kRefHz, osMax, factor);
+            const double procRef = tubeToneRms(kTone4k, kRefHz, osMax, factor);
             const double adapterRef = adapterRms(kRefHz);
             for (const double f : {1000.0, 2000.0, 4000.0, 8000.0}) {
-                const double procDb = ts::toDb(softClipToneRms(kTone4k, f, osMax, factor) / procRef);
+                const double procDb = ts::toDb(tubeToneRms(kTone4k, f, osMax, factor) / procRef);
                 const double adapterDb = ts::toDb(adapterRms(f) / adapterRef);
                 std::printf("T6.02 tone 4 kHz at %.0f Hz (running factor %d): processor %.2f dB, adapter %.2f dB "
                             "(re 250 Hz)\n", f, factor, procDb, adapterDb);
@@ -843,8 +847,12 @@ std::array<double, 3> defaultCrossoversHz() {
 /// Impulse response of the processor (left channel): `numBands` bands, every node at drive 0
 /// (adapter passthrough), centre pan, Oversample Max 1x, global mix `mix`. `afterActivation`
 /// is applied once the processor is running (crossover moves, band-count changes). 0.3 s
-/// pre-roll, then a unit impulse; returns the kMixIrLength samples from the impulse on.
-/// `oversampleMaxNorm` other than 0 sets a higher Oversample Max (T2.10).
+/// pre-roll, then an impulse of kMixImpulse; returns the kMixIrLength samples from the impulse
+/// on, scaled back to a unit impulse. `oversampleMaxNorm` other than 0 sets a higher Oversample
+/// Max (T2.10). The impulse stays below the output safety clipper's knee (-6 dBFS, user ruling
+/// 2026-11-10), where it is an exact passthrough: a unit impulse reads the clipper (-0.31 dB at
+/// 270 Hz through one neutral band), not the linear response these cases measure.
+constexpr float kMixImpulse = 0.25f;  // -12 dBFS; a power of two, so the scaling back is exact
 std::vector<float> mixImpulseResponse(double sr, int numBands, double mix, const ts::PList& afterActivation = {},
                                       double oversampleMaxNorm = 0.0) {
     ts::PList l{{Disrumpo::kBandCountId, static_cast<double>(numBands - 1) / 3.0},
@@ -860,14 +868,16 @@ std::vector<float> mixImpulseResponse(double sr, int numBands, double mix, const
     if (!afterActivation.empty()) rig.apply(afterActivation);
     const auto preRoll = static_cast<size_t>(sr * 0.3);
     std::vector<float> in(preRoll + kMixIrLength, 0.0f);
-    in[preRoll] = 1.0f;
+    in[preRoll] = kMixImpulse;
     std::vector<float> outL;
     std::vector<float> outR;
     rig.render(in, in, outL, outR);
     if (oversampleMaxNorm == 0.0) {
         REQUIRE(rig.p->getBandProcessor(0).getOversampleFactor() == 1);
     }
-    return {outL.begin() + static_cast<std::ptrdiff_t>(preRoll), outL.end()};
+    std::vector<float> h(outL.begin() + static_cast<std::ptrdiff_t>(preRoll), outL.end());
+    for (auto& v : h) v /= kMixImpulse;
+    return h;
 }
 
 /// 480 log-spaced frequencies 30 Hz - 18 kHz plus 1 kHz, the default crossovers and `extraHz`.
@@ -1129,7 +1139,7 @@ namespace {
 /// One band, node 0 of `type` with the shape slots a fresh node of that type starts
 /// with, drive `driveNorm`, every other parameter at its default (tone 4 kHz, mix 1);
 /// 1031.25 Hz at -6 dBFS, 1 s. Returns the left channel.
-std::vector<float> renderFreshNode(DistortionType type, double driveNorm) {
+std::vector<float> renderFreshNode(DistortionType type, double driveNorm, double inScale = 1.0) {
     ts::Rig rig(kBlockSr);
     rig.apply({{Disrumpo::kBandCountId, 0.0},
                {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(type)},
@@ -1137,7 +1147,8 @@ std::vector<float> renderFreshNode(DistortionType type, double driveNorm) {
                {makeBandParamId(0, BandParamType::kBandMorphX), 0.0},
                {makeBandParamId(0, BandParamType::kBandMorphY), 0.0}});
     rig.reactivate();
-    const auto in = sineAt(static_cast<size_t>(kBlockSr), kAliasToneHz, -6.0);
+    auto in = sineAt(static_cast<size_t>(kBlockSr), kAliasToneHz, -6.0);
+    for (auto& v : in) v = static_cast<float>(inScale * v);
     std::vector<float> outL;
     std::vector<float> outR;
     rig.render(in, in, outL, outR);
@@ -1195,19 +1206,29 @@ double centroidHz(const std::vector<float>& x) {
 //   -0.68 / -1.76 / -5.07, TriangleFold -3.94 / -3.06 / -6.22.
 TEST_CASE("Wavefold types at default settings are not near-silent and stay near SoftClip",
           "[disrumpo][wavefold][D-145][D-159]") {
+    // Re-baselined for the drive re-stage (user ruling 2026-11-10): the -6 dBFS sine is scaled by
+    // 1/8 (-24.06 dBFS), so the re-staged shapers see the drive this case was written for and
+    // every output is the old one 18.06 dB lower: the -12 dBFS floor is -30.06 dBFS, the relative
+    // bars stand. At -6 dBFS the shapers run 18 dB hotter: SoftClip sits at its ceiling (-18.06
+    // dBFS) at every drive and the folders fold far further, their energy moving up to where the
+    // node's Tone filter takes it (TriangleFold -26.6 / -32.4 / -35.2 dBFS at the first run).
+    constexpr double kOldStaging = 0.125;
+    constexpr double kFloorDb = -12.0 - 18.06;
     constexpr std::array<double, 3> kDrives{0.25, 0.75, 1.0};
     std::array<double, 3> softClip{};
-    for (size_t d = 0; d < kDrives.size(); ++d) softClip[d] = tailPeakDb(renderFreshNode(DistortionType::SoftClip, kDrives[d]));
+    for (size_t d = 0; d < kDrives.size(); ++d) {
+        softClip[d] = tailPeakDb(renderFreshNode(DistortionType::SoftClip, kDrives[d], kOldStaging));
+    }
     std::printf("D-145 SoftClip fresh node peak: %.2f / %.2f / %.2f dBFS at drive 2.5 / 7.5 / 10\n", softClip[0],
                 softClip[1], softClip[2]);
     for (const auto type : {DistortionType::SineFold, DistortionType::TriangleFold, DistortionType::SergeFold}) {
         std::array<double, 3> peak{};
-        for (size_t d = 0; d < kDrives.size(); ++d) peak[d] = tailPeakDb(renderFreshNode(type, kDrives[d]));
+        for (size_t d = 0; d < kDrives.size(); ++d) peak[d] = tailPeakDb(renderFreshNode(type, kDrives[d], kOldStaging));
         std::printf("D-145 type %d fresh node peak: %.2f / %.2f / %.2f dBFS at drive 2.5 / 7.5 / 10\n",
                     static_cast<int>(type), peak[0], peak[1], peak[2]);
         INFO("type " << static_cast<int>(type) << " peak " << peak[0] << " / " << peak[1] << " / " << peak[2]
              << " dBFS, SoftClip " << softClip[0] << " / " << softClip[1] << " / " << softClip[2] << " dBFS");
-        for (size_t d = 0; d < kDrives.size(); ++d) CHECK(peak[d] >= -12.0);
+        for (size_t d = 0; d < kDrives.size(); ++d) CHECK(peak[d] >= kFloorDb);
         CHECK(std::fabs(peak[0] - softClip[0]) <= 6.0);  // drive 2.5
         CHECK(std::fabs(peak[1] - softClip[1]) <= 6.0);  // drive 7.5
         CHECK(peak[0] - peak[2] <= 6.0);                 // drive 2.5 -> 10
@@ -1337,28 +1358,74 @@ DipReading bandCountDip(int from, int to) {
 
 } // anonymous namespace
 
-TEST_CASE("Band count 2->4->1 during playback has jump ratio <= 1.3", "[disrumpo][bandcount][D-023][D-140]") {
-    const auto in = sineAt(static_cast<size_t>(kBlockSr * 1.5), 220.0, -12.0);
-    const std::vector<size_t> steps{stepAt(5), stepAt(10)};
+namespace {
+
+/// The default patch at `startBands` bands (no event: held there for the whole render), 220 Hz at
+/// -12 dBFS x `inScale`, 1.5 s, block kStepBlock; `onBlock` makes the band-count events.
+std::vector<float> bandCountRender(int startBands, double inScale,
+                                   const std::function<void(ts::Rig&, size_t, ts::PChanges&)>& onBlock) {
+    auto in = sineAt(static_cast<size_t>(kBlockSr * 1.5), 220.0, -12.0);
+    for (auto& v : in) v = static_cast<float>(inScale * v);
     ts::Rig rig(kBlockSr);
-    rig.apply({{Disrumpo::kBandCountId, bandCountNorm(2)}});
+    rig.apply({{Disrumpo::kBandCountId, bandCountNorm(startBands)}});
     rig.reactivate();
     std::vector<float> outL;
     std::vector<float> outR;
-    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kStepBlock), [&](size_t, size_t start, ts::PChanges& pc) {
+    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kStepBlock),
+               [&](size_t, size_t start, ts::PChanges& pc) { if (onBlock) onBlock(rig, start, pc); });
+    return outL;
+}
+
+/// The band-count clicks re-baselined for the drive re-stage (user ruling 2026-11-10): at
+/// -12 dBFS the re-staged default nodes square the sine off and the pinned 5-sigma detector
+/// reads the square's own edges through the 10 ms dip. Asserted for each event: no click at
+/// 5 sigma with the input 18.06 dB lower (`quiet`, the shapers at the drive this case was written
+/// for), and at -12 dBFS none at the threshold calibrated on `controls` (the band counts held,
+/// and the held renders through a plain 5 ms fade out and in: the designed dip with no plugin
+/// event in it, which the detector flags as it flags the event), where the positive-control step
+/// is still caught on the event and on every control (calibrated_clicks.h).
+void checkBandCountClicks(const char* label, const std::vector<float>& event, const std::vector<float>& quiet,
+                          const std::vector<std::vector<float>>& controls, const std::vector<size_t>& steps) {
+    const auto quietC = stepContinuity(quiet, steps);
+    const auto win = static_cast<size_t>(kBlockSr * 0.05);
+    for (size_t k = 0; k < steps.size(); ++k) {
+        const auto cal = ts::calibratedClicks(event, controls, steps[k], win, steps[k] + win / 5, kBlockSr);
+        std::printf("%s event %zu: input -18.06 dB clicks %zu; -12 dBFS: 5 sigma event %zu, held controls %zu, "
+                    "calibrated %.1f sigma event %zu, positive control (step %.4f) %zu, on the held controls %zu\n",
+                    label, k + 1, quietC[k].clicksEvent, cal.eventAt5, cal.controlsAt5, static_cast<double>(cal.sigma),
+                    cal.eventAtSigma, cal.step, cal.positiveAtSigma, cal.positiveOnControls);
+        INFO(label << " event " << k + 1);
+        CHECK(quietC[k].clicksEvent == 0u);
+        CHECK(cal.sigma > 0.0f);
+        CHECK(cal.eventAtSigma == 0u);
+        CHECK(cal.positiveAtSigma > 0u);
+        CHECK(cal.positiveOnControls > 0u);
+    }
+}
+
+} // anonymous namespace
+
+TEST_CASE("Band count 2->4->1 during playback has jump ratio <= 1.3", "[disrumpo][bandcount][D-023][D-140]") {
+    const std::vector<size_t> steps{stepAt(5), stepAt(10)};
+    const auto events = [&](ts::Rig&, size_t start, ts::PChanges& pc) {
         if (start == steps[0]) pc.addChange(Disrumpo::kBandCountId, bandCountNorm(4));
         if (start == steps[1]) pc.addChange(Disrumpo::kBandCountId, bandCountNorm(1));
-    });
+    };
+    const auto outL = bandCountRender(2, 1.0, events);
     const auto c = stepContinuity(outL, steps);
     std::printf("D-140 band count 2->4 at %.3f s: jump ratio %.2f, clicks %zu (steady %zu); 4->1 at %.3f s: jump "
                 "ratio %.2f, clicks %zu (steady %zu); non-finite %zu\n",
                 static_cast<double>(steps[0]) / kBlockSr, c[0].ratio, c[0].clicksEvent, c[0].clicksBase,
                 static_cast<double>(steps[1]) / kBlockSr, c[1].ratio, c[1].clicksEvent, c[1].clicksBase, c[0].nonFinite);
     REQUIRE(c[0].nonFinite == 0);
-    for (const auto& s : c) {
-        CHECK(s.ratio <= 1.3);
-        CHECK(s.clicksEvent == 0);
-    }
+    for (const auto& s : c) CHECK(s.ratio <= 1.3);
+    std::vector<std::vector<float>> controls;
+    for (const int held : {2, 4, 1}) controls.push_back(bandCountRender(held, 1.0, nullptr));
+    // The designed transitions (D-023): a plain 5 ms fade out of the old band count and in of the new one
+    const auto half = static_cast<size_t>(kBlockSr * 0.005);
+    controls.push_back(ts::plainDip(controls[0], controls[1], steps[0], half));
+    controls.push_back(ts::plainDip(controls[1], controls[2], steps[1], half));
+    checkBandCountClicks("D-140 band count 2->4->1", outL, bandCountRender(2, 0.125, events), controls, steps);
 }
 
 TEST_CASE("Band count change loaded by setState during playback is click-free",
@@ -1372,28 +1439,27 @@ TEST_CASE("Band count change loaded by setState during playback is click-free",
     const auto fourBands = streamWith(4);
     const auto oneBand = streamWith(1);
 
-    const auto in = sineAt(static_cast<size_t>(kBlockSr * 1.5), 220.0, -12.0);
     const std::vector<size_t> steps{stepAt(5), stepAt(10)};
-    ts::Rig rig(kBlockSr);
-    rig.apply({{Disrumpo::kBandCountId, bandCountNorm(2)}});
-    rig.reactivate();
-    std::vector<float> outL;
-    std::vector<float> outR;
-    rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kStepBlock), [&](size_t, size_t start, ts::PChanges&) {
+    const auto events = [&](ts::Rig& rig, size_t start, ts::PChanges&) {
         // The host's setState between two blocks: the next process() applies it
         if (start == steps[0]) REQUIRE(ts::setStateBytes(*rig.p, fourBands));
         if (start == steps[1]) REQUIRE(ts::setStateBytes(*rig.p, oneBand));
-    });
+    };
+    const auto outL = bandCountRender(2, 1.0, events);
     const auto c = stepContinuity(outL, steps);
     std::printf("D-023 setState band count 2->4: jump ratio %.2f, clicks %zu (steady %zu); 4->1: jump ratio %.2f, "
                 "clicks %zu (steady %zu); non-finite %zu\n",
                 c[0].ratio, c[0].clicksEvent, c[0].clicksBase, c[1].ratio, c[1].clicksEvent, c[1].clicksBase,
                 c[0].nonFinite);
     REQUIRE(c[0].nonFinite == 0);
-    for (const auto& s : c) {
-        CHECK(s.ratio <= 1.3);
-        CHECK(s.clicksEvent == 0);
-    }
+    for (const auto& s : c) CHECK(s.ratio <= 1.3);
+    std::vector<std::vector<float>> controls;
+    for (const int held : {2, 4, 1}) controls.push_back(bandCountRender(held, 1.0, nullptr));
+    // The designed transitions (D-023): a plain 5 ms fade out of the old band count and in of the new one
+    const auto half = static_cast<size_t>(kBlockSr * 0.005);
+    controls.push_back(ts::plainDip(controls[0], controls[1], steps[0], half));
+    controls.push_back(ts::plainDip(controls[1], controls[2], steps[1], half));
+    checkBandCountClicks("D-023 setState band count 2->4->1", outL, bandCountRender(2, 0.125, events), controls, steps);
 }
 
 TEST_CASE("Band count change dips the output for 10 ms", "[disrumpo][bandcount][D-023]") {
@@ -1472,27 +1538,37 @@ struct TypeSwitchCase {
 struct TypeSwitchReading {
     ts::ContResult probe;        ///< the audit probe's windows (event from the step sample)
     double ratioWithStep = 0.0;  ///< the event window widened by one sample: the step itself
+    std::vector<float> out;      ///< the render (left)
 };
 
-/// 1 band, nodes at drive 3 (normalized 0.3), 220 Hz at -12 dBFS, block 512: one node's
-/// type steps at stepAt(5).
-TypeSwitchReading nodeTypeSwitch(const TypeSwitchCase& c) {
-    const auto in = sineAt(static_cast<size_t>(kBlockSr), 220.0, -12.0);
+/// What a type-switch render does: switch at stepAt(5) (the event), or hold the node types
+/// before / after the switch for the whole render (no-event controls).
+enum class SwitchRender : std::uint8_t { Event, HoldFrom, HoldTo };
+
+/// 1 band, nodes at drive 3 (normalized 0.3), 220 Hz at -12 dBFS (x `inScale`), block 512: one
+/// node's type steps at stepAt(5).
+TypeSwitchReading nodeTypeSwitch(const TypeSwitchCase& c, SwitchRender mode = SwitchRender::Event,
+                                 double inScale = 1.0) {
+    auto in = sineAt(static_cast<size_t>(kBlockSr), 220.0, -12.0);
+    for (auto& v : in) v = static_cast<float>(inScale * v);
     const size_t at = stepAt(5);
+    const bool startTo = mode == SwitchRender::HoldTo;
+    const DistortionType node0 = startTo && c.changedNode == 0 ? c.to : c.node0;
+    const DistortionType node1 = startTo && c.changedNode == 1 ? c.to : c.node1;
     ts::Rig rig(kBlockSr);
     rig.apply({{Disrumpo::kBandCountId, bandCountNorm(1)},
                {makeBandParamId(0, BandParamType::kBandActiveNodes), static_cast<double>(c.nodes - 1) / 3.0},
                {makeBandParamId(0, BandParamType::kBandMorphX), 0.5},
                {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.3},
                {makeNodeParamId(0, 1, NodeParamType::kNodeDrive), 0.3},
-               {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(c.node0)},
-               {makeNodeParamId(0, 1, NodeParamType::kNodeType), typeNorm(c.node1)}});
+               {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(node0)},
+               {makeNodeParamId(0, 1, NodeParamType::kNodeType), typeNorm(node1)}});
     rig.reactivate();
     std::vector<float> outL;
     std::vector<float> outR;
     const auto typeId = makeNodeParamId(0, c.changedNode, NodeParamType::kNodeType);
     rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kStepBlock), [&](size_t, size_t start, ts::PChanges& pc) {
-        if (start == at) pc.addChange(typeId, typeNorm(c.to));
+        if (start == at && mode == SwitchRender::Event) pc.addChange(typeId, typeNorm(c.to));
     });
     TypeSwitchReading r;
     r.probe = stepContinuity(outL, {at})[0];
@@ -1500,6 +1576,7 @@ TypeSwitchReading nodeTypeSwitch(const TypeSwitchCase& c) {
     const size_t preBeg = static_cast<size_t>(kBlockSr * 0.1);
     const size_t postBeg = at + static_cast<size_t>(kBlockSr * 0.2);
     r.ratioWithStep = ts::continuityAround(outL, at - 1, evEnd, preBeg, at, postBeg, outL.size(), kBlockSr).ratio;
+    r.out = std::move(outL);
     return r;
 }
 
@@ -1539,15 +1616,44 @@ TEST_CASE("Node type switch SoftClip->SineFold jump ratio <= 1.3", "[disrumpo][t
          .changedNode = 1,
          .to = DT::Temporal},
     }};
+    // Re-baselined for the drive re-stage (user ruling 2026-11-10): at -12 dBFS and drive 3 the
+    // re-staged nodes square the sine off and the pinned 5-sigma detector reads the square's own
+    // edges. Asserted per case: the jump ratio as before; no click at 5 sigma with the input
+    // 18.06 dB lower (the shapers then see the drive this case was written for); and at -12 dBFS
+    // no click at the threshold calibrated on the node types held before and after the switch,
+    // where the positive-control step, sized per waveform from the held renders' own detector
+    // threshold (round 4: SineFold's spread edges hid a 1.5 x largest-edge step even on its held
+    // render), is still caught on the switch render and on each held render (calibrated_clicks.h).
+    const size_t at = stepAt(5);
+    const auto win = static_cast<size_t>(kBlockSr * 0.05);
     for (const auto& c : cases) {
         const auto r = nodeTypeSwitch(c);
-        std::printf("D-141 %s: jump ratio %.2f (with the step sample %.2f), clicks %zu (steady %zu), non-finite %zu\n",
+        const auto quiet = nodeTypeSwitch(c, SwitchRender::Event, 0.125);
+        auto heldFrom = nodeTypeSwitch(c, SwitchRender::HoldFrom).out;
+        auto heldTo = nodeTypeSwitch(c, SwitchRender::HoldTo).out;
+        // The designed transition: D-141's 5 ms type fade, or the 10 ms factor crossfade when
+        // the switch changes the band's oversampling factor (D-034), as a plain crossfade
+        const auto fromFactor = getRecommendedOversample(c.changedNode == 0 ? c.node0 : c.node1);
+        const size_t fade = static_cast<size_t>(kBlockSr * (getRecommendedOversample(c.to) != fromFactor ? 0.010 : 0.005));
+        auto designed = ts::plainCrossfade(heldFrom, heldTo, at, fade);
+        const std::vector<std::vector<float>> controls{std::move(heldFrom), std::move(heldTo), std::move(designed)};
+        const auto cal = ts::calibratedClicks(r.out, controls, at, win, at + win / 5, kBlockSr);
+        std::printf("D-141 %s: jump ratio %.2f (with the step sample %.2f), clicks %zu (steady %zu), non-finite %zu; "
+                    "input -18.06 dB: clicks %zu; -12 dBFS calibrated: 5 sigma switch %zu, held controls %zu, %.1f "
+                    "sigma switch %zu, positive control (step %.4f = 1.5 x max(largest edge %.4f, held threshold "
+                    "%.4f)) %zu, on the held controls %zu\n",
                     c.name, r.probe.ratio, r.ratioWithStep, r.probe.clicksEvent, r.probe.clicksBase,
-                    r.probe.nonFinite);
+                    r.probe.nonFinite, quiet.probe.clicksEvent, cal.eventAt5, cal.controlsAt5,
+                    static_cast<double>(cal.sigma), cal.eventAtSigma, cal.step, cal.largestStep, cal.heldThreshold,
+                    cal.positiveAtSigma, cal.positiveOnControls);
         INFO(c.name);
         REQUIRE(r.probe.nonFinite == 0);
         CHECK(r.ratioWithStep <= 1.3);
-        CHECK(r.probe.clicksEvent == 0);
+        CHECK(quiet.probe.clicksEvent == 0);
+        CHECK(cal.sigma > 0.0f);
+        CHECK(cal.eventAtSigma == 0u);
+        CHECK(cal.positiveAtSigma > 0u);
+        CHECK(cal.positiveOnControls > 0u);
     }
 
     // Measured, not gated: Spectral raises the band's latency from 0 to 2047 samples, so
@@ -1558,6 +1664,227 @@ TEST_CASE("Node type switch SoftClip->SineFold jump ratio <= 1.3", "[disrumpo][t
                 "(steady %zu)\n",
                 spectral.probe.ratio, spectral.ratioWithStep, spectral.probe.clicksEvent, spectral.probe.clicksBase);
     CHECK(spectral.probe.nonFinite == 0);
+}
+
+// Probe (hidden): where the 5-sigma detections of the 1-node SoftClip -> Tube switch at -12 dBFS
+// sit, and how the switch render differs from a plain 10 ms crossfade of the held renders there.
+TEST_CASE("Probe: type-switch detections against a plain crossfade", "[.][type-switch-probe]") {
+    using DT = DistortionType;
+    for (const auto& c : {TypeSwitchCase{.name = "1 node SoftClip -> Tube", .nodes = 1, .node0 = DT::SoftClip,
+                                         .node1 = DT::SoftClip, .changedNode = 0, .to = DT::Tube},
+                          TypeSwitchCase{.name = "2 nodes SoftClip/Tube, node 1 -> SoftClip", .nodes = 2,
+                                         .node0 = DT::SoftClip, .node1 = DT::Tube, .changedNode = 1,
+                                         .to = DT::SoftClip}}) {
+      for (const double scale : {1.0, 0.125}) {
+        std::printf("TSP input x %.3f\n", scale);
+        const size_t at = stepAt(5);
+        const auto ev = nodeTypeSwitch(c, SwitchRender::Event, scale).out;
+        const auto from = nodeTypeSwitch(c, SwitchRender::HoldFrom, scale).out;
+        const auto to = nodeTypeSwitch(c, SwitchRender::HoldTo, scale).out;
+        const auto plain = ts::plainCrossfade(from, to, at, static_cast<size_t>(kBlockSr * 0.010));
+        Krate::DSP::TestUtils::ClickDetectorConfig cfg;
+        cfg.sampleRate = static_cast<float>(kBlockSr);
+        cfg.frameSize = 512;
+        cfg.hopSize = 256;
+        cfg.detectionThreshold = 5.0f;
+        cfg.energyThresholdDb = -60.0f;
+        Krate::DSP::TestUtils::ClickDetector det(cfg);
+        det.prepare();
+        const auto win = static_cast<size_t>(kBlockSr * 0.05);
+        const auto hits = det.detect(ev.data() + at, win);
+        std::printf("TSP %s: %zu detections\n", c.name, hits.size());
+        for (const auto& h : hits) {
+            const size_t i = at + h.sampleIndex;
+            double maxDev = 0.0;
+            for (size_t k = i - 8; k < i + 8; ++k) maxDev = std::max(maxDev, std::fabs(static_cast<double>(ev[k] - plain[k])));
+            std::printf("TSP   at +%.2f ms: event step %.4f, plain step %.4f, from step %.4f, to step %.4f, "
+                        "max |event - plain| within 8 samples %.4f, event %.4f plain %.4f\n",
+                        1000.0 * static_cast<double>(h.sampleIndex) / kBlockSr, static_cast<double>(ev[i] - ev[i - 1]),
+                        static_cast<double>(plain[i] - plain[i - 1]), static_cast<double>(from[i] - from[i - 1]),
+                        static_cast<double>(to[i] - to[i - 1]), maxDev, static_cast<double>(ev[i]),
+                        static_cast<double>(plain[i]));
+        }
+        double rmsDiff = 0.0;
+        double rms = 0.0;
+        for (size_t k = at; k < at + win; ++k) {
+            rmsDiff += static_cast<double>(ev[k] - plain[k]) * (ev[k] - plain[k]);
+            rms += static_cast<double>(plain[k]) * plain[k];
+        }
+        std::printf("TSP   event - plain over the 50 ms: %.1f dB re plain\n", 10.0 * std::log10(rmsDiff / rms + 1e-30));
+        for (size_t ms = 0; ms < 50; ms += 2) {
+            const size_t s0 = at + static_cast<size_t>(kBlockSr * 0.001 * static_cast<double>(ms));
+            const size_t n = static_cast<size_t>(kBlockSr * 0.002);
+            std::printf("TSP   %2zu ms: event %.2f dB, plain %.2f dB, from %.2f, to %.2f\n", ms,
+                        ts::toDb(ts::rmsOf(ev.data() + s0, n)), ts::toDb(ts::rmsOf(plain.data() + s0, n)),
+                        ts::toDb(ts::rmsOf(from.data() + s0, n)), ts::toDb(ts::rmsOf(to.data() + s0, n)));
+        }
+      }
+    }
+}
+
+// A type switch must not dip the output (user ruling 2026-11-11, round 3 ruling 3). Before the
+// fix a switch between types of different oversampling factors changed the reported latency and
+// went through the processor's latency dip (5 ms out, 5 ms in: SoftClip -> Tube -17 dB at 4 ms),
+// and a switch between the morph engine's parallel and interpolated paths faded from the frozen
+// last output (-4 dB in the first 2 ms). Asserted: no 2 ms window of the switch render more than
+// 2 dB below the same window of the plain crossfade of the renders held before and after it
+// (probe [type-switch-cause-probe]: with the latency pinned the switch reads within 0.6 dB).
+TEST_CASE("Node type switch does not dip the output", "[disrumpo][type-switch][D-141][D-034]") {
+    using DT = DistortionType;
+    const std::array<TypeSwitchCase, 5> cases{{
+        {.name = "1 node SoftClip -> Tube (4x -> 2x)", .nodes = 1, .node0 = DT::SoftClip, .node1 = DT::SoftClip,
+         .changedNode = 0, .to = DT::Tube},
+        {.name = "1 node Tube -> HardClip (2x -> 4x)", .nodes = 1, .node0 = DT::Tube, .node1 = DT::Tube,
+         .changedNode = 0, .to = DT::HardClip},
+        {.name = "1 node SoftClip -> SineFold (4x -> 8x)", .nodes = 1, .node0 = DT::SoftClip,
+         .node1 = DT::SoftClip, .changedNode = 0, .to = DT::SineFold},
+        {.name = "2 nodes SoftClip/Tube, node 1 -> Temporal (4x -> 8x)", .nodes = 2, .node0 = DT::SoftClip,
+         .node1 = DT::Tube, .changedNode = 1, .to = DT::Temporal},
+        {.name = "2 nodes SoftClip/Tube, node 1 -> SoftClip (parallel -> interpolated)", .nodes = 2,
+         .node0 = DT::SoftClip, .node1 = DT::Tube, .changedNode = 1, .to = DT::SoftClip},
+    }};
+    const size_t at = stepAt(5);
+    for (const auto& c : cases) {
+        const auto ev = nodeTypeSwitch(c).out;
+        const auto from = nodeTypeSwitch(c, SwitchRender::HoldFrom).out;
+        const auto to = nodeTypeSwitch(c, SwitchRender::HoldTo).out;
+        const auto fromFactor = getRecommendedOversample(c.changedNode == 0 ? c.node0 : c.node1);
+        const size_t fade = static_cast<size_t>(kBlockSr * (getRecommendedOversample(c.to) != fromFactor ? 0.010 : 0.005));
+        const auto plain = ts::plainCrossfade(from, to, at, fade);
+        double worst = 0.0;
+        double worstMs = 0.0;
+        for (size_t ms = 0; ms < 20; ms += 2) {
+            const size_t s0 = at + static_cast<size_t>(kBlockSr * 0.001 * static_cast<double>(ms));
+            const auto n = static_cast<size_t>(kBlockSr * 0.002);
+            const double d = ts::toDb(ts::rmsOf(ev.data() + s0, n)) - ts::toDb(ts::rmsOf(plain.data() + s0, n));
+            if (d < worst) {
+                worst = d;
+                worstMs = static_cast<double>(ms);
+            }
+        }
+        std::printf("Type-switch dip %s: deepest 2 ms window %.2f dB re the plain crossfade at %.0f ms\n", c.name, worst,
+                    worstMs);
+        INFO(c.name << ": " << worst << " dB at " << worstMs << " ms");
+        CHECK(worst >= -2.0);
+    }
+}
+
+// Probe (hidden, round 3 ruling 3): what makes the type-switch dip. For each failing case: the
+// reported latency held before / after; the event against the plain crossfade and against the
+// processor's latency dip (plainDip: 5 ms out, 5 ms in, kBandCountFadeMs); and the same switch with
+// the latency pinned by a second band that always reaches 8x (SineFold): no latency change there.
+TEST_CASE("Probe: type-switch dip cause", "[.][type-switch-cause-probe]") {
+    using DT = DistortionType;
+    const size_t at = stepAt(5);
+    const auto win = static_cast<size_t>(kBlockSr * 0.05);
+    const auto renderCase = [&](const TypeSwitchCase& c, SwitchRender mode, bool pinned, int* latency) {
+        auto in = sineAt(static_cast<size_t>(kBlockSr), 220.0, -12.0);
+        const bool startTo = mode == SwitchRender::HoldTo;
+        const DT node0 = startTo && c.changedNode == 0 ? c.to : c.node0;
+        const DT node1 = startTo && c.changedNode == 1 ? c.to : c.node1;
+        ts::Rig rig(kBlockSr);
+        ts::PList setup{{Disrumpo::kBandCountId, bandCountNorm(pinned ? 2 : 1)},
+                        {makeBandParamId(0, BandParamType::kBandActiveNodes), static_cast<double>(c.nodes - 1) / 3.0},
+                        {makeBandParamId(0, BandParamType::kBandMorphX), 0.5},
+                        {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.3},
+                        {makeNodeParamId(0, 1, NodeParamType::kNodeDrive), 0.3},
+                        {makeNodeParamId(0, 0, NodeParamType::kNodeType), typeNorm(node0)},
+                        {makeNodeParamId(0, 1, NodeParamType::kNodeType), typeNorm(node1)}};
+        if (pinned) {
+            setup.emplace_back(makeBandParamId(1, BandParamType::kBandActiveNodes), 0.0);
+            setup.emplace_back(makeNodeParamId(1, 0, NodeParamType::kNodeDrive), 0.3);
+            setup.emplace_back(makeNodeParamId(1, 0, NodeParamType::kNodeType), typeNorm(DT::SineFold));
+        }
+        rig.apply(setup);
+        rig.reactivate();
+        std::vector<float> outL;
+        std::vector<float> outR;
+        const auto typeId = makeNodeParamId(0, c.changedNode, NodeParamType::kNodeType);
+        int before = -1;
+        rig.render(in, in, outL, outR, static_cast<Steinberg::int32>(kStepBlock), [&](size_t, size_t start, ts::PChanges& pc) {
+            if (start == at) before = static_cast<int>(rig.p->getLatencySamples());
+            if (start == at && mode == SwitchRender::Event) pc.addChange(typeId, typeNorm(c.to));
+        });
+        if (latency != nullptr) {
+            latency[0] = before;
+            latency[1] = static_cast<int>(rig.p->getLatencySamples());
+        }
+        return outL;
+    };
+    const auto residualDb = [&](const std::vector<float>& a, const std::vector<float>& b, size_t from, size_t n) {
+        double d = 0.0;
+        double r = 0.0;
+        for (size_t k = from; k < from + n; ++k) {
+            d += static_cast<double>(a[k] - b[k]) * (a[k] - b[k]);
+            r += static_cast<double>(b[k]) * b[k];
+        }
+        return 10.0 * std::log10(d / (r + 1e-30) + 1e-30);
+    };
+    for (const auto& c :
+         {TypeSwitchCase{.name = "1 node SoftClip -> Tube", .nodes = 1, .node0 = DT::SoftClip, .node1 = DT::SoftClip,
+                         .changedNode = 0, .to = DT::Tube},
+          TypeSwitchCase{.name = "1 node SoftClip -> SineFold", .nodes = 1, .node0 = DT::SoftClip,
+                         .node1 = DT::SoftClip, .changedNode = 0, .to = DT::SineFold},
+          TypeSwitchCase{.name = "1 node Tube -> HardClip", .nodes = 1, .node0 = DT::Tube, .node1 = DT::Tube,
+                         .changedNode = 0, .to = DT::HardClip},
+          TypeSwitchCase{.name = "2 nodes SoftClip/Tube, node 1 -> SoftClip", .nodes = 2, .node0 = DT::SoftClip,
+                         .node1 = DT::Tube, .changedNode = 1, .to = DT::SoftClip},
+          TypeSwitchCase{.name = "2 nodes SoftClip/Tube, node 1 -> Temporal", .nodes = 2, .node0 = DT::SoftClip,
+                         .node1 = DT::Tube, .changedNode = 1, .to = DT::Temporal}}) {
+        for (const bool pinned : {false, true}) {
+            int latEv[2] = {0, 0};
+            int latFrom[2] = {0, 0};
+            int latTo[2] = {0, 0};
+            const auto ev = renderCase(c, SwitchRender::Event, pinned, latEv);
+            const auto from = renderCase(c, SwitchRender::HoldFrom, pinned, latFrom);
+            const auto to = renderCase(c, SwitchRender::HoldTo, pinned, latTo);
+            const auto fromFactor = getRecommendedOversample(c.changedNode == 0 ? c.node0 : c.node1);
+            const size_t fade = static_cast<size_t>(kBlockSr * (getRecommendedOversample(c.to) != fromFactor ? 0.010 : 0.005));
+            const auto plain = ts::plainCrossfade(from, to, at, fade);
+            const auto dip = ts::plainDip(from, to, at, static_cast<size_t>(kBlockSr * 0.005));
+            std::vector<float> frozen(ev);
+            const double origin = ev[at - 1];
+            const auto frozenLen = static_cast<size_t>(kBlockSr * 0.005);
+            for (size_t k = at; k < at + frozenLen; ++k) {
+                const double g = static_cast<double>(k - at) / static_cast<double>(frozenLen);
+                frozen[k] = static_cast<float>(origin + g * (to[k] - origin));
+            }
+            for (size_t k = at + frozenLen; k < frozen.size(); ++k) frozen[k] = to[k];
+            // The lane crossfade over `fade` with the outgoing lane's node adapter fading from its
+            // frozen last output to the new type over 5 ms (D-141), the incoming lane at the new type
+            std::vector<float> laneFrozen(ev);
+            for (size_t k = at; k < frozen.size(); ++k) {
+                const double gl = k >= at + fade ? 1.0 : static_cast<double>(k - at) / static_cast<double>(fade);
+                laneFrozen[k] = static_cast<float>((1.0 - gl) * frozen[k] + gl * to[k]);
+            }
+            std::printf("TSC %s%s: residual over 12 ms re lane crossfade + frozen 5 ms type fade model %.1f dB\n", c.name,
+                        pinned ? " [latency pinned by an 8x band]" : "",
+                        residualDb(ev, laneFrozen, at, static_cast<size_t>(kBlockSr * 0.012)));
+            const auto cal = ts::calibratedClicks(ev, {from, to, plain}, at, win, at + win / 5, kBlockSr);
+            // The positive control's step, injected the same way into each render instead of the event
+            for (const auto& [label, render] : {std::pair<const char*, const std::vector<float>*>{"event", &ev},
+                                                {"held from", &from}, {"held to", &to}, {"plain", &plain}}) {
+                const auto self = ts::calibratedClicks(*render, {from, to, plain}, at, win, at + win / 5, kBlockSr);
+                std::printf("TSC   positive control on %s: step %.4f at sigma %.1f -> %zu\n", label, self.step,
+                            static_cast<double>(self.sigma), self.positiveAtSigma);
+            }
+            std::printf("TSC %s%s: latency event %d -> %d, held from %d, held to %d; residual over 12 ms re model: "
+                        "plain crossfade %.1f dB, latency dip %.1f dB, frozen-origin 5 ms fade %.1f dB; calibrated "
+                        "sigma %.1f event %zu positive %zu\n",
+                        c.name, pinned ? " [latency pinned by an 8x band]" : "", latEv[0], latEv[1], latFrom[1],
+                        latTo[1], residualDb(ev, plain, at, static_cast<size_t>(kBlockSr * 0.012)),
+                        residualDb(ev, dip, at, static_cast<size_t>(kBlockSr * 0.012)),
+                        residualDb(ev, frozen, at, static_cast<size_t>(kBlockSr * 0.012)),
+                        static_cast<double>(cal.sigma), cal.eventAtSigma, cal.positiveAtSigma);
+            for (size_t ms = 0; ms < 14; ms += 2) {
+                const size_t s0 = at + static_cast<size_t>(kBlockSr * 0.001 * static_cast<double>(ms));
+                const auto n = static_cast<size_t>(kBlockSr * 0.002);
+                std::printf("TSC   %2zu ms: event %.2f dB, plain %.2f, latency-dip model %.2f, frozen model %.2f\n", ms,
+                            ts::toDb(ts::rmsOf(ev.data() + s0, n)), ts::toDb(ts::rmsOf(plain.data() + s0, n)),
+                            ts::toDb(ts::rmsOf(dip.data() + s0, n)), ts::toDb(ts::rmsOf(frozen.data() + s0, n)));
+            }
+        }
+    }
 }
 
 TEST_CASE("Node type switches during playback allocate nothing", "[disrumpo][type-switch][realtime][D-032]") {
