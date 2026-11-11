@@ -1270,9 +1270,11 @@ TEST_CASE("AllpassSaturator edge cases (T095)", "[allpass_saturator][edge]") {
 // sample, whatever the topology. It now reconfigures only the active
 // topology, and only when the smoothed frequency or drive changed. The
 // reference is the pre-T4.16 class, snapshotted verbatim into
-// allpass_saturator_pre_t416_reference.h (namespace t416_reference); this TU is
-// IEEE on clang/GCC (-fno-fast-math -ffp-contract=off), and it is the only TU
-// in dsp_processors_tests that includes either header.
+// allpass_saturator_pre_t416_reference.h (namespace t416_reference). The claim
+// holds only under IEEE, so this TU is in dsp_ieee_tests, where every TU is
+// -fno-fast-math -fno-finite-math-only -ffp-contract=off on clang/GCC: in a
+// mixed executable the linker could keep a fast-math copy of an inline function
+// the two classes share.
 
 namespace {
 

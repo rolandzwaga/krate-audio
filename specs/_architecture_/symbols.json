@@ -257,7 +257,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/biquad.h",
-      "line": 318
+      "line": 327
     },
     {
       "name": "BiquadCascade",
@@ -265,7 +265,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/biquad.h",
-      "line": 427
+      "line": 436
     },
     {
       "name": "BiquadCoefficients",
@@ -273,7 +273,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/biquad.h",
-      "line": 253
+      "line": 262
     },
     {
       "name": "BiquadSectionD",
@@ -3249,7 +3249,7 @@
       "scope": "Krate::DSP::BiquadCascade",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/biquad.h",
-      "line": 617
+      "line": 626
     },
     {
       "name": "SlewLimiter",
@@ -3321,7 +3321,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/biquad.h",
-      "line": 713
+      "line": 722
     },
     {
       "name": "Smoother",
@@ -3329,7 +3329,7 @@
       "scope": "Krate::DSP::SmoothedBiquad",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/biquad.h",
-      "line": 806
+      "line": 815
     },
     {
       "name": "SpectralBuffer",

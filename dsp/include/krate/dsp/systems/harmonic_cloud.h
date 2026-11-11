@@ -1967,8 +1967,13 @@ private:
             return;
         }
         if (bank.cachedPowN != numSamples) {
-            bank.cachedPowValue =
-                std::pow(driftSmoothCoeff_, static_cast<float>(numSamples));  // smoother.h:248
+            // Through size_t, as smoother.h:246 converts its size_t numSamples: under
+            // -ffast-math clang rewrites pow(x, float(int)) into llvm.powi (repeated
+            // multiplication, 1 ULP off powf at N = 32) but leaves pow(x, float(size_t))
+            // a powf call, so the int form put this lane 1 ULP from BrownianDrift's.
+            bank.cachedPowValue = std::pow(
+                driftSmoothCoeff_,
+                static_cast<float>(static_cast<std::size_t>(numSamples)));  // smoother.h:246
             bank.cachedPowN = numSamples;
         }
         const float coeffN = bank.cachedPowValue;

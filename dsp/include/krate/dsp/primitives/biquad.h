@@ -29,8 +29,17 @@
 
 // BiquadCascade<4>::processBlock runs its four stages in the four lanes of one SSE2
 // vector on x86; elsewhere it uses the scalar sample-major loop (same arithmetic).
-#if defined(__SSE2__) || defined(_M_X64) || defined(__x86_64__) \
-    || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+// Not where the compiler may fuse a*b + c into an FMA (__FMA__: -mfma, -march=x86-64-v3):
+// the scalar stageStep is contracted and the intrinsic lanes are not, so which path a
+// sample took (the pipeline's fill / drain, or a block under 4 samples) would show in
+// its bits and the output would depend on the host's block partition (Profundum FR-049:
+// MassDynamics_PartitionInvariant went red in tools/macos-fastmath-repro.sh, the limiter's
+// output differing on 480 samples by up to 1.8e-7 in 0.5 s of its chain). No shipped build
+// defines __FMA__ (MSVC never does; the default macOS x86_64 target has no FMA); arm64 has
+// no SSE2 and always took the scalar loop.
+#if (defined(__SSE2__) || defined(_M_X64) || defined(__x86_64__) \
+     || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)) \
+    && !defined(__FMA__)
 #define KRATE_BIQUAD_CASCADE_SSE2 1
 #include <emmintrin.h>
 #else

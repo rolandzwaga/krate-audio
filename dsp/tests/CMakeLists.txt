@@ -214,7 +214,7 @@ add_executable(dsp_processors_tests
     unit/processors/spectral_distortion_test.cpp
     unit/processors/formant_distortion_test.cpp
     unit/processors/temporal_distortion_test.cpp
-    unit/processors/allpass_saturator_tests.cpp
+    # allpass_saturator_tests.cpp is in dsp_ieee_tests (D-084 bit-identity against its pre-T4.16 copy)
     unit/processors/feedback_distortion_test.cpp
     unit/processors/aliasing_effect_test.cpp
     unit/processors/granular_distortion_test.cpp
@@ -939,6 +939,15 @@ add_executable(dsp_ieee_tests
     unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/drop_phase_lock_test.cpp
     unit/processors/mono_handler_glide_test.cpp
+    # Disrumpo audit T4.16 (D-084): AllpassSaturator against its frozen pre-T4.16 copy, bit for bit. Under the
+    # macOS repro's -ffast-math the two copies are reassociated apart (AllpassChain, 44.1 kHz: 84869 of 88200 samples,
+    # max |diff| 1.03e-3); the TU's NaN / Inf injection arms (FR-026) are IEEE-only claims too.
+    unit/processors/allpass_saturator_tests.cpp
+    # Vorago FR-011 / B-2 (VoragoVoice_SpectralTargetIsNeutral): the test's exp2 law supplied as a target against the
+    # cloud's untargeted render, bit for bit. Under the macOS repro's -ffast-math the two are reassociated apart
+    # (red at richness 0.6346, tilt -12 dB/oct; green with -fno-associative-math added). The voice's other cases stay
+    # in dsp_systems_tests (vorago_voice_test.cpp, fast-math); vorago_voice_test_helpers.h is shared by both.
+    unit/systems/vorago_voice_spectral_target_neutral_test.cpp
     # Profundum bit-exactness TUs (moved from dsp_systems_tests)
     unit/systems/profundum_note_behaviour_test.cpp
     unit/systems/profundum_voice_test.cpp
