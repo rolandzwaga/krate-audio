@@ -511,7 +511,13 @@ public:
     /// Intentionally hides CView::hitTest -- this class uses a DragTarget-
     /// returning overload for its custom control-point logic. The base
     /// hitTest(CPoint&, const Event&) behaviour is not meaningful for this
-    /// view, so the -Woverloaded-virtual hide is deliberate.
+    /// view, so the -Woverloaded-virtual hide is deliberate. (A using-declaration
+    /// would not do: CView::hitTest(where, event = noEvent()) is non-const, so
+    /// hitTest(where) from a non-const member would then pick the base.)
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
+#endif
     [[nodiscard]] DragTarget hitTest(const VSTGUI::CPoint& point) const {
         // Mode toggle button in top-right corner (highest priority)
         if (hitTestModeToggle(point)) {
@@ -550,6 +556,9 @@ public:
 
         return DragTarget::None;
     }
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
     // =========================================================================
     // Color Configuration (ViewCreator attributes)

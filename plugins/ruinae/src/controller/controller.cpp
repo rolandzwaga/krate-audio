@@ -129,9 +129,6 @@ public:
 
 namespace Ruinae {
 
-// State version must match processor
-constexpr Steinberg::int32 kControllerStateVersion = 1;
-
 // ==============================================================================
 // Destructor
 // ==============================================================================

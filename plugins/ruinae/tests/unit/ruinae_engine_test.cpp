@@ -1419,6 +1419,7 @@ TEST_CASE("RuinaeEngine sustained note keeps envelope in sustain",
 
     // Check that envelope stayed in sustain throughout
     REQUIRE(reachedSustain);
+    INFO("envelope restarted or went Idle at block " << restartBlock);
     CHECK_FALSE(envelopeRestarted);
 
     // Also verify there's continuous non-zero audio output at the end

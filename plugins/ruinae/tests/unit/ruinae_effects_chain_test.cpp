@@ -35,7 +35,6 @@ namespace {
 
 constexpr double kSampleRate = 44100.0;
 constexpr size_t kBlockSize = 512;
-constexpr double kSampleRate96k = 96000.0;
 
 /// Fill buffer with a sine wave
 void fillSine(float* buffer, size_t numSamples, float frequency, double sampleRate,

@@ -10,7 +10,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
-#include "processor/processor.h"
 #include "plugin_ids.h"
 #include "parameters/macro_params.h"
 
@@ -18,33 +17,6 @@
 #include "base/source/fstreamer.h"
 
 using Catch::Approx;
-
-// =============================================================================
-// Helper: create and initialize a Processor
-// =============================================================================
-
-namespace {
-
-class TestableProcessor : public Ruinae::Processor {
-public:
-    using Ruinae::Processor::processParameterChanges;
-};
-
-std::unique_ptr<TestableProcessor> makeTestableProcessor() {
-    auto p = std::make_unique<TestableProcessor>();
-    p->initialize(nullptr);
-
-    Steinberg::Vst::ProcessSetup setup{};
-    setup.processMode = Steinberg::Vst::kRealtime;
-    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
-    setup.sampleRate = 44100.0;
-    setup.maxSamplesPerBlock = 512;
-    p->setupProcessing(setup);
-
-    return p;
-}
-
-} // anonymous namespace
 
 // =============================================================================
 // T036: Macro parameter changes update engine

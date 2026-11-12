@@ -49,17 +49,6 @@ using PerfEmptyParamChanges = Krate::Test::ParameterChanges;
 
 
 // =============================================================================
-// Helper: check if buffer has any non-zero samples
-// =============================================================================
-
-static bool hasNonZeroSamples(const float* buffer, size_t numSamples) {
-    for (size_t i = 0; i < numSamples; ++i) {
-        if (buffer[i] != 0.0f) return true;
-    }
-    return false;
-}
-
-// =============================================================================
 // Performance Test Fixture
 // =============================================================================
 

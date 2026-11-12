@@ -62,13 +62,6 @@ static float computeRMS(const float* buffer, size_t numSamples) {
     return static_cast<float>(std::sqrt(sumSq / static_cast<double>(numSamples)));
 }
 
-static bool isAllZeros(const float* buffer, size_t numSamples) {
-    for (size_t i = 0; i < numSamples; ++i) {
-        if (buffer[i] != 0.0f) return false;
-    }
-    return true;
-}
-
 static bool hasNonZeroSamples(const float* buffer, size_t numSamples) {
     for (size_t i = 0; i < numSamples; ++i) {
         if (buffer[i] != 0.0f) return true;
@@ -1002,6 +995,7 @@ TEST_CASE("RuinaeEngine integration: reverb tail duration",
             ++blocksUntilVoiceDone;
             if (engine.getActiveVoiceCount() == 0) break;
         }
+        INFO("blocks processed after note-off: " << blocksUntilVoiceDone);
         REQUIRE(engine.getActiveVoiceCount() == 0);
 
         // Now count how many more blocks have audio above silence threshold
