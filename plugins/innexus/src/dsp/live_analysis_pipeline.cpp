@@ -558,7 +558,7 @@ void LiveAnalysisPipeline::runPolyphonicAnalysis(
     multiSourceSieve_.assignSources(partials, numTracked, multiF0);
 
     // Step 5: Build polyphonic frame
-    latestPolyFrame_ = multiSourceSieve_.buildPolyphonicFrame(
+    latestPolyFrame_ = Krate::DSP::MultiSourceSieve::buildPolyphonicFrame(
         partials, numTracked, multiF0, inputRms);
 
     // Step 6: Run HarmonicModelBuilder on each source independently

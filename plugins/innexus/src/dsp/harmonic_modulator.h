@@ -125,6 +125,9 @@ public:
         target_ = target;
     }
 
+    /// @brief The modulation target type.
+    [[nodiscard]] ModulatorTarget getTarget() const noexcept { return target_; }
+
     /// @brief Advance the LFO phase by one sample (FR-029).
     ///
     /// Phase increments by rate * inverseSampleRate.

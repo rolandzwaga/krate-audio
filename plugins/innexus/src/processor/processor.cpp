@@ -1587,8 +1587,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 auto& v = voices_[static_cast<size_t>(vi)];
                 if (!v.active) continue;
                 v.oscillatorBank.applyExternalFrequencyMultipliers(mult1);
-                // With mod2 on, its applyPanOffsets below rewrites both pan tables in full
-                // before anything reads them, so this call's tables would be discarded.
+                // With mod2 on, the mod2 block below applies both modulators' offsets in one call.
                 if (!mod2Enabled)
                     v.oscillatorBank.applyPanOffsets(panOff1);
             }
@@ -1609,6 +1608,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             mod2_.getFrequencyMultipliers(mult2);
             std::array<float, Krate::DSP::kMaxPartials> panOff2{};
             mod2_.getPanOffsets(panOff2);
+            // FR-028: the two modulators combine. Frequency multipliers compound and amplitude
+            // modulations apply in turn; pan offsets add. applyPanOffsets rewrites both pan
+            // tables from the base positions, so mod1's offsets go in here, not in a call of
+            // their own (one would discard the other). Any other mod1 target gives all-zero offsets.
+            if (mod1Enabled && mod1_.getTarget() == ModulatorTarget::Pan)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> panOff1{};
+                mod1_.getPanOffsets(panOff1);
+                for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+                    panOff2[i] += panOff1[i];
+            }
 
             for (int vi = 0; vi < maxVoicesThisBlock; ++vi)
             {
