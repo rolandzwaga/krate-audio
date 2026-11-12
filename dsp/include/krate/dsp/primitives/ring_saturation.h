@@ -44,6 +44,7 @@
 #include <krate/dsp/core/db_utils.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -359,13 +360,27 @@ public:
         return signal;
     }
 
+    /// @brief process() over @p numSamples samples in place, stage by stage over chunks of
+    /// kBlockChunk: every sample's carrier, then every sample's stage 1, stage 2, ..., then the
+    /// output stage in sample order. A sample's stages form one dependent chain; across samples the
+    /// stages are independent (the carrier, the tracker and the DC blocker, the only state, still
+    /// run in sample order), so the processor overlaps the chains. Each sample takes the operations
+    /// of process() in their order: the result is the per-sample one. A chunk holding a NaN / Inf
+    /// or running a curve crossfade (its ramp advances once per stage) runs per sample.
     void processBlock(float* buffer, size_t numSamples) noexcept {
         if (buffer == nullptr || numSamples == 0 || !prepared_) {
             return;
         }
 
-        for (size_t i = 0; i < numSamples; ++i) {
-            buffer[i] = process(buffer[i]);
+        size_t i = 0;
+        while (i < numSamples) {
+            const size_t len = std::min(kBlockChunk, numSamples - i);
+            if (crossfade_.active || !allFinite(buffer + i, len)) {
+                for (size_t k = 0; k < len; ++k) buffer[i + k] = process(buffer[i + k]);
+            } else {
+                processChunk(buffer + i, len);
+            }
+            i += len;
         }
     }
 
@@ -379,6 +394,41 @@ private:
         LinearRamp ramp;
         bool active = false;
     };
+
+    /// Samples per stage-major chunk of processBlock().
+    static constexpr size_t kBlockChunk = 64;
+
+    /// @brief True when every sample of @p x[0, n) is finite (process() passes the others on).
+    [[nodiscard]] static bool allFinite(const float* x, size_t n) noexcept {
+        for (size_t k = 0; k < n; ++k) {
+            if (!detail::isFinite(x[k])) return false;
+        }
+        return true;
+    }
+
+    /// @brief process() over @p n <= kBlockChunk finite samples, no crossfade running.
+    void processChunk(float* x, size_t n) noexcept {
+        if (depth_ != 0.0f) {
+            std::array<float, kBlockChunk> carrier{};
+            for (size_t k = 0; k < n; ++k) {
+                updateFrequencyTracker(x[k]);
+                carrier[k] = nextCarrierSample();
+            }
+            for (int stage = 0; stage < stages_; ++stage) {
+                for (size_t k = 0; k < n; ++k) {
+                    const float saturated = shaper_.process(x[k]);
+                    const float ringModTerm = x[k] * saturated * (carrier[k] + bias_) - x[k];
+                    x[k] = x[k] + ringModTerm * depth_;
+                }
+            }
+        }
+        for (size_t k = 0; k < n; ++k) {
+            x[k] = softLimit(x[k]);
+        }
+        for (size_t k = 0; k < n; ++k) {
+            x[k] = dcBlocker_.process(x[k]);
+        }
+    }
 
     /// @brief This sample's carrier (1.0 when the carrier is inactive); advances the phase.
     [[nodiscard]] float nextCarrierSample() noexcept {

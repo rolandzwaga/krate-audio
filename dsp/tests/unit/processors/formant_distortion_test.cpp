@@ -1272,4 +1272,74 @@ TEST_CASE("FormantDistortion performance", "[formant_distortion][performance][ds
     REQUIRE(cpuUsage < 0.02);
 }
 
+// The block path (process(float*, size_t)) runs stage by stage once the formant smoothers have landed
+// and no envelope moves the formants (Disrumpo CPU round 6): it must give what process(float) gives
+// sample by sample, through every active-formant count, a vowel blend, a formant shift that re-arms
+// the smoothers mid-run (the per-sample fallback until they land), envelope following (the
+// per-sample path), a gliding Mix and odd block lengths. Measured equal to the bit on MSVC; the
+// tolerance covers a different contraction of the two loop shapes under the macOS leg's
+// -ffp-contract=fast.
+TEST_CASE("FormantDistortion block path equals per-sample processing", "[formant_distortion][block][dsp]") {
+    for (const int formants : {2, 3, 5}) {
+        for (const float envelopeAmount : {0.0f, 0.6f}) {
+            for (const bool blend : {false, true}) {
+                FormantDistortion perSample;
+                FormantDistortion block;
+                for (FormantDistortion* f : {&perSample, &block}) {
+                    f->prepare(88200.0, 512);
+                    f->setActiveFormants(formants);
+                    f->setEnvelopeFollowAmount(envelopeAmount);
+                    if (blend) {
+                        f->setVowelBlend(1.7f);
+                    } else {
+                        f->setVowel(Vowel::O);
+                    }
+                    f->setDrive(4.0f);
+                    f->setAsymmetry(0.3f);
+                }
+                constexpr size_t kN = 44100;
+                std::vector<float> x(kN);
+                for (size_t i = 0; i < kN; ++i) {
+                    x[i] = 0.5f * std::sin(2.0f * 3.14159265f * 180.0f * static_cast<float>(i) / 88200.0f) +
+                           0.25f * std::sin(2.0f * 3.14159265f * 2900.0f * static_cast<float>(i) / 88200.0f);
+                }
+                std::vector<float> a(x);
+                std::vector<float> b(x);
+                size_t pos = 0;
+                size_t len = 1;
+                bool shifted = false;
+                bool mixed = false;
+                while (pos < kN) {
+                    const size_t n = std::min(len, kN - pos);
+                    if (pos >= 10000 && !shifted) {
+                        perSample.setFormantShift(5.0f);  // the smoothers glide from here
+                        block.setFormantShift(5.0f);
+                        shifted = true;
+                    }
+                    if (pos >= 30000 && !mixed) {
+                        perSample.setMix(0.4f);
+                        block.setMix(0.4f);
+                        mixed = true;
+                    }
+                    for (size_t k = pos; k < pos + n; ++k) a[k] = perSample.process(a[k]);
+                    block.process(b.data() + pos, n);
+                    pos += n;
+                    len = len * 3 % 257 + 1;
+                }
+                size_t mismatched = 0;
+                float maxDiff = 0.0f;
+                for (size_t i = 0; i < kN; ++i) {
+                    if (a[i] != b[i]) {
+                        ++mismatched;
+                        maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+                    }
+                }
+                INFO("formants " << formants << ", envelope " << envelopeAmount << ", blend " << blend << ": "
+                                 << mismatched << " samples differ, max |diff| " << maxDiff);
+                CHECK(maxDiff <= 1.0e-5f);
+            }
+        }
+    }
+}
+
 #include <chrono>

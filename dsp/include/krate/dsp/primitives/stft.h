@@ -362,6 +362,7 @@ public:
     void reset() noexcept {
         std::fill(outputBuffer_.begin(), outputBuffer_.end(), 0.0f);
         samplesReady_ = 0;
+        readOffset_ = 0;
     }
 
     // -------------------------------------------------------------------------
@@ -373,6 +374,9 @@ public:
     /// @note Real-time safe, noexcept
     void synthesize(const SpectralBuffer& input) noexcept {
         if (!isPrepared() || !input.isPrepared()) return;
+
+        // The frame accumulates at the read position: move the unread samples there first
+        compact();
 
         // Perform inverse FFT
         ffts_.active().inverse(input.data(), ifftBuffer_.data());
@@ -422,31 +426,26 @@ public:
         // unreachable; the guard exists so that getting it wrong is inert rather
         // than undefined.
         //
-        // Only the active region [0, 2 * fftSize_) is shifted: after
-        // setActiveSize() to a smaller size everything past it stays zero
-        // (reset() cleared it and synthesize() writes [0, fftSize_) only).
+        // A pull reads at readOffset_ and only advances it; the unread samples move to the front
+        // (compact()) when the next frame is added or a pull would run past the active region.
+        // The samples read are the ones a shift per pull would read: shifting by a then by b
+        // is shifting by a + b. Shifting the whole active region on every pull cost
+        // O(fftSize) per sample for a caller pulling one sample at a time (Disrumpo's Spectral
+        // node: 78 % of a core for one band, preset All_Types_Morph over 100 %).
         const size_t activeLength = std::min(outputBuffer_.size(), fftSize_ * 2);
         if (output == nullptr || numSamples > samplesReady_
             || numSamples > activeLength) {
             return;
         }
-        const auto activeEnd = outputBuffer_.begin() + static_cast<std::ptrdiff_t>(activeLength);
+        if (readOffset_ + numSamples > activeLength) {
+            compact();
+        }
 
         // Copy samples to output
-        std::copy(outputBuffer_.begin(),
-                  outputBuffer_.begin() + static_cast<std::ptrdiff_t>(numSamples),
-                  output);
+        const auto from = outputBuffer_.begin() + static_cast<std::ptrdiff_t>(readOffset_);
+        std::copy(from, from + static_cast<std::ptrdiff_t>(numSamples), output);
 
-        // Shift remaining samples left
-        std::copy(outputBuffer_.begin() + static_cast<std::ptrdiff_t>(numSamples),
-                  activeEnd,
-                  outputBuffer_.begin());
-
-        // Zero the freed portion at the end
-        std::fill(activeEnd - static_cast<std::ptrdiff_t>(numSamples),
-                  activeEnd,
-                  0.0f);
-
+        readOffset_ += numSamples;
         samplesReady_ -= numSamples;
     }
 
@@ -459,6 +458,20 @@ public:
     [[nodiscard]] bool isPrepared() const noexcept { return fftSize_ > 0; }
 
 private:
+    /// @brief The samples pulled since the last compaction leave the accumulator: the active
+    /// region [0, 2 * fftSize_) shifts left by readOffset_ and its last readOffset_ samples are
+    /// zeroed (only the active region: after setActiveSize() to a smaller size everything past it
+    /// stays zero, as reset() cleared it and synthesize() writes [0, fftSize_) only).
+    void compact() noexcept {
+        if (readOffset_ == 0) return;
+        const size_t activeLength = std::min(outputBuffer_.size(), fftSize_ * 2);
+        const auto activeEnd = outputBuffer_.begin() + static_cast<std::ptrdiff_t>(activeLength);
+        std::copy(outputBuffer_.begin() + static_cast<std::ptrdiff_t>(readOffset_), activeEnd,
+                  outputBuffer_.begin());
+        std::fill(activeEnd - static_cast<std::ptrdiff_t>(readOffset_), activeEnd, 0.0f);
+        readOffset_ = 0;
+    }
+
     /// @brief COLA normalisation for the current window, size and hop
     /// Without synthesis window: COLA sum = sum of w[k] at hop positions.
     /// With synthesis window: COLA sum = sum of w[k]² at hop positions (Hann²).
@@ -490,6 +503,7 @@ private:
     size_t fftSize_ = 0;
     size_t hopSize_ = 0;
     size_t samplesReady_ = 0;
+    size_t readOffset_ = 0;  ///< samples pulled since the last compact()
 };
 
 } // namespace Krate::DSP

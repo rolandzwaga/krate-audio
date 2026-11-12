@@ -2548,7 +2548,12 @@ TEST_CASE("FractalDistortion Multiband output dump (A/B probe)", "[.][fractal-ab
 // -ffp-contract=fast (tools/macos-fastmath-repro.sh) the low-cutoff float decay biquads compile differently
 // in the two loop orders and the residual chain carries the difference on: max |diff| 7.2e-5 at 1 level,
 // 1.35e-3 at 4 and 8 levels with decay on, 0 with it off (round 4): compared at 2e-3.
+// Curves: Tanh, Tube and HardClip (the per-sample curve loop) and ReciprocalSqrt (the SSE2 curve on
+// x86, round 5). The block lengths reach every sub-chunk count and partial sub-chunk of the skewed
+// schedule (8-sample sub-chunks, the full ones' Clenshaw recurrences in SSE2 on x86, round 6).
 TEST_CASE("FractalDistortion block path equals per-sample processing", "[fractal][processors][block]") {
+    for (const auto curve : {WaveshapeType::Tanh, WaveshapeType::ReciprocalSqrt, WaveshapeType::Tube,
+                             WaveshapeType::HardClip})
     for (const int iterations : {1, 4, 8}) {
         for (const auto blend : {FractalBlendMode::Add, FractalBlendMode::Multiply, FractalBlendMode::Max,
                                  FractalBlendMode::Screen}) {
@@ -2562,6 +2567,7 @@ TEST_CASE("FractalDistortion block path equals per-sample processing", "[fractal
                     f->setBlendMode(blend);
                     f->setFrequencyDecay(decay);
                     f->setDrive(1.0f);
+                    f->setCurveType(curve);
                 }
                 constexpr size_t kN = 4096;
                 std::vector<float> x(kN);
@@ -2599,7 +2605,8 @@ TEST_CASE("FractalDistortion block path equals per-sample processing", "[fractal
                         maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
                     }
                 }
-                INFO("iterations " << iterations << ", blend " << static_cast<int>(blend) << ", decay " << decay
+                INFO("curve " << static_cast<int>(curve) << ", iterations " << iterations << ", blend "
+                              << static_cast<int>(blend) << ", decay " << decay
                                    << ": " << mismatched << " samples differ, max |diff| " << maxDiff);
                 CHECK(maxDiff <= 2.0e-3f);
             }

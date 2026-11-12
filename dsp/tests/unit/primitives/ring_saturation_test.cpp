@@ -19,6 +19,7 @@
 #include <krate/dsp/core/window_functions.h>
 #include <krate/dsp/core/math_constants.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -1788,4 +1789,70 @@ TEST_CASE("RingSaturation carrier state carries over to an instance at another r
     CHECK(sb.samplesSinceCrossing == 0);  // the tracker re-syncs on its own input
     CHECK(sb.randomCounter == 2 * sa.randomCounter);
     CHECK(b.getSampleRate() == 192000.0);
+}
+
+// processBlock runs its chunks stage by stage (Disrumpo CPU round 5): it must give what process()
+// gives sample by sample, for 1 to 4 stages, each carrier mode, depth 0, a curve change mid-stream
+// (its crossfade runs per sample) and odd block lengths. Measured equal to the bit on MSVC; the
+// tolerance covers a different contraction of the two loop shapes under the macOS leg's
+// -ffp-contract=fast.
+TEST_CASE("RingSaturation processBlock equals per-sample processing", "[ring_saturation][primitives][block]") {
+    using namespace Krate::DSP;
+    for (int stages = 1; stages <= 4; ++stages) {
+        for (const auto mode : {RSFreqMode::Fixed, RSFreqMode::Harmonic, RSFreqMode::Track, RSFreqMode::Random}) {
+            RingSaturation perSample;
+            RingSaturation block;
+            for (RingSaturation* r : {&perSample, &block}) {
+                r->prepare(176400.0);
+                r->setStages(stages);
+                r->setFreqMode(mode);
+                r->setCarrierWaveform(RSCarrierWaveform::Square);
+                r->setCarrierFrequency(330.0f);
+                r->setHarmonicRatio(3.0f);
+                r->setSaturationCurve(WaveshapeType::ReciprocalSqrt);
+                r->setDrive(2.0f);
+                r->setModulationDepth(0.5f);
+                r->setBias(0.25f);
+            }
+            constexpr size_t kN = 16384;
+            std::vector<float> x(kN);
+            for (size_t i = 0; i < kN; ++i) {
+                x[i] = 2.0f * std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 176400.0f) +
+                       0.8f * std::sin(2.0f * 3.14159265f * 2500.0f * static_cast<float>(i) / 176400.0f);
+            }
+            std::vector<float> a(x);
+            std::vector<float> b(x);
+            size_t pos = 0;
+            size_t len = 1;
+            while (pos < kN) {
+                const size_t n = std::min(len, kN - pos);
+                if (pos >= 6000 && pos < 6500) {
+                    perSample.setModulationDepth(0.0f);
+                    block.setModulationDepth(0.0f);
+                } else if (pos >= 6500) {
+                    perSample.setModulationDepth(0.5f);
+                    block.setModulationDepth(0.5f);
+                }
+                if (pos >= 9000) {
+                    perSample.setSaturationCurve(WaveshapeType::Tanh);  // a 10 ms crossfade from here
+                    block.setSaturationCurve(WaveshapeType::Tanh);
+                }
+                for (size_t k = pos; k < pos + n; ++k) a[k] = perSample.process(a[k]);
+                block.processBlock(b.data() + pos, n);
+                pos += n;
+                len = len * 3 % 257 + 1;
+            }
+            size_t mismatched = 0;
+            float maxDiff = 0.0f;
+            for (size_t i = 0; i < kN; ++i) {
+                if (a[i] != b[i]) {
+                    ++mismatched;
+                    maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+                }
+            }
+            INFO("stages " << stages << ", mode " << static_cast<int>(mode) << ": " << mismatched
+                           << " samples differ, max |diff| " << maxDiff);
+            CHECK(maxDiff <= 1.0e-6f);
+        }
+    }
 }

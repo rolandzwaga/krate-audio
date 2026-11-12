@@ -14,6 +14,7 @@
 #include "controller/controller.h"
 #include "processor/processor.h"
 #include "plugin_ids.h"
+#include "dsp/oversampling_utils.h"
 #include "../../test_support/disrumpo_rig.h"
 
 #include <krate/dsp/core/random.h>
@@ -1137,4 +1138,167 @@ TEST_CASE("Probe: factory presets on the audition drum riff", "[.][riff-probe]")
         std::printf("RIFFCLIP %s unclipped_peak_dBFS %.2f clipper_change_dB %.1f (gain drop %.1f dB)\n", name.c_str(),
                     20.0 * std::log10(upk + 1e-12), 10.0 * std::log10(num / (den + 1e-30) + 1e-30), drop);
     }
+}
+
+// Probe (hidden, asserts nothing): the factory presets whose band oversampling factor the
+// nearest-factor rule (user ruling 2026-11-11) changed. Each preset loaded the way a host does
+// (setState, then setupProcessing at 44.1 kHz, its own Oversample Max); per active morph band the
+// node types, their weights at the stored morph position, OLD = the round-up rule's factor
+// (min(roundUp(weighted mean), largest weighted factor)), NEW = calculateMorphOversampleFactor,
+// both capped by the band's Oversample Max, and the factor the band runs (target, and after one
+// silent block). Run: disrumpo_tests "Probe: factory presets whose oversampling factor changed".
+TEST_CASE("Probe: factory presets whose oversampling factor changed", "[.][os-preset-factors]") {
+    using namespace Disrumpo::TestSupport;
+    const auto roundUpOld = [](float w) {
+        if (w <= 1.0f) return 1;
+        if (w <= 2.0f) return 2;
+        if (w <= 4.0f) return 4;
+        return 8;
+    };
+    const auto files = findPresetFiles(getPresetsDir());
+    REQUIRE_FALSE(files.empty());
+    int changedPresets = 0;
+    for (const auto& path : files) {
+        const std::string name = path.parent_path().filename().string() + "/" + path.stem().string();
+        const auto bytes = readPresetComponentState(path);
+        REQUIRE_FALSE(bytes.empty());
+        int bands = 1;
+        {
+            Controller ctl;
+            REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+            std::vector<uint8_t> stream = bytes;
+            auto* s = new Steinberg::MemoryStream(stream.data(), static_cast<Steinberg::TSize>(stream.size()));
+            REQUIRE(ctl.setComponentState(s) == Steinberg::kResultOk);
+            s->release();
+            bands = std::clamp(1 + static_cast<int>(ctl.getParamNormalized(kBandCountId) * 3.0 + 0.5), 1, 4);
+            ctl.terminate();
+        }
+        Rig rig(44100.0, 512, /*doSetup*/ false);
+        REQUIRE(setStateBytes(*rig.p, bytes));
+        rig.setup();
+        std::array<int, 4> target{};
+        std::array<std::array<float, kMaxMorphNodes>, 4> weightsAt{};
+        for (int b = 0; b < bands; ++b) {
+            target[static_cast<size_t>(b)] = rig.p->getBandProcessor(b).getOversampleFactor();
+            weightsAt[static_cast<size_t>(b)] = rig.p->getBandProcessor(b).computeRawMorphWeights();
+        }
+        std::vector<float> silence(512, 0.0f);
+        std::vector<float> oL(512);
+        std::vector<float> oR(512);
+        rig.processBlock(silence.data(), silence.data(), oL.data(), oR.data(), 512, nullptr);
+        for (int b = 0; b < bands; ++b) {
+            const BandProcessor& band = rig.p->getBandProcessor(b);
+            if (!band.isMorphEnabled() || band.getMorphEngine() == nullptr) continue;
+            const MorphEngine& engine = *band.getMorphEngine();
+            const auto& nodes = engine.getNodes();
+            const int count = engine.getActiveNodeCount();
+            const auto& w = weightsAt[static_cast<size_t>(b)];
+            const int maxFactor = band.getMaxOversampleFactor();
+            float weightedSum = 0.0f;
+            int largest = 1;
+            for (int i = 0; i < count; ++i) {
+                const float wi = w[static_cast<size_t>(i)];
+                const int f = getRecommendedOversample(nodes[static_cast<size_t>(i)].type);
+                weightedSum += wi * static_cast<float>(f);
+                if (wi > 0.0f) largest = std::max(largest, f);
+            }
+            const int oldFactor = std::min({roundUpOld(weightedSum), largest, maxFactor});
+            const int newFactor = calculateMorphOversampleFactor(nodes, w, count, maxFactor);
+            if (oldFactor == newFactor) continue;
+            ++changedPresets;
+            std::string mix;
+            for (int i = 0; i < count; ++i) {
+                char buf[64];
+                std::snprintf(buf, sizeof(buf), "%s%s %.3f", i ? ", " : "",
+                              getTypeName(nodes[static_cast<size_t>(i)].type), w[static_cast<size_t>(i)]);
+                mix += buf;
+            }
+            std::printf("OS-PRESET %s band %d: [%s] mean %.3f, max %dx: OLD %dx -> NEW %dx (band target %dx, runs %dx "
+                        "after one block)\n",
+                        name.c_str(), b, mix.c_str(), weightedSum, maxFactor, oldFactor, newFactor,
+                        target[static_cast<size_t>(b)], band.getActiveOversampleFactor());
+        }
+    }
+    std::printf("OS-PRESET %zu presets scanned, %d changed bands\n", files.size(), changedPresets);
+}
+
+// =============================================================================
+// Held input: the presets of the nearest-factor rule and the heaviest one sound
+// =============================================================================
+// Experimental/All_Types_Morph was silent in the user's host (Plugin Buddy) while
+// every offline render of it played: it needed 115-127 % of a core in real time
+// (its Spectral node pulled one sample at a time from an OverlapAdd that shifted its
+// whole accumulator on every pull), so the host could not run it. This fast case
+// holds pink noise through it and the 11 other presets whose band factor the nearest rule
+// changed: finite, and above -60 dBFS RMS after the first half second (the full
+// sweep of every preset is T6.08's [long] case above); the real-time case is below.
+TEST_CASE("Factory presets of the nearest-factor rule play a held input",
+          "[disrumpo][preset][factory][validation]") {
+    using namespace Disrumpo::TestSupport;
+    constexpr double kSr = 44100.0;
+    const auto in = pinkNoise(static_cast<size_t>(2.0 * kSr), 0.25f);
+    const size_t from = static_cast<size_t>(0.5 * kSr);
+    for (const char* preset :
+         {"Experimental/All_Types_Morph", "Chaos/Chaos_Morph_4", "Experimental/Chaos_Engine", "Morph/Four_Corners",
+          "Morph/Multi_Band_Morph", "Morph/Radial_Blend", "Morph/Soft_to_Hard", "Morph/Tube_to_Fuzz",
+          "Pads/Evolving_Texture", "Pads/Slow_Morph_Pad", "Sweep/Wah_Wah_Drive", "Sweep/Wide_Sweep"}) {
+        INFO("Preset: " << preset);
+        const auto bytes = readPresetComponentState(getPresetsDir() / (std::string(preset) + ".vstpreset"));
+        REQUIRE_FALSE(bytes.empty());
+        Rig rig(kSr, 512, /*doSetup*/ false);
+        REQUIRE(setStateBytes(*rig.p, bytes));
+        rig.setup();
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR, 512);
+        bool finite = true;
+        for (size_t i = 0; i < outL.size(); ++i) {
+            finite = finite && Krate::DSP::detail::isFinite(outL[i]) && Krate::DSP::detail::isFinite(outR[i]);
+        }
+        const double rmsDb = toDb(std::max(rmsOf(outL.data() + from, outL.size() - from),
+                                           rmsOf(outR.data() + from, outR.size() - from)));
+        INFO("RMS " << rmsDb << " dBFS");
+        CHECK(finite);
+        CHECK(rmsDb > -60.0);
+    }
+}
+
+// Every factory preset runs in real time on one core (48 kHz, 512-sample blocks, pink
+// noise, after a 1 s warm-up): a host cannot play a preset that needs more, and drops
+// to silence (All_Types_Morph read 115-127 % before OverlapAdd's pull stopped shifting
+// its accumulator per sample, 50 % after). Wall clock: run it alone (run-cpu-tests.js).
+TEST_CASE("Every factory preset runs in real time", "[disrumpo][preset][performance]") {
+    using namespace Disrumpo::TestSupport;
+    constexpr double kSr = 48000.0;
+    constexpr double kTimedSeconds = 2.0;
+    constexpr double kBudgetPercent = 100.0;  // real time: the host's own limit
+    const auto warm = pinkNoise(static_cast<size_t>(kSr), 0.25f);
+    const auto timed = pinkNoise(static_cast<size_t>(kTimedSeconds * kSr), 0.25f);
+    const auto files = findPresetFiles(getPresetsDir());
+    REQUIRE(files.size() == 120);
+    double worst = 0.0;
+    std::string worstName;
+    for (const auto& path : files) {
+        const std::string name = path.parent_path().filename().string() + "/" + path.stem().string();
+        const auto bytes = readPresetComponentState(path);
+        REQUIRE_FALSE(bytes.empty());
+        Rig rig(kSr, 512, /*doSetup*/ false);
+        REQUIRE(setStateBytes(*rig.p, bytes));
+        rig.setup();
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(warm, warm, outL, outR, 512);
+        const auto t0 = std::chrono::steady_clock::now();
+        rig.render(timed, timed, outL, outR, 512);
+        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+        const double percent = 100.0 * seconds / kTimedSeconds;
+        if (percent > worst) {
+            worst = percent;
+            worstName = name;
+        }
+        INFO("Preset: " << name << ", " << percent << " % of real time");
+        CHECK(percent < kBudgetPercent);
+    }
+    std::printf("Factory preset real-time cost: worst %s %.1f %% of real time (budget %.0f %%)\n", worstName.c_str(),
+                worst, kBudgetPercent);
 }

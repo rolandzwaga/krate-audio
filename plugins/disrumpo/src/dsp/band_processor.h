@@ -1558,7 +1558,8 @@ private:
 
     /// @brief Highest factor the band can select at its current discrete settings: the
     /// largest recommended factor among the active node types, capped by Oversample Max
-    /// (calculateMorphOversampleFactor rounds a weighted mean of those factors up).
+    /// (calculateMorphOversampleFactor rounds a weighted mean of those factors to the nearest
+    /// factor, so a cursor on a node reaches that node's factor).
     [[nodiscard]] int maxReachableFactor() const noexcept {
         if (!(morphEnabled_ && lane0_.morphL)) {
             return getSingleTypeOversampleFactor(legacyType_, maxOversampleFactor_);

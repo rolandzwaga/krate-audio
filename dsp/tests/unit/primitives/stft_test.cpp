@@ -13,8 +13,10 @@
 
 #include <krate/dsp/primitives/stft.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <numbers>
 #include <vector>
 
@@ -284,6 +286,64 @@ TEST_CASE("OverlapAdd pullSamples", "[ola][output][US4]") {
             for (float s : output) sum += s;
             REQUIRE(sum != 0.0f);  // Should have some output
         }
+    }
+}
+
+// pullSamples() advances a read position and moves the unread samples to the front only when a
+// frame is added or the read would pass the active region (Disrumpo All_Types_Morph: a shift of
+// the whole accumulator on every one-sample pull ran its Spectral node at 78 % of a core). Two
+// accumulators fed the same frames, the same number of samples pulled between frames but in
+// different chunks (one at a time, odd chunk sizes, the whole count at once), samples left unread
+// across frames, an active size below the prepared one: every pull returns the same samples.
+TEST_CASE("OverlapAdd pulls in any chunking return the same samples", "[ola][output]") {
+    for (const size_t activeFft : {size_t{1024}, size_t{256}}) {
+        OverlapAdd a;
+        OverlapAdd b;
+        for (OverlapAdd* ola : {&a, &b}) {
+            ola->prepare(1024, 512);
+            ola->prepareActiveSizes(256);
+            REQUIRE(ola->setActiveSize(activeFft, activeFft / 2));
+        }
+        SpectralBuffer spectrum;
+        spectrum.prepare(1024);
+        spectrum.setActiveSize(activeFft);
+        uint32_t rng = 0x2545F491u;
+        const auto next = [&rng]() {
+            rng = rng * 1664525u + 1013904223u;
+            return rng >> 8;
+        };
+        std::vector<float> outA(2 * activeFft);
+        std::vector<float> outB(2 * activeFft);
+        size_t compared = 0;
+        size_t mismatched = 0;
+        for (int frame = 0; frame < 300; ++frame) {
+            for (size_t bin = 0; bin < spectrum.numBins(); ++bin) {
+                spectrum.setCartesian(bin, static_cast<float>(next() % 2001) / 1000.0f - 1.0f,
+                                      static_cast<float>(next() % 2001) / 1000.0f - 1.0f);
+            }
+            a.synthesize(spectrum);
+            b.synthesize(spectrum);
+            REQUIRE(a.samplesAvailable() == b.samplesAvailable());
+            // Pull all but up to an eighth of the frame, which stays unread into the next frame
+            const size_t available = a.samplesAvailable();
+            const size_t keep = std::min(available, static_cast<size_t>(next() % (activeFft / 8 + 1)));
+            const size_t total = available - keep;
+            for (size_t i = 0; i < total; ++i) a.pullSamples(outA.data() + i, 1);
+            size_t pulled = 0;
+            while (pulled < total) {
+                const size_t n = (frame % 3 == 0) ? total - pulled
+                                                  : std::min(total - pulled, static_cast<size_t>(1 + next() % 97));
+                b.pullSamples(outB.data() + pulled, n);
+                pulled += n;
+            }
+            for (size_t i = 0; i < total; ++i) {
+                ++compared;
+                if (outA[i] != outB[i]) ++mismatched;
+            }
+        }
+        INFO("active FFT size " << activeFft << ": " << mismatched << " of " << compared << " samples differ");
+        CHECK(compared > 0);
+        CHECK(mismatched == 0);
     }
 }
 

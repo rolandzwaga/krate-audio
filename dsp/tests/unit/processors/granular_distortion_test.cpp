@@ -1428,3 +1428,69 @@ TEST_CASE("GranularDistortion process allocates nothing",
     CHECK(probeObserved == 42);
     CHECK(control >= 1u);
 }
+
+// The block path (process(float*, size_t)) runs its chunks grain by grain (Disrumpo CPU round 5): it
+// must give what process(float) gives sample by sample, through grain triggers and releases inside
+// a chunk, reads of the oldest buffer sample (Position 1) and of samples the chunk itself writes
+// (Position 0), jitter, drive variation, the curve's pow branch, a Mix of 0 (the per-sample
+// fallback) and odd block lengths. Measured equal to the bit on MSVC; the tolerance covers a
+// different contraction of the two loop shapes under the macOS leg's -ffp-contract=fast.
+TEST_CASE("GranularDistortion block path equals per-sample processing", "[granular][processors][block]") {
+    struct Setup {
+        float position;
+        float curve;
+        float sizeMs;
+        float density;
+    };
+    for (const Setup s : {Setup{0.0f, 0.5f, 5.0f, 8.0f}, Setup{1.0f, 0.5f, 20.0f, 8.0f},
+                          Setup{0.5f, 0.8f, 52.5f, 4.5f}, Setup{0.25f, 0.2f, 100.0f, 8.0f}}) {
+        GranularDistortion perSample;
+        GranularDistortion block;
+        for (GranularDistortion* g : {&perSample, &block}) {
+            g->prepare(88200.0, 512);
+            g->seed(777);
+            g->setGrainSize(s.sizeMs);
+            g->setGrainDensity(s.density);
+            g->setDrive(3.0f);
+            g->setDriveVariation(0.5f);
+            g->setPositionJitter(10.0f);
+            g->setPosition(s.position);
+            g->setCurve(s.curve);
+            g->setEnvelopeType(GrainEnvelopeType::Trapezoid);
+        }
+        constexpr size_t kN = 88200;
+        std::vector<float> x(kN);
+        for (size_t i = 0; i < kN; ++i) {
+            x[i] = 0.5f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(i) / 88200.0f) +
+                   0.2f * std::sin(2.0f * 3.14159265f * 3300.0f * static_cast<float>(i) / 88200.0f);
+        }
+        std::vector<float> a(x);
+        std::vector<float> b(x);
+        size_t pos = 0;
+        size_t len = 1;
+        while (pos < kN) {
+            const size_t n = std::min(len, kN - pos);
+            const float mix = (pos >= 40000 && pos < 41000) ? 0.0f : 1.0f;
+            perSample.setMix(mix);
+            block.setMix(mix);
+            for (size_t k = pos; k < pos + n; ++k) a[k] = perSample.process(a[k]);
+            block.process(b.data() + pos, n);
+            pos += n;
+            len = len * 3 % 257 + 1;
+        }
+        size_t mismatched = 0;
+        float maxDiff = 0.0f;
+        for (size_t i = 0; i < kN; ++i) {
+            if (a[i] != b[i]) {
+                ++mismatched;
+                maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+            }
+        }
+        INFO("position " << s.position << ", curve " << s.curve << ", size " << s.sizeMs << " ms: " << mismatched
+                         << " samples differ, max |diff| " << maxDiff << ", grains triggered "
+                         << block.getGrainsTriggeredCount());
+        CHECK(block.getGrainsTriggeredCount() == perSample.getGrainsTriggeredCount());
+        CHECK(block.getGrainsTriggeredCount() > 50u);
+        CHECK(maxDiff <= 1.0e-6f);
+    }
+}

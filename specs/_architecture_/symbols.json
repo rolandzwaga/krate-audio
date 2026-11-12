@@ -433,7 +433,7 @@
       "scope": "Krate::DSP::RingSaturation",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/ring_saturation.h",
-      "line": 267
+      "line": 268
     },
     {
       "name": "CavernVerb",
@@ -633,7 +633,7 @@
       "scope": "Krate::DSP::RingSaturation",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/ring_saturation.h",
-      "line": 377
+      "line": 392
     },
     {
       "name": "CrossfadingDelayLine",
@@ -1185,7 +1185,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/formant_distortion.h",
-      "line": 77
+      "line": 78
     },
     {
       "name": "FormantFilter",
@@ -1225,7 +1225,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/fractal_distortion.h",
-      "line": 120
+      "line": 203
     },
     {
       "name": "FractureBranch",
@@ -1329,7 +1329,7 @@
       "scope": "Krate::DSP::GranularDistortion",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/granular_distortion.h",
-      "line": 492
+      "line": 554
     },
     {
       "name": "GrainScheduler",
@@ -1345,7 +1345,7 @@
       "scope": "Krate::DSP::GranularDistortion",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/granular_distortion.h",
-      "line": 521
+      "line": 583
     },
     {
       "name": "GranularDelay",
@@ -1361,7 +1361,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/granular_distortion.h",
-      "line": 81
+      "line": 132
     },
     {
       "name": "GranularEngine",
@@ -2937,7 +2937,7 @@
       "scope": "Krate::DSP",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/ring_saturation.h",
-      "line": 79
+      "line": 80
     },
     {
       "name": "RollingCaptureBuffer",

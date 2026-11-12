@@ -242,6 +242,91 @@ TEST_CASE("Probe: per-type CPU", "[.][type-cpu-probe]") {
     }
 }
 
+// Probe (hidden, asserts nothing): the nearest-factor rule's cost (user ruling 2026-11-11, "Faster
+// math + lower OS"). One band, four nodes at the Planar 2D centre, mix 1; per mix the band's
+// factor, T6.01's non-harmonic reading (the 1031.25 Hz tone at -6 dBFS, drive 2.5 / 7.5 / 10) and
+// THD+N re the fundamental (the tone at -18 dBFS, drive 1 / 5 / 10). Run once per rounding rule:
+// disrumpo_tests "Probe: oversampling rounding cost".
+TEST_CASE("Probe: oversampling rounding cost", "[.][os-rounding-probe]") {
+    using DT = DistortionType;
+    struct Mix {
+        const char* name;
+        std::array<DT, 4> types;
+    };
+    const Mix mixes[] = {
+        {.name = "Formant/Chaos/Granular/Fractal", .types = {DT::Formant, DT::Chaos, DT::Granular, DT::Fractal}},
+        {.name = "HardClip/SineFold/FullRectify/RingSaturation",
+         .types = {DT::HardClip, DT::SineFold, DT::FullRectify, DT::RingSaturation}},
+        {.name = "Formant/Tube/Tube/Tube", .types = {DT::Formant, DT::Tube, DT::Tube, DT::Tube}},
+        {.name = "SineFold/HardClip/HardClip/HardClip", .types = {DT::SineFold, DT::HardClip, DT::HardClip, DT::HardClip}},
+    };
+    const auto toneAt = [](double dbfs) {
+        const double a = std::pow(10.0, dbfs / 20.0);
+        std::vector<float> x(kLen);
+        for (size_t i = 0; i < kLen; ++i) {
+            x[i] = static_cast<float>(a * std::sin(2.0 * std::numbers::pi * static_cast<double>(kToneHz) *
+                                                   static_cast<double>(i) / kSr));
+        }
+        return x;
+    };
+    const auto at6 = toneAt(-6.0);
+    const auto at18 = toneAt(-18.0);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    for (const auto& m : mixes) {
+        Rig r(kSr);
+        PList setup{{kBandCountId, 0.0},
+                    {makeBandParamId(0, BandParamType::kBandActiveNodes), 1.0},
+                    {makeBandParamId(0, BandParamType::kBandMorphMode), 0.5},
+                    {makeBandParamId(0, BandParamType::kBandMorphX), 0.5},
+                    {makeBandParamId(0, BandParamType::kBandMorphY), 0.5}};
+        for (uint8_t n = 0; n < 4; ++n) {
+            setup.emplace_back(makeNodeParamId(0, n, NodeParamType::kNodeType), typeNorm(m.types[n]));
+            setup.emplace_back(makeNodeParamId(0, n, NodeParamType::kNodeMix), 1.0);
+            setup.emplace_back(makeNodeParamId(0, n, NodeParamType::kNodeBias), 0.5);
+        }
+        r.apply(setup);
+        for (const double drive : {0.1, 0.25, 0.5, 0.75, 1.0}) {
+            for (uint8_t n = 0; n < 4; ++n) r.apply({{makeNodeParamId(0, n, NodeParamType::kNodeDrive), drive}});
+            r.reactivate();
+            const bool aliasDrive = drive == 0.25 || drive == 0.75 || drive == 1.0;
+            const bool thdDrive = drive == 0.1 || drive == 0.5 || drive == 1.0;
+            if (aliasDrive) {
+                r.render(at6, at6, outL, outR);
+                const double nonHarmonic = readAliasing(outL, kSr, kToneHz, kFft, 4).nonHarmonicRelDb();
+                std::printf("OS-ROUNDING %s factor %d drive %.1f: non-harmonic %.1f dB (-6 dBFS tone)\n", m.name,
+                            r.p->getBandProcessor(0).getOversampleFactor(), drive * 10.0, nonHarmonic);
+            }
+            if (thdDrive) {
+                r.render(at18, at18, outL, outR);
+                // THD+N: every bin from 3 up but the fundamental's Hann main lobe (bin 176 +- 2),
+                // over that lobe; 4 frames power-averaged
+                Krate::DSP::FFT fft;
+                fft.prepare(kFft);
+                std::vector<float> window(kFft);
+                Krate::DSP::Window::generateHann(window.data(), kFft);
+                std::vector<float> frame(kFft);
+                std::vector<Krate::DSP::Complex> spectrum(fft.numBins());
+                const auto fundBin = static_cast<size_t>(std::lround(kToneHz * static_cast<double>(kFft) / kSr));
+                double fund = 0.0;
+                double rest = 0.0;
+                for (size_t f = 0; f < 4; ++f) {
+                    const size_t start = outL.size() - (4 - f) * kFft;
+                    for (size_t i = 0; i < kFft; ++i) frame[i] = outL[start + i] * window[i];
+                    fft.forward(frame.data(), spectrum.data());
+                    for (size_t b = 3; b < spectrum.size(); ++b) {
+                        const double p = static_cast<double>(spectrum[b].magnitude()) * spectrum[b].magnitude();
+                        (b + 2 >= fundBin && b <= fundBin + 2 ? fund : rest) += p;
+                    }
+                }
+                std::printf("OS-ROUNDING %s factor %d drive %.1f: THD+N %.2f dB re fundamental (-18 dBFS tone)\n",
+                            m.name, r.p->getBandProcessor(0).getOversampleFactor(), drive * 10.0,
+                            10.0 * std::log10(std::max(rest, 1e-30) / fund));
+            }
+        }
+    }
+}
+
 // One case per type (in DistortionType order), so a red names its type and the gate shards them.
 TEST_CASE("Type render matrix: SoftClip", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::SoftClip); }
 TEST_CASE("Type render matrix: HardClip", "[disrumpo][audit][type-matrix]") { checkType(DistortionType::HardClip); }

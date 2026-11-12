@@ -41,8 +41,59 @@
 #include <cstdint>
 #include <span>
 
+// The block path's Tanh grains in SSE2 (runGrains). Not where FMA may fuse the scalar curve's
+// products and sums, which the SSE2 lanes would then not match.
+#if (defined(__SSE2__) || defined(_M_X64) || defined(__x86_64__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)) && \
+    !defined(__FMA__)
+#define KRATE_GRANULAR_TANH_SSE2 1
+#include <emmintrin.h>
+#else
+#define KRATE_GRANULAR_TANH_SSE2 0
+#endif
 
 namespace Krate::DSP {
+
+#if KRATE_GRANULAR_TANH_SSE2
+namespace detail {
+/// @brief FastMath::fastTanh over @p x[0, n) in place, four at a time in SSE2: the Pade (5,4)
+/// ratio x (945 + 105 x^2 + x^4) / (945 + 420 x^2 + 15 x^4), each an IEEE-exact operation in
+/// the scalar order, and +1 / -1 from +3.5 / -3.5 on (infinities included), selected per lane;
+/// the remainder through fastTanh itself. MSVC /fp:fast rewrites intrinsic arithmetic too
+/// (measured: 945 moved last and the division turned into a reciprocal product, 1 ulp off the
+/// scalar curve on a third of the inputs), so the function is compiled precise there: the
+/// intrinsics then run as written, and the scalar curve's /fp:fast code is this order.
+#ifdef _MSC_VER
+#pragma float_control(precise, on, push)
+#endif
+inline void granularFastTanhSse2(float* x, size_t n) noexcept {
+    const __m128 c945 = _mm_set1_ps(945.0f);
+    const __m128 c105 = _mm_set1_ps(105.0f);
+    const __m128 c420 = _mm_set1_ps(420.0f);
+    const __m128 c15 = _mm_set1_ps(15.0f);
+    const __m128 one = _mm_set1_ps(1.0f);
+    const __m128 minusOne = _mm_set1_ps(-1.0f);
+    const __m128 hiEdge = _mm_set1_ps(3.5f);
+    const __m128 loEdge = _mm_set1_ps(-3.5f);
+    size_t k = 0;
+    for (; k + 4 <= n; k += 4) {
+        const __m128 v = _mm_loadu_ps(x + k);
+        const __m128 x2 = _mm_mul_ps(v, v);
+        const __m128 x4 = _mm_mul_ps(x2, x2);
+        const __m128 num = _mm_add_ps(_mm_add_ps(c945, _mm_mul_ps(c105, x2)), x4);
+        const __m128 den = _mm_add_ps(_mm_add_ps(c945, _mm_mul_ps(c420, x2)), _mm_mul_ps(c15, x4));
+        const __m128 pade = _mm_div_ps(_mm_mul_ps(v, num), den);
+        const __m128 hi = _mm_cmpge_ps(v, hiEdge);
+        const __m128 lo = _mm_cmple_ps(v, loEdge);
+        const __m128 inner = _mm_andnot_ps(_mm_or_ps(hi, lo), pade);
+        _mm_storeu_ps(x + k, _mm_or_ps(inner, _mm_or_ps(_mm_and_ps(hi, one), _mm_and_ps(lo, minusOne))));
+    }
+    for (; k < n; ++k) x[k] = FastMath::fastTanh(x[k]);
+}
+#ifdef _MSC_VER
+#pragma float_control(pop)
+#endif
+}  // namespace detail
+#endif
 
 /// @brief Granular distortion processor with per-grain variation.
 ///
@@ -433,13 +484,24 @@ public:
     }
 
     /// @brief Process buffer in-place (FR-032).
+    ///
+    /// The same result as process(float) per sample. Chunks of finite samples at a non-zero Mix
+    /// run grain by grain (processChunk); the debug grain records describe process(float) calls
+    /// only and are left as the last of those set them.
     /// @param buffer Audio buffer (modified in-place)
     /// @param numSamples Number of samples to process
     void process(float* buffer, size_t numSamples) noexcept {
         if (buffer == nullptr) return;
 
-        for (size_t i = 0; i < numSamples; ++i) {
-            buffer[i] = process(buffer[i]);
+        size_t i = 0;
+        while (i < numSamples) {
+            const size_t len = std::min(kBlockChunk, numSamples - i);
+            if (mix_ != 0.0f && allFinite(buffer + i, len)) {
+                processChunk(buffer + i, len);
+            } else {
+                for (size_t k = 0; k < len; ++k) buffer[i + k] = process(buffer[i + k]);
+            }
+            i += len;
         }
     }
 
@@ -632,6 +694,148 @@ private:
         grain->envelopeIncrement = (state.grainSizeSamples > 0)
             ? 1.0f / static_cast<float>(state.grainSizeSamples)
             : 1.0f;
+    }
+
+    /// Samples per grain-major chunk of the block path (processChunk).
+    static constexpr size_t kBlockChunk = 64;
+
+    /// True when every sample of @p x[0, n) is finite (process(float) resets on any other).
+    [[nodiscard]] static bool allFinite(const float* x, size_t n) noexcept {
+        for (size_t k = 0; k < n; ++k) {
+            if (!detail::isFinite(x[k])) return false;
+        }
+        return true;
+    }
+
+    /// @brief process(float) over @p n <= kBlockChunk finite samples at a non-zero Mix, grain by
+    /// grain (CPU, Disrumpo round 5). The chunk splits at the samples where the scheduler triggers
+    /// a grain, which there acquires (or steals) a pool slot and starts. Between triggers each
+    /// active grain runs its samples in one loop (runGrains), the grains in ascending slot order,
+    /// so every sample sums its grains in process(float)'s order. The chunk's input reaches the
+    /// circular buffer after the grains have run: a grain's read of a position the chunk writes at
+    /// or before that sample takes the chunk's input, any other read the buffer as it was.
+    void processChunk(float* x, size_t n) noexcept {
+        // The scheduler and the mix smoother run on copies in locals (their recursions then stay in
+        // registers), written back after their loops (round 6 CPU)
+        std::array<bool, kBlockChunk> trigger{};
+        GrainScheduler scheduler = scheduler_;
+        for (size_t k = 0; k < n; ++k) trigger[k] = scheduler.process();
+        scheduler_ = scheduler;
+        std::array<float, kBlockChunk> wet{};
+        const size_t writePos0 = writePos_;
+        const size_t written0 = samplesWritten_;
+        const size_t sample0 = currentSample_;
+        size_t segmentStart = 0;
+        for (size_t k = 0; k <= n; ++k) {
+            if (k < n && !trigger[k]) continue;
+            runGrains(x, wet.data(), writePos0, segmentStart, k);
+            if (k == n) break;
+            // Sample k's state at its trigger: its input written, the sample counter not yet advanced
+            writePos_ = (writePos0 + k + 1) & kBufferMask;
+            samplesWritten_ = std::min(written0 + k + 1, kBufferSize);
+            currentSample_ = sample0 + k;
+            triggerGrain();
+            segmentStart = k;
+        }
+        for (size_t k = 0; k < n; ++k) buffer_[(writePos0 + k) & kBufferMask] = x[k];
+        writePos_ = (writePos0 + n) & kBufferMask;
+        samplesWritten_ = std::min(written0 + n, kBufferSize);
+        currentSample_ = sample0 + n;
+        OnePoleSmoother mixSmoother = mixSmoother_;
+        for (size_t k = 0; k < n; ++k) {
+            const float smoothedMix = mixSmoother.process();
+            x[k] = detail::flushDenormal((1.0f - smoothedMix) * x[k] + smoothedMix * wet[k]);
+        }
+        mixSmoother_ = mixSmoother;
+    }
+
+    /// @brief Every active grain over the chunk samples [@p begin, @p end), added to @p wet: per
+    /// sample processGrain()'s operations in their order, without its debug record. @p in is the
+    /// chunk's input, which the buffer receives from @p writePos0 on after the chunk.
+    void runGrains(const float* in, float* wet, size_t writePos0, size_t begin, size_t end) noexcept {
+        if (begin >= end) return;
+        // Each grain's running state (envelope phase, read progress) and its waveshaper run on
+        // copies in locals, written back when the grain stops: a store to wet[] then forces no reload
+        // of them, and the phase recursion stays in a register (round 6 CPU)
+        const float* table = envelopeTable_.data();
+        const bool reshape = curve_ != 0.5f;
+        for (uint64_t pending = activeSlots_; pending != 0; pending &= pending - 1) {
+            const auto grainIndex = static_cast<size_t>(std::countr_zero(pending));
+            Grain* grain = grainPool_.grainAt(grainIndex);
+            GrainState& state = grainStates_[grainIndex];
+            const Waveshaper ws = waveshapers_[grainIndex];
+            const size_t startPos = state.startBufferPos;
+            size_t progress = state.progressSamples;
+            float phase = grain->envelopePhase;
+            const float increment = grain->envelopeIncrement;
+            bool released = false;
+#if KRATE_GRANULAR_TANH_SSE2
+            if (!reshape && ws.getType() == WaveshapeType::Tanh && ws.getDrive() != 0.0f) {
+                // Tanh grains (the default curve) in spans: per sample the envelope, the read and
+                // Waveshaper::process's drive * x + asymmetry, then the curve four samples at a
+                // time (detail::granularFastTanhSse2), then the envelope product and the flush;
+                // the same values per sample, added to wet[] in the same grain order (round 6 CPU)
+                const float drive = ws.getDrive();
+                const float asymmetry = ws.getAsymmetry();
+                constexpr size_t kSpan = 16;
+                std::array<float, kSpan> shaped{};
+                std::array<float, kSpan> envelope{};
+                size_t k = begin;
+                while (k < end && !released) {
+                    const size_t limit = std::min(kSpan, end - k);
+                    size_t m = 0;
+                    while (m < limit) {
+                        envelope[m] = GrainEnvelope::lookup(table, kEnvelopeTableSize, phase);
+                        const size_t readPos = (startPos + progress) & kBufferMask;
+                        ++progress;
+                        const size_t writer = (readPos - writePos0) & kBufferMask;
+                        const float bufferSample = writer <= k + m ? in[writer] : buffer_[readPos];
+                        shaped[m] = drive * bufferSample + asymmetry;
+                        ++m;
+                        phase += increment;
+                        if (phase >= 1.0f) {
+                            released = true;
+                            break;
+                        }
+                    }
+                    detail::granularFastTanhSse2(shaped.data(), m);
+                    for (size_t j = 0; j < m; ++j) {
+                        wet[k + j] += detail::flushDenormal(shaped[j] * envelope[j]);
+                    }
+                    k += m;
+                }
+            } else
+#endif
+            {
+                for (size_t k = begin; k < end; ++k) {
+                    const float envelope = GrainEnvelope::lookup(table, kEnvelopeTableSize, phase);
+                    const size_t readPos = (startPos + progress) & kBufferMask;
+                    ++progress;
+                    // The chunk sample that writes readPos; it holds this sample's buffer value
+                    // when written at or before sample k
+                    const size_t writer = (readPos - writePos0) & kBufferMask;
+                    const float bufferSample = writer <= k ? in[writer] : buffer_[readPos];
+                    float distorted = ws.process(bufferSample);
+                    if (reshape) {
+                        const float exponent = std::pow(10.0f, (curve_ - 0.5f) * 2.0f);
+                        const float sign = (distorted >= 0.0f) ? 1.0f : -1.0f;
+                        distorted = sign * std::pow(std::abs(distorted), exponent);
+                    }
+                    wet[k] += detail::flushDenormal(distorted * envelope);
+                    phase += increment;
+                    if (phase >= 1.0f) {
+                        released = true;
+                        break;
+                    }
+                }
+            }
+            state.progressSamples = progress;
+            grain->envelopePhase = phase;
+            if (released) {
+                grainPool_.releaseGrain(grain);
+                activeSlots_ &= ~(uint64_t{1} << grainIndex);
+            }
+        }
     }
 
     /// Process a single grain and return its contribution

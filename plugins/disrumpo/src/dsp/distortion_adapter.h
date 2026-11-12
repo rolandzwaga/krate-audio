@@ -467,8 +467,8 @@ private:
     /// drive 1 (the blend scaled by 1 / drive^2), for the fuzz input @p fuzzInput.
     [[nodiscard]] float fuzzCleanExcess(float fuzzInput) const noexcept;
 
-    /// @brief Apply tone filter to wet signal.
-    [[nodiscard]] float applyTone(float wet) noexcept;
+    /// @brief HardClip's or FullRectify's processRaw over @p n driven samples in place (processBlock).
+    void shapeCurveChunk(float* x, size_t n) noexcept;
 
     /// @brief Update DC blocker state based on current type.
     void updateDCBlockerState() noexcept;

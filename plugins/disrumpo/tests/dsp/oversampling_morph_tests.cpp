@@ -134,12 +134,13 @@ TEST_CASE("BandProcessor: morph weighted average rounding",
     // since BandProcessor morph weights depend on MorphEngine's internal state
     // which we can verify through factor selection behavior.
 
-    SECTION("roundUpToPowerOf2Factor boundary values") {
-        // Already tested in oversampling_utils_tests, but verify critical boundaries
-        CHECK(roundUpToPowerOf2Factor(1.5f) == 2);
-        CHECK(roundUpToPowerOf2Factor(2.0f) == 2);
-        CHECK(roundUpToPowerOf2Factor(2.5f) == 4);
-        CHECK(roundUpToPowerOf2Factor(3.0f) == 4);
+    SECTION("roundToNearestPowerOf2Factor boundary values") {
+        // Already tested in oversampling_utils_tests, but verify critical boundaries. Nearest,
+        // ties up (user ruling 2026-11-11; 2.5 rounded up to 4 before)
+        CHECK(roundToNearestPowerOf2Factor(1.5f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(2.0f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(2.5f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(3.0f) == 4);
     }
 }
 

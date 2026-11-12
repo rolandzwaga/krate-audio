@@ -1,7 +1,7 @@
 // ==============================================================================
 // Oversampling Utilities Tests
 // ==============================================================================
-// Tests for oversampling factor computation: roundUpToPowerOf2Factor(),
+// Tests for oversampling factor computation: roundToNearestPowerOf2Factor(),
 // getSingleTypeOversampleFactor(), and calculateMorphOversampleFactor().
 //
 // Reference: specs/009-intelligent-oversampling/spec.md
@@ -19,44 +19,50 @@
 using namespace Disrumpo;
 
 // =============================================================================
-// T11.006: roundUpToPowerOf2Factor() tests (FR-004)
+// T11.006: roundToNearestPowerOf2Factor() tests (FR-004)
+// Nearest factor, a tie taking the higher one (user ruling 2026-11-11, CPU round: the mean
+// rounded up before, so 1.1 -> 2, 2.1 -> 4, 4.1 -> 8)
 // =============================================================================
 
-TEST_CASE("roundUpToPowerOf2Factor: maps weighted average to power-of-2 factor",
+TEST_CASE("roundToNearestPowerOf2Factor: maps weighted average to the nearest power-of-2 factor",
           "[oversampling][utils][FR-004]") {
 
     SECTION("exact values map correctly") {
-        CHECK(roundUpToPowerOf2Factor(1.0f) == 1);
-        CHECK(roundUpToPowerOf2Factor(2.0f) == 2);
-        CHECK(roundUpToPowerOf2Factor(4.0f) == 4);
+        CHECK(roundToNearestPowerOf2Factor(1.0f) == 1);
+        CHECK(roundToNearestPowerOf2Factor(2.0f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(4.0f) == 4);
+        CHECK(roundToNearestPowerOf2Factor(8.0f) == 8);
     }
 
-    SECTION("values between 1 and 2 round up to 2") {
-        CHECK(roundUpToPowerOf2Factor(1.1f) == 2);
-        CHECK(roundUpToPowerOf2Factor(1.5f) == 2);
-        CHECK(roundUpToPowerOf2Factor(1.9f) == 2);
+    SECTION("values between 1 and 2 go to the nearer, 1.5 up") {
+        CHECK(roundToNearestPowerOf2Factor(1.1f) == 1);
+        CHECK(roundToNearestPowerOf2Factor(1.49f) == 1);
+        CHECK(roundToNearestPowerOf2Factor(1.5f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(1.9f) == 2);
     }
 
-    SECTION("values between 2 and 4 round up to 4") {
-        CHECK(roundUpToPowerOf2Factor(2.1f) == 4);
-        CHECK(roundUpToPowerOf2Factor(2.5f) == 4);
-        CHECK(roundUpToPowerOf2Factor(3.0f) == 4);
-        CHECK(roundUpToPowerOf2Factor(3.5f) == 4);
-        CHECK(roundUpToPowerOf2Factor(3.9f) == 4);
+    SECTION("values between 2 and 4 go to the nearer, 3 up") {
+        CHECK(roundToNearestPowerOf2Factor(2.1f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(2.5f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(2.99f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(3.0f) == 4);
+        CHECK(roundToNearestPowerOf2Factor(3.5f) == 4);
+        CHECK(roundToNearestPowerOf2Factor(3.9f) == 4);
     }
 
     SECTION("zero or sub-1 values return 1") {
-        CHECK(roundUpToPowerOf2Factor(0.0f) == 1);
-        CHECK(roundUpToPowerOf2Factor(0.5f) == 1);
-        CHECK(roundUpToPowerOf2Factor(-1.0f) == 1);
+        CHECK(roundToNearestPowerOf2Factor(0.0f) == 1);
+        CHECK(roundToNearestPowerOf2Factor(0.5f) == 1);
+        CHECK(roundToNearestPowerOf2Factor(-1.0f) == 1);
     }
 
-    SECTION("values above 4 round up to 8") {
+    SECTION("values between 4 and 8 go to the nearer, 6 up") {
         // 8x types (user ruling 2026-11-10); 4 was the ceiling before
-        CHECK(roundUpToPowerOf2Factor(4.1f) == 8);
-        CHECK(roundUpToPowerOf2Factor(5.0f) == 8);
-        CHECK(roundUpToPowerOf2Factor(8.0f) == 8);
-        CHECK(roundUpToPowerOf2Factor(9.0f) == 8);
+        CHECK(roundToNearestPowerOf2Factor(4.1f) == 4);
+        CHECK(roundToNearestPowerOf2Factor(5.0f) == 4);
+        CHECK(roundToNearestPowerOf2Factor(5.99f) == 4);
+        CHECK(roundToNearestPowerOf2Factor(6.0f) == 8);
+        CHECK(roundToNearestPowerOf2Factor(9.0f) == 8);
     }
 }
 
@@ -192,46 +198,53 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
                             0.5f, 0.5f) == 1);
     }
 
+    // Expectations follow the nearest-factor rule (user ruling 2026-11-11; rounded up before)
     SECTION("equidistant weights between different factor types") {
-        // Tube (2x) + HardClip (4x) at 0.5/0.5 = avg 3.0 -> 4
+        // Tube (2x) + HardClip (4x) at 0.5/0.5 = avg 3.0 -> 4 (a tie takes the higher factor)
         CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
                             0.5f, 0.5f) == 4);
-        // Bitcrush (1x) + Tube (2x) at 0.5/0.5 = avg 1.5 -> 2
+        // Bitcrush (1x) + Tube (2x) at 0.5/0.5 = avg 1.5 -> 2 (a tie takes the higher factor)
         CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
                             0.5f, 0.5f) == 2);
-        // Bitcrush (1x) + HardClip (4x) at 0.5/0.5 = avg 2.5 -> 4
+        // Bitcrush (1x) + HardClip (4x) at 0.5/0.5 = avg 2.5 -> 2 (was 4 under round-up)
         CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::HardClip,
-                            0.5f, 0.5f) == 4);
+                            0.5f, 0.5f) == 2);
     }
 
     SECTION("single dominant node (0.9/0.1 split)") {
-        // Tube (2x) dominant + HardClip (4x) = 0.9*2 + 0.1*4 = 2.2 -> 4
+        // Tube (2x) dominant + HardClip (4x) = 0.9*2 + 0.1*4 = 2.2 -> 2 (was 4)
         CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
-                            0.9f, 0.1f) == 4);
+                            0.9f, 0.1f) == 2);
         // HardClip (4x) dominant + Tube (2x) = 0.9*4 + 0.1*2 = 3.8 -> 4
         CHECK(twoNodeResult(DistortionType::HardClip, DistortionType::Tube,
                             0.9f, 0.1f) == 4);
         // HardClip (4x) dominant + Bitcrush (1x) = 0.9*4 + 0.1*1 = 3.7 -> 4
         CHECK(twoNodeResult(DistortionType::HardClip, DistortionType::Bitcrush,
                             0.9f, 0.1f) == 4);
-        // Bitcrush (1x) dominant + Tube (2x) = 0.9*1 + 0.1*2 = 1.1 -> 2
+        // Bitcrush (1x) dominant + Tube (2x) = 0.9*1 + 0.1*2 = 1.1 -> 1 (was 2)
         CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
-                            0.9f, 0.1f) == 2);
+                            0.9f, 0.1f) == 1);
     }
 
     SECTION("gradual transitions (0.7/0.3, 0.6/0.4)") {
-        // Tube (2x) 0.7 + HardClip (4x) 0.3 = 0.7*2 + 0.3*4 = 2.6 -> 4
+        // Tube (2x) 0.7 + HardClip (4x) 0.3 = 0.7*2 + 0.3*4 = 2.6 -> 2 (was 4)
         CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
-                            0.7f, 0.3f) == 4);
-        // Tube (2x) 0.6 + HardClip (4x) 0.4 = 0.6*2 + 0.4*4 = 2.8 -> 4
-        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
-                            0.6f, 0.4f) == 4);
-        // Bitcrush (1x) 0.7 + Tube (2x) 0.3 = 0.7*1 + 0.3*2 = 1.3 -> 2
-        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
                             0.7f, 0.3f) == 2);
-        // Bitcrush (1x) 0.6 + Tube (2x) 0.4 = 0.6*1 + 0.4*2 = 1.4 -> 2
-        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
+        // Tube (2x) 0.6 + HardClip (4x) 0.4 = 0.6*2 + 0.4*4 = 2.8 -> 2 (was 4)
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
                             0.6f, 0.4f) == 2);
+        // Tube (2x) 0.4 + HardClip (4x) 0.6 = 0.4*2 + 0.6*4 = 3.2 -> 4
+        CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
+                            0.4f, 0.6f) == 4);
+        // Bitcrush (1x) 0.7 + Tube (2x) 0.3 = 0.7*1 + 0.3*2 = 1.3 -> 1 (was 2)
+        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
+                            0.7f, 0.3f) == 1);
+        // Bitcrush (1x) 0.6 + Tube (2x) 0.4 = 0.6*1 + 0.4*2 = 1.4 -> 1 (was 2)
+        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
+                            0.6f, 0.4f) == 1);
+        // Bitcrush (1x) 0.4 + Tube (2x) 0.6 = 0.4*1 + 0.6*2 = 1.6 -> 2
+        CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
+                            0.4f, 0.6f) == 2);
     }
 
     SECTION("3-node morph with varied distributions") {
@@ -240,13 +253,13 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
         nodes[1].type = DistortionType::Tube;    // 2x
         nodes[2].type = DistortionType::HardClip;    // 4x
 
-        // Equal weights: (1+2+4)/3 = 2.33 -> 4
+        // Equal weights: (1+2+4)/3 = 2.33 -> 2 (was 4)
         std::array<float, kMaxMorphNodes> w1 = {1.0f/3.0f, 1.0f/3.0f, 1.0f/3.0f, 0.0f};
-        CHECK(calculateMorphOversampleFactor(nodes, w1, 3, 8) == 4);
+        CHECK(calculateMorphOversampleFactor(nodes, w1, 3, 8) == 2);
 
-        // Heavy on 1x: 0.8*1 + 0.1*2 + 0.1*4 = 1.4 -> 2
+        // Heavy on 1x: 0.8*1 + 0.1*2 + 0.1*4 = 1.4 -> 1 (was 2)
         std::array<float, kMaxMorphNodes> w2 = {0.8f, 0.1f, 0.1f, 0.0f};
-        CHECK(calculateMorphOversampleFactor(nodes, w2, 3, 8) == 2);
+        CHECK(calculateMorphOversampleFactor(nodes, w2, 3, 8) == 1);
 
         // Heavy on 4x: 0.1*1 + 0.1*2 + 0.8*4 = 3.5 -> 4
         std::array<float, kMaxMorphNodes> w3 = {0.1f, 0.1f, 0.8f, 0.0f};
@@ -260,17 +273,18 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
         nodes[2].type = DistortionType::Tube;          // 2x
         nodes[3].type = DistortionType::HardClip;     // 4x
 
-        // Equal weights: (1+2+2+4)/4 = 2.25 -> 4
+        // Equal weights: (1+2+2+4)/4 = 2.25 -> 2 (was 4)
         std::array<float, kMaxMorphNodes> w1 = {0.25f, 0.25f, 0.25f, 0.25f};
-        CHECK(calculateMorphOversampleFactor(nodes, w1, 4, 8) == 4);
+        CHECK(calculateMorphOversampleFactor(nodes, w1, 4, 8) == 2);
 
-        // Mostly 2x types: 0.1*1 + 0.4*2 + 0.4*2 + 0.1*4 = 2.1 -> 4
+        // Mostly 2x types: 0.1*1 + 0.4*2 + 0.4*2 + 0.1*4 = 2.1 -> 2 (was 4)
         std::array<float, kMaxMorphNodes> w2 = {0.1f, 0.4f, 0.4f, 0.1f};
-        CHECK(calculateMorphOversampleFactor(nodes, w2, 4, 8) == 4);
+        CHECK(calculateMorphOversampleFactor(nodes, w2, 4, 8) == 2);
 
-        // Mostly 1x type: 0.7*1 + 0.1*2 + 0.1*2 + 0.1*4 = 1.5 -> 2
-        std::array<float, kMaxMorphNodes> w3 = {0.7f, 0.1f, 0.1f, 0.1f};
-        CHECK(calculateMorphOversampleFactor(nodes, w3, 4, 8) == 2);
+        // Mostly 1x type: 0.8*1 + 0.1*2 + 0.05*2 + 0.05*4 = 1.3 -> 1 (0.7/0.1/0.1/0.1 sat on
+        // the 1.5 tie of the nearest-factor rule, where contraction could tip it either way)
+        std::array<float, kMaxMorphNodes> w3 = {0.8f, 0.1f, 0.05f, 0.05f};
+        CHECK(calculateMorphOversampleFactor(nodes, w3, 4, 8) == 1);
     }
 
     SECTION("boundary cases (1.0/0.0/0.0/0.0)") {
@@ -291,14 +305,20 @@ TEST_CASE("calculateMorphOversampleFactor: morph-weighted computation",
         // avg = 2.0 exactly -> 2
         CHECK(twoNodeResult(DistortionType::Tube, DistortionType::Tube,
                             0.5f, 0.5f) == 2);
-        // avg just above 1.0 -> 2 (Bitcrush 1x weight=0.99, Tube 2x weight=0.01)
-        // 0.99*1 + 0.01*2 = 1.01 -> 2
+        // avg just above 1.0 -> 1 (was 2; Bitcrush 1x weight=0.99, Tube 2x weight=0.01)
+        // 0.99*1 + 0.01*2 = 1.01 -> 1
         CHECK(twoNodeResult(DistortionType::Bitcrush, DistortionType::Tube,
-                            0.99f, 0.01f) == 2);
-        // avg just above 2.0 -> 4 (Tube 2x weight=0.99, HardClip 4x weight=0.01)
-        // 0.99*2 + 0.01*4 = 2.02 -> 4
+                            0.99f, 0.01f) == 1);
+        // avg just above 2.0 -> 2 (was 4; Tube 2x weight=0.99, HardClip 4x weight=0.01)
+        // 0.99*2 + 0.01*4 = 2.02 -> 2
         CHECK(twoNodeResult(DistortionType::Tube, DistortionType::HardClip,
-                            0.99f, 0.01f) == 4);
+                            0.99f, 0.01f) == 2);
+        // either side of the 4x / 8x midpoint 6 (HardClip 4x, SineFold 8x)
+        // 0.55*4 + 0.45*8 = 5.8 -> 4; 0.45*4 + 0.55*8 = 6.2 -> 8
+        CHECK(twoNodeResult(DistortionType::HardClip, DistortionType::SineFold,
+                            0.55f, 0.45f) == 4);
+        CHECK(twoNodeResult(DistortionType::HardClip, DistortionType::SineFold,
+                            0.45f, 0.55f) == 8);
     }
 
     SECTION("global limit clamping") {

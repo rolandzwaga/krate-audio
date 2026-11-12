@@ -41,8 +41,91 @@
 #include <cstddef>
 #include <cstdint>
 
+// The Harmonic block path's Clenshaw recurrences and ReciprocalSqrt curve in SSE2
+// (harmonicLevelChunk). Not where FMA may fuse the scalar c + 2x * b1 or x * x + 1, which the SSE2
+// lanes would then not match.
+#if (defined(__SSE2__) || defined(_M_X64) || defined(__x86_64__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)) && \
+    !defined(__FMA__)
+#define KRATE_FRACTAL_CURVE_SSE2 1
+#include <emmintrin.h>
+#else
+#define KRATE_FRACTAL_CURVE_SSE2 0
+#endif
+
 
 namespace Krate::DSP {
+
+#if KRATE_FRACTAL_CURVE_SSE2
+namespace detail {
+/// @brief Chebyshev::harmonicMix(x[k], weights, numWeights) for eight samples (two SSE2 vectors),
+/// the Clenshaw recurrence's state in registers: per lane c + 2x * b1 - b2, then x * b1 - b2,
+/// the scalar operations in their order, each IEEE-exact, so every lane is the scalar result
+/// (FractalDistortion's Harmonic block path, round 6 CPU). MSVC /fp:fast reorders intrinsic
+/// arithmetic too, so the function is compiled precise there and the intrinsics run as written.
+#ifdef _MSC_VER
+#pragma float_control(precise, on, push)
+#endif
+inline void fractalChebyshev8Sse2(const float* weights, int numWeights, const float* x, float* out) noexcept {
+    const __m128 two = _mm_set1_ps(2.0f);
+    const __m128 x0 = _mm_loadu_ps(x);
+    const __m128 x1 = _mm_loadu_ps(x + 4);
+    const __m128 twoX0 = _mm_mul_ps(two, x0);
+    const __m128 twoX1 = _mm_mul_ps(two, x1);
+    __m128 b10 = _mm_setzero_ps();
+    __m128 b11 = _mm_setzero_ps();
+    __m128 b20 = _mm_setzero_ps();
+    __m128 b21 = _mm_setzero_ps();
+    for (int h = numWeights; h >= 1; --h) {
+        const __m128 c = _mm_set1_ps(weights[h - 1]);
+        const __m128 n0 = _mm_sub_ps(_mm_add_ps(c, _mm_mul_ps(twoX0, b10)), b20);
+        const __m128 n1 = _mm_sub_ps(_mm_add_ps(c, _mm_mul_ps(twoX1, b11)), b21);
+        b20 = b10;
+        b21 = b11;
+        b10 = n0;
+        b11 = n1;
+    }
+    _mm_storeu_ps(out, _mm_sub_ps(_mm_mul_ps(x0, b10), b20));
+    _mm_storeu_ps(out + 4, _mm_sub_ps(_mm_mul_ps(x1, b11), b21));
+}
+#ifdef _MSC_VER
+#pragma float_control(pop)
+#endif
+
+/// @brief The Harmonic level's ReciprocalSqrt curves and mix for the first @p n (a multiple of 4)
+/// samples, four at a time: per lane drive * x + asymmetry, x / sqrt(x * x + 1), flushDenormal,
+/// then (o + e) * 0.5, the scalar operations in their order, each IEEE-exact, so every lane is the
+/// scalar result (round 5 CPU). MSVC /fp:fast reorders intrinsic arithmetic too, so the function
+/// is compiled precise there and the intrinsics run as written.
+#ifdef _MSC_VER
+#pragma float_control(precise, on, push)
+#endif
+inline void fractalRecipSqrtMixSse2(const float* odd, float oddDriveS, float oddAsymS, const float* even,
+                                    float evenDriveS, float evenAsymS, float* out, size_t n) noexcept {
+    const __m128 oddDrive = _mm_set1_ps(oddDriveS);
+    const __m128 oddAsym = _mm_set1_ps(oddAsymS);
+    const __m128 evenDrive = _mm_set1_ps(evenDriveS);
+    const __m128 evenAsym = _mm_set1_ps(evenAsymS);
+    const __m128 one = _mm_set1_ps(1.0f);
+    const __m128 half = _mm_set1_ps(0.5f);
+    const __m128 posThr = _mm_set1_ps(kDenormalThreshold);
+    const __m128 negThr = _mm_set1_ps(-kDenormalThreshold);
+    const auto curve = [&](__m128 x, __m128 drive, __m128 asym) {
+        const __m128 t = _mm_add_ps(_mm_mul_ps(drive, x), asym);
+        const __m128 y = _mm_div_ps(t, _mm_sqrt_ps(_mm_add_ps(_mm_mul_ps(t, t), one)));
+        const __m128 tiny = _mm_and_ps(_mm_cmpgt_ps(y, negThr), _mm_cmplt_ps(y, posThr));
+        return _mm_andnot_ps(tiny, y);
+    };
+    for (size_t k = 0; k + 4 <= n; k += 4) {
+        const __m128 o = curve(_mm_loadu_ps(odd + k), oddDrive, oddAsym);
+        const __m128 e = curve(_mm_loadu_ps(even + k), evenDrive, evenAsym);
+        _mm_storeu_ps(out + k, _mm_mul_ps(_mm_add_ps(o, e), half));
+    }
+}
+#ifdef _MSC_VER
+#pragma float_control(pop)
+#endif
+}  // namespace detail
+#endif
 
 // =============================================================================
 // FractalMode Enumeration (FR-004 to FR-009)
@@ -795,31 +878,87 @@ private:
 
     /// Samples per level-major chunk of the block path (processHarmonicChunk).
     static constexpr size_t kBlockChunk = 64;
+    /// Samples per sub-chunk of processHarmonicChunk's skewed schedule (a multiple of 4: the SSE2
+    /// curve's lanes cover the same samples as in one 64-sample pass).
+    static constexpr size_t kSkewChunk = 8;
 
-    /// @brief processHarmonic()'s level for each of @p n <= kBlockChunk clamped inputs: both
+    /// @brief processHarmonic()'s level for each of @p n <= kSkewChunk clamped inputs: both
     /// Clenshaw recurrences step through the chunk together (the samples are independent, so the
     /// compiler vectorises the steps). Per sample: the operations of ChebyshevShaper::process,
     /// Waveshaper::process and flushDenormal, in their order. The curves stay per sample: a
     /// vectorised x / sqrt(x^2 + 1) under MSVC /fp:fast is not the scalar result (1-3 ulp apart,
     /// which the Max blend's level selection carried to -50 dB of difference, round 5).
     void harmonicLevelChunk(const float* clamped, float* out, size_t n) const noexcept {
-        std::array<float, kBlockChunk> odd{};
-        std::array<float, kBlockChunk> even{};
-        chebyshevChunk(oddHarmonicShaper_.getHarmonicLevels(), clamped, odd.data(), n);
-        chebyshevChunk(evenHarmonicShaper_.getHarmonicLevels(), clamped, even.data(), n);
-        for (size_t k = 0; k < n; ++k) {
+        std::array<float, kSkewChunk> odd{};
+        std::array<float, kSkewChunk> even{};
+#if KRATE_FRACTAL_CURVE_SSE2
+        if (n == kSkewChunk) {
+            chebyshevChunkSse2(oddHarmonicShaper_.getHarmonicLevels(), clamped, odd.data());
+            chebyshevChunkSse2(evenHarmonicShaper_.getHarmonicLevels(), clamped, even.data());
+        } else
+#endif
+        {
+            chebyshevChunk(oddHarmonicShaper_.getHarmonicLevels(), clamped, odd.data(), n);
+            chebyshevChunk(evenHarmonicShaper_.getHarmonicLevels(), clamped, even.data(), n);
+        }
+        size_t k = 0;
+#if KRATE_FRACTAL_CURVE_SSE2
+        // ReciprocalSqrt (the default curve) four samples at a time in SSE2
+        // (detail::fractalRecipSqrtMixSse2, every lane the scalar result). Only for drives that keep
+        // x * x finite, where recipSqrt's infinity branch is never taken.
+        if (oddHarmonicCurve_ == WaveshapeType::ReciprocalSqrt && evenHarmonicCurve_ == WaveshapeType::ReciprocalSqrt &&
+            oddWaveshaper_.getDrive() != 0.0f && evenWaveshaper_.getDrive() != 0.0f &&
+            boundedForRecipSqrt(odd.data(), oddWaveshaper_, n) && boundedForRecipSqrt(even.data(), evenWaveshaper_, n)) {
+            k = n & ~static_cast<size_t>(3);
+            detail::fractalRecipSqrtMixSse2(odd.data(), oddWaveshaper_.getDrive(), oddWaveshaper_.getAsymmetry(),
+                                            even.data(), evenWaveshaper_.getDrive(), evenWaveshaper_.getAsymmetry(),
+                                            out, k);
+        }
+#endif
+        for (; k < n; ++k) {
             const float o = detail::flushDenormal(oddWaveshaper_.process(odd[k]));
             const float e = detail::flushDenormal(evenWaveshaper_.process(even[k]));
             out[k] = (o + e) * 0.5f;
         }
     }
 
+#if KRATE_FRACTAL_CURVE_SSE2
+    /// @brief True when drive * x + asymmetry stays below 1e18 in magnitude for every x of
+    /// @p x[0, n) (its square, and so recipSqrt's x * x + 1, is then finite).
+    [[nodiscard]] static bool boundedForRecipSqrt(const float* x, const Waveshaper& ws, size_t n) noexcept {
+        constexpr float kBound = 1.0e18f;
+        // Four at a time (a NaN compares false, as in the scalar test), the rest one by one
+        const __m128 drive = _mm_set1_ps(ws.getDrive());
+        const __m128 asym = _mm_set1_ps(ws.getAsymmetry());
+        const __m128 bound = _mm_set1_ps(kBound);
+        const __m128 absMask = _mm_castsi128_ps(_mm_set1_epi32(0x7FFFFFFF));
+        size_t k = 0;
+        for (; k + 4 <= n; k += 4) {
+            const __m128 t = _mm_add_ps(_mm_mul_ps(drive, _mm_loadu_ps(x + k)), asym);
+            if (_mm_movemask_ps(_mm_cmplt_ps(_mm_and_ps(t, absMask), bound)) != 0xF) return false;
+        }
+        for (; k < n; ++k) {
+            const float t = ws.getDrive() * x[k] + ws.getAsymmetry();
+            if (!(std::abs(t) < kBound)) return false;
+        }
+        return true;
+    }
+
+    /// @brief chebyshevChunk() over a full sub-chunk (kSkewChunk = 8 samples, two SSE2 vectors):
+    /// detail::fractalChebyshev8Sse2.
+    static void chebyshevChunkSse2(const std::array<float, ChebyshevShaper::kMaxHarmonics>& weights, const float* x,
+                                   float* out) noexcept {
+        static_assert(kSkewChunk == 8, "two SSE2 vectors per sub-chunk");
+        detail::fractalChebyshev8Sse2(weights.data(), ChebyshevShaper::kMaxHarmonics, x, out);
+    }
+#endif
+
     /// @brief Chebyshev::harmonicMix(x[k], weights, 8) for k in [0, n): the Clenshaw recurrence
-    /// with each step taken for the whole chunk.
+    /// with each step taken for the whole chunk (n <= kSkewChunk).
     static void chebyshevChunk(const std::array<float, ChebyshevShaper::kMaxHarmonics>& weights, const float* x,
                                float* out, size_t n) noexcept {
-        std::array<float, kBlockChunk> b1{};
-        std::array<float, kBlockChunk> b2{};
+        std::array<float, kSkewChunk> b1{};
+        std::array<float, kSkewChunk> b2{};
         for (int h = ChebyshevShaper::kMaxHarmonics; h >= 1; --h) {
             const float c = weights[static_cast<size_t>(h - 1)];
             for (size_t k = 0; k < n; ++k) {
@@ -848,52 +987,90 @@ private:
     /// independent apart from the frequency-decay filters, which still run each level's samples in
     /// order. Every sample takes the same operations in the same order as processHarmonic():
     /// the result is the per-sample one.
+    ///
+    /// The levels run skewed over kSkewChunk-sample sub-chunks: step t takes level i on sub-chunk
+    /// t - i, whose inputs (the levels below it on that sub-chunk) the steps before completed. The
+    /// decay filters of a step's levels then run interleaved sample by sample, so their recursions
+    /// overlap instead of each level's filter making its own serial pass (round 6 CPU). Each
+    /// filter still takes its level's samples in order, and each sample its levels in order.
     void processHarmonicChunk(float* buffer, size_t n) noexcept {
+        // The smoothers and the DC blocker run on copies in locals (their recursions then stay in
+        // registers), written back after the chunk
         std::array<float, kBlockChunk> drive{};
         std::array<float, kBlockChunk> mix{};
+        OnePoleSmoother driveSmoother = driveSmoother_;
+        OnePoleSmoother mixSmoother = mixSmoother_;
         for (size_t k = 0; k < n; ++k) {
-            drive[k] = driveSmoother_.process();
-            mix[k] = mixSmoother_.process();
+            drive[k] = driveSmoother.process();
+            mix[k] = mixSmoother.process();
         }
+        driveSmoother_ = driveSmoother;
+        mixSmoother_ = mixSmoother;
         oddWaveshaper_.setType(oddHarmonicCurve_);
         oddWaveshaper_.setDrive(1.0f);
         evenWaveshaper_.setType(evenHarmonicCurve_);
         evenWaveshaper_.setDrive(1.0f);
         std::array<std::array<float, kBlockChunk>, kMaxIterations> levels{};
         std::array<float, kBlockChunk> sum{};
-        std::array<float, kBlockChunk> clamped{};
-        for (size_t k = 0; k < n; ++k) {
-            clamped[k] = std::clamp(buffer[k] * drive[k], -1.0f, 1.0f);
-        }
-        harmonicLevelChunk(clamped.data(), levels[0].data(), n);
-        if (frequencyDecay_ > 0.0f) {
-            for (size_t k = 0; k < n; ++k) levels[0][k] = decayFilters_[0].process(levels[0][k]);
-        }
-        for (size_t k = 0; k < n; ++k) sum[k] = levels[0][k];
+        // Level i's residual gain, scaleFactor_^i by the per-sample loop's running product
+        std::array<float, kMaxIterations> scalePowers{};
         float scalePower = scaleFactor_;
         for (int i = 1; i < iterations_; ++i) {
-            auto& level = levels[static_cast<size_t>(i)];
-            for (size_t k = 0; k < n; ++k) {
-                const float residual = buffer[k] - sum[k];
-                clamped[k] = std::clamp(residual * scalePower * drive[k], -1.0f, 1.0f);
-            }
-            harmonicLevelChunk(clamped.data(), level.data(), n);
-            if (frequencyDecay_ > 0.0f) {
-                for (size_t k = 0; k < n; ++k) level[k] = decayFilters_[static_cast<size_t>(i)].process(level[k]);
-            }
-            for (size_t k = 0; k < n; ++k) sum[k] += level[k];
+            scalePowers[static_cast<size_t>(i)] = scalePower;
             scalePower *= scaleFactor_;
         }
+        const bool decay = frequencyDecay_ > 0.0f;
+        const auto levelCount = static_cast<size_t>(iterations_);
+        const size_t subChunks = (n + kSkewChunk - 1) / kSkewChunk;
+        for (size_t t = 0; t + 1 < subChunks + levelCount; ++t) {
+            const size_t first = t >= subChunks ? t - subChunks + 1 : 0;  // the step's levels
+            const size_t last = std::min(levelCount - 1, t);
+            for (size_t i = first; i <= last; ++i) {
+                const size_t start = (t - i) * kSkewChunk;
+                const size_t len = std::min(kSkewChunk, n - start);
+                std::array<float, kSkewChunk> clamped{};
+                if (i == 0) {
+                    for (size_t k = 0; k < len; ++k) {
+                        clamped[k] = std::clamp(buffer[start + k] * drive[start + k], -1.0f, 1.0f);
+                    }
+                } else {
+                    for (size_t k = 0; k < len; ++k) {
+                        const float residual = buffer[start + k] - sum[start + k];
+                        clamped[k] = std::clamp(residual * scalePowers[i] * drive[start + k], -1.0f, 1.0f);
+                    }
+                }
+                harmonicLevelChunk(clamped.data(), levels[i].data() + start, len);
+            }
+            if (decay) {
+                for (size_t k = 0; k < kSkewChunk; ++k) {
+                    for (size_t i = first; i <= last; ++i) {
+                        const size_t s = (t - i) * kSkewChunk + k;
+                        if (s < n) levels[i][s] = decayFilters_[i].process(levels[i][s]);
+                    }
+                }
+            }
+            for (size_t i = first; i <= last; ++i) {
+                const size_t start = (t - i) * kSkewChunk;
+                const size_t end = std::min(start + kSkewChunk, n);
+                if (i == 0) {
+                    for (size_t k = start; k < end; ++k) sum[k] = levels[0][k];
+                } else {
+                    for (size_t k = start; k < end; ++k) sum[k] += levels[i][k];
+                }
+            }
+        }
+        DCBlocker dcBlocker = dcBlocker_;
         for (size_t k = 0; k < n; ++k) {
             std::array<float, kMaxIterations> sampleLevels{};
             for (int i = 0; i < iterations_; ++i) {
                 sampleLevels[static_cast<size_t>(i)] = levels[static_cast<size_t>(i)][k];
             }
             float wet = combineLevels(sampleLevels, iterations_);
-            wet = dcBlocker_.process(wet);
+            wet = dcBlocker.process(wet);
             const float output = (1.0f - mix[k]) * buffer[k] + mix[k] * wet;
             buffer[k] = detail::flushDenormal(output);
         }
+        dcBlocker_ = dcBlocker;
     }
 
     /// @brief Process using Cascade mode algorithm (FR-039 to FR-041).

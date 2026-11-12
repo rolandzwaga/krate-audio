@@ -307,6 +307,9 @@ TEST_CASE("Probe: T5.09 CPU breakdown", "[.][t509-profile]") {
         if (factor == 8) {
             auto os = std::make_unique<Krate::DSP::Oversampler<8, 2>>();
             osPct = timeOs(*os);
+        } else if (factor == 2) {
+            auto os = std::make_unique<Krate::DSP::Oversampler<2, 2>>();
+            osPct = timeOs(*os);
         } else {
             auto os = std::make_unique<Krate::DSP::Oversampler<4, 2>>();
             osPct = timeOs(*os);
@@ -349,7 +352,12 @@ TEST_CASE("Processor CPU: 4 bands x 4 Experimental nodes at the morph centre, un
         const auto r = measure(fourBands({DistortionType::Formant, DistortionType::Chaos,
                                           DistortionType::Granular, DistortionType::Fractal}, 4));
         report("4 bands x Formant/Chaos/Granular/Fractal", r, kBudget);
-        for (int b = 0; b < kBands; ++b) REQUIRE(r.nodes[static_cast<size_t>(b)] == 4);
+        // The weighted factor (4 + 2 + 2 + 2) / 4 = 2.5 rounds to the nearest factor, 2, since the
+        // user ruled it on 2026-11-11 (it rounded up to 4 before)
+        for (int b = 0; b < kBands; ++b) {
+            REQUIRE(r.factor[static_cast<size_t>(b)] == 2);
+            REQUIRE(r.nodes[static_cast<size_t>(b)] == 4);
+        }
         INFO("CPU " << r.percent << " % (best 10-block run " << r.bestTrialPercent << " %)");
         REQUIRE(r.percent < kBudget);
     }
@@ -363,9 +371,11 @@ TEST_CASE("Processor CPU: 4 bands x 4 cross-family nodes at 4x at the morph cent
                                       DistortionType::FullRectify, DistortionType::RingSaturation}, 4));
     report("4 bands x HardClip/SineFold/FullRectify/RingSaturation, 4x", r, kBudget);
     // SineFold is an 8x type since the drive re-stage (user ruling 2026-11-10): the band's weighted
-    // factor (4 + 8 + 4 + 4) / 4 = 5 rounds up to 8 (round-3 ruling 4: expectation 4 -> 8, budget kept)
+    // factor (4 + 8 + 4 + 4) / 4 = 5 rounded up to 8 (round-3 ruling 4: expectation 4 -> 8, budget
+    // kept); it rounds to the nearest factor, 4, since the user ruled it on 2026-11-11 ("Faster math +
+    // lower OS": expectation 8 -> 4, budget kept)
     for (int b = 0; b < kBands; ++b) {
-        REQUIRE(r.factor[static_cast<size_t>(b)] == 8);
+        REQUIRE(r.factor[static_cast<size_t>(b)] == 4);
         REQUIRE(r.nodes[static_cast<size_t>(b)] == 4);
     }
     INFO("CPU " << r.percent << " % (best 10-block run " << r.bestTrialPercent << " %)");

@@ -562,9 +562,31 @@ inline float FormantFilter::process(float input) noexcept {
 }
 
 inline void FormantFilter::processBlock(float* buffer, size_t numSamples) noexcept {
-    for (size_t i = 0; i < numSamples; ++i) {
-        buffer[i] = process(buffer[i]);
+    if (!smoothersSettled()) {
+        for (size_t i = 0; i < numSamples; ++i) {
+            buffer[i] = process(buffer[i]);
+        }
+        return;
     }
+    // Settled smoothers stay settled for the block (only a setter re-arms them), so process() would
+    // skip the coefficient update on every sample: the five biquads run on copies in locals, every
+    // one of them per sample (process() keeps the inactive bands current too), and the active
+    // bands' outputs are summed in band order, process()'s arithmetic (Disrumpo round 6 CPU)
+    std::array<Biquad, kMaxFormants> filters = formants_;
+    const int active = activeFormants_;
+    for (size_t k = 0; k < numSamples; ++k) {
+        const float input = buffer[k];
+        std::array<float, kMaxFormants> band{};
+        for (size_t i = 0; i < static_cast<size_t>(kMaxFormants); ++i) {
+            band[i] = filters[i].process(input);
+        }
+        float output = 0.0f;
+        for (int i = 0; i < active; ++i) {
+            output += band[static_cast<size_t>(i)] * bandGain_[static_cast<size_t>(i)];
+        }
+        buffer[k] = output * resonanceGain_;
+    }
+    formants_ = filters;
 }
 
 } // namespace Krate::DSP

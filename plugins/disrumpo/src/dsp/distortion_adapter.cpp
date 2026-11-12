@@ -755,16 +755,36 @@ void DistortionAdapter::processBlock(const float* input, float* output, int numS
         const float mix = std::clamp(commonParams_.mix, 0.0f, 1.0f);
         const bool fullWet = wetWeight >= 1.0f;
         const float wetMix = mix * wetWeight;
-        // Fractal runs its span as a block (FractalDistortion::process(float*, size_t): the same
-        // per-sample result, its Harmonic mode in level-major order, round 4 CPU); its processRaw is
-        // fractal_.process alone and it keeps no state shared with the steps after it
-        const bool blockShaper = currentType_ == DistortionType::Fractal;
+        // Fractal, RingSaturation, Granular, HardClip and FullRectify run their span as a block
+        // (FractalDistortion::process(float*, size_t), its Harmonic mode in level-major order,
+        // round 4 CPU; RingSaturation::processBlock stage by stage, GranularDistortion::
+        // process(float*, size_t) grain by grain and the two curves in a loop of their own, round 5
+        // CPU; FormantDistortion::process(float*, size_t) stage by stage, round 6 CPU): the same
+        // per-sample result. Their processRaw keeps no state shared with the steps after it
+        const bool blockShaper = currentType_ == DistortionType::Fractal ||
+                                 currentType_ == DistortionType::RingSaturation ||
+                                 currentType_ == DistortionType::Granular ||
+                                 currentType_ == DistortionType::Formant ||
+                                 currentType_ == DistortionType::HardClip ||
+                                 currentType_ == DistortionType::FullRectify;
+        // The DC blocker and tone filter run on copies in locals for the span: their recursions keep
+        // their state in registers instead of reloading it from the adapter after every output store
+        // (round 6 CPU); the same process() arithmetic, written back after the span
+        Krate::DSP::DCBlocker dcBlocker = dcBlocker_;
+        Krate::DSP::OnePoleLP toneFilter = toneFilter_;
         std::array<float, kShaperChunk> shaped{};
         for (int start = 0; start < n; start += kShaperChunk) {
             const int len = std::min(kShaperChunk, n - start);
             if (blockShaper) {
+                const auto count = static_cast<size_t>(len);
                 for (int k = 0; k < len; ++k) shaped[static_cast<size_t>(k)] = in[start + k] * preGain;
-                fractal_.process(shaped.data(), static_cast<size_t>(len));
+                switch (currentType_) {
+                    case DistortionType::Fractal: fractal_.process(shaped.data(), count); break;
+                    case DistortionType::RingSaturation: ringSaturation_.processBlock(shaped.data(), count); break;
+                    case DistortionType::Granular: granular_.process(shaped.data(), count); break;
+                    case DistortionType::Formant: formant_.process(shaped.data(), count); break;
+                    default: shapeCurveChunk(shaped.data(), count); break;
+                }
             }
             for (int k = start; k < start + len; ++k) {
                 const float raw = in[k];
@@ -778,11 +798,13 @@ void DistortionAdapter::processBlock(const float* input, float* output, int numS
                 float wet = (blockShaper ? shaped[static_cast<size_t>(k - start)] : processRaw(raw * preGain)) * makeup;
                 if (normalise) wet /= drive;
                 if (capGain) wet *= capScale;
-                if (dcBlock) wet = dcBlocker_.process(wet);
-                if (tone) wet = applyTone(wet);
+                if (dcBlock) wet = dcBlocker.process(wet);
+                if (tone) wet = toneFilter.process(wet);
                 out[k] = fullWet ? x * (1.0f - mix) + wet * mix : x * (1.0f - wetMix) + wet * wetMix;
             }
         }
+        dcBlocker_ = dcBlocker;
+        toneFilter_ = toneFilter;
     }
     lastOutput_ = output[numSamples - 1];
     hasOutput_ = true;
@@ -1185,6 +1207,25 @@ float DistortionAdapter::processRawFor(DistortionType type, float input) noexcep
     }
 }
 
+void DistortionAdapter::shapeCurveChunk(float* x, size_t n) noexcept {
+    // processRawFor's HardClip and FullRectify over n driven samples, the curve in a loop of its
+    // own (no state: the samples are independent) and FullRectify's smooth filter after it
+    if (currentType_ == DistortionType::HardClip) {
+        const float clipThreshold = 0.1f + typeParams_.threshold * 0.9f;
+        const float clipCeiling = 0.1f + typeParams_.ceiling * 0.9f;
+        for (size_t k = 0; k < n; ++k) {
+            const float input = x[k];
+            const float sgn = input >= 0.0f ? 1.0f : -1.0f;
+            x[k] = std::abs(input) <= clipThreshold ? input * (clipCeiling / clipThreshold) : sgn * clipCeiling;
+        }
+        return;
+    }
+    for (size_t k = 0; k < n; ++k) x[k] = std::abs(x[k]);
+    if (typeParams_.smoothness > 0.001f) {
+        for (size_t k = 0; k < n; ++k) x[k] = wavefoldSmoothFilter_.process(x[k]);
+    }
+}
+
 float DistortionAdapter::fuzzCleanExcess(float fuzzInput) const noexcept {
     // FuzzProcessor blends its own input back in at (1 - fuzz amount) (its volume is never set
     // here: 0 dB). Above drive 1 that clean share is scaled by 1 / drive^2, so it falls as the drive
@@ -1262,10 +1303,6 @@ float DistortionAdapter::triangleFoldAdaa2(float input) noexcept {
         triAdaaF2x1_ = f2x;
     }
     return triFoldDcBlocker_.process(static_cast<float>(y));
-}
-
-float DistortionAdapter::applyTone(float wet) noexcept {
-    return toneFilter_.process(wet);
 }
 
 void DistortionAdapter::updateDCBlockerState() noexcept {
