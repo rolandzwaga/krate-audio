@@ -66,8 +66,12 @@ const usage = (msg) => { console.log(`GATE RED usage: ${msg}`); process.exit(2);
 const filter = opts.filter;
 if (!filter) usage('--filter is required');
 if (exes.length === 0) usage('name at least one test executable');
+// Catch2 ORs comma-separated terms, and tag terms AND only within their own term, so every per-term rule below
+// applies to EACH term: '[a],[b]~[wallclock]' would exclude [wallclock] from [b] only (a quiet pass that re-ran
+// 664 cases, 2026-11-12). Commas inside a quoted test name do not split.
+const orTerms = filter.match(/(?:"[^"]*"|[^,])+/g) || [filter];
 for (const t of ['~[performance]', '~[perf]', '~[benchmark]', '~[!benchmark]']) {
-    if (!filter.includes(t)) usage(`the filter must exclude timing tests (${t} missing); run those with tools/run-cpu-tests.js`);
+    if (!orTerms.every((term) => term.includes(t))) usage(`every comma (OR) term of the filter must exclude timing tests (${t} missing); run those with tools/run-cpu-tests.js`);
 }
 const SHARE = Math.max(1, Number(opts.share || 1));   // N concurrent gates each take 1/N of the machine
 const WORKERS = Math.max(1, Number(opts.workers || Math.max(1, Math.floor((os.cpus().length - 2) / SHARE))));
@@ -77,8 +81,8 @@ const WALL_SHARDS = WALL_WORKERS * 2;
 // Pass 1 excludes [wallclock]; pass 2 selects it (appended tag terms AND in Catch2). A filter that already names
 // [wallclock] runs as a single pass, as given.
 const TWO_PASS = !filter.includes('[wallclock]');
-const PASS1 = TWO_PASS ? `${filter}~[wallclock]` : filter;
-const PASS2 = `${filter}[wallclock]`;
+const PASS1 = TWO_PASS ? orTerms.map((term) => `${term}~[wallclock]`).join(',') : filter;
+const PASS2 = orTerms.map((term) => `${term}[wallclock]`).join(',');
 const BIN = path.resolve(opts.bin || 'build/windows-x64-release/bin/Release');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '').replace('T', '-');
 // f:/tmp is the Windows dev box's scratch drive; elsewhere 'f:/tmp' is a relative path and made a folder named "f:"
