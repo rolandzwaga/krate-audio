@@ -618,6 +618,14 @@ public:
     /// @brief Number of times the pan table was actually recomputed (test hook).
     [[nodiscard]] int panRecomputeCount() const noexcept { return panRecomputeCount_; }
 
+    /// @brief Number of times applyPanOffsets evaluated cos / sin rather than reusing its last tables (test hook).
+    [[nodiscard]] int panOffsetRecomputeCount() const noexcept { return panOffsetRecomputeCount_; }
+
+    /// @brief The per-partial pan positions and the constant-power gains in force (test hooks).
+    [[nodiscard]] const std::array<float, kMaxPartials>& panPositions() const noexcept { return panPosition_; }
+    [[nodiscard]] const std::array<float, kMaxPartials>& panLeftGains() const noexcept { return panLeft_; }
+    [[nodiscard]] const std::array<float, kMaxPartials>& panRightGains() const noexcept { return panRight_; }
+
     /// @brief Number of times the detune table was actually recomputed (test hook).
     [[nodiscard]] int detuneRecomputeCount() const noexcept {
         return detuneRecomputeCount_;
@@ -650,11 +658,27 @@ public:
     /// per-partial pan animation.
     ///
     /// @param offsets Array of kMaxPartials bipolar offsets to add to pan positions
-    /// @note Real-time safe (called once per frame)
+    /// @note Real-time safe. Innexus calls it per sample, per voice and per enabled modulator, with all-zero
+    ///       offsets whenever the modulator does not target Pan. The tables are a function of the positions and
+    ///       the offsets alone, so when both are bit for bit the ones the last evaluation took, that evaluation's
+    ///       tables are the answer (cos / sin of 2 x 96 positions was 73 % of the Innexus M6 benchmark, SC-008).
     void applyPanOffsets(
         const std::array<float, kMaxPartials>& offsets) noexcept
     {
         constexpr float kQuarterPi = kPi / 4.0f;
+
+        // The key compares object representations on purpose: equal bits give equal tables,
+        // whereas == would match -0 with +0 and never match a NaN.
+        // NOLINTBEGIN(bugprone-suspicious-memory-comparison)
+        if (panOffsetCacheValid_
+            && std::memcmp(panPosition_.data(), panOffsetPosition_.data(), sizeof(panPosition_)) == 0
+            && std::memcmp(offsets.data(), panOffsetInput_.data(), sizeof(panOffsetInput_)) == 0)
+        // NOLINTEND(bugprone-suspicious-memory-comparison)
+        {
+            panLeft_ = panOffsetLeft_;
+            panRight_ = panOffsetRight_;
+            return;
+        }
 
         for (size_t i = 0; i < kMaxPartials; ++i)
         {
@@ -663,6 +687,12 @@ public:
             panLeft_[i] = std::cos(angle);
             panRight_[i] = std::sin(angle);
         }
+        panOffsetPosition_ = panPosition_;
+        panOffsetInput_ = offsets;
+        panOffsetLeft_ = panLeft_;
+        panOffsetRight_ = panRight_;
+        panOffsetCacheValid_ = true;
+        ++panOffsetRecomputeCount_;
     }
 
     /// Profundum Phase 9 T032 (append-only): install per-partial pan coefficients computed by the
@@ -1251,6 +1281,15 @@ private:
     bool detuneBaseValid_ = false;
     int panRecomputeCount_ = 0;
     int detuneRecomputeCount_ = 0;
+
+    // applyPanOffsets' last evaluation: the positions and offsets it took and the gains they gave. A pure function
+    // of those inputs, so it stays valid across reset() and prepare().
+    alignas(32) std::array<float, kMaxPartials> panOffsetPosition_{};
+    alignas(32) std::array<float, kMaxPartials> panOffsetInput_{};
+    alignas(32) std::array<float, kMaxPartials> panOffsetLeft_{};
+    alignas(32) std::array<float, kMaxPartials> panOffsetRight_{};
+    bool panOffsetCacheValid_ = false;
+    int panOffsetRecomputeCount_ = 0;
 
     // --- Source-aware resynthesis arrays (Tier 3b) ---
     alignas(32) std::array<float, kMaxPartials> sourcePitch_{};     ///< Per-partial source pitch (Hz)

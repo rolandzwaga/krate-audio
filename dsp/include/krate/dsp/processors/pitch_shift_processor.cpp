@@ -4,6 +4,7 @@
 // core/spectral_simd.cpp. These per-block processing loops are not inline-eligible,
 // so moving them costs nothing at runtime.
 #include <krate/dsp/processors/pitch_shift_processor.h>
+#include <krate/dsp/core/ring_splice_search.h>
 
 namespace Krate::DSP {
 
@@ -318,44 +319,20 @@ void PitchSyncGranularShifter::beginSplice(float target, float travel) noexcept 
         const auto maxOffset = static_cast<std::size_t>(std::abs(target - delay1_));
         if (minOffset == 0 || minOffset > maxOffset) return;
 
-        const std::size_t matchLength = std::clamp<std::size_t>(currentGrainSize_ / 2, 1, 256);
+        const std::size_t matchLength = std::clamp<std::size_t>(currentGrainSize_ / 2, 1, detail::kRingSpliceMaxMatch);
         const std::size_t n = bufferSize_;
         // Read position of the outgoing tap, and the step from it to a candidate
-        // (older audio for a larger delay, newer for a smaller one).
+        // (older audio for a larger delay, newer for a smaller one). Every offset is at
+        // most maxGrainSamples_, under a quarter of the buffer.
         const auto base = (writePos_ + n - (static_cast<std::size_t>(delay1_) % n)) % n;
         const bool older = target > delay1_;
-        auto at = [&](std::size_t offset, std::size_t back) {
-            const std::size_t idx = older ? (base + 2 * n - offset - back) : (base + n + offset - back);
-            return buffer_[idx % n];
-        };
+        const detail::RingSpliceMatch match =
+            detail::findRingSpliceMatch(buffer_.data(), n, base, older, minOffset, maxOffset, matchLength);
+        if (!match.found) return;
 
-        double outgoingEnergy = 0.0;
-        for (std::size_t j = 0; j < matchLength; ++j) {
-            const float x = at(0, j);
-            outgoingEnergy += static_cast<double>(x) * x;
-        }
-        if (outgoingEnergy <= 1e-12) return;
-
-        std::size_t bestOffset = maxOffset;
-        double bestScore = -2.0;
-        for (std::size_t offset = minOffset; offset <= maxOffset; ++offset) {
-            double dot = 0.0;
-            double energy = 0.0;
-            for (std::size_t j = 0; j < matchLength; ++j) {
-                const float x = at(0, j);
-                const float y = at(offset, j);
-                dot += static_cast<double>(x) * y;
-                energy += static_cast<double>(y) * y;
-            }
-            const double score = (energy > 1e-12) ? dot / std::sqrt(outgoingEnergy * energy) : -1.0;
-            if (score > bestScore) {
-                bestScore = score;
-                bestOffset = offset;
-            }
-        }
-        const float offset = static_cast<float>(bestOffset);
+        const float offset = static_cast<float>(match.offset);
         delay2_ = older ? delay1_ + offset : delay1_ - offset;
-        spliceCorrelation_ = static_cast<float>(std::clamp(bestScore, 0.0, 1.0));
+        spliceCorrelation_ = static_cast<float>(std::clamp(match.score, 0.0, 1.0));
     }
 
 // prepare() allocates (vector::resize), so a std::bad_alloc could in principle

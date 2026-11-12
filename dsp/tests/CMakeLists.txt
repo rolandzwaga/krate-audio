@@ -935,6 +935,10 @@ add_executable(dsp_ieee_tests
     unit/core/sigmoid_nonfinite_test.cpp
     # Disrumpo audit T5.09: BiquadCascade block / pair paths and the stereo IIR oversampler, bit for bit
     unit/primitives/biquad_cascade_block_test.cpp
+    # Iterum Freeze P11: the PitchSync splice search without per-sample division, against its frozen copy, bit for bit
+    unit/core/ring_splice_search_test.cpp
+    # Innexus M6 SC-008: HarmonicOscillatorBank::applyPanOffsets' cache against the frozen loop, bit for bit
+    unit/processors/harmonic_oscillator_bank_pan_cache_test.cpp
     # bit-exactness TUs (moved from dsp_processors_tests)
     unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/drop_phase_lock_test.cpp
@@ -964,6 +968,14 @@ target_link_libraries(dsp_ieee_tests
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(dsp_ieee_tests PRIVATE -fno-fast-math -fno-finite-math-only -ffp-contract=off)
+endif()
+# MSVC builds this target /fp:fast. These TUs compare an optimised path against a frozen copy of the original; that is
+# an IEEE claim: under /fp:fast MSVC reassociated ring_splice_search_test.cpp's frozen energy sum (one ulp off at a
+# periodic input, score 0.99999999999999933 vs 1).
+if(MSVC)
+    set_source_files_properties(unit/core/ring_splice_search_test.cpp
+                                unit/processors/harmonic_oscillator_bank_pan_cache_test.cpp
+                                PROPERTIES COMPILE_OPTIONS "/fp:precise")
 endif()
 
 target_compile_definitions(dsp_ieee_tests

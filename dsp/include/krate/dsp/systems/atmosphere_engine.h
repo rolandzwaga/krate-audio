@@ -2103,16 +2103,25 @@ private:
                 // verbatim (core/grain_envelope.h:165-196, including the NaN-safe
                 // clamp and the index1-at-the-boundary rule, so no gather can
                 // overread the envelope bank). Everything lands in stack arrays
-                // sized for one control chunk (~2.3 KB).
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL0{};
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL1{};
-                alignas(32) std::array<float, kControlChunkSamples> fracL{};
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR0{};
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR1{};
-                alignas(32) std::array<float, kControlChunkSamples> fracR{};
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI0{};
-                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI1{};
-                alignas(32) std::array<float, kControlChunkSamples> envF{};
+                // sized for one control chunk (~2.3 KB). They are deliberately NOT
+                // zero-initialised: this runs per grain per chunk, and zero-filling
+                // the nine arrays (64 grains held in the pool) cost ~10 % of
+                // AtmosphereGhost_CpuDelta's saturated arm. Nothing reads an unwritten
+                // element: phase 1 writes [0, m) of every array it hands on (the R
+                // arrays only when decorr, and only then are they passed), and
+                // accumulateGrainSpanSIMD reads exactly [0, m) (whole vectors while
+                // k + N <= count, then a scalar tail).
+                // NOLINTBEGIN(cppcoreguidelines-pro-type-member-init)
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL0;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxL1;
+                alignas(32) std::array<float, kControlChunkSamples> fracL;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR0;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> idxR1;
+                alignas(32) std::array<float, kControlChunkSamples> fracR;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI0;
+                alignas(32) std::array<std::int32_t, kControlChunkSamples> envI1;
+                alignas(32) std::array<float, kControlChunkSamples> envF;
+                // NOLINTEND(cppcoreguidelines-pro-type-member-init)
 
                 const bool decorr = decorrAge > 0.0f;
                 const auto lastEnv = static_cast<std::ptrdiff_t>(kEnvelopeTableSize - 1);

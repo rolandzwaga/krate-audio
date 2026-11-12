@@ -1437,37 +1437,39 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
             evolutionEngine_.advance();
 
-            // Load evolution-interpolated frame at each frame boundary
-            // (or on first sample of block if evolution just enabled)
-            // For simplicity, we load every sample (loadFrame is cheap compared to processing)
-            Krate::DSP::HarmonicFrame evoFrame{};
-            Krate::DSP::ResidualFrame evoResidual{};
-            Krate::DSP::MemorySlot evoAdsrInterp{};
-            if (rebuildEvoBlend &&
-                evolutionEngine_.getInterpolatedFrame(memorySlots_, evoFrame, evoResidual, &evoAdsrInterp))
+            // Load the evolution-interpolated frame on a rebuild sample (WI-6). The three
+            // zero-initialised scratch frames (~8 KB) are built only then: constructed every
+            // sample they cost more than the rest of the M6 path (SC-008).
+            if (rebuildEvoBlend)
             {
-                voice_.morphedFrame = evoFrame;
-                voice_.morphedResidualFrame = evoResidual;
+                Krate::DSP::HarmonicFrame evoFrame{};
+                Krate::DSP::ResidualFrame evoResidual{};
+                Krate::DSP::MemorySlot evoAdsrInterp{};
+                if (evolutionEngine_.getInterpolatedFrame(memorySlots_, evoFrame, evoResidual, &evoAdsrInterp))
+                {
+                    voice_.morphedFrame = evoFrame;
+                    voice_.morphedResidualFrame = evoResidual;
 
-                // Spec 124 FR-017: Wire interpolated ADSR from evolution to processor atomics
-                adsrAttackMs_.store(evoAdsrInterp.adsrAttackMs, std::memory_order_relaxed);
-                adsrDecayMs_.store(evoAdsrInterp.adsrDecayMs, std::memory_order_relaxed);
-                adsrSustainLevel_.store(evoAdsrInterp.adsrSustainLevel, std::memory_order_relaxed);
-                adsrReleaseMs_.store(evoAdsrInterp.adsrReleaseMs, std::memory_order_relaxed);
-                adsrAmount_.store(evoAdsrInterp.adsrAmount, std::memory_order_relaxed);
-                adsrTimeScale_.store(evoAdsrInterp.adsrTimeScale, std::memory_order_relaxed);
-                adsrAttackCurve_.store(evoAdsrInterp.adsrAttackCurve, std::memory_order_relaxed);
-                adsrDecayCurve_.store(evoAdsrInterp.adsrDecayCurve, std::memory_order_relaxed);
-                adsrReleaseCurve_.store(evoAdsrInterp.adsrReleaseCurve, std::memory_order_relaxed);
+                    // Spec 124 FR-017: Wire interpolated ADSR from evolution to processor atomics
+                    adsrAttackMs_.store(evoAdsrInterp.adsrAttackMs, std::memory_order_relaxed);
+                    adsrDecayMs_.store(evoAdsrInterp.adsrDecayMs, std::memory_order_relaxed);
+                    adsrSustainLevel_.store(evoAdsrInterp.adsrSustainLevel, std::memory_order_relaxed);
+                    adsrReleaseMs_.store(evoAdsrInterp.adsrReleaseMs, std::memory_order_relaxed);
+                    adsrAmount_.store(evoAdsrInterp.adsrAmount, std::memory_order_relaxed);
+                    adsrTimeScale_.store(evoAdsrInterp.adsrTimeScale, std::memory_order_relaxed);
+                    adsrAttackCurve_.store(evoAdsrInterp.adsrAttackCurve, std::memory_order_relaxed);
+                    adsrDecayCurve_.store(evoAdsrInterp.adsrDecayCurve, std::memory_order_relaxed);
+                    adsrReleaseCurve_.store(evoAdsrInterp.adsrReleaseCurve, std::memory_order_relaxed);
 
-                // Apply harmonic filter
-                if (currentFilterType_ != 0)
-                    Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
+                    // Apply harmonic filter
+                    if (currentFilterType_ != 0)
+                        Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
 
-                // M6 FR-025: Apply modulator amplitude modulation
-                applyModulatorAmplitude(mod1Enabled, mod2Enabled);
-                applyHarmonicPhysics();
-                broadcastFrameToVoices(activePartialCount, true);
+                    // M6 FR-025: Apply modulator amplitude modulation
+                    applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+                    applyHarmonicPhysics();
+                    broadcastFrameToVoices(activePartialCount, true);
+                }
             }
         }
         else
@@ -1585,7 +1587,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 auto& v = voices_[static_cast<size_t>(vi)];
                 if (!v.active) continue;
                 v.oscillatorBank.applyExternalFrequencyMultipliers(mult1);
-                v.oscillatorBank.applyPanOffsets(panOff1);
+                // With mod2 on, its applyPanOffsets below rewrites both pan tables in full
+                // before anything reads them, so this call's tables would be discarded.
+                if (!mod2Enabled)
+                    v.oscillatorBank.applyPanOffsets(panOff1);
             }
         }
         else
