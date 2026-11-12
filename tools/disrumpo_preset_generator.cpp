@@ -446,8 +446,45 @@ void writeLE64(std::ofstream& f, int64_t val) {
     f.write(reinterpret_cast<const char*>(&val), 8);
 }
 
+// The five XML entities, as PresetManager writes and reads them back (preset_manager.cpp)
+std::string xmlEscapeAttribute(const std::string& text) {
+    std::string out;
+    for (const char c : text) {
+        switch (c) {
+            case '&': out += "&amp;"; break;
+            case '<': out += "&lt;"; break;
+            case '>': out += "&gt;"; break;
+            case '"': out += "&quot;"; break;
+            case '\'': out += "&apos;"; break;
+            default: out += c; break;
+        }
+    }
+    return out;
+}
+
+// The Info chunk: the metadata PresetManager::savePreset writes. The preset browser reads its
+// Comment attribute back as the description shown under the preset list (FR-065).
+std::string buildInfoXml(const std::string& name, const std::string& category,
+                         const std::string& description) {
+    std::string xml;
+    xml += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+    xml += "<MetaInfo>\n";
+    xml += "  <Attr id=\"MediaType\" value=\"VstPreset\" type=\"string\"/>\n";
+    xml += "  <Attr id=\"PlugInName\" value=\"Disrumpo\" type=\"string\"/>\n";
+    xml += "  <Attr id=\"PlugInCategory\" value=\"Distortion\" type=\"string\"/>\n";
+    xml += R"(  <Attr id="Name" value=")" + xmlEscapeAttribute(name) + "\" type=\"string\"/>\n";
+    xml += R"(  <Attr id="MusicalCategory" value=")" + xmlEscapeAttribute(category) + "\" type=\"string\"/>\n";
+    xml += R"(  <Attr id="MusicalInstrument" value=")" + xmlEscapeAttribute(category) + "\" type=\"string\"/>\n";
+    xml += R"(  <Attr id="Comment" value=")" + xmlEscapeAttribute(description) + "\" type=\"string\"/>\n";
+    xml += "</MetaInfo>\n";
+    return xml;
+}
+
+// Layout: header (48 B), Comp payload, Info payload, then
+// "List", 2, {"Comp", offset, size}, {"Info", offset, size}.
 bool writeVstPreset(const std::filesystem::path& path,
-                    const std::vector<uint8_t>& componentState) {
+                    const std::vector<uint8_t>& componentState,
+                    const std::string& infoXml) {
     std::ofstream f(path, std::ios::binary);
     if (!f) {
         std::cerr << "Failed to create: " << path << '\n';
@@ -457,7 +494,9 @@ bool writeVstPreset(const std::filesystem::path& path,
     const int64_t kHeaderSize = 48;
     int64_t compDataOffset = kHeaderSize;
     int64_t compDataSize = static_cast<int64_t>(componentState.size());
-    int64_t listOffset = compDataOffset + compDataSize;
+    int64_t infoDataOffset = compDataOffset + compDataSize;
+    int64_t infoDataSize = static_cast<int64_t>(infoXml.size());
+    int64_t listOffset = infoDataOffset + infoDataSize;
 
     // Header
     f.write("VST3", 4);
@@ -468,15 +507,21 @@ bool writeVstPreset(const std::filesystem::path& path,
     // Component State Data
     f.write(reinterpret_cast<const char*>(componentState.data()), compDataSize);
 
+    // Meta Info (XML)
+    f.write(infoXml.data(), infoDataSize);
+
     // Chunk List
     f.write("List", 4);
-    writeLE32(f, 1);
+    writeLE32(f, 2);
     f.write("Comp", 4);
     writeLE64(f, compDataOffset);
     writeLE64(f, compDataSize);
+    f.write("Info", 4);
+    writeLE64(f, infoDataOffset);
+    writeLE64(f, infoDataSize);
 
     f.close();
-    return true;
+    return f.good();
 }
 
 // ==============================================================================
@@ -486,6 +531,9 @@ bool writeVstPreset(const std::filesystem::path& path,
 struct PresetDef {
     std::string name;
     std::string category;
+    // One line shown under the preset browser's list: what the preset is built around,
+    // read from its settings below (band types, morph, sweep, modulation).
+    std::string description;
     DisrumpoPresetState state;
 };
 
@@ -832,21 +880,29 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     {
         PresetDef p; p.name = "Init 1 Band"; p.category = "Init";
+        p.description = "One full-range Soft Clip band at drive 1, with no sweep and no modulation: the blank "
+                        "starting point for a new sound.";
         p.state = makeInitState(1);
         presets.push_back(p);
     }
     {
         PresetDef p; p.name = "Init 2 Bands"; p.category = "Init";
+        p.description = "Two Soft Clip bands at drive 1, split at 200 Hz, with no sweep and no modulation: a blank "
+                        "start for treating lows and highs apart.";
         p.state = makeInitState(2);
         presets.push_back(p);
     }
     {
         PresetDef p; p.name = "Init 3 Bands"; p.category = "Init";
+        p.description = "Three Soft Clip bands at drive 1, split at 200 Hz and 1.5 kHz, with no sweep and no "
+                        "modulation: a blank three-way starting point.";
         p.state = makeInitState(3);
         presets.push_back(p);
     }
     {
         PresetDef p; p.name = "Init 4 Bands"; p.category = "Init";
+        p.description = "Four Soft Clip bands at drive 1, split at 200 Hz, 1.5 kHz and 6 kHz, with no sweep and no "
+                        "modulation: a blank start using every band.";
         p.state = makeInitState(4);
         presets.push_back(p);
     }
@@ -856,6 +912,8 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Frequency Hunter: Tube lows, wavefold mids, tape-saturated highs, sweep scanning
         PresetDef p; p.name = "Frequency Hunter"; p.category = "Sweep";
+        p.description = "Tube lows, Sine Fold mids and Tape highs, with a triangle-LFO sweep hunting across the "
+                        "three bands and LFO 1 varying its intensity. For guitars, synths and loops.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3000.0f;
@@ -883,6 +941,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Slow Scan: 4-band with different textures, slow sine sweep LFO
         PresetDef p; p.name = "Slow Scan"; p.category = "Sweep";
+        p.description = "A wide sweep that a sine LFO moves slowly up from the low end, about one pass every 40 "
+                        "seconds, across Tube, Tape, Soft Clip and Allpass Resonant bands. For pads and long synth "
+                        "parts.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 150.0f;
         p.state.crossoverFreqs[1] = 1200.0f;
@@ -911,6 +972,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Wah Wah Drive: sweep-linked morph, tube→fuzz crossfade
         PresetDef p; p.name = "Wah Wah Drive"; p.category = "Sweep";
+        p.description = "Two bands split at 800 Hz: a triangle-LFO sweep moves the low band from Tube to Fuzz like "
+                        "a slow wah, over Hard Clip highs, and the input level adds drive. Try guitar.";
         p.state = makeInitState(2);
         p.state.crossoverFreqs[0] = 800.0f;
         enableSweep(p.state, 0.4f, 0.3f, 0.7f, MorphLinkMode::SweepFreq);
@@ -931,6 +994,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Resonant Sweep: allpass on mids, tape on lows, formant on highs
         PresetDef p; p.name = "Resonant Sweep"; p.category = "Sweep";
+        p.description = "A narrow, strong sweep moving through an Allpass Resonant mid band, between Tape lows and "
+                        "Formant highs, with LFO 1 swelling the mid drive. Ringing, vocal tones for synths and "
+                        "guitars.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -953,6 +1019,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Envelope Follower: input-reactive sweep, different saturation per band
         PresetDef p; p.name = "Envelope Follower"; p.category = "Sweep";
+        p.description = "The sweep follows your playing level instead of an LFO, rising as you play harder over "
+                        "Tape, Tube and Soft Clip bands; the input level also drives the Tube mids. For guitar, "
+                        "keys and drums.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -979,6 +1048,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Triangle Wobble: wavefold lows, fuzz mids, ring sat highs, triangle LFO
         PresetDef p; p.name = "Triangle Wobble"; p.category = "Sweep";
+        p.description = "A quick triangle-LFO sweep wobbles across Triangle Fold, Asymmetric Fuzz, Ring Saturation "
+                        "and Soft Clip bands, while LFO 2 swings the two middle bands in opposite pan directions.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 180.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -1007,6 +1078,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Sharp Focus: narrow sharp sweep on feedback dist, allpass resonance underneath
         PresetDef p; p.name = "Sharp Focus"; p.category = "Sweep";
+        p.description = "A narrow sweep with a sharp edge, moved by a saw LFO, over Feedback Distortion lows, Hard "
+                        "Clip mids and Aliasing highs; transients kick the mid drive. For drums and synth leads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 400.0f;
         p.state.crossoverFreqs[1] = 5000.0f;
@@ -1029,6 +1102,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Wide Sweep: broad sweep with morphing tape→tube per band
         PresetDef p; p.name = "Wide Sweep"; p.category = "Sweep";
+        p.description = "A wide sweep on a saw LFO across four bands; the low band morphs from Tape to Tube, eased "
+                        "by the sweep and nudged by LFO 1, under Serge Fold, Soft Clip and Formant bands.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 120.0f;
         p.state.crossoverFreqs[1] = 1000.0f;
@@ -1058,6 +1133,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Inverse Link: morph sweeps inversely — gets brighter as sweep descends
         PresetDef p; p.name = "Inverse Link"; p.category = "Sweep";
+        p.description = "The low band morphs from Soft Clip to Hard Clip as the sweep falls (an inverse link), "
+                        "under an octave Fuzz mid band and Bitcrush highs; a stepped random LFO jumps the mid "
+                        "drive.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -1082,6 +1160,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Step Scanner: stepped morph link, wavefold on each band with different folds
         PresetDef p; p.name = "Step Scanner"; p.category = "Sweep";
+        p.description = "Three wavefolders (Sine, Triangle, Serge) with rising fold counts and a Chaos top band, "
+                        "scanned by a saw-LFO sweep; a Rossler chaos source varies the top band drive.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -1109,6 +1189,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Low Rumble: sub-focused sweep, feedback dist lows, tape mids
         PresetDef p; p.name = "Low Rumble"; p.category = "Sweep";
+        p.description = "Built for the bottom octave: Feedback Distortion below 100 Hz, heavy-sag Tube to 800 Hz "
+                        "and light Tape above, with a slow sweep around 55 Hz and the sub drive swelling. For bass "
+                        "and kicks.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 100.0f;
         p.state.crossoverFreqs[1] = 800.0f;
@@ -1132,6 +1215,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // High Sweep: focused high sweep, fuzz highs, temporal mids, tube lows
         PresetDef p; p.name = "High Sweep"; p.category = "Sweep";
+        p.description = "A focused sweep around 5 kHz on a fast triangle LFO, over Tube lows, Temporal mids and "
+                        "octave Fuzz highs that the input level drives harder. Moving bite for synths, guitars and "
+                        "hats.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 500.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -1153,6 +1239,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Ease In Morph: slow ease-in morph link, tape→chaos
         PresetDef p; p.name = "Ease In Morph"; p.category = "Sweep";
+        p.description = "The sweep eases the low band from Tape into Fuzz (an ease-in morph link), under a Chaos "
+                        "mid band whose drive a chaos source varies and Spectral highs that LFO 2 pans.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3000.0f;
@@ -1178,6 +1266,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Random Scan: S&H sweep with varied digital degradation per band
         PresetDef p; p.name = "Random Scan"; p.category = "Sweep";
+        p.description = "A sample-and-hold sweep jumps between four digital bands: 7-bit Bitcrush, Sample Reduce, "
+                        "Quantize and Aliasing, with a sample-and-hold source also stepping two drives. For loops "
+                        "and drums.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -1206,6 +1297,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Synced Pulse: tempo-synced square sweep, hard clip + temporal
         PresetDef p; p.name = "Synced Pulse"; p.category = "Sweep";
+        p.description = "A tempo-synced square-wave sweep pulses in eighth notes over Hard Clip lows, Temporal "
+                        "mids and Ring Saturation highs; transients punch the low drive. For drum loops and "
+                        "rhythmic synths.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -1238,6 +1332,9 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Soft to Hard: per-band morphing with shape params, LFO-animated
         PresetDef p; p.name = "Soft to Hard"; p.category = "Morph";
+        p.description = "LFO 1 slowly moves two morphs together, Soft Clip to Hard Clip on the lows and Tube to "
+                        "Fuzz on the mids, over steady Tape highs. Warmth turns to grit and back on any sustained "
+                        "part.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -1264,6 +1361,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Tube to Fuzz: 3-band, each band morphs between different pairs
         PresetDef p; p.name = "Tube to Fuzz"; p.category = "Morph";
+        p.description = "Play harder and the morphs move: the lows go from Tube to Asymmetric Fuzz and the mids "
+                        "from Fuzz to Hard Clip as the input level rises, over Soft Clip highs. For guitar and "
+                        "bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 3000.0f;
@@ -1291,6 +1391,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Four Corners: 2D morph pad across 4 distortion families
         PresetDef p; p.name = "Four Corners"; p.category = "Morph";
+        p.description = "A four-node XY morph on the low band between Soft Clip, Hard Clip, Tube and Fuzz, steered "
+                        "by two slow LFOs, under Tape mids and Formant highs.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -1324,6 +1426,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Radial Blend: radial 2D morph, tape/fold/crush/chaos
         PresetDef p; p.name = "Radial Blend"; p.category = "Morph";
+        p.description = "A radial four-node morph on the lows (Tape, Sine Fold, Bitcrush, Chaos) wandered by a "
+                        "Lorenz chaos source, with Allpass Resonant mids and Stochastic highs.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -1357,6 +1461,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Tape Fold Morph: smooth morphing between tape and wavefold per band
         PresetDef p; p.name = "Tape Fold Morph"; p.category = "Morph";
+        p.description = "Every band morphs from Tape into a wavefolder (Serge, Sine, Triangle from low to high), "
+                        "all moved by one slow sine LFO with smoothed morphing. Warm to metallic, for synths and "
+                        "pads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 3000.0f;
@@ -1387,6 +1494,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Digital Organic: 4-node morphing between digital + analog
         PresetDef p; p.name = "Digital Organic"; p.category = "Morph";
+        p.description = "The lows roam a four-node XY morph of Bitcrush, Soft Clip, Sample Reduce and Tube on two "
+                        "slow LFOs, under a Granular mid band and Spectral highs. Digital grit against analog "
+                        "warmth.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -1421,6 +1531,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Chaos to Order: chaos→soft clip morph, reactive to dynamics
         PresetDef p; p.name = "Chaos to Order"; p.category = "Morph";
+        p.description = "Each band morphs from a wild type (Chaos, Fractal, Stochastic) to a tame one (Tube, Soft "
+                        "Clip, Tape). It rests on the tame side and louder input pushes it further toward order.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -1453,6 +1565,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Three Node Blend: 3-node morph on each band with different flavors
         PresetDef p; p.name = "Three Node Blend"; p.category = "Morph";
+        p.description = "Three-node morphs on two bands, Tube, Fuzz and Tape on the lows and Sine Fold, Chaos and "
+                        "Allpass Resonant on the mids, drifting on slow LFOs over Soft Clip highs.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3000.0f;
@@ -1490,6 +1604,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Rectify Blend: full→half rectify morph + ring sat on mid band
         PresetDef p; p.name = "Rectify Blend"; p.category = "Morph";
+        p.description = "A slow square LFO flips the lows between octave-up Full Rectify and Half Rectify every "
+                        "few seconds, under a Ring Saturation mid band whose drive LFO 2 swells, with Soft Clip on "
+                        "top.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -1516,6 +1633,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Feedback Explorer: feedback dist vs allpass, different topologies per band
         PresetDef p; p.name = "Feedback Explorer"; p.category = "Morph";
+        p.description = "Lows and mids both morph between Feedback Distortion and Allpass Resonant, moved by one "
+                        "slow LFO in opposite directions, so one band rings while the other feeds back. Tape on "
+                        "top.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -1544,6 +1664,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Multi Band Morph: 4 bands, each morphing between completely different pairs
         PresetDef p; p.name = "Multi Band Morph"; p.category = "Morph";
+        p.description = "Four bands, each morphing between its own pair (Tube and Feedback, Fuzz and Sine Fold, "
+                        "Tape and Chaos, Bitcrush and Spectral) on its own source: LFO 1, LFO 2, chaos and random.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 150.0f;
         p.state.crossoverFreqs[1] = 1200.0f;
@@ -1587,6 +1709,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Smooth Crossfade: very smooth morph, soft clip→granular→tape
         PresetDef p; p.name = "Smooth Crossfade"; p.category = "Morph";
+        p.description = "Two bands split at 500 Hz, Soft Clip to Tape below and Granular to Formant above, "
+                        "crossfaded in opposite directions by one very slow LFO with heavy smoothing. Gentle; for "
+                        "pads.";
         p.state = makeInitState(2);
         p.state.crossoverFreqs[0] = 500.0f;
         // Low: soft→tape morph with high smoothing
@@ -1611,6 +1736,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Wavefolder Quad: 4-node morph across all 3 wavefolder types + chaos
         PresetDef p; p.name = "Wavefolder Quad"; p.category = "Morph";
+        p.description = "An XY morph on the lows between all three wavefolders (Sine, Triangle, Serge) and Chaos "
+                        "on two slow LFOs, with the input level adding drive; Tube mids and Ring Saturation highs.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -1648,6 +1775,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Spectral Morph: spectral→granular morph on mids, fractal on lows
         PresetDef p; p.name = "Spectral Morph"; p.category = "Morph";
+        p.description = "A slow LFO morphs the mids from Spectral to Granular, between a Fractal low band that a "
+                        "random source drives and Stochastic highs that LFO 2 pans. Textural; for pads and drones.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -1677,6 +1806,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Formant Shift: formant→allpass morph with vowel shifting
         PresetDef p; p.name = "Formant Shift"; p.category = "Morph";
+        p.description = "The mids morph from a Formant vowel to Allpass Resonant ringing on a slow LFO, with the "
+                        "input pitch adding drive, between Tube lows and a second Formant on top. For vocals and "
+                        "leads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -1710,6 +1842,8 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Warm Bass: tube subs, tape low-mids, soft clip highs
         PresetDef p; p.name = "Warm Bass"; p.category = "Bass";
+        p.description = "Tube with heavy sag below 100 Hz, Tape up to 400 Hz and gentle Soft Clip above, turned "
+                        "down 3 dB; the sub drive rises with the input level. Round, warm bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 100.0f;
         p.state.crossoverFreqs[1] = 400.0f;
@@ -1730,6 +1864,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Subharmonic Growl: fuzz subs, feedback dist mids, hard clip presence
         PresetDef p; p.name = "Subharmonic Growl"; p.category = "Bass";
+        p.description = "Asymmetric Fuzz on everything below 80 Hz, Feedback Distortion to 350 Hz for growl and "
+                        "Hard Clip above for attack; the input level pushes the sub harder. For synth and electric "
+                        "bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 80.0f;
         p.state.crossoverFreqs[1] = 350.0f;
@@ -1753,6 +1890,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Tape Warmth: tape on subs with flutter, tube mids, allpass sparkle
         PresetDef p; p.name = "Tape Warmth"; p.category = "Bass";
+        p.description = "Slow, fluttering Tape on the lows, Tube from 150 to 600 Hz and a quiet Allpass Resonant "
+                        "top band, with a very slow LFO breathing the low drive. Soft, saturated bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 150.0f;
         p.state.crossoverFreqs[1] = 600.0f;
@@ -1774,6 +1913,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Dirty Sub: extreme sub processing, asym fuzz + bitcrush
         PresetDef p; p.name = "Dirty Sub"; p.category = "Bass";
+        p.description = "Asymmetric Fuzz below 60 Hz, 7-bit Bitcrush from 60 to 250 Hz and Tape above; the input "
+                        "level drives the sub harder and a slow square LFO pulses the crushed band mix. Gritty sub "
+                        "bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 60.0f;
         p.state.crossoverFreqs[1] = 250.0f;
@@ -1797,6 +1939,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Wavefold Bass: sine fold on subs, serge mids, soft clip highs
         PresetDef p; p.name = "Wavefold Bass"; p.category = "Bass";
+        p.description = "Gentle Sine Fold below 120 Hz and Serge Fold to 500 Hz add upper harmonics to the low "
+                        "end, with Soft Clip on top; LFO 1 and the input level move the two fold drives.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 120.0f;
         p.state.crossoverFreqs[1] = 500.0f;
@@ -1819,6 +1963,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Punchy Low End: hard clip subs, temporal mids, tube upper
         PresetDef p; p.name = "Punchy Low End"; p.category = "Bass";
+        p.description = "Hard Clip under 100 Hz that the transient detector pushes on every attack, Temporal "
+                        "distortion to 400 Hz and Tube on top. For kick and bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 100.0f;
         p.state.crossoverFreqs[1] = 400.0f;
@@ -1841,6 +1987,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Soft Bass Drive: morph soft→tube on subs, tape shimmer up top
         PresetDef p; p.name = "Soft Bass Drive"; p.category = "Bass";
+        p.description = "Two bands split at 200 Hz: the lows sit between Soft Clip and Tube and lean toward Tube "
+                        "as you play harder, with light Tape above. A gentle drive for bass guitar and synth bass.";
         p.state = makeInitState(2);
         p.state.crossoverFreqs[0] = 200.0f;
         // Low: soft clip→tube morph
@@ -1862,6 +2010,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Serge Bass: serge fold subs, ring sat mids, formant highs
         PresetDef p; p.name = "Serge Bass"; p.category = "Bass";
+        p.description = "Serge Fold below 120 Hz, Ring Saturation to 500 Hz and a quiet Formant band on top for a "
+                        "vowel colour; LFO 1 and the input level move the lower drives. For synth bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 120.0f;
         p.state.crossoverFreqs[1] = 500.0f;
@@ -1885,6 +2035,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Multi Band Bass: 4-band with escalating character
         PresetDef p; p.name = "Multi Band Bass"; p.category = "Bass";
+        p.description = "Four bands rising in grit: Tube under 80 Hz, Tape to 200 Hz, Fuzz to 500 Hz and Soft Clip "
+                        "above; the input level drives the Tube and Fuzz bands harder.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 80.0f;
         p.state.crossoverFreqs[1] = 200.0f;
@@ -1914,6 +2066,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Ring Bass: ring sat subs, chaos mids, spectral shimmer
         PresetDef p; p.name = "Ring Bass"; p.category = "Bass";
+        p.description = "Ring Saturation under 150 Hz gives the low end a metallic edge, with a Chaos band to 500 "
+                        "Hz that a chaos source drives and a quiet Spectral top. Clangy synth bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 150.0f;
         p.state.crossoverFreqs[1] = 500.0f;
@@ -1941,6 +2095,8 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Screaming Lead: hard clip mids, fuzz lows, aliased highs
         PresetDef p; p.name = "Screaming Lead"; p.category = "Leads";
+        p.description = "Hard Clip at drive 5.5 on the 400 Hz to 5 kHz mids, octave Fuzz below and Aliasing sizzle "
+                        "on top; the input level drives the mids harder. For lead guitar and mono synth leads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 400.0f;
         p.state.crossoverFreqs[1] = 5000.0f;
@@ -1963,6 +2119,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Fuzz Face: classic fuzz on mids, tape subs, ring sat highs
         PresetDef p; p.name = "Fuzz Face"; p.category = "Leads";
+        p.description = "A heavy Fuzz at drive 6.5 owns the mids, with Tape under 300 Hz and Ring Saturation "
+                        "shimmer above 5 kHz; the input level pushes the fuzz further. A fuzz-pedal lead for "
+                        "guitar.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 5000.0f;
@@ -1986,6 +2145,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Feedback Scream: feedback dist morphing, chaos-modulated
         PresetDef p; p.name = "Feedback Scream"; p.category = "Leads";
+        p.description = "Feedback Distortion on the lows and a Feedback to Hard Clip morph on the mids, both "
+                        "pushed around by a Lorenz chaos source, with a Chaos top band. Unstable, howling leads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 350.0f;
         p.state.crossoverFreqs[1] = 4500.0f;
@@ -2012,6 +2173,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Chaos Lead: chaos-driven multi-band with fractal undertones
         PresetDef p; p.name = "Chaos Lead"; p.category = "Leads";
+        p.description = "Fractal lows, a Chaos mid band and Stochastic highs, with a Chua chaos source moving both "
+                        "lower drives and the top band pan. A restless lead that never repeats.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 400.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2034,6 +2197,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Asymmetric Bite: asym fuzz with body, bitwise mids, formant highs
         PresetDef p; p.name = "Asymmetric Bite"; p.category = "Leads";
+        p.description = "Asymmetric Fuzz with heavy body under 350 Hz, Bitwise Mangler mids stepped by a "
+                        "sample-and-hold LFO and a Formant top shifted up 8 semitones. A biting, vocal lead.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 350.0f;
         p.state.crossoverFreqs[1] = 4500.0f;
@@ -2057,6 +2222,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Modulated Edge: morph + LFO animated hard clip→fuzz
         PresetDef p; p.name = "Modulated Edge"; p.category = "Leads";
+        p.description = "A saw LFO sweeps the mids from Hard Clip to Fuzz about every two seconds, over Tube lows "
+                        "and a Sine Fold top band that LFO 2 drives. A lead with a built-in rhythm.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4500.0f;
@@ -2083,6 +2250,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Ring Mod Lead: ring sat with chaos-modulated carrier, allpass underneath
         PresetDef p; p.name = "Ring Mod Lead"; p.category = "Leads";
+        p.description = "Ring Saturation at drive 3.5 carries the mids, with Allpass Resonant body below and a "
+                        "Chaos top; a chaos source varies the ring drive and LFO 1 pans it. Bell-like, metallic "
+                        "leads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2108,6 +2278,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Wavefold Lead: sine fold→tri fold morph, serge underneath
         PresetDef p; p.name = "Wavefold Lead"; p.category = "Leads";
+        p.description = "The mids morph between Sine Fold and Triangle Fold on a triangle LFO, over Serge Fold "
+                        "lows and a Hard Clip top; the input level drives the lows. Bright, hollow synth leads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 5000.0f;
@@ -2134,6 +2306,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Temporal Edge: temporal dist with dynamic response, tube warmth
         PresetDef p; p.name = "Temporal Edge"; p.category = "Leads";
+        p.description = "Temporal distortion at drive 4.5 on the mids, pushed harder by every transient, between "
+                        "Tube lows and a Bitwise Mangler top stepped by a sample-and-hold LFO. Follows picking "
+                        "dynamics.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 350.0f;
         p.state.crossoverFreqs[1] = 4500.0f;
@@ -2157,6 +2332,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Fractal Lead: fractal dist with feedback, spectral highs
         PresetDef p; p.name = "Fractal Lead"; p.category = "Leads";
+        p.description = "Fractal distortion at drive 4 on the mids, with Tape lows and a Spectral top; the input "
+                        "level drives the fractal harder and a chaos source drifts its pan. Dense, glassy leads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2184,6 +2361,8 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Gentle Warmth: soft clip lows, tape mids, allpass shimmer highs
         PresetDef p; p.name = "Gentle Warmth"; p.category = "Pads";
+        p.description = "Light Soft Clip lows, Tape mids at drive 1.2 and a quiet Allpass Resonant top, with two "
+                        "very slow LFOs breathing the upper drives. Subtle warmth for pads, keys and mix buses.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2207,6 +2386,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Evolving Texture: slow morphs on all bands, random-driven
         PresetDef p; p.name = "Evolving Texture"; p.category = "Pads";
+        p.description = "Four bands that keep changing: Soft Clip to Tape and Tube to Allpass Resonant morphs on "
+                        "two slow LFOs, and Stochastic and Formant upper bands whose drives a smooth random source "
+                        "moves.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -2245,6 +2427,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Allpass Shimmer: allpass highs, tube warmth lows, sweep-animated
         PresetDef p; p.name = "Allpass Shimmer"; p.category = "Pads";
+        p.description = "A pitch-tracking Allpass Resonant top band rings over light Tube and Soft Clip, with a "
+                        "gentle sweep on a very slow LFO and LFO 2 moving the shimmer across the stereo field.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2271,6 +2455,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Tape Haze: tape everywhere but with different character per band
         PresetDef p; p.name = "Tape Haze"; p.category = "Pads";
+        p.description = "Two Tape bands, slow and saggy below 250 Hz and fluttering to 3.5 kHz, under a quiet "
+                        "Stochastic top; very slow LFOs and a smooth random pan keep it drifting. Worn, hazy pads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -2297,6 +2483,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Slow Morph Pad: ultra-slow morphing across bands
         PresetDef p; p.name = "Slow Morph Pad"; p.category = "Pads";
+        p.description = "Tube to Allpass Resonant on the lows and Tape to Granular on the mids, each LFO cycle "
+                        "taking over a minute, over a soft Formant top. Barely moving; for long pads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2328,6 +2516,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Soft Sweep: gentle sweep over tube + formant + spectral
         PresetDef p; p.name = "Soft Sweep"; p.category = "Pads";
+        p.description = "A gentle, very slow sweep over four light bands, Tube, Soft Clip, Formant and Spectral, "
+                        "with the upper two turned down and panned apart. Soft movement for pads and ambient beds.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -2360,6 +2550,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Formant Pad: formant mids, granular lows, stochastic highs
         PresetDef p; p.name = "Formant Pad"; p.category = "Pads";
+        p.description = "Formant mids on a slow drive LFO give pads a vowel colour, over long Granular grains on "
+                        "the lows and a quiet Stochastic top; a smooth random source and LFO 2 add drift.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2386,6 +2578,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Granular Wash: granular main with sweep, tape warmth, spectral highs
         PresetDef p; p.name = "Granular Wash"; p.category = "Pads";
+        p.description = "Granular mids that a smooth random source pans around, between Tape lows and a quiet "
+                        "Spectral top, with a gentle sweep on a very slow LFO. Turns sustained sounds into a soft "
+                        "wash.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2413,6 +2608,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Stochastic Drift: stochastic on mids, chaos on lows, random-modulated
         PresetDef p; p.name = "Stochastic Drift"; p.category = "Pads";
+        p.description = "Chaos, Stochastic and Fractal bands at low drive, with smooth random drives and a slow "
+                        "Rossler chaos source and LFO 1 drifting the pans. Unsettled, slowly moving pads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2440,6 +2637,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Spectral Pad: spectral mids with tilt, allpass lows, formant highs
         PresetDef p; p.name = "Spectral Pad"; p.category = "Pads";
+        p.description = "Spectral processing on the 1.5 to 5 kHz band leads, over soft Tube and Allpass Resonant "
+                        "bands and a quiet Formant top; slow LFOs and a random pan keep it moving.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -2477,6 +2676,9 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Punchy Clip: hard clip kick, tape snare body, fuzz cymbals
         PresetDef p; p.name = "Punchy Clip"; p.category = "Drums";
+        p.description = "Hard Clip under 150 Hz for the kick, Tape across the snare and body range and light Fuzz "
+                        "on the cymbals; the transient detector drives the lower two bands on every hit. For drum "
+                        "buses.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 150.0f;
         p.state.crossoverFreqs[1] = 5000.0f;
@@ -2495,6 +2697,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Crushed Beats: bitcrush lows, sample reduce mids, quantize highs
         PresetDef p; p.name = "Crushed Beats"; p.category = "Drums";
+        p.description = "8-bit Bitcrush on the lows, Sample Reduce on the mids and Quantize on top; transients "
+                        "push the mid band and a sample-and-hold LFO steps the top drive. Lo-fi drum loops.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2513,6 +2717,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Temporal Snap: temporal on mids, hard clip kicks, aliasing cymbals
         PresetDef p; p.name = "Temporal Snap"; p.category = "Drums";
+        p.description = "Hard Clip lows and Temporal mids that the transient detector drives hard on each hit, "
+                        "with Aliasing on the cymbals. Snappy, aggressive drums.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 180.0f;
         p.state.crossoverFreqs[1] = 5000.0f;
@@ -2531,6 +2737,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Dirty Groove: fuzz kick, tube snare, bitwise hats
         PresetDef p; p.name = "Dirty Groove"; p.category = "Drums";
+        p.description = "Fuzz on the kick below 120 Hz, Tube on the snare range and Bitwise Mangler on the hats; "
+                        "the input level drives the kick band and transients drive the hats.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 120.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2548,6 +2756,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Snare Crack: transient-reactive per band, different saturation
         PresetDef p; p.name = "Snare Crack"; p.category = "Drums";
+        p.description = "Hard Clip at drive 4 on the 200 Hz to 5 kHz band, pushed further by every transient, "
+                        "between Tape lows and a Ring Saturation top. For snares and claps.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 5000.0f;
@@ -2567,6 +2777,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Kick Saturate: tape subs, tube body, soft clip top
         PresetDef p; p.name = "Kick Saturate"; p.category = "Drums";
+        p.description = "Tape on the sub below 80 Hz, raised 3 dB, Tube on the 80 to 300 Hz body and Soft Clip "
+                        "above; the input level and each transient drive the sub. Thick, saturated kicks.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 80.0f;
         p.state.crossoverFreqs[1] = 300.0f;
@@ -2585,6 +2797,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Glitch Drum: sample reduce + bitwise morph, S&H modulated
         PresetDef p; p.name = "Glitch Drum"; p.category = "Drums";
+        p.description = "A sample-and-hold source jumps the mids between Sample Reduce and Bitwise Mangler and "
+                        "steps the Aliasing top band drive, over Hard Clip lows. Glitchy, stuttering drum loops.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2607,6 +2821,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Transient Shape: transient controls mix/drive differently per band
         PresetDef p; p.name = "Transient Shape"; p.category = "Drums";
+        p.description = "Soft Clip under 200 Hz, Temporal distortion on the mids that each transient drives "
+                        "harder, and light Tube on top. Adds crunch to the attack of each drum hit.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2627,6 +2843,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Rectified Drums: full rectify kick, half rectify snare, ring sat hats
         PresetDef p; p.name = "Rectified Drums"; p.category = "Drums";
+        p.description = "Full Rectify on the kick band below 150 Hz, Half Rectify across the snare range and Ring "
+                        "Saturation on the cymbals; transients drive the kick band. Hollow, buzzing drums.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 150.0f;
         p.state.crossoverFreqs[1] = 4500.0f;
@@ -2645,6 +2863,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Aliased Drums: aliasing mids, feedback lows, chaos highs
         PresetDef p; p.name = "Aliased Drums"; p.category = "Drums";
+        p.description = "Aliasing across the 200 Hz to 5 kHz band, driven harder by each transient, over Feedback "
+                        "Distortion lows and a Chaos top that a chaos source drives. Metallic, broken drums.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 5000.0f;
@@ -2668,6 +2888,9 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Spectral Scatter: spectral mids, granular lows, S&H sweep
         PresetDef p; p.name = "Spectral Scatter"; p.category = "Experimental";
+        p.description = "Four textural bands (Granular, Spectral, Fractal, Stochastic) under a sweep that a "
+                        "sample-and-hold LFO throws around; a sample-and-hold source also steps the Spectral "
+                        "drive.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -2692,6 +2915,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Granular Crush: granular mids + bitcrush lows + chaos highs
         PresetDef p; p.name = "Granular Crush"; p.category = "Experimental";
+        p.description = "6-bit Bitcrush on the lows, dense 15 ms Granular grains on the mids and a Chaos top, with "
+                        "LFO 1, a chaos source and a random source each moving one band. Broken, grainy textures.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2713,6 +2938,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Fractal Noise: fractal + stochastic + feedback per band
         PresetDef p; p.name = "Fractal Noise"; p.category = "Experimental";
+        p.description = "Feedback Distortion, Fractal at drive 4 and Stochastic at drive 3, with a Chua chaos "
+                        "source driving the lower two and a random pan on top. Noisy, unstable textures for "
+                        "drones.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2733,6 +2961,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Stochastic Burst: stochastic + granular + bitwise per band
         PresetDef p; p.name = "Stochastic Burst"; p.category = "Experimental";
+        p.description = "Tiny 10 ms Granular grains, Stochastic mids and a Bitwise Mangler top, with a random "
+                        "source and a sample-and-hold source throwing all three drives around. Bursts of noise and "
+                        "grit.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -2753,6 +2984,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Formant Vowels: formant morph across vowels, sweep-linked
         PresetDef p; p.name = "Formant Vowels"; p.category = "Experimental";
+        p.description = "The mids morph between two Formant settings, vowel A and a shifted O, moved by the sweep "
+                        "and a slow LFO, between Tube lows and an Allpass Resonant top. Talking synths and vocals.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2776,6 +3009,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Chaos Engine: 4-node chaos/fractal/stochastic/feedback morph
         PresetDef p; p.name = "Chaos Engine"; p.category = "Experimental";
+        p.description = "A Lorenz chaos source throws the lows around a four-node XY morph of Chaos, Fractal, "
+                        "Stochastic and Feedback Distortion, with Serge Fold mids on a saw LFO and a Spectral top.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -2809,6 +3044,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Bitwise Mangler: bitwise morph + aliasing + quantize per band
         PresetDef p; p.name = "Bitwise Mangler"; p.category = "Experimental";
+        p.description = "A saw LFO morphs the mids from Bitwise Mangler to Aliasing, over Quantize lows stepped by "
+                        "a sample-and-hold source and a Sample Reduce top that LFO 2 pans. Digital wreckage.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2832,6 +3069,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Ring Chaos: ring sat morph to chaos, allpass underneath
         PresetDef p; p.name = "Ring Chaos"; p.category = "Experimental";
+        p.description = "The mids morph between Ring Saturation and Chaos on a smooth random LFO, with Allpass "
+                        "Resonant lows that a chaos source drives and a Fractal top. Metallic one moment, unstable "
+                        "the next.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2855,6 +3095,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Quantize Glitch: quantize + S&H modulated across bands
         PresetDef p; p.name = "Quantize Glitch"; p.category = "Experimental";
+        p.description = "Quantize, 6-bit Bitcrush and Bitwise Mangler bands whose drives jump in steps on "
+                        "sample-and-hold sources, with the outer bands panned apart. Stepped, glitchy digital "
+                        "grit.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -2877,6 +3120,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // All Types Morph: 4-band with 4-node morphs on each
         PresetDef p; p.name = "All Types Morph"; p.category = "Experimental";
+        p.description = "Sixteen types at once: each of four bands runs a four-node morph (analog, experimental, "
+                        "digital and resonant types from low to high), its X moved by LFO 1, LFO 2, chaos or "
+                        "random.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -2928,6 +3174,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Alien Voice: formant + ring sat + spectral, pitch-tracked
         PresetDef p; p.name = "Alien Voice"; p.category = "Experimental";
+        p.description = "Ring Saturation lows, a Formant mid band shifted up 8 semitones and a Spectral top, with "
+                        "the input pitch driving the Formant and ring bands. Robotic, alien voices; try vocals.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2951,6 +3199,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Feedback Loop: feedback dist on 2 bands, env-ducked
         PresetDef p; p.name = "Feedback Loop"; p.category = "Experimental";
+        p.description = "Feedback Distortion at drive 4 and 5 on the lows and mids, pulled back by the input level "
+                        "while you play so it grows as notes decay, with a Chaos top that a chaos source pans.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2971,6 +3221,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Serge Madness: serge fold + sine fold + tri fold, sweep-animated
         PresetDef p; p.name = "Serge Madness"; p.category = "Experimental";
+        p.description = "All three wavefolders, Serge, Sine and Triangle from low to high at high fold counts, "
+                        "under a saw-LFO sweep, with LFO 1, LFO 2 and a chaos source each moving one band drive.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -2996,6 +3248,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Temporal Flux: temporal on mids, feedback lows, chaos highs, dual-LFO
         PresetDef p; p.name = "Temporal Flux"; p.category = "Experimental";
+        p.description = "Two Temporal bands in different modes between Feedback Distortion lows and a Chaos top; a "
+                        "sine LFO, a sample-and-hold LFO and the transient detector each drive one band.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -3022,6 +3276,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Broken Radio: aliasing + sample reduce + noise per band
         PresetDef p; p.name = "Broken Radio"; p.category = "Experimental";
+        p.description = "A random source flips the lows between Aliasing and Sample Reduce, over noisy Stochastic "
+                        "mids and a Bitwise Mangler top stepped by a sample-and-hold source. A failing radio.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3047,6 +3303,8 @@ std::vector<PresetDef> createAllPresets() {
     { // Formant Shift: a Formant node on every band, the sweep driving morph X
         // (the recipe of the v8 Experimental/Formant_Shift file the v9 overhaul dropped)
         PresetDef p; p.name = "Formant Shift"; p.category = "Experimental";
+        p.description = "Formant on all four bands at drive 2.5, the same vowel on each, with the sweep fixed near "
+                        "320 Hz adding drive there. A plain vowel-coloured drive to start from.";
         p.state = makeInitState(4);
         for (auto& bm : p.state.bandMorph)
             setBandType(bm, DistortionType::Formant, 2.5f);
@@ -3059,6 +3317,8 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Lorenz Drive: Lorenz modulates drive across tube/fuzz/tape bands
         PresetDef p; p.name = "Lorenz Drive"; p.category = "Chaos";
+        p.description = "A Lorenz chaos source pushes the drive of Tube lows and Fuzz mids up and down and wanders "
+                        "the Tape top across the stereo field. Familiar tones that never sit still.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3078,6 +3338,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Rossler Morph: Rossler drives morph on multiple bands
         PresetDef p; p.name = "Rossler Morph"; p.category = "Chaos";
+        p.description = "A Rossler chaos source moves two morphs, Soft Clip to Fuzz on the lows and Tape to Sine "
+                        "Fold on the mids, and varies the drive of an Allpass Resonant top. Smooth, "
+                        "never-repeating motion.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3101,6 +3364,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Chua Circuit: Chua chaos drives chaos distortion + feedback
         PresetDef p; p.name = "Chua Circuit"; p.category = "Chaos";
+        p.description = "A Chua chaos source drives Feedback Distortion lows and a Chaos mid band and swings the "
+                        "low band pan, with Stochastic highs. Jumpy, circuit-like instability.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3120,6 +3385,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Henon Map: fast Henon chaos drives hard clip + bitwise
         PresetDef p; p.name = "Henon Map"; p.category = "Chaos";
+        p.description = "A Henon chaos source jumps the drive and pan of Hard Clip lows and the drive of Bitwise "
+                        "Mangler mids, with Aliasing on top. Erratic, digital-sounding motion.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3139,6 +3406,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Chaotic Sweep: chaos drives sweep frequency + band distortions
         PresetDef p; p.name = "Chaotic Sweep"; p.category = "Chaos";
+        p.description = "A Lorenz chaos source steers the sweep across four bands of Tube, Tape, Sine Fold and "
+                        "Formant, and also drives the Sine Fold band. A sweep that wanders instead of cycling.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 150.0f;
         p.state.crossoverFreqs[1] = 1200.0f;
@@ -3162,6 +3431,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Coupled Chaos: high coupling Lorenz on chaos→fractal morph
         PresetDef p; p.name = "Coupled Chaos"; p.category = "Chaos";
+        p.description = "A strongly coupled Lorenz source swings the lows hard between Chaos and Fractal, and also "
+                        "moves the Stochastic mid drive and the Allpass Resonant top pan.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3183,6 +3454,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Slow Chaos: glacial Rossler modulates subtle textures
         PresetDef p; p.name = "Slow Chaos"; p.category = "Chaos";
+        p.description = "A very slow Rossler chaos source gently varies light Soft Clip, Tape and Granular bands. "
+                        "Quiet, slowly shifting colour for pads and ambient material.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3202,6 +3475,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Attractor Pan: chaos pans 4 different bands around stereo field
         PresetDef p; p.name = "Attractor Pan"; p.category = "Chaos";
+        p.description = "A Lorenz chaos source pans four bands (Tape, Tube, Sine Fold, Formant) in alternating "
+                        "directions, so the spectrum spreads and folds across the stereo field.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -3225,6 +3500,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Chaos Morph 4: Chua-driven 4-node morph with shaped params
         PresetDef p; p.name = "Chaos Morph 4"; p.category = "Chaos";
+        p.description = "A Chua chaos source steers the lows around a four-node XY morph of Soft Clip, Fuzz, Sine "
+                        "Fold and Chaos, over Tube mids and a Spectral top.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3255,6 +3532,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Fast Chaos: fast Henon on feedback + bitwise + aliasing
         PresetDef p; p.name = "Fast Chaos"; p.category = "Chaos";
+        p.description = "A fast Henon chaos source rattles the drives of Feedback Distortion lows and Bitwise "
+                        "Mangler mids and pans the outer bands in opposite directions, with Aliasing on top. "
+                        "Harsh, jittery.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3279,6 +3559,9 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Touch Sensitive: env controls drive on tube/tape/soft clip per band
         PresetDef p; p.name = "Touch Sensitive"; p.category = "Dynamic";
+        p.description = "Tube, Tape and Soft Clip bands whose drive follows your playing: the envelope follower "
+                        "pushes the Tube lows and Tape mids harder as the input gets louder. For guitar, keys and "
+                        "bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3298,6 +3581,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Transient Punch: transient detector drives hard clip + temporal
         PresetDef p; p.name = "Transient Punch"; p.category = "Dynamic";
+        p.description = "The transient detector slams the drive of Hard Clip lows and Temporal mids on every "
+                        "attack, with Fuzz on top. Adds punch to drums, plucked bass and percussive synths.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3318,6 +3603,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Pitch Tracker: pitch controls drive + sweep across bands
         PresetDef p; p.name = "Pitch Tracker"; p.category = "Dynamic";
+        p.description = "The input pitch drives the Tube lows and Allpass Resonant mids and moves the sweep, with "
+                        "Formant on top, so higher notes distort more. For monophonic leads, bass and vocals.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3338,6 +3625,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Dynamic Mix: env ducks fuzz, transient boosts hard clip
         PresetDef p; p.name = "Dynamic Mix"; p.category = "Dynamic";
+        p.description = "The Fuzz lows back off as you play louder (the envelope lowers their mix), transients "
+                        "push the Hard Clip mids, and the input level drives the Ring Saturation top.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3356,6 +3645,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Envelope Morph: env morphs soft→hard per band differently
         PresetDef p; p.name = "Envelope Morph"; p.category = "Dynamic";
+        p.description = "Louder input moves the morphs toward their harder side, Soft Clip to Hard Clip on the "
+                        "lows and Tape to Fuzz on the mids, with Tube on top; quiet passages stay in between.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3379,6 +3670,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Transient Gate: transient controls mix on different distortion types
         PresetDef p; p.name = "Transient Gate"; p.category = "Dynamic";
+        p.description = "Soft Clip lows, a Chaos mid band and Spectral highs, with the transient detector pushing "
+                        "the Spectral drive on every hit. For drums and percussive parts.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3398,6 +3691,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Pitch Drive: pitch tracks drive + sweep frequency
         PresetDef p; p.name = "Pitch Drive"; p.category = "Dynamic";
+        p.description = "The input pitch drives the octave Fuzz lows and Sine Fold mids and moves the sweep, with "
+                        "a Formant top, so higher notes bite harder. For monophonic leads and bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3418,6 +3713,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Velocity Response: envelope controls drive + mix across tape/tube/soft clip
         PresetDef p; p.name = "Velocity Response"; p.category = "Dynamic";
+        p.description = "The envelope follower drives Tape lows and Tube mids harder as the input gets louder, "
+                        "over a Soft Clip top. Soft notes stay lighter, hard notes break up.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3437,6 +3734,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Multi Dynamic: all dynamic sources controlling different bands
         PresetDef p; p.name = "Multi Dynamic"; p.category = "Dynamic";
+        p.description = "Each band follows a different detector: the envelope drives the Tube lows, transients "
+                        "drive the octave Fuzz, and the input pitch drives the Sine Fold band, with Formant on "
+                        "top.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 150.0f;
         p.state.crossoverFreqs[1] = 1200.0f;
@@ -3460,6 +3760,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Sidechain Pump: env ducks mix on different types per band
         PresetDef p; p.name = "Sidechain Pump"; p.category = "Dynamic";
+        p.description = "Louder input pulls back the Tape lows and Fuzz mids mix and the Hard Clip top drive, so "
+                        "the distortion pumps against the dynamics. Try it on drum loops or a full mix.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3483,6 +3785,8 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // 8-Bit Crunch: bitcrush lows, quantize mids, aliasing highs
         PresetDef p; p.name = "8-Bit Crunch"; p.category = "Lo-Fi";
+        p.description = "8-bit Bitcrush on the lows, Quantize on the mids and light Aliasing on top, with slow "
+                        "random drift on the crush drive. Retro console grit for drums, synths and loops.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3501,6 +3805,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Sample Rate Crush: sample reduce + tape warmth + stochastic shimmer
         PresetDef p; p.name = "Sample Rate Crush"; p.category = "Lo-Fi";
+        p.description = "Sample Reduce at 8x on the 250 Hz to 4 kHz band, with Tape lows and a Stochastic top "
+                        "drifting in the stereo field. Sample-rate crunch that leaves the low end intact.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3520,6 +3826,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Quantize Dirt: quantize + bitcrush morph, tube warmth underneath
         PresetDef p; p.name = "Quantize Dirt"; p.category = "Lo-Fi";
+        p.description = "A slow LFO morphs the mids between Quantize and 10-bit Bitcrush, over warm Tube lows and "
+                        "a Sample Reduce top stepped by a sample-and-hold source.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3540,6 +3848,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Aliasing Harsh: aliasing mids, bitwise lows, chaos highs
         PresetDef p; p.name = "Aliasing Harsh"; p.category = "Lo-Fi";
+        p.description = "Aliasing on the 300 Hz to 4 kHz band, stepped by a sample-and-hold LFO, with Bitwise "
+                        "Mangler lows and a Chaos top. Harsh, inharmonic digital tones.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3560,6 +3870,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Bit Mangler: bitwise on mids with morph, tape warmth, fractal shimmer
         PresetDef p; p.name = "Bit Mangler"; p.category = "Lo-Fi";
+        p.description = "A saw LFO morphs the mids from Bitwise Mangler to Quantize and a random source varies "
+                        "their drive, over Tape lows and a light Fractal top.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3581,6 +3893,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // 4-Bit Retro: extreme bitcrush + sample reduce + tape saturation
         PresetDef p; p.name = "4-Bit Retro"; p.category = "Lo-Fi";
+        p.description = "4-bit Bitcrush (its lowest setting) on the mids and Sample Reduce at 12x on the highs, "
+                        "with fluttering Tape lows to keep it warm. Try drums and chiptune leads.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3599,6 +3913,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Digital Decay: bitcrush→sample reduce morph + stochastic drift
         PresetDef p; p.name = "Digital Decay"; p.category = "Lo-Fi";
+        p.description = "A slow LFO morphs the mids between 7-bit Bitcrush and Sample Reduce, over light Tube lows "
+                        "and a drifting Stochastic top. Degraded, slowly shifting digital texture.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3620,6 +3936,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Multi Band Lo-Fi: different lo-fi type per band with varied params
         PresetDef p; p.name = "Multi Band Lo-Fi"; p.category = "Lo-Fi";
+        p.description = "A different lo-fi type per band: 12-bit and 8-bit Bitcrush, Quantize and Sample Reduce "
+                        "from low to high, with slow LFOs and the input level moving the drives.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1000.0f;
@@ -3646,6 +3964,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Glitch Box: aliasing→bitwise morph + S&H modulation
         PresetDef p; p.name = "Glitch Box"; p.category = "Lo-Fi";
+        p.description = "A sample-and-hold source jumps the mids between Aliasing and Bitwise Mangler and steps "
+                        "the Sample Reduce top drive, over Feedback Distortion lows. Stuttering glitch for beats.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3668,6 +3988,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Warm Lo-Fi: bitcrush→tape morph + granular texture
         PresetDef p; p.name = "Warm Lo-Fi"; p.category = "Lo-Fi";
+        p.description = "The mids sit between 12-bit Bitcrush and Tape, swaying on a slow LFO, over Tube lows and "
+                        "a quiet Granular top. Soft, dusty lo-fi for keys, pads and beats.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3879,7 +4201,11 @@ int run(int argc, char* argv[]) {
 
         auto path = categoryDir / filename;
 
-        if (writeVstPreset(path, stateBytes)) {
+        if (preset.description.empty()) {
+            std::cerr << "ERROR: " << key << " has no description" << '\n';
+            continue;
+        }
+        if (writeVstPreset(path, stateBytes, buildInfoXml(preset.name, preset.category, preset.description))) {
             std::cout << "  Created: " << preset.category << "/" << filename << '\n';
             successCount++;
         }

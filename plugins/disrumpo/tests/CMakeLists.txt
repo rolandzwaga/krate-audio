@@ -129,6 +129,7 @@ add_executable(disrumpo_tests
     integration/preset/preset_save_test.cpp
     integration/preset/preset_search_test.cpp
     integration/preset/factory_preset_validation_test.cpp
+    integration/preset/preset_description_test.cpp
 
     # Unit tests - MIDI CC Manager (012-progressive-disclosure)
     unit/midi_cc_manager_test.cpp
