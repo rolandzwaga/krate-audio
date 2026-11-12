@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Level meters** — The top bar shows input and output level meters (peak and RMS for left and right), each band's title shows that band's level, and a red light marks any sample above 0 dBFS until you click it.
-- **Preset descriptions in the browser** — The preset browser shows the selected preset's description on a line under the list, so you can read what a preset is built around before loading it. Every factory preset has one.
+- **Preset descriptions in the browser** — The preset browser shows the selected preset's description under the list, wrapped onto up to three lines (ending with "…" if it is longer still; hover over it to read the whole text), so you can read what a preset is built around before loading it. Every factory preset has one.
 
 ### Changed
 

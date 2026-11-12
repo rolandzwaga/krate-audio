@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A possible crash when a host shut Vorago down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone.
 - **A possible crash when opening the preset browser after a host shut Vorago down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.
 
+- **Long preset descriptions were cut off in the preset browser** — The description under the preset list was a single line, so a long one ended mid-word at the edge. It now wraps onto up to three lines, ending with "…" if it is longer still, and hovering over it shows the whole text.
+
 ### Changed
 
 - **Built with VST3 SDK 3.8.1.**

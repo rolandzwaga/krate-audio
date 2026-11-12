@@ -3,7 +3,7 @@
 // ==============================================================================
 // Every file of the committed factory tree (DISRUMPO_RESOURCES_DIR/presets) scans back through the shared
 // PresetManager, the way the preset browser reads it (PresetManager::readMetadata, the Info chunk's Comment
-// attribute; PresetBrowserView shows it on the line under the list), with a one-line description whose length
+// attribute; PresetBrowserView shows it under the list, wrapped to up to 3 lines), with a description whose length
 // is in the range the Profundum and Vorago libraries use (73 - 339 characters there).
 // The descriptions are written by tools/disrumpo_preset_generator.cpp.
 // ==============================================================================
@@ -23,7 +23,7 @@
 #error "DISRUMPO_RESOURCES_DIR must be defined (plugins/disrumpo/tests/CMakeLists.txt)"
 #endif
 
-TEST_CASE("Every Disrumpo factory preset has a one-line description in the browser",
+TEST_CASE("Every Disrumpo factory preset has a description in the browser",
           "[disrumpo][preset][description]") {
     namespace fs = std::filesystem;
     constexpr std::size_t kFactoryPresetCount = 120;
