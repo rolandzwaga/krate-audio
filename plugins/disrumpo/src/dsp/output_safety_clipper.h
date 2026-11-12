@@ -15,6 +15,9 @@
 // at kServoHz, so the output keeps the input's mean. Shifting the input, not the output,
 // keeps every output sample inside the ceiling. Below the knee b decays to exactly 0
 // (kServoFloor), and from then on the stage is bit-exact again.
+//
+// A non-finite sample (a broken host sample, a node before its guard recovers) leaves as 0 and
+// resets the ADAA history and the servo, so nothing non-finite reaches the host's mix bus.
 // ==============================================================================
 
 #pragma once
@@ -48,8 +51,10 @@ public:
 
     [[nodiscard]] float process(float input) noexcept {
         if (!Krate::DSP::detail::isFinite(input)) {
+            // A NaN / Inf never reaches the host's bus: it leaves as 0, and the ADAA history and
+            // the servo start again from 0 rather than holding it
             reset();
-            return input;
+            return 0.0f;
         }
         const double x = input;
         const double u = x + offset_;

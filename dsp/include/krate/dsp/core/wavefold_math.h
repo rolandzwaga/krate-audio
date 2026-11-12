@@ -109,9 +109,10 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
     if (x < -0.32f) {
         // Near branch point: Puiseux series expansion around x = -1/e
         // W(x) = -1 + p - p^2/3 + 11p^3/72 - 43p^4/540 + ...
-        // where p = sqrt(2(1+ex))
+        // where p = sqrt(2(1+ex)); the argument is ~0 at x = -1/e and FMA contraction can leave it
+        // a hair below 0, so it is clamped at the domain edge
         const float e = std::numbers::e_v<float>;
-        const float p = std::sqrt(2.0f * (1.0f + e * x));
+        const float p = std::sqrt(std::max(0.0f, 2.0f * (1.0f + e * x)));
         const float p2 = p * p;
         const float p3 = p2 * p;
         const float p4 = p3 * p;
@@ -158,7 +159,9 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
         }
     }
 
-    return w;
+    // W0's range is [-1, inf): at the branch point f'(w) ~ 0 and the nudged Newton step can land
+    // below -1 (-1.019 at x = -1/e)
+    return std::max(w, -1.0f);
 }
 
 // =============================================================================
@@ -208,9 +211,9 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
     // Initial estimate (same as lambertW for consistency)
     float w;
     if (x < -0.32f) {
-        // Near branch point: Puiseux series expansion
+        // Near branch point: Puiseux series expansion (sqrt argument clamped as in lambertW)
         const float e = std::numbers::e_v<float>;
-        const float p = std::sqrt(2.0f * (1.0f + e * x));
+        const float p = std::sqrt(std::max(0.0f, 2.0f * (1.0f + e * x)));
         const float p2 = p * p;
         const float p3 = p2 * p;
         const float p4 = p3 * p;
@@ -248,7 +251,7 @@ constexpr float kSineFoldGainEpsilon = 0.001f;
         }
     }
 
-    return w;
+    return std::max(w, -1.0f);  // W0's range is [-1, inf), as in lambertW
 }
 
 // =============================================================================

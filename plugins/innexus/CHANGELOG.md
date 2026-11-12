@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **A possible crash when a host shut Innexus down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone. The Sync switch on the two modulator panels also no longer touches freed memory when the panels are taken down without an open window (as in automated tests).
 - **A possible crash when opening the preset browser after a host shut Innexus down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.
+- **Live sidechain analysis could go deaf after one broken sample** — A single NaN or infinite sample on the sidechain input stuck the analysis's DC filter, so live analysis heard nothing from then on until the plugin was reset. Such a sample is now treated as silence, and analysis carries on from the next block.
 
 ### Changed
 

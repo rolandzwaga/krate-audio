@@ -262,6 +262,27 @@ TEST_CASE("lambertW: domain boundary W(-1/e)=-1, clamped to -1 below", "[wavefol
     }
 }
 
+TEST_CASE("lambertW and lambertWApprox: finite and >= -1 at the domain edge and one ulp above it",
+          "[wavefold_math][US3][lambertW]") {
+    // The Puiseux estimate takes sqrt(2 * (1 + e * x)): at x = -1/e the argument is ~0 and FMA
+    // contraction (the macOS fast-math leg) can leave it a hair below 0, a NaN without a clamp.
+    // isFinite first: under MSVC /fp:fast a NaN compares equal to anything.
+    const float edge = WavefoldMath::kLambertWDomainMin;
+    const float aboveEdge = std::nextafter(edge, 0.0f);
+    for (const float x : {edge, aboveEdge}) {
+        const float w = WavefoldMath::lambertW(x);
+        INFO("lambertW(" << x << ") = " << w);
+        REQUIRE(detail::isFinite(w));
+        REQUIRE(w >= -1.0f);
+        REQUIRE(w == Approx(-1.0f).margin(0.02f));
+        const float wa = WavefoldMath::lambertWApprox(x);
+        INFO("lambertWApprox(" << x << ") = " << wa);
+        REQUIRE(detail::isFinite(wa));
+        REQUIRE(wa >= -1.0f);
+        REQUIRE(wa == Approx(-1.0f).margin(0.02f));
+    }
+}
+
 TEST_CASE("lambertW: special values NaN->NaN, +Inf saturates at W(FLT_MAX), -Inf clamps to -1",
           "[wavefold_math][US3][lambertW]") {
     // FR-011: Special value handling. NaN is passed through as-is (no NaN constant); an infinite

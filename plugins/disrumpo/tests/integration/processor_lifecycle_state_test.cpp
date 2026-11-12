@@ -2939,6 +2939,95 @@ TEST_CASE("Every distortion type recovers from one NaN and one +Inf input sample
     CHECK(latchedRuns == 0);
 }
 
+// The output safety clipper is the last stage, so whatever non-finite sample reaches it (a broken
+// host sample on the dry path, or before a node's own guard has recovered) leaves as 0, never as
+// NaN / Inf on the host's mix bus. The D-129 setup (one band, node 0 alone, Oversample Max 4x),
+// where most types put a bad input sample through to the output before their guards recover
+// (46 of 52 runs before this fix), for every type: a NaN on one channel and a +Inf on the other,
+// then swapped, against a control run without them. Every output sample finite, and from 50 ms
+// after the bad samples have left the processor (its latency) the level is the control's: the
+// clipper's DC servo and ADAA history start again from 0 rather than holding the bad sample.
+TEST_CASE("Output stage turns non-finite samples into 0 and resumes normal audio right after",
+          "[disrumpo][numerics][safety-clipper]") {
+    constexpr double kSr = 48000.0;
+    constexpr int32 kBlock = 256;
+    constexpr size_t kInject = 4800;
+    constexpr size_t kGap = 100;
+    constexpr size_t kLen = 28800;
+    const auto fromBits = [](std::uint32_t bits) {
+        volatile std::uint32_t sink = bits;
+        return std::bit_cast<float>(static_cast<std::uint32_t>(sink));
+    };
+    const float nan = fromBits(0x7FC00000u);
+    const float inf = fromBits(0x7F800000u);
+    REQUIRE_FALSE(fin(nan));
+    REQUIRE_FALSE(fin(inf));
+
+    const auto x = sine440(kSr, -12.0, kLen);
+    auto badL = x;
+    auto badR = x;
+    badL[kInject] = nan;
+    badR[kInject] = inf;
+    badL[kInject + kGap] = inf;
+    badR[kInject + kGap] = nan;
+
+    size_t nonFiniteTotal = 0;
+    int nonFiniteRuns = 0;
+    int latchedRuns = 0;
+    for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+        auto l = latBase(1, 4);
+        setNode(l, 0, 0, static_cast<DistortionType>(t), 0.3, 1.0);
+        std::vector<float> ctlL;
+        std::vector<float> ctlR;
+        {
+            Rig control(kSr, kBlock);
+            control.apply(l);
+            control.render(x, x, ctlL, ctlR, kBlock);
+        }
+        Rig rig(kSr, kBlock);
+        rig.apply(l);
+        const auto latency = static_cast<size_t>(rig.p->getLatencySamples());
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(badL, badR, outL, outR, kBlock);
+
+        size_t nonFinite = 0;
+        for (size_t i = 0; i < outL.size(); ++i) {
+            if (!fin(outL[i])) ++nonFinite;
+            if (!fin(outR[i])) ++nonFinite;
+        }
+        const size_t resumeFrom = kInject + kGap + latency + static_cast<size_t>(kSr * 0.05);
+        REQUIRE(resumeFrom < kLen);
+        const size_t tail = kLen - resumeFrom;
+        const double ctlDbL = toDb(rmsOf(ctlL.data() + resumeFrom, tail));
+        const double ctlDbR = toDb(rmsOf(ctlR.data() + resumeFrom, tail));
+        const double dbL = toDb(rmsOf(outL.data() + resumeFrom, tail));
+        const double dbR = toDb(rmsOf(outR.data() + resumeFrom, tail));
+        // RingSaturation's carrier does not advance on a non-finite sample, so it comes back at
+        // another phase against the input; its default 316.23 Hz carrier is near 23/32 of the
+        // 440 Hz input, where the product's level depends on that phase (measured: -19.7 dBFS
+        // against the control's -13.4, creeping as the phase drifts, 2.3 s on). There the
+        // output must only be sound again, not the control's level.
+        const bool phaseDependent = static_cast<DistortionType>(t) == DistortionType::RingSaturation;
+        const bool latched = phaseDependent
+                                 ? !(dbL > ctlDbL - 10.0) || !(dbR > ctlDbR - 10.0)
+                                 : !(std::abs(dbL - ctlDbL) < 0.5) || !(std::abs(dbR - ctlDbR) < 0.5);
+        nonFiniteTotal += nonFinite;
+        if (nonFinite > 0) ++nonFiniteRuns;
+        if (latched) ++latchedRuns;
+        if (nonFinite > 0 || latched) {
+            std::printf("Output stage, type %d: %zu non-finite output samples (latency %zu); from %zu samples after "
+                        "the first bad one L %.2f dBFS (control %.2f), R %.2f dBFS (control %.2f)\n",
+                        t, nonFinite, latency, resumeFrom - kInject, dbL, ctlDbL, dbR, ctlDbR);
+        }
+    }
+    std::printf("Output stage non-finite input: %d of %d types put %zu non-finite samples out, %d types off the "
+                "control level after the bad samples\n",
+                nonFiniteRuns, static_cast<int>(DistortionType::COUNT), nonFiniteTotal, latchedRuns);
+    CHECK(nonFiniteTotal == size_t{0});
+    CHECK(latchedRuns == 0);
+}
+
 TEST_CASE("Processor rejects every non-stereo bus arrangement", "[disrumpo][lifecycle][D-129]") {
     using Steinberg::Vst::SpeakerArrangement;
     namespace Arr = Steinberg::Vst::SpeakerArr;
