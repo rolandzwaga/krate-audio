@@ -567,6 +567,11 @@ void setBandType(BandMorphState& bm, DistortionType type, float drive,
         setNode(bm.nodes[static_cast<size_t>(n)], type, drive, toneHz);
 }
 
+// Set the mix of every node on a band: the base a positive routing into the band Mix opens from
+void setBandMix(BandMorphState& bm, float mix) {
+    for (auto& node : bm.nodes) node.mix = mix;
+}
+
 // Set morph A/B with full control
 void setMorphAB(BandMorphState& bm, DistortionType typeA, DistortionType typeB,
                 float driveA, float driveB, float toneA = 4000.0f, float toneB = 4000.0f) {
@@ -1020,8 +1025,8 @@ std::vector<PresetDef> createAllPresets() {
     { // Envelope Follower: input-reactive sweep, different saturation per band
         PresetDef p; p.name = "Envelope Follower"; p.category = "Sweep";
         p.description = "The sweep follows your playing level instead of an LFO, rising as you play harder over "
-                        "Tape, Tube and Soft Clip bands; the input level also drives the Tube mids. For guitar, "
-                        "keys and drums.";
+                        "Tape, Tube and Soft Clip bands; the input level also drives the Tube mids and Soft Clip "
+                        "top. For guitar, keys and drums.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -1040,7 +1045,7 @@ std::vector<PresetDef> createAllPresets() {
         setBandType(p.state.bandMorph[2], DistortionType::SoftClip, 1.8f, 6500.0f);
         shapeSoftClip(p.state.bandMorph[2].nodes[0], 0.6f, 0.4f);
         addRouting(p.state, 0, ModSource::EnvFollower, ModDest::bandDrive(1), 0.4f);
-        addRouting(p.state, 1, ModSource::EnvFollower, ModDest::bandMix(2), 0.3f);
+        addRouting(p.state, 1, ModSource::EnvFollower, ModDest::bandDrive(2), 0.3f);
         p.state.modSources.envAttackNorm = 0.02f;
         p.state.modSources.envReleaseNorm = 0.2f;
         p.state.modSources.envSensitivity = 0.75f;
@@ -1964,16 +1969,18 @@ std::vector<PresetDef> createAllPresets() {
     { // Punchy Low End: hard clip subs, temporal mids, tube upper
         PresetDef p; p.name = "Punchy Low End"; p.category = "Bass";
         p.description = "Hard Clip under 100 Hz that the transient detector pushes on every attack, Temporal "
-                        "distortion to 400 Hz and Tube on top. For kick and bass.";
+                        "distortion to 400 Hz at 70 % mix that each attack opens fully, and Tube on top. For kick "
+                        "and bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 100.0f;
         p.state.crossoverFreqs[1] = 400.0f;
         // Sub: hard clip for punch
         setBandType(p.state.bandMorph[0], DistortionType::HardClip, 3.5f, 1200.0f);
         shapeHardClip(p.state.bandMorph[0].nodes[0], 0.45f, 0.8f);
-        // Low-mid: temporal for dynamics
-        setBandType(p.state.bandMorph[1], DistortionType::Temporal, 2.5f, 2500.0f);
+        // Low-mid: temporal for dynamics; drive 4 (was 2.5 at 100 % mix) keeps the bite between attacks
+        setBandType(p.state.bandMorph[1], DistortionType::Temporal, 4.0f, 2500.0f);
         shapeTemporal(p.state.bandMorph[1].nodes[0], 0, 0.6f, 0.5f, 5.0f, 80.0f, 0.6f);
+        setBandMix(p.state.bandMorph[1], 0.7f);  // each attack opens it (routing 1)
         // Upper: tube for presence
         setBandType(p.state.bandMorph[2], DistortionType::Tube, 2.0f, 4000.0f);
         shapeTube(p.state.bandMorph[2].nodes[0], 0.05f, 0.4f, 1);
@@ -2307,8 +2314,8 @@ std::vector<PresetDef> createAllPresets() {
     { // Temporal Edge: temporal dist with dynamic response, tube warmth
         PresetDef p; p.name = "Temporal Edge"; p.category = "Leads";
         p.description = "Temporal distortion at drive 4.5 on the mids, pushed harder by every transient, between "
-                        "Tube lows and a Bitwise Mangler top stepped by a sample-and-hold LFO. Follows picking "
-                        "dynamics.";
+                        "Tube lows the input level drives and a Bitwise Mangler top stepped by a sample-and-hold "
+                        "LFO. Follows picking dynamics.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 350.0f;
         p.state.crossoverFreqs[1] = 4500.0f;
@@ -2323,7 +2330,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeBitwise(p.state.bandMorph[2].nodes[0], 3, 0.6f, 0.3f, 0.5f, 0.1f);
         addRouting(p.state, 0, ModSource::Transient, ModDest::bandDrive(1), 0.5f);
         addRouting(p.state, 1, ModSource::LFO1, ModDest::bandDrive(2), 0.2f);
-        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandMix(0), 0.2f);
+        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandDrive(0), 0.2f);
         p.state.modSources.transSensitivity = 0.8f;
         p.state.modSources.lfo1RateNorm = 0.55f;
         p.state.modSources.lfo1Shape = Waveform::SampleAndHold;
@@ -2757,7 +2764,8 @@ std::vector<PresetDef> createAllPresets() {
     { // Snare Crack: transient-reactive per band, different saturation
         PresetDef p; p.name = "Snare Crack"; p.category = "Drums";
         p.description = "Hard Clip at drive 4 on the 200 Hz to 5 kHz band, pushed further by every transient, "
-                        "between Tape lows and a Ring Saturation top. For snares and claps.";
+                        "between Tape lows and a Ring Saturation top at 60 % mix that each hit opens fully. For "
+                        "snares and claps.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 5000.0f;
@@ -2767,6 +2775,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeHardClip(p.state.bandMorph[1].nodes[0], 0.4f, 0.85f);
         setBandType(p.state.bandMorph[2], DistortionType::RingSaturation, 1.5f, 7500.0f);
         shapeRingSat(p.state.bandMorph[2].nodes[0], 0.4f, 1, 0.5f, 2, 0.0f, 1);
+        setBandMix(p.state.bandMorph[2], 0.6f);  // each hit opens it (routing 1)
         p.state.bands[1].gainDb = 2.0f;
         addRouting(p.state, 0, ModSource::Transient, ModDest::bandDrive(1), 0.6f);
         addRouting(p.state, 1, ModSource::Transient, ModDest::bandMix(2), 0.4f);
@@ -2821,20 +2830,22 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Transient Shape: transient controls mix/drive differently per band
         PresetDef p; p.name = "Transient Shape"; p.category = "Drums";
-        p.description = "Soft Clip under 200 Hz, Temporal distortion on the mids that each transient drives "
-                        "harder, and light Tube on top. Adds crunch to the attack of each drum hit.";
+        p.description = "Soft Clip under 200 Hz at half mix that each transient opens fully, Temporal mids that "
+                        "each transient drives harder, and a light Tube top the input level pushes. Adds crunch to "
+                        "the attack of each drum hit.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
         setBandType(p.state.bandMorph[0], DistortionType::SoftClip, 2.0f, 2000.0f);
         shapeSoftClip(p.state.bandMorph[0].nodes[0], 0.7f, 0.3f);
+        setBandMix(p.state.bandMorph[0], 0.5f);  // each transient opens it (routing 0)
         setBandType(p.state.bandMorph[1], DistortionType::Temporal, 2.5f, 4500.0f);
         shapeTemporal(p.state.bandMorph[1].nodes[0], 0, 0.6f, 0.5f, 5.0f, 80.0f, 0.6f);
         setBandType(p.state.bandMorph[2], DistortionType::Tube, 1.5f, 6500.0f);
         shapeTube(p.state.bandMorph[2].nodes[0], 0.0f, 0.3f, 1);
         addRouting(p.state, 0, ModSource::Transient, ModDest::bandMix(0), 0.5f);
         addRouting(p.state, 1, ModSource::Transient, ModDest::bandDrive(1), 0.6f);
-        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandMix(2), 0.3f);
+        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandDrive(2), 0.3f);
         p.state.modSources.transSensitivity = 0.75f;
         p.state.modSources.transAttackNorm = 0.04f;
         p.state.modSources.transDecayNorm = 0.2f;
@@ -3560,7 +3571,7 @@ std::vector<PresetDef> createAllPresets() {
     { // Touch Sensitive: env controls drive on tube/tape/soft clip per band
         PresetDef p; p.name = "Touch Sensitive"; p.category = "Dynamic";
         p.description = "Tube, Tape and Soft Clip bands whose drive follows your playing: the envelope follower "
-                        "pushes the Tube lows and Tape mids harder as the input gets louder. For guitar, keys and "
+                        "pushes all three harder as the input gets louder, the Tube lows most. For guitar, keys and "
                         "bass.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
@@ -3573,7 +3584,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeSoftClip(p.state.bandMorph[2].nodes[0], 0.7f, 0.3f);
         addRouting(p.state, 0, ModSource::EnvFollower, ModDest::bandDrive(0), 0.6f);
         addRouting(p.state, 1, ModSource::EnvFollower, ModDest::bandDrive(1), 0.4f);
-        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandMix(2), 0.3f);
+        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandDrive(2), 0.3f);
         p.state.modSources.envAttackNorm = 0.04f;
         p.state.modSources.envReleaseNorm = 0.2f;
         p.state.modSources.envSensitivity = 0.75f;
@@ -3582,7 +3593,8 @@ std::vector<PresetDef> createAllPresets() {
     { // Transient Punch: transient detector drives hard clip + temporal
         PresetDef p; p.name = "Transient Punch"; p.category = "Dynamic";
         p.description = "The transient detector slams the drive of Hard Clip lows and Temporal mids on every "
-                        "attack, with Fuzz on top. Adds punch to drums, plucked bass and percussive synths.";
+                        "attack, and the input level pushes the Fuzz top. Adds punch to drums, plucked bass and "
+                        "percussive synths.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3594,7 +3606,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeFuzz(p.state.bandMorph[2].nodes[0], 0.1f, 0.05f, 0, 0.3f, 0.6f);
         addRouting(p.state, 0, ModSource::Transient, ModDest::bandDrive(0), 0.7f);
         addRouting(p.state, 1, ModSource::Transient, ModDest::bandDrive(1), 0.5f);
-        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandMix(2), 0.3f);
+        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandDrive(2), 0.3f);
         p.state.modSources.transSensitivity = 0.85f;
         p.state.modSources.transAttackNorm = 0.08f;
         p.state.modSources.transDecayNorm = 0.25f;
@@ -3670,15 +3682,19 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Transient Gate: transient controls mix on different distortion types
         PresetDef p; p.name = "Transient Gate"; p.category = "Dynamic";
-        p.description = "Soft Clip lows, a Chaos mid band and Spectral highs, with the transient detector pushing "
-                        "the Spectral drive on every hit. For drums and percussive parts.";
+        p.description = "Transients gate the distortion in: the Soft Clip lows sit at 30 % mix and the Chaos mids "
+                        "at 50 %, and each hit opens both and pushes the Spectral drive on top, easing back over "
+                        "about 130 ms. For drums and percussive parts.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
-        setBandType(p.state.bandMorph[0], DistortionType::SoftClip, 2.5f, 2000.0f);
+        // Drive 4.5 (was 2.5 at 100 % mix) keeps the lows' bite between hits
+        setBandType(p.state.bandMorph[0], DistortionType::SoftClip, 4.5f, 2000.0f);
         shapeSoftClip(p.state.bandMorph[0].nodes[0], 0.7f, 0.3f);
+        setBandMix(p.state.bandMorph[0], 0.3f);  // each hit opens it (routing 0)
         setBandType(p.state.bandMorph[1], DistortionType::Chaos, 2.0f, 5000.0f);
         shapeChaos(p.state.bandMorph[1].nodes[0], 1, 3.0f, 0.5f, 0.4f, 0.5f, 0.4f, 0.2f);
+        setBandMix(p.state.bandMorph[1], 0.5f);  // each hit opens it (routing 1)
         setBandType(p.state.bandMorph[2], DistortionType::Spectral, 1.5f, 7000.0f);
         shapeSpectral(p.state.bandMorph[2].nodes[0], 1, 2, 0.5f, 0.5f, 0.1f);
         addRouting(p.state, 0, ModSource::Transient, ModDest::bandMix(0), 0.7f);
@@ -3686,7 +3702,7 @@ std::vector<PresetDef> createAllPresets() {
         addRouting(p.state, 2, ModSource::Transient, ModDest::bandDrive(2), 0.3f);
         p.state.modSources.transSensitivity = 0.65f;
         p.state.modSources.transAttackNorm = 0.03f;
-        p.state.modSources.transDecayNorm = 0.15f;
+        p.state.modSources.transDecayNorm = 0.6f;  // 128 ms: opens on every kick and snare at 512-sample blocks
         presets.push_back(p);
     }
     { // Pitch Drive: pitch tracks drive + sweep frequency
@@ -3711,10 +3727,10 @@ std::vector<PresetDef> createAllPresets() {
         p.state.modSources.pitchMaxNorm = 0.5f;
         presets.push_back(p);
     }
-    { // Velocity Response: envelope controls drive + mix across tape/tube/soft clip
+    { // Velocity Response: envelope controls drive across tape/tube/soft clip
         PresetDef p; p.name = "Velocity Response"; p.category = "Dynamic";
-        p.description = "The envelope follower drives Tape lows and Tube mids harder as the input gets louder, "
-                        "over a Soft Clip top. Soft notes stay lighter, hard notes break up.";
+        p.description = "The envelope follower drives the Tape lows, Tube mids and Soft Clip top harder as the "
+                        "input gets louder. Soft notes stay lighter, hard notes break up.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3500.0f;
@@ -3726,7 +3742,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeSoftClip(p.state.bandMorph[2].nodes[0], 0.7f, 0.3f);
         addRouting(p.state, 0, ModSource::EnvFollower, ModDest::bandDrive(0), 0.5f);
         addRouting(p.state, 1, ModSource::EnvFollower, ModDest::bandDrive(1), 0.4f);
-        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::kGlobalMix, 0.3f);
+        addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandDrive(2), 0.3f);
         p.state.modSources.envSensitivity = 0.65f;
         p.state.modSources.envAttackNorm = 0.03f;
         p.state.modSources.envReleaseNorm = 0.2f;
@@ -3734,9 +3750,8 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Multi Dynamic: all dynamic sources controlling different bands
         PresetDef p; p.name = "Multi Dynamic"; p.category = "Dynamic";
-        p.description = "Each band follows a different detector: the envelope drives the Tube lows, transients "
-                        "drive the octave Fuzz, and the input pitch drives the Sine Fold band, with Formant on "
-                        "top.";
+        p.description = "Each band follows a detector: the envelope drives the Tube lows and the Formant top, "
+                        "transients drive the octave Fuzz, and the input pitch drives the Sine Fold band.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 150.0f;
         p.state.crossoverFreqs[1] = 1200.0f;
@@ -3752,7 +3767,7 @@ std::vector<PresetDef> createAllPresets() {
         addRouting(p.state, 0, ModSource::EnvFollower, ModDest::bandDrive(0), 0.4f);
         addRouting(p.state, 1, ModSource::Transient, ModDest::bandDrive(1), 0.5f);
         addRouting(p.state, 2, ModSource::PitchFollower, ModDest::bandDrive(2), 0.3f);
-        addRouting(p.state, 3, ModSource::EnvFollower, ModDest::bandMix(3), 0.3f);
+        addRouting(p.state, 3, ModSource::EnvFollower, ModDest::bandDrive(3), 0.3f);
         p.state.modSources.envSensitivity = 0.7f;
         p.state.modSources.transSensitivity = 0.75f;
         p.state.modSources.pitchConfidence = 0.6f;

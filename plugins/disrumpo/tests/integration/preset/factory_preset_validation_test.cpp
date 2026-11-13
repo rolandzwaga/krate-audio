@@ -1302,3 +1302,438 @@ TEST_CASE("Every factory preset runs in real time", "[disrumpo][preset][performa
     std::printf("Factory preset real-time cost: worst %s %.1f %% of real time (budget %.0f %%)\n", worstName.c_str(),
                 worst, kBudgetPercent);
 }
+
+// =============================================================================
+// Mod routings that cannot move their Mix (user ruling 2026-11-13)
+// =============================================================================
+// A band Mix offset is clamped to [0, 1] per active node (MorphEngine::routeBlendedParams,
+// processCrossFamily; BandProcessor::beginBlockModulation), the global Mix offset by
+// ModulationEngine::getModulatedValue. A source that never goes negative (envelope follower,
+// transient, pitch follower, Rungler, macros, a unipolar LFO, S&H on its External input;
+// modulation_engine.h getRawSourceValue) routed with a positive amount into a Mix already at
+// 100 % only pushes past the clamp, and with a negative amount into a Mix at 0 % only pushes
+// below it: the routing does nothing audible. Ten factory presets shipped such routings
+// (Transient Gate, Snare Crack, Velocity Response, ...). Presets are read the way the host
+// shows them: Controller::setComponentState.
+namespace {
+
+/// Normalized values of @p ids after the controller restores the preset @p bytes.
+std::map<Steinberg::Vst::ParamID, double> presetParams(const std::vector<uint8_t>& bytes,
+                                                      const std::vector<Steinberg::Vst::ParamID>& ids) {
+    Controller ctl;
+    REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+    std::vector<uint8_t> stream = bytes;
+    auto* s = new Steinberg::MemoryStream(stream.data(), static_cast<Steinberg::TSize>(stream.size()));
+    REQUIRE(ctl.setComponentState(s) == Steinberg::kResultOk);
+    s->release();
+    std::map<Steinberg::Vst::ParamID, double> out;
+    for (const auto id : ids) out[id] = ctl.getParamNormalized(id);
+    ctl.terminate();
+    return out;
+}
+
+const char* modSourceName(int src) {
+    static constexpr std::array<const char*, kUIModSourceCount> kNames = {
+        "None",    "LFO 1",   "LFO 2", "Env Follower", "Random", "Macro 1",        "Macro 2",
+        "Macro 3", "Macro 4", "Chaos", "Rungler",      "S&H",    "Pitch Follower", "Transient"};
+    return (src >= 0 && src < kUIModSourceCount) ? kNames[static_cast<size_t>(src)] : "?";
+}
+
+struct PresetRouting {
+    int slot = 0;
+    int source = 0;
+    uint32_t dest = 0;
+    float amount = 0.0f;
+    int direction = 0;  ///< +1: the contribution is never negative, -1: never positive, 0: either sign
+};
+
+struct PresetModView {
+    int bandCount = 1;
+    double globalMix = 1.0;
+    std::array<int, 4> activeNodes{};
+    std::array<std::array<double, kMaxMorphNodes>, 4> nodeMix{};
+    std::vector<PresetRouting> routings;  ///< the active ones (a source and a non-zero amount)
+};
+
+PresetModView readModView(const std::vector<uint8_t>& bytes) {
+    std::vector<Steinberg::Vst::ParamID> ids = {kBandCountId, kGlobalMixId,
+                                                makeModParamId(ModParamType::kLFO1Unipolar),
+                                                makeModParamId(ModParamType::kLFO2Unipolar),
+                                                makeModParamId(ModParamType::kSampleHoldSource)};
+    for (uint8_t b = 0; b < 4; ++b) {
+        ids.push_back(makeBandParamId(b, BandParamType::kBandActiveNodes));
+        for (uint8_t n = 0; n < kMaxMorphNodes; ++n) ids.push_back(makeNodeParamId(b, n, NodeParamType::kNodeMix));
+    }
+    for (uint8_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r) {
+        for (uint8_t o = 0; o < 3; ++o) ids.push_back(makeRoutingParamId(r, o));
+    }
+    const auto v = presetParams(bytes, ids);
+    PresetModView m;
+    m.bandCount = std::clamp(1 + static_cast<int>(std::lround(v.at(kBandCountId) * 3.0)), 1, 4);
+    m.globalMix = v.at(kGlobalMixId);
+    for (uint8_t b = 0; b < 4; ++b) {
+        m.activeNodes[b] =
+            1 + static_cast<int>(std::lround(v.at(makeBandParamId(b, BandParamType::kBandActiveNodes)) * 3.0));
+        for (uint8_t n = 0; n < kMaxMorphNodes; ++n) {
+            m.nodeMix[b][n] = v.at(makeNodeParamId(b, n, NodeParamType::kNodeMix));
+        }
+    }
+    const bool lfo1Unipolar = v.at(makeModParamId(ModParamType::kLFO1Unipolar)) > 0.5;
+    const bool lfo2Unipolar = v.at(makeModParamId(ModParamType::kLFO2Unipolar)) > 0.5;
+    const bool shExternal = std::lround(v.at(makeModParamId(ModParamType::kSampleHoldSource)) * 3.0) == 3;
+    for (uint8_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r) {
+        PresetRouting pr;
+        pr.slot = r;
+        pr.source = static_cast<int>(std::lround(v.at(makeRoutingParamId(r, 0)) * (kUIModSourceCount - 1)));
+        pr.dest = static_cast<uint32_t>(
+            std::lround(v.at(makeRoutingParamId(r, 1)) * static_cast<double>(ModDest::kTotalDestinations - 1)));
+        pr.amount = static_cast<float>(v.at(makeRoutingParamId(r, 2)) * 2.0 - 1.0);
+        if (pr.source == 0 || std::fabs(pr.amount) < 1e-6f) continue;
+        using S = Krate::DSP::ModSource;
+        bool unipolar = false;
+        switch (static_cast<S>(pr.source)) {
+            case S::EnvFollower:
+            case S::PitchFollower:
+            case S::Transient:
+            case S::Rungler:
+            case S::Macro1:
+            case S::Macro2:
+            case S::Macro3:
+            case S::Macro4: unipolar = true; break;
+            case S::LFO1: unipolar = lfo1Unipolar; break;
+            case S::LFO2: unipolar = lfo2Unipolar; break;
+            case S::SampleHold: unipolar = shExternal; break;
+            default: break;
+        }
+        if (unipolar) pr.direction = pr.amount > 0.0f ? 1 : -1;
+        m.routings.push_back(pr);
+    }
+    return m;
+}
+
+/// "Global Mix" or "Band N Mix" for a Mix destination, empty for any other.
+std::string mixDestName(uint32_t dest) {
+    if (dest == ModDest::kGlobalMix) return "Global Mix";
+    if (dest >= ModDest::kBandBase && (dest - ModDest::kBandBase) % ModDest::kParamsPerBand == ModDest::kBandMix) {
+        return "Band " + std::to_string(1 + (dest - ModDest::kBandBase) / ModDest::kParamsPerBand) + " Mix";
+    }
+    return {};
+}
+
+/// The routings of @p m that only push a Mix further past the limit it already sits at.
+std::vector<std::string> deadMixRoutings(const PresetModView& m) {
+    std::vector<std::string> out;
+    for (const auto& r : m.routings) {
+        const std::string destName = mixDestName(r.dest);
+        if (destName.empty() || r.direction == 0) continue;
+        // Another routing on the same Mix that can push the other way keeps this one live
+        bool opposed = false;
+        for (const auto& o : m.routings) {
+            opposed = opposed || (o.slot != r.slot && o.dest == r.dest && o.direction != r.direction);
+        }
+        if (opposed) continue;
+        std::vector<double> bases;
+        if (r.dest == ModDest::kGlobalMix) {
+            bases.push_back(m.globalMix);
+        } else {
+            const auto band = static_cast<int>((r.dest - ModDest::kBandBase) / ModDest::kParamsPerBand);
+            if (band >= m.bandCount) continue;
+            const auto& mixes = m.nodeMix[static_cast<size_t>(band)];
+            for (int n = 0; n < m.activeNodes[static_cast<size_t>(band)]; ++n) {
+                bases.push_back(mixes[static_cast<size_t>(n)]);
+            }
+        }
+        const bool pinned = std::all_of(bases.begin(), bases.end(), [&](double b) {
+            return r.direction > 0 ? b >= 1.0 - 1e-6 : b <= 1e-6;
+        });
+        if (!pinned) continue;
+        char buf[160];
+        std::snprintf(buf, sizeof(buf), "slot %d: %s -> %s %+.2f, base mix %.0f %%", r.slot + 1,
+                      modSourceName(r.source), destName.c_str(), static_cast<double>(r.amount),
+                      100.0 * bases.front());
+        out.emplace_back(buf);
+    }
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("No factory preset routes a one-sided source into a Mix pinned at that side",
+          "[disrumpo][preset][factory][validation]") {
+    const auto files = findPresetFiles(getPresetsDir());
+    REQUIRE(files.size() == 120);
+    int dead = 0;
+    for (const auto& path : files) {
+        const std::string name = path.parent_path().filename().string() + "/" + path.stem().string();
+        const auto bytes = readPresetComponentState(path);
+        REQUIRE_FALSE(bytes.empty());
+        for (const auto& finding : deadMixRoutings(readModView(bytes))) {
+            ++dead;
+            std::printf("DEAD-MIX %s %s\n", name.c_str(), finding.c_str());
+            FAIL_CHECK(name << " " << finding);
+        }
+    }
+    std::printf("DEAD-MIX %zu presets scanned, %d dead Mix routings\n", files.size(), dead);
+}
+
+// Probe (hidden, asserts nothing; not ruled on yet): morph movement that cannot change the
+// sound. Per active band of every factory preset with something moving its morph position
+// (the sweep link, the band's own X/Y link, a routing into Morph X/Y) and one node type on
+// every active node: identical node parameters = the morph is dead; different ones = it only
+// blends those parameters. Also says whether the sweep moves (its LFO or envelope, a routing
+// into Sweep Frequency); a still sweep sets one fixed X. Run: disrumpo_tests "[dead-morph-probe]".
+TEST_CASE("Probe: morph movement on bands whose nodes share one type", "[.][dead-morph-probe]") {
+    const auto files = findPresetFiles(getPresetsDir());
+    REQUIRE_FALSE(files.empty());
+    static constexpr std::array<NodeParamType, 17> kNodeParams = {
+        NodeParamType::kNodeType,   NodeParamType::kNodeDrive,  NodeParamType::kNodeMix,
+        NodeParamType::kNodeTone,   NodeParamType::kNodeBias,   NodeParamType::kNodeFolds,
+        NodeParamType::kNodeBitDepth, NodeParamType::kNodeShape0, NodeParamType::kNodeShape1,
+        NodeParamType::kNodeShape2, NodeParamType::kNodeShape3, NodeParamType::kNodeShape4,
+        NodeParamType::kNodeShape5, NodeParamType::kNodeShape6, NodeParamType::kNodeShape7,
+        NodeParamType::kNodeShape8, NodeParamType::kNodeShape9};
+    static constexpr std::array<const char*, 17> kNodeParamNames = {
+        "type", "drive", "mix", "tone", "bias", "folds", "bits", "s0", "s1",
+        "s2",   "s3",    "s4",  "s5",   "s6",   "s7",    "s8",   "s9"};
+    int sameTypeBands = 0;
+    int deadBands = 0;
+    for (const auto& path : files) {
+        const std::string name = path.parent_path().filename().string() + "/" + path.stem().string();
+        const auto bytes = readPresetComponentState(path);
+        const auto view = readModView(bytes);
+        std::vector<Steinberg::Vst::ParamID> ids = {makeSweepParamId(SweepParamType::kSweepMorphLink),
+                                                    makeSweepParamId(SweepParamType::kSweepLFOEnable),
+                                                    makeSweepParamId(SweepParamType::kSweepEnvEnable)};
+        for (uint8_t b = 0; b < 4; ++b) {
+            ids.push_back(makeBandParamId(b, BandParamType::kBandMorphXLink));
+            ids.push_back(makeBandParamId(b, BandParamType::kBandMorphYLink));
+            for (uint8_t n = 0; n < kMaxMorphNodes; ++n) {
+                for (const auto t : kNodeParams) ids.push_back(makeNodeParamId(b, n, t));
+            }
+        }
+        const auto v = presetParams(bytes, ids);
+        const auto link = [](double norm) { return static_cast<int>(std::lround(norm * 7.0)); };
+        const int globalLink = link(v.at(makeSweepParamId(SweepParamType::kSweepMorphLink)));
+        bool sweepMoves = v.at(makeSweepParamId(SweepParamType::kSweepLFOEnable)) > 0.5 ||
+                          v.at(makeSweepParamId(SweepParamType::kSweepEnvEnable)) > 0.5;
+        for (const auto& r : view.routings) sweepMoves = sweepMoves || r.dest == ModDest::kSweepFrequency;
+        for (int band = 0; band < view.bandCount; ++band) {
+            const auto b = static_cast<uint8_t>(band);
+            const int ownXLink = link(v.at(makeBandParamId(b, BandParamType::kBandMorphXLink)));
+            const int xLink = ownXLink != 0 ? ownXLink : globalLink;
+            const int yLink = link(v.at(makeBandParamId(b, BandParamType::kBandMorphYLink)));
+            std::string movers;
+            if (xLink != 0) {
+                movers += std::string(ownXLink != 0 ? "band X link " : "sweep X link ") +
+                          getMorphLinkModeName(static_cast<MorphLinkMode>(xLink)) +
+                          (sweepMoves ? " (sweep moves)" : " (sweep still)");
+            }
+            if (yLink != 0) movers += std::string(movers.empty() ? "" : ", ") + "band Y link";
+            const auto morphX = ModDest::bandParam(b, ModDest::kBandMorphX);
+            for (const auto& r : view.routings) {
+                if (r.dest != morphX && r.dest != morphX + 1) continue;
+                movers += std::string(movers.empty() ? "" : ", ") + modSourceName(r.source) +
+                          (r.dest == morphX ? " -> Morph X" : " -> Morph Y");
+            }
+            const int count = view.activeNodes[b];
+            if (movers.empty() || count < 2) continue;
+            const auto at = [&](int n, size_t k) {
+                return v.at(makeNodeParamId(b, static_cast<uint8_t>(n), kNodeParams[k]));
+            };
+            bool sameType = true;
+            for (int n = 1; n < count; ++n) sameType = sameType && std::fabs(at(n, 0) - at(0, 0)) < 1e-9;
+            if (!sameType) continue;
+            ++sameTypeBands;
+            std::string differs;
+            for (size_t k = 1; k < kNodeParams.size(); ++k) {
+                for (int n = 1; n < count; ++n) {
+                    if (std::fabs(at(n, k) - at(0, k)) > 1e-6) {
+                        differs += std::string(differs.empty() ? "" : " ") + kNodeParamNames[k];
+                        break;
+                    }
+                }
+            }
+            if (differs.empty()) ++deadBands;
+            const auto type = static_cast<DistortionType>(std::lround(at(0, 0) * (kDistortionTypeCount - 1)));
+            std::printf("DEAD-MORPH %s band %d: %d x %s, moved by %s: %s\n", name.c_str(), band + 1, count,
+                        getTypeName(type), movers.c_str(),
+                        differs.empty() ? "nodes identical, morph DEAD" : ("blends only " + differs).c_str());
+        }
+    }
+    std::printf("DEAD-MORPH %zu presets scanned: %d moved bands with one node type, %d of them with identical nodes\n",
+                files.size(), sameTypeBands, deadBands);
+}
+
+// Probe (hidden, asserts nothing): the presets of the dead-Mix fix, read before and after it.
+// Per preset: the BITE readings (220 Hz sine THD+N and output RMS at -18 dBFS, measureBite) and
+// the preset's latency; on a synthetic drum loop (-18 dBFS RMS) and on pink noise swelling
+// between -30 and -6 dBFS RMS: the output RMS, the range (after 0.25 s) of the Mix and Drive that
+// the routed band's distortion runs and how much of the time they sit above their minimum, and
+// the output change when the listed routing slots are zeroed (-240 dB: the routings change
+// nothing). Run: disrumpo_tests "[dead-mix-render]".
+namespace {
+
+std::vector<float> drumLoop(double sr) {
+    const auto n = static_cast<size_t>(4.0 * sr);
+    std::vector<float> x(n, 0.0f);
+    Krate::DSP::Xorshift32 rng(0x51D3u);
+    const auto add = [&](double at, double len, const auto& voice) {
+        const auto s0 = static_cast<size_t>(at * sr);
+        const size_t m = std::min(static_cast<size_t>(len * sr), n - s0);
+        for (size_t i = 0; i < m; ++i) x[s0 + i] += static_cast<float>(voice(static_cast<double>(i) / sr));
+    };
+    constexpr double kTwoPi = 2.0 * std::numbers::pi;
+    for (int beat = 0; beat < 8; ++beat) {
+        const double t0 = 0.5 * beat;  // 120 BPM
+        if (beat % 2 == 0) {  // kick: 120 Hz falling to 50 Hz
+            add(t0, 0.4, [&](double t) {
+                return std::exp(-t / 0.25) * std::sin(kTwoPi * (50.0 * t + 70.0 * 0.04 * (1.0 - std::exp(-t / 0.04))));
+            });
+        } else {  // snare: noise and a 190 Hz body
+            add(t0, 0.3, [&](double t) {
+                return 0.5 * rng.nextFloat() * std::exp(-t / 0.1) + 0.4 * std::sin(kTwoPi * 190.0 * t) * std::exp(-t / 0.06);
+            });
+        }
+        for (int h = 0; h < 2; ++h) {  // hats on the eighths: differenced noise
+            float prev = 0.0f;
+            add(t0 + 0.25 * h, 0.08, [&](double t) {
+                const float w = rng.nextFloat();
+                const double v = 0.25 * static_cast<double>(w - prev) * std::exp(-t / 0.02);
+                prev = w;
+                return v;
+            });
+        }
+    }
+    const double scale = 0.12589254117941673 / std::max(Disrumpo::TestSupport::rmsOf(x.data(), n), 1e-12);  // -18 dBFS RMS
+    for (auto& v : x) v = static_cast<float>(v * scale);
+    return x;
+}
+
+/// Pink noise (every band gets some) whose RMS level swells between -30 and -6 dBFS every 2 s.
+std::vector<float> levelSwell(double sr) {
+    const auto n = static_cast<size_t>(4.0 * sr);
+    std::vector<float> x = pinkNoise(n, 1.0f);
+    const double unit = 1.0 / std::max(Disrumpo::TestSupport::rmsOf(x.data(), n), 1e-12);
+    for (size_t i = 0; i < n; ++i) {
+        const double t = static_cast<double>(i) / sr;
+        const double db = -18.0 + 12.0 * std::sin(2.0 * std::numbers::pi * 0.5 * t);
+        x[i] = static_cast<float>(unit * std::pow(10.0, db / 20.0) * x[i]);
+    }
+    return x;
+}
+
+}  // namespace
+
+TEST_CASE("Probe: the presets of the dead-Mix fix, rendered", "[.][dead-mix-render]") {
+    using namespace Disrumpo::TestSupport;
+    struct Item {
+        const char* preset;
+        std::vector<int> slots;  // zero-based routing slots of the fix
+    };
+    const std::vector<Item> items = {
+        {.preset = "Sweep/Envelope_Follower", .slots = {1}},  {.preset = "Bass/Punchy_Low_End", .slots = {1}},
+        {.preset = "Leads/Temporal_Edge", .slots = {2}},      {.preset = "Drums/Snare_Crack", .slots = {1}},
+        {.preset = "Drums/Transient_Shape", .slots = {0, 2}}, {.preset = "Dynamic/Touch_Sensitive", .slots = {2}},
+        {.preset = "Dynamic/Transient_Punch", .slots = {2}},  {.preset = "Dynamic/Transient_Gate", .slots = {0, 1}},
+        {.preset = "Dynamic/Velocity_Response", .slots = {2}}, {.preset = "Dynamic/Multi_Dynamic", .slots = {3}}};
+    const std::array<std::pair<const char*, std::vector<float>>, 2> inputs = {
+        std::pair<const char*, std::vector<float>>{"drums", drumLoop(kBiteSr)},
+        std::pair<const char*, std::vector<float>>{"swell", levelSwell(kBiteSr)}};
+    for (const auto& item : items) {
+        const auto bytes = readPresetComponentState(getPresetsDir() / (std::string(item.preset) + ".vstpreset"));
+        REQUIRE_FALSE(bytes.empty());
+        const auto view = readModView(bytes);
+        const BiteReading bite = measureBite(bytes);
+        Steinberg::uint32 latency = 0;
+        {
+            Rig rig(kBiteSr, 512, /*doSetup*/ false);
+            REQUIRE(setStateBytes(*rig.p, bytes));
+            rig.setup();
+            latency = rig.p->getLatencySamples();
+        }
+        // The modulation sources read the input delayed by this latency, as late as the bands hear it
+        std::printf("DMR %s BITE sine THD+N %.2f dB, RMS %.2f dBFS, pluck non-linearity %.2f dB; latency %u samples\n",
+                    item.preset, bite.sineThdnDb, bite.rmsDb, bite.pluckNonLinDb, latency);
+        for (const auto& [inName, in] : inputs) {
+            // One value per block; engaged = the blocks more than `step` above the render's minimum
+            struct Trace {
+                std::vector<float> v;
+                [[nodiscard]] float lo() const { return v.empty() ? 0.0f : *std::min_element(v.begin(), v.end()); }
+                [[nodiscard]] float hi() const { return v.empty() ? 0.0f : *std::max_element(v.begin(), v.end()); }
+                [[nodiscard]] double engagedPercent(float step) const {
+                    const float floor = lo() + step;
+                    const auto n = std::count_if(v.begin(), v.end(), [&](float x) { return x > floor; });
+                    return v.empty() ? 0.0 : 100.0 * static_cast<double>(n) / static_cast<double>(v.size());
+                }
+            };
+            std::vector<int> bands;  // band of each slot, -1 for a global destination
+            for (const int slot : item.slots) {
+                int band = -1;
+                for (const auto& r : view.routings) {
+                    if (r.slot == slot && r.dest >= ModDest::kBandBase) {
+                        band = static_cast<int>((r.dest - ModDest::kBandBase) / ModDest::kParamsPerBand);
+                    }
+                }
+                bands.push_back(band);
+            }
+            std::vector<Trace> mix(item.slots.size());
+            std::vector<Trace> drive(item.slots.size());
+            const auto run = [&](bool zeroed, std::vector<float>& l, std::vector<float>& r) {
+                Rig rig(kBiteSr, 512, /*doSetup*/ false);
+                REQUIRE(setStateBytes(*rig.p, bytes));
+                rig.setup();
+                PList changes;
+                if (zeroed) {
+                    for (const int slot : item.slots) {
+                        changes.emplace_back(makeRoutingParamId(static_cast<uint8_t>(slot), 2), 0.5);
+                    }
+                }
+                rig.apply(changes);
+                rig.render(in, in, l, r, 512, {}, [&](size_t blk, CaptureChanges&) {
+                    if (zeroed || static_cast<double>(blk * 512) < 0.25 * kBiteSr) return;
+                    for (size_t k = 0; k < bands.size(); ++k) {
+                        if (bands[k] < 0) continue;
+                        const MorphEngine* e = rig.p->getBandProcessor(bands[k]).getMorphEngine();
+                        if (e == nullptr) continue;
+                        const DistortionAdapter* a =
+                            e->getAllSameType() ? e->blendedAdapterSlot() : &e->getAdapter(0);
+                        if (a == nullptr) continue;
+                        mix[k].v.push_back(a->getCommonParams().mix);
+                        drive[k].v.push_back(a->getCommonParams().drive);
+                    }
+                });
+            };
+            std::vector<float> l;
+            std::vector<float> r;
+            std::vector<float> zl;
+            std::vector<float> zr;
+            run(false, l, r);
+            run(true, zl, zr);
+            double sig = 0.0;
+            double diff = 0.0;
+            for (size_t i = 0; i < l.size(); ++i) {
+                sig += static_cast<double>(l[i]) * l[i] + static_cast<double>(r[i]) * r[i];
+                const double dl = static_cast<double>(l[i]) - zl[i];
+                const double dr = static_cast<double>(r[i]) - zr[i];
+                diff += dl * dl + dr * dr;
+            }
+            const double outDb = 10.0 * std::log10(std::max(sig / (2.0 * static_cast<double>(l.size())), 1e-24));
+            const double nullDb = diff > 0.0 ? 10.0 * std::log10(diff / std::max(sig, 1e-30)) : -240.0;
+            std::printf("DMR %s %s: in RMS %.2f dBFS, out RMS %.2f dBFS, routing-zeroed change %.1f dB", item.preset,
+                        inName, toDb(rmsOf(in.data(), in.size())), outDb, nullDb);
+            for (size_t k = 0; k < bands.size(); ++k) {
+                if (bands[k] < 0) {
+                    std::printf(" | slot %d global", item.slots[k] + 1);
+                } else {
+                    std::printf(" | slot %d band %d mix %.3f..%.3f (%.0f %% of blocks > min + 0.05) drive %.2f..%.2f "
+                                "(%.0f %% > min + 0.2)",
+                                item.slots[k] + 1, bands[k] + 1, static_cast<double>(mix[k].lo()),
+                                static_cast<double>(mix[k].hi()), mix[k].engagedPercent(0.05f),
+                                static_cast<double>(drive[k].lo()), static_cast<double>(drive[k].hi()),
+                                drive[k].engagedPercent(0.2f));
+                }
+            }
+            std::printf("\n");
+        }
+    }
+}
