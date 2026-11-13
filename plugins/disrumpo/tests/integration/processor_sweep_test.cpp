@@ -240,42 +240,6 @@ TEST_CASE("Sweep envelope follower attack is block-size independent", "[disrumpo
             in[seg + i] = static_cast<float>(amp * std::sin(2.0 * std::numbers::pi * 1000.0 *
                                                             static_cast<double>(i) / sr));
 
-        // Per-sample reference: the same follower, clocked once per sample.
-        Disrumpo::SweepEnvelope env;
-        env.prepare(sr, 512);
-        env.setEnabled(true);
-        env.setAttackTime(Disrumpo::kMinSweepEnvAttackMs +
-                          static_cast<float>(kAttackNorm) *
-                              (Disrumpo::kMaxSweepEnvAttackMs - Disrumpo::kMinSweepEnvAttackMs));
-        env.setReleaseTime(Disrumpo::kMinSweepEnvReleaseMs +
-                           static_cast<float>(kReleaseNorm) *
-                               (Disrumpo::kMaxSweepEnvReleaseMs - Disrumpo::kMinSweepEnvReleaseMs));
-        env.setSensitivity(1.0f);
-        std::vector<double> ref(in.size());
-        for (size_t i = 0; i < in.size(); ++i) {
-            (void)env.processSample((in[i] + in[i]) * 0.5f);
-            ref[i] = 2.0 * static_cast<double>(env.getModulationAmount());
-        }
-        double finalShift = 0.0;
-        const size_t tailLen = static_cast<size_t>(sr * 0.1);
-        for (size_t i = 2 * seg - tailLen; i < 2 * seg; ++i) finalShift += ref[i];
-        finalShift /= static_cast<double>(tailLen);
-
-        auto t63Attack = [&](const std::vector<double>& t, const std::vector<double>& s) {
-            for (size_t i = 0; i < s.size(); ++i)
-                if (t[i] >= 0.5 && s[i] >= 0.632 * finalShift) return (t[i] - 0.5) * 1000.0;
-            return -1.0;
-        };
-        auto t63Release = [&](const std::vector<double>& t, const std::vector<double>& s) {
-            for (size_t i = 0; i < s.size(); ++i)
-                if (t[i] >= 1.0 && s[i] <= (1.0 - 0.632) * finalShift) return (t[i] - 1.0) * 1000.0;
-            return -1.0;
-        };
-        std::vector<double> refT(in.size());
-        for (size_t i = 0; i < in.size(); ++i) refT[i] = static_cast<double>(i) / sr;
-        const double refAtk = t63Attack(refT, ref);
-        const double refRel = t63Release(refT, ref);
-
         for (const int32 block : {512, 16}) {
             ts::Rig rig(sr, 512);
             rig.apply({{makeSweepParamId(SPT::kSweepEnable), 1.0},
@@ -284,6 +248,46 @@ TEST_CASE("Sweep envelope follower attack is block-size independent", "[disrumpo
                        {makeSweepParamId(SPT::kSweepEnvSensitivity), 1.0},
                        {makeSweepParamId(SPT::kSweepEnvAttack), kAttackNorm},
                        {makeSweepParamId(SPT::kSweepEnvRelease), kReleaseNorm}});
+
+            // Per-sample reference: the same follower, clocked once per sample, on the input as
+            // the bands hear it, delayed by the processor's latency (the sweep follows that audio)
+            const auto latency = static_cast<size_t>(rig.p->getLatencySamples());
+            Disrumpo::SweepEnvelope env;
+            env.prepare(sr, 512);
+            env.setEnabled(true);
+            env.setAttackTime(Disrumpo::kMinSweepEnvAttackMs +
+                              static_cast<float>(kAttackNorm) *
+                                  (Disrumpo::kMaxSweepEnvAttackMs - Disrumpo::kMinSweepEnvAttackMs));
+            env.setReleaseTime(Disrumpo::kMinSweepEnvReleaseMs +
+                               static_cast<float>(kReleaseNorm) *
+                                   (Disrumpo::kMaxSweepEnvReleaseMs - Disrumpo::kMinSweepEnvReleaseMs));
+            env.setSensitivity(1.0f);
+            std::vector<double> ref(in.size());
+            for (size_t i = 0; i < in.size(); ++i) {
+                const float x = (i >= latency) ? in[i - latency] : 0.0f;
+                (void)env.processSample((x + x) * 0.5f);
+                ref[i] = 2.0 * static_cast<double>(env.getModulationAmount());
+            }
+            double finalShift = 0.0;
+            const size_t tailLen = static_cast<size_t>(sr * 0.1);
+            for (size_t i = 2 * seg - tailLen; i < 2 * seg; ++i) finalShift += ref[i];
+            finalShift /= static_cast<double>(tailLen);
+
+            auto t63Attack = [&](const std::vector<double>& t, const std::vector<double>& s) {
+                for (size_t i = 0; i < s.size(); ++i)
+                    if (t[i] >= 0.5 && s[i] >= 0.632 * finalShift) return (t[i] - 0.5) * 1000.0;
+                return -1.0;
+            };
+            auto t63Release = [&](const std::vector<double>& t, const std::vector<double>& s) {
+                for (size_t i = 0; i < s.size(); ++i)
+                    if (t[i] >= 1.0 && s[i] <= (1.0 - 0.632) * finalShift) return (t[i] - 1.0) * 1000.0;
+                return -1.0;
+            };
+            std::vector<double> refT(in.size());
+            for (size_t i = 0; i < in.size(); ++i) refT[i] = static_cast<double>(i) / sr;
+            const double refAtk = t63Attack(refT, ref);
+            const double refRel = t63Release(refT, ref);
+
             const Track tr = renderTrack(rig, in, block);
             double maxDev = 0.0;
             for (size_t k = 0; k < tr.shift.size(); ++k)

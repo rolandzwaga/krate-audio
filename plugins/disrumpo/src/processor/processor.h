@@ -41,6 +41,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 namespace Steinberg {
 class IBStreamer;
@@ -268,6 +269,13 @@ private:
     OutputSafetyClipper outClipR_;  ///< output safety clipper, right
     Krate::DSP::DelayLine dryDelayL_;  ///< dry path, read at appliedLatency_
     Krate::DSP::DelayLine dryDelayR_;
+    // The audio-driven modulation sources (envelope follower, transient, pitch) and the sweep
+    // envelope read the input as late as the bands and the dry path hear it: read at
+    // appliedLatency_ into modInL_/R_ (maxSamplesPerBlock, sized in setupProcessing)
+    Krate::DSP::DelayLine modDelayL_;
+    Krate::DSP::DelayLine modDelayR_;
+    std::vector<float> modInL_;
+    std::vector<float> modInR_;
 
     // Minimax alignment context (follow-up 81, user rulings 2026-11-09): whether any requested
     // band can run at 4x (it selects the 2x bands' offset), and the reference shift every path

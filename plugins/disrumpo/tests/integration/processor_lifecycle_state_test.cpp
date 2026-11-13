@@ -1916,6 +1916,66 @@ TEST_CASE("getLatencySamples equals the measured impulse delay with a Spectral n
     }
 }
 
+TEST_CASE("Audio-driven modulation follows the latency-compensated audio",
+          "[disrumpo][latency][modulation]") {
+    // Every band and the dry path run `latency` samples behind the input (D-026), so a modulation
+    // source that reads the input must read it as late, or its modulation lands that much ahead of
+    // the audio it shapes. Here an envelope follower ducks Output Gain (amount -1) behind a Spectral
+    // node at FFT 4096 (latency 4095, 85 ms) with Global Mix 0, so the output is the delayed dry
+    // signal times the gain. A burst arriving in the output must arrive near unity gain and duck
+    // after it; reading the raw input, the duck had finished 85 ms before the burst arrived.
+    auto l = latBase(1, 1);
+    setNode(l, 0, 0, DistortionType::Spectral, 0.1, 1.0);
+    l.emplace_back(makeNodeParamId(0, 0, NodeParamType::kNodeShape1), fftSlotNorm(4096));
+    l.emplace_back(kGlobalMixId, 0.0);
+    l.emplace_back(makeModParamId(ModParamType::kEnvFollowerAttack), 0.0);  // fastest attack
+    l.emplace_back(makeRoutingParamId(0, 0), static_cast<double>(Krate::DSP::ModSource::EnvFollower) /
+                                                 static_cast<double>(kUIModSourceCount - 1));
+    l.emplace_back(makeRoutingParamId(0, 1), static_cast<double>(ModDest::kOutputGain) /
+                                                 static_cast<double>(ModDest::kTotalDestinations - 1));
+    l.emplace_back(makeRoutingParamId(0, 2), 0.0);  // amount -1
+    Rig rig(kLatSr);
+    rig.apply(l);
+    rig.reactivate();
+    const auto latency = static_cast<size_t>(rig.p->getLatencySamples());
+    REQUIRE(latency >= 4000u);
+
+    // The engine reads a whole block before its offsets apply from that block's first sample, so a
+    // burst arriving mid-block is ducked from the block's start: up to one block (10.7 ms here) of
+    // lead, by design of the block-rate engine; the bug added the 85 ms latency on top. A burst on a
+    // block's first or last sample has no block-rate lead and shows the alignment alone.
+    constexpr size_t kBlock = 512;
+    for (const size_t offsetInBlock : {kBlock - 1, size_t{0}}) {
+        const size_t arrival = ((static_cast<size_t>(kLatSr) + latency) / kBlock + 1) * kBlock + offsetInBlock;
+        const size_t at = arrival - latency;
+        std::vector<float> in(arrival + static_cast<size_t>(kLatSr / 2), 0.0f);
+        for (size_t i = at; i < in.size(); ++i) {
+            in[i] = 0.5f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 1000.0 *
+                                                       static_cast<double>(i - at) / kLatSr));
+        }
+        rig.reactivate();
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR);
+
+        const auto rmsDb = [&](size_t from, size_t len) {
+            double e = 0.0;
+            for (size_t i = from; i < from + len; ++i) e += static_cast<double>(outL[i]) * outL[i];
+            return 10.0 * std::log10(std::max(e / static_cast<double>(len), 1e-30));
+        };
+        const double unityDb = 20.0 * std::log10(0.5 / std::numbers::sqrt2);
+        const double onsetDb = rmsDb(arrival, 96);  // first 2 ms
+        const double steadyDb =
+            rmsDb(in.size() - static_cast<size_t>(kLatSr / 10), static_cast<size_t>(kLatSr / 20));
+        INFO("latency " << latency << ", arrival at block offset " << offsetInBlock << ": unity " << unityDb
+                        << " dB, onset " << onsetDb << " dB, steady " << steadyDb << " dB");
+        CHECK(rmsDb(arrival - 96, 96) < -100.0);  // nothing arrives early
+        CHECK(steadyDb < unityDb - 6.0);          // the routing ducks
+        // Reading the raw input, the duck had finished 85 ms before the burst: onset == steady
+        CHECK(onsetDb > steadyDb + 12.0);
+    }
+}
+
 TEST_CASE("A fresh processor reports its default patch's latency once set up", "[disrumpo][latency][D-026]") {
     // Before setupProcessing the oversamplers are not prepared, so there is nothing to
     // measure yet; the default patch (SoftClip nodes, Oversample Max 8x) reports the 8x oversampler's

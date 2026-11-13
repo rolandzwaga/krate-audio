@@ -3753,7 +3753,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/transient_detector.h",
-      "line": 34
+      "line": 42
     },
     {
       "name": "TransientShaper",

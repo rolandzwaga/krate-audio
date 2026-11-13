@@ -175,6 +175,10 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     static_assert(kMaxReportedLatencySamples == BandProcessor::kMaxLatencySamples);
     dryDelayL_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
     dryDelayR_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
+    modDelayL_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
+    modDelayR_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
+    modInL_.assign(static_cast<size_t>(std::max(setup.maxSamplesPerBlock, 1)), 0.0f);
+    modInR_.assign(static_cast<size_t>(std::max(setup.maxSamplesPerBlock, 1)), 0.0f);
     updateLatencyAndTail();
     applyLatency(targetLatency_);
 
@@ -229,6 +233,8 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         applyLatency(targetLatency_);
         dryDelayL_.reset();
         dryDelayR_.reset();
+        modDelayL_.reset();
+        modDelayR_.reset();
         outClipL_.reset();
         outClipR_.reset();
         for (auto& allpass : dryAllpassL_) allpass.reset();
@@ -351,6 +357,29 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
+    // Modulation input: every band and the dry path run appliedLatency_ samples behind
+    // the input (D-026), so the audio-driven sources and the sweep envelope read the
+    // input that late too, or their modulation lands ahead of the audio it shapes.
+    // Input Gain, which acts before the latency, is the one destination this delays.
+    // A block past maxSamplesPerBlock (a host breaking the contract) reads the input.
+    // ==========================================================================
+    const auto blockSamples = static_cast<size_t>(data.numSamples);
+    const bool modInFits = blockSamples <= modInL_.size();
+    {
+        const auto modLatency = static_cast<size_t>(appliedLatency_);
+        for (size_t i = 0; i < blockSamples; ++i) {
+            modDelayL_.write(inputL[i]);
+            modDelayR_.write(inputR[i]);
+            if (modInFits) {
+                modInL_[i] = modDelayL_.read(modLatency);
+                modInR_[i] = modDelayR_.read(modLatency);
+            }
+        }
+    }
+    const float* modInputL = modInFits ? modInL_.data() : inputL;
+    const float* modInputR = modInFits ? modInR_.data() : inputR;
+
+    // ==========================================================================
     // Modulation Engine Processing (spec 008-modulation-system)
     // Runs FIRST so modulation offsets are available for sweep and band params.
     // ==========================================================================
@@ -366,8 +395,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             modCtx.isPlaying = (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
         }
 
-        modulationEngine_.process(modCtx, inputL, inputR,
-                                  static_cast<size_t>(data.numSamples));
+        modulationEngine_.process(modCtx, modInputL, modInputR, blockSamples);
     }
 
     // ==========================================================================
@@ -499,7 +527,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 octaveShift += sweepLFO_.process() * kMaxOctaveShift;
             }
             if (envOn) {
-                (void)sweepEnvelope_.processSample((inputL[n] + inputR[n]) * 0.5f);
+                (void)sweepEnvelope_.processSample((modInputL[n] + modInputR[n]) * 0.5f);
                 octaveShift += sweepEnvelope_.getModulationAmount() * kMaxOctaveShift;
             }
             modulatedFreq = std::exp2(std::clamp(log2Base + octaveShift, kLog2MinFreq, kLog2MaxFreq));
