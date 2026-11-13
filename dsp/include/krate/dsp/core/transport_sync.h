@@ -16,6 +16,7 @@
 #include "note_value.h"
 
 #include <cmath>
+#include <cstdint>
 
 
 namespace Krate::DSP {
@@ -76,6 +77,15 @@ struct MusicalStepPosition {
     const double stepFraction = std::fmod(posInPattern, beatsPerStep) / beatsPerStep;
 
     return {.step = step, .stepFraction = stepFraction};
+}
+
+/// @brief Host PPQ position as a sample position at a constant tempo, rounded to the nearest sample.
+/// A host PPQ usually sits on an integer sample, and the double product lands an ulp either side of it: truncation
+/// returned the sample before at a large share of positions (tools/lint-musical-time-truncation.js).
+[[nodiscard]] inline int64_t ppqToSamples(double ppq, double tempoBPM, double sampleRate) noexcept
+{
+    if (tempoBPM <= 0.0) return 0;
+    return static_cast<int64_t>(std::llround(ppq * (60.0 / tempoBPM) * sampleRate));
 }
 
 } // namespace Krate::DSP

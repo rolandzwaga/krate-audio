@@ -360,3 +360,59 @@ TEST_CASE("ArpeggiatorCore: DAW loop fires all steps every iteration",
         }
     }
 }
+
+// syncToMusicalPosition sets the step counter from the host's PPQ at each block start. A 1/8 step at 120 BPM and
+// 44.1 kHz is exactly 11025 samples, so the counter is an exact integer; truncating stepFraction * duration made it
+// one short whenever the product landed an ulp below that integer (at 208 of the 703 64-sample block starts in this
+// render, at 5 of the 21 2048-sample ones), and a step fired one sample late depending on the buffer size. The
+// macOS -ffast-math leg moved which block starts miss and failed Ruinae's 2048-vs-64 arp render (0.76 at sample
+// 44951). Every step must fire on its grid sample whatever the buffer size.
+TEST_CASE("ArpeggiatorCore: PPQ resync puts every step on its grid sample at any block size",
+          "[processors][arpeggiator_core][transport][regression]") {
+    constexpr double kSampleRate = 44100.0;
+    constexpr double kTempo = 120.0;
+    constexpr int32_t kStep = 11025;  // 1/8 at 120 BPM
+    constexpr size_t kTotal = 44 * 2048;  // ~2 s: steps 0..8
+
+    auto stepOnsets = [&](size_t blockSize) {
+        ArpeggiatorCore arp;
+        arp.prepare(kSampleRate, blockSize);
+        arp.setEnabled(true);
+        arp.setMode(ArpMode::Up);
+        arp.setTempoSync(true);
+        arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+        arp.noteOn(60, 100);
+        arp.noteOn(64, 100);
+        std::vector<int32_t> onsets;
+        std::array<ArpEvent, 128> events{};
+        for (size_t pos = 0; pos < kTotal; pos += blockSize) {
+            BlockContext ctx;
+            ctx.sampleRate = kSampleRate;
+            ctx.blockSize = std::min(blockSize, kTotal - pos);
+            ctx.tempoBPM = kTempo;
+            ctx.isPlaying = true;
+            ctx.transportPositionSamples = static_cast<int64_t>(pos);
+            ctx.projectTimeMusic = static_cast<double>(pos) / kSampleRate * (kTempo / 60.0);
+            ctx.projectTimeMusicValid = true;
+            arp.syncToMusicalPosition(ctx.projectTimeMusic);  // as the plugins call it, every block
+            const size_t count = arp.processBlock(ctx, events);
+            for (size_t i = 0; i < count; ++i) {
+                if (events[i].type == ArpEvent::Type::NoteOn) {
+                    onsets.push_back(events[i].sampleOffset + static_cast<int32_t>(pos));
+                }
+            }
+        }
+        return onsets;
+    };
+
+    // A step moves only when the resync just before it misses, so the sizes spread the resync points over the step.
+    for (const size_t blockSize : {size_t{64}, size_t{2048}, size_t{512}, size_t{61}, size_t{97}, size_t{100},
+                                   size_t{127}, size_t{333}, size_t{441}, size_t{1000}, size_t{1023}}) {
+        const auto onsets = stepOnsets(blockSize);
+        REQUIRE(onsets.size() >= 8);  // not vacuous: steps 0..8 in ~2 s
+        for (size_t k = 0; k < onsets.size(); ++k) {
+            INFO("block " << blockSize << ", step " << k << " at sample " << onsets[k]);
+            CHECK(onsets[k] == static_cast<int32_t>(k) * kStep);
+        }
+    }
+}

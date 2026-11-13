@@ -21,6 +21,7 @@
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/scoped_denormal_mode.h>
+#include <krate/dsp/core/transport_sync.h>
 #include <krate/dsp/systems/voice_mod_types.h>
 #include <krate/dsp/core/modulation_types.h>
 
@@ -269,8 +270,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 blockCtx.projectTimeMusic = pc->projectTimeMusic;
                 blockCtx.projectTimeMusicValid = true;
                 // Convert musical time (beats) to samples approximation
-                blockCtx.transportPositionSamples = static_cast<int64_t>(
-                    pc->projectTimeMusic * (60.0 / blockCtx.tempoBPM) * blockCtx.sampleRate);
+                blockCtx.transportPositionSamples = Krate::DSP::ppqToSamples(
+                    pc->projectTimeMusic, blockCtx.tempoBPM, blockCtx.sampleRate);
             }
         }
 

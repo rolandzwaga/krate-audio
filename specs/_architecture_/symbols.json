@@ -2025,7 +2025,7 @@
       "scope": "Krate::DSP",
       "layer": "core",
       "header": "dsp/include/krate/dsp/core/transport_sync.h",
-      "line": 28
+      "line": 29
     },
     {
       "name": "NoAdditiveLevel",
@@ -2329,7 +2329,7 @@
       "scope": "Krate::DSP::ArpeggiatorCore",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 1071
+      "line": 1074
     },
     {
       "name": "PeriodPeakDetector",
