@@ -424,9 +424,8 @@ public:
         incomingDelayType_ = type;
         resetDelayType(type);  // Clear stale buffers before pre-warm
         preWarming_ = true;
-        float preWarmMs = std::max(currentDelayTimeMs_, kMinPreWarmMs);
-        preWarmRemaining_ = static_cast<size_t>(
-            preWarmMs * sampleRate_ / 1000.0) + targetLatencySamples_;
+        preWarmElapsed_ = 0;
+        preWarmRemaining_ = preWarmTotalSamples();
     }
 
     /// @brief Get the currently active delay type.
@@ -455,12 +454,20 @@ public:
         granularDelay_.setDelayTime(ms);
         spectralDelay_.setBaseDelayMs(ms);
 
-        // Recalculate pre-warm duration if currently pre-warming
+        // A pre-warm in progress needs the new time's duration, less what it has already run.
+        // The processor re-applies the delay time every block, so this must never restart the
+        // count (it did: no switch away from Digital ever completed).
         if (preWarming_) {
-            float preWarmMs = std::max(currentDelayTimeMs_, kMinPreWarmMs);
-            preWarmRemaining_ = static_cast<size_t>(
-                preWarmMs * sampleRate_ / 1000.0) + targetLatencySamples_;
+            const size_t total = preWarmTotalSamples();
+            preWarmRemaining_ = (total > preWarmElapsed_) ? total - preWarmElapsed_ : 0;
         }
+    }
+
+    /// @brief Pre-warm length for the current delay time: max(time, kMinPreWarmMs) plus the
+    /// compensation delay latency.
+    [[nodiscard]] size_t preWarmTotalSamples() const noexcept {
+        const float preWarmMs = std::max(currentDelayTimeMs_, kMinPreWarmMs);
+        return static_cast<size_t>(preWarmMs * sampleRate_ / 1000.0) + targetLatencySamples_;
     }
 
     /// @brief Set delay feedback amount (FR-015).
@@ -880,6 +887,7 @@ private:
                 startCrossfade();
             } else {
                 preWarmRemaining_ -= numSamples;
+                preWarmElapsed_ += numSamples;
             }
         } else if (crossfading_) {
             // Save dry input before any delay processing for external mix.
@@ -1414,6 +1422,7 @@ private:
     // Pre-warm state (delay-line-fill artifact elimination)
     bool preWarming_ = false;
     size_t preWarmRemaining_ = 0;
+    size_t preWarmElapsed_ = 0;  // samples the running pre-warm has processed
     float currentDelayTimeMs_ = 50.0f;
 
     // Harmonizer slot (spec 067)
