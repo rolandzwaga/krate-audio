@@ -47,6 +47,12 @@ const LINTS = [
     { script: 'lint-plugin-roster.js', what: 'plugin missing from a CI/tooling roster' },
     { script: 'lint-serial-test-runs.js', what: 'serial test run in agent instructions (use tools/run-gate.js)' },
     { script: 'lint-wallclock-tags.js', what: 'wall-clock-asserting test case without [wallclock]' },
+    { script: 'lint-serial-test-runs.js', args: ['--self-test'], what: 'serial-test-run lint self-test' },
+    { script: 'lint-plugin-editor-baseline.js', what: 'plugin editor missing a shared view (update banner, check button, version label)' },
+    { script: 'lint-nonfinite-symbols.js', what: 'std::isnan/isinf/isfinite or a non-finite constant in fast-math DSP code' },
+    { script: 'lint-finite-bitmask.js', what: 'hand-written finiteness bitmask (Apple clang folds it)' },
+    { script: 'lint-ieee-flag-sets.js', what: '-fno-fast-math without -ffp-contract=off on the same CMake line' },
+    { script: 'lint-apple-globals.js', what: 'identifier that compiles everywhere except macOS (MAC macro, MacTypes globals)' },
 ];
 
 // Node test suites of the other workflows (2026-11-13: an action-pin commit edited .github/workflows/*.yml and the PR
@@ -183,7 +189,7 @@ function isGitCommit(cmd) {
 
 /// Run a tools/ script and return its failure output, or null when it passed or
 /// could not be run at all (which must never block).
-function runGate(root, script, args) {
+function runGate(root, script, args, env) {
     const scriptPath = path.join(root, 'tools', script);
     if (!fs.existsSync(scriptPath)) return null; // script removed -> nothing to check
 
@@ -192,6 +198,7 @@ function runGate(root, script, args) {
             cwd: root,
             stdio: 'pipe',
             timeout: 120000,
+            env: env || process.env,
         });
         return null;
     } catch (err) {
@@ -230,9 +237,18 @@ function runGate(root, script, args) {
         for (const { script, artifact } of GENERATORS) {
             if (runGate(tree.dir, script, ['--check']) !== null) stale.push({ script, artifact });
         }
-        for (const { script, what } of LINTS) {
-            const out = runGate(tree.dir, script, []);
-            if (out !== null) lintFailures.push({ script, what, out });
+        // An exported tree has no .git; lints that list files with `git ls-files` (lint-ieee-flag-sets) read the
+        // checkout's index through GIT_DIR, which names exactly the exported (staged) files. Lints only.
+        let lintEnv;
+        if (path.resolve(tree.dir) !== path.resolve(root)) {
+            try {
+                const gitDir = execFileSync('git', ['rev-parse', '--absolute-git-dir'], { cwd: root }).toString().trim();
+                lintEnv = { ...process.env, GIT_DIR: gitDir, GIT_WORK_TREE: tree.dir };
+            } catch { /* no git: the lint reports it */ }
+        }
+        for (const { script, args = [], what } of LINTS) {
+            const out = runGate(tree.dir, script, args, lintEnv);
+            if (out !== null) lintFailures.push({ script: [script, ...args].join(' '), what, out });
         }
         for (const suite of suites) {
             const out = runNodeSuite(tree.dir, suite);
