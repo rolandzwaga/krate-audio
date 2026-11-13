@@ -939,6 +939,8 @@ add_executable(dsp_ieee_tests
     unit/core/ring_splice_search_test.cpp
     # Innexus M6 SC-008: HarmonicOscillatorBank::applyPanOffsets' cache against the frozen loop, bit for bit
     unit/processors/harmonic_oscillator_bank_pan_cache_test.cpp
+    # FeedbackEcology SC-004 (a): CrossfadingDelayLine's cached live tap against its frozen copy, bit for bit
+    unit/primitives/crossfading_delay_line_tap_cache_test.cpp
     # bit-exactness TUs (moved from dsp_processors_tests)
     unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/drop_phase_lock_test.cpp
@@ -975,6 +977,7 @@ endif()
 if(MSVC)
     set_source_files_properties(unit/core/ring_splice_search_test.cpp
                                 unit/processors/harmonic_oscillator_bank_pan_cache_test.cpp
+                                unit/primitives/crossfading_delay_line_tap_cache_test.cpp
                                 PROPERTIES COMPILE_OPTIONS "/fp:precise")
 endif()
 
