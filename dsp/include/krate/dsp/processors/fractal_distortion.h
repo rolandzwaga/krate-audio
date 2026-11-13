@@ -821,9 +821,12 @@ private:
         // Clamp driven input to avoid extreme values
         const float clampedInput = std::clamp(drivenInput, -1.0f, 1.0f);
 
-        // Extract odd and even harmonic components
-        float oddComponent = oddHarmonicShaper_.process(clampedInput);
-        float evenComponent = evenHarmonicShaper_.process(clampedInput);
+        // Extract odd and even harmonic components (ChebyshevShaper::process's arithmetic, through
+        // the block path's helper)
+        float oddComponent = 0.0f;
+        float evenComponent = 0.0f;
+        chebyshevChunk(oddHarmonicShaper_.getHarmonicLevels(), &clampedInput, &oddComponent, 1);
+        chebyshevChunk(evenHarmonicShaper_.getHarmonicLevels(), &clampedInput, &evenComponent, 1);
 
         // Apply saturation curves based on configured waveshaper types
         oddWaveshaper_.setType(oddHarmonicCurve_);
@@ -854,8 +857,10 @@ private:
             const float clampedResidual = std::clamp(drivenResidual, -1.0f, 1.0f);
 
             // Apply harmonic separation at each level
-            float oddRes = oddHarmonicShaper_.process(clampedResidual);
-            float evenRes = evenHarmonicShaper_.process(clampedResidual);
+            float oddRes = 0.0f;
+            float evenRes = 0.0f;
+            chebyshevChunk(oddHarmonicShaper_.getHarmonicLevels(), &clampedResidual, &oddRes, 1);
+            chebyshevChunk(evenHarmonicShaper_.getHarmonicLevels(), &clampedResidual, &evenRes, 1);
 
             oddRes = oddWaveshaper_.process(oddRes);
             oddRes = detail::flushDenormal(oddRes);
@@ -954,9 +959,15 @@ private:
 #endif
 
     /// @brief Chebyshev::harmonicMix(x[k], weights, 8) for k in [0, n): the Clenshaw recurrence
-    /// with each step taken for the whole chunk (n <= kSkewChunk).
+    /// with each step taken for the whole chunk (n <= kSkewChunk). processHarmonic() calls it too
+    /// (n = 1), so both paths share this arithmetic. Under clang it runs in source order, unfused:
+    /// -ffast-math (the macOS leg) otherwise contracts and reassociates each inlined copy on its
+    /// own, and the decay filters carry that ulp-level difference to 5e-3 between the paths.
     static void chebyshevChunk(const std::array<float, ChebyshevShaper::kMaxHarmonics>& weights, const float* x,
                                float* out, size_t n) noexcept {
+#ifdef __clang__
+#pragma clang fp contract(off) reassociate(off)
+#endif
         std::array<float, kSkewChunk> b1{};
         std::array<float, kSkewChunk> b2{};
         for (int h = ChebyshevShaper::kMaxHarmonics; h >= 1; --h) {

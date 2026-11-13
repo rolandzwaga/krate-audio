@@ -2544,10 +2544,18 @@ TEST_CASE("FractalDistortion Multiband output dump (A/B probe)", "[.][fractal-ab
 // The block path (process(float*, size_t)) runs Harmonic mode in level-major order (Disrumpo round 4
 // CPU); it must give what process(float) gives sample by sample: every iteration count and blend
 // mode, frequency decay on and off, the drive and mix smoothers gliding, a Mix of 0 (the per-sample
-// fallback), odd block lengths. Measured equal to the bit on MSVC; under the macOS leg's -ffast-math
-// -ffp-contract=fast (tools/macos-fastmath-repro.sh) the low-cutoff float decay biquads compile differently
-// in the two loop orders and the residual chain carries the difference on: max |diff| 7.2e-5 at 1 level,
-// 1.35e-3 at 4 and 8 levels with decay on, 0 with it off (round 4): compared at 2e-3.
+// fallback), odd block lengths. Compared at 2e-3; measured 2026-11-13 over all 96 configurations:
+// - MSVC: equal to the bit.
+// - tools/macos-fastmath-repro.sh as CMake builds this TU (it is in dsp/tests/CMakeLists.txt's
+//   -fno-fast-math list): equal to the bit.
+// - The same with the TU forced to the macOS leg's flags (EXTRA_FP="-ffast-math -ffp-contract=fast", FMA
+//   as on arm64): equal to the bit, since processHarmonic() shares the block path's chebyshevChunk (unfused,
+//   unreassociated under clang). Through Chebyshev::harmonicMix it read 5.27e-3 (HardClip, Max, 4 and 8
+//   levels, decay on): each Clenshaw copy was contracted on its own, and the low-cutoff float decay biquads
+//   turn ulps into their rounding floor, which the residual chain and the Max selection carry on.
+// - Forced fast-math without FMA (-mno-fma -mno-avx2, the x86_64 slice, whose tests CI does not run):
+//   2.62e-3 (HardClip, Max, 4 levels, decay on; 3.38e-3 before), the decay Biquad::process inlined into the
+//   two loop orders and reassociated apart.
 // Curves: Tanh, Tube and HardClip (the per-sample curve loop) and ReciprocalSqrt (the SSE2 curve on
 // x86, round 5). The block lengths reach every sub-chunk count and partial sub-chunk of the skewed
 // schedule (8-sample sub-chunks, the full ones' Clenshaw recurrences in SSE2 on x86, round 6).
