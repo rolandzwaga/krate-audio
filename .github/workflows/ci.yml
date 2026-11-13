@@ -281,6 +281,31 @@ jobs:
       - name: macOS-only name collision lint
         run: node tools/lint-apple-globals.js
 
+      # Catches a truncating integer cast of host musical time (ppq, projectTimeMusic, stepFraction). The samples a
+      # PPQ position converts to are usually an exact integer the double lands an ulp below, so truncation loses a
+      # sample, differently per buffer size and per FP mode: ArpeggiatorCore's PPQ resync failed Ruinae's 2048-vs-64
+      # arp render on the macOS -ffast-math leg only (2026-11-14). Self-test first, then the tree.
+      - name: Musical-time truncation lint
+        run: |
+          node tools/lint-musical-time-truncation.js --self-test
+          node tools/lint-musical-time-truncation.js
+
+      # Catches a serializer (serialize*, getState, save*, write*, ...) that iterates a std::unordered_map/set: the
+      # order is the standard library's, so the bytes differ between MSVC and libc++ (Disrumpo's MIDI CC blob
+      # round-tripped on Windows and not on macOS, 2026-11-14). Self-test first, then the tree.
+      - name: Unordered-container serialization lint
+        run: |
+          node tools/lint-unordered-serialization.js --self-test
+          node tools/lint-unordered-serialization.js
+
+      # Catches an allocation-detector non-vacuity probe that allocates through a local object clang may elide
+      # (a std::vector<int>(16) probe read 0 allocations on macOS, 2026-11-14); probes use
+      # TestHelpers::allocateObservably(). Self-test first, then the tree.
+      - name: Allocation probe lint
+        run: |
+          node tools/lint-allocation-probes.js --self-test
+          node tools/lint-allocation-probes.js
+
   build-windows:
     name: Windows (MSVC)
     # Pinned to windows-2022 (Visual Studio 2022 / MSVC v143). GitHub migrated

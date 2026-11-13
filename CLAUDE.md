@@ -244,6 +244,10 @@ with the red behind each rule: `dsp/CLAUDE.md` "The macOS leg builds with -ffast
 - Clamp the argument of `pow` / `sqrt` / `log` / `acos` at its domain edge when IEEE only *happens* to land on it.
 - Produce a value that must be exact at a neutral point or an endpoint (Mass 50, normalized 0 / 1) by a branch or a
   clamp, not by arithmetic that cancels in IEEE: contraction leaves 1e-8 or 1e-17 there.
+- Convert host musical time (`ppq`, `projectTimeMusic`, `stepFraction`) to samples with `std::llround`, never a
+  truncating cast: the sample count is usually an exact integer the double lands an ulp below, so truncation loses
+  a sample per buffer size and FP mode (ArpeggiatorCore's resync, macOS-only red, 2026-11-14). Gated by
+  `tools/lint-musical-time-truncation.js`.
 - Never assert bit-equality between separately compiled computations (an engine tap vs the test's recomputation, or
   an IEEE test TU's expected `k / 24` vs fast-math plugin code). DSP: `dsp_ieee_tests`. Elsewhere: a tolerance below
   the meaningful step.
@@ -251,6 +255,11 @@ with the red behind each rule: `dsp/CLAUDE.md` "The macOS leg builds with -ffast
   clang still fuses `a*b + c*d` into an fma on arm64 (`tools/lint-ieee-flag-sets.js`).
 - Reproduce before pushing: `tools/macos-fastmath-repro.sh` (DSP TUs, WSL clang, minutes) and
   `tools/clangcl-fastmath-build.ps1` (plugin tests; read its blind spot).
+
+**Standard-library differences (MSVC vs libc++):** never write state while iterating a `std::unordered_map`/`set`
+(the order differs per library; write in key order, `tools/lint-unordered-serialization.js`), and allocate a test's
+allocation-detector probe with `TestHelpers::allocateObservably()`, since clang elides a local container that never
+escapes (`tools/lint-allocation-probes.js`). Both went red on macOS only, 2026-11-14.
 
 **Linux test harnesses have no run loop:** `Timer::create` returns nullptr without an injected run-loop factory, so an
 SDK path that needs a Timer (the DataExchange `IMessage` fallback) never runs in a bare test. Real hosts inject one.

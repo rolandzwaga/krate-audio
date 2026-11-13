@@ -9,6 +9,10 @@
 
 #include "midi/midi_cc_manager.h"
 
+#include <algorithm>
+#include <array>
+#include <vector>
+
 using namespace Krate::Plugins;
 using Steinberg::Vst::ParamID;
 
@@ -420,4 +424,33 @@ TEST_CASE("MidiCCManager: Deserialize too-small data fails", "[midi][serializati
 
     uint8_t smallData[2] = {1, 0};
     REQUIRE_FALSE(manager.deserializeGlobalMappings(smallData, 2));
+}
+
+// The mappings live in std::unordered_map, whose iteration order is the standard library's: MSVC and libc++ walk
+// the same keys in different orders, so the saved bytes depended on the platform and on the insertion order, and a
+// getState after setState wrote a different blob on macOS (controller_state_codec_test D-117, 2026-11-14). Saved
+// state is written in ascending CC order.
+TEST_CASE("MidiCCManager: serialized mappings are in ascending CC order whatever the insertion order",
+          "[midi][serialization]") {
+    const std::array<uint8_t, 6> ccs{74, 1, 120, 7, 33, 64};
+    MidiCCManager forward;
+    MidiCCManager backward;
+    for (size_t i = 0; i < ccs.size(); ++i) {
+        forward.addGlobalMapping(ccs[i], static_cast<ParamID>(1000 + ccs[i]));
+        forward.addPresetMapping(ccs[i], static_cast<ParamID>(2000 + ccs[i]));
+        const uint8_t back = ccs[ccs.size() - 1 - i];
+        backward.addGlobalMapping(back, static_cast<ParamID>(1000 + back));
+        backward.addPresetMapping(back, static_cast<ParamID>(2000 + back));
+    }
+    for (const bool global : {true, false}) {
+        const auto a = global ? forward.serializeGlobalMappings() : forward.serializePresetMappings();
+        const auto b = global ? backward.serializeGlobalMappings() : backward.serializePresetMappings();
+        INFO((global ? "global" : "preset") << " mappings");
+        CHECK(a == b);
+        // Records are [cc u8][paramId u32][flags u8] after the u32 count.
+        REQUIRE(a.size() == 4 + ccs.size() * 6);
+        std::vector<uint8_t> order;
+        for (size_t r = 0; r < ccs.size(); ++r) order.push_back(a[4 + r * 6]);
+        CHECK(std::is_sorted(order.begin(), order.end()));
+    }
 }

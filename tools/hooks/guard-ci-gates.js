@@ -53,6 +53,12 @@ const LINTS = [
     { script: 'lint-finite-bitmask.js', what: 'hand-written finiteness bitmask (Apple clang folds it)' },
     { script: 'lint-ieee-flag-sets.js', what: '-fno-fast-math without -ffp-contract=off on the same CMake line' },
     { script: 'lint-apple-globals.js', what: 'identifier that compiles everywhere except macOS (MAC macro, MacTypes globals)' },
+    { script: 'lint-musical-time-truncation.js', args: ['--self-test'], what: 'musical-time truncation lint self-test' },
+    { script: 'lint-musical-time-truncation.js', what: 'truncating cast of ppq / projectTimeMusic / stepFraction (use std::llround)' },
+    { script: 'lint-unordered-serialization.js', args: ['--self-test'], what: 'unordered-serialization lint self-test' },
+    { script: 'lint-unordered-serialization.js', what: 'serializer iterating a std::unordered_map/set (platform-dependent bytes)' },
+    { script: 'lint-allocation-probes.js', args: ['--self-test'], what: 'allocation-probe lint self-test' },
+    { script: 'lint-allocation-probes.js', what: 'allocation probe the optimiser may elide (use TestHelpers::allocateObservably)' },
 ];
 
 // Node test suites of the other workflows (2026-11-13: an action-pin commit edited .github/workflows/*.yml and the PR

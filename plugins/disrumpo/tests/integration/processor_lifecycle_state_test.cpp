@@ -1692,8 +1692,7 @@ TEST_CASE("A deferred load renders like a load made while inactive; applying it 
         {
             // The detector counts in this binary (non-vacuity).
             TestHelpers::ThreadScopedAllocationScope probe;
-            std::vector<int> v(16);
-            v[0] = 1;
+            TestHelpers::allocateObservably();
             REQUIRE(TestHelpers::AllocationDetector::instance().getAllocationCount() > 0u);
         }
 
