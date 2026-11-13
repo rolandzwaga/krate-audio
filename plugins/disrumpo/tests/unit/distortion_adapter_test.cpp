@@ -287,6 +287,48 @@ TEST_CASE("AsymmetricFuzz responds to bias parameter", "[distortion][saturation]
     REQUIRE(outputBias0 != Approx(outputBias05).margin(0.001f));
 }
 
+TEST_CASE("Formant Vowel Select picks the vowel and Blend moves toward a neighbour", "[distortion][formant]") {
+    // The adapter set the vowel and then the vowel blend, and blend mode wins: Blend alone (x 4)
+    // chose the vowel and Vowel Select did nothing. Blend is now centred on the selected vowel
+    // (0.5 = that vowel, 0 = the previous, 1 = the next along A E I O U), so I at Blend 0.5 is
+    // E at Blend 1, and unlike A at Blend 0.5.
+    const auto render = [](int vowel, float blend) {
+        DistortionAdapter adapter;
+        adapter.prepare(kTestSampleRate, kTestBlockSize);
+        DistortionCommonParams common;
+        common.drive = 2.0f;
+        common.mix = 1.0f;
+        common.toneHz = 8000.0f;
+        adapter.setCommonParams(common);
+        adapter.setType(DistortionType::Formant);
+        DistortionParams params;
+        params.vowelSelect = vowel;
+        params.formantBlend = blend;
+        adapter.setParams(params);
+        adapter.reset();
+        std::vector<float> out(8820);
+        for (size_t i = 0; i < out.size(); ++i) {
+            out[i] = adapter.process(0.5f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 220.0 *
+                                                                         static_cast<double>(i) / kTestSampleRate)));
+        }
+        return out;
+    };
+    const auto rmsDiff = [](const std::vector<float>& a, const std::vector<float>& b) {
+        double e = 0.0;
+        double d = 0.0;
+        for (size_t i = 4410; i < a.size(); ++i) {
+            e += static_cast<double>(a[i]) * a[i];
+            d += (static_cast<double>(a[i]) - b[i]) * (static_cast<double>(a[i]) - b[i]);
+        }
+        return 10.0 * std::log10(std::max(d, 1e-30) / std::max(e, 1e-30));
+    };
+    const auto iCentred = render(2, 0.5f);
+    CHECK(rmsDiff(iCentred, render(0, 0.5f)) > -20.0);   // I is not A
+    CHECK(rmsDiff(iCentred, render(1, 1.0f)) < -100.0);  // I is E blended fully to the next vowel
+    CHECK(rmsDiff(iCentred, render(3, 0.0f)) < -100.0);  // ...and O blended fully to the previous
+    CHECK(rmsDiff(render(4, 0.5f), render(4, 1.0f)) < -100.0);  // U has no next vowel
+}
+
 // =============================================================================
 // Wavefold Category Tests (Phase 4)
 // =============================================================================

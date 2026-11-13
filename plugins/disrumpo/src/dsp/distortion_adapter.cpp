@@ -1645,7 +1645,11 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             formant_.setBandwidthScale(std::pow(4.0f, p.formantBW * 2.0f - 1.0f));
             formant_.setActiveFormants(p.formantCount + 2);         // 0-3 → 2-5
             formant_.setGender(p.formantGender * 2.0f - 1.0f);     // [0,1] → [-1,+1]
-            formant_.setVowelBlend(p.formantBlend * 4.0f);         // [0,1] → [0,4]
+            // Vowel Select picks the vowel; Blend, centred at 0.5, moves from it toward the
+            // previous (0) or the next (1) vowel along A E I O U. Blend mode wins over setVowel,
+            // so the selection lives in the blend position.
+            formant_.setVowelBlend(
+                std::clamp(static_cast<float>(vowel) + (p.formantBlend - 0.5f) * 2.0f, 0.0f, 4.0f));
             break;
         }
 

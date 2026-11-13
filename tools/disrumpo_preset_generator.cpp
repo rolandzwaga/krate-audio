@@ -3361,16 +3361,15 @@ std::vector<PresetDef> createAllPresets() {
         p.state = makeInitState(4);
         for (auto& bm : p.state.bandMorph)
             setBandType(bm, DistortionType::Formant, 2.5f);
-        // Per band one vowel; node A sits 12 st below the band's shift, node B 12 st above. The
-        // adapter plays the vowel of the Blend slot (setVowelBlend after setVowel), so both carry it.
+        // Per band one vowel (Vowel Select, Blend 0.5 = exactly that vowel); node A sits 12 st
+        // below the band's shift, node B 12 st above.
         constexpr std::array<int, 4> kVowels = {4, 2, 0, 3};               // U, I, A, O
         constexpr std::array<float, 4> kShifts = {-12.0f, -4.0f, 4.0f, 12.0f};
         for (size_t b = 0; b < 4; ++b) {
-            const float blend = static_cast<float>(kVowels[b]) / 4.0f;
             shapeFormant(p.state.bandMorph[b].nodes[0], kVowels[b], kShifts[b] - 12.0f, 0.5f, 0.5f, 0.5f, 2, 0.5f,
-                         blend);
+                         0.5f);
             shapeFormant(p.state.bandMorph[b].nodes[1], kVowels[b], kShifts[b] + 12.0f, 0.5f, 0.5f, 0.5f, 2, 0.5f,
-                         blend);
+                         0.5f);
         }
         enableSweep(p.state, 0.5f, 0.3f, 0.6f, MorphLinkMode::SweepFreq);
         enableSweepLFO(p.state, 0.4f, 0.8f, Waveform::Sine);
