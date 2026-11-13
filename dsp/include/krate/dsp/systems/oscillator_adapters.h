@@ -51,7 +51,10 @@
 #include <krate/dsp/processors/formant_oscillator.h>
 #include <krate/dsp/processors/spectral_freeze_oscillator.h>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <limits>
 #include <type_traits>
 
 namespace Krate::DSP {
@@ -85,6 +88,13 @@ struct OscillatorResources {
 template <typename OscT>
 class OscillatorAdapter final : public OscillatorSlot {
 public:
+    /// Additive only (see "Additive level normalisation" below): the RMS of the
+    /// normalised partial sum inside the oscillator, relative to one full-amplitude
+    /// partial (RMS 0.806, peak 1.14). -5.7 dB, so the worst crest factor measured
+    /// (4.52) peaks at 4.52 * 0.806 * 0.52 = 1.89, 5 % under the oscillator's +-2
+    /// clamp. processBlock multiplies the output back up by 1 / kAdditiveLevel.
+    static constexpr float kAdditiveLevel = 0.52f;
+
     OscillatorAdapter() noexcept = default;
 
     /// @brief Construct with shared resources.
@@ -121,6 +131,7 @@ public:
         // Types with FFT-based processing use reduced 1024-point FFT per voice
         if constexpr (std::is_same_v<OscT, AdditiveOscillator>) {
             osc_.prepare(sampleRate, 1024);
+            prepareAdditiveLevel();
         } else if constexpr (std::is_same_v<OscT, SpectralFreezeOscillator>) {
             osc_.prepare(sampleRate, 1024);
             initSpectralFreeze();
@@ -158,6 +169,9 @@ public:
         else if constexpr (std::is_same_v<OscT, AdditiveOscillator> ||
                            std::is_same_v<OscT, FormantOscillator>) {
             osc_.setFundamental(hz);
+            if constexpr (std::is_same_v<OscT, AdditiveOscillator>) {
+                updateAdditiveLevel();  // the partials below Nyquist follow the pitch
+            }
         }
         // Group C: Dual frequency (sync) -- use stored ratio instead of hardcoded 2x
         else if constexpr (std::is_same_v<OscT, SyncOscillator>) {
@@ -246,12 +260,21 @@ public:
             switch (param) {
                 case OscParam::AdditiveNumPartials:
                     osc_.setNumPartials(static_cast<size_t>(value));
+                    updateAdditiveLevel();
                     break;
                 case OscParam::AdditiveSpectralTilt:
                     osc_.setSpectralTilt(value);
+                    if (!detail::isNaN(value) && !detail::isInf(value)) {
+                        additive_.tilt = std::clamp(value, kAdditiveMinTilt, kAdditiveMaxTilt);
+                    }
+                    updateAdditiveLevel();
                     break;
                 case OscParam::AdditiveInharmonicity:
                     osc_.setInharmonicity(value);
+                    if (!detail::isNaN(value) && !detail::isInf(value)) {
+                        additive_.inharm = std::clamp(value, 0.0f, kAdditiveMaxInharm);
+                    }
+                    updateAdditiveLevel();
                     break;
                 default: break;
             }
@@ -364,6 +387,9 @@ public:
                 return 1.63f;   // delta was -4.3 dB → +4.3 dB compensation
             else if constexpr (std::is_same_v<OscT, WavetableOscillator>)
                 return 1.47f;   // delta was -3.4 dB → +3.4 dB compensation
+            else if constexpr (std::is_same_v<OscT, AdditiveOscillator>)
+                return 1.0f / kAdditiveLevel;  // undoes the in-oscillator headroom (see kAdditiveLevel):
+                                               // one partial plays as before, any count at its RMS
             else
                 return 1.0f;    // no compensation needed
         }();
@@ -434,6 +460,91 @@ private:
     }
 
     // =========================================================================
+    // Additive level normalisation
+    // =========================================================================
+    //
+    // AdditiveOscillator gives every partial amplitude 1 (times the tilt) and
+    // hard-clamps the sum at +-2, so above one partial the raw oscillator clips
+    // (128 partials at +4 dB/oct: 96 % of samples on the clamp). The adapter
+    // scales every partial by g = kAdditiveLevel / sqrt(sum of t_n^2) over the
+    // partials that sound (t_n = the tilt factor; partials at or above Nyquist
+    // are skipped by the oscillator). Partials at distinct frequencies add in
+    // power, so the sum has the same RMS at any count and tilt: kAdditiveLevel
+    // times that of one full-amplitude partial.
+    //
+    // The partials start at quadratic phases (phi_n = frac(n^2 * golden / 2)),
+    // which spread their peaks instead of lining them up at the start of each
+    // cycle as zero phases do. Over 1-128 partials, tilt -24..+12 dB/oct and
+    // 65-1047 Hz, the worst crest factor measured over 2 s was 3.5 for harmonic
+    // partials and 4.52 with inharmonicity (whose drifting phases tend to random
+    // ones); with zero phases it was 6.9.
+
+    /// Tilt clamp of AdditiveOscillator::setSpectralTilt / setInharmonicity.
+    static constexpr float kAdditiveMinTilt = -24.0f;
+    static constexpr float kAdditiveMaxTilt = 12.0f;
+    static constexpr float kAdditiveMaxInharm = 0.1f;
+
+
+    void prepareAdditiveLevel() noexcept {
+        if constexpr (std::is_same_v<OscT, AdditiveOscillator>) {
+            constexpr auto kMax = AdditiveOscillator::kMaxPartials;
+            constexpr double kHalfGolden = 0.5 * 0.6180339887498949;
+            for (size_t n = 1; n <= kMax; ++n) {
+                const double phase = static_cast<double>(n * n) * kHalfGolden;
+                osc_.setPartialPhase(n, static_cast<float>(phase - std::floor(phase)));
+            }
+            osc_.reset();  // initial phases take effect at reset()
+            additive_.tiltForSums = std::numeric_limits<float>::lowest();  // force a rebuild
+            additive_.appliedGain = -1.0f;
+            updateAdditiveLevel();
+        }
+    }
+
+    void updateAdditiveLevel() noexcept {
+        if constexpr (std::is_same_v<OscT, AdditiveOscillator>) {
+            auto& a = additive_;
+            constexpr auto kMax = AdditiveOscillator::kMaxPartials;
+            if (a.tilt != a.tiltForSums) {
+                // Prefix sums of t_n^2, t_n = 10^(tilt * log2(n) / 20) as the oscillator applies it.
+                a.tiltSqPrefix[0] = 0.0f;
+                for (size_t n = 1; n <= kMax; ++n) {
+                    const float t = (a.tilt == 0.0f || n == 1)
+                        ? 1.0f
+                        : std::pow(10.0f, a.tilt * std::log2(static_cast<float>(n)) / 20.0f);
+                    a.tiltSqPrefix[n] = a.tiltSqPrefix[n - 1] + t * t;
+                }
+                a.tiltForSums = a.tilt;
+            }
+
+            // Partials that sound: the first numPartials whose (stretched)
+            // frequency is below Nyquist; frequency rises with n, so stop at the first one above.
+            const float f0 = osc_.fundamental();
+            const size_t count = std::min(osc_.numPartials(), kMax);
+            if (f0 != a.countedF0 || count != a.countedLimit || a.inharm != a.countedInharm) {
+                const float nyquist = static_cast<float>(sampleRate_ * 0.5);
+                size_t sounding = 0;
+                while (sounding < count) {
+                    const auto n = static_cast<float>(sounding + 1);
+                    if (n * f0 * std::sqrt(1.0f + a.inharm * n * n) >= nyquist) break;
+                    ++sounding;
+                }
+                a.sounding = sounding;
+                a.countedF0 = f0;
+                a.countedLimit = count;
+                a.countedInharm = a.inharm;
+            }
+            const size_t sounding = a.sounding;
+
+            const float gain = (sounding > 0) ? kAdditiveLevel / std::sqrt(a.tiltSqPrefix[sounding])
+                                              : kAdditiveLevel;
+            if (gain != a.appliedGain) {
+                for (size_t n = 1; n <= kMax; ++n) osc_.setPartialAmplitude(n, gain);
+                a.appliedGain = gain;
+            }
+        }
+    }
+
+    // =========================================================================
     // Member Variables
     // =========================================================================
 
@@ -452,6 +563,21 @@ private:
     // Resource pointer for WavetableOscillator (non-owning, set at construction).
     // Unused by other oscillator types but only wastes 8 bytes per adapter.
     WavetableData* wavetable_{nullptr};
+
+    // Additive level normalisation state (updateAdditiveLevel); an empty struct for other types.
+    struct AdditiveLevel {
+        float tilt{0.0f};      ///< spectral tilt in dB/oct, clamped as the oscillator clamps it
+        float inharm{0.0f};    ///< inharmonicity, clamped as the oscillator clamps it
+        float tiltForSums{std::numeric_limits<float>::lowest()};  ///< tilt the prefix sums hold
+        std::array<float, AdditiveOscillator::kMaxPartials + 1> tiltSqPrefix{};  ///< sum of t_n^2 for n <= i
+        float countedF0{-1.0f};    ///< inputs of the cached sounding count
+        size_t countedLimit{0};
+        float countedInharm{-1.0f};
+        size_t sounding{0};        ///< partials below Nyquist
+        float appliedGain{-1.0f};  ///< amplitude last written to every partial
+    };
+    struct NoAdditiveLevel {};
+    std::conditional_t<std::is_same_v<OscT, AdditiveOscillator>, AdditiveLevel, NoAdditiveLevel> additive_{};
 };
 
 } // namespace Krate::DSP

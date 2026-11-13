@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstddef>
 #include <numeric>
+#include <utility>
 #include <vector>
 
 using Catch::Approx;
@@ -587,6 +588,69 @@ TEST_CASE("SelectableOscillator: Additive setParam dispatches correctly",
 
     // Unrecognized
     osc.setParam(OscParam::ChaosAttractor, 2.0f);
+}
+
+// AdditiveOscillator sums its partials at amplitude 1 each (times the tilt) and
+// hard-clamps the sum at +-2, so in Ruinae every Additive patch above one partial
+// clipped: 128 partials at +4 dB/oct spent 96 % of their samples on the clamp, a
+// full-scale square wave (Arctic Frost). The adapter must scale the partial sum so
+// that, for every partial count and tilt, the output never reaches the clamp and
+// keeps about the loudness of a single partial.
+//
+// The adapter scales its output back up by 1 / kAdditiveLevel after the oscillator,
+// so the oscillator clamp of +-2 shows at its output as +-2 / kAdditiveLevel.
+TEST_CASE("SelectableOscillator: Additive output never reaches the clamp and keeps its level across partial counts",
+          "[selectable_oscillator][additive]") {
+    constexpr size_t kLen = 22050;   // 0.5 s
+    constexpr size_t kSkip = 2048;   // IFFT warm-up (latency 1024) plus one frame
+    constexpr float kClampAtOutput = 2.0f / OscillatorAdapter<AdditiveOscillator>::kAdditiveLevel;
+    const auto render = [](float hz, size_t partials, float tilt, float inharm) {
+        SelectableOscillator osc;
+        osc.prepare(kSampleRate, kBlockSize);
+        osc.setType(OscType::Additive);
+        osc.setFrequency(hz);
+        osc.setParam(OscParam::AdditiveNumPartials, static_cast<float>(partials));
+        osc.setParam(OscParam::AdditiveSpectralTilt, tilt);
+        osc.setParam(OscParam::AdditiveInharmonicity, inharm);
+        osc.reset();
+        std::vector<float> out(kLen, 0.0f);
+        for (size_t pos = 0; pos < kLen; pos += kBlockSize) {
+            osc.processBlock(out.data() + pos, std::min(kBlockSize, kLen - pos));
+        }
+        float peak = 0.0f;
+        for (size_t i = kSkip; i < kLen; ++i) peak = std::max(peak, std::abs(out[i]));
+        return std::pair<float, float>{peak, computeRMS(out.data() + kSkip, kLen - kSkip)};
+    };
+
+    for (float hz : {65.41f, 261.63f, 1046.5f}) {
+        const float singleRms = render(hz, 1, 0.0f, 0.0f).second;
+        REQUIRE(singleRms > 0.1f);  // not vacuous
+        float worstPeak = 0.0f;
+        float lowDb = 0.0f;
+        float highDb = 0.0f;
+        for (float inharm : {0.0f, 0.1f}) {
+            for (float tilt : {-24.0f, -12.0f, -6.0f, 0.0f, 4.0f, 8.0f, 12.0f}) {
+                for (size_t partials = 1; partials <= 128; ++partials) {
+                    const auto [peak, rms] = render(hz, partials, tilt, inharm);
+                    const float db = 20.0f * std::log10(rms / singleRms);
+                    worstPeak = std::max(worstPeak, peak);
+                    lowDb = std::min(lowDb, db);
+                    highDb = std::max(highDb, db);
+                    INFO(hz << " Hz, " << partials << " partials, tilt " << tilt << " dB/oct, inharmonicity "
+                         << inharm << ": peak " << peak << ", RMS " << db << " dB re one partial");
+                    // The clamp writes exactly 2.0, so any sample at 1.999 or above is clamped.
+                    CHECK(peak < 0.9995f * kClampAtOutput);
+                    // Partials at distinct frequencies add in power, so a sum normalised by
+                    // the root of its summed squared amplitudes has the RMS of one partial;
+                    // what is left is the IFFT frames' window ripple and partials that share
+                    // a bin (summed coherently), held to +-1.5 dB.
+                    CHECK(std::abs(db) <= 1.5f);
+                }
+            }
+        }
+        INFO(hz << " Hz: worst peak " << worstPeak << ", RMS band " << lowDb << " to " << highDb << " dB");
+        CHECK(worstPeak < 0.9995f * kClampAtOutput);
+    }
 }
 
 TEST_CASE("SelectableOscillator: Chaos setParam dispatches correctly",

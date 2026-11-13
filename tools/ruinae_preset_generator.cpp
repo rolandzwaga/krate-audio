@@ -1034,6 +1034,10 @@ std::vector<PresetDef> createAllPresets() {
         int32_t ratch7[] = {1, 1, 2, 1, 1, 3, 1};      // length 7, occasional rolls
         setRatchetLane(p.state, 7, ratch7);
 
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Arp Polymetric median (-7.9 dBFS), held to a -1 dBFS peak
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 0.981f;
         presets.push_back(std::move(p));
     }
 
@@ -1422,6 +1426,9 @@ std::vector<PresetDef> createAllPresets() {
         float gate5[] = {0.9f, 0.7f, 0.95f, 0.6f, 0.8f};
         setGateLane(s, 5, gate5);
 
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Arp Performance median (-17.2 dBFS)
+        p.state.global.masterGain = 0.239f;
         presets.push_back(std::move(p));
     }
 
@@ -1796,6 +1803,9 @@ std::vector<PresetDef> createAllPresets() {
         setPitchLane(s, 3, pitch3);
         float vel4[] = {0.9f, 0.6f, 0.8f, 0.55f};
         setVelocityLane(s, 4, vel4);
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Arp Chords median (-9.5 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 1.103f;
         presets.push_back(std::move(p));
     }
 
@@ -2129,6 +2139,9 @@ std::vector<PresetDef> createAllPresets() {
         setVoiceRoute(s, 0, kVSrcEnv3, kVDstSpecTilt, 0.45f);
         s.global.width = 1.6f;
         s.global.spread = 0.2f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.304f;
         presets.push_back(std::move(p));
     }
 
@@ -2590,6 +2603,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.damping = 0.4f;
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modDepth = 0.1f; // gentle shimmer on the tail
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Leads median (-14.6 dBFS)
+        p.state.global.masterGain = 0.741f;
         presets.push_back(std::move(p));
     }
 
@@ -3077,8 +3093,10 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.damping = 0.25f;
         s.reverb.modRateHz = 0.2f;
         s.reverb.modDepth = 0.15f;        // owns reverb modulation
-        // keeps its level now the spectral distortion plays every sample and the Pitch Follower tracks in real time
-        s.global.masterGain = 0.792f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Textures median (-15.5 dBFS)
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 0.36f;
         presets.push_back(std::move(p));
     }
 
@@ -3211,6 +3229,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.55f;
         s.reverb.mix = 0.3f;
         s.reverb.damping = 0.45f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Textures median (-15.5 dBFS)
+        p.state.global.masterGain = 0.845f;
         presets.push_back(std::move(p));
     }
 
@@ -3510,6 +3531,10 @@ std::vector<PresetDef> createAllPresets() {
         s.global.width = 1.4f;
         s.global.spread = 0.25f;
         s.global.polyphony = 12;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Rhythmic median (-15.8 dBFS)
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 1.276f;
         presets.push_back(std::move(p));
     }
 
@@ -4046,6 +4071,10 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo2Ext.symmetry = 0.7f;   // asymmetric wander
         setModSlot(s, 1, kSrcLFO2, kDstAllResonance, 0.2f, kCurveLinear, 100.0f);
         s.modMatrix.slots[1].scale = 3; // x2 depth (the untouched scale axis)
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held under a -1 dBFS peak
+        // (its Spectral delay moves the peak by 0.2 dB from one run to the next)
+        p.state.global.masterGain = 0.17f;
         presets.push_back(std::move(p));
     }
 
@@ -4152,9 +4181,10 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1;
         s.reverb.size = 0.85f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.85f;
         s.global.width = 1.6f; s.global.spread = 0.4f;
-        // The S&H slew now runs in real time at every buffer size, which pushes the morph tilt much harder:
-        // 0.28 keeps the soft limiter's distortion where it was (-15.5 dB THD+N), 3.4 dB below its old level
-        s.global.masterGain = 0.28f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 0.108f;
         presets.push_back(std::move(p));
     }
 
@@ -4384,6 +4414,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1; s.reverbType = 0; // Plate
         s.reverb.size = 0.8f; s.reverb.mix = 0.35f; s.reverb.damping = 0.5f;
         s.global.width = 1.7f; s.global.spread = 0.5f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.307f;
         presets.push_back(std::move(p));
     }
 
@@ -4600,6 +4633,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.15f; // chorused tail
         s.global.width = 1.5f; s.global.spread = 0.3f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.0415f;
         presets.push_back(std::move(p));
     }
 
@@ -5340,6 +5376,9 @@ std::vector<PresetDef> createAllPresets() {
         s.monoMode.priority = 2; // High-note priority (top-line brass)
         s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 12.0f;
         s.settings.pitchBendRangeSemitones = 12.0f; // wide bends/falls
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Leads median (-14.6 dBFS)
+        p.state.global.masterGain = 0.957f;
         presets.push_back(std::move(p));
     }
 
@@ -6105,6 +6144,9 @@ std::vector<PresetDef> createAllPresets() {
         s.harmonizer.dryLevelDb = 0.0f; s.harmonizer.wetLevelDb = -3.0f;
         s.global.voiceMode = 1;
         s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 20.0f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Bass median (-12.6 dBFS)
+        p.state.global.masterGain = 1.024f;
         presets.push_back(std::move(p));
     }
 
@@ -6405,6 +6447,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.5f; s.reverb.mix = 0.24f; s.reverb.damping = 0.4f;
         s.reverb.diffusion = 0.7f;
         s.global.width = 1.3f; s.global.spread = 0.3f;
+        // Additive partial sum no longer clips (2026-11-13): re-levelled on a held C minor chord (its 1.2 s
+        // attack hides it on a struck one) toward the Textures median (-15.5 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.664f;
         presets.push_back(std::move(p));
     }
 
@@ -6593,6 +6638,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.preDelayMs = 40.0f;  // air before the wash
         s.reverb.diffusion = 0.85f;
         s.global.width = 1.5f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Textures median (-15.5 dBFS)
+        p.state.global.masterGain = 0.872f;
         presets.push_back(std::move(p));
     }
 
@@ -7406,6 +7454,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.pingPongWidth = 160.0f;
         s.reverbEnabled = 1; s.reverbType = 0;  // Plate
         s.reverb.size = 0.7f; s.reverb.mix = 0.32f; s.reverb.damping = 0.35f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Rhythmic median (-15.8 dBFS)
+        p.state.global.masterGain = 0.516f;
         presets.push_back(std::move(p));
     }
 
@@ -7507,6 +7558,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbType = 1; // Hall
         s.reverb.size = 0.65f; s.reverb.mix = 0.28f; s.reverb.damping = 0.35f;
         s.reverb.preDelayMs = 20.0f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Rhythmic median (-15.8 dBFS)
+        p.state.global.masterGain = 0.345f;
         presets.push_back(std::move(p));
     }
 
@@ -8500,6 +8554,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
         s.reverb.size = 0.85f; s.reverb.mix = 0.35f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.2f; // shimmering reverb mod (unused)
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Experimental median (-13.8 dBFS)
+        p.state.global.masterGain = 0.581f;
         presets.push_back(std::move(p));
     }
 
@@ -8772,6 +8829,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1;
         s.reverbType = 0;              // Plate
         s.reverb.size = 0.7f; s.reverb.mix = 0.4f; s.reverb.damping = 0.2f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Experimental median (-13.8 dBFS)
+        p.state.global.masterGain = 0.44f;
         presets.push_back(std::move(p));
     }
 
@@ -8944,6 +9004,10 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbType = 1;                              // Hall
         s.reverb.size = 0.72f; s.reverb.mix = 0.3f; s.reverb.damping = 0.3f;
         s.reverb.preDelayMs = 25.0f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Arp Modulation median (-15.1 dBFS)
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 0.293f;
         presets.push_back(std::move(p));
     }
 
@@ -8994,14 +9058,14 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.type = 1;                              // Tape
         // Feedback 0.28 -> 0.20 (2026-11-13): all three tape heads feed back, so higher never dies away
         s.delay.mix = 0.18f; s.delay.feedback = 0.20f;
-        // Re-levelled for the delay-type switch fix (2026-11-13): -1.8 dB, its loudness while notes play from
-        // before its Tape delay played
-        s.global.masterGain = 0.810f;
         s.delay.sync = 1; s.delay.noteValue = kNote1_8;
         s.delay.tapeSaturation = 0.4f; s.delay.tapeAge = 0.2f;
         s.reverbEnabled = 1;
         s.reverbType = 0;                              // Plate
         s.reverb.size = 0.7f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Arp Modulation median (-15.1 dBFS)
+        p.state.global.masterGain = 0.457f;
         presets.push_back(std::move(p));
     }
 
@@ -9429,6 +9493,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.timeMs = 220.0f; s.delay.feedback = 0.25f; s.delay.mix = 0.15f;
         s.delay.sync = 0;
         s.global.spread = 0.2f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Modulation median (-9.7 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.646f;
         presets.push_back(std::move(p));
     }
 
@@ -9825,6 +9892,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.pingPongWidth = 160.0f; s.delay.pingPongCrossFeed = 0.7f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
         s.reverb.size = 0.7f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Rhythmic median (-15.8 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.549f;
         presets.push_back(std::move(p));
     }
 
@@ -10430,6 +10500,10 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.mix = 0.3f; s.delay.feedback = 0.45f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
         s.reverb.size = 0.8f; s.reverb.mix = 0.38f; s.reverb.damping = 0.3f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Rhythmic median (-15.8 dBFS), held to a -1 dBFS peak
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 1.562f;
         presets.push_back(std::move(p));
     }
 
