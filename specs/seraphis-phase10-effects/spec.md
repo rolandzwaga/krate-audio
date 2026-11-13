@@ -516,12 +516,12 @@ wet that is `fftSize` samples late (`:542-544`). Using `setDryWetMix()` inline w
 
 1. `setDryWetMix(1.0f)` is pushed **once, immediately BEFORE `prepare()`**, and is never a registered
    parameter. The component runs 100 % wet, always. **The ordering is load-bearing, not stylistic:**
-   `setDryWetMix` only sets a smoother *target* (`spectral_delay.h:500-503`); that smoother is advanced
-   exactly **once per `process()` call** (`:373`, `:389`) despite being configured with a per-sample 50 ms
-   coefficient (`:184-194`), so a push *after* prepare creeps toward 1.0 by ~0.04 % of the remaining
-   distance per call from `kDefaultDryWet = 0.5f` (`:109`) — tens of seconds of un-aligned current-block
-   dry leaking into the bus, which is the exact comb this convention exists to prevent. Pushed **before**
-   prepare, `prepare()`'s own `setTarget` (`:202`) and `snapParameters()` (`:206`, `:550`) snap it to 1.0.
+   `setDryWetMix` only sets a smoother *target* (`spectral_delay.h:562-564`) that ramps per sample over
+   50 ms (`:200`, `:442`), so a push *after* prepare ramps toward 1.0 from `kDefaultDryWet = 0.5f`
+   (`:110`) — ~50 ms of un-aligned current-block dry leaking into the bus, which is the exact comb this
+   convention exists to prevent. (Before audit/disrumpo 2026-11-13 the smoother advanced once per
+   `process()` call off a per-sample coefficient and the leak lasted tens of seconds.) Pushed **before**
+   prepare, `prepare()`'s own `setTarget` (`:208`) and `snapParameters()` (`:212`, `:621`) snap it to 1.0.
    This is the same rule C-7 clause 3 already states for `setFFTSize`, and the same hazard
    `seraphis_engine.h:331-333` records for the saturator ("The setters run BEFORE prepare() so the
    saturator's parameter smoothers are SNAPPED to them … instead of ramping in from the ctor defaults").

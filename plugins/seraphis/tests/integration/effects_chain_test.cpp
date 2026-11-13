@@ -1364,13 +1364,11 @@ TEST_CASE("Effects chain order matches C-1", "[seraphis][effects]") {
     // =========================================================================
     // C-2 clause 1 pushes setDryWetMix(1.0f) BEFORE SpectralDelay::prepare(),
     // and the ordering is load-bearing rather than stylistic: setDryWetMix only
-    // sets a smoother TARGET (spectral_delay.h:500-503), and that smoother is
-    // advanced exactly ONCE PER process() CALL (:373, :389) despite carrying a
-    // per-sample 50 ms coefficient (:184-194). Pushed AFTER prepare it would
-    // creep from kDefaultDryWet = 0.5f (:109) toward 1.0 by ~0.04 % of the
-    // remaining distance per call - i.e. for tens of seconds the send would
-    // return ~50 % of the CURRENT chunk's own input, un-aligned against a wet
-    // that is fftSize samples late. That is the smeared comb the whole
+    // sets a smoother TARGET (spectral_delay.h:562-564) that ramps per sample
+    // over 50 ms (:200, :442). Pushed AFTER prepare it would ramp from
+    // kDefaultDryWet = 0.5f (:110) toward 1.0 - for ~50 ms the send would
+    // return up to 50 % of the CURRENT chunk's own input, un-aligned against a
+    // wet that is fftSize samples late. That is the smeared comb the whole
     // parallel-send convention exists to prevent.
     //
     // HOW THE ISOLATED RETURN IS OBTAINED, and why it is exact. The send only

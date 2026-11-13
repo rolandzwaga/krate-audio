@@ -1031,6 +1031,8 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kMorphState1Id, 1.0},         // 410 index 9 -> Shimmer
                 {kCloudMutationId, 0.70},
                 {kSeedId, 7.0 / 15.0},
+                {kMasterGainId, 0.56680},  // 0 -> gain 1.1336 (+1.09 dB): the delay's Stereo Width fix
+                                           // (2026-11-13) left Restless 1.09 dB quieter
             },
             /*.stimulus =*/std::nullopt},
         // ---------------------------------------------------------------- //

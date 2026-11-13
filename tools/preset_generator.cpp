@@ -275,6 +275,8 @@ struct PresetDef {
     ReversePreset reverse;
     MultiTapPreset multitap;
     FreezePreset freeze;
+
+    float gain = 1.0f;  // global output gain, linear 0-2
 };
 
 // ==============================================================================
@@ -506,8 +508,8 @@ void writeFreezeCaptureState(BinaryWriter& w, const FreezePreset& p) {
 std::vector<uint8_t> buildComponentState(const PresetDef& preset) {
     BinaryWriter w;
 
-    // 1. Global gain (always 1.0 for presets)
-    w.writeFloat(1.0f);
+    // 1. Global gain (1.0 unless a preset is level-matched)
+    w.writeFloat(preset.gain);
 
     // 2. Current mode
     w.writeInt32(static_cast<int32_t>(preset.mode));
@@ -698,12 +700,16 @@ std::vector<PresetDef> createAllPresets() {
         PresetDef p; p.mode = DelayMode::Spectral; p.category = "Experimental";
         p.name = "Frequency Cascade";
         p.spectral = {2048, 200.0f, 800.0f, 1, 0.4f, 0.3f, 0, 0.3f, 0.5f, 1, 0.5f, 1, 10};
+        // +2.66 dB: the Stereo Width fix (2026-11-13) left it 2.66 dB quieter
+        p.gain = 1.3583f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Spectral; p.category = "Ambient";
         p.name = "Crystal Diffusion";
         p.spectral = {1024, 400.0f, 300.0f, 2, 0.25f, 0.0f, 0, 0.7f, 0.5f, 0, 0.4f, 1, 10};
+        // +0.96 dB: the Stereo Width fix (2026-11-13) left it 0.96 dB quieter
+        p.gain = 1.1169f;
         presets.push_back(p);
     }
     {
