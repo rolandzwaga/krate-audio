@@ -631,19 +631,16 @@ void shapeTape(MorphNodeState& n, float bias, float sag, float speed,
                       static_cast<float>(model), hfRoll, flutter});
 }
 
-// Fuzz: bias [-1,1], gate [0,1], transistor [0-1], octave [0,1], sustain [0,1]
-void shapeFuzz(MorphNodeState& n, float bias, float gate, int transistor = 0,
-               float octave = 0.0f, float sustain = 0.5f) {
-    setShapeSlots(n, {(bias + 1.0f) * 0.5f, gate, static_cast<float>(transistor),
-                      octave, sustain});
+// Fuzz, in the plugin's slot order (shape_slot_descriptors.h): bias [-1,1], transistor [0 Germanium,
+// 1 Silicon], octave [0,1], sustain [0,1]
+void shapeFuzz(MorphNodeState& n, float bias, int transistor, float octave, float sustain) {
+    setShapeSlots(n, {(bias + 1.0f) * 0.5f, static_cast<float>(transistor), octave, sustain});
 }
 
-// AsymmetricFuzz: bias [-1,1], asymmetry [0,1], transistor [0-1], gate [0,1],
-//                 sustain [0,1], body [0,1]
-void shapeAsymFuzz(MorphNodeState& n, float bias, float asymmetry, int transistor = 0,
-                   float gate = 0.0f, float sustain = 0.5f, float body = 0.5f) {
-    setShapeSlots(n, {(bias + 1.0f) * 0.5f, asymmetry, static_cast<float>(transistor),
-                      gate, sustain, body});
+// AsymmetricFuzz, in the plugin's slot order (shape_slot_descriptors.h): bias [-1,1], asymmetry [0,1],
+// transistor [0 Germanium, 1 Silicon], sustain [0,1], body [0,1]
+void shapeAsymFuzz(MorphNodeState& n, float bias, float asymmetry, int transistor, float sustain, float body) {
+    setShapeSlots(n, {(bias + 1.0f) * 0.5f, asymmetry, static_cast<float>(transistor), sustain, body});
 }
 
 // SineFold: folds [1,12], symmetry [-1,1], shape [0,1], bias [-1,1], smooth [0,1]
@@ -928,10 +925,9 @@ std::vector<PresetDef> createAllPresets() {
         // Low: warm tube, rising into a silicon asymmetric fuzz
         setBandType(p.state.bandMorph[0], DistortionType::Tube, 3.0f, 2500.0f);
         shapeTube(p.state.bandMorph[0].nodes[0], 0.2f, 0.4f, 1);
-        // Slots in the processor's order (shape_slot_descriptors.h; shapeAsymFuzz writes a gate
-        // slot the type does not have): bias +0.15, asymmetry 0.3, Silicon, sustain 0.8, body 0.4
+        // bias +0.15, asymmetry 0.3, Silicon, sustain 0.8, body 0.4
         setNode(p.state.bandMorph[0].nodes[1], DistortionType::AsymmetricFuzz, 3.0f, 4000.0f);
-        setShapeSlots(p.state.bandMorph[0].nodes[1], {0.575f, 0.3f, 1.0f, 0.8f, 0.4f});
+        shapeAsymFuzz(p.state.bandMorph[0].nodes[1], 0.15f, 0.3f, 1, 0.8f, 0.4f);
         // Mid: sine fold, rising into a triangle fold with more folds
         setBandType(p.state.bandMorph[1], DistortionType::SineFold, 2.5f, 5000.0f);
         shapeSineFold(p.state.bandMorph[1].nodes[0], 3.0f, 0.2f, 0.3f);
@@ -994,7 +990,7 @@ std::vector<PresetDef> createAllPresets() {
         setMorphAB(p.state.bandMorph[0], DistortionType::Tube, DistortionType::Fuzz,
                    3.0f, 4.5f, 2500.0f, 5000.0f);
         shapeTube(p.state.bandMorph[0].nodes[0], 0.15f, 0.5f, 1);
-        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0, 1.0f, 0.3f);
         // High: hard clip for edge
         setBandType(p.state.bandMorph[1], DistortionType::HardClip, 3.0f, 6000.0f);
         shapeHardClip(p.state.bandMorph[1].nodes[0], 0.6f, 0.9f);
@@ -1077,7 +1073,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeTriFold(p.state.bandMorph[0].nodes[0], 2.5f, 0.1f, 0.6f);
         // Lo-mid: asymmetric fuzz
         setBandType(p.state.bandMorph[1], DistortionType::AsymmetricFuzz, 3.5f, 4000.0f);
-        shapeAsymFuzz(p.state.bandMorph[1].nodes[0], 0.3f, 0.6f, 1, 0.1f, 0.6f, 0.7f);
+        shapeAsymFuzz(p.state.bandMorph[1].nodes[0], 0.3f, 0.6f, 1, 0.1f, 0.6f);
         // Hi-mid: ring saturation
         setBandType(p.state.bandMorph[2], DistortionType::RingSaturation, 2.0f, 5500.0f);
         shapeRingSat(p.state.bandMorph[2].nodes[0], 0.6f, 2, 0.4f, 1);
@@ -1172,13 +1168,11 @@ std::vector<PresetDef> createAllPresets() {
         shapeHardClip(p.state.bandMorph[0].nodes[1], 0.55f, 0.9f);
         // Mid: fuzz with octave
         setBandType(p.state.bandMorph[1], DistortionType::Fuzz, 4.0f, 4500.0f);
-        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.1f, 0.15f, 1, 0.4f, 0.7f);
-        // as the sweep falls: more sustain, the bias flipped, brighter. Slots in the processor's
-        // order (shape_slot_descriptors.h; shapeFuzz writes a gate slot the type does not have),
-        // so node A above runs Germanium, octave 1.0, sustain 0.4: bias -0.15, Germanium, octave
-        // 1.0, sustain 0.7
+        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.1f, 0, 1.0f, 0.4f);
+        // as the sweep falls: more sustain, the bias flipped, brighter (node A: Germanium, octave
+        // 1.0, sustain 0.4): bias -0.15, Germanium, octave 1.0, sustain 0.7
         p.state.bandMorph[1].nodes[1].toneHz = 7000.0f;
-        setShapeSlots(p.state.bandMorph[1].nodes[1], {0.425f, 0.0f, 1.0f, 0.7f});
+        shapeFuzz(p.state.bandMorph[1].nodes[1], -0.15f, 0, 1.0f, 0.7f);
         // High: bitcrush for digital edge
         setBandType(p.state.bandMorph[2], DistortionType::Bitcrush, 1.5f, 6000.0f);
         shapeBitcrush(p.state.bandMorph[2].nodes[0], 10.0f, 0.2f, 0, 0.1f);
@@ -1272,7 +1266,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeTemporal(p.state.bandMorph[1].nodes[0], 0, 0.6f, 0.5f, 15.0f, 150.0f, 0.6f);
         // High: fuzz with octave
         setBandType(p.state.bandMorph[2], DistortionType::Fuzz, 3.5f, 7000.0f);
-        shapeFuzz(p.state.bandMorph[2].nodes[0], -0.1f, 0.05f, 0, 0.5f, 0.8f);
+        shapeFuzz(p.state.bandMorph[2].nodes[0], -0.1f, 0, 0.0f, 0.5f);
         addRouting(p.state, 0, ModSource::EnvFollower, ModDest::bandDrive(2), 0.3f);
         p.state.modSources.envSensitivity = 0.7f;
         p.state.bands[2].gainDb = -1.5f;
@@ -1292,7 +1286,7 @@ std::vector<PresetDef> createAllPresets() {
         setMorphAB(p.state.bandMorph[0], DistortionType::Tape, DistortionType::Fuzz,
                    2.0f, 4.0f, 2000.0f, 3500.0f);
         shapeTape(p.state.bandMorph[0].nodes[0], 0.1f, 0.4f, 0.5f, 1, 0.5f, 0.2f);
-        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0.1f, 0, 0.2f, 0.6f);
+        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0, 0.0f, 0.2f);
         // Mid: chaos with slow attractor
         setBandType(p.state.bandMorph[1], DistortionType::Chaos, 2.5f, 4500.0f);
         shapeChaos(p.state.bandMorph[1].nodes[0], 0, 2.0f, 0.6f, 0.5f, 0.4f, 0.6f, 0.2f);
@@ -1392,7 +1386,7 @@ std::vector<PresetDef> createAllPresets() {
         setMorphAB(p.state.bandMorph[1], DistortionType::Tube, DistortionType::Fuzz,
                    2.0f, 4.0f, 4000.0f, 5000.0f);
         shapeTube(p.state.bandMorph[1].nodes[0], 0.1f, 0.5f, 1);
-        shapeFuzz(p.state.bandMorph[1].nodes[1], 0.15f, 0.1f, 1, 0.3f, 0.65f);
+        shapeFuzz(p.state.bandMorph[1].nodes[1], 0.15f, 0, 1.0f, 0.3f);
         // High: tape stays as anchor
         setBandType(p.state.bandMorph[2], DistortionType::Tape, 1.5f, 6500.0f);
         shapeTape(p.state.bandMorph[2].nodes[0], 0.0f, 0.2f, 0.7f, 1, 0.4f, 0.1f);
@@ -1416,11 +1410,11 @@ std::vector<PresetDef> createAllPresets() {
         setMorphAB(p.state.bandMorph[0], DistortionType::Tube, DistortionType::AsymmetricFuzz,
                    3.0f, 5.0f, 1800.0f, 2500.0f);
         shapeTube(p.state.bandMorph[0].nodes[0], 0.2f, 0.7f, 2);
-        shapeAsymFuzz(p.state.bandMorph[0].nodes[1], 0.4f, 0.7f, 1, 0.1f, 0.7f, 0.6f);
+        shapeAsymFuzz(p.state.bandMorph[0].nodes[1], 0.4f, 0.7f, 1, 0.1f, 0.7f);
         // Mid: fuzz→hard clip
         setMorphAB(p.state.bandMorph[1], DistortionType::Fuzz, DistortionType::HardClip,
                    4.0f, 4.5f, 4000.0f, 5000.0f);
-        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.1f, 0.15f, 0, 0.4f, 0.8f);
+        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.1f, 0, 0.0f, 0.4f);
         shapeHardClip(p.state.bandMorph[1].nodes[1], 0.55f, 0.9f);
         // High: soft clip stays warm
         setBandType(p.state.bandMorph[2], DistortionType::SoftClip, 2.0f, 6000.0f);
@@ -1448,7 +1442,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeSoftClip(p.state.bandMorph[0].nodes[0], 0.7f, 0.3f);
         shapeHardClip(p.state.bandMorph[0].nodes[1], 0.5f, 0.9f);
         shapeTube(p.state.bandMorph[0].nodes[2], 0.1f, 0.6f, 2);
-        shapeFuzz(p.state.bandMorph[0].nodes[3], 0.2f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[0].nodes[3], 0.2f, 0, 1.0f, 0.3f);
         p.state.bandMorph[0].nodes[0].toneHz = 2500.0f;
         p.state.bandMorph[0].nodes[1].toneHz = 3500.0f;
         p.state.bandMorph[0].nodes[2].toneHz = 2000.0f;
@@ -1621,7 +1615,7 @@ std::vector<PresetDef> createAllPresets() {
         setNode(bm0.nodes[1], DistortionType::Fuzz, 4.0f, 3500.0f);
         setNode(bm0.nodes[2], DistortionType::Tape, 2.0f, 2200.0f);
         shapeTube(bm0.nodes[0], 0.15f, 0.6f, 2);
-        shapeFuzz(bm0.nodes[1], 0.1f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(bm0.nodes[1], 0.1f, 0, 1.0f, 0.3f);
         shapeTape(bm0.nodes[2], 0.0f, 0.5f, 0.5f, 1, 0.6f, 0.25f);
         bm0.activeNodeCount = 3;
         bm0.morphMode = MorphMode::Planar2D;
@@ -1723,7 +1717,7 @@ std::vector<PresetDef> createAllPresets() {
         // Lo-mid: fuzz→sine fold
         setMorphAB(p.state.bandMorph[1], DistortionType::Fuzz, DistortionType::SineFold,
                    3.5f, 2.5f, 3500.0f, 4500.0f);
-        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.2f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.2f, 0, 1.0f, 0.3f);
         shapeSineFold(p.state.bandMorph[1].nodes[1], 3.0f, 0.15f, 0.4f);
         // Hi-mid: tape→chaos
         setMorphAB(p.state.bandMorph[2], DistortionType::Tape, DistortionType::Chaos,
@@ -1917,7 +1911,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.crossoverFreqs[1] = 350.0f;
         // Sub: asymmetric fuzz for subharmonic generation
         setBandType(p.state.bandMorph[0], DistortionType::AsymmetricFuzz, 4.5f, 1000.0f);
-        shapeAsymFuzz(p.state.bandMorph[0].nodes[0], 0.4f, 0.8f, 1, 0.0f, 0.7f, 0.8f);
+        shapeAsymFuzz(p.state.bandMorph[0].nodes[0], 0.4f, 0.8f, 1, 0.0f, 0.7f);
         // Low-mid: feedback dist for growl
         setBandType(p.state.bandMorph[1], DistortionType::FeedbackDist, 3.0f, 2500.0f);
         shapeFeedback(p.state.bandMorph[1].nodes[0], 0.6f, 10.0f, 0.7f, 0, 0.3f, 1);
@@ -1966,7 +1960,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.crossoverFreqs[1] = 250.0f;
         // Sub: asym fuzz for gnarly harmonics
         setBandType(p.state.bandMorph[0], DistortionType::AsymmetricFuzz, 4.0f, 800.0f);
-        shapeAsymFuzz(p.state.bandMorph[0].nodes[0], 0.5f, 0.7f, 0, 0.05f, 0.8f, 0.7f);
+        shapeAsymFuzz(p.state.bandMorph[0].nodes[0], 0.5f, 0.7f, 0, 0.05f, 0.8f);
         // Low: bitcrush for grit
         setBandType(p.state.bandMorph[1], DistortionType::Bitcrush, 2.0f, 2000.0f);
         shapeBitcrush(p.state.bandMorph[1].nodes[0], 7.0f, 0.1f, 1, 0.05f);
@@ -2096,7 +2090,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeTape(p.state.bandMorph[1].nodes[0], 0.1f, 0.5f, 0.4f, 1, 0.7f, 0.25f);
         // Low-mid: fuzz for growl
         setBandType(p.state.bandMorph[2], DistortionType::Fuzz, 3.0f, 3000.0f);
-        shapeFuzz(p.state.bandMorph[2].nodes[0], 0.15f, 0.1f, 0, 0.2f, 0.6f);
+        shapeFuzz(p.state.bandMorph[2].nodes[0], 0.15f, 0, 0.0f, 0.2f);
         // Mid: soft clip for definition
         setBandType(p.state.bandMorph[3], DistortionType::SoftClip, 2.0f, 4500.0f);
         shapeSoftClip(p.state.bandMorph[3].nodes[0], 0.65f, 0.3f);
@@ -2149,7 +2143,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.crossoverFreqs[1] = 5000.0f;
         // Low: fuzz with octave for thickness
         setBandType(p.state.bandMorph[0], DistortionType::Fuzz, 5.0f, 3000.0f);
-        shapeFuzz(p.state.bandMorph[0].nodes[0], 0.1f, 0.05f, 1, 0.4f, 0.8f);
+        shapeFuzz(p.state.bandMorph[0].nodes[0], 0.1f, 0, 1.0f, 0.4f);
         // Mid: hard clip with low threshold
         setBandType(p.state.bandMorph[1], DistortionType::HardClip, 5.5f, 5500.0f);
         shapeHardClip(p.state.bandMorph[1].nodes[0], 0.35f, 0.8f);
@@ -2177,7 +2171,7 @@ std::vector<PresetDef> createAllPresets() {
         shapeTape(p.state.bandMorph[0].nodes[0], 0.1f, 0.5f, 0.4f, 1, 0.7f, 0.2f);
         // Mid: heavy fuzz — the star
         setBandType(p.state.bandMorph[1], DistortionType::Fuzz, 6.5f, 5000.0f);
-        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0.05f, 1, 0.5f, 0.9f);
+        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0, 1.0f, 0.5f);
         // High: ring saturation for shimmer
         setBandType(p.state.bandMorph[2], DistortionType::RingSaturation, 2.0f, 7000.0f);
         shapeRingSat(p.state.bandMorph[2].nodes[0], 0.4f, 1, 0.5f, 2, 0.0f, 1);
@@ -2251,7 +2245,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.crossoverFreqs[1] = 4500.0f;
         // Low: asym fuzz, heavy body
         setBandType(p.state.bandMorph[0], DistortionType::AsymmetricFuzz, 5.0f, 3000.0f);
-        shapeAsymFuzz(p.state.bandMorph[0].nodes[0], 0.4f, 0.8f, 1, 0.8f, 0.8f, 0.8f);
+        shapeAsymFuzz(p.state.bandMorph[0].nodes[0], 0.4f, 0.8f, 1, 0.8f, 0.8f);
         // Mid: bitwise mangler for digital aggression
         setBandType(p.state.bandMorph[1], DistortionType::BitwiseMangler, 3.0f, 5500.0f);
         shapeBitwise(p.state.bandMorph[1].nodes[0], 2, 0.7f, 0.4f, 0.6f, 0.1f);
@@ -2281,7 +2275,7 @@ std::vector<PresetDef> createAllPresets() {
         setMorphAB(p.state.bandMorph[1], DistortionType::HardClip, DistortionType::Fuzz,
                    4.5f, 5.5f, 5000.0f, 5500.0f);
         shapeHardClip(p.state.bandMorph[1].nodes[0], 0.4f, 0.85f);
-        shapeFuzz(p.state.bandMorph[1].nodes[1], 0.2f, 0.05f, 1, 0.4f, 0.8f);
+        shapeFuzz(p.state.bandMorph[1].nodes[1], 0.2f, 0, 1.0f, 0.4f);
         // High: wavefold for overtones
         setBandType(p.state.bandMorph[2], DistortionType::SineFold, 3.0f, 7000.0f);
         shapeSineFold(p.state.bandMorph[2].nodes[0], 4.0f, 0.3f, 0.4f, 0.0f, 0.1f);
@@ -2734,7 +2728,7 @@ std::vector<PresetDef> createAllPresets() {
         setBandType(p.state.bandMorph[1], DistortionType::Tape, 2.5f, 4500.0f);
         shapeTape(p.state.bandMorph[1].nodes[0], 0.1f, 0.5f, 0.5f, 1, 0.5f, 0.15f);
         setBandType(p.state.bandMorph[2], DistortionType::Fuzz, 2.0f, 7000.0f);
-        shapeFuzz(p.state.bandMorph[2].nodes[0], 0.0f, 0.1f, 0, 0.2f, 0.5f);
+        shapeFuzz(p.state.bandMorph[2].nodes[0], 0.0f, 0, 0.0f, 0.2f);
         addRouting(p.state, 0, ModSource::Transient, ModDest::bandDrive(0), 0.5f);
         addRouting(p.state, 1, ModSource::Transient, ModDest::bandDrive(1), 0.3f);
         p.state.modSources.transSensitivity = 0.8f;
@@ -2790,7 +2784,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.crossoverFreqs[0] = 120.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
         setBandType(p.state.bandMorph[0], DistortionType::Fuzz, 3.5f, 1500.0f);
-        shapeFuzz(p.state.bandMorph[0].nodes[0], 0.2f, 0.05f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[0].nodes[0], 0.2f, 0, 1.0f, 0.3f);
         setBandType(p.state.bandMorph[1], DistortionType::Tube, 3.0f, 4500.0f);
         shapeTube(p.state.bandMorph[1].nodes[0], 0.15f, 0.6f, 2);
         setBandType(p.state.bandMorph[2], DistortionType::BitwiseMangler, 2.0f, 7000.0f);
@@ -3190,7 +3184,7 @@ std::vector<PresetDef> createAllPresets() {
             DistortionType::SoftClip, DistortionType::Fuzz,
             DistortionType::SineFold, DistortionType::Tape);
         shapeSoftClip(p.state.bandMorph[0].nodes[0], 0.7f, 0.3f);
-        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0, 1.0f, 0.3f);
         shapeSineFold(p.state.bandMorph[0].nodes[2], 3.0f, 0.2f, 0.4f);
         shapeTape(p.state.bandMorph[0].nodes[3], 0.0f, 0.5f, 0.5f, 1, 0.5f, 0.2f);
         // Band 1: experimental flavors
@@ -3396,7 +3390,7 @@ std::vector<PresetDef> createAllPresets() {
         setBandType(p.state.bandMorph[0], DistortionType::Tube, 2.5f, 2000.0f);
         shapeTube(p.state.bandMorph[0].nodes[0], 0.1f, 0.6f, 2);
         setBandType(p.state.bandMorph[1], DistortionType::Fuzz, 3.0f, 4500.0f);
-        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0.1f, 1, 0.2f, 0.6f);
+        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0, 1.0f, 0.2f);
         setBandType(p.state.bandMorph[2], DistortionType::Tape, 1.5f, 6500.0f);
         shapeTape(p.state.bandMorph[2].nodes[0], 0.0f, 0.3f, 0.6f, 1, 0.4f, 0.15f);
         addRouting(p.state, 0, ModSource::Chaos, ModDest::bandDrive(0), 0.5f);
@@ -3418,7 +3412,7 @@ std::vector<PresetDef> createAllPresets() {
         setMorphAB(p.state.bandMorph[0], DistortionType::SoftClip, DistortionType::Fuzz,
                    2.0f, 4.0f, 2000.0f, 3000.0f);
         shapeSoftClip(p.state.bandMorph[0].nodes[0], 0.7f, 0.3f);
-        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0, 1.0f, 0.3f);
         setMorphAB(p.state.bandMorph[1], DistortionType::Tape, DistortionType::SineFold,
                    2.0f, 2.5f, 4500.0f, 5000.0f);
         shapeTape(p.state.bandMorph[1].nodes[0], 0.0f, 0.4f, 0.5f, 1, 0.5f, 0.2f);
@@ -3580,7 +3574,7 @@ std::vector<PresetDef> createAllPresets() {
             DistortionType::SoftClip, DistortionType::Fuzz,
             DistortionType::SineFold, DistortionType::Chaos);
         shapeSoftClip(p.state.bandMorph[0].nodes[0], 0.7f, 0.3f);
-        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[0].nodes[1], 0.2f, 0, 1.0f, 0.3f);
         shapeSineFold(p.state.bandMorph[0].nodes[2], 4.0f, 0.2f, 0.4f);
         shapeChaos(p.state.bandMorph[0].nodes[3], 2, 5.0f, 0.6f, 0.5f, 0.5f, 0.5f);
         p.state.bandMorph[0].nodes[0].drive = 2.0f;
@@ -3663,7 +3657,7 @@ std::vector<PresetDef> createAllPresets() {
         setBandType(p.state.bandMorph[1], DistortionType::Temporal, 3.0f, 5000.0f);
         shapeTemporal(p.state.bandMorph[1].nodes[0], 2, 0.7f, 0.6f, 3.0f, 60.0f, 0.7f, 1, 0.15f);
         setBandType(p.state.bandMorph[2], DistortionType::Fuzz, 2.5f, 7000.0f);
-        shapeFuzz(p.state.bandMorph[2].nodes[0], 0.1f, 0.05f, 0, 0.3f, 0.6f);
+        shapeFuzz(p.state.bandMorph[2].nodes[0], 0.1f, 0, 0.0f, 0.3f);
         addRouting(p.state, 0, ModSource::Transient, ModDest::bandDrive(0), 0.7f);
         addRouting(p.state, 1, ModSource::Transient, ModDest::bandDrive(1), 0.5f);
         addRouting(p.state, 2, ModSource::EnvFollower, ModDest::bandDrive(2), 0.3f);
@@ -3703,7 +3697,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
         setBandType(p.state.bandMorph[0], DistortionType::Fuzz, 4.0f, 2500.0f);
-        shapeFuzz(p.state.bandMorph[0].nodes[0], 0.2f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[0].nodes[0], 0.2f, 0, 1.0f, 0.3f);
         setBandType(p.state.bandMorph[1], DistortionType::HardClip, 3.0f, 5000.0f);
         shapeHardClip(p.state.bandMorph[1].nodes[0], 0.5f, 0.85f);
         setBandType(p.state.bandMorph[2], DistortionType::RingSaturation, 2.0f, 7000.0f);
@@ -3729,7 +3723,7 @@ std::vector<PresetDef> createAllPresets() {
         setMorphAB(p.state.bandMorph[1], DistortionType::Tape, DistortionType::Fuzz,
                    2.0f, 4.0f, 4000.0f, 5000.0f);
         shapeTape(p.state.bandMorph[1].nodes[0], 0.0f, 0.4f, 0.5f, 1, 0.5f, 0.2f);
-        shapeFuzz(p.state.bandMorph[1].nodes[1], 0.15f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[1].nodes[1], 0.15f, 0, 1.0f, 0.3f);
         setBandType(p.state.bandMorph[2], DistortionType::Tube, 1.5f, 6500.0f);
         shapeTube(p.state.bandMorph[2].nodes[0], 0.0f, 0.3f, 1);
         addRouting(p.state, 0, ModSource::EnvFollower, ModDest::bandMorphX(0), 0.7f);
@@ -3774,7 +3768,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.crossoverFreqs[1] = 4000.0f;
         enableSweep(p.state, 0.5f, 0.3f, 0.4f);
         setBandType(p.state.bandMorph[0], DistortionType::Fuzz, 3.0f, 2500.0f);
-        shapeFuzz(p.state.bandMorph[0].nodes[0], 0.15f, 0.1f, 1, 0.4f, 0.7f);
+        shapeFuzz(p.state.bandMorph[0].nodes[0], 0.15f, 0, 1.0f, 0.4f);
         setBandType(p.state.bandMorph[1], DistortionType::SineFold, 2.5f, 5000.0f);
         shapeSineFold(p.state.bandMorph[1].nodes[0], 3.0f, 0.2f, 0.3f);
         setBandType(p.state.bandMorph[2], DistortionType::Formant, 2.0f, 7000.0f);
@@ -3819,7 +3813,7 @@ std::vector<PresetDef> createAllPresets() {
         setBandType(p.state.bandMorph[0], DistortionType::Tube, 2.0f, 1500.0f);
         shapeTube(p.state.bandMorph[0].nodes[0], 0.1f, 0.5f, 1);
         setBandType(p.state.bandMorph[1], DistortionType::Fuzz, 3.0f, 3500.0f);
-        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0.1f, 0, 0.9f, 0.6f);
+        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0, 0.0f, 0.9f);
         setBandType(p.state.bandMorph[2], DistortionType::SineFold, 2.5f, 5500.0f);
         shapeSineFold(p.state.bandMorph[2].nodes[0], 3.0f, 0.1f, 0.3f);
         setBandType(p.state.bandMorph[3], DistortionType::Formant, 1.5f, 7000.0f);
@@ -3843,7 +3837,7 @@ std::vector<PresetDef> createAllPresets() {
         setBandType(p.state.bandMorph[0], DistortionType::Tape, 3.0f, 2000.0f);
         shapeTape(p.state.bandMorph[0].nodes[0], 0.0f, 0.5f, 0.4f, 1, 0.6f, 0.2f);
         setBandType(p.state.bandMorph[1], DistortionType::Fuzz, 3.5f, 5000.0f);
-        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0.1f, 1, 0.3f, 0.7f);
+        shapeFuzz(p.state.bandMorph[1].nodes[0], 0.15f, 0, 1.0f, 0.3f);
         setBandType(p.state.bandMorph[2], DistortionType::HardClip, 2.5f, 6500.0f);
         shapeHardClip(p.state.bandMorph[2].nodes[0], 0.5f, 0.85f);
         addRouting(p.state, 0, ModSource::EnvFollower, ModDest::bandMix(0), -0.6f);
