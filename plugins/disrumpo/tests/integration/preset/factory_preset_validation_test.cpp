@@ -1481,7 +1481,8 @@ TEST_CASE("No factory preset routes a one-sided source into a Mix pinned at that
 // (the sweep link, the band's own X/Y link, a routing into Morph X/Y) and one node type on
 // every active node: identical node parameters = the morph is dead; different ones = it only
 // blends those parameters. Also says whether the sweep moves (its LFO or envelope, a routing
-// into Sweep Frequency); a still sweep sets one fixed X. Run: disrumpo_tests "[dead-morph-probe]".
+// into Sweep Frequency); a still sweep sets one fixed X, and whether the node(s) the morph moves
+// to sit at the type's default shape. Run: disrumpo_tests "[dead-morph-probe]".
 TEST_CASE("Probe: morph movement on bands whose nodes share one type", "[.][dead-morph-probe]") {
     const auto files = findPresetFiles(getPresetsDir());
     REQUIRE_FALSE(files.empty());
@@ -1497,6 +1498,7 @@ TEST_CASE("Probe: morph movement on bands whose nodes share one type", "[.][dead
         "s2",   "s3",    "s4",  "s5",   "s6",   "s7",    "s8",   "s9"};
     int sameTypeBands = 0;
     int deadBands = 0;
+    int defaultShapeBands = 0;
     for (const auto& path : files) {
         const std::string name = path.parent_path().filename().string() + "/" + path.stem().string();
         const auto bytes = readPresetComponentState(path);
@@ -1554,14 +1556,22 @@ TEST_CASE("Probe: morph movement on bands whose nodes share one type", "[.][dead
                 }
             }
             if (differs.empty()) ++deadBands;
+            // The node(s) the morph moves to left at the type's default shape (every slot 0.5)
+            bool defaultShape = !differs.empty();
+            for (int n = 1; n < count; ++n) {
+                for (size_t k = 7; k < kNodeParams.size(); ++k) defaultShape = defaultShape && std::fabs(at(n, k) - 0.5) < 1e-6;
+            }
+            if (defaultShape) ++defaultShapeBands;
             const auto type = static_cast<DistortionType>(std::lround(at(0, 0) * (kDistortionTypeCount - 1)));
-            std::printf("DEAD-MORPH %s band %d: %d x %s, moved by %s: %s\n", name.c_str(), band + 1, count,
+            std::printf("DEAD-MORPH %s band %d: %d x %s, moved by %s: %s%s\n", name.c_str(), band + 1, count,
                         getTypeName(type), movers.c_str(),
-                        differs.empty() ? "nodes identical, morph DEAD" : ("blends only " + differs).c_str());
+                        differs.empty() ? "nodes identical, morph DEAD" : ("blends only " + differs).c_str(),
+                        defaultShape ? " (node B at the type's default shape)" : "");
         }
     }
-    std::printf("DEAD-MORPH %zu presets scanned: %d moved bands with one node type, %d of them with identical nodes\n",
-                files.size(), sameTypeBands, deadBands);
+    std::printf("DEAD-MORPH %zu presets scanned: %d moved bands with one node type, %d of them with identical nodes, "
+                "%d with node B at the type's default shape\n",
+                files.size(), sameTypeBands, deadBands, defaultShapeBands);
 }
 
 // Probe (hidden, asserts nothing): the presets of the dead-Mix fix, read before and after it.
@@ -1732,6 +1742,153 @@ TEST_CASE("Probe: the presets of the dead-Mix fix, rendered", "[.][dead-mix-rend
                                 static_cast<double>(drive[k].lo()), static_cast<double>(drive[k].hi()),
                                 drive[k].engagedPercent(0.2f));
                 }
+            }
+            std::printf("\n");
+        }
+    }
+}
+
+// Probe (hidden, asserts nothing): the presets of the morph re-design (user ruling 2026-11-13: the
+// bands [dead-morph-probe] found morphing between identical or default-shaped nodes). Per preset:
+// the BITE readings (220 Hz sine at -18 dBFS: THD+N and output RMS) and the output RMS on the
+// synthetic drum loop (-18 dBFS RMS: its first 4 s, and 12 loops = 48 s). Per band with two or more
+// active nodes: the range of the morph X the band runs over the 48 s (after 0.25 s), and, on one
+// loop (4 s), how much the whole output changes when only that band's X moves, the sweep link off
+// and its Morph X routings zeroed: from X = 0 to X = 1 (the nodes' full contrast) and from the
+// lowest to the highest X of the moving render
+// (what the sweep actually travels), in dB re the output, after 0.5 s (-240: no change); and a
+// 220 Hz sine at -18 dBFS with that band's X pinned at 0, the lowest X, 0.5, the highest X and 1:
+// output RMS and THD+N of the mono sum over 0.5-1.5 s.
+// DISRUMPO_PROBE_PRESETS_DIR reads another preset tree (the generator's temp output),
+// DISRUMPO_PROBE_ONLY runs the presets whose name contains it.
+// Run: disrumpo_tests "[morph-travel-probe]".
+TEST_CASE("Probe: morph travel and level of the re-designed morph presets", "[.][morph-travel-probe]") {
+    using namespace Disrumpo::TestSupport;
+    const char* dirEnv = std::getenv("DISRUMPO_PROBE_PRESETS_DIR");
+    const char* onlyEnv = std::getenv("DISRUMPO_PROBE_ONLY");
+    const fs::path dir = dirEnv != nullptr ? fs::path(dirEnv) : getPresetsDir();
+    const std::string only = onlyEnv != nullptr ? onlyEnv : "";
+    const std::vector<std::string> presets = {
+        "Sweep/Frequency_Hunter", "Experimental/Formant_Vowels", "Sweep/Ease_In_Morph", "Sweep/Inverse_Link",
+        "Sweep/Step_Scanner",     "Sweep/Wah_Wah_Drive",        "Sweep/Wide_Sweep",    "Experimental/Formant_Shift"};
+    const auto drums = drumLoop(kBiteSr);
+    const auto from = static_cast<size_t>(0.5 * kBiteSr);
+    for (const auto& preset : presets) {
+        if (!only.empty() && preset.find(only) == std::string::npos) continue;
+        const auto bytes = readPresetComponentState(dir / (preset + ".vstpreset"));
+        REQUIRE_FALSE(bytes.empty());
+        const auto view = readModView(bytes);
+        const BiteReading bite = measureBite(bytes);
+        std::array<float, 4> xLo{1.0f, 1.0f, 1.0f, 1.0f};
+        std::array<float, 4> xHi{0.0f, 0.0f, 0.0f, 0.0f};
+        std::vector<float> l;
+        std::vector<float> r;
+        {
+            Rig rig(kBiteSr, 512, /*doSetup*/ false);
+            REQUIRE(setStateBytes(*rig.p, bytes));
+            rig.setup();
+            // 12 loops (48 s): a whole cycle of the slowest sweep LFO here (Formant Vowels, 32 s)
+            std::vector<float> loops;
+            for (int k = 0; k < 12; ++k) loops.insert(loops.end(), drums.begin(), drums.end());
+            rig.render(loops, loops, l, r, 512, {}, [&](size_t blk, CaptureChanges&) {
+                if (static_cast<double>(blk * 512) < 0.25 * kBiteSr) return;
+                for (int b = 0; b < view.bandCount; ++b) {
+                    const float x = rig.p->getBandProcessor(b).getMorphTargetX();
+                    xLo[static_cast<size_t>(b)] = std::min(xLo[static_cast<size_t>(b)], x);
+                    xHi[static_cast<size_t>(b)] = std::max(xHi[static_cast<size_t>(b)], x);
+                }
+            });
+        }
+        const auto rmsDb = [&](size_t n) {
+            double sig = 0.0;
+            for (size_t i = 0; i < n; ++i) sig += static_cast<double>(l[i]) * l[i] + static_cast<double>(r[i]) * r[i];
+            return 10.0 * std::log10(std::max(sig / (2.0 * static_cast<double>(n)), 1e-24));
+        };
+        std::printf("MTP %s: sine THD+N %.2f dB, sine RMS %.2f dBFS, drums RMS %.2f dBFS (first 4 s), %.2f dBFS (48 s)\n",
+                    preset.c_str(), bite.sineThdnDb, bite.rmsDb, rmsDb(drums.size()), rmsDb(l.size()));
+        // @p in with only band b's morph X pinned at x
+        const auto pinnedOn = [&](const std::vector<float>& in, int b, float x, std::vector<float>& pl,
+                                  std::vector<float>& pr) {
+            const auto band = static_cast<uint8_t>(b);
+            Rig rig(kBiteSr, 512, /*doSetup*/ false);
+            REQUIRE(setStateBytes(*rig.p, bytes));
+            rig.setup();
+            PList changes = {{makeSweepParamId(SweepParamType::kSweepMorphLink), 0.0},
+                             {makeBandParamId(band, BandParamType::kBandMorphXLink), 0.0},
+                             {makeBandParamId(band, BandParamType::kBandMorphX), static_cast<double>(x)}};
+            const auto morphX = ModDest::bandParam(band, ModDest::kBandMorphX);
+            for (const auto& rt : view.routings) {
+                if (rt.dest == morphX) changes.emplace_back(makeRoutingParamId(static_cast<uint8_t>(rt.slot), 2), 0.5);
+            }
+            rig.apply(changes);
+            rig.render(in, in, pl, pr, 512);
+        };
+        const auto pinned = [&](int b, float x, std::vector<float>& pl, std::vector<float>& pr) {
+            pinnedOn(drums, b, x, pl, pr);
+        };
+        // 220 Hz at -18 dBFS, 1.5 s; RMS and THD+N of the mono sum over 0.5-1.5 s (220 whole cycles)
+        std::vector<float> sine(static_cast<size_t>(1.5 * kBiteSr));
+        for (size_t i = 0; i < sine.size(); ++i) {
+            sine[i] = static_cast<float>(kBiteSineAmp * std::sin(2.0 * std::numbers::pi * 220.0 * static_cast<double>(i) / kBiteSr));
+        }
+        const auto sineReading = [&](int b, float x) {
+            std::vector<float> sl;
+            std::vector<float> sr;
+            pinnedOn(sine, b, x, sl, sr);
+            const auto a = static_cast<size_t>(0.5 * kBiteSr);
+            const auto n = static_cast<size_t>(kBiteSr);
+            double c = 0.0;
+            double s = 0.0;
+            double sum = 0.0;
+            double sq = 0.0;
+            for (size_t i = 0; i < n; ++i) {
+                const double v = 0.5 * (static_cast<double>(sl[a + i]) + sr[a + i]);
+                const double ph = 2.0 * std::numbers::pi * 220.0 * static_cast<double>(i) / kBiteSr;
+                c += v * std::cos(ph);
+                s += v * std::sin(ph);
+                sum += v;
+                sq += v * v;
+            }
+            const double mean = sum / static_cast<double>(n);
+            const double total = sq / static_cast<double>(n) - mean * mean;
+            const double f1 = 2.0 / static_cast<double>(n) * std::sqrt(c * c + s * s);
+            const double fundPow = 0.5 * f1 * f1;
+            return std::pair{10.0 * std::log10(std::max(sq / static_cast<double>(n), 1e-24)),
+                             10.0 * std::log10(std::max(total - fundPow, 1e-24) / std::max(fundPow, 1e-24))};
+        };
+        const auto change = [&](const std::vector<float>& al, const std::vector<float>& ar, const std::vector<float>& bl,
+                                const std::vector<float>& br) {
+            double num = 0.0;
+            double den = 0.0;
+            for (size_t i = from; i < al.size(); ++i) {
+                const double dl = static_cast<double>(al[i]) - bl[i];
+                const double dr = static_cast<double>(ar[i]) - br[i];
+                num += dl * dl + dr * dr;
+                den += static_cast<double>(al[i]) * al[i] + static_cast<double>(ar[i]) * ar[i];
+            }
+            return num > 0.0 ? 10.0 * std::log10(num / std::max(den, 1e-30)) : -240.0;
+        };
+        for (int b = 0; b < view.bandCount; ++b) {
+            if (view.activeNodes[static_cast<size_t>(b)] < 2) continue;
+            const float lo = xLo[static_cast<size_t>(b)];
+            const float hi = xHi[static_cast<size_t>(b)];
+            std::vector<float> l0;
+            std::vector<float> r0;
+            std::vector<float> l1;
+            std::vector<float> r1;
+            pinned(b, 0.0f, l0, r0);
+            pinned(b, 1.0f, l1, r1);
+            const double full = change(l0, r0, l1, r1);
+            pinned(b, lo, l0, r0);
+            pinned(b, hi, l1, r1);
+            const double travelled = change(l0, r0, l1, r1);
+            std::printf("MTP %s band %d: X %.3f..%.3f (travel %.3f), output change X 0->1 %.1f dB, X %.3f->%.3f %.1f dB\n",
+                        preset.c_str(), b + 1, static_cast<double>(lo), static_cast<double>(hi),
+                        static_cast<double>(hi - lo), full, static_cast<double>(lo), static_cast<double>(hi), travelled);
+            std::printf("MTP %s band %d sine pinned:", preset.c_str(), b + 1);
+            for (const float x : {0.0f, lo, 0.5f, hi, 1.0f}) {
+                const auto [rms, thdn] = sineReading(b, x);
+                std::printf(" X %.3f RMS %.2f THD+N %.2f |", static_cast<double>(x), rms, thdn);
             }
             std::printf("\n");
         }

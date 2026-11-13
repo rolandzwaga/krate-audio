@@ -917,25 +917,31 @@ std::vector<PresetDef> createAllPresets() {
     // =========================================================================
     { // Frequency Hunter: Tube lows, wavefold mids, tape-saturated highs, sweep scanning
         PresetDef p; p.name = "Frequency Hunter"; p.category = "Sweep";
-        p.description = "Tube lows, Sine Fold mids and Tape highs, with a triangle-LFO sweep hunting across the "
-                        "three bands and LFO 1 varying its intensity. For guitars, synths and loops.";
+        p.description = "A triangle-LFO sweep hunts across three bands and morphs each as it rises: Tube lows "
+                        "into Asymmetric Fuzz, Sine Fold mids into Triangle Fold, Tape highs into Hard Clip; LFO 1 "
+                        "varies its intensity.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3000.0f;
         enableSweep(p.state, 0.5f, 0.4f, 0.6f, MorphLinkMode::SweepFreq);
         enableSweepLFO(p.state, 0.35f, 0.6f, Waveform::Triangle);
-        // Low: warm tube
+        // Low: warm tube, rising into a silicon asymmetric fuzz
         setBandType(p.state.bandMorph[0], DistortionType::Tube, 3.0f, 2500.0f);
         shapeTube(p.state.bandMorph[0].nodes[0], 0.2f, 0.4f, 1);
-        shapeTube(p.state.bandMorph[0].nodes[1], 0.2f, 0.4f, 1);
-        // Mid: sine fold with movement
+        // Slots in the processor's order (shape_slot_descriptors.h; shapeAsymFuzz writes a gate
+        // slot the type does not have): bias +0.15, asymmetry 0.3, Silicon, sustain 0.8, body 0.4
+        setNode(p.state.bandMorph[0].nodes[1], DistortionType::AsymmetricFuzz, 3.0f, 4000.0f);
+        setShapeSlots(p.state.bandMorph[0].nodes[1], {0.575f, 0.3f, 1.0f, 0.8f, 0.4f});
+        // Mid: sine fold, rising into a triangle fold with more folds
         setBandType(p.state.bandMorph[1], DistortionType::SineFold, 2.5f, 5000.0f);
         shapeSineFold(p.state.bandMorph[1].nodes[0], 3.0f, 0.2f, 0.3f);
-        shapeSineFold(p.state.bandMorph[1].nodes[1], 3.0f, 0.2f, 0.3f);
-        // High: bright tape
+        setNode(p.state.bandMorph[1].nodes[1], DistortionType::TriangleFold, 2.5f, 5500.0f);
+        shapeTriFold(p.state.bandMorph[1].nodes[1], 4.5f, -0.2f, 0.7f);
+        // High: bright tape, rising into hard clip
         setBandType(p.state.bandMorph[2], DistortionType::Tape, 2.0f, 6000.0f);
         shapeTape(p.state.bandMorph[2].nodes[0], 0.0f, 0.3f, 0.7f, 1, 0.3f, 0.15f);
-        shapeTape(p.state.bandMorph[2].nodes[1], 0.0f, 0.3f, 0.7f, 1, 0.3f, 0.15f);
+        setNode(p.state.bandMorph[2].nodes[1], DistortionType::HardClip, 2.5f, 7000.0f);
+        shapeHardClip(p.state.bandMorph[2].nodes[1], 0.5f, 0.9f);
         // Mod: LFO1 moves sweep intensity
         addRouting(p.state, 0, ModSource::LFO1, ModDest::kSweepIntensity, 0.3f);
         p.state.modSources.lfo1RateNorm = 0.2f;
@@ -978,7 +984,8 @@ std::vector<PresetDef> createAllPresets() {
     { // Wah Wah Drive: sweep-linked morph, tube→fuzz crossfade
         PresetDef p; p.name = "Wah Wah Drive"; p.category = "Sweep";
         p.description = "Two bands split at 800 Hz: a triangle-LFO sweep moves the low band from Tube to Fuzz like "
-                        "a slow wah, over Hard Clip highs, and the input level adds drive. Try guitar.";
+                        "a slow wah and clips the Hard Clip highs harder and brighter as it rises; the input level "
+                        "adds drive. Try guitar.";
         p.state = makeInitState(2);
         p.state.crossoverFreqs[0] = 800.0f;
         enableSweep(p.state, 0.4f, 0.3f, 0.7f, MorphLinkMode::SweepFreq);
@@ -991,6 +998,10 @@ std::vector<PresetDef> createAllPresets() {
         // High: hard clip for edge
         setBandType(p.state.bandMorph[1], DistortionType::HardClip, 3.0f, 6000.0f);
         shapeHardClip(p.state.bandMorph[1].nodes[0], 0.6f, 0.9f);
+        // the sweep clips the highs harder and brighter as it rises
+        p.state.bandMorph[1].nodes[1].drive = 6.0f;
+        p.state.bandMorph[1].nodes[1].toneHz = 7500.0f;
+        shapeHardClip(p.state.bandMorph[1].nodes[1], 0.25f, 0.95f);
         addRouting(p.state, 0, ModSource::EnvFollower, ModDest::bandDrive(0), 0.3f);
         p.state.modSources.envAttackNorm = 0.03f;
         p.state.modSources.envReleaseNorm = 0.15f;
@@ -1107,8 +1118,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Wide Sweep: broad sweep with morphing tape→tube per band
         PresetDef p; p.name = "Wide Sweep"; p.category = "Sweep";
-        p.description = "A wide sweep on a saw LFO across four bands; the low band morphs from Tape to Tube, eased "
-                        "by the sweep and nudged by LFO 1, under Serge Fold, Soft Clip and Formant bands.";
+        p.description = "A wide saw-LFO sweep eases four bands toward their second node: Tape lows into Tube (LFO "
+                        "1 nudges it), Serge Fold mids into more folds, a harder Soft Clip, and a Formant top shifting "
+                        "its formants up.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 120.0f;
         p.state.crossoverFreqs[1] = 1000.0f;
@@ -1123,12 +1135,19 @@ std::vector<PresetDef> createAllPresets() {
         // Lo-mid: serge fold
         setBandType(p.state.bandMorph[1], DistortionType::SergeFold, 2.0f, 3500.0f);
         shapeSergeFold(p.state.bandMorph[1].nodes[0], 2.0f, 0.15f, 1, 0.0f, 0.3f);
-        // Hi-mid: soft clip
+        // the sweep eases it into more folds (Buchla model, which the sweep's range always runs)
+        p.state.bandMorph[1].nodes[1].drive = 2.5f;
+        shapeSergeFold(p.state.bandMorph[1].nodes[1], 5.0f, -0.2f, 2, 0.0f, 0.6f, 0.3f);
+        // Hi-mid: soft clip, eased into a harder curve
         setBandType(p.state.bandMorph[2], DistortionType::SoftClip, 2.0f, 5500.0f);
         shapeSoftClip(p.state.bandMorph[2].nodes[0], 0.65f, 0.4f);
-        // High: light formant
+        p.state.bandMorph[2].nodes[1].drive = 3.0f;
+        p.state.bandMorph[2].nodes[1].toneHz = 6500.0f;
+        shapeSoftClip(p.state.bandMorph[2].nodes[1], 0.9f, 0.1f);
+        // High: light formant, eased into higher, more resonant formants
         setBandType(p.state.bandMorph[3], DistortionType::Formant, 1.5f, 7000.0f);
         shapeFormant(p.state.bandMorph[3].nodes[0], 1, 2.0f, 0.4f, 0.5f, 0.6f);
+        shapeFormant(p.state.bandMorph[3].nodes[1], 1, 12.0f, 0.6f, 0.85f, 0.3f, 2);
         p.state.bands[1].pan = -0.2f;
         p.state.bands[2].pan = 0.2f;
         addRouting(p.state, 0, ModSource::LFO1, ModDest::bandMorphX(0), 0.3f);
@@ -1138,9 +1157,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Inverse Link: morph sweeps inversely — gets brighter as sweep descends
         PresetDef p; p.name = "Inverse Link"; p.category = "Sweep";
-        p.description = "The low band morphs from Soft Clip to Hard Clip as the sweep falls (an inverse link), "
-                        "under an octave Fuzz mid band and Bitcrush highs; a stepped random LFO jumps the mid "
-                        "drive.";
+        p.description = "As the sweep falls (an inverse link) the lows morph from Soft Clip to Hard Clip, the "
+                        "octave Fuzz mids gain sustain and brightness and the Bitcrush highs drop toward 6 bits; a "
+                        "stepped random LFO jumps the mid drive.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -1154,9 +1173,17 @@ std::vector<PresetDef> createAllPresets() {
         // Mid: fuzz with octave
         setBandType(p.state.bandMorph[1], DistortionType::Fuzz, 4.0f, 4500.0f);
         shapeFuzz(p.state.bandMorph[1].nodes[0], 0.1f, 0.15f, 1, 0.4f, 0.7f);
+        // as the sweep falls: more sustain, the bias flipped, brighter. Slots in the processor's
+        // order (shape_slot_descriptors.h; shapeFuzz writes a gate slot the type does not have),
+        // so node A above runs Germanium, octave 1.0, sustain 0.4: bias -0.15, Germanium, octave
+        // 1.0, sustain 0.7
+        p.state.bandMorph[1].nodes[1].toneHz = 7000.0f;
+        setShapeSlots(p.state.bandMorph[1].nodes[1], {0.425f, 0.0f, 1.0f, 0.7f});
         // High: bitcrush for digital edge
         setBandType(p.state.bandMorph[2], DistortionType::Bitcrush, 1.5f, 6000.0f);
         shapeBitcrush(p.state.bandMorph[2].nodes[0], 10.0f, 0.2f, 0, 0.1f);
+        // as the sweep falls: down to 6 bits, little dither, more jitter
+        shapeBitcrush(p.state.bandMorph[2].nodes[1], 6.0f, 0.05f, 0, 0.35f);
         addRouting(p.state, 0, ModSource::LFO2, ModDest::bandDrive(1), 0.2f);
         p.state.modSources.lfo2RateNorm = 0.55f;
         p.state.modSources.lfo2Shape = Waveform::SampleAndHold;
@@ -1165,8 +1192,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Step Scanner: stepped morph link, wavefold on each band with different folds
         PresetDef p; p.name = "Step Scanner"; p.category = "Sweep";
-        p.description = "Three wavefolders (Sine, Triangle, Serge) with rising fold counts and a Chaos top band, "
-                        "scanned by a saw-LFO sweep; a Rossler chaos source varies the top band drive.";
+        p.description = "Three wavefolders (Sine, Triangle, Serge) and a Chaos top; a saw-LFO sweep on a stepped "
+                        "link steps each band to more folds or a faster attractor, and a Rossler chaos source varies "
+                        "the top drive.";
         p.state = makeInitState(4);
         p.state.crossoverFreqs[0] = 200.0f;
         p.state.crossoverFreqs[1] = 1500.0f;
@@ -1176,15 +1204,23 @@ std::vector<PresetDef> createAllPresets() {
         // Low: sine fold, low count
         setBandType(p.state.bandMorph[0], DistortionType::SineFold, 2.5f, 2000.0f);
         shapeSineFold(p.state.bandMorph[0].nodes[0], 2.0f, 0.0f, 0.2f);
+        p.state.bandMorph[0].nodes[1].drive = 3.0f;  // each step: more folds
+        shapeSineFold(p.state.bandMorph[0].nodes[1], 8.0f, 0.3f, 0.5f, 0.0f, 0.5f);
         // Lo-mid: triangle fold, medium
         setBandType(p.state.bandMorph[1], DistortionType::TriangleFold, 2.5f, 4000.0f);
         shapeTriFold(p.state.bandMorph[1].nodes[0], 3.5f, 0.2f, 0.7f);
+        p.state.bandMorph[1].nodes[1].drive = 3.5f;
+        shapeTriFold(p.state.bandMorph[1].nodes[1], 7.0f, -0.2f, 0.4f, 0.0f, 0.5f);
         // Hi-mid: serge fold, high count
         setBandType(p.state.bandMorph[2], DistortionType::SergeFold, 3.0f, 5500.0f);
         shapeSergeFold(p.state.bandMorph[2].nodes[0], 5.0f, -0.3f, 2, 0.1f, 0.4f);
-        // High: chaos for unpredictable texture
+        p.state.bandMorph[2].nodes[1].drive = 3.5f;
+        shapeSergeFold(p.state.bandMorph[2].nodes[1], 9.0f, 0.2f, 2, -0.1f, 0.7f, 0.5f);
+        // High: chaos for unpredictable texture; each step a faster, harder-driven attractor
         setBandType(p.state.bandMorph[3], DistortionType::Chaos, 2.0f, 7000.0f);
         shapeChaos(p.state.bandMorph[3].nodes[0], 1, 5.0f, 0.6f, 0.4f, 0.6f, 0.3f);
+        p.state.bandMorph[3].nodes[1].drive = 2.5f;
+        shapeChaos(p.state.bandMorph[3].nodes[1], 1, 15.0f, 0.85f, 0.6f, 0.3f, 0.7f);
         addRouting(p.state, 0, ModSource::Chaos, ModDest::bandDrive(3), 0.3f);
         p.state.modSources.chaosModel = ChaosModel::Rossler;
         p.state.modSources.chaosSpeedNorm = 0.2f;
@@ -1244,8 +1280,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Ease In Morph: slow ease-in morph link, tape→chaos
         PresetDef p; p.name = "Ease In Morph"; p.category = "Sweep";
-        p.description = "The sweep eases the low band from Tape into Fuzz (an ease-in morph link), under a Chaos "
-                        "mid band whose drive a chaos source varies and Spectral highs that LFO 2 pans.";
+        p.description = "The sweep eases the lows from Tape into Fuzz (an ease-in morph link) and, on the same "
+                        "curve, drives the Chaos mids faster and wilder and tilts the Spectral highs; a chaos source "
+                        "varies the mid drive, LFO 2 pans the top.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 250.0f;
         p.state.crossoverFreqs[1] = 3000.0f;
@@ -1259,9 +1296,12 @@ std::vector<PresetDef> createAllPresets() {
         // Mid: chaos with slow attractor
         setBandType(p.state.bandMorph[1], DistortionType::Chaos, 2.5f, 4500.0f);
         shapeChaos(p.state.bandMorph[1].nodes[0], 0, 2.0f, 0.6f, 0.5f, 0.4f, 0.6f, 0.2f);
-        // High: spectral
+        p.state.bandMorph[1].nodes[1].drive = 3.5f;  // eased into a faster, wilder attractor
+        shapeChaos(p.state.bandMorph[1].nodes[1], 0, 8.0f, 0.9f, 0.7f, 0.7f, 0.3f, 0.05f);
+        // High: spectral, eased into a harder curve tilted darker
         setBandType(p.state.bandMorph[2], DistortionType::Spectral, 2.0f, 6500.0f);
         shapeSpectral(p.state.bandMorph[2].nodes[0], 1, 2, 0.6f, 0.7f, 0.1f);
+        shapeSpectral(p.state.bandMorph[2].nodes[1], 1, 2, 0.9f, 0.3f, 0.3f);
         addRouting(p.state, 0, ModSource::Chaos, ModDest::bandDrive(1), 0.25f);
         addRouting(p.state, 1, ModSource::LFO2, ModDest::bandPan(2), 0.3f);
         p.state.modSources.chaosSpeedNorm = 0.15f;
@@ -2995,8 +3035,9 @@ std::vector<PresetDef> createAllPresets() {
     }
     { // Formant Vowels: formant morph across vowels, sweep-linked
         PresetDef p; p.name = "Formant Vowels"; p.category = "Experimental";
-        p.description = "The mids morph between two Formant settings, vowel A and a shifted O, moved by the sweep "
-                        "and a slow LFO, between Tube lows and an Allpass Resonant top. Talking synths and vocals.";
+        p.description = "The mids morph between two Formant vowels, the second shifted up, moved by the sweep and a "
+                        "slow LFO; the same sweep sags the Tube lows darker and tunes the Allpass Resonant top "
+                        "higher. Talking synths and vocals.";
         p.state = makeInitState(3);
         p.state.crossoverFreqs[0] = 300.0f;
         p.state.crossoverFreqs[1] = 4000.0f;
@@ -3004,6 +3045,10 @@ std::vector<PresetDef> createAllPresets() {
         enableSweepLFO(p.state, 0.15f, 0.5f, Waveform::Sine);
         setBandType(p.state.bandMorph[0], DistortionType::Tube, 2.0f, 2000.0f);
         shapeTube(p.state.bandMorph[0].nodes[0], 0.1f, 0.5f, 1);
+        // the sweep pushes the lows into a darker, saggier tube
+        p.state.bandMorph[0].nodes[1].drive = 4.0f;
+        p.state.bandMorph[0].nodes[1].toneHz = 1200.0f;
+        shapeTube(p.state.bandMorph[0].nodes[1], 0.35f, 0.85f, 1);
         // Mid: formant morph A→E vowels
         setMorphAB(p.state.bandMorph[1], DistortionType::Formant, DistortionType::Formant,
                    2.5f, 2.5f, 5000.0f, 5500.0f);
@@ -3011,6 +3056,8 @@ std::vector<PresetDef> createAllPresets() {
         shapeFormant(p.state.bandMorph[1].nodes[1], 3, 6.0f, 0.5f, 0.6f, 0.5f, 1, 0.7f, 0.6f);
         setBandType(p.state.bandMorph[2], DistortionType::AllpassResonant, 1.5f, 7000.0f);
         shapeAllpass(p.state.bandMorph[2].nodes[0], 1, 600.0f, 0.6f, 1.5f, 0.4f, 2, true);
+        // the sweep tunes the ring higher, shorter and brighter
+        shapeAllpass(p.state.bandMorph[2].nodes[1], 1, 1400.0f, 0.75f, 0.8f, 0.55f, 2, true, 0.2f);
         addRouting(p.state, 0, ModSource::LFO1, ModDest::bandMorphX(1), 0.5f);
         addRouting(p.state, 1, ModSource::PitchFollower, ModDest::bandDrive(1), 0.3f);
         p.state.modSources.lfo1RateNorm = 0.1f;
@@ -3314,12 +3361,25 @@ std::vector<PresetDef> createAllPresets() {
     { // Formant Shift: a Formant node on every band, the sweep driving morph X
         // (the recipe of the v8 Experimental/Formant_Shift file the v9 overhaul dropped)
         PresetDef p; p.name = "Formant Shift"; p.category = "Experimental";
-        p.description = "Formant on all four bands at drive 2.5, the same vowel on each, with the sweep fixed near "
-                        "320 Hz adding drive there. A plain vowel-coloured drive to start from.";
+        p.description = "Formant on all four bands, vowels U, I, A and O shifted from -12 to +12 semitones low to "
+                        "high; a slow sine-LFO sweep slides every band's formants about 4 semitones up and down as "
+                        "it moves.";
         p.state = makeInitState(4);
         for (auto& bm : p.state.bandMorph)
             setBandType(bm, DistortionType::Formant, 2.5f);
-        enableSweep(p.state, 0.4f, 0.3f, 0.6f, MorphLinkMode::SweepFreq);
+        // Per band one vowel; node A sits 12 st below the band's shift, node B 12 st above. The
+        // adapter plays the vowel of the Blend slot (setVowelBlend after setVowel), so both carry it.
+        constexpr std::array<int, 4> kVowels = {4, 2, 0, 3};               // U, I, A, O
+        constexpr std::array<float, 4> kShifts = {-12.0f, -4.0f, 4.0f, 12.0f};
+        for (size_t b = 0; b < 4; ++b) {
+            const float blend = static_cast<float>(kVowels[b]) / 4.0f;
+            shapeFormant(p.state.bandMorph[b].nodes[0], kVowels[b], kShifts[b] - 12.0f, 0.5f, 0.5f, 0.5f, 2, 0.5f,
+                         blend);
+            shapeFormant(p.state.bandMorph[b].nodes[1], kVowels[b], kShifts[b] + 12.0f, 0.5f, 0.5f, 0.5f, 2, 0.5f,
+                         blend);
+        }
+        enableSweep(p.state, 0.5f, 0.3f, 0.6f, MorphLinkMode::SweepFreq);
+        enableSweepLFO(p.state, 0.4f, 0.8f, Waveform::Sine);
         presets.push_back(p);
     }
 
@@ -4146,7 +4206,7 @@ constexpr OutputTrim kOutputTrims[] = {
     {.preset = "Pads/Spectral_Pad", .db = -3.6f},
     {.preset = "Pads/Stochastic_Drift", .db = 2.4f},
     {.preset = "Pads/Tape_Haze", .db = 13.5f},
-    {.preset = "Sweep/Ease_In_Morph", .db = 7.5f},
+    {.preset = "Sweep/Ease_In_Morph", .db = 8.0f},
     {.preset = "Sweep/Envelope_Follower", .db = 8.1f},
     {.preset = "Sweep/Frequency_Hunter", .db = 8.8f},
     {.preset = "Sweep/High_Sweep", .db = 2.8f},
@@ -4160,7 +4220,7 @@ constexpr OutputTrim kOutputTrims[] = {
     {.preset = "Sweep/Synced_Pulse", .db = 9.4f},
     {.preset = "Sweep/Triangle_Wobble", .db = 10.0f},
     {.preset = "Sweep/Wah_Wah_Drive", .db = 8.1f},
-    {.preset = "Sweep/Wide_Sweep", .db = 9.6f},
+    {.preset = "Sweep/Wide_Sweep", .db = 8.2f},
 };
 
 /// Output Gain dB [-24, +24] -> normalized [0, 1] (the processor's kGainMinDb / kGainRangeDb)
