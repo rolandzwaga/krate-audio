@@ -2937,6 +2937,7 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.preDelayMs = 45.0f;      // gap before the wash (owns preDelay)
         s.global.width = 1.7f;
         s.global.spread = 0.5f;
+        s.global.masterGain = 1.590f;  // keeps its level now the particle swarm no longer over-spawns
         presets.push_back(std::move(p));
     }
 
@@ -3577,6 +3578,7 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbType = 1;          // Hall
         s.reverb.size = 0.8f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.9f;
         s.global.width = 1.4f;
+        s.global.masterGain = 1.306f;  // keeps its level now the particle swarm no longer over-spawns
         presets.push_back(std::move(p));
     }
 
@@ -8629,6 +8631,7 @@ std::vector<PresetDef> createAllPresets() {
         s.global.voiceMode = 0;        // Poly
         s.global.polyphony = 16;       // maximum voices for a thick cloud
         s.global.width = 2.0f; s.global.spread = 0.7f;
+        s.global.masterGain = 1.18f;   // raised to a -1 dBFS peak now the particle swarm no longer over-spawns
         s.settings.voiceAllocMode = 0; // Round-Robin (spreads grains across voices)
         s.settings.voiceStealMode = 1; // Soft steal (no clicks when the cloud saturates)
         // Granular delay thickens the cloud further.
@@ -9051,6 +9054,7 @@ std::vector<PresetDef> createAllPresets() {
         s.distortion.drive = 0.35f; s.distortion.foldType = 1; s.distortion.mix = 0.8f;
         // Mono glide + GRANULAR delay (a delay TYPE none of the ping-pong siblings use)
         s.global.voiceMode = 1;
+        s.global.masterGain = 0.312f;  // keeps its level now the spectral morph plays every mono 32-sample step
         s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 15.0f;
         s.delayEnabled = 1;
         s.delay.type = 3;                              // Granular

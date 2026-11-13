@@ -198,6 +198,93 @@ TEST_CASE("SpectralMorphFilter COLA reconstruction (SC-007)", "[spectral_morph][
     REQUIRE(gainError < 3.0f);
 }
 
+// A host picks the block size, so the morph must not depend on it. processBlock
+// used to pull at most one block's worth of the new hop and zero-fill every block
+// in which no frame completed: at 64-sample blocks with a 1024-point FFT it played
+// one block in eight and stacked later frames at the wrong overlap offset, which
+// made Ruinae's "Modulation Maze" preset ~12 dB quieter at 64-sample buffers than
+// at 512. The output must be the same stream, delayed by getLatencySamples(), for
+// every partition of the input.
+TEST_CASE("SpectralMorphFilter output does not depend on the block size",
+          "[spectral_morph][latency][block_size]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t fftSize = 1024;  // Ruinae's voice mixer size
+    constexpr size_t numSamples = 32768;
+
+    std::vector<float> inputA(numSamples);
+    std::vector<float> inputB(numSamples);
+    std::vector<float> partial(numSamples);
+    generateSine(inputA.data(), numSamples, 220.0f, static_cast<float>(sampleRate));
+    generateSine(partial.data(), numSamples, 330.0f, static_cast<float>(sampleRate));
+    for (size_t i = 0; i < numSamples; ++i) inputA[i] = 0.5f * (inputA[i] + partial[i]);
+    generateSine(inputB.data(), numSamples, 440.0f, static_cast<float>(sampleRate));
+
+    const auto render = [&](float morph, PhaseSource phase, size_t blockSize) {
+        SpectralMorphFilter filter;
+        filter.prepare(sampleRate, fftSize);
+        filter.setMorphAmount(morph);
+        filter.setPhaseSource(phase);
+        std::vector<float> out(numSamples, -1.0f);
+        for (size_t pos = 0; pos < numSamples; pos += blockSize) {
+            const size_t n = std::min(blockSize, numSamples - pos);
+            filter.processBlock(inputA.data() + pos, inputB.data() + pos, out.data() + pos, n);
+        }
+        return out;
+    };
+
+    SECTION("every partition renders the same stream as 512-sample blocks") {
+        // Every partition feeds the same samples into the same STFT frames at the
+        // same absolute positions and runs the same frame-clocked arithmetic, so a
+        // partition-independent implementation differs only by float noise. 1e-6
+        // (-120 dB re the unit-amplitude input) is far below anything audible and
+        // far below the partition errors of the old code (order of the signal).
+        const auto reference = render(0.5f, PhaseSource::Blend, 512);
+        const float refRms = calculateRMS(reference.data() + 2 * fftSize, numSamples - 2 * fftSize);
+        REQUIRE(refRms > 0.1f);  // not vacuous: the morph produces signal
+
+        for (size_t blockSize : {1u, 32u, 37u, 64u, 128u, 1000u, 4096u}) {
+            const auto out = render(0.5f, PhaseSource::Blend, blockSize);
+            float maxDiff = 0.0f;
+            size_t worst = 0;
+            for (size_t i = 0; i < numSamples; ++i) {
+                const float d = std::abs(out[i] - reference[i]);
+                if (d > maxDiff) { maxDiff = d; worst = i; }
+            }
+            INFO("block size " << blockSize << ": max |diff| " << maxDiff
+                 << " at sample " << worst << ", RMS "
+                 << linearToDb(calculateRMS(out.data() + 2 * fftSize, numSamples - 2 * fftSize))
+                 << " dB vs reference " << linearToDb(refRms) << " dB");
+            CHECK(maxDiff <= 1e-6f);
+        }
+    }
+
+    SECTION("the delay is the reported latency at every block size") {
+        // morph 0 with A's phase reconstructs A (Hann at 50 % overlap is COLA),
+        // so the output must be A delayed by exactly getLatencySamples().
+        // 1e-4 covers the FFT round trip; a one-sample misalignment of the
+        // 330 Hz partial alone is ~0.02.
+        SpectralMorphFilter probe;
+        probe.prepare(sampleRate, fftSize);
+        const size_t latency = probe.getLatencySamples();
+        REQUIRE(latency == fftSize);
+
+        for (size_t blockSize : {64u, 512u, 1000u}) {
+            const auto out = render(0.0f, PhaseSource::A, blockSize);
+            float maxErr = 0.0f;
+            // Skip the first frame (only one window contributes there).
+            for (size_t i = latency + fftSize; i < numSamples; ++i) {
+                maxErr = std::max(maxErr, std::abs(out[i] - inputA[i - latency]));
+            }
+            float maxLead = 0.0f;
+            for (size_t i = 0; i < latency; ++i) maxLead = std::max(maxLead, std::abs(out[i]));
+            INFO("block size " << blockSize << ": max |out[n] - A[n - latency]| " << maxErr
+                 << ", max |out| before the latency " << maxLead);
+            CHECK(maxErr <= 1e-4f);
+            CHECK(maxLead == 0.0f);
+        }
+    }
+}
+
 // ==============================================================================
 // Phase 3: User Story 1 - Dual-Input Spectral Morphing Tests
 // ==============================================================================
@@ -224,8 +311,11 @@ TEST_CASE("SpectralMorphFilter morph=0.0 outputs source A (SC-002)", "[spectral_
     filter.processBlock(inputA.data(), inputB.data(), output.data(), numSamples);
 
     // Analyze output spectrum to find dominant frequency
-    // With morph=0, output should match source A (440 Hz)
+    // With morph=0, output should match source A (440 Hz) delayed by the
+    // reported latency (the comparison used to be undelayed, which only held
+    // because processBlock ran ahead of its latency inside one long block).
     // Skip warmup and measure error against source A
+    const size_t latency = filter.getLatencySamples();
     const size_t startSample = fftSize * 2;
     const size_t endSample = numSamples - fftSize;
 
@@ -234,11 +324,11 @@ TEST_CASE("SpectralMorphFilter morph=0.0 outputs source A (SC-002)", "[spectral_
     float sumInput = 0.0f;
 
     for (size_t i = startSample; i < endSample; ++i) {
-        float diffA = output[i] - inputA[i];
-        float diffB = output[i] - inputB[i];
+        float diffA = output[i] - inputA[i - latency];
+        float diffB = output[i] - inputB[i - latency];
         sumErrorA += diffA * diffA;
         sumErrorB += diffB * diffB;
-        sumInput += inputA[i] * inputA[i];
+        sumInput += inputA[i - latency] * inputA[i - latency];
     }
 
     float errorRmsA = std::sqrt(sumErrorA / static_cast<float>(endSample - startSample));

@@ -2265,7 +2265,7 @@
       "scope": "Krate::DSP::ParticleOscillator",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/particle_oscillator.h",
-      "line": 475
+      "line": 479
     },
     {
       "name": "ParticleOscillator",

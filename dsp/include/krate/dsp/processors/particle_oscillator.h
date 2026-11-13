@@ -267,7 +267,11 @@ public:
     ///
     /// @param mode Spawn timing pattern (Regular, Random, Burst)
     /// @note Real-time safe, noexcept
+    /// @note Re-setting the current mode is a no-op: hosts re-send parameters
+    ///       every block, and restarting the countdown spawned a particle per
+    ///       block, which made the swarm's density depend on the block size.
     void setSpawnMode(SpawnMode mode) noexcept {
+        if (mode == spawnMode_) return;
         spawnMode_ = mode;
         samplesUntilNextSpawn_ = 0.0f;
     }
