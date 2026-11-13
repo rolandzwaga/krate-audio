@@ -209,7 +209,7 @@
       "scope": "Krate::DSP::SpectralDistortion",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/spectral_distortion.h",
-      "line": 551
+      "line": 567
     },
     {
       "name": "BassCharacterStage",

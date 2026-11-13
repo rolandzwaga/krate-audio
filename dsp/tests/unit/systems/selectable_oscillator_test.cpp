@@ -701,6 +701,54 @@ TEST_CASE("SelectableOscillator: Noise setParam dispatches correctly",
     osc.setParam(OscParam::FormantVowel, 1.0f);
 }
 
+// Ruinae re-sends every oscillator parameter at the top of each process() call,
+// so NoiseColor reaches the Noise adapter once per host block with the colour
+// the oscillator already has. NoiseOscillator::setColor() resets the colouring
+// filters on every call (Membrum relies on that per hit), so forwarding the
+// unchanged colour restarted brown noise's integrator from zero each block,
+// draining its low end: Ruinae's Gut String, Degauss Drift, Tidal Lock and Ping
+// Garden played 1.5-3.2 dB apart at 64- and 512-sample buffers. Re-sending the
+// current colour must leave the noise alone, so the output cannot depend on the
+// block size.
+TEST_CASE("SelectableOscillator: Noise output does not depend on the block size when the colour is re-sent per block",
+          "[selectable_oscillator][setParam][block_size]") {
+    constexpr size_t kNumSamples = 44100;
+    const auto render = [](float color, size_t blockSize) {
+        SelectableOscillator osc;
+        osc.prepare(kSampleRate, 4096);
+        osc.setType(OscType::Noise);
+        osc.setParam(OscParam::NoiseColor, color);
+        std::vector<float> out(kNumSamples, 0.0f);
+        for (size_t pos = 0; pos < kNumSamples; pos += blockSize) {
+            osc.setParam(OscParam::NoiseColor, color);  // the per-block refresh
+            const size_t n = std::min(blockSize, kNumSamples - pos);
+            osc.processBlock(out.data() + pos, n);
+        }
+        return out;
+    };
+
+    // Pink, Brown, Blue, Violet, Grey, RadioStatic: every colour with filter state.
+    for (float color : {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 7.0f}) {
+        const auto reference = render(color, 4096);
+        for (size_t blockSize : {32u, 64u, 512u, 1000u}) {
+            const auto out = render(color, blockSize);
+            float maxDiff = 0.0f;
+            for (size_t i = 0; i < kNumSamples; ++i) {
+                maxDiff = std::max(maxDiff, std::abs(out[i] - reference[i]));
+            }
+            // One seeded generator feeds the same per-sample filter arithmetic,
+            // so a colour that survives the re-send renders the same samples;
+            // 1e-6 (-120 dB) only absorbs float noise. A filter reset per block
+            // changes the waveform by the order of the signal.
+            INFO("color " << color << ", block size " << blockSize << ": max |diff| "
+                 << maxDiff << ", RMS "
+                 << 20.0f * std::log10(computeRMS(out.data(), kNumSamples)) << " dB vs "
+                 << 20.0f * std::log10(computeRMS(reference.data(), kNumSamples)) << " dB at 4096");
+            CHECK(maxDiff <= 1e-6f);
+        }
+    }
+}
+
 TEST_CASE("SelectableOscillator: setParam with null active is silent no-op",
           "[selectable_oscillator][setParam]") {
     SelectableOscillator osc;

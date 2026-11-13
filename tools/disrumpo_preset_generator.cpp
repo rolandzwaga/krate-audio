@@ -4133,7 +4133,9 @@ constexpr OutputTrim kOutputTrims[] = {
     {.preset = "Dynamic/Dynamic_Mix", .db = 8.5f},
     {.preset = "Dynamic/Envelope_Morph", .db = 8.8f},
     {.preset = "Dynamic/Multi_Dynamic", .db = 12.2f},
-    {.preset = "Dynamic/Pitch_Drive", .db = 0.5f},
+    // Pitch Drive, Quantize Glitch, Random Scan: lowered (2026-11-13) to their bite-test RMS (sine at
+    // -18 dBFS) from before the S&H Slew / Pitch Follower tracking fix, which made them move their drive
+    {.preset = "Dynamic/Pitch_Drive", .db = -3.5f},
     {.preset = "Dynamic/Pitch_Tracker", .db = 8.2f},
     {.preset = "Dynamic/Sidechain_Pump", .db = 11.7f},
     {.preset = "Dynamic/Touch_Sensitive", .db = 7.7f},
@@ -4149,7 +4151,7 @@ constexpr OutputTrim kOutputTrims[] = {
     {.preset = "Experimental/Formant_Vowels", .db = 6.8f},
     {.preset = "Experimental/Fractal_Noise", .db = 1.6f},
     {.preset = "Experimental/Granular_Crush", .db = -2.4f},
-    {.preset = "Experimental/Quantize_Glitch", .db = -0.1f},
+    {.preset = "Experimental/Quantize_Glitch", .db = -3.8f},  // see Pitch Drive; its peak stops at -0.9 dBFS
     {.preset = "Experimental/Ring_Chaos", .db = -4.1f},
     {.preset = "Experimental/Serge_Madness", .db = 13.1f},
     {.preset = "Experimental/Spectral_Scatter", .db = -5.8f},
@@ -4205,7 +4207,7 @@ constexpr OutputTrim kOutputTrims[] = {
     {.preset = "Sweep/High_Sweep", .db = 2.8f},
     {.preset = "Sweep/Inverse_Link", .db = 6.1f},
     {.preset = "Sweep/Low_Rumble", .db = 7.7f},
-    {.preset = "Sweep/Random_Scan", .db = -0.1f},
+    {.preset = "Sweep/Random_Scan", .db = -1.9f},  // see Pitch Drive
     {.preset = "Sweep/Resonant_Sweep", .db = -2.3f},
     {.preset = "Sweep/Sharp_Focus", .db = 9.6f},
     {.preset = "Sweep/Slow_Scan", .db = 8.0f},

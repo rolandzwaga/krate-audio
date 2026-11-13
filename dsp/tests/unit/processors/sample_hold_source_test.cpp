@@ -11,7 +11,10 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <vector>
 
 using namespace Krate::DSP;
 using Catch::Approx;
@@ -216,4 +219,68 @@ TEST_CASE("SampleHoldSource implements ModulationSource interface", "[processors
     float val = src.getCurrentValue();
     REQUIRE(val >= -1.0f);
     REQUIRE(val <= 1.0f);
+}
+
+// Ruinae drives SampleHoldSource through processBlock(), once per host block.
+// Its slew smoother used to advance one sample per call, so Slew ran 64 times
+// slower at 64-sample blocks and 512 times slower at 512, and the depth of an
+// S&H route followed the host's buffer size (Ruinae's "Quantum Field", S&H ->
+// spectral tilt with 150 ms slew: 1.2 dB between 64- and 512-sample buffers).
+// The slew must take the same audio time at every block size.
+//
+// The run is arranged so that every block size triggers at the same sample: at
+// 65536 Hz and 1 Hz the phase step is 2^-16, every partial sum is exact, and the
+// phase reaches 1.0 exactly at the end of sample 65536 for every block size that
+// divides it. processBlock() then glides for the whole block as if the trigger
+// fell at the block's first sample (control-rate quantisation, by design), so its
+// value at the end of a block ending at T equals the per-sample value after
+// T + B - 1 samples.
+TEST_CASE("SampleHoldSource slew takes the same time at every block size",
+          "[processors][sample_hold][block_size]") {
+    constexpr double kRate = 65536.0;
+    constexpr std::size_t kTrigger = 65536;
+    constexpr std::size_t kTotal = 2 * 65536;
+    const auto makeSource = [] {
+        SampleHoldSource src;
+        src.prepare(kRate);
+        src.setInputType(SampleHoldInputType::Random);
+        src.setRate(1.0f);
+        src.setSlewTime(500.0f);  // tau = 100 ms = 6554 samples
+        return src;
+    };
+
+    // Per-sample reference: perSample[n] is the value after n process() calls.
+    std::vector<float> perSample(kTotal + 1, 0.0f);
+    {
+        auto src = makeSource();
+        for (std::size_t n = 1; n <= kTotal; ++n) {
+            src.process();
+            perSample[n] = src.getCurrentValue();
+        }
+    }
+    const float held = perSample[kTrigger + 60000];  // settled (9 tau)
+    REQUIRE(std::abs(held) > 0.05f);  // not vacuous: the trigger moved the output
+
+    for (std::size_t blockSize : {64u, 512u, 4096u}) {
+        auto src = makeSource();
+        std::size_t t = 0;
+        float maxErr = 0.0f;
+        std::size_t worst = 0;
+        while (t < kTrigger + 8 * 4096) {
+            src.processBlock(blockSize);
+            t += blockSize;
+            if (t < kTrigger) {
+                continue;
+            }
+            const float err = std::abs(src.getCurrentValue() - perSample[t + blockSize - 1]);
+            if (err > maxErr) { maxErr = err; worst = t; }
+        }
+        // The closed-form block advance and the iterated per-sample step differ
+        // only by float rounding over ~4e4 steps (measured ~2.5e-6; 1e-4 is
+        // -80 dB re the [-1, 1] range); a smoother that steps once per block
+        // lags by most of the glide (~0.4).
+        INFO("block size " << blockSize << ": max |block - per-sample| " << maxErr
+             << " at sample " << worst << ", held value " << held);
+        CHECK(maxErr <= 1e-4f);
+    }
 }

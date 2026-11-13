@@ -12,7 +12,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <cstddef>
 #include <numbers>
+#include <utility>
+#include <vector>
 
 using namespace Krate::DSP;
 using Catch::Approx;
@@ -190,6 +193,58 @@ TEST_CASE("PitchFollowerSource output stays in [0, +1]", "[processors][pitch_fol
 // =============================================================================
 // Interface Tests
 // =============================================================================
+
+// Ruinae drives PitchFollowerSource through processBlock(), once per host block.
+// Its tracking smoother used to advance one sample per call, so Tracking Speed
+// ran 64 times slower at 64-sample blocks and 512 times slower at 512, and a
+// Pitch Follower route followed the host's buffer size (Ruinae's "Spectral
+// Ghost", Pitch Follower -> spectral tilt: 1.3 dB between 64- and 512-sample
+// buffers). Tracking must take the same audio time at every block size.
+TEST_CASE("PitchFollowerSource tracking takes the same time at every block size",
+          "[processors][pitch_follower][block_size]") {
+    constexpr double kRate = 44100.0;
+    constexpr std::size_t kTotal = 44032;  // ~1 s, a multiple of 64 and 512
+
+    // Returns {time the output first reached 63.2 % of its 1 s value, 1 s value}.
+    const auto track = [](std::size_t blockSize) {
+        PitchFollowerSource src;
+        src.prepare(kRate);
+        src.setTrackingSpeed(300.0f);  // tau = 60 ms = 2646 samples
+        std::vector<float> in(blockSize);
+        std::vector<std::pair<std::size_t, float>> trace;
+        for (std::size_t t = 0; t < kTotal; t += blockSize) {
+            for (std::size_t i = 0; i < blockSize; ++i) {
+                in[i] = generateSine(static_cast<int>(t + i), kRate, 440.0f);
+            }
+            src.processBlock(in.data(), blockSize);
+            trace.emplace_back(t + blockSize, src.getCurrentValue());
+        }
+        const float final = trace.back().second;
+        std::size_t t63 = kTotal;
+        for (const auto& [t, v] : trace) {
+            if (v >= 0.632f * final) { t63 = t; break; }
+        }
+        return std::pair<std::size_t, float>{t63, final};
+    };
+
+    const auto [refT63, refFinal] = track(1);  // per-sample reference
+    REQUIRE(refFinal > 0.3f);                  // not vacuous: 440 Hz was tracked
+    REQUIRE(refT63 < kTotal / 2);
+
+    for (std::size_t blockSize : {64u, 512u}) {
+        const auto [t63, final] = track(blockSize);
+        // A block sees the detector's state at its end and glides for the whole
+        // block, so the glide starts up to one block early and is observed up to
+        // one block late: at most 2 blocks apart. After 15 time constants every
+        // run has settled on the same pitch (1e-3 covers the detector's estimate).
+        // A smoother stepped once per block has covered 1 / blockSize of the glide.
+        INFO("block size " << blockSize << ": 63 % at sample " << t63 << " vs " << refT63
+             << " per sample; 1 s value " << final << " vs " << refFinal);
+        CHECK(std::abs(static_cast<double>(t63) - static_cast<double>(refT63))
+              <= 2.0 * static_cast<double>(blockSize));
+        CHECK(std::abs(final - refFinal) <= 1e-3f);
+    }
+}
 
 TEST_CASE("PitchFollowerSource implements ModulationSource interface", "[processors][pitch_follower]") {
     PitchFollowerSource src;

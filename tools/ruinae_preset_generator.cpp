@@ -3077,6 +3077,8 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.damping = 0.25f;
         s.reverb.modRateHz = 0.2f;
         s.reverb.modDepth = 0.15f;        // owns reverb modulation
+        // keeps its level now the spectral distortion plays every sample and the Pitch Follower tracks in real time
+        s.global.masterGain = 0.792f;
         presets.push_back(std::move(p));
     }
 
@@ -4150,6 +4152,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1;
         s.reverb.size = 0.85f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.85f;
         s.global.width = 1.6f; s.global.spread = 0.4f;
+        // The S&H slew now runs in real time at every buffer size, which pushes the morph tilt much harder:
+        // 0.28 keeps the soft limiter's distortion where it was (-15.5 dB THD+N), 3.4 dB below its old level
+        s.global.masterGain = 0.28f;
         presets.push_back(std::move(p));
     }
 
@@ -5908,7 +5913,9 @@ std::vector<PresetDef> createAllPresets() {
         s.distortion.type = 2;       // Spectral
         s.distortion.drive = 0.5f;
         s.distortion.spectralMode = 3;  // SpectralBitcrush — spectralBits now actually quantizes magnitudes
-        s.distortion.spectralBits = 0.35f; // ~6.25 bits (0-1 -> [1,16], bits=1+x*15) = audible bitcrush
+        // ~4.75 bits (0-1 -> [1,16], bits=1+x*15). Was 0.35 (~6.25 bits) while the bitcrush played broken
+        // frames in Mono; 0.25 restores that grit (-21 dB THD+N vs 16-bit, as the old output stage) now it is fixed
+        s.distortion.spectralBits = 0.25f;
         s.distortion.mix = 0.8f;
         s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 190.0f;
         s.ampEnv.sustain = 0.55f; s.ampEnv.releaseMs = 110.0f;
@@ -5927,6 +5934,8 @@ std::vector<PresetDef> createAllPresets() {
         setModSlot(s, 0, kSrcLFO1, kDstAllSpecTilt, 0.4f, kCurveStepped);
         // Mod identity #2: velocity opens the notch region = dynamics move the hollow
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        // the 2.0 maximum: +6 dB of the +8.7 dB that would restore its level from before the bitcrush fix
+        s.global.masterGain = 2.0f;
         presets.push_back(std::move(p));
     }
 
@@ -6643,6 +6652,7 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.45f;
         s.reverb.mix = 0.3f;
         s.global.width = 1.6f;
+        s.global.masterGain = 1.212f;  // keeps its level now the S&H slew runs in real time at every buffer size
         presets.push_back(std::move(p));
     }
 
@@ -8035,6 +8045,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.95f; s.reverb.mix = 0.42f; s.reverb.damping = 0.55f;
         s.reverb.freeze = 1;         // frozen tail = endless sustain bed
         s.reverb.modRateHz = 0.15f; s.reverb.modDepth = 0.3f; // slow chorus on the wash
+        // keeps its level now the brown noise, the spectral distortion and the Pitch Follower no
+        // longer follow the buffer size (the drone's resonator now tracks the played pitch)
+        s.global.masterGain = 0.316f;
 
         presets.push_back(std::move(p));
     }
@@ -8379,6 +8392,9 @@ std::vector<PresetDef> createAllPresets() {
         // Airy HALL
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
         s.reverb.size = 0.7f; s.reverb.mix = 0.32f; s.reverb.damping = 0.5f;
+        // +2 dB: its noise peaks sat 19.5 dB under the bank's median, at the quietness floor, and the
+        // noise-colour fix (2026-11-13) moved its single-note peak by 1.4 dB (its RMS by 0.15 dB)
+        s.global.masterGain = 1.259f;
         presets.push_back(std::move(p));
     }
 

@@ -331,9 +331,17 @@ public:
         // Noise
         else if constexpr (std::is_same_v<OscT, NoiseOscillator>) {
             switch (param) {
-                case OscParam::NoiseColor:
-                    osc_.setColor(static_cast<NoiseColor>(static_cast<int>(value)));
+                case OscParam::NoiseColor: {
+                    // setColor() resets the colouring filters on every call, and
+                    // hosts re-send parameters every block: forwarding an
+                    // unchanged colour restarted brown noise from zero each
+                    // block, so its level followed the block size.
+                    const auto color = static_cast<NoiseColor>(static_cast<int>(value));
+                    if (color != osc_.color()) {
+                        osc_.setColor(color);
+                    }
                     break;
+                }
                 default: break;
             }
         }

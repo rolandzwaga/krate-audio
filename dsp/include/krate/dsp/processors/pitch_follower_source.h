@@ -81,19 +81,16 @@ public:
         for (size_t i = 0; i < numSamples; ++i) {
             detector_.push(monoInput[i]);
         }
-        process();
+        updateTarget();
+        // Advance the tracking glide by the whole block: one process() step per
+        // call made Tracking Speed numSamples times slower, so it followed the
+        // host's block size.
+        outputSmoother_.advanceSamples(numSamples);
     }
 
     /// @brief Update modulation output from latest pitch detection.
     void process() noexcept {
-        float freq = detector_.getDetectedFrequency();
-        float conf = detector_.getConfidence();
-
-        if (conf >= confidenceThreshold_ && freq > 0.0f) {
-            lastValidValue_ = hzToModValue(freq);
-        }
-
-        outputSmoother_.setTarget(lastValidValue_);
+        updateTarget();
         static_cast<void>(outputSmoother_.process());
     }
 
@@ -131,6 +128,18 @@ public:
     [[nodiscard]] float getTrackingSpeed() const noexcept { return trackingSpeedMs_; }
 
 private:
+    /// @brief Point the tracking glide at the latest confident detection.
+    void updateTarget() noexcept {
+        const float freq = detector_.getDetectedFrequency();
+        const float conf = detector_.getConfidence();
+
+        if (conf >= confidenceThreshold_ && freq > 0.0f) {
+            lastValidValue_ = hzToModValue(freq);
+        }
+
+        outputSmoother_.setTarget(lastValidValue_);
+    }
+
     /// @brief Convert frequency to normalized modulation value using log mapping.
     [[nodiscard]] float hzToModValue(float hz) const noexcept {
         // Logarithmic mapping via MIDI note numbers

@@ -235,6 +235,93 @@ TEST_CASE("SpectralDistortion latency() returns FFT size (FR-004, SC-003)", "[sp
     }
 }
 
+// A host picks the block size, so the distortion must not depend on it.
+// processBlock used to pull at most one block's worth of each new hop and
+// zero-fill every block in which no frame completed: with Ruinae's 512-point FFT
+// it played one 64-sample block in four, and in a 32-sample Mono step one in
+// eight, and stacked later frames at the wrong overlap offset. That made Ruinae's
+// Spectral-distortion presets 3-5 dB quieter at 64-sample buffers than at 512
+// (Glitch Step, Half Time Crush, Rusted Circuit). The output must be the same
+// stream, delayed by latency(), for every partition of the input.
+TEST_CASE("SpectralDistortion output does not depend on the block size",
+          "[spectral_distortion][latency][block_size]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t fftSize = 512;  // Ruinae's per-voice size
+    constexpr std::size_t numSamples = 32768;
+
+    std::vector<float> input(numSamples);
+    generateComplexSignal(input.data(), numSamples, sampleRate);
+
+    const auto render = [&](SpectralDistortionMode mode, float drive, std::size_t blockSize) {
+        SpectralDistortion dist;
+        dist.prepare(sampleRate, fftSize);
+        dist.setMode(mode);
+        dist.setDrive(drive);
+        dist.setMagnitudeBits(3.0f);
+        std::vector<float> out(numSamples, -1.0f);
+        for (std::size_t pos = 0; pos < numSamples; pos += blockSize) {
+            const std::size_t n = std::min(blockSize, numSamples - pos);
+            dist.processBlock(input.data() + pos, out.data() + pos, n);
+        }
+        return out;
+    };
+
+    SECTION("every partition renders the same stream as 512-sample blocks") {
+        // Every partition feeds the same samples into the same STFT frames at the
+        // same absolute positions and runs the same frame-clocked arithmetic, so a
+        // partition-independent implementation differs only by float noise. 1e-6
+        // (-120 dB re unit amplitude) is far below anything audible and far
+        // below the partition errors of the old code (order of the signal).
+        for (auto mode : {SpectralDistortionMode::SpectralBitcrush,
+                          SpectralDistortionMode::PerBinSaturate}) {
+            const auto reference = render(mode, 4.0f, 512);
+            const float refRms = calculateRMS(reference.data() + 2 * fftSize, numSamples - 2 * fftSize);
+            REQUIRE(refRms > 0.05f);  // not vacuous: the distortion produces signal
+
+            for (std::size_t blockSize : {1u, 32u, 37u, 64u, 128u, 1000u, 4096u}) {
+                const auto out = render(mode, 4.0f, blockSize);
+                float maxDiff = 0.0f;
+                std::size_t worst = 0;
+                for (std::size_t i = 0; i < numSamples; ++i) {
+                    const float d = std::abs(out[i] - reference[i]);
+                    if (d > maxDiff) { maxDiff = d; worst = i; }
+                }
+                INFO("mode " << static_cast<int>(mode) << ", block size " << blockSize
+                     << ": max |diff| " << maxDiff << " at sample " << worst << ", RMS "
+                     << linearToDb(calculateRMS(out.data() + 2 * fftSize, numSamples - 2 * fftSize))
+                     << " dB vs reference " << linearToDb(refRms) << " dB");
+                CHECK(maxDiff <= 1e-6f);
+            }
+        }
+    }
+
+    SECTION("the delay is the reported latency at every block size") {
+        // drive 0 bypasses the distortion (FR-019) and Hann at 50 % overlap is
+        // COLA, so the output must be the input delayed by exactly latency().
+        // 1e-4 covers the FFT round trip; a one-sample misalignment of the
+        // signal's 1320 Hz partial alone is ~0.04, of its 0.5 clicks ~0.5.
+        SpectralDistortion probe;
+        probe.prepare(sampleRate, fftSize);
+        const std::size_t latency = probe.latency();
+        REQUIRE(latency == fftSize);
+
+        for (std::size_t blockSize : {64u, 512u, 1000u}) {
+            const auto out = render(SpectralDistortionMode::PerBinSaturate, 0.0f, blockSize);
+            float maxErr = 0.0f;
+            // Skip the first frame (only one window contributes there).
+            for (std::size_t i = latency + fftSize; i < numSamples; ++i) {
+                maxErr = std::max(maxErr, std::abs(out[i] - input[i - latency]));
+            }
+            float maxLead = 0.0f;
+            for (std::size_t i = 0; i < latency; ++i) maxLead = std::max(maxLead, std::abs(out[i]));
+            INFO("block size " << blockSize << ": max |out[n] - in[n - latency]| " << maxErr
+                 << ", max |out| before the latency " << maxLead);
+            CHECK(maxErr <= 1e-4f);
+            CHECK(maxLead == 0.0f);
+        }
+    }
+}
+
 TEST_CASE("SpectralDistortion isPrepared() state tracking", "[spectral_distortion][foundation]") {
     SpectralDistortion distortion;
 
@@ -391,20 +478,23 @@ TEST_CASE("SpectralDistortion MagnitudeOnly phase preservation < 0.001 radians (
 
     distortion.processBlock(input.data(), output.data(), bufferSize);
 
-    // Compare after latency warmup
-    const std::size_t latency = fftSize;
+    // Compare after latency warmup, against the input delayed by the reported
+    // latency (the comparison used to be undelayed, which only held because
+    // processBlock ran ahead of its latency inside one long block).
+    const std::size_t latency = distortion.latency();
+    REQUIRE(latency == fftSize);
     const std::size_t compareStart = latency + 2048;  // Skip initial transient
     const std::size_t compareLength = 4096;
 
     // Normalize both to unit peak for comparison
-    float inputPeak = calculatePeak(input.data() + compareStart, compareLength);
+    float inputPeak = calculatePeak(input.data() + compareStart - latency, compareLength);
     float outputPeak = calculatePeak(output.data() + compareStart, compareLength);
 
     if (inputPeak > 1e-10f && outputPeak > 1e-10f) {
         // Compute normalized correlation coefficient
         float sumXY = 0.0f, sumX2 = 0.0f, sumY2 = 0.0f;
         for (std::size_t i = 0; i < compareLength; ++i) {
-            float x = input[compareStart + i] / inputPeak;
+            float x = input[compareStart - latency + i] / inputPeak;
             float y = output[compareStart + i] / outputPeak;
             sumXY += x * y;
             sumX2 += x * x;
@@ -560,8 +650,14 @@ TEST_CASE("SpectralDistortion round-trip reconstruction < -60dB error (SC-005)",
 
     distortion.processBlock(input.data(), output.data(), bufferSize);
 
-    // Find actual delay via cross-correlation search around expected latency
-    const std::size_t expectedLatency = fftSize;
+    // Find actual delay via cross-correlation search around expected latency.
+    // The delay is searched relative to an input region past the warm-up
+    // (kStart): the search used to look for the output at an absolute position
+    // around the latency, which only found it because processBlock ran ahead of
+    // its latency inside one long block.
+    const std::size_t expectedLatency = distortion.latency();
+    REQUIRE(expectedLatency == fftSize);
+    const std::size_t kStart = fftSize;
     const std::size_t searchRadius = fftSize;
     const std::size_t compareLength = 4096;
 
@@ -570,12 +666,12 @@ TEST_CASE("SpectralDistortion round-trip reconstruction < -60dB error (SC-005)",
 
     // Search for best alignment
     for (std::size_t delay = expectedLatency / 2; delay < expectedLatency + searchRadius; ++delay) {
-        if (delay + compareLength > bufferSize) break;
+        if (kStart + delay + compareLength > bufferSize) break;
 
         float sumXY = 0.0f, sumX2 = 0.0f, sumY2 = 0.0f;
         for (std::size_t i = 0; i < compareLength; ++i) {
-            float x = input[i + expectedLatency];  // Input region past warmup
-            float y = output[i + delay];           // Output at candidate delay
+            float x = input[kStart + i];            // Input region past warmup
+            float y = output[kStart + i + delay];   // Output at candidate delay
             sumXY += x * y;
             sumX2 += x * x;
             sumY2 += y * y;
@@ -592,8 +688,8 @@ TEST_CASE("SpectralDistortion round-trip reconstruction < -60dB error (SC-005)",
 
     // Calculate error at best alignment
     float errorDb = calculateErrorDb(
-        input.data() + expectedLatency,
-        output.data() + bestDelay,
+        input.data() + kStart,
+        output.data() + kStart + bestDelay,
         compareLength
     );
 

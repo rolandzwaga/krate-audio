@@ -150,7 +150,12 @@ public:
     /// When switching away from or to Triangle, the leaky integrator state is cleared.
     /// Phase is maintained for continuity.
     /// @param waveform The waveform to generate
+    /// @note Re-selecting the current waveform is a no-op: hosts re-send
+    ///       parameters every block, and clearing the triangle's integrator each
+    ///       time restarted it from zero per block, so its level (a 65 Hz
+    ///       triangle: 8 dB at 64-sample blocks) followed the block size.
     void setWaveform(OscWaveform waveform) noexcept {
+        if (waveform == waveform_) return;
         // Clear integrator when entering or leaving Triangle (FR-007)
         if (waveform_ == OscWaveform::Triangle || waveform == OscWaveform::Triangle) {
             integrator_ = 0.0f;

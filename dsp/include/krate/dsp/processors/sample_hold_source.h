@@ -84,7 +84,9 @@ public:
             outputSmoother_.configure(slewMs_, static_cast<float>(sampleRate_));
             outputSmoother_.setTarget(heldValue_);
         }
-        static_cast<void>(outputSmoother_.process());
+        // Advance the slew by the whole block: one process() step per call made
+        // Slew numSamples times slower, so it followed the host's block size.
+        outputSmoother_.advanceSamples(numSamples);
     }
 
     /// @brief Process one sample.
