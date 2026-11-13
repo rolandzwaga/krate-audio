@@ -1634,3 +1634,70 @@ TEST_CASE("Mono portamento renders smoothly across chunk boundaries",
         REQUIRE(std::isfinite(s));
     }
 }
+
+// Mod-matrix destinations used to reach the voices once per host buffer: the
+// global modulation engine ran once per process() call and its AllVoice offsets
+// (morph position, cutoff, resonance, tilt, trance gate rate, filter env amount)
+// were held for the whole buffer, and each voice rendered the buffer in one call,
+// so its own routes were block-rate too. At 2048-sample buffers a morph route
+// stepped every 46 ms: Granular Fog (Smooth Random LFO -> morph, 90 ms smoothing)
+// clicked at note-ons with steps of 0.6-0.8 against 0.16 at 64-sample buffers.
+// The engine must apply modulation on a fixed sub-block grid inside every buffer,
+// so that a 2048-sample buffer renders what 64-sample buffers render.
+TEST_CASE("RuinaeEngine modulation reaches the voices in sub-steps inside large buffers",
+          "[ruinae-engine][modulation][block_size]") {
+    constexpr double kRate = 44100.0;
+    constexpr size_t kLen = size_t{2} * 44032;  // ~2 s, a multiple of 2048
+    constexpr size_t kSecondNoteAt = 43008; // 21 * 2048: a buffer start at both sizes
+
+    const auto render = [&](size_t blockSize) {
+        RuinaeEngine engine;
+        engine.prepare(kRate, 2048);
+        engine.setOscAParam(OscParam::Waveform, 0.0f);  // sine
+        engine.setOscBLevel(0.0f);                      // morph = A's level: out ~ (1 - morph)
+        engine.setMixMode(MixMode::CrossfadeMix);
+        engine.setMixPosition(0.3f);
+        engine.setFilterCutoff(20000.0f);
+        engine.setAmpAttack(1.0f);
+        engine.setAmpSustain(1.0f);
+        engine.setGlobalLFO1Rate(3.0f);
+        engine.setGlobalLFO1Waveform(Waveform::Sine);
+        // Granular Fog's morph route: amount 0.5, 90 ms signal smoothing.
+        engine.setGlobalModRoute(0, ModSource::LFO1, RuinaeModDest::AllVoiceMorphPosition, 0.5f,
+                                 ModCurve::Linear, 1.0f, false, 90.0f);
+        std::vector<float> left(kLen, 0.0f);
+        std::vector<float> right(kLen, 0.0f);
+        for (size_t pos = 0; pos < kLen; pos += blockSize) {
+            if (pos == 0) engine.noteOn(57, 100);
+            if (pos == kSecondNoteAt) engine.noteOn(64, 100);
+            engine.processBlock(left.data() + pos, right.data() + pos, blockSize);
+        }
+        return left;
+    };
+
+    const auto small = render(64);
+    const auto large = render(2048);
+    REQUIRE(computeRMS(small.data(), kLen) > 0.05f);  // not vacuous
+
+    float maxDiff = 0.0f;
+    size_t worst = 0;
+    float stepSmall = 0.0f;
+    float stepLarge = 0.0f;
+    for (size_t i = 0; i < kLen; ++i) {
+        const float d = std::abs(large[i] - small[i]);
+        if (d > maxDiff) { maxDiff = d; worst = i; }
+        if (i > 0) {
+            stepSmall = std::max(stepSmall, std::abs(small[i] - small[i - 1]));
+            stepLarge = std::max(stepLarge, std::abs(large[i] - large[i - 1]));
+        }
+    }
+    // With modulation on the same sub-block grid, both buffer sizes call every
+    // voice with the same sub-blocks and the same offsets, so they render the
+    // same samples; 1e-5 (-100 dB) only absorbs float noise. A morph held for a
+    // whole 2048-sample buffer misses the 64-sample trajectory by up to the
+    // route's swing within one buffer (order 0.1 here).
+    INFO("max |2048 - 64| " << maxDiff << " at sample " << worst << "; max step " << stepLarge
+         << " at 2048 against " << stepSmall << " at 64");
+    CHECK(maxDiff <= 1e-5f);
+    CHECK(std::abs(stepLarge - stepSmall) <= 1e-5f);
+}

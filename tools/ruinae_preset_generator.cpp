@@ -8100,8 +8100,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.freeze = 1;         // frozen tail = endless sustain bed
         s.reverb.modRateHz = 0.15f; s.reverb.modDepth = 0.3f; // slow chorus on the wash
         // keeps its level now the brown noise, the spectral distortion and the Pitch Follower no
-        // longer follow the buffer size (the drone's resonator now tracks the played pitch)
-        s.global.masterGain = 0.316f;
+        // longer follow the buffer size (the drone's resonator now tracks the played pitch); 0.316 -> 0.396 keeps
+        // that level now its modulation reaches the voice every 64 samples (it came out 2.0 dB quieter at 512)
+        s.global.masterGain = 0.396f;
 
         presets.push_back(std::move(p));
     }
@@ -9494,8 +9495,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.sync = 0;
         s.global.spread = 0.2f;
         // Additive partial sum no longer clips (2026-11-13):
-        // re-levelled toward the Modulation median (-9.7 dBFS), held to a -1 dBFS peak
-        p.state.global.masterGain = 0.646f;
+        // re-levelled toward the Modulation median (-9.7 dBFS), held to a -1 dBFS peak; 0.646 -> 0.491 keeps that
+        // level now its modulation reaches the voices every 64 samples (it came out 2.4 dB louder at 512)
+        p.state.global.masterGain = 0.491f;
         presets.push_back(std::move(p));
     }
 

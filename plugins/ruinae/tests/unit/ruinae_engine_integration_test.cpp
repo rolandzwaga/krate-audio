@@ -1559,8 +1559,16 @@ TEST_CASE("RuinaeEngine regression: Chaos source produces audible filter modulat
     engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f,
                             .width = 1.0f, .mix = 0.0f});
 
-    // Chaos source at speed 5 → AllVoiceFilterCutoff, full amount
-    engine.setChaosSpeed(5.0f);
+    // Chaos source at speed 1 → AllVoiceFilterCutoff, full amount.
+    // Speed 1, not 5: at speed 5 the Lorenz attractor swings the cutoff about
+    // 50 times a second, faster than the 512-sample RMS window below. The
+    // engine used to hold each modulation value for the whole block, which
+    // sampled that motion into one cutoff per block and made the per-block RMS
+    // vary; since modulation reaches the voices every 64 samples, the window
+    // averages it out (variation 1.02 at speed 5). At speed 1 the motion is
+    // slower than the window (variation 2.5), so this still tells a moving
+    // attractor from a frozen one.
+    engine.setChaosSpeed(1.0f);
     engine.setChaosModel(ChaosModel::Lorenz);
     engine.setGlobalModRoute(0, ModSource::Chaos,
                              RuinaeModDest::AllVoiceFilterCutoff, 1.0f,
