@@ -30,7 +30,13 @@ const REQUIRED = path.join(APP_DIR, 'tests', 'required-tests.json');
 const PACKAGE_JSON = path.join(APP_DIR, 'package.json');
 
 function readText(file) {
-  return fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+  return unpinActions(fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
+}
+
+// Third-party actions are pinned by commit SHA with the release as a comment (`owner/repo@<40 hex> # vX.Y.Z`, kept
+// current by Dependabot). Read as `owner/repo@pinned`: a moved pin stays green, an unpinned `@v6` reference fails.
+function unpinActions(text) {
+  return text.replace(/@[0-9a-f]{40} # v\d+(?:\.\d+)*/g, '@pinned');
 }
 
 function readFiles() {
@@ -167,11 +173,11 @@ const PLIST = `${APP}/Contents/Info.plist`;
 
 // Plan §4.16: the steps in order (unnamed `uses:` steps by their action).
 const STEPS = [
-  'uses: actions/checkout@v6',
-  'uses: actions/setup-node@v4',
+  'uses: actions/checkout@pinned',
+  'uses: actions/setup-node@pinned',
   'Linux system packages',
   'Rust toolchain',
-  'uses: Swatinem/rust-cache@v2',
+  'uses: Swatinem/rust-cache@pinned',
   'npm ci',
   'version lint',
   'cargo fmt',
@@ -547,7 +553,7 @@ const MANUAL = 'manual-elevation';
 const MANUAL_STEP = 'clippy manual-elevation example';
 // FR-106 (SI-29): only in helper-elevated / inno-locked-file.
 const ELEVATED_ONLY = ['pkgbuild', '/usr/sbin/installer', 'installer -pkg', 'Minionguyjpro/Inno-Setup-Action', 'ISCC'];
-const INNO_ACTION = 'uses: Minionguyjpro/Inno-Setup-Action@v1.2.7';
+const INNO_ACTION = 'uses: Minionguyjpro/Inno-Setup-Action@pinned';
 // FR-106: the helper binary run with an argument (one line: spaces or tabs, then --job, --ci-roots or a $-variable).
 const HELPER_RUN = /krate-manager-helper(?:\.exe)?['"]?[ \t]+(?:--job|--ci-roots|\$)/g;
 // FR-100: the Windows run form of the GUI-subsystem helper; macOS runs it under sudo.
@@ -604,7 +610,7 @@ function checkElevatedJobs(wf, bad) {
     bad.push(`changes.outputs ${JSON.stringify(outputs)}`);
   }
   const labels = steps.changes.map((s) => s.label);
-  if (!util.isDeepStrictEqual(labels, ['uses: actions/checkout@v6', 'changed paths'])) {
+  if (!util.isDeepStrictEqual(labels, ['uses: actions/checkout@pinned', 'changed paths'])) {
     bad.push(`changes: steps ${JSON.stringify(labels)}`);
   }
   const checkout = steps.changes[0];
@@ -1389,9 +1395,9 @@ function checkSteps(wf, steps, bad) {
   }
   const step = (n) => byName.get(n) || null;
 
-  const node = step('uses: actions/setup-node@v4');
+  const node = step('uses: actions/setup-node@pinned');
   if (node && field(node.text, 10, 'node-version') !== "'24'") bad.push('setup-node: node-version is not \'24\'');
-  const cache = step('uses: Swatinem/rust-cache@v2');
+  const cache = step('uses: Swatinem/rust-cache@pinned');
   if (cache && field(cache.text, 10, 'workspaces') !== 'apps/krate-manager -> target') {
     bad.push('rust-cache: workspaces is not apps/krate-manager -> target');
   }

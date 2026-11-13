@@ -16,7 +16,13 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const WORKFLOWS = path.join(REPO_ROOT, '.github', 'workflows');
 
 function readWorkflow(name) {
-  return fs.readFileSync(path.join(WORKFLOWS, name), 'utf8').replace(/\r\n/g, '\n');
+  return unpinActions(fs.readFileSync(path.join(WORKFLOWS, name), 'utf8').replace(/\r\n/g, '\n'));
+}
+
+// Third-party actions are pinned by commit SHA with the release as a comment (`owner/repo@<40 hex> # vX.Y.Z`, kept
+// current by Dependabot). Read as `owner/repo@pinned`: a moved pin stays green, an unpinned `@v6` reference fails.
+function unpinActions(text) {
+  return text.replace(/@[0-9a-f]{40} # v\d+(?:\.\d+)*/g, '@pinned');
 }
 
 function indentOf(line) {
@@ -272,10 +278,10 @@ test('release.yml and backfill-sign.yml keep the Phase 2 shape', async (t) => {
   });
 
   await t.test('release.yml: one build-provenance attestation, real runs only, of the three installers', () => {
-    assert.equal(count(rel, /actions\/attest-build-provenance@v4/g), 1);
+    assert.equal(count(rel, /actions\/attest-build-provenance@/g), 1);
     assert.equal(rel.includes('actions/attest@'), false);
     const step = stepByName(release, 'Attest build provenance', 'release');
-    assert.ok(step.text.includes('uses: actions/attest-build-provenance@v4'), 'the attestation step uses the action');
+    assert.ok(step.text.includes('uses: actions/attest-build-provenance@pinned'), 'the attestation step uses the action');
     assert.match(field(step.text, 8, 'if') ?? '', NOT_DRY);
     const subjects = (nested(step.text, 10, 'subject-path') ?? []).map((l) => l.trim()).filter((l) => l !== '');
     assert.deepEqual(subjects, ASSETS);
@@ -844,11 +850,11 @@ test('feed.yml and release.yml keep the Phase 3 shape', async (t) => {
     const build = steps.get('build');
     assert.deepEqual(build.map((s) => s.name), FEED_STEPS);
     const checkout = stepByName(build, 'Checkout', 'build');
-    assert.equal(field(checkout.text, 8, 'uses'), 'actions/checkout@v6');
+    assert.equal(field(checkout.text, 8, 'uses'), 'actions/checkout@pinned');
     assert.equal(nested(checkout.text, 8, 'with'), null, 'build checkout has a with: block');
     assert.equal(/\b(?:ref|fetch-depth):/.test(checkout.text), false, 'build checkout sets ref or fetch-depth');
     const node = stepByName(build, 'Setup Node', 'build');
-    assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@v4');
+    assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@pinned');
     assert.equal(field(node.text, 10, 'node-version'), "'24'");
     assert.equal(field(stepByName(build, 'Collect releases', 'build').text, 8, 'id'), 'collect');
     assert.equal(field(stepByName(build, 'Generate feed', 'build').text, 8, 'id'), 'generate');
@@ -893,14 +899,14 @@ test('feed.yml and release.yml keep the Phase 3 shape', async (t) => {
   await t.test('feed.yml: Upload site fails without files; Upload evidence always runs (FR-011)', () => {
     const build = fd().steps.get('build');
     const site = stepByName(build, 'Upload site', 'build');
-    assert.equal(field(site.text, 8, 'uses'), 'actions/upload-artifact@v7');
+    assert.equal(field(site.text, 8, 'uses'), 'actions/upload-artifact@pinned');
     assert.equal(field(site.text, 10, 'name'), 'feed-site');
     assert.equal(field(site.text, 10, 'path'), '_site/');
     assert.equal(field(site.text, 10, 'if-no-files-found'), 'error');
     assert.equal(field(site.text, 8, 'if'), null);
     const evidence = stepByName(build, 'Upload evidence', 'build');
     assert.equal(field(evidence.text, 8, 'if'), 'always()');
-    assert.equal(field(evidence.text, 8, 'uses'), 'actions/upload-artifact@v7');
+    assert.equal(field(evidence.text, 8, 'uses'), 'actions/upload-artifact@pinned');
     assert.equal(field(evidence.text, 10, 'name'), 'feed-evidence');
     assert.equal(field(evidence.text, 10, 'path'), '${{ runner.temp }}/feed-in/');
     assert.equal(field(evidence.text, 10, 'if-no-files-found'), 'warn');
@@ -917,11 +923,11 @@ test('feed.yml and release.yml keep the Phase 3 shape', async (t) => {
     const deploy = steps.get('deploy');
     assert.deepEqual(deploy.map((s) => s.name), ['Download site', 'Deploy to gh-pages']);
     const download = deploy[0];
-    assert.equal(field(download.text, 8, 'uses'), 'actions/download-artifact@v8');
+    assert.equal(field(download.text, 8, 'uses'), 'actions/download-artifact@pinned');
     assert.equal(field(download.text, 10, 'name'), 'feed-site');
     assert.equal(field(download.text, 10, 'path'), '_site');
     const push = deploy[1];
-    assert.equal(field(push.text, 8, 'uses'), 'peaceiris/actions-gh-pages@v4');
+    assert.equal(field(push.text, 8, 'uses'), 'peaceiris/actions-gh-pages@pinned');
     assert.equal(field(push.text, 8, 'if'), null);
     assert.deepEqual(trimmed(nested(push.text, 8, 'with')), [
       'github_token: ${{ github.token }}',
@@ -942,7 +948,7 @@ test('feed.yml and release.yml keep the Phase 3 shape', async (t) => {
     const verdict = steps.get('verdict');
     assert.deepEqual(verdict.map((s) => s.name), VERDICT_STEPS);
     const evidence = stepByName(verdict, 'Download evidence', 'verdict');
-    assert.equal(field(evidence.text, 8, 'uses'), 'actions/download-artifact@v8');
+    assert.equal(field(evidence.text, 8, 'uses'), 'actions/download-artifact@pinned');
     assert.equal(field(evidence.text, 8, 'continue-on-error'), 'true');
     assert.equal(field(evidence.text, 10, 'name'), 'feed-evidence');
     assert.equal(field(evidence.text, 10, 'path'), '${{ runner.temp }}/evidence');
@@ -975,7 +981,7 @@ test('feed.yml and release.yml keep the Phase 3 shape', async (t) => {
     const ci = readWorkflow('ci.yml');
     const filterSteps = [];
     for (const j of jobNames(ci)) {
-      for (const s of stepBlocks(jobBlock(ci, j))) if (field(s.text, 8, 'uses') === 'dorny/paths-filter@v3') filterSteps.push(s);
+      for (const s of stepBlocks(jobBlock(ci, j))) if (field(s.text, 8, 'uses') === 'dorny/paths-filter@pinned') filterSteps.push(s);
     }
     assert.equal(filterSteps.length, 1, 'ci.yml: one dorny/paths-filter step');
     const filters = nested(filterSteps[0].text, 10, 'filters');
@@ -993,7 +999,7 @@ const LANDING_FIXTURES = path.join(REPO_ROOT, 'tools', 'feed-contract', 'fixture
 const ROOT_INDEX_CALL = 'node tools/gen-root-index.js --out _site/index.html';
 const SETUP_NODE_STEP = [
   '      - name: Setup Node',
-  '        uses: actions/setup-node@v4',
+  '        uses: actions/setup-node@pinned',
   '        with:',
   "          node-version: '24'",
   '',
@@ -1029,8 +1035,12 @@ const FEED_TOOLS_PHASE12_PATHS = [
   'specs/krate-manager-phase12/user-checks.md',
 ];
 
+// The snapshots predate the SHA pins: their `uses: owner/repo@vN` refs read as `@pinned`, like the live files.
 function readSnapshot(name) {
-  return fs.readFileSync(path.join(LANDING_FIXTURES, `${name}.pre-phase12`), 'utf8').replace(/\r\n/g, '\n');
+  return fs
+    .readFileSync(path.join(LANDING_FIXTURES, `${name}.pre-phase12`), 'utf8')
+    .replace(/\r\n/g, '\n')
+    .replace(/^(\s*(?:- )?uses: [^\s@]+)@\S+$/gm, '$1@pinned');
 }
 
 /** The snapshot with exactly the PD-23 / PD-24 edit applied. */
@@ -1072,7 +1082,7 @@ test('landing pages render with gen-root-index.js', async (t) => {
     const root = stepByName(steps, 'Generate Root Index', 'deploy-pages');
     const node = steps[root.index - 1];
     assert.equal(node.name, 'Setup Node');
-    assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@v4');
+    assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@pinned');
     assert.equal(field(node.text, 10, 'node-version'), "'24'");
     assert.equal(root.text.includes('python3'), false, 'Generate Root Index holds python3');
     assert.equal(scriptLines(root).filter((l) => l === ROOT_INDEX_CALL).length, 1);
@@ -1085,7 +1095,7 @@ test('landing pages render with gen-root-index.js', async (t) => {
     const steps = stepBlocks(jobBlock(docs, 'build-and-deploy'));
     assert.deepEqual(steps.map((s) => s.name), DOCS_STEPS);
     const node = stepByName(steps, 'Setup Node', 'build-and-deploy');
-    assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@v4');
+    assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@pinned');
     assert.equal(field(node.text, 10, 'node-version'), "'24'");
     const build = stepByName(steps, 'Build Manuals and Landing Pages', 'build-and-deploy');
     assert.equal(build.text.includes('python3'), false, 'the landing step holds python3');

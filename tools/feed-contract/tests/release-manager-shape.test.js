@@ -21,7 +21,13 @@ const MANAGER_CI = path.join(REPO_ROOT, '.github', 'workflows', 'manager-ci.yml'
 const PLUGINS_DIR = path.join(REPO_ROOT, 'plugins');
 
 function readText(file) {
-  return fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+  return unpinActions(fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
+}
+
+// Third-party actions are pinned by commit SHA with the release as a comment (`owner/repo@<40 hex> # vX.Y.Z`, kept
+// current by Dependabot). Read as `owner/repo@pinned`: a moved pin stays green, an unpinned `@v6` reference fails.
+function unpinActions(text) {
+  return text.replace(/@[0-9a-f]{40} # v\d+(?:\.\d+)*/g, '@pinned');
 }
 
 // --- YAML-text helpers (copied verbatim from manager-ci-shape.test.js:43-151).
@@ -455,7 +461,7 @@ function checkSigningJobs(wf, bad) {
     if (!next || next.name !== 'delete signing key (after signing)' || !scriptLines(next).includes(DELETE_LINE)) {
       bad.push(`${job}: the step after sign updater artifacts is not delete signing key (after signing) (SI-20)`);
     }
-    const checkout = steps.find((s) => usesOf(s) === 'actions/checkout@v6');
+    const checkout = steps.find((s) => usesOf(s) === 'actions/checkout@pinned');
     if (!checkout || !stepWith(checkout).includes('sparse-checkout: tools')) bad.push(`${job}: checkout is not sparse-checkout: tools`);
   }
   if (sign.length !== dry.length) bad.push(`sign and sign-dry: ${sign.length} and ${dry.length} steps (SI-20)`);
@@ -574,7 +580,7 @@ function checkBuild(wf, bad) {
   if (ctr && !runText(ctr).includes('src-tauri/binaries/krate-manager-helper-')) bad.push('build: ci-temp-roots absent lacks the SI-10 Linux form');
   const legKey = named(steps, 'leg key is not the release key')[0];
   if (legKey && !runText(legKey).includes('does not match the public key from')) bad.push('build: leg key step does not read the CLI warning (PD-23)');
-  const uploads = steps.filter((s) => usesOf(s) === 'actions/upload-artifact@v7' && stepWith(s).some((l) => l.includes('release-assets')));
+  const uploads = steps.filter((s) => usesOf(s) === 'actions/upload-artifact@pinned' && stepWith(s).some((l) => l.includes('release-assets')));
   if (uploads.length === 0) bad.push('build: no release-assets upload');
   for (const u of uploads) {
     if (!stepWith(u).includes('!apps/krate-manager/target/release-assets/*.sig')) bad.push('build: a release-assets upload does not exclude *.sig (PD-23)');
@@ -645,7 +651,7 @@ function checkPackageMacos(wf, bad) {
   if (!run.includes("xmllint --xpath 'count(//relocate/*)'") || !/"\$relocated" (!=|=) "0"/.test(run)) {
     bad.push("package-macos: pkg facts does not require xmllint --xpath 'count(//relocate/*)' to print 0 (SI-37)");
   }
-  if (!steps.some((s) => usesOf(s) === 'actions/upload-artifact@v7' && stepWith(s).includes('name: packageinfo'))) {
+  if (!steps.some((s) => usesOf(s) === 'actions/upload-artifact@pinned' && stepWith(s).includes('name: packageinfo'))) {
     bad.push('package-macos: no packageinfo upload (SI-37)');
   }
   const own = named(steps, 'pkgbuild')[0];
@@ -856,7 +862,7 @@ function insertAfter(text, job, after, stepText) {
 
 const CACHE_STEP = [
   '      - name: Cache rsign2',
-  '        uses: actions/cache@v5',
+  '        uses: actions/cache@pinned',
   '        with:',
   '          path: ~/.cargo/bin/rsign',
   '          key: rsign2-0.6.7-${{ runner.os }}-${{ runner.arch }}',
@@ -875,7 +881,7 @@ const MUTATIONS = [
   ],
   [
     'a second step in main-only',
-    (w) => insertAfter(w, 'main-only', 'main-only', '      - uses: actions/checkout@v6'),
+    (w) => insertAfter(w, 'main-only', 'main-only', '      - uses: actions/checkout@pinned'),
     /main-only: 2 steps/,
   ],
   [
@@ -999,7 +1005,7 @@ test('release-manager.yml keeps the Phase 11 shape', async (t) => {
     assert.ok(block, `no job ${job}`);
     assert.equal(field(block, 4, 'runs-on'), 'ubuntu-24.04', `${job}: runs-on`);
     const steps = stepBlocks(block);
-    assert.deepEqual(steps.map((s) => usesOf(s) || s.name), ['actions/checkout@v6', 'actions/setup-node@v4', 'render', last], `${job}: steps`);
+    assert.deepEqual(steps.map((s) => usesOf(s) || s.name), ['actions/checkout@pinned', 'actions/setup-node@pinned', 'render', last], `${job}: steps`);
     assert.deepEqual(stepWith(steps[0]), ['fetch-depth: 0'], `${job}: checkout`);
     assert.deepEqual(stepWith(steps[1]), ["node-version: '24'"], `${job}: setup-node`);
     assert.deepEqual(scriptLines(steps[2]), [LANDING_RENDER], `${job}: render run`);
@@ -1008,7 +1014,7 @@ test('release-manager.yml keeps the Phase 11 shape', async (t) => {
   };
 
   await t.test('landing: needs [preflight, feed], real runs only, contents: write, render then gh-pages with keep_files (PD-25, FR-085)', () => {
-    const { block, steps } = landingJob('landing', 'peaceiris/actions-gh-pages@v4');
+    const { block, steps } = landingJob('landing', 'peaceiris/actions-gh-pages@pinned');
     assert.equal(field(block, 4, 'needs'), '[preflight, feed]');
     assert.equal(field(block, 4, 'if'), REAL);
     assert.deepEqual(trimmed(nested(block, 4, 'permissions')), ['contents: write']);
@@ -1017,7 +1023,7 @@ test('release-manager.yml keeps the Phase 11 shape', async (t) => {
   });
 
   await t.test('landing-dry: needs [preflight, feed-dry], dry runs only, contents: read, the same render, uploaded, never deployed (PD-25, FR-085)', () => {
-    const { block, steps } = landingJob('landing-dry', 'actions/upload-artifact@v7');
+    const { block, steps } = landingJob('landing-dry', 'actions/upload-artifact@pinned');
     assert.equal(field(block, 4, 'needs'), '[preflight, feed-dry]');
     assert.equal(field(block, 4, 'if'), DRY);
     assert.deepEqual(trimmed(nested(block, 4, 'permissions')), ['contents: read']);
